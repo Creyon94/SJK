@@ -326,8 +326,10 @@ pub(crate) mod lights {
 /// 2 tuned metal for reflection probes and marked polished shaders, 3 added emission
 /// maps, 4 turned relief the right way up and took parallax and grain off metal, 5 added
 /// vertex-lit paint and the indicator lights of controls, 6 lets declared light fixtures
-/// whose overlay does not glow emit ([`shows_light`]).
-pub(crate) const GENERATION: u32 = 6;
+/// whose overlay does not glow emit ([`shows_light`]), 7 classes crates as painted metal
+/// and concrete as concrete, reads the overrides from the client's generated folder and
+/// takes per-texture relief strength.
+pub(crate) const GENERATION: u32 = 7;
 /// Where the generator's manifest sits in its pk3.
 const MANIFEST: &str = "sjk-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.
@@ -357,7 +359,7 @@ pub(crate) fn report_pack_generation(vfs: &VirtualFileSystem) {
         crate::log::progress(format_args!(
             "material maps: the generated pack is generation {generation} of sjk-materialgen, \
              this client expects {GENERATION} (vertex-lit terrain, relief the right way up, \
-             smoother metal, emission maps); regenerate it (docs/rendering.md, Generating material \
+             smoother metal, emission maps, your overrides); regenerate it (docs/rendering.md, Generating material \
              maps)"
         ));
     }

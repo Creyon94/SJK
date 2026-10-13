@@ -1,5 +1,40 @@
 # Status and priorities
 
+## Material notes: overrides found again, crates and concrete
+
+Branch `personal/material-notes` (13/10/2026), from Sol's world notes about relief,
+shine and lights. The pack installed on 12/10 (`GameData/SJK/generated`) had been built
+without Sol's overrides: `sjk-materialgen` read them only next to the output pk3, and the
+file had stayed in `%APPDATA%\jkr\generated` when the default output moved. The tool now
+also reads the file in the client's `generated` folder, copies one left in the JKR-era
+folder there, prints which file it read (or `NONE FOUND` with every place it looked, and
+a warning), and records it in the manifest
+([overrides_file.rs](../crates/sjk-materialgen/src/overrides_file.rs)). Generation 7 also
+classes crates as painted metal (they were wood), keeps `concrete`/`cement` before part
+words (`desert/concrete_wall_tall_vent` was polished metal), ignores keywords inside
+look-alike words (`background`, `rocket`, `rustic`), and takes a per-texture
+`strength=` override for the relief; the 12/10 and 13/10 notes became override lines
+in Sol's file (`GameData/SJK/generated/sjk-materialgen-overrides.txt`). Findings that
+need no generator change: every declared light fixture Sol noted (`mp/s_ylight_*`,
+`s_vjun_*`, `s_tracklight4`, `s_deathconlight`) has had an emission map since the 12/10
+pack, which was installed after those notes; lamps with an authored `glow` overlay
+(`byss/lights`, `rooftop/groundlight`, `taspir/light_ceiling`) take none by design and
+already light rooms in real-time lighting through fixture inference, so "stronger
+light" there is renderer tuning, not done; Korriban's glossy walls do not collapse and
+vertex-coloured flares light nothing (both renderer work, not done; see
+[rendering.md](rendering.md#emission-maps)). Sol's config has `r_specularMapping 1`
+and `r_normalMapStrength 4` (the maximum), so the shine notes are not a disabled-maps
+artifact. The notes' world shots (`world_shot::notes::world_notes`) now mount the
+player's generated packs as the game does (`SJK_NOTES_GENERATED` names another client
+folder to compare): their throwaway profile had none, so until now they showed the
+generation-5 pack left in `GameData/base` (07/10) instead of the installed one, and
+material shots taken with them since 12/10 compared the wrong pack. Verified: unit
+tests (the lookup order and copy, `strength=`, the class
+words), dry runs listing the class changes over Sol's installed maps (90 textures: the
+crates, concrete and the look-alike words), the regenerated pack's manifest, and world
+shots of the notes before and after (`world_shot::notes::world_notes`, Sol's renderer
+settings). Not tried in a game.
+
 ## World notes: Rancor tables, sand steps and footprints
 
 Branch `personal/world-notes-fixes` (13/10/2026), two of Sol's world notes.

@@ -609,6 +609,16 @@ test: In a match, paste into chat and the console: text comes at once, no hitch 
 test: Accented and emoji text pastes intact; viewpos/mark copies still reach the clipboard.
 note: Was hitch 248 ms between-frames on each paste.
 
+[material-notes-gen7]
+area: Rendering & effects
+title: Material maps gen 7: your overrides apply again; crates, concrete, taspir
+change: The generator finds its overrides in GameData/SJK/generated and says which file it used.
+change: Crates read as painted metal, concrete vents as concrete; strength= scales one relief.
+test: Graphics above Ultra low (material maps on); the pack in GameData/SJK/generated is gen 7.
+test: FFA4 rift cobbles and CTF4 landing pad: more relief; FFA3 vents no longer shiny metal.
+test: FFA1 ceiling lights (s_vjun_*, s_ylight_*) glow; FFA3 crates have sharper bevels.
+note: Your config switched to Ultra low at 20:42 on 13/10, which turns material maps off.
+
 [world-notes-tables-prints]
 area: Rendering & effects
 title: Rancor bar tables; footprints and dust on sand, snow and mud

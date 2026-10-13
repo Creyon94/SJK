@@ -24,8 +24,11 @@ pub const MANIFEST_PATH: &str = "sjk-materialgen/manifest.json";
 /// (`_e`, [`crate::emission`]). 4: relief turned the right way up from the painted
 /// light, no metal height, less metal grain, painted-panel and texture-set classes.
 /// 5: maps for vertex-lit paint, indicator lights of controls. 6: declared light
-/// fixtures whose overlay does not glow emit.
-pub const GENERATION: u32 = 6;
+/// fixtures whose overlay does not glow emit. 7: crates are painted metal, concrete is
+/// concrete and look-alike words no longer pick a class, the overrides file is found in
+/// the client's generated folder ([`crate::overrides_file`]) and `strength=` scales a
+/// texture's relief.
+pub const GENERATION: u32 = 7;
 
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \
@@ -68,6 +71,11 @@ pub struct ManifestSettings {
     pub min_height_range: f32,
     /// The overrides file read, if any.
     pub overrides: Option<String>,
+    /// Which overrides file was read and how it was chosen, or every place looked at
+    /// when none was found ([`crate::overrides_file::Found::describe`]).
+    pub overrides_found: String,
+    /// Rules in the overrides file read (0 without one).
+    pub overrides_rules: usize,
 }
 
 /// One source texture and what was written for it.
@@ -222,6 +230,8 @@ mod tests {
                 coarse_weight: 0.5,
                 min_height_range: 0.1,
                 overrides: None,
+                overrides_found: "none (--no-overrides)".into(),
+                overrides_rules: 0,
             },
             sources: vec![SourceEntry {
                 image: "textures/a/wall.jpg".into(),

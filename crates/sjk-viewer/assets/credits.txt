@@ -52,6 +52,7 @@ did: Team games: red and green outlines, team logos over teammates (after JoF EJ
 did: World notes: a page of text, the shader remaps in play, and map models
 did: Donations on Ko-fi: the live goal on the site and main page, the Supporter medal
 did: Footprints and dust on sand, snow and mud; props hung on movers drawn (Rancor's tables)
+did: Material maps: overrides found again, crates and concrete read right (generation 7)
 did: Cards that tilt towards the pointer, their light following it
 did: SJK Symbols, our own symbol font for rarities and finishes
 did: Character creator: tile grids, Apply, the Jedi Academy's own models first

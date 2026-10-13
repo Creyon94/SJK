@@ -3,6 +3,7 @@
 use crate::generate::Settings;
 use crate::mount::{CLIENT_FOLDER, DEFAULT_FILE_NAME, default_output, find_game_data, is_inside};
 use crate::overrides::Overrides;
+use crate::overrides_file;
 use crate::run::{Options, normalize_map};
 use std::path::{Path, PathBuf};
 
@@ -23,9 +24,12 @@ OPTIONS:
     --strength F      multiply every class's normal strength (default 1.0)
     --max-size N      halve textures larger than N texels before generating
                       (default: keep the source resolution)
-    --overrides FILE  per-texture class, roughness, metalness, height and emission rules
-                      (see the crate documentation); default: sjk-materialgen-overrides.txt
-                      next to the output pk3, when it exists
+    --overrides FILE  per-texture class, roughness, metalness, strength, height and
+                      emission rules (see the crate documentation); default:
+                      sjk-materialgen-overrides.txt next to the output pk3, else in the
+                      client's generated folder (one left in an earlier version's folder,
+                      %APPDATA%\\jkr\\generated, is copied there); the run says which
+    --no-overrides    read no overrides file
     --dry-run         list what would be generated and what is skipped; write nothing
     --out FILE        output pk3 (default: generated/zzz_sjk_materials.pk3 in the client's
                       folder, GameData/SJK or %APPDATA%\\SJK, which SJK mounts above every
@@ -58,7 +62,8 @@ machine: do not share, upload or commit them.
 #[derive(Debug)]
 pub enum Command {
     Help,
-    Run(Options),
+    /// Boxed: the options are much larger than `Help`.
+    Run(Box<Options>),
 }
 
 /// Parse `arguments` (without the program name).
@@ -71,7 +76,8 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
     let mut settings = Settings::default();
     let mut dry_run = false;
     let mut out = None;
-    let mut overrides_file = None;
+    let mut overrides_path = None;
+    let mut no_overrides = false;
     while let Some(argument) = arguments.next() {
         let mut value = |name: &str| {
             arguments
@@ -117,7 +123,8 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
                     .ok_or("--max-size needs a whole number of at least 16")?;
                 settings.max_size = Some(size);
             }
-            "--overrides" => overrides_file = Some(PathBuf::from(value("--overrides")?)),
+            "--overrides" => overrides_path = Some(PathBuf::from(value("--overrides")?)),
+            "--no-overrides" => no_overrides = true,
             "--dry-run" => dry_run = true,
             "--out" => out = Some(PathBuf::from(value("--out")?)),
             other => return Err(format!("unknown argument {other:?}; see --help")),
@@ -130,11 +137,15 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
         None => default_output(&game_data)?,
     };
     check_output(&out, &game_data)?;
-    let overrides_file = overrides_file.or_else(|| {
-        let beside = out.with_file_name(OVERRIDES_FILE_NAME);
-        beside.is_file().then_some(beside)
-    });
-    let overrides = match &overrides_file {
+    let found = overrides_file::find(
+        overrides_path.as_deref(),
+        no_overrides,
+        &out,
+        overrides_file::canonical(&game_data).as_deref(),
+        &overrides_file::legacy(),
+        !dry_run,
+    )?;
+    let overrides = match found.path() {
         Some(path) => {
             let text = std::fs::read_to_string(path)
                 .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
@@ -142,21 +153,21 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
         }
         None => Overrides::default(),
     };
-    Ok(Command::Run(Options {
+    Ok(Command::Run(Box::new(Options {
         game_data,
         fs_game,
         maps,
         limit,
         settings,
         overrides,
-        overrides_file,
+        overrides_found: found,
         dry_run,
         out,
-    }))
+    })))
 }
 
-/// The overrides file read by default, next to the output pk3.
-pub const OVERRIDES_FILE_NAME: &str = "sjk-materialgen-overrides.txt";
+/// The overrides file read by default ([`overrides_file`]).
+pub const OVERRIDES_FILE_NAME: &str = overrides_file::FILE_NAME;
 
 /// The output must be a `.pk3` outside the game installation, or in the client's
 /// own folder there (`GameData/SJK`, where the default output goes).

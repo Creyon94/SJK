@@ -7,8 +7,10 @@
 //! 1. the map compiler's material id in the BSP shader lump (`surfaceFlags &
 //!    MATERIAL_MASK`, written from the shader's `material`/`q3map_material`
 //!    keyword; ids from OpenJK `codemp/game/surfaceflags.h`);
-//! 2. the first class, in table order, with a keyword contained in the
-//!    texture's path below `textures/` (directories and file name, lower case);
+//! 2. a material keyword ([`MATERIAL_KEYWORDS`]: concrete, cement), then the first
+//!    class, in table order, with a keyword contained in the texture's path below
+//!    `textures/` (directories and file name, lower case), except inside a word that
+//!    only looks like it ([`NOT_CLASS_KEYWORDS`]: `background` is not ground);
 //! 3. `surfaceparm metalsteps` (`SURF_METALSTEPS`) for metal;
 //! 4. the texture set's class ([`SET_CLASSES`]: the directory below `textures/`);
 //! 5. [`GENERIC`].
@@ -272,7 +274,9 @@ pub const CLASSES: &[MaterialClass] = &[
     MaterialClass {
         name: "wood",
         bsp_materials: &[bsp::SOLID_WOOD, bsp::HOLLOW_WOOD],
-        keywords: &["wood", "plank", "crate", "bark", "timber", "logs"],
+        // Not "crate": Star Wars crates are metal containers (`cairn/c_crate`,
+        // `impdetention/crate7`, `factory/newcrate*`), painted panels (Sol, 12/10/2026).
+        keywords: &["wood", "plank", "bark", "timber", "logs"],
         normal_strength: 1.8,
         parallax: false,
         height_keywords: &[],
@@ -341,6 +345,7 @@ pub const CLASSES: &[MaterialClass] = &[
         bsp_materials: &[],
         keywords: &[
             "panel", "plating", "bulkhead", "trim", "door", "plate", "lift", "gate", "walkway",
+            "crate",
         ],
         normal_strength: 1.5,
         parallax: false,
@@ -381,6 +386,45 @@ pub const SET_CLASSES: &[(&str, &str)] = &[
     ("rocky_ruins", "stone"),
     ("yavin", "stone"),
 ];
+
+/// Words that contain a class keyword without naming that material: (word, keyword it
+/// hides). A path keyword inside one of these words does not count, so
+/// `taspir/background` (a rock face) is not `ground` and `nightmare/bricks_rustic` not
+/// rusted metal. Found by listing every keyword match inside a longer word over Sol's
+/// installed maps (13/10/2026).
+pub const NOT_CLASS_KEYWORDS: &[(&str, &str)] = &[
+    // taspir/background, faru/background: rock walls (Sol, 12/10/2026: "make it 3d").
+    ("background", "ground"),
+    // models/items/rockets, bounty/rockets: weapons, not rock.
+    ("rocket", "rock"),
+    // nightmare/bricks_rustic: rustic bricks, not rust.
+    ("rustic", "rust"),
+];
+
+/// Keywords that name what a surface is made of, consulted before the table's order,
+/// with the class they give: a part word earlier in the table (a `vent` in a concrete
+/// wall) must not make cast concrete bare metal. `desert/concrete_wall_tall_vent` was
+/// polished metal between plain concrete walls (Sol, 12/10/2026: "this texture looks
+/// out of place compared to the ones around").
+pub const MATERIAL_KEYWORDS: &[(&str, &str)] = &[("concrete", "stone"), ("cement", "stone")];
+
+/// Whether `keyword` occurs in `searched` other than inside a [`NOT_CLASS_KEYWORDS`] word.
+fn names(searched: &str, keyword: &str) -> bool {
+    let mut rest = searched;
+    while let Some(at) = rest.find(keyword) {
+        let hidden = NOT_CLASS_KEYWORDS.iter().any(|(word, hides)| {
+            *hides == keyword
+                && word
+                    .find(keyword)
+                    .is_some_and(|offset| at >= offset && rest[at - offset..].starts_with(word))
+        });
+        if !hidden {
+            return true;
+        }
+        rest = &rest[at + keyword.len()..];
+    }
+    false
+}
 
 /// The class of textures nothing else describes: moderate bumps, matte.
 pub const GENERIC: MaterialClass = MaterialClass {
@@ -466,8 +510,15 @@ pub fn classify(image_path: &str, surface_flags: u32) -> (&'static MaterialClass
     }
     let lower = image_path.to_ascii_lowercase();
     let searched = lower.strip_prefix("textures/").unwrap_or(&lower);
+    if let Some((word, class)) = MATERIAL_KEYWORDS
+        .iter()
+        .find(|(word, _)| names(searched, word))
+    {
+        let class = by_name(class).expect("material keywords name table classes");
+        return (class, ClassSource::Keyword(word));
+    }
     for class in CLASSES {
-        if let Some(word) = class.keywords.iter().find(|word| searched.contains(*word)) {
+        if let Some(word) = class.keywords.iter().find(|word| names(searched, word)) {
             return (class, ClassSource::Keyword(word));
         }
     }
@@ -533,6 +584,50 @@ mod tests {
         assert_eq!(classify("textures/mp/door_trim", 0).0.name, "panel");
         assert_eq!(classify("textures/yavin/trim_stone01", 0).0.name, "stone");
         for (_, class) in SET_CLASSES {
+            assert!(by_name(class).is_some(), "{class}");
+        }
+    }
+
+    #[test]
+    fn keywords_inside_other_words_do_not_count() {
+        // Sol's notes, 12/10/2026: a rock face and metal crates.
+        assert_eq!(
+            classify("textures/taspir/background", 0),
+            (by_name("panel").unwrap(), ClassSource::Set("taspir"))
+        );
+        assert_eq!(classify("textures/x/rockets", 0).0.name, "generic");
+        assert_eq!(classify("textures/x/bricks_rustic", 0).0.name, "stone");
+        // The word itself still counts, also next to a hiding word.
+        assert_eq!(classify("textures/x/ground", 0).0.name, "ground");
+        assert_eq!(classify("textures/x/background_ground", 0).0.name, "ground");
+        assert_eq!(classify("textures/x/rock_rocket", 0).0.name, "stone");
+        assert_eq!(classify("textures/x/rust_plate", 0).0.name, "metal");
+        assert_eq!(classify("textures/cairn/c_crate2", 0).0.name, "panel");
+        assert_eq!(classify("textures/x/woodcrate", 0).0.name, "wood");
+        for (word, keyword) in NOT_CLASS_KEYWORDS {
+            assert!(word.contains(keyword), "{word}");
+        }
+    }
+
+    #[test]
+    fn materials_come_before_parts() {
+        let (class, source) = classify("textures/desert/concrete_wall_tall_vent", 0);
+        assert_eq!(
+            (class.name, source),
+            ("stone", ClassSource::Keyword("concrete"))
+        );
+        assert_eq!(
+            classify("textures/desert/concrete_floor_light", 0).0.name,
+            "stone"
+        );
+        // The BSP material still comes first.
+        assert_eq!(
+            classify("textures/x/concrete_vent", bsp::SOLID_METAL)
+                .0
+                .name,
+            "metal"
+        );
+        for (_, class) in MATERIAL_KEYWORDS {
             assert!(by_name(class).is_some(), "{class}");
         }
     }
