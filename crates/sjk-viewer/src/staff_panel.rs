@@ -39,8 +39,11 @@ const TAKE_BASE: u16 = 1_160;
 /// Clear, one token per achievement of the catalogue.
 const CLEAR_BASE: u16 = 1_170;
 /// Unlock and Relock, one token per unlockable of the catalogue.
-const UNLOCK_BASE: u16 = 1_250;
-const RELOCK_BASE: u16 = 1_270;
+/// The unlockables' pager: previous page, next page (the list outgrew the page).
+const UNLOCK_PREV_TOKEN: u16 = 7_590;
+const UNLOCK_NEXT_TOKEN: u16 = 7_591;
+const UNLOCK_BASE: u16 = 7_600;
+const RELOCK_BASE: u16 = 7_900;
 /// The holocron tier chips (one token per tier), Give holocron, and Remove (one token
 /// per holocron row).
 const HOLOCRON_TIER_BASE: u16 = 1_300;
@@ -168,6 +171,8 @@ struct Shown {
     /// The chosen player has a picture.
     picture: bool,
     unlocks: [bool; crate::unlockables::ALL.len()],
+    /// How many unlockables a page of the list shows.
+    unlock_per_page: usize,
     /// The numbers of the holocrons listed with Remove, newest first, and how many.
     holocrons: [u64; HOLOCRONS_SHOWN],
     holocron_rows: usize,
@@ -194,6 +199,8 @@ pub(crate) struct Panel {
     selected: Option<String>,
     /// The holocron tier Give holocron gives (its index in the catalogue).
     holocron_tier: usize,
+    /// The unlockables list's page, from 0.
+    unlock_page: usize,
     /// The control the keyboard is on, by its token.
     focus: u16,
     /// The controls in the order Tab visits them, laid out by the last frame.
@@ -248,6 +255,7 @@ impl Panel {
             note: String::new(),
             selected: None,
             holocron_tier: 0,
+            unlock_page: 0,
             focus: SEARCH_TOKEN,
             order: Vec::with_capacity(64),
             confirm: None,
@@ -554,6 +562,16 @@ impl Panel {
                     }
                     _ => PanelAction::None,
                 }
+            }
+            UNLOCK_PREV_TOKEN => {
+                self.unlock_page = self.unlock_page.saturating_sub(1);
+                PanelAction::None
+            }
+            UNLOCK_NEXT_TOKEN => {
+                let per_page = self.shown.unlock_per_page.max(1);
+                let last = crate::unlockables::ALL.len().div_ceil(per_page) - 1;
+                self.unlock_page = (self.unlock_page + 1).min(last);
+                PanelAction::None
             }
             token
                 if (UNLOCK_BASE..UNLOCK_BASE + crate::unlockables::ALL.len() as u16)

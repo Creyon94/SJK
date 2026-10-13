@@ -42,7 +42,7 @@ pub(crate) const COUNT: usize = 4;
 pub(crate) const FIRST_READ_MAX: usize = 20;
 
 /// `0xRRGGBB` as an opaque colour.
-const fn rgb(hex: u32) -> Color {
+pub(crate) const fn rgb(hex: u32) -> Color {
     Color::new(
         ((hex >> 16) & 0xff) as f32 / 255.0,
         ((hex >> 8) & 0xff) as f32 / 255.0,

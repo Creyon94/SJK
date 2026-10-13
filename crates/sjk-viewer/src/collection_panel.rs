@@ -57,7 +57,10 @@ pub(crate) use view::{MODEL_AREA, row_labels};
 /// Equip or Unequip, the toy and its switch.
 const MEDAL_BASE: u16 = 1_200;
 const ACHIEVEMENT_BASE: u16 = 1_240;
-const SHADER_BASE: u16 = 1_280;
+/// The shaders' rows have a range of their own, 7000 to 7299, for a catalogue of up
+/// to 299 skins (the stock blade is row 0).
+const SHADER_BASE: u16 = 7_000;
+const SHADER_LIMIT: u16 = 7_300;
 /// Two clicks on a shader row this close together wear it (as the main menu's server
 /// browser joins on one).
 const DOUBLE_CLICK: std::time::Duration = std::time::Duration::from_millis(400);
@@ -77,7 +80,7 @@ const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
 /// ([`unlockables::blade_skins_by_tier`]).
 const SHADER_ROWS: usize = 1 + unlockables::ALL.len();
-const _: () = assert!(SHADER_BASE as usize + SHADER_ROWS <= WEAR_TOKEN as usize);
+const _: () = assert!(SHADER_BASE as usize + SHADER_ROWS <= SHADER_LIMIT as usize);
 /// Shader rows the rack shows at once; it scrolls to the rest.
 const RACK_SHOWN: usize = 6;
 /// The grid's cards a line, and the lines it shows at once; it scrolls a line at a time.

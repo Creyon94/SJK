@@ -1,3 +1,15 @@
+## Shaders: the Common tier and nine plain blades
+
+14/10/2026, step 2 of the shader catalogue plan: `unlockables::Rarity` gains Common (white,
+SJK Symbols' empty octagon; no Common holocron exists), and nine plain blade skins join the
+catalogue after Creyon's "Saber ideas" page: Tidal, Circuit, Aurora, Echo (Common), Nebula,
+Cinder, Venom, Sakura, Firefly (Uncommon). Their files are written by the hub's
+`scripts/common_skins.py` (hub branch `common-shaders`, with the catalogue entries, the rebuilt
+`sjk_skins` pack and stock saber sounds allowed in the pack test); they only reach players once
+that hub is deployed and the keys are granted. The Collection's shader tokens moved to 7000 and
+the Saber tab's to 7300 (the old ranges held 19 skins), and the Staff page's unlockables list
+has a pager. Checked by the unit tests; not seen in the game.
+
 ## Blade skins: 256 slots
 
 14/10/2026: the skin array (`saber.wgsl` `skins`) is a read-only storage buffer of 256

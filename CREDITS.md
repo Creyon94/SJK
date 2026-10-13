@@ -241,6 +241,8 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   solid list); #99 the rocket launcher's lock-on ring and its tick and lock sounds;
 - #100 each Force power shown on the in-game profile's model (gestures, effects, shells,
   saber skills, jump and throw).
+- the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
+  Cinder, Venom, Sakura and Firefly blades.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK

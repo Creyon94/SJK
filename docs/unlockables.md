@@ -44,7 +44,7 @@ fifteen choices no longer fit. Seen in off-screen GPU renders on duel6 (world sh
 | Choosing | The Collection's Shaders tab (SJK UI look; the Unlockables page until 10/10/2026) lists every blade skin, owned or locked, previews the chosen one on the player's own saber and equips owned ones; the Profile screen's Saber tab offers the owned blade skins too (10/10/2026); `cg_saberSkin` holds the choice. |
 | Art (looks, sounds) | SJK's own, all rights reserved, not under the code's GPLv2: kept in the hub's private repository and served by the hub to registered SJK keys as packs. The code that draws it stays open and generic: no skin's values, sounds or pictures are in this repository or its history to come. |
 | Delivery | The identity service downloads the hub's packs into `assets/` beside `identity.key` (at start once registered, then every 6 hours, only when a pack's SHA-256 changed); the viewer mounts every cached pack at start and a new one at once, below the game data, so a PK3 with the same paths replaces their files. A cached pack mounts with the identity off too. |
-| Tiers | Every saber shader has a tier, the holocrons' four (Uncommon, Rare, Legendary, Mythical), their names and colours (10/10/2026, Sol's tiers; [Tiers](#tiers)). Uncommon is for plainer shaders to come (colours, no effects). |
+| Tiers | Every saber shader has a tier: Common (white, 14/10/2026: filler that holocrons of any tier may drop; there is no Common holocron) and the holocrons' four (Uncommon, Rare, Legendary, Mythical), their names and colours (10/10/2026, Sol's tiers; [Tiers](#tiers)). |
 | Format | A blade skin is a JSON file, `skins/blades/<unlock id>.bladeskin`, holding every parameter of the generic shading, its trail, light and sound paths. The format is documented here; the files are art. |
 
 ## Catalogue
@@ -72,6 +72,15 @@ meaning.
 | `saber_chameleon` | Chameleon blade | blade skin | Given by the SJK team. |
 | `saber_banner` | Banner blade | blade skin | Given by the SJK team. |
 | `saber_heartbeat` | Heartbeat blade | blade skin | Given by the SJK team. |
+| `saber_tidal` | Tidal blade | blade skin | Given by the SJK team. |
+| `saber_circuit` | Circuit blade | blade skin | Given by the SJK team. |
+| `saber_aurora` | Aurora blade | blade skin | Given by the SJK team. |
+| `saber_echo` | Echo blade | blade skin | Given by the SJK team. |
+| `saber_nebula` | Nebula blade | blade skin | Given by the SJK team. |
+| `saber_cinder` | Cinder blade | blade skin | Given by the SJK team. |
+| `saber_venom` | Venom blade | blade skin | Given by the SJK team. |
+| `saber_sakura` | Sakura blade | blade skin | Given by the SJK team. |
+| `saber_firefly` | Firefly blade | blade skin | Given by the SJK team. |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -148,6 +157,14 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
 - **Heartbeat**: a warm crimson blade that beats with a slow double heartbeat (lub-dub,
   once a second), brightening and swelling with each beat, its light beating with it;
   a drone with a heartbeat.
+- **The nine plain ones** (14/10/2026, after Creyon's "Saber ideas" page; the hub's
+  `scripts/common_skins.py` writes their files, with the stock saber's sounds): Common,
+  a colour and one gentle movement: **Tidal** (a teal wave surging hilt to tip),
+  **Circuit** (thin cyan, sharp data pulses), **Aurora** (green drifting through teal
+  and violet along the blade), **Echo** (sky blue, a bright ring rippling out);
+  Uncommon, a colour and particles: **Nebula** (indigo with twinkling stars),
+  **Cinder** (coal orange shedding embers), **Venom** (acid green, dripping),
+  **Sakura** (pink, petals drifting down), **Firefly** (warm green, blinking motes).
 
 ## Hub protocol (additions to version 1)
 
@@ -387,7 +404,8 @@ holocron look alike:
 | Mythical | Sun, Void, Molten, Spectral |
 | Legendary | Storm, Unstable, Chameleon, Prism (provisional) |
 | Rare | Frost, Hologram, Runic, Heartbeat, Glitch (provisional), Banner (provisional) |
-| Uncommon | none yet: the plainer, colour-only shaders to come |
+| Common | Tidal, Circuit, Aurora, Echo |
+| Uncommon | Nebula, Cinder, Venom, Sakura, Firefly |
 
 Sol placed eleven; Prism, Glitch and Banner are placed provisionally until Sol says
 otherwise. The tier is the client catalogue's only: the hub does not need it yet (it

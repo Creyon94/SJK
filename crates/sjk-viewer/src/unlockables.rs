@@ -19,12 +19,12 @@ pub(crate) enum Kind {
     BladeSkin,
 }
 
-/// How rare an unlockable is: the holocrons' tiers ([`crate::holocrons::TIERS`]), their
-/// names and colours, the commonest first. Uncommon is for the plainer shaders to come
-/// (a colour, no effects); none is Uncommon yet.
+/// How rare an unlockable is, the commonest first: Common (14/10/2026, white: filler
+/// that holocrons of any tier may drop; there is no Common holocron) and the holocrons'
+/// four tiers ([`crate::holocrons::TIERS`]) with their names and colours.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum Rarity {
-    #[allow(dead_code)] // for the plainer shaders to come
+    Common,
     Uncommon,
     Rare,
     Legendary,
@@ -32,19 +32,33 @@ pub(crate) enum Rarity {
 }
 
 impl Rarity {
-    /// The holocron tier of the same rank: its colour, and its name in `label`.
-    pub(crate) fn tier(self) -> &'static crate::holocrons::Tier {
-        &crate::holocrons::TIERS[self as usize]
+    /// The holocron tier of the same name; `None` for Common, which no holocron is.
+    fn holocron_tier(self) -> Option<&'static crate::holocrons::Tier> {
+        (self as usize)
+            .checked_sub(1)
+            .map(|index| &crate::holocrons::TIERS[index])
     }
 
     /// The tier's name ("Rare").
     pub(crate) fn label(self) -> &'static str {
-        self.tier().label
+        self.holocron_tier().map_or("Common", |tier| tier.label)
     }
 
-    /// The tier's colour.
+    /// The tier's colour: Common's is white (a touch cool, to sit on the menus).
     pub(crate) fn colour(self) -> sjk_ui::Color {
-        self.tier().colour
+        self.holocron_tier()
+            .map_or(crate::holocrons::rgb(0xE6_EAF2), |tier| tier.colour)
+    }
+
+    /// The tier's mark in SJK Symbols, Common's the empty octagon.
+    pub(crate) fn symbol(self) -> char {
+        crate::symbols::RARITY[self as usize]
+    }
+
+    /// Its place among the effects' ranks ([`crate::rarity_fx`]): Common and Uncommon
+    /// are 0 and draw none.
+    pub(crate) fn effect_rank(self) -> usize {
+        (self as usize).saturating_sub(1)
     }
 }
 
@@ -75,7 +89,7 @@ impl Unlockable {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) const ALL: [Unlockable; 14] = [
+pub(crate) const ALL: [Unlockable; 23] = [
     Unlockable {
         id: "saber_sun",
         name: "Sun blade",
@@ -200,6 +214,87 @@ pub(crate) const ALL: [Unlockable; 14] = [
         tier: Rarity::Rare,
         chroma: true,
         description: "A warm, deep blade that pulses with a slow double heartbeat, its light beating with it.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_tidal",
+        name: "Tidal blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        description: "A teal blade with a wave of brighter light surging from hilt to tip on a slow loop.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_circuit",
+        name: "Circuit blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        description: "A thin cyan blade with sharp data pulses racing along it.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_aurora",
+        name: "Aurora blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        description: "Slow ribbons of green, teal and violet drifting along the blade.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_echo",
+        name: "Echo blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        description: "A sky-blue blade with a bright ring rippling along it and fading away.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_nebula",
+        name: "Nebula blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        description: "Deep indigo with tiny stars twinkling inside, a slice of galaxy.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_cinder",
+        name: "Cinder blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        description: "A dull coal-orange blade that flickers and sheds glowing embers.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_venom",
+        name: "Venom blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        description: "Acid green with droplets that bead up and drip off the blade.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_sakura",
+        name: "Sakura blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        description: "A soft pink blade shedding blossom petals that drift away.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_firefly",
+        name: "Firefly blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        description: "A soft warm-green blade with fireflies blinking around it.",
         how_to_get: "Given by the SJK team.",
     },
 ];
@@ -366,7 +461,20 @@ mod tests {
                 "saber_heartbeat",
             ]
         );
-        assert!(of(Rarity::Uncommon).is_empty());
+        assert_eq!(
+            of(Rarity::Uncommon),
+            [
+                "saber_nebula",
+                "saber_cinder",
+                "saber_venom",
+                "saber_sakura",
+                "saber_firefly"
+            ]
+        );
+        assert_eq!(
+            of(Rarity::Common),
+            ["saber_tidal", "saber_circuit", "saber_aurora", "saber_echo"]
+        );
         let order = blade_skins_by_tier();
         assert_eq!(order.len(), blade_skins().count());
         assert!(order.windows(2).all(|pair| pair[0].tier >= pair[1].tier));
@@ -375,7 +483,10 @@ mod tests {
         // The holocrons' names and colours.
         assert_eq!(Rarity::Mythical.label(), "Mythical");
         assert_eq!(Rarity::Uncommon.label(), "Uncommon");
+        assert_eq!(Rarity::Common.label(), "Common");
         assert_eq!(Rarity::Rare.colour(), crate::holocrons::TIERS[1].colour);
+        assert_eq!(Rarity::Common.symbol(), crate::symbols::RARITY[0]);
+        assert_eq!(Rarity::Mythical.symbol(), crate::symbols::RARITY[4]);
     }
 
     #[test]
@@ -502,6 +613,15 @@ mod tests {
                 ("saber_chameleon", "Chameleon blade"),
                 ("saber_banner", "Banner blade"),
                 ("saber_heartbeat", "Heartbeat blade"),
+                ("saber_tidal", "Tidal blade"),
+                ("saber_circuit", "Circuit blade"),
+                ("saber_aurora", "Aurora blade"),
+                ("saber_echo", "Echo blade"),
+                ("saber_nebula", "Nebula blade"),
+                ("saber_cinder", "Cinder blade"),
+                ("saber_venom", "Venom blade"),
+                ("saber_sakura", "Sakura blade"),
+                ("saber_firefly", "Firefly blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

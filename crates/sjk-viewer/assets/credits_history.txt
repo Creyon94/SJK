@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Shaders: a Common tier (white) and nine plain blades; token ranges and a staff pager for the longer list
+- a563537 |  | Shaders: a Common tier (white) and nine plain blades; token ranges and a staff pager for the longer list
++ 14/10/2026 | - | Credits, changelog and test list for the Common tier and plain shaders
+- cbb14a8 |  | Credits, changelog and test list for the Common tier and plain shaders
++ 14/10/2026 | - | Blade skins: 256 slots (the skin array is a storage buffer)
+- a3129d1 |  | Blade skins: 256 slots (the skin array is a storage buffer)
 + 14/10/2026 | - | Model viewer: list every body with all its skins, NPCs, and every md3 and glm
 - 37112ac |  | Model viewer: list every body with all its skins, NPCs, and every md3 and glm
 + 14/10/2026 | - | Fix ghost and mimic always refusing: read the showcase switch as a bool
