@@ -143,10 +143,18 @@ parents weighted by alpha. The effect mips are generated premultiplied, unlike t
 plain `box_mip_chain` of the other mipmapped path.
 
 World decals (`polygonOffset` shaders, sort `decal`) are drawn with rd-vanilla's
--1/-2 depth bias, their fog pass included: rd-vanilla's `RB_FogPass` runs before the
-offset is disabled, and an unbiased `Equal` fog draw fights with the surface under the
-decal pixel by pixel inside fog. Flicker of decals outside fog is not explained by
-this; it is open in [status](status.md).
+-1/-2 depth bias. A decal whose stages write no depth (`underlay` in
+[world_materials.rs](../crates/sjk-viewer/src/world_materials.rs): nearly all of them,
+which multiply or blend over their wall) is drawn in a phase of its own, after the opaque
+world and before the opaque world's fog pass (`draw_decals`, in the main view, floor
+mirrors, portals and reflection captures). The wall's `Equal` fog draw then covers the
+wall and its decal alike, so a decal fades into fog with its wall. The decal's own fog
+pass is left out: with the decal's bias and no depth of its own, its `Equal` test meets
+nothing, in rd-vanilla too (whose `RB_FogPass` runs before the offset is disabled), and
+until 13/10/2026 such a decal kept its full strength in fog, taking about 40% of the fog
+of its wall (`textures/decals/mp_imperial_symbol` on `mp/ctf4`). A decal that writes
+depth keeps its biased fog pass, which meets its own depth. Flicker of decals outside fog
+is not explained by this; it is open in [status](status.md).
 
 An effect atlas stage takes the effect's own colour (its EFX `rgb` and the fade of an
 effect without `useAlpha`) except where it multiplies the scene (`GL_DST_COLOR` with

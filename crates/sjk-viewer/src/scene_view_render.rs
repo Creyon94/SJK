@@ -280,6 +280,17 @@ impl GpuState {
                 visibility,
                 entities: self.entity_draw_queue.opaque(),
             };
+            self.world_materials.draw_decals(
+                &mut pass,
+                camera,
+                &geometry.vertex_buffer,
+                &geometry.index_buffer,
+                &self.actor_instance_buffer,
+                &self.mover_instance_ranges,
+                cluster,
+                visibility,
+                false,
+            );
             self.world_materials.draw_fog(&mut pass, &fog);
             self.world_materials.draw_blended(
                 &mut pass,

@@ -3771,11 +3771,12 @@ with remaps (`SJK_NOTES`, `SJK_NOTES_CVARS`, `SJK_NOTES_REMAP`; see its rustdoc)
   textures, 70 emission maps) was written to the per-user folder's `generated\gen6`
   for Sol to install. Most "too shiny" notes were made with `r_specularMapping 0`, where the
   pack's roughness and metalness do not apply.
-- Open: the decal of `mp/ctf4` that "appears like there is no fog". Measured in a
-  world shot, the decal takes about 40% of the fog its wall takes: as in rd-vanilla,
-  its `Equal` fog pass with the decal's bias meets no depth (decals write none), so the
-  fogged wall is only multiplied by the decal. Korriban's environment-mapped
-  `glossyBase` shaders (`door`, `entrance_top`, `os_outsidebased`, `os_basic_pillarb`)
+- Fixed on 13/10/2026 (branch `personal/render-notes`): the decal of `mp/ctf4` that
+  "appears like there is no fog", which took about 40% of the fog its wall took: as in
+  rd-vanilla, its `Equal` fog pass with the decal's bias met no depth. Decals are now
+  drawn before the opaque world's fog.
+- Open: Korriban's environment-mapped `glossyBase` shaders (`door`, `entrance_top`,
+  `os_outsidebased`, `os_basic_pillarb`)
   still take no material maps (their stages do not collapse).
 
 ## SJK UI: coloured names and the browser's sort mark

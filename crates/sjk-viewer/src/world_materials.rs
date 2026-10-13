@@ -26,6 +26,9 @@ pub(crate) mod lighting_mode;
 pub(crate) mod mover_occlusion;
 
 #[cfg(test)]
+#[path = "world_decal_order_tests.rs"]
+mod decal_order_tests;
+#[cfg(test)]
 #[path = "world_shader_fxc_tests.rs"]
 mod fxc_tests;
 #[path = "sun_shadows.rs"]
@@ -342,8 +345,11 @@ pub(crate) struct Runtime {
     entity_pipelines: Vec<std::cell::OnceCell<wgpu::RenderPipeline>>,
     entity_no_depth_pipelines: Vec<std::cell::OnceCell<wgpu::RenderPipeline>>,
     opaque_order: Vec<PassRef>,
+    /// The decals drawn before the opaque world's fog ([`underlay`]).
+    decal_order: Vec<PassRef>,
     blended_order: Vec<PassRef>,
-    /// The glowing passes of `opaque_order` then `blended_order`, for the glow pass.
+    /// The glowing passes of `opaque_order`, `decal_order` then `blended_order`, for the
+    /// glow pass.
     glow_order: Vec<PassRef>,
     /// Glow-target variants of the pipeline keys, compiled on first glow draw.
     glow_pipelines: glow::Pipelines,
@@ -487,9 +493,8 @@ fn finish_runtime(
                 })
         })
         .collect();
-    let opaque_order = build_draw_order(&runtime_materials, false);
-    let blended_order = build_draw_order(&runtime_materials, true);
-    let glow_order = glow::order(&runtime_materials, &opaque_order, &blended_order);
+    let (opaque_order, decal_order, blended_order, glow_order) =
+        draw_orders(&runtime_materials, &forge.pipeline_keys);
     let keys = forge.pipeline_keys.clone();
     let fog_surfaces = opaque_fog.len();
     fog_draws::compact(&mut opaque_fog);
@@ -531,6 +536,7 @@ fn finish_runtime(
         entity_pipelines: Vec::with_capacity(keys.len()),
         entity_no_depth_pipelines: Vec::with_capacity(keys.len()),
         opaque_order,
+        decal_order,
         blended_order,
         glow_order,
         glow_pipelines: glow::Pipelines::default(),
@@ -604,14 +610,68 @@ fn finish_runtime(
     Ok((runtime, resolved))
 }
 
-fn build_draw_order(materials: &[Material], blended: bool) -> Vec<PassRef> {
+/// Which world surfaces a draw order holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Phase {
+    /// Sort opaque and below.
+    Opaque,
+    /// [`underlay`] decals, drawn over the opaque world before its fog pass.
+    Decals,
+    /// Every other blended surface, after the fog pass.
+    Blended,
+}
+
+/// rd-vanilla's `SS_DECAL`: the sort of a `polygonOffset` shader without one of its own.
+const SORT_DECAL: f32 = 4.0;
+
+/// A decal that only colours the surface it lies on: sort `decal`, no stage writing depth.
+/// It is drawn before the opaque world's fog pass, whose `Equal` test on the wall's depth
+/// then fogs the wall and the decal together, so the decal fades into fog with its wall
+/// (`textures/decals/mp_imperial_symbol` on `mp/ctf4` showed through the fog at full
+/// strength, Sol's note of 07/10/2026). Its own fog pass is left out: with the decal's
+/// depth bias and no depth of its own, its `Equal` test meets nothing, in rd-vanilla too.
+fn underlay(material: &Material, keys: &[PipelineKey]) -> bool {
+    !material.flare
+        && decal_underlay(
+            material.blended,
+            material.sort,
+            material
+                .stages
+                .iter()
+                .map(|stage| keys.get(stage.pipeline).is_none_or(|key| key.depth_write)),
+        )
+}
+
+/// [`underlay`] on a material's blending, sort and whether each stage writes depth.
+fn decal_underlay(blended: bool, sort: f32, depth_writes: impl IntoIterator<Item = bool>) -> bool {
+    blended && sort == SORT_DECAL && !depth_writes.into_iter().any(|writes| writes)
+}
+
+/// The opaque, decal and blended draw orders and the glow order over them.
+fn draw_orders(
+    materials: &[Material],
+    keys: &[PipelineKey],
+) -> (Vec<PassRef>, Vec<PassRef>, Vec<PassRef>, Vec<PassRef>) {
+    let opaque = build_draw_order(materials, keys, Phase::Opaque);
+    let decals = build_draw_order(materials, keys, Phase::Decals);
+    let blended = build_draw_order(materials, keys, Phase::Blended);
+    let glow = glow::order(materials, &opaque, &[decals.as_slice(), &blended].concat());
+    (opaque, decals, blended, glow)
+}
+
+fn build_draw_order(materials: &[Material], keys: &[PipelineKey], phase: Phase) -> Vec<PassRef> {
+    let blended = phase != Phase::Opaque;
     let mut order = materials
         .iter()
         .enumerate()
-        .filter(|(_, material)| !material.flare && material.blended == blended)
+        .filter(|(_, material)| {
+            !material.flare
+                && material.blended == blended
+                && (phase == Phase::Opaque || (phase == Phase::Decals) == underlay(material, keys))
+        })
         .flat_map(|(material, entry)| {
-            (0..entry.stages.len() + usize::from(!entry.fog_draws.is_empty()))
-                .map(move |stage| PassRef { material, stage })
+            let fog = !entry.fog_draws.is_empty() && phase != Phase::Decals;
+            (0..entry.stages.len() + usize::from(fog)).map(move |stage| PassRef { material, stage })
         })
         .collect::<Vec<_>>();
     // A material's stages blend over one another: stage k must be drawn before stage k+1.
