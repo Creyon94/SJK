@@ -63,6 +63,10 @@ Old clients ignore all of it, so it stays `/v1/`.
   so a key emotes only for the slot it claims. Ids are 1 to 32 of `a`-`z`, `0`-`9`,
   `_` (`bad_emote`); at most one every 2 seconds (`emote_quota`). An emote lives 10
   seconds.
+- `POST /v1/ping` `{"server":"ip:port","pos":[x,y,z],"scope":".."}` (since 13/10/2026,
+  [Pings](#pings)): as an emote, the key needs a live claim on the server and the hub
+  takes the slot and claimed name from it; at most 5 in 10 seconds (`ping_quota`), kept
+  10 seconds, in the feed's `pings` for that server's readers.
 - `GET /v1/feed?after=<id>&server=<ip:port>&wait=<0..25>`, signed. Messages, emotes
   and deletions share one id sequence. The hub answers as soon as it holds something
   newer than `after` for this reader, else after `wait` seconds:
@@ -587,12 +591,37 @@ and plays changes.
   or leaves. `emotes::active(slot)` is where the animations and sound plug in; until
   they exist, a received emote is written to the console (`* Sol: Wave`).
 
+## Pings
+
+World pings ([client.md](client.md#world-pings)) ride the emotes' path: the pinger's
+client sends the point and its scope to the hub (`Service::ping`, through the identity
+worker, so a ping never waits for the feed's poll), the hub relays it in the feed of the
+readers of that game server, and the feed thread queues it with the server it was read
+for (`Service::take_pings` hands over only the viewer's server's).
+
+Why the hub and not the game server (decided 13/10/2026): a hidden chat or `tell` line
+would show as text to every player on another client, and to SJK players with it off;
+it goes through each server mod's chat flood limits (JA+ and JoF mute or kick a fast
+talker) and the server's logs; and a team chat line reaches stock-client teammates as
+garbage. The hub reaches only SJK clients, on any server (base, JA+, JoF), with no
+server change. The cost is latency: a reader waiting in its long poll gets a ping in
+the hub's round trip, but the feed starts polls at most every 2 seconds
+([client service](#client-service)), so a ping that comes just after another answer
+waits up to that long. Pings need `cl_identity 1` and a live claim on the server (a
+few seconds after joining).
+
+The hub knows no teams, so the team rule is the readers' (`world_ping::Scope::sees`):
+a modified client could read every ping of its server. Only a server that tells the hub
+(or relays pings itself, an SJK dedicated server) could enforce it; nothing does yet.
+
 ## Privacy
 
 With `cl_identity`, `cl_hubUrl` and `cl_sjkChat` on, the hub sees the player's key
 and IP address on every feed request (which it counts for `online`), and each message
 or emote they send with the name they wear. With `cl_sjkChat` off it still sees the
-feed requests made on a game server (for the looks), with the server's address. Messages are public to every SJK player,
+feed requests made on a game server (for the looks), with the server's address. A ping sends the hub the point, its scope and,
+through the claim, the player's slot and name on that server; it is kept 10 seconds in
+the hub's memory and reaches the SJK players reading that server. Messages are public to every SJK player,
 kept in the hub's memory only (the last 200), and gone when the hub restarts; a
 message staff delete stays in the staff log. Emotes are kept 10 seconds. The mute
 flag is the only new thing on the hub's disk. Local mutes stay on this PC

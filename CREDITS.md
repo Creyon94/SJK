@@ -60,6 +60,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   table with every chance; credits will buy droppable cosmetics as a fix for bad
   luck (Sol's design, 12/10/2026); opening stays with the SJK team while it is
   tested, until the hub opens it to everyone;
+- world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,
+  through the hub, your team only in team games;
 - cards that tilt towards the pointer in perspective, their Holo and Solar light
   following it (13/10/2026);
 - SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for

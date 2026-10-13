@@ -39,6 +39,8 @@ pub(crate) enum Cue {
     /// A new SJK chat message from another player (`sjk_chat_frame.rs`); its sound is
     /// made in memory, not a file of [`CUE_SOUNDS`] (`sjk_chat_sound.rs`).
     SjkChat = 1024,
+    /// A world ping appeared (`world_ping_frame.rs`), the player's own or another's.
+    WorldPing = 2048,
 }
 
 /// `(cue, sound path, volume)` — the game's own sounds, looked up through
@@ -64,7 +66,10 @@ pub(crate) enum Cue {
 /// and plays to the player who becomes the Jedi Master (`EV_BECOME_JEDIMASTER`,
 /// as `sjk-client`'s `sound_events.rs` does). Like every cue it is looked up in
 /// the player's game data and is silently left out when the file is missing.
-pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 10] = [
+///
+/// A world ping plays `update`, a short interface blip (a third of a second, in the
+/// shared `assets0.pk3`), so a ping is heard without covering the game.
+pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 11] = [
     (Cue::Hover, "sound/interface/menuroam.mp3", 0.6),
     (Cue::Click, "sound/interface/button1.mp3", 0.9),
     (Cue::Back, "sound/interface/esc.mp3", 0.9),
@@ -75,6 +80,7 @@ pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 10] = [
     (Cue::WheelRun, "sound/interface/button1.mp3", 0.5),
     (Cue::Achievement, "sound/interface/secret_area.mp3", 0.8),
     (Cue::Medal, "music/goodsmall.mp3", 0.75),
+    (Cue::WorldPing, "sound/interface/update.mp3", 0.8),
 ];
 
 /// Interface cues never share a channel with world sounds.

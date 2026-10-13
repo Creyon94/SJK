@@ -89,6 +89,9 @@ pub(crate) enum InputAction {
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
+    /// `+ping` (its press) or `worldping`: ping the point under the crosshair
+    /// ([`crate::world_ping`]).
+    WorldPing,
 }
 
 /// Current logical gameplay-input state.
@@ -269,6 +272,9 @@ impl GameplayInput {
                     | "flipkick"
                     | "inspect"
                     | "worldnote"
+                    | crate::world_ping::PRESS_COMMAND
+                    | crate::world_ping::RELEASE_COMMAND
+                    | crate::world_ping::COMMAND
                     | "toy_illuminate"
                     | "force_illuminate"
                     | "cameracontrol"
@@ -426,6 +432,9 @@ impl GameplayInput {
             "flipkick" => Some(InputAction::FlipKick),
             "inspect" => Some(InputAction::Inspect),
             "worldnote" => Some(InputAction::WorldNote),
+            crate::world_ping::PRESS_COMMAND | crate::world_ping::COMMAND => {
+                Some(InputAction::WorldPing)
+            }
             // The old name still runs the toy, but is not listed (`selection_commands`).
             "toy_illuminate" | "force_illuminate" => Some(InputAction::Illuminate),
             "cameracontrol" => Some(InputAction::CameraControl),
@@ -546,6 +555,7 @@ impl super::GpuState {
             }
             Some(InputAction::Inspect) => self.hud.card.inspect(),
             Some(InputAction::WorldNote) => self.world_note_press(),
+            Some(InputAction::WorldPing) => self.world_ping_press(),
             Some(InputAction::Illuminate) => self.toggle_illuminate(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
@@ -719,6 +729,24 @@ mod tests {
             input.apply("messagemode5"),
             Some(InputAction::SjkMessageMode)
         );
+    }
+
+    #[test]
+    fn ping_binds_ping_on_the_press_and_stay_off_the_server() {
+        let mut input = GameplayInput::default();
+        for command in ["+ping", "+ping 147 1000", "worldping", "WORLDPING"] {
+            assert!(GameplayInput::recognizes(command), "{command}");
+            assert_eq!(
+                input.apply(command),
+                Some(InputAction::WorldPing),
+                "{command}"
+            );
+        }
+        // The key's release is the bind's own: kept, doing nothing.
+        assert!(GameplayInput::recognizes("-ping 147 1100"));
+        assert_eq!(input.apply("-ping 147 1100"), None);
+        // `ping` is the engine's server query, not a world ping.
+        assert!(!GameplayInput::recognizes("ping"));
     }
 
     #[test]

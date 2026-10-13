@@ -277,6 +277,18 @@ test: On a JA+ server: japlus.serverconfig, then japlus.plugin and japlus.plugin
 test: On a JA+ server with JA+ tools on, type am then Tab: amtele, amlogin and emotes complete.
 test: Type mods: each mod says loaded, on (waiting for its servers) or off.
 
+[world-ping]
+area: Gameplay
+title: World pings: +ping marks a spot for the SJK players on the server
+change: Middle mouse (+ping, or worldping) marks the point under the crosshair through the hub.
+change: Gold ring through walls with name and distance, short sound, 7 s; team-only in team games.
+test: Hub deployed; two SJK clients (cl_identity 1) on a local server; wait ~5 s after joining.
+test: FFA: ping with client A, client B sees the ring, A's name, the distance and hears the sound.
+test: Team game: same team sees it; switch B to the other team or spectator, B sees nothing.
+test: Ping 5 times fast: "Too many pings"; look away: ping sits on the screen edge with its distance.
+test: B sets cg_worldPings 0 (or mutes A): A's pings no longer show on B.
+note: Needs the hub's /v1/ping deployed; worst-case delay about 2 s.
+
 [japlus-teleports]
 area: Gameplay
 title: JA+ admin teleports: japlus.guntele, goto, bring, teleoffset, mark/recall

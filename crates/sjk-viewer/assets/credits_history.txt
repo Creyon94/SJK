@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | World pings for the SJK players on the server
+- 8c0fd48 |  | World pings: +ping marks a point for the SJK players on the server
 + 13/10/2026 | - | Cards tilt towards the pointer, Holo light clean and paced
 - eb72bfd |  | Cards tilt towards the pointer; Holo light clean and paced
 + 13/10/2026 | - | Release 2026.1013.1 notes

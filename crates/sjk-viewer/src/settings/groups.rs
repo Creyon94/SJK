@@ -105,6 +105,7 @@ const MODS_ROWS: &[&str] = &[
 /// The sounds Sound gathers from Network and Interface after the Sound tab's.
 const NOTIFICATION_SOUNDS: &[&str] = &[
     crate::sjk_chat_frame::SOUND_CVAR,
+    crate::world_ping::SOUND_CVAR,
     crate::quick_wheel::SOUNDS_CVAR,
 ];
 
@@ -240,7 +241,10 @@ impl Group {
                 .filter(|cvar| !CHAT_ROWS.contains(cvar))
                 .collect(),
             Self::Advanced(Advanced::Hud) => {
-                let mut cvars = without(Self::Hud, CHAT_ROWS);
+                let mut cvars: Vec<&str> = without(Self::Hud, CHAT_ROWS)
+                    .into_iter()
+                    .filter(|cvar| !NOTIFICATION_SOUNDS.contains(cvar))
+                    .collect();
                 cvars.extend_from_slice(Self::Scoreboard.cvars());
                 cvars
             }
@@ -326,6 +330,8 @@ impl Group {
                 "cg_nameplateIcons",
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",
+                crate::world_ping::SHOW_CVAR,
+                crate::world_ping::SOUND_CVAR,
                 "cg_drawFps",
                 "cg_drawTimer",
                 "cg_drawTimerUpperRight",
@@ -450,6 +456,7 @@ impl Group {
                 ("cg_crosshair", "Crosshair"),
                 ("cg_drawCrosshairNames", "Names and cards"),
                 ("cg_nameplate", "Nameplates"),
+                (crate::world_ping::SHOW_CVAR, "World pings"),
                 ("cg_drawFps", "Readouts"),
                 ("cg_drawChat", "Chat"),
             ],
@@ -477,6 +484,7 @@ impl Group {
                 ("cg_crosshair", "Crosshair"),
                 ("cg_drawCrosshairNames", "Names and cards"),
                 ("cg_nameplate", "Nameplates"),
+                (crate::world_ping::SHOW_CVAR, "World pings"),
                 ("cg_drawFps", "Readouts"),
                 (crate::scoreboard::style::CVAR, "Scoreboard"),
             ],

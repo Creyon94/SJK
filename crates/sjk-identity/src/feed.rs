@@ -1,7 +1,7 @@
 //! The hub's feed (`PROTOCOL.md`, "The feed"): a thread of its own that holds a long
 //! poll open at the hub and keeps the SJK chat's last messages and online count, and
-//! the emotes and looks received, so the identity worker's claims and reports never
-//! wait behind it.
+//! the emotes, pings and looks received, so the identity worker's claims and reports
+//! never wait behind it.
 //!
 //! The worker tells it, through [`FeedShared`], which hub to read (only while the
 //! identity is on and the hub answered the registration, and then while the player
@@ -26,7 +26,7 @@
 use crate::hub::Hub;
 use crate::keys::Identity;
 use crate::service::{HubFactory, ReportOutcome};
-use crate::wire::{ChatMessage, DropEvent, DropMark, Emote, Feed, LookEvent, People};
+use crate::wire::{ChatMessage, DropEvent, DropMark, Emote, Feed, LookEvent, People, Ping};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -49,6 +49,8 @@ pub(crate) const IDLE: Duration = Duration::from_secs(1);
 const EMOTES_WAITING: usize = 64;
 /// Looks waiting for the viewer, the newest kept.
 const LOOKS_WAITING: usize = 64;
+/// Pings waiting for the viewer, the newest kept.
+const PINGS_WAITING: usize = 64;
 
 /// What the feed thread calls when a holocron dropped for the player's own key.
 pub(crate) type OwnDrop = Box<dyn Fn() + Send>;
@@ -137,6 +139,32 @@ pub(crate) fn take_looks(
     }
 }
 
+/// A ping queued for the viewer, with the game server the poll that brought it asked
+/// about.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct QueuedPing {
+    server: Option<SocketAddr>,
+    ping: Ping,
+}
+
+/// Take the queued pings read for `server`, the game server the viewer is on; those read
+/// for another server (a poll under way when the player changed servers) are dropped.
+pub(crate) fn take_pings(
+    queue: &Mutex<VecDeque<QueuedPing>>,
+    server: Option<SocketAddr>,
+) -> Vec<Ping> {
+    let mut queue = lock(queue);
+    if server.is_none() {
+        queue.clear();
+        return Vec::new();
+    }
+    queue
+        .drain(..)
+        .filter(|queued| queued.server == server)
+        .map(|queued| queued.ping)
+        .collect()
+}
+
 pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
         .lock()
@@ -151,6 +179,8 @@ pub(crate) struct FeedWorker {
     state: Arc<Mutex<ChatState>>,
     emotes: Arc<Mutex<VecDeque<Emote>>>,
     looks: Arc<Mutex<VecDeque<QueuedLook>>>,
+    /// The pings received, for [`take_pings`].
+    pings: Arc<Mutex<VecDeque<QueuedPing>>>,
     hub: Option<Box<dyn Hub>>,
     url: Option<String>,
     /// The player's own id at the hub, to tell their drops from others': this PC's key
@@ -196,6 +226,7 @@ impl FeedWorker {
             state,
             emotes,
             looks,
+            pings: Arc::default(),
             hub: None,
             url: None,
             server: None,
@@ -205,6 +236,11 @@ impl FeedWorker {
             backoff: RETRY_MIN,
             epoch: 0,
         }
+    }
+
+    /// The queue the pings received go to ([`take_pings`]).
+    pub(crate) fn pings(&self) -> Arc<Mutex<VecDeque<QueuedPing>>> {
+        Arc::clone(&self.pings)
     }
 
     /// Poll the hub if it is time to; return how long to wait before the next step.
@@ -313,6 +349,11 @@ impl FeedWorker {
             .server
             .as_deref()
             .and_then(|server| server.parse().ok());
+        let pings = feed
+            .pings
+            .into_iter()
+            .map(|ping| QueuedPing { server, ping });
+        queue(&self.pings, pings, PINGS_WAITING);
         let looks = feed.looks.into_iter().map(|event| QueuedLook {
             generation: polled.generation,
             server,
@@ -810,6 +851,51 @@ mod tests {
         rig.worker.step(t0);
         rig.worker.step(t0 + Duration::from_secs(2));
         assert_eq!(rig.texts(), ["hi"]);
+    }
+
+    #[test]
+    fn pings_wait_for_the_viewer_of_their_server() {
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub.example", Some("1.2.3.4:29070"));
+        let mark = |id| Ping {
+            id,
+            at: 0,
+            slot: 3,
+            claimed_name: "^2Sol".to_owned(),
+            key_id: "aa".to_owned(),
+            pos: [1, 2, 3],
+            scope: "all".to_owned(),
+        };
+        rig.script(Ok(Feed {
+            next: 2,
+            pings: vec![mark(1), mark(2)],
+            ..Feed::default()
+        }));
+        rig.worker.step(t0);
+        let queue = rig.worker.pings();
+        let here = Some("1.2.3.4:29070".parse().unwrap());
+        // Another server takes none and drops them: they were not read for it.
+        assert!(take_pings(&queue, Some("5.6.7.8:29070".parse().unwrap())).is_empty());
+        assert!(take_pings(&queue, here).is_empty());
+        rig.script(Ok(Feed {
+            next: 3,
+            pings: vec![mark(3)],
+            ..Feed::default()
+        }));
+        rig.worker.step(t0 + POLL_GAP);
+        let taken = take_pings(&queue, here);
+        assert_eq!(taken.iter().map(|ping| ping.id).collect::<Vec<_>>(), [3]);
+        assert!(take_pings(&queue, here).is_empty(), "taken once");
+        // Out of a game, the queue empties.
+        rig.script(Ok(Feed {
+            next: 4,
+            pings: vec![mark(4)],
+            ..Feed::default()
+        }));
+        rig.worker.step(t0 + POLL_GAP * 2);
+        assert!(take_pings(&queue, None).is_empty());
+        assert!(take_pings(&queue, here).is_empty());
     }
 
     #[test]

@@ -656,6 +656,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show the SJK chat, which every SJK player shares through the SJK hub, and read it (0 hides it and stops reading)",
         ),
         CvarDefinition::new(
+            crate::world_ping::SHOW_CVAR,
+            true,
+            archive,
+            "Show other SJK players' world pings (+ping): your team's in team games, everyone's otherwise; 0 hides them",
+        ),
+        CvarDefinition::new(
+            crate::world_ping::SOUND_CVAR,
+            true,
+            archive,
+            "Play a short sound when a world ping appears, yours included",
+        ),
+        CvarDefinition::new(
             crate::sjk_chat_frame::SOUND_CVAR,
             true,
             archive,

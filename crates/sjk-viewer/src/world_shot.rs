@@ -308,6 +308,9 @@ mod log_requests;
 #[path = "world_shot_whats_new.rs"]
 mod whats_new;
 
+#[path = "world_shot_pings.rs"]
+mod pings;
+
 #[cfg(test)]
 mod tests {
     use super::*;

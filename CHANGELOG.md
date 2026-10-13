@@ -23,6 +23,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> Pings: Middle mouse marks a spot for the SJK players on your server, your team only in team games.
+> Cards: Cards tilt towards the pointer, their light following it.
+
+- World pings: `+ping` (middle mouse in a new profile) marks the point under the crosshair for the other SJK players on the server, your team only in team games, with a gold ring seen through walls, your name, the distance and a short sound for 7 seconds; Settings > HUD > World pings hides others' pings (`cg_worldPings`) or the sound (`cg_worldPingSound`), and muted players' pings never show _(Sol)_
+- Cards tilt towards the pointer: on the Collection's Cards tab a card under the pointer turns towards it a little in perspective, its Holo or Solar light following the pointer under a soft glare; Holo's light stays inside the card's edge and corners and its sweep crosses the card, then waits, instead of jumping back _(Sol)_
+
 ## 2026.1013.1 (Alpha) | 13/10/2026
 
 Settings in two modes, Simple and Advanced, with new holocron icons and the choice of Vanilla or the SJK renderer, trading cards with faces, a character creator of tiles, and chat in Russian, Japanese, Chinese, Korean and emoji.
@@ -34,7 +42,6 @@ Settings in two modes, Simple and Advanced, with new holocron icons and the choi
 > Character: Pick models and hats from tiles; Apply wears them.
 > Chat: Russian, Japanese, Chinese, Korean and emoji now show instead of question marks.
 
-- Cards tilt towards the pointer: on the Collection's Cards tab a card under the pointer turns towards it a little in perspective, its Holo or Solar light following the pointer under a soft glare; Holo's light stays inside the card's edge and corners and its sweep crosses the card, then waits, instead of jumping back _(Sol)_
 - SJK Symbols, SJK's own symbol font: marks for the rarities (Common to Mythical, one holocron octagon whose marks grow with rank) and the cards' finishes, drawn in the colour of the text around them on cards, the loot table and the Shaders tab, beside the rarity's name _(Sol)_
 - Russian and Japanese text: chat, names, the console and every other text draw Cyrillic, kana and kanji instead of question marks (Noto Sans JP is bundled for Japanese); Russian is sent and read in Windows-1251 as EternalJK sends it, so SJK and EternalJK players with `se_language russian` read each other, and Settings > Chat > Other clients' text (`cl_charset`: Auto, Western, Cyrillic) fixes a wrong guess; Japanese goes as UTF-8, read by SJK players, and the SJK channel and bios take it too; the chat field now stops where the server would cut the line, so a Russian line holds 149 letters _(Sol, after EternalJK)_
 - Chinese, Korean and colour emoji: Simplified Chinese and Hangul draw from the bundled Noto Sans SC and KR, emoji are Twemoji's colour pictures, skin tones, families and flags drawn as one and taken whole by the caret and Backspace; they go as UTF-8, read by SJK players, and the SJK channel and bios take Korean, Chinese punctuation and emoji too _(Sol)_

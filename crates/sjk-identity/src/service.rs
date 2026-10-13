@@ -9,14 +9,14 @@
 //! The service is inert while it is disabled or has no hub address: it makes no
 //! request of any kind.
 
-use crate::feed::{ChatState, FeedShared, FeedWorker, QueuedLook, ReceivedLooks};
+use crate::feed::{ChatState, FeedShared, FeedWorker, QueuedLook, QueuedPing, ReceivedLooks};
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::logs::{LogRequest, LogUpload};
 use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
 use crate::wire::{
-    Achievement, Emote, HolocronState, Look, Presence, Profile, Unlock, names_match,
+    Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, Unlock, names_match,
 };
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::net::SocketAddr;
@@ -337,6 +337,8 @@ enum Command {
     Chat(String),
     /// An emote, for the slot the player claims.
     Emote(String),
+    /// A ping at a point (whole game units) for a scope, from the slot the player claims.
+    Ping([i32; 3], String),
     /// Whether the SJK chat is on.
     SetChat(bool),
     /// A new picture, a PNG already cropped and scaled (`crate::avatar`).
@@ -415,6 +417,8 @@ struct Worker {
     feed: Arc<Mutex<FeedShared>>,
     /// What the chat shows; the worker writes the outcome of what it sends.
     chat: Arc<Mutex<ChatState>>,
+    /// What became of the last ping sent ([`Service::ping_outcome`]).
+    ping_outcome: Arc<Mutex<Option<ReportOutcome>>>,
     /// The look the viewer last gave.
     look: Look,
     /// The claim (server, slot and name) the hub accepted last, while it holds it: a
@@ -592,6 +596,7 @@ impl Worker {
             chat_on: false,
             feed: Arc::default(),
             chat: Arc::default(),
+            ping_outcome: Arc::default(),
             look: Look::default(),
             look_claim: None,
             look_held: Held::Unknown,
@@ -740,6 +745,29 @@ impl Worker {
         self.chat_outcome(outcome);
     }
 
+    /// Send a ping from the slot the player claims on their server; what became of it
+    /// goes to [`Service::ping_outcome`].
+    fn send_ping(&mut self, pos: [i32; 3], scope: &str) {
+        let server = self
+            .location
+            .as_ref()
+            .map(|location| location.server.to_string());
+        let outcome = match (self.hub.as_mut(), self.registered, server) {
+            (Some(_), true, None) => Err(HubError::Rejected {
+                status: 403,
+                code: "not_on_server".to_owned(),
+                message: "join a server to ping".to_owned(),
+            }),
+            (Some(hub), true, Some(server)) => hub
+                .ping(&self.identity, &server, pos, scope)
+                .map(|_| String::new()),
+            _ => Err(not_connected()),
+        };
+        let mut last = crate::feed::lock(&self.ping_outcome);
+        let serial = last.as_ref().map_or(1, |last| last.serial + 1);
+        *last = Some(outcome_of(serial, outcome));
+    }
+
     fn update(&self, change: impl FnOnce(&mut Snapshot)) {
         change(&mut lock(&self.snapshot));
     }
@@ -825,6 +853,7 @@ impl Worker {
             Command::LookUp(key_id) => self.lookups.push(key_id),
             Command::Chat(text) => self.send_chat(&text),
             Command::Emote(emote) => self.send_emote(&emote),
+            Command::Ping(pos, scope) => self.send_ping(pos, &scope),
             Command::SetChat(on) => self.chat_on = on,
             Command::SetAvatar(png) => self.change_avatar(Some(&png)),
             Command::RemoveAvatar => self.change_avatar(None),
@@ -1686,6 +1715,8 @@ pub struct Service {
     chat: Arc<Mutex<ChatState>>,
     emotes: Arc<Mutex<VecDeque<Emote>>>,
     looks: Arc<Mutex<VecDeque<QueuedLook>>>,
+    pings: Arc<Mutex<VecDeque<QueuedPing>>>,
+    ping_outcome: Arc<Mutex<Option<ReportOutcome>>>,
     /// What the feed is told to read, for the looks' generation.
     feed: Arc<Mutex<FeedShared>>,
     /// Set to end the feed thread, which ends after its poll at the latest.
@@ -1724,11 +1755,13 @@ impl Service {
             Instant::now(),
         );
         let chat = Arc::clone(&worker.chat);
+        let ping_outcome = Arc::clone(&worker.ping_outcome);
         let feed = Arc::clone(&worker.feed);
         let own_drops = commands.clone();
         let emotes = Arc::new(Mutex::new(VecDeque::new()));
         let looks = Arc::new(Mutex::new(VecDeque::new()));
         let feed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut pings = Arc::default();
         if let Some(make_feed_hub) = make_feed_hub {
             let feed = FeedWorker::new(
                 feed_identity,
@@ -1742,6 +1775,7 @@ impl Service {
                 }),
                 Instant::now(),
             );
+            pings = feed.pings();
             let stop = Arc::clone(&feed_stop);
             let spawned = std::thread::Builder::new()
                 .name("sjk-hub-feed".to_owned())
@@ -1778,6 +1812,8 @@ impl Service {
             chat,
             emotes,
             looks,
+            pings,
+            ping_outcome,
             feed,
             feed_stop,
             finished: Mutex::new(finished),
@@ -1991,6 +2027,24 @@ impl Service {
     /// The emotes received since the last call, oldest first.
     pub fn take_emotes(&self) -> Vec<Emote> {
         crate::feed::lock(&self.emotes).drain(..).collect()
+    }
+
+    /// Mark `pos` (whole game units) for `scope` (`PROTOCOL.md`, "Pings") from the slot
+    /// the player claims on their server; what became of it arrives in
+    /// [`Service::ping_outcome`].
+    pub fn ping(&self, pos: [i32; 3], scope: String) {
+        let _ = self.commands.send(Command::Ping(pos, scope));
+    }
+
+    /// What became of the last ping sent; `None` before one.
+    pub fn ping_outcome(&self) -> Option<ReportOutcome> {
+        crate::feed::lock(&self.ping_outcome).clone()
+    }
+
+    /// The pings the feed received for `server`, the game server the player is on,
+    /// since the last call, oldest first; those read for another server are dropped.
+    pub fn take_pings(&self, server: Option<SocketAddr>) -> Vec<Ping> {
+        crate::feed::take_pings(&self.pings, server)
     }
 
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the
@@ -2338,6 +2392,15 @@ mod tests {
         }
         fn emote(&mut self, _: &Identity, server: &str, emote: &str) -> Result<u64, HubError> {
             Fake::record(self, format!("emote {emote} on {server}")).map(|()| 13)
+        }
+        fn ping(
+            &mut self,
+            _: &Identity,
+            server: &str,
+            pos: [i32; 3],
+            scope: &str,
+        ) -> Result<u64, HubError> {
+            Fake::record(self, format!("ping {pos:?} {scope} on {server}")).map(|()| 14)
         }
         fn look(&mut self, _: &Identity, server: &str, look: &Look) -> Result<u64, HubError> {
             Fake::record(
@@ -3039,6 +3102,29 @@ mod tests {
         worker.handle(Command::Emote("wave".into()), t0);
         assert_eq!(fake.log().last().unwrap(), "emote wave on 1.2.3.4:29070");
         assert!(chat_outcome(&worker).sent);
+    }
+
+    #[test]
+    fn pings_need_a_server() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::Ping([1, 2, 3], "all".into()), t0);
+        let outcome = || crate::feed::lock(&worker.ping_outcome).clone().unwrap();
+        let nowhere = outcome();
+        assert!(!nowhere.sent && nowhere.message.contains("server"));
+        assert!(!fake.log().iter().any(|line| line.starts_with("ping")));
+        worker.handle(Command::Enter(here(3, "Sol")), t0);
+        worker.tick(t0);
+        worker.handle(Command::Ping([1, -2, 3], "red".into()), t0);
+        assert_eq!(
+            fake.log().last().unwrap(),
+            "ping [1, -2, 3] red on 1.2.3.4:29070"
+        );
+        let sent = crate::feed::lock(&worker.ping_outcome).clone().unwrap();
+        assert!(sent.sent && sent.serial == nowhere.serial + 1);
     }
 
     #[test]

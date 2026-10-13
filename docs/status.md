@@ -1,5 +1,23 @@
 # Status and priorities
 
+## World pings
+
+Branch `personal/world-ping` (13/10/2026), Sol's request: a modern game's ping that every
+SJK player on the server sees in games without teams and only teammates in team games.
+`+ping` (middle mouse where free) or `worldping` marks the point under the crosshair: a
+gold ring through walls with the name and distance, a short sound, 7 seconds
+([client.md](client.md#world-pings)). Transport: the hub, as emotes (`POST /v1/ping`, the
+feed's `pings`; hub branch `world-ping`, not deployed), chosen over hidden server chat,
+which other clients would show and server mods would rate-limit
+([hub-chat.md](hub-chat.md#pings)). Team rule checked by each reader from its game's
+configstrings; the hub cannot enforce it. Limits on sending (1 a second, 4 in 10 s), at the
+hub (5 in 10 s) and on receipt (per slot); `cg_worldPings`, `cg_worldPingSound`, muted
+players hidden. No minimap exists to show them on. Verified: unit tests (scopes and who
+sees them, limits, the border placement, the draw list, the binds, the feed queue per
+server, the service, the wire), the hub's unit and API tests, world shots
+`world_shot::pings::duel6_world_pings` at 1080p and 4K looked at. Not tried with two
+clients, a live hub or in a game; the sound not heard.
+
 ## Cards tilt towards the pointer, cleaner Holo
 
 Branch `personal/card-tilt` (13/10/2026), Sol's report and request: Holo's bands showed

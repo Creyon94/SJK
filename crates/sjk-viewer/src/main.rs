@@ -260,6 +260,8 @@ mod whats_new_card;
 mod window_icon;
 mod world_materials;
 mod world_notes;
+mod world_ping;
+mod world_ping_frame;
 #[cfg(test)]
 mod world_shot;
 mod world_stage;
@@ -445,6 +447,8 @@ struct GpuState {
     trace_scratch: TraceScratch,
     /// `worldnote`: the selection and the note being written.
     world_notes: world_notes::Notes,
+    /// `+ping`: the pings on show and their limits (`world_ping`).
+    world_pings: world_ping::WorldPings,
     /// The note and bug report panel, and the Report a bug button (`text_dialog`).
     text_dialog: text_dialog::TextDialog,
     /// The new medal pop-up (`medal_popup`).
@@ -1346,6 +1350,7 @@ impl GpuState {
             bsp: Arc::new(bsp),
             trace_scratch,
             world_notes: world_notes::Notes::default(),
+            world_pings: world_ping::WorldPings::default(),
             text_dialog: text_dialog::TextDialog::default(),
             medal_popup: medal_popup::MedalPopup::default(),
             holocron_popup: holocron_popup::HolocronPopup::default(),
@@ -1861,6 +1866,11 @@ impl GpuState {
                 .client_menu
                 .as_ref()
                 .is_some_and(|menu| menu.is_visible());
+        let scoreboard_held = self.gameplay_input.held(input::GameButton::Scores);
+        self.append_world_pings(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
         if information_visible && intermission_view.is_none() {
             hud_runtime::append(
                 self,
@@ -2032,6 +2042,7 @@ impl GpuState {
                 .map(menu::ClientMenu::world_fade),
             self.world_notes.fill(),
             self.world_notes.highlight(),
+            Some(&self.world_pings.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| &self.hud.card.list),

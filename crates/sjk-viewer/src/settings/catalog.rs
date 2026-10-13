@@ -445,6 +445,16 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Others' world pings",
+        cvar: crate::world_ping::SHOW_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "World ping sound",
+        cvar: crate::world_ping::SOUND_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "FPS / frame-time readout",
         cvar: "cg_drawFps",
         kind: ValueKind::Bool,
