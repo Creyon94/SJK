@@ -27,8 +27,9 @@ pub const MANIFEST_PATH: &str = "sjk-materialgen/manifest.json";
 /// fixtures whose overlay does not glow emit. 7: crates are painted metal, concrete is
 /// concrete and look-alike words no longer pick a class, the overrides file is found in
 /// the client's generated folder ([`crate::overrides_file`]) and `strength=` scales a
-/// texture's relief.
-pub const GENERATION: u32 = 7;
+/// texture's relief. 8: the shape relief ([`crate::shape`]): plates, seams and painted
+/// bevels at any size, mixed in by class (`shape=` in the overrides).
+pub const GENERATION: u32 = 8;
 
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \
@@ -69,6 +70,8 @@ pub struct ManifestSettings {
     pub height_bands: Vec<[f32; 2]>,
     pub coarse_weight: f32,
     pub min_height_range: f32,
+    /// The shape relief's settings ([`crate::shape`]).
+    pub shape_relief: ShapeSettings,
     /// The overrides file read, if any.
     pub overrides: Option<String>,
     /// Which overrides file was read and how it was chosen, or every place looked at
@@ -76,6 +79,44 @@ pub struct ManifestSettings {
     pub overrides_found: String,
     /// Rules in the overrides file read (0 without one).
     pub overrides_rules: usize,
+}
+
+/// The shape relief's constants, as the manifest records them.
+#[derive(Clone, Debug, Serialize)]
+pub struct ShapeSettings {
+    pub work_size: usize,
+    pub edge_smoothing: f32,
+    pub edge_floor: f32,
+    pub edge_span: f32,
+    pub edge_percentiles: [f32; 2],
+    pub edge_reach: f32,
+    pub edge_surroundings: f32,
+    pub edge_flatten: f32,
+    pub shading_band: [f32; 2],
+    pub shading_reach: f32,
+    pub shading_width: f32,
+    pub shading_weight: f32,
+}
+
+impl ShapeSettings {
+    /// The constants of this build.
+    pub fn current() -> Self {
+        use crate::shape::*;
+        Self {
+            work_size: WORK_SIZE,
+            edge_smoothing: EDGE_SMOOTHING,
+            edge_floor: EDGE_FLOOR,
+            edge_span: EDGE_SPAN,
+            edge_percentiles: [EDGE_PERCENTILES.0, EDGE_PERCENTILES.1],
+            edge_reach: EDGE_REACH,
+            edge_surroundings: EDGE_SURROUNDINGS,
+            edge_flatten: EDGE_FLATTEN,
+            shading_band: [SHADING_BAND.0, SHADING_BAND.1],
+            shading_reach: SHADING_REACH,
+            shading_width: SHADING_WIDTH,
+            shading_weight: SHADING_WEIGHT,
+        }
+    }
 }
 
 /// One source texture and what was written for it.
@@ -95,6 +136,8 @@ pub struct SourceEntry {
     /// Base roughness and metalness it was generated with.
     pub roughness: f32,
     pub metalness: f32,
+    /// Weight of the shape relief (the class's, or the overrides').
+    pub shape: f32,
     pub alpha_tested: bool,
     pub shaders: Vec<String>,
     pub maps: Vec<String>,
@@ -229,6 +272,7 @@ mod tests {
                 height_bands: vec![[1.0, 0.5]],
                 coarse_weight: 0.5,
                 min_height_range: 0.1,
+                shape_relief: ShapeSettings::current(),
                 overrides: None,
                 overrides_found: "none (--no-overrides)".into(),
                 overrides_rules: 0,
@@ -244,6 +288,7 @@ mod tests {
                 overrides: Vec::new(),
                 roughness: 0.85,
                 metalness: 0.0,
+                shape: 0.5,
                 alpha_tested: false,
                 shaders: vec!["textures/a/wall".into()],
                 maps: vec!["mp/test".into()],

@@ -9,14 +9,18 @@
 //!    paint over an eighth of the texture or more are suppressed. The rest
 //!    is split into band-pass layers between wrap-around Gaussian blurs of
 //!    radius 0, 1, 2, 4, 8 and 16 texels at 256, summed with [`BANDS`]'
-//!    weights, so pixel noise counts less than shapes. The sum is centred on
-//!    its 2nd–98th percentile range and scaled to 0–1. Low-contrast textures
-//!    are not stretched beyond [`MIN_HEIGHT_RANGE`], so flat paint stays flat.
-//!    The class's `fine_detail` weighs the two finest bands (smooth metal keeps
-//!    little of the texel grain). Bright is high unless the class's `relief`
-//!    says otherwise or, left to `auto`, the paint's own top light clearly shows
-//!    the bright parts recessed ([`painted_relief`]): then the height is turned
-//!    upside down.
+//!    weights, so pixel noise counts less than shapes. The class's `fine_detail`
+//!    weighs the two finest bands (smooth metal keeps little of the texel grain).
+//!    That band-pass height loses every shape larger than the high-pass, so since
+//!    generation 8 the class's `shape` weight mixes in the shape relief
+//!    ([`crate::shape`]): plates as plateaus from the paint's sharp edges, and steps
+//!    from its painted bevels. The sum is centred on its 2nd–98th percentile range
+//!    and scaled to 0–1. Low-contrast textures are not stretched beyond
+//!    [`MIN_HEIGHT_RANGE`], so flat paint stays flat. Bright is high unless the
+//!    class's `relief` says otherwise or, left to `auto`, the paint's own top light
+//!    clearly shows the bright parts recessed ([`painted_relief`]): then the
+//!    height is turned upside down (the painted bevels' steps excepted, which follow
+//!    the painted light either way).
 //! 2. **Normal.** Scharr derivatives of the height, times the class's normal
 //!    strength and the `--strength` factor, give the normal
 //!    `normalize(-k·dh/ds, -k·dh/dt, 1)`. Up to [`SLOPE_REFERENCE`] (512)
@@ -40,6 +44,7 @@
 
 use crate::classes::{MaterialClass, Relief};
 use crate::filters::{Plane, blur, percentile, scharr, weighted_blur};
+use crate::shape::shape_relief;
 use image::{Rgb, RgbImage, Rgba, RgbaImage};
 
 /// Radius in texels at 256 texels of the high-pass that removes lighting
@@ -151,7 +156,6 @@ pub fn generate(
         0.2126 * red.at(x, y) + 0.7152 * green.at(x, y) + 0.0722 * blue.at(x, y)
     });
     let scale = width.max(height) as f32 / 256.0;
-    let height_map = height_from_luminance(&luminance, mask.as_ref(), scale, class.fine_detail);
     // Alpha-tested textures keep bright high: their holes are cut out, not painted.
     let painted = if mask.is_none() {
         painted_relief(&luminance, scale)
@@ -166,10 +170,33 @@ pub fn generate(
                 .then_some("painted shading")
         }
     };
-    let height_map = if inverted.is_some() {
-        height_map.map(|value| 1.0 - value)
+    let band = band_height(&luminance, mask.as_ref(), scale, class.fine_detail);
+    let (_, band_range) = height_range(&band, mask.as_ref());
+    let band_map = normalize_height(&band, mask.as_ref());
+    let band_map = if inverted.is_some() {
+        band_map.map(|value| 1.0 - value)
     } else {
-        height_map
+        band_map
+    };
+    // The shape relief is added on the band-pass height's own scale, so a texture
+    // without plates or bevels keeps the relief it had, and one with them gains their
+    // steps on top of it. Its plates (bright high) turn with the band-pass height; the
+    // painted bevels' steps follow the painted light either way.
+    let shape = (mask.is_none() && class.shape > 0.0)
+        .then(|| shape_relief(&luminance))
+        .flatten();
+    let (surface, height_map) = match &shape {
+        Some(shape) => {
+            let sign = if inverted.is_some() { -1.0 } else { 1.0 };
+            let gain = class.shape.clamp(0.0, crate::classes::MAX_SHAPE) / band_range;
+            let surface = Plane::from_fn(width, height, |x, y| {
+                band_map.at(x, y) + gain * (sign * shape.edges.at(x, y) + shape.shading.at(x, y))
+            });
+            // Parallax height and cavities keep to 0–1.
+            let height_map = normalize_height(&surface, mask.as_ref());
+            (surface, height_map)
+        }
+        None => (band_map.clone(), band_map),
     };
 
     // Above SLOPE_REFERENCE texels slopes are measured per 1/512 of the texture,
@@ -178,17 +205,20 @@ pub fn generate(
     let slope_scale = (width.max(height) as f32 / SLOPE_REFERENCE).max(1.0);
     let strength = class.normal_strength * settings.strength * slope_scale;
     let step = (slope_scale.round() as usize).max(1);
-    let relief = if step > 1 {
-        blur(&height_map, step / 2)
-    } else {
-        height_map.clone()
+    let smooth = |plane: &Plane| {
+        if step > 1 {
+            blur(plane, step / 2)
+        } else {
+            plane.clone()
+        }
     };
+    let relief = smooth(&height_map);
     let normal_kind = if class.parallax && !alpha_tested {
         NormalKind::Height
     } else {
         NormalKind::Plain
     };
-    let mut normal = normal_from_height(&relief, strength, step);
+    let mut normal = normal_from_height(&smooth(&surface), strength, step);
     let opaque = |x: usize, y: usize| mask.as_ref().is_none_or(|mask| mask.at(x, y) >= 0.5);
     for (x, y, pixel) in normal.enumerate_pixels_mut() {
         let (x, y) = (x as usize, y as usize);
@@ -258,14 +288,19 @@ pub fn cap_size(source: &RgbaImage, max_size: Option<u32>) -> RgbaImage {
     image
 }
 
-/// Step 1 of the module documentation: normalised 0–1 height, bright high. `fine`
-/// weighs the two finest bands.
+/// The band-pass height of step 1 alone, normalised 0–1, bright high: what generation 7
+/// and earlier used for every texture. `fine` weighs the two finest bands.
 pub fn height_from_luminance(
     luminance: &Plane,
     mask: Option<&Plane>,
     scale: f32,
     fine: f32,
 ) -> Plane {
+    normalize_height(&band_height(luminance, mask, scale, fine), mask)
+}
+
+/// The band-pass height before normalisation, in luminance units.
+fn band_height(luminance: &Plane, mask: Option<&Plane>, scale: f32, fine: f32) -> Plane {
     let smooth = |plane: &Plane, radius: usize| match mask {
         Some(mask) => weighted_blur(plane, mask, radius),
         None => blur(plane, radius),
@@ -308,10 +343,21 @@ pub fn height_from_luminance(
     for (sum, coarse) in raw.data.iter_mut().zip(&previous.data) {
         *sum += COARSE_WEIGHT * coarse;
     }
-    let low = percentile(&raw, mask, 0.02);
-    let high = percentile(&raw, mask, 0.98);
-    let middle = 0.5 * (low + high);
-    let range = (high - low).max(MIN_HEIGHT_RANGE);
+    raw
+}
+
+/// The middle and the extent of `raw`'s 2nd–98th percentile range, the extent no
+/// smaller than [`MIN_HEIGHT_RANGE`].
+fn height_range(raw: &Plane, mask: Option<&Plane>) -> (f32, f32) {
+    let low = percentile(raw, mask, 0.02);
+    let high = percentile(raw, mask, 0.98);
+    (0.5 * (low + high), (high - low).max(MIN_HEIGHT_RANGE))
+}
+
+/// `raw` centred on its 2nd–98th percentile range and scaled to 0–1, stretched no more
+/// than [`MIN_HEIGHT_RANGE`] allows.
+fn normalize_height(raw: &Plane, mask: Option<&Plane>) -> Plane {
+    let (middle, range) = height_range(raw, mask);
     raw.map(|value| (0.5 + (value - middle) / range).clamp(0.0, 1.0))
 }
 
@@ -482,7 +528,8 @@ mod tests {
             Rgba([value, value, value, 255])
         });
         let settings = Settings::default();
-        let stud = |maps: &Maps| maps.packed.get_pixel(48, 64).0[2];
+        // Just inside a stud's left edge (the studs span 16..48 each way).
+        let stud = |maps: &Maps| maps.packed.get_pixel(18, 32).0[2];
         let auto = generate(&source, &GENERIC, false, &settings);
         assert_eq!(auto.inverted, Some("painted shading"));
         let kept = generate(
@@ -495,7 +542,7 @@ mod tests {
             &settings,
         );
         assert_eq!(kept.inverted, None);
-        // Raised, the stud's middle is no cavity; kept upside down, it is one.
+        // Raised, the stud's rim is no cavity; kept upside down, it is one.
         assert!(stud(&auto) > stud(&kept), "{} {}", stud(&auto), stud(&kept));
         let forced = MaterialClass {
             relief: Relief::Inverted,

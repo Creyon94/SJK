@@ -51,6 +51,11 @@ pub struct MaterialClass {
     pub fine_detail: f32,
     /// Which way up the luminance height is.
     pub relief: Relief,
+    /// Weight (0–[`MAX_SHAPE`]) of the shape relief ([`crate::shape`]: plates, seams and painted
+    /// bevels at any size) against the band-pass height: 0 keeps the band-pass height
+    /// alone, as before generation 8. Painted panels and machinery take most of it;
+    /// foliage and cloth, whose paint has no plates, none.
+    pub shape: f32,
 }
 
 /// Which way up a texture's luminance height is. Luminance is a guess at height: a dark
@@ -66,6 +71,10 @@ pub enum Relief {
     /// Dark is high.
     Inverted,
 }
+
+/// Largest shape weight (classes and `shape=` in the overrides): twice a painted
+/// panel's.
+pub const MAX_SHAPE: f32 = 2.0;
 
 /// BSP material ids of OpenJK `surfaceflags.h`.
 pub mod bsp {
@@ -126,6 +135,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.0,
     },
     MaterialClass {
         name: "glass",
@@ -141,6 +151,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.3,
     },
     MaterialClass {
         name: "electronics",
@@ -172,6 +183,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.8,
     },
     MaterialClass {
         name: "lights",
@@ -187,6 +199,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.5,
     },
     MaterialClass {
         name: "metal",
@@ -237,6 +250,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: true,
         fine_detail: 0.25,
         relief: Relief::Auto,
+        shape: 0.8,
     },
     MaterialClass {
         name: "tiles",
@@ -252,6 +266,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.8,
     },
     MaterialClass {
         name: "stone",
@@ -270,6 +285,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.6,
     },
     MaterialClass {
         name: "wood",
@@ -287,6 +303,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.5,
     },
     MaterialClass {
         name: "ground",
@@ -304,6 +321,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.2,
     },
     MaterialClass {
         name: "fabric",
@@ -321,6 +339,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.0,
     },
     MaterialClass {
         name: "plaster",
@@ -336,6 +355,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 1.0,
         relief: Relief::Auto,
+        shape: 0.3,
     },
     // Painted metal of the Star Wars interiors: walls, doors, trims and panels that are
     // neither bare metal nor stone. Last, so every other class's words come first, and
@@ -357,6 +377,7 @@ pub const CLASSES: &[MaterialClass] = &[
         alpha_test_safe: false,
         fine_detail: 0.4,
         relief: Relief::Auto,
+        shape: 1.0,
     },
 ];
 
@@ -441,6 +462,7 @@ pub const GENERIC: MaterialClass = MaterialClass {
     alpha_test_safe: false,
     fine_detail: 1.0,
     relief: Relief::Auto,
+    shape: 0.5,
 };
 
 /// Base roughness of a polished surface (a `tcGen environment` stage): clear
@@ -685,6 +707,7 @@ mod tests {
         for class in CLASSES.iter().chain(std::iter::once(&GENERIC)) {
             assert!(class.normal_strength > 0.0, "{}", class.name);
             assert!((0.0..=1.0).contains(&class.fine_detail), "{}", class.name);
+            assert!((0.0..=MAX_SHAPE).contains(&class.shape), "{}", class.name);
             for value in [
                 class.roughness,
                 class.roughness_variation,

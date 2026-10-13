@@ -150,6 +150,7 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
                     overrides: candidate.overrides.clone(),
                     roughness: candidate.class.roughness,
                     metalness: candidate.class.metalness,
+                    shape: candidate.class.shape,
                     alpha_tested: candidate.alpha_tested,
                     shaders: candidate.shaders.iter().cloned().collect(),
                     maps: candidate.maps.iter().cloned().collect(),
@@ -201,6 +202,7 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
             height_bands: BANDS.iter().map(|(r, w)| [*r, *w]).collect(),
             coarse_weight: COARSE_WEIGHT,
             min_height_range: MIN_HEIGHT_RANGE,
+            shape_relief: crate::package::ShapeSettings::current(),
             overrides: options
                 .overrides_found
                 .path()

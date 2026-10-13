@@ -160,6 +160,38 @@ pub fn scharr(plane: &Plane, x: usize, y: usize, step: usize) -> (f32, f32) {
     (gx / norm, gy / norm)
 }
 
+/// `plane` halved with a 2×2 box: both sides must be even.
+pub fn halve(plane: &Plane) -> Plane {
+    Plane::from_fn(plane.width / 2, plane.height / 2, |x, y| {
+        0.25 * (plane.at(2 * x, 2 * y)
+            + plane.at(2 * x + 1, 2 * y)
+            + plane.at(2 * x, 2 * y + 1)
+            + plane.at(2 * x + 1, 2 * y + 1))
+    })
+}
+
+/// Bilinear wrap-around resampling of `plane` to `width` × `height`, texel centres
+/// aligned, so a tiling plane keeps tiling. Meant for small changes of size and for
+/// enlarging; shrink by more than half with [`halve`] first.
+pub fn resample(plane: &Plane, width: usize, height: usize) -> Plane {
+    if (width, height) == (plane.width, plane.height) {
+        return plane.clone();
+    }
+    let (sx, sy) = (
+        plane.width as f32 / width as f32,
+        plane.height as f32 / height as f32,
+    );
+    Plane::from_fn(width, height, |x, y| {
+        let (u, v) = ((x as f32 + 0.5) * sx - 0.5, (y as f32 + 0.5) * sy - 0.5);
+        let (x0, y0) = (u.floor(), v.floor());
+        let (fx, fy) = (u - x0, v - y0);
+        let (x0, y0) = (x0 as isize, y0 as isize);
+        let top = plane.wrapped(x0, y0) * (1.0 - fx) + plane.wrapped(x0 + 1, y0) * fx;
+        let bottom = plane.wrapped(x0, y0 + 1) * (1.0 - fx) + plane.wrapped(x0 + 1, y0 + 1) * fx;
+        top * (1.0 - fy) + bottom * fy
+    })
+}
+
 /// The value below which `fraction` of the samples lie (nearest rank), over
 /// the samples whose `weight` is at least one half.
 pub fn percentile(values: &Plane, weight: Option<&Plane>, fraction: f32) -> f32 {
@@ -225,6 +257,29 @@ mod tests {
         assert!((gx - 0.5).abs() < 1e-6 && (gy - 0.25).abs() < 1e-6);
         let (gx, gy) = scharr(&ramp, 3, 3, 2);
         assert!((gx - 0.5).abs() < 1e-6 && (gy - 0.25).abs() < 1e-6);
+    }
+
+    #[test]
+    fn halving_and_resampling_keep_values_and_tiling() {
+        let ramp = Plane::from_fn(8, 4, |x, y| (x + 10 * y) as f32);
+        let half = halve(&ramp);
+        assert_eq!((half.width, half.height), (4, 2));
+        assert!((half.at(1, 1) - (2.5 + 25.0)).abs() < 1e-5);
+        // Same size copies; a constant stays constant at any size.
+        assert_eq!(resample(&ramp, 8, 4), ramp);
+        let flat = Plane::filled(6, 10, 0.7);
+        assert!(
+            resample(&flat, 16, 8)
+                .data
+                .iter()
+                .all(|v| (v - 0.7).abs() < 1e-6)
+        );
+        // Doubling a wrap-around ramp blends the last column with the first.
+        let line = Plane::from_fn(4, 1, |x, _| x as f32);
+        let doubled = resample(&line, 8, 1);
+        assert!((doubled.at(0, 0) - 0.75).abs() < 1e-5, "{:?}", doubled.data);
+        assert!((doubled.at(1, 0) - 0.25).abs() < 1e-5, "{:?}", doubled.data);
+        assert!((doubled.at(7, 0) - 2.25).abs() < 1e-5, "{:?}", doubled.data);
     }
 
     #[test]

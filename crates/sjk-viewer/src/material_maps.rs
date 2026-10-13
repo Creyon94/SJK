@@ -328,8 +328,9 @@ pub(crate) mod lights {
 /// vertex-lit paint and the indicator lights of controls, 6 lets declared light fixtures
 /// whose overlay does not glow emit ([`shows_light`]), 7 classes crates as painted metal
 /// and concrete as concrete, reads the overrides from the client's generated folder and
-/// takes per-texture relief strength.
-pub(crate) const GENERATION: u32 = 7;
+/// takes per-texture relief strength, 8 adds the shape relief (plates, seams and painted
+/// bevels at any size).
+pub(crate) const GENERATION: u32 = 8;
 /// Where the generator's manifest sits in its pk3.
 const MANIFEST: &str = "sjk-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.

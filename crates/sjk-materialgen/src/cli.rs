@@ -24,8 +24,8 @@ OPTIONS:
     --strength F      multiply every class's normal strength (default 1.0)
     --max-size N      halve textures larger than N texels before generating
                       (default: keep the source resolution)
-    --overrides FILE  per-texture class, roughness, metalness, strength, height and
-                      emission rules (see the crate documentation); default:
+    --overrides FILE  per-texture class, roughness, metalness, strength, shape, height,
+                      relief and emission rules (see the crate documentation); default:
                       sjk-materialgen-overrides.txt next to the output pk3, else in the
                       client's generated folder (one left in an earlier version's folder,
                       %APPDATA%\\jkr\\generated, is copied there); the run says which
