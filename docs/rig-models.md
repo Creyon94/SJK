@@ -153,7 +153,9 @@ in one click.
   to SJK.
 - **What it writes:** by default one file, `<GameData>/base/rig_<name>.pk3`, holding
   `models/players/<name>/` (`model.gltf`, `model.bin`, the colour images,
-  `sjk_rig.cfg`) and `emotes/<name>_<action>.emote` for each ticked action; deleting
+  `sjk_rig.cfg`) and `emotes/<id>.emote` for each ticked action (the id is the
+  emote's name, `Dance Moves` giving `dance_moves`, else `<name>_<action>`; two models
+  in one pack should not give two emotes one name); deleting
   that file removes everything. "One .pk3 file" off writes the same as loose folders
   under `base`. "Pack name" (empty: `rig_<name>`) lets several models share one pack:
   an export replaces only its own model's files there (its folder, and the emote
@@ -332,7 +334,7 @@ plays its glTF's animations on its own skeleton.
   its parent, a root joint under what its parent nodes add, `Joint::above`), shifted
   by how far the driver's current animation lowers the pelvis from its base pose
   (the GLA's offset), and blends the two per joint.
-- An emote file names its clip: `{"name": "DanceMoves", "clip": "kane_dancemoves",
+- An emote file names its clip: `{"name": "Dance Moves", "clip": "dance_moves",
   "length_ms": 3400, "local": true}`. `emotes::playing(slot)` gives the pose step the
   clip, its time and what is left; a player whose model lacks the clip keeps the
   driver's pose.
