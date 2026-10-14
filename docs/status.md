@@ -1,3 +1,19 @@
+## Emotes on stock models
+
+15/10/2026, `feat/emotes-on-classic-models` (Creyon, at Sol's request): a stock GLM model
+(Kyle, the retail characters, community models on `_humanoid`) plays the emotes made on rig
+models, on its own bones: each bone the source rig's bone map names takes its joint's turn
+from the aligned bind pose, the pelvis follows the clip's on the driver's ground
+([rig-models.md](rig-models.md#emotes-on-stock-models)). Checked by three unit tests (bind
+pose gives the base pose, a turned head turns the cranium about its own base, a fade blends
+half way, a crouching pelvis carries its children, bone order) and the workspace checks on
+Linux. Creyon's first game test (Windows 11, local build) showed broken limbs on some
+models: the fingers and hang tags hang on the forearm in JKA's skeleton and stayed with it
+while the dancing hand turned. Fixed the same day (positions carried by the rig's own
+hierarchy, unmapped bones moving with the bone they are most rigid with); a retail
+round-trip check now brings every skinned bone back within 3.4 units (fingers were 5.2
+off). The fix is not yet seen in the game.
+
 ## Saber smiths
 
 14/10/2026, `saber-smith`: every shader names who gave its idea, "Saber smith: Creyon"

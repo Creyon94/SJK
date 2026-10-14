@@ -748,3 +748,127 @@ fn dynamic_chains_of_an_installed_rig() {
         );
     }
 }
+
+/// The test rig fitted to the test driver, as a stock skeleton's emote source.
+fn stock_emotes(model: GltfModel) -> StockEmotes {
+    let source = Arc::new(RigModel::fit(model, "", &manifest(""), &driver()).unwrap());
+    StockEmotes::of_source(&driver(), source).expect("the driver follows the rig")
+}
+
+fn full(play: Option<ClipPlay>) -> ClipPlay {
+    ClipPlay {
+        weight: 1.0,
+        ..play.expect("the clip")
+    }
+}
+
+#[test]
+fn a_stock_model_plays_a_rig_clip_on_its_own_bones() {
+    let stock = stock_emotes(rig());
+    let driver_bones = vec![identity_rows(); 3];
+    let mut scratch = StockScratch::default();
+    // At its first key the clip is the rig's bind pose, which is the driver's base
+    // pose: every bone matrix stays the identity.
+    assert!(stock.pose(
+        &driver_bones,
+        full(stock.play("Nod", 0.0, None, false)),
+        &mut scratch
+    ));
+    for matrix in &scratch.matrices {
+        for (row, expected) in matrix.iter().zip(identity_rows()) {
+            for (a, b) in row.iter().zip(expected) {
+                assert!((a - b).abs() < 1e-4, "{:?}", scratch.matrices);
+            }
+        }
+    }
+    // At its end the head's quarter turn about the game's +Z turns the cranium
+    // about its own base position (0, 0, 60); the pelvis stays.
+    let play = stock.play("Nod", 1.0, None, false);
+    assert_eq!(play.map(|play| play.weight), Some(1.0));
+    assert!(stock.pose(&driver_bones, play.unwrap(), &mut scratch));
+    let cranium = affine(&scratch.matrices[2]);
+    let front = cranium.transform_point3a(Vec3A::new(0.0, -4.0, 64.0));
+    assert!(
+        (front - Vec3A::new(4.0, 0.0, 64.0)).length() < 1e-3,
+        "{front:?}"
+    );
+    let pivot = cranium.transform_point3a(Vec3A::new(0.0, 0.0, 60.0));
+    assert!(
+        (pivot - Vec3A::new(0.0, 0.0, 60.0)).length() < 1e-3,
+        "{pivot:?}"
+    );
+    let pelvis = affine(&scratch.matrices[1]).transform_point3a(Vec3A::new(1.0, 0.0, 40.0));
+    assert!(
+        (pelvis - Vec3A::new(1.0, 0.0, 40.0)).length() < 1e-3,
+        "{pelvis:?}"
+    );
+    // Half faded in, half way round.
+    let half = ClipPlay {
+        weight: 0.5,
+        ..play.unwrap()
+    };
+    assert!(stock.pose(&driver_bones, half, &mut scratch));
+    let front = affine(&scratch.matrices[2]).transform_point3a(Vec3A::new(0.0, -4.0, 64.0));
+    let side = 4.0 * std::f32::consts::FRAC_1_SQRT_2;
+    assert!(
+        (front - Vec3A::new(side, -side, 64.0)).length() < 1e-3,
+        "{front:?}"
+    );
+    // Faded out it leaves the driver's matrices alone; an unknown clip plays nothing.
+    let none = ClipPlay {
+        weight: 0.0,
+        ..play.unwrap()
+    };
+    assert!(!stock.pose(&driver_bones, none, &mut scratch));
+    assert!(stock.play("Wave", 0.0, None, false).is_none());
+    // Matrices of another skeleton are not posed.
+    assert!(!stock.pose(&driver_bones[..2], play.unwrap(), &mut scratch));
+}
+
+#[test]
+fn a_stock_pelvis_follows_the_clips_pelvis_and_carries_its_children() {
+    // The rig crouches: its pelvis drops from 1 m to 0.5 m over a second.
+    let mut model = rig();
+    model.animations = vec![GltfAnimation {
+        name: "Crouch".into(),
+        channels: vec![GltfChannel {
+            joint: 0,
+            path: GltfPath::Translation,
+            times: vec![0.0, 1.0],
+            values: vec![[0.0, 1.0, 0.0, 0.0], [0.0, 0.5, 0.0, 0.0]],
+            step: false,
+        }],
+    }];
+    let stock = stock_emotes(model);
+    let mut scratch = StockScratch::default();
+    // The driver itself stands 3 units further front (-Y) than its base pose.
+    let driver_bones = vec![translated(0.0, -3.0, 0.0); 3];
+    assert!(stock.pose(
+        &driver_bones,
+        full(stock.play("Crouch", 1.0, None, false)),
+        &mut scratch
+    ));
+    // Half a metre at 40 units a metre: 20 units down, from where the driver stands.
+    let pelvis = affine(&scratch.matrices[1]).transform_point3a(Vec3A::new(0.0, 0.0, 40.0));
+    assert!(
+        (pelvis - Vec3A::new(0.0, -3.0, 20.0)).length() < 1e-3,
+        "{pelvis:?}"
+    );
+    let cranium = affine(&scratch.matrices[2]).transform_point3a(Vec3A::new(0.0, 0.0, 60.0));
+    assert!(
+        (cranium - Vec3A::new(0.0, -3.0, 40.0)).length() < 1e-3,
+        "{cranium:?}"
+    );
+    // The root bone, which the map leaves out, keeps the driver's matrix.
+    assert_eq!(scratch.matrices[0], translated(0.0, -3.0, 0.0));
+}
+
+#[test]
+fn stock_bones_are_posed_parents_first() {
+    assert_eq!(stock::bone_order(&[Some(2), None, Some(1)]), vec![1, 2, 0]);
+    // A cycle or a parent past the end still places every bone once.
+    let order = stock::bone_order(&[Some(1), Some(0), Some(9)]);
+    let mut sorted = order.clone();
+    sorted.sort_unstable();
+    assert_eq!(sorted, vec![0, 1, 2]);
+}

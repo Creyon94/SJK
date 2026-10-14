@@ -77,6 +77,12 @@ pub(super) struct PlayerPreview {
     /// The rig's pose and palette from the latest frame, reused every frame; bolts
     /// read it so they follow a clip the rig plays.
     pub(crate) rig_pose: crate::rig_model::Scratch,
+    /// The emote clips of rig models this stock model plays through the bone map in
+    /// reverse ([`crate::rig_model::StockEmotes`]); `None` for a rig model or when
+    /// no installed emote fits.
+    pub(crate) stock_emotes: Option<Arc<crate::rig_model::StockEmotes>>,
+    /// The stock emote's bone matrices from the latest frame, reused every frame.
+    pub(crate) stock_pose: crate::rig_model::StockScratch,
 }
 
 impl PlayerPreview {
@@ -172,6 +178,12 @@ pub(super) fn load_player_appearance_with(
         })
         .transpose()?
         .map(Arc::new);
+    // A stock humanoid plays the rig models' emote clips on its own bones.
+    let stock_emotes = if rig.is_none() && vehicle.is_none() {
+        crate::rig_model::StockEmotes::load(vfs, &animation).map(Arc::new)
+    } else {
+        None
+    };
     let animation_directory = mesh
         .animation_name
         .rsplit_once('/')
@@ -242,6 +254,8 @@ pub(super) fn load_player_appearance_with(
         vehicle_hud: vehicle.as_ref().map(|look| look.hud.clone()),
         rig,
         rig_pose: Default::default(),
+        stock_emotes,
+        stock_pose: Default::default(),
     })
 }
 

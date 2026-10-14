@@ -21,7 +21,8 @@
 //! The glTF's own animations become clips ([`clips`]) a rig plays on its skeleton
 //! in place of the driver's pose, fading in and out (emotes). An emote made on
 //! another rig model (its file's `rig`) is borrowed when the two skeletons share
-//! joint names, as Unreal mannequin characters do ([`RigModel::borrowed`]).
+//! joint names, as Unreal mannequin characters do ([`RigModel::borrowed`]). Stock
+//! GLM models play those clips too, through the bone map in reverse ([`stock`]).
 //!
 //! See `docs/rig-models.md` for the file format.
 
@@ -34,6 +35,7 @@ use sjk_vfs::VirtualFileSystem;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, LazyLock, Mutex};
+pub(crate) use stock::{StockEmotes, StockScratch};
 
 /// The file that makes a model folder a rig model.
 pub(crate) const MANIFEST: &str = "sjk_rig.cfg";
@@ -1301,6 +1303,8 @@ fn topological(joints: &[Joint]) -> Result<Vec<usize>, Box<dyn Error>> {
 mod clips;
 #[path = "rig_dynamics.rs"]
 mod dynamics;
+#[path = "rig_stock.rs"]
+mod stock;
 
 #[cfg(test)]
 #[path = "rig_model_tests.rs"]

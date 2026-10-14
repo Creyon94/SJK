@@ -123,10 +123,33 @@ pub(super) fn apply(
         return Ok(());
     };
     mesh.animator.completed()?;
-    let matrices = mesh.animator.matrices();
+    let driver = mesh.animator.matrices();
     if let Some(limb) = &mut mesh.limb {
-        limb.update_pivot(&mesh.preview.animation, matrices);
+        limb.update_pivot(&mesh.preview.animation, driver);
     }
+    // A stock model playing a rig model's emote clip is drawn, and carries its
+    // bolts, in the clip's pose; saber traces keep the driver's.
+    let emote = match mesh.preview.stock_emotes.clone() {
+        Some(stock) if mesh.preview.rig.is_none() => mesh
+            .entity_id
+            .and_then(|id| u8::try_from(id.get().checked_sub(1)?).ok())
+            .and_then(|slot| crate::emotes::playing(slot, std::time::Instant::now()))
+            .and_then(|playing| {
+                stock.play(
+                    &playing.clip,
+                    playing.seconds,
+                    playing.remaining,
+                    playing.looping,
+                )
+            })
+            .is_some_and(|play| stock.pose(driver, play, &mut mesh.preview.stock_pose)),
+        _ => false,
+    };
+    let matrices: &[[[f32; 4]; 3]] = if emote {
+        &mesh.preview.stock_pose.matrices
+    } else {
+        driver
+    };
     // A rig model is posed first, with the emote clip it plays: the bolts below
     // read its pose.
     if let Some(rig) = mesh.preview.rig.clone() {
@@ -169,7 +192,7 @@ pub(super) fn apply(
         .mesh
         .skin_pose_matrices(&mesh.preview.skin, 0, matrices)?;
     mesh.retained_pose
-        .update_trace_lod(&mesh.preview.mesh, matrices)?;
+        .update_trace_lod(&mesh.preview.mesh, driver)?;
     mesh.force_bones.update(&mesh.preview, matrices);
     mesh.force_bones.update_head(&mesh.preview, matrices);
     mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
