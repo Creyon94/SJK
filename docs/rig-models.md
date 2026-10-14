@@ -87,9 +87,36 @@ becomes its shader (the image's path, so a
 `*white`. Not read: animations, morph targets (shape keys), normal and PBR maps,
 images embedded in a buffer, data URIs.
 
-From Blender: glTF Separate (`.gltf` + `.bin` + textures), +Y up, skinning on,
+## From Blender: the SJK Rig Model Export add-on
+
+[scripts/blender/sjk_rig_export](../scripts/blender/sjk_rig_export/__init__.py) is a
+Blender extension (4.2 or later) that writes a model folder in one click.
+
+- **Install:** zip the folder's two files (`__init__.py`, `blender_manifest.toml`),
+  then Edit > Preferences > Get Extensions > Install from Disk. The preferences take
+  the GameData folder; left empty, the usual Steam and retail places are tried.
+- **Use:** 3D view sidebar (N), SJK tab. Pick the armature; the panel counts the
+  bone map's joints it has (`pelvis` and `hand_r` are required) and the meshes it
+  deforms. Name the model and press Export to SJK.
+- **What it writes:** `<GameData>/base/models/players/<name>/` with `model.gltf`,
+  `model.bin`, the colour images and `sjk_rig.cfg` (only when missing, so `map` lines
+  added by hand survive a re-export; a checkbox rewrites it). glTF Separate, +Y up,
+  skins on, the armature's rest position, no animation, no shape keys, four
+  influences.
+- **Materials:** each becomes a plain Principled BSDF with the image its base colour
+  most likely comes from: an image node feeding a socket named Base Color, Diffuse
+  or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
+  `_Albedo`..., else the first sRGB image. A material with none keeps its viewport
+  colour.
+- **The blend file is untouched:** the meshes and materials exported are temporary
+  copies, removed afterwards; the pose mode and selection come back as they were.
+
+By hand instead: glTF Separate (`.gltf` + `.bin` + textures), +Y up, skinning on,
 animations and shape keys off, the armature in its rest pose, each material a
 Principled BSDF whose Base Color is an Image Texture.
+
+Use it with your own files on your own disk. SJK never uploads, hosts or passes on
+models taken from other games ([the rule](../AGENTS.md#verification-and-scope)).
 
 ## Limits
 
@@ -103,6 +130,8 @@ Principled BSDF whose Base Color is an Image Texture.
   custom model.
 - Feet can slide or float a little when the rig's leg proportions differ from the
   driver's; there is no foot IK yet.
+- The add-on's export of a 177-joint mannequin character matched a hand export
+  (joints, primitives, images) and rendered in the world shot below (14/10/2026).
 - First tried in the game by Sol on 14/10/2026: drawn and animated; the faces
   showed through (winding) and the saber missed the hand, both fixed the same day.
 

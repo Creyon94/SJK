@@ -68,6 +68,18 @@ multiplayer. Read [docs/status.md](docs/status.md),
   test infrastructure, harnesses or large reports need task authorization.
 - Only exercise servers you control without human players. Do not automate chat
   messages. Use an unobtrusive name and stop only processes started for your check.
+- Other games' assets belong to their owners (Sol's rule, 14/10/2026). Pulling models,
+  textures or animations out of a commercial game (Fortnite, owned by Epic, for
+  example) is against that game's licence terms. Fan extraction tools are tolerated,
+  but a game-specific importer in a public game with downloadable releases invites a
+  takedown of the repository. So SJK never ships, names or automates extraction from
+  another game: no "import from <game>" button, no code that reads another game's
+  archives, no guide that sends players there. It never uploads, hosts, relays or
+  downloads such assets either: not in the repository, releases or hub, not between
+  players, no screenshots of them in the project's channels. Players who want one do
+  it themselves, on their own disk, with their own files; SJK's tools
+  ([rig models](docs/rig-models.md) and their Blender add-on) take any glTF and say
+  nothing of where it came from. Models whose authors allow sharing are not affected.
 - Never commit retail game data, downloaded PK3s, credentials or personal paths.
   Put scratch evidence under `target/parity-reports/`, not `/tmp`, and remove it
   when finished. Keep a concise verification summary in the change description.

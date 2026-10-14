@@ -1031,6 +1031,16 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-export-addon]
+area: Rendering & effects
+title: SJK Rig Model Export: a Blender add-on that writes a rig model folder
+change: Blender sidebar > SJK: pick the armature, name it, Export to SJK writes models/players/<name>.
+test: Install scripts/blender/sjk_rig_export (zipped) from disk; the SJK tab appears in the sidebar.
+test: Pick a mannequin-named armature: the panel finds its joints and meshes.
+test: Export, then /model <name> in the game: the model shows, holds the saber.
+test: Back in Blender: the scene, materials, shape keys and pose are as before.
+note: Your own files only; nothing is uploaded or shared.
+
 [rig-models]
 area: Rendering & effects
 title: Rig models: a glTF player with its own skeleton, moved by JKA's animations
