@@ -297,10 +297,10 @@ impl Panel {
             epoch: Instant::now(),
             #[cfg(test)]
             pinned: false,
-            #[cfg(test)]
             skins: Default::default(),
             spin_tick: 0,
             entered: false,
+            #[cfg(test)]
             shot_seconds: None,
             #[cfg(test)]
             shot_elapsed: None,
