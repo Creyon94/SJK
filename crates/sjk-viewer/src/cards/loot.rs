@@ -1,23 +1,23 @@
-//! The loot table's odds (`docs/holocrons.md`, "Loot table"), worked out from the tables
-//! the client keeps of the hub's: how often a drop is each tier
-//! ([`crate::holocrons::TIERS`]), the card inside a holocron of each tier
-//! ([`super::ODDS`]) and its credits ([`super::CREDITS`]). A card's rarity and its finish
+//! The loot table's odds (`docs/holocrons.md`, "Loot table"), worked out from the hub's
+//! tables ([`crate::loot_odds`]): how often a drop is each tier, the card inside a
+//! holocron of each tier and its credits. A card's rarity and its finish
 //! are rolled apart, so the chance of a kind is the two multiplied; "per holocron found"
 //! weighs each tier by how often it drops, and counts the openings that bring a saber
 //! shader instead of the card and its credits ([`card_in`]). Every chance is 0 to 1.
 
-use super::{CREDITS, FINISHES, ODDS, RARITIES};
-use crate::holocrons::{COUNT, TIERS};
+use super::{FINISHES, RARITIES};
+use crate::holocrons::COUNT;
+use crate::loot_odds::current;
 
 /// The chance a drop is tier `tier`.
 pub(crate) fn drop(tier: usize) -> f64 {
-    f64::from(TIERS[tier].per_mille) / 1_000.0
+    f64::from(current().drop[tier]) / 1_000.0
 }
 
 /// The chance an opening of a holocron of tier `tier` brings a card (and its credits),
-/// not a saber shader (the hub's `loot::TABLES`, copied in the crate spin's odds).
+/// not a saber shader.
 pub(crate) fn card_in(tier: usize) -> f64 {
-    1.0 - f64::from(crate::console::holocrons_panel::SHADER_ODDS[tier]) / 1_000.0
+    1.0 - f64::from(current().shader[tier]) / 1_000.0
 }
 
 /// The chance a holocron found brings a card.
@@ -27,12 +27,12 @@ fn card_any() -> f64 {
 
 /// The chance the card inside a holocron of tier `tier` is of rarity `rarity`.
 pub(crate) fn rarity_in(tier: usize, rarity: usize) -> f64 {
-    f64::from(ODDS[tier].rarity[rarity]) / 1_000.0
+    f64::from(current().card[tier].rarity[rarity]) / 1_000.0
 }
 
 /// The chance the card inside a holocron of tier `tier` has finish `finish`.
 pub(crate) fn finish_in(tier: usize, finish: usize) -> f64 {
-    f64::from(ODDS[tier].finish[finish]) / 1_000.0
+    f64::from(current().card[tier].finish[finish]) / 1_000.0
 }
 
 /// The share of the cards found that are of rarity `rarity`, any finish.
@@ -61,7 +61,7 @@ pub(crate) fn kind_any(rarity: usize, finish: usize) -> f64 {
 /// The credits a holocron of tier `tier` brings on average: rolled evenly between the
 /// least and the most when it holds a card, none when it holds a shader.
 pub(crate) fn credits_mean(tier: usize) -> f64 {
-    let (least, most) = CREDITS[tier];
+    let (least, most) = current().credits[tier];
     card_in(tier) * f64::from(least + most) / 2.0
 }
 

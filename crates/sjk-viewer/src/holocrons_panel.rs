@@ -32,7 +32,6 @@ mod loot;
 pub(crate) mod opening;
 #[path = "holocrons_panel_crate.rs"]
 mod strip;
-pub(crate) use strip::SHADER as SHADER_ODDS;
 #[path = "holocrons_panel_view.rs"]
 mod view;
 
@@ -688,6 +687,7 @@ mod tests {
         me: Option<sjk_identity::Profile>,
     ) -> sjk_identity::Snapshot {
         sjk_identity::Snapshot {
+            loot: Vec::new(),
             opening: None,
             reveal: None,
             local_key_id: "0123456789abcdef".into(),
@@ -840,6 +840,40 @@ mod tests {
             credits: 42,
             unlock: None,
         }
+    }
+
+    /// A shader newer than this client is still a prize: shown by the hub's name, ending
+    /// the spin on the "new shader" tile; a known one keeps its catalogue entry.
+    #[test]
+    fn a_shader_this_client_does_not_know_still_shows() {
+        let shader = |id: &str, name: &str| sjk_identity::Opened {
+            card: None,
+            credits: 0,
+            unlock: Some(sjk_identity::OpenedUnlock {
+                id: id.to_owned(),
+                name: name.to_owned(),
+                count: 1,
+            }),
+            ..opened("rare", "normal")
+        };
+        let Some(opening::Prize::Shader(found)) =
+            opening::Prize::of(&shader("saber_from_the_future", "Comet blade"))
+        else {
+            panic!("a shader prize");
+        };
+        assert_eq!((found.skin, found.name.as_str()), (None, "Comet blade"));
+        let Some(opening::Prize::Shader(nameless)) =
+            opening::Prize::of(&shader("saber_from_the_future", " "))
+        else {
+            panic!("a shader prize");
+        };
+        assert_eq!(nameless.name, "A new saber shader");
+        let Some(opening::Prize::Shader(tidal)) =
+            opening::Prize::of(&shader("saber_tidal", "Tidal blade"))
+        else {
+            panic!("a shader prize");
+        };
+        assert_eq!(tidal.skin.map(|skin| skin.id), Some("saber_tidal"));
     }
 
     /// While the hub keeps opening to staff, neither Enter nor A asks it anything and the

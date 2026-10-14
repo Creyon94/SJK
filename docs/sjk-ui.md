@@ -501,7 +501,8 @@ Force pages in the order they show them: the hilt search, both hilt lists, the
 Blade row and the blades' colours,
 the Force groups' powers in their order, the other side's skipped), Left and
 Right change it (a hilt list's choice moves one hilt, the Blade row's one
-blade), Enter types or acts, Tab
+blade; the wheel over the Blade row and its ‹ › arrows browse it six blades at a time
+without wearing one, 14/10/2026), Enter types or acts, Tab
 and `[` `]` change page (on the Profile screen, its tabs: from Force on to SJK
 Profile), Escape returns to the main page (leaving the Force page applies its
 draft, see [client.md](client.md)). The pointer: a click on a control acts (‹ ›

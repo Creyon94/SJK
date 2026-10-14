@@ -176,10 +176,11 @@ pub(crate) const ODDS: [Odds; COUNT] = [
 /// or (30% of the time) a saber shader."
 pub(crate) fn inside(index: usize) -> String {
     let index = index.min(COUNT - 1);
-    let (least, most) = CREDITS[index];
-    let shader = crate::console::holocrons_panel::SHADER_ODDS[index] / 10;
+    let odds = crate::loot_odds::current();
+    let (least, most) = odds.credits[index];
+    let shader = crate::cards::loot::percent(f64::from(odds.shader[index]) / 1_000.0);
     format!(
-        "Opening it gives a sealed card and {least} to {most} credits, or ({shader}% of the \
+        "Opening it gives a sealed card and {least} to {most} credits, or ({shader} of the \
          time) a saber shader."
     )
 }

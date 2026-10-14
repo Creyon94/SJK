@@ -24,11 +24,22 @@ search field not tried in the game.
 (rack, grid, big card) and ", 2 held" in its owned line and hover card. Unit tests only.
 The search, tier filter and paging for a long list are still to build.
 
+## The hub's odds, new shaders, the Saber tab's blade row
+
+14/10/2026, `loot-odds` (hub `loot-wire`): the hub sends every odds table with
+`GET /v1/holocrons` (`loot`) and the client's loot table, card odds, holocron lines, tier
+odds and crate spin read them (`loot_odds::current`), its own copy only before the first
+answer or when the hub's tables do not fit. A shader the hub drops that this client does
+not know still shows at opening, by the hub's name ("A saber shader new to this version of
+SJK"), the spin ending on a "?" tile. The Saber tab's Blade row is browsed with the wheel
+and its ‹ › arrows a row at a time without wearing anything; a pick follows the chosen
+blade again.
+
 ## Holocron opening: the crate spin
 
 14/10/2026, step 4 of the shader catalogue plan: before each holocron's burst a strip of
 what its tier can drop (the cards its odds allow and the droppable shaders, weighted by
-their chances, a copy of the hub's table in `holocrons_panel_crate.rs`) runs past a gold
+their chances, by the hub's odds: `loot_odds.rs`, see below) runs past a gold
 marker, clicking a tile at a time, and slows to a stop inside the real prize's tile; the
 strip is seeded by the holocron's number. A shader prize has its own entrance (the burst,
 its blade framed in its tier's colour, its words and how many are held). Enter skips the

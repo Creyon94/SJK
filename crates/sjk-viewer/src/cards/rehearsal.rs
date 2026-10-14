@@ -18,7 +18,7 @@
 //! debug_open rare shader x3      three Rare Holocrons, each a droppable shader
 //! ```
 
-use super::{CREDITS, FINISHES, RARITIES};
+use super::{FINISHES, RARITIES};
 use crate::holocrons::{TIERS, Tier};
 use sjk_identity::{Opened, OpenedCard, OpenedUnlock};
 
@@ -38,7 +38,7 @@ pub(crate) fn listing() -> Vec<String> {
         "Plays the Holocrons tab's opening as if the hub had opened holocrons: the burst, the sealed card, its finish and the credits. Nothing is sent to the SJK hub and nothing is kept.".to_owned(),
     ];
     for (index, tier) in TIERS.iter().enumerate() {
-        let (least, most) = CREDITS[index];
+        let (least, most) = crate::loot_odds::current().credits[index];
         lines.push(format!(
             "  {:<12} {}: a sealed card and {least} to {most} credits",
             tier.id, tier.name
@@ -111,7 +111,7 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
                 continue;
             }
             let rarity = &RARITIES[(tier.index + at) % RARITIES.len()];
-            let (least, most) = CREDITS[tier.index];
+            let (least, most) = crate::loot_odds::current().credits[tier.index];
             opened.push(Opened {
                 holocron: crate::holocrons::rehearsal::FIRST_ID + at as u64,
                 tier: tier.id.to_owned(),

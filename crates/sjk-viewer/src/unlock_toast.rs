@@ -323,7 +323,8 @@ impl fmt::Display for Description {
             Unlock::Holocron { tier, .. } => write!(
                 formatter,
                 "Found while playing: {} of drops are {}",
-                tier.odds, tier.label
+                tier.odds(),
+                tier.label
             ),
             Unlock::Update { manual: false, .. } => {
                 formatter.write_str("Install it there; it starts when SJK restarts")

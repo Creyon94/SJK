@@ -6,23 +6,11 @@
 //!
 //! The neighbours are what the holocron's tier can drop and nothing else: the cards it can
 //! hold (each rarity and finish with odds above zero) and the droppable shaders it can
-//! bring, each weighted by its chance. The odds are a copy of the hub's (`src/loot.rs`,
-//! `PROTOCOL.md`, "Opening"); the hub decides, this only dresses it.
+//! bring, each weighted by its chance, by the hub's odds ([`crate::loot_odds`]); the hub
+//! decides, this only dresses it.
 
-use crate::cards::{self, FINISHES, RARITIES};
-use crate::holocrons::COUNT;
+use crate::cards::{FINISHES, RARITIES};
 use crate::unlockables::{self, Rarity, Unlockable};
-
-/// The odds, per mille, that an opening of each holocron tier brings a shader instead of
-/// a card (the hub's `loot::TABLES`).
-pub(crate) const SHADER: [u32; COUNT] = [300, 400, 450, 500];
-/// The odds, per mille, of each shader tier (Common to Mythical) once a shader comes.
-pub(crate) const SHADER_TIER: [[u32; 5]; COUNT] = [
-    [750, 220, 30, 0, 0],
-    [450, 380, 150, 20, 0],
-    [200, 300, 350, 130, 20],
-    [50, 150, 350, 330, 120],
-];
 
 /// Tiles in a strip, and the one the stop lands on.
 pub(crate) const TILES: usize = 58;
@@ -40,6 +28,8 @@ pub(crate) enum Item {
     Card { rarity: usize, finish: usize },
     /// A saber shader.
     Shader(&'static Unlockable),
+    /// A saber shader newer than this client (only ever the prize).
+    New,
 }
 
 /// The shaders an opening can bring from shader tier `tier`: its droppable ones, else
@@ -75,8 +65,9 @@ fn shaders_of(tier: Rarity) -> Vec<&'static Unlockable> {
 /// Everything a holocron of tier `tier` (a position in [`crate::holocrons::TIERS`]) can
 /// bring, each with its weight (parts of a thousand million).
 pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
-    let shader = u64::from(SHADER[tier]);
-    let odds = &cards::ODDS[tier];
+    let table = crate::loot_odds::current();
+    let shader = u64::from(table.shader[tier]);
+    let odds = &table.card[tier];
     let mut pool = Vec::new();
     for rarity in 0..RARITIES.len() {
         for finish in 0..FINISHES.len() {
@@ -94,7 +85,7 @@ pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
         Rarity::Legendary,
         Rarity::Mythical,
     ];
-    for (at, share) in SHADER_TIER[tier].iter().enumerate() {
+    for (at, share) in table.shader_tier[tier].iter().enumerate() {
         let skins = shaders_of(tiers[at]);
         if *share == 0 || skins.is_empty() {
             continue;
@@ -183,20 +174,16 @@ pub(crate) fn under_marker(distance: f32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::holocrons::TIERS;
+    use crate::cards;
+    use crate::holocrons::{COUNT, TIERS};
 
     #[test]
-    fn the_odds_are_whole_and_match_the_hubs_shape() {
-        for tier in 0..COUNT {
-            assert!(SHADER[tier] <= 1_000);
-            assert_eq!(
-                SHADER_TIER[tier].iter().sum::<u32>(),
-                1_000,
-                "{}",
-                TIERS[tier].id
-            );
+    fn the_shader_odds_rise_with_the_tier() {
+        let table = crate::loot_odds::current();
+        assert!(table.shader.windows(2).all(|pair| pair[0] <= pair[1]));
+        for (odds, tier) in table.shader_tier.iter().zip(&TIERS) {
+            assert_eq!(odds.iter().sum::<u32>(), 1_000, "{}", tier.id);
         }
-        assert!(SHADER.windows(2).all(|pair| pair[0] <= pair[1]));
     }
 
     #[test]
@@ -212,6 +199,7 @@ mod tests {
                         assert!(cards::ODDS[tier].finish[*finish] > 0);
                     }
                     Item::Shader(skin) => assert!(skin.droppable, "{}", skin.id),
+                    Item::New => panic!("only a prize is new"),
                 }
             }
         }
@@ -239,7 +227,7 @@ mod tests {
 
     #[test]
     fn a_shader_chance_adds_up_to_its_tables_share() {
-        for (tier, odds) in SHADER.iter().enumerate() {
+        for (tier, odds) in crate::loot_odds::current().shader.iter().enumerate() {
             let pool = pool(tier);
             let shaders: u64 = pool
                 .iter()

@@ -25,6 +25,9 @@ pub(super) struct BladeChoice {
     hint: &'static str,
     /// When the identity is read again (menu clock seconds).
     next_read: f64,
+    /// The first choice the row shows while the player browses it (the wheel, the
+    /// arrows); `None` keeps the chosen one in view.
+    browsed: Option<usize>,
     /// The blade skins the hub's packs brought, the swatches' looks.
     skins: Arc<crate::saber_skins::LoadedSkins>,
     /// What a world shot or test shows in place of the own profile's unlocks.
@@ -39,6 +42,7 @@ impl BladeChoice {
             worn: None,
             hint: hint(&Holdings::IdentityOff),
             next_read: 0.0,
+            browsed: None,
             skins: Default::default(),
             #[cfg(test)]
             preview: None,
@@ -163,6 +167,7 @@ impl BladeChoice {
         let Some(choice) = self.get(index) else {
             return;
         };
+        self.browsed = None;
         if index == self.chosen() {
             return;
         }
@@ -170,10 +175,26 @@ impl BladeChoice {
         self.worn = choice;
     }
 
+    /// The first choice of a row that shows `shown` at once: where the player browsed
+    /// to, else `following` (the window that keeps the chosen one in view).
+    pub(super) fn first(&self, following: usize, shown: usize) -> usize {
+        self.browsed
+            .unwrap_or(following)
+            .min(self.count().saturating_sub(shown))
+    }
+
+    /// Browse the row `by` choices (negative to the left) from `first`, without wearing
+    /// anything; the next pick or step follows the chosen one again.
+    pub(super) fn browse(&mut self, first: usize, by: isize, shown: usize) {
+        let last = self.count().saturating_sub(shown);
+        self.browsed = Some(first.saturating_add_signed(by).min(last));
+    }
+
     /// Move the choice `direction` along, wrapping, and write it.
     pub(super) fn step(&mut self, console: &mut ViewerConsole, direction: isize) {
         let next = super::controller::wrap(self.chosen(), direction, self.count());
         self.pick(console, next);
+        self.browsed = None;
     }
 }
 
@@ -240,6 +261,36 @@ mod tests {
         assert_eq!(console.text_value(SABER_SKIN_CVAR), Some(""));
         choice.step(&mut console, -1);
         assert_eq!(console.text_value(SABER_SKIN_CVAR), Some("saber_void"));
+    }
+
+    /// The row is browsed without wearing anything, never past either end, and picking
+    /// a blade follows the chosen one again.
+    #[test]
+    fn the_row_is_browsed_without_wearing_and_a_pick_follows_again() {
+        let (_directory, mut console) = console();
+        let mut choice = BladeChoice::new();
+        choice.preview = Some(
+            unlockables::blade_skins()
+                .map(|skin| unlock(skin.id))
+                .collect(),
+        );
+        choice.read(&console);
+        let count = choice.count();
+        assert!(count > 12);
+        assert_eq!(choice.first(0, 6), 0);
+        choice.browse(0, 6, 6);
+        assert_eq!(choice.first(0, 6), 6);
+        assert_eq!(
+            console.text_value(SABER_SKIN_CVAR),
+            Some(""),
+            "nothing worn"
+        );
+        choice.browse(6, 1_000, 6);
+        assert_eq!(choice.first(0, 6), count - 6, "stops at the end");
+        choice.browse(count - 6, -1_000, 6);
+        assert_eq!(choice.first(3, 6), 0, "and at the start");
+        choice.pick(&mut console, 9);
+        assert_eq!(choice.first(7, 6), 7, "follows the chosen one again");
     }
 
     /// With nothing owned only the stock blade shows, with a line saying why, and a

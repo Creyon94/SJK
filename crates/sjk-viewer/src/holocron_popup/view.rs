@@ -371,7 +371,7 @@ fn words(
             ui,
             frame,
             TextFamily::Body,
-            format_args!("{} of holocrons are this rare", tier.odds),
+            format_args!("{} of holocrons are this rare", tier.odds()),
             y,
             ODDS_SIZE,
             color::MUTED,

@@ -277,8 +277,8 @@ pub struct OpenAnswer {
 }
 
 /// The hub's answer to `GET /v1/holocrons` (`PROTOCOL.md`, "Holocrons"): how far the
-/// own key is from its next holocron.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+/// own key is from its next holocron, and the odds the hub rolls with.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct HolocronState {
     /// Seconds of active play carried toward the next holocron.
     pub progress_secs: u64,
@@ -297,6 +297,32 @@ pub struct HolocronState {
     /// Hubs before it leave it out, read as `false`.
     #[serde(default)]
     pub can_open: bool,
+    /// Every odds table the hub rolls with, one per holocron tier in the tiers' order
+    /// (14/10/2026); empty from hubs before.
+    #[serde(default)]
+    pub loot: Vec<LootTier>,
+}
+
+/// One holocron tier's odds as the hub rolls them (`PROTOCOL.md`, "Holocrons"), every
+/// share per mille.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct LootTier {
+    /// The tier's wire id.
+    pub tier: String,
+    /// How often a drop is this tier.
+    pub drop: u32,
+    /// The card's rarity (common to legendary).
+    pub rarity: Vec<u32>,
+    /// The card's finish (normal, holo, solar).
+    pub finish: Vec<u32>,
+    /// The credits a card opening gives: the least and the most.
+    pub credits: [u64; 2],
+    /// How often an opening brings a saber shader instead of the card and credits.
+    #[serde(default)]
+    pub shader: u32,
+    /// The shader's tier then (common to mythical).
+    #[serde(default)]
+    pub shader_tier: Vec<u32>,
 }
 
 /// A holocron dropping for a key, as the feed relays it (`PROTOCOL.md`, "The feed").
@@ -972,8 +998,17 @@ mod tests {
                 daily_cap: 8,
                 server_time: 1_791_000_000,
                 can_open: false,
+                loot: Vec::new(),
             }
         );
+        let odds: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,"loot":[{"tier":"uncommon",
+                "drop":600,"rarity":[700,240,55,5],"finish":[970,30,0],"credits":[10,20],
+                "shader":300,"shader_tier":[750,220,30,0,0]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(odds.loot[0].tier, "uncommon");
+        assert_eq!((odds.loot[0].credits, odds.loot[0].shader), ([10, 20], 300));
         let staff: HolocronState = serde_json::from_str(
             r#"{"progress_secs":0,"every_secs":1800,"today":0,"daily_cap":8,"server_time":1,"can_open":true}"#,
         )

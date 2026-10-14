@@ -163,6 +163,9 @@ pub struct Snapshot {
     /// [`Service::refresh_holocrons`]). `None` before the hub answered, or from a hub
     /// older than holocrons. Cosmetic: a failure leaves [`Snapshot::status`] alone.
     pub holocrons: Option<HolocronProgress>,
+    /// The odds the hub rolls holocrons with, one table per tier, as it last sent them
+    /// with the progress; empty before, or from a hub older than them (14/10/2026).
+    pub loot: Vec<crate::wire::LootTier>,
     /// The SJK team's open requests for the player's logs (oldest first), as the hub
     /// last listed them, without the ones the player answered: the game asks the
     /// player about each ([`Service::answer_logs`]).
@@ -276,6 +279,7 @@ impl Snapshot {
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
+            loot: Vec::new(),
             log_requests: Vec::new(),
             log_answer: None,
             opening: None,
@@ -1371,6 +1375,9 @@ impl Worker {
             Ok(state) => {
                 self.due_holocrons = now + HOLOCRONS_EVERY;
                 self.update(|snapshot| {
+                    if !state.loot.is_empty() {
+                        snapshot.loot.clone_from(&state.loot);
+                    }
                     snapshot.holocrons = Some(HolocronProgress::new(state, now));
                 });
             }
@@ -2301,7 +2308,7 @@ mod tests {
             if self.fail.load(Ordering::SeqCst) {
                 return Err(HubError::Network("down".to_owned()));
             }
-            let state = *self.progress.lock().unwrap();
+            let state = self.progress.lock().unwrap().clone();
             state.ok_or_else(|| refused(404, "not_found"))
         }
         fn log_requests(&mut self, _: &Identity) -> Result<Vec<LogRequest>, HubError> {
@@ -2611,6 +2618,7 @@ mod tests {
             daily_cap: 8,
             server_time: 1_791_000_000,
             can_open: true,
+            loot: Vec::new(),
         }
     }
 

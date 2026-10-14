@@ -57,10 +57,13 @@ tier not held ([unlockables.md](unlockables.md#rarity-effects), off with
 ## Loot table
 
 Every chance a holocron brings, as players see it on the Holocrons tab's loot table
-(12/10/2026, Sol's request; Loot table or L). The client works it out from its copy of the
-hub's tables: the tiers' odds above, the card's odds and the credits in
-[cards.md](cards.md#odds) (`cards::ODDS` and `cards::CREDITS`, pinned to the hub's by a
-test). A card's rarity and its finish are rolled apart, so a kind is the two chances
+(12/10/2026, Sol's request; Loot table or L). The client works it out from the hub's
+tables, which `GET /v1/holocrons` sends under `loot` (14/10/2026, [`loot_odds.rs`](../crates/sjk-viewer/src/loot_odds.rs)):
+the tiers' odds, the card's odds and credits ([cards.md](cards.md#odds)) and the shader
+odds. Until the hub's first answer, or from a hub older than them, it shows its own copy
+(`loot_odds::BUILT_IN`); tables that do not fit what the client can show (other tiers,
+rarities or finishes, shares not summing to a thousand) are ignored the same way. Tier
+odds read elsewhere ("10.5% of drops") come from the same tables. A card's rarity and its finish are rolled apart, so a kind is the two chances
 multiplied; "per holocron found" weighs each tier by how often it drops. Since 14/10/2026 an
 opening may bring a saber shader instead of the card and its credits (30% of Uncommon
 holocrons to 50% of Mythical ones, [unlockables.md](unlockables.md)): the card columns of a

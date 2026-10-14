@@ -372,8 +372,22 @@ fn found_tidal(tier: usize) -> Prize {
     Prize::Shader(crate::console::holocrons_panel::opening::Found {
         holocron: 7,
         tier,
-        skin: crate::unlockables::find("saber_tidal").expect("Tidal"),
+        skin: crate::unlockables::find("saber_tidal"),
+        id: "saber_tidal".to_owned(),
+        name: "Tidal blade".to_owned(),
         count: 2,
+    })
+}
+
+/// A shader newer than this client, from a Rare holocron.
+fn found_new() -> Prize {
+    Prize::Shader(crate::console::holocrons_panel::opening::Found {
+        holocron: 9,
+        tier: 1,
+        skin: None,
+        id: "saber_comet".to_owned(),
+        name: "Comet blade".to_owned(),
+        count: 1,
     })
 }
 
@@ -392,6 +406,8 @@ fn duel6_sjk_crate_spin() {
             (-0.6, "spin-stop", found_tidal(1)),
             (3.0, "shader-words", found_tidal(1)),
             (-0.6, "card-stop", Prize::Card(shown(2, 3, 1, 96))),
+            (-0.6, "new-stop", found_new()),
+            (3.0, "new-words", found_new()),
         ] {
             if let Some(console) = gpu.console.as_mut() {
                 console.preview_opening(Some(vec![prize]), elapsed, 3.1);

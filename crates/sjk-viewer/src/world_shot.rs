@@ -1162,6 +1162,7 @@ Found the fog bug, ask me about it!"
             holocrons: Vec::new(),
         };
         let snapshot = sjk_identity::Snapshot {
+            loot: Vec::new(),
             opening: None,
             reveal: None,
             status: sjk_identity::Status::Online,

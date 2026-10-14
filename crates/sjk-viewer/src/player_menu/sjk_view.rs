@@ -119,6 +119,10 @@ const SKIN_X: f32 =
     CONTROL_RIGHT - SKIN_SHOWN as f32 * SKIN_WIDTH - (SKIN_SHOWN - 1) as f32 * SKIN_GAP;
 /// Blade choice `i` (0 the stock blade) answers to `SKIN_BASE + i`.
 const SKIN_BASE: u16 = 7_300;
+/// The blade row's wheel area and its arrows, which browse it a row's width at a time.
+const SKIN_SCROLL: u16 = 7_597;
+const SKIN_PREV: u16 = 7_598;
+const SKIN_NEXT: u16 = 7_599;
 
 /// The first of the blade choices the row shows: the chosen one kept third from
 /// the left where it can be, the window never past either end.
@@ -439,7 +443,36 @@ impl PlayerMenu {
                     })
                 };
                 let skin_row = self.saber_row(SaberRow::Skin);
-                if let Some(choice) = token
+                let browse = match token {
+                    SKIN_PREV if activate => -(SKIN_SHOWN as isize),
+                    SKIN_NEXT if activate => SKIN_SHOWN as isize,
+                    _ if kind == UiEventKind::Wheel
+                        && (token == SKIN_SCROLL
+                            || token == SKIN_PREV
+                            || token == SKIN_NEXT
+                            || token
+                                .checked_sub(SKIN_BASE)
+                                .is_some_and(|c| usize::from(c) < self.blade_choice.count())) =>
+                    {
+                        if wheel > 0.0 {
+                            -1
+                        } else {
+                            1
+                        }
+                    }
+                    _ => 0,
+                };
+                if browse != 0 {
+                    self.selected = skin_row?;
+                    self.blade_choice
+                        .browse(self.blade_first, browse, SKIN_SHOWN);
+                } else if [SKIN_SCROLL, SKIN_PREV, SKIN_NEXT].contains(&token) {
+                    if hover {
+                        self.selected = skin_row?;
+                    } else {
+                        return None;
+                    }
+                } else if let Some(choice) = token
                     .checked_sub(SKIN_BASE)
                     .map(usize::from)
                     .filter(|choice| *choice < self.blade_choice.count())
@@ -1215,30 +1248,43 @@ impl PlayerMenu {
         }
         let count = self.blade_choice.count();
         let chosen = self.blade_choice.chosen();
-        let first = skin_window(chosen, count);
+        let first = self
+            .blade_choice
+            .first(skin_window(chosen, count), SKIN_SHOWN);
         let shown = count.min(SKIN_SHOWN);
         let y = top + (ROW - SKIN_HEIGHT) * 0.5;
         let span = shown as f32 * (SKIN_WIDTH + SKIN_GAP) - SKIN_GAP;
         self.sjk_targets(frame, index, [SKIN_X, y, span, SKIN_HEIGHT], area);
+        // The wheel over the row browses it, as do the arrows at its ends.
+        self.canvas
+            .scroll_region(SKIN_SCROLL, frame.rect(SKIN_X, y, span, SKIN_HEIGHT));
+        self.blade_first = first;
         let seconds = crate::menu::art::motion::seconds() as f32;
         let colour = saber_color(self.saber.color(false), self.saber.custom_rgb(false));
         let mut named = chosen;
         // More blades on either side than the row shows: a chevron there.
-        for (more, x, mark) in [
-            (first > 0, SKIN_X - 14.0, "‹"),
-            (first + shown < count, SKIN_X + span + 3.0, "›"),
+        for (more, x, mark, token) in [
+            (first > 0, SKIN_X - 14.0, "‹", SKIN_PREV),
+            (first + shown < count, SKIN_X + span + 3.0, "›", SKIN_NEXT),
         ] {
             if more {
+                let hovered = self.canvas.token_hovered(token);
                 text(
                     &mut self.canvas,
                     TextFamily::Body,
                     format_args!("{mark}"),
                     frame.rect(x, y, 11.0, SKIN_HEIGHT),
-                    22.0 * s,
-                    color::GOLD_BRIGHT,
+                    if hovered { 26.0 } else { 22.0 } * s,
+                    if hovered {
+                        Color::new(1.0, 1.0, 1.0, 1.0)
+                    } else {
+                        color::GOLD_BRIGHT
+                    },
                     FontWeight::Regular,
                     TextAlign::Center,
                 );
+                self.canvas
+                    .hit_region(token, frame.rect(x - 4.0, y, 19.0, SKIN_HEIGHT));
             }
         }
         for choice in first..first + shown {
@@ -2388,7 +2434,7 @@ mod tests {
     // The token ranges stay apart: the levels, the blade choices, the style
     // buttons, the lists' wheel areas, then the hilts.
     const _: () = assert!(LEVEL_BASE + 18 * 3 <= SKIN_BASE);
-    const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= 7_600);
+    const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= SKIN_SCROLL);
     const _: () = assert!(STYLE_BASE + 3 <= HILT_SCROLL);
     const _: () = assert!(HILT_SCROLL + 2 <= HILT_BASE);
 
