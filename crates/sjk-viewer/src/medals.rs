@@ -165,6 +165,15 @@ impl Medal {
         }
     }
 
+    /// The edition it belongs to ([`crate::editions`]).
+    pub(crate) const fn edition(self) -> &'static str {
+        match self {
+            Self::EarlyTester | Self::EarlyContributor | Self::BugHunter | Self::Supporter => {
+                crate::editions::ALPHA
+            }
+        }
+    }
+
     /// Whether the SJK team may give it again, so its count can pass 1.
     pub(crate) const fn repeatable(self) -> bool {
         matches!(self, Self::BugHunter)

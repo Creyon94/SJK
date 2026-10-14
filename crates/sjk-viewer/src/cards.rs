@@ -134,15 +134,7 @@ impl Finish {
 /// What players read for edition `id`: "Alpha Edition"; an id the client does not know
 /// reads as itself with "Edition" after it, and none as nothing.
 pub(crate) fn edition_name(id: &str) -> String {
-    match id {
-        "" => String::new(),
-        "alpha" => "Alpha Edition".to_owned(),
-        other => {
-            let mut chars = other.chars();
-            let first = chars.next().map(|c| c.to_ascii_uppercase());
-            format!("{}{} Edition", first.unwrap_or(' '), chars.as_str())
-        }
-    }
+    crate::editions::name(id)
 }
 
 /// The credits a holocron of each tier holds, the least and the most, in

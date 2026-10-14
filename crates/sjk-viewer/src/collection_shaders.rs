@@ -961,6 +961,18 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Start,
         );
+        if let Some(skin) = row.skin {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}", crate::editions::name(skin.edition)),
+                frame.rect(x, y, width, 22.0),
+                15.0 * s,
+                color::MUTED,
+                FontWeight::Semibold,
+                TextAlign::End,
+            );
+        }
         y += 26.0;
         let name = row.name();
         let lit = row.owned && row.skin.is_some();

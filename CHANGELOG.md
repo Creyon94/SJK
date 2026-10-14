@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Nine plain saber shaders, after Creyon's Saber ideas page: Tidal, Circuit, Aurora and Echo (the new white Common tier) and Nebula, Cinder, Venom, Sakura and Firefly (Uncommon); the skin list takes up to 256 shaders now _(Sol, ideas by Creyon)_
 - Twelve more plain saber shaders: Slate, Amber, Lilac, Mint, Coral, Ivory (Common) and Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight (Uncommon) _(Sol, ideas by Creyon)_
+- Everything collectible now carries an edition stamp, "Alpha Edition" for the whole alpha (the start of a season system): shown on a shader's card, a medal's card and the hover cards of shaders, medals, achievements and the toy; the shader search finds "alpha" _(Sol)_
 - The Supporter medal has its final art: a gold-and-steel star with a sun gem on a crimson ribbon _(Sol)_
 - Firing rockets while moving no longer makes you stutter back and forth _(Creyon, after JoF EternalJK)_
 - Rocket launcher lock-on: the red ring builds up around the target with its tick sounds, and the lock pulses and sounds when complete _(Creyon, after JoF EternalJK)_

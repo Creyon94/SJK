@@ -33,6 +33,10 @@ animation is next. Checked by unit tests only. See [unlockables.md](unlockables.
 
 ## Shaders: the Common tier and nine plain blades
 
+14/10/2026, seasons: `editions.rs` (Alpha Edition) and an `edition` on every shader, medal and
+achievement, shown on the Shaders and Medals big cards and every hover card; the hub already
+stamps card copies ([unlockables.md](unlockables.md#editions)).
+
 14/10/2026, more-shaders: twelve more plain blade skins (Common Slate, Amber, Lilac, Mint, Coral,
 Ivory; Uncommon Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight), 35 shaders in all (hub branch
 `more-shaders`, same script and pack).

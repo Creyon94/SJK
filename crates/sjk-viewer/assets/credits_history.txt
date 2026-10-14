@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Editions: every collectible carries a season stamp, Alpha Edition for now
+- 5a76eec |  | Editions: every collectible carries a season stamp, Alpha Edition for now
 + 14/10/2026 | - | Supporter medal: final art (gold star with a sun gem, crimson ribbon)
 - 770f3f2 |  | Supporter medal: final art (gold star with a sun gem, crimson ribbon)
 + 14/10/2026 | - | Twelve more plain saber shaders (six Common, six Uncommon)

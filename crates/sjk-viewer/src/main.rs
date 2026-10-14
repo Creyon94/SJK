@@ -23,6 +23,7 @@ mod camera_uniform;
 mod capture;
 mod card_outline;
 mod cards;
+mod editions;
 mod cgame_options;
 mod chat;
 mod chat_gifs;
