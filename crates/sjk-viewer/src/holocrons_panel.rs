@@ -30,6 +30,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod loot;
 #[path = "holocrons_panel_opening.rs"]
 pub(crate) mod opening;
+#[path = "holocrons_panel_crate.rs"]
+mod strip;
 #[path = "holocrons_panel_view.rs"]
 mod view;
 
@@ -253,6 +255,12 @@ pub(crate) struct Panel {
     opening_serial: u64,
     /// The page's clock, for the finishes' motion.
     epoch: Instant,
+    /// The blade skins the hub's packs brought, the crate tiles' blades.
+    skins: std::sync::Arc<crate::saber_skins::LoadedSkins>,
+    /// The crate strip's tile under the marker last frame (one click a tile), and
+    /// whether the entrance after the spin has played its cue.
+    spin_tick: usize,
+    entered: bool,
     /// The data is a world shot's own, never read again.
     #[cfg(test)]
     pinned: bool,
@@ -290,6 +298,9 @@ impl Panel {
             #[cfg(test)]
             pinned: false,
             #[cfg(test)]
+            skins: Default::default(),
+            spin_tick: 0,
+            entered: false,
             shot_seconds: None,
             #[cfg(test)]
             shot_elapsed: None,
@@ -900,12 +911,15 @@ mod tests {
             2,
             "a finish the client does not know is left out"
         );
-        assert_eq!(
-            (*index, shown[1].finish.id, shown[1].credits),
-            (0, "solar", 42)
-        );
-        assert_eq!(shown[0].edition, "Alpha Edition");
-        // The first press finishes the entrance, the next goes on, the last ends it.
+        let (opening::Prize::Card(first), opening::Prize::Card(second)) = (&shown[0], &shown[1])
+        else {
+            panic!("two cards");
+        };
+        assert_eq!((*index, second.finish.id, second.credits), (0, "solar", 42));
+        assert_eq!(first.edition, "Alpha Edition");
+        // The first press skips the crate spin, the next finishes the entrance, the next
+        // goes on, the last ends it.
+        panel.advance(now);
         panel.advance(now);
         assert!(matches!(
             panel.ceremony,
@@ -916,6 +930,7 @@ mod tests {
             panel.ceremony,
             Some(opening::Ceremony::Showing { index: 1, .. })
         ));
+        panel.advance(now);
         panel.advance(now);
         panel.advance(now);
         assert!(!panel.opening(), "Done after the last");
@@ -954,7 +969,7 @@ mod tests {
             Some(opening::Ceremony::Failed { .. })
         ));
         panel.show(
-            vec![opening::Shown::of(&opened("rare", "holo")).unwrap()],
+            vec![opening::Prize::of(&opened("rare", "holo")).unwrap()],
             now,
         );
         assert_eq!(panel.key(KeyCode::Escape, false), PanelAction::None);
@@ -972,8 +987,8 @@ mod tests {
         for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
             for finish in ["normal", "holo", "solar"] {
                 let shown = vec![
-                    opening::Shown::of(&opened("mythical", finish)).unwrap(),
-                    opening::Shown::of(&opened("rare", finish)).unwrap(),
+                    opening::Prize::of(&opened("mythical", finish)).unwrap(),
+                    opening::Prize::of(&opened("rare", finish)).unwrap(),
                 ];
                 panel.show(shown, start);
                 for tenth in 0..30 {

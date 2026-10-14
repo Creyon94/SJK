@@ -84,7 +84,7 @@ impl ViewerConsole {
         let opened = crate::cards::rehearsal::parse(args)?;
         let shown: Vec<_> = opened
             .iter()
-            .filter_map(super::holocrons_panel::opening::Shown::of)
+            .filter_map(super::holocrons_panel::opening::Prize::of)
             .collect();
         let count = shown.len();
         if !self.holocrons_panel.is_open() {
@@ -171,11 +171,11 @@ impl ViewerConsole {
     }
 
     /// Play the ceremony of `shown` on the page, drawn `elapsed` seconds into its card's
-    /// entrance with its finish at `seconds`, for a world shot; `None` ends it.
+    /// entrance (negative: into the crate spin before it) with its finish at `seconds`, for a world shot; `None` ends it.
     #[cfg(test)]
     pub(crate) fn preview_opening(
         &mut self,
-        shown: Option<Vec<super::holocrons_panel::opening::Shown>>,
+        shown: Option<Vec<super::holocrons_panel::opening::Prize>>,
         elapsed: f32,
         seconds: f32,
     ) {

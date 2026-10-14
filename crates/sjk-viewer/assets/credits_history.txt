@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Holocron opening: a crate-style spin before each burst, and a shader prize's own entrance
+- e2af88c |  | Holocron opening: a crate-style spin before each burst, and a shader prize's own entrance
 + 14/10/2026 | - | Read the hub's shader drops: unlock counts, an opening that holds a shader instead of a card
 - c2d02cb |  | Read the hub's shader drops: unlock counts, an opening that holds a shader instead of a card
 + 14/10/2026 | - | Format the shader drop wire changes

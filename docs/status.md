@@ -1,3 +1,15 @@
+## Holocron opening: the crate spin
+
+14/10/2026, step 4 of the shader catalogue plan: before each holocron's burst a strip of
+what its tier can drop (the cards its odds allow and the droppable shaders, weighted by
+their chances, a copy of the hub's table in `holocrons_panel_crate.rs`) runs past a gold
+marker, clicking a tile at a time, and slows to a stop inside the real prize's tile; the
+strip is seeded by the holocron's number. A shader prize has its own entrance (the burst,
+its blade framed in its tier's colour, its words and how many are held). Enter skips the
+spin, then the entrance. `debug_open <tier> shader` rehearses it offline; world shot
+`duel6_sjk_crate_spin`, reviewed by eye on one GPU (the blades grey, as the hub's packs
+were not loaded). Not tried in the game.
+
 ## Holocrons may drop shaders
 
 14/10/2026, step 3 of the shader catalogue plan: the hub (branch `loot-kinds`, merged in its

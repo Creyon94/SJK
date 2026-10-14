@@ -3,9 +3,12 @@
 //! it answers the holocron pulses in its tier's colour. Then each holocron opened plays
 //! its ceremony over the darkened page, one after another:
 //!
+//! - a strip of what its tier can drop runs past a gold marker and slows to a stop on
+//!   the prize, as a loot crate does ([`super::strip`]);
 //! - it bursts open in its tier's light: rings run out, rays turn, the gem flares and
 //!   goes;
-//! - the sealed card turns in to face the player, in its rarity's colour and its finish's
+//! - the sealed card turns in to face the player (a shader instead of a card shows its
+//!   blade, framed in its tier's colour, and what it is), in its rarity's colour and its finish's
 //!   light ([`crate::cards::look`]);
 //! - the credits count up beside the credits' mark ([`crate::cards::mark`]);
 //! - its words fade up: the card's rarity and finish, its edition, what the finish is,
@@ -20,18 +23,24 @@
 //! While the ceremony shows the page under it is not drawn: text draws above every shape,
 //! so the page's words would show through the dark.
 
+use super::strip;
 use super::*;
 use crate::audio::ui_cues::{self, Cue};
 use crate::cards::{self, Finish, Rarity};
 use crate::holocrons::gem;
 use crate::menu::sjk::{Frame, color, key_hint, key_hint_width, kit, text};
 use crate::menu_widgets::TextFamily;
+use crate::unlockables::Unlockable;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign};
 
 /// The ceremony's Next (or Done) button.
 pub(crate) const NEXT_TOKEN: u16 = 1_322;
 /// How long the hub has to answer before the page says it did not.
 const ANSWER_WAIT: Duration = Duration::from_secs(15);
+/// The crate spin before each entrance, in seconds of a full one.
+const SPIN: f32 = 4.6;
+/// The share of the spin the strip runs; the rest it rests on the prize.
+const SPIN_RUN: f32 = 0.86;
 /// A card's entrance: the burst, the card turning in, the credits counting, the words.
 const ENTRANCE: f32 = 2.4;
 const BURST_END: f32 = 0.75;
@@ -58,10 +67,21 @@ const SEALED_Y: f32 = 822.0;
 const BUTTON_Y: f32 = 880.0;
 /// Rays of the burst.
 const RAYS: usize = 12;
+/// The crate strip: its top and height, and the band it shows through (frame pixels).
+const STRIP_Y: f32 = 380.0;
+const STRIP_HEIGHT: f32 = strip::TILE * cards::look::ASPECT;
+const STRIP_LEFT: f32 = 40.0;
+const STRIP_RIGHT: f32 = 1_880.0;
+/// A shader's showpiece: its top, width and height.
+const SHADER_TOP: f32 = 250.0;
+const SHADER_WIDTH: f32 = 520.0;
+const SHADER_HEIGHT: f32 = 300.0;
 
 /// One holocron opened, as the ceremony shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Shown {
+    /// The holocron's number at the hub (it seeds the crate spin).
+    pub(crate) holocron: u64,
     /// Position in [`holocrons::TIERS`].
     pub(crate) tier: usize,
     pub(crate) rarity: &'static Rarity,
@@ -89,9 +109,10 @@ impl Shown {
     /// What the hub said one holocron brought; `None` for a tier, rarity or finish the
     /// client does not know.
     pub(crate) fn of(opened: &sjk_identity::Opened) -> Option<Self> {
-        // A shader instead of a card has no ceremony yet ([`found_words`] says it).
+        // A shader instead of a card is a [`Prize::Shader`].
         let held = opened.card.as_ref()?;
         Some(Self {
+            holocron: opened.holocron,
             tier: holocrons::Tier::from_id(&opened.tier)?.index,
             rarity: Rarity::from_id(&held.rarity)?,
             finish: Finish::from_id(&held.finish)?,
@@ -102,22 +123,64 @@ impl Shown {
     }
 }
 
-/// What shaders an opening brought, in a line ("You found Tidal blade, 2 held."); `None`
-/// when it brought none.
-fn found_words(opened: &[sjk_identity::Opened]) -> Option<String> {
-    let found: Vec<String> = opened
-        .iter()
-        .filter_map(|opened| opened.unlock.as_ref())
-        .map(|unlock| {
-            let name = if unlock.name.is_empty() {
-                &unlock.id
-            } else {
-                &unlock.name
-            };
-            format!("{name} ({} held)", unlock.count)
-        })
-        .collect();
-    (!found.is_empty()).then(|| format!("You found {}.", found.join(", ")))
+/// A shader an opening brought, instead of a card.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Found {
+    /// The holocron's number at the hub (it seeds the crate spin).
+    pub(crate) holocron: u64,
+    /// Position in [`holocrons::TIERS`].
+    pub(crate) tier: usize,
+    pub(crate) skin: &'static Unlockable,
+    /// How many of it the player holds now, this one included.
+    pub(crate) count: u32,
+}
+
+/// What one holocron brought: a card with credits, or a shader.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Prize {
+    Card(Shown),
+    Shader(Found),
+}
+
+impl Prize {
+    /// What the hub said one holocron brought; `None` for a tier, rarity, finish or
+    /// shader the client does not know.
+    pub(crate) fn of(opened: &sjk_identity::Opened) -> Option<Self> {
+        if let Some(unlock) = &opened.unlock {
+            return Some(Self::Shader(Found {
+                holocron: opened.holocron,
+                tier: holocrons::Tier::from_id(&opened.tier)?.index,
+                skin: crate::unlockables::blade_skin(&unlock.id)?,
+                count: unlock.count,
+            }));
+        }
+        Shown::of(opened).map(Self::Card)
+    }
+
+    fn tier(&self) -> usize {
+        match self {
+            Self::Card(shown) => shown.tier,
+            Self::Shader(found) => found.tier,
+        }
+    }
+
+    fn holocron(&self) -> u64 {
+        match self {
+            Self::Card(shown) => shown.holocron,
+            Self::Shader(found) => found.holocron,
+        }
+    }
+
+    /// The tile the crate spin ends on.
+    fn item(&self) -> strip::Item {
+        match self {
+            Self::Card(shown) => strip::Item::Card {
+                rarity: shown.rarity.index,
+                finish: shown.finish.index,
+            },
+            Self::Shader(found) => strip::Item::Shader(found.skin),
+        }
+    }
 }
 
 /// Where the ceremony stands.
@@ -127,7 +190,7 @@ pub(crate) enum Ceremony {
     Waiting { tier: usize, since: Instant },
     /// Showing `shown[index]`, its entrance begun at `since`.
     Showing {
-        shown: Vec<Shown>,
+        shown: Vec<Prize>,
         index: usize,
         since: Instant,
     },
@@ -157,11 +220,13 @@ impl Ceremony {
 
 /// The cue a card's entrance plays: the medals' fanfare for a Solar finish or a Legendary
 /// card, the unlocks' chime otherwise.
-fn cue(shown: &Shown) -> Cue {
-    if shown.finish.index == 2 || shown.rarity.index == 3 {
-        Cue::Medal
-    } else {
-        Cue::Achievement
+fn cue(prize: &Prize) -> Cue {
+    match prize {
+        Prize::Card(shown) if shown.finish.index == 2 || shown.rarity.index == 3 => Cue::Medal,
+        Prize::Shader(found) if found.skin.tier >= crate::unlockables::Rarity::Legendary => {
+            Cue::Medal
+        }
+        _ => Cue::Achievement,
     }
 }
 
@@ -232,11 +297,9 @@ impl Panel {
                 self.opening_serial = serial;
                 // The page reads the hub's counts again at once.
                 self.refreshed = None;
-                let shown: Vec<Shown> = outcome.opened.iter().filter_map(Shown::of).collect();
+                let shown: Vec<Prize> = outcome.opened.iter().filter_map(Prize::of).collect();
                 if shown.is_empty() {
-                    let message = if let Some(words) = found_words(&outcome.opened) {
-                        words
-                    } else if outcome.message.is_empty() {
+                    let message = if outcome.message.is_empty() {
                         "Nothing this client knows came out.".to_owned()
                     } else {
                         outcome.message.clone()
@@ -255,10 +318,10 @@ impl Panel {
     }
 
     /// Play the ceremony of `shown` from the first.
-    pub(crate) fn show(&mut self, shown: Vec<Shown>, now: Instant) {
-        if let Some(first) = shown.first() {
-            ui_cues::post(cue(first));
-        }
+    pub(crate) fn show(&mut self, shown: Vec<Prize>, now: Instant) {
+        self.entered = false;
+        self.spin_tick = 0;
+        ui_cues::post(Cue::Click);
         self.ceremony = Some(Ceremony::Showing {
             shown,
             index: 0,
@@ -277,14 +340,21 @@ impl Panel {
                 since,
             }) => {
                 let elapsed = now.saturating_duration_since(*since).as_secs_f32() / pace;
-                if elapsed < ENTRANCE {
+                if elapsed < SPIN {
+                    // The crate stops where it was going: on to the burst.
                     *since = now
-                        .checked_sub(Duration::from_secs_f32(ENTRANCE * pace))
+                        .checked_sub(Duration::from_secs_f32(SPIN * pace))
+                        .unwrap_or(*since);
+                } else if elapsed < SPIN + ENTRANCE {
+                    *since = now
+                        .checked_sub(Duration::from_secs_f32((SPIN + ENTRANCE) * pace))
                         .unwrap_or(*since);
                 } else if *index + 1 < shown.len() {
                     *index += 1;
                     *since = now;
-                    ui_cues::post(cue(&shown[*index]));
+                    self.entered = false;
+                    self.spin_tick = 0;
+                    ui_cues::post(Cue::Click);
                 } else {
                     self.end_ceremony();
                 }
@@ -324,16 +394,34 @@ impl Panel {
             color: color::alpha(color::SPACE, 0.93),
         });
         let elapsed = ceremony.elapsed(now);
+        // A world shot's time is into the entrance (negative: into the crate spin).
         #[cfg(test)]
-        let elapsed = self.shot_elapsed.unwrap_or(elapsed);
+        let elapsed = self.shot_elapsed.map_or(elapsed, |shot| SPIN + shot);
         let seconds = self.seconds(now);
+        self.follow_skins();
         match &ceremony {
             Ceremony::Waiting { tier, .. } => self.waiting(frame, *tier, elapsed),
             Ceremony::Failed { message, .. } => self.failed(frame, message),
+            Ceremony::Showing { shown, index, .. } if elapsed < SPIN => {
+                self.spin(frame, &shown[*index], elapsed, seconds);
+            }
             Ceremony::Showing { shown, index, .. } => {
-                self.entrance(frame, &shown[*index], elapsed, seconds);
-                if elapsed >= WORDS {
-                    self.words(frame, shown, *index, elapsed);
+                let entered = elapsed - SPIN;
+                if !self.entered {
+                    self.entered = true;
+                    ui_cues::post(cue(&shown[*index]));
+                }
+                match &shown[*index] {
+                    Prize::Card(card) => self.entrance(frame, card, entered, seconds),
+                    Prize::Shader(found) => self.entrance_shader(frame, found, entered, seconds),
+                }
+                if entered >= WORDS {
+                    match &shown[*index] {
+                        Prize::Card(_) => self.words(frame, shown, *index, entered),
+                        Prize::Shader(found) => {
+                            self.shader_words(frame, found, shown.len(), *index, entered);
+                        }
+                    }
                 }
             }
         }
@@ -418,14 +506,10 @@ impl Panel {
         );
     }
 
-    /// The burst, the card turning in and the credits counting up.
-    fn entrance(&mut self, frame: &Frame, shown: &Shown, elapsed: f32, seconds: f32) {
+    /// The burst: the tier's gem flares and goes while rings run out and rays turn, round
+    /// `middle` (frame pixels), `elapsed` seconds in.
+    fn burst(&mut self, frame: &Frame, middle: [f32; 2], tier: &holocrons::Tier, elapsed: f32) {
         let s = frame.s;
-        let tier = &holocrons::TIERS[shown.tier];
-        let faces = cards::faces::current();
-        let (top, card_width) = shown.place(&faces);
-        let height = card_width * cards::look::ASPECT;
-        let middle = [CARD_X, top + height * 0.47];
         let [cx, cy] = frame.point(middle[0], middle[1]);
         // The burst: the gem flares and goes while rings run out and rays turn.
         if elapsed < BURST_END + 0.6 {
@@ -478,6 +562,16 @@ impl Panel {
                 );
             }
         }
+    }
+
+    /// The burst, the card turning in and the credits counting up.
+    fn entrance(&mut self, frame: &Frame, shown: &Shown, elapsed: f32, seconds: f32) {
+        let tier = &holocrons::TIERS[shown.tier];
+        let faces = cards::faces::current();
+        let (top, card_width) = shown.place(&faces);
+        let height = card_width * cards::look::ASPECT;
+        let middle = [CARD_X, top + height * 0.47];
+        self.burst(frame, middle, tier, elapsed);
         // The card turns in.
         let turn = ((elapsed - TURN[0]) / (TURN[1] - TURN[0])).clamp(0.0, 1.0);
         if turn > 0.0 {
@@ -526,9 +620,11 @@ impl Panel {
     }
 
     /// The card's words, fading up, and the button.
-    fn words(&mut self, frame: &Frame, shown: &[Shown], index: usize, elapsed: f32) {
+    fn words(&mut self, frame: &Frame, shown: &[Prize], index: usize, elapsed: f32) {
         let s = frame.s;
-        let card = &shown[index];
+        let Prize::Card(card) = &shown[index] else {
+            return;
+        };
         let alpha = ((elapsed - WORDS) / 0.4).clamp(0.0, 1.0);
         let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
         let faces = cards::faces::current();
@@ -642,13 +738,337 @@ impl Panel {
         );
     }
 
+    /// The crate spin: a strip of what the holocron's tier can drop runs past the marker
+    /// and slows to a stop on the prize.
+    fn spin(&mut self, frame: &Frame, prize: &Prize, elapsed: f32, seconds: f32) {
+        let s = frame.s;
+        let tier = &holocrons::TIERS[prize.tier()];
+        let tiles = strip::strip(prize.tier(), prize.holocron(), prize.item());
+        let run = strip::run(prize.holocron());
+        let distance = run * strip::travelled(elapsed / (SPIN * SPIN_RUN));
+        let under = strip::under_marker(distance);
+        if under != self.spin_tick {
+            self.spin_tick = under;
+            if elapsed > 0.0 {
+                ui_cues::post(Cue::Click);
+            }
+        }
+        glow(
+            &mut self.ui,
+            frame,
+            [CARD_X, STRIP_Y + STRIP_HEIGHT * 0.5],
+            420.0,
+            tier.colour,
+            0.16,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{}", tier.name),
+            frame.rect(CARD_X - 500.0, STRIP_Y - 120.0, 1_000.0, 50.0),
+            38.0 * s,
+            tier.colour,
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+        let pitch = strip::TILE + strip::GAP;
+        let clip = frame.rect(
+            STRIP_LEFT,
+            STRIP_Y - 30.0,
+            STRIP_RIGHT - STRIP_LEFT,
+            STRIP_HEIGHT + 60.0,
+        );
+        let _ = self.ui.draw_list_mut().push(DrawCommand::PushClip(clip));
+        let faces = cards::faces::current();
+        for (at, item) in tiles.iter().enumerate() {
+            let x = CARD_X - strip::TILE * 0.5 + at as f32 * pitch - distance;
+            if x + strip::TILE < STRIP_LEFT || x > STRIP_RIGHT {
+                continue;
+            }
+            // The tile under the marker lifts a little.
+            let near = (1.0 - ((x + strip::TILE * 0.5 - CARD_X).abs() / pitch)).clamp(0.0, 1.0);
+            self.tile(
+                frame,
+                &faces,
+                *item,
+                [x, STRIP_Y - 10.0 * near],
+                near,
+                seconds,
+            );
+        }
+        let _ = self.ui.draw_list_mut().push(DrawCommand::PopClip);
+        // The strip fades into the dark at both ends.
+        let steps = 14;
+        let width = (STRIP_RIGHT - STRIP_LEFT) * 0.28 / steps as f32;
+        for step in 0..steps {
+            let share = step as f32 / steps as f32;
+            let alpha = 0.93 * (1.0 - share).powi(2);
+            for x in [
+                STRIP_LEFT + width * step as f32,
+                STRIP_RIGHT - width * (step as f32 + 1.0),
+            ] {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
+                    rect: frame.rect(x, STRIP_Y - 30.0, width, STRIP_HEIGHT + 60.0),
+                    color: color::alpha(color::SPACE, alpha),
+                });
+            }
+        }
+        // The marker: a gold line with a point above and below.
+        let [mx, top] = frame.point(CARD_X, STRIP_Y - 36.0);
+        let [_, bottom] = frame.point(CARD_X, STRIP_Y + STRIP_HEIGHT + 36.0);
+        let gold = color::alpha(color::GOLD_BRIGHT, 0.9);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Line {
+            from: [mx, top],
+            to: [mx, bottom],
+            width: 3.0 * s,
+            color: gold,
+        });
+        for (y, down) in [(top, 1.0_f32), (bottom, -1.0)] {
+            for side in [-1.0_f32, 1.0] {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Line {
+                    from: [mx, y],
+                    to: [mx + side * 14.0 * s, y - down * 16.0 * s],
+                    width: 3.0 * s,
+                    color: gold,
+                });
+            }
+        }
+    }
+
+    /// One tile of the strip at `[x, y]` (frame pixels): a card in its rarity and finish,
+    /// or a shader's blade framed in its tier's colour with its name. `near` (0 to 1)
+    /// is how close it is to the marker.
+    fn tile(
+        &mut self,
+        frame: &Frame,
+        faces: &cards::faces::Faces,
+        item: strip::Item,
+        [x, y]: [f32; 2],
+        near: f32,
+        seconds: f32,
+    ) {
+        let s = frame.s;
+        match item {
+            strip::Item::Card { rarity, finish } => {
+                cards::look::draw(
+                    &mut self.ui,
+                    frame,
+                    [x, y, strip::TILE],
+                    cards::look::Card {
+                        rarity: &cards::RARITIES[rarity],
+                        finish: &cards::FINISHES[finish],
+                        edition: "",
+                        face: cards::shown(faces, None),
+                        tilt: None,
+                    },
+                    seconds,
+                    0.75 + 0.25 * near,
+                    1.0,
+                );
+            }
+            strip::Item::Shader(skin) => {
+                let colour = skin.tier.colour();
+                let height = strip::TILE * cards::look::ASPECT;
+                let rect = frame.rect(x, y, strip::TILE, height);
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: 14.0 * s,
+                    color: color::alpha(color::SPACE, 0.9),
+                });
+                let look = self.skins.get(skin.id);
+                let _ = crate::console::collection_panel::swatch::small_swatch(
+                    self.ui.draw_list_mut(),
+                    frame,
+                    [x + 10.0, y + height * 0.5 - 38.0, strip::TILE - 20.0, 76.0],
+                    look,
+                    true,
+                    seconds,
+                    0.0,
+                );
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 14.0 * s,
+                    width: (2.0 + near) * s,
+                    color: color::alpha(colour, 0.7 + 0.3 * near),
+                });
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{} {}", skin.tier.symbol(), skin.tier.label()),
+                    frame.rect(x, y + 12.0, strip::TILE, 24.0),
+                    16.0 * s,
+                    colour,
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{}", skin.name),
+                    frame.rect(x, y + height - 40.0, strip::TILE, 26.0),
+                    17.0 * s,
+                    color::TEXT,
+                    FontWeight::Regular,
+                    TextAlign::Center,
+                );
+            }
+        }
+    }
+
+    /// A shader's burst and blade: the tier's light, then the blade swatch growing in
+    /// large, framed in the shader's tier colour.
+    fn entrance_shader(&mut self, frame: &Frame, found: &Found, elapsed: f32, seconds: f32) {
+        let s = frame.s;
+        let tier = &holocrons::TIERS[found.tier];
+        let colour = found.skin.tier.colour();
+        let middle = [CARD_X, SHADER_TOP + SHADER_HEIGHT * 0.5];
+        self.burst(frame, middle, tier, elapsed);
+        let turn = ((elapsed - TURN[0]) / (TURN[1] - TURN[0])).clamp(0.0, 1.0);
+        if turn <= 0.0 {
+            return;
+        }
+        let eased = 1.0 - (1.0 - turn).powi(3);
+        let width = SHADER_WIDTH * (0.85 + 0.15 * eased);
+        let height = SHADER_HEIGHT * (0.85 + 0.15 * eased);
+        let rect = [
+            CARD_X - width * 0.5,
+            SHADER_TOP + (SHADER_HEIGHT - height) * 0.5,
+            width,
+            height,
+        ];
+        glow(&mut self.ui, frame, middle, 300.0, colour, 0.3 * eased);
+        let area = frame.rect(rect[0], rect[1], rect[2], rect[3]);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: area,
+            radius: 22.0 * s,
+            color: color::alpha(color::SPACE, 0.95 * eased),
+        });
+        let look = self.skins.get(found.skin.id);
+        let _ = crate::console::collection_panel::swatch::small_swatch(
+            self.ui.draw_list_mut(),
+            frame,
+            [
+                rect[0] + 24.0,
+                rect[1] + height * 0.5 - 90.0,
+                rect[2] - 48.0,
+                180.0,
+            ],
+            look,
+            true,
+            seconds,
+            0.0,
+        );
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: area,
+            radius: 22.0 * s,
+            width: 3.0 * s,
+            color: color::alpha(colour, eased),
+        });
+    }
+
+    /// What the shader is, fading up, and the button.
+    fn shader_words(
+        &mut self,
+        frame: &Frame,
+        found: &Found,
+        count: usize,
+        index: usize,
+        entered: f32,
+    ) {
+        let s = frame.s;
+        let alpha = ((entered - WORDS) / 0.4).clamp(0.0, 1.0);
+        let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
+        let tier = &holocrons::TIERS[found.tier];
+        let rarity = found.skin.tier;
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{}", found.skin.name),
+            frame.rect(CARD_X - 500.0, TITLE_Y, 1_000.0, 50.0),
+            42.0 * s,
+            fade(rarity.colour()),
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!(
+                "{} {} saber shader. From {} {}",
+                rarity.symbol(),
+                rarity.label(),
+                tier.article(),
+                tier.name
+            ),
+            frame.rect(CARD_X - 500.0, EDITION_Y, 1_000.0, 28.0),
+            19.0 * s,
+            fade(color::TEXT),
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{}", found.skin.description),
+            frame.rect(CARD_X - 600.0, ABOUT_Y, 1_200.0, 26.0),
+            17.0 * s,
+            fade(color::MUTED),
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        let held = if found.count > 1 {
+            format!("You hold {} of it now.", found.count)
+        } else {
+            "Yours now: wear it in the Collection.".to_owned()
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{held}"),
+            frame.rect(CARD_X - 500.0, SEALED_Y, 1_000.0, 26.0),
+            17.0 * s,
+            fade(color::QUIET),
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        if count > 1 {
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{} of {count}", index + 1),
+                frame.rect(CARD_X - 300.0, 120.0, 600.0, 34.0),
+                24.0 * s,
+                fade(color::MUTED),
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+        }
+        kit::button(
+            &mut self.ui,
+            frame,
+            [CARD_X - 110.0, BUTTON_Y, 220.0, 48.0],
+            if index + 1 == count { "Done" } else { "Next" },
+            true,
+            true,
+            true,
+            NEXT_TOKEN,
+        );
+    }
+
+    /// Take the loaded blade skins when a pack brought new ones (the tiles' blades).
+    fn follow_skins(&mut self) {
+        if self.skins.generation() != crate::sjk_packs::generation() {
+            self.skins = crate::sjk_packs::skins();
+        }
+    }
+
     /// The keys under the ceremony.
     fn ceremony_keys(&mut self, frame: &Frame, ceremony: &Ceremony, elapsed: f32) {
         let s = frame.s;
         let action = match ceremony {
             Ceremony::Waiting { .. } => None,
             Ceremony::Failed { .. } => Some("close"),
-            Ceremony::Showing { shown, index, .. } => Some(if elapsed < ENTRANCE {
+            Ceremony::Showing { shown, index, .. } => Some(if elapsed < SPIN + ENTRANCE {
                 "skip"
             } else if index + 1 < shown.len() {
                 "next"

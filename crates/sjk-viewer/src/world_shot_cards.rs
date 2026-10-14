@@ -18,7 +18,7 @@
 use super::*;
 use crate::cards::{FINISHES, RARITIES};
 use crate::console::holocrons_panel::Data;
-use crate::console::holocrons_panel::opening::Shown;
+use crate::console::holocrons_panel::opening::{Prize, Shown};
 use crate::profile_hub::Tab;
 
 /// The Holocrons tab's made-up holdings with holocrons to open and credits.
@@ -33,6 +33,7 @@ fn holdings() -> Data {
 /// One holocron of tier `tier` opened: a card of `rarity` in `finish`.
 fn shown(tier: usize, rarity: usize, finish: usize, credits: u64) -> Shown {
     Shown {
+        holocron: 1,
         tier,
         rarity: &RARITIES[rarity],
         finish: &FINISHES[finish],
@@ -96,7 +97,8 @@ fn overflowed(gpu: &GpuState) -> bool {
 /// Play `cards`' ceremony drawn `elapsed` seconds into the first card's entrance.
 fn ceremony(gpu: &mut GpuState, cards: Vec<Shown>, elapsed: f32) {
     if let Some(console) = gpu.console.as_mut() {
-        console.preview_opening(Some(cards), elapsed, 3.1);
+        let prizes = cards.into_iter().map(Prize::Card).collect();
+        console.preview_opening(Some(prizes), elapsed, 3.1);
     }
 }
 
@@ -362,5 +364,46 @@ fn duel6_sjk_card_faces() {
         let path = shoot(&mut gpu, 4, "duel6-card-face-opening");
         println!("{}", path.display());
         assert!(!overflowed(&gpu));
+    });
+}
+
+/// A shader found by a holocron of tier `tier`: Tidal, held twice.
+fn found_tidal(tier: usize) -> Prize {
+    Prize::Shader(crate::console::holocrons_panel::opening::Found {
+        holocron: 7,
+        tier,
+        skin: crate::unlockables::find("saber_tidal").expect("Tidal"),
+        count: 2,
+    })
+}
+
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_crate_spin() {
+    on_big_stack(|| {
+        let Some(mut gpu) = open_holocrons([1920, 1080]) else {
+            return;
+        };
+        let mut moments = Vec::new();
+        // The spin (negative: seconds before the burst), a card's and a shader's.
+        for (elapsed, name, prize) in [
+            (-4.2, "spin-start", found_tidal(1)),
+            (-2.6, "spin-mid", found_tidal(1)),
+            (-0.6, "spin-stop", found_tidal(1)),
+            (3.0, "shader-words", found_tidal(1)),
+            (-0.6, "card-stop", Prize::Card(shown(2, 3, 1, 96))),
+        ] {
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_opening(Some(vec![prize]), elapsed, 3.1);
+            }
+            let path = shoot(&mut gpu, 2, &format!("duel6-crate-{name}"));
+            assert!(!overflowed(&gpu), "{name}");
+            println!("{}", path.display());
+            moments.push(image::open(path).expect("the shot").to_rgba8());
+        }
+        println!(
+            "{}",
+            sheet(&moments, 2, 960, "duel6-crate-moments").display()
+        );
     });
 }
