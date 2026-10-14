@@ -1043,6 +1043,9 @@ test: Die and respawn: no limbs cut, no stray Kyle surfaces; the corpse is the w
 test: First person: no wolf body in front of the camera.
 test: Back to /model kyle: Kyle again, nothing left over.
 note: Fingers close on the hilt; face and shape keys stay still for now.
+change: Fixes: no see-through faces (glTF winding); saber, hats, Force effects on the wolf's joints.
+test: Look at the wolf's head and chest from the front: solid, no inside of the back visible.
+test: Swing and spin: the hilt stays in the right paw; a hat (if worn) on the wolf's head.
 
 [show-brushes]
 area: Rendering & effects

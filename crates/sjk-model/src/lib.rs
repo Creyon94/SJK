@@ -1199,6 +1199,22 @@ impl Glm {
         ]))
     }
 
+    /// The bone that carries the origin of the bolt surface `name` (the heaviest
+    /// weight on its origin vertex), as an index into the animation's bones.
+    pub fn surface_bolt_bone(&self, name: &str, lod: usize) -> Option<usize> {
+        let surface_index = self
+            .hierarchy
+            .iter()
+            .position(|surface| surface.name.eq_ignore_ascii_case(name))?;
+        let source = self.lods.get(lod)?.surfaces.get(surface_index)?;
+        let origin = source.vertices.get(2)?;
+        let weight = origin
+            .weights
+            .iter()
+            .max_by(|a, b| a.weight.total_cmp(&b.weight))?;
+        source.bone_references.get(weight.bone_reference).copied()
+    }
+
     fn skin_with_matrices(
         &self,
         skin: &Skin,

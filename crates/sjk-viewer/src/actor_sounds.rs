@@ -127,8 +127,7 @@ pub(crate) fn update(gpu: &mut GpuState, time: i64, audio: &mut Option<GameAudio
                         return;
                     }
                     let bolt = if *right { "*r_leg_foot" } else { "*l_leg_foot" };
-                    let Ok(Some(bolt)) = mesh.preview.mesh.surface_bolt_matrix(bolt, 0, matrices)
-                    else {
+                    let Some(bolt) = mesh.preview.bolt(bolt, matrices) else {
                         return;
                     };
                     let point = Vec3::new(bolt[0][3], bolt[1][3], bolt[2][3])

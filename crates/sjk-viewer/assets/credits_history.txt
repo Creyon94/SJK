@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Rig models: game winding and bolts on the rig's own joints
+- b3a9ff9 |  | Rig models: game winding and bolts on the rig's own joints
 + 14/10/2026 | - | Holocron odds from the hub, unknown shader prizes, browsing the Saber tab's blades
 - cd5c8b6 |  | Holocron odds from the hub, unknown shader prizes, browsing the Saber tab's blades
 + 14/10/2026 | - | Rig models: glTF players with their own skeleton, driven by _humanoid

@@ -30,7 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Material maps: The generator finds your overrides again, crates read as metal and concrete as concrete.
 > Fixes: Decals fade into fog with their walls, and the sky no longer flickers through a ceiling built just under it.
 
-- Rig models: a player model can be a glTF with its own skeleton (fingers, face, any bones), animated by the game's own moves through a bone map; a model folder with an sjk_rig.cfg file turns it on _(Sol)_
+- Rig models: a player model can be a glTF with its own skeleton (fingers, face, any bones), animated by the game's own moves through a bone map; a model folder with an sjk_rig.cfg file turns it on; the saber, hats and Force effects sit on the model's own hands and head, and its faces show the right side _(Sol)_
 - Nine plain saber shaders, after Creyon's Saber ideas page: Tidal, Circuit, Aurora and Echo (the new white Common tier) and Nebula, Cinder, Venom, Sakura and Firefly (Uncommon); the skin list takes up to 256 shaders now _(Sol, ideas by Creyon)_
 - Twelve more plain saber shaders: Slate, Amber, Lilac, Mint, Coral, Ivory (Common) and Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight (Uncommon) _(Sol, ideas by Creyon)_
 - The holocron odds come from the SJK hub: the loot table, card odds, holocron lines and the crate spin always show what the hub rolls with; a shader newer than your version of SJK still shows when a holocron brings it; the Saber tab's blade row scrolls with the wheel and its arrows without wearing anything _(Sol)_

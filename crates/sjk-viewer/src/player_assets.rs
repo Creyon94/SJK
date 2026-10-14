@@ -76,6 +76,18 @@ pub(super) struct PlayerPreview {
     pub(crate) rig: Option<Arc<crate::rig_model::RigModel>>,
 }
 
+impl PlayerPreview {
+    /// The bolt surface `name` posed with `matrices`, moved onto the rig model's
+    /// joints when one is drawn (the saber in its hand, a hat on its head).
+    pub(crate) fn bolt(&self, name: &str, matrices: &[[[f32; 4]; 3]]) -> Option<[[f32; 4]; 3]> {
+        let bolt = self.mesh.surface_bolt_matrix(name, 0, matrices).ok()??;
+        Some(match (&self.rig, self.mesh.surface_bolt_bone(name, 0)) {
+            (Some(rig), Some(bone)) => rig.retarget_bolt(bone, matrices, bolt),
+            _ => bolt,
+        })
+    }
+}
+
 pub(super) fn load_player_preview(
     vfs: &VirtualFileSystem,
     directory: &str,
