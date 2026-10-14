@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Rig models: glTF players with their own skeleton, driven by _humanoid
+- c0254b7 |  | Rig models: glTF players with their own skeleton, driven by _humanoid
 + 14/10/2026 | - | Review fixes for the shader work: hover cards, search focus, loot odds, Supporter medal
 - 0fb873b |  | Review fixes for the shader work: hover cards, search focus, loot odds, Supporter medal
 + 14/10/2026 | - | Fix the normal build: the crate panel's skins field is not test-only

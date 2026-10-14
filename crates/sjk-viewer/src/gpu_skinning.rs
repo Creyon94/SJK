@@ -83,12 +83,15 @@ const USAGE: wgpu::BufferUsages = wgpu::BufferUsages::STORAGE
     .union(wgpu::BufferUsages::COPY_DST)
     .union(wgpu::BufferUsages::COPY_SRC);
 
+/// Skin records per shared vertex range: the range and its records.
+type SkinRecords = Vec<(std::ops::Range<usize>, Vec<Vertex>)>;
+
 /// One mesh's skin records with joints offset by `base`, and for each of its shared
 /// vertex ranges the records' indices. GLM-local bone references are resolved here.
-fn skin_records(
-    mesh: &ActorMesh,
-    base: usize,
-) -> Result<Vec<(std::ops::Range<usize>, Vec<Vertex>)>, Box<dyn Error>> {
+fn skin_records(mesh: &ActorMesh, base: usize) -> Result<SkinRecords, Box<dyn Error>> {
+    if let Some(rig) = &mesh.preview.rig {
+        return rig_skin_records(mesh, rig, base);
+    }
     let model = &mesh.preview.mesh;
     let visible: Vec<_> = model.lods[0]
         .surfaces
@@ -130,6 +133,51 @@ fn skin_records(
             Ok((range.vertices.clone(), records))
         })
         .collect()
+}
+
+/// [`skin_records`] for a rig model: its own joints, its surfaces' vertices.
+fn rig_skin_records(
+    mesh: &ActorMesh,
+    rig: &crate::rig_model::RigModel,
+    base: usize,
+) -> Result<SkinRecords, Box<dyn Error>> {
+    mesh.vertex_ranges
+        .iter()
+        .map(|range| {
+            let surface = rig
+                .surfaces
+                .get(range.surface_index)
+                .ok_or("rig surface missing")?;
+            if surface.vertices.len() != range.vertices.len() {
+                return Err("rig surface topology differs from render topology".into());
+            }
+            let records = surface
+                .vertices
+                .iter()
+                .map(|source| {
+                    let mut vertex = Vertex::zeroed();
+                    vertex.position[..3].copy_from_slice(&source.position);
+                    vertex.position[3] = source.influences() as f32;
+                    vertex.normal[..3].copy_from_slice(&source.normal);
+                    for slot in 0..4 {
+                        vertex.joints[slot] =
+                            (base + usize::from(source.joints[slot])).try_into()?;
+                        vertex.weights[slot] = source.weights[slot];
+                    }
+                    Ok(vertex)
+                })
+                .collect::<Result<Vec<Vertex>, Box<dyn Error>>>()?;
+            Ok((range.vertices.clone(), records))
+        })
+        .collect()
+}
+
+/// Joints in `mesh`'s palette: its rig's joints, or its GLM's bones.
+fn palette_len(mesh: &ActorMesh) -> usize {
+    mesh.preview
+        .rig
+        .as_ref()
+        .map_or(mesh.preview.mesh.bone_count, |rig| rig.joint_count())
 }
 
 impl Buffers {
@@ -175,10 +223,11 @@ impl Buffers {
                     vertices.push(vertex);
                 }
             }
-            joint_count += mesh.preview.mesh.bone_count;
+            let count = palette_len(mesh);
+            joint_count += count;
             mesh.gpu_palette = Some(Palette {
                 offset: (base * 64) as u64,
-                count: mesh.preview.mesh.bone_count,
+                count,
             });
         }
         Ok(Self {
@@ -225,7 +274,7 @@ impl Buffers {
             .iter()
             .flat_map(|(_, r)| r.iter().copied())
             .collect();
-        let bones = mesh.preview.mesh.bone_count;
+        let bones = palette_len(mesh);
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("SJK skinning growth"),
         });

@@ -478,6 +478,10 @@ impl GpuState {
         };
         let bit = 1u8 << (part - HEAD);
         let owner_mesh = &self.actor_meshes[owner_index];
+        // A rig model draws its glTF, not the driver surfaces a cut hides and shows.
+        if owner_mesh.preview.rig.is_some() {
+            return Ok(());
+        }
         if owner_mesh.surfaces.lost & bit != 0 {
             return Ok(());
         }

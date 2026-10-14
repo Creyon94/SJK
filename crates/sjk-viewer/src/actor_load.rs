@@ -63,11 +63,18 @@ pub(crate) fn build_actor_mesh(
     });
     // Cap surfaces ride along, hidden until a limb is cut (`dismember`).
     let default_flags = crate::dismember::reveal_caps(&mut preview.mesh.hierarchy);
-    let (draws, vertex_ranges) = append_actor_mesh(scene, &preview, frame)?;
+    let (draws, vertex_ranges) = match preview.rig.clone() {
+        Some(rig) => append_rig_mesh(scene, &rig)?,
+        None => append_actor_mesh(scene, &preview, frame)?,
+    };
+    // A rig model draws none of its driver's surfaces, so no surface hides a draw.
     let surfaces = crate::dismember::Surfaces::new(
         &preview.mesh.hierarchy,
         default_flags,
-        vertex_ranges.iter().map(|range| range.surface_index),
+        vertex_ranges
+            .iter()
+            .filter(|_| preview.rig.is_none())
+            .map(|range| range.surface_index),
     );
     let pose_vertex_capacity = vertex_ranges
         .iter()
@@ -99,12 +106,72 @@ pub(crate) fn build_actor_mesh(
         pose_vertices: Vec::with_capacity(pose_vertex_capacity),
         gpu_palette: None,
         retained_pose,
+        rig_scratch: Default::default(),
         cosmetics: Default::default(),
         jetpack,
         disintegration: None,
         surfaces,
         limb: None,
     })
+}
+
+/// Append a rig model's surfaces in their bind pose; each range's `surface_index`
+/// is the rig surface it holds.
+fn append_rig_mesh(
+    scene: &mut FlattenedScene,
+    rig: &crate::rig_model::RigModel,
+) -> Result<(Vec<ActorDraw>, Vec<PreviewVertexRange>), Box<dyn Error>> {
+    let mut draws = Vec::with_capacity(rig.surfaces.len());
+    let mut vertex_ranges = Vec::with_capacity(rig.surfaces.len());
+    for (surface_index, surface) in rig.surfaces.iter().enumerate() {
+        let vertex_base: u32 = scene.vertices.len().try_into()?;
+        let vertex_start = scene.vertices.len();
+        let index_start: u32 = scene.indices.len().try_into()?;
+        scene.vertices.extend(
+            surface
+                .vertices
+                .iter()
+                .map(|vertex| rig_gpu_vertex(vertex, None)),
+        );
+        for index in &surface.indices {
+            scene.indices.push(
+                vertex_base
+                    .checked_add(*index)
+                    .ok_or("rig mesh index overflow")?,
+            );
+        }
+        let material = scene.materials.len();
+        scene.materials.push(ViewerMaterial {
+            shader: surface.shader.clone(),
+            lightmap: -1,
+        });
+        draws.push(ActorDraw {
+            indices: index_start..scene.indices.len().try_into()?,
+            material,
+        });
+        vertex_ranges.push(PreviewVertexRange {
+            surface_index,
+            vertices: vertex_start..scene.vertices.len(),
+        });
+    }
+    Ok((draws, vertex_ranges))
+}
+
+/// A rig vertex for the shared buffer: bind pose, or skinned with `palette` (CPU path).
+pub(crate) fn rig_gpu_vertex(
+    vertex: &crate::rig_model::Vertex,
+    palette: Option<&[[[f32; 4]; 3]]>,
+) -> GpuVertex {
+    let (position, normal) = palette.map_or((vertex.position, vertex.normal), |palette| {
+        crate::rig_model::skin(vertex, palette)
+    });
+    GpuVertex {
+        position,
+        normal,
+        color: [1.0; 4],
+        texture_coordinates: vertex.texture_coordinates,
+        lightmap_coordinates: [0.0; 2],
+    }
 }
 
 /// Load `appearance`, falling back to Kyle when it cannot be loaded.

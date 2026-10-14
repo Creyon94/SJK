@@ -22,6 +22,7 @@ and changed together. Begin with the status page, then the architecture.
 | [Holocron drops](holocrons.md) | Loot earned by playing: tiers, odds, caps, the active flag, the pop-up, chat lines, the staff tools and the list other screens read |
 | [Cards and credits](cards.md) | Opening holocrons: sealed cards (rarity, finish, edition), credits and their sign, the ceremony, the Cards tab, odds; the first set and the shop planned |
 | [Client mods](mods.md) | Mods kept out of the core client (`japlus.*`, `jof.*`): switches, names, what they may do |
+| [Rig models](rig-models.md) | glTF player models with their own skeleton, driven by the game's animations: manifest, bone maps, limits |
 | [Unlockables and looks](unlockables.md) | Blade skins and other unlockables, and looks every SJK player sees through the hub |
 
 [AGENTS.md](../AGENTS.md) defines the documentation maintenance rules. Update the

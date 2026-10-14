@@ -158,6 +158,8 @@ pub(crate) fn submit(
         && local_mesh.is_some_and(|index| {
             !gpu.actor_meshes[index].surfaces.weapon_lost
                 && gpu.actor_meshes[index].body_identity.is_none()
+                // A rig model is one glTF surface: no head to hide, so no body view.
+                && gpu.actor_meshes[index].preview.rig.is_none()
         });
     for (index, mesh) in gpu.actor_meshes.iter_mut().enumerate() {
         mesh.surfaces.first_person_saber(

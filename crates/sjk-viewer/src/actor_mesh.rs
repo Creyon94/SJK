@@ -29,6 +29,8 @@ pub(crate) struct ActorMesh {
     pub(crate) gpu_palette: Option<crate::actor_pose::gpu_skinning::Palette>,
     /// This frame's CPU skinning result, shared with visual point queries after upload.
     pub(crate) retained_pose: crate::actor_pose::RetainedPose,
+    /// A rig model's pose and palette storage, reused every frame.
+    pub(crate) rig_scratch: crate::rig_model::Scratch,
     pub(crate) force_bones: crate::actor_pose::ForceBones,
     /// JoF EJK's hat and cape this player wears, and their bolts.
     pub(crate) cosmetics: crate::cosmetics::actors::Worn,
