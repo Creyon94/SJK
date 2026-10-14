@@ -4,6 +4,25 @@ A rig model is a player model drawn from a glTF file with its own skeleton (any
 number of joints, fingers, face, cloth), animated by the game's ordinary
 `_humanoid` animations. Built 14/10/2026 ([status](status.md#rig-models-gltf-players-with-their-own-skeleton)).
 
+## Why this design
+
+Three ways were weighed on 14/10/2026 before building this:
+
+- **Bake the model onto Kyle's GLM skeleton** (re-skin it to JKA's 53 bones). Works
+  with every client, but loses fingers, face and any extra bone, and every model
+  needs hand weighting.
+- **Replace the skeleton outright** (animate the glTF with its own clips). Needs
+  every JKA animation re-made for each skeleton, and the server, saber traces and
+  bolts all speak `_humanoid` bone numbers.
+- **Hybrid, the one built:** keep `_humanoid` as a hidden driver and retarget its pose
+  onto the rig every frame. The server, protocol, traces and animation numbers stay
+  untouched; any skeleton works through a bone map; joints the map leaves out stay at
+  rest today and can play the rig's own clips later (emotes, face).
+
+A profile before the work (world shot `animation_cost_on_a_demo`, release build, a
+19-player demo) measured pose, skinning and upload at 0.064 ms a frame with vertex
+skinning already on the GPU, so the rig path is about looks, not speed.
+
 ## How it works
 
 The player keeps a stock **driver** model, Kyle unless the manifest names another.
@@ -41,6 +60,19 @@ and its offset from its bone, stretched by the limb's length ratio along the map
 `Toward` pair, but starts from the joint mapped to that bone (or to its nearest
 mapped ancestor). A saber then sits in the rig's hand, a hat on its head. Saber
 traces and hit boxes stay the driver's.
+
+### Code map
+
+| Step | Where |
+| --- | --- |
+| Folder with `sjk_rig.cfg` found, driver loaded instead of the folder's GLM | `load_player_appearance` in [player_assets.rs](../crates/sjk-viewer/src/player_assets.rs) |
+| glTF read (skin, joints, primitives, images) | [gltf.rs](../crates/sjk-model/src/gltf.rs) |
+| Manifest, presets, fit (axes, scale, alignments, anchors), pose, CPU skin | [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), tests in `rig_model_tests.rs` |
+| Rig surfaces put in the shared vertex buffer | `append_rig_mesh` in [actor_load.rs](../crates/sjk-viewer/src/actor_load.rs) |
+| Per-frame pose and palette upload (GPU and CPU paths) | [actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs), `rig_skin_records` in [gpu_skinning.rs](../crates/sjk-viewer/src/gpu_skinning.rs) |
+| Bolts and Force points moved onto the rig | `PlayerPreview::bolt`, `RigModel::retarget_bolt` and `retarget_point`, [force_bones.rs](../crates/sjk-viewer/src/force_bones.rs) |
+| Dismemberment skipped, JoF first-person body off | [dismember.rs](../crates/sjk-viewer/src/dismember.rs), [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs) |
+| Blender export | [scripts/blender/sjk_rig_export](../scripts/blender/sjk_rig_export/__init__.py) |
 
 Units and axes are converted at load: glTF metres with +Y up and +Z front become the
 GLA's model space (+Z up, -Y front, as a Blender export of a model facing -Y). The
@@ -135,11 +167,98 @@ models taken from other games ([the rule](../AGENTS.md#verification-and-scope)).
 - First tried in the game by Sol on 14/10/2026: drawn and animated; the faces
   showed through (winding) and the saber missed the hand, both fixed the same day.
 
+## Pitfalls
+
+What went wrong or nearly did, so the next change does not repeat it:
+
+- **Winding.** glTF fronts are counter-clockwise, the game's clockwise. Unturned, the
+  model looked see-through (the inside of the far side drawn). Fixed by swapping two
+  indices per triangle at load; a test pins it.
+- **Bolts stay on the driver.** Anything read through `surface_bolt_matrix` on the
+  driver GLM lands where Kyle's bones are: the saber floated beside the paw. Player
+  bolts go through `PlayerPreview::bolt`; a new player bolt use must too (the menu
+  stage still reads the driver directly, which is fine while menus show the driver).
+- **What the driver's matrices are.** The per-bone matrices are skinning matrices
+  (posed times inverse base pose, the matrix that moves a base-pose vertex); a bone's
+  posed position is that matrix applied to its base-pose translation.
+- **JKA's vertical offset.** A GLA frame's pose sits about 27 units below the base
+  pose (the entity origin is mid-body). The engine needs nothing for it (the rig
+  follows the pelvis exactly as Kyle does), but an offline preview in Blender must
+  measure the pelvis against the standing idle or the feet sink.
+- **Axes.** glTF is +Y up, +Z front; the GLA +Z up, -Y front; a Blender export of a
+  model facing -Y lines up. A model facing another way needs turning before export.
+- **Scale.** `scale auto` divides the driver's pelvis height by the rig's; a rig whose
+  pelvis joint sits at the origin needs `scale <n>`.
+- **Several joints on one bone** (`spine_01` and `spine_02` both on `lower_lumbar`):
+  fine for posing; for bolts, a bone's first map entry is its anchor.
+
+## Recipes
+
+### Rerun the checks
+
+```sh
+# Rig and glTF unit tests (sjk-viewer has no lib target, hence --bins):
+cargo test -p sjk-viewer --bins rig_model
+cargo test -p sjk-model gltf
+# Off-screen render of a rig model on a recorded game; 12 close-ups in
+# target/world-shots/rig_model_orbit.png:
+JKA_GAME_DATA=<GameData> SJK_TEST_DEMO=<demo.dm_26> SJK_TEST_RIG=<model folder name> \
+  cargo test -p sjk-viewer --bins rig_model_on_a_demo -- --ignored --nocapture --test-threads=1
+# Host cost of animating a demo's players (release build for real numbers):
+JKA_GAME_DATA=<GameData> SJK_TEST_DEMO=<demo.dm_26> \
+  cargo test --release -p sjk-viewer --bins animation_cost_on_a_demo -- --ignored --nocapture
+```
+
+The render puts the rig on the first other player of the demo's first snapshot,
+through the mid-match model change path. Look at the head and chest (nothing
+see-through) and the right hand (the hilt in it).
+
+### Support another skeleton naming
+
+1. Add a function returning its `MapEntry` list and a `PRESETS` line in
+   [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs) (see `mannequin()`): each
+   mapped joint names its JKA bone and, where it has a child to aim along, the
+   `toward` pair; finger chains use `Align::As` for their second and third joints.
+2. Add the same joints to `PRESET_JOINTS` and `PRESET_ITEMS` in the add-on (only
+   used to tell the user whether a skeleton fits; keep the two in step).
+3. Check it in Blender beside posed Kyle (next recipe), then in a world shot.
+
+JKA's bone names and base poses: the `gla_dump` example below writes them.
+
+### Preview a bone map in Blender
+
+1. Dump some animations:
+   `cargo run -p sjk-model --example gla_dump -- <_humanoid.gla> <animation.cfg> jka_anims.json BOTH_STAND1 BOTH_RUN1 BOTH_A2_T__B_`
+   (the GLA and `animation.cfg` come out of the retail `assets1.pk3`, never into git).
+2. Optional reference, posed Kyle as OBJ files to import beside the rig:
+   `cargo run -p sjk-model --example glm_pose_obj -- <model.glm> <_humanoid.gla> <animation.cfg> <model_default.skin> <out dir> BOTH_STAND1:0 BOTH_RUN1:5`.
+3. In Blender, make the rig's armature active, open
+   [jka_retarget_preview.py](../scripts/blender/jka_retarget_preview.py) in the text
+   editor, set `JSON`, edit `MAP` if the naming is not the mannequin's, run it, then
+   call `run()`: each animation becomes a `JKA_<name>` action on the armature.
+4. Compare the poses with Kyle's OBJs. The script's map mirrors `mannequin()`.
+
+### Make a test model
+
+With the add-on (above), from any rigged character you have the rights to. Keep test
+models local: never commit them, attach them to issues or post them (the rule in
+[AGENTS.md](../AGENTS.md#verification-and-scope)). Then in the game `/model <name>`,
+third person, and the debug panel's `[rig-models]` checks.
+
+## Next: emotes (planned, nothing built)
+
+Sol asked for emotes on 14/10/2026. The plan: the add-on also exports the
+armature's actions as glTF animations; [gltf.rs](../crates/sjk-model/src/gltf.rs)
+reads animation channels (today it skips them); the rig plays a clip on its own
+skeleton, overriding the retargeted pose while it runs (`/emote <name>`, client
+side). Open questions: blending in and out of the driver's pose, whether moving
+cancels it, and how others would see it (the protocol carries no custom animation,
+so for now only the player would, as with the model itself).
+
 ## Checks
 
 Unit tests in [gltf.rs](../crates/sjk-model/src/gltf.rs) and
 `rig_model_tests.rs`; the world shot `world_shot::rig_model_shots::rig_model_on_a_demo`
 puts the rig model `SJK_TEST_RIG` names on a player of the demo `SJK_TEST_DEMO`.
-The bone map was first checked in Blender beside posed Kyle with the tools of the
-unmerged branch `personal/rig-retarget-test` (`gla_dump`, `glm_pose_obj`,
-`scripts/blender/jka_retarget_preview.py`).
+The bone map was first checked in Blender beside posed Kyle with `gla_dump`,
+`glm_pose_obj` and `jka_retarget_preview.py` (recipe above).

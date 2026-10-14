@@ -9,7 +9,7 @@ import bpy, json
 from mathutils import Matrix, Vector
 
 JSON = r"jka_anims.json"  # set to the gla_dump output
-ARM = "M_MED_SherWolf_GnashWink"
+ARM = None  # an armature object name, or None for the active object
 
 # target bone: (JKA bone, target end bone, JKA end bone); end None = keep rest alignment;
 # (JKA bone, ALIGN_AS, other target bone) = reuse that bone's alignment
@@ -60,7 +60,7 @@ def run(names=None, fps=30):
     data = json.load(open(JSON))
     jidx = {b["name"]: i for i, b in enumerate(data["bones"])}
     jbase = [m34(b["base"]) for b in data["bones"]]
-    arm = bpy.data.objects[ARM]
+    arm = bpy.data.objects[ARM] if ARM else bpy.context.view_layer.objects.active
     bones = arm.data.bones
     rest = {b.name: b.matrix_local.copy() for b in bones}
     head = lambda n: rest[n].translation
