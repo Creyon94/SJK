@@ -64,7 +64,7 @@ fn notes() -> [String; 5] {
     [
         "A card's rarity and its finish are rolled apart, so a kind of card is the two chances multiplied, weighed by how often each holocron drops."
             .to_owned(),
-        "Credits are rolled evenly between the least and the most.".to_owned(),
+        "Credits are rolled evenly between the least and the most. A holocron that brings a saber shader brings no card and no credits; the averages and chances count it.".to_owned(),
         format!(
             "The rarest card is a {} {}: about {} holocrons.",
             RARITIES[rarity].name,
@@ -678,7 +678,7 @@ mod tests {
         let notes = notes();
         assert_eq!(
             notes[2],
-            "The rarest card is a Legendary Solar: about 1 in 5 698 holocrons."
+            "The rarest card is a Legendary Solar: about 1 in 11 001 holocrons."
         );
         let lines: usize = notes
             .iter()

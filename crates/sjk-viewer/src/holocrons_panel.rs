@@ -32,6 +32,7 @@ mod loot;
 pub(crate) mod opening;
 #[path = "holocrons_panel_crate.rs"]
 mod strip;
+pub(crate) use strip::SHADER as SHADER_ODDS;
 #[path = "holocrons_panel_view.rs"]
 mod view;
 

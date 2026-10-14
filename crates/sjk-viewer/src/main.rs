@@ -23,7 +23,6 @@ mod camera_uniform;
 mod capture;
 mod card_outline;
 mod cards;
-mod editions;
 mod cgame_options;
 mod chat;
 mod chat_gifs;
@@ -32,6 +31,7 @@ mod cinematic_roq;
 mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
+mod editions;
 mod entity_view;
 
 mod shader_image;

@@ -453,7 +453,6 @@ impl PlayerMenu {
     fn catalog(&self) -> Option<&LegacyAssetCatalog> {
         catalog_of(&self.loader)
     }
-
 }
 
 /// Borrow the loaded catalogue independently of the mutable menu canvas.

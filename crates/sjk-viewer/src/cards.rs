@@ -172,10 +172,16 @@ pub(crate) const ODDS: [Odds; COUNT] = [
     },
 ];
 
-/// What a holocron of tier `index` holds, one line: "A sealed card and 30 to 50 credits."
+/// What a holocron of tier `index` holds, one line: "A sealed card and 30 to 50 credits,
+/// or (30% of the time) a saber shader."
 pub(crate) fn inside(index: usize) -> String {
-    let (least, most) = CREDITS[index.min(COUNT - 1)];
-    format!("Opening it gives a sealed card and {least} to {most} credits.")
+    let index = index.min(COUNT - 1);
+    let (least, most) = CREDITS[index];
+    let shader = crate::console::holocrons_panel::SHADER_ODDS[index] / 10;
+    format!(
+        "Opening it gives a sealed card and {least} to {most} credits, or ({shader}% of the \
+         time) a saber shader."
+    )
 }
 
 /// Copies of one kind the player holds, as the client shows them.
@@ -431,7 +437,7 @@ mod tests {
         assert_eq!(credits_text(1_234_567), "1 234 567");
         assert_eq!(
             inside(1),
-            "Opening it gives a sealed card and 30 to 50 credits."
+            "Opening it gives a sealed card and 30 to 50 credits, or (40% of the time) a saber shader."
         );
         assert_eq!(inside(99), inside(COUNT - 1));
     }

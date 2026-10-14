@@ -135,7 +135,9 @@ const GRID_LINES_SHOWN: usize = 3;
 /// Archived: how the Shaders tab lists the shaders, 0 the rack, 1 the grid of cards.
 pub(crate) const SHADER_VIEW_CVAR: &str = "ui_shaderView";
 
-/// The blade skin of shader row `row`: `None` for the stock blade (row 0) or past the end.
+/// The blade skin of shader row `row` with no filter: `None` for the stock blade (row 0) or
+/// past the end. The page itself reads the filtered list ([`Panel::skin_at`]).
+#[cfg(test)]
 fn shader_skin(row: usize) -> Option<&'static unlockables::Unlockable> {
     row.checked_sub(1)
         .and_then(|index| unlockables::blade_skins_by_tier().get(index))
@@ -400,6 +402,9 @@ impl Panel {
     /// the Holocrons page).
     pub(crate) fn show(&mut self, tab: Tab) {
         if tab.screen() == crate::profile_hub::Screen::Collection && tab != Tab::Holocrons {
+            if tab != self.tab {
+                self.leave_search();
+            }
             self.tab = tab;
         }
     }
@@ -571,6 +576,14 @@ impl Panel {
         PanelAction::None
     }
 
+    /// The search field lets go of the typing (what it holds stays).
+    fn leave_search(&mut self) {
+        if self.search_focus {
+            self.search_focus = false;
+            crate::text_entry::deselect();
+        }
+    }
+
     /// Put the typing in the search field (`/` or Ctrl+F).
     fn focus_search(&mut self) -> PanelAction {
         self.search_focus = true;
@@ -613,17 +626,13 @@ impl Panel {
     ) -> PanelAction {
         match key {
             KeyCode::Escape => {
-                self.search_focus = false;
-                crate::text_entry::deselect();
+                self.leave_search();
                 if !self.shader_filter.query.is_empty() {
                     self.shader_filter.query.clear();
                     return self.filter_changed();
                 }
             }
-            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Tab => {
-                self.search_focus = false;
-                crate::text_entry::deselect();
-            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Tab => self.leave_search(),
             KeyCode::ArrowUp | KeyCode::ArrowDown => {
                 return self.key(key, shift, false);
             }
@@ -785,6 +794,9 @@ impl Panel {
         let Some(event) = self.ui.pointer(event) else {
             return PanelAction::None;
         };
+        if event.kind == UiEventKind::Activate && event.token != Some(SEARCH_TOKEN) {
+            self.leave_search();
+        }
         let Some(token) = event.token else {
             return PanelAction::None;
         };
@@ -1031,6 +1043,31 @@ mod tests {
             panel.shader_filter.tier,
             Some(unlockables::Rarity::Mythical)
         );
+    }
+
+    /// A hover card under a filter is the card of the row shown, not of the catalogue's
+    /// row at that place; a click elsewhere or another tab lets go of the search.
+    #[test]
+    fn the_hover_card_follows_the_filter_and_the_search_lets_go() {
+        let held = [sun()];
+        let inputs = inputs(Holdings::Known(&held), "");
+        let mut panel = drawn(Tab::Shaders, &inputs);
+        panel.shader_filter.query = "tidal".to_owned();
+        redraw(&mut panel, &inputs);
+        let card = panel.card_of(SHADER_BASE + 1, &inputs).expect("a card");
+        assert_eq!(card.title, "Tidal blade");
+        assert!(
+            panel.card_of(SHADER_BASE + 2, &inputs).is_none(),
+            "past the list"
+        );
+        let _ = panel.focus_search();
+        panel.show(Tab::Medals);
+        assert!(!panel.search_focus);
+        panel.show(Tab::Shaders);
+        let _ = panel.focus_search();
+        panel.leave_search();
+        assert!(!panel.search_focus);
+        assert_eq!(panel.shader_filter.query, "tidal", "what it holds stays");
     }
 
     /// Owned shows the shaders held; a search matches names and tier words.
@@ -1388,8 +1425,8 @@ mod tests {
         let names: Vec<_> = panel.ui.text_runs().collect();
         let at = |name: &str| names.iter().position(|run| *run == name).unwrap();
         assert!(at("Sun blade") < at("Void blade"));
-        let mythical = format!("{} Mythical", crate::symbols::tier(3));
-        let legendary = format!("{} Legendary", crate::symbols::tier(2));
+        let mythical = format!("{} Mythical", unlockables::Rarity::Mythical.symbol());
+        let legendary = format!("{} Legendary", unlockables::Rarity::Legendary.symbol());
         assert!(at(&mythical) < at(&legendary), "{names:?}");
     }
 
