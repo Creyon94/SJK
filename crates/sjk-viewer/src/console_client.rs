@@ -393,11 +393,42 @@ impl crate::GpuState {
         if !crate::emotes::valid_id(&id) {
             return Err("An emote id is 1 to 32 of a to z, 0 to 9 and _".to_owned());
         }
-        if self.live_session.is_none() {
+        let Some(session) = self.live_session.as_ref() else {
             return Err("Join a server to emote".to_owned());
+        };
+        // The player's own emote starts here at once; the hub's echo of it is not
+        // started again (`update_emotes`).
+        let own = u8::try_from(session.latest_snapshot().player.client_num()).ok();
+        let mut state = crate::emotes::lock();
+        if state.catalogue.is_none()
+            && let Some(vfs) = self.vfs.as_deref()
+        {
+            state.catalogue = Some(crate::emotes::load(vfs));
+        }
+        let def = state
+            .catalogue
+            .as_ref()
+            .and_then(|catalogue| catalogue.iter().find(|def| def.id == id))
+            .cloned();
+        if let Some(slot) = own {
+            let origin = self
+                .live_world
+                .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
+                .map(|entity| entity.current().transform.translation)
+                .unwrap_or_default();
+            state
+                .active
+                .start(slot, &id, def.as_ref(), origin, std::time::Instant::now());
+        }
+        drop(state);
+        if def.is_some_and(|def| def.local) {
+            return Ok(Vec::new());
         }
         if !crate::player_identity::emote(id) {
-            return Err("Emotes need the SJK identity (cl_identity 1)".to_owned());
+            return Err(
+                "Played here only: other SJK players see emotes with the SJK identity (cl_identity 1)"
+                    .to_owned(),
+            );
         }
         Ok(Vec::new())
     }

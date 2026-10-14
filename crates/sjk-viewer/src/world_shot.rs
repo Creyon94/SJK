@@ -272,12 +272,12 @@ mod holocron;
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
 
+#[path = "world_shot_animation_profile.rs"]
+mod animation_profile;
 #[path = "world_shot_card_outline.rs"]
 mod card_outline_shots;
 #[path = "world_shot_rig_model.rs"]
 mod rig_model_shots;
-#[path = "world_shot_animation_profile.rs"]
-mod animation_profile;
 #[path = "world_shot_team_outline.rs"]
 mod team_outline_shots;
 

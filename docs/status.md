@@ -14,7 +14,13 @@ seen: dying, other players wearing one. The Blender add-on `sjk_rig_export` writ
 model folder; its export matched a hand export and rendered the same. Before this,
 release-build measurement on the same demo (19 players): pose, skinning and upload
 took 0.064 ms a frame, vertex skinning already on the GPU, so the rig path is about
-looks, not speed. Next: emotes ([plan](rig-models.md#next-emotes-planned-nothing-built)).
+looks, not speed. Emotes followed the same day ([emotes](rig-models.md#emotes-the-rigs-own-clips)):
+the glTF's animations play on the rig's own skeleton through `sjkemote` and the
+quick wheel, local by default; the add-on writes them and packs everything into one
+`rig_<name>.pk3`. Checked by unit tests (animation reading, clip posing, fades,
+bolts following a clip, the emote file's new fields, the wheel editor) and a world
+shot of a 3.4 s, 84-bone dance on a demo player (feet on the floor, saber in the
+hand); not yet tried in the game.
 
 ## Shaders: a filter for a long list
 

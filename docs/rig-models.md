@@ -72,6 +72,7 @@ traces and hit boxes stay the driver's.
 | Per-frame pose and palette upload (GPU and CPU paths) | [actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs), `rig_skin_records` in [gpu_skinning.rs](../crates/sjk-viewer/src/gpu_skinning.rs) |
 | Bolts and Force points moved onto the rig | `PlayerPreview::bolt`, `RigModel::retarget_bolt` and `retarget_point`, [force_bones.rs](../crates/sjk-viewer/src/force_bones.rs) |
 | Dismemberment skipped, JoF first-person body off | [dismember.rs](../crates/sjk-viewer/src/dismember.rs), [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs) |
+| Clips (emotes): read, converted, sampled, blended | [rig_clips.rs](../crates/sjk-viewer/src/rig_clips.rs), `RigModel::pose` and `play`, `emotes::playing` in [emotes.rs](../crates/sjk-viewer/src/emotes.rs) |
 | Blender export | [scripts/blender/sjk_rig_export](../scripts/blender/sjk_rig_export/__init__.py) |
 
 Units and axes are converted at load: glTF metres with +Y up and +Z front become the
@@ -122,26 +123,42 @@ images embedded in a buffer, data URIs.
 ## From Blender: the SJK Rig Model Export add-on
 
 [scripts/blender/sjk_rig_export](../scripts/blender/sjk_rig_export/__init__.py) is a
-Blender extension (4.2 or later) that writes a model folder in one click.
+Blender extension (4.2 or later) that writes a model, and the emotes picked for it,
+in one click.
 
 - **Install:** zip the folder's two files (`__init__.py`, `blender_manifest.toml`),
   then Edit > Preferences > Get Extensions > Install from Disk. The preferences take
   the GameData folder; left empty, the usual Steam and retail places are tried.
 - **Use:** 3D view sidebar (N), SJK tab. Pick the armature; the panel counts the
   bone map's joints it has (`pelvis` and `hand_r` are required) and the meshes it
-  deforms. Name the model and press Export to SJK.
-- **What it writes:** `<GameData>/base/models/players/<name>/` with `model.gltf`,
-  `model.bin`, the colour images and `sjk_rig.cfg` (only when missing, so `map` lines
-  added by hand survive a re-export; a checkbox rewrites it). glTF Separate, +Y up,
-  skins on, the armature's rest position, no animation, no shape keys, four
-  influences.
+  deforms, and lists the actions that animate it. Tick the actions to bring as
+  emotes (the round arrow beside one makes it loop), name the model and press Export
+  to SJK.
+- **What it writes:** by default one file, `<GameData>/base/rig_<name>.pk3`, holding
+  `models/players/<name>/` (`model.gltf`, `model.bin`, the colour images,
+  `sjk_rig.cfg`) and `emotes/<name>_<action>.emote` for each ticked action; deleting
+  that file removes everything. "One .pk3 file" off writes the same as loose folders
+  under `base`. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
+  lines added by hand survive a re-export; a checkbox rewrites it. glTF Separate, +Y
+  up, skins on, the armature's rest position, no shape keys, four influences.
+- **Emotes:** the exporter's own animation export is not used (its NLA mode exports
+  every track, muted ones too, and its action filter only exists once its file
+  browser has opened). The add-on plays each ticked action alone (NLA off), samples
+  its animated bones at every frame and appends them to the glTF: a joint node's
+  transform is its rest (as the exporter wrote it) times the pose bone's basis,
+  which holds because the exporter keeps child bones in Blender's bone space and
+  puts the Y-up turn on the root bone's rest. Times come from the scene's frame
+  rate. The emote file says `local: true` unless "Emotes stay on this computer" is
+  off.
 - **Materials:** each becomes a plain Principled BSDF with the image its base colour
   most likely comes from: an image node feeding a socket named Base Color, Diffuse
   or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
   `_Albedo`..., else the first sRGB image. A material with none keeps its viewport
   colour.
 - **The blend file is untouched:** the meshes and materials exported are temporary
-  copies, removed afterwards; the pose mode and selection come back as they were.
+  copies, removed afterwards; the pose mode, selection, active action, NLA switch and
+  frame come back as they were. The only thing kept is the tick: a custom property
+  `sjk_emote` (and `sjk_emote_loop`) on the action.
 
 By hand instead: glTF Separate (`.gltf` + `.bin` + textures), +Y up, skinning on,
 animations and shape keys off, the armature in its rest pose, each material a
@@ -189,6 +206,11 @@ What went wrong or nearly did, so the next change does not repeat it:
   model facing -Y lines up. A model facing another way needs turning before export.
 - **Scale.** `scale auto` divides the driver's pelvis height by the rig's; a rig whose
   pelvis joint sits at the origin needs `scale <n>`.
+- **Emotes cleared outside a server.** The per-frame emote hook used to empty the
+  active emotes whenever no live server was joined, so nothing played in a demo or a
+  world shot; demos now keep theirs.
+- **Exporter animation modes.** Blender's glTF exporter in NLA mode exports every
+  track (muted ones too); the add-on samples actions itself instead.
 - **Several joints on one bone** (`spine_01` and `spine_02` both on `lower_lumbar`):
   fine for posing; for bolts, a bone's first map entry is its anchor.
 
@@ -204,6 +226,9 @@ cargo test -p sjk-model gltf
 # target/world-shots/rig_model_orbit.png:
 JKA_GAME_DATA=<GameData> SJK_TEST_DEMO=<demo.dm_26> SJK_TEST_RIG=<model folder name> \
   cargo test -p sjk-viewer --bins rig_model_on_a_demo -- --ignored --nocapture --test-threads=1
+# The same with an emote of the installed catalogue playing (a rig clip); 12 shots
+# about a third of a second apart in target/world-shots/rig_model_emote.png:
+#   add SJK_TEST_EMOTE=<emote id>
 # Host cost of animating a demo's players (release build for real numbers):
 JKA_GAME_DATA=<GameData> SJK_TEST_DEMO=<demo.dm_26> \
   cargo test --release -p sjk-viewer --bins animation_cost_on_a_demo -- --ignored --nocapture
@@ -245,15 +270,40 @@ models local: never commit them, attach them to issues or post them (the rule in
 [AGENTS.md](../AGENTS.md#verification-and-scope)). Then in the game `/model <name>`,
 third person, and the debug panel's `[rig-models]` checks.
 
-## Next: emotes (planned, nothing built)
+## Emotes: the rig's own clips
 
-Sol asked for emotes on 14/10/2026. The plan: the add-on also exports the
-armature's actions as glTF animations; [gltf.rs](../crates/sjk-model/src/gltf.rs)
-reads animation channels (today it skips them); the rig plays a clip on its own
-skeleton, overriding the retargeted pose while it runs (`/emote <name>`, client
-side). Open questions: blending in and out of the driver's pose, whether moving
-cancels it, and how others would see it (the protocol carries no custom animation,
-so for now only the player would, as with the model itself).
+Built 14/10/2026 on the [emotes path](hub-chat.md#emotes-in-the-client): a rig model
+plays its glTF's animations on its own skeleton.
+
+- [gltf.rs](../crates/sjk-model/src/gltf.rs) reads each animation's translation,
+  rotation and scale channels that target skin joints (linear and step; cubic
+  splines keep their key values), and every joint's rest transform (its node's own).
+- [rig_clips.rs](../crates/sjk-viewer/src/rig_clips.rs) turns them into clips in the
+  game's axes and units at load, samples a joint's local transform at a time (rest
+  where a channel is missing) and fades: 0.25 s in from the driver's pose, 0.25 s out
+  before the emote ends; a loop wraps.
+- `RigModel::pose` poses the retargeted skeleton, then the clip's (each joint under
+  its parent, a root joint under what its parent nodes add, `Joint::above`), shifted
+  by how far the driver's current animation lowers the pelvis from its base pose
+  (the GLA's offset), and blends the two per joint.
+- An emote file names its clip: `{"name": "DanceMoves", "clip": "kane_dancemoves",
+  "length_ms": 3400, "local": true}`. `emotes::playing(slot)` gives the pose step the
+  clip, its time and what is left; a player whose model lacks the clip keeps the
+  driver's pose.
+- `local` emotes play on this client only: `sjkemote` starts them at once and never
+  sends them to the hub. The add-on writes `local` by default; nobody else could see
+  the clip without the model anyway. A non-local emote also starts at once, and the
+  hub's echo of it is not started again.
+- Bolts follow the clip: `retarget_bolt` reads the actor's blended pose (kept in
+  `PlayerPreview::rig_pose`, posed before the bolts each frame) and carries the
+  joint's change from its retargeted pose, so the saber stays in a dancing hand.
+- The quick wheel's editor lists the installed emotes under Emotes (Settings > Quick
+  wheel); a pick is a custom choice running `sjkemote <id>`.
+- An emote ends when its length is over or the player moves 24 units. Demos keep the
+  emotes started on them (none arrive from the hub there).
+
+Not done: sounds for clip emotes, face (shape key) animation, other players seeing a
+clip emote, root motion (a clip that walks away snaps back when it ends).
 
 ## Checks
 

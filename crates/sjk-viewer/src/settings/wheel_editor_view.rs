@@ -798,7 +798,7 @@ impl WheelEditor {
         for (slot, line) in shown.clone().enumerate() {
             let top = PICK_TOP + slot as f32 * PICK_LINE;
             let middle = top + PICK_LINE * 0.5;
-            let label = match lines[line] {
+            let label: std::borrow::Cow<'_, str> = match lines[line] {
                 PickLine::Heading(heading) => {
                     kit::heading(
                         &mut self.ui,
@@ -810,8 +810,11 @@ impl WheelEditor {
                     );
                     continue;
                 }
-                PickLine::Action(action) => ACTIONS[action].label,
-                PickLine::Custom => "Custom command...",
+                PickLine::Action(action) => ACTIONS[action].label.into(),
+                PickLine::Emote(index) => {
+                    emote_choice(index).map_or_else(|| "Emote".into(), |(name, _)| name.into())
+                }
+                PickLine::Custom => "Custom command...".into(),
             };
             let lit = line == picker.highlighted;
             if lit {
@@ -829,6 +832,7 @@ impl WheelEditor {
                 PickLine::Action(action) => ACTIONS[action]
                     .icon
                     .and_then(crate::quick_wheel::catalog::icon_index),
+                PickLine::Emote(_) => crate::quick_wheel::catalog::icon_index("taunt"),
                 PickLine::Custom => crate::quick_wheel::catalog::icon_index(
                     crate::quick_wheel::catalog::CUSTOM_ICON,
                 ),

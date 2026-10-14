@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Rig model emotes: a model's own animations played on its skeleton
+- 366b916 |  | Rig model emotes: a model's own animations played on its skeleton
 + 14/10/2026 | - | Rig model docs: design, code map, pitfalls, recipes, emote plan
 - 3b056e7 |  | Rig model docs: design, code map, pitfalls, recipes, emote plan
 + 14/10/2026 | - | World shot: host cost of animating a demo's players

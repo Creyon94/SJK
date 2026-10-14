@@ -11,8 +11,13 @@
 //! face, cloth) keep their bind pose under their parent. Which joint follows which
 //! JKA bone is a bone map: a named preset from [`PRESETS`] plus `map` lines.
 //!
+//! The glTF's own animations become clips ([`clips`]) a rig plays on its skeleton
+//! in place of the driver's pose, fading in and out (emotes).
+//!
 //! See `docs/rig-models.md` for the file format.
 
+pub(crate) use clips::{Clip, ClipPlay};
+use clips::{Convert, Rest};
 use glam::{Affine3A, Mat3, Mat3A, Vec3, Vec3A};
 use sjk_model::Gla;
 use sjk_model::gltf::{GltfModel, parse};
@@ -252,6 +257,11 @@ pub(crate) struct Joint {
     inverse_bind: Affine3A,
     /// The bind pose relative to the parent's.
     local: Affine3A,
+    /// The glTF node's rest transform relative to its parent node, for clips.
+    rest: Rest,
+    /// For a joint without a parent joint: what its parent nodes add (bind times the
+    /// inverse of its rest), so a clip's root lands where the bind pose has it.
+    above: Affine3A,
 }
 
 /// A joint that follows a driver bone.
@@ -309,6 +319,9 @@ pub(crate) struct RigModel {
     driven: Vec<Option<Driven>>,
     /// One per driver bone, for [`RigModel::retarget_bolt`].
     anchors: Vec<Option<Anchor>>,
+    /// The driver's pelvis bone and base position: a clip follows its height.
+    pelvis: Option<(usize, Vec3A)>,
+    pub(crate) clips: Vec<Clip>,
     pub(crate) surfaces: Vec<Surface>,
 }
 
@@ -405,13 +418,22 @@ impl RigModel {
         let mut joints = Vec::with_capacity(model.joints.len());
         for joint in &model.joints {
             let bind = convert(&affine(&joint.bind));
+            let rest = convert(&affine(&joint.rest));
             joints.push(Joint {
                 parent: joint.parent,
                 bind,
                 inverse_bind: bind.inverse(),
                 local: bind,
+                rest: Rest::of(&rest),
+                above: bind * rest.inverse(),
             });
         }
+        let clips: Vec<Clip> = model
+            .animations
+            .iter()
+            .map(|animation| Clip::new(animation, joints.len(), Convert::new(axes, scale)))
+            .filter(|clip| clip.duration > 0.0)
+            .collect();
         for index in 0..joints.len() {
             if let Some(parent) = joints[index].parent {
                 joints[index].local = joints[parent].inverse_bind * joints[index].bind;
@@ -536,16 +558,35 @@ impl RigModel {
             })
             .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
         crate::log::progress(format_args!(
-            "rig model {base}: {} joints ({mapped} driven by {:?}), {} surfaces, scale {scale:.2}",
+            "rig model {base}: {} joints ({mapped} driven by {:?}), {} surfaces, {} clips{}, scale {scale:.2}",
             joints.len(),
             manifest.preset,
             surfaces.len(),
+            clips.len(),
+            if clips.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    " ({})",
+                    clips
+                        .iter()
+                        .map(|clip| clip.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            },
         ));
+        let pelvis = driven
+            .iter()
+            .flatten()
+            .find_map(|driven| driven.translate.map(|base| (driven.bone, base)));
         Ok(Self {
             joints,
             order,
             driven,
             anchors,
+            pelvis,
+            clips,
             surfaces,
         })
     }
@@ -555,29 +596,86 @@ impl RigModel {
         self.joints.len()
     }
 
-    /// Pose every joint from the driver's evaluated `bones` (one model-space matrix
-    /// per GLA bone, as the GLM is skinned with) into `scratch.palette`.
-    pub(crate) fn pose(&self, bones: &[[[f32; 4]; 3]], scratch: &mut Scratch) {
-        let Scratch { pose, palette } = scratch;
-        self.pose_into(bones, pose, palette);
+    /// The clip named `name` `seconds` after it started, if the rig has it (see
+    /// [`ClipPlay::new`]).
+    pub(crate) fn play(
+        &self,
+        name: &str,
+        seconds: f32,
+        remaining: Option<f32>,
+        looping: bool,
+    ) -> Option<ClipPlay> {
+        let index = self.clips.iter().position(|clip| clip.name == name)?;
+        Some(ClipPlay::new(
+            index,
+            self.clips[index].duration,
+            seconds,
+            remaining,
+            looping,
+        ))
     }
 
-    fn pose_into(
+    /// Pose every joint from the driver's evaluated `bones` (one model-space matrix
+    /// per GLA bone, as the GLM is skinned with), with `play`'s clip over it, into
+    /// `scratch.palette`.
+    pub(crate) fn pose(
         &self,
         bones: &[[[f32; 4]; 3]],
-        scratch: &mut Vec<Affine3A>,
-        palette: &mut Vec<[[f32; 4]; 3]>,
+        play: Option<ClipPlay>,
+        scratch: &mut Scratch,
     ) {
-        scratch.clear();
-        scratch.resize(self.joints.len(), Affine3A::IDENTITY);
-        palette.clear();
-        palette.resize(self.joints.len(), [[0.0; 4]; 3]);
+        let Scratch {
+            pose,
+            retarget,
+            clip,
+            palette,
+            blended,
+        } = scratch;
+        pose.clear();
+        pose.resize(self.joints.len(), Affine3A::IDENTITY);
         for &index in &self.order {
-            let joint = &self.joints[index];
-            let pose = self.place(index, joint.parent.map(|parent| scratch[parent]), bones);
-            scratch[index] = pose;
-            palette[index] = rows(&(pose * joint.inverse_bind));
+            let parent = self.joints[index].parent.map(|parent| pose[parent]);
+            pose[index] = self.place(index, parent, bones);
         }
+        *blended = false;
+        if let Some(play) = play.filter(|play| play.weight > 0.0)
+            && let Some(source) = self.clips.get(play.clip)
+        {
+            // A clip's pose is the rig's own, standing where its bind pose stands;
+            // the driver's pelvis says how far its animations sink the body.
+            let offset = self.pelvis.and_then(|(bone, base)| {
+                bones
+                    .get(bone)
+                    .map(|matrix| affine(matrix).transform_point3a(base) - base)
+            });
+            clip.clear();
+            clip.resize(self.joints.len(), Affine3A::IDENTITY);
+            for &index in &self.order {
+                let joint = &self.joints[index];
+                let local = source.local(index, play.time, &joint.rest);
+                clip[index] = match joint.parent {
+                    Some(parent) => clip[parent] * local,
+                    None => joint.above * local,
+                };
+            }
+            retarget.clone_from(pose);
+            for ((pose, retarget), clip) in pose.iter_mut().zip(retarget.iter()).zip(clip.iter()) {
+                let mut clip = *clip;
+                clip.translation += offset.unwrap_or(Vec3A::ZERO);
+                *pose = if play.weight >= 1.0 {
+                    clip
+                } else {
+                    clips::blend(retarget, &clip, play.weight)
+                };
+            }
+            *blended = true;
+        }
+        palette.clear();
+        palette.extend(
+            pose.iter()
+                .zip(&self.joints)
+                .map(|(pose, joint)| rows(&(*pose * joint.inverse_bind))),
+        );
     }
 
     /// Joint `index` posed under its parent's `parent` pose.
@@ -611,17 +709,34 @@ impl RigModel {
     /// the rig. It keeps the driver's orientation (mapped joints turn as the driver's
     /// bones do) and its offset from the bone, stretched by the limb's reach, but
     /// starts from the rig's joint: a saber sits in the rig's hand, a hat on its head.
+    ///
+    /// `posed` is this frame's pose of the actor when it was made from the same
+    /// `bones` (it saves walking the joints, and carries a clip playing on the rig:
+    /// the bolt then turns and moves with the joint, a saber staying in a dancing
+    /// hand); `None` poses the joint afresh from the driver alone.
     pub(crate) fn retarget_bolt(
         &self,
         bone: usize,
         bones: &[[[f32; 4]; 3]],
+        posed: Option<&Scratch>,
         mut bolt: [[f32; 4]; 3],
     ) -> [[f32; 4]; 3] {
         let origin = Vec3A::new(bolt[0][3], bolt[1][3], bolt[2][3]);
-        let moved = self.retarget_point(bone, bones, origin);
-        for (row, value) in bolt.iter_mut().zip(moved.to_array()) {
-            row[3] = value;
-        }
+        let Some((moved, clip)) = self.retargeted(bone, bones, posed, origin) else {
+            return bolt;
+        };
+        let rotation = match clip {
+            Some(clip) => {
+                let axes = affine(&bolt).matrix3;
+                clip.matrix3 * axes
+            }
+            None => affine(&bolt).matrix3,
+        };
+        let turned = rows(&Affine3A {
+            matrix3: rotation,
+            translation: moved,
+        });
+        bolt.copy_from_slice(&turned);
         bolt
     }
 
@@ -631,21 +746,40 @@ impl RigModel {
         &self,
         bone: usize,
         bones: &[[[f32; 4]; 3]],
+        posed: Option<&Scratch>,
         point: Vec3A,
     ) -> Vec3A {
-        let (Some(Some(anchor)), Some(matrix)) = (
-            self.anchors.get(bone),
-            self.anchors
-                .get(bone)
-                .copied()
-                .flatten()
-                .and_then(|a| bones.get(a.bone)),
-        ) else {
-            return point;
-        };
+        self.retargeted(bone, bones, posed, point)
+            .map_or(point, |(moved, _)| moved)
+    }
+
+    /// `point` on driver bone `bone` moved onto the rig, and the transform a playing
+    /// clip adds to the joint it hangs on.
+    fn retargeted(
+        &self,
+        bone: usize,
+        bones: &[[[f32; 4]; 3]],
+        posed: Option<&Scratch>,
+        point: Vec3A,
+    ) -> Option<(Vec3A, Option<Affine3A>)> {
+        let anchor = (*self.anchors.get(bone)?)?;
+        let matrix = bones.get(anchor.bone)?;
         let driver_joint = affine(matrix).transform_point3a(anchor.base);
-        let rig_joint = self.joint_pose(anchor.joint, bones).translation;
-        rig_joint + (point - driver_joint) * anchor.reach
+        let posed = posed.filter(|posed| posed.pose.len() == self.joints.len());
+        let (rig_joint, clip) = match posed {
+            Some(posed) if posed.blended => {
+                let retarget = posed.retarget[anchor.joint];
+                let clip = posed.pose[anchor.joint] * retarget.inverse();
+                (retarget.translation, Some(clip))
+            }
+            Some(posed) => (posed.pose[anchor.joint].translation, None),
+            None => (self.joint_pose(anchor.joint, bones).translation, None),
+        };
+        let moved = rig_joint + (point - driver_joint) * anchor.reach;
+        Some((
+            clip.map_or(moved, |clip| clip.transform_point3a(moved)),
+            clip,
+        ))
     }
 }
 
@@ -703,7 +837,14 @@ fn anchors(
 /// One actor's rig pose storage, kept between frames so posing allocates nothing.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Scratch {
+    /// This frame's model-space joints.
     pose: Vec<Affine3A>,
+    /// While a clip blends in: the joints retargeted from the driver alone, and the
+    /// clip's own.
+    retarget: Vec<Affine3A>,
+    clip: Vec<Affine3A>,
+    /// Whether `pose` holds a clip (`retarget` is then valid).
+    blended: bool,
     /// This frame's skinning matrices, one per joint.
     pub(crate) palette: Vec<[[f32; 4]; 3]>,
 }
@@ -770,6 +911,9 @@ fn topological(joints: &[Joint]) -> Result<Vec<usize>, Box<dyn Error>> {
     }
     Ok(order)
 }
+
+#[path = "rig_clips.rs"]
+mod clips;
 
 #[cfg(test)]
 #[path = "rig_model_tests.rs"]

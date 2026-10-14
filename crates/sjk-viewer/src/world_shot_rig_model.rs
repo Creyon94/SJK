@@ -71,10 +71,31 @@ fn rig_model_on_a_demo() {
             );
         }
         println!("camera {:?} target {target}", gpu.camera_position);
+        // SJK_TEST_EMOTE: the player plays that emote of the installed catalogue (a
+        // rig clip), shots taken while it runs.
+        let emote = std::env::var("SJK_TEST_EMOTE").ok();
+        if let Some(id) = &emote {
+            let mut state = crate::emotes::lock();
+            let catalogue = crate::emotes::load(gpu.vfs.as_deref().expect("the game's files"));
+            let def = catalogue.iter().find(|def| &def.id == id).cloned();
+            println!("emote {id}: {def:?}");
+            let slot = u8::try_from(target).expect("a player slot");
+            let at = gpu
+                .demo_session
+                .as_ref()
+                .and_then(|session| session.world().entity(entity))
+                .map(|entity| entity.current().transform.translation)
+                .unwrap_or_default();
+            state.catalogue = Some(catalogue);
+            state
+                .active
+                .start(slot, id, def.as_ref(), at, std::time::Instant::now());
+        }
+        let between = if emote.is_some() { 6 } else { 50 };
         // Close-ups about a second apart: the orbit keeps the player near the centre.
         let mut shots = Vec::new();
         for _ in 0..12 {
-            let image = frame(&mut gpu, 50);
+            let image = frame(&mut gpu, between);
             let (width, height) = image.dimensions();
             let side = height / 2;
             shots.push(
@@ -82,6 +103,11 @@ fn rig_model_on_a_demo() {
                     .to_image(),
             );
         }
-        println!("{}", sheet(&shots, 4, 480, "rig_model_orbit").display());
+        let name = if emote.is_some() {
+            "rig_model_emote"
+        } else {
+            "rig_model_orbit"
+        };
+        println!("{}", sheet(&shots, 4, 480, name).display());
     });
 }

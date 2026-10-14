@@ -68,13 +68,26 @@ pub(super) enum Field {
     Command,
 }
 
-/// A line of the catalogue: a group's sub-heading, an action, or the custom
-/// command at the end.
+/// A line of the catalogue: a group's sub-heading, an action, an installed emote,
+/// or the custom command at the end.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PickLine {
     Heading(&'static str),
     Action(usize),
+    /// An emote of the installed catalogue (`emotes.rs`), by its index there; it
+    /// goes on the page as a custom choice running `sjkemote <id>`.
+    Emote(usize),
     Custom,
+}
+
+/// Installed emote `index`'s name and the command that plays it.
+pub(super) fn emote_choice(index: usize) -> Option<(String, String)> {
+    let state = crate::emotes::lock();
+    let def = state.catalogue.as_ref()?.get(index)?;
+    Some((
+        def.name.clone(),
+        format!("{} {}", crate::emotes::COMMAND, def.id),
+    ))
 }
 
 /// The catalogue, open to put an action in place of choice `at` or to add one.
@@ -164,26 +177,27 @@ impl Default for WheelEditor {
     }
 }
 
-/// The catalogue's lines: each group under its sub-heading, then the custom
-/// command under its own.
-pub(super) fn pick_lines() -> &'static [PickLine] {
-    static LINES: std::sync::OnceLock<Vec<PickLine>> = std::sync::OnceLock::new();
-    LINES.get_or_init(|| {
-        let mut lines = Vec::with_capacity(ACTIONS.len() + ActionGroup::ALL.len() + 2);
-        for group in ActionGroup::ALL {
-            lines.push(PickLine::Heading(group.label()));
-            lines.extend(
-                ACTIONS
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, action)| action.group == group)
-                    .map(|(index, _)| PickLine::Action(index)),
-            );
+/// The catalogue's lines: each group under its sub-heading (the installed emotes
+/// after the stock ones), then the custom command under its own.
+pub(super) fn pick_lines() -> Vec<PickLine> {
+    let emotes = crate::emotes::lock().catalogue.as_ref().map_or(0, Vec::len);
+    let mut lines = Vec::with_capacity(ACTIONS.len() + ActionGroup::ALL.len() + emotes + 2);
+    for group in ActionGroup::ALL {
+        lines.push(PickLine::Heading(group.label()));
+        lines.extend(
+            ACTIONS
+                .iter()
+                .enumerate()
+                .filter(|(_, action)| action.group == group)
+                .map(|(index, _)| PickLine::Action(index)),
+        );
+        if group == ActionGroup::Emotes {
+            lines.extend((0..emotes).map(PickLine::Emote));
         }
-        lines.push(PickLine::Heading("Your own"));
-        lines.push(PickLine::Custom);
-        lines
-    })
+    }
+    lines.push(PickLine::Heading("Your own"));
+    lines.push(PickLine::Custom);
+    lines
 }
 
 impl WheelEditor {
@@ -328,7 +342,12 @@ impl WheelEditor {
             .and_then(|at| self.choices().get(at))
             .map(|slot| match slot {
                 Slot::Action(index) => PickLine::Action(*index),
-                Slot::Custom { .. } => PickLine::Custom,
+                Slot::Custom { command, .. } => {
+                    let emotes = crate::emotes::lock().catalogue.as_ref().map_or(0, Vec::len);
+                    (0..emotes)
+                        .find(|&index| emote_choice(index).is_some_and(|(_, run)| run == *command))
+                        .map_or(PickLine::Custom, PickLine::Emote)
+                }
             });
         let lines = pick_lines();
         let highlighted = current
@@ -393,6 +412,22 @@ impl WheelEditor {
                     console
                         .wheel_pages
                         .set_choice(self.page, picker.at, Slot::Action(*index));
+                self.picker = None;
+                self.sync(console);
+                if let Some(row) = set {
+                    self.column = Column::Choices;
+                    self.rows[1] = row;
+                }
+            }
+            Some(PickLine::Emote(index)) => {
+                let Some((label, command)) = emote_choice(*index) else {
+                    return;
+                };
+                let set = console.wheel_pages.set_choice(
+                    self.page,
+                    picker.at,
+                    Slot::Custom { label, command },
+                );
                 self.picker = None;
                 self.sync(console);
                 if let Some(row) = set {
@@ -810,7 +845,7 @@ impl WheelEditor {
                 let line = picker.first + usize::from(slot);
                 if matches!(
                     pick_lines().get(line),
-                    Some(PickLine::Action(_) | PickLine::Custom)
+                    Some(PickLine::Action(_) | PickLine::Emote(_) | PickLine::Custom)
                 ) {
                     picker.highlighted = line;
                 }
@@ -958,6 +993,28 @@ const _: () = assert!(PICK_BASE as usize + PICK_LINES <= PICK_SCROLL as usize);
 mod tests {
     use super::*;
     use crate::quick_wheel::catalog;
+
+    #[test]
+    fn installed_emotes_follow_the_stock_ones_and_pick_as_sjkemote() {
+        let dance = crate::emotes::parse(
+            "kane_dance",
+            r#"{"name": "Dance", "clip": "kane_dance", "length_ms": 3400, "local": true}"#,
+        )
+        .unwrap();
+        let saved = crate::emotes::lock().catalogue.replace(vec![dance]);
+        let lines = pick_lines();
+        let gloat = catalog::action_index("gloat").unwrap();
+        let at = lines
+            .iter()
+            .position(|line| *line == PickLine::Action(gloat))
+            .unwrap();
+        assert_eq!(lines[at + 1], PickLine::Emote(0));
+        assert_eq!(
+            emote_choice(0),
+            Some(("Dance".to_owned(), "sjkemote kane_dance".to_owned()))
+        );
+        crate::emotes::lock().catalogue = saved;
+    }
 
     fn console() -> (tempfile::TempDir, ViewerConsole) {
         let directory = tempfile::tempdir().unwrap();
