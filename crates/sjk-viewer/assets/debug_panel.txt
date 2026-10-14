@@ -1031,12 +1031,20 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[emote-ids]
+area: Rendering & effects
+title: Emotes named after themselves
+change: The Blender add-on gives an emote its name as id: sjkemote comrade, sjkemote dance_moves.
+test: sjkemote alone lists comrade and dance_moves.
+test: The quick wheel Emotes page still plays both (wheel.json updated by hand).
+note: test_content.pk3 now holds kane and wolfie (Glam Claws renamed).
+
 [shared-emotes]
 area: Rendering & effects
 title: Emotes shared between rig models
 change: Rig models with the same joint names play each other's emotes, on their own build.
-test: /model kane, then sjkemote glamclaws_emote_comrade_cmm: Kane does Comrade.
-test: /model glamclaws, then sjkemote kane_dancemoves: Glam Claws dances, tail along.
+test: /model kane, then sjkemote comrade: Kane does Comrade.
+test: /model wolfie, then sjkemote dance_moves: Wolfie dances, tail along.
 test: Both loop or end like on their own model, with their sound.
 note: Needs test_content.pk3 re-exported with add-on 1.5 (emote files name their rig).
 
@@ -1045,10 +1053,10 @@ area: Rendering & effects
 title: Rig model and emote icons, one pack for several models
 change: Rig models with icon_default show in the character grid; emote icons on the wheel.
 change: Blender add-on 1.4: character icon, emote name and icon, pack name, tails.
-test: Character grid (Profile > Character): Kane and Glam Claws show with their pictures.
+test: Character grid (Profile > Character): Kane and Wolfie show with their pictures.
 test: Pick one: you wear it (the menu stage still shows Kyle).
 test: Quick wheel Emotes page: Dance Moves and Comrade wear their pictures.
-test: sjkemote glamclaws_emote_comrade_cmm: Comrade loops with its music, tail attached.
+test: sjkemote comrade: Comrade loops with its music, tail attached.
 note: base/test_content.pk3 holds both test models; delete it to remove them.
 
 [rig-feet]
@@ -1057,7 +1065,7 @@ title: Rig models: feet planted on the ground
 change: Each frame the model's lower ankle is planted where Kyle's is; lift fine-tunes it.
 test: /model kane, third person: standing, Kane's soles touch the floor (no sinking).
 test: Walk, run, crouch, jump, land: the feet stay at floor level.
-test: Dance (sjkemote kane_dancemoves): the feet stay on the floor.
+test: Dance (sjkemote dance_moves): the feet stay on the floor.
 note: Blender add-on Height adjustment writes lift; leave it at 0 unless still off.
 
 [emote-sounds]
@@ -1065,7 +1073,7 @@ area: Rendering & effects
 title: Emote sounds, dancing while moving, sjkemote stop
 change: An emote's sound plays on the player; emotes with moving keep going while running.
 change: sjkemote stop (wheel: Stop emote) ends yours; emotes reach other SJK players.
-test: Re-export Kane from Blender (game closed), then sjkemote kane_dancemoves: the music plays.
+test: Re-export Kane from Blender (game closed), then sjkemote dance_moves: the music plays.
 test: The dance now lasts 6.8 s and ends with the music (no longer twice too fast).
 test: Run and jump while dancing: the dance goes on, sliding along.
 test: Stop emote on the wheel mid-dance: dance and music stop together.
@@ -1077,7 +1085,7 @@ area: Rendering & effects
 title: Rig model emotes: a model's own animations played on its skeleton
 change: sjkemote <id> plays a rig clip; local emotes stay on this computer.
 change: Settings > Quick wheel lists installed emotes under Emotes.
-test: /model kane, third person, then sjkemote kane_dancemoves: Kane dances 3.4 s, feet on the floor.
+test: /model kane, third person, then sjkemote dance_moves: Kane dances 3.4 s, feet on the floor.
 test: The saber stays in the paw while dancing; the dance fades in and out smoothly.
 test: Move during the dance: it stops; the normal animations come back.
 test: Quick wheel > Emotes > DanceMoves plays it too.

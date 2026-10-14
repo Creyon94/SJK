@@ -117,7 +117,13 @@ def model_name(settings):
 
 
 def emote_id(model, action):
-    """The emote id and glTF animation name of `action` on `model`."""
+    """The emote id and glTF animation name of `action` on `model`: its emote name
+    (`sjkemote comrade`), else `<model>_<action>`. Every rig model with the same
+    skeleton plays it, so the name alone says which emote it is; `stop` is the
+    game's own."""
+    named = clean_name(action.sjk_emote_name)[:EMOTE_ID_CHARS].strip("_")
+    if named and named != "stop":
+        return named
     return clean_name(f"{model}_{action.name}")[:EMOTE_ID_CHARS].strip("_")
 
 
