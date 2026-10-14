@@ -4471,3 +4471,13 @@ test: Shaders: search "tidal", hover its row: the card says Tidal blade (not Sun
 test: Press /, then click a shader row: Enter now equips instead of leaving the search.
 test: Holocrons > Loot table: the rarest card reads about 1 in 11 001 holocrons.
 test: Collection > Medals: the Supporter medal lines up with the three others.
+
+[loot-odds]
+area: Menus & settings
+title: Hub odds, unknown shader prizes, browsing the Saber tab's blades (hub deployed)
+change: The loot table and every odds line use the odds the SJK hub sends.
+change: A shader newer than this build still shows at opening, named, on a "?" tile.
+change: Profile > Saber: the wheel and the arrows browse the blade row without wearing.
+test: Holocrons > Loot table: figures as before (the hub's odds equal the built-in ones).
+test: Own 7+ shaders: wheel over the Blade row, click the arrows; the worn blade stays.
+test: Pick a blade after browsing: the row jumps back to keep the chosen one shown.

@@ -130,9 +130,26 @@ pub(crate) struct Found {
     pub(crate) holocron: u64,
     /// Position in [`holocrons::TIERS`].
     pub(crate) tier: usize,
-    pub(crate) skin: &'static Unlockable,
+    /// The shader, when this client knows it; `None` for one newer than this client
+    /// (the hub's catalogue grows before every player updates): it is shown by the
+    /// hub's name for it, and its blade if the hub's pack brought one.
+    pub(crate) skin: Option<&'static Unlockable>,
+    /// Its id and name as the hub sent them.
+    pub(crate) id: String,
+    pub(crate) name: String,
     /// How many of it the player holds now, this one included.
     pub(crate) count: u32,
+}
+
+impl Found {
+    /// The colour it is shown in: its tier's, or the holocron's for one this client
+    /// does not know.
+    fn colour(&self) -> Color {
+        self.skin
+            .map_or(holocrons::TIERS[self.tier].colour, |skin| {
+                skin.tier.colour()
+            })
+    }
 }
 
 /// What one holocron brought: a card with credits, or a shader.
@@ -143,14 +160,21 @@ pub(crate) enum Prize {
 }
 
 impl Prize {
-    /// What the hub said one holocron brought; `None` for a tier, rarity, finish or
-    /// shader the client does not know.
+    /// What the hub said one holocron brought; `None` for a tier, rarity or finish the
+    /// client does not know. A shader it does not know still shows, by the hub's name.
     pub(crate) fn of(opened: &sjk_identity::Opened) -> Option<Self> {
         if let Some(unlock) = &opened.unlock {
+            let name = if unlock.name.trim().is_empty() {
+                "A new saber shader".to_owned()
+            } else {
+                unlock.name.trim().to_owned()
+            };
             return Some(Self::Shader(Found {
                 holocron: opened.holocron,
                 tier: holocrons::Tier::from_id(&opened.tier)?.index,
-                skin: crate::unlockables::blade_skin(&unlock.id)?,
+                skin: crate::unlockables::blade_skin(&unlock.id),
+                id: unlock.id.clone(),
+                name,
                 count: unlock.count,
             }));
         }
@@ -178,7 +202,7 @@ impl Prize {
                 rarity: shown.rarity.index,
                 finish: shown.finish.index,
             },
-            Self::Shader(found) => strip::Item::Shader(found.skin),
+            Self::Shader(found) => found.skin.map_or(strip::Item::New, strip::Item::Shader),
         }
     }
 }
@@ -223,7 +247,11 @@ impl Ceremony {
 fn cue(prize: &Prize) -> Cue {
     match prize {
         Prize::Card(shown) if shown.finish.index == 2 || shown.rarity.index == 3 => Cue::Medal,
-        Prize::Shader(found) if found.skin.tier >= crate::unlockables::Rarity::Legendary => {
+        Prize::Shader(found)
+            if found
+                .skin
+                .is_some_and(|skin| skin.tier >= crate::unlockables::Rarity::Legendary) =>
+        {
             Cue::Medal
         }
         _ => Cue::Achievement,
@@ -912,6 +940,41 @@ impl Panel {
                     TextAlign::Center,
                 );
             }
+            strip::Item::New => {
+                let height = strip::TILE * cards::look::ASPECT;
+                let rect = frame.rect(x, y, strip::TILE, height);
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: 14.0 * s,
+                    color: color::alpha(color::SPACE, 0.9),
+                });
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 14.0 * s,
+                    width: (2.0 + near) * s,
+                    color: color::alpha(color::GOLD, 0.7 + 0.3 * near),
+                });
+                text(
+                    &mut self.ui,
+                    TextFamily::Display,
+                    format_args!("?"),
+                    frame.rect(x, y + height * 0.5 - 40.0, strip::TILE, 70.0),
+                    60.0 * s,
+                    color::GOLD,
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("New shader"),
+                    frame.rect(x, y + height - 40.0, strip::TILE, 26.0),
+                    17.0 * s,
+                    color::TEXT,
+                    FontWeight::Regular,
+                    TextAlign::Center,
+                );
+            }
         }
     }
 
@@ -920,7 +983,7 @@ impl Panel {
     fn entrance_shader(&mut self, frame: &Frame, found: &Found, elapsed: f32, seconds: f32) {
         let s = frame.s;
         let tier = &holocrons::TIERS[found.tier];
-        let colour = found.skin.tier.colour();
+        let colour = found.colour();
         let middle = [CARD_X, SHADER_TOP + SHADER_HEIGHT * 0.5];
         self.burst(frame, middle, tier, elapsed);
         let turn = ((elapsed - TURN[0]) / (TURN[1] - TURN[0])).clamp(0.0, 1.0);
@@ -943,7 +1006,8 @@ impl Panel {
             radius: 22.0 * s,
             color: color::alpha(color::SPACE, 0.95 * eased),
         });
-        let look = self.skins.get(found.skin.id);
+        // The blade the hub's pack brought, even for a shader this client does not list.
+        let look = self.skins.get(&found.id);
         let _ = crate::console::collection_panel::swatch::small_swatch(
             self.ui.draw_list_mut(),
             frame,
@@ -979,27 +1043,24 @@ impl Panel {
         let alpha = ((entered - WORDS) / 0.4).clamp(0.0, 1.0);
         let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
         let tier = &holocrons::TIERS[found.tier];
-        let rarity = found.skin.tier;
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", found.skin.name),
+            format_args!("{}", found.name),
             frame.rect(CARD_X - 500.0, TITLE_Y, 1_000.0, 50.0),
             42.0 * s,
-            fade(rarity.colour()),
+            fade(found.colour()),
             FontWeight::Semibold,
             TextAlign::Center,
+        );
+        let kind = found.skin.map_or_else(
+            || "A saber shader new to this version of SJK".to_owned(),
+            |skin| format!("{} {} saber shader", skin.tier.symbol(), skin.tier.label()),
         );
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!(
-                "{} {} saber shader. From {} {}",
-                rarity.symbol(),
-                rarity.label(),
-                tier.article(),
-                tier.name
-            ),
+            format_args!("{kind}. From {} {}", tier.article(), tier.name),
             frame.rect(CARD_X - 500.0, EDITION_Y, 1_000.0, 28.0),
             19.0 * s,
             fade(color::TEXT),
@@ -1009,17 +1070,24 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{}", found.skin.description),
+            format_args!(
+                "{}",
+                found.skin.map_or(
+                    "It is yours: update SJK to see it in your Collection and wear it.",
+                    |skin| skin.description
+                )
+            ),
             frame.rect(CARD_X - 600.0, ABOUT_Y, 1_200.0, 26.0),
             17.0 * s,
             fade(color::MUTED),
             FontWeight::Regular,
             TextAlign::Center,
         );
-        let held = if found.count > 1 {
-            format!("You hold {} of it now.", found.count)
-        } else {
-            "Yours now: wear it in the Collection.".to_owned()
+        let held = match (found.count, found.skin) {
+            (count, _) if count > 1 => format!("You hold {count} of it now."),
+            (_, Some(_)) => "Yours now: wear it in the Collection.".to_owned(),
+            // Its line above says where it will show.
+            (_, None) => String::new(),
         };
         text(
             &mut self.ui,

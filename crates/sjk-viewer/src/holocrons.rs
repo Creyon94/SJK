@@ -64,10 +64,9 @@ pub(crate) struct Tier {
     /// `^n` colours, and four colours that stay apart for players who tell colours
     /// apart poorly.
     pub(crate) colour: Color,
-    /// The odds a drop is this tier, in parts per thousand; the four sum to 1000.
+    /// The odds a drop is this tier, in parts per thousand; the four sum to 1000. This
+    /// client's copy: what players read is the hub's ([`Tier::odds`]).
     pub(crate) per_mille: u16,
-    /// The odds as players read them.
-    pub(crate) odds: &'static str,
     /// Position in [`TIERS`].
     pub(crate) index: usize,
     /// The colour of the point light the Profile screen's holocron casts, linear RGB on
@@ -85,7 +84,6 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         label: "Uncommon",
         colour: rgb(0x2F_C77A),
         per_mille: 600,
-        odds: "60%",
         index: 0,
         light: [0.55, 1.50, 0.60],
     },
@@ -95,7 +93,6 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         label: "Rare",
         colour: rgb(0x2E_7BFF),
         per_mille: 280,
-        odds: "28%",
         index: 1,
         light: [0.50, 1.00, 1.75],
     },
@@ -105,7 +102,6 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         label: "Legendary",
         colour: rgb(0xA6_4DFF),
         per_mille: 105,
-        odds: "10.5%",
         index: 2,
         light: [1.25, 0.45, 1.75],
     },
@@ -115,13 +111,17 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         label: "Mythical",
         colour: rgb(0xFF_C933),
         per_mille: 15,
-        odds: "1.5%",
         index: 3,
         light: [1.85, 1.30, 0.40],
     },
 ];
 
 impl Tier {
+    /// How often a drop is this tier, as players read it ("10.5%"): the hub's odds.
+    pub(crate) fn odds(&self) -> String {
+        crate::cards::loot::percent(crate::cards::loot::drop(self.index))
+    }
+
     /// The tier the hub's `id` names, if the client knows it.
     pub(crate) fn from_id(id: &str) -> Option<&'static Tier> {
         TIERS.iter().find(|tier| tier.id == id)
@@ -283,17 +283,17 @@ mod tests {
     /// Sol-Vulpes/SJK-hub carries the same ids, names and odds, and its test pins them.
     #[test]
     fn the_catalogue_is_the_hubs() {
-        let list: Vec<(&str, &str, u16, &str)> = TIERS
+        let list: Vec<(&str, &str, u16, String)> = TIERS
             .iter()
-            .map(|tier| (tier.id, tier.name, tier.per_mille, tier.odds))
+            .map(|tier| (tier.id, tier.name, tier.per_mille, tier.odds()))
             .collect();
         assert_eq!(
             list,
             [
-                ("uncommon", "Uncommon Holocron", 600, "60%"),
-                ("rare", "Rare Holocron", 280, "28%"),
-                ("legendary", "Legendary Holocron", 105, "10.5%"),
-                ("mythical", "Mythical Holocron", 15, "1.5%"),
+                ("uncommon", "Uncommon Holocron", 600, "60%".to_owned()),
+                ("rare", "Rare Holocron", 280, "28%".to_owned()),
+                ("legendary", "Legendary Holocron", 105, "10.5%".to_owned()),
+                ("mythical", "Mythical Holocron", 15, "1.5%".to_owned()),
             ]
         );
         assert_eq!(
@@ -310,11 +310,6 @@ mod tests {
         assert_eq!(by_id("from_the_future"), None);
         assert_eq!(name("rare"), Some("Rare Holocron"));
         assert_eq!(name("nope"), None);
-        // The odds text is the per mille.
-        for tier in &TIERS {
-            let shown: f32 = tier.odds.trim_end_matches('%').parse().unwrap();
-            assert!((shown * 10.0 - f32::from(tier.per_mille)).abs() < 1e-3);
-        }
     }
 
     /// The tier colours are none of the game's `^n` codes (in the game's palette and in

@@ -33,6 +33,7 @@ mod client_state;
 mod clientinfo_refresh;
 mod editions;
 mod entity_view;
+mod loot_odds;
 
 mod shader_image;
 

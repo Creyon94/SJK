@@ -12,7 +12,7 @@
 
 use super::*;
 use crate::audio::ui_cues::{self, Cue};
-use crate::cards::{CREDITS, FINISHES, Finish, RARITIES, loot};
+use crate::cards::{FINISHES, Finish, RARITIES, loot};
 use crate::menu::sjk::{Frame, color, key_hint, key_hint_width, kit, text, wrap};
 use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign};
@@ -333,7 +333,7 @@ impl Panel {
                 |rarity| loot::rarity_in(index, rarity),
                 |finish| loot::finish_in(index, finish),
             );
-            let (least, most) = CREDITS[index];
+            let (least, most) = crate::loot_odds::current().credits[index];
             self.loot_credits(
                 frame,
                 y,
@@ -364,8 +364,9 @@ impl Panel {
             TextAlign::Start,
         );
         self.loot_cells(frame, y, 1.0, loot::rarity_any, loot::finish_any);
-        let least = CREDITS.iter().map(|range| range.0).min().unwrap_or(0);
-        let most = CREDITS.iter().map(|range| range.1).max().unwrap_or(0);
+        let credits = crate::loot_odds::current().credits;
+        let least = credits.iter().map(|range| range.0).min().unwrap_or(0);
+        let most = credits.iter().map(|range| range.1).max().unwrap_or(0);
         self.loot_credits(frame, y, &format!("{least} to {most}"), loot::credits_any());
     }
 

@@ -38,7 +38,9 @@ pub(crate) fn listing() -> Vec<String> {
     for tier in &TIERS {
         lines.push(format!(
             "  {:<12} {} ({} of drops)",
-            tier.id, tier.name, tier.odds
+            tier.id,
+            tier.name,
+            tier.odds()
         ));
     }
     lines.push(format!("  {ALL:<12} one of every tier"));

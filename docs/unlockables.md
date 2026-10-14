@@ -863,3 +863,9 @@ holds the table (`id`, full name, short tag); a new edition is one line there.
   under its name, and the hover card of each shader, medal, achievement and toy; the
   Shaders search matches an edition's name ("alpha"). Nothing drops by edition yet: later
   an edition can end its drops or limit its items, which will be the hub's table too.
+
+A shader newer than the client (14/10/2026): when an opening brings a shader this client's
+catalogue does not list, the ceremony still shows it, by the name the hub sent, in the
+holocron's colour, with its blade if the hub's pack brought one, the crate spin ending on a
+"?" tile; it reads "update SJK to see it in your Collection". The Collection lists it once
+the client knows it.

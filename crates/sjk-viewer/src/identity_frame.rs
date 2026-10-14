@@ -4,7 +4,7 @@
 //! achievements their counts (`achievements_frame.rs`), the picture cache where
 //! pictures come from (`avatars.rs`) and the profile card what it shows
 //! (`profile_card.rs`), and the hub whether the player is actively playing
-//! (`holocrons_frame.rs`). Each frame it also lets the chat feed follow the SJK chat
+//! (`holocrons_frame.rs`), and the holocron odds the hub's (`loot_odds.rs`). Each frame it also lets the chat feed follow the SJK chat
 //! (`sjk_chat_frame.rs`), keeps crash reports up to date and sent
 //! (`crash_report.rs`), starts and ends emotes (`emotes_frame.rs`), shows the pings
 //! relayed for this server (`world_ping_frame.rs`), keeps the
@@ -70,6 +70,7 @@ impl GpuState {
         profile_card::refresh(console);
         self.offer_medals();
         self.offer_holocrons();
+        let _ = player_identity::with_snapshot(|snapshot| crate::loot_odds::follow(&snapshot.loot));
         self.update_achievements();
         self.update_holocron_activity();
         self.follow_crash_reports();

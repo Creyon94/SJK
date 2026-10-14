@@ -434,7 +434,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{} of drops", tier.odds),
+                format_args!("{} of drops", tier.odds()),
                 frame.rect(RIGHT_X + 90.0, y + 35.0, 440.0, 20.0),
                 15.0 * s,
                 color::MUTED,
@@ -862,7 +862,8 @@ pub(super) fn tier_card(index: usize, data: &Data) -> crate::menu::sjk::hover::C
         )),
         Line::status(format!(
             "{} of drops are {}. The SJK team can also give one.",
-            tier.odds, tier.label
+            tier.odds(),
+            tier.label
         )),
     ];
     match data.count(tier.index) {

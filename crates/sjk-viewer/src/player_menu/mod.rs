@@ -215,6 +215,9 @@ pub(crate) struct PlayerMenu {
     sjk_hilts: [sjk_view::HiltList; 2],
     /// The SJK UI Saber page's blade: the stock one or a blade skin owned.
     blade_choice: blade_skins::BladeChoice,
+    /// The first blade choice the Saber page's row showed last frame (its arrows and
+    /// wheel browse from it).
+    blade_first: usize,
     /// The SJK UI Character page's turn of the model (dragged with the pointer).
     turn: sjk_outfit::Turn,
     /// The SJK UI Character page's creator: the category on show and its grid.
@@ -275,6 +278,7 @@ impl PlayerMenu {
             sjk: false,
             sjk_hilts: Default::default(),
             blade_choice: blade_skins::BladeChoice::new(),
+            blade_first: 0,
             turn: sjk_outfit::Turn::default(),
             creator: sjk_creator::Creator::default(),
             retail_tiles: 0,
