@@ -130,15 +130,15 @@ const HEADING_ICONS: &[(&[&str], &str)] = &[
         "graphics",
     ),
     (&["sound", "audio", "music", "voice"], "sound"),
-    (&["gameplay", "fps", "physics"], "game_options"),
+    (&["gameplay", "fps", "physics"], "gameplay"),
     (&["movement", "jetpack", "grapple", "strafe"], "movement"),
     (&["camera"], "camera"),
-    (&["chat", "text", "font"], "chat"),
+    (&["chat", "text", "font"], "text"),
     (&["setup", "import"], "import"),
     (&["showcase", "tool", "demo", "replay", "record"], "record"),
     (&["menu", "interface", "settings", "ui"], "interface"),
     (&["key", "bind", "control"], "key_bindings"),
-    (&["fix", "crash", "stutter", "bug"], "mods"),
+    (&["fix", "crash", "stutter", "bug"], "options"),
 ];
 /// The icon of a heading no entry names.
 const HEADING_ICON: &str = "changelog";
@@ -981,8 +981,8 @@ mod tests {
     fn headings_find_their_icons_and_every_icon_exists() {
         assert_eq!(heading_icon("Browser"), "network");
         assert_eq!(heading_icon("Saber shaders"), "saber_style");
-        assert_eq!(heading_icon("Small fixes"), "mods");
-        assert_eq!(heading_icon("Gameplay FPS"), "game_options");
+        assert_eq!(heading_icon("Small fixes"), "options");
+        assert_eq!(heading_icon("Gameplay FPS"), "gameplay");
         assert_eq!(heading_icon("HUD"), "hud");
         // A word inside another is no match ("ui" in "build").
         assert_eq!(heading_icon("Builds"), HEADING_ICON);

@@ -772,11 +772,9 @@ that mode for the visit and leaves the player's choice as it was.
   Profile screen and hidden, for streaming) reads "Hidden: open to see" and Enter
   opens the Identity page over Settings ([SJK's pages](#sjks-pages)), which shows
   Settings again when it closes.
-  Every category's icon is a holocron face from Sol's board (13/10/2026,
-  [assets/settings](../crates/sjk-viewer/assets/settings/README.md)); Quick
-  wheel's, a ring of discs, is named as the wheel's icon
-  (`quick_wheel::catalog::WHEEL_ICON`), which `settings_icons::texture` finds
-  among the settings icons before the wheel's grey one.
+  Quick wheel wears the wheel's own icon, a ring of discs from its second board
+  (`quick_wheel::catalog::WHEEL_ICON`; `settings_icons::texture` falls back to
+  the wheel's icons), since 08/10/2026.
   - Advanced regroups the classic+ Setup page's groups and tabs by subject
     (`settings::Group::Advanced`, `Group::Display`, `Group::Graphics`,
     `Group::Network`), each category's classic+ panel named for the hand-over

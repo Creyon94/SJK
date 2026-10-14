@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Settings icons: back to the grey metal discs
+- a9f44a1 |  | Settings icons: back to the grey metal discs
 + 15/10/2026 | - | Rig add-on: Tail gravity setting
 - 3408d83 |  | Rig add-on: Tail gravity setting
 + 14/10/2026 | - | Release 2026.1014.2 (Alpha)
