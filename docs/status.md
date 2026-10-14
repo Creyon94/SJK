@@ -176,6 +176,8 @@ server are untested.
 
 ## Donations and the Supporter medal
 
+14/10/2026: the medal has its final art (supporter-art, Sol's pick of a generated sheet; crimson ribbon).
+
 Branch `personal/donate-goal` (13/10/2026), Sol's request, with the hub's
 `donate-supporter`: donations on Ko-fi (https://ko-fi.com/soljk) with a live monthly
 goal of 200 euros, on the site's Support SJK section and top left of the SJK UI's main

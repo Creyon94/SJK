@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Supporter medal: final art (gold star with a sun gem, crimson ribbon)
+- 770f3f2 |  | Supporter medal: final art (gold star with a sun gem, crimson ribbon)
 + 14/10/2026 | - | Twelve more plain saber shaders (six Common, six Uncommon)
 - d326759 |  | Twelve more plain saber shaders (six Common, six Uncommon)
 + 14/10/2026 | - | Collection shaders: tier chips, Owned and a search for a long list
