@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | SJK Rig Model Export Blender add-on; rule on other games' assets
+- fad7adf |  | SJK Rig Model Export Blender add-on; rule on other games' assets
 + 14/10/2026 | - | Rig models: game winding and bolts on the rig's own joints
 - b3a9ff9 |  | Rig models: game winding and bolts on the rig's own joints
 + 14/10/2026 | - | Holocron odds from the hub, unknown shader prizes, browsing the Saber tab's blades
