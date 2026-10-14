@@ -444,14 +444,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 [donation-goal]
 area: Menus & settings
-title: Donation goal on the main page, Supporter medal for donors
-change: SJK UI main page: a Support SJK card top left with the live Ko-fi goal and Donate.
-change: A fourth medal, Supporter (violet ribbon, gold heart), no blade; the hub gives it itself.
-test: Main page: the card sits top left, clear of the ring; Donate opens ko-fi.com/soljk.
-test: Settings > Interface > Donation goal off (ui_donationGoal 0): the card goes away.
-test: debug_medal supporter: the pop-up shows its picture; Collection > Medals lists four.
-test: Hub deployed: a Ko-fi test payment with your key id in the message gives Supporter.
-note: Numbers only show once the hub is deployed; the medal art is a placeholder.
+title: Donations shelved: no Support card, setting or unheld Supporter medal
+change: Shelved 14/10: the main page's Support SJK card and its Donation goal setting are gone.
+change: Collection > Medals lists Supporter only to holders (three medals otherwise).
+change: Site: the Support SJK section and its two menu links are hidden.
+test: SJK UI main page: no Support SJK card top left, even with ui_donationGoal 1.
+test: Settings > Interface and settings search: no "Donation goal" row.
+test: Collection > Medals: Early Tester, Early Contributor, Bug Hunter; "x of 3 medals".
+test: Site (after push): no Support link in either menu, no Support SJK section.
 
 [settings-simple-advanced]
 area: Menus & settings

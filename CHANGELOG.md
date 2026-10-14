@@ -25,7 +25,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-> Support: Donate on Ko-fi from the main page; more than 1 euro brings the Supporter medal.
 > Footprints: Steps on sand, snow and mud leave prints and dust, and jumps and landings step too.
 > Material maps: The generator finds your overrides again, crates read as metal and concrete as concrete.
 > Fixes: Decals fade into fog with their walls, and the sky no longer flickers through a ceiling built just under it.
@@ -41,17 +40,14 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The holocron odds come from the SJK hub: the loot table, card odds, holocron lines and the crate spin always show what the hub rolls with; a shader newer than your version of SJK still shows when a holocron brings it; the Saber tab's blade row scrolls with the wheel and its arrows without wearing anything _(Sol)_
 - Fixes after a review of the shader work: a shader's hover card under a search or filter showed the wrong shader; the search kept the typing after a click elsewhere; the loot table and card odds forgot that a holocron may bring a shader instead of a card and its credits; the Supporter medal hangs like the others (rod, long ribbon, same size) _(Sol)_
 - Everything collectible now carries an edition stamp, "Alpha Edition" for the whole alpha (the start of a season system): shown on a shader's card, a medal's card and the hover cards of shaders, medals, achievements and the toy; the shader search finds "alpha" _(Sol)_
-- The Supporter medal has its final art: a gold-and-steel star with a sun gem on a crimson ribbon _(Sol)_
 - Firing rockets while moving no longer makes you stutter back and forth _(Creyon, after JoF EternalJK)_
 - Rocket launcher lock-on: the red ring builds up around the target with its tick sounds, and the lock pulses and sounds when complete _(Creyon, after JoF EternalJK)_
 - The in-game profile's Force page shows each power on the model under the pointer: the game's gesture, effect and shell, the saber skills, the jump and the throw _(Creyon)_
-- The Supporter medal, for players who donate more than 1 euro to SJK on Ko-fi: put your SJK key id in the Ko-fi message and it arrives on its own; shown with the other medals on the profile, the player card, the Collection and the scoreboard (placeholder art) _(Sol)_
 - Footprints and dust: steps on sand, snow, mud and dirt kick up dust and leave footprints for ten seconds, untagged sand such as siege_desert's included; `cg_footprints 0` turns them off _(Sol, after the original game)_
 - Jumps and forward landings step with both feet, with the ground's sound, dust and prints; `cg_jumpFootsteps 0` keeps the original game's steps alone, and `cg_footstepGuess 0` makes untagged ground stone again _(Sol)_
 - Tables and other props a map hangs on a brush entity's model2 are drawn, such as the bar tables of t2_rancor _(Sol, after the original game)_
 - sjk-materialgen finds its overrides file in the client's generated folder (and copies one left in the old JKR folder there), says which file it read or warns when it found none, and records it in the pack: the 12/10 pack had been built without Sol's rules _(Sol)_
 - Generated material maps (generation 7, regenerate the pack): crates are painted metal rather than wood, a vent in a concrete wall stays concrete, look-alike words (background, rockets, rustic) no longer pick ground, rock or rust, and the overrides take strength= to deepen or soften one texture's relief _(Sol)_
-- The SJK UI's main page shows SJK's monthly donation goal top left, live from the SJK hub, with Donate opening Ko-fi; `ui_donationGoal 0` hides it _(Sol)_
 - Decals on walls fade into fog with their wall instead of showing through it at full strength, like the Imperial symbol on mp/ctf4 _(Sol)_
 - The sky and its clouds no longer flicker through a ceiling built just under the sky, as on JoF Memorial Grounds _(Sol)_
 - Map entities view: `r_showEntities` marks the lights, spawns, origins, items and targets a map places (2 adds sounds, effects, props and the rest) through walls with their names, and a world note picks the one you aim at; `r_showEntitiesTypes` picks kinds, Settings > Game options > Map entities _(Sol)_

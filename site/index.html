@@ -42,7 +42,7 @@
     <li><a href="#changelog">What's new</a></li>
     <li><a href="#install">Install</a></li>
     <li><a href="#credits">Credits</a></li>
-    <li><a href="#support">Support</a></li>
+    <li hidden><a href="#support">Support</a></li>
   </ul>
 </nav>
 
@@ -78,7 +78,7 @@
         <li><a href="#changelog">What's new</a></li>
         <li><a href="#install">Install</a></li>
         <li><a href="#credits">Credits</a></li>
-        <li><a href="#support">Support SJK</a></li>
+        <li hidden><a href="#support">Support SJK</a></li>
       </ul>
     </nav>
 
@@ -213,8 +213,10 @@
 
 <!-- Donations (docs/sjk.md, "Donations"): the script fills the card from the SJK hub's
      live goal, or from DONATION at the top of assets/site.js when the hub cannot be
-     reached. Without the script the card keeps the Ko-fi link below. -->
-<section id="support" class="page" aria-labelledby="support-title">
+     reached. Without the script the card keeps the Ko-fi link below.
+     Shelved since 14/10/2026 (DONATION.shelved in site.js): the section and its two nav
+     links are hidden; remove the three hidden attributes to bring it back. -->
+<section id="support" class="page" aria-labelledby="support-title" hidden>
   <header class="page-head">
     <h2 id="support-title">Support SJK</h2>
     <p>Optional: SJK stays free and open source either way.</p>

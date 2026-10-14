@@ -73,7 +73,7 @@ migrated, except where the table says so. Where each is documented:
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |
 | `con_drawNotify` | off (no console feed at the top left; chat keeps its box) | [Classic console](client.md#classic-console) |
 | `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands) | [Ghost replay](client.md#ghost-replay) |
-| `ui_donationGoal` | on (the donation goal on the SJK UI's main page) | [Main page](sjk-ui.md#main-page) |
+| `ui_donationGoal` | on, but shelved since 14/10/2026: the card never shows ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
 console with its menus, else the classic one; a saved `classic` moved once to
@@ -210,6 +210,17 @@ Alphas are not marked as pre-releases, so the site's download link
 (`releases/latest`) finds them; their name and notes say "Alpha" instead.
 
 ## Donations
+
+**Shelved since 14/10/2026 (Sol's decision).** Nothing asks for donations for now: the
+site's Support SJK section and its two menu links carry `hidden` and `site.js` skips the
+hub (`DONATION.shelved`); the client's card never shows and its setting is out of the
+settings screens (`donation_goal::SHELVED`), and the Collection lists the Supporter
+medal only to players who hold it. The hub's webhook, goal endpoint and medal stay as
+they are. To bring it back: `DONATION.shelved = false` and the three `hidden`
+attributes in `index.html`, then `SHELVED = false` and the "Donation goal" row back in
+`settings/catalog.rs` (GAME), `settings/groups.rs` (Interface) and its help line in
+`settings/help.rs`, all three in git history before 14/10/2026. What follows is how
+it works once back.
 
 SJK takes donations on Ko-fi, https://ko-fi.com/soljk (Sol's page, 13/10/2026). The
 site's Support SJK section and the SJK UI's main page ([sjk-ui.md](sjk-ui.md#main-page))

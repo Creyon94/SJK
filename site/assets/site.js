@@ -12,6 +12,9 @@ const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
 // else says the link is coming), `goal` the monthly goal and `raised` what came in
 // this month, both whole euros.
 const DONATION = {
+  // Donations are shelved (14/10/2026): the section stays hidden and the hub is not
+  // asked. Set to false along with removing index.html's hidden attributes.
+  shelved: true,
   hub: "https://sjk.dfox.app/v1/donations/goal",
   url: "https://ko-fi.com/soljk",
   goal: 200,
@@ -187,6 +190,7 @@ function donationFromHub(answer) {
 
 /** The donation card from DONATION at once, then from the hub's live goal. */
 async function setUpDonation() {
+  if (DONATION.shelved) return;
   showDonation(DONATION);
   if (!DONATION.hub || typeof fetch !== "function") return;
   const abort = typeof AbortController === "function" ? new AbortController() : null;
