@@ -49,30 +49,31 @@ impl ForceBones {
     }
 
     /// Undo the inverse bind pose, exactly as the existing generic joint query does.
-    pub(crate) fn update(&mut self, animation: &Gla, matrices: &[[[f32; 4]; 3]]) {
+    /// On a rig model the points move onto its joints
+    /// ([`crate::rig_model::RigModel::retarget_point`]).
+    pub(crate) fn update(&mut self, preview: &crate::PlayerPreview, matrices: &[[[f32; 4]; 3]]) {
+        let animation = &*preview.animation;
         // G2_GetBoltMatrixLow, tr_ghoul2.cpp:3132: skin matrix * base pose.
         self.lumbar = self.indices[1].and_then(|index| {
             let matrix = matrices.get(index)?;
             let bind = animation.bones.get(index)?.base_pose;
-            Some(std::array::from_fn(|row| {
+            let bolt = std::array::from_fn(|row| {
                 std::array::from_fn(|column| {
                     (0..3)
                         .map(|axis| matrix[row][axis] * bind[axis][column])
                         .sum::<f32>()
                         + if column == 3 { matrix[row][3] } else { 0.0 }
                 })
-            }))
+            });
+            Some(match &preview.rig {
+                Some(rig) => rig.retarget_bolt(index, matrices, bolt),
+                None => bolt,
+            })
         });
         for (output, index) in self.origins.iter_mut().zip(self.indices) {
             *output = index.and_then(|index| {
-                let matrix = matrices.get(index)?;
-                let bind = animation.bones.get(index)?.base_pose;
-                Some(Vec3::from_array(std::array::from_fn(|row| {
-                    matrix[row][3]
-                        + (0..3)
-                            .map(|axis| matrix[row][axis] * bind[axis][3])
-                            .sum::<f32>()
-                })))
+                let point = joint_origin(animation, matrices, index)?;
+                Some(retarget(preview, matrices, index, point))
             });
         }
     }
@@ -82,22 +83,40 @@ impl ForceBones {
     /// Update [`Self::head`]: the `*head_top` tag, else the `ceyebrow` joint.
     pub(crate) fn update_head(
         &mut self,
-        mesh: &sjk_model::Glm,
-        animation: &Gla,
+        preview: &crate::PlayerPreview,
         matrices: &[[[f32; 4]; 3]],
     ) {
-        self.head = match mesh.surface_bolt_matrix("*head_top", 0, matrices) {
-            Ok(Some(bolt)) => Some(Vec3::from_array(crate::bolt::column(&bolt, 3))),
-            _ => self.eyebrow.and_then(|index| {
-                let matrix = matrices.get(index)?;
-                let bind = animation.bones.get(index)?.base_pose;
-                Some(Vec3::from_array(std::array::from_fn(|row| {
-                    matrix[row][3]
-                        + (0..3)
-                            .map(|axis| matrix[row][axis] * bind[axis][3])
-                            .sum::<f32>()
-                })))
+        self.head = match preview.bolt("*head_top", matrices) {
+            Some(bolt) => Some(Vec3::from_array(crate::bolt::column(&bolt, 3))),
+            None => self.eyebrow.and_then(|index| {
+                let point = joint_origin(&preview.animation, matrices, index)?;
+                Some(retarget(preview, matrices, index, point))
             }),
         };
+    }
+}
+
+/// Bone `index`'s origin posed with `matrices`.
+fn joint_origin(animation: &Gla, matrices: &[[[f32; 4]; 3]], index: usize) -> Option<Vec3> {
+    let matrix = matrices.get(index)?;
+    let bind = animation.bones.get(index)?.base_pose;
+    Some(Vec3::from_array(std::array::from_fn(|row| {
+        matrix[row][3]
+            + (0..3)
+                .map(|axis| matrix[row][axis] * bind[axis][3])
+                .sum::<f32>()
+    })))
+}
+
+/// `point`, on driver bone `index`, moved onto the rig model's joint when one is drawn.
+fn retarget(
+    preview: &crate::PlayerPreview,
+    matrices: &[[[f32; 4]; 3]],
+    index: usize,
+    point: Vec3,
+) -> Vec3 {
+    match &preview.rig {
+        Some(rig) => rig.retarget_point(index, matrices, point.into()).into(),
+        None => point,
     }
 }

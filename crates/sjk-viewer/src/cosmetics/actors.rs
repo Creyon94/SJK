@@ -42,13 +42,13 @@ impl Worn {
 
     /// Refresh the bolts of the worn slots from one evaluated pose; nothing
     /// is computed for an actor wearing nothing.
-    pub(crate) fn update_bolts(&mut self, mesh: &sjk_model::Glm, matrices: &[[[f32; 4]; 3]]) {
+    pub(crate) fn update_bolts(
+        &mut self,
+        preview: &crate::PlayerPreview,
+        matrices: &[[[f32; 4]; 3]],
+    ) {
         for (index, bolt) in self.bolts.iter_mut().enumerate() {
-            *bolt = self.pieces[index].and_then(|_| {
-                mesh.surface_bolt_matrix(BOLTS[index], 0, matrices)
-                    .ok()
-                    .flatten()
-            });
+            *bolt = self.pieces[index].and_then(|_| preview.bolt(BOLTS[index], matrices));
         }
     }
 }

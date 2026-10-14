@@ -705,11 +705,7 @@ pub(crate) fn attachment_from_matrices(
     matrices: &[[[f32; 4]; 3]],
     bolt_name: &str,
 ) -> Option<Attachment> {
-    let matrix = preview
-        .mesh
-        .surface_bolt_matrix(bolt_name, 0, matrices)
-        .ok()??;
-    attachment_from_bolt(matrix)
+    attachment_from_bolt(preview.bolt(bolt_name, matrices)?)
 }
 
 /// Convert a Ghoul2 3x4 bolt matrix without changing its handedness.

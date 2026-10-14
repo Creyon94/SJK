@@ -144,3 +144,44 @@ fn a_turned_driver_bone_turns_its_joint_and_children() {
         "{offset:?}"
     );
 }
+
+#[test]
+fn triangles_turn_to_the_game_winding() {
+    let rig = RigModel::fit(rig(), "", &manifest(""), &driver()).unwrap();
+    // glTF fronts are counter-clockwise; the game's `cull front` keeps clockwise ones.
+    assert_eq!(rig.surfaces[0].indices, vec![0, 2, 1]);
+}
+
+#[test]
+fn a_bolt_moves_from_the_driver_bone_onto_the_rig_joint() {
+    let mut driver = driver();
+    driver.bones.push(GlaBone {
+        name: "ceyebrow".into(),
+        flags: 0,
+        parent: Some(2),
+        base_pose: translated(0.0, -3.0, 62.0),
+        inverse_base_pose: identity_rows(),
+        children: Vec::new(),
+    });
+    // 50 units a metre: the rig's head joint sits at 75, the driver's cranium at 60.
+    let rig = RigModel::fit(rig(), "", &manifest("scale 50"), &driver).unwrap();
+    // The cranium shifted 10 units along +X; its bolt 5 in front and 5 above it.
+    let bones = vec![
+        identity_rows(),
+        identity_rows(),
+        translated(10.0, 0.0, 0.0),
+        translated(10.0, 0.0, 0.0),
+    ];
+    let bolt = translated(10.0, -5.0, 65.0);
+    let moved = rig.retarget_bolt(2, &bones, bolt);
+    let origin = Vec3A::new(moved[0][3], moved[1][3], moved[2][3]);
+    assert!(
+        (origin - Vec3A::new(0.0, -5.0, 80.0)).length() < 1e-4,
+        "{origin:?}"
+    );
+    // The orientation is the driver's.
+    assert_eq!(moved[0][..3], bolt[0][..3]);
+    // An unmapped bone (the eyebrow) follows its mapped parent's joint.
+    let point = rig.retarget_point(3, &bones, Vec3A::new(10.0, -5.0, 65.0));
+    assert!((point - origin).length() < 1e-4, "{point:?}");
+}

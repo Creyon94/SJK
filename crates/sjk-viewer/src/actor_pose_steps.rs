@@ -135,12 +135,11 @@ pub(super) fn apply(
             }
             None => palette.stage(skinning, matrices)?,
         }
-        mesh.force_bones.update(&mesh.preview.animation, matrices);
-        mesh.force_bones
-            .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
+        mesh.force_bones.update(&mesh.preview, matrices);
+        mesh.force_bones.update_head(&mesh.preview, matrices);
         mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
         mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
-        mesh.cosmetics.update_bolts(&mesh.preview.mesh, matrices);
+        mesh.cosmetics.update_bolts(&mesh.preview, matrices);
         mesh.jetpack.update(&mesh.preview, matrices);
         mesh.current_frames = (
             state.lower.forced_frame.unwrap_or(state.lower.clip),
@@ -156,12 +155,11 @@ pub(super) fn apply(
         .skin_pose_matrices(&mesh.preview.skin, 0, matrices)?;
     mesh.retained_pose
         .update_trace_lod(&mesh.preview.mesh, matrices)?;
-    mesh.force_bones.update(&mesh.preview.animation, matrices);
-    mesh.force_bones
-        .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
+    mesh.force_bones.update(&mesh.preview, matrices);
+    mesh.force_bones.update_head(&mesh.preview, matrices);
     mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
-    mesh.cosmetics.update_bolts(&mesh.preview.mesh, matrices);
+    mesh.cosmetics.update_bolts(&mesh.preview, matrices);
     mesh.jetpack.update(&mesh.preview, matrices);
     if let Some(rig) = &mesh.preview.rig
         && mesh.gpu_palette.is_none()

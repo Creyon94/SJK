@@ -9,7 +9,8 @@ number of joints, fingers, face, cloth), animated by the game's ordinary
 The player keeps a stock **driver** model, Kyle unless the manifest names another.
 Its GLM and `_humanoid.gla` do everything they did before: the server's animation
 numbers, the split torso and legs, look angles, saber and effect bolts, saber traces,
-Force effects, cosmetics. Only its surfaces are not drawn.
+Force effects, cosmetics. Only its surfaces are not drawn, and its bolts are moved
+onto the rig (below).
 
 The glTF mesh is drawn in their place. Every frame, after the driver's bone matrices
 are evaluated ([actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs)),
@@ -28,6 +29,18 @@ The result is a joint palette skinned on the GPU like any player
 ([gpu_skinning.rs](../crates/sjk-viewer/src/gpu_skinning.rs)), or on the CPU when
 `SJK_GPU_SKINNING=0`. Posing costs one affine multiply per joint per player and
 allocates nothing per frame.
+
+### Bolts on the rig
+
+The driver's bolts (`*r_hand`, `*l_hand`, `*head_top`, the feet, cosmetics, the
+jetpack's `*chestg`) and the Force effect points (hands, head, lumbar for a carried
+flag) sit where Kyle's bones put them, which misses a rig with other proportions.
+`PlayerPreview::bolt` and `RigModel::retarget_bolt` move each one onto the rig: the
+bolt keeps the driver's orientation (mapped joints turn as the driver's bones do)
+and its offset from its bone, stretched by the limb's length ratio along the map's
+`Toward` pair, but starts from the joint mapped to that bone (or to its nearest
+mapped ancestor). A saber then sits in the rig's hand, a hat on its head. Saber
+traces and hit boxes stay the driver's.
 
 Units and axes are converted at load: glTF metres with +Y up and +Z front become the
 GLA's model space (+Z up, -Y front, as a Blender export of a model facing -Y). The
@@ -66,7 +79,10 @@ Another skeleton naming is a new preset entry, not code elsewhere.
 Read by [gltf.rs](../crates/sjk-model/src/gltf.rs): the first skin, its joints'
 bind poses from the inverse bind matrices, and the triangle primitives of the meshes
 that skin deforms; up to eight influences, of which the strongest four are kept.
-Each primitive's base colour texture becomes its shader (the image's path, so a
+Triangles are turned to the game's winding at load (glTF fronts are
+counter-clockwise, the game's default `cull front` keeps clockwise ones; unturned,
+the inside of the far side shows through). Each primitive's base colour texture
+becomes its shader (the image's path, so a
 `.shader` script of that name can override it); a primitive without one is drawn
 `*white`. Not read: animations, morph targets (shape keys), normal and PBR maps,
 images embedded in a buffer, data URIs.
@@ -87,7 +103,8 @@ Principled BSDF whose Base Color is an Image Texture.
   custom model.
 - Feet can slide or float a little when the rig's leg proportions differ from the
   driver's; there is no foot IK yet.
-- Not yet tried in the game; checked by unit tests and a world shot (below).
+- First tried in the game by Sol on 14/10/2026: drawn and animated; the faces
+  showed through (winding) and the saber missed the hand, both fixed the same day.
 
 ## Checks
 

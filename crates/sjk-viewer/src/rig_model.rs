@@ -264,6 +264,18 @@ struct Driven {
     translate: Option<Vec3A>,
 }
 
+/// Where a driver bolt hanging on a bone lands on the rig: the joint mapped to that
+/// bone (or to its nearest mapped ancestor) and how much longer the rig's limb is.
+#[derive(Clone, Copy, Debug)]
+struct Anchor {
+    joint: usize,
+    /// The mapped driver bone and its base position.
+    bone: usize,
+    base: Vec3A,
+    /// The rig joint's length over the driver bone's, along their `Toward` pair.
+    reach: f32,
+}
+
 /// One drawn surface, its vertices in the driver's model space.
 #[derive(Clone, Debug)]
 pub(crate) struct Surface {
@@ -295,6 +307,8 @@ pub(crate) struct RigModel {
     /// Joint indices, parents before children.
     order: Vec<usize>,
     driven: Vec<Option<Driven>>,
+    /// One per driver bone, for [`RigModel::retarget_bolt`].
+    anchors: Vec<Option<Anchor>>,
     pub(crate) surfaces: Vec<Surface>,
 }
 
@@ -453,6 +467,7 @@ impl RigModel {
                 translate: (entry.bone == "pelvis").then(|| bone_base(bone).translation),
             });
         }
+        let anchors = anchors(&map, driver, &joints, joint_index, bone_index);
         if mapped == 0 {
             return Err(format!(
                 "no joint of the rig matches the {:?} bone map",
@@ -507,10 +522,16 @@ impl RigModel {
                     .base_color_image
                     .as_deref()
                     .map_or_else(|| UNTEXTURED_SHADER.to_owned(), |uri| join(base, uri));
+                // glTF fronts wind counter-clockwise, the game's clockwise (its
+                // default `cull front` hides the other side), so each triangle turns.
+                let mut indices = primitive.indices;
+                for triangle in indices.chunks_exact_mut(3) {
+                    triangle.swap(1, 2);
+                }
                 Ok(Surface {
                     shader,
                     vertices,
-                    indices: primitive.indices,
+                    indices,
                 })
             })
             .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
@@ -524,6 +545,7 @@ impl RigModel {
             joints,
             order,
             driven,
+            anchors,
             surfaces,
         })
     }
@@ -552,23 +574,130 @@ impl RigModel {
         palette.resize(self.joints.len(), [[0.0; 4]; 3]);
         for &index in &self.order {
             let joint = &self.joints[index];
-            let mut pose = match joint.parent {
-                Some(parent) => scratch[parent] * joint.local,
-                None => joint.bind,
-            };
-            if let Some(driven) = self.driven[index]
-                && let Some(bone) = bones.get(driven.bone)
-            {
-                let bone = affine(bone);
-                pose.matrix3 = bone.matrix3 * driven.rotation;
-                if let Some(base) = driven.translate {
-                    pose.translation = joint.bind.translation + bone.transform_point3a(base) - base;
-                }
-            }
+            let pose = self.place(index, joint.parent.map(|parent| scratch[parent]), bones);
             scratch[index] = pose;
             palette[index] = rows(&(pose * joint.inverse_bind));
         }
     }
+
+    /// Joint `index` posed under its parent's `parent` pose.
+    fn place(&self, index: usize, parent: Option<Affine3A>, bones: &[[[f32; 4]; 3]]) -> Affine3A {
+        let joint = &self.joints[index];
+        let mut pose = match parent {
+            Some(parent) => parent * joint.local,
+            None => joint.bind,
+        };
+        if let Some(driven) = self.driven[index]
+            && let Some(bone) = bones.get(driven.bone)
+        {
+            let bone = affine(bone);
+            pose.matrix3 = bone.matrix3 * driven.rotation;
+            if let Some(base) = driven.translate {
+                pose.translation = joint.bind.translation + bone.transform_point3a(base) - base;
+            }
+        }
+        pose
+    }
+
+    /// Joint `index` alone posed from `bones`, walking up its parents.
+    fn joint_pose(&self, index: usize, bones: &[[[f32; 4]; 3]]) -> Affine3A {
+        let parent = self.joints[index]
+            .parent
+            .map(|parent| self.joint_pose(parent, bones));
+        self.place(index, parent, bones)
+    }
+
+    /// Move `bolt`, a driver bolt hanging on `bone` and evaluated from `bones`, onto
+    /// the rig. It keeps the driver's orientation (mapped joints turn as the driver's
+    /// bones do) and its offset from the bone, stretched by the limb's reach, but
+    /// starts from the rig's joint: a saber sits in the rig's hand, a hat on its head.
+    pub(crate) fn retarget_bolt(
+        &self,
+        bone: usize,
+        bones: &[[[f32; 4]; 3]],
+        mut bolt: [[f32; 4]; 3],
+    ) -> [[f32; 4]; 3] {
+        let origin = Vec3A::new(bolt[0][3], bolt[1][3], bolt[2][3]);
+        let moved = self.retarget_point(bone, bones, origin);
+        for (row, value) in bolt.iter_mut().zip(moved.to_array()) {
+            row[3] = value;
+        }
+        bolt
+    }
+
+    /// [`Self::retarget_bolt`] for a point: a driver bone's own origin lands on its
+    /// mapped joint.
+    pub(crate) fn retarget_point(
+        &self,
+        bone: usize,
+        bones: &[[[f32; 4]; 3]],
+        point: Vec3A,
+    ) -> Vec3A {
+        let (Some(Some(anchor)), Some(matrix)) = (
+            self.anchors.get(bone),
+            self.anchors
+                .get(bone)
+                .copied()
+                .flatten()
+                .and_then(|a| bones.get(a.bone)),
+        ) else {
+            return point;
+        };
+        let driver_joint = affine(matrix).transform_point3a(anchor.base);
+        let rig_joint = self.joint_pose(anchor.joint, bones).translation;
+        rig_joint + (point - driver_joint) * anchor.reach
+    }
+}
+
+/// [`Anchor`]s for every driver bone: the first joint mapped to each bone, inherited
+/// by unmapped bones from their nearest mapped ancestor.
+fn anchors(
+    map: &[MapEntry],
+    driver: &Gla,
+    joints: &[Joint],
+    joint_index: impl Fn(&str) -> Option<usize>,
+    bone_index: impl Fn(&str) -> Option<usize>,
+) -> Vec<Option<Anchor>> {
+    let base = |bone: usize| affine(&driver.bones[bone].base_pose).translation;
+    let mut own: Vec<Option<Anchor>> = vec![None; driver.bones.len()];
+    for entry in map {
+        let (Some(joint), Some(bone)) = (joint_index(&entry.joint), bone_index(&entry.bone)) else {
+            continue;
+        };
+        if own[bone].is_some() {
+            continue;
+        }
+        let reach = match &entry.align {
+            Align::Toward {
+                joint_end,
+                bone_end,
+            } => joint_index(joint_end).zip(bone_index(bone_end)).and_then(
+                |(joint_end, bone_end)| {
+                    let rig = (joints[joint_end].bind.translation - joints[joint].bind.translation)
+                        .length();
+                    let jka = (base(bone_end) - base(bone)).length();
+                    (rig > f32::EPSILON && jka > f32::EPSILON).then(|| rig / jka)
+                },
+            ),
+            Align::Rest | Align::As(_) => None,
+        };
+        own[bone] = Some(Anchor {
+            joint,
+            bone,
+            base: base(bone),
+            reach: reach.unwrap_or(1.0),
+        });
+    }
+    (0..driver.bones.len())
+        .map(|mut bone| {
+            loop {
+                if let Some(anchor) = own[bone] {
+                    break Some(anchor);
+                }
+                bone = driver.bones[bone].parent?;
+            }
+        })
+        .collect()
 }
 
 /// One actor's rig pose storage, kept between frames so posing allocates nothing.
