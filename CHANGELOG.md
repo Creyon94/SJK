@@ -26,6 +26,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Rig models with a picture are listed in the character grid, and an emote's picture shows on the quick wheel; the Blender add-on takes a character icon, an emote's name and icon, a pack name several models can share, and parts rigged to their own skeleton that follow the model's, such as a tail _(Sol)_
+- Emotes are no longer tied to the model they were made on: every rig model with the same skeleton (the same joint names, as Unreal characters share) plays them, on its own proportions _(Sol)_
 
 ## 2026.1014.1 (Alpha) | 14/10/2026
 

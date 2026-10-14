@@ -21,7 +21,8 @@
 //! ```
 //!
 //! `clip` names an animation of a rig model (`docs/rig-models.md`): a player wearing
-//! a rig that has it plays it on the rig's own skeleton. `local` keeps the emote on
+//! a rig that has it plays it on the rig's own skeleton. `rig` names the model folder
+//! the clip comes from: other rig models with the same joint names borrow it. `local` keeps the emote on
 //! this client: it plays here and is never sent to the hub (an emote made for a
 //! model only this player has). `moving` keeps it playing while the player moves.
 //! The sound plays on the player and stops when the emote is cut short. `icon` is a
@@ -73,6 +74,8 @@ pub(crate) struct EmoteDef {
     pub(crate) moving: bool,
     /// Its picture, or empty.
     pub(crate) icon: String,
+    /// The rig model folder (under `models/players`) its clip comes from, or empty.
+    pub(crate) rig: String,
 }
 
 /// Whether `id` may name an emote at the hub.
@@ -84,7 +87,7 @@ pub(crate) fn valid_id(id: &str) -> bool {
 }
 
 /// The fields a catalogue file may hold.
-const FIELDS: [&str; 10] = [
+const FIELDS: [&str; 11] = [
     "name",
     "torso",
     "legs",
@@ -95,6 +98,7 @@ const FIELDS: [&str; 10] = [
     "local",
     "moving",
     "icon",
+    "rig",
 ];
 /// The longest animation or sound name.
 const PATH_MAX: usize = 64;
@@ -157,6 +161,13 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
         local: flag("local")?,
         moving: flag("moving")?,
         icon: text_field("icon", PATH_MAX)?,
+        rig: {
+            let rig = text_field("rig", PATH_MAX)?;
+            if rig.contains(['/', '\\']) || rig.contains("..") {
+                return Err("rig must be a model folder's name".to_owned());
+            }
+            rig
+        },
     })
 }
 

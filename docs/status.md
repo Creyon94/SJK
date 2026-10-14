@@ -40,7 +40,10 @@ and an emote's `icon` shows on the quick wheel; the add-on (1.4) takes both, a d
 name per emote, a pack name shared by several models, and meshes on another armature
 that follows this one (a tail). Checked by unit tests, a world shot of a second model
 (312 joints and a tail) playing a looping emote, and a wheel shot with two emote
-pictures; the character grid with a rig model is not yet seen.
+pictures; the character grid with a rig model is not yet seen. Emotes are no longer
+tied to one model: an emote file names the model its clip comes from (`rig`) and every
+rig model with the same joint names borrows it at load, turned onto its own skeleton
+(unit tests; world shots of each test model playing the other's emote).
 
 ## Shaders: a filter for a long list
 

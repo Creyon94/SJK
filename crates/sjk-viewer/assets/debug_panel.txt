@@ -1031,6 +1031,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[shared-emotes]
+area: Rendering & effects
+title: Emotes shared between rig models
+change: Rig models with the same joint names play each other's emotes, on their own build.
+test: /model kane, then sjkemote glamclaws_emote_comrade_cmm: Kane does Comrade.
+test: /model glamclaws, then sjkemote kane_dancemoves: Glam Claws dances, tail along.
+test: Both loop or end like on their own model, with their sound.
+note: Needs test_content.pk3 re-exported with add-on 1.5 (emote files name their rig).
+
 [rig-icons]
 area: Rendering & effects
 title: Rig model and emote icons, one pack for several models

@@ -336,6 +336,22 @@ plays its glTF's animations on its own skeleton.
   "length_ms": 3400, "local": true}`. `emotes::playing(slot)` gives the pose step the
   clip, its time and what is left; a player whose model lacks the clip keeps the
   driver's pose.
+- **Shared between models** (14/10/2026): an emote file's `rig` names the model
+  folder its clip is in (the add-on writes it). When a rig model loads, it borrows
+  the installed emotes' clips made on other models (`RigModel::borrow_clips`): the
+  source model is read without its meshes (kept for the session, `SOURCES`) and each
+  clip is baked onto this skeleton once (`RigModel::borrowed`), keyed as the source
+  is. Joints are found by name, so it works between skeletons of one naming, as
+  Unreal mannequin characters (male, female, other builds) share. Each found joint
+  turns from its own bind pose as the source's turns from the source's, in model
+  space (so bone rolls may differ, bind postures should match: A-pose with A-pose);
+  it keeps its own bone length, except the root and the joint under it (Unreal's
+  root and pelvis), which move as the source's do. Joints the source lacks (a tail,
+  extra hair) follow their parent. A rig that has fewer than 60% of the joints a
+  clip moves does not borrow it (logged). Checked by unit tests and world shots of
+  each test model playing the other's emote (14/10/2026). Stock (GLM) models do not
+  play clips: that would need the clip turned onto the JKA skeleton, the bone map
+  in reverse.
 - Other SJK players on the server see an emote through the hub, which relays only
   its id: their client plays it when it has the same emote and model (each player's
   own files; SJK passes none on). `local` emotes play on this client only and are

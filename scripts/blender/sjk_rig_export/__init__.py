@@ -10,7 +10,9 @@ the game's character grid.
 Everything goes into one `<GameData>/base/rig_<name>.pk3` (or loose folders), so
 removing the model is deleting one file; several models may share one pack (a
 pack name of your own), each export replacing only its model's files. In the game,
-`/model <name>` wears it and `sjkemote <id>` (or the quick wheel) plays an emote.
+`/model <name>` wears it and `sjkemote <id>` (or the quick wheel) plays an emote;
+the other rig models with the same skeleton (joint names, as Unreal mannequin
+characters share) play it too.
 
 Meshes rigged to another armature whose bones follow this one (a Child Of or Copy
 Transforms constraint on its bone, as a tail or a cape is set up) go with the
@@ -436,10 +438,12 @@ def append_clips(gltf_path, clips):
     return written
 
 
-def emote_text(action, name, seconds, sound, icon, settings):
+def emote_text(action, name, seconds, sound, icon, settings, model):
     milliseconds = min(max(int(round(seconds * 1000)), EMOTE_MS[0]), EMOTE_MS[1])
     title = action.sjk_emote_name.strip() or action.name
-    entry = {"name": title[:32], "clip": name, "length_ms": milliseconds}
+    # `rig` names the model the clip is in: other models with the same skeleton
+    # (joint names) borrow it.
+    entry = {"name": title[:32], "clip": name, "length_ms": milliseconds, "rig": model}
     if action.sjk_emote_loop:
         entry["loop"] = True
     if sound:
@@ -650,7 +654,9 @@ class SJK_OT_export_rig_model(Operator):
                     shutil.copyfile(source, target)
                 with open(os.path.join(stage, "emotes", f"{clip}.emote"), "w",
                           encoding="utf-8", newline="\n") as file:
-                    file.write(emote_text(action, clip, seconds, sound, emote_icon, settings))
+                    file.write(
+                        emote_text(action, clip, seconds, sound, emote_icon, settings, name)
+                    )
             manifest = self.old_manifest(base, name, settings, pack_path)
             with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
                       newline="\n") as file:

@@ -490,3 +490,73 @@ fn the_feet_land_on_the_drivers_ground_and_lift_raises_them() {
     assert!((low + 23.0).abs() < 1e-3, "{low}");
     assert!(Manifest::parse("lift up").is_err());
 }
+
+/// [`rig`]'s skeleton with a longer neck (the head 0.8 metres above the pelvis), a
+/// tail the clip knows nothing of, and no clip of its own.
+fn longer_rig() -> GltfModel {
+    let mut model = rig();
+    model.animations.clear();
+    model.joints[1].bind = translated(0.0, 1.8, 0.0);
+    model.joints[1].inverse_bind = translated(0.0, -1.8, 0.0);
+    model.joints[1].rest = translated(0.0, 0.8, 0.0);
+    model.joints.push(GltfJoint {
+        name: "tail".into(),
+        parent: Some(0),
+        bind: translated(0.0, 0.9, 0.2),
+        inverse_bind: translated(0.0, -0.9, -0.2),
+        rest: translated(0.0, -0.1, 0.2),
+    });
+    model
+}
+
+#[test]
+fn a_rig_with_the_same_joint_names_borrows_a_clip_and_keeps_its_lengths() {
+    let source = RigModel::fit(rig(), "", &manifest(""), &driver()).unwrap();
+    let mut target = RigModel::fit(longer_rig(), "", &manifest(""), &driver()).unwrap();
+    assert!(target.clips.is_empty());
+    let clip = target
+        .borrowed(&source, &source.clips[0])
+        .expect("the same names");
+    assert_eq!(clip.name, "Nod");
+    assert_eq!(clip.duration, 1.0);
+    target.clips.push(clip);
+    let bones = vec![identity_rows(); 3];
+    let mut scratch = Scratch::default();
+    target.pose(&bones, target.play("Nod", 1.0, None, false), &mut scratch);
+    // The head turns a quarter about the game's +Z, as the source's does, and stays
+    // on its own longer neck (0.8 m above the pelvis at 40 units a metre).
+    let head = scratch.pose[1];
+    let turned = Mat3A::from_rotation_z(std::f32::consts::FRAC_PI_2);
+    assert!(head.matrix3.abs_diff_eq(turned, 1e-4), "{head:?}");
+    let expected = target.joints[1].bind.translation;
+    assert!((head.translation - expected).length() < 1e-3, "{head:?}");
+    assert!((expected.z - 72.0).abs() < 1e-3, "{expected:?}");
+    // The tail, unknown to the clip, stays where the pelvis holds it.
+    let tail = scratch.pose[2];
+    assert!(tail.abs_diff_eq(target.joints[2].bind, 1e-4), "{tail:?}");
+}
+
+#[test]
+fn a_rig_without_the_clips_joints_does_not_borrow_it() {
+    let source = RigModel::fit(rig(), "", &manifest(""), &driver()).unwrap();
+    let mut other = longer_rig();
+    other.joints[1].name = "skull".into();
+    let mut map = manifest("map skull cranium");
+    map.preset = "mannequin".into();
+    let target = RigModel::fit(other, "", &map, &driver()).unwrap();
+    assert!(target.borrowed(&source, &source.clips[0]).is_none());
+}
+
+#[test]
+fn an_emote_names_the_rig_its_clip_comes_from() {
+    let def = crate::emotes::parse(
+        "kane_dance",
+        r#"{"name": "Dance", "clip": "kane_dance", "length_ms": 6800, "rig": "kane"}"#,
+    )
+    .unwrap();
+    assert_eq!(def.rig, "kane");
+    for bad in ["../kane", "a/b", r"a\b"] {
+        let text = format!(r#"{{"name": "Dance", "length_ms": 6800, "rig": "{bad}"}}"#);
+        assert!(crate::emotes::parse("kane_dance", &text).is_err(), "{bad}");
+    }
+}

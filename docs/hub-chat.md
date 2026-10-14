@@ -586,8 +586,9 @@ and plays changes.
   and `legs` animation names, `length_ms` (100 to 60000, required unless `loop` is
   true), `loop`, `sound`, `clip` (an animation of a [rig model](rig-models.md#emotes-the-rigs-own-clips),
   played on its own skeleton), `local` (played on this client only, never sent),
-  `moving` (keeps playing while the player moves) and `icon` (a PNG, JPG or TGA picture
-  the quick wheel shows for it). The id `stop` is reserved:
+  `moving` (keeps playing while the player moves), `icon` (a PNG, JPG or TGA picture
+  the quick wheel shows for it) and `rig` (the rig model folder the clip comes from;
+  other rig models with the same joint names borrow it). The id `stop` is reserved:
   `sjkemote stop` ends the player's emote here and, relayed, for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
