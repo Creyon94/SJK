@@ -3,7 +3,8 @@
 //! ([`crate::holocrons::TIERS`]), the card inside a holocron of each tier
 //! ([`super::ODDS`]) and its credits ([`super::CREDITS`]). A card's rarity and its finish
 //! are rolled apart, so the chance of a kind is the two multiplied; "per holocron found"
-//! weighs each tier by how often it drops. Every chance is 0 to 1.
+//! weighs each tier by how often it drops, and counts the openings that bring a saber
+//! shader instead of the card and its credits ([`card_in`]). Every chance is 0 to 1.
 
 use super::{CREDITS, FINISHES, ODDS, RARITIES};
 use crate::holocrons::{COUNT, TIERS};
@@ -11,6 +12,17 @@ use crate::holocrons::{COUNT, TIERS};
 /// The chance a drop is tier `tier`.
 pub(crate) fn drop(tier: usize) -> f64 {
     f64::from(TIERS[tier].per_mille) / 1_000.0
+}
+
+/// The chance an opening of a holocron of tier `tier` brings a card (and its credits),
+/// not a saber shader (the hub's `loot::TABLES`, copied in the crate spin's odds).
+pub(crate) fn card_in(tier: usize) -> f64 {
+    1.0 - f64::from(crate::console::holocrons_panel::SHADER_ODDS[tier]) / 1_000.0
+}
+
+/// The chance a holocron found brings a card.
+fn card_any() -> f64 {
+    (0..COUNT).map(|tier| drop(tier) * card_in(tier)).sum()
 }
 
 /// The chance the card inside a holocron of tier `tier` is of rarity `rarity`.
@@ -23,32 +35,34 @@ pub(crate) fn finish_in(tier: usize, finish: usize) -> f64 {
     f64::from(ODDS[tier].finish[finish]) / 1_000.0
 }
 
-/// The chance a holocron found holds a card of rarity `rarity`, any finish.
+/// The share of the cards found that are of rarity `rarity`, any finish.
 pub(crate) fn rarity_any(rarity: usize) -> f64 {
     (0..COUNT)
-        .map(|tier| drop(tier) * rarity_in(tier, rarity))
-        .sum()
+        .map(|tier| drop(tier) * card_in(tier) * rarity_in(tier, rarity))
+        .sum::<f64>()
+        / card_any()
 }
 
-/// The chance a holocron found holds a card with finish `finish`, any rarity.
+/// The share of the cards found that have finish `finish`, any rarity.
 pub(crate) fn finish_any(finish: usize) -> f64 {
     (0..COUNT)
-        .map(|tier| drop(tier) * finish_in(tier, finish))
-        .sum()
+        .map(|tier| drop(tier) * card_in(tier) * finish_in(tier, finish))
+        .sum::<f64>()
+        / card_any()
 }
 
 /// The chance a holocron found holds a card of rarity `rarity` with finish `finish`.
 pub(crate) fn kind_any(rarity: usize, finish: usize) -> f64 {
     (0..COUNT)
-        .map(|tier| drop(tier) * rarity_in(tier, rarity) * finish_in(tier, finish))
+        .map(|tier| drop(tier) * card_in(tier) * rarity_in(tier, rarity) * finish_in(tier, finish))
         .sum()
 }
 
-/// The credits a holocron of tier `tier` brings on average (rolled evenly between the
-/// least and the most).
+/// The credits a holocron of tier `tier` brings on average: rolled evenly between the
+/// least and the most when it holds a card, none when it holds a shader.
 pub(crate) fn credits_mean(tier: usize) -> f64 {
     let (least, most) = CREDITS[tier];
-    f64::from(least + most) / 2.0
+    card_in(tier) * f64::from(least + most) / 2.0
 }
 
 /// The credits a holocron found brings on average.
@@ -123,28 +137,32 @@ mod tests {
         }
         assert!(close((0..RARITIES.len()).map(rarity_any).sum(), 1.0));
         assert!(close((0..FINISHES.len()).map(finish_any).sum(), 1.0));
+        // The kinds of card sum to the chance a holocron brings a card at all; the rest
+        // brings a shader.
         let kinds: f64 = (0..RARITIES.len())
             .flat_map(|r| (0..FINISHES.len()).map(move |f| kind_any(r, f)))
             .sum();
-        assert!(close(kinds, 1.0));
+        assert!(close(kinds, card_any()));
+        assert!(close(card_any(), 0.65325));
     }
 
     /// The figures `docs/holocrons.md` gives, worked by hand.
     #[test]
     fn the_figures_are_the_docs() {
         let rarities: Vec<String> = (0..4).map(|r| percent(rarity_any(r))).collect();
-        assert_eq!(rarities, ["59.3%", "28.1%", "10.9%", "1.72%"]);
+        assert_eq!(rarities, ["60.6%", "27.6%", "10.2%", "1.54%"]);
         let finishes: Vec<String> = (0..3).map(|f| percent(finish_any(f))).collect();
-        assert_eq!(finishes, ["91.4%", "8.47%", "0.18%"]);
-        assert!(close(credits_any(), 35.2));
+        assert_eq!(finishes, ["92.2%", "7.7%", "0.146%"]);
+        assert!(close(credits_any(), 21.045));
+        assert!(close(credits_mean(0), 10.5));
         let (rarity, finish, chance) = rarest();
         assert_eq!(
             (RARITIES[rarity].id, FINISHES[finish].id),
             ("legendary", "solar")
         );
-        assert_eq!(one_in(chance), "1 in 5 698");
-        assert_eq!(percent(chance), "0.0176%");
-        assert_eq!(percent(kind_any(0, 2)), "0.039%");
+        assert_eq!(one_in(chance), "1 in 11 001");
+        assert_eq!(percent(chance), "0.0091%");
+        assert_eq!(percent(kind_any(0, 2)), "0.0211%");
     }
 
     #[test]

@@ -61,26 +61,31 @@ Every chance a holocron brings, as players see it on the Holocrons tab's loot ta
 hub's tables: the tiers' odds above, the card's odds and the credits in
 [cards.md](cards.md#odds) (`cards::ODDS` and `cards::CREDITS`, pinned to the hub's by a
 test). A card's rarity and its finish are rolled apart, so a kind is the two chances
-multiplied; "per holocron found" weighs each tier by how often it drops.
+multiplied; "per holocron found" weighs each tier by how often it drops. Since 14/10/2026 an
+opening may bring a saber shader instead of the card and its credits (30% of Uncommon
+holocrons to 50% of Mythical ones, [unlockables.md](unlockables.md)): the card columns of a
+tier are the card's odds when it holds one, the "any holocron" shares are of the cards
+found, and the credits' averages and the second table are per holocron found, shaders
+counted (`cards::loot::card_in`).
 
 Per holocron:
 
 | Holocron | Drop chance | Common | Uncommon | Rare | Legendary | Normal | Holo | Solar | Credits (average) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Uncommon | 60% | 70% | 24% | 5.5% | 0.5% | 97% | 3% | 0% | 10 to 20 (15) |
-| Rare | 28% | 50% | 33% | 15% | 2% | 90% | 10% | 0% | 30 to 50 (40) |
-| Legendary | 10.5% | 30% | 38% | 26% | 6% | 70% | 29% | 1% | 80 to 120 (100) |
-| Mythical | 1.5% | 10% | 30% | 45% | 15% | 40% | 55% | 5% | 250 to 350 (300) |
-| Any holocron found | 100% | 59.3% | 28.1% | 10.9% | 1.72% | 91.4% | 8.47% | 0.18% | 10 to 350 (35) |
+| Uncommon | 60% | 70% | 24% | 5.5% | 0.5% | 97% | 3% | 0% | 10 to 20 (11) |
+| Rare | 28% | 50% | 33% | 15% | 2% | 90% | 10% | 0% | 30 to 50 (24) |
+| Legendary | 10.5% | 30% | 38% | 26% | 6% | 70% | 29% | 1% | 80 to 120 (55) |
+| Mythical | 1.5% | 10% | 30% | 45% | 15% | 40% | 55% | 5% | 250 to 350 (150) |
+| Any holocron found | 100% | 60.6% | 27.6% | 10.2% | 1.54% | 92.2% | 7.7% | 0.146% | 10 to 350 (21) |
 
 Every card, per holocron found:
 
 | Card | Normal | Holo | Solar |
 | --- | --- | --- | --- |
-| Common (59.3%) | 55.6% | 3.66% (1 in 27) | 0.039% (1 in 2 564) |
-| Uncommon (28.1%) | 25.3% (1 in 4) | 2.76% (1 in 36) | 0.0624% (1 in 1 603) |
-| Rare (10.9%) | 9.16% (1 in 11) | 1.68% (1 in 59) | 0.0611% (1 in 1 638) |
-| Legendary (1.72%) | 1.33% (1 in 75) | 0.371% (1 in 269) | 0.0176% (1 in 5 698) |
+| Common (60.6%) | 37.3% (1 in 3) | 2.27% (1 in 44) | 0.0211% (1 in 4 745) |
+| Uncommon (27.6%) | 16.4% (1 in 6) | 1.62% (1 in 62) | 0.0332% (1 in 3 013) |
+| Rare (10.2%) | 5.69% (1 in 18) | 0.942% (1 in 106) | 0.0319% (1 in 3 136) |
+| Legendary (1.54%) | 0.794% (1 in 126) | 0.202% (1 in 494) | 0.0091% (1 in 11 001) |
 
 The page: over the darkened tab, the title, what it is and the hub's pace ("One holocron
 about every 30 minutes of active play on a server, at most 8 a day", once the hub has said;
@@ -89,7 +94,7 @@ tier's row in its colour with its picture, the row for any holocron found in gol
 rule, credits as the range with the average under it, a chance of none quiet; "Every card,
 per holocron found", the second table as a grid of cells in the rarity's colour, each its
 share and "1 in N" (left out above one in two); "How it rolls", notes: the rolls made
-apart, credits rolled evenly, the rarest card ("a Legendary Solar: about 1 in 5 698
+apart, credits rolled evenly, the rarest card ("a Legendary Solar: about 1 in 11 001
 holocrons", worked out), how the card is picked among its rarity's (sealed while the rarity has none), gifts given and not found. Back
 (or Escape, L, Enter) goes back to the tab. Shares read with three figures at most, halves
 rounded up (`cards::loot::percent`). A change to the hub's tables needs the client's copy

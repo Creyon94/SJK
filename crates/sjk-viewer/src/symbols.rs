@@ -21,12 +21,6 @@ pub(crate) fn card_rarity(index: usize) -> char {
     RARITY[index.min(3)]
 }
 
-/// The rarity mark of a holocron tier or a saber shader's tier (Uncommon to Mythical,
-/// `crate::holocrons::TIERS` order).
-pub(crate) fn tier(index: usize) -> char {
-    RARITY[(index + 1).min(RARITY.len() - 1)]
-}
-
 /// The mark of a card finish (`crate::cards::FINISHES` order).
 pub(crate) fn finish(index: usize) -> char {
     FINISH[index.min(FINISH.len() - 1)]
@@ -54,8 +48,14 @@ mod tests {
     fn the_ranks_line_up() {
         assert_eq!(card_rarity(0), '\u{E000}');
         assert_eq!(card_rarity(3), '\u{E003}');
-        assert_eq!(tier(0), '\u{E001}', "an Uncommon holocron");
-        assert_eq!(tier(3), '\u{E004}', "a Mythical one");
+        use crate::unlockables::Rarity;
+        assert_eq!(Rarity::Common.symbol(), '\u{E000}');
+        assert_eq!(
+            Rarity::Uncommon.symbol(),
+            '\u{E001}',
+            "an Uncommon holocron"
+        );
+        assert_eq!(Rarity::Mythical.symbol(), '\u{E004}', "a Mythical one");
         assert_eq!(finish(2), '\u{E012}');
     }
 }

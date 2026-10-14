@@ -47,8 +47,8 @@ impl Panel {
                 .find(|standing| standing.kind.id == kind.id);
             return Some(achievement_card(kind, standing));
         }
-        if let Some(row) = within(SHADER_BASE, SHADER_ROWS) {
-            return Some(shader_card(shader_skin(row), &inputs.holdings));
+        if let Some(row) = within(SHADER_BASE, self.shader_count) {
+            return Some(shader_card(self.skin_at(row), &inputs.holdings));
         }
         if token == TOY_TOKEN {
             return Some(Card {
@@ -201,7 +201,7 @@ fn card_card(stack: &crate::cards::Stack) -> Card {
     };
     let faces = crate::cards::faces::current();
     let mut lines = vec![
-        Line::how("Opening a holocron gives one card and some credits."),
+        Line::how("Opening a holocron gives one card and some credits, or a saber shader instead."),
         Line::status(odds),
     ];
     match crate::cards::shown(&faces, stack.card.as_deref()) {
@@ -311,7 +311,7 @@ mod tests {
         assert_eq!(card.title, "Legendary card, Solar");
         assert_eq!(
             card.lines[1].words,
-            "About 1 in 5 698 holocrons found holds a Legendary Solar card (0.0176%)."
+            "About 1 in 11 001 holocrons found holds a Legendary Solar card (0.0091%)."
         );
         assert_eq!(
             card.lines.last().unwrap().words,

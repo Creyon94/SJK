@@ -4424,7 +4424,7 @@ title: Holocron opening starts with a crate-style spin
 change: A strip of what the holocron can drop runs past a marker and stops on the prize.
 change: A shader prize shows its blade, tier and how many you hold.
 test: Type debug_open rare shader x2: a strip of cards and shaders spins, clicks, stops on a shader.
-test: Press Enter during the spin: it jumps to the burst; again: the card or blade shows; again: Next.
+test: Enter during the spin jumps to the burst; again shows the card or blade; again: Next.
 test: debug_open legendary x2 (cards): the same spin ends on a card, then the card turns in.
 note: Real openings need a hub with the drops deployed and staff opening.
 
@@ -4434,7 +4434,7 @@ title: Collection shaders: tier chips, Owned and a search
 change: The Shaders tab has chips for each tier, Owned and a search field under the headline.
 test: Open Collection > Shaders. Click Common: only the Common shaders show; click All.
 test: Press T (Shift+T back) to step the tier chips, O for Owned.
-test: Press /, type "tid": only Tidal shows; Esc clears it and leaves the field, Enter just leaves.
+test: Press /, type "tid": only Tidal shows; Esc clears and leaves the field, Enter leaves.
 note: Needs the hub deployed (done) and the shaders granted to you as staff to see Owned.
 
 [more-shaders]
@@ -4460,3 +4460,14 @@ test: Collection > Shaders: the details show "Alpha Edition" at the top right of
 test: Collection > Medals: "Given ... - Alpha Edition" under the medal's name.
 test: Hover a shader, a medal, an achievement and the toy: "Alpha Edition" is in each card.
 test: Shaders search: type /, then "alpha": every shader stays.
+
+[session-review]
+area: Menus & settings
+title: Review fixes: shader hover cards, search focus, loot odds, Supporter medal
+change: Hover cards follow the Shaders filter; a click elsewhere leaves the search field.
+change: Card odds and credit averages count holocrons that bring a shader instead.
+change: The Supporter medal hangs from a rod on a long ribbon, the size of the others.
+test: Shaders: search "tidal", hover its row: the card says Tidal blade (not Sun blade).
+test: Press /, then click a shader row: Enter now equips instead of leaving the search.
+test: Holocrons > Loot table: the rarest card reads about 1 in 11 001 holocrons.
+test: Collection > Medals: the Supporter medal lines up with the three others.

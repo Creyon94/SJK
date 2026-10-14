@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn a_shader_chance_adds_up_to_its_tables_share() {
-        for tier in 0..COUNT {
+        for (tier, odds) in SHADER.iter().enumerate() {
             let pool = pool(tier);
             let shaders: u64 = pool
                 .iter()
@@ -248,7 +248,7 @@ mod tests {
                 .sum();
             let all: u64 = pool.iter().map(|(_, weight)| weight).sum();
             let share = shaders as f64 / all as f64 * 1_000.0;
-            assert!((share - f64::from(SHADER[tier])).abs() < 1.0, "{share}");
+            assert!((share - f64::from(*odds)).abs() < 1.0, "{share}");
         }
     }
 
