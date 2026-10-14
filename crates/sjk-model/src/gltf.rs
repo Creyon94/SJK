@@ -1,8 +1,9 @@
 //! A reader for skinned glTF 2.0 models (`.gltf` with external buffers, or `.glb`):
-//! the first skin's joints in their bind pose and every triangle primitive of the
-//! meshes that skin deforms. It reads what a player model needs and nothing else:
-//! no animations, morph targets, cameras or extensions. Images stay URIs for the
-//! caller to resolve; images embedded in a buffer are not supported.
+//! the first skin's joints in their bind and rest poses, every triangle primitive of
+//! the meshes that skin deforms, and the animations' channels that move those
+//! joints. It reads what a player model needs and nothing else: no morph targets,
+//! cameras or extensions. Images stay URIs for the caller to resolve; images
+//! embedded in a buffer are not supported.
 //!
 //! Matrices are glTF's own space (metres, +Y up); converting to a game's axes and
 //! units is the caller's job.
@@ -15,6 +16,38 @@ use std::fmt;
 pub struct GltfModel {
     pub joints: Vec<GltfJoint>,
     pub primitives: Vec<GltfPrimitive>,
+    pub animations: Vec<GltfAnimation>,
+}
+
+/// One animation: its channels that move skin joints (others are left out).
+#[derive(Clone, Debug, Default)]
+pub struct GltfAnimation {
+    pub name: String,
+    pub channels: Vec<GltfChannel>,
+}
+
+/// One joint's translation, rotation or scale over time, in its parent's space
+/// (the glTF node's local transform).
+#[derive(Clone, Debug)]
+pub struct GltfChannel {
+    /// The joint's index in [`GltfModel::joints`].
+    pub joint: usize,
+    pub path: GltfPath,
+    /// Key times in seconds, rising.
+    pub times: Vec<f32>,
+    /// One value per key: `[x, y, z, 0]` for translation and scale, the quaternion
+    /// `[x, y, z, w]` for rotation.
+    pub values: Vec<[f32; 4]>,
+    /// `STEP` interpolation (hold each key); otherwise linear. Cubic splines keep
+    /// their keys' values and are played linear.
+    pub step: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GltfPath {
+    Translation,
+    Rotation,
+    Scale,
 }
 
 /// One skin joint. `bind` is its model-space bind transform (the inverse of its
@@ -26,6 +59,9 @@ pub struct GltfJoint {
     pub parent: Option<usize>,
     pub bind: [[f32; 4]; 3],
     pub inverse_bind: [[f32; 4]; 3],
+    /// The node's own transform relative to its parent node (its rest pose), the
+    /// space the animations' channels are in.
+    pub rest: [[f32; 4]; 3],
 }
 
 /// One triangle list with up to four joint influences per vertex (the strongest
@@ -217,6 +253,55 @@ fn invert_affine(m: &Mat4) -> Option<Mat4> {
     Some(out)
 }
 
+/// A node's local transform: its `matrix`, or its translation, rotation and scale.
+fn local_matrix(node: &Value) -> Mat4 {
+    let numbers = |key: &str| -> Option<Vec<f32>> {
+        node.get(key)?
+            .as_array()?
+            .iter()
+            .map(|v| v.as_f64().map(|v| v as f32))
+            .collect()
+    };
+    if let Some(matrix) = numbers("matrix").filter(|m| m.len() == 16) {
+        return matrix.try_into().expect("16 numbers");
+    }
+    let t = numbers("translation")
+        .filter(|t| t.len() == 3)
+        .unwrap_or_else(|| vec![0.0; 3]);
+    let q = numbers("rotation")
+        .filter(|q| q.len() == 4)
+        .unwrap_or_else(|| vec![0.0, 0.0, 0.0, 1.0]);
+    let s = numbers("scale")
+        .filter(|s| s.len() == 3)
+        .unwrap_or_else(|| vec![1.0; 3]);
+    let (x, y, z, w) = (q[0], q[1], q[2], q[3]);
+    let r = [
+        [
+            1.0 - 2.0 * (y * y + z * z),
+            2.0 * (x * y - z * w),
+            2.0 * (x * z + y * w),
+        ],
+        [
+            2.0 * (x * y + z * w),
+            1.0 - 2.0 * (x * x + z * z),
+            2.0 * (y * z - x * w),
+        ],
+        [
+            2.0 * (x * z - y * w),
+            2.0 * (y * z + x * w),
+            1.0 - 2.0 * (x * x + y * y),
+        ],
+    ];
+    let mut m = IDENTITY;
+    for row in 0..3 {
+        for column in 0..3 {
+            m[column * 4 + row] = r[row][column] * s[column];
+        }
+        m[12 + row] = t[row];
+    }
+    m
+}
+
 struct Reader<'a> {
     document: &'a Value,
     buffers: Vec<Vec<u8>>,
@@ -282,6 +367,7 @@ impl Reader<'_> {
                     parent: parent.and_then(joint_of_node),
                     bind: rows(&bind),
                     inverse_bind: rows(inverse_bind),
+                    rest: rows(&local_matrix(&nodes[node])),
                 })
             })
             .collect::<Result<Vec<_>, GltfError>>()?;
@@ -306,7 +392,84 @@ impl Reader<'_> {
         if primitives.is_empty() {
             return Err(error("no triangle mesh uses the skin"));
         }
-        Ok(GltfModel { joints, primitives })
+        let animations = array(self.document, "animations")
+            .iter()
+            .enumerate()
+            .map(|(number, animation)| self.animation(number, animation, &joint_of_node))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(GltfModel {
+            joints,
+            primitives,
+            animations,
+        })
+    }
+
+    fn animation(
+        &self,
+        number: usize,
+        animation: &Value,
+        joint_of_node: &impl Fn(usize) -> Option<usize>,
+    ) -> Result<GltfAnimation, GltfError> {
+        let name = animation
+            .get("name")
+            .and_then(Value::as_str)
+            .map_or_else(|| format!("animation_{number}"), str::to_owned);
+        let samplers = array(animation, "samplers");
+        let mut channels = Vec::new();
+        for channel in array(animation, "channels") {
+            let Some(target) = channel.get("target") else {
+                continue;
+            };
+            let Some(joint) = index(target, "node").and_then(joint_of_node) else {
+                continue;
+            };
+            let path = match target.get("path").and_then(Value::as_str) {
+                Some("translation") => GltfPath::Translation,
+                Some("rotation") => GltfPath::Rotation,
+                Some("scale") => GltfPath::Scale,
+                _ => continue,
+            };
+            let sampler = index(channel, "sampler")
+                .and_then(|s| samplers.get(s))
+                .ok_or_else(|| error(format!("animation {name:?}: a channel has no sampler")))?;
+            let (Some(input), Some(output)) = (index(sampler, "input"), index(sampler, "output"))
+            else {
+                return Err(error(format!("animation {name:?}: a sampler lacks data")));
+            };
+            let interpolation = sampler
+                .get("interpolation")
+                .and_then(Value::as_str)
+                .unwrap_or("LINEAR");
+            let times = self.floats(input, 1)?;
+            let width = if path == GltfPath::Rotation { 4 } else { 3 };
+            let mut values: Vec<[f32; 4]> = self
+                .floats(output, width)?
+                .chunks_exact(width)
+                .map(|c| [c[0], c[1], c[2], c.get(3).copied().unwrap_or(0.0)])
+                .collect();
+            if interpolation == "CUBICSPLINE" {
+                // In-tangent, value, out-tangent per key: keep the values.
+                values = values.chunks_exact(3).map(|key| key[1]).collect();
+            }
+            if times.is_empty() || values.len() != times.len() {
+                return Err(error(format!(
+                    "animation {name:?}: {} keys for {} times",
+                    values.len(),
+                    times.len()
+                )));
+            }
+            if times.windows(2).any(|pair| pair[1] < pair[0]) {
+                return Err(error(format!("animation {name:?}: key times go back")));
+            }
+            channels.push(GltfChannel {
+                joint,
+                path,
+                times,
+                values,
+                step: interpolation == "STEP",
+            });
+        }
+        Ok(GltfAnimation { name, channels })
     }
 
     fn primitive(&self, primitive: &Value) -> Result<GltfPrimitive, GltfError> {
@@ -602,6 +765,79 @@ mod tests {
         for (a, b) in back.iter().zip(point) {
             assert!((a - b).abs() < 1e-5, "{back:?}");
         }
+    }
+
+    #[test]
+    fn rest_poses_come_from_the_nodes() {
+        let (json, bin) = tiny();
+        let model = parse(json.as_bytes(), |_| Some(bin.clone())).expect("the model");
+        assert_eq!(model.joints[1].rest[1][3], 1.0);
+        assert_eq!(model.joints[1].rest[0][0], 1.0);
+        assert!(model.animations.is_empty());
+        // A quarter turn about +Z, as a node rotation, turns +X onto +Y.
+        let node: Value = serde_json::from_str(
+            r#"{"rotation": [0, 0, 0.70710677, 0.70710677], "translation": [1, 2, 3]}"#,
+        )
+        .unwrap();
+        let m = rows(&local_matrix(&node));
+        assert!(
+            (m[1][0] - 1.0).abs() < 1e-6 && m[0][0].abs() < 1e-6,
+            "{m:?}"
+        );
+        assert_eq!([m[0][3], m[1][3], m[2][3]], [1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn an_animation_reads_the_channels_of_skin_joints() {
+        let (json, mut bin) = tiny();
+        // times (8 bytes) at 224, rotations (32 bytes) at 232, translations of the
+        // armature node (24 bytes, not a joint) at 264.
+        for value in [
+            0.0f32, 0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.70710677, 0.70710677,
+        ] {
+            bin.extend_from_slice(&value.to_le_bytes());
+        }
+        for value in [0.0f32; 6] {
+            bin.extend_from_slice(&value.to_le_bytes());
+        }
+        let json = json
+            .replace(r#""byteLength": 224}"#, r#""byteLength": 288}"#)
+            .replace(
+                r#"{"buffer": 0, "byteOffset": 96, "byteLength": 128}"#,
+                r#"{"buffer": 0, "byteOffset": 96, "byteLength": 128},
+                {"buffer": 0, "byteOffset": 224, "byteLength": 8},
+                {"buffer": 0, "byteOffset": 232, "byteLength": 32},
+                {"buffer": 0, "byteOffset": 264, "byteLength": 24}"#,
+            )
+            .replace(
+                r#"{"bufferView": 3, "componentType": 5126, "count": 2, "type": "MAT4"}"#,
+                r#"{"bufferView": 3, "componentType": 5126, "count": 2, "type": "MAT4"},
+                {"bufferView": 4, "componentType": 5126, "count": 2, "type": "SCALAR"},
+                {"bufferView": 5, "componentType": 5126, "count": 2, "type": "VEC4"},
+                {"bufferView": 6, "componentType": 5126, "count": 2, "type": "VEC3"}"#,
+            )
+            .replace(
+                r#""skins":"#,
+                r#""animations": [{"name": "Wave", "samplers": [
+                    {"input": 4, "output": 5, "interpolation": "STEP"},
+                    {"input": 4, "output": 6}],
+                    "channels": [
+                    {"sampler": 0, "target": {"node": 2, "path": "rotation"}},
+                    {"sampler": 1, "target": {"node": 0, "path": "translation"}}]}],
+                "skins":"#,
+            );
+        let model = parse(json.as_bytes(), |_| Some(bin.clone())).expect("the model");
+        let animation = &model.animations[0];
+        assert_eq!(animation.name, "Wave");
+        // The armature node is not a joint: its channel is left out.
+        assert_eq!(animation.channels.len(), 1);
+        let channel = &animation.channels[0];
+        assert_eq!(
+            (channel.joint, channel.path, channel.step),
+            (1, GltfPath::Rotation, true)
+        );
+        assert_eq!(channel.times, vec![0.0, 0.5]);
+        assert_eq!(channel.values[1], [0.0, 0.0, 0.70710677, 0.70710677]);
     }
 
     #[test]

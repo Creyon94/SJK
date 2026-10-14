@@ -1031,6 +1031,18 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-emotes]
+area: Rendering & effects
+title: Rig model emotes: a model's own animations played on its skeleton
+change: sjkemote <id> plays a rig clip; local emotes stay on this computer.
+change: Settings > Quick wheel lists installed emotes under Emotes.
+test: /model kane, third person, then sjkemote kane_dancemoves: Kane dances 3.4 s, feet on the floor.
+test: The saber stays in the paw while dancing; the dance fades in and out smoothly.
+test: Move during the dance: it stops; the normal animations come back.
+test: Quick wheel > Emotes > DanceMoves plays it too.
+test: Settings > Quick wheel: a new choice on a page lists DanceMoves under Emotes.
+note: Local test model base/rig_kane.pk3 (never shared); delete that one file to remove it.
+
 [rig-export-addon]
 area: Rendering & effects
 title: SJK Rig Model Export: a Blender add-on that writes a rig model folder

@@ -66,7 +66,7 @@ impl ForceBones {
                 })
             });
             Some(match &preview.rig {
-                Some(rig) => rig.retarget_bolt(index, matrices, bolt),
+                Some(rig) => rig.retarget_bolt(index, matrices, Some(&preview.rig_pose), bolt),
                 None => bolt,
             })
         });
@@ -116,7 +116,9 @@ fn retarget(
     point: Vec3,
 ) -> Vec3 {
     match &preview.rig {
-        Some(rig) => rig.retarget_point(index, matrices, point.into()).into(),
+        Some(rig) => rig
+            .retarget_point(index, matrices, Some(&preview.rig_pose), point.into())
+            .into(),
         None => point,
     }
 }

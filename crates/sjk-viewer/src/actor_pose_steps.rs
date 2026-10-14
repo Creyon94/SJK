@@ -127,12 +127,27 @@ pub(super) fn apply(
     if let Some(limb) = &mut mesh.limb {
         limb.update_pivot(&mesh.preview.animation, matrices);
     }
+    // A rig model is posed first, with the emote clip it plays: the bolts below
+    // read its pose.
+    if let Some(rig) = mesh.preview.rig.clone() {
+        let play = mesh
+            .entity_id
+            .filter(|_| !rig.clips.is_empty())
+            .and_then(|id| u8::try_from(id.get().checked_sub(1)?).ok())
+            .and_then(|slot| crate::emotes::playing(slot, std::time::Instant::now()))
+            .and_then(|playing| {
+                rig.play(
+                    &playing.clip,
+                    playing.seconds,
+                    playing.remaining,
+                    playing.looping,
+                )
+            });
+        rig.pose(matrices, play, &mut mesh.preview.rig_pose);
+    }
     if let Some(palette) = &mut mesh.gpu_palette {
         match &mesh.preview.rig {
-            Some(rig) => {
-                rig.pose(matrices, &mut mesh.rig_scratch);
-                palette.stage(skinning, &mesh.rig_scratch.palette)?;
-            }
+            Some(_) => palette.stage(skinning, &mesh.preview.rig_pose.palette)?,
             None => palette.stage(skinning, matrices)?,
         }
         mesh.force_bones.update(&mesh.preview, matrices);
@@ -164,7 +179,6 @@ pub(super) fn apply(
     if let Some(rig) = &mesh.preview.rig
         && mesh.gpu_palette.is_none()
     {
-        rig.pose(matrices, &mut mesh.rig_scratch);
         for range in &mesh.vertex_ranges {
             let surface = rig
                 .surfaces
@@ -173,7 +187,7 @@ pub(super) fn apply(
             mesh.pose_vertices.clear();
             mesh.pose_vertices
                 .extend(surface.vertices.iter().map(|vertex| {
-                    crate::actor_load::rig_gpu_vertex(vertex, Some(&mesh.rig_scratch.palette))
+                    crate::actor_load::rig_gpu_vertex(vertex, Some(&mesh.preview.rig_pose.palette))
                 }));
             let byte_offset = u64::try_from(range.vertices.start)?
                 .checked_mul(u64::try_from(std::mem::size_of::<GpuVertex>())?)

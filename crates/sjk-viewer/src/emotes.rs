@@ -16,8 +16,13 @@
 //!
 //! ```json
 //! {"name": "Wave", "torso": "BOTH_...", "legs": "", "length_ms": 2500,
-//!  "loop": false, "sound": "sound/emotes/wave.mp3"}
+//!  "loop": false, "sound": "sound/emotes/wave.mp3", "clip": "", "local": false}
 //! ```
+//!
+//! `clip` names an animation of a rig model (`docs/rig-models.md`): a player wearing
+//! a rig that has it plays it on the rig's own skeleton. `local` keeps the emote on
+//! this client: it plays here and is never sent to the hub (an emote made for a
+//! model only this player has).
 //!
 //! `<id>` is the emote's id at the hub: 1 to 32 of `a` to `z`, `0` to `9` and `_`.
 
@@ -54,6 +59,10 @@ pub(crate) struct EmoteDef {
     pub(crate) looping: bool,
     /// The sound it plays, or empty.
     pub(crate) sound: String,
+    /// The rig model animation it plays, or empty.
+    pub(crate) clip: String,
+    /// Played on this client only, never sent to the hub.
+    pub(crate) local: bool,
 }
 
 /// Whether `id` may name an emote at the hub.
@@ -65,7 +74,16 @@ pub(crate) fn valid_id(id: &str) -> bool {
 }
 
 /// The fields a catalogue file may hold.
-const FIELDS: [&str; 6] = ["name", "torso", "legs", "length_ms", "loop", "sound"];
+const FIELDS: [&str; 8] = [
+    "name",
+    "torso",
+    "legs",
+    "length_ms",
+    "loop",
+    "sound",
+    "clip",
+    "local",
+];
 /// The longest animation or sound name.
 const PATH_MAX: usize = 64;
 /// The shortest and longest emote that is not a loop, in milliseconds.
@@ -101,11 +119,12 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
     if name.trim().is_empty() {
         return Err("name is needed".to_owned());
     }
-    let looping = match object.get("loop") {
-        None => false,
-        Some(serde_json::Value::Bool(looping)) => *looping,
-        Some(_) => return Err("loop must be true or false".to_owned()),
+    let flag = |field: &str| match object.get(field) {
+        None => Ok(false),
+        Some(serde_json::Value::Bool(value)) => Ok(*value),
+        Some(_) => Err(format!("{field} must be true or false")),
     };
+    let looping = flag("loop")?;
     let length = match object.get("length_ms") {
         None if looping => 0,
         Some(value) => value
@@ -122,6 +141,8 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
         length: Duration::from_millis(length),
         looping,
         sound: text_field("sound", PATH_MAX)?,
+        clip: text_field("clip", PATH_MAX)?,
+        local: flag("local")?,
     })
 }
 
@@ -246,10 +267,40 @@ pub(crate) fn lock() -> std::sync::MutexGuard<'static, State> {
 }
 
 /// The emote the player in `slot` plays now, for the player's model code.
-// The seam the emotes' animations and sounds plug into; nothing plays them yet.
+// The seam the stock animations and sounds plug into; rig clips use `playing`.
 #[allow(dead_code)]
 pub(crate) fn active(slot: u8) -> Option<ActiveEmote> {
     lock().active.get(slot).cloned()
+}
+
+/// A rig clip the player in `slot` plays at `now`.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Playing {
+    pub(crate) clip: String,
+    /// Seconds since it started.
+    pub(crate) seconds: f32,
+    /// Seconds before it ends, unless the player moves first; `None` for a loop.
+    pub(crate) remaining: Option<f32>,
+    pub(crate) looping: bool,
+}
+
+/// The rig clip the player in `slot` plays at `now`, if their emote names one.
+pub(crate) fn playing(slot: u8, now: Instant) -> Option<Playing> {
+    let state = lock();
+    let active = state.active.get(slot)?;
+    let def = state
+        .catalogue
+        .as_ref()?
+        .iter()
+        .find(|def| def.id == active.emote)?;
+    (!def.clip.is_empty()).then(|| Playing {
+        clip: def.clip.clone(),
+        seconds: now.saturating_duration_since(active.started).as_secs_f32(),
+        remaining: active
+            .until
+            .map(|until| until.saturating_duration_since(now).as_secs_f32()),
+        looping: def.looping,
+    })
 }
 
 /// What `emote` alone prints: the catalogue, or how emotes come.
@@ -288,6 +339,18 @@ mod tests {
 
     fn wave() -> EmoteDef {
         parse("wave", WAVE).unwrap()
+    }
+
+    #[test]
+    fn a_rig_clip_emote_reads_its_clip_and_stays_local() {
+        let def = parse(
+            "kane_dance",
+            r#"{"name": "Dance", "clip": "kane_dance", "length_ms": 3400, "local": true}"#,
+        )
+        .unwrap();
+        assert_eq!((def.clip.as_str(), def.local), ("kane_dance", true));
+        assert!(!wave().local && wave().clip.is_empty());
+        assert!(parse("x", r#"{"name": "X", "length_ms": 500, "local": 1}"#).is_err());
     }
 
     #[test]

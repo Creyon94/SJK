@@ -1,17 +1,27 @@
-"""SJK Rig Model Export: a rigged character into an SJK rig model player folder.
+"""SJK Rig Model Export: a rigged character into an SJK rig model, with its emotes.
 
-The 3D view's sidebar gets an SJK tab. Pick an armature, name the model and press
-Export: the armature and the meshes it deforms are written as glTF (+Y up, rest pose,
-skins, no animation or shape keys) into `<GameData>/base/models/players/<name>/`,
-each material reduced to its base colour image, with an `sjk_rig.cfg` beside them.
-In the game, `/model <name>` wears it. The blend file is left as it was: the export
-works on temporary copies of the meshes and materials and removes them afterwards.
+The 3D view's sidebar gets an SJK tab. Pick an armature, name the model, tick the
+actions to bring as emotes and press Export: the armature and the meshes it deforms
+are written as glTF (+Y up, rest pose, skins, no shape keys), each material reduced
+to its base colour image, with an `sjk_rig.cfg` beside them; each ticked action
+becomes an animation of that glTF and an `emotes/<id>.emote` file that plays it.
+Everything goes into one `<GameData>/base/rig_<name>.pk3` (or loose folders), so
+removing the model is deleting one file. In the game, `/model <name>` wears it and
+`sjkemote <id>` (or the quick wheel) plays an emote.
+
+The blend file is left as it was: the export works on temporary copies of the meshes
+and materials, and puts the armature's action, NLA state and frame back afterwards.
 
 See docs/rig-models.md in the SJK repository for the format and its limits.
 """
 
+import json
 import os
 import re
+import shutil
+import struct
+import tempfile
+import zipfile
 
 import bpy
 from bpy.props import BoolProperty, EnumProperty, PointerProperty, StringProperty
@@ -51,6 +61,10 @@ COLOR_WORDS = ("base color", "basecolor", "diffuse", "albedo")
 COLOR_SUFFIX = re.compile(r"(_d|_diffuse|_basecolor|_base_color|_albedo|_bc|_col|_color)$")
 
 MANIFEST = "sjk_rig.cfg"
+BONE_PATH = re.compile(r'pose\.bones\["(.+?)"\]')
+# The game's limits on an emote (`emotes.rs`): id length, play time in milliseconds.
+EMOTE_ID_CHARS = 32
+EMOTE_MS = (100, 60_000)
 
 
 def preferences(context):
@@ -65,10 +79,21 @@ def game_data(context):
     return next((path for path in GAME_DATA_GUESSES if os.path.isdir(path)), "")
 
 
+def clean_name(text):
+    """Lower case letters, digits and underscores, as model folders and emote ids are."""
+    return re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_")
+
+
 def model_name(settings):
-    """The folder name: lower case letters, digits and underscores."""
-    name = settings.model_name.strip() or (settings.armature.name if settings.armature else "")
-    return re.sub(r"[^a-z0-9_]+", "_", name.lower()).strip("_")
+    """The folder name, from the field or the armature's name."""
+    return clean_name(
+        settings.model_name.strip() or (settings.armature.name if settings.armature else "")
+    )
+
+
+def emote_id(model, action):
+    """The emote id and glTF animation name of `action` on `model`."""
+    return clean_name(f"{model}_{action.name}")[:EMOTE_ID_CHARS].strip("_")
 
 
 def deformed_meshes(context, armature, visible_only):
@@ -93,6 +118,38 @@ def joint_report(armature, preset):
     found = sum(1 for joint in expected if joint in names)
     missing = [joint for joint in REQUIRED if joint not in names]
     return found, len(expected), missing
+
+
+def action_fcurves(action):
+    """Every F-curve of `action`, in layered (Blender 4.4+) or legacy actions."""
+    layers = getattr(action, "layers", None)
+    if layers:
+        return [
+            curve
+            for layer in layers
+            for strip in layer.strips
+            for bag in getattr(strip, "channelbags", ())
+            for curve in bag.fcurves
+        ]
+    return list(getattr(action, "fcurves", ()))
+
+
+def animated_bones(action, armature):
+    """The bones of `armature` that `action` animates, in the armature's order."""
+    named = {
+        match.group(1)
+        for curve in action_fcurves(action)
+        if (match := BONE_PATH.match(curve.data_path))
+    }
+    return [bone.name for bone in armature.data.bones if bone.name in named]
+
+
+def emote_actions(armature):
+    """The actions that animate `armature`'s bones, by name."""
+    return sorted(
+        (action for action in bpy.data.actions if animated_bones(action, armature)),
+        key=lambda action: action.name.lower(),
+    )
 
 
 def base_color_image(material):
@@ -138,17 +195,150 @@ def plain_material(source):
     return material
 
 
-def write_manifest(path, preset):
-    lines = [
+def manifest_text(preset):
+    return "\n".join([
         "// SJK rig model, written by the SJK Rig Model Export add-on.",
         "// Format: docs/rig-models.md in the SJK repository.",
         "model model.gltf",
         f"preset {preset}",
         "scale auto",
         "",
-    ]
-    with open(path, "w", encoding="utf-8", newline="\n") as file:
-        file.write("\n".join(lines))
+    ])
+
+
+def sample_clips(context, armature, actions, model):
+    """Each action's animated bones sampled at every frame, as pose-bone bases.
+
+    Returns a list of (action, id, seconds per frame, bone names, frames), a frame
+    being one `matrix_basis` per bone. The armature plays each action alone (its NLA
+    off) for the sampling; its action, NLA switch and the scene frame come back.
+    """
+    scene = context.scene
+    data = armature.animation_data_create()
+    saved = (data.action, data.use_nla, scene.frame_current)
+    saved_slot = getattr(data, "action_slot", None)
+    fps = scene.render.fps / scene.render.fps_base
+    clips = []
+    try:
+        data.use_nla = False
+        for action in actions:
+            data.action = action
+            if hasattr(data, "action_slot") and data.action_slot is None:
+                slots = getattr(data, "action_suitable_slots", ())
+                if slots:
+                    data.action_slot = slots[0]
+            bones = animated_bones(action, armature)
+            start, end = (int(round(frame)) for frame in action.frame_range)
+            frames = []
+            for frame in range(start, max(end, start + 1) + 1):
+                scene.frame_set(frame)
+                frames.append([armature.pose.bones[name].matrix_basis.copy() for name in bones])
+            clips.append((action, emote_id(model, action), 1.0 / fps, bones, frames))
+    finally:
+        data.action = saved[0]
+        if saved_slot is not None and hasattr(data, "action_slot"):
+            data.action_slot = saved_slot
+        data.use_nla = saved[1]
+        scene.frame_set(saved[2])
+    return clips
+
+
+def append_clips(gltf_path, clips):
+    """Write `clips` into the glTF at `gltf_path` as animations of its joint nodes.
+
+    A joint node's transform at a frame is its rest transform (as the exporter wrote
+    it) times the pose bone's basis, the way Blender poses a bone under its parent.
+    """
+    from mathutils import Matrix, Quaternion, Vector
+
+    with open(gltf_path, encoding="utf-8") as file:
+        document = json.load(file)
+    buffer = document["buffers"][0]
+    bin_path = os.path.join(os.path.dirname(gltf_path), buffer["uri"])
+    with open(bin_path, "rb") as file:
+        binary = bytearray(file.read())
+    nodes = document["nodes"]
+    by_name = {node.get("name"): index for index, node in enumerate(nodes)}
+    views = document.setdefault("bufferViews", [])
+    accessors = document.setdefault("accessors", [])
+    animations = document.setdefault("animations", [])
+
+    def rest(node):
+        if "matrix" in node:
+            return Matrix([node["matrix"][column::4] for column in range(4)])
+        t = Vector(node.get("translation", (0.0, 0.0, 0.0)))
+        x, y, z, w = node.get("rotation", (0.0, 0.0, 0.0, 1.0))
+        s = node.get("scale", (1.0, 1.0, 1.0))
+        return Matrix.LocRotScale(t, Quaternion((w, x, y, z)), Vector(s))
+
+    def accessor(values, kind, width, bounds=False):
+        while len(binary) % 4:
+            binary.append(0)
+        offset = len(binary)
+        for value in values:
+            binary.extend(struct.pack(f"<{width}f", *value))
+        views.append({"buffer": 0, "byteOffset": offset, "byteLength": len(binary) - offset})
+        entry = {
+            "bufferView": len(views) - 1,
+            "componentType": 5126,
+            "count": len(values),
+            "type": kind,
+        }
+        if bounds:
+            entry["min"] = [min(v[i] for v in values) for i in range(width)]
+            entry["max"] = [max(v[i] for v in values) for i in range(width)]
+        accessors.append(entry)
+        return len(accessors) - 1
+
+    written = []
+    for action, name, step, bones, frames in clips:
+        times = accessor([(index * step,) for index in range(len(frames))], "SCALAR", 1, True)
+        samplers, channels = [], []
+        for slot, bone in enumerate(bones):
+            node = by_name.get(bone)
+            if node is None:
+                continue
+            base = rest(nodes[node])
+            translations, rotations, scales = [], [], []
+            previous = None
+            for frame in frames:
+                t, q, s = (base @ frame[slot]).decompose()
+                if previous is not None and previous.dot(q) < 0.0:
+                    q.negate()
+                previous = q
+                translations.append(tuple(t))
+                rotations.append((q.x, q.y, q.z, q.w))
+                scales.append(tuple(s))
+            for path, values, kind, width in (
+                ("translation", translations, "VEC3", 3),
+                ("rotation", rotations, "VEC4", 4),
+                ("scale", scales, "VEC3", 3),
+            ):
+                samplers.append({"input": times, "output": accessor(values, kind, width)})
+                channels.append({
+                    "sampler": len(samplers) - 1,
+                    "target": {"node": node, "path": path},
+                })
+        if channels:
+            animations[:] = [a for a in animations if a.get("name") != name]
+            animations.append({"name": name, "samplers": samplers, "channels": channels})
+            written.append((action, name, (len(frames) - 1) * step))
+    buffer["byteLength"] = len(binary)
+    with open(bin_path, "wb") as file:
+        file.write(binary)
+    with open(gltf_path, "w", encoding="utf-8") as file:
+        json.dump(document, file)
+    return written
+
+
+def emote_text(action, name, seconds, looping, local):
+    milliseconds = min(max(int(round(seconds * 1000)), EMOTE_MS[0]), EMOTE_MS[1])
+    entry = {"name": action.name[:32], "clip": name, "length_ms": milliseconds}
+    if looping:
+        entry["loop"] = True
+    if local:
+        entry["local"] = True
+    return json.dumps(entry, indent=1) + "\n"
 
 
 class SJKRigExportPreferences(AddonPreferences):
@@ -189,12 +379,24 @@ class SJKRigExportSettings(PropertyGroup):
         description="Replace an existing manifest (and its map lines) with a fresh one",
         default=False,
     )
+    pack: BoolProperty(
+        name="One .pk3 file",
+        description="Write everything into base/rig_<name>.pk3, so deleting that one "
+        "file removes the model and its emotes; off writes loose folders",
+        default=True,
+    )
+    local_emotes: BoolProperty(
+        name="Emotes stay on this computer",
+        description="The emotes play for you only and are never sent to other "
+        "players (they could not see them without the model anyway)",
+        default=True,
+    )
 
 
 class SJK_OT_export_rig_model(Operator):
     bl_idname = "sjk.export_rig_model"
     bl_label = "Export to SJK"
-    bl_description = "Write the armature and its meshes as an SJK rig model player"
+    bl_description = "Write the armature, its meshes and the ticked emotes for SJK"
     bl_options = {"REGISTER"}
 
     @classmethod
@@ -203,19 +405,23 @@ class SJK_OT_export_rig_model(Operator):
         return settings.armature is not None and settings.armature.type == "ARMATURE"
 
     def invoke(self, context, event):
-        folder = self.folder(context)
-        if folder and os.path.exists(os.path.join(folder, "model.gltf")):
+        target = self.target(context)
+        if target and os.path.exists(target):
             return context.window_manager.invoke_confirm(
-                self, event, message=f"Replace the model in {folder}?"
+                self, event, message=f"Replace {target}?"
             )
         return self.execute(context)
 
-    def folder(self, context):
+    def target(self, context):
+        """The .pk3 or the model folder the export writes."""
         root = game_data(context)
-        name = model_name(context.scene.sjk_rig_export)
+        settings = context.scene.sjk_rig_export
+        name = model_name(settings)
         if not root or not name:
             return ""
-        return os.path.join(root, "base", "models", "players", name)
+        if settings.pack:
+            return os.path.join(root, "base", f"rig_{name}.pk3")
+        return os.path.join(root, "base", "models", "players", name, "model.gltf")
 
     def execute(self, context):
         settings = context.scene.sjk_rig_export
@@ -239,18 +445,71 @@ class SJK_OT_export_rig_model(Operator):
         if not armature.visible_get():
             self.report({"ERROR"}, "Show the armature first (it must be selectable)")
             return {"CANCELLED"}
-        folder = self.folder(context)
+        actions = [a for a in emote_actions(armature) if a.get("sjk_emote")]
+        base = os.path.join(root, "base")
+        stage = tempfile.mkdtemp(prefix="sjk_rig_") if settings.pack else base
+        folder = os.path.join(stage, "models", "players", name)
         os.makedirs(folder, exist_ok=True)
         try:
-            self.export(context, armature, meshes, os.path.join(folder, "model.gltf"))
+            gltf = os.path.join(folder, "model.gltf")
+            self.export(context, armature, meshes, gltf)
+            clips = sample_clips(context, armature, actions, name)
+            written = append_clips(gltf, clips) if clips else []
+            if written:
+                os.makedirs(os.path.join(stage, "emotes"), exist_ok=True)
+            for action, clip, seconds in written:
+                with open(os.path.join(stage, "emotes", f"{clip}.emote"), "w",
+                          encoding="utf-8", newline="\n") as file:
+                    file.write(emote_text(action, clip, seconds,
+                                          bool(action.get("sjk_emote_loop")),
+                                          settings.local_emotes))
+            manifest = self.old_manifest(base, name, settings)
+            with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
+                      newline="\n") as file:
+                file.write(manifest or manifest_text(settings.preset))
+            if settings.pack:
+                self.pack(stage, os.path.join(base, f"rig_{name}.pk3"))
         except Exception as error:  # report it in Blender rather than a traceback
             self.report({"ERROR"}, f"Export failed: {error}")
             return {"CANCELLED"}
-        manifest = os.path.join(folder, MANIFEST)
-        if settings.overwrite_manifest or not os.path.exists(manifest):
-            write_manifest(manifest, settings.preset)
-        self.report({"INFO"}, f"Exported to {folder}. In the game: /model {name}")
+        finally:
+            if settings.pack:
+                shutil.rmtree(stage, ignore_errors=True)
+        where = f"base/rig_{name}.pk3" if settings.pack else f"base/models/players/{name}"
+        emotes = ", ".join(clip for _, clip, _ in written)
+        self.report({"INFO"}, f"Exported {where}. In the game: /model {name}"
+                    + (f"; emotes: {emotes}" if emotes else ""))
+        loose = os.path.join(base, "models", "players", name)
+        if settings.pack and os.path.isdir(loose):
+            self.report({"WARNING"}, f"A loose folder {loose} has the same name: remove it")
         return {"FINISHED"}
+
+    def old_manifest(self, base, name, settings):
+        """The manifest already there (kept unless rewriting is asked), or None."""
+        if settings.overwrite_manifest:
+            return None
+        inside = f"models/players/{name}/{MANIFEST}"
+        if settings.pack:
+            path = os.path.join(base, f"rig_{name}.pk3")
+            if os.path.exists(path):
+                with zipfile.ZipFile(path) as archive:
+                    if inside in archive.namelist():
+                        return archive.read(inside).decode("utf-8")
+            return None
+        path = os.path.join(base, *inside.split("/"))
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as file:
+                return file.read()
+        return None
+
+    def pack(self, stage, path):
+        partial = path + ".part"
+        with zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED) as archive:
+            for directory, _, files in os.walk(stage):
+                for file in files:
+                    full = os.path.join(directory, file)
+                    archive.write(full, os.path.relpath(full, stage).replace(os.sep, "/"))
+        os.replace(partial, path)
 
     def export(self, context, armature, meshes, path):
         if context.mode != "OBJECT":
@@ -311,6 +570,22 @@ class SJK_OT_export_rig_model(Operator):
             context.view_layer.objects.active = active
 
 
+class SJK_OT_toggle_emote(Operator):
+    bl_idname = "sjk.toggle_emote"
+    bl_label = "Emote"
+    bl_description = "Bring this action to the game as an emote, or not"
+    bl_options = {"REGISTER", "UNDO"}
+
+    action: StringProperty()
+    key: StringProperty(default="sjk_emote")
+
+    def execute(self, context):
+        action = bpy.data.actions.get(self.action)
+        if action is not None:
+            action[self.key] = not action.get(self.key, False)
+        return {"FINISHED"}
+
+
 class SJK_PT_rig_export(Panel):
     bl_label = "SJK Rig Model"
     bl_space_type = "VIEW_3D"
@@ -335,10 +610,39 @@ class SJK_PT_rig_export(Panel):
         layout.prop(settings, "preset")
         layout.prop(settings, "visible_only")
         layout.prop(settings, "overwrite_manifest")
-        root = game_data(context)
+        layout.prop(settings, "pack")
         name = model_name(settings)
+        if armature is not None:
+            actions = emote_actions(armature)
+            box = layout.box()
+            box.label(text="Emotes (actions of this armature)", icon="ACTION")
+            if not actions:
+                box.label(text="No action animates this armature")
+            for action in actions:
+                row = box.row(align=True)
+                on = bool(action.get("sjk_emote"))
+                toggle = row.operator(
+                    SJK_OT_toggle_emote.bl_idname,
+                    text=action.name,
+                    icon="CHECKBOX_HLT" if on else "CHECKBOX_DEHLT",
+                    emboss=False,
+                )
+                toggle.action = action.name
+                loop = row.operator(
+                    SJK_OT_toggle_emote.bl_idname,
+                    text="",
+                    icon="FILE_REFRESH",
+                    depress=bool(action.get("sjk_emote_loop")),
+                )
+                loop.action = action.name
+                loop.key = "sjk_emote_loop"
+                if on and name:
+                    row.label(text=emote_id(name, action))
+            box.prop(settings, "local_emotes")
+        root = game_data(context)
         if root and name:
-            layout.label(text=f".../base/models/players/{name}", icon="FILE_FOLDER")
+            where = f"base/rig_{name}.pk3" if settings.pack else f"base/models/players/{name}"
+            layout.label(text=where, icon="FILE_FOLDER")
         elif not root:
             layout.label(text="GameData not found: set it in the preferences", icon="ERROR")
         layout.operator(SJK_OT_export_rig_model.bl_idname, icon="EXPORT")
@@ -352,6 +656,7 @@ CLASSES = (
     SJKRigExportPreferences,
     SJKRigExportSettings,
     SJK_OT_export_rig_model,
+    SJK_OT_toggle_emote,
     SJK_PT_rig_export,
 )
 

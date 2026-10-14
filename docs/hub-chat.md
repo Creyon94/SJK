@@ -575,21 +575,27 @@ and plays changes.
   ([muted_players.rs](../crates/sjk-viewer/src/muted_players.rs)), as a bit mask the
   renderer, the chat feed and the sound filter test.
 
-## Emotes in the client (groundwork)
+## Emotes in the client
 
-- `sjkemote <id>` sends an emote while on a server (named apart from the `emote`
-  command some server mods have); `sjkemote` alone lists the catalogue.
+- `sjkemote <id>` plays an emote while on a server (named apart from the `emote`
+  command some server mods have): it starts on the player at once and is sent to the
+  hub unless its file says `local`; the hub's echo of it is not started again.
+  `sjkemote` alone lists the catalogue.
 - The catalogue is data: `emotes/<id>.emote` files in the game's file system (pk3s or
   the folder), each a JSON object: `name` (required, at most 32 characters), `torso`
   and `legs` animation names, `length_ms` (100 to 60000, required unless `loop` is
-  true), `loop`, and `sound`. Unknown fields and bad values are refused with the file
-  named in the log. None ship yet.
+  true), `loop`, `sound`, `clip` (an animation of a [rig model](rig-models.md#emotes-the-rigs-own-clips),
+  played on its own skeleton) and `local` (played on this client only, never sent).
+  Unknown fields and bad values are refused with the file named in the log. None ship
+  with SJK; the rig model add-on writes them for a model's own animations.
 - A received emote counts only when the game shows, in its slot, the name its claim
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,
   the emote, when it started and when it ends (its length, 3 seconds for an id the
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
-  or leaves. `emotes::active(slot)` is where the animations and sound plug in; until
-  they exist, a received emote is written to the console (`* Sol: Wave`).
+  or leaves. A rig model plays an emote's `clip` (`emotes::playing`); the `torso` and
+  `legs` animations and the sound are not played yet, and a received emote is
+  written to the console (`* Sol: Wave`). Demos keep the emotes started on them.
+- The quick wheel's editor lists the installed emotes under Emotes.
 
 ## Pings
 

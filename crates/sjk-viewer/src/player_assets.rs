@@ -74,6 +74,9 @@ pub(super) struct PlayerPreview {
     /// A rig model ([`crate::rig_model`]) drawn in place of `mesh`, which then
     /// only drives the pose, bolts and traces.
     pub(crate) rig: Option<Arc<crate::rig_model::RigModel>>,
+    /// The rig's pose and palette from the latest frame, reused every frame; bolts
+    /// read it so they follow a clip the rig plays.
+    pub(crate) rig_pose: crate::rig_model::Scratch,
 }
 
 impl PlayerPreview {
@@ -82,7 +85,9 @@ impl PlayerPreview {
     pub(crate) fn bolt(&self, name: &str, matrices: &[[[f32; 4]; 3]]) -> Option<[[f32; 4]; 3]> {
         let bolt = self.mesh.surface_bolt_matrix(name, 0, matrices).ok()??;
         Some(match (&self.rig, self.mesh.surface_bolt_bone(name, 0)) {
-            (Some(rig), Some(bone)) => rig.retarget_bolt(bone, matrices, bolt),
+            (Some(rig), Some(bone)) => {
+                rig.retarget_bolt(bone, matrices, Some(&self.rig_pose), bolt)
+            }
             _ => bolt,
         })
     }
@@ -234,6 +239,7 @@ pub(super) fn load_player_appearance_with(
         vehicle_camera: vehicle.as_ref().map(|look| look.camera),
         vehicle_hud: vehicle.as_ref().map(|look| look.hud.clone()),
         rig,
+        rig_pose: Default::default(),
     })
 }
 

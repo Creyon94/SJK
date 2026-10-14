@@ -1,6 +1,6 @@
 use super::*;
 use sjk_model::GlaBone;
-use sjk_model::gltf::{GltfJoint, GltfPrimitive};
+use sjk_model::gltf::{GltfAnimation, GltfChannel, GltfJoint, GltfPath, GltfPrimitive};
 
 fn identity_rows() -> [[f32; 4]; 3] {
     [
@@ -38,16 +38,32 @@ fn driver() -> Gla {
 }
 
 /// A rig with a pelvis one metre up (glTF +Y) and a head half a metre above it,
-/// one vertex on the head.
+/// one vertex on the head, and a clip "Nod" turning the head a quarter turn about
+/// glTF +Y (up) over one second.
 fn rig() -> GltfModel {
-    let joint = |name: &str, parent, y: f32| GltfJoint {
+    let joint = |name: &str, parent, y: f32, rest: f32| GltfJoint {
         name: name.to_owned(),
         parent,
         bind: translated(0.0, y, 0.0),
         inverse_bind: translated(0.0, -y, 0.0),
+        rest: translated(0.0, rest, 0.0),
     };
+    let half = std::f32::consts::FRAC_1_SQRT_2;
     GltfModel {
-        joints: vec![joint("pelvis", None, 1.0), joint("head", Some(0), 1.5)],
+        animations: vec![GltfAnimation {
+            name: "Nod".into(),
+            channels: vec![GltfChannel {
+                joint: 1,
+                path: GltfPath::Rotation,
+                times: vec![0.0, 1.0],
+                values: vec![[0.0, 0.0, 0.0, 1.0], [0.0, half, 0.0, half]],
+                step: false,
+            }],
+        }],
+        joints: vec![
+            joint("pelvis", None, 1.0, 1.0),
+            joint("head", Some(0), 1.5, 0.5),
+        ],
         primitives: vec![GltfPrimitive {
             base_color_image: Some("textures/skin.png".into()),
             positions: vec![[0.0, 1.6, 0.1]; 3],
@@ -107,7 +123,7 @@ fn the_base_pose_gives_the_bind_pose() {
     let rig = RigModel::fit(rig(), "", &manifest(""), &driver()).unwrap();
     let bones = vec![identity_rows(); 3];
     let mut scratch = Scratch::default();
-    rig.pose(&bones, &mut scratch);
+    rig.pose(&bones, None, &mut scratch);
     let palette = &scratch.palette;
     for matrix in palette {
         for (row, expected) in matrix.iter().zip(identity_rows()) {
@@ -129,7 +145,7 @@ fn a_turned_driver_bone_turns_its_joint_and_children() {
     ];
     let bones = vec![identity_rows(), identity_rows(), turn];
     let mut scratch = Scratch::default();
-    rig.pose(&bones, &mut scratch);
+    rig.pose(&bones, None, &mut scratch);
     let vertex = Vec3A::from_array(rig.surfaces[0].vertices[0].position);
     let moved = affine(&scratch.palette[1]).transform_point3a(vertex);
     // The CPU path skins the same way.
@@ -173,7 +189,7 @@ fn a_bolt_moves_from_the_driver_bone_onto_the_rig_joint() {
         translated(10.0, 0.0, 0.0),
     ];
     let bolt = translated(10.0, -5.0, 65.0);
-    let moved = rig.retarget_bolt(2, &bones, bolt);
+    let moved = rig.retarget_bolt(2, &bones, None, bolt);
     let origin = Vec3A::new(moved[0][3], moved[1][3], moved[2][3]);
     assert!(
         (origin - Vec3A::new(0.0, -5.0, 80.0)).length() < 1e-4,
@@ -182,6 +198,85 @@ fn a_bolt_moves_from_the_driver_bone_onto_the_rig_joint() {
     // The orientation is the driver's.
     assert_eq!(moved[0][..3], bolt[0][..3]);
     // An unmapped bone (the eyebrow) follows its mapped parent's joint.
-    let point = rig.retarget_point(3, &bones, Vec3A::new(10.0, -5.0, 65.0));
+    let point = rig.retarget_point(3, &bones, None, Vec3A::new(10.0, -5.0, 65.0));
     assert!((point - origin).length() < 1e-4, "{point:?}");
+}
+
+/// The head vertex skinned with `scratch`'s palette, minus the head joint.
+fn head_offset(rig: &RigModel, scratch: &Scratch) -> Vec3A {
+    let vertex = Vec3A::from_array(rig.surfaces[0].vertices[0].position);
+    affine(&scratch.palette[1]).transform_point3a(vertex) - rig.joints[1].bind.translation
+}
+
+#[test]
+fn a_clip_plays_on_the_rigs_own_skeleton() {
+    let rig = RigModel::fit(rig(), "", &manifest(""), &driver()).unwrap();
+    assert_eq!(rig.clips.len(), 1);
+    assert_eq!(rig.clips[0].duration, 1.0);
+    let bones = vec![identity_rows(); 3];
+    let mut scratch = Scratch::default();
+    // At its first key the clip is the rest pose: the vertex stays 4 units in front
+    // (-Y) and 4 above the head joint.
+    let play = rig.play("Nod", 0.0, None, false).map(|play| ClipPlay {
+        weight: 1.0,
+        ..play
+    });
+    rig.pose(&bones, play, &mut scratch);
+    let offset = head_offset(&rig, &scratch);
+    assert!(
+        (offset - Vec3A::new(0.0, -4.0, 4.0)).length() < 1e-4,
+        "{offset:?}"
+    );
+    // At its end, a quarter turn about glTF +Y is one about the game's +Z.
+    let play = rig.play("Nod", 1.0, None, false);
+    assert_eq!(play.map(|play| play.weight), Some(1.0));
+    rig.pose(&bones, play, &mut scratch);
+    let offset = head_offset(&rig, &scratch);
+    assert!(
+        (offset - Vec3A::new(4.0, 0.0, 4.0)).length() < 1e-3,
+        "{offset:?}"
+    );
+    // Half faded in, half way round.
+    let half = ClipPlay {
+        weight: 0.5,
+        ..play.unwrap()
+    };
+    rig.pose(&bones, Some(half), &mut scratch);
+    let offset = head_offset(&rig, &scratch);
+    let side = 4.0 * std::f32::consts::FRAC_1_SQRT_2;
+    assert!(
+        (offset - Vec3A::new(side, -side, 4.0)).length() < 1e-3,
+        "{offset:?}"
+    );
+    assert!(rig.play("Wave", 0.0, None, false).is_none());
+}
+
+#[test]
+fn a_clip_fades_in_and_out_and_a_loop_wraps() {
+    let play = ClipPlay::new(0, 2.0, 0.1, Some(5.0), false);
+    assert!((play.weight - 0.4).abs() < 1e-6 && play.time == 0.1);
+    let play = ClipPlay::new(0, 2.0, 3.0, Some(0.05), false);
+    assert!((play.weight - 0.2).abs() < 1e-6 && play.time == 2.0);
+    let play = ClipPlay::new(0, 2.0, 5.5, None, true);
+    assert!(play.weight == 1.0 && (play.time - 1.5).abs() < 1e-6);
+}
+
+#[test]
+fn a_bolt_follows_the_joint_a_clip_moves() {
+    let rig = RigModel::fit(rig(), "", &manifest(""), &driver()).unwrap();
+    let bones = vec![identity_rows(); 3];
+    let mut scratch = Scratch::default();
+    let bolt = translated(0.0, -5.0, 65.0);
+    rig.pose(&bones, None, &mut scratch);
+    let still = rig.retarget_bolt(2, &bones, Some(&scratch), bolt);
+    assert_eq!(still, rig.retarget_bolt(2, &bones, None, bolt));
+    rig.pose(&bones, rig.play("Nod", 1.0, None, false), &mut scratch);
+    let turned = rig.retarget_bolt(2, &bones, Some(&scratch), bolt);
+    let origin = Vec3A::new(turned[0][3], turned[1][3], turned[2][3]);
+    assert!(
+        (origin - Vec3A::new(5.0, 0.0, 65.0)).length() < 1e-3,
+        "{origin:?}"
+    );
+    // Its axes turn with the head: X now points along +Y.
+    assert!((turned[1][0] - 1.0).abs() < 1e-3, "{turned:?}");
 }
