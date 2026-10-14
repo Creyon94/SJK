@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The Blender add-on has a Tail gravity setting for a model's tail, cape or other following part, kept across exports _(Sol)_
+
 ## 2026.1014.2 (Alpha) | 14/10/2026
 
 High quality models with pictures in the character grid, emotes every model on the same skeleton plays, tails that sway and hang, and emote music that stays with you.
