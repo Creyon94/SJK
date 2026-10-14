@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Settings icons are the grey metal discs again, as before 13/10: the gold and the holocron sets are gone, in Settings, the classic settings lists, the in-game menu and the what's-new card; Chat, Mods and the Quick wheel wear their grey icons again _(Sol)_
 - The Blender add-on has a Tail gravity setting for a model's tail, cape or other following part, kept across exports _(Sol)_
 
 ## 2026.1014.2 (Alpha) | 14/10/2026

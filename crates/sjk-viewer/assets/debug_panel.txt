@@ -442,6 +442,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[grey-settings-icons]
+area: Menus & settings
+title: Settings icons are the grey metal discs again
+change: The gold and holocron-face icon sets are gone; the 07/10 grey discs are back.
+test: Esc menu: the Credits icon is a grey disc with a silver laurel.
+test: Settings rail: every category icon is grey; Chat, Mods and Quick wheel have one too.
+test: What's new card: the headings' icons are grey discs.
+
 [donation-goal]
 area: Menus & settings
 title: Donations shelved: no Support card, setting or unheld Supporter medal
