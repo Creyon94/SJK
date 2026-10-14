@@ -49,6 +49,21 @@ The result is a joint palette skinned on the GPU like any player
 `SJK_GPU_SKINNING=0`. Posing costs one affine multiply per joint per player and
 allocates nothing per frame.
 
+### Feet on the ground
+
+`scale auto` matches pelvis heights, but a rig whose legs and feet reach further below
+its pelvis than Kyle's sinks (the first test model sank 2.6 to 3.2 units standing,
+walking and running, of about 70 units of height; 1 crouched). So every frame
+`RigModel::pose` plants the feet: the driver's lower ankle (`ltalus`, `rtalus`)
+gives the ground (minus how far its ankle stands above its sole in the base pose,
+the driver GLM's lowest drawn vertex, [`sole`](../crates/sjk-viewer/src/rig_model.rs)),
+and the whole rig moves up or down so its own lower ankle (the joints mapped to those
+bones) stands as far above that ground as in its bind pose. A clip stands its bind
+soles on the same ground. After it the same model is within a unit of Kyle's soles
+in those poses (a clip within a third standing), the rest being how each foot's toes
+and heel tilt. The manifest's `lift <units>` raises (or lowers) the result by hand;
+a rig without mapped ankles keeps the pelvis placement alone.
+
 ### Bolts on the rig
 
 The driver's bolts (`*r_hand`, `*l_hand`, `*head_top`, the feet, cosmetics, the
@@ -70,6 +85,7 @@ traces and hit boxes stay the driver's.
 | Manifest, presets, fit (axes, scale, alignments, anchors), pose, CPU skin | [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), tests in `rig_model_tests.rs` |
 | Rig surfaces put in the shared vertex buffer | `append_rig_mesh` in [actor_load.rs](../crates/sjk-viewer/src/actor_load.rs) |
 | Per-frame pose and palette upload (GPU and CPU paths) | [actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs), `rig_skin_records` in [gpu_skinning.rs](../crates/sjk-viewer/src/gpu_skinning.rs) |
+| Feet planted on the driver's ground | `Feet`, `sole` and `RigModel::with_feet` in [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), the ignored test `feet_against_the_driver` |
 | Bolts and Force points moved onto the rig | `PlayerPreview::bolt`, `RigModel::retarget_bolt` and `retarget_point`, [force_bones.rs](../crates/sjk-viewer/src/force_bones.rs) |
 | Dismemberment skipped, JoF first-person body off | [dismember.rs](../crates/sjk-viewer/src/dismember.rs), [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs) |
 | Clips (emotes): read, converted, sampled, blended | [rig_clips.rs](../crates/sjk-viewer/src/rig_clips.rs), `RigModel::pose` and `play`, `emotes::playing` in [emotes.rs](../crates/sjk-viewer/src/emotes.rs) |
@@ -90,6 +106,7 @@ A model folder (`models/players/<name>/`) with `sjk_rig.cfg` is a rig model; `/m
 | `driver <folder>` | the stock model whose skeleton drives the rig | `models/players/kyle` |
 | `preset <name>` | the bone map to start from ([`PRESETS`](../crates/sjk-viewer/src/rig_model.rs)) | `mannequin` |
 | `scale <n>` or `scale auto` | game units per glTF metre | `auto` |
+| `lift <units>` | raise (negative: lower) the planted rig by hand | `0` |
 | `map <joint> <bone>` | the joint follows the JKA bone, bind orientation kept | |
 | `map <joint> <bone> <joint end> <bone end>` | ... aimed along the bone | |
 | `map <joint> <bone> as <other joint>` | ... with another joint's alignment (finger chains) | |
@@ -141,6 +158,8 @@ in one click.
   under `base`. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
   lines added by hand survive a re-export; a checkbox rewrites it. glTF Separate, +Y
   up, skins on, the armature's rest position, no shape keys, four influences.
+- **Height adjustment:** written as the manifest's `lift` line (0 removes it), the
+  one manifest line the add-on changes in a kept manifest.
 - **Emote settings:** each ticked action takes a sound (`.wav` or `.mp3`, packed as
   `sound/emotes/<id>.<ext>`); "Animation frame rate" (0 is the scene's; 30 for
   animations from Unreal games) sets the clip's speed; "Keep playing while moving"
@@ -180,8 +199,9 @@ models taken from other games ([the rule](../AGENTS.md#verification-and-scope)).
 - Only the player sees it: other players see the rig model only when they have the
   same folder; otherwise they see their own fallback for an unknown model, as for any
   custom model.
-- Feet can slide or float a little when the rig's leg proportions differ from the
-  driver's; there is no foot IK yet.
+- Feet are planted vertically only: with legs of other proportions they can slide a
+  little sideways, and a foot can stand slightly into or above a slope (no foot
+  IK).
 - The add-on's export of a 177-joint mannequin character matched a hand export
   (joints, primitives, images) and rendered in the world shot below (14/10/2026).
 - First tried in the game by Sol on 14/10/2026: drawn and animated; the faces
@@ -207,6 +227,9 @@ What went wrong or nearly did, so the next change does not repeat it:
   measure the pelvis against the standing idle or the feet sink.
 - **Axes.** glTF is +Y up, +Z front; the GLA +Z up, -Y front; a Blender export of a
   model facing -Y lines up. A model facing another way needs turning before export.
+- **Sinking feet.** Matching pelvis heights is not matching legs: a model sank about
+  3 units until the feet were planted on the driver's every frame (measure with the
+  ignored test `feet_against_the_driver`, JKA_GAME_DATA and SJK_TEST_RIG).
 - **Scale.** `scale auto` divides the driver's pelvis height by the rig's; a rig whose
   pelvis joint sits at the origin needs `scale <n>`.
 - **Emotes cleared outside a server.** The per-frame emote hook used to empty the

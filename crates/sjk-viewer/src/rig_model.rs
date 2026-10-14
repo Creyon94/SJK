@@ -11,6 +11,10 @@
 //! face, cloth) keep their bind pose under their parent. Which joint follows which
 //! JKA bone is a bone map: a named preset from [`PRESETS`] plus `map` lines.
 //!
+//! Each frame the rig's lower ankle is planted where the driver's is (its height
+//! above the sole kept), so a rig whose legs are longer or shorter for its pelvis
+//! than the driver's neither sinks nor floats ([`Feet`]).
+//!
 //! The glTF's own animations become clips ([`clips`]) a rig plays on its skeleton
 //! in place of the driver's pose, fading in and out (emotes).
 //!
@@ -19,13 +23,16 @@
 pub(crate) use clips::{Clip, ClipPlay};
 use clips::{Convert, Rest};
 use glam::{Affine3A, Mat3, Mat3A, Vec3, Vec3A};
-use sjk_model::Gla;
 use sjk_model::gltf::{GltfModel, parse};
+use sjk_model::{Gla, Glm};
 use sjk_vfs::VirtualFileSystem;
 use std::error::Error;
 
 /// The file that makes a model folder a rig model.
 pub(crate) const MANIFEST: &str = "sjk_rig.cfg";
+
+/// The driver's ankle bones, whose lower one says where the ground is.
+const ANKLES: [&str; 2] = ["ltalus", "rtalus"];
 
 /// The driver model when the manifest does not name one.
 const DEFAULT_DRIVER: &str = "models/players/kyle";
@@ -168,6 +175,9 @@ pub(crate) struct Manifest {
     pub(crate) preset: String,
     /// glTF metres to game units; `None` fits the pelvis to the driver's.
     pub(crate) scale: Option<f32>,
+    /// Game units the whole rig is raised by (negative lowers it), on top of the
+    /// feet planting: a hand tweak for a model whose soles are not its lowest point.
+    pub(crate) lift: f32,
     pub(crate) map: Vec<MapEntry>,
 }
 
@@ -179,6 +189,7 @@ impl Manifest {
             driver: DEFAULT_DRIVER.to_owned(),
             preset: "mannequin".to_owned(),
             scale: None,
+            lift: 0.0,
             map: Vec::new(),
         };
         for (number, line) in text.lines().enumerate() {
@@ -201,6 +212,13 @@ impl Manifest {
                             .filter(|s: &f32| *s > 0.0)
                             .ok_or_else(bad)?,
                     )
+                }
+                ["lift", value] => {
+                    manifest.lift = value
+                        .parse()
+                        .ok()
+                        .filter(|lift: &f32| lift.is_finite())
+                        .ok_or_else(bad)?
                 }
                 ["map", joint, bone] => manifest.map.push(entry(joint, bone, Align::Rest)),
                 ["map", joint, bone, "as", other] => {
@@ -286,6 +304,43 @@ struct Anchor {
     reach: f32,
 }
 
+/// Planting the rig's feet on the driver's: the driver's ankle bones and the rig's
+/// ankle joints mapped to them, and how far above its sole each one's ankle stands.
+#[derive(Clone, Debug)]
+struct Feet {
+    /// Driver ankle bones and their base positions.
+    ankles: Vec<(usize, Vec3A)>,
+    /// The rig's joints mapped to them.
+    joints: Vec<usize>,
+    /// The driver's lower ankle above its lowest point, in its base pose.
+    driver_ankle: f32,
+    /// The rig's lower ankle above its lowest point, in its bind pose.
+    rig_ankle: f32,
+    /// The rig's lowest point in its bind pose (where a clip's soles are).
+    rig_sole: f32,
+}
+
+/// The lowest point of `mesh` in its base pose: its first LOD's drawn surfaces (no
+/// bolt tags, hidden surfaces or caps), where the driver's soles are.
+pub(crate) fn sole(mesh: &Glm) -> Option<f32> {
+    let lowest = mesh
+        .lods
+        .first()?
+        .surfaces
+        .iter()
+        .filter(|surface| {
+            mesh.hierarchy
+                .get(surface.hierarchy_index)
+                .is_some_and(|h| {
+                    h.flags & 0x3 == 0 && !h.name.starts_with('*') && !h.name.contains("_cap_")
+                })
+        })
+        .flat_map(|surface| &surface.vertices)
+        .map(|vertex| vertex.position[2])
+        .fold(f32::MAX, f32::min);
+    (lowest < f32::MAX).then_some(lowest)
+}
+
 /// One drawn surface, its vertices in the driver's model space.
 #[derive(Clone, Debug)]
 pub(crate) struct Surface {
@@ -321,6 +376,10 @@ pub(crate) struct RigModel {
     anchors: Vec<Option<Anchor>>,
     /// The driver's pelvis bone and base position: a clip follows its height.
     pelvis: Option<(usize, Vec3A)>,
+    /// Planting the feet, when the driver and the bone map have ankles.
+    feet: Option<Feet>,
+    /// The manifest's `lift`.
+    lift: f32,
     pub(crate) clips: Vec<Clip>,
     pub(crate) surfaces: Vec<Surface>,
 }
@@ -361,12 +420,14 @@ fn frame(direction: Vec3A) -> Option<Mat3A> {
 }
 
 impl RigModel {
-    /// Load the glTF named by `manifest` from `directory` and fit it to `driver`.
+    /// Load the glTF named by `manifest` from `directory` and fit it to `driver`,
+    /// its feet planted on those of `driver_mesh` (the driver's GLM).
     pub(crate) fn load(
         vfs: &VirtualFileSystem,
         directory: &str,
         manifest: &Manifest,
         driver: &Gla,
+        driver_mesh: &Glm,
     ) -> Result<Self, Box<dyn Error>> {
         let read = |path: &str| vfs.read(path).ok().flatten().map(|asset| asset.bytes);
         let file = match &manifest.model {
@@ -381,7 +442,42 @@ impl RigModel {
             .to_owned();
         let bytes = read(&path).ok_or_else(|| format!("rig model {path:?} was not found"))?;
         let model = parse(&bytes, |uri| read(&join(&base, uri)))?;
-        Self::fit(model, &base, manifest, driver)
+        Ok(Self::fit(model, &base, manifest, driver)?.with_feet(driver, sole(driver_mesh)))
+    }
+
+    /// Plant the feet ([`Feet`]) on a driver whose lowest base-pose point is
+    /// `driver_sole`; nothing changes when the driver or the map has no ankles.
+    fn with_feet(mut self, driver: &Gla, driver_sole: Option<f32>) -> Self {
+        let lowest = |values: &mut dyn Iterator<Item = f32>| values.fold(f32::MAX, f32::min);
+        self.feet = driver_sole.and_then(|sole| {
+            let mut ankles = Vec::new();
+            let mut joints = Vec::new();
+            for name in ANKLES {
+                let bone = driver.bones.iter().position(|bone| bone.name == name)?;
+                let anchor = (*self.anchors.get(bone)?).filter(|a| a.bone == bone)?;
+                ankles.push((bone, anchor.base));
+                joints.push(anchor.joint);
+            }
+            let rig_sole = lowest(
+                &mut self
+                    .surfaces
+                    .iter()
+                    .flat_map(|surface| &surface.vertices)
+                    .map(|vertex| vertex.position[2]),
+            );
+            if rig_sole == f32::MAX {
+                return None;
+            }
+            Some(Feet {
+                driver_ankle: lowest(&mut ankles.iter().map(|(_, base)| base.z)) - sole,
+                rig_ankle: lowest(&mut joints.iter().map(|&j| self.joints[j].bind.translation.z))
+                    - rig_sole,
+                rig_sole,
+                ankles,
+                joints,
+            })
+        });
+        self
     }
 
     fn fit(
@@ -586,6 +682,8 @@ impl RigModel {
             driven,
             anchors,
             pelvis,
+            feet: None,
+            lift: manifest.lift,
             clips,
             surfaces,
         })
@@ -637,17 +735,46 @@ impl RigModel {
             let parent = self.joints[index].parent.map(|parent| pose[parent]);
             pose[index] = self.place(index, parent, bones);
         }
+        // Where the driver's soles are now, from its lower ankle.
+        let ground = self.feet.as_ref().and_then(|feet| {
+            let ankle = feet
+                .ankles
+                .iter()
+                .filter_map(|(bone, base)| {
+                    bones
+                        .get(*bone)
+                        .map(|matrix| affine(matrix).transform_point3a(*base).z)
+                })
+                .fold(f32::MAX, f32::min);
+            (ankle < f32::MAX).then_some(ankle - feet.driver_ankle)
+        });
+        if let (Some(feet), Some(ground)) = (&self.feet, ground) {
+            let ankle = feet
+                .joints
+                .iter()
+                .map(|&joint| pose[joint].translation.z)
+                .fold(f32::MAX, f32::min);
+            let shift = ground + feet.rig_ankle - ankle;
+            for joint in pose.iter_mut() {
+                joint.translation.z += shift;
+            }
+        }
         *blended = false;
         if let Some(play) = play.filter(|play| play.weight > 0.0)
             && let Some(source) = self.clips.get(play.clip)
         {
             // A clip's pose is the rig's own, standing where its bind pose stands;
             // the driver's pelvis says how far its animations sink the body.
-            let offset = self.pelvis.and_then(|(bone, base)| {
+            let mut offset = self.pelvis.and_then(|(bone, base)| {
                 bones
                     .get(bone)
                     .map(|matrix| affine(matrix).transform_point3a(base) - base)
             });
+            // With planted feet, the clip's soles stand on the driver's ground.
+            if let (Some(feet), Some(ground)) = (&self.feet, ground) {
+                let offset = offset.get_or_insert(Vec3A::ZERO);
+                offset.z = ground - feet.rig_sole;
+            }
             clip.clear();
             clip.resize(self.joints.len(), Affine3A::IDENTITY);
             for &index in &self.order {
@@ -669,6 +796,11 @@ impl RigModel {
                 };
             }
             *blended = true;
+        }
+        if self.lift != 0.0 {
+            for joint in pose.iter_mut() {
+                joint.translation.z += self.lift;
+            }
         }
         palette.clear();
         palette.extend(

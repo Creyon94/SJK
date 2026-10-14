@@ -28,6 +28,7 @@ import bpy
 from bpy.props import (
     BoolProperty,
     EnumProperty,
+    FloatProperty,
     IntProperty,
     PointerProperty,
     StringProperty,
@@ -202,6 +203,14 @@ def plain_material(source):
     elif source is not None:
         bsdf.inputs["Base Color"].default_value = source.diffuse_color
     return material
+
+
+def with_lift(text, lift):
+    """`text` (a manifest) with its `lift` line set to `lift`, or removed at 0."""
+    lines = [line for line in text.splitlines() if line.split()[:1] != ["lift"]]
+    if lift:
+        lines.append(f"lift {lift:g}")
+    return "\n".join(lines) + "\n"
 
 
 def manifest_text(preset):
@@ -406,6 +415,17 @@ class SJKRigExportSettings(PropertyGroup):
         description="Leave out hidden meshes (other LODs, spare parts)",
         default=True,
     )
+    lift: FloatProperty(
+        name="Height adjustment",
+        description="Game units the model is raised by (negative lowers it). The game "
+        "already plants the feet on the ground; use this only if the soles still sink "
+        "or float. Written as the manifest's lift line",
+        default=0.0,
+        soft_min=-10.0,
+        soft_max=10.0,
+        step=10,
+        precision=1,
+    )
     overwrite_manifest: BoolProperty(
         name="Rewrite sjk_rig.cfg",
         description="Replace an existing manifest (and its map lines) with a fresh one",
@@ -522,7 +542,7 @@ class SJK_OT_export_rig_model(Operator):
             manifest = self.old_manifest(base, name, settings)
             with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
                       newline="\n") as file:
-                file.write(manifest or manifest_text(settings.preset))
+                file.write(with_lift(manifest or manifest_text(settings.preset), settings.lift))
             if settings.pack:
                 self.pack(stage, os.path.join(base, f"rig_{name}.pk3"))
         except Exception as error:  # report it in Blender rather than a traceback
@@ -657,6 +677,7 @@ class SJK_PT_rig_export(Panel):
         layout.prop(settings, "model_name")
         layout.prop(settings, "preset")
         layout.prop(settings, "visible_only")
+        layout.prop(settings, "lift")
         layout.prop(settings, "overwrite_manifest")
         layout.prop(settings, "pack")
         name = model_name(settings)

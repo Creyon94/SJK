@@ -1031,6 +1031,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-feet]
+area: Rendering & effects
+title: Rig models: feet planted on the ground
+change: Each frame the model's lower ankle is planted where Kyle's is; lift fine-tunes it.
+test: /model kane, third person: standing, Kane's soles touch the floor (no sinking).
+test: Walk, run, crouch, jump, land: the feet stay at floor level.
+test: Dance (sjkemote kane_dancemoves): the feet stay on the floor.
+note: Blender add-on Height adjustment writes lift; leave it at 0 unless still off.
+
 [emote-sounds]
 area: Rendering & effects
 title: Emote sounds, dancing while moving, sjkemote stop
