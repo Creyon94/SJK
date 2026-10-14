@@ -46,6 +46,7 @@ pub(super) fn showing(inputs: &Inputs<'_>) -> ((String, &'static str), Vec<Showi
         .and_then(|snapshot| snapshot.me.as_ref());
     let awards = me.map(|me| crate::medals::awards(&me.medals));
     let held = awards.as_ref().map_or(0, Vec::len);
+    let count = listed(awards.as_deref().unwrap_or_default()).count();
     let headline = match (inputs.enabled, &awards) {
         (false, _) => (
             "Identity is off".to_owned(),
@@ -56,11 +57,11 @@ pub(super) fn showing(inputs: &Inputs<'_>) -> ((String, &'static str), Vec<Showi
             "Your medals show once the SJK hub has answered.",
         ),
         (true, Some(_)) if held == 0 => (
-            format!("0 of {} medals", Medal::COUNT),
+            format!("0 of {count} medals"),
             "The SJK team gives medals by hand, for what players do for SJK.",
         ),
         (true, Some(_)) => (
-            format!("{held} of {} medals", Medal::COUNT),
+            format!("{held} of {count} medals"),
             "Given by the SJK team by hand, for what players do for SJK.",
         ),
     };
@@ -73,11 +74,24 @@ pub(super) fn showing(inputs: &Inputs<'_>) -> ((String, &'static str), Vec<Showi
         })
         .collect();
     for medal in Medal::ALL {
-        if !shown.iter().any(|showing| showing.medal == medal) {
+        if !shown.iter().any(|showing| showing.medal == medal) && !shelved(medal) {
             shown.push(Showing { medal, award: None });
         }
     }
     (headline, shown)
+}
+
+/// Whether `medal` stays out of the tab until given: Supporter while donations are
+/// shelved (`crate::donation_goal::SHELVED`).
+fn shelved(medal: Medal) -> bool {
+    crate::donation_goal::SHELVED && medal == Medal::Supporter
+}
+
+/// The medals the tab lists: every one but the shelved ones not in `awards`.
+fn listed(awards: &[Award]) -> impl Iterator<Item = Medal> + '_ {
+    Medal::ALL
+        .into_iter()
+        .filter(|&medal| !shelved(medal) || awards.iter().any(|award| award.medal == medal))
 }
 
 /// When it was given, as the medal's line says it.
@@ -409,21 +423,25 @@ mod tests {
             medal("early_tester", 1, ""),
         ]);
         let ((headline, _), shown) = showing(&with(true, Some(&shot)));
-        assert_eq!(headline, format!("2 of {} medals", Medal::COUNT));
+        let listed = Medal::ALL
+            .into_iter()
+            .filter(|&medal| !shelved(medal))
+            .count();
+        assert_eq!(headline, format!("2 of {listed} medals"));
         assert_eq!(held(&with(true, Some(&shot))), Some(2));
         let order: Vec<(Medal, bool)> = shown
             .iter()
             .map(|showing| (showing.medal, showing.award.is_some()))
             .collect();
-        assert_eq!(
-            order,
-            [
-                (Medal::EarlyTester, true),
-                (Medal::BugHunter, true),
-                (Medal::EarlyContributor, false),
-                (Medal::Supporter, false),
-            ]
-        );
+        let mut expected = vec![
+            (Medal::EarlyTester, true),
+            (Medal::BugHunter, true),
+            (Medal::EarlyContributor, false),
+        ];
+        if !shelved(Medal::Supporter) {
+            expected.push((Medal::Supporter, false));
+        }
+        assert_eq!(order, expected);
         assert_eq!(
             given(shown[1].award.as_ref()),
             format!(
@@ -431,10 +449,10 @@ mod tests {
                 crate::medals::date_text(1_791_336_225)
             )
         );
-        // Without the hub every medal shows, none given, and none is counted.
+        // Without the hub every listed medal shows, none given, and none is counted.
         for (enabled, snapshot) in [(false, Some(&shot)), (true, None)] {
             let (_, shown) = showing(&with(enabled, snapshot));
-            assert_eq!(shown.len(), Medal::COUNT);
+            assert_eq!(shown.len(), listed);
             assert!(shown.iter().all(|showing| showing.award.is_none()));
             assert_eq!(held(&with(enabled, snapshot)), None);
         }

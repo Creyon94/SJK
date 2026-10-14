@@ -222,6 +222,10 @@ server are untested.
 
 ## Donations and the Supporter medal
 
+Shelved on 14/10/2026 (Sol's request, branch `personal/shelve-donations`): the site's
+section, the main page's card and its setting are hidden, and the Collection shows the
+Supporter medal only to holders ([sjk.md](sjk.md#donations)).
+
 14/10/2026: the medal has its final art (supporter-art, Sol's pick of a generated sheet; crimson ribbon).
 
 Branch `personal/donate-goal` (13/10/2026), Sol's request, with the hub's

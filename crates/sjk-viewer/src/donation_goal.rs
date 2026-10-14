@@ -5,12 +5,21 @@
 //! own, at most every ten minutes while the main page shows, and kept in memory: the
 //! menu never waits for it. Without an answer the card shows Donate alone.
 //! `ui_donationGoal 0` hides the card and asks nothing.
+//!
+//! Shelved since 14/10/2026 ([`SHELVED`]): no card, no setting, no Supporter medal
+//! in the Collection until held. To bring them back, set it to `false` and put the
+//! "Donation goal" row back in `settings/catalog.rs` (GAME), `settings/groups.rs`
+//! (Interface) and its help line in `settings/help.rs` (in git history).
 
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use sjk_identity::DonationGoal;
 use sjk_identity::donations::DEFAULT_URL;
+
+/// Donations are shelved (Sol, 14/10/2026): the card, its setting and the unheld
+/// Supporter medal stay hidden whatever `ui_donationGoal` says.
+pub(crate) const SHELVED: bool = true;
 
 /// The setting that shows the card (on by default).
 pub(crate) const CVAR: &str = "ui_donationGoal";
@@ -68,7 +77,7 @@ fn lock() -> MutexGuard<'static, State> {
 
 /// Whether the player shows the card.
 pub(crate) fn shown(console: Option<&crate::console::ViewerConsole>) -> bool {
-    console.is_none_or(|console| console.bool_cvar(CVAR) != Some(false))
+    !SHELVED && console.is_none_or(|console| console.bool_cvar(CVAR) != Some(false))
 }
 
 /// The card this frame, `None` when it is hidden. Asks the hub again when the last

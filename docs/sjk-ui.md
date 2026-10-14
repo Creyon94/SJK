@@ -204,7 +204,7 @@ one (4:3, 5:4) scales the frame down to its width.
   Down past the last server reaches the field
   (the gold arc turns to it); Enter types and every key goes to the field until Enter
   sends or Escape stops. Not shown with `cl_sjkChat 0`.
-- **Donation goal:** top left, clear of the ring (x 96 to 516, from y 58;
+- **Donation goal** (shelved since 14/10/2026, never shown; [sjk.md](sjk.md#donations)): top left, clear of the ring (x 96 to 516, from y 58;
   [donation_goal.rs](../crates/sjk-viewer/src/donation_goal.rs), since 13/10/2026,
   Sol's request): "Support SJK" with a gold Donate pill at its right, then "80 € of
   200 € this month" and a gold bar on a holo track, then "More than 1 € brings the

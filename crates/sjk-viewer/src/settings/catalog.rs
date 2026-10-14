@@ -707,11 +707,6 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Choice(&crate::menu::style::MenuStyle::NAMES),
     },
     Setting {
-        label: "Donation goal",
-        cvar: crate::donation_goal::CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Quick wheel pages",
         cvar: crate::quick_wheel::pages::FILE,
         kind: ValueKind::WheelPages,
