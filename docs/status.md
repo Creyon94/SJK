@@ -1,3 +1,16 @@
+## Rig models: glTF players with their own skeleton
+
+14/10/2026: a model folder with `sjk_rig.cfg` is drawn from a glTF (any skeleton,
+fingers, face) and posed every frame from the stock `_humanoid` animations through a
+bone map, the stock driver (Kyle) still doing bolts, traces and the server's animations
+([rig-models.md](rig-models.md)). Checked by unit tests (glTF reading, manifest, pose
+maths, CPU and GPU paths agreeing) and the world shot `rig_model_on_a_demo`: a
+177-joint mannequin character on a demo player, drawn and skinned on the GPU, holding
+the saber, on one GPU, the player idle. Not tried in the game: moving, fighting, dying,
+the mid-match swap through `/model`, other players. Before this, release-build
+measurement on the same demo (19 players): pose, skinning and upload took 0.064 ms a
+frame, vertex skinning already on the GPU, so the rig path is about looks, not speed.
+
 ## Shaders: a filter for a long list
 
 14/10/2026: the Collection's Shaders tab filters by tier (chips, T), by shaders owned (O)

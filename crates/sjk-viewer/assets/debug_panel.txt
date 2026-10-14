@@ -1031,6 +1031,19 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-models]
+area: Rendering & effects
+title: Rig models: a glTF player with its own skeleton, moved by JKA's animations
+change: A model folder with sjk_rig.cfg is drawn from its glTF, posed from Kyle's skeleton.
+change: Local test model: base/models/players/wolftest (never shared).
+test: /model wolftest, third person (cg_thirdPerson 1): the wolf stands, holds the saber.
+test: Run, jump, roll, swing, block: the body follows; feet stay near the floor.
+test: Look up and down: the wolf's spine and head follow.
+test: Die and respawn: no limbs cut, no stray Kyle surfaces; the corpse is the wolf.
+test: First person: no wolf body in front of the camera.
+test: Back to /model kyle: Kyle again, nothing left over.
+note: Fingers close on the hilt; face and shape keys stay still for now.
+
 [show-brushes]
 area: Rendering & effects
 title: Invisible brushes: clips, triggers, ladders... drawn see-through as in Radiant

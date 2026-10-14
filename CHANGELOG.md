@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Material maps: The generator finds your overrides again, crates read as metal and concrete as concrete.
 > Fixes: Decals fade into fog with their walls, and the sky no longer flickers through a ceiling built just under it.
 
+- Rig models: a player model can be a glTF with its own skeleton (fingers, face, any bones), animated by the game's own moves through a bone map; a model folder with an sjk_rig.cfg file turns it on _(Sol)_
 - Nine plain saber shaders, after Creyon's Saber ideas page: Tidal, Circuit, Aurora and Echo (the new white Common tier) and Nebula, Cinder, Venom, Sakura and Firefly (Uncommon); the skin list takes up to 256 shaders now _(Sol, ideas by Creyon)_
 - Twelve more plain saber shaders: Slate, Amber, Lilac, Mint, Coral, Ivory (Common) and Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight (Uncommon) _(Sol, ideas by Creyon)_
 - Everything collectible now carries an edition stamp, "Alpha Edition" for the whole alpha (the start of a season system): shown on a shader's card, a medal's card and the hover cards of shaders, medals, achievements and the toy; the shader search finds "alpha" _(Sol)_

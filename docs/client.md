@@ -759,7 +759,9 @@ A player's or NPC's appearance (`models/players/<model>/<skin>`) loads its
 `animation.cfg` and a skin; if the model cannot be loaded or built, the client
 draws Kyle for that player instead
 ([player_assets.rs](../crates/sjk-viewer/src/player_assets.rs),
-[actor_load.rs](../crates/sjk-viewer/src/actor_load.rs)). That includes a model
+[actor_load.rs](../crates/sjk-viewer/src/actor_load.rs)). A folder holding
+`sjk_rig.cfg` is a [rig model](rig-models.md): a glTF with its own skeleton, drawn in
+place of a stock driver model whose skeleton still carries the animations. That includes a model
 changed during the match (`/model`, or a new player in a used slot), as
 `CG_LoadClientInfo` falls back to `DEFAULT_MODEL`: the player is not left in
 their previous model, and the log says `client N Kyle in place of <model>`. A

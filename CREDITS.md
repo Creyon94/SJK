@@ -36,6 +36,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   [credits.txt](crates/sjk-viewer/assets/credits.txt), with links to GitHub;
 - self-updates (`cl_autoUpdate`, main menu > Update);
 - the regrouped Settings screen with its search, and the First setup page;
+- rig models: glTF player models with their own skeleton, posed every frame from
+  the game's `_humanoid` animations through a bone map;
 - classic+'s settings controls: switches, slim sliders, side-by-side choices,
   sentence-case labels, sub-headings and reset arrows;
 - the SJK UI (`ui_menuStyle sjk`), SJK's own menus over the live map, being

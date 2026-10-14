@@ -71,6 +71,9 @@ pub(super) struct PlayerPreview {
     pub(crate) vehicle_camera: Option<crate::camera::VehicleProfile>,
     /// The vehicle's HUD maxima and crosshair, read with its definition.
     pub(crate) vehicle_hud: Option<crate::hud::vehicle::Profile>,
+    /// A rig model ([`crate::rig_model`]) drawn in place of `mesh`, which then
+    /// only drives the pose, bolts and traces.
+    pub(crate) rig: Option<Arc<crate::rig_model::RigModel>>,
 }
 
 pub(super) fn load_player_preview(
@@ -128,13 +131,28 @@ pub(super) fn load_player_appearance_with(
             .ok_or_else(|| format!("player preview asset {path:?} was not found"))?
             .bytes)
     };
-    let mut mesh = Glm::parse(&read(&format!("{directory}/model.glm"))?)?;
+    // A rig model is driven by a stock model's mesh and skeleton, drawn as its glTF.
+    let rig_manifest = if vehicle.is_none() {
+        crate::rig_model::manifest(vfs, directory)?
+    } else {
+        None
+    };
+    let (mesh_directory, mesh_variant) = rig_manifest
+        .as_ref()
+        .map_or((directory, variant), |manifest| {
+            (manifest.driver.as_str(), "default")
+        });
+    let mut mesh = Glm::parse(&read(&format!("{mesh_directory}/model.glm"))?)?;
     let animation_path = format!("{}.gla", mesh.animation_name);
     let animation = cache.get(&animation_path, || read(&animation_path))?;
-    fit_skeleton(&mut mesh, &animation, directory, &animation_path)?;
+    fit_skeleton(&mut mesh, &animation, mesh_directory, &animation_path)?;
     // A skin never costs the model: a skin that gives no handle falls back to
     // model_default.skin, then to the surfaces' own shaders (skin handle 0).
-    let skin = crate::player_skin::resolve(vfs, directory, variant)?;
+    let skin = crate::player_skin::resolve(vfs, mesh_directory, mesh_variant)?;
+    let rig = rig_manifest
+        .map(|manifest| crate::rig_model::RigModel::load(vfs, directory, &manifest, &animation))
+        .transpose()?
+        .map(Arc::new);
     let animation_directory = mesh
         .animation_name
         .rsplit_once('/')
@@ -203,6 +221,7 @@ pub(super) fn load_player_appearance_with(
         vehicle: vehicle_kind,
         vehicle_camera: vehicle.as_ref().map(|look| look.camera),
         vehicle_hud: vehicle.as_ref().map(|look| look.hud.clone()),
+        rig,
     })
 }
 

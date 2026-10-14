@@ -128,7 +128,13 @@ pub(super) fn apply(
         limb.update_pivot(&mesh.preview.animation, matrices);
     }
     if let Some(palette) = &mut mesh.gpu_palette {
-        palette.stage(skinning, matrices)?;
+        match &mesh.preview.rig {
+            Some(rig) => {
+                rig.pose(matrices, &mut mesh.rig_scratch);
+                palette.stage(skinning, &mesh.rig_scratch.palette)?;
+            }
+            None => palette.stage(skinning, matrices)?,
+        }
         mesh.force_bones.update(&mesh.preview.animation, matrices);
         mesh.force_bones
             .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
@@ -157,8 +163,32 @@ pub(super) fn apply(
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
     mesh.cosmetics.update_bolts(&mesh.preview.mesh, matrices);
     mesh.jetpack.update(&mesh.preview, matrices);
+    if let Some(rig) = &mesh.preview.rig
+        && mesh.gpu_palette.is_none()
+    {
+        rig.pose(matrices, &mut mesh.rig_scratch);
+        for range in &mesh.vertex_ranges {
+            let surface = rig
+                .surfaces
+                .get(range.surface_index)
+                .ok_or("rig surface disappeared")?;
+            mesh.pose_vertices.clear();
+            mesh.pose_vertices
+                .extend(surface.vertices.iter().map(|vertex| {
+                    crate::actor_load::rig_gpu_vertex(vertex, Some(&mesh.rig_scratch.palette))
+                }));
+            let byte_offset = u64::try_from(range.vertices.start)?
+                .checked_mul(u64::try_from(std::mem::size_of::<GpuVertex>())?)
+                .ok_or("animated actor buffer offset overflow")?;
+            queue.write_buffer(
+                vertex_buffer,
+                byte_offset,
+                bytemuck::cast_slice(&mesh.pose_vertices),
+            );
+        }
+    }
     for range in &mesh.vertex_ranges {
-        if mesh.gpu_palette.is_some() {
+        if mesh.gpu_palette.is_some() || mesh.preview.rig.is_some() {
             break;
         }
         let surface = surfaces
