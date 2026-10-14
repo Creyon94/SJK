@@ -25,7 +25,9 @@ animation); the add-on then gained a frame rate, a sound per emote and "keep pla
 while moving", emotes became visible to other SJK players by default (the hub relays
 the id; each needs the same files), and `sjkemote stop` ends one. Sound playback,
 moving emotes and two clients seeing each other's emote are not yet tried in the
-game.
+game. Sol saw the feet sink: measured 2.6 to 3.2 units below Kyle's soles standing and
+running; the feet are now planted on the driver's every frame (within a unit in the
+measured poses), with a `lift` line (the add-on's Height adjustment) for the rest.
 
 ## Shaders: a filter for a long list
 

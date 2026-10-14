@@ -167,7 +167,9 @@ pub(super) fn load_player_appearance_with(
     // model_default.skin, then to the surfaces' own shaders (skin handle 0).
     let skin = crate::player_skin::resolve(vfs, mesh_directory, mesh_variant)?;
     let rig = rig_manifest
-        .map(|manifest| crate::rig_model::RigModel::load(vfs, directory, &manifest, &animation))
+        .map(|manifest| {
+            crate::rig_model::RigModel::load(vfs, directory, &manifest, &animation, &mesh)
+        })
         .transpose()?
         .map(Arc::new);
     let animation_directory = mesh
