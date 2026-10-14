@@ -808,6 +808,12 @@ an opening that held only shaders says "You found Tidal blade (2 held)." in the 
 refusal line, and the Collection lists the shader; the crate-style opening comes next.
 Opening is still staff-only. Checked by unit tests on both sides; not in the game.
 
+Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
+grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
+owned line and the hover card say ", 2 held". The tab's headline still counts shaders
+owned out of the catalogue ("5 of 23 owned"), a duplicate counting once. A search, a tier
+filter and paging for a catalogue near 200 are not built.
+
 ## Planned, not built
 
 Achievements granting unlockables (with harder goals), holocron drops beyond shaders

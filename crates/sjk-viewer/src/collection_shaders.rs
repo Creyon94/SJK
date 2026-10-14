@@ -116,10 +116,15 @@ fn owned_line(grant: &sjk_identity::Unlock) -> String {
             || "from the SJK team".to_owned(),
             |medal| format!("with your {} medal", medal.name()),
         );
-    if date.is_empty() {
-        format!("Yours, {from}")
+    let held = if grant.count > 1 {
+        format!(", {} held", grant.count)
     } else {
-        format!("Yours since {date}, {from}")
+        String::new()
+    };
+    if date.is_empty() {
+        format!("Yours, {from}{held}")
+    } else {
+        format!("Yours since {date}, {from}{held}")
     }
 }
 
@@ -129,6 +134,18 @@ struct Row {
     skin: Option<&'static Unlockable>,
     owned: bool,
     worn: bool,
+    /// How many the player holds (holocrons may drop the same shader again): 1 for the
+    /// stock blade and a shader held once, 0 when locked.
+    count: u32,
+}
+
+/// `word` with how many are held after it when there are several: "Yours x2".
+fn held_words(word: &str, count: u32) -> String {
+    if count > 1 {
+        format!("{word} x{count}")
+    } else {
+        word.to_owned()
+    }
 }
 
 impl Row {
@@ -151,13 +168,13 @@ impl Row {
     }
 
     /// Its state, as the rack says it.
-    fn status(self) -> &'static str {
+    fn status(self) -> String {
         match (self.skin, self.worn, self.owned) {
-            (None, true, _) => "Worn, in your colour",
-            (None, false, _) => "In your colour",
-            (Some(_), true, _) => "Worn",
-            (Some(_), false, true) => "Yours",
-            (Some(_), false, false) => "Locked",
+            (None, true, _) => "Worn, in your colour".to_owned(),
+            (None, false, _) => "In your colour".to_owned(),
+            (Some(_), true, _) => held_words("Worn", self.count),
+            (Some(_), false, true) => held_words("Yours", self.count),
+            (Some(_), false, false) => "Locked".to_owned(),
         }
     }
 }
@@ -173,11 +190,18 @@ impl Panel {
             skin: None,
             owned: true,
             worn: worn.is_none(),
+            count: 1,
         })
-        .chain(unlockables::blade_skins_by_tier().iter().map(|&skin| Row {
-            skin: Some(skin),
-            owned: inputs.holdings.unlock(skin.id).is_some(),
-            worn: worn == Some(skin.id),
+        .chain(unlockables::blade_skins_by_tier().iter().map(|&skin| {
+            Row {
+                skin: Some(skin),
+                owned: inputs.holdings.unlock(skin.id).is_some(),
+                worn: worn == Some(skin.id),
+                count: inputs
+                    .holdings
+                    .unlock(skin.id)
+                    .map_or(0, |unlock| unlock.count),
+            }
         }))
         .collect()
     }
@@ -481,10 +505,10 @@ impl Panel {
             TextAlign::Start,
         );
         let state = match (row.skin, row.worn, row.owned) {
-            (_, true, _) => "Worn",
-            (None, false, _) => "",
-            (Some(_), false, true) => "Yours",
-            (Some(_), false, false) => "Locked",
+            (_, true, _) => held_words("Worn", row.count),
+            (None, false, _) => String::new(),
+            (Some(_), false, true) => held_words("Yours", row.count),
+            (Some(_), false, false) => "Locked".to_owned(),
         };
         text(
             &mut self.ui,
@@ -800,16 +824,16 @@ impl Panel {
         let lit = row.owned && row.skin.is_some();
         let tag = match (row.skin, row.worn, row.owned) {
             (None, _, _) => None,
-            (Some(_), true, _) => Some("Worn"),
-            (Some(_), false, true) => Some("Yours"),
-            (Some(_), false, false) => Some("Locked"),
+            (Some(_), true, _) => Some(held_words("Worn", row.count)),
+            (Some(_), false, true) => Some(held_words("Yours", row.count)),
+            (Some(_), false, false) => Some("Locked".to_owned()),
         };
         // The name never runs under the state: it ends short of the pill, ellipsised,
         // whatever face and size the text is drawn in.
         let (name_rect, tag_rect) = match tag {
             Some(tag) => {
                 let (name, pill) =
-                    title_rects(x, y, width, crate::text::display_width(tag, 15.0) + 26.0);
+                    title_rects(x, y, width, crate::text::display_width(&tag, 15.0) + 26.0);
                 (name, Some((tag, pill)))
             }
             None => ([x, y, width, 62.0], None),
@@ -1019,6 +1043,13 @@ mod tests {
             ..grant(Some("early_tester"))
         };
         assert!(owned_line(&dated).starts_with("Yours since "));
+        let twice = sjk_identity::Unlock {
+            count: 3,
+            ..grant(None)
+        };
+        assert_eq!(owned_line(&twice), "Yours, from the SJK team, 3 held");
+        assert_eq!(held_words("Yours", 1), "Yours");
+        assert_eq!(held_words("Worn", 2), "Worn x2");
         assert!(owned_line(&dated).ends_with(", with your Early Tester medal"));
     }
 
