@@ -16,7 +16,8 @@ characters share) play it too.
 
 Meshes rigged to another armature whose bones follow this one (a Child Of or Copy
 Transforms constraint on its bone, as a tail or a cape is set up) go with the
-model, fixed to the bone they follow.
+model, that armature's bones joined under the bone they follow; the manifest's
+`dynamic` lines make them move on their own in the game (spring and wag).
 
 The blend file is left as it was: the export works on temporary copies of the meshes
 and materials, and puts the armature's action, NLA state and frame back afterwards.
@@ -157,8 +158,9 @@ def followed_bone(armature, other):
 
 
 def following_meshes(context, armature, visible_only):
-    """(mesh, bone) for the meshes other armatures deform whose bones follow
-    `armature`'s bone; they go with the model fixed to that bone."""
+    """(mesh, bone, other armature) for the meshes other armatures deform whose
+    bones follow `armature`'s bone; they go with the model, their armature's bones
+    joined under that bone."""
     found = []
     for other in context.scene.objects:
         if other.type != "ARMATURE" or other == armature:
@@ -166,8 +168,29 @@ def following_meshes(context, armature, visible_only):
         bone = followed_bone(armature, other)
         if bone is None:
             continue
-        found.extend((mesh, bone) for mesh in deformed_meshes(context, other, visible_only))
+        found.extend(
+            (mesh, bone, other) for mesh in deformed_meshes(context, other, visible_only)
+        )
     return found
+
+
+def followers(following):
+    """Each following armature once, with the bone it follows."""
+    seen = {}
+    for _, bone, other in following:
+        seen.setdefault(other, bone)
+    return list(seen.items())
+
+
+def dynamic_roots(following):
+    """The root bones of the following armatures: the game moves the bones under
+    them on their own (the manifest's `dynamic` lines)."""
+    return sorted(
+        bone.name
+        for other, _ in followers(following)
+        for bone in other.data.bones
+        if bone.parent is None
+    )
 
 
 def picture(path, what):
@@ -298,6 +321,14 @@ def with_lift(text, lift):
     lines = [line for line in text.splitlines() if line.split()[:1] != ["lift"]]
     if lift:
         lines.append(f"lift {lift:g}")
+    return "\n".join(lines) + "\n"
+
+
+def with_dynamic(text, joints):
+    """`text` (a manifest) with one `dynamic` line per joint of `joints`, the ones it
+    had replaced."""
+    lines = [line for line in text.splitlines() if line.split()[:1] != ["dynamic"]]
+    lines.extend(f"dynamic {joint}" for joint in joints)
     return "\n".join(lines) + "\n"
 
 
@@ -666,7 +697,8 @@ class SJK_OT_export_rig_model(Operator):
             manifest = self.old_manifest(base, name, settings, pack_path)
             with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
                       newline="\n") as file:
-                file.write(with_lift(manifest or manifest_text(settings.preset), settings.lift))
+                text = with_lift(manifest or manifest_text(settings.preset), settings.lift)
+                file.write(with_dynamic(text, dynamic_roots(following)))
             if settings.pack:
                 self.pack(stage, pack_path, name)
         except Exception as error:  # report it in Blender rather than a traceback
@@ -750,25 +782,71 @@ class SJK_OT_export_rig_model(Operator):
             if os.path.exists(partial):
                 os.remove(partial)
 
-    def fixed_to_bone(self, context, armature, source, bone):
-        """A temporary copy of `source` (a mesh another armature deforms) as it stands
-        on `armature`'s rest pose, rigged to `armature`'s `bone` alone."""
+    def joined(self, context, armature, following):
+        """A temporary copy of `armature` with the bones of each following armature
+        added under the bone it follows, where they stand on `armature`'s rest pose
+        (the armature is at rest when this runs)."""
+        from mathutils import Matrix
+
+        data = armature.data.copy()
+        rig = bpy.data.objects.new(f"SJK_export_{armature.name}", data)
+        rig.matrix_world = armature.matrix_world
+        context.scene.collection.objects.link(rig)
+        inverse = rig.matrix_world.inverted()
+        placed = []
+        for other, followed in followers(following):
+            for pose_bone in other.pose.bones:
+                location, rotation, _ = (
+                    inverse @ other.matrix_world @ pose_bone.matrix
+                ).decompose()
+                parent = pose_bone.parent.name if pose_bone.parent else followed
+                placed.append((
+                    pose_bone.name,
+                    Matrix.LocRotScale(location, rotation, None),
+                    pose_bone.bone.length,
+                    parent,
+                ))
+        for obj in context.view_layer.objects:
+            obj.select_set(False)
+        rig.select_set(True)
+        context.view_layer.objects.active = rig
+        bpy.ops.object.mode_set(mode="EDIT")
+        try:
+            bones = data.edit_bones
+            added = []
+            for name, matrix, length, _ in placed:
+                if name in bones:  # a name the body has: its own bone stays
+                    continue
+                bone = bones.new(name)
+                bone.head = (0.0, 0.0, 0.0)
+                bone.tail = (0.0, max(length, 1e-3), 0.0)
+                bone.matrix = matrix
+                added.append(name)
+            for name, _, _, parent in placed:
+                if name in added and parent in bones:
+                    bones[name].parent = bones[parent]
+        finally:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        data.pose_position = "REST"
+        return rig
+
+    def baked(self, context, rig, source):
+        """A temporary copy of `source` (a mesh a following armature deforms) as it
+        stands now, keeping its weights, rigged to `rig` (whose joined bones stand
+        where its own do)."""
         depsgraph = context.evaluated_depsgraph_get()
         data = bpy.data.meshes.new_from_object(
             source.evaluated_get(depsgraph), depsgraph=depsgraph
         )
-        data.transform(armature.matrix_world.inverted() @ source.matrix_world)
+        data.transform(rig.matrix_world.inverted() @ source.matrix_world)
         copy = bpy.data.objects.new(f"SJK_export_{source.name}", data)
         context.scene.collection.objects.link(copy)
-        copy.parent = armature
-        # Weights the mesh kept from its own armature's groups go: the copy has no
-        # groups yet, so adding one and clearing them all frees them.
-        copy.vertex_groups.new(name=bone)
-        copy.vertex_groups.clear()
-        group = copy.vertex_groups.new(name=bone)
-        group.add(range(len(data.vertices)), 1.0, "REPLACE")
+        copy.parent = rig
+        # The groups in the source's order, so the weights the mesh kept find them.
+        for group in sorted(source.vertex_groups, key=lambda group: group.index):
+            copy.vertex_groups.new(name=group.name)
         modifier = copy.modifiers.new("Armature", "ARMATURE")
-        modifier.object = armature
+        modifier.object = rig
         return copy
 
     def export(self, context, armature, meshes, following, path):
@@ -778,9 +856,16 @@ class SJK_OT_export_rig_model(Operator):
         active = context.view_layer.objects.active
         pose_position = armature.data.pose_position
         copies, meshes_data, materials = [], [], {}
+        rig = None
         try:
             armature.data.pose_position = "REST"
             context.view_layer.update()
+            # With following armatures, a copy of the armature holding their bones
+            # too is exported in its place.
+            if following:
+                rig = self.joined(context, armature, following)
+                context.view_layer.update()
+            exported = rig or armature
             for source in meshes:
                 copy = source.copy()
                 copy.data = source.data.copy()
@@ -790,8 +875,13 @@ class SJK_OT_export_rig_model(Operator):
                 meshes_data.append(copy.data)
                 if copy.data.shape_keys:
                     copy.shape_key_clear()
-            for source, bone in following:
-                copy = self.fixed_to_bone(context, armature, source, bone)
+                if rig is not None:
+                    copy.parent = rig
+                    for modifier in copy.modifiers:
+                        if modifier.type == "ARMATURE" and modifier.object == armature:
+                            modifier.object = rig
+            for source, _, _ in following:
+                copy = self.baked(context, rig, source)
                 copies.append(copy)
                 meshes_data.append(copy.data)
             for copy in copies:
@@ -805,10 +895,10 @@ class SJK_OT_export_rig_model(Operator):
                         copy.data.materials[index] = materials[key]
             for obj in context.view_layer.objects:
                 obj.select_set(False)
-            armature.select_set(True)
+            exported.select_set(True)
             for copy in copies:
                 copy.select_set(True)
-            context.view_layer.objects.active = armature
+            context.view_layer.objects.active = exported
             bpy.ops.export_scene.gltf(
                 filepath=path,
                 export_format="GLTF_SEPARATE",
@@ -830,6 +920,10 @@ class SJK_OT_export_rig_model(Operator):
                     bpy.data.meshes.remove(data)
             for material in materials.values():
                 bpy.data.materials.remove(material)
+            if rig is not None:
+                rig_data = rig.data
+                bpy.data.objects.remove(rig, do_unlink=True)
+                bpy.data.armatures.remove(rig_data)
             armature.data.pose_position = pose_position
             for obj in context.view_layer.objects:
                 obj.select_set(obj in selected)
@@ -858,9 +952,9 @@ class SJK_PT_rig_export(Panel):
             following = following_meshes(context, armature, settings.visible_only)
             box.label(text=f"Meshes: {len(meshes)}", icon="MESH_DATA")
             if following:
-                bones = ", ".join(sorted({bone for _, bone in following}))
-                box.label(text=f"Following meshes: {len(following)} (on {bones})",
-                          icon="CONSTRAINT_BONE")
+                bones = ", ".join(sorted({bone for _, bone, _ in following}))
+                box.label(text=f"Following meshes: {len(following)} (on {bones}), "
+                          "moving on their own", icon="CONSTRAINT_BONE")
         layout.prop(settings, "model_name")
         layout.prop(settings, "icon")
         layout.prop(settings, "preset")

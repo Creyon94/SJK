@@ -1031,6 +1031,16 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-dynamics]
+area: Rendering & effects
+title: Tails move on their own
+change: Joints under a dynamic line of sjk_rig.cfg spring after the body and wag a little.
+change: The Blender add-on keeps a tail's bones (it was fixed to the hips) and writes the line.
+test: /model wolfie, stand still: the tail wags gently side to side.
+test: Walk, run, jump, land: the tail lags and bounces, then settles behind her.
+test: sjkemote comrade: the tail follows the dance's hips, stays attached.
+note: Needs test_content.pk3 from add-on 1.7 (the tail's 10 bones, 322 joints).
+
 [emote-settings]
 area: Rendering & effects
 title: Emote sound follows you, Emote volume, character grid fixes

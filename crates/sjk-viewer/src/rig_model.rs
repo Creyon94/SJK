@@ -15,6 +15,9 @@
 //! above the sole kept), so a rig whose legs are longer or shorter for its pelvis
 //! than the driver's neither sinks nor floats ([`Feet`]).
 //!
+//! Joints under a manifest's `dynamic` joint (a tail) move on their own, springing
+//! after their animated place and wagging a little ([`dynamics`]).
+//!
 //! The glTF's own animations become clips ([`clips`]) a rig plays on its skeleton
 //! in place of the driver's pose, fading in and out (emotes). An emote made on
 //! another rig model (its file's `rig`) is borrowed when the two skeletons share
@@ -183,6 +186,8 @@ pub(crate) struct Manifest {
     /// feet planting: a hand tweak for a model whose soles are not its lowest point.
     pub(crate) lift: f32,
     pub(crate) map: Vec<MapEntry>,
+    /// Joints whose chains below move on their own (`dynamic <joint>` lines).
+    pub(crate) dynamic: Vec<String>,
 }
 
 impl Manifest {
@@ -195,6 +200,7 @@ impl Manifest {
             scale: None,
             lift: 0.0,
             map: Vec::new(),
+            dynamic: Vec::new(),
         };
         for (number, line) in text.lines().enumerate() {
             let line = line.split("//").next().unwrap_or("").trim();
@@ -224,6 +230,7 @@ impl Manifest {
                         .filter(|lift: &f32| lift.is_finite())
                         .ok_or_else(bad)?
                 }
+                ["dynamic", joint] => manifest.dynamic.push((*joint).to_owned()),
                 ["map", joint, bone] => manifest.map.push(entry(joint, bone, Align::Rest)),
                 ["map", joint, bone, "as", other] => {
                     manifest
@@ -433,6 +440,8 @@ pub(crate) struct RigModel {
     feet: Option<Feet>,
     /// The manifest's `lift`.
     lift: f32,
+    /// The joints that move on their own.
+    chains: dynamics::Chains,
     pub(crate) clips: Vec<Clip>,
     pub(crate) surfaces: Vec<Surface>,
 }
@@ -731,6 +740,20 @@ impl RigModel {
             }
         }
         let order = topological(&joints)?;
+        let dynamic_anchors: Vec<usize> = manifest
+            .dynamic
+            .iter()
+            .filter_map(|name| {
+                let found = joint_index(name);
+                if found.is_none() {
+                    crate::log::progress(format_args!(
+                        "rig model {base}: {MANIFEST}: no joint {name:?} for dynamic"
+                    ));
+                }
+                found
+            })
+            .collect();
+        let chains = dynamics::Chains::under(&joints, &order, &dynamic_anchors);
         // Alignments first (an `As` entry reads another's), then the driven joints.
         let mut aligned: Vec<Option<Mat3A>> = vec![None; joints.len()];
         for entry in &map {
@@ -879,6 +902,7 @@ impl RigModel {
             pelvis,
             feet: None,
             lift: manifest.lift,
+            chains,
             clips,
             surfaces,
         })
@@ -917,12 +941,31 @@ impl RigModel {
         play: Option<ClipPlay>,
         scratch: &mut Scratch,
     ) {
+        let now = std::time::Instant::now();
+        let step = scratch
+            .last
+            .replace(now)
+            .map(|last| now.duration_since(last).as_secs_f32());
+        self.pose_after(bones, play, scratch, step);
+    }
+
+    /// [`Self::pose`], `step` seconds after the actor's last pose (`None`: the first)
+    /// for the dynamic joints.
+    pub(crate) fn pose_after(
+        &self,
+        bones: &[[[f32; 4]; 3]],
+        play: Option<ClipPlay>,
+        scratch: &mut Scratch,
+        step: Option<f32>,
+    ) {
         let Scratch {
             pose,
             retarget,
             clip,
             palette,
             blended,
+            dynamics: chain_state,
+            last: _,
         } = scratch;
         pose.clear();
         pose.resize(self.joints.len(), Affine3A::IDENTITY);
@@ -982,6 +1025,16 @@ impl RigModel {
                 };
             }
             *blended = true;
+        }
+        if !self.chains.is_empty() {
+            dynamics::simulate(
+                &self.joints,
+                &self.chains,
+                pose,
+                chain_state,
+                step,
+                dynamics::WAG_UNITS,
+            );
         }
         if self.lift != 0.0 {
             for joint in pose.iter_mut() {
@@ -1165,6 +1218,9 @@ pub(crate) struct Scratch {
     blended: bool,
     /// This frame's skinning matrices, one per joint.
     pub(crate) palette: Vec<[[f32; 4]; 3]>,
+    /// The actor's dynamic joints, and when it was last posed.
+    dynamics: dynamics::State,
+    last: Option<std::time::Instant>,
 }
 
 /// `vertex` skinned with `palette` (the CPU path): position and unit normal.
@@ -1232,6 +1288,8 @@ fn topological(joints: &[Joint]) -> Result<Vec<usize>, Box<dyn Error>> {
 
 #[path = "rig_clips.rs"]
 mod clips;
+#[path = "rig_dynamics.rs"]
+mod dynamics;
 
 #[cfg(test)]
 #[path = "rig_model_tests.rs"]

@@ -64,6 +64,21 @@ in those poses (a clip within a third standing), the rest being how each foot's 
 and heel tilt. The manifest's `lift <units>` raises (or lowers) the result by hand;
 a rig without mapped ankles keeps the pelvis placement alone.
 
+### Dynamic joints (tails)
+
+A manifest's `dynamic <joint>` lines make the joints under each named one move on
+their own ([rig_dynamics.rs](../crates/sjk-viewer/src/rig_dynamics.rs), 14/10/2026):
+each is a point pulled by a spring towards where the animation puts it (stiffness 70
+per second squared, damping 7 per second), held at its bone's length from its parent,
+and each parent is then turned to point at its simulated child. So a tail lags and
+bounces when the body moves and settles behind it. A side-to-side wag of 2.5 units at
+the tip, 0.7 times a second, running down the chain, keeps it alive while the player
+stands. The named joint stays where the animation holds it. It all happens in the
+model's space, per actor (`Scratch`): the chain answers the animation (steps, jumps,
+turns of the hips, emotes), not the player's run through the world or their turns.
+A frame step over 0.1 s (a hitch, a teleport) starts the chain again where the
+animation puts it.
+
 ### Bolts on the rig
 
 The driver's bolts (`*r_hand`, `*l_hand`, `*head_top`, the feet, cosmetics, the
@@ -85,6 +100,7 @@ traces and hit boxes stay the driver's.
 | Manifest, presets, fit (axes, scale, alignments, anchors), pose, CPU skin | [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), tests in `rig_model_tests.rs` |
 | Rig surfaces put in the shared vertex buffer | `append_rig_mesh` in [actor_load.rs](../crates/sjk-viewer/src/actor_load.rs) |
 | Per-frame pose and palette upload (GPU and CPU paths) | [actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs), `rig_skin_records` in [gpu_skinning.rs](../crates/sjk-viewer/src/gpu_skinning.rs) |
+| Dynamic joints (tails) | `Chains` and `simulate` in [rig_dynamics.rs](../crates/sjk-viewer/src/rig_dynamics.rs), `RigModel::pose_after` |
 | Feet planted on the driver's ground | `Feet`, `sole` and `RigModel::with_feet` in [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), the ignored test `feet_against_the_driver` |
 | Bolts and Force points moved onto the rig | `PlayerPreview::bolt`, `RigModel::retarget_bolt` and `retarget_point`, [force_bones.rs](../crates/sjk-viewer/src/force_bones.rs) |
 | Dismemberment skipped, JoF first-person body off | [dismember.rs](../crates/sjk-viewer/src/dismember.rs), [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs) |
@@ -107,6 +123,7 @@ A model folder (`models/players/<name>/`) with `sjk_rig.cfg` is a rig model; `/m
 | `preset <name>` | the bone map to start from ([`PRESETS`](../crates/sjk-viewer/src/rig_model.rs)) | `mannequin` |
 | `scale <n>` or `scale auto` | game units per glTF metre | `auto` |
 | `lift <units>` | raise (negative: lower) the planted rig by hand | `0` |
+| `dynamic <joint>` | the joints under it move on their own (spring and wag), one line per chain | none |
 | `map <joint> <bone>` | the joint follows the JKA bone, bind orientation kept | |
 | `map <joint> <bone> <joint end> <bone end>` | ... aimed along the bone | |
 | `map <joint> <bone> as <other joint>` | ... with another joint's alignment (finger chains) | |
@@ -169,9 +186,12 @@ in one click.
   `sjk_rig.cfg` once it has that icon).
 - **Following meshes:** a mesh rigged to another armature whose bone follows one of
   this armature's (a Child Of or Copy Transforms constraint, as a tail or a cape from
-  an Unreal export is set up) goes with the model: a copy of it, as it stands on the
-  armature's rest pose, rigged to the followed bone alone. It moves with that bone,
-  without its own bones' sway. The panel counts them.
+  an Unreal export is set up) goes with the model: a temporary copy of the armature
+  is exported in its place, with the other armature's bones added under the bone it
+  follows where they stand on the rest pose, and the mesh as it stands there with its
+  own weights. The other armature's root bones are written as `dynamic` lines (all of
+  them replaced at each export), so the game moves them on their own. The panel
+  counts them.
 - **Height adjustment:** written as the manifest's `lift` line (0 removes it), the
   one manifest line the add-on changes in a kept manifest.
 - **Emote settings:** each ticked action takes a sound (`.wav` or `.mp3`, packed as

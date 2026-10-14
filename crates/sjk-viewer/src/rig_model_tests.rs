@@ -560,3 +560,88 @@ fn an_emote_names_the_rig_its_clip_comes_from() {
         assert!(crate::emotes::parse("kane_dance", &text).is_err(), "{bad}");
     }
 }
+
+/// [`rig`] with a three-joint tail behind the pelvis (glTF +Z is the front, so the
+/// tail runs along -Z), moving on its own.
+fn tailed() -> RigModel {
+    let mut model = rig();
+    let joint = |name: &str, parent, z: f32, rest: f32| GltfJoint {
+        name: name.to_owned(),
+        parent: Some(parent),
+        bind: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0, z],
+        ],
+        inverse_bind: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0, -z],
+        ],
+        rest: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, rest],
+        ],
+    };
+    model.joints.push(joint("tail_root", 0, -0.1, -0.1));
+    model.joints.push(joint("tail_1", 2, -0.4, -0.3));
+    model.joints.push(joint("tail_2", 3, -0.7, -0.3));
+    RigModel::fit(model, "", &manifest("dynamic tail_root"), &driver()).unwrap()
+}
+
+#[test]
+fn a_dynamic_tail_lags_behind_the_body_then_catches_up() {
+    let rig = tailed();
+    let mut scratch = Scratch::default();
+    let still = vec![identity_rows(); 3];
+    rig.pose_after(&still, None, &mut scratch, None);
+    let length = |pose: &[Affine3A]| (pose[4].translation - pose[3].translation).length();
+    let bone = length(&scratch.pose);
+    // The body steps 10 units sideways: on the next frame the tip has not followed.
+    let mut moved = still.clone();
+    moved[1] = translated(10.0, 0.0, 0.0);
+    rig.pose_after(&moved, None, &mut scratch, Some(1.0 / 60.0));
+    let root = scratch.pose[2].translation.x;
+    let tip = scratch.pose[4].translation.x;
+    assert!((root - 10.0).abs() < 1e-3, "{root}");
+    assert!(tip < 5.0, "the tip lags: {tip}");
+    assert!((length(&scratch.pose) - bone).abs() < 1e-3);
+    // Three seconds later it is back behind the body, give or take the wag.
+    for _ in 0..180 {
+        rig.pose_after(&moved, None, &mut scratch, Some(1.0 / 60.0));
+    }
+    let tip = scratch.pose[4].translation.x;
+    assert!((tip - 10.0).abs() < 2.0 * dynamics::WAG_UNITS, "{tip}");
+    assert!((length(&scratch.pose) - bone).abs() < 1e-3);
+}
+
+#[test]
+fn a_dynamic_tail_wags_while_the_body_stands_still() {
+    let rig = tailed();
+    let mut scratch = Scratch::default();
+    let still = vec![identity_rows(); 3];
+    rig.pose_after(&still, None, &mut scratch, None);
+    let (mut left, mut right) = (0.0f32, 0.0f32);
+    for _ in 0..300 {
+        rig.pose_after(&still, None, &mut scratch, Some(1.0 / 60.0));
+        let tip = scratch.pose[4].translation.x;
+        left = left.min(tip);
+        right = right.max(tip);
+    }
+    assert!(left < -0.5 && right > 0.5, "{left} {right}");
+    assert!(left > -2.0 * dynamics::WAG_UNITS && right < 2.0 * dynamics::WAG_UNITS);
+    // The body itself does not move.
+    assert!(scratch.pose[0].abs_diff_eq(rig.joints[0].bind, 1e-4));
+    // A long hitch starts the tail again where the animation puts it.
+    rig.pose_after(&still, None, &mut scratch, Some(2.0));
+    assert!(scratch.pose[3].translation.x.abs() < dynamics::WAG_UNITS);
+}
+
+#[test]
+fn a_manifest_names_its_dynamic_joints() {
+    let parsed = manifest("dynamic tail_root\ndynamic hair");
+    assert_eq!(parsed.dynamic, ["tail_root", "hair"]);
+    let rig = RigModel::fit(rig(), "", &manifest("dynamic nothing"), &driver()).unwrap();
+    assert!(rig.chains.is_empty());
+}
