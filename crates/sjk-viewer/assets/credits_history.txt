@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Rig model docs: design, code map, pitfalls, recipes, emote plan
+- 3b056e7 |  | Rig model docs: design, code map, pitfalls, recipes, emote plan
++ 14/10/2026 | - | World shot: host cost of animating a demo's players
+- 49d80b7 |  | World shot: host cost of animating a demo's players
++ 14/10/2026 | - | Retarget test: GLA/GLM dump tools and a Blender JKA-to-mannequin preview
+- ded565d |  | Retarget test: GLA/GLM dump tools and a Blender JKA-to-mannequin preview
 + 14/10/2026 | - | SJK Rig Model Export Blender add-on; rule on other games' assets
 - fad7adf |  | SJK Rig Model Export Blender add-on; rule on other games' assets
 + 14/10/2026 | - | Rig models: game winding and bolts on the rig's own joints
