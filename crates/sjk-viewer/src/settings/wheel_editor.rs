@@ -1003,10 +1003,10 @@ mod tests {
         .unwrap();
         let saved = crate::emotes::lock().catalogue.replace(vec![dance]);
         let lines = pick_lines();
-        let gloat = catalog::action_index("gloat").unwrap();
+        let last = catalog::action_index("emote_stop").unwrap();
         let at = lines
             .iter()
-            .position(|line| *line == PickLine::Action(gloat))
+            .position(|line| *line == PickLine::Action(last))
             .unwrap();
         assert_eq!(lines[at + 1], PickLine::Emote(0));
         assert_eq!(

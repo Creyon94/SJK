@@ -27,6 +27,10 @@ impl crate::GpuState {
 }
 
 /// Apply independent notification and footstep switches without muting combat.
+/// The channel emote sounds play on: JKA's `CHAN_MUSIC`, which no entity sound of the
+/// game uses, so an emote's music never cuts a voice or a swing.
+const EMOTE_CHANNEL: ChannelId = ChannelId(13);
+
 pub(super) fn allows_event(
     event: sjk_client::LegacySoundEvent,
     footsteps: bool,
@@ -192,6 +196,25 @@ impl GameAudio {
                     sjk_client::legacy_sound_attenuation(u32::from(channel))
                 },
             },
+        ));
+    }
+
+    /// Play an emote's sound on player `slot` (standing at `origin`), on the channel
+    /// [`EMOTE_CHANNEL`] so [`Self::stop_emote`] can cut it; a muted player's stays
+    /// silent.
+    pub(crate) fn play_emote(&mut self, path: &str, slot: u8, origin: [f32; 3]) {
+        let source = SourceId(u32::from(slot));
+        if self.mute.silences(source, None) {
+            return;
+        }
+        self.play_on_channel(path, 1.0, origin, source, EMOTE_CHANNEL);
+    }
+
+    /// Stop the emote sound player `slot` plays.
+    pub(crate) fn stop_emote(&mut self, slot: u8) {
+        self.output.send(AudioCommand::StopChannel(
+            SourceId(u32::from(slot)),
+            EMOTE_CHANNEL,
         ));
     }
 

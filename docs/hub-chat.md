@@ -585,16 +585,20 @@ and plays changes.
   the folder), each a JSON object: `name` (required, at most 32 characters), `torso`
   and `legs` animation names, `length_ms` (100 to 60000, required unless `loop` is
   true), `loop`, `sound`, `clip` (an animation of a [rig model](rig-models.md#emotes-the-rigs-own-clips),
-  played on its own skeleton) and `local` (played on this client only, never sent).
+  played on its own skeleton), `local` (played on this client only, never sent) and
+  `moving` (keeps playing while the player moves). The id `stop` is reserved:
+  `sjkemote stop` ends the player's emote here and, relayed, for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
 - A received emote counts only when the game shows, in its slot, the name its claim
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,
   the emote, when it started and when it ends (its length, 3 seconds for an id the
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
-  or leaves. A rig model plays an emote's `clip` (`emotes::playing`); the `torso` and
-  `legs` animations and the sound are not played yet, and a received emote is
-  written to the console (`* Sol: Wave`). Demos keep the emotes started on them.
+  or leaves, unless it is `moving`. A rig model plays an emote's `clip`
+  (`emotes::playing`); the `sound` plays on the player (`emotes::Cue`, channel 13)
+  and stops when the emote is cut short; the `torso` and `legs` animations are not
+  played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
+  keep the emotes started on them.
 - The quick wheel's editor lists the installed emotes under Emotes.
 
 ## Pings

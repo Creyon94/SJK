@@ -4,7 +4,8 @@ The 3D view's sidebar gets an SJK tab. Pick an armature, name the model, tick th
 actions to bring as emotes and press Export: the armature and the meshes it deforms
 are written as glTF (+Y up, rest pose, skins, no shape keys), each material reduced
 to its base colour image, with an `sjk_rig.cfg` beside them; each ticked action
-becomes an animation of that glTF and an `emotes/<id>.emote` file that plays it.
+becomes an animation of that glTF and an `emotes/<id>.emote` file that plays it,
+with the sound file picked for it.
 Everything goes into one `<GameData>/base/rig_<name>.pk3` (or loose folders), so
 removing the model is deleting one file. In the game, `/model <name>` wears it and
 `sjkemote <id>` (or the quick wheel) plays an emote.
@@ -24,7 +25,13 @@ import tempfile
 import zipfile
 
 import bpy
-from bpy.props import BoolProperty, EnumProperty, PointerProperty, StringProperty
+from bpy.props import (
+    BoolProperty,
+    EnumProperty,
+    IntProperty,
+    PointerProperty,
+    StringProperty,
+)
 from bpy.types import AddonPreferences, Operator, Panel, PropertyGroup
 
 # The joints each bone map preset drives, as `rig_model.rs` `PRESETS` names them
@@ -65,6 +72,8 @@ BONE_PATH = re.compile(r'pose\.bones\["(.+?)"\]')
 # The game's limits on an emote (`emotes.rs`): id length, play time in milliseconds.
 EMOTE_ID_CHARS = 32
 EMOTE_MS = (100, 60_000)
+# Sound files the game decodes.
+SOUND_EXTENSIONS = (".wav", ".mp3")
 
 
 def preferences(context):
@@ -206,6 +215,13 @@ def manifest_text(preset):
     ])
 
 
+def frame_rate(context):
+    """The actions' frames per second: the setting, else the scene's."""
+    settings = context.scene.sjk_rig_export
+    scene = context.scene
+    return settings.frame_rate or scene.render.fps / scene.render.fps_base
+
+
 def sample_clips(context, armature, actions, model):
     """Each action's animated bones sampled at every frame, as pose-bone bases.
 
@@ -217,7 +233,7 @@ def sample_clips(context, armature, actions, model):
     data = armature.animation_data_create()
     saved = (data.action, data.use_nla, scene.frame_current)
     saved_slot = getattr(data, "action_slot", None)
-    fps = scene.render.fps / scene.render.fps_base
+    fps = frame_rate(context)
     clips = []
     try:
         data.use_nla = False
@@ -331,14 +347,30 @@ def append_clips(gltf_path, clips):
     return written
 
 
-def emote_text(action, name, seconds, looping, local):
+def emote_text(action, name, seconds, sound, settings):
     milliseconds = min(max(int(round(seconds * 1000)), EMOTE_MS[0]), EMOTE_MS[1])
     entry = {"name": action.name[:32], "clip": name, "length_ms": milliseconds}
-    if looping:
+    if action.sjk_emote_loop:
         entry["loop"] = True
-    if local:
+    if sound:
+        entry["sound"] = sound
+    if settings.emotes_move:
+        entry["moving"] = True
+    if settings.local_emotes:
         entry["local"] = True
     return json.dumps(entry, indent=1) + "\n"
+
+
+def emote_sound(action):
+    """The sound file picked for `action`, if it is one the game reads."""
+    path = bpy.path.abspath(action.sjk_emote_sound).strip()
+    if not path:
+        return None
+    if os.path.splitext(path)[1].lower() not in SOUND_EXTENSIONS:
+        raise ValueError(f"{action.name}: the sound must be .wav or .mp3")
+    if not os.path.isfile(path):
+        raise ValueError(f"{action.name}: no sound file at {path}")
+    return path
 
 
 class SJKRigExportPreferences(AddonPreferences):
@@ -385,11 +417,25 @@ class SJKRigExportSettings(PropertyGroup):
         "file removes the model and its emotes; off writes loose folders",
         default=True,
     )
+    frame_rate: IntProperty(
+        name="Animation frame rate",
+        description="Frames per second the actions were made at; 0 uses the scene's. "
+        "Animations from Unreal games are usually 30",
+        default=0,
+        min=0,
+        max=240,
+    )
+    emotes_move: BoolProperty(
+        name="Keep playing while moving",
+        description="The emotes go on while the player runs and jumps",
+        default=True,
+    )
     local_emotes: BoolProperty(
         name="Emotes stay on this computer",
         description="The emotes play for you only and are never sent to other "
-        "players (they could not see them without the model anyway)",
-        default=True,
+        "players; off, the other SJK players on the server see them when they "
+        "have the same model and emotes",
+        default=False,
     )
 
 
@@ -445,7 +491,12 @@ class SJK_OT_export_rig_model(Operator):
         if not armature.visible_get():
             self.report({"ERROR"}, "Show the armature first (it must be selectable)")
             return {"CANCELLED"}
-        actions = [a for a in emote_actions(armature) if a.get("sjk_emote")]
+        actions = [a for a in emote_actions(armature) if a.sjk_emote]
+        try:
+            sounds = {action.name: emote_sound(action) for action in actions}
+        except ValueError as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
         base = os.path.join(root, "base")
         stage = tempfile.mkdtemp(prefix="sjk_rig_") if settings.pack else base
         folder = os.path.join(stage, "models", "players", name)
@@ -458,11 +509,16 @@ class SJK_OT_export_rig_model(Operator):
             if written:
                 os.makedirs(os.path.join(stage, "emotes"), exist_ok=True)
             for action, clip, seconds in written:
+                sound = None
+                if sounds.get(action.name):
+                    source = sounds[action.name]
+                    sound = f"sound/emotes/{clip}{os.path.splitext(source)[1].lower()}"
+                    target = os.path.join(stage, *sound.split("/"))
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    shutil.copyfile(source, target)
                 with open(os.path.join(stage, "emotes", f"{clip}.emote"), "w",
                           encoding="utf-8", newline="\n") as file:
-                    file.write(emote_text(action, clip, seconds,
-                                          bool(action.get("sjk_emote_loop")),
-                                          settings.local_emotes))
+                    file.write(emote_text(action, clip, seconds, sound, settings))
             manifest = self.old_manifest(base, name, settings)
             with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
                       newline="\n") as file:
@@ -504,12 +560,20 @@ class SJK_OT_export_rig_model(Operator):
 
     def pack(self, stage, path):
         partial = path + ".part"
-        with zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED) as archive:
-            for directory, _, files in os.walk(stage):
-                for file in files:
-                    full = os.path.join(directory, file)
-                    archive.write(full, os.path.relpath(full, stage).replace(os.sep, "/"))
-        os.replace(partial, path)
+        try:
+            with zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED) as archive:
+                for directory, _, files in os.walk(stage):
+                    for file in files:
+                        full = os.path.join(directory, file)
+                        archive.write(full, os.path.relpath(full, stage).replace(os.sep, "/"))
+            os.replace(partial, path)
+        except PermissionError:
+            raise RuntimeError(
+                f"{os.path.basename(path)} is in use: close the game, then export again"
+            ) from None
+        finally:
+            if os.path.exists(partial):
+                os.remove(partial)
 
     def export(self, context, armature, meshes, path):
         if context.mode != "OBJECT":
@@ -570,22 +634,6 @@ class SJK_OT_export_rig_model(Operator):
             context.view_layer.objects.active = active
 
 
-class SJK_OT_toggle_emote(Operator):
-    bl_idname = "sjk.toggle_emote"
-    bl_label = "Emote"
-    bl_description = "Bring this action to the game as an emote, or not"
-    bl_options = {"REGISTER", "UNDO"}
-
-    action: StringProperty()
-    key: StringProperty(default="sjk_emote")
-
-    def execute(self, context):
-        action = bpy.data.actions.get(self.action)
-        if action is not None:
-            action[self.key] = not action.get(self.key, False)
-        return {"FINISHED"}
-
-
 class SJK_PT_rig_export(Panel):
     bl_label = "SJK Rig Model"
     bl_space_type = "VIEW_3D"
@@ -620,25 +668,19 @@ class SJK_PT_rig_export(Panel):
                 box.label(text="No action animates this armature")
             for action in actions:
                 row = box.row(align=True)
-                on = bool(action.get("sjk_emote"))
-                toggle = row.operator(
-                    SJK_OT_toggle_emote.bl_idname,
-                    text=action.name,
-                    icon="CHECKBOX_HLT" if on else "CHECKBOX_DEHLT",
-                    emboss=False,
-                )
-                toggle.action = action.name
-                loop = row.operator(
-                    SJK_OT_toggle_emote.bl_idname,
-                    text="",
-                    icon="FILE_REFRESH",
-                    depress=bool(action.get("sjk_emote_loop")),
-                )
-                loop.action = action.name
-                loop.key = "sjk_emote_loop"
-                if on and name:
-                    row.label(text=emote_id(name, action))
-            box.prop(settings, "local_emotes")
+                row.prop(action, "sjk_emote", text=action.name)
+                row.prop(action, "sjk_emote_loop", text="", icon="FILE_REFRESH", toggle=True)
+                if action.sjk_emote:
+                    column = box.column(align=True)
+                    if name:
+                        column.label(text=f"sjkemote {emote_id(name, action)}", icon="PLAY")
+                    column.prop(action, "sjk_emote_sound", text="Sound")
+            if actions:
+                fps = frame_rate(context)
+                box.prop(settings, "frame_rate")
+                box.label(text=f"Playing at {fps:g} frames a second")
+                box.prop(settings, "emotes_move")
+                box.prop(settings, "local_emotes")
         root = game_data(context)
         if root and name:
             where = f"base/rig_{name}.pk3" if settings.pack else f"base/models/players/{name}"
@@ -656,18 +698,36 @@ CLASSES = (
     SJKRigExportPreferences,
     SJKRigExportSettings,
     SJK_OT_export_rig_model,
-    SJK_OT_toggle_emote,
     SJK_PT_rig_export,
 )
+
+# What each action keeps for the export, saved in the blend file.
+ACTION_PROPERTIES = {
+    "sjk_emote": lambda: BoolProperty(
+        name="Emote", description="Bring this action to the game as an emote"
+    ),
+    "sjk_emote_loop": lambda: BoolProperty(
+        name="Loop", description="The emote loops until stopped (sjkemote stop)"
+    ),
+    "sjk_emote_sound": lambda: StringProperty(
+        name="Sound",
+        description="A .wav or .mp3 played with the emote",
+        subtype="FILE_PATH",
+    ),
+}
 
 
 def register():
     for cls in CLASSES:
         bpy.utils.register_class(cls)
     bpy.types.Scene.sjk_rig_export = PointerProperty(type=SJKRigExportSettings)
+    for key, prop in ACTION_PROPERTIES.items():
+        setattr(bpy.types.Action, key, prop())
 
 
 def unregister():
+    for key in ACTION_PROPERTIES:
+        delattr(bpy.types.Action, key)
     del bpy.types.Scene.sjk_rig_export
     for cls in reversed(CLASSES):
         bpy.utils.unregister_class(cls)

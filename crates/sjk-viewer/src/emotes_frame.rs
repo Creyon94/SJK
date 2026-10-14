@@ -61,6 +61,10 @@ impl GpuState {
             if !emotes::trusted(&emote, shown.as_deref()) {
                 continue;
             }
+            if emote.emote == emotes::STOP {
+                state.active.stop(emote.slot);
+                continue;
+            }
             let def = state
                 .catalogue
                 .as_ref()
@@ -79,5 +83,44 @@ impl GpuState {
             }
         }
         state.active.update(now, position);
+    }
+
+    /// Play and stop the emotes' sounds (`emotes::Cue`) on their players; the
+    /// catalogue's sounds are loaded the first time it is seen.
+    pub(crate) fn play_emote_sounds(&mut self, audio: &mut Option<crate::GameAudio>) {
+        let mut state = emotes::lock();
+        let cues = state.active.take_cues();
+        let Some(audio) = audio.as_mut() else {
+            return;
+        };
+        if !state.sounds_loaded
+            && let (Some(catalogue), Some(vfs)) = (state.catalogue.as_ref(), self.vfs.as_deref())
+        {
+            audio.register_effect_paths(
+                vfs,
+                catalogue
+                    .iter()
+                    .map(|def| def.sound.as_str())
+                    .filter(|sound| !sound.is_empty()),
+            );
+            state.sounds_loaded = true;
+        }
+        drop(state);
+        let world = self
+            .demo_session
+            .as_ref()
+            .map_or(&self.live_world, crate::demo_playback::Session::world);
+        for cue in cues {
+            match cue {
+                emotes::Cue::Start { slot, sound } => {
+                    let origin = world
+                        .entity(EntityId::new(u64::from(slot) + 1))
+                        .map(|entity| entity.current().transform.translation)
+                        .unwrap_or_default();
+                    audio.play_emote(&sound, slot, origin);
+                }
+                emotes::Cue::Stop { slot } => audio.stop_emote(slot),
+            }
+        }
     }
 }

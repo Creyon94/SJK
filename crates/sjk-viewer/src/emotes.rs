@@ -16,13 +16,16 @@
 //!
 //! ```json
 //! {"name": "Wave", "torso": "BOTH_...", "legs": "", "length_ms": 2500,
-//!  "loop": false, "sound": "sound/emotes/wave.mp3", "clip": "", "local": false}
+//!  "loop": false, "sound": "sound/emotes/wave.mp3", "clip": "", "local": false,
+//!  "moving": false}
 //! ```
 //!
 //! `clip` names an animation of a rig model (`docs/rig-models.md`): a player wearing
 //! a rig that has it plays it on the rig's own skeleton. `local` keeps the emote on
 //! this client: it plays here and is never sent to the hub (an emote made for a
-//! model only this player has).
+//! model only this player has). `moving` keeps it playing while the player moves.
+//! The sound plays on the player and stops when the emote is cut short. The id
+//! [`STOP`] ends the player's emote.
 //!
 //! `<id>` is the emote's id at the hub: 1 to 32 of `a` to `z`, `0` to `9` and `_`.
 
@@ -33,6 +36,8 @@ use std::time::{Duration, Instant};
 pub(crate) const FOLDER: &str = "emotes";
 /// The `emote` command.
 pub(crate) const COMMAND: &str = "sjkemote";
+/// The id that ends the player's emote (`sjkemote stop`), never a catalogue entry's.
+pub(crate) const STOP: &str = "stop";
 pub(crate) const HELP: &str =
     "Play an emote the SJK players on this server see (sjkemote alone lists them)";
 /// How long an emote the catalogue does not know lasts.
@@ -63,6 +68,8 @@ pub(crate) struct EmoteDef {
     pub(crate) clip: String,
     /// Played on this client only, never sent to the hub.
     pub(crate) local: bool,
+    /// Keeps playing while the player moves.
+    pub(crate) moving: bool,
 }
 
 /// Whether `id` may name an emote at the hub.
@@ -74,7 +81,7 @@ pub(crate) fn valid_id(id: &str) -> bool {
 }
 
 /// The fields a catalogue file may hold.
-const FIELDS: [&str; 8] = [
+const FIELDS: [&str; 9] = [
     "name",
     "torso",
     "legs",
@@ -83,6 +90,7 @@ const FIELDS: [&str; 8] = [
     "sound",
     "clip",
     "local",
+    "moving",
 ];
 /// The longest animation or sound name.
 const PATH_MAX: usize = 64;
@@ -143,6 +151,7 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
         sound: text_field("sound", PATH_MAX)?,
         clip: text_field("clip", PATH_MAX)?,
         local: flag("local")?,
+        moving: flag("moving")?,
     })
 }
 
@@ -164,6 +173,15 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<EmoteDef> {
             Err(why) => crate::log::progress(format_args!("emotes: {path}: {why}")),
         }
     }
+    catalogue.retain(|def| {
+        let reserved = def.id == STOP;
+        if reserved {
+            crate::log::progress(format_args!(
+                "emotes: {FOLDER}/{STOP}.emote: the id is reserved"
+            ));
+        }
+        !reserved
+    });
     catalogue.sort_by(|a, b| a.id.cmp(&b.id));
     catalogue.dedup_by(|a, b| a.id == b.id);
     catalogue
@@ -179,17 +197,31 @@ pub(crate) struct ActiveEmote {
     pub(crate) until: Option<Instant>,
     /// Where the player stood when it started.
     pub(crate) origin: [f32; 3],
+    /// Its sound, or empty.
+    pub(crate) sound: String,
+    /// Whether it keeps playing while the player moves.
+    pub(crate) moving: bool,
+}
+
+/// A sound to start on, or stop from, a player: what the audio does with emotes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Cue {
+    Start { slot: u8, sound: String },
+    Stop { slot: u8 },
 }
 
 /// Which player plays which emote, by slot.
 pub(crate) struct ActiveEmotes {
     slots: [Option<ActiveEmote>; SLOTS],
+    /// Sounds to start and stop, taken by the audio each frame.
+    cues: Vec<Cue>,
 }
 
 impl Default for ActiveEmotes {
     fn default() -> Self {
         Self {
             slots: std::array::from_fn(|_| None),
+            cues: Vec::new(),
         }
     }
 }
@@ -218,32 +250,67 @@ impl ActiveEmotes {
             Some(def) => Some(now + def.length),
             None => Some(now + UNKNOWN_LENGTH),
         };
+        if entry.as_ref().is_some_and(|old| !old.sound.is_empty()) {
+            self.cues.push(Cue::Stop { slot });
+        }
+        let sound = def.map_or_else(String::new, |def| def.sound.clone());
+        if !sound.is_empty() {
+            self.cues.push(Cue::Start {
+                slot,
+                sound: sound.clone(),
+            });
+        }
         *entry = Some(ActiveEmote {
             emote: emote.to_owned(),
             started: now,
             until,
             origin,
+            sound,
+            moving: def.is_some_and(|def| def.moving),
         });
     }
 
-    /// End the emotes that are over at `now`, or whose player moved away (`position`
-    /// says where each slot's player is; `None` for one that left).
+    /// End `slot`'s emote now, and its sound.
+    pub(crate) fn stop(&mut self, slot: u8) {
+        if let Some(old) = self.slots.get_mut(usize::from(slot)).and_then(Option::take)
+            && !old.sound.is_empty()
+        {
+            self.cues.push(Cue::Stop { slot });
+        }
+    }
+
+    /// The sounds to start and stop since the last call.
+    pub(crate) fn take_cues(&mut self) -> Vec<Cue> {
+        std::mem::take(&mut self.cues)
+    }
+
+    /// End the emotes that are over at `now`, or whose player moved away (unless the
+    /// emote keeps playing while moving) or left (`position` says where each slot's
+    /// player is; `None` for one that left). An emote cut short stops its sound; one
+    /// that ran its length lets the sound finish.
     pub(crate) fn update(&mut self, now: Instant, position: impl Fn(u8) -> Option<[f32; 3]>) {
         for (slot, entry) in self.slots.iter_mut().enumerate() {
             let Some(active) = entry else { continue };
+            let Ok(slot) = u8::try_from(slot) else {
+                continue;
+            };
             let over = active.until.is_some_and(|until| now >= until);
-            let moved = u8::try_from(slot)
-                .ok()
-                .and_then(&position)
-                .is_none_or(|at| {
+            let gone = match position(slot) {
+                None => true,
+                Some(_) if active.moving => false,
+                Some(at) => {
                     let d: f32 = at
                         .iter()
                         .zip(active.origin)
                         .map(|(a, b)| (a - b) * (a - b))
                         .sum();
                     d > MOVE_LIMIT * MOVE_LIMIT
-                });
-            if over || moved {
+                }
+            };
+            if gone && !active.sound.is_empty() {
+                self.cues.push(Cue::Stop { slot });
+            }
+            if over || gone {
                 *entry = None;
             }
         }
@@ -255,6 +322,8 @@ impl ActiveEmotes {
 pub(crate) struct State {
     pub(crate) catalogue: Option<Vec<EmoteDef>>,
     pub(crate) active: ActiveEmotes,
+    /// Whether the catalogue's sounds were handed to the audio to load.
+    pub(crate) sounds_loaded: bool,
 }
 
 static STATE: std::sync::LazyLock<std::sync::Mutex<State>> =
@@ -321,6 +390,7 @@ pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
             };
             format!("{} - {}, {length}", def.id, def.name)
         })
+        .chain(std::iter::once(format!("{COMMAND} {STOP} ends yours.")))
         .collect()
 }
 
@@ -392,7 +462,11 @@ mod tests {
         let sit = parse("sit", r#"{"name": "Sit", "loop": true}"#).unwrap();
         assert_eq!(
             listing(&[sit, wave()]),
-            ["sit - Sit, loops", "wave - Wave, 2.5 s"]
+            [
+                "sit - Sit, loops",
+                "wave - Wave, 2.5 s",
+                "sjkemote stop ends yours."
+            ]
         );
     }
 
@@ -419,6 +493,51 @@ mod tests {
         assert!(active.get(4).is_some());
         active.update(t0 + Duration::from_secs(3), here);
         assert!(active.get(4).is_none());
+    }
+
+    #[test]
+    fn a_moving_emote_survives_walking_and_sounds_start_and_stop() {
+        let t0 = Instant::now();
+        let dance = parse(
+            "dance",
+            r#"{"name": "Dance", "length_ms": 6800, "moving": true,
+                "sound": "sound/emotes/dance.wav"}"#,
+        )
+        .unwrap();
+        let mut active = ActiveEmotes::default();
+        active.start(5, "dance", Some(&dance), [0.0; 3], t0);
+        assert_eq!(
+            active.take_cues(),
+            vec![Cue::Start {
+                slot: 5,
+                sound: "sound/emotes/dance.wav".into()
+            }]
+        );
+        active.update(t0 + Duration::from_secs(1), |_| Some([500.0, 0.0, 0.0]));
+        assert!(active.get(5).is_some(), "it dances on while running");
+        // Running its length lets the sound finish.
+        active.update(t0 + Duration::from_secs(7), |_| Some([500.0, 0.0, 0.0]));
+        assert!(active.get(5).is_none() && active.take_cues().is_empty());
+        // Cut short (stopped, or replaced), the sound stops.
+        active.start(5, "dance", Some(&dance), [0.0; 3], t0);
+        active.start(5, "wave", Some(&wave()), [0.0; 3], t0);
+        active.stop(5);
+        assert_eq!(
+            active.take_cues(),
+            vec![
+                Cue::Start {
+                    slot: 5,
+                    sound: "sound/emotes/dance.wav".into()
+                },
+                Cue::Stop { slot: 5 },
+                Cue::Start {
+                    slot: 5,
+                    sound: "sound/emotes/wave.mp3".into()
+                },
+                Cue::Stop { slot: 5 },
+            ]
+        );
+        assert!(active.get(5).is_none());
     }
 
     #[test]

@@ -1031,6 +1031,18 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[emote-sounds]
+area: Rendering & effects
+title: Emote sounds, dancing while moving, sjkemote stop
+change: An emote's sound plays on the player; emotes with moving keep going while running.
+change: sjkemote stop (wheel: Stop emote) ends yours; emotes reach other SJK players.
+test: Re-export Kane from Blender (game closed), then sjkemote kane_dancemoves: the music plays.
+test: The dance now lasts 6.8 s and ends with the music (no longer twice too fast).
+test: Run and jump while dancing: the dance goes on, sliding along.
+test: Stop emote on the wheel mid-dance: dance and music stop together.
+test: Two SJK clients with rig_kane.pk3 and cl_identity 1: each sees the other dance.
+note: The other player needs the same rig_kane.pk3 of their own; SJK sends only the id.
+
 [rig-emotes]
 area: Rendering & effects
 title: Rig model emotes: a model's own animations played on its skeleton

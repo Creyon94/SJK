@@ -399,6 +399,14 @@ impl crate::GpuState {
         // The player's own emote starts here at once; the hub's echo of it is not
         // started again (`update_emotes`).
         let own = u8::try_from(session.latest_snapshot().player.client_num()).ok();
+        if id == crate::emotes::STOP {
+            if let Some(slot) = own {
+                crate::emotes::lock().active.stop(slot);
+            }
+            // The others stop it too; without the identity there is nobody to tell.
+            let _ = crate::player_identity::emote(id);
+            return Ok(Vec::new());
+        }
         let mut state = crate::emotes::lock();
         if state.catalogue.is_none()
             && let Some(vfs) = self.vfs.as_deref()

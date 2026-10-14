@@ -20,7 +20,12 @@ quick wheel, local by default; the add-on writes them and packs everything into 
 `rig_<name>.pk3`. Checked by unit tests (animation reading, clip posing, fades,
 bolts following a clip, the emote file's new fields, the wheel editor) and a world
 shot of a 3.4 s, 84-bone dance on a demo player (feet on the floor, saber in the
-hand); not yet tried in the game.
+hand). Sol's game test: it plays, twice too fast (a 60 fps Blender scene for a 30 fps
+animation); the add-on then gained a frame rate, a sound per emote and "keep playing
+while moving", emotes became visible to other SJK players by default (the hub relays
+the id; each needs the same files), and `sjkemote stop` ends one. Sound playback,
+moving emotes and two clients seeing each other's emote are not yet tried in the
+game.
 
 ## Shaders: a filter for a long list
 

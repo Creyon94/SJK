@@ -510,6 +510,15 @@ pub(crate) const ACTIONS: &[Action] = &[
         State::None,
         Some("gloat"),
     ),
+    // Ends the player's SJK emote (`emotes.rs`), a moving loop's only end.
+    action(
+        "emote_stop",
+        "Stop emote",
+        "sjkemote stop",
+        Emotes,
+        State::None,
+        Some("vote_no"),
+    ),
     // SJK's toys, one entry each: the Toys page's choices.
     action(
         "illuminate",

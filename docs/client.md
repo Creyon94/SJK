@@ -3395,7 +3395,7 @@ by its groups in Settings:
 | Camera | Third person (`togglecamera`), Free camera (`freecam`), Camera control (`cameracontrol`) |
 | Interface | Nameplates (`nameplates`, cycles), HUD on/off, Screenshot (`screenshotJPEG`), Game menu (`togglemenu`), First setup (`firstsetup`), Match timer, FPS counter, Speedometer, Lagometer (`toggle cg_...`), Console (`toggleconsole`), What's new (`changelog`) |
 | Player | Cosmetics, AFK, Team menu (`teammenu`), Spectate (`team spectator`), Respawn (`kill`), Inspect player, Engage duel, Saber style (`saberAttackCycle`), Saber on/off (`sv_saberswitch`) |
-| Emotes | Taunt, Bow, Meditate, Flourish, Gloat, then the installed emotes (`sjkemote <id>`, [hub-chat.md](hub-chat.md#emotes-in-the-client)) |
+| Emotes | Taunt, Bow, Meditate, Flourish, Gloat, Stop emote (`sjkemote stop`), then the installed emotes (`sjkemote <id>`, [hub-chat.md](hub-chat.md#emotes-in-the-client)) |
 | Toys | Illuminate (`toy_illuminate`, marked while the holocron is lit) |
 | Weather | The map's own weather, drizzle, rain, storm, snow (`r_weatherForce`), ground fog everywhere (`r_weatherFog` 1/2), clouds, weather on/off |
 | Time of day | Day (`r_dayHour 12`), Night (`r_dayHour 0`), with the spare sun and moon icons |
