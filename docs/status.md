@@ -1,3 +1,10 @@
+## Saber smiths
+
+14/10/2026, `saber-smith`: every shader names who gave its idea, "Saber smith: Creyon"
+for the 21 plain ones after Creyon's Saber ideas page, "Saber smith: Sol" for the others: at
+the right of the Shaders big card and on the hover card, and the Shaders search finds it
+([unlockables.md](unlockables.md#saber-smiths)).
+
 ## Rig models: glTF players with their own skeleton
 
 14/10/2026: a model folder with `sjk_rig.cfg` is drawn from a glTF (any skeleton,

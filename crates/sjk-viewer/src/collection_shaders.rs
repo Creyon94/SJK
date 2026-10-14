@@ -1022,6 +1022,20 @@ impl Panel {
             );
         }
         y += 72.0;
+        // Its saber smith signs it at the right, beside the description (which wraps
+        // well short of it), so the card keeps its height.
+        if let Some(skin) = row.skin {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("Saber smith: {}", skin.smith),
+                frame.rect(x, y, width, 24.0),
+                16.0 * s,
+                color::HOLO,
+                FontWeight::Semibold,
+                TextAlign::End,
+            );
+        }
         let description = row.skin.map_or(
             "Your blade in the colour you pick on Profile, Saber.",
             |skin| skin.description,

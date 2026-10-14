@@ -174,6 +174,7 @@ fn shader_card(
                 skin.tier.label(),
                 crate::editions::name(skin.edition)
             )),
+            Line::status(format!("Saber smith: {}", skin.smith)),
             status,
         ],
     }
@@ -282,7 +283,8 @@ mod tests {
         for skin in crate::unlockables::blade_skins_by_tier() {
             let card = shader_card(Some(skin), &crate::unlockables::Holdings::Known(&[]));
             assert_eq!(card.lines[0].words, skin.how_to_get);
-            assert!(card.lines[2].words.starts_with("Locked"));
+            assert_eq!(card.lines[2].words, format!("Saber smith: {}", skin.smith));
+            assert!(card.lines[3].words.starts_with("Locked"));
         }
         let held = [sjk_identity::Unlock {
             id: "saber_sun".into(),
@@ -293,7 +295,7 @@ mod tests {
         }];
         let sun = crate::unlockables::find("saber_sun").unwrap();
         let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));
-        assert!(card.lines[2].words.starts_with("Yours since "), "{card:?}");
+        assert!(card.lines[3].words.starts_with("Yours since "), "{card:?}");
     }
 
     #[test]
