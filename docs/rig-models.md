@@ -195,8 +195,9 @@ in one click.
   is exported in its place, with the other armature's bones added under the bone it
   follows where they stand on the rest pose, and the mesh as it stands there with its
   own weights. The other armature's root bones are written as `dynamic` lines (all of
-  them replaced at each export), so the game moves them on their own. The panel
-  counts them.
+  them replaced at each export), so the game moves them on their own, with the
+  panel's Tail gravity (written when it is not the game's 1600). The panel counts
+  them.
 - **Height adjustment:** written as the manifest's `lift` line (0 removes it), the
   one manifest line the add-on changes in a kept manifest.
 - **Emote settings:** each ticked action takes a sound (`.wav` or `.mp3`, packed as

@@ -324,11 +324,16 @@ def with_lift(text, lift):
     return "\n".join(lines) + "\n"
 
 
-def with_dynamic(text, joints):
+# The game's gravity on a dynamic chain when its line gives none (`rig_dynamics.rs`).
+DEFAULT_GRAVITY = 1600.0
+
+
+def with_dynamic(text, joints, gravity=DEFAULT_GRAVITY):
     """`text` (a manifest) with one `dynamic` line per joint of `joints`, the ones it
-    had replaced."""
+    had replaced; `gravity` is written when it is not the game's default."""
     lines = [line for line in text.splitlines() if line.split()[:1] != ["dynamic"]]
-    lines.extend(f"dynamic {joint}" for joint in joints)
+    suffix = "" if gravity == DEFAULT_GRAVITY else f" {gravity:g}"
+    lines.extend(f"dynamic {joint}{suffix}" for joint in joints)
     return "\n".join(lines) + "\n"
 
 
@@ -550,6 +555,16 @@ class SJKRigExportSettings(PropertyGroup):
         step=10,
         precision=1,
     )
+    tail_gravity: FloatProperty(
+        name="Tail gravity",
+        description="How hard the game pulls a tail, cape or other following part "
+        "down, game units per second squared: higher hangs it lower, 0 not at all",
+        default=DEFAULT_GRAVITY,
+        min=0.0,
+        soft_max=4000.0,
+        step=10000,
+        precision=0,
+    )
     overwrite_manifest: BoolProperty(
         name="Rewrite sjk_rig.cfg",
         description="Replace an existing manifest (and its map lines) with a fresh one",
@@ -698,7 +713,9 @@ class SJK_OT_export_rig_model(Operator):
             with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
                       newline="\n") as file:
                 text = with_lift(manifest or manifest_text(settings.preset), settings.lift)
-                file.write(with_dynamic(text, dynamic_roots(following)))
+                file.write(
+                    with_dynamic(text, dynamic_roots(following), settings.tail_gravity)
+                )
             if settings.pack:
                 self.pack(stage, pack_path, name)
         except Exception as error:  # report it in Blender rather than a traceback
@@ -955,6 +972,7 @@ class SJK_PT_rig_export(Panel):
                 bones = ", ".join(sorted({bone for _, bone, _ in following}))
                 box.label(text=f"Following meshes: {len(following)} (on {bones}), "
                           "moving on their own", icon="CONSTRAINT_BONE")
+                box.prop(settings, "tail_gravity")
         layout.prop(settings, "model_name")
         layout.prop(settings, "icon")
         layout.prop(settings, "preset")
