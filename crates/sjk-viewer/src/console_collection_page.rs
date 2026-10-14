@@ -152,7 +152,7 @@ impl ViewerConsole {
         let illuminate = self.illuminate_lit();
         let action = self
             .collection_panel
-            .handle_key(event, self.shift, illuminate);
+            .handle_key(event, self.shift, self.control, illuminate);
         self.collection_panel_action(action);
         true
     }

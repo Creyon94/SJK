@@ -81,6 +81,49 @@ const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// ([`unlockables::blade_skins_by_tier`]).
 const SHADER_ROWS: usize = 1 + unlockables::ALL.len();
 const _: () = assert!(SHADER_BASE as usize + SHADER_ROWS <= SHADER_LIMIT as usize);
+/// The Shaders tab's filter (14/10/2026): its tier chips (All, then the five tiers), the
+/// owned-only chip and the search field.
+const FILTER_TIER_BASE: u16 = 7_300;
+const FILTER_OWNED_TOKEN: u16 = 7_310;
+const SEARCH_TOKEN: u16 = 7_311;
+/// The most characters a search holds.
+const SEARCH_MAX: usize = 24;
+/// The tiers the chips filter by, after All, the commonest first.
+const FILTER_TIERS: [unlockables::Rarity; 5] = [
+    unlockables::Rarity::Common,
+    unlockables::Rarity::Uncommon,
+    unlockables::Rarity::Rare,
+    unlockables::Rarity::Legendary,
+    unlockables::Rarity::Mythical,
+];
+
+/// What the Shaders tab lists: a tier, the shaders held only, and words of a name (or a
+/// tier) the search names. The stock blade is always the first row.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct ShaderFilter {
+    pub(super) tier: Option<unlockables::Rarity>,
+    pub(super) owned: bool,
+    pub(super) query: String,
+}
+
+impl ShaderFilter {
+    /// Whether anything is filtered out.
+    pub(super) fn active(&self) -> bool {
+        self.tier.is_some() || self.owned || !self.query.trim().is_empty()
+    }
+
+    /// Whether `skin` (held or not) stays in the list.
+    pub(super) fn passes(&self, skin: &unlockables::Unlockable, owned: bool) -> bool {
+        if self.tier.is_some_and(|tier| tier != skin.tier) || (self.owned && !owned) {
+            return false;
+        }
+        let query = self.query.trim().to_lowercase();
+        query.is_empty()
+            || skin.name.to_lowercase().contains(&query)
+            || skin.tier.label().to_lowercase().contains(&query)
+    }
+}
+
 /// Shader rows the rack shows at once; it scrolls to the rest.
 const RACK_SHOWN: usize = 6;
 /// The grid's cards a line, and the lines it shows at once; it scrolls a line at a time.
@@ -237,6 +280,13 @@ pub(crate) struct Panel {
     /// How many medals the last frame showed.
     medals_shown: usize,
     shader_rows: [ShaderRow; SHADER_ROWS],
+    /// The shaders the tab lists now (the filter's), the stock blade's row 0 before them,
+    /// and how many rows that makes; read again each frame.
+    shader_list: Vec<&'static unlockables::Unlockable>,
+    shader_count: usize,
+    shader_filter: ShaderFilter,
+    /// The search field takes the typing.
+    search_focus: bool,
     /// The chosen shader's options the last frame showed (its skin, the option's id and
     /// whether it is on), for clicks and the number keys.
     shader_options: Vec<(&'static str, String, bool)>,
@@ -294,6 +344,10 @@ impl Panel {
             last_click: None,
             medals_shown: 0,
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
+            shader_list: unlockables::blade_skins_by_tier().to_vec(),
+            shader_count: SHADER_ROWS,
+            shader_filter: ShaderFilter::default(),
+            search_focus: false,
             shader_options: Vec::new(),
             backstage: Backstage::None,
             hover: Default::default(),
@@ -386,7 +440,8 @@ impl Panel {
             Tab::Shaders => Some(StageWish {
                 skin: match self.shader {
                     0 => PreviewSkin::Stock,
-                    row => shader_skin(row)
+                    row => self
+                        .skin_at(row)
                         .map_or(PreviewSkin::Worn, |skin| PreviewSkin::Skin(skin.id)),
                 },
                 holocron: false,
@@ -431,7 +486,7 @@ impl Panel {
         match self.tab {
             Tab::Medals => self.medals_shown,
             Tab::Achievements => crate::achievements::ALL.len(),
-            Tab::Shaders => SHADER_ROWS,
+            Tab::Shaders => self.shader_count,
             Tab::Cards => self.cards_shown,
             _ => 0,
         }
@@ -472,6 +527,7 @@ impl Panel {
         &mut self,
         event: &KeyEvent,
         shift: bool,
+        control: bool,
         illuminate: bool,
     ) -> PanelAction {
         if event.state != ElementState::Pressed {
@@ -481,7 +537,108 @@ impl Panel {
             return PanelAction::None;
         };
         self.hover.keyed();
+        if self.tab == Tab::Shaders {
+            if self.search_focus {
+                return self.search_key(event, key, shift, control);
+            }
+            match key {
+                KeyCode::Slash => return self.focus_search(),
+                KeyCode::KeyF if control => return self.focus_search(),
+                KeyCode::KeyT => return self.cycle_tier(shift),
+                KeyCode::KeyO => return self.toggle_owned(),
+                _ => {}
+            }
+        }
         self.key(key, shift, illuminate)
+    }
+
+    /// The skin of shader row `row` in the list the tab shows: `None` for the stock blade
+    /// (row 0) or past the end.
+    fn skin_at(&self, row: usize) -> Option<&'static unlockables::Unlockable> {
+        row.checked_sub(1)
+            .and_then(|index| self.shader_list.get(index))
+            .copied()
+    }
+
+    /// The list changed: back to the top, and the rows read again next frame.
+    fn filter_changed(&mut self) -> PanelAction {
+        self.shader = 0;
+        self.shader_first = 0;
+        self.grid_first = 0;
+        PanelAction::None
+    }
+
+    /// Put the typing in the search field (`/` or Ctrl+F).
+    fn focus_search(&mut self) -> PanelAction {
+        self.search_focus = true;
+        crate::text_entry::select_all(&self.shader_filter.query);
+        PanelAction::None
+    }
+
+    /// Show one tier of shaders: the next chip (the previous with Shift), All after the
+    /// last.
+    fn cycle_tier(&mut self, back: bool) -> PanelAction {
+        let at = self
+            .shader_filter
+            .tier
+            .and_then(|tier| FILTER_TIERS.iter().position(|&t| t == tier))
+            .map_or(0, |index| index + 1);
+        let count = FILTER_TIERS.len() + 1;
+        let next = if back {
+            (at + count - 1) % count
+        } else {
+            (at + 1) % count
+        };
+        self.shader_filter.tier = next.checked_sub(1).map(|index| FILTER_TIERS[index]);
+        self.filter_changed()
+    }
+
+    /// Show only the shaders held, or all again.
+    fn toggle_owned(&mut self) -> PanelAction {
+        self.shader_filter.owned = !self.shader_filter.owned;
+        self.filter_changed()
+    }
+
+    /// A key while the search field has the typing: Escape or Enter leave it (Escape
+    /// first clears what was typed, as the other fields do), the rest edit it.
+    fn search_key(
+        &mut self,
+        event: &KeyEvent,
+        key: KeyCode,
+        shift: bool,
+        control: bool,
+    ) -> PanelAction {
+        match key {
+            KeyCode::Escape => {
+                self.search_focus = false;
+                crate::text_entry::deselect();
+                if !self.shader_filter.query.is_empty() {
+                    self.shader_filter.query.clear();
+                    return self.filter_changed();
+                }
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Tab => {
+                self.search_focus = false;
+                crate::text_entry::deselect();
+            }
+            KeyCode::ArrowUp | KeyCode::ArrowDown => {
+                return self.key(key, shift, false);
+            }
+            _ => {
+                if crate::text_entry::edit(
+                    &mut self.shader_filter.query,
+                    key,
+                    event.text.as_deref(),
+                    shift,
+                    control,
+                    SEARCH_MAX,
+                    true,
+                ) {
+                    return self.filter_changed();
+                }
+            }
+        }
+        PanelAction::None
     }
 
     /// Switch the Shaders tab to the grid of cards (`true`) or the rack.
@@ -496,7 +653,7 @@ impl Panel {
         if self.tab == Tab::Shaders && self.grid {
             // The grid: Left and Right step a card, Up and Down a line, stopping at
             // the ends (a short last line takes Down to its last card).
-            let last = SHADER_ROWS - 1;
+            let last = self.shader_count - 1;
             match key {
                 KeyCode::ArrowLeft => self.shader = self.shader.min(last).saturating_sub(1),
                 KeyCode::ArrowRight => self.shader = (self.shader + 1).min(last),
@@ -593,7 +750,7 @@ impl Panel {
             if self.grid {
                 // The wheel scrolls the grid a line a notch; the chosen card stays in
                 // view.
-                let lines = SHADER_ROWS.div_ceil(GRID_COLUMNS);
+                let lines = self.shader_count.div_ceil(GRID_COLUMNS);
                 let last = lines.saturating_sub(GRID_LINES_SHOWN);
                 self.grid_first = if delta.y > 0.0 {
                     self.grid_first.saturating_sub(1)
@@ -605,11 +762,11 @@ impl Panel {
                 let line = (self.shader / GRID_COLUMNS)
                     .clamp(self.grid_first, self.grid_first + GRID_LINES_SHOWN - 1);
                 self.shader =
-                    (line * GRID_COLUMNS + self.shader % GRID_COLUMNS).min(SHADER_ROWS - 1);
+                    (line * GRID_COLUMNS + self.shader % GRID_COLUMNS).min(self.shader_count - 1);
                 return PanelAction::None;
             }
             // The wheel scrolls the rack a row a notch; the chosen row stays in view.
-            let last = SHADER_ROWS.saturating_sub(RACK_SHOWN);
+            let last = self.shader_count.saturating_sub(RACK_SHOWN);
             self.shader_first = if delta.y > 0.0 {
                 self.shader_first.saturating_sub(1)
             } else if delta.y < 0.0 {
@@ -632,7 +789,7 @@ impl Panel {
             && let Some(index) = token
                 .checked_sub(SHADER_BASE)
                 .map(usize::from)
-                .filter(|index| *index < SHADER_ROWS)
+                .filter(|index| *index < self.shader_count)
         {
             let double = self
                 .last_click
@@ -649,6 +806,22 @@ impl Panel {
             }
             self.last_click = Some((token, now));
             return PanelAction::None;
+        }
+        if event.kind == UiEventKind::Activate {
+            if let Some(index) = token
+                .checked_sub(FILTER_TIER_BASE)
+                .map(usize::from)
+                .filter(|index| *index <= FILTER_TIERS.len())
+            {
+                self.shader_filter.tier = index.checked_sub(1).map(|index| FILTER_TIERS[index]);
+                return self.filter_changed();
+            }
+            if token == FILTER_OWNED_TOKEN {
+                return self.toggle_owned();
+            }
+            if token == SEARCH_TOKEN {
+                return self.focus_search();
+            }
         }
         let choose = matches!(
             event.kind,
@@ -707,7 +880,7 @@ impl Panel {
             self.medal = index;
         } else if let Some(index) = within(ACHIEVEMENT_BASE, crate::achievements::ALL.len()) {
             self.achievement = index;
-        } else if let Some(index) = within(SHADER_BASE, SHADER_ROWS) {
+        } else if let Some(index) = within(SHADER_BASE, self.shader_count) {
             self.shader = index;
         } else if let Some(index) = within(CARD_BASE, self.cards_shown) {
             self.card = index;
@@ -816,6 +989,75 @@ mod tests {
         let fonts = crate::text::load_modern(1.0, None).expect("Inter");
         panel.build(inputs, &fonts.font, [1920.0, 1080.0]);
         panel
+    }
+
+    /// Redraw the Shaders tab of `panel` with `inputs`.
+    fn redraw(panel: &mut Panel, inputs: &Inputs<'_>) {
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        panel.build(inputs, &fonts.font, [1920.0, 1080.0]);
+        assert!(!panel.overflowed(), "the filter fits the canvas");
+    }
+
+    fn ids(panel: &Panel) -> Vec<&'static str> {
+        panel.shader_list.iter().map(|skin| skin.id).collect()
+    }
+
+    /// A tier chip lists that tier's shaders alone; cycling comes round to All again.
+    #[test]
+    fn the_tier_filter_lists_one_tier_and_cycling_comes_round() {
+        let held = [sun()];
+        let inputs = inputs(Holdings::Known(&held), "");
+        let mut panel = drawn(Tab::Shaders, &inputs);
+        let all = ids(&panel);
+        assert_eq!(panel.shader_count, 1 + unlockables::ALL.len());
+        panel.shader = 9;
+        let _ = panel.cycle_tier(false);
+        assert_eq!(panel.shader, 0, "back to the top");
+        redraw(&mut panel, &inputs);
+        assert_eq!(
+            ids(&panel),
+            ["saber_tidal", "saber_circuit", "saber_aurora", "saber_echo"]
+        );
+        assert_eq!(panel.shader_count, 5, "the stock blade stays first");
+        for _ in 0..5 {
+            let _ = panel.cycle_tier(false);
+        }
+        redraw(&mut panel, &inputs);
+        assert_eq!(ids(&panel), all, "All again after the last tier");
+        let _ = panel.cycle_tier(true);
+        redraw(&mut panel, &inputs);
+        assert_eq!(
+            panel.shader_filter.tier,
+            Some(unlockables::Rarity::Mythical)
+        );
+    }
+
+    /// Owned shows the shaders held; a search matches names and tier words.
+    #[test]
+    fn owned_and_search_narrow_the_list() {
+        let held = [sun()];
+        let inputs = inputs(Holdings::Known(&held), "");
+        let mut panel = drawn(Tab::Shaders, &inputs);
+        let _ = panel.toggle_owned();
+        redraw(&mut panel, &inputs);
+        assert_eq!(ids(&panel), ["saber_sun"]);
+        let _ = panel.toggle_owned();
+        panel.shader_filter.query = " TIDAL ".to_owned();
+        redraw(&mut panel, &inputs);
+        assert_eq!(ids(&panel), ["saber_tidal"]);
+        panel.shader_filter.query = "mythical".to_owned();
+        redraw(&mut panel, &inputs);
+        assert_eq!(
+            ids(&panel),
+            ["saber_sun", "saber_void", "saber_molten", "saber_spectral"]
+        );
+        panel.shader_filter.query = "nothing".to_owned();
+        redraw(&mut panel, &inputs);
+        assert!(ids(&panel).is_empty());
+        assert_eq!(panel.shader_count, 1, "only the stock blade is left");
+        assert!(panel.shader_filter.active());
+        panel.shader_filter = ShaderFilter::default();
+        assert!(!panel.shader_filter.active());
     }
 
     /// R on Cards (or Reveal) asks the hub only when the last frame offered something to

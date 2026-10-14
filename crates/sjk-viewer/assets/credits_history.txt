@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Collection shaders: tier chips, Owned and a search for a long list
+- 190a9c2 |  | Collection shaders: tier chips, Owned and a search for a long list
 + 14/10/2026 | - | Collection: a shader held more than once reads Yours x2
 - 427a270 |  | Collection: a shader held more than once reads Yours x2
 + 14/10/2026 | - | Holocron opening: a crate-style spin before each burst, and a shader prize's own entrance

@@ -811,8 +811,13 @@ Opening is still staff-only. Checked by unit tests on both sides; not in the gam
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
 owned line and the hover card say ", 2 held". The tab's headline still counts shaders
-owned out of the catalogue ("5 of 23 owned"), a duplicate counting once. A search, a tier
-filter and paging for a catalogue near 200 are not built.
+owned out of the catalogue ("5 of 23 owned"), a duplicate counting once. The tab has a filter
+since 14/10/2026 for a catalogue near 200: chips for All and each tier (T and Shift+T
+step through them), Owned (O) and a search field (/ or Ctrl+F; Enter or Esc leave it,
+Esc first clears it) that matches a name or a tier's word; the stock blade stays first,
+the rack and the grid scroll as before and the lead line says "n of 23 shaders shown"
+while anything is filtered. Row numbers are of the list shown, so the choice goes back
+to the top when the filter changes.
 
 ## Planned, not built
 

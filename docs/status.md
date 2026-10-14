@@ -1,3 +1,10 @@
+## Shaders: a filter for a long list
+
+14/10/2026: the Collection's Shaders tab filters by tier (chips, T), by shaders owned (O)
+and by a search (/): the list shown is the panel's own (`shader_list`), so keys, wheel,
+clicks and the stage follow it. Unit tests and a world shot of the chips; typing in the
+search field not tried in the game.
+
 ## Shaders: duplicates in the Collection
 
 14/10/2026: a shader held more than once reads "Yours x2" in the Collection's Shaders tab

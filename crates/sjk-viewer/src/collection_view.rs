@@ -396,6 +396,7 @@ impl Panel {
                     keys.push((&["Up", "Down"], "choose"));
                     keys.push((&["V"], "grid"));
                 }
+                keys.push((&["/"], "search"));
                 let worn = self.shader_rows.get(self.shader).and_then(|row| row.wear);
                 match worn {
                     Some("") if self.shader > 0 => keys.push((&["Enter"], "unequip")),
