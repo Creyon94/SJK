@@ -212,11 +212,16 @@ how its art was made; the footer reads "Art: <artist>".
 - **The ceremony** is drawn by the tab over its own darkened page (text draws over
   every shape, so the page under it is not drawn): while the hub answers the tier's
   gem pulses ("Opening...", 15 seconds at most, then "The SJK hub did not answer");
-  then for each holocron the burst in its tier's light (rings, turning rays, the gem
-  flaring away), the card turning in, the credits counting up beside the mark, and
+  then for each holocron the crate spin (since 14/10/2026: a strip of what its tier
+  can drop, cards and droppable shaders, runs past a gold marker with a click a tile
+  and slows to a stop on what the hub rolled; the strip is made up round the real
+  prize and the stop lands somewhere inside its tile), the burst in its tier's light
+  (rings, turning rays, the gem flaring away), the card turning in, the credits counting up beside the mark, and
   its words: "Rare card, Holo", "Alpha Edition. From a Rare Holocron", what the finish
-  is, that it is sealed, "1 of 3", Next or Done. Enter, Space, Right or a click skip
-  the entrance, then go on; Escape ends it. Openings of more than three play a
+  is, that it is sealed, "1 of 3", Next or Done. A shader instead of a card shows its
+  blade framed in its tier's colour, its name, "Common saber shader. From a Rare
+  Holocron", what it looks like and how many the player holds. Enter, Space, Right or
+  a click skip the spin, then the entrance, then go on; Escape ends it. Openings of more than three play a
   shorter entrance each. A Solar finish or a Legendary card plays the medals'
   fanfare, another card the unlocks' chime. A refusal says why ("That holocron was
   already opened."; a hub from before opening: "This SJK hub cannot open holocrons

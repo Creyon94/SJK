@@ -4417,3 +4417,13 @@ test: As staff, unlock Tidal and Nebula for yourself, then open the Collection >
 test: Tidal is Common (white), Nebula Uncommon (green). Wear each: a teal wave, then indigo stars.
 test: Staff page: the unlockables list shows a page counter and < > buttons.
 note: Blades wear stock saber sounds; the files arrive with the hub pack (hub branch common-shaders).
+
+[crate-spin]
+area: Menus & settings
+title: Holocron opening starts with a crate-style spin
+change: A strip of what the holocron can drop runs past a marker and stops on the prize.
+change: A shader prize shows its blade, tier and how many you hold.
+test: Type debug_open rare shader x2: a strip of cards and shaders spins, clicks, stops on a shader.
+test: Press Enter during the spin: it jumps to the burst; again: the card or blade shows; again: Next.
+test: debug_open legendary x2 (cards): the same spin ends on a card, then the card turns in.
+note: Real openings need a hub with the drops deployed and staff opening.
