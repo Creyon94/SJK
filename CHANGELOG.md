@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The Blender add-on names an emote after itself (`sjkemote comrade` rather than the model and action names) _(Sol)_
 - Your own emote's sound stays with you when you move (it played where you started it), and Settings > Sound has an Emote volume (`s_emoteVolume`, twice as loud by default) _(Sol)_
 - The character grid opens on your model with its default skin, no longer on a blue team skin when your model is named without one, and lists the high quality models under their own heading before the community's _(Sol)_
+- Tails move: a rig model's tail (or any chain its sjk_rig.cfg names with `dynamic`) springs after the body and wags gently while you stand; the Blender add-on keeps a tail's own bones and writes the line _(Sol)_
 
 ## 2026.1014.1 (Alpha) | 14/10/2026
 
