@@ -17,14 +17,15 @@
 //! ```json
 //! {"name": "Wave", "torso": "BOTH_...", "legs": "", "length_ms": 2500,
 //!  "loop": false, "sound": "sound/emotes/wave.mp3", "clip": "", "local": false,
-//!  "moving": false}
+//!  "moving": false, "icon": "gfx/emotes/wave.png"}
 //! ```
 //!
 //! `clip` names an animation of a rig model (`docs/rig-models.md`): a player wearing
 //! a rig that has it plays it on the rig's own skeleton. `local` keeps the emote on
 //! this client: it plays here and is never sent to the hub (an emote made for a
 //! model only this player has). `moving` keeps it playing while the player moves.
-//! The sound plays on the player and stops when the emote is cut short. The id
+//! The sound plays on the player and stops when the emote is cut short. `icon` is a
+//! picture (PNG, JPG or TGA) the quick wheel shows for it (`emote_icons.rs`). The id
 //! [`STOP`] ends the player's emote.
 //!
 //! `<id>` is the emote's id at the hub: 1 to 32 of `a` to `z`, `0` to `9` and `_`.
@@ -70,6 +71,8 @@ pub(crate) struct EmoteDef {
     pub(crate) local: bool,
     /// Keeps playing while the player moves.
     pub(crate) moving: bool,
+    /// Its picture, or empty.
+    pub(crate) icon: String,
 }
 
 /// Whether `id` may name an emote at the hub.
@@ -81,7 +84,7 @@ pub(crate) fn valid_id(id: &str) -> bool {
 }
 
 /// The fields a catalogue file may hold.
-const FIELDS: [&str; 9] = [
+const FIELDS: [&str; 10] = [
     "name",
     "torso",
     "legs",
@@ -91,6 +94,7 @@ const FIELDS: [&str; 9] = [
     "clip",
     "local",
     "moving",
+    "icon",
 ];
 /// The longest animation or sound name.
 const PATH_MAX: usize = 64;
@@ -152,6 +156,7 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
         clip: text_field("clip", PATH_MAX)?,
         local: flag("local")?,
         moving: flag("moving")?,
+        icon: text_field("icon", PATH_MAX)?,
     })
 }
 

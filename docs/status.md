@@ -35,6 +35,12 @@ moving emotes and two clients seeing each other's emote are not yet tried in the
 game. Sol saw the feet sink: measured 2.6 to 3.2 units below Kyle's soles standing and
 running; the feet are now planted on the driver's every frame (within a unit in the
 measured poses), with a `lift` line (the add-on's Height adjustment) for the rest.
+Then icons: a rig model with an `icon_default` picture is listed in the character grid,
+and an emote's `icon` shows on the quick wheel; the add-on (1.4) takes both, a display
+name per emote, a pack name shared by several models, and meshes on another armature
+that follows this one (a tail). Checked by unit tests, a world shot of a second model
+(312 joints and a tail) playing a looping emote, and a wheel shot with two emote
+pictures; the character grid with a rig model is not yet seen.
 
 ## Shaders: a filter for a long list
 

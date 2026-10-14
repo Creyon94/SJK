@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Rig models with a picture are listed in the character grid, and an emote's picture shows on the quick wheel; the Blender add-on takes a character icon, an emote's name and icon, a pack name several models can share, and parts rigged to their own skeleton that follow the model's, such as a tail _(Sol)_
+
 ## 2026.1014.1 (Alpha) | 14/10/2026
 
 Player models with their own skeleton and emotes, made with a Blender add-on, 21 new saber shaders after Creyon's ideas, smoother rockets, footprints in sand and snow, and a model viewer.

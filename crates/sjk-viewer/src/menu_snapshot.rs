@@ -2066,7 +2066,7 @@ fn quick_wheels(shots: &mut Snapshot) {
                     .map(|(index, slot)| crate::quick_wheel::ShownChoice {
                         label: slot.label().to_owned(),
                         command: slot.command().to_owned(),
-                        icon: slot.icon().map(crate::ui_renderer::wheel_icon),
+                        icon: slot.texture(),
                         on: marked.contains(&index),
                         gif: None,
                     })

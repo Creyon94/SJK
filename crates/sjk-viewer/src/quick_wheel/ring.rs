@@ -286,6 +286,11 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, ring: &Ring<'_>) {
                         disc(canvas, spot, size, color::alpha(color::SPACE, 0.75));
                         fit_inside(rect, pixels)
                     }
+                    // An emote's own picture has no disc of its own, as the wheel's do.
+                    None if crate::emote_icons::is_emote_texture(texture) => {
+                        disc(canvas, spot, size, color::alpha(color::SPACE, 0.75));
+                        rect
+                    }
                     None => rect,
                 };
                 push(

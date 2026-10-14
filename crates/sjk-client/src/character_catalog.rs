@@ -7,6 +7,10 @@
 //! `UI_ParseColorData` at lines 9561-9607. Model cvar strings use the exact
 //! `model/head|torso|lower` format from `UI_UpdateCharacterCvars`, lines
 //! 4981-5006.
+//!
+//! An SJK rig model (a folder holding `sjk_rig.cfg`, `docs/rig-models.md`) has no
+//! `model.glm` or `.skin` files: it is listed as `<model>/default` when it has an
+//! `icon_default` picture.
 
 use crate::catalog_tokens::tokenize;
 use sjk_vfs::VirtualFileSystem;
@@ -84,6 +88,23 @@ pub fn legacy_character_catalog(
         }
         collect_ordinary_skins(vfs, &model, &paths, &mut characters)?;
     }
+    for model in rig_directories(&paths) {
+        let cvar_value = format!("{model}/default");
+        if characters.contains_key(&cvar_value) {
+            continue;
+        }
+        if let Some(icon) = icon_path(vfs, &model, "default")? {
+            characters.insert(
+                cvar_value.clone(),
+                LegacyCharacter {
+                    model,
+                    skin: "default".to_owned(),
+                    cvar_value,
+                    icon,
+                },
+            );
+        }
+    }
 
     Ok(LegacyCharacterCatalog {
         characters: characters.into_values().collect(),
@@ -98,6 +119,23 @@ fn model_directories(paths: &[sjk_vfs::VirtualPath]) -> BTreeSet<String> {
             path.as_str()
                 .strip_prefix("models/players/")?
                 .strip_suffix("/model.glm")
+                .filter(|model| !model.is_empty() && !model.contains('/'))
+                .map(str::to_owned)
+        })
+        .collect()
+}
+
+/// The rig model's manifest, `models/players/<model>/sjk_rig.cfg`.
+const RIG_MANIFEST: &str = "sjk_rig.cfg";
+
+fn rig_directories(paths: &[sjk_vfs::VirtualPath]) -> BTreeSet<String> {
+    let suffix = format!("/{RIG_MANIFEST}");
+    paths
+        .iter()
+        .filter_map(|path| {
+            path.as_str()
+                .strip_prefix("models/players/")?
+                .strip_suffix(suffix.as_str())
                 .filter(|model| !model.is_empty() && !model.contains('/'))
                 .map(str::to_owned)
         })
@@ -224,4 +262,41 @@ fn icon_path(
         }
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rig_models_with_an_icon_are_listed_as_their_default_skin() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "pack",
+            [
+                ("models/players/kyle/model.glm", Vec::new()),
+                ("models/players/kyle/model_default.skin", Vec::new()),
+                ("models/players/kyle/icon_default.jpg", Vec::new()),
+                ("models/players/wolf/sjk_rig.cfg", Vec::new()),
+                ("models/players/wolf/model.gltf", Vec::new()),
+                ("models/players/wolf/icon_default.png", Vec::new()),
+                // Without a picture a rig model stays out, as a skin without an icon does.
+                ("models/players/bare/sjk_rig.cfg", Vec::new()),
+            ],
+        )
+        .expect("mounts");
+        let catalog = legacy_character_catalog(&vfs).expect("the catalogue");
+        let listed: Vec<_> = catalog
+            .characters
+            .iter()
+            .map(|character| (character.cvar_value.as_str(), character.icon.as_str()))
+            .collect();
+        assert_eq!(
+            listed,
+            [
+                ("kyle/default", "models/players/kyle/icon_default.jpg"),
+                ("wolf/default", "models/players/wolf/icon_default.png"),
+            ]
+        );
+    }
 }

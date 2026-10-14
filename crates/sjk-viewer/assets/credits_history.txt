@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Rig model and emote icons; add-on packs several models, follows tails
+- 0692834 |  | Rig model and emote icons; add-on packs several models, follows tails
++ 14/10/2026 | - | Release 2026.1014.1 (Alpha)
+- 5a5fbe7 |  | Release 2026.1014.1 (Alpha)
 + 14/10/2026 | - | Shelve donations: hide the Support card, setting and site section
 - e1d78b4 |  | Shelve donations: hide the Support card, setting and site section
 + 14/10/2026 | - | Saber smith on every shader: who gave its idea
