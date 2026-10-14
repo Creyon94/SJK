@@ -146,7 +146,11 @@ mod tests {
         assert_eq!(finishes, ["normal", "holo", "solar"], "round the finishes");
         let solar = parse(&words("all solar")).unwrap();
         assert_eq!(solar.len(), TIERS.len());
-        assert!(solar.iter().all(|opened| opened.card.as_ref().unwrap().finish == "solar"));
+        assert!(
+            solar
+                .iter()
+                .all(|opened| opened.card.as_ref().unwrap().finish == "solar")
+        );
         assert_eq!(
             parse(&words("all x20")).unwrap().len(),
             20,
