@@ -818,14 +818,15 @@ mod tests {
         sjk_identity::Opened {
             holocron: 3,
             tier: tier.to_owned(),
-            card: sjk_identity::OpenedCard {
+            card: Some(sjk_identity::OpenedCard {
                 id: 1,
                 card: None,
                 rarity: "rare".to_owned(),
                 finish: finish.to_owned(),
                 edition: "alpha".to_owned(),
-            },
+            }),
             credits: 42,
+            unlock: None,
         }
     }
 

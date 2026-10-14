@@ -1038,6 +1038,7 @@ mod tests {
                 id: "saber_sun".into(),
                 granted: 1,
                 note: String::new(),
+                count: 1,
                 medal: None,
             }],
             ..me.clone()

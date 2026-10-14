@@ -89,15 +89,35 @@ impl Shown {
     /// What the hub said one holocron brought; `None` for a tier, rarity or finish the
     /// client does not know.
     pub(crate) fn of(opened: &sjk_identity::Opened) -> Option<Self> {
+        // A shader instead of a card has no ceremony yet ([`found_words`] says it).
+        let held = opened.card.as_ref()?;
         Some(Self {
             tier: holocrons::Tier::from_id(&opened.tier)?.index,
-            rarity: Rarity::from_id(&opened.card.rarity)?,
-            finish: Finish::from_id(&opened.card.finish)?,
-            edition: cards::edition_name(&opened.card.edition),
+            rarity: Rarity::from_id(&held.rarity)?,
+            finish: Finish::from_id(&held.finish)?,
+            edition: cards::edition_name(&held.edition),
             credits: opened.credits,
-            card: opened.card.card.clone(),
+            card: held.card.clone(),
         })
     }
+}
+
+/// What shaders an opening brought, in a line ("You found Tidal blade, 2 held."); `None`
+/// when it brought none.
+fn found_words(opened: &[sjk_identity::Opened]) -> Option<String> {
+    let found: Vec<String> = opened
+        .iter()
+        .filter_map(|opened| opened.unlock.as_ref())
+        .map(|unlock| {
+            let name = if unlock.name.is_empty() {
+                &unlock.id
+            } else {
+                &unlock.name
+            };
+            format!("{name} ({} held)", unlock.count)
+        })
+        .collect();
+    (!found.is_empty()).then(|| format!("You found {}.", found.join(", ")))
 }
 
 /// Where the ceremony stands.
@@ -214,7 +234,9 @@ impl Panel {
                 self.refreshed = None;
                 let shown: Vec<Shown> = outcome.opened.iter().filter_map(Shown::of).collect();
                 if shown.is_empty() {
-                    let message = if outcome.message.is_empty() {
+                    let message = if let Some(words) = found_words(&outcome.opened) {
+                        words
+                    } else if outcome.message.is_empty() {
                         "Nothing this client knows came out.".to_owned()
                     } else {
                         outcome.message.clone()

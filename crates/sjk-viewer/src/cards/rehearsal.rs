@@ -91,7 +91,7 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
             opened.push(Opened {
                 holocron: crate::holocrons::rehearsal::FIRST_ID + at as u64,
                 tier: tier.id.to_owned(),
-                card: OpenedCard {
+                card: Some(OpenedCard {
                     id: at as u64,
                     card: face_of(&faces, rarity, at),
                     rarity: rarity.id.to_owned(),
@@ -100,8 +100,9 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
                         .id
                         .to_owned(),
                     edition: "alpha".to_owned(),
-                },
+                }),
                 credits: u64::from(least + (at as u32 * 7) % (most - least + 1)),
+                unlock: None,
             });
         }
     }
@@ -140,12 +141,16 @@ mod tests {
         assert!(three.iter().all(|opened| opened.tier == "mythical"));
         let finishes: Vec<&str> = three
             .iter()
-            .map(|opened| opened.card.finish.as_str())
+            .map(|opened| opened.card.as_ref().unwrap().finish.as_str())
             .collect();
         assert_eq!(finishes, ["normal", "holo", "solar"], "round the finishes");
         let solar = parse(&words("all solar")).unwrap();
         assert_eq!(solar.len(), TIERS.len());
-        assert!(solar.iter().all(|opened| opened.card.finish == "solar"));
+        assert!(
+            solar
+                .iter()
+                .all(|opened| opened.card.as_ref().unwrap().finish == "solar")
+        );
         assert_eq!(
             parse(&words("all x20")).unwrap().len(),
             20,

@@ -150,6 +150,7 @@ fn duel6_sjk_saber_page() {
                     id: skin.id.to_owned(),
                     granted: 1_791_336_225,
                     note: String::new(),
+                    count: 1,
                     medal: None,
                 })
                 .collect::<Vec<_>>()

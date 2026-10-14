@@ -2148,6 +2148,7 @@ mod tests {
                     id: id.clone(),
                     granted: 1,
                     note: String::new(),
+                    count: 1,
                     medal: None,
                 })
                 .collect()
@@ -2266,14 +2267,15 @@ mod tests {
                 .map(|&id| crate::wire::Opened {
                     holocron: id,
                     tier: "rare".to_owned(),
-                    card: crate::wire::OpenedCard {
+                    card: Some(crate::wire::OpenedCard {
                         id: 1_000 + id,
                         card: None,
                         rarity: "common".to_owned(),
                         finish: "holo".to_owned(),
                         edition: "alpha".to_owned(),
-                    },
+                    }),
                     credits: 40,
+                    unlock: None,
                 })
                 .collect();
             let mut profile = profile("Sol");
@@ -2988,7 +2990,7 @@ mod tests {
         assert_eq!(opened.serial, 2);
         assert!(opened.message.is_empty());
         assert_eq!(opened.opened.len(), crate::wire::OPEN_MAX, "twenty at most");
-        assert_eq!(opened.opened[0].card.id, 1_001);
+        assert_eq!(opened.opened[0].card.as_ref().unwrap().id, 1_001);
         assert_eq!(lock(&snapshot).me.as_ref().unwrap().credits, 800);
         assert!(
             fake.log()

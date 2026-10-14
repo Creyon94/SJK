@@ -216,10 +216,28 @@ pub struct Opened {
     pub holocron: u64,
     /// Its tier's wire id.
     pub tier: String,
-    /// The (sealed) card it held.
-    pub card: OpenedCard,
+    /// The (sealed) card it held; `None` when it held a shader instead.
+    #[serde(default)]
+    pub card: Option<OpenedCard>,
     /// The credits it held.
+    #[serde(default)]
     pub credits: u64,
+    /// The shader it held instead of a card (14/10/2026).
+    #[serde(default)]
+    pub unlock: Option<OpenedUnlock>,
+}
+
+/// A shader an opening brought.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct OpenedUnlock {
+    /// The unlockable's id (`saber_tidal`).
+    pub id: String,
+    /// Its name ("Tidal blade").
+    #[serde(default)]
+    pub name: String,
+    /// How many of it the key holds now, this one included.
+    #[serde(default = "one")]
+    pub count: u32,
 }
 
 /// A sealed copy the hub revealed (`POST /v1/cards/reveal`): the card it turned out to be.
@@ -314,6 +332,10 @@ pub struct Unlock {
     /// Public plain text from the team, often empty. Never markup.
     #[serde(default)]
     pub note: String,
+    /// How many the key holds (14/10/2026: a holocron may drop the same shader again);
+    /// 1 from hubs before.
+    #[serde(default = "one")]
+    pub count: u32,
     /// The medal that brings it (`bug_hunter`), when the key holds it only through that
     /// medal: it goes with the medal. `None` for a grant by hand, and from hubs before
     /// 10/10/2026.
@@ -672,6 +694,33 @@ pub fn names_match(claimed: &str, shown: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_opening_may_hold_a_shader_instead_of_a_card() {
+        let opened: Opened = serde_json::from_str(
+            r#"{"holocron":8,"tier":"uncommon","credits":0,
+                "unlock":{"id":"saber_tidal","name":"Tidal blade","count":2}}"#,
+        )
+        .unwrap();
+        assert_eq!(opened.card, None);
+        assert_eq!(
+            opened.unlock,
+            Some(OpenedUnlock {
+                id: "saber_tidal".into(),
+                name: "Tidal blade".into(),
+                count: 2
+            })
+        );
+        // A card opening has no shader, and an unlock without a count is one.
+        let card: Opened = serde_json::from_str(
+            r#"{"holocron":9,"tier":"rare","credits":40,
+                "card":{"id":3,"card":null,"rarity":"common","finish":"normal","edition":"alpha"}}"#,
+        )
+        .unwrap();
+        assert!(card.card.is_some() && card.unlock.is_none());
+        let unlock: Unlock = serde_json::from_str(r#"{"id":"saber_sun"}"#).unwrap();
+        assert_eq!(unlock.count, 1);
+    }
+
     use super::*;
 
     /// A request every implementation of `PROTOCOL.md` must sign to this exact
@@ -755,18 +804,21 @@ mod tests {
                     id: "saber_sun".to_owned(),
                     granted: 1_791_000_000,
                     note: "Thanks".to_owned(),
+                    count: 1,
                     medal: None,
                 },
                 Unlock {
                     id: "from_the_future".to_owned(),
                     granted: 7,
                     note: String::new(),
+                    count: 1,
                     medal: None,
                 },
                 Unlock {
                     id: "saber_glitch".to_owned(),
                     granted: 8,
                     note: String::new(),
+                    count: 1,
                     medal: Some("bug_hunter".to_owned()),
                 },
             ]

@@ -1002,6 +1002,7 @@ mod tests {
             id: "saber_glitch".to_owned(),
             granted: 0,
             note: String::new(),
+            count: 1,
             medal: medal.map(str::to_owned),
         };
         assert_eq!(owned_line(&grant(None)), "Yours, from the SJK team");
@@ -1130,6 +1131,7 @@ mod tests {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
             note: "a long note from the team ".repeat(8),
+            count: 1,
             medal: None,
         }];
         let font = crate::text::load_modern(1.0, None).expect("Inter").font;

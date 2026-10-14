@@ -793,12 +793,25 @@ test checks the texts). Verified: unit tests (client and hub, the hub's covering
 counted awards, revoke, a grant by hand surviving, relock and the look); the hub not
 deployed when built, nothing tried in the game.
 
+## Holocron shader drops
+
+Built 14/10/2026 (hub branch `loot-kinds`, merged into the hub's `main`, not deployed).
+An unlock is held in a **count** now: a holocron may drop a shader the key already
+holds, and the duplicate is another one (to be sold or traded later, not built). A
+profile's unlocks carry `count` ([wire.rs](../crates/sjk-identity/src/wire.rs)
+`Unlock::count`, 1 from older hubs). Opening a holocron rolls its kind first: a card with
+credits as before, or a shader with no credits and no card (`Opened::unlock`,
+`Opened::card` is then `None`); the shader's tier is rolled next and a droppable shader of
+it picked (the nine plain ones today; the hub's `src/loot.rs` and `PROTOCOL.md` have the
+provisional odds). The client takes the new answer but has no ceremony for a shader yet:
+an opening that held only shaders says "You found Tidal blade (2 held)." in the pop-up's
+refusal line, and the Collection lists the shader; the crate-style opening comes next.
+Opening is still staff-only. Checked by unit tests on both sides; not in the game.
+
 ## Planned, not built
 
-Achievements granting unlockables (with harder goals), holocrons dropping blade skins
-(parked: pool, odds and duplicates undecided; the shaders' [tiers](#tiers) would then
-be the hub's too, to roll a shader of a holocron's tier), Uncommon shaders (colours
-only), other kinds of unlockable (holocron
+Achievements granting unlockables (with harder goals), holocron drops beyond shaders
+(toys, body shaders, nameplates, medals), selling and trading duplicates, other kinds of unlockable (holocron
 skins, trails, emotes). Up to 256 blade skins load at once (the renderer's slots; the
 skin array is a storage buffer of 253952 bytes since 14/10/2026, no longer a 16 KiB uniform,
 so the limit is the material slots, not the lanes).

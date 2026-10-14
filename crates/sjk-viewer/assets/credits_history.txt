@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Read the hub's shader drops: unlock counts, an opening that holds a shader instead of a card
+- c2d02cb |  | Read the hub's shader drops: unlock counts, an opening that holds a shader instead of a card
++ 14/10/2026 | - | Format the shader drop wire changes
+- a08f162 |  | Format the shader drop wire changes
 + 14/10/2026 | - | Shaders: a Common tier (white) and nine plain blades; token ranges and a staff pager for the longer list
 - a563537 |  | Shaders: a Common tier (white) and nine plain blades; token ranges and a staff pager for the longer list
 + 14/10/2026 | - | Credits, changelog and test list for the Common tier and plain shaders
