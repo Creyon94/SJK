@@ -23,11 +23,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1014.1 (Alpha) | 14/10/2026
 
-> Footprints: Steps on sand, snow and mud leave prints and dust, and jumps and landings step too.
-> Material maps: The generator finds your overrides again, crates read as metal and concrete as concrete.
-> Fixes: Decals fade into fog with their walls, and the sky no longer flickers through a ceiling built just under it.
+Player models with their own skeleton and emotes, made with a Blender add-on, 21 new saber shaders after Creyon's ideas, smoother rockets, footprints in sand and snow, and a model viewer.
+
+> Rig models: Player models can bring their own skeleton and dances with sound, made with the SJK Blender add-on.
+> Saber shaders: 21 new shaders after Creyon's ideas, each naming its saber smith.
+> Rockets: Firing while moving no longer stutters, and the lock-on ring builds up with its sounds.
+> Footprints: Sand, snow and mud take footprints and dust.
+> Tools: `modelviewer` lists every model and `r_showEntities` marks a map's entities.
+> Fixes: Decals fade into fog, and the sky no longer flickers through low ceilings.
 
 - Rig models: a player model can be a glTF with its own skeleton (fingers, face, any bones), animated by the game's own moves through a bone map; a model folder with an sjk_rig.cfg file turns it on; the saber, hats and Force effects sit on the model's own hands and head, and its faces show the right side _(Sol)_
 - SJK Rig Model Export, a Blender add-on (scripts/blender/sjk_rig_export): pick a rigged character, name it, one click writes its rig model folder into GameData, the blend file left as it was _(Sol)_
