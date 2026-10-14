@@ -179,10 +179,16 @@ impl PlayerMenu {
             return;
         }
         let Some((choice, variants)) = self.catalog().map(|catalog| {
+            // A model without a skin wears its default one, as the game reads it.
+            let worn = if self.draft.model.contains(['/', '|']) {
+                self.draft.model.clone()
+            } else {
+                format!("{}/default", self.draft.model)
+            };
             let ordinary = catalog
                 .characters
                 .iter()
-                .position(|entry| entry.cvar_value.eq_ignore_ascii_case(&self.draft.model));
+                .position(|entry| entry.cvar_value.eq_ignore_ascii_case(&worn));
             let species = catalog
                 .species
                 .iter()
@@ -196,8 +202,15 @@ impl PlayerMenu {
             } else if let Some((choice, variants)) = species {
                 (Some(choice), Some(variants))
             } else {
+                // A model the catalogue lacks: the first default skin, so the grid
+                // opens on Default rather than whatever team skin sorts first.
+                let default = catalog
+                    .characters
+                    .iter()
+                    .position(|entry| entry.skin.eq_ignore_ascii_case("default"));
                 (
-                    (!catalog.characters.is_empty()).then_some(Choice::Character(0)),
+                    (!catalog.characters.is_empty())
+                        .then_some(Choice::Character(default.unwrap_or(0))),
                     None,
                 )
             }

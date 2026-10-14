@@ -597,7 +597,8 @@ and plays changes.
   the emote, when it started and when it ends (its length, 3 seconds for an id the
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
   or leaves, unless it is `moving`. A rig model plays an emote's `clip`
-  (`emotes::playing`); the `sound` plays on the player (`emotes::Cue`, channel 13)
+  (`emotes::playing`); the `sound` plays on the player (`emotes::Cue`, channel 13,
+  following another player, in both ears for the player's own, times `s_emoteVolume`)
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.

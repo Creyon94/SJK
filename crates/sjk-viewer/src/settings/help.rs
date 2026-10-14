@@ -269,6 +269,10 @@ const HELP: &[(&str, &str)] = &[
         "Silences the game while its window is alt-tabbed out or minimised.",
     ),
     (
+        crate::emotes::VOLUME_CVAR,
+        "Loudness of emote sounds: 1 as recorded, 2 twice as loud. Yours plays in both ears; others' follow their player.",
+    ),
+    (
         crate::unlock_toast::SOUND_CVAR,
         "Plays the secret-area chime with each unlock card: an achievement, or a new medal or holocron in a match.",
     ),

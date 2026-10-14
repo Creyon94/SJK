@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Emote sound follows you, Emote volume; character grid fixes
+- ba92c2d |  | Emote sound follows you, Emote volume; character grid fixes
 + 14/10/2026 | - | Rig add-on: an emote's id is its name
 - 7eac05a |  | Rig add-on: an emote's id is its name
 + 14/10/2026 | - | Emotes shared between rig models with the same skeleton

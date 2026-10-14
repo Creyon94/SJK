@@ -55,6 +55,7 @@ impl PlayerMenu {
     pub(super) fn rebuild_tiles(&mut self) {
         self.tiles.clear();
         self.retail_tiles = 0;
+        self.rig_tiles = 0;
         let Some(catalog) = catalog_of(&self.loader) else {
             return;
         };
@@ -85,9 +86,19 @@ impl PlayerMenu {
                 .map(|(absolute, _)| absolute),
         );
         self.retail_tiles = self.tiles.len();
+        // The high quality models (SJK rig models) next, then the rest of the
+        // community's.
+        let community = characters.filter(|(index, _)| !retail(*index, catalog.retail_characters));
         self.tiles.extend(
-            characters
-                .filter(|(index, _)| !retail(*index, catalog.retail_characters))
+            community
+                .clone()
+                .filter(|(_, entry)| entry.rig)
+                .map(|(index, _)| index),
+        );
+        self.rig_tiles = self.tiles.len() - self.retail_tiles;
+        self.tiles.extend(
+            community
+                .filter(|(_, entry)| !entry.rig)
                 .map(|(index, _)| index),
         );
         self.tiles.extend(
@@ -239,6 +250,11 @@ mod tests {
     /// A menu whose catalogue lists kyle (default, red, blue), jan and
     /// desann (default, dark).
     fn menu() -> PlayerMenu {
+        menu_with(Vec::new())
+    }
+
+    /// [`menu`] with `community` mounted as a pack of the player's own.
+    fn menu_with(community: Vec<(String, Vec<u8>)>) -> PlayerMenu {
         let mut files = Vec::new();
         for (model, skins) in [
             ("kyle", &["default", "red", "blue"][..]),
@@ -259,6 +275,9 @@ mod tests {
         }
         let mut vfs = VirtualFileSystem::new();
         vfs.mount_memory("assets1", files).unwrap();
+        if !community.is_empty() {
+            vfs.mount_memory("community", community).unwrap();
+        }
         let mut menu = PlayerMenu::new();
         menu.attach_catalogue(Arc::new(vfs));
         let loader = menu.loader.as_mut().unwrap();
@@ -304,6 +323,54 @@ mod tests {
         menu.set_search("kyle");
         menu.cycle_team(1);
         assert_eq!(listed(&menu), ["kyle/red"]);
+    }
+
+    /// A pack holding a community model and a rig model.
+    fn with_rig() -> PlayerMenu {
+        let mut files = Vec::new();
+        for file in ["model.glm", "model_default.skin", "icon_default.jpg"] {
+            files.push((format!("models/players/reborn2/{file}"), b"x".to_vec()));
+        }
+        for file in ["sjk_rig.cfg", "model.gltf", "icon_default.png"] {
+            files.push((format!("models/players/wolfie/{file}"), b"x".to_vec()));
+        }
+        menu_with(files)
+    }
+
+    #[test]
+    fn high_quality_models_come_between_the_games_and_the_communitys() {
+        let menu = with_rig();
+        let listed = listed(&menu);
+        let wolfie = listed.iter().position(|name| *name == "wolfie/default");
+        let reborn = listed.iter().position(|name| *name == "reborn2/default");
+        assert_eq!(wolfie, Some(menu.retail_tiles), "{listed:?}");
+        assert!(reborn > wolfie, "{listed:?}");
+        assert_eq!(menu.rig_tiles, 1);
+        // Without a rig model there is no such section.
+        assert_eq!(super::tests::menu().rig_tiles, 0);
+    }
+
+    #[test]
+    fn a_model_without_a_skin_is_its_default_and_an_unknown_one_opens_on_default() {
+        let mut menu = with_rig();
+        let worn = |menu: &mut PlayerMenu, model: &str| {
+            menu.draft.model = model.to_owned();
+            menu.resolved_catalogue = false;
+            menu.resolve_current_choice();
+            let catalog = catalog_of(&menu.loader).unwrap();
+            let name = super::super::grid::entry_name(catalog, menu.choice_index()).unwrap();
+            (name.to_owned(), menu.team)
+        };
+        assert_eq!(
+            worn(&mut menu, "wolfie"),
+            ("wolfie/default".to_owned(), TeamSkin::Default)
+        );
+        assert_eq!(
+            worn(&mut menu, "kyle/blue"),
+            ("kyle/blue".to_owned(), TeamSkin::Blue)
+        );
+        let (_, team) = worn(&mut menu, "nobody");
+        assert_eq!(team, TeamSkin::Default);
     }
 
     #[test]

@@ -224,6 +224,8 @@ pub(crate) struct PlayerMenu {
     creator: sjk_creator::Creator,
     /// How many of `tiles`, from the first, are the retail game's.
     retail_tiles: usize,
+    /// How many tiles after the retail ones are high quality (rig) models.
+    rig_tiles: usize,
     /// The Force level last bought and when (menu clock seconds), for the
     /// ring the SJK UI sends out from it.
     sjk_burst: Option<(usize, u8, f64)>,
@@ -282,6 +284,7 @@ impl PlayerMenu {
             turn: sjk_outfit::Turn::default(),
             creator: sjk_creator::Creator::default(),
             retail_tiles: 0,
+            rig_tiles: 0,
             sjk_burst: None,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
