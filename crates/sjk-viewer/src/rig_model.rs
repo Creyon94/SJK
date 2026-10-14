@@ -186,8 +186,9 @@ pub(crate) struct Manifest {
     /// feet planting: a hand tweak for a model whose soles are not its lowest point.
     pub(crate) lift: f32,
     pub(crate) map: Vec<MapEntry>,
-    /// Joints whose chains below move on their own (`dynamic <joint>` lines).
-    pub(crate) dynamic: Vec<String>,
+    /// Joints whose chains below move on their own (`dynamic <joint> [gravity]`
+    /// lines), with their gravity when the line gives one.
+    pub(crate) dynamic: Vec<(String, Option<f32>)>,
 }
 
 impl Manifest {
@@ -230,7 +231,17 @@ impl Manifest {
                         .filter(|lift: &f32| lift.is_finite())
                         .ok_or_else(bad)?
                 }
-                ["dynamic", joint] => manifest.dynamic.push((*joint).to_owned()),
+                ["dynamic", joint] => manifest.dynamic.push(((*joint).to_owned(), None)),
+                ["dynamic", joint, gravity] => manifest.dynamic.push((
+                    (*joint).to_owned(),
+                    Some(
+                        gravity
+                            .parse()
+                            .ok()
+                            .filter(|gravity: &f32| gravity.is_finite())
+                            .ok_or_else(bad)?,
+                    ),
+                )),
                 ["map", joint, bone] => manifest.map.push(entry(joint, bone, Align::Rest)),
                 ["map", joint, bone, "as", other] => {
                     manifest
@@ -740,17 +751,17 @@ impl RigModel {
             }
         }
         let order = topological(&joints)?;
-        let dynamic_anchors: Vec<usize> = manifest
+        let dynamic_anchors: Vec<(usize, f32)> = manifest
             .dynamic
             .iter()
-            .filter_map(|name| {
+            .filter_map(|(name, gravity)| {
                 let found = joint_index(name);
                 if found.is_none() {
                     crate::log::progress(format_args!(
                         "rig model {base}: {MANIFEST}: no joint {name:?} for dynamic"
                     ));
                 }
-                found
+                Some((found?, gravity.unwrap_or(dynamics::GRAVITY)))
             })
             .collect();
         let chains = dynamics::Chains::under(&joints, &order, &dynamic_anchors);
