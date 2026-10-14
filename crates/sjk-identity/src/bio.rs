@@ -342,7 +342,9 @@ mod tests {
         // The middle dot, the voicing marks and conjoining jamo are no letters; Greek is
         // not drawn.
         assert!(!letter('・') && !letter('゛') && !letter('\u{1100}') && !letter('α'));
-        assert!(allowed('，') && allowed('《') && allowed('😀') && allowed('\u{200D}') && allowed('€'));
+        assert!(
+            allowed('，') && allowed('《') && allowed('😀') && allowed('\u{200D}') && allowed('€')
+        );
         assert_eq!(
             check("你好，我们说中文。"),
             Ok("你好，我们说中文。".to_owned())
