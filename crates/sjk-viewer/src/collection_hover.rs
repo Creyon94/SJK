@@ -59,6 +59,7 @@ impl Panel {
                         "Every SJK player has it. Light it here, from the quick wheel's Toys \
                          page or with a key bound to toy_illuminate.",
                     ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
                     Line::held("Yours"),
                 ],
             });
@@ -82,6 +83,7 @@ fn medal_card(showing: &medals::Showing) -> Card {
             blade.name
         )));
     }
+    lines.push(Line::status(crate::editions::name(medal.edition())));
     lines.push(match &showing.award {
         Some(award) if award.given().is_empty() => Line::held("Yours"),
         Some(award) => Line::held(format!("Yours: {}", award.given().to_lowercase())),
@@ -103,6 +105,7 @@ fn achievement_card(
         Source::Client(_) => "Counted by SJK in your matches on servers.",
         Source::Hub => "Counted by the SJK hub.",
     };
+    let counted = format!("{counted} {}.", crate::editions::name(kind.edition));
     let status = match standing {
         Some(standing) => match standing.unlocked {
             Some(at) if at > 0 => Line::held(format!("Unlocked {}", crate::medals::date_text(at))),
@@ -166,7 +169,11 @@ fn shader_card(
         colour: skin.tier.colour(),
         lines: vec![
             Line::how(skin.how_to_get),
-            Line::status(format!("{} blade skin", skin.tier.label())),
+            Line::status(format!(
+                "{} blade skin. {}.",
+                skin.tier.label(),
+                crate::editions::name(skin.edition)
+            )),
             status,
         ],
     }

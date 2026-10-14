@@ -136,6 +136,8 @@ pub(crate) struct Kind {
     pub(crate) goal: u64,
     pub(crate) category: Category,
     pub(crate) source: Source,
+    /// The edition it belongs to ([`crate::editions`]).
+    pub(crate) edition: &'static str,
 }
 
 const fn kind(
@@ -153,6 +155,7 @@ const fn kind(
         goal,
         category,
         source,
+        edition: crate::editions::ALPHA,
     }
 }
 

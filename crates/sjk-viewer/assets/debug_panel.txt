@@ -4451,3 +4451,12 @@ title: Supporter medal final art
 change: The Supporter medal is a gold star with a sun gem on a crimson ribbon, not the heart.
 test: As staff, give yourself the Supporter medal: look at the Collection > Medals tab.
 test: Check the scoreboard ribbon (crimson with gold edges) and the small medal on the card.
+
+[seasons]
+area: Menus & settings
+title: Alpha Edition stamp on collectibles
+change: Shaders, medals, achievements and the toy carry an edition; all read Alpha Edition.
+test: Collection > Shaders: the details show "Alpha Edition" at the top right of the name.
+test: Collection > Medals: "Given ... - Alpha Edition" under the medal's name.
+test: Hover a shader, a medal, an achievement and the toy: "Alpha Edition" is in each card.
+test: Shaders search: type /, then "alpha": every shader stays.

@@ -277,7 +277,11 @@ impl Panel {
             TextAlign::Center,
         );
         y += 66.0;
-        let line = given(showing.award.as_ref());
+        let line = format!(
+            "{}  \u{b7}  {}",
+            given(showing.award.as_ref()),
+            crate::editions::name(showing.medal.edition())
+        );
         text(
             &mut self.ui,
             TextFamily::Body,

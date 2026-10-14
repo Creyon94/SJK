@@ -121,6 +121,9 @@ impl ShaderFilter {
         query.is_empty()
             || skin.name.to_lowercase().contains(&query)
             || skin.tier.label().to_lowercase().contains(&query)
+            || crate::editions::name(skin.edition)
+                .to_lowercase()
+                .contains(&query)
     }
 }
 

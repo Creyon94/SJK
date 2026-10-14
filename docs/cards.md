@@ -21,7 +21,7 @@ in the system. Hats and capes stay free for everyone and are never sold or dropp
 | Where a sealed card is revealed | Into the first set only, so Alpha cards stay launch-set cards (my pick, Sol's go-ahead). |
 | What the holocron's tier does | A higher tier raises the odds of rarer cards, better finishes and more credits ([Odds](#odds)). |
 | Finishes | Normal, Holo, Solar (the rarest: an animated sunlit shimmer). |
-| Editions | A stamp apart from the finish: **Alpha Edition** while the alpha lasts. |
+| Editions | A stamp apart from the finish: **Alpha Edition** while the alpha lasts. Every other collectible carries one too ([Editions](unlockables.md#editions)). |
 | Credits' sign | The galactic credit's, the slanted seven crossed by two bars (Sol's pick, from Wikipedia); drawn from shapes. |
 | What credits will buy | Droppable cosmetics, as a fix for bad luck ([Credits](#credits)); not built. |
 | Duplicates | Cards keep a count ("x3"). A droppable cosmetic dropped again turns into credits (planned with the shop). |

@@ -844,3 +844,22 @@ Achievements granting unlockables (with harder goals), holocron drops beyond sha
 skins, trails, emotes). Up to 256 blade skins load at once (the renderer's slots; the
 skin array is a storage buffer of 253952 bytes since 14/10/2026, no longer a 16 KiB uniform,
 so the limit is the material slots, not the lanes).
+
+## Editions
+
+14/10/2026 (Sol's request: a season system for every collectible, starting with an
+Alpha tag). An **edition** is the stamp of when a collectible came: **Alpha Edition**
+for the whole alpha, later ones as they open. [editions.rs](../crates/sjk-viewer/src/editions.rs)
+holds the table (`id`, full name, short tag); a new edition is one line there.
+
+- Holocron cards carry theirs per copy: the hub stamps the current edition
+  (`cards::EDITION`, "alpha") at opening and the copy keeps it for good
+  ([cards.md](cards.md)).
+- Shaders (`Unlockable::edition`), medals (`Medal::edition`), achievements
+  (`Kind::edition`) and the Illuminate toy take theirs from the client's catalogue
+  entries, "alpha" for every one now. An item belongs to one edition; a duplicate keeps
+  it with the item.
+- Where it reads: the shader's big card (top right of its details), the medal's line
+  under its name, and the hover card of each shader, medal, achievement and toy; the
+  Shaders search matches an edition's name ("alpha"). Nothing drops by edition yet: later
+  an edition can end its drops or limit its items, which will be the hub's table too.
