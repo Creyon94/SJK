@@ -128,6 +128,27 @@ fn owned_line(grant: &sjk_identity::Unlock) -> String {
     }
 }
 
+/// The filter's chips and search field: where they stand and how tall they are.
+const FILTER_Y: f32 = 292.0;
+const FILTER_HEIGHT: f32 = 28.0;
+
+/// The chip of tier `index` of [`FILTER_TIERS`]: its token, name, colour, whether it is
+/// the one on and its width.
+fn chip_of(
+    index: usize,
+    filter: &ShaderFilter,
+    width: f32,
+) -> (u16, String, sjk_ui::Color, bool, f32) {
+    let tier = FILTER_TIERS[index];
+    (
+        FILTER_TIER_BASE + 1 + index as u16,
+        tier.label().to_owned(),
+        tier.colour(),
+        filter.tier == Some(tier),
+        width,
+    )
+}
+
 /// What a row shows: the stock blade, or a blade skin.
 #[derive(Clone, Copy)]
 struct Row {
@@ -181,7 +202,7 @@ impl Row {
 
 impl Panel {
     /// The rows, and the lead's words.
-    fn rows(inputs: &Inputs<'_>) -> Vec<Row> {
+    fn rows(inputs: &Inputs<'_>, filter: &ShaderFilter) -> Vec<Row> {
         let worn = inputs
             .holdings
             .worn_blade_skin(inputs.setting)
@@ -192,17 +213,20 @@ impl Panel {
             worn: worn.is_none(),
             count: 1,
         })
-        .chain(unlockables::blade_skins_by_tier().iter().map(|&skin| {
-            Row {
-                skin: Some(skin),
-                owned: inputs.holdings.unlock(skin.id).is_some(),
-                worn: worn == Some(skin.id),
-                count: inputs
-                    .holdings
-                    .unlock(skin.id)
-                    .map_or(0, |unlock| unlock.count),
-            }
-        }))
+        .chain(
+            unlockables::blade_skins_by_tier()
+                .iter()
+                .filter(|skin| filter.passes(skin, inputs.holdings.unlock(skin.id).is_some()))
+                .map(|&skin| Row {
+                    skin: Some(skin),
+                    owned: inputs.holdings.unlock(skin.id).is_some(),
+                    worn: worn == Some(skin.id),
+                    count: inputs
+                        .holdings
+                        .unlock(skin.id)
+                        .map_or(0, |unlock| unlock.count),
+                }),
+        )
         .collect()
     }
 
@@ -210,17 +234,30 @@ impl Panel {
     pub(super) fn shaders(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         let s = frame.s;
         self.grid = inputs.grid;
-        let rows = Self::rows(inputs);
+        let rows = Self::rows(inputs, &self.shader_filter);
+        self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
+        self.shader_count = rows.len();
         if self.shader >= rows.len() {
             self.shader = rows.iter().position(|row| row.worn).unwrap_or(0);
         }
-        let owned = rows.iter().skip(1).filter(|row| row.owned).count();
+        let owned = unlockables::blade_skins()
+            .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
+            .count();
         let headline = if inputs.holdings.reason().is_none() {
             format!("{owned} of {} owned", unlockables::ALL.len())
         } else {
             "Saber shaders".to_owned()
         };
+        let shown_words;
         let line = match inputs.holdings {
+            unlockables::Holdings::Known(_) if self.shader_filter.active() => {
+                shown_words = format!(
+                    "{} of {} shaders shown: T tier, O owned, / search.",
+                    rows.len() - 1,
+                    unlockables::ALL.len()
+                );
+                shown_words.as_str()
+            }
             unlockables::Holdings::IdentityOff => {
                 "Shaders are kept on the SJK hub: switch the identity on in Settings, Network."
             }
@@ -233,6 +270,7 @@ impl Panel {
             }
         };
         self.lead(frame, &headline, line);
+        self.filter_bar(frame);
         self.kinds(frame, owned);
         self.view_switches(frame);
         let unlocks = matches!(inputs.holdings, unlockables::Holdings::Known(_));
@@ -279,6 +317,110 @@ impl Panel {
             self.shader_beside_model(frame, row, inputs, seconds);
         }
         let _ = s;
+    }
+
+    /// The filter under the headline: a chip for All and one for each tier (in its tier's
+    /// colour), the owned-only chip and the search field.
+    fn filter_bar(&mut self, frame: &Frame) {
+        let s = frame.s;
+        let y = FILTER_Y;
+        let mut left = LEFT_X;
+        let chips: [(u16, String, sjk_ui::Color, bool, f32); 7] = [
+            (
+                FILTER_TIER_BASE,
+                "All".to_owned(),
+                color::HOLO,
+                self.shader_filter.tier.is_none(),
+                56.0,
+            ),
+            chip_of(0, &self.shader_filter, 90.0),
+            chip_of(1, &self.shader_filter, 104.0),
+            chip_of(2, &self.shader_filter, 70.0),
+            chip_of(3, &self.shader_filter, 100.0),
+            chip_of(4, &self.shader_filter, 96.0),
+            (
+                FILTER_OWNED_TOKEN,
+                "Owned".to_owned(),
+                color::GOLD,
+                self.shader_filter.owned,
+                84.0,
+            ),
+        ];
+        for (token, label, colour, lit, width) in chips {
+            let rect = frame.rect(left, y, width, FILTER_HEIGHT);
+            let hovered = self.ui.token_hovered(token);
+            if lit || hovered {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: FILTER_HEIGHT * 0.5 * s,
+                    color: color::alpha(colour, if lit { 0.2 } else { 0.09 }),
+                });
+            }
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: FILTER_HEIGHT * 0.5 * s,
+                width: 1.2 * s,
+                color: color::alpha(colour, if lit { 1.0 } else { 0.4 }),
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{label}"),
+                frame.rect(left, y + 4.0, width, FILTER_HEIGHT - 8.0),
+                14.0 * s,
+                if lit { color::TEXT } else { color::MUTED },
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+            self.ui.hit_region(token, rect);
+            left += width + 8.0;
+        }
+        // The search field takes what is left of the rack's width.
+        let width = (LEFT_X - 12.0 + RACK_WIDTH - left).max(120.0);
+        let rect = frame.rect(left, y, width, FILTER_HEIGHT);
+        let focused = self.search_focus;
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect,
+            radius: 8.0 * s,
+            color: color::alpha(color::SPACE, if focused { 0.8 } else { 0.5 }),
+        });
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect,
+            radius: 8.0 * s,
+            width: 1.2 * s,
+            color: if focused {
+                color::GOLD
+            } else {
+                color::alpha(color::HOLO, 0.3)
+            },
+        });
+        let caret = (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        let shown = if focused {
+            format!(
+                "{}{}",
+                self.shader_filter.query,
+                if caret { "|" } else { "" }
+            )
+        } else if self.shader_filter.query.is_empty() {
+            "Search  /".to_owned()
+        } else {
+            self.shader_filter.query.clone()
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{shown}"),
+            frame.rect(left + 12.0, y + 4.0, width - 24.0, FILTER_HEIGHT - 8.0),
+            14.0 * s,
+            if focused || !self.shader_filter.query.is_empty() {
+                color::TEXT
+            } else {
+                color::QUIET
+            },
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        self.ui.hit_region(SEARCH_TOKEN, rect);
     }
 
     /// The rack's scroll bar at its right, when it holds more rows than it shows.
