@@ -1014,11 +1014,9 @@ mod tests {
         let _ = panel.cycle_tier(false);
         assert_eq!(panel.shader, 0, "back to the top");
         redraw(&mut panel, &inputs);
-        assert_eq!(
-            ids(&panel),
-            ["saber_tidal", "saber_circuit", "saber_aurora", "saber_echo"]
-        );
-        assert_eq!(panel.shader_count, 5, "the stock blade stays first");
+        assert_eq!(ids(&panel).len(), 10);
+        assert_eq!(ids(&panel)[0], "saber_tidal");
+        assert_eq!(panel.shader_count, 11, "the stock blade stays first");
         for _ in 0..5 {
             let _ = panel.cycle_tier(false);
         }

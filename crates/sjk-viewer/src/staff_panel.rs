@@ -170,7 +170,8 @@ struct Shown {
     medals: [u32; crate::medals::Medal::COUNT],
     /// The chosen player has a picture.
     picture: bool,
-    unlocks: [bool; crate::unlockables::ALL.len()],
+    /// Which unlockables of the catalogue they hold, in its order.
+    unlocks: Vec<bool>,
     /// How many unlockables a page of the list shows.
     unlock_per_page: usize,
     /// The numbers of the holocrons listed with Remove, newest first, and how many.
@@ -579,7 +580,7 @@ impl Panel {
             {
                 let index = usize::from(token - UNLOCK_BASE);
                 match target {
-                    Some(key_id) if !self.shown.unlocks[index] => {
+                    Some(key_id) if !self.shown.unlocks.get(index).copied().unwrap_or(false) => {
                         PanelAction::Request(StaffRequest::Unlock {
                             key_id,
                             unlock: crate::unlockables::ALL[index].id.to_owned(),
@@ -595,7 +596,7 @@ impl Panel {
             {
                 let index = usize::from(token - RELOCK_BASE);
                 match target {
-                    Some(key_id) if self.shown.unlocks[index] => {
+                    Some(key_id) if self.shown.unlocks.get(index).copied().unwrap_or(false) => {
                         PanelAction::Request(StaffRequest::Relock {
                             key_id,
                             unlock: crate::unlockables::ALL[index].id.to_owned(),

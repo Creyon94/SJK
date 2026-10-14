@@ -81,6 +81,18 @@ meaning.
 | `saber_venom` | Venom blade | blade skin | Given by the SJK team. |
 | `saber_sakura` | Sakura blade | blade skin | Given by the SJK team. |
 | `saber_firefly` | Firefly blade | blade skin | Given by the SJK team. |
+| `saber_slate` | Slate blade | blade skin | Given by the SJK team. |
+| `saber_amber` | Amber blade | blade skin | Given by the SJK team. |
+| `saber_lilac` | Lilac blade | blade skin | Given by the SJK team. |
+| `saber_mint` | Mint blade | blade skin | Given by the SJK team. |
+| `saber_coral` | Coral blade | blade skin | Given by the SJK team. |
+| `saber_ivory` | Ivory blade | blade skin | Given by the SJK team. |
+| `saber_glacier` | Glacier blade | blade skin | Given by the SJK team. |
+| `saber_dusk` | Dusk blade | blade skin | Given by the SJK team. |
+| `saber_ruby` | Ruby blade | blade skin | Given by the SJK team. |
+| `saber_amethyst` | Amethyst blade | blade skin | Given by the SJK team. |
+| `saber_jade` | Jade blade | blade skin | Given by the SJK team. |
+| `saber_moonlight` | Moonlight blade | blade skin | Given by the SJK team. |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -165,6 +177,12 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   Uncommon, a colour and particles: **Nebula** (indigo with twinkling stars),
   **Cinder** (coal orange shedding embers), **Venom** (acid green, dripping),
   **Sakura** (pink, petals drifting down), **Firefly** (warm green, blinking motes).
+- **Twelve more plain ones** (14/10/2026, same script): Common **Slate** (steel grey),
+  **Amber** (honey gold), **Lilac** (violet, a slow hue drift), **Mint** (pale green wave),
+  **Coral** (salmon pulse), **Ivory** (cream); Uncommon **Glacier** (ice blue, frost
+  glints), **Dusk** (orange into violet, turning), **Ruby** (red, sparks), **Amethyst**
+  (purple, twinkling flecks), **Jade** (sea green, slow hue, specks), **Moonlight**
+  (silver blue, drifting motes).
 
 ## Hub protocol (additions to version 1)
 
@@ -404,8 +422,8 @@ holocron look alike:
 | Mythical | Sun, Void, Molten, Spectral |
 | Legendary | Storm, Unstable, Chameleon, Prism (provisional) |
 | Rare | Frost, Hologram, Runic, Heartbeat, Glitch (provisional), Banner (provisional) |
-| Common | Tidal, Circuit, Aurora, Echo |
-| Uncommon | Nebula, Cinder, Venom, Sakura, Firefly |
+| Common | Tidal, Circuit, Aurora, Echo, Slate, Amber, Lilac, Mint, Coral, Ivory |
+| Uncommon | Nebula, Cinder, Venom, Sakura, Firefly, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight |
 
 Sol placed eleven; Prism, Glitch and Banner are placed provisionally until Sol says
 otherwise. The tier is the client catalogue's only: the hub does not need it yet (it

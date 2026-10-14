@@ -4432,7 +4432,15 @@ note: Real openings need a hub with the drops deployed and staff opening.
 area: Menus & settings
 title: Collection shaders: tier chips, Owned and a search
 change: The Shaders tab has chips for each tier, Owned and a search field under the headline.
-test: Open Collection > Shaders. Click Common: only the four Common shaders show; click All.
+test: Open Collection > Shaders. Click Common: only the Common shaders show; click All.
 test: Press T (Shift+T back) to step the tier chips, O for Owned.
 test: Press /, type "tid": only Tidal shows; Esc clears it and leaves the field, Enter just leaves.
 note: Needs the hub deployed (done) and the shaders granted to you as staff to see Owned.
+
+[more-shaders]
+area: Menus & settings
+title: Twelve more plain saber shaders (needs the hub deployed)
+change: Six Common and six Uncommon plain shaders join: Slate to Moonlight (35 in all).
+test: As staff, unlock Slate, Ruby and Moonlight for yourself, then open Collection > Shaders.
+test: Slate is Common (white), Ruby and Moonlight Uncommon. Wear each: steel, red sparks, motes.
+test: The tier chips now list ten Common and eleven Uncommon shaders.
