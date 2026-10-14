@@ -4444,3 +4444,10 @@ change: Six Common and six Uncommon plain shaders join: Slate to Moonlight (35 i
 test: As staff, unlock Slate, Ruby and Moonlight for yourself, then open Collection > Shaders.
 test: Slate is Common (white), Ruby and Moonlight Uncommon. Wear each: steel, red sparks, motes.
 test: The tier chips now list ten Common and eleven Uncommon shaders.
+
+[supporter-art]
+area: Menus & settings
+title: Supporter medal final art
+change: The Supporter medal is a gold star with a sun gem on a crimson ribbon, not the heart.
+test: As staff, give yourself the Supporter medal: look at the Collection > Medals tab.
+test: Check the scoreboard ribbon (crimson with gold edges) and the small medal on the card.

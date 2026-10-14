@@ -81,12 +81,8 @@ const BUG_HUNTER: Ribbon = Ribbon {
 };
 const GOLD: Color = rgb(0xE8_B84A);
 const SUPPORTER: Ribbon = Ribbon {
-    base: rgb(0x5B_2A86),
-    stripes: &[
-        stripe(0.0, 0.1, GOLD),
-        stripe(0.47, 0.06, rgb(0xFF_D97A)),
-        stripe(0.9, 0.1, GOLD),
-    ],
+    base: rgb(0x8A_1538),
+    stripes: &[stripe(0.0, 0.1, GOLD), stripe(0.9, 0.1, GOLD)],
 };
 
 impl Medal {
