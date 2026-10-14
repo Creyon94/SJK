@@ -16,7 +16,9 @@
 //! than the driver's neither sinks nor floats ([`Feet`]).
 //!
 //! The glTF's own animations become clips ([`clips`]) a rig plays on its skeleton
-//! in place of the driver's pose, fading in and out (emotes).
+//! in place of the driver's pose, fading in and out (emotes). An emote made on
+//! another rig model (its file's `rig`) is borrowed when the two skeletons share
+//! joint names, as Unreal mannequin characters do ([`RigModel::borrowed`]).
 //!
 //! See `docs/rig-models.md` for the file format.
 
@@ -26,7 +28,9 @@ use glam::{Affine3A, Mat3, Mat3A, Vec3, Vec3A};
 use sjk_model::gltf::{GltfModel, parse};
 use sjk_model::{Gla, Glm};
 use sjk_vfs::VirtualFileSystem;
+use std::collections::HashMap;
 use std::error::Error;
+use std::sync::{Arc, LazyLock, Mutex};
 
 /// The file that makes a model folder a rig model.
 pub(crate) const MANIFEST: &str = "sjk_rig.cfg";
@@ -270,6 +274,8 @@ pub(crate) fn manifest(
 /// One rig joint, in the driver's model space and units.
 #[derive(Clone, Debug)]
 pub(crate) struct Joint {
+    /// The glTF node's name: borrowed clips find their joints by it.
+    name: String,
     parent: Option<usize>,
     bind: Affine3A,
     inverse_bind: Affine3A,
@@ -318,6 +324,53 @@ struct Feet {
     rig_ankle: f32,
     /// The rig's lowest point in its bind pose (where a clip's soles are).
     rig_sole: f32,
+}
+
+/// The least share of the joints a clip moves that a rig must have (by name) to
+/// borrow it.
+const BORROW_SHARE: f32 = 0.6;
+
+/// Rig models loaded only to lend their clips, by folder; `None` for one that did not
+/// load. Kept for the session: a model re-exported while the game runs is read again
+/// after a restart.
+static SOURCES: LazyLock<Mutex<HashMap<String, Option<Arc<RigModel>>>>> =
+    LazyLock::new(Mutex::default);
+
+/// The rig model in `directory`, without its surfaces, fitted to `driver`.
+fn source_rig(vfs: &VirtualFileSystem, directory: &str, driver: &Gla) -> Option<Arc<RigModel>> {
+    let key = directory.to_ascii_lowercase();
+    let mut sources = SOURCES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(known) = sources.get(&key) {
+        return known.clone();
+    }
+    let load = || -> Result<RigModel, Box<dyn Error>> {
+        let manifest = manifest(vfs, directory)?.ok_or("not a rig model")?;
+        let file = manifest
+            .model
+            .clone()
+            .unwrap_or_else(|| "model.gltf".to_owned());
+        let path = format!("{directory}/{file}");
+        let base = path
+            .rsplit_once('/')
+            .map_or("", |(base, _)| base)
+            .to_owned();
+        let read = |path: &str| vfs.read(path).ok().flatten().map(|asset| asset.bytes);
+        let bytes = read(&path).ok_or_else(|| format!("{path:?} was not found"))?;
+        let mut model = parse(&bytes, |uri| read(&join(&base, uri)))?;
+        model.primitives.clear();
+        RigModel::fit(model, &base, &manifest, driver)
+    };
+    let loaded = match load() {
+        Ok(rig) => Some(Arc::new(rig)),
+        Err(error) => {
+            crate::log::progress(format_args!("rig model {directory}: {error}"));
+            None
+        }
+    };
+    sources.insert(key, loaded.clone());
+    loaded
 }
 
 /// The lowest point of `mesh` in its base pose: its first LOD's drawn surfaces (no
@@ -442,7 +495,148 @@ impl RigModel {
             .to_owned();
         let bytes = read(&path).ok_or_else(|| format!("rig model {path:?} was not found"))?;
         let model = parse(&bytes, |uri| read(&join(&base, uri)))?;
-        Ok(Self::fit(model, &base, manifest, driver)?.with_feet(driver, sole(driver_mesh)))
+        let mut rig =
+            Self::fit(model, &base, manifest, driver)?.with_feet(driver, sole(driver_mesh));
+        rig.borrow_clips(vfs, directory, driver);
+        Ok(rig)
+    }
+
+    /// Take the clips of the installed emotes made on other rig models (their file's
+    /// `rig`) that this skeleton can play ([`Self::borrowed`]).
+    fn borrow_clips(&mut self, vfs: &VirtualFileSystem, directory: &str, driver: &Gla) {
+        let catalogue = crate::emotes::lock().catalogue.clone();
+        let catalogue = catalogue.unwrap_or_else(|| crate::emotes::load(vfs));
+        for emote in catalogue {
+            if emote.clip.is_empty() || emote.rig.is_empty() {
+                continue;
+            }
+            let source_directory = format!("models/players/{}", emote.rig);
+            if source_directory.eq_ignore_ascii_case(directory)
+                || self.clips.iter().any(|clip| clip.name == emote.clip)
+            {
+                continue;
+            }
+            let Some(source) = source_rig(vfs, &source_directory, driver) else {
+                continue;
+            };
+            let Some(clip) = source.clips.iter().find(|clip| clip.name == emote.clip) else {
+                crate::log::progress(format_args!(
+                    "rig model {directory}: emote {}: {source_directory} has no clip {:?}",
+                    emote.id, emote.clip
+                ));
+                continue;
+            };
+            match self.borrowed(&source, clip) {
+                Some(clip) => {
+                    crate::log::progress(format_args!(
+                        "rig model {directory}: borrowed {} from {source_directory}",
+                        clip.name
+                    ));
+                    self.clips.push(clip);
+                }
+                None => crate::log::progress(format_args!(
+                    "rig model {directory}: emote {}: the skeleton of {source_directory} \
+                     does not match",
+                    emote.id
+                )),
+            }
+        }
+    }
+
+    /// `clip` of rig `source` played on this rig: each joint named as one of the
+    /// source's turns from its own bind pose as that one turns from the source's
+    /// (model space, so bone rolls may differ), keeping this rig's bone lengths; the
+    /// root and the joint under it (Unreal's root and pelvis) also move as the
+    /// source's do. Joints the source lacks follow their parent. `None` when fewer
+    /// than [`BORROW_SHARE`] of the joints the clip moves are found here.
+    pub(crate) fn borrowed(&self, source: &RigModel, clip: &Clip) -> Option<Clip> {
+        let names: HashMap<&str, usize> = source
+            .joints
+            .iter()
+            .enumerate()
+            .map(|(index, joint)| (joint.name.as_str(), index))
+            .collect();
+        let found: Vec<Option<usize>> = self
+            .joints
+            .iter()
+            .map(|joint| names.get(joint.name.as_str()).copied())
+            .collect();
+        let moved = (0..source.joints.len())
+            .filter(|&index| clip.animates(index))
+            .count();
+        let shared = found
+            .iter()
+            .flatten()
+            .filter(|&&index| clip.animates(index))
+            .count();
+        if moved == 0 || (shared as f32) < moved as f32 * BORROW_SHARE {
+            return None;
+        }
+        let depth = |joints: &[Joint], mut index: usize| {
+            let mut depth = 0;
+            while let Some(parent) = joints[index].parent {
+                depth += 1;
+                index = parent;
+            }
+            depth
+        };
+        let times = clip.key_times();
+        let mut posed = Vec::new();
+        let mut frames = Vec::with_capacity(times.len());
+        for &time in &times {
+            source.clip_pose(clip, time, &mut posed);
+            let mut global = vec![Affine3A::IDENTITY; self.joints.len()];
+            for &index in &self.order {
+                let joint = &self.joints[index];
+                let follow = match joint.parent {
+                    Some(parent) => global[parent] * joint.local,
+                    None => joint.bind,
+                };
+                global[index] = match found[index] {
+                    Some(from) => {
+                        let model = &source.joints[from];
+                        let matrix3 =
+                            posed[from].matrix3 * model.bind.matrix3.inverse() * joint.bind.matrix3;
+                        let translation = if depth(&source.joints, from) <= 1 {
+                            joint.bind.translation + posed[from].translation
+                                - model.bind.translation
+                        } else {
+                            follow.translation
+                        };
+                        Affine3A {
+                            matrix3,
+                            translation,
+                        }
+                    }
+                    None => follow,
+                };
+            }
+            frames.push(
+                self.joints
+                    .iter()
+                    .enumerate()
+                    .map(|(index, joint)| match joint.parent {
+                        Some(parent) => global[parent].inverse() * global[index],
+                        None => joint.above.inverse() * global[index],
+                    })
+                    .collect(),
+            );
+        }
+        Some(Clip::from_frames(&clip.name, &times, &frames))
+    }
+
+    /// Every joint's model-space pose while playing `clip` at `time`, into `out`.
+    fn clip_pose(&self, clip: &Clip, time: f32, out: &mut Vec<Affine3A>) {
+        out.clear();
+        out.resize(self.joints.len(), Affine3A::IDENTITY);
+        for &index in &self.order {
+            let joint = &self.joints[index];
+            let local = clip.local(index, time, &joint.rest);
+            out[index] = match joint.parent {
+                Some(parent) => out[parent] * local,
+                None => joint.above * local,
+            };
+        }
     }
 
     /// Plant the feet ([`Feet`]) on a driver whose lowest base-pose point is
@@ -516,6 +710,7 @@ impl RigModel {
             let bind = convert(&affine(&joint.bind));
             let rest = convert(&affine(&joint.rest));
             joints.push(Joint {
+                name: joint.name.clone(),
                 parent: joint.parent,
                 bind,
                 inverse_bind: bind.inverse(),
@@ -775,16 +970,7 @@ impl RigModel {
                 let offset = offset.get_or_insert(Vec3A::ZERO);
                 offset.z = ground - feet.rig_sole;
             }
-            clip.clear();
-            clip.resize(self.joints.len(), Affine3A::IDENTITY);
-            for &index in &self.order {
-                let joint = &self.joints[index];
-                let local = source.local(index, play.time, &joint.rest);
-                clip[index] = match joint.parent {
-                    Some(parent) => clip[parent] * local,
-                    None => joint.above * local,
-                };
-            }
+            self.clip_pose(source, play.time, clip);
             retarget.clone_from(pose);
             for ((pose, retarget), clip) in pose.iter_mut().zip(retarget.iter()).zip(clip.iter()) {
                 let mut clip = *clip;

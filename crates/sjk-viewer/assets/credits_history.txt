@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Emotes shared between rig models with the same skeleton
+- 82626b6 |  | Emotes shared between rig models with the same skeleton
 + 14/10/2026 | - | Rig model and emote icons; add-on packs several models, follows tails
 - 0692834 |  | Rig model and emote icons; add-on packs several models, follows tails
 + 14/10/2026 | - | Release 2026.1014.1 (Alpha)

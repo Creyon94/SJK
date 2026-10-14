@@ -156,6 +156,78 @@ impl Clip {
         }
     }
 
+    /// A clip of `joints.len()` joints from `frames`, each one local transform per
+    /// joint, keyed at `times` (a clip borrowed from another rig, [`super::RigModel`]).
+    pub(super) fn from_frames(name: &str, times: &[f32], frames: &[Vec<Affine3A>]) -> Self {
+        let count = frames.first().map_or(0, Vec::len);
+        let joints = (0..count)
+            .map(|joint| {
+                let mut translations = Vec::with_capacity(frames.len());
+                let mut rotations: Vec<Quat> = Vec::with_capacity(frames.len());
+                let mut scales = Vec::with_capacity(frames.len());
+                for frame in frames {
+                    let (scale, rotation, translation) =
+                        frame[joint].to_scale_rotation_translation();
+                    // Neighbouring keys on the same side, so they blend the short way.
+                    let rotation = match rotations.last() {
+                        Some(previous) if previous.dot(rotation) < 0.0 => -rotation,
+                        _ => rotation,
+                    };
+                    translations.push(Vec3A::from(translation));
+                    rotations.push(rotation);
+                    scales.push(Vec3A::from(scale));
+                }
+                let track = |values| Track {
+                    times: times.to_vec(),
+                    values,
+                    step: false,
+                };
+                JointTracks {
+                    translation: Some(track(translations)),
+                    rotation: Some(Track {
+                        times: times.to_vec(),
+                        values: rotations,
+                        step: false,
+                    }),
+                    scale: Some(track(scales)),
+                }
+            })
+            .collect();
+        Self {
+            name: name.to_owned(),
+            duration: times.last().copied().unwrap_or(0.0),
+            joints,
+        }
+    }
+
+    /// Every key time of the clip, in order.
+    pub(super) fn key_times(&self) -> Vec<f32> {
+        let mut times: Vec<f32> = self
+            .joints
+            .iter()
+            .flat_map(|tracks| {
+                [
+                    tracks.translation.as_ref().map(|t| t.times.as_slice()),
+                    tracks.rotation.as_ref().map(|t| t.times.as_slice()),
+                    tracks.scale.as_ref().map(|t| t.times.as_slice()),
+                ]
+            })
+            .flatten()
+            .flatten()
+            .copied()
+            .collect();
+        times.sort_by(f32::total_cmp);
+        times.dedup_by(|a, b| (*a - *b).abs() < 1e-4);
+        times
+    }
+
+    /// Whether the clip moves joint `index` itself.
+    pub(super) fn animates(&self, index: usize) -> bool {
+        self.joints.get(index).is_some_and(|tracks| {
+            tracks.translation.is_some() || tracks.rotation.is_some() || tracks.scale.is_some()
+        })
+    }
+
     /// Joint `index`'s transform relative to its parent at `time`; `rest` fills in
     /// what the clip does not animate.
     pub(super) fn local(&self, index: usize, time: f32, rest: &Rest) -> Affine3A {
