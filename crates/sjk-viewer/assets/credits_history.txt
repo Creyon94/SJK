@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Rig dynamic chains: gravity, so tails hang
+- e0e13e6 |  | Rig dynamic chains: gravity, so tails hang
 + 14/10/2026 | - | Rig models: dynamic joints (tails spring and wag)
 - b50ffe8 |  | Rig models: dynamic joints (tails spring and wag)
 + 14/10/2026 | - | Emote sound follows you, Emote volume; character grid fixes

@@ -1031,6 +1031,14 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[tail-gravity]
+area: Rendering & effects
+title: Tails hang lower
+change: Gravity pulls a dynamic tail down; Wolfie's no longer sticks up behind her.
+test: /model wolfie, stand: the tail hangs down behind her, still wagging a little.
+test: Run and jump: it swings and settles hanging, not sticking up.
+note: Per chain: dynamic <joint> <gravity> in sjk_rig.cfg (1600 default, 0 none).
+
 [rig-dynamics]
 area: Rendering & effects
 title: Tails move on their own

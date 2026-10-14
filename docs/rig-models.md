@@ -73,7 +73,12 @@ per second squared, damping 7 per second), held at its bone's length from its pa
 and each parent is then turned to point at its simulated child. So a tail lags and
 bounces when the body moves and settles behind it. A side-to-side wag of 2.5 units at
 the tip, 0.7 times a second, running down the chain, keeps it alive while the player
-stands. The named joint stays where the animation holds it. It all happens in the
+stands. Gravity pulls each point down, more towards the tip: 1600 units per second
+squared by default (twice the game's), or the line's own value (`dynamic <joint>
+<gravity>`, 0 for none). A tail's rest pose sticks out straight (the game it comes
+from lets physics pull it down): Wolfie's rose 29 degrees from level, too high in
+the game; with the default it hangs 24 degrees below (measured with the ignored test
+`dynamic_chains_of_an_installed_rig`, `SJK_TEST_PACK` naming the pack). The named joint stays where the animation holds it. It all happens in the
 model's space, per actor (`Scratch`): the chain answers the animation (steps, jumps,
 turns of the hips, emotes), not the player's run through the world or their turns.
 A frame step over 0.1 s (a hitch, a teleport) starts the chain again where the
@@ -123,7 +128,7 @@ A model folder (`models/players/<name>/`) with `sjk_rig.cfg` is a rig model; `/m
 | `preset <name>` | the bone map to start from ([`PRESETS`](../crates/sjk-viewer/src/rig_model.rs)) | `mannequin` |
 | `scale <n>` or `scale auto` | game units per glTF metre | `auto` |
 | `lift <units>` | raise (negative: lower) the planted rig by hand | `0` |
-| `dynamic <joint>` | the joints under it move on their own (spring and wag), one line per chain | none |
+| `dynamic <joint> [gravity]` | the joints under it move on their own (spring, wag, gravity in units per second squared, 1600 when left out), one line per chain | none |
 | `map <joint> <bone>` | the joint follows the JKA bone, bind orientation kept | |
 | `map <joint> <bone> <joint end> <bone end>` | ... aimed along the bone | |
 | `map <joint> <bone> as <other joint>` | ... with another joint's alignment (finger chains) | |

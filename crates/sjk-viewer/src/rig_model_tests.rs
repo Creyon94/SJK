@@ -564,6 +564,11 @@ fn an_emote_names_the_rig_its_clip_comes_from() {
 /// [`rig`] with a three-joint tail behind the pelvis (glTF +Z is the front, so the
 /// tail runs along -Z), moving on its own.
 fn tailed() -> RigModel {
+    tailed_with("dynamic tail_root")
+}
+
+/// [`tailed`] with the manifest `text`.
+fn tailed_with(text: &str) -> RigModel {
     let mut model = rig();
     let joint = |name: &str, parent, z: f32, rest: f32| GltfJoint {
         name: name.to_owned(),
@@ -587,7 +592,7 @@ fn tailed() -> RigModel {
     model.joints.push(joint("tail_root", 0, -0.1, -0.1));
     model.joints.push(joint("tail_1", 2, -0.4, -0.3));
     model.joints.push(joint("tail_2", 3, -0.7, -0.3));
-    RigModel::fit(model, "", &manifest("dynamic tail_root"), &driver()).unwrap()
+    RigModel::fit(model, "", &manifest(text), &driver()).unwrap()
 }
 
 #[test]
@@ -640,8 +645,106 @@ fn a_dynamic_tail_wags_while_the_body_stands_still() {
 
 #[test]
 fn a_manifest_names_its_dynamic_joints() {
-    let parsed = manifest("dynamic tail_root\ndynamic hair");
-    assert_eq!(parsed.dynamic, ["tail_root", "hair"]);
+    let parsed = manifest("dynamic tail_root\ndynamic hair 0");
+    assert_eq!(
+        parsed.dynamic,
+        [
+            ("tail_root".to_owned(), None),
+            ("hair".to_owned(), Some(0.0))
+        ]
+    );
+    assert!(Manifest::parse("dynamic tail heavy").is_err());
     let rig = RigModel::fit(rig(), "", &manifest("dynamic nothing"), &driver()).unwrap();
     assert!(rig.chains.is_empty());
+}
+
+#[test]
+fn gravity_hangs_a_tail_and_a_dynamic_line_can_turn_it_off() {
+    let still = vec![identity_rows(); 3];
+    let tip_drop = |text: &str| {
+        let rig = tailed_with(text);
+        let mut scratch = Scratch::default();
+        rig.pose_after(&still, None, &mut scratch, None);
+        for _ in 0..240 {
+            rig.pose_after(&still, None, &mut scratch, Some(1.0 / 60.0));
+        }
+        rig.joints[4].bind.translation.z - scratch.pose[4].translation.z
+    };
+    // The game's gravity against the spring: the tip hangs several units lower.
+    let hanging = tip_drop("dynamic tail_root");
+    assert!(hanging > 5.0 && hanging < 30.0, "{hanging}");
+    // `dynamic <joint> 0`: no gravity, the tip stays level with its rest.
+    let level = tip_drop("dynamic tail_root 0");
+    assert!(level.abs() < 1.0, "{level}");
+}
+
+/// An installed rig model's dynamic chains settled in its bind pose: how far each
+/// chain's tip stands above (or below) its anchor, and at what angle from level, with
+/// the manifest's gravity and with none. `SJK_TEST_PACK` names the pack holding it
+/// (default `rig_<name>.pk3`).
+#[test]
+#[ignore = "reads the retail skeleton and an installed rig model (JKA_GAME_DATA, SJK_TEST_RIG)"]
+fn dynamic_chains_of_an_installed_rig() {
+    let (Some(data), Ok(name)) = (
+        std::env::var_os("JKA_GAME_DATA").map(std::path::PathBuf::from),
+        std::env::var("SJK_TEST_RIG"),
+    ) else {
+        println!("JKA_GAME_DATA or SJK_TEST_RIG is not set: skipped");
+        return;
+    };
+    let pack = std::env::var("SJK_TEST_PACK").unwrap_or_else(|_| format!("rig_{name}.pk3"));
+    let mut vfs = VirtualFileSystem::new();
+    let base = data.join("base");
+    for entry in std::fs::read_dir(&base).unwrap().flatten() {
+        let path = entry.path();
+        let file = path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_ascii_lowercase();
+        if file.starts_with("assets") && file.ends_with(".pk3") || file == pack.to_ascii_lowercase()
+        {
+            vfs.mount_pk3(&path).unwrap();
+        }
+    }
+    let read = |path: &str| vfs.read(path).unwrap().unwrap().bytes;
+    let gla = Gla::parse(&read("models/players/_humanoid/_humanoid.gla")).unwrap();
+    let glm = sjk_model::Glm::parse(&read("models/players/kyle/model.glm")).unwrap();
+    let directory = format!("models/players/{name}");
+    let manifest = super::manifest(&vfs, &directory)
+        .unwrap()
+        .expect("a rig model");
+    let mut weightless = manifest.clone();
+    for line in &mut weightless.dynamic {
+        line.1 = Some(0.0);
+    }
+    let bones = vec![identity_rows(); gla.bones.len()];
+    for (label, manifest) in [("manifest", &manifest), ("no gravity", &weightless)] {
+        let rig = RigModel::load(&vfs, &directory, manifest, &gla, &glm).unwrap();
+        let mut scratch = Scratch::default();
+        rig.pose_after(&bones, None, &mut scratch, None);
+        for _ in 0..600 {
+            rig.pose_after(&bones, None, &mut scratch, Some(1.0 / 60.0));
+        }
+        let Some(&tip) = rig.chains.joints.last() else {
+            println!("{name}: no dynamic chain");
+            return;
+        };
+        let mut anchor = tip;
+        while let Some(parent) = rig.joints[anchor].parent {
+            anchor = parent;
+            if !rig.chains.joints.contains(&anchor) {
+                break;
+            }
+        }
+        let offset = scratch.pose[tip].translation - scratch.pose[anchor].translation;
+        let level = offset.truncate().length();
+        println!(
+            "{name} ({label}): tip {:.1} units above its anchor, {:.0} degrees from level, \
+             {:.1} long",
+            offset.z,
+            offset.z.atan2(level).to_degrees(),
+            offset.length()
+        );
+    }
 }
