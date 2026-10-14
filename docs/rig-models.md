@@ -76,7 +76,7 @@ the tip, 0.7 times a second, running down the chain, keeps it alive while the pl
 stands. Gravity pulls each point down, more towards the tip: 1600 units per second
 squared by default (twice the game's), or the line's own value (`dynamic <joint>
 <gravity>`, 0 for none). A tail's rest pose sticks out straight (the game it comes
-from lets physics pull it down): Wolfie's rose 29 degrees from level, too high in
+from lets physics pull it down): the test model's rose 29 degrees from level, too high in
 the game; with the default it hangs 24 degrees below (measured with the ignored test
 `dynamic_chains_of_an_installed_rig`, `SJK_TEST_PACK` naming the pack). The named joint stays where the animation holds it. It all happens in the
 model's space, per actor (`Scratch`): the chain answers the animation (steps, jumps,

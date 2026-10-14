@@ -23,7 +23,15 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1014.2 (Alpha) | 14/10/2026
+
+High quality models with pictures in the character grid, emotes every model on the same skeleton plays, tails that sway and hang, and emote music that stays with you.
+
+> High quality models: They get their own heading and pictures in the character grid, and emotes show theirs on the quick wheel.
+> Shared emotes: Every high quality model on the same skeleton plays every installed emote, on its own build.
+> Tails: A model's tail springs after the body, wags gently and hangs under gravity.
+> Emote sound: Your emote's music stays with you as you move; Settings > Sound has an Emote volume.
+> Fixes: The character grid no longer opens on a blue team skin.
 
 - Rig models with a picture are listed in the character grid, and an emote's picture shows on the quick wheel; the Blender add-on takes a character icon, an emote's name and icon, a pack name several models can share, and parts rigged to their own skeleton that follow the model's, such as a tail _(Sol)_
 - Emotes are no longer tied to the model they were made on: every rig model with the same skeleton (the same joint names, as Unreal characters share) plays them, on its own proportions _(Sol)_
@@ -31,7 +39,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Your own emote's sound stays with you when you move (it played where you started it), and Settings > Sound has an Emote volume (`s_emoteVolume`, twice as loud by default) _(Sol)_
 - The character grid opens on your model with its default skin, no longer on a blue team skin when your model is named without one, and lists the high quality models under their own heading before the community's _(Sol)_
 - Tails move: a rig model's tail (or any chain its sjk_rig.cfg names with `dynamic`) springs after the body and wags gently while you stand; the Blender add-on keeps a tail's own bones and writes the line _(Sol)_
-- Tails hang: gravity pulls a moving tail down (Wolfie's stuck up 29 degrees, now it hangs about 24 below level); `dynamic <joint> <gravity>` sets it per chain _(Sol)_
+- Tails hang: gravity pulls a moving tail down (one that stuck up 29 degrees now hangs about 24 below level); `dynamic <joint> <gravity>` sets it per chain _(Sol)_
 
 ## 2026.1014.1 (Alpha) | 14/10/2026
 

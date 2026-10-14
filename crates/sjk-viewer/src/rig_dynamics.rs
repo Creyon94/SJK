@@ -22,7 +22,7 @@ pub(super) const WAG_UNITS: f32 = 2.5;
 const WAG_HERTZ: f32 = 0.7;
 /// The pull down on a chain's tip, game units per second squared, unless its
 /// `dynamic` line gives one: twice the game's (`g_gravity` 800), which only levelled
-/// Wolfie's tail (its rest pose rises 22 degrees); this hangs it about 29 degrees
+/// the test model's tail (its rest pose rises 22 degrees); this hangs it about 29 degrees
 /// below level, the tip some 12 units under its anchor. Less towards the anchor.
 pub(super) const GRAVITY: f32 = 1600.0;
 /// A frame step longer than this (a hitch, a teleport, the first frame) starts the
