@@ -62,6 +62,10 @@ impl Rarity {
     }
 }
 
+/// The saber smiths: who gave a shader's idea ([`Unlockable::smith`]).
+pub(crate) const SOL: &str = "Sol";
+pub(crate) const CREYON: &str = "Creyon";
+
 /// One unlockable of the catalogue.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Unlockable {
@@ -80,6 +84,9 @@ pub(crate) struct Unlockable {
     pub(crate) droppable: bool,
     /// The edition it belongs to ([`crate::editions`]): the stamp of when it came.
     pub(crate) edition: &'static str,
+    /// Its saber smith: who gave the idea, credited on its cards ("Saber smith: Sol"),
+    /// even when it was made together.
+    pub(crate) smith: &'static str,
     /// What it is, in a line.
     pub(crate) description: &'static str,
     /// How a player gets it, in a line.
@@ -103,6 +110,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A white-gold core in an orange corona: flares, prominences arching off it, sparks, a glint at its tip and heat haze.",
         how_to_get: "Given by the SJK team.",
     },
@@ -114,6 +122,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A white-blue core crackling with lightning that leaps off it, sparks at its tip.",
         how_to_get: "Given by the SJK team.",
     },
@@ -125,6 +134,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A dark core in a violet rim, star specks drifting into it, and a deep hum.",
         how_to_get: "Given by the SJK team.",
     },
@@ -136,6 +146,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A pale ice core with a pointed tip, frost shards trailing it, and a chiming hum.",
         how_to_get: "Given by the SJK team.",
     },
@@ -147,6 +158,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A white core in a corona whose colours run through the rainbow, slowly turning.",
         how_to_get: "Given by the SJK team.",
     },
@@ -158,6 +170,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A raw red core that crackles and sputters, its edge ragged and its length faltering.",
         how_to_get: "Given by the SJK team.",
     },
@@ -169,6 +182,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A dark rock core split by glowing lava cracks, embers dripping off it and falling.",
         how_to_get: "Given by the SJK team.",
     },
@@ -180,6 +194,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A pale, see-through blade: wisps rise off it, souls drift round it, an echo sways beside it and afterimages trail its swings.",
         how_to_get: "Given by the SJK team.",
     },
@@ -191,6 +206,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A blade whose colours split apart, blocks of it jumping sideways now and then.",
         how_to_get: "Comes with the Bug Hunter medal, for as long as you hold it.",
     },
@@ -202,6 +218,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A wireframe projection with scan lines running along it, jittering like a training hologram.",
         how_to_get: "Comes with the Early Tester medal, for as long as you hold it.",
     },
@@ -213,6 +230,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A gold core with glyphs scrolling along it that spell its wearer's name.",
         how_to_get: "Comes with the Early Contributor medal, for as long as you hold it.",
     },
@@ -224,6 +242,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A blade that takes the colour of the light where it is, changing from map to map.",
         how_to_get: "Given by the SJK team.",
     },
@@ -235,6 +254,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "Your team's colour in team games, rippling like a flag; silver outside them.",
         how_to_get: "Given by the SJK team.",
     },
@@ -246,6 +266,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
+        smith: SOL,
         description: "A warm, deep blade that pulses with a slow double heartbeat, its light beating with it.",
         how_to_get: "Given by the SJK team.",
     },
@@ -257,6 +278,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A teal blade with a wave of brighter light surging from hilt to tip on a slow loop.",
         how_to_get: "Given by the SJK team.",
     },
@@ -268,6 +290,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A thin cyan blade with sharp data pulses racing along it.",
         how_to_get: "Given by the SJK team.",
     },
@@ -279,6 +302,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Slow ribbons of green, teal and violet drifting along the blade.",
         how_to_get: "Given by the SJK team.",
     },
@@ -290,6 +314,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A sky-blue blade with a bright ring rippling along it and fading away.",
         how_to_get: "Given by the SJK team.",
     },
@@ -301,6 +326,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Deep indigo with tiny stars twinkling inside, a slice of galaxy.",
         how_to_get: "Given by the SJK team.",
     },
@@ -312,6 +338,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A dull coal-orange blade that flickers and sheds glowing embers.",
         how_to_get: "Given by the SJK team.",
     },
@@ -323,6 +350,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Acid green with droplets that bead up and drip off the blade.",
         how_to_get: "Given by the SJK team.",
     },
@@ -334,6 +362,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A soft pink blade shedding blossom petals that drift away.",
         how_to_get: "Given by the SJK team.",
     },
@@ -345,6 +374,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A soft warm-green blade with fireflies blinking around it.",
         how_to_get: "Given by the SJK team.",
     },
@@ -356,6 +386,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A cool steel-grey blade with a faint, slow shimmer, plain and sturdy.",
         how_to_get: "Given by the SJK team.",
     },
@@ -367,6 +398,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A warm honey-gold blade with a soft glow that swells and settles.",
         how_to_get: "Given by the SJK team.",
     },
@@ -378,6 +410,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A gentle lilac blade whose colour drifts a little as it moves.",
         how_to_get: "Given by the SJK team.",
     },
@@ -389,6 +422,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A pale, fresh green blade with a cool wave of light running along it.",
         how_to_get: "Given by the SJK team.",
     },
@@ -400,6 +434,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A salmon-pink blade with a warm pulse travelling from hilt to tip.",
         how_to_get: "Given by the SJK team.",
     },
@@ -411,6 +446,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A creamy, near-white blade with a soft golden fringe.",
         how_to_get: "Given by the SJK team.",
     },
@@ -422,6 +458,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Ice-blue with tiny crystals of frost glittering inside.",
         how_to_get: "Given by the SJK team.",
     },
@@ -433,6 +470,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Orange sinking into violet, the colour of the sky after sunset, slowly turning.",
         how_to_get: "Given by the SJK team.",
     },
@@ -444,6 +482,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A deep red blade shedding bright sparks as it burns.",
         how_to_get: "Given by the SJK team.",
     },
@@ -455,6 +494,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Rich purple with tiny flecks of light twinkling in the crystal.",
         how_to_get: "Given by the SJK team.",
     },
@@ -466,6 +506,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "A calm sea-green blade whose hue slowly shifts, with specks of light inside.",
         how_to_get: "Given by the SJK team.",
     },
@@ -477,6 +518,7 @@ pub(crate) const ALL: [Unlockable; 35] = [
         chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
+        smith: CREYON,
         description: "Silver-blue with pale motes drifting along it like dust in moonlight.",
         how_to_get: "Given by the SJK team.",
     },
@@ -610,6 +652,42 @@ mod tests {
     }
 
     use super::*;
+
+    /// Creyon's "Saber ideas" page gave the 21 plain ones (14/10/2026); Sol the others.
+    #[test]
+    fn every_shader_names_its_saber_smith() {
+        let creyon: Vec<_> = blade_skins()
+            .filter(|skin| skin.smith == CREYON)
+            .map(|skin| skin.id)
+            .collect();
+        assert_eq!(
+            creyon,
+            [
+                "saber_tidal",
+                "saber_circuit",
+                "saber_aurora",
+                "saber_echo",
+                "saber_nebula",
+                "saber_cinder",
+                "saber_venom",
+                "saber_sakura",
+                "saber_firefly",
+                "saber_slate",
+                "saber_amber",
+                "saber_lilac",
+                "saber_mint",
+                "saber_coral",
+                "saber_ivory",
+                "saber_glacier",
+                "saber_dusk",
+                "saber_ruby",
+                "saber_amethyst",
+                "saber_jade",
+                "saber_moonlight",
+            ]
+        );
+        assert!(blade_skins().all(|skin| [SOL, CREYON].contains(&skin.smith)));
+    }
 
     /// Sol's tiers (10/10/2026); Prism, Glitch and Banner are placed provisionally.
     #[test]

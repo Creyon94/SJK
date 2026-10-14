@@ -124,6 +124,7 @@ impl ShaderFilter {
             || crate::editions::name(skin.edition)
                 .to_lowercase()
                 .contains(&query)
+            || skin.smith.to_lowercase().contains(&query)
     }
 }
 
@@ -1083,6 +1084,9 @@ mod tests {
         panel.shader_filter.query = " TIDAL ".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(ids(&panel), ["saber_tidal"]);
+        panel.shader_filter.query = "creyon".to_owned();
+        redraw(&mut panel, &inputs);
+        assert_eq!(ids(&panel).len(), 21, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(

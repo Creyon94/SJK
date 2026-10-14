@@ -4540,3 +4540,11 @@ change: Profile > Saber: the wheel and the arrows browse the blade row without w
 test: Holocrons > Loot table: figures as before (the hub's odds equal the built-in ones).
 test: Own 7+ shaders: wheel over the Blade row, click the arrows; the worn blade stays.
 test: Pick a blade after browsing: the row jumps back to keep the chosen one shown.
+
+[saber-smith]
+area: Menus & settings
+title: Saber smith on every shader (who gave the idea)
+change: Collection > Shaders: "Saber smith: <name>" at the right, beside the description.
+change: The shader hover card has a "Saber smith" line; the search matches the smith.
+test: Tidal, Slate or Moonlight read Creyon; Sun, Void or Heartbeat read Sol.
+test: Search "creyon": 21 shaders listed; the Parts ticks stay above the key hints.

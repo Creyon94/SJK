@@ -246,7 +246,8 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   saber skills, jump and throw).
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
-  Lilac, Mint, Coral, Ivory, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight).
+  Lilac, Mint, Coral, Ivory, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight); each of
+  them reads "Saber smith: Creyon" in game.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK

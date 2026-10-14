@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Saber smith on every shader: who gave its idea
+- 0ecf120 |  | Saber smith on every shader: who gave its idea
 + 14/10/2026 | - | Rig models: feet planted on the driver's ground; lift line
 - 8d666c9 |  | Rig models: feet planted on the driver's ground; lift line
 + 14/10/2026 | - | Emote sounds, moving emotes, sjkemote stop; add-on sound and frame rate

@@ -864,6 +864,16 @@ holds the table (`id`, full name, short tag); a new edition is one line there.
   Shaders search matches an edition's name ("alpha"). Nothing drops by edition yet: later
   an edition can end its drops or limit its items, which will be the hub's table too.
 
+## Saber smiths
+
+14/10/2026 (Sol's request): every shader names its **saber smith**, the person who gave
+its idea, even when it was made together (`Unlockable::smith`, the names `SOL` and
+`CREYON` in [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)). Creyon's "Saber
+ideas" page gave the 21 plain ones (Tidal to Firefly, Slate to Moonlight); Sol gave the
+fourteen before them. It reads "Saber smith: Creyon" at the right of the shader's big
+card, beside its description, and on its hover card; the Shaders search matches it. A
+new shader names its smith in its catalogue entry (a test lists Creyon's).
+
 A shader newer than the client (14/10/2026): when an opening brings a shader this client's
 catalogue does not list, the ceremony still shows it, by the name the hub sent, in the
 holocron's colour, with its blade if the hub's pack brought one, the crate spin ending on a
