@@ -128,6 +128,15 @@ fn achievement_card(
     }
 }
 
+/// `words` with how many are held after it when there are several ("Yours, 2 held").
+fn held_count(words: &str, count: u32) -> String {
+    if count > 1 {
+        format!("{words}, {count} held")
+    } else {
+        words.to_owned()
+    }
+}
+
 /// A shader's card: the stock blade (`None`) or a blade skin, how it is obtained, and
 /// whether the player holds it.
 fn shader_card(
@@ -146,8 +155,8 @@ fn shader_card(
     };
     let status = match (holdings.unlock(skin.id), holdings.reason()) {
         (Some(unlock), _) => match crate::medals::date_text(unlock.granted) {
-            date if date.is_empty() => Line::held("Yours"),
-            date => Line::held(format!("Yours since {date}")),
+            date if date.is_empty() => Line::held(held_count("Yours", unlock.count)),
+            date => Line::held(held_count(&format!("Yours since {date}"), unlock.count)),
         },
         (None, Some(reason)) => Line::status(reason),
         (None, None) => Line::status("Locked: you can still try it on here."),

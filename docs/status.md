@@ -1,3 +1,9 @@
+## Shaders: duplicates in the Collection
+
+14/10/2026: a shader held more than once reads "Yours x2" in the Collection's Shaders tab
+(rack, grid, big card) and ", 2 held" in its owned line and hover card. Unit tests only.
+The search, tier filter and paging for a long list are still to build.
+
 ## Holocron opening: the crate spin
 
 14/10/2026, step 4 of the shader catalogue plan: before each holocron's burst a strip of
