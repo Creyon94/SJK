@@ -92,7 +92,7 @@ impl Unlockable {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) const ALL: [Unlockable; 23] = [
+pub(crate) const ALL: [Unlockable; 35] = [
     Unlockable {
         id: "saber_sun",
         name: "Sun blade",
@@ -323,6 +323,126 @@ pub(crate) const ALL: [Unlockable; 23] = [
         description: "A soft warm-green blade with fireflies blinking around it.",
         how_to_get: "Given by the SJK team.",
     },
+    Unlockable {
+        id: "saber_slate",
+        name: "Slate blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        droppable: true,
+        description: "A cool steel-grey blade with a faint, slow shimmer, plain and sturdy.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_amber",
+        name: "Amber blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        droppable: true,
+        description: "A warm honey-gold blade with a soft glow that swells and settles.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_lilac",
+        name: "Lilac blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        droppable: true,
+        description: "A gentle lilac blade whose colour drifts a little as it moves.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_mint",
+        name: "Mint blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        droppable: true,
+        description: "A pale, fresh green blade with a cool wave of light running along it.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_coral",
+        name: "Coral blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        droppable: true,
+        description: "A salmon-pink blade with a warm pulse travelling from hilt to tip.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_ivory",
+        name: "Ivory blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Common,
+        chroma: false,
+        droppable: true,
+        description: "A creamy, near-white blade with a soft golden fringe.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_glacier",
+        name: "Glacier blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        description: "Ice-blue with tiny crystals of frost glittering inside.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_dusk",
+        name: "Dusk blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        description: "Orange sinking into violet, the colour of the sky after sunset, slowly turning.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_ruby",
+        name: "Ruby blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        description: "A deep red blade shedding bright sparks as it burns.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_amethyst",
+        name: "Amethyst blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        description: "Rich purple with tiny flecks of light twinkling in the crystal.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_jade",
+        name: "Jade blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        description: "A calm sea-green blade whose hue slowly shifts, with specks of light inside.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_moonlight",
+        name: "Moonlight blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        description: "Silver-blue with pale motes drifting along it like dust in moonlight.",
+        how_to_get: "Given by the SJK team.",
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -494,12 +614,29 @@ mod tests {
                 "saber_cinder",
                 "saber_venom",
                 "saber_sakura",
-                "saber_firefly"
+                "saber_firefly",
+                "saber_glacier",
+                "saber_dusk",
+                "saber_ruby",
+                "saber_amethyst",
+                "saber_jade",
+                "saber_moonlight",
             ]
         );
         assert_eq!(
             of(Rarity::Common),
-            ["saber_tidal", "saber_circuit", "saber_aurora", "saber_echo"]
+            [
+                "saber_tidal",
+                "saber_circuit",
+                "saber_aurora",
+                "saber_echo",
+                "saber_slate",
+                "saber_amber",
+                "saber_lilac",
+                "saber_mint",
+                "saber_coral",
+                "saber_ivory",
+            ]
         );
         let order = blade_skins_by_tier();
         assert_eq!(order.len(), blade_skins().count());
@@ -649,6 +786,18 @@ mod tests {
                 ("saber_venom", "Venom blade"),
                 ("saber_sakura", "Sakura blade"),
                 ("saber_firefly", "Firefly blade"),
+                ("saber_slate", "Slate blade"),
+                ("saber_amber", "Amber blade"),
+                ("saber_lilac", "Lilac blade"),
+                ("saber_mint", "Mint blade"),
+                ("saber_coral", "Coral blade"),
+                ("saber_ivory", "Ivory blade"),
+                ("saber_glacier", "Glacier blade"),
+                ("saber_dusk", "Dusk blade"),
+                ("saber_ruby", "Ruby blade"),
+                ("saber_amethyst", "Amethyst blade"),
+                ("saber_jade", "Jade blade"),
+                ("saber_moonlight", "Moonlight blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

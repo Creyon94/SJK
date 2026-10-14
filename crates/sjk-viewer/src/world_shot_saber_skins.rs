@@ -600,3 +600,56 @@ fn duel6_chroma_blades() {
         println!("{}", sheet(&rows, 2, 1280, "duel6-chroma-blades").display());
     });
 }
+
+/// The plain Common and Uncommon blade skins (the droppable ones) on duel6, each tier
+/// standing side by side at two times (sheets `duel6-plain-common`, `duel6-plain-uncommon`).
+/// Needs the hub's packs in `SJK_TEST_PACKS`.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_plain_blades() {
+    on_big_stack(|| {
+        mount_test_packs();
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1280, 720], None, &[]) else {
+            return;
+        };
+        let (spawn, yaw) = assets::initial_camera(&gpu.bsp).expect("a spawn point");
+        let turn = glam::Quat::from_rotation_z(yaw);
+        let eye = Vec3::from_array(spawn);
+        let ahead = |x: f32, y: f32, z: f32| eye + turn * Vec3::new(x, y, z);
+        for (tier, name) in [
+            (crate::unlockables::Rarity::Common, "duel6-plain-common"),
+            (crate::unlockables::Rarity::Uncommon, "duel6-plain-uncommon"),
+        ] {
+            let ids: Vec<&'static str> = crate::unlockables::blade_skins()
+                .filter(|skin| skin.tier == tier && skin.droppable)
+                .map(|skin| skin.id)
+                .collect();
+            let middle = (ids.len() as f32 - 1.0) * 0.5;
+            gpu.saber_skins.shot_blades = ids
+                .iter()
+                .enumerate()
+                .map(|(index, id)| {
+                    let offset = (index as f32 - middle) * 7.0;
+                    (
+                        Blade {
+                            base: ahead(80.0, -offset, -24.0).to_array(),
+                            direction: (turn * Vec3::new(0.0, 0.0, 1.0)).normalize().to_array(),
+                            length: 40.0,
+                            radius: 3.0,
+                        },
+                        ShotColor::Skin(id),
+                        index as u32 + 1,
+                    )
+                })
+                .collect();
+            let (look_yaw, look_pitch) = look(eye.to_array(), ahead(80.0, 0.0, -6.0).to_array());
+            aim(&mut gpu, eye.to_array(), look_yaw, look_pitch);
+            let mut lineup = Vec::new();
+            for (index, seconds) in [2.6, 5.15].into_iter().enumerate() {
+                gpu.saber_skins.shot_seconds = Some(seconds);
+                lineup.push(frame(&mut gpu, if index == 0 { 40 } else { 4 }));
+            }
+            println!("{}", sheet(&lineup, 1, 1280, name).display());
+        }
+    });
+}

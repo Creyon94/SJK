@@ -135,7 +135,7 @@ did: #87 #88 #89 #90 #91 Server browser: second master, charsets, favourites by 
 did: #93 #94 #95 #96 #97 showplayerid, amcolor, crackle, server list, model turn
 did: #98 #99 Rockets fired while moving no longer stutter, the lock-on ring and its sounds
 did: #100 Each Force power shown on the profile's model
-did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades
+did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades, and the twelve that followed
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 [Lumaya]

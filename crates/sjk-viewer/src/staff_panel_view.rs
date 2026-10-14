@@ -112,7 +112,7 @@ impl Panel {
         self.shown.picture = target
             .as_ref()
             .is_some_and(|profile| !profile.avatar.is_empty());
-        self.shown.unlocks = [false; crate::unlockables::ALL.len()];
+        self.shown.unlocks = vec![false; crate::unlockables::ALL.len()];
         self.shown.holocron_rows = 0;
         self.shown.verified = target.as_ref().is_some_and(|profile| profile.verified);
         self.shown.linked.clear();
@@ -573,7 +573,7 @@ impl Panel {
             let slot = index - first;
             let x = MIDDLE_X + (slot % 2) as f32 * (cell + UNLOCK_GAP);
             let y = top + 18.0 + (slot / 2) as f32 * UNLOCK_ROW;
-            let held = self.shown.unlocks[index];
+            let held = self.shown.unlocks.get(index).copied().unwrap_or(false);
             // Held: gold, with the day it was given; not held: muted.
             let granted = profile
                 .unlocks

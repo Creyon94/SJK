@@ -31,6 +31,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Fixes: Decals fade into fog with their walls, and the sky no longer flickers through a ceiling built just under it.
 
 - Nine plain saber shaders, after Creyon's Saber ideas page: Tidal, Circuit, Aurora and Echo (the new white Common tier) and Nebula, Cinder, Venom, Sakura and Firefly (Uncommon); the skin list takes up to 256 shaders now _(Sol, ideas by Creyon)_
+- Twelve more plain saber shaders: Slate, Amber, Lilac, Mint, Coral, Ivory (Common) and Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight (Uncommon) _(Sol, ideas by Creyon)_
 - Firing rockets while moving no longer makes you stutter back and forth _(Creyon, after JoF EternalJK)_
 - Rocket launcher lock-on: the red ring builds up around the target with its tick sounds, and the lock pulses and sounds when complete _(Creyon, after JoF EternalJK)_
 - The in-game profile's Force page shows each power on the model under the pointer: the game's gesture, effect and shell, the saber skills, the jump and the throw _(Creyon)_

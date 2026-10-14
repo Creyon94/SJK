@@ -33,6 +33,10 @@ animation is next. Checked by unit tests only. See [unlockables.md](unlockables.
 
 ## Shaders: the Common tier and nine plain blades
 
+14/10/2026, more-shaders: twelve more plain blade skins (Common Slate, Amber, Lilac, Mint, Coral,
+Ivory; Uncommon Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight), 35 shaders in all (hub branch
+`more-shaders`, same script and pack).
+
 14/10/2026, step 2 of the shader catalogue plan: `unlockables::Rarity` gains Common (white,
 SJK Symbols' empty octagon; no Common holocron exists), and nine plain blade skins join the
 catalogue after Creyon's "Saber ideas" page: Tidal, Circuit, Aurora, Echo (Common), Nebula,
