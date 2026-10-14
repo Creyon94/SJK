@@ -1031,6 +1031,17 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[emote-settings]
+area: Rendering & effects
+title: Emote sound follows you, Emote volume, character grid fixes
+change: Your emote's sound plays in both ears as you move; s_emoteVolume (2) sets its loudness.
+change: The grid opens on your model's default skin (not Blue); rig models under High quality.
+test: sjkemote comrade, then run away: the music stays as loud, no longer left behind.
+test: Settings > Sound > Emotes > Emote volume: 1, 2 and 3 change how loud the music is.
+test: Another SJK player dancing: their music comes from where they are and follows them.
+test: Profile > Character with /model wolfie: the grid opens on Default with Wolfie chosen.
+test: The grid shows Jedi Academy, then High quality (Kane, Wolfie), then Community.
+
 [emote-ids]
 area: Rendering & effects
 title: Emotes named after themselves

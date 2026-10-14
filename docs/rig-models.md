@@ -217,7 +217,8 @@ models taken from other games ([the rule](../AGENTS.md#verification-and-scope)).
 - In first person, JoF's body view (the saber arm drawn) does not show a rig model's
   body: it is one surface, with no head to hide. The classic first person applies.
 - Menus (Character, Profile) still show the driver model; the character grid lists a
-  rig model with an `icon_default` picture, and picking it wears it.
+  rig model with an `icon_default` picture under "High quality", and picking it
+  wears it.
 - Only the player sees it: other players see the rig model only when they have the
   same folder; otherwise they see their own fallback for an unknown model, as for any
   custom model.
@@ -359,9 +360,13 @@ plays its glTF's animations on its own skeleton.
   own files; SJK passes none on). `local` emotes play on this client only and are
   never sent. Either way `sjkemote` starts the player's own at once, and the hub's
   echo of it is not started again.
-- `sound` plays on the player (JKA's music channel, so it cuts no voice or swing),
-  follows them and is stopped when the emote is cut short (replaced, stopped, the
-  player leaving); one that runs its length lets the sound finish.
+- `sound` plays on the player (JKA's music channel, so it cuts no voice or swing)
+  and is stopped when the emote is cut short (replaced, stopped, the player leaving);
+  one that runs its length lets the sound finish. Another player's follows them (the
+  snapshot moves their sound source); the player's own plays in both ears, as their
+  own entity is not in the snapshot to move it (until 14/10/2026 it stayed where it
+  started). Settings > Sound > Emotes: Emote volume (`s_emoteVolume`, 2 by default,
+  0 to 3) multiplies it over the effects volume.
 - `moving` keeps the emote going while the player runs and jumps (the clip replaces
   the whole body, so the dance slides along). `sjkemote stop`, also the quick wheel's
   Stop emote, ends it; the id `stop` is reserved and relayed like any emote.

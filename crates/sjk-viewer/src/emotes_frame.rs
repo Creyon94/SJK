@@ -113,14 +113,28 @@ impl GpuState {
             .demo_session
             .as_ref()
             .map_or(&self.live_world, crate::demo_playback::Session::world);
+        let own = match (&self.live_session, &self.demo_session) {
+            (Some(session), _) => Some(session.latest_snapshot().player.client_num()),
+            (None, Some(demo)) => Some(demo.latest_snapshot().player.client_num()),
+            (None, None) => None,
+        }
+        .and_then(|own| u8::try_from(own).ok());
+        let volume = self
+            .console
+            .as_ref()
+            .and_then(|console| console.float_cvar(emotes::VOLUME_CVAR))
+            .unwrap_or(emotes::DEFAULT_VOLUME)
+            .clamp(0.0, 4.0) as f32;
         for cue in cues {
             match cue {
                 emotes::Cue::Start { slot, sound } => {
-                    let origin = world
-                        .entity(EntityId::new(u64::from(slot) + 1))
-                        .map(|entity| entity.current().transform.translation)
-                        .unwrap_or_default();
-                    audio.play_emote(&sound, slot, origin);
+                    let origin = (Some(slot) != own).then(|| {
+                        world
+                            .entity(EntityId::new(u64::from(slot) + 1))
+                            .map(|entity| entity.current().transform.translation)
+                            .unwrap_or_default()
+                    });
+                    audio.play_emote(&sound, slot, origin, volume);
                 }
                 emotes::Cue::Stop { slot } => audio.stop_emote(slot),
             }

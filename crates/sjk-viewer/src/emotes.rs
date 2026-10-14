@@ -42,6 +42,10 @@ pub(crate) const COMMAND: &str = "sjkemote";
 pub(crate) const STOP: &str = "stop";
 pub(crate) const HELP: &str =
     "Play an emote the SJK players on this server see (sjkemote alone lists them)";
+/// How loud emote sounds play, times the effects volume (Settings > Sound > Emotes).
+pub(crate) const VOLUME_CVAR: &str = "s_emoteVolume";
+/// [`VOLUME_CVAR`]'s default: recorded music sits well under the game's effects.
+pub(crate) const DEFAULT_VOLUME: f64 = 2.0;
 /// How long an emote the catalogue does not know lasts.
 const UNKNOWN_LENGTH: Duration = Duration::from_secs(3);
 /// How far a player may move (game units) before their emote stops.

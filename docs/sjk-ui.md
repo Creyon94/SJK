@@ -281,8 +281,12 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   the wheel scrolls. A title line names the category and counts what is listed (and
   "found" under a search); the models' line holds the team (Default, Red, Blue)
   as segments. **Jedi Academy first:** the models list the retail game's own under a
-  "Jedi Academy" heading with a count, the community's after them under "Community"
-  (the rule in [AGENTS.md](../AGENTS.md); `LegacyAssetCatalog::retail_characters`).
+  "Jedi Academy" heading with a count, then the high quality models (SJK rig models,
+  [rig-models.md](rig-models.md)) under "High quality" when one is installed, then the
+  rest of the community's under "Community" (the rule in [AGENTS.md](../AGENTS.md);
+  `LegacyAssetCatalog::retail_characters`, `LegacyCharacter::rig`). The grid opens on
+  the worn model: one named without a skin is its default skin (as the game reads it),
+  and one the catalogue lacks opens on the first Default skin, never a team's.
   Keys: the rows are Name, Search, the strip, the team (models), the grid and Apply;
   Left and Right step the strip or the tile, Up and Down the tile by a line (and leave
   the grid at its ends), Enter on the strip goes to the grid, on a tile chooses it. The

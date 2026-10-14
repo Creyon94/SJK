@@ -230,6 +230,15 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Emote volume",
+        cvar: crate::emotes::VOLUME_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 3.0,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,

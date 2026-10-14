@@ -28,6 +28,8 @@ pub struct LegacyCharacter {
     pub cvar_value: String,
     /// Existing icon selected using the retail JPG, PNG, TGA priority.
     pub icon: String,
+    /// An SJK rig model (a glTF with its own skeleton, `sjk_rig.cfg`).
+    pub rig: bool,
 }
 
 /// One colour choice parsed from a species `playerchoice.txt` block.
@@ -101,6 +103,7 @@ pub fn legacy_character_catalog(
                     skin: "default".to_owned(),
                     cvar_value,
                     icon,
+                    rig: true,
                 },
             );
         }
@@ -171,6 +174,7 @@ fn collect_ordinary_skins(
             skin: skin.to_owned(),
             cvar_value,
             icon,
+            rig: false,
         });
     }
     Ok(())

@@ -472,6 +472,7 @@ impl Group {
             Self::Network => &[("cl_autoUpdate", "SJK online"), ("rate", "Connection")],
             Self::Advanced(Advanced::Sound) => &[
                 ("s_volume", "Game"),
+                (crate::emotes::VOLUME_CVAR, "Emotes"),
                 (crate::unlock_toast::SOUND_CVAR, "Notifications"),
             ],
             Self::Advanced(Advanced::Gameplay) => &[

@@ -418,6 +418,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Ground a map gives no material takes it from its texture name (SJK)",
         ),
         CvarDefinition::new(
+            crate::emotes::VOLUME_CVAR,
+            crate::emotes::DEFAULT_VOLUME,
+            archive,
+            "Loudness of emote sounds, times the effects volume (SJK)",
+        ),
+        CvarDefinition::new(
             crate::unlock_toast::SOUND_CVAR,
             true,
             archive,

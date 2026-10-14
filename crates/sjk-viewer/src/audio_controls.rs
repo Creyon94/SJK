@@ -199,15 +199,26 @@ impl GameAudio {
         ));
     }
 
-    /// Play an emote's sound on player `slot` (standing at `origin`), on the channel
-    /// [`EMOTE_CHANNEL`] so [`Self::stop_emote`] can cut it; a muted player's stays
-    /// silent.
-    pub(crate) fn play_emote(&mut self, path: &str, slot: u8, origin: [f32; 3]) {
+    /// Play an emote's sound on player `slot`, `volume` times as loud as recorded, on
+    /// the channel [`EMOTE_CHANNEL`] so [`Self::stop_emote`] can cut it; a muted
+    /// player's stays silent. Another player's is placed at `origin` and follows them
+    /// (the snapshot moves their source); the player's own (`origin` `None`: their
+    /// entity is not in the snapshot to move it) plays in both ears.
+    pub(crate) fn play_emote(
+        &mut self,
+        path: &str,
+        slot: u8,
+        origin: Option<[f32; 3]>,
+        volume: f32,
+    ) {
         let source = SourceId(u32::from(slot));
         if self.mute.silences(source, None) {
             return;
         }
-        self.play_on_channel(path, 1.0, origin, source, EMOTE_CHANNEL);
+        match origin {
+            Some(origin) => self.play_on_channel(path, volume, origin, source, EMOTE_CHANNEL),
+            None => self.play_local(path, volume, source, EMOTE_CHANNEL),
+        }
     }
 
     /// Stop the emote sound player `slot` plays.

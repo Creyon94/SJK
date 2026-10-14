@@ -137,6 +137,8 @@ pub(super) struct Creator {
     items: Vec<usize>,
     /// How many of `items`, from the first, are the retail game's (models only).
     retail: usize,
+    /// How many after those are high quality (rig) models.
+    rig: usize,
     lines: Vec<Line>,
     first_line: usize,
     max_first: usize,
@@ -247,6 +249,7 @@ impl PlayerMenu {
         let mut items = std::mem::take(&mut self.creator.items);
         items.clear();
         let mut retail = 0;
+        let mut rig = 0;
         let search = self.search.as_str();
         let species = match self.choice {
             Some(Choice::Species(index)) => {
@@ -258,6 +261,7 @@ impl PlayerMenu {
             Category::Model => {
                 items.extend_from_slice(&self.tiles);
                 retail = self.retail_tiles;
+                rig = self.rig_tiles;
             }
             Category::Head | Category::Torso | Category::Legs => {
                 if let Some(species) = species {
@@ -296,6 +300,7 @@ impl PlayerMenu {
         }
         self.creator.items = items;
         self.creator.retail = retail;
+        self.creator.rig = rig;
     }
 
     /// Where the chosen item stands in the items on show.
@@ -575,9 +580,11 @@ impl PlayerMenu {
                 (COLUMNS, tile, tile)
             }
         };
+        let rig = self.creator.rig;
         let sections = category == Category::Model
-            && catalog_of(&self.loader)
-                .is_some_and(|catalog| catalog.retail_characters + catalog.retail_species > 0);
+            && (rig > 0
+                || catalog_of(&self.loader)
+                    .is_some_and(|catalog| catalog.retail_characters + catalog.retail_species > 0));
         let retail = self.creator.retail;
         let mut lines = std::mem::take(&mut self.creator.lines);
         lines.clear();
@@ -594,9 +601,14 @@ impl PlayerMenu {
                 lines.push(Line::Heading("Jedi Academy", retail));
                 rows_of(&mut lines, 0, retail);
             }
-            if retail < count {
-                lines.push(Line::Heading("Community", count - retail));
-                rows_of(&mut lines, retail, count);
+            // High quality models (SJK rig models) only when one is installed.
+            if rig > 0 {
+                lines.push(Line::Heading("High quality", rig));
+                rows_of(&mut lines, retail, retail + rig);
+            }
+            if retail + rig < count {
+                lines.push(Line::Heading("Community", count - retail - rig));
+                rows_of(&mut lines, retail + rig, count);
             }
         } else {
             rows_of(&mut lines, 0, count);

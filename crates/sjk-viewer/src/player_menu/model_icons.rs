@@ -323,6 +323,7 @@ mod tests {
         Arc::new(LegacyAssetCatalog {
             characters: (0..count)
                 .map(|index| sjk_client::LegacyCharacter {
+                    rig: false,
                     model: format!("m{index}"),
                     skin: "default".to_owned(),
                     cvar_value: format!("m{index}/default"),
