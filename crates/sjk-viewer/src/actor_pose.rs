@@ -149,6 +149,7 @@ impl GpuState {
     ) -> Result<(), Box<dyn Error>> {
         update(self, presentation_time)?;
         sounds::update(self, presentation_time, audio);
+        self.play_emote_sounds(audio);
         Ok(())
     }
 

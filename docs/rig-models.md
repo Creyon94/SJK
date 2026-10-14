@@ -141,6 +141,10 @@ in one click.
   under `base`. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
   lines added by hand survive a re-export; a checkbox rewrites it. glTF Separate, +Y
   up, skins on, the armature's rest position, no shape keys, four influences.
+- **Emote settings:** each ticked action takes a sound (`.wav` or `.mp3`, packed as
+  `sound/emotes/<id>.<ext>`); "Animation frame rate" (0 is the scene's; 30 for
+  animations from Unreal games) sets the clip's speed; "Keep playing while moving"
+  (on) writes `moving`; "Emotes stay on this computer" (off) writes `local`.
 - **Emotes:** the exporter's own animation export is not used (its NLA mode exports
   every track, muted ones too, and its action filter only exists once its file
   browser has opened). The add-on plays each ticked action alone (NLA off), samples
@@ -148,8 +152,7 @@ in one click.
   transform is its rest (as the exporter wrote it) times the pose bone's basis,
   which holds because the exporter keeps child bones in Blender's bone space and
   puts the Y-up turn on the root bone's rest. Times come from the scene's frame
-  rate. The emote file says `local: true` unless "Emotes stay on this computer" is
-  off.
+  rate the setting gives.
 - **Materials:** each becomes a plain Principled BSDF with the image its base colour
   most likely comes from: an image node feeding a socket named Base Color, Diffuse
   or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
@@ -290,10 +293,17 @@ plays its glTF's animations on its own skeleton.
   "length_ms": 3400, "local": true}`. `emotes::playing(slot)` gives the pose step the
   clip, its time and what is left; a player whose model lacks the clip keeps the
   driver's pose.
-- `local` emotes play on this client only: `sjkemote` starts them at once and never
-  sends them to the hub. The add-on writes `local` by default; nobody else could see
-  the clip without the model anyway. A non-local emote also starts at once, and the
-  hub's echo of it is not started again.
+- Other SJK players on the server see an emote through the hub, which relays only
+  its id: their client plays it when it has the same emote and model (each player's
+  own files; SJK passes none on). `local` emotes play on this client only and are
+  never sent. Either way `sjkemote` starts the player's own at once, and the hub's
+  echo of it is not started again.
+- `sound` plays on the player (JKA's music channel, so it cuts no voice or swing),
+  follows them and is stopped when the emote is cut short (replaced, stopped, the
+  player leaving); one that runs its length lets the sound finish.
+- `moving` keeps the emote going while the player runs and jumps (the clip replaces
+  the whole body, so the dance slides along). `sjkemote stop`, also the quick wheel's
+  Stop emote, ends it; the id `stop` is reserved and relayed like any emote.
 - Bolts follow the clip: `retarget_bolt` reads the actor's blended pose (kept in
   `PlayerPreview::rig_pose`, posed before the bolts each frame) and carries the
   joint's change from its retargeted pose, so the saber stays in a dancing hand.
@@ -302,8 +312,19 @@ plays its glTF's animations on its own skeleton.
 - An emote ends when its length is over or the player moves 24 units. Demos keep the
   emotes started on them (none arrive from the hub there).
 
-Not done: sounds for clip emotes, face (shape key) animation, other players seeing a
-clip emote, root motion (a clip that walks away snaps back when it ends).
+Speed: a clip's times come from the frame rate it is exported at. Blender scenes
+are often 60 fps while Unreal animations are made at 30; the first emote played
+twice too fast until the add-on's frame rate was set to 30 (its 204 frames then last
+6.8 s, the length of the music it came with).
+
+Face: joints a clip animates move, face bones included (the first test model has
+29: jaw, lips, brows, eyes, ears). Shape keys (morph targets) are not read or drawn:
+that needs their vertex offsets uploaded and blended before skinning in
+[gpu_skinning.wgsl](../crates/sjk-viewer/src/gpu_skinning.wgsl) and the glTF's
+`weights` channels.
+
+Not done: shape key animation, root motion (a clip that walks away snaps back when
+it ends).
 
 ## Checks
 
