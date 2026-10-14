@@ -585,8 +585,9 @@ and plays changes.
   the folder), each a JSON object: `name` (required, at most 32 characters), `torso`
   and `legs` animation names, `length_ms` (100 to 60000, required unless `loop` is
   true), `loop`, `sound`, `clip` (an animation of a [rig model](rig-models.md#emotes-the-rigs-own-clips),
-  played on its own skeleton), `local` (played on this client only, never sent) and
-  `moving` (keeps playing while the player moves). The id `stop` is reserved:
+  played on its own skeleton), `local` (played on this client only, never sent),
+  `moving` (keeps playing while the player moves) and `icon` (a PNG, JPG or TGA picture
+  the quick wheel shows for it). The id `stop` is reserved:
   `sjkemote stop` ends the player's emote here and, relayed, for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
@@ -599,7 +600,11 @@ and plays changes.
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.
-- The quick wheel's editor lists the installed emotes under Emotes.
+- The quick wheel's editor lists the installed emotes under Emotes. An emote's `icon`
+  is decoded when the catalogue loads and put into the UI atlas's emote cells
+  (`emote_icons.rs`, 32 of them): a wheel choice that runs `sjkemote <id>` wears it,
+  on a dark disc, in the ring and in the editor; without one it keeps the plain
+  emote icon.
 
 ## Pings
 

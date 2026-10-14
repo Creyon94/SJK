@@ -445,7 +445,7 @@ impl WheelEditor {
                 CHOICES_X + 38.0,
                 middle,
                 38.0,
-                slot.icon(),
+                slot.texture(),
             );
             let buttons = if focused {
                 3.0 * BUTTON + 2.0 * BUTTON_GAP + 12.0
@@ -623,7 +623,7 @@ impl WheelEditor {
                 .iter()
                 .map(|slot| ring::Choice {
                     label: slot.label(),
-                    icon: slot.icon().map(crate::ui_renderer::wheel_icon),
+                    icon: slot.texture(),
                     size: None,
                     on: false,
                 })
@@ -828,14 +828,15 @@ impl WheelEditor {
                 PICK_BASE + slot as u16,
                 frame.rect(DETAIL_X, top, DETAIL_WIDTH, PICK_LINE),
             );
+            let wheel = |name| {
+                crate::quick_wheel::catalog::icon_index(name).map(crate::ui_renderer::wheel_icon)
+            };
             let icon = match lines[line] {
-                PickLine::Action(action) => ACTIONS[action]
-                    .icon
-                    .and_then(crate::quick_wheel::catalog::icon_index),
-                PickLine::Emote(_) => crate::quick_wheel::catalog::icon_index("taunt"),
-                PickLine::Custom => crate::quick_wheel::catalog::icon_index(
-                    crate::quick_wheel::catalog::CUSTOM_ICON,
-                ),
+                PickLine::Action(action) => ACTIONS[action].icon.and_then(wheel),
+                PickLine::Emote(index) => emote_choice(index)
+                    .and_then(|(_, command)| crate::emote_icons::for_command(&command))
+                    .or_else(|| wheel("taunt")),
+                PickLine::Custom => wheel(crate::quick_wheel::catalog::CUSTOM_ICON),
                 PickLine::Heading(_) => None,
             };
             choice_icon(&mut self.ui, frame, DETAIL_X + 30.0, middle, 30.0, icon);
@@ -1102,13 +1103,13 @@ fn choice_icon(
     x: f32,
     y: f32,
     size: f32,
-    icon: Option<usize>,
+    icon: Option<sjk_ui::TextureId>,
 ) {
     let rect = frame.rect(x - size * 0.5, y - size * 0.5, size, size);
     let command = match icon {
-        Some(icon) => DrawCommand::TexturedQuad {
+        Some(texture) => DrawCommand::TexturedQuad {
             rect,
-            texture: crate::ui_renderer::wheel_icon(icon),
+            texture,
             color: Color::new(1.0, 1.0, 1.0, 0.95),
         },
         None => DrawCommand::Border {

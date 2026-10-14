@@ -88,6 +88,13 @@ impl Slot {
         }
     }
 
+    /// Its picture in the UI atlas: the emote's own for `sjkemote <id>` when it has
+    /// one (`emote_icons`), else [`Self::icon`]'s.
+    pub(crate) fn texture(&self) -> Option<sjk_ui::TextureId> {
+        crate::emote_icons::for_command(self.command())
+            .or_else(|| self.icon().map(crate::ui_renderer::wheel_icon))
+    }
+
     /// When it counts as in effect.
     pub(crate) fn state(&self) -> State {
         match self {

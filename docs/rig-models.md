@@ -155,15 +155,30 @@ in one click.
   `models/players/<name>/` (`model.gltf`, `model.bin`, the colour images,
   `sjk_rig.cfg`) and `emotes/<name>_<action>.emote` for each ticked action; deleting
   that file removes everything. "One .pk3 file" off writes the same as loose folders
-  under `base`. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
+  under `base`. "Pack name" (empty: `rig_<name>`) lets several models share one pack:
+  an export replaces only its own model's files there (its folder, and the emote
+  files, sounds and pictures of the animations its old glTF held, each an emote id),
+  and warns when another pack in `base` also holds the model. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
   lines added by hand survive a re-export; a checkbox rewrites it. glTF Separate, +Y
   up, skins on, the armature's rest position, no shape keys, four influences.
+- **Character icon:** a picture (`.png`, `.jpg`, `.tga`) packed as
+  `models/players/<name>/icon_default.<ext>`, which puts the model in the character
+  grid as `<name>/default` (`character_catalog.rs` lists a folder holding
+  `sjk_rig.cfg` once it has that icon).
+- **Following meshes:** a mesh rigged to another armature whose bone follows one of
+  this armature's (a Child Of or Copy Transforms constraint, as a tail or a cape from
+  an Unreal export is set up) goes with the model: a copy of it, as it stands on the
+  armature's rest pose, rigged to the followed bone alone. It moves with that bone,
+  without its own bones' sway. The panel counts them.
 - **Height adjustment:** written as the manifest's `lift` line (0 removes it), the
   one manifest line the add-on changes in a kept manifest.
 - **Emote settings:** each ticked action takes a sound (`.wav` or `.mp3`, packed as
   `sound/emotes/<id>.<ext>`); "Animation frame rate" (0 is the scene's; 30 for
   animations from Unreal games) sets the clip's speed; "Keep playing while moving"
-  (on) writes `moving`; "Emotes stay on this computer" (off) writes `local`.
+  (on) writes `moving`; "Emotes stay on this computer" (off) writes `local`. Each
+  takes a name (what the game and the wheel call it; empty: the action's name) and an
+  icon (a picture, packed as `gfx/emotes/<id>.<ext>` and named by the file's `icon`,
+  shown on the quick wheel).
 - **Emotes:** the exporter's own animation export is not used (its NLA mode exports
   every track, muted ones too, and its action filter only exists once its file
   browser has opened). The add-on plays each ticked action alone (NLA off), samples
@@ -179,8 +194,12 @@ in one click.
   colour.
 - **The blend file is untouched:** the meshes and materials exported are temporary
   copies, removed afterwards; the pose mode, selection, active action, NLA switch and
-  frame come back as they were. The only thing kept is the tick: a custom property
-  `sjk_emote` (and `sjk_emote_loop`) on the action.
+  frame come back as they were. The only things kept are the action's emote settings
+  (`sjk_emote`, `sjk_emote_loop`, `sjk_emote_sound`, `sjk_emote_name`,
+  `sjk_emote_icon`) and the scene's panel settings.
+- **From a script:** `bpy.ops.sjk.export_rig_model("EXEC_DEFAULT")` exports the
+  scene's settings; Blender in the background (`blender -b file.blend --python ...`)
+  works, without the add-on's preferences (GameData is then guessed).
 
 By hand instead: glTF Separate (`.gltf` + `.bin` + textures), +Y up, skinning on,
 animations and shape keys off, the armature in its rest pose, each material a
@@ -195,7 +214,8 @@ models taken from other games ([the rule](../AGENTS.md#verification-and-scope)).
   cut hides and shows.
 - In first person, JoF's body view (the saber arm drawn) does not show a rig model's
   body: it is one surface, with no head to hide. The classic first person applies.
-- Menus (Character, Profile) still show the driver model.
+- Menus (Character, Profile) still show the driver model; the character grid lists a
+  rig model with an `icon_default` picture, and picking it wears it.
 - Only the player sees it: other players see the rig model only when they have the
   same folder; otherwise they see their own fallback for an unknown model, as for any
   custom model.

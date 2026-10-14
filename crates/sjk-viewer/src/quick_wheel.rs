@@ -525,7 +525,7 @@ pub(crate) fn shown_pages(
                 .map(|slot| ShownChoice {
                     label: slot.label().to_owned(),
                     command: slot.command().to_owned(),
-                    icon: slot.icon().map(crate::ui_renderer::wheel_icon),
+                    icon: slot.texture(),
                     on: in_effect(console, slot.state(), illuminate),
                     gif: None,
                 })

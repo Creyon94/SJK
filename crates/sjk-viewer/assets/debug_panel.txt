@@ -1031,6 +1031,17 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-icons]
+area: Rendering & effects
+title: Rig model and emote icons, one pack for several models
+change: Rig models with icon_default show in the character grid; emote icons on the wheel.
+change: Blender add-on 1.4: character icon, emote name and icon, pack name, tails.
+test: Character grid (Profile > Character): Kane and Glam Claws show with their pictures.
+test: Pick one: you wear it (the menu stage still shows Kyle).
+test: Quick wheel Emotes page: Dance Moves and Comrade wear their pictures.
+test: sjkemote glamclaws_emote_comrade_cmm: Comrade loops with its music, tail attached.
+note: base/test_content.pk3 holds both test models; delete it to remove them.
+
 [rig-feet]
 area: Rendering & effects
 title: Rig models: feet planted on the ground

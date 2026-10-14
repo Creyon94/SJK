@@ -90,8 +90,12 @@ pub(crate) const HOLOCRON_ICON_CELLS: u32 = 8;
 pub(crate) const ROCKET_LOCK_ICON_FIRST: u32 = HOLOCRON_ICON_FIRST + HOLOCRON_ICON_CELLS;
 /// Rocket lock-on cells: the wedge and the lock.
 pub(crate) const ROCKET_LOCK_ICON_CELLS: u32 = 2;
+/// First of the emotes' picture cells (`emote_icons`), after the rocket lock-on's.
+pub(crate) const EMOTE_ICON_FIRST: u32 = ROCKET_LOCK_ICON_FIRST + ROCKET_LOCK_ICON_CELLS;
+/// Emote picture cells: two rows.
+pub(crate) const EMOTE_ICON_CELLS: u32 = 2 * COLUMNS;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = ROCKET_LOCK_ICON_FIRST + ROCKET_LOCK_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = EMOTE_ICON_FIRST + EMOTE_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

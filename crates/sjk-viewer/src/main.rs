@@ -170,6 +170,7 @@ mod achievements_frame;
 mod blade_skin_file;
 mod bug_report;
 mod electrify;
+mod emote_icons;
 mod emotes;
 mod emotes_frame;
 mod footprints;

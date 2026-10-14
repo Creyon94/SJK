@@ -52,6 +52,15 @@ pub(crate) fn wheel_icon(index: usize) -> sjk_ui::TextureId {
     sjk_ui::TextureId(icons::WHEEL_ICON_FIRST + index as u32)
 }
 
+/// Atlas cells reserved for the emotes' pictures (`emote_icons`).
+pub(crate) const EMOTE_ICON_CELLS: usize = icons::EMOTE_ICON_CELLS as usize;
+
+/// `TexturedQuad` texture naming emote picture cell `index` (`emote_icons`).
+pub(crate) fn emote_icon(index: usize) -> sjk_ui::TextureId {
+    debug_assert!(index < EMOTE_ICON_CELLS);
+    sjk_ui::TextureId(icons::EMOTE_ICON_FIRST + index as u32)
+}
+
 /// Atlas cells reserved for the settings menu's icons.
 pub(crate) const SETTINGS_ICON_CELLS: usize = icons::SETTINGS_ICON_CELLS as usize;
 

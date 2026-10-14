@@ -11,10 +11,13 @@ impl GpuState {
     pub(crate) fn update_emotes(&mut self) {
         let received = player_identity::take_emotes();
         if let Some(vfs) = self.vfs.as_deref() {
-            let mut state = emotes::lock();
-            if state.catalogue.is_none() {
-                state.catalogue = Some(emotes::load(vfs));
+            {
+                let mut state = emotes::lock();
+                if state.catalogue.is_none() {
+                    state.catalogue = Some(emotes::load(vfs));
+                }
             }
+            crate::emote_icons::service(vfs, &self.ui_shapes, &self.queue);
         }
         let Some(session) = self.live_session.as_ref() else {
             let mut state = emotes::lock();
