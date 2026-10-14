@@ -1,3 +1,11 @@
+## Holocrons may drop shaders
+
+14/10/2026, step 3 of the shader catalogue plan: the hub (branch `loot-kinds`, merged in its
+`main`, not deployed) holds unlocks as counts and rolls an opening as a card or a shader by the
+holocron's tier; the client reads the new answer (`Unlock::count`, `Opened::unlock`, `card` now
+optional). No ceremony for a shader yet (a line in the pop-up says what was found); the crate
+animation is next. Checked by unit tests only. See [unlockables.md](unlockables.md#holocron-shader-drops).
+
 ## Shaders: the Common tier and nine plain blades
 
 14/10/2026, step 2 of the shader catalogue plan: `unlockables::Rarity` gains Common (white,

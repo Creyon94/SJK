@@ -1659,6 +1659,7 @@ mod tests {
                     id: unlockable.id.into(),
                     granted: 1_791_336_225,
                     note: "n".repeat(200),
+                    count: 1,
                     medal: None,
                 })
                 .collect(),

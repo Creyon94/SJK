@@ -1411,10 +1411,10 @@ mod tests {
         );
         assert_eq!(
             (
-                opened.card.id,
-                opened.card.rarity.as_str(),
-                opened.card.finish.as_str(),
-                opened.card.edition.as_str()
+                opened.card.as_ref().unwrap().id,
+                opened.card.as_ref().unwrap().rarity.as_str(),
+                opened.card.as_ref().unwrap().finish.as_str(),
+                opened.card.as_ref().unwrap().edition.as_str()
             ),
             (31, "uncommon", "holo", "alpha")
         );
