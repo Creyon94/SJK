@@ -10,7 +10,8 @@
 //! relayed for this server (`world_ping_frame.rs`), keeps the
 //! players' looks (`looks_frame.rs`), follows the players muted on this PC
 //! (`muted_players_frame.rs`), notes the Profile screen's tab on show
-//! (`profile_hub.rs`), puts the pictures that finished loading into the UI's atlas and
+//! (`profile_hub.rs`), hands the hub the player models the game has
+//! (`installed_models.rs`), puts the pictures that finished loading into the UI's atlas and
 //! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`).
 
 use super::*;
@@ -65,6 +66,7 @@ impl GpuState {
         };
         avatars::configure(Some(console.config_directory()), pictures_from);
         player_identity::apply(console.config_directory(), settings, name, location, chat);
+        self.offer_installed_models();
         let (packs_revision, assets_note) = player_identity::packs();
         crate::sjk_packs::follow_identity(packs_revision, assets_note);
         profile_card::refresh(console);
@@ -74,5 +76,35 @@ impl GpuState {
         self.update_achievements();
         self.update_holocron_activity();
         self.follow_crash_reports();
+    }
+
+    /// Hand the identity the player models the game has and the one the player wears,
+    /// for the player card's model line (`installed_models.rs`).
+    fn offer_installed_models(&self) {
+        if let Some(vfs) = self.vfs.as_ref() {
+            installed_models::follow(vfs);
+        }
+        let (Some(models), Some(console)) = (installed_models::models(), self.console.as_ref())
+        else {
+            return;
+        };
+        let share = console.bool_cvar(installed_models::CVAR) != Some(false);
+        player_identity::offer_models(&models, share);
+        // What the server published for the player wins over the setting (a forced
+        // team model, a mod's own).
+        let published = self.live_session.as_ref().and_then(|session| {
+            let game = session.game_state();
+            let slot = usize::try_from(game.client_num).ok()?;
+            let info = game.config_string(player_identity::CS_PLAYERS + slot)?;
+            sjk_client::LegacyClientInfo::new(info)
+                .text("model")
+                .map(str::to_owned)
+        });
+        let model = published.or_else(|| console.text_cvar("model").ok().map(str::to_owned));
+        let own = model
+            .as_deref()
+            .and_then(installed_models::folder)
+            .filter(|folder| !models.retail.contains(folder));
+        player_identity::set_own_model(own);
     }
 }

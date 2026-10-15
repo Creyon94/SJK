@@ -120,6 +120,13 @@ set nothing: a default install makes a key and tells that hub where it plays and
 Identity page, the setting's help and the changelog say what is sent and that
 `cl_identity 0` stops it.
 
+A model list ([Installed models](#installed-models), since 15/10/2026) is sent once
+registered, while `cl_shareModels` (default 1) is on: the names of the player model
+folders the game has, signed with the key. The hub keeps the latest list per key until
+it is replaced, the player turns the setting off (an empty list, which deletes it) or the
+operator removes the identity. Anyone may ask the hub whether the player in a server's
+slot has a given model.
+
 A bug report (Escape, SJK, Report a bug) is sent only when the player presses Enter
 on it: its text, the map, the client build, the game server's address and the in-game
 name the player wears, signed with the player's key. The hub keeps it until the operator removes it.
@@ -467,6 +474,30 @@ Medals are public: anyone can read a key's profile and the presence list of a se
 so a player's medals, counts, dates and notes are visible to everyone, as their hub
 name and verified flag are. The client sends nothing about medals.
 
+
+## Installed models
+
+Since 15/10/2026 the player card (`inspect`, [client.md](client.md#player-card)) of
+another SJK player says whether they see the model you wear: "Sees your model", or in
+amber "Can't see your model" (their game lacks it and draws its default in its place).
+
+- The client lists the folders under `models/players` holding a `model.glm` or a rig
+  model's `sjk_rig.cfg`, in the game data mounted at start, on a thread of its own
+  ([installed_models.rs](../crates/sjk-viewer/src/installed_models.rs)), and sends them
+  (`PUT /v1/models`, hub `PROTOCOL.md` "Models") once registered and again whenever the
+  mounted game data changes, with `cl_shareModels` on; turning it off sends an empty
+  list, which deletes the hub's copy. A server's downloads are not counted.
+- The model you wear is the one the server publishes for your slot (`model` of your
+  `CS_PLAYERS` string), else the `model` setting; its folder is asked about. A retail
+  model (in the retail archives) is never asked about: every player has it.
+- The card asks the hub (`GET /v1/models?server=..&slot=..&model=..`, unsigned) for the
+  inspected slot and your model when it is built, and again at most every minute for the
+  same slot and model. The answer counts only while the slot's claimed name matches the
+  name the game shows, as for badges. No line when the hub has no list of theirs (an
+  older client, `cl_shareModels` off), when you wear a retail model, or on your own card.
+- The hub keeps lists per key, so a person playing on two PCs answers with the list the
+  latest one sent.
+- What a list says is the client's word: a modified client can send any list.
 
 ## Clan tags
 
@@ -927,6 +958,10 @@ once.
   ([unlockables.md](unlockables.md)). `saberskin` lists the blade skins (owned or
   locked) and `saberskin <id>`/`none` sets it; `unlockables` opens the Collection's
   Shaders tab, where owned ones are equipped.
+- `cl_shareModels` (default 1; Settings > Network > Share my model list) sends the
+  player model folders the game has, so other SJK players' cards say whether they see
+  the model you wear ([Installed models](#installed-models)); 0 makes the hub forget
+  the list.
 - `cl_crashReports` (default 1; Settings > Network > Send crash reports) sends crash
   reports to the hub at the next start ([Crash reports](#crash-reports)); 0 keeps them on
   the PC.

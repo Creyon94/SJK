@@ -37,8 +37,8 @@ pub use report::{
     BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, WorldNote,
 };
 pub use service::{
-    HolocronProgress, HubFactory, Location, OpenOutcome, ReportOutcome, RevealOutcome, Service,
-    Settings, Snapshot, Status,
+    HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome, RevealOutcome,
+    Service, Settings, Snapshot, Status,
 };
 pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
 pub use vitals::{Sharing, VitalsTable};

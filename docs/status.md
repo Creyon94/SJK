@@ -1,3 +1,16 @@
+## Player card: sees your model
+
+15/10/2026, `personal/model-check` (Sol's request) with hub branch `model-check`: SJK
+clients send the hub the player model folders their game has (`cl_shareModels`, default
+on) and another SJK player's card says "Sees your model" or, in amber, "Can't see your
+model" ([identity.md](identity.md#installed-models)). Checked by unit tests (listing
+folders with a mesh or rig manifest, the model value's folder, the identity worker
+sending a list once and again when it changes and storing answers), the hub's API test
+(registration, bad lists, answers by slot, unknown list, replacement, empty list
+forgetting, bad slot and model) and an off-screen render of the pinned card with the
+line. Not yet seen in the game; the hub branch is not deployed, so until it is the hub
+refuses the list (once an hour) and the card shows no line.
+
 ## Emotes on stock models: limbs out of wider bodies
 
 15/10/2026, `feat/emote-body-fit` (Creyon, on `feat/emotes-on-classic-models`): a dance made

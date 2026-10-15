@@ -159,6 +159,25 @@ pub trait Hub: Send {
             "this hub client does not send pings".to_owned(),
         ))
     }
+    /// Tell the hub which player models the game has (`PROTOCOL.md`, "Models"); the
+    /// hub answers how many names it kept.
+    fn set_models(&mut self, _identity: &Identity, _models: &[String]) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send models".to_owned(),
+        ))
+    }
+    /// Whether the player claiming `slot` on `server` has `model` (`PROTOCOL.md`,
+    /// "Models"): their claimed name and the answer, `None` when they sent no list.
+    fn model_check(
+        &mut self,
+        _server: &str,
+        _slot: u8,
+        _model: &str,
+    ) -> Result<(String, Option<bool>), HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not check models".to_owned(),
+        ))
+    }
     /// Share (or stop sharing) the player's vitals on `server` and read the sharers
     /// there (`PROTOCOL.md`, "Vitals").
     fn vitals(
@@ -716,6 +735,20 @@ fn encode_server(server: &str) -> String {
         .collect()
 }
 
+/// A model name for a query: letters, digits, `_`, `-` and `.` as they are, the rest
+/// percent-encoded.
+fn encode_model(model: &str) -> String {
+    model
+        .bytes()
+        .map(|byte| match byte {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-' | b'.' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
+}
+
 /// `GET /v1/feed`'s path and query.
 fn feed_path(after: u64, server: Option<&str>, wait: u64) -> String {
     let mut path = format!("/v1/feed?after={after}&wait={wait}");
@@ -1101,6 +1134,32 @@ impl Hub for HttpHub {
         let query = encode_server(server);
         let answer = self.send(None, "GET", &format!("/v1/presence?server={query}"), None)?;
         parse(answer["players"].clone())
+    }
+
+    fn set_models(&mut self, identity: &Identity, models: &[String]) -> Result<u64, HubError> {
+        let body = json!({ "models": models });
+        let answer = self.send(Some(identity), "PUT", "/v1/models", Some(body))?;
+        answer["stored"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the models answer has no count".to_owned()))
+    }
+
+    fn model_check(
+        &mut self,
+        server: &str,
+        slot: u8,
+        model: &str,
+    ) -> Result<(String, Option<bool>), HubError> {
+        let path = format!(
+            "/v1/models?server={}&slot={slot}&model={}",
+            encode_server(server),
+            encode_model(model)
+        );
+        let answer = self.send(None, "GET", &path, None)?;
+        let claimed_name = answer["claimed_name"]
+            .as_str()
+            .ok_or_else(|| HubError::Protocol("the model answer has no name".to_owned()))?;
+        Ok((claimed_name.to_owned(), answer["has"].as_bool()))
     }
 
     fn chat(&mut self, identity: &Identity, text: &str, name: &str) -> Result<u64, HubError> {

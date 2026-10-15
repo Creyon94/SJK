@@ -64,6 +64,15 @@ struct Runtime {
     card_lookups: Vec<(String, Instant)>,
     /// The crash folder last handed to the service, if any was.
     sent_crash_dir: Option<Option<std::path::PathBuf>>,
+    /// The model list last handed to the service ([`offer_models`]), by address, and
+    /// whether it was shared.
+    sent_models: Option<(usize, bool)>,
+    /// The model folder the local player wears, unless every player has it (a retail
+    /// one): what the player card asks about ([`set_own_model`]).
+    own_model: Option<String>,
+    /// Model questions the player card asked and when, newest last, so each is asked
+    /// at most every [`MODEL_CHECK_EVERY`].
+    model_asks: Vec<((SocketAddr, u8, String), Instant)>,
 }
 
 static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
@@ -79,6 +88,9 @@ static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
     picture_lookups: Vec::new(),
     card_lookups: Vec::new(),
     sent_crash_dir: None,
+    sent_models: None,
+    own_model: None,
+    model_asks: Vec::new(),
 });
 
 fn lock() -> MutexGuard<'static, Runtime> {
@@ -388,6 +400,7 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
             snapshot.profiles.get(&player.key_id)
         };
         let info = crate::hud::player_card::HubInfo {
+            model: crate::hud::player_card::ModelSight::Unknown,
             name: player.name.clone(),
             verified: player.verified,
             medals: crate::medals::Medals::from_wire(&player.medals),
@@ -399,8 +412,20 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
         let wanted = (player.key_id != snapshot.key_id).then(|| player.key_id.clone());
         Some((info, wanted))
     })?;
+    let own = wanted.is_none();
     let info = crate::hud::player_card::HubInfo {
         vitals: card_vitals(service, slot, &info.key_id),
+        model: if own {
+            crate::hud::player_card::ModelSight::Unknown
+        } else {
+            model_sight(
+                service,
+                &runtime.own_model,
+                &mut runtime.model_asks,
+                slot,
+                shown,
+            )
+        },
         ..info
     };
     if let Some(key_id) = wanted {
@@ -420,6 +445,85 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
         }
     }
     Some(info)
+}
+
+/// How often the player card asks the hub again whether a player has the local
+/// player's model.
+const MODEL_CHECK_EVERY: Duration = Duration::from_secs(60);
+/// Model questions remembered at most.
+const MODEL_ASKS: usize = 64;
+
+/// Whether the player in `slot` whom the game shows as `shown` sees the local player's
+/// model (`own`), as the hub last answered, while the slot's claim is under that name;
+/// asks the hub again when the answer is missing or [`MODEL_CHECK_EVERY`] old.
+fn model_sight(
+    service: &Service,
+    own: &Option<String>,
+    asks: &mut Vec<((SocketAddr, u8, String), Instant)>,
+    slot: u8,
+    shown: &str,
+) -> crate::hud::player_card::ModelSight {
+    use crate::hud::player_card::ModelSight;
+    let Some(model) = own.clone() else {
+        return ModelSight::Unknown;
+    };
+    let (server, answer) = service.with_snapshot(|snapshot| {
+        let server = snapshot.server;
+        let answer = server
+            .and_then(|server| snapshot.model_checks.get(&(server, slot, model.clone())))
+            .filter(|check| sjk_identity::names_match(&check.claimed_name, shown))
+            .and_then(|check| check.has);
+        (server, answer)
+    });
+    let Some(server) = server else {
+        return ModelSight::Unknown;
+    };
+    let question = (server, slot, model);
+    let now = Instant::now();
+    let due = asks
+        .iter()
+        .find(|(asked, _)| *asked == question)
+        .is_none_or(|(_, at)| now.duration_since(*at) >= MODEL_CHECK_EVERY);
+    if due {
+        asks.retain(|(asked, _)| *asked != question);
+        if asks.len() == MODEL_ASKS {
+            asks.remove(0);
+        }
+        asks.push((question.clone(), now));
+        let (server, slot, model) = question;
+        service.check_model(server, slot, model);
+    }
+    match answer {
+        Some(true) => ModelSight::Sees,
+        Some(false) => ModelSight::Missing,
+        None => ModelSight::Unknown,
+    }
+}
+
+/// Hand the service the player models the game has (`installed_models.rs`), or an
+/// empty list, which makes the hub forget the last one, when the player does not
+/// share it (`cl_shareModels` off). Each list goes once.
+pub(crate) fn offer_models(models: &std::sync::Arc<crate::installed_models::Models>, share: bool) {
+    let mut runtime = lock();
+    let runtime = &mut *runtime;
+    let Some(service) = runtime.service.as_ref() else {
+        return;
+    };
+    let offer = (std::sync::Arc::as_ptr(models) as usize, share);
+    if runtime.sent_models != Some(offer) {
+        service.set_models(if share {
+            models.all.clone()
+        } else {
+            Vec::new()
+        });
+        runtime.sent_models = Some(offer);
+    }
+}
+
+/// The model folder the local player wears, or `None` when every player has it (a
+/// retail model) or there is none: the player card's model line asks about it.
+pub(crate) fn set_own_model(model: Option<String>) {
+    lock().own_model = model;
 }
 
 /// How often the player card asks the hub again for a player's profile.

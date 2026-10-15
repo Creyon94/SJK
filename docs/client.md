@@ -3014,6 +3014,10 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
   again and the card fades out.
 - `cg_playerCardOutline` (default 1; Settings > HUD+ > Card outline) draws the outline.
+- On another SJK player's card, under what they share: "Sees your model", or in amber
+  "Can't see your model", from the model lists SJK clients send the hub
+  (`cl_shareModels`, [identity.md](identity.md#installed-models)); no line when the hub
+  has no list of theirs or you wear a retail model.
 - `inspect` (Settings > Key bindings > Interaction > Inspect player; bound to X by default,
   or `bind <key> inspect`) pins the card to the player under the crosshair at once, with
   no wait. It stays when you look away or the player moves, follows them (kept inside the

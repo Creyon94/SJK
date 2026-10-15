@@ -180,6 +180,7 @@ mod identity_command;
 mod identity_frame;
 mod illuminate;
 mod inline_code;
+mod installed_models;
 mod jetpack;
 mod live_session;
 mod looks;

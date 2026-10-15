@@ -1273,6 +1273,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             },
         ],
         profiles: std::collections::HashMap::new(),
+        model_checks: std::collections::HashMap::new(),
         profiles_revision: 0,
         notice: Some("saved".to_owned()),
         revision: 0,
@@ -1558,6 +1559,7 @@ fn player_card_profile(shots: &mut Snapshot) {
                 avatar: String::new(),
                 profile: Some(ProfileFacts::of(&profile)),
                 vitals: crate::hud::player_card::Vitals::SeesAll,
+                model: crate::hud::player_card::ModelSight::Missing,
             }),
             shader,
         );
@@ -2462,6 +2464,7 @@ fn medals_snapshot() {
         server: None,
         players: Vec::new(),
         profiles: HashMap::new(),
+        model_checks: HashMap::new(),
         profiles_revision: 0,
         notice: None,
         revision: 0,
