@@ -455,7 +455,8 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   ([menu_stage/force_motion.rs](../crates/sjk-viewer/src/menu_stage/force_motion.rs))
   as the game plays one made by holding the jump key while standing still: the body,
   arms and all, takes off in `BOTH_JUMP1` and keeps its crouch the whole time in the
-  air, then lands (`BOTH_LAND1`), as Creyon's videos of the game show it (13/10/2026: the
+  air, then lands (`BOTH_LAND1`, as long as its four frames take, then straight into the
+  stance), as Creyon's videos of the game show it (13/10/2026: the
   torso kept in the stance held the hands where a jumping player's are not), timed as long as a jump to the drafted level's
   height lasts under gravity 800 (66, 130, 226 or 418 units: about 2 seconds in the air
   at level 3), then standing a moment. The model is seen to rise along the jump, at most 8 units at its top (more took the head out of
@@ -478,7 +479,8 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   ended), or straight on where the two meet; the longer eased takeover between them
   slowed each swing as it began and hurried it after (Creyon, 13/10/2026). One swing
   comes at a time, as the strong style fights: after each return the model settles over
-  0.25 s into the stance it idles in (`BOTH_STAND2` with a single saber) and holds it
+  0.25 s into the strong style's stance (`BOTH_SABERSLOW_STANCE` with a single saber,
+  Creyon, 13/10/2026: red, not the medium idle) and holds it
   0.3 s (1.5 s after the third), then the next start is eased in from it over 0.25 s
   (Creyon, 13/10/2026: back to the idle pose after each swing; waiting where the return
   ended looked frozen). A parry is

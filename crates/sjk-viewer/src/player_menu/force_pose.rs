@@ -15,9 +15,9 @@
 //! Sense keeps the stance and wears its shell. Saber Offense swings the attacks one after
 //! another, each back to the stance (`BOTH_A3_T__B_` then `BOTH_R3_B__S1`, and on round
 //! the quadrants), and Saber Defense raises the parries in turn (`BOTH_P1_S1_T_`, `_TR`,
-//! `_TL`, `_BL`, `_BR`): with a single saber both in the strong (red) style, back to the
-//! stance the model idles in (`BOTH_STAND2`) between them (Creyon, 13/10/2026); the staff
-//! and the dual sabers in their own.
+//! `_TL`, `_BL`, `_BR`): with a single saber both in the strong (red) style, back to its
+//! stance `BOTH_SABERSLOW_STANCE` between them (Creyon, 13/10/2026); the staff and the
+//! dual sabers in their own.
 //! A model without the sequence keeps the stance (`set_stage_stance`).
 //!
 //! The model also wears the power's shell ([`shell`]) and gives off its effect
@@ -433,10 +433,10 @@ const fn start(animation: &'static str) -> Move {
     }
 }
 
-/// A return, then the idle stance for `pause` before the next swing starts: one swing
-/// at a time, as the strong style fights, each back to the stance the model idles in
-/// (Creyon, 13/10/2026: "when 1 swing is done it should return to its idle state";
-/// waiting where the return ended looked frozen).
+/// A return, then the skill's stance for `pause` before the next swing starts: one
+/// swing at a time, as the strong style fights, each back to the stance (Creyon,
+/// 13/10/2026: "when 1 swing is done it should return to its idle state"; waiting where
+/// the return ended looked frozen).
 const fn back(animation: &'static str, pause: f32) -> Move {
     Move {
         animation,
@@ -573,22 +573,17 @@ pub(super) fn effect(power: ForcePower, level: u8, style: SaberStyle) -> Option<
                 SaberStyle::Staff => &STAFF_PARRIES,
                 SaberStyle::Dual => &DUAL_PARRIES,
             },
-            stance: block_stance(style),
+            stance: skill_stance(style),
         },
         _ => return None,
     })
 }
 
-/// The stance the saber skills are shown in between their moves: the one the model idles
-/// in with the style's sabers ([`super::saber`]'s `stance`, `PM_GetSaberStance`), so a
-/// swing or a block comes back to the pose it began from (Creyon, 13/10/2026).
+/// The stance the saber skills swing and block from and come back to between their
+/// moves: with a single saber the strong (red) style's (Creyon, 13/10/2026: "the saber
+/// offense in red idle stance when not swinging, not in medium"), the staff and the dual
+/// sabers their own idle stances.
 fn skill_stance(style: SaberStyle) -> &'static str {
-    style.stance()
-}
-
-/// The stance Saber Defense blocks from and back to: with a single saber the strong
-/// (red) style's (Creyon, 13/10/2026), the staff and the dual sabers their own.
-fn block_stance(style: SaberStyle) -> &'static str {
     match style {
         SaberStyle::Single => "BOTH_SABERSLOW_STANCE",
         SaberStyle::Staff | SaberStyle::Dual => style.stance(),
@@ -731,15 +726,15 @@ mod tests {
                 assert!(pair[1].animation.contains(&format!("_{end}_")), "{pair:?}");
             }
         }
-        // Between swings the model comes back to its idle stance; it blocks from the
-        // strong style's with a single saber.
+        // With a single saber the skills swing and block from the strong style's stance
+        // and come back to it; the staff and the dual sabers to their own.
         for style in [SaberStyle::Single, SaberStyle::Staff, SaberStyle::Dual] {
             for power in [ForcePower::SaberOffense, ForcePower::SaberDefense] {
                 let Some(Effect::Moves { stance, .. }) = effect(power, 1, style) else {
                     unreachable!();
                 };
-                let expected = match (power, style) {
-                    (ForcePower::SaberDefense, SaberStyle::Single) => "BOTH_SABERSLOW_STANCE",
+                let expected = match style {
+                    SaberStyle::Single => "BOTH_SABERSLOW_STANCE",
                     _ => style.stance(),
                 };
                 assert_eq!(stance, expected);

@@ -23,8 +23,10 @@ use glam::{Quat, Vec3};
 
 /// `g_gravity`'s default.
 const GRAVITY: f32 = 800.0;
-/// Seconds the landing pose plays, then the model stands, before the next jump.
-const LANDING_SECONDS: f32 = 0.5;
+/// Seconds the landing pose plays, then the model stands, before the next jump. The
+/// landing is as long as `BOTH_LAND1` takes to reach its last frame (four frames at 20 a
+/// second); held 0.5 s it stood crouched a moment too long (Creyon, 13/10/2026).
+const LANDING_SECONDS: f32 = 0.2;
 const STANDING_SECONDS: f32 = 0.7;
 /// How fast Speed's run plays: `CG_PlayerAnimation` runs a speeding player's legs at
 /// 1.7 times their speed (`legacy_animation_speed` in `sjk-client`); at the stance's
@@ -380,7 +382,7 @@ mod tests {
         assert_eq!(blade_in_at(130.0, airborne - 0.01), 1.0);
         let lighting = blade_in_at(130.0, airborne + BLADE_ON_SECONDS / 2.0);
         assert!(lighting > 0.0 && lighting < 1.0);
-        assert_eq!(blade_in_at(130.0, airborne + LANDING_SECONDS), 0.0);
+        assert_eq!(blade_in_at(130.0, airborne + BLADE_ON_SECONDS), 0.0);
     }
 
     /// Out along the throw, spinning flat, back into the hand, then a rest in it.
