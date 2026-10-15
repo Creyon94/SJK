@@ -23,6 +23,11 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Dance together: `sjkemote sync` (or Sync emote on the quick wheel) joins the emote of the player you aim at, or the nearest one, in step on every SJK player's screen, sharing one song. Name a player to pick one (`sjkemote sync Sol`) _(Sol)_
+- Emote music no longer stops in busy fights: SJK now mixes up to 128 sounds at once (was 32), and when even those are full an emote's music is the last sound given up _(Sol)_
+
 ## 2026.1015.2 (Alpha) | 15/10/2026
 
 Seeing bars means sharing yours, a card that says who sees your model, and emote music loops.
@@ -32,7 +37,6 @@ Seeing bars means sharing yours, a card that says who sees your model, and emote
 > Your model: The player card says whether the player sees the model you wear (`cl_shareModels`).
 > Emotes: Looping emotes loop their music, and emote pictures show on the quick wheel.
 
-- Emote music no longer stops in busy fights: SJK now mixes up to 128 sounds at once (was 32), and when even those are full an emote's music is the last sound given up _(Sol)_
 - SJK staff can try every collectible without touching the hub: `debug_collectibles 1` shows every shader, medal, achievement and card as yours on your PC only, while other players still see what you really hold _(Sol)_
 - Seeing other players' bars means sharing yours: nameplates with bars keep `cg_nameplateShare` on, shared and estimated bars show only while the SJK hub has your own, and the hub gives the values only to players who share _(Sol)_
 - The gold nameplate contour now also shows on players who share because they see everyone's bars (`cg_nameplateEstimate`), and on your own plate (`cg_nameplateSelf`) in that case _(Sol)_

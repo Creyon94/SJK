@@ -910,6 +910,7 @@ mod tests {
             claimed_name: "Sol".to_owned(),
             key_id: "aa".to_owned(),
             emote: "wave".to_owned(),
+            sync: None,
         };
         rig.script(Ok(Feed {
             next: 4,

@@ -112,7 +112,15 @@ impl Iterator for MixerSource {
                     self.pending.play(&mut self.mixer, handle, request);
                     continue;
                 }
-                if let AudioCommand::StopChannel(source, channel) = &command {
+                if let AudioCommand::StopChannel(source, channel)
+                | AudioCommand::PlayFrom(
+                    _,
+                    PlayRequest {
+                        source, channel, ..
+                    },
+                    _,
+                ) = &command
+                {
                     self.pending.cancel(*source, *channel);
                 }
                 if matches!(command, AudioCommand::StopAll | AudioCommand::StopEffects) {
@@ -161,6 +169,9 @@ impl Source for MixerSource {
 
 pub(super) enum AudioCommand {
     Play(SoundHandle, PlayRequest),
+    /// Play a loaded sound from this many mono samples in; one still decoding is
+    /// not started.
+    PlayFrom(SoundHandle, PlayRequest, usize),
     Listener {
         origin: [f32; 3],
         forward: [f32; 3],
@@ -455,6 +466,9 @@ fn apply_command(mixer: &mut Mixer, command: AudioCommand) -> bool {
     match command {
         AudioCommand::Play(handle, request) => {
             mixer.play(handle, request);
+        }
+        AudioCommand::PlayFrom(handle, request, offset) => {
+            mixer.play_from(handle, request, offset);
         }
         AudioCommand::Listener {
             origin,

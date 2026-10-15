@@ -409,6 +409,8 @@ plays its glTF's animations on its own skeleton.
 - `moving` keeps the emote going while the player runs and jumps (the clip replaces
   the whole body, so the dance slides along). `sjkemote stop`, also the quick wheel's
   Stop emote, ends it; the id `stop` is reserved and relayed like any emote.
+  `sjkemote sync [player]` (the wheel's Sync emote) joins another player's emote in
+  step, sharing its music ([hub-chat.md](hub-chat.md#emotes-in-the-client)).
 - Bolts follow the clip: `retarget_bolt` reads the actor's blended pose (kept in
   `PlayerPreview::rig_pose`, posed before the bolts each frame) and carries the
   joint's change from its retargeted pose, so the saber stays in a dancing hand.

@@ -33,6 +33,12 @@
 //! [`STOP`] ends the player's emote.
 //!
 //! `<id>` is the emote's id at the hub: 1 to 32 of `a` to `z`, `0` to `9` and `_`.
+//!
+//! [`SYNC`] (`sjkemote sync [player]`) joins another player's emote in step: the hub
+//! relays the leader's slot with it, and each client starts the follower at the
+//! leader's start as that client saw it ([`ActiveEmotes::sync`]), so the two dance in
+//! phase on every screen whatever each one's delay. The pair shares the leader's
+//! music; a follower's own picks up where it is when the leader stops first.
 
 use sjk_identity::Emote;
 use std::time::{Duration, Instant};
@@ -43,8 +49,12 @@ pub(crate) const FOLDER: &str = "emotes";
 pub(crate) const COMMAND: &str = "sjkemote";
 /// The id that ends the player's emote (`sjkemote stop`), never a catalogue entry's.
 pub(crate) const STOP: &str = "stop";
-pub(crate) const HELP: &str =
-    "Play an emote the SJK players on this server see (sjkemote alone lists them)";
+/// The word that joins another player's emote in step (`sjkemote sync [player]`),
+/// never a catalogue entry's.
+pub(crate) const SYNC: &str = "sync";
+/// How far (game units) `sjkemote sync` alone looks for a player to join.
+pub(crate) const SYNC_RANGE: f32 = 512.0;
+pub(crate) const HELP: &str = "Play an emote the SJK players on this server see (sjkemote alone lists them; sjkemote sync [player] joins one in step)";
 /// How loud emote sounds play, times the effects volume (Settings > Sound > Emotes).
 pub(crate) const VOLUME_CVAR: &str = "s_emoteVolume";
 /// [`VOLUME_CVAR`]'s default: recorded music sits well under the game's effects.
@@ -217,10 +227,11 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<EmoteDef> {
         }
     }
     catalogue.retain(|def| {
-        let reserved = def.id == STOP;
+        let reserved = def.id == STOP || def.id == SYNC;
         if reserved {
             crate::log::progress(format_args!(
-                "emotes: {FOLDER}/{STOP}.emote: the id is reserved"
+                "emotes: {FOLDER}/{}.emote: the id is reserved",
+                def.id
             ));
         }
         !reserved
@@ -247,13 +258,80 @@ pub(crate) struct ActiveEmote {
     /// The sound to start next while it plays (its loop, or its sound again), when,
     /// and how long that one lasts.
     pub(crate) next_sound: Option<(Instant, String, Duration)>,
+    /// The player it follows in step (`sjkemote sync`), whose music it shares while
+    /// they play the same emote from the same start; its own `sound` is empty then.
+    pub(crate) leader: Option<u8>,
+    /// Its music, to pick up part way through when it stops following.
+    pub(crate) music: Music,
+}
+
+/// An emote's music: its first sound, then the one that repeats after it (its loop,
+/// or for a looping emote the first again), each with its length.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct Music {
+    first: String,
+    first_length: Duration,
+    then: String,
+    then_length: Duration,
+}
+
+impl Music {
+    fn of(def: &EmoteDef) -> Self {
+        let (then, then_length) = if def.sound.is_empty() || def.sound_length.is_zero() {
+            (String::new(), Duration::ZERO)
+        } else if !def.sound_loop.is_empty() {
+            (def.sound_loop.clone(), def.sound_loop_length)
+        } else if def.looping {
+            (def.sound.clone(), def.sound_length)
+        } else {
+            (String::new(), Duration::ZERO)
+        };
+        Self {
+            first: def.sound.clone(),
+            first_length: def.sound_length,
+            then,
+            then_length,
+        }
+    }
+
+    /// The sound playing `elapsed` after the start, how far into it, and how long
+    /// before `then` starts (again); `None` once it has all played.
+    fn at(&self, elapsed: Duration) -> Option<(&str, Duration, Option<Duration>)> {
+        if self.first.is_empty() {
+            return None;
+        }
+        // A first sound of unknown length: the mixer plays nothing past its end.
+        if self.first_length.is_zero() || elapsed < self.first_length {
+            let next = (!self.then.is_empty() && !self.first_length.is_zero())
+                .then(|| self.first_length - elapsed);
+            return Some((&self.first, elapsed, next));
+        }
+        if self.then.is_empty() {
+            return None;
+        }
+        let past = elapsed - self.first_length;
+        if self.then_length.is_zero() {
+            return Some((&self.then, past, None));
+        }
+        let into = Duration::from_nanos(
+            u64::try_from(past.as_nanos() % self.then_length.as_nanos()).unwrap_or(0),
+        );
+        Some((&self.then, into, Some(self.then_length - into)))
+    }
 }
 
 /// A sound to start on, or stop from, a player: what the audio does with emotes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Cue {
-    Start { slot: u8, sound: String },
-    Stop { slot: u8 },
+    /// Start `sound` `offset` into it (a synced emote's music picking up).
+    Start {
+        slot: u8,
+        sound: String,
+        offset: Duration,
+    },
+    Stop {
+        slot: u8,
+    },
 }
 
 /// Which player plays which emote, by slot.
@@ -299,27 +377,20 @@ impl ActiveEmotes {
         if entry.as_ref().is_some_and(|old| !old.sound.is_empty()) {
             self.cues.push(Cue::Stop { slot });
         }
-        let sound = def.map_or_else(String::new, |def| def.sound.clone());
+        let music = def.map(Music::of).unwrap_or_default();
+        let sound = music.first.clone();
         if !sound.is_empty() {
             self.cues.push(Cue::Start {
                 slot,
                 sound: sound.clone(),
+                offset: Duration::ZERO,
             });
         }
         // After the first sound: its loop, or for a looping emote the sound again.
-        let next_sound = def.and_then(|def| {
-            if def.sound.is_empty() || def.sound_length.is_zero() {
-                return None;
-            }
-            let at = now + def.sound_length;
-            if !def.sound_loop.is_empty() {
-                Some((at, def.sound_loop.clone(), def.sound_loop_length))
-            } else if def.looping {
-                Some((at, def.sound.clone(), def.sound_length))
-            } else {
-                None
-            }
-        });
+        let next_sound = music
+            .at(Duration::ZERO)
+            .and_then(|(_, _, next)| next)
+            .map(|next| (now + next, music.then.clone(), music.then_length));
         *entry = Some(ActiveEmote {
             emote: emote.to_owned(),
             started: now,
@@ -328,7 +399,70 @@ impl ActiveEmotes {
             sound,
             moving: def.is_some_and(|def| def.moving),
             next_sound,
+            leader: None,
+            music,
         });
+    }
+
+    /// `slot` joins `leader`'s `emote` in step, standing at `origin`: it starts when
+    /// the leader's started here (the player the leader follows, when the leader
+    /// follows someone) and shares that music. False, changing nothing, when the
+    /// leader is not playing `emote`: the caller starts it as usual then.
+    pub(crate) fn sync(
+        &mut self,
+        slot: u8,
+        leader: u8,
+        emote: &str,
+        def: Option<&EmoteDef>,
+        origin: [f32; 3],
+    ) -> bool {
+        let Some(lead) = self.get(leader).filter(|lead| lead.emote == emote) else {
+            return false;
+        };
+        let (started, lead_until) = (lead.started, lead.until);
+        let leader = match lead.leader {
+            Some(root) if self.follows(leader, root) => root,
+            _ => leader,
+        };
+        if leader == slot || usize::from(slot) >= SLOTS {
+            return false;
+        }
+        let until = match def {
+            Some(def) if def.looping => None,
+            Some(def) => Some(started + def.length),
+            None => lead_until,
+        };
+        self.stop(slot);
+        self.slots[usize::from(slot)] = Some(ActiveEmote {
+            emote: emote.to_owned(),
+            started,
+            until,
+            origin,
+            sound: String::new(),
+            moving: def.is_some_and(|def| def.moving),
+            next_sound: None,
+            leader: Some(leader),
+            music: def.map(Music::of).unwrap_or_default(),
+        });
+        true
+    }
+
+    /// Whether `slot` plays the emote `leader` plays, from the same start.
+    fn follows(&self, slot: u8, leader: u8) -> bool {
+        match (self.get(slot), self.get(leader)) {
+            (Some(follower), Some(lead)) => {
+                follower.emote == lead.emote && follower.started == lead.started
+            }
+            _ => false,
+        }
+    }
+
+    /// The players emoting now, by slot.
+    pub(crate) fn playing(&self) -> impl Iterator<Item = (u8, &ActiveEmote)> {
+        self.slots
+            .iter()
+            .enumerate()
+            .filter_map(|(slot, entry)| Some((u8::try_from(slot).ok()?, entry.as_ref()?)))
     }
 
     /// End `slot`'s emote now, and its sound.
@@ -361,6 +495,7 @@ impl ActiveEmotes {
                 self.cues.push(Cue::Start {
                     slot,
                     sound: sound.clone(),
+                    offset: Duration::ZERO,
                 });
                 if length.is_zero() {
                     active.next_sound = None;
@@ -388,6 +523,36 @@ impl ActiveEmotes {
             }
             if over || gone {
                 *entry = None;
+            }
+        }
+        // A follower whose leader stopped, or started again, plays its own music
+        // from where it is.
+        for slot in 0..SLOTS as u8 {
+            let Some(leader) = self.get(slot).and_then(|active| active.leader) else {
+                continue;
+            };
+            if self.follows(slot, leader) {
+                continue;
+            }
+            let Some(active) = self.slots[usize::from(slot)].as_mut() else {
+                continue;
+            };
+            active.leader = None;
+            let elapsed = now.saturating_duration_since(active.started);
+            if let Some((sound, offset, next)) = active.music.at(elapsed) {
+                self.cues.push(Cue::Start {
+                    slot,
+                    sound: sound.to_owned(),
+                    offset,
+                });
+                active.sound = active.music.first.clone();
+                active.next_sound = next.map(|next| {
+                    (
+                        now + next,
+                        active.music.then.clone(),
+                        active.music.then_length,
+                    )
+                });
             }
         }
     }
@@ -466,8 +631,30 @@ pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
             };
             format!("{} - {}, {length}", def.id, def.name)
         })
-        .chain(std::iter::once(format!("{COMMAND} {STOP} ends yours.")))
+        .chain([
+            format!("{COMMAND} {STOP} ends yours."),
+            format!("{COMMAND} {SYNC} [player] joins another player's emote in step."),
+        ])
         .collect()
+}
+
+/// `name` without colour codes, lower case: what `sjkemote sync <player>` matches.
+pub(crate) fn plain_name(name: &str) -> String {
+    plain_name_shown(name).to_lowercase()
+}
+
+/// `name` without colour codes, for the console.
+pub(crate) fn plain_name_shown(name: &str) -> String {
+    let mut chars = name.chars().peekable();
+    let mut plain = String::new();
+    while let Some(c) = chars.next() {
+        if c == '^' && chars.peek().is_some_and(char::is_ascii_alphanumeric) {
+            chars.next();
+        } else {
+            plain.push(c);
+        }
+    }
+    plain
 }
 
 /// Whether to believe `emote`: the game shows `shown` in its slot, and the claim the
@@ -541,7 +728,8 @@ mod tests {
             [
                 "sit - Sit, loops",
                 "wave - Wave, 2.5 s",
-                "sjkemote stop ends yours."
+                "sjkemote stop ends yours.",
+                "sjkemote sync [player] joins another player's emote in step."
             ]
         );
     }
@@ -586,7 +774,8 @@ mod tests {
             active.take_cues(),
             vec![Cue::Start {
                 slot: 5,
-                sound: "sound/emotes/dance.wav".into()
+                sound: "sound/emotes/dance.wav".into(),
+                offset: Duration::ZERO
             }]
         );
         active.update(t0 + Duration::from_secs(1), |_| Some([500.0, 0.0, 0.0]));
@@ -603,12 +792,14 @@ mod tests {
             vec![
                 Cue::Start {
                     slot: 5,
-                    sound: "sound/emotes/dance.wav".into()
+                    sound: "sound/emotes/dance.wav".into(),
+                    offset: Duration::ZERO
                 },
                 Cue::Stop { slot: 5 },
                 Cue::Start {
                     slot: 5,
-                    sound: "sound/emotes/wave.mp3".into()
+                    sound: "sound/emotes/wave.mp3".into(),
+                    offset: Duration::ZERO
                 },
                 Cue::Stop { slot: 5 },
             ]
@@ -642,6 +833,7 @@ mod tests {
             claimed_name: "^2Sol".to_owned(),
             key_id: "0123456789abcdef".to_owned(),
             emote: "wave".to_owned(),
+            sync: None,
         };
         assert!(trusted(&emote, Some("Sol")));
         assert!(
@@ -690,5 +882,119 @@ mod tests {
         let _ = active.take_cues();
         active.update(start + Duration::from_millis(4000), here);
         assert!(started(&mut active).contains(&"c.wav".to_owned()));
+    }
+
+    fn heavy() -> EmoteDef {
+        parse(
+            "heavy",
+            r#"{"name": "Heavy", "length_ms": 9000, "sound": "a.wav", "sound_ms": 2000,
+                "sound_loop": "b.wav", "sound_loop_ms": 3000}"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_synced_emote_starts_with_its_leader_and_shares_the_music() {
+        let t0 = Instant::now();
+        let here = |_: u8| Some([0.0; 3]);
+        let mut active = ActiveEmotes::default();
+        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
+        let _ = active.take_cues();
+        assert!(
+            !active.sync(2, 1, "wave", Some(&wave()), [0.0; 3]),
+            "not that emote"
+        );
+        assert!(
+            !active.sync(2, 9, "heavy", Some(&heavy()), [0.0; 3]),
+            "nobody there"
+        );
+        // Joining 1.5 s late (the hub's delay) still lines up with the leader.
+        active.update(t0 + Duration::from_millis(1500), here);
+        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3]));
+        let follower = active.get(2).unwrap();
+        assert_eq!((follower.started, follower.leader), (t0, Some(1)));
+        assert_eq!(follower.until, Some(t0 + Duration::from_millis(9000)));
+        // One song: only the leader's music plays.
+        assert!(active.take_cues().is_empty());
+        active.update(t0 + Duration::from_millis(2000), here);
+        assert_eq!(
+            active.take_cues(),
+            [Cue::Start {
+                slot: 1,
+                sound: "b.wav".into(),
+                offset: Duration::ZERO
+            }]
+        );
+        // A third joining the follower follows the first leader.
+        assert!(active.sync(3, 2, "heavy", Some(&heavy()), [0.0; 3]));
+        assert_eq!(active.get(3).unwrap().leader, Some(1));
+    }
+
+    #[test]
+    fn a_follower_picks_the_music_up_where_it_is_when_the_leader_stops() {
+        let t0 = Instant::now();
+        let here = |_: u8| Some([0.0; 3]);
+        let mut active = ActiveEmotes::default();
+        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
+        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3]));
+        let _ = active.take_cues();
+        active.stop(1);
+        active.update(t0 + Duration::from_millis(4500), here);
+        // 4.5 s in: the 2 s intro, then 2.5 s into the 3 s loop.
+        assert_eq!(
+            active.take_cues(),
+            [
+                Cue::Stop { slot: 1 },
+                Cue::Start {
+                    slot: 2,
+                    sound: "b.wav".into(),
+                    offset: Duration::from_millis(2500)
+                }
+            ]
+        );
+        assert_eq!(active.get(2).unwrap().leader, None);
+        active.update(t0 + Duration::from_millis(5000), here);
+        assert_eq!(
+            active.take_cues(),
+            [Cue::Start {
+                slot: 2,
+                sound: "b.wav".into(),
+                offset: Duration::ZERO
+            }]
+        );
+        // Now its own, cutting it short stops its sound.
+        active.stop(2);
+        assert_eq!(active.take_cues(), [Cue::Stop { slot: 2 }]);
+    }
+
+    #[test]
+    fn music_knows_what_plays_when() {
+        let music = Music::of(&heavy());
+        let at = |ms| music.at(Duration::from_millis(ms));
+        assert_eq!(
+            at(500),
+            Some((
+                "a.wav",
+                Duration::from_millis(500),
+                Some(Duration::from_millis(1500))
+            ))
+        );
+        assert_eq!(
+            at(8000),
+            Some(("b.wav", Duration::ZERO, Some(Duration::from_millis(3000))))
+        );
+        let once = Music::of(&wave());
+        assert_eq!(
+            once.at(Duration::from_secs(9)).map(|(s, ..)| s),
+            Some("sound/emotes/wave.mp3")
+        );
+        let timed = Music::of(
+            &parse(
+                "t",
+                r#"{"name": "T", "length_ms": 3000, "sound": "t.wav", "sound_ms": 1000}"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(timed.at(Duration::from_secs(2)), None, "over");
     }
 }

@@ -565,6 +565,10 @@ pub struct Emote {
     pub key_id: String,
     /// The emote's id (`wave`); a client plays the ids it has.
     pub emote: String,
+    /// The slot whose emote the sender joined in step (`sjkemote sync`), if any;
+    /// absent from hubs before 15/10/2026.
+    #[serde(default)]
+    pub sync: Option<u8>,
 }
 
 /// One ping on a game server (`PROTOCOL.md`, "Pings"): a point a player marked in the

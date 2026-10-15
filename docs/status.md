@@ -1,3 +1,16 @@
+## Synced emotes
+
+15/10/2026, `personal/emote-sync` (Sol's request) with hub branch `emote-sync`:
+`sjkemote sync [player]` and the quick wheel's Sync emote join another player's emote in
+step. The hub relays the leader's slot with the emote (`sync` in `POST /v1/emote`), and
+every client starts the follower at the leader's start as it saw it, so they are in phase
+on each screen whatever the delays; the pair shares the leader's music, the follower's
+picking up part way through (the mixer's new `play_from`) when the leader stops first
+([hub-chat.md](hub-chat.md#emotes-in-the-client)). Against a hub without the change the
+client resends the emote without `sync`. Checked by unit tests (client, identity, hub)
+and the identity crate's HTTP test against a local hub of the branch. Not tried in the
+game; the hub is not deployed.
+
 ## Emote sounds survive a full mixer
 
 15/10/2026, `personal/emote-sound-cap` (Sol's report: emote sounds sometimes stopped
