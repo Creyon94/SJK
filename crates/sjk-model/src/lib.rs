@@ -858,6 +858,12 @@ pub struct Glm {
     pub lods: Vec<GlmLod>,
 }
 
+/// A GLM surface's bolt flag (`G2SURFACEFLAG_ISBOLT`): a tag that places attachments,
+/// never drawn.
+pub const GLM_SURFACE_BOLT: u32 = 0x1;
+/// A GLM surface's off flag (`G2SURFACEFLAG_OFF`): hidden until switched on.
+pub const GLM_SURFACE_OFF: u32 = 0x2;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GlmSurfaceHierarchy {
     pub name: String,
@@ -1227,7 +1233,7 @@ impl Glm {
             .ok_or_else(|| ModelError::invalid(lod, "GLM LOD is out of range"))?;
         let mut output = Vec::new();
         for (surface, hierarchy) in source_lod.surfaces.iter().zip(&self.hierarchy) {
-            if hierarchy.flags & 0x2 != 0 {
+            if hierarchy.flags & GLM_SURFACE_OFF != 0 {
                 continue;
             }
             let vertices = surface
@@ -1237,11 +1243,19 @@ impl Glm {
                 .collect();
             // A skin entry of `*off` hides the surface (species variants
             // switch heads, torsos and legs this way); no entry keeps the
-            // model's own shader.
-            let shader = match skin.shader(&hierarchy.name) {
-                Some(SKIN_SHADER_OFF) => None,
-                Some(shader) => Some(shader.to_owned()),
-                None => (!hierarchy.shader.is_empty()).then(|| hierarchy.shader.clone()),
+            // model's own shader. A bolt surface (a tag: `*r_hand`, `*hip_l`)
+            // is never drawn, whatever the skin says: Ghoul2 draws a surface
+            // only while all its flags are clear (`RenderSurfaces`, rd-vanilla
+            // tr_ghoul2.cpp), and a tag carries the bolt flag. Its shader is
+            // often `[nomaterial]`, which would draw as a missing image.
+            let shader = if hierarchy.flags & GLM_SURFACE_BOLT != 0 {
+                None
+            } else {
+                match skin.shader(&hierarchy.name) {
+                    Some(SKIN_SHADER_OFF) => None,
+                    Some(shader) => Some(shader.to_owned()),
+                    None => (!hierarchy.shader.is_empty()).then(|| hierarchy.shader.clone()),
+                }
             };
             output.push(SkinnedSurface {
                 name: hierarchy.name.clone(),
@@ -1928,5 +1942,81 @@ mod old_humanoid_tests {
             assert_eq!(glm.bone_count, bones);
             assert_eq!(glm.lods[0].surfaces[0].bone_references, [0, 7, 13]);
         }
+    }
+}
+
+#[cfg(test)]
+mod surface_flag_tests {
+    use super::*;
+
+    fn surface(name: &str, flags: u32, shader: &str) -> (GlmSurfaceHierarchy, GlmSurface) {
+        let vertex = GlmVertex {
+            normal: [0.0, 0.0, 1.0],
+            position: [0.0, 0.0, 0.0],
+            texture_coordinates: [0.0, 0.0],
+            weights: vec![GlmWeight {
+                bone_reference: 0,
+                weight: 1.0,
+            }],
+        };
+        (
+            GlmSurfaceHierarchy {
+                name: name.to_owned(),
+                flags,
+                shader: shader.to_owned(),
+                parent: None,
+                children: Vec::new(),
+            },
+            GlmSurface {
+                hierarchy_index: 0,
+                vertices: vec![vertex.clone(), vertex.clone(), vertex],
+                triangles: vec![[0, 1, 2]],
+                bone_references: vec![0],
+            },
+        )
+    }
+
+    #[test]
+    fn tag_surfaces_are_never_drawn() {
+        let parts = [
+            surface("torso", 0, "models/players/a/torso"),
+            surface("*lchest_l", GLM_SURFACE_BOLT, "[nomaterial]"),
+            surface("torso_cap_hips_off", GLM_SURFACE_OFF, "caps"),
+            surface("*r_hand", GLM_SURFACE_BOLT, "[nomaterial]"),
+        ];
+        let mesh = Glm {
+            name: "a".into(),
+            animation_name: "_humanoid".into(),
+            bone_count: 1,
+            hierarchy: parts.iter().map(|(h, _)| h.clone()).collect(),
+            lods: vec![GlmLod {
+                surfaces: parts.iter().map(|(_, s)| s.clone()).collect(),
+            }],
+        };
+        // A skin naming a tag does not draw it either.
+        let skin = Skin::parse(
+            b"*r_hand,models/players/a/glow
+",
+        );
+        let identity = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ];
+        let surfaces = mesh.skin_pose_matrices(&skin, 0, &[identity]).unwrap();
+        // The off surface is left out; the tags stay in the list (bolts and surface
+        // indices count them) without a shader.
+        let shaders: Vec<_> = surfaces
+            .iter()
+            .map(|s| (s.name.as_str(), s.shader.as_deref()))
+            .collect();
+        assert_eq!(
+            shaders,
+            [
+                ("torso", Some("models/players/a/torso")),
+                ("*lchest_l", None),
+                ("*r_hand", None),
+            ]
+        );
     }
 }

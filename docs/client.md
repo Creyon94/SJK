@@ -788,6 +788,12 @@ animates is not swapped for Kyle:
   shaders. A name is a three-part skin only when it has `|` and says `head`,
   `torso` and `lower`; the console notes each fallback
   ([player_skin.rs](../crates/sjk-viewer/src/player_skin.rs)).
+- A surface is drawn only while all its GLM flags are clear (`RenderSurfaces`,
+  rd-vanilla `tr_ghoul2.cpp`): a tag (`*r_hand`, `*hip_l`, `*head_front`: the bolt
+  flag) is never drawn, whatever the skin names for it. Community models often give
+  their tags the shader `[nomaterial]`, which drew as small magenta arrows on the
+  chest, the belt and the face until 15/10/2026 (Nib's report)
+  ([lib.rs](../crates/sjk-model/src/lib.rs) `skin_with_matrices`).
 - One leading slash on the mesh's skeleton name is dropped, as the filesystem
   drops it (`FS_FOpenFileRead`); vertex weights adding up past one are used as
   written (`G2_GetVertBoneWeight`); a mesh whose header bone count differs from

@@ -1,3 +1,15 @@
+## Model tags no longer drawn (purple arrows)
+
+15/10/2026, `fix/hide-model-tag-surfaces` (Creyon, after Nib's report): community player
+models showed small magenta arrows on the chest, belt and face (the Nautolan's "face
+mask"). They were the GLM's tag surfaces (`*lchest_l`, `*hip_l`, `*head_front`...), flagged
+as bolts and shaded `[nomaterial]`, which the client drew as a missing image; rd-vanilla
+draws a surface only while all its flags are clear. Tags now have no shader in the skinned
+surfaces, so no draw path shows them; they stay in the list, as bolts and surface
+indices count them. Checked by a unit test, by reading the surface tables of the two
+reported models (Nib, `jedi_nautolan`: their tags are `[nomaterial]` and sit where the
+arrows were) and the workspace checks; not yet seen in the game.
+
 ## Nameplate bars only for players who share
 
 15/10/2026, `nameplate-share` (hub `nameplate-share`), Sol's rule: other players' health,
