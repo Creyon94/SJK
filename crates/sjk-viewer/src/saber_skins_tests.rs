@@ -251,13 +251,26 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
         (one.wisp_shape, "wisp_shape"),
         (one.wisp_field, "wisp_field"),
         (one.haze, "haze"),
+        (one.band_color, "band_color"),
+        (one.band_shape, "band_shape"),
+        (one.band_mix, "band_mix"),
+        (one.segment_a, "segment_a"),
+        (one.segment_b, "segment_b"),
+        (one.film, "film"),
+        (one.film_b, "film_b"),
+        (one.blob_color, "blob_color"),
+        (one.blob_shape, "blob_shape"),
+        (one.blob_more, "blob_more"),
+        (one.front_color, "front_color"),
+        (one.front_shape, "front_shape"),
+        (one.front_edge, "front_edge"),
     ] {
         assert_eq!(lane, [0.0; 4], "{name}");
     }
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 62 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 75 * 16);
     // The array stays inside the storage binding WebGPU guarantees (128 MiB).
     assert!(bytes.len() <= 128 * 1024 * 1024);
 }

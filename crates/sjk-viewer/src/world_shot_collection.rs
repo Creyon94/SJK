@@ -425,3 +425,63 @@ fn duel6_sjk_hover_cards() {
         println!("{}", sheet(&images, 2, 960, "duel6-hover-sheet").display());
     });
 }
+
+/// The Blade Lab's swatches (15/10/2026) on the Shaders list, every shader owned: the
+/// list scrolled to the Reactor, the Soap Bubble and the Neon in turn (each with its
+/// neighbours from the Blade Lab), at two moments.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_lab_swatches() {
+    on_big_stack(|| {
+        super::saber_skins::mount_test_packs();
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            (crate::unlockables::SABER_SKIN_CVAR, "saber_reactor"),
+            ("name", "^1Sol^7Vulpes"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        gpu.looks.shot_owns_unlocks = true;
+        let _ = frame(&mut gpu, 10);
+        let owned: Vec<sjk_identity::Unlock> = crate::unlockables::ALL
+            .iter()
+            .map(|skin| sjk_identity::Unlock {
+                id: skin.id.to_owned(),
+                ..sun()
+            })
+            .collect();
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.preview_collection(Some(owned.clone()), 0.0);
+            console.open_profile_hub_page(Tab::Shaders, ReturnTarget::MainMenu);
+        }
+        gpu.profile_hub_show_for_shot(Tab::Shaders);
+        let row = |id: &str| {
+            1 + crate::unlockables::blade_skins_by_tier()
+                .iter()
+                .position(|skin| skin.id == id)
+                .expect("in the catalogue")
+        };
+        for id in ["saber_reactor", "saber_bubble", "saber_neon"] {
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_shader_for_shot(row(id));
+            }
+            let _ = frame(&mut gpu, 60);
+            for seconds in [1.0_f32, 3.3] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_collection(Some(owned.clone()), seconds);
+                }
+                let name = format!("duel6-lab-swatches-{}-{seconds}", &id[6..]);
+                println!("{}", shoot(&mut gpu, 2, &name).display());
+                assert!(!overflowed(&gpu), "{id} at {seconds}");
+            }
+        }
+    });
+}

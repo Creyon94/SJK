@@ -1086,12 +1086,19 @@ mod tests {
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 21, "the saber smith is searched");
+        assert_eq!(ids(&panel).len(), 27, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(
             ids(&panel),
-            ["saber_sun", "saber_void", "saber_molten", "saber_spectral"]
+            [
+                "saber_sun",
+                "saber_void",
+                "saber_molten",
+                "saber_spectral",
+                "saber_reactor",
+                "saber_bleeding"
+            ]
         );
         panel.shader_filter.query = "nothing".to_owned();
         redraw(&mut panel, &inputs);
@@ -1335,14 +1342,14 @@ mod tests {
         );
         // A locked one is only previewed.
         assert_eq!(
-            click(&mut panel, row("saber_storm"), later(3_000)),
+            click(&mut panel, row("saber_void"), later(3_000)),
             PanelAction::None
         );
         assert_eq!(
-            click(&mut panel, row("saber_storm"), later(3_200)),
+            click(&mut panel, row("saber_void"), later(3_200)),
             PanelAction::None
         );
-        assert_eq!(panel.shader, usize::from(row("saber_storm") - SHADER_BASE));
+        assert_eq!(panel.shader, usize::from(row("saber_void") - SHADER_BASE));
         // The worn one stays worn.
         let mut panel = drawn(Tab::Shaders, &inputs(Holdings::Known(&owned), "saber_sun"));
         assert_eq!(
@@ -1431,7 +1438,9 @@ mod tests {
         assert!(at("Sun blade") < at("Void blade"));
         let mythical = format!("{} Mythical", unlockables::Rarity::Mythical.symbol());
         let legendary = format!("{} Legendary", unlockables::Rarity::Legendary.symbol());
-        assert!(at(&mythical) < at(&legendary), "{names:?}");
+        // Below the Mythical ones, if the rack reaches that far.
+        let legendary = names.iter().position(|run| *run == legendary);
+        assert!(legendary.is_none_or(|l| at(&mythical) < l), "{names:?}");
     }
 
     /// The panel on Shaders in the grid after one frame.

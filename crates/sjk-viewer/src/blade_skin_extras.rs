@@ -174,10 +174,15 @@ pub(crate) enum Section {
     Haze,
     Echo,
     Holes,
+    Bands,
+    Segments,
+    Film,
+    Blobs,
+    Front,
 }
 
 impl Section {
-    pub(crate) const ALL: [Self; 18] = [
+    pub(crate) const ALL: [Self; 23] = [
         Self::Arcs,
         Self::Motes,
         Self::Hue,
@@ -196,6 +201,11 @@ impl Section {
         Self::Haze,
         Self::Echo,
         Self::Holes,
+        Self::Bands,
+        Self::Segments,
+        Self::Film,
+        Self::Blobs,
+        Self::Front,
     ];
 
     /// Its field's name in the file.
@@ -219,6 +229,11 @@ impl Section {
             Self::Haze => "haze",
             Self::Echo => "echo",
             Self::Holes => "holes",
+            Self::Bands => "bands",
+            Self::Segments => "segments",
+            Self::Film => "film",
+            Self::Blobs => "blobs",
+            Self::Front => "front",
         }
     }
 
@@ -272,6 +287,11 @@ impl BladeSkinDef {
             Section::Haze => self.haze.is_some(),
             Section::Echo => self.echo.is_some(),
             Section::Holes => self.holes.is_some(),
+            Section::Bands => self.bands.is_some(),
+            Section::Segments => self.segments.is_some(),
+            Section::Film => self.film.is_some(),
+            Section::Blobs => self.blobs.is_some(),
+            Section::Front => self.front.is_some(),
         }
     }
 

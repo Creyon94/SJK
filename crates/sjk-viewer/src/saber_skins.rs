@@ -246,8 +246,8 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 62 `vec4`s (992 bytes, so
-/// the [`MAX_SKINS`] array is 253952 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 75 `vec4`s (1200 bytes, so
+/// the [`MAX_SKINS`] array is 307200 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -315,6 +315,19 @@ pub(crate) struct SkinUniform {
     wisp_shape: [f32; 4],
     wisp_field: [f32; 4],
     haze: [f32; 4],
+    band_color: [f32; 4],
+    band_shape: [f32; 4],
+    band_mix: [f32; 4],
+    segment_a: [f32; 4],
+    segment_b: [f32; 4],
+    film: [f32; 4],
+    film_b: [f32; 4],
+    blob_color: [f32; 4],
+    blob_shape: [f32; 4],
+    blob_more: [f32; 4],
+    front_color: [f32; 4],
+    front_shape: [f32; 4],
+    front_edge: [f32; 4],
 }
 
 impl SkinUniform {
@@ -381,6 +394,36 @@ impl SkinUniform {
         .with_hue(def.hue.as_ref())
         .with_effects(def.effects())
         .with_extras(def)
+        .with_lab(def.lab())
+    }
+
+    /// The fifth set's lanes ([`crate::blade_skin_file::lab`]).
+    fn with_lab(mut self, lab: crate::blade_skin_file::lab::Lab<'_>) -> Self {
+        let rgb = |c: [f32; 3], w: f32| [c[0], c[1], c[2], w];
+        if let Some(b) = lab.bands {
+            self.band_color = rgb(b.color, b.brightness);
+            self.band_shape = [b.spacing, b.width, b.twist, b.speed];
+            self.band_mix = [b.mix, b.pinch, 0.0, 0.0];
+        }
+        if let Some(s) = lab.segments {
+            self.segment_a = [s.count as f32, s.rate, s.threshold, s.depth];
+            self.segment_b = [s.gap, s.hum, 0.0, 0.0];
+        }
+        if let Some(f) = lab.film {
+            self.film = [f.amount, f.scale, f.speed, f.saturation];
+            self.film_b = [f.clear, 0.0, 0.0, 0.0];
+        }
+        if let Some(b) = lab.blobs {
+            self.blob_color = rgb(b.color, b.brightness);
+            self.blob_shape = [b.count as f32, b.size, b.speed, b.wobble];
+            self.blob_more = [b.pools, 0.0, 0.0, 0.0];
+        }
+        if let Some(f) = lab.front {
+            self.front_color = rgb(f.color, f.amount);
+            self.front_shape = [f.period, f.duty, f.hold, f.reach];
+            self.front_edge = [f.soft, f.jag, f.veins, 0.0];
+        }
+        self
     }
 
     /// The third set's lanes ([`crate::blade_skin_file::extras`]), and the room the glow's

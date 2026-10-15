@@ -1,3 +1,20 @@
+## The Blade Lab's first six shaders
+
+15/10/2026, `blade-lab` (hub `blade-lab`): six shaders after Creyon's Blade Lab page,
+each a tier above his ranking (Sol: his were too low): Neon and Peppermint (Uncommon),
+Soap Bubble and Lava Lamp (Rare), Reactor and Bleeding Kyber (Mythical), all droppable,
+so Mythical holocrons can now bring a Mythical shader. They are drawn with a fifth set of
+blade-skin sections (bands, segments, film, blobs, front: `blade_skin_lab.rs`,
+`saber.wgsl`) read from a third additions file (`.bladeextra3`) that older clients never
+open, and the Collection's swatches draw them too. Sounds are synthesized
+(`blade_skin_sounds_third.py`). Checked by unit tests (the files, the lanes, the ranges,
+the front's cycle) and the world shots `duel6_lab_blades` and `duel6_lab_swatches` (the
+Collection's swatches and the held blade) with the hub's pack built
+locally; tuned there (the wax blobs' falloff squared so they stay apart, the Reactor's
+rings deep blue so they read on its white core). Not heard yet; not tried in the game.
+The other ten Blade Lab ideas need new kinds of drawing (a solid or outlined blade,
+strands, creatures, copies of the blade), not built.
+
 ## Saber smiths
 
 14/10/2026, `saber-smith`: every shader names who gave its idea, "Saber smith: Creyon"

@@ -247,7 +247,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
   Lilac, Mint, Coral, Ivory, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight); each of
-  them reads "Saber smith: Creyon" in game.
+  them reads "Saber smith: Creyon" in game;
+- the Blade Lab page, sixteen more blade ideas with their sounds, whose first six became
+  the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK

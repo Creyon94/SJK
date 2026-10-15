@@ -653,3 +653,57 @@ fn duel6_plain_blades() {
         }
     });
 }
+
+/// The Blade Lab's shaders (15/10/2026) side by side, close up, at eight moments: Neon,
+/// Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber, left to right.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_lab_blades() {
+    on_big_stack(|| {
+        mount_test_packs();
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1600, 900], None, &[]) else {
+            return;
+        };
+        let (spawn, yaw) = assets::initial_camera(&gpu.bsp).expect("a spawn point");
+        let turn = glam::Quat::from_rotation_z(yaw);
+        let eye = Vec3::from_array(spawn);
+        let ahead = |x: f32, y: f32, z: f32| eye + turn * Vec3::new(x, y, z);
+        let ids = [
+            "saber_neon",
+            "saber_peppermint",
+            "saber_bubble",
+            "saber_lavalamp",
+            "saber_reactor",
+            "saber_bleeding",
+        ];
+        let middle = (ids.len() as f32 - 1.0) * 0.5;
+        gpu.saber_skins.shot_blades = ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| {
+                let offset = (index as f32 - middle) * 7.0;
+                (
+                    Blade {
+                        base: ahead(48.0, -offset, -20.0).to_array(),
+                        direction: (turn * Vec3::new(0.0, 0.0, 1.0)).normalize().to_array(),
+                        length: 40.0,
+                        radius: 3.0,
+                    },
+                    ShotColor::Skin(id),
+                    index as u32 + 1,
+                )
+            })
+            .collect();
+        let (look_yaw, look_pitch) = look(eye.to_array(), ahead(48.0, 0.0, -1.0).to_array());
+        aim(&mut gpu, eye.to_array(), look_yaw, look_pitch);
+        let mut lineup = Vec::new();
+        for (index, seconds) in [1.0, 2.6, 4.4, 6.3, 8.1, 9.9, 11.7, 13.5]
+            .into_iter()
+            .enumerate()
+        {
+            gpu.saber_skins.shot_seconds = Some(seconds);
+            lineup.push(frame(&mut gpu, if index == 0 { 40 } else { 4 }));
+        }
+        println!("{}", sheet(&lineup, 4, 1600, "duel6-lab-blades").display());
+    });
+}

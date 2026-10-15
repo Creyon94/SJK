@@ -93,6 +93,12 @@ meaning.
 | `saber_amethyst` | Amethyst blade | blade skin | Given by the SJK team. |
 | `saber_jade` | Jade blade | blade skin | Given by the SJK team. |
 | `saber_moonlight` | Moonlight blade | blade skin | Given by the SJK team. |
+| `saber_neon` | Neon blade | blade skin | Given by the SJK team. |
+| `saber_peppermint` | Peppermint blade | blade skin | Given by the SJK team. |
+| `saber_bubble` | Soap Bubble blade | blade skin | Given by the SJK team. |
+| `saber_lavalamp` | Lava Lamp blade | blade skin | Given by the SJK team. |
+| `saber_reactor` | Reactor blade | blade skin | Given by the SJK team. |
+| `saber_bleeding` | Bleeding Kyber blade | blade skin | Given by the SJK team. |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -183,6 +189,22 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   glints), **Dusk** (orange into violet, turning), **Ruby** (red, sparks), **Amethyst**
   (purple, twinkling flecks), **Jade** (sea green, slow hue, specks), **Moonlight**
   (silver blue, drifting motes).
+- **The Blade Lab's first six** (15/10/2026, after Creyon's "Blade Lab" page; the hub's
+  `scripts/lab_skins.py` writes their files, their sounds `blade_skin_sounds_third.py`),
+  drawn with the fifth set of sections ([Blade-skin files](#blade-skin-files)). Creyon
+  ranked them a tier lower each; Sol found that too low, so each is one tier up from his.
+  Uncommon **Neon** (a chroma: a glass tube in six sections, one stuttering out now and
+  then, gas lines running up it; a mains hum) and **Peppermint** (red and white stripes
+  winding up a candy blade, sugar glints; a rounded tone and bells); Rare **Soap Bubble**
+  (a nearly clear blade in a soap film's sliding colours, bubbles drifting off; an airy
+  hum and pops) and **Lava Lamp** (a violet column where wax rises in blobs that merge and
+  split, pools at the hilt and tip; a warm drone and bubbling); Mythical **Reactor**
+  (blue plasma squeezed by containment rings marching up it, overheating orange now and
+  then, sparks; a deep throb) and **Bleeding Kyber** (a white blade where a red
+  corruption climbs from the hilt through cracks and is pushed back, red drops falling;
+  a choir over a dark undertone). Parts their wearer may switch off: Neon's stutter and
+  gas lines, Peppermint's sugar, the Bubble's bubbles, the Reactor's rings, overheat,
+  sparks and throb, the Kyber's corruption and drops.
 
 ## Hub protocol (additions to version 1)
 
@@ -419,11 +441,11 @@ holocron look alike:
 
 | Tier | Shaders |
 | --- | --- |
-| Mythical | Sun, Void, Molten, Spectral |
+| Mythical | Sun, Void, Molten, Spectral, Reactor, Bleeding Kyber |
 | Legendary | Storm, Unstable, Chameleon, Prism (provisional) |
-| Rare | Frost, Hologram, Runic, Heartbeat, Glitch (provisional), Banner (provisional) |
+| Rare | Frost, Hologram, Runic, Heartbeat, Glitch (provisional), Banner (provisional), Soap Bubble, Lava Lamp |
 | Common | Tidal, Circuit, Aurora, Echo, Slate, Amber, Lilac, Mint, Coral, Ivory |
-| Uncommon | Nebula, Cinder, Venom, Sakura, Firefly, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight |
+| Uncommon | Nebula, Cinder, Venom, Sakura, Firefly, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight, Neon, Peppermint |
 
 Sol placed eleven; Prism, Glitch and Banner are placed provisionally until Sol says
 otherwise. The tier is the client catalogue's only: the hub does not need it yet (it
@@ -565,6 +587,17 @@ clients draw: the Sun's gives shorter rays and renames the part). A client of th
 set never opens it and draws the first additions file's glint at the tip. The same
 rules hold. A later set goes in a file of the next number.
 
+The fifth set (15/10/2026, for the Blade Lab's shaders,
+[blade_skin_lab.rs](../crates/sjk-viewer/src/blade_skin_lab.rs)): `bands`, `segments`,
+`film`, `blobs` and `front`, in the **third additions file**,
+`skins/blades/<id>.bladeextra3`, laid over the skin file after the other two (and with
+`options` naming its sections, which an older client could not check). A client of the
+fourth set never opens it and draws the skin file alone, so the hub's files for those
+skins put a fair plain blade in the skin file (the Bleeding Kyber's veins and drops, the
+Reactor's sparks and throb, the Neon's glass edges as a hologram's side lines). The same
+rules hold. Each section is drawn in the glow and the core alike: the bands' colour and
+the front's recolour both, the segments dim both.
+
 | Field | Meaning | Range |
 | --- | --- | --- |
 | `version` | Format version | 1 |
@@ -632,8 +665,19 @@ rules hold. A later set goes in a file of the next number.
 | `wisps.rise`, `speed` | How high it rises before it is gone (units; the glow's quad reaches that much further) and how fast (units a second) | 1-16, 0-60 |
 | `wisps.scale`, `curl`, `density` | Noise cells a unit, how much the smoke curls (the noise warped) and how much of it there is | 0.02-2, 0-2, 0-1 |
 | `haze.strength`, `scale`, `speed`, `reach` | Heat haze bending the scene behind the blade: the most it bends (units), noise cells a unit, how fast it rises (units a second), how far past the glow it reaches (units) | 0-2, 0.05-4, 0-60, 0.5-16 |
+| `bands.color`, `brightness` | Bands round the blade: their colour, and their brightness as a share of the blade's (below 1 darkens) | 0-4, 0-10 |
+| `bands.spacing`, `width`, `twist`, `speed` | Units from one band to the next, the share of that a band covers, how far a band slants across (bands a capsule radius out: a barber's pole) and how fast they run toward the tip (units a second) | 0.2-40, 0.02-0.98, -4-4, -100-100 |
+| `bands.mix`, `pinch` | How much a band takes its colour over the blade's, and how much it narrows the glow (rings squeezing it) | 0-1, 0-0.8 |
+| `segments.count`, `gap` | A tube in sections, and the dark gap between two (units) | 2-12, 0-4 |
+| `segments.rate`, `threshold`, `depth`, `hum` | Draws a second; a section whose draw is at least `threshold` drops to `1 − depth` of its light for that draw; a faint unsteadiness all along | 0-60, 0-1, 0-1, 0-1 |
+| `film.amount`, `scale`, `speed`, `saturation`, `clear` | A soap film: how much the glow takes its colours, noise cells a unit, how fast they slide, how saturated, and how much the inside clears while the rim brightens | 0-1, 0.02-4, 0-10, 0-1, 0-1 |
+| `blobs.color`, `brightness` | Wax blobs in the column: their colour and brightness | 0-4, 0-10 |
+| `blobs.count`, `size`, `speed`, `wobble`, `pools` | How many rise (each at its own pace), their size (capsule radii), units a second, how far they sway, and the pools at the hilt and tip they leave and join (radii, 0: none); they merge where they touch | 1-8, 0.1-1.5, 0-40, 0-1, 0-2 |
+| `front.color`, `amount` | A colour climbing the blade from the hilt and falling back; how much the blade under it takes it | 0-4, 0-1 |
+| `front.period`, `duty`, `hold`, `reach` | Seconds a cycle, the share of it the front is out, the share of that it holds at its height, and that height (a share of the blade) | 0.5-60, 0.05-1, 0-0.9, 0.05-1 |
+| `front.soft`, `jag`, `veins` | Its edge's width (units) and how much it wanders, and how much the skin's veins are kept to the part it covers (cracks it spreads through) | 0.1-20, 0-1, 0-1 |
 | `echo.fade`, `sway`, `rate`, `lean` | One faint copy of the glow beside the blade, there even held still: its brightness, how far it sways (units, the tip more than the hilt), sways a second, how far it leans (radians) | 0-1, 0-6, 0.02-4, 0-0.3 |
-| `options` | Up to 6 parts the wearer may switch off ([Options](#options)), each `{"id", "name", "sections"}`: `id` 1 to 24 of `a`-`z`, `0`-`9`, `_`; `name` 1 to 24 printable ASCII characters (the Collection shows it); `sections` 1 to 4 of the file's optional sections (`arcs`, `motes`, `hue`, `sputter`, `glitch`, `scan`, `pulse`, `ghosts`, `embers`, `veins`, `team`, `ambient`, `glyphs`, `star`, `wisps`, `haze`, `echo`), each in the file and in one option only. Two ids of a skin may not share a bit of the look's 64 (FNV-1a of the id; the log names the pair to rename) | |
+| `options` | Up to 6 parts the wearer may switch off ([Options](#options)), each `{"id", "name", "sections"}`: `id` 1 to 24 of `a`-`z`, `0`-`9`, `_`; `name` 1 to 24 printable ASCII characters (the Collection shows it); `sections` 1 to 4 of the file's optional sections (`arcs`, `motes`, `hue`, `sputter`, `glitch`, `scan`, `pulse`, `ghosts`, `embers`, `veins`, `team`, `ambient`, `glyphs`, `star`, `wisps`, `haze`, `echo`, `holes`, `bands`, `segments`, `film`, `blobs`, `front`), each in the file and in one option only. Two ids of a skin may not share a bit of the look's 64 (FNV-1a of the id; the log names the pair to rename) | |
 | `trail` | Blur trail colour | 0-1 |
 | `light.color` | Dynamic light colour (stock gain) | 0-4 |
 | `light.flicker` | `amount` and up to 2 `waves` (`rate`, `weight`, `phase` per hilt): brightness `1 − amount + amount × Σ weight × sin(t × rate + phase × hilt phase)` | amount 0-1 |
@@ -869,7 +913,8 @@ holds the table (`id`, full name, short tag); a new edition is one line there.
 14/10/2026 (Sol's request): every shader names its **saber smith**, the person who gave
 its idea, even when it was made together (`Unlockable::smith`, the names `SOL` and
 `CREYON` in [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)). Creyon's "Saber
-ideas" page gave the 21 plain ones (Tidal to Firefly, Slate to Moonlight); Sol gave the
+ideas" page gave the 21 plain ones (Tidal to Firefly, Slate to Moonlight) and his
+"Blade Lab" page the six after them (Neon to Bleeding Kyber, 15/10/2026); Sol gave the
 fourteen before them. It reads "Saber smith: Creyon" at the right of the shader's big
 card, beside its description, and on its hover card; the Shaders search matches it. A
 new shader names its smith in its catalogue entry (a test lists Creyon's).

@@ -14,7 +14,8 @@
 //! sections added after those ([`effects`]: sputter, glitch, scan, pulse, ghosts, embers,
 //! veins, team, ambient, glyphs) follow the same rule, and so does the third set
 //! ([`extras`]: a tip glint, wisps, heat haze, an echo, and the options a wearer may
-//! switch off), read from an additions file older clients never open.
+//! switch off), read from an additions file older clients never open, and the fifth
+//! ([`lab`]: bands, segments, a film, blobs and a front), from a third one.
 
 use crate::saber_rgb::{CoreProfile, GlowProfile};
 use serde::Deserialize;
@@ -23,6 +24,8 @@ use serde::Deserialize;
 pub(crate) mod effects;
 #[path = "blade_skin_extras.rs"]
 pub(crate) mod extras;
+#[path = "blade_skin_lab.rs"]
+pub(crate) mod lab;
 
 /// Where blade-skin files are.
 pub(crate) const FOLDER: &str = "skins/blades";
@@ -117,6 +120,17 @@ pub(crate) struct BladeSkinDef {
     pub(crate) haze: Option<extras::Haze>,
     #[serde(default)]
     pub(crate) echo: Option<extras::Echo>,
+    /// The fifth set ([`lab`]), from the third additions file; each none when absent.
+    #[serde(default)]
+    pub(crate) bands: Option<lab::Bands>,
+    #[serde(default)]
+    pub(crate) segments: Option<lab::Segments>,
+    #[serde(default)]
+    pub(crate) film: Option<lab::Film>,
+    #[serde(default)]
+    pub(crate) blobs: Option<lab::Blobs>,
+    #[serde(default)]
+    pub(crate) front: Option<lab::Front>,
     /// The parts its wearer may switch off; none when absent.
     #[serde(default)]
     pub(crate) options: Vec<extras::SkinOption>,
@@ -596,6 +610,7 @@ impl BladeSkinDef {
         }
         self.effects().check()?;
         self.check_extras()?;
+        self.lab().check()?;
         colour("trail", self.trail, 1.0)?;
         colour("light.color", self.light.color, 4.0)?;
         within("light.flicker.amount", self.light.flicker.amount, 0.0, 1.0)?;
@@ -636,6 +651,19 @@ impl BladeSkinDef {
             team: self.team.as_ref(),
             ambient: self.ambient.as_ref(),
             glyphs: self.glyphs.as_ref(),
+        }
+    }
+}
+
+impl BladeSkinDef {
+    /// The fifth set's sections, borrowed.
+    pub(crate) fn lab(&self) -> lab::Lab<'_> {
+        lab::Lab {
+            bands: self.bands.as_ref(),
+            segments: self.segments.as_ref(),
+            film: self.film.as_ref(),
+            blobs: self.blobs.as_ref(),
+            front: self.front.as_ref(),
         }
     }
 }
@@ -697,9 +725,10 @@ impl Motes {
 }
 
 /// Every `skins/blades/<id>.bladeskin` in `vfs` that reads, by id, with its additions
-/// file (`<id>.bladeextra`, [`extras::ADDITIONS`]) and then its later one
-/// (`<id>.bladeextra2`, [`extras::LATER_ADDITIONS`]) laid over it when there are some; the
-/// ones that do not read are reported to the log by name.
+/// file (`<id>.bladeextra`, [`extras::ADDITIONS`]), its later one (`<id>.bladeextra2`,
+/// [`extras::LATER_ADDITIONS`]) and its third (`<id>.bladeextra3`, [`lab::LAB_ADDITIONS`])
+/// laid over it in turn when there are some; the ones that do not read are reported to
+/// the log by name.
 pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDef)> {
     let mut skins = Vec::new();
     let text_of = |path: &str| {
@@ -722,6 +751,7 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDe
         let read = text_of(&path)
             .and_then(|text| lay_over(text, extras::ADDITIONS))
             .and_then(|text| lay_over(text, extras::LATER_ADDITIONS))
+            .and_then(|text| lay_over(text, lab::LAB_ADDITIONS))
             .and_then(|text| parse(id, &text));
         match read {
             Ok(def) => skins.push((id.to_owned(), def)),

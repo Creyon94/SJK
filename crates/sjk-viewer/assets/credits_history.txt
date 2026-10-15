@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Blade Lab shaders: Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor, Bleeding Kyber
+- 17143e8 |  | Blade Lab shaders: Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor, Bleeding Kyber
 + 15/10/2026 | - | Settings icons: back to the grey metal discs
 - a9f44a1 |  | Settings icons: back to the grey metal discs
 + 15/10/2026 | - | Rig add-on: Tail gravity setting
