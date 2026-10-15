@@ -197,6 +197,7 @@ mod tests {
                 look: None,
             }],
             profiles: HashMap::new(),
+            model_checks: HashMap::new(),
             profiles_revision: 0,
             notice: None,
             revision: 0,

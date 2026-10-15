@@ -48,6 +48,10 @@ const ACHIEVEMENTS_EVERY: Duration = Duration::from_secs(60);
 /// How long counts the hub held back (over an hourly allowance) wait before they are
 /// sent again unchanged, and how long a refusal waits.
 const ACHIEVEMENTS_AGAIN: Duration = Duration::from_secs(3_600);
+/// How long a refused model list waits before it is sent again unchanged.
+const MODELS_AGAIN: Duration = Duration::from_secs(3_600);
+/// Model answers kept at most; past it the oldest are forgotten.
+const MODEL_CHECKS_MAX: usize = 256;
 /// First wait after a failure, doubled up to [`RETRY_MAX`].
 const RETRY_MIN: Duration = Duration::from_secs(10);
 const RETRY_MAX: Duration = Duration::from_secs(120);
@@ -108,6 +112,17 @@ pub enum Status {
     Failed(String),
 }
 
+/// Whether the player of a slot has a model (`PROTOCOL.md`, "Models").
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelCheck {
+    /// The name the slot's claim was made under, empty when nobody the hub knows
+    /// holds it.
+    pub claimed_name: String,
+    /// Whether they have the model; `None` when they sent no list, or the hub did
+    /// not answer.
+    pub has: Option<bool>,
+}
+
 /// What the viewer may read.
 #[derive(Clone, Debug)]
 pub struct Snapshot {
@@ -129,8 +144,11 @@ pub struct Snapshot {
     pub players: Vec<Presence>,
     /// Profiles fetched with [`Service::look_up`].
     pub profiles: HashMap<String, Profile>,
-    /// Counts profiles fetched into [`Snapshot::profiles`], so a reader that derived
-    /// something from one (the player card) knows when to read again.
+    /// What the hub answered to [`Service::check_model`], by server, slot and model.
+    pub model_checks: HashMap<(SocketAddr, u8, String), ModelCheck>,
+    /// Counts profiles fetched into [`Snapshot::profiles`] and answers stored in
+    /// [`Snapshot::model_checks`], so a reader that derived something from one (the
+    /// player card) knows when to read again.
     pub profiles_revision: u64,
     /// The outcome of the last profile change or lookup, for the page to show.
     pub notice: Option<String>,
@@ -267,6 +285,7 @@ impl Snapshot {
             server: None,
             players: Vec::new(),
             profiles: HashMap::new(),
+            model_checks: HashMap::new(),
             profiles_revision: 0,
             notice: None,
             revision: 0,
@@ -332,6 +351,10 @@ enum Command {
     /// The player's answer to log request `id`: the logs to send, or none to decline.
     AnswerLogs(i64, Option<LogUpload>),
     LookUp(String),
+    /// The player models the game has.
+    Models(Vec<String>),
+    /// Ask whether the player of a slot has a model.
+    CheckModel(SocketAddr, u8, String),
     Report(BugReport),
     PlayerReport(PlayerReport),
     /// A world note and the tag its picture will come with.
@@ -414,6 +437,13 @@ struct Worker {
     counts: BTreeMap<String, u64>,
     counts_sent: Option<BTreeMap<String, u64>>,
     due_counts: Instant,
+    /// The player models the game has, the last list the hub took, and when the list
+    /// may be sent next.
+    models: Option<Vec<String>>,
+    models_sent: Option<Vec<String>>,
+    due_models: Instant,
+    /// Model questions waiting for the hub.
+    model_checks: Vec<(SocketAddr, u8, String)>,
     /// What staff requests brought back.
     staff: Arc<Mutex<StaffState>>,
     /// Whether the SJK chat is on (`cl_sjkChat`).
@@ -597,6 +627,10 @@ impl Worker {
             counts: BTreeMap::new(),
             counts_sent: None,
             due_counts: now,
+            models: None,
+            models_sent: None,
+            due_models: now,
+            model_checks: Vec::new(),
             staff,
             chat_on: false,
             feed: Arc::default(),
@@ -856,6 +890,18 @@ impl Worker {
             }
             Command::NoteImage(tag, jpeg) => self.note_image(tag, &jpeg),
             Command::LookUp(key_id) => self.lookups.push(key_id),
+            Command::Models(models) => {
+                if self.models.as_ref() != Some(&models) {
+                    self.models = Some(models);
+                    self.due_models = now;
+                }
+            }
+            Command::CheckModel(server, slot, model) => {
+                let question = (server, slot, model);
+                if !self.model_checks.contains(&question) {
+                    self.model_checks.push(question);
+                }
+            }
             Command::Chat(text) => self.send_chat(&text),
             Command::Emote(emote) => self.send_emote(&emote),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
@@ -1346,8 +1392,11 @@ impl Worker {
         if self.counts_waiting() {
             wait = wait.min(self.due_counts.saturating_duration_since(now));
         }
-        if !self.lookups.is_empty() {
+        if !self.lookups.is_empty() || !self.model_checks.is_empty() {
             wait = Duration::ZERO;
+        }
+        if self.models_waiting() {
+            wait = wait.min(self.due_models.saturating_duration_since(now));
         }
         if self.look_waiting() {
             wait = wait.min(self.due_look.saturating_duration_since(now));
@@ -1561,6 +1610,52 @@ impl Worker {
         held.unwrap_or(false)
     }
 
+    /// Whether the hub should hear the model list: the game listed its models and the
+    /// hub has not taken this list.
+    fn models_waiting(&self) -> bool {
+        self.models.is_some() && self.models != self.models_sent
+    }
+
+    /// Send the model list if it is waiting and due. A refusal (an older hub, a
+    /// quota) waits [`MODELS_AGAIN`]; a hub out of reach, the backoff.
+    fn send_models(&mut self, now: Instant) {
+        if now < self.due_models || !self.models_waiting() {
+            return;
+        }
+        let (Some(hub), Some(models)) = (self.hub.as_mut(), self.models.as_ref()) else {
+            return;
+        };
+        match hub.set_models(&self.identity, models) {
+            Ok(_) => self.models_sent = self.models.clone(),
+            Err(HubError::Rejected { status, .. }) if (400..500).contains(&status) => {
+                self.due_models = now + MODELS_AGAIN;
+            }
+            Err(_) => self.due_models = now + self.backoff,
+        }
+    }
+
+    /// Ask the hub the model questions waiting. Nobody holding the slot is an answer
+    /// with no claimed name; a hub that cannot say leaves `has` unknown.
+    fn check_models(&mut self) {
+        let Some(hub) = self.hub.as_mut() else { return };
+        for (server, slot, model) in std::mem::take(&mut self.model_checks) {
+            let check = match hub.model_check(&server.to_string(), slot, &model) {
+                Ok((claimed_name, has)) => ModelCheck { claimed_name, has },
+                Err(_) => ModelCheck {
+                    claimed_name: String::new(),
+                    has: None,
+                },
+            };
+            let mut snapshot = lock(&self.snapshot);
+            if snapshot.model_checks.len() >= MODEL_CHECKS_MAX {
+                snapshot.model_checks.clear();
+            }
+            snapshot.model_checks.insert((server, slot, model), check);
+            // The player card rebuilds on it, as on a profile.
+            snapshot.profiles_revision += 1;
+        }
+    }
+
     /// Send the achievement counts if they are waiting and due.
     fn send_counts(&mut self, now: Instant) -> Option<HubError> {
         if now < self.due_counts || !self.counts_waiting() {
@@ -1689,6 +1784,9 @@ impl Worker {
                 }
             }
         }
+        // Models and looks are cosmetic: they do not change the status.
+        self.send_models(now);
+        self.check_models();
         // A look is cosmetic: what became of it is in its outcome, not the status.
         self.send_look(now);
         match error.or(counts_error) {
@@ -2035,6 +2133,18 @@ impl Service {
     /// Fetch a player's profile (their bio) into [`Snapshot::profiles`].
     pub fn look_up(&self, key_id: String) {
         let _ = self.commands.send(Command::LookUp(key_id));
+    }
+
+    /// The player model folders the game has (`PROTOCOL.md`, "Models"), sent to the
+    /// hub once registered and again whenever the list changes. Names are lower case.
+    pub fn set_models(&self, models: Vec<String>) {
+        let _ = self.commands.send(Command::Models(models));
+    }
+
+    /// Ask the hub whether the player of `slot` on `server` has `model`; the answer
+    /// comes in [`Snapshot::model_checks`].
+    pub fn check_model(&self, server: SocketAddr, slot: u8, model: String) {
+        let _ = self.commands.send(Command::CheckModel(server, slot, model));
     }
 
     /// A copy of the current state.
@@ -2418,6 +2528,19 @@ mod tests {
         }
         fn release(&mut self, _: &Identity, server: &str) -> Result<(), HubError> {
             self.record(format!("release {server}"))
+        }
+        fn set_models(&mut self, _: &Identity, models: &[String]) -> Result<u64, HubError> {
+            self.record(format!("models {}", models.join(",")))
+                .map(|()| models.len() as u64)
+        }
+        fn model_check(
+            &mut self,
+            server: &str,
+            slot: u8,
+            model: &str,
+        ) -> Result<(String, Option<bool>), HubError> {
+            self.record(format!("model {server} {slot} {model}"))
+                .map(|()| ("^2Sol".to_owned(), Some(model == "kyle")))
         }
         fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError> {
             self.record(format!("presence {server}"))
@@ -4205,6 +4328,48 @@ mod tests {
         worker.handle(Command::LookUp("0123456789abcdef".into()), t0);
         worker.tick(t0);
         assert!(lock(&snapshot).profiles.contains_key("0123456789abcdef"));
+    }
+
+    #[test]
+    fn the_model_list_goes_once_registered_and_checks_come_back() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        let list = vec!["kyle".to_owned(), "wolfie".to_owned()];
+        worker.handle(Command::Models(list.clone()), t0);
+        worker.tick(t0);
+        assert!(fake.log().is_empty(), "nothing before the identity is on");
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        assert_eq!(
+            fake.log()
+                .iter()
+                .filter(|line| line.starts_with("models"))
+                .count(),
+            1
+        );
+        // The same list again is not sent again; a new one is.
+        worker.handle(Command::Models(list), t0);
+        worker.tick(t0);
+        worker.handle(Command::Models(vec!["kyle".to_owned()]), t0);
+        worker.tick(t0);
+        let sent: Vec<String> = fake
+            .log()
+            .into_iter()
+            .filter(|line| line.starts_with("models"))
+            .collect();
+        assert_eq!(sent, ["models kyle,wolfie", "models kyle"]);
+        let server: SocketAddr = "127.0.0.1:29070".parse().unwrap();
+        worker.handle(Command::CheckModel(server, 3, "kyle".to_owned()), t0);
+        worker.handle(Command::CheckModel(server, 3, "reborn".to_owned()), t0);
+        worker.tick(t0);
+        let checks = lock(&snapshot).model_checks.clone();
+        let has = |model: &str| checks[&(server, 3, model.to_owned())].has;
+        assert_eq!((has("kyle"), has("reborn")), (Some(true), Some(false)));
+        assert_eq!(
+            checks[&(server, 3, "kyle".to_owned())].claimed_name,
+            "^2Sol"
+        );
     }
 
     #[test]

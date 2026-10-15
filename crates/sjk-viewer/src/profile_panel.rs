@@ -923,6 +923,7 @@ pub(crate) mod tests {
             server: None,
             players: Vec::new(),
             profiles: HashMap::new(),
+            model_checks: HashMap::new(),
             profiles_revision: 0,
             notice: notice.map(str::to_owned),
             revision: 0,

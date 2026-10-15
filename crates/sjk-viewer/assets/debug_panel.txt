@@ -956,6 +956,17 @@ test: Inspect a player with Bars on everyone: the card says, in amber, Sees your
 test: A player with Bars on everyone has the gold contour too; so does your own plate.
 note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
 
+[model-check]
+area: HUD
+title: Player card says if the inspected player sees your model (cl_shareModels)
+change: SJK sends the hub your player model folders; Settings > Network > Share my model list.
+change: Another SJK player's card: "Sees your model", or in amber "Can't see your model".
+change: No line for a retail model (everyone has it), on your own card, or with no list.
+test: Two SJK clients, wear a community model only one has: inspect from the other: amber line.
+test: Inspect from the client that has it: "Sees your model". Wear kyle: no line at all.
+test: Turn Share my model list off on one client: within a minute its card line goes away.
+note: Needs cl_identity and the hub deployed with /v1/models (hub branch model-check).
+
 [team-outline]
 area: HUD
 title: Team games: red/green outlines, team logos over allies, no team overlay

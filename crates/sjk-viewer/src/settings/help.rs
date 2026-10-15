@@ -575,6 +575,10 @@ const HELP: &[(&str, &str)] = &[
         "Makes an identity key and tells the SJK hub where you play and if you are active (badge, holocrons). Off sends nothing.",
     ),
     (
+        crate::installed_models::CVAR,
+        "Tells the SJK hub which player models you have, so SJK players' cards say if they see yours. Off makes it forget.",
+    ),
+    (
         "cl_hubUrl",
         "The SJK hub's address (https://...). Empty means no hub: nothing is sent.",
     ),

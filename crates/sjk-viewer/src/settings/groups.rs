@@ -375,6 +375,7 @@ impl Group {
                 "cl_autoUpdate",
                 "cl_identity",
                 super::catalog::IDENTITY_ROW,
+                crate::installed_models::CVAR,
                 "cl_hubUrl",
                 crate::crash_report::CVAR,
                 crate::settings_usage::CVAR,

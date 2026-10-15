@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Player card says whether the inspected player sees your model
+- 76df8b1 |  | Player card says whether the inspected player sees your model
++ 15/10/2026 | - | Gold nameplate contour on every sharer, estimates included
+- 9b1af86 |  | Gold nameplate contour on every sharer, estimates included
 + 15/10/2026 | - | Hub chat docs: verified players chat and emote faster
 - 3b916b4 |  | Hub chat docs: verified players chat and emote faster
 + 15/10/2026 | - | Emote music loops; intro + loop music; emote icons on a blue disc
@@ -29,8 +33,6 @@
 - a9f44a1 |  | Settings icons: back to the grey metal discs
 + 15/10/2026 | - | Rig add-on: Tail gravity setting
 - 3408d83 |  | Rig add-on: Tail gravity setting
-+ 15/10/2026 | - | Gold nameplate contour on every sharer, estimates included
-- 9b1af86 |  | Gold nameplate contour on every sharer, estimates included
 + 14/10/2026 | - | Release 2026.1014.2 (Alpha)
 - 8dea8be |  | Release 2026.1014.2 (Alpha)
 + 14/10/2026 | - | Rig dynamic chains: gravity, so tails hang

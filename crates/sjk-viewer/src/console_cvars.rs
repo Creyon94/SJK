@@ -698,6 +698,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show the SJK chat, which every SJK player shares through the SJK hub, and read it (0 hides it and stops reading)",
         ),
         CvarDefinition::new(
+            crate::installed_models::CVAR,
+            true,
+            archive,
+            "Tell the SJK hub which player models you have, so other SJK players' cards say whether they see the model you wear (0 makes the hub forget your list)",
+        ),
+        CvarDefinition::new(
             crate::world_ping::SHOW_CVAR,
             true,
             archive,

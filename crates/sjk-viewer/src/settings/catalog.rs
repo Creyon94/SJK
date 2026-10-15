@@ -780,6 +780,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Share my model list",
+        cvar: crate::installed_models::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "SJK hub",
         cvar: "cl_hubUrl",
         kind: ValueKind::Text,

@@ -668,6 +668,7 @@ mod tests {
             server: None,
             players: Vec::new(),
             profiles: HashMap::new(),
+            model_checks: HashMap::new(),
             profiles_revision: 0,
             notice: None,
             revision: 0,
