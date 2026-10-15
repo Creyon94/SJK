@@ -323,6 +323,28 @@ def base_color_image(material):
     return best[1] if best else None
 
 
+def keep_shape_mix(obj):
+    """Drop `obj`'s shape keys, keeping the shape they mix to now (a key switched on,
+    such as a top fitted over the chest, stays in the mesh)."""
+    if not obj.data.shape_keys:
+        return
+    mix = obj.shape_key_add(name="SJK_mix", from_mix=True)
+    co = [0.0] * (len(obj.data.vertices) * 3)
+    mix.data.foreach_get("co", co)
+    obj.shape_key_clear()
+    obj.data.vertices.foreach_set("co", co)
+    obj.data.update()
+
+
+def apply_masks(context, obj):
+    """Apply `obj`'s Mask modifiers shown in the viewport, so hidden geometry is not
+    exported (the export applies no other modifier)."""
+    for modifier in list(obj.modifiers):
+        if modifier.type == "MASK" and modifier.show_viewport:
+            with context.temp_override(object=obj, active_object=obj, selected_objects=[obj]):
+                bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
 def plain_material(source):
     """A temporary Principled material with `source`'s base colour image."""
     material = bpy.data.materials.new(f"SJK_export_{source.name if source else 'none'}")
@@ -914,8 +936,8 @@ class SJK_OT_export_rig_model(Operator):
                 context.scene.collection.objects.link(copy)
                 copies.append(copy)
                 meshes_data.append(copy.data)
-                if copy.data.shape_keys:
-                    copy.shape_key_clear()
+                keep_shape_mix(copy)
+                apply_masks(context, copy)
                 if rig is not None:
                     copy.parent = rig
                     for modifier in copy.modifiers:

@@ -186,7 +186,12 @@ in one click.
   files, sounds and pictures of the animations its old glTF held, each an emote id),
   and warns when another pack in `base` also holds the model. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
   lines added by hand survive a re-export; a checkbox rewrites it. glTF Separate, +Y
-  up, skins on, the armature's rest position, no shape keys, four influences.
+  up, skins on, the armature's rest position, no shape keys, four influences. Other
+  modifiers are not applied, except Mask modifiers shown in the viewport (geometry
+  masked out is left out). Shape keys are dropped but their current mix is kept in
+  the mesh: a key switched on (a top fitted over the chest, stockings fitted into
+  shoes) stays; before 15/10/2026 the export fell back to the basis shape and such
+  clothes showed the body through.
 - **Character icon:** a picture (`.png`, `.jpg`, `.tga`) packed as
   `models/players/<name>/icon_default.<ext>`, which puts the model in the character
   grid as `<name>/default` (`character_catalog.rs` lists a folder holding
