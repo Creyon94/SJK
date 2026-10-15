@@ -23,7 +23,13 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1015.4 (Alpha) | 15/10/2026
+
+A hotfix: synced emotes play their music again.
+
+> Synced music: Joining an emote with Sync emote starts your music where the leader's is, in step.
+> Both heard: The leader and every follower play the song together.
+> Leader stops: Your music carries on without a jump.
 
 - Synced emotes play their music too: joining someone's emote starts your music where theirs is, in step, instead of leaving you silent _(Sol)_
 
