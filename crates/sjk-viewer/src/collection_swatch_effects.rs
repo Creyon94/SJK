@@ -416,3 +416,193 @@ pub(super) fn lab(
         }
     }
 }
+
+/// The sixth set (`blade_skin_figures.rs`) over the swatch's blade from `at` (its hilt
+/// end) along `length`, `corona` pixels a capsule radius: ghost copies, a sketch's
+/// outlines and hatching, an hourglass's sand, a serpent and its head, strands with their
+/// bright ends, butterflies, and wings of fire by the hilt.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn figures(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    def: &BladeSkinDef,
+    at: [f32; 2],
+    length: f32,
+    corona: f32,
+    t: f32,
+    ui: &dyn Fn(Rgb, f32) -> Color,
+) {
+    let tau = std::f32::consts::TAU;
+    if let Some(copies) = def.copies {
+        let apart = (fract(t / copies.period) * 1.2).min(1.0);
+        for sign in [-1.0, 1.0] {
+            let lift = sign * corona * 0.9 * apart;
+            stroke(
+                canvas,
+                frame,
+                at,
+                [at[0] + length, at[1] + lift],
+                corona * 0.7,
+                ui(def.corona.inner, 0.18 * copies.fade),
+            );
+        }
+    }
+    if let Some(sketch) = def.sketch {
+        let ink = ui(sketch.color, (0.5 + 0.1 * sketch.brightness).min(1.0));
+        let redraw = (t * sketch.rate).floor();
+        for side in [-1.0, 1.0] {
+            let mut last = [at[0], at[1] + side * corona * 0.45];
+            for step in 1..=10 {
+                let k = step as f32 / 10.0;
+                let wobble = (draw(redraw * 3.1 + k * 17.0 + side) - 0.5) * 6.0 * sketch.wobble;
+                let next = [
+                    at[0] + k * length,
+                    at[1] + side * corona * 0.45 * (1.0 - k * k * 0.6) + wobble,
+                ];
+                stroke(canvas, frame, last, next, 1.3, ink);
+                last = next;
+            }
+        }
+        let lines = (sketch.hatch * BLADE_UNITS * 0.4).round().clamp(4.0, 30.0) as usize;
+        for line in 0..lines {
+            let x = at[0] + (line as f32 + 0.5) / lines as f32 * length;
+            stroke(
+                canvas,
+                frame,
+                [x - 3.0, at[1] + corona * 0.35],
+                [x + 3.0, at[1] - corona * 0.35],
+                0.9,
+                ui(sketch.color, 0.4),
+            );
+        }
+    }
+    if let Some(hourglass) = def.hourglass {
+        let p = fract(t / hourglass.period);
+        let sand = ui(hourglass.color, (0.5 + 0.1 * hourglass.brightness).min(1.0));
+        let middle = at[0] + length * 0.5;
+        let top = (1.0 - p) * length * 0.36;
+        let bottom = p * length * 0.36;
+        capsule(
+            canvas,
+            frame,
+            [middle, at[1] - 3.0, top.max(1.0), 6.0],
+            sand,
+        );
+        capsule(
+            canvas,
+            frame,
+            [at[0], at[1] - 3.0, bottom.max(1.0), 6.0],
+            sand,
+        );
+        stroke(
+            canvas,
+            frame,
+            [at[0] + bottom, at[1]],
+            [middle, at[1]],
+            1.0,
+            sand,
+        );
+        for side in [-1.0, 1.0] {
+            stroke(
+                canvas,
+                frame,
+                [at[0], at[1] + side * corona * 0.6],
+                [middle, at[1] + side * corona * 0.6 * hourglass.waist],
+                1.0,
+                ui(def.corona.rim_hot, 0.6),
+            );
+            stroke(
+                canvas,
+                frame,
+                [middle, at[1] + side * corona * 0.6 * hourglass.waist],
+                [at[0] + length, at[1] + side * corona * 0.6],
+                1.0,
+                ui(def.corona.rim_hot, 0.6),
+            );
+        }
+    }
+    if let Some(serpent) = def.serpent {
+        let gold = ui(serpent.color, (0.55 + 0.1 * serpent.brightness).min(1.0));
+        let point = |k: f32| {
+            let phase = tau * (serpent.coils * k - t * serpent.speed);
+            [
+                at[0] + k * length,
+                at[1] + phase.sin() * corona * 0.6 * serpent.amplitude,
+            ]
+        };
+        for step in 0..30 {
+            let k = step as f32 / 30.0 * 0.9;
+            stroke(canvas, frame, point(k), point(k + 0.03), 2.4, gold);
+        }
+        let head = point(0.9);
+        disc(canvas, frame, head[0], head[1], 4.0, gold);
+        disc(
+            canvas,
+            frame,
+            head[0] + 1.5,
+            head[1] - 1.5,
+            1.0,
+            Color::new(1.0, 0.1, 0.05, 1.0),
+        );
+    }
+    if let Some(strands) = def.strands {
+        for index in 0..strands.count.min(14) {
+            let i = index as f32;
+            let spread = draw(i * 1.3 + 0.2) * 2.0 - 1.0;
+            let tip = length * (0.72 + 0.28 * draw(i * 7.7 + 0.5));
+            let sway = (t * 1.2 + i).sin() * 2.0 * strands.sway;
+            let end = [at[0] + tip, at[1] + spread * corona * strands.spread + sway];
+            let colour = crate::saber_skins::turn_hue(
+                [1.0, 0.35, 0.35],
+                strands.hue + draw(i * 4.1) * 0.35 + t * 0.04,
+            );
+            stroke(canvas, frame, at, end, 0.8, ui(colour, 0.35));
+            disc(canvas, frame, end[0], end[1], 2.2, ui(colour, 0.95));
+        }
+    }
+    if let Some(butterflies) = def.butterflies {
+        let wing = ui(
+            butterflies.color,
+            (0.6 + 0.1 * butterflies.brightness).min(1.0),
+        );
+        for index in 0..butterflies.count.min(6) {
+            let i = index as f32;
+            let flying =
+                fract(t / (6.0 + 4.0 * draw(i + 0.3)) + draw(i + 1.1) * 3.7) < butterflies.flight;
+            let lift = if flying {
+                -12.0 - 6.0 * (t * 2.0 + i).sin()
+            } else {
+                0.0
+            };
+            let x = at[0] + (0.12 + 0.78 * draw(i + 2.9)) * length;
+            let y = at[1] - corona * 0.5 + lift;
+            let open = 0.5 + 0.5 * (t * if flying { 9.0 } else { 0.8 } + i).sin().abs();
+            for side in [-1.0, 1.0] {
+                disc(canvas, frame, x + side * 2.6 * open, y - 1.0, 2.6, wing);
+                disc(canvas, frame, x + side * 2.0 * open, y + 2.0, 1.8, wing);
+            }
+        }
+    }
+    if let Some(wings) = def.wings {
+        let unfold = 0.35 + 0.65 * ((tau * t * wings.rate).sin() * 0.5 + 0.5);
+        let origin = [at[0] + length * 0.15, at[1]];
+        for side in [-1.0, 1.0] {
+            for feather in 0..wings.feathers {
+                let k = feather as f32 / (wings.feathers - 1).max(1) as f32;
+                let angle = (0.25 + 1.05 * k) * unfold;
+                let span = 30.0 * (0.55 + 0.45 * (1.0 - (k - 0.6).abs()));
+                stroke(
+                    canvas,
+                    frame,
+                    origin,
+                    [
+                        origin[0] + angle.cos() * span,
+                        origin[1] - side * angle.sin() * span,
+                    ],
+                    2.2,
+                    ui(mix(wings.color, [1.0, 0.9, 0.6], 0.3 * (1.0 - k)), 0.55),
+                );
+            }
+        }
+    }
+}

@@ -659,7 +659,44 @@ fn duel6_plain_blades() {
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn duel6_lab_blades() {
-    on_big_stack(|| {
+    lab_lineup(
+        &[
+            "saber_neon",
+            "saber_peppermint",
+            "saber_bubble",
+            "saber_lavalamp",
+            "saber_reactor",
+            "saber_bleeding",
+        ],
+        7.0,
+        "duel6-lab-blades",
+    );
+}
+
+/// The Blade Lab's second batch (15/10/2026), as the first, wider apart for their wings
+/// and butterflies: Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_lab_blades_figures() {
+    lab_lineup(
+        &[
+            "saber_sketch",
+            "saber_hourglass",
+            "saber_fiber",
+            "saber_serpent",
+            "saber_monarch",
+            "saber_phoenix",
+            "saber_quantum",
+        ],
+        10.0,
+        "duel6-lab-blades-figures",
+    );
+}
+
+/// `ids` upright `spacing` units apart in front of duel6's spawn, at eight moments, as one
+/// sheet called `name`.
+fn lab_lineup(ids: &'static [&'static str], spacing: f32, name: &'static str) {
+    on_big_stack(move || {
         mount_test_packs();
         let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1600, 900], None, &[]) else {
             return;
@@ -668,20 +705,12 @@ fn duel6_lab_blades() {
         let turn = glam::Quat::from_rotation_z(yaw);
         let eye = Vec3::from_array(spawn);
         let ahead = |x: f32, y: f32, z: f32| eye + turn * Vec3::new(x, y, z);
-        let ids = [
-            "saber_neon",
-            "saber_peppermint",
-            "saber_bubble",
-            "saber_lavalamp",
-            "saber_reactor",
-            "saber_bleeding",
-        ];
         let middle = (ids.len() as f32 - 1.0) * 0.5;
         gpu.saber_skins.shot_blades = ids
             .iter()
             .enumerate()
             .map(|(index, id)| {
-                let offset = (index as f32 - middle) * 7.0;
+                let offset = (index as f32 - middle) * spacing;
                 (
                     Blade {
                         base: ahead(48.0, -offset, -20.0).to_array(),
@@ -704,6 +733,6 @@ fn duel6_lab_blades() {
             gpu.saber_skins.shot_seconds = Some(seconds);
             lineup.push(frame(&mut gpu, if index == 0 { 40 } else { 4 }));
         }
-        println!("{}", sheet(&lineup, 4, 1600, "duel6-lab-blades").display());
+        println!("{}", sheet(&lineup, 4, 1600, name).display());
     });
 }

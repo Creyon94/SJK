@@ -1086,7 +1086,7 @@ mod tests {
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 27, "the saber smith is searched");
+        assert_eq!(ids(&panel).len(), 34, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(
@@ -1097,7 +1097,11 @@ mod tests {
                 "saber_molten",
                 "saber_spectral",
                 "saber_reactor",
-                "saber_bleeding"
+                "saber_bleeding",
+                "saber_serpent",
+                "saber_monarch",
+                "saber_phoenix",
+                "saber_quantum"
             ]
         );
         panel.shader_filter.query = "nothing".to_owned();

@@ -401,8 +401,8 @@ fn the_third_set_and_the_options_are_checked_strictly_by_name() {
     refused(r#""name": "Tip glint""#, r#""name": """#, "options[0].name");
     refused(
         r#"["star"]"#,
-        r#"["wings"]"#,
-        r#"options[0].sections: "wings" is not a section"#,
+        r#"["plumes"]"#,
+        r#"options[0].sections: "plumes" is not a section"#,
     );
     refused(r#"["star"]"#, r#"["glyphs"]"#, "the file has no glyphs");
     refused(
@@ -665,8 +665,8 @@ fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
     );
     let one = crate::saber_skins::SkinUniform::of(def);
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
-    // The last thirteen lanes are the fifth set's, in saber.wgsl's order.
-    let lab = &lanes[lanes.len() - 13..];
+    // The thirteen lanes before the sixth set's fifteen are the fifth set's.
+    let lab = &lanes[lanes.len() - 28..lanes.len() - 15];
     assert_eq!(lab[0], [1.0, 0.1, 0.15, 1.2]);
     assert_eq!(lab[1], [4.0, 0.45, 0.6, 2.0]);
     assert_eq!(lab[2], [1.0, 0.3, 0.0, 0.0]);
@@ -685,7 +685,7 @@ fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
         crate::saber_skins::SkinUniform::of(&parse("saber_test", &sample_with_effects()).unwrap());
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&plain));
     assert!(
-        lanes[lanes.len() - 13..]
+        lanes[lanes.len() - 28..]
             .iter()
             .all(|lane| *lane == [0.0; 4])
     );
@@ -715,4 +715,97 @@ fn the_fifth_set_is_checked_strictly_by_name() {
     );
     refused(r#""period": 8.0"#, r#""period": 0.1"#, "front.period");
     refused(r#""veins": 1.0"#, r#""veins": 1.0, "glow": 1"#, "glow");
+}
+
+/// A fourth additions file with every section of the sixth set.
+pub(crate) const FIGURES_ADDITIONS: &str = r#"{
+    "sketch": {"color": [0.93, 0.95, 1.0], "brightness": 2.0, "rate": 8.0, "wobble": 0.3,
+        "hatch": 1.2, "glow": 0.3},
+    "hourglass": {"color": [1.0, 0.78, 0.35], "brightness": 1.5, "period": 8.0,
+        "waist": 0.25, "glass": 0.8},
+    "serpent": {"color": [1.0, 0.78, 0.25], "brightness": 1.6, "coils": 5.0,
+        "amplitude": 0.8, "speed": 0.35, "thickness": 0.3},
+    "strands": {"count": 28, "spread": 1.2, "sway": 0.4, "brightness": 1.5, "hue": 0.45,
+        "saturation": 0.65},
+    "butterflies": {"color": [1.0, 0.55, 0.12], "brightness": 1.8, "count": 7, "size": 2.5,
+        "flap": 9.0, "flight": 0.25, "roam": 10.0},
+    "wings": {"color": [1.0, 0.45, 0.08], "brightness": 1.6, "span": 12.0, "rate": 0.25,
+        "feathers": 6},
+    "copies": {"count": 2, "angle": 0.04, "fade": 0.4, "period": 5.0, "flicker": 0.3},
+    "options": [{"id": "flight", "name": "Flight", "sections": ["butterflies", "wings"]}]
+}"#;
+
+#[test]
+fn the_fourth_additions_file_brings_the_sixth_set_its_lanes_and_room() {
+    use extras::{Section, option_bit};
+    let mut vfs = sjk_vfs::VirtualFileSystem::new();
+    vfs.mount_memory(
+        "pack",
+        [
+            (
+                "skins/blades/saber_test.bladeskin",
+                sample_with_effects().into_bytes(),
+            ),
+            (
+                "skins/blades/saber_test.bladeextra4",
+                FIGURES_ADDITIONS.as_bytes().to_vec(),
+            ),
+        ],
+    )
+    .unwrap();
+    let skins = load(&vfs);
+    assert_eq!(skins.len(), 1);
+    let def = &skins[0].1;
+    assert_eq!(def.strands.unwrap().count, 28);
+    assert_eq!(def.wings.unwrap().feathers, 6);
+    assert!(def.sketch.is_some() && def.hourglass.is_some() && def.serpent.is_some());
+    assert!(def.copies.is_some());
+    // The quad's room: the butterflies' flights (roam and size) or the wings' span.
+    assert_eq!(def.room(0), 12.5);
+    let flight = def.off_mask(option_bit("flight"));
+    assert_eq!(flight, Section::Butterflies.bit() | Section::Wings.bit());
+    assert_eq!(def.room(flight), 0.0);
+    let one = crate::saber_skins::SkinUniform::of(def);
+    let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
+    let figures = &lanes[lanes.len() - 15..];
+    assert_eq!(figures[0], [0.93, 0.95, 1.0, 2.0]);
+    assert_eq!(figures[1], [8.0, 0.3, 1.2, 0.3]);
+    assert_eq!(figures[3], [8.0, 0.25, 0.8, 0.0]);
+    assert_eq!(figures[5], [5.0, 0.8, 0.35, 0.3]);
+    assert_eq!(figures[6], [28.0, 1.2, 0.4, 1.5]);
+    assert_eq!(figures[7], [0.45, 0.65, 0.0, 0.0]);
+    assert_eq!(figures[9], [7.0, 2.5, 9.0, 0.25]);
+    assert_eq!(figures[10], [10.0, 0.0, 0.0, 0.0]);
+    assert_eq!(figures[12], [12.0, 0.25, 6.0, 0.0]);
+    assert_eq!(figures[13], [2.0, 0.04, 0.4, 5.0]);
+    assert_eq!(figures[14], [0.3, 0.0, 0.0, 0.0]);
+}
+
+#[test]
+fn the_sixth_set_is_checked_strictly_by_name() {
+    let refused = |old: &str, new: &str, why: &str| {
+        assert!(FIGURES_ADDITIONS.contains(old), "{old}");
+        let text = extras::merged(
+            &sample_with_effects(),
+            &FIGURES_ADDITIONS.replacen(old, new, 1),
+        )
+        .unwrap();
+        let error = parse("saber_test", &text).unwrap_err();
+        assert!(error.contains(why), "{new}: {error}");
+    };
+    refused(r#""rate": 8.0"#, r#""rate": 0.5"#, "sketch.rate");
+    refused(r#""waist": 0.25"#, r#""waist": 0.0"#, "hourglass.waist");
+    refused(r#""coils": 5.0"#, r#""coils": 20.0"#, "serpent.coils");
+    refused(
+        r#""count": 28"#,
+        r#""count": 40"#,
+        "strands.count must be 2 to 32",
+    );
+    refused(r#""roam": 10.0"#, r#""roam": 30.0"#, "butterflies.roam");
+    refused(
+        r#""feathers": 6"#,
+        r#""feathers": 2"#,
+        "wings.feathers must be 3 to 9",
+    );
+    refused(r#""angle": 0.04"#, r#""angle": 0.3"#, "copies.angle");
 }

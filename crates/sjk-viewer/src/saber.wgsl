@@ -183,6 +183,29 @@ struct Skin {
     front_color: vec4<f32>,
     front_shape: vec4<f32>,
     front_edge: vec4<f32>,
+    // The sixth set (blade_skin_figures.rs); each zeros when absent.
+    // Sketch: colour and brightness; rate, wobble, hatch, glow kept.
+    sketch_color: vec4<f32>,
+    sketch_shape: vec4<f32>,
+    // Hourglass: sand colour and brightness; period, waist, glass.
+    hour_color: vec4<f32>,
+    hour_shape: vec4<f32>,
+    // Serpent: colour and brightness; coils, amplitude, speed, thickness.
+    serpent_color: vec4<f32>,
+    serpent_shape: vec4<f32>,
+    // Strands: count, spread, sway, brightness; hue, saturation.
+    strand_shape: vec4<f32>,
+    strand_hue: vec4<f32>,
+    // Butterflies: colour and brightness; count, size, flap, flight; roam.
+    fly_color: vec4<f32>,
+    fly_shape: vec4<f32>,
+    fly_roam: vec4<f32>,
+    // Wings: colour and brightness; span, rate, feathers.
+    wing_color: vec4<f32>,
+    wing_shape: vec4<f32>,
+    // Copies: count, angle, fade, period; flicker.
+    copy_shape: vec4<f32>,
+    copy_more: vec4<f32>,
 }
 
 @group(2) @binding(0)
@@ -253,6 +276,13 @@ const OFF_SEGMENTS: u32 = 524288u;
 const OFF_FILM: u32 = 1048576u;
 const OFF_BLOBS: u32 = 2097152u;
 const OFF_FRONT: u32 = 4194304u;
+const OFF_SKETCH: u32 = 8388608u;
+const OFF_HOURGLASS: u32 = 16777216u;
+const OFF_SERPENT: u32 = 33554432u;
+const OFF_STRANDS: u32 = 67108864u;
+const OFF_BUTTERFLIES: u32 = 134217728u;
+const OFF_WINGS: u32 = 268435456u;
+const OFF_COPIES: u32 = 536870912u;
 // RB_SurfaceSaberGlow: sprite spacing and per-sprite growth.
 const SPACING: f32 = 0.65;
 const GROWTH: f32 = 0.017;
@@ -283,12 +313,17 @@ struct BladeInstance {
 }
 
 // How far (units) a skin's glow quad reaches past the glow for the sections its wearer
-// left on: the wisps' rise and the haze's reach (blade_skin_extras.rs `room`).
+// left on: the wisps' rise, the haze's reach, the butterflies' flights and the wings'
+// span (blade_skin_extras.rs `room`).
 fn skin_room(skin: Skin, off: u32) -> f32 {
     var room = 0.0;
     if (off & OFF_WISPS) == 0u && skin.wisp_color.w > 0.0 { room = skin.wisp_shape.x; }
     if (off & OFF_HAZE) == 0u && skin.haze.x > 0.0 { room = max(room, skin.haze.w); }
-    return room;
+    if (off & OFF_BUTTERFLIES) == 0u && skin.fly_shape.x >= 1.0 {
+        room = max(room, skin.fly_roam.x + skin.fly_shape.y);
+    }
+    if (off & OFF_WINGS) == 0u && skin.wing_shape.x > 0.0 { room = max(room, skin.wing_shape.x); }
+    return min(room, 16.0);
 }
 
 @vertex
@@ -532,6 +567,13 @@ fn skin_at(input: VertexOutput) -> Skin {
     if (off & OFF_FILM) != 0u { skin.film = vec4(0.0); }
     if (off & OFF_BLOBS) != 0u { skin.blob_shape = vec4(0.0); }
     if (off & OFF_FRONT) != 0u { skin.front_shape = vec4(0.0); }
+    if (off & OFF_SKETCH) != 0u { skin.sketch_shape = vec4(0.0); }
+    if (off & OFF_HOURGLASS) != 0u { skin.hour_shape = vec4(0.0); }
+    if (off & OFF_SERPENT) != 0u { skin.serpent_shape = vec4(0.0); }
+    if (off & OFF_STRANDS) != 0u { skin.strand_shape = vec4(0.0); }
+    if (off & OFF_BUTTERFLIES) != 0u { skin.fly_shape = vec4(0.0); }
+    if (off & OFF_WINGS) != 0u { skin.wing_shape = vec4(0.0); }
+    if (off & OFF_COPIES) != 0u { skin.copy_shape = vec4(0.0); }
     return skin;
 }
 
@@ -1182,6 +1224,238 @@ fn skin_recolour(color: vec3<f32>, rgb: vec3<f32>, amount: f32) -> vec3<f32> {
     return mix(color, rgb * skin_level(color), amount);
 }
 
+// --- The sixth set (blade_skin_figures.rs): figures in the glow, nothing when zeros -----
+
+// A thin line's light `d` units from it: a Gaussian `width` wide, never thinner than a
+// pixel (a thinner one widens to it and dims, so it does not break up at a distance).
+fn skin_line(d: f32, width: f32, pixel: f32) -> f32 {
+    let w = max(width, pixel);
+    let e = d / w;
+    return exp(-e * e) * width / w;
+}
+
+// A pencil sketch at `along` units (unclamped) and `x` across: two wobbly outlines and
+// hatching, redrawn `rate` times a second; the ink's light (0 and up).
+fn skin_sketch(skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f32, pixel: f32) -> f32 {
+    let s = skin.sketch_shape;
+    if s.x <= 0.0 || along < 0.0 || along > blade_length {
+        return 0.0;
+    }
+    let frame = floor(time * s.x);
+    // Pointed at the tip over its last few units.
+    let taper = 1.0 - smoothstep(blade_length - 2.8, blade_length, along);
+    let outline = 0.45 * r * mix(0.08, 1.0, taper);
+    let w1 = (skin_noise(vec2(along * 0.35, frame * 3.1)) - 0.5) * s.y * r;
+    let w2 = (skin_noise(vec2(along * 0.28 + 7.0, frame * 5.7)) - 0.5) * s.y * r;
+    let width = 0.05 * r;
+    let l1 = skin_line(abs(abs(x - w1) - outline), width, pixel);
+    let l2 = skin_line(abs(abs(x - w2) - outline * 1.05), width * 0.8, pixel) * 0.6;
+    var hatch = 0.0;
+    if s.z > 0.0 {
+        let h = abs(fract((along * 0.7 + x) * s.z + skin_hash(vec2(i32(frame), 17))) - 0.5);
+        hatch = smoothstep(0.08, 0.0, h) * step(abs(x), outline * 0.9) * 0.42;
+    }
+    let grain = 0.72 + 0.28 * skin_noise(vec2(along * 9.0, x * 9.0 + frame));
+    return (l1 + l2 + hatch) * grain;
+}
+
+// The hourglass's width at `along`: `waist` at the middle, all of it at either end.
+fn skin_hourglass_profile(skin: Skin, along: f32, blade_length: f32) -> f32 {
+    let w = skin.hour_shape.y;
+    let xn = clamp(along / max(blade_length, 0.0001), 0.0, 1.0);
+    return w + (1.0 - w) * pow(abs(2.0 * xn - 1.0), 0.75);
+}
+
+// The hourglass at `along` (unclamped) and `x`: rgb its sand's share (x), the glass
+// rim's (y) and the flip's flash (z), 0 to about 1 each.
+fn skin_hourglass(
+    skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f32, seed: f32, pixel: f32,
+) -> vec3<f32> {
+    let h = skin.hour_shape;
+    if h.x <= 0.0 || along < 0.0 || along > blade_length {
+        return vec3(0.0);
+    }
+    let radius = 0.6 * r * skin_hourglass_profile(skin, along, blade_length);
+    let inside = 1.0 - smoothstep(radius * 0.85, radius, abs(x));
+    let rim = skin_line(abs(abs(x) - radius), 0.05 * r, pixel) * h.z;
+    let p = fract(time / h.x + seed * 0.37);
+    let middle = blade_length * 0.5;
+    let top_end = middle + (1.0 - p) * blade_length * 0.36;
+    let bottom_end = p * blade_length * 0.36;
+    let sand_top = step(middle, along) * step(along, top_end);
+    let sand_bottom = step(along, bottom_end);
+    let grain = 0.7 + 0.3 * skin_noise(vec2(along * 6.0, x * 6.0));
+    let stream = step(bottom_end, along) * step(along, middle)
+        * skin_line(abs(x), 0.04 * r, pixel)
+        * (0.55 + 0.45 * skin_noise(vec2(along * 1.5 - time * 12.0, 0.0))) * step(p, 0.985);
+    let flash = exp(-p * 30.0) + exp(-(1.0 - p) * 60.0);
+    return vec3((sand_top + sand_bottom) * inside * grain * 1.1 + stream * 1.4, rim,
+        flash * inside);
+}
+
+// A serpent at `along` (unclamped) and `x`: x its body's light, y how much it hides the
+// blade (in front of it), z its eyes', w its tongue's.
+fn skin_serpent(
+    skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f32, pixel: f32,
+) -> vec4<f32> {
+    let s = skin.serpent_shape;
+    if s.x <= 0.0 {
+        return vec4(0.0);
+    }
+    let a = s.y * r;
+    let k = TAU * s.x / max(blade_length, 0.0001);
+    let w = TAU * s.z;
+    let phase = k * along - time * w;
+    let y = a * sin(phase);
+    let z = cos(phase);
+    let slope = a * k * cos(phase);
+    let d = abs(x - y) / sqrt(1.0 + slope * slope);
+    let head_at = blade_length * 0.9 + sin(time * 1.1) * 0.3;
+    let tail = smoothstep(0.02 * blade_length, 0.25 * blade_length, along);
+    let thick = s.w * r * mix(0.35, 1.0, tail);
+    let on = step(0.02 * blade_length, along) * step(along, head_at - 0.2 * r);
+    let body = smoothstep(thick, thick * 0.5, d) * on;
+    let scales = 0.72 + 0.28 * sin(along * 6.5 - time * 2.0) * sin((x - y) / max(r, 0.0001) * 30.0);
+    let shown = mix(0.28, 1.0, step(0.0, z));
+    var light = body * scales * shown * 1.25 + exp(-d / max(0.35 * r, 0.0001)) * 0.22 * on * shown;
+    // The head, its jaws opening now and then, two eyes and a tongue.
+    let head_y = a * sin(k * head_at - time * w);
+    let hp = vec2(along - head_at, x - head_y);
+    let size = vec2(max(0.8 * a, 0.9 * r), max(0.45 * a, 0.5 * r));
+    let hq = hp / size;
+    let jaw = smoothstep(0.7, 1.0, 0.5 + 0.5 * sin(time * 1.7));
+    var head = smoothstep(1.0, 0.75, length(hq - vec2(-0.1, 0.0)));
+    head *= 1.0 - step(0.3, hq.x) * step(abs(hq.y), 0.5 * jaw);
+    light += head * 1.05;
+    let eye = 0.09 * size.y;
+    let eyes = exp(-length(hp - vec2(0.18 * size.x, 0.4 * size.y)) / max(eye, pixel))
+        + exp(-length(hp - vec2(0.18 * size.x, -0.4 * size.y)) / max(eye, pixel));
+    let tongue = skin_line(abs(hp.y - sin(time * 40.0) * 0.1 * size.y), 0.04 * size.y, pixel)
+        * step(0.9 * size.x, hp.x) * step(hp.x, 1.8 * size.x) * step(0.5, jaw);
+    let hide = (body * step(0.0, z) + head) * 0.6;
+    return vec4(light, min(hide, 0.9), eyes, tongue);
+}
+
+// Glass strands fanning from the hilt at `along` (unclamped) and `x`: their light.
+fn skin_strands(
+    skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f32, seed: f32, pixel: f32,
+) -> vec3<f32> {
+    let s = skin.strand_shape;
+    if s.x < 2.0 || along < -1.0 {
+        return vec3(0.0);
+    }
+    let seeded = i32(seed * 4096.0);
+    let xn = clamp(along / max(blade_length, 0.0001), 0.0, 1.2);
+    var total = vec3(0.0);
+    for (var i = 0; i < min(i32(s.x), 32); i++) {
+        let fi = f32(i);
+        let spread = skin_hash(vec2(i, 11 + seeded)) * 2.0 - 1.0;
+        let tip = blade_length * (0.72 + 0.28 * skin_hash(vec2(i, 23 + seeded)));
+        let tn = tip / max(blade_length, 0.0001);
+        let colour = skin_hsv(fract(skin.strand_hue.x + skin_hash(vec2(i, 37)) * 0.35 + time * 0.04),
+            skin.strand_hue.y, 1.0);
+        let sway = sin(time * 1.2 + fi) * 0.25 * s.z * r;
+        let y = spread * s.y * r * pow(xn, 1.5) + sway * xn;
+        let on = step(0.0, along) * step(along, tip);
+        total += colour * skin_line(abs(x - y), 0.03 * r, pixel) * 0.18 * on;
+        let tip_y = spread * s.y * r * pow(tn, 1.5) + sway * tn;
+        let dd = length(vec2(along - tip, x - tip_y));
+        let twinkle = 0.7 + 0.3 * sin(time * 3.0 + fi * 2.0);
+        total += colour * (exp(-dd / max(0.1 * r, pixel)) * 1.3 + exp(-dd / (0.45 * r)) * 0.16) * twinkle;
+    }
+    return total * s.w;
+}
+
+// Butterflies resting on the blade and flying off now and then, at `along` (unclamped)
+// and `x`: their wings' light.
+fn skin_butterflies(
+    skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f32, seed: f32,
+) -> f32 {
+    let s = skin.fly_shape;
+    if s.x < 1.0 {
+        return 0.0;
+    }
+    let seeded = i32(seed * 4096.0);
+    let size = s.y;
+    let roam = skin.fly_roam.x;
+    var total = 0.0;
+    for (var i = 0; i < min(i32(s.x), 8); i++) {
+        let fi = f32(i);
+        let h1 = skin_hash(vec2(i, 51 + seeded));
+        let h2 = skin_hash(vec2(i, 67 + seeded));
+        let h3 = skin_hash(vec2(i, 83 + seeded));
+        let side = select(-1.0, 1.0, h2 < 0.5);
+        var spot = vec2((0.12 + 0.78 * h1) * blade_length, side * 0.8 * r);
+        let cycle = 6.0 + 4.0 * h3;
+        let p = fract(time / cycle + h1 * 3.7);
+        var open = 0.55 + 0.45 * sin(time * 0.8 + fi * 1.7);
+        if p < s.w {
+            // Out and back on a loop, flapping fast.
+            let f = p / max(s.w, 0.0001);
+            let away = sin(PI * f);
+            spot += roam * away * vec2(0.6 * cos(TAU * f * 1.3 + h3 * 6.0),
+                side * (0.6 + 0.4 * sin(TAU * f * 2.0)));
+            open = 0.15 + 0.85 * abs(sin(time * s.z * PI + fi));
+        }
+        let q = vec2(along, x) - spot;
+        if dot(q, q) > size * size * 1.2 {
+            continue;
+        }
+        var wings = 0.0;
+        for (var w = 0; w < 2; w++) {
+            let ws = select(-1.0, 1.0, w == 1);
+            let spread = max(open, 0.12);
+            let upper = (q - vec2(0.18 * size, ws * 0.3 * size * spread))
+                / vec2(0.32 * size, 0.28 * size * spread);
+            let lower = (q - vec2(-0.16 * size, ws * 0.24 * size * spread))
+                / vec2(0.24 * size, 0.2 * size * spread);
+            for (var part = 0; part < 2; part++) {
+                let e = select(lower, upper, part == 1);
+                let l = length(e);
+                // A dim rim and veins, as a monarch's wing.
+                let wing = 1.0 - smoothstep(0.85, 1.0, l);
+                let rim = smoothstep(1.0, 0.7, l);
+                let veins = 0.75 + 0.25 * sin(atan2(e.y, e.x) * 9.0);
+                wings = max(wings, wing * (0.35 + 0.65 * rim) * veins);
+            }
+        }
+        total += wings;
+    }
+    return total;
+}
+
+// Wings of fire spreading from near the hilt at `along` (unclamped) and `x`: their light.
+fn skin_wings(skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f32) -> f32 {
+    let s = skin.wing_shape;
+    if s.x <= 0.0 {
+        return 0.0;
+    }
+    let origin = vec2(0.15 * blade_length, 0.0);
+    let q = vec2(along, x) - origin;
+    if length(q) > s.x * 1.1 {
+        return 0.0;
+    }
+    let unfold = 0.35 + 0.65 * smoothstep(-0.3, 0.6, sin(TAU * time * s.y));
+    let feathers = i32(s.z);
+    var total = 0.0;
+    for (var w = 0; w < 2; w++) {
+        let ws = select(-1.0, 1.0, w == 1);
+        for (var f = 0; f < feathers; f++) {
+            let k = f32(f) / max(f32(feathers - 1), 1.0);
+            // Fanned from along the blade toward its side as the wing opens.
+            let angle = (0.25 + 1.05 * k) * unfold;
+            let dir = vec2(cos(angle), ws * sin(angle));
+            let span = s.x * (0.55 + 0.45 * (1.0 - abs(k - 0.6)));
+            let t = clamp(dot(q, dir) / span, 0.0, 1.0);
+            let d = length(q - dir * t * span);
+            let width = (0.12 + 0.18 * sin(PI * t)) * r;
+            let flame = 0.6 + 0.6 * skin_noise(vec2(t * 6.0 - time * 3.0, f32(f) * 3.1 + ws * 7.0));
+            total += smoothstep(width, width * 0.3, d) * (1.0 - 0.6 * t) * flame * unfold;
+        }
+    }
+    return min(total, 2.0);
+}
+
 fn skin_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     let skin = skin_at(input);
     let time = input.animation.x;
@@ -1200,6 +1474,28 @@ fn skin_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
         ) * (1.0 + glitch.z);
     } else {
         glow = skin_glow_at(input, pixel, x);
+    }
+    let copies = skin.copy_shape;
+    if copies.x >= 1.0 {
+        // Ghost copies at other angles drifting apart, then collapsing with a flash.
+        let p = fract(time / copies.w + seed * 0.37);
+        let apart = smoothstep(0.0, 0.85, p) * (1.0 - smoothstep(0.92, 1.0, p));
+        let flicker = 1.0 - skin.copy_more.x * skin_hash(vec2(i32(floor(time * 12.0)), 4141));
+        var ghosts = vec3(0.0);
+        // Their angle in the quad's own width (an angle of 0.1 reaches 0.6 of it at the
+        // tip, the outer copy), so they stay inside it whatever the blade's size.
+        let reach = skin_extent(skin, input) * 0.6 * copies.y / 0.1 / max(copies.x, 1.0);
+        for (var c = 1; c <= min(i32(copies.x), 2); c++) {
+            for (var s = 0; s < 2; s++) {
+                let offset = select(-1.0, 1.0, s == 1) * f32(c) * reach * apart
+                    * along / max(input.length, 0.0001);
+                // Its glow, and a thin bright line of its own core.
+                ghosts += (skin_glow_at(input, pixel, x - offset)
+                    + skin_line(abs(x - offset), 0.1 * input.radius, pixel) * skin.core_white.rgb * 1.5)
+                    / f32(c);
+            }
+        }
+        glow = glow * (1.0 + 0.8 * exp(-p * 25.0)) + ghosts * copies.z * flicker * apart;
     }
     let extent = skin_extent(skin, input);
     let beyond = max(input.blade.y - input.shaft, 0.0);
@@ -1269,6 +1565,10 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     if pinch > 0.0 {
         widen *= 1.0 - pinch * skin_band(skin, around, 0.0, time, pixel);
     }
+    // An hourglass's pinched waist.
+    if skin.hour_shape.x > 0.0 {
+        widen *= 0.2 + 0.8 * skin_hourglass_profile(skin, along, input.length);
+    }
     var shaded = input;
     shaded.blade = vec2(x / widen, min(input.blade.y, input.shaft) + beyond / widen);
     let capsule = glow_capsule(shaded) / widen;
@@ -1318,6 +1618,34 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     }
     if front > 0.0 {
         glow = skin_recolour(glow, skin.front_color.rgb, skin.front_color.w * front);
+    }
+    // The sixth set's figures, on the blade's place along it unclamped.
+    let place = input.blade.y / max(input.shaft, 0.0001) * input.length;
+    if skin.sketch_shape.x > 0.0 {
+        glow = glow * skin.sketch_shape.w + skin_sketch(skin, place, x, r, input.length, time, pixel)
+            * skin.sketch_color.rgb * skin.sketch_color.w;
+    }
+    if skin.hour_shape.x > 0.0 {
+        let h = skin_hourglass(skin, place, x, r, input.length, time, seed, pixel);
+        glow = glow * (0.45 + 1.5 * h.z) + h.x * skin.hour_color.rgb * skin.hour_color.w
+            + h.y * skin.rim_hot.rgb;
+    }
+    if skin.serpent_shape.x > 0.0 {
+        let s = skin_serpent(skin, place, x, r, input.length, time, pixel);
+        glow = glow * (1.0 - s.y) + s.x * skin.serpent_color.rgb * skin.serpent_color.w
+            + s.z * vec3(2.2, 0.18, 0.08) + s.w * vec3(1.0, 0.35, 0.4);
+    }
+    if skin.strand_shape.x >= 2.0 {
+        glow += skin_strands(skin, place, x, r, input.length, time, seed, pixel);
+    }
+    if skin.fly_shape.x >= 1.0 {
+        glow += skin_butterflies(skin, place, x, r, input.length, time, seed)
+            * skin.fly_color.rgb * skin.fly_color.w;
+    }
+    if skin.wing_shape.x > 0.0 {
+        let fire = skin_wings(skin, place, x, r, input.length, time);
+        glow += fire * mix(skin.wing_color.rgb, vec3(1.0, 0.9, 0.6), smoothstep(1.2, 2.0, fire))
+            * skin.wing_color.w;
     }
     let scan = skin.scan_lines;
     if scan.x > 0.0 {
@@ -1410,6 +1738,18 @@ fn skin_core(input: VertexOutput, texel: vec4<f32>, uv: vec2<f32>, footprint: f3
         core = skin_recolour(core, skin.front_color.rgb, skin.front_color.w * front);
     }
     core *= skin_segments(skin, along, input.length, time, seed);
+    // The sixth set: a sketch keeps its glow's share of the line, an hourglass's glass and
+    // a bundle of strands keep a faint one (their sand and fibres carry the light), a
+    // serpent hides it where its body passes in front.
+    if skin.sketch_shape.x > 0.0 {
+        core *= skin.sketch_shape.w;
+    }
+    if skin.hour_shape.x > 0.0 || skin.strand_shape.x >= 2.0 {
+        core *= 0.25;
+    }
+    if skin.serpent_shape.x > 0.0 {
+        core *= 1.0 - skin_serpent(skin, along, x, input.radius * 3.0, input.length, time, 0.0).y;
+    }
     let scan = skin.scan_lines;
     if scan.x > 0.0 {
         core *= 1.0 - scan.z * (0.5 + 0.5 * sin(TAU * (along * scan.x - time * scan.y)));

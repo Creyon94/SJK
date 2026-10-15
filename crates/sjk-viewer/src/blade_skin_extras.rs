@@ -179,10 +179,17 @@ pub(crate) enum Section {
     Film,
     Blobs,
     Front,
+    Sketch,
+    Hourglass,
+    Serpent,
+    Strands,
+    Butterflies,
+    Wings,
+    Copies,
 }
 
 impl Section {
-    pub(crate) const ALL: [Self; 23] = [
+    pub(crate) const ALL: [Self; 30] = [
         Self::Arcs,
         Self::Motes,
         Self::Hue,
@@ -206,6 +213,13 @@ impl Section {
         Self::Film,
         Self::Blobs,
         Self::Front,
+        Self::Sketch,
+        Self::Hourglass,
+        Self::Serpent,
+        Self::Strands,
+        Self::Butterflies,
+        Self::Wings,
+        Self::Copies,
     ];
 
     /// Its field's name in the file.
@@ -234,6 +248,13 @@ impl Section {
             Self::Film => "film",
             Self::Blobs => "blobs",
             Self::Front => "front",
+            Self::Sketch => "sketch",
+            Self::Hourglass => "hourglass",
+            Self::Serpent => "serpent",
+            Self::Strands => "strands",
+            Self::Butterflies => "butterflies",
+            Self::Wings => "wings",
+            Self::Copies => "copies",
         }
     }
 
@@ -292,6 +313,13 @@ impl BladeSkinDef {
             Section::Film => self.film.is_some(),
             Section::Blobs => self.blobs.is_some(),
             Section::Front => self.front.is_some(),
+            Section::Sketch => self.sketch.is_some(),
+            Section::Hourglass => self.hourglass.is_some(),
+            Section::Serpent => self.serpent.is_some(),
+            Section::Strands => self.strands.is_some(),
+            Section::Butterflies => self.butterflies.is_some(),
+            Section::Wings => self.wings.is_some(),
+            Section::Copies => self.copies.is_some(),
         }
     }
 
@@ -308,7 +336,8 @@ impl BladeSkinDef {
     }
 
     /// How far (units) the glow's quad reaches past the glow for the sections not in
-    /// `off`: the wisps' rise and the haze's reach.
+    /// `off`: the wisps' rise, the haze's reach, the butterflies' flights and the wings'
+    /// span.
     pub(crate) fn room(&self, off: u32) -> f32 {
         let wisps = self
             .wisps
@@ -318,7 +347,7 @@ impl BladeSkinDef {
             .haze
             .filter(|_| off & Section::Haze.bit() == 0)
             .map_or(0.0, |haze| haze.reach);
-        wisps.max(haze)
+        wisps.max(haze).max(self.figures().room(off))
     }
 
     /// The third set's sections and the options within their ranges.

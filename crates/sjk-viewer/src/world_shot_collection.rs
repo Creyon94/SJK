@@ -427,8 +427,8 @@ fn duel6_sjk_hover_cards() {
 }
 
 /// The Blade Lab's swatches (15/10/2026) on the Shaders list, every shader owned: the
-/// list scrolled to the Reactor, the Soap Bubble and the Neon in turn (each with its
-/// neighbours from the Blade Lab), at two moments.
+/// list scrolled to each of eight in turn (the Reactor, Soap Bubble, Neon, Hourglass, Fiber
+/// Optic, Monarch, Quantum and Sketch), held on the stage, at two moments.
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn duel6_lab_swatches() {
@@ -469,7 +469,16 @@ fn duel6_lab_swatches() {
                 .position(|skin| skin.id == id)
                 .expect("in the catalogue")
         };
-        for id in ["saber_reactor", "saber_bubble", "saber_neon"] {
+        for id in [
+            "saber_reactor",
+            "saber_bubble",
+            "saber_neon",
+            "saber_hourglass",
+            "saber_fiber",
+            "saber_monarch",
+            "saber_quantum",
+            "saber_sketch",
+        ] {
             if let Some(console) = gpu.console.as_mut() {
                 console.collection_shader_for_shot(row(id));
             }
