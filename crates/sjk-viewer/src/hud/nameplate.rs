@@ -156,8 +156,8 @@ const MAX_ICONS: usize = 4;
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 /// Frame colour of players who follow no team.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
-/// The contour of a player who shares their bars of their own will
-/// (`cg_nameplateShare`), the verified badge's gold.
+/// The contour of a player who shares their bars (`cg_nameplateShare`, or
+/// `cg_nameplateEstimate`, which shares them), the verified badge's gold.
 const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
 /// Frame colour of NPC plates.
 const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.9);
@@ -371,7 +371,7 @@ struct Entry {
     names_allowed: bool,
     /// The SJK hub's operator vouches for this player: the gold badge after the name.
     verified: bool,
-    /// They share their bars of their own will (not because they see everyone's): a
+    /// They share their bars, of their own will or because they see everyone's: a
     /// gold contour.
     shared: bool,
 }
@@ -934,9 +934,7 @@ impl State {
                     && self
                         .shared
                         .get(usize::from(number))
-                        .copied()
-                        .flatten()
-                        .is_some_and(|shared| !shared.estimates),
+                        .is_some_and(Option::is_some),
             });
             if self.entries.len() == MAX_TAGS {
                 break;
@@ -1138,7 +1136,7 @@ impl State {
             accent: team_accent(mode, player.team() as i32),
             names_allowed: true,
             verified: self.verified & (1 << local) != 0,
-            shared: settings.share && !settings.estimate,
+            shared: settings.share || settings.estimate,
         };
         let (powers, power_count) = if settings.icons {
             icon_powers(player.force_powers_active())

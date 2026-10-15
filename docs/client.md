@@ -2467,9 +2467,9 @@ share them, unless you turn the estimates on (decided 15/10/2026):
   estimate as it stood at that server time: what was seen since (a hit, a pain, a
   heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
   seen since, the bar is exact; it never waits for the next value to move.
-- **Gold contour:** the plate of a player who shares of their own will
-  (`cg_nameplateShare`, not only because `cg_nameplateEstimate` makes them) is framed
-  in the verified badge's gold instead of grey; in team games a thin line of the
+- **Gold contour:** the plate of a player who shares (`cg_nameplateShare`, or
+  `cg_nameplateEstimate`, which makes them share) is framed in the verified badge's
+  gold instead of grey; in team games a thin line of the
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too when
   you share. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.
 - `cg_nameplateEstimate` (off; "Bars on everyone"): the estimated bars on every

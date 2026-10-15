@@ -953,6 +953,7 @@ test: That sharer's plate has a gold contour (a red or blue line inside it in te
 test: Hit the sharer: the bar drops at once, then settles on the real value within a second.
 test: Turn Bars on everyone on: Share my bars turns on too and cannot be turned off.
 test: Inspect a player with Bars on everyone: the card says, in amber, Sees your health...
+test: A player with Bars on everyone has the gold contour too; so does your own plate.
 note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
 
 [team-outline]
