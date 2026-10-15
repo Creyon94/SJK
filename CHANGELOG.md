@@ -23,7 +23,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1015.1 (Alpha) | 15/10/2026
+
+Nameplate bars you choose to share, emotes on every JKA model, and the grey settings icons back.
+
+> Shared bars: Health, shield and Force bars show only on players who share theirs (`cg_nameplateShare`); sharers get a gold contour.
+> Bars on everyone: `cg_nameplateEstimate` estimates everyone's bars, shares yours and tells the others on your player card.
+> Emotes: Emotes made for high quality models now play on the normal JKA models too.
+> Fixes: No more purple arrows on community models, and the settings icons are the grey discs again.
 
 - Other players' health, shield and Force bars on the nameplates now show only for SJK players who share theirs (`cg_nameplateShare`, off by default, also in First setup); estimated bars on everyone (`cg_nameplateEstimate`, off) share your own bars and your player card tells the others you see theirs; a player who shares has a gold contour on their nameplate _(Sol)_
 - Settings icons are the grey metal discs again, as before 13/10: the gold and the holocron sets are gone, in Settings, the classic settings lists, the in-game menu and the what's-new card; Chat, Mods and the Quick wheel wear their grey icons again _(Sol)_
