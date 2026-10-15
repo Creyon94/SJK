@@ -606,3 +606,133 @@ pub(super) fn figures(
         }
     }
 }
+
+/// The seventh set (`blade_skin_solids.rs`) over the swatch's blade, drawn last as the
+/// solid pass is: a liquid mirror (dark below, bright above, a highlight, beads rolling
+/// along), and ink (halftone dots along the glow's edge, a dark body with a glossy streak,
+/// a black outline, a pointed tip).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn solids(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    def: &BladeSkinDef,
+    at: [f32; 2],
+    length: f32,
+    corona: f32,
+    t: f32,
+    ui: &dyn Fn(Rgb, f32) -> Color,
+) {
+    if let Some(chrome) = def.chrome {
+        let half = 4.5 * chrome.width;
+        capsule(
+            canvas,
+            frame,
+            [at[0], at[1] - half, length, half * 2.0],
+            ui(mix(chrome.color, [0.1; 3], 0.6), 1.0),
+        );
+        capsule(
+            canvas,
+            frame,
+            [at[0], at[1] - half, length, half],
+            ui(chrome.color, 0.95),
+        );
+        stroke(
+            canvas,
+            frame,
+            [at[0] + 2.0, at[1] - half * 0.45],
+            [at[0] + length - 2.0, at[1] - half * 0.45],
+            1.2,
+            Color::new(1.0, 1.0, 1.0, 0.9),
+        );
+        for bead in 0..(chrome.beads.round() as usize).min(4) {
+            let along = fract(draw(bead as f32 + 0.7) + t * chrome.speed / BLADE_UNITS);
+            disc(
+                canvas,
+                frame,
+                at[0] + along * length,
+                at[1],
+                half * 1.5,
+                ui(chrome.color, 0.9),
+            );
+        }
+    }
+    let Some(ink) = def.ink else {
+        return;
+    };
+    if ink.halftone > 0.0 {
+        let step = (6.0 / ink.halftone.max(0.5)).clamp(3.0, 8.0);
+        let mut x = at[0] + step;
+        while x < at[0] + length {
+            for side in [-1.0, 1.0] {
+                disc(
+                    canvas,
+                    frame,
+                    x,
+                    at[1] + side * corona * 0.75,
+                    1.3,
+                    ui(def.corona.rim_hot, 0.85),
+                );
+            }
+            x += step;
+        }
+    }
+    let half = 4.0 * ink.width;
+    let point = (ink.point / BLADE_UNITS * length).min(length * 0.5);
+    if ink.body > 0.0 {
+        let colour = Color::new(ink.color[0], ink.color[1], ink.color[2], ink.body);
+        capsule(
+            canvas,
+            frame,
+            [at[0], at[1] - half, length - point, half * 2.0],
+            colour,
+        );
+        for k in 0..6 {
+            let f = k as f32 / 6.0;
+            let w = half * (1.0 - f);
+            stroke(
+                canvas,
+                frame,
+                [at[0] + length - point + f * point, at[1] - w],
+                [at[0] + length - point + f * point, at[1] + w],
+                point / 6.0 + 1.0,
+                colour,
+            );
+        }
+        if ink.gloss > 0.0 {
+            let slide = fract(t * 0.13);
+            stroke(
+                canvas,
+                frame,
+                [at[0] + slide * length * 0.6, at[1] - half * 0.35],
+                [
+                    at[0] + slide * length * 0.6 + length * 0.25,
+                    at[1] - half * 0.35,
+                ],
+                1.2,
+                Color::new(1.0, 1.0, 1.0, 0.5 * ink.gloss),
+            );
+        }
+    }
+    if ink.outline > 0.0 {
+        let black = Color::new(0.0, 0.0, 0.0, ink.outline);
+        let edge = (ink.edge * 6.0).clamp(1.0, 3.0);
+        for side in [-1.0, 1.0] {
+            stroke(
+                canvas,
+                frame,
+                [at[0], at[1] + side * half],
+                [at[0] + length - point, at[1] + side * half],
+                edge,
+                black,
+            );
+            stroke(
+                canvas,
+                frame,
+                [at[0] + length - point, at[1] + side * half],
+                [at[0] + length + if point > 0.0 { 0.0 } else { half }, at[1]],
+                edge,
+                black,
+            );
+        }
+    }
+}

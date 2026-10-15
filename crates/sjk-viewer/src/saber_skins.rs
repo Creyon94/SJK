@@ -246,8 +246,8 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 90 `vec4`s (1440 bytes, so
-/// the [`MAX_SKINS`] array is 368640 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 95 `vec4`s (1520 bytes, so
+/// the [`MAX_SKINS`] array is 389120 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -343,6 +343,11 @@ pub(crate) struct SkinUniform {
     wing_shape: [f32; 4],
     copy_shape: [f32; 4],
     copy_more: [f32; 4],
+    ink_color: [f32; 4],
+    ink_shape: [f32; 4],
+    ink_more: [f32; 4],
+    chrome_color: [f32; 4],
+    chrome_shape: [f32; 4],
 }
 
 impl SkinUniform {
@@ -411,6 +416,22 @@ impl SkinUniform {
         .with_extras(def)
         .with_lab(def.lab())
         .with_figures(def.figures())
+        .with_solids(def.solids())
+    }
+
+    /// The seventh set's lanes ([`crate::blade_skin_file::solids`]).
+    fn with_solids(mut self, s: crate::blade_skin_file::solids::Solids<'_>) -> Self {
+        let rgb = |c: [f32; 3], w: f32| [c[0], c[1], c[2], w];
+        if let Some(i) = s.ink {
+            self.ink_color = rgb(i.color, i.body);
+            self.ink_shape = [i.outline, i.width, i.edge, i.point];
+            self.ink_more = [i.gloss, i.halftone, 0.0, 0.0];
+        }
+        if let Some(c) = s.chrome {
+            self.chrome_color = rgb(c.color, c.width);
+            self.chrome_shape = [c.ripple, c.beads, c.speed, 0.0];
+        }
+        self
     }
 
     /// The sixth set's lanes ([`crate::blade_skin_file::figures`]).

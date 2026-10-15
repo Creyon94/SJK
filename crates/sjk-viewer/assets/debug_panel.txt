@@ -4634,3 +4634,13 @@ test: Staff page: give yourself each, wear it; watch it 10 s in the world and on
 test: Monarch's butterflies and Phoenix's wings are not cut off at the glow's edge.
 test: Collection > Shaders: their swatches move; Parts switch the figures off.
 
+[blade-lab-3]
+area: Rendering & effects
+title: Solid blades: Comic, Quicksilver, Obsidian Edge (hub deploy needed)
+change: Comic: black outline, halftone dots, in your saber colour.
+change: Quicksilver: rippling liquid chrome, beads rolling up, silver drips.
+change: Obsidian Edge: opaque black glass blade, glossy streak, lightning on its edges.
+test: Staff page: give yourself each, wear it in a lit map and a dark one; then on the stage.
+test: Their bodies stay solid while swinging; no grey seams across the Obsidian.
+test: Collection > Shaders: their swatches; Parts switch the ink, drips and crackle off.
+

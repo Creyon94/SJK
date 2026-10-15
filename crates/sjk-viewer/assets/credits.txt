@@ -141,6 +141,7 @@ did: #100 Each Force power shown on the profile's model
 did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades and the twelve after them (Saber smith: Creyon)
 did: The Blade Lab page: the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades
 did: The Blade Lab page: the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum blades
+did: The Blade Lab page: the Comic, Quicksilver and Obsidian Edge blades
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 [Lumaya]

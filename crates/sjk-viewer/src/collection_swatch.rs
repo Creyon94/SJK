@@ -601,6 +601,7 @@ fn lit_blade(
         );
     }
     effects::glitch(canvas, frame, def, [start, centre], length, t);
+    effects::solids(canvas, frame, def, [start, centre], length, corona, t, &ui);
 }
 
 /// The skin's motes round the blade from `at` (its hilt end, frame pixels) along `length`,
