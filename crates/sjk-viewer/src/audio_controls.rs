@@ -200,26 +200,49 @@ impl GameAudio {
         ));
     }
 
-    /// Play an emote's sound on player `slot`, `volume` times as loud as recorded, on
-    /// the channel [`EMOTE_CHANNEL`] so [`Self::stop_emote`] can cut it; a muted
-    /// player's stays silent. Another player's is placed at `origin` and follows them
-    /// (the snapshot moves their source); the player's own (`origin` `None`: their
-    /// entity is not in the snapshot to move it) plays in both ears.
+    /// Play an emote's sound on player `slot` from `offset` in (a synced emote's
+    /// music picking up), `volume` times as loud as recorded, on the channel
+    /// [`EMOTE_CHANNEL`] so [`Self::stop_emote`] can cut it; a muted player's stays
+    /// silent. Another player's is placed at `origin` and follows them (the snapshot
+    /// moves their source); the player's own (`origin` `None`: their entity is not in
+    /// the snapshot to move it) plays in both ears.
     pub(crate) fn play_emote(
         &mut self,
         path: &str,
         slot: u8,
         origin: Option<[f32; 3]>,
         volume: f32,
+        offset: std::time::Duration,
     ) {
         let source = SourceId(u32::from(slot));
         if self.mute.silences(source, None) {
             return;
         }
-        match origin {
-            Some(origin) => self.play_on_channel(path, volume, origin, source, EMOTE_CHANNEL),
-            None => self.play_local(path, volume, source, EMOTE_CHANNEL),
+        if offset.is_zero() {
+            match origin {
+                Some(origin) => self.play_on_channel(path, volume, origin, source, EMOTE_CHANNEL),
+                None => self.play_local(path, volume, source, EMOTE_CHANNEL),
+            }
+            return;
         }
+        let Some(handle) = self.find_handle(path) else {
+            return;
+        };
+        let samples = (offset.as_secs_f64() * f64::from(crate::audio_output::SAMPLE_RATE)) as usize;
+        self.output.send(AudioCommand::PlayFrom(
+            handle,
+            PlayRequest {
+                origin,
+                source,
+                channel: EMOTE_CHANNEL,
+                volume,
+                attenuation: match origin {
+                    Some(_) => sjk_client::legacy_sound_attenuation(EMOTE_CHANNEL.0),
+                    None => sjk_audio::Attenuation::None,
+                },
+            },
+            samples,
+        ));
     }
 
     /// Stop the emote sound player `slot` plays.

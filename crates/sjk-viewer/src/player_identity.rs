@@ -896,12 +896,12 @@ pub(crate) fn chat(text: String) -> bool {
 }
 
 /// Play an emote for the player's slot; false when the service has not started.
-pub(crate) fn emote(id: String) -> bool {
+pub(crate) fn emote(id: String, sync: Option<u8>) -> bool {
     let runtime = lock();
     let Some(service) = runtime.service.as_ref() else {
         return false;
     };
-    service.emote(id);
+    service.emote(id, sync);
     true
 }
 
@@ -1121,7 +1121,7 @@ mod tests {
         assert!(!chat("hi".to_owned()));
         assert!(!set_avatar(vec![1, 2, 3]));
         assert!(!remove_avatar());
-        assert!(!emote("wave".to_owned()));
+        assert!(!emote("wave".to_owned(), None));
         assert!(with_chat(|chat| chat.revision).is_none());
         assert!(take_emotes().is_empty());
         assert_eq!(with_claims(|claims| claims.len()), 0);

@@ -493,7 +493,19 @@ impl Mixer {
     /// first free slot wins, then the oldest non-loop voice, matching
     /// `S_PickChannel` (`snd_dma.cpp:1088-1150`).
     pub fn play(&mut self, handle: SoundHandle, request: PlayRequest) -> bool {
-        if self.bank.get(handle).is_none() || self.voices.is_empty() {
+        self.play_from(handle, request, 0)
+    }
+
+    /// [`Self::play`] from `offset` mono samples into the sound (at the mixer's
+    /// rate), as if it had started that long ago; an offset past its end plays
+    /// nothing.
+    pub fn play_from(&mut self, handle: SoundHandle, request: PlayRequest, offset: usize) -> bool {
+        if self
+            .bank
+            .get(handle)
+            .is_none_or(|sound| offset > 0 && offset >= sound.samples.len())
+            || self.voices.is_empty()
+        {
             return false;
         }
         let replacement = (request.channel != ChannelId(0))
@@ -517,7 +529,7 @@ impl Mixer {
             active: true,
             handle,
             request,
-            cursor: 0,
+            cursor: offset,
             started: self.serial,
         };
         true

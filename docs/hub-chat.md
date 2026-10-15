@@ -592,8 +592,20 @@ and plays changes.
   the quick wheel shows for it, drawn on a blue disc), `sound_ms` (the sound's length: a
   looping emote plays it again each time it ends), `sound_loop` and `sound_loop_ms`
   (music in two parts: the loop follows the sound and repeats while the emote plays) and `rig` (the rig model folder the clip comes from;
-  other rig models with the same joint names borrow it). The id `stop` is reserved:
-  `sjkemote stop` ends the player's emote here and, relayed, for the others.
+  other rig models with the same joint names borrow it). The ids `stop` and `sync` are
+  reserved: `sjkemote stop` ends the player's emote here and, relayed, for the others.
+- `sjkemote sync [player]` (since 15/10/2026; the quick wheel's Sync emote) joins
+  another player's emote in step: the named player (a slot number or part of the name
+  shown), else the one under the crosshair, else the nearest emoting player within 512
+  units. The emote goes to the hub with the leader's slot (`sync` in `POST /v1/emote`,
+  relayed in the feed). Every client, the joiner's included, gives the follower the
+  start time the leader's emote has *on that client* (`ActiveEmotes::sync`), so the two
+  are in phase on every screen whatever each player's delay to the hub. Joining a
+  follower follows its leader. The pair shares one song: the follower's own music stays
+  silent while the leader plays the same emote from the same start, and when the leader
+  stops, starts again or leaves first it picks up where it is (`Cue::Start`'s `offset`,
+  the mixer's `play_from`). A client that does not see the leader playing it, or a
+  hub or client from before the change, plays it from the start as a plain emote.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
 - A received emote counts only when the game shows, in its slot, the name its claim

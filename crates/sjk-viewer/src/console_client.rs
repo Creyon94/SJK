@@ -404,8 +404,14 @@ impl crate::GpuState {
                 crate::emotes::lock().active.stop(slot);
             }
             // The others stop it too; without the identity there is nobody to tell.
-            let _ = crate::player_identity::emote(id);
+            let _ = crate::player_identity::emote(id, None);
             return Ok(Vec::new());
+        }
+        if id == crate::emotes::SYNC {
+            let Some(slot) = own else {
+                return Err("Join a server to emote".to_owned());
+            };
+            return self.emote_sync(slot, args.get(1).map(String::as_str));
         }
         let mut state = crate::emotes::lock();
         if state.catalogue.is_none()
@@ -432,13 +438,103 @@ impl crate::GpuState {
         if def.is_some_and(|def| def.local) {
             return Ok(Vec::new());
         }
-        if !crate::player_identity::emote(id) {
+        if !crate::player_identity::emote(id, None) {
             return Err(
                 "Played here only: other SJK players see emotes with the SJK identity (cl_identity 1)"
                     .to_owned(),
             );
         }
         Ok(Vec::new())
+    }
+
+    /// `sjkemote sync [player]`: the player in `own` joins, in step, the emote of
+    /// `target` (a slot number or part of a name), else of the player under the
+    /// crosshair, else of the nearest one within [`crate::emotes::SYNC_RANGE`].
+    fn emote_sync(&mut self, own: u8, target: Option<&str>) -> Result<Vec<String>, String> {
+        let Some(session) = self.live_session.as_ref() else {
+            return Err("Join a server to emote".to_owned());
+        };
+        let game_state = session.game_state();
+        let now_ms = session.latest_snapshot().server_time;
+        let position = |slot: u8| {
+            self.live_world
+                .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
+                .map(|entity| entity.current().transform.translation)
+        };
+        let here = position(own).unwrap_or_default();
+        let mut state = crate::emotes::lock();
+        let emoting: Vec<(u8, String)> = state
+            .active
+            .playing()
+            .filter(|(slot, _)| *slot != own)
+            .map(|(slot, active)| (slot, active.emote.clone()))
+            .collect();
+        let shown = |slot: u8| {
+            crate::player_identity::shown_name(game_state, usize::from(slot)).unwrap_or_default()
+        };
+        let leader = match target {
+            Some(target) => {
+                let wanted = target.parse::<u8>().ok();
+                let words = crate::emotes::plain_name(target);
+                emoting
+                    .iter()
+                    .find(|(slot, _)| {
+                        wanted == Some(*slot)
+                            || (wanted.is_none()
+                                && crate::emotes::plain_name(&shown(*slot)).contains(&words))
+                    })
+                    .ok_or_else(|| format!("{target} is not playing an emote"))?
+            }
+            None => {
+                let aimed = self
+                    .crosshair_scan
+                    .chat_client(now_ms)
+                    .and_then(|slot| u8::try_from(slot).ok());
+                let distance = |slot: u8| {
+                    position(slot).map_or(f32::INFINITY, |at| {
+                        at.iter()
+                            .zip(here)
+                            .map(|(a, b)| (a - b) * (a - b))
+                            .sum::<f32>()
+                            .sqrt()
+                    })
+                };
+                emoting
+                    .iter()
+                    .find(|(slot, _)| Some(*slot) == aimed)
+                    .or_else(|| {
+                        emoting
+                            .iter()
+                            .filter(|(slot, _)| distance(*slot) <= crate::emotes::SYNC_RANGE)
+                            .min_by(|a, b| distance(a.0).total_cmp(&distance(b.0)))
+                    })
+                    .ok_or_else(|| "Nobody near you is playing an emote".to_owned())?
+            }
+        };
+        let (leader, emote) = leader.clone();
+        if state.catalogue.is_none()
+            && let Some(vfs) = self.vfs.as_deref()
+        {
+            state.catalogue = Some(crate::emotes::load(vfs));
+        }
+        let def = state
+            .catalogue
+            .as_ref()
+            .and_then(|catalogue| catalogue.iter().find(|def| def.id == emote))
+            .cloned();
+        state.active.sync(own, leader, &emote, def.as_ref(), here);
+        drop(state);
+        let name = crate::emotes::plain_name_shown(&shown(leader));
+        if def.as_ref().is_some_and(|def| def.local) {
+            return Ok(vec![format!("In step with {name} (played here only)")]);
+        }
+        if !crate::player_identity::emote(emote, Some(leader)) {
+            return Err(
+                "Played here only: other SJK players see emotes with the SJK identity (cl_identity 1)"
+                    .to_owned(),
+            );
+        }
+        Ok(vec![format!("In step with {name}")])
     }
 
     /// Open stock targeted chat using authoritative damage and retained crosshair state.

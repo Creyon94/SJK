@@ -68,15 +68,27 @@ impl GpuState {
                 state.active.stop(emote.slot);
                 continue;
             }
+            if emote.emote == emotes::SYNC {
+                continue;
+            }
             let def = state
                 .catalogue
                 .as_ref()
                 .and_then(|catalogue| catalogue.iter().find(|def| def.id == emote.emote))
                 .cloned();
             let origin = position(emote.slot).unwrap_or_default();
-            state
-                .active
-                .start(emote.slot, &emote.emote, def.as_ref(), origin, now);
+            // In step with the leader as this client saw them start; a leader not
+            // playing it here (gone, or its own echo still on the way) starts it anew.
+            let synced = emote.sync.is_some_and(|leader| {
+                state
+                    .active
+                    .sync(emote.slot, leader, &emote.emote, def.as_ref(), origin)
+            });
+            if !synced {
+                state
+                    .active
+                    .start(emote.slot, &emote.emote, def.as_ref(), origin, now);
+            }
             // Until the animations exist, the console says it.
             if let Some(console) = &mut self.console {
                 let name = def
@@ -127,14 +139,18 @@ impl GpuState {
             .clamp(0.0, 4.0) as f32;
         for cue in cues {
             match cue {
-                emotes::Cue::Start { slot, sound } => {
+                emotes::Cue::Start {
+                    slot,
+                    sound,
+                    offset,
+                } => {
                     let origin = (Some(slot) != own).then(|| {
                         world
                             .entity(EntityId::new(u64::from(slot) + 1))
                             .map(|entity| entity.current().transform.translation)
                             .unwrap_or_default()
                     });
-                    audio.play_emote(&sound, slot, origin, volume);
+                    audio.play_emote(&sound, slot, origin, volume, offset);
                 }
                 emotes::Cue::Stop { slot } => audio.stop_emote(slot),
             }

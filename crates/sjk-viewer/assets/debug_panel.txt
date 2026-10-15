@@ -4716,3 +4716,13 @@ test: Start a long emote with music next to bots fighting with sabers and guns.
 test: The music plays to its end; swings, shots and voices still sound.
 test: Stop the emote: its music stops at once.
 
+[emote-sync]
+area: Audio
+title: Sync emote: join another player's emote in step, one song for both
+change: sjkemote sync [player], also Sync emote on the quick wheel (Emotes).
+change: Every SJK screen shows both in step; only the leader's music plays.
+test: A emotes; B aims at A and uses Sync emote: B dances in step, one song.
+test: Watch from a third SJK client: the two stay in step there too.
+test: A stops first: B keeps dancing and the music carries on without a jump.
+test: sjkemote sync with nobody emoting near says so in the console.
+

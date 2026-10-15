@@ -135,12 +135,14 @@ pub trait Hub: Send {
             "this hub client does not send chat".to_owned(),
         ))
     }
-    /// Play `emote` for the slot the identity claims on `server`.
+    /// Play `emote` for the slot the identity claims on `server`, in step with the
+    /// player in slot `sync` when it is set.
     fn emote(
         &mut self,
         _identity: &Identity,
         _server: &str,
         _emote: &str,
+        _sync: Option<u8>,
     ) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send emotes".to_owned(),
@@ -1173,8 +1175,17 @@ impl Hub for HttpHub {
             .ok_or_else(|| HubError::Protocol("the chat answer has no id".to_owned()))
     }
 
-    fn emote(&mut self, identity: &Identity, server: &str, emote: &str) -> Result<u64, HubError> {
-        let body = json!({ "server": server, "emote": emote });
+    fn emote(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        emote: &str,
+        sync: Option<u8>,
+    ) -> Result<u64, HubError> {
+        let mut body = json!({ "server": server, "emote": emote });
+        if let Some(sync) = sync {
+            body["sync"] = json!(sync);
+        }
         let answer = self.send(Some(identity), "POST", "/v1/emote", Some(body))?;
         answer["id"]
             .as_u64()

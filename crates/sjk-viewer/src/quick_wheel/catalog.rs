@@ -510,6 +510,15 @@ pub(crate) const ACTIONS: &[Action] = &[
         State::None,
         Some("gloat"),
     ),
+    // Joins the emote of the player aimed at, or the nearest one, in step.
+    action(
+        "emote_sync",
+        "Sync emote",
+        "sjkemote sync",
+        Emotes,
+        State::None,
+        Some("vote_yes"),
+    ),
     // Ends the player's SJK emote (`emotes.rs`), a moving loop's only end.
     action(
         "emote_stop",

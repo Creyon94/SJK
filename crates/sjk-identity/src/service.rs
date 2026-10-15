@@ -363,8 +363,8 @@ enum Command {
     NoteImage(u64, Vec<u8>),
     /// An SJK chat message.
     Chat(String),
-    /// An emote, for the slot the player claims.
-    Emote(String),
+    /// An emote, for the slot the player claims, in step with another slot's or not.
+    Emote(String, Option<u8>),
     /// A ping at a point (whole game units) for a scope, from the slot the player claims.
     Ping([i32; 3], String),
     /// Whether the SJK chat is on.
@@ -755,8 +755,9 @@ impl Worker {
         self.chat_outcome(outcome);
     }
 
-    /// Send an emote for the slot the player claims on their server.
-    fn send_emote(&mut self, emote: &str) {
+    /// Send an emote for the slot the player claims on their server, in step with
+    /// slot `sync`'s when it is set.
+    fn send_emote(&mut self, emote: &str, sync: Option<u8>) {
         let well_formed = (1..=32).contains(&emote.len())
             && emote
                 .bytes()
@@ -776,9 +777,19 @@ impl Worker {
                 code: "not_on_server".to_owned(),
                 message: "join a server to emote".to_owned(),
             }),
-            (Some(hub), true, Some(server)) => hub
-                .emote(&self.identity, &server, emote)
-                .map(|_| String::new()),
+            // A hub from before 15/10/2026 refuses `sync` (`bad_body`): the emote
+            // still goes, out of step.
+            (Some(hub), true, Some(server)) => {
+                match hub.emote(&self.identity, &server, emote, sync) {
+                    Err(HubError::Rejected { code, .. })
+                        if sync.is_some() && code == "bad_body" =>
+                    {
+                        hub.emote(&self.identity, &server, emote, None)
+                    }
+                    sent => sent,
+                }
+                .map(|_| String::new())
+            }
             _ => Err(not_connected()),
         };
         self.chat_outcome(outcome);
@@ -903,7 +914,7 @@ impl Worker {
                 }
             }
             Command::Chat(text) => self.send_chat(&text),
-            Command::Emote(emote) => self.send_emote(&emote),
+            Command::Emote(emote, sync) => self.send_emote(&emote, sync),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
             Command::SetChat(on) => self.chat_on = on,
             Command::SetAvatar(png) => self.change_avatar(Some(&png)),
@@ -2170,10 +2181,10 @@ impl Service {
         let _ = self.commands.send(Command::Chat(text));
     }
 
-    /// Play an emote for the player's slot on their server; what became of it arrives in
-    /// [`ChatState::outcome`].
-    pub fn emote(&self, emote: String) {
-        let _ = self.commands.send(Command::Emote(emote));
+    /// Play an emote for the player's slot on their server, in step with slot `sync`'s
+    /// when it is set; what became of it arrives in [`ChatState::outcome`].
+    pub fn emote(&self, emote: String, sync: Option<u8>) {
+        let _ = self.commands.send(Command::Emote(emote, sync));
     }
 
     /// Read the chat without copying it; keep `read` short.
@@ -2276,6 +2287,8 @@ mod tests {
     struct Fake {
         log: Arc<Mutex<Vec<String>>>,
         fail: Arc<AtomicBool>,
+        /// Refuses an emote's `sync`, as a hub from before 15/10/2026 does.
+        old_hub: Arc<AtomicBool>,
         roster: Arc<Mutex<Vec<Presence>>>,
         /// The most of any count the fake hub takes, as its hourly allowance would.
         cap: Arc<Mutex<Option<u64>>>,
@@ -2574,8 +2587,22 @@ mod tests {
         fn chat(&mut self, _: &Identity, text: &str, name: &str) -> Result<u64, HubError> {
             Fake::record(self, format!("chat {text} as {name}")).map(|()| 12)
         }
-        fn emote(&mut self, _: &Identity, server: &str, emote: &str) -> Result<u64, HubError> {
-            Fake::record(self, format!("emote {emote} on {server}")).map(|()| 13)
+        fn emote(
+            &mut self,
+            _: &Identity,
+            server: &str,
+            emote: &str,
+            sync: Option<u8>,
+        ) -> Result<u64, HubError> {
+            if sync.is_some() && self.old_hub.load(Ordering::SeqCst) {
+                return Err(HubError::Rejected {
+                    status: 400,
+                    code: "bad_body".to_owned(),
+                    message: "unknown field `sync`".to_owned(),
+                });
+            }
+            let with = sync.map_or_else(String::new, |slot| format!(" with {slot}"));
+            Fake::record(self, format!("emote {emote} on {server}{with}")).map(|()| 13)
         }
         fn ping(
             &mut self,
@@ -3276,16 +3303,26 @@ mod tests {
         let (mut worker, _) = worker(&fake, t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
-        worker.handle(Command::Emote("wave".into()), t0);
+        worker.handle(Command::Emote("wave".into(), None), t0);
         let nowhere = chat_outcome(&worker);
         assert!(!nowhere.sent && nowhere.message.contains("server"));
         worker.handle(Command::Enter(here(3, "Sol")), t0);
         worker.tick(t0);
-        worker.handle(Command::Emote("Wave!".into()), t0);
+        worker.handle(Command::Emote("Wave!".into(), None), t0);
         assert!(!chat_outcome(&worker).sent);
         assert!(!fake.log().iter().any(|line| line.starts_with("emote")));
-        worker.handle(Command::Emote("wave".into()), t0);
+        worker.handle(Command::Emote("wave".into(), None), t0);
         assert_eq!(fake.log().last().unwrap(), "emote wave on 1.2.3.4:29070");
+        assert!(chat_outcome(&worker).sent);
+        worker.handle(Command::Emote("wave".into(), Some(5)), t0);
+        assert_eq!(
+            fake.log().last().unwrap(),
+            "emote wave on 1.2.3.4:29070 with 5"
+        );
+        // A hub that does not know `sync` still gets the emote, out of step.
+        fake.old_hub.store(true, Ordering::SeqCst);
+        worker.handle(Command::Emote("bow".into(), Some(5)), t0);
+        assert_eq!(fake.log().last().unwrap(), "emote bow on 1.2.3.4:29070");
         assert!(chat_outcome(&worker).sent);
     }
 
