@@ -279,13 +279,18 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
         (one.wing_shape, "wing_shape"),
         (one.copy_shape, "copy_shape"),
         (one.copy_more, "copy_more"),
+        (one.ink_color, "ink_color"),
+        (one.ink_shape, "ink_shape"),
+        (one.ink_more, "ink_more"),
+        (one.chrome_color, "chrome_color"),
+        (one.chrome_shape, "chrome_shape"),
     ] {
         assert_eq!(lane, [0.0; 4], "{name}");
     }
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 90 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 95 * 16);
     // The array stays inside the storage binding WebGPU guarantees (128 MiB).
     assert!(bytes.len() <= 128 * 1024 * 1024);
 }

@@ -106,6 +106,9 @@ meaning.
 | `saber_monarch` | Monarch blade | blade skin | Given by the SJK team. |
 | `saber_phoenix` | Phoenix blade | blade skin | Given by the SJK team. |
 | `saber_quantum` | Quantum blade | blade skin | Given by the SJK team. |
+| `saber_comic` | Comic blade | blade skin | Given by the SJK team. |
+| `saber_quicksilver` | Quicksilver blade | blade skin | Given by the SJK team. |
+| `saber_obsidian` | Obsidian Edge blade | blade skin | Given by the SJK team. |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -229,6 +232,17 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   butterflies scattering, copies collapsing on a swing: the shader does not know the
   blade's motion, so they follow their own clocks) and the Phoenix's ash-to-fire
   ignition (it does not know when the blade was lit).
+- **The Blade Lab's last three** (15/10/2026, same scripts), drawn with the seventh set,
+  solid parts blended over the glow: Legendary **Comic** (a chroma: a thick black outline
+  round its flat glow, the glow outside printed in halftone dots; little pops) and
+  **Quicksilver** (a liquid mirror reflecting a bright sky over a dark ground, ripples
+  running up it, beads rolling to the tip, silver drips, barely a glow; wet metallic
+  wobbles); Mythical **Obsidian Edge** (a flat, pointed blade of black glass with a
+  glossy streak sliding along it and white lightning crackling off its edges; a low
+  growl and crackle). Not built: the Comic's speed lines and the words that burst out on
+  ignite, swing and clash (the shader knows no swing or clash), and a true reflection of
+  the map in the Quicksilver (it reflects a made-up surrounding in the light where the
+  blade is).
 
 ## Hub protocol (additions to version 1)
 
@@ -465,8 +479,8 @@ holocron look alike:
 
 | Tier | Shaders |
 | --- | --- |
-| Mythical | Sun, Void, Molten, Spectral, Reactor, Bleeding Kyber, Serpent, Monarch, Phoenix, Quantum |
-| Legendary | Storm, Unstable, Chameleon, Prism (provisional), Hourglass, Fiber Optic |
+| Mythical | Sun, Void, Molten, Spectral, Reactor, Bleeding Kyber, Serpent, Monarch, Phoenix, Quantum, Obsidian Edge |
+| Legendary | Storm, Unstable, Chameleon, Prism (provisional), Hourglass, Fiber Optic, Comic, Quicksilver |
 | Rare | Frost, Hologram, Runic, Heartbeat, Glitch (provisional), Banner (provisional), Soap Bubble, Lava Lamp, Sketch |
 | Common | Tidal, Circuit, Aurora, Echo, Slate, Amber, Lilac, Mint, Coral, Ivory |
 | Uncommon | Nebula, Cinder, Venom, Sakura, Firefly, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight, Neon, Peppermint |
@@ -630,6 +644,14 @@ additions file**, `skins/blades/<id>.bladeextra4`, laid over the others (with th
 span widen the glow's quad (its room, as the wisps' and haze's); the copies keep inside
 it (their angle is a share of its width).
 
+The seventh set (15/10/2026, the Blade Lab's solid blades,
+[blade_skin_solids.rs](../crates/sjk-viewer/src/blade_skin_solids.rs)): `ink` and
+`chrome`, in the **fifth additions file**, `skins/blades/<id>.bladeextra5`. Every other
+section adds light; these are drawn after the blades, alpha-blended, so they can be
+dark or opaque ([rendering.md](rendering.md#saber-blade-skins)). They take the last two
+bits of the instance's 32-bit mask of parts switched off: a later section that can be
+switched off needs a wider mask.
+
 | Field | Meaning | Range |
 | --- | --- | --- |
 | `version` | Format version | 1 |
@@ -720,8 +742,13 @@ it (their angle is a share of its width).
 | `butterflies.count`, `size`, `flap`, `flight`, `roam` | How many rest on the blade, their size (units), wing beats a second in flight, the share of each one's cycle it flies, how far (units) | 1-8, 0.5-8, 0-20, 0-1, 0-16 |
 | `wings.color`, `brightness`, `span`, `rate`, `feathers` | Wings of fire from near the hilt: colour (white-hot where they overlap), light, length (units), unfoldings a second, feathers a side | 0-4, 0-10, 2-16, 0-4, 3-9 |
 | `copies.count`, `angle`, `fade`, `period`, `flicker` | Ghost copies a side, their angle (0.1: the outer copy reaches 0.6 of the glow's width at the tip), their light, seconds they drift apart before collapsing with a flash, how much they flicker | 1-2, 0.005-0.1, 0-1, 0.5-30, 0-1 |
+| `ink.color`, `body` | A body over the blade: its colour (a chroma's takes the wearer's colour) and opacity | 0-1, 0-1 |
+| `ink.outline`, `width`, `edge` | A black outline's opacity, the body's half-width (blade radii) and the outline's thickness (radii) | 0-1, 0.2-2, 0.02-0.6 |
+| `ink.point`, `gloss`, `halftone` | The tip drawn to a point over its last units (0: round), a glossy streak sliding along the body, the glow outside the inside printed as dots, that many a unit (0: none); one of body, outline or halftone is needed | 0-20, 0-1, 0-4 |
+| `chrome.color`, `width` | A liquid mirror: its tint and half-width (blade radii) | 0-1, 0.2-2 |
+| `chrome.ripple`, `beads`, `speed` | How far ripples swell it, beads rolling up it at once, units a second | 0-0.5, 0-8, 0-40 |
 | `echo.fade`, `sway`, `rate`, `lean` | One faint copy of the glow beside the blade, there even held still: its brightness, how far it sways (units, the tip more than the hilt), sways a second, how far it leans (radians) | 0-1, 0-6, 0.02-4, 0-0.3 |
-| `options` | Up to 6 parts the wearer may switch off ([Options](#options)), each `{"id", "name", "sections"}`: `id` 1 to 24 of `a`-`z`, `0`-`9`, `_`; `name` 1 to 24 printable ASCII characters (the Collection shows it); `sections` 1 to 4 of the file's optional sections (`arcs`, `motes`, `hue`, `sputter`, `glitch`, `scan`, `pulse`, `ghosts`, `embers`, `veins`, `team`, `ambient`, `glyphs`, `star`, `wisps`, `haze`, `echo`, `holes`, `bands`, `segments`, `film`, `blobs`, `front`, `sketch`, `hourglass`, `serpent`, `strands`, `butterflies`, `wings`, `copies`), each in the file and in one option only. Two ids of a skin may not share a bit of the look's 64 (FNV-1a of the id; the log names the pair to rename) | |
+| `options` | Up to 6 parts the wearer may switch off ([Options](#options)), each `{"id", "name", "sections"}`: `id` 1 to 24 of `a`-`z`, `0`-`9`, `_`; `name` 1 to 24 printable ASCII characters (the Collection shows it); `sections` 1 to 4 of the file's optional sections (`arcs`, `motes`, `hue`, `sputter`, `glitch`, `scan`, `pulse`, `ghosts`, `embers`, `veins`, `team`, `ambient`, `glyphs`, `star`, `wisps`, `haze`, `echo`, `holes`, `bands`, `segments`, `film`, `blobs`, `front`, `sketch`, `hourglass`, `serpent`, `strands`, `butterflies`, `wings`, `copies`, `ink`, `chrome`), each in the file and in one option only. Two ids of a skin may not share a bit of the look's 64 (FNV-1a of the id; the log names the pair to rename) | |
 | `trail` | Blur trail colour | 0-1 |
 | `light.color` | Dynamic light colour (stock gain) | 0-4 |
 | `light.flicker` | `amount` and up to 2 `waves` (`rate`, `weight`, `phase` per hilt): brightness `1 − amount + amount × Σ weight × sin(t × rate + phase × hilt phase)` | amount 0-1 |
@@ -958,7 +985,7 @@ holds the table (`id`, full name, short tag); a new edition is one line there.
 its idea, even when it was made together (`Unlockable::smith`, the names `SOL` and
 `CREYON` in [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)). Creyon's "Saber
 ideas" page gave the 21 plain ones (Tidal to Firefly, Slate to Moonlight) and his
-"Blade Lab" page the ones after them (Neon to Quantum, 15/10/2026); Sol gave the
+"Blade Lab" page the sixteen after them (Neon to Obsidian Edge, 15/10/2026); Sol gave the
 fourteen before them. It reads "Saber smith: Creyon" at the right of the shader's big
 card, beside its description, and on its hover card; the Shaders search matches it. A
 new shader names its smith in its catalogue entry (a test lists Creyon's).

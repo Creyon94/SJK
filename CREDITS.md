@@ -251,7 +251,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - the Blade Lab page, sixteen more blade ideas with their sounds, whose first six became
   the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades, and
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
-  blades.
+  blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK

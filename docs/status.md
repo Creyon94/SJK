@@ -1,3 +1,16 @@
+## The Blade Lab's last three: solid blades
+
+15/10/2026, `blade-lab-3` (hub `blade-lab-3`): Comic and Quicksilver (Legendary) and
+Obsidian Edge (Mythical), all droppable, a tier above Creyon's ranking, completing his
+Blade Lab page (sixteen shaders). A seventh set of blade-skin sections, `ink` and
+`chrome` (`blade_skin_solids.rs`, `.bladeextra5`), drawn in a new alpha-blended pass
+after the blades (`fragment_solid`), so a blade can be dark, outlined or a mirror; the
+Comic's halftone is printed in the glow. Checked by unit tests and the world shots
+`duel6_lab_blades_solids` and `duel6_lab_swatches`; tuned there (the obsidian body made
+fully opaque, as 96 % let the bright glow through as grey seams, and narrower so its
+crackle shows). Not heard, not tried in the game; the Comic's words and speed lines
+and a true reflection of the map are not built.
+
 ## The Blade Lab's next seven shaders
 
 15/10/2026, `blade-lab-2` (hub `blade-lab-2`): Sketch (Rare), Hourglass and Fiber Optic

@@ -48,6 +48,10 @@ pub(crate) struct Runtime {
     shade_pipeline: wgpu::RenderPipeline,
     /// Whether a loaded skin has black holes at all.
     any_holes: bool,
+    /// Skins' solid parts (`saber.wgsl` `fragment_solid`: ink and chrome), blended over the
+    /// blades just drawn, and whether a loaded skin has any.
+    solid_pipeline: wgpu::RenderPipeline,
+    any_solids: bool,
 }
 
 /// Blade instances the model preview can draw: two sabers of eight blades, each its glow,
@@ -237,6 +241,13 @@ impl Runtime {
             "fragment_shade",
             Some(wgpu::BlendState::ALPHA_BLENDING),
         );
+        let solid_pipeline = special(
+            "SJK saber solid pipeline",
+            &layout,
+            "vertex_solid",
+            "fragment_solid",
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+        );
         let haze_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("SJK saber haze sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -277,6 +288,8 @@ impl Runtime {
             lens_pipeline,
             shade_pipeline,
             any_holes: false,
+            solid_pipeline,
+            any_solids: false,
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
                 queue,
@@ -303,6 +316,7 @@ impl Runtime {
         );
         self.any_haze = skins.iter().any(|(_, skin)| skin.def.haze.is_some());
         self.any_holes = skins.iter().any(|(_, skin)| skin.def.holes.is_some());
+        self.any_solids = skins.iter().any(|(_, skin)| skin.def.solids().any());
         for (index, skin) in skins.iter() {
             self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
                 saber::material(
@@ -347,7 +361,8 @@ impl Runtime {
         (self.any_haze || self.any_holes) && skinned(&self.ranges)
     }
 
-    /// The black holes' horizons over the blades just drawn from `buffer`.
+    /// The black holes' horizons and the skins' solid parts (ink, chrome) over the blades
+    /// just drawn from `buffer`.
     fn draw_horizons<'pass>(
         &'pass self,
         pass: &mut wgpu::RenderPass<'pass>,
@@ -361,6 +376,17 @@ impl Runtime {
                 camera,
                 &self.skins,
                 &self.shade_pipeline,
+                &self.materials,
+                buffer,
+                ranges,
+            );
+        }
+        if self.any_solids && skinned(ranges) {
+            draw_instances(
+                pass,
+                camera,
+                &self.skins,
+                &self.solid_pipeline,
                 &self.materials,
                 buffer,
                 ranges,

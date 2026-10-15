@@ -101,7 +101,7 @@ impl Unlockable {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) const ALL: [Unlockable; 48] = [
+pub(crate) const ALL: [Unlockable; 51] = [
     Unlockable {
         id: "saber_sun",
         name: "Sun blade",
@@ -678,6 +678,42 @@ pub(crate) const ALL: [Unlockable; 48] = [
         description: "A blade in superposition: ghost copies at other angles drift apart and collapse back into it with a flash.",
         how_to_get: "Given by the SJK team.",
     },
+    Unlockable {
+        id: "saber_comic",
+        name: "Comic blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Legendary,
+        chroma: true,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A cel-shaded blade: flat colour, a thick black outline and its glow printed in halftone dots. It takes your saber colour.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_quicksilver",
+        name: "Quicksilver blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Legendary,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A blade of liquid mirror: ripples run up its chrome, beads roll to the tip and drip off; it barely glows.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_obsidian",
+        name: "Obsidian Edge blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A flat, pointed blade of black volcanic glass with a white-hot edge crackling along it.",
+        how_to_get: "Given by the SJK team.",
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -801,6 +837,7 @@ mod tests {
                 "saber_runic",
                 "saber_heartbeat",
                 "saber_neon",
+                "saber_comic",
             ]
         );
         assert!(super::is_chroma("SABER_GLITCH"));
@@ -855,6 +892,9 @@ mod tests {
                 "saber_monarch",
                 "saber_phoenix",
                 "saber_quantum",
+                "saber_comic",
+                "saber_quicksilver",
+                "saber_obsidian",
             ]
         );
         assert!(blade_skins().all(|skin| [SOL, CREYON].contains(&skin.smith)));
@@ -882,6 +922,7 @@ mod tests {
                 "saber_monarch",
                 "saber_phoenix",
                 "saber_quantum",
+                "saber_obsidian",
             ]
         );
         assert_eq!(
@@ -893,6 +934,8 @@ mod tests {
                 "saber_chameleon",
                 "saber_hourglass",
                 "saber_fiber",
+                "saber_comic",
+                "saber_quicksilver",
             ]
         );
         assert_eq!(
@@ -946,7 +989,7 @@ mod tests {
         assert_eq!(order.len(), blade_skins().count());
         assert!(order.windows(2).all(|pair| pair[0].tier >= pair[1].tier));
         assert_eq!(order[0].id, "saber_sun");
-        assert_eq!(order[10].id, "saber_storm");
+        assert_eq!(order[11].id, "saber_storm");
         // The holocrons' names and colours.
         assert_eq!(Rarity::Mythical.label(), "Mythical");
         assert_eq!(Rarity::Uncommon.label(), "Uncommon");
@@ -1116,6 +1159,9 @@ mod tests {
                 ("saber_monarch", "Monarch blade"),
                 ("saber_phoenix", "Phoenix blade"),
                 ("saber_quantum", "Quantum blade"),
+                ("saber_comic", "Comic blade"),
+                ("saber_quicksilver", "Quicksilver blade"),
+                ("saber_obsidian", "Obsidian Edge blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

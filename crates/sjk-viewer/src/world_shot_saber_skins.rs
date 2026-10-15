@@ -693,6 +693,18 @@ fn duel6_lab_blades_figures() {
     );
 }
 
+/// The Blade Lab's solid blades (15/10/2026), drawn blended over their glow: Comic,
+/// Quicksilver and Obsidian Edge.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_lab_blades_solids() {
+    lab_lineup(
+        &["saber_comic", "saber_quicksilver", "saber_obsidian"],
+        10.0,
+        "duel6-lab-blades-solids",
+    );
+}
+
 /// `ids` upright `spacing` units apart in front of duel6's spawn, at eight moments, as one
 /// sheet called `name`.
 fn lab_lineup(ids: &'static [&'static str], spacing: f32, name: &'static str) {

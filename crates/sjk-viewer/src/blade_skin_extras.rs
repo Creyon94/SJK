@@ -186,10 +186,13 @@ pub(crate) enum Section {
     Butterflies,
     Wings,
     Copies,
+    Ink,
+    Chrome,
 }
 
 impl Section {
-    pub(crate) const ALL: [Self; 30] = [
+    /// Thirty-two, the instance's mask's bits: a later section needs a wider mask.
+    pub(crate) const ALL: [Self; 32] = [
         Self::Arcs,
         Self::Motes,
         Self::Hue,
@@ -220,6 +223,8 @@ impl Section {
         Self::Butterflies,
         Self::Wings,
         Self::Copies,
+        Self::Ink,
+        Self::Chrome,
     ];
 
     /// Its field's name in the file.
@@ -255,6 +260,8 @@ impl Section {
             Self::Butterflies => "butterflies",
             Self::Wings => "wings",
             Self::Copies => "copies",
+            Self::Ink => "ink",
+            Self::Chrome => "chrome",
         }
     }
 
@@ -320,6 +327,8 @@ impl BladeSkinDef {
             Section::Butterflies => self.butterflies.is_some(),
             Section::Wings => self.wings.is_some(),
             Section::Copies => self.copies.is_some(),
+            Section::Ink => self.ink.is_some(),
+            Section::Chrome => self.chrome.is_some(),
         }
     }
 

@@ -1443,6 +1443,18 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   glow again at offsets growing along the blade (and add a thin core line each). Lines
   thinner than a pixel widen to it and dim (`skin_line`). The butterflies' and wings'
   reach is the quad's room (`skin_room`, `BladeSkinDef::room`).
+- **The seventh set: solid blades** (15/10/2026; `Skin` grows to 95 lanes). A pipeline
+  of its own (`vertex_solid`, `fragment_solid`, alpha-blended, depth-tested, no depth
+  write) draws after the blades, with the black holes' horizons, in the main pass, the
+  model preview and the dynamic glow image (`SaberGpu::draw_horizons`): the vertex stage
+  keeps a skin's glow quad when its ink or chrome is on, for the blade itself, and folds
+  every other instance away. Ink: a body (a capsule, or drawn to a point; flat at the
+  hilt) as a signed distance in the blade's units, filled with its colour and a glossy
+  streak, and an outline as a band round that distance, both soft over a pixel. Chrome:
+  the same body rippled and swollen by beads (metaball-like bumps), round at the tip,
+  coloured by a made-up surrounding read with its normal across (dark ground, bright
+  sky, a key highlight, a rim), tinted by the light where the blade is. The halftone is
+  the glow's: outside 0.35 to 0.6 radii it is printed as dots sized by its level.
 - **Options.** An instance carries its wearer's mask of sections switched off
   (`Instance::off`, attribute 9; [unlockables.md](unlockables.md#options)); `skin_at`
   reads the skin with those sections' lanes zeroed, so they draw as a file without them.

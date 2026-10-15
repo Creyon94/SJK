@@ -17,7 +17,8 @@
 //! switch off), read from an additions file older clients never open, and the fifth
 //! ([`lab`]: bands, segments, a film, blobs and a front), from a third one, and the
 //! sixth ([`figures`]: a sketch, an hourglass, a serpent, strands, butterflies, wings and
-//! copies), from a fourth.
+//! copies), from a fourth, and the seventh ([`solids`]: ink and chrome, drawn blended over
+//! the blade), from a fifth.
 
 use crate::saber_rgb::{CoreProfile, GlowProfile};
 use serde::Deserialize;
@@ -30,6 +31,8 @@ pub(crate) mod extras;
 pub(crate) mod figures;
 #[path = "blade_skin_lab.rs"]
 pub(crate) mod lab;
+#[path = "blade_skin_solids.rs"]
+pub(crate) mod solids;
 
 /// Where blade-skin files are.
 pub(crate) const FOLDER: &str = "skins/blades";
@@ -150,6 +153,11 @@ pub(crate) struct BladeSkinDef {
     pub(crate) wings: Option<figures::Wings>,
     #[serde(default)]
     pub(crate) copies: Option<figures::Copies>,
+    /// The seventh set ([`solids`]), from the fifth additions file; each none when absent.
+    #[serde(default)]
+    pub(crate) ink: Option<solids::Ink>,
+    #[serde(default)]
+    pub(crate) chrome: Option<solids::Chrome>,
     /// The parts its wearer may switch off; none when absent.
     #[serde(default)]
     pub(crate) options: Vec<extras::SkinOption>,
@@ -631,6 +639,7 @@ impl BladeSkinDef {
         self.check_extras()?;
         self.lab().check()?;
         self.figures().check()?;
+        self.solids().check()?;
         colour("trail", self.trail, 1.0)?;
         colour("light.color", self.light.color, 4.0)?;
         within("light.flicker.amount", self.light.flicker.amount, 0.0, 1.0)?;
@@ -676,6 +685,14 @@ impl BladeSkinDef {
 }
 
 impl BladeSkinDef {
+    /// The seventh set's sections, borrowed.
+    pub(crate) fn solids(&self) -> solids::Solids<'_> {
+        solids::Solids {
+            ink: self.ink.as_ref(),
+            chrome: self.chrome.as_ref(),
+        }
+    }
+
     /// The sixth set's sections, borrowed.
     pub(crate) fn figures(&self) -> figures::Figures<'_> {
         figures::Figures {
@@ -760,8 +777,9 @@ impl Motes {
 /// Every `skins/blades/<id>.bladeskin` in `vfs` that reads, by id, with its additions
 /// file (`<id>.bladeextra`, [`extras::ADDITIONS`]), its later one (`<id>.bladeextra2`,
 /// [`extras::LATER_ADDITIONS`]), its third (`<id>.bladeextra3`, [`lab::LAB_ADDITIONS`])
-/// and its fourth (`<id>.bladeextra4`, [`figures::FIGURES_ADDITIONS`]) laid over it in
-/// turn when there are some; the ones that do not read are reported to
+/// its fourth (`<id>.bladeextra4`, [`figures::FIGURES_ADDITIONS`]) and its fifth
+/// (`<id>.bladeextra5`, [`solids::SOLIDS_ADDITIONS`]) laid over it in turn when there are
+/// some; the ones that do not read are reported to
 /// the log by name.
 pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDef)> {
     let mut skins = Vec::new();
@@ -787,6 +805,7 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDe
             .and_then(|text| lay_over(text, extras::LATER_ADDITIONS))
             .and_then(|text| lay_over(text, lab::LAB_ADDITIONS))
             .and_then(|text| lay_over(text, figures::FIGURES_ADDITIONS))
+            .and_then(|text| lay_over(text, solids::SOLIDS_ADDITIONS))
             .and_then(|text| parse(id, &text));
         match read {
             Ok(def) => skins.push((id.to_owned(), def)),

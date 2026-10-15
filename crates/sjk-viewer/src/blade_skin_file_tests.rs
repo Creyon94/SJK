@@ -665,8 +665,8 @@ fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
     );
     let one = crate::saber_skins::SkinUniform::of(def);
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
-    // The thirteen lanes before the sixth set's fifteen are the fifth set's.
-    let lab = &lanes[lanes.len() - 28..lanes.len() - 15];
+    // The thirteen lanes before the sixth and seventh sets' twenty are the fifth set's.
+    let lab = &lanes[lanes.len() - 33..lanes.len() - 20];
     assert_eq!(lab[0], [1.0, 0.1, 0.15, 1.2]);
     assert_eq!(lab[1], [4.0, 0.45, 0.6, 2.0]);
     assert_eq!(lab[2], [1.0, 0.3, 0.0, 0.0]);
@@ -685,7 +685,7 @@ fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
         crate::saber_skins::SkinUniform::of(&parse("saber_test", &sample_with_effects()).unwrap());
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&plain));
     assert!(
-        lanes[lanes.len() - 28..]
+        lanes[lanes.len() - 33..]
             .iter()
             .all(|lane| *lane == [0.0; 4])
     );
@@ -767,7 +767,7 @@ fn the_fourth_additions_file_brings_the_sixth_set_its_lanes_and_room() {
     assert_eq!(def.room(flight), 0.0);
     let one = crate::saber_skins::SkinUniform::of(def);
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
-    let figures = &lanes[lanes.len() - 15..];
+    let figures = &lanes[lanes.len() - 20..lanes.len() - 5];
     assert_eq!(figures[0], [0.93, 0.95, 1.0, 2.0]);
     assert_eq!(figures[1], [8.0, 0.3, 1.2, 0.3]);
     assert_eq!(figures[3], [8.0, 0.25, 0.8, 0.0]);
@@ -808,4 +808,93 @@ fn the_sixth_set_is_checked_strictly_by_name() {
         "wings.feathers must be 3 to 9",
     );
     refused(r#""angle": 0.04"#, r#""angle": 0.3"#, "copies.angle");
+}
+
+/// A fifth additions file with both sections of the seventh set.
+pub(crate) const SOLIDS_ADDITIONS: &str = r#"{
+    "ink": {"color": [0.02, 0.02, 0.03], "body": 0.95, "outline": 1.0, "width": 0.9,
+        "edge": 0.2, "point": 6.0, "gloss": 0.35, "halftone": 1.5},
+    "chrome": {"color": [0.9, 0.93, 1.0], "width": 0.9, "ripple": 0.12, "beads": 3.0,
+        "speed": 6.0},
+    "options": [{"id": "mirror", "name": "Mirror", "sections": ["chrome"]},
+        {"id": "ink", "name": "Ink", "sections": ["ink"]}]
+}"#;
+
+#[test]
+fn the_fifth_additions_file_brings_the_seventh_set_and_its_lanes() {
+    use extras::{Section, option_bit};
+    let mut vfs = sjk_vfs::VirtualFileSystem::new();
+    vfs.mount_memory(
+        "pack",
+        [
+            (
+                "skins/blades/saber_test.bladeskin",
+                sample_with_effects().into_bytes(),
+            ),
+            (
+                "skins/blades/saber_test.bladeextra5",
+                SOLIDS_ADDITIONS.as_bytes().to_vec(),
+            ),
+        ],
+    )
+    .unwrap();
+    let skins = load(&vfs);
+    assert_eq!(skins.len(), 1);
+    let def = &skins[0].1;
+    assert!(def.solids().any());
+    assert_eq!(def.ink.unwrap().point, 6.0);
+    assert_eq!(def.chrome.unwrap().beads, 3.0);
+    // The last two sections take the mask's last two bits.
+    assert_eq!(def.off_mask(option_bit("mirror")), Section::Chrome.bit());
+    assert_eq!(Section::Chrome.bit(), 1 << 31);
+    let one = crate::saber_skins::SkinUniform::of(def);
+    let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
+    let solids = &lanes[lanes.len() - 5..];
+    assert_eq!(solids[0], [0.02, 0.02, 0.03, 0.95]);
+    assert_eq!(solids[1], [1.0, 0.9, 0.2, 6.0]);
+    assert_eq!(solids[2], [0.35, 1.5, 0.0, 0.0]);
+    assert_eq!(solids[3], [0.9, 0.93, 1.0, 0.9]);
+    assert_eq!(solids[4], [0.12, 3.0, 6.0, 0.0]);
+    // A halftone alone prints the glow but draws nothing in the solid pass.
+    let print = r#"{"ink": {"color": [0.0, 0.0, 0.0], "body": 0.0, "outline": 0.0,
+        "width": 0.7, "edge": 0.2, "point": 0.0, "gloss": 0.0, "halftone": 2.0}}"#;
+    let text = extras::merged(&sample_with_effects(), print).unwrap();
+    assert!(!parse("saber_test", &text).unwrap().solids().any());
+}
+
+#[test]
+fn the_seventh_set_is_checked_strictly_by_name() {
+    let refused = |old: &str, new: &str, why: &str| {
+        assert!(SOLIDS_ADDITIONS.contains(old), "{old}");
+        let text = extras::merged(
+            &sample_with_effects(),
+            &SOLIDS_ADDITIONS.replacen(old, new, 1),
+        )
+        .unwrap();
+        let error = parse("saber_test", &text).unwrap_err();
+        assert!(error.contains(why), "{new}: {error}");
+    };
+    refused(r#""body": 0.95"#, r#""body": 1.5"#, "ink.body");
+    refused(r#""edge": 0.2"#, r#""edge": 0.0"#, "ink.edge");
+    refused(
+        r#""color": [0.02, 0.02, 0.03]"#,
+        r#""color": [2.0, 0.0, 0.0]"#,
+        "ink.color",
+    );
+    refused(r#""ripple": 0.12"#, r#""ripple": 0.9"#, "chrome.ripple");
+    let nothing = SOLIDS_ADDITIONS.replacen(r#""halftone": 1.5"#, r#""halftone": 0.0"#, 1);
+    let text = extras::merged(
+        &sample_with_effects(),
+        &nothing.replacen(
+            r#""body": 0.95, "outline": 1.0"#,
+            r#""body": 0.0, "outline": 0.0"#,
+            1,
+        ),
+    )
+    .unwrap();
+    assert!(
+        parse("saber_test", &text)
+            .unwrap_err()
+            .contains("ink needs a body, an outline or a halftone")
+    );
 }

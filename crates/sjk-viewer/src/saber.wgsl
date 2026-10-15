@@ -206,6 +206,15 @@ struct Skin {
     // Copies: count, angle, fade, period; flicker.
     copy_shape: vec4<f32>,
     copy_more: vec4<f32>,
+    // The seventh set (blade_skin_solids.rs), drawn blended after the blades; zeros when
+    // absent. Ink: body colour and opacity; outline, width (blade radii), edge (radii),
+    // point (units); gloss, halftone (dots a unit).
+    ink_color: vec4<f32>,
+    ink_shape: vec4<f32>,
+    ink_more: vec4<f32>,
+    // Chrome: tint and width (blade radii); ripple, beads, speed.
+    chrome_color: vec4<f32>,
+    chrome_shape: vec4<f32>,
 }
 
 @group(2) @binding(0)
@@ -283,6 +292,8 @@ const OFF_STRANDS: u32 = 67108864u;
 const OFF_BUTTERFLIES: u32 = 134217728u;
 const OFF_WINGS: u32 = 268435456u;
 const OFF_COPIES: u32 = 536870912u;
+const OFF_INK: u32 = 1073741824u;
+const OFF_CHROME: u32 = 2147483648u;
 // RB_SurfaceSaberGlow: sprite spacing and per-sprite growth.
 const SPACING: f32 = 0.65;
 const GROWTH: f32 = 0.017;
@@ -574,6 +585,12 @@ fn skin_at(input: VertexOutput) -> Skin {
     if (off & OFF_BUTTERFLIES) != 0u { skin.fly_shape = vec4(0.0); }
     if (off & OFF_WINGS) != 0u { skin.wing_shape = vec4(0.0); }
     if (off & OFF_COPIES) != 0u { skin.copy_shape = vec4(0.0); }
+    if (off & OFF_INK) != 0u {
+        skin.ink_color = vec4(0.0);
+        skin.ink_shape = vec4(0.0);
+        skin.ink_more = vec4(0.0);
+    }
+    if (off & OFF_CHROME) != 0u { skin.chrome_color = vec4(0.0); }
     return skin;
 }
 
@@ -1687,6 +1704,17 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
             glow += motes * room * skin.mote_color.rgb * skin.mote_color.w;
         }
     }
+    let halftone = skin.ink_more.y;
+    if halftone > 0.0 {
+        // The glow printed as halftone dots, bigger where it is brighter; the inside stays
+        // solid, as a comic's flat colour.
+        let level = clamp(skin_level(glow) / 1.2, 0.0, 1.0);
+        let cell = fract(vec2(around, x) * halftone) - 0.5;
+        let dots = clamp((0.5 * sqrt(level) - length(cell)) / max(pixel * halftone, 0.02) + 0.5,
+            0.0, 1.0);
+        let printed = smoothstep(0.35, 0.6, out);
+        glow = mix(glow, glow / max(level, 0.05) * dots * 0.9, printed);
+    }
     glow *= skin_segments(skin, along, input.length, time, seed);
     glow = skin_apply_tint(glow, skin_tint(skin, input));
     let hue = skin.hue;
@@ -2002,6 +2030,105 @@ fn fragment_lens(input: VertexOutput) -> @location(0) vec4<f32> {
     let uv = (input.clip_position.xy + pixels) / size;
     let seen = textureSampleLevel(haze_scene, haze_sampler, uv, 0.0).rgb;
     return vec4(seen, fade * (1.0 - 0.6 * input.shaft));
+}
+
+// --- The seventh set (blade_skin_solids.rs): solid blades, blended after the glow -------
+
+// The solid pass's quads: a skin's glow quad when it has ink or chrome on, for the blade
+// itself (not an afterimage); every other instance is folded away.
+@vertex
+fn vertex_solid(@builtin(vertex_index) vertex_index: u32, blade: BladeInstance) -> VertexOutput {
+    var output = blade_vertex(vertex_index, blade);
+    var solid = output.kind >= KIND_SKIN && output.hilt > 0.0 && (blade.persona.x >> 24u) == 255u;
+    if solid {
+        let skin = skins[skin_index(output)];
+        let ink = (blade.off & OFF_INK) == 0u
+            && (skin.ink_color.w > 0.0 || skin.ink_shape.x > 0.0);
+        let chrome = (blade.off & OFF_CHROME) == 0u && skin.chrome_color.w > 0.0;
+        solid = ink || chrome;
+    }
+    if !solid {
+        output.clip_position = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    return output;
+}
+
+// A liquid mirror's colour and coverage at `place` units along (unclamped) and `x` across:
+// rippling, beads rolling up it, a round end; it reflects a made-up surrounding (a dark
+// ground, a bright sky, a key highlight, a lit rim) in the light where the blade is.
+fn solid_chrome(skin: Skin, input: VertexOutput, place: f32, x: f32, pixel: f32) -> vec4<f32> {
+    let c = skin.chrome_color;
+    let s = skin.chrome_shape;
+    let time = input.animation.x;
+    let seed = input.animation.y;
+    let seeded = i32(seed * 4096.0);
+    var radius = c.w * input.radius
+        * (1.0 + s.x * sin(place * 1.2 - time * s.z * 0.25 + seed * 6.0));
+    let span = input.length + 6.0;
+    var swell = 0.0;
+    for (var b = 0; b < min(i32(s.y), 8); b++) {
+        let pace = s.z * (0.6 + 0.8 * skin_hash(vec2(b, 301 + seeded)));
+        let at = fract(skin_hash(vec2(b, 307 + seeded)) + time * pace / span) * span - 3.0;
+        swell = max(swell, exp(-pow((place - at) / 1.5, 2.0)));
+    }
+    radius *= 1.0 + 0.6 * swell;
+    let beyond = max(place - input.length, 0.0);
+    let reach = sqrt(max(radius * radius - beyond * beyond, 0.0));
+    let inside = clamp((reach - abs(x)) / max(pixel, 0.0001) + 0.5, 0.0, 1.0)
+        * clamp(place / max(pixel, 0.0001) + 0.5, 0.0, 1.0);
+    let n = clamp(x / max(reach, 0.0001), -1.0, 1.0);
+    let warp = n + 0.25 * sin(place * 0.7 - time * 1.5 + n * 2.0);
+    var env = mix(vec3(0.05, 0.055, 0.07), vec3(0.8, 0.85, 0.95), smoothstep(-0.8, 0.9, warp));
+    env += vec3(1.0) * exp(-pow((warp + 0.45) / 0.1, 2.0)) * 1.3;
+    env += vec3(0.6, 0.7, 0.9) * pow(abs(n), 6.0) * 0.6;
+    env *= c.rgb * (0.65 + 0.5 * persona_light(input));
+    return vec4(env, inside);
+}
+
+// The solid pass: a skin's chrome, then its ink (a body, a glossy streak and an outline)
+// over the blade's glow just drawn, alpha-blended; a chroma's ink body takes its colour.
+@fragment
+fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
+    let pixel = fwidth(input.blade.x);
+    let skin = skin_at(input);
+    let time = input.animation.x;
+    let place = input.blade.y / max(input.shaft, 0.0001) * input.length;
+    let x = input.blade.x;
+    var out = vec4(0.0);
+    if skin.chrome_color.w > 0.0 {
+        out = solid_chrome(skin, input, place, x, pixel);
+    }
+    let ink = skin.ink_color;
+    let shape = skin.ink_shape;
+    if ink.w > 0.0 || shape.x > 0.0 {
+        var radius = shape.y * input.radius;
+        let beyond = place - input.length;
+        // Signed distance to the body's edge (negative inside): a capsule, or drawn to a
+        // point over its last `point` units; flat at the hilt.
+        var d: f32;
+        if shape.w > 0.0 {
+            radius *= clamp((input.length - place) / shape.w, 0.0, 1.0);
+            d = abs(x) - radius;
+        } else {
+            d = select(abs(x) - radius, length(vec2(x, beyond)) - radius, beyond > 0.0);
+        }
+        d = max(d, -place);
+        let soft = max(pixel, 0.0001);
+        let body = ink.w * clamp(-d / soft + 0.5, 0.0, 1.0);
+        let ring = shape.x * clamp((0.5 * shape.z * input.radius - abs(d)) / soft + 0.5, 0.0, 1.0);
+        let gloss = skin.ink_more.x * exp(-pow((x / max(radius, 0.0001) - 0.35) / 0.12, 2.0))
+            * (0.5 + 0.5 * sin(place * 0.25 - time * 0.8));
+        var colour = ink.rgb;
+        if input.chroma != 0.0 {
+            colour = skin_turn_hue(colour, input.chroma);
+        }
+        var rgb = mix(out.rgb, colour + vec3(gloss), body);
+        var alpha = max(out.a, body);
+        rgb = mix(rgb, vec3(0.0), ring);
+        alpha = max(alpha, ring);
+        out = vec4(rgb, alpha);
+    }
+    return out;
 }
 
 // A black hole's horizon, drawn after the glow: black, over the blade's glow when the
