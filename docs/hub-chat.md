@@ -56,12 +56,14 @@ Old clients ignore all of it, so it stays `/v1/`.
   of spaces made one and the ends trimmed, 1 to 150 characters (`chat_length`) of the
   bio's alphabet with `^` only before a digit (`chat_characters`), no run of one
   character longer than 8 (`chat_noise`). A key sends at most one message every 2
-  seconds and 15 a minute (`chat_quota`), not the same text twice within 30 seconds
+  seconds and 15 a minute, a verified or staff key one every second and 30 a minute
+  (`chat_quota`), not the same text twice within 30 seconds
   (`chat_duplicate`); a muted key is refused (`chat_muted`).
 - `POST /v1/emote` `{"server":"ip:port","emote":".."}`: the key needs a live claim on
   the server (`not_on_server`), and the hub takes the slot and claimed name from it,
   so a key emotes only for the slot it claims. Ids are 1 to 32 of `a`-`z`, `0`-`9`,
-  `_` (`bad_emote`); at most one every 2 seconds (`emote_quota`). An emote lives 10
+  `_` (`bad_emote`); at most one every 2 seconds, every second for a verified
+  or staff key (`emote_quota`). An emote lives 10
   seconds.
 - `POST /v1/ping` `{"server":"ip:port","pos":[x,y,z],"scope":".."}` (since 13/10/2026,
   [Pings](#pings)): as an emote, the key needs a live claim on the server and the hub
