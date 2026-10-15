@@ -52,8 +52,10 @@ const CVARS: &[&str] = &[
     "cg_nameplateForce",
     "cg_nameplateIcons",
     "cg_nameplateShare",
+    "cg_nameplateDuel",
     "cg_auraShell",
     "cg_spProtAbsColor",
+    crate::duel_ghost::CVAR,
     "cl_autoUpdate",
     "cl_identity",
 ];

@@ -28,6 +28,8 @@ pub mod download;
 mod download_session;
 mod duel_isolation;
 pub use duel_isolation::duel_passes_through;
+mod duel_look;
+pub use duel_look::{DuelActor, DuelViewer, legacy_duel_ghost, legacy_duel_tint};
 mod entity_models;
 mod force_overlay_events;
 mod force_overlays;

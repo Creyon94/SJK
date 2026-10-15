@@ -365,6 +365,10 @@ const HELP: &[(&str, &str)] = &[
         "Icons of the Force powers a player has on, over the name when close.",
     ),
     (
+        "cg_nameplateDuel",
+        "Crossed sabers before the name of a player who is in a duel.",
+    ),
+    (
         "cg_nameplateWalls",
         "Shows nameplates of players behind walls, dimmed. Off hides them.",
     ),
@@ -496,6 +500,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_shieldBrightness",
         "How bright the shield flash on the body is: 1 is the stock look, 2 the default, 12 the strongest. Not used by the sphere.",
+    ),
+    (
+        crate::duel_ghost::CVAR,
+        "On: players in a duel show as see-through blue figures, as on JoF EJK. Off: dark under a blue bubble, as in the base game.",
     ),
     (
         "cg_remaps",

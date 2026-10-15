@@ -1,6 +1,7 @@
 //! Data-driven in-game HUD over authoritative snapshot values.
 
 mod data_source;
+pub(crate) mod duel_pairs;
 use data_source::*;
 pub(crate) mod crosshair;
 pub(crate) mod enemy_info;
@@ -139,6 +140,8 @@ pub(crate) struct HudOverlay {
     pub(crate) card: player_card::State,
     /// MMO-style nameplates, drawn in the classic font; they replace the labels above.
     pub(crate) nameplate: nameplate::State,
+    /// Who duels whom, for the nameplates' duel badge colours.
+    pub(crate) duel_pairs: duel_pairs::DuelPairs,
     /// Team logos over allies' heads, under the labels and nameplates.
     pub(crate) team_logo: team_logo::State,
     /// Who the team outlines ring this frame.
@@ -280,6 +283,7 @@ impl HudOverlay {
             identification: identification::State::default(),
             card: player_card::State::default(),
             nameplate: nameplate::State::default(),
+            duel_pairs: duel_pairs::DuelPairs::default(),
             team_logo: team_logo::State::default(),
             team_outline: team_outline::State::default(),
             score_text: String::with_capacity(80),

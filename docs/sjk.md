@@ -59,6 +59,7 @@ migrated, except where the table says so. Where each is documented:
 | `cg_killfeed` | on, saved 0 moved to 1 once | [Kill feed](client.md#kill-feed) |
 | `cg_hitMarker` | off (red damage-direction indicator) | [Client](client.md#launch) |
 | `cg_shieldBrightness` | 2 passes, old defaults 1 and 4 moved to 2 once | [Client](client.md#launch) |
+| `cg_duelGhost` | on: duellists as JoF EJK's blue figures (off: dark under the bubble) | [Rendering](rendering.md#entity-render-effects) |
 | `cg_dismember` | 2 | [Dismemberment](client.md#dismemberment-and-disintegration) |
 | `snaps` | 120 (slider to 125) | [status.md](status.md#gameplay-and-interface-defaults) |
 | `com_maxfpsUnfocused` | 30 | [Configuration](client.md#configuration-and-content) |

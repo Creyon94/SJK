@@ -14,9 +14,10 @@ pub(super) fn consume(
     mut console: Option<&mut ViewerConsole>,
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
+    duels: &mut crate::hud::duel_pairs::DuelPairs,
 ) {
     if let Some(chat) = chat {
-        consume_messages(session, localization, chat, console.as_deref_mut());
+        consume_messages(session, localization, chat, console.as_deref_mut(), duels);
     } else {
         session.drain_events().for_each(drop);
     }
@@ -82,12 +83,20 @@ pub(crate) fn consume_messages(
     localization: &Localization,
     chat: &mut ChatOverlay,
     mut console: Option<&mut ViewerConsole>,
+    duels: &mut crate::hud::duel_pairs::DuelPairs,
 ) {
     chat.update_roster(session.game_state());
     chat.configure(console.as_deref());
+    // Duel starts, read once the events are drained (they borrow the session).
+    let mut duel_starts = Vec::new();
     for event in session.drain_events() {
         if let Some(console) = &mut console {
             console.notify_server_text(&event.kind, &event.text);
+        }
+        if event.kind == sjk_client::ServerEventKind::Print
+            && event.text.contains(crate::hud::duel_pairs::ACCEPT)
+        {
+            duel_starts.push(event.text.clone());
         }
         let text = localization.translate(&event.text);
         if let Some(console) = &mut console {
@@ -125,6 +134,9 @@ pub(crate) fn consume_messages(
                 chat.receive(event.kind, text, event.sender, Instant::now());
             }
         }
+    }
+    for text in &duel_starts {
+        duels.observe_print(text, session.game_state());
     }
 }
 

@@ -171,6 +171,8 @@ const ICON_BACKDROP: Color = Color::new(0.03, 0.04, 0.06, 0.55);
 const HOLSTERED_HALO: f32 = 0.4;
 /// `WP_NONE`.
 const WP_NONE: u8 = 0;
+/// The duel badge's least opacity: a far plate's name dims, the badge stays clear.
+const DUEL_BADGE_OPACITY: f32 = 0.9;
 /// Milliseconds between reads of which players are verified.
 const VERIFIED_EVERY: i64 = 1_000;
 /// Milliseconds between reads of what the other players share: their values come
@@ -250,6 +252,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Icons of the Force powers a player has on, over the nameplate when close",
     ))?;
     cvars.register(CvarDefinition::new(
+        "cg_nameplateDuel",
+        true,
+        CvarFlags::ARCHIVE,
+        "Crossed-sabers badge before the name of a player in a private duel",
+    ))?;
+    cvars.register(CvarDefinition::new(
         "cg_nameplateWalls",
         false,
         CvarFlags::ARCHIVE,
@@ -304,6 +312,8 @@ struct Settings {
     walls: bool,
     npcs: bool,
     icons: bool,
+    /// The duel badge before a duellist's name (`cg_nameplateDuel`).
+    duel_badge: bool,
     friends: bool,
     /// The local player's own plate, in third person.
     own: bool,
@@ -328,6 +338,7 @@ impl Default for Settings {
             walls: false,
             npcs: false,
             icons: true,
+            duel_badge: true,
             friends: true,
             own: false,
             debug: false,
@@ -374,6 +385,12 @@ struct Entry {
     /// They share their bars of their own will (not because they see everyone's): a
     /// gold contour.
     shared: bool,
+    /// In a private duel (a player entity's `bolt1`, its `duelInProgress`): the duel
+    /// badge before the name.
+    duelling: bool,
+    /// The duel's badge colour ([`super::duel_pairs`]): both duellists of one duel
+    /// share it.
+    duel_colour: u8,
 }
 
 impl Entry {
@@ -431,6 +448,8 @@ pub(crate) struct State {
     /// Each slot's team logo top this frame ([`super::team_logo`]): the plate stands
     /// above it.
     logo_tops: [Option<f32>; MAX_PLAYER_TAGS],
+    /// Each slot's duel colour this frame ([`super::duel_pairs`]).
+    duel_colours: [Option<u8>; MAX_PLAYER_TAGS],
 }
 
 impl Default for State {
@@ -458,6 +477,7 @@ impl Default for State {
             focus: None,
             announced: None,
             logo_tops: [None; MAX_PLAYER_TAGS],
+            duel_colours: [None; MAX_PLAYER_TAGS],
         }
     }
 }
@@ -488,6 +508,7 @@ impl State {
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
             icons: flag("cg_nameplateicons", true),
+            duel_badge: flag("cg_nameplateduel", true),
             friends: flag("cg_drawfriend", true),
             own: flag("cg_nameplateself", false),
             debug: flag("cg_nameplatedebug", false),
@@ -728,6 +749,20 @@ impl State {
         self.logo_tops = tops;
     }
 
+    /// This frame's duel colours, by client slot ([`super::duel_pairs`]).
+    pub(crate) fn set_duel_colours(&mut self, colours: [Option<u8>; MAX_PLAYER_TAGS]) {
+        self.duel_colours = colours;
+    }
+
+    /// Client slot `number`'s duel colour, the neutral one when its pair is unknown.
+    fn duel_colour(&self, number: u16) -> u8 {
+        self.duel_colours
+            .get(usize::from(number))
+            .copied()
+            .flatten()
+            .unwrap_or(super::duel_pairs::UNKNOWN)
+    }
+
     /// Collect visible players using fixed scratch and the actual rendered camera.
     pub(crate) fn update(
         &mut self,
@@ -937,6 +972,8 @@ impl State {
                         .copied()
                         .flatten()
                         .is_some_and(|shared| !shared.estimates),
+                duelling: player && entity.bolt1(),
+                duel_colour: self.duel_colour(number),
             });
             if self.entries.len() == MAX_TAGS {
                 break;
@@ -1060,6 +1097,9 @@ impl State {
                 names_allowed: who.names_allowed,
                 verified: self.verified & (1 << number) != 0,
                 shared: false,
+                // A pilot cannot duel: the server ends a duel on boarding.
+                duelling: false,
+                duel_colour: 0,
             });
         }
     }
@@ -1139,6 +1179,8 @@ impl State {
             names_allowed: true,
             verified: self.verified & (1 << local) != 0,
             shared: settings.share && !settings.estimate,
+            duelling: player.duel_in_progress(),
+            duel_colour: self.duel_colour(local),
         };
         let (powers, power_count) = if settings.icons {
             icon_powers(player.force_powers_active())
@@ -1374,9 +1416,30 @@ impl State {
                     weight: FontWeight::Regular,
                     letter_spacing: 0.0,
                 });
+                let scale = size / font.height.max(1.0);
+                let duel_badge = entry.duelling && self.settings.duel_badge;
+                // Measured only for a badge beside the name.
+                let text = if duel_badge || entry.verified {
+                    crate::text::visible_text_width(font, label(id), scale).min(width)
+                } else {
+                    0.0
+                };
+                if duel_badge {
+                    // Mirrors the verified badge: before the name, level with its capitals.
+                    let side = size * 1.05;
+                    let badge = Rect::new(
+                        (left + (width - text) * 0.5 - size * 0.2 - side).max(0.0),
+                        top + font.capital_middle(scale) - side * 0.5,
+                        side,
+                        side,
+                    );
+                    let _ = self.list.push(DrawCommand::TexturedQuad {
+                        rect: badge,
+                        texture: crate::ui_renderer::duel_texture(usize::from(entry.duel_colour)),
+                        color: Color::new(1.0, 1.0, 1.0, opacity.max(DUEL_BADGE_OPACITY)),
+                    });
+                }
                 if entry.verified {
-                    let scale = size / font.height.max(1.0);
-                    let text = crate::text::visible_text_width(font, label(id), scale).min(width);
                     let side = size * 0.95;
                     // Level with the name's capitals: the text hangs from the top of
                     // its line by the font's own baseline, not from the line's middle.
@@ -2003,6 +2066,8 @@ pub(crate) struct PreviewPlate {
     pub(crate) weapon: u8,
     pub(crate) style: u8,
     pub(crate) verified: bool,
+    /// In a private duel: the duel badge before the name.
+    pub(crate) duelling: bool,
     /// The frame's colour: red or blue team, else neutral.
     pub(crate) team: Option<bool>,
     /// The gold contour of a player who shares their bars.
@@ -2049,6 +2114,8 @@ impl State {
                 names_allowed: true,
                 verified: plate.verified,
                 shared: plate.shared,
+                duelling: plate.duelling,
+                duel_colour: 0,
             });
         }
         let label = |id: TextId| {
@@ -2170,7 +2237,7 @@ mod tests {
     }
 
     #[test]
-    fn the_verified_badge_sits_level_with_the_capitals() {
+    fn the_badges_sit_level_with_the_capitals_either_side_of_the_name() {
         // The HUD font the plates use in game hangs its glyphs from the line top by
         // its own baseline, low in the line box.
         let font = crate::text::load_classic().expect("the HUD font").font;
@@ -2184,6 +2251,7 @@ mod tests {
             weapon: WP_NONE,
             style: 0,
             verified: true,
+            duelling: true,
             team: None,
             shared: false,
         };
@@ -2226,6 +2294,23 @@ mod tests {
         // After the name, not over it.
         let width = crate::text::visible_text_width(&font, "Hello", scale);
         assert!(badge.x >= line.x + (line.width + width) * 0.5);
+        // The duel badge: before the name, at the same height.
+        let duel = commands
+            .iter()
+            .find_map(|command| match command {
+                DrawCommand::TexturedQuad { rect, texture, .. }
+                    if *texture == crate::ui_renderer::duel_texture(0) =>
+                {
+                    Some(*rect)
+                }
+                _ => None,
+            })
+            .expect("the duel badge");
+        assert!(
+            (duel.y + duel.height * 0.5 - middle).abs() < 0.01,
+            "{duel:?} {middle}"
+        );
+        assert!(duel.x + duel.width <= line.x + (line.width - width) * 0.5);
     }
 
     /// Snapshots of the local player (0) at the origin looking along +x, draining

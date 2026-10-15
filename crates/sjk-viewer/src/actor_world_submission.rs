@@ -38,6 +38,8 @@ struct Sinks<'a> {
     shield_mesh: Option<usize>,
     shield_sphere: bool,
     shield_passes: u32,
+    /// `cg_duelGhost`: JoF EJK's blue duel figures ([`crate::duel_ghost`]).
+    duel_ghosts: bool,
     /// `g_gametype` from the serverinfo.
     gametype: i32,
     /// The rendered view's origin, which player spheres face.
@@ -185,6 +187,11 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_shieldSphere"))
         .unwrap_or(0)
         != 0;
+    let duel_ghosts = gpu
+        .console
+        .as_ref()
+        .and_then(|console| console.bool_cvar(crate::duel_ghost::CVAR))
+        .unwrap_or(true);
     let shield_passes = gpu
         .console
         .as_ref()
@@ -223,6 +230,7 @@ pub(crate) fn submit(
             .position(|mesh| mesh.appearance.model == "models/weaphits/testboom.md3"),
         shield_sphere,
         shield_passes,
+        duel_ghosts,
         gametype,
         view_origin: gpu.view_origin,
         jetpack: gpu.jetpack,
@@ -639,6 +647,9 @@ fn submit_actor(
             transform.scale,
         )
         .with_entity_color(entity.color());
+        let duel = snapshot.map_or_else(DuelBody::default, |snapshot| {
+            duel_body(snapshot, state, local, entity.color(), sinks.duel_ghosts)
+        });
         let inside_body = local
             && sinks.detached_flight
             && crate::free_camera::inside_body(
@@ -650,19 +661,41 @@ fn submit_actor(
         // meets the free camera's hidden body.
         instance.view_flags =
             sinks.entity_view_flags | u32::from((!draw_actor && !saber_body) || inside_body);
+        // The body as drawn: flat in the duel colour where `CG_Player` tints it. The
+        // shells over it and the outline mask keep the untinted instance.
+        let body = match duel.tint {
+            Some([r, g, b]) => {
+                let [r, g, b, a] = [r, g, b, entity.color()[3]].map(|c| f32::from(c) / 255.0);
+                instance.with_rgb_tint([r, g, b, a])
+            }
+            None => instance,
+        };
         if trick.fading {
             // `RF_FORCE_ENT_ALPHA` at `trickAlpha` (`cg_players.c:11358-11367`).
             if sinks.overrides.len() < sinks.overrides.capacity() {
                 sinks.overrides.push(entity_materials::OverrideInstance {
                     mesh: entity_materials::OverrideMesh::Actor(mesh),
                     material: None,
-                    instance: instance.with_forced_alpha(trick.alpha),
+                    instance: body.with_forced_alpha(trick.alpha),
                     no_depth: false,
                     forced_alpha: true,
                 });
             }
+        } else if duel.ghost {
+            // JoF EJK's duel figure in place of the body (`crate::duel_ghost`).
+            if let Some(material) = sinks.material_overrides.force(crate::duel_ghost::SHADER)
+                && sinks.overrides.len() < sinks.overrides.capacity()
+            {
+                sinks.overrides.push(entity_materials::OverrideInstance {
+                    mesh: entity_materials::OverrideMesh::Actor(mesh),
+                    material: Some(material),
+                    instance,
+                    no_depth: false,
+                    forced_alpha: false,
+                });
+            }
         } else {
-            sinks.actor_groups[mesh].push(instance);
+            sinks.actor_groups[mesh].push(body);
             // A player outline's mask: the body again, drawn only into the mask; the
             // card's outline before a team's.
             let client = entity.id.get().wrapping_sub(1);
@@ -711,12 +744,13 @@ fn submit_actor(
                 sinks.object_groups,
             );
         }
-        // The copies share the actor's pose, scale, colour and view flags.
-        for ghost in ghosts.into_iter().flatten() {
+        // The copies share the actor's pose, scale, colour (its duel tint too) and view
+        // flags; a duellist drawn as JoF's figure leaves none of its solid body behind.
+        for ghost in ghosts.into_iter().flatten().filter(|_| !duel.ghost) {
             if sinks.overrides.len() == sinks.overrides.capacity() {
                 break;
             }
-            let mut copy = instance.with_forced_alpha(ghost.alpha);
+            let mut copy = body.with_forced_alpha(ghost.alpha);
             copy.position = ghost.origin.to_array();
             sinks.overrides.push(entity_materials::OverrideInstance {
                 mesh: entity_materials::OverrideMesh::Actor(mesh),
@@ -747,6 +781,7 @@ fn submit_actor(
                 sinks.shield_mesh,
                 sinks.shield_sphere,
                 sinks.shield_passes,
+                sinks.duel_ghosts,
             );
         }
     } else if draw_actor {
@@ -763,6 +798,58 @@ fn submit_actor(
         });
     }
     0
+}
+
+/// What the duel rules do to one actor's body.
+#[derive(Clone, Copy, Default)]
+struct DuelBody {
+    /// `RF_RGB_TINT` (`sjk_client::legacy_duel_tint`).
+    tint: Option<[u8; 3]>,
+    /// Drawn as JoF EJK's blue figure instead (`sjk_client::legacy_duel_ghost`).
+    ghost: bool,
+}
+
+/// `CG_Player`'s duel rules for one actor's body.
+fn duel_body(
+    snapshot: &Snapshot,
+    state: Option<&sjk_protocol::EntityState>,
+    local: bool,
+    color: [u8; 4],
+    ghosts: bool,
+) -> DuelBody {
+    // `EF_DEAD`.
+    const EF_DEAD: u32 = 1 << 1;
+    let player = &snapshot.player;
+    let actor = if local {
+        sjk_client::DuelActor {
+            number: player.client_num(),
+            duelling: player.duel_in_progress(),
+            dead: player.health() <= 0,
+            color: [color[0], color[1], color[2]],
+        }
+    } else {
+        // Only players duel: a mover or turret uses `bolt1` for itself.
+        const ET_PLAYER: u8 = 1;
+        let Some(state) = state.filter(|state| state.entity_type() == ET_PLAYER) else {
+            return DuelBody::default();
+        };
+        sjk_client::DuelActor {
+            number: state.number(),
+            duelling: state.bolt1(),
+            dead: state.e_flags() & EF_DEAD != 0,
+            color: [color[0], color[1], color[2]],
+        }
+    };
+    let viewer = sjk_client::DuelViewer {
+        client: player.client_num(),
+        duelling: player.duel_in_progress(),
+        opponent: player.duel_index(),
+        ghosts,
+    };
+    DuelBody {
+        tint: sjk_client::legacy_duel_tint(actor, viewer),
+        ghost: sjk_client::legacy_duel_ghost(actor, viewer),
+    }
 }
 
 /// Run `CG_Player`'s mind-trick fade for one actor. The local player never tricks

@@ -94,8 +94,13 @@ pub(crate) const ROCKET_LOCK_ICON_CELLS: u32 = 2;
 pub(crate) const EMOTE_ICON_FIRST: u32 = ROCKET_LOCK_ICON_FIRST + ROCKET_LOCK_ICON_CELLS;
 /// Emote picture cells: two rows.
 pub(crate) const EMOTE_ICON_CELLS: u32 = 2 * COLUMNS;
+/// First of the duel badges' cells (`ui_renderer::duel_texture`), one per duel colour,
+/// after the emotes'.
+pub(crate) const DUEL_ICON_FIRST: u32 = EMOTE_ICON_FIRST + EMOTE_ICON_CELLS;
+/// Duel badge cells: one per colour (`duel_badge::COLOURS`).
+pub(crate) const DUEL_ICON_CELLS: u32 = 8;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = EMOTE_ICON_FIRST + EMOTE_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = DUEL_ICON_FIRST + DUEL_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

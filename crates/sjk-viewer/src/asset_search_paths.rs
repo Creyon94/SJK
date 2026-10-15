@@ -291,6 +291,7 @@ impl Options {
         // replaces it.
         crate::illuminate::mount(&mut vfs)?;
         crate::card_outline::mount(&mut vfs)?;
+        crate::duel_ghost::mount(&mut vfs)?;
         crate::sjk_packs::mount_below_game_data(&mut vfs);
         // JoF EJK's hats and capes, below everything else so they never
         // replace other content.

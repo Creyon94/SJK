@@ -2405,6 +2405,35 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   centred on the middle of the name's capitals as the plate's font lays them out
   (`UiFont::capital_middle`; the HUD font hangs its glyphs low in the line).
   Which slots are verified is read from the identity service once a second.
+- **Duel badge:** a player in a private duel (`bolt1`, your own `duelInProgress`
+  on your own plate) gets two crossed lightsabers, white blades in a coloured glow on a
+  disc filled and ringed in the same colour (so the colours tell apart at a nameplate's
+  size), before the name. **The two duellists of one duel
+  share a colour** (blue, orange, green, magenta, yellow, cyan, red, in the order duels
+  start), so in a crowd the matching badges show who duels whom. The pairs come
+  from [duel_pairs.rs](../crates/sjk-viewer/src/hud/duel_pairs.rs):
+  - the server's broadcast when a duel starts, `"<challenged> @@@PLDUELACCEPT
+    <challenger>!"` to every client (`Cmd_EngageDuel_f`, `g_cmds.c`; jaPRO and TaystJK,
+    as JoF runs, add `^7` after each name and the duel type after the `!`, such as
+    `(Saber) [Ranked]`), its names matched
+    against `CS_PLAYERS` (decoded as the print is, exactly, else without colour codes; a
+    name two players share pairs nobody);
+  - your own duel, from your player state.
+
+  Nothing is guessed: a duellist whose opponent SJK was never told (a duel that began
+  before you joined, or a mod that words the message otherwise) wears a neutral grey
+  badge rather than a colour that might pair the wrong two.
+
+  A pair keeps its colour until the snapshot shows one of the two no longer duelling (a
+  pair named while out of view waits for them; one named but shown not duelling lapses
+  after 3 s), and every pair is forgotten with a new gamestate (map or server) or a demo
+  seek. Each colour is its own icon
+  cell, drawn at start ([duel_badge.rs](../crates/sjk-viewer/src/ui_renderer/duel_badge.rs)).
+  The badge sits level with the name's capitals like the verified badge, and stays at
+  least 90% opaque on a far plate whose name dims. `cg_nameplateDuel` (on; Settings >
+  Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
+  `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
+  [Entity render effects](rendering.md#entity-render-effects)).
 - **Pilots in a vehicle:** a pilot sealed in a `hideRider` vehicle (a fighter, a
   walker) is `Ghost`ed with `SVF_NOCLIENT` (`g_vehicles.c:1924-1940`), so no snapshot
   carries his entity and the world never presents his body. Like stock's crosshair

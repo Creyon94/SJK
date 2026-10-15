@@ -439,6 +439,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Duel badge",
+        cvar: "cg_nameplateDuel",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force bar (estimated)",
         cvar: "cg_nameplateForce",
         kind: ValueKind::Bool,
@@ -656,6 +661,11 @@ pub(super) const GAME: &[Setting] = &[
             max: 12,
             step: 1,
         },
+    },
+    Setting {
+        label: "Duel figures (JoF)",
+        cvar: crate::duel_ghost::CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Force Seeing aura",

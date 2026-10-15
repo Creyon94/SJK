@@ -1024,6 +1024,36 @@ but particle effects still composite after them. Model materials compile these
 variants at map load (depth-tested only); stages without an alpha test share
 keys with ordinary blended stages.
 
+Private duels are drawn as JoF EJK's `CG_Player` draws them (EternalJK
+`cg_players.c`; [duel_look.rs](../crates/sjk-client/src/duel_look.rs), applied in
+[actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs)):
+
+- Outside every duel, with `cg_duelGhost 1` (default; JoF plays with EternalJK's
+  `cg_stylePlayer` bit `JAPRO_STYLE_VFXDUELERS`), a duellist is drawn only as a
+  see-through blue figure, `sjk/duelFigure`, in place of its body
+  ([duel_ghost.rs](../crates/sjk-viewer/src/duel_ghost.rs)). The shader is EternalJK's
+  `gfx/effects/duelShader` (`assets/japro/shaders/japro_players.shader`) under SJK's own
+  name, so a pack's copy never replaces it: the Force shell's texture added in dark blue
+  through `tcGen environment`, a faint body-lit red wash that writes depth, and a pulsing
+  blue added over all, at 0.6 of full rather than EternalJK's 0.9 (at 0.9 the figure read
+  as solid in SJK). Its plain `textures/colors/red` and `blue` are mounted below game
+  data in case an installation lacks them.
+- With `cg_duelGhost 0`, the duellist is drawn flat dark grey (`RF_RGB_TINT` at 50 50
+  50) under the `gfx/misc/sightbubble` shell at JoF EJK's 100 100 255
+  ([force_overlays.rs](../crates/sjk-client/src/force_overlays.rs)), a lighter blue than
+  stock's 50 50 255.
+- In a duel, everyone but the two duellists is drawn at a fifth of their colour
+  (`RF_RGB_TINT`). The two duellists look as they are: stock's distance-lit
+  `powerups/forceshell` on them is EternalJK's `cg_stylePlayer` shell bit, off by
+  default.
+
+The tint goes only on the body as drawn: the shells over it and the outline mask
+use the untinted instance, since stock clears `RF_RGB_TINT` before each shell.
+
+Tried and dropped in playtest: drawing the bubble several times (it floods the body
+flat blue) and SJK-made glows over or in place of the bubble (a chrome shell, an even
+blue wash); each read as a hologram, and JoF EJK's look turned out to be the figure.
+
 A shield hit (`EV_SHIELD_HIT`, timer in `shield_hit.rs`) is drawn as the body
 re-drawn with `gfx/misc/personalshield`, like single player. `cg_shieldSphere 1`
 draws stock multiplayer's `halfShieldShell` sphere instead

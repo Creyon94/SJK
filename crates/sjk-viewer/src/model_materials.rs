@@ -18,7 +18,7 @@ pub(crate) struct Overrides {
     pub(crate) dark_disabled: usize,
     /// `cgs.media.disruptorShader`, `CG_Disintegration`'s burning pass.
     pub(crate) disruptor_burn: usize,
-    force: [usize; 15],
+    force: [usize; 16],
     /// The player card outline's mask ([`crate::card_outline`]).
     pub(crate) card_outline: usize,
     /// The team outlines' masks, teammates' and enemies'.
@@ -50,7 +50,7 @@ pub(crate) fn append_overrides(materials: &mut Vec<ViewerMaterial>) -> Overrides
         light_disabled: ensure(materials, "gfx/misc/mp_light_enlight_disable"),
         dark_disabled: ensure(materials, "gfx/misc/mp_dark_enlight_disable"),
         disruptor_burn: ensure(materials, crate::disintegration::BURN_SHADER),
-        force: [0; 15],
+        force: [0; 16],
         card_outline: ensure(materials, crate::card_outline::Group::Card.shader()),
         friend_outline: ensure(materials, crate::card_outline::Group::Friend.shader()),
         enemy_outline: ensure(materials, crate::card_outline::Group::Enemy.shader()),
@@ -61,7 +61,7 @@ pub(crate) fn append_overrides(materials: &mut Vec<ViewerMaterial>) -> Overrides
     result
 }
 
-const FORCE_SHADERS: [&str; 15] = [
+const FORCE_SHADERS: [&str; 16] = [
     "halfShieldShell",
     "gfx/misc/electric",
     "gfx/misc/fullbodyelectric2",
@@ -77,6 +77,7 @@ const FORCE_SHADERS: [&str; 15] = [
     "powerups/endarkenmentshell",
     "powerups/enlightenmentshell",
     "powerups/invulnerabilityshell",
+    crate::duel_ghost::SHADER,
 ];
 
 impl Overrides {
