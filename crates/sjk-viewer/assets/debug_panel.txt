@@ -932,6 +932,19 @@ test: Changelog (Unreleased): click cg_clanEmblems: Settings opens searched for 
 
 # ---- HUD ----
 
+[nameplate-share]
+area: HUD
+title: Nameplate bars only on players who share them (cg_nameplateShare, cg_nameplateEstimate)
+change: Others' health, shield and Force bars show only if they share (off by default).
+change: Bars on everyone (estimates) shares your own; your card says you see others' bars.
+change: A sharer's bars are the estimates corrected twice a second with their real values.
+test: Defaults, a stock or non-sharing player: name, weapon, icons, no bars; teammates keep HP.
+test: Two SJK clients, one with Share my bars on: the other sees its bars, close to its HUD.
+test: Hit the sharer: the bar drops at once, then settles on the real value within a second.
+test: Turn Bars on everyone on: Share my bars turns on too and cannot be turned off.
+test: Inspect a player with Bars on everyone: the card says, in amber, Sees your health...
+note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
+
 [team-outline]
 area: HUD
 title: Team games: red/green outlines, team logos over allies, no team overlay

@@ -5,7 +5,7 @@
 use crate::keys::Identity;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// A player's public profile as the hub serves it.
@@ -586,6 +586,45 @@ pub struct Ping {
     pub pos: [i32; 3],
     /// Who the sender meant it for (`all`, `red`, `blue`, `lone`, `double`, `spec`).
     pub scope: String,
+}
+
+/// The values a player shares on their nameplate (`PROTOCOL.md`, "Vitals"): their
+/// game's own numbers, as the server sends them to that player.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, Eq, PartialEq)]
+pub struct Vitals {
+    /// The game server's time (milliseconds) of the snapshot they come from.
+    pub t: i32,
+    /// Health (`STAT_HEALTH`).
+    pub health: i32,
+    /// Shield (`STAT_ARMOR`).
+    pub armor: i32,
+    /// Force (`fd.forcePower`).
+    pub force: i32,
+    /// `STAT_MAX_HEALTH`.
+    pub max_health: i32,
+    /// `fd.forcePowerMax`.
+    pub max_force: i32,
+}
+
+/// One player in the hub's answer to `POST /v1/vitals`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct SharedVitals {
+    /// Their slot on the server, from their claim.
+    pub slot: u8,
+    /// The name they claimed the game shows there.
+    pub claimed_name: String,
+    /// Their id at the hub.
+    pub key_id: String,
+    /// They share their values.
+    pub share: bool,
+    /// They see everyone's estimated bars (which makes them share).
+    pub estimates: bool,
+    /// Seconds since the hub took the entry.
+    #[serde(default)]
+    pub age: i64,
+    /// Their values; `None` while they have none (dead, spectating).
+    #[serde(default)]
+    pub vitals: Option<Vitals>,
 }
 
 /// The hub's answer to `GET /v1/feed` (`PROTOCOL.md`, "The feed").

@@ -1553,6 +1553,7 @@ fn player_card_profile(shots: &mut Snapshot) {
                 key_id: profile.key_id.clone(),
                 avatar: String::new(),
                 profile: Some(ProfileFacts::of(&profile)),
+                vitals: crate::hud::player_card::Vitals::SeesAll,
             }),
             shader,
         );

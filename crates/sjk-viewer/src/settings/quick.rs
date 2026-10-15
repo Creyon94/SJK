@@ -51,6 +51,7 @@ const CVARS: &[&str] = &[
     "cg_nameplateBars",
     "cg_nameplateForce",
     "cg_nameplateIcons",
+    "cg_nameplateShare",
     "cg_auraShell",
     "cg_spProtAbsColor",
     "cl_autoUpdate",

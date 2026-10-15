@@ -126,6 +126,9 @@ pub(crate) fn update(
             !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)
         });
     gpu.hud.identification.sample(gpu.console.as_ref());
+    if let Some(console) = gpu.console.as_mut() {
+        hud::nameplate::hold_sharing(console);
+    }
     gpu.hud.nameplate.sample(gpu.console.as_ref());
     gpu.hud.card.sample(gpu.console.as_ref());
     gpu.hud.team_logo.sample(gpu.console.as_ref());
@@ -202,6 +205,12 @@ pub(crate) fn update(
             .refresh_verified(i64::from(presentation_time), || {
                 player_identity::verified_slots(session.game_state())
             });
+        gpu.hud
+            .nameplate
+            .refresh_shared(i64::from(presentation_time), || {
+                player_identity::shared_vitals(session.game_state())
+            });
+        player_identity::share_vitals(gpu.hud.nameplate.sharing(Some(snapshot)));
         let detached_flight = gpu.free_camera_active();
         gpu.hud.nameplate.set_own_origin(gpu.third_person.then(|| {
             gpu.local_prediction
@@ -292,7 +301,9 @@ pub(crate) fn update(
             camera,
             hidden: plates_hidden,
             hub: &player_identity::hub_info,
-            hub_revision: player_identity::revision(),
+            // What players share changes their card too.
+            hub_revision: player_identity::revision()
+                ^ player_identity::vitals_flags(session.game_state()).rotate_left(17),
             entities: &snapshot.entities,
             icon: &|slot| head_icons.head_icon(slot),
             shader: &|slot| card_shader(looks, skins, own_slot, slot),
@@ -460,7 +471,9 @@ pub(crate) fn update(
             camera,
             hidden: plates_hidden,
             hub: &player_identity::hub_info,
-            hub_revision: player_identity::revision(),
+            // What players share changes their card too.
+            hub_revision: player_identity::revision()
+                ^ player_identity::vitals_flags(session.game_state()).rotate_left(17),
             entities: &snapshot.entities,
             icon: &|slot| head_icons.head_icon(slot),
             shader: &|slot| card_shader(looks, skins, own_slot, slot),

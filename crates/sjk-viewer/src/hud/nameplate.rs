@@ -170,6 +170,19 @@ const HOLSTERED_HALO: f32 = 0.4;
 const WP_NONE: u8 = 0;
 /// Milliseconds between reads of which players are verified.
 const VERIFIED_EVERY: i64 = 1_000;
+/// Milliseconds between reads of what the other players share: their values come
+/// about twice a second.
+const SHARED_EVERY: i64 = 100;
+
+/// What one slot's player shares (`PROTOCOL.md`, "Vitals"), their claim matching the
+/// name the game shows there.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SharedSlot {
+    /// They see everyone's estimated bars.
+    pub(crate) estimates: bool,
+    /// Their values, while they have some (alive in a match).
+    pub(crate) vitals: Option<sjk_identity::Vitals>,
+}
 
 /// Register the nameplate settings.
 pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
@@ -210,10 +223,16 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Nameplate Force bar, estimated from the player's powers",
     ))?;
     cvars.register(CvarDefinition::new(
-        "cg_nameplatePredict",
-        true,
+        "cg_nameplateShare",
+        false,
         CvarFlags::ARCHIVE,
-        "Estimate the health and shield the server does not send, from the hits, pains and pickups it does",
+        "Share your health, shield and Force with the other SJK players of your server, for their nameplates",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        "cg_nameplateEstimate",
+        false,
+        CvarFlags::ARCHIVE,
+        "Estimated bars on players who do not share; turning it on shares your own, and the others are told",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateWeapon",
@@ -254,6 +273,16 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     Ok(())
 }
 
+/// `cg_nameplateEstimate` shares the player's own bars: turn `cg_nameplateShare` back on
+/// whenever it is off while the estimates are on, so the settings say what is sent.
+pub(crate) fn hold_sharing(console: &mut ViewerConsole) {
+    if console.bool_cvar("cg_nameplateestimate") == Some(true)
+        && console.bool_cvar("cg_nameplateshare") != Some(true)
+    {
+        console.set_cvar("cg_nameplateShare", "1");
+    }
+}
+
 /// Settings, sampled once per frame.
 #[derive(Clone, Copy)]
 struct Settings {
@@ -263,7 +292,11 @@ struct Settings {
     scale: f32,
     bars: i64,
     force: bool,
-    predict: bool,
+    /// `cg_nameplateShare`: the player shares their own values.
+    share: bool,
+    /// `cg_nameplateEstimate`: estimated bars on players who do not share, which
+    /// makes the player share whatever `share` says.
+    estimate: bool,
     weapon: bool,
     walls: bool,
     npcs: bool,
@@ -286,7 +319,8 @@ impl Default for Settings {
             scale: 0.5,
             bars: 2,
             force: true,
-            predict: true,
+            share: false,
+            estimate: false,
             weapon: true,
             walls: false,
             npcs: false,
@@ -375,6 +409,13 @@ pub(crate) struct State {
     /// Slots the hub's operator vouches for, as bits, and when they were last read.
     verified: u32,
     verified_read: Option<i64>,
+    /// What each slot's player shares (`PROTOCOL.md`, "Vitals"), and when it was last
+    /// read.
+    shared: [Option<SharedSlot>; MAX_PLAYER_TAGS],
+    shared_read: Option<i64>,
+    /// The server time of the shared values each slot's estimates were last
+    /// corrected with: each value corrects them once.
+    anchored: [Option<i32>; MAX_PLAYER_TAGS],
     /// Where the local player stands, while their own plate may show (third person).
     own_origin: Option<Vec3>,
     /// The player the crosshair was last on, and when.
@@ -404,6 +445,9 @@ impl Default for State {
             colors: BarColors::default(),
             verified: 0,
             verified_read: None,
+            shared: [None; MAX_PLAYER_TAGS],
+            shared_read: None,
+            anchored: [None; MAX_PLAYER_TAGS],
             own_origin: None,
             focus: None,
             announced: None,
@@ -432,7 +476,8 @@ impl State {
                 .and_then(|c| c.integer_cvar("cg_nameplatebars"))
                 .unwrap_or(2),
             force: flag("cg_nameplateforce", true),
-            predict: flag("cg_nameplatepredict", true),
+            share: flag("cg_nameplateshare", false),
+            estimate: flag("cg_nameplateestimate", false),
             weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
@@ -477,6 +522,62 @@ impl State {
         }
         self.verified_read = Some(now);
         self.verified = read();
+    }
+
+    /// Read what the other SJK players share (`read` asks the identity service) at
+    /// most every [`SHARED_EVERY`] ms, and correct the estimates with each new value.
+    pub(crate) fn refresh_shared(
+        &mut self,
+        now: i64,
+        read: impl FnOnce() -> [Option<SharedSlot>; MAX_PLAYER_TAGS],
+    ) {
+        if self
+            .shared_read
+            .is_some_and(|last| (0..SHARED_EVERY).contains(&(now - last)))
+        {
+            return;
+        }
+        self.shared_read = Some(now);
+        self.shared = read();
+        for (slot, shared) in self.shared.iter().enumerate() {
+            let Some(values) = shared.and_then(|shared| shared.vitals) else {
+                continue;
+            };
+            if self.anchored[slot] == Some(values.t) {
+                continue;
+            }
+            self.anchored[slot] = Some(values.t);
+            let slot = slot as u16;
+            self.vitals
+                .anchor(slot, values.t, values.health as f32, values.armor as f32);
+            let pool = values.force as f32 * 100.0 / values.max_force.max(1) as f32;
+            self.force.anchor(slot, values.t, pool);
+        }
+    }
+
+    /// What the player shares this frame: their own health, shield and Force while
+    /// alive in a match, with `cg_nameplateShare`, or with `cg_nameplateEstimate`,
+    /// which shares them whatever the other says.
+    pub(crate) fn sharing(&self, snapshot: Option<&Snapshot>) -> sjk_identity::Sharing {
+        let share = self.settings.share || self.settings.estimate;
+        let vitals = snapshot
+            .filter(|snapshot| {
+                share && snapshot.player.health() > 0 && !snapshot.player.is_spectator()
+            })
+            .map(|snapshot| sjk_identity::Vitals {
+                t: snapshot.server_time,
+                health: snapshot.player.health(),
+                armor: snapshot.player.armor(),
+                force: i32::from(snapshot.player.force_power()),
+                max_health: snapshot.player.max_health().max(1),
+                // The protocol does not carry `fd.forcePowerMax`; a full pool is 100.
+                max_force: 100,
+            });
+        sjk_identity::Sharing {
+            share,
+            estimates: self.settings.estimate,
+            vitals,
+        }
     }
 
     /// The player the crosshair is on at `now`, if any, for [`Mode::Target`]: they keep
@@ -762,13 +863,23 @@ impl State {
                     }
                     _ => false,
                 };
+            // Estimates show on players who share (corrected by what they share) and,
+            // with `cg_nameplateEstimate`, on everyone.
+            let estimated = player
+                && (settings.estimate
+                    || self
+                        .shared
+                        .get(usize::from(number))
+                        .copied()
+                        .flatten()
+                        .is_some_and(|shared| shared.vitals.is_some()));
             let (health, shield) = if bars {
-                let predicted = (player && settings.predict).then_some(&self.vitals);
+                let predicted = estimated.then_some(&self.vitals);
                 bar_values(entity, number, ally && player, team_info, predicted)
             } else {
                 (None, None)
             };
-            let force = (bars && player && settings.force)
+            let force = (bars && estimated && settings.force)
                 .then(|| self.force.ratio(number))
                 .flatten();
             let rows = Rows {

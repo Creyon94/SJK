@@ -99,6 +99,14 @@ fn make_feed_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
         .map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
+/// A hub client for shared vitals, whose requests give up sooner: a late answer is
+/// out of date anyway.
+fn make_vitals_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
+    let agent = format!("SJK/{}", crate::build_info::VERSION);
+    HttpHub::with_timeout(url, &agent, sjk_identity::vitals::TIMEOUT)
+        .map(|hub| Box::new(hub) as Box<dyn Hub>)
+}
+
 /// The name the game shows for `slot`, as the server published it.
 pub(crate) fn shown_name(game_state: &GameState, slot: usize) -> Option<String> {
     let bytes = game_state.config_string(CS_PLAYERS + slot)?;
@@ -161,10 +169,11 @@ pub(crate) fn apply(
                     identity.key_id(),
                     KEY_FILE
                 ));
-                let service = Service::start_with_feed(
+                let service = Service::start_with_threads(
                     identity,
                     Box::new(make_hub),
                     Some(Box::new(make_feed_hub)),
+                    Some(Box::new(make_vitals_hub)),
                 );
                 // The hub's packs (unlockables' art) are kept beside the key.
                 service.keep_assets(crate::sjk_packs::directory_in(config_directory));
@@ -385,10 +394,15 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
             key_id: player.key_id.clone(),
             avatar: player.avatar.clone(),
             profile: profile.map(crate::hud::player_card::ProfileFacts::of),
+            vitals: crate::hud::player_card::Vitals::Private,
         };
         let wanted = (player.key_id != snapshot.key_id).then(|| player.key_id.clone());
         Some((info, wanted))
     })?;
+    let info = crate::hud::player_card::HubInfo {
+        vitals: card_vitals(service, slot, &info.key_id),
+        ..info
+    };
     if let Some(key_id) = wanted {
         let now = Instant::now();
         let due = runtime
@@ -459,6 +473,83 @@ pub(crate) fn verified_slots(game_state: &GameState) -> u32 {
             slots |= 1 << own;
         }
         slots
+    })
+}
+
+/// How long the hub's list of sharers stays good without a new answer: a little over
+/// the life of its entries.
+const SHARED_FRESH: Duration = Duration::from_secs(6);
+
+/// Tell the hub what the player shares on their nameplate (`PROTOCOL.md`, "Vitals").
+pub(crate) fn share_vitals(sharing: sjk_identity::Sharing) {
+    if let Some(service) = lock().service.as_ref() {
+        service.set_sharing(sharing);
+    }
+}
+
+/// The other players' shared vitals by slot, each only while their claimed name
+/// matches the name the game shows there; the player's own slot is left out.
+pub(crate) fn shared_vitals(
+    game_state: &GameState,
+) -> [Option<crate::hud::nameplate::SharedSlot>; MAX_CLIENTS] {
+    let mut slots = [None; MAX_CLIENTS];
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return slots;
+    };
+    let own = usize::try_from(game_state.client_num).ok();
+    service.with_vitals(|table| {
+        if table
+            .read_at
+            .is_none_or(|read| read.elapsed() > SHARED_FRESH)
+        {
+            return;
+        }
+        for player in &table.players {
+            let slot = usize::from(player.slot);
+            if slot >= MAX_CLIENTS || Some(slot) == own || !player.share {
+                continue;
+            }
+            let shown = shown_name(game_state, slot);
+            if shown.is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown)) {
+                slots[slot] = Some(crate::hud::nameplate::SharedSlot {
+                    estimates: player.estimates,
+                    vitals: player.vitals,
+                });
+            }
+        }
+    });
+    slots
+}
+
+/// Two bits a slot of what each player shares (shares, sees everyone's bars), so the
+/// player card is rebuilt when they change.
+pub(crate) fn vitals_flags(game_state: &GameState) -> u64 {
+    shared_vitals(game_state)
+        .iter()
+        .enumerate()
+        .fold(0, |bits, (slot, shared)| match shared {
+            Some(shared) => bits | (1 | u64::from(shared.estimates) << 1) << (slot * 2),
+            None => bits,
+        })
+}
+
+/// What the player of `key_id` in `slot` shares, as the player card says it.
+fn card_vitals(service: &Service, slot: u8, key_id: &str) -> crate::hud::player_card::Vitals {
+    use crate::hud::player_card::Vitals;
+    service.with_vitals(|table| {
+        let fresh = table
+            .read_at
+            .is_some_and(|read| read.elapsed() <= SHARED_FRESH);
+        match table
+            .players
+            .iter()
+            .find(|player| fresh && player.share && player.slot == slot && player.key_id == key_id)
+        {
+            Some(player) if player.estimates => Vitals::SeesAll,
+            Some(_) => Vitals::Shared,
+            None => Vitals::Private,
+        }
     })
 }
 

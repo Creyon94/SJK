@@ -23,6 +23,7 @@ pub mod report;
 pub mod service;
 pub mod staff;
 pub mod usage;
+pub mod vitals;
 pub mod wire;
 
 pub use assets::Pack;
@@ -40,9 +41,10 @@ pub use service::{
     Settings, Snapshot, Status,
 };
 pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
     Achievement, CardStack, ChatMessage, DropEvent, DropMark, Emote, Feed, HOLOCRONS_LISTED,
     Holocron, HolocronCounts, HolocronState, Look, LookEvent, LootTier, Medal, OPEN_MAX,
     OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence, Profile,
-    RevealAnswer, Revealed, Unlock, WornName, names_match, normal_form,
+    RevealAnswer, Revealed, SharedVitals, Unlock, Vitals, WornName, names_match, normal_form,
 };

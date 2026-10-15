@@ -54,7 +54,7 @@
 //! no pain event at all. The local player's own pain events are checked against
 //! its real health ([`PainReport`]); until one has been checked, pain values are
 //! trusted but their absence proves nothing.
-use super::estimate::Range;
+use super::estimate::{History, Range};
 use super::force_streams::{self, Effect};
 use sjk_game_jka::items::{ITEMS, Kind};
 use sjk_protocol::{EntityState, GameState, Snapshot};
@@ -322,6 +322,9 @@ pub(super) struct Estimator {
     pending: bool,
     /// What the last applied snapshot showed of each player's Force.
     force_facts: [ForceFacts; CLIENTS],
+    /// Each player's health and armour estimates of the last snapshots, for their
+    /// shared vitals ([`Self::anchor`]).
+    histories: Box<[[History; 2]; CLIENTS]>,
 }
 
 impl Default for Estimator {
@@ -355,6 +358,7 @@ impl Default for Estimator {
             facts: [Facts::default(); CLIENTS],
             pending: false,
             force_facts: [ForceFacts::default(); CLIENTS],
+            histories: Box::new([[History::default(); 2]; CLIENTS]),
         }
     }
 }
@@ -370,6 +374,27 @@ impl Estimator {
     pub(super) fn armor(&self, slot: u16) -> Option<Range> {
         let track = self.tracks.get(usize::from(slot))?;
         track.alive.then_some(track.armor)
+    }
+
+    /// Correct `slot`'s estimate with what its player shares (`PROTOCOL.md`, "Vitals"):
+    /// their own client's health and armour at server time `time`. The changes seen
+    /// since then are kept; nothing changes when the estimate holds no snapshot that
+    /// old (the player was not tracked alive then).
+    pub(super) fn anchor(&mut self, slot: u16, time: i32, health: f32, armor: f32) {
+        let slot = usize::from(slot);
+        let Some(track) = self.tracks.get_mut(slot) else {
+            return;
+        };
+        if !track.alive || health <= 0.0 {
+            return;
+        }
+        let [healths, armors] = &mut self.histories[slot];
+        if healths.anchor(time, health, &mut track.health) {
+            track.health = track.health.clamp(1.0, 255.0);
+        }
+        if armors.anchor(time, armor, &mut track.armor) {
+            track.armor = track.armor.clamp(0.0, 255.0);
+        }
     }
 
     /// A full bar's worth of health or armour.
@@ -510,7 +535,17 @@ impl Estimator {
             let context = step(entity);
             let slot = usize::from(number);
             let dead = entity.e_flags() & EF_DEAD != 0;
+            let was_alive = self.tracks[slot].alive;
             let protect = advance(&mut self.tracks[slot], &facts[slot], dead, context);
+            let track = self.tracks[slot];
+            let histories = &mut self.histories[slot];
+            if !track.alive || !was_alive {
+                histories.iter_mut().for_each(History::clear);
+            }
+            if track.alive {
+                histories[0].push(time, track.health);
+                histories[1].push(time, track.armor);
+            }
             self.force_facts[slot] = ForceFacts {
                 protect,
                 ..facts[slot].force
@@ -522,6 +557,7 @@ impl Estimator {
                 let track = &mut self.tracks[slot];
                 track.alive = false;
                 track.died = Some(time);
+                self.histories[slot].iter_mut().for_each(History::clear);
             }
         }
     }
@@ -1676,6 +1712,30 @@ mod tests {
                 0.0,
                 "only the snapshot that gave"
             );
+        }
+
+        #[test]
+        fn shared_vitals_correct_the_estimate_from_their_snapshot_on() {
+            let game = game();
+            let mut estimator = Estimator::default();
+            let observe = |estimator: &mut Estimator, time, entities: Vec<EntityState>| {
+                estimator.observe(&snapshot(time, local(100), entities), &game, 0);
+            };
+            // First seen: anything a living player can be.
+            observe(&mut estimator, 1_000, vec![player(0, 0)]);
+            observe(&mut estimator, 1_050, vec![player(0, 0)]);
+            assert!(estimator.health(3).unwrap().width() > 50.0);
+            // Shared from before anything was seen of them: nothing to correct.
+            estimator.anchor(3, 900, 80.0, 10.0);
+            assert!(estimator.health(3).unwrap().width() > 50.0);
+            // Shared from the first snapshot, nothing seen since: exact.
+            estimator.anchor(3, 1_000, 80.0, 10.0);
+            assert_eq!(estimator.health(3), Some(Range::exact(80.0)));
+            assert_eq!(estimator.armor(3), Some(Range::exact(10.0)));
+            // Seen hit to 40 since: the pain wins, and a value from before it keeps it.
+            observe(&mut estimator, 1_100, vec![player(0x100 | 89, 40)]);
+            estimator.anchor(3, 1_050, 80.0, 10.0);
+            assert_eq!(estimator.health(3), Some(Range::exact(40.0)));
         }
 
         #[test]
