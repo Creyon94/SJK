@@ -26,11 +26,12 @@ impl crate::GpuState {
     }
 }
 
-/// Apply independent notification and footstep switches without muting combat.
 /// The channel emote sounds play on: JKA's `CHAN_MUSIC`, which no entity sound of the
-/// game uses, so an emote's music never cuts a voice or a swing.
-const EMOTE_CHANNEL: ChannelId = ChannelId(13);
+/// game uses, so an emote's music never cuts a voice or a swing. The mixer protects
+/// it: a full voice table gives up every other sound before an emote's.
+pub(crate) const EMOTE_CHANNEL: ChannelId = ChannelId(13);
 
+/// Apply independent notification and footstep switches without muting combat.
 pub(super) fn allows_event(
     event: sjk_client::LegacySoundEvent,
     footsteps: bool,
