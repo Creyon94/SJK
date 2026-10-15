@@ -882,6 +882,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             style: 2,
             verified: true,
             team: None,
+            shared: true,
         },
         PreviewPlate {
             slot: 2,
@@ -894,6 +895,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             style: 0,
             verified: false,
             team: Some(true),
+            shared: true,
         },
         PreviewPlate {
             slot: 3,
@@ -906,6 +908,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             style: 7,
             verified: true,
             team: None,
+            shared: false,
         },
         PreviewPlate {
             slot: 0,
@@ -918,6 +921,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             style: 3,
             verified: true,
             team: Some(false),
+            shared: false,
         },
     ];
     let names = [

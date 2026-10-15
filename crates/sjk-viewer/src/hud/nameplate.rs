@@ -156,6 +156,9 @@ const MAX_ICONS: usize = 4;
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 /// Frame colour of players who follow no team.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
+/// The contour of a player who shares their bars of their own will
+/// (`cg_nameplateShare`), the verified badge's gold.
+const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
 /// Frame colour of NPC plates.
 const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.9);
 /// The grey haze over a bar's uncertain stretch, at its thickest.
@@ -368,6 +371,9 @@ struct Entry {
     names_allowed: bool,
     /// The SJK hub's operator vouches for this player: the gold badge after the name.
     verified: bool,
+    /// They share their bars of their own will (not because they see everyone's): a
+    /// gold contour.
+    shared: bool,
 }
 
 impl Entry {
@@ -924,6 +930,13 @@ impl State {
                 accent,
                 names_allowed,
                 verified: player && self.verified & (1 << number) != 0,
+                shared: player
+                    && self
+                        .shared
+                        .get(usize::from(number))
+                        .copied()
+                        .flatten()
+                        .is_some_and(|shared| !shared.estimates),
             });
             if self.entries.len() == MAX_TAGS {
                 break;
@@ -1046,6 +1059,7 @@ impl State {
                 accent: who.accent,
                 names_allowed: who.names_allowed,
                 verified: self.verified & (1 << number) != 0,
+                shared: false,
             });
         }
     }
@@ -1124,6 +1138,7 @@ impl State {
             accent: team_accent(mode, player.team() as i32),
             names_allowed: true,
             verified: self.verified & (1 << local) != 0,
+            shared: settings.share && !settings.estimate,
         };
         let (powers, power_count) = if settings.icons {
             icon_powers(player.force_powers_active())
@@ -1571,12 +1586,36 @@ impl State {
             radius: 4.0 * u,
             color: Color::new(0.03, 0.04, 0.06, 0.62),
         });
-        let _ = self.list.push(DrawCommand::Border {
-            rect: stack.frame,
-            radius: 4.0 * u,
-            width: (1.2 * u).max(1.0),
-            color: entry.accent,
-        });
+        if entry.shared {
+            // Gold for sharing; a team's colour stays as a thin line inside it.
+            let _ = self.list.push(DrawCommand::Border {
+                rect: stack.frame,
+                radius: 4.0 * u,
+                width: (1.6 * u).max(1.0),
+                color: SHARED_CONTOUR,
+            });
+            if entry.accent != NEUTRAL_ACCENT {
+                let inset = (1.6 * u).max(1.0);
+                let _ = self.list.push(DrawCommand::Border {
+                    rect: Rect::new(
+                        stack.frame.x + inset,
+                        stack.frame.y + inset,
+                        stack.frame.width - inset * 2.0,
+                        stack.frame.height - inset * 2.0,
+                    ),
+                    radius: (4.0 * u - inset).max(0.0),
+                    width: (0.8 * u).max(1.0),
+                    color: entry.accent,
+                });
+            }
+        } else {
+            let _ = self.list.push(DrawCommand::Border {
+                rect: stack.frame,
+                radius: 4.0 * u,
+                width: (1.2 * u).max(1.0),
+                color: entry.accent,
+            });
+        }
         let colors = self.colors;
         for (bar, range, color, meter) in [
             (stack.shield, entry.shield, colors.shield, Meter::Shield),
@@ -1966,6 +2005,8 @@ pub(crate) struct PreviewPlate {
     pub(crate) verified: bool,
     /// The frame's colour: red or blue team, else neutral.
     pub(crate) team: Option<bool>,
+    /// The gold contour of a player who shares their bars.
+    pub(crate) shared: bool,
 }
 
 #[cfg(test)]
@@ -2007,6 +2048,7 @@ impl State {
                 },
                 names_allowed: true,
                 verified: plate.verified,
+                shared: plate.shared,
             });
         }
         let label = |id: TextId| {
@@ -2143,6 +2185,7 @@ mod tests {
             style: 0,
             verified: true,
             team: None,
+            shared: false,
         };
         let mut state = State::default();
         let icons = super::super::icons::Icons::default();
