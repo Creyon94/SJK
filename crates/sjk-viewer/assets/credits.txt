@@ -111,7 +111,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 47 merged pull requests, EternalJK parity
+role: Contributor and tester: 51 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -137,7 +137,9 @@ did: #84 #85 #86 The in-game chat under the match card, the Character page witho
 did: #87 #88 #89 #90 #91 Server browser: second master, charsets, favourites by address, saved passwords, player scroll
 did: #93 #94 #95 #96 #97 showplayerid, amcolor, crackle, server list, model turn
 did: #98 #99 Rockets fired while moving no longer stutter, the lock-on ring and its sounds
-did: #100 Each Force power shown on the profile's model
+did: #100 #101 Each Force power shown on the profile's model
+did: #103 Emotes of high quality models played on the stock JKA models
+did: #104 No purple tag arrows on community models
 did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades and the twelve after them (Saber smith: Creyon)
 did: The Blade Lab page: the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades
 did: The Blade Lab page: the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum blades

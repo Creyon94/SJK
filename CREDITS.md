@@ -193,7 +193,7 @@ Sol develops SJK and sets its direction. Sol's work includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 47
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 51
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -244,7 +244,11 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #98 no stutter when firing rockets while moving (missiles left out of the prediction's
   solid list); #99 the rocket launcher's lock-on ring and its tick and lock sounds;
 - #100 each Force power shown on the in-game profile's model (gestures, effects, shells,
-  saber skills, jump and throw).
+  saber skills, jump and throw); #101 Saber Offense in the strong stance and a shorter
+  landing there;
+- #103 emotes made on high quality models played on the stock JKA models;
+- #104 model tag surfaces never drawn (no purple arrows on community models);
+- #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
   Lilac, Mint, Coral, Ivory, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight); each of

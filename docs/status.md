@@ -1,3 +1,31 @@
+## Emotes on stock models: limbs out of wider bodies
+
+15/10/2026, `feat/emote-body-fit` (Creyon, on `feat/emotes-on-classic-models`): a dance made
+on a slim rig played on a wide stock model no longer puts its hands and elbows inside the
+wider body: both bodies are measured from their meshes (ellipsoids round the trunk and
+thighs, limb thickness), and each limb keeps the rig's clearance up to 2 units, never inside,
+a touched body still touched ([rig-models.md](rig-models.md#body-fit-limbs-out-of-wider-bodies)).
+Checked by unit tests (measuring a body without its arms, clearance, the push, a two-bone
+fit keeping lengths) and the ignored measurement on four community models: summed limb
+depth into the body down 80 to 95% on the three wide ones, unchanged on a thin robot. Not
+yet seen in the game.
+
+## Emotes on stock models
+
+15/10/2026, `feat/emotes-on-classic-models` (Creyon, at Sol's request): a stock GLM model
+(Kyle, the retail characters, community models on `_humanoid`) plays the emotes made on rig
+models, on its own bones: each bone the source rig's bone map names takes its joint's turn
+from the aligned bind pose, the pelvis follows the clip's on the driver's ground
+([rig-models.md](rig-models.md#emotes-on-stock-models)). Checked by three unit tests (bind
+pose gives the base pose, a turned head turns the cranium about its own base, a fade blends
+half way, a crouching pelvis carries its children, bone order) and the workspace checks on
+Linux. Creyon's first game test (Windows 11, local build) showed broken limbs on some
+models: the fingers and hang tags hang on the forearm in JKA's skeleton and stayed with it
+while the dancing hand turned. Fixed the same day (positions carried by the rig's own
+hierarchy, unmapped bones moving with the bone they are most rigid with); a retail
+round-trip check now brings every skinned bone back within 3.4 units (fingers were 5.2
+off). The fix is not yet seen in the game.
+
 ## Model tags no longer drawn (purple arrows)
 
 15/10/2026, `fix/hide-model-tag-surfaces` (Creyon, after Nib's report): community player

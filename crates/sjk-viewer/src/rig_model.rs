@@ -21,7 +21,8 @@
 //! The glTF's own animations become clips ([`clips`]) a rig plays on its skeleton
 //! in place of the driver's pose, fading in and out (emotes). An emote made on
 //! another rig model (its file's `rig`) is borrowed when the two skeletons share
-//! joint names, as Unreal mannequin characters do ([`RigModel::borrowed`]).
+//! joint names, as Unreal mannequin characters do ([`RigModel::borrowed`]). Stock
+//! GLM models play those clips too, through the bone map in reverse ([`stock`]).
 //!
 //! See `docs/rig-models.md` for the file format.
 
@@ -34,6 +35,7 @@ use sjk_vfs::VirtualFileSystem;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, LazyLock, Mutex};
+pub(crate) use stock::{StockEmotes, StockScratch};
 
 /// The file that makes a model folder a rig model.
 pub(crate) const MANIFEST: &str = "sjk_rig.cfg";
@@ -376,9 +378,12 @@ fn source_rig(vfs: &VirtualFileSystem, directory: &str, driver: &Gla) -> Option<
             .to_owned();
         let read = |path: &str| vfs.read(path).ok().flatten().map(|asset| asset.bytes);
         let bytes = read(&path).ok_or_else(|| format!("{path:?} was not found"))?;
-        let mut model = parse(&bytes, |uri| read(&join(&base, uri)))?;
-        model.primitives.clear();
-        RigModel::fit(model, &base, &manifest, driver)
+        let model = parse(&bytes, |uri| read(&join(&base, uri)))?;
+        // Its mesh is measured for the body fit of stock models, then dropped.
+        let mut rig = RigModel::fit(model, &base, &manifest, driver)?;
+        rig.body = Some(rig.measure_body(driver));
+        rig.surfaces = Vec::new();
+        Ok(rig)
     };
     let loaded = match load() {
         Ok(rig) => Some(Arc::new(rig)),
@@ -455,6 +460,9 @@ pub(crate) struct RigModel {
     chains: dynamics::Chains,
     pub(crate) clips: Vec<Clip>,
     pub(crate) surfaces: Vec<Surface>,
+    /// Its body measured on the driver's bones, for a rig loaded to lend its clips
+    /// to stock models ([`body`]).
+    body: Option<body::Body>,
 }
 
 /// glTF (+Y up, +Z front) to the GLA's model space (+Z up, -Y front): the axes a
@@ -916,6 +924,38 @@ impl RigModel {
             chains,
             clips,
             surfaces,
+            body: None,
+        })
+    }
+
+    /// This rig's body ([`body::Body`]) from its surfaces in the bind pose: each vertex
+    /// on the JKA bone its strongest joint follows (or its nearest mapped ancestor's).
+    fn measure_body(&self, driver: &Gla) -> body::Body {
+        let bone_of = |mut joint: usize| {
+            for _ in 0..self.joints.len() {
+                if let Some(driven) = self.driven.get(joint).copied().flatten() {
+                    return Some(driven.bone);
+                }
+                joint = self.joints.get(joint)?.parent?;
+            }
+            None
+        };
+        let samples: Vec<(usize, Vec3A)> = self
+            .surfaces
+            .iter()
+            .flat_map(|surface| &surface.vertices)
+            .filter_map(|vertex| {
+                let bone = bone_of(usize::from(vertex.joints[0]))?;
+                Some((bone, Vec3A::from_array(vertex.position)))
+            })
+            .collect();
+        let joint_of = |bone: usize| {
+            (*self.anchors.get(bone)?)
+                .filter(|anchor| anchor.bone == bone)
+                .map(|anchor| self.joints[anchor.joint].bind.translation)
+        };
+        body::Body::measure(driver, &samples, |lower, end| {
+            Some((joint_of(lower)?, joint_of(end)?))
         })
     }
 
@@ -1297,10 +1337,14 @@ fn topological(joints: &[Joint]) -> Result<Vec<usize>, Box<dyn Error>> {
     Ok(order)
 }
 
+#[path = "rig_body.rs"]
+mod body;
 #[path = "rig_clips.rs"]
 mod clips;
 #[path = "rig_dynamics.rs"]
 mod dynamics;
+#[path = "rig_stock.rs"]
+mod stock;
 
 #[cfg(test)]
 #[path = "rig_model_tests.rs"]

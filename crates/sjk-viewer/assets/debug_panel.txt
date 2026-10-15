@@ -1070,6 +1070,23 @@ test: Walk, run, jump, land: the tail lags and bounces, then settles behind her.
 test: sjkemote comrade: the tail follows the dance's hips, stays attached.
 note: Needs test_content.pk3 from add-on 1.7 (the tail's 10 bones, 322 joints).
 
+[stock-emotes]
+area: Rendering & effects
+title: Emotes on normal JKA models (Creyon #103)
+change: Emotes made for high quality models play on Kyle, the retail and community models.
+change: Hands, fingers and saber stay in place; arms are kept out of wider bodies.
+test: /model kyle, then sjkemote dance_moves: Kyle dances, saber in the dancing hand.
+test: Same with Luke, Jan and a wide model (Reelo): hands whole, arms mostly outside the body.
+test: The dance ends or loops as on a rig model, and fades back into the normal pose.
+note: Needs an emote whose rig is installed (test_content.pk3).
+
+[model-tag-arrows]
+area: Rendering & effects
+title: No purple arrows on community models (Creyon #104)
+change: Model tag surfaces (*hip_l, *head_front...) are never drawn, as in the original game.
+test: /model jedi_nautolan: no purple face mask, no arrows on the chest or belt.
+test: Nib's model: no magenta arrows; sabers and holstered weapons still sit right.
+
 [emote-settings]
 area: Rendering & effects
 title: Emote sound follows you, Emote volume, character grid fixes

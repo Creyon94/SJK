@@ -28,6 +28,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Other players' health, shield and Force bars on the nameplates now show only for SJK players who share theirs (`cg_nameplateShare`, off by default, also in First setup); estimated bars on everyone (`cg_nameplateEstimate`, off) share your own bars and your player card tells the others you see theirs _(Sol)_
 - Settings icons are the grey metal discs again, as before 13/10: the gold and the holocron sets are gone, in Settings, the classic settings lists, the in-game menu and the what's-new card; Chat, Mods and the Quick wheel wear their grey icons again _(Sol)_
 - The Blender add-on has a Tail gravity setting for a model's tail, cape or other following part, kept across exports _(Sol)_
+- Emotes made for high quality models play on the normal JKA models too (Kyle, the retail characters, community models), with the hands, fingers and saber in place and the arms kept out of wider bodies _(Creyon, #103)_
+- Community player models no longer show small purple arrows on the chest, belt and face: the model's tag surfaces are never drawn, as in the original game _(Creyon, #104, after Nib's report)_
+- The profile's Force preview: Saber Offense waits in the strong (red) stance between swings, and the Force jump stands up as soon as its landing ends _(Creyon, #101)_
 
 ## 2026.1014.2 (Alpha) | 14/10/2026
 

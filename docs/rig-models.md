@@ -110,6 +110,8 @@ traces and hit boxes stay the driver's.
 | Bolts and Force points moved onto the rig | `PlayerPreview::bolt`, `RigModel::retarget_bolt` and `retarget_point`, [force_bones.rs](../crates/sjk-viewer/src/force_bones.rs) |
 | Dismemberment skipped, JoF first-person body off | [dismember.rs](../crates/sjk-viewer/src/dismember.rs), [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs) |
 | Clips (emotes): read, converted, sampled, blended | [rig_clips.rs](../crates/sjk-viewer/src/rig_clips.rs), `RigModel::pose` and `play`, `emotes::playing` in [emotes.rs](../crates/sjk-viewer/src/emotes.rs) |
+| Body fit: limbs out of wider stock bodies | `Body`, `push`, `fit_limb` in [rig_body.rs](../crates/sjk-viewer/src/rig_body.rs), `Fit` in [rig_stock.rs](../crates/sjk-viewer/src/rig_stock.rs) |
+| Clips played on stock GLM models (the bone map in reverse) | `StockEmotes` in [rig_stock.rs](../crates/sjk-viewer/src/rig_stock.rs), `stock_emotes` in [player_assets.rs](../crates/sjk-viewer/src/player_assets.rs), [actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs) |
 | Blender export | [scripts/blender/sjk_rig_export](../scripts/blender/sjk_rig_export/__init__.py) |
 
 Units and axes are converted at load: glTF metres with +Y up and +Z front become the
@@ -248,6 +250,14 @@ models taken from other games ([the rule](../AGENTS.md#verification-and-scope)).
 - Only the player sees it: other players see the rig model only when they have the
   same folder; otherwise they see their own fallback for an unknown model, as for any
   custom model.
+- The body fit reads each body as ellipsoids round the trunk bones and thighs: a cape,
+  a backpack or big shoulder pads are not in it, and armour pieces passing through each
+  other are the model's own skinning, which no fit changes.
+- On a stock model an emote moves only the bones the bone map names: JKA has no
+  third finger joint, twist bones or face bones in the map, so those parts follow
+  their parent. Its feet are not planted (the pelvis stands on the driver's ankle
+  height), so a stock model whose legs bend unlike the rig's can stand a little into
+  or above the floor during a dance.
 - Feet are planted vertically only: with legs of other proportions they can slide a
   little sideways, and a foot can stand slightly into or above a slope (no foot
   IK).
@@ -378,9 +388,8 @@ plays its glTF's animations on its own skeleton.
   root and pelvis), which move as the source's do. Joints the source lacks (a tail,
   extra hair) follow their parent. A rig that has fewer than 60% of the joints a
   clip moves does not borrow it (logged). Checked by unit tests and world shots of
-  each test model playing the other's emote (14/10/2026). Stock (GLM) models do not
-  play clips: that would need the clip turned onto the JKA skeleton, the bone map
-  in reverse.
+  each test model playing the other's emote (14/10/2026). Stock (GLM) models play
+  them too, through the bone map in reverse ([below](#emotes-on-stock-models)).
 - Other SJK players on the server see an emote through the hub, which relays only
   its id: their client plays it when it has the same emote and model (each player's
   own files; SJK passes none on). `local` emotes play on this client only and are
@@ -403,6 +412,105 @@ plays its glTF's animations on its own skeleton.
   wheel); a pick is a custom choice running `sjkemote <id>`.
 - An emote ends when its length is over or the player moves 24 units. Demos keep the
   emotes started on them (none arrive from the hub there).
+
+### Emotes on stock models
+
+Built 15/10/2026 (Creyon, at Sol's request): a player wearing a stock model (Kyle, the
+retail characters, community GLM models on `_humanoid`) plays the emotes made on rig
+models, on the model's own bones ([rig_stock.rs](../crates/sjk-viewer/src/rig_stock.rs)).
+
+- When the appearance loads (`load_player_appearance`), `StockEmotes::load` takes the
+  installed emotes that name a `clip` and its `rig`, loads each source rig without its
+  meshes fitted to the model's own skeleton (the same `SOURCES` cache borrowing uses)
+  and keeps the ones whose bone map drives its bones. Nothing is baked: the clip is
+  posed on the source rig each frame.
+- Each JKA bone that a map entry names (the first one, as for bolts) takes the
+  model-space turn its joint makes from its aligned bind pose: the joint's rotation
+  times the inverse of `Driven::rotation`, which is `RigModel::place` read backwards.
+  So an A-pose rig's dance turns JKA's arms from their base pose into the rig's.
+- A mapped bone's base position is carried by the bone of its joint's nearest mapped
+  ancestor in the rig, not by its GLA parent: JKA hangs the fingers and hang tags on
+  the forearm (`rradius`), so a finger carried by its GLA parent stayed where the
+  forearm held it while the dancing hand turned away (the broken hands of the first
+  build, 15/10/2026). Every bone keeps the stock model's own lengths.
+- Bones no entry names (clavicles, twist bones, face, the saber's hang tags) move
+  rigidly with the bone the skeleton's own animations keep them most rigid with,
+  among the mapped bones and their parent (`rigidity`: 256 of the GLA's frames,
+  three points on each bone read back in each other bone's frame, the least variance
+  wins; measured once per skeleton for the session). A root bone keeps the driver's
+  matrix.
+- The pelvis moves as the clip's pelvis moves from its bind position, times the stock
+  legs' length over the rig's (pelvis height above the lower ankle, `ltalus` and
+  `rtalus` against the joints mapped to them), from where the driver's pelvis is now;
+  its height is measured from the driver's current lower ankle, so a crouch or a bob
+  stays on the floor.
+- The clip's pose fades over the driver's per bone (0.25 s in and out, as on a rig)
+  and replaces the driver's matrices for drawing (GPU palette or CPU skin), bolts,
+  Force points, cosmetics and the jetpack ([actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs)):
+  the saber stays in the dancing hand. The trace LOD (saber traces) keeps the
+  driver's pose, as for rig models. The server and its animation numbers are untouched.
+- Other SJK players see it when they have the same emote and its source rig model
+  (each player's own files), as for rig models.
+
+Checked by the unit tests `a_stock_model_plays_a_rig_clip_on_its_own_bones`,
+`a_stock_pelvis_follows_the_clips_pelvis_and_carries_its_children` and
+`stock_bones_are_posed_parents_first` in `rig_model_tests.rs`, and
+`a_stock_finger_stays_on_the_turning_hand` in `rig_stock_tests.rs`. The ignored test
+`retail_animations_come_back_through_a_stock_emote` (`SJK_TEST_GLA`,
+`SJK_TEST_ANIMATIONS`) builds a mannequin-named rig on the retail skeleton, plays
+retail animations (standing, a roll, a saber attack, a back flip, a wall run) on it,
+makes them its clip and plays that on the stock skeleton: every skinned bone comes
+back within 3.4 units of where the animation puts it, measured from the pelvis
+(15/10/2026, JA+ `_humanoid.gla`); the rest is JKA's shoulder shrug, which its
+clavicle adds and the rig's spine carries here. Before the carrier fix the fingers
+strayed 5.2 units and the right hang tag 5.1.
+
+### Body fit: limbs out of wider bodies
+
+Built 15/10/2026 (Creyon): a dance made on a slim rig and played on a wide stock model (a
+heavy alien, a big coat, a turtle) put the hands and elbows where the slim body's surface
+was, inside the wide one ([rig_body.rs](../crates/sjk-viewer/src/rig_body.rs)).
+
+- Each skeleton's body is measured once from its own mesh: the stock model's GLM (first
+  LOD, drawn surfaces) when its stock emotes load, the source rig's glTF in its bind pose
+  when it is loaded to lend its clips (its surfaces are dropped afterwards). Each vertex
+  counts for the JKA bone that moves it most (a rig vertex through its strongest joint's
+  bone map entry). An ellipsoid is fitted round the vertices of each trunk bone and each
+  thigh (`PARTS`: the middle 90% on each axis, so straps, holsters and capes do not widen
+  it); what hangs under the arms, the shins and the neck is not trunk (`REGIONS`). Each
+  forearm's and shin's thickness is the distance from its bone that 75% of its vertices
+  are within (`LIMBS`).
+- Each frame, after the clip's stock pose, each limb's elbow (knee), mid point and wrist
+  (ankle) is measured against the parts on both skeletons: clearance from the part's
+  surface along its radius, less the limb's thickness, less the base pose's own overlap
+  (a mesh whose limbs lie in its ellipsoids at rest sets its own zero). A leg is not
+  measured against its own thigh.
+- A stock point nearer its body than the rig's is to its own, up to 2 units (`KEEP`),
+  and never inside, is pushed out along the part's radius; a rig limb touching its body
+  (within 1.5 units, fading out by 3) draws the stock limb onto its surface by up to 4
+  units, so a hand on the hip stays on a wider hip. Further out the stock limb only has to
+  stay out, so a stance (legs apart, legs crossed, arms out) keeps its shape. Per point,
+  the deepest push wins; without one, the pull onto the part the rig touches.
+- The pushes become an elbow and a wrist target: the upper bone turns about the
+  shoulder (hip) and the lower about the new elbow (knee), both lengths kept, the elbow
+  on the side it was pushed to, and every bone hung under them (fingers, hang tags, the
+  saber) turns with them. Three rounds a frame, as a push out of one part can lead
+  into another.
+
+Measured 15/10/2026 with the ignored test
+`body_fit_keeps_wide_models_limbs_out_of_their_bodies` (`SJK_TEST_GLA`,
+`SJK_TEST_ANIMATIONS`, `SJK_TEST_SLIM` and `SJK_TEST_WIDE` naming two GLMs;
+`SJK_TEST_OBJ_DIR` writes the deepest frame of each animation before and after as OBJ
+files): eight JKA animations (idle, taunt, gesture, crossed-arm talk, crouch, run, roll,
+sit to stand) made a slim community model's rig clip and played on four community models
+with the JA+ `_humanoid.gla`. The limb points' summed depth into the body, before and
+after: a turtle 10.0 to 0.6, a cat 2.0 to 0.3, a toad 9.4 to 2.0 (deepest 3.8 to 1.6
+units), a thin robot 1.2 to 1.2 (deepest 1.9 to 2.6 in one animation, where the pull onto a
+touched part goes a little deep). Pictures of the crossed-arm talk on the toad and the
+sit-to-stand on the turtle showed the forearms come out in front of the chest and a hand
+come onto the knee rather than into it, crossed legs still crossed. The depths are read
+against the same ellipsoids the fit uses, so they say the fit does what it means to; the
+game test says whether it looks right. Not measured: retail models (Jan, Reelo).
 
 Speed: a clip's times come from the frame rate it is exported at. Blender scenes
 are often 60 fps while Unreal animations are made at 30; the first emote played

@@ -1346,6 +1346,15 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 15/10/2026 | SJK #103 | Play rig model emotes on stock JKA models
+- 5e42c14 |  | Play rig model emotes on stock JKA models
+- b515715 |  | Keep stock emote limbs out of wider bodies
++ 15/10/2026 | SJK #104 | Never draw model tag surfaces
+- 8a1cf19 |  | Never draw model tag surfaces
++ 15/10/2026 | SJK #101 | Force preview: Offense in the red stance, a shorter landing
+- f639b84 |  | Force preview: Offense in the red stance, a shorter landing
++ 15/10/2026 | SJK #102 | Wrap the bio.rs assert as rustfmt asks
+- a8b3b3f |  | Wrap the bio.rs character assert as rustfmt asks
 + 13/10/2026 | SJK #100 | Show each Force power on the in-game profile's model
 - d66cff5 |  | Show each Force power on the in-game profile's model
 + 13/10/2026 | SJK #99 | Rocket launcher: the lock-on ring and its sounds
