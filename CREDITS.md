@@ -111,7 +111,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - the Profile page (medals, the bio under strict rules, the player's record) and
   achievements counted in matches and kept on the SJK hub, with their board;
 - the in-game staff tools for medals and achievements, verifying players and merging
-  a reset key's player into the old one (players with several keys);
+  a reset key's player into the old one (players with several keys), and
+  `debug_collectibles`, which shows the team every collectible as held on their own PC;
 - the SJK chat every SJK player shares through the SJK hub, and the path for emotes;
 - unlockables kept at the SJK hub: the generic blade-skin renderer and the packs the
   hub delivers (the Sun blade's look and sounds), and looks (blade skins,

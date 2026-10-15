@@ -77,8 +77,12 @@ impl BladeChoice {
             return;
         }
         let enabled = console.bool_cvar("cl_identity") == Some(true);
+        let wanted = crate::debug_collectibles::wanted(console);
         let read = crate::player_identity::with_snapshot(|snapshot| {
-            let holdings = Holdings::of(enabled, Some(snapshot));
+            // Copied only for the debug mode, which dresses the copy.
+            let dressed = crate::debug_collectibles::active(wanted, snapshot)
+                .then(|| crate::debug_collectibles::dressed(wanted, snapshot.clone()));
+            let holdings = Holdings::of(enabled, Some(dressed.as_ref().unwrap_or(snapshot)));
             Self::take(
                 &mut self.owned,
                 &mut self.worn,

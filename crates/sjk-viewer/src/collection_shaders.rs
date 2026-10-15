@@ -107,6 +107,9 @@ fn card_name(name: &str) -> &str {
 /// The owned line of a shader the player holds: since when, and from the team or the
 /// medal that brings it (a medal the client does not know reads as the team).
 fn owned_line(grant: &sjk_identity::Unlock) -> String {
+    if crate::debug_collectibles::added(grant) {
+        return crate::debug_collectibles::NOTE.to_owned();
+    }
     let date = crate::medals::date_text(grant.granted);
     let from = grant
         .medal
@@ -265,6 +268,11 @@ impl Panel {
                 "Shaders are kept on the SJK hub: no hub is set (cl_hubUrl)."
             }
             unlockables::Holdings::Waiting => "Waiting for the SJK hub to say which are yours.",
+            unlockables::Holdings::Known(held)
+                if held.iter().any(crate::debug_collectibles::added) =>
+            {
+                "Debug collectibles is on: every shader is shown as yours, on this PC only."
+            }
             unlockables::Holdings::Known(_) => {
                 "How your blade looks and sounds, for every SJK player on your server."
             }
@@ -1071,7 +1079,7 @@ impl Panel {
         y += 26.0;
         if let Some(note) = grant
             .map(|grant| grant.note.as_str())
-            .filter(|note| !note.is_empty())
+            .filter(|note| !note.is_empty() && *note != crate::debug_collectibles::NOTE)
         {
             let quoted = format!("\u{201c}{note}\u{201d}");
             y = left_lines(

@@ -4698,3 +4698,12 @@ test: Staff page: give yourself each, wear it in a lit map and a dark one; then 
 test: Their bodies stay solid while swinging; no grey seams across the Obsidian.
 test: Collection > Shaders: their swatches; Parts switch the ink, drips and crackle off.
 
+[debug-collectibles]
+area: Menus & settings
+title: debug_collectibles: staff see every collectible as held, on this PC only
+change: debug_collectibles 1 (staff keys only): every shader, medal, achievement, card held.
+change: Nothing goes to the hub; other players still see your real blade.
+test: As staff, set debug_collectibles 1: Collection shows 51/51 shaders, 4/4 medals, cards.
+test: Wear a shader you do not own: your blade shows it; another SJK client sees your real one.
+test: No new-medal or achievement pop-ups appear; set it to 0 and your real holdings return.
+

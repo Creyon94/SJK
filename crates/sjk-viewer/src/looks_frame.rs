@@ -63,18 +63,32 @@ impl GpuState {
         } else {
             String::new()
         };
+        // The look the hub relays is what the player holds; `debug_collectibles` changes
+        // only the blade drawn here (the hub refuses a skin the player lacks).
+        let mut sent = None;
         let (saber_skin, options_off) = if due {
             let setting = text(crate::unlockables::SABER_SKIN_CVAR);
             #[cfg(test)]
             let shot = self.looks.shot_owns_unlocks;
             #[cfg(not(test))]
             let shot = false;
-            let own = Worn::own(
+            let held = Worn::own(
                 &setting,
                 &options,
                 |id| shot || player_identity::owns_unlock(id),
                 lit,
             );
+            let debug = self
+                .console
+                .as_ref()
+                .is_some_and(crate::debug_collectibles::wanted)
+                && player_identity::is_staff();
+            let own = if debug {
+                Worn::own(&setting, &options, |_| true, lit)
+            } else {
+                held
+            };
+            sent = Some(held);
             (own.saber_skin, own.options_off)
         } else {
             (self.looks.own().saber_skin, self.looks.own().options_off)
@@ -84,8 +98,8 @@ impl GpuState {
             illuminate: lit,
             options_off,
         };
-        if due {
-            player_identity::set_look(&own.to_look(&options));
+        if let Some(sent) = sent {
+            player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);
             // Who sits where, and the own name, for the saber shaders drawn from them.
             let slots = session.map_or_else(

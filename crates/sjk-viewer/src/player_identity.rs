@@ -354,6 +354,13 @@ pub(crate) fn snapshot() -> Option<Snapshot> {
     lock().service.as_ref().map(Service::snapshot)
 }
 
+/// [`snapshot`] as the screens of what the player holds show it: with every collectible
+/// held while `debug_collectibles` (`wanted`) is on for a staff key
+/// (`debug_collectibles.rs`).
+pub(crate) fn collection_snapshot(wanted: bool) -> Option<Snapshot> {
+    snapshot().map(|snapshot| crate::debug_collectibles::dressed(wanted, snapshot))
+}
+
 /// Read the identity service's snapshot where it is, without copying it; `None`
 /// before the service started.
 pub(crate) fn with_snapshot<R>(read: impl FnOnce(&Snapshot) -> R) -> Option<R> {

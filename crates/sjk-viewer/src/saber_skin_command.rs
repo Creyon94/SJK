@@ -219,7 +219,11 @@ pub(crate) fn run(
 impl crate::GpuState {
     /// `saberskin [<id> | none]`.
     pub(crate) fn saber_skin_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
-        let snapshot = crate::player_identity::snapshot();
+        let wanted = self
+            .console
+            .as_ref()
+            .is_some_and(crate::debug_collectibles::wanted);
+        let snapshot = crate::player_identity::collection_snapshot(wanted);
         let skins = &self.blade_skins;
         let parts_of = |id: &str| {
             skins.get(id).map_or_else(Vec::new, |skin| {

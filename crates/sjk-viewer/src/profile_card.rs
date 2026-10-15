@@ -102,7 +102,8 @@ pub(crate) fn refresh(console: &crate::console::ViewerConsole) {
         .and_then(|model| model.split('/').next())
         .filter(|model| !model.is_empty())
         .unwrap_or("kyle");
-    let snapshot = crate::player_identity::snapshot();
+    let snapshot =
+        crate::player_identity::collection_snapshot(crate::debug_collectibles::wanted(console));
     let enabled = console.bool_cvar("cl_identity") == Some(true);
     let skin = worn_skin(
         console

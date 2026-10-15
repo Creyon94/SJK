@@ -157,6 +157,9 @@ fn shader_card(
         };
     };
     let status = match (holdings.unlock(skin.id), holdings.reason()) {
+        (Some(unlock), _) if crate::debug_collectibles::added(unlock) => {
+            Line::held(crate::debug_collectibles::NOTE.to_owned())
+        }
         (Some(unlock), _) => match crate::medals::date_text(unlock.granted) {
             date if date.is_empty() => Line::held(held_count("Yours", unlock.count)),
             date => Line::held(held_count(&format!("Yours since {date}"), unlock.count)),

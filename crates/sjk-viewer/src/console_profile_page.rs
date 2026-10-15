@@ -274,7 +274,8 @@ impl ViewerConsole {
             return;
         }
         // Copied out so the page can borrow itself mutably while it draws.
-        let snapshot = crate::player_identity::snapshot();
+        let snapshot =
+            crate::player_identity::collection_snapshot(crate::debug_collectibles::wanted(self));
         let held = snapshot
             .as_ref()
             .and_then(|snapshot| snapshot.me.as_ref())
