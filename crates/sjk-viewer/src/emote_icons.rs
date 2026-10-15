@@ -96,7 +96,34 @@ fn decode(vfs: &sjk_vfs::VirtualFileSystem, path: &str) -> Result<Vec<u8>, Strin
     let image = crate::decode_image(&asset.bytes, path)
         .map_err(|error| error.to_string())?
         .into_rgba8();
-    Ok(fit(&image).into_raw())
+    Ok(backed(&fit(&image)).into_raw())
+}
+
+/// `picture` (a fitted cell) a little smaller on a blue disc, so the white
+/// silhouettes emote pictures often are show on any ground.
+fn backed(picture: &image::RgbaImage) -> image::RgbaImage {
+    let size = ICON_SIZE as f32;
+    let middle = size / 2.0;
+    let radius = middle - 1.0;
+    let mut cell = image::RgbaImage::from_fn(ICON_SIZE, ICON_SIZE, |x, y| {
+        let distance =
+            ((x as f32 + 0.5 - middle).powi(2) + (y as f32 + 0.5 - middle).powi(2)).sqrt();
+        let edge = (radius - distance + 0.5).clamp(0.0, 1.0);
+        let t = (distance / radius).min(1.0);
+        let mix = |inner: f32, outer: f32| (inner + (outer - inner) * t).round() as u8;
+        image::Rgba([
+            mix(42.0, 16.0),
+            mix(140.0, 60.0),
+            mix(240.0, 140.0),
+            (edge * 255.0) as u8,
+        ])
+    });
+    let inner = (size * 0.82) as u32;
+    let small =
+        image::imageops::resize(picture, inner, inner, image::imageops::FilterType::Triangle);
+    let offset = i64::from((ICON_SIZE - inner) / 2);
+    image::imageops::overlay(&mut cell, &small, offset, offset);
+    cell
 }
 
 /// `image` scaled to fit an [`ICON_SIZE`] square whole, centred on transparency.
@@ -135,6 +162,16 @@ mod tests {
         assert_eq!(cell.get_pixel(64, 10)[3], 0);
         assert_eq!(cell.get_pixel(64, 117)[3], 0);
         assert_eq!(cell.get_pixel(0, 64)[3], 255);
+    }
+
+    #[test]
+    fn a_picture_stands_on_a_blue_disc() {
+        let white = image::RgbaImage::from_pixel(128, 128, image::Rgba([255, 255, 255, 255]));
+        let cell = backed(&image::RgbaImage::new(128, 128));
+        assert_eq!(cell.get_pixel(0, 0)[3], 0);
+        let middle = cell.get_pixel(64, 64);
+        assert!(middle[3] == 255 && middle[2] > middle[0], "{middle:?}");
+        assert_eq!(backed(&white).get_pixel(64, 64)[0], 255);
     }
 
     #[test]

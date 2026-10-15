@@ -587,7 +587,9 @@ and plays changes.
   true), `loop`, `sound`, `clip` (an animation of a [rig model](rig-models.md#emotes-the-rigs-own-clips),
   played on its own skeleton), `local` (played on this client only, never sent),
   `moving` (keeps playing while the player moves), `icon` (a PNG, JPG or TGA picture
-  the quick wheel shows for it) and `rig` (the rig model folder the clip comes from;
+  the quick wheel shows for it, drawn on a blue disc), `sound_ms` (the sound's length: a
+  looping emote plays it again each time it ends), `sound_loop` and `sound_loop_ms`
+  (music in two parts: the loop follows the sound and repeats while the emote plays) and `rig` (the rig model folder the clip comes from;
   other rig models with the same joint names borrow it). The id `stop` is reserved:
   `sjkemote stop` ends the player's emote here and, relayed, for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
