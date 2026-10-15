@@ -25,24 +25,63 @@
 //!
 //! See `docs/rig-models.md`, "Emotes on stock models".
 
+use super::body::{Body, Limb, Part, clearance, fit_limb, push, turned};
 use super::clips::blend;
 use super::{ANKLES, ClipPlay, RigModel, affine, rows, source_rig};
 use glam::{Affine3A, Mat3A, Vec3A};
-use sjk_model::Gla;
+use sjk_model::{Gla, Glm};
 use sjk_vfs::VirtualFileSystem;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
+
+/// Rounds of the body fit per limb and frame.
+const FIT_ROUNDS: usize = 3;
 
 /// The JKA bone the pelvis placement reads and writes.
 const PELVIS: &str = "pelvis";
 
 /// How the bones of one stock skeleton follow one source rig's joints.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Reverse {
     /// Every bone once, in the order they are posed (what a bone reads is posed
     /// before it), and how.
     plan: Vec<(usize, Place)>,
     pelvis: Option<Pelvis>,
+    /// Keeping the stock limbs as clear of the stock body as the rig's are of its
+    /// own, when both bodies were measured ([`super::body`]).
+    fit: Option<Fit>,
+}
+
+/// The body fit of one stock model playing one rig's clips.
+#[derive(Clone, Debug)]
+struct Fit {
+    limbs: Vec<LimbFit>,
+}
+
+/// One limb of the fit.
+#[derive(Clone, Debug)]
+struct LimbFit {
+    stock: Limb,
+    /// The rig joints on its upper, lower and end bone, and the rig limb's radius.
+    joints: [usize; 3],
+    rig_radius: f32,
+    /// The bones the upper and the lower bone carry, themselves included.
+    upper_bones: Vec<usize>,
+    lower_bones: Vec<usize>,
+    parts: Vec<PartFit>,
+}
+
+/// One body part a limb keeps clear of, on both skeletons.
+#[derive(Clone, Copy, Debug)]
+struct PartFit {
+    stock: Part,
+    rig: Part,
+    /// The rig joint moving the rig's part.
+    joint: usize,
+    /// The elbow's, mid point's and wrist's clearance in the base (bind) pose, each
+    /// side's zero when negative.
+    rest_stock: [f32; 3],
+    rest_rig: [f32; 3],
 }
 
 /// How one stock bone is posed from the clip.
@@ -118,10 +157,11 @@ pub(crate) struct StockScratch {
 impl StockEmotes {
     /// The installed emotes whose clip comes from a rig model (their file's `rig`)
     /// that `gla` can play; `None` when there are none.
-    pub(crate) fn load(vfs: &VirtualFileSystem, gla: &Gla) -> Option<Self> {
+    pub(crate) fn load(vfs: &VirtualFileSystem, gla: &Gla, mesh: &Glm) -> Option<Self> {
         let catalogue = crate::emotes::lock().catalogue.clone();
         let catalogue = catalogue.unwrap_or_else(|| crate::emotes::load(vfs));
         let mut clips: Vec<StockClip> = Vec::new();
+        let mut body: Option<Body> = None;
         let mut reverses: Vec<(String, Arc<Reverse>)> = Vec::new();
         for emote in catalogue {
             if emote.clip.is_empty()
@@ -141,7 +181,8 @@ impl StockEmotes {
             let reverse = match reverses.iter().find(|(known, _)| *known == key) {
                 Some((_, reverse)) => reverse.clone(),
                 None => {
-                    let Some(reverse) = Reverse::of(&source, gla) else {
+                    let body = body.get_or_insert_with(|| Body::of_glm(gla, mesh));
+                    let Some(reverse) = Reverse::of(&source, gla, Some(body)) else {
                         crate::log::progress(format_args!(
                             "stock emotes: {directory} does not fit the {} skeleton",
                             gla.name
@@ -253,10 +294,16 @@ impl StockEmotes {
                 Place::Follow { partner: None } => affine(&driver[bone]) * base,
             };
             posed[bone] = clip_pose;
+        }
+        if let Some(fit) = &reverse.fit {
+            fit.apply(&stock.source, joints, posed, &self.inverse_base);
+        }
+        for (bone, clip_pose) in posed.iter().enumerate() {
+            let base = self.base[bone];
             let shown = if play.weight >= 1.0 {
-                clip_pose
+                *clip_pose
             } else {
-                blend(&(affine(&driver[bone]) * base), &clip_pose, play.weight)
+                blend(&(affine(&driver[bone]) * base), clip_pose, play.weight)
             };
             matrices[bone] = rows(&(shown * self.inverse_base[bone]));
         }
@@ -267,7 +314,7 @@ impl StockEmotes {
 impl Reverse {
     /// How `gla`'s bones follow `source` (fitted to `gla`): `None` when its bone map
     /// drives none of them or it was fitted to another skeleton.
-    fn of(source: &RigModel, gla: &Gla) -> Option<Self> {
+    fn of(source: &RigModel, gla: &Gla, stock: Option<&Body>) -> Option<Self> {
         if source.anchors.len() != gla.bones.len() {
             return None;
         }
@@ -282,6 +329,7 @@ impl Reverse {
             return None;
         }
         let plan = plan(source, gla, &bones);
+        let fit = stock.and_then(|stock| Fit::of(source, gla, stock, &bones));
         let bone_index = |name: &str| gla.bones.iter().position(|bone| bone.name == name);
         let base = |bone: usize| affine(&gla.bones[bone].base_pose).translation;
         let pelvis = bone_index(PELVIS).and_then(|bone| {
@@ -321,7 +369,7 @@ impl Reverse {
                 ground,
             })
         });
-        Some(Self { plan, pelvis })
+        Some(Self { plan, pelvis, fit })
     }
 }
 
@@ -498,6 +546,172 @@ fn rigidity(gla: &Gla) -> Option<Arc<Vec<f32>>> {
     cost
 }
 
+impl Fit {
+    /// The fit of `stock`'s limbs against the rig `source`'s measured body: `None`
+    /// when the rig was not measured or no limb has both bodies' parts.
+    fn of(
+        source: &RigModel,
+        gla: &Gla,
+        stock: &Body,
+        mapped: &[Option<(usize, Mat3A)>],
+    ) -> Option<Self> {
+        let rig = source.body.as_ref()?;
+        if stock.is_empty() || rig.is_empty() {
+            return None;
+        }
+        let base = |bone: usize| affine(&gla.bones[bone].base_pose).translation;
+        let under = |root: usize| -> Vec<usize> {
+            (0..gla.bones.len())
+                .filter(|&bone| {
+                    let mut at = Some(bone);
+                    for _ in 0..gla.bones.len() {
+                        match at {
+                            Some(found) if found == root => return true,
+                            Some(found) => at = gla.bones[found].parent,
+                            None => return false,
+                        }
+                    }
+                    false
+                })
+                .collect()
+        };
+        let limbs: Vec<LimbFit> = stock
+            .limbs
+            .iter()
+            .zip(&rig.limbs)
+            .filter_map(|(stock_limb, rig_limb)| {
+                let (stock_limb, rig_limb) = ((*stock_limb)?, (*rig_limb)?);
+                let joint = |bone: usize| mapped.get(bone).copied().flatten().map(|(j, _)| j);
+                let joints = [
+                    joint(stock_limb.upper)?,
+                    joint(stock_limb.lower)?,
+                    joint(stock_limb.end)?,
+                ];
+                let three = |a: Vec3A, b: Vec3A| [a, (a + b) * 0.5, b];
+                let stock_rest = three(base(stock_limb.lower), base(stock_limb.end));
+                let bind = |j: usize| source.joints[j].bind.translation;
+                let rig_rest = three(bind(joints[1]), bind(joints[2]));
+                let parts: Vec<PartFit> = stock
+                    .parts
+                    .iter()
+                    .filter(|part| Some(part.bone) != stock_limb.own)
+                    .filter_map(|stock_part| {
+                        let rig_part = *rig.part(stock_part.bone)?;
+                        let joint = joint(stock_part.bone)?;
+                        let rest = |part: &Part, points: &[Vec3A; 3], radius: f32| {
+                            points
+                                .map(|point| clearance(part, &Affine3A::IDENTITY, point).0 - radius)
+                        };
+                        Some(PartFit {
+                            stock: *stock_part,
+                            rig: rig_part,
+                            joint,
+                            rest_stock: rest(stock_part, &stock_rest, stock_limb.radius),
+                            rest_rig: rest(&rig_part, &rig_rest, rig_limb.radius),
+                        })
+                    })
+                    .collect();
+                (!parts.is_empty()).then(|| LimbFit {
+                    stock: stock_limb,
+                    joints,
+                    rig_radius: rig_limb.radius,
+                    upper_bones: under(stock_limb.upper),
+                    lower_bones: under(stock_limb.lower),
+                    parts,
+                })
+            })
+            .collect();
+        (!limbs.is_empty()).then_some(Self { limbs })
+    }
+
+    /// Fit the limbs of `posed` (the clip's stock pose) to the clearance the rig
+    /// `source`'s `joints` give its own.
+    fn apply(
+        &self,
+        source: &RigModel,
+        joints: &[Affine3A],
+        posed: &mut [Affine3A],
+        inverse_base: &[Affine3A],
+    ) {
+        for limb in &self.limbs {
+            // A few rounds: a push out of one part can lead into another.
+            for _ in 0..FIT_ROUNDS {
+                if !self.fit_round(limb, source, joints, posed, inverse_base) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /// One round of fitting `limb`; `false` when it needed no move.
+    fn fit_round(
+        &self,
+        limb: &LimbFit,
+        source: &RigModel,
+        joints: &[Affine3A],
+        posed: &mut [Affine3A],
+        inverse_base: &[Affine3A],
+    ) -> bool {
+        let at = |bone: usize| posed[bone].translation;
+        let (shoulder, elbow, wrist) = (
+            at(limb.stock.upper),
+            at(limb.stock.lower),
+            at(limb.stock.end),
+        );
+        let stock_points = [elbow, (elbow + wrist) * 0.5, wrist];
+        let rig_at = |joint: usize| joints[joint].translation;
+        let (rig_elbow, rig_wrist) = (rig_at(limb.joints[1]), rig_at(limb.joints[2]));
+        let rig_points = [rig_elbow, (rig_elbow + rig_wrist) * 0.5, rig_wrist];
+        // Per point: the deepest push out of any part; without one, the pull onto the
+        // part the rig's limb is nearest, if it touches it.
+        let mut out = [(0.0f32, Vec3A::ZERO); 3];
+        let mut onto = [(f32::MAX, Vec3A::ZERO); 3];
+        for part in &limb.parts {
+            let stock_transform = posed[part.stock.bone] * inverse_base[part.stock.bone];
+            let rig_transform = joints[part.joint] * source.joints[part.joint].inverse_bind;
+            for k in 0..3 {
+                let (stock, direction) = clearance(&part.stock, &stock_transform, stock_points[k]);
+                let (rig, _) = clearance(&part.rig, &rig_transform, rig_points[k]);
+                let stock = stock - limb.stock.radius - part.rest_stock[k].min(0.0);
+                let rig = rig - limb.rig_radius - part.rest_rig[k].min(0.0);
+                let moved = push(stock, rig, direction);
+                let amount = moved.dot(direction);
+                if amount > out[k].0 {
+                    out[k] = (amount, moved);
+                } else if amount < 0.0 && rig < onto[k].0 {
+                    onto[k] = (rig, moved);
+                }
+            }
+        }
+        let pushes: [Vec3A; 3] = std::array::from_fn(|k| {
+            if out[k].0 > 0.0 {
+                out[k].1
+            } else if onto[k].0 < f32::MAX {
+                onto[k].1
+            } else {
+                Vec3A::ZERO
+            }
+        });
+        let elbow_push = pushes[0] + pushes[1] * 0.5;
+        let wrist_push = pushes[2] + pushes[1] * 0.5;
+        if elbow_push.length_squared() < 1e-4 && wrist_push.length_squared() < 1e-4 {
+            return false;
+        }
+        let Some((first, new_elbow, second)) =
+            fit_limb(shoulder, elbow, wrist, elbow_push, wrist_push)
+        else {
+            return false;
+        };
+        for &bone in &limb.upper_bones {
+            posed[bone] = turned(&posed[bone], first, shoulder);
+        }
+        for &bone in &limb.lower_bones {
+            posed[bone] = turned(&posed[bone], second, new_elbow);
+        }
+        true
+    }
+}
+
 /// Bone indices with every parent before its children (a parent past the end, or a
 /// cycle, makes the bone a root).
 pub(super) fn bone_order(parents: &[Option<usize>]) -> Vec<usize> {
@@ -527,7 +741,7 @@ pub(super) fn bone_order(parents: &[Option<usize>]) -> Vec<usize> {
 impl StockEmotes {
     /// A skeleton playing `source`'s clips (tests: no catalogue or file system).
     pub(super) fn of_source(gla: &Gla, source: Arc<RigModel>) -> Option<Self> {
-        let reverse = Arc::new(Reverse::of(&source, gla)?);
+        let reverse = Arc::new(Reverse::of(&source, gla, None)?);
         let clips = (0..source.clips.len())
             .map(|clip| StockClip {
                 name: source.clips[clip].name.clone(),

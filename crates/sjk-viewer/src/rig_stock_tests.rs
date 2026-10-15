@@ -7,12 +7,13 @@
 //!   cargo test -p sjk-viewer --bins rig_stock -- --ignored --nocapture --test-threads=1
 //! ```
 
+use super::super::body::Body;
 use super::super::clips::Clip;
 use super::super::{Manifest, RigModel, Scratch, affine};
 use super::*;
 use glam::Vec3A;
 use sjk_model::gltf::{GltfAnimation, GltfChannel, GltfJoint, GltfModel, GltfPath};
-use sjk_model::{AnimationConfig, GlaBone};
+use sjk_model::{AnimationConfig, GlaBone, Glm};
 
 fn translated(t: Vec3A) -> [[f32; 4]; 3] {
     [
@@ -361,4 +362,194 @@ fn a_stock_finger_stays_on_the_turning_hand() {
         (at[4] - Vec3A::new(10.0, 4.0, 40.0)).length() < 1e-3,
         "{at:?}"
     );
+}
+
+/// The penetration of every limb point of `posed` into the stock body (each point's
+/// clearance from each part, less the limb's thickness and the base pose's own),
+/// deepest first, and how near the stock limbs stay to their body where the rig's
+/// touch its own.
+fn depths(fit: &Fit, posed: &[Affine3A], inverse_base: &[Affine3A]) -> (f32, f32) {
+    let mut deepest = 0.0f32;
+    let mut total = 0.0f32;
+    for limb in &fit.limbs {
+        let at = |bone: usize| posed[bone].translation;
+        let (elbow, wrist) = (at(limb.stock.lower), at(limb.stock.end));
+        let points = [elbow, (elbow + wrist) * 0.5, wrist];
+        for part in &limb.parts {
+            let transform = posed[part.stock.bone] * inverse_base[part.stock.bone];
+            for (k, point) in points.iter().enumerate() {
+                let (clear, _) = super::super::body::clearance(&part.stock, &transform, *point);
+                let clear = clear - limb.stock.radius - part.rest_stock[k].min(0.0);
+                deepest = deepest.max(-clear);
+                total += (-clear).max(0.0);
+            }
+        }
+    }
+    (deepest, total)
+}
+
+/// A slim body's animations played on a wide model, with and without the body fit:
+/// how deep the wide model's limbs sink into its body.
+#[test]
+#[ignore = "reads retail and community models (SJK_TEST_GLA, SJK_TEST_ANIMATIONS, SJK_TEST_SLIM, SJK_TEST_WIDE)"]
+fn body_fit_keeps_wide_models_limbs_out_of_their_bodies() {
+    let Some((gla, config)) = retail() else {
+        eprintln!("SJK_TEST_GLA and SJK_TEST_ANIMATIONS are not set");
+        return;
+    };
+    let read = |name: &str| -> Option<Glm> {
+        Glm::parse(&std::fs::read(std::env::var_os(name)?).ok()?).ok()
+    };
+    let (Some(slim), Some(wide)) = (read("SJK_TEST_SLIM"), read("SJK_TEST_WIDE")) else {
+        eprintln!("SJK_TEST_SLIM and SJK_TEST_WIDE name two GLM files");
+        return;
+    };
+    let slim_body = Body::of_glm(&gla, &slim);
+    let wide_body = Body::of_glm(&gla, &wide);
+    for (name, body) in [("slim", &slim_body), ("wide", &wide_body)] {
+        eprintln!(
+            "{name}: parts {}, limb radii {:?}",
+            body.parts
+                .iter()
+                .map(|p| format!(
+                    "{} r=({:.1},{:.1},{:.1})",
+                    gla.bones[p.bone].name, p.radii.x, p.radii.y, p.radii.z
+                ))
+                .collect::<Vec<_>>()
+                .join(", "),
+            body.limbs
+                .iter()
+                .map(|l| l.map(|l| (l.radius * 10.0).round() / 10.0))
+                .collect::<Vec<_>>()
+        );
+    }
+    let standing = frames(&gla, &config, "BOTH_STAND1");
+    let mut before_all = (0.0f32, 0.0f32);
+    let mut after_all = (0.0f32, 0.0f32);
+    for animation in [
+        "BOTH_STAND1IDLE1",
+        "BOTH_ENGAGETAUNT",
+        "BOTH_GESTURE1",
+        "BOTH_STAND10_TALK1",
+        "BOTH_CROUCH1IDLE",
+        "BOTH_RUN1",
+        "BOTH_ROLL_F",
+        "BOTH_SIT2TOSTAND5",
+    ] {
+        if config.get(animation).is_none() {
+            continue;
+        }
+        let clip_frames = frames(&gla, &config, animation);
+        let mut rig = RigModel::fit(mannequin_on(&gla, 1.0), "", &manifest(), &gla).unwrap();
+        rig.body = Some(slim_body.clone());
+        let clip = clip_of(&rig, &clip_frames, animation);
+        rig.clips.push(clip);
+        let rig = Arc::new(rig);
+        let fitted = Reverse::of(&rig, &gla, Some(&wide_body)).expect("the reverse");
+        let fit = fitted.fit.as_ref().expect("a body fit");
+        let plain = Reverse::of(&rig, &gla, None).expect("the reverse");
+        let stock = |reverse: Reverse| StockEmotes {
+            clips: vec![StockClip {
+                name: animation.to_owned(),
+                source: rig.clone(),
+                clip: 0,
+                reverse: Arc::new(reverse),
+            }],
+            ..StockEmotes::with_clips(&gla, Vec::new())
+        };
+        let (with_fit, without) = (stock(fitted.clone()), stock(plain));
+        let mut before = (0.0f32, 0.0f32);
+        let mut after = (0.0f32, 0.0f32);
+        let mut scratch = StockScratch::default();
+        // The frame where the unfitted limbs sink deepest, for the OBJ pictures.
+        let mut worst = (0.0f32, 0usize);
+        for frame in 0..clip_frames.len() {
+            let play = ClipPlay {
+                clip: 0,
+                time: frame as f32 / 30.0,
+                weight: 1.0,
+            };
+            for (emotes, sum) in [(&without, &mut before), (&with_fit, &mut after)] {
+                assert!(emotes.pose(&standing[0], play, &mut scratch));
+                let (deep, total) = depths(fit, &scratch.posed, &emotes.inverse_base);
+                if std::ptr::eq(emotes, &without) && deep > worst.0 {
+                    worst = (deep, frame);
+                }
+                sum.0 = sum.0.max(deep);
+                sum.1 += total / clip_frames.len() as f32;
+            }
+        }
+        eprintln!(
+            "{animation}: deepest {:.1} -> {:.1} units, mean summed depth {:.1} -> {:.1}",
+            before.0, after.0, before.1, after.1
+        );
+        if let Some(directory) = std::env::var_os("SJK_TEST_OBJ_DIR")
+            && worst.0 > 0.0
+        {
+            let play = ClipPlay {
+                clip: 0,
+                time: worst.1 as f32 / 30.0,
+                weight: 1.0,
+            };
+            for (emotes, label) in [(&without, "before"), (&with_fit, "after")] {
+                assert!(emotes.pose(&standing[0], play, &mut scratch));
+                let path =
+                    std::path::Path::new(&directory).join(format!("{animation}_{label}.obj"));
+                std::fs::write(path, obj(&wide, &scratch.matrices)).expect("the OBJ");
+            }
+        }
+        before_all = (before_all.0.max(before.0), before_all.1 + before.1);
+        after_all = (after_all.0.max(after.0), after_all.1 + after.1);
+    }
+    eprintln!(
+        "all: deepest {:.1} -> {:.1}, summed depth {:.1} -> {:.1}",
+        before_all.0, after_all.0, before_all.1, after_all.1
+    );
+    assert!(after_all.1 <= before_all.1);
+}
+
+/// `mesh`'s first LOD skinned with `matrices`, as an OBJ (drawn surfaces only).
+fn obj(mesh: &Glm, matrices: &[[[f32; 4]; 3]]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    let mut first = 1;
+    let Some(lod) = mesh.lods.first() else {
+        return out;
+    };
+    for surface in &lod.surfaces {
+        let drawn = mesh
+            .hierarchy
+            .get(surface.hierarchy_index)
+            .is_some_and(|h| {
+                h.flags & 0x3 == 0 && !h.name.starts_with('*') && !h.name.contains("_cap_")
+            });
+        if !drawn {
+            continue;
+        }
+        for vertex in &surface.vertices {
+            let at = Vec3A::from_array(vertex.position);
+            let mut skinned = Vec3A::ZERO;
+            for weight in &vertex.weights {
+                if let Some(matrix) = surface
+                    .bone_references
+                    .get(weight.bone_reference)
+                    .and_then(|bone| matrices.get(*bone))
+                {
+                    skinned += affine(matrix).transform_point3a(at) * weight.weight;
+                }
+            }
+            let _ = writeln!(out, "v {} {} {}", skinned.x, skinned.y, skinned.z);
+        }
+        for triangle in &surface.triangles {
+            let _ = writeln!(
+                out,
+                "f {} {} {}",
+                first + triangle[0] as usize,
+                first + triangle[1] as usize,
+                first + triangle[2] as usize
+            );
+        }
+        first += surface.vertices.len();
+    }
+    out
 }

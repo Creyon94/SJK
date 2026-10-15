@@ -1,3 +1,15 @@
+## Emotes on stock models: limbs out of wider bodies
+
+15/10/2026, `feat/emote-body-fit` (Creyon, on `feat/emotes-on-classic-models`): a dance made
+on a slim rig played on a wide stock model no longer puts its hands and elbows inside the
+wider body: both bodies are measured from their meshes (ellipsoids round the trunk and
+thighs, limb thickness), and each limb keeps the rig's clearance up to 2 units, never inside,
+a touched body still touched ([rig-models.md](rig-models.md#body-fit-limbs-out-of-wider-bodies)).
+Checked by unit tests (measuring a body without its arms, clearance, the push, a two-bone
+fit keeping lengths) and the ignored measurement on four community models: summed limb
+depth into the body down 80 to 95% on the three wide ones, unchanged on a thin robot. Not
+yet seen in the game.
+
 ## Emotes on stock models
 
 15/10/2026, `feat/emotes-on-classic-models` (Creyon, at Sol's request): a stock GLM model

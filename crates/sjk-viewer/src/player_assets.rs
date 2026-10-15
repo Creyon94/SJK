@@ -180,7 +180,7 @@ pub(super) fn load_player_appearance_with(
         .map(Arc::new);
     // A stock humanoid plays the rig models' emote clips on its own bones.
     let stock_emotes = if rig.is_none() && vehicle.is_none() {
-        crate::rig_model::StockEmotes::load(vfs, &animation).map(Arc::new)
+        crate::rig_model::StockEmotes::load(vfs, &animation, &mesh).map(Arc::new)
     } else {
         None
     };
