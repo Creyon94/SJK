@@ -101,7 +101,7 @@ impl Unlockable {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) const ALL: [Unlockable; 35] = [
+pub(crate) const ALL: [Unlockable; 41] = [
     Unlockable {
         id: "saber_sun",
         name: "Sun blade",
@@ -522,6 +522,78 @@ pub(crate) const ALL: [Unlockable; 35] = [
         description: "Silver-blue with pale motes drifting along it like dust in moonlight.",
         how_to_get: "Given by the SJK team.",
     },
+    Unlockable {
+        id: "saber_neon",
+        name: "Neon blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: true,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A glass neon tube, gas glowing inside, one of its six sections stuttering out now and then like an old bar sign.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_peppermint",
+        name: "Peppermint blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Uncommon,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A candy cane: red and white stripes winding up the blade, sugar glinting off it.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_bubble",
+        name: "Soap Bubble blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Rare,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "Soap film: rainbow swirls sliding round a nearly clear blade, bubbles drifting off it.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_lavalamp",
+        name: "Lava Lamp blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Rare,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A violet glass column where glowing wax rises in blobs, merging and splitting on the way.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_reactor",
+        name: "Reactor blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "Plasma squeezed by containment rings marching up the blade; now and then it overheats orange and vents sparks.",
+        how_to_get: "Given by the SJK team.",
+    },
+    Unlockable {
+        id: "saber_bleeding",
+        name: "Bleeding Kyber blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A pure white blade fighting a red corruption that cracks its way up from the hilt and is pushed back.",
+        how_to_get: "Given by the SJK team.",
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -644,6 +716,7 @@ mod tests {
                 "saber_hologram",
                 "saber_runic",
                 "saber_heartbeat",
+                "saber_neon",
             ]
         );
         assert!(super::is_chroma("SABER_GLITCH"));
@@ -653,7 +726,8 @@ mod tests {
 
     use super::*;
 
-    /// Creyon's "Saber ideas" page gave the 21 plain ones (14/10/2026); Sol the others.
+    /// Creyon's "Saber ideas" page gave the 21 plain ones (14/10/2026) and his Blade Lab
+    /// page the next six (15/10/2026); Sol the others.
     #[test]
     fn every_shader_names_its_saber_smith() {
         let creyon: Vec<_> = blade_skins()
@@ -684,6 +758,12 @@ mod tests {
                 "saber_amethyst",
                 "saber_jade",
                 "saber_moonlight",
+                "saber_neon",
+                "saber_peppermint",
+                "saber_bubble",
+                "saber_lavalamp",
+                "saber_reactor",
+                "saber_bleeding",
             ]
         );
         assert!(blade_skins().all(|skin| [SOL, CREYON].contains(&skin.smith)));
@@ -700,7 +780,14 @@ mod tests {
         };
         assert_eq!(
             of(Rarity::Mythical),
-            ["saber_sun", "saber_void", "saber_molten", "saber_spectral"]
+            [
+                "saber_sun",
+                "saber_void",
+                "saber_molten",
+                "saber_spectral",
+                "saber_reactor",
+                "saber_bleeding",
+            ]
         );
         assert_eq!(
             of(Rarity::Legendary),
@@ -720,6 +807,8 @@ mod tests {
                 "saber_runic",
                 "saber_banner",
                 "saber_heartbeat",
+                "saber_bubble",
+                "saber_lavalamp",
             ]
         );
         assert_eq!(
@@ -736,6 +825,8 @@ mod tests {
                 "saber_amethyst",
                 "saber_jade",
                 "saber_moonlight",
+                "saber_neon",
+                "saber_peppermint",
             ]
         );
         assert_eq!(
@@ -757,7 +848,7 @@ mod tests {
         assert_eq!(order.len(), blade_skins().count());
         assert!(order.windows(2).all(|pair| pair[0].tier >= pair[1].tier));
         assert_eq!(order[0].id, "saber_sun");
-        assert_eq!(order[4].id, "saber_storm");
+        assert_eq!(order[6].id, "saber_storm");
         // The holocrons' names and colours.
         assert_eq!(Rarity::Mythical.label(), "Mythical");
         assert_eq!(Rarity::Uncommon.label(), "Uncommon");
@@ -914,6 +1005,12 @@ mod tests {
                 ("saber_amethyst", "Amethyst blade"),
                 ("saber_jade", "Jade blade"),
                 ("saber_moonlight", "Moonlight blade"),
+                ("saber_neon", "Neon blade"),
+                ("saber_peppermint", "Peppermint blade"),
+                ("saber_bubble", "Soap Bubble blade"),
+                ("saber_lavalamp", "Lava Lamp blade"),
+                ("saber_reactor", "Reactor blade"),
+                ("saber_bleeding", "Bleeding Kyber blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

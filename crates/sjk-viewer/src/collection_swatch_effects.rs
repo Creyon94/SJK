@@ -290,3 +290,129 @@ pub(super) fn glitch(
         }
     }
 }
+
+/// The fifth set (`blade_skin_lab.rs`) over the swatch's blade from `at` (its hilt end)
+/// along `length`, `corona` pixels a capsule radius: a front's colour climbing from the
+/// hilt, blobs rising in the column, a film's colours sliding, bands winding round it,
+/// and a segmented tube's gaps and stuttering sections.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn lab(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    def: &BladeSkinDef,
+    at: [f32; 2],
+    length: f32,
+    corona: f32,
+    t: f32,
+    ui: &dyn Fn(Rgb, f32) -> Color,
+) {
+    let units = length / BLADE_UNITS;
+    if let Some(front) = def.front {
+        let height = front.height(t, 0.0) * length;
+        if height > 1.0 {
+            capsule(
+                canvas,
+                frame,
+                [at[0], at[1] - corona * 0.7, height, corona * 1.4],
+                ui(front.color, 0.55 * front.amount),
+            );
+        }
+    }
+    if let Some(blobs) = def.blobs {
+        for index in 0..blobs.count {
+            let i = index as f32;
+            let pace = blobs.speed * (0.6 + 0.8 * draw(i + 1.3));
+            let place = fract(draw(i + 4.7) + t * pace / BLADE_UNITS);
+            let sway = (t * 0.6 + i * 2.0).sin() * blobs.wobble * corona * 0.3;
+            disc(
+                canvas,
+                frame,
+                at[0] + place * length,
+                at[1] + sway,
+                corona * blobs.size * (0.45 + 0.3 * draw(i + 7.9)),
+                ui(blobs.color, (0.4 + 0.12 * blobs.brightness).min(1.0)),
+            );
+        }
+        if blobs.pools > 0.0 {
+            for x in [at[0] + 2.0, at[0] + length - 2.0] {
+                disc(
+                    canvas,
+                    frame,
+                    x,
+                    at[1],
+                    corona * 0.4 * blobs.pools,
+                    ui(blobs.color, 0.7),
+                );
+            }
+        }
+    }
+    if let Some(film) = def.film {
+        const PATCHES: usize = 7;
+        for index in 0..PATCHES {
+            let k = (index as f32 + 0.5) / PATCHES as f32;
+            let hue = k * 1.8 + t * (0.03 + 0.05 * film.speed);
+            let rgb = crate::saber_skins::turn_hue([1.0, 0.35, 0.6], hue);
+            let rgb = mix([1.0; 3], rgb, film.saturation);
+            for sign in [-1.0, 1.0] {
+                capsule(
+                    canvas,
+                    frame,
+                    [
+                        at[0] + (k - 0.5 / PATCHES as f32) * length,
+                        at[1] + sign * corona * 0.62 - 2.0,
+                        length / PATCHES as f32,
+                        4.0,
+                    ],
+                    ui(rgb, 0.55 * film.amount),
+                );
+            }
+        }
+    }
+    if let Some(bands) = def.bands {
+        let spacing = (bands.spacing * units).max(3.0);
+        let shift = (t * bands.speed * units).rem_euclid(spacing);
+        let slant = bands.twist * spacing * 0.6;
+        let colour = ui(bands.color, (0.45 + 0.4 * bands.mix).min(1.0));
+        let mut x = at[0] - spacing + shift;
+        while x < at[0] + length {
+            if x > at[0] + 1.0 {
+                stroke(
+                    canvas,
+                    frame,
+                    [x - slant * 0.5, at[1] + corona * 0.6],
+                    [x + slant * 0.5, at[1] - corona * 0.6],
+                    (spacing * bands.width).clamp(1.0, 6.0),
+                    colour,
+                );
+            }
+            x += spacing;
+        }
+    }
+    if let Some(segments) = def.segments {
+        let width = length / segments.count as f32;
+        let frame_draw = (t * segments.rate).floor();
+        for section in 0..segments.count {
+            let x = at[0] + section as f32 * width;
+            if section > 0 && segments.gap > 0.0 {
+                disc(
+                    canvas,
+                    frame,
+                    x,
+                    at[1],
+                    2.2,
+                    Color::new(0.02, 0.02, 0.04, 0.85),
+                );
+            }
+            if segments.rate > 0.0
+                && draw(frame_draw * 1.7 + section as f32 * 5.3) >= segments.threshold
+            {
+                capsule(
+                    canvas,
+                    frame,
+                    [x, at[1] - corona, width, corona * 2.0],
+                    Color::new(0.02, 0.02, 0.04, 0.8 * segments.depth),
+                );
+            }
+        }
+    }
+}

@@ -531,6 +531,7 @@ fn lit_blade(
     effects::scan(canvas, frame, def, at, length, corona, t, &ui);
     effects::glyphs(canvas, frame, def, at, length, t, &ui);
     effects::embers(canvas, frame, def, at, length, t, &ui);
+    effects::lab(canvas, frame, def, at, length, corona, t, &ui);
     // A flare: a bright knot running from the hilt to the tip once a cycle of the skin's
     // first track, swelling and fading, its light soft round it.
     let phase = fract(t * def.flares.rate);

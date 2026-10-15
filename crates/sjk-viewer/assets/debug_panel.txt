@@ -4605,3 +4605,14 @@ change: Collection > Shaders: "Saber smith: <name>" at the right, beside the des
 change: The shader hover card has a "Saber smith" line; the search matches the smith.
 test: Tidal, Slate or Moonlight read Creyon; Sun, Void or Heartbeat read Sol.
 test: Search "creyon": 21 shaders listed; the Parts ticks stay above the key hints.
+
+[blade-lab]
+area: Rendering & effects
+title: Six Blade Lab shaders: Neon, Peppermint, Bubble, Lava Lamp, Reactor, Kyber (hub deploy)
+change: Neon: tube in sections, one stutters now and then; Peppermint: red/white stripes.
+change: Soap Bubble: film colours, clear middle; Lava Lamp: wax blobs rising in violet.
+change: Reactor: blue rings marching up, orange overheat; Bleeding Kyber: red climbs, falls.
+test: Staff page: give yourself each, wear it; watch it for 10 s in the world and in menus.
+test: Collection > Shaders: their swatches move; the Parts ticks switch each part off.
+test: Listen: ignition, hum, swings and switching off sound like the description.
+

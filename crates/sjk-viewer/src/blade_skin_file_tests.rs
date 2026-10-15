@@ -618,3 +618,101 @@ fn the_loader_lays_an_additions_file_over_its_skin_and_older_names_are_left() {
     assert!(skins[1].1.star.is_some() && skins[1].1.options.len() == 4);
     assert!(skins[0].1.star.is_none());
 }
+
+/// A third additions file with every section of the fifth set.
+pub(crate) const LAB_ADDITIONS: &str = r#"{
+    "bands": {"color": [1.0, 0.1, 0.15], "brightness": 1.2, "spacing": 4.0, "width": 0.45,
+        "twist": 0.6, "speed": 2.0, "mix": 1.0, "pinch": 0.3},
+    "segments": {"count": 6, "rate": 9.0, "threshold": 0.93, "depth": 0.88, "gap": 0.6,
+        "hum": 0.07},
+    "film": {"amount": 0.85, "scale": 0.2, "speed": 1.0, "saturation": 0.6, "clear": 0.7},
+    "blobs": {"color": [1.0, 0.5, 0.15], "brightness": 2.0, "count": 6, "size": 0.7,
+        "speed": 4.0, "wobble": 0.4, "pools": 1.2},
+    "front": {"color": [1.0, 0.1, 0.1], "amount": 0.9, "period": 8.0, "duty": 0.6,
+        "hold": 0.3, "reach": 0.7, "soft": 3.0, "jag": 0.5, "veins": 1.0},
+    "options": [{"id": "rings", "name": "Rings", "sections": ["bands"]},
+        {"id": "overheat", "name": "Overheat", "sections": ["front", "segments"]}]
+}"#;
+
+#[test]
+fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
+    use extras::{Section, option_bit};
+    let mut vfs = sjk_vfs::VirtualFileSystem::new();
+    vfs.mount_memory(
+        "pack",
+        [
+            (
+                "skins/blades/saber_test.bladeskin",
+                sample_with_effects().into_bytes(),
+            ),
+            (
+                "skins/blades/saber_test.bladeextra3",
+                LAB_ADDITIONS.as_bytes().to_vec(),
+            ),
+        ],
+    )
+    .unwrap();
+    let skins = load(&vfs);
+    assert_eq!(skins.len(), 1);
+    let def = &skins[0].1;
+    assert_eq!(def.segments.unwrap().count, 6);
+    assert_eq!(def.blobs.unwrap().pools, 1.2);
+    assert_eq!(def.front.unwrap().reach, 0.7);
+    assert!(def.bands.is_some() && def.film.is_some());
+    assert_eq!(
+        def.off_mask(option_bit("overheat")),
+        Section::Front.bit() | Section::Segments.bit()
+    );
+    let one = crate::saber_skins::SkinUniform::of(def);
+    let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
+    // The last thirteen lanes are the fifth set's, in saber.wgsl's order.
+    let lab = &lanes[lanes.len() - 13..];
+    assert_eq!(lab[0], [1.0, 0.1, 0.15, 1.2]);
+    assert_eq!(lab[1], [4.0, 0.45, 0.6, 2.0]);
+    assert_eq!(lab[2], [1.0, 0.3, 0.0, 0.0]);
+    assert_eq!(lab[3], [6.0, 9.0, 0.93, 0.88]);
+    assert_eq!(lab[4], [0.6, 0.07, 0.0, 0.0]);
+    assert_eq!(lab[5], [0.85, 0.2, 1.0, 0.6]);
+    assert_eq!(lab[6], [0.7, 0.0, 0.0, 0.0]);
+    assert_eq!(lab[7], [1.0, 0.5, 0.15, 2.0]);
+    assert_eq!(lab[8], [6.0, 0.7, 4.0, 0.4]);
+    assert_eq!(lab[9], [1.2, 0.0, 0.0, 0.0]);
+    assert_eq!(lab[10], [1.0, 0.1, 0.1, 0.9]);
+    assert_eq!(lab[11], [8.0, 0.6, 0.3, 0.7]);
+    assert_eq!(lab[12], [3.0, 0.5, 1.0, 0.0]);
+    // Without the file, none of it.
+    let plain =
+        crate::saber_skins::SkinUniform::of(&parse("saber_test", &sample_with_effects()).unwrap());
+    let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&plain));
+    assert!(
+        lanes[lanes.len() - 13..]
+            .iter()
+            .all(|lane| *lane == [0.0; 4])
+    );
+}
+
+#[test]
+fn the_fifth_set_is_checked_strictly_by_name() {
+    let refused = |old: &str, new: &str, why: &str| {
+        assert!(LAB_ADDITIONS.contains(old), "{old}");
+        let text =
+            extras::merged(&sample_with_effects(), &LAB_ADDITIONS.replacen(old, new, 1)).unwrap();
+        let error = parse("saber_test", &text).unwrap_err();
+        assert!(error.contains(why), "{new}: {error}");
+    };
+    refused(r#""spacing": 4.0"#, r#""spacing": 0.0"#, "bands.spacing");
+    refused(r#""pinch": 0.3"#, r#""pinch": 0.95"#, "bands.pinch");
+    refused(
+        r#""count": 6, "rate""#,
+        r#""count": 1, "rate""#,
+        "segments.count must be 2 to 12",
+    );
+    refused(r#""clear": 0.7"#, r#""clear": 1.5"#, "film.clear");
+    refused(
+        r#""count": 6, "size""#,
+        r#""count": 9, "size""#,
+        "blobs.count must be 1 to 8",
+    );
+    refused(r#""period": 8.0"#, r#""period": 0.1"#, "front.period");
+    refused(r#""veins": 1.0"#, r#""veins": 1.0, "glow": 1"#, "glow");
+}

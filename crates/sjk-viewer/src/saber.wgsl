@@ -161,6 +161,28 @@ struct Skin {
     wisp_field: vec4<f32>,
     // Heat haze: strength (units), scale, speed, reach (units past the glow).
     haze: vec4<f32>,
+    // The fifth set (blade_skin_lab.rs); each zeros when absent.
+    // Bands: colour and brightness; spacing (units), width (share), twist (bands a radius
+    // across), speed (units a second); mix, pinch.
+    band_color: vec4<f32>,
+    band_shape: vec4<f32>,
+    band_mix: vec4<f32>,
+    // Segments: count, draws a second, threshold, depth; gap (units), hum.
+    segment_a: vec4<f32>,
+    segment_b: vec4<f32>,
+    // Film: amount, scale, speed, saturation; clear.
+    film: vec4<f32>,
+    film_b: vec4<f32>,
+    // Blobs: colour and brightness; count, size (radii), speed (units a second), wobble;
+    // the pools' size.
+    blob_color: vec4<f32>,
+    blob_shape: vec4<f32>,
+    blob_more: vec4<f32>,
+    // Front: colour and amount; period (s), duty, hold, reach (shares); soft (units), jag,
+    // veins.
+    front_color: vec4<f32>,
+    front_shape: vec4<f32>,
+    front_edge: vec4<f32>,
 }
 
 @group(2) @binding(0)
@@ -226,6 +248,11 @@ const OFF_STAR: u32 = 8192u;
 const OFF_WISPS: u32 = 16384u;
 const OFF_HAZE: u32 = 32768u;
 const OFF_HOLES: u32 = 131072u;
+const OFF_BANDS: u32 = 262144u;
+const OFF_SEGMENTS: u32 = 524288u;
+const OFF_FILM: u32 = 1048576u;
+const OFF_BLOBS: u32 = 2097152u;
+const OFF_FRONT: u32 = 4194304u;
 // RB_SurfaceSaberGlow: sprite spacing and per-sprite growth.
 const SPACING: f32 = 0.65;
 const GROWTH: f32 = 0.017;
@@ -500,6 +527,11 @@ fn skin_at(input: VertexOutput) -> Skin {
         skin.hole_color = vec4(0.0);
         skin.hole_shape = vec4(0.0);
     }
+    if (off & OFF_BANDS) != 0u { skin.band_shape = vec4(0.0); }
+    if (off & OFF_SEGMENTS) != 0u { skin.segment_a = vec4(0.0); }
+    if (off & OFF_FILM) != 0u { skin.film = vec4(0.0); }
+    if (off & OFF_BLOBS) != 0u { skin.blob_shape = vec4(0.0); }
+    if (off & OFF_FRONT) != 0u { skin.front_shape = vec4(0.0); }
     return skin;
 }
 
@@ -1014,6 +1046,142 @@ fn skin_star(skin: Skin, p: vec2<f32>, time: f32, seed: f32, pixel: f32) -> f32 
 // The glow, `pixel` world units across a screen pixel: the glow at `x` across (the glitch
 // and the hologram's jitter move it, and split its colours), then what stays where the
 // blade is: embers, glyphs, the sputtering cut and an afterimage's fading.
+// --- The fifth set (blade_skin_lab.rs): each draws nothing when its lanes are zeros ------
+
+// `color`'s strongest channel.
+fn skin_level(color: vec3<f32>) -> f32 {
+    return max(color.r, max(color.g, color.b));
+}
+
+// Hue `h` (turns), saturation and value as RGB.
+fn skin_hsv(h: f32, s: f32, v: f32) -> vec3<f32> {
+    let k = fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0;
+    let rgb = clamp(abs(k - 3.0) - 1.0, vec3(0.0), vec3(1.0));
+    return v * mix(vec3(1.0), rgb, s);
+}
+
+// How much of a band covers `around` units along and `across` capsule radii out (signed):
+// bands `spacing` apart, a `width` share of it wide, slanting by `twist`, running `speed`
+// units a second, their edges soft over a pixel.
+fn skin_band(skin: Skin, around: f32, across: f32, time: f32, pixel: f32) -> f32 {
+    let b = skin.band_shape;
+    if b.x <= 0.0 {
+        return 0.0;
+    }
+    let phase = (around - time * b.w) / b.x + b.z * across;
+    let d = abs(fract(phase) - 0.5) * 2.0;
+    let soft = 0.04 + pixel / b.x;
+    return 1.0 - smoothstep(b.y - soft, b.y + soft, d);
+}
+
+// The light left of a segmented tube at `along`: a section that stutters on this draw, the
+// dark gaps between sections, and a faint hum; 1 without segments.
+fn skin_segments(skin: Skin, along: f32, length: f32, time: f32, seed: f32) -> f32 {
+    let s = skin.segment_a;
+    if s.x < 2.0 {
+        return 1.0;
+    }
+    let q = clamp(along / max(length, 0.0001), 0.0, 0.9999) * s.x;
+    let section = floor(q);
+    var lit = 1.0;
+    if s.y > 0.0 {
+        let draw = skin_hash(vec2(i32(section) * 7 + i32(seed * 4096.0), i32(floor(time * s.y))));
+        if draw >= s.z {
+            lit = 1.0 - s.w;
+        }
+    }
+    let b = skin.segment_b;
+    var gap = 1.0;
+    if b.x > 0.0 {
+        let f = fract(q);
+        // No gap before the first section or after the last.
+        let below = select(f, 1.0, section < 0.5);
+        let above = select(1.0 - f, 1.0, section > s.x - 1.5);
+        let edge = min(below, above) * length / s.x;
+        gap = smoothstep(0.2 * b.x, b.x, edge);
+    }
+    let hum = 1.0 - b.y * skin_noise(vec2(time * 23.0, seed * 9.0));
+    return lit * gap * hum;
+}
+
+// A soap film's colour at `around` units along and `across` radii out.
+fn skin_film(skin: Skin, around: f32, across: f32, time: f32) -> vec3<f32> {
+    let f = skin.film;
+    let p = vec2(around * f.y + time * f.z * 0.2, across * 1.6 - time * f.z * 0.35);
+    let n = 0.6 * skin_noise(p) + 0.3 * skin_noise(p * 2.1 + vec2(5.0, 1.0))
+        + 0.1 * skin_noise(p * 4.3 + vec2(11.0, 7.0))
+        + 0.3 * sin(around * f.y * 2.0 - time * f.z * 0.8);
+    return skin_hsv(n * 1.8 + time * 0.03, f.w, 1.0);
+}
+
+// Blobs of wax at `along` units (unclamped) and `x` units across: metaballs rising in the
+// column, merging where they touch, with pools at the hilt and the tip; 0 to 1.
+fn skin_blobs(skin: Skin, along: f32, x: f32, r: f32, length: f32, time: f32, seed: f32) -> f32 {
+    let s = skin.blob_shape;
+    if s.x < 1.0 {
+        return 0.0;
+    }
+    let seeded = i32(seed * 4096.0);
+    let size = s.y * r;
+    let margin = 2.0 * size;
+    let span = length + 2.0 * margin;
+    var field = 0.0;
+    for (var i = 0; i < min(i32(s.x), 8); i++) {
+        let a = skin_hash(vec2(i, 77 + seeded));
+        let b = skin_hash(vec2(i, 131 + seeded));
+        let c = skin_hash(vec2(i, 199 + seeded));
+        let pace = s.z * (0.6 + 0.8 * a);
+        let place = fract(b + time * pace / span) * span - margin;
+        let sway = sin(time * 0.6 + f32(i) * 2.0 + c * 6.0) * s.w * r * 0.5;
+        let radius = size * (0.7 + 0.6 * c);
+        let q = vec2((along - place) * 0.75, x - sway);
+        let near = radius * radius / (dot(q, q) + 0.0001);
+        // Squared, so a blob's pull falls off fast and they stay apart until they touch.
+        field += near * near;
+    }
+    let pool = skin.blob_more.x * r;
+    if pool > 0.0 {
+        let hilt = vec2(along * 0.6, x);
+        let tip = vec2((along - length) * 0.6, x);
+        let low = pool * pool / (dot(hilt, hilt) + 0.0001);
+        let high = pool * pool / (dot(tip, tip) + 0.0001);
+        field += low * low + high * high;
+    }
+    return smoothstep(0.85, 1.15, field) * (1.0 - smoothstep(0.85 * r, r, abs(x)));
+}
+
+// How far up the blade a front is, a share of it (blade_skin_lab.rs `Front::height`).
+fn skin_front_height(skin: Skin, time: f32, seed: f32) -> f32 {
+    let s = skin.front_shape;
+    if s.x <= 0.0 {
+        return 0.0;
+    }
+    let p = fract(time / s.x + seed * 0.37);
+    if p >= s.y {
+        return 0.0;
+    }
+    let a = p / s.y;
+    let ramp = max((1.0 - s.z) * 0.5, 0.001);
+    return s.w * smoothstep(0.0, ramp, a) * (1.0 - smoothstep(1.0 - ramp, 1.0, a));
+}
+
+// How much the front covers `along` units (and `x` across, for its wandering edge): 0 to 1.
+fn skin_front(skin: Skin, along: f32, x: f32, length: f32, time: f32, seed: f32) -> f32 {
+    let height = skin_front_height(skin, time, seed);
+    if height <= 0.0 {
+        return 0.0;
+    }
+    let e = skin.front_edge;
+    let line = height * length;
+    let jag = e.y * e.x * 2.0 * (skin_noise(vec2(along * 0.35 + seed * 9.0, x * 0.8 + time * 0.7)) - 0.5);
+    return (1.0 - smoothstep(line - e.x, line + e.x, along + jag)) * smoothstep(0.0, 0.05, height);
+}
+
+// `color` recoloured toward `rgb` at its own level by `amount`.
+fn skin_recolour(color: vec3<f32>, rgb: vec3<f32>, amount: f32) -> vec3<f32> {
+    return mix(color, rgb * skin_level(color), amount);
+}
+
 fn skin_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     let skin = skin_at(input);
     let time = input.animation.x;
@@ -1095,6 +1263,12 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
             time * ragged.z * 0.37 + seed * 13.0 + select(0.0, 50.0, x < 0.0)));
         widen = clamp(widen * (1.0 + ragged.x * (fray * 2.0 - 1.0)), 0.3, swell.x);
     }
+    // Rings squeezing the glow where the bands pass (taken on the axis, so they stay
+    // round).
+    let pinch = skin.band_mix.y;
+    if pinch > 0.0 {
+        widen *= 1.0 - pinch * skin_band(skin, around, 0.0, time, pixel);
+    }
     var shaded = input;
     shaded.blade = vec2(x / widen, min(input.blade.y, input.shaft) + beyond / widen);
     let capsule = glow_capsule(shaded) / widen;
@@ -1113,12 +1287,37 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     let color = mix(rim, skin.inner.rgb,
         clamp(inner * inner * (share.x + share.y * grain) + flare * share.z, 0.0, 1.0));
     let light = skin.brightness;
-    let brightness = (light.x + light.y * grain + light.z * flare) * flicker * (1.0 + beat);
-    var glow = capsule * color * brightness;
+    var brightness = (light.x + light.y * grain + light.z * flare) * flicker * (1.0 + beat);
+    var colour = color;
+    let band = skin_band(skin, around, x / max(r * widen, 0.0001), time, pixel);
+    if band > 0.0 {
+        colour = mix(colour, skin.band_color.rgb, skin.band_mix.x * band);
+        brightness *= mix(1.0, skin.band_color.w, band);
+    }
+    var glow = capsule * colour * brightness;
+    // Where a front covers the blade (veins may be kept to it).
+    let front = skin_front(skin, along, x, input.length, time, seed);
     if skin.vein_color.w > 0.0 {
-        let veins = skin_veins(skin, along, x, time, seed);
+        let veins = skin_veins(skin, along, x, time, seed)
+            * mix(1.0, front, skin.front_edge.z);
         glow += veins * (1.0 - smoothstep(0.15, 0.6, out)) * capsule.r * skin.vein_color.rgb
             * skin.vein_color.w * (1.0 + beat);
+    }
+    if skin.blob_shape.x >= 1.0 {
+        let unclamped = input.blade.y / max(input.shaft, 0.0001) * input.length;
+        glow += skin_blobs(skin, unclamped, x, r, input.length, time, seed)
+            * skin.blob_color.rgb * skin.blob_color.w;
+    }
+    if skin.film.x > 0.0 {
+        // A bubble: clear inside, bright at its rim, in the film's sliding colours.
+        let tint = skin_film(skin, around, x / max(r * widen, 0.0001), time);
+        let rim = exp(-pow((out - 0.8) / 0.22, 2.0));
+        glow *= (1.0 - skin.film_b.x * (1.0 - smoothstep(0.1, 0.7, out)))
+            * (1.0 + 1.5 * skin.film_b.x * rim);
+        glow = skin_recolour(glow, tint, skin.film.x);
+    }
+    if front > 0.0 {
+        glow = skin_recolour(glow, skin.front_color.rgb, skin.front_color.w * front);
     }
     let scan = skin.scan_lines;
     if scan.x > 0.0 {
@@ -1160,6 +1359,7 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
             glow += motes * room * skin.mote_color.rgb * skin.mote_color.w;
         }
     }
+    glow *= skin_segments(skin, along, input.length, time, seed);
     glow = skin_apply_tint(glow, skin_tint(skin, input));
     let hue = skin.hue;
     if any(hue.xyz != vec3(0.0)) {
@@ -1193,11 +1393,23 @@ fn skin_core(input: VertexOutput, texel: vec4<f32>, uv: vec2<f32>, footprint: f3
     }
     var core = CORE_DRAWS * (skin.core_white.rgb * texel.r * (1.0 + skin.core_white.w * flare)
         + fringe * texel.g) * (1.0 + beat);
+    let x = (uv.x - 0.5) * 2.0 * input.radius;
+    let front = skin_front(skin, along, x, input.length, time, seed);
     if skin.vein_color.w > 0.0 {
-        let x = (uv.x - 0.5) * 2.0 * input.radius;
         core += skin_veins(skin, along, x, time, seed) * (texel.r + texel.g) * skin.vein_color.rgb
-            * skin.vein_shape.w * (1.0 + beat);
+            * skin.vein_shape.w * (1.0 + beat) * mix(1.0, front, skin.front_edge.z);
     }
+    // The fifth set: the bands' colour (on the line's own axis), the front's, the
+    // segments' stutter.
+    let band = skin_band(skin, along, 0.0, time, 0.0);
+    if band > 0.0 {
+        core = skin_recolour(core, skin.band_color.rgb, skin.band_mix.x * band)
+            * mix(1.0, skin.band_color.w, band);
+    }
+    if front > 0.0 {
+        core = skin_recolour(core, skin.front_color.rgb, skin.front_color.w * front);
+    }
+    core *= skin_segments(skin, along, input.length, time, seed);
     let scan = skin.scan_lines;
     if scan.x > 0.0 {
         core *= 1.0 - scan.z * (0.5 + 0.5 * sin(TAU * (along * scan.x - time * scan.y)));

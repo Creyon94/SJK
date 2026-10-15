@@ -1415,6 +1415,21 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   turned into pixels by the inverse of the quad's own derivatives and held under 2 % of
   the screen. Its edge is the scene unchanged, so the merge sees no seam; effects drawn
   after add over it.
+- **The fifth set** (15/10/2026, `skin_band`, `skin_segments`, `skin_film`, `skin_blobs`,
+  `skin_front`; `Skin` grows to 75 lanes). Bands are cells along the blade (slanted by
+  `twist` times the place across, in capsule radii), soft over a pixel; in one the
+  corona's colour mixes toward the band's and its brightness is scaled, the glow narrows
+  by `pinch` (taken on the axis so rings stay round) and the core line is recoloured on
+  its own axis. Segments multiply glow and core: the section's draw (hashed per section
+  and per `1 / rate` seconds) and soft dark gaps between sections, none at either end.
+  The film recolours the glow at its own level with an HSV colour of three octaves of
+  noise and a slow wave, clearing the inside and lifting a rim at 0.8 radii. Blobs are
+  metaballs in the projected blade (along compressed by 0.75), each term squared so
+  blobs keep apart until they touch, cut by a smoothstep at 1 and kept inside the
+  column; two pools sit at the hilt and the tip. The front's height
+  (`Front::height` on the CPU gives the same) climbs, holds and falls each period, its
+  edge wandering by noise; below it glow and core are recoloured, and `veins` keeps the
+  skin's veins to that part.
 - **Options.** An instance carries its wearer's mask of sections switched off
   (`Instance::off`, attribute 9; [unlockables.md](unlockables.md#options)); `skin_at`
   reads the skin with those sections' lanes zeroed, so they draw as a file without them.
