@@ -23,7 +23,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1015.3 (Alpha) | 15/10/2026
+
+Dance in step with another player, and emote music that survives busy fights.
+
+> Sync emote: `sjkemote sync` or Sync emote on the quick wheel joins the emote of the player you aim at, or the nearest one.
+> In step everywhere: Every SJK player sees the two of you in step, whatever each one's delay.
+> One song: The pair shares the leader's music, which carries on if the leader stops first.
+> Busy fights: Emote music no longer cuts out when many sounds play at once.
 
 - Dance together: `sjkemote sync` (or Sync emote on the quick wheel) joins the emote of the player you aim at, or the nearest one, in step on every SJK player's screen, sharing one song. Name a player to pick one (`sjkemote sync Sol`) _(Sol)_
 - Emote music no longer stops in busy fights: SJK now mixes up to 128 sounds at once (was 32), and when even those are full an emote's music is the last sound given up _(Sol)_
