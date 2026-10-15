@@ -1,3 +1,13 @@
+## Debug collectibles: staff try everything without the hub
+
+15/10/2026, `personal/debug-collectibles` (Sol's request): `debug_collectibles 1` shows a
+staff key every shader, medal, achievement and card as held, on that PC only, so the
+team can try them without granting and taking them back at the hub
+([unlockables.md](unlockables.md#settings-and-commands)). The look sent to the hub and
+the pop-ups keep reading the real profile. Checked by unit tests and the world shot
+`duel6_sjk_collection_debug` (Medals 4/4, Achievements 21/21, Shaders 51/51 with the
+mode's line, the card in its three finishes). Not tried in the game.
+
 ## Player card: sees your model
 
 15/10/2026, `personal/model-check` (Sol's request) with hub branch `model-check`: SJK

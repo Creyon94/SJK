@@ -31,6 +31,7 @@ mod cinematic_roq;
 mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
+mod debug_collectibles;
 mod editions;
 mod entity_view;
 mod loot_odds;

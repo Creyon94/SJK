@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Staff can try every collectible on their own PC (debug_collectibles)
+- cad07f5 |  | Staff can try every collectible on their own PC (debug_collectibles)
 + 15/10/2026 | - | Seeing nameplate bars means sharing yours, through the hub
 - 7d5d27d |  | Seeing nameplate bars means sharing yours, through the hub
 + 15/10/2026 | - | Player card says whether the inspected player sees your model

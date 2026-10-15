@@ -498,3 +498,57 @@ fn duel6_lab_swatches() {
         }
     });
 }
+
+/// The Collection with `debug_collectibles` on for a staff key: the made-up profile
+/// dressed with every shader, medal, achievement and card (`debug_collectibles.rs`), on
+/// the tabs that show them.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_collection_debug() {
+    on_big_stack(|| {
+        super::saber_skins::mount_test_packs();
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            (crate::unlockables::SABER_SKIN_CVAR, "saber_quantum"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::debug_collectibles::CVAR, "1"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        gpu.looks.shot_owns_unlocks = true;
+        let _ = frame(&mut gpu, 10);
+        let mut preview = super::tests::profile_preview();
+        if let Some(me) = preview.snapshot.me.as_mut() {
+            me.staff = true;
+        }
+        preview.snapshot = crate::debug_collectibles::dressed(true, preview.snapshot);
+        let me = preview.snapshot.me.clone().expect("the made-up profile");
+        preview.standings = crate::achievements::standings(&me.achievements);
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview);
+            console.preview_collection(Some(me.unlocks.clone()), 0.8);
+            console.open_profile_hub_page(Tab::Medals, ReturnTarget::MainMenu);
+        }
+        for _ in 0..240 {
+            let _ = frame(&mut gpu, 1);
+            if crate::medals::art::decoded().is_some() {
+                break;
+            }
+        }
+        for tab in [Tab::Medals, Tab::Achievements, Tab::Shaders, Tab::Cards] {
+            gpu.profile_hub_show_for_shot(tab);
+            let frames = if tab == Tab::Shaders { 150 } else { 30 };
+            gpu.ui_epoch -= std::time::Duration::from_millis(3_000);
+            let name = format!("duel6-collection-debug-{}", part(tab));
+            println!("{}", shoot(&mut gpu, frames, &name).display());
+            assert!(!overflowed(&gpu), "{tab:?}");
+        }
+    });
+}

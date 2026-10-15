@@ -216,7 +216,8 @@ impl ViewerConsole {
             .unwrap_or_default()
             .to_owned();
         let enabled = self.bool_cvar("cl_identity") == Some(true);
-        let snapshot = crate::player_identity::snapshot();
+        let snapshot =
+            crate::player_identity::collection_snapshot(crate::debug_collectibles::wanted(self));
         let held = snapshot
             .as_ref()
             .and_then(|snapshot| snapshot.me.as_ref())

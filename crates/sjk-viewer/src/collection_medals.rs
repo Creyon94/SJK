@@ -343,7 +343,14 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("From the SJK team"),
+                format_args!(
+                    "{}",
+                    if note == crate::debug_collectibles::NOTE {
+                        "Not really yours"
+                    } else {
+                        "From the SJK team"
+                    }
+                ),
                 frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 20.0),
                 14.0 * s,
                 color::QUIET,

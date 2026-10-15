@@ -513,6 +513,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Log each effect as it plays, with its shaders and sizes (diagnostics)",
         ),
         CvarDefinition::new(
+            crate::debug_collectibles::CVAR,
+            false,
+            archive,
+            "SJK staff: show every collectible as held, on this PC only, to try them (the hub and other players see what you really hold)",
+        ),
+        CvarDefinition::new(
             "cg_drawCrosshair",
             1_i64,
             archive,

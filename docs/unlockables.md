@@ -333,6 +333,21 @@ Built.
   completes command and cvar names only).
 - `unlockables` opens (or closes) the Collection on its Shaders tab: in the SJK UI
   the Collection screen ([sjk-ui.md](sjk-ui.md#collection)).
+- `debug_collectibles` (archived, default 0; 15/10/2026,
+  [debug_collectibles.rs](../crates/sjk-viewer/src/debug_collectibles.rs)): for the SJK
+  team, to try every collectible without granting it and taking it back at the hub.
+  While it is 1 and the hub says the player's key is staff, the screens of what the
+  player holds read a copy of their profile dressed with every shader, medal,
+  achievement and card the client knows (each card in every finish): the Collection,
+  the Profile and its card, the Saber tab's blade choice and `saberskin`; the blade they
+  wear is drawn with any shader. What they really hold keeps its dates and counts; the
+  added shaders and medals say "Debug collectibles: shown as yours on this PC only" on
+  their cards, and the Shaders tab's lead line says the mode is on. Nothing reaches the
+  hub: the look sent stays what the player holds (the hub refuses a skin they lack), so
+  other players see their real blade; the new medal, achievement and holocron pop-ups
+  and the Staff page read the real profile, so no pop-up fires and staff actions see
+  the real grants. Holocrons and credits are not dressed (`debug_open` rehearses an
+  opening). Checked by unit tests and the world shot `duel6_sjk_collection_debug`.
 
 Verified by unit tests (the listing, the answers, the cvar set even when locked, the
 gate); not yet used against the deployed hub.
