@@ -1430,6 +1430,19 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   (`Front::height` on the CPU gives the same) climbs, holds and falls each period, its
   edge wandering by noise; below it glow and core are recoloured, and `veins` keeps the
   skin's veins to that part.
+- **The sixth set** (15/10/2026, the Blade Lab's figures; `Skin` grows to 90 lanes),
+  drawn in the glow on the blade's place along it (unclamped, so heads and tips run past
+  the hilt and the tip) and across it: the sketch's outlines are two noisy curves round
+  the axis and its hatching diagonal cells, redrawn on a stepped clock; the hourglass
+  narrows the glow's width (`0.2 + 0.8 ×` its profile) and draws sand levels, a stream
+  and a rim; the serpent is a sine round the axis whose cosine says in front or behind
+  (in front it dims the glow and the core under it), with an ellipse head, eyes and a
+  tongue; strands are lines `x = spread × along^1.5` with bright ends; butterflies are
+  four ellipse wings each round a resting place, flown out on a loop for a share of
+  their cycle; wings are feather segments fanned from near the hilt; copies call the
+  glow again at offsets growing along the blade (and add a thin core line each). Lines
+  thinner than a pixel widen to it and dim (`skin_line`). The butterflies' and wings'
+  reach is the quad's room (`skin_room`, `BladeSkinDef::room`).
 - **Options.** An instance carries its wearer's mask of sections switched off
   (`Instance::off`, attribute 9; [unlockables.md](unlockables.md#options)); `skin_at`
   reads the skin with those sections' lanes zeroed, so they draw as a file without them.

@@ -264,13 +264,28 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
         (one.front_color, "front_color"),
         (one.front_shape, "front_shape"),
         (one.front_edge, "front_edge"),
+        (one.sketch_color, "sketch_color"),
+        (one.sketch_shape, "sketch_shape"),
+        (one.hour_color, "hour_color"),
+        (one.hour_shape, "hour_shape"),
+        (one.serpent_color, "serpent_color"),
+        (one.serpent_shape, "serpent_shape"),
+        (one.strand_shape, "strand_shape"),
+        (one.strand_hue, "strand_hue"),
+        (one.fly_color, "fly_color"),
+        (one.fly_shape, "fly_shape"),
+        (one.fly_roam, "fly_roam"),
+        (one.wing_color, "wing_color"),
+        (one.wing_shape, "wing_shape"),
+        (one.copy_shape, "copy_shape"),
+        (one.copy_more, "copy_more"),
     ] {
         assert_eq!(lane, [0.0; 4], "{name}");
     }
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 75 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 90 * 16);
     // The array stays inside the storage binding WebGPU guarantees (128 MiB).
     assert!(bytes.len() <= 128 * 1024 * 1024);
 }

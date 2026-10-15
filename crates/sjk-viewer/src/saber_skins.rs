@@ -246,8 +246,8 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 75 `vec4`s (1200 bytes, so
-/// the [`MAX_SKINS`] array is 307200 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 90 `vec4`s (1440 bytes, so
+/// the [`MAX_SKINS`] array is 368640 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -328,6 +328,21 @@ pub(crate) struct SkinUniform {
     front_color: [f32; 4],
     front_shape: [f32; 4],
     front_edge: [f32; 4],
+    sketch_color: [f32; 4],
+    sketch_shape: [f32; 4],
+    hour_color: [f32; 4],
+    hour_shape: [f32; 4],
+    serpent_color: [f32; 4],
+    serpent_shape: [f32; 4],
+    strand_shape: [f32; 4],
+    strand_hue: [f32; 4],
+    fly_color: [f32; 4],
+    fly_shape: [f32; 4],
+    fly_roam: [f32; 4],
+    wing_color: [f32; 4],
+    wing_shape: [f32; 4],
+    copy_shape: [f32; 4],
+    copy_more: [f32; 4],
 }
 
 impl SkinUniform {
@@ -395,6 +410,42 @@ impl SkinUniform {
         .with_effects(def.effects())
         .with_extras(def)
         .with_lab(def.lab())
+        .with_figures(def.figures())
+    }
+
+    /// The sixth set's lanes ([`crate::blade_skin_file::figures`]).
+    fn with_figures(mut self, f: crate::blade_skin_file::figures::Figures<'_>) -> Self {
+        let rgb = |c: [f32; 3], w: f32| [c[0], c[1], c[2], w];
+        if let Some(s) = f.sketch {
+            self.sketch_color = rgb(s.color, s.brightness);
+            self.sketch_shape = [s.rate, s.wobble, s.hatch, s.glow];
+        }
+        if let Some(h) = f.hourglass {
+            self.hour_color = rgb(h.color, h.brightness);
+            self.hour_shape = [h.period, h.waist, h.glass, 0.0];
+        }
+        if let Some(s) = f.serpent {
+            self.serpent_color = rgb(s.color, s.brightness);
+            self.serpent_shape = [s.coils, s.amplitude, s.speed, s.thickness];
+        }
+        if let Some(s) = f.strands {
+            self.strand_shape = [s.count as f32, s.spread, s.sway, s.brightness];
+            self.strand_hue = [s.hue, s.saturation, 0.0, 0.0];
+        }
+        if let Some(b) = f.butterflies {
+            self.fly_color = rgb(b.color, b.brightness);
+            self.fly_shape = [b.count as f32, b.size, b.flap, b.flight];
+            self.fly_roam = [b.roam, 0.0, 0.0, 0.0];
+        }
+        if let Some(w) = f.wings {
+            self.wing_color = rgb(w.color, w.brightness);
+            self.wing_shape = [w.span, w.rate, w.feathers as f32, 0.0];
+        }
+        if let Some(c) = f.copies {
+            self.copy_shape = [c.count as f32, c.angle, c.fade, c.period];
+            self.copy_more = [c.flicker, 0.0, 0.0, 0.0];
+        }
+        self
     }
 
     /// The fifth set's lanes ([`crate::blade_skin_file::lab`]).

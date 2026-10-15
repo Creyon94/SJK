@@ -15,7 +15,9 @@
 //! veins, team, ambient, glyphs) follow the same rule, and so does the third set
 //! ([`extras`]: a tip glint, wisps, heat haze, an echo, and the options a wearer may
 //! switch off), read from an additions file older clients never open, and the fifth
-//! ([`lab`]: bands, segments, a film, blobs and a front), from a third one.
+//! ([`lab`]: bands, segments, a film, blobs and a front), from a third one, and the
+//! sixth ([`figures`]: a sketch, an hourglass, a serpent, strands, butterflies, wings and
+//! copies), from a fourth.
 
 use crate::saber_rgb::{CoreProfile, GlowProfile};
 use serde::Deserialize;
@@ -24,6 +26,8 @@ use serde::Deserialize;
 pub(crate) mod effects;
 #[path = "blade_skin_extras.rs"]
 pub(crate) mod extras;
+#[path = "blade_skin_figures.rs"]
+pub(crate) mod figures;
 #[path = "blade_skin_lab.rs"]
 pub(crate) mod lab;
 
@@ -131,6 +135,21 @@ pub(crate) struct BladeSkinDef {
     pub(crate) blobs: Option<lab::Blobs>,
     #[serde(default)]
     pub(crate) front: Option<lab::Front>,
+    /// The sixth set ([`figures`]), from the fourth additions file; each none when absent.
+    #[serde(default)]
+    pub(crate) sketch: Option<figures::Sketch>,
+    #[serde(default)]
+    pub(crate) hourglass: Option<figures::Hourglass>,
+    #[serde(default)]
+    pub(crate) serpent: Option<figures::Serpent>,
+    #[serde(default)]
+    pub(crate) strands: Option<figures::Strands>,
+    #[serde(default)]
+    pub(crate) butterflies: Option<figures::Butterflies>,
+    #[serde(default)]
+    pub(crate) wings: Option<figures::Wings>,
+    #[serde(default)]
+    pub(crate) copies: Option<figures::Copies>,
     /// The parts its wearer may switch off; none when absent.
     #[serde(default)]
     pub(crate) options: Vec<extras::SkinOption>,
@@ -611,6 +630,7 @@ impl BladeSkinDef {
         self.effects().check()?;
         self.check_extras()?;
         self.lab().check()?;
+        self.figures().check()?;
         colour("trail", self.trail, 1.0)?;
         colour("light.color", self.light.color, 4.0)?;
         within("light.flicker.amount", self.light.flicker.amount, 0.0, 1.0)?;
@@ -656,6 +676,19 @@ impl BladeSkinDef {
 }
 
 impl BladeSkinDef {
+    /// The sixth set's sections, borrowed.
+    pub(crate) fn figures(&self) -> figures::Figures<'_> {
+        figures::Figures {
+            sketch: self.sketch.as_ref(),
+            hourglass: self.hourglass.as_ref(),
+            serpent: self.serpent.as_ref(),
+            strands: self.strands.as_ref(),
+            butterflies: self.butterflies.as_ref(),
+            wings: self.wings.as_ref(),
+            copies: self.copies.as_ref(),
+        }
+    }
+
     /// The fifth set's sections, borrowed.
     pub(crate) fn lab(&self) -> lab::Lab<'_> {
         lab::Lab {
@@ -726,8 +759,9 @@ impl Motes {
 
 /// Every `skins/blades/<id>.bladeskin` in `vfs` that reads, by id, with its additions
 /// file (`<id>.bladeextra`, [`extras::ADDITIONS`]), its later one (`<id>.bladeextra2`,
-/// [`extras::LATER_ADDITIONS`]) and its third (`<id>.bladeextra3`, [`lab::LAB_ADDITIONS`])
-/// laid over it in turn when there are some; the ones that do not read are reported to
+/// [`extras::LATER_ADDITIONS`]), its third (`<id>.bladeextra3`, [`lab::LAB_ADDITIONS`])
+/// and its fourth (`<id>.bladeextra4`, [`figures::FIGURES_ADDITIONS`]) laid over it in
+/// turn when there are some; the ones that do not read are reported to
 /// the log by name.
 pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDef)> {
     let mut skins = Vec::new();
@@ -752,6 +786,7 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDe
             .and_then(|text| lay_over(text, extras::ADDITIONS))
             .and_then(|text| lay_over(text, extras::LATER_ADDITIONS))
             .and_then(|text| lay_over(text, lab::LAB_ADDITIONS))
+            .and_then(|text| lay_over(text, figures::FIGURES_ADDITIONS))
             .and_then(|text| parse(id, &text));
         match read {
             Ok(def) => skins.push((id.to_owned(), def)),

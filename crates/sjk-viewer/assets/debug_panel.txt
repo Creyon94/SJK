@@ -4624,3 +4624,13 @@ test: Staff page: give yourself each, wear it; watch it for 10 s in the world an
 test: Collection > Shaders: their swatches move; the Parts ticks switch each part off.
 test: Listen: ignition, hum, swings and switching off sound like the description.
 
+[blade-lab-2]
+area: Rendering & effects
+title: Seven more Blade Lab shaders: Sketch to Quantum (hub deploy needed)
+change: Sketch: pencil outlines and hatching; Hourglass: sand pours, flips every 8 s.
+change: Fiber Optic: fibres fan from the hilt; Serpent: gold serpent coiled, hissing head.
+change: Monarch: butterflies rest and fly; Phoenix: fire wings; Quantum: ghost copies.
+test: Staff page: give yourself each, wear it; watch it 10 s in the world and on the stage.
+test: Monarch's butterflies and Phoenix's wings are not cut off at the glow's edge.
+test: Collection > Shaders: their swatches move; Parts switch the figures off.
+

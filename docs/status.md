@@ -1,3 +1,18 @@
+## The Blade Lab's next seven shaders
+
+15/10/2026, `blade-lab-2` (hub `blade-lab-2`): Sketch (Rare), Hourglass and Fiber Optic
+(Legendary), Serpent, Monarch, Phoenix and Quantum (Mythical), all droppable, a tier above
+Creyon's ranking; a sixth set of blade-skin sections (figures: sketch, hourglass,
+serpent, strands, butterflies, wings, copies; `blade_skin_figures.rs`, `saber.wgsl`,
+`.bladeextra4`), their swatches, and synthesized sounds (one builder, a texture each).
+Checked by unit tests and the world shots `duel6_lab_blades_figures` and
+`duel6_lab_swatches` (now also the held Hourglass, Fiber Optic, Monarch, Quantum and
+Sketch); tuned there (the Hourglass's and Fiber Optic's core and glow dimmed so the sand
+and fibres show, the copies kept inside the glow's quad, which had cut them off). Not
+heard, not tried in the game. Swing-driven parts and the Phoenix's ignition from ash are
+not built (no blade motion or ignition time in the shader). Comic, Obsidian Edge and
+Quicksilver are left: they need a dark or mirror pass.
+
 ## The Blade Lab's first six shaders
 
 15/10/2026, `blade-lab` (hub `blade-lab`): six shaders after Creyon's Blade Lab page,
