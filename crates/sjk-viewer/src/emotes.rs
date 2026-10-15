@@ -37,8 +37,8 @@
 //! [`SYNC`] (`sjkemote sync [player]`) joins another player's emote in step: the hub
 //! relays the leader's slot with it, and each client starts the follower at the
 //! leader's start as that client saw it ([`ActiveEmotes::sync`]), so the two dance in
-//! phase on every screen whatever each one's delay. The pair shares the leader's
-//! music; a follower's own picks up where it is when the leader stops first.
+//! phase on every screen whatever each one's delay. The follower's music starts
+//! where the leader's is, so both play it in step.
 
 use sjk_identity::Emote;
 use std::time::{Duration, Instant};
@@ -258,11 +258,8 @@ pub(crate) struct ActiveEmote {
     /// The sound to start next while it plays (its loop, or its sound again), when,
     /// and how long that one lasts.
     pub(crate) next_sound: Option<(Instant, String, Duration)>,
-    /// The player it follows in step (`sjkemote sync`), whose music it shares while
-    /// they play the same emote from the same start; its own `sound` is empty then.
+    /// The player it follows in step (`sjkemote sync`): one joining it follows them.
     pub(crate) leader: Option<u8>,
-    /// Its music, to pick up part way through when it stops following.
-    pub(crate) music: Music,
 }
 
 /// An emote's music: its first sound, then the one that repeats after it (its loop,
@@ -323,7 +320,7 @@ impl Music {
 /// A sound to start on, or stop from, a player: what the audio does with emotes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Cue {
-    /// Start `sound` `offset` into it (a synced emote's music picking up).
+    /// Start `sound` `offset` into it (a synced emote's music joining the leader's).
     Start {
         slot: u8,
         sound: String,
@@ -400,14 +397,14 @@ impl ActiveEmotes {
             moving: def.is_some_and(|def| def.moving),
             next_sound,
             leader: None,
-            music,
         });
     }
 
-    /// `slot` joins `leader`'s `emote` in step, standing at `origin`: it starts when
-    /// the leader's started here (the player the leader follows, when the leader
-    /// follows someone) and shares that music. False, changing nothing, when the
-    /// leader is not playing `emote`: the caller starts it as usual then.
+    /// `slot` joins `leader`'s `emote` in step at `now`, standing at `origin`: it
+    /// starts when the leader's started here (the player the leader follows, when the
+    /// leader follows someone), and its music from where the leader's is. False,
+    /// changing nothing, when the leader is not playing `emote`: the caller starts it
+    /// as usual then.
     pub(crate) fn sync(
         &mut self,
         slot: u8,
@@ -415,6 +412,7 @@ impl ActiveEmotes {
         emote: &str,
         def: Option<&EmoteDef>,
         origin: [f32; 3],
+        now: Instant,
     ) -> bool {
         let Some(lead) = self.get(leader).filter(|lead| lead.emote == emote) else {
             return false;
@@ -433,16 +431,25 @@ impl ActiveEmotes {
             None => lead_until,
         };
         self.stop(slot);
+        let music = def.map(Music::of).unwrap_or_default();
+        let mut next_sound = None;
+        if let Some((sound, offset, next)) = music.at(now.saturating_duration_since(started)) {
+            self.cues.push(Cue::Start {
+                slot,
+                sound: sound.to_owned(),
+                offset,
+            });
+            next_sound = next.map(|next| (now + next, music.then.clone(), music.then_length));
+        }
         self.slots[usize::from(slot)] = Some(ActiveEmote {
             emote: emote.to_owned(),
             started,
             until,
             origin,
-            sound: String::new(),
+            sound: music.first.clone(),
             moving: def.is_some_and(|def| def.moving),
-            next_sound: None,
+            next_sound,
             leader: Some(leader),
-            music: def.map(Music::of).unwrap_or_default(),
         });
         true
     }
@@ -523,36 +530,6 @@ impl ActiveEmotes {
             }
             if over || gone {
                 *entry = None;
-            }
-        }
-        // A follower whose leader stopped, or started again, plays its own music
-        // from where it is.
-        for slot in 0..SLOTS as u8 {
-            let Some(leader) = self.get(slot).and_then(|active| active.leader) else {
-                continue;
-            };
-            if self.follows(slot, leader) {
-                continue;
-            }
-            let Some(active) = self.slots[usize::from(slot)].as_mut() else {
-                continue;
-            };
-            active.leader = None;
-            let elapsed = now.saturating_duration_since(active.started);
-            if let Some((sound, offset, next)) = active.music.at(elapsed) {
-                self.cues.push(Cue::Start {
-                    slot,
-                    sound: sound.to_owned(),
-                    offset,
-                });
-                active.sound = active.music.first.clone();
-                active.next_sound = next.map(|next| {
-                    (
-                        now + next,
-                        active.music.then.clone(),
-                        active.music.then_length,
-                    )
-                });
             }
         }
     }
@@ -894,75 +871,60 @@ mod tests {
     }
 
     #[test]
-    fn a_synced_emote_starts_with_its_leader_and_shares_the_music() {
+    fn a_synced_emote_starts_with_its_leader_and_plays_the_music_in_step() {
         let t0 = Instant::now();
         let here = |_: u8| Some([0.0; 3]);
         let mut active = ActiveEmotes::default();
         active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
         let _ = active.take_cues();
+        let late = t0 + Duration::from_millis(1500);
         assert!(
-            !active.sync(2, 1, "wave", Some(&wave()), [0.0; 3]),
+            !active.sync(2, 1, "wave", Some(&wave()), [0.0; 3], late),
             "not that emote"
         );
         assert!(
-            !active.sync(2, 9, "heavy", Some(&heavy()), [0.0; 3]),
+            !active.sync(2, 9, "heavy", Some(&heavy()), [0.0; 3], late),
             "nobody there"
         );
-        // Joining 1.5 s late (the hub's delay) still lines up with the leader.
-        active.update(t0 + Duration::from_millis(1500), here);
-        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3]));
+        // Joining 1.5 s late (the hub's delay) still lines up with the leader, and
+        // its music starts where the leader's is.
+        active.update(late, here);
+        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3], late));
         let follower = active.get(2).unwrap();
         assert_eq!((follower.started, follower.leader), (t0, Some(1)));
         assert_eq!(follower.until, Some(t0 + Duration::from_millis(9000)));
-        // One song: only the leader's music plays.
-        assert!(active.take_cues().is_empty());
-        active.update(t0 + Duration::from_millis(2000), here);
-        assert_eq!(
-            active.take_cues(),
-            [Cue::Start {
-                slot: 1,
-                sound: "b.wav".into(),
-                offset: Duration::ZERO
-            }]
-        );
-        // A third joining the follower follows the first leader.
-        assert!(active.sync(3, 2, "heavy", Some(&heavy()), [0.0; 3]));
-        assert_eq!(active.get(3).unwrap().leader, Some(1));
-    }
-
-    #[test]
-    fn a_follower_picks_the_music_up_where_it_is_when_the_leader_stops() {
-        let t0 = Instant::now();
-        let here = |_: u8| Some([0.0; 3]);
-        let mut active = ActiveEmotes::default();
-        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
-        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3]));
-        let _ = active.take_cues();
-        active.stop(1);
-        active.update(t0 + Duration::from_millis(4500), here);
-        // 4.5 s in: the 2 s intro, then 2.5 s into the 3 s loop.
-        assert_eq!(
-            active.take_cues(),
-            [
-                Cue::Stop { slot: 1 },
-                Cue::Start {
-                    slot: 2,
-                    sound: "b.wav".into(),
-                    offset: Duration::from_millis(2500)
-                }
-            ]
-        );
-        assert_eq!(active.get(2).unwrap().leader, None);
-        active.update(t0 + Duration::from_millis(5000), here);
         assert_eq!(
             active.take_cues(),
             [Cue::Start {
                 slot: 2,
-                sound: "b.wav".into(),
-                offset: Duration::ZERO
+                sound: "a.wav".into(),
+                offset: Duration::from_millis(1500)
             }]
         );
-        // Now its own, cutting it short stops its sound.
+        // The loop starts on both at the same moment.
+        active.update(t0 + Duration::from_millis(2000), here);
+        let b = |slot| Cue::Start {
+            slot,
+            sound: "b.wav".into(),
+            offset: Duration::ZERO,
+        };
+        assert_eq!(active.take_cues(), [b(1), b(2)]);
+        // A third joining the follower follows the first leader.
+        assert!(active.sync(3, 2, "heavy", Some(&heavy()), [0.0; 3], late));
+        assert_eq!(active.get(3).unwrap().leader, Some(1));
+    }
+
+    #[test]
+    fn a_follower_keeps_its_music_when_the_leader_stops() {
+        let t0 = Instant::now();
+        let here = |_: u8| Some([0.0; 3]);
+        let mut active = ActiveEmotes::default();
+        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
+        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3], t0));
+        let _ = active.take_cues();
+        active.stop(1);
+        active.update(t0 + Duration::from_millis(1000), here);
+        assert_eq!(active.take_cues(), [Cue::Stop { slot: 1 }]);
         active.stop(2);
         assert_eq!(active.take_cues(), [Cue::Stop { slot: 2 }]);
     }

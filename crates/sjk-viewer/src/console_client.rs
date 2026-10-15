@@ -522,7 +522,14 @@ impl crate::GpuState {
             .as_ref()
             .and_then(|catalogue| catalogue.iter().find(|def| def.id == emote))
             .cloned();
-        state.active.sync(own, leader, &emote, def.as_ref(), here);
+        state.active.sync(
+            own,
+            leader,
+            &emote,
+            def.as_ref(),
+            here,
+            std::time::Instant::now(),
+        );
         drop(state);
         let name = crate::emotes::plain_name_shown(&shown(leader));
         if def.as_ref().is_some_and(|def| def.local) {

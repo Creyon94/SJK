@@ -4726,3 +4726,10 @@ test: Watch from a third SJK client: the two stay in step there too.
 test: A stops first: B keeps dancing and the music carries on without a jump.
 test: sjkemote sync with nobody emoting near says so in the console.
 
+[emote-sync-sound]
+area: Audio
+title: Sync emote plays the follower's music too, in step with the leader's
+change: Joining an emote starts your music where the leader's is.
+test: A starts an emote with music; B uses Sync emote: B's music plays, in step.
+test: A stops: B's music keeps playing without a jump.
+

@@ -1,3 +1,10 @@
+## Synced emotes: the follower's music plays too
+
+15/10/2026, `personal/emote-sync-sound` (Sol's report: a synced emote played its animation
+without sound): a follower now starts its own music where the leader's is, in step,
+instead of staying silent behind the leader's. Checked by the emote unit tests. Not tried
+in the game.
+
 ## Synced emotes
 
 15/10/2026, `personal/emote-sync` (Sol's request) with hub branch `emote-sync`:
