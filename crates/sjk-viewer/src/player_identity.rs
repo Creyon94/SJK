@@ -626,6 +626,27 @@ pub(crate) fn shared_vitals(
     slots
 }
 
+/// Whether the hub has the player's own sharing: its last answer, still fresh, lists
+/// them in their slot as sharing. Others' shared and estimated bars show only then.
+pub(crate) fn sharing_live(game_state: &GameState) -> bool {
+    let runtime = lock();
+    let (Some(service), Ok(own)) = (
+        runtime.service.as_ref(),
+        u8::try_from(game_state.client_num),
+    ) else {
+        return false;
+    };
+    service.with_vitals(|table| {
+        table
+            .read_at
+            .is_some_and(|read| read.elapsed() <= SHARED_FRESH)
+            && table
+                .players
+                .iter()
+                .any(|player| player.slot == own && player.share)
+    })
+}
+
 /// Two bits a slot of what each player shares (shares, sees everyone's bars), so the
 /// player card is rebuilt when they change.
 pub(crate) fn vitals_flags(game_state: &GameState) -> u64 {

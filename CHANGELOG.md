@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Seeing other players' bars means sharing yours: nameplates with bars keep `cg_nameplateShare` on, shared and estimated bars show only while the SJK hub has your own, and the hub gives the values only to players who share _(Sol)_
 - The gold nameplate contour now also shows on players who share because they see everyone's bars (`cg_nameplateEstimate`), and on your own plate (`cg_nameplateSelf`) in that case _(Sol)_
 - The player card says whether the inspected SJK player sees the model you wear ("Sees your model" or "Can't see your model"): SJK tells the hub which player models you have, which `cl_shareModels` (Settings > Network > Share my model list) turns off _(Sol)_
 - Looping emotes loop their music, music made of an intro and a loop plays both, and emote pictures stand on a blue disc so they show on the quick wheel; the Blender add-on takes a Music loop per emote _(Sol)_

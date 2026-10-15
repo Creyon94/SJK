@@ -346,11 +346,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateShare",
-        "Show your real health, shield and Force on your nameplate to the other SJK players of your server. Off: they see your name only.",
+        "Your real health, shield and Force for the other SJK players, through the SJK hub. Always on while your nameplates show bars.",
     ),
     (
         "cg_nameplateEstimate",
-        "Estimated bars on players who don't share. Shares your own bars while on, and your player card tells others you see theirs.",
+        "Estimated bars on players who don't share, while the hub has yours. Your player card tells others you see theirs.",
     ),
     (
         "cg_nameplateSelf",

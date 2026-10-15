@@ -653,7 +653,9 @@ otherwise (to notice a sharer), at once when a flag changes, and backs off (2 to
 seconds) when the hub fails; a 403 (no live claim yet) waits 2 seconds. The viewer
 uses an entry only while its claimed name matches the name the game shows in its slot
 and the list is under 6 seconds old (`player_identity::shared_vitals`), and never its
-own slot. The hub keeps entries 5 seconds in memory.
+own slot; it draws shared or estimated bars only while that list also has the player's
+own slot sharing (`player_identity::sharing_live`). The hub keeps entries 5 seconds in
+memory, and answers a post that does not share without the values (who shares only).
 
 ## Privacy
 
