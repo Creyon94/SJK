@@ -1,3 +1,16 @@
+## Nameplate bars only for players who share
+
+15/10/2026, `nameplate-share` (hub `nameplate-share`), Sol's rule: other players' health,
+shield and Force bars show only for SJK players who share them (`cg_nameplateShare`,
+off), through the hub (`POST /v1/vitals`, twice a second, in memory 5 s). Estimated bars
+on everyone (`cg_nameplateEstimate`, off, replacing `cg_nameplatePredict`, which was on)
+share the player's own and say so on their player card ("Sees your health, shield and
+Force"). A sharer's bars are the estimates re-based on each shared value at its server
+time, so a value a second old still corrects them (`estimate::History`). Teammates
+(`tinfo`) and NPCs keep their server-sent bars. Checked by unit tests (client, hub,
+estimates) and the player card's snapshot; not tried in the game, and the hub's load at
+twice a second per player is not measured. Hub not deployed yet.
+
 ## The Blade Lab's last three: solid blades
 
 15/10/2026, `blade-lab-3` (hub `blade-lab-3`): Comic and Quicksilver (Legendary) and

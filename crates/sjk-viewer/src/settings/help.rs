@@ -345,8 +345,12 @@ const HELP: &[(&str, &str)] = &[
         "Force bar under the name, estimated from the powers the player uses. The grey haze shows how unsure the estimate is.",
     ),
     (
-        "cg_nameplatePredict",
-        "Health and shield of other players, estimated from their hits and pains; grey haze: how unsure.",
+        "cg_nameplateShare",
+        "Show your real health, shield and Force on your nameplate to the other SJK players of your server. Off: they see your name only.",
+    ),
+    (
+        "cg_nameplateEstimate",
+        "Estimated bars on players who don't share. Shares your own bars while on, and your player card tells others you see theirs.",
     ),
     (
         "cg_nameplateSelf",

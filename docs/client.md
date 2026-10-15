@@ -2422,8 +2422,8 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   target, 2 everyone); 1 (allies only) stays reachable in the settings.
 - `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target and duel
   opponent. `cg_nameplateScale`
-  sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplatePredict` the
-  estimated health and shield, `cg_nameplateWalls` shows
+  sets the text size, `cg_nameplateForce` the Force bar (see [Sharing](#sharing-and-estimates)
+  for whose), `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
@@ -2442,6 +2442,33 @@ that font is not loaded), whatever `cg_classicHudFont` says.
 - While a menu is open the plates hide: their text is in the classic stream, which
   draws over the menus' text.
 
+### Sharing and estimates
+
+Another player's health, shield and Force bars show only when that player chooses to
+share them, unless you turn the estimates on (decided 15/10/2026):
+
+- `cg_nameplateShare` (off; Settings > Interface "Share my bars", and First setup):
+  your client sends your real health, shield and Force (from the snapshot the server
+  sends you, with its server time) to the SJK hub, which passes them to the other
+  SJK players of your server ([hub-chat.md](hub-chat.md#vitals)). It needs
+  `cl_identity` and a live claim, so it starts a few seconds after joining.
+- **Default:** a player who does not share gets their name, weapon and power icons
+  but no bars. Teammates' health and shield, which the server itself sends
+  (`tinfo`), and NPCs' stay; a teammate who does not share has no Force bar.
+- **Sharers:** their bars are the estimates below, corrected with every value they
+  share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
+  shared value is up to about a second old by the time it arrives, so it re-bases the
+  estimate as it stood at that server time: what was seen since (a hit, a pain, a
+  heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
+  seen since, the bar is exact; it never waits for the next value to move.
+- `cg_nameplateEstimate` (off; "Bars on everyone"): the estimated bars on every
+  player, as before 15/10/2026. It shares your own bars whatever `cg_nameplateShare`
+  says (the client sets `cg_nameplateShare` back on while it is on), and the hub tells
+  the others: your player card (`inspect`) says, in amber, "Sees your health, shield
+  and Force". A sharer's card says "Shares their health, shield and Force".
+- The hub cannot check what a client says: a modified client could share false
+  values or estimate without saying so. The protocol keeps honest clients honest.
+
 Where the numbers come from, and what is not known:
 
 - **Teammates** in team games: health and shield from the server's team overlay data
@@ -2450,7 +2477,8 @@ Where the numbers come from, and what is not known:
 - **NPCs** (and any entity whose `entityState_t::health`/`maxhealth` the server
   sets): exact. The SJK server sets them for NPCs, breakables and emplaced guns, not
   for clients; stock JKA does not either.
-- **Everyone else's health and shield** are estimated
+- **Everyone else's health and shield** (with `cg_nameplateEstimate`, or players who
+  share) are estimated
   ([vitals_estimate.rs](../crates/sjk-viewer/src/hud/vitals_estimate.rs)) once per
   snapshot (every one, so no event is missed) from what the server sends everyone,
   with its own rules:

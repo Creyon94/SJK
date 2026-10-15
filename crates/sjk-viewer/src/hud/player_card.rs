@@ -196,6 +196,31 @@ pub(crate) struct HubInfo {
     pub(crate) avatar: String,
     /// What their public profile says, once the hub has sent it.
     pub(crate) profile: Option<ProfileFacts>,
+    /// What they share on their nameplate (`PROTOCOL.md`, "Vitals").
+    pub(crate) vitals: Vitals,
+}
+
+/// What a player shares on their nameplate, as the card says it.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Vitals {
+    /// Nothing, or the hub did not say.
+    #[default]
+    Private,
+    /// Their health, shield and Force (`cg_nameplateShare`).
+    Shared,
+    /// They see everyone's estimated bars (`cg_nameplateEstimate`), which shares theirs.
+    SeesAll,
+}
+
+impl Vitals {
+    /// The card's line, empty for none.
+    fn line(self) -> &'static str {
+        match self {
+            Self::Private => "",
+            Self::Shared => "Shares their health, shield and Force",
+            Self::SeesAll => "Sees your health, shield and Force",
+        }
+    }
 }
 
 /// Achievements shown as medallions on a pinned card.
@@ -288,7 +313,9 @@ const T_BIO: usize = 13;
 const T_SINCE: usize = 14;
 /// The rarest achievements' goals, one slot each.
 const T_GOAL: usize = 15;
-const TEXTS: usize = T_GOAL + RAREST;
+/// What they share on their nameplate, or that they see everyone's bars.
+const T_VITALS: usize = T_GOAL + RAREST;
+const TEXTS: usize = T_VITALS + 1;
 /// Draw commands a card holds: its own shapes and a shader's swatch.
 const LIST_CAPACITY: usize = 640;
 /// The saber shader's swatch on the card, in card units.
@@ -485,6 +512,7 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
                     crate::achievements::medallion::goal_label(kind).to_string();
             }
         }
+        hub.vitals.line().clone_into(&mut card.texts[T_VITALS]);
     }
     card.hub = hub;
     card
@@ -883,6 +911,9 @@ impl State {
         height += row(10.0) + row(26.0);
         if card.has_marks() {
             height += row(26.0);
+        }
+        if !card.texts[T_VITALS].is_empty() {
+            height += row(22.0);
         }
         if !hub.medals.is_empty() {
             height += row(30.0);
@@ -1299,6 +1330,25 @@ impl State {
                     );
                 }
                 y += row(26.0);
+            }
+            // What they share on their nameplate; seeing everyone's bars in amber, as
+            // it concerns the reader.
+            if !card.texts[T_VITALS].is_empty() {
+                let color = if hub.vitals == Vitals::SeesAll {
+                    Color::new(1.0, 0.72, 0.3, 0.95 * a)
+                } else {
+                    muted
+                };
+                put_text(
+                    &mut self.list,
+                    T_VITALS,
+                    Rect::new(left, y, inner, row(22.0)),
+                    13.0 * unit,
+                    color,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+                y += row(22.0);
             }
             // The medals the SJK team gave them, small medallions in a row; a pinned
             // card names them under it in small print, with how often a repeatable one
@@ -1765,6 +1815,7 @@ mod tests {
                 key_id: "0123456789abcdef".to_owned(),
                 avatar: "v1".to_owned(),
                 profile: Some(ProfileFacts::of(&full_profile())),
+                vitals: Vitals::SeesAll,
             }),
             shader,
         )
@@ -1787,6 +1838,7 @@ mod tests {
         assert_eq!(card.texts[T_BIO], "Fox of the JoF, maker of SJK.");
         assert!(card.texts[T_SINCE].starts_with("In SJK since "));
         assert_eq!(card.texts[T_GOAL], "1K");
+        assert_eq!(card.texts[T_VITALS], "Sees your health, shield and Force");
         // An older hub's profile, or none yet: no marks, no lines.
         let bare = ProfileFacts::of(&sjk_identity::Profile {
             staff: false,
@@ -1806,6 +1858,10 @@ mod tests {
             None,
         );
         assert!(!plain.has_marks() && plain.profile_lines() == 0);
+        assert!(
+            plain.texts[T_VITALS].is_empty(),
+            "sharing nothing says nothing"
+        );
     }
 
     #[test]

@@ -106,8 +106,8 @@ Old clients ignore all of it, so it stays `/v1/`.
   generation (it changes with the hub, the server or the identity going off or on):
   `Service::take_looks` hands over only the current generation's for the viewer's
   server, so a poll under way at a change brings no old look.
-- Shutting down tells the feed thread to stop; it ends after its poll without being
-  waited for.
+- Shutting down tells the feed and vitals threads to stop; they end after their
+  request without being waited for.
 
 ## In the game
 
@@ -631,6 +631,24 @@ The hub knows no teams, so the team rule is the readers' (`world_ping::Scope::se
 a modified client could read every ping of its server. Only a server that tells the hub
 (or relays pings itself, an SJK dedicated server) could enforce it; nothing does yet.
 
+## Vitals
+
+Shared vitals ([client.md](client.md#sharing-and-estimates), 15/10/2026) take the
+same route as pings, for the same reasons (only SJK clients, any server, no server
+change), on a thread of their own: `Service::start_with_threads` starts
+`sjk-hub-vitals` ([vitals.rs](../crates/sjk-identity/src/vitals.rs)) with an HTTP client
+that gives up after 5 seconds. It reads the hub and the server from what the identity
+worker tells the feed (identity on, registered, on a server) and what to send from
+`Service::set_sharing`, which the HUD sets every frame. Each `POST /v1/vitals` sends the
+player's flags and, while they share and are alive, their values with the snapshot's
+server time; the answer lists the server's sharers (`Service::with_vitals`). It posts
+every half second while the player shares or somebody listed does, every 2 seconds
+otherwise (to notice a sharer), at once when a flag changes, and backs off (2 to 30
+seconds) when the hub fails; a 403 (no live claim yet) waits 2 seconds. The viewer
+uses an entry only while its claimed name matches the name the game shows in its slot
+and the list is under 6 seconds old (`player_identity::shared_vitals`), and never its
+own slot. The hub keeps entries 5 seconds in memory.
+
 ## Privacy
 
 With `cl_identity`, `cl_hubUrl` and `cl_sjkChat` on, the hub sees the player's key
@@ -638,7 +656,12 @@ and IP address on every feed request (which it counts for `online`), and each me
 or emote they send with the name they wear. With `cl_sjkChat` off it still sees the
 feed requests made on a game server (for the looks), with the server's address. A ping sends the hub the point, its scope and,
 through the claim, the player's slot and name on that server; it is kept 10 seconds in
-the hub's memory and reaches the SJK players reading that server. Messages are public to every SJK player,
+the hub's memory and reaches the SJK players reading that server. Shared vitals
+(`cg_nameplateShare`, or `cg_nameplateEstimate`) send the hub the player's health,
+shield and Force twice a second and whether they see everyone's bars; the hub keeps
+them 5 seconds in memory and gives them to every SJK player on that server. Without
+either setting, the client still asks the hub every 2 seconds, on a game server, who
+shares there (with its key and address, as any request). Messages are public to every SJK player,
 kept in the hub's memory only (the last 200), and gone when the hub restarts; a
 message staff delete stays in the staff log. Emotes are kept 10 seconds. The mute
 flag is the only new thing on the hub's disk. Local mutes stay on this PC

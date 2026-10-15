@@ -444,8 +444,13 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Health estimate",
-        cvar: "cg_nameplatePredict",
+        label: "Share my bars",
+        cvar: "cg_nameplateShare",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Bars on everyone",
+        cvar: "cg_nameplateEstimate",
         kind: ValueKind::Bool,
     },
     Setting {

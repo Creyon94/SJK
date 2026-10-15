@@ -15,6 +15,7 @@ use crate::keys::Identity;
 use crate::logs::{LogRequest, LogUpload};
 use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
+use crate::vitals::{Sharing, VitalsTable, VitalsWorker};
 use crate::wire::{
     Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, Unlock, names_match,
 };
@@ -1726,8 +1727,12 @@ pub struct Service {
     ping_outcome: Arc<Mutex<Option<ReportOutcome>>>,
     /// What the feed is told to read, for the looks' generation.
     feed: Arc<Mutex<FeedShared>>,
-    /// Set to end the feed thread, which ends after its poll at the latest.
+    /// Set to end the feed and vitals threads, which end after their request at the latest.
     feed_stop: Arc<std::sync::atomic::AtomicBool>,
+    /// What the player shares on their nameplate, for the vitals thread.
+    sharing: Arc<Mutex<Sharing>>,
+    /// The sharers of the player's server, as the vitals thread last read them.
+    vitals: Arc<Mutex<VitalsTable>>,
     finished: Mutex<Receiver<()>>,
     /// The last tag given to a note ([`Service::note`]).
     note_tags: std::sync::atomic::AtomicU64,
@@ -1748,12 +1753,25 @@ impl Service {
         make_hub: HubFactory,
         make_feed_hub: Option<HubFactory>,
     ) -> Self {
+        Self::start_with_threads(identity, make_hub, make_feed_hub, None)
+    }
+
+    /// [`Service::start_with_feed`] with shared vitals on a thread of their own too,
+    /// reading the hub through clients `make_vitals_hub` builds (with a short
+    /// timeout, [`crate::vitals::TIMEOUT`]).
+    pub fn start_with_threads(
+        identity: Identity,
+        make_hub: HubFactory,
+        make_feed_hub: Option<HubFactory>,
+        make_vitals_hub: Option<HubFactory>,
+    ) -> Self {
         let key_id = identity.key_id();
         let snapshot = Arc::new(Mutex::new(Snapshot::new(key_id.clone())));
         let staff = Arc::new(Mutex::new(StaffState::default()));
         let (commands, inbox) = channel();
         let (done, finished) = channel();
         let feed_identity = identity.clone();
+        let vitals_identity = identity.clone();
         let mut worker = Worker::new(
             identity,
             make_hub,
@@ -1792,6 +1810,26 @@ impl Service {
                     Status::Failed(format!("cannot start the chat thread: {error}"));
             }
         }
+        let sharing = Arc::new(Mutex::new(Sharing::default()));
+        let vitals = Arc::new(Mutex::new(VitalsTable::default()));
+        if let Some(make_vitals_hub) = make_vitals_hub {
+            let worker = VitalsWorker::new(
+                vitals_identity,
+                make_vitals_hub,
+                Arc::clone(&worker.feed),
+                Arc::clone(&sharing),
+                Arc::clone(&vitals),
+                Instant::now(),
+            );
+            let stop = Arc::clone(&feed_stop);
+            let spawned = std::thread::Builder::new()
+                .name("sjk-hub-vitals".to_owned())
+                .spawn(move || crate::vitals::run(worker, &stop));
+            if let Err(error) = spawned {
+                lock(&snapshot).status =
+                    Status::Failed(format!("cannot start the vitals thread: {error}"));
+            }
+        }
         let spawned = std::thread::Builder::new()
             .name("sjk-identity".to_owned())
             .spawn(move || {
@@ -1823,6 +1861,8 @@ impl Service {
             ping_outcome,
             feed,
             feed_stop,
+            sharing,
+            vitals,
             finished: Mutex::new(finished),
             note_tags: std::sync::atomic::AtomicU64::new(0),
         }
@@ -2089,8 +2129,20 @@ impl Service {
         received
     }
 
-    /// Withdraw the claim and stop, waiting at most `timeout` for it. The feed thread
-    /// is told to stop and ends after its poll, without being waited for.
+    /// What the player shares on their nameplate (`PROTOCOL.md`, "Vitals"); the vitals
+    /// thread sends it with its next request, at once when `share` or `estimates`
+    /// changed. Cheap: call it every frame.
+    pub fn set_sharing(&self, sharing: Sharing) {
+        *crate::feed::lock(&self.sharing) = sharing;
+    }
+
+    /// Read the sharers of the player's game server, as the hub last listed them.
+    pub fn with_vitals<R>(&self, read: impl FnOnce(&VitalsTable) -> R) -> R {
+        read(&crate::feed::lock(&self.vitals))
+    }
+
+    /// Withdraw the claim and stop, waiting at most `timeout` for it. The feed and
+    /// vitals threads are told to stop and ends after their request, without being waited for.
     pub fn shutdown(&self, timeout: Duration) {
         self.feed_stop
             .store(true, std::sync::atomic::Ordering::Relaxed);

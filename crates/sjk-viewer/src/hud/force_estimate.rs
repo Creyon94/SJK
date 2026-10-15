@@ -39,7 +39,7 @@
 //! little slower and faster than the guess. Saber blocks in some mods and pickups are
 //! not seen. The pool refills while a player idles, so the range closes within about
 //! twenty seconds, and a respawn resets it to full.
-use super::estimate::Range;
+use super::estimate::{History, Range};
 use super::force_streams::Effect;
 use super::vitals_estimate::ForceFacts;
 use sjk_game_jka::force_powers::{
@@ -279,6 +279,8 @@ pub(super) struct Estimator {
     /// The pace was measured from the local pool, so the bounds refill with the guess.
     measured: bool,
     animations: Animations,
+    /// Each player's pool over the last snapshots, for their shared vitals.
+    histories: Box<[History; CLIENTS]>,
 }
 
 impl Default for Estimator {
@@ -288,6 +290,7 @@ impl Default for Estimator {
             regen_millis: DEFAULT_REGEN_MILLIS,
             measured: false,
             animations: Animations::lookup(),
+            histories: Box::new([History::default(); CLIENTS]),
         }
     }
 }
@@ -317,6 +320,21 @@ impl Estimator {
         (track.seen && !track.previous.dead).then(|| track.pool.share(MAX_POOL))
     }
 
+    /// Correct `slot`'s pool with what its player shares (`PROTOCOL.md`, "Vitals"): their
+    /// own client's Force at server time `time`, as points of a full pool of 100.
+    pub(super) fn anchor(&mut self, slot: u16, time: i32, points: f32) {
+        let slot = usize::from(slot);
+        let Some(track) = self.tracks.get_mut(slot) else {
+            return;
+        };
+        if track.seen
+            && !track.previous.dead
+            && self.histories[slot].anchor(time, points, &mut track.pool)
+        {
+            track.pool = track.pool.clamp(0.0, MAX_POOL);
+        }
+    }
+
     /// Points regained at `multiplier` times the pace over each bound's `elapsed`
     /// milliseconds: the low bound's, the guess's and the high bound's.
     fn regained(&self, elapsed: [f32; 3], multiplier: f32) -> (f32, f32, f32) {
@@ -344,9 +362,12 @@ impl Estimator {
             track.previous = now;
             track.seen = false;
             self.tracks[usize::from(slot)] = track;
+            self.histories[usize::from(slot)].clear();
             return;
         }
         if !track.seen {
+            self.histories[usize::from(slot)].clear();
+            self.histories[usize::from(slot)].push(now.time, Range::exact(MAX_POOL));
             self.tracks[usize::from(slot)] = Track {
                 pool: Range::exact(MAX_POOL),
                 previous: now,
@@ -402,6 +423,7 @@ impl Estimator {
         track.pool = track.pool.clamp(0.0, MAX_POOL);
         track.previous = now;
         self.tracks[usize::from(slot)] = track;
+        self.histories[usize::from(slot)].push(now.time, track.pool);
     }
 }
 

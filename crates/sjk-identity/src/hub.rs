@@ -9,9 +9,10 @@ use crate::logs::{
 };
 use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{StaffAnswer, StaffQuery, StaffRequest};
+use crate::vitals::Sharing;
 use crate::wire::{
     Achievement, Achievements, Feed, HolocronState, Look, OpenAnswer, Players, Presence, Profile,
-    authorization,
+    SharedVitals, authorization,
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -156,6 +157,18 @@ pub trait Hub: Send {
     ) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send pings".to_owned(),
+        ))
+    }
+    /// Share (or stop sharing) the player's vitals on `server` and read the sharers
+    /// there (`PROTOCOL.md`, "Vitals").
+    fn vitals(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _sharing: &Sharing,
+    ) -> Result<Vec<SharedVitals>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not share vitals".to_owned(),
         ))
     }
     /// Wear `look` for the claim the identity holds on `server` (`PROTOCOL.md`,
@@ -1121,6 +1134,25 @@ impl Hub for HttpHub {
         answer["id"]
             .as_u64()
             .ok_or_else(|| HubError::Protocol("the ping answer has no id".to_owned()))
+    }
+
+    fn vitals(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        sharing: &Sharing,
+    ) -> Result<Vec<SharedVitals>, HubError> {
+        let mut body = json!({
+            "server": server,
+            "share": sharing.share,
+            "estimates": sharing.estimates,
+        });
+        if let Some(vitals) = sharing.vitals.filter(|_| sharing.share) {
+            body["vitals"] = serde_json::to_value(vitals)
+                .map_err(|error| HubError::Protocol(error.to_string()))?;
+        }
+        let answer = self.send(Some(identity), "POST", "/v1/vitals", Some(body))?;
+        parse(answer["players"].clone())
     }
 
     fn look(&mut self, identity: &Identity, server: &str, look: &Look) -> Result<u64, HubError> {
