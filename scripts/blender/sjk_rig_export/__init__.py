@@ -273,10 +273,34 @@ def emote_actions(armature):
     )
 
 
+def upstream_image(material):
+    """The nearest image feeding a Principled BSDF's Base Color, through the nodes
+    between (Ambient Occlusion, Mix, Hue/Saturation...), or None."""
+    for node in material.node_tree.nodes:
+        if node.type != "BSDF_PRINCIPLED":
+            continue
+        queue = [link.from_node for link in node.inputs["Base Color"].links]
+        seen = set()
+        while queue:
+            found = queue.pop(0)
+            if found.name in seen:
+                continue
+            seen.add(found.name)
+            if found.type == "TEX_IMAGE" and found.image is not None:
+                return found.image
+            queue.extend(
+                link.from_node for socket in found.inputs for link in socket.links
+            )
+    return None
+
+
 def base_color_image(material):
     """The image a material's base colour most likely comes from, or None."""
     if material is None or material.node_tree is None:
         return None
+    image = upstream_image(material)
+    if image is not None:
+        return image
     best = None
     for node in material.node_tree.nodes:
         if node.type != "TEX_IMAGE" or node.image is None:

@@ -218,10 +218,13 @@ in one click.
   puts the Y-up turn on the root bone's rest. Times come from the scene's frame
   rate the setting gives.
 - **Materials:** each becomes a plain Principled BSDF with the image its base colour
-  most likely comes from: an image node feeding a socket named Base Color, Diffuse
-  or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
+  most likely comes from: the nearest image upstream of the Principled BSDF's Base
+  Color, through the nodes between (Ambient Occlusion, Mix, Hue/Saturation; their
+  tint is not carried over), else an image node feeding a socket named Base Color,
+  Diffuse or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
   `_Albedo`..., else the first sRGB image. A material with none keeps its viewport
-  colour.
+  colour. Before the upstream walk (15/10/2026) an image behind an AO node lost to
+  the first sRGB image, which on a hair material was the cyan alpha variant.
 - **The blend file is untouched:** the meshes and materials exported are temporary
   copies, removed afterwards; the pose mode, selection, active action, NLA switch and
   frame come back as they were. The only things kept are the action's emote settings
