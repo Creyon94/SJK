@@ -208,7 +208,11 @@ pub(crate) fn update(
         gpu.hud
             .nameplate
             .refresh_shared(i64::from(presentation_time), || {
-                player_identity::shared_vitals(session.game_state())
+                let game_state = session.game_state();
+                (
+                    player_identity::shared_vitals(game_state),
+                    player_identity::sharing_live(game_state),
+                )
             });
         player_identity::share_vitals(gpu.hud.nameplate.sharing(Some(snapshot)));
         let detached_flight = gpu.free_camera_active();

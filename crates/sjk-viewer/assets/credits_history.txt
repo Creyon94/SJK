@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Seeing nameplate bars means sharing yours, through the hub
+- 7d5d27d |  | Seeing nameplate bars means sharing yours, through the hub
 + 15/10/2026 | - | Player card says whether the inspected player sees your model
 - 76df8b1 |  | Player card says whether the inspected player sees your model
 + 15/10/2026 | - | Gold nameplate contour on every sharer, estimates included

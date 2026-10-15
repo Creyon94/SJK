@@ -2450,14 +2450,24 @@ that font is not loaded), whatever `cg_classicHudFont` says.
 
 ### Sharing and estimates
 
-Another player's health, shield and Force bars show only when that player chooses to
-share them, unless you turn the estimates on (decided 15/10/2026):
+Another player's health, shield and Force bars show only when that player shares
+them, unless you turn the estimates on (decided 15/10/2026), and seeing any of them
+means sharing your own, through the hub (Sol's rule, 15/10/2026):
 
-- `cg_nameplateShare` (off; Settings > Interface "Share my bars", and First setup):
+- `cg_nameplateShare` (Settings > Interface "Share my bars", and First setup):
   your client sends your real health, shield and Force (from the snapshot the server
   sends you, with its server time) to the SJK hub, which passes them to the other
   SJK players of your server ([hub-chat.md](hub-chat.md#vitals)). It needs
-  `cl_identity` and a live claim, so it starts a few seconds after joining.
+  `cl_identity` and a live claim, so it starts a few seconds after joining. It is
+  held on (the client sets it back) while nameplates show bars (`cg_nameplate` on,
+  `cg_nameplateBars` not 0) or `cg_nameplateEstimate` is on; it can only be off with
+  bars off.
+- **Tied to the hub:** shared and estimated bars on other players show only while the
+  hub's last answer (under 6 seconds old) lists you sharing in your slot. With
+  `cl_identity` off, no hub, no claim yet or the hub down, other players get no such
+  bars; the server's own (teammates' `tinfo`, NPCs) stay. The hub itself gives the
+  values only to players who share: a post without `share` gets who shares, not
+  their numbers.
 - **Default:** a player who does not share gets their name, weapon and power icons
   but no bars. Teammates' health and shield, which the server itself sends
   (`tinfo`), and NPCs' stay; a teammate who does not share has no Force bar.
@@ -2470,11 +2480,12 @@ share them, unless you turn the estimates on (decided 15/10/2026):
 - **Gold contour:** the plate of a player who shares (`cg_nameplateShare`, or
   `cg_nameplateEstimate`, which makes them share) is framed in the verified badge's
   gold instead of grey; in team games a thin line of the
-  team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too when
-  you share. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.
+  team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too
+  while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.
 - `cg_nameplateEstimate` (off; "Bars on everyone"): the estimated bars on every
-  player, as before 15/10/2026. It shares your own bars whatever `cg_nameplateShare`
-  says (the client sets `cg_nameplateShare` back on while it is on), and the hub tells
+  player, as before 15/10/2026, and only while the hub has your sharing. It shares
+  your own bars whatever `cg_nameplateShare` says (the client sets
+  `cg_nameplateShare` back on while it is on), and the hub tells
   the others: your player card (`inspect`) says, in amber, "Sees your health, shield
   and Force". A sharer's card says "Shares their health, shield and Force".
 - The hub cannot check what a client says: a modified client could share false

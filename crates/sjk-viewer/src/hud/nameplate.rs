@@ -229,13 +229,13 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "cg_nameplateShare",
         false,
         CvarFlags::ARCHIVE,
-        "Share your health, shield and Force with the other SJK players of your server, for their nameplates",
+        "Share your health, shield and Force with the other SJK players of your server; on whenever your nameplates show bars",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateEstimate",
         false,
         CvarFlags::ARCHIVE,
-        "Estimated bars on players who do not share; turning it on shares your own, and the others are told",
+        "Estimated bars on players who do not share, while the hub has yours; turning it on shares your own, and the others are told",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateWeapon",
@@ -276,10 +276,13 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     Ok(())
 }
 
-/// `cg_nameplateEstimate` shares the player's own bars: turn `cg_nameplateShare` back on
-/// whenever it is off while the estimates are on, so the settings say what is sent.
+/// Seeing bars shares the player's own (Sol's rule, 15/10/2026): nameplates with bars
+/// (`cg_nameplate` and `cg_nameplateBars` not 0) or `cg_nameplateEstimate` turn
+/// `cg_nameplateShare` back on whenever it is off, so the settings say what is sent.
 pub(crate) fn hold_sharing(console: &mut ViewerConsole) {
-    if console.bool_cvar("cg_nameplateestimate") == Some(true)
+    let bars = console.bool_cvar("cg_nameplate") != Some(false)
+        && console.integer_cvar("cg_nameplatebars").unwrap_or(2) != 0;
+    if (bars || console.bool_cvar("cg_nameplateestimate") == Some(true))
         && console.bool_cvar("cg_nameplateshare") != Some(true)
     {
         console.set_cvar("cg_nameplateShare", "1");
@@ -295,7 +298,8 @@ struct Settings {
     scale: f32,
     bars: i64,
     force: bool,
-    /// `cg_nameplateShare`: the player shares their own values.
+    /// `cg_nameplateShare`: the player shares their own values (held on while the
+    /// plates show bars, [`hold_sharing`]).
     share: bool,
     /// `cg_nameplateEstimate`: estimated bars on players who do not share, which
     /// makes the player share whatever `share` says.
@@ -419,6 +423,8 @@ pub(crate) struct State {
     /// read.
     shared: [Option<SharedSlot>; MAX_PLAYER_TAGS],
     shared_read: Option<i64>,
+    /// The hub has the player's own sharing: without it, no shared or estimated bars.
+    sharing_live: bool,
     /// The server time of the shared values each slot's estimates were last
     /// corrected with: each value corrects them once.
     anchored: [Option<i32>; MAX_PLAYER_TAGS],
@@ -453,6 +459,7 @@ impl Default for State {
             verified_read: None,
             shared: [None; MAX_PLAYER_TAGS],
             shared_read: None,
+            sharing_live: false,
             anchored: [None; MAX_PLAYER_TAGS],
             own_origin: None,
             focus: None,
@@ -530,12 +537,13 @@ impl State {
         self.verified = read();
     }
 
-    /// Read what the other SJK players share (`read` asks the identity service) at
-    /// most every [`SHARED_EVERY`] ms, and correct the estimates with each new value.
+    /// Read what the other SJK players share and whether the hub has the player's own
+    /// sharing (`read` asks the identity service) at most every [`SHARED_EVERY`] ms,
+    /// and correct the estimates with each new value.
     pub(crate) fn refresh_shared(
         &mut self,
         now: i64,
-        read: impl FnOnce() -> [Option<SharedSlot>; MAX_PLAYER_TAGS],
+        read: impl FnOnce() -> ([Option<SharedSlot>; MAX_PLAYER_TAGS], bool),
     ) {
         if self
             .shared_read
@@ -544,7 +552,7 @@ impl State {
             return;
         }
         self.shared_read = Some(now);
-        self.shared = read();
+        (self.shared, self.sharing_live) = read();
         for (slot, shared) in self.shared.iter().enumerate() {
             let Some(values) = shared.and_then(|shared| shared.vitals) else {
                 continue;
@@ -562,10 +570,11 @@ impl State {
     }
 
     /// What the player shares this frame: their own health, shield and Force while
-    /// alive in a match, with `cg_nameplateShare`, or with `cg_nameplateEstimate`,
-    /// which shares them whatever the other says.
+    /// alive in a match, with `cg_nameplateShare`, or whenever they may see others'
+    /// bars (plates with bars, `cg_nameplateEstimate`) whatever it says.
     pub(crate) fn sharing(&self, snapshot: Option<&Snapshot>) -> sjk_identity::Sharing {
-        let share = self.settings.share || self.settings.estimate;
+        let settings = &self.settings;
+        let share = settings.share || settings.estimate || (settings.enabled && settings.bars != 0);
         let vitals = snapshot
             .filter(|snapshot| {
                 share && snapshot.player.health() > 0 && !snapshot.player.is_spectator()
@@ -581,7 +590,7 @@ impl State {
             });
         sjk_identity::Sharing {
             share,
-            estimates: self.settings.estimate,
+            estimates: settings.estimate,
             vitals,
         }
     }
@@ -870,8 +879,10 @@ impl State {
                     _ => false,
                 };
             // Estimates show on players who share (corrected by what they share) and,
-            // with `cg_nameplateEstimate`, on everyone.
+            // with `cg_nameplateEstimate`, on everyone; either only while the hub has
+            // the player's own sharing.
             let estimated = player
+                && self.sharing_live
                 && (settings.estimate
                     || self
                         .shared
@@ -1136,7 +1147,7 @@ impl State {
             accent: team_accent(mode, player.team() as i32),
             names_allowed: true,
             verified: self.verified & (1 << local) != 0,
-            shared: settings.share || settings.estimate,
+            shared: self.sharing_live,
         };
         let (powers, power_count) = if settings.icons {
             icon_powers(player.force_powers_active())
