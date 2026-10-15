@@ -1,3 +1,12 @@
+## Emote sounds survive a full mixer
+
+15/10/2026, `personal/emote-sound-cap` (Sol's report: emote sounds sometimes stopped
+with many sounds playing): the mixer had retail's 32 voices and, when full, replaced
+the oldest one, which a long emote track always was. It now has 128 voices, and a full
+table gives up voices on the emote channel last
+([rig-models.md](rig-models.md)). Checked by `sjk-audio` unit tests (the first fails
+without the protection). Not tried in the game.
+
 ## Debug collectibles: staff try everything without the hub
 
 15/10/2026, `personal/debug-collectibles` (Sol's request): `debug_collectibles 1` shows a

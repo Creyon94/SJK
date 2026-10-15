@@ -57,6 +57,10 @@ pub struct MixerConfig {
     /// Caller-supplied loop pitch policy. Compatibility adapters own all
     /// game-specific values; the mixer only evaluates this generic ratio.
     pub doppler: DopplerConfig,
+    /// A channel whose voices are stolen last when the table is full: long
+    /// sounds (an emote's music) are always the oldest, so the plain
+    /// oldest-first steal would cut them first.
+    pub protected_channel: Option<ChannelId>,
 }
 
 /// Allocation-free distance-ratio Doppler policy for looping voices.
@@ -376,6 +380,7 @@ pub struct Mixer {
     music_gain: f32,
     background: Option<BackgroundTrack>,
     doppler: DopplerConfig,
+    protected_channel: Option<ChannelId>,
 }
 
 impl Mixer {
@@ -425,6 +430,7 @@ impl Mixer {
             music_gain: 1.0,
             background: None,
             doppler: config.doppler,
+            protected_channel: config.protected_channel,
         }
     }
 
@@ -500,17 +506,10 @@ impl Mixer {
             })
             .flatten();
         let free = self.voices.iter().position(|voice| !voice.active);
-        let oldest = self
-            .voices
-            .iter()
-            .enumerate()
-            .filter(|(_, voice)| {
-                !(Some(voice.request.source) == self.listener_source
-                    && Some(request.source) != self.listener_source)
-            })
-            .min_by_key(|(_, voice)| voice.started)
-            .map(|(index, _)| index);
-        let Some(index) = replacement.or(free).or(oldest) else {
+        let Some(index) = replacement
+            .or(free)
+            .or_else(|| self.steal_index(request.source))
+        else {
             return false;
         };
         self.serial = self.serial.wrapping_add(1);
@@ -536,22 +535,32 @@ impl Mixer {
             voice.active && voice.request.source == source && voice.request.channel == channel
         });
         let free = self.voices.iter().position(|voice| !voice.active);
-        let oldest = self
-            .voices
+        let Some(index) = matching.or(free).or_else(|| self.steal_index(source)) else {
+            return false;
+        };
+        let killed = self.voices[index].active;
+        self.voices[index].active = false;
+        killed
+    }
+
+    /// The voice a full table gives up for `source`: the oldest one, never the
+    /// listener's for another source's sound, and one on the protected channel
+    /// only when every other candidate is protected too.
+    fn steal_index(&self, source: SourceId) -> Option<usize> {
+        self.voices
             .iter()
             .enumerate()
             .filter(|(_, voice)| {
                 !(Some(voice.request.source) == self.listener_source
                     && Some(source) != self.listener_source)
             })
-            .min_by_key(|(_, voice)| voice.started)
-            .map(|(index, _)| index);
-        let Some(index) = matching.or(free).or(oldest) else {
-            return false;
-        };
-        let killed = self.voices[index].active;
-        self.voices[index].active = false;
-        killed
+            .min_by_key(|(_, voice)| {
+                (
+                    Some(voice.request.channel) == self.protected_channel,
+                    voice.started,
+                )
+            })
+            .map(|(index, _)| index)
     }
 
     /// Stop every per-frame loop currently mixed for `source` immediately.
@@ -999,3 +1008,5 @@ fn length(value: [f32; 3]) -> f32 {
 mod loop_frame_tests;
 #[cfg(test)]
 mod spatial_tests;
+#[cfg(test)]
+mod voice_steal_tests;

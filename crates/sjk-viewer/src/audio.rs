@@ -31,6 +31,7 @@ mod assets;
 mod commands;
 #[path = "audio_controls.rs"]
 mod controls;
+pub(crate) use controls::EMOTE_CHANNEL;
 #[path = "audio_dynamic.rs"]
 mod dynamic;
 #[path = "audio_feedback.rs"]
@@ -125,6 +126,7 @@ impl GameAudio {
             sample_rate: SAMPLE_RATE,
             loop_attenuation: sjk_client::legacy_sound_attenuation(0),
             doppler: sjk_client::legacy_doppler_config(true),
+            protected_channel: Some(EMOTE_CHANNEL),
         })?;
         Some(Self::with_output(output))
     }

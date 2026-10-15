@@ -4707,3 +4707,12 @@ test: As staff, set debug_collectibles 1: Collection shows 51/51 shaders, 4/4 me
 test: Wear a shader you do not own: your blade shows it; another SJK client sees your real one.
 test: No new-medal or achievement pop-ups appear; set it to 0 and your real holdings return.
 
+[emote-sound-cap]
+area: Audio
+title: Emote music keeps playing when many sounds play at once
+change: The mixer plays up to 128 sounds at once (was 32).
+change: When all are busy, an emote's music is the last sound cut.
+test: Start a long emote with music next to bots fighting with sabers and guns.
+test: The music plays to its end; swings, shots and voices still sound.
+test: Stop the emote: its music stops at once.
+

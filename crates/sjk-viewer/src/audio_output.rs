@@ -19,7 +19,9 @@ mod feed;
 mod pending;
 
 pub(super) const SAMPLE_RATE: u32 = 44_100;
-pub(super) const VOICES: usize = 32;
+/// Four times retail's 32 channels: a busy saber fight filled 32, and every
+/// voice costs one pass over a 256-sample block.
+pub(super) const VOICES: usize = 128;
 pub(super) const LOOPS: usize = 32;
 const MIX_SAMPLES: usize = 256;
 const MIX_BLOCK_BUDGET: Duration =
@@ -513,6 +515,7 @@ mod stopped_stream_tests {
                 sample_rate: SAMPLE_RATE,
                 loop_attenuation: sjk_client::legacy_sound_attenuation(0),
                 doppler: sjk_client::legacy_doppler_config(true),
+                protected_channel: Some(crate::audio::EMOTE_CHANNEL),
             },
             "detached".into(),
         )

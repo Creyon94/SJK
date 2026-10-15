@@ -402,6 +402,10 @@ plays its glTF's animations on its own skeleton.
   own entity is not in the snapshot to move it (until 14/10/2026 it stayed where it
   started). Settings > Sound > Emotes: Emote volume (`s_emoteVolume`, 2 by default,
   0 to 3) multiplies it over the effects volume.
+- The mixer has 128 voices (32 until 15/10/2026, as retail) and, when they are all
+  playing, gives up the oldest sound for a new one, except an emote's: voices on the
+  music channel go only when nothing else is left (`MixerConfig::protected_channel`).
+  Before, a long emote track was always the oldest voice, so a busy fight cut it.
 - `moving` keeps the emote going while the player runs and jumps (the clip replaces
   the whole body, so the dance slides along). `sjkemote stop`, also the quick wheel's
   Stop emote, ends it; the id `stop` is reserved and relayed like any emote.
