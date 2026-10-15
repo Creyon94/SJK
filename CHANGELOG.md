@@ -23,7 +23,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1015.2 (Alpha) | 15/10/2026
+
+Seeing bars means sharing yours, a card that says who sees your model, and emote music loops.
+
+> Fair bars: Nameplates with bars share your own (`cg_nameplateShare`), and other players' bars need the SJK hub to have yours.
+> Gold contour: Every player who shares has it, including those who see everyone's bars.
+> Your model: The player card says whether the player sees the model you wear (`cl_shareModels`).
+> Emotes: Looping emotes loop their music, and emote pictures show on the quick wheel.
 
 - SJK staff can try every collectible without touching the hub: `debug_collectibles 1` shows every shader, medal, achievement and card as yours on your PC only, while other players still see what you really hold _(Sol)_
 - Seeing other players' bars means sharing yours: nameplates with bars keep `cg_nameplateShare` on, shared and estimated bars show only while the SJK hub has your own, and the hub gives the values only to players who share _(Sol)_
