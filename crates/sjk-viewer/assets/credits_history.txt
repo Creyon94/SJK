@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Synced emotes play the follower's music too, in step with the leader's
+- af40e39 |  | Synced emotes play the follower's music too, in step with the leader's
++ 15/10/2026 | - | Release 2026.1015.3 (Alpha)
+- 8d4b7ca |  | Release 2026.1015.3 (Alpha)
 + 15/10/2026 | - | Sync emote: join another player's emote in step, one song for both
 - 96a153d |  | Sync emote: join another player's emote in step, one song for both
 + 15/10/2026 | - | Emote music survives a full mixer: 128 voices, emote channel stolen last

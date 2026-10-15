@@ -71,7 +71,7 @@ did: The Profile page and achievements counted in matches, with their board
 did: Staff tools in the game: medals, achievements, verifying and merging players
 did: debug_collectibles: staff try every collectible on their own PC, without the hub
 did: SJK chat through the hub, seen in the menus and in games, and the path for emotes
-did: Synced emotes: join another player's emote in step, one song for both
+did: Synced emotes: join another player's emote in step, music included
 did: Unlockables: the Sun blade skin and looks every SJK player sees
 did: The Collection: medals, achievements, saber shaders, toys and nameplates
 did: Nine more saber shaders, from Molten's lava to Runic's glyphs of your name

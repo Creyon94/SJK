@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Synced emotes play their music too: joining someone's emote starts your music where theirs is, in step, instead of leaving you silent _(Sol)_
+
 ## 2026.1015.3 (Alpha) | 15/10/2026
 
 Dance in step with another player, and emote music that survives busy fights.

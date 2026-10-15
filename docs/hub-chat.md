@@ -594,6 +594,8 @@ and plays changes.
   (music in two parts: the loop follows the sound and repeats while the emote plays) and `rig` (the rig model folder the clip comes from;
   other rig models with the same joint names borrow it). The ids `stop` and `sync` are
   reserved: `sjkemote stop` ends the player's emote here and, relayed, for the others.
+  Unknown fields and bad values are refused with the file named in the log. None ship
+  with SJK; the rig model add-on writes them for a model's own animations.
 - `sjkemote sync [player]` (since 15/10/2026; the quick wheel's Sync emote) joins
   another player's emote in step: the named player (a slot number or part of the name
   shown), else the one under the crosshair, else the nearest emoting player within 512
@@ -601,13 +603,11 @@ and plays changes.
   relayed in the feed). Every client, the joiner's included, gives the follower the
   start time the leader's emote has *on that client* (`ActiveEmotes::sync`), so the two
   are in phase on every screen whatever each player's delay to the hub. Joining a
-  follower follows its leader. The pair shares one song: the follower's own music stays
-  silent while the leader plays the same emote from the same start, and when the leader
-  stops, starts again or leaves first it picks up where it is (`Cue::Start`'s `offset`,
-  the mixer's `play_from`). A client that does not see the leader playing it, or a
+  follower follows its leader. The follower's music starts where the leader's is
+  (`Cue::Start`'s `offset`, the mixer's `play_from`), so both play it in step, and it
+  plays on if the leader stops first. (In 2026.1015.3 the follower's music stayed silent
+  while the leader's played, which left followers without sound.) A client that does not see the leader playing it, or a
   hub or client from before the change, plays it from the start as a plain emote.
-  Unknown fields and bad values are refused with the file named in the log. None ship
-  with SJK; the rig model add-on writes them for a model's own animations.
 - A received emote counts only when the game shows, in its slot, the name its claim
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,
   the emote, when it started and when it ends (its length, 3 seconds for an id the

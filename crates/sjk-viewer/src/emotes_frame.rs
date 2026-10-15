@@ -82,7 +82,7 @@ impl GpuState {
             let synced = emote.sync.is_some_and(|leader| {
                 state
                     .active
-                    .sync(emote.slot, leader, &emote.emote, def.as_ref(), origin)
+                    .sync(emote.slot, leader, &emote.emote, def.as_ref(), origin, now)
             });
             if !synced {
                 state
