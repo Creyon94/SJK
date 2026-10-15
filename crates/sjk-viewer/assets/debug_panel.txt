@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[emote-music-loop]
+area: Rendering & effects
+title: Emote music loops, emote icons on a blue disc
+change: Looping emotes repeat their music; intro + loop music plays both.
+change: Emote pictures get a blue disc so white silhouettes show on the wheel.
+test: sjkemote heavy_roar_dance: short intro, then the music loops.
+test: sjkemote boomer: the song starts again when it ends.
+test: Quick wheel with emotes: each picture shows on a blue disc.
+
 [russian-japanese-text]
 area: Console & chat
 title: Russian and Japanese show in chat and names instead of question marks

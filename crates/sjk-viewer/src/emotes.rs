@@ -25,7 +25,10 @@
 //! the clip comes from: other rig models with the same joint names borrow it. `local` keeps the emote on
 //! this client: it plays here and is never sent to the hub (an emote made for a
 //! model only this player has). `moving` keeps it playing while the player moves.
-//! The sound plays on the player and stops when the emote is cut short. `icon` is a
+//! The sound plays on the player and stops when the emote is cut short. With its
+//! length (`sound_ms`) a looping emote plays it again each time it ends, and
+//! `sound_loop` (its length `sound_loop_ms`) follows the first sound and repeats
+//! for as long as the emote plays (music with an intro and a loop). `icon` is a
 //! picture (PNG, JPG or TGA) the quick wheel shows for it (`emote_icons.rs`). The id
 //! [`STOP`] ends the player's emote.
 //!
@@ -78,6 +81,12 @@ pub(crate) struct EmoteDef {
     pub(crate) moving: bool,
     /// Its picture, or empty.
     pub(crate) icon: String,
+    /// How long `sound` lasts (zero: unknown, played once).
+    pub(crate) sound_length: Duration,
+    /// The sound that follows `sound` and repeats while the emote plays, or empty.
+    pub(crate) sound_loop: String,
+    /// How long `sound_loop` lasts.
+    pub(crate) sound_loop_length: Duration,
     /// The rig model folder (under `models/players`) its clip comes from, or empty.
     pub(crate) rig: String,
 }
@@ -91,7 +100,7 @@ pub(crate) fn valid_id(id: &str) -> bool {
 }
 
 /// The fields a catalogue file may hold.
-const FIELDS: [&str; 11] = [
+const FIELDS: [&str; 14] = [
     "name",
     "torso",
     "legs",
@@ -103,6 +112,9 @@ const FIELDS: [&str; 11] = [
     "moving",
     "icon",
     "rig",
+    "sound_ms",
+    "sound_loop",
+    "sound_loop_ms",
 ];
 /// The longest animation or sound name.
 const PATH_MAX: usize = 64;
@@ -145,6 +157,14 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
         Some(_) => Err(format!("{field} must be true or false")),
     };
     let looping = flag("loop")?;
+    let milliseconds = |field: &str| match object.get(field) {
+        None => Ok(Duration::ZERO),
+        Some(value) => value
+            .as_u64()
+            .filter(|ms| *ms <= 600_000)
+            .map(Duration::from_millis)
+            .ok_or_else(|| format!("{field} must be 0 to 600000")),
+    };
     let length = match object.get("length_ms") {
         None if looping => 0,
         Some(value) => value
@@ -165,6 +185,9 @@ pub(crate) fn parse(id: &str, text: &str) -> Result<EmoteDef, String> {
         local: flag("local")?,
         moving: flag("moving")?,
         icon: text_field("icon", PATH_MAX)?,
+        sound_length: milliseconds("sound_ms")?,
+        sound_loop: text_field("sound_loop", PATH_MAX)?,
+        sound_loop_length: milliseconds("sound_loop_ms")?,
         rig: {
             let rig = text_field("rig", PATH_MAX)?;
             if rig.contains(['/', '\\']) || rig.contains("..") {
@@ -221,6 +244,9 @@ pub(crate) struct ActiveEmote {
     pub(crate) sound: String,
     /// Whether it keeps playing while the player moves.
     pub(crate) moving: bool,
+    /// The sound to start next while it plays (its loop, or its sound again), when,
+    /// and how long that one lasts.
+    pub(crate) next_sound: Option<(Instant, String, Duration)>,
 }
 
 /// A sound to start on, or stop from, a player: what the audio does with emotes.
@@ -280,6 +306,20 @@ impl ActiveEmotes {
                 sound: sound.clone(),
             });
         }
+        // After the first sound: its loop, or for a looping emote the sound again.
+        let next_sound = def.and_then(|def| {
+            if def.sound.is_empty() || def.sound_length.is_zero() {
+                return None;
+            }
+            let at = now + def.sound_length;
+            if !def.sound_loop.is_empty() {
+                Some((at, def.sound_loop.clone(), def.sound_loop_length))
+            } else if def.looping {
+                Some((at, def.sound.clone(), def.sound_length))
+            } else {
+                None
+            }
+        });
         *entry = Some(ActiveEmote {
             emote: emote.to_owned(),
             started: now,
@@ -287,6 +327,7 @@ impl ActiveEmotes {
             origin,
             sound,
             moving: def.is_some_and(|def| def.moving),
+            next_sound,
         });
     }
 
@@ -314,6 +355,21 @@ impl ActiveEmotes {
             let Ok(slot) = u8::try_from(slot) else {
                 continue;
             };
+            if let Some((at, sound, length)) = &mut active.next_sound
+                && now >= *at
+            {
+                self.cues.push(Cue::Start {
+                    slot,
+                    sound: sound.clone(),
+                });
+                if length.is_zero() {
+                    active.next_sound = None;
+                } else {
+                    while *at <= now {
+                        *at += *length;
+                    }
+                }
+            }
             let over = active.until.is_some_and(|until| now >= until);
             let gone = match position(slot) {
                 None => true,
@@ -593,5 +649,46 @@ mod tests {
             "someone else in the slot now"
         );
         assert!(!trusted(&emote, None), "nobody in the slot");
+    }
+
+    #[test]
+    fn music_with_an_intro_then_loops_and_a_looping_emote_repeats_its_sound() {
+        let def = parse(
+            "heavy",
+            r#"{"name": "Heavy", "length_ms": 9000, "sound": "a.wav", "sound_ms": 2000,
+                "sound_loop": "b.wav", "sound_loop_ms": 3000}"#,
+        )
+        .unwrap();
+        let mut active = ActiveEmotes::default();
+        let start = Instant::now();
+        active.start(1, "heavy", Some(&def), [0.0; 3], start);
+        let started = |active: &mut ActiveEmotes| {
+            active
+                .take_cues()
+                .into_iter()
+                .filter_map(|cue| match cue {
+                    Cue::Start { sound, .. } => Some(sound),
+                    Cue::Stop { .. } => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(started(&mut active), ["a.wav"]);
+        let here = |_: u8| Some([0.0; 3]);
+        active.update(start + Duration::from_millis(1900), here);
+        assert!(started(&mut active).is_empty());
+        active.update(start + Duration::from_millis(2000), here);
+        assert_eq!(started(&mut active), ["b.wav"]);
+        active.update(start + Duration::from_millis(5000), here);
+        assert_eq!(started(&mut active), ["b.wav"]);
+        // A looping emote with one sound plays it again when it ends.
+        let looped = parse(
+            "boom",
+            r#"{"name": "Boom", "loop": true, "sound": "c.wav", "sound_ms": 4000}"#,
+        )
+        .unwrap();
+        active.start(2, "boom", Some(&looped), [0.0; 3], start);
+        let _ = active.take_cues();
+        active.update(start + Duration::from_millis(4000), here);
+        assert!(started(&mut active).contains(&"c.wav".to_owned()));
     }
 }

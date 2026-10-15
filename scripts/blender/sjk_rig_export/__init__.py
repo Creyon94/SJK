@@ -480,7 +480,19 @@ def append_clips(gltf_path, clips):
     return written
 
 
-def emote_text(action, name, seconds, sound, icon, settings, model):
+def sound_milliseconds(path):
+    """How long the sound at `path` lasts, in milliseconds (0 when unknown)."""
+    try:
+        import aud
+
+        sound = aud.Sound(path)
+        rate = sound.specs[0]
+        return int(round(sound.length / rate * 1000)) if rate else 0
+    except Exception:
+        return 0
+
+
+def emote_text(action, name, seconds, sound, icon, settings, model, music=None):
     milliseconds = min(max(int(round(seconds * 1000)), EMOTE_MS[0]), EMOTE_MS[1])
     title = action.sjk_emote_name.strip() or action.name
     # `rig` names the model the clip is in: other models with the same skeleton
@@ -496,12 +508,22 @@ def emote_text(action, name, seconds, sound, icon, settings, model):
         entry["local"] = True
     if icon:
         entry["icon"] = icon
+    # Lengths and the loop, so the game repeats the music: (sound_ms, loop path,
+    # loop_ms).
+    if music:
+        sound_ms, loop, loop_ms = music
+        if sound_ms:
+            entry["sound_ms"] = sound_ms
+        if loop:
+            entry["sound_loop"] = loop
+            entry["sound_loop_ms"] = loop_ms
     return json.dumps(entry, indent=1) + "\n"
 
 
-def emote_sound(action):
-    """The sound file picked for `action`, if it is one the game reads."""
-    path = bpy.path.abspath(action.sjk_emote_sound).strip()
+def emote_sound(action, key="sjk_emote_sound"):
+    """The sound file picked for `action` (its `key` property), if it is one the
+    game reads."""
+    path = bpy.path.abspath(getattr(action, key)).strip()
     if not path:
         return None
     if os.path.splitext(path)[1].lower() not in SOUND_EXTENSIONS:
@@ -668,6 +690,9 @@ class SJK_OT_export_rig_model(Operator):
         actions = [a for a in emote_actions(armature) if a.sjk_emote]
         try:
             sounds = {action.name: emote_sound(action) for action in actions}
+            loops = {
+                action.name: emote_sound(action, "sjk_emote_sound_loop") for action in actions
+            }
             pictures = {
                 action.name: picture(action.sjk_emote_icon, action.name) for action in actions
             }
@@ -698,16 +723,31 @@ class SJK_OT_export_rig_model(Operator):
                     target = os.path.join(stage, *emote_icon.split("/"))
                     os.makedirs(os.path.dirname(target), exist_ok=True)
                     shutil.copyfile(source, target)
+                music = None
                 if sounds.get(action.name):
                     source = sounds[action.name]
                     sound = f"sound/emotes/{clip}{os.path.splitext(source)[1].lower()}"
                     target = os.path.join(stage, *sound.split("/"))
                     os.makedirs(os.path.dirname(target), exist_ok=True)
                     shutil.copyfile(source, target)
+                    loop = loops.get(action.name)
+                    loop_path = None
+                    if loop:
+                        loop_path = (
+                            f"sound/emotes/{clip}_loop{os.path.splitext(loop)[1].lower()}"
+                        )
+                        shutil.copyfile(loop, os.path.join(stage, *loop_path.split("/")))
+                    music = (
+                        sound_milliseconds(source),
+                        loop_path,
+                        sound_milliseconds(loop) if loop else 0,
+                    )
                 with open(os.path.join(stage, "emotes", f"{clip}.emote"), "w",
                           encoding="utf-8", newline="\n") as file:
                     file.write(
-                        emote_text(action, clip, seconds, sound, emote_icon, settings, name)
+                        emote_text(
+                            action, clip, seconds, sound, emote_icon, settings, name, music
+                        )
                     )
             manifest = self.old_manifest(base, name, settings, pack_path)
             with open(os.path.join(folder, MANIFEST), "w", encoding="utf-8",
@@ -999,6 +1039,7 @@ class SJK_PT_rig_export(Panel):
                         column.label(text=f"sjkemote {emote_id(name, action)}", icon="PLAY")
                     column.prop(action, "sjk_emote_name", text="Name")
                     column.prop(action, "sjk_emote_sound", text="Sound")
+                    column.prop(action, "sjk_emote_sound_loop", text="Music loop")
                     column.prop(action, "sjk_emote_icon", text="Icon")
             if actions:
                 fps = frame_rate(context)
@@ -1040,6 +1081,12 @@ ACTION_PROPERTIES = {
     "sjk_emote_sound": lambda: StringProperty(
         name="Sound",
         description="A .wav or .mp3 played with the emote",
+        subtype="FILE_PATH",
+    ),
+    "sjk_emote_sound_loop": lambda: StringProperty(
+        name="Music loop",
+        description="A .wav or .mp3 that follows the sound and repeats while the "
+        "emote plays (music made of an intro and a loop)",
         subtype="FILE_PATH",
     ),
     "sjk_emote_name": lambda: StringProperty(

@@ -103,7 +103,7 @@ impl GpuState {
                 vfs,
                 catalogue
                     .iter()
-                    .map(|def| def.sound.as_str())
+                    .flat_map(|def| [def.sound.as_str(), def.sound_loop.as_str()])
                     .filter(|sound| !sound.is_empty()),
             );
             state.sounds_loaded = true;

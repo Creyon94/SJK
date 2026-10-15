@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Emote music loops; intro + loop music; emote icons on a blue disc
+- f28aad7 |  | Emote music loops; intro + loop music; emote icons on a blue disc
++ 15/10/2026 | - | Release 2026.1015.1 (Alpha)
+- 7026c73 |  | Release 2026.1015.1 (Alpha)
 + 15/10/2026 | - | Gold contour on the nameplate of a player who shares
 - 7b01035 |  | Gold contour on the nameplate of a player who shares
 + 15/10/2026 | - | Nameplate bars only for players who share them
