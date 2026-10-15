@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 15/10/2026 | - | Gold contour on the nameplate of a player who shares
+- 7b01035 |  | Gold contour on the nameplate of a player who shares
 + 15/10/2026 | - | Nameplate bars only for players who share them
 - 6eb4ba8 |  | Nameplate bars only for players who share them
 + 15/10/2026 | - | Blade Lab solids: Comic, Quicksilver, Obsidian Edge

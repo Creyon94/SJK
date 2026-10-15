@@ -940,6 +940,7 @@ change: Bars on everyone (estimates) shares your own; your card says you see oth
 change: A sharer's bars are the estimates corrected twice a second with their real values.
 test: Defaults, a stock or non-sharing player: name, weapon, icons, no bars; teammates keep HP.
 test: Two SJK clients, one with Share my bars on: the other sees its bars, close to its HUD.
+test: That sharer's plate has a gold contour (a red or blue line inside it in team games).
 test: Hit the sharer: the bar drops at once, then settles on the real value within a second.
 test: Turn Bars on everyone on: Share my bars turns on too and cannot be turned off.
 test: Inspect a player with Bars on everyone: the card says, in amber, Sees your health...
