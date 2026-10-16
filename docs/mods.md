@@ -37,8 +37,8 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   ([mods.rs](../crates/sjk-viewer/src/mods.rs),
   [mods_host.rs](../crates/sjk-viewer/src/mods_host.rs)).
 - **Building without them.** Each mod is a crate behind a default feature of
-  `sjk-viewer` (`mod-japlus`, `mod-jof`); `cargo build -p sjk-viewer
-  --no-default-features` builds a client without any.
+  `sjk-viewer` (`mod-japlus`, `mod-jof`, which brings JoF content too); `cargo build
+  -p sjk-viewer --no-default-features` builds a client without any.
 
 Mods are not loaded from files. A native library has no stable interface between
 Rust builds and a downloaded one would run with the player's rights. If mods
@@ -81,6 +81,12 @@ The mod completes the commands only JoF servers run: the `gun*` admin set, which
 acts on the player you aim at (the server works out who), plus `jetpack`,
 `refuseTele`, `immortal` and the extra emotes. `jof.commands` lists them and says
 whether the current server is a JoF one.
+
+JoF tools also bring [JoF content](jof-content.md) (`jof.downloads`, `jof.content*`):
+JoF's maps, skins, hilts and packs downloaded from JoF's repository, as JoF's launcher
+does, off until the player turns it on. Unlike the commands, it does not wait for a
+JoF server: the card and its folder work from the menus, and `mod_jof` does not
+switch it.
 
 Not ported: JoF EJK's userinfo opt-ins (`jofejk`, `binoScan`, `cg_pickupConfirm`).
 Each one asks the server for something the client must then show, and SJK shows none

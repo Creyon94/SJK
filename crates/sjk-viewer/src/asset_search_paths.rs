@@ -4,10 +4,52 @@ use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_vfs::VirtualFileSystem;
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{OnceLock, RwLock};
 
 static STARTUP: OnceLock<Options> = OnceLock::new();
+
+/// Further content roots beside the installation and the content home, each
+/// searched for the same game folders right after them, by owner: SJK's JoF
+/// content folder while its switch is on (`jof_content.rs`). Unlike the
+/// startup settings they are read at every mount, so a change applies from
+/// the next map.
+static EXTRA_ROOTS: RwLock<Vec<(&'static str, PathBuf)>> = RwLock::new(Vec::new());
+
+/// Add, move or (with None) remove `owner`'s content root. Returns whether it
+/// changed.
+#[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
+pub(crate) fn set_extra_root(owner: &'static str, root: Option<PathBuf>) -> bool {
+    let mut roots = EXTRA_ROOTS
+        .write()
+        .unwrap_or_else(|error| error.into_inner());
+    let index = roots.iter().position(|(known, _)| *known == owner);
+    match (index, root) {
+        (Some(index), Some(root)) if roots[index].1 == root => false,
+        (Some(index), Some(root)) => {
+            roots[index].1 = root;
+            true
+        }
+        (None, Some(root)) => {
+            roots.push((owner, root));
+            true
+        }
+        (Some(index), None) => {
+            roots.remove(index);
+            true
+        }
+        (None, None) => false,
+    }
+}
+
+fn extra_roots() -> Vec<PathBuf> {
+    EXTRA_ROOTS
+        .read()
+        .unwrap_or_else(|error| error.into_inner())
+        .iter()
+        .map(|(_, root)| root.clone())
+        .collect()
+}
 
 #[path = "asset_pack_policy.rs"]
 pub(crate) mod pack_policy;
@@ -147,8 +189,14 @@ impl Options {
         })
     }
 
-    /// Low-to-high priority directories, matching FS_Startup's nested ordering.
+    /// Low-to-high priority directories, matching FS_Startup's nested ordering;
+    /// within each game folder the installation, the content home, then the
+    /// extra roots ([`set_extra_root`]).
     pub(crate) fn directories(&self, install: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+        Ok(self.directories_with(install, &extra_roots()))
+    }
+
+    fn directories_with(&self, install: &Path, extra: &[PathBuf]) -> Vec<PathBuf> {
         let home = if self.portable {
             None
         } else {
@@ -160,14 +208,17 @@ impl Options {
             if game.is_empty() {
                 continue;
             }
-            for root in std::iter::once(install).chain(home) {
+            for root in std::iter::once(install)
+                .chain(home)
+                .chain(extra.iter().map(PathBuf::as_path))
+            {
                 let path = root.join(game);
                 if !paths.contains(&path) {
                     paths.push(path);
                 }
             }
         }
-        Ok(paths)
+        paths
     }
 
     /// The PK3s in `install/EternalJK` that carry hats or capes
@@ -439,6 +490,25 @@ mod tests {
             zip.write_all(b"x").unwrap();
         }
         zip.finish().unwrap();
+    }
+
+    #[test]
+    fn extra_roots_follow_the_installation_in_each_game_folder() {
+        let options = Options {
+            game: "japlus".into(),
+            ..Options::default()
+        };
+        let install = Path::new("/game");
+        let jof = PathBuf::from("/sjk/jof");
+        assert_eq!(
+            options.directories_with(install, std::slice::from_ref(&jof)),
+            [
+                install.join("base"),
+                jof.join("base"),
+                install.join("japlus"),
+                jof.join("japlus"),
+            ]
+        );
     }
 
     #[test]

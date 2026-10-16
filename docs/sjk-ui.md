@@ -793,8 +793,8 @@ that mode for the visit and leaves the player's choice as it was.
     weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
     Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
     chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
-    JoF tools (Server mods), invisible brushes (Map tools) and the showcase
-    tools (Experimental); Network SJK online and Connection. A test checks that
+    JoF tools (Server mods), JoF content's card and host (JoF content),
+    invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that
     every setting is on exactly one of Advanced's categories. The classic+
     panels keep their groups as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,
@@ -885,6 +885,12 @@ rows at a time, with keyboard, wheel and click controls; each row says what the
 pack will be at the next start (Enabled, Disabled, Required). The console owns
 input while it is open, and closing it restores the previous console state. See
 [installed PK3 choices](client.md#launch).
+
+Mods' JoF content row ("Choose and download"; `jof.downloads` in the console,
+`jof_content_card.rs`) opens the JoF content card the same way, an SJK UI card in
+every menu style: the opt-in switch, JoF's groups with a tick each and what is here
+of them, the download's progress, Check again and Download
+([jof-content.md](jof-content.md#the-card)).
 
 ### First setup
 

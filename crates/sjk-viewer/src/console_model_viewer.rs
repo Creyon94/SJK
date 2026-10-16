@@ -32,6 +32,10 @@ impl ViewerConsole {
         self.holocrons_panel.close();
         self.sjk_chat_panel.close();
         self.asset_browser.open = false;
+        #[cfg(feature = "mod-jof")]
+        {
+            self.jof_content.open = false;
+        }
         self.dead_key.settle();
         self.model_viewer.open(owns_console);
     }

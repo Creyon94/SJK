@@ -681,6 +681,10 @@ impl ClientMenu {
                 console.execute_console_line("assetbrowser", None);
                 MenuAction::None
             }
+            SettingsResult::OpenJofContent => {
+                console.execute_console_line("jof.downloads", None);
+                MenuAction::None
+            }
             // First setup's "Import from another client" row: the Import page
             // with the configs found (or the file dialog), over the settings.
             SettingsResult::OpenImport => {

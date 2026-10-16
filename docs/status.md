@@ -1,3 +1,15 @@
+## JoF content: JoF's repository, opt in
+
+16/10/2026, `personal/jof-assets` (Sol's request, after Kypdurron pointed Sol to JoF's
+launcher): `jof.downloads` and Settings > Mods > JoF content download JoF's maps,
+skins, hilts and packs from JoF's repository into SJK's own JoF folder, checked by MD5,
+and load them from the next map while `jof.content` is on; off by default
+([jof-content.md](jof-content.md)). Checked by the `sjk-jof-content` unit tests (a
+local HTTP server for downloads), live against both of JoF's hosts (the manifest and a
+file, ignored test `live`), against Sol's `GameData` (the launcher's files recognised)
+and by an off-screen render of the card. Not tried in the game: no full download of a
+group, no JoF map loaded from the folder on a JoF server yet.
+
 ## Synced emotes: one song, sample-aligned
 
 16/10/2026, `personal/emote-sync-audio` (Sol's report: the music of synced emotes

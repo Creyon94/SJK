@@ -87,6 +87,7 @@ did: Graphics quality levels, EJK graphics, and the graphics reload that applies
 did: Low FPS help (help_fps): EJK graphics offered on heavy maps
 did: Lighter memory on servers: the menu world dropped during matches
 did: Client mods: JA+ tools (admin teleports after JoF EJK) and JoF tools, loaded on their servers
+did: JoF content: JoF's maps, skins, hilts and packs from JoF's repository, opt in, after JoF's launcher
 did: Mythical shader parts: the Sun's and the Spectral's effects, each switched on or off
 did: The Sun's orbiting glints, circling its blade below the tip
 did: The Void's black holes orbiting its blade, bending the world behind them
@@ -221,6 +222,12 @@ link: https://giphy.com
 [TheRisqe]
 role: Author of the Radial HUD that SJK's radial HUD is modelled on
 did: SJK draws its own take on the Radial HUD's layout and colours (cg_hudStyle radial)
+
+[Kypdurron]
+github: JoFKypdurron
+role: JoF's launcher and its repository, which SJK's JoF content reads
+did: SJK reads the launcher's manifest and hosts and checks files as it does; it includes none of its code
+link: https://github.com/JoFKypdurron/jof-launcher
 
 [JoF HD Fonts & Icons and OCR-A]
 role: The game fonts SJK Menu, SJK Chat and SJK HUD

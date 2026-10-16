@@ -76,6 +76,8 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     crate::world_materials::emission::lamp_gain::register(cvars)?;
     crate::scene_views::register_floor_reflections(cvars)?;
     crate::assets::search_paths::register(cvars)?;
+    #[cfg(feature = "mod-jof")]
+    crate::jof_content::register(cvars)?;
     super::client_options::register(cvars)?;
     super::ui_options::register(cvars)?;
     crate::hud::icons::register(cvars)?;

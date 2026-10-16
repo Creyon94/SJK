@@ -146,6 +146,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - client mods kept out of the core client, loaded only on their servers: JA+ tools
   (`japlus.*`: admin teleports, auto login and plugin options, after JoF EJK) and
   JoF tools (`jof.*`, completion of the JoF servers' commands);
+- JoF content (`jof.downloads`): JoF's maps, skins, hilts and packs downloaded from
+  JoF's repository into SJK's own folder and checked by MD5, opt in, after JoF's
+  launcher;
 - Mythical shader parts: the Sun's prominences, rising sparks, glints circling its
   blade below the tip and heat haze, the Void's orbiting black holes, warped space,
   gravity pulse and afterimages, the Spectral's wisps, souls, smoky edge, cold rim and swaying echo, each a part
@@ -358,7 +361,10 @@ contributors, under [CC-BY 4.0](crates/sjk-viewer/assets/emoji/twemoji-LICENSE-G
 SJK Menu and SJK HUD are traced from the JoF HD Fonts & Icons pack (author unknown)
 and SJK Chat is OCR-A by John Sauter (public domain), as
 [SJK-fonts.txt](crates/sjk-viewer/assets/fonts/SJK-fonts.txt) describes, GIFs in the SJK chat and the GIF picker's search come from [GIPHY](https://giphy.com), fetched by
-each player's client, the radial HUD is SJK's own take on TheRisqe's Radial HUD (none
+each player's client, JoF content follows
+[JoF's launcher](https://github.com/JoFKypdurron/jof-launcher) by Kypdurron (MIT; its
+manifest, hosts and checks, none of its code) and fetches JoF's files from JoF's
+repository (JoF Cloud and jofhub.eu) to each player who asks, the radial HUD is SJK's own take on TheRisqe's Radial HUD (none
 of its pictures included), the website's effects use
 the [Shaders](https://github.com/shader-effects-inc/shaders) library by Shader
 Effects Inc. under its [MIT license](site/assets/vendor/shaders/LICENSE), the

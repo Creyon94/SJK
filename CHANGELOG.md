@@ -25,6 +25,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- JoF content (`jof.downloads`, or Settings > Mods): JoF's maps, skins, hilts and packs downloaded from JoF's repository, as JoF's launcher gets them, into SJK's own JoF folder and checked before use; off until you turn it on, and the files JoF's launcher already put in your game folder are used as they are _(Sol, after JoF's launcher by Kypdurron)_
+
 - The Solfox player model reaches every SJK player through the hub: anyone may wear it, and SJK players see it on each other _(Reyced, Sol)_
 - Synced emotes sound like one song: every follower's music plays at the very same sample as the leader's and the group is mixed once, so no more echo or extra loudness _(Sol)_
 - Emotes no longer bring up the scoreboard: the freeze a JA+ emote holds you in was read as the end of the match, so amhips, amsit3 or AMATEASE kept the board up until the emote ended _(Sol, after Kushina's, Nib's and turin's reports)_

@@ -120,6 +120,8 @@ mod impacts;
 mod ingame_menu;
 mod input;
 mod input_health;
+#[cfg(feature = "mod-jof")]
+mod jof_content;
 mod jof_tag;
 mod keybind_editor;
 mod lamp_lights;

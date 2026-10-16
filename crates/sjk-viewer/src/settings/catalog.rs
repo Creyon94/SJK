@@ -63,6 +63,9 @@ pub(super) enum ValueKind {
     ImportPage,
     /// Open the installed PK3 pack browser.
     AssetBrowser,
+    /// Open the JoF content card (`jof.downloads`, `crate::jof_content`).
+    #[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
+    JofContent,
     /// `cl_gameplayFps`: Left/Right step through the presets (125, 142, 250,
     /// 333); Enter opens the card that explains it and takes any value
     /// ([`crate::gameplay_fps`]).
@@ -750,6 +753,19 @@ pub(super) const GAME: &[Setting] = &[
         label: "JoF tools",
         cvar: "mod_jof",
         kind: ValueKind::Bool,
+    },
+    // JoF content (`docs/jof-content.md`): its card, and where it downloads from.
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF content",
+        cvar: crate::jof_content::COMMAND,
+        kind: ValueKind::JofContent,
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF content host",
+        cvar: crate::jof_content::SOURCE,
+        kind: ValueKind::Choice(&crate::jof_content::SOURCES),
     },
     Setting {
         label: "Invisible brushes",

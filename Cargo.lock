@@ -2455,6 +2455,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sjk-jof-content"
+version = "0.1.0"
+dependencies = [
+ "md-5",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "ureq",
+]
+
+[[package]]
 name = "sjk-materialgen"
 version = "0.1.0"
 dependencies = [
@@ -2585,6 +2596,7 @@ dependencies = [
  "sjk-entity",
  "sjk-game-jka",
  "sjk-identity",
+ "sjk-jof-content",
  "sjk-mod",
  "sjk-mod-japlus",
  "sjk-mod-jof",
