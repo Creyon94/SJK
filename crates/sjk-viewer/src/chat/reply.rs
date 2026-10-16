@@ -179,10 +179,9 @@ mod tests {
             Instant::now(),
         );
         assert_eq!(chat.reply_target().map(ChatTarget::slot), Ok(4));
-        assert!(
-            chat.lines[0].sender.is_none(),
-            "the line stays unattributed"
-        );
+        // The line is Bob's too, read from his name as JA+ sends it.
+        assert_eq!(chat.lines[0].sender.map(ChatTarget::slot), Some(4));
+        assert_eq!(chat.lines[0].channel, Channel::Whisper);
         // Our own whisper echoed back is not one to reply to.
         chat.receive(
             ServerEventKind::Chat,

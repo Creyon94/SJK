@@ -529,7 +529,7 @@ be written with a look-alike, as players do (Creyon's request, 11/10/2026): `jø
 Greek, Cyrillic and full-width letters, `0`, `°` and `º` for the o and `Λ`, `Δ` for the A
 (`looks_like`); a clan whose tag has other letters may need theirs added.
 
-Where it shows: the game chat's name rows, SJK chat lines in the feed, the SJK UI's chat
+Where it shows: the game chat's lines with a sender (JA+ lines too, since 16/10/2026), SJK chat lines in the feed, the SJK UI's chat
 dock and chat page, the scoreboard (classic and SJK, list rows and duel cards), the player
 card (`inspect`) and the SJK UI Players page's card. Not on nameplates.
 

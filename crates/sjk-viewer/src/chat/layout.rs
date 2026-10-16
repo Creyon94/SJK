@@ -11,9 +11,6 @@ pub(super) const WRAP_LINES: usize = 4;
 /// scale 0.65, rows `CHATBOX_FONT_HEIGHT` 20 x 0.65 apart in `CG_ChatBox_DrawStrings`),
 /// and a descender still clears the next row's ascenders by 0.18 of the box.
 pub(super) const ROW_PITCH: f32 = 1.0;
-/// Advance from a sender's name line to the first body row, in 1080p pixels:
-/// the 16 px name line box and a 4 px gap.
-pub(super) const NAME_ADVANCE: f32 = 20.0;
 /// Space between consecutive messages, in 1080p pixels.
 pub(super) const MESSAGE_GAP: f32 = 8.0;
 

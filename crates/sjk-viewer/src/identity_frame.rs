@@ -9,7 +9,8 @@
 //! (`crash_report.rs`), starts and ends emotes (`emotes_frame.rs`), shows the pings
 //! relayed for this server (`world_ping_frame.rs`), keeps the
 //! players' looks (`looks_frame.rs`), follows the players muted on this PC
-//! (`muted_players_frame.rs`), notes the Profile screen's tab on show
+//! (`muted_players_frame.rs`) and what SJK knows of each slot's player for the game
+//! chat (`chat/marks.rs`), notes the Profile screen's tab on show
 //! (`profile_hub.rs`), hands the hub the player models the game has
 //! (`installed_models.rs`), puts the pictures that finished loading into the UI's atlas and
 //! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`).
@@ -26,6 +27,7 @@ impl GpuState {
         self.update_emotes();
         self.update_world_pings();
         self.update_muted_players();
+        self.update_chat_marks();
         avatars::service(&self.ui_shapes, &self.queue);
         if let Some(console) = self.console.as_ref() {
             chat_gifs::set_enabled(console.bool_cvar(chat_gifs::CVAR) != Some(false));
@@ -55,7 +57,12 @@ impl GpuState {
             .trim()
             .to_owned();
         let location = self.live_session.as_ref().and_then(|session| {
-            player_identity::location(session.server(), session.is_local(), session.game_state())
+            player_identity::location(
+                session.server(),
+                session.is_local(),
+                session.game_state(),
+                &name,
+            )
         });
         let chat = console.bool_cvar("cl_sjkChat") != Some(false);
         // Pictures are read from the hub the identity talks to, and only while it is on.
@@ -76,6 +83,24 @@ impl GpuState {
         self.update_achievements();
         self.update_holocron_activity();
         self.follow_crash_reports();
+    }
+
+    /// Keep what the game chat shows of each slot's player (SJK's emblem, the verified
+    /// tick, the name as worn) in step with the hub's claims (`chat/marks.rs`).
+    fn update_chat_marks(&mut self) {
+        let live = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local());
+        let own = live.and_then(|session| usize::try_from(session.game_state().client_num).ok());
+        let worn = self
+            .console
+            .as_ref()
+            .and_then(|console| console.text_cvar("name").ok())
+            .unwrap_or_default()
+            .trim();
+        self.chat
+            .follow_marks(player_identity::revision(), worn, own, live.is_some());
     }
 
     /// Hand the identity the player models the game has and the one the player wears,

@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Game chat lines look like SJK chat lines: the SJK emblem for players on SJK, the clan emblem (JoF, JoFA) and the verified tick before the name, on JA+ servers too; only the message colour tells the two chats apart. A name the server cut an emoji from shows whole to other SJK players _(Sol)_
 - The first start shows an alpha notice: SJK is a free and open-source alpha, so expect bugs and unfinished parts; report them on the SJK Discord or with Report a bug, right from the card; no warranty, and nobody owes you anything. Tick "I understand" to continue _(Sol)_
 
 ## 2026.1016.2 (Alpha) | 16/10/2026

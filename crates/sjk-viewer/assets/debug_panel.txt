@@ -24,6 +24,18 @@
 
 # ---- Console & chat ----
 
+[chat-marks]
+area: Console & chat
+title: Game chat lines look like SJK chat: emblems, tick, names with an emoji
+change: A game line with a sender flows like an SJK line; only the message colour differs.
+change: SJK players get the SJK emblem and tick; JoF/JoFA emblems show on JA+ lines too.
+change: A name the server cut an emoji from shows whole to SJK players (claim at the hub).
+test: On a JoF server, say gg: your line shows SJK emblem, JoF emblem, name, tick, message.
+test: Another SJK player's lines get the SJK emblem; other clients' only the clan emblem.
+test: Wear a name with an emoji (a fox): the game chat shows it; other SJK players see it too.
+test: Team chat: a small TEAM after the name. Open chat, rest on a JA+ name: its card shows.
+note: Others see your emoji a few seconds after you join (the claim reaches the hub).
+
 [emote-music-loop]
 area: Rendering & effects
 title: Emote music loops, emote icons on a blue disc
