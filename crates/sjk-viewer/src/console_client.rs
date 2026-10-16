@@ -249,6 +249,17 @@ fn jof_commands() -> &'static [(&'static str, &'static str)] {
     }
 }
 
+/// Whether `name` is one of the client's own commands. Checked before the mods,
+/// whose `<id>.` prefix a client command may share (`jof.downloads`).
+pub(crate) fn known(name: &str) -> bool {
+    COMMANDS
+        .iter()
+        .chain(crate::cosmetics::command::COMMANDS)
+        .chain(crate::saber_colour_command::COMMANDS)
+        .chain(jof_commands())
+        .any(|(known, _)| known.eq_ignore_ascii_case(name))
+}
+
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
     for &(name, help) in COMMANDS

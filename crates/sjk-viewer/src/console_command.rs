@@ -166,8 +166,14 @@ impl ViewerConsole {
                         return Some(Ok(Vec::new()));
                     }
                     // A mod's command runs with the client's frame state, as the
-                    // client commands do; one whose mod is off answers here.
-                    match mods.accepts(&tokens[0]) {
+                    // client commands do; one whose mod is off answers here. The
+                    // client's own commands come first, even under a mod's prefix.
+                    let mod_answer = if console_client::known(&tokens[0]) {
+                        None
+                    } else {
+                        mods.accepts(&tokens[0])
+                    };
+                    match mod_answer {
                         Some(Ok(())) if client_commands.pending.len() == 64 => {
                             return Some(Err("Client command queue is full".into()));
                         }
@@ -368,6 +374,30 @@ mod tests {
             Some(&["japlus.guntele".to_owned(), "100".to_owned()][..])
         );
         assert!(console.mods_listing()[0].contains("^2loaded"));
+    }
+
+    /// `jof.downloads` is the client's own command under the JoF tools' prefix:
+    /// it runs off a JoF server, where the mod's commands do not.
+    #[cfg(feature = "mod-jof")]
+    #[test]
+    fn a_client_command_under_a_mod_prefix_runs_anywhere() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line("jof.downloads", None);
+        assert_eq!(
+            console.client_commands.pending.back().map(Vec::as_slice),
+            Some(&["jof.downloads".to_owned()][..])
+        );
+        assert!(
+            !console
+                .shell
+                .lines()
+                .any(|line| line.text.contains("Unknown command"))
+        );
+        // The mod's own commands still wait for a JoF server.
+        console.execute_console_line("jof.commands", None);
+        assert_eq!(console.client_commands.pending.len(), 1);
     }
 
     #[test]

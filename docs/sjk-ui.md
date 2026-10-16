@@ -763,8 +763,8 @@ that mode for the visit and leaves the player's choice as it was.
     aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
     damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
     feed, chat) and General (Menus: menu style and text size; From another
-    client: import; SJK online: check for updates, SJK chat, crash reports,
-    settings usage, SJK identity key). They are `settings::Group::Simple`.
+    client: import; JoF content: its card, since 16/10/2026; SJK online: check for
+    updates, SJK chat, crash reports, settings usage, SJK identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
     12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
     HUD, Chat, Quick wheel, Mods, Network (Chat and Mods since 12/10/2026, when
