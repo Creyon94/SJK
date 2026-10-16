@@ -5000,3 +5000,15 @@ test: Die in the box: the death sound; you respawn without it.
 test: Collection > Toys: two toys; the switch beside the box turns it on and off.
 note: Spotting and others seeing the box need a second SJK client and the hub deploy.
 note: Sounds only from base/zz_sjk_box_sounds_local.pk3 (yours, not shipped).
+
+# ---- Bug reports, 17/10/2026 ----
+
+[freecam-emote]
+area: Gameplay
+title: Free camera moves during emotes (amsit, amhips, dances)
+change: The held-animation input filter stopped the free camera; it now flies freely.
+change: The body still stays in its emote on the server. Hub reports 47, 57, 62.
+test: On a JA+ server: amhips, then freecam: the camera flies with the move keys.
+test: Same from the quick wheel, and during an SJK dance emote.
+test: Leave free cam: you are still in the emote where you left it.
+note: Fix not confirmed for JA+ emotes; if it still fails, note which emote.
