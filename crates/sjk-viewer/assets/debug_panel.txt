@@ -506,7 +506,7 @@ title: Alpha notice at the first start
 change: A card at the first start: alpha, free and open source, bugs expected, no warranty.
 change: Continue needs the "I understand" tick; Quit leaves; ui_alphaNotice keeps the answer.
 test: ui_alphaNotice 0, restart: the card shows before First setup.
-test: Continue is grey until the tick (click the line or Space); Escape does nothing.
+test: Continue is grey until all 3 ticks (click a line, Space, or 1-3); Escape does nothing.
 test: Join the SJK Discord opens discord.gg/dGBdMygvJw; after Continue it never shows again.
 test: The Report a bug icon (wrench) opens the report dialog; Cancel brings the card back.
 

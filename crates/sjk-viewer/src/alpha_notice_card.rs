@@ -2,8 +2,10 @@
 //! an SJK pop-up card over the darkened screen says SJK is an alpha build of a free and
 //! open-source project, that bugs and unfinished parts are to be expected, how to report
 //! them (the SJK Discord, or Report a bug, the game menu's icon, whose dialog the card
-//! opens too), and that SJK comes with no warranty and owes the player nothing. Continue (gold, Enter) only works once the player ticks "I
-//! understand" (Space); Quit leaves the game. There is no way past it but those two.
+//! opens too), and that SJK comes with no warranty and owes the player nothing. Continue
+//! (gold, Enter) only works once the player ticks all three promises ([`PROMISES`]: I
+//! understand; I won't DM Sol how the game works; I won't DM Sol bugs or ideas but report
+//! them); Quit leaves the game. There is no way past it but those two.
 //!
 //! `ui_alphaNotice` holds the notice's version the player accepted: raising
 //! [`VERSION`] when the words change shows the card again. It shows over the menus, never
@@ -19,15 +21,16 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 /// The notice's version the player accepted.
 pub(crate) const CVAR: &str = "ui_alphaNotice";
 /// This notice's version: raise it when the words change, to ask again.
-pub(crate) const VERSION: i64 = 1;
+pub(crate) const VERSION: i64 = 2;
 /// The SJK Discord's permanent invite (to #welcome; it never expires).
 pub(crate) const DISCORD_URL: &str = "https://discord.gg/dGBdMygvJw";
 
 const CONTINUE_TOKEN: u16 = 1;
 const QUIT_TOKEN: u16 = 2;
-const TICK_TOKEN: u16 = 3;
 const DISCORD_TOKEN: u16 = 4;
 const REPORT_TOKEN: u16 = 5;
+/// The promises' ticks, `TICK_TOKEN + n`.
+const TICK_TOKEN: u16 = 10;
 
 /// The card's left edge and width; it is as tall as what it holds, centred.
 const CARD_X: f32 = 510.0;
@@ -46,9 +49,10 @@ const ROW_GAP: f32 = 22.0;
 const ROW_HEIGHT: f32 = 54.0;
 const REPORT_WIDTH: f32 = 330.0;
 const DISCORD_WIDTH: f32 = 230.0;
-/// The tick's lines and the buttons.
+/// The ticks' lines and the buttons.
 const TICK_GAP: f32 = 30.0;
-const TICK_CHARS: usize = 84;
+const PROMISE_GAP: f32 = 14.0;
+const TICK_CHARS: usize = 94;
 const FOOT_GAP: f32 = 26.0;
 const BUTTON_HEIGHT: f32 = 46.0;
 const BUTTON_GAP: f32 = 14.0;
@@ -70,15 +74,19 @@ const PARAGRAPHS: [&str; 2] = [
 const TERMS: &str = "SJK is a fun project that Sol and its contributors make in their free \
      time. It comes with no warranty of any kind (as its GPL licence says), and nobody owes \
      you support, fixes or features.";
-/// What the player ticks.
-const UNDERSTAND: &str = "I understand that SJK is a work in progress that may have bugs, that \
-     it comes with no warranty, and that I am owed nothing.";
+/// What the player ticks, every one before Continue.
+pub(crate) const PROMISES: [&str; 3] = [
+    "I understand that SJK is a work in progress that may have bugs, that it comes with no \
+     warranty, and that I am owed nothing.",
+    "I won't DM Sol to ask how the game works: I will do my best to figure it out myself.",
+    "I won't DM Sol bugs or ideas: I will report them with Report a bug or on the SJK Discord.",
+];
 
 /// What the player chose on the card.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Choice {
-    /// Flip "I understand".
-    Tick,
+    /// Flip promise `n`.
+    Tick(usize),
     /// Accepted: the card goes for good.
     Continue,
     Quit,
@@ -90,7 +98,7 @@ pub(crate) enum Choice {
 pub(crate) struct Card {
     /// Not accepted yet.
     pending: bool,
-    ticked: bool,
+    ticked: [bool; PROMISES.len()],
     /// Shown this frame.
     open: bool,
     ui: MenuCanvas,
@@ -100,9 +108,9 @@ impl Default for Card {
     fn default() -> Self {
         Self {
             pending: false,
-            ticked: false,
+            ticked: [false; PROMISES.len()],
             open: false,
-            ui: MenuCanvas::with_capacities(32, 320, 96),
+            ui: MenuCanvas::with_capacities(48, 2048, 256),
         }
     }
 }
@@ -126,7 +134,8 @@ impl Card {
         self.open
     }
 
-    /// Space ticks, Enter continues once ticked; every other key, Escape too, is
+    /// Space ticks the first promise not ticked yet (unticks the last when all are), 1 to 3
+    /// flip a promise, Enter continues once all are ticked; every other key, Escape too, is
     /// swallowed while the card shows.
     pub(crate) fn handle_key(&mut self, event: &KeyEvent) -> Option<Choice> {
         if event.state != ElementState::Pressed || event.repeat {
@@ -146,7 +155,15 @@ impl Card {
 
     fn key(&mut self, code: KeyCode) -> Option<Choice> {
         let choice = match code {
-            KeyCode::Space => Choice::Tick,
+            KeyCode::Space => Choice::Tick(
+                self.ticked
+                    .iter()
+                    .position(|ticked| !ticked)
+                    .unwrap_or(PROMISES.len() - 1),
+            ),
+            KeyCode::Digit1 | KeyCode::Numpad1 => Choice::Tick(0),
+            KeyCode::Digit2 | KeyCode::Numpad2 => Choice::Tick(1),
+            KeyCode::Digit3 | KeyCode::Numpad3 => Choice::Tick(2),
             KeyCode::Enter | KeyCode::NumpadEnter => Choice::Continue,
             _ => return None,
         };
@@ -161,19 +178,26 @@ impl Card {
         let choice = match event.token {
             Some(CONTINUE_TOKEN) => Choice::Continue,
             Some(QUIT_TOKEN) => Choice::Quit,
-            Some(TICK_TOKEN) => Choice::Tick,
             Some(DISCORD_TOKEN) => Choice::Discord,
             Some(REPORT_TOKEN) => Choice::Report,
+            Some(token) if (TICK_TOKEN..TICK_TOKEN + PROMISES.len() as u16).contains(&token) => {
+                Choice::Tick(usize::from(token - TICK_TOKEN))
+            }
             _ => return None,
         };
         self.choose(choice)
     }
 
-    /// The tick flips; Continue needs it and puts the card away.
+    /// Whether every promise is ticked.
+    fn all_ticked(&self) -> bool {
+        self.ticked.iter().all(|ticked| *ticked)
+    }
+
+    /// A tick flips; Continue needs them all and puts the card away.
     fn choose(&mut self, choice: Choice) -> Option<Choice> {
         match choice {
-            Choice::Tick => self.ticked = !self.ticked,
-            Choice::Continue if !self.ticked => return None,
+            Choice::Tick(index) => self.ticked[index] = !self.ticked[index],
+            Choice::Continue if !self.all_ticked() => return None,
             Choice::Continue => self.pending = false,
             Choice::Quit | Choice::Discord | Choice::Report => {}
         }
@@ -204,11 +228,20 @@ impl Card {
             lines.push((y, line));
             y += LINE;
         }
-        let tick_top = y + TICK_GAP;
-        let tick_lines: Vec<&str> = wrap(UNDERSTAND, TICK_CHARS).collect();
-        let foot = tick_top + tick_lines.len() as f32 * LINE + FOOT_GAP;
+        // Each promise's top and lines.
+        let mut promises: Vec<(f32, Vec<&str>)> = Vec::new();
+        y += TICK_GAP;
+        for promise in PROMISES {
+            let promise_lines: Vec<&str> = wrap(promise, TICK_CHARS).collect();
+            let next = y + promise_lines.len() as f32 * LINE + PROMISE_GAP;
+            promises.push((y, promise_lines));
+            y = next;
+        }
+        let foot = y - PROMISE_GAP + FOOT_GAP;
         let height = foot + BUTTON_HEIGHT + MARGIN;
         let top = ((1080.0 - height) * 0.5).max(20.0);
+        let ticks = self.ticked;
+        let all_ticked = self.all_ticked();
         let ui = &mut self.ui;
         ui.begin_transparent(viewport);
         kit::scrim(ui, viewport);
@@ -313,46 +346,42 @@ impl Card {
             FontWeight::Regular,
             TextAlign::End,
         );
-        // "I understand", which Continue needs.
-        let tick_top = top + tick_top;
-        let after = kit::tick(
-            ui,
-            &frame,
-            TEXT_X,
-            tick_top + LINE * 0.5,
-            self.ticked,
-            false,
-        );
-        for (index, line) in tick_lines.iter().enumerate() {
-            text(
-                ui,
-                TextFamily::Body,
-                format_args!("{line}"),
+        // The promises, which Continue needs.
+        for (index, (promise_top, promise_lines)) in promises.iter().enumerate() {
+            let promise_top = top + promise_top;
+            let ticked = ticks[index];
+            let after = kit::tick(ui, &frame, TEXT_X, promise_top + LINE * 0.5, ticked, false);
+            for (line_index, line) in promise_lines.iter().enumerate() {
+                text(
+                    ui,
+                    TextFamily::Body,
+                    format_args!("{line}"),
+                    frame.rect(
+                        after + 14.0,
+                        promise_top + line_index as f32 * LINE,
+                        TEXT_WIDTH,
+                        LINE,
+                    ),
+                    18.0 * s,
+                    if ticked {
+                        color::TEXT
+                    } else {
+                        color::GOLD_BRIGHT
+                    },
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            }
+            ui.hit_region(
+                TICK_TOKEN + index as u16,
                 frame.rect(
-                    after + 14.0,
-                    tick_top + index as f32 * LINE,
-                    TEXT_WIDTH,
-                    LINE,
+                    TEXT_X - 8.0,
+                    promise_top - 6.0,
+                    TEXT_WIDTH + 16.0,
+                    promise_lines.len() as f32 * LINE + 12.0,
                 ),
-                18.0 * s,
-                if self.ticked {
-                    color::TEXT
-                } else {
-                    color::GOLD_BRIGHT
-                },
-                FontWeight::Regular,
-                TextAlign::Start,
             );
         }
-        ui.hit_region(
-            TICK_TOKEN,
-            frame.rect(
-                TEXT_X - 8.0,
-                tick_top - 8.0,
-                TEXT_WIDTH + 16.0,
-                tick_lines.len() as f32 * LINE + 16.0,
-            ),
-        );
         let foot = top + foot;
         kit::button(
             ui,
@@ -360,7 +389,7 @@ impl Card {
             [right - CONTINUE_WIDTH, foot, CONTINUE_WIDTH, BUTTON_HEIGHT],
             "Continue",
             true,
-            self.ticked,
+            all_ticked,
             false,
             CONTINUE_TOKEN,
         );
@@ -380,7 +409,7 @@ impl Card {
             QUIT_TOKEN,
         );
         let [right, keys_y] = frame.point(KEYS_RIGHT, KEYS_Y);
-        let hints: [(&[&str], &str); 2] = [(&["Space"], "I understand"), (&["Enter"], "continue")];
+        let hints: [(&[&str], &str); 2] = [(&["Space"], "tick the next"), (&["Enter"], "continue")];
         let width: f32 = hints
             .iter()
             .map(|(keys, label)| key_hint_width(keys, label, s) + 18.0 * s)
@@ -389,10 +418,10 @@ impl Card {
         for (keys, label) in hints {
             x = key_hint(ui, keys, label, x, keys_y, s) + 18.0 * s;
         }
-        ui.finish(if self.ticked {
-            CONTINUE_TOKEN
-        } else {
-            TICK_TOKEN
+        let first_open = ticks.iter().position(|ticked| !ticked);
+        ui.finish(match first_open {
+            None => CONTINUE_TOKEN,
+            Some(index) => TICK_TOKEN + index as u16,
         });
         target.append(&self.ui, viewport);
     }
@@ -454,7 +483,7 @@ impl crate::GpuState {
             Some(Choice::Discord) => crate::update::open_page(DISCORD_URL),
             // The dialog takes the screen; the card comes back when it closes.
             Some(Choice::Report) => self.open_bug_report(),
-            Some(Choice::Tick) | None => {}
+            Some(Choice::Tick(_)) | None => {}
         }
     }
 }
@@ -464,19 +493,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn continue_needs_the_tick_and_puts_the_card_away() {
+    fn continue_needs_every_tick_and_puts_the_card_away() {
         let mut card = Card::default();
         card.offer(0);
         assert!(card.wants());
-        // Escape and other keys do nothing; Enter does nothing before the tick.
+        // Escape and other keys do nothing; Enter does nothing before the ticks.
         assert_eq!(card.key(KeyCode::Escape), None);
         assert_eq!(card.key(KeyCode::KeyA), None);
         assert_eq!(card.key(KeyCode::Enter), None);
         assert!(card.wants());
-        assert_eq!(card.key(KeyCode::Space), Some(Choice::Tick));
-        assert_eq!(card.key(KeyCode::Space), Some(Choice::Tick));
+        // Space ticks the next one; a number flips its own.
+        assert_eq!(card.key(KeyCode::Space), Some(Choice::Tick(0)));
+        assert_eq!(card.key(KeyCode::Digit3), Some(Choice::Tick(2)));
         assert_eq!(card.key(KeyCode::Enter), None);
-        assert_eq!(card.key(KeyCode::Space), Some(Choice::Tick));
+        assert_eq!(card.key(KeyCode::Space), Some(Choice::Tick(1)));
+        assert!(card.all_ticked());
+        // All ticked, Space unticks the last.
+        assert_eq!(card.key(KeyCode::Space), Some(Choice::Tick(2)));
+        assert_eq!(card.key(KeyCode::Enter), None);
+        assert_eq!(card.key(KeyCode::Digit3), Some(Choice::Tick(2)));
         assert_eq!(card.key(KeyCode::Enter), Some(Choice::Continue));
         assert!(!card.wants());
     }
