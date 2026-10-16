@@ -665,6 +665,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show SJK's donation goal on the SJK UI's main page, read from the SJK hub, with Donate opening SJK's Ko-fi page (0 hides it and asks the hub nothing)",
         ),
         CvarDefinition::new(
+            crate::alpha_notice_card::CVAR,
+            0,
+            archive,
+            "The alpha notice's version you accepted (the card at the first start that says SJK is an alpha with no warranty); 0 shows it again",
+        ),
+        CvarDefinition::new(
             "ui_hideFirstSetup",
             false,
             archive,

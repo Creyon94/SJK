@@ -66,6 +66,11 @@ pub(crate) fn world_input(
     // for updates.
     console.set_cvar("cl_identity", "0");
     console.set_cvar("cl_autoUpdate", "0");
+    // Nor stop at the alpha notice, unless a shot asks for it.
+    console.set_cvar(
+        crate::alpha_notice_card::CVAR,
+        &crate::alpha_notice_card::VERSION.to_string(),
+    );
     // Shots for the site leave out the build label.
     if std::env::var_os("WORLD_SHOT_NO_VERSION").is_some() {
         console.set_cvar(crate::version_overlay::CVAR, "0");
@@ -300,6 +305,9 @@ mod graphics_reload;
 
 #[path = "world_shot_fps_help.rs"]
 mod fps_help_shots;
+
+#[path = "world_shot_alpha_notice.rs"]
+mod alpha_notice_shots;
 
 #[path = "world_shot_chat_gifs.rs"]
 mod chat_gifs_shots;

@@ -1,3 +1,13 @@
+## Alpha notice at the first start
+
+16/10/2026, `personal/alpha-notice` (Sol's request): the first start shows an alpha
+notice card ([sjk-ui.md](sjk-ui.md#alpha-notice)): alpha build of a free and open-source
+project, bugs expected, report on the SJK Discord (a permanent invite to #welcome,
+discord.gg/dGBdMygvJw, made by the bot) or with Report a bug, no warranty, nobody owed
+anything. Continue needs the "I understand" tick; Quit leaves. `ui_alphaNotice` keeps
+the accepted version. Checked by the card's unit tests and an off-screen render over
+duel6 before and after the tick (`alpha_notice_card_shot`). Not tried in the game.
+
 ## Graphics presets: Vanilla style, SJK (recommended), Experimental
 
 16/10/2026, `personal/graphics-presets` (Sol's request): the Renderer row (Vanilla or
