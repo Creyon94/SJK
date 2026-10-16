@@ -23,6 +23,11 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Linux: installing an update now starts the new version; the restart started the old program again, so the update never seemed to take _(Sol, after a Linux player's report)_
+- Linux: Browse opens a file window again (for an imported .cfg or your profile picture) through zenity or kdialog when the desktop's own one does not answer, and Stop waiting gives up on a window that never showed instead of leaving Browse greyed out _(Sol, after a Linux player's report)_
+
 ## 2026.1016.1 (Alpha) | 16/10/2026
 
 JoF's maps, skins and hilts from inside SJK, one graphics preset to choose, and a batch of fixes from your reports.

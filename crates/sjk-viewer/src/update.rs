@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 /// The repository that publishes SJK's releases.
@@ -333,10 +333,35 @@ fn check_now(installed: &str) -> State {
     }
 }
 
+/// The running program's path, read once (the start-up clean-up reads it first). On
+/// Linux `current_exe` follows the file itself, so once an install renamed it to
+/// `<name>.old` it named the old program, and the restart started that again.
+fn program() -> Result<PathBuf, String> {
+    static PROGRAM: OnceLock<Result<PathBuf, String>> = OnceLock::new();
+    PROGRAM
+        .get_or_init(|| {
+            std::env::current_exe()
+                .map(|exe| installed_name(&exe))
+                .map_err(|error| format!("no program path: {error}"))
+        })
+        .clone()
+}
+
+/// `exe` under the name an install gives it: without the `.old` an install renamed
+/// it to, or the ` (deleted)` Linux adds once that file is removed.
+fn installed_name(exe: &Path) -> PathBuf {
+    let text = exe.to_string_lossy();
+    let text = text.strip_suffix(" (deleted)").unwrap_or(&text);
+    match text.strip_suffix(".old") {
+        Some(name) => PathBuf::from(name),
+        None => exe.to_path_buf(),
+    }
+}
+
 /// The folder of the running program, where the update's files go.
 fn install_directory() -> Result<PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|error| format!("no program path: {error}"))?;
-    exe.parent()
+    program()?
+        .parent()
         .map(Path::to_path_buf)
         .ok_or_else(|| "no program folder".to_owned())
 }
@@ -552,7 +577,7 @@ pub(crate) fn restart_if_requested() {
     if !RESTART.swap(false, Ordering::SeqCst) {
         return;
     }
-    let Ok(exe) = std::env::current_exe() else {
+    let Ok(exe) = program() else {
         return;
     };
     let _ = std::process::Command::new(exe)
@@ -592,6 +617,22 @@ mod tests {
         // A release found or installed stays as it is.
         assert!(!due(Some(start), &State::Installed, later));
         assert!(!due(Some(start), &State::Unversioned, later));
+    }
+
+    #[test]
+    fn the_restart_starts_the_installed_program_not_the_old_one() {
+        assert_eq!(
+            installed_name(Path::new("/games/sjk/sjk.old")),
+            Path::new("/games/sjk/sjk")
+        );
+        assert_eq!(
+            installed_name(Path::new("/games/sjk/sjk.old (deleted)")),
+            Path::new("/games/sjk/sjk")
+        );
+        assert_eq!(
+            installed_name(Path::new("C:/SJK/sjk.exe")),
+            Path::new("C:/SJK/sjk.exe")
+        );
     }
 
     #[test]

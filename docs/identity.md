@@ -685,10 +685,11 @@ request). The hub's side is `PROTOCOL.md`, "Pictures", in Sol-Vulpes/SJK-hub: th
 client needs a hub with it, or profiles carry no `avatar` and the stand-ins show.
 
 **Choosing one.** The picture panel's **Browse...** (09/10/2026, Sol's request) opens
-the system's file dialog, listing PNG, JPEG and TGA files, through the `rfd` crate
-(0.17.2; on Linux the desktop portal, reached through `libdbus` loaded at run time, so
-the build needs no GTK). The dialog runs on a worker thread, so the game keeps drawing;
-a second Browse... while it is open does nothing, and the file chosen is read as a
+the system's file dialog, listing PNG, JPEG and TGA files (`file_dialog.rs`: the `rfd`
+crate, 0.17.2; on Linux `zenity` or `kdialog` when installed, else the desktop portal,
+reached through `libdbus` loaded at run time, so the build needs no GTK). The dialog
+runs on a worker thread, so the game keeps drawing; while it is open the button reads
+Stop waiting and a second press gives up on it, and the file chosen is read as a
 dropped one. A picture file dropped on the window (a PNG, JPEG or TGA, known by its
 extension, at any time; while the Profile page shows, any file but a `.cfg`, so the
 page can say why it is no picture) or named to `sjkavatar <file>` opens the Profile

@@ -34,10 +34,7 @@ const FPS_TOKEN: u16 = 940;
 /// Ask the player for a config with the system's file dialog; it blocks until the
 /// dialog closes, so it runs on a worker thread.
 fn pick_config() -> Option<PathBuf> {
-    rfd::FileDialog::new()
-        .set_title("Choose a config to import")
-        .add_filter("Configs (.cfg)", &["cfg"])
-        .pick_file()
+    crate::file_dialog::pick_file("Choose a config to import", "Configs (.cfg)", &["cfg"])
 }
 
 /// What the console does after the page handled an event.
@@ -146,10 +143,11 @@ impl Panel {
     }
 
     /// Browse: open the system's file dialog on a worker thread; the file chosen is
-    /// read as a dropped one is ([`Self::take_browsed`]). Nothing happens while one
-    /// is open.
+    /// read as a dropped one is ([`Self::take_browsed`]). Pressed again while one is
+    /// open, it stops waiting for it (Stop waiting), so a dialog that never showed
+    /// (a Linux desktop portal without a file chooser) does not hold the page.
     pub(crate) fn browse(&mut self) {
-        if self.browsing.is_some() {
+        if self.browsing.take().is_some() {
             return;
         }
         let picker = self.picker;
@@ -605,6 +603,21 @@ mod tests {
         panel.picker = || None;
         panel.browse();
         assert_eq!(wait_for_dialog(&mut panel), Browsed::Nothing(None));
+    }
+
+    #[test]
+    fn a_second_browse_stops_waiting_for_the_dialog() {
+        let mut panel = Panel::new();
+        panel.picker = || {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            None
+        };
+        panel.open(true, String::new(), None);
+        panel.browse();
+        assert!(panel.browsing.is_some());
+        panel.browse();
+        assert!(panel.browsing.is_none());
+        assert!(panel.take_browsed().is_none());
     }
 
     fn fps_panel(imported: Option<Vec<String>>) -> Panel {

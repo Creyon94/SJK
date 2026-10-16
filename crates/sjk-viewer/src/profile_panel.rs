@@ -208,10 +208,11 @@ impl Default for Panel {
 /// Ask the player for a picture file with the system's file dialog, listing PNG, JPEG
 /// and TGA files; it blocks until the dialog closes, so it runs on a worker thread.
 fn pick_picture() -> Option<PathBuf> {
-    rfd::FileDialog::new()
-        .set_title("Choose your SJK picture")
-        .add_filter("Pictures (PNG, JPEG, TGA)", &["png", "jpg", "jpeg", "tga"])
-        .pick_file()
+    crate::file_dialog::pick_file(
+        "Choose your SJK picture",
+        "Pictures (PNG, JPEG, TGA)",
+        &["png", "jpg", "jpeg", "tga"],
+    )
 }
 
 /// Add `text` to the bio `field` as far as the rules allow: characters a bio cannot
@@ -361,10 +362,11 @@ impl Panel {
     }
 
     /// Browse...: open the system's file dialog on a worker thread; the file chosen is
-    /// read as a dropped one is. Nothing happens while one is open.
+    /// read as a dropped one is. Pressed again while one is open, it stops waiting
+    /// for it (Stop waiting), as the Import page's Browse does.
     fn browse(&mut self) {
         self.focus = Focus::Browse;
-        if self.browsing.is_some() {
+        if self.browsing.take().is_some() {
             return;
         }
         let picker = self.picker;
@@ -1073,19 +1075,17 @@ pub(crate) mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         assert!(!panel.is_browsing() && panel.reading.is_none() && panel.ready.is_none());
-        // A file chosen: a second Browse while the dialog is open does nothing.
-        *FILE.lock().unwrap() = Some(picture_file(dir.path(), 300, 200));
+        // A second Browse while the dialog is open stops waiting for it.
         let gate = GATE.lock().unwrap();
         let _ = panel.activate(None);
         assert!(panel.is_browsing());
-        let first = panel.browsing.as_ref().map(|receiver| receiver as *const _);
         let _ = panel.activate(None);
-        assert_eq!(
-            panel.browsing.as_ref().map(|receiver| receiver as *const _),
-            first,
-            "one dialog at a time"
-        );
+        assert!(!panel.is_browsing(), "stopped waiting");
         drop(gate);
+        // A file chosen.
+        *FILE.lock().unwrap() = Some(picture_file(dir.path(), 300, 200));
+        let _ = panel.activate(None);
+        assert!(panel.is_browsing());
         for _ in 0..500 {
             panel.sync(&inputs(Some(&shot)));
             if !panel.is_browsing() && panel.reading.is_none() {
