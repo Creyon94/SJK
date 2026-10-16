@@ -169,6 +169,12 @@ impl ViewerConsole {
                     self.push_log("^3profile: the identity is not running yet");
                 }
             }
+            PanelAction::SetEmoji { emoji } => {
+                if !crate::player_identity::set_emoji(emoji) {
+                    self.profile_panel
+                        .emoji_failed("Not sent: turn the SJK identity on first (cl_identity 1)");
+                }
+            }
             PanelAction::SetAvatar { png } => {
                 if !crate::player_identity::set_avatar(png) {
                     self.profile_panel
@@ -314,6 +320,12 @@ impl ViewerConsole {
     #[cfg(test)]
     pub(crate) fn preview_profile(&mut self, preview: super::profile_panel::Preview) {
         self.profile_panel.preview = Some(preview);
+    }
+
+    /// Show the open page's emoji panel, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn profile_show_emoji(&mut self) {
+        self.profile_panel.show_emoji();
     }
 
     /// Type `text` into the open page's bio, for a world shot.

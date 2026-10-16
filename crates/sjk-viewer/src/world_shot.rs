@@ -1160,6 +1160,7 @@ Found the fog bug, ask me about it!"
             verified: true,
             staff: false,
             trust: None,
+            emoji: "🦊".to_owned(),
             created: 1_791_250_000,
             names: ["^1Sol^7Vulpes", "^4Fox", "Sol"]
                 .iter()
@@ -1295,6 +1296,13 @@ like this one.",
                     "{}",
                     shoot(&mut gpu, 6, &format!("duel6-profile-typing{suffix}")).display()
                 );
+                if let Some(console) = gpu.console.as_mut() {
+                    console.profile_show_emoji();
+                }
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 6, &format!("duel6-profile-emoji{suffix}")).display()
+                );
             }
             let Some((mut gpu, _profile)) =
                 open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
@@ -1325,6 +1333,7 @@ like this one.",
             verified: false,
             staff: false,
             trust: None,
+            emoji: String::new(),
             created: 1_791_250_000,
             names: Vec::new(),
             medals: Vec::new(),
@@ -3199,6 +3208,7 @@ like this one.",
                     verified: *verified,
                     staff: index == 3,
                     trust: None,
+                    emoji: String::new(),
                     text: (*text).to_owned(),
                     holocron: None,
                 },

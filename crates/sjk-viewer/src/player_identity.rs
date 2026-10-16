@@ -40,6 +40,42 @@ pub(crate) struct Tag {
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// The medals the SJK team gave them, for the ribbon bars.
     pub(crate) medals: crate::medals::Medals,
+    /// Their name emoji, after the name.
+    pub(crate) emoji: NameEmoji,
+}
+
+/// A name emoji (`sjk_identity::name_emoji`) held in place, so a [`Tag`] stays `Copy`:
+/// at most [`sjk_identity::name_emoji::EMOJI_MAX`] characters of 4 bytes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct NameEmoji {
+    bytes: [u8; 64],
+    len: u8,
+}
+
+impl Default for NameEmoji {
+    fn default() -> Self {
+        Self {
+            bytes: [0; 64],
+            len: 0,
+        }
+    }
+}
+
+impl NameEmoji {
+    /// The emoji a hub sent, shown through the rules; none when it does not pass.
+    pub(crate) fn new(sent: &str) -> Self {
+        let shown = sjk_identity::name_emoji::for_display(sent);
+        let mut emoji = Self::default();
+        if let Some(bytes) = emoji.bytes.get_mut(..shown.len()) {
+            bytes.copy_from_slice(shown.as_bytes());
+            emoji.len = shown.len() as u8;
+        }
+        emoji
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.bytes[..usize::from(self.len)]).unwrap_or_default()
+    }
 }
 
 #[derive(Default)]
@@ -349,6 +385,7 @@ pub(crate) fn hub_mark(slot: u8, shown: &str) -> Option<crate::ingame_menu::play
                 name: player.name.clone(),
                 verified: player.verified,
                 trust: player.trust,
+                emoji: sjk_identity::name_emoji::for_display(&player.emoji).to_owned(),
                 medals: crate::medals::Medals::from_wire(&player.medals),
                 avatar: player.avatar.clone(),
             })
@@ -397,6 +434,7 @@ pub(crate) fn tag(slot: u8, shown: &str) -> Option<Tag> {
             verified: player.verified,
             trust: player.trust,
             medals: crate::medals::Medals::from_wire(&player.medals),
+            emoji: NameEmoji::new(&player.emoji),
         })
     })
 }
@@ -708,6 +746,16 @@ pub(crate) fn set_bio(bio: String) -> bool {
         .service
         .as_ref()
         .map(|service| service.set_bio(bio))
+        .is_some()
+}
+
+/// Ask the hub to change the player's name emoji (empty takes it away); false when
+/// the service has not started. The result shows in [`Snapshot::notice`].
+pub(crate) fn set_emoji(emoji: String) -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.set_emoji(emoji))
         .is_some()
 }
 

@@ -1,3 +1,15 @@
+## Name emoji
+
+16/10/2026, `personal/name-emoji` (Sol's request): a player picks one emoji on the
+Profile page (Name emoji: a grid of 60, or any single emoji typed or pasted) and everyone
+sees it at the right of their name: SJK and game chat lines, the dock, the SJK chat page
+and its people, sender cards, the profile card and the SJK scoreboard
+([identity.md](identity.md#name-emoji)). Rule shared with the hub
+(`sjk_identity::name_emoji`). Needs the hub's `name-emoji` branch (Sol-Vulpes/SJK-hub,
+on top of `trust`): an older hub refuses the change and sends no emoji. Checked by unit
+tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
+chat box, scoreboard). Not tried in the game or against a running hub.
+
 ## Trust marks
 
 16/10/2026, `personal/trust` (Sol's request): a player the hub neither verifies nor made

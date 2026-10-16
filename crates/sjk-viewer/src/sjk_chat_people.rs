@@ -89,6 +89,8 @@ pub(super) struct Row {
     pub(super) staff: bool,
     /// Their trust (`ui_renderer::mark_texture`).
     pub(super) trust: Option<sjk_identity::Trust>,
+    /// Their name emoji, empty for none.
+    pub(super) emoji: String,
     /// Their picture's version as the hub listed it (`""` for none); `None` when the row
     /// comes from a message, which does not say.
     pub(super) avatar: Option<String>,
@@ -138,6 +140,7 @@ pub(super) fn derive(chat: &ChatState, muted: &[String]) -> Listed {
                 verified: message.verified,
                 staff: message.staff,
                 trust: message.trust,
+                emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
                 avatar: None,
                 playing: false,
                 seen: u64::try_from(message.at).unwrap_or(0),
@@ -158,6 +161,7 @@ pub(super) fn derive(chat: &ChatState, muted: &[String]) -> Listed {
         verified: person.verified,
         staff: person.staff,
         trust: person.trust,
+        emoji: sjk_identity::name_emoji::for_display(&person.emoji).to_owned(),
         avatar: Some(person.avatar.clone()),
         playing: person.playing,
         seen: u64::try_from(person.seen).unwrap_or(0),
@@ -230,6 +234,7 @@ mod tests {
             verified: key == "a",
             staff: false,
             trust: None,
+            emoji: String::new(),
             text: "hi".to_owned(),
             holocron: None,
         }

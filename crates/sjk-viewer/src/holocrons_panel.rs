@@ -728,6 +728,7 @@ mod tests {
             verified: false,
             staff: false,
             trust: None,
+            emoji: String::new(),
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),

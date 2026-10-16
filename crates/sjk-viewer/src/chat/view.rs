@@ -154,20 +154,16 @@ impl ChatOverlay {
                 continue;
             }
             // A line with a sender flows from its name's row ([`sjk_line`]).
-            let prefix = line_marks(line, &self.slot_marks, &self.roster, &self.friends)
-                .map(|(name, marks)| sjk_line::Prefix::new(name, marks, font, g));
+            let indent = line_marks(line, &self.slot_marks, &self.roster, &self.friends)
+                .map_or(0.0, |(name, marks)| {
+                    sjk_line::Prefix::new(name, marks, font, g).width()
+                });
             let wrap_width = g.width - 12.0 * g.scale;
             // An SJK line's GIF under its text takes room of its own (`feed_gif.rs`).
             let gif = self.gif_shown(index);
             let line = &mut self.lines[index];
-            line.wrap.update_spaced(
-                &line.body,
-                font,
-                wrap_width,
-                g.font,
-                prefix.as_ref().map_or(0.0, sjk_line::Prefix::width),
-                g.spacing,
-            );
+            line.wrap
+                .update_spaced(&line.body, font, wrap_width, g.font, indent, g.spacing);
             let rows = if line.muted { 1 } else { line.wrap.len };
             let text_height = rows as f32 * g.row + layout::MESSAGE_GAP * g.scale;
             let mut gif = gif;
@@ -291,12 +287,13 @@ fn line_marks<'a>(
     slots: &'a [super::marks::SlotMark],
     roster: &ChatRoster,
     friends: &social::Friends,
-) -> Option<(&'a str, sjk_line::Marks)> {
+) -> Option<(&'a str, sjk_line::Marks<'a>)> {
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
             sjk: true,
             mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
             tier: hub.tier,
+            emoji: &hub.emoji,
             ..sjk_line::Marks::default()
         };
         return Some((&line.name, marks));
@@ -321,6 +318,7 @@ fn line_marks<'a>(
             Channel::Whisper => "WHISPER",
             Channel::Global | Channel::Sjk => "",
         },
+        emoji: mark.map_or("", |mark| mark.emoji.as_str()),
     };
     let name = mark
         .and_then(|mark| mark.name.as_deref())

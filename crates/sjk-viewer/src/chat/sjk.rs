@@ -58,6 +58,7 @@ impl ChatOverlay {
                 verified: message.verified && drop.is_none(),
                 staff: message.staff,
                 trust: message.trust.filter(|_| drop.is_none()),
+                emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
                 key_id: message.key_id.clone(),
                 tier: drop.map(|words| words.tier),
             }),
@@ -81,6 +82,7 @@ impl ChatOverlay {
             verified: false,
             staff: false,
             trust: None,
+            emoji: String::new(),
             text: String::new(),
             holocron: Some(sjk_identity::DropMark {
                 tier: tier.to_owned(),
@@ -230,6 +232,7 @@ mod tests {
             verified: id.is_multiple_of(2),
             staff: false,
             trust: None,
+            emoji: String::new(),
             text: text.to_owned(),
             holocron: None,
         }

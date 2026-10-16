@@ -74,6 +74,9 @@ struct Laid {
     /// The room the JoF emblem takes before the name ([`crate::jof_tag`]), or 0.
     jof: f32,
     name_width: f32,
+    /// The sender's name emoji after the name, and its room with its gap.
+    emoji: String,
+    emoji_width: f32,
     /// The mark after the name (`ui_renderer::mark_texture`), none for a drop.
     mark: Option<sjk_ui::TextureId>,
     /// Where the text starts on the first row, after the name, the tick and the colon.
@@ -139,7 +142,17 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     } else {
         width(": ", TEXT_SIZE, TextFace::Regular)
     };
-    let indent = jof + name_width + tick + colon;
+    let emoji = if drop {
+        String::new()
+    } else {
+        sjk_identity::name_emoji::for_display(&message.emoji).to_owned()
+    };
+    let emoji_width = if emoji.is_empty() {
+        0.0
+    } else {
+        sjk_chat_look::emoji_gap(NAME_SIZE) + width(&emoji, NAME_SIZE, TextFace::Regular)
+    };
+    let indent = jof + name_width + emoji_width + tick + colon;
     let staff = if message.staff { "Staff  ·  " } else { "" };
     let when = ago(u64::try_from(message.at).unwrap_or(0), inputs.now);
     let meta = format!("{staff}{when}");
@@ -169,6 +182,8 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
         name,
         jof,
         name_width,
+        emoji,
+        emoji_width,
         mark,
         indent,
         meta,
@@ -410,6 +425,7 @@ impl Panel {
                     verified: message.verified,
                     staff: message.staff,
                     trust: message.trust,
+                    emoji: laid.emoji.clone(),
                     medals: crate::medals::Medals::default(),
                     place: crate::sender_card::Place::Unknown,
                     avatar: None,
@@ -480,6 +496,20 @@ impl Panel {
             TextAlign::Start,
         );
         let mut x = LIST_X + laid.jof + laid.name_width;
+        if !laid.emoji.is_empty() {
+            let gap = sjk_chat_look::emoji_gap(NAME_SIZE);
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}", laid.emoji),
+                frame.rect(x + gap, y, laid.emoji_width - gap + 2.0, NAME_ROW - 2.0),
+                NAME_SIZE * s,
+                sjk_ui::Color::new(1.0, 1.0, 1.0, 1.0),
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            x += laid.emoji_width;
+        }
         if let Some(tier) = laid.tier {
             let [left, _] = frame.point(x, y);
             sjk_chat_look::gem_mark(
@@ -829,6 +859,7 @@ impl Panel {
                 verified: row.verified,
                 staff: row.staff,
                 trust: row.trust,
+                emoji: row.emoji.clone(),
                 medals: crate::medals::Medals::default(),
                 place: crate::sender_card::Place::Unknown,
                 avatar: version,

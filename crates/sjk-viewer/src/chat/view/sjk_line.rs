@@ -24,7 +24,7 @@ const LABEL_SIZE: f32 = 0.625;
 
 /// What the first row shows of a line's sender.
 #[derive(Clone, Copy, Default)]
-pub(in crate::chat) struct Marks {
+pub(in crate::chat) struct Marks<'a> {
     /// The sender plays on SJK: SJK's emblem comes first.
     pub(in crate::chat) sjk: bool,
     /// The mark after the name: the verified seal or a trust mark
@@ -36,11 +36,14 @@ pub(in crate::chat) struct Marks {
     pub(in crate::chat) friend: bool,
     /// The channel written after the name, empty for All and the SJK chat.
     pub(in crate::chat) label: &'static str,
+    /// The sender's name emoji (`sjk_identity::name_emoji`), right after the name;
+    /// empty for none.
+    pub(in crate::chat) emoji: &'a str,
 }
 
 /// What a line's first row holds before its message, measured in the feed's font.
 /// Nothing is stored: it is measured where it is drawn.
-pub(in crate::chat) struct Prefix {
+pub(in crate::chat) struct Prefix<'a> {
     /// The body's text size, which the name and the colon share.
     size: f32,
     /// The friend's star's room, 0 without one.
@@ -51,6 +54,9 @@ pub(in crate::chat) struct Prefix {
     pub(in crate::chat) name_end: usize,
     name_width: f32,
     mark: Option<sjk_ui::TextureId>,
+    /// The name emoji after the name, and its room with its gap.
+    emoji: &'a str,
+    emoji_width: f32,
     /// The name carries a known clan's tag: the clan's emblem comes before it.
     jof: Option<crate::jof_tag::Clan>,
     label: &'static str,
@@ -61,8 +67,8 @@ pub(in crate::chat) struct Prefix {
     tier: Option<&'static Tier>,
 }
 
-impl Prefix {
-    pub(in crate::chat) fn new(name: &str, marks: Marks, font: &UiFont, g: &Geometry) -> Self {
+impl<'a> Prefix<'a> {
+    pub(in crate::chat) fn new(name: &str, marks: Marks<'a>, font: &UiFont, g: &Geometry) -> Self {
         let size = g.font;
         let scale = size / font.height.max(1.0);
         let name_end = layout::fitting_end(name, font, g.width * 0.5, size);
@@ -74,6 +80,8 @@ impl Prefix {
             name_end,
             name_width: visible_text_width_face(font, &name[..name_end], scale, TextFace::Semibold),
             mark: marks.mark,
+            emoji: marks.emoji,
+            emoji_width: sjk_chat_look::emoji_room(font, marks.emoji, size),
             tier: marks.tier,
             jof: crate::jof_tag::clan(name),
             label: marks.label,
@@ -117,10 +125,15 @@ impl Prefix {
             }
     }
 
-    /// Where the channel's label (its gap first) starts after the name and its tick.
+    /// Where the name ends with its emoji, where the tick goes.
+    fn tick_x(&self) -> f32 {
+        self.name_x() + self.name_width + self.emoji_width
+    }
+
+    /// Where the channel's label (its gap first) starts after the name, its emoji and
+    /// its tick.
     fn label_x(&self) -> f32 {
-        self.name_x()
-            + self.name_width
+        self.tick_x()
             + if self.mark.is_some() || self.tier.is_some() {
                 sjk_chat_look::tick_room(self.size)
             } else {
@@ -162,7 +175,7 @@ pub(in crate::chat) struct Line<'a> {
 pub(in crate::chat) fn draw(
     ui: &mut MenuCanvas,
     line: Line<'_>,
-    prefix: &Prefix,
+    prefix: &Prefix<'_>,
     font: &UiFont,
     g: &Geometry,
     origin: [f32; 2],
@@ -221,24 +234,22 @@ pub(in crate::chat) fn draw(
             0.0,
         );
     }
+    if !prefix.emoji.is_empty() {
+        let left = name_x + prefix.name_width + sjk_chat_look::emoji_gap(size);
+        ui.text(
+            prefix.emoji,
+            Rect::new(left, y, prefix.emoji_width + 1.0, row_box(g)),
+            size,
+            Color::new(1.0, 1.0, 1.0, alpha),
+            FontWeight::Regular,
+            0.0,
+        );
+    }
+    let tick_x = x + prefix.tick_x();
     if let Some(tier) = prefix.tier {
-        sjk_chat_look::gem_mark(
-            ui.draw_list_mut(),
-            name_x + prefix.name_width,
-            middle,
-            size,
-            tier,
-            alpha,
-        );
+        sjk_chat_look::gem_mark(ui.draw_list_mut(), tick_x, middle, size, tier, alpha);
     } else if let Some(mark) = prefix.mark {
-        sjk_chat_look::tick(
-            ui.draw_list_mut(),
-            mark,
-            name_x + prefix.name_width,
-            middle,
-            size,
-            alpha,
-        );
+        sjk_chat_look::tick(ui.draw_list_mut(), mark, tick_x, middle, size, alpha);
     }
     if !prefix.label.is_empty() {
         let label_size = size * LABEL_SIZE;
@@ -328,6 +339,7 @@ mod tests {
             verified,
             staff: false,
             trust: None,
+            emoji: String::new(),
             text: text.to_owned(),
             holocron: None,
         }
@@ -516,6 +528,7 @@ mod tests {
             sjk: true,
             verified: true,
             trust: None,
+            emoji: String::new(),
             name: Some("^5JoF^7 Sol 🦊".to_owned()),
         };
         chat.receive(

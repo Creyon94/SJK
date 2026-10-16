@@ -342,6 +342,8 @@ enum Command {
     /// The in-game name the player now wears.
     Name(String),
     SetBio(String),
+    /// The name emoji to show at the right of the player's name, empty for none.
+    SetEmoji(String),
     /// The counts the client keeps for its achievements, by id.
     Achievements(BTreeMap<String, u64>),
     /// A staff request.
@@ -904,6 +906,7 @@ impl Worker {
                 }
             }
             Command::SetBio(bio) => self.set_bio(&bio),
+            Command::SetEmoji(emoji) => self.set_emoji(&emoji),
             Command::Achievements(counts) => self.counts = counts,
             Command::Staff(request) => self.staff(&request),
             Command::StaffQuery(query) => self.staff_query(&query),
@@ -1193,6 +1196,36 @@ impl Worker {
             Ok(profile) => {
                 snapshot.set_me(profile);
                 snapshot.notice = Some("saved".to_owned());
+            }
+            Err(error) => snapshot.notice = Some(error.to_string()),
+        });
+    }
+
+    fn set_emoji(&mut self, emoji: &str) {
+        let emoji = match crate::name_emoji::check(emoji) {
+            Ok(emoji) => emoji,
+            Err(error) => {
+                self.update(|snapshot| snapshot.notice = Some(error.to_string()));
+                return;
+            }
+        };
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => hub.set_emoji(&self.identity, &emoji),
+            _ => {
+                self.update(|snapshot| {
+                    snapshot.notice = Some("not connected to the hub".to_owned())
+                });
+                return;
+            }
+        };
+        self.update(|snapshot| match outcome {
+            Ok(profile) => {
+                snapshot.set_me(profile);
+                snapshot.notice = Some(if emoji.is_empty() {
+                    "emoji removed".to_owned()
+                } else {
+                    "emoji saved".to_owned()
+                });
             }
             Err(error) => snapshot.notice = Some(error.to_string()),
         });
@@ -2076,6 +2109,12 @@ impl Service {
         let _ = self.commands.send(Command::SetBio(bio));
     }
 
+    /// Change the player's name emoji at the hub (`crate::name_emoji`); empty takes it
+    /// away.
+    pub fn set_emoji(&self, emoji: String) {
+        let _ = self.commands.send(Command::SetEmoji(emoji));
+    }
+
     /// Make `png` (cropped and scaled to [`crate::avatar::SIZE`] square) the player's
     /// picture; the outcome arrives in [`Snapshot::avatar`], the new version in the
     /// profile's `avatar`.
@@ -2412,6 +2451,7 @@ mod tests {
             verified: false,
             staff: true,
             trust: None,
+            emoji: String::new(),
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),
@@ -2442,6 +2482,12 @@ mod tests {
         }
         fn set_bio(&mut self, _: &Identity, bio: &str) -> Result<Profile, HubError> {
             self.record(format!("bio {bio}")).map(|()| profile(""))
+        }
+        fn set_emoji(&mut self, _: &Identity, emoji: &str) -> Result<Profile, HubError> {
+            self.record(format!("emoji {emoji}")).map(|()| Profile {
+                emoji: emoji.to_owned(),
+                ..profile("Sol")
+            })
         }
         fn set_avatar(&mut self, _: &Identity, png: &[u8]) -> Result<Profile, HubError> {
             Fake::record(self, format!("avatar {} bytes", png.len())).map(|()| Profile {
@@ -3859,6 +3905,27 @@ mod tests {
     }
 
     #[test]
+    fn a_name_emoji_is_checked_then_sent_and_the_profile_takes_it() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::SetEmoji("🦊🦊".to_owned()), t0);
+        assert!(!fake.log().iter().any(|line| line.starts_with("emoji")));
+        assert_eq!(
+            lock(&snapshot).notice.as_deref(),
+            Some(crate::name_emoji::EmojiError.message())
+        );
+        worker.handle(Command::SetEmoji(" 🦊 ".to_owned()), t0);
+        assert_eq!(fake.log().last().unwrap(), "emoji 🦊");
+        assert_eq!(lock(&snapshot).me.as_ref().unwrap().emoji, "🦊");
+        worker.handle(Command::SetEmoji(String::new()), t0);
+        assert_eq!(fake.log().last().unwrap(), "emoji ");
+        assert_eq!(lock(&snapshot).notice.as_deref(), Some("emoji removed"));
+    }
+
+    #[test]
     fn the_own_id_follows_the_person_the_key_belongs_to() {
         let fake = Fake::default();
         let t0 = Instant::now();
@@ -4374,6 +4441,7 @@ mod tests {
             name: "Sol".to_owned(),
             verified: true,
             trust: None,
+            emoji: String::new(),
             medals: Vec::new(),
             avatar: String::new(),
             look: None,

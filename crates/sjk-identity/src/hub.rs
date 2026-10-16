@@ -234,6 +234,14 @@ pub trait Hub: Send {
             "this hub client does not send pictures".to_owned(),
         ))
     }
+    /// Set the identity's name emoji (`crate::name_emoji`, checked; empty takes it
+    /// away), leaving its bio and name as they are; the hub answers with the key's
+    /// profile.
+    fn set_emoji(&mut self, _identity: &Identity, _emoji: &str) -> Result<Profile, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send name emoji".to_owned(),
+        ))
+    }
     /// The PNG of `version` of `key_id`'s picture, as the hub serves it.
     fn avatar(&mut self, _key_id: &str, _version: &str) -> Result<Vec<u8>, HubError> {
         Err(HubError::Protocol(
@@ -980,6 +988,11 @@ impl Hub for HttpHub {
 
     fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError> {
         let body = json!({ "bio": bio });
+        parse(self.send(Some(identity), "PUT", "/v1/profile", Some(body))?)
+    }
+
+    fn set_emoji(&mut self, identity: &Identity, emoji: &str) -> Result<Profile, HubError> {
+        let body = json!({ "emoji": emoji });
         parse(self.send(Some(identity), "PUT", "/v1/profile", Some(body))?)
     }
 

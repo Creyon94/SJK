@@ -106,6 +106,7 @@ mod tests {
             verified: false,
             staff: false,
             trust: None,
+            emoji: String::new(),
             text: text.to_owned(),
             holocron: None,
         }

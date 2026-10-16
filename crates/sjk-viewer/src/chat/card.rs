@@ -111,6 +111,7 @@ impl ChatOverlay {
                     verified: hub.verified,
                     staff: hub.staff,
                     trust: hub.trust,
+                    emoji: hub.emoji.clone(),
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     place,
@@ -133,6 +134,10 @@ impl ChatOverlay {
                     verified: mark.as_ref().is_some_and(|mark| mark.verified),
                     staff: false,
                     trust: mark.as_ref().and_then(|mark| mark.trust),
+                    emoji: mark
+                        .as_ref()
+                        .map(|mark| mark.emoji.clone())
+                        .unwrap_or_default(),
                     place: if mark.is_some() {
                         Place::Slot(slot)
                     } else {
@@ -236,6 +241,7 @@ mod tests {
             verified: true,
             staff: true,
             trust: None,
+            emoji: String::new(),
             text: "gg all".to_owned(),
             holocron: None,
         };

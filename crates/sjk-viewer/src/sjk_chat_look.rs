@@ -27,6 +27,28 @@ pub(crate) fn message_text(raw: &str) -> String {
     crate::text::Plain(&sjk_identity::chat::for_display(raw)).to_string()
 }
 
+/// The gap between a name drawn at `size` and its name emoji.
+pub(crate) fn emoji_gap(size: f32) -> f32 {
+    size * 0.25
+}
+
+/// The room a player's name emoji (`sjk_identity::name_emoji`) takes after their name
+/// drawn at `size` in `font`: its gap and the picture; 0 for none. It stands between
+/// the name and the tick.
+pub(crate) fn emoji_room(font: &UiFont, emoji: &str, size: f32) -> f32 {
+    if emoji.is_empty() {
+        return 0.0;
+    }
+    emoji_gap(size)
+        + visible_text_width_style(
+            font,
+            emoji,
+            size / font.height.max(1.0),
+            TextFace::Regular,
+            0.0,
+        )
+}
+
 /// The verified tick's side next to a name drawn at `size`.
 pub(crate) fn tick_side(size: f32) -> f32 {
     size * 0.9

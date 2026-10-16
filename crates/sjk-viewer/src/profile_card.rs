@@ -45,6 +45,8 @@ pub(crate) struct Summary {
     pub(crate) verified: bool,
     /// Their trust (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
+    /// Their name emoji, after the name; empty for none.
+    pub(crate) emoji: String,
     /// The hub made their key staff: the game menu offers Staff tools.
     pub(crate) staff: bool,
     /// Medals the SJK team gave them (those the client knows).
@@ -64,6 +66,7 @@ static SUMMARY: Mutex<Summary> = Mutex::new(Summary {
     verified: false,
     staff: false,
     trust: None,
+    emoji: String::new(),
     medals: 0,
     unlocked: 0,
     achievements: 0,
@@ -81,6 +84,7 @@ pub(crate) static NOBODY: Summary = Summary {
     verified: false,
     staff: false,
     trust: None,
+    emoji: String::new(),
     medals: 0,
     unlocked: 0,
     achievements: 21,
@@ -183,6 +187,10 @@ pub(crate) fn summarise(
         hub,
         verified: online && me.is_some_and(|me| me.verified),
         trust: me.filter(|_| online).and_then(|me| me.trust),
+        emoji: me
+            .filter(|_| online)
+            .map(|me| sjk_identity::name_emoji::for_display(&me.emoji).to_owned())
+            .unwrap_or_default(),
         staff: online && me.is_some_and(|me| me.staff),
         medals: me
             .filter(|_| online)
@@ -308,10 +316,15 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, frame: &Frame, card: &Card<'_>, toke
             lit: card.lit,
         },
     );
+    let emoji = card.summary.emoji.as_str();
     text(
         canvas,
         TextFamily::Display,
-        format_args!("{}", card.name),
+        format_args!(
+            "{}{}{emoji}",
+            card.name,
+            if emoji.is_empty() { "" } else { "^7 " }
+        ),
         frame.rect(TEXT_X, PICTURE[1] - 4.0, TEXT_WIDTH, 34.0),
         27.0 * s,
         color::TEXT,
@@ -504,6 +517,7 @@ mod tests {
             verified: true,
             staff: false,
             trust: None,
+            emoji: String::new(),
             created: 0,
             names: Vec::new(),
             medals: ["early_tester", "bug_hunter", "from_the_future"]
