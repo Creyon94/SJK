@@ -1239,6 +1239,22 @@ order (`.jpg`, `.png`, `.tga`, as rd-common's `R_LoadImage`), instead of through
 shader, whose other stage drew a full-screen white picture. JoF's HD scope
 (`cropcircle2.png`) shows only with that order in place.
 
+The electrobinoculars (zoom mode 2) have their own view, as `CG_DrawZoomMask` draws
+it ([scope_binoculars.rs](../crates/sjk-viewer/src/scope_binoculars.rs)): the
+scrolling blue static and scanlines of `gfx/2d/binocularWindow`, the heading strip
+(a number every ten degrees, the view's yaw plus 180 plus 200, sliding with the
+fraction, and a green marker under each), the strip's overlay, the pulsing circle,
+the frame `gfx/2d/binMask`, the arrow down the left edge that sinks as the zoom
+closes in (`zoomFov` 80 to 0 over 162 virtual pixels) and the top triangle that flips
+now and then. Each picture is its stage image with its `zoom.shader` blend (filter,
+additive or alpha) and `tcMod`; the frame is stretched over the window like the
+disruptor's mask. The heading digits, chunky bitmap pictures in stock, are drawn by the
+HUD in its vector font, centred in stock's 24x14 cells, and only inside the strip's
+black box, where stock's frame would have hidden the others. Until 16/10/2026 the
+binoculars zoomed with no view at all (a player's bug report). JoF's team readout
+beside them and its JA Pro race-mode exception are not ported. World shot:
+`world_shot::tests::duel6_binoculars` (the pictures only: the HUD's digits need a game).
+
 Effect camera shakes are measured from the rendered view, as `CG_DoCameraShake`
 measures from `cg.refdef.vieworg`, so a short-range shake reaches a first-person eye
 but not the third-person camera behind the player. `cg_screenShake` (archived,

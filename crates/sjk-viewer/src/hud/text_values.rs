@@ -32,6 +32,10 @@ impl HudOverlay {
             318 => &self.enemy_info.name,
             319 => &self.enemy_info.detail,
             value @ vehicle::TEXT_FIRST..=vehicle::TEXT_LAST => self.vehicle.text(value),
+            value @ crate::scope::binoculars::TEXT_FIRST..=crate::scope::binoculars::TEXT_LAST => {
+                crate::scope::binoculars::DIGIT_TEXT
+                    [(value - crate::scope::binoculars::TEXT_FIRST) as usize]
+            }
             value @ 400..=415 => self.icons.text((value - 400) as usize),
             value @ kill_feed::TEXT_FIRST..=kill_feed::TEXT_LAST => self.kill_feed.text(value),
             _ => selection::text(id),

@@ -1,6 +1,8 @@
 //! Multiplayer zoom presentation (`cg_view.c:1140-1280`), independent of the wire codec.
 use crate::{GameAudio, GpuState};
 
+#[path = "scope_binoculars.rs"]
+pub(crate) mod binoculars;
 #[path = "scope_gpu.rs"]
 mod gpu;
 pub(crate) use gpu::Mask;
@@ -15,6 +17,9 @@ pub(crate) struct Zoom {
     pub(crate) sensitivity: f32,
     /// Current zoom mode for suppression of the ordinary crosshair.
     pub(crate) mode: u8,
+    /// A world shot's binocular view without a game: `zoomFov` and yaw.
+    #[cfg(test)]
+    pub(crate) binoculars_for_shot: Option<(f32, f32)>,
 }
 
 impl Default for Zoom {
@@ -25,6 +30,8 @@ impl Default for Zoom {
             sound_time: 0,
             sensitivity: 1.0,
             mode: 0,
+            #[cfg(test)]
+            binoculars_for_shot: None,
         }
     }
 }
@@ -201,6 +208,8 @@ impl GpuState {
 
     /// Calculate the legacy horizontal zoom before converting to the renderer's vertical FOV.
     pub(crate) fn scope_fov(&mut self, time: i32, audio: &mut Option<GameAudio>) -> f32 {
+        // Set again below while the binoculars' view shows.
+        self.hud.binoculars = binoculars::Heading::default();
         let snapshot = self
             .live_session
             .as_ref()
@@ -211,6 +220,14 @@ impl GpuState {
                     .map(|s| s.snapshot_at_or_before(time))
             });
         let Some(snapshot) = snapshot else {
+            #[cfg(test)]
+            if let Some((zoom_fov, yaw)) = self.scope.binoculars_for_shot
+                && let Some(mask) = &mut self.scope_mask
+            {
+                mask.prepare_binoculars(&self.queue, zoom_fov, yaw, time);
+                self.hud.binoculars = binoculars::Heading { yaw: Some(yaw) };
+                return self.field_of_view;
+            }
             self.scope = Zoom::default();
             if let Some(mask) = &mut self.scope_mask {
                 mask.prepare(&self.queue, false, 0, 80.0, time, 0.0, None);
@@ -255,33 +272,40 @@ impl GpuState {
             predicted.map_or(player.zoom_fov(), |state| state.zoom_fov),
         );
         if let Some(mask) = &mut self.scope_mask {
-            let visible = mode != 0
-                && mode != 2
-                && !self.third_person
+            let shown = !self.third_person
                 && player.movement_type() != 7
                 && self
                     .console
                     .as_ref()
                     .and_then(|c| c.bool_cvar("cg_draw2D"))
                     .unwrap_or(true);
-            let maximum = if player.entity_flags() & (1 << 20) != 0 {
-                600.0
+            let visible = mode != 0 && mode != 2 && shown;
+            if mode == 2 && shown && mask.has_binoculars() {
+                // `cg.refdef.viewangles[YAW]`, in stock's -180 to 180.
+                let yaw = (self.camera_yaw.to_degrees() + 180.0).rem_euclid(360.0) - 180.0;
+                let zoom_fov = predicted.map_or(player.zoom_fov(), |state| state.zoom_fov);
+                mask.prepare_binoculars(&self.queue, zoom_fov, yaw, time);
+                self.hud.binoculars = binoculars::Heading { yaw: Some(yaw) };
             } else {
-                300.0
-            };
-            let state = predicted.map_or(player.weapon_state(), |state| state.weapon_state);
-            let charge_time =
-                predicted.map_or(player.weapon_charge_time(), |s| s.weapon_charge_time);
-            let charge = (state == 5).then(|| (time - charge_time) as f32 / 1500.0);
-            mask.prepare(
-                &self.queue,
-                visible,
-                crate::cgame_options::scope_style(self.console.as_ref()),
-                self.scope.fov,
-                time,
-                player.ammo_value(3).unwrap_or(0) as f32 / maximum,
-                charge,
-            );
+                let maximum = if player.entity_flags() & (1 << 20) != 0 {
+                    600.0
+                } else {
+                    300.0
+                };
+                let state = predicted.map_or(player.weapon_state(), |state| state.weapon_state);
+                let charge_time =
+                    predicted.map_or(player.weapon_charge_time(), |s| s.weapon_charge_time);
+                let charge = (state == 5).then(|| (time - charge_time) as f32 / 1500.0);
+                mask.prepare(
+                    &self.queue,
+                    visible,
+                    crate::cgame_options::scope_style(self.console.as_ref()),
+                    self.scope.fov,
+                    time,
+                    player.ammo_value(3).unwrap_or(0) as f32 / maximum,
+                    charge,
+                );
+            }
         }
         if sound
             && player.movement_type() != 7

@@ -1078,6 +1078,21 @@ mod tests {
     /// every menu style: the first entry with notes chosen on the All tab, a tick's
     /// outcome bottom left. At 1080p with the plain text style and at 4K with Sol's
     /// (`ui_textScale 1.2`), with `ui_menuStyle sjk` and `classic`.
+    /// The electrobinoculars' view (`scope::binoculars`) over duel6, half zoomed in.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_binoculars() {
+        on_big_stack(|| {
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &[])
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            gpu.scope.binoculars_for_shot = Some((40.0, 35.0));
+            println!("{}", shoot(&mut gpu, 6, "duel6-binoculars").display());
+        });
+    }
+
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_debug_panel() {
