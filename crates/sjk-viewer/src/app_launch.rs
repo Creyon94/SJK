@@ -47,6 +47,9 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     // The build's commit and date too, so a log names exactly what ran.
     log::progress(format_args!("build: {}", crate::build_info::label()));
     assets::search_paths::initialize(&console)?;
+    // JoF content's folder, when its switch is on, before any world mounts.
+    #[cfg(feature = "mod-jof")]
+    crate::jof_content::follow(&console);
     // SJK's packs from the hub, cached beside identity.key, before any world mounts.
     crate::sjk_packs::mount_at_start(console.config_directory());
     // The material maps sjk-materialgen wrote beside the settings, above all packs.

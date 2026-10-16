@@ -43,6 +43,9 @@ impl ViewerConsole {
         if self.mods.sync(&mut self.shell) {
             self.refresh_server_help();
         }
+        // The JoF folder joins or leaves the search paths with its switch.
+        #[cfg(feature = "mod-jof")]
+        crate::jof_content::follow(self);
         if !self.shell.has_buffered_commands() {
             return;
         }

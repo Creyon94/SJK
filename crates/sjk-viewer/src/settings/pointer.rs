@@ -195,6 +195,8 @@ impl SettingsMenu {
                         return SettingsResult::OpenIdentity;
                     } else if matches!(setting.kind, ValueKind::AssetBrowser) {
                         return SettingsResult::OpenAssets;
+                    } else if matches!(setting.kind, ValueKind::JofContent) {
+                        return SettingsResult::OpenJofContent;
                     } else if matches!(setting.kind, ValueKind::ImportPage) {
                         return SettingsResult::OpenImport;
                     } else if matches!(setting.kind, ValueKind::GameplayFps) {

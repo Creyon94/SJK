@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | JoF content: JoF's maps, skins, hilts and packs from JoF's repository, opt in
+- a52fa94 |  | JoF content: JoF's maps, skins, hilts and packs from JoF's repository (opt in)
 + 16/10/2026 | - | Sol's art reserved for SJK, Sol JK named at startup
 - de73d7f |  | Reserve Sol's art for SJK (LICENSE-ASSETS), name Sol JK at startup
 + 16/10/2026 | - | Korriban glossy walls, live-light env shine, material maps generation 8

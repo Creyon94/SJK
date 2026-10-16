@@ -30,6 +30,7 @@ sjk-mod.workspace = true
 # The client mods (docs/mods.md): built in by default, each can be left out.
 sjk-mod-japlus = { workspace = true, optional = true }
 sjk-mod-jof = { workspace = true, optional = true }
+sjk-jof-content = { workspace = true, optional = true }
 sjk-network.workspace = true
 sjk-protocol.workspace = true
 sjk-runtime.workspace = true
@@ -58,7 +59,7 @@ sha2 = "0.11.0"
 [features]
 default = ["mod-japlus", "mod-jof"]
 mod-japlus = ["dep:sjk-mod-japlus"]
-mod-jof = ["dep:sjk-mod-jof"]
+mod-jof = ["dep:sjk-mod-jof", "dep:sjk-jof-content"]
 
 [target.'cfg(windows)'.dependencies]
 # Ctrl+V and copies read and set the clipboard directly: starting PowerShell for them

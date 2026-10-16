@@ -189,6 +189,10 @@ impl ViewerConsole {
             OpenConsoleKey::Swallow => return true,
             OpenConsoleKey::Edit => {}
         }
+        #[cfg(feature = "mod-jof")]
+        if self.jof_content_key(event) {
+            return true;
+        }
         if self.asset_browser_key(event)
             || self.model_viewer_key(event)
             || self.config_import_key(event)

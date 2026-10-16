@@ -24,6 +24,9 @@ mod console_connect;
 mod console_credits;
 #[path = "console_cvars.rs"]
 mod console_cvars;
+#[cfg(feature = "mod-jof")]
+#[path = "console_jof_content.rs"]
+mod console_jof_content;
 pub(crate) use console_cvars::DEFAULT_MAX_PACKETS;
 #[path = "console_collection_page.rs"]
 mod collection_page;
@@ -174,6 +177,9 @@ pub(crate) struct ViewerConsole {
     /// Command and cvar browser drawn in place of the console while open.
     browser: browser::Browser,
     asset_browser: asset_browser::Browser,
+    /// The JoF content card (`jof.downloads`), drawn in place of the console while open.
+    #[cfg(feature = "mod-jof")]
+    pub(crate) jof_content: crate::jof_content::card::Card,
     /// Personal test list of Sol's build, drawn in place of the console while open.
     debug_panel: debug_panel::Panel,
     /// The `modelviewer` page, drawn in place of the console while open.
@@ -433,12 +439,25 @@ impl ViewerConsole {
         self.open
     }
 
+    /// The JoF content card is open (never in a build without JoF tools).
+    pub(crate) fn jof_content_open(&self) -> bool {
+        #[cfg(feature = "mod-jof")]
+        {
+            self.jof_content.open
+        }
+        #[cfg(not(feature = "mod-jof"))]
+        {
+            false
+        }
+    }
+
     /// The command and cvar browser is open and covers the whole frame; overlays
     /// under it should not build their text.
     pub(crate) fn covers_frame(&self) -> bool {
         self.open
             && (self.browser.is_open()
                 || self.asset_browser.open
+                || self.jof_content_open()
                 || self.debug_panel.is_open()
                 || self.model_viewer.is_open()
                 || self.changelog.is_open()
@@ -878,6 +897,10 @@ impl ViewerConsole {
         if self.open && self.asset_browser.open {
             return self.asset_browser.draw_list();
         }
+        #[cfg(feature = "mod-jof")]
+        if self.open && self.jof_content.open {
+            return self.jof_content.draw_list();
+        }
         if let Some(draw_list) = self.model_viewer_draw_list() {
             return draw_list;
         }
@@ -966,6 +989,10 @@ impl ViewerConsole {
         self.history_index = None;
         if !open {
             self.asset_browser.open = false;
+            #[cfg(feature = "mod-jof")]
+            {
+                self.jof_content.open = false;
+            }
             self.browser.close();
             self.debug_panel.close();
             self.model_viewer.close();

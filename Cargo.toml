@@ -8,6 +8,7 @@ members = [
     "crates/sjk-game-jka",
     "crates/sjk-icarus",
     "crates/sjk-identity",
+    "crates/sjk-jof-content",
     "crates/sjk-mod",
     "crates/sjk-mod-japlus",
     "crates/sjk-mod-jof",
@@ -42,6 +43,7 @@ sjk-entity = { path = "crates/sjk-entity" }
 sjk-game-jka = { path = "crates/sjk-game-jka" }
 sjk-icarus = { path = "crates/sjk-icarus" }
 sjk-identity = { path = "crates/sjk-identity" }
+sjk-jof-content = { path = "crates/sjk-jof-content" }
 sjk-mod = { path = "crates/sjk-mod" }
 sjk-mod-japlus = { path = "crates/sjk-mod-japlus" }
 sjk-mod-jof = { path = "crates/sjk-mod-jof" }

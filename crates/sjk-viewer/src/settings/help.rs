@@ -109,6 +109,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
+    ("jof.contentSource", "auto", "Auto"),
+    ("jof.contentSource", "mirror", "JoF Cloud"),
+    ("jof.contentSource", "origin", "jofhub.eu"),
     ("cg_remaps", "0", "Never"),
     ("cg_remaps", "1", "Not players"),
     ("cg_remaps", "2", "Always"),
@@ -535,6 +538,14 @@ const HELP: &[(&str, &str)] = &[
     (
         "mod_jof",
         "On JoF servers: jof.commands and completion of their own commands (gun admin commands, jetpack, emotes).",
+    ),
+    (
+        "jof.downloads",
+        "JoF's maps, skins, hilts and packs, as JoF's launcher gets them. Off until you turn it on; Enter opens the card.",
+    ),
+    (
+        "jof.contentSource",
+        "Where JoF content downloads from: JoF Cloud, then jofhub.eu when a file is missing there (Auto), or only one of them.",
     ),
     (
         crate::ghost_replay::SHOWCASE_CVAR,

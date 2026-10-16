@@ -237,12 +237,25 @@ pub(super) struct Commands {
     pub name_clock: identity::NameClock,
 }
 
+/// JoF content's command (`jof.downloads`), in a build with JoF tools.
+fn jof_commands() -> &'static [(&'static str, &'static str)] {
+    #[cfg(feature = "mod-jof")]
+    {
+        crate::jof_content::COMMANDS
+    }
+    #[cfg(not(feature = "mod-jof"))]
+    {
+        &[]
+    }
+}
+
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
     for &(name, help) in COMMANDS
         .iter()
         .chain(crate::cosmetics::command::COMMANDS)
         .chain(crate::saber_colour_command::COMMANDS)
+        .chain(jof_commands())
     {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
@@ -345,6 +358,7 @@ impl Commands {
             .iter()
             .chain(crate::cosmetics::command::COMMANDS)
             .chain(crate::saber_colour_command::COMMANDS)
+            .chain(jof_commands())
             .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
         {
             return None;
@@ -769,6 +783,13 @@ impl crate::GpuState {
             "consolebrowser" => {
                 if let Some(console) = &mut self.console {
                     console.open_browser();
+                }
+                self.sync_cursor_policy();
+            }
+            #[cfg(feature = "mod-jof")]
+            crate::jof_content::COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.open_jof_content(&self.game_data);
                 }
                 self.sync_cursor_policy();
             }

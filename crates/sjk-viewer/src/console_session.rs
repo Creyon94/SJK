@@ -563,6 +563,8 @@ impl ViewerConsole {
             presentation: ConsolePresentation::new(),
             browser: super::browser::Browser::new(),
             asset_browser: Default::default(),
+            #[cfg(feature = "mod-jof")]
+            jof_content: Default::default(),
             debug_panel: super::debug_panel::Panel::new(&config_directory),
             model_viewer: Default::default(),
             changelog: super::changelog::Panel::new(),
