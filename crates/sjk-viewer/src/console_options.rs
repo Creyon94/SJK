@@ -6,6 +6,12 @@ use super::*;
 pub(crate) const STYLE_CVAR: &str = "con_style";
 /// Internal marker of the one-time move of a saved `classic` to `auto`.
 pub(crate) const STYLE_VERSION_CVAR: &str = "con_styleDefaultVersion";
+/// The readable console scale used by a new profile.
+pub(crate) const DEFAULT_SCALE: f64 = 1.25;
+/// The console scale saved by the earlier default.
+pub(crate) const OLD_DEFAULT_SCALE: f64 = 1.0;
+/// Internal marker of the one-time move to [`DEFAULT_SCALE`].
+pub(crate) const SCALE_VERSION_CVAR: &str = "con_scaleDefaultVersion";
 /// Archived switch for the console feed, the notify lines at the top left
 /// while the console is closed; off by default. Chat never goes through them.
 pub(crate) const DRAW_NOTIFY_CVAR: &str = "con_drawNotify";
@@ -80,7 +86,7 @@ impl Default for Options {
             style: ConsoleStyle::Classic,
             ratio_fix: true,
             height: 0.5,
-            scale: 1.0,
+            scale: DEFAULT_SCALE as f32,
             opacity: 1.0,
             speed: 3.0,
             timestamps: 0,
@@ -96,7 +102,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     for (name, value, help) in [
         ("con_notifytime", 3.0, "Notify lifetime in seconds"),
         ("con_opacity", 1.0, "Console background opacity"),
-        ("con_scale", 1.0, "Console font scale"),
+        ("con_scale", DEFAULT_SCALE, "Console font scale"),
         (
             "con_height",
             0.5,
@@ -123,6 +129,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         0_i64,
         CvarFlags::ARCHIVE,
         "Internal migration marker for the auto console style default",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        SCALE_VERSION_CVAR,
+        0_i64,
+        CvarFlags::ARCHIVE,
+        "Internal migration marker for the readable console scale default",
     ))?;
     cvars.register(CvarDefinition::new(
         DRAW_NOTIFY_CVAR,
@@ -179,7 +191,7 @@ impl ViewerConsole {
             scale: self
                 .float_cvar("con_scale")
                 .filter(|value| *value > 0.0)
-                .unwrap_or(1.0) as f32,
+                .unwrap_or(DEFAULT_SCALE) as f32,
             opacity: self
                 .float_cvar("con_opacity")
                 .unwrap_or(1.0)
@@ -260,6 +272,31 @@ mod tests {
         drop(console);
         let console = ViewerConsole::new(path).unwrap();
         assert!(console.options().draw_notify);
+    }
+
+    /// New profiles and old profiles that kept the former default get the
+    /// readable scale; a custom value and a later deliberate 1 stay put.
+    #[test]
+    fn the_console_scale_moves_from_the_old_default_once() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        let console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.options().scale, DEFAULT_SCALE as f32);
+        drop(console);
+
+        std::fs::write(&path, "seta con_scale 1\n").unwrap();
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.options().scale, DEFAULT_SCALE as f32);
+        assert_eq!(console.integer_cvar(SCALE_VERSION_CVAR), Some(1));
+        assert!(console.set_cvar("con_scale", "1"));
+        drop(console);
+        let console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.options().scale, 1.0);
+        drop(console);
+
+        std::fs::write(&path, "seta con_scale 1.4\n").unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.options().scale, 1.4);
     }
 
     /// The registered default, a saved `classic` from before `auto` existed and

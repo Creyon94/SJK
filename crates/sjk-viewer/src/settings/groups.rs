@@ -429,6 +429,7 @@ impl Group {
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
                 crate::text::style::SCALE_CVAR,
+                "con_scale",
                 super::catalog::IMPORT_ROW,
                 "jof.downloads",
                 "cl_autoUpdate",
@@ -742,6 +743,22 @@ mod tests {
         assert!(has_size(Group::Hud), "classic+ HUD");
         assert!(has_size(Group::Advanced(Advanced::Chat)), "SJK Advanced");
         assert!(has_size(Group::Simple(Simple::Hud)), "SJK Simple");
+    }
+
+    #[test]
+    fn console_text_size_is_offered_in_simple_and_full_settings() {
+        let has_size = |group: Group| {
+            group
+                .rows()
+                .iter()
+                .any(|setting| setting.cvar.eq_ignore_ascii_case("con_scale"))
+        };
+        assert!(has_size(Group::Interface), "classic+ Interface");
+        assert!(
+            has_size(Group::Advanced(Advanced::Interface)),
+            "SJK Advanced"
+        );
+        assert!(has_size(Group::Simple(Simple::General)), "SJK Simple");
     }
 
     #[test]
