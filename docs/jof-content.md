@@ -77,7 +77,7 @@ alone: it never updates, moves or removes them.
 
 ## The card
 
-`jof.downloads`, or Settings > Mods > JoF content (Enter)
+`jof.downloads`, or Settings > General > JoF content (Simple) or Mods > JoF content (Advanced), Enter
 ([jof_content_card.rs](../crates/sjk-viewer/src/jof_content_card.rs)). A pop-up card
 (1200 by 888, the kit's scrim and glass) in every menu style:
 

@@ -434,6 +434,7 @@ impl Group {
                 crate::menu::style::CVAR,
                 crate::text::style::SCALE_CVAR,
                 super::catalog::IMPORT_ROW,
+                "jof.downloads",
                 "cl_autoUpdate",
                 "cl_sjkChat",
                 crate::crash_report::CVAR,
@@ -523,6 +524,7 @@ impl Group {
             Self::Simple(Simple::General) => &[
                 (crate::menu::style::CVAR, "Menus"),
                 (super::catalog::IMPORT_ROW, "From another client"),
+                ("jof.downloads", "JoF content"),
                 ("cl_autoUpdate", "SJK online"),
             ],
             // Its headings are its tabs' names ([`graphics_tabs`]).

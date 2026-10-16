@@ -265,6 +265,10 @@ impl crate::GpuState {
         tokens: &[String],
     ) -> Option<Result<Vec<String>, String>> {
         let name = tokens.first()?.to_ascii_lowercase();
+        // The client's own commands under a mod's prefix (`jof.downloads`).
+        if crate::console::client_command_known(&name) {
+            return None;
+        }
         let console = self.console.as_mut()?;
         let index = console.mods.owner(&name)?;
         if let Some(Err(error)) = console.mods.accepts(&name) {

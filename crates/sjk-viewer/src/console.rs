@@ -99,6 +99,13 @@ mod console_demo;
 pub(crate) use console_demo::Action as DemoAction;
 #[path = "console_client.rs"]
 mod console_client;
+
+/// Whether `name` is one of the client's own commands, for the mods, whose
+/// `<id>.` prefix one may share (`jof.downloads`).
+pub(crate) fn client_command_known(name: &str) -> bool {
+    console_client::known(name)
+}
+
 #[path = "console_command.rs"]
 mod console_command;
 #[cfg(test)]

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | jof.downloads runs anywhere, JoF content in Simple settings
+- ef8353a |  | Fix "Unknown command jof.downloads"; JoF content in Simple settings
 + 16/10/2026 | - | Art stays under the GPL; Sol JK named at startup kept
 - c9806ab |  | Drop LICENSE-ASSETS: the art stays under the GPL with the code
 + 16/10/2026 | - | JoF content: JoF's maps, skins, hilts and packs from JoF's repository, opt in
