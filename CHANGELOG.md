@@ -35,6 +35,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The electrobinoculars now show their view: the blue static, the heading strip, the zoom arrow and the frame, as in the original game, with the numbers in SJK's own font _(Sol, after Kushina's report)_
 - Switching between a single saber and a staff with the blade lit gives it the new saber's length at once, instead of keeping the old length until switched off and on _(Sol, after Rollembones's reports)_
 - Turning off Remember chat channel works: the chat key opens on All again instead of the last channel used _(Sol, after Kushina's report)_
+- A world ping lands under the crosshair whatever your camera style: with a tilted or pitched third-person camera it used to mark where the screen's centre looked _(Sol, after Rollembones's and Foshin's reports)_
 
 ## 2026.1015.4 (Alpha) | 15/10/2026
 

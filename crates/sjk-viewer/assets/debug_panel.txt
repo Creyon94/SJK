@@ -4813,3 +4813,10 @@ change: The setting was read as a switch from an integer cvar, so it never turne
 test: Settings: Remember chat channel off. Send on Team, press the chat key: opens on All.
 test: Turn it on again: the chat key opens on the last channel used.
 
+[ping-aim]
+area: HUD
+title: World pings land under the crosshair with any camera pitch or tilt
+change: The ping traced the screen centre; it now follows the dynamic crosshair (reports 42, 46).
+test: Third person with a camera pitch/tilt changed: ping a wall: the mark is at the crosshair.
+test: Default camera and first person: pings land where they did.
+
