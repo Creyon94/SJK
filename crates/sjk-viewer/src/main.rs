@@ -97,6 +97,7 @@ mod frame_queue;
 mod frame_split;
 
 mod charge_flash;
+mod emote_help;
 mod fake_noclip;
 mod file_dialog;
 mod fps_help;
@@ -364,6 +365,8 @@ struct GpuState {
     fps_help: fps_help::State,
     /// The low-FPS card (`help_fps`).
     fps_card: fps_help::card::Card,
+    /// The emote help card (`help_emotes`, [`emote_help`]).
+    emote_help: emote_help::State,
     /// The alpha notice, until the player accepts it ([`alpha_notice_card`]).
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
@@ -1293,6 +1296,7 @@ impl GpuState {
             graphics_reload: graphics_reload::State::default(),
             fps_help: fps_help::State::default(),
             fps_card: fps_help::card::Card::default(),
+            emote_help: emote_help::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
@@ -1882,13 +1886,26 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The emote help card, asked for, after them all.
+        let emote_help_shown = self.prepare_emote_help_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
             || medal_shown
             || holocron_shown
             || reload_shown
             || fps_shown
             || logs_shown
-            || news_shown;
+            || news_shown
+            || emote_help_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -2073,6 +2090,8 @@ impl GpuState {
             self.append_log_request_card(viewport);
         } else if news_shown {
             self.append_whats_new_card(viewport);
+        } else if emote_help_shown {
+            self.append_emote_help_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2124,6 +2143,7 @@ impl GpuState {
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
             news_shown.then(|| self.whats_new_card.draw_list()),
+            emote_help_shown.then(|| self.emote_help.card.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];

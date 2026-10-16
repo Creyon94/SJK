@@ -165,7 +165,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   play, a red cross after a chat ban, on names in the chats, nameplates, cards and the
   scoreboard;
 - stopping other players' emotes on this screen once, or muting one player's emotes
-  by their key (`sjkemote stop all|<player>`, `sjkemote mute`);
+  by their key (`sjkemote stop all|<player>`, `sjkemote mute`), and the emote help card
+  (`help_emotes`);
 - crash reports sent to the SJK team at the next start, and world notes sent to the
   SJK hub from the inspect key;
 - log requests: the SJK team asks a player for their game's logs from the Staff page,

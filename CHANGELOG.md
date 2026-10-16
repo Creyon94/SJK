@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- `help_emotes` (or `sjkemote help`) opens a card that explains the emote commands and how to put emotes on the quick wheel: one command to give a player who asks _(Sol)_
 - Players who are not verified send one SJK chat message every 30 seconds and no links or GIFs; the chat says how long to wait _(Sol)_
 - Stop or mute other players' emotes on your screen: `sjkemote stop all` or `sjkemote stop <player>` ends them once (their next emote plays), `sjkemote mute <player>` hides one player's emotes until `sjkemote unmute <player>` or `unmute all`; `target` names the player under the crosshair _(Sol)_
 - Players on the way to verified wear a trust mark after their name: an empty tick while new, a green tick after 30 days and 10 hours of play, a red cross for a day after a chat ban, which starts their 30 days again. Only staff can ban a player with a green tick, and staff still verify players by hand _(Sol)_

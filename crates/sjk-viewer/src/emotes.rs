@@ -67,7 +67,7 @@ pub(crate) const ALL: &str = "all";
 pub(crate) const TARGET: &str = "target";
 /// How far (game units) `sjkemote sync` alone looks for a player to join.
 pub(crate) const SYNC_RANGE: f32 = 512.0;
-pub(crate) const HELP: &str = "Play an emote the SJK players on this server see (sjkemote alone lists them; sjkemote sync [player] joins one in step; stop [all|player|target] ends emotes; mute/unmute <player|target> hides a player's)";
+pub(crate) const HELP: &str = "Play an emote the SJK players on this server see (sjkemote alone lists them; sjkemote sync [player] joins one in step; stop [all|player|target] ends emotes; mute/unmute <player|target> hides a player's; help_emotes explains them)";
 /// How loud emote sounds play, times the effects volume (Settings > Sound > Emotes).
 pub(crate) const VOLUME_CVAR: &str = "s_emoteVolume";
 /// [`VOLUME_CVAR`]'s default: recorded music sits well under the game's effects.
@@ -240,7 +240,8 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<EmoteDef> {
         }
     }
     catalogue.retain(|def| {
-        let reserved = [STOP, SYNC, MUTE, UNMUTE].contains(&def.id.as_str());
+        let reserved =
+            [STOP, SYNC, MUTE, UNMUTE, crate::emote_help::WORD].contains(&def.id.as_str());
         if reserved {
             crate::log::progress(format_args!(
                 "emotes: {FOLDER}/{}.emote: the id is reserved",
@@ -617,6 +618,10 @@ pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
         return vec![
             "No emotes are installed yet (emotes/<id>.emote in the game's files).".to_owned(),
             "sjkemote <id> still sends any id to the SJK players here.".to_owned(),
+            format!(
+                "{} explains emotes and the quick wheel.",
+                crate::emote_help::COMMAND
+            ),
         ];
     }
     catalogue
@@ -633,6 +638,7 @@ pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
             format!("{COMMAND} {STOP} ends yours; {STOP} {ALL} or {STOP} <player> ends others' here, once."),
             format!("{COMMAND} {SYNC} [player] joins another player's emote in step."),
             format!("{COMMAND} {MUTE} <player>, {UNMUTE} <player|{ALL}>: hide a player's emotes here ({MUTE} alone lists)."),
+            format!("{} explains emotes and the quick wheel.", crate::emote_help::COMMAND),
         ])
         .collect()
 }
@@ -729,7 +735,8 @@ mod tests {
                 "wave - Wave, 2.5 s",
                 "sjkemote stop ends yours; stop all or stop <player> ends others' here, once.",
                 "sjkemote sync [player] joins another player's emote in step.",
-                "sjkemote mute <player>, unmute <player|all>: hide a player's emotes here (mute alone lists)."
+                "sjkemote mute <player>, unmute <player|all>: hide a player's emotes here (mute alone lists).",
+                "help_emotes explains emotes and the quick wheel."
             ]
         );
     }
