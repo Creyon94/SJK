@@ -410,6 +410,10 @@ pub struct Look {
     /// empty, from older hubs and from wearers with every part on).
     #[serde(default)]
     pub saber_off: Vec<String>,
+    /// The toys the player has out that others draw, by id (`cardboard_box`; since
+    /// 16/10/2026; absent, and empty, from older hubs and from players with none out).
+    #[serde(default)]
+    pub toys: Vec<String>,
 }
 
 /// A look worn on a game server, as the feed relays it when it changes: the slot and
@@ -435,6 +439,9 @@ pub struct LookEvent {
     /// The blade skin's options its wearer switched off; empty when absent.
     #[serde(default)]
     pub saber_off: Vec<String>,
+    /// The toys the wearer has out; empty when absent.
+    #[serde(default)]
+    pub toys: Vec<String>,
 }
 
 impl LookEvent {
@@ -444,8 +451,33 @@ impl LookEvent {
             saber: self.saber.clone(),
             illuminate: self.illuminate,
             saber_off: self.saber_off.clone(),
+            toys: self.toys.clone(),
         }
     }
+}
+
+/// Something one SJK player's toy did to another player (`PROTOCOL.md`, "Toy events"),
+/// as the feed relays it: the sender's slot and name come from their claim, as an
+/// emote's do. The first is `cardboard_box`'s `spotted`: the sender lifted the box off
+/// the player in `target`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ToyEvent {
+    /// Its id in the feed's sequence.
+    pub id: u64,
+    /// When the hub took it, unix seconds.
+    pub at: i64,
+    /// The sender's slot on the server, from their claim.
+    pub slot: u8,
+    /// The name the sender claimed the game shows there.
+    pub claimed_name: String,
+    /// The sender's key id.
+    pub key_id: String,
+    /// The toy's id (`cardboard_box`).
+    pub toy: String,
+    /// What happened (`spotted`).
+    pub event: String,
+    /// The slot of the player it happened to.
+    pub target: u8,
 }
 
 /// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
@@ -686,6 +718,9 @@ pub struct Feed {
     /// New looks on the server asked about (absent from hubs older than looks).
     #[serde(default)]
     pub looks: Vec<LookEvent>,
+    /// New toy events on the server asked about (absent from hubs older than them).
+    #[serde(default)]
+    pub toys: Vec<ToyEvent>,
     /// New holocron drops this reader is told of (absent from hubs older than
     /// holocrons).
     #[serde(default)]
@@ -952,6 +987,7 @@ mod tests {
                 saber: "saber_sun".to_owned(),
                 illuminate: true,
                 saber_off: Vec::new(),
+                toys: Vec::new(),
             })
         );
         let options: Presence = serde_json::from_str(
@@ -983,6 +1019,7 @@ mod tests {
                 saber: String::new(),
                 illuminate: true,
                 saber_off: Vec::new(),
+                toys: Vec::new(),
             }
         );
         let options: Feed = serde_json::from_str(

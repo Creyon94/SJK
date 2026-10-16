@@ -35,6 +35,34 @@ test: Say something in SJK chat and game chat: the fox stands between your name 
 test: Open the scoreboard (SJK style): the fox follows your name.
 test: Paste two emoji or a letter on the panel: it says a name emoji is one emoji picture.
 
+[chat-limits]
+area: Console & chat
+title: Unverified players: one SJK chat message every 30 s, no links or GIFs
+change: A key that is neither verified nor staff waits 30 s between SJK chat messages.
+change: Its messages with a link (GIFs are links) are refused: only verified players send them.
+test: Unverified: send, then again at once: "...one message every 30 seconds: wait N s".
+test: Unverified: a GIF or discord.gg/abc: "Only verified players can send links and GIFs".
+test: Verified: messages every second and GIFs as before; "version 3.5" is no link.
+note: Needs the hub's trust branch deployed; the client refuses first, the hub refuses too.
+
+[emote-help]
+area: Menus & settings
+title: Emote help card (help_emotes)
+change: help_emotes or sjkemote help opens a card with the emote commands and the wheel.
+test: In the menu, type help_emotes: the card shows; Esc or Close ends it.
+test: On a server, type sjkemote help: the card shows over the game menu; Close goes back to play.
+
+[emote-stop-mute]
+area: Gameplay
+title: Stop or mute other players' emotes
+change: sjkemote stop all / stop <player|target>: ends their emotes here, once.
+change: sjkemote mute <player|target>: hides one player's emotes until unmute.
+change: sjkemote mute alone lists; sjkemote unmute <player|target|all>.
+test: Two SJK players emote: sjkemote stop all ends both here; a new emote plays.
+test: Aim at one: sjkemote stop target ends only theirs.
+test: sjkemote mute <name>: their emote stops, later ones do not play; unmute <name> brings them back.
+test: The muted player reconnects or renames: still muted (by key).
+
 [trust]
 area: Console & chat
 title: Trust marks: empty tick (new), green tick (trusted), red cross (chat banned)
@@ -506,7 +534,7 @@ title: Alpha notice at the first start
 change: A card at the first start: alpha, free and open source, bugs expected, no warranty.
 change: Continue needs the "I understand" tick; Quit leaves; ui_alphaNotice keeps the answer.
 test: ui_alphaNotice 0, restart: the card shows before First setup.
-test: Continue is grey until the tick (click the line or Space); Escape does nothing.
+test: Continue is grey until all 3 ticks (click a line, Space, or 1-3); Escape does nothing.
 test: Join the SJK Discord opens discord.gg/dGBdMygvJw; after Continue it never shows again.
 test: The Report a bug icon (wrench) opens the report dialog; Cancel brings the card back.
 
@@ -4940,3 +4968,17 @@ test: Windows: First setup > Import > Browse: the file window opens; pick a .cfg
 test: Press Browse, then Stop waiting before choosing: the card is usable again.
 test: Profile > picture > Browse: same Stop waiting behaviour.
 note: The Linux parts need a Linux player to confirm (update install, zenity window).
+
+[cardboard-box]
+area: Gameplay
+title: Cardboard box: hide in a carton (toy_box), Metal Gear style
+change: toy_box (key, quick wheel Toys page, Collection Toys tab) puts the box on or off.
+change: In it you crouch, its music loops; other SJK players see the box and hear it.
+change: Use facing a boxed player lifts it (spotted); it tips over with a drop sound.
+test: toy_box: equip sound, you crouch and cannot jump, the music loops.
+test: Third person: the carton sits over you on the floor and turns with you.
+test: toy_box again: the box tips over the way you face, thud, lies 5 s, shrinks away.
+test: Die in the box: the death sound; you respawn without it.
+test: Collection > Toys: two toys; the switch beside the box turns it on and off.
+note: Spotting and others seeing the box need a second SJK client and the hub deploy.
+note: Sounds only from base/zz_sjk_box_sounds_local.pk3 (yours, not shipped).

@@ -9,7 +9,9 @@
 //! The service is inert while it is disabled or has no hub address: it makes no
 //! request of any kind.
 
-use crate::feed::{ChatState, FeedShared, FeedWorker, QueuedLook, QueuedPing, ReceivedLooks};
+use crate::feed::{
+    ChatState, FeedShared, FeedWorker, QueuedLook, QueuedPing, QueuedToyEvent, ReceivedLooks,
+};
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::logs::{LogRequest, LogUpload};
@@ -17,7 +19,7 @@ use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
 use crate::vitals::{Sharing, VitalsTable, VitalsWorker};
 use crate::wire::{
-    Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, Unlock, names_match,
+    Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, ToyEvent, Unlock, names_match,
 };
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::net::SocketAddr;
@@ -371,6 +373,8 @@ enum Command {
     Emote(String, Option<u8>),
     /// A ping at a point (whole game units) for a scope, from the slot the player claims.
     Ping([i32; 3], String),
+    /// A toy event (toy, event, target slot), from the slot the player claims.
+    Toy(String, String, u8),
     /// Whether the SJK chat is on.
     SetChat(bool),
     /// A new picture, a PNG already cropped and scaled (`crate::avatar`).
@@ -423,6 +427,9 @@ struct Worker {
     /// The server address the hub holds a claim for, to withdraw it.
     claimed: Option<String>,
     registered: bool,
+    /// When the hub last took a chat message from the player, for the wait of a key
+    /// that is neither verified nor staff ([`UNVERIFIED_CHAT_GAP`]).
+    chat_sent: Option<Instant>,
     /// The in-game name the player wears, and the one the hub was last told.
     name: Option<String>,
     name_sent: Option<String>,
@@ -601,6 +608,10 @@ fn lock(snapshot: &Mutex<Snapshot>) -> MutexGuard<'_, Snapshot> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+/// How long a key the hub neither verifies nor made staff waits between two SJK chat
+/// messages (the hub's rule, `PROTOCOL.md`, "Chat").
+const UNVERIFIED_CHAT_GAP: Duration = Duration::from_secs(30);
+
 impl Worker {
     fn new(
         identity: Identity,
@@ -617,6 +628,7 @@ impl Worker {
             location: None,
             claimed: None,
             registered: false,
+            chat_sent: None,
             name: None,
             name_sent: None,
             snapshot,
@@ -739,19 +751,50 @@ impl Worker {
         chat.outcome = Some(outcome_of(serial, outcome));
     }
 
-    /// Send an SJK chat message under the rules, once registered.
-    fn send_chat(&mut self, text: &str) {
+    /// Send an SJK chat message under the rules, once registered. A key the hub neither
+    /// verifies nor made staff sends no links (GIFs are links) and one message every
+    /// [`UNVERIFIED_CHAT_GAP`]: both are refused here, before the hub refuses them too.
+    fn send_chat(&mut self, text: &str, now: Instant) {
+        let vouched = lock(&self.snapshot)
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified || me.staff);
+        let refused = |code: &str, message: String| {
+            Err(HubError::Rejected {
+                status: 403,
+                code: code.to_owned(),
+                message,
+            })
+        };
+        let wait = self
+            .chat_sent
+            .map(|sent| UNVERIFIED_CHAT_GAP.saturating_sub(now.saturating_duration_since(sent)))
+            .filter(|wait| !vouched && !wait.is_zero());
         let outcome = match crate::chat::check(text) {
             Err(error) => Err(HubError::Rejected {
                 status: 400,
                 code: error.code().to_owned(),
                 message: error.message().to_owned(),
             }),
+            Ok(text) if !vouched && crate::chat::has_link(&text) => refused(
+                "chat_links",
+                "Only verified players can send links and GIFs in SJK chat".to_owned(),
+            ),
+            Ok(_) if let Some(wait) = wait => refused(
+                "chat_quota",
+                format!(
+                    "Players who are not verified send one message every 30 seconds: wait {} s",
+                    wait.as_secs_f32().ceil() as u64
+                ),
+            ),
             Ok(text) => match (self.hub.as_mut(), self.registered) {
                 (Some(hub), true) => {
                     let name = self.name.clone().unwrap_or_default();
-                    hub.chat(&self.identity, &text, &name)
-                        .map(|_| String::new())
+                    let sent = hub.chat(&self.identity, &text, &name);
+                    if sent.is_ok() {
+                        self.chat_sent = Some(now);
+                    }
+                    sent.map(|_| String::new())
                 }
                 _ => Err(not_connected()),
             },
@@ -845,6 +888,18 @@ impl Worker {
         let mut last = crate::feed::lock(&self.ping_outcome);
         let serial = last.as_ref().map_or(1, |last| last.serial + 1);
         *last = Some(outcome_of(serial, outcome));
+    }
+
+    /// Send a toy event from the slot the player claims on their server. Its effect was
+    /// already shown here, so what the hub answers is not kept.
+    fn send_toy_event(&mut self, toy: &str, event: &str, target: u8) {
+        let server = self
+            .location
+            .as_ref()
+            .map(|location| location.server.to_string());
+        if let (Some(hub), true, Some(server)) = (self.hub.as_mut(), self.registered, server) {
+            let _ = hub.toy_event(&self.identity, &server, toy, event, target);
+        }
     }
 
     fn update(&self, change: impl FnOnce(&mut Snapshot)) {
@@ -943,10 +998,11 @@ impl Worker {
                     self.model_checks.push(question);
                 }
             }
-            Command::Chat(text) => self.send_chat(&text),
+            Command::Chat(text) => self.send_chat(&text, now),
             Command::ChatBan(key_id) => self.send_chat_ban(key_id),
             Command::Emote(emote, sync) => self.send_emote(&emote, sync),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
+            Command::Toy(toy, event, target) => self.send_toy_event(&toy, &event, target),
             Command::SetChat(on) => self.chat_on = on,
             Command::SetAvatar(png) => self.change_avatar(Some(&png)),
             Command::RemoveAvatar => self.change_avatar(None),
@@ -1894,6 +1950,7 @@ pub struct Service {
     emotes: Arc<Mutex<VecDeque<Emote>>>,
     looks: Arc<Mutex<VecDeque<QueuedLook>>>,
     pings: Arc<Mutex<VecDeque<QueuedPing>>>,
+    toys: Arc<Mutex<VecDeque<QueuedToyEvent>>>,
     ping_outcome: Arc<Mutex<Option<ReportOutcome>>>,
     /// What the feed is told to read, for the looks' generation.
     feed: Arc<Mutex<FeedShared>>,
@@ -1957,6 +2014,7 @@ impl Service {
         let looks = Arc::new(Mutex::new(VecDeque::new()));
         let feed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut pings = Arc::default();
+        let mut toys = Arc::default();
         if let Some(make_feed_hub) = make_feed_hub {
             let feed = FeedWorker::new(
                 feed_identity,
@@ -1971,6 +2029,7 @@ impl Service {
                 Instant::now(),
             );
             pings = feed.pings();
+            toys = feed.toys();
             let stop = Arc::clone(&feed_stop);
             let spawned = std::thread::Builder::new()
                 .name("sjk-hub-feed".to_owned())
@@ -2028,6 +2087,7 @@ impl Service {
             emotes,
             looks,
             pings,
+            toys,
             ping_outcome,
             feed,
             feed_stop,
@@ -2286,6 +2346,18 @@ impl Service {
     /// since the last call, oldest first; those read for another server are dropped.
     pub fn take_pings(&self, server: Option<SocketAddr>) -> Vec<Ping> {
         crate::feed::take_pings(&self.pings, server)
+    }
+
+    /// Tell the SJK players on the player's server that the player's toy `toy` did
+    /// `event` to the player in slot `target` (`PROTOCOL.md`, "Toy events"), from the
+    /// slot the player claims. Nothing comes back: the sender shows the effect at once.
+    pub fn toy_event(&self, toy: String, event: String, target: u8) {
+        let _ = self.commands.send(Command::Toy(toy, event, target));
+    }
+
+    /// The toy events the feed received for `server`, as [`Service::take_pings`].
+    pub fn take_toy_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
+        crate::feed::take_toy_events(&self.toys, server)
     }
 
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the
@@ -2700,6 +2772,16 @@ mod tests {
             scope: &str,
         ) -> Result<u64, HubError> {
             Fake::record(self, format!("ping {pos:?} {scope} on {server}")).map(|()| 14)
+        }
+        fn toy_event(
+            &mut self,
+            _: &Identity,
+            server: &str,
+            toy: &str,
+            event: &str,
+            target: u8,
+        ) -> Result<u64, HubError> {
+            Fake::record(self, format!("toy {toy} {event} {target} on {server}")).map(|()| 16)
         }
         fn look(&mut self, _: &Identity, server: &str, look: &Look) -> Result<u64, HubError> {
             Fake::record(
@@ -3365,7 +3447,7 @@ mod tests {
     fn chat_needs_the_rules_and_a_registration() {
         let fake = Fake::default();
         let t0 = Instant::now();
-        let (mut worker, _) = worker(&fake, t0);
+        let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::Chat("hello".into()), t0);
         let first = chat_outcome(&worker);
         assert!(!first.sent && first.message.contains("not connected"));
@@ -3384,6 +3466,26 @@ mod tests {
         let sent = chat_outcome(&worker);
         assert!(sent.sent);
         assert_eq!(sent.serial, 3);
+        // Neither verified nor staff: no links, and the next message waits 30 seconds.
+        lock(&snapshot).me.as_mut().unwrap().staff = false;
+        worker.handle(Command::Chat("see discord.gg/abc".into()), t0);
+        let link = chat_outcome(&worker);
+        assert!(
+            !link.sent && link.message.contains("links and GIFs"),
+            "{}",
+            link.message
+        );
+        let later = t0 + Duration::from_secs(12);
+        worker.handle(Command::Chat("again".into()), later);
+        let wait = chat_outcome(&worker);
+        assert!(
+            !wait.sent && wait.message.ends_with("wait 18 s"),
+            "{}",
+            wait.message
+        );
+        worker.handle(Command::Chat("again".into()), t0 + Duration::from_secs(30));
+        assert!(chat_outcome(&worker).sent);
+        assert_eq!(fake.log().last().unwrap(), "chat again as ^2Sol");
     }
 
     #[test]
@@ -3437,6 +3539,25 @@ mod tests {
         );
         let sent = crate::feed::lock(&worker.ping_outcome).clone().unwrap();
         assert!(sent.sent && sent.serial == nowhere.serial + 1);
+    }
+
+    #[test]
+    fn toy_events_go_from_the_claimed_slot_only_on_a_server() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        let spotted = || Command::Toy("cardboard_box".into(), "spotted".into(), 5);
+        worker.handle(spotted(), t0);
+        assert!(!fake.log().iter().any(|line| line.starts_with("toy")));
+        worker.handle(Command::Enter(here(3, "Sol")), t0);
+        worker.tick(t0);
+        worker.handle(spotted(), t0);
+        assert_eq!(
+            fake.log().last().unwrap(),
+            "toy cardboard_box spotted 5 on 1.2.3.4:29070"
+        );
     }
 
     #[test]
@@ -3506,6 +3627,7 @@ mod tests {
             saber: saber.to_owned(),
             illuminate: true,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         }
     }
 

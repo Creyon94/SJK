@@ -31,9 +31,16 @@ fn alpha_notice_card_shot() {
             "the card shows at the first start"
         );
 
+        // One promise ticked: Continue stays grey.
         let _ = gpu
             .alpha_card
             .handle_key_code_for_test(winit::keyboard::KeyCode::Space);
+        shoot(&mut gpu, 2, "alpha-notice-one-ticked");
+        for _ in 1..crate::alpha_notice_card::PROMISES.len() {
+            let _ = gpu
+                .alpha_card
+                .handle_key_code_for_test(winit::keyboard::KeyCode::Space);
+        }
         shoot(&mut gpu, 2, "alpha-notice-ticked");
         let choice = gpu
             .alpha_card

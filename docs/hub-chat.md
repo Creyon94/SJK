@@ -71,6 +71,10 @@ Old clients ignore all of it, so it stays `/v1/`.
   [Pings](#pings)): as an emote, the key needs a live claim on the server and the hub
   takes the slot and claimed name from it; at most 5 in 10 seconds (`ping_quota`), kept
   10 seconds, in the feed's `pings` for that server's readers.
+- `POST /v1/toy` `{"server":"ip:port","toy":"..","event":"..","target":<slot>}` (since
+  16/10/2026, [Toy events](#toy-events)): as a ping, from the slot the key's live claim
+  holds; at most one a second and 10 a minute (`toy_quota`), kept 10 seconds, in the
+  feed's `toys` for that server's readers.
 - `GET /v1/feed?after=<id>&server=<ip:port>&wait=<0..25>`, signed. Messages, emotes
   and deletions share one id sequence. The hub answers as soon as it holds something
   newer than `after` for this reader, else after `wait` seconds:
@@ -606,6 +610,18 @@ client offers it and says what came of it.
   (`ban::banned_message`, from the refusal's `until`), where every refusal shows: an
   `SJK chat:` line in the game, the docks' line under the field, the page's notice.
 
+## Limits for unverified players
+
+Sol's request, 16/10/2026: "an unverified person can only send one message every 30s
+and they can't send gifs or any links". A key the hub neither verifies nor made staff
+(trusted ones too) sends one SJK chat message every 30 seconds and no message holding a
+link: `://`, `www.` or a word that reads as a domain (`discord.gg/abc`; `chat::has_link`,
+word for word the hub's). A GIF is a link in the message, so it is refused too. The
+worker refuses both before anything goes (`Worker::send_chat`): "Players who are not
+verified send one message every 30 seconds: wait 18 s", "Only verified players can send
+links and GIFs in SJK chat"; the hub refuses them again (`chat_quota`, `chat_links`).
+The composers clear the field on Send, so a refused message has to be typed again.
+
 ## Trust marks
 
 Sol's request, 16/10/2026: an "in progress verified" mark, an empty tick for unknown
@@ -715,10 +731,25 @@ and plays changes.
   the quick wheel shows for it, drawn on a blue disc), `sound_ms` (the sound's length: a
   looping emote plays it again each time it ends), `sound_loop` and `sound_loop_ms`
   (music in two parts: the loop follows the sound and repeats while the emote plays) and `rig` (the rig model folder the clip comes from;
-  other rig models with the same joint names borrow it). The ids `stop` and `sync` are
-  reserved: `sjkemote stop` ends the player's emote here and, relayed, for the others.
+  other rig models with the same joint names borrow it). The ids `stop`, `sync`, `mute`
+  and `unmute` are reserved: `sjkemote stop` ends the player's emote here and, relayed,
+  for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
+- `help_emotes` (or `sjkemote help`; since 16/10/2026) shows an SJK pop-up card
+  ([emote_help.rs](../crates/sjk-viewer/src/emote_help.rs)) listing the `sjkemote`
+  commands and how to put emotes on the quick wheel: one command to give a player who
+  asks. It opens the game menu under it on a map and closes it again with the card;
+  `help` is a reserved id. World shot: `emote_help_card`.
+- Other players' emotes, on this screen only (since 16/10/2026; nothing is sent):
+  `sjkemote stop all` ends every other player's emote and `sjkemote stop <player>` one
+  player's, once: their next emote plays. `sjkemote mute <player>` ends that player's
+  emote and drops the ones the hub relays from their identity key (so it follows them
+  to another slot or name) until `sjkemote unmute <player>` or `unmute all`, or the
+  game closes (`emotes::State::muted`, not saved); `mute` alone lists them. Only SJK
+  players can be muted, as only they send emotes. `<player>` is a slot number, part of
+  the name shown (a whole name wins when several match), or `target`, the player under
+  the crosshair.
 - `sjkemote sync [player]` (since 15/10/2026; the quick wheel's Sync emote) joins
   another player's emote in step: the named player (a slot number or part of the name
   shown), else the one under the crosshair, else the nearest emoting player within 512
@@ -775,6 +806,20 @@ few seconds after joining).
 The hub knows no teams, so the team rule is the readers' (`world_ping::Scope::sees`):
 a modified client could read every ping of its server. Only a server that tells the hub
 (or relays pings itself, an SJK dedicated server) could enforce it; nothing does yet.
+
+## Toy events
+
+A toy event is something one SJK player's toy did to another (since 16/10/2026): the
+first is the [cardboard box](client.md#cardboard-box)'s `spotted`, a box lifted with
+`+use`. It rides the pings' path: the sender's client sends the toy, the event and the
+target's slot (`Service::toy_event`, through the identity worker), the hub relays it in
+the feed of that game server's readers (`toys`), and the feed thread queues it with the
+server it was read for (`Service::take_toy_events`). A reader applies it only when the
+game shows, in the sender's slot, the name the claim was made under, and ignores its
+own echo. The hub checks neither that the target holds a claim nor that they wear the
+box: the readers decide, so a modified client could lift anyone's box, which takes off
+a toy and nothing else. Without the hub's change (before 16/10/2026) the event is
+refused and only the lifter's screen hides the box, for at most 15 seconds.
 
 ## Vitals
 

@@ -1497,14 +1497,17 @@ for the run.
   a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
   blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
-- **Toys:** "1 toy", things to use in a match. Illuminate's holocron (its icon)
-  in its niche, ringed gold on a glow, "Everyone's"; a dotted line for
-  the toys to come. The holocron floats lit by the model on the stage
-  (`illuminate::submit_stage_holocron`); beside the model what it is, how to use it
-  and "Holocron lit" with its switch: on while the holocron is lit, and Enter or a
-  click lights it or puts it out (the `toy_illuminate` toggle, set to the state
-  wanted; the viewer owns the state, the console mirrors it each frame). The keys line
-  says "Enter: light" or "Enter: put out".
+- **Toys:** "2 toys", things to use in a match. Illuminate's holocron and the
+  cardboard box (since 16/10/2026), each its icon in its niche, "Everyone's"; the
+  chosen one ringed gold on a full glow, the other dimmed; a dotted line for the toys
+  to come. The arrows and Tab choose; a click on a niche chooses it, a click on the
+  chosen one runs it. With Illuminate chosen the holocron floats lit by the model on
+  the stage (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the
+  stage. Beside the model the chosen toy's name, what it is, how to use it and its
+  switch, "Holocron lit" or "In the box": on while the toy is on, and Enter or a click
+  runs it (the `toy_illuminate` or `toy_box` toggle, set to the state wanted; the
+  viewer owns the state, the console mirrors it each frame). The keys line says
+  "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out".
 - **Nameplates:** none exist yet. "No nameplates yet"; three empty places, dashed, each
   with a drawing of where its kind will go: Crest (before the name), Frame (round the
   plate), Trail (under the plate). Over the model's head (projected from the stage
@@ -1828,11 +1831,14 @@ same look in every menu style, on the 16:9 frame:
   (outlined, opens it in the browser).
 - **Terms:** a fun project of Sol and the contributors, no warranty (as the GPL says),
   nobody owes support, fixes or features.
-- **Tick:** "I understand that SJK is a work in progress that may have bugs, that it
-  comes with no warranty, and that I am owed nothing", gold until ticked; the whole
-  line is its hit region.
-- **Buttons:** Quit (outlined, 130) and Continue (gold, 200, greyed until the tick).
-  Keys bottom right: Space I understand, Enter continue; Escape does nothing.
+- **Ticks:** three promises, gold until ticked, each line its own hit region:
+  "I understand that SJK is a work in progress that may have bugs, that it comes with
+  no warranty, and that I am owed nothing", "I won't DM Sol to ask how the game works:
+  I will do my best to figure it out myself", and "I won't DM Sol bugs or ideas: I will
+  report them with Report a bug or on the SJK Discord" (Sol's request, 16/10/2026).
+- **Buttons:** Quit (outlined, 130) and Continue (gold, 200, greyed until all three are
+  ticked). Keys bottom right: Space ticks the next promise, Enter continue; 1 to 3 flip
+  a promise; Escape does nothing.
 
 ## Log request
 

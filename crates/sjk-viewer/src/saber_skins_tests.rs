@@ -676,6 +676,7 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         saber: String::new(),
         illuminate: true,
         saber_off: Vec::new(),
+        toys: Vec::new(),
     };
     looks.apply_event(5, "Fox", &stock);
     let slots = ViewSlots::of(&game_state, &followed);

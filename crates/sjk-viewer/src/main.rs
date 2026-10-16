@@ -23,6 +23,7 @@ mod camera;
 mod camera_uniform;
 mod capture;
 mod card_outline;
+mod cardboard_box;
 mod cards;
 mod cgame_options;
 mod chat;
@@ -97,6 +98,7 @@ mod frame_queue;
 mod frame_split;
 
 mod charge_flash;
+mod emote_help;
 mod fake_noclip;
 mod file_dialog;
 mod fps_help;
@@ -364,6 +366,8 @@ struct GpuState {
     fps_help: fps_help::State,
     /// The low-FPS card (`help_fps`).
     fps_card: fps_help::card::Card,
+    /// The emote help card (`help_emotes`, [`emote_help`]).
+    emote_help: emote_help::State,
     /// The alpha notice, until the player accepts it ([`alpha_notice_card`]).
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
@@ -426,6 +430,8 @@ struct GpuState {
     illuminate: illuminate::Holocron,
     /// The other players' holocrons, lit by their looks.
     illuminate_others: illuminate::Others,
+    /// The cardboard box toy (`toy_box`): the player's own and the boxes of others.
+    cardboard_box: cardboard_box::CardboardBox,
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1293,6 +1299,7 @@ impl GpuState {
             graphics_reload: graphics_reload::State::default(),
             fps_help: fps_help::State::default(),
             fps_card: fps_help::card::Card::default(),
+            emote_help: emote_help::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
@@ -1336,6 +1343,7 @@ impl GpuState {
             speed_trails: Default::default(),
             illuminate: Default::default(),
             illuminate_others: Default::default(),
+            cardboard_box: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
             holocron_stage_seconds: None,
@@ -1882,13 +1890,26 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The emote help card, asked for, after them all.
+        let emote_help_shown = self.prepare_emote_help_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
             || medal_shown
             || holocron_shown
             || reload_shown
             || fps_shown
             || logs_shown
-            || news_shown;
+            || news_shown
+            || emote_help_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -2073,6 +2094,8 @@ impl GpuState {
             self.append_log_request_card(viewport);
         } else if news_shown {
             self.append_whats_new_card(viewport);
+        } else if emote_help_shown {
+            self.append_emote_help_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2124,6 +2147,7 @@ impl GpuState {
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
             news_shown.then(|| self.whats_new_card.draw_list()),
+            emote_help_shown.then(|| self.emote_help.card.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
@@ -2195,6 +2219,7 @@ impl GpuState {
         self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
         self.submit_illuminate(presentation_time, visual_now);
+        self.submit_cardboard_boxes(presentation_time, visual_now);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());
@@ -2214,6 +2239,7 @@ impl GpuState {
                     .predicted_state()
                     .filter(|_| self.live_session.is_some());
                 audio.observe_saber_switches(snapshot, predicted);
+                audio.set_box_music(self.cardboard_box.music());
                 audio.update_frame_loops(
                     snapshot,
                     presentation_time as i32,

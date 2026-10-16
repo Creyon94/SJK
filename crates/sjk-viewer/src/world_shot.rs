@@ -276,6 +276,9 @@ mod movers;
 #[path = "world_shot_illuminate.rs"]
 mod holocron;
 
+#[path = "world_shot_cardboard_box.rs"]
+mod cardboard_box;
+
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
 
@@ -305,6 +308,9 @@ mod graphics_reload;
 
 #[path = "world_shot_fps_help.rs"]
 mod fps_help_shots;
+
+#[path = "world_shot_emote_help.rs"]
+mod emote_help_shots;
 
 #[path = "world_shot_alpha_notice.rs"]
 mod alpha_notice_shots;

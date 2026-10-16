@@ -64,6 +64,10 @@ impl GpuState {
             if !emotes::trusted(&emote, shown.as_deref()) {
                 continue;
             }
+            // Hidden here (`sjkemote mute`).
+            if state.muted.contains_key(&emote.key_id) {
+                continue;
+            }
             if emote.emote == emotes::STOP {
                 state.active.stop(emote.slot);
                 continue;
