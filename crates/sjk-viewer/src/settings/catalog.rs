@@ -327,6 +327,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Inventory list",
+        cvar: "cg_drawInventory",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Crosshair (0 off)",
         cvar: "cg_crosshair",
         kind: ValueKind::Integer {

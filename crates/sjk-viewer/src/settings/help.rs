@@ -186,6 +186,10 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    (
+        "cg_drawInventory",
+        "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
+    ),
     // VIDEO
     (
         crate::graphics_quality::RENDERER_ROW,

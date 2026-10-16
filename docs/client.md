@@ -2128,6 +2128,13 @@ with the HUD). Optional snapshot diagnostics and inventory flow below that block
 Visibility and server-selected leader/opponent rules are unchanged. There is no team
 overlay ([Team outlines and logos](#team-outlines-and-logos)).
 
+`cg_drawInventory` (archived, default **0**) controls the permanent list of
+carried holdable items below that block, following JoF EJK #40's quieter default.
+Enable **Inventory list** in classic Settings > HUD or SJK Settings > Advanced >
+HUD to show it. The brief inventory selector still appears when cycling items,
+whether this permanent list is on or off. Trip-mine weapons are not part of the
+holdable list. Existing saved values remain in effect.
+
 ## Lagometer size
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
