@@ -1,3 +1,18 @@
+## Game chat substitutions
+
+16/10/2026, `feat/chat-substitutions`, based on `7026c735`: the game-chat send
+path expands EJK's eleven health, shield, Force, weapon, ammo, ping, speed and
+local-time tokens for composer messages, console/binds, team chat, tells and
+replies in both menu styles ([client](client.md#chat-substitutions)). Expansion
+uses the existing serializer and byte budget, before optional chat colouring.
+Five focused unit tests cover all tokens, horizontal speed/shared ammo pools,
+clock formats, literal text, quoting and the post-expansion byte limit. Formatting,
+workspace build/tests and clippy passed on Windows with Rust 1.99.0, using a fresh
+target on another volume and `CARGO_INCREMENTAL=0` after the original volume ran
+out of space during debug-symbol/cache writes. Existing warnings and ignored
+GPU/asset tests remain. Live server delivery and visual checks have not been
+performed. This changes no movement rules or wire codec.
+
 ## Emotes on stock models: limbs out of wider bodies
 
 15/10/2026, `feat/emote-body-fit` (Creyon, on `feat/emotes-on-classic-models`): a dance made

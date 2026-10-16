@@ -264,7 +264,7 @@ pub(crate) struct ViewerConsole {
     copied: String,
     pending_quit: bool,
     pending_input: Vec<String>,
-    pending_chat: std::collections::VecDeque<String>,
+    pending_chat: std::collections::VecDeque<(String, u16, u32)>,
 
     client_commands: console_client::Commands,
     /// The client mods and their switches (`docs/mods.md`).

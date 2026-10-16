@@ -323,11 +323,7 @@ impl crate::GpuState {
         }
         match self.chat.handle_key(event) {
             ChatInputResult::Submit(command) => {
-                let command = self.console.as_ref().map_or_else(
-                    || command.clone(),
-                    |console| console.color_chat_command(&command),
-                );
-                self.send_chat_command(&command);
+                self.send_chat_command(&command, None);
             }
             ChatInputResult::Sjk(text) => self.send_sjk_chat(text),
             ChatInputResult::None => {}
@@ -360,7 +356,17 @@ impl crate::GpuState {
     }
 
     /// Composer and console messages share the real server's reliable channel.
-    pub(crate) fn send_chat_command(&mut self, command: &str) {
+    pub(crate) fn send_chat_command(&mut self, command: &str, console_colors: Option<(u16, u32)>) {
+        let values = self.chat_substitution_values();
+        let command = super::substitutions::command(
+            command,
+            values.as_ref(),
+            sjk_shell::local_time::LocalTime::now(),
+        );
+        let command = self.console.as_ref().map_or_else(
+            || command.clone(),
+            |console| console.color_chat_command(&command, console_colors),
+        );
         if let Some(session) = self.communication_session_mut()
             && let Err(error) = session.send_reliable_command(command.as_bytes())
         {
