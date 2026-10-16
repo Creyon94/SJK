@@ -346,7 +346,13 @@ pub(super) fn force_key_order(side: ForceSide) -> Vec<usize> {
                 .map(|power| FORCE_POWER_ROW + usize::from(*power)),
         );
     }
-    order.extend([FORCE_RESET_ROW, FORCE_DISCARD_ROW, FORCE_APPLY_ROW]);
+    order.extend([
+        super::rows::FORCE_RETAIL_TEMPLATE_ROW,
+        super::rows::FORCE_COMMUNITY_TEMPLATE_ROW,
+        FORCE_RESET_ROW,
+        FORCE_DISCARD_ROW,
+        FORCE_APPLY_ROW,
+    ]);
     order
 }
 
@@ -1401,6 +1407,7 @@ impl PlayerMenu {
     /// the left, the side's five on the right), each with its three levels
     /// priced, then Start over, Discard and Apply.
     fn sjk_force(&mut self, frame: &Frame) {
+        self.sjk_force_templates(frame);
         let s = frame.s;
         let remaining = self.force.remaining_points();
         let total = self.force.total_points();
@@ -2273,7 +2280,9 @@ impl PlayerMenu {
                 Some(SaberRow::Search) => RowKind::Type,
                 _ => RowKind::Step,
             },
-            ProfilePage::Force if self.selected >= FORCE_RESET_ROW => RowKind::Act,
+            ProfilePage::Force if (FORCE_RESET_ROW..=FORCE_APPLY_ROW).contains(&self.selected) => {
+                RowKind::Act
+            }
             ProfilePage::Force => RowKind::Step,
         }
     }
@@ -2617,11 +2626,65 @@ mod tests {
     }
 
     #[test]
+    fn force_template_selectors_load_the_draft_by_group() {
+        use super::super::rows::{FORCE_COMMUNITY_TEMPLATE_ROW, FORCE_RETAIL_TEMPLATE_ROW};
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let applied = console.cvar("forcepowers").cloned();
+        let mut menu = drawn(ProfilePage::Force, false);
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        crate::assets::force_presets::mount(&mut vfs).unwrap();
+        vfs.mount_memory(
+            "GameData/base/assets0.pk3",
+            [(
+                "forcecfg/light/Zed.fcf",
+                b"7-1-100000000000000000".as_slice(),
+            )],
+        )
+        .unwrap();
+        let vfs = std::sync::Arc::new(vfs);
+        menu.force_templates.list =
+            super::super::force_templates::Templates::from_test_vfs(std::sync::Arc::clone(&vfs));
+        menu.icon_vfs = Some(vfs);
+        draw(&mut menu);
+        for (row, retail) in [
+            (FORCE_RETAIL_TEMPLATE_ROW, true),
+            (FORCE_COMMUNITY_TEMPLATE_ROW, false),
+        ] {
+            let rect = menu.canvas.rect_for(row as u16).expect("selector");
+            click(
+                &mut menu,
+                &mut console,
+                sjk_ui::Vec2::new(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5),
+            );
+            assert_eq!(menu.selected, row);
+            let index = menu.template_row().expect("loaded into draft");
+            assert_eq!(
+                menu.force_templates.list.of(ForceSide::Light)[index].retail,
+                retail
+            );
+            assert_eq!(
+                console.cvar("forcepowers").cloned(),
+                applied,
+                "selection must wait for Apply"
+            );
+            menu.adjust(&mut console, -1);
+            let previous = menu.template_row().unwrap();
+            assert_eq!(
+                menu.force_templates.list.of(ForceSide::Light)[previous].retail,
+                retail
+            );
+            draw(&mut menu);
+        }
+        assert!(!menu.canvas.overflowed());
+    }
+
+    #[test]
     fn the_force_page_groups_powers_as_classic_plus_and_skips_the_other_side() {
         use super::super::classic::layout::{DARK_POWERS, LIGHT_POWERS};
         let light = force_key_order(ForceSide::Light);
         // The sides, thirteen powers, the three actions.
-        assert_eq!(light.len(), 1 + 13 + 3);
+        assert_eq!(light.len(), 1 + 13 + 2 + 3);
         assert_eq!(light[0], FORCE_SIDE_ROW);
         assert_eq!(
             &light[light.len() - 3..],

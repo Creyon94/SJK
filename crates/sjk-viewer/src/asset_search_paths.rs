@@ -290,6 +290,7 @@ impl Options {
         // packs with the unlockables' art), below everything so game data with the same paths
         // replaces it.
         crate::illuminate::mount(&mut vfs)?;
+        super::force_presets::mount(&mut vfs)?;
         crate::card_outline::mount(&mut vfs)?;
         crate::sjk_packs::mount_below_game_data(&mut vfs);
         // JoF EJK's hats and capes, below everything else so they never
