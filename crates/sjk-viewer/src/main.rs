@@ -2198,7 +2198,7 @@ impl GpuState {
         self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
         self.submit_illuminate(presentation_time, visual_now);
-        self.submit_cardboard_boxes(presentation_time);
+        self.submit_cardboard_boxes(presentation_time, visual_now);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());

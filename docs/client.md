@@ -3276,6 +3276,9 @@ The cardboard box is a toy, SJK's own and free for every player (Sol's idea,
 takes it off, from a bind (Settings > Key bindings > Interaction > Toy: Cardboard box,
 unbound until a key is picked), from the quick wheel's [Toys page](#toys-page) or from
 the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It is off at every start.
+Putting it on plays its sound (one's own at once, in both ears; another's where they
+stand when their look gains the box, but not for the boxes already in the looks in the
+first 5 seconds on a server).
 
 - **In the box** the player crouches: while it is on and the player is alive and in the
   match, every user command holds crouch (`upmove` -127, as a held `+movedown`, over a
@@ -3297,6 +3300,12 @@ the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It is off at every s
   takes the box off and plays the sound; every other SJK client hides it and plays the
   sound where the player stands. A lift seen here holds until that player's look drops
   the box, at most 15 seconds. The `+use` itself still reaches the server as always.
+- **Taken off or lifted**, while its player is still drawn, the box tips over on its
+  side (0.45 s, pivoting on its bottom edge, faster as it goes): away from the lifter
+  when spotted, else the way the player faced. It lands with the drop sound, lies there
+  5 seconds and shrinks away; at most 8 lie about at once. A box that goes with its
+  player (dead, cloaked, out of sight) does not fall. One's own in first person shows
+  only in mirrors until it has tipped 0.5 radians, out of the view inside it.
 - **Dying in the box** plays its death sound: one's own in both ears, another's where
   they fell, on every SJK client that sees the death (the player's entity turning
   `EF_DEAD` while their look has the box). The box stays on until the respawn, so the
@@ -3307,8 +3316,9 @@ picture, shader and icon are bundled and mounted below all game data, so a PK3 w
 the same paths replaces them; they are drawn by
 [cardboard_box_assets.py](../scripts/cardboard_box_assets.py), nothing taken from
 another game ([assets/cardboard_box](../crates/sjk-viewer/assets/cardboard_box/README.md)).
-The sounds are game paths, `sound/sjk/cardboard_box/music`, `spotted` and `death`
-(`.wav`, else `.mp3`); where one is missing, nothing plays. See
+The sounds are game paths that SJK does not ship, `sound/sjk/cardboard_box/music`,
+`equip`, `spotted`, `drop` and `death` (`.wav`, else `.mp3`); where one is missing,
+nothing plays. See
 [cardboard_box.rs](../crates/sjk-viewer/src/cardboard_box.rs).
 
 ## Blade skins

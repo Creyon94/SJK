@@ -6,13 +6,17 @@ Metal Gear style carton to hide in ([client.md](client.md#cardboard-box)). `toy_
 crouch, its music loops on the player, and other SJK players see the carton through the
 look's new `toys` list. `+use` facing a boxed player lifts it (spotted sound, hub toy
 event `POST /v1/toy`, [hub-chat.md](hub-chat.md#toy-events)); dying in it plays a death
-sound for every SJK client that sees it. The carton is drawn by
-`scripts/cardboard_box_assets.py`. The three sounds are not in yet: Sol is to provide
-them (`sound/sjk/cardboard_box/music`, `spotted`, `death`). Checked by unit tests (the
-model, crouch, `+use` presses and the target pick, spotted and death logic, looks'
+sound for every SJK client that sees it. Putting it on plays a sound; taken off or
+lifted, it tips over on its side with a drop sound and lies there 5 seconds. The carton
+is drawn by `scripts/cardboard_box_assets.py`. The five sounds
+(`sound/sjk/cardboard_box/music`, `equip`, `spotted`, `drop`, `death`) are not in the
+repository: Sol's are Metal Gear clips, installed only in Sol's GameData
+(`base/zz_sjk_box_sounds_local.pk3`) for tests (AGENTS.md, other games' assets).
+Checked by unit tests (the model, crouch, `+use` presses and the target pick, spotted
+and death logic, the equip sound and the fall, looks'
 toys both ways, the identity feed queue and send, the look body, the Collection's two
 toys and their layout at four sizes, the wheel's pages) and an off-screen render of two
-cartons on duel6 (`world_shot::cardboard_box`). The hub branch has its own unit and API
+cartons on duel6, one tipping and one lying (`world_shot::cardboard_box`). The hub branch has its own unit and API
 tests and is not deployed. Not tried in a game or with two clients; no sound heard.
 
 ## Alpha notice at the first start

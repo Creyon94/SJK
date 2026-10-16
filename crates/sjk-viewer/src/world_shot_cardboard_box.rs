@@ -3,7 +3,8 @@
 //! Ignored like the other world shots.
 //!
 //! `SJK_BOX_MAPS` names the maps (`duel6,ffa3`; default duel6). Each map gives one
-//! sheet of four views: from the spawn, from a step aside, close up, and from above.
+//! sheet of four views: from the spawn, from a step aside, close up, and from above,
+//! with a third box tipping over and a fourth lying on its side.
 
 use super::*;
 
@@ -48,10 +49,26 @@ fn shoot_map(map: &str) {
     let eye = Vec3::from_array(spawn);
     let first = standing(&mut gpu, eye + turn * Vec3::new(160.0, 0.0, 0.0));
     let second = standing(&mut gpu, eye + turn * Vec3::new(200.0, 70.0, 0.0));
+    let tipping = standing(&mut gpu, eye + turn * Vec3::new(170.0, -80.0, 0.0));
+    let lying = standing(&mut gpu, eye + turn * Vec3::new(230.0, -20.0, 0.0));
     gpu.third_person_choice = true;
     gpu.cardboard_box.shot_cartons = vec![
         (first.to_array(), yaw + 0.4),
         (second.to_array(), yaw + std::f32::consts::PI - 0.3),
+    ];
+    gpu.cardboard_box.shot_fallen = vec![
+        (
+            tipping.to_array(),
+            yaw,
+            yaw - 1.2,
+            std::time::Duration::from_millis(330),
+        ),
+        (
+            lying.to_array(),
+            yaw + 0.5,
+            yaw + 0.9,
+            std::time::Duration::from_secs(2),
+        ),
     ];
     let mut images = Vec::new();
     for (index, (from, at)) in VIEWS.iter().enumerate() {

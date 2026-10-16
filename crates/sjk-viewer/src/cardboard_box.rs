@@ -14,10 +14,15 @@
 //! where they fell, on every SJK client that sees it; the box is lost with the life
 //! (off at the respawn). It is out at every start, like Illuminate.
 //!
+//! A box put on plays its sound ([`EQUIP`]). A box taken off or lifted, its player
+//! still standing, tips over on its side ([`Fallen`]: away from the lifter, or the way
+//! its player faced), lands with a thud ([`DROP`]), lies there a few seconds and goes.
+//!
 //! The carton's model, picture, shader and icon are bundled ([`FILES`], made by
 //! `scripts/cardboard_box_assets.py`) and mounted below all game data, so a PK3 with
-//! the same paths replaces them. The sounds ([`MUSIC`], [`SPOTTED`], [`DEATH`]) are
-//! game paths; where they are missing nothing plays.
+//! the same paths replaces them. The sounds ([`MUSIC`], [`EQUIP`], [`SPOTTED`],
+//! [`DROP`], [`DEATH`]) are game paths that SJK does not ship; where they are missing
+//! nothing plays.
 
 use crate::GpuState;
 use crate::actor_instance::ActorInstance;
@@ -39,6 +44,10 @@ pub(crate) const MUSIC: &str = "sound/sjk/cardboard_box/music.wav";
 pub(crate) const SPOTTED: &str = "sound/sjk/cardboard_box/spotted.wav";
 /// The sound of a player who dies in the box.
 pub(crate) const DEATH: &str = "sound/sjk/cardboard_box/death.wav";
+/// The sound of a box put on.
+pub(crate) const EQUIP: &str = "sound/sjk/cardboard_box/equip.wav";
+/// The sound of a fallen box landing on its side.
+pub(crate) const DROP: &str = "sound/sjk/cardboard_box/drop.wav";
 
 /// A bundled file's bytes, by its name in `assets/cardboard_box`.
 macro_rules! bundled {
@@ -83,6 +92,21 @@ const FACING: f32 = 0.5;
 const LIFT_HOLD: Duration = Duration::from_secs(15);
 /// From the player's origin down to their feet (`DEFAULT_MINS_2`).
 const FEET: f32 = -24.0;
+/// Half the carton's width: from its middle to the edge it tips over.
+const HALF_WIDTH: f32 = 23.0;
+/// How long a box takes to tip over onto its side.
+const FALL: Duration = Duration::from_millis(450);
+/// How long a fallen box lies there.
+const REST: Duration = Duration::from_secs(5);
+/// How long a fallen box takes to shrink away.
+const SHRINK: Duration = Duration::from_millis(400);
+/// The most fallen boxes at once; a new one replaces the oldest.
+const FALLEN_MAX: usize = 8;
+/// While a fallen box is the player's own in first person, it shows in mirrors only
+/// until it has tipped this far (radians), out of the view inside it.
+const OWN_CLEAR: f32 = 0.5;
+/// After joining a server, the boxes in the looks that arrive are not put on: no sound.
+const SETTLE: Duration = Duration::from_secs(5);
 const ET_PLAYER: u8 = 1;
 const EF_DEAD: u32 = 1 << 1;
 const EF_NODRAW: u32 = 1 << 8;
@@ -107,9 +131,65 @@ pub(crate) struct Music {
     pub(crate) origin: Option<[f32; 3]>,
 }
 
+/// A box tipping over, or lying on its side, where a player took it off or was spotted.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Fallen {
+    /// The middle of its bottom when it started to fall, and its yaw (radians).
+    feet: Vec3,
+    yaw: f32,
+    /// The way it falls, level and of unit length.
+    toward: Vec2,
+    /// Whose it was, for the sound.
+    slot: u8,
+    since: Instant,
+    /// The player's own seen in first person: in mirrors only until [`OWN_CLEAR`].
+    own_view: bool,
+    /// Its thud was played.
+    landed: bool,
+}
+
+impl Fallen {
+    /// Where it is at `now`: its model's place and the angle tipped, or `None` once gone.
+    fn pose(&self, now: Instant) -> Option<(ActorInstance, f32)> {
+        let age = now.saturating_duration_since(self.since).as_secs_f32();
+        let fall = FALL.as_secs_f32();
+        let shrink = (age - fall - REST.as_secs_f32()) / SHRINK.as_secs_f32();
+        if shrink >= 1.0 {
+            return None;
+        }
+        // Falling as under gravity: slow at first, fast at the end.
+        let t = (age / fall).min(1.0);
+        let angle = std::f32::consts::FRAC_PI_2 * t * t;
+        let toward = self.toward.extend(0.0);
+        let tilt = Quat::from_axis_angle(Vec3::Z.cross(toward), angle);
+        let pivot = self.feet + toward * HALF_WIDTH;
+        let position = pivot + tilt * (self.feet - pivot);
+        let mut instance = ActorInstance::new(
+            position.to_array(),
+            (tilt * Quat::from_rotation_z(self.yaw)).to_array(),
+            [1.0 - shrink.max(0.0); 3],
+        );
+        if self.own_view && angle < OWN_CLEAR {
+            instance.view_flags |= 1;
+        }
+        Some((instance, angle))
+    }
+}
+
+/// A slot this frame, as [`CardboardBox::frame`] reads it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Seen {
+    /// The carton drawn over the player: its origin (the player's) and yaw (radians).
+    carton: Option<([f32; 3], f32)>,
+    /// Their look (or, for the player's own, the toy) has the box on.
+    worn: bool,
+    /// Where the game draws the player alive, if it does.
+    drawn: Option<[f32; 3]>,
+}
+
 /// The toy's state: the player's own box, the boxes lifted here, who was seen dead,
-/// and the sounds to play. Fixed-size but for the two short lists, which keep their
-/// room: a frame allocates nothing.
+/// what was drawn the last frame, the fallen boxes and the sounds to play. Fixed-size
+/// but for the short lists, which keep their room: a frame allocates nothing.
 pub(crate) struct CardboardBox {
     /// The player's own box is on.
     on: bool,
@@ -125,6 +205,16 @@ pub(crate) struct CardboardBox {
     lifted: [Option<Instant>; SLOTS],
     /// The slots seen dead in the last snapshot (bits).
     dead: u64,
+    /// The way a lifted box is pushed, by slot, until it falls.
+    pushed: [Option<Vec2>; SLOTS],
+    /// The cartons drawn the last frame, by slot: origin and yaw.
+    shown: [Option<([f32; 3], f32)>; SLOTS],
+    /// Who had the box on the last frame (bits).
+    worn: u64,
+    /// When the game began on this server (the looks' boxes settle first, [`SETTLE`]).
+    joined: Option<Instant>,
+    /// The boxes tipping over or lying on their side.
+    fallen: Vec<Fallen>,
     /// Sounds to play, taken by the audio each frame.
     cues: Vec<Cue>,
     /// The music this frame.
@@ -134,6 +224,10 @@ pub(crate) struct CardboardBox {
     /// Cartons to draw without a session, for the world shots: origin and yaw.
     #[cfg(test)]
     pub(crate) shot_cartons: Vec<([f32; 3], f32)>,
+    /// Fallen boxes to draw without a session, for the world shots: origin, yaw, the
+    /// way they fall (radians) and how long ago they started.
+    #[cfg(test)]
+    pub(crate) shot_fallen: Vec<([f32; 3], f32, f32, Duration)>,
 }
 
 impl Default for CardboardBox {
@@ -146,11 +240,18 @@ impl Default for CardboardBox {
             use_held: false,
             lifted: [None; SLOTS],
             dead: 0,
-            cues: Vec::with_capacity(4),
+            pushed: [None; SLOTS],
+            shown: [None; SLOTS],
+            worn: 0,
+            joined: None,
+            fallen: Vec::with_capacity(FALLEN_MAX),
+            cues: Vec::with_capacity(8),
             music: Vec::with_capacity(8),
             sounds_registered: false,
             #[cfg(test)]
             shot_cartons: Vec::new(),
+            #[cfg(test)]
+            shot_fallen: Vec::new(),
         }
     }
 }
@@ -225,17 +326,22 @@ impl CardboardBox {
         self.crouching = self.on && alive == Some(true);
     }
 
-    /// A toy event relayed for this server, from `sender` (whose claim matches what the
+    /// A toy event relayed for this server, from a sender (whose claim matches what the
     /// game shows) about `target`; `own` is the player's slot, `origin` where the target
-    /// stands if the game draws them, `boxed` whether this client shows their box.
+    /// stands if the game draws them, `boxed` whether this client shows their box,
+    /// `toward` the way from the sender to the target (the box falls that way).
     fn spotted(
         &mut self,
         target: u8,
         own: Option<u8>,
         origin: Option<[f32; 3]>,
         boxed: bool,
+        toward: Option<Vec2>,
         now: Instant,
     ) {
+        if let Some(pushed) = self.pushed.get_mut(usize::from(target)) {
+            *pushed = toward;
+        }
         if Some(target) == own {
             if self.on {
                 self.on = false;
@@ -261,10 +367,12 @@ impl CardboardBox {
         *lifted = Some(now);
     }
 
-    /// Lift the box of `target` here, standing at `origin`: the sound, and the box goes.
-    fn lift(&mut self, target: u8, origin: [f32; 3], now: Instant) {
+    /// Lift the box of `target` here, standing at `origin`, from `from`: the sound, and
+    /// the box falls away from the lifter.
+    fn lift(&mut self, target: u8, origin: [f32; 3], from: [f32; 3], now: Instant) {
         if let Some(lifted) = self.lifted.get_mut(usize::from(target)) {
             *lifted = Some(now);
+            self.pushed[usize::from(target)] = level_way(from, origin);
             self.cues.push(Cue {
                 path: SPOTTED,
                 slot: target,
@@ -310,7 +418,103 @@ impl CardboardBox {
     fn clear_others(&mut self) {
         self.lifted = [None; SLOTS];
         self.dead = 0;
+        self.pushed = [None; SLOTS];
+        self.shown = [None; SLOTS];
+        self.worn = 0;
+        self.joined = None;
+        self.fallen.clear();
     }
+
+    /// This frame's boxes, by slot (`own` the player's, seen in first person or not):
+    /// a box put on plays its sound where its player is drawn (the player's own, in
+    /// both ears; others' only once the looks settled after joining); a carton drawn
+    /// the last frame and gone while its player is still drawn, taken off or lifted,
+    /// tips over on its side.
+    fn frame(
+        &mut self,
+        seen: &[Seen; SLOTS],
+        own: Option<usize>,
+        first_person: bool,
+        now: Instant,
+    ) {
+        let joined = *self.joined.get_or_insert(now);
+        let settled = now.saturating_duration_since(joined) >= SETTLE;
+        for (slot, seen) in seen.iter().enumerate() {
+            let bit = 1_u64 << slot;
+            let mine = Some(slot) == own;
+            if seen.worn && self.worn & bit == 0 {
+                if mine {
+                    self.cues.push(Cue {
+                        path: EQUIP,
+                        slot: slot as u8,
+                        origin: None,
+                    });
+                } else if let Some(origin) = seen.drawn.filter(|_| settled) {
+                    self.cues.push(Cue {
+                        path: EQUIP,
+                        slot: slot as u8,
+                        origin: Some(origin),
+                    });
+                }
+            }
+            let pushed = self.pushed[slot];
+            if let Some((origin, yaw)) = self.shown[slot]
+                && seen.carton.is_none()
+                && seen.drawn.is_some()
+                && (pushed.is_some() || !seen.worn)
+            {
+                if self.fallen.len() == FALLEN_MAX {
+                    self.fallen.remove(0);
+                }
+                self.fallen.push(Fallen {
+                    feet: Vec3::from_array(origin) + Vec3::Z * FEET,
+                    yaw,
+                    toward: pushed.unwrap_or_else(|| Vec2::from_angle(yaw)),
+                    slot: slot as u8,
+                    since: now,
+                    own_view: mine && first_person,
+                    landed: false,
+                });
+                self.pushed[slot] = None;
+            }
+            if seen.carton.is_none() && !seen.worn {
+                self.pushed[slot] = None;
+            }
+            self.shown[slot] = seen.carton;
+            self.worn = if seen.worn {
+                self.worn | bit
+            } else {
+                self.worn & !bit
+            };
+        }
+    }
+
+    /// The fallen boxes at `now`: their thuds as they land, the gone ones forgotten, and
+    /// the rest handed to `draw`.
+    fn fallen_frame(&mut self, now: Instant, mut draw: impl FnMut(ActorInstance)) {
+        let cues = &mut self.cues;
+        self.fallen.retain_mut(|fallen| {
+            let Some((instance, angle)) = fallen.pose(now) else {
+                return false;
+            };
+            if !fallen.landed && angle >= std::f32::consts::FRAC_PI_2 {
+                fallen.landed = true;
+                cues.push(Cue {
+                    path: DROP,
+                    slot: fallen.slot,
+                    origin: Some(instance.position),
+                });
+            }
+            draw(instance);
+            true
+        });
+    }
+}
+
+/// The level way from `from` to `to`, of unit length, if they are apart on the level.
+fn level_way(from: [f32; 3], to: [f32; 3]) -> Option<Vec2> {
+    let way = (Vec3::from_array(to) - Vec3::from_array(from)).truncate();
+    (way.length_squared() > 1.0).then(|| way.normalize())
 }
 
 /// The player `+use` lifts the box of, if any: the nearest of `boxed` (slot and origin)
@@ -405,8 +609,16 @@ impl GpuState {
             }
             let target = usize::from(event.target);
             let shows = boxed(target) && !self.cardboard_box.lifted(target);
+            let at = if Some(event.target) == own {
+                Some(player.origin())
+            } else {
+                origin_of(target)
+            };
+            let toward = origin_of(usize::from(event.slot))
+                .zip(at)
+                .and_then(|(from, at)| level_way(from, at));
             self.cardboard_box
-                .spotted(event.target, own, origin_of(target), shows, now);
+                .spotted(event.target, own, origin_of(target), shows, toward, now);
         }
         // `+use` facing a boxed player within reach lifts the box.
         if std::mem::take(&mut self.cardboard_box.use_pressed) && own_playing {
@@ -423,7 +635,7 @@ impl GpuState {
             if let Some((target, at)) =
                 pick_target(Vec3::from_array(from), self.camera_yaw, candidates)
             {
-                self.cardboard_box.lift(target, at.to_array(), now);
+                self.cardboard_box.lift(target, at.to_array(), from, now);
                 crate::player_identity::toy_event(TOY, EVENT_SPOTTED, target);
             }
         }
@@ -449,8 +661,9 @@ impl GpuState {
     }
 
     /// Add this frame's cartons, and note the music: the player's own (drawn in mirrors
-    /// only in first person), then every other boxed player the game draws.
-    pub(crate) fn submit_cardboard_boxes(&mut self, presentation_time: i64) {
+    /// only in first person), then every other boxed player the game draws; then the
+    /// boxes put on, taken off and fallen ([`CardboardBox::frame`]).
+    pub(crate) fn submit_cardboard_boxes(&mut self, presentation_time: i64, now: Instant) {
         self.cardboard_box.music.clear();
         let mesh = self
             .object_meshes
@@ -460,6 +673,20 @@ impl GpuState {
         if let Some(mesh) = mesh {
             for &(origin, yaw) in &self.cardboard_box.shot_cartons {
                 self.object_groups[mesh].push(carton(origin, yaw));
+            }
+            for &(origin, yaw, way, age) in &self.cardboard_box.shot_fallen {
+                let fallen = Fallen {
+                    feet: Vec3::from_array(origin) + Vec3::Z * FEET,
+                    yaw,
+                    toward: Vec2::from_angle(way),
+                    slot: 0,
+                    since: now - age,
+                    own_view: false,
+                    landed: true,
+                };
+                if let Some((instance, _)) = fallen.pose(now) {
+                    self.object_groups[mesh].push(instance);
+                }
             }
         }
         let Some(session) = self
@@ -474,13 +701,21 @@ impl GpuState {
         let followed = slots.followed().filter(|&slot| slot < SLOTS);
         let first_person = !self.third_person;
         let mut cartons = [None::<(usize, ActorInstance)>; SLOTS];
-        if self.cardboard_box.crouching
-            && let Some(own) = slots.own.filter(|&slot| slot < SLOTS)
-        {
+        let mut seen = [Seen::default(); SLOTS];
+        let own = slots.own.filter(|&slot| slot < SLOTS);
+        if let Some(own) = own {
             let origin = self
                 .local_prediction
                 .predicted_state()
                 .map_or_else(|| snapshot.player.origin(), |state| state.origin);
+            seen[own].worn = self.cardboard_box.on;
+            seen[own].drawn = (self.cardboard_box.own_alive == Some(true)).then_some(origin);
+        }
+        if self.cardboard_box.crouching
+            && let Some(own) = own
+            && let Some(origin) = seen[own].drawn
+        {
+            seen[own].carton = Some((origin, self.camera_yaw));
             let mut instance = carton(origin, self.camera_yaw);
             if first_person {
                 instance.view_flags |= 1;
@@ -493,15 +728,27 @@ impl GpuState {
         }
         let lifted = self.cardboard_box.lifted;
         let looks = &self.looks;
+        for (slot, seen) in seen.iter_mut().enumerate() {
+            if Some(slot) != own {
+                seen.worn = looks.toy(slot, TOY);
+            }
+        }
         let shows =
             |slot: usize| Some(slot) != slots.own && looks.toy(slot, TOY) && lifted[slot].is_none();
         // The player the view follows: their entity is not in the snapshot.
+        if let Some(slot) = followed
+            && alive(&snapshot.player)
+        {
+            seen[slot].drawn = Some(snapshot.player.origin());
+        }
         if let Some(slot) = followed
             && shows(slot)
             && alive(&snapshot.player)
         {
             let origin = snapshot.player.origin();
-            let mut instance = carton(origin, snapshot.player.view_angles()[1].to_radians());
+            let yaw = snapshot.player.view_angles()[1].to_radians();
+            seen[slot].carton = Some((origin, yaw));
+            let mut instance = carton(origin, yaw);
             if first_person {
                 instance.view_flags |= 1;
             }
@@ -513,7 +760,7 @@ impl GpuState {
         }
         for entity in &snapshot.entities {
             let slot = usize::from(entity.number());
-            if slot >= SLOTS || Some(slot) == followed || !shows(slot) || !drawn(entity) {
+            if slot >= SLOTS || Some(slot) == followed || Some(slot) == own || !drawn(entity) {
                 continue;
             }
             let Some(presented) = self
@@ -523,19 +770,29 @@ impl GpuState {
                 continue;
             };
             let origin = presented.sample(presentation_time).translation;
+            seen[slot].drawn = Some(origin);
+            if !shows(slot) {
+                continue;
+            }
             let yaw = presented
                 .sample_pose(presentation_time)
-                .map_or(0.0, |pose| pose.view_angles_degrees[1]);
-            cartons[slot] = Some((slot, carton(origin, yaw.to_radians())));
+                .map_or(0.0, |pose| pose.view_angles_degrees[1])
+                .to_radians();
+            seen[slot].carton = Some((origin, yaw));
+            cartons[slot] = Some((slot, carton(origin, yaw)));
             self.cardboard_box.music.push(Music {
                 slot: slot as u8,
                 origin: Some(origin),
             });
         }
+        self.cardboard_box.frame(&seen, own, first_person, now);
         if let Some(mesh) = mesh {
             for (_, instance) in cartons.into_iter().flatten() {
                 self.object_groups[mesh].push(instance);
             }
+            let group = &mut self.object_groups[mesh];
+            self.cardboard_box
+                .fallen_frame(now, |instance| group.push(instance));
         }
     }
 
@@ -549,7 +806,7 @@ impl GpuState {
         if !self.cardboard_box.sounds_registered
             && let Some(vfs) = self.vfs.as_deref()
         {
-            audio.register_effect_paths(vfs, [MUSIC, SPOTTED, DEATH]);
+            audio.register_effect_paths(vfs, [MUSIC, EQUIP, SPOTTED, DROP, DEATH]);
             self.cardboard_box.sounds_registered = true;
         }
         for cue in self.cardboard_box.take_cues() {
@@ -666,25 +923,25 @@ mod tests {
         let mut toy = CardboardBox::default();
         toy.set_on(true);
         toy.own_life(Some(true), Some(1));
-        toy.spotted(1, Some(1), None, false, now);
+        toy.spotted(1, Some(1), None, false, None, now);
         assert!(!toy.on() && !toy.crouching);
         assert_eq!(toy.take_cues().next().unwrap().path, SPOTTED);
         // Again (a repeat): the box is already off, nothing plays.
-        toy.spotted(1, Some(1), None, false, now);
+        toy.spotted(1, Some(1), None, false, None, now);
         assert_eq!(toy.take_cues().count(), 0);
         // Another player's: hidden, the sound where they stand, once.
-        toy.spotted(6, Some(1), Some([1.0, 2.0, 3.0]), true, now);
+        toy.spotted(6, Some(1), Some([1.0, 2.0, 3.0]), true, None, now);
         assert!(toy.lifted(6));
         let cue = toy.take_cues().next().unwrap();
         assert_eq!((cue.slot, cue.origin), (6, Some([1.0, 2.0, 3.0])));
-        toy.spotted(6, Some(1), Some([1.0, 2.0, 3.0]), true, now);
+        toy.spotted(6, Some(1), Some([1.0, 2.0, 3.0]), true, None, now);
         assert_eq!(toy.take_cues().count(), 0, "lifted here already");
         // The lift ends when their look drops the box, or after the hold.
         toy.expire_lifts(|_| true, now + Duration::from_secs(1));
         assert!(toy.lifted(6));
         toy.expire_lifts(|_| true, now + LIFT_HOLD + Duration::from_secs(1));
         assert!(!toy.lifted(6));
-        toy.lift(7, [0.0; 3], now);
+        toy.lift(7, [0.0; 3], [-50.0, 0.0, 0.0], now);
         toy.expire_lifts(|slot| slot != 7, now);
         assert!(!toy.lifted(7));
     }
@@ -705,6 +962,97 @@ mod tests {
         toy.deaths(0b0111, 0, boxed, at);
         toy.deaths(0b1111, 0b1000, boxed, at);
         assert_eq!(toy.take_cues().count(), 0);
+    }
+
+    /// A slot drawn at `x` on the X axis, worn or not, with a carton or not.
+    fn at(x: f32, worn: bool, carton: bool) -> Seen {
+        Seen {
+            carton: carton.then_some(([x, 0.0, 24.0], 0.0)),
+            worn,
+            drawn: Some([x, 0.0, 24.0]),
+        }
+    }
+
+    #[test]
+    fn a_box_put_on_plays_its_sound_once_the_looks_settled() {
+        let start = Instant::now();
+        let mut toy = CardboardBox::default();
+        let mut seen = [Seen::default(); SLOTS];
+        seen[3] = at(0.0, true, true);
+        seen[5] = at(100.0, true, true);
+        // Joining: the boxes already in the looks make no sound, but the own one does.
+        toy.frame(&seen, Some(5), true, start);
+        let cues: Vec<_> = toy.take_cues().collect();
+        assert_eq!(
+            cues,
+            [Cue {
+                path: EQUIP,
+                slot: 5,
+                origin: None
+            }]
+        );
+        seen[3] = at(0.0, false, false);
+        toy.frame(&seen, Some(5), true, start + Duration::from_secs(1));
+        toy.fallen.clear();
+        let _ = toy.take_cues().count();
+        seen[3] = at(0.0, true, true);
+        toy.frame(&seen, Some(5), true, start + SETTLE);
+        let cue = toy.take_cues().next().unwrap();
+        assert_eq!(
+            (cue.path, cue.slot, cue.origin),
+            (EQUIP, 3, Some([0.0, 0.0, 24.0]))
+        );
+        toy.frame(&seen, Some(5), true, start + SETTLE);
+        assert_eq!(toy.take_cues().count(), 0, "once");
+    }
+
+    #[test]
+    fn a_box_taken_off_or_lifted_tips_over_lands_with_a_thud_and_goes() {
+        let start = Instant::now();
+        let mut toy = CardboardBox::default();
+        let mut seen = [Seen::default(); SLOTS];
+        seen[2] = at(0.0, true, true);
+        seen[4] = at(200.0, true, true);
+        toy.frame(&seen, None, false, start);
+        // Slot 2 takes it off; slot 4 is lifted by someone standing east of them.
+        seen[2] = at(0.0, false, false);
+        seen[4] = at(200.0, true, false);
+        toy.lift(4, [200.0, 0.0, 24.0], [260.0, 0.0, 24.0], start);
+        toy.frame(&seen, None, false, start);
+        assert_eq!(toy.fallen.len(), 2);
+        let ways: Vec<_> = toy.fallen.iter().map(|fallen| fallen.toward).collect();
+        assert_eq!(
+            ways,
+            [Vec2::X, -Vec2::X],
+            "the way it faced; away from the lifter"
+        );
+        let _ = toy.take_cues().count();
+        // Halfway, it leans; then it lies on its side, the thud once.
+        let mut drawn = Vec::new();
+        toy.fallen_frame(start + FALL / 2, |instance| drawn.push(instance));
+        assert_eq!((drawn.len(), toy.take_cues().count()), (2, 0));
+        let mut drawn = Vec::new();
+        toy.fallen_frame(start + FALL, |instance| drawn.push(instance));
+        let thuds: Vec<_> = toy.take_cues().collect();
+        assert_eq!(thuds.len(), 2);
+        assert!(thuds.iter().all(|cue| cue.path == DROP));
+        // On its side, the top towards where it fell: the box's up is level now.
+        let up = Quat::from_array(drawn[0].rotation) * Vec3::Z;
+        assert!(up.abs_diff_eq(Vec3::X, 1e-4), "{up}");
+        toy.fallen_frame(start + FALL + REST, |_| {});
+        assert_eq!(toy.take_cues().count(), 0);
+        let mut left = 0;
+        toy.fallen_frame(start + FALL + REST + SHRINK, |_| left += 1);
+        assert_eq!((left, toy.fallen.len()), (0, 0), "gone");
+        // A box that goes with its player (dead, cloaked, out of sight) does not fall.
+        seen[2] = at(0.0, true, true);
+        toy.frame(&seen, None, false, start);
+        seen[2] = Seen {
+            worn: true,
+            ..Seen::default()
+        };
+        toy.frame(&seen, None, false, start);
+        assert!(toy.fallen.is_empty());
     }
 
     #[test]

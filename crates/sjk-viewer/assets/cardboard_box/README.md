@@ -15,5 +15,5 @@ shapes (nothing taken from another game), so none is edited by hand except
 
 The client mounts them in memory below all game data
 ([cardboard_box.rs](../../src/cardboard_box.rs)), so a PK3 that has the same paths
-replaces them. The toy's sounds are not here: they are the game paths
-`sound/sjk/cardboard_box/music`, `spotted` and `death`.
+replaces them. The toy's sounds are not here, and SJK ships none: they are the game
+paths `sound/sjk/cardboard_box/music`, `equip`, `spotted`, `drop` and `death`.
