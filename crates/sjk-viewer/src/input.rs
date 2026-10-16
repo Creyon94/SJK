@@ -86,6 +86,8 @@ pub(crate) enum InputAction {
     /// `toy_illuminate` (or its old name `force_illuminate`): turn Illuminate's holocron
     /// on or off ([`crate::illuminate`]).
     Illuminate,
+    /// `toy_box`: put the cardboard box on or take it off ([`crate::cardboard_box`]).
+    CardboardBox,
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -277,6 +279,7 @@ impl GameplayInput {
                     | crate::world_ping::COMMAND
                     | "toy_illuminate"
                     | "force_illuminate"
+                    | crate::cardboard_box::COMMAND
                     | "cameracontrol"
             )
     }
@@ -437,6 +440,7 @@ impl GameplayInput {
             }
             // The old name still runs the toy, but is not listed (`selection_commands`).
             "toy_illuminate" | "force_illuminate" => Some(InputAction::Illuminate),
+            crate::cardboard_box::COMMAND => Some(InputAction::CardboardBox),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -557,6 +561,7 @@ impl super::GpuState {
             Some(InputAction::WorldNote) => self.world_note_press(),
             Some(InputAction::WorldPing) => self.world_ping_press(),
             Some(InputAction::Illuminate) => self.toggle_illuminate(),
+            Some(InputAction::CardboardBox) => self.toggle_cardboard_box(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

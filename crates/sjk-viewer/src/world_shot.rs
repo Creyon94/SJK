@@ -276,6 +276,9 @@ mod movers;
 #[path = "world_shot_illuminate.rs"]
 mod holocron;
 
+#[path = "world_shot_cardboard_box.rs"]
+mod cardboard_box;
+
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
 

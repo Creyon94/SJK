@@ -236,6 +236,8 @@ impl GpuState {
                 },
             );
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
+            // In the cardboard box the player crouches (`cardboard_box`).
+            self.cardboard_box.shape_command(&mut command);
             command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
             // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes
             // `+useforce`.

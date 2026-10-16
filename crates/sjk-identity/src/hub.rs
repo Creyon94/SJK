@@ -170,6 +170,21 @@ pub trait Hub: Send {
             "this hub client does not send pings".to_owned(),
         ))
     }
+    /// Tell the SJK players on `server` that the identity's toy `toy` did `event` to
+    /// the player in slot `target` (`PROTOCOL.md`, "Toy events"); the hub answers with
+    /// the event's feed id.
+    fn toy_event(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _toy: &str,
+        _event: &str,
+        _target: u8,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send toy events".to_owned(),
+        ))
+    }
     /// Tell the hub which player models the game has (`PROTOCOL.md`, "Models"); the
     /// hub answers how many names it kept.
     fn set_models(&mut self, _identity: &Identity, _models: &[String]) -> Result<u64, HubError> {
@@ -777,11 +792,15 @@ fn feed_path(after: u64, server: Option<&str>, wait: u64) -> String {
 
 /// `POST /v1/look`'s body: exactly the server and the look's fields. `saber_off` goes only
 /// when it names an option (and with a blade skin): a hub from before 11/10/2026 refuses
-/// the field, so a look with every part on stays as it was.
+/// the field, so a look with every part on stays as it was. `toys` goes only when a toy
+/// is out, for the same reason (hubs before 16/10/2026).
 fn look_body(server: &str, look: &Look) -> Value {
     let mut body = json!({ "server": server, "saber": look.saber, "illuminate": look.illuminate });
     if !look.saber.is_empty() && !look.saber_off.is_empty() {
         body["saber_off"] = json!(look.saber_off);
+    }
+    if !look.toys.is_empty() {
+        body["toys"] = json!(look.toys);
     }
     body
 }
@@ -1235,6 +1254,21 @@ impl Hub for HttpHub {
             .ok_or_else(|| HubError::Protocol("the ping answer has no id".to_owned()))
     }
 
+    fn toy_event(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        toy: &str,
+        event: &str,
+        target: u8,
+    ) -> Result<u64, HubError> {
+        let body = json!({ "server": server, "toy": toy, "event": event, "target": target });
+        let answer = self.send(Some(identity), "POST", "/v1/toy", Some(body))?;
+        answer["id"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the toy event answer has no id".to_owned()))
+    }
+
     fn vitals(
         &mut self,
         identity: &Identity,
@@ -1484,6 +1518,7 @@ mod tests {
             saber: "saber_sun".to_owned(),
             illuminate: true,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         };
         assert_eq!(
             look_body("1.2.3.4:29070", &look),
@@ -1511,6 +1546,16 @@ mod tests {
         assert_eq!(
             look_body("[::1]:29070", &Look::default()).to_string(),
             r#"{"illuminate":false,"saber":"","server":"[::1]:29070"}"#
+        );
+        // The toys out go only when there are some, with or without a blade skin.
+        let boxed = Look {
+            toys: vec!["cardboard_box".to_owned()],
+            ..Look::default()
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &boxed),
+            json!({"server": "1.2.3.4:29070", "saber": "", "illuminate": false,
+                "toys": ["cardboard_box"]})
         );
     }
 

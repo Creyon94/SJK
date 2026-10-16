@@ -17,6 +17,9 @@ impl GpuState {
         if let Some(on) = console.take_illuminate_request() {
             self.illuminate.set_on(on);
         }
+        if let Some(on) = console.take_cardboard_box_request() {
+            self.cardboard_box.set_on(on);
+        }
         let mut actions = [None; MAX_ACTIONS_PER_FRAME];
         console.advance_command_frame();
         console.pump_console_socket();
@@ -52,6 +55,7 @@ impl GpuState {
         // `toy_illuminate` may have flipped it: tell the Toys tab.
         if let Some(console) = self.console.as_mut() {
             console.set_illuminate_lit(self.illuminate.lit());
+            console.set_cardboard_box_on(self.cardboard_box.on());
         }
         let connection = self
             .console

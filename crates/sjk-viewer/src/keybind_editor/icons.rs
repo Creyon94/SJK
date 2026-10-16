@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// action with a picture. `weapon N` selects weapon `N + 2` of
 /// `weapon_t` (`weapon 1` the saber, else melee; `weapon 10` cycles the
 /// explosives), as `legacy_direct_weapon` reads it.
-const ICONS: [(&str, &str); 39] = [
+const ICONS: [(&str, &str); 40] = [
     // INTERACTION
     ("sv_saberswitch", "gfx/hud/w_icon_lightsaber.tga"),
     ("saberAttackCycle", "gfx/hud/saber_med.tga"),
@@ -28,6 +28,8 @@ const ICONS: [(&str, &str); 39] = [
     ("use_electrobinoculars", "gfx/hud/i_icon_zoom.tga"),
     // SJK's Illuminate holocron, which the client bundles (`crate::illuminate`).
     ("toy_illuminate", "gfx/sjk/toy_illuminate.png"),
+    // SJK's cardboard box, which the client bundles (`crate::cardboard_box`).
+    (crate::cardboard_box::COMMAND, "gfx/sjk/toy_box.png"),
     // WEAPONS
     ("weapon 1", "gfx/hud/w_icon_lightsaber.tga"),
     ("weapmelee", "gfx/hud/w_icon_melee.tga"),
