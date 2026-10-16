@@ -217,6 +217,7 @@ def main():
         # The copyright notice leads the file.
         notices = [(f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()),
                    (f"{args.name}/LICENSE", (source / "LICENSE").read_bytes()),
+                   (f"{args.name}/LICENSE-ASSETS", (source / "LICENSE-ASSETS").read_bytes()),
                    ("Inter/LICENSE.txt", (fonts / "LICENSE.txt").read_bytes())]
         notices.extend((f"{name}/{path.name}", path.read_bytes())
                        for name, path in (("JetBrains Mono", fonts / "JetBrainsMono-OFL.txt"),
