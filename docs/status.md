@@ -1,3 +1,13 @@
+## Chat text size in Settings
+
+16/10/2026, `feat/chat-text-size-setting` (Sol's request): the existing
+`cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page, SJK
+Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range
+([client.md](client.md#text-size-and-spacing)). A group test pins all three
+places. Source and documentation were checked locally; the workspace checks and
+an in-game menu check remain unverified because this environment has no Cargo
+toolchain.
+
 ## Chat bans: Ban 24 h
 
 16/10/2026, `personal/chat-ban` (Sol's request): a verified or staff player bans an

@@ -4310,6 +4310,11 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
 
+`cg_chatBoxFontSize` (default 1, archived; Settings > Chat > **Chat text size**,
+0.25 to 3 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
+The wrapping width stays in its configured screen position, so larger text wraps
+sooner. The setting is also on Simple > HUD and the classic+ HUD page.
+
 `cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > Chat > Chat letter
 spacing, -2 to 8 in steps of 0.5) adds that many 1080p pixels after each character of
 a message body, scaled with the viewport and `cg_chatBoxFontSize`; below zero packs

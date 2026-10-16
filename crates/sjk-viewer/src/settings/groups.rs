@@ -84,6 +84,7 @@ impl Advanced {
 /// (Network's).
 const CHAT_ROWS: &[&str] = &[
     "cg_drawChat",
+    "cg_chatBoxFontSize",
     crate::chat::emoji::CVAR,
     crate::chat::reply::REMEMBER_CVAR,
     "cg_chatBoxLetterSpacing",
@@ -348,6 +349,7 @@ impl Group {
                 "cg_killfeed",
                 crate::ground_hud::CVAR,
                 "cg_drawChat",
+                "cg_chatBoxFontSize",
                 crate::chat::emoji::CVAR,
                 crate::chat::reply::REMEMBER_CVAR,
                 "cg_chatBoxLetterSpacing",
@@ -423,6 +425,7 @@ impl Group {
                 "cg_speedometer",
                 "cg_killfeed",
                 "cg_drawChat",
+                "cg_chatBoxFontSize",
             ],
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
@@ -727,6 +730,19 @@ mod tests {
             Group::Simple(Simple::Graphics).rows()[0].cvar,
             crate::graphics_quality::ROW_NAME
         );
+    }
+
+    #[test]
+    fn chat_text_size_is_offered_in_every_settings_mode() {
+        let has_size = |group: Group| {
+            group
+                .rows()
+                .iter()
+                .any(|setting| setting.cvar.eq_ignore_ascii_case("cg_chatBoxFontSize"))
+        };
+        assert!(has_size(Group::Hud), "classic+ HUD");
+        assert!(has_size(Group::Advanced(Advanced::Chat)), "SJK Advanced");
+        assert!(has_size(Group::Simple(Simple::Hud)), "SJK Simple");
     }
 
     #[test]

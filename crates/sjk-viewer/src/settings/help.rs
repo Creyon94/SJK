@@ -399,6 +399,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawChat", "Shows chat messages over the game."),
     (
+        "cg_chatBoxFontSize",
+        "Size of chat messages and their rows; higher is larger and wraps sooner.",
+    ),
+    (
         crate::chat::emoji::CVAR,
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),

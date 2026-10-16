@@ -762,7 +762,7 @@ that mode for the visit and leaves the player's choice as it was.
     FPS, first-person weapon, saber trail, everyone as my model, Force Seeing
     aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
     damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
-    feed, chat) and General (Menus: menu style and text size; From another
+    feed, chat and its text size) and General (Menus: menu style and text size; From another
     client: import; JoF content: its card, since 16/10/2026; SJK online: check for
     updates, SJK chat, crash reports, settings usage, SJK identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
@@ -791,7 +791,8 @@ that mode for the visit and leaves the player's choice as it was.
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person
     weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
-    Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
+    Scoreboard heading; Chat the chat box (Chat box: visibility, text size,
+    emojis, remembered channel and letter spacing) and the SJK chat (SJK
     chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
     JoF tools (Server mods), JoF content's card and host (JoF content),
     invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that
