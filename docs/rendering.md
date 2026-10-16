@@ -2881,7 +2881,8 @@ height down, below the crosshair, where TheRisqe's bars sit (their picture's mid
 height, with the numbers on it: health outside the left bars and armor inside them,
 ammunition inside the right bars and Force outside. With a saber the ammunition's bars
 become one full line in the saber style's colour (the `style_ratio` binding; Fast blue,
-Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are) and
+Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are,
+plus Desann violet and Tavion cyan) and
 the style's name replaces the number, in the same colour. The weapon-name transient rests in
 the hollow between the bars, above the pills.
 It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the
