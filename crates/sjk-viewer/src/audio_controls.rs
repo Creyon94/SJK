@@ -51,6 +51,9 @@ impl GameAudio {
 
     /// Pull the two codemp volume cvars through the existing shell registry.
     pub(crate) fn sync_gains(&mut self, console: Option<&ViewerConsole>) {
+        self.holster_sync.enabled = console
+            .and_then(|c| c.bool_cvar("cg_holsteredstaffsound"))
+            .unwrap_or(true);
         self.transitions.hits = console
             .and_then(|c| c.integer_cvar("cg_hitsounds"))
             .unwrap_or(0);

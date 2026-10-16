@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Holstered saber hilts on supported JA+ servers, with hip and staff back placement, cloak-safe visibility and animation-driven staff handoff; controls are available in both menu styles _(Sol, after JoF EJK)_
+
 ## 2026.1015.1 (Alpha) | 15/10/2026
 
 Nameplate bars you choose to share, emotes on every JKA model, and the grey settings icons back.

@@ -114,6 +114,7 @@ impl GameAudio {
         self.output.send(AudioCommand::StopEffects);
         self.output.stop_music();
         self.legacy = None;
+        self.holster_sync = Default::default();
         self.saber_sets_generation = None;
         self.legacy_load = None;
         self.sound_table_refresh = None;

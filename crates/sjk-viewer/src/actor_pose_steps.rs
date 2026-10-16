@@ -179,6 +179,7 @@ pub(super) fn apply(
         mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
         mesh.cosmetics.update_bolts(&mesh.preview, matrices);
         mesh.jetpack.update(&mesh.preview, matrices);
+        mesh.holsters.update(&mesh.preview, matrices);
         mesh.current_frames = (
             state.lower.forced_frame.unwrap_or(state.lower.clip),
             state.upper.forced_frame.unwrap_or(state.upper.clip),
@@ -199,6 +200,7 @@ pub(super) fn apply(
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
     mesh.cosmetics.update_bolts(&mesh.preview, matrices);
     mesh.jetpack.update(&mesh.preview, matrices);
+    mesh.holsters.update(&mesh.preview, matrices);
     if let Some(rig) = &mesh.preview.rig
         && mesh.gpu_palette.is_none()
     {

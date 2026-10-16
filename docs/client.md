@@ -3210,6 +3210,54 @@ colours, bundled the same way. Sol generated the art; see
 [assets/holocron](../crates/sjk-viewer/assets/holocron/README.md) and
 [illuminate.rs](../crates/sjk-viewer/src/illuminate.rs).
 
+## Holstered saber hilts
+
+Settings > Game offers **Holstered saber hilts**, **Holster server support**,
+**Staff handoff point** and **Staff handoff sounds** in both SJK and classic
+menus. `cg_drawHolsteredSaber` defaults on. Support (`cg_holsteredSaberSupport`)
+defaults to `1`, automatic JA+ detection; `0` disables support and `2` forces
+the documented JA+ ownership/plugin contract for a compatible server. Forcing
+it on an unrelated server can misinterpret that server's ownership flags.
+
+Stowed single hilts sit at the right hip; dual hilts use both hips. A single
+staff goes across the back when JA+ plugin 9 is enabled, with a hip fallback
+for models without a back tag. `cp_pluginDisable` is a disable mask: bit 9
+(`512`) disables the staff back reach, and bit 13 (`8192`) disables holstered
+hilts altogether. SJK preserves its existing default mask `1536`, so the
+default staff placement remains at the hip. This feature does not enable
+JA+ animation plugins or install their animation assets.
+
+With plugin 9 enabled and usable JA+ reach animations installed, the staff
+changes between back and hand at fraction `cg_holsteredStaffSwap` (default
+`0.45`) of the actual torso frame range. It changes once per playing, including
+the reverse put-away. Blades stay off before the drawing hand reaches the
+hilt and retract during put-away. `cg_holsteredStaffSound` (default on) aligns
+the registered hilt and blade-skin ignition/shutdown sounds with that reach;
+missing or interrupted reaches have a bounded ignition fallback. Without the
+reach clip, the normal weapon change controls the attachment.
+
+Holsters are hidden on dead, disintegrating, mounted, mind-tricked or undrawn
+players and on a first-person player's own/followed body. A cloaked player's
+hilts require the viewer's Force Sight; your own cloaked hilts stay hidden.
+A thrown primary hilt is never duplicated on the belt. Missing attachment
+points affect their own hilt independently. The reference's Jedi NPC class
+list is supported too.
+
+Console placement overrides are archived, case-insensitive three-number
+vectors, with finite values bounded to +/-3600; invalid vectors use defaults:
+
+| Cvar | Default | Meaning |
+| --- | --- | --- |
+| `cg_holsteredSaberPos` | `0 3.5 0` | Hip offset: bolt right, forward, up; opposite side for the second hilt |
+| `cg_holsteredSaberAng1` | `0 0 270` | Primary hip pitch, yaw, roll |
+| `cg_holsteredSaberAng2` | `0 0 270` | Secondary hip pitch, yaw, roll |
+| `cg_holsteredStaffPos` | `0 0 0` | Back offset: bolt forward, right, up |
+| `cg_holsteredStaffAng` | `0 0 150` | Back pitch, yaw, roll |
+
+These are client presentation options; they change no gameplay, wire format
+or animation timing. See [rendering](rendering.md#holstered-saber-hilts) for
+attachment ownership and [status](status.md#holstered-saber-hilts) for limits.
+
 ## Blade skins
 
 A blade skin is an unlockable saber look ([unlockables.md](unlockables.md)): the Sun

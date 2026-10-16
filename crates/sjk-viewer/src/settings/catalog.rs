@@ -644,6 +644,30 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Holstered saber hilts",
+        cvar: crate::holstered_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Holster server support",
+        cvar: crate::holstered_sabers::SUPPORT_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Staff handoff point",
+        cvar: crate::holstered_sabers::SWAP_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Staff handoff sounds",
+        cvar: "cg_holsteredStaffSound",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Shield hit sphere",
         cvar: "cg_shieldSphere",
         kind: ValueKind::Bool,

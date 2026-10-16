@@ -108,6 +108,14 @@ pub(crate) struct BladeState {
     pub(crate) ghosts: crate::saber_ghosts::GhostTrail,
 }
 
+impl BladeState {
+    /// Stow a staff blade immediately; its next ignition still grows from zero.
+    pub(crate) fn stow(&mut self, time: i64) {
+        *self = Self::default();
+        self.extension.update(false, 0.0, time);
+    }
+}
+
 /// O(1) per-entity/per-saber/per-blade state with one load-time allocation,
 /// plus each owner's thrown-saber tilt.
 pub(crate) struct StateSlab {
