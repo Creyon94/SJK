@@ -153,36 +153,23 @@ impl ChatOverlay {
             if (!active && line.muted) || alpha <= 0.0 {
                 continue;
             }
-            // An SJK line flows from its name's row ([`sjk_line`]); a game line with a
-            // known sender has its name on a row above the message.
-            let sjk = line
-                .hub
-                .as_ref()
-                .map(|hub| sjk_line::Prefix::new(&line.name, hub.verified, hub.tier, font, g));
+            // A line with a sender flows from its name's row ([`sjk_line`]).
+            let prefix = line_marks(line, &self.slot_marks, &self.roster, &self.friends)
+                .map(|(name, marks)| sjk_line::Prefix::new(name, marks, font, g));
             let wrap_width = g.width - 12.0 * g.scale;
             // An SJK line's GIF under its text takes room of its own (`feed_gif.rs`).
             let gif = self.gif_shown(index);
             let line = &mut self.lines[index];
-            match &sjk {
-                Some(prefix) => line.wrap.update_spaced(
-                    &line.body,
-                    font,
-                    wrap_width,
-                    g.font,
-                    prefix.width(),
-                    g.spacing,
-                ),
-                None => line
-                    .wrap
-                    .update_spaced(&line.body, font, wrap_width, g.font, 0.0, g.spacing),
-            }
+            line.wrap.update_spaced(
+                &line.body,
+                font,
+                wrap_width,
+                g.font,
+                prefix.as_ref().map_or(0.0, sjk_line::Prefix::width),
+                g.spacing,
+            );
             let rows = if line.muted { 1 } else { line.wrap.len };
-            let header = if line.name.is_empty() || sjk.is_some() {
-                0.0
-            } else {
-                layout::NAME_ADVANCE
-            };
-            let text_height = rows as f32 * g.row + (header + layout::MESSAGE_GAP) * g.scale;
+            let text_height = rows as f32 * g.row + layout::MESSAGE_GAP * g.scale;
             let mut gif = gif;
             let mut top = bottom - text_height - feed_gif::room(g, gif);
             if top < g.top && count == 0 && gif.is_some() {
@@ -209,146 +196,12 @@ impl ChatOverlay {
             let slide =
                 Tween::new(14.0 * g.scale, 0.0, 0, ENTER_MS, Easing::EaseOutCubic).sample(age);
             let x = g.left + slide;
-            if let Some(hub) = &line.hub {
-                let prefix = sjk_line::Prefix::new(&line.name, hub.verified, hub.tier, font, g);
-                let hovered = active && self.ui.token_hovered(token as u16);
-                let name = sjk_line::draw(
-                    &mut self.ui,
-                    sjk_line::Line {
-                        name: &line.name,
-                        body: &line.body,
-                        muted: line.muted,
-                        wrap: &line.wrap,
-                        marks: &line.emojis,
-                        emojis: self.options.emojis.then_some(&self.emojis),
-                        hovered,
-                        tier: hub.tier,
-                    },
-                    &prefix,
-                    font,
-                    g,
-                    [x, y],
-                    alpha,
-                );
-                if let Some(shown) = gif {
-                    let rows = if line.muted { 1 } else { line.wrap.len };
-                    crate::chat_gifs::draw::paint(
-                        &mut self.ui,
-                        feed_gif::LOOK,
-                        shown,
-                        [x, y + rows as f32 * g.row],
-                        g.width - 12.0 * g.scale,
-                        g.scale,
-                        alpha,
-                    );
-                }
-                // Resting the pointer on the sender's name shows their profile card.
-                if active {
-                    self.visible_people[token] = Some(card::Who::Hub(hub.id));
-                    self.ui.hit_region(token as u16, name);
-                }
-                continue;
-            }
-            let mut body_y = y;
-            if !line.name.is_empty() {
-                let end = layout::fitting_end(&line.name, font, g.width * 0.65, 16.0 * g.scale);
-                let name = &line.name[..end];
-                let width = visible_text_width_face(
-                    font,
-                    name,
-                    16.0 * g.scale / font.height,
-                    TextFace::Semibold,
-                );
-                let actionable = line
-                    .sender
-                    .filter(|target| self.roster.name(*target).is_some());
-                let friend = actionable
-                    .and_then(|target| self.roster.name(target))
-                    .is_some_and(|name| self.friends.contains(name));
-                // A friend's star, then the JoF emblem for the clan's tag, then the name.
-                let jof_x = x + if friend { 14.0 * g.scale } else { 0.0 };
-                let clan = crate::jof_tag::clan(&line.name);
-                let jof_side = crate::jof_tag::side(16.0 * g.scale);
-                let name_x = jof_x + clan.map_or(0.0, |clan| crate::jof_tag::room(clan, jof_side));
-                let text_rect = Rect::new(name_x, y, width + 1.0, 24.0 * g.scale);
-                let rect = name::ink_bounds(font, name, [name_x, y], 16.0 * g.scale);
-                if let Some(clan) = clan {
-                    let middle = y + font.capital_middle(16.0 * g.scale / font.height.max(1.0));
-                    crate::jof_tag::draw(clan, jof_x, middle, jof_side, alpha, |command| {
-                        let _ = self.ui.draw_list_mut().push(command);
-                    });
-                }
-                if friend {
-                    name::star(
-                        &mut self.ui,
-                        Rect::new(
-                            x,
-                            rect.y + (rect.height - 12.0 * g.scale) * 0.5,
-                            12.0 * g.scale,
-                            12.0 * g.scale,
-                        ),
-                        Color::new(0.95, 0.78, 0.35, alpha),
-                    );
-                }
-                if active && let Some(target) = actionable {
-                    self.visible_targets[token] = Some(target);
-                    self.visible_people[token] = Some(card::Who::Player(target));
-                    self.ui.hit_region(token as u16, rect);
-                }
-                let hover = active && self.ui.token_hovered(token as u16);
-                if hover {
-                    self.ui.accent_bar(rect, Color::new(0.70, 0.88, 0.98, 0.16));
-                }
-                self.ui.text(
-                    name,
-                    text_rect,
-                    16.0 * g.scale,
-                    if hover {
-                        Color::new(1.0, 1.0, 1.0, alpha)
-                    } else {
-                        tint(line.channel, alpha)
-                    },
-                    FontWeight::Semibold,
-                    0.0,
-                );
-                // SJK lines are drawn by `sjk_line` and never reach here.
-                let label = if line.muted {
-                    "IGNORED"
-                } else {
-                    match line.channel {
-                        Channel::Team => "TEAM",
-                        Channel::Whisper => "WHISPER",
-                        Channel::Sjk => "SJK",
-                        Channel::Global => "",
-                    }
-                };
-                self.ui.text(
-                    label,
-                    Rect::new(
-                        rect.right() + 6.0 * g.scale,
-                        y + 4.0 * g.scale,
-                        160.0 * g.scale,
-                        18.0 * g.scale,
-                    ),
-                    10.0 * g.scale,
-                    tint(line.channel, alpha * 0.75),
-                    FontWeight::Semibold,
-                    1.0 * g.scale,
-                );
-                body_y += layout::NAME_ADVANCE * g.scale;
-            }
-            if line.muted {
-                self.ui.text(
-                    "Messages hidden on this client",
-                    Rect::new(x, body_y, g.width, row_box(g)),
-                    15.0 * g.scale,
-                    Color::new(0.821, 0.854, 0.886, alpha * 0.853),
-                    FontWeight::Regular,
-                    0.0,
-                );
-            } else {
+            let line = &self.lines[index];
+            let Some((name, marks)) =
+                line_marks(line, &self.slot_marks, &self.roster, &self.friends)
+            else {
+                // No sender: the server's own words, as one text.
                 for (row, range) in line.wrap.rows[..line.wrap.len].iter().enumerate() {
-                    let color = Color::new(0.982, 0.987, 0.996, alpha);
                     let truncated = row + 1 == line.wrap.len && range.end < line.body.len();
                     body_row(
                         &mut self.ui,
@@ -361,14 +214,118 @@ impl ChatOverlay {
                             spacing: g.spacing,
                         },
                         font,
-                        Rect::new(x, body_y + row as f32 * g.row, g.width, row_box(g)),
+                        Rect::new(x, y + row as f32 * g.row, g.width, row_box(g)),
                         g.font,
-                        color,
+                        Color::new(0.982, 0.987, 0.996, alpha),
                     );
                 }
+                continue;
+            };
+            let prefix = sjk_line::Prefix::new(name, marks, font, g);
+            let hovered = active && self.ui.token_hovered(token as u16);
+            // The only difference between the two chats: the SJK chat's gold (or a
+            // holocron tier's colour), or the game line's own codes over white.
+            let colour = match &line.hub {
+                Some(hub) => hub.tier.map_or_else(
+                    || crate::sjk_chat_look::gold(alpha),
+                    |tier| tier.colour_alpha(alpha),
+                ),
+                None => Color::new(0.982, 0.987, 0.996, alpha),
+            };
+            let name = sjk_line::draw(
+                &mut self.ui,
+                sjk_line::Line {
+                    name,
+                    body: &line.body,
+                    muted: line.muted,
+                    wrap: &line.wrap,
+                    marks: &line.emojis,
+                    emojis: self.options.emojis.then_some(&self.emojis),
+                    hovered,
+                    colour,
+                    label_colour: tint(line.channel, alpha * 0.75),
+                },
+                &prefix,
+                font,
+                g,
+                [x, y],
+                alpha,
+            );
+            if let Some(shown) = gif {
+                let rows = if line.muted { 1 } else { line.wrap.len };
+                crate::chat_gifs::draw::paint(
+                    &mut self.ui,
+                    feed_gif::LOOK,
+                    shown,
+                    [x, y + rows as f32 * g.row],
+                    g.width - 12.0 * g.scale,
+                    g.scale,
+                    alpha,
+                );
+            }
+            // Resting the pointer on the sender's name shows their profile card.
+            if !active {
+                continue;
+            }
+            if let Some(hub) = &line.hub {
+                self.visible_people[token] = Some(card::Who::Hub(hub.id));
+                self.ui.hit_region(token as u16, name);
+            } else if let Some(target) = line
+                .sender
+                .filter(|target| self.roster.name(*target).is_some())
+            {
+                self.visible_targets[token] = Some(target);
+                self.visible_people[token] = Some(card::Who::Player(target));
+                self.ui.hit_region(token as u16, name);
             }
         }
     }
+}
+
+/// The name a line with a sender shows and what its first row marks, `None` for a line
+/// with no sender (a server's words). A game line's sender the hub knows in that slot
+/// gets SJK's emblem, the verified tick and the name as they wear it
+/// (`chat/marks.rs`).
+fn line_marks<'a>(
+    line: &'a ChatLine,
+    slots: &'a [super::marks::SlotMark],
+    roster: &ChatRoster,
+    friends: &social::Friends,
+) -> Option<(&'a str, sjk_line::Marks)> {
+    if let Some(hub) = &line.hub {
+        let marks = sjk_line::Marks {
+            sjk: true,
+            verified: hub.verified,
+            tier: hub.tier,
+            ..sjk_line::Marks::default()
+        };
+        return Some((&line.name, marks));
+    }
+    if line.name.is_empty() {
+        return None;
+    }
+    let target = line.sender?;
+    let mark = slots
+        .get(usize::from(target.slot()))
+        .filter(|mark| mark.sjk);
+    let marks = sjk_line::Marks {
+        sjk: mark.is_some(),
+        verified: mark.is_some_and(|mark| mark.verified),
+        tier: None,
+        friend: roster
+            .name(target)
+            .is_some_and(|name| friends.contains(name)),
+        label: match line.channel {
+            _ if line.muted => "",
+            Channel::Team => "TEAM",
+            Channel::Whisper => "WHISPER",
+            Channel::Global | Channel::Sjk => "",
+        },
+    };
+    let name = mark
+        .and_then(|mark| mark.name.as_deref())
+        .unwrap_or(&line.name);
+    Some((name, marks))
 }
 
 /// One wrapped row of a message body and the emojis its marks stand for.

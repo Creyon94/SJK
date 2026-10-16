@@ -1,11 +1,15 @@
-//! An SJK chat line in the feed (`docs/hub-chat.md`): one flowing line, as a game
-//! chat line is, never a name row with the message under it. Its first row starts
-//! with SJK's emblem, small (the logo, in its own colours, Sol's request 11/10/2026;
-//! it was the letters SJK before), the JoF emblem for a sender with the clan's tag
-//! ([`crate::jof_tag`]), the sender's name in its own colour codes and, for a
-//! verified sender, the verified tick alone; the message follows on the same row in
-//! the SJK chat's gold ([`crate::sjk_chat_look::GOLD`]) and wraps only when it is too
-//! long ([`layout::Wrapped::update_indented`]).
+//! A line with a sender in the feed (`docs/hub-chat.md`, "How a line looks"): an SJK
+//! chat line, or a game chat line whose sender is known. One flowing line, never a
+//! name row with the message under it. Its first row starts with the friend's star
+//! for a friend, SJK's emblem, small, for a sender playing on SJK (the logo, in its own
+//! colours, Sol's request 11/10/2026: every SJK chat sender, and since 16/10/2026 a
+//! game line's sender the hub knows in that slot), the clan emblem for a sender with a
+//! known clan's tag ([`crate::jof_tag`]), the sender's name in its own colour codes,
+//! the verified tick alone for a verified sender and, on a game line, its channel
+//! (TEAM, WHISPER); the message follows on the same row and wraps only when it is too
+//! long ([`layout::Wrapped::update_indented`]). The two kinds differ only in the
+//! message's colour (Sol's request, 16/10/2026): the SJK chat's gold
+//! ([`crate::sjk_chat_look::GOLD`]), or the game line's own colour codes over white.
 
 use super::*;
 use crate::holocrons::Tier;
@@ -14,44 +18,75 @@ use crate::sjk_chat_look;
 /// The SJK emblem's side before an SJK line's name, against the text size: the
 /// starburst's spikes reach the box's edges, its medallion is about half of it.
 const LOGO_SIDE: f32 = 1.35;
+/// The channel label's size against the text size (10 pixels beside 16, as the name
+/// rows' labels were).
+const LABEL_SIZE: f32 = 0.625;
 
-/// What an SJK line's first row holds before its message, measured in the feed's
-/// font. Nothing is stored: it is measured where it is drawn.
+/// What the first row shows of a line's sender.
+#[derive(Clone, Copy, Default)]
+pub(in crate::chat) struct Marks {
+    /// The sender plays on SJK: SJK's emblem comes first.
+    pub(in crate::chat) sjk: bool,
+    pub(in crate::chat) verified: bool,
+    /// The line is a holocron drop of this tier: its mark is the tier's gem.
+    pub(in crate::chat) tier: Option<&'static Tier>,
+    /// A friend (`chat/social.rs`): the star comes before everything.
+    pub(in crate::chat) friend: bool,
+    /// The channel written after the name, empty for All and the SJK chat.
+    pub(in crate::chat) label: &'static str,
+}
+
+/// What a line's first row holds before its message, measured in the feed's font.
+/// Nothing is stored: it is measured where it is drawn.
 pub(in crate::chat) struct Prefix {
     /// The body's text size, which the name and the colon share.
     size: f32,
-    /// The SJK emblem's side.
+    /// The friend's star's room, 0 without one.
+    star: f32,
+    /// The SJK emblem's side, 0 without one.
     logo: f32,
     /// Where the shown name ends in the line's name (cut to half the feed).
     pub(in crate::chat) name_end: usize,
     name_width: f32,
     verified: bool,
-    /// The name carries the JoF tag: the clan's emblem comes before it.
+    /// The name carries a known clan's tag: the clan's emblem comes before it.
     jof: Option<crate::jof_tag::Clan>,
+    label: &'static str,
+    /// The label's room, its gap before it included.
+    label_width: f32,
     colon_width: f32,
     /// The line is a holocron drop: its mark is the tier's gem, not the verified tick.
     tier: Option<&'static Tier>,
 }
 
 impl Prefix {
-    pub(in crate::chat) fn new(
-        name: &str,
-        verified: bool,
-        tier: Option<&'static Tier>,
-        font: &UiFont,
-        g: &Geometry,
-    ) -> Self {
+    pub(in crate::chat) fn new(name: &str, marks: Marks, font: &UiFont, g: &Geometry) -> Self {
         let size = g.font;
         let scale = size / font.height.max(1.0);
         let name_end = layout::fitting_end(name, font, g.width * 0.5, size);
+        let label_size = size * LABEL_SIZE;
         Self {
             size,
-            logo: size * LOGO_SIDE,
+            star: if marks.friend { size * 0.875 } else { 0.0 },
+            logo: if marks.sjk { size * LOGO_SIDE } else { 0.0 },
             name_end,
             name_width: visible_text_width_face(font, &name[..name_end], scale, TextFace::Semibold),
-            verified: verified || tier.is_some(),
-            tier,
+            verified: marks.verified || marks.tier.is_some(),
+            tier: marks.tier,
             jof: crate::jof_tag::clan(name),
+            label: marks.label,
+            label_width: if marks.label.is_empty() {
+                0.0
+            } else {
+                size * 0.375
+                    + visible_text_width_style(
+                        font,
+                        marks.label,
+                        label_size / font.height.max(1.0),
+                        TextFace::Semibold,
+                        label_size * 0.1,
+                    )
+            },
             colon_width: if name.is_empty() {
                 0.0
             } else {
@@ -60,12 +95,17 @@ impl Prefix {
         }
     }
 
-    /// Where the JoF emblem's ink starts after the SJK emblem.
+    /// Where the clan emblem's ink starts after the star and the SJK emblem.
     fn jof_x(&self) -> f32 {
-        self.logo + self.size * 0.2
+        self.star
+            + if self.logo > 0.0 {
+                self.logo + self.size * 0.2
+            } else {
+                0.0
+            }
     }
 
-    /// Where the name starts after the SJK and JoF emblems.
+    /// Where the name starts after the emblems.
     fn name_x(&self) -> f32 {
         self.jof_x()
             + if let Some(clan) = self.jof {
@@ -75,8 +115,8 @@ impl Prefix {
             }
     }
 
-    /// Where the colon starts after the name and its tick.
-    fn colon_x(&self) -> f32 {
+    /// Where the channel's label (its gap first) starts after the name and its tick.
+    fn label_x(&self) -> f32 {
         self.name_x()
             + self.name_width
             + if self.verified {
@@ -86,13 +126,18 @@ impl Prefix {
             }
     }
 
+    /// Where the colon starts after the name, its tick and the label.
+    fn colon_x(&self) -> f32 {
+        self.label_x() + self.label_width
+    }
+
     /// The room before the message on the first row.
     pub(in crate::chat) fn width(&self) -> f32 {
         self.colon_x() + self.colon_width
     }
 }
 
-/// The parts of one SJK line to draw.
+/// The parts of one line to draw.
 pub(in crate::chat) struct Line<'a> {
     pub(in crate::chat) name: &'a str,
     pub(in crate::chat) body: &'a str,
@@ -103,8 +148,11 @@ pub(in crate::chat) struct Line<'a> {
     pub(in crate::chat) emojis: Option<&'a emoji::Emojis>,
     /// The pointer rests on the name (its profile card shows): it is lit.
     pub(in crate::chat) hovered: bool,
-    /// The line is a holocron drop of this tier.
-    pub(in crate::chat) tier: Option<&'static Tier>,
+    /// The message's colour: the SJK chat's gold, a holocron tier's, or a game line's
+    /// white under its own colour codes.
+    pub(in crate::chat) colour: Color,
+    /// The channel label's colour (`view::tint`).
+    pub(in crate::chat) label_colour: Color,
 }
 
 /// Draw `line` with its first row's top-left at `origin`, at `alpha`; returns the
@@ -121,11 +169,26 @@ pub(in crate::chat) fn draw(
     let [x, y] = origin;
     let size = prefix.size;
     let middle = y + font.capital_middle(size / font.height.max(1.0));
-    let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-        rect: Rect::new(x, middle - prefix.logo * 0.5, prefix.logo, prefix.logo),
-        texture: crate::ui_renderer::LOGO_TEXTURE,
-        color: Color::new(1.0, 1.0, 1.0, alpha),
-    });
+    if prefix.star > 0.0 {
+        let side = size * 0.75;
+        name::star(
+            ui,
+            Rect::new(x, middle - side * 0.5, side, side),
+            Color::new(0.95, 0.78, 0.35, alpha),
+        );
+    }
+    if prefix.logo > 0.0 {
+        let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+            rect: Rect::new(
+                x + prefix.star,
+                middle - prefix.logo * 0.5,
+                prefix.logo,
+                prefix.logo,
+            ),
+            texture: crate::ui_renderer::LOGO_TEXTURE,
+            color: Color::new(1.0, 1.0, 1.0, alpha),
+        });
+    }
     if let Some(clan) = prefix.jof {
         crate::jof_tag::draw(
             clan,
@@ -143,7 +206,7 @@ pub(in crate::chat) fn draw(
     let name_x = x + prefix.name_x();
     let name_rect = name::ink_bounds(font, name, [name_x, y], size);
     if line.hovered {
-        // As a game line's name under the pointer (`view.rs`).
+        // The name under the pointer, whose card shows.
         ui.accent_bar(name_rect, Color::new(0.70, 0.88, 0.98, 0.16));
     }
     if !name.is_empty() {
@@ -174,6 +237,22 @@ pub(in crate::chat) fn draw(
             alpha,
         );
     }
+    if !prefix.label.is_empty() {
+        let label_size = size * LABEL_SIZE;
+        ui.text(
+            prefix.label,
+            Rect::new(
+                x + prefix.label_x() + size * 0.375,
+                middle - font.capital_middle(label_size / font.height.max(1.0)),
+                prefix.label_width + 1.0,
+                row_box(g),
+            ),
+            label_size,
+            line.label_colour,
+            FontWeight::Semibold,
+            label_size * 0.1,
+        );
+    }
     if prefix.colon_width > 0.0 {
         ui.text(
             ":",
@@ -196,10 +275,6 @@ pub(in crate::chat) fn draw(
         );
         return name_rect;
     }
-    let colour = line.tier.map_or_else(
-        || sjk_chat_look::gold(alpha),
-        |tier| tier.colour_alpha(alpha),
-    );
     for (row, range) in line.wrap.rows[..line.wrap.len].iter().enumerate() {
         if range.is_empty() {
             continue;
@@ -224,7 +299,7 @@ pub(in crate::chat) fn draw(
                 row_box(g),
             ),
             g.font,
-            colour,
+            line.colour,
         );
     }
     name_rect
@@ -390,6 +465,50 @@ mod tests {
             assert!(row(index).y > row(index - 1).y);
             assert!(row(index).x < name.x, "later rows start at the edge");
         }
+    }
+
+    #[test]
+    fn a_game_line_from_an_sjk_player_looks_like_an_sjk_line_but_white() {
+        // A JA+ line: the server names nobody, so the line is read from the name. The
+        // server cut the fox from the name; the hub's claim carries it.
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        for (slot, name) in [(0, "Me"), (3, "^5JoF^7 Sol ")] {
+            game.replace_config_string(1131 + slot, format!("n\\{name}\\t\\0").into_bytes())
+                .unwrap();
+        }
+        let mut chat = ChatOverlay::new();
+        chat.update_roster(&game);
+        chat.slot_marks = vec![crate::chat::marks::SlotMark::default(); 32];
+        chat.slot_marks[3] = crate::chat::marks::SlotMark {
+            sjk: true,
+            verified: true,
+            name: Some("^5JoF^7 Sol 🦊".to_owned()),
+        };
+        chat.receive(
+            ServerEventKind::Chat,
+            "^5JoF^7 Sol ^7: ^2gg all".to_owned(),
+            None,
+            Instant::now(),
+        );
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
+        assert_eq!(chat.lines[0].sender.map(|target| target.slot()), Some(3));
+        let shown = texts(&chat);
+        let (_, name, _) = drawn(&shown, "^5JoF^7 Sol 🦊");
+        let (_, colon, _) = drawn(&shown, ":");
+        let (_, body, colour) = drawn(&shown, "^2gg all");
+        assert_eq!(name.y, body.y, "one flowing line");
+        assert_ne!(rgb(*colour), rgb(GOLD), "a game line keeps its colours");
+        let logo = logos(&chat);
+        assert_eq!(logo.len(), 1, "SJK's emblem");
+        let tick = ticks(&chat);
+        assert_eq!(tick.len(), 1, "the verified tick");
+        assert!(logo[0].right() < name.x && tick[0].x >= name.x && tick[0].right() <= colon.x);
+        // A player the hub does not know: no emblem, no tick.
+        chat.slot_marks[3] = crate::chat::marks::SlotMark::default();
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
+        let again = texts(&chat);
+        drawn(&again, "^5JoF^7 Sol ");
+        assert!(logos(&chat).is_empty() && ticks(&chat).is_empty());
     }
 
     fn drop(id: u64, name: &str, tier: &str, own: bool) -> ChatMessage {

@@ -128,11 +128,14 @@ pub(crate) fn shown_name(game_state: &GameState, slot: usize) -> Option<String> 
 }
 
 /// Where the player is: the server they are connected to, their slot there and
-/// the name the game shows for them. `None` in a local game or without a name.
+/// the name the game shows for them, or the one they wear (`worn`, the `name` setting)
+/// when the server dropped characters of it (`chat::marks::claimed`), so other SJK
+/// players show it whole. `None` in a local game or without a name.
 pub(crate) fn location(
     server: SocketAddr,
     local: bool,
     game_state: &GameState,
+    worn: &str,
 ) -> Option<Location> {
     let slot = usize::try_from(game_state.client_num)
         .ok()
@@ -143,7 +146,8 @@ pub(crate) fn location(
     Some(Location {
         server,
         slot: u8::try_from(slot).ok()?,
-        name: shown_name(game_state, slot)?,
+        name: shown_name(game_state, slot)
+            .map(|shown| crate::chat::marks::claimed(worn, &shown).to_owned())?,
     })
 }
 

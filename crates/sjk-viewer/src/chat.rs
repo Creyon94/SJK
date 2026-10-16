@@ -9,6 +9,7 @@ mod feed_gif;
 
 mod interaction;
 mod layout;
+pub(crate) mod marks;
 mod options;
 mod player_actions;
 pub(crate) mod reply;
@@ -112,6 +113,10 @@ pub(crate) struct ChatOverlay {
     mute_request: Option<card::MuteRequest>,
     /// Client slots muted on this PC (bits, `muted_players.rs`): their lines are hidden.
     muted_slots: u32,
+    /// What SJK knows of each slot's player, for their game lines (`chat/marks.rs`).
+    slot_marks: Vec<marks::SlotMark>,
+    /// What the marks were worked out from.
+    marks_key: Option<marks::MarksKey>,
     layout_viewport: [f32; 2],
     scoreboard_layout: crate::scoreboard::behavior::ChatLayout,
     options: options::Options,
@@ -174,6 +179,8 @@ impl ChatOverlay {
             card: None,
             mute_request: None,
             muted_slots: 0,
+            slot_marks: Vec::new(),
+            marks_key: None,
             layout_viewport: [0.0; 2],
             scoreboard_layout: crate::scoreboard::behavior::ChatLayout::Normal,
             options: options::Options::default(),
@@ -282,7 +289,13 @@ impl ChatOverlay {
         // EternalJK's escapes for `%` and `"` show as what was typed, in the
         // chat box only, as in EternalJK.
         let display = chat_display_text(&chat_unescape(&text));
-        let target = self.roster.target(sender);
+        // A line the server did not attribute (JA+) is its sender's when it starts
+        // with one player's name.
+        let target = self.roster.target(sender).or_else(|| {
+            matches!(kind, ServerEventKind::Chat | ServerEventKind::TeamChat)
+                .then(|| self.line_sender(&display))
+                .flatten()
+        });
         // Display keeps `^n`; identity, whisper destinations and muting keep
         // using the plain roster name.
         let name = target

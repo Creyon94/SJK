@@ -1,3 +1,16 @@
+## Game chat lines look like SJK chat lines; names the server cut
+
+16/10/2026, `personal/chat-marks` (Sol's request): a game chat line with a known sender
+flows as an SJK chat line does, with SJK's emblem for a sender the hub knows in that
+slot, the clan emblem, the verified tick and the channel, the message in its own
+colours instead of the SJK chat's gold; JA+ lines, which name no sender, are read from
+the name that starts them. An SJK player claims their slot with the name as typed when
+the server only dropped characters of it (an emoji), and other SJK players' chat shows
+that name ([hub-chat.md](hub-chat.md#game-chat-lines-look-the-same)). Checked by unit
+tests (`chat::marks`, `chat::view::sjk_line`, `chat::reply`) and an off-screen render
+of the chat box over duel6 at 1080p and 4K (`game_lines_with_marks`). Not tried in the
+game: no claim with a restored name has reached the hub yet.
+
 ## Alpha notice at the first start
 
 16/10/2026, `personal/alpha-notice` (Sol's request): the first start shows an alpha

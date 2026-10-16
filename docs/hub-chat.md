@@ -509,6 +509,45 @@ request, 08/10/2026):
   rows need no colour carried over; the name, which keeps its codes, stays on the
   first row.
 
+### Game chat lines look the same
+
+Since 16/10/2026 (Sol's request: the JoF tag, the SJK emblem and the verified tick in
+the game's chat too, the two chats told apart only by colour), a game chat line whose
+sender is known flows as an SJK line does, drawn by the same code
+([chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs)): the friend's
+star for a friend, SJK's emblem when the hub holds a claim for the sender's slot under
+the name the game shows there (the scoreboard badges' rule; for the player's own line,
+once the hub answered them), the clan emblem for a known clan's tag
+([identity.md](identity.md#clan-tags)), the name in its colour codes over white, the
+verified tick for a verified sender, the channel (TEAM, WHISPER) small in its colour,
+a colon, then the message. Only the message's colour differs: the SJK chat's gold, or
+the game line's own colour codes over white (`^2` green on most servers). Before, the
+name sat on a row of its own with the message under it, and JA+ lines, which the server
+sends as text with no sender, showed no emblem at all.
+
+- **Whose line**: the sender the server names, or for a line it does not (JA+, JoF), the
+  one player whose name, as the game shows it, starts the line before `: ` (or inside
+  `(...): ` and `[...]: `), colour codes as sent (`ChatOverlay::line_sender`,
+  [chat/marks.rs](../crates/sjk-viewer/src/chat/marks.rs)). Two players wearing one name
+  leave the line unattributed. An attributed line is clickable (player menu, whisper)
+  and its name shows the sender card.
+- **What each slot shows** (`chat::marks::SlotMark`): worked out from the hub's
+  claims, the server's players and the player's `name` only when one of them changes
+  (`ChatOverlay::follow_marks`, every frame from `identity_frame.rs`), so a frame costs a
+  comparison. With the identity off nobody has SJK's emblem or a tick.
+- **Names the server cut**: a game server carries names as bytes of the old code pages,
+  and a JoF JA+ server drops what has none: `^0JoF J S^7olol 🦊` came back in the chat
+  as `^0JoF J S^7olol ` (Sol's report, 16/10/2026; the server's own echo in the log).
+  So an SJK player claims their slot with the name as they typed it (the `name`
+  setting) when leaving out of it every character without a Windows-1252 or
+  Windows-1251 byte gives the game's name, spaces at either end aside
+  (`chat::marks::claimed`); otherwise with the game's name, as before. The claim still
+  matches that slot everywhere (`names_match` keeps letters and digits only). Other SJK
+  players' game chat then shows the name from the claim, under the same test
+  (`chat::marks::restores`), so a claim adds back only what the server dropped and never
+  makes a name another. Players on other clients, and SJK players with the identity off,
+  see the server's name. The scoreboard, nameplates and cards still show the server's.
+
 A holocron drop (`docs/holocrons.md`) is a line of its own kind in the same three
 places: one sentence with no sender column, no colon and no tick, in its tier's colour
 (`holocrons::TIERS`, none of the game's codes either), with a small gem where the tick
@@ -571,8 +610,11 @@ and plays changes.
   "matched by name", and for a player the hub does not know, "By name, colours aside:
   anyone wearing it". A slot another key claims is never matched by name, and the
   player's own slot never is. A game chat line the server does not attribute (JA+
-  servers) is hidden when it starts with the name shown in a muted slot, then `: `;
-  such lines stay unclickable, as before. The muted slots are worked out only when the
+  servers) is its sender's when it starts with the name one player shows, then `: `
+  (or a team line's or a whisper's brackets; [Game chat lines look the
+  same](#game-chat-lines-look-the-same)), so it is hidden when that player is muted; a
+  line two players' names fit stays unattributed and is hidden when it starts with a
+  muted slot's name. The muted slots are worked out only when the
   list, the hub's claims or the server's players change
   ([muted_players.rs](../crates/sjk-viewer/src/muted_players.rs)), as a bit mask the
   renderer, the chat feed and the sound filter test.

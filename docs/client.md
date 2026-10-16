@@ -2120,10 +2120,12 @@ the console (see below): `^` then a digit is a colour code, `^` then `e` is `ê`
 
 Actions use server-provided sender slots and current roster generations. Old
 messages cannot address a replacement after an observed departure/name change;
-an invalid whisper recipient leaves the draft open. Unattributed server messages
-remain unclickable rather than guessing a destination from displayed text; only
-`reply` reads one, an unattributed `[name]: ` whisper whose name (colour codes
-aside) is exactly a connected player's, as JoF EternalJK does.
+an invalid whisper recipient leaves the draft open. A line the server does not
+attribute (JA+) is its sender's when it starts with exactly one connected player's
+name as the game shows it, then `: ` (or `(name): `, `[name]: `), since 16/10/2026
+([hub-chat.md](hub-chat.md#game-chat-lines-look-the-same)); other unattributed lines
+stay unclickable. `reply` also reads an unattributed `[name]: ` whisper whose name
+(colour codes aside) is exactly a connected player's, as JoF EternalJK does.
 Legacy servers provide no authenticated account identity; unobserved same-name
 slot reuse cannot be distinguished. No transport or protocol encoding changed.
 
