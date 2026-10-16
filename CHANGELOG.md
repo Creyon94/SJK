@@ -23,7 +23,13 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1016.2 (Alpha) | 16/10/2026
+
+Two Linux fixes. Linux players: this update is installed by the old updater, so close and reopen SJK once yourself after it; later updates restart on their own.
+
+> Linux updates: After Install, SJK now restarts into the new version instead of the old one.
+> Linux Browse: Picking a .cfg or a profile picture opens a file window again.
+> Stop waiting: A file window that never shows no longer leaves Browse greyed out.
 
 - Linux: installing an update now starts the new version; the restart started the old program again, so the update never seemed to take _(Sol, after a Linux player's report)_
 - Linux: Browse opens a file window again (for an imported .cfg or your profile picture) through zenity or kdialog when the desktop's own one does not answer, and Stop waiting gives up on a window that never showed instead of leaving Browse greyed out _(Sol, after a Linux player's report)_
