@@ -60,7 +60,9 @@ const KEYS_RIGHT: f32 = 1824.0;
 /// What the card says above the report row.
 const PARAGRAPHS: [&str; 2] = [
     "This is an alpha build of Sol JK, a free and open-source Jedi Academy client. Expect \
-     bugs, and parts that are not finished yet.",
+     bugs, and parts that are not finished yet. Some collectibles show in the game but \
+     cannot be unlocked yet: they are a work in progress, so there is no need to ask Sol \
+     about them.",
     "Found a bug, or something that feels wrong? Tell us on the SJK Discord, or send it with \
      Report a bug, this icon in the game menu (Escape).",
 ];

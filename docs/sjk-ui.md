@@ -1817,7 +1817,8 @@ same look in every menu style, on the 16:9 frame:
   words.
 - **Words:** "Alpha build" in gold (Rajdhani 22), "Welcome to Sol JK" (Rajdhani 36),
   then Exo 2 18 (muted): an alpha of a free and open-source client, expect bugs and
-  unfinished parts; report on the SJK Discord or with Report a bug, this icon in the
+  unfinished parts, some collectibles shown but not unlockable yet (a work in
+  progress, no need to ask Sol); report on the SJK Discord or with Report a bug, this icon in the
   game menu.
 - **Report row:** Report a bug as the game menu's row of icons draws it (the
   `other_controls` picture at 54, ringed gold while hovered), its name and "In the game
