@@ -4733,3 +4733,14 @@ change: Joining an emote starts your music where the leader's is.
 test: A starts an emote with music; B uses Sync emote: B's music plays, in step.
 test: A stops: B's music keeps playing without a jump.
 
+[solfox-pack]
+area: Rendering & effects
+title: Solfox player model from the hub (Reyced's model, for every SJK player)
+change: Hub pack sjk_solfox: model, PNG texture, face icon, two-sided cape and hood.
+change: Feet reshaped into shorter, rounder paw toes. Needs the hub deployed.
+test: After the hub deploy, remove base/solfox.pk3, start: log says sjk_solfox downloaded.
+test: Character model list: Solfox shows with the face icon; pick it.
+test: Third person: the cape and hood show from behind and from inside.
+test: Look at the feet: four short rounded toes, no holes at the toes.
+test: A second SJK client on the same server sees you as Solfox.
+

@@ -171,6 +171,12 @@ did: #76 Classic scoreboard behaves like JoF EJK's
 did: #77 Jetpack flight prediction and the pack on your back
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
+== Art
+
+[Reyced]
+role: Artist: the Solfox player model
+did: Made Solfox, Sol's fox player model, which every SJK player gets through the hub
+
 == Origins
 
 [Bishop]
