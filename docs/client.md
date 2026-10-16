@@ -3181,7 +3181,7 @@ eye to that point hides it behind walls. The nameplate, or the plain overhead na
 stands above it. It hides with the nameplates (menus, the scoreboard, intermission,
 `cg_drawHud 0`).
 
-- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos, and Simple > HUD) turns
+- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos) turns
   them on. It was a small coloured square until 13/10/2026.
 
 The team overlay at the top right (`cg_drawTeamOverlay`, teammates' names, health and
@@ -4287,13 +4287,16 @@ draws as before at the defaults.
 
 | Cvar | Default | Range | Effect |
 | --- | --- | --- | --- |
-| `ui_textScale` | 1 | 0.8 to 1.2 | Text size on menu screens and the in-game menu |
+| `ui_textScale` | 1 | 0.8 to 1.5 | Text size on menu screens and the in-game menu |
 | `ui_letterSpacing` | 0 | -0.05 to 0.15 | Extra space after each letter of menu text, as a fraction of the text size; the console's character grid keeps its cells |
 | `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: its character cells, margins and rows |
 
-Menu text grows or shrinks about the centre of its line without moving the
-layout, so the range is limited to what menu rows can hold; that style is
-applied where retained text commands become glyph quads, see
+Menu text grows or shrinks about the centre of its line. SJK Settings' option
+rows have room for the largest size; long Profile and Collection tab rows close
+their gaps as the text grows. Classic+ option panels grow their rows above size
+1 and show fewer at once through their existing scrolling, so their labels,
+controls and pointer targets do not overlap. Other layout positions stay
+unchanged. The style is applied where retained text commands become glyph quads, see
 [text/style.rs](../crates/sjk-viewer/src/text/style.rs). These settings do not
 affect chat, the scoreboard or the HUD. Letter spacing stays 0: Inter's average
 advance relative to its x-height (0.89) is already close to stock's cells (0.8),

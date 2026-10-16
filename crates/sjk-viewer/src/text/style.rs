@@ -15,8 +15,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub(crate) const SCALE_CVAR: &str = "ui_textScale";
 /// Extra letter spacing cvar, as a fraction of the text size.
 pub(crate) const TRACKING_CVAR: &str = "ui_letterSpacing";
-/// Accepted `ui_textScale` range; larger text would overrun menu rows.
-pub(crate) const SCALE_RANGE: (f32, f32) = (0.8, 1.2);
+/// Accepted `ui_textScale` range. Classic+ panels grow their rows above the
+/// neutral size; SJK Settings' 56-pixel rows already hold the largest text.
+pub(crate) const SCALE_RANGE: (f32, f32) = (0.8, 1.5);
 /// Accepted `ui_letterSpacing` range.
 pub(crate) const TRACKING_RANGE: (f32, f32) = (-0.05, 0.15);
 
@@ -107,7 +108,7 @@ pub(crate) struct Placement {
 /// Register the archived menu text cvars before configuration loading.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
     for (name, value, help) in [
-        (SCALE_CVAR, 1.0, "Menu text size multiplier (0.8 to 1.2)"),
+        (SCALE_CVAR, 1.0, "Menu text size multiplier (0.8 to 1.5)"),
         (
             TRACKING_CVAR,
             0.0,

@@ -108,6 +108,7 @@ pub(crate) enum Frame {
 }
 
 /// Canvas geometry of one frame, from the retail item rectangles.
+#[derive(Clone, Copy)]
 struct Geometry {
     /// The filled panel box.
     panel: [f32; 4],
@@ -199,11 +200,27 @@ const IN_GAME_BOX: [f32; 4] = [45.0, 35.0, 570.0, 335.0];
 const IN_GAME_LIST: [f32; 4] = [45.0 + 20.0, 35.0 + 43.0, 170.0, 30.0];
 
 impl Frame {
-    fn geometry(self) -> &'static Geometry {
-        match self {
-            Self::Main => &MAIN,
-            Self::InGame => &IN_GAME,
-        }
+    /// Geometry at the player's current menu text size. A larger classic+
+    /// font grows the rows and leaves scrolling to show the rows that no
+    /// longer fit; labels, controls and pointer targets then share the same
+    /// pitch instead of overlapping.
+    fn geometry(self) -> Geometry {
+        self.geometry_for_scale(crate::text::style::current().scale)
+    }
+
+    fn geometry_for_scale(self, text_scale: f32) -> Geometry {
+        let mut geometry = match self {
+            Self::Main => MAIN,
+            Self::InGame => IN_GAME,
+        };
+        let available = geometry.row_height * geometry.rows as f32;
+        let minimum = (geometry.text * text_scale.max(1.0) + 1.0).max(geometry.row_height);
+        geometry.rows = ((available / minimum).floor() as usize).clamp(1, geometry.rows);
+        geometry.row_height = available / geometry.rows as f32;
+        let search_room = geometry.first_row - geometry.panel[1];
+        geometry.search[1] = geometry.first_row - geometry.row_height.min(search_room);
+        geometry.search[3] = geometry.first_row - geometry.search[1];
+        geometry
     }
 
     /// Item rows the panel holds.
@@ -244,7 +261,7 @@ pub(crate) struct PanelFrame {
 /// geometry, for the item rows.
 pub(crate) struct PanelPlace {
     place: Placement,
-    frame: Frame,
+    geometry: Geometry,
     /// Description of the chrome button under the pointer, if any.
     hovered_hint: Option<(&'static str, bool)>,
     /// Whether the rows keep a picture column between labels and values.
@@ -272,9 +289,9 @@ impl PanelFrame {
         let mut hovered_hint = None;
         match self.page.settings_tab() {
             Some(active) => {
-                hovered_hint = self.tabs(canvas, &place, geometry, active);
+                hovered_hint = self.tabs(canvas, &place, &geometry, active);
             }
-            None => self.title(canvas, &place, geometry, self.page.title().0),
+            None => self.title(canvas, &place, &geometry, self.page.title().0),
         }
         for (index, slot) in self.page.slots().iter().enumerate() {
             let Some(target) = self.slot_target(index, slot) else {
@@ -308,7 +325,7 @@ impl PanelFrame {
         panel_box(canvas, place.rect(geometry.panel), place.scale);
         PanelPlace {
             place,
-            frame: self.frame,
+            geometry,
             hovered_hint,
             icons: false,
         }
@@ -555,7 +572,7 @@ fn panel_box(canvas: &mut MenuCanvas, rect: Rect, scale: f32) {
 impl PanelPlace {
     /// Item rows the panel holds.
     pub(crate) fn capacity(&self) -> usize {
-        self.frame.capacity()
+        self.geometry.rows
     }
 
     /// Keep a picture column between the labels and the values
@@ -824,8 +841,8 @@ impl PanelPlace {
         self.place.scale
     }
 
-    fn geometry(&self) -> &'static Geometry {
-        self.frame.geometry()
+    fn geometry(&self) -> &Geometry {
+        &self.geometry
     }
 
     /// Item row `slot` of the panel (window coordinates).
@@ -1581,7 +1598,7 @@ mod tests {
     #[test]
     fn rows_fit_their_panel() {
         for frame in [Frame::Main, Frame::InGame] {
-            let geometry = frame.geometry();
+            let geometry = frame.geometry_for_scale(1.0);
             let [_, top, _, height] = geometry.panel;
             let last = geometry.first_row + geometry.rows as f32 * geometry.row_height;
             assert!(geometry.first_row >= top, "{frame:?}");
@@ -1607,6 +1624,25 @@ mod tests {
             // Its four lines fit: title 3..17, two lines from 21, facts at h - 15.
             assert!(21.0 + 2.0 * 12.5 <= detail_h - 15.0 + 0.5, "{frame:?}");
         }
+    }
+
+    #[test]
+    fn large_text_grows_rows_and_reduces_capacity() {
+        let normal = Frame::Main.geometry_for_scale(1.0);
+        let large = Frame::Main.geometry_for_scale(1.5);
+        assert_eq!(normal.rows, 10);
+        assert_eq!(large.rows, 8);
+        assert!(large.row_height > normal.row_height);
+        assert!(large.row_height >= large.text * 1.5 + 1.0);
+        assert_eq!(
+            normal.row_height * normal.rows as f32,
+            large.row_height * large.rows as f32
+        );
+
+        // The in-game panel's retail 20-unit pitch already holds 1.5x text.
+        let in_game = Frame::InGame.geometry_for_scale(1.5);
+        assert_eq!(in_game.rows, IN_GAME.rows);
+        assert_eq!(in_game.row_height, IN_GAME.row_height);
     }
 
     #[test]

@@ -1,12 +1,19 @@
-## Chat text size in Settings
+## Menu and chat text sizes
 
-16/10/2026, `feat/chat-text-size-setting` (Sol's request): the existing
-`cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page, SJK
-Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range
-([client.md](client.md#text-size-and-spacing)). A group test pins all three
-places. Source and documentation were checked locally; the workspace checks and
-an in-game menu check remain unverified because this environment has no Cargo
-toolchain.
+16/10/2026, `feat/chat-text-size-setting` working tree (Sol's request): the
+existing `cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page,
+SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range.
+**Menu text size** (`ui_textScale`) now reaches 1.5 instead of 1.2. Classic+
+settings grow their rows and show fewer through their existing scrolling; the
+long SJK Collection tab row closes its gaps, and the dual-saber search leaves its
+heading room at the largest size ([client.md](client.md#text-size-and-spacing)).
+Group and layout tests pin those placements. On x86_64 Linux with rustc 1.99.1,
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed (the repository's
+existing warnings remain). GPU/world-shot tests requiring `JKA_GAME_DATA` were
+ignored by the suite; the settings and their persistence have not yet been
+checked interactively in the game.
 
 ## Chat bans: Ban 24 h
 

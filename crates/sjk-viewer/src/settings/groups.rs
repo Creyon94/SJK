@@ -419,7 +419,6 @@ impl Group {
                 "cg_crosshairSize",
                 "cg_hitMarker",
                 "cg_nameplate",
-                "cg_drawFriend",
                 crate::hud::team_outline::CVAR,
                 "cg_drawFps",
                 "cg_speedometer",

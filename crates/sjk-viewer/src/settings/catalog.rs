@@ -879,7 +879,7 @@ pub(super) const TEXT: &[Setting] = &[
         cvar: crate::text::style::SCALE_CVAR,
         kind: ValueKind::Float {
             min: 0.8,
-            max: 1.2,
+            max: 1.5,
             step: 0.05,
         },
     },

@@ -90,7 +90,8 @@ Sizes are in pixels of a 1080-line screen and scale with the window's height:
 the main page's entries 44 (chosen 68), server names 27, the player's name 26,
 details 16 to 18, key hints 15 to 17; on Settings, its name 48, the categories
 26, sub-headings 22, row names and descriptions 19, the detail's title 32 and
-its facts 17.
+its facts 17. `ui_textScale` multiplies them from 0.8 to 1.5; Settings > General
+in Simple or Interface in Advanced exposes it as **Menu text size**.
 
 Names keep their colour codes (`^1`...), drawn in a palette lifted to read on
 the navy ground (`text::CodePalette::Legible`, which every text in the UI's

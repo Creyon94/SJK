@@ -104,7 +104,7 @@ const DUAL_HILT_ROWS: usize = 4;
 /// The hilt search's field, at the right of the lists' heading line: beside one
 /// list's heading, and beside Dual's "Left hand".
 const SEARCH_WIDTH: f32 = 240.0;
-const DUAL_SEARCH_WIDTH: f32 = 170.0;
+const DUAL_SEARCH_WIDTH: f32 = 160.0;
 /// The blade choice's swatches (the Collection's, shrunk) and the gap between
 /// them, from `SKIN_X` so that the ones shown (at most `SKIN_SHOWN` of the stock
 /// blade and every blade skin owned, scrolled to keep the chosen one in view)
@@ -2391,9 +2391,9 @@ mod tests {
             < BOTTOM
     );
     // Dual's search field leaves "Left hand" room at the largest text
-    // (`ui_textScale` 1.2; Rajdhani SemiBold at 22 is 8.5 pixels a character).
+    // (`ui_textScale` 1.5; Rajdhani SemiBold at 22 is 8.5 pixels a character).
     const _: () = assert!(
-        (COLUMN_WIDTH - GUTTER) * 0.5 - 12.0 - DUAL_SEARCH_WIDTH - 22.0 > 1.2 * 8.5 * 9.0 + 8.0
+        (COLUMN_WIDTH - GUTTER) * 0.5 - 12.0 - DUAL_SEARCH_WIDTH - 22.0 > 1.5 * 8.5 * 9.0 + 8.0
     );
     // The blade choice's swatches leave the row's name room.
     const _: () = assert!(SKIN_X - LABEL_X > 110.0);
