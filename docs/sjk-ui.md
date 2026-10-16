@@ -1817,9 +1817,12 @@ same look in every menu style, on the 16:9 frame:
   words.
 - **Words:** "Alpha build" in gold (Rajdhani 22), "Welcome to Sol JK" (Rajdhani 36),
   then Exo 2 18 (muted): an alpha of a free and open-source client, expect bugs and
-  unfinished parts; report on the SJK Discord or with Report a bug in a game.
-- **Report row:** a picture of the game menu's Report a bug button (drawn, not a
-  button) with "This button, in a game: Escape, SJK"; on the right the invite
+  unfinished parts; report on the SJK Discord or with Report a bug, this icon in the
+  game menu.
+- **Report row:** Report a bug as the game menu's row of icons draws it (the
+  `other_controls` picture at 54, ringed gold while hovered), its name and "In the game
+  menu (Escape)" beside it; a click opens the Report a bug dialog, and the card comes
+  back when the dialog closes. On the right the invite
   (discord.gg/dGBdMygvJw, the permanent invite to #welcome) and Join the SJK Discord
   (outlined, opens it in the browser).
 - **Terms:** a fun project of Sol and the contributors, no warranty (as the GPL says),

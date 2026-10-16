@@ -42,5 +42,16 @@ fn alpha_notice_card_shot() {
         gpu.alpha_card_choice(choice);
         shoot(&mut gpu, 2, "alpha-notice-accepted");
         assert!(!gpu.alpha_card.is_open(), "accepted, the card is gone");
+
+        // Shown again, its Report a bug icon opens the dialog over it.
+        if let Some(console) = &mut gpu.console {
+            console.set_cvar(crate::alpha_notice_card::CVAR, "0");
+        }
+        let _ = frame(&mut gpu, 2);
+        assert!(gpu.alpha_card.is_open(), "ui_alphaNotice 0 shows it again");
+        gpu.alpha_card_choice(Some(Choice::Report));
+        shoot(&mut gpu, 2, "alpha-notice-report");
+        assert!(gpu.text_dialog.is_open(), "the report dialog opens");
+        assert!(!gpu.alpha_card.is_open(), "the card waits under the dialog");
     });
 }

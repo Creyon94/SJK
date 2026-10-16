@@ -1,8 +1,8 @@
 //! The alpha notice (`docs/sjk-ui.md`, "Alpha notice"): the first time the game starts,
 //! an SJK pop-up card over the darkened screen says SJK is an alpha build of a free and
 //! open-source project, that bugs and unfinished parts are to be expected, how to report
-//! them (the SJK Discord, Report a bug in a game), and that SJK comes with no warranty and
-//! owes the player nothing. Continue (gold, Enter) only works once the player ticks "I
+//! them (the SJK Discord, or Report a bug, the game menu's icon, whose dialog the card
+//! opens too), and that SJK comes with no warranty and owes the player nothing. Continue (gold, Enter) only works once the player ticks "I
 //! understand" (Space); Quit leaves the game. There is no way past it but those two.
 //!
 //! `ui_alphaNotice` holds the notice's version the player accepted: raising
@@ -12,7 +12,7 @@
 
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
-use sjk_ui::{DrawCommand, FontWeight, InputEvent, TextAlign, UiEventKind};
+use sjk_ui::{Color, DrawCommand, FontWeight, InputEvent, TextAlign, UiEventKind};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -27,6 +27,7 @@ const CONTINUE_TOKEN: u16 = 1;
 const QUIT_TOKEN: u16 = 2;
 const TICK_TOKEN: u16 = 3;
 const DISCORD_TOKEN: u16 = 4;
+const REPORT_TOKEN: u16 = 5;
 
 /// The card's left edge and width; it is as tall as what it holds, centred.
 const CARD_X: f32 = 510.0;
@@ -39,10 +40,11 @@ const BODY: f32 = 134.0;
 const LINE: f32 = 28.0;
 const LINE_CHARS: usize = 98;
 const PARAGRAPH_GAP: f32 = 12.0;
-/// The report row: the Report a bug button as it looks in a game, and Join the Discord.
+/// The report row: the game menu's Report a bug icon (as big as there) with its name,
+/// and Join the Discord.
 const ROW_GAP: f32 = 22.0;
-const ROW_HEIGHT: f32 = 46.0;
-const REPORT_WIDTH: f32 = 190.0;
+const ROW_HEIGHT: f32 = 54.0;
+const REPORT_WIDTH: f32 = 330.0;
 const DISCORD_WIDTH: f32 = 230.0;
 /// The tick's lines and the buttons.
 const TICK_GAP: f32 = 30.0;
@@ -59,8 +61,8 @@ const KEYS_RIGHT: f32 = 1824.0;
 const PARAGRAPHS: [&str; 2] = [
     "This is an alpha build of Sol JK, a free and open-source Jedi Academy client. Expect \
      bugs, and parts that are not finished yet.",
-    "Found a bug, or something that feels wrong? Tell us on the SJK Discord, or send it from \
-     a game with Report a bug: press Escape, then SJK.",
+    "Found a bug, or something that feels wrong? Tell us on the SJK Discord, or send it with \
+     Report a bug, this icon in the game menu (Escape).",
 ];
 /// What it says under the report row.
 const TERMS: &str = "SJK is a fun project that Sol and its contributors make in their free \
@@ -79,6 +81,8 @@ pub(crate) enum Choice {
     Continue,
     Quit,
     Discord,
+    /// Open the Report a bug dialog; the card waits under it.
+    Report,
 }
 
 pub(crate) struct Card {
@@ -157,6 +161,7 @@ impl Card {
             Some(QUIT_TOKEN) => Choice::Quit,
             Some(TICK_TOKEN) => Choice::Tick,
             Some(DISCORD_TOKEN) => Choice::Discord,
+            Some(REPORT_TOKEN) => Choice::Report,
             _ => return None,
         };
         self.choose(choice)
@@ -168,7 +173,7 @@ impl Card {
             Choice::Tick => self.ticked = !self.ticked,
             Choice::Continue if !self.ticked => return None,
             Choice::Continue => self.pending = false,
-            Choice::Quit | Choice::Discord => {}
+            Choice::Quit | Choice::Discord | Choice::Report => {}
         }
         Some(choice)
     }
@@ -238,39 +243,52 @@ impl Card {
                 TextAlign::Start,
             );
         }
-        // The Report a bug button as the game menu shows it: a picture, not a button.
+        // Report a bug as the game menu's row of icons draws it: its picture, ringed gold
+        // while hovered, its name beside it; a click opens the dialog.
         let row = top + row;
-        let report = frame.rect(TEXT_X, row, REPORT_WIDTH, ROW_HEIGHT);
-        let _ = ui.draw_list_mut().push(DrawCommand::RoundedRect {
-            rect: report,
-            radius: report.height * 0.5,
-            color: color::alpha(color::HOLO, 0.05),
-        });
-        let _ = ui.draw_list_mut().push(DrawCommand::Border {
-            rect: report,
-            radius: report.height * 0.5,
-            width: 1.5 * s,
-            color: color::alpha(color::HOLO, 0.4),
-        });
+        let lit = ui.token_hovered(REPORT_TOKEN);
+        let icon = frame.rect(TEXT_X, row, ROW_HEIGHT, ROW_HEIGHT);
+        let picture = crate::ingame_menu::sjk_focus::Icon::ReportBug.picture();
+        if let Some(texture) = crate::settings_icons::texture(picture) {
+            let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: icon,
+                texture,
+                color: Color::new(1.0, 1.0, 1.0, if lit { 1.0 } else { 0.78 }),
+            });
+        }
+        if lit {
+            let ring = frame.rect(TEXT_X - 3.0, row - 3.0, ROW_HEIGHT + 6.0, ROW_HEIGHT + 6.0);
+            let _ = ui.draw_list_mut().push(DrawCommand::Border {
+                rect: ring,
+                radius: ring.height * 0.5,
+                width: 2.0 * s,
+                color: color::alpha(color::GOLD, 0.7),
+            });
+        }
+        let name_x = TEXT_X + ROW_HEIGHT + 16.0;
         text(
             ui,
             TextFamily::Display,
             format_args!("Report a bug"),
-            frame.rect(TEXT_X, row + (ROW_HEIGHT - 26.0) * 0.5, REPORT_WIDTH, 26.0),
-            20.0 * s,
-            color::TEXT,
+            frame.rect(name_x, row + 2.0, 240.0, 28.0),
+            22.0 * s,
+            if lit { color::GOLD_BRIGHT } else { color::TEXT },
             FontWeight::Regular,
-            TextAlign::Center,
+            TextAlign::Start,
         );
         text(
             ui,
             TextFamily::Body,
-            format_args!("This button, in a game: Escape, SJK"),
-            frame.rect(TEXT_X + REPORT_WIDTH + 16.0, row + 9.0, 260.0, LINE),
+            format_args!("In the game menu (Escape)"),
+            frame.rect(name_x, row + 28.0, 240.0, 24.0),
             16.0 * s,
             color::QUIET,
             FontWeight::Regular,
             TextAlign::Start,
+        );
+        ui.hit_region(
+            REPORT_TOKEN,
+            frame.rect(TEXT_X - 6.0, row - 6.0, REPORT_WIDTH, ROW_HEIGHT + 12.0),
         );
         let right = CARD_X + CARD_WIDTH - MARGIN;
         kit::button(
@@ -287,7 +305,7 @@ impl Card {
             ui,
             TextFamily::Body,
             format_args!("discord.gg/dGBdMygvJw"),
-            frame.rect(right - DISCORD_WIDTH - 236.0, row + 9.0, 220.0, LINE),
+            frame.rect(right - DISCORD_WIDTH - 236.0, row + 13.0, 220.0, LINE),
             16.0 * s,
             color::QUIET,
             FontWeight::Regular,
@@ -432,6 +450,8 @@ impl crate::GpuState {
             }
             Some(Choice::Quit) => self.quit_requested = true,
             Some(Choice::Discord) => crate::update::open_page(DISCORD_URL),
+            // The dialog takes the screen; the card comes back when it closes.
+            Some(Choice::Report) => self.open_bug_report(),
             Some(Choice::Tick) | None => {}
         }
     }

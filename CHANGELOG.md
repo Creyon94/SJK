@@ -25,7 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- The first start shows an alpha notice: SJK is a free and open-source alpha, so expect bugs and unfinished parts; report them on the SJK Discord or with Report a bug; no warranty, and nobody owes you anything. Tick "I understand" to continue _(Sol)_
+- The first start shows an alpha notice: SJK is a free and open-source alpha, so expect bugs and unfinished parts; report them on the SJK Discord or with Report a bug, right from the card; no warranty, and nobody owes you anything. Tick "I understand" to continue _(Sol)_
 
 ## 2026.1016.2 (Alpha) | 16/10/2026
 

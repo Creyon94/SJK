@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Alpha notice: clickable Report a bug icon
+- 30000cc |  | Alpha notice: Report a bug as the game menu's icon, clickable
 + 16/10/2026 | - | Alpha notice at the first start: no warranty, Discord, Report a bug, forced tick
 - d09d547 |  | Alpha notice at the first start
 + 16/10/2026 | - | Release 2026.1016.2 (Alpha)
