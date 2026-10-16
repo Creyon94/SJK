@@ -143,6 +143,7 @@ impl GpuState {
                     slot,
                     sound,
                     offset,
+                    align,
                 } => {
                     let origin = (Some(slot) != own).then(|| {
                         world
@@ -150,7 +151,7 @@ impl GpuState {
                             .map(|entity| entity.current().transform.translation)
                             .unwrap_or_default()
                     });
-                    audio.play_emote(&sound, slot, origin, volume, offset);
+                    audio.play_emote(&sound, slot, origin, volume, offset, align);
                 }
                 emotes::Cue::Stop { slot } => audio.stop_emote(slot),
             }

@@ -4733,3 +4733,11 @@ change: Joining an emote starts your music where the leader's is.
 test: A starts an emote with music; B uses Sync emote: B's music plays, in step.
 test: A stops: B's music keeps playing without a jump.
 
+[emote-sync-audio]
+area: Audio
+title: Synced emotes sound like one song: no echo, no extra loudness
+change: Followers' music plays at the leader's exact sample, mixed once.
+test: A emotes with music; B and C Sync emote: one clean song, no echo.
+test: The song is no louder than A's alone when standing next to them.
+test: A stops: B and C's music plays on, still clean.
+

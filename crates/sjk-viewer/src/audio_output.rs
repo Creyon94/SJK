@@ -118,7 +118,7 @@ impl Iterator for MixerSource {
                     PlayRequest {
                         source, channel, ..
                     },
-                    _,
+                    ..,
                 ) = &command
                 {
                     self.pending.cancel(*source, *channel);
@@ -169,9 +169,10 @@ impl Source for MixerSource {
 
 pub(super) enum AudioCommand {
     Play(SoundHandle, PlayRequest),
-    /// Play a loaded sound from this many mono samples in; one still decoding is
-    /// not started.
-    PlayFrom(SoundHandle, PlayRequest, usize),
+    /// Play a loaded sound from this many mono samples in, or at the sample the
+    /// given source's voice plays it near there ([`sjk_audio::Mixer::play_aligned`]);
+    /// one still decoding is not started.
+    PlayFrom(SoundHandle, PlayRequest, usize, Option<SourceId>),
     Listener {
         origin: [f32; 3],
         forward: [f32; 3],
@@ -467,9 +468,16 @@ fn apply_command(mixer: &mut Mixer, command: AudioCommand) -> bool {
         AudioCommand::Play(handle, request) => {
             mixer.play(handle, request);
         }
-        AudioCommand::PlayFrom(handle, request, offset) => {
-            mixer.play_from(handle, request, offset);
-        }
+        AudioCommand::PlayFrom(handle, request, offset, align) => match align {
+            // Half a second either way: a leader's voice further off is another
+            // round of its loop, about to end or just begun.
+            Some(align) => {
+                mixer.play_aligned(handle, request, offset, align, SAMPLE_RATE as usize / 2);
+            }
+            None => {
+                mixer.play_from(handle, request, offset);
+            }
+        },
         AudioCommand::Listener {
             origin,
             forward,

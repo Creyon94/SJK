@@ -1,3 +1,13 @@
+## Synced emotes: one song, sample-aligned
+
+16/10/2026, `personal/emote-sync-audio` (Sol's report: the music of synced emotes
+sometimes sounded weird): each follower's copy started from the clock, a few
+milliseconds off the leader's, and the copies added up, an echo and a louder song. A
+follower's music now starts at the leader's voice's own sample (`Mixer::play_aligned`)
+and the mixer plays a group's identical voices once, each ear as loud as the loudest
+([hub-chat.md](hub-chat.md#emotes-in-the-client)). Checked by `sjk-audio` tests
+(`sync_mix_tests`) and the emote tests. Not heard in the game.
+
 ## Synced emotes: the follower's music plays too
 
 15/10/2026, `personal/emote-sync-sound` (Sol's report: a synced emote played its animation

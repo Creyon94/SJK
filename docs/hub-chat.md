@@ -603,10 +603,14 @@ and plays changes.
   relayed in the feed). Every client, the joiner's included, gives the follower the
   start time the leader's emote has *on that client* (`ActiveEmotes::sync`), so the two
   are in phase on every screen whatever each player's delay to the hub. Joining a
-  follower follows its leader. The follower's music starts where the leader's is
-  (`Cue::Start`'s `offset`, the mixer's `play_from`), so both play it in step, and it
-  plays on if the leader stops first. (In 2026.1015.3 the follower's music stayed silent
-  while the leader's played, which left followers without sound.) A client that does not see the leader playing it, or a
+  follower follows its leader. The follower's music starts at the very sample the
+  leader's voice plays (`Cue::Start`'s `align`, the mixer's `play_aligned`; the clock's
+  `offset` when the leader's voice is gone or more than half a second off), and it plays
+  on if the leader stops first. The mixer mixes the group's identical voices once, each
+  ear as loud as the loudest of them (`MixerConfig::protected_channel`), so a group
+  sounds like one song from the dancers, not a louder echo. (In 2026.1015.3 the
+  follower's music stayed silent; in 2026.1015.4 each copy started from the clock, a few
+  milliseconds off, and the copies added up.) A client that does not see the leader playing it, or a
   hub or client from before the change, plays it from the start as a plain emote.
 - A received emote counts only when the game shows, in its slot, the name its claim
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,

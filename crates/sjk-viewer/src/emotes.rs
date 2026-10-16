@@ -320,11 +320,13 @@ impl Music {
 /// A sound to start on, or stop from, a player: what the audio does with emotes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Cue {
-    /// Start `sound` `offset` into it (a synced emote's music joining the leader's).
+    /// Start `sound` `offset` into it (a synced emote's music joining the leader's),
+    /// at the sample `align`'s plays it (the leader's, for a follower).
     Start {
         slot: u8,
         sound: String,
         offset: Duration,
+        align: Option<u8>,
     },
     Stop {
         slot: u8,
@@ -381,6 +383,7 @@ impl ActiveEmotes {
                 slot,
                 sound: sound.clone(),
                 offset: Duration::ZERO,
+                align: None,
             });
         }
         // After the first sound: its loop, or for a looping emote the sound again.
@@ -438,6 +441,7 @@ impl ActiveEmotes {
                 slot,
                 sound: sound.to_owned(),
                 offset,
+                align: Some(leader),
             });
             next_sound = next.map(|next| (now + next, music.then.clone(), music.then_length));
         }
@@ -503,6 +507,7 @@ impl ActiveEmotes {
                     slot,
                     sound: sound.clone(),
                     offset: Duration::ZERO,
+                    align: active.leader,
                 });
                 if length.is_zero() {
                     active.next_sound = None;
@@ -752,7 +757,8 @@ mod tests {
             vec![Cue::Start {
                 slot: 5,
                 sound: "sound/emotes/dance.wav".into(),
-                offset: Duration::ZERO
+                offset: Duration::ZERO,
+                align: None
             }]
         );
         active.update(t0 + Duration::from_secs(1), |_| Some([500.0, 0.0, 0.0]));
@@ -770,13 +776,15 @@ mod tests {
                 Cue::Start {
                     slot: 5,
                     sound: "sound/emotes/dance.wav".into(),
-                    offset: Duration::ZERO
+                    offset: Duration::ZERO,
+                    align: None
                 },
                 Cue::Stop { slot: 5 },
                 Cue::Start {
                     slot: 5,
                     sound: "sound/emotes/wave.mp3".into(),
-                    offset: Duration::ZERO
+                    offset: Duration::ZERO,
+                    align: None
                 },
                 Cue::Stop { slot: 5 },
             ]
@@ -898,17 +906,19 @@ mod tests {
             [Cue::Start {
                 slot: 2,
                 sound: "a.wav".into(),
-                offset: Duration::from_millis(1500)
+                offset: Duration::from_millis(1500),
+                align: Some(1)
             }]
         );
         // The loop starts on both at the same moment.
         active.update(t0 + Duration::from_millis(2000), here);
-        let b = |slot| Cue::Start {
+        let b = |slot, align| Cue::Start {
             slot,
             sound: "b.wav".into(),
             offset: Duration::ZERO,
+            align,
         };
-        assert_eq!(active.take_cues(), [b(1), b(2)]);
+        assert_eq!(active.take_cues(), [b(1, None), b(2, Some(1))]);
         // A third joining the follower follows the first leader.
         assert!(active.sync(3, 2, "heavy", Some(&heavy()), [0.0; 3], late));
         assert_eq!(active.get(3).unwrap().leader, Some(1));
