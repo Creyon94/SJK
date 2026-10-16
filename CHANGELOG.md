@@ -38,6 +38,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A world ping lands under the crosshair whatever your camera style: with a tilted or pitched third-person camera it used to mark where the screen's centre looked _(Sol, after Rollembones's and Foshin's reports)_
 - Glowing lamps and coloured flares light their surroundings more, in their own colour (Byss lights, the FFA5 ceiling lights, the red and blue flares), with a Glowing lamp light setting under Lighting; Map fog is now a setting under Weather _(Sol, from Sol's world notes)_
 - The Blender add-on exports the colour you see: it follows Base Color through mix and AO nodes to its image, takes an image node labelled SJK as the colour, gives untextured materials their own colour instead of white, keeps switched-on shape keys, applies Mask modifiers and keeps hand-added tail lines _(Sol)_
+- Korriban's glossy walls (door, entrance top, the gold-inlaid bases and pillars) take material maps, their shine kept under the paint, and in real-time lighting an environment shine dims with the room's light instead of washing over dark walls such as the obsidian bricks JoF puts on ffa1 _(Sol)_
+- Material maps generation 8: plates, inset panels, crate faces and painted bevels get their relief, built from the paint's edges, instead of being flattened _(Sol, from Sol's world notes)_
 
 ## 2026.1015.4 (Alpha) | 15/10/2026
 

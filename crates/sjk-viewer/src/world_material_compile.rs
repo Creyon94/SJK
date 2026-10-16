@@ -236,6 +236,19 @@ pub(in crate::world_materials) fn compile_material(
                         crate::world_stage::relighting::DIFFUSE_COVER
                     } else {
                         0
+                    }
+                    | if sort == SORT_OPAQUE
+                        && stage.secondary.is_none()
+                        && crate::world_stage::relighting::relit_shine(&stage.primary, key.lightmap)
+                    {
+                        // The vertex stage then passes the lightmap coordinates on as
+                        // `secondary_uv` (no secondary is sampled): the bake to compare.
+                        if key.lightmap >= 0 {
+                            gpu.secondary_animation[3] = 1.0;
+                        }
+                        crate::world_stage::relighting::RELIT_SHINE
+                    } else {
+                        0
                     }) as f32;
                 if let Some(definition) = definition {
                     crate::world_stage::compile_deforms(&mut gpu, &definition.deforms);

@@ -86,6 +86,22 @@ light like a vertex-lit surface's, so real-time lighting replaces it. Before, a
 the static bake under real-time lighting, brighter than its neighbours and blind to
 live light (`mp/ffa4` on a JA+ server).
 
+An unlit environment shine over relit paint (an additive `tcGen environment` stage
+with identity colour on a lightmapped or vertex-lit surface, such as
+`textures/yavin/obsidian_templebasic`'s `alphaGen const 0.25` layer) follows the live
+light in real-time lighting: its colour is scaled by the luminance of the light the
+surface now receives over that of its bake (the lightmap texel, or the vertex colour),
+at most 1 (`relighting::RELIT_SHINE`, [world_lighting_mode.wgsl](../crates/sjk-viewer/src/world_lighting_mode.wgsl)).
+Retail adds the shine to paint lit by the bake. Real-time lighting relit the paint, six
+times darker than its bake on the `mp/ffa1` wall `vjun/newfloor_vjun` is remapped to on
+JoF, while the shine kept its authored strength and was added in linear light: it made
+80% of the wall's brightness (0.103 of 0.126 in display values, where a display-space
+sum as retail draws it would add 0.062) and hid the bricks behind a milky sheen (Sol's
+world note, 12/10/2026: "way too reflective"). With the rule it adds 0.025 and the
+bricks show. In baked lighting nothing changes: there the shine adds 0.055 where
+retail would add 0.061. The stage carries the lightmap coordinates in its unused
+second bundle's coordinates to read the bake.
+
 The map's own worldspawn remaps apply when its world loads, as rd-vanilla
 `R_LoadEntities` applies them: every key starting with `remapshader` (case-sensitive,
 so `remapshader2` too) whose value is `old;new`, split at the first `;`. A value
@@ -1792,7 +1808,8 @@ pack (or keywords) a map load only checks the candidate names in the file
 index, and no layout, buffer, pipeline or reflection probe is created.
 
 Maps apply to lightmapped world surfaces (static and inline movers) whose
-lightmap and diffuse stages collapse into one opaque pass. On the retail
+lightmap and diffuse stages collapse into one opaque pass, and to the paint of a
+glossy base (below). On the retail
 `mp/ffa1`, `mp/ffa3` and `mp/duel1` this covers 84–87% of world triangles;
 `mp/siege_hoth` covers 52%. Since 07/10/2026 they also apply to vertex-lit world
 surfaces (terrain, `_phong` sand and rock, `q3map_onlyvertexlighting` shaders) whose
@@ -1803,6 +1820,18 @@ response), in real-time lighting the light buffer is read through
 layers over such paint, stacks that do not collapse, effect stages, deforms, sprites
 and models (MD3, Ghoul2) keep their authored shading, so a mapped terrain base can
 differ from an unmapped layer blended over it.
+A glossy base is Korriban's wall stack (`korriban/door`, `entrance_top`,
+`os_outsidebased`, `os_basic_pillarb`): an environment stage, the paint alpha-blended
+over it (its alpha, about 0.84 on the gold inlays, lets the shine through) and the
+lightmap filtered over both, `lightmap × (paint × a + shine × (1 − a))` in three passes
+that rd-vanilla and rend2 do not collapse. SJK draws the same colour in two lightmap
+collapses ([world_stage_collapse.rs](../crates/sjk-viewer/src/world_stage_collapse.rs),
+`glossy_base`): the shine times the lightmap, opaque, then the paint times the lightmap
+blended over it with the paint's alpha. The paint pass is an ordinary lightmapped
+diffuse pair, so it takes maps and the generator writes them; the alpha stays a mask
+over the shine, never transparency. Any other colour, a wave, an alpha test or a
+different depth function keeps the three passes. Since 13/10/2026; before, these walls
+took no maps and overrides could not reach them (Sol's world notes, 07/10/2026).
 Each material-mapped stage compiles to its own pipeline key and a second bind
 group; ordinary stages keep their pipelines, groups and stage-table records.
 
@@ -3010,10 +3039,11 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   environment stage marks the texture polished (below).
   Korriban's glossy walls (`korriban/door`, `entrance_top`, `os_outsidebased`,
   `os_basic_pillarb`) draw an environment stage first, their paint over it with alpha
-  blending (the alpha masks the shine) and the lightmap last; such a stack does not
-  collapse, in rend2 either, so they take no maps, and an override cannot give them
-  any (Sol asked for relief and a yellow glow on them, 07/10/2026). Mapping them needs
-  the client to collapse that stack, a renderer change not made.
+  blending (the alpha masks the shine) and the lightmap last. The client draws that
+  glossy base as two lightmap collapses ([Material maps](#material-maps)), so its paint
+  qualifies (`select::glossy_base_paint`) and overrides reach it (since 13/10/2026). Its
+  shine is masked to the inlays and drawn by its own pass, so it does not mark the
+  texture polished.
 - **Generation** ([generate.rs](../crates/sjk-materialgen/src/generate.rs)),
   deterministic and wrap-around, so tiling textures stay seamless. Height comes
   from luminance, high-passed twice at 1/8 of the texture to suppress baked

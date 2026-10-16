@@ -4828,3 +4828,12 @@ test: mp/ffa1 Byss lights, mp/ffa5 taspir ceiling lights: the walls around them 
 test: Settings > Lighting > Glowing lamp light 0 then 8 (next map): less, then more lamp light.
 test: Settings > Weather > Map fog off: fog volumes vanish; on: they come back.
 
+[relief-method]
+area: Rendering & effects
+title: Korriban glossy walls take material maps; env shine follows live light; gen 8 relief
+change: Korriban door/bases/pillars: shine kept under mapped paint. Unlit env shine dims with live light.
+change: Material maps gen 8: plates, panels, crates, painted bevels get relief from paint edges.
+test: Regenerate the material pack (gen 8), then mp/ffa2 Korriban door and gold bases: relief, shine kept.
+test: mp/ffa1 on JoF, obsidian wall (vjun/newfloor_vjun remap): no longer washed out by shine.
+test: FFA5 taspir plates, FFA3 crates, FFA1 bay_trim_bumper: plates read as 3D.
+

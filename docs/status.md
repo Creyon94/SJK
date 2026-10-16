@@ -332,6 +332,26 @@ since removing done notes renumbers them, and `world_note_flicker` holds a note'
 still and steps it a few units at a time to find what flickers. Not tried in a game.
 Decals flickering outside fog (below) stays open: eight 0.37-unit steps at the `mp/ctf4`
 decal showed none.
+## Relief method, Korriban glossy walls, obsidian shine
+
+Branch `personal/relief-client` (13/10/2026), two of Sol's world notes. Korriban's
+glossy walls (`mp/ffa2`: `korriban/door`, `entrance_top`, `os_outsidebased`,
+`os_basic_pillarb`; "make this 3d", 07/10/2026) are drawn as two lightmap collapses, the
+lit shine then the lit paint blended over it with its alpha, the same colour as the three
+authored passes; the paint pass takes material maps and the generator selects it, not
+polished ([rendering.md](rendering.md#material-maps)). The yellow glow Sol asked for is an
+override (`emission=`). The obsidian wall JoF remaps over `vjun/newfloor_vjun` on
+`mp/ffa1` ("way too reflective and disgusting"): SJK drew its shine at the authored
+strength (in baked lighting it adds 0.055 in display values where retail adds 0.061), but
+real-time lighting relit the paint six times darker than its bake while the unlit shine
+kept its strength, 80% of the wall's brightness; an unlit environment shine now follows the
+live light relative to the bake, at most its authored strength
+([rendering.md](rendering.md#server-shader-remaps)). Remapped materials still compile without
+material maps, so Sol's override for `yavin/obsidian_templebasic` (relief, roughness) does
+not reach that wall. Verified: unit tests (the collapse and its refusals, the map
+selection on both sides, the shine rule), world shots of notes 4 to 8 and 15 before and
+after with a generated FFA1/FFA2 pack, and paired shots of the obsidian wall with and
+without its shine stage (test shaders). Not tried in a game.
 
 ## Material notes: overrides found again, crates and concrete
 

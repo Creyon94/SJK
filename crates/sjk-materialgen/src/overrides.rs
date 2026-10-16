@@ -13,6 +13,7 @@
 //! textures/x/lightgreen_wall      emission=off
 //! textures/desert/s_floor1        relief=inverted
 //! textures/taspir/trim_walk       strength=2.5
+//! textures/x/painted_sign         shape=0
 //! ```
 //!
 //! The pattern is matched against the diffuse image's path without extension
@@ -26,6 +27,10 @@
 //!   relief), from [`MIN_STRENGTH`] to [`MAX_STRENGTH`]: more than 1 for a texture whose
 //!   shapes read flat, less for one whose relief is overdone. Like `--strength`, but for
 //!   the matching textures only; both multiply.
+//! - `shape`: the weight (0–2) of the shape relief ([`crate::shape`]: plates, seams and
+//!   painted bevels) added to the band-pass height; 0 turns it off for a texture whose
+//!   plates are paint (a sign, a decal), more than the class's (painted panels have 1)
+//!   deepens them.
 //! - `height`: `on` writes `_nh` (height for parallax), `off` a plain `_n`.
 //! - `emission`: `on` writes an emission map (`_e`) whatever the evidence, `off`
 //!   never writes one, and a number from 0 to 4 is `on` with that strength (the
@@ -54,6 +59,8 @@ pub struct Rule {
     pub metalness: Option<f32>,
     /// Multiplier on the class's normal strength.
     pub strength: Option<f32>,
+    /// Weight of the shape relief.
+    pub shape: Option<f32>,
     pub height: Option<bool>,
     pub relief: Option<Relief>,
     /// Emission strength: 0 off, 1 on (`on`), up to [`crate::emission::MAX_STRENGTH`].
@@ -86,6 +93,7 @@ impl Overrides {
                 roughness: None,
                 metalness: None,
                 strength: None,
+                shape: None,
                 height: None,
                 relief: None,
                 emission: None,
@@ -124,6 +132,20 @@ impl Overrides {
                                     format!(
                                         "line {line_number}: strength needs a number from \
                                          {MIN_STRENGTH} to {MAX_STRENGTH}"
+                                    )
+                                })?,
+                        )
+                    }
+                    "shape" => {
+                        rule.shape = Some(
+                            value
+                                .parse::<f32>()
+                                .ok()
+                                .filter(|v| (0.0..=crate::classes::MAX_SHAPE).contains(v))
+                                .ok_or_else(|| {
+                                    format!(
+                                        "line {line_number}: shape needs a number from 0 to {}",
+                                        crate::classes::MAX_SHAPE
                                     )
                                 })?,
                         )
@@ -194,6 +216,9 @@ impl Overrides {
             if let Some(strength) = rule.strength {
                 class.normal_strength *= strength;
             }
+            if let Some(shape) = rule.shape {
+                class.shape = shape;
+            }
             if let Some(height) = rule.height {
                 class.parallax = height;
                 class.height_keywords = &[];
@@ -263,7 +288,7 @@ mod tests {
             "# metal floors\n\
              textures/MP/floor*  class=tiles roughness=0.2   # shiny\n\
              \n\
-             *metal* metalness=0.9 height=on relief=inverted\n",
+             *metal* metalness=0.9 height=on relief=inverted shape=0.25\n",
         )
         .expect("parses");
         assert_eq!(overrides.rules.len(), 2);
@@ -273,9 +298,11 @@ mod tests {
         assert_eq!((first.roughness, first.line), (Some(0.2), 2));
         assert_eq!(overrides.rules[1].height, Some(true));
         assert_eq!(overrides.rules[1].relief, Some(Relief::Inverted));
+        assert_eq!(overrides.rules[1].shape, Some(0.25));
         for (bad, message) in [
             ("x class=chrome", "unknown class"),
             ("x roughness=2", "from 0 to 1"),
+            ("x shape=2.5", "shape needs a number from 0 to 2"),
             ("x strength=0", "strength needs a number"),
             ("x strength=5", "strength needs a number"),
             ("x height=maybe", "on or off"),
@@ -299,7 +326,7 @@ mod tests {
         let overrides = Overrides::parse(
             "textures/* roughness=0.6\n\
              textures/mp/floor* class=metal\n\
-             textures/mp/floor1 roughness=0.1 height=off relief=normal\n",
+             textures/mp/floor1 roughness=0.1 height=off relief=normal shape=0\n",
         )
         .expect("parses");
         let generic = crate::classes::GENERIC.clone();
@@ -308,6 +335,7 @@ mod tests {
         assert_eq!(class.roughness, 0.1);
         assert!(!class.parallax && class.height_keywords.is_empty());
         assert_eq!(class.relief, Relief::Keep);
+        assert_eq!(class.shape, 0.0);
         assert_eq!(lines, vec![1, 2, 3]);
         let (class, lines) = overrides.apply("textures/mp/wall", generic);
         assert_eq!(

@@ -24,7 +24,10 @@ mod tests;
 pub(crate) fn collapse_multitexture(stages: &[ShaderStage]) -> Vec<CompiledStage> {
     let mut result = Vec::with_capacity(stages.len());
     let mut rest = stages;
-    if let [first, second, tail @ ..] = stages
+    if let Some((passes, tail)) = glossy_base(stages) {
+        result.extend(passes);
+        rest = tail;
+    } else if let [first, second, tail @ ..] = stages
         && let Some((operator, output_blend)) = collapse_pair(first, second)
     {
         let (mut primary, secondary) = if first.texture_generator == TextureGenerator::Lightmap {
@@ -61,6 +64,73 @@ pub(crate) fn collapse_multitexture(stages: &[ShaderStage]) -> Vec<CompiledStage
         glow: stage.glow,
     }));
     result
+}
+
+/// A glossy base: an environment stage, paint alpha-blended over it (its alpha masks the
+/// shine) and the lightmap filtered over both, as Korriban's walls draw
+/// (`textures/korriban/door`, `entrance_top`, `os_outsidebased`, `os_basic_pillarb`:
+/// `map textures/common/etest4 tcGen environment`, the paint with
+/// `blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA`, then `$lightmap` with
+/// `GL_DST_COLOR GL_ZERO`). rd-vanilla collapses none of it and draws three passes,
+/// `lightmap × (paint × a + shine × (1 − a))`.
+///
+/// SJK draws the same colour in two passes, each a lightmap collapse: the shine times
+/// the lightmap (opaque, writing depth), then the paint times the lightmap, blended
+/// over it with the paint's alpha: `lightmap × paint × a + lightmap × shine × (1 − a)`.
+/// The paint pass is then an ordinary lightmapped diffuse pair, so material maps apply
+/// to it (`material_maps::diffuse_bundle`), where the three passes kept the lightmap
+/// out of reach of the paint. The paint's alpha stays a mask over the shine: the first
+/// pass is opaque, so nothing behind the wall shows.
+///
+/// Any colour other than identity, a wave, an alpha test or a different depth
+/// function keeps the authored passes.
+fn glossy_base(stages: &[ShaderStage]) -> Option<([CompiledStage; 2], &[ShaderStage])> {
+    let [shine, paint, lightmap, tail @ ..] = stages else {
+        return None;
+    };
+    let plain = |stage: &ShaderStage| {
+        matches!(
+            stage.resolved_colour.rgb,
+            RgbGen::Identity | RgbGen::IdentityLighting
+        ) && matches!(
+            stage.resolved_colour.alpha,
+            AlphaGen::Identity | AlphaGen::Skip
+        ) && stage.rgb_wave.is_none()
+            && stage.alpha_wave.is_none()
+            && alpha_test(stage.alpha_function.as_deref()) == 0
+            && stage.depth_function == shine.depth_function
+            && !stage.glow
+    };
+    let filter = matches!(
+        blend_bits(&lightmap.blend),
+        BlendBits::ModulateSource | BlendBits::ModulateDestination
+    );
+    if shine.texture_generator != TextureGenerator::Environment
+        || shine.blend != StageBlend::Replace
+        || paint.texture_generator != TextureGenerator::Base
+        || paint.blend != StageBlend::Alpha
+        || lightmap.texture_generator != TextureGenerator::Lightmap
+        || !filter
+        || ![shine, paint, lightmap].into_iter().all(plain)
+    {
+        return None;
+    }
+    let pass = |diffuse: &ShaderStage, output_blend: StageBlend| CompiledStage {
+        primary: diffuse.clone(),
+        secondary: Some(lightmap.clone()),
+        combine: CollapseOperator::Modulate,
+        output_blend,
+        output_depth_write: diffuse.depth_write,
+        output_depth_function: diffuse.depth_function,
+        glow: false,
+    };
+    Some((
+        [
+            pass(shine, StageBlend::Replace),
+            pass(paint, StageBlend::Alpha),
+        ],
+        tail,
+    ))
 }
 
 fn collapse_pair(

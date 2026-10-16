@@ -396,3 +396,73 @@ fn unscripted_lightmapped_surfaces_collapse() {
     assert_eq!(compiled[0].combine, CollapseOperator::Modulate);
     assert_eq!(compiled[0].output_blend, StageBlend::Replace);
 }
+
+const GLOSSY_BASE: &str = "{ map textures/common/etest4 tcGen environment }
+     { map textures/korriban/door blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA }
+     { map $lightmap blendFunc GL_DST_COLOR GL_ZERO }";
+
+#[test]
+fn a_glossy_base_becomes_two_lightmapped_passes() {
+    // Korriban's walls: lightmap × (paint × a + shine × (1 − a)), drawn as the lit
+    // shine, then the lit paint blended over it with its alpha.
+    let compiled = compile(GLOSSY_BASE);
+    assert_eq!(compiled.len(), 2);
+    let (shine, paint) = (&compiled[0], &compiled[1]);
+    for pass in [shine, paint] {
+        assert_eq!(pass.combine, CollapseOperator::Modulate);
+        let lightmap = pass
+            .secondary
+            .as_ref()
+            .expect("the lightmap in the second bundle");
+        assert_eq!(lightmap.texture_generator, TextureGenerator::Lightmap);
+        assert!(!pass.glow);
+    }
+    assert_eq!(
+        shine.primary.texture_generator,
+        TextureGenerator::Environment
+    );
+    assert_eq!(shine.output_blend, StageBlend::Replace);
+    assert!(shine.output_depth_write);
+    assert_eq!(paint.primary.images, ["textures/korriban/door"]);
+    assert_eq!(paint.output_blend, StageBlend::Alpha);
+    assert!(!paint.output_depth_write);
+    // Later stages stay their own passes.
+    let more = compile(&format!(
+        "{GLOSSY_BASE}\n{{ map textures/test/glow blendFunc add glow }}"
+    ));
+    assert_eq!(more.len(), 3);
+    assert!(more[2].secondary.is_none());
+}
+
+#[test]
+fn other_glossy_stacks_keep_their_passes() {
+    for body in [
+        // A coloured paint layer.
+        "{ map textures/a/env tcGen environment }
+         { map textures/a/paint blendFunc blend rgbGen const ( 1 0 0 ) }
+         { map $lightmap blendFunc filter }",
+        // An alpha-tested paint layer.
+        "{ map textures/a/env tcGen environment }
+         { map textures/a/paint blendFunc blend alphaFunc GE128 }
+         { map $lightmap blendFunc filter }",
+        // Added, not blended.
+        "{ map textures/a/env tcGen environment }
+         { map textures/a/paint blendFunc add }
+         { map $lightmap blendFunc filter }",
+        // No environment base.
+        "{ map textures/a/base }
+         { map textures/a/paint blendFunc blend }
+         { map $lightmap blendFunc filter }",
+        // The lightmap added rather than filtered.
+        "{ map textures/a/env tcGen environment }
+         { map textures/a/paint blendFunc blend }
+         { map $lightmap blendFunc add }",
+    ] {
+        let compiled = compile(body);
+        assert_eq!(compiled.len(), 3, "{body}");
+        assert!(
+            compiled.iter().all(|pass| pass.secondary.is_none()),
+            "{body}"
+        );
+    }
+}

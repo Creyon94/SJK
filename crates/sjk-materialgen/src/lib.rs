@@ -18,8 +18,9 @@
 //!    are skipped, each with a recorded reason.
 //! 3. Generates, per texture and deterministically ([`generate`]), a
 //!    tangent-space normal map from a height estimated from the albedo
-//!    (multi-scale high-pass that drops baked lighting gradients, Scharr
-//!    gradients, wrap-around filtering so tiling textures stay seamless), and a
+//!    (multi-scale high-pass that drops baked lighting gradients, plus the
+//!    [`shape`] relief that keeps plates, seams and painted bevels at any size,
+//!    Scharr gradients, wrap-around filtering so tiling textures stay seamless), and a
 //!    packed roughness/metalness/occlusion map from the material class
 //!    ([`classes`], the one table to tune) and local image statistics.
 //! 4. Writes one pk3 ([`package`]) of PNGs at the names rend2's automatic
@@ -50,8 +51,8 @@
 //!
 //! Shaders with a `tcGen environment` stage are stock polish and get a glossier
 //! class ([`classes::polished`]). A text file of per-texture rules
-//! ([`overrides`], `--overrides`) sets the class, roughness, metalness or
-//! height of textures the heuristics get wrong. The manifest records the
+//! ([`overrides`], `--overrides`) sets the class, roughness, metalness, relief
+//! strength, shape weight or height of textures the heuristics get wrong. The manifest records the
 //! generation of the tuning ([`package::GENERATION`]); the client reports a pack
 //! from an older one, which should be regenerated.
 //!
@@ -84,3 +85,5 @@ pub mod overrides_file;
 pub mod package;
 pub mod run;
 pub mod select;
+pub mod shape;
+pub mod spectral;

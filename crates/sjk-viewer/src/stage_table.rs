@@ -124,6 +124,11 @@ pub(super) fn program_source(source: &str) -> String {
             "textureSample(lightmap_image, secondary_sampler, input.secondary_uv)",
             "textureSample(table_lightmaps[table_index.z], table_samplers[(table_index.w >> 1u) & 1u], input.secondary_uv)",
         ),
+        // A relit shine's baked light (`world_lighting_mode.wgsl`).
+        (
+            "textureSampleLevel(lightmap_image, secondary_sampler, input.secondary_uv, 0.0)",
+            "textureSampleLevel(table_lightmaps[table_index.z], table_samplers[(table_index.w >> 1u) & 1u], input.secondary_uv, 0.0)",
+        ),
     ] {
         assert_eq!(
             source.matches(from).count(),

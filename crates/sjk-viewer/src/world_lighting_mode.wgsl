@@ -40,7 +40,8 @@ fn apply_lighting_mode(input: VertexOutput, primary: vec4<f32>, secondary: vec4<
     let emitted = select(vec3(0.0), emitted_light(input), !fullbright);
     // Real-time lighting replaces baked illumination; authored textures retain their material role.
     if !fullbright && base_lightmap { base = realtime_lightmap(input, base); base = vec4(base.rgb+emitted,base.a); }
-    if !fullbright && extra_lightmap { extra = realtime_lightmap(input, extra); extra = vec4(extra.rgb+emitted,extra.a); }
+    // A relit shine (flag 8) carries lightmap coordinates without a secondary bundle.
+    if !fullbright && extra_lightmap && stage.secondary_control.z > 0.5 { extra = realtime_lightmap(input, extra); extra = vec4(extra.rgb+emitted,extra.a); }
     {
         let rgb = i32(stage.generators.x);
         // Some legacy stacks restore the base texture over additive effects. That
@@ -51,6 +52,19 @@ fn apply_lighting_mode(input: VertexOutput, primary: vec4<f32>, secondary: vec4<
             input.entity_control.x <= 0.5 && input.light_ambient.a == 0.0 {
             color = vec4(realtime_lightmap(input,vec4(1.0)).rgb+emitted,color.a);
         }
+    }
+    // An unlit environment shine over relit paint (`relighting::RELIT_SHINE`): retail adds
+    // it to paint lit by the bake, so here it follows the live light relative to that bake
+    // (the lightmap texel, or the vertex colour, display-encoded), never above authored.
+    if realtime_active() && !fullbright && (flags & 8u) != 0u && input.entity_control.x <= 0.5 {
+        var baked = pow(max(input.color.rgb, vec3(0.0)), vec3(2.2));
+        if extra_lightmap {
+            baked = textureSampleLevel(lightmap_image, secondary_sampler, input.secondary_uv, 0.0).rgb;
+        }
+        let live = realtime_lightmap(input, vec4(1.0)).rgb;
+        let weights = vec3(0.2126, 0.7152, 0.0722);
+        let relit = clamp(dot(live, weights)/max(dot(baked, weights), 1e-4), 0.0, 1.0);
+        color = vec4(color.rgb*relit, color.a);
     }
     if stage.secondary_control.z > 0.5 {
         // DrawMultitextured's GL_REPLACE replaces RGB and alpha, including primary color.
