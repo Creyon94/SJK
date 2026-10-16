@@ -212,6 +212,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("colorstring", "Configure outgoing chat colors"),
     ("vid_restart", "Reapply video settings (device is retained)"),
     (crate::fps_help::COMMAND, crate::fps_help::HELP),
+    (crate::emote_help::COMMAND, crate::emote_help::HELP),
     (crate::whats_new_card::COMMAND, crate::whats_new_card::HELP),
     (crate::gameplay_fps::COMMAND, crate::gameplay_fps::HELP),
     (
@@ -420,6 +421,9 @@ impl crate::GpuState {
                 state.catalogue.as_deref().unwrap_or_default(),
             ));
         };
+        if id == crate::emote_help::WORD {
+            return self.emote_help_command();
+        }
         if !crate::emotes::valid_id(&id) {
             return Err("An emote id is 1 to 32 of a to z, 0 to 9 and _".to_owned());
         }
@@ -1151,6 +1155,7 @@ impl crate::GpuState {
             crate::ghost_replay::COMMAND => return self.ghost_command(args),
             crate::mimic::COMMAND => return self.mimic_command(args),
             crate::fps_help::COMMAND => return self.fps_help_command(),
+            crate::emote_help::COMMAND => return self.emote_help_command(),
             crate::whats_new_card::COMMAND => {
                 self.preview_whats_new();
                 return Ok(Vec::new());

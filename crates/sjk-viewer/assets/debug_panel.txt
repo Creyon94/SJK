@@ -34,6 +34,13 @@ test: Unverified: a GIF or discord.gg/abc: "Only verified players can send links
 test: Verified: messages every second and GIFs as before; "version 3.5" is no link.
 note: Needs the hub's trust branch deployed; the client refuses first, the hub refuses too.
 
+[emote-help]
+area: Menus & settings
+title: Emote help card (help_emotes)
+change: help_emotes or sjkemote help opens a card with the emote commands and the wheel.
+test: In the menu, type help_emotes: the card shows; Esc or Close ends it.
+test: On a server, type sjkemote help: the card shows over the game menu; Close goes back to play.
+
 [emote-stop-mute]
 area: Gameplay
 title: Stop or mute other players' emotes

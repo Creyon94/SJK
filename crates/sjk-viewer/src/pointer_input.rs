@@ -320,6 +320,11 @@ impl GpuState {
             self.reload_card_choice(choice);
             return true;
         }
+        if self.emote_help.card.is_open() {
+            let choice = self.emote_help.card.handle_pointer(event);
+            self.emote_help_choice(choice);
+            return true;
+        }
         if self.fps_card.is_open() {
             let choice = self.fps_card.handle_pointer(event);
             self.fps_card_choice(choice);

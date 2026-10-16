@@ -1,3 +1,11 @@
+## Emote help card
+
+16/10/2026, `personal/emote-help` (Sol's request): `help_emotes` or `sjkemote help`
+opens an SJK pop-up card listing the `sjkemote` commands (play, stop, sync, stop
+others, mute) and how to put emotes on the quick wheel
+([hub-chat.md](hub-chat.md#emotes-in-the-client)). Checked by unit tests and the
+`emote_help_card` world shot; not tried in the game.
+
 ## Emote stop and mute
 
 16/10/2026, `personal/emote-mute` (Sol's request): `sjkemote stop all` or `sjkemote stop

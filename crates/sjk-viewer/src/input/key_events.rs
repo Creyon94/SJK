@@ -81,6 +81,12 @@ impl GpuState {
             self.reload_card_choice(choice);
             return;
         }
+        // And the emote help card.
+        if !console_open && self.emote_help.card.is_open() {
+            let choice = self.emote_help.card.handle_key(&event);
+            self.emote_help_choice(choice);
+            return;
+        }
         // And the low-FPS card.
         if !console_open && self.fps_card.is_open() {
             let choice = self.fps_card.handle_key(&event);

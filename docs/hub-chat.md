@@ -728,6 +728,11 @@ and plays changes.
   for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
+- `help_emotes` (or `sjkemote help`; since 16/10/2026) shows an SJK pop-up card
+  ([emote_help.rs](../crates/sjk-viewer/src/emote_help.rs)) listing the `sjkemote`
+  commands and how to put emotes on the quick wheel: one command to give a player who
+  asks. It opens the game menu under it on a map and closes it again with the card;
+  `help` is a reserved id. World shot: `emote_help_card`.
 - Other players' emotes, on this screen only (since 16/10/2026; nothing is sent):
   `sjkemote stop all` ends every other player's emote and `sjkemote stop <player>` one
   player's, once: their next emote plays. `sjkemote mute <player>` ends that player's
