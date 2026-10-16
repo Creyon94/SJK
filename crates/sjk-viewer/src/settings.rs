@@ -716,8 +716,7 @@ impl SettingsMenu {
             self.refresh(console);
             return;
         }
-        // Choices name text or integer cvars (`cg_saberTrail` is an integer), or
-        // a value other cvars hold (the renderer).
+        // Choices name text or integer cvars (`cg_saberTrail` is an integer).
         if let ValueKind::Choice(values) = setting.kind {
             let cvar = setting.cvar;
             let value = choice_value(console, cvar).unwrap_or_default();
@@ -761,7 +760,8 @@ impl SettingsMenu {
                 crate::gameplay_fps::step_preset(*value, direction).to_string()
             }
             (ValueKind::Quality, _) => {
-                // Custom settings step from the level they are nearest.
+                // Custom settings step from the preset they are nearest.
+
                 crate::graphics_quality::Level::nearest(console)
                     .step(direction)
                     .apply(console);
@@ -997,57 +997,20 @@ pub(super) struct DerivedSwitch {
     pub(super) toggle: fn(&mut ViewerConsole),
 }
 
-/// A choice row whose value other cvars hold, not a cvar of its own (its name
-/// is the row's stand-in), like [`DerivedSwitch`].
-#[derive(Clone, Copy)]
-pub(super) struct DerivedChoice {
-    /// The choice in use, one of the row's values.
-    pub(super) get: fn(&ViewerConsole) -> &'static str,
-    /// Make a choice.
-    pub(super) set: fn(&mut ViewerConsole, &str),
-    /// The choice of a new profile, which Backspace returns to.
-    pub(super) default: &'static str,
-}
-
-/// The derived choice row `cvar` names, if it is one: the renderer.
-pub(super) fn derived_choice(cvar: &str) -> Option<DerivedChoice> {
-    match cvar {
-        crate::graphics_quality::RENDERER_ROW => Some(DerivedChoice {
-            get: crate::graphics_quality::renderer_value,
-            set: crate::graphics_quality::set_renderer,
-            default: crate::graphics_quality::VANILLA,
-        }),
-        _ => None,
-    }
-}
-
-/// The value choice row `cvar` holds: its cvar's text, or a derived choice's.
+/// The value choice row `cvar` holds: its cvar's text.
 fn choice_value(console: &ViewerConsole, cvar: &str) -> Option<String> {
-    match derived_choice(cvar) {
-        Some(choice) => Some((choice.get)(console).to_owned()),
-        None => console.cvar(cvar).map(CvarValue::as_text),
-    }
+    console.cvar(cvar).map(CvarValue::as_text)
 }
 
-/// Make choice `value` of row `cvar`: set its cvar, or a derived choice.
+/// Make choice `value` of row `cvar`: set its cvar.
 fn set_choice(console: &mut ViewerConsole, cvar: &str, value: &str) {
-    match derived_choice(cvar) {
-        Some(choice) => (choice.set)(console, value),
-        None => {
-            console.set_cvar(cvar, value);
-        }
-    }
+    console.set_cvar(cvar, value);
 }
 
-/// Whether `cvar` is one of the renderer's settings: the renderer and its
-/// quality, and every row of Graphics' image, lighting, shadows and weather.
+/// Whether `cvar` is one of the renderer's settings: the graphics preset and
+/// every row of Graphics' image, lighting, shadows and weather.
 fn renderer_setting(cvar: &str) -> bool {
-    [
-        crate::graphics_quality::RENDERER_ROW,
-        crate::graphics_quality::ROW_NAME,
-    ]
-    .iter()
-    .any(|row| row.eq_ignore_ascii_case(cvar))
+    crate::graphics_quality::ROW_NAME.eq_ignore_ascii_case(cvar)
         || [
             RENDER_IMAGE,
             RENDER_LIGHTING,
@@ -1086,9 +1049,6 @@ fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i6
 /// The value a row shows: AUTO for the one special value below a negative
 /// minimum (`com_maxfps -1`), otherwise the cvar's text.
 fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
-    if let Some(choice) = derived_choice(setting.cvar) {
-        return (choice.get)(console).to_owned();
-    }
     match (setting.kind, console.cvar(setting.cvar)) {
         (ValueKind::Integer { min, .. }, Some(CvarValue::Integer(value)))
             if min < 0 && *value < 0 =>
@@ -1249,8 +1209,8 @@ mod tests {
         let (_directory, console) = console();
         for setting in rows() {
             // Rows whose value is not one cvar's (resolution, display mode, HUD,
-            // the quick wheel's pages, graphics quality and the renderer).
-            if derived_switch(setting.cvar).is_some() || derived_choice(setting.cvar).is_some() {
+            // the quick wheel's pages and the graphics preset).
+            if derived_switch(setting.cvar).is_some() {
                 continue;
             }
             if matches!(

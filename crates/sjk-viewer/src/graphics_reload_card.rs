@@ -50,7 +50,7 @@ pub(crate) enum Choice {
 pub(crate) struct Card {
     /// What a reload would change, in Settings' words; empty when nothing.
     changes: Vec<&'static str>,
-    /// The graphics quality level the settings are, which the card names instead.
+    /// The graphics preset the settings are, which the card names instead.
     level: Option<&'static str>,
     /// The player chose Later for these changes.
     later: bool,
@@ -76,7 +76,7 @@ impl Default for Card {
 
 impl Card {
     /// The settings changed: `changes` is what a reload would change now, and `level`
-    /// the graphics quality level they are, if one. New changes are offered again after
+    /// the graphics preset they are, if one. New changes are offered again after
     /// a Later; none take the offer back.
     pub(crate) fn offer(&mut self, changes: &[&'static str], level: Option<&'static str>) {
         if changes != self.changes.as_slice() || level != self.level {
@@ -172,13 +172,11 @@ impl Card {
                     .to_owned(),
             );
         }
-        let vanilla = self.level == Some(crate::graphics_quality::Level::Vanilla.label());
         let what = match self.level {
-            Some(level) if vanilla => format!("{level} graphics"),
-            Some(level) => format!("{level} graphics quality"),
+            Some(level) => format!("The {level} preset"),
             None => super::summary(&self.changes),
         };
-        let verb = if !vanilla && (self.level.is_some() || self.changes.len() == 1) {
+        let verb = if self.level.is_some() || self.changes.len() == 1 {
             "applies"
         } else {
             "apply"
@@ -359,7 +357,8 @@ mod tests {
         card.offer(&["sun and sky", "sun shadows"], None);
         assert!(card.wants());
         // Back to the running settings: nothing to offer.
-        card.offer(&[], Some("High"));
+        card.offer(&[], Some("Experimental"));
+
         assert!(!card.wants());
     }
 
@@ -393,14 +392,12 @@ mod tests {
         assert!(words.ends_with("you stay on the server."), "{words}");
         card.offer(&["HDR", "FXAA"], None);
         assert!(card.words(false).1.starts_with("HDR and FXAA apply"));
-        // A graphics quality level is named.
-        card.offer(&["HDR", "FXAA", "sun and sky"], Some("Vanilla"));
-        assert!(card.words(false).1.starts_with("Vanilla graphics apply"));
-        card.offer(&["HDR", "FXAA", "sun and sky"], Some("Balanced"));
+        // A graphics preset is named.
+        card.offer(&["HDR", "FXAA", "sun and sky"], Some("Vanilla style"));
         assert!(
             card.words(false)
                 .1
-                .starts_with("Balanced graphics quality applies")
+                .starts_with("The Vanilla style preset applies")
         );
     }
 }

@@ -755,7 +755,7 @@ that mode for the visit and leaves the player's choice as it was.
   settings icon. The one on show is gold with a gold bar on the line; none is lit
   while a search shows its results.
   - Simple: Display (resolution, display mode, vertical sync, FPS cap, field of
-    view, brightness), Graphics (under Renderer: the renderer and SJK quality;
+    view, brightness), Graphics (under Preset: the graphics preset dropdown;
     under Effects: weather, dynamic glow, impact marks, player shadows), Sound
     (effects and music volume, mute in background), Controls (sensitivity,
     invert mouse, always run), Key bindings, Gameplay (camera style, gameplay
@@ -780,8 +780,8 @@ that mode for the visit and leaves the player's choice as it was.
   - Advanced regroups the classic+ Setup page's groups and tabs by subject
     (`settings::Group::Advanced`, `Group::Display`, `Group::Graphics`,
     `Group::Network`), each category's classic+ panel named for the hand-over
-    to the classic style. Graphics leads with a Quality heading (the renderer,
-    SJK quality, impact marks and player shadows, out of Video) and then
+    to the classic style. Graphics leads with a Quality heading (the graphics
+    preset, impact marks and player shadows, out of Video) and then
     gathers the renderer's four tabs (image, lighting, shadows, weather) under
     their names; Display is Video's other rows under Screen, Frame rate and
     View; Sound holds every sound, the game's under Game, then the unlock
@@ -843,10 +843,10 @@ that mode for the visit and leaves the player's choice as it was.
   category's icon (a search result's own group's) and its name, what it does,
   then its default, range or choices, when a change applies (gold), where a
   search found it and its console name (holo). While the SJK renderer is on, every
-  renderer setting (the renderer, SJK quality and Graphics' image, lighting,
-  shadows and weather rows) has the alpha warning in gold under what it does: the
+  renderer setting (the graphics preset and Graphics' image, lighting, shadows
+  and weather rows) has the alpha warning in gold under what it does: the
   renderer is in alpha, some maps can show glitches or run slower, report them
-  from the SJK menu's Report a bug, Vanilla is the safe choice. First setup adds
+  from the SJK menu's Report a bug, Vanilla style is the safe choice. First setup adds
   how to import another client's .cfg.
 - **Keys:** bottom right, the keys of what has the keyboard: the focused row's
   (Enter switch, Left Right change, Enter choices...), Backspace for the default
@@ -905,8 +905,8 @@ Settings screen.
 - **Top:** "First setup", what it is for, and how to bring another client's
   .cfg over.
 - **Rows:** First setup's rows as Settings draws them, its column moved into
-  the card, under its sub-headings (Graphics first: the Renderer row, Vanilla
-  or SJK (alpha), then SJK quality, whose list opens on Enter; see [graphics
+  the card, under its sub-headings (Graphics first: the graphics preset, Vanilla
+  style, SJK (recommended) or Experimental, whose list opens on Enter; see [graphics
   quality](client.md#graphics-quality); then Styles: menu and camera style).
   Eleven lines show; the rest scroll inside the card. The focused row's help
   sits in two lines under them (left out while a list is open).

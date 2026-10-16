@@ -3308,14 +3308,15 @@ supplies maps; without one nothing is drawn differently or created. Noon, bloom,
 dust and material maps are SJK's defaults (Sol's own settings). Emission maps
 (`r_emissiveMaps 1`) are on too and only act where a pack has `_e` images.
 These are ordinary cvar defaults, not a config imported at launch. They are the
-High level of [graphics quality](client.md#graphics-quality), which sets the
-costly ones together, and the look the SJK renderer (alpha) is tuned for. Since
-12/10/2026 a new profile (no `config.cfg` at start) begins on Vanilla instead, the
-original look, and the player turns the SJK renderer on in Settings; the cvars'
+Experimental [graphics preset](client.md#graphics-quality) (High until 16/10/2026),
+which sets the costly ones together, and the look the SJK renderer (alpha) is tuned
+for. A new profile (no `config.cfg` at start) begins on the SJK (recommended)
+preset instead (Vanilla from 12/10/2026 to 16/10/2026): SJK's image over the maps'
+baked lighting, without the sun, shadows, reflections or material maps; the cvars'
 defaults stay these, so an existing profile keeps its settings.
 
-When sun and sky, light shafts and both sun shadows are off (the Performance and
-Vanilla levels, Vanilla called EJK until 12/10/2026), a map loads without extracting its lamps (`Lamps: none` in the
+When sun and sky, light shafts and both sun shadows are off (the Vanilla style and
+SJK (recommended) presets; before 16/10/2026 the Performance and Vanilla levels), a map loads without extracting its lamps (`Lamps: none` in the
 log): no pass reads them there, the shadow runtime is never installed and the
 world shows its lightmaps. Lamp extraction, its grid and refinement took about
 4.5 s of `JoFTemple`'s load on 09/10/2026 (see [status](status.md#joftemple-frame-rate-and-ultra-low)).

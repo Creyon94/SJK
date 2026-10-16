@@ -1040,14 +1040,6 @@ mod tests {
             Choices("cg_remaps", &["0", "1", "2"]).to_string(),
             "Never, Not players, Always"
         );
-        assert_eq!(
-            Choices(
-                crate::graphics_quality::RENDERER_ROW,
-                &super::super::catalog::RENDERERS
-            )
-            .to_string(),
-            "Vanilla, SJK (alpha)"
-        );
     }
 
     /// The changed dot sits [`DOT_GAP`] after a row name's last letter as the

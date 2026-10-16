@@ -134,9 +134,10 @@ mod tests {
     fn results_sit_under_their_groups() {
         let lines = lines("fov");
         assert_eq!(lines[0], super::super::Line::Heading("Display"));
-        // The renderer is Graphics'.
-        let renderer = super::lines("renderer");
-        assert!(renderer.contains(&super::super::Line::Heading("Graphics")));
+        // The graphics preset is Graphics'.
+        let preset = super::lines("preset");
+        assert!(preset.contains(&super::super::Line::Heading("Graphics")));
+
         assert!(lines.iter().any(|line| matches!(
             line,
             super::super::Line::Row(row) if rows()[*row].cvar == "cg_fov"

@@ -1463,97 +1463,88 @@ See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 
 ### Graphics quality
 
-The first two rows of VIDEO, of [First setup](#first-setup), of the SJK UI's
-Graphics (Advanced, under Quality) and of Simple's Graphics are the renderer and
-its quality ([graphics_quality.rs](../crates/sjk-viewer/src/graphics_quality.rs),
-since 12/10/2026, Sol's request):
+The first row of VIDEO, of [First setup](#first-setup) (under Graphics), of the SJK
+UI's Graphics (Advanced, under Quality) and of Simple's Graphics (under Preset) is
+the graphics preset ([graphics_quality.rs](../crates/sjk-viewer/src/graphics_quality.rs)),
+a dropdown of three presets (Sol's request, 16/10/2026; until then a Renderer row,
+Vanilla or SJK (alpha), and an SJK quality row of four levels, from 12/10/2026):
 
-- **Renderer** (stand-in `renderer`): Vanilla or SJK (alpha), two segments.
-  Vanilla is the original game's look at the most frames per second; it is the
-  level called EJK from 10/10/2026 (after EternalJK, the client closest to it that
-  players know) and Ultra low before. SJK is SJK's own renderer (sun, shadows,
-  reflections, material maps), still in alpha: while it is on, the detail column
-  of every renderer setting carries a warning in gold ([sjk-ui.md](sjk-ui.md#settings)).
-  The `renderer` command names it or sets it (`renderer vanilla|sjk`; `ejk` names
+- **Vanilla style**: the original game's look at the most frames per second, every
+  SJK extra off (the level called EJK from 10/10/2026, Ultra low before, then
   Vanilla).
-- **SJK quality** (stand-in `graphicsquality`): the SJK renderer's four levels,
-  Performance, Balanced, High and Ultra, each one choice that sets the costly
-  rendering settings together. Under Vanilla it reads Off and is not a change of
-  its own; Right from Vanilla starts the SJK renderer at Performance, Left at High,
-  and a step stops at either end. Backspace returns it to High, and does nothing
-  under Vanilla.
+- **SJK (recommended)**: Sol's own setup (as Sol had it on 16/10/2026): SJK's image
+  (HDR, bloom, dynamic glow, FXAA, ambient occlusion, per-pixel model lighting,
+  emission maps and their halo) over the maps' baked lighting, without the sun,
+  shadows, reflections, material maps, light shafts or weather extras. A new
+  profile (no `config.cfg` when SJK starts, applied in
+  [app_launch.rs](../crates/sjk-viewer/src/app_launch.rs)) starts on it, and
+  Backspace on the row returns to it.
+- **Experimental**: everything the SJK renderer draws (sun and sky, sun shadows,
+  reflection probes, floor mirrors, normal, specular and parallax maps, light
+  shafts, the richest weather), still in alpha. Its values are the renderer cvars'
+  registered defaults, the [default visual profile](rendering.md#default-visual-profile)
+  the renderer was tuned for (the former High).
 
-The level is not saved on its own: the rows show whichever level the settings
-match, and Custom once one of them has been changed on its own; stepping from
-Custom starts at the level the settings are nearest. A new profile (no
-`config.cfg` when SJK starts, applied in
-[app_launch.rs](../crates/sjk-viewer/src/app_launch.rs)) starts on Vanilla; the
-renderer cvars' registered defaults are still the SJK renderer's High, the
-[default visual profile](rendering.md#default-visual-profile), so an existing
-profile keeps its settings and turning the SJK renderer on gives the look it was
-tuned for. Backspace on the Renderer row returns to Vanilla. Under Vanilla a
-renderer setting's row reads Vanilla's value as its default
-(`graphics_quality::row_default`), so its rows do not all carry the changed dot.
-The `graphicsquality` command names the level, or sets it with
-`graphicsquality vanilla|performance|balanced|high|ultra` (`ejk` and `ultralow`
-still name Vanilla).
+While the settings are not Vanilla style's, the detail column of every renderer
+setting carries the alpha warning in gold ([sjk-ui.md](sjk-ui.md#settings)).
 
-| Setting | Vanilla | Performance | Balanced | High | Ultra |
-| --- | --- | --- | --- | --- | --- |
-| HDR scene, bloom, FXAA, soft particles, per-pixel model lighting | off | off | on | on | on |
-| Ambient occlusion (`r_ssao`) | off | on | on | on | on |
-| Dynamic glow (`r_DynamicGlow`) | off | off | on | on | on |
-| Sunbeam dust (`r_dustMotes`) | 0 | 0 | 0 | 1 | 1 |
-| Reflection probes, floor mirrors | off | off | off | on | on |
-| Normal and specular maps | off | on | on | on | on |
-| Parallax mapping, emission maps and their halo | off | off | on | on | on |
-| Sun and sky (`r_dayNight`) | off | off | on | on | on |
-| Emission-map lights (`r_emissiveLights`) | 0 | 0 | 1 | 1 | 1 |
-| Light shafts (`r_volumetrics`) | 0 | 0 | 0 | 3 | 3 |
-| World and character sun shadows | off | off | on | on | on |
-| Shadow resolution | 1024 | 1024 | 1024 | 2048 | 4096 |
-| Shadow filter taps | 8 | 8 | 8 | 16 | 24 |
-| Weather density | 1 | 1 | 1.5 | 2 | 2 |
-| Weather quality | 0 | 0 | 1 | 2 | 3 |
-| Volumetric clouds | off | off | on | on | on |
+The preset is not saved on its own: the row shows whichever preset the settings
+match, and Custom once one of them has been changed on its own; stepping (Left,
+Right) from Custom starts at the preset the settings are nearest, and a step stops
+at either end. A renderer setting's row reads its value in the preset in use (or,
+for Custom, the nearest) as its default (`graphics_quality::row_default`), so a
+preset's rows do not carry the changed dot, a row changed on its own does, and its
+Backspace leads back to the preset. The `graphicsquality` command names the preset,
+or sets it with `graphicsquality vanilla|sjk|experimental` (a preset's name works
+too; `ejk` and `ultralow` still name Vanilla style). Profiles on one of the former
+levels read Experimental (High) or Custom (Performance, Balanced, Ultra).
 
-Performance is close to the retail look: baked lightmaps without SJK's sun,
-shadows or light shafts, and no post-processing. Balanced keeps the sun, its shadows
-and the post-processing but, since 11/10/2026, neither of the two largest costs a
-setting removes in the 09/10/2026 frame test (JoFTemple, 4K, RTX 5080): light shafts
-(0.79 ms) and floor mirrors (0.64 ms). Vanilla is the retail look
-itself: Performance with a material pack's normal and specular maps and ambient
-occlusion off too, so surfaces show their lightmap and paint only. Under both, a
-map loads without building its lamps (see [rendering](rendering.md#default-visual-profile)),
-which no pass reads there.
+| Setting | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| HDR scene, bloom, FXAA, per-pixel model lighting | off | on | on |
+| Soft particles | off | off | on |
+| Ambient occlusion (`r_ssao`) | off | on | on |
+| Dynamic glow (`r_DynamicGlow`) | off | on | on |
+| Sunbeam dust (`r_dustMotes`) | 0 | 0 | 1 |
+| Reflection probes, floor mirrors | off | off | on |
+| Normal, specular and parallax maps | off | off | on |
+| Emission maps and their halo | off | on | on |
+| Sun and sky (`r_dayNight`) | off | off | on |
+| Emission-map lights (`r_emissiveLights`) | 0 | 0 | 1 |
+| Light shafts (`r_volumetrics`) | 0 | 0 | 3 |
+| World and character sun shadows | off | off | on |
+| Shadow resolution | 1024 | 1024 | 2048 |
+| Shadow filter taps | 8 | 8 | 16 |
+| Weather density | 1 | 1 | 2 |
+| Weather quality | 0 | 0 | 2 |
+| Volumetric clouds | off | off | on |
 
-The Renderer row is Vanilla while every setting matches Vanilla (it replaced the
-**EJK graphics** switch on 12/10/2026, with the same behaviour). Choosing Vanilla
+Under Vanilla style and SJK (recommended), with no sun, light shafts or sun shadows,
+a map loads without building its lamps (see [rendering](rendering.md#default-visual-profile)), which no pass reads there.
+
+The `renderer` command keeps the former Renderer row's switch: `renderer vanilla`
 keeps the player's values of every setting in the table (`r_ultraLowRestore`,
-archived, its name from before the renames) before applying Vanilla; choosing SJK
-puts them back, custom values included, or High when Vanilla was picked as a level
-and nothing was kept. The [low-FPS help](#low-fps-help) offers the same choice. Like
-the level, it needs a [graphics reload](#graphics-reload) for the lighting to
-change. Everything else is left as the
+archived, its name from before the renames) before applying Vanilla style;
+`renderer sjk` puts them back, custom values included, or SJK (recommended) when
+Vanilla style was picked as a preset and nothing was kept. The [low-FPS
+help](#low-fps-help) offers the same switch. Like the preset, it needs a [graphics
+reload](#graphics-reload) for the lighting to change. Everything else is left as the
 player set it: the FPS cap, vertical sync, resolution and supersampling (which
-multiplies the pixels drawn, so even Ultra leaves it to the player), the taste
-settings (exposure, time of day, tone curve, glow style, parallax depth,
-emission strength), contact shadows (still being worked out) and whether
-weather and fog show at all. Rows marked "(reload)" apply after a graphics
-reload, so a new level's shadows, light shafts, HDR, FXAA, sun and sky, reflection
-probes and material maps show once the graphics reload, and emission-map lights on
-the next map (or the reload, which loads the map again); the rest change at once.
-A level is saved with one write
-of the profile. The levels were chosen from what each setting draws, not from
-measured frame times; how many frames each level gains on a given GPU is not
-yet measured.
+multiplies the pixels drawn, so no preset sets it), the taste settings (exposure,
+time of day, tone curve, glow style, parallax depth, emission strength), contact
+shadows (still being worked out) and whether weather and fog show at all. Rows
+marked "(reload)" apply after a graphics reload, so a new preset's shadows, light
+shafts, HDR, FXAA, sun and sky, reflection probes and material maps show once the
+graphics reload, and emission-map lights on the next map (or the reload, which loads
+the map again); the rest change at once. A preset is saved with one write of the
+profile. How many frames each preset gains on a given GPU is not yet measured.
 
 ### Graphics reload
 
 Some renderer settings are read only when the graphics start: HDR scene, FXAA,
 supersampling, sun and sky, sun shadows and their quality, light shafts, normal,
 specular, parallax and emission maps, reflection probes and texture filtering,
-so the graphics quality levels and the renderer choice too. They apply with a
+so the graphics presets too. They apply with a
 graphics reload rather than a restart of SJK
 ([graphics_reload.rs](../crates/sjk-viewer/src/graphics_reload.rs), [how it
 works](rendering.md#graphics-reload)):
@@ -1626,9 +1617,8 @@ The tabbed settings screen's last tab, FIRST SETUP (called Quick setup before
 choosing on a first start: first, under a "From another client" heading, Import from
 a client ([Importing from another client](#importing-from-another-client)) and the
 Gameplay FPS ([Gameplay FPS](#gameplay-fps)), which players coming from another
-client ask about most (Sol, 11/10/2026); under a Graphics heading, the renderer
-(Vanilla or SJK (alpha)) and its SJK quality ([Graphics
-quality](#graphics-quality)); under a Styles heading, the menu style
+client ask about most (Sol, 11/10/2026); under a Graphics heading, the graphics
+preset ([Graphics quality](#graphics-quality)); under a Styles heading, the menu style
 (SJK or Classic) and the camera style (EJK or SJK, [Camera
 style](#camera-style));
 then resolution, display mode, vsync, field of view, mouse

@@ -451,6 +451,17 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[graphics-presets]
+area: Menus & settings
+title: Graphics presets: Vanilla style, SJK (recommended), Experimental
+change: One Graphics preset dropdown replaces the Renderer row and SJK quality's four levels.
+change: SJK (recommended) is Sol's config (no sun, shadows, material maps); new profiles start on it.
+test: Settings > Graphics: the preset row lists the three; your config reads SJK (recommended).
+test: Pick Experimental, take the reload: sun, shadows and material maps come on.
+test: Change one renderer row: the preset reads Custom and that row gets the changed dot.
+test: Backspace on the preset row: SJK (recommended) again. First setup shows the same row.
+test: Rename config.cfg away and start: the preset reads SJK (recommended).
+
 [grey-settings-icons]
 area: Menus & settings
 title: Settings icons are the grey metal discs again

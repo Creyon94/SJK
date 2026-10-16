@@ -1879,7 +1879,7 @@ fn sjk_settings_snapshot() {
     // Advanced's categories, then Simple's: Display, and Graphics on Vanilla and
     // on the SJK renderer, whose alpha warning the detail column shows.
     SettingsMode::Advanced.store(&mut console);
-    let simple: [Case; 4] = [
+    let simple: [Case; 5] = [
         (
             "sjk-settings-chat",
             VIEWPORT_WIDE,
@@ -1900,7 +1900,7 @@ fn sjk_settings_snapshot() {
             "sjk-settings-simple-vanilla",
             VIEWPORT_WIDE,
             14,
-            Some(crate::graphics_quality::RENDERER_ROW),
+            Some(crate::graphics_quality::ROW_NAME),
             false,
             None,
         ),
@@ -1908,8 +1908,16 @@ fn sjk_settings_snapshot() {
             "sjk-settings-simple-alpha",
             VIEWPORT_WIDE,
             14,
-            Some(crate::graphics_quality::RENDERER_ROW),
+            Some(crate::graphics_quality::ROW_NAME),
             false,
+            None,
+        ),
+        (
+            "sjk-settings-simple-presets",
+            VIEWPORT_WIDE,
+            14,
+            Some(crate::graphics_quality::ROW_NAME),
+            true,
             None,
         ),
     ];
@@ -1917,12 +1925,13 @@ fn sjk_settings_snapshot() {
         if name.starts_with("sjk-settings-simple") {
             SettingsMode::Simple.store(&mut console);
         }
-        let renderer = if name.ends_with("-vanilla") {
-            crate::graphics_quality::VANILLA
+        let preset = if name.ends_with("-vanilla") {
+            crate::graphics_quality::Level::Vanilla
         } else {
-            crate::graphics_quality::SJK
+            crate::graphics_quality::Level::DEFAULT
         };
-        crate::graphics_quality::set_renderer(&mut console, renderer);
+        preset.apply(&mut console);
+
         let mut menu = crate::menu::ClientMenu::new(true, String::new());
         menu.sjk_settings_for_snapshot(&console, category, cvar, list, search);
         let (mut display_text, mut body_text) = (Vec::new(), Vec::new());

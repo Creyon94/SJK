@@ -131,15 +131,10 @@ impl Simple {
     ];
 }
 
-/// The rows Graphics leads with, before the renderer's tabs: the renderer, its
-/// quality and the two effects the original game had (impact marks, player
+/// The rows Graphics leads with, before the renderer's tabs: the graphics
+/// preset and the two effects the original game had (impact marks, player
 /// shadows).
-const GRAPHICS_LEAD: &[&str] = &[
-    crate::graphics_quality::RENDERER_ROW,
-    crate::graphics_quality::ROW_NAME,
-    "cg_marks",
-    "cg_shadows",
-];
+const GRAPHICS_LEAD: &[&str] = &[crate::graphics_quality::ROW_NAME, "cg_marks", "cg_shadows"];
 
 /// The renderer tabs [`Group::Graphics`] gathers after [`GRAPHICS_LEAD`], each
 /// under its heading.
@@ -399,7 +394,6 @@ impl Group {
                 "r_gamma",
             ],
             Self::Simple(Simple::Graphics) => &[
-                crate::graphics_quality::RENDERER_ROW,
                 crate::graphics_quality::ROW_NAME,
                 crate::weather::CVAR,
                 "r_DynamicGlow",
@@ -512,7 +506,7 @@ impl Group {
                 (crate::ghost_replay::SHOWCASE_CVAR, "Experimental"),
             ],
             Self::Simple(Simple::Graphics) => &[
-                (crate::graphics_quality::RENDERER_ROW, "Renderer"),
+                (crate::graphics_quality::ROW_NAME, "Preset"),
                 (crate::weather::CVAR, "Effects"),
             ],
             Self::Simple(Simple::Hud) => &[
@@ -529,7 +523,7 @@ impl Group {
             Self::Scoreboard | Self::Graphics | Self::Simple(_) => &[],
             Self::Quick => &[
                 (super::catalog::IMPORT_ROW, "From another client"),
-                (crate::graphics_quality::RENDERER_ROW, "Graphics"),
+                (crate::graphics_quality::ROW_NAME, "Graphics"),
                 (crate::menu::style::CVAR, "Styles"),
                 ("r_resolution", "Display"),
                 ("sensitivity", "Aim"),
@@ -726,10 +720,10 @@ mod tests {
                 rows.len()
             );
         }
-        // The renderer first: the choice that matters most.
+        // The preset first: the choice that matters most.
         assert_eq!(
             Group::Simple(Simple::Graphics).rows()[0].cvar,
-            crate::graphics_quality::RENDERER_ROW
+            crate::graphics_quality::ROW_NAME
         );
     }
 
@@ -764,7 +758,7 @@ mod tests {
     }
 
     #[test]
-    fn graphics_leads_with_the_renderer_then_holds_every_renderer_row_once_under_its_tabs_name() {
+    fn graphics_leads_with_the_preset_then_holds_every_renderer_row_once_under_its_tabs_name() {
         let rows = Group::Graphics.rows();
         let renderer: Vec<&str> = GRAPHICS_LEAD
             .iter()
