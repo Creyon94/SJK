@@ -299,6 +299,14 @@ merged into SJK
 - #77 jetpack flight prediction after OpenJK `PM_JETPACK` (gravity, thrust, hover, directional
   legs) and the pack's chest attachment on equip; jump pads recognise the jetpack movement type.
 
+## Art
+
+Reyced made Solfox, a fox player model (`models/players/solfox`), for Sol in October
+2026. Sol reshaped its feet and gave its cape a two-sided shader, and the SJK hub
+serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone may
+wear it and SJK players see it on each other. Reyced keeps the rights to the model;
+it is distributed with his permission and is not part of SJK's code or its licence.
+
 ## Origins: JKR, by Bishop
 
 SJK began in October 2026 as a modified version of

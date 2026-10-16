@@ -591,8 +591,11 @@ Chameleon and Banner are about their colour.
 
 Built ([sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs); the download is the
 identity service's, [identity.md](identity.md#asset-packs)). A pack is a PK3 of game
-paths the hub serves (`GET /v1/assets`, `GET /v1/assets/<name>`); today one,
-`sjk_skins`, with the Sun blade's file and sounds.
+paths the hub serves (`GET /v1/assets`, `GET /v1/assets/<name>`): `sjk_skins` (the blade
+skins' files and sounds), `sjk_cards` (the cards) and, since 16/10/2026, `sjk_solfox`
+(Reyced's Solfox player model, which any player may wear; mounted below the game data like
+the others, so it shows in the model list and on other SJK players with no code of its
+own).
 
 - The identity service keeps them in `assets/<name>.pk3` beside `identity.key`,
   checked against the hub's size and SHA-256 and written in one rename.
