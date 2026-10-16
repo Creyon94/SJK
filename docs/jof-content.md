@@ -7,6 +7,10 @@ installs, and loads them in SJK. It is part of JoF tools: built with the `mod-jo
 feature, named `jof.*`, and its card is SJK UI in every menu style. Sol, a JoF
 member, asked for it on 16/10/2026, after Kypdurron pointed Sol to the launcher.
 
+**JoF's files, JoF's responsibility.** JoF chooses and publishes the files; SJK
+hosts none of them and only downloads what a player picks, so it is not responsible
+for their content. The card says so under its title.
+
 **Off by default (Sol's rule).** Nothing loads until the player turns on
 `jof.content`, and nothing downloads until they press Download on the card. Optional
 groups (the event map pack, the cosmetics, the JKA HD Pack) are never chosen by
@@ -82,7 +86,10 @@ alone: it never updates, moves or removes them.
 ([jof_content_card.rs](../crates/sjk-viewer/src/jof_content_card.rs)). A pop-up card
 (1200 by 888, the kit's scrim and glass) in every menu style:
 
-- **Top:** "JoF content" in gold, what it is, Close.
+- **Top:** "JoF content" in gold, what it is, Close, and under them whose the files
+  are (Sol's request, 16/10/2026): "JoF chooses and publishes these files and is
+  responsible for them; SJK only downloads what you pick and is not responsible for
+  their content."
 - **Use JoF content:** the switch (`jof.content`), with what it does said plainly (off
   by default, nothing fetched until Download; on, loaded from the next map, off leaves
   the files unused on disk), the folder, and that the game folder's files are used as
