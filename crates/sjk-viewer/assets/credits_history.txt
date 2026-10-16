@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Cargo fmt fix for CI
+- 9f8444b |  | Format world_shot_emote_help.rs (CI formatting check)
++ 16/10/2026 | - | Release 2026.1016.3 (Alpha)
+- eb62990 |  | Release 2026.1016.3 (Alpha)
 + 16/10/2026 | - | SJK chat messages up to 300 characters
 - d982d99 |  | SJK chat: messages up to 300 characters (were 150)
 + 16/10/2026 | - | Grey nameplate bars on SJK players who do not share, whatever the viewer turned on
