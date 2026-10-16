@@ -273,10 +273,37 @@ def emote_actions(armature):
     )
 
 
+def upstream_image(material):
+    """The nearest image feeding a Principled BSDF's Base Color, through the nodes
+    between (Ambient Occlusion, Mix, Hue/Saturation...), or None."""
+    for node in material.node_tree.nodes:
+        if node.type != "BSDF_PRINCIPLED":
+            continue
+        queue = [link.from_node for link in node.inputs["Base Color"].links]
+        seen = set()
+        while queue:
+            found = queue.pop(0)
+            if found.name in seen:
+                continue
+            seen.add(found.name)
+            if found.type == "TEX_IMAGE" and found.image is not None:
+                return found.image
+            queue.extend(
+                link.from_node for socket in found.inputs for link in socket.links
+            )
+    return None
+
+
 def base_color_image(material):
     """The image a material's base colour most likely comes from, or None."""
     if material is None or material.node_tree is None:
         return None
+    for node in material.node_tree.nodes:  # a picked (often baked) image wins
+        if node.type == "TEX_IMAGE" and node.image is not None and node.label == "SJK":
+            return node.image
+    image = upstream_image(material)
+    if image is not None:
+        return image
     best = None
     for node in material.node_tree.nodes:
         if node.type != "TEX_IMAGE" or node.image is None:
@@ -299,6 +326,28 @@ def base_color_image(material):
     return best[1] if best else None
 
 
+def keep_shape_mix(obj):
+    """Drop `obj`'s shape keys, keeping the shape they mix to now (a key switched on,
+    such as a top fitted over the chest, stays in the mesh)."""
+    if not obj.data.shape_keys:
+        return
+    mix = obj.shape_key_add(name="SJK_mix", from_mix=True)
+    co = [0.0] * (len(obj.data.vertices) * 3)
+    mix.data.foreach_get("co", co)
+    obj.shape_key_clear()
+    obj.data.vertices.foreach_set("co", co)
+    obj.data.update()
+
+
+def apply_masks(context, obj):
+    """Apply `obj`'s Mask modifiers shown in the viewport, so hidden geometry is not
+    exported (the export applies no other modifier)."""
+    for modifier in list(obj.modifiers):
+        if modifier.type == "MASK" and modifier.show_viewport:
+            with context.temp_override(object=obj, active_object=obj, selected_objects=[obj]):
+                bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
 def plain_material(source):
     """A temporary Principled material with `source`'s base colour image."""
     material = bpy.data.materials.new(f"SJK_export_{source.name if source else 'none'}")
@@ -307,13 +356,29 @@ def plain_material(source):
     tree = material.node_tree
     bsdf = next(node for node in tree.nodes if node.type == "BSDF_PRINCIPLED")
     image = base_color_image(source)
+    if image is None and source is not None:
+        image = color_image(source)
     if image is not None:
         texture = tree.nodes.new("ShaderNodeTexImage")
         texture.image = image
         tree.links.new(texture.outputs["Color"], bsdf.inputs["Base Color"])
-    elif source is not None:
-        bsdf.inputs["Base Color"].default_value = source.diffuse_color
     return material
+
+
+def color_image(material):
+    """A temporary 4x4 image of an untextured material's colour (its Principled Base
+    Color, else its viewport colour, alpha included), so the game draws that colour
+    rather than white. Named `<material>_color`, which a shader script can override."""
+    color = list(material.diffuse_color)
+    tree = material.node_tree
+    bsdf = tree and next((n for n in tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is not None and not bsdf.inputs["Base Color"].is_linked:
+        color = list(bsdf.inputs["Base Color"].default_value)[:3] + [color[3]]
+    image = bpy.data.images.new(f"{material.name}_color", 4, 4, alpha=True)
+    image.pixels.foreach_set(color * 16)
+    image.file_format = "PNG"
+    image["sjk_export"] = True
+    return image
 
 
 def with_lift(text, lift):
@@ -328,10 +393,15 @@ def with_lift(text, lift):
 DEFAULT_GRAVITY = 1600.0
 
 
-def with_dynamic(text, joints, gravity=DEFAULT_GRAVITY):
+def with_dynamic(text, joints, gravity=DEFAULT_GRAVITY, own=()):
     """`text` (a manifest) with one `dynamic` line per joint of `joints`, the ones it
-    had replaced; `gravity` is written when it is not the game's default."""
-    lines = [line for line in text.splitlines() if line.split()[:1] != ["dynamic"]]
+    had replaced; `gravity` is written when it is not the game's default. Lines naming
+    a bone of `own` (the armature's own bones, such as a tail added by hand) stay."""
+    def kept(line):
+        words = line.split()
+        return words[:1] != ["dynamic"] or (len(words) > 1 and words[1] in own
+                                            and words[1] not in joints)
+    lines = [line for line in text.splitlines() if kept(line)]
     suffix = "" if gravity == DEFAULT_GRAVITY else f" {gravity:g}"
     lines.extend(f"dynamic {joint}{suffix}" for joint in joints)
     return "\n".join(lines) + "\n"
@@ -754,7 +824,8 @@ class SJK_OT_export_rig_model(Operator):
                       newline="\n") as file:
                 text = with_lift(manifest or manifest_text(settings.preset), settings.lift)
                 file.write(
-                    with_dynamic(text, dynamic_roots(following), settings.tail_gravity)
+                    with_dynamic(text, dynamic_roots(following), settings.tail_gravity,
+                                 own=set(armature.data.bones.keys()))
                 )
             if settings.pack:
                 self.pack(stage, pack_path, name)
@@ -930,8 +1001,8 @@ class SJK_OT_export_rig_model(Operator):
                 context.scene.collection.objects.link(copy)
                 copies.append(copy)
                 meshes_data.append(copy.data)
-                if copy.data.shape_keys:
-                    copy.shape_key_clear()
+                keep_shape_mix(copy)
+                apply_masks(context, copy)
                 if rig is not None:
                     copy.parent = rig
                     for modifier in copy.modifiers:
@@ -977,6 +1048,8 @@ class SJK_OT_export_rig_model(Operator):
                     bpy.data.meshes.remove(data)
             for material in materials.values():
                 bpy.data.materials.remove(material)
+            for image in [image for image in bpy.data.images if image.get("sjk_export")]:
+                bpy.data.images.remove(image)
             if rig is not None:
                 rig_data = rig.data
                 bpy.data.objects.remove(rig, do_unlink=True)

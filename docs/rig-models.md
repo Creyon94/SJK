@@ -186,7 +186,12 @@ in one click.
   files, sounds and pictures of the animations its old glTF held, each an emote id),
   and warns when another pack in `base` also holds the model. An existing `sjk_rig.cfg` (in the pk3 or the folder) is kept, so `map`
   lines added by hand survive a re-export; a checkbox rewrites it. glTF Separate, +Y
-  up, skins on, the armature's rest position, no shape keys, four influences.
+  up, skins on, the armature's rest position, no shape keys, four influences. Other
+  modifiers are not applied, except Mask modifiers shown in the viewport (geometry
+  masked out is left out). Shape keys are dropped but their current mix is kept in
+  the mesh: a key switched on (a top fitted over the chest, stockings fitted into
+  shoes) stays; before 15/10/2026 the export fell back to the basis shape and such
+  clothes showed the body through.
 - **Character icon:** a picture (`.png`, `.jpg`, `.tga`) packed as
   `models/players/<name>/icon_default.<ext>`, which puts the model in the character
   grid as `<name>/default` (`character_catalog.rs` lists a folder holding
@@ -196,8 +201,9 @@ in one click.
   an Unreal export is set up) goes with the model: a temporary copy of the armature
   is exported in its place, with the other armature's bones added under the bone it
   follows where they stand on the rest pose, and the mesh as it stands there with its
-  own weights. The other armature's root bones are written as `dynamic` lines (all of
-  them replaced at each export), so the game moves them on their own, with the
+  own weights. The other armature's root bones are written as `dynamic` lines
+  (replaced at each export; a `dynamic` line naming one of the armature's own bones,
+  such as a tail added by hand, is kept), so the game moves them on their own, with the
   panel's Tail gravity (written when it is not the game's 1600). The panel counts
   them.
 - **Height adjustment:** written as the manifest's `lift` line (0 removes it), the
@@ -218,10 +224,20 @@ in one click.
   puts the Y-up turn on the root bone's rest. Times come from the scene's frame
   rate the setting gives.
 - **Materials:** each becomes a plain Principled BSDF with the image its base colour
-  most likely comes from: an image node feeding a socket named Base Color, Diffuse
-  or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
-  `_Albedo`..., else the first sRGB image. A material with none keeps its viewport
-  colour.
+  most likely comes from: an image node labelled `SJK` (unconnected is fine: the way
+  to hand the game a baked texture, such as a colour with its tints applied or with
+  the alpha of another image, without changing the Blender look), else the nearest image upstream of the Principled BSDF's Base
+  Color, through the nodes between (Ambient Occlusion, Mix, Hue/Saturation; their
+  tint is not carried over), else an image node feeding a socket named Base Color,
+  Diffuse or Albedo, else one labelled so, else an image named `_D`, `_BaseColor`,
+  `_Albedo`..., else the first sRGB image. A material with none gets a 4x4 image of
+  its colour (Principled Base Color, else viewport colour, alpha included) named
+  `<material>_color.png`; before 15/10/2026 it was drawn `*white` (black glasses
+  frames came out white). Transparency, glow and two-sided cards are not read from
+  Blender: a `shaders/<name>.shader` in the pack, its entries named after the
+  textures (`models/players/<name>/<image>` without the extension), adds them, and
+  re-exports keep it. Before the upstream walk (15/10/2026) an image behind an AO node lost to
+  the first sRGB image, which on a hair material was the cyan alpha variant.
 - **The blend file is untouched:** the meshes and materials exported are temporary
   copies, removed afterwards; the pose mode, selection, active action, NLA switch and
   frame come back as they were. The only things kept are the action's emote settings
