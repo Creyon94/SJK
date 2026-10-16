@@ -8,7 +8,7 @@
 //! marks players put around clan tags ([`name_allowed`]).
 
 /// Longest message, in characters.
-pub const TEXT_MAX: usize = 150;
+pub const TEXT_MAX: usize = 300;
 /// Longest name shown, in characters: the hub's limit for the name a message carries.
 pub const NAME_MAX: usize = 64;
 /// Windows-1252's characters in 0x80..=0x9F, which a Jedi Academy name can hold.
@@ -44,7 +44,7 @@ impl ChatError {
     pub fn message(self) -> &'static str {
         match self {
             Self::Lines => "a message is one line",
-            Self::Length => "a message is 1 to 150 characters",
+            Self::Length => "a message is 1 to 300 characters",
             Self::Characters => {
                 "a message keeps to letters, digits, common punctuation and colour codes"
             }
@@ -259,7 +259,7 @@ mod tests {
         assert_eq!(for_display(&"!".repeat(30)), "!".repeat(RUN_MAX));
         assert_eq!(for_display(&"ab".repeat(400)).chars().count(), TEXT_MAX);
         // A colour code cut in half at the length limit goes with its `^`.
-        let cut = format!("{}c", "ab".repeat(74));
+        let cut = format!("{}c", "ab".repeat(TEXT_MAX / 2 - 1));
         assert_eq!(for_display(&format!("{cut}^5x")), cut);
         for good in ["gg wp", "^2gg ^7:poop:", "Привет"] {
             assert_eq!(for_display(good), good);
@@ -331,21 +331,21 @@ mod tests {
     }
 
     #[test]
-    fn a_message_is_one_line_of_1_to_150_characters() {
+    fn a_message_is_one_line_of_1_to_300_characters() {
         assert_eq!(check("a\nb"), Err(ChatError::Lines));
         assert_eq!(check("a\rb"), Err(ChatError::Lines));
         assert_eq!(check(" \t "), Err(ChatError::Length));
         assert_eq!(check(""), Err(ChatError::Length));
-        let longest = "ab ".repeat(50);
-        assert_eq!(check(&longest).map(|text| text.chars().count()), Ok(149));
-        assert!(check(&"ab".repeat(75)).is_ok());
+        let longest = "ab ".repeat(100);
+        assert_eq!(check(&longest).map(|text| text.chars().count()), Ok(299));
+        assert!(check(&"ab".repeat(150)).is_ok());
         assert_eq!(
-            check(&format!("{}c", "ab".repeat(75))),
+            check(&format!("{}c", "ab".repeat(150))),
             Err(ChatError::Length)
         );
         // Characters are counted, not bytes.
-        assert!(check(&"é".repeat(150)).is_err_and(|e| e == ChatError::Noise));
-        assert!(check(&"éa".repeat(75)).is_ok());
+        assert!(check(&"é".repeat(300)).is_err_and(|e| e == ChatError::Noise));
+        assert!(check(&"éa".repeat(150)).is_ok());
     }
 
     #[test]

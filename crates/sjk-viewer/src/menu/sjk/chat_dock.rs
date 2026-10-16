@@ -1287,9 +1287,9 @@ mod tests {
 
     #[test]
     fn a_larger_text_style_fits_fewer_rows_and_cuts_a_message_taller_than_the_box() {
-        // As long as the hub takes: five rows of the plain style, six at 1.2.
+        // 150 characters: five rows of the plain style, six at 1.2.
         let tall = format!("{LONG} and the rest of what was said there");
-        assert_eq!(tall.len(), sjk_identity::chat::TEXT_MAX);
+        assert_eq!(tall.len(), 150);
         let lines = [line("A", "one"), line("Kyle", &tall)];
         let (runs, dock) = gold_runs(&lines, TextStyle::NEUTRAL);
         assert_eq!(dock.shown, (1, 1), "{runs:?}");
@@ -1306,6 +1306,16 @@ mod tests {
         assert!(tall.ends_with(runs[4].0.as_str()));
         assert!(runs[4].0.len() > 27, "{runs:?}");
         let box_top = PLACE.top + BOX_TOP;
+        assert!(runs[0].1.y >= box_top - 1.0, "{runs:?}");
+        // As long as the hub takes (300): cut even at the plain style.
+        let longest = tall.repeat(2);
+        assert_eq!(longest.len(), sjk_identity::chat::TEXT_MAX);
+        let lines = [line("A", "one"), line("Kyle", &longest)];
+        let (runs, dock) = gold_runs(&lines, TextStyle::NEUTRAL);
+        assert_eq!(dock.shown, (1, 1), "only the newest: {runs:?}");
+        assert!(longest.starts_with(runs[0].0.as_str()));
+        let shown: usize = runs.iter().map(|(text, _)| text.len()).sum();
+        assert!(shown < longest.len(), "cut: {runs:?}");
         assert!(runs[0].1.y >= box_top - 1.0, "{runs:?}");
     }
 

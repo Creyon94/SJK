@@ -55,7 +55,9 @@ Old clients ignore all of it, so it stays `/v1/`.
 
 - `POST /v1/chat` `{"text":"..","name":".."}` (`name`, the in-game name worn, is
   optional and joins the key's worn names). The text: one line (`chat_lines`), runs
-  of spaces made one and the ends trimmed, 1 to 150 characters (`chat_length`) of the
+  of spaces made one and the ends trimmed, 1 to 300 characters (`chat_length`; 150
+  until 16/10/2026, Sol's request for longer messages; a
+  client from before then shows a longer message's first 150) of the
   bio's alphabet with `^` only before a digit (`chat_characters`), no run of one
   character longer than 8 (`chat_noise`). A key sends at most one message every 2
   seconds and 15 a minute, a verified or staff key one every second and 30 a minute
@@ -194,7 +196,7 @@ feed: the hub took them, so the sound says the message went out.
   with the online count by its name. The box keeps its height (five one-row messages)
   and each message takes as many rows as it needs (Sol's request, 10/10/2026: a long
   one was cut to one row), so a long message pushes older ones out; a message taller
-  than the whole box (150 characters at a larger `ui_textScale`) shows its first rows
+  than the whole box (a long message, or a shorter one at a larger `ui_textScale`) shows its first rows
   with its name, the last one ending in an ellipsis, and Open chat shows the rest.
   Resting the pointer on a name shows the sender's sender card with Mute, left of the
   dock and above the keys (beside the name it covered the dock's lines). Down past the
@@ -233,7 +235,7 @@ feed: the hub took them, so the sound says the message went out.
   hub would take it ([sjk_chat_field.rs](../crates/sjk-viewer/src/sjk_chat_field.rs)):
   line breaks, tabs and other spaces become one space and a run of them one, characters
   outside the message alphabet (`chat_characters`: emoji, `{ }`, `\`, what prints
-  nothing) are dropped, a `^` stays only before a digit, and the paste stops at 150
+  nothing) are dropped, a `^` stays only before a digit, and the paste stops at 300
   characters (a colour code counts as its two and is never cut in half). Typed keys
   are not filtered, as before; the rules still refuse what was typed before sending.
   Ctrl+A selects the whole draft (typing or a paste then replaces it, Backspace clears
@@ -316,10 +318,10 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   fetched either.
 - **The chat's rules** let GIPHY links through: `:`, `/`, `.`, `-`, `_`, `?`, `=`, `&`
   and `%` are in the bio's punctuation, so `chat::check` and `chat::for_display` keep
-  them unchanged (a test sends each shape through both). A message is at most 150
-  characters, though: GIPHY's share links with all their tracking words
-  (`/media/v1.<long token>/<id>/giphy.gif?cid=...&ep=...&rid=...&ct=g`) are often longer
-  and are refused (`chat_length`); the page's link (`giphy.com/gifs/<slug>-<id>`) or the
+  them unchanged (a test sends each shape through both). A message is at most 300
+  characters (150 before 16/10/2026), though: GIPHY's share links with all their tracking words
+  (`/media/v1.<long token>/<id>/giphy.gif?cid=...&ep=...&rid=...&ct=g`) can be longer
+  still and are refused (`chat_length`); the page's link (`giphy.com/gifs/<slug>-<id>`) or the
   media link without its query fits. Pasting (Ctrl+V) writes every GIPHY link as its
   shortest address, `https://giphy.com/gifs/<id>` (`link::shortened`), so a copied share
   link fits; a link typed by hand is sent as typed.
@@ -350,7 +352,7 @@ new GIPHY key allows 100 requests an hour, too few for every player to share.
   (`https://giphy.com/gifs/<id>`, 37 characters at most for a 14-letter id) at the end of
   the message, in place of any GIPHY link already in it, closes the picker and gives the
   field the keyboard: Enter sends, so text can go with it. When the link does not fit
-  the 150 characters, the picker says so and nothing changes.
+  the 300 characters, the picker says so and nothing changes.
 - **Favourites**: the star in a tile's corner (shown on the tile under the pointer or
   the keyboard, gold on a favourite), or F on a tile, adds or removes it; the chosen
   message has Add GIF to favourites (or Remove) under Mute when its line shows a GIF.
@@ -405,7 +407,7 @@ in the menus ([console_sjk_chat_page.rs](../crates/sjk-viewer/src/console_sjk_ch
 
 - `sjksay <text>` says the text in the SJK chat, as the page's Send does (the hub's rules
   and limits apply). It is tidied as a paste is (spaces made one, characters the chat
-  refuses left out, 150 characters at most). The console reads `//` as the start of a
+  refuses left out, 300 characters at most). The console reads `//` as the start of a
   comment, so a link written in `sjksay` is cut: GIFs go with `sjkgif`.
 - `sjkgif <which> [text]` sends a GIF, with the text before it if any: `which` is a
   favourite's number (1 the newest, as the GIF wheel numbers them), a GIF's id, or a

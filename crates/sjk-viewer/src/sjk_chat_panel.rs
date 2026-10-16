@@ -961,7 +961,7 @@ mod tests {
             PanelAction::None
         );
         // The draft holds at most what the hub takes.
-        for _ in 0..200 {
+        for _ in 0..DRAFT_MAX + 50 {
             press(&mut panel, KeyCode::KeyA, Some("a"));
         }
         assert_eq!(panel.draft.chars().count(), DRAFT_MAX);

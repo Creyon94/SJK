@@ -1420,7 +1420,11 @@ mod tests {
         short.name = "^2Sol".to_owned();
         short.verified = true;
         // As long as the hub takes, in wide letters: more than the column's row.
-        let long = message(2, "bbbbbbbbbbbbbbbb", &"WMWMWMWM ".repeat(17)[..150]);
+        let long = message(
+            2,
+            "bbbbbbbbbbbbbbbb",
+            &"WMWMWMWM ".repeat(34)[..sjk_identity::chat::TEXT_MAX],
+        );
         state.messages.extend([short, long.clone()]);
         let mut panel = Panel::new();
         panel.open(true);
@@ -1578,7 +1582,7 @@ mod tests {
         for (state, staff) in [(&crowded, true), (&empty, false)] {
             let mut panel = Panel::new();
             panel.open(true);
-            panel.draft = "d".repeat(150);
+            panel.draft = "d".repeat(sjk_identity::chat::TEXT_MAX);
             panel.selected = Some(130);
             let inputs = inputs(state, &muted, staff);
             panel.build_with(&inputs, &inter.font, [1920.0, 1080.0]);

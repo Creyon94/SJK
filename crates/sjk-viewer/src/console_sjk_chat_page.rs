@@ -23,7 +23,7 @@ pub(crate) const SJK_GIF_HELP: &str =
     "Send a GIF to the SJK chat: sjkgif <favourite number, 1 the newest, or GIPHY id> [text]";
 
 /// The words of `args` as the SJK chat takes them ([`crate::sjk_chat_field::paste_into`]:
-/// spaces made one, characters the chat refuses left out, 150 characters at most).
+/// spaces made one, characters the chat refuses left out, 300 characters at most).
 fn say_text(args: &[String]) -> String {
     let mut text = String::new();
     crate::sjk_chat_field::paste_into(&mut text, &args.join(" "));
@@ -301,7 +301,10 @@ mod tests {
     fn sjksay_says_its_words_as_the_chat_takes_them() {
         assert_eq!(say_text(&words("gg   wp")), "gg wp");
         assert_eq!(say_text(&[]), "");
-        assert_eq!(say_text(&words(&"a".repeat(200))).chars().count(), 150);
+        assert_eq!(
+            say_text(&words(&"a".repeat(400))).chars().count(),
+            sjk_identity::chat::TEXT_MAX
+        );
     }
 
     #[test]
@@ -325,6 +328,9 @@ mod tests {
             gif_message("gg", &id).as_deref(),
             Some("gg https://giphy.com/gifs/3o7TKSjRrfIPjeiVyM")
         );
-        assert_eq!(gif_message(&"a".repeat(140), &id), None);
+        assert_eq!(
+            gif_message(&"a".repeat(sjk_identity::chat::TEXT_MAX - 10), &id),
+            None
+        );
     }
 }

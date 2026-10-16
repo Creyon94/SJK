@@ -1,3 +1,10 @@
+## SJK chat messages up to 300 characters
+
+16/10/2026, `personal/chat-300` (Sol's request), with the hub's `chat-300` (deployed
+16/10): `sjk_identity::chat::TEXT_MAX` 300 (was 150), the client's paste and `sjksay`
+cut follow it; a client from before shows a longer message's first 150
+([hub-chat.md](hub-chat.md)). Checked by unit tests; not tried in the game.
+
 ## Grey bars for SJK players who do not share
 
 16/10/2026, `personal/nameplate-withheld`, Sol's rule: an SJK player (the hub lists them
