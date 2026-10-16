@@ -29,6 +29,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Synced emotes sound like one song: every follower's music plays at the very same sample as the leader's and the group is mixed once, so no more echo or extra loudness _(Sol)_
 - Emotes no longer bring up the scoreboard: the freeze a JA+ emote holds you in was read as the end of the match, so amhips, amsit3 or AMATEASE kept the board up until the emote ended _(Sol, after Kushina's, Nib's and turin's reports)_
 - With the ground HUD on, scoping the disruptor or looking through the binoculars no longer brings the normal status HUD back for the zoom _(Sol, after Kushina's report)_
+- A saber colour number past 6 (JA+'s flame, electric and black blades, or any other) no longer stops you joining a server: it is sent as set _(Sol, after Rollembones's report)_
+- Typing a blade colour in the console (`color1 2`) keeps your hat or cape on, and JoF's `saberColor <r> <g> <b>` sets custom RGB blades, keeping them too _(Sol, after Rollembones's report; `saberColor` after JoF EJK)_
 
 ## 2026.1015.4 (Alpha) | 15/10/2026
 

@@ -36,6 +36,7 @@ mod editions;
 mod entity_view;
 mod loot_odds;
 
+mod saber_colour_command;
 mod shader_image;
 
 mod clock_trace;

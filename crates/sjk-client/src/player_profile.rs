@@ -42,6 +42,21 @@ impl SaberColor {
     pub const fn index(self) -> u8 {
         self as u8
     }
+
+    /// The colour a blade of any `color1`/`color2` number is drawn in, as JoF EJK's
+    /// `ClampSaberColor` (`cg_players.c:6526-6543`) settles it without JA+'s extra
+    /// blades: past the twelve `saber_colors_t` values it wraps, the flame and electric
+    /// blades (7 to 10) roll over to a stock colour, and black (11) is orange.
+    pub fn clamped(index: u8) -> Self {
+        const NUM_SABER_COLORS: u8 = 12;
+        const SABER_BLACK: u8 = 11;
+        let index = index % NUM_SABER_COLORS;
+        match index {
+            SABER_BLACK => Self::Orange,
+            7.. => Self::from_index(index - Self::Rgb.index()).unwrap_or(Self::Blue),
+            _ => Self::from_index(index).unwrap_or(Self::Blue),
+        }
+    }
 }
 
 /// Pack an RGB triplet the way TaystJK stores `cp_sbRGB1`/`cp_sbRGB2`
@@ -79,6 +94,11 @@ pub struct PlayerProfile {
     pub color1: SaberColor,
     /// Secondary blade colour.
     pub color2: SaberColor,
+    /// The `color1` and `color2` numbers as the player set them, which the userinfo
+    /// carries: a JA+ server draws its flame, electric and black blades (7 to 11) from
+    /// them, as EternalJK sends the cvars untouched. Out of a byte's range they are
+    /// clamped to it.
+    pub color_numbers: [u8; 2],
     /// Custom primary blade tint used when `color1` is [`SaberColor::Rgb`].
     pub rgb1: [u8; 3],
     /// Custom secondary blade tint used when `color2` is [`SaberColor::Rgb`].
@@ -104,6 +124,7 @@ impl Default for PlayerProfile {
             saber2: "none".to_owned(),
             color1: SaberColor::Blue,
             color2: SaberColor::Blue,
+            color_numbers: [SaberColor::Blue.index(); 2],
             rgb1: [255; 3],
             rgb2: [255; 3],
             character_color: [255; 3],
@@ -134,14 +155,19 @@ impl PlayerProfile {
     ) -> Result<Self, PlayerProfileError> {
         let (color1, hat) = crate::split_color_value(color1);
         let (color2, cape) = crate::split_color_value(color2);
+        // A colour no client draws never stops a connection (it once did, with
+        // `InvalidSaberColor`): the number goes out as set, the blade gets its clamp.
+        let number = |value: i64| value.clamp(0, i64::from(u8::MAX)) as u8;
+        let color_numbers = [number(color1), number(color2)];
         Ok(Self {
             name: required(name, "name")?,
             model: required(model, "model")?,
             sex: required(sex, "sex")?,
             saber1: required(saber1, "saber1")?,
             saber2: required(saber2, "saber2")?,
-            color1: SaberColor::from_index(to_u8(color1, "color1")?)?,
-            color2: SaberColor::from_index(to_u8(color2, "color2")?)?,
+            color1: SaberColor::clamped(color_numbers[0]),
+            color2: SaberColor::clamped(color_numbers[1]),
+            color_numbers,
             rgb1: unpack_saber_rgb(to_u32(saber_rgb[0], "cp_sbRGB1")?),
             rgb2: unpack_saber_rgb(to_u32(saber_rgb[1], "cp_sbRGB2")?),
             character_color: [
@@ -170,8 +196,8 @@ impl PlayerProfile {
             rate,
             snaps,
             forcepowers: self.force.encode(),
-            color1: self.color1.index(),
-            color2: self.color2.index(),
+            color1: self.color_numbers[0],
+            color2: self.color_numbers[1],
             handicap: self.handicap,
             sex: self.sex.clone(),
             predict_items,
@@ -232,3 +258,41 @@ impl fmt::Display for PlayerProfileError {
 }
 
 impl std::error::Error for PlayerProfileError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn with_colours(color1: &str, color2: &str) -> Result<PlayerProfile, PlayerProfileError> {
+        PlayerProfile::from_cvar_values(
+            "Padawan",
+            "kyle/default",
+            "male",
+            "single_1",
+            "none",
+            color1,
+            color2,
+            [0, 0],
+            [255; 3],
+            "7-1-032330000000001333",
+            100,
+        )
+    }
+
+    #[test]
+    fn a_colour_past_rgb_still_connects_and_goes_out_as_set() {
+        // JA+'s flame (7) and black (11) blades, and a number no game knows.
+        let profile = with_colours("7santahat", "255").expect("connects");
+        assert_eq!(profile.color_numbers, [7, 255]);
+        assert_eq!(profile.cosmetics[0].as_deref(), Some("santahat"));
+        let userinfo = profile.legacy_userinfo(90_000, 120, true, None);
+        assert_eq!((userinfo.color1, userinfo.color2), (7, 255));
+        // Drawn locally as `ClampSaberColor` rolls them over.
+        assert_eq!(profile.color1, SaberColor::Orange);
+        assert_eq!(SaberColor::clamped(11), SaberColor::Orange);
+        assert_eq!(SaberColor::clamped(10), SaberColor::Blue);
+        assert_eq!(SaberColor::clamped(6), SaberColor::Rgb);
+        assert_eq!(SaberColor::clamped(16), SaberColor::Blue);
+        assert_eq!(with_colours("-3", "4").unwrap().color_numbers, [0, 4]);
+    }
+}

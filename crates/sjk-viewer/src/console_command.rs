@@ -46,6 +46,8 @@ impl ViewerConsole {
         if !self.shell.has_buffered_commands() {
             return;
         }
+        // A colour typed alone keeps the worn hat or cape; set once the frame is done.
+        let worn = crate::cosmetics::typed_colour::worn(self);
         let mut resolver =
             console_scripting::Resolver::new(&self.config_directory, self.script_vfs.as_deref());
         let chat_mask = self.integer_cvar("cl_colorstring").unwrap_or(0) as u16 & 1023;
@@ -74,11 +76,16 @@ impl ViewerConsole {
             })
             .map(|v| v.name.clone())
             .collect();
+        let mut kept_pieces = Vec::new();
         let result =
             self.shell
                 .execute_buffered_frame_with(&mut resolver, |command, tokens, local| {
                     if tokens[0].eq_ignore_ascii_case("sets") {
                         return Some(Err("sets: no local serverinfo owner/listen server".into()));
+                    }
+                    if let Some(write) = crate::cosmetics::typed_colour::keep_worn(tokens, &worn) {
+                        kept_pieces.push(write);
+                        return Some(Ok(Vec::new()));
                     }
                     if tokens[0].eq_ignore_ascii_case("setu")
                         && tokens.len() > 2
@@ -231,6 +238,12 @@ impl ViewerConsole {
                 });
         if let Err(error) = result {
             crate::log::progress(format_args!("console command: {error}"));
+        }
+        for (name, value) in kept_pieces {
+            if self.set_cvar(name, &value) {
+                self.shell
+                    .push_log(format!("{name} = \"{value}\" (your hat or cape stays on)"));
+            }
         }
         self.persist();
     }

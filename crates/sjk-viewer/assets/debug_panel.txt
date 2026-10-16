@@ -4771,3 +4771,13 @@ test: cg_groundHud 1, third person: health and Force at your feet, no status HUD
 test: Scope the disruptor: no status HUD while zoomed; unzoom: the ground HUD returns.
 test: Binoculars on the saber: same. First person (cg_thirdPerson 0): the normal HUD.
 
+[saber-colour-values]
+area: Gameplay
+title: Saber colours: any number connects, typed colours keep the hat, saberColor
+change: color1 7 (or 255) no longer refuses to connect; the number goes out as set (report 41).
+change: color1 2 typed keeps the worn hat, color2 the cape (report 52). saberColor r g b added.
+test: color1 7, connect to a JA+ server: you join; the server shows its flame blade.
+test: Wear a hat, type color1 2: blade turns yellow and the hat stays on.
+test: saberColor 255 0 255: both blades magenta, hat and cape still on.
+test: saberColor 2 0 255 0: only the second blade turns green.
+
