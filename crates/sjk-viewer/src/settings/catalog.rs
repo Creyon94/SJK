@@ -464,6 +464,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hide duellers",
+        cvar: "cg_nameplateHideDuelers",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Plates through walls",
         cvar: "cg_nameplateWalls",
         kind: ValueKind::Bool,

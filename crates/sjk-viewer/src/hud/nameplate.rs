@@ -268,6 +268,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Your own nameplate over your head in third person, with your real bars",
     ))?;
     cvars.register(CvarDefinition::new(
+        "cg_nameplateHideDuelers",
+        false,
+        CvarFlags::ARCHIVE,
+        "Hide the whole nameplate of players the server marks as private duellers",
+    ))?;
+    cvars.register(CvarDefinition::new(
         "cg_nameplateDebug",
         false,
         CvarFlags::NONE,
@@ -307,6 +313,8 @@ struct Settings {
     friends: bool,
     /// The local player's own plate, in third person.
     own: bool,
+    /// Suppress plates of server-marked private-duel participants.
+    hide_duelers: bool,
     debug: bool,
     /// The local player's drain and lightning levels from its Force profile.
     drain_level: Option<u8>,
@@ -330,6 +338,7 @@ impl Default for Settings {
             icons: true,
             friends: true,
             own: false,
+            hide_duelers: false,
             debug: false,
             drain_level: None,
             lightning_level: None,
@@ -490,6 +499,7 @@ impl State {
             icons: flag("cg_nameplateicons", true),
             friends: flag("cg_drawfriend", true),
             own: flag("cg_nameplateself", false),
+            hide_duelers: flag("cg_nameplatehideduelers", false),
             debug: flag("cg_nameplatedebug", false),
             drain_level: profile.as_ref().map(|profile| profile.levels[FP_DRAIN]),
             lightning_level: profile.as_ref().map(|profile| profile.levels[FP_LIGHTNING]),
@@ -789,6 +799,9 @@ impl State {
                 && entity.health() > 0
                 && npcs < MAX_NPC_TAGS;
             if !(player || npc)
+                // Player `bolt1` is the private-duel marker used by EJK #12.
+                // NPCs reuse the field, so it is meaningful here only for players.
+                || (settings.hide_duelers && player && entity.bolt1())
                 || entity.e_flags() & EF_DEAD != 0
                 || entity.client_bitflag(local)
                 || entity.powerups() & (1 << 11) != 0
@@ -1072,7 +1085,11 @@ impl State {
         let Some(origin) = self.own_origin else {
             return;
         };
-        if player.health() <= 0 || player.is_spectator() || self.entries.len() >= MAX_TAGS {
+        if player.health() <= 0
+            || player.is_spectator()
+            || (settings.hide_duelers && player.duel_in_progress())
+            || self.entries.len() >= MAX_TAGS
+        {
             return;
         }
         let local = player.client_num();
@@ -2264,6 +2281,80 @@ mod tests {
                 consumed_bits: 0,
             }
         }
+    }
+
+    #[test]
+    fn private_duel_filter_removes_whole_plates_and_restores_them() {
+        use sjk_runtime::{EntityId, EntityKind, MotionSample, Transform, World, WorldId};
+
+        let mut snapshot = drain::snapshot(1_000, false, 200.0, 100);
+        snapshot.entities[0].set_raw_field(91, 1); // Player bolt1: private duel.
+        let mut game = GameState::empty_local(0);
+        // Power Duel side alone must never hide a plate.
+        game.replace_config_string(1134, br"\n\Player\t\0\ds\1".to_vec())
+            .unwrap();
+        let mut world = World::new(WorldId::new(1));
+        world.upsert(
+            EntityId::new(4),
+            EntityKind::Actor,
+            MotionSample {
+                time_millis: 1_000,
+                transform: Transform {
+                    translation: [200.0, 0.0, 24.0],
+                    ..Transform::IDENTITY
+                },
+            },
+        );
+        let camera = Camera {
+            eye: Vec3::ZERO,
+            target: Vec3::X,
+            up: Vec3::Z,
+            fov: 90.0,
+            viewport: [1920.0, 1080.0],
+        };
+        let bsp = Bsp::empty([-4096.0; 3], [4096.0; 3]);
+        let mut scratch = TraceScratch::default();
+        let mut state = State::default();
+        state.settings.own = true;
+        state.set_own_origin(Some([200.0, 30.0, 24.0]));
+        snapshot.player.set_raw_field(119, 1); // Local private duel.
+        let mut now = 1_000;
+        let mut collect = |state: &mut State, snapshot: &Snapshot| {
+            state.update(
+                snapshot,
+                &game,
+                &world,
+                &TeamInfoTable::default(),
+                now,
+                camera,
+                &bsp,
+                &mut scratch,
+                false,
+            );
+            now += 100;
+            state
+                .entries
+                .iter()
+                .map(|entry| entry.number)
+                .collect::<Vec<_>>()
+        };
+        assert!(!state.settings.hide_duelers);
+        assert_eq!(collect(&mut state, &snapshot).len(), 2);
+        state.settings.hide_duelers = true;
+        assert!(collect(&mut state, &snapshot).is_empty());
+        state.settings.hide_duelers = false;
+        assert_eq!(collect(&mut state, &snapshot).len(), 2);
+        state.settings.hide_duelers = true;
+        snapshot.entities[0].set_raw_field(91, 0);
+        snapshot.player.set_raw_field(119, 0);
+        assert_eq!(collect(&mut state, &snapshot).len(), 2);
+        // NPC bolt1 has other uses: an NPC with the bit still gets its plate.
+        state.settings.npcs = true;
+        snapshot.entities[0].set_raw_field(8, u32::from(ET_NPC));
+        snapshot.entities[0].set_raw_field(88, 18); // Jedi class.
+        snapshot.entities[0].set_raw_field(69, 100);
+        snapshot.entities[0].set_raw_field(91, 1);
+        assert_eq!(collect(&mut state, &snapshot).len(), 2);
     }
 
     #[test]

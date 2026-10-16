@@ -2433,6 +2433,13 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
+- `cg_nameplateHideDuelers` (off; "Hide duellers" under Nameplates in SJK Settings >
+  Advanced > HUD and classic Settings > HUD): hide the entire plate (name, bars and
+  icons) on players the server marks as participating in a private duel. This also
+  hides your own third-person plate during a private duel. It uses the player's
+  snapshot duel marker, not the Duel/Power Duel game type or team. Players whose
+  entities are omitted from snapshots, such as sealed vehicle pilots, have no
+  available private-duel marker and keep their plates.
 - `cg_nameplateIcons` (on): up close, a row of the holocron icons of the Force powers a
   player has on sits over the name, at most four, dark side first (lightning, grip,
   drain, rage, then protect, absorb, speed, heal, team force, mind trick, sight). They

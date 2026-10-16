@@ -331,6 +331,7 @@ impl Group {
                 "cg_nameplateEstimate",
                 "cg_nameplateWeapon",
                 "cg_nameplateSelf",
+                "cg_nameplateHideDuelers",
                 "cg_nameplateIcons",
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",
