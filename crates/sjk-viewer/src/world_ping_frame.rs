@@ -12,6 +12,33 @@ const PING_MASK: u32 = 1;
 const REFUSAL_QUIET: Duration = Duration::from_secs(30);
 
 impl GpuState {
+    /// The ray the crosshair stands on: the dynamic crosshair's (the player's aim from the
+    /// muzzle, which a third-person camera with its own pitch or tilt does not look
+    /// along), else the view's centre. The ping once always took the view's centre, so
+    /// with such a camera it landed away from the crosshair (players' bug reports,
+    /// 13/10/2026).
+    fn ping_ray(&self, camera: crate::hud::identification::Camera) -> (Vec3, Vec3) {
+        let centre = (camera.eye, (camera.target - camera.eye).normalize_or_zero());
+        let Some(session) = self.live_session.as_ref() else {
+            return centre;
+        };
+        let player = &session.latest_snapshot().player;
+        let ray = crate::crosshair_scan::dynamic::ray(
+            self.console.as_ref(),
+            player,
+            self.local_prediction.predicted_state(),
+            session.game_state(),
+            camera,
+            self.third_person,
+            player.weapon(),
+        );
+        if ray.projected && !self.detached_camera {
+            (ray.start, ray.forward)
+        } else {
+            centre
+        }
+    }
+
     /// `+ping` / `worldping`: mark the point under the crosshair for the players who may
     /// see it, and show it at once.
     pub(crate) fn world_ping_press(&mut self) {
@@ -31,11 +58,11 @@ impl GpuState {
         let Some(camera) = self.frame_view else {
             return;
         };
-        let forward = (camera.target - camera.eye).normalize_or_zero();
+        let (start, forward) = self.ping_ray(camera);
         let trace = self.bsp.trace_box_with(
             &mut self.trace_scratch,
-            camera.eye.to_array(),
-            (camera.eye + forward * world_ping::REACH).to_array(),
+            start.to_array(),
+            (start + forward * world_ping::REACH).to_array(),
             sjk_bsp::Aabb::new([0.0; 3], [0.0; 3]).expect("point bounds are valid"),
             PING_MASK,
         );

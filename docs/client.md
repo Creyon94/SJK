@@ -2663,8 +2663,10 @@ arrives, the HUD pass).
   mouse button, `MOUSE3`, in a new profile and in one where it is free, as retail binds it
   to the saber style, which SJK binds to L) pings on the press; `worldping` does the same
   from the console or a [quick wheel](#quick-wheels) choice (`ping` is the engine's server
-  query). The point is where the screen's centre meets the map: a ray from the camera to
-  16,384 units against solid brushes (not clips; the sky and nothing in reach say
+  query). The point is where the crosshair's ray meets the map: the dynamic crosshair's
+  (`cg_dynamicCrosshair`, the player's aim from the muzzle, which a third-person camera
+  with its own pitch or tilt does not look along), else a ray from the camera through the
+  screen's centre (static crosshair, free camera), to 16,384 units against solid brushes (not clips; the sky and nothing in reach say
   "Nothing to ping there"). It shows at once for the pinger, a paler gold, and goes to
   the hub in whole units; in a local game nothing is sent.
 - **Who sees it** ([`Scope`](../crates/sjk-viewer/src/world_ping.rs)): in a game without
