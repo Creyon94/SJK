@@ -1037,6 +1037,13 @@ test: Console: whatsnew. Icons, headings on top, the Updates line boxes whatsnew
 test: Click the whatsnew chip: the card closes, the console opens with whatsnew typed.
 test: Changelog (Unreleased): click cg_clanEmblems: Settings opens searched for it.
 
+[chat-300]
+area: Console & chat
+title: SJK chat messages up to 300 characters (were 150)
+change: The hub and the client take 300 characters; paste and sjksay cut at 300.
+test: Type or paste a 300-character message in the SJK chat: it sends whole and wraps.
+test: 301 characters: the box stops at 300; sjksay with more sends the first 300.
+
 # ---- HUD ----
 
 [nameplate-share]

@@ -479,8 +479,7 @@ mod tests {
 
     #[test]
     fn a_long_sjk_line_wraps_like_a_game_line() {
-        // 131 characters, as long as the hub lets a message be (150) and more than
-        // a row holds.
+        // 131 characters, well within the hub's limit (300) and more than a row holds.
         let words = "the quick brown fox jumps over the lazy dog ".repeat(3);
         let text = words.trim_end();
         let chat = feed(

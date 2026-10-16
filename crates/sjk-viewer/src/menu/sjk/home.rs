@@ -1750,10 +1750,11 @@ mod tests {
         assert_eq!(home.chat.draft.as_deref(), Some("ws "));
         home.typing_key(KeyCode::Backspace, Some("\u{8}"), false, false);
         assert_eq!(home.chat.draft.as_deref(), Some("ws"));
-        for _ in 0..200 {
+        let max = sjk_identity::chat::TEXT_MAX;
+        for _ in 0..max + 50 {
             home.typing_key(KeyCode::KeyA, Some("a"), false, false);
         }
-        assert_eq!(home.chat.draft.as_ref().unwrap().chars().count(), 150);
+        assert_eq!(home.chat.draft.as_ref().unwrap().chars().count(), max);
     }
 
     #[test]

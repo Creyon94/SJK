@@ -381,14 +381,23 @@ mod tests {
             assert_eq!(sjk_identity::chat::check(url).as_deref(), Ok(url), "{url}");
             assert_eq!(sjk_identity::chat::for_display(url), url);
         }
-        // A share link with all its tracking words is longer than a message may be.
-        let long = format!(
-            "https://media4.giphy.com/media/v1.{}/3o7TKSjRrfIPjeiVyM/giphy.gif?cid={}&ep=v1_gifs_search&rid=giphy.gif&ct=g",
-            "Y2lkPTc5MGI3NjExNHh5dGZ6a3B3eGx2bWl5bXJ4eHNtYzN0eGVwZ3N2a3BkcWVlY2Z0dyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw",
-            "790b7611",
-        );
+        // A share link with all its tracking words fits since messages hold 300
+        // characters; one longer than that is refused.
+        let token = "Y2lkPTc5MGI3NjExNHh5dGZ6a3B3eGx2bWl5bXJ4eHNtYzN0eGVwZ3N2a3BkcWVlY2Z0dyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw";
+        let share = |token: &str| {
+            format!(
+                "https://media4.giphy.com/media/v1.{token}/3o7TKSjRrfIPjeiVyM/giphy.gif?cid=790b7611&ep=v1_gifs_search&rid=giphy.gif&ct=g"
+            )
+        };
+        let long = share(token);
         assert_eq!(
-            sjk_identity::chat::check(&long),
+            sjk_identity::chat::check(&long).as_deref(),
+            Ok(long.as_str())
+        );
+        let longer = share(&token.repeat(2));
+        assert!(longer.chars().count() > sjk_identity::chat::TEXT_MAX);
+        assert_eq!(
+            sjk_identity::chat::check(&longer),
             Err(sjk_identity::chat::ChatError::Length)
         );
     }

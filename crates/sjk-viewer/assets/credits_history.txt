@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | SJK chat messages up to 300 characters
+- d982d99 |  | SJK chat: messages up to 300 characters (were 150)
 + 16/10/2026 | - | Grey nameplate bars on SJK players who do not share, whatever the viewer turned on
 - 47f5b46 |  | Nameplates: grey bars on SJK players who do not share
 + 16/10/2026 | - | Name emoji: one emoji at the right of the name, picked on the Profile page; shown in chat, cards and the SJK scoreboard

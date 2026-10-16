@@ -126,7 +126,6 @@ mod tests {
             "ZWZ3NHN4bjd2bWJ2Z3V0aGh6bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjeiVyM/",
             "giphy.gif?cid=790b7611&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=g"
         );
-        assert!(share.chars().count() > MAX);
         assert_eq!(
             pasted("look ", &format!("{share}!")),
             "look https://giphy.com/gifs/3o7TKSjRrfIPjeiVyM!"
@@ -173,7 +172,7 @@ mod tests {
 
     #[test]
     fn the_paste_stops_at_the_limit() {
-        let long = "word ".repeat(60);
+        let long = "word ".repeat(MAX / 4);
         let draft = pasted("", &long);
         assert_eq!(draft.chars().count(), MAX);
         assert_eq!(pasted(&draft, "more"), draft);
@@ -185,7 +184,7 @@ mod tests {
         let two_left = "a".repeat(MAX - 2);
         assert_eq!(pasted(&two_left, "^1x"), format!("{two_left}^1"));
         // Characters count, not bytes.
-        assert_eq!(pasted("", &"é".repeat(200)).chars().count(), MAX);
+        assert_eq!(pasted("", &"é".repeat(MAX + 50)).chars().count(), MAX);
     }
 
     #[test]
