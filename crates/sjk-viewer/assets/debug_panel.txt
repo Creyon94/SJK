@@ -4781,3 +4781,11 @@ test: Wear a hat, type color1 2: blade turns yellow and the hat stays on.
 test: saberColor 255 0 255: both blades magenta, hat and cape still on.
 test: saberColor 2 0 255 0: only the second blade turns green.
 
+[write-config-path]
+area: Console & chat
+title: writeconfig <name> saves <name>.cfg beside config.cfg; exec <name> loads it
+change: A bare name went to the working folder (home on Linux) without .cfg (report 60).
+test: write sjkdata: the console says it wrote ...SJK folder.../sjkdata.cfg.
+test: Change cg_fov, then exec sjkdata: cg_fov is back to the saved value.
+test: write notes.txt and write ../x are refused with a message.
+

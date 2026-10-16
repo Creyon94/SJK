@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Writeconfig <name> saves <name>.cfg beside config.cfg
+- 7c32743 |  | writeconfig <name> saves <name>.cfg beside config.cfg
 + 16/10/2026 | - | Saber colours: any number connects, a typed colour keeps the hat
 - fa45fa4 |  | Saber colours: any number connects, a typed colour keeps the hat
 + 16/10/2026 | - | Ground HUD: a zoom no longer brings the status HUD back
