@@ -4870,3 +4870,14 @@ test: Download stays dim while Use JoF content is off; turn it on, pick a small 
 test: Progress bar moves; close the card mid-download, reopen it: still downloading.
 test: Next map on a JoF server: a downloaded map or skin is there; Stop, then Download resumes.
 note: First open hashes your base folder once (about a minute); later opens are quick.
+
+[linux-update-browse]
+area: Menus & settings
+title: Linux: updates restart the new version; Browse works without a portal file chooser
+change: The restart after Install started sjk.old (the old version) on Linux; now the new one.
+change: Browse (Import page, profile picture) tries zenity, then kdialog, then the portal.
+change: While the file window is open the button reads Stop waiting and gives up on it.
+test: Windows: First setup > Import > Browse: the file window opens; pick a .cfg, it loads.
+test: Press Browse, then Stop waiting before choosing: the card is usable again.
+test: Profile > picture > Browse: same Stop waiting behaviour.
+note: The Linux parts need a Linux player to confirm (update install, zenity window).

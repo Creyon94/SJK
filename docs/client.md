@@ -1675,8 +1675,12 @@ shows: [Identity](#identity))
 ([config_import.rs](../crates/sjk-viewer/src/config_import.rs),
 [config_import_panel.rs](../crates/sjk-viewer/src/config_import_panel.rs)). The
 page's Browse (B, or its footer button) opens the system's file dialog, listing
-`.cfg` files (`rfd`, on a worker thread, as the profile picture's Browse), and the
-file chosen is read as a dropped one. The screen's text says so. `firstsetup import <path>` does
+`.cfg` files ([file_dialog.rs](../crates/sjk-viewer/src/file_dialog.rs), on a worker
+thread, as the profile picture's Browse), and the file chosen is read as a dropped one.
+On Linux it asks `zenity`, then `kdialog`, before `rfd`'s desktop portal, which never
+answers on desktops whose portal has no file chooser; while the dialog is open the
+button reads Stop waiting and gives up on it, so a dialog that never showed no longer
+leaves Browse greyed out. The screen's text says so. `firstsetup import <path>` does
 the same from the console (a path's words may be left unquoted, or quoted as
 Explorer's Copy as path gives them: the path is taken as typed, without the
 console's backslash escapes, and one pair of surrounding quotes is dropped), and
@@ -2801,6 +2805,9 @@ The client looks for a newer SJK release when it starts and from the Update page
   the next start. Settings in `GameData/SJK/` are not touched.
 - The new version starts when the client exits, after it saved its settings:
   "Restart now" on the page quits, or the player keeps playing and restarts later.
+  The program's path is read once at start-up: on Linux `current_exe` follows the
+  running file, so after its rename it named `<name>.old` and the restart started
+  the old version again (fixed 16/10/2026).
 - Nothing is installed without Install. When the program's folder is not writable
   (a Program Files install) the page offers the release page instead.
 - A local build says `dev`, which has no release number to compare, so it reports

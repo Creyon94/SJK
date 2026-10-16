@@ -130,7 +130,9 @@ impl Panel {
                 "Choose your config in the file window",
                 wrapped(
                     "Pick the .cfg of the client you come from, for example \
-                     GameData/base/jampconfig.cfg, or the one in your mod's folder.",
+                     GameData/base/jampconfig.cfg, or the one in your mod's folder. \
+                     No window? It may be behind the game (Alt+Tab); else stop waiting \
+                     and drop the .cfg on this window.",
                 ),
             ),
             State::Waiting if !self.detected.is_empty() => {
@@ -303,19 +305,22 @@ impl Panel {
     }
 
     fn sjk_buttons_shown(&self) -> Buttons {
+        // While the file dialog is open, its button stops waiting for it.
+        let waiting = self.browsing.is_some();
+        let browse = if waiting { "Stop waiting" } else { "Browse..." };
         match &self.state {
             State::Waiting if !self.detected.is_empty() => Buttons {
-                left: Some(("Browse...", BROWSE_TOKEN)),
+                left: Some((browse, BROWSE_TOKEN)),
                 primary: Some(("Import", IMPORT_TOKEN, true)),
                 close: Some("Close"),
             },
             State::Waiting | State::Failed(_) => Buttons {
                 left: None,
-                primary: Some(("Browse...", BROWSE_TOKEN, self.browsing.is_none())),
+                primary: Some((browse, BROWSE_TOKEN, true)),
                 close: Some("Close"),
             },
             State::Loaded(_) => Buttons {
-                left: Some(("Other file...", BROWSE_TOKEN)),
+                left: Some((if waiting { browse } else { "Other file..." }, BROWSE_TOKEN)),
                 primary: Some(("Import", IMPORT_TOKEN, self.chosen().is_some())),
                 close: Some("Cancel"),
             },
@@ -333,14 +338,13 @@ impl Panel {
         // Rajdhani at 20 is about 9.5 pixels a character.
         let width = |label: &str| (48.0 + 9.5 * label.chars().count() as f32).max(140.0);
         if let Some((label, token)) = buttons.left {
-            let enabled = self.browsing.is_none();
             kit::button(
                 &mut self.ui,
                 frame,
                 [TEXT_X, y, width(label), BUTTON_HEIGHT],
                 label,
                 false,
-                enabled,
+                true,
                 false,
                 token,
             );

@@ -657,9 +657,13 @@ impl Panel {
             &mut self.ui,
             frame,
             [MIDDLE_X, browse_y, 200.0, 46.0],
-            if browsing { "Choosing..." } else { "Browse..." },
+            if browsing {
+                "Stop waiting"
+            } else {
+                "Browse..."
+            },
             false,
-            !browsing,
+            true,
             self.focus == Focus::Browse,
             BROWSE_TOKEN,
         );

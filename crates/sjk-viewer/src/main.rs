@@ -96,6 +96,7 @@ mod frame_split;
 
 mod charge_flash;
 mod fake_noclip;
+mod file_dialog;
 mod fps_help;
 mod frame_target;
 mod free_camera;
