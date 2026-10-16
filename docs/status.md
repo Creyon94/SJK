@@ -1,3 +1,19 @@
+## Native NPC definition filename capacity
+
+16/10/2026, `fix/native-npc-definition-list` based on `7026c735`: native NPC
+loading now reads every file listed by the VFS, rather than losing filenames
+beyond the stock 2,048-byte list before reaching its unbounded text loader.
+The stock profile still receives its original filename prefix and text-size
+bound; both preserve VFS order. The regression fixture reproduced the loss at
+`npc_070` before the fix and loads all 100 synthetic definitions after it. A
+second fixture verifies the stock text-size error fallback and native loading
+of the same file. Formatting, locked workspace build/tests and Clippy with all
+targets passed on Windows, Rust 1.99.0, with existing warnings. Fixtures use no
+retail data; GPU/data-dependent workspace tests remain ignored.
+Live map loading and NPC spawning with a large community pack remain unverified.
+This changes definition availability, not gameplay timing, live NPC capacity or
+the wire format. See [NPC definition packs](server.md#npc-definition-packs).
+
 ## Emotes on stock models: limbs out of wider bodies
 
 15/10/2026, `feat/emote-body-fit` (Creyon, on `feat/emotes-on-classic-models`): a dance made
