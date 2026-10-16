@@ -3866,8 +3866,7 @@ the cell. The retail character set had no Windows-1252 typographic characters
 cell, like colour codes, so rows close up as in EternalJK, while the text keeps
 them. The classic console loads the font whether `ui_gameFont` is on or not; if it
 cannot be loaded the cells use Inter.
-A cell is 10 by 20 pixels at 1080 lines at the default `con_scale 1.25`, and
-8 by 16 pixels at `con_scale 1`; it grows with the window
+A cell is 8 by 16 pixels at 1080 lines and `con_scale 1`, grows with the window
 height like the rest of the UI (with the console's 0.75 floor) and is rounded to
 whole pixels. EternalJK's cells are 8 by 16 screen pixels times `con_scale`, so
 `con_scale 0.5` at 2160 lines matches EternalJK at 4K with its default scale. A
@@ -4290,7 +4289,7 @@ draws as before at the defaults.
 | --- | --- | --- | --- |
 | `ui_textScale` | 1 | 0.8 to 1.5 | Text size on menu screens and the in-game menu |
 | `ui_letterSpacing` | 0 | -0.05 to 0.15 | Extra space after each letter of menu text, as a fraction of the text size; the console's character grid keeps its cells |
-| `con_scale` | 1.25 | above 0 (menu: 0.5 to 2) | Size of the whole console: its character cells, margins and rows |
+| `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: its character cells, margins and rows |
 
 Menu text grows or shrinks about the centre of its line. SJK Settings' option
 rows have room for the largest size; long Profile and Collection tab rows close

@@ -478,29 +478,6 @@ impl ViewerConsole {
             }
             let _ = shell.cvars.set_text(version, "1");
         }
-        // con_scale defaulted to 1, whose 16-pixel row at 1080p is needlessly
-        // small with the vector console font. Move that saved default once to
-        // 1.25 (a 20-pixel row); a custom scale, or 1 chosen afterwards, stays.
-        let version = super::console_options::SCALE_VERSION_CVAR;
-        if matches!(
-            shell.cvars.get(version).map(|cvar| &cvar.value),
-            Some(CvarValue::Integer(0))
-        ) {
-            let old = super::console_options::OLD_DEFAULT_SCALE;
-            let was_old_default =
-                shell
-                    .cvars
-                    .get("con_scale")
-                    .is_some_and(|cvar| match cvar.value {
-                        CvarValue::Float(value) => value == old,
-                        CvarValue::Integer(value) => value as f64 == old,
-                        _ => false,
-                    });
-            if was_old_default {
-                let _ = shell.cvars.reset("con_scale");
-            }
-            let _ = shell.cvars.set_text(version, "1");
-        }
         // cg_cameraStyle defaulted to sjk and every profile saved it, so the
         // locked ejk camera, the new default, would reach none. Move a saved sjk
         // once to the default; an sjk chosen after this stays.

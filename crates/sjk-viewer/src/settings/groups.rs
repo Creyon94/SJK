@@ -429,7 +429,6 @@ impl Group {
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
                 crate::text::style::SCALE_CVAR,
-                "con_scale",
                 super::catalog::IMPORT_ROW,
                 "jof.downloads",
                 "cl_autoUpdate",
@@ -746,7 +745,7 @@ mod tests {
     }
 
     #[test]
-    fn console_text_size_is_offered_in_simple_and_full_settings() {
+    fn console_text_size_stays_in_the_full_settings_modes() {
         let has_size = |group: Group| {
             group
                 .rows()
@@ -758,7 +757,7 @@ mod tests {
             has_size(Group::Advanced(Advanced::Interface)),
             "SJK Advanced"
         );
-        assert!(has_size(Group::Simple(Simple::General)), "SJK Simple");
+        assert!(!has_size(Group::Simple(Simple::General)), "SJK Simple");
     }
 
     #[test]
