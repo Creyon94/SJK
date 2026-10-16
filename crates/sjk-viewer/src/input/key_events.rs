@@ -59,6 +59,12 @@ impl GpuState {
             self.apply_dialog_action(action);
             return;
         }
+        // The alpha notice takes every key until it is accepted.
+        if !console_open && self.alpha_card.is_open() {
+            let choice = self.alpha_card.handle_key(&event);
+            self.alpha_card_choice(choice);
+            return;
+        }
         // A new medal on show takes every key until it is closed.
         if !console_open && self.medal_popup.is_open() {
             self.medal_popup.handle_key(&event);

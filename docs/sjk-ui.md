@@ -1800,6 +1800,36 @@ are not drawn and take no input. The same look in every menu style, on the 16:9 
   the right; keys bottom right: D don't suggest, Esc not now, Enter use Vanilla (turn
   off). "EJK graphics" was the name until 12/10/2026.
 
+## Alpha notice
+
+[alpha_notice_card.rs](../crates/sjk-viewer/src/alpha_notice_card.rs): the pop-up a
+player gets at the first start (Sol's request, 16/10/2026). It says SJK is an alpha
+build of a free and open-source project with bugs and unfinished parts, how to report
+them, and that it comes with no warranty and owes the player nothing. There is no way
+past it but ticking "I understand" and Continue, or Quit. `ui_alphaNotice` (archived)
+holds the notice's version the player accepted; raising `VERSION` in the code shows it
+again after the words change, and `ui_alphaNotice 0` shows it again. It shows over the
+main menu or the game menu, never in the middle of play, before every other card, and
+First setup waits under it; the menus under it are not drawn and take no input. The
+same look in every menu style, on the 16:9 frame:
+
+- **Card:** the kit's card over its scrim, 900 wide from x 510, centred, as tall as its
+  words.
+- **Words:** "Alpha build" in gold (Rajdhani 22), "Welcome to Sol JK" (Rajdhani 36),
+  then Exo 2 18 (muted): an alpha of a free and open-source client, expect bugs and
+  unfinished parts; report on the SJK Discord or with Report a bug in a game.
+- **Report row:** a picture of the game menu's Report a bug button (drawn, not a
+  button) with "This button, in a game: Escape, SJK"; on the right the invite
+  (discord.gg/dGBdMygvJw, the permanent invite to #welcome) and Join the SJK Discord
+  (outlined, opens it in the browser).
+- **Terms:** a fun project of Sol and the contributors, no warranty (as the GPL says),
+  nobody owes support, fixes or features.
+- **Tick:** "I understand that SJK is a work in progress that may have bugs, that it
+  comes with no warranty, and that I am owed nothing", gold until ticked; the whole
+  line is its hit region.
+- **Buttons:** Quit (outlined, 130) and Continue (gold, 200, greyed until the tick).
+  Keys bottom right: Space I understand, Enter continue; Escape does nothing.
+
 ## Log request
 
 [log_request_card.rs](../crates/sjk-viewer/src/log_request_card.rs): the pop-up a

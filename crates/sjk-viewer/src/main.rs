@@ -5,6 +5,7 @@ mod actor_mesh;
 mod actor_pose;
 mod actor_tint;
 mod actor_world_submission;
+mod alpha_notice_card;
 mod am_color;
 mod animation_timing;
 mod app_launch;
@@ -362,6 +363,8 @@ struct GpuState {
     fps_help: fps_help::State,
     /// The low-FPS card (`help_fps`).
     fps_card: fps_help::card::Card,
+    /// The alpha notice, until the player accepts it ([`alpha_notice_card`]).
+    alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
     log_request_card: log_request_card::Card,
     /// What the update brought ([`whats_new_card`]).
@@ -1289,6 +1292,7 @@ impl GpuState {
             graphics_reload: graphics_reload::State::default(),
             fps_help: fps_help::State::default(),
             fps_card: fps_help::card::Card::default(),
+            alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
 
@@ -1831,13 +1835,16 @@ impl GpuState {
         self.hud_scissors =
             hud_uniform.scissors(self.configuration.width, self.configuration.height);
         let console_covers_frame = self.console_covers_frame();
+        // The alpha notice comes before everything, and every other card waits for it.
+        let alpha_shown = self.prepare_alpha_card();
+        let covered = console_covers_frame || alpha_shown || self.alpha_card.wants();
         // A new medal, or a holocron drop after it, shows over the menus, which are not
         // drawn under it.
-        let medal_shown = self.prepare_medal_popup(console_covers_frame);
-        let holocron_shown = self.prepare_holocron_popup(console_covers_frame || medal_shown);
+        let medal_shown = self.prepare_medal_popup(covered);
+        let holocron_shown = self.prepare_holocron_popup(covered || medal_shown);
         // The graphics reload card waits for the others.
         let reload_shown = self.prepare_reload_card(
-            console_covers_frame
+            covered
                 || medal_shown
                 || holocron_shown
                 || self.medal_popup.pending()
@@ -1846,7 +1853,7 @@ impl GpuState {
         // The low-FPS card too.
         self.update_fps_help();
         let fps_shown = self.prepare_fps_card(
-            console_covers_frame
+            covered
                 || medal_shown
                 || holocron_shown
                 || reload_shown
@@ -1855,7 +1862,7 @@ impl GpuState {
         );
         // And the SJK team's request for the player's logs.
         let logs_shown = self.prepare_log_request_card(
-            console_covers_frame
+            covered
                 || medal_shown
                 || holocron_shown
                 || reload_shown
@@ -1865,7 +1872,7 @@ impl GpuState {
         );
         // And what the update brought, last.
         let news_shown = self.prepare_whats_new_card(
-            console_covers_frame
+            covered
                 || medal_shown
                 || holocron_shown
                 || reload_shown
@@ -1874,8 +1881,13 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
-        let medal_popup =
-            medal_shown || holocron_shown || reload_shown || fps_shown || logs_shown || news_shown;
+        let medal_popup = alpha_shown
+            || medal_shown
+            || holocron_shown
+            || reload_shown
+            || fps_shown
+            || logs_shown
+            || news_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -2046,7 +2058,9 @@ impl GpuState {
         } else {
             self.world_notes.composer_closed();
         }
-        if medal_shown {
+        if alpha_shown {
+            self.append_alpha_card(viewport);
+        } else if medal_shown {
             self.append_medal_popup(viewport);
         } else if holocron_shown {
             self.append_holocron_popup(viewport);
@@ -2109,6 +2123,7 @@ impl GpuState {
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
             news_shown.then(|| self.whats_new_card.draw_list()),
+            alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
         self.ui_shapes

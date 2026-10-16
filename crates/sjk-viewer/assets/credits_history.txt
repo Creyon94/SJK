@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Alpha notice at the first start: no warranty, Discord, Report a bug, forced tick
+- d09d547 |  | Alpha notice at the first start
++ 16/10/2026 | - | Release 2026.1016.2 (Alpha)
+- 4009718 |  | Release 2026.1016.2 (Alpha)
 + 16/10/2026 | - | Linux: updates restart the new version, Browse without a portal chooser
 - 46b0d14 |  | Linux: updates restart the new version; Browse without a portal chooser
 + 16/10/2026 | - | Release 2026.1016.1 (Alpha)

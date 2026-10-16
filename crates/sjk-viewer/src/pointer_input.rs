@@ -302,6 +302,11 @@ impl GpuState {
             self.apply_dialog_action(action);
             return true;
         }
+        if self.alpha_card.is_open() {
+            let choice = self.alpha_card.handle_pointer(event);
+            self.alpha_card_choice(choice);
+            return true;
+        }
         if self.medal_popup.is_open() {
             self.medal_popup.handle_pointer(event);
             return true;

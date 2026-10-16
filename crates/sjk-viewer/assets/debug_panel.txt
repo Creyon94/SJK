@@ -451,6 +451,15 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[alpha-notice]
+area: Menus & settings
+title: Alpha notice at the first start
+change: A card at the first start: alpha, free and open source, bugs expected, no warranty.
+change: Continue needs the "I understand" tick; Quit leaves; ui_alphaNotice keeps the answer.
+test: ui_alphaNotice 0, restart: the card shows before First setup.
+test: Continue is grey until the tick (click the line or Space); Escape does nothing.
+test: Join the SJK Discord opens discord.gg/dGBdMygvJw; after Continue it never shows again.
+
 [graphics-presets]
 area: Menus & settings
 title: Graphics presets: Vanilla style, SJK (recommended), Experimental
