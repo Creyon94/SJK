@@ -856,6 +856,7 @@ mod tests {
             verified: id.is_multiple_of(3),
             staff: id.is_multiple_of(5),
             trust: None,
+            emoji: String::new(),
             text: text.to_owned(),
             holocron: None,
         }

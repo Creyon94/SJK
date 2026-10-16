@@ -45,6 +45,8 @@ pub(crate) struct Person {
     pub(crate) staff: bool,
     /// Their trust (`ui_renderer::mark_texture`), none when verified or staff or unknown.
     pub(crate) trust: Option<sjk_identity::Trust>,
+    /// Their name emoji, after the name; empty for none.
+    pub(crate) emoji: String,
     pub(crate) medals: crate::medals::Medals,
     pub(crate) place: Place,
     /// Their picture's version, empty for none; `None` while not known (the place that
@@ -217,8 +219,14 @@ pub(crate) fn draw(
     } else {
         0.0
     };
+    // The name emoji right after the name, before the mark.
+    let shown = if person.emoji.is_empty() {
+        person.name.clone()
+    } else {
+        format!("{}^7 {}", person.name, person.emoji)
+    };
     canvas.text_fmt_aligned(
-        format_args!("{}", person.name),
+        format_args!("{shown}"),
         Rect::new(head_x, y, head_width - tick_room, 28.0 * u),
         20.0 * u,
         color::TEXT,
@@ -228,8 +236,8 @@ pub(crate) fn draw(
     );
     if let Some(mark) = mark {
         let name = match measure {
-            Some(measure) => measure.width(&person.name, 20.0 * u, crate::text::TextFace::Semibold),
-            None => estimated_width(&person.name, 20.0 * u),
+            Some(measure) => measure.width(&shown, 20.0 * u, crate::text::TextFace::Semibold),
+            None => estimated_width(&shown, 20.0 * u),
         };
         let end = head_x + (head_width - tick_room).min(name);
         crate::sjk_chat_look::tick(
@@ -455,6 +463,7 @@ mod tests {
             verified: true,
             staff: false,
             trust: None,
+            emoji: String::new(),
             medals: crate::medals::Medals::default(),
             place: Place::SlotByName(5),
             avatar: Some(String::new()),

@@ -1,8 +1,8 @@
 //! The Profile page's drawing, in the SJK UI's look over the map whatever the menu
 //! style: the top bar, or on the Profile screen its title and row of tabs
 //! ([`crate::profile_hub::header`]) with the page moved down under them; the player's
-//! picture, who they are and their record on the left, the bio (or the picture panel)
-//! in the middle and their medals (on its own only), achievements and collection on the
+//! picture, who they are (their name emoji after their name) and their record on the
+//! left, the bio (or the picture or emoji panel) in the middle and their medals (on its own only), achievements and collection on the
 //! right, each with the way to the Collection.
 
 use super::*;
@@ -40,6 +40,9 @@ const WHO_X: f32 = LEFT_X + PICTURE_SIZE + 24.0;
 const WHO_WIDTH: f32 = LEFT_WIDTH - PICTURE_SIZE - 24.0;
 /// The picture panel's large picture.
 const LARGE_PICTURE: f32 = 220.0;
+/// The emoji panel's grid: a cell's side and the gap between cells.
+const EMOJI_CELL: f32 = 56.0;
+const EMOJI_GAP: f32 = 6.0;
 
 /// What the page says when the player holds no medal yet.
 const NO_MEDALS: &str =
@@ -210,6 +213,7 @@ impl Panel {
         match self.middle {
             Middle::Bio => self.bio_column(&page, body),
             Middle::Picture => self.picture_column(&page, &who),
+            Middle::Emoji => self.emoji_column(&page, &who),
         }
         self.right_column(&page, inputs);
         self.keys(&frame);
@@ -285,10 +289,20 @@ impl Panel {
                 PICTURE_SIZE + 38.0,
             ),
         );
+        // The name emoji after the name, as everyone sees it.
+        let emoji = if self.writable {
+            self.emoji.as_str()
+        } else {
+            ""
+        };
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", cut(&who.headline, 28)),
+            format_args!(
+                "{}{}{emoji}",
+                cut(&who.headline, 28),
+                if emoji.is_empty() { "" } else { "^7 " }
+            ),
             frame.rect(WHO_X, TOP, WHO_WIDTH, 50.0),
             38.0 * s,
             color::TEXT,
@@ -312,19 +326,34 @@ impl Panel {
             }
         }
         y = y.max(TOP + PICTURE_SIZE + 38.0) + 8.0;
+        let emoji_label = if self.emoji.is_empty() {
+            "Add a name emoji".to_owned()
+        } else {
+            format!("Name emoji {}", self.emoji)
+        };
+        kit::button(
+            &mut self.ui,
+            frame,
+            [LEFT_X, y, 230.0, 42.0],
+            &emoji_label,
+            false,
+            self.writable,
+            self.focus == Focus::Emoji || self.middle == Middle::Emoji,
+            EMOJI_TOKEN,
+        );
         if self.staff {
             kit::button(
                 &mut self.ui,
                 frame,
-                [LEFT_X, y, 180.0, 42.0],
+                [LEFT_X + 246.0, y, 180.0, 42.0],
                 "Staff tools",
                 true,
                 true,
                 self.focus == Focus::Staff,
                 STAFF_TOKEN,
             );
-            y += 42.0;
         }
+        y += 42.0;
         y += 34.0;
         kit::heading(&mut self.ui, frame, LEFT_X, y, LEFT_WIDTH, "Your record");
         y += 30.0;
@@ -770,6 +799,155 @@ impl Panel {
         );
     }
 
+    /// The emoji panel: the name with its emoji as others see it, the grid of
+    /// [`EMOJI_CHOICES`], what the hub answered, Remove emoji and Done.
+    fn emoji_column(&mut self, frame: &Frame, who: &Who) {
+        let s = frame.s;
+        kit::heading(
+            &mut self.ui,
+            frame,
+            MIDDLE_X,
+            TOP + 20.0,
+            MIDDLE_WIDTH,
+            "Your name emoji",
+        );
+        let shown = if self.emoji.is_empty() {
+            cut(&who.headline, 24)
+        } else {
+            format!("{}^7 {}", cut(&who.headline, 24), self.emoji)
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{shown}"),
+            frame.rect(MIDDLE_X, BIO_TOP - 4.0, MIDDLE_WIDTH, 40.0),
+            30.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!(
+                "Everyone sees it at the right of your name: in chat, on cards and on the scoreboard."
+            ),
+            frame.rect(MIDDLE_X, BIO_TOP + 40.0, MIDDLE_WIDTH, 24.0),
+            16.0 * s,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        let grid_y = BIO_TOP + 78.0;
+        let grid_focused = self.focus == Focus::EmojiGrid;
+        for (index, choice) in EMOJI_CHOICES.iter().enumerate() {
+            let column = (index % EMOJI_COLUMNS) as f32;
+            let row = (index / EMOJI_COLUMNS) as f32;
+            let cell = [
+                MIDDLE_X + column * (EMOJI_CELL + EMOJI_GAP),
+                grid_y + row * (EMOJI_CELL + EMOJI_GAP),
+                EMOJI_CELL,
+                EMOJI_CELL,
+            ];
+            let token = EMOJI_CELL_TOKEN + index as u16;
+            let worn = *choice == self.emoji;
+            let lit = self.ui.token_hovered(token) || (grid_focused && index == self.emoji_cursor);
+            let rect = frame.rect(cell[0], cell[1], cell[2], cell[3]);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect,
+                radius: 10.0 * s,
+                color: if worn {
+                    Color::new(0.91, 0.72, 0.29, 0.30)
+                } else if lit {
+                    Color::new(1.0, 1.0, 1.0, 0.14)
+                } else {
+                    Color::new(1.0, 1.0, 1.0, 0.05)
+                },
+            });
+            if worn || lit {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 10.0 * s,
+                    width: 1.5 * s,
+                    color: if worn {
+                        color::GOLD_BRIGHT
+                    } else {
+                        color::TEXT
+                    },
+                });
+            }
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{choice}"),
+                frame.rect(cell[0], cell[1] + 11.0, cell[2], 36.0),
+                30.0 * s,
+                Color::new(1.0, 1.0, 1.0, 1.0),
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+            self.ui.hit_region(token, rect);
+        }
+        let rows = EMOJI_CHOICES.len().div_ceil(EMOJI_COLUMNS) as f32;
+        let mut y = grid_y + rows * (EMOJI_CELL + EMOJI_GAP) + 10.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Another emoji? Type or paste it here (Win+. opens the emoji panel)."),
+            frame.rect(MIDDLE_X, y, MIDDLE_WIDTH, 24.0),
+            16.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += 30.0;
+        let message = match &self.emoji_message {
+            Some(message) => Some(message.clone()),
+            None if !self.writable => Some((
+                "The name emoji needs the SJK identity on and the SJK hub answering".to_owned(),
+                false,
+            )),
+            None => None,
+        };
+        if let Some((message, good)) = message {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}", cut(&message, 80)),
+                frame.rect(MIDDLE_X, y, MIDDLE_WIDTH, 24.0),
+                16.0 * s,
+                if good {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::EMBER
+                },
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        let buttons_y = y + 36.0;
+        kit::button(
+            &mut self.ui,
+            frame,
+            [MIDDLE_X, buttons_y, 220.0, 46.0],
+            "Remove emoji",
+            false,
+            self.writable && !self.emoji.is_empty() && self.emoji_saving.is_none(),
+            self.focus == Focus::RemoveEmoji,
+            REMOVE_EMOJI_TOKEN,
+        );
+        kit::button(
+            &mut self.ui,
+            frame,
+            [MIDDLE_X + MIDDLE_WIDTH - 130.0, buttons_y, 130.0, 46.0],
+            "Done",
+            false,
+            true,
+            self.focus == Focus::BioBack,
+            BIO_BACK_TOKEN,
+        );
+    }
+
     /// The medals (on its own only: the Collection has them), the achievements and the
     /// collection.
     fn right_column(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
@@ -1020,6 +1198,9 @@ impl Panel {
             Focus::UsePicture => "use this picture",
             Focus::RemovePicture => "remove picture",
             Focus::BioBack => "back to your bio",
+            Focus::Emoji => "choose an emoji",
+            Focus::EmojiGrid => "use this emoji",
+            Focus::RemoveEmoji => "remove emoji",
         };
         let mut keys: Vec<(&[&str], &str)> = vec![(&["Tab"], "next"), (&["Enter"], enter)];
         if typing {
@@ -1118,6 +1299,7 @@ mod tests {
             verified: true,
             staff: false,
             trust: None,
+            emoji: String::new(),
             created: 1_759_708_800,
             names: ["^2Fox", "Sol", "^4Another Long Name", "Fourth"]
                 .iter()

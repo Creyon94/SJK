@@ -59,6 +59,7 @@ mod tests {
             verified: true,
             staff: false,
             trust: None,
+            emoji: String::new(),
             text: String::new(),
             holocron: Some(DropMark {
                 tier: tier.to_owned(),

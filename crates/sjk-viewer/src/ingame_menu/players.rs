@@ -66,6 +66,8 @@ pub(crate) struct HubMark {
     pub(crate) verified: bool,
     /// Their trust (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
+    /// Their name emoji, empty for none.
+    pub(crate) emoji: String,
     /// The medals the SJK team gave them.
     pub(crate) medals: crate::medals::Medals,
     /// Their picture's version, empty for none.
@@ -521,6 +523,7 @@ impl State {
                         name: "Vulpes".to_owned(),
                         verified: false,
                         trust: None,
+                        emoji: String::new(),
                         medals: shot_medals(&["bug_hunter"]),
                         avatar: String::new(),
                     }),
@@ -529,6 +532,7 @@ impl State {
                         name: "Sol".to_owned(),
                         verified: true,
                         trust: None,
+                        emoji: String::new(),
                         medals: shot_medals(&["early_tester", "early_contributor", "bug_hunter"]),
                         avatar: String::new(),
                     }),
@@ -591,6 +595,7 @@ mod tests {
                 name: "Troll".to_owned(),
                 verified: false,
                 trust: None,
+                emoji: String::new(),
                 medals: crate::medals::Medals::default(),
                 avatar: String::new(),
             })

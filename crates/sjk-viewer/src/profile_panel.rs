@@ -19,6 +19,13 @@
 //! it, always in the SJK UI's look ([`view`]). Tab moves between the picture, the bio
 //! and their buttons; Enter saves the bio from the field (Shift+Enter starts a new
 //! line); Escape goes back.
+//!
+//! The name emoji (`sjk_identity::name_emoji`, Sol's request 16/10/2026) is picked
+//! here too: the Name emoji button under who the player is opens the emoji panel in the
+//! bio's place, a grid of [`EMOJI_CHOICES`]. A click (or Enter on the grid, moved with
+//! the arrows) sends the one picked at once; any other single emoji typed or pasted
+//! there (the system's emoji panel, Win+.) is sent the same way; Remove emoji takes it
+//! away. Everyone sees it at the right of the player's name.
 
 use crate::achievements::Standing;
 use crate::avatars::picture::{PictureError, Prepared};
@@ -48,6 +55,24 @@ const USE_TOKEN: u16 = 1_018;
 const REMOVE_TOKEN: u16 = 1_019;
 const BIO_BACK_TOKEN: u16 = 1_020;
 const BROWSE_TOKEN: u16 = 1_021;
+const EMOJI_TOKEN: u16 = 1_023;
+const REMOVE_EMOJI_TOKEN: u16 = 1_024;
+/// The emoji grid's first cell; the others follow.
+const EMOJI_CELL_TOKEN: u16 = 1_100;
+/// The emoji grid's columns.
+const EMOJI_COLUMNS: usize = 10;
+
+/// The name emoji the emoji panel offers, ten to a row: animals, then arms and
+/// symbols, then things, then hearts and faces. Any other single emoji can be typed or
+/// pasted there.
+pub(crate) const EMOJI_CHOICES: &[&str] = &[
+    "🦊", "🐺", "🐱", "🐶", "🐻", "🐼", "🐯", "🦁", "🐸", "🐉", //
+    "🦄", "🦅", "🦉", "🐍", "🦈", "🐙", "🦋", "🐝", "🐢", "🐧", //
+    "⚔️", "🛡️", "🗡️", "🔥", "⚡", "❄️", "🌙", "⭐", "🌟", "✨", //
+    "💎", "👑", "🏆", "🎯", "🎮", "🕹️", "🎵", "🎧", "🚀", "🛸", //
+    "👾", "🤖", "👻", "💀", "☠️", "🎃", "🍀", "🌸", "🌹", "☕", //
+    "❤️", "💙", "💚", "💛", "💜", "🖤", "😎", "🤠", "🥷", "🧙", //
+];
 /// How long Remove picture waits for its second press.
 const REMOVE_CONFIRM: Duration = Duration::from_secs(3);
 
@@ -76,6 +101,11 @@ enum Focus {
     UsePicture,
     RemovePicture,
     BioBack,
+    /// The Name emoji button, which opens the emoji panel.
+    Emoji,
+    /// The emoji panel's grid (its cursor is `emoji_cursor`) and Remove emoji.
+    EmojiGrid,
+    RemoveEmoji,
     Board,
     Unlockables,
     Holocrons,
@@ -86,6 +116,8 @@ enum Focus {
 pub(crate) enum Middle {
     Bio,
     Picture,
+    /// The name emoji's grid.
+    Emoji,
 }
 
 /// A picture file being made ready on a worker thread.
@@ -123,6 +155,10 @@ pub(crate) enum PanelAction {
     },
     /// Take the player's picture down at the hub.
     RemoveAvatar,
+    /// Make this the player's name emoji at the hub; empty takes it away.
+    SetEmoji {
+        emoji: String,
+    },
 }
 
 /// A save on its way: the bio sent and the service's notice before it, to tell the
@@ -183,6 +219,14 @@ pub(crate) struct Panel {
     browsing: Option<Receiver<Option<PathBuf>>>,
     /// What opens the file dialog ([`pick_picture`]; tests put their own).
     picker: fn() -> Option<PathBuf>,
+    /// The player's name emoji as the hub holds it, empty for none.
+    emoji: String,
+    /// The emoji grid's cell under the keyboard.
+    emoji_cursor: usize,
+    /// A name emoji on its way and the service's notice before it was sent.
+    emoji_saving: Option<(String, Option<String>)>,
+    /// What the emoji panel says last, and whether it is good news.
+    emoji_message: Option<(String, bool)>,
     /// What the Profile screen's tabs put at the top ([`Mode::Hub`]).
     hub_header: crate::profile_hub::Header,
     epoch: Instant,
@@ -264,6 +308,10 @@ impl Panel {
             remove_armed: None,
             browsing: None,
             picker: pick_picture,
+            emoji: String::new(),
+            emoji_cursor: 0,
+            emoji_saving: None,
+            emoji_message: None,
             hub_header: crate::profile_hub::Header::default(),
             epoch: Instant::now(),
             #[cfg(test)]
@@ -322,6 +370,58 @@ impl Panel {
     pub(crate) fn show_picture(&mut self) {
         self.middle = Middle::Picture;
         self.remove_armed = None;
+    }
+
+    /// Show the emoji panel in the bio's place, its cursor on the emoji worn.
+    pub(crate) fn show_emoji(&mut self) {
+        if self.ready.take().is_some() {
+            crate::avatars::set_preview(None);
+        }
+        self.reading = None;
+        self.middle = Middle::Emoji;
+        self.focus = Focus::EmojiGrid;
+        self.emoji_message = None;
+        self.emoji_cursor = EMOJI_CHOICES
+            .iter()
+            .position(|choice| *choice == self.emoji)
+            .unwrap_or(0);
+    }
+
+    /// Send `emoji` (one emoji, or empty to take it away) as the name emoji, once it
+    /// passes the rules; `notice` is the service's last notice.
+    fn pick_emoji(&mut self, emoji: &str, notice: Option<String>) -> PanelAction {
+        if !self.writable {
+            self.emoji_message = Some((
+                "The name emoji needs the SJK identity on and the SJK hub answering".to_owned(),
+                false,
+            ));
+            return PanelAction::None;
+        }
+        match sjk_identity::name_emoji::check(emoji) {
+            Ok(emoji) if emoji == self.emoji => PanelAction::None,
+            Ok(emoji) => {
+                self.emoji_saving = Some((emoji.clone(), notice));
+                self.emoji_message = Some(("Saving...".to_owned(), true));
+                PanelAction::SetEmoji { emoji }
+            }
+            Err(error) => {
+                self.emoji_message = Some((error.to_string(), false));
+                PanelAction::None
+            }
+        }
+    }
+
+    /// Say why a name emoji could not be sent at all.
+    pub(crate) fn emoji_failed(&mut self, why: &str) {
+        self.emoji_saving = None;
+        self.emoji_message = Some((why.to_owned(), false));
+    }
+
+    /// Move the emoji grid's cursor by `columns` and `rows`, staying on the grid.
+    fn move_emoji_cursor(&mut self, columns: isize, rows: isize) {
+        let last = EMOJI_CHOICES.len() as isize - 1;
+        let at = self.emoji_cursor as isize + columns + rows * EMOJI_COLUMNS as isize;
+        self.emoji_cursor = at.clamp(0, last) as usize;
     }
 
     /// Read the picture file at `path` on a worker thread and show it, once ready, as
@@ -469,9 +569,10 @@ impl Panel {
         }
     }
 
-    /// Escape: from the picture panel back to the bio first, else close the page.
+    /// Escape: from the picture or emoji panel back to the bio first, else close the
+    /// page.
     fn escape(&mut self) -> PanelAction {
-        if self.middle == Middle::Picture {
+        if self.middle != Middle::Bio {
             self.back_to_bio();
             PanelAction::None
         } else {
@@ -494,6 +595,7 @@ impl Panel {
         }
         self.reading = None;
         self.picture_message = None;
+        self.emoji_message = None;
     }
 
     /// Take in a picture the worker finished reading, and the hub's answer to a change.
@@ -585,9 +687,32 @@ impl Panel {
         if !self.writable && matches!(self.focus, Focus::Bio | Focus::Save | Focus::Revert) {
             self.focus = Focus::Picture;
         }
+        if !self.writable {
+            self.emoji_saving = None;
+        }
         let Some(me) = me else {
             return;
         };
+        self.emoji = sjk_identity::name_emoji::for_display(&me.emoji).to_owned();
+        if let Some((sent, notice_before)) = &self.emoji_saving {
+            let notice = inputs.snapshot.and_then(|snapshot| snapshot.notice.clone());
+            if *sent == self.emoji {
+                self.emoji_message = Some((
+                    if sent.is_empty() {
+                        "Your name emoji is gone".to_owned()
+                    } else {
+                        "Saved. Everyone sees it beside your name.".to_owned()
+                    },
+                    true,
+                ));
+                self.emoji_saving = None;
+            } else if notice != *notice_before
+                && let Some(notice) = notice
+            {
+                self.emoji_message = Some((format!("Not saved: {notice}"), false));
+                self.emoji_saving = None;
+            }
+        }
         let hub = bio::for_display(&me.bio);
         if self.taken.as_ref() != Some(&hub) {
             if !self.edited {
@@ -644,6 +769,9 @@ impl Panel {
     fn order(&self) -> Vec<Focus> {
         // On the Profile screen its tabs are the screen's (Ctrl+Tab), not a stop.
         let mut order = vec![Focus::Picture];
+        if self.writable {
+            order.push(Focus::Emoji);
+        }
         if self.staff {
             order.push(Focus::Staff);
         }
@@ -660,6 +788,9 @@ impl Panel {
             }
             // A picture can still be chosen and looked at without the hub.
             (Middle::Picture, false) => order.extend([Focus::Browse, Focus::BioBack]),
+            (Middle::Emoji, _) => {
+                order.extend([Focus::EmojiGrid, Focus::RemoveEmoji, Focus::BioBack]);
+            }
         }
         order.extend([Focus::Board, Focus::Unlockables, Focus::Holocrons]);
         order
@@ -684,6 +815,12 @@ impl Panel {
                 PanelAction::None
             }
             Focus::Staff => PanelAction::Staff,
+            Focus::Emoji => {
+                self.show_emoji();
+                PanelAction::None
+            }
+            Focus::EmojiGrid => self.pick_emoji(EMOJI_CHOICES[self.emoji_cursor], notice),
+            Focus::RemoveEmoji => self.pick_emoji("", notice),
             Focus::Bio | Focus::Save => self.save(notice),
             Focus::Revert => {
                 self.revert();
@@ -748,9 +885,14 @@ impl Panel {
             self.edited = true;
             return PanelAction::None;
         }
+        let grid = self.focus == Focus::EmojiGrid && self.middle == Middle::Emoji;
         match key {
             KeyCode::Escape => return self.escape(),
             KeyCode::Tab => self.step(!shift),
+            KeyCode::ArrowLeft if grid => self.move_emoji_cursor(-1, 0),
+            KeyCode::ArrowRight if grid => self.move_emoji_cursor(1, 0),
+            KeyCode::ArrowUp if grid => self.move_emoji_cursor(0, -1),
+            KeyCode::ArrowDown if grid => self.move_emoji_cursor(0, 1),
             KeyCode::ArrowDown if !typing => self.step(true),
             KeyCode::ArrowUp if !typing => self.step(false),
             KeyCode::Enter | KeyCode::NumpadEnter if typing && shift => {
@@ -784,6 +926,20 @@ impl Panel {
                     self.edited = true;
                 }
             }
+            // An emoji typed or pasted on the emoji panel (the system's emoji panel,
+            // Win+.) is picked as one from the grid is.
+            _ if self.middle == Middle::Emoji && !event.repeat => {
+                let pasted;
+                let text = match event.text.as_deref() {
+                    text if crate::sjk_chat_field::is_paste(key, text, shift, control) => {
+                        pasted = crate::console::clipboard::paste().unwrap_or_default();
+                        pasted.as_str()
+                    }
+                    Some(text) if !text.trim().is_empty() && !text.is_ascii() => text,
+                    _ => return PanelAction::None,
+                };
+                return self.pick_emoji(text, notice);
+            }
             _ => {}
         }
         PanelAction::None
@@ -816,6 +972,23 @@ impl Panel {
                 self.revert();
                 PanelAction::None
             }
+            Some(EMOJI_TOKEN) => {
+                self.show_emoji();
+                PanelAction::None
+            }
+            Some(REMOVE_EMOJI_TOKEN) if self.middle == Middle::Emoji => {
+                self.focus = Focus::RemoveEmoji;
+                self.pick_emoji("", notice)
+            }
+            Some(token)
+                if self.middle == Middle::Emoji
+                    && (EMOJI_CELL_TOKEN..EMOJI_CELL_TOKEN + EMOJI_CHOICES.len() as u16)
+                        .contains(&token) =>
+            {
+                self.focus = Focus::EmojiGrid;
+                self.emoji_cursor = usize::from(token - EMOJI_CELL_TOKEN);
+                self.pick_emoji(EMOJI_CHOICES[self.emoji_cursor], notice)
+            }
             Some(STAFF_TOKEN) if self.staff => {
                 self.focus = Focus::Staff;
                 PanelAction::Staff
@@ -841,7 +1014,7 @@ impl Panel {
                 self.focus = Focus::RemovePicture;
                 self.press_remove()
             }
-            Some(BIO_BACK_TOKEN) if self.middle == Middle::Picture => {
+            Some(BIO_BACK_TOKEN) if self.middle != Middle::Bio => {
                 self.back_to_bio();
                 PanelAction::None
             }
@@ -874,6 +1047,9 @@ impl Panel {
             Focus::UsePicture => USE_TOKEN,
             Focus::RemovePicture => REMOVE_TOKEN,
             Focus::BioBack => BIO_BACK_TOKEN,
+            Focus::Emoji => EMOJI_TOKEN,
+            Focus::EmojiGrid => EMOJI_CELL_TOKEN + self.emoji_cursor as u16,
+            Focus::RemoveEmoji => REMOVE_EMOJI_TOKEN,
             Focus::Staff => STAFF_TOKEN,
             Focus::Bio => BIO_TOKEN,
             Focus::Save => SAVE_TOKEN,
@@ -903,6 +1079,7 @@ pub(crate) mod tests {
             verified: true,
             staff: false,
             trust: None,
+            emoji: String::new(),
             created: 1_759_708_800,
             names: Vec::new(),
             medals: Vec::new(),
@@ -1125,7 +1302,7 @@ pub(crate) mod tests {
     fn tab_walks_the_controls_and_enter_opens_the_collection() {
         let shot = snapshot(Some(me("")), None);
         let mut panel = opened(&shot);
-        let steps: Vec<Focus> = (0..7)
+        let steps: Vec<Focus> = (0..8)
             .map(|_| {
                 panel.step(true);
                 panel.focus
@@ -1134,6 +1311,7 @@ pub(crate) mod tests {
         assert_eq!(
             steps,
             [
+                Focus::Emoji,
                 Focus::Bio,
                 Focus::Save,
                 Focus::Revert,
@@ -1149,6 +1327,81 @@ pub(crate) mod tests {
         assert_eq!(panel.activate(None), PanelAction::Hub(HubTab::Holocrons));
         panel.focus = Focus::Board;
         assert_eq!(panel.activate(None), PanelAction::Hub(HubTab::Achievements));
+    }
+
+    #[test]
+    fn the_emoji_panel_sends_the_pick_and_says_the_hubs_answer() {
+        let shot = snapshot(Some(me("")), None);
+        let mut panel = opened(&shot);
+        panel.focus = Focus::Emoji;
+        assert_eq!(panel.activate(None), PanelAction::None);
+        assert_eq!(panel.middle, Middle::Emoji);
+        assert_eq!(panel.focus, Focus::EmojiGrid);
+        // The arrows move on the grid; Enter sends the emoji under the cursor.
+        panel.move_emoji_cursor(1, 1);
+        assert_eq!(panel.emoji_cursor, EMOJI_COLUMNS + 1);
+        panel.move_emoji_cursor(-100, -100);
+        assert_eq!(panel.emoji_cursor, 0);
+        assert_eq!(
+            panel.activate(None),
+            PanelAction::SetEmoji {
+                emoji: "🦊".to_owned()
+            }
+        );
+        // The hub's profile with the emoji answers it.
+        let answered = snapshot(
+            Some(Profile {
+                emoji: "🦊".to_owned(),
+                ..me("")
+            }),
+            Some("emoji saved"),
+        );
+        panel.sync(&inputs(Some(&answered)));
+        assert!(panel.emoji_saving.is_none());
+        assert!(panel.emoji_message.as_ref().is_some_and(|(_, good)| *good));
+        // The one worn is not sent again; another typed one is; Remove takes it away.
+        assert_eq!(panel.pick_emoji("🦊", None), PanelAction::None);
+        assert_eq!(
+            panel.pick_emoji("🐺", None),
+            PanelAction::SetEmoji {
+                emoji: "🐺".to_owned()
+            }
+        );
+        assert_eq!(panel.pick_emoji("ab", None), PanelAction::None);
+        assert_eq!(
+            panel.emoji_message.as_ref().map(|(text, _)| text.as_str()),
+            Some(sjk_identity::name_emoji::EmojiError.message())
+        );
+        panel.focus = Focus::RemoveEmoji;
+        assert_eq!(
+            panel.activate(None),
+            PanelAction::SetEmoji {
+                emoji: String::new()
+            }
+        );
+        // Escape goes back to the bio before it leaves the page.
+        assert_eq!(panel.escape(), PanelAction::None);
+        assert_eq!(panel.middle, Middle::Bio);
+    }
+
+    #[test]
+    fn every_offered_emoji_is_one_picture_the_rules_take() {
+        for choice in EMOJI_CHOICES {
+            assert_eq!(
+                sjk_identity::name_emoji::check(choice).as_deref(),
+                Ok(*choice),
+                "{choice}"
+            );
+            // One picture; a trailing emoji presentation mark is drawn with the
+            // picture it follows when the pack's sequence leaves it out.
+            let length = crate::text::emoji::match_at(choice).map(|(_, length)| length);
+            assert!(
+                length == Some(choice.len())
+                    || length == Some(choice.trim_end_matches('\u{FE0F}').len()),
+                "{choice} is one Twemoji picture: {length:?}"
+            );
+        }
+        assert_eq!(EMOJI_CHOICES.len() % EMOJI_COLUMNS, 0);
     }
 
     /// A PNG file of `width` x `height` in `dir`.

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Name emoji: one emoji at the right of the name, picked on the Profile page; shown in chat, cards and the SJK scoreboard
+- 4f34006 |  | Name emoji: one emoji at the right of the player's name, picked on the Profile page
 + 16/10/2026 | - | Cardboard box toy: hide in a carton, spotted with Use, tips over; sounds not shipped
 - 01b9ace |  | Cardboard box toy: hide in a carton, spotted with +use, death in the box
 - c8eb168 |  | Cardboard box: equip sound, and the box tips over with a drop sound

@@ -646,7 +646,28 @@ on the hub, in the SJK UI's look in every menu style:
 be written and the record and board show this PC's counts.
 
 The player's picture stands at the top of the left column ([Pictures](#pictures)): a
-click on it (or Enter on it) opens the picture panel in the bio's place. The profile
+click on it (or Enter on it) opens the picture panel in the bio's place.
+
+### Name emoji
+
+Since 16/10/2026 (Sol's request) a player may pick one emoji that everyone sees at the
+right of their name, before the verified tick or trust mark: on SJK and game chat lines,
+the main page's dock, the SJK chat page and its people, sender cards, the profile card
+and the SJK scoreboard (not the nameplates, the classic scoreboard or other clients).
+The Profile page's Name emoji button (Add a name emoji while none is set) opens the
+emoji panel in the bio's place: a grid of 60 emoji (`EMOJI_CHOICES` in
+`profile_panel.rs`), where a click, or Enter on the cell the arrows move to, sends it at
+once; any other single emoji typed or pasted there (Windows' emoji panel, Win+.) is sent
+the same way; Remove emoji takes it away. The hub keeps it with the profile and sends
+it with profiles, presence, chat messages (the sender's emoji when they sent it) and the
+feed's people (`emoji`, PROTOCOL.md "Profile fields").
+
+Its rule (`sjk_identity::name_emoji`, the hub's copy word for word): exactly one Twemoji
+picture, so one pictograph with the marks that change it (a skin tone, U+FE0F, a
+subdivision flag's tags) or the pictographs U+200D joins to it, or two regional
+indicators (a flag); no keycaps, no rude gesture (`REFUSED`), at most 16 characters.
+The client checks it before sending and shows a hub's value only through the same rule.
+The hub's owner can set or clear a player's emoji (admin API and panel). The profile
 card in the bottom-left corner of the SJK UI's main page and in-game menu
 ([sjk-ui.md](sjk-ui.md#profile-card)) opens the page too.
 

@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[name-emoji]
+area: Console & chat
+title: Name emoji: one emoji at the right of your name, picked on the Profile page
+change: Profile, Name emoji opens a grid of 60; a click sends it, Remove emoji takes it away.
+change: Any single emoji typed or pasted on that panel (Win+.) is sent too.
+change: Shown after the name in chat lines, dock, SJK chat page, cards and SJK scoreboard.
+test: Profile, Name emoji, pick the fox: the headline and button show it, "Saved" appears.
+test: Say something in SJK chat and game chat: the fox stands between your name and tick.
+test: Open the scoreboard (SJK style): the fox follows your name.
+test: Paste two emoji or a letter on the panel: it says a name emoji is one emoji picture.
+
 [chat-limits]
 area: Console & chat
 title: Unverified players: one SJK chat message every 30 s, no links or GIFs

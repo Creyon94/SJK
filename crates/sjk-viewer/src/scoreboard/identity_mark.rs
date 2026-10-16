@@ -153,6 +153,7 @@ mod tests {
         Tag {
             verified,
             trust: None,
+            emoji: Default::default(),
             medals: Medals::from_wire(&list),
         }
     }

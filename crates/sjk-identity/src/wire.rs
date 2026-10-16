@@ -46,6 +46,11 @@ pub struct Profile {
     /// The player's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,
+    /// The player's name emoji (`crate::name_emoji`), shown at the right of their name;
+    /// empty for none (and from hubs older than name emoji). Show it only through
+    /// [`crate::name_emoji::for_display`].
+    #[serde(default)]
+    pub emoji: String,
     /// Registration time, unix seconds.
     pub created: i64,
     /// In-game names the key has worn, most recent first (absent from hubs older
@@ -556,6 +561,9 @@ pub struct Presence {
     /// The claimant's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,
+    /// The claimant's name emoji, empty for none (and from older hubs).
+    #[serde(default)]
+    pub emoji: String,
     /// The claimant's medals, ids and counts only (absent from hubs older than
     /// medals), so the scoreboard shows them without a request per player.
     #[serde(default)]
@@ -591,6 +599,9 @@ pub struct ChatMessage {
     /// The sender's trust when they sent it, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,
+    /// The sender's name emoji when they sent it, empty for none.
+    #[serde(default)]
+    pub emoji: String,
     /// What they said.
     pub text: String,
     /// Set when this "message" is a holocron drop the feed relayed (never read from
@@ -755,6 +766,9 @@ pub struct Person {
     /// Their trust, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,
+    /// Their name emoji, empty for none.
+    #[serde(default)]
+    pub emoji: String,
     /// Their picture's version, `""` for none.
     #[serde(default)]
     pub avatar: String,

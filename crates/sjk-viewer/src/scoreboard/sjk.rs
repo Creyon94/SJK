@@ -877,7 +877,7 @@ impl Painter<'_> {
         rows.iter()
             .filter(|row| member(row))
             .map(|row| {
-                let name = self.width(TextFamily::Body, &row.name, size, FontWeight::Regular)
+                let name = self.width(TextFamily::Body, &shown_name(row), size, FontWeight::Regular)
                     + jof_room(&row.name, size);
                 let marks = row.identity.map_or(0.0, |tag| {
                     let bars = super::identity_mark::ribbon_count(tag.medals, side, f32::MAX);
@@ -1319,14 +1319,14 @@ impl Painter<'_> {
         let text_width = self
             .width(
                 TextFamily::Display,
-                &row.name,
+                &shown_name(row),
                 name_size,
                 FontWeight::Semibold,
             )
             .min(room - jof);
         self.run(
             TextFamily::Display,
-            format_args!("{}", row.name),
+            format_args!("{}", shown_name(row)),
             if right {
                 x + jof
             } else {
@@ -1656,8 +1656,12 @@ impl Painter<'_> {
         let ready_width = if ready { 60.0 } else { 0.0 };
         // The JoF emblem first, on the name's left.
         let jof = jof_room(&row.name, name_size);
-        let full_name =
-            self.width(TextFamily::Body, &row.name, name_size, FontWeight::Regular) + jof;
+        let full_name = self.width(
+            TextFamily::Body,
+            &shown_name(row),
+            name_size,
+            FontWeight::Regular,
+        ) + jof;
         // The bars take no more than a third of the name's room; a compact
         // list, sized for its names, gives them what the name leaves.
         let ribbons = row.identity.map_or(0, |tag| {
@@ -1684,7 +1688,7 @@ impl Painter<'_> {
         }
         self.run(
             TextFamily::Body,
-            format_args!("{}", row.name),
+            format_args!("{}", shown_name(row)),
             columns.name + jof,
             middle,
             (room - marks - jof).max(0.0),
@@ -1887,6 +1891,17 @@ impl fmt::Display for Facts {
             }
         }
         Ok(())
+    }
+}
+
+/// `row`'s name as the board shows it: with the player's name emoji after it, when the
+/// hub knows them and they picked one (`sjk_identity::name_emoji`).
+fn shown_name(row: &ScoreRow) -> std::borrow::Cow<'_, str> {
+    match row.identity.map(|tag| tag.emoji) {
+        Some(emoji) if !emoji.as_str().is_empty() => {
+            std::borrow::Cow::Owned(format!("{}^7 {}", row.name, emoji.as_str()))
+        }
+        _ => std::borrow::Cow::Borrowed(&row.name),
     }
 }
 
@@ -2296,6 +2311,7 @@ mod tests {
         decorated[2].identity = Some(crate::player_identity::Tag {
             verified: true,
             trust: None,
+            emoji: Default::default(),
             medals: three_medals(),
         });
         let ui = draw(&decorated, &ffa, viewport);

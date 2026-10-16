@@ -72,6 +72,8 @@ struct HubLine {
     staff: bool,
     /// The sender's trust when they sent it (`ui_renderer::mark_texture`).
     trust: Option<sjk_identity::Trust>,
+    /// The sender's name emoji when they sent it, shown at the right of their name.
+    emoji: String,
     key_id: String,
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.

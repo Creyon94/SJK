@@ -69,6 +69,8 @@ pub(crate) struct DockLine<'a> {
     pub(crate) staff: bool,
     /// The sender's trust (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
+    /// The sender's name emoji, right after the name; empty for none.
+    pub(crate) emoji: &'a str,
     /// The sender's SJK key, for their sender card.
     pub(crate) key_id: &'a str,
     /// The message is a holocron drop of this tier: no name, the tier's gem and colour.
@@ -84,6 +86,7 @@ pub(crate) const BLANK: DockLine<'static> = DockLine {
     verified: false,
     staff: false,
     trust: None,
+    emoji: "",
     key_id: "",
     tier: None,
     gif: None,
@@ -359,6 +362,7 @@ struct Line {
     verified: bool,
     staff: bool,
     trust: Option<sjk_identity::Trust>,
+    emoji: String,
     key_id: String,
     tier: Option<&'static crate::holocrons::Tier>,
     gif: Option<crate::chat_gifs::GifId>,
@@ -437,6 +441,7 @@ impl DockCache {
                     verified: message.verified && shown.tier.is_none(),
                     staff: message.staff,
                     trust: message.trust.filter(|_| shown.tier.is_none()),
+                    emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
                     key_id: message.key_id.clone(),
                     tier: shown.tier,
                     gif: None,
@@ -475,6 +480,7 @@ impl DockCache {
                 verified: line.verified,
                 staff: line.staff,
                 trust: line.trust,
+                emoji: &line.emoji,
                 key_id: &line.key_id,
                 tier: line.tier,
                 gif: line.gif.as_ref(),
@@ -512,6 +518,7 @@ impl DockCache {
                     verified: *verified,
                     staff: false,
                     trust: None,
+                    emoji: String::new(),
                     key_id: format!("{:016x}", index + 1),
                     tier: None,
                     gif: None,
@@ -587,7 +594,16 @@ impl Lay<'_> {
         } else {
             self.width(": ", TextFace::Regular)
         };
-        self.jof_room(line) + self.name_width(line) + tick + colon
+        self.jof_room(line) + self.name_width(line) + self.emoji_room(line) + tick + colon
+    }
+
+    /// The room the sender's name emoji takes after the name, its gap included.
+    fn emoji_room(&self, line: &DockLine<'_>) -> f32 {
+        if line.emoji.is_empty() {
+            0.0
+        } else {
+            sjk_chat_look::emoji_gap(self.size) + self.width(line.emoji, TextFace::Regular)
+        }
     }
 
     /// Hand each row of `line`'s text to `row`, as a chat line wraps after its name.
@@ -913,6 +929,17 @@ fn message(
         run(canvas, name, color::TEXT, format_args!("{}", line.name));
     }
     let mut x = first.x + jof + name_width;
+    if !line.emoji.is_empty() {
+        let room = lay.emoji_room(line);
+        let gap = sjk_chat_look::emoji_gap(lay.size);
+        run(
+            canvas,
+            Rect::new(x + gap, first.y, room - gap + 1.0, first.height),
+            sjk_ui::Color::new(1.0, 1.0, 1.0, 1.0),
+            format_args!("{}", line.emoji),
+        );
+        x += room;
+    }
     if let Some(tier) = line.tier {
         sjk_chat_look::gem_mark(
             canvas.draw_list_mut(),
@@ -1068,6 +1095,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         verified: line.verified,
         staff: line.staff,
         trust: line.trust,
+        emoji: line.emoji.to_owned(),
         medals: crate::medals::Medals::default(),
         place: crate::sender_card::Place::Unknown,
         avatar: None,
@@ -1103,6 +1131,7 @@ mod tests {
             verified: false,
             staff: false,
             trust: None,
+            emoji: "",
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,

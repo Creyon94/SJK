@@ -20,6 +20,8 @@ pub(crate) struct SlotMark {
     pub(crate) verified: bool,
     /// Their trust (`ui_renderer::mark_texture`), none when verified or staff.
     pub(crate) trust: Option<sjk_identity::Trust>,
+    /// Their name emoji, shown at the right of their name; empty for none.
+    pub(crate) emoji: String,
     /// Their name as they wear it, when the game's lost characters of it.
     pub(crate) name: Option<String>,
 }
@@ -64,6 +66,7 @@ pub(crate) fn marks<'a>(
                     sjk: true,
                     verified: me.verified,
                     trust: me.trust,
+                    emoji: sjk_identity::name_emoji::for_display(&me.emoji).to_owned(),
                     name: restores(worn, name).then(|| worn.to_owned()),
                 };
             }
@@ -79,6 +82,7 @@ pub(crate) fn marks<'a>(
             sjk: true,
             verified: player.verified,
             trust: player.trust,
+            emoji: sjk_identity::name_emoji::for_display(&player.emoji).to_owned(),
             name: restores(&player.claimed_name, name).then(|| player.claimed_name.clone()),
         };
     }
@@ -222,12 +226,14 @@ mod tests {
                     sjk: true,
                     verified: true,
                     trust: None,
+                    emoji: "⚔️".to_owned(),
                     name: Some("^0JoF J S^7olol 🦊".to_owned()),
                 };
                 gpu.chat.slot_marks[7] = SlotMark {
                     sjk: true,
                     verified: false,
                     trust: None,
+                    emoji: "🐺".to_owned(),
                     name: None,
                 };
                 let now = std::time::Instant::now();
@@ -266,6 +272,7 @@ mod tests {
                     verified: true,
                     staff: false,
                     trust: None,
+                    emoji: String::new(),
                     text: "and this one goes through the SJK chat".to_owned(),
                     holocron: None,
                 };

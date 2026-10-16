@@ -501,6 +501,10 @@ request, 08/10/2026):
   every game chat line. The message's own colour codes are dropped
   (`sjk_chat_look::message_text`), so all of it is gold; the sender's name keeps its
   codes over the game's white.
+- The sender's name emoji ([identity.md](identity.md#name-emoji), since 16/10/2026)
+  stands right after the name, before the tick, on every line, the dock and the page
+  (`sjk_chat_look::emoji_room`); a game line's sender the hub knows in that slot shows
+  theirs too.
 - In the game's chat a line starts with SJK's emblem, small (1.35 times the text's
   height, in its own colours, `ui_renderer::LOGO_TEXTURE`; Sol's request, 11/10/2026),
   where it used to read the letters SJK. The dock and the page, which show only SJK

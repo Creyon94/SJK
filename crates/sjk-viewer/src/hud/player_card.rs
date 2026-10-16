@@ -1856,6 +1856,7 @@ mod tests {
             verified: true,
             staff: true,
             trust: None,
+            emoji: String::new(),
             created: 1_791_000_000,
             names: Vec::new(),
             medals: Vec::new(),
