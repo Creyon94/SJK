@@ -32,6 +32,9 @@ const GROUPS_TOKEN: u16 = 803;
 const HEADER_TOKEN: u16 = 804;
 /// A group row's tick box, by slot.
 const TICK_BASE: u16 = 100;
+/// Whose the files are (Sol's request, 16/10/2026): JoF chooses them, SJK
+/// only fetches what the player picks.
+pub(crate) const NOTICE: &str = "JoF chooses and publishes these files and is responsible for them; SJK only downloads what you pick and is not responsible for their content.";
 /// The card, in frame pixels.
 const CARD: [f32; 4] = [360.0, 96.0, 1200.0, 888.0];
 const LEFT: f32 = 404.0;
@@ -509,9 +512,19 @@ impl Card {
             format_args!(
                 "JoF's maps, skins, hilts and packs, from JoF's repository as JoF's launcher installs them."
             ),
-            frame.rect(LEFT, 180.0, 1100.0, 26.0),
+            frame.rect(LEFT, 174.0, 1100.0, 26.0),
             18.0 * s,
             color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        text(
+            ui,
+            TextFamily::Body,
+            format_args!("{NOTICE}"),
+            frame.rect(LEFT, 198.0, 1100.0, 22.0),
+            15.0 * s,
+            color::QUIET,
             FontWeight::Regular,
             TextAlign::Start,
         );
