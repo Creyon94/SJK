@@ -459,6 +459,7 @@ change: Continue needs the "I understand" tick; Quit leaves; ui_alphaNotice keep
 test: ui_alphaNotice 0, restart: the card shows before First setup.
 test: Continue is grey until the tick (click the line or Space); Escape does nothing.
 test: Join the SJK Discord opens discord.gg/dGBdMygvJw; after Continue it never shows again.
+test: The Report a bug icon (wrench) opens the report dialog; Cancel brings the card back.
 
 [graphics-presets]
 area: Menus & settings
