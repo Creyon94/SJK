@@ -1,3 +1,29 @@
+## Classic scoreboard JoF behavior
+
+16/10/2026, `fix/classic-scoreboard-jof-parity` based on `7026c735`, compares
+classic against JoF EJK `codemp/cgame` at `bd5e202d` (the reference already
+pinned in the client wiki), including #35's crowded-board behavior. Classic
+now opens automatically on death and follows JoF's warmup gate and selective
+HUD suppression. Status and selection rows hide for the playing client while
+scores are held or health is zero; telemetry and votes remain, and spectators
+retain crosshairs. The SJK board retains its existing opening/HUD policy.
+
+Row placement distinguishes connected clients from received scores, uses the
+reference 19/32-row budgets, advances empty sections, preserves team-leading
+spacing, and appends the local row at the reference cursor. A full team board
+can retain its final spectator instead of losing it to the former bottom clip.
+Classic uses white ping text, omits alternating row stripes, and restores the
+reference flag column and header-label position. Native identity/clan marks
+and renderer-native header art remain; pixel-identical rendering is unverified.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. Synthetic scoreboard checks pin 20/21/32
+clients, partial scores, empty sections, team spacing, final spectators, local
+rows, selective HUD visibility and death/respawn fading at 8/7/4/3 ms steps.
+Live JoF comparison and updated GPU screenshots remain unverified;
+`JKA_GAME_DATA` is not configured. No release frame-time measurements were made.
+No wire codecs or gameplay rules changed.
+
 ## Emotes on stock models: limbs out of wider bodies
 
 15/10/2026, `feat/emote-body-fit` (Creyon, on `feat/emotes-on-classic-models`): a dance made
@@ -1196,9 +1222,9 @@ Windows 11 Pro), compared against JoF EJK `codemp/cgame` revision
 `bd5e202dfedd49500f1b7aadd655619bac152167`. Classic uses JoF's bottom-left chat,
 held-board chat suppression above 25 connected players, compact automatic
 intermission list with a full-list hint, instant opening/reordering, score-request
-gate and duel intermission headers. JoF's automatic death board and selective
-HUD visibility are deliberately excluded: the chosen SJK behavior remains
-held/intermission only and hides the whole HUD. The SJK board keeps its side-column
+gate and duel intermission headers. The current classic-parity change
+adopts JoF's automatic death board and selective HUD visibility too. The SJK
+board keeps its held/intermission policy, whole-HUD suppression, side-column
 chat and animated presentation ([client.md](client.md#scoreboard-styles)).
 
 Verified with Rust 1.99.0: `cargo fmt --all --check`,
