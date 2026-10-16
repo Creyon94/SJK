@@ -73,6 +73,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     crate::frame_target::scale::register(cvars)?;
     crate::world_materials::filtering::register(cvars)?;
     crate::world_materials::material_maps::register(cvars)?;
+    crate::world_materials::emission::lamp_gain::register(cvars)?;
     crate::scene_views::register_floor_reflections(cvars)?;
     crate::assets::search_paths::register(cvars)?;
     super::client_options::register(cvars)?;

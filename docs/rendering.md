@@ -342,6 +342,7 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_emissionStrength` | Brightness of emission maps, 0 (off) to 7.97 in steps of 1/32; default 1, live, archived |
 | `r_emissiveGlow` | Dynamic-glow halo around emitting texels (with `r_DynamicGlow 1`); default 1, live, archived |
 | `r_emissiveLights` | Emission-mapped surfaces as lamps of real-time lighting, a power multiplier 0 (off) to 4; default 1, applies when a map loads, archived |
+| `r_lampLights` | Multiplier, 0 to 8, on the light real-time lighting infers from a fixture's glow overlay (a stage with `glow` or an authored `_glw`/`_glow` image) and from additive vertex-coloured flares (`world_vertex_lamps.rs`); default 4, applies when a map loads, archived. Declared surface lights, self-lit paint and emission maps keep their power |
 | `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces only; the floor mirrors' lookup keeps the authored relief |
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, applies after a graphics reload |
 | `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, applies after a graphics reload |

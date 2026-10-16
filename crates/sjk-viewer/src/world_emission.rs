@@ -1,6 +1,8 @@
 //! Static local-light input from the material's actual emissive texture stages.
 //! Retail shader scripts often retain the glowing panel but no compiler light power;
 //! ignoring these stages leaves a visible light fixture with no effect on its room.
+#[path = "world_lamp_gain.rs"]
+pub(crate) mod lamp_gain;
 #[path = "emission_texture.rs"]
 mod texture;
 use image::RgbaImage;
@@ -12,7 +14,8 @@ pub(crate) use texture::Texture;
 /// convention, not a recovered q3map intensity; the texture mask sets emitting area.
 const RADIANCE: f32 = 4.;
 /// Explicit glow on a fixed fixture is a stronger source than an unmarked additive
-/// decoration. This is an artistic fallback, never a recovered compiler intensity.
+/// decoration. This is an artistic fallback, never a recovered compiler intensity;
+/// `r_lampLights` ([`lamp_gain`]) scales it when a map loads.
 const FIXTURE_RADIANCE: f32 = 16.;
 
 /// Accumulate the time-average emission of one resolved, additive texture stage.
@@ -150,11 +153,68 @@ pub(super) fn self_lit_radiance(
 /// Shared gain for mean energy and spatial masks. Declared lights and effect
 /// sprites keep their existing interpretation; only eligible fixed fixtures opt in.
 fn stage_radiance(stage: &ShaderStage, infer_fixture: bool) -> f32 {
-    if infer_fixture && stage.glow {
-        FIXTURE_RADIANCE
+    fixture_radiance(stage, infer_fixture, lamp_gain::gain())
+}
+
+/// [`stage_radiance`] with the `r_lampLights` multiplier given: a lamp stage
+/// ([`lamp_stage`]) of an undeclared fixture gets [`FIXTURE_RADIANCE`] times `gain`,
+/// any other additive stage the decorative [`RADIANCE`].
+fn fixture_radiance(stage: &ShaderStage, infer_fixture: bool, gain: f32) -> f32 {
+    if infer_fixture && lamp_stage(stage) {
+        FIXTURE_RADIANCE * gain
     } else {
         RADIANCE
     }
+}
+
+/// A stage that draws a lamp's light: the `glow` keyword, or an authored glow image
+/// (`<texture>_glw`, `<texture>_glow`, `<texture>glow`, the overlays retail lamps add
+/// with `blendFunc add`), which some fixtures draw without the keyword:
+/// `models/map_objects/bounty/light` on `mp/ffa1` adds `light_glw` unmarked and lit
+/// its room as decoration (radiance 4). The material generator takes the same names as
+/// evidence of a lamp (`sjk-materialgen` `emission.rs`).
+pub(super) fn lamp_stage(stage: &ShaderStage) -> bool {
+    stage.glow
+        || stage.images.iter().any(|image| {
+            let image = image.to_ascii_lowercase();
+            let stem = image
+                .rsplit_once('.')
+                .filter(|(_, extension)| !extension.contains('/'))
+                .map_or(image.as_str(), |(stem, _)| stem);
+            stem.ends_with("_glw") || stem.ends_with("glow")
+        })
+}
+
+/// Radiance of white per unit vertex colour on an additive stage coloured by its
+/// vertices (`rgbGen vertex` / `exactVertex`), such as `flares/solid_blue`: the
+/// stage's mean colour times a lamp's radiance and `gain` (`r_lampLights`). The
+/// vertex colour is unknown here; the lamp extraction (`world_vertex_lamps.rs`)
+/// multiplies it in per surface. Zero for any other stage.
+pub(super) fn vertex_radiance(
+    stage: &ShaderStage,
+    images: &[Arc<RgbaImage>],
+    resolved: bool,
+    gain: f32,
+) -> [f32; 3] {
+    let vertex_coloured = stage.rgb_generator.as_deref().is_some_and(|rgb| {
+        rgb.eq_ignore_ascii_case("vertex") || rgb.eq_ignore_ascii_case("exactvertex")
+    });
+    if !resolved
+        || images.is_empty()
+        || !vertex_coloured
+        || stage.blend != StageBlend::Add
+        || stage.texture_generator != TextureGenerator::Base
+    {
+        return [0.; 3];
+    }
+    let mut radiance = [0.; 3];
+    for image in images {
+        let mean = additive_mean(image);
+        for c in 0..3 {
+            radiance[c] += mean[c] * FIXTURE_RADIANCE * gain / images.len() as f32;
+        }
+    }
+    radiance
 }
 
 fn stage_gain(stage: &ShaderStage) -> Option<[f32; 3]> {
@@ -247,6 +307,101 @@ mod tests {
         sjk_shader::parse_shader_script(script.as_bytes(), "shaders/t.shader")
             .unwrap()
             .remove(0)
+    }
+
+    #[test]
+    fn glow_overlays_are_lamps_scaled_by_the_lamp_light_setting() {
+        // byss/lights: the `glow` keyword.
+        let marked = definition(
+            "textures/t/lights
+{
+{
+map $lightmap
+}
+{
+map textures/t/lights
+             blendFunc GL_DST_COLOR GL_ZERO
+}
+{
+map textures/t/lights_glw
+             blendFunc GL_ONE GL_ONE
+glow
+}
+}
+",
+        );
+        // bounty/light: an authored `_glw` image without the keyword.
+        let unmarked = definition(
+            "models/t/light
+{
+{
+map models/t/light
+rgbGen lightingDiffuse
+}
+             {
+map models/t/light_glw.jpg
+blendFunc GL_ONE GL_ONE
+}
+}
+",
+        );
+        // An ordinary additive decoration.
+        let decoration = definition(
+            "textures/t/sparkle
+{
+{
+map textures/t/sparkle
+blendFunc GL_ONE GL_ONE
+}
+}
+",
+        );
+        let glow = &marked.stages[2];
+        let glw = &unmarked.stages[1];
+        let plain = &decoration.stages[0];
+        assert!(lamp_stage(glow) && lamp_stage(glw) && !lamp_stage(plain));
+        assert_eq!(fixture_radiance(glow, true, 1.), FIXTURE_RADIANCE);
+        assert_eq!(fixture_radiance(glw, true, 4.), FIXTURE_RADIANCE * 4.);
+        assert_eq!(fixture_radiance(glow, true, 0.), 0.);
+        // Decorations and declared fixtures keep their radiance whatever the setting.
+        assert_eq!(fixture_radiance(plain, true, 4.), RADIANCE);
+        assert_eq!(fixture_radiance(glow, false, 4.), RADIANCE);
+    }
+
+    #[test]
+    fn vertex_coloured_flares_emit_per_unit_vertex_colour() {
+        let flare = definition(
+            "textures/t/solid_red
+{
+q3map_nolightmap
+{
+map textures/t/solid_red
+             blendFunc GL_ONE GL_ONE
+rgbGen exactVertex
+}
+}
+",
+        );
+        let red = Arc::new(RgbaImage::from_pixel(4, 4, image::Rgba([255, 0, 0, 255])));
+        let radiance = vertex_radiance(&flare.stages[0], &[red.clone()], true, 2.);
+        assert_eq!(radiance, [FIXTURE_RADIANCE * 2., 0., 0.]);
+        assert_eq!(
+            vertex_radiance(&flare.stages[0], &[red.clone()], false, 2.),
+            [0.; 3],
+            "a missing image emits nothing"
+        );
+        // A stage with an authored colour is the ordinary inference's, not this one's.
+        let plain = definition(
+            "textures/t/red
+{
+{
+map textures/t/red
+blendFunc GL_ONE GL_ONE
+}
+}
+",
+        );
+        assert_eq!(vertex_radiance(&plain.stages[0], &[red], true, 2.), [0.; 3]);
     }
 
     #[test]

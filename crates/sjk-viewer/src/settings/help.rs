@@ -139,6 +139,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::weather::FOG_CVAR, "0", "Never"),
     (crate::weather::FOG_CVAR, "1", "Map's fog"),
     (crate::weather::FOG_CVAR, "2", "Always"),
+    ("r_drawfog", "0", "Off"),
+    ("r_drawfog", "1", "Volume curve"),
+    ("r_drawfog", "2", "Original"),
 ];
 
 /// What choice `value` of setting `cvar` is called, when it has a name of its own.
@@ -757,6 +760,10 @@ const HELP: &[(&str, &str)] = &[
          with sky. Works with rain and forced weather.",
     ),
     (
+        "r_drawfog",
+        "The map's own fog: pits and misty rooms, and its haze. Off hides it all; Original          draws it as the game does.",
+    ),
+    (
         crate::weather::CLOUDS_CVAR,
         "Drifting 3D clouds over open sky, lit by the map's sun; darker and thicker in a storm.",
     ),
@@ -836,6 +843,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::world_materials::material_maps::lights::CVAR,
         "Lets emission-mapped surfaces light their surroundings in live lighting; 0 is off.",
+    ),
+    (
+        crate::world_materials::emission::lamp_gain::CVAR,
+        "How far lamps that only glow, and flares, cast their colour in live lighting; 0 is off.",
     ),
     (
         "r_volumetrics",

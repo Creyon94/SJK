@@ -258,6 +258,8 @@ pub(crate) fn read_back(
     image::RgbaImage::from_raw(width, height, pixels).expect("the shot's pixels")
 }
 
+#[path = "world_shot_lamp_light.rs"]
+mod lamp_light;
 #[cfg(test)]
 #[path = "world_shot_notes.rs"]
 mod notes;

@@ -201,6 +201,10 @@ pub(super) struct CompiledMaterial {
     pub(super) emission_texture: super::emission::Texture,
     /// The emission comes from an emission map (`material_maps::lights`).
     pub(super) mapped_emission: bool,
+    /// Light per unit vertex colour of additive vertex-coloured stages (flares such as
+    /// `flares/solid_blue`), which the lamp extraction multiplies by each surface's
+    /// vertex colours (`world_vertex_lamps.rs`).
+    pub(super) vertex_emission: [f32; 3],
     pub(super) stages: Vec<PendingStage>,
     pub(super) resolved: usize,
 }

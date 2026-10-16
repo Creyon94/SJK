@@ -4820,3 +4820,11 @@ change: The ping traced the screen centre; it now follows the dynamic crosshair 
 test: Third person with a camera pitch/tilt changed: ping a wall: the mark is at the crosshair.
 test: Default camera and first person: pings land where they did.
 
+[lamp-light]
+area: Rendering
+title: Glowing lamps and flares light more, in their colour; Map fog setting
+change: r_lampLights (default 4) scales light inferred from glow overlays; flares become lamps.
+test: mp/ffa1 Byss lights, mp/ffa5 taspir ceiling lights: the walls around them are lit in colour.
+test: Settings > Lighting > Glowing lamp light 0 then 8 (next map): less, then more lamp light.
+test: Settings > Weather > Map fog off: fog volumes vanish; on: they come back.
+

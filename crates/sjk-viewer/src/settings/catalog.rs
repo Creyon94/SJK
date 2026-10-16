@@ -1124,6 +1124,15 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
         },
     },
     Setting {
+        label: "Glowing lamp light (next map)",
+        cvar: crate::world_materials::emission::lamp_gain::CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: crate::world_materials::emission::lamp_gain::MAX as f64,
+            step: 0.5,
+        },
+    },
+    Setting {
         label: "Light shafts (reload)",
         cvar: "r_volumetrics",
         kind: ValueKind::Choice(&["0", "1", "2", "3"]),
@@ -1231,6 +1240,11 @@ pub(super) const RENDER_WEATHER: &[Setting] = &[
     Setting {
         label: "Ground fog",
         cvar: crate::weather::FOG_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Map fog",
+        cvar: "r_drawfog",
         kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {

@@ -401,6 +401,8 @@ struct PendingMaterial {
     emission_texture: emission::Texture,
     /// The emission comes from an emission map: its lamps are capped separately.
     mapped_emission: bool,
+    /// Light per unit vertex colour (`CompiledMaterial::vertex_emission`).
+    vertex_emission: [f32; 3],
     sort: f32,
     stages: Vec<PendingStage>,
     static_draws: Vec<StaticDraw>,
