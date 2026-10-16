@@ -1418,6 +1418,10 @@ SJK's own cvars have engine names: rendering ones are `r_*` (`r_sceneHdr`,
 `r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_actorSunShadows`,
 `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the ground HUD is
 `cg_groundHud` and the dedicated server's are `g_npcNav` and `g_stockRules`.
+The ground HUD (health, shield and Force at the player's feet in third person)
+stands in for the status HUD; a zoom that shows the view in first person (the
+disruptor's scope, the binoculars) keeps the status hidden rather than bringing it
+back for the zoom (`Presentation::Covered` in `ground_hud/readout.rs`).
 Names rend2 or EternalJK use with another meaning are avoided.
 
 These rendering cvars have their own four groups. The SJK UI's Settings

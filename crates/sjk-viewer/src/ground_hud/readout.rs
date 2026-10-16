@@ -174,6 +174,10 @@ pub(crate) enum Presentation {
     Normal,
     /// Ground HUD drawn; the normal HUD's health, shield, Force and stance hide.
     Ground,
+    /// A zoom (the disruptor's scope, the binoculars) puts the ground HUD's player in
+    /// first person for a moment: its feet are out of sight, so nothing is drawn, and
+    /// the normal status stays hidden rather than flashing up for the zoom.
+    Covered,
 }
 
 /// Everything [`select`] needs, gathered once per frame.
@@ -183,6 +187,8 @@ pub(crate) struct Conditions {
     pub(crate) enabled: bool,
     /// Third-person view of the local player (not detached, not a backdrop).
     pub(crate) third_person: bool,
+    /// The player chose third person but a zoom shows the view in first person.
+    pub(crate) zoomed: bool,
     /// Normal HUD status would be drawn (`cg_draw2D`, `cg_drawHud`, `cg_drawStatus`, no menu).
     pub(crate) status_visible: bool,
     /// A live or demo session is presenting a world.
@@ -201,7 +207,8 @@ pub(crate) struct Conditions {
 
 /// Ground HUD only for an alive, in-game local player seen in third person.
 /// Following someone hides it: the view then belongs to the followed player,
-/// and the normal HUD already shows their values.
+/// and the normal HUD already shows their values. A zoom from third person covers
+/// it ([`Presentation::Covered`]).
 pub(crate) fn select(conditions: Conditions) -> Presentation {
     let alive = conditions.health > 0 && conditions.movement_type != PM_DEAD;
     let playing = conditions.in_game
@@ -209,14 +216,60 @@ pub(crate) fn select(conditions: Conditions) -> Presentation {
         && !PM_INTERMISSION.contains(&conditions.movement_type)
         && !conditions.spectator
         && !conditions.following;
-    if conditions.enabled
-        && conditions.third_person
-        && conditions.status_visible
-        && playing
-        && alive
-    {
+    if !(conditions.enabled && conditions.status_visible && playing && alive) {
+        Presentation::Normal
+    } else if conditions.third_person {
         Presentation::Ground
+    } else if conditions.zoomed {
+        Presentation::Covered
     } else {
         Presentation::Normal
+    }
+}
+
+#[cfg(test)]
+mod select_tests {
+    use super::*;
+
+    fn playing() -> Conditions {
+        Conditions {
+            enabled: true,
+            third_person: true,
+            status_visible: true,
+            in_game: true,
+            health: 100,
+            ..Conditions::default()
+        }
+    }
+
+    #[test]
+    fn a_zoom_from_third_person_keeps_the_normal_status_hidden() {
+        assert_eq!(select(playing()), Presentation::Ground);
+        let scoped = Conditions {
+            third_person: false,
+            zoomed: true,
+            ..playing()
+        };
+        assert_eq!(select(scoped), Presentation::Covered);
+        // A first-person player gets the normal HUD, and so does a dead one.
+        let first_person = Conditions {
+            third_person: false,
+            ..playing()
+        };
+        assert_eq!(select(first_person), Presentation::Normal);
+        assert_eq!(
+            select(Conditions {
+                health: 0,
+                ..scoped
+            }),
+            Presentation::Normal
+        );
+        assert_eq!(
+            select(Conditions {
+                enabled: false,
+                ..scoped
+            }),
+            Presentation::Normal
+        );
     }
 }
