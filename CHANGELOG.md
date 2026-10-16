@@ -23,7 +23,13 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1016.3 (Alpha) | 16/10/2026
+
+> Cardboard box: A new toy to hide in, Metal Gear style.
+> Name emoji: Pick an emoji to wear after your name, on the Profile.
+> SJK chat: 300-character messages, trust marks and chat bans.
+> Emotes: Stop or mute others' emotes; `help_emotes` explains.
+> Nameplates: SJK players who do not share show grey bars.
 
 - SJK chat messages can be 300 characters long (were 150) _(Sol)_
 - Nameplates show grey bars on SJK players who do not share theirs, for everyone, even with Bars on everyone on or on their team; only players without SJK still get estimated bars _(Sol)_
