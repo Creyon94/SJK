@@ -3600,6 +3600,15 @@ the console), on `writeconfig`, and before `exec config.cfg` reads it back. Unti
 on the main thread. See [config_saver.rs](../crates/sjk-shell/src/config_saver.rs)
 and `Shell::autosave` in [shell.rs](../crates/sjk-shell/src/shell.rs).
 
+`writeconfig <name>` (or `write <name>`) saves the archived cvars and bindings to
+`<name>.cfg` beside `config.cfg`, where `exec <name>` finds it, as OpenJK's
+`Com_WriteConfig_f` does: `.cfg` is added to a name without an extension, any other
+extension is refused, and the name stays inside that folder (no absolute path, no
+`..`). Until 16/10/2026 a name was a path from the process's working folder, without
+`.cfg`: on Linux the file went to the home folder and `exec` could not read it back
+(a player's bug report). See `config_file_path` in
+[shell_builtins.rs](../crates/sjk-shell/src/shell_builtins.rs).
+
 `com_maxfps` defaults to `-1` (AUTO in Settings > Display); `0` is uncapped. The
 old default, 1000, saved in every existing profile, is reset to AUTO once on
 first launch (marker `com_maxfpsDefaultVersion`); a cap chosen afterwards is

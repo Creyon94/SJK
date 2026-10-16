@@ -1,5 +1,6 @@
 use super::*;
 use crate::{CvarDefinition, CvarError, CvarFlags, CvarValue, ShellError, save_config};
+use std::path::Component;
 
 impl Shell {
     pub(super) fn set_command(
@@ -142,8 +143,8 @@ impl Shell {
     ) -> Result<Vec<String>, ShellError> {
         let path = match arguments {
             [] => self.config_path.clone().ok_or(ShellError::NoConfigPath)?,
-            [path] => PathBuf::from(path),
-            _ => return Err(ShellError::Usage("writeconfig [path]")),
+            [name] => self.config_file_path(name)?,
+            _ => return Err(ShellError::Usage("writeconfig [name]")),
         };
         if self.config_load_failed {
             return Err(ShellError::ConfigLoadFailed);
@@ -155,5 +156,69 @@ impl Shell {
             save_config(&path, &self.cvars, &self.binds)?;
         }
         Ok(vec![format!("wrote {}", path.display())])
+    }
+
+    /// Where `writeconfig <name>` writes, as OpenJK's `Com_WriteConfig_f`
+    /// (`common.cpp`) does: `.cfg` added when the name has no extension, no other
+    /// extension, and the file in the profile's folder, beside `config.cfg`, where
+    /// `exec <name>` reads it. A bare name once went to the process's working folder
+    /// (the home folder on Linux) without `.cfg`, so `exec` could not find it.
+    fn config_file_path(&self, name: &str) -> Result<PathBuf, ShellError> {
+        let file = super::default_cfg_extension(name);
+        let relative = Path::new(&file);
+        if !relative
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("cfg"))
+        {
+            return Err(ShellError::Usage(
+                "writeconfig <name>: only the .cfg extension is supported",
+            ));
+        }
+        if relative.is_absolute()
+            || relative
+                .components()
+                .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+        {
+            return Err(ShellError::Usage(
+                "writeconfig <name>: the file stays in the config folder",
+            ));
+        }
+        let folder = self
+            .config_path
+            .as_deref()
+            .and_then(Path::parent)
+            .ok_or(ShellError::NoConfigPath)?;
+        Ok(folder.join(relative))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{BindTable, CvarRegistry};
+
+    #[test]
+    fn writeconfig_names_land_beside_config_cfg_as_exec_reads_them() {
+        let mut shell = Shell::new(CvarRegistry::new(), BindTable::new());
+        assert!(matches!(
+            shell.config_file_path("sjkdata"),
+            Err(ShellError::NoConfigPath)
+        ));
+        let folder = Path::new("profile");
+        shell.set_config_path(folder.join("config.cfg"));
+        assert_eq!(
+            shell.config_file_path("sjkdata").unwrap(),
+            folder.join("sjkdata.cfg")
+        );
+        assert_eq!(
+            shell.config_file_path("binds/duel.CFG").unwrap(),
+            folder.join("binds/duel.CFG")
+        );
+        for refused in ["notes.txt", "../outside", "/etc/passwd"] {
+            assert!(
+                matches!(shell.config_file_path(refused), Err(ShellError::Usage(_))),
+                "{refused}"
+            );
+        }
     }
 }
