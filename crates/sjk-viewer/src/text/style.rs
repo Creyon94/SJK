@@ -2,10 +2,11 @@
 //!
 //! The style is resolved once per frame from `ui_textScale` and
 //! `ui_letterSpacing`, carried on [`UiFont`](super::UiFont), and applied while
-//! retained draw commands become glyph quads. Screen layouts are unchanged: a
-//! larger line grows evenly about the centre of the line it replaces, so rows,
-//! buttons and labels keep their positions. The neutral style reproduces the
-//! unstyled output exactly.
+//! retained draw commands become glyph quads. Most lines grow evenly about the
+//! centre of the box they replace. Layouts which put several labels in one row
+//! measure the styled text, and classic+ option panels grow their rows, so text
+//! and pointer targets still agree at the largest size. The neutral style
+//! reproduces the unstyled output exactly.
 
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_ui::Rect;

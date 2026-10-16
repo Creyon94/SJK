@@ -390,9 +390,9 @@ panel holds scrolls: the wheel over its items moves the list one item per notch
 position and can be dragged, and Up and Down keep the selected item in view.
 
 SJK makes these panels [classic+](classic-plus.md): a search field and the items
-fill the panel's upper part (10 rows on the main menu, 8 in game, where retail's
-taller panel held 15 and 12) and a detail box under them describes the focused
-item. For a setting
+fill the panel's upper part (up to 10 rows on the main menu and 8 in game, where
+retail's taller panel held 15 and 12; larger menu text can show fewer) and a
+detail box under them describes the focused item. For a setting
 it shows the full name and value, what the setting does
 ([help.rs](../crates/sjk-viewer/src/settings/help.rs), one or two lines for
 every setting), its default, its range (or how many choices it has), "applies
@@ -4314,7 +4314,7 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
 
-`cg_chatBoxFontSize` (default 1, archived; Settings > Chat > **Chat text size**,
+`cg_chatBoxFontSize` (default 1, archived; SJK Advanced > Chat > **Chat text size**,
 0.25 to 3 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
 The wrapping width stays in its configured screen position, so larger text wraps
 sooner. The setting is also on Simple > HUD and the classic+ HUD page.

@@ -35,6 +35,20 @@ pub(super) fn visibility(age: u64, active: bool) -> f32 {
     entering * leaving
 }
 
+/// Put chat beside the SJK scoreboard while preserving the player's full chat
+/// text scale. The column gets narrower than the normal feed, so larger text
+/// wraps sooner and its rows grow just as they do outside the scoreboard.
+fn place_beside_scoreboard(g: &mut Geometry, viewport: [f32; 2], font_scale: f32) {
+    let layout = crate::scoreboard::layout::Layout::new(viewport);
+    g.scale = layout.scale * font_scale;
+    g.left = layout.chat_left;
+    g.width = layout.chat_width;
+    g.top = 150.0 * layout.scale;
+    g.bottom = viewport[1] - 200.0 * g.scale;
+    g.font = 18.0 * g.scale;
+    g.row = g.font * layout::ROW_PITCH;
+}
+
 impl ChatOverlay {
     pub(super) fn build(&mut self, draw_feed: bool, font: &UiFont, viewport: [f32; 2], ms: u64) {
         if self.layout_viewport != viewport {
@@ -49,14 +63,7 @@ impl ChatOverlay {
         self.visible_people.fill(None);
         let mut g = self.options.geometry(viewport);
         if self.scoreboard_layout == crate::scoreboard::behavior::ChatLayout::SideColumn {
-            let layout = crate::scoreboard::layout::Layout::new(viewport);
-            g.scale = layout.scale * self.options.font.min(1.5);
-            g.left = layout.chat_left;
-            g.width = layout.chat_width;
-            g.top = 150.0 * layout.scale;
-            g.bottom = viewport[1] - 200.0 * g.scale;
-            g.font = 18.0 * g.scale;
-            g.row = g.font * layout::ROW_PITCH;
+            place_beside_scoreboard(&mut g, viewport, self.options.font);
         }
         if let crate::scoreboard::behavior::ChatLayout::Classic { .. } = self.scoreboard_layout {
             // CG_ChatBox_DrawStrings overrides only x/y; retain the player's
@@ -473,6 +480,16 @@ mod tests {
     use sjk_client::ServerEventKind;
     use sjk_ui::{Color, DrawCommand, Rect};
     use std::time::Instant;
+
+    #[test]
+    fn scoreboard_chat_keeps_the_full_font_scale() {
+        let viewport = [1920.0, 1080.0];
+        let mut geometry = crate::chat::options::Options::default().geometry(viewport);
+        super::place_beside_scoreboard(&mut geometry, viewport, 3.0);
+        assert_eq!(geometry.scale, 3.0);
+        assert_eq!(geometry.font, 54.0);
+        assert_eq!(geometry.row, 54.0 * crate::chat::layout::ROW_PITCH);
+    }
 
     /// The texts and emoji rectangles drawn for `body` with `names` loaded.
     fn drawn(names: &[&str], body: &str, truncated: bool) -> (Vec<(f32, String)>, Vec<Rect>) {
