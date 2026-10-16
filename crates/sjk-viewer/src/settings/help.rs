@@ -478,6 +478,10 @@ const HELP: &[(&str, &str)] = &[
         "Afterimages behind players using Force Speed.",
     ),
     (
+        crate::actor_world_submission::force_powers::victim::CVAR,
+        "Red neck puffs on choking players. On by default; your own stay hidden in first person and while zoomed.",
+    ),
+    (
         "cg_auraShell",
         "The glowing shell Force Sight shows around other players.",
     ),

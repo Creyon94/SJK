@@ -4115,6 +4115,16 @@ crouch key of the jump/crouch pair, as `+movedown` is. Unlike EJK, whose `-duck`
 also lets go of every `+movedown` and `+speed` key, `-duck` releases only itself. See
 [input.rs](../crates/sjk-viewer/src/input.rs) (`up_move`).
 
+`cg_gripVictimFX` (archived, default **on**) shows red puffs near choking players'
+necks, following JoF EJK's Grip victim effect. Turn **Grip victim effects** off in
+classic Settings > Game options or SJK Settings > Advanced > Gameplay to hide
+them. Your viewed player's puffs stay hidden in first person and while zoomed;
+other players and detached cameras retain theirs. A missing neck uses the posed
+head as fallback; models with neither show no puff. The choking animation is a
+visual marker, so the effect can also accompany other uses of that animation.
+It changes no Grip damage, timing, targeting or movement. See
+[rendering](rendering.md) for the reference and effect details.
+
 `cp_pluginDisable` is the archived userinfo cvar a JA+ server reads to switch its
 client-plugin features off for this client (a set bit disables one). Its default,
 1536, disables the holstered saber and ledge grab, which need JA+ animations SJK
