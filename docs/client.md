@@ -2509,9 +2509,14 @@ means sharing your own, through the hub (Sol's rule, 15/10/2026):
   bars; the server's own (teammates' `tinfo`, NPCs) stay. The hub itself gives the
   values only to players who share: a post without `share` gets who shares, not
   their numbers.
-- **Default:** a player who does not share gets their name, weapon and power icons
-  but no bars. Teammates' health and shield, which the server itself sends
-  (`tinfo`), and NPCs' stay; a teammate who does not share has no Force bar.
+- **SJK players who do not share** (16/10/2026, Sol's rule): a player the hub lists
+  in that slot under the name the game shows (`player_identity::sjk_slots`) who does
+  not share gets grey bars, full length and empty, for every viewer: health, shield,
+  and Force with `cg_nameplateForce`. Nothing overrides it: not `cg_nameplateEstimate`,
+  not a teammate's `tinfo`. Their name, weapon and power icons stay.
+- **Default (players without SJK):** a player the hub does not know gets their name,
+  weapon and power icons but no bars. Teammates' health and shield, which the server
+  itself sends (`tinfo`), and NPCs' stay; a teammate without SJK has no Force bar.
 - **Sharers:** their bars are the estimates below, corrected with every value they
   share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
   shared value is up to about a second old by the time it arrives, so it re-bases the
@@ -2524,7 +2529,8 @@ means sharing your own, through the hub (Sol's rule, 15/10/2026):
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too
   while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.
 - `cg_nameplateEstimate` (off; "Bars on everyone"): the estimated bars on every
-  player, as before 15/10/2026, and only while the hub has your sharing. It shares
+  player without SJK, as before 15/10/2026, and only while the hub has your sharing
+  (SJK players who do not share stay grey). It shares
   your own bars whatever `cg_nameplateShare` says (the client sets
   `cg_nameplateShare` back on while it is on), and the hub tells
   the others: your player card (`inspect`) says, in amber, "Sees your health, shield

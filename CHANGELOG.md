@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Nameplates show grey bars on SJK players who do not share theirs, for everyone, even with Bars on everyone on or on their team; only players without SJK still get estimated bars _(Sol)_
 - Pick an emoji to show at the right of your name: Profile, Name emoji. Everyone on SJK sees it in chat, on cards and on the scoreboard _(Sol)_
 - New toy, the cardboard box (`toy_box`, the quick wheel's Toys page or the Collection): hide in a carton, Metal Gear style. You crouch in it with its music; other SJK players see the box, and one who walks up and presses Use lifts it with a "spotted" sound, and it tips over on its side. Die in it and everyone hears _(Sol)_
 - `help_emotes` (or `sjkemote help`) opens a card that explains the emote commands and how to put emotes on the quick wheel: one command to give a player who asks _(Sol)_
