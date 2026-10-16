@@ -318,6 +318,32 @@ mod tests {
     }
 
     #[test]
+    fn fake_noclip_flies_out_of_a_frozen_emote() {
+        let mut player = player(0);
+        player.set_raw_field(63, 6); // PM_FREEZE: a JA+ emote
+        let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());
+        predictor.set_fake_noclip(true);
+        let start = predictor.state().origin;
+        let mut time = player.command_time();
+        for _ in 0..10 {
+            time += 8;
+            predictor.predict_command(
+                UserCommand {
+                    server_time: time,
+                    forward_move: 127,
+                    ..UserCommand::default()
+                },
+                &Solid(Cell::new(0)),
+            );
+        }
+        assert!(
+            predictor.state().origin[0] > start[0] + 1.0,
+            "{:?}",
+            predictor.state().origin
+        );
+    }
+
+    #[test]
     fn fake_noclip_turbo_follows_the_aim_exactly() {
         let player = player(0);
         let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());

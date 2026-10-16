@@ -2195,6 +2195,11 @@ and the game-data HUD; chat stays, `scoreboard::hides_hud`), unless
 - `classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
   draw it (below).
 
+Without the key the board opens only at intermission (`PM_INTERMISSION`, 7): not on
+death (SJK's choice), and not while a JA+ emote holds the player in `PM_FREEZE` (6),
+which once read as intermission and kept the board up for the emote's whole length
+(`scoreboard/behavior.rs`).
+
 A mistyped value gives the classic board. `config.cfg` saves every archived
 setting, so every profile from before `auto` existed had the old default
 `classic` saved: the console's start moves a saved `classic` once to `auto`
