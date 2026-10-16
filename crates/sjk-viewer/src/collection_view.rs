@@ -126,6 +126,7 @@ pub(crate) fn row_labels(
         setting: "",
         standings,
         illuminate: true,
+        cardboard_box: false,
         name: "",
         stock: color::HOLO,
         grid: false,
@@ -239,6 +240,7 @@ impl Panel {
     /// Lay the page out; `_body` is the body family, kept for measured layouts.
     pub(super) fn build(&mut self, inputs: &Inputs<'_>, _body: &UiFont, viewport: [f32; 2]) {
         let frame = Frame::new(viewport);
+        self.box_on = inputs.cardboard_box;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
         let seconds = self.shot_seconds.unwrap_or(seconds);
@@ -406,10 +408,11 @@ impl Panel {
             }
             Tab::Toys => keys.push((
                 &["Enter"],
-                if inputs.illuminate {
-                    "put out"
-                } else {
-                    "light"
+                match (self.toy, inputs.illuminate, inputs.cardboard_box) {
+                    (1, _, true) => "come out",
+                    (1, _, false) => "hide",
+                    (_, true, _) => "put out",
+                    _ => "light",
                 },
             )),
             _ => {}

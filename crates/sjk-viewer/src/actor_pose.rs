@@ -150,6 +150,7 @@ impl GpuState {
         update(self, presentation_time)?;
         sounds::update(self, presentation_time, audio);
         self.play_emote_sounds(audio);
+        self.play_cardboard_box_sounds(audio);
         Ok(())
     }
 

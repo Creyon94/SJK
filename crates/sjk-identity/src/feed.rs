@@ -26,7 +26,9 @@
 use crate::hub::Hub;
 use crate::keys::Identity;
 use crate::service::{HubFactory, ReportOutcome};
-use crate::wire::{ChatMessage, DropEvent, DropMark, Emote, Feed, LookEvent, People, Ping};
+use crate::wire::{
+    ChatMessage, DropEvent, DropMark, Emote, Feed, LookEvent, People, Ping, ToyEvent,
+};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -141,13 +143,18 @@ pub(crate) fn take_looks(
     }
 }
 
-/// A ping queued for the viewer, with the game server the poll that brought it asked
-/// about.
+/// A ping or toy event queued for the viewer, with the game server the poll that
+/// brought it asked about.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct QueuedPing {
+pub(crate) struct ForServer<T> {
     server: Option<SocketAddr>,
-    ping: Ping,
+    item: T,
 }
+
+/// A ping queued for the viewer.
+pub(crate) type QueuedPing = ForServer<Ping>;
+/// A toy event queued for the viewer.
+pub(crate) type QueuedToyEvent = ForServer<ToyEvent>;
 
 /// Take the queued pings read for `server`, the game server the viewer is on; those read
 /// for another server (a poll under way when the player changed servers) are dropped.
@@ -155,6 +162,18 @@ pub(crate) fn take_pings(
     queue: &Mutex<VecDeque<QueuedPing>>,
     server: Option<SocketAddr>,
 ) -> Vec<Ping> {
+    take_for_server(queue, server)
+}
+
+/// Take the queued toy events read for `server`, as [`take_pings`].
+pub(crate) fn take_toy_events(
+    queue: &Mutex<VecDeque<QueuedToyEvent>>,
+    server: Option<SocketAddr>,
+) -> Vec<ToyEvent> {
+    take_for_server(queue, server)
+}
+
+fn take_for_server<T>(queue: &Mutex<VecDeque<ForServer<T>>>, server: Option<SocketAddr>) -> Vec<T> {
     let mut queue = lock(queue);
     if server.is_none() {
         queue.clear();
@@ -163,7 +182,7 @@ pub(crate) fn take_pings(
     queue
         .drain(..)
         .filter(|queued| queued.server == server)
-        .map(|queued| queued.ping)
+        .map(|queued| queued.item)
         .collect()
 }
 
@@ -183,6 +202,8 @@ pub(crate) struct FeedWorker {
     looks: Arc<Mutex<VecDeque<QueuedLook>>>,
     /// The pings received, for [`take_pings`].
     pings: Arc<Mutex<VecDeque<QueuedPing>>>,
+    /// The toy events received, for [`take_toy_events`].
+    toys: Arc<Mutex<VecDeque<QueuedToyEvent>>>,
     hub: Option<Box<dyn Hub>>,
     url: Option<String>,
     /// The player's own id at the hub, to tell their drops from others': this PC's key
@@ -229,6 +250,7 @@ impl FeedWorker {
             emotes,
             looks,
             pings: Arc::default(),
+            toys: Arc::default(),
             hub: None,
             url: None,
             server: None,
@@ -243,6 +265,11 @@ impl FeedWorker {
     /// The queue the pings received go to ([`take_pings`]).
     pub(crate) fn pings(&self) -> Arc<Mutex<VecDeque<QueuedPing>>> {
         Arc::clone(&self.pings)
+    }
+
+    /// The queue the toy events received go to ([`take_toy_events`]).
+    pub(crate) fn toys(&self) -> Arc<Mutex<VecDeque<QueuedToyEvent>>> {
+        Arc::clone(&self.toys)
     }
 
     /// Poll the hub if it is time to; return how long to wait before the next step.
@@ -354,8 +381,13 @@ impl FeedWorker {
         let pings = feed
             .pings
             .into_iter()
-            .map(|ping| QueuedPing { server, ping });
+            .map(|item| QueuedPing { server, item });
         queue(&self.pings, pings, PINGS_WAITING);
+        let toys = feed
+            .toys
+            .into_iter()
+            .map(|item| QueuedToyEvent { server, item });
+        queue(&self.toys, toys, PINGS_WAITING);
         let looks = feed.looks.into_iter().map(|event| QueuedLook {
             generation: polled.generation,
             server,
@@ -903,6 +935,41 @@ mod tests {
     }
 
     #[test]
+    fn toy_events_wait_for_the_viewer_of_their_server() {
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub.example", Some("1.2.3.4:29070"));
+        let spotted = |id| ToyEvent {
+            id,
+            at: 0,
+            slot: 3,
+            claimed_name: "^2Sol".to_owned(),
+            key_id: "aa".to_owned(),
+            toy: "cardboard_box".to_owned(),
+            event: "spotted".to_owned(),
+            target: 5,
+        };
+        rig.script(Ok(Feed {
+            next: 2,
+            toys: vec![spotted(1), spotted(2)],
+            ..Feed::default()
+        }));
+        rig.worker.step(t0);
+        let queue = rig.worker.toys();
+        let here = Some("1.2.3.4:29070".parse().unwrap());
+        assert!(take_toy_events(&queue, Some("5.6.7.8:29070".parse().unwrap())).is_empty());
+        rig.script(Ok(Feed {
+            next: 3,
+            toys: vec![spotted(3)],
+            ..Feed::default()
+        }));
+        rig.worker.step(t0 + POLL_GAP);
+        let taken = take_toy_events(&queue, here);
+        assert_eq!(taken.iter().map(|event| event.id).collect::<Vec<_>>(), [3]);
+        assert!(take_toy_events(&queue, here).is_empty(), "taken once");
+    }
+
+    #[test]
     fn emotes_wait_for_the_viewer() {
         let t0 = Instant::now();
         let mut rig = rig(t0);
@@ -938,6 +1005,7 @@ mod tests {
             saber: "saber_sun".to_owned(),
             illuminate,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         }
     }
 

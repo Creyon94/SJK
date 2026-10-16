@@ -483,9 +483,19 @@ impl QuickWheel {
     }
 }
 
-/// Whether a choice in `state` is in effect in `console` now; `illuminate` is
-/// whether Illuminate's holocron is lit.
-fn in_effect(console: &crate::console::ViewerConsole, state: State, illuminate: bool) -> bool {
+/// Which of SJK's toys are on: the client's own state, no cvar holds it (each
+/// `toy_<name>` flips its toy).
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Toys {
+    /// Illuminate's holocron is lit.
+    pub(crate) illuminate: bool,
+    /// The player is in the cardboard box.
+    pub(crate) cardboard_box: bool,
+}
+
+/// Whether a choice in `state` is in effect in `console` now; `toys` says which toys
+/// are on.
+fn in_effect(console: &crate::console::ViewerConsole, state: State, toys: Toys) -> bool {
     let integer = |name: &str| {
         console
             .integer_cvar(name)
@@ -493,7 +503,8 @@ fn in_effect(console: &crate::console::ViewerConsole, state: State, illuminate: 
     };
     match state {
         State::None => false,
-        State::Illuminate => illuminate,
+        State::Illuminate => toys.illuminate,
+        State::CardboardBox => toys.cardboard_box,
         State::Equals(name, value) => integer(name) == Some(value),
         State::On(name) => integer(name).is_some_and(|value| value != 0),
         State::Near(name, value) => console
@@ -503,12 +514,12 @@ fn in_effect(console: &crate::console::ViewerConsole, state: State, illuminate: 
 }
 
 /// Every page as the wheel shows it, from `console`'s pages and cvars, the
-/// player's Force (`force`, none out of a game) and whether Illuminate's holocron
-/// is lit: the Force page may become two.
+/// player's Force (`force`, none out of a game) and which toys are on: the Force page
+/// may become two.
 pub(crate) fn shown_pages(
     console: &crate::console::ViewerConsole,
     force: Option<&force_page::Powers>,
-    illuminate: bool,
+    toys: Toys,
 ) -> Vec<ShownPage> {
     let mut shown = Vec::with_capacity(pages::MAX_PAGES + 1);
     for page in console.wheel_pages.pages() {
@@ -526,7 +537,7 @@ pub(crate) fn shown_pages(
                     label: slot.label().to_owned(),
                     command: slot.command().to_owned(),
                     icon: slot.texture(),
-                    on: in_effect(console, slot.state(), illuminate),
+                    on: in_effect(console, slot.state(), toys),
                     gif: None,
                 })
                 .collect(),
@@ -644,7 +655,11 @@ impl crate::GpuState {
         let force = self.force_powers();
         let console = self.console.as_ref().ok_or("no console")?;
         let store = &console.wheel_pages;
-        let pages = shown_pages(console, force.as_ref(), self.illuminate.lit());
+        let toys = Toys {
+            illuminate: self.illuminate.lit(),
+            cardboard_box: self.cardboard_box.on(),
+        };
+        let pages = shown_pages(console, force.as_ref(), toys);
         let last = shown_index(&pages, self.quick_wheel.last_page()).unwrap_or(0);
         // A bound key adds its number and time after the name; a typed command does not.
         let named = args
@@ -702,7 +717,14 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
-        shown_pages(&console, None, illuminate)
+        shown_pages(
+            &console,
+            None,
+            Toys {
+                illuminate,
+                ..Toys::default()
+            },
+        )
     }
 
     /// The default pages' places.
@@ -962,7 +984,7 @@ mod tests {
             flamethrower: false,
             icons: [Some(TextureId(7)); crate::hud::force_wheel::ICONS],
         };
-        shown_pages(&console, Some(&powers), false)
+        shown_pages(&console, Some(&powers), Toys::default())
     }
 
     #[test]
@@ -1022,14 +1044,15 @@ mod tests {
         let toys = &pages[TOYS];
         assert_eq!((toys.id.as_str(), toys.name.as_str()), ("toys", "Toys"));
         assert!(!toys.force);
-        assert_eq!(toys.choices.len(), 1);
+        assert_eq!(toys.choices.len(), 2);
         assert_eq!(toys.choices[0].label, "Illuminate");
+        assert_eq!(toys.choices[1].command, "toy_box");
         assert_eq!(toys.choices[0].command, "toy_illuminate");
         assert!(toys.choices[0].icon.is_some(), "the holocron's picture");
         // The gold dot follows the holocron: out, then lit.
         assert!(!toys.choices[0].on);
         assert!(shown_lit(true)[TOYS].choices[0].on);
-        // Opened, it is a ring of one that names it, not the empty page, and
+        // Opened, it is a ring that names it, not the empty page, and
         // letting go on it runs the toggle.
         let mut wheel = QuickWheel::default();
         wheel.open(shown_lit(true), TOYS, now);

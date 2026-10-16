@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Cardboard box toy: hide in a carton, spotted with Use, tips over; sounds not shipped
+- 01b9ace |  | Cardboard box toy: hide in a carton, spotted with +use, death in the box
+- c8eb168 |  | Cardboard box: equip sound, and the box tips over with a drop sound
 + 16/10/2026 | - | help_emotes / sjkemote help: a card explaining the emote commands and the quick wheel
 - c61ca03 |  | Emote help card: help_emotes (or sjkemote help) explains the emote commands and the wheel
 + 16/10/2026 | - | Alpha notice: promises not to DM Sol

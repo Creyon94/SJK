@@ -4957,3 +4957,17 @@ test: Windows: First setup > Import > Browse: the file window opens; pick a .cfg
 test: Press Browse, then Stop waiting before choosing: the card is usable again.
 test: Profile > picture > Browse: same Stop waiting behaviour.
 note: The Linux parts need a Linux player to confirm (update install, zenity window).
+
+[cardboard-box]
+area: Gameplay
+title: Cardboard box: hide in a carton (toy_box), Metal Gear style
+change: toy_box (key, quick wheel Toys page, Collection Toys tab) puts the box on or off.
+change: In it you crouch, its music loops; other SJK players see the box and hear it.
+change: Use facing a boxed player lifts it (spotted); it tips over with a drop sound.
+test: toy_box: equip sound, you crouch and cannot jump, the music loops.
+test: Third person: the carton sits over you on the floor and turns with you.
+test: toy_box again: the box tips over the way you face, thud, lies 5 s, shrinks away.
+test: Die in the box: the death sound; you respawn without it.
+test: Collection > Toys: two toys; the switch beside the box turns it on and off.
+note: Spotting and others seeing the box need a second SJK client and the hub deploy.
+note: Sounds only from base/zz_sjk_box_sounds_local.pk3 (yours, not shipped).

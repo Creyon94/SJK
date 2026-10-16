@@ -71,6 +71,10 @@ Old clients ignore all of it, so it stays `/v1/`.
   [Pings](#pings)): as an emote, the key needs a live claim on the server and the hub
   takes the slot and claimed name from it; at most 5 in 10 seconds (`ping_quota`), kept
   10 seconds, in the feed's `pings` for that server's readers.
+- `POST /v1/toy` `{"server":"ip:port","toy":"..","event":"..","target":<slot>}` (since
+  16/10/2026, [Toy events](#toy-events)): as a ping, from the slot the key's live claim
+  holds; at most one a second and 10 a minute (`toy_quota`), kept 10 seconds, in the
+  feed's `toys` for that server's readers.
 - `GET /v1/feed?after=<id>&server=<ip:port>&wait=<0..25>`, signed. Messages, emotes
   and deletions share one id sequence. The hub answers as soon as it holds something
   newer than `after` for this reader, else after `wait` seconds:
@@ -798,6 +802,20 @@ few seconds after joining).
 The hub knows no teams, so the team rule is the readers' (`world_ping::Scope::sees`):
 a modified client could read every ping of its server. Only a server that tells the hub
 (or relays pings itself, an SJK dedicated server) could enforce it; nothing does yet.
+
+## Toy events
+
+A toy event is something one SJK player's toy did to another (since 16/10/2026): the
+first is the [cardboard box](client.md#cardboard-box)'s `spotted`, a box lifted with
+`+use`. It rides the pings' path: the sender's client sends the toy, the event and the
+target's slot (`Service::toy_event`, through the identity worker), the hub relays it in
+the feed of that game server's readers (`toys`), and the feed thread queues it with the
+server it was read for (`Service::take_toy_events`). A reader applies it only when the
+game shows, in the sender's slot, the name the claim was made under, and ignores its
+own echo. The hub checks neither that the target holds a claim nor that they wear the
+box: the readers decide, so a modified client could lift anyone's box, which takes off
+a toy and nothing else. Without the hub's change (before 16/10/2026) the event is
+refused and only the lifter's screen hides the box, for at most 15 seconds.
 
 ## Vitals
 

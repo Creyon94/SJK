@@ -59,6 +59,18 @@ fn blade_skin(id: &str) -> Option<&'static str> {
     crate::unlockables::blade_skin(id).map(|unlockable| unlockable.id)
 }
 
+/// The toys a look can have out that this client draws, by id (`PROTOCOL.md`, "Looks"):
+/// a toy's bit in [`Worn::toys`] is its place here. A look naming another id (a newer
+/// client's toy) draws nothing more.
+pub(crate) const TOYS: [&str; 1] = [crate::cardboard_box::TOY];
+
+/// The bit of toy `id` in [`Worn::toys`], if this client knows it.
+fn toy_bit(id: &str) -> Option<u8> {
+    TOYS.iter()
+        .position(|toy| *toy == id)
+        .map(|place| 1 << place)
+}
+
 /// What one player wears, as this client draws it.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Worn {
@@ -68,10 +80,13 @@ pub(crate) struct Worn {
     pub(crate) illuminate: bool,
     /// The blade skin's options its wearer switched off (`crate::saber_skin_options`).
     pub(crate) options_off: crate::saber_skin_options::OptionsOff,
+    /// The toys out, a bit per [`TOYS`] entry.
+    pub(crate) toys: u8,
 }
 
 impl Worn {
-    /// What `look` draws as here: an unknown skin is the stock blade.
+    /// What `look` draws as here: an unknown skin is the stock blade, an unknown toy
+    /// nothing.
     pub(crate) fn of(look: &Look) -> Self {
         let saber_skin = blade_skin(&look.saber);
         Self {
@@ -80,7 +95,29 @@ impl Worn {
             options_off: saber_skin.map_or(0, |_| {
                 crate::saber_skin_options::bits(look.saber_off.iter().map(String::as_str))
             }),
+            toys: look
+                .toys
+                .iter()
+                .filter_map(|id| toy_bit(id))
+                .fold(0, |toys, bit| toys | bit),
         }
+    }
+
+    /// Whether toy `id` is out.
+    pub(crate) fn has_toy(&self, id: &str) -> bool {
+        toy_bit(id).is_some_and(|bit| self.toys & bit != 0)
+    }
+
+    /// The same look with toy `id` out (`true`) or not.
+    pub(crate) fn with_toy(mut self, id: &str, out: bool) -> Self {
+        if let Some(bit) = toy_bit(id) {
+            self.toys = if out {
+                self.toys | bit
+            } else {
+                self.toys & !bit
+            };
+        }
+        self
     }
 
     /// The look the hub is told the local player wears: the skin only when the own
@@ -98,6 +135,7 @@ impl Worn {
             illuminate: lit,
             options_off: saber_skin
                 .map_or(0, |skin| crate::saber_skin_options::off_bits(options, skin)),
+            toys: 0,
         }
     }
 
@@ -113,6 +151,11 @@ impl Worn {
             } else {
                 crate::saber_skin_options::off_list(options, saber)
             },
+            toys: TOYS
+                .iter()
+                .filter(|toy| self.has_toy(toy))
+                .map(|toy| (*toy).to_owned())
+                .collect(),
         }
     }
 }
@@ -190,6 +233,11 @@ impl Looks {
     /// muted on this PC).
     pub(crate) fn illuminated(&self, client: usize) -> bool {
         self.shown(client).is_some_and(|worn| worn.illuminate)
+    }
+
+    /// Whether the player in `client` has toy `id` out (and is not muted on this PC).
+    pub(crate) fn toy(&self, client: usize, id: &str) -> bool {
+        self.shown(client).is_some_and(|worn| worn.has_toy(id))
     }
 
     /// What the player in `client` is drawn wearing: nothing while they are muted on
@@ -350,7 +398,27 @@ mod tests {
             saber: saber.to_owned(),
             illuminate,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         }
+    }
+
+    #[test]
+    fn toys_go_both_ways_and_unknown_ones_draw_nothing() {
+        let boxed = Look {
+            toys: vec!["a_hat_from_later".to_owned(), "cardboard_box".to_owned()],
+            ..Look::default()
+        };
+        let worn = Worn::of(&boxed);
+        assert!(worn.has_toy("cardboard_box") && !worn.has_toy("a_hat_from_later"));
+        assert_eq!(worn.to_look("").toys, ["cardboard_box"]);
+        let off = worn.with_toy("cardboard_box", false);
+        assert!(off.to_look("").toys.is_empty());
+        let mut looks = Looks::default();
+        looks.replace_roster([(3, "^2Sol", Some(&boxed))]);
+        looks.rebuild(shown);
+        assert!(looks.toy(3, "cardboard_box") && !looks.toy(5, "cardboard_box"));
+        looks.set_muted(1 << 3);
+        assert!(!looks.toy(3, "cardboard_box"), "muted here: nothing drawn");
     }
 
     /// The game shows `^2Sol` in slot 3 and `Fox` in slot 5.
@@ -440,6 +508,7 @@ mod tests {
             saber_skin: Some("saber_sun"),
             illuminate: true,
             options_off: 0,
+            toys: 0,
         };
         looks.set_own(Some(1), own);
         looks.rebuild(shown);
@@ -542,6 +611,7 @@ mod tests {
                 saber_skin: Some("saber_sun"),
                 illuminate: true,
                 options_off: 0,
+                toys: 0,
             }
         );
         assert_eq!(

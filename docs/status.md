@@ -1,3 +1,26 @@
+## Cardboard box toy
+
+16/10/2026, `personal/cardboard-box` (Sol's idea) with hub branch `cardboard-box`: a
+Metal Gear style carton to hide in ([client.md](client.md#cardboard-box)). `toy_box`
+(bind, quick wheel Toys page, Collection's Toys tab) puts it on: the commands hold
+crouch, its music loops on the player, and other SJK players see the carton through the
+look's new `toys` list. `+use` facing a boxed player lifts it (spotted sound, hub toy
+event `POST /v1/toy`, [hub-chat.md](hub-chat.md#toy-events)); dying in it plays a death
+sound for every SJK client that sees it. Putting it on plays a sound; taken off or
+lifted, it tips over on its side with a drop sound and lies there 5 seconds. The carton
+is drawn by `scripts/cardboard_box_assets.py`. The five sounds
+(`sound/sjk/cardboard_box/music`, `equip`, `spotted`, `drop`, `death`) are not in the
+repository: Sol's are Metal Gear clips, installed only in Sol's GameData
+(`base/zz_sjk_box_sounds_local.pk3`) for tests (AGENTS.md, other games' assets).
+Checked by unit tests (the model, crouch, `+use` presses and the target pick, spotted
+and death logic, the equip sound and the fall, looks' toys both ways, the identity feed
+queue and send, the look body, the Collection's two toys and their layout at four
+sizes, the wheel's pages) and an off-screen render of two cartons on duel6, one tipping
+and one lying (`world_shot::cardboard_box`). Merged into main on Sol's word. The hub
+branch has its own unit and API tests and is not deployed: until it is, the live hub
+refuses the look of a player wearing the box (its look body takes no unknown field).
+Not tried in a game or with two clients.
+
 ## Emote help card
 
 16/10/2026, `personal/emote-help` (Sol's request): `help_emotes` or `sjkemote help`

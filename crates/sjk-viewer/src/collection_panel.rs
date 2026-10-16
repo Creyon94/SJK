@@ -67,6 +67,10 @@ const DOUBLE_CLICK: std::time::Duration = std::time::Duration::from_millis(400);
 const WEAR_TOKEN: u16 = 1_300;
 const TOY_TOKEN: u16 = 1_310;
 const TOY_SWITCH_TOKEN: u16 = 1_311;
+/// The cardboard box's niche on Toys (Illuminate's is [`TOY_TOKEN`]).
+const BOX_TOKEN: u16 = 1_314;
+/// The toys the Toys tab shows: Illuminate, then the cardboard box.
+const TOY_COUNT: usize = 2;
 /// The Shaders tab's view switches: the rack (a list) and the grid of cards.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
@@ -155,6 +159,9 @@ pub(crate) enum PanelAction {
     /// Light the Illuminate holocron (`true`) or put it out: the same as `toy_illuminate`,
     /// set rather than toggled.
     Illuminate(bool),
+    /// Get in the cardboard box (`true`) or out: the same as `toy_box`, set rather than
+    /// toggled.
+    CardboardBox(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -216,6 +223,8 @@ pub(crate) struct Inputs<'a> {
     /// The Illuminate holocron is lit now (the client's own state, kept in the console
     /// by the viewer each frame).
     pub(crate) illuminate: bool,
+    /// The player is in the cardboard box now (kept as [`Self::illuminate`] is).
+    pub(crate) cardboard_box: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -265,6 +274,10 @@ pub(crate) struct Panel {
     medal: usize,
     achievement: usize,
     shader: usize,
+    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box.
+    toy: usize,
+    /// The player was in the cardboard box, as the last frame's inputs said.
+    box_on: bool,
     /// The kind of card chosen on Cards, and how many kinds the last frame showed.
     card: usize,
     cards_shown: usize,
@@ -340,6 +353,8 @@ impl Panel {
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,
             shader: 0,
+            toy: 0,
+            box_on: false,
             card: 0,
             cards_shown: 0,
             revealable: 0,
@@ -457,7 +472,7 @@ impl Panel {
             }),
             Tab::Toys => Some(StageWish {
                 skin: PreviewSkin::Worn,
-                holocron: true,
+                holocron: self.toy == 0,
             }),
             Tab::Nameplates => Some(StageWish {
                 skin: PreviewSkin::Worn,
@@ -485,6 +500,7 @@ impl Panel {
                 .get(self.shader)
                 .and_then(|row| row.wear)
                 .map_or(PanelAction::None, PanelAction::Wear),
+            Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             _ => PanelAction::None,
         }
@@ -497,6 +513,7 @@ impl Panel {
             Tab::Achievements => crate::achievements::ALL.len(),
             Tab::Shaders => self.shader_count,
             Tab::Cards => self.cards_shown,
+            Tab::Toys => TOY_COUNT,
             _ => 0,
         }
     }
@@ -508,6 +525,7 @@ impl Panel {
             Tab::Achievements => Some(&mut self.achievement),
             Tab::Shaders => Some(&mut self.shader),
             Tab::Cards => Some(&mut self.card),
+            Tab::Toys => Some(&mut self.toy),
             _ => None,
         }
     }
@@ -860,7 +878,17 @@ impl Panel {
             BACK_TOKEN => PanelAction::Close,
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
-            WEAR_TOKEN | TOY_TOKEN | TOY_SWITCH_TOKEN => self.activate(illuminate),
+            WEAR_TOKEN | TOY_SWITCH_TOKEN => self.activate(illuminate),
+            // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
+            TOY_TOKEN | BOX_TOKEN => {
+                let toy = usize::from(token == BOX_TOKEN);
+                if self.toy == toy {
+                    self.activate(illuminate)
+                } else {
+                    self.toy = toy;
+                    PanelAction::None
+                }
+            }
             REVEAL_TOKEN => self.reveal(),
             token => match crate::profile_hub::collection_tab_of(token) {
                 Some(Tab::Holocrons) => PanelAction::Hub(Tab::Holocrons),
@@ -954,6 +982,7 @@ impl Panel {
                 ACHIEVEMENT_BASE + self.achievement.min(crate::achievements::ALL.len() - 1) as u16
             }
             Tab::Shaders => SHADER_BASE + self.shader as u16,
+            Tab::Toys if self.toy == 1 => BOX_TOKEN,
             Tab::Toys => TOY_TOKEN,
             Tab::Cards if self.cards_shown > 0 => CARD_BASE + self.card as u16,
             _ => BACK_TOKEN,
@@ -984,6 +1013,7 @@ mod tests {
             setting,
             standings: &[],
             illuminate: true,
+            cardboard_box: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
@@ -1288,6 +1318,39 @@ mod tests {
                 "{all}"
             );
         }
+    }
+
+    /// The box's niche chooses it, then runs it; Enter and the switch get in or out by
+    /// the state the page was told, and the stage holds no holocron for it.
+    #[test]
+    fn the_cardboard_box_is_chosen_then_put_on_or_taken_off() {
+        let mut shown = inputs(Holdings::Known(&[]), "");
+        let mut panel = drawn(Tab::Toys, &shown);
+        let _ = panel.key(KeyCode::ArrowRight, false, false);
+        assert_eq!(panel.toy, 1);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false, false),
+            PanelAction::CardboardBox(true)
+        );
+        assert!(panel.stage_wish().is_some_and(|wish| !wish.holocron));
+        shown.cardboard_box = true;
+        let mut panel = drawn(Tab::Toys, &shown);
+        let _ = panel.key(KeyCode::ArrowRight, false, false);
+        redraw(&mut panel, &shown);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false, false),
+            PanelAction::CardboardBox(false)
+        );
+        let all = panel.ui.text_runs().collect::<Vec<_>>().join("\n");
+        assert!(
+            all.contains("toy_box") && all.contains("In the box"),
+            "{all}"
+        );
+        let _ = panel.key(KeyCode::ArrowLeft, false, false);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false, true),
+            PanelAction::Illuminate(false)
+        );
     }
 
     #[test]

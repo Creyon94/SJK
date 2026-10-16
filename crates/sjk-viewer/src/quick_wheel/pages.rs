@@ -621,14 +621,17 @@ mod tests {
         assert_eq!(pages.pages()[3].choices[2].command(), "r_weatherForce 2");
         assert_eq!(pages.pages()[1].choices[0].label(), "Third person");
         // Toys is an ordinary page of the catalogue's Toys: Illuminate, which
-        // toggles the holocron and is marked while it is lit.
+        // toggles the holocron and is marked while it is lit, then the cardboard box.
         let toys = &pages.pages()[2];
         assert!(!toys.force);
-        assert_eq!(toys.choices.len(), 1);
+        assert_eq!(toys.choices.len(), 2);
         assert_eq!(toys.choices[0].label(), "Illuminate");
         assert_eq!(toys.choices[0].command(), "toy_illuminate");
         assert_eq!(toys.choices[0].state(), State::Illuminate);
         assert!(toys.choices[0].icon().is_some());
+        assert_eq!(toys.choices[1].command(), "toy_box");
+        assert_eq!(toys.choices[1].state(), State::CardboardBox);
+        assert!(toys.choices[1].icon().is_some());
         // Nothing is written until something changes.
         assert!(!directory.path().join(FILE).exists());
         // Binds name a page by id or name, whatever the case and spacing.
@@ -670,12 +673,12 @@ mod tests {
         let toys = saved.find("toys").unwrap();
         let illuminate = catalog::action_index("illuminate").unwrap();
         pages.remove_choice(toys, 0);
-        assert!(pages.pages()[toys].choices.is_empty());
+        assert_eq!(pages.pages()[toys].choices.len(), 1);
         assert_eq!(
             pages.set_choice(toys, None, Slot::Action(illuminate)),
-            Some(0)
+            Some(1)
         );
-        assert_eq!(pages.pages()[toys].choices[0].label(), "Illuminate");
+        assert_eq!(pages.pages()[toys].choices[1].label(), "Illuminate");
         // The Force page is kept as a page of its own kind, without choices.
         assert!(
             saved
@@ -882,8 +885,11 @@ mod tests {
             // Rewritten as the current version, so it is not offered again.
             let text = std::fs::read_to_string(&path).unwrap();
             assert!(text.contains("\"version\": 3"), "{text}");
-            let toys = pages.find("toys").unwrap();
-            assert_eq!(pages.pages()[toys].choices.len(), 1);
+            // The Toys page it gained has every toy (a page of the player's own
+            // called Toys may come first).
+            assert!(pages.pages().iter().any(
+                |page| page.id.starts_with("toys") && page.choices.len() == catalog::TOYS.len()
+            ));
             pages
         };
         // A renamed page.

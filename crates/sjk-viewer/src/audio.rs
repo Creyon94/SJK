@@ -31,7 +31,7 @@ mod assets;
 mod commands;
 #[path = "audio_controls.rs"]
 mod controls;
-pub(crate) use controls::EMOTE_CHANNEL;
+pub(crate) use controls::{EMOTE_CHANNEL, TOY_CHANNEL};
 #[path = "audio_dynamic.rs"]
 mod dynamic;
 #[path = "audio_feedback.rs"]
@@ -82,6 +82,9 @@ pub(crate) struct GameAudio {
     blade_skins: Arc<crate::saber_skins::LoadedSkins>,
     /// The generation of the blade skins registered in `legacy`, once it is ready.
     saber_sets_generation: Option<u64>,
+    /// The cardboard box's music on each boxed player this frame (`cardboard_box.rs`):
+    /// their slot, and where they stand (`None`: the player's own, in both ears).
+    box_music: Vec<(SourceId, Option<[f32; 3]>)>,
 }
 
 impl GameAudio {
@@ -144,6 +147,7 @@ impl GameAudio {
             legacy_vfs: None,
             blade_skins: Arc::default(),
             saber_sets_generation: None,
+            box_music: Vec::with_capacity(8),
             map_music: None,
             duel_music: None,
             deferred_snapshots: VecDeque::with_capacity(16),
@@ -387,6 +391,16 @@ impl GameAudio {
         self.mute.silences(source, cause)
     }
 
+    /// The cardboard box's music this frame, played with the frame's loops.
+    pub(crate) fn set_box_music(&mut self, music: &[crate::cardboard_box::Music]) {
+        self.box_music.clear();
+        self.box_music.extend(
+            music
+                .iter()
+                .map(|music| (SourceId(u32::from(music.slot)), music.origin)),
+        );
+    }
+
     /// Rebuild all codemp loops at rendered cadence from interpolated origins.
     ///
     /// The set is bracketed by `ClearLoops`/`CommitLoops` because the audio
@@ -403,7 +417,35 @@ impl GameAudio {
         self.poll_legacy_load();
         self.output.send(AudioCommand::ClearLoops);
         self.send_frame_loops(snapshot, presented_time, listener_origin, world, bsp);
+        self.send_box_music();
         self.output.send(AudioCommand::CommitLoops);
+    }
+
+    /// The box music joins the loop set, a loop per boxed player (none for a player
+    /// muted here); it is the music of the toy, not the map's, so it ignores `s_musicVolume`.
+    fn send_box_music(&mut self) {
+        let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) else {
+            return;
+        };
+        for &(source, origin) in &self.box_music {
+            if self.mute.silences(source, None) {
+                continue;
+            }
+            self.output.send(AudioCommand::SetLoop(
+                handle,
+                PlayRequest {
+                    origin,
+                    source,
+                    channel: TOY_CHANNEL,
+                    volume: 1.0,
+                    attenuation: match origin {
+                        Some(_) => sjk_client::legacy_sound_attenuation(0),
+                        None => sjk_audio::Attenuation::None,
+                    },
+                },
+                [0.0; 3],
+            ));
+        }
     }
 
     fn send_frame_loops(

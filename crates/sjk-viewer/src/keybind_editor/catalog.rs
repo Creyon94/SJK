@@ -95,6 +95,12 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     ),
     // SJK's toys are `toy_<name>` commands: light the Illuminate holocron or put it out.
     action(Interaction, "Toy: Illuminate", "toy_illuminate", ""),
+    action(
+        Interaction,
+        "Toy: Cardboard box",
+        crate::cardboard_box::COMMAND,
+        "",
+    ),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),
