@@ -53,7 +53,7 @@ const REJOIN_ATTEMPTS: u8 = 3;
 
 /// Fit `preferred` to the rules the server advertises in `CS_SERVERINFO`,
 /// using its `g_maxForceRank` as the rank ceiling, as it is sent
-/// ([`ForceLegalizeRules::for_sent_profile`]: disabled powers are kept).
+/// ([`ForceLegalizeRules::for_sent_profile`]: disabled and team powers are kept).
 pub fn server_legal_forcepowers(game_state: &GameState, preferred: &str) -> String {
     let rules = server_force_rules(game_state).for_sent_profile();
     legalize_force_powers(preferred, rules).allocation.encode()
@@ -257,7 +257,8 @@ impl ForceProfileNegotiator {
     }
 
     /// The `forcepowers` value sent for the player's `preferred` one: fitted
-    /// to the server's rules while on one, keeping the powers it disables.
+    /// to the server's rules while on one, keeping disabled and team powers
+    /// for the server to grant or remove.
     pub fn sent_forcepowers(&self, preferred: &str) -> String {
         match self.rules {
             Some(rules) => legalize_force_powers(preferred, rules.for_sent_profile())
@@ -406,6 +407,59 @@ mod tests {
         let fitted = ForceAllocation::parse(&greedy).unwrap();
         assert!(fitted.used_points(false) <= 30, "{greedy}");
         assert!(legalize_force_powers(&greedy, rules.for_sent_profile()).was_legal);
+    }
+
+    #[test]
+    fn sent_ffa_team_powers_reach_the_server_without_changing_stock_grants() {
+        use crate::force_profile::{ForcePower, ForceSide};
+        for (side, team_power, other_power) in [
+            (
+                ForceSide::Light,
+                ForcePower::TeamHeal,
+                ForcePower::TeamForce,
+            ),
+            (ForceSide::Dark, ForcePower::TeamForce, ForcePower::TeamHeal),
+        ] {
+            let mut profile = ForceAllocation {
+                rank: 7,
+                side,
+                levels: [0; 18],
+            };
+            profile.levels[team_power as usize] = 3;
+            profile.levels[other_power as usize] = 1; // invalid side must still be removed
+            for disabled in [0, 1 << team_power as usize] {
+                let mut game = GameState::empty_local(0);
+                game.replace_config_string(
+                    0,
+                    format!("\\g_gametype\\0\\g_maxForceRank\\4\\g_forcePowerDisable\\{disabled}")
+                        .into_bytes(),
+                )
+                .unwrap();
+                let sent = server_legal_forcepowers(&game, &profile.encode());
+                let fitted = ForceAllocation::parse(&sent).unwrap();
+                assert_eq!(fitted.rank, 4);
+                assert_eq!(fitted.side, side);
+                assert_eq!(fitted.levels[team_power as usize], 3);
+                assert_eq!(fitted.levels[other_power as usize], 0);
+                assert!(fitted.used_points(false) <= 30);
+                // OpenJK removes FFA team powers without declaring the profile illegal.
+                let granted = legalize_force_powers(&sent, server_force_rules(&game));
+                assert!(granted.was_legal);
+                assert_eq!(granted.allocation.levels[team_power as usize], 0);
+                // A server permitting team powers still applies its disable mask.
+                let permitting = legalize_force_powers(
+                    &sent,
+                    crate::ForceLegalizeRules {
+                        gametype: 6,
+                        ..server_force_rules(&game)
+                    },
+                );
+                assert_eq!(
+                    permitting.allocation.levels[team_power as usize],
+                    if disabled == 0 { 3 } else { 0 }
+                );
+            }
+        }
     }
 
     #[test]
