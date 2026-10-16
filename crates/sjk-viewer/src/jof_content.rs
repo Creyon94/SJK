@@ -17,6 +17,8 @@ pub(crate) mod card;
 pub(crate) const SWITCH: &str = "jof.content";
 /// The groups chosen ([`sjk_jof_content::Selection`]).
 pub(crate) const GROUPS: &str = "jof.contentGroups";
+/// Single files picked against their group's tick (`+<id>` / `-<id>`).
+pub(crate) const FILES: &str = "jof.contentFiles";
 /// The repository host ([`sjk_jof_content::SourceChoice`]).
 pub(crate) const SOURCE: &str = "jof.contentSource";
 /// The folder, when not the default `<SJK folder>/jof`.
@@ -46,6 +48,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         sjk_jof_content::plan::DEFAULT,
         archive,
         "JoF content groups to keep: default (the repository's recommended ones), none, or group ids",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        FILES,
+        "",
+        archive,
+        "JoF content files picked one by one against their group: +<id> taken, -<id> left out (the card writes it)",
     ))?;
     cvars.register(CvarDefinition::new(
         SOURCE,

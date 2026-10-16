@@ -9,7 +9,8 @@ impl ViewerConsole {
         let on = self.bool_cvar(jof_content::SWITCH).unwrap_or(false);
         let selection = sjk_jof_content::Selection::parse(
             self.text_value(jof_content::GROUPS).unwrap_or("default"),
-        );
+        )
+        .with_files(self.text_value(jof_content::FILES).unwrap_or(""));
         let folder = jof_content::folder(self);
         let mut card = std::mem::take(&mut self.jof_content);
         let refresh = card.open(game_data, on, selection, &folder);
@@ -36,8 +37,9 @@ impl ViewerConsole {
                 self.set_cvar(jof_content::SWITCH, if on { "1" } else { "0" });
                 jof_content::follow(self);
             }
-            Action::Groups(value) => {
-                self.set_cvar(jof_content::GROUPS, &value);
+            Action::Choice { groups, files } => {
+                self.set_cvar(jof_content::GROUPS, &groups);
+                self.set_cvar(jof_content::FILES, &files);
             }
             Action::Check => {
                 let settings = jof_content::job_settings(self, self.jof_content.game_data());
