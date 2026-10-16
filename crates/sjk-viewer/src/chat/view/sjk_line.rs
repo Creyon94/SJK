@@ -27,7 +27,9 @@ const LABEL_SIZE: f32 = 0.625;
 pub(in crate::chat) struct Marks {
     /// The sender plays on SJK: SJK's emblem comes first.
     pub(in crate::chat) sjk: bool,
-    pub(in crate::chat) verified: bool,
+    /// The mark after the name: the verified seal or a trust mark
+    /// (`ui_renderer::mark_texture`).
+    pub(in crate::chat) mark: Option<sjk_ui::TextureId>,
     /// The line is a holocron drop of this tier: its mark is the tier's gem.
     pub(in crate::chat) tier: Option<&'static Tier>,
     /// A friend (`chat/social.rs`): the star comes before everything.
@@ -48,7 +50,7 @@ pub(in crate::chat) struct Prefix {
     /// Where the shown name ends in the line's name (cut to half the feed).
     pub(in crate::chat) name_end: usize,
     name_width: f32,
-    verified: bool,
+    mark: Option<sjk_ui::TextureId>,
     /// The name carries a known clan's tag: the clan's emblem comes before it.
     jof: Option<crate::jof_tag::Clan>,
     label: &'static str,
@@ -71,7 +73,7 @@ impl Prefix {
             logo: if marks.sjk { size * LOGO_SIDE } else { 0.0 },
             name_end,
             name_width: visible_text_width_face(font, &name[..name_end], scale, TextFace::Semibold),
-            verified: marks.verified || marks.tier.is_some(),
+            mark: marks.mark,
             tier: marks.tier,
             jof: crate::jof_tag::clan(name),
             label: marks.label,
@@ -119,7 +121,7 @@ impl Prefix {
     fn label_x(&self) -> f32 {
         self.name_x()
             + self.name_width
-            + if self.verified {
+            + if self.mark.is_some() || self.tier.is_some() {
                 sjk_chat_look::tick_room(self.size)
             } else {
                 0.0
@@ -228,9 +230,10 @@ pub(in crate::chat) fn draw(
             tier,
             alpha,
         );
-    } else if prefix.verified {
+    } else if let Some(mark) = prefix.mark {
         sjk_chat_look::tick(
             ui.draw_list_mut(),
+            mark,
             name_x + prefix.name_width,
             middle,
             size,
@@ -324,6 +327,7 @@ mod tests {
             name: name.to_owned(),
             verified,
             staff: false,
+            trust: None,
             text: text.to_owned(),
             holocron: None,
         }
@@ -394,6 +398,35 @@ mod tests {
 
     fn rgb(color: Color) -> [f32; 3] {
         [color.r, color.g, color.b]
+    }
+
+    #[test]
+    fn an_unverified_sender_shows_their_trust_mark_where_the_tick_goes() {
+        use crate::ui_renderer::{VERIFIED_TEXTURE, trust_texture};
+        use sjk_identity::Trust;
+        let trust = |id, trust| ChatMessage {
+            trust: Some(trust),
+            ..message(id, "^2Fox", "hi", false)
+        };
+        let chat = feed(
+            &[],
+            vec![
+                trust(1, Trust::New),
+                trust(2, Trust::Trusted),
+                trust(3, Trust::Banned),
+                message(4, "^2Sol", "hello", true),
+                message(5, "^2Old", "from an older hub", false),
+            ],
+        );
+        for (texture, what) in [
+            (trust_texture(Trust::New), "new"),
+            (trust_texture(Trust::Trusted), "trusted"),
+            (trust_texture(Trust::Banned), "banned"),
+            (Some(VERIFIED_TEXTURE), "verified"),
+        ] {
+            assert_eq!(quads(&chat, texture.unwrap()).len(), 1, "{what}");
+        }
+        assert_eq!(trust_texture(Trust::Unknown), None);
     }
 
     #[test]
@@ -482,6 +515,7 @@ mod tests {
         chat.slot_marks[3] = crate::chat::marks::SlotMark {
             sjk: true,
             verified: true,
+            trust: None,
             name: Some("^5JoF^7 Sol 🦊".to_owned()),
         };
         chat.receive(

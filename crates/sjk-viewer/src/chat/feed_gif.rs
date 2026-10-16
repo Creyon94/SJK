@@ -105,6 +105,7 @@ mod tests {
             name: name.to_owned(),
             verified: false,
             staff: false,
+            trust: None,
             text: text.to_owned(),
             holocron: None,
         }

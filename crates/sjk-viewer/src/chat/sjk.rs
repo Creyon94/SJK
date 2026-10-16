@@ -57,6 +57,7 @@ impl ChatOverlay {
                 id: message.id,
                 verified: message.verified && drop.is_none(),
                 staff: message.staff,
+                trust: message.trust.filter(|_| drop.is_none()),
                 key_id: message.key_id.clone(),
                 tier: drop.map(|words| words.tier),
             }),
@@ -79,6 +80,7 @@ impl ChatOverlay {
             name: String::new(),
             verified: false,
             staff: false,
+            trust: None,
             text: String::new(),
             holocron: Some(sjk_identity::DropMark {
                 tier: tier.to_owned(),
@@ -227,6 +229,7 @@ mod tests {
             name: "^2Sol".to_owned(),
             verified: id.is_multiple_of(2),
             staff: false,
+            trust: None,
             text: text.to_owned(),
             holocron: None,
         }

@@ -99,8 +99,13 @@ pub(crate) const EMOTE_ICON_CELLS: u32 = 2 * COLUMNS;
 pub(crate) const DUEL_ICON_FIRST: u32 = EMOTE_ICON_FIRST + EMOTE_ICON_CELLS;
 /// Duel badge cells: one per colour (`duel_badge::COLOURS`).
 pub(crate) const DUEL_ICON_CELLS: u32 = 8;
+/// First of the trust marks' cells (`ui_renderer::trust_texture`: new, trusted,
+/// banned), after the duel badges'.
+pub(crate) const TRUST_ICON_FIRST: u32 = DUEL_ICON_FIRST + DUEL_ICON_CELLS;
+/// Trust mark cells: one per mark.
+pub(crate) const TRUST_ICON_CELLS: u32 = 3;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = DUEL_ICON_FIRST + DUEL_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = TRUST_ICON_FIRST + TRUST_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

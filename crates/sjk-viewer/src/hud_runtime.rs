@@ -204,8 +204,8 @@ pub(crate) fn update(
         );
         gpu.hud
             .nameplate
-            .refresh_verified(i64::from(presentation_time), || {
-                player_identity::verified_slots(session.game_state())
+            .refresh_marks(i64::from(presentation_time), || {
+                player_identity::slot_marks(session.game_state())
             });
         gpu.hud
             .nameplate

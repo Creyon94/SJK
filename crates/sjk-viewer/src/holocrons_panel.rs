@@ -727,6 +727,7 @@ mod tests {
             bio: String::new(),
             verified: false,
             staff: false,
+            trust: None,
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),

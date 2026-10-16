@@ -18,11 +18,11 @@ const GOLD_TOP: [f32; 3] = [1.0, 0.86, 0.36];
 const GOLD_BOTTOM: [f32; 3] = [0.95, 0.6, 0.1];
 const RIM: [f32; 3] = [0.72, 0.45, 0.06];
 /// The tick's corners, in radii from the centre (y down), and its half thickness.
-const TICK: [[f32; 2]; 3] = [[-0.42, 0.03], [-0.12, 0.33], [0.44, -0.27]];
-const TICK_HALF: f32 = 0.085;
+pub(super) const TICK: [[f32; 2]; 3] = [[-0.42, 0.03], [-0.12, 0.33], [0.44, -0.27]];
+pub(super) const TICK_HALF: f32 = 0.085;
 
 /// Distance from `p` to the segment `a`..`b`.
-fn segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
+pub(super) fn segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
     let ab = [b[0] - a[0], b[1] - a[1]];
     let ap = [p[0] - a[0], p[1] - a[1]];
     let t = ((ap[0] * ab[0] + ap[1] * ab[1]) / (ab[0] * ab[0] + ab[1] * ab[1])).clamp(0.0, 1.0);
@@ -31,11 +31,11 @@ fn segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
 }
 
 /// Coverage of an edge at signed distance `d` pixels (negative inside).
-fn coverage(d: f32) -> f32 {
+pub(super) fn coverage(d: f32) -> f32 {
     (0.5 - d).clamp(0.0, 1.0)
 }
 
-fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+pub(super) fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     std::array::from_fn(|i| a[i] + (b[i] - a[i]) * t)
 }
 

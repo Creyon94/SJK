@@ -70,6 +70,8 @@ struct HubLine {
     id: u64,
     verified: bool,
     staff: bool,
+    /// The sender's trust when they sent it (`ui_renderer::mark_texture`).
+    trust: Option<sjk_identity::Trust>,
     key_id: String,
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.

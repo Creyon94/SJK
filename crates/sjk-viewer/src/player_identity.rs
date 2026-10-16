@@ -36,6 +36,8 @@ const MAX_CLIENTS: usize = 32;
 pub(crate) struct Tag {
     /// The hub's operator vouches for this player's key.
     pub(crate) verified: bool,
+    /// Their trust (`ui_renderer::mark_texture`): a small mark on the emblem.
+    pub(crate) trust: Option<sjk_identity::Trust>,
     /// The medals the SJK team gave them, for the ribbon bars.
     pub(crate) medals: crate::medals::Medals,
 }
@@ -346,6 +348,7 @@ pub(crate) fn hub_mark(slot: u8, shown: &str) -> Option<crate::ingame_menu::play
                 key_id: player.key_id.clone(),
                 name: player.name.clone(),
                 verified: player.verified,
+                trust: player.trust,
                 medals: crate::medals::Medals::from_wire(&player.medals),
                 avatar: player.avatar.clone(),
             })
@@ -392,6 +395,7 @@ pub(crate) fn tag(slot: u8, shown: &str) -> Option<Tag> {
     lock().service.as_ref()?.with_snapshot(|snapshot| {
         snapshot.badge(slot, shown).map(|player| Tag {
             verified: player.verified,
+            trust: player.trust,
             medals: crate::medals::Medals::from_wire(&player.medals),
         })
     })
@@ -414,6 +418,7 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
             model: crate::hud::player_card::ModelSight::Unknown,
             name: player.name.clone(),
             verified: player.verified,
+            trust: player.trust,
             medals: crate::medals::Medals::from_wire(&player.medals),
             key_id: player.key_id.clone(),
             avatar: player.avatar.clone(),
@@ -566,30 +571,37 @@ pub(crate) fn own_medals() -> Option<(String, Vec<sjk_identity::Medal>)> {
 /// The slots of the players the hub's operator vouches for on this server, as bits:
 /// each one whose claim names the name the game shows there, and the local player's
 /// own slot when its key is verified. For the nameplates' verified badge.
-pub(crate) fn verified_slots(game_state: &GameState) -> u32 {
+pub(crate) fn slot_marks(game_state: &GameState) -> SlotMarks {
+    let mut marks = [None; MAX_CLIENTS];
     let runtime = lock();
     let Some(service) = runtime.service.as_ref() else {
-        return 0;
+        return marks;
     };
     service.with_snapshot(|snapshot| {
-        let mut slots = snapshot
+        for player in snapshot
             .players
             .iter()
-            .filter(|player| player.verified && usize::from(player.slot) < MAX_CLIENTS)
+            .filter(|player| usize::from(player.slot) < MAX_CLIENTS)
             .filter(|player| {
                 shown_name(game_state, usize::from(player.slot))
                     .is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown))
             })
-            .fold(0_u32, |bits, player| bits | 1 << player.slot);
-        if snapshot.me.as_ref().is_some_and(|me| me.verified)
-            && let Ok(own) = u32::try_from(game_state.client_num)
-            && own < MAX_CLIENTS as u32
         {
-            slots |= 1 << own;
+            marks[usize::from(player.slot)] =
+                crate::ui_renderer::mark_texture(player.verified, player.trust);
         }
-        slots
-    })
+        if let Some(me) = snapshot.me.as_ref()
+            && let Ok(own) = usize::try_from(game_state.client_num)
+            && own < MAX_CLIENTS
+        {
+            marks[own] = crate::ui_renderer::mark_texture(me.verified, me.trust);
+        }
+    });
+    marks
 }
+
+/// Each slot's mark after its nameplate's name ([`slot_marks`]).
+pub(crate) type SlotMarks = [Option<sjk_ui::TextureId>; MAX_CLIENTS];
 
 /// How long the hub's list of sharers stays good without a new answer: a little over
 /// the life of its entries.
@@ -1133,7 +1145,7 @@ mod tests {
         assert_eq!(tag(3, "Sol"), None);
         assert_eq!(revision(), 0);
         assert!(snapshot().is_none());
-        assert_eq!(verified_slots(&GameState::empty_local(0)), 0);
+        assert_eq!(slot_marks(&GameState::empty_local(0)), [None; MAX_CLIENTS]);
         assert_eq!(report_gate(), crate::ingame_menu::players::Gate::NoIdentity);
         assert_eq!(hub_mark(3, "Sol"), None);
         assert!(player_report_outcome().is_none());

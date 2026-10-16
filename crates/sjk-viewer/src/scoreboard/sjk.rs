@@ -2295,6 +2295,7 @@ mod tests {
         let mut decorated = short.clone();
         decorated[2].identity = Some(crate::player_identity::Tag {
             verified: true,
+            trust: None,
             medals: three_medals(),
         });
         let ui = draw(&decorated, &ffa, viewport);

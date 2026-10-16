@@ -295,7 +295,7 @@ fn line_marks<'a>(
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
             sjk: true,
-            verified: hub.verified,
+            mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
             tier: hub.tier,
             ..sjk_line::Marks::default()
         };
@@ -310,7 +310,7 @@ fn line_marks<'a>(
         .filter(|mark| mark.sjk);
     let marks = sjk_line::Marks {
         sjk: mark.is_some(),
-        verified: mark.is_some_and(|mark| mark.verified),
+        mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
         tier: None,
         friend: roster
             .name(target)

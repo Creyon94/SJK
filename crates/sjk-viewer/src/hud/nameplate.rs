@@ -384,8 +384,9 @@ struct Entry {
     holstered: bool,
     accent: Color,
     names_allowed: bool,
-    /// The SJK hub's operator vouches for this player: the gold badge after the name.
-    verified: bool,
+    /// The mark after the name: the gold badge of a player the SJK hub's operator vouches
+    /// for, or their trust mark (`ui_renderer::mark_texture`).
+    mark: Option<sjk_ui::TextureId>,
     /// They share their bars, of their own will or because they see everyone's: a
     /// gold contour.
     shared: bool,
@@ -433,9 +434,10 @@ pub(crate) struct State {
     vitals: vitals_estimate::Estimator,
     /// The health, shield and Force colours of the HUD in use, which the bars take.
     colors: BarColors,
-    /// Slots the hub's operator vouches for, as bits, and when they were last read.
-    verified: u32,
-    verified_read: Option<i64>,
+    /// Each slot's mark after its name (`player_identity::slot_marks`), and when they were
+    /// last read.
+    marks: crate::player_identity::SlotMarks,
+    marks_read: Option<i64>,
     /// What each slot's player shares (`PROTOCOL.md`, "Vitals"), and when it was last
     /// read.
     shared: [Option<SharedSlot>; MAX_PLAYER_TAGS],
@@ -474,8 +476,8 @@ impl Default for State {
             regen_source: "default",
             vitals: vitals_estimate::Estimator::default(),
             colors: BarColors::default(),
-            verified: 0,
-            verified_read: None,
+            marks: [None; 32],
+            marks_read: None,
             shared: [None; MAX_PLAYER_TAGS],
             shared_read: None,
             sharing_live: false,
@@ -545,17 +547,26 @@ impl State {
         };
     }
 
-    /// Read which slots are verified (`read` asks the identity service) at most once a
-    /// second, so the names it compares are not rebuilt every frame.
-    pub(crate) fn refresh_verified(&mut self, now: i64, read: impl FnOnce() -> u32) {
+    /// Read each slot's mark (`read` asks the identity service) at most once a second, so
+    /// the names it compares are not rebuilt every frame.
+    pub(crate) fn refresh_marks(
+        &mut self,
+        now: i64,
+        read: impl FnOnce() -> crate::player_identity::SlotMarks,
+    ) {
         if self
-            .verified_read
+            .marks_read
             .is_some_and(|last| (0..VERIFIED_EVERY).contains(&(now - last)))
         {
             return;
         }
-        self.verified_read = Some(now);
-        self.verified = read();
+        self.marks_read = Some(now);
+        self.marks = read();
+    }
+
+    /// Slot `number`'s mark.
+    fn mark(&self, number: impl Into<usize>) -> Option<sjk_ui::TextureId> {
+        self.marks.get(number.into()).copied().flatten()
     }
 
     /// Read what the other SJK players share and whether the hub has the player's own
@@ -975,7 +986,7 @@ impl State {
                 holstered: entity.saber_holstered() != 0,
                 accent,
                 names_allowed,
-                verified: player && self.verified & (1 << number) != 0,
+                mark: if player { self.mark(number) } else { None },
                 shared: player
                     && self
                         .shared
@@ -1104,7 +1115,7 @@ impl State {
                 holstered: false,
                 accent: who.accent,
                 names_allowed: who.names_allowed,
-                verified: self.verified & (1 << number) != 0,
+                mark: self.mark(number),
                 shared: false,
                 // A pilot cannot duel: the server ends a duel on boarding.
                 duelling: false,
@@ -1186,7 +1197,7 @@ impl State {
             holstered: player.saber_holstered() != 0,
             accent: team_accent(mode, player.team() as i32),
             names_allowed: true,
-            verified: self.verified & (1 << local) != 0,
+            mark: self.mark(local),
             shared: self.sharing_live,
             duelling: player.duel_in_progress(),
             duel_colour: self.duel_colour(local),
@@ -1428,7 +1439,7 @@ impl State {
                 let scale = size / font.height.max(1.0);
                 let duel_badge = entry.duelling && self.settings.duel_badge;
                 // Measured only for a badge beside the name.
-                let text = if duel_badge || entry.verified {
+                let text = if duel_badge || entry.mark.is_some() {
                     crate::text::visible_text_width(font, label(id), scale).min(width)
                 } else {
                     0.0
@@ -1448,7 +1459,7 @@ impl State {
                         color: Color::new(1.0, 1.0, 1.0, opacity.max(DUEL_BADGE_OPACITY)),
                     });
                 }
-                if entry.verified {
+                if let Some(mark) = entry.mark {
                     let side = size * 0.95;
                     // Level with the name's capitals: the text hangs from the top of
                     // its line by the font's own baseline, not from the line's middle.
@@ -1460,7 +1471,7 @@ impl State {
                     );
                     let _ = self.list.push(DrawCommand::TexturedQuad {
                         rect: badge,
-                        texture: crate::ui_renderer::VERIFIED_TEXTURE,
+                        texture: mark,
                         color: Color::new(1.0, 1.0, 1.0, opacity),
                     });
                 }
@@ -2121,7 +2132,9 @@ impl State {
                     None => NEUTRAL_ACCENT,
                 },
                 names_allowed: true,
-                verified: plate.verified,
+                mark: plate
+                    .verified
+                    .then_some(crate::ui_renderer::VERIFIED_TEXTURE),
                 shared: plate.shared,
                 duelling: plate.duelling,
                 duel_colour: 0,

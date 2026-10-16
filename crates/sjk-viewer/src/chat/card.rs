@@ -110,6 +110,7 @@ impl ChatOverlay {
                     hub_name: None,
                     verified: hub.verified,
                     staff: hub.staff,
+                    trust: hub.trust,
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     place,
@@ -131,6 +132,7 @@ impl ChatOverlay {
                         .filter(|hub| !sjk_identity::names_match(hub, name)),
                     verified: mark.as_ref().is_some_and(|mark| mark.verified),
                     staff: false,
+                    trust: mark.as_ref().and_then(|mark| mark.trust),
                     place: if mark.is_some() {
                         Place::Slot(slot)
                     } else {
@@ -233,6 +235,7 @@ mod tests {
             name: "^2Sol".to_owned(),
             verified: true,
             staff: true,
+            trust: None,
             text: "gg all".to_owned(),
             holocron: None,
         };
