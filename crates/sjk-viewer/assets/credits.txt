@@ -94,6 +94,7 @@ did: The Void's black holes orbiting its blade, bending the world behind them
 did: SJK chat GIFs, who is online, chat sounds, reply and the last channel remembered
 did: The SJK chat GIF picker: favourites, GIPHY search with your own key, the GIFs seen in the chat
 did: SJK chat from binds: sjksay, sjkgif and the GIF wheel of favourite GIFs
+did: Chat bans: verified players ban unverified ones from SJK chat for 24 hours
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy

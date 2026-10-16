@@ -2,7 +2,9 @@
 //! the SJK hub, in full. The history with names, verified and staff marks and how
 //! long ago each message came; a field to write in and Send; a small window of who is
 //! online and who was seen most recently ([`people`]); and, for a chosen message, Mute
-//! on this PC, and for SJK staff Delete and Mute at the hub. Resting the pointer on a
+//! on this PC, Ban 24 h for a player the hub vouches for when the sender is one it does
+//! not ([`crate::chat_ban`]), and for SJK staff Delete, Lift chat ban and Mute at the
+//! hub. Resting the pointer on a
 //! name, in the chat or the window, shows that player's sender card with Mute or
 //! Unmute ([`crate::sender_card`], "Muting a player"). GIF beside Send opens the GIF
 //! picker over the messages ([`gif_picker`]): favourites, GIPHY's search and the GIFs
@@ -41,12 +43,16 @@ const GIF_TOKEN: u16 = 1_306;
 const FAVOURITE_TOKEN: u16 = 1_307;
 /// Retry, beside the notice that says the hub did not take the last message.
 const RETRY_TOKEN: u16 = 1_308;
+/// The chosen message's Ban 24 h, and staff's Lift chat ban.
+const BAN_TOKEN: u16 = 1_309;
+const LIFT_TOKEN: u16 = 1_363;
 /// Messages on show, one token each.
 const MESSAGE_BASE: u16 = 1_310;
 const MESSAGES_SHOWN: usize = 40;
 /// The sender card a name shows under the pointer, and its Mute or Unmute.
 const CARD_TOKEN: u16 = 1_360;
 const CARD_MUTE_TOKEN: u16 = 1_361;
+const CARD_BAN_TOKEN: u16 = 1_362;
 /// The names of the messages on show, one token each.
 const NAME_BASE: u16 = 1_370;
 /// The players in the who-is-online window, one token each.
@@ -72,6 +78,9 @@ pub(crate) enum PanelAction {
         name: String,
         muted: bool,
     },
+    /// A click on Ban 24 h for the player with this key ([`crate::chat_ban::press`]:
+    /// it arms the button, or sends the ban).
+    Ban(String),
     /// A staff request to the hub.
     Staff(StaffRequest),
     /// Save this as the player's GIPHY key (`cl_giphyKey`), from the key card.
@@ -121,6 +130,8 @@ struct Shown {
     total: usize,
     /// Whether the sender card's player is muted here.
     card_muted: bool,
+    /// Whether the chosen message offers Ban 24 h.
+    chosen_bannable: bool,
     /// The keys of the players in the who-is-online window, by token.
     people: Vec<String>,
     /// The keys of faces in the window drawn without knowing their picture: the
@@ -566,6 +577,14 @@ impl Panel {
             }
             return PanelAction::None;
         }
+        if token == CARD_BAN_TOKEN {
+            // The card's Ban 24 h, only drawn when offered; the keyboard stays.
+            return self
+                .card
+                .as_ref()
+                .and_then(|card| card.person.key_id.clone())
+                .map_or(PanelAction::None, PanelAction::Ban);
+        }
         if token == CARD_MUTE_TOKEN {
             // The card's Mute or Unmute; the keyboard stays where it was.
             let Some(card) = &self.card else {
@@ -632,13 +651,19 @@ impl Panel {
                 },
                 None => PanelAction::None,
             },
-            DELETE_TOKEN | HUB_MUTE_TOKEN | HUB_UNMUTE_TOKEN => {
+            BAN_TOKEN => match chosen {
+                // Only offered (laid out) for a sender who may be banned.
+                Some((_, key_id, ..)) if self.shown.chosen_bannable => PanelAction::Ban(key_id),
+                _ => PanelAction::None,
+            },
+            DELETE_TOKEN | LIFT_TOKEN | HUB_MUTE_TOKEN | HUB_UNMUTE_TOKEN => {
                 // Only offered (laid out) for staff; the hub refuses others too.
                 let Some((id, key_id, ..)) = chosen.filter(|_| self.order.contains(&token)) else {
                     return PanelAction::None;
                 };
                 PanelAction::Staff(match token {
                     DELETE_TOKEN => StaffRequest::ChatDelete { id },
+                    LIFT_TOKEN => StaffRequest::ChatUnban { key_id },
                     _ => StaffRequest::ChatMute {
                         key_id,
                         muted: token == HUB_MUTE_TOKEN,
@@ -845,6 +870,7 @@ mod tests {
             people: None,
             live: true,
             outcome: None,
+            ban: None,
             loaded: Some(1),
         }
     }
@@ -1048,6 +1074,42 @@ mod tests {
         assert!(panel.card.is_none());
     }
 
+    /// Ban 24 h shows only for a player the hub vouches for, and only on a sender it
+    /// does not vouch for (neither verified nor staff).
+    #[test]
+    fn ban_is_offered_to_trusted_players_on_unverified_senders() {
+        let chat = chat(6);
+        let mut panel = Panel::new();
+        panel.open(true);
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        // Message 4: neither verified nor staff.
+        let _ = panel.activate(MESSAGE_BASE + 3);
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        assert!(!panel.order.contains(&BAN_TOKEN));
+        assert_eq!(panel.activate(BAN_TOKEN), PanelAction::None);
+        crate::chat_ban::trust_for_test(true);
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        assert!(panel.order.contains(&BAN_TOKEN));
+        assert!(
+            panel
+                .ui
+                .text_runs()
+                .any(|text| text == crate::chat_ban::BAN)
+        );
+        assert_eq!(
+            panel.activate(BAN_TOKEN),
+            PanelAction::Ban(format!("{:016x}", 4))
+        );
+        // Message 3 is verified, message 5 staff: no ban.
+        for index in [2, 4] {
+            let _ = panel.activate(MESSAGE_BASE + index);
+            drawn(&mut panel, &inputs(&chat, &[], false));
+            assert!(!panel.order.contains(&BAN_TOKEN), "message {}", index + 1);
+            assert_eq!(panel.activate(BAN_TOKEN), PanelAction::None);
+        }
+        crate::chat_ban::trust_for_test(false);
+    }
+
     #[test]
     fn staff_actions_only_for_staff() {
         let chat = chat(4);
@@ -1056,7 +1118,7 @@ mod tests {
         drawn(&mut panel, &inputs(&chat, &[], false));
         let _ = panel.activate(MESSAGE_BASE + 3);
         drawn(&mut panel, &inputs(&chat, &[], false));
-        for token in [DELETE_TOKEN, HUB_MUTE_TOKEN, HUB_UNMUTE_TOKEN] {
+        for token in [DELETE_TOKEN, LIFT_TOKEN, HUB_MUTE_TOKEN, HUB_UNMUTE_TOKEN] {
             assert!(!panel.order.contains(&token));
             assert_eq!(panel.activate(token), PanelAction::None);
         }
@@ -1065,6 +1127,12 @@ mod tests {
         assert_eq!(
             panel.activate(DELETE_TOKEN),
             PanelAction::Staff(StaffRequest::ChatDelete { id: 4 })
+        );
+        assert_eq!(
+            panel.activate(LIFT_TOKEN),
+            PanelAction::Staff(StaffRequest::ChatUnban {
+                key_id: key.clone()
+            })
         );
         assert_eq!(
             panel.activate(HUB_MUTE_TOKEN),

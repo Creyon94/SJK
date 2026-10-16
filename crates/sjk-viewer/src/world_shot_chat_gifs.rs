@@ -84,6 +84,7 @@ fn duel6_sjk_chat_gifs_page() {
         people: None,
         live: true,
         outcome: None,
+        ban: None,
         loaded: Some(1),
     };
     for (size, scale, suffix) in [
@@ -309,6 +310,7 @@ fn duel6_sjk_chat_gif_picker() {
         people: None,
         live: true,
         outcome: None,
+        ban: None,
         loaded: Some(1),
     };
     for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {

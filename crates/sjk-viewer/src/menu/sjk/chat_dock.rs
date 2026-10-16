@@ -113,7 +113,7 @@ impl Place {
 }
 
 /// The pointer tokens a page gives the dock, apart from its own: the field, Open chat,
-/// the first of the [`LINES`] names, the sender card and its Mute.
+/// the first of the [`LINES`] names, the sender card, its Mute and its Ban 24 h.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Tokens {
     pub(crate) field: u16,
@@ -121,6 +121,7 @@ pub(crate) struct Tokens {
     pub(crate) names: u16,
     pub(crate) card: u16,
     pub(crate) mute: u16,
+    pub(crate) ban: u16,
 }
 
 impl Tokens {
@@ -316,6 +317,18 @@ impl Dock {
             };
             self.muting = Some((card.person.key_id.unwrap_or_default(), card.person.name));
             return Some(Some(DockAction::Mute));
+        }
+        if token == tokens.ban {
+            // Ban 24 h ([`crate::chat_ban`]): the card stays, the button says the rest.
+            if activate
+                && let Some(key_id) = self
+                    .sender_card
+                    .as_ref()
+                    .and_then(|card| card.person.key_id.as_deref())
+            {
+                crate::chat_ban::press(key_id);
+            }
+            return Some(None);
         }
         (token == tokens.card || tokens.is_name(token)).then_some(None)
     }
@@ -988,7 +1001,10 @@ pub(crate) fn sender_card(
                 }
             }
         }
-        None if canvas.token_hovered(tokens.card) || canvas.token_hovered(tokens.mute) => {
+        None if [tokens.card, tokens.mute, tokens.ban]
+            .into_iter()
+            .any(|token| canvas.token_hovered(token)) =>
+        {
             if let Some(card) = &mut dock.sender_card {
                 card.left_at = None;
             }
@@ -1027,6 +1043,7 @@ pub(crate) fn sender_card(
         crate::sender_card::Tokens {
             card: tokens.card,
             mute: tokens.mute,
+            ban: tokens.ban,
         },
     );
 }
@@ -1058,6 +1075,7 @@ mod tests {
         names: 10,
         card: 20,
         mute: 21,
+        ban: 22,
     };
     const PLACE: Place = Place {
         x: 1500.0,

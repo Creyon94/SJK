@@ -65,6 +65,12 @@ pub enum StaffRequest {
         /// Mute (true) or unmute.
         muted: bool,
     },
+    /// Lift every chat ban on a key's player ([`crate::ban`]), however many verified
+    /// players banned them.
+    ChatUnban {
+        /// The key.
+        key_id: String,
+    },
     /// Take a key's picture down.
     AvatarRemove {
         /// The key.
@@ -129,6 +135,7 @@ impl StaffRequest {
             | Self::Relock { key_id, .. }
             | Self::ClearAchievements { key_id, .. }
             | Self::ChatMute { key_id, .. }
+            | Self::ChatUnban { key_id }
             | Self::AvatarRemove { key_id }
             | Self::AvatarBlock { key_id, .. }
             | Self::HolocronGive { key_id, .. }
@@ -347,6 +354,7 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         StaffRequest::ChatDelete { .. } => "Deleted the message".to_owned(),
         StaffRequest::ChatMute { muted: true, .. } => "Muted in the chat".to_owned(),
         StaffRequest::ChatMute { muted: false, .. } => "Unmuted in the chat".to_owned(),
+        StaffRequest::ChatUnban { .. } => "Lifted their chat bans".to_owned(),
         StaffRequest::AvatarRemove { .. } => "Took the picture down".to_owned(),
         StaffRequest::AvatarBlock { blocked: true, .. } => {
             "Stopped their pictures and took theirs down".to_owned()

@@ -154,6 +154,7 @@ impl ViewerConsole {
                 // Saved with the profile; never logged.
                 self.set_cvars([(crate::chat_gifs::search::KEY_CVAR, key.as_str())]);
             }
+            PanelAction::Ban(key_id) => crate::chat_ban::press(&key_id),
             PanelAction::Staff(request) => {
                 let serial = crate::player_identity::staff_state().map_or(0, |state| state.serial);
                 if crate::player_identity::staff(request) {

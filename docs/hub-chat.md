@@ -36,6 +36,8 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | The feed thread and `ChatState` | [feed.rs](../crates/sjk-identity/src/feed.rs), [service.rs](../crates/sjk-identity/src/service.rs) |
 | Viewer glue | [player_identity.rs](../crates/sjk-viewer/src/player_identity.rs) |
 | Muting a player: the list, matching slots | [chat_mutes.rs](../crates/sjk-viewer/src/chat_mutes.rs), [player_mutes.rs](../crates/sjk-viewer/src/player_mutes.rs) |
+| Chat bans: the words and the hub's answer | [ban.rs](../crates/sjk-identity/src/ban.rs) |
+| Chat bans: Ban 24 h, armed then confirmed | [chat_ban.rs](../crates/sjk-viewer/src/chat_ban.rs) |
 | Muting a player: drawn as Kyle, silenced | [muted_players.rs](../crates/sjk-viewer/src/muted_players.rs), [muted_players_frame.rs](../crates/sjk-viewer/src/muted_players_frame.rs), [audio_mute.rs](../crates/sjk-viewer/src/audio_mute.rs) |
 | Sender card (pointer on a name) | [sender_card.rs](../crates/sjk-viewer/src/sender_card.rs), [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs) |
 | In-game SJK channel | [chat/sjk.rs](../crates/sjk-viewer/src/chat/sjk.rs), [chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs), [sjk_chat_frame.rs](../crates/sjk-viewer/src/sjk_chat_frame.rs) |
@@ -83,6 +85,12 @@ Old clients ignore all of it, so it stays `/v1/`.
   `chat-unmute`, `{"chat_muted":true}` in the operator API) and two staff requests,
   `/v1/staff/chat-delete` `{"id"}` and `/v1/staff/chat-mute` `{"key_id","muted"}`,
   logged in the staff log (a deleted message's text with it).
+- Chat bans ([Chat bans](#chat-bans), since 16/10/2026): `POST /v1/chat/ban`
+  `{"key_id":".."}`, signed, answers `{"until":<unix s>,"address":<bool>}`; refused
+  `not_verified` (403, the banner is neither verified nor staff), `not_found` (404),
+  `target_verified` (403, the target is verified or staff), `bad_target` (400, oneself).
+  `POST /v1/chat` then refuses the banned player `chat_banned` (403) with `until`. Staff
+  lift bans with `/v1/staff/chat-unban` `{"key_id"}` (answer `{"lifted":<n>}`).
 
 ## Client service
 
@@ -556,6 +564,43 @@ own `You found an Uncommon Holocron.` The identity service's feed relays a drop 
 `ChatMessage` with an empty text and `holocron` set, in the feed's order; the game's chat,
 the dock and the page word it from the tier (`holocrons::line`) and leave out a tier they
 do not know. A muted player's drops are not shown.
+
+## Chat bans
+
+Sol's request, 16/10/2026: "any verified person can ban someone that isn't verified
+for 24h from the SJK chat, no reason needed, no cooldown on it. It should ban the key +
+the IP". The hub does the banning (Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Chat bans"); the
+client offers it and says what came of it.
+
+- **Who may ban whom**: a player the hub vouches for (their profile says verified or
+  staff) may ban a player it does not (neither verified nor staff), with a key, and not
+  themselves. The hub checks all of it again; the client only offers it there
+  (`chat_ban::offered`), and the worker refuses to send it from a key that is neither
+  (`Worker::send_chat_ban`, `not_verified`).
+- **What a ban does** (the hub's rule): 24 hours without writing in SJK chat for the
+  person of that key, and for any key the hub does not vouch for writing from the
+  address it last saw them use; a verified key from that address still writes. No reason
+  is asked and there is no wait between bans; a later ban sets the end 24 hours from
+  then. The banned player still reads the chat. Staff lift bans (Lift chat ban).
+- **Where**: Ban 24 h beside Mute on the sender card (in the game's chat while the
+  composer is open, on the main page's dock and the in-game menu's, on the SJK chat
+  page) and beside Mute on this PC under the SJK chat page's chosen message. Staff have
+  Lift chat ban beside Delete for everyone.
+- **One click is not enough** ([chat_ban.rs](../crates/sjk-viewer/src/chat_ban.rs)):
+  the first click arms the button, which reads Confirm ban, with "Click again: no SJK
+  chat for them for 24 hours" under it in ember; only a second click on the same player
+  within 4 seconds (`chat_ban::ARM`) sends it. This guards against a stray click; it is
+  no wait between bans. While the request is on its way the button reads Banning...;
+  then the line under it says what came of it: "Banned from SJK chat until 17/10 14:32"
+  in gold, in local time, day first on the 24-hour clock, or the hub's refusal worded
+  for players (`ban::refusal`): "Verified players and staff cannot be banned", "Only
+  verified players can ban from SJK chat", "This SJK hub cannot ban from the chat yet"
+  for a hub without the route. The state is one for the whole game, so every card shows
+  the same button for a player.
+- **The banned player**: their message is refused with `chat_banned`, and the refusal
+  reads "A verified player banned you from SJK chat until 17/10 14:32"
+  (`ban::banned_message`, from the refusal's `until`), where every refusal shows: an
+  `SJK chat:` line in the game, the docks' line under the field, the page's notice.
 
 ## Muting a player
 

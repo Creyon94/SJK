@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 base64 = "0.23.1"
+chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 ed25519-dalek = "3.0.0"
 getrandom = "0.4"
 serde.workspace = true

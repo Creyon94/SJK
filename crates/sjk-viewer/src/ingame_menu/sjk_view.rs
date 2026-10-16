@@ -377,6 +377,7 @@ pub(crate) const CHAT_TOKENS: chat_dock::Tokens = chat_dock::Tokens {
     card: 942,
     mute: 943,
     names: 944,
+    ban: 939,
 };
 
 /// The arc's spacing and type for a page of some number of entries: the gap

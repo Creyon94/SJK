@@ -363,6 +363,8 @@ enum Command {
     NoteImage(u64, Vec<u8>),
     /// An SJK chat message.
     Chat(String),
+    /// Ban the player of this key from the SJK chat for 24 hours.
+    ChatBan(String),
     /// An emote, for the slot the player claims, in step with another slot's or not.
     Emote(String, Option<u8>),
     /// A ping at a point (whole game units) for a scope, from the slot the player claims.
@@ -755,6 +757,31 @@ impl Worker {
         self.chat_outcome(outcome);
     }
 
+    /// Ban the player of `key_id` from the SJK chat, once registered, from a key the
+    /// hub vouches for (verified or staff; the hub refuses others too).
+    fn send_chat_ban(&mut self, key_id: String) {
+        let trusted = lock(&self.snapshot)
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified || me.staff);
+        let result = match (self.hub.as_mut(), self.registered, trusted) {
+            (Some(hub), true, true) => hub.chat_ban(&self.identity, &key_id),
+            (Some(_), true, false) => Err(HubError::Rejected {
+                status: 403,
+                code: "not_verified".to_owned(),
+                message: "only verified SJK players can ban from the chat".to_owned(),
+            }),
+            _ => Err(not_connected()),
+        };
+        let mut chat = lock_chat(&self.chat);
+        let serial = chat.ban.as_ref().map_or(1, |last| last.serial + 1);
+        chat.ban = Some(crate::BanOutcome {
+            serial,
+            key_id,
+            result,
+        });
+    }
+
     /// Send an emote for the slot the player claims on their server, in step with
     /// slot `sync`'s when it is set.
     fn send_emote(&mut self, emote: &str, sync: Option<u8>) {
@@ -914,6 +941,7 @@ impl Worker {
                 }
             }
             Command::Chat(text) => self.send_chat(&text),
+            Command::ChatBan(key_id) => self.send_chat_ban(key_id),
             Command::Emote(emote, sync) => self.send_emote(&emote, sync),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
             Command::SetChat(on) => self.chat_on = on,
@@ -2181,6 +2209,12 @@ impl Service {
         let _ = self.commands.send(Command::Chat(text));
     }
 
+    /// Ban the player of `key_id` from the SJK chat for 24 hours ([`crate::ban`]); what
+    /// became of it arrives in [`ChatState::ban`].
+    pub fn chat_ban(&self, key_id: String) {
+        let _ = self.commands.send(Command::ChatBan(key_id));
+    }
+
     /// Play an emote for the player's slot on their server, in step with slot `sync`'s
     /// when it is set; what became of it arrives in [`ChatState::outcome`].
     pub fn emote(&self, emote: String, sync: Option<u8>) {
@@ -2280,6 +2314,7 @@ impl Service {
 mod tests {
     use super::*;
     use crate::assets::{FOLDER, Pack, sha256_hex, write_pack};
+    use crate::ban::ChatBan;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     /// A hub that records what it is asked.
@@ -2587,6 +2622,12 @@ mod tests {
         fn chat(&mut self, _: &Identity, text: &str, name: &str) -> Result<u64, HubError> {
             Fake::record(self, format!("chat {text} as {name}")).map(|()| 12)
         }
+        fn chat_ban(&mut self, _: &Identity, key_id: &str) -> Result<ChatBan, HubError> {
+            Fake::record(self, format!("ban {key_id}")).map(|()| ChatBan {
+                until: 1_000 + crate::ban::BAN_SECS,
+                address: true,
+            })
+        }
         fn emote(
             &mut self,
             _: &Identity,
@@ -2738,7 +2779,9 @@ mod tests {
                     key_id: key_id.clone(),
                     ..profile("Target")
                 }],
-                StaffRequest::ChatDelete { .. } | StaffRequest::ChatMute { .. } => Vec::new(),
+                StaffRequest::ChatDelete { .. }
+                | StaffRequest::ChatMute { .. }
+                | StaffRequest::ChatUnban { .. } => Vec::new(),
                 StaffRequest::Verify { key_id, verified } => vec![Profile {
                     key_id: key_id.clone(),
                     verified: *verified,
@@ -4467,6 +4510,54 @@ mod tests {
         let outcome = lock(&snapshot).report.clone().unwrap();
         assert_eq!((outcome.serial, outcome.sent), (first.serial + 1, true));
         assert_eq!(outcome.message, "report #7");
+    }
+
+    #[test]
+    fn chat_bans_go_only_from_a_verified_or_staff_key() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        let ban = |worker: &Worker| lock_chat(&worker.chat).ban.clone().unwrap();
+        worker.handle(Command::ChatBan("feedfacefeedface".into()), t0);
+        assert!(matches!(ban(&worker).result, Err(HubError::Protocol(_))));
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        lock(&snapshot).me.as_mut().unwrap().staff = false;
+        // Registered but not vouched for: nothing goes, and the outcome says why.
+        worker.handle(Command::ChatBan("feedfacefeedface".into()), t0);
+        let refused = ban(&worker);
+        assert_eq!(refused.serial, 2);
+        assert!(
+            matches!(&refused.result, Err(HubError::Rejected { code, .. }) if code == "not_verified"),
+            "{refused:?}"
+        );
+        assert!(!fake.log().iter().any(|line| line.starts_with("ban")));
+        // Staff may, as verified players may.
+        lock(&snapshot).me.as_mut().unwrap().staff = true;
+        worker.handle(Command::ChatBan("feedfacefeedface".into()), t0);
+        let banned = ban(&worker);
+        assert_eq!(
+            (banned.serial, banned.key_id.as_str(), banned.result.clone()),
+            (
+                3,
+                "feedfacefeedface",
+                Ok(ChatBan {
+                    until: 1_000 + crate::ban::BAN_SECS,
+                    address: true
+                })
+            )
+        );
+        lock(&snapshot).me.as_mut().unwrap().staff = false;
+        lock(&snapshot).me.as_mut().unwrap().verified = true;
+        worker.handle(Command::ChatBan("feedfacefeedface".into()), t0);
+        assert!(ban(&worker).result.is_ok());
+        assert_eq!(
+            fake.log()
+                .iter()
+                .filter(|line| line.starts_with("ban"))
+                .count(),
+            2
+        );
     }
 
     #[test]

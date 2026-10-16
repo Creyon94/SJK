@@ -3279,6 +3279,7 @@ like this one.",
             }),
             live: true,
             outcome: None,
+            ban: None,
             loaded: Some(1),
         };
         if let Some(people) = listed.people.as_mut() {

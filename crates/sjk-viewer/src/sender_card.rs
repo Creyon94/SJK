@@ -6,7 +6,8 @@
 //! tick, whether the hub knows them, their key and hub name, their medals' medallions,
 //! where they are on this server and how they were matched), and Mute or Unmute, which
 //! hides their chat, draws them as Kyle with the default saber and silences them on this
-//! PC only.
+//! PC only. For a player the hub vouches for, a sender it does not vouch for also gets
+//! Ban 24 h beside it ([`crate::chat_ban`]).
 //!
 //! The card is built when the name under the pointer changes and drawn every frame
 //! without allocating; each place that shows it keeps it up while the pointer moves
@@ -80,13 +81,15 @@ pub(crate) struct Card<'a> {
     pub(crate) measure: Option<&'a crate::sjk_chat_look::Measure<'a>>,
 }
 
-/// The card's two pointer targets.
+/// The card's pointer targets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Tokens {
     /// The card itself, which keeps it up under the pointer.
     pub(crate) card: u16,
     /// Mute or Unmute.
     pub(crate) mute: u16,
+    /// Ban 24 h, when offered ([`crate::chat_ban::offered`]).
+    pub(crate) ban: u16,
 }
 
 /// The card's width in 1080p pixels.
@@ -301,46 +304,59 @@ pub(crate) fn draw(
     }
     y += 12.0 * u;
     let button = Rect::new(x, y, 150.0 * u, 38.0 * u);
-    let lit = canvas.token_hovered(tokens.mute);
-    let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
-        rect: button,
-        radius: 8.0 * u,
-        color: if lit {
-            color::alpha(color::GOLD, 0.3)
-        } else {
-            color::alpha(color::GOLD, 0.14)
-        },
-    });
-    let _ = canvas.draw_list_mut().push(DrawCommand::Border {
-        rect: button,
-        radius: 8.0 * u,
-        width: 1.5 * u,
-        color: color::GOLD,
-    });
-    canvas.text_fmt_aligned(
-        format_args!("{}", if muted { "Unmute" } else { "Mute" }),
-        Rect::new(button.x, button.y + 9.0 * u, button.width, 22.0 * u),
-        17.0 * u,
-        if lit { color::GOLD_BRIGHT } else { color::TEXT },
-        FontWeight::Semibold,
-        0.0,
-        TextAlign::Center,
-    );
-    y += 38.0 * u + 4.0 * u;
-    line(
+    card_button(
         canvas,
-        y,
-        13.0 * u,
-        color::QUIET,
-        format_args!(
-            "{}",
-            if muted {
-                "Muted on this PC: no chat, Kyle, no sounds"
-            } else {
-                "Hides their chat, model, sabers and sounds here"
-            }
-        ),
+        button,
+        u,
+        tokens.mute,
+        if muted { "Unmute" } else { "Mute" },
+        color::GOLD,
     );
+    let ban_button = Rect::new(x + inner - 150.0 * u, y, 150.0 * u, 38.0 * u);
+    let quiet = |muted: bool| {
+        if muted {
+            "Muted on this PC: no chat, Kyle, no sounds"
+        } else {
+            "Hides their chat, model, sabers and sounds here"
+        }
+    };
+    let under = y + 38.0 * u + 4.0 * u;
+    // Ban 24 h for a sender the hub does not vouch for, when it vouches for the
+    // player; what it came to (or the armed button's warning) takes the quiet line.
+    let ban_key = person
+        .key_id
+        .as_deref()
+        .filter(|key| crate::chat_ban::offered(Some(key), person.verified, person.staff));
+    match ban_key {
+        Some(key) => crate::chat_ban::with_shown(key, |shown| {
+            card_button(
+                canvas,
+                ban_button,
+                u,
+                tokens.ban,
+                shown.label,
+                if shown.armed {
+                    color::EMBER
+                } else {
+                    color::HOLO
+                },
+            );
+            let (said, colour) = match shown.line {
+                Some((said, true)) => (said, color::GOLD_BRIGHT),
+                Some((said, false)) => (said, color::EMBER),
+                None => (quiet(muted), color::QUIET),
+            };
+            line(canvas, under, 13.0 * u, colour, format_args!("{said}"));
+        }),
+        None => line(
+            canvas,
+            under,
+            13.0 * u,
+            color::QUIET,
+            format_args!("{}", quiet(muted)),
+        ),
+    }
+    y = under;
     if person.key_id.is_none() {
         // Without a key, the mute can only follow the name.
         line(
@@ -353,7 +369,46 @@ pub(crate) fn draw(
     }
     canvas.hit_region(tokens.card, card);
     canvas.hit_region(tokens.mute, button);
+    if ban_key.is_some() {
+        canvas.hit_region(tokens.ban, ban_button);
+    }
     card
+}
+
+/// One of the card's buttons, outlined in `edge`, its fill lit under the pointer.
+fn card_button(
+    canvas: &mut MenuCanvas,
+    button: Rect,
+    u: f32,
+    token: u16,
+    label: &str,
+    edge: Color,
+) {
+    let lit = canvas.token_hovered(token);
+    let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+        rect: button,
+        radius: 8.0 * u,
+        color: if lit {
+            color::alpha(edge, 0.3)
+        } else {
+            color::alpha(edge, 0.14)
+        },
+    });
+    let _ = canvas.draw_list_mut().push(DrawCommand::Border {
+        rect: button,
+        radius: 8.0 * u,
+        width: 1.5 * u,
+        color: edge,
+    });
+    canvas.text_fmt_aligned(
+        format_args!("{label}"),
+        Rect::new(button.x, button.y + 9.0 * u, button.width, 22.0 * u),
+        17.0 * u,
+        if lit { color::GOLD_BRIGHT } else { color::TEXT },
+        FontWeight::Semibold,
+        0.0,
+        TextAlign::Center,
+    );
 }
 
 /// About how wide `name` is at `size` without a font at hand: a little over half the
@@ -372,7 +427,11 @@ mod tests {
     use super::*;
     use crate::text::{TextStyle, test_font};
 
-    const TOKENS: Tokens = Tokens { card: 7, mute: 8 };
+    const TOKENS: Tokens = Tokens {
+        card: 7,
+        mute: 8,
+        ban: 9,
+    };
 
     fn sol() -> Person {
         Person {
@@ -504,6 +563,47 @@ mod tests {
             "{texts:?}"
         );
         assert_eq!(ticks, 0);
+    }
+
+    /// Ban 24 h sits beside Mute only for a player the hub vouches for, on a sender
+    /// with a key it does not vouch for.
+    #[test]
+    fn ban_shows_beside_mute_only_when_offered() {
+        let unverified = Person {
+            verified: false,
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&unverified, false);
+        assert!(
+            !texts.contains(&crate::chat_ban::BAN.to_owned()),
+            "{texts:?}"
+        );
+        assert!(canvas.rect_for(TOKENS.ban).is_none());
+        crate::chat_ban::trust_for_test(true);
+        let (canvas, _, texts, _) = drawn(&unverified, false);
+        assert!(
+            texts.contains(&crate::chat_ban::BAN.to_owned()),
+            "{texts:?}"
+        );
+        let ban = canvas.rect_for(TOKENS.ban).expect("Ban 24 h");
+        let mute = canvas.rect_for(TOKENS.mute).expect("Mute");
+        assert!(ban.x >= mute.right() && ban.right() <= rect.right() && ban.y == mute.y);
+        // Not on a verified sender, a staff one, or one without a key.
+        for person in [
+            sol(),
+            Person {
+                staff: true,
+                ..unverified.clone()
+            },
+            Person {
+                key_id: None,
+                ..unverified.clone()
+            },
+        ] {
+            let (canvas, ..) = drawn(&person, false);
+            assert!(canvas.rect_for(TOKENS.ban).is_none(), "{person:?}");
+        }
+        crate::chat_ban::trust_for_test(false);
     }
 
     #[test]
