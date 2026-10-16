@@ -1,3 +1,20 @@
+## Cardboard box toy
+
+16/10/2026, `personal/cardboard-box` (Sol's idea) with hub branch `cardboard-box`: a
+Metal Gear style carton to hide in ([client.md](client.md#cardboard-box)). `toy_box`
+(bind, quick wheel Toys page, Collection's Toys tab) puts it on: the commands hold
+crouch, its music loops on the player, and other SJK players see the carton through the
+look's new `toys` list. `+use` facing a boxed player lifts it (spotted sound, hub toy
+event `POST /v1/toy`, [hub-chat.md](hub-chat.md#toy-events)); dying in it plays a death
+sound for every SJK client that sees it. The carton is drawn by
+`scripts/cardboard_box_assets.py`. The three sounds are not in yet: Sol is to provide
+them (`sound/sjk/cardboard_box/music`, `spotted`, `death`). Checked by unit tests (the
+model, crouch, `+use` presses and the target pick, spotted and death logic, looks'
+toys both ways, the identity feed queue and send, the look body, the Collection's two
+toys and their layout at four sizes, the wheel's pages) and an off-screen render of two
+cartons on duel6 (`world_shot::cardboard_box`). The hub branch has its own unit and API
+tests and is not deployed. Not tried in a game or with two clients; no sound heard.
+
 ## Alpha notice at the first start
 
 16/10/2026, `personal/alpha-notice` (Sol's request): the first start shows an alpha

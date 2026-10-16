@@ -704,6 +704,7 @@ mod tests {
             saber: "saber_sun".to_owned(),
             illuminate: false,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         };
         let mut looks = Looks::default();
         looks.replace_roster([(3, "Fox", Some(&sun))]);

@@ -9,7 +9,9 @@
 //! The service is inert while it is disabled or has no hub address: it makes no
 //! request of any kind.
 
-use crate::feed::{ChatState, FeedShared, FeedWorker, QueuedLook, QueuedPing, ReceivedLooks};
+use crate::feed::{
+    ChatState, FeedShared, FeedWorker, QueuedLook, QueuedPing, QueuedToyEvent, ReceivedLooks,
+};
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::logs::{LogRequest, LogUpload};
@@ -17,7 +19,7 @@ use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
 use crate::vitals::{Sharing, VitalsTable, VitalsWorker};
 use crate::wire::{
-    Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, Unlock, names_match,
+    Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, ToyEvent, Unlock, names_match,
 };
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::net::SocketAddr;
@@ -367,6 +369,8 @@ enum Command {
     Emote(String, Option<u8>),
     /// A ping at a point (whole game units) for a scope, from the slot the player claims.
     Ping([i32; 3], String),
+    /// A toy event (toy, event, target slot), from the slot the player claims.
+    Toy(String, String, u8),
     /// Whether the SJK chat is on.
     SetChat(bool),
     /// A new picture, a PNG already cropped and scaled (`crate::avatar`).
@@ -818,6 +822,18 @@ impl Worker {
         *last = Some(outcome_of(serial, outcome));
     }
 
+    /// Send a toy event from the slot the player claims on their server. Its effect was
+    /// already shown here, so what the hub answers is not kept.
+    fn send_toy_event(&mut self, toy: &str, event: &str, target: u8) {
+        let server = self
+            .location
+            .as_ref()
+            .map(|location| location.server.to_string());
+        if let (Some(hub), true, Some(server)) = (self.hub.as_mut(), self.registered, server) {
+            let _ = hub.toy_event(&self.identity, &server, toy, event, target);
+        }
+    }
+
     fn update(&self, change: impl FnOnce(&mut Snapshot)) {
         change(&mut lock(&self.snapshot));
     }
@@ -916,6 +932,7 @@ impl Worker {
             Command::Chat(text) => self.send_chat(&text),
             Command::Emote(emote, sync) => self.send_emote(&emote, sync),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
+            Command::Toy(toy, event, target) => self.send_toy_event(&toy, &event, target),
             Command::SetChat(on) => self.chat_on = on,
             Command::SetAvatar(png) => self.change_avatar(Some(&png)),
             Command::RemoveAvatar => self.change_avatar(None),
@@ -1833,6 +1850,7 @@ pub struct Service {
     emotes: Arc<Mutex<VecDeque<Emote>>>,
     looks: Arc<Mutex<VecDeque<QueuedLook>>>,
     pings: Arc<Mutex<VecDeque<QueuedPing>>>,
+    toys: Arc<Mutex<VecDeque<QueuedToyEvent>>>,
     ping_outcome: Arc<Mutex<Option<ReportOutcome>>>,
     /// What the feed is told to read, for the looks' generation.
     feed: Arc<Mutex<FeedShared>>,
@@ -1896,6 +1914,7 @@ impl Service {
         let looks = Arc::new(Mutex::new(VecDeque::new()));
         let feed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut pings = Arc::default();
+        let mut toys = Arc::default();
         if let Some(make_feed_hub) = make_feed_hub {
             let feed = FeedWorker::new(
                 feed_identity,
@@ -1910,6 +1929,7 @@ impl Service {
                 Instant::now(),
             );
             pings = feed.pings();
+            toys = feed.toys();
             let stop = Arc::clone(&feed_stop);
             let spawned = std::thread::Builder::new()
                 .name("sjk-hub-feed".to_owned())
@@ -1967,6 +1987,7 @@ impl Service {
             emotes,
             looks,
             pings,
+            toys,
             ping_outcome,
             feed,
             feed_stop,
@@ -2213,6 +2234,18 @@ impl Service {
     /// since the last call, oldest first; those read for another server are dropped.
     pub fn take_pings(&self, server: Option<SocketAddr>) -> Vec<Ping> {
         crate::feed::take_pings(&self.pings, server)
+    }
+
+    /// Tell the SJK players on the player's server that the player's toy `toy` did
+    /// `event` to the player in slot `target` (`PROTOCOL.md`, "Toy events"), from the
+    /// slot the player claims. Nothing comes back: the sender shows the effect at once.
+    pub fn toy_event(&self, toy: String, event: String, target: u8) {
+        let _ = self.commands.send(Command::Toy(toy, event, target));
+    }
+
+    /// The toy events the feed received for `server`, as [`Service::take_pings`].
+    pub fn take_toy_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
+        crate::feed::take_toy_events(&self.toys, server)
     }
 
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the
@@ -2612,6 +2645,16 @@ mod tests {
             scope: &str,
         ) -> Result<u64, HubError> {
             Fake::record(self, format!("ping {pos:?} {scope} on {server}")).map(|()| 14)
+        }
+        fn toy_event(
+            &mut self,
+            _: &Identity,
+            server: &str,
+            toy: &str,
+            event: &str,
+            target: u8,
+        ) -> Result<u64, HubError> {
+            Fake::record(self, format!("toy {toy} {event} {target} on {server}")).map(|()| 16)
         }
         fn look(&mut self, _: &Identity, server: &str, look: &Look) -> Result<u64, HubError> {
             Fake::record(
@@ -3350,6 +3393,25 @@ mod tests {
     }
 
     #[test]
+    fn toy_events_go_from_the_claimed_slot_only_on_a_server() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        let spotted = || Command::Toy("cardboard_box".into(), "spotted".into(), 5);
+        worker.handle(spotted(), t0);
+        assert!(!fake.log().iter().any(|line| line.starts_with("toy")));
+        worker.handle(Command::Enter(here(3, "Sol")), t0);
+        worker.tick(t0);
+        worker.handle(spotted(), t0);
+        assert_eq!(
+            fake.log().last().unwrap(),
+            "toy cardboard_box spotted 5 on 1.2.3.4:29070"
+        );
+    }
+
+    #[test]
     fn the_feed_runs_when_registered_with_chat_on_or_on_a_server() {
         let fake = Fake::default();
         fake.fail.store(true, Ordering::SeqCst);
@@ -3416,6 +3478,7 @@ mod tests {
             saber: saber.to_owned(),
             illuminate: true,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         }
     }
 

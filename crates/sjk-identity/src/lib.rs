@@ -46,5 +46,6 @@ pub use wire::{
     Achievement, CardStack, ChatMessage, DropEvent, DropMark, Emote, Feed, HOLOCRONS_LISTED,
     Holocron, HolocronCounts, HolocronState, Look, LookEvent, LootTier, Medal, OPEN_MAX,
     OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence, Profile,
-    RevealAnswer, Revealed, SharedVitals, Unlock, Vitals, WornName, names_match, normal_form,
+    RevealAnswer, Revealed, SharedVitals, ToyEvent, Unlock, Vitals, WornName, names_match,
+    normal_form,
 };

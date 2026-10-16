@@ -935,6 +935,28 @@ pub(crate) fn take_pings(server: Option<SocketAddr>) -> Vec<sjk_identity::Ping> 
         .unwrap_or_default()
 }
 
+/// Tell the SJK players on the server that the player's toy `toy` did `event` to the
+/// player in slot `target` (`PROTOCOL.md`, "Toy events"); false when the service has
+/// not started.
+pub(crate) fn toy_event(toy: &str, event: &str, target: u8) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.toy_event(toy.to_owned(), event.to_owned(), target);
+    true
+}
+
+/// The toy events received for `server`, the game server the player is on, since the
+/// last call; none when the service has not started.
+pub(crate) fn take_toy_events(server: Option<SocketAddr>) -> Vec<sjk_identity::ToyEvent> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_toy_events(server))
+        .unwrap_or_default()
+}
+
 /// Read the SJK chat; `None` when the service has not started. Keep `read` short.
 pub(crate) fn with_chat<R>(read: impl FnOnce(&sjk_identity::ChatState) -> R) -> Option<R> {
     lock()
@@ -1138,6 +1160,7 @@ mod tests {
             saber: String::new(),
             illuminate: true,
             saber_off: Vec::new(),
+            toys: Vec::new(),
         };
         let mut sent = None;
         assert!(newly(&mut sent, &lit));

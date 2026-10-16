@@ -1497,14 +1497,17 @@ for the run.
   a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
   blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
-- **Toys:** "1 toy", things to use in a match. Illuminate's holocron (its icon)
-  in its niche, ringed gold on a glow, "Everyone's"; a dotted line for
-  the toys to come. The holocron floats lit by the model on the stage
-  (`illuminate::submit_stage_holocron`); beside the model what it is, how to use it
-  and "Holocron lit" with its switch: on while the holocron is lit, and Enter or a
-  click lights it or puts it out (the `toy_illuminate` toggle, set to the state
-  wanted; the viewer owns the state, the console mirrors it each frame). The keys line
-  says "Enter: light" or "Enter: put out".
+- **Toys:** "2 toys", things to use in a match. Illuminate's holocron and the
+  cardboard box (since 16/10/2026), each its icon in its niche, "Everyone's"; the
+  chosen one ringed gold on a full glow, the other dimmed; a dotted line for the toys
+  to come. The arrows and Tab choose; a click on a niche chooses it, a click on the
+  chosen one runs it. With Illuminate chosen the holocron floats lit by the model on
+  the stage (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the
+  stage. Beside the model the chosen toy's name, what it is, how to use it and its
+  switch, "Holocron lit" or "In the box": on while the toy is on, and Enter or a click
+  runs it (the `toy_illuminate` or `toy_box` toggle, set to the state wanted; the
+  viewer owns the state, the console mirrors it each frame). The keys line says
+  "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out".
 - **Nameplates:** none exist yet. "No nameplates yet"; three empty places, dashed, each
   with a drawing of where its kind will go: Crest (before the name), Frame (round the
   plate), Trail (under the plate). Over the model's head (projected from the stage

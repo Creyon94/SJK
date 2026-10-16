@@ -48,6 +48,7 @@ pub(crate) fn tick(
         0,
     );
     command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, gpu.talk_button());
+    gpu.cardboard_box.shape_preview(&mut command);
     gpu.local_prediction
         .preview_command(command, &gpu.bsp, &mut gpu.trace_scratch);
     let presented_snapshot = session.snapshot_at_or_before(presentation_time);

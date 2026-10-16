@@ -35,6 +35,7 @@ impl GpuState {
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
         let due = player_identity::due();
         self.update_looks(due);
+        self.update_cardboard_box(Instant::now());
         if !due {
             return;
         }

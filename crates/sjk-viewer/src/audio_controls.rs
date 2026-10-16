@@ -31,6 +31,10 @@ impl crate::GpuState {
 /// it: a full voice table gives up every other sound before an emote's.
 pub(crate) const EMOTE_CHANNEL: ChannelId = ChannelId(13);
 
+/// The channel SJK's toys' one-shot sounds play on (the cardboard box's): past the
+/// game's channels, so a toy's sound never cuts a voice, a swing or an emote.
+pub(crate) const TOY_CHANNEL: ChannelId = ChannelId(14);
+
 /// Apply independent notification and footstep switches without muting combat.
 pub(super) fn allows_event(
     event: sjk_client::LegacySoundEvent,

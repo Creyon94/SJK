@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- New toy, the cardboard box (`toy_box`, the quick wheel's Toys page or the Collection): hide in a carton, Metal Gear style. You crouch in it with its music; other SJK players see the box, and one who walks up and presses Use lifts it with a "spotted" sound. Die in it and everyone hears _(Sol)_
 - The first start shows an alpha notice: SJK is a free and open-source alpha, so expect bugs and unfinished parts; report them on the SJK Discord or with Report a bug; no warranty, and nobody owes you anything. Tick "I understand" to continue _(Sol)_
 
 ## 2026.1016.2 (Alpha) | 16/10/2026

@@ -88,7 +88,7 @@ impl GpuState {
             } else {
                 held
             };
-            sent = Some(held);
+            sent = Some(held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on()));
             (own.saber_skin, own.options_off)
         } else {
             (self.looks.own().saber_skin, self.looks.own().options_off)
@@ -97,7 +97,9 @@ impl GpuState {
             saber_skin,
             illuminate: lit,
             options_off,
-        };
+            toys: 0,
+        }
+        .with_toy(crate::cardboard_box::TOY, self.cardboard_box.on());
         if let Some(sent) = sent {
             player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);

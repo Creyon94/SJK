@@ -3269,6 +3269,48 @@ colours, bundled the same way. Sol generated the art; see
 [assets/holocron](../crates/sjk-viewer/assets/holocron/README.md) and
 [illuminate.rs](../crates/sjk-viewer/src/illuminate.rs).
 
+## Cardboard box
+
+The cardboard box is a toy, SJK's own and free for every player (Sol's idea,
+16/10/2026): a shipping carton to hide in, Metal Gear style. `toy_box` puts it on or
+takes it off, from a bind (Settings > Key bindings > Interaction > Toy: Cardboard box,
+unbound until a key is picked), from the quick wheel's [Toys page](#toys-page) or from
+the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It is off at every start.
+
+- **In the box** the player crouches: while it is on and the player is alive and in the
+  match, every user command holds crouch (`upmove` -127, as a held `+movedown`, over a
+  jump), so the server sees an ordinary crouching player and movement stays stock. Its
+  music loops on the player, in both ears for one's own and placed on the player for
+  others (on channel 14, its own, so it cuts no game sound).
+- **Others see it** through the SJK hub: the box is a toy in the player's look
+  (`toys: ["cardboard_box"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every
+  SJK player on the server draws the carton over that player (their entity's
+  interpolated origin, floor and view yaw) and hears the music, while the game draws
+  them: dead, hidden, cloaked or out of the snapshot, neither shows. Players on stock
+  clients see a crouching player. In first person one's own carton is drawn only in
+  mirrors, like the body.
+- **Spotted:** an SJK player who presses `+use` facing a boxed player (within 96
+  units, 60 degrees either side of where they face; the nearest) lifts the box: the
+  spotted sound plays where they stand and the box goes at once on the lifter's screen,
+  and the hub relays a toy event (`POST /v1/toy`, `cardboard_box` `spotted`, the
+  target's slot, [hub-chat.md](hub-chat.md#toy-events)). The boxed player's client
+  takes the box off and plays the sound; every other SJK client hides it and plays the
+  sound where the player stands. A lift seen here holds until that player's look drops
+  the box, at most 15 seconds. The `+use` itself still reaches the server as always.
+- **Dying in the box** plays its death sound: one's own in both ears, another's where
+  they fell, on every SJK client that sees the death (the player's entity turning
+  `EF_DEAD` while their look has the box). The box stays on until the respawn, so the
+  others still know whose death it was, and is lost with the life.
+
+The carton (an open-bottomed box of 46 x 46 x 44 units, drawn from both sides), its
+picture, shader and icon are bundled and mounted below all game data, so a PK3 with
+the same paths replaces them; they are drawn by
+[cardboard_box_assets.py](../scripts/cardboard_box_assets.py), nothing taken from
+another game ([assets/cardboard_box](../crates/sjk-viewer/assets/cardboard_box/README.md)).
+The sounds are game paths, `sound/sjk/cardboard_box/music`, `spotted` and `death`
+(`.wav`, else `.mp3`); where one is missing, nothing plays. See
+[cardboard_box.rs](../crates/sjk-viewer/src/cardboard_box.rs).
+
 ## Blade skins
 
 A blade skin is an unlockable saber look ([unlockables.md](unlockables.md)): the Sun
@@ -3416,7 +3458,10 @@ per toy, so a toy deleted from the page is added again in Settings > Quick wheel
 (Add a choice, Toys), and a future toy is one catalogue entry. Its default choice
 is Illuminate, which runs `toy_illuminate` (the toggle the bind uses) with the
 Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's own
-state; no cvar holds it).
+state; no cvar holds it). Since 16/10/2026 the default page also has the
+[Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it); a
+wheel saved before keeps its Toys page as it was, and gains the box from Add a
+choice, Toys.
 
 ### GIF wheel
 
@@ -3494,7 +3539,7 @@ by its groups in Settings:
 | Interface | Nameplates (`nameplates`, cycles), HUD on/off, Screenshot (`screenshotJPEG`), Game menu (`togglemenu`), First setup (`firstsetup`), Match timer, FPS counter, Speedometer, Lagometer (`toggle cg_...`), Console (`toggleconsole`), What's new (`changelog`) |
 | Player | Cosmetics, AFK, Team menu (`teammenu`), Spectate (`team spectator`), Respawn (`kill`), Inspect player, Engage duel, Saber style (`saberAttackCycle`), Saber on/off (`sv_saberswitch`) |
 | Emotes | Taunt, Bow, Meditate, Flourish, Gloat, Sync emote (`sjkemote sync`), Stop emote (`sjkemote stop`), then the installed emotes (`sjkemote <id>`, [hub-chat.md](hub-chat.md#emotes-in-the-client)) |
-| Toys | Illuminate (`toy_illuminate`, marked while the holocron is lit) |
+| Toys | Illuminate (`toy_illuminate`, marked while the holocron is lit), Cardboard box (`toy_box`, marked while the player is in it) |
 | Weather | The map's own weather, drizzle, rain, storm, snow (`r_weatherForce`), ground fog everywhere (`r_weatherFog` 1/2), clouds, weather on/off |
 | Time of day | Day (`r_dayHour 12`), Night (`r_dayHour 0`), with the spare sun and moon icons |
 | Votes, demos and server | Vote yes, Vote no, Record demo (`record`), Stop recording (`stoprecord`), Reconnect |

@@ -25,6 +25,10 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             "toy_illuminate",
             "Toy: turn the Illuminate holocron's light on or off",
         ),
+        (
+            crate::cardboard_box::COMMAND,
+            "Toy: hide in a cardboard box, or come out (+use on a boxed player lifts theirs)",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(
