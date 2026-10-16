@@ -4763,3 +4763,11 @@ test: On a JA+ server: amhips, amsit3, amstit6 in the air: no scoreboard.
 test: Hold the scores key during an emote: the board shows, and hides on release.
 test: Map end: the intermission scoreboard still shows.
 
+[ground-hud-scope]
+area: HUD
+title: Ground HUD: scoping no longer brings the normal status HUD back
+change: While a zoom shows first person, the status HUD stays hidden (hub report 53).
+test: cg_groundHud 1, third person: health and Force at your feet, no status HUD.
+test: Scope the disruptor: no status HUD while zoomed; unzoom: the ground HUD returns.
+test: Binoculars on the saber: same. First person (cg_thirdPerson 0): the normal HUD.
+

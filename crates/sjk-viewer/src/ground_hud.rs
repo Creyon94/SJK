@@ -87,6 +87,9 @@ pub(crate) fn frame(gpu: &mut GpuState, intermission: bool, time_ms: i32) -> Hud
         readout::select(Conditions {
             enabled,
             third_person: gpu.third_person && !gpu.detached_camera && gpu.scope.mode == 0,
+            zoomed: gpu.third_person_choice
+                && !gpu.detached_camera
+                && (gpu.zoom_first_person || gpu.scope.mode != 0),
             status_visible: visibility.status,
             intermission,
             ..*conditions
@@ -108,6 +111,10 @@ pub(crate) fn frame(gpu: &mut GpuState, intermission: bool, time_ms: i32) -> Hud
             };
             hud.renderer
                 .upload(&gpu.queue, hud.view, placement, &layout);
+        }
+        (Presentation::Covered, _) => {
+            visibility.ground_hud = true;
+            gpu.ground_hud.active = false;
         }
         _ => gpu.ground_hud.active = false,
     }
