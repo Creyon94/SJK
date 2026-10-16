@@ -4,6 +4,11 @@
 
 use super::style::ScoreboardStyle;
 
+/// `pmtype_t::PM_DEAD` (`bg_public.h`). `PM_FREEZE` (6), which a JA+ emote holds the
+/// player in, opens nothing: reading it as intermission opened the scoreboard for the
+/// emote's whole length (players' bug reports, 11/10-15/10/2026).
+const PM_DEAD: u8 = 5;
+
 /// `CG_ScoresDown_f`'s two-second request gate; rewind permits a fresh request.
 #[derive(Default)]
 pub(super) struct Requests(Option<i32>);
@@ -92,6 +97,15 @@ impl ChatLayout {
     }
 }
 
+/// Whether the player's movement type is death and whether it is intermission
+/// (`CG_DrawOldScoreboard`'s `pm_type` tests), `intermission` already known otherwise.
+fn movement_shows(movement: u8, intermission: bool) -> (bool, bool) {
+    (
+        movement == PM_DEAD,
+        intermission || movement == sjk_client::PM_INTERMISSION,
+    )
+}
+
 pub(super) fn context(gpu: &crate::GpuState, intermission: bool) -> Context {
     #[cfg(test)]
     if let Some(context) = gpu.scoreboard.shot_context() {
@@ -126,10 +140,11 @@ pub(super) fn context(gpu: &crate::GpuState, intermission: bool) -> Context {
         .predicted_state()
         .filter(|_| gpu.live_session.is_some())
         .map_or(player.movement_type(), |p| p.movement_type);
+    let (dead, intermission) = movement_shows(movement, intermission);
     Context {
         held,
-        dead: movement == 3,
-        intermission: intermission || movement == 6,
+        dead,
+        intermission,
         warmup: game
             .config_string(5)
             .and_then(|b| std::str::from_utf8(b).ok())
@@ -184,6 +199,15 @@ mod tests {
         c.held = false;
         c.intermission = true;
         assert!(c.requested());
+    }
+    #[test]
+    fn an_emote_freeze_or_noclip_is_neither_death_nor_intermission() {
+        // PM_NOCLIP 3, PM_FREEZE 6 (a JA+ emote) open nothing.
+        assert_eq!(movement_shows(3, false), (false, false));
+        assert_eq!(movement_shows(6, false), (false, false));
+        assert_eq!(movement_shows(5, false), (true, false));
+        assert_eq!(movement_shows(7, false), (false, true));
+        assert_eq!(movement_shows(0, true), (false, true));
     }
     #[test]
     fn classic_chat_uses_jof_bottom_anchor_at_each_aspect_ratio() {

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Emotes no longer open the scoreboard
+- 7631750 |  | Emotes no longer open the scoreboard
 + 16/10/2026 | - | Synced emotes sound like one song: sample-aligned copies mixed once
 - b00b09c |  | Synced emotes sound like one song: sample-aligned copies mixed once
 + 16/10/2026 | - | Credit Reyced for the Solfox player model, now a hub pack

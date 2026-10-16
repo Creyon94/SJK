@@ -4752,3 +4752,14 @@ test: A emotes with music; B and C Sync emote: one clean song, no echo.
 test: The song is no louder than A's alone when standing next to them.
 test: A stops: B and C's music plays on, still clean.
 
+# ---- Bug reports, 16/10/2026 ----
+
+[emote-scoreboard]
+area: HUD
+title: Emotes no longer open the scoreboard (amhips, amsit3, AMATEASE...)
+change: A JA+ emote freezes the player (PM_FREEZE); it was read as intermission.
+change: The board opens on its own only at intermission now. Hub reports 18 22 29 56 59.
+test: On a JA+ server: amhips, amsit3, amstit6 in the air: no scoreboard.
+test: Hold the scores key during an emote: the board shows, and hides on release.
+test: Map end: the intermission scoreboard still shows.
+
