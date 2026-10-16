@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Free camera flies during emotes and held animations
+- 3e98fca |  | Free camera flies freely while the body is held in an emote
+- 1f1f820 |  | Debug panel: free camera during emotes
 + 17/10/2026 | - | Cargo fmt fix for CI
 - 9f8444b |  | Format world_shot_emote_help.rs (CI formatting check)
 + 16/10/2026 | - | Release 2026.1016.3 (Alpha)

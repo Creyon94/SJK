@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Free camera and `fakenoclip` fly freely while your body is held in an emote, taunt or other held animation (it could turn but not move) _(Sol, after Kushina's reports)_
+
 ## 2026.1016.3 (Alpha) | 16/10/2026
 
 > Cardboard box: A new toy to hide in, Metal Gear style.

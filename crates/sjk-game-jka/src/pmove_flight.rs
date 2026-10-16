@@ -343,6 +343,62 @@ mod tests {
         );
     }
 
+    /// How far a fake-noclip predictor flies in 80 ms of forward input from `player`.
+    fn flown_from(player: &sjk_protocol::PlayerState, config: MovementConfig) -> f32 {
+        let mut predictor = Predictor::from_player_state(player, config);
+        predictor.set_fake_noclip(true);
+        let start = Vec3::from_array(predictor.state().origin);
+        let mut time = player.command_time();
+        for _ in 0..10 {
+            time += 8;
+            predictor.predict_command(
+                UserCommand {
+                    server_time: time,
+                    forward_move: 127,
+                    ..UserCommand::default()
+                },
+                &Solid(Cell::new(0)),
+            );
+        }
+        (Vec3::from_array(predictor.state().origin) - start).length()
+    }
+
+    #[test]
+    fn fake_noclip_flies_out_of_every_body_freezing_animation() {
+        let animation = |name: &str| crate::legacy_animation_index(name).expect("known animation");
+        // A full-body taunt, as stock and JA+ servers (and JA+ emotes) hold a body in; a
+        // kick; a saber lock break: the body is held, the flying camera is not.
+        for name in [
+            "BOTH_GESTURE1",
+            "BOTH_MEDITATE",
+            "BOTH_BOW",
+            "BOTH_MELEE_BACKKICK",
+        ] {
+            for ja_plus in [false, true] {
+                let mut player = player(0);
+                player.set_raw_field(63, 6); // PM_FREEZE
+                for field in [13, 15] {
+                    player.set_raw_field(field, animation(name) as u32);
+                }
+                for field in [20, 21] {
+                    player.set_raw_field(field, 2_000);
+                }
+                let mut config = MovementConfig::default();
+                if ja_plus {
+                    config.ja_plus = crate::pmove_japlus::JaPlusRules {
+                        enabled: true,
+                        ..Default::default()
+                    };
+                }
+                let flown = flown_from(&player, config);
+                assert!(
+                    flown > 1.0,
+                    "{name} (JA+ {ja_plus}) held the camera: {flown}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn fake_noclip_turbo_follows_the_aim_exactly() {
         let player = player(0);
