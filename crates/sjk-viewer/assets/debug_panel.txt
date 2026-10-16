@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[trust]
+area: Console & chat
+title: Trust marks: empty tick (new), green tick (trusted), red cross (chat banned)
+change: Unverified SJK players wear the hub's trust mark where the verified tick goes.
+change: Green after 30 days and 10 hours of play; a chat ban turns it red for a day and starts again.
+change: Only staff may ban a green player: Ban 24 h is not offered on them to others.
+test: A new key's name in SJK chat, the game chat, the docks: an empty ring tick.
+test: Its nameplate, the scoreboard emblem's foot, its player card (NEW): the same mark.
+test: Ban it as a verified player: red cross and CHAT BANNED; a day later the empty tick again.
+test: Your own Profile page says New, Trusted or Banned under your name.
+test: A verified player still shows the gold seal everywhere.
+note: Needs the hub's trust branch deployed; an older hub sends no trust, so no mark shows.
+
 [chat-ban]
 area: Console & chat
 title: Ban 24 h: verified players ban unverified ones from SJK chat

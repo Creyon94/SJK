@@ -8,6 +8,24 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+/// How far a player who is neither verified nor staff is on the way to green
+/// (`PROTOCOL.md`, "Trust"): an empty tick, a green one, or a red mark while a chat ban
+/// holds them. Hubs before 16/10/2026 send none.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Trust {
+    /// Registered less than 30 days ago (or since their last chat ban), or with less
+    /// than 10 hours of play since.
+    New,
+    /// The wait and the play are done: only staff may chat-ban them.
+    Trusted,
+    /// A chat ban holds them now.
+    Banned,
+    /// A level a later hub added, shown as none.
+    #[serde(other)]
+    Unknown,
+}
+
 /// A player's public profile as the hub serves it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Profile {
@@ -25,6 +43,9 @@ pub struct Profile {
     /// Whether the hub's operator made this key staff (absent from older hubs).
     #[serde(default)]
     pub staff: bool,
+    /// The player's trust, `None` when verified or staff (and from older hubs).
+    #[serde(default)]
+    pub trust: Option<Trust>,
     /// Registration time, unix seconds.
     pub created: i64,
     /// In-game names the key has worn, most recent first (absent from hubs older
@@ -500,6 +521,9 @@ pub struct Presence {
     pub name: String,
     /// Whether the hub's operator vouches for the claimant.
     pub verified: bool,
+    /// The claimant's trust, `None` when verified or staff (and from older hubs).
+    #[serde(default)]
+    pub trust: Option<Trust>,
     /// The claimant's medals, ids and counts only (absent from hubs older than
     /// medals), so the scoreboard shows them without a request per player.
     #[serde(default)]
@@ -532,6 +556,9 @@ pub struct ChatMessage {
     /// Whether the sender is SJK staff.
     #[serde(default)]
     pub staff: bool,
+    /// The sender's trust when they sent it, `None` when verified or staff.
+    #[serde(default)]
+    pub trust: Option<Trust>,
     /// What they said.
     pub text: String,
     /// Set when this "message" is a holocron drop the feed relayed (never read from
@@ -690,6 +717,9 @@ pub struct Person {
     /// Whether they are SJK staff.
     #[serde(default)]
     pub staff: bool,
+    /// Their trust, `None` when verified or staff.
+    #[serde(default)]
+    pub trust: Option<Trust>,
     /// Their picture's version, `""` for none.
     #[serde(default)]
     pub avatar: String,

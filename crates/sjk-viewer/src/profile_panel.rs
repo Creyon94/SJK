@@ -902,6 +902,7 @@ pub(crate) mod tests {
             bio: bio.to_owned(),
             verified: true,
             staff: false,
+            trust: None,
             created: 1_759_708_800,
             names: Vec::new(),
             medals: Vec::new(),

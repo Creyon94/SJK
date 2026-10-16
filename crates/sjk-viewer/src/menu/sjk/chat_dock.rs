@@ -67,6 +67,8 @@ pub(crate) struct DockLine<'a> {
     pub(crate) text: &'a str,
     pub(crate) verified: bool,
     pub(crate) staff: bool,
+    /// The sender's trust (`ui_renderer::mark_texture`).
+    pub(crate) trust: Option<sjk_identity::Trust>,
     /// The sender's SJK key, for their sender card.
     pub(crate) key_id: &'a str,
     /// The message is a holocron drop of this tier: no name, the tier's gem and colour.
@@ -81,6 +83,7 @@ pub(crate) const BLANK: DockLine<'static> = DockLine {
     text: "",
     verified: false,
     staff: false,
+    trust: None,
     key_id: "",
     tier: None,
     gif: None,
@@ -355,6 +358,7 @@ struct Line {
     text: String,
     verified: bool,
     staff: bool,
+    trust: Option<sjk_identity::Trust>,
     key_id: String,
     tier: Option<&'static crate::holocrons::Tier>,
     gif: Option<crate::chat_gifs::GifId>,
@@ -432,6 +436,7 @@ impl DockCache {
                     text: String::new(),
                     verified: message.verified && shown.tier.is_none(),
                     staff: message.staff,
+                    trust: message.trust.filter(|_| shown.tier.is_none()),
                     key_id: message.key_id.clone(),
                     tier: shown.tier,
                     gif: None,
@@ -469,6 +474,7 @@ impl DockCache {
                 text: &line.text,
                 verified: line.verified,
                 staff: line.staff,
+                trust: line.trust,
                 key_id: &line.key_id,
                 tier: line.tier,
                 gif: line.gif.as_ref(),
@@ -505,6 +511,7 @@ impl DockCache {
                     text: String::new(),
                     verified: *verified,
                     staff: false,
+                    trust: None,
                     key_id: format!("{:016x}", index + 1),
                     tier: None,
                     gif: None,
@@ -568,7 +575,9 @@ impl Lay<'_> {
     /// Where the text starts on the first row: after the JoF emblem, the name, the
     /// tick (or a drop's gem) and a colon (a drop has no name, so none).
     fn indent(&self, line: &DockLine<'_>) -> f32 {
-        let tick = if line.verified || line.tier.is_some() {
+        let tick = if crate::ui_renderer::mark_texture(line.verified, line.trust).is_some()
+            || line.tier.is_some()
+        {
             sjk_chat_look::tick_room(self.size)
         } else {
             0.0
@@ -914,9 +923,10 @@ fn message(
             1.0,
         );
         x += sjk_chat_look::tick_room(lay.size);
-    } else if line.verified {
+    } else if let Some(mark) = crate::ui_renderer::mark_texture(line.verified, line.trust) {
         sjk_chat_look::tick(
             canvas.draw_list_mut(),
+            mark,
             x,
             first.y + first.height * 0.5,
             lay.size,
@@ -1057,6 +1067,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         hub_name: None,
         verified: line.verified,
         staff: line.staff,
+        trust: line.trust,
         medals: crate::medals::Medals::default(),
         place: crate::sender_card::Place::Unknown,
         avatar: None,
@@ -1091,6 +1102,7 @@ mod tests {
             text,
             verified: false,
             staff: false,
+            trust: None,
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,

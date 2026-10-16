@@ -102,14 +102,17 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
         identity: match client {
             0 => Some(Tag {
                 verified: true,
+                trust: None,
                 medals: medals(&["early_tester", "early_contributor", "bug_hunter"], 3),
             }),
             11 => Some(Tag {
                 verified: true,
+                trust: None,
                 medals: medals(&["early_contributor"], 1),
             }),
             3 => Some(Tag {
                 verified: false,
+                trust: None,
                 medals: medals(&["early_tester", "bug_hunter"], 2),
             }),
             _ => None,

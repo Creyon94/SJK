@@ -2,8 +2,10 @@
 //! (`player_identity.rs`): SJK's emblem, in gold for a player the hub's operator
 //! vouches for and in soft white for any other registered player, then up to three
 //! ribbon bars for the medals the SJK team gave them (`medals.rs`), plain coloured
-//! rectangles sized after the emblem. The marks take room from the name, never from
-//! the columns: where the name would keep less than half its room, fewer bars show.
+//! rectangles sized after the emblem. A player who is neither verified nor staff wears
+//! their trust mark (`ui_renderer::trust_texture`) small on the emblem's foot. The marks
+//! take room from the name, never from the columns: where the name would keep less than
+//! half its room, fewer bars show.
 
 use crate::medals::{Medal, Medals};
 use crate::player_identity::Tag;
@@ -17,6 +19,8 @@ const RIBBONS_MAX: usize = 3;
 const RIBBON_WIDTH: f32 = 1.05;
 const RIBBON_HEIGHT: f32 = 0.42;
 const RIBBON_GAP: f32 = 0.2;
+/// The trust mark's side on the emblem's foot, as a share of the emblem's.
+const TRUST_SIDE: f32 = 0.55;
 /// The share of the name's room the marks may take.
 const MARKS_SHARE: f32 = 0.5;
 
@@ -83,6 +87,19 @@ pub(super) fn draw_marks(
         texture: crate::ui_renderer::LOGO_TEXTURE,
         color: tint(tag),
     });
+    if let Some(mark) = tag.trust.and_then(crate::ui_renderer::trust_texture) {
+        let small = side * TRUST_SIDE;
+        push(DrawCommand::TexturedQuad {
+            rect: Rect::new(
+                x + side - small * 0.8,
+                middle + side * 0.5 - small * 0.9,
+                small,
+                small,
+            ),
+            texture: mark,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+        });
+    }
     let (width, height, gap) = ribbon_size(side);
     let mut at = x + side + gap;
     for (medal, _) in tag.medals.iter().take(count) {
@@ -135,6 +152,7 @@ mod tests {
             .collect();
         Tag {
             verified,
+            trust: None,
             medals: Medals::from_wire(&list),
         }
     }

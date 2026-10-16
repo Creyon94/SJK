@@ -43,6 +43,8 @@ pub(crate) struct Summary {
     pub(crate) avatar: String,
     pub(crate) hub: HubState,
     pub(crate) verified: bool,
+    /// Their trust (`ui_renderer::mark_texture`).
+    pub(crate) trust: Option<sjk_identity::Trust>,
     /// The hub made their key staff: the game menu offers Staff tools.
     pub(crate) staff: bool,
     /// Medals the SJK team gave them (those the client knows).
@@ -61,6 +63,7 @@ static SUMMARY: Mutex<Summary> = Mutex::new(Summary {
     hub: HubState::Off,
     verified: false,
     staff: false,
+    trust: None,
     medals: 0,
     unlocked: 0,
     achievements: 0,
@@ -77,6 +80,7 @@ pub(crate) static NOBODY: Summary = Summary {
     hub: HubState::Off,
     verified: false,
     staff: false,
+    trust: None,
     medals: 0,
     unlocked: 0,
     achievements: 21,
@@ -178,6 +182,7 @@ pub(crate) fn summarise(
             .unwrap_or_default(),
         hub,
         verified: online && me.is_some_and(|me| me.verified),
+        trust: me.filter(|_| online).and_then(|me| me.trust),
         staff: online && me.is_some_and(|me| me.staff),
         medals: me
             .filter(|_| online)
@@ -298,6 +303,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, frame: &Frame, card: &Card<'_>, toke
             version: &card.summary.avatar,
             name: card.name,
             verified: card.summary.verified,
+            trust: card.summary.trust,
             preview: false,
             lit: card.lit,
         },
@@ -355,6 +361,9 @@ pub(crate) struct Avatar<'a> {
     /// Their name, for the stand-in's initial.
     pub(crate) name: &'a str,
     pub(crate) verified: bool,
+    /// Their trust: its mark at the picture's foot when not verified
+    /// (`ui_renderer::mark_texture`).
+    pub(crate) trust: Option<sjk_identity::Trust>,
     /// Draw the picture about to be uploaded instead (`avatars::set_preview`).
     pub(crate) preview: bool,
     /// Ring it in bright gold (hovered or chosen).
@@ -363,7 +372,7 @@ pub(crate) struct Avatar<'a> {
 
 /// Draw `avatar` as a disc of `radius` window pixels round `centre`: the picture once
 /// it is loaded, else the initial of their name on a colour of their own, ringed (gold
-/// when verified) and with the verified badge at its foot.
+/// when verified) and with the verified badge, or the trust mark, at its foot.
 pub(crate) fn avatar(canvas: &mut MenuCanvas, centre: [f32; 2], radius: f32, avatar: &Avatar<'_>) {
     let texture = if avatar.preview {
         crate::avatars::preview_ready().then(crate::avatars::preview_texture)
@@ -419,7 +428,7 @@ pub(crate) fn avatar(canvas: &mut MenuCanvas, centre: [f32; 2], radius: f32, ava
         color: ring,
         knockout: None,
     });
-    if avatar.verified {
+    if let Some(texture) = crate::ui_renderer::mark_texture(avatar.verified, avatar.trust) {
         // The badge at the picture's foot, right, on a disc of the ground.
         let badge = radius * 0.36;
         let at = [centre[0] + radius * 0.72, centre[1] + radius * 0.72];
@@ -431,7 +440,7 @@ pub(crate) fn avatar(canvas: &mut MenuCanvas, centre: [f32; 2], radius: f32, ava
         let mark = badge * 0.82;
         let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
             rect: Rect::new(at[0] - mark, at[1] - mark, mark * 2.0, mark * 2.0),
-            texture: crate::ui_renderer::VERIFIED_TEXTURE,
+            texture,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
     }
@@ -494,6 +503,7 @@ mod tests {
             bio: String::new(),
             verified: true,
             staff: false,
+            trust: None,
             created: 0,
             names: Vec::new(),
             medals: ["early_tester", "bug_hunter", "from_the_future"]

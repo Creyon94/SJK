@@ -183,12 +183,39 @@ fn angle_degrees(a: Vec3, b: Vec3) -> f32 {
     a.dot(b).clamp(-1.0, 1.0).acos().to_degrees()
 }
 
+/// The word after the hub name: VERIFIED, else the player's trust; empty for none.
+fn trust_word(hub: &HubInfo) -> &'static str {
+    use sjk_identity::Trust;
+    match (hub.verified, hub.trust) {
+        (true, _) => "VERIFIED",
+        (false, Some(Trust::New)) => "NEW",
+        (false, Some(Trust::Trusted)) => "TRUSTED",
+        (false, Some(Trust::Banned)) => "CHAT BANNED",
+        _ => "",
+    }
+}
+
+/// The trust word's colour at alpha `a` (the trust marks' grey, green and red); `None`
+/// for VERIFIED, which takes the hub name's gold.
+fn trust_colour(hub: &HubInfo, a: f32) -> Option<Color> {
+    use sjk_identity::Trust;
+    match (hub.verified, hub.trust?) {
+        (true, _) | (_, Trust::Unknown) => None,
+        (false, Trust::New) => Some(Color::new(0.8, 0.82, 0.85, a)),
+        (false, Trust::Trusted) => Some(Color::new(0.42, 0.86, 0.45, a)),
+        (false, Trust::Banned) => Some(Color::new(0.97, 0.38, 0.35, a)),
+    }
+}
+
 /// What the hub knows about the player.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct HubInfo {
     /// Hub display name, empty if they have none yet.
     pub(crate) name: String,
     pub(crate) verified: bool,
+    /// Their trust (`PROTOCOL.md` of the hub, "Trust"): NEW, TRUSTED or CHAT BANNED
+    /// where VERIFIED would be.
+    pub(crate) trust: Option<sjk_identity::Trust>,
     /// The medals the SJK team gave them.
     pub(crate) medals: crate::medals::Medals,
     /// Their key id, and the version of their picture (empty for none).
@@ -494,9 +521,7 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
         } else {
             hub.name.clone()
         };
-        if hub.verified {
-            card.texts[T_VERIFIED] = "VERIFIED".to_owned();
-        }
+        card.texts[T_VERIFIED] = trust_word(hub).to_owned();
         // The names on one line, or two when they are long.
         for (medal, count) in hub.medals.iter() {
             let label = medal.label(count);
@@ -1277,7 +1302,11 @@ impl State {
                 color: tint,
             });
             let hub_x = left + side + 8.0 * unit;
-            let verified_width = if hub.verified { 92.0 * unit } else { 0.0 };
+            let verified_width = if trust_word(hub).is_empty() {
+                0.0
+            } else {
+                92.0 * unit
+            };
             put_text(
                 &mut self.list,
                 T_HUB,
@@ -1292,14 +1321,14 @@ impl State {
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            if hub.verified {
+            if !trust_word(hub).is_empty() {
                 put_text(
                     &mut self.list,
                     T_VERIFIED,
                     // Lowered to share the hub name's centre line, as the emblem does.
                     Rect::new(left, y + row(5.0), inner, row(26.0)),
                     12.0 * unit,
-                    tint,
+                    trust_colour(hub, a).unwrap_or(tint),
                     FontWeight::Semibold,
                     TextAlign::End,
                 );
@@ -1826,6 +1855,7 @@ mod tests {
             bio: "\n  Fox of the JoF, maker of SJK.  \nSecond line".to_owned(),
             verified: true,
             staff: true,
+            trust: None,
             created: 1_791_000_000,
             names: Vec::new(),
             medals: Vec::new(),
@@ -1855,6 +1885,7 @@ mod tests {
             Some(HubInfo {
                 name: "Sol".to_owned(),
                 verified: true,
+                trust: None,
                 medals: crate::medals::Medals::from_wire(&[sjk_identity::Medal {
                     id: "bug_hunter".to_owned(),
                     count: 2,

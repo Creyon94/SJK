@@ -133,12 +133,19 @@ fn bans() -> std::sync::MutexGuard<'static, Bans> {
 }
 
 /// Whether the player's own key may ban this sender: the hub vouches for the player
-/// and not for the sender, who has a key and is not the player.
-pub(crate) fn offered(key_id: Option<&str>, verified: bool, staff: bool) -> bool {
+/// and not for the sender, who has a key and is not the player. A trusted sender
+/// (`trust`, the hub's green tick) only staff may ban.
+pub(crate) fn offered(
+    key_id: Option<&str>,
+    verified: bool,
+    staff: bool,
+    trust: Option<sjk_identity::Trust>,
+) -> bool {
     !verified
         && !staff
         && key_id.is_some_and(|key| crate::player_identity::printable_key_id(key).is_some())
         && trusted()
+        && (trust != Some(sjk_identity::Trust::Trusted) || crate::player_identity::is_staff())
 }
 
 /// Whether the hub vouches for the player's own key.
@@ -153,6 +160,24 @@ fn trusted() -> bool {
 #[cfg(test)]
 thread_local! {
     static TRUSTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+mod offered_tests {
+    use sjk_identity::Trust;
+
+    #[test]
+    fn a_trusted_sender_is_not_offered_to_a_verified_player() {
+        super::trust_for_test(true);
+        let key = Some("0123456789abcdef");
+        assert!(super::offered(key, false, false, None));
+        assert!(super::offered(key, false, false, Some(Trust::New)));
+        assert!(super::offered(key, false, false, Some(Trust::Banned)));
+        // Only staff ban the trusted, and this test's player is not staff.
+        assert!(!super::offered(key, false, false, Some(Trust::Trusted)));
+        assert!(!super::offered(key, true, false, None));
+        super::trust_for_test(false);
+    }
 }
 
 /// Make this test thread's player one the hub vouches for, or not.

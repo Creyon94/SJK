@@ -602,6 +602,38 @@ client offers it and says what came of it.
   (`ban::banned_message`, from the refusal's `until`), where every refusal shows: an
   `SJK chat:` line in the game, the docks' line under the field, the page's notice.
 
+## Trust marks
+
+Sol's request, 16/10/2026: an "in progress verified" mark, an empty tick for unknown
+players that turns green after 30 days, which staff can upgrade to verified; a chat ban
+resets the timer and shows a red mark for a day. Sol's answers to the design: only staff
+may ban a green player, green players may not ban, only the banned player's timer
+resets (not others on their address), and 10 hours of play are needed besides the 30
+days. The hub works the level out (Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Trust") and
+sends `trust` with profiles, presence, chat messages and the feed's people for a player
+who is neither verified nor staff; the client draws it
+(`ui_renderer::mark_texture`, [trust_badge.rs](../crates/sjk-viewer/src/ui_renderer/trust_badge.rs)).
+
+- **New**: an empty light grey ring with a grey tick. Every key from the day it
+  registers, and again after a chat ban ends.
+- **Trusted**: a round green disc with a white tick, round where the verified seal is
+  scalloped so the two never read alike. 30 days since registering or since the last
+  chat ban that was not lifted, and 10 hours of active play in that time (as holocrons
+  count it). Staff verify players by hand as before; green is a hint, not a step the hub
+  takes by itself. Only staff may chat-ban a green player (`chat_ban::offered` hides
+  Ban 24 h from the others; the hub refuses `target_trusted`), and a ban on another
+  player's address does not hold them.
+- **Banned**: a red disc with a white cross while a chat ban holds the player (24 hours).
+  A ban that staff lift does not count: lifting it gives the time back.
+- **Where**: after the name on SJK and game chat lines, on the docks and the chat page
+  (lines, the chosen message), on sender cards, on nameplates, small on the foot of the
+  scoreboard's SJK emblem, at the foot of the profile card's picture; the player card
+  writes NEW, TRUSTED or CHAT BANNED where VERIFIED goes, the in-game menu's player rows
+  say Trusted or Chat banned, and the Profile page's line under the name says where the
+  player stands ("New: green after 30 days and 10 hours of play").
+- A hub before trust sends none, and a level a later hub adds reads as none
+  (`Trust::Unknown`): no mark, as before.
+
 ## Muting a player
 
 A player can be muted on this PC (Sol's request, 08/10/2026). It is local: nothing goes

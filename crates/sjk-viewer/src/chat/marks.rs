@@ -18,6 +18,8 @@ pub(crate) struct SlotMark {
     /// The hub knows them in this slot: SJK's emblem goes before their name.
     pub(crate) sjk: bool,
     pub(crate) verified: bool,
+    /// Their trust (`ui_renderer::mark_texture`), none when verified or staff.
+    pub(crate) trust: Option<sjk_identity::Trust>,
     /// Their name as they wear it, when the game's lost characters of it.
     pub(crate) name: Option<String>,
 }
@@ -61,6 +63,7 @@ pub(crate) fn marks<'a>(
                 *mark = SlotMark {
                     sjk: true,
                     verified: me.verified,
+                    trust: me.trust,
                     name: restores(worn, name).then(|| worn.to_owned()),
                 };
             }
@@ -75,6 +78,7 @@ pub(crate) fn marks<'a>(
         *mark = SlotMark {
             sjk: true,
             verified: player.verified,
+            trust: player.trust,
             name: restores(&player.claimed_name, name).then(|| player.claimed_name.clone()),
         };
     }
@@ -217,11 +221,13 @@ mod tests {
                 gpu.chat.slot_marks[0] = SlotMark {
                     sjk: true,
                     verified: true,
+                    trust: None,
                     name: Some("^0JoF J S^7olol 🦊".to_owned()),
                 };
                 gpu.chat.slot_marks[7] = SlotMark {
                     sjk: true,
                     verified: false,
+                    trust: None,
                     name: None,
                 };
                 let now = std::time::Instant::now();
@@ -259,6 +265,7 @@ mod tests {
                     name: "^0JoF J S^7olol 🦊".to_owned(),
                     verified: true,
                     staff: false,
+                    trust: None,
                     text: "and this one goes through the SJK chat".to_owned(),
                     holocron: None,
                 };

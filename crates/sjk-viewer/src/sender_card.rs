@@ -43,6 +43,8 @@ pub(crate) struct Person {
     pub(crate) hub_name: Option<String>,
     pub(crate) verified: bool,
     pub(crate) staff: bool,
+    /// Their trust (`ui_renderer::mark_texture`), none when verified or staff or unknown.
+    pub(crate) trust: Option<sjk_identity::Trust>,
     pub(crate) medals: crate::medals::Medals,
     pub(crate) place: Place,
     /// Their picture's version, empty for none; `None` while not known (the place that
@@ -56,10 +58,14 @@ pub(crate) struct Person {
 impl Person {
     /// The card's status line: whether the hub knows them.
     fn status(&self) -> &'static str {
-        match (self.key_id.is_some(), self.staff) {
-            (true, true) => "SJK player, SJK staff",
-            (true, false) => "SJK player",
-            (false, _) => "Not known to the SJK hub",
+        use sjk_identity::Trust;
+        match (self.key_id.is_some(), self.staff, self.trust) {
+            (true, true, _) => "SJK player, SJK staff",
+            (true, false, Some(Trust::New)) => "SJK player, new",
+            (true, false, Some(Trust::Trusted)) => "SJK player, trusted",
+            (true, false, Some(Trust::Banned)) => "SJK player, banned from the chat",
+            (true, false, _) => "SJK player",
+            (false, ..) => "Not known to the SJK hub",
         }
     }
     /// The key id the card prints: none for the player's own.
@@ -197,14 +203,16 @@ pub(crate) fn draw(
             version: person.avatar.as_deref().unwrap_or(""),
             name: &person.name,
             verified: false,
+            trust: None,
             preview: false,
             lit: false,
         },
     );
     let head_x = x + radius * 2.0 + 12.0 * u;
     let head_width = (inner - (head_x - x)).max(1.0);
-    // The name and, for a verified player, the tick alone.
-    let tick_room = if person.verified {
+    // The name and its mark alone: the verified seal or the trust mark.
+    let mark = crate::ui_renderer::mark_texture(person.verified, person.trust);
+    let tick_room = if mark.is_some() {
         crate::sjk_chat_look::tick_room(20.0 * u)
     } else {
         0.0
@@ -218,13 +226,20 @@ pub(crate) fn draw(
         0.0,
         TextAlign::Start,
     );
-    if person.verified {
+    if let Some(mark) = mark {
         let name = match measure {
             Some(measure) => measure.width(&person.name, 20.0 * u, crate::text::TextFace::Semibold),
             None => estimated_width(&person.name, 20.0 * u),
         };
         let end = head_x + (head_width - tick_room).min(name);
-        crate::sjk_chat_look::tick(canvas.draw_list_mut(), end, y + 13.0 * u, 20.0 * u, 1.0);
+        crate::sjk_chat_look::tick(
+            canvas.draw_list_mut(),
+            mark,
+            end,
+            y + 13.0 * u,
+            20.0 * u,
+            1.0,
+        );
     }
     y += 30.0 * u;
     canvas.text_fmt_aligned(
@@ -323,10 +338,9 @@ pub(crate) fn draw(
     let under = y + 38.0 * u + 4.0 * u;
     // Ban 24 h for a sender the hub does not vouch for, when it vouches for the
     // player; what it came to (or the armed button's warning) takes the quiet line.
-    let ban_key = person
-        .key_id
-        .as_deref()
-        .filter(|key| crate::chat_ban::offered(Some(key), person.verified, person.staff));
+    let ban_key = person.key_id.as_deref().filter(|key| {
+        crate::chat_ban::offered(Some(key), person.verified, person.staff, person.trust)
+    });
     match ban_key {
         Some(key) => crate::chat_ban::with_shown(key, |shown| {
             card_button(
@@ -440,6 +454,7 @@ mod tests {
             hub_name: None,
             verified: true,
             staff: false,
+            trust: None,
             medals: crate::medals::Medals::default(),
             place: Place::SlotByName(5),
             avatar: Some(String::new()),

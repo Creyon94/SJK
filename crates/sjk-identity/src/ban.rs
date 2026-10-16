@@ -79,6 +79,7 @@ pub fn refusal(error: &HubError) -> &'static str {
         HubError::Rejected { code, .. } => match code.as_str() {
             "not_verified" => "Only verified players can ban from SJK chat",
             "target_verified" => "Verified players and staff cannot be banned",
+            "target_trusted" => "Only staff can ban a trusted player",
             "not_found" => "The hub does not know this player",
             "bad_target" => "You cannot ban yourself",
             "unauthorized" | "clock" => "The hub did not take the request; try again",

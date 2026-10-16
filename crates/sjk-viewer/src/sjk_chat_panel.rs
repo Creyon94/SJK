@@ -855,6 +855,7 @@ mod tests {
             name: format!("^{}Player {id}", id % 8),
             verified: id.is_multiple_of(3),
             staff: id.is_multiple_of(5),
+            trust: None,
             text: text.to_owned(),
             holocron: None,
         }

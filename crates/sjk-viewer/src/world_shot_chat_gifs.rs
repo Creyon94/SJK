@@ -72,6 +72,7 @@ fn duel6_sjk_chat_gifs_page() {
                 name: (*name).to_owned(),
                 verified: *verified,
                 staff: false,
+                trust: None,
                 text: (*text).to_owned(),
                 holocron: None,
             },
@@ -223,6 +224,7 @@ fn duel6_sjk_chat_gifs_feed() {
                     name: name.to_owned(),
                     verified,
                     staff: false,
+                    trust: None,
                     text: text.to_owned(),
                     holocron: None,
                 };
@@ -299,6 +301,7 @@ fn duel6_sjk_chat_gif_picker() {
             name: format!("^{}Player {n}", n % 7 + 1),
             verified: n % 3 == 0,
             staff: false,
+            trust: None,
             text: format!("look https://giphy.com/gifs/ShotPick{:02}X", n),
             holocron: None,
         })

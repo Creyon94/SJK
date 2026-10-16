@@ -411,6 +411,8 @@ pub(crate) mod color {
     pub(crate) const GOLD: Color = Color::new(0.91, 0.722, 0.29, 1.0);
     /// Gold lit: the chosen item's text and marks.
     pub(crate) const GOLD_BRIGHT: Color = Color::new(1.0, 0.851, 0.478, 1.0);
+    /// A trusted player's green (the trust mark's, `ui_renderer::trust_texture`).
+    pub(crate) const TRUSTED: Color = Color::new(0.42, 0.86, 0.45, 1.0);
     /// Text.
     pub(crate) const TEXT: Color = Color::new(0.886, 0.914, 0.965, 1.0);
     /// Secondary text.

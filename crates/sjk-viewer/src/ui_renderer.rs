@@ -12,6 +12,7 @@ mod gif_textures;
 mod icons;
 mod levelshot;
 mod medal_art;
+mod trust_badge;
 mod verified_badge;
 use art::{ArtTextures, Run, Source};
 use emblem::EmblemTextures;
@@ -36,6 +37,32 @@ pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32:
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
+/// `TexturedQuad` texture naming the trust mark for `trust` (`trust_badge`), drawn once
+/// at start; `None` for a level this build does not know.
+pub(crate) fn trust_texture(trust: sjk_identity::Trust) -> Option<sjk_ui::TextureId> {
+    use sjk_identity::Trust;
+    let cell = match trust {
+        Trust::New => 0,
+        Trust::Trusted => 1,
+        Trust::Banned => 2,
+        Trust::Unknown => return None,
+    };
+    Some(sjk_ui::TextureId(icons::TRUST_ICON_FIRST + cell))
+}
+
+/// The mark after an SJK player's name: the gold verified seal when `verified`, else
+/// their trust mark (`trust`, the hub's; none from hubs before it or for staff).
+pub(crate) fn mark_texture(
+    verified: bool,
+    trust: Option<sjk_identity::Trust>,
+) -> Option<sjk_ui::TextureId> {
+    if verified {
+        Some(VERIFIED_TEXTURE)
+    } else {
+        trust.and_then(trust_texture)
+    }
+}
+
 /// `TexturedQuad` texture naming the duel badge (crossed sabers) in duel colour
 /// `index` (`duel_badge::COLOURS`, wrapping), drawn once at start.
 pub(crate) fn duel_texture(index: usize) -> sjk_ui::TextureId {
@@ -355,6 +382,19 @@ impl ShapeRenderer {
             VERIFIED_TEXTURE,
             &verified_badge::pixels(icons::ICON_SIZE),
         );
+        for trust in [
+            sjk_identity::Trust::New,
+            sjk_identity::Trust::Trusted,
+            sjk_identity::Trust::Banned,
+        ] {
+            if let Some(texture) = trust_texture(trust) {
+                icons.upload(
+                    queue,
+                    texture,
+                    &trust_badge::pixels(icons::ICON_SIZE, trust),
+                );
+            }
+        }
         for (index, colour) in duel_badge::COLOURS.into_iter().enumerate() {
             icons.upload(
                 queue,

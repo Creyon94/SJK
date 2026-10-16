@@ -446,6 +446,7 @@ fn drop_message(drop: DropEvent, own: &str) -> ChatMessage {
         name: drop.name,
         verified: drop.verified,
         staff: false,
+        trust: None,
         text: String::new(),
     }
 }
@@ -553,6 +554,7 @@ mod tests {
             name: "Sol".to_owned(),
             verified: false,
             staff: false,
+            trust: None,
             text: text.to_owned(),
             holocron: None,
         }

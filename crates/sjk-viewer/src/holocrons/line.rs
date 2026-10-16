@@ -58,6 +58,7 @@ mod tests {
             name: name.to_owned(),
             verified: true,
             staff: false,
+            trust: None,
             text: String::new(),
             holocron: Some(DropMark {
                 tier: tier.to_owned(),

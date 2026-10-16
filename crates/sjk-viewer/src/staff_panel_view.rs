@@ -294,6 +294,7 @@ impl Panel {
                 version: &profile.avatar,
                 name: &profile.name,
                 verified: profile.verified,
+                trust: profile.trust,
                 preview: false,
                 lit: false,
             },

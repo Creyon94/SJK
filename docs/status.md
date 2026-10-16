@@ -1,3 +1,17 @@
+## Trust marks
+
+16/10/2026, `personal/trust` (Sol's request): a player the hub neither verifies nor made
+staff wears the hub's trust where the verified tick goes: an empty ring tick (new), a
+green disc tick (trusted: 30 days and 10 hours of play since registering or the last
+chat ban) or a red disc cross (a chat ban holds them)
+([hub-chat.md](hub-chat.md#trust-marks)). On SJK and game chat lines, the docks, the
+chat page, sender cards, nameplates, the scoreboard emblem's foot, the player card's
+word (NEW, TRUSTED, CHAT BANNED), the profile card's picture and the Profile page's
+status line. Ban 24 h is not offered on a trusted sender to a player who is not staff.
+Built against the hub's `trust` field (Sol-Vulpes/SJK-hub branch `trust`, on top of
+`chat-ban`). Checked by unit tests (`trust_badge`, the chat line's marks, `offered` on a
+trusted sender). Not tried in the game or against a running hub.
+
 ## Chat bans: Ban 24 h
 
 16/10/2026, `personal/chat-ban` (Sol's request): a verified or staff player bans an

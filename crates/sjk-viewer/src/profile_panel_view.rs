@@ -53,6 +53,8 @@ struct Who {
     key_id: String,
     avatar: String,
     verified: bool,
+    /// Their trust mark (`ui_renderer::mark_texture`), none when verified.
+    trust: Option<sjk_identity::Trust>,
 }
 
 fn who(inputs: &Inputs<'_>) -> Who {
@@ -65,6 +67,7 @@ fn who(inputs: &Inputs<'_>) -> Who {
         key_id: String::new(),
         avatar: String::new(),
         verified: false,
+        trust: None,
     };
     if !inputs.enabled {
         return plain(
@@ -98,6 +101,7 @@ fn who(inputs: &Inputs<'_>) -> Who {
                 .map(|me| me.avatar.clone())
                 .unwrap_or_default(),
             verified: false,
+            trust: None,
         },
         Status::Online => {
             let Some(me) = &snapshot.me else {
@@ -105,10 +109,22 @@ fn who(inputs: &Inputs<'_>) -> Who {
             };
             let mut lines = Vec::new();
             let since = crate::medals::date_text(me.created);
-            let badge = if me.verified {
-                ("Verified by the SJK team".to_owned(), color::GOLD_BRIGHT)
-            } else {
-                ("Not verified yet".to_owned(), color::QUIET)
+            use sjk_identity::Trust;
+            let badge = match (me.verified, me.trust) {
+                (true, _) => ("Verified by the SJK team".to_owned(), color::GOLD_BRIGHT),
+                (false, Some(Trust::New)) => (
+                    "New: green after 30 days and 10 hours of play".to_owned(),
+                    color::QUIET,
+                ),
+                (false, Some(Trust::Trusted)) => (
+                    "Trusted: the SJK team may verify you".to_owned(),
+                    color::TRUSTED,
+                ),
+                (false, Some(Trust::Banned)) => (
+                    "Banned from the SJK chat: your 30 days start again".to_owned(),
+                    color::EMBER,
+                ),
+                (false, _) => ("Not verified yet".to_owned(), color::QUIET),
             };
             lines.push(badge);
             if !since.is_empty() {
@@ -139,6 +155,7 @@ fn who(inputs: &Inputs<'_>) -> Who {
                 key_id: me.key_id.clone(),
                 avatar: me.avatar.clone(),
                 verified: me.verified,
+                trust: me.trust,
             }
         }
     }
@@ -228,6 +245,7 @@ impl Panel {
                 version: &who.avatar,
                 name: &who.headline,
                 verified: who.verified,
+                trust: who.trust,
                 preview: false,
                 lit,
             },
@@ -579,6 +597,7 @@ impl Panel {
                 version: &who.avatar,
                 name: &who.headline,
                 verified: who.verified,
+                trust: who.trust,
                 preview,
                 lit: preview,
             },
@@ -1098,6 +1117,7 @@ mod tests {
             ),
             verified: true,
             staff: false,
+            trust: None,
             created: 1_759_708_800,
             names: ["^2Fox", "Sol", "^4Another Long Name", "Fourth"]
                 .iter()

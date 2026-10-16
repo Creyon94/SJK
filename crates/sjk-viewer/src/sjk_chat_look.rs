@@ -38,15 +38,22 @@ pub(crate) fn tick_room(size: f32) -> f32 {
     size * 0.2 + tick_side(size) + size * 0.05
 }
 
-/// Draw the verified tick (the nameplates' gold seal with its white tick,
-/// [`crate::ui_renderer::VERIFIED_TEXTURE`]) after a name drawn at `size` that ends at
-/// `x`, centred on the height `middle`, at `alpha`. Returns where it was drawn.
-pub(crate) fn tick(list: &mut DrawList, x: f32, middle: f32, size: f32, alpha: f32) -> Rect {
+/// Draw a player's mark `texture` (the nameplates' gold verified seal, or a trust mark:
+/// [`crate::ui_renderer::mark_texture`]) after a name drawn at `size` that ends at `x`,
+/// centred on the height `middle`, at `alpha`. Returns where it was drawn.
+pub(crate) fn tick(
+    list: &mut DrawList,
+    texture: sjk_ui::TextureId,
+    x: f32,
+    middle: f32,
+    size: f32,
+    alpha: f32,
+) -> Rect {
     let side = tick_side(size);
     let rect = Rect::new(x + size * 0.2, middle - side * 0.5, side, side);
     let _ = list.push(DrawCommand::TexturedQuad {
         rect,
-        texture: crate::ui_renderer::VERIFIED_TEXTURE,
+        texture,
         color: Color::new(1.0, 1.0, 1.0, alpha),
     });
     rect

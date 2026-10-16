@@ -74,7 +74,8 @@ struct Laid {
     /// The room the JoF emblem takes before the name ([`crate::jof_tag`]), or 0.
     jof: f32,
     name_width: f32,
-    verified: bool,
+    /// The mark after the name (`ui_renderer::mark_texture`), none for a drop.
+    mark: Option<sjk_ui::TextureId>,
     /// Where the text starts on the first row, after the name, the tick and the colon.
     indent: f32,
     /// Staff, and how long ago it came, on the right of the first row.
@@ -127,7 +128,8 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     // tier's gem for the tick, no colon.
     let drop = message.holocron.is_some();
     let words = crate::holocrons::line::words(message);
-    let tick = if message.verified || drop {
+    let mark = crate::ui_renderer::mark_texture(message.verified, message.trust).filter(|_| !drop);
+    let tick = if mark.is_some() || drop {
         sjk_chat_look::tick_room(NAME_SIZE)
     } else {
         0.0
@@ -167,7 +169,7 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
         name,
         jof,
         name_width,
-        verified: message.verified && !drop,
+        mark,
         indent,
         meta,
         staff: message.staff,
@@ -407,6 +409,7 @@ impl Panel {
                     hub_name: None,
                     verified: message.verified,
                     staff: message.staff,
+                    trust: message.trust,
                     medals: crate::medals::Medals::default(),
                     place: crate::sender_card::Place::Unknown,
                     avatar: None,
@@ -488,10 +491,11 @@ impl Panel {
                 1.0,
             );
             x += sjk_chat_look::tick_room(NAME_SIZE);
-        } else if laid.verified {
+        } else if let Some(mark) = laid.mark {
             let [left, _] = frame.point(x, y);
             sjk_chat_look::tick(
                 self.ui.draw_list_mut(),
+                mark,
                 left,
                 first.y + first.height * 0.5,
                 NAME_SIZE * s,
@@ -824,6 +828,7 @@ impl Panel {
                 hub_name: None,
                 verified: row.verified,
                 staff: row.staff,
+                trust: row.trust,
                 medals: crate::medals::Medals::default(),
                 place: crate::sender_card::Place::Unknown,
                 avatar: version,
@@ -1021,9 +1026,10 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        if message.verified {
+        if let Some(mark) = crate::ui_renderer::mark_texture(message.verified, message.trust) {
             sjk_chat_look::tick(
                 self.ui.draw_list_mut(),
+                mark,
                 frame.point(SIDE_X + width, 0.0)[0],
                 rect.y + rect.height * 0.5,
                 size * s,
@@ -1061,8 +1067,12 @@ impl Panel {
         self.order.push(MUTE_TOKEN);
         let quiet = "Hides their chat, model, sabers and sounds on this PC.";
         let under = frame.rect(SIDE_X, y + 50.0, SIDE_WIDTH, 22.0);
-        let bannable =
-            crate::chat_ban::offered(Some(&message.key_id), message.verified, message.staff);
+        let bannable = crate::chat_ban::offered(
+            Some(&message.key_id),
+            message.verified,
+            message.staff,
+            message.trust,
+        );
         self.shown.chosen_bannable = bannable;
         if bannable {
             // Beside Mute; what it came to (or the armed button's warning) takes the

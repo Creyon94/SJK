@@ -30,6 +30,7 @@ use crate::menu::sjk::{
 };
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::text::{TextVertex, UiFont};
+use sjk_identity::Trust;
 use sjk_protocol::{GameState, InfoString};
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
 use std::fmt::Write as _;
@@ -1132,6 +1133,8 @@ fn table_row(
         (Some(_), true) => ("You, SJK", color::HOLO),
         (None, true) => ("You", color::QUIET),
         (Some(hub), false) if hub.verified => ("Verified", color::GOLD_BRIGHT),
+        (Some(hub), false) if hub.trust == Some(Trust::Trusted) => ("Trusted", color::TRUSTED),
+        (Some(hub), false) if hub.trust == Some(Trust::Banned) => ("Chat banned", color::EMBER),
         (Some(_), false) => ("SJK", color::HOLO),
         (None, false) => ("", color::QUIET),
     };
@@ -1195,6 +1198,7 @@ fn player_card(
                     version: &hub.avatar,
                     name: &player.name,
                     verified: hub.verified,
+                    trust: hub.trust,
                     preview: false,
                     lit: false,
                 },
@@ -1268,7 +1272,12 @@ fn player_card(
     y += 22.0;
     let (hub, colour) = match &player.hub {
         Some(hub) if hub.verified => ("Verified SJK player", color::GOLD_BRIGHT),
-        Some(_) => ("SJK player", color::HOLO),
+        Some(hub) => match hub.trust {
+            Some(Trust::New) => ("New SJK player", color::HOLO),
+            Some(Trust::Trusted) => ("Trusted SJK player", color::TRUSTED),
+            Some(Trust::Banned) => ("SJK player, banned from the chat", color::EMBER),
+            _ => ("SJK player", color::HOLO),
+        },
         None => ("Not known to the SJK hub", color::MUTED),
     };
     text(
@@ -1940,6 +1949,7 @@ mod tests {
             text: "anyone up for duels on ffa3?",
             verified: true,
             staff: false,
+            trust: None,
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,
@@ -1950,6 +1960,7 @@ mod tests {
                    too small at 4K and the clock could move a little to the left",
             verified: false,
             staff: false,
+            trust: None,
             key_id: "00000000000000ff",
             tier: None,
             gif: None,
@@ -1959,6 +1970,7 @@ mod tests {
             text: "in 5 min",
             verified: false,
             staff: false,
+            trust: None,
             key_id: "fedcba9876543210",
             tier: None,
             gif: None,
