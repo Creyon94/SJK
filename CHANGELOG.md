@@ -26,6 +26,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - The Solfox player model reaches every SJK player through the hub: anyone may wear it, and SJK players see it on each other _(Reyced, Sol)_
+- Synced emotes sound like one song: every follower's music plays at the very same sample as the leader's and the group is mixed once, so no more echo or extra loudness _(Sol)_
 
 ## 2026.1015.4 (Alpha) | 15/10/2026
 

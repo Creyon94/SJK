@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Synced emotes sound like one song: sample-aligned copies mixed once
+- b00b09c |  | Synced emotes sound like one song: sample-aligned copies mixed once
 + 16/10/2026 | - | Credit Reyced for the Solfox player model, now a hub pack
 - c834d54 |  | Credit Reyced for the Solfox player model, now a hub pack
 + 15/10/2026 | - | Release 2026.1015.4 (Alpha)

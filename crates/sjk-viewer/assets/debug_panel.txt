@@ -4744,3 +4744,11 @@ test: Third person: the cape and hood show from behind and from inside.
 test: Look at the feet: four short rounded toes, no holes at the toes.
 test: A second SJK client on the same server sees you as Solfox.
 
+[emote-sync-audio]
+area: Audio
+title: Synced emotes sound like one song: no echo, no extra loudness
+change: Followers' music plays at the leader's exact sample, mixed once.
+test: A emotes with music; B and C Sync emote: one clean song, no echo.
+test: The song is no louder than A's alone when standing next to them.
+test: A stops: B and C's music plays on, still clean.
+

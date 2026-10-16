@@ -59,8 +59,19 @@ pub struct MixerConfig {
     pub doppler: DopplerConfig,
     /// A channel whose voices are stolen last when the table is full: long
     /// sounds (an emote's music) are always the oldest, so the plain
-    /// oldest-first steal would cut them first.
+    /// oldest-first steal would cut them first. Its voices playing the same
+    /// sound at the same sample (synced emotes, [`Mixer::play_aligned`]) are
+    /// mixed once, each ear as loud as the loudest of them, not their sum.
     pub protected_channel: Option<ChannelId>,
+}
+
+/// Whether `other` plays the very sample `voice` plays, on its channel: a synced
+/// group mixed as one.
+fn same_sample(other: &Voice, voice: &Voice) -> bool {
+    other.active
+        && other.handle == voice.handle
+        && other.cursor == voice.cursor
+        && other.request.channel == voice.request.channel
 }
 
 /// Allocation-free distance-ratio Doppler policy for looping voices.
@@ -535,6 +546,32 @@ impl Mixer {
         true
     }
 
+    /// [`Self::play_from`], but at the very sample `align`'s voice on the same
+    /// channel plays the same sound, when it plays it within `window` samples of
+    /// `offset`: the two then sound as one (see
+    /// [`MixerConfig::protected_channel`]). Otherwise from `offset`.
+    pub fn play_aligned(
+        &mut self,
+        handle: SoundHandle,
+        request: PlayRequest,
+        offset: usize,
+        align: SourceId,
+        window: usize,
+    ) -> bool {
+        let aligned = self
+            .voices
+            .iter()
+            .find(|voice| {
+                voice.active
+                    && voice.handle == handle
+                    && voice.request.source == align
+                    && voice.request.channel == request.channel
+                    && voice.cursor.abs_diff(offset) <= window
+            })
+            .map_or(offset, |voice| voice.cursor);
+        self.play_from(handle, request, aligned)
+    }
+
     /// Apply the legacy channel-picker mute to a source/channel pair.
     ///
     /// Compatibility adapters may normalize related logical channels before
@@ -750,27 +787,57 @@ impl Mixer {
     /// Mix interleaved stereo samples without allocating.
     pub fn render(&mut self, out: &mut [f32]) {
         out.fill(0.0);
-        for voice in &mut self.voices {
+        for index in 0..self.voices.len() {
+            let voice = self.voices[index];
             if !voice.active {
                 continue;
             }
             let Some(sound) = self.bank.get(voice.handle) else {
-                voice.active = false;
+                self.voices[index].active = false;
                 continue;
             };
-            let gains = voice.request.origin.map_or([1.0; 2], |origin| {
-                self.spatial
-                    .gains(&self.listener, origin, voice.request.attenuation)
-            });
+            let merged = Some(voice.request.channel) == self.protected_channel;
+            // Mixed already with an earlier voice of its group this block.
+            if merged
+                && self.voices[..index]
+                    .iter()
+                    .any(|other| same_sample(other, &voice))
+            {
+                continue;
+            }
+            let gains_of = |voice: &Voice| {
+                let gains = voice.request.origin.map_or([1.0; 2], |origin| {
+                    self.spatial
+                        .gains(&self.listener, origin, voice.request.attenuation)
+                });
+                gains.map(|gain| gain * voice.request.volume)
+            };
+            let mut gains = gains_of(&voice);
+            if merged {
+                for other in &self.voices[index + 1..] {
+                    if same_sample(other, &voice) {
+                        let more = gains_of(other);
+                        gains = [gains[0].max(more[0]), gains[1].max(more[1])];
+                    }
+                }
+            }
+            let mut cursor = voice.cursor;
+            let mut active = true;
             for frame in out.chunks_exact_mut(2) {
-                if voice.cursor >= sound.samples.len() {
-                    voice.active = false;
+                if cursor >= sound.samples.len() {
+                    active = false;
                     break;
                 }
-                let sample = sound.samples[voice.cursor] * voice.request.volume * self.master_gain;
+                let sample = sound.samples[cursor] * self.master_gain;
                 frame[0] += sample * gains[0];
                 frame[1] += sample * gains[1];
-                voice.cursor += 1;
+                cursor += 1;
+            }
+            for other in index..self.voices.len() {
+                if other == index || (merged && same_sample(&self.voices[other], &voice)) {
+                    self.voices[other].cursor = cursor;
+                    self.voices[other].active = active;
+                }
             }
         }
         self.render_loops(out);
@@ -1020,5 +1087,7 @@ fn length(value: [f32; 3]) -> f32 {
 mod loop_frame_tests;
 #[cfg(test)]
 mod spatial_tests;
+#[cfg(test)]
+mod sync_mix_tests;
 #[cfg(test)]
 mod voice_steal_tests;

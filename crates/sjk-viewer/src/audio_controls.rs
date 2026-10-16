@@ -201,7 +201,8 @@ impl GameAudio {
     }
 
     /// Play an emote's sound on player `slot` from `offset` in (a synced emote's
-    /// music picking up), `volume` times as loud as recorded, on the channel
+    /// music joining), at the very sample player `align`'s voice plays it when they
+    /// lead a synced emote, `volume` times as loud as recorded, on the channel
     /// [`EMOTE_CHANNEL`] so [`Self::stop_emote`] can cut it; a muted player's stays
     /// silent. Another player's is placed at `origin` and follows them (the snapshot
     /// moves their source); the player's own (`origin` `None`: their entity is not in
@@ -213,12 +214,13 @@ impl GameAudio {
         origin: Option<[f32; 3]>,
         volume: f32,
         offset: std::time::Duration,
+        align: Option<u8>,
     ) {
         let source = SourceId(u32::from(slot));
         if self.mute.silences(source, None) {
             return;
         }
-        if offset.is_zero() {
+        if offset.is_zero() && align.is_none() {
             match origin {
                 Some(origin) => self.play_on_channel(path, volume, origin, source, EMOTE_CHANNEL),
                 None => self.play_local(path, volume, source, EMOTE_CHANNEL),
@@ -242,6 +244,7 @@ impl GameAudio {
                 },
             },
             samples,
+            align.map(|slot| SourceId(u32::from(slot))),
         ));
     }
 
