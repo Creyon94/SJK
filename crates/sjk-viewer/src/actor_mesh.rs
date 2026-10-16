@@ -3,6 +3,7 @@ use super::*;
 
 /// Map-lifetime actor mesh ranges and reusable pose storage.
 pub(crate) struct ActorMesh {
+    pub(crate) flame_pose: crate::actor_world_submission::force_powers::flame::Pose,
     pub(crate) entity_id: Option<EntityId>,
     pub(crate) corpse_pool: bool,
     pub(crate) body_identity: Option<sjk_client::BodyIdentity>,

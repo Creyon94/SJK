@@ -8,6 +8,7 @@ use std::error::Error;
 
 /// Immutable inputs shared by independently prepared actors in one frame.
 pub(super) struct Frame<'a> {
+    pub flame: Option<&'static crate::actor_world_submission::force_powers::flame::Contract>,
     pub world: &'a World,
     pub local_entity: Option<EntityId>,
     pub local_animation: Option<AnimationState>,
@@ -22,6 +23,7 @@ pub(super) struct Frame<'a> {
 /// Prepare one actor without allowing a bad attachment or angle query to stop its peers.
 pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box<dyn Error>> {
     let Frame {
+        flame,
         world,
         local_entity,
         local_animation,
@@ -52,9 +54,36 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
             }
         });
     let Some((Some(state), pose)) = requested else {
+        mesh.flame_pose = Default::default();
         return Ok(());
     };
     let mut state = state;
+    let flame_clip = flame
+        .filter(|rule| {
+            !mesh.corpse_pool
+                && mesh.animator.humanoid()
+                && mesh.preview.rig.is_none()
+                && snapshot
+                    .zip(mesh.entity_id)
+                    .and_then(|(snapshot, id)| {
+                        crate::actor_world_submission::force_powers::Caster::find(
+                            snapshot,
+                            id.get().saturating_sub(1) as u16,
+                            predicted,
+                        )
+                    })
+                    .is_some_and(|caster| rule.firing(caster))
+        })
+        .and_then(|rule| {
+            let index = rule.pose_index;
+            mesh.preview
+                .config
+                .get_by_index(index)
+                .filter(|clip| clip.name == rule.pose)
+                .map(|_| index)
+        });
+    mesh.flame_pose
+        .apply(mesh.entity_id, flame_clip, presentation_time, &mut state);
     if mesh.corpse_pool && !mesh.body_copied {
         state.lower.forced_frame =
             sjk_client::legacy_body_frame(&mesh.preview.config, state.lower.clip);

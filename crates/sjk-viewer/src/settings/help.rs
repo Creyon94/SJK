@@ -91,6 +91,21 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "-1",
+        "Auto",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "0",
+        "Off",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "1",
+        "JA+",
+    ),
+    (
         crate::graphics_quality::RENDERER_ROW,
         crate::graphics_quality::VANILLA,
         "Vanilla",
@@ -186,6 +201,10 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "Flame visuals, pose and sound: Auto detects JA+ servers; Off disables them; JA+ forces support. Needs installed flame assets.",
+    ),
     // VIDEO
     (
         crate::graphics_quality::RENDERER_ROW,

@@ -28,6 +28,8 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   needs to be played correctly is not a mod: JA+ movement and saber prediction,
   `cjp_client`, `cp_pluginDisable` and its default, RGB sabers and cosmetics stay in
   the core client ([networking.md](networking.md)) and work with every mod off.
+  JA+ flamethrower presentation also stays in the core; its detection and player
+  override are documented under [flamethrower presentation](client.md#ja-flamethrower-presentation).
 - **What a mod can do.** A mod sees the game only through
   [`Host`](../crates/sjk-mod/src/lib.rs): it can send a reliable server command,
   read the server's kind, address and serverinfo, the predicted player, the crosshair

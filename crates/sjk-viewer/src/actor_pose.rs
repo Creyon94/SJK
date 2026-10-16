@@ -113,6 +113,10 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         mesh.animator.requested = None;
     }
     let frame = steps::Frame {
+        flame: crate::actor_world_submission::force_powers::flame::policy(
+            game_state,
+            gpu.console.as_ref(),
+        ),
         world,
         local_entity,
         local_animation,

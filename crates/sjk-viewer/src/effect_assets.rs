@@ -96,6 +96,15 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "chunks/grateexplode",
 ];
 
+/// Code-selected graphs, including every documented compatibility contract.
+pub(crate) fn code_effects() -> impl Iterator<Item = &'static str> {
+    STOCK_EFFECTS.iter().copied().chain(
+        crate::actor_world_submission::force_powers::flame::CONTRACTS
+            .iter()
+            .flat_map(|rule| [rule.stream, rule.hit]),
+    )
+}
+
 /// Shaders referenced from code rather than from EFX graphs: the saber clash
 /// flare (`cg_draw.c`), the disruptor beam lines (`fx_disruptor.c`), the
 /// sprites floated over players (`cg_players.c`) and the `white` lines of
@@ -127,10 +136,7 @@ pub(crate) fn required_shaders<'a>(
     vfs: &VirtualFileSystem,
     configured_effects: impl IntoIterator<Item = &'a str>,
 ) -> BTreeSet<String> {
-    let mut pending = STOCK_EFFECTS
-        .iter()
-        .map(|effect| (*effect).to_owned())
-        .collect::<Vec<_>>();
+    let mut pending = code_effects().map(str::to_owned).collect::<Vec<_>>();
     pending.extend(configured_effects.into_iter().map(str::to_owned));
     let mut visited = HashSet::new();
     let mut shaders = BTreeSet::new();
@@ -164,10 +170,7 @@ pub(crate) fn required_models<'a>(
     vfs: &VirtualFileSystem,
     configured_effects: impl IntoIterator<Item = &'a str>,
 ) -> BTreeSet<String> {
-    let mut pending = STOCK_EFFECTS
-        .iter()
-        .map(|effect| (*effect).to_owned())
-        .collect::<Vec<_>>();
+    let mut pending = code_effects().map(str::to_owned).collect::<Vec<_>>();
     pending.extend(configured_effects.into_iter().map(str::to_owned));
     let mut visited = HashSet::new();
     let mut models = BTreeSet::new();

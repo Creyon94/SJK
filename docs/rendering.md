@@ -1110,6 +1110,19 @@ hand, and Grip's puffs are third-person only. A player who mind-tricked the
 viewer still shows its beam and hand puffs, which stock draws before its
 mind-trick cut-off; only the body push blur is hidden for it.
 
+JA+ flamethrower presentation uses the documented table in
+[japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs), with the archived
+`cg_flameThrower` Auto/Off/JA+ override. `eFlags` bit 17 during a Lightning pass
+selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence;
+the humanoid upper body uses `BOTH_FORCELIGHTNING_HOLD` with the standard 100 ms
+blend. `ET_GENERAL` entities with `eFlags2` bit 8 replay `env/fire_wall` after
+the reference 100 ms interval. Their timers and the positional `bf_flame.mp3`
+sample's 2.9 s repeats use snapshot server time, not render FPS. The weapon
+channel is stopped when firing ends, the player disappears or is muted, or the
+session ends. Models missing the named pose or hand keep the safe existing
+fallback; effect graphs and audio must exist in installed data. No server
+weapon or protocol rules are changed.
+
 EFX `bounce` and `intensity` are one key in retail: both set a primitive's
 single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
 `:448-458`, `:2128`). A particle bounces by it, an electricity bolt uses it as

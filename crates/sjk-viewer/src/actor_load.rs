@@ -85,6 +85,7 @@ pub(crate) fn build_actor_mesh(
     // No precision/mark/dismemberment consumer exists yet. Do not buy an unused extra LOD.
     let retained_pose = actor_pose::RetainedPose::new(&preview.mesh, &preview.skin, false)?;
     Ok(ActorMesh {
+        flame_pose: Default::default(),
         entity_id,
         corpse_pool,
         body_identity: None,
