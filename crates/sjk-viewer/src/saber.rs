@@ -73,7 +73,19 @@ impl Extension {
             self.initialized = true;
             return self.length;
         }
-        self.maximum = maximum;
+        if maximum != self.maximum {
+            // Another hilt in the hand (single to staff, a new saber) has blades of
+            // another length: a lit blade takes it at once, as a newly set saber's
+            // blades are drawn, instead of keeping the old one's until switched off
+            // and on again (players' bug reports, 11/10 and 13/10/2026).
+            if self.active {
+                self.length = maximum;
+                self.desired = maximum;
+            } else {
+                self.length = self.length.min(maximum);
+            }
+            self.maximum = maximum;
+        }
         if active != self.active {
             self.active = active;
             self.desired = if active { maximum } else { 0.0 };
@@ -1001,6 +1013,29 @@ mod cutoff_tests {
                 assert_eq!(extension.update(true, 40., time), 40.);
             }
         }
+    }
+
+    #[test]
+    fn a_lit_blade_takes_the_new_hilts_length_at_once() {
+        let mut extension = Extension::default();
+        assert_eq!(extension.update(true, 40., 0), 40.);
+        // Single (40) to staff (32) and back, the blades lit throughout.
+        assert_eq!(extension.update(true, 32., 8), 32.);
+        assert_eq!(extension.update(true, 32., 16), 32.);
+        assert_eq!(extension.update(true, 40., 24), 40.);
+        // Off, a shorter hilt, then on: it grows to the new length only.
+        extension.update(false, 40., 32);
+        let mut time = 32;
+        while extension.update(false, 40., time) > 0. {
+            time += 8;
+        }
+        assert_eq!(extension.update(false, 24., time), 0.);
+        let mut length = 0.;
+        for _ in 0..200 {
+            time += 8;
+            length = extension.update(true, 24., time);
+        }
+        assert_eq!(length, 24.);
     }
 
     #[test]

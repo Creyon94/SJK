@@ -4798,3 +4798,11 @@ test: Turn: the heading numbers slide in the strip at the bottom; they stay in i
 test: Zoom in and out: the arrow on the left moves down and up.
 test: The disruptor's scope still looks as before.
 
+[blade-length-switch]
+area: Rendering & effects
+title: Single to staff (and back) with the blade lit: the new length at once
+change: A lit blade kept the old hilt's length until switched off and on (reports 14, 40).
+test: Saber lit, single_1: switch to a staff in the menu: both blades at staff length.
+test: Back to single: the blade at single length at once, no ignite needed.
+test: Switching off and on still grows the blade as before.
+
