@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[chat-limits]
+area: Console & chat
+title: Unverified players: one SJK chat message every 30 s, no links or GIFs
+change: A key that is neither verified nor staff waits 30 s between SJK chat messages.
+change: Its messages with a link (GIFs are links) are refused: only verified players send them.
+test: Unverified: send, then again at once: "...one message every 30 seconds: wait N s".
+test: Unverified: a GIF or discord.gg/abc: "Only verified players can send links and GIFs".
+test: Verified: messages every second and GIFs as before; "version 3.5" is no link.
+note: Needs the hub's trust branch deployed; the client refuses first, the hub refuses too.
+
 [emote-stop-mute]
 area: Gameplay
 title: Stop or mute other players' emotes

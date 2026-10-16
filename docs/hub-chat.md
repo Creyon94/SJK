@@ -602,6 +602,18 @@ client offers it and says what came of it.
   (`ban::banned_message`, from the refusal's `until`), where every refusal shows: an
   `SJK chat:` line in the game, the docks' line under the field, the page's notice.
 
+## Limits for unverified players
+
+Sol's request, 16/10/2026: "an unverified person can only send one message every 30s
+and they can't send gifs or any links". A key the hub neither verifies nor made staff
+(trusted ones too) sends one SJK chat message every 30 seconds and no message holding a
+link: `://`, `www.` or a word that reads as a domain (`discord.gg/abc`; `chat::has_link`,
+word for word the hub's). A GIF is a link in the message, so it is refused too. The
+worker refuses both before anything goes (`Worker::send_chat`): "Players who are not
+verified send one message every 30 seconds: wait 18 s", "Only verified players can send
+links and GIFs in SJK chat"; the hub refuses them again (`chat_quota`, `chat_links`).
+The composers clear the field on Send, so a refused message has to be typed again.
+
 ## Trust marks
 
 Sol's request, 16/10/2026: an "in progress verified" mark, an empty tick for unknown
