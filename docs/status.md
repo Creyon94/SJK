@@ -1,3 +1,17 @@
+## Graphics presets: Vanilla style, SJK (recommended), Experimental
+
+16/10/2026, `personal/graphics-presets` (Sol's request): the Renderer row (Vanilla or
+SJK (alpha)) and SJK quality's four levels are one Graphics preset dropdown of three
+presets ([client.md](client.md#graphics-quality)): Vanilla style (the former Vanilla),
+SJK (recommended) (Sol's config.cfg of that day: HDR, bloom, glow, FXAA, ambient
+occlusion, model lighting and emission maps on; sun, shadows, reflections, material
+maps, light shafts and weather extras off), the default of a new profile and of
+Backspace, and Experimental (the cvars' defaults, the former High). Rows of a renderer
+setting read the preset in use as their default. Checked by the `graphics_quality`,
+settings and reload card unit tests and an off-screen render of Simple > Graphics with
+the list open (`sjk_settings_snapshot`). Not tried in the game; no preset's frame rate
+measured.
+
 ## JoF content: JoF's repository, opt in
 
 16/10/2026, `personal/jof-assets` (Sol's request, after Kypdurron pointed Sol to JoF's

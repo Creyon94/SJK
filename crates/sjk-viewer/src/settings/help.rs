@@ -90,16 +90,6 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
-    (
-        crate::graphics_quality::RENDERER_ROW,
-        crate::graphics_quality::VANILLA,
-        "Vanilla",
-    ),
-    (
-        crate::graphics_quality::RENDERER_ROW,
-        crate::graphics_quality::SJK,
-        "SJK (alpha)",
-    ),
     (crate::text::charset::CVAR, "auto", "Auto"),
     (crate::text::charset::CVAR, "western", "Western"),
     (crate::text::charset::CVAR, "cyrillic", "Cyrillic"),
@@ -161,7 +151,7 @@ pub(super) fn choice_name(cvar: &str, value: &str) -> Option<&'static str> {
 /// renderer setting is focused ([`super::renderer_row`]).
 pub(super) const ALPHA_WARNING: &str = "The SJK renderer is in alpha: some maps can show glitches \
     (lighting, shadows, missing surfaces) or run slower. Report them from the SJK menu's Report a \
-    bug; Vanilla is the safe choice.";
+    bug; Vanilla style is the safe choice.";
 
 /// The description of setting `cvar`.
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
@@ -194,12 +184,8 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 const HELP: &[(&str, &str)] = &[
     // VIDEO
     (
-        crate::graphics_quality::RENDERER_ROW,
-        "Vanilla: the original game's look and frame rate. SJK: SJK's own renderer (sun, shadows, reflections), in alpha.",
-    ),
-    (
         crate::graphics_quality::ROW_NAME,
-        "How much the SJK renderer draws: Performance for the most FPS, Ultra for the best look. Picking one turns the SJK renderer on.",
+        "Vanilla style: the original look, the most FPS. SJK (recommended): SJK's image on the maps' lighting. Experimental: everything on.",
     ),
     (
         "r_resolution",

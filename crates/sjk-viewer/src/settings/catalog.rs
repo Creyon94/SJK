@@ -52,8 +52,8 @@ pub(super) enum ValueKind {
     /// The quick wheel's pages (`wheel.json`, not a cvar): Enter opens their
     /// editor ([`super::wheel_editor`]).
     WheelPages,
-    /// The graphics quality level ([`crate::graphics_quality`], not a cvar):
-    /// steps or lists the levels, each setting the renderer's costly cvars.
+    /// The graphics preset ([`crate::graphics_quality`], not a cvar): steps
+    /// or lists the presets, each setting the renderer's costly cvars.
     Quality,
     /// The SJK identity's key (not a cvar): Enter opens the Identity page, where the
     /// key's id and file stay hidden until shown.
@@ -80,13 +80,6 @@ pub(crate) const IDENTITY_ROW: &str = "identity";
 /// opens the same page.
 pub(crate) const IMPORT_ROW: &str = "firstsetup import";
 
-/// The renderer's two choices ([`crate::graphics_quality`]), named "Vanilla"
-/// and "SJK (alpha)" on their segments ([`super::help::choice_name`]).
-pub(super) const RENDERERS: [&str; 2] = [
-    crate::graphics_quality::VANILLA,
-    crate::graphics_quality::SJK,
-];
-
 /// The Gameplay FPS row, shared by Video and First setup.
 pub(super) const GAMEPLAY_FPS_ROW: Setting = Setting {
     label: "Gameplay FPS",
@@ -110,12 +103,8 @@ pub(crate) const RESOLUTIONS: &[&str] = &[
 ];
 pub(super) const VIDEO: &[Setting] = &[
     Setting {
-        label: "Renderer (reload)",
-        cvar: crate::graphics_quality::RENDERER_ROW,
-        kind: ValueKind::Choice(&RENDERERS),
-    },
-    Setting {
-        label: "SJK quality (reload)",
+        label: "Graphics preset (reload)",
+
         cvar: crate::graphics_quality::ROW_NAME,
         kind: ValueKind::Quality,
     },

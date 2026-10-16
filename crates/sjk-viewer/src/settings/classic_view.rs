@@ -344,7 +344,8 @@ impl SettingsMenu {
                     .map(Pick::Mode)
                     .collect()
             }
-            ValueKind::Quality => Level::SJK.into_iter().map(Pick::Quality).collect(),
+            ValueKind::Quality => Level::ALL.into_iter().map(Pick::Quality).collect(),
+
             _ => return false,
         };
         let current = match setting.kind {
@@ -456,10 +457,9 @@ impl SettingsMenu {
     }
 
     /// Return row `row` to its default value. Rows whose value is not one
-    /// cvar's (resolution, display mode) are left alone; SJK quality's default
-    /// is High, the SJK renderer's own values, and Vanilla keeps it off; the
-    /// renderer's is Vanilla, a new profile's, and under Vanilla a renderer
-    /// setting's is Vanilla's value ([`crate::graphics_quality::row_default`]).
+    /// cvar's (resolution, display mode) are left alone; the graphics preset's
+    /// default is a new profile's, SJK (recommended), and a renderer setting's
+    /// is its value in the preset in use ([`crate::graphics_quality::row_default`]).
     pub(super) fn reset_to_default(&mut self, console: &mut ViewerConsole, row: usize) {
         let Some(setting) = self.rows().get(row) else {
             return;
@@ -468,11 +468,7 @@ impl SettingsMenu {
             return;
         }
         if matches!(setting.kind, ValueKind::Quality) {
-            if !crate::graphics_quality::vanilla(console) {
-                Level::High.apply(console);
-            }
-        } else if let Some(choice) = super::derived_choice(setting.cvar) {
-            (choice.set)(console, choice.default);
+            Level::DEFAULT.apply(console);
         } else if let Some(default) = crate::graphics_quality::row_default(console, setting.cvar) {
             console.set_cvar(setting.cvar, default);
         } else if let Some(switch) = super::derived_switch(setting.cvar) {
@@ -998,17 +994,9 @@ impl std::fmt::Display for Number {
 /// differs from it. Rows whose value is not one cvar's have neither.
 pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefault {
     if matches!(setting.kind, ValueKind::Quality) {
-        // Off under Vanilla, as the renderer row says, not a change of its own.
         return RowDefault {
-            text: Some(Level::High.label().to_owned()),
-            changed: !crate::graphics_quality::vanilla(console)
-                && Level::current(console) != Some(Level::High),
-        };
-    }
-    if let Some(choice) = super::derived_choice(setting.cvar) {
-        return RowDefault {
-            text: Some(choice.default.to_owned()),
-            changed: !(choice.get)(console).eq_ignore_ascii_case(choice.default),
+            text: Some(Level::DEFAULT.label().to_owned()),
+            changed: Level::current(console) != Some(Level::DEFAULT),
         };
     }
     if let (Some(default), Some(value)) = (
@@ -1220,63 +1208,59 @@ mod tests {
     }
 
     #[test]
-    fn graphics_quality_lists_its_levels_and_returns_to_high() {
+    fn the_graphics_preset_lists_its_presets_and_returns_to_sjk_recommended() {
         use crate::graphics_quality::{Level, ROW_NAME};
         let (_directory, mut console) = console();
+        crate::graphics_quality::apply_new_profile(&mut console);
         let mut menu = SettingsMenu::new();
         menu.open_tab(&console, SettingsMenu::tab_index("VIDEO").unwrap());
         let row = row_of(&menu, ROW_NAME);
-        assert_eq!(menu.values[row], "High");
+        assert_eq!(menu.values[row], "SJK (recommended)");
         assert_eq!(
             menu.defaults[row],
             RowDefault {
-                text: Some("High".to_owned()),
+                text: Some("SJK (recommended)".to_owned()),
                 changed: false
             }
         );
-        // The list opens on the level in use; picking one sets it.
+        // The list holds the three presets and opens on the one in use;
+        // picking one sets it.
         assert!(menu.open_dropdown(&console, row));
         let open = menu.dropdown.as_ref().unwrap();
-        assert_eq!(open.picks, Level::SJK.map(Pick::Quality));
-        assert_eq!(open.current, 2);
-        menu.apply_pick(&mut console, 3);
-        assert_eq!(Level::current(&console), Some(Level::Ultra));
-        assert_eq!(menu.values[row], "Ultra");
+        assert_eq!(open.picks, Level::ALL.map(Pick::Quality));
+        assert_eq!(open.current, 1);
+        menu.apply_pick(&mut console, 2);
+        assert_eq!(Level::current(&console), Some(Level::Experimental));
+        assert_eq!(menu.values[row], "Experimental");
         assert!(menu.defaults[row].changed);
-        // Changed on its own, a setting makes it Custom; Left steps down from
-        // the level it is nearest.
+        // A preset's own rows do not read as changed.
+        let shadows = RENDER_SHADOWS
+            .iter()
+            .find(|setting| setting.cvar == "r_sunShadowTaps")
+            .unwrap();
+        assert!(!row_default(&console, shadows).changed);
+        // Changed on its own, a setting makes it Custom and reads as changed
+        // from the preset; Left steps down from the preset it is nearest.
         console.set_cvar("r_sunShadowTaps", "20");
         menu.refresh(&console);
         assert_eq!(menu.values[row], "Custom");
+        assert!(row_default(&console, shadows).changed);
         menu.selected = row;
         menu.adjust(&mut console, -1);
-        assert_eq!(menu.values[row], "High");
+        assert_eq!(menu.values[row], "SJK (recommended)");
         menu.adjust(&mut console, -1);
-        assert_eq!(menu.values[row], "Balanced");
-        // Backspace's default is High.
-        menu.reset_to_default(&mut console, row);
-        assert_eq!(Level::current(&console), Some(Level::High));
-        assert!(!menu.defaults[row].changed);
-        // Under Vanilla the row is off, unchanged, and Backspace leaves it so;
-        // the renderer's rows read Vanilla's values as their defaults.
-        let renderer = row_of(&menu, crate::graphics_quality::RENDERER_ROW);
-        menu.selected = renderer;
+        assert_eq!(menu.values[row], "Vanilla style");
+        assert!(crate::graphics_quality::vanilla(&console));
+        assert!(menu.defaults[row].changed);
+        // Vanilla style's rows read its values as their defaults.
+        assert!(!row_default(&console, shadows).changed);
+
         menu.adjust(&mut console, -1);
-        assert!(crate::graphics_quality::vanilla(&console));
-        assert_eq!(menu.values[renderer], crate::graphics_quality::VANILLA);
-        assert!(!menu.defaults[renderer].changed);
-        assert_eq!(menu.values[row], "Off");
-        assert!(!menu.defaults[row].changed);
+        assert_eq!(menu.values[row], "Vanilla style");
+        // Backspace's default is SJK (recommended).
         menu.reset_to_default(&mut console, row);
-        assert!(crate::graphics_quality::vanilla(&console));
-        // Right on the quality starts the SJK renderer at Performance.
-        menu.selected = row;
-        menu.adjust(&mut console, 1);
-        assert_eq!(Level::current(&console), Some(Level::Performance));
-        assert!(menu.defaults[renderer].changed);
-        // Backspace on the renderer: Vanilla again.
-        menu.reset_to_default(&mut console, renderer);
-        assert!(crate::graphics_quality::vanilla(&console));
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
+        assert!(!menu.defaults[row].changed);
     }
 
     #[test]

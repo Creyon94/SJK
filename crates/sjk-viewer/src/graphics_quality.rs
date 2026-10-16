@@ -1,118 +1,105 @@
-//! Graphics quality: the renderer, Vanilla or SJK's, and the SJK renderer's
-//! levels, each one choice that sets the renderer's costly settings together.
+//! Graphics presets: Vanilla style, SJK (recommended) and Experimental, each one
+//! choice that sets the renderer's costly settings together (Sol's three,
+//! 16/10/2026, in place of the Renderer row and the SJK renderer's four levels).
 //!
-//! Vanilla is the original game's look at the least cost (the EJK level until
-//! 12/10/2026, named after EternalJK, the client closest to it that players
-//! know). The SJK renderer is SJK's own lighting, shadows and post-processing,
-//! still in alpha, at four levels from Performance to Ultra. A new profile
-//! starts on Vanilla ([`apply_new_profile`]); the renderer cvars' own defaults
-//! are the SJK renderer's High, so turning it on gives the look it was tuned for.
-//! The level is not stored: it is whichever level the settings match, and
+//! Vanilla style is the original game's look at the least cost, every SJK extra
+//! off (the EJK level until 12/10/2026, then Vanilla). SJK (recommended) is
+//! Sol's own setup: SJK's image (HDR, bloom, glow, FXAA, ambient occlusion, lit
+//! models, emission maps) over the maps' baked lighting, without the sun,
+//! shadows, reflections, material maps or weather extras still in alpha. A new
+//! profile starts on it ([`apply_new_profile`]). Experimental turns everything
+//! the SJK renderer draws on; it is the renderer cvars' own defaults, the look
+//! they were tuned for.
+//! The preset is not stored: it is whichever preset the settings match, and
 //! Custom once one of them is changed on its own. Only settings with a row in
-//! Settings are touched, so every change a level makes can be seen and undone
+//! Settings are touched, so every change a preset makes can be seen and undone
 //! there; the FPS cap, vertical sync, resolution, supersampling and anything
-//! that changes gameplay or a map's content are left alone.
+//! that changes gameplay or a map's content (its fog) are left alone.
 
 use crate::console::ViewerConsole;
 
-/// Console command that names or sets the level.
+/// Console command that names or sets the preset (its name is from when the
+/// presets were quality levels).
 pub(crate) const COMMAND: &str = "graphicsquality";
 /// Help text for completion and `cmdlist`.
 pub(crate) const HELP: &str =
-    "Show or set graphics quality: vanilla, performance, balanced, high or ultra";
-/// The SJK quality row's stand-in for a cvar name: the command that sets it.
+    "Show or set the graphics preset: vanilla, sjk (recommended) or experimental";
+/// The Graphics preset row's stand-in for a cvar name: the command that sets it.
 pub(crate) const ROW_NAME: &str = COMMAND;
-/// Console command that names or sets the renderer, and the Renderer row's
-/// stand-in for a cvar name: Vanilla while the settings are Vanilla's, not a
-/// value of its own.
-pub(crate) const RENDERER_ROW: &str = "renderer";
-/// Help text of [`RENDERER_ROW`] for completion and `cmdlist`.
-pub(crate) const RENDERER_HELP: &str =
-    "Show or set the renderer: vanilla (the original look) or sjk (SJK's renderer, alpha)";
+/// Console command that names the renderer or switches Vanilla style on and
+/// off, keeping the player's settings ([`toggle_vanilla`]).
+pub(crate) const RENDERER_COMMAND: &str = "renderer";
+/// Help text of [`RENDERER_COMMAND`] for completion and `cmdlist`.
+pub(crate) const RENDERER_HELP: &str = "Show or set the renderer: vanilla (the original look, \
+     your settings kept) or sjk (SJK's renderer, your settings back)";
 /// What turning Vanilla on put aside, `cvar=value` pairs joined by `;`, so
 /// turning the SJK renderer on again restores the player's own settings. Its
 /// name is from when Vanilla was Ultra low.
 pub(crate) const RESTORE_CVAR: &str = "r_ultraLowRestore";
-/// The Renderer row's two values ([`renderer_value`]).
+/// The renderer command's two values.
 pub(crate) const VANILLA: &str = "vanilla";
 pub(crate) const SJK: &str = "sjk";
 
-/// A graphics quality level, cheapest first.
+/// A graphics preset, cheapest first.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Level {
-    /// The original game's look at the least cost (EJK, and Ultra low,
-    /// before): Performance with the material packs' normal and specular maps
-    /// and ambient occlusion off too, so maps show their baked lightmaps and
-    /// nothing of SJK's lighting. It is the renderer choice "Vanilla".
+    /// The original game's look at the least cost (EJK, Ultra low and Vanilla,
+    /// before): every SJK extra off, maps show their baked lightmaps.
     Vanilla,
-    /// The most frames short of that: the retail look with SJK's lighting,
-    /// shadows, post-processing and weather extras off.
-    Performance,
-    /// Most of SJK's look at a lower cost: no floor mirrors, reflection probes or
-    /// light shafts (the two largest costs a setting removes in the 09/10/2026 frame
-    /// test), smaller, softer-filtered shadows.
-    Balanced,
-    /// SJK's defaults.
-    High,
-    /// Everything at its best: larger, finer shadows and the richest weather.
-    Ultra,
+    /// SJK's image over the maps' own lighting: Sol's setup, the default.
+    Sjk,
+    /// Everything the SJK renderer draws: sun and sky, shadows, reflections,
+    /// material maps, light shafts and the richest weather; still in alpha.
+    Experimental,
 }
 
-/// Each setting a level sets, with its value at Vanilla, Performance,
-/// Balanced, High and Ultra. High is each setting's default (pinned by a test).
-const VALUES: &[(&str, [&str; 5])] = &[
+/// Each setting a preset sets, with its value at Vanilla style, SJK
+/// (recommended) and Experimental. Experimental is each setting's default
+/// (pinned by a test); SJK (recommended) is Sol's config of 16/10/2026.
+const VALUES: &[(&str, [&str; 3])] = &[
     // Image.
-    ("r_sceneHdr", ["0", "0", "1", "1", "1"]),
-    ("r_sceneBloom", ["0", "0", "1", "1", "1"]),
-    ("r_DynamicGlow", ["0", "0", "1", "1", "1"]),
-    ("r_fxaa", ["0", "0", "1", "1", "1"]),
-    ("r_softParticles", ["0", "0", "1", "1", "1"]),
-    ("r_ssao", ["0", "1", "1", "1", "1"]),
+    ("r_sceneHdr", ["0", "1", "1"]),
+    ("r_sceneBloom", ["0", "1", "1"]),
+    ("r_DynamicGlow", ["0", "1", "1"]),
+    ("r_fxaa", ["0", "1", "1"]),
+    ("r_softParticles", ["0", "0", "1"]),
+    ("r_ssao", ["0", "1", "1"]),
     // Dust shows only in light shafts.
-    (crate::dust_motes::CVAR, ["0", "0", "0", "1", "1"]),
-    ("r_modelPixelLight", ["0", "0", "1", "1", "1"]),
-    ("r_cubeMapping", ["0", "0", "0", "1", "1"]),
-    ("r_floorReflections", ["0", "0", "0", "1", "1"]),
-    ("r_normalMapping", ["0", "1", "1", "1", "1"]),
-    ("r_specularMapping", ["0", "1", "1", "1", "1"]),
-    ("r_parallaxMapping", ["0", "0", "1", "1", "1"]),
-    ("r_emissiveMaps", ["0", "0", "1", "1", "1"]),
-    ("r_emissiveGlow", ["0", "0", "1", "1", "1"]),
+    (crate::dust_motes::CVAR, ["0", "0", "1"]),
+    ("r_modelPixelLight", ["0", "1", "1"]),
+    ("r_cubeMapping", ["0", "0", "1"]),
+    ("r_floorReflections", ["0", "0", "1"]),
+    ("r_normalMapping", ["0", "0", "1"]),
+    ("r_specularMapping", ["0", "0", "1"]),
+    ("r_parallaxMapping", ["0", "0", "1"]),
+    ("r_emissiveMaps", ["0", "1", "1"]),
+    ("r_emissiveGlow", ["0", "1", "1"]),
     // Lighting.
-    ("r_dayNight", ["0", "0", "1", "1", "1"]),
-    ("r_emissiveLights", ["0", "0", "1", "1", "1"]),
-    ("r_volumetrics", ["0", "0", "0", "3", "3"]),
+    ("r_dayNight", ["0", "0", "1"]),
+    ("r_emissiveLights", ["0", "0", "1"]),
+    ("r_volumetrics", ["0", "0", "3"]),
     // Shadows.
-    ("r_worldSunShadows", ["0", "0", "1", "1", "1"]),
-    ("r_actorSunShadows", ["0", "0", "1", "1", "1"]),
-    (
-        "r_sunShadowResolution",
-        ["1024", "1024", "1024", "2048", "4096"],
-    ),
-    ("r_sunShadowTaps", ["8", "8", "8", "16", "24"]),
+    ("r_worldSunShadows", ["0", "0", "1"]),
+    ("r_actorSunShadows", ["0", "0", "1"]),
+    ("r_sunShadowResolution", ["1024", "1024", "2048"]),
+    ("r_sunShadowTaps", ["8", "8", "16"]),
     // Weather.
-    (crate::weather::DENSITY_CVAR, ["1", "1", "1.5", "2", "2"]),
-    (crate::weather::QUALITY_CVAR, ["0", "0", "1", "2", "3"]),
-    (crate::weather::CLOUDS_CVAR, ["0", "0", "1", "1", "1"]),
+    (crate::weather::DENSITY_CVAR, ["1", "1", "2"]),
+    (crate::weather::QUALITY_CVAR, ["0", "0", "2"]),
+    (crate::weather::CLOUDS_CVAR, ["0", "0", "1"]),
 ];
 
 impl Level {
-    pub(crate) const ALL: [Self; 5] = [
-        Self::Vanilla,
-        Self::Performance,
-        Self::Balanced,
-        Self::High,
-        Self::Ultra,
-    ];
+    pub(crate) const ALL: [Self; 3] = [Self::Vanilla, Self::Sjk, Self::Experimental];
+    /// A new profile's preset, which the row's Backspace returns to.
+    pub(crate) const DEFAULT: Self = Self::Sjk;
 
-    /// The level's name in Settings.
+    /// The preset's name in Settings.
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::Vanilla => "Vanilla",
-            Self::Performance => "Performance",
-            Self::Balanced => "Balanced",
-            Self::High => "High",
-            Self::Ultra => "Ultra",
+            Self::Vanilla => "Vanilla style",
+            Self::Sjk => "SJK (recommended)",
+            Self::Experimental => "Experimental",
         }
     }
 
@@ -120,11 +107,17 @@ impl Level {
         self as usize
     }
 
-    /// The SJK renderer's levels, cheapest first: every level but Vanilla.
-    pub(crate) const SJK: [Self; 4] = [Self::Performance, Self::Balanced, Self::High, Self::Ultra];
+    /// The preset's name in the command.
+    fn command_name(self) -> &'static str {
+        match self {
+            Self::Vanilla => VANILLA,
+            Self::Sjk => SJK,
+            Self::Experimental => "experimental",
+        }
+    }
 
-    /// The level `name` names, in any case, with or without its space; EJK and
-    /// Ultra low are Vanilla's old names.
+    /// The preset `name` names, in any case: its command name or label, with
+    /// or without spaces; EJK and Ultra low are Vanilla style's old names.
     fn parse(name: &str) -> Option<Self> {
         let name: String = name.split_whitespace().collect();
         if ["ultralow", "ejk"]
@@ -133,48 +126,36 @@ impl Level {
         {
             return Some(Self::Vanilla);
         }
-        Self::ALL
-            .into_iter()
-            .find(|level| level.command_name().eq_ignore_ascii_case(&name))
+        Self::ALL.into_iter().find(|level| {
+            name.eq_ignore_ascii_case(level.command_name())
+                || name.eq_ignore_ascii_case(&level.label().replace(' ', ""))
+        })
     }
 
-    /// The level's name in the command: its label without the space.
-    fn command_name(self) -> String {
-        self.label().replace(' ', "").to_ascii_lowercase()
-    }
-
-    /// The SJK level a step of `direction` from this one reaches, stopping at
-    /// the ends rather than wrapping from Ultra to Performance; a step from
-    /// Vanilla starts the SJK renderer at Performance (right) or High (left).
+    /// The preset a step of `direction` from this one reaches, stopping at the
+    /// ends rather than wrapping.
     pub(crate) fn step(self, direction: i32) -> Self {
-        if self == Self::Vanilla {
-            return if direction > 0 {
-                Self::Performance
-            } else {
-                Self::High
-            };
-        }
         let last = Self::ALL.len() as i32 - 1;
-        Self::ALL[(self.index() as i32 + direction).clamp(1, last) as usize]
+        Self::ALL[(self.index() as i32 + direction.signum()).clamp(0, last) as usize]
     }
 
-    /// The level whose values `console` holds, if every one matches.
+    /// The preset whose values `console` holds, if every one matches.
     pub(crate) fn current(console: &ViewerConsole) -> Option<Self> {
         Self::ALL
             .into_iter()
             .find(|level| level.matches(console) == VALUES.len())
     }
 
-    /// The current level, or for custom settings the level they are nearest,
+    /// The current preset, or for custom settings the preset they are nearest,
     /// sharing the most values (the higher on a tie). Steps and lists start here.
     pub(crate) fn nearest(console: &ViewerConsole) -> Self {
         Self::ALL
             .into_iter()
             .max_by_key(|level| level.matches(console))
-            .unwrap_or(Self::High)
+            .unwrap_or(Self::DEFAULT)
     }
 
-    /// How many of the level's values `console` holds.
+    /// How many of the preset's values `console` holds.
     fn matches(self, console: &ViewerConsole) -> usize {
         VALUES
             .iter()
@@ -182,7 +163,7 @@ impl Level {
             .count()
     }
 
-    /// Set the level's values, saving the profile once.
+    /// Set the preset's values, saving the profile once.
     pub(crate) fn apply(self, console: &mut ViewerConsole) {
         console.set_cvars(
             VALUES
@@ -192,18 +173,13 @@ impl Level {
     }
 }
 
-/// Whether the renderer is Vanilla: the settings are Vanilla's.
+/// Whether the renderer is Vanilla: the settings are Vanilla style's.
 pub(crate) fn vanilla(console: &ViewerConsole) -> bool {
     Level::current(console) == Some(Level::Vanilla)
 }
 
-/// The Renderer row's value: [`VANILLA`] or [`SJK`].
-pub(crate) fn renderer_value(console: &ViewerConsole) -> &'static str {
-    if vanilla(console) { VANILLA } else { SJK }
-}
-
 /// Set the renderer to `value` ([`VANILLA`] or [`SJK`], any case), as the
-/// Renderer row does; another value changes nothing.
+/// renderer command does; another value changes nothing.
 pub(crate) fn set_renderer(console: &mut ViewerConsole, value: &str) {
     let value = value.trim();
     let to_vanilla = value.eq_ignore_ascii_case(VANILLA);
@@ -212,9 +188,10 @@ pub(crate) fn set_renderer(console: &mut ViewerConsole, value: &str) {
     }
 }
 
-/// Switch between Vanilla and the SJK renderer. To Vanilla, it keeps the
-/// player's value of every setting a level sets, then applies Vanilla; back,
-/// it puts the kept values back (High when none were kept, as on a new profile).
+/// Switch between Vanilla style and the SJK renderer. To Vanilla, it keeps the
+/// player's value of every setting a preset sets, then applies Vanilla style;
+/// back, it puts the kept values back (SJK (recommended) when none were kept,
+/// as when Vanilla style was picked as a preset).
 pub(crate) fn toggle_vanilla(console: &mut ViewerConsole) {
     if vanilla(console) {
         let kept = console
@@ -228,7 +205,7 @@ pub(crate) fn toggle_vanilla(console: &mut ViewerConsole) {
             .chain([(RESTORE_CVAR, "")])
             .collect();
         if restored.len() == 1 {
-            Level::High.apply(console);
+            Level::DEFAULT.apply(console);
         }
         console.set_cvars(restored);
     } else {
@@ -242,33 +219,25 @@ pub(crate) fn toggle_vanilla(console: &mut ViewerConsole) {
     }
 }
 
-/// Start a new profile on Vanilla: a player new to SJK gets the original look
-/// and its frame rate, and turns the SJK renderer on when they choose to.
+/// Start a new profile on SJK (recommended).
 pub(crate) fn apply_new_profile(console: &mut ViewerConsole) {
-    Level::Vanilla.apply(console);
+    Level::DEFAULT.apply(console);
 }
 
-/// What the SJK quality row shows: the level, Custom, or Off on Vanilla.
+/// What the Graphics preset row shows: the preset, or Custom.
 pub(crate) fn shown(console: &ViewerConsole) -> &'static str {
-    match Level::current(console) {
-        Some(Level::Vanilla) => "Off",
-        Some(level) => level.label(),
-        None => "Custom",
-    }
+    Level::current(console).map_or("Custom", Level::label)
 }
 
-/// The default a renderer setting's row shows and returns to: Vanilla's value
-/// while the renderer is Vanilla, so its rows do not all read as changed; `None`
-/// under the SJK renderer, or for a setting no level sets, whose default is
-/// its cvar's.
+/// The default a renderer setting's row shows and returns to: its value in the
+/// preset in use, or for custom settings in the preset they are nearest, so a
+/// preset's rows do not read as changed and Backspace leads back to it; `None`
+/// for a setting no preset sets, whose default is its cvar's.
 pub(crate) fn row_default(console: &ViewerConsole, cvar: &str) -> Option<&'static str> {
-    if !vanilla(console) {
-        return None;
-    }
-    VALUES
+    let (_, values) = VALUES
         .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
-        .map(|(_, values)| values[Level::Vanilla.index()])
+        .find(|(name, _)| name.eq_ignore_ascii_case(cvar))?;
+    Some(values[Level::nearest(console).index()])
 }
 
 /// `renderer [vanilla|sjk]`: name the renderer, or set it.
@@ -281,8 +250,8 @@ pub(crate) fn renderer_command(
             "Renderer: Vanilla (the original look)".to_owned()
         } else {
             format!(
-                "Renderer: SJK (alpha), {} quality; it can still show glitches, which the \
-                 SJK menu's Report a bug sends to the team",
+                "Renderer: SJK, {} graphics; it can still show glitches, which the SJK menu's \
+                 Report a bug sends to the team",
                 shown(console)
             )
         }
@@ -305,7 +274,7 @@ pub(crate) fn renderer_command(
                 "It applies after a graphics reload (vid_restart)".to_owned(),
             ])
         }
-        _ => Err(format!("usage: {RENDERER_ROW} [{VANILLA}|{SJK}]")),
+        _ => Err(format!("usage: {RENDERER_COMMAND} [{VANILLA}|{SJK}]")),
     }
 }
 
@@ -320,12 +289,12 @@ fn holds(console: &ViewerConsole, cvar: &str, value: &str) -> bool {
     }
 }
 
-/// `graphicsquality [level]`: name the level, or set it.
+/// `graphicsquality [preset]`: name the preset, or set it.
 pub(crate) fn command(console: &mut ViewerConsole, args: &[String]) -> Result<Vec<String>, String> {
     let names = || Level::ALL.map(Level::command_name).join(", ");
     match args {
         [] => Ok(vec![format!(
-            "Graphics quality: {} ({})",
+            "Graphics preset: {} ({})",
             shown(console),
             names()
         )]),
@@ -334,7 +303,7 @@ pub(crate) fn command(console: &mut ViewerConsole, args: &[String]) -> Result<Ve
                 Level::parse(name).ok_or_else(|| format!("usage: {COMMAND} [{}]", names()))?;
             level.apply(console);
             Ok(vec![format!(
-                "Graphics quality: {}; shadows, light shafts, HDR, FXAA, sun and sky, \
+                "Graphics preset: {}; shadows, light shafts, HDR, FXAA, sun and sky, \
                  reflection probes and material maps apply after a graphics reload \
                  (vid_restart), emission-map lights on the next map",
                 level.label()
@@ -355,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn a_fresh_profile_is_high() {
+    fn the_cvars_defaults_are_experimental() {
         let (_directory, console) = console();
         for (cvar, values) in VALUES {
             let default = console
@@ -364,42 +333,40 @@ mod tests {
                 .as_text();
             assert_eq!(
                 default.parse::<f64>().ok(),
-                values[Level::High.index()].parse::<f64>().ok(),
-                "{cvar}: High is not its default"
+                values[Level::Experimental.index()].parse::<f64>().ok(),
+                "{cvar}: Experimental is not its default"
             );
         }
-        assert_eq!(Level::current(&console), Some(Level::High));
-        assert_eq!(shown(&console), "High");
+        assert_eq!(Level::current(&console), Some(Level::Experimental));
+        assert_eq!(shown(&console), "Experimental");
     }
 
     #[test]
-    fn each_level_sets_its_values_and_reads_back() {
+    fn each_preset_sets_its_values_and_reads_back() {
         let (directory, mut console) = console();
         for level in Level::ALL.into_iter().rev() {
             level.apply(&mut console);
             assert_eq!(Level::current(&console), Some(level));
-            let shown_as = if level == Level::Vanilla {
-                "Off"
-            } else {
-                level.label()
-            };
-            assert_eq!(shown(&console), shown_as);
+            assert_eq!(shown(&console), level.label());
         }
-        // The profile was saved: a new start reads the last level.
+        // The profile was saved: a new start reads the last preset.
         drop(console);
         let console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         assert_eq!(Level::current(&console), Some(Level::Vanilla));
     }
 
     #[test]
-    fn no_level_costs_less_than_the_one_below_it() {
+    fn no_preset_costs_less_than_the_one_below_it() {
         for (cvar, values) in VALUES {
             let numbers: Vec<f64> = values.iter().map(|v| v.parse().unwrap()).collect();
             assert!(
                 numbers.windows(2).all(|pair| pair[0] <= pair[1]),
                 "{cvar}: {values:?}"
             );
-            assert!(numbers[0] < numbers[4], "{cvar} is the same at every level");
+            assert!(
+                numbers[0] < numbers[2],
+                "{cvar} is the same in every preset"
+            );
         }
     }
 
@@ -420,46 +387,53 @@ mod tests {
     }
 
     #[test]
-    fn a_setting_changed_on_its_own_is_custom_near_its_level() {
+    fn a_setting_changed_on_its_own_is_custom_near_its_preset() {
         let (_directory, mut console) = console();
-        Level::Ultra.apply(&mut console);
+        Level::Experimental.apply(&mut console);
         console.set_cvar("r_sunShadowTaps", "12");
         assert_eq!(Level::current(&console), None);
         assert_eq!(shown(&console), "Custom");
-        assert_eq!(Level::nearest(&console), Level::Ultra);
-        Level::Performance.apply(&mut console);
-        console.set_cvar("r_sceneBloom", "1");
-        assert_eq!(Level::nearest(&console), Level::Performance);
+        assert_eq!(Level::nearest(&console), Level::Experimental);
+        Level::Sjk.apply(&mut console);
+        console.set_cvar("r_normalMapping", "1");
+        assert_eq!(Level::nearest(&console), Level::Sjk);
+        // Its rows' defaults are the nearest preset's: the changed one reads
+        // as changed, the others do not.
+        assert_eq!(row_default(&console, "r_normalMapping"), Some("0"));
+        assert_eq!(row_default(&console, "r_sceneHdr"), Some("1"));
+        assert_eq!(row_default(&console, "cg_fov"), None);
     }
 
     #[test]
-    fn steps_stop_at_the_ends_of_the_sjk_levels() {
-        assert_eq!(Level::Vanilla.step(1), Level::Performance);
-        assert_eq!(Level::Vanilla.step(-1), Level::High);
-        assert_eq!(Level::Performance.step(-1), Level::Performance);
-        assert_eq!(Level::Performance.step(1), Level::Balanced);
-        assert_eq!(Level::High.step(1), Level::Ultra);
-        assert_eq!(Level::Ultra.step(1), Level::Ultra);
+    fn steps_stop_at_the_ends() {
+        assert_eq!(Level::Vanilla.step(-1), Level::Vanilla);
+        assert_eq!(Level::Vanilla.step(1), Level::Sjk);
+        assert_eq!(Level::Sjk.step(-1), Level::Vanilla);
+        assert_eq!(Level::Sjk.step(1), Level::Experimental);
+        assert_eq!(Level::Experimental.step(1), Level::Experimental);
     }
 
     #[test]
-    fn the_command_names_and_sets_the_level() {
+    fn the_command_names_and_sets_the_preset() {
         let (_directory, mut console) = console();
         let lines = command(&mut console, &[]).unwrap();
-        assert!(lines[0].starts_with("Graphics quality: High"), "{lines:?}");
-        command(&mut console, &["ULTRA".to_owned()]).unwrap();
-        assert_eq!(Level::current(&console), Some(Level::Ultra));
-        assert!(command(&mut console, &["max".to_owned()]).is_err());
-        assert_eq!(Level::current(&console), Some(Level::Ultra));
+        assert!(
+            lines[0].starts_with("Graphics preset: Experimental"),
+            "{lines:?}"
+        );
+        command(&mut console, &["SJK".to_owned()]).unwrap();
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
+        assert!(command(&mut console, &["ultra".to_owned()]).is_err());
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
         command(&mut console, &["ultralow".to_owned()]).unwrap();
         assert_eq!(Level::current(&console), Some(Level::Vanilla));
-        command(&mut console, &["Ultra Low".to_owned()]).unwrap();
-        assert_eq!(shown(&console), "Off");
-        Level::High.apply(&mut console);
+        command(&mut console, &["Experimental".to_owned()]).unwrap();
+        assert_eq!(Level::current(&console), Some(Level::Experimental));
         command(&mut console, &["ejk".to_owned()]).unwrap();
-        assert_eq!(Level::current(&console), Some(Level::Vanilla));
-        Level::High.apply(&mut console);
-        command(&mut console, &["Vanilla".to_owned()]).unwrap();
+        assert!(vanilla(&console));
+        command(&mut console, &["SJK (recommended)".to_owned()]).unwrap();
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
+        command(&mut console, &["Vanilla style".to_owned()]).unwrap();
         assert!(vanilla(&console));
     }
 
@@ -487,13 +461,11 @@ mod tests {
     #[test]
     fn vanilla_and_back_restores_the_players_settings() {
         let (directory, mut console) = console();
-        Level::Balanced.apply(&mut console);
+        Level::Experimental.apply(&mut console);
         console.set_cvar("r_sunShadowTaps", "12");
         assert!(!vanilla(&console));
-        assert_eq!(renderer_value(&console), SJK);
         set_renderer(&mut console, VANILLA);
         assert!(vanilla(&console));
-        assert_eq!(renderer_value(&console), VANILLA);
         // Kept across a restart.
         drop(console);
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
@@ -503,29 +475,31 @@ mod tests {
         set_renderer(&mut console, SJK);
         assert!(!vanilla(&console));
         assert!(holds(&console, "r_sunShadowTaps", "12"));
-        console.set_cvar("r_sunShadowTaps", "8");
-        assert_eq!(Level::current(&console), Some(Level::Balanced));
+        console.set_cvar("r_sunShadowTaps", "16");
+        assert_eq!(Level::current(&console), Some(Level::Experimental));
         assert!(holds(&console, RESTORE_CVAR, ""));
-        // Vanilla picked as a level has nothing kept: the SJK renderer is High.
+        // Vanilla picked as a preset has nothing kept: back is SJK (recommended).
         Level::Vanilla.apply(&mut console);
         toggle_vanilla(&mut console);
-        assert_eq!(Level::current(&console), Some(Level::High));
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
     }
 
     #[test]
-    fn a_new_profile_is_vanilla_and_its_renderer_rows_read_unchanged() {
+    fn a_new_profile_is_sjk_recommended_and_its_rows_read_unchanged() {
         let (_directory, mut console) = console();
-        assert_eq!(row_default(&console, "r_sceneHdr"), None);
         apply_new_profile(&mut console);
-        assert!(vanilla(&console));
-        assert_eq!(shown(&console), "Off");
-        assert_eq!(row_default(&console, "r_sceneHdr"), Some("0"));
-        assert_eq!(row_default(&console, "r_sunShadowResolution"), Some("1024"));
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
+        assert_eq!(shown(&console), "SJK (recommended)");
+        assert_eq!(row_default(&console, "r_sceneHdr"), Some("1"));
+        assert_eq!(row_default(&console, "r_dayNight"), Some("0"));
         assert_eq!(row_default(&console, "cg_fov"), None);
         let lines = renderer_command(&mut console, &[]).unwrap();
-        assert!(lines[0].contains("Vanilla"), "{lines:?}");
+        assert!(lines[0].contains("SJK (recommended)"), "{lines:?}");
+        renderer_command(&mut console, &["vanilla".to_owned()]).unwrap();
+        assert!(vanilla(&console));
+        assert_eq!(row_default(&console, "r_sceneHdr"), Some("0"));
         renderer_command(&mut console, &["SJK".to_owned()]).unwrap();
-        assert_eq!(Level::current(&console), Some(Level::High));
+        assert_eq!(Level::current(&console), Some(Level::Sjk));
         assert!(renderer_command(&mut console, &["rtx".to_owned()]).is_err());
     }
 }

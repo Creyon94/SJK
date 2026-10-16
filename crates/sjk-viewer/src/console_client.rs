@@ -174,7 +174,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::graphics_quality::HELP,
     ),
     (
-        crate::graphics_quality::RENDERER_ROW,
+        crate::graphics_quality::RENDERER_COMMAND,
         crate::graphics_quality::RENDERER_HELP,
     ),
     ("cmd", "Forward arguments as a reliable server command"),
@@ -939,7 +939,7 @@ impl crate::GpuState {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::graphics_quality::command(console, args);
             }
-            crate::graphics_quality::RENDERER_ROW => {
+            crate::graphics_quality::RENDERER_COMMAND => {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::graphics_quality::renderer_command(console, args);
             }

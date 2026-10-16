@@ -1,6 +1,7 @@
 //! The FIRST SETUP tab of Settings: the few settings worth choosing once on a first
 //! start (first, bringing the setup from another client and the gameplay FPS it
-//! moved at; then the renderer and its quality, the menu and
+//! moved at; then the graphics preset, the menu and
+
 //! camera styles, display, aim, sound, the HUD, nameplates, the Force shells and
 //! the network opt-ins). The rows are the catalogue's own, looked up by cvar, so a
 //! change here is the same change the other tabs make; the import row and the
@@ -30,7 +31,6 @@ const IMPORT_ROW: Setting = Setting {
 /// The tab's cvars, in order, after the import row.
 const CVARS: &[&str] = &[
     crate::gameplay_fps::CVAR,
-    crate::graphics_quality::RENDERER_ROW,
     crate::graphics_quality::ROW_NAME,
     crate::menu::style::CVAR,
     crate::camera::STYLE_CVAR,
@@ -91,30 +91,28 @@ mod tests {
 
     #[test]
     fn the_import_and_gameplay_fps_come_first_then_graphics_and_the_styles() {
-        let cvars: Vec<_> = rows().iter().take(6).map(|row| row.cvar).collect();
+        let cvars: Vec<_> = rows().iter().take(5).map(|row| row.cvar).collect();
         assert_eq!(
             cvars,
             [
                 super::super::catalog::IMPORT_ROW,
                 crate::gameplay_fps::CVAR,
-                crate::graphics_quality::RENDERER_ROW,
                 crate::graphics_quality::ROW_NAME,
                 crate::menu::style::CVAR,
                 crate::camera::STYLE_CVAR
             ]
         );
         assert_eq!(
-            super::super::Group::Quick.lines()[..9],
+            super::super::Group::Quick.lines()[..8],
             [
                 super::super::Line::Heading("From another client"),
                 super::super::Line::Row(0),
                 super::super::Line::Row(1),
                 super::super::Line::Heading("Graphics"),
                 super::super::Line::Row(2),
-                super::super::Line::Row(3),
                 super::super::Line::Heading("Styles"),
+                super::super::Line::Row(3),
                 super::super::Line::Row(4),
-                super::super::Line::Row(5),
             ]
         );
     }
