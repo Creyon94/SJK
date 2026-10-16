@@ -163,6 +163,9 @@ pub struct LegacyForceOverlayContext {
     pub local_duel: bool,
     /// Local duel opponent, retained for cgame-compatible context.
     pub local_duel_index: u16,
+    /// JoF EJK's duel ghosts are on: a duellist is drawn as a blue figure, without
+    /// the sight bubble.
+    pub duel_ghosts: bool,
     /// Local legacy team ordinal.
     pub local_team: u8,
     /// Current gametype ordinal.
@@ -192,6 +195,7 @@ impl LegacyForceOverlayContext {
             local_see_level: player.force_see_level(),
             local_duel: player.duel_in_progress(),
             local_duel_index: player.duel_index(),
+            duel_ghosts: false,
             local_team: client_team(game_state, player.client_num()),
             gametype: info_int(
                 game_state.config_string(CS_SERVERINFO).unwrap_or_default(),
@@ -251,10 +255,13 @@ pub fn legacy_force_overlays(
             false,
         ));
     }
-    if !context.local_duel && actor.sight_bubble && !actor.dead && !local {
+    // JoF EJK draws the duel bubble at 100 100 255 (EternalJK `CG_Player`,
+    // `cg_players.c`, "Draw Duelers/Racers Style"), twice stock's 50 50 255 in red and
+    // green: a lighter blue that reads on the duellist's dark body.
+    if !context.local_duel && !context.duel_ghosts && actor.sight_bubble && !actor.dead && !local {
         output.push(request(
             "gfx/misc/sightbubble",
-            [50, 50, 255, 255],
+            [100, 100, 255, 255],
             LegacyOverlayTint::Shader,
             false,
         ));
@@ -493,5 +500,36 @@ mod tests {
             shells(FP_ABSORB, false, true),
             [("gfx/misc/personalshield", [0, 0, 255, 254])]
         );
+    }
+
+    #[test]
+    fn a_duellist_wears_jof_ejks_light_blue_bubble_for_bystanders_only() {
+        let actor = LegacyActorOverlayState {
+            number: 1,
+            sight_bubble: true,
+            base_alpha: 255,
+            ..LegacyActorOverlayState::default()
+        };
+        let overlays = |local_duel| {
+            let context = LegacyForceOverlayContext {
+                local_duel,
+                ..LegacyForceOverlayContext::default()
+            };
+            legacy_force_overlays(
+                actor,
+                LegacyTeamPowerEffect::default(),
+                context,
+                &mut NoRandom,
+            )
+            .iter()
+            .map(|request| (request.shader, request.rgba))
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            overlays(false),
+            [("gfx/misc/sightbubble", [100, 100, 255, 255])]
+        );
+        // A viewer in a duel of his own sees no bubbles.
+        assert!(overlays(true).is_empty());
     }
 }

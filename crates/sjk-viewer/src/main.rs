@@ -32,6 +32,7 @@ mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
 mod debug_collectibles;
+mod duel_ghost;
 mod editions;
 mod entity_view;
 mod loot_odds;

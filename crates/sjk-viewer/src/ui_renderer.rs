@@ -6,6 +6,7 @@ use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId};
 
 pub(crate) mod art;
 mod card_art;
+pub(crate) mod duel_badge;
 mod emblem;
 mod gif_textures;
 mod icons;
@@ -35,6 +36,11 @@ pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32:
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
+/// `TexturedQuad` texture naming the duel badge (crossed sabers) in duel colour
+/// `index` (`duel_badge::COLOURS`, wrapping), drawn once at start.
+pub(crate) fn duel_texture(index: usize) -> sjk_ui::TextureId {
+    sjk_ui::TextureId(icons::DUEL_ICON_FIRST + (index % icons::DUEL_ICON_CELLS as usize) as u32)
+}
 /// Atlas cells reserved for the clan emblems (`jof_tag::KNOWN`).
 pub(crate) const CLAN_ICON_CELLS: usize = icons::CLAN_ICON_CELLS as usize;
 
@@ -349,6 +355,13 @@ impl ShapeRenderer {
             VERIFIED_TEXTURE,
             &verified_badge::pixels(icons::ICON_SIZE),
         );
+        for (index, colour) in duel_badge::COLOURS.into_iter().enumerate() {
+            icons.upload(
+                queue,
+                duel_texture(index),
+                &duel_badge::pixels(icons::ICON_SIZE, colour),
+            );
+        }
         for (index, clan) in crate::jof_tag::KNOWN
             .iter()
             .take(CLAN_ICON_CELLS)

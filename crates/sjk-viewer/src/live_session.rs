@@ -159,6 +159,7 @@ impl GpuState {
             self.console.as_mut(),
             self.legacy_world_adapter.as_mut(),
             &mut self.clientinfo_watch,
+            &mut self.hud.duel_pairs,
         );
 
         // User commands are made on the gameplay FPS's grid and wait for the next

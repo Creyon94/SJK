@@ -4821,7 +4821,7 @@ test: Third person with a camera pitch/tilt changed: ping a wall: the mark is at
 test: Default camera and first person: pings land where they did.
 
 [lamp-light]
-area: Rendering
+area: Rendering & effects
 title: Glowing lamps and flares light more, in their colour; Map fog setting
 change: r_lampLights (default 4) scales light inferred from glow overlays; flares become lamps.
 test: mp/ffa1 Byss lights, mp/ffa5 taspir ceiling lights: the walls around them are lit in colour.
@@ -4831,9 +4831,19 @@ test: Settings > Weather > Map fog off: fog volumes vanish; on: they come back.
 [relief-method]
 area: Rendering & effects
 title: Korriban glossy walls take material maps; env shine follows live light; gen 8 relief
-change: Korriban door/bases/pillars: shine kept under mapped paint. Unlit env shine dims with live light.
+change: Korriban door, bases, pillars: shine kept under mapped paint; unlit shine dims with live light.
 change: Material maps gen 8: plates, panels, crates, painted bevels get relief from paint edges.
-test: Regenerate the material pack (gen 8), then mp/ffa2 Korriban door and gold bases: relief, shine kept.
+test: Regenerate the material pack (gen 8); mp/ffa2 Korriban door and gold bases: relief, shine kept.
 test: mp/ffa1 on JoF, obsidian wall (vjun/newfloor_vjun remap): no longer washed out by shine.
 test: FFA5 taspir plates, FFA3 crates, FFA1 bay_trim_bumper: plates read as 3D.
+
+[duel-look]
+area: Rendering & effects
+title: Duellists drawn as JoF EJK; paired duel badges on nameplates (Creyon #105)
+change: Bystanders see duellists as a see-through blue figure (cg_duelGhost 1, default).
+change: Nameplate duel badge, one colour per duel pair; grey when the opponent is unknown.
+test: JoF: watch a duel from outside: blue see-through figures with sabers, no dark body.
+test: Duel someone: you and your opponent look normal, everyone else is dark.
+test: Two duels started after you joined: each pair shares a badge colour.
+test: cg_duelGhost 0: dark grey duellists in a light blue bubble.
 

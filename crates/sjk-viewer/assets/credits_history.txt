@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Korriban glossy walls, live-light env shine, material maps generation 8
+- f35e1de |  | Material maps generation 8: shape relief from paint edges and painted bevels
++ 16/10/2026 | - | Blender add-on exports the colour seen in Blender
+- 5b7f9f5 |  | Rig export: follow Base Color upstream to its image
+- b6defef |  | Rig export: keep the shape-key mix, apply Mask modifiers
+- b2041d6 |  | Rig export: SJK-labelled images, colour for untextured materials, kept tails
++ 16/10/2026 | - | Glowing lamps and flares light more, Map fog setting
+- 416fe02 |  | Glowing lamps and flares light more, in their colour; Map fog setting
 + 16/10/2026 | - | World pings land under the crosshair with any camera
 - ffa9ba6 |  | World pings land under the crosshair with any camera
 + 16/10/2026 | - | Remember chat channel off really is off
@@ -29,6 +37,10 @@
 - b00b09c |  | Synced emotes sound like one song: sample-aligned copies mixed once
 + 16/10/2026 | - | Credit Reyced for the Solfox player model, now a hub pack
 - c834d54 |  | Credit Reyced for the Solfox player model, now a hub pack
++ 16/10/2026 | - | Korriban glossy bases take material maps; environment shine follows live light
+- f045c78 |  | Korriban glossy bases take material maps; environment shine follows live light
++ 16/10/2026 | - | Material maps generation 7, overrides found again
+- e35eb53 |  | Material notes: overrides found again, crates and concrete classed right
 + 15/10/2026 | - | Release 2026.1015.4 (Alpha)
 - c0a085e |  | Release 2026.1015.4 (Alpha)
 + 15/10/2026 | - | Synced emotes play the follower's music too, in step with the leader's
@@ -155,8 +167,6 @@
 - 4a73576 |  | Fog world decals with the wall under them
 - 685ea7f |  | Keep the sky and clouds behind a ceiling built just under the sky
 - cbe1056 |  | Record Sol's decal, sky and glass notes; hunt flicker in note shots
-+ 13/10/2026 | - | Material maps generation 7, overrides found again
-- e35eb53 |  | Material notes: overrides found again, crates and concrete classed right
 + 13/10/2026 | - | Rancor's tables, footprints and dust, jump steps
 - 5589532 |  | Draw movers' model2: t2_rancor's bar tables
 - 774609c |  | Footprints and dust on sand, snow and mud; jump and landing steps
@@ -1394,6 +1404,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 16/10/2026 | SJK #105 | Show duels as JoF EJK does, with paired duel badges on nameplates
+- 6d7ccca |  | Show duels as JoF EJK does, with paired duel badges on nameplates
 + 15/10/2026 | SJK #103 | Play rig model emotes on stock JKA models
 - 5e42c14 |  | Play rig model emotes on stock JKA models
 - b515715 |  | Keep stock emote limbs out of wider bodies

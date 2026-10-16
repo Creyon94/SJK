@@ -30,6 +30,7 @@ pub(crate) fn submit(
     shield_mesh: Option<usize>,
     shield_sphere: bool,
     shield_passes: u32,
+    duel_ghosts: bool,
 ) -> usize {
     let number = u16::try_from(entity_id.get().saturating_sub(1)).unwrap_or(u16::MAX);
     let actor = if number == snapshot.player.client_num() {
@@ -51,6 +52,7 @@ pub(crate) fn submit(
         aura_shell,
     );
     context.combined_protect_absorb = combined_protect_absorb;
+    context.duel_ghosts = duel_ghosts;
     // `CG_Player` uses `cg.predictedPlayerState` for the local absorb gate
     // (`codemp/cgame/cg_players.c:10953-10958`). Other overlay inputs remain
     // snapshot/currentState driven.

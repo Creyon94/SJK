@@ -639,6 +639,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "How bright a shield hit shows on the body, 1 (stock) to 12, default 2; ignored by the sphere",
         ),
         CvarDefinition::new(
+            crate::duel_ghost::CVAR,
+            true,
+            archive,
+            "Players in a duel show as see-through blue figures, as on JoF EJK (1), or dark under the blue bubble (0)",
+        ),
+        CvarDefinition::new(
             "cg_shieldBrightnessDefaultVersion",
             0_i64,
             archive,

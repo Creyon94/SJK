@@ -19,6 +19,7 @@ impl GpuState {
             &self.localization,
             &mut self.chat,
             self.console.as_mut(),
+            &mut self.hud.duel_pairs,
         );
     }
 }

@@ -843,7 +843,7 @@ fn nameplate_snapshot() {
 
 /// Nameplates over a match: a verified saber player in medium stance just spawned
 /// (overheal, 125) with estimated Force (grey haze), an enemy with a gun the estimate
-/// cannot place (yellow "?"), a staff player farther off with an empty shield (broken
+/// cannot place (yellow "?"), a duelling staff player farther off with an empty shield (broken
 /// grey), and the player's own plate (`cg_nameplateSelf`) over a large shield (199).
 fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::nameplate::{PreviewPlate, State};
@@ -881,6 +881,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             weapon: 3,
             style: 2,
             verified: true,
+            duelling: false,
             team: None,
             shared: true,
         },
@@ -894,6 +895,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             weapon: 5,
             style: 0,
             verified: false,
+            duelling: false,
             team: Some(true),
             shared: true,
         },
@@ -907,6 +909,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             weapon: 3,
             style: 7,
             verified: true,
+            duelling: true,
             team: None,
             shared: false,
         },
@@ -920,6 +923,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             weapon: 3,
             style: 3,
             verified: true,
+            duelling: false,
             team: Some(false),
             shared: false,
         },

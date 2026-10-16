@@ -59,6 +59,24 @@ sending a list once and again when it changes and storing answers), the hub's AP
 forgetting, bad slot and model) and an off-screen render of the pinned card with the
 line. Not yet seen in the game; the hub branch is not deployed, so until it is the hub
 refuses the list (once an hour) and the card shows no line.
+## Duels: shown as JoF EJK shows them, with paired duel badges
+
+15/10/2026, `feat/duel-visibility` (Creyon, after JoF players' reports): players outside a
+duel could hardly tell who was duelling, as SJK drew stock's dim blue sight bubble on a
+fully lit body. JoF shows a duellist as a see-through blue figure (EternalJK's
+`gfx/effects/duelShader`, `cg_stylePlayer`'s `JAPRO_STYLE_VFXDUELERS`), now SJK's default
+with a lighter blue so it stays see-through ([duel_ghost.rs](../crates/sjk-viewer/src/duel_ghost.rs),
+`cg_duelGhost`, Settings > Quick > Force shells > Duel figures (JoF)). Off, a duellist is
+dark under the bubble at JoF EJK's 100 100 255. While you duel, everyone else is drawn at a
+fifth of their colour and you and your opponent look as you are (EternalJK's default)
+([duel_look.rs](../crates/sjk-client/src/duel_look.rs)). Nameplates put a crossed-sabers
+duel badge ([duel_badge.rs](../crates/sjk-viewer/src/ui_renderer/duel_badge.rs)) before a
+duellist's name (`cg_nameplateDuel` turns it off), the two of one duel in the same colour
+([duel_pairs.rs](../crates/sjk-viewer/src/hud/duel_pairs.rs): the server's duel-start
+broadcast, stock's or jaPRO/TaystJK's, or your own duel; an unknown opponent gets a neutral
+grey badge, never a guess). SJK-made glows (a repeated bubble, a chrome shell, a blue wash)
+were tried in playtest and dropped. Played on JoF (Windows 11): the figures, the badges and
+their colours for duels started in view, no glow on the pair.
 
 ## Emotes on stock models: limbs out of wider bodies
 
