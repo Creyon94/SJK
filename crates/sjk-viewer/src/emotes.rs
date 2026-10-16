@@ -30,7 +30,12 @@
 //! `sound_loop` (its length `sound_loop_ms`) follows the first sound and repeats
 //! for as long as the emote plays (music with an intro and a loop). `icon` is a
 //! picture (PNG, JPG or TGA) the quick wheel shows for it (`emote_icons.rs`). The id
-//! [`STOP`] ends the player's emote.
+//! [`STOP`] ends the player's emote; `sjkemote stop all` or `sjkemote stop <player>`
+//! ends other players' on this screen only, once (their next emote plays).
+//! [`MUTE`] (`sjkemote mute <player>`) hides a player's emotes on this screen until
+//! [`UNMUTE`] or the game closes; it holds their identity key, so it follows them
+//! across slots and names. `<player>` is a slot number, part of a name, or
+//! [`TARGET`], the player under the crosshair.
 //!
 //! `<id>` is the emote's id at the hub: 1 to 32 of `a` to `z`, `0` to `9` and `_`.
 //!
@@ -52,9 +57,17 @@ pub(crate) const STOP: &str = "stop";
 /// The word that joins another player's emote in step (`sjkemote sync [player]`),
 /// never a catalogue entry's.
 pub(crate) const SYNC: &str = "sync";
+/// `sjkemote mute <player>`: hide that player's emotes on this screen.
+pub(crate) const MUTE: &str = "mute";
+/// `sjkemote unmute <player|all>`: show them again.
+pub(crate) const UNMUTE: &str = "unmute";
+/// `stop all`, `unmute all`: every player.
+pub(crate) const ALL: &str = "all";
+/// `stop target`, `mute target`: the player under the crosshair.
+pub(crate) const TARGET: &str = "target";
 /// How far (game units) `sjkemote sync` alone looks for a player to join.
 pub(crate) const SYNC_RANGE: f32 = 512.0;
-pub(crate) const HELP: &str = "Play an emote the SJK players on this server see (sjkemote alone lists them; sjkemote sync [player] joins one in step)";
+pub(crate) const HELP: &str = "Play an emote the SJK players on this server see (sjkemote alone lists them; sjkemote sync [player] joins one in step; stop [all|player|target] ends emotes; mute/unmute <player|target> hides a player's)";
 /// How loud emote sounds play, times the effects volume (Settings > Sound > Emotes).
 pub(crate) const VOLUME_CVAR: &str = "s_emoteVolume";
 /// [`VOLUME_CVAR`]'s default: recorded music sits well under the game's effects.
@@ -227,7 +240,7 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<EmoteDef> {
         }
     }
     catalogue.retain(|def| {
-        let reserved = def.id == STOP || def.id == SYNC;
+        let reserved = [STOP, SYNC, MUTE, UNMUTE].contains(&def.id.as_str());
         if reserved {
             crate::log::progress(format_args!(
                 "emotes: {FOLDER}/{}.emote: the id is reserved",
@@ -547,6 +560,9 @@ pub(crate) struct State {
     pub(crate) active: ActiveEmotes,
     /// Whether the catalogue's sounds were handed to the audio to load.
     pub(crate) sounds_loaded: bool,
+    /// The players whose emotes this screen hides (`sjkemote mute`): key id to the
+    /// name shown when muted.
+    pub(crate) muted: std::collections::BTreeMap<String, String>,
 }
 
 static STATE: std::sync::LazyLock<std::sync::Mutex<State>> =
@@ -614,8 +630,9 @@ pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
             format!("{} - {}, {length}", def.id, def.name)
         })
         .chain([
-            format!("{COMMAND} {STOP} ends yours."),
+            format!("{COMMAND} {STOP} ends yours; {STOP} {ALL} or {STOP} <player> ends others' here, once."),
             format!("{COMMAND} {SYNC} [player] joins another player's emote in step."),
+            format!("{COMMAND} {MUTE} <player>, {UNMUTE} <player|{ALL}>: hide a player's emotes here ({MUTE} alone lists)."),
         ])
         .collect()
 }
@@ -710,8 +727,9 @@ mod tests {
             [
                 "sit - Sit, loops",
                 "wave - Wave, 2.5 s",
-                "sjkemote stop ends yours.",
-                "sjkemote sync [player] joins another player's emote in step."
+                "sjkemote stop ends yours; stop all or stop <player> ends others' here, once.",
+                "sjkemote sync [player] joins another player's emote in step.",
+                "sjkemote mute <player>, unmute <player|all>: hide a player's emotes here (mute alone lists)."
             ]
         );
     }

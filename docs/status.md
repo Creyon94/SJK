@@ -1,3 +1,12 @@
+## Emote stop and mute
+
+16/10/2026, `personal/emote-mute` (Sol's request): `sjkemote stop all` or `sjkemote stop
+<player|target>` ends other players' emotes on this screen once (their next one plays);
+`sjkemote mute <player|target>` hides one SJK player's emotes by their key until
+`sjkemote unmute <player|all>` or the game closes, `mute` alone lists them
+([hub-chat.md](hub-chat.md#emotes-in-the-client)). Local only, nothing sent to the hub.
+Checked by the emote unit tests and clippy; not tried in the game.
+
 ## Trust marks
 
 16/10/2026, `personal/trust` (Sol's request): a player the hub neither verifies nor made

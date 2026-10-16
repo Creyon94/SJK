@@ -711,10 +711,20 @@ and plays changes.
   the quick wheel shows for it, drawn on a blue disc), `sound_ms` (the sound's length: a
   looping emote plays it again each time it ends), `sound_loop` and `sound_loop_ms`
   (music in two parts: the loop follows the sound and repeats while the emote plays) and `rig` (the rig model folder the clip comes from;
-  other rig models with the same joint names borrow it). The ids `stop` and `sync` are
-  reserved: `sjkemote stop` ends the player's emote here and, relayed, for the others.
+  other rig models with the same joint names borrow it). The ids `stop`, `sync`, `mute`
+  and `unmute` are reserved: `sjkemote stop` ends the player's emote here and, relayed,
+  for the others.
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
+- Other players' emotes, on this screen only (since 16/10/2026; nothing is sent):
+  `sjkemote stop all` ends every other player's emote and `sjkemote stop <player>` one
+  player's, once: their next emote plays. `sjkemote mute <player>` ends that player's
+  emote and drops the ones the hub relays from their identity key (so it follows them
+  to another slot or name) until `sjkemote unmute <player>` or `unmute all`, or the
+  game closes (`emotes::State::muted`, not saved); `mute` alone lists them. Only SJK
+  players can be muted, as only they send emotes. `<player>` is a slot number, part of
+  the name shown (a whole name wins when several match), or `target`, the player under
+  the crosshair.
 - `sjkemote sync [player]` (since 15/10/2026; the quick wheel's Sync emote) joins
   another player's emote in step: the named player (a slot number or part of the name
   shown), else the one under the crosshair, else the nearest emoting player within 512

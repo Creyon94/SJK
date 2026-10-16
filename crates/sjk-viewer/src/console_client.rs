@@ -429,6 +429,12 @@ impl crate::GpuState {
         // The player's own emote starts here at once; the hub's echo of it is not
         // started again (`update_emotes`).
         let own = u8::try_from(session.latest_snapshot().player.client_num()).ok();
+        if id == crate::emotes::STOP && args.len() > 1 {
+            return self.emote_stop_others(own, &args[1..].join(" "));
+        }
+        if id == crate::emotes::MUTE || id == crate::emotes::UNMUTE {
+            return self.emote_mute(own, id == crate::emotes::MUTE, &args[1..].join(" "));
+        }
         if id == crate::emotes::STOP {
             if let Some(slot) = own {
                 crate::emotes::lock().active.stop(slot);
@@ -475,6 +481,152 @@ impl crate::GpuState {
             );
         }
         Ok(Vec::new())
+    }
+
+    /// The other player `word` names: [`crate::emotes::TARGET`] (under the crosshair), a
+    /// slot number, or part of the name the game shows (a whole name first); with
+    /// that name, without colour codes.
+    fn emote_player(&self, own: Option<u8>, word: &str) -> Result<(u8, String), String> {
+        let Some(session) = self.live_session.as_ref() else {
+            return Err("Join a server to emote".to_owned());
+        };
+        let game_state = session.game_state();
+        let shown = |slot: u8| crate::player_identity::shown_name(game_state, usize::from(slot));
+        let players: Vec<(u8, String)> = (0..64u8)
+            .filter(|slot| Some(*slot) != own)
+            .filter_map(|slot| Some((slot, shown(slot)?)))
+            .collect();
+        let found = if word.eq_ignore_ascii_case(crate::emotes::TARGET) {
+            let now_ms = session.latest_snapshot().server_time;
+            let aimed = self
+                .crosshair_scan
+                .chat_client(now_ms)
+                .and_then(|slot| u8::try_from(slot).ok());
+            players
+                .iter()
+                .find(|(slot, _)| Some(*slot) == aimed)
+                .ok_or_else(|| "Nobody is under your crosshair".to_owned())?
+        } else if let Ok(wanted) = word.parse::<u8>() {
+            players
+                .iter()
+                .find(|(slot, _)| *slot == wanted)
+                .ok_or_else(|| format!("Nobody is in slot {wanted}"))?
+        } else {
+            let words = crate::emotes::plain_name(word);
+            let matching: Vec<&(u8, String)> = players
+                .iter()
+                .filter(|(_, name)| crate::emotes::plain_name(name).contains(&words))
+                .collect();
+            match matching[..] {
+                [] => return Err(format!("Nobody here is called {word}")),
+                [one] => one,
+                _ => matching
+                    .iter()
+                    .find(|(_, name)| crate::emotes::plain_name(name) == words)
+                    .copied()
+                    .ok_or_else(|| {
+                        let names: Vec<String> = matching
+                            .iter()
+                            .map(|(_, name)| crate::emotes::plain_name_shown(name))
+                            .collect();
+                        format!("{word} matches {}: say more of the name", names.join(", "))
+                    })?,
+            }
+        };
+        Ok((found.0, crate::emotes::plain_name_shown(&found.1)))
+    }
+
+    /// `sjkemote stop all|<player>`: end the other players' emotes (everyone's but
+    /// the player's own, or one player's) on this screen only, once: their next one
+    /// plays.
+    fn emote_stop_others(&mut self, own: Option<u8>, word: &str) -> Result<Vec<String>, String> {
+        if word.eq_ignore_ascii_case(crate::emotes::ALL) {
+            let mut state = crate::emotes::lock();
+            let slots: Vec<u8> = state
+                .active
+                .playing()
+                .map(|(slot, _)| slot)
+                .filter(|slot| Some(*slot) != own)
+                .collect();
+            for slot in &slots {
+                state.active.stop(*slot);
+            }
+            return Ok(vec![match slots.len() {
+                0 => "Nobody else is playing an emote".to_owned(),
+                1 => "Stopped 1 emote here".to_owned(),
+                count => format!("Stopped {count} emotes here"),
+            }]);
+        }
+        let (slot, name) = self.emote_player(own, word)?;
+        let mut state = crate::emotes::lock();
+        if state.active.get(slot).is_none() {
+            return Err(format!("{name} is not playing an emote"));
+        }
+        state.active.stop(slot);
+        Ok(vec![format!("Stopped {name}'s emote here")])
+    }
+
+    /// `sjkemote mute <player>` hides that player's emotes on this screen, by their
+    /// identity key, until `sjkemote unmute <player|all>` or the game closes; `mute`
+    /// alone lists the muted players.
+    fn emote_mute(
+        &mut self,
+        own: Option<u8>,
+        mute: bool,
+        word: &str,
+    ) -> Result<Vec<String>, String> {
+        if word.is_empty() {
+            if !mute {
+                return Err("sjkemote unmute <player|target|all>".to_owned());
+            }
+            let state = crate::emotes::lock();
+            return Ok(if state.muted.is_empty() {
+                vec!["Nobody's emotes are muted".to_owned()]
+            } else {
+                std::iter::once("Emotes muted:".to_owned())
+                    .chain(state.muted.values().map(|name| format!("  {name}")))
+                    .collect()
+            });
+        }
+        if !mute && word.eq_ignore_ascii_case(crate::emotes::ALL) {
+            let count = std::mem::take(&mut crate::emotes::lock().muted).len();
+            return Ok(vec![format!("Unmuted {count} player(s)")]);
+        }
+        let (slot, name) = self.emote_player(own, word)?;
+        let shown = self
+            .live_session
+            .as_ref()
+            .and_then(|session| {
+                crate::player_identity::shown_name(session.game_state(), usize::from(slot))
+            })
+            .unwrap_or_default();
+        let key = crate::player_identity::hub_mark(slot, &shown).map(|mark| mark.key_id);
+        let mut state = crate::emotes::lock();
+        if !mute {
+            let removed = key.and_then(|key| state.muted.remove(&key)).or_else(|| {
+                // Gone from the hub's list since: by the name kept when muted.
+                let key = state
+                    .muted
+                    .iter()
+                    .find(|(_, kept)| {
+                        crate::emotes::plain_name(kept) == crate::emotes::plain_name(&name)
+                    })
+                    .map(|(key, _)| key.clone())?;
+                state.muted.remove(&key)
+            });
+            return match removed {
+                Some(_) => Ok(vec![format!("{name}'s emotes play again")]),
+                None => Err(format!("{name}'s emotes are not muted")),
+            };
+        }
+        let Some(key) = key else {
+            return Err(format!("{name} is not an SJK player: they send no emotes"));
+        };
+        state.muted.insert(key, name.clone());
+        state.active.stop(slot);
+        Ok(vec![format!(
+            "{name}'s emotes are muted here (sjkemote unmute {name})"
+        )])
     }
 
     /// `sjkemote sync [player]`: the player in `own` joins, in step, the emote of

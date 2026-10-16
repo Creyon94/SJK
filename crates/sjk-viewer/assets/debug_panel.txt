@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[emote-stop-mute]
+area: Gameplay
+title: Stop or mute other players' emotes
+change: sjkemote stop all / stop <player|target>: ends their emotes here, once.
+change: sjkemote mute <player|target>: hides one player's emotes until unmute.
+change: sjkemote mute alone lists; sjkemote unmute <player|target|all>.
+test: Two SJK players emote: sjkemote stop all ends both here; a new emote plays.
+test: Aim at one: sjkemote stop target ends only theirs.
+test: sjkemote mute <name>: their emote stops, later ones do not play; unmute <name> brings them back.
+test: The muted player reconnects or renames: still muted (by key).
+
 [trust]
 area: Console & chat
 title: Trust marks: empty tick (new), green tick (trusted), red cross (chat banned)
