@@ -1510,6 +1510,12 @@ reviewed by eye; their cost not measured, not seen in a live match.
 
 ## Saber trails
 
+A blade grows and shrinks as it is switched on and off after
+`BG_SI_SetLengthGradual` (`Extension` in [saber.rs](../crates/sjk-viewer/src/saber.rs)).
+A hilt with blades of another length (single to staff, a new saber) gives a lit blade
+its own length at once; until 16/10/2026 the old length stayed until the blade was
+switched off and on (players' bug reports).
+
 [saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp
 `CG_AddSaberBlade` and `CTrail`: every frame at least 3 ms after the last, a
 blade adds one slice from its remembered muzzle and tip to the current ones.
