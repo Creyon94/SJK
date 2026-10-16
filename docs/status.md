@@ -1,3 +1,19 @@
+## JoF EJK client lists
+
+16/10/2026, `feat/clientlist-commands`: `clientlist` lists client numbers, teams,
+names and bots, with the existing `showplayerid` retained as an alias;
+`clientlistinfo` adds JoF EJK's human-player model, skin, gender, saber, colour,
+team-model group and available body-RGB details
+([client.md](client.md#chat-player-actions)). Ported against JoF EJK
+`cg_consolecmds.c` revision `bd5e202dfedd49500f1b7aadd655619bac152167`; SJK prints the real `c3`/`c4`
+values where that revision's RGB format call omits its arguments. On Linux
+7.3.0-rc5 x86_64 with Rust 1.99.1, its four focused unit tests, `cargo fmt --all
+--check`, the locked workspace build and test suite, all-targets Clippy, and the
+optimized viewer/dedicated build pass (the repository's existing warnings remain).
+Not yet tried against a running game server. SJK has no copied
+`clientInfo_t::deferred` model-load flag, so the EJK-only `(deferred)` diagnostic is
+not shown.
+
 ## Chat bans: Ban 24 h
 
 16/10/2026, `personal/chat-ban` (Sol's request): a verified or staff player bans an

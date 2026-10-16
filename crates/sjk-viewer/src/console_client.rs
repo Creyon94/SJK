@@ -75,7 +75,18 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "reply",
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
     ),
-    (crate::player_ids::COMMAND, crate::player_ids::HELP),
+    (
+        crate::player_ids::CLIENT_LIST_COMMAND,
+        crate::player_ids::CLIENT_LIST_HELP,
+    ),
+    (
+        crate::player_ids::CLIENT_LIST_INFO_COMMAND,
+        crate::player_ids::CLIENT_LIST_INFO_HELP,
+    ),
+    (
+        crate::player_ids::SHOW_PLAYER_ID_COMMAND,
+        crate::player_ids::SHOW_PLAYER_ID_HELP,
+    ),
     ("toggleconsole", "Toggle the console"),
     (super::asset_browser::COMMAND, super::asset_browser::HELP),
     (
@@ -776,14 +787,26 @@ impl crate::GpuState {
                 return crate::am_color::run(console, args);
             }
             "reply" => return self.reply_command(args),
-            crate::player_ids::COMMAND => {
+            crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {
                 let session = self
                     .resident
                     .session
                     .as_ref()
                     .or(self.live_session.as_ref())
-                    .ok_or("showplayerid: not in a game")?;
-                return Ok(crate::player_ids::lines(session.game_state()));
+                    .ok_or("clientlist: not in a game")?;
+                return Ok(crate::player_ids::client_list_lines(session.game_state()));
+            }
+            crate::player_ids::CLIENT_LIST_INFO_COMMAND => {
+                let session = self
+                    .resident
+                    .session
+                    .as_ref()
+                    .or(self.live_session.as_ref())
+                    .ok_or("clientlistinfo: not in a game")?;
+                return Ok(crate::player_ids::client_list_info_lines(
+                    session.game_state(),
+                    session.latest_snapshot(),
+                ));
             }
             "toggleconsole" => {
                 if let Some(console) = &mut self.console {
