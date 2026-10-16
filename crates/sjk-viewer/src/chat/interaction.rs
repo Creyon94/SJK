@@ -201,7 +201,7 @@ impl ChatOverlay {
             // Match the canvas's reverse paint order: popovers cover the
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
-            self.pressed_action = [card::CARD_MUTE, card::CARD]
+            self.pressed_action = [card::CARD_BAN, card::CARD_MUTE, card::CARD]
                 .into_iter()
                 .chain(ACTIONS.into_iter().rev())
                 .chain([MENU_BACK, LATEST, SJK, TEAM, GLOBAL])
@@ -304,6 +304,7 @@ impl ChatOverlay {
             }
             token if ACTIONS.contains(&token) => self.player_action(token),
             card::CARD_MUTE => self.toggle_card_mute(),
+            card::CARD_BAN => self.press_card_ban(),
             _ => {}
         }
     }

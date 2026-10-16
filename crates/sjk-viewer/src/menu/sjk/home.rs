@@ -47,6 +47,7 @@ const CARD_TOKEN: u16 = 50;
 const SENDER_NAME_TOKEN: u16 = 60;
 const SENDER_CARD_TOKEN: u16 = 70;
 const SENDER_MUTE_TOKEN: u16 = 71;
+const SENDER_BAN_TOKEN: u16 = 72;
 /// The donation goal's Donate button.
 const DONATE_TOKEN: u16 = 80;
 /// The dock's targets ([`chat_dock`]).
@@ -56,6 +57,7 @@ const DOCK_TOKENS: chat_dock::Tokens = chat_dock::Tokens {
     names: SENDER_NAME_TOKEN,
     card: SENDER_CARD_TOKEN,
     mute: SENDER_MUTE_TOKEN,
+    ban: SENDER_BAN_TOKEN,
 };
 
 /// The pages the ring shows.

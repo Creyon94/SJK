@@ -10,6 +10,7 @@
 
 pub mod assets;
 pub mod avatar;
+pub mod ban;
 pub mod bio;
 pub mod chat;
 pub mod crash;
@@ -27,6 +28,7 @@ pub mod vitals;
 pub mod wire;
 
 pub use assets::Pack;
+pub use ban::{BanOutcome, ChatBan};
 pub use crash::CrashReport;
 pub use donations::DonationGoal;
 pub use feed::{ChatState, ReceivedLooks};

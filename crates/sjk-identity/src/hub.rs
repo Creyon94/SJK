@@ -1,6 +1,7 @@
 //! Talking to the hub: the [`Hub`] operations and their HTTPS implementation.
 
 use crate::assets::{PACK_MAX, Pack};
+use crate::ban::ChatBan;
 use crate::crash::CrashReport;
 use crate::keys::{Identity, random_bytes};
 use crate::logs::{
@@ -133,6 +134,14 @@ pub trait Hub: Send {
     fn chat(&mut self, _identity: &Identity, _text: &str, _name: &str) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send chat".to_owned(),
+        ))
+    }
+    /// Ban the player of `key_id` from the SJK chat for 24 hours (`POST /v1/chat/ban`):
+    /// only a verified or staff identity may, and only a player the hub does not vouch
+    /// for ([`crate::ban`]).
+    fn chat_ban(&mut self, _identity: &Identity, _key_id: &str) -> Result<ChatBan, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not ban from the chat".to_owned(),
         ))
     }
     /// Play `emote` for the slot the identity claims on `server`, in step with the
@@ -551,10 +560,15 @@ impl HttpHub {
             self.clock_offset = server_time - unix_now();
             return None;
         }
+        // A ban says when it ends; the player reads it in their own time.
+        let message = match value["until"].as_i64() {
+            Some(until) if code == "chat_banned" => crate::ban::banned_message(until),
+            _ => value["message"].as_str().unwrap_or_default().to_owned(),
+        };
         Some(HubError::Rejected {
             status,
             code,
-            message: value["message"].as_str().unwrap_or_default().to_owned(),
+            message,
         })
     }
 
@@ -824,6 +838,7 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             "/v1/staff/chat-mute",
             json!({ "key_id": key_id, "muted": muted }),
         ),
+        StaffRequest::ChatUnban { key_id } => ("/v1/staff/chat-unban", json!({ "key_id": key_id })),
         StaffRequest::AvatarRemove { key_id } => {
             ("/v1/staff/avatar-remove", json!({ "key_id": key_id }))
         }
@@ -992,7 +1007,9 @@ impl Hub for HttpHub {
                 Ok(found.players)
             }
             // The chat's moderation answers `{}`.
-            StaffRequest::ChatDelete { .. } | StaffRequest::ChatMute { .. } => Ok(Vec::new()),
+            StaffRequest::ChatDelete { .. }
+            | StaffRequest::ChatMute { .. }
+            | StaffRequest::ChatUnban { .. } => Ok(Vec::new()),
             _ => Ok(vec![parse(answer)?]),
         }
     }
@@ -1173,6 +1190,18 @@ impl Hub for HttpHub {
         answer["id"]
             .as_u64()
             .ok_or_else(|| HubError::Protocol("the chat answer has no id".to_owned()))
+    }
+
+    fn chat_ban(&mut self, identity: &Identity, key_id: &str) -> Result<ChatBan, HubError> {
+        let body = json!({ "key_id": key_id });
+        let answer = self.send(Some(identity), "POST", "/v1/chat/ban", Some(body))?;
+        let until = answer["until"]
+            .as_i64()
+            .ok_or_else(|| HubError::Protocol("the ban answer has no until".to_owned()))?;
+        Ok(ChatBan {
+            until,
+            address: answer["address"].as_bool().unwrap_or(false),
+        })
     }
 
     fn emote(
@@ -1376,6 +1405,29 @@ mod tests {
         );
     }
 
+    /// A message refused for a ban says, in local time, when the ban ends; other
+    /// refusals keep the hub's words.
+    #[test]
+    fn a_chat_ban_refusal_says_when_it_ends() {
+        let mut hub = HttpHub::new("https://hub.example", "test").unwrap();
+        let refused = hub.refusal(
+            403,
+            &json!({"error": "chat_banned", "message": "banned", "until": 1_792_240_320}),
+            true,
+        );
+        let Some(HubError::Rejected { code, message, .. }) = refused else {
+            panic!("{refused:?}");
+        };
+        assert_eq!(code, "chat_banned");
+        assert_eq!(message, crate::ban::banned_message(1_792_240_320));
+        let refused = hub.refusal(
+            403,
+            &json!({"error": "chat_muted", "message": "muted", "until": 5}),
+            true,
+        );
+        assert!(matches!(refused, Some(HubError::Rejected { message, .. }) if message == "muted"));
+    }
+
     #[test]
     fn staff_chat_requests_send_the_protocols_fields() {
         assert_eq!(
@@ -1390,6 +1442,15 @@ mod tests {
             (
                 "/v1/staff/chat-mute",
                 json!({"key_id": "0123456789abcdef", "muted": true})
+            )
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::ChatUnban {
+                key_id: "0123456789abcdef".into()
+            }),
+            (
+                "/v1/staff/chat-unban",
+                json!({"key_id": "0123456789abcdef"})
             )
         );
         assert_eq!(

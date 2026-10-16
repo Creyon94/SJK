@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Verified players ban unverified ones from SJK chat for 24 h, key and address; staff lift
+- e3f063b |  | Chat bans: verified players ban unverified ones from SJK chat for 24 h
 + 16/10/2026 | - | Alpha notice: collectibles not unlockable yet
 - e4567af |  | Alpha notice: some collectibles show but cannot be unlocked yet
 + 16/10/2026 | - | Game chat lines look like SJK chat lines: SJK and clan emblems, verified tick, JA+ lines attributed, names the server cut an emoji from

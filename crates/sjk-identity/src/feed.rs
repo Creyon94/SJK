@@ -72,6 +72,8 @@ pub struct ChatState {
     pub live: bool,
     /// What became of the last message or emote sent.
     pub outcome: Option<ReportOutcome>,
+    /// What became of the last chat ban asked for ([`crate::Service::chat_ban`]).
+    pub ban: Option<crate::BanOutcome>,
     /// `None` until the hub being read answered once; then a number that changes with
     /// each hub (or each time the reading starts again), so a reader can tell the
     /// backlog that came with that first answer from what is said afterwards.

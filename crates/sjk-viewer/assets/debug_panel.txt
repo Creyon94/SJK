@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[chat-ban]
+area: Console & chat
+title: Ban 24 h: verified players ban unverified ones from SJK chat
+change: Ban 24 h beside Mute on sender cards and the chat page's chosen message.
+change: First click arms (Confirm ban), a second within 4 s sends; key and address banned.
+change: Staff get Lift chat ban beside Delete for everyone.
+test: As a verified player, rest on an unverified sender's name: Ban 24 h beside Mute.
+test: Click once: Confirm ban and a warning; wait 5 s: back to Ban 24 h, nothing sent.
+test: Click twice: Banned from SJK chat until dd/mm HH:MM under the buttons.
+test: The banned player's next message: A verified player banned you ... until ...
+test: A verified sender, or yourself: no Ban 24 h. Staff: Lift chat ban, they write again.
+note: Needs the hub's chat-ban branch deployed; an older hub says it cannot ban yet.
+
 [chat-marks]
 area: Console & chat
 title: Game chat lines look like SJK chat: emblems, tick, names with an emoji

@@ -1,3 +1,16 @@
+## Chat bans: Ban 24 h
+
+16/10/2026, `personal/chat-ban` (Sol's request): a verified or staff player bans an
+unverified one from SJK chat for 24 hours from the sender card or the SJK chat page's
+chosen message, armed by a first click and sent by a second within 4 seconds; staff lift
+bans; a banned player's refused message says until when, in local time
+([hub-chat.md](hub-chat.md#chat-bans)). Built against the hub's `POST /v1/chat/ban`,
+`chat_banned` and `/v1/staff/chat-unban` (Sol-Vulpes/SJK-hub branch `chat-ban`, built at
+the same time). Checked by unit tests (`ban`, `chat_ban`, the worker's
+`chat_bans_go_only_from_a_verified_or_staff_key`, the refusal's `until`, the card and
+the page offering it only to a trusted player on an unverified sender). Not tried in the
+game or against a running hub.
+
 ## Game chat lines look like SJK chat lines; names the server cut
 
 16/10/2026, `personal/chat-marks` (Sol's request): a game chat line with a known sender

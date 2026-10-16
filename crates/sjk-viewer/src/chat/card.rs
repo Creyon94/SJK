@@ -11,6 +11,7 @@ use sjk_ui::Rect;
 /// The card's pointer targets, after the player menu's.
 pub(super) const CARD: u16 = 120;
 pub(super) const CARD_MUTE: u16 = 121;
+pub(super) const CARD_BAN: u16 = 122;
 
 /// Whose name a feed token is.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -69,7 +70,9 @@ impl ChatOverlay {
                     }
                 }
             }
-            None if self.ui.token_hovered(CARD) || self.ui.token_hovered(CARD_MUTE) => {}
+            None if [CARD, CARD_MUTE, CARD_BAN]
+                .into_iter()
+                .any(|token| self.ui.token_hovered(token)) => {}
             None => self.card = None,
         }
         // Their picture's version, until the hub's players or their profile say it.
@@ -163,6 +166,7 @@ impl ChatOverlay {
             sender_card::Tokens {
                 card: CARD,
                 mute: CARD_MUTE,
+                ban: CARD_BAN,
             },
         );
     }
@@ -178,6 +182,17 @@ impl ChatOverlay {
             name: card.person.name.clone(),
             muted: card.muted,
         });
+    }
+
+    /// Ban 24 h on the card ([`crate::chat_ban`]): arms it, or sends the ban.
+    pub(super) fn press_card_ban(&self) {
+        if let Some(key_id) = self
+            .card
+            .as_ref()
+            .and_then(|card| card.person.key_id.as_deref())
+        {
+            crate::chat_ban::press(key_id);
+        }
     }
 
     /// What a card asked, once.

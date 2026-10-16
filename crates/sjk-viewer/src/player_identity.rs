@@ -750,6 +750,29 @@ pub(crate) fn is_staff() -> bool {
     })
 }
 
+/// Whether the hub vouches for the player's own key (verified or staff): such a
+/// player may ban unverified players from the SJK chat ([`crate::chat_ban`]).
+pub(crate) fn can_ban() -> bool {
+    lock().service.as_ref().is_some_and(|service| {
+        service.with_snapshot(|snapshot| {
+            snapshot
+                .me
+                .as_ref()
+                .is_some_and(|me| me.verified || me.staff)
+        })
+    })
+}
+
+/// Ban the player of `key_id` from the SJK chat for 24 hours; false when the service
+/// has not started. What became of it arrives in the chat's `ban`.
+pub(crate) fn chat_ban(key_id: String) -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.chat_ban(key_id))
+        .is_some()
+}
+
 /// The player's own id at the hub, once the service started: this PC's key id, or the
 /// id of the person it is linked to once the hub said so (`Snapshot::key_id`).
 pub(crate) fn own_key_id() -> Option<String> {

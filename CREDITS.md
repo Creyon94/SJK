@@ -159,6 +159,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   online on the chat page,
   its chat sounds, `reply` (after JoF EJK), the last channel remembered and SJK's
   emblem on SJK lines;
+- chat bans: verified players ban unverified ones from SJK chat for 24 hours, key and
+  address, from a card or a message, and staff lift them;
 - crash reports sent to the SJK team at the next start, and world notes sent to the
   SJK hub from the inspect key;
 - log requests: the SJK team asks a player for their game's logs from the Staff page,

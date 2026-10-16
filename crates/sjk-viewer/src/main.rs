@@ -26,6 +26,7 @@ mod card_outline;
 mod cards;
 mod cgame_options;
 mod chat;
+mod chat_ban;
 mod chat_gifs;
 mod chat_mutes;
 mod cinematic_roq;

@@ -960,8 +960,9 @@ impl Panel {
         }
     }
 
-    /// The chosen message's sender and what can be done: Mute here, and for staff
-    /// Delete and Mute at the hub.
+    /// The chosen message's sender and what can be done: Mute here, Ban 24 h for a
+    /// sender the hub does not vouch for when it vouches for the player, and for staff
+    /// Delete, Lift chat ban and Mute at the hub.
     fn chosen(&mut self, frame: &Frame, inputs: &Inputs<'_>, measure: &Measure<'_>, top: f32) {
         let s = frame.s;
         kit::heading(
@@ -972,6 +973,7 @@ impl Panel {
             SIDE_WIDTH,
             "Chosen message",
         );
+        self.shown.chosen_bannable = false;
         let message = self.selected.and_then(|id| {
             inputs
                 .chat
@@ -1057,16 +1059,55 @@ impl Panel {
             MUTE_TOKEN,
         );
         self.order.push(MUTE_TOKEN);
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!("Hides their chat, model, sabers and sounds on this PC."),
-            frame.rect(SIDE_X, y + 50.0, SIDE_WIDTH, 22.0),
-            14.0 * s,
-            color::QUIET,
-            FontWeight::Regular,
-            TextAlign::Start,
-        );
+        let quiet = "Hides their chat, model, sabers and sounds on this PC.";
+        let under = frame.rect(SIDE_X, y + 50.0, SIDE_WIDTH, 22.0);
+        let bannable =
+            crate::chat_ban::offered(Some(&message.key_id), message.verified, message.staff);
+        self.shown.chosen_bannable = bannable;
+        if bannable {
+            // Beside Mute; what it came to (or the armed button's warning) takes the
+            // quiet line.
+            let (ui, focused) = (&mut self.ui, self.focus == BAN_TOKEN);
+            crate::chat_ban::with_shown(&message.key_id, |shown| {
+                kit::button(
+                    ui,
+                    frame,
+                    [SIDE_X + 252.0, y, 232.0, 42.0],
+                    shown.label,
+                    shown.armed,
+                    true,
+                    focused,
+                    BAN_TOKEN,
+                );
+                let (said, colour) = match shown.line {
+                    Some((said, true)) => (said, color::GOLD_BRIGHT),
+                    Some((said, false)) => (said, color::EMBER),
+                    None => (quiet, color::QUIET),
+                };
+                text(
+                    ui,
+                    TextFamily::Body,
+                    format_args!("{said}"),
+                    under,
+                    14.0 * s,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            });
+            self.order.push(BAN_TOKEN);
+        } else {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{quiet}"),
+                under,
+                14.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
         // The message's GIF, as its line shows it (none for a muted sender), can be made
         // a favourite for the GIF picker.
         if let (_, Some(gif)) = crate::chat_gifs::for_message(&message.text, muted) {
@@ -1097,18 +1138,22 @@ impl Panel {
         y += 104.0;
         kit::heading(&mut self.ui, frame, SIDE_X, y, SIDE_WIDTH, "Staff");
         y += 24.0;
-        for (index, (label, token)) in [
-            ("Delete for everyone", DELETE_TOKEN),
-            ("Mute at the hub", HUB_MUTE_TOKEN),
-            ("Unmute at the hub", HUB_UNMUTE_TOKEN),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        // Lift chat ban beside Delete, so the three rows stay.
+        for (row, column, label, token) in [
+            (0_u8, 0, "Delete for everyone", DELETE_TOKEN),
+            (0, 1, "Lift chat ban", LIFT_TOKEN),
+            (1, 0, "Mute at the hub", HUB_MUTE_TOKEN),
+            (2, 0, "Unmute at the hub", HUB_UNMUTE_TOKEN),
+        ] {
+            let (x, width) = if column == 0 {
+                (SIDE_X, 240.0)
+            } else {
+                (SIDE_X + 252.0, 232.0)
+            };
             kit::button(
                 &mut self.ui,
                 frame,
-                [SIDE_X, y + index as f32 * 54.0, 240.0, 42.0],
+                [x, y + f32::from(row) * 54.0, width, 42.0],
                 label,
                 false,
                 true,
@@ -1167,8 +1212,9 @@ impl Panel {
                     });
                 }
             },
-            None if self.ui.token_hovered(CARD_TOKEN) || self.ui.token_hovered(CARD_MUTE_TOKEN) => {
-            }
+            None if [CARD_TOKEN, CARD_MUTE_TOKEN, CARD_BAN_TOKEN]
+                .into_iter()
+                .any(|token| self.ui.token_hovered(token)) => {}
             None => self.card = None,
         }
     }
@@ -1224,6 +1270,7 @@ impl Panel {
             crate::sender_card::Tokens {
                 card: CARD_TOKEN,
                 mute: CARD_MUTE_TOKEN,
+                ban: CARD_BAN_TOKEN,
             },
         );
     }
