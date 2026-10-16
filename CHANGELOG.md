@@ -30,7 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Players on the way to verified wear a trust mark after their name: an empty tick while new, a green tick after 30 days and 10 hours of play, a red cross for a day after a chat ban, which starts their 30 days again. Only staff can ban a player with a green tick, and staff still verify players by hand _(Sol)_
 - Verified players can ban a player who is not verified from SJK chat for 24 hours: Ban 24 h on their card or their message in the SJK chat page, then Confirm ban. The ban covers their key and their address; staff can lift it _(Sol)_
 - Game chat lines look like SJK chat lines: the SJK emblem for players on SJK, the clan emblem (JoF, JoFA) and the verified tick before the name, on JA+ servers too; only the message colour tells the two chats apart. A name the server cut an emoji from shows whole to other SJK players _(Sol)_
-- The first start shows an alpha notice: SJK is a free and open-source alpha, so expect bugs and unfinished parts (some collectibles show but cannot be unlocked yet); report them on the SJK Discord or with Report a bug, right from the card; no warranty, and nobody owes you anything. Tick "I understand" to continue _(Sol)_
+- The first start shows an alpha notice: SJK is a free and open-source alpha, so expect bugs and unfinished parts (some collectibles show but cannot be unlocked yet); report them on the SJK Discord or with Report a bug, right from the card; no warranty, and nobody owes you anything. Tick "I understand", and promise to ask the Discord or Report a bug rather than DM Sol, to continue _(Sol)_
 
 ## 2026.1016.2 (Alpha) | 16/10/2026
 

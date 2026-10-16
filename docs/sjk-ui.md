@@ -1828,11 +1828,14 @@ same look in every menu style, on the 16:9 frame:
   (outlined, opens it in the browser).
 - **Terms:** a fun project of Sol and the contributors, no warranty (as the GPL says),
   nobody owes support, fixes or features.
-- **Tick:** "I understand that SJK is a work in progress that may have bugs, that it
-  comes with no warranty, and that I am owed nothing", gold until ticked; the whole
-  line is its hit region.
-- **Buttons:** Quit (outlined, 130) and Continue (gold, 200, greyed until the tick).
-  Keys bottom right: Space I understand, Enter continue; Escape does nothing.
+- **Ticks:** three promises, gold until ticked, each line its own hit region:
+  "I understand that SJK is a work in progress that may have bugs, that it comes with
+  no warranty, and that I am owed nothing", "I won't DM Sol to ask how the game works:
+  I will do my best to figure it out myself", and "I won't DM Sol bugs or ideas: I will
+  report them with Report a bug or on the SJK Discord" (Sol's request, 16/10/2026).
+- **Buttons:** Quit (outlined, 130) and Continue (gold, 200, greyed until all three are
+  ticked). Keys bottom right: Space ticks the next promise, Enter continue; 1 to 3 flip
+  a promise; Escape does nothing.
 
 ## Log request
 

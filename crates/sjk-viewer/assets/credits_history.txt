@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Alpha notice: promises not to DM Sol
+- 7b5a889 |  | Alpha notice: two more promises to tick (no DMs to Sol)
 + 16/10/2026 | - | Unverified players: one SJK chat message every 30 s, no links or GIFs
 - 0cec8ee |  | Chat: unverified players send one message every 30 s and no links or GIFs
 + 16/10/2026 | - | Sjkemote stop all|<player>, sjkemote mute/unmute <player|target>: other players' emotes on this screen
