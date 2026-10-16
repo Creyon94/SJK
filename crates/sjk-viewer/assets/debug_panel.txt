@@ -4789,3 +4789,12 @@ test: write sjkdata: the console says it wrote ...SJK folder.../sjkdata.cfg.
 test: Change cg_fov, then exec sjkdata: cg_fov is back to the saved value.
 test: write notes.txt and write ../x are refused with a message.
 
+[binocular-view]
+area: HUD
+title: Binoculars show their view: static, heading strip, zoom arrow, frame
+change: Zoom mode 2 had no overlay at all (report 48). Heading digits in the vector font.
+test: Pick up electrobinoculars, use them: blue static, frame, triangle and circle show.
+test: Turn: the heading numbers slide in the strip at the bottom; they stay in its box.
+test: Zoom in and out: the arrow on the left moves down and up.
+test: The disruptor's scope still looks as before.
+
