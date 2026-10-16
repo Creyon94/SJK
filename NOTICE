@@ -30,9 +30,3 @@ official SJK release. Credit stays: saying a work is based on SJK is welcome and
 expected. The copyright line the programs print at startup names Sol JK (SJK); a
 modified version keeps it intact under its own name, for example "<Name> 1.0,
 based on Sol JK (SJK), Copyright (C) 2026 Sol-Vulpes, ...".
-
-Art
----
-SJK's art (the emblem, holocrons, medals, settings and quick wheel icons) is not
-licensed with the code either: LICENSE-ASSETS lists those files and their terms.
-They may be used only as part of SJK; a modified version ships its own art.

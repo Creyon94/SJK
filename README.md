@@ -164,9 +164,6 @@ modified version to keep it, and, under section 2(c), to keep the copyright and
 no-warranty announcement the client and server print when they start. The
 "Sol JK" and "SJK" names and the SJK emblem are not licensed with the code: a
 modified version uses its own name and emblem and credits SJK as its origin.
-SJK's art (emblem, holocrons, medals, settings and quick wheel icons) is not
-licensed with the code either: [LICENSE-ASSETS](LICENSE-ASSETS) lists it and its
-terms, which apply from the version that first carries that file.
 
 OpenJK and TaystJK are compatibility references for Jedi Academy behavior. The
 bundled Inter fonts retain their
