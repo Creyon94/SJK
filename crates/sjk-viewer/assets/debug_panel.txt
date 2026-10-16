@@ -4806,3 +4806,10 @@ test: Saber lit, single_1: switch to a staff in the menu: both blades at staff l
 test: Back to single: the blade at single length at once, no ignite needed.
 test: Switching off and on still grows the blade as before.
 
+[chat-remember-off]
+area: Console & chat
+title: Remember chat channel off really is off
+change: The setting was read as a switch from an integer cvar, so it never turned off (report 37).
+test: Settings: Remember chat channel off. Send on Team, press the chat key: opens on All.
+test: Turn it on again: the chat key opens on the last channel used.
+

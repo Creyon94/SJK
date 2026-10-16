@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Remember chat channel off really is off
+- 5019821 |  | Remember chat channel off really is off
 + 16/10/2026 | - | A lit blade takes a new hilt's length at once
 - 7315f07 |  | A lit blade takes a new hilt's length at once
 + 16/10/2026 | - | Binoculars show their view

@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - `writeconfig <name>` saves `<name>.cfg` beside your `config.cfg`, so `exec <name>` loads it back; on Linux it went to the home folder without `.cfg` _(Sol, after Nib's report; after OpenJK)_
 - The electrobinoculars now show their view: the blue static, the heading strip, the zoom arrow and the frame, as in the original game, with the numbers in SJK's own font _(Sol, after Kushina's report)_
 - Switching between a single saber and a staff with the blade lit gives it the new saber's length at once, instead of keeping the old length until switched off and on _(Sol, after Rollembones's reports)_
+- Turning off Remember chat channel works: the chat key opens on All again instead of the last channel used _(Sol, after Kushina's report)_
 
 ## 2026.1015.4 (Alpha) | 15/10/2026
 
