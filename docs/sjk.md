@@ -141,8 +141,17 @@ copyright of the code SJK began from, so the line keeps naming them. The client
 by `app_launch.rs`) and the dedicated server (`NOTICE` in its `main.rs`) announce
 the copyright and the absence of warranty at startup, so GPLv2 section 2(c)
 requires modified versions to keep announcing them. Keep the two copies of the
-lines in step. SJK packages put `NOTICE` first in `LICENSES-SJK.txt`. The SJK
-names and emblem are not licensed with the code (see `NOTICE`).
+lines in step. SJK packages put `NOTICE` first in `LICENSES-SJK.txt`, then
+`LICENSE` and `LICENSE-ASSETS`. The SJK names and emblem are not licensed with the
+code (see `NOTICE`).
+
+Sol's art is not licensed with the code either: [LICENSE-ASSETS](../LICENSE-ASSETS)
+reserves it for use as part of SJK (from 16/10/2026; earlier versions stay GPL). It
+lists the emblem, the site's images, holocrons, medals, settings and quick wheel
+icons. A new file of Sol's art goes into its list in the same commit; code, HUD
+layouts, text, fonts, Twemoji and the JoF clan emblems stay out. The art is
+AI-generated and edited by Sol, so its copyright protection is thin: the file
+states Sol's terms, and the name and emblem are best protected as SJK's identity.
 
 ## Version
 

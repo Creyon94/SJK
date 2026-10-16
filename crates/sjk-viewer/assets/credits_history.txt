@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Sol's art reserved for SJK, Sol JK named at startup
+- de73d7f |  | Reserve Sol's art for SJK (LICENSE-ASSETS), name Sol JK at startup
 + 16/10/2026 | - | Korriban glossy walls, live-light env shine, material maps generation 8
 - f35e1de |  | Material maps generation 8: shape relief from paint edges and painted bevels
 + 16/10/2026 | - | Blender add-on exports the colour seen in Blender

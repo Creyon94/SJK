@@ -2331,8 +2331,9 @@ note: Since SJK PR #19 the row also shows in SJK's own layouts, which hide their
 [credit-notice]
 area: Console & chat
 title: Copyright and GPL notice at startup (credits kept by forks)
-change: Client and server print "Sol JK <version>, Copyright (C) 2026 Sol-Vulpes, Bishop-R..."
+change: Client and server print "Sol JK (SJK) <version>, Copyright (C) 2026 Sol-Vulpes, ..."
 change: and the GPL v2 / no-warranty line at launch; NOTICE file, README and site explain it.
+change: Since 16/10 the art is under LICENSE-ASSETS (packages: LICENSES-SJK.txt lists it).
 test: Launch, open the console: the two notice lines are near the top of the scrollback.
 test: They do not flash over the main menu at launch (they are quiet console lines).
 test: logs\last-client.log has the same two lines near the top.
