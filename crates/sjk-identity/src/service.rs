@@ -421,6 +421,9 @@ struct Worker {
     /// The server address the hub holds a claim for, to withdraw it.
     claimed: Option<String>,
     registered: bool,
+    /// When the hub last took a chat message from the player, for the wait of a key
+    /// that is neither verified nor staff ([`UNVERIFIED_CHAT_GAP`]).
+    chat_sent: Option<Instant>,
     /// The in-game name the player wears, and the one the hub was last told.
     name: Option<String>,
     name_sent: Option<String>,
@@ -599,6 +602,10 @@ fn lock(snapshot: &Mutex<Snapshot>) -> MutexGuard<'_, Snapshot> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+/// How long a key the hub neither verifies nor made staff waits between two SJK chat
+/// messages (the hub's rule, `PROTOCOL.md`, "Chat").
+const UNVERIFIED_CHAT_GAP: Duration = Duration::from_secs(30);
+
 impl Worker {
     fn new(
         identity: Identity,
@@ -615,6 +622,7 @@ impl Worker {
             location: None,
             claimed: None,
             registered: false,
+            chat_sent: None,
             name: None,
             name_sent: None,
             snapshot,
@@ -737,19 +745,50 @@ impl Worker {
         chat.outcome = Some(outcome_of(serial, outcome));
     }
 
-    /// Send an SJK chat message under the rules, once registered.
-    fn send_chat(&mut self, text: &str) {
+    /// Send an SJK chat message under the rules, once registered. A key the hub neither
+    /// verifies nor made staff sends no links (GIFs are links) and one message every
+    /// [`UNVERIFIED_CHAT_GAP`]: both are refused here, before the hub refuses them too.
+    fn send_chat(&mut self, text: &str, now: Instant) {
+        let vouched = lock(&self.snapshot)
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified || me.staff);
+        let refused = |code: &str, message: String| {
+            Err(HubError::Rejected {
+                status: 403,
+                code: code.to_owned(),
+                message,
+            })
+        };
+        let wait = self
+            .chat_sent
+            .map(|sent| UNVERIFIED_CHAT_GAP.saturating_sub(now.saturating_duration_since(sent)))
+            .filter(|wait| !vouched && !wait.is_zero());
         let outcome = match crate::chat::check(text) {
             Err(error) => Err(HubError::Rejected {
                 status: 400,
                 code: error.code().to_owned(),
                 message: error.message().to_owned(),
             }),
+            Ok(text) if !vouched && crate::chat::has_link(&text) => refused(
+                "chat_links",
+                "Only verified players can send links and GIFs in SJK chat".to_owned(),
+            ),
+            Ok(_) if let Some(wait) = wait => refused(
+                "chat_quota",
+                format!(
+                    "Players who are not verified send one message every 30 seconds: wait {} s",
+                    wait.as_secs_f32().ceil() as u64
+                ),
+            ),
             Ok(text) => match (self.hub.as_mut(), self.registered) {
                 (Some(hub), true) => {
                     let name = self.name.clone().unwrap_or_default();
-                    hub.chat(&self.identity, &text, &name)
-                        .map(|_| String::new())
+                    let sent = hub.chat(&self.identity, &text, &name);
+                    if sent.is_ok() {
+                        self.chat_sent = Some(now);
+                    }
+                    sent.map(|_| String::new())
                 }
                 _ => Err(not_connected()),
             },
@@ -940,7 +979,7 @@ impl Worker {
                     self.model_checks.push(question);
                 }
             }
-            Command::Chat(text) => self.send_chat(&text),
+            Command::Chat(text) => self.send_chat(&text, now),
             Command::ChatBan(key_id) => self.send_chat_ban(key_id),
             Command::Emote(emote, sync) => self.send_emote(&emote, sync),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
@@ -3319,7 +3358,7 @@ mod tests {
     fn chat_needs_the_rules_and_a_registration() {
         let fake = Fake::default();
         let t0 = Instant::now();
-        let (mut worker, _) = worker(&fake, t0);
+        let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::Chat("hello".into()), t0);
         let first = chat_outcome(&worker);
         assert!(!first.sent && first.message.contains("not connected"));
@@ -3338,6 +3377,26 @@ mod tests {
         let sent = chat_outcome(&worker);
         assert!(sent.sent);
         assert_eq!(sent.serial, 3);
+        // Neither verified nor staff: no links, and the next message waits 30 seconds.
+        lock(&snapshot).me.as_mut().unwrap().staff = false;
+        worker.handle(Command::Chat("see discord.gg/abc".into()), t0);
+        let link = chat_outcome(&worker);
+        assert!(
+            !link.sent && link.message.contains("links and GIFs"),
+            "{}",
+            link.message
+        );
+        let later = t0 + Duration::from_secs(12);
+        worker.handle(Command::Chat("again".into()), later);
+        let wait = chat_outcome(&worker);
+        assert!(
+            !wait.sent && wait.message.ends_with("wait 18 s"),
+            "{}",
+            wait.message
+        );
+        worker.handle(Command::Chat("again".into()), t0 + Duration::from_secs(30));
+        assert!(chat_outcome(&worker).sent);
+        assert_eq!(fake.log().last().unwrap(), "chat again as ^2Sol");
     }
 
     #[test]

@@ -7,6 +7,14 @@
 ([hub-chat.md](hub-chat.md#emotes-in-the-client)). Local only, nothing sent to the hub.
 Checked by the emote unit tests and clippy; not tried in the game.
 
+## Unverified chat limits
+
+16/10/2026, `personal/trust` (Sol's request): a key that is neither verified nor staff
+sends one SJK chat message every 30 seconds and no links or GIFs, refused by the client
+first with how long to wait, then by the hub (branch `trust`)
+([hub-chat.md](hub-chat.md#limits-for-unverified-players)). Checked by unit tests
+(`has_link`, the worker's wait and link refusal). Not tried in the game.
+
 ## Trust marks
 
 16/10/2026, `personal/trust` (Sol's request): a player the hub neither verifies nor made

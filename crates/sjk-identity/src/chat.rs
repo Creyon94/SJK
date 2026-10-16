@@ -182,9 +182,67 @@ fn shown(raw: &str, allowed: fn(char) -> bool, max: usize) -> String {
     out.trim_end().to_owned()
 }
 
+/// Whether `text` (a checked message) holds a link: a web address (`://` or `www.`), or
+/// a word that reads as a domain, labels of letters, digits and hyphens joined by dots
+/// and ending in 2 to 24 letters (`discord.gg/abc`, `sjk.dfox.app`), colour codes left
+/// out. A GIF is sent as a link, so this is also what keeps GIFs out. `3.5`, `e.g.` and
+/// `wait...what` are no links.
+pub fn has_link(text: &str) -> bool {
+    let mut plain = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    while let Some(c) = chars.next() {
+        if c == '^' {
+            chars.next();
+        } else {
+            plain.extend(c.to_lowercase());
+        }
+    }
+    if plain.contains("://") || plain.contains("www.") {
+        return true;
+    }
+    plain.split_whitespace().any(|word| {
+        let word = word.trim_matches(|c: char| !c.is_ascii_alphanumeric());
+        let host = word.split(['/', ':', '?', '#']).next().unwrap_or_default();
+        let labels: Vec<&str> = host.split('.').collect();
+        labels.len() >= 2
+            && labels.iter().all(|label| {
+                !label.is_empty() && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+            })
+            && labels.last().is_some_and(|last| {
+                (2..=24).contains(&last.len()) && last.chars().all(|c| c.is_ascii_alphabetic())
+            })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn links_are_found_and_plain_words_are_not() {
+        for link in [
+            "look https://giphy.com/gifs/cat-3o7TKSjRrfIPjeiVyM",
+            "join discord.gg/abc now",
+            "sjk.dfox.app",
+            "www.example",
+            "go to ^1evil^7.com!",
+            "(see youtube.com/watch?v=1)",
+            "HTTP://X",
+        ] {
+            assert!(has_link(link), "{link}");
+        }
+        for plain in [
+            "gg all",
+            "version 3.5 is out",
+            "e.g. this",
+            "wait...what",
+            "ok.",
+            "1.2.3",
+            "a.b",
+        ] {
+            assert!(!has_link(plain), "{plain}");
+        }
+    }
 
     #[test]
     fn display_keeps_only_what_the_rules_allow() {
