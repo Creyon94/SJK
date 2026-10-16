@@ -844,7 +844,8 @@ fn nameplate_snapshot() {
 /// Nameplates over a match: a verified saber player in medium stance just spawned
 /// (overheal, 125) with estimated Force (grey haze), an enemy with a gun the estimate
 /// cannot place (yellow "?"), a duelling staff player farther off with an empty shield (broken
-/// grey), and the player's own plate (`cg_nameplateSelf`) over a large shield (199).
+/// grey), an SJK player who does not share (grey bars), and the player's own plate
+/// (`cg_nameplateSelf`) over a large shield (199).
 fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::nameplate::{PreviewPlate, State};
     use sjk_ui::TextureId;
@@ -884,6 +885,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             duelling: false,
             team: None,
             shared: true,
+            withheld: false,
         },
         PreviewPlate {
             slot: 2,
@@ -898,6 +900,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             duelling: false,
             team: Some(true),
             shared: true,
+            withheld: false,
         },
         PreviewPlate {
             slot: 3,
@@ -912,6 +915,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             duelling: true,
             team: None,
             shared: false,
+            withheld: false,
         },
         PreviewPlate {
             slot: 0,
@@ -926,6 +930,22 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             duelling: false,
             team: Some(false),
             shared: false,
+            withheld: false,
+        },
+        PreviewPlate {
+            slot: 4,
+            point: [1100.0, 600.0],
+            distance: 300.0,
+            health: Some([0.0, 0.0, 0.0]),
+            shield: Some([0.0, 0.0, 0.0]),
+            force: Some([0.0, 0.0, 0.0]),
+            weapon: 3,
+            style: 1,
+            verified: false,
+            duelling: false,
+            team: None,
+            shared: false,
+            withheld: true,
         },
     ];
     let names = [
@@ -933,6 +953,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         "^5Kit^7 Fisto",
         "^1Bounty",
         "^3Darth^7Staff",
+        "^2Quiet",
     ];
     let mut state = State::default();
     let mut vertices = Vec::new();

@@ -1,3 +1,13 @@
+## Grey bars for SJK players who do not share
+
+16/10/2026, `personal/nameplate-withheld`, Sol's rule: an SJK player (the hub lists them
+in that slot under the shown name) who does not share their bars gets grey, empty bars
+on every viewer's nameplate, whatever that viewer turned on: `cg_nameplateEstimate`
+and a teammate's `tinfo` no longer show their values ([client.md](client.md#sharing-and-estimates)).
+Players without SJK keep the 15/10 behaviour. Client only, no hub change. Checked by
+the unit tests and the nameplate snapshot (`menu_snapshot::nameplate_snapshot`, a grey
+plate added); not tried in the game.
+
 ## Cardboard box toy
 
 16/10/2026, `personal/cardboard-box` (Sol's idea) with hub branch `cardboard-box`: a

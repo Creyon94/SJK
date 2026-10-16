@@ -205,7 +205,11 @@ pub(crate) fn update(
         gpu.hud
             .nameplate
             .refresh_marks(i64::from(presentation_time), || {
-                player_identity::slot_marks(session.game_state())
+                let game_state = session.game_state();
+                (
+                    player_identity::slot_marks(game_state),
+                    player_identity::sjk_slots(game_state),
+                )
             });
         gpu.hud
             .nameplate

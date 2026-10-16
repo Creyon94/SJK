@@ -1045,6 +1045,17 @@ test: Nameplates with bars on: Share my bars cannot be turned off; bars 0 frees 
 test: cl_identity 0: no bars on other players but teammates/NPCs; on again, back in seconds.
 note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
 
+[nameplate-withheld]
+area: HUD
+title: Grey bars on SJK players who do not share, whatever the viewer turned on
+change: An SJK player without Share my bars shows full grey, empty bars to every viewer.
+change: Bars on everyone and a teammate's server HP no longer reveal them; stock players unchanged.
+test: Two SJK clients, one with nameplate bars off (so not sharing): the other sees grey bars.
+test: Same with Bars on everyone on the viewer: still grey; a stock client gets estimates.
+test: Team game, the non-sharer a teammate: grey too, no HP/shield from the server.
+test: The non-sharer turns sharing on: real bars and the gold contour within a second or two.
+note: Needs cl_identity on both; a player the hub does not list is treated as stock.
+
 [model-check]
 area: HUD
 title: Player card says if the inspected player sees your model (cl_shareModels)
