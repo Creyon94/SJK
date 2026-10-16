@@ -23,9 +23,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1016.1 (Alpha) | 16/10/2026
 
-- JoF content (`jof.downloads`, or Settings > Mods): JoF's maps, skins, hilts and packs downloaded from JoF's repository, as JoF's launcher gets them, into SJK's own JoF folder and checked before use; tick whole groups or open one to pick single maps, skins or hilts; off until you turn it on, and the files JoF's launcher already put in your game folder are used as they are _(Sol, after JoF's launcher by Kypdurron)_
+JoF's maps, skins and hilts from inside SJK, one graphics preset to choose, and a batch of fixes from your reports.
+
+> JoF content: JoF's maps, skins and hilts in SJK (`jof.downloads`), opt in.
+> Graphics presets: Vanilla style, SJK (recommended) or Experimental.
+> Duels: Duellists show as see-through blue figures, as on JoF EJK.
+> Fixes: Emotes, binoculars, saber colours and pings, from your reports.
+
+- JoF content (`jof.downloads`, or Settings > General > JoF content): JoF's maps, skins, hilts and packs downloaded from JoF's repository, as JoF's launcher gets them, into SJK's own JoF folder and checked before use; tick whole groups or open one to pick single maps, skins or hilts; off until you turn it on, and the files JoF's launcher already put in your game folder are used as they are _(Sol, after JoF's launcher by Kypdurron)_
 - Graphics presets: one dropdown with Vanilla style (the original look, every SJK extra off), SJK (recommended) (SJK's image over the maps' own lighting, Sol's setup and the default for new players) and Experimental (everything SJK's renderer draws, in alpha), in place of the Renderer row and the four quality levels; `graphicsquality vanilla|sjk|experimental` sets it from the console _(Sol)_
 - The copyright line the client and server print at startup names Sol JK (SJK) in full _(Sol)_
 - The Solfox player model reaches every SJK player through the hub: anyone may wear it, and SJK players see it on each other _(Reyced, Sol)_
