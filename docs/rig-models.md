@@ -424,7 +424,7 @@ plays its glTF's animations on its own skeleton.
   Before, a long emote track was always the oldest voice, so a busy fight cut it.
 - `moving` keeps the emote going while the player runs and jumps (the clip replaces
   the whole body, so the dance slides along). `sjkemote stop`, also the quick wheel's
-  Stop emote, ends it; the id `stop` is reserved and relayed like any emote.
+  Stop emote, ends it; the id `stop` is reserved and relayed like any emote. `sjkemote stop all|<player>` and `sjkemote mute <player>` end or hide other players' emotes on this screen ([hub-chat.md](hub-chat.md#emotes-in-the-client)).
   `sjkemote sync [player]` (the wheel's Sync emote) joins another player's emote in
   step, sharing its music ([hub-chat.md](hub-chat.md#emotes-in-the-client)).
 - Bolts follow the clip: `retarget_bolt` reads the actor's blended pose (kept in

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 16/10/2026 | - | Sjkemote stop all|<player>, sjkemote mute/unmute <player|target>: other players' emotes on this screen
+- 79b2112 |  | Emote stop and mute: end other players' emotes here once, or hide one player's
 + 16/10/2026 | - | Trust marks: empty tick for new players, green after 30 days and 10 h of play, red cross while chat banned; only staff ban the trusted
 - 7e090e7 |  | Trust marks: empty tick for new players, green after 30 days and 10 h of play, red cross while chat banned
 + 16/10/2026 | - | Verified players ban unverified ones from SJK chat for 24 h, key and address; staff lift
