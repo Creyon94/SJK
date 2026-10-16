@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Linux: clipboard in process, Ctrl+V without xclip or wl-clipboard
+- 05ac7a1 |  | Linux: read and set the clipboard in process so Ctrl+V works without xclip or wl-clipboard
 + 17/10/2026 | - | Free camera flies during emotes and held animations
 - 3e98fca |  | Free camera flies freely while the body is held in an emote
 - 1f1f820 |  | Debug panel: free camera during emotes

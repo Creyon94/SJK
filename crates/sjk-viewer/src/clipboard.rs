@@ -6,6 +6,10 @@
 //! a PowerShell to start, about a quarter of a second in the middle of play (the
 //! `hitch: 248 ms ... between-frames` of 10/10/2026). PowerShell stays the fallback of a
 //! copy the direct call could not make.
+//!
+//! On Linux the clipboard is reached in process (`arboard`, X11 and Wayland), because
+//! `xclip` and `wl-clipboard` are not installed on every desktop and Ctrl+V did nothing
+//! without them (hub report 58, 17/10/2026). The tools below remain the fallback.
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -187,6 +191,9 @@ pub(crate) fn copy(text: &str) -> bool {
     if clipboard_win::set_clipboard_string(text).is_ok() {
         return true;
     }
+    if native::copy(text) {
+        return true;
+    }
     let deadline = Instant::now() + COPY_WAIT;
     COPY.iter()
         .filter(|tool| tool.accepts(text))
@@ -279,6 +286,9 @@ pub(crate) fn paste() -> Option<String> {
     if cfg!(windows) {
         return direct_paste();
     }
+    if let Some(text) = native::paste() {
+        return Some(text);
+    }
     PASTE.iter().find_map(|tool| {
         let output = Command::new(tool.argv[0])
             .args(&tool.argv[1..])
@@ -294,6 +304,47 @@ pub(crate) fn paste() -> Option<String> {
             Decode::CodeUnits => decode_code_units(&output.stdout),
         }
     })
+}
+
+/// The in-process clipboard of Linux desktops. One [`arboard::Clipboard`] is kept for the
+/// whole run: on X11 the program that copied serves the text to whoever pastes, so a
+/// handle dropped after the copy would lose it.
+#[cfg(target_os = "linux")]
+mod native {
+    use std::sync::Mutex;
+
+    static CLIPBOARD: Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
+
+    /// Run `action` on the shared clipboard, opening it on first use. A failed open is
+    /// retried by the next call (no display yet, a compositor without the protocol).
+    fn with<T>(action: impl FnOnce(&mut arboard::Clipboard) -> Option<T>) -> Option<T> {
+        let mut slot = CLIPBOARD.lock().ok()?;
+        if slot.is_none() {
+            *slot = arboard::Clipboard::new().ok();
+        }
+        action(slot.as_mut()?)
+    }
+
+    pub(super) fn copy(text: &str) -> bool {
+        with(|clipboard| clipboard.set_text(text).ok()).is_some()
+    }
+
+    /// Text only; an empty clipboard or one holding no text gives `None`, so the tools
+    /// get their turn.
+    pub(super) fn paste() -> Option<String> {
+        with(|clipboard| clipboard.get_text().ok())
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod native {
+    pub(super) fn copy(_text: &str) -> bool {
+        false
+    }
+
+    pub(super) fn paste() -> Option<String> {
+        None
+    }
 }
 
 #[cfg(windows)]

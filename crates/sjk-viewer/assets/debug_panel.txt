@@ -5012,3 +5012,13 @@ test: On a JA+ server: amhips, then freecam: the camera flies with the move keys
 test: Same from the quick wheel, and during an SJK dance emote.
 test: Leave free cam: you are still in the emote where you left it.
 note: Fix not confirmed for JA+ emotes; if it still fails, note which emote.
+
+[linux-paste]
+area: Input
+title: Ctrl+V works on Linux without xclip or wl-clipboard
+change: The clipboard is read and set in process (X11 and Wayland); the tools stay a fallback.
+change: Console, chat, SJK chat, Report a bug and menu fields share it. Hub report 58.
+test: Linux, no xclip or wl-paste installed: copy text in a browser, Ctrl+V in the console.
+test: Same in chat, the SJK chat box and the Report a bug box.
+test: Ctrl+C in the console, paste it in another program.
+note: Needs a Linux desktop; Windows paste is unchanged.
