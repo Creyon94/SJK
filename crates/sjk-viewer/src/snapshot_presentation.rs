@@ -152,6 +152,10 @@ impl GpuState {
         let Some(session) = &self.live_session else {
             return;
         };
+        self.selected_weapon = None;
+        self.weapon_selected_at = None;
+        self.weapon_selection_view = Default::default();
+        self.auto_switch = Default::default();
         self.live_world = sjk_runtime::World::new(self.live_world.id());
         self.legacy_world_adapter = Some(LegacyWorldAdapter::new(self.live_world.id()));
         if let (Some(adapter), Some(console)) = (&mut self.legacy_world_adapter, &self.console) {
@@ -184,6 +188,7 @@ impl GpuState {
             )
         });
         let advance = session.advance_with_config(relative, |snapshot, game_state, changes| {
+            self.sync_weapon_selection_view(snapshot);
             if let (Some(audio), Some(vfs)) = (game_audio.as_mut(), &self.vfs) {
                 audio.prepare_config_strings(changes, game_state, vfs);
             }
@@ -255,6 +260,7 @@ impl GpuState {
         if !self.live_presentation_ready() || !crate::live_session::active_snapshot(snapshot) {
             return;
         }
+        self.sync_weapon_selection_view(snapshot);
         self.sync_fake_noclip(&snapshot.player);
         self.ghost.snapshot(&snapshot.player);
         self.mimic_observe(snapshot);

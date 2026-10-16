@@ -23,6 +23,14 @@ impl Default for Tracker {
 }
 
 impl Tracker {
+    /// A new viewed player owns a new event stream; old pickups are not new input.
+    pub(crate) fn rebase_view(&mut self, player: &sjk_protocol::PlayerState, time: i32) {
+        self.sequence = Some(player.event_sequence());
+        self.time = time;
+        self.external = player.external_event();
+        self.predicted.fill(None);
+    }
+
     /// Predict selection with the event and remember its sequence for acknowledgement suppression.
     pub(crate) fn predicted(
         &mut self,
@@ -30,7 +38,7 @@ impl Tracker {
         mode: i64,
         snapshot: &sjk_protocol::Snapshot,
     ) -> Option<u8> {
-        if !matches!(event.event, 22 | 25) {
+        if event.client != snapshot.player.client_num() || !matches!(event.event, 22 | 25) {
             return None;
         }
         let selected = self.event(event.event, event.parameter, mode, &snapshot.player);
@@ -178,5 +186,68 @@ impl crate::GpuState {
     pub(crate) fn choose_auto_weapon(&mut self, weapon: u8) {
         self.selected_weapon = Some(weapon);
         self.weapon_selected_at = Some(std::time::Instant::now());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn weapon_view_ignores_a_previous_players_queued_no_ammo_event() {
+        let mut player = sjk_protocol::PlayerState::zero();
+        player.set_client_num(3);
+        player.set_raw_field(47, 5);
+        player.stats[4] = 1 << 3;
+        let snapshot = sjk_protocol::Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 1000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities: Vec::new(),
+            consumed_bits: 0,
+        };
+        let mut tracker = Tracker::default();
+        let mut event = sjk_client::predicted_events::PredictedEvent {
+            client: 7,
+            sequence: 4,
+            event: 25,
+            parameter: 5,
+            ..Default::default()
+        };
+        assert_eq!(tracker.predicted(event, 1, &snapshot), None);
+        assert!(!tracker.acknowledged_prediction(4));
+        event.client = 3;
+        assert_eq!(tracker.predicted(event, 1, &snapshot), Some(3));
+        assert!(tracker.acknowledged_prediction(4));
+    }
+
+    #[test]
+    fn weapon_view_change_rebases_events_without_losing_map_item_catalogue() {
+        let mut tracker = Tracker::default();
+        tracker.items[42] = 24;
+        tracker.sequence = Some(100);
+        tracker.predicted[0] = Some(4);
+        let mut player = sjk_protocol::PlayerState::zero();
+        player.set_raw_field(19, 4);
+        player.set_raw_field(56, 25);
+        tracker.rebase_view(&player, 1000);
+        assert_eq!(
+            (tracker.sequence, tracker.time, tracker.external),
+            (Some(4), 1000, 25)
+        );
+        assert_eq!(tracker.items[42], 24);
+        assert!(
+            !tracker.acknowledged_prediction(4),
+            "the old player's prediction cannot suppress the new player's event"
+        );
+        tracker.predicted[0] = Some(4);
+        assert!(tracker.acknowledged_prediction(4));
+        assert!(!tracker.acknowledged_prediction(4));
     }
 }
