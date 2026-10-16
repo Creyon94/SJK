@@ -1272,14 +1272,19 @@ impl Predictor {
         self.touched.clear();
         let previous_command_time = self.state.command_time;
         self.state.command_time = command.server_time;
-        crate::pmove_input_freeze::apply(
-            &mut self.state,
-            &mut command,
-            millis,
-            collision,
-            self.animation_lengths.as_deref(),
-            self.config.ja_plus,
-        );
+        // A fake noclip flies a camera, not the body: the animations that hold the body
+        // still (a taunt or a JA+ emote, a kick, a saber lock) must not hold it, and
+        // the server is sent a standing still command in any case.
+        if !(self.fake_noclip && !self.config.authoritative) {
+            crate::pmove_input_freeze::apply(
+                &mut self.state,
+                &mut command,
+                millis,
+                collision,
+                self.animation_lengths.as_deref(),
+                self.config.ja_plus,
+            );
+        }
         // A rider facing its vehicle's hyperspace point (`bg_pmove.c:10579-10595`).
         self.face_hyperspace(&mut command, millis);
         // The view the last command left, which the wall moves read (they run before

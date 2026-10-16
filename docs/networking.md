@@ -291,6 +291,9 @@ held from the moment it began, with the command time intact. The predicted state
 reseeded from snapshots, every map area is drawn, and turning it off (or dying,
 spectating or boarding a vehicle) snaps back to the server's position without error
 smoothing. Turbo (attack held) sets the velocity along the aim directly.
+The flight ignores the animations that hold a body still (a taunt, a JA+ emote, a kick, a
+saber lock): `pmove_input_freeze` does not run for a fake-noclip predictor, so the camera
+flies while the real body stays in its emote.
 
 A ghost replay ([Ghost replay](client.md#ghost-replay)) or the mimic
 ([Mimic](client.md#mimic)) sends its own commands in place of the keys' ones through the
