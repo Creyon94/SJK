@@ -43,7 +43,10 @@ unknown servers never receive it. Its default is EternalJK's 1536, which opts
 out of the holstered-saber and ledge-grab features drawn with the plugin's
 extra animations. A JA+ server then treats the client as a plugin user: it
 serves custom RGB blades (`cp_sbRGB1`/`cp_sbRGB2`, sent whenever a blade selects
-RGB) and appends a deaths field to each `scores` row (15 fields instead of 14).
+RGB) and its flame, electric and black ones (`color1`/`color2` 7 to 11, which the
+userinfo carries as set, any number up to 255: none stops a connection any more,
+and SJK draws its own blade in the colour EternalJK's `ClampSaberColor` gives) and
+appends a deaths field to each `scores` row (15 fields instead of 14).
 The server sends at most 20 rows (`MAX_CLIENT_SCORE_SEND`) but announces every
 connected player, so the row width comes from the fields actually sent rather than
 the announced count: the width that divides them, and when both do, the one whose

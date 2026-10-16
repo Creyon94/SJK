@@ -879,6 +879,13 @@ mirrors and portals. A piece this client does not have is not drawn.
 number or a name they wear one (the same again takes it off), `cosmetics
 clear` takes both off and `cosmetics visibility [off|on|onlyme]` shows or sets
 `cg_cosmetics` ([command.rs](../crates/sjk-viewer/src/cosmetics/command.rs)).
+A colour number typed alone (`color1 2` in the console, a bind or a script, `set` and
+`seta` too) keeps the worn piece after it, as JoF's own colour commands do; a value
+with a name after its digits (`2tophat`, `4none`) is set as it is
+([typed_colour.rs](../crates/sjk-viewer/src/cosmetics/typed_colour.rs)). JoF's
+`saberColor <r> <g> <b>` (or `<blade> <r> <g> <b>`, or six values for the two blades)
+makes the blades custom RGB, colour 6 with `cp_sbRGB1`/`cp_sbRGB2`, keeping the pieces
+too ([saber_colour_command.rs](../crates/sjk-viewer/src/saber_colour_command.rs)).
 The classic profile's Cosmetics window does the same, and the SJK UI's
 Character page has Hat and Cape rows (None, then each installed piece; Enter or a
 click opens a picker of named chips, [sjk-ui.md](sjk-ui.md#character)). The menu stage

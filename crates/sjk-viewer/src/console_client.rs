@@ -239,7 +239,11 @@ pub(super) struct Commands {
 
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
-    for &(name, help) in COMMANDS.iter().chain(crate::cosmetics::command::COMMANDS) {
+    for &(name, help) in COMMANDS
+        .iter()
+        .chain(crate::cosmetics::command::COMMANDS)
+        .chain(crate::saber_colour_command::COMMANDS)
+    {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
                 Err(sjk_shell::CommandError::Handler(
@@ -340,6 +344,7 @@ impl Commands {
         if !COMMANDS
             .iter()
             .chain(crate::cosmetics::command::COMMANDS)
+            .chain(crate::saber_colour_command::COMMANDS)
             .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
         {
             return None;
@@ -970,6 +975,7 @@ impl crate::GpuState {
             "freecam" => return self.free_camera_command(args),
             "peek" => return self.peek_command(args),
             "cosmetics" => return self.cosmetics_command(args),
+            crate::saber_colour_command::COMMAND => return self.saber_colour_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);
             }

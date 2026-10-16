@@ -11,10 +11,12 @@
 //! (`CG_LoadCosmeticOffsets`). `cg_cosmetics` chooses whose pieces are
 //! drawn. This module holds the data rules; the menu lists the
 //! [`Catalog`], [`actors`] resolves and submits what players wear, and
-//! [`command`] is JoF's `cosmetics` console command.
+//! [`command`] is JoF's `cosmetics` console command; [`typed_colour`] keeps the worn
+//! piece when a colour number is typed on its own.
 
 pub(crate) mod actors;
 pub(crate) mod command;
+pub(crate) mod typed_colour;
 
 use crate::actor_instance::ActorInstance;
 use crate::bolt::{self, BoltMatrix};
