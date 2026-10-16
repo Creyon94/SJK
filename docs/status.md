@@ -1,3 +1,14 @@
+## Linux clipboard in process
+
+17/10/2026, `personal/linux-paste` (hub report 58, Nib, build 2026.1015.1): Ctrl+V did
+nothing on Linux because the clipboard only went through `wl-paste` or `xclip`, which
+many desktops do not install. `clipboard.rs` now tries `arboard` first on Linux (X11 and
+Wayland data-control, one `Clipboard` kept for the run so X11 can still serve a copy),
+then the tools as before. Every text field shares `clipboard::copy` and `paste`, so all
+get the fix; the key detection (`text_entry`, `sjk_chat_field::is_paste`, the console's
+`shortcut_of`) already covers Linux's U+0016 text. Not run on Linux: the cross
+`cargo check` needs ALSA/pkg-config sysroots; untested in a Linux session.
+
 ## SJK chat messages up to 300 characters
 
 16/10/2026, `personal/chat-300` (Sol's request), with the hub's `chat-300` (deployed
