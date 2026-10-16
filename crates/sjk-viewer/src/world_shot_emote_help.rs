@@ -24,7 +24,8 @@ fn emote_help_card() {
         };
         let _ = frame(&mut gpu, 20);
         gpu.ui_epoch -= Duration::from_millis(2_000);
-        gpu.emote_help_command().expect("help_emotes opens the card");
+        gpu.emote_help_command()
+            .expect("help_emotes opens the card");
         shoot(&mut gpu, 4, "emote-help");
         assert!(gpu.emote_help.card.is_open(), "the card shows");
         gpu.emote_help_choice(Some(crate::emote_help::Choice::Close));
