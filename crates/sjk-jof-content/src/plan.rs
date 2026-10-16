@@ -1,13 +1,16 @@
-//! Which groups the player wants, and what a sync does about it.
+//! Which groups and files the player wants, and what a sync does about it.
 
 use crate::store::{AssetState, Snapshot};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-/// The groups chosen (`jof.contentGroups`): the repository's defaults until the
-/// player changes one, then the ids chosen.
+/// What the player chose: the groups (`jof.contentGroups`), the repository's
+/// defaults until the player changes one, then the ids chosen; and single files
+/// picked against their group's tick (`jof.contentFiles`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Selection {
     chosen: Option<BTreeSet<u32>>,
+    /// Asset id: wanted or not, where it differs from its group's tick.
+    files: BTreeMap<u32, bool>,
 }
 
 /// The setting's value before any choice.
@@ -27,6 +30,7 @@ impl Selection {
                     .filter_map(|id| id.trim().parse().ok())
                     .collect(),
             ),
+            files: BTreeMap::new(),
         }
     }
 
@@ -39,6 +43,61 @@ impl Selection {
         }
     }
 
+    /// Add the single-file picks: `+<id>` wanted, `-<id>` left out, separated
+    /// by spaces or commas.
+    pub fn with_files(mut self, value: &str) -> Self {
+        self.files = value
+            .split([' ', ','])
+            .filter_map(|pick| {
+                let pick = pick.trim();
+                let wanted = match pick.chars().next()? {
+                    '+' => true,
+                    '-' => false,
+                    _ => return None,
+                };
+                Some((pick[1..].parse().ok()?, wanted))
+            })
+            .collect();
+        self
+    }
+
+    /// The single-file picks' setting value (empty without any).
+    pub fn saved_files(&self) -> String {
+        self.files
+            .iter()
+            .map(|(id, wanted)| format!("{}{id}", if *wanted { '+' } else { '-' }))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Whether one file of `group` is wanted: its own pick, else the group's tick.
+    pub fn wants(&self, group: &crate::Group, asset: &crate::Asset) -> bool {
+        self.files
+            .get(&asset.id)
+            .copied()
+            .unwrap_or_else(|| self.chosen(group))
+    }
+
+    /// How many of the group's files for SJK are wanted.
+    pub fn wanted_in(&self, group: &crate::Group) -> usize {
+        group
+            .assets
+            .iter()
+            .filter(|asset| asset.target == crate::Target::Base && self.wants(group, asset))
+            .count()
+    }
+
+    /// Pick or leave out one file; a pick that matches its group's tick is
+    /// forgotten.
+    pub fn toggle_file(&mut self, group: &crate::Group, asset: &crate::Asset) {
+        let wanted = !self.wants(group, asset);
+        if wanted == self.chosen(group) {
+            self.files.remove(&asset.id);
+        } else {
+            self.files.insert(asset.id, wanted);
+        }
+    }
+
     pub fn chosen(&self, group: &crate::Group) -> bool {
         match &self.chosen {
             None => group.kind.default_chosen(),
@@ -46,7 +105,9 @@ impl Selection {
         }
     }
 
-    /// Choose or leave out one group; the others keep what they show now.
+    /// Choose or leave out one whole group; the others keep what they show now.
+    /// A group with every file wanted is left out, any other is chosen whole;
+    /// either way its single-file picks are forgotten.
     pub fn toggle(&mut self, manifest: &crate::Manifest, group: u32) {
         let mut ids: BTreeSet<u32> = manifest
             .groups
@@ -54,8 +115,20 @@ impl Selection {
             .filter(|known| self.chosen(known))
             .map(|known| known.id)
             .collect();
-        if !ids.remove(&group) {
-            ids.insert(group);
+        if let Some(known) = manifest.group(group) {
+            let all = known
+                .assets
+                .iter()
+                .filter(|asset| asset.target == crate::Target::Base)
+                .all(|asset| self.wants(known, asset));
+            if all {
+                ids.remove(&group);
+            } else {
+                ids.insert(group);
+            }
+            for asset in &known.assets {
+                self.files.remove(&asset.id);
+            }
         }
         self.chosen = Some(ids);
     }
@@ -74,23 +147,21 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// Fetch what the chosen groups miss; delete the files SJK downloaded that
-    /// no chosen group lists, and its strays. Files in the game's folder, and
+    /// Fetch the wanted files that are missing; delete the files SJK downloaded
+    /// that are wanted nowhere, and its strays. Files in the game's folder, and
     /// files put in SJK's folder by hand, are never touched.
     pub fn new(snapshot: &Snapshot, selection: &Selection) -> Self {
         let mut plan = Plan::default();
         let kept: BTreeSet<String> = snapshot
             .manifest
-            .groups
-            .iter()
-            .filter(|group| selection.chosen(group))
-            .flat_map(|group| &group.assets)
-            .map(|asset| asset.name.to_ascii_lowercase())
+            .assets()
+            .filter(|(group, asset)| selection.wants(group, asset))
+            .map(|(_, asset)| asset.name.to_ascii_lowercase())
             .collect();
         let mut fetched = BTreeSet::new();
         for (group_index, group) in snapshot.manifest.groups.iter().enumerate() {
-            let chosen = selection.chosen(group);
             for (asset_index, asset) in group.assets.iter().enumerate() {
+                let chosen = selection.wants(group, asset);
                 let name = asset.name.to_ascii_lowercase();
                 match snapshot.state(group_index, asset_index) {
                     AssetState::Missing | AssetState::Outdated
@@ -191,6 +262,41 @@ mod tests {
         let plan = Plan::new(&snapshot, &Selection::parse("1 2"));
         assert_eq!(plan.downloads, [(1, 0), (0, 0), (0, 1)], "smallest first");
         assert!(plan.removals.is_empty());
+    }
+
+    #[test]
+    fn single_files_are_picked_against_their_group() {
+        use AssetState::*;
+        let manifest = manifest();
+        let (one, two) = (&manifest.groups[0], &manifest.groups[1]);
+        let mut selection = Selection::default();
+        // Leave b.pk3 out of a chosen group, take c.pk3 from an unchosen one.
+        selection.toggle_file(one, &one.assets[1]);
+        selection.toggle_file(two, &two.assets[0]);
+        assert_eq!(selection.saved_files(), "-11 +20");
+        assert_eq!(selection.wanted_in(one), 1);
+        let again = Selection::parse(&selection.saved()).with_files(&selection.saved_files());
+        assert_eq!(again, selection);
+
+        let snapshot = snapshot_without_strays(vec![vec![Missing, Missing], vec![Missing]]);
+        let plan = Plan::new(&snapshot, &selection);
+        assert_eq!(plan.downloads, [(1, 0), (0, 0)]);
+
+        // Picking b.pk3 back matches the group's tick: the pick is forgotten.
+        selection.toggle_file(one, &one.assets[1]);
+        assert_eq!(selection.saved_files(), "+20");
+        // A fully wanted group's tick leaves it out, its pick forgotten.
+        selection.toggle(&manifest, 2);
+        assert_eq!(selection.saved_files(), "");
+        assert_eq!(selection.wanted_in(two), 0);
+        // A partly picked group is chosen whole by its tick.
+        selection.toggle_file(one, &one.assets[0]);
+        assert_eq!(selection.wanted_in(one), 1);
+        selection.toggle(&manifest, 1);
+        assert_eq!(
+            (selection.wanted_in(one), selection.saved_files()),
+            (2, String::new())
+        );
     }
 
     fn snapshot_without_strays(states: Vec<Vec<AssetState>>) -> Snapshot {

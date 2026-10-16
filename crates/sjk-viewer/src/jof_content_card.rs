@@ -1,7 +1,8 @@
-//! The JoF content card (`jof.downloads`, Settings > Mods > JoF content): an
-//! SJK UI pop-up in every menu style. The switch that loads the folder, the
-//! repository's groups with a tick each and what is here of them, what a
-//! download will do, its progress, and Check again and Download.
+//! The JoF content card (`jof.downloads`, Settings > General or Mods > JoF
+//! content): an SJK UI pop-up in every menu style. The switch that loads the
+//! folder, the repository's groups with a tick each and what is here of them,
+//! each group's files to pick one by one, what a download will do, its
+//! progress, and Check again and Download.
 //!
 //! The job runs on its own thread ([`sjk_jof_content::job`]); a download goes
 //! on while the card is closed, and the card shows it again when reopened.
@@ -19,9 +20,18 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 /// Group rows shown at once.
 const ROWS: usize = 7;
 const ROW_HEIGHT: f32 = 62.0;
+/// File rows shown at once, under the group's own row.
+const FILE_ROWS: usize = 8;
+const FILE_ROW_HEIGHT: f32 = 46.0;
 const SWITCH_TOKEN: u16 = 800;
 const CHECK_TOKEN: u16 = 801;
 const MAIN_TOKEN: u16 = 802;
+/// The "Groups" way back over a group's files.
+const GROUPS_TOKEN: u16 = 803;
+/// A group's own row over its files.
+const HEADER_TOKEN: u16 = 804;
+/// A group row's tick box, by slot.
+const TICK_BASE: u16 = 100;
 /// The card, in frame pixels.
 const CARD: [f32; 4] = [360.0, 96.0, 1200.0, 888.0];
 const LEFT: f32 = 404.0;
@@ -34,24 +44,29 @@ pub(crate) enum Action {
     Close,
     /// Store `jof.content`.
     Switch(bool),
-    /// Store `jof.contentGroups`.
-    Groups(String),
+    /// Store `jof.contentGroups` and `jof.contentFiles`.
+    Choice {
+        groups: String,
+        files: String,
+    },
     /// Start a refresh with the settings.
     Check,
     /// Start a sync with the settings.
     Download,
 }
 
-/// One group's line, from the latest snapshot.
+/// One group's line, from the latest snapshot and the choice.
 #[derive(Clone, Copy, Default)]
 struct Summary {
     /// Files SJK would fetch, and how many of them are here.
     files: usize,
     here: usize,
     size: u64,
-    /// Bytes a sync would fetch while chosen.
+    /// Files wanted.
+    wanted: usize,
+    /// Bytes of wanted files not here yet.
     missing: u64,
-    /// Bytes of SJK's own copies a sync would delete while not chosen.
+    /// Bytes of SJK's own copies of files not wanted.
     ours: u64,
     /// Files only for JoF's own client.
     elsewhere: usize,
@@ -65,9 +80,14 @@ pub(crate) struct Card {
     on: bool,
     selection: Selection,
     folder: String,
-    /// 0 the switch, then the groups, then Check again and the main button.
+    /// The group whose files are shown, or None for the groups.
+    view: Option<usize>,
+    /// In the groups: 0 the switch, then the groups. In a group: 0 the group's
+    /// own row, then its files. Then Check again and the main button.
     focus: usize,
     first: usize,
+    /// The groups' focus and scroll, given back when a group's files close.
+    back: (usize, usize),
     /// The snapshot and selection the plan and summaries were made from.
     made_from: Option<(usize, Selection)>,
     snapshot: Option<Arc<Snapshot>>,
@@ -87,14 +107,16 @@ impl Default for Card {
             on: false,
             selection: Selection::default(),
             folder: String::new(),
+            view: None,
             focus: 0,
             first: 0,
+            back: (0, 0),
             made_from: None,
             snapshot: None,
             plan: Plan::default(),
             summaries: Vec::new(),
             phase: Phase::Idle,
-            ui: MenuCanvas::with_text_capacity(96),
+            ui: MenuCanvas::with_text_capacity(128),
         }
     }
 }
@@ -114,6 +136,7 @@ impl Card {
         self.selection = selection;
         self.folder = folder.display().to_string();
         self.open = true;
+        self.view = None;
         self.focus = 0;
         self.first = 0;
         self.update();
@@ -142,18 +165,31 @@ impl Card {
         self.ui.draw_list()
     }
 
-    fn groups(&self) -> usize {
-        self.snapshot
-            .as_ref()
-            .map_or(0, |snapshot| snapshot.manifest.groups.len())
+    /// Rows of the list on show: the groups, or the open group's files.
+    fn items(&self) -> usize {
+        let Some(snapshot) = &self.snapshot else {
+            return 0;
+        };
+        match self.view {
+            None => snapshot.manifest.groups.len(),
+            Some(group) => snapshot
+                .manifest
+                .groups
+                .get(group)
+                .map_or(0, |group| group.assets.len()),
+        }
+    }
+
+    fn rows(&self) -> usize {
+        if self.view.is_some() { FILE_ROWS } else { ROWS }
     }
 
     fn check_focus(&self) -> usize {
-        self.groups() + 1
+        self.items() + 1
     }
 
     fn main_focus(&self) -> usize {
-        self.groups() + 2
+        self.items() + 2
     }
 
     /// Take the job's latest state; the plan is made again only when the
@@ -172,20 +208,27 @@ impl Card {
             return;
         }
         self.plan = Plan::new(&snapshot, &self.selection);
-        self.summaries = summaries(&snapshot);
+        self.summaries = summaries(&snapshot, &self.selection);
         self.made_from = Some(key);
+        if self
+            .view
+            .is_some_and(|group| group >= snapshot.manifest.groups.len())
+        {
+            self.view = None;
+        }
         self.focus = self.focus.min(self.main_focus());
     }
 
     fn set_focus(&mut self, focus: usize) {
         self.focus = focus.min(self.main_focus());
-        if (1..=self.groups()).contains(&self.focus) {
+        let rows = self.rows();
+        if (1..=self.items()).contains(&self.focus) {
             let row = self.focus - 1;
             if row < self.first {
                 self.first = row;
             }
-            if row >= self.first + ROWS {
-                self.first = row + 1 - ROWS;
+            if row >= self.first + rows {
+                self.first = row + 1 - rows;
             }
         }
     }
@@ -220,16 +263,62 @@ impl Card {
         ("Up to date".into(), false)
     }
 
+    /// Enter: switch, open a group, tick a file, or press a button.
     fn activate(&mut self) -> Action {
-        let groups = self.groups();
-        match self.focus {
-            0 => {
+        let items = self.items();
+        match (self.focus, self.view) {
+            (0, None) => {
                 self.on = !self.on;
                 Action::Switch(self.on)
             }
-            focus if focus <= groups => self.toggle_group(focus - 1),
-            focus if focus == groups + 1 => self.check(),
+            (0, Some(group)) => self.toggle_group(group),
+            (focus, None) if focus <= items => {
+                self.open_group(focus - 1);
+                Action::None
+            }
+            (focus, Some(group)) if focus <= items => self.toggle_file(group, focus - 1),
+            (focus, _) if focus == items + 1 => self.check(),
             _ => self.main(),
+        }
+    }
+
+    /// Space: tick the focused group or file; elsewhere as Enter.
+    fn tick(&mut self) -> Action {
+        match (self.focus, self.view) {
+            (focus, None) if (1..=self.items()).contains(&focus) => self.toggle_group(focus - 1),
+            _ => self.activate(),
+        }
+    }
+
+    /// Show one group's files.
+    fn open_group(&mut self, index: usize) {
+        let Some(group) = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.manifest.groups.get(index))
+        else {
+            return;
+        };
+        if group.assets.is_empty() {
+            return;
+        }
+        self.back = (self.focus, self.first);
+        self.view = Some(index);
+        self.focus = 1;
+        self.first = 0;
+    }
+
+    /// Back to the groups, where the player was.
+    fn close_group(&mut self) {
+        if self.view.take().is_some() {
+            (self.focus, self.first) = self.back;
+        }
+    }
+
+    fn choice(&self) -> Action {
+        Action::Choice {
+            groups: self.selection.saved(),
+            files: self.selection.saved_files(),
         }
     }
 
@@ -246,7 +335,25 @@ impl Card {
         }
         self.selection.toggle(&snapshot.manifest, group.id);
         self.update();
-        Action::Groups(self.selection.saved())
+        self.choice()
+    }
+
+    fn toggle_file(&mut self, group: usize, asset: usize) -> Action {
+        let Some(snapshot) = self.snapshot.clone() else {
+            return Action::None;
+        };
+        let Some(group) = snapshot.manifest.groups.get(group) else {
+            return Action::None;
+        };
+        let Some(asset) = group.assets.get(asset) else {
+            return Action::None;
+        };
+        if asset.target != Target::Base {
+            return Action::None;
+        }
+        self.selection.toggle_file(group, asset);
+        self.update();
+        self.choice()
     }
 
     fn check(&mut self) -> Action {
@@ -277,10 +384,15 @@ impl Card {
             return Action::None;
         };
         self.update();
-        let groups = self.groups();
+        let items = self.items();
+        let rows = self.rows();
+        let in_list = (1..=items).contains(&self.focus);
         match key {
+            KeyCode::Escape if self.view.is_some() => self.close_group(),
             KeyCode::Escape => return Action::Close,
-            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => return self.activate(),
+            KeyCode::Backspace if self.view.is_some() => self.close_group(),
+            KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(),
+            KeyCode::Space => return self.tick(),
             KeyCode::F5 => return self.check(),
             KeyCode::ArrowUp => self.set_focus(self.focus.saturating_sub(1)),
             KeyCode::ArrowDown => self.set_focus(self.focus + 1),
@@ -290,8 +402,14 @@ impl Card {
             KeyCode::ArrowRight if self.focus == self.check_focus() => {
                 self.set_focus(self.main_focus())
             }
-            KeyCode::PageUp => self.set_focus(self.focus.saturating_sub(ROWS).max(1).min(groups)),
-            KeyCode::PageDown => self.set_focus((self.focus + ROWS).min(groups.max(1))),
+            KeyCode::ArrowLeft if self.view.is_some() => self.close_group(),
+            KeyCode::ArrowRight if self.view.is_none() && in_list => {
+                self.open_group(self.focus - 1)
+            }
+            KeyCode::PageUp => self.set_focus(self.focus.saturating_sub(rows).max(1).min(items)),
+            KeyCode::PageDown => self.set_focus((self.focus + rows).min(items.max(1))),
+            KeyCode::Home if self.view.is_some() => self.set_focus(1),
+            KeyCode::End if self.view.is_some() => self.set_focus(items),
             _ => {}
         }
         Action::None
@@ -303,33 +421,57 @@ impl Card {
         };
         self.update();
         if event.kind == UiEventKind::Wheel {
-            let groups = self.groups();
             let direction = event.delta.map_or(0, |delta| -delta.y.signum() as isize);
             self.first = self
                 .first
-                .saturating_add_signed(direction)
-                .min(groups.saturating_sub(ROWS));
+                .saturating_add_signed(direction * if self.view.is_some() { 3 } else { 1 })
+                .min(self.items().saturating_sub(self.rows()));
             return Action::None;
         }
         let Some(token) = event.token else {
             return Action::None;
         };
+        let activate = event.kind == UiEventKind::Activate;
+        match token {
+            BACK_TOKEN if activate => return Action::Close,
+            GROUPS_TOKEN if activate => {
+                self.close_group();
+                return Action::None;
+            }
+            // The switch answers from either list.
+            SWITCH_TOKEN if activate => {
+                self.on = !self.on;
+                return Action::Switch(self.on);
+            }
+            tick if (TICK_BASE..TICK_BASE + ROWS as u16).contains(&tick)
+                && activate
+                && self.view.is_none() =>
+            {
+                let index = self.first + usize::from(tick - TICK_BASE);
+                self.focus = index + 1;
+                return self.toggle_group(index);
+            }
+            _ => {}
+        }
         let focus = match token {
-            SWITCH_TOKEN => 0,
+            SWITCH_TOKEN if self.view.is_none() => 0,
+            HEADER_TOKEN if self.view.is_some() => 0,
             CHECK_TOKEN => self.check_focus(),
             MAIN_TOKEN => self.main_focus(),
-            BACK_TOKEN => usize::MAX,
-            row if usize::from(row) < ROWS => self.first + usize::from(row) + 1,
+            row if usize::from(row) < self.rows() => self.first + usize::from(row) + 1,
+            tick if (TICK_BASE..TICK_BASE + ROWS as u16).contains(&tick) => {
+                self.first + usize::from(tick - TICK_BASE) + 1
+            }
             _ => return Action::None,
         };
+        let focus = focus.min(self.main_focus());
         match event.kind {
-            UiEventKind::HoverEnter if focus != usize::MAX => {
-                self.focus = focus.min(self.main_focus());
+            UiEventKind::HoverEnter => {
+                self.focus = focus;
                 Action::None
             }
-            UiEventKind::Activate if focus == usize::MAX => Action::Close,
             UiEventKind::Activate => {
-                self.focus = focus.min(self.main_focus());
+                self.focus = focus;
                 self.activate()
             }
             _ => Action::None,
@@ -345,6 +487,8 @@ impl Card {
         let running = self.running();
         let check_focus = self.check_focus();
         let main_focus = self.main_focus();
+        let rows = self.rows();
+        let items = self.items();
         self.ui.begin_transparent(viewport);
         kit::scrim(&mut self.ui, viewport);
         kit::card(&mut self.ui, &frame, CARD);
@@ -389,7 +533,8 @@ impl Card {
 
         // The switch: the opt-in, said plainly.
         let top = 222.0;
-        if self.focus == 0 {
+        let switch_focused = self.focus == 0 && self.view.is_none();
+        if switch_focused {
             kit::band(ui, &frame, [LEFT - 16.0, top, RIGHT - LEFT + 32.0, 116.0]);
         }
         text(
@@ -402,7 +547,7 @@ impl Card {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        kit::switch(ui, &frame, RIGHT, top + 27.0, self.on, self.focus == 0);
+        kit::switch(ui, &frame, RIGHT, top + 27.0, self.on, switch_focused);
         let explained = if self.on {
             "On: SJK loads these files from its JoF folder, from the next map. Off leaves them on disk unused."
         } else {
@@ -436,9 +581,9 @@ impl Card {
             frame.rect(LEFT - 16.0, top, RIGHT - LEFT + 32.0, 116.0),
         );
 
-        kit::heading(ui, &frame, LEFT, 346.0, RIGHT - LEFT, "Groups");
-        match &self.snapshot {
-            None => {
+        match (&self.snapshot, self.view) {
+            (None, _) => {
+                kit::heading(ui, &frame, LEFT, 346.0, RIGHT - LEFT, "Groups");
                 let waiting = match &self.phase {
                     Phase::Failed(_) => "The list could not be fetched. Check again to retry.",
                     _ => "Fetching the list from JoF's repository...",
@@ -454,7 +599,8 @@ impl Card {
                     TextAlign::Start,
                 );
             }
-            Some(snapshot) => {
+            (Some(snapshot), None) => {
+                kit::heading(ui, &frame, LEFT, 346.0, RIGHT - LEFT, "Groups");
                 let groups = &snapshot.manifest.groups;
                 for (slot, (index, group)) in groups
                     .iter()
@@ -465,7 +611,6 @@ impl Card {
                 {
                     let top = GROUPS_TOP + slot as f32 * ROW_HEIGHT;
                     let focused = self.focus == index + 1;
-                    let chosen = self.selection.chosen(group);
                     let summary = self.summaries.get(index).copied().unwrap_or_default();
                     let fetchable = summary.files > 0;
                     if focused {
@@ -475,8 +620,16 @@ impl Card {
                             [LEFT - 16.0, top, RIGHT - LEFT + 32.0, ROW_HEIGHT - 4.0],
                         );
                     }
+                    ui.hit_region(
+                        slot as u16,
+                        frame.rect(LEFT + 36.0, top, RIGHT - LEFT - 20.0, ROW_HEIGHT - 4.0),
+                    );
                     if fetchable {
-                        kit::tick(ui, &frame, LEFT, top + 29.0, chosen, focused);
+                        kit::tick(ui, &frame, LEFT, top + 29.0, summary.wanted > 0, focused);
+                        ui.hit_region(
+                            TICK_BASE + slot as u16,
+                            frame.rect(LEFT - 16.0, top, 52.0, ROW_HEIGHT - 4.0),
+                        );
                     }
                     text(
                         ui,
@@ -498,19 +651,23 @@ impl Card {
                         FontWeight::Regular,
                         TextAlign::Start,
                     );
-                    let (state, colour) = group_state(&summary, chosen);
+                    let (state, colour) = group_state(&summary);
                     text(
                         ui,
                         TextFamily::Body,
                         format_args!("{state}"),
-                        frame.rect(RIGHT - 470.0, top + 6.0, 470.0, 28.0),
+                        frame.rect(RIGHT - 500.0, top + 6.0, 500.0, 28.0),
                         18.0 * s,
                         colour,
                         FontWeight::Regular,
                         TextAlign::End,
                     );
                     let detail = if fetchable {
-                        format!("{} files  ·  {}", summary.files, human_size(summary.size))
+                        format!(
+                            "{} files  ·  {}  ·  Enter to pick files  ›",
+                            summary.files,
+                            human_size(summary.size)
+                        )
                     } else {
                         format!(
                             "{} for JoF's own client, not used by SJK",
@@ -521,15 +678,11 @@ impl Card {
                         ui,
                         TextFamily::Body,
                         format_args!("{detail}"),
-                        frame.rect(RIGHT - 470.0, top + 33.0, 470.0, 22.0),
+                        frame.rect(RIGHT - 500.0, top + 33.0, 500.0, 22.0),
                         15.0 * s,
-                        color::QUIET,
+                        if focused { color::MUTED } else { color::QUIET },
                         FontWeight::Regular,
                         TextAlign::End,
-                    );
-                    ui.hit_region(
-                        slot as u16,
-                        frame.rect(LEFT - 16.0, top, RIGHT - LEFT + 32.0, ROW_HEIGHT - 4.0),
                     );
                 }
                 if groups.len() > ROWS {
@@ -547,6 +700,178 @@ impl Card {
                         color::QUIET,
                         FontWeight::Regular,
                         TextAlign::End,
+                    );
+                }
+            }
+            (Some(snapshot), Some(index)) => {
+                let group = &snapshot.manifest.groups[index];
+                let summary = self.summaries.get(index).copied().unwrap_or_default();
+                // The way back, over the files.
+                let back = format!("‹ Groups  /  {}", group.name);
+                kit::heading_in(
+                    ui,
+                    &frame,
+                    LEFT,
+                    346.0,
+                    RIGHT - LEFT,
+                    &back,
+                    if ui.token_hovered(GROUPS_TOKEN) {
+                        color::GOLD_BRIGHT
+                    } else {
+                        color::HOLO
+                    },
+                );
+                ui.hit_region(GROUPS_TOKEN, frame.rect(LEFT - 8.0, 330.0, 560.0, 32.0));
+                if group.assets.len() > FILE_ROWS {
+                    text(
+                        ui,
+                        TextFamily::Body,
+                        format_args!(
+                            "{}-{} of {} files",
+                            self.first + 1,
+                            (self.first + FILE_ROWS).min(group.assets.len()),
+                            group.assets.len()
+                        ),
+                        frame.rect(RIGHT - 300.0, 324.0, 300.0, 22.0),
+                        14.0 * s,
+                        color::QUIET,
+                        FontWeight::Regular,
+                        TextAlign::End,
+                    );
+                }
+                // The group's own row: its tick takes or leaves every file.
+                let header_focused = self.focus == 0;
+                if header_focused {
+                    kit::band(
+                        ui,
+                        &frame,
+                        [LEFT - 16.0, GROUPS_TOP, RIGHT - LEFT + 32.0, 54.0],
+                    );
+                }
+                if summary.files > 0 {
+                    kit::tick(
+                        ui,
+                        &frame,
+                        LEFT,
+                        GROUPS_TOP + 27.0,
+                        summary.wanted == summary.files,
+                        header_focused,
+                    );
+                }
+                text(
+                    ui,
+                    TextFamily::Body,
+                    format_args!("All of {}", group.name),
+                    frame.rect(LEFT + 42.0, GROUPS_TOP + 4.0, 560.0, 26.0),
+                    19.0 * s,
+                    color::TEXT,
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                text(
+                    ui,
+                    TextFamily::Body,
+                    format_args!(
+                        "{} of {} chosen  ·  {}  ·  Space on a file picks it alone",
+                        summary.wanted,
+                        summary.files,
+                        human_size(summary.size)
+                    ),
+                    frame.rect(LEFT + 42.0, GROUPS_TOP + 30.0, 700.0, 22.0),
+                    15.0 * s,
+                    color::MUTED,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+                let (state, colour) = group_state(&summary);
+                text(
+                    ui,
+                    TextFamily::Body,
+                    format_args!("{state}"),
+                    frame.rect(RIGHT - 500.0, GROUPS_TOP + 14.0, 500.0, 28.0),
+                    18.0 * s,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::End,
+                );
+                ui.hit_region(
+                    HEADER_TOKEN,
+                    frame.rect(LEFT - 16.0, GROUPS_TOP, RIGHT - LEFT + 32.0, 54.0),
+                );
+                // The files.
+                let files_top = GROUPS_TOP + 64.0;
+                for (slot, (asset_index, asset)) in group
+                    .assets
+                    .iter()
+                    .enumerate()
+                    .skip(self.first)
+                    .take(FILE_ROWS)
+                    .enumerate()
+                {
+                    let top = files_top + slot as f32 * FILE_ROW_HEIGHT;
+                    let focused = self.focus == asset_index + 1;
+                    let for_sjk = asset.target == Target::Base;
+                    let wanted = for_sjk && self.selection.wants(group, asset);
+                    if focused {
+                        kit::band(
+                            ui,
+                            &frame,
+                            [LEFT - 16.0, top, RIGHT - LEFT + 32.0, FILE_ROW_HEIGHT - 4.0],
+                        );
+                    }
+                    if for_sjk {
+                        kit::tick(ui, &frame, LEFT, top + 21.0, wanted, focused);
+                    }
+                    text(
+                        ui,
+                        TextFamily::Body,
+                        format_args!("{}", shorten(&asset.name, 44)),
+                        frame.rect(LEFT + 42.0, top + 9.0, 470.0, 26.0),
+                        18.0 * s,
+                        if for_sjk { color::TEXT } else { color::QUIET },
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                    text(
+                        ui,
+                        TextFamily::Body,
+                        format_args!("{}", cut(&asset.description, 40)),
+                        frame.rect(LEFT + 530.0, top + 12.0, 330.0, 22.0),
+                        15.0 * s,
+                        color::MUTED,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                    let name = asset.name.to_ascii_lowercase();
+                    let (state, colour) = file_state(
+                        snapshot.state(index, asset_index),
+                        wanted,
+                        for_sjk,
+                        snapshot.downloaded.contains(&name),
+                    );
+                    text(
+                        ui,
+                        TextFamily::Body,
+                        format_args!("{state}"),
+                        frame.rect(RIGHT - 270.0, top + 10.0, 160.0, 24.0),
+                        16.0 * s,
+                        colour,
+                        FontWeight::Regular,
+                        TextAlign::End,
+                    );
+                    text(
+                        ui,
+                        TextFamily::Body,
+                        format_args!("{}", human_size(asset.size)),
+                        frame.rect(RIGHT - 100.0, top + 10.0, 100.0, 24.0),
+                        16.0 * s,
+                        color::QUIET,
+                        FontWeight::Regular,
+                        TextAlign::End,
+                    );
+                    ui.hit_region(
+                        slot as u16,
+                        frame.rect(LEFT - 16.0, top, RIGHT - LEFT + 32.0, FILE_ROW_HEIGHT - 4.0),
                     );
                 }
             }
@@ -593,10 +918,15 @@ impl Card {
             self.focus == main_focus,
             MAIN_TOKEN,
         );
+        let hints = if self.view.is_some() {
+            "Up Down choose  ·  Space pick  ·  Esc back to groups  ·  F5 check"
+        } else {
+            "Up Down choose  ·  Space tick group  ·  Enter its files  ·  Esc close"
+        };
         text(
             ui,
             TextFamily::Body,
-            format_args!("Up Down choose  ·  Space tick  ·  Enter act  ·  F5 check  ·  Esc close"),
+            format_args!("{hints}"),
             frame.rect(LEFT + 230.0, buttons + 12.0, 640.0, 24.0),
             15.0 * s,
             color::QUIET,
@@ -604,10 +934,12 @@ impl Card {
             TextAlign::Center,
         );
         let focused_token = match self.focus {
+            0 if self.view.is_some() => HEADER_TOKEN,
             0 => SWITCH_TOKEN,
             focus if focus == check_focus => CHECK_TOKEN,
             focus if focus == main_focus => MAIN_TOKEN,
-            focus => (focus - 1).saturating_sub(self.first) as u16,
+            focus if focus <= items => (focus - 1).saturating_sub(self.first).min(rows) as u16,
+            _ => SWITCH_TOKEN,
         };
         self.ui.finish(focused_token);
         target.append(&self.ui, viewport);
@@ -717,7 +1049,7 @@ impl Card {
                 human_size(plan.download_bytes)
             ),
             (true, false) => format!(
-                "{} files of groups no longer chosen to remove ({}).",
+                "{} files no longer chosen to remove ({}).",
                 plan.removals.len(),
                 human_size(plan.removal_bytes)
             ),
@@ -738,7 +1070,7 @@ impl Card {
 }
 
 /// Each group's counts, in the manifest's order.
-fn summaries(snapshot: &Snapshot) -> Vec<Summary> {
+fn summaries(snapshot: &Snapshot, selection: &Selection) -> Vec<Summary> {
     snapshot
         .manifest
         .groups
@@ -753,13 +1085,17 @@ fn summaries(snapshot: &Snapshot) -> Vec<Summary> {
                 }
                 summary.files += 1;
                 summary.size += asset.size;
+                let wanted = selection.wants(group, asset);
                 let state = snapshot.state(group_index, asset_index);
+                if wanted {
+                    summary.wanted += 1;
+                }
                 if state.present() {
                     summary.here += 1;
-                } else {
+                } else if wanted {
                     summary.missing += asset.size;
                 }
-                if matches!(state, AssetState::Installed | AssetState::Outdated) {
+                if !wanted && matches!(state, AssetState::Installed | AssetState::Outdated) {
                     summary.ours += asset.size;
                 }
             }
@@ -769,11 +1105,11 @@ fn summaries(snapshot: &Snapshot) -> Vec<Summary> {
 }
 
 /// The group's state on the right of its row.
-fn group_state(summary: &Summary, chosen: bool) -> (String, Color) {
+fn group_state(summary: &Summary) -> (String, Color) {
     if summary.files == 0 {
         return ("Not for SJK".into(), color::QUIET);
     }
-    if !chosen {
+    if summary.wanted == 0 {
         return if summary.ours > 0 {
             (
                 format!("Not chosen  ·  {} to remove", human_size(summary.ours)),
@@ -791,18 +1127,60 @@ fn group_state(summary: &Summary, chosen: bool) -> (String, Color) {
             ("Not chosen".into(), color::QUIET)
         };
     }
-    if summary.here == summary.files {
-        (format!("All {} here", summary.files), color::GOLD_BRIGHT)
-    } else {
-        (
+    let whole = summary.wanted == summary.files;
+    match (whole, summary.missing) {
+        (true, 0) if summary.here == summary.files => {
+            (format!("All {} here", summary.files), color::GOLD_BRIGHT)
+        }
+        (true, missing) => (
             format!(
                 "{} of {} here  ·  {} to download",
                 summary.here,
                 summary.files,
-                human_size(summary.missing)
+                human_size(missing)
             ),
             color::TEXT,
-        )
+        ),
+        (false, 0) => (
+            format!(
+                "{} of {} chosen  ·  all here",
+                summary.wanted, summary.files
+            ),
+            color::GOLD_BRIGHT,
+        ),
+        (false, missing) => (
+            format!(
+                "{} of {} chosen  ·  {} to download",
+                summary.wanted,
+                summary.files,
+                human_size(missing)
+            ),
+            color::TEXT,
+        ),
+    }
+}
+
+/// One file's state on the right of its row.
+fn file_state(
+    state: AssetState,
+    wanted: bool,
+    for_sjk: bool,
+    downloaded: bool,
+) -> (&'static str, Color) {
+    if !for_sjk {
+        return ("JoF's client only", color::QUIET);
+    }
+    match (state, wanted) {
+        (AssetState::Installed, true) => ("Here", color::GOLD_BRIGHT),
+        (AssetState::InGameFolder, true) => ("In game folder", color::GOLD_BRIGHT),
+        (AssetState::InGameFolder, false) => ("In game folder", color::MUTED),
+        (AssetState::Missing, true) => ("To download", color::TEXT),
+        (AssetState::Outdated, true) => ("To update", color::TEXT),
+        (AssetState::Installed | AssetState::Outdated, false) if downloaded => {
+            ("To remove", color::EMBER)
+        }
+        (AssetState::Installed | AssetState::Outdated, false) => ("Here, not chosen", color::MUTED),
+        _ => ("Not chosen", color::QUIET),
     }
 }
 
@@ -869,31 +1247,121 @@ mod tests {
             files: 35,
             here: 12,
             size: 4_600_000_000,
+            wanted: 35,
             missing: 1_200_000_000,
             ours: 0,
             elsewhere: 0,
         };
         assert_eq!(
-            group_state(&summary, true).0,
+            group_state(&summary).0,
             "12 of 35 here  ·  1.2 GB to download"
         );
+        let none = Summary {
+            wanted: 0,
+            missing: 0,
+            ..summary
+        };
         assert_eq!(
-            group_state(&summary, false).0,
+            group_state(&none).0,
             "Not chosen  ·  12 of 35 in game folder"
         );
         let all = Summary {
             here: 35,
+            missing: 0,
             ..summary
         };
-        assert_eq!(group_state(&all, true).0, "All 35 here");
+        assert_eq!(group_state(&all).0, "All 35 here");
         let ours = Summary {
             ours: 200_000_000,
+            ..none
+        };
+        assert_eq!(group_state(&ours).0, "Not chosen  ·  200 MB to remove");
+        let some = Summary {
+            wanted: 3,
+            missing: 75_000_000,
             ..summary
         };
+        assert_eq!(group_state(&some).0, "3 of 35 chosen  ·  75 MB to download");
+    }
+
+    #[test]
+    fn a_file_says_what_a_sync_does_with_it() {
+        use AssetState::*;
+        assert_eq!(file_state(Missing, true, true, false).0, "To download");
+        assert_eq!(file_state(Missing, false, true, false).0, "Not chosen");
+        assert_eq!(file_state(Installed, false, true, true).0, "To remove");
         assert_eq!(
-            group_state(&ours, false).0,
-            "Not chosen  ·  200 MB to remove"
+            file_state(Installed, false, true, false).0,
+            "Here, not chosen"
         );
+        assert_eq!(
+            file_state(InGameFolder, true, true, false).0,
+            "In game folder"
+        );
+        assert_eq!(
+            file_state(NotForSjk, false, false, false).0,
+            "JoF's client only"
+        );
+    }
+
+    /// A card over a two-group manifest, looked at, with the switch on.
+    fn looked_at() -> Card {
+        let json = r#"{"data":{"assetgroups":[
+            {"id":1,"name":"Maps","type":"RECOMMENDED","assets":[
+                {"id":10,"name":"a.pk3","size":3,"hash":"47bce5c74f589f4867dbd57e9ca9f808","targetfolder":"Base","localfolder":"assets"},
+                {"id":11,"name":"b.pk3","size":4,"hash":"47bce5c74f589f4867dbd57e9ca9f808","targetfolder":"Base","localfolder":"assets"}]},
+            {"id":2,"name":"Skins","type":"OPTIONAL","assets":[
+                {"id":20,"name":"c.pk3","size":2,"hash":"47bce5c74f589f4867dbd57e9ca9f808","targetfolder":"Base","localfolder":"assets"}]}]}}"#;
+        let manifest = sjk_jof_content::Manifest::parse(json.as_bytes()).unwrap();
+        let states = vec![
+            vec![AssetState::Missing, AssetState::Missing],
+            vec![AssetState::Missing],
+        ];
+        let mut card = Card {
+            on: true,
+            snapshot: Some(Arc::new(Snapshot {
+                manifest,
+                states,
+                ..Snapshot::default()
+            })),
+            ..Card::default()
+        };
+        card.update();
+        card
+    }
+
+    fn press(card: &mut Card, focus: usize, space: bool) -> Action {
+        card.set_focus(focus);
+        if space { card.tick() } else { card.activate() }
+    }
+
+    #[test]
+    fn a_group_opens_on_its_files_and_single_files_are_picked() {
+        let mut card = looked_at();
+        assert_eq!(card.plan.download_bytes, 7, "Maps by default");
+        // Enter on Skins shows its files; Space on c.pk3 picks it alone.
+        assert!(matches!(press(&mut card, 2, false), Action::None));
+        assert_eq!(card.view, Some(1));
+        let Action::Choice { files, .. } = press(&mut card, 1, true) else {
+            panic!("no choice")
+        };
+        assert_eq!(files, "+20");
+        assert_eq!(card.plan.download_bytes, 9);
+        // Back to the groups where the player was; leave b.pk3 out of Maps.
+        card.close_group();
+        assert_eq!((card.view, card.focus), (None, 2));
+        press(&mut card, 1, false);
+        let Action::Choice { files, groups } = press(&mut card, 2, true) else {
+            panic!("no choice")
+        };
+        assert_eq!((groups.as_str(), files.as_str()), ("default", "-11 +20"));
+        assert_eq!(card.plan.download_bytes, 5);
+        // The group's own row takes every file of it again.
+        let Action::Choice { files, .. } = press(&mut card, 0, true) else {
+            panic!("no choice")
+        };
+        assert_eq!(files, "+20");
+        assert_eq!(card.plan.download_bytes, 9);
     }
 
     #[test]
@@ -916,6 +1384,15 @@ mod tests {
             let start = std::time::Instant::now();
             while console.jof_content.busy() && start.elapsed().as_secs() < 300 {
                 std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            // SJK_JOF_CONTENT_GROUP=<n>: show the n-th group's files.
+            if let Some(group) = std::env::var("SJK_JOF_CONTENT_GROUP")
+                .ok()
+                .and_then(|group| group.parse::<usize>().ok())
+            {
+                console.jof_content.update();
+                console.jof_content.open_group(group);
+                console.jof_content.set_focus(3);
             }
             assert!(matches!(
                 gpu.render(&mut None),

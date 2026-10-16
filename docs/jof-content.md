@@ -65,8 +65,9 @@ alone: it never updates, moves or removes them.
   SJK's folder, not matching) or Missing. MD5s are kept in `jof/sjk-jof-content.json`
   with the size and modification time they were measured at, so only new or changed
   files are hashed again.
-- **A sync** ([plan.rs](../crates/sjk-jof-content/src/plan.rs)) downloads what the
-  chosen groups lack, smallest files first. It deletes only files SJK itself
+- **A sync** ([plan.rs](../crates/sjk-jof-content/src/plan.rs)) downloads the wanted
+  files that are missing (a file is wanted by its own pick, else by its group's tick),
+  smallest first. It deletes only files SJK itself
   downloaded (marked in the record): its copies of files no chosen group lists, and
   those the manifest no longer has or the game folder holds already. A PK3 put in the
   JoF folder by hand stays. It runs on its own thread
@@ -88,9 +89,20 @@ alone: it never updates, moves or removes them.
   they are.
 - **Groups:** one row per group, seven at a time (wheel and Page Up/Down for more): its
   tick (`jof.contentGroups`: `default` for the repository's own choice, else the ids
-  chosen), name, type and description, and on the right what is here ("16 of 35 here ·
-  3.3 GB to download", "All 157 here", "Not chosen · 200 MB to remove") over its count
-  and size. A group with only files for JoF's own client has no tick.
+  chosen; Space, or a click on the box), name, type and description, and on the right
+  what is here ("16 of 35 here · 3.3 GB to download", "All 157 here", "3 of 157 chosen
+  · 75 MB to download", "Not chosen · 200 MB to remove") over its count and size.
+  A group with only files for JoF's own client has no tick.
+- **A group's files** (Sol's request, 16/10/2026: pick precisely what to take). Enter,
+  Right or a click on a group's row shows its files: "‹ Groups / <name>" (a click, Esc,
+  Left or Backspace goes back where the player was), the group's own row ("All of
+  <name>", how many are chosen; its tick takes every file, or leaves them all out when
+  every one was taken), then eight files at a time: tick, name, the repository's
+  description, what a download does with it (To download, To update, Here, In game
+  folder, To remove, Not chosen, JoF's client only) and its size. Space, Enter or a
+  click picks a file alone. Picks against the group's tick are kept in
+  `jof.contentFiles` (`+<id>` taken, `-<id>` left out); a pick that matches the tick
+  again is forgotten, and the group's tick forgets them all.
 - **Foot:** what a download would do, or the job's progress with a gold bar (asking
   for the list, checking the files already here, removing, downloading file n of m),
   how it ended, or why the repository could not be reached; Check again (F5), and the
@@ -107,6 +119,7 @@ first look hashes every matching file in the game's `base` once (about a minute 
 | --- | --- | --- |
 | `jof.content` | 0 | Load the JoF folder's files (from the next map) |
 | `jof.contentGroups` | `default` | Groups kept: `default`, `none`, or ids |
+| `jof.contentFiles` | empty | Files picked against their group: `+<id>` taken, `-<id>` left out |
 | `jof.contentSource` | `auto` | `auto`, `mirror` (JoF Cloud) or `origin` (jofhub.eu); Settings > Mods > JoF content host |
 | `jof.contentFolder` | empty | The folder; empty is `jof` beside SJK's settings |
 | `jof.downloads` | | Opens the card |

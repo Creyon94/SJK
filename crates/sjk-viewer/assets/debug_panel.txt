@@ -4865,6 +4865,7 @@ title: JoF content: JoF's maps, skins, hilts and packs from JoF's repository (op
 change: Settings > General > JoF content (or jof.downloads) opens a card listing JoF's groups.
 change: Off by default; on, SJK's JoF folder (GameData/SJK/jof) loads from the next map.
 test: Open the card: groups listed, files JoF's launcher put in base count as here.
+test: Enter on JoF Skins: its files; Space picks one alone; Esc back; group shows 1 of 157 chosen.
 test: Download stays dim while Use JoF content is off; turn it on, pick a small group, Download.
 test: Progress bar moves; close the card mid-download, reopen it: still downloading.
 test: Next map on a JoF server: a downloaded map or skin is there; Stop, then Download resumes.
