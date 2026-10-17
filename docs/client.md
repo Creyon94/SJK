@@ -910,17 +910,33 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
-## CTF team saber colours
+## Team saber colours
 
-`cg_ctfTeamSabers` (archived, default 0; Settings > Advanced > Gameplay and classic+
-Game options, **CTF team saber colours**) draws every red or blue player's blades in
-their team's stock colour in capture the flag and capture the ysalamiri, whatever their
-`c1`..`c4` colours and blade shader say: held and thrown sabers, muted players' default
-saber, and the player card's swatches. Free players, spectators, other game types and
-the setting off keep each player's own colours. It is stricter than cgame's
-`cg_saberTeamColors 0`, which lets a red player keep a yellow blade. From SJK pull
-request #113 (Slash), made an option at the merge (Sol's choice, 17/10/2026); see
-[team_sabers.rs](../crates/sjk-viewer/src/team_sabers.rs).
+`cg_saberTeamColors` (archived, default 1; Settings > Advanced > Gameplay and classic+
+Game options, **Team saber colours**) is JoF EJK's rule (`cg_players.c:8096-8111`,
+`cg_xcvar.h:411`): in team gametypes (team FFA, CTF, CTY; not siege, not jedi-vs-merc,
+never NPCs) a red player's blades are drawn in the stock red and a blue player's in
+the stock blue, whatever `c1`..`c4` say: both sabers, held and thrown, a custom RGB
+or a JA+ black blade included, and the player card's swatches. At 0 a blade keeps its
+own colour unless it is the other team's (blue on red, red on blue) or past purple
+(RGB, black and the other extended colours), as in EJK. Free players, spectators and
+other game types keep each player's own colours. Fixes hub report 70 (random saber
+colours in team FFA). An SJK blade shader stays worn and takes the team colour as its
+base, as it takes the player's own colour elsewhere (a chroma turns to red or blue,
+[unlockables.md](unlockables.md#chromas); integrator's choice, 17/10/2026, Sol may
+revisit). See [team_sabers.rs](../crates/sjk-viewer/src/team_sabers.rs) and
+`sjk_client::legacy_saber_team_colors`.
+
+`cg_ctfTeamSabers` (archived, default 0; same pages, **CTF team saber colours**) goes
+further in capture the flag and capture the ysalamiri: every red or blue player's blades
+in their team's stock colour with no blade shader over them, muted players' default
+saber included, whatever `cg_saberTeamColors` says. From SJK pull request #113 (Slash),
+made an option at the merge (Sol's choice, 17/10/2026).
+
+Verified by unit tests (team FFA, CTF and CTY force red and blue, free players and
+spectators untouched, FFA, duel, siege and jedi-vs-merc keep the choice, the `0`
+semantics per saber, black blades replaced per hand, the card's swatches); not tried
+in the game.
 
 ## JA+ black sabers
 

@@ -108,8 +108,8 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
-    /// Each client slot's team blade, with no skin over it, while `cg_ctfTeamSabers`
-    /// is on in CTF or CTY (`team_sabers.rs`).
+    /// Each client slot's team blade colours in team games: `cg_saberTeamColors`, and
+    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`).
     team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
@@ -570,12 +570,13 @@ fn submit_actor(
     if muted {
         equipment = equipment.map(crate::muted_players::equipment);
     }
-    // With CTF team sabers on, both blades take the team's colour, muted or not.
+    // In team games the blades take the team's colour, muted or not
+    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`).
     let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
-    if let Some(rgb) = team_blade {
+    if team_blade.any() {
         equipment = equipment.map(|mut held| {
-            held.color = rgb;
-            held.secondary_color = rgb;
+            held.color = team_blade.color(0, held.color);
+            held.secondary_color = team_blade.color(1, held.secondary_color);
             held
         });
     }
@@ -1037,8 +1038,14 @@ fn submit_equipment(
         sinks
             .saber_skins
             .get(entity.id.get())
-            .filter(|_| crate::team_sabers::of(&sinks.team_blades, entity.id.get()).is_none()),
-        sinks.black_sabers,
+            .filter(|_| !crate::team_sabers::of(&sinks.team_blades, entity.id.get()).plain),
+        // A team colour replaces a black blade too (it is past `SABER_PURPLE`).
+        sinks.black_sabers.without(
+            entity.id.get(),
+            crate::team_sabers::of(&sinks.team_blades, entity.id.get())
+                .colors
+                .map(|color| color.is_some()),
+        ),
         std::array::from_fn(|hand| {
             if hand == 0 && holstered_primary {
                 return None;
