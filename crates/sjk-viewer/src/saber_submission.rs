@@ -18,6 +18,7 @@ pub(crate) mod lights;
 pub(crate) fn submit(
     entity_id: u64,
     skin: Option<crate::saber_skins::SkinColor>,
+    black_sabers: crate::saber_rgb::black::Policy,
     hands: [Option<(&str, saber::Attachment)>; 2],
     equipment: HeldEquipment,
     actor_origin: Vec3,
@@ -62,11 +63,15 @@ pub(crate) fn submit(
             weapon_rotation.to_array(),
             [1.0; 3],
         ));
-        let stock = BladeColor::from_rgb(if saber_index == 0 {
-            equipment.color
-        } else {
-            equipment.secondary_color
-        });
+        let stock = black_sabers.color(
+            entity_id,
+            saber_index,
+            BladeColor::from_rgb(if saber_index == 0 {
+                equipment.color
+            } else {
+                equipment.secondary_color
+            }),
+        );
         // A chroma skin takes this saber's colour.
         let color = skin.map_or(stock, |skin| BladeColor::Skin(skin.worn_with(stock)));
         let mut light_blades = [None; 8];

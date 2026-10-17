@@ -37,6 +37,8 @@ const TEAM_FORCE: usize = 12;
 const SABER_OFFENSE: usize = 15;
 const SABER_DEFENSE: usize = 16;
 const SABER_THROW: usize = 17;
+/// `gametype_t::GT_TEAM`: stock permits team powers from this mode onward.
+const GT_TEAM: i32 = 6;
 
 /// Force allegiance encoded in the second field of `forcepowers`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -289,8 +291,8 @@ impl Default for ForceLegalizeRules {
 }
 
 impl ForceLegalizeRules {
-    /// The rules a profile the client sends must meet: these, but keeping the
-    /// powers `g_forcePowerDisable` turns off.
+    /// The rules a profile the client sends must meet, retaining disabled and
+    /// team powers for the server to grant or remove.
     ///
     /// `BG_LegalizedForcePowers` (`bg_misc.c`) zeroes a disabled power in the
     /// server's own copy before it counts points and without calling the
@@ -298,9 +300,20 @@ impl ForceLegalizeRules {
     /// Kept in the sent profile, they cost points here (so the profile still
     /// fits once a mod lets them back) and are there for a mod that restores
     /// them, as jaPRO does in Force duels for its own disable list.
+    /// Stock also removes team powers below `GT_TEAM` without marking the
+    /// profile illegal (`bg_misc.c`, OpenJK 260c59c:513-517). EJK #10 instead
+    /// keeps the side's team power when allowed by the disable mask. Preserve
+    /// the paid-for selection in this client-only copy so either server can
+    /// apply its own policy. Authoritative legalization still uses the real
+    /// gametype and disable mask.
     pub const fn for_sent_profile(self) -> Self {
         Self {
             disabled_mask: 0,
+            gametype: if self.gametype < GT_TEAM {
+                GT_TEAM
+            } else {
+                self.gametype
+            },
             ..self
         }
     }
@@ -349,7 +362,7 @@ pub fn legalize_force_powers(input: &str, rules: ForceLegalizeRules) -> Legalize
             *level = 0;
         }
     }
-    if rules.gametype < 6 {
+    if rules.gametype < GT_TEAM {
         levels[TEAM_HEAL] = 0;
         levels[TEAM_FORCE] = 0;
     }

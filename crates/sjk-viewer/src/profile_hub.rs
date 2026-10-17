@@ -184,6 +184,10 @@ const ROW_X: f32 = 96.0;
 const ROW_Y: f32 = 146.0;
 /// The room between two tabs' names.
 const GAP: f32 = 48.0;
+/// The narrowest clear separation when large text needs more of the row.
+const MIN_GAP: f32 = 16.0;
+/// The right edge kept clear for the frame's matching margin.
+const ROW_RIGHT: f32 = 1_816.0;
 /// How far down the console's pages move what they show under their title, to leave
 /// the row its room.
 pub(crate) const SHIFT: f32 = 44.0;
@@ -215,11 +219,47 @@ fn sized_width(label: &str, size: f32, style: crate::text::TextStyle) -> f32 {
 
 /// How wide a tab's count is drawn, with the room before it; nothing without one.
 fn count_width(count: &str) -> f32 {
+    count_width_in(count, crate::text::style::current())
+}
+
+/// [`count_width`] in `style`.
+fn count_width_in(count: &str, style: crate::text::TextStyle) -> f32 {
     if count.is_empty() {
         0.0
     } else {
-        COUNT_GAP + sized_width(count, COUNT_SIZE, crate::text::style::current())
+        COUNT_GAP + sized_width(count, COUNT_SIZE, style)
     }
+}
+
+/// The tabs keep their ordinary generous separation until styled labels and counts
+/// need more room, then close the gaps evenly without touching.
+fn row_gap(labels: &[&str], counts: &[String], widen: f32) -> f32 {
+    row_gap_in(labels, counts, widen, crate::text::style::current())
+}
+
+/// [`row_gap`] in `style`.
+fn row_gap_in(
+    labels: &[&str],
+    counts: &[String],
+    widen: f32,
+    style: crate::text::TextStyle,
+) -> f32 {
+    let gaps = labels.len().saturating_sub(1);
+    if gaps == 0 {
+        return 0.0;
+    }
+    let content: f32 = labels
+        .iter()
+        .enumerate()
+        .map(|(at, label)| {
+            (styled_width(label, style)
+                + counts
+                    .get(at)
+                    .map_or(0.0, |count| count_width_in(count, style)))
+                * widen
+        })
+        .sum();
+    ((ROW_RIGHT - ROW_X - content) / gaps as f32).clamp(MIN_GAP, GAP)
 }
 
 /// Where tab `index` of `labels` starts, how wide its name is and how wide its count
@@ -228,11 +268,12 @@ fn count_width(count: &str) -> f32 {
 /// loaded).
 fn places(labels: &[&str], counts: &[String], index: usize, widen: f32) -> (f32, f32, f32) {
     let count = |at: usize| counts.get(at).map_or(0.0, |count| count_width(count)) * widen;
+    let gap = row_gap(labels, counts, widen);
     let x = labels
         .iter()
         .take(index)
         .enumerate()
-        .map(|(at, label)| label_width(label) * widen + count(at) + GAP)
+        .map(|(at, label)| label_width(label) * widen + count(at) + gap)
         .sum::<f32>();
     (
         ROW_X + x,
@@ -724,17 +765,25 @@ mod tests {
         assert!(plain > 100.0);
         assert!((styled_width("Achievements", larger) - plain * 1.2).abs() < 0.01);
         for screen in [Screen::Profile, Screen::Collection] {
-            let row: f32 = screen
-                .labels()
+            let labels = screen.labels();
+            let counts = if screen == Screen::Collection {
+                vec!["21/21".to_owned(); labels.len()]
+            } else {
+                Vec::new()
+            };
+            let gap = row_gap_in(labels, &counts, 1.0, widest);
+            let content: f32 = labels
                 .iter()
-                .map(|label| {
+                .enumerate()
+                .map(|(at, label)| {
                     styled_width(label, widest)
-                        + COUNT_GAP
-                        + sized_width("21/21", COUNT_SIZE, widest)
-                        + GAP
+                        + counts
+                            .get(at)
+                            .map_or(0.0, |count| count_width_in(count, widest))
                 })
                 .sum();
-            assert!(ROW_X + row < 1_824.0, "{screen:?} reaches {}", ROW_X + row);
+            let right = ROW_X + content + gap * labels.len().saturating_sub(1) as f32;
+            assert!(right <= ROW_RIGHT, "{screen:?} reaches {right}");
         }
     }
 

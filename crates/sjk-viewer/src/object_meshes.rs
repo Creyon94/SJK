@@ -5,10 +5,17 @@
 use super::*;
 
 /// Reserve carrier instances in addition to ordinary pickups before the first frame.
-pub(super) fn instance_groups(meshes: &[StaticModelMesh]) -> Vec<Vec<ActorInstance>> {
+pub(super) fn instance_groups(
+    meshes: &[StaticModelMesh],
+    hilts: Option<&saber::HiltCatalog>,
+) -> Vec<Vec<ActorInstance>> {
     meshes
         .iter()
-        .map(|mesh| {
+        .enumerate()
+        .map(|(index, mesh)| {
+            if hilts.is_some_and(|catalog| catalog.uses_mesh(index)) {
+                return crate::saber_hilts::instance_group();
+            }
             let flag = actor_world_submission::flags::MODELS
                 .iter()
                 .flatten()

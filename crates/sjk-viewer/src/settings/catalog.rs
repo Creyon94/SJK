@@ -197,6 +197,16 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Jetpack ignition sound",
+        cvar: crate::jetpack::ON_SOUND_CVAR,
+        kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
+        label: "Jetpack hover sound",
+        cvar: crate::jetpack::HOVER_SOUND_CVAR,
+        kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
         label: "Footsteps",
         cvar: "cg_footsteps",
         kind: ValueKind::Bool,
@@ -316,6 +326,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Weapon bar",
         cvar: "cg_drawWeapon",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Inventory list",
+        cvar: "cg_drawInventory",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -456,6 +471,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hide duellers",
+        cvar: "cg_nameplateHideDuelers",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Plates through walls",
         cvar: "cg_nameplateWalls",
         kind: ValueKind::Bool,
@@ -528,6 +548,15 @@ pub(super) const HUD: &[Setting] = &[
         label: "Chat",
         cvar: "cg_drawChat",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Chat text size",
+        cvar: "cg_chatBoxFontSize",
+        kind: ValueKind::Float {
+            min: 0.25,
+            max: 3.0,
+            step: 0.05,
+        },
     },
     Setting {
         label: "Chat emojis",
@@ -636,6 +665,21 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Team saber colours",
+        cvar: crate::team_sabers::TEAM_COLORS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "CTF team saber colours",
+        cvar: crate::team_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "JA+ black sabers",
+        cvar: crate::saber_rgb::black::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Saber rain steam",
         cvar: crate::effect_aux::saber_rain_steam::CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
@@ -643,6 +687,40 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "Force Speed trail",
         cvar: "cg_speedTrail",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Grip victim effects",
+        cvar: crate::actor_world_submission::force_powers::victim::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Flamethrower effects",
+        cvar: crate::actor_world_submission::force_powers::flame::CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    Setting {
+        label: "Holstered saber hilts",
+        cvar: crate::holstered_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Holster server support",
+        cvar: crate::holstered_sabers::SUPPORT_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Staff handoff point",
+        cvar: crate::holstered_sabers::SWAP_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Staff handoff sounds",
+        cvar: "cg_holsteredStaffSound",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -689,6 +767,67 @@ pub(super) const GAME: &[Setting] = &[
         label: "First-person weapon",
         cvar: "cg_drawGun",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "First-person weapon FOV",
+        cvar: "cg_fovViewmodel",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 120.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Camera damping style",
+        cvar: "cg_cameraFPS",
+        // `cg_cameraFPS` is a float so console values such as 60.5 still work;
+        // choices use its canonical text representation.
+        kind: ValueKind::Choice(&["125.0", "30.0", "0.0"]),
+    },
+    Setting {
+        label: "Third-person distance",
+        cvar: "cg_thirdPersonRange",
+        kind: ValueKind::Float {
+            min: 40.0,
+            max: 500.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Third-person angle",
+        cvar: "cg_thirdPersonAngle",
+        kind: ValueKind::Float {
+            min: -180.0,
+            max: 180.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Third-person pitch",
+        cvar: "cg_thirdPersonPitchOffset",
+        kind: ValueKind::Float {
+            min: -129.0,
+            max: 50.0,
+            step: 1.0,
+        },
+    },
+    Setting {
+        label: "Third-person height",
+        cvar: "cg_thirdPersonVertOffset",
+        kind: ValueKind::Float {
+            min: -58.0,
+            max: 80.0,
+            step: 1.0,
+        },
+    },
+    Setting {
+        label: "Third-person horizontal offset",
+        cvar: "cg_thirdPersonHorzOffset",
+        kind: ValueKind::Float {
+            min: -64.0,
+            max: 64.0,
+            step: 1.0,
+        },
     },
     Setting {
         label: "Third-person camera damping",
@@ -875,7 +1014,7 @@ pub(super) const TEXT: &[Setting] = &[
         cvar: crate::text::style::SCALE_CVAR,
         kind: ValueKind::Float {
             min: 0.8,
-            max: 1.2,
+            max: 1.4,
             step: 0.05,
         },
     },

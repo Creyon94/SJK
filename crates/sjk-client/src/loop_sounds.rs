@@ -12,7 +12,7 @@
 //! the packet entities) come from [`crate::ambient_world`] and join the same
 //! 32-entry backend frame list without cgame's per-entity ceiling. A burning
 //! jetpack's hover and fire loops follow `CG_Player` (`cg_players.c:11843-11935`,
-//! `cg_jetpackHoverSound 1`).
+//! `cg_jetpackHoverSound` choices 1 and 2).
 
 use crate::ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyAmbientWorld};
 use crate::mind_trick::{legacy_entity_trick_targets, legacy_mind_tricked};
@@ -66,7 +66,11 @@ const WEAPON_FIRING_LOOPS: [Option<&str>; 19] = [
 ];
 const WEAPON_READY_LOOPS: [Option<&str>; 19] = [None; 19];
 /// `cgs.media.jetpackHoverSound` and the jet fire loop (`cg_main.c`, `cg_players.c`).
-const JETPACK_LOOPS: [&str; 2] = ["sound/chars/boba/jethover.wav", "sound/effects/fire_lp.wav"];
+const JETPACK_LOOPS: [&str; 3] = [
+    crate::LEGACY_JETPACK_HOVER_SOUNDS[0],
+    crate::LEGACY_JETPACK_HOVER_SOUNDS[1],
+    "sound/effects/fire_lp.wav",
+];
 
 /// Why a loop was selected by the legacy adapter.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -148,7 +152,8 @@ pub(crate) struct LegacyLoopAdapter {
     soundsets: [SoundsetStages; MAX_SOUNDS],
     weapon_firing: [Option<u16>; 19],
     weapon_ready: [Option<u16>; 19],
-    jetpack: [u16; 2],
+    jetpack: [u16; 3],
+    pub(crate) jetpack_sounds: crate::LegacyJetpackSounds,
     sabers: [SaberLoops; MAX_CLIENTS],
     /// Registered hums of the replacement saber sound sets, by set.
     saber_hums: Vec<u16>,
@@ -230,6 +235,7 @@ impl LegacyLoopAdapter {
             weapon_firing,
             weapon_ready,
             jetpack,
+            jetpack_sounds: crate::LegacyJetpackSounds::default(),
             sabers,
             saber_hums: Vec::new(),
             hum_overrides: [None; MAX_CLIENTS],
@@ -500,7 +506,8 @@ impl LegacyLoopAdapter {
     /// `CG_Player`: the fire loop of a flaming jetpack (`trap->S_RegisterSound(
     /// "sound/effects/fire_lp")` inside the jet loop), then the hover.
     fn add_jetpack_loops(&mut self, jetpack: LegacyJetpack, source: u16, origin: [f32; 3]) {
-        let [hover, fire] = self.jetpack;
+        let hover = self.jetpack[self.jetpack_sounds.hover_index()];
+        let fire = self.jetpack[2];
         if jetpack.flaming {
             self.push(
                 LegacyLoopKind::JetpackFire,

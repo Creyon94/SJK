@@ -567,4 +567,18 @@ mod key_display_tests {
         assert_eq!(shell.binds.iter().collect::<Vec<_>>(), [("w", "+forward")]);
         assert_eq!(shell.execute_line("unbind w").unwrap(), ["W unbound"]);
     }
+
+    #[test]
+    fn bind_commands_accept_list_query_and_remove_two_key_chords() {
+        let mut shell = Shell::new(CvarRegistry::new(), BindTable::new());
+        assert_eq!(
+            shell.execute_line("bind l+k kill").unwrap(),
+            ["K+L = \"kill\""]
+        );
+        assert_eq!(shell.execute_line("bind K+L").unwrap(), ["K+L = \"kill\""]);
+        let list = shell.execute_line("bindlist").unwrap();
+        assert!(list.iter().any(|line| line.starts_with("K+L ")), "{list:?}");
+        assert_eq!(shell.execute_line("unbind L+K").unwrap(), ["K+L unbound"]);
+        assert_eq!(shell.binds.get("K+L"), None);
+    }
 }

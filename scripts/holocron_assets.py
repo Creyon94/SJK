@@ -33,16 +33,21 @@ the parts) and `holocron_<tier>_small.png` (64x64). Shared: the steel and the da
 sheen, and three shaders (`holocron_tiers.shader`: the faces; `holocron_parts.shader`:
 steel, dark metal and the lights; `holocron_locked.shader`: the locked look, every
 material drained and dark, without glow). The Jedi cube's face is the shipped face in
-the tier's colour; the other three faces are drawn here until Sol's art replaces them:
+the tier's colour; the other three come from Sol's pictures (17/10/2026) in the folder's
+`art/` (`rare.jpg`, `legendary.jpg`, `mythical.jpg`; ART below), or are drawn here when
+one is missing. `--art <tier>=<picture>` gives another picture for a tier:
 
-    python scripts/holocron_assets.py tiers crates/sjk-viewer/assets/holocron         --art rare=pentagon.png --art legendary=sith.png --art mythical=crystal.png
+    python scripts/holocron_assets.py tiers crates/sjk-viewer/assets/holocron --art rare=pentagon.png
 
-A given picture is square, in any colour: its bright parts are painted along the tier's
-ramp and glow. The rare one is a pentagon, a corner at the top, its corners on the
-picture's inscribed circle; the legendary one a trapezoid, its foot along the bottom
-edge and its top PYRAMID_TOP as wide, centred; the mythical one a facet of the crystal,
-its tip at the top middle and its foot along the bottom edge. The whole table (colours,
-glow ladder, shader waves, point lights) is TIERS below; the output is deterministic.
+A face picture shows its shape on black, in any colour and any size: the shape is cut
+out and fitted to where the form's picture coordinates expect it (ART), and its lit
+parts (bright, or strongly coloured) are painted along the tier's ramp and glow. The
+rare one is a pentagon, a corner at the top; the legendary one a triangle, its tip at
+the top: the Sith pyramid's sides take its foot up to PYRAMID_TOP of its width, the
+floating cap the tip above it, so the runes run on across the seam. The mythical one is
+a tiling crystal texture, its light worked into the crystal's facets. The whole table
+(colours, glow ladder, shader waves, point lights) is TIERS below; the output is
+deterministic.
 
 Needs Pillow, numpy and scipy (pip install pillow numpy scipy).
 """
@@ -228,8 +233,20 @@ SHEEN_NAME = "holocron_mythical_sheen"
 # the Holocrons tab gives it, and in the shape).
 LOCKED_KEEP = 0.14
 LOCKED_DIM = 0.42
-# The Sith pyramid's side: its top's width against its foot's (`holocron_forms.py`).
+# The Sith pyramid's side: its top's width against its foot's (`holocron_forms.py`);
+# its face picture is the whole triangle, the side its foot up to this share of its
+# height, the cap the tip above.
 PYRAMID_TOP = 1.6 / 3.0
+# Sol's face pictures, by tier, in the folder's `art/`, and where each one's shape goes
+# in the face picture (left, top, right, bottom, in shares of it; None: a texture that
+# tiles, taken whole). The pentagon's corners are on the picture's inscribed circle.
+ART = {
+    "rare": (0.5 - 0.5 * math.sin(math.radians(72)), 0.0, 0.5 + 0.5 * math.sin(math.radians(72)), 0.5 + 0.5 * math.cos(math.radians(36))),
+    "legendary": (0.0, 0.0, 1.0, 1.0),
+    "mythical": None,
+}
+# A picture's black ground: anything darker is not the shape.
+ART_GROUND = 18.0
 
 
 @dataclass(frozen=True)
@@ -353,16 +370,43 @@ def tier_layers(face_rgb: np.ndarray, tier: Tier):
     return face.clip(0, 255), glow.clip(0, 255)
 
 
+def fitted_art(picture: Path, place) -> np.ndarray:
+    """Sol's picture as a FACE_SIZE square (float RGB): its shape (the largest patch off
+    the black ground) cut out and stretched over `place` (ART), black around it; a
+    tiling texture (`place` None) whole."""
+    image = Image.open(picture).convert("RGB")
+    if place is None:
+        return np.asarray(image.resize((FACE_SIZE, FACE_SIZE), Image.LANCZOS)).astype(float)
+    rgb = np.asarray(image).astype(float)
+    shape = ndimage.binary_opening(luminance_of(rgb) > ART_GROUND, iterations=2)
+    labels, count = ndimage.label(shape)
+    sizes = ndimage.sum(shape, labels, range(1, count + 1))
+    ys, xs = np.nonzero(labels == 1 + int(np.argmax(sizes)))
+    crop = image.crop((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
+    left, top, right, bottom = (round(share * FACE_SIZE) for share in place)
+    out = Image.new("RGB", (FACE_SIZE, FACE_SIZE))
+    out.paste(crop.resize((right - left, bottom - top), Image.LANCZOS), (left, top))
+    return np.asarray(out).astype(float)
+
+
+def art_lit(rgb: np.ndarray) -> np.ndarray:
+    """How lit each texel of a picture is, whatever its colour: strongly coloured and
+    bright (a glowing rune, red or blue), or near white (a hot core); the steel's greys
+    are not."""
+    value = rgb.max(-1)
+    chroma = value - rgb.min(-1)
+    coloured = smoothstep(35.0, 100.0, chroma) * smoothstep(90.0, 170.0, value)
+    white = smoothstep(215.0, 245.0, luminance_of(rgb))
+    return ndimage.gaussian_filter(np.maximum(coloured, white), 0.7)
+
+
 def art_layers(picture: Path, tier: Tier):
-    """A face picture given on the command line (Sol's art for a tier's form, any size,
-    square): the picture lightly tinted in the tier's colour, its bright parts painted
-    along the tier's ramp and glowing."""
-    rgb = np.asarray(
-        Image.open(picture).convert("RGB").resize((FACE_SIZE, FACE_SIZE), Image.LANCZOS)
-    ).astype(float)
+    """A face from Sol's picture for a tier's form: fitted (ART), lightly tinted in the
+    tier's colour, its lit parts painted along the tier's ramp and glowing."""
+    rgb = fitted_art(picture, ART[tier.id])
     luminance = luminance_of(rgb)
-    lit = ndimage.gaussian_filter(smoothstep(150.0, 225.0, luminance), 0.7)[..., None]
-    paint = ramp(luminance / 255.0, tier.ramp) * tier.emblem
+    lit = art_lit(rgb)[..., None]
+    paint = ramp(rgb.max(-1) / 255.0, tier.ramp) * tier.emblem
     mid = np.array(tier.ramp[1], float)
     plate = rgb + tier.tint * (luminance[..., None] * (mid / mid.max()) - rgb)
     face = plate * (1.0 - lit) + paint * lit
@@ -478,12 +522,12 @@ def glyph_mask(n: int, centres, size: float, seed: int) -> np.ndarray:
 
 
 def sith_layers(dark: np.ndarray, tier: Tier):
-    """The Sith pyramid's side: dark metal on the side's trapezoid (its foot along the
-    picture's bottom, its top PYRAMID_TOP as wide), an engraved border with a lit line,
-    and a column of runes glowing in the tier's colour."""
+    """The Sith pyramid's side and cap: dark metal on a triangle (its tip at the
+    picture's top middle, its foot along the bottom), an engraved border with a lit
+    line, and a column of runes glowing in the tier's colour."""
     n = FACE_SIZE
     ys, xs = (np.mgrid[0:n, 0:n] + 0.5) / n
-    half = 0.5 * (PYRAMID_TOP + (1.0 - PYRAMID_TOP) * ys)
+    half = np.maximum(0.5 * ys, 1e-3)
     across = np.abs(xs - 0.5) / half
     mid = np.array(tier.ramp[1], float)
     pale = np.array(tier.ramp[2], float)
@@ -503,9 +547,10 @@ def sith_layers(dark: np.ndarray, tier: Tier):
     return face.clip(0, 255), glow.clip(0, 255)
 
 
-def crystal_layers(tier: Tier):
+def crystal_layers(tier: Tier, texture: Path | None = None):
     """The kyber prism's facet: tip at the picture's top middle, the girdle along its
-    bottom; brighter toward the girdle, with streaks running to the tip and lit edges."""
+    bottom; brighter toward the girdle, with streaks running to the tip and lit edges,
+    and Sol's crystal texture (a tiling one, ART) worked into it when given."""
     n = FACE_SIZE
     ys, xs = (np.mgrid[0:n, 0:n] + 0.5) / n
     across = (xs - 0.5) / np.maximum(ys, 1e-3)
@@ -514,7 +559,12 @@ def crystal_layers(tier: Tier):
     for at, width, strength in zip(rng.uniform(-0.45, 0.45, 7), rng.uniform(0.01, 0.04, 7), rng.uniform(0.4, 1.0, 7)):
         streak += strength * np.exp(-(((across - at) / width) ** 2))
     edges = np.exp(-(((np.abs(across) - 0.5) / 0.03) ** 2))
-    value = 0.32 + 0.5 * ys**0.8 + 0.18 * streak.clip(0, 1) + 0.25 * edges
+    if texture is None:
+        value = 0.32 + 0.5 * ys**0.8 + 0.18 * streak.clip(0, 1) + 0.25 * edges
+    else:
+        grain = luminance_of(fitted_art(texture, None)) / 255.0
+        value = 0.18 + 0.38 * ys**0.8 + 0.42 * grain + 0.1 * streak.clip(0, 1) + 0.22 * edges
+        streak = np.maximum(streak.clip(0, 1), smoothstep(0.7, 0.95, grain))
     face = ramp(value.clip(0, 1), tier.ramp) * tier.emblem
     glow = face * (0.45 + 0.4 * streak.clip(0, 1) + 0.3 * edges)[..., None]
     return face.clip(0, 255), glow.clip(0, 255)
@@ -523,15 +573,15 @@ def crystal_layers(tier: Tier):
 def form_layers(base: np.ndarray, steel: np.ndarray, dark: np.ndarray, tier: Tier, art: dict):
     """The face and glow pictures of a tier's form: Sol's picture for it when given,
     else the one made here."""
+    if tier.id == "mythical":
+        return crystal_layers(tier, art.get(tier.id))
     if tier.id in art:
         return art_layers(art[tier.id], tier)
     if tier.id == "uncommon":
         return tier_layers(base, tier)
     if tier.id == "rare":
         return pentagon_layers(steel, tier)
-    if tier.id == "legendary":
-        return sith_layers(dark, tier)
-    return crystal_layers(tier)
+    return sith_layers(dark, tier)
 
 
 def tier_icon(tier: Tier, looks: dict) -> Image.Image:
@@ -776,8 +826,12 @@ def parts_table() -> str:
 
 
 def tiers(output: Path, art: dict) -> None:
-    """The tiers' pictures, models and shaders, from the folder's holocron.jpg (and
-    Sol's pictures in `art`, by tier id)."""
+    """The tiers' pictures, models and shaders, from the folder's holocron.jpg and
+    Sol's pictures in its `art/` (`art`, by tier id, overrides them)."""
+    art = {
+        **{tier: output / "art" / f"{tier}.jpg" for tier in ART if (output / "art" / f"{tier}.jpg").exists()},
+        **art,
+    }
     base = np.asarray(Image.open(output / "holocron.jpg").convert("RGB")).astype(float)
     steel = steel_picture(base)
     dark = dark_picture()

@@ -35,14 +35,28 @@ pub(super) fn submit(
     let Some(mut owner) = thrown.and_then(|thrown| thrown.get(number)) else {
         return false;
     };
+    let Some(catalog) = sinks.saber_hilts else {
+        return false;
+    };
+    if owner.definition_color {
+        // An NPC's blade without an override wears its `.sab` colour.
+        owner.color = sjk_client::legacy_npc_definition_rgb(
+            catalog.get_any_case(owner.name).default_color,
+            owner.owner,
+        );
+    }
+    // The owner is a client slot or an NPC's entity number (`thrown_sabers.rs`).
     // A player muted on this PC throws the default saber in the default colour.
     if crate::muted_players::entity_muted(sinks.muted, u64::from(owner.owner) + 1) {
         owner.name = crate::muted_players::SABER;
         owner.color = crate::muted_players::BLADE;
     }
-    let Some(catalog) = sinks.saber_hilts else {
-        return false;
-    };
+    // In team games the primary's team colour; with CTF team sabers no skin over it.
+    let team_blade = crate::team_sabers::of(&sinks.team_blades, u64::from(owner.owner) + 1);
+    let team_color = team_blade.colors[0];
+    if let Some(rgb) = team_color {
+        owner.color = rgb;
+    }
     let owner_entity = u64::from(owner.owner) + 1;
     let Some(owner_tilt) = sinks.saber_states.tilt_mut(owner_entity) else {
         return false;
@@ -75,9 +89,19 @@ pub(super) fn submit(
         rotation: hilt_rotation.to_array(),
         ..transform
     };
-    let color = sinks
-        .saber_skins
-        .blade_color(owner_entity, BladeColor::from_rgb(owner.color));
+    // A team colour replaces a black blade too; a skin is worn over it unless plain.
+    let stock = if team_color.is_some() {
+        BladeColor::from_rgb(owner.color)
+    } else {
+        sinks
+            .black_sabers
+            .color(owner_entity, 0, BladeColor::from_rgb(owner.color))
+    };
+    let color = if team_blade.plain {
+        stock
+    } else {
+        sinks.saber_skins.blade_color(owner_entity, stock)
+    };
     if let Some((hilt, blades)) = submit_hilt(
         owner,
         color,
@@ -159,7 +183,7 @@ pub(super) fn submit_hilt(
     if !owner.in_flight {
         return None;
     }
-    let hilt = catalog.get(owner.name);
+    let hilt = catalog.get_any_case(owner.name);
     objects[hilt.mesh_index].push(ActorInstance::new(
         transform.translation,
         transform.rotation,

@@ -494,6 +494,9 @@ struct EventSubject {
     /// A vehicle (`ET_NPC`, `CLASS_VEHICLE`): `EV_FIRE_WEAPON` and `EV_ALT_FIRE` on it
     /// play nothing ([`is_vehicle`]).
     vehicle: bool,
+    /// An `ET_NPC`'s `csSounds_Std`/`_Combat`/`_Extra`/`_Jedi`: its own voice
+    /// ([`npc_voices`]).
+    npc_sounds: Option<[u8; 4]>,
 }
 
 /// `CG_EntityEvent` (`cg_event.c:2751-2760`, `:2779-2784`): an `ET_NPC` vehicle with a
@@ -529,6 +532,8 @@ impl EventSubject {
             tracked_entity: state.tracked_entity_num(),
             mute_entity: state.mute_entity_num(),
             vehicle: is_vehicle(state.entity_type(), state.npc_class()),
+            npc_sounds: (state.entity_type() == crate::npc_identity::ET_NPC)
+                .then(|| state.npc_sound_sets()),
         }
     }
 
@@ -552,6 +557,7 @@ impl EventSubject {
             tracked_entity: 0,
             mute_entity: 0,
             vehicle: false,
+            npc_sounds: None,
         }
     }
 }
@@ -583,6 +589,9 @@ pub struct LegacySoundAdapter {
     footsteps: [[Option<u16>; 4]; 11],
     water_steps: [[Option<u16>; 4]; 3],
     custom: [CustomSet; MAX_CLIENTS],
+    /// NPC custom sounds by the `CS_SOUNDS` slot naming their directory
+    /// ([`npc_voices`]).
+    npc_sets: Box<[Option<CustomSet>]>,
     client_teams: [u8; MAX_CLIENTS],
     taunt_random: crate::animation_events::Random,
     saber_attack: [Option<u16>; 8],
@@ -657,6 +666,7 @@ impl LegacySoundAdapter {
         let mut intern = |path: &str| intern_sound(&mut sounds, vfs, path, &mut register);
         let mut cs_sounds = [None; MAX_SOUNDS];
         let mut cs_custom = [None; MAX_SOUNDS];
+        let mut npc_sets = vec![None; MAX_SOUNDS].into_boxed_slice();
         for (index, slot) in cs_sounds.iter_mut().enumerate() {
             let Some(bytes) = game_state.config_string(CS_SOUNDS + index) else {
                 continue;
@@ -666,6 +676,8 @@ impl LegacySoundAdapter {
             };
             if let Some(kind) = custom_kind(path) {
                 cs_custom[index] = Some(kind);
+            } else if let Some(directory) = npc_voices::npc_sound_directory(path) {
+                npc_sets[index] = Some(npc_voices::npc_custom_set(vfs, directory, &mut intern));
             } else if !path.is_empty() {
                 *slot = Some(intern(path));
             }
@@ -821,6 +833,7 @@ impl LegacySoundAdapter {
             footsteps,
             water_steps,
             custom,
+            npc_sets,
             client_teams,
             predicted_events: Default::default(),
             taunt_random: Default::default(),
@@ -999,6 +1012,11 @@ impl LegacySoundAdapter {
         &self.ledger
     }
 
+    /// Select pre-registered JoF EJK hover variants without loading frame assets.
+    pub fn set_jetpack_sounds(&mut self, options: crate::LegacyJetpackSounds) {
+        self.loops.jetpack_sounds = options;
+    }
+
     /// Build the current rendered frame's fixed-capacity loop requests.
     pub fn observe_loops(
         &mut self,
@@ -1098,7 +1116,8 @@ impl LegacySoundAdapter {
         }
         self.cause = event_cause(event, &entity);
         let source = entity.number;
-        let client = usize::from(entity.client_num).min(MAX_CLIENTS - 1);
+        // The voice of the player or NPC the event names (`CG_CustomSound`).
+        let voice = self.voice_of(&entity, snapshot);
         let variant = deterministic_variant(source, event, parameter);
         // Event-maintained loops live in centity state and are re-added to the
         // backend every frame (`cg_ents.c:109-110,141-192,244-285`).
@@ -1142,7 +1161,7 @@ impl LegacySoundAdapter {
                 return;
             }
             Some(MaintainedRule::Start) => {
-                let sound = self.configured_sound(parameter, client);
+                let sound = self.configured_sound(parameter, &voice);
                 self.start_maintained(
                     LegacyMaintainedEvent::StartLoopingSound,
                     source,
@@ -1159,21 +1178,21 @@ impl LegacySoundAdapter {
         let simple = match event {
             125..=127 => Some((
                 LegacySoundEvent::Pushed,
-                self.custom[client].pushed[usize::from(event - 125)],
+                voice.pushed[usize::from(event - 125)],
                 source,
                 CHAN_VOICE,
                 false,
             )),
             128..=130 => Some((
                 LegacySoundEvent::Choke,
-                self.custom[client].choke[usize::from(event - 128)],
+                voice.choke[usize::from(event - 128)],
                 source,
                 CHAN_VOICE,
                 false,
             )),
             190 => Some((
                 LegacySoundEvent::PushFail,
-                self.custom[client].push_fail,
+                voice.push_fail,
                 source,
                 CHAN_VOICE,
                 false,
@@ -1243,7 +1262,7 @@ impl LegacySoundAdapter {
             )),
             16 => Some((
                 LegacySoundEvent::Jump,
-                self.custom[client].jump,
+                voice.jump,
                 source,
                 CHAN_VOICE,
                 false,
@@ -1271,7 +1290,7 @@ impl LegacySoundAdapter {
             )),
             21 => Some((
                 LegacySoundEvent::WaterClear,
-                self.custom[client].gasp,
+                voice.gasp,
                 source,
                 CHAN_AUTO,
                 false,
@@ -1436,7 +1455,7 @@ impl LegacySoundAdapter {
                     )
                 }),
             76 => {
-                let sound = self.configured_sound(parameter, client);
+                let sound = self.configured_sound(parameter, &voice);
                 layered =
                     self.saber_overrides
                         .general(sound, &self.sounds, entity.origin, snapshot);
@@ -1450,14 +1469,14 @@ impl LegacySoundAdapter {
             }
             77 => Some((
                 LegacySoundEvent::Global,
-                self.configured_sound(parameter, client),
+                self.configured_sound(parameter, &voice),
                 snapshot.player.client_num(),
                 CHAN_MENU1,
                 true,
             )),
             79 => Some((
                 LegacySoundEvent::Entity,
-                self.configured_sound(parameter, client),
+                self.configured_sound(parameter, &voice),
                 entity.client_num,
                 entity.entity_channel,
                 false,
@@ -1478,7 +1497,7 @@ impl LegacySoundAdapter {
                 };
                 Some((
                     LegacySoundEvent::Pain,
-                    self.custom[client].pain[band],
+                    voice.pain[band],
                     source,
                     CHAN_VOICE,
                     false,
@@ -1486,7 +1505,7 @@ impl LegacySoundAdapter {
             }
             90..=92 => Some((
                 LegacySoundEvent::Death,
-                self.custom[client].death[(event - 90) as usize],
+                voice.death[(event - 90) as usize],
                 source,
                 CHAN_VOICE,
                 false,
@@ -1559,7 +1578,7 @@ impl LegacySoundAdapter {
                     }
                     self.emit(
                         LegacySoundEvent::Roll,
-                        self.custom[client].jump,
+                        voice.jump,
                         source,
                         CHAN_VOICE,
                         false,
@@ -1635,7 +1654,7 @@ impl LegacySoundAdapter {
                 }
                 75 => self.emit_voice_command(parameter, entity, snapshot),
                 115 => {
-                    let sound = self.taunt_sound(client, parameter);
+                    let sound = self.taunt_sound(voice, parameter);
                     self.emit(
                         LegacySoundEvent::Taunt,
                         sound,
@@ -1651,7 +1670,7 @@ impl LegacySoundAdapter {
             }
         }
         if event == 11 && parameter > 44 && entity.e_flags & (1 << 1) == 0 {
-            let sound = self.custom[client].land;
+            let sound = voice.land;
             self.pain_deadline[usize::from(source)] = time.saturating_add(500);
             self.emit(
                 LegacySoundEvent::Fall,
@@ -1740,7 +1759,7 @@ impl LegacySoundAdapter {
         if client >= MAX_CLIENTS {
             return;
         }
-        let sound = self.configured_sound(parameter, client);
+        let sound = self.configured_sound(parameter, &self.custom[client]);
         let same_team = self.client_teams[client] == snapshot.player.team();
         if entity.ground != snapshot.player.client_num() && same_team {
             self.emit(
@@ -1766,10 +1785,9 @@ impl LegacySoundAdapter {
         );
     }
 
-    fn configured_sound(&self, parameter: u8, client: usize) -> Option<u16> {
-        self.cs_sounds[usize::from(parameter)].or_else(|| {
-            self.cs_custom[usize::from(parameter)].and_then(|kind| self.custom[client].get(kind))
-        })
+    fn configured_sound(&self, parameter: u8, voice: &CustomSet) -> Option<u16> {
+        self.cs_sounds[usize::from(parameter)]
+            .or_else(|| self.cs_custom[usize::from(parameter)].and_then(|kind| voice.get(kind)))
     }
 }
 
@@ -1815,6 +1833,9 @@ fn custom_kind(path: &str) -> Option<CustomKind> {
         _ => None,
     }
 }
+
+#[path = "sound_npc_voices.rs"]
+mod npc_voices;
 
 #[path = "sound_event_latches.rs"]
 mod event_latches;

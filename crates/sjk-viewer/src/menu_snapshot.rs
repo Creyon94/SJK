@@ -2188,6 +2188,7 @@ fn radial_hud(shots: &mut Snapshot) {
         hud: true,
         status: true,
         weapon: true,
+        selection: true,
         crosshair: true,
         crosshair_names: false,
         timer: false,

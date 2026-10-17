@@ -110,10 +110,14 @@ impl LegacyLoadTask {
 impl GameAudio {
     /// Stop old-map audio before new snapshots can reach the old configstring resolver.
     pub(crate) fn begin_map_change(&mut self) {
+        let flame_override = self.flame.override_value;
+        self.flame = Default::default();
+        self.flame.override_value = flame_override;
         self.transitions.reset();
         self.output.send(AudioCommand::StopEffects);
         self.output.stop_music();
         self.legacy = None;
+        self.holster_sync = Default::default();
         self.saber_sets_generation = None;
         self.legacy_load = None;
         self.sound_table_refresh = None;
@@ -132,6 +136,8 @@ impl GameAudio {
         bsp: &Bsp,
     ) {
         self.begin_map_change();
+        self.flame.detected =
+            crate::actor_world_submission::force_powers::flame::detect(Some(game_state));
         self.sound_table_refresh = Some(SoundTableRefresh::new(game_state));
         self.legacy_vfs = Some(Arc::clone(&vfs));
         self.deferred_snapshots.clear();

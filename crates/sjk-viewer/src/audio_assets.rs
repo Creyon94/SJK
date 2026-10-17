@@ -116,6 +116,11 @@ impl SoundPrefetch {
         }
         paths.extend(crate::effect_aux::saber_contacts::SOUNDS.map(str::to_owned));
         paths.extend(crate::jetpack::SOUNDS.map(str::to_owned));
+        paths.extend(
+            crate::actor_world_submission::force_powers::flame::CONTRACTS
+                .iter()
+                .map(|rule| rule.sound.to_owned()),
+        );
         paths.push(crate::electrify::CRACKLE.to_owned());
         paths.extend(
             [

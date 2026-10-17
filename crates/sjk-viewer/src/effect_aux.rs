@@ -79,6 +79,7 @@ pub(crate) struct Runtime {
     pub(crate) continuous: cadence::Cadence,
     /// JoF animation-driven chest/hand effects, owned by this rendered world.
     pub(crate) force_anim: sjk_client::LegacyForceAnimFxTimers,
+    pub(crate) flame_hits: crate::actor_world_submission::force_powers::flame::Hits,
     /// Lights a world shot holds in place every frame (`world_shot_notes.rs`).
     #[cfg(test)]
     pub(crate) held_lights: Vec<PointLight>,
@@ -98,6 +99,7 @@ impl Default for Runtime {
             saber_rain_steam: saber_rain_steam::Runtime::default(),
             continuous: cadence::Cadence::default(),
             force_anim: sjk_client::LegacyForceAnimFxTimers::default(),
+            flame_hits: Default::default(),
             #[cfg(test)]
             held_lights: Vec::new(),
         }

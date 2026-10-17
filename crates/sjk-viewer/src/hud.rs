@@ -8,6 +8,8 @@ pub(crate) mod enemy_info;
 mod estimate;
 pub(crate) mod family;
 pub(crate) mod flag_status;
+mod follow;
+pub(crate) use follow::shown as follow_shown;
 mod force_estimate;
 mod force_streams;
 pub(crate) mod force_wheel;
@@ -79,6 +81,8 @@ pub(crate) struct HudVisibility {
     pub(crate) hud: bool,
     pub(crate) status: bool,
     pub(crate) weapon: bool,
+    /// Weapon, inventory and Force selection rows, independently of status cvars.
+    pub(crate) selection: bool,
     pub(crate) crosshair: bool,
     pub(crate) crosshair_names: bool,
     pub(crate) timer: bool,
@@ -103,6 +107,7 @@ impl HudVisibility {
             hud,
             status: hud && enabled("cg_drawStatus", true),
             weapon: hud && enabled("cg_drawWeapon", true),
+            selection: hud,
             crosshair: hud
                 && console
                     .and_then(|c| c.integer_cvar("cg_drawCrosshair"))
@@ -121,6 +126,7 @@ impl HudVisibility {
         hud: false,
         status: false,
         weapon: false,
+        selection: false,
         crosshair: false,
         crosshair_names: false,
         timer: false,
@@ -217,6 +223,8 @@ pub(crate) struct HudOverlay {
     /// `cg_drawUpperRight`, a clock to show), as JoF EJK's `CG_DrawUpperRight` puts it.
     upper_right_timer: bool,
     warmup_text: String,
+    /// The followed player's name (`CG_DrawFollow`), empty when not following.
+    followed_name: String,
     interrupted: bool,
     lagometer: sjk_client::LagometerSamples,
     default_document: HudLayoutDocument,
@@ -338,6 +346,7 @@ impl HudOverlay {
             match_timer: String::with_capacity(16),
             upper_right_timer: false,
             warmup_text: String::with_capacity(48),
+            followed_name: String::with_capacity(64),
             interrupted: false,
             lagometer: sjk_client::LagometerSamples::new(),
             default_document: HudLayoutDocument::from_json(DEFAULT_LAYOUT)
@@ -545,9 +554,13 @@ impl HudOverlay {
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
             }
             self.speed.emit(&mut self.draw_list, self.theme, viewport);
-            let selector = self
-                .selector
-                .filter(|s| !s.inventory || self.family.inventory);
+            follow::emit(
+                &mut self.draw_list,
+                &self.followed_name,
+                viewport,
+                dpi_scale,
+            );
+            let selector = self.selector.filter(|_| visibility.selection);
             match selector {
                 Some(view) if !view.inventory && self.force_wheel_bar => force_wheel::emit(
                     &mut self.draw_list,

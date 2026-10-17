@@ -27,6 +27,47 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Rage and healing effects follow players' and NPCs' full-body animations, with chest and hand attachments; your body-push blur stays out of first-person and zoom views. _(lumayaa, after JoF EJK)_
 
+## 2026.1017.2 (Alpha) | 17/10/2026
+
+> Force: JoF's 22 community presets in the Force menu.
+> Sabers: Holstered hilts on JA+, black sabers, the flamethrower.
+> Settings: Camera framing, chat and menu text size, inventory list.
+> Console: Two-key binds such as `bind K+L kill`.
+> Chat: %H%, %S% and the other EJK tokens send your live values.
+> Scoreboard: The classic one opens when you die, as in JoF EJK.
+
+- The Great Holocron, the Sith pyramid and the kyber crystal wear Sol's own faces: the Sith triangle and runes run up the pyramid onto its floating cap, the crystal's facets carry its texture, and the Jedi cube's faces stand out as raised plateaus _(Sol)_
+- Following another player, leaving follow or spectator mode, or a demo rewind resets the weapon selection to the weapon in hand, so the old choice no longer reaches the new player's HUD or your next command _(Lumaya, after JoF EJK)_
+- Team Heal and Team Energize bought outside a team game stay in the Force profile you send, so a server that allows them can grant them; the Force menu says "Server decides" instead of "Team games only" _(Lumaya)_
+- Native servers load every NPC definition file of a large pack instead of dropping those past the stock 2,048-byte file list _(Lumaya)_
+- Desann's saber style shows violet and Tavion's cyan in the native HUD and nameplate halos, no longer the colour of an unknown style _(Lumaya, after JoF EJK)_
+- On Linux the clipboard tools follow the desktop session (wl-copy under Wayland, xclip under X11), and a copy that fails no longer says it worked; a failed cut keeps the text _(Lukas)_
+- Two-key combo binds as in JoF EJK: `bind K+L kill` runs when both keys are held, in either order, instead of the second key's own bind; they are listed, saved and imported like other binds _(Lukas, after JoF EJK)_
+- Tab completes the cfg file name after `exec`, `execq`, `writeconfig` and `write` _(Slash, after EternalJK)_
+- `clientlist` lists the players with their client numbers (`showplayerid` still works), and `clientlistinfo` adds their model, gender, sabers and colours _(Lukas, after JoF EJK)_
+- Chat messages expand JoF EJK's substitutions: %H% health, %S% shield, %F% Force, %W% weapon, %A% ammo, %P% ping, %U% %UKM% %UM% speed, %T% %T2% local time, each written as its own word, from the composer, the console, binds, team chat and tells _(Lumaya, after JoF EJK)_
+- Hide duellers (Settings, Nameplates, `cg_nameplateHideDuelers`, off by default) hides the nameplates of players in a private duel _(Lumaya, after EJK)_
+- The Force menu offers JoF EJK's 22 community presets (13 Light, 9 Dark) under Community, beside the Jedi Academy templates, in both menu styles; each is fitted to the server's rank and rules before Apply _(Lumaya, after JoF EJK)_
+- Grip victims are surrounded by red puffs, as in JoF EJK; Settings, Grip victim effects (`cg_gripVictimFX`) turns them off _(Lumaya, after JoF EJK)_
+- The permanent inventory list is a setting (Settings, HUD, Inventory list); the item selector still shows when you cycle items _(Lumaya, after JoF EJK)_
+- JoF EJK's camera settings: weapon FOV, third-person distance, angle, height and offsets, and the damping presets, in Settings Advanced Gameplay and classic+ Game options _(Lukas, after JoF EJK)_
+- Chat text size is in every settings mode, and Menu text size now goes up to 1.4 _(Lukas)_
+- Jetpack ignition and hover sound choices match JoF EJK, with both sound selectors in SJK and classic settings and corrected positional start/stop playback _(Lumaya, after JoF EJK)_
+- Tavion and Desann saber styles now show their distinct idle poses by default, for local and remote players, without changing movement or attack timing _(Lumaya, after JoF EJK)_
+- JA+/jaPRO black sabers now render for both hands and thrown blades, with dark trails and the correct plugin toggle; enabled by default in both settings interfaces _(Lumaya, after JoF EJK)_
+- Holstered saber hilts on JA+ servers: a stowed saber hangs at your hip, dual sabers on both hips and a staff across your back when the server's plugin allows it, hidden when cloaked, mind-tricked, dead or mounted; Settings, Holstered saber hilts _(Lumaya, after JoF EJK)_
+- JA+'s flamethrower shows its flames, impact fire, pose and sound instead of Lightning on JA+ servers (Settings, Flamethrower effects: Auto, Off or JA+); without the flame effects installed, Lightning shows as before _(Lumaya, after JoF EJK)_
+- The classic scoreboard follows JoF EJK: it opens when you die, keeps the votes and timers visible, hides your status and crosshair while it is up, and lists up to 19 players, 32 on crowded servers _(Lumaya, after JoF EJK)_
+- CTF team saber colours (Settings, off by default): in capture the flag every red or blue player's sabers in their team's colour, with no blade shader _(Slash)_
+- Pressing a bind such as amhug many times no longer queues the extra presses to fire one a second afterwards: a repeated bind or console command waits once and is dropped if it cannot leave within 1.5 s; typed chat is never dropped _(Sol, after chris's report)_
+- Team games colour sabers by team, as in JoF EJK: red players' blades red and blue players' blue, custom and black colours included, with saber shaders worn over the team colour (`cg_saberTeamColors`, on by default; 0 changes only the other team's colour and RGB or black); CTF team saber colours now only adds plain blades in capture the flag _(Sol, after Kushina's report)_
+- Spectating shows the followed player's name in the top left, as in JoF EJK, and hides the warmup line meanwhile _(Sol)_
+- The text HUD (`cg_hudFiles 1`) keeps six-letter saber styles such as MEDIUM and STRONG on one line, inside the screen _(Sol, after SixNine's report)_
+- Free camera and `fakenoclip` fly during JA+ sit and dance emotes (amsit, amhips): a server holding your body at speed 0 no longer keeps the camera stuck inside it _(Sol, after Kushina's reports)_
+- NPCs' thrown sabers are visible, with the NPC's own hilt and colour; NPC sabers take their hilt's colour instead of always red, and an NPC without a saber shows no blade _(Sol, after JoF EJK)_
+- NPCs and vehicles such as the tauntaun cry, jump and die in their own voice instead of a player's, and stay silent when they have none _(Sol, after JoF EJK)_
+- Shadered sabers cost far less up close and when swinging: afterimages are drawn as a plain glow, the faintest is dropped, and the empty space round a blade's glow is skipped _(Sol, after Kushina's reports)_
+
 ## 2026.1017.1 (Alpha) | 17/10/2026
 
 Holocrons keep dropping, but opening them, the shop and the shards stay closed to players for now: the SJK hub turns them on later.
@@ -38,7 +79,7 @@ Holocrons keep dropping, but opening them, the shop and the shards stay closed t
 > Player card: Only for players in sight, within 1200 units.
 > Fixes: Linux paste, one-letter Russian chat, pale shader blades, freecam in emotes.
 
-- Each holocron tier is now an object of its own: Uncommon the Jedi cube with a lamp on each face, Rare the Great Holocron with a halo turning around it, Legendary the Sith pyramid whose cap floats over a glowing eye, Mythical the kyber prism turning in two gimbal rings with motes of light around it. The Holocrons tab, the opening and the tier pictures show the new shapes, and a tier you hold none of keeps its shape, dark and still _(Sol)_
+- Each holocron tier is now an object of its own: Uncommon the Jedi cube with a lamp on each face, Rare the Great Holocron with a halo turning around it, Legendary the Sith pyramid whose cap floats over a glowing eye, Mythical the kyber prism turning in two gimbal rings with motes of light around it, the last three with faces Sol painted. The Holocrons tab, the opening and the tier pictures show the new shapes, and a tier you hold none of keeps its shape, dark and still _(Sol)_
 - The Shaders tab shows your saber on its own, turning slowly over the right of the screen: drag it to turn it and look at the hilt and blade from any side. Under it each shader has a card in its tier's colours, with icons for where it comes from, its smith, the copies you hold, and for a locked one which holocrons can drop it and how likely; once the SJK hub turns the shards on, its card shatters a duplicate or crafts a shader you lack. Behind the Holocrons tab the holocron now floats alone, without your character _(Sol)_
 - Every saber shader can now drop from holocrons except the three a medal brings (Glitch, Hologram and Runic): Sun, Void, Molten, Spectral and seven more of the team's shaders join the Rare, Legendary and Mythical pools once the SJK hub is updated, and their "How to get it" says so _(Sol)_
 - Kyber shards and the shop, ready for when the SJK hub turns them on: a saber shader you hold more than once can be shattered into kyber shards, shards craft the shader you choose, a holocron can bring a pile of shards (one opening in ten), and the Holocrons tab's Shop (S) sells four saber shaders a day for credits, the same for everyone, new each midnight in Paris. Your shards stand beside your credits, and the loot table shows the piles' odds _(Sol)_
@@ -149,6 +190,7 @@ Seeing bars means sharing yours, a card that says who sees your model, and emote
 - The gold nameplate contour now also shows on players who share because they see everyone's bars (`cg_nameplateEstimate`), and on your own plate (`cg_nameplateSelf`) in that case _(Sol)_
 - The player card says whether the inspected SJK player sees the model you wear ("Sees your model" or "Can't see your model"): SJK tells the hub which player models you have, which `cl_shareModels` (Settings > Network > Share my model list) turns off _(Sol)_
 - Looping emotes loop their music, music made of an intro and a loop plays both, and emote pictures stand on a blue disc so they show on the quick wheel; the Blender add-on takes a Music loop per emote _(Sol)_
+- Holstered saber hilts on supported JA+ servers, with hip and staff back placement, cloak-safe visibility and animation-driven staff handoff; controls are available in both menu styles _(Lumaya, after JoF EJK)_
 
 ## 2026.1015.1 (Alpha) | 15/10/2026
 

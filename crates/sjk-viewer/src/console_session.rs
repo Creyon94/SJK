@@ -32,6 +32,12 @@ impl ViewerConsole {
             ),
             CvarDefinition::new("name", "Padawan", user, "Multiplayer player name"),
             CvarDefinition::new(
+                crate::saber_rgb::black::CVAR,
+                true,
+                CvarFlags::ARCHIVE,
+                "Show JA+/jaPRO black sabers when plugin feature 3 is allowed",
+            ),
+            CvarDefinition::new(
                 "model",
                 "kyle/default",
                 user,
@@ -553,6 +559,7 @@ impl ViewerConsole {
             open: false,
             shift: false,
             held_keys: Default::default(),
+            bind_state: Default::default(),
             force_repeat: Default::default(),
             input: String::with_capacity(INPUT_LIMIT),
             history: Vec::new(),
@@ -1190,6 +1197,24 @@ mod tests {
         assert!(console.set_cvar(crate::input::force_repeat::CVAR, "0"));
         console.queue_bound_script("MOUSE4", true);
         assert_eq!(console.force_repeat_command(), None, "turned off");
+    }
+
+    #[test]
+    fn second_held_key_queues_the_chord_instead_of_its_own_bind() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line("bind k echo first", None);
+        console.execute_console_line("bind l echo ordinary", None);
+        console.execute_console_line("bind k+l kill", None);
+
+        console.queue_bound_script("K", true);
+        console.queue_bound_script("L", true);
+        let mut seen = Vec::new();
+        console.execute_buffered_frame(None, |command, _| {
+            seen.push(command.to_owned());
+            true
+        });
+        assert_eq!(seen, ["echo first", "kill"]);
     }
 
     /// The nameplate's own powers are what the server grants the profile that is

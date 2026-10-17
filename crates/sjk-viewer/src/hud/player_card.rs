@@ -526,6 +526,23 @@ fn blade(info: LegacyClientInfo<'_>, key: &str) -> Option<[u8; 3]> {
         .then(|| crate::saber::Color::ALL[index as usize].blade_rgb())
 }
 
+/// The swatches of a player whose blades take their team's `forced` colours over
+/// their own `swatches`: one per saber held, including a custom colour's, which has
+/// no stock swatch of its own.
+fn team_swatches(
+    info: &[u8],
+    swatches: [Option<[u8; 3]>; 2],
+    forced: [Option<[u8; 3]>; 2],
+) -> [Option<[u8; 3]>; 2] {
+    let dual = LegacyClientInfo::new(info)
+        .text("st2")
+        .is_some_and(|second| !second.is_empty() && !second.eq_ignore_ascii_case("none"));
+    [
+        forced[0].or(swatches[0]),
+        dual.then(|| forced[1].or(swatches[1])).flatten(),
+    ]
+}
+
 /// The cosmetic named in a `c1`/`c2` value (JoF EJK appends it after the colour digits).
 fn cosmetic(value: Option<&str>) -> Option<String> {
     let (_, name) = sjk_client::split_color_value(value?);
@@ -747,6 +764,8 @@ pub(crate) struct Input<'a> {
     pub(crate) bsp: &'a Bsp,
     pub(crate) scratch: &'a mut TraceScratch,
     pub(crate) game: &'a GameState,
+    /// `cg_saberTeamColors` and `cg_ctfTeamSabers` (`team_sabers.rs`).
+    pub(crate) team_sabers: crate::team_sabers::Settings,
     pub(crate) world: &'a sjk_runtime::World,
     pub(crate) now: i32,
     pub(crate) camera: Camera,
@@ -1019,10 +1038,18 @@ impl State {
         let hub = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.hub)(slot, &name));
+        // In team games the card shows the blades as the world draws them: the team's
+        // colour, with no shader over it under CTF team sabers (`team_sabers.rs`).
+        let team_blade = crate::team_sabers::Rules::new(input.team_sabers, input.game)
+            .of_client(input.game, client);
         let shader = u8::try_from(client)
             .ok()
-            .and_then(|slot| (input.shader)(slot));
+            .and_then(|slot| (input.shader)(slot))
+            .filter(|_| !team_blade.plain);
         self.card = card_from(info, hub, shader);
+        if team_blade.any() {
+            self.card.swatches = team_swatches(info, self.card.swatches, team_blade.colors);
+        }
     }
 
     /// The card's height in pixels at `unit`; a `pinned` card adds the medals' names
@@ -1799,6 +1826,25 @@ mod tests {
         assert!(!dual.has_extra(), "no wins and losses on the card");
         let bot = card_from(&info("n|Kyle|t|0|model|kyle|skill|3|"), None, None);
         assert_eq!(bot.texts[T_EXTRA], "Bot, skill 3");
+    }
+
+    #[test]
+    fn a_team_blade_fills_one_swatch_per_saber_held() {
+        const RED: [u8; 3] = [255, 51, 51];
+        const GREEN: [u8; 3] = [51, 255, 51];
+        let both = [Some(RED); 2];
+        let custom = info("n|Sol|t|1|st|single_1|c1|9|");
+        assert_eq!(team_swatches(&custom, [None; 2], both), [Some(RED), None]);
+        let dual = info("n|Fox|t|1|st|dual_1|st2|dual_2|c1|2|c2|3|");
+        let own = [Some([255, 255, 51]), Some(GREEN)];
+        assert_eq!(team_swatches(&dual, own, both), [Some(RED), Some(RED)]);
+        // `cg_saberTeamColors 0` replaces only one of them.
+        assert_eq!(
+            team_swatches(&dual, own, [Some(RED), None]),
+            [Some(RED), Some(GREEN)]
+        );
+        let staff_none = info("n|Kyle|t|1|st|staff_1|st2|none|c1|2|");
+        assert_eq!(team_swatches(&staff_none, own, both), [Some(RED), None]);
     }
 
     #[test]

@@ -104,7 +104,7 @@ const DUAL_HILT_ROWS: usize = 4;
 /// The hilt search's field, at the right of the lists' heading line: beside one
 /// list's heading, and beside Dual's "Left hand".
 const SEARCH_WIDTH: f32 = 240.0;
-const DUAL_SEARCH_WIDTH: f32 = 170.0;
+const DUAL_SEARCH_WIDTH: f32 = 160.0;
 /// The blade choice's swatches (the Collection's, shrunk) and the gap between
 /// them, from `SKIN_X` so that the ones shown (at most `SKIN_SHOWN` of the stock
 /// blade and every blade skin owned, scrolled to keep the chosen one in view)
@@ -346,7 +346,13 @@ pub(super) fn force_key_order(side: ForceSide) -> Vec<usize> {
                 .map(|power| FORCE_POWER_ROW + usize::from(*power)),
         );
     }
-    order.extend([FORCE_RESET_ROW, FORCE_DISCARD_ROW, FORCE_APPLY_ROW]);
+    order.extend([
+        super::rows::FORCE_RETAIL_TEMPLATE_ROW,
+        super::rows::FORCE_COMMUNITY_TEMPLATE_ROW,
+        FORCE_RESET_ROW,
+        FORCE_DISCARD_ROW,
+        FORCE_APPLY_ROW,
+    ]);
     order
 }
 
@@ -1401,6 +1407,7 @@ impl PlayerMenu {
     /// the left, the side's five on the right), each with its three levels
     /// priced, then Start over, Discard and Apply.
     fn sjk_force(&mut self, frame: &Frame) {
+        self.sjk_force_templates(frame);
         let s = frame.s;
         let remaining = self.force.remaining_points();
         let total = self.force.total_points();
@@ -1656,7 +1663,7 @@ impl PlayerMenu {
             0 => line(
                 &mut self.canvas,
                 &mut y,
-                "Every power is allowed",
+                "No powers explicitly disabled",
                 color::TEXT,
             ),
             // A long list would run past the page: the rows say which.
@@ -1677,7 +1684,7 @@ impl PlayerMenu {
             line(
                 &mut self.canvas,
                 &mut y,
-                "Team powers: team games only",
+                "Team powers outside team games: server decides",
                 color::MUTED,
             );
         }
@@ -2273,7 +2280,9 @@ impl PlayerMenu {
                 Some(SaberRow::Search) => RowKind::Type,
                 _ => RowKind::Step,
             },
-            ProfilePage::Force if self.selected >= FORCE_RESET_ROW => RowKind::Act,
+            ProfilePage::Force if (FORCE_RESET_ROW..=FORCE_APPLY_ROW).contains(&self.selected) => {
+                RowKind::Act
+            }
             ProfilePage::Force => RowKind::Step,
         }
     }
@@ -2391,9 +2400,9 @@ mod tests {
             < BOTTOM
     );
     // Dual's search field leaves "Left hand" room at the largest text
-    // (`ui_textScale` 1.2; Rajdhani SemiBold at 22 is 8.5 pixels a character).
+    // (`ui_textScale` 1.5; Rajdhani SemiBold at 22 is 8.5 pixels a character).
     const _: () = assert!(
-        (COLUMN_WIDTH - GUTTER) * 0.5 - 12.0 - DUAL_SEARCH_WIDTH - 22.0 > 1.2 * 8.5 * 9.0 + 8.0
+        (COLUMN_WIDTH - GUTTER) * 0.5 - 12.0 - DUAL_SEARCH_WIDTH - 22.0 > 1.5 * 8.5 * 9.0 + 8.0
     );
     // The blade choice's swatches leave the row's name room.
     const _: () = assert!(SKIN_X - LABEL_X > 110.0);
@@ -2617,11 +2626,65 @@ mod tests {
     }
 
     #[test]
+    fn force_template_selectors_load_the_draft_by_group() {
+        use super::super::rows::{FORCE_COMMUNITY_TEMPLATE_ROW, FORCE_RETAIL_TEMPLATE_ROW};
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let applied = console.cvar("forcepowers").cloned();
+        let mut menu = drawn(ProfilePage::Force, false);
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        crate::assets::force_presets::mount(&mut vfs).unwrap();
+        vfs.mount_memory(
+            "GameData/base/assets0.pk3",
+            [(
+                "forcecfg/light/Zed.fcf",
+                b"7-1-100000000000000000".as_slice(),
+            )],
+        )
+        .unwrap();
+        let vfs = std::sync::Arc::new(vfs);
+        menu.force_templates.list =
+            super::super::force_templates::Templates::from_test_vfs(std::sync::Arc::clone(&vfs));
+        menu.icon_vfs = Some(vfs);
+        draw(&mut menu);
+        for (row, retail) in [
+            (FORCE_RETAIL_TEMPLATE_ROW, true),
+            (FORCE_COMMUNITY_TEMPLATE_ROW, false),
+        ] {
+            let rect = menu.canvas.rect_for(row as u16).expect("selector");
+            click(
+                &mut menu,
+                &mut console,
+                sjk_ui::Vec2::new(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5),
+            );
+            assert_eq!(menu.selected, row);
+            let index = menu.template_row().expect("loaded into draft");
+            assert_eq!(
+                menu.force_templates.list.of(ForceSide::Light)[index].retail,
+                retail
+            );
+            assert_eq!(
+                console.cvar("forcepowers").cloned(),
+                applied,
+                "selection must wait for Apply"
+            );
+            menu.adjust(&mut console, -1);
+            let previous = menu.template_row().unwrap();
+            assert_eq!(
+                menu.force_templates.list.of(ForceSide::Light)[previous].retail,
+                retail
+            );
+            draw(&mut menu);
+        }
+        assert!(!menu.canvas.overflowed());
+    }
+
+    #[test]
     fn the_force_page_groups_powers_as_classic_plus_and_skips_the_other_side() {
         use super::super::classic::layout::{DARK_POWERS, LIGHT_POWERS};
         let light = force_key_order(ForceSide::Light);
         // The sides, thirteen powers, the three actions.
-        assert_eq!(light.len(), 1 + 13 + 3);
+        assert_eq!(light.len(), 1 + 13 + 2 + 3);
         assert_eq!(light[0], FORCE_SIDE_ROW);
         assert_eq!(
             &light[light.len() - 3..],

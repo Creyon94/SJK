@@ -24,13 +24,17 @@ pub(super) fn ammo_ratio(weapon: u8, ammo: Option<i32>, double_ammo: bool) -> f3
 }
 
 /// The colour of a saber style's line: Fast blue, Medium yellow, Strong red, Dual green and
-/// Staff magenta, as TheRisqe Radial HUD's style pictures are drawn. The NPC styles (Desann,
-/// Tavion) and unknown values get a pale violet.
+/// Staff magenta, as TheRisqe Radial HUD's style pictures are drawn. Desann is violet
+/// and Tavion cyan, extending the palette with EJK #26's distinction between them.
+/// Unknown values retain the pale-violet fallback. Native labels and nameplate
+/// saber halos share this palette.
 pub(super) fn saber_style_color(style: u8) -> Color {
     match style {
         1 => Color::new(0.3, 0.55, 1.0, 1.0),
         2 => Color::new(0.96, 0.88, 0.2, 1.0),
         3 => Color::new(1.0, 0.25, 0.21, 1.0),
+        4 => Color::new(0.68, 0.38, 1.0, 1.0),
+        5 => Color::new(0.2, 0.9, 0.95, 1.0),
         6 => Color::new(0.34, 0.93, 0.34, 1.0),
         7 => Color::new(1.0, 0.27, 0.89, 1.0),
         _ => Color::new(0.84, 0.74, 1.0, 1.0),
@@ -210,6 +214,7 @@ mod tests {
             hud: true,
             status: true,
             weapon: true,
+            selection: true,
             crosshair: false,
             crosshair_names: false,
             timer: false,
@@ -334,6 +339,7 @@ mod tests {
                 hud: true,
                 status: true,
                 weapon: true,
+                selection: true,
                 crosshair: true,
                 crosshair_names: false,
                 timer: false,
@@ -613,8 +619,11 @@ mod tests {
 
     #[test]
     fn a_saber_draws_its_style_as_one_full_line_in_the_styles_colour() {
-        let styles = [1, 2, 3, 6, 7];
+        let styles = [1, 2, 3, 4, 5, 6, 7];
+        let unknown = saber_style_color(0);
+        assert_eq!(unknown, saber_style_color(u8::MAX));
         for (index, style) in styles.iter().enumerate() {
+            assert_ne!(saber_style_color(*style), unknown);
             for other in &styles[index + 1..] {
                 assert_ne!(saber_style_color(*style), saber_style_color(*other));
             }

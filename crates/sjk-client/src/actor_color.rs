@@ -86,6 +86,88 @@ fn player_color_from_config(config: &[u8], custom_rgba: [u8; 4]) -> [u8; 4] {
     }
 }
 
+/// `GT_CTF` / `GT_CTY` from `gametype_t`.
+const GT_CTF: i32 = 8;
+const GT_CTY: i32 = 9;
+
+/// Whether the game is one where SJK's optional team sabers apply (the viewer's
+/// `cg_ctfTeamSabers`): capture the flag and capture the ysalamiri. It is stricter than
+/// cgame's `cg_saberTeamColors 0`, which lets a red player keep a yellow blade
+/// (`cg_players.c:8329-8342`).
+pub fn legacy_team_sabers(game_state: &GameState) -> bool {
+    let serverinfo = game_state.config_string(CS_SERVERINFO).unwrap_or(&[]);
+    matches!(info_int(serverinfo, "g_gametype"), GT_CTF | GT_CTY)
+}
+
+/// The blade colour `client_num`'s team forces on both sabers, if
+/// [`legacy_team_sabers`] holds and the client is on red or blue: the stock
+/// `SABER_RED` / `SABER_BLUE` tints, whatever `c1`..`c4` say.
+pub fn legacy_team_blade(game_state: &GameState, client_num: u16) -> Option<[u8; 3]> {
+    if !legacy_team_sabers(game_state) {
+        return None;
+    }
+    let config = game_state.config_string(CS_PLAYERS + usize::from(client_num))?;
+    team_blade_from_config(config)
+}
+
+/// The team blade of one raw `CS_PLAYERS` string.
+fn team_blade_from_config(config: &[u8]) -> Option<[u8; 3]> {
+    use crate::presentation_equipment::legacy_blade_rgb;
+    match info_int(config, "t") {
+        TEAM_RED => Some(legacy_blade_rgb(0)),
+        TEAM_BLUE => Some(legacy_blade_rgb(4)),
+        _ => None,
+    }
+}
+
+/// `SABER_PURPLE`, the last stock entry of `saber_colors_t`.
+const SABER_PURPLE: i32 = 5;
+/// `SABER_RED` / `SABER_BLUE` from `saber_colors_t`.
+const SABER_RED: i32 = 0;
+const SABER_BLUE: i32 = 4;
+
+/// The team colours cgame forces on `client_num`'s two sabers (`c1`, `c2`), `None`
+/// for a saber that keeps its own colour.
+///
+/// JoF EJK `CG_AddSaberBlade` (`codemp/cgame/cg_players.c:8096-8111`): in team
+/// gametypes other than siege and jedi-vs-merc ([`TeamColorPolicy`]), a red player's
+/// blades turn `SABER_RED` and a blue player's `SABER_BLUE`. With `always` false
+/// (`cg_saberTeamColors 0`) only a blade in the other team's colour or past
+/// `SABER_PURPLE` (an RGB, black or other extended colour) is replaced. The custom
+/// RGB of `c3`/`c4` goes with the index it belonged to. NPCs never reach this: they
+/// have no `CS_PLAYERS` slot.
+pub fn legacy_saber_team_colors(
+    game_state: &GameState,
+    policy: TeamColorPolicy,
+    client_num: u16,
+    always: bool,
+) -> [Option<[u8; 3]>; 2] {
+    if !policy.team_override_active {
+        return [None; 2];
+    }
+    game_state
+        .config_string(CS_PLAYERS + usize::from(client_num))
+        .map_or([None; 2], |config| {
+            saber_team_colors_from_config(config, always)
+        })
+}
+
+/// [`legacy_saber_team_colors`] over one raw `CS_PLAYERS` string.
+fn saber_team_colors_from_config(config: &[u8], always: bool) -> [Option<[u8; 3]>; 2] {
+    use crate::presentation_equipment::legacy_blade_rgb;
+    let (own, opposite) = match info_int(config, "t") {
+        TEAM_RED => (SABER_RED, SABER_BLUE),
+        TEAM_BLUE => (SABER_BLUE, SABER_RED),
+        _ => return [None; 2],
+    };
+    ["c1", "c2"].map(|key| {
+        // `icolor1`/`icolor2` are `atoi` of the raw value, before `ClampSaberColor`;
+        // an absent key reads as 0 (red), as `Info_ValueForKey` returns "".
+        let color = info_int(config, key);
+        (always || color == opposite || color > SABER_PURPLE).then(|| legacy_blade_rgb(own))
+    })
+}
+
 /// Resolve the colour `CG_General` hands to the renderer for a corpse.
 pub fn legacy_body_color(custom_rgba: [u8; 4]) -> [u8; 4] {
     custom_rgba
@@ -107,4 +189,91 @@ fn info_value<'a>(info: &'a [u8], key: &str) -> Option<&'a [u8]> {
 /// `atoi(Info_ValueForKey(...))` with a zero default.
 fn info_int(info: &[u8], key: &str) -> i32 {
     info_value(info, key).map_or(0, crate::team_info::legacy_atoi)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::presentation_equipment::legacy_blade_rgb;
+
+    #[test]
+    fn red_and_blue_players_carry_only_their_teams_blade() {
+        let yellow_rgb = br"n\a\t\1\c1\2\c2\8\c4\65280";
+        assert_eq!(
+            team_blade_from_config(yellow_rgb),
+            Some(legacy_blade_rgb(0))
+        );
+        let red = br"n\b\t\2\c1\0\c2\0";
+        assert_eq!(team_blade_from_config(red), Some(legacy_blade_rgb(4)));
+        // Free and spectating players keep their own colours.
+        assert_eq!(team_blade_from_config(br"n\c\t\0\c1\2"), None);
+        assert_eq!(team_blade_from_config(br"n\d\t\3\c1\2"), None);
+    }
+
+    fn game(serverinfo: &[u8], player: &[u8]) -> GameState {
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(CS_SERVERINFO, serverinfo.to_vec())
+            .unwrap();
+        game.replace_config_string(CS_PLAYERS + 2, player.to_vec())
+            .unwrap();
+        game
+    }
+
+    fn forced(serverinfo: &[u8], player: &[u8], always: bool) -> [Option<[u8; 3]>; 2] {
+        let game = game(serverinfo, player);
+        let policy = TeamColorPolicy::from_game_state(&game);
+        legacy_saber_team_colors(&game, policy, 2, always)
+    }
+
+    #[test]
+    fn team_gametypes_force_red_and_blue_sabers() {
+        let red = Some(legacy_blade_rgb(0));
+        let blue = Some(legacy_blade_rgb(4));
+        // Team FFA, CTF and CTY: both sabers, a custom RGB included.
+        for gametype in [
+            br"\g_gametype\6".as_slice(),
+            br"\g_gametype\8",
+            br"\g_gametype\9",
+        ] {
+            assert_eq!(
+                forced(gametype, br"n\a\t\1\c1\3\c2\6\c4\65280", true),
+                [red, red]
+            );
+            assert_eq!(forced(gametype, br"n\b\t\2\c1\2\c2\0", true), [blue, blue]);
+            // Free and spectating players keep their own colours.
+            assert_eq!(forced(gametype, br"n\c\t\0\c1\2", true), [None; 2]);
+            assert_eq!(forced(gametype, br"n\d\t\3\c1\2", true), [None; 2]);
+        }
+    }
+
+    #[test]
+    fn ffa_duel_siege_and_jedi_vs_merc_keep_the_players_choice() {
+        let player = br"n\a\t\1\c1\3\c2\4";
+        for serverinfo in [
+            br"\g_gametype\0".as_slice(),
+            br"\g_gametype\3",
+            br"\g_gametype\7",
+            br"\g_gametype\6\g_jediVmerc\1",
+        ] {
+            assert_eq!(forced(serverinfo, player, true), [None; 2]);
+        }
+    }
+
+    #[test]
+    fn saber_team_colors_zero_replaces_only_the_other_team_and_extended_colours() {
+        let red = Some(legacy_blade_rgb(0));
+        let blue = Some(legacy_blade_rgb(4));
+        let tffa = br"\g_gametype\6";
+        // A red player keeps yellow and purple, loses blue.
+        assert_eq!(forced(tffa, br"n\a\t\1\c1\2\c2\4", false), [None, red]);
+        assert_eq!(forced(tffa, br"n\a\t\1\c1\5\c2\0", false), [None; 2]);
+        // RGB (6), black (11) and the cosmetic suffix JoF appends (`8santahat`).
+        assert_eq!(forced(tffa, br"n\a\t\1\c1\6\c2\11", false), [red, red]);
+        assert_eq!(
+            forced(tffa, br"n\b\t\2\c1\8santahat\c2\3", false),
+            [blue, None]
+        );
+        // A blue player loses red, keeps green.
+        assert_eq!(forced(tffa, br"n\b\t\2\c1\0\c2\3", false), [blue, None]);
+    }
 }

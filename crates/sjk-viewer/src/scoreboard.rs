@@ -155,7 +155,7 @@ impl Scoreboard {
         let allowed = allowed
             && (self.style != style::ScoreboardStyle::Classic
                 || (!console.is_some_and(|c| c.bool_cvar("cl_paused") == Some(true))
-                    && (!self.context.warmup || self.context.held || self.context.intermission)));
+                    && (!self.context.warmup || self.context.held)));
         let visible = self
             .motion
             .present(requested, allowed, std::time::Instant::now());
@@ -695,7 +695,8 @@ fn byte_signature(bytes: &[u8]) -> u64 {
 
 /// Automatic intermission scores and the ordinary held scoreboard share one layout.
 pub(crate) fn requested(gpu: &crate::GpuState, intermission: bool) -> bool {
-    behavior::context(gpu, intermission).requested()
+    behavior::context(gpu, intermission)
+        .requested(style::ScoreboardStyle::from_console(gpu.console.as_ref()))
 }
 
 /// Sample before presentation so death, warmup and roster changes apply together.
@@ -703,9 +704,10 @@ pub(crate) fn update_context(gpu: &mut crate::GpuState, intermission: bool) {
     gpu.scoreboard.context = behavior::context(gpu, intermission);
 }
 
-/// Both looks replace the whole HUD while held, as chosen for SJK.
+/// SJK replaces the whole HUD while held; classic uses selective JoF visibility.
 pub(crate) fn hides_hud(gpu: &crate::GpuState) -> bool {
-    gpu.gameplay_input.held(crate::input::GameButton::Scores)
+    style::ScoreboardStyle::from_console(gpu.console.as_ref()) == style::ScoreboardStyle::Sjk
+        && gpu.gameplay_input.held(crate::input::GameButton::Scores)
         && gpu
             .console
             .as_ref()
@@ -713,12 +715,16 @@ pub(crate) fn hides_hud(gpu: &crate::GpuState) -> bool {
             .unwrap_or(true)
 }
 
+#[path = "scoreboard/hud_policy.rs"]
+mod hud_policy;
+pub(crate) use hud_policy::{hides_crosshair, visibility};
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn manual_death_scores_keep_the_killer_until_respawn_and_close() {
+    fn automatic_classic_death_scores_keep_the_killer_until_respawn_and_close() {
         let directory = tempfile::tempdir().unwrap();
         let mut console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
@@ -727,7 +733,11 @@ mod tests {
         board.context.dead = true;
         board.killer = Some(7);
         board.killer_name.push_str("Attacker");
-        assert!(!board.present(Some(&console), false, true));
+        assert!(board.present(
+            Some(&console),
+            board.context.requested(style::ScoreboardStyle::Classic),
+            true
+        ));
         assert_eq!(board.killer, Some(7));
         assert!(board.present(Some(&console), true, true));
         board.context.dead = false;

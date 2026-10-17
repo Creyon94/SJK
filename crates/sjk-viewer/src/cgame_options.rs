@@ -4,9 +4,16 @@ use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 
 /// Register only options consumed by presentation paths in this batch.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
+    crate::actor_world_submission::force_powers::flame::register(cvars)?;
     crate::hud::family::register(cvars)?;
     crate::hud::kill_feed::register(cvars)?;
     crate::hud::movement::register(cvars)?;
+    cvars.register(CvarDefinition::new(
+        crate::actor_world_submission::force_powers::victim::CVAR,
+        true,
+        CvarFlags::ARCHIVE,
+        "Red neck puffs on choking Grip victims; hidden on the viewed player in first person or zoom",
+    ))?;
     for (name, value, help) in [
         (
             "cg_chatBox",

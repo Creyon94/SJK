@@ -19,6 +19,32 @@ impl<'a> Resolver<'a> {
             vfs,
         }
     }
+
+    /// Names of the files ending in `.extension` at the top of the roots `exec`
+    /// reads from, in the order it searches them: the config folder, then the VFS.
+    /// For tab completion of a file argument (`Cmd_CompleteCfgName`).
+    pub(super) fn root_files(&self, extension: &str) -> Vec<String> {
+        let suffix = format!(".{}", extension.to_ascii_lowercase());
+        let mut names = Vec::new();
+        if let Ok(entries) = fs::read_dir(self.config_directory) {
+            for entry in entries.flatten() {
+                if entry.file_type().is_ok_and(|kind| kind.is_file())
+                    && let Some(name) = entry.file_name().to_str()
+                    && name.to_ascii_lowercase().ends_with(&suffix)
+                {
+                    names.push(name.to_owned());
+                }
+            }
+        }
+        if let Some(vfs) = self.vfs {
+            for name in vfs.list_files("", &suffix) {
+                if !name.contains('/') {
+                    names.push(vfs.original_name(&name).unwrap_or(name));
+                }
+            }
+        }
+        names
+    }
 }
 
 impl CommandFileResolver for Resolver<'_> {
@@ -60,3 +86,32 @@ fn validate_relative_path(path: &str) -> Result<(), String> {
 
 #[path = "console_files.rs"]
 mod files;
+
+#[cfg(test)]
+mod tests {
+    use super::Resolver;
+
+    #[test]
+    fn root_files_list_the_config_folder_then_the_vfs_root() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("Moj.cfg"), "").unwrap();
+        std::fs::write(directory.path().join("notes.txt"), "").unwrap();
+        std::fs::create_dir(directory.path().join("sub")).unwrap();
+        std::fs::write(directory.path().join("sub/deep.cfg"), "").unwrap();
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [
+                ("AutoExec.CFG", b"".to_vec()),
+                ("cfg/nested.cfg", b"".to_vec()),
+            ],
+        )
+        .unwrap();
+        let resolver = Resolver::new(directory.path(), Some(&vfs));
+        assert_eq!(resolver.root_files("cfg"), ["Moj.cfg", "AutoExec.CFG"]);
+        assert_eq!(
+            Resolver::new(directory.path(), None).root_files("cfg"),
+            ["Moj.cfg"]
+        );
+    }
+}

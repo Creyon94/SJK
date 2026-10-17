@@ -18,7 +18,7 @@ impl crate::GpuState {
                 glam::Vec3::ZERO,
             );
             audio.sync_gains(self.console.as_ref());
-            if self.live_session.is_none() {
+            if self.live_session.is_none() && self.demo_session.is_none() {
                 audio.idle_frame();
             }
             audio.end_frame();
@@ -56,6 +56,13 @@ impl GameAudio {
 
     /// Pull the two codemp volume cvars through the existing shell registry.
     pub(crate) fn sync_gains(&mut self, console: Option<&ViewerConsole>) {
+        self.jetpack_sounds = crate::jetpack::sound_options(console);
+        self.flame.override_value = console
+            .and_then(|c| c.integer_cvar(crate::actor_world_submission::force_powers::flame::CVAR))
+            .unwrap_or(-1);
+        self.holster_sync.enabled = console
+            .and_then(|c| c.bool_cvar("cg_holsteredstaffsound"))
+            .unwrap_or(true);
         self.transitions.hits = console
             .and_then(|c| c.integer_cvar("cg_hitsounds"))
             .unwrap_or(0);
@@ -119,9 +126,19 @@ impl GameAudio {
 
     /// Keep background music fed while no live snapshot is producing loops.
     pub(crate) fn idle_frame(&mut self) {
+        self.stop_flame();
         self.poll_legacy_load();
         self.output.send(AudioCommand::ClearLoops);
         self.output.send(AudioCommand::CommitLoops);
+    }
+
+    /// Lookup-only jetpack switch using the original choice and corrected attribution.
+    pub(crate) fn play_jetpack_switch(&mut self, ignition: bool, origin: [f32; 3], wearer: u16) {
+        // EJK #87: the actual wearer on CHAN_AUTO, never hardcoded player zero.
+        let (path, request) = self.jetpack_sounds.switch_request(ignition, wearer, origin);
+        if let Some(handle) = self.find_handle(path) {
+            self.output.send(AudioCommand::Play(handle, request));
+        }
     }
 
     /// Lookup-only EFX sound playback; `vfs` remains in the signature so old

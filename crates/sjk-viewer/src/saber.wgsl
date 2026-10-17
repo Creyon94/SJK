@@ -255,9 +255,11 @@ const CORE_DRAWS: f32 = 2.0;
 const NEUTRAL_MATERIAL: u32 = 6u;
 const SKIN_MATERIAL: u32 = 7u;
 const MAX_SKINS: u32 = 256u;
+const BLACK_MATERIAL: u32 = 263u;
 const KIND_RETAIL: u32 = 0u;
 const KIND_NEUTRAL: u32 = 1u;
-const KIND_SKIN: u32 = 2u;
+const KIND_BLACK: u32 = 2u;
+const KIND_SKIN: u32 = 3u;
 // Colour alpha of a skin's first glint (saber.rs `STAR`), glint n's `STAR - n`; a glow's
 // is its hilt sprite's radius, a core's zero.
 const STAR: f32 = -1.0;
@@ -271,6 +273,9 @@ const OFF_SPUTTER: u32 = 8u;
 const OFF_GLITCH: u32 = 16u;
 const OFF_SCAN: u32 = 32u;
 const OFF_PULSE: u32 = 64u;
+// The afterimages are the CPU's (it makes them), so their bit never reaches the shader as
+// a section switched off: it marks an afterimage itself (saber.rs `Instance::ghost`).
+const OFF_GHOSTS: u32 = 128u;
 const OFF_EMBERS: u32 = 256u;
 const OFF_VEINS: u32 = 512u;
 const OFF_TEAM: u32 = 1024u;
@@ -337,6 +342,12 @@ fn skin_room(skin: Skin, off: u32) -> f32 {
     return min(room, 16.0);
 }
 
+// Whether an instance is an afterimage: dimmed (the blade itself is 255) and marked with
+// the afterimages' bit (the echo, dimmed too, is not; saber.rs `Instance::ghost`).
+fn afterimage(persona: u32, off: u32) -> bool {
+    return (persona >> 24u) != 255u && (off & OFF_GHOSTS) != 0u;
+}
+
 @vertex
 fn vertex_main(@builtin(vertex_index) vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     return blade_vertex(vertex_index, blade);
@@ -384,6 +395,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     var output: VertexOutput;
     output.kind = KIND_RETAIL;
     if blade_material == NEUTRAL_MATERIAL { output.kind = KIND_NEUTRAL; }
+    if blade_material == BLACK_MATERIAL { output.kind = KIND_BLACK; }
     var reach = 1.0;
     var room = 0.0;
     var star = 0.0;
@@ -396,8 +408,11 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
         let skin = skins[blade_material - SKIN_MATERIAL];
         // A skin's glow reaches further, for its flares and shimmer, and its quad further
         // still for its wisps and haze.
-        reach = skin.swell.x;
-        room = skin_room(skin, blade.off);
+        // An afterimage is the plain capsule (`afterimage_glow`): neither.
+        if !afterimage(blade_persona.x, blade.off) {
+            reach = skin.swell.x;
+            room = skin_room(skin, blade.off);
+        }
         star = skin.star_shape.y;
         if skin.hole_shape.x > 0.0 { star = skin.hole_shape.w; }
         glints = skin.star_motion.w;
@@ -1072,10 +1087,16 @@ fn skin_wisps(skin: Skin, input: VertexOutput, r: f32, time: f32, seed: f32) -> 
     let width = r * (0.7 + 1.6 * risen);
     let column = exp(-(at.y * at.y) / (width * width));
     let shown = smoothstep(-0.6 * r, 0.4 * r, at.x) * (1.0 - smoothstep(0.55 * rise, rise, at.x));
+    let fall = column * shown * pow(1.0 - risen, 1.5);
+    // Outside the column (below the blade, past the top, far aside) the smoke cannot
+    // show: skip its four noises there.
+    if fall < 1.0 / 1024.0 {
+        return 0.0;
+    }
     let n = skin_rising(input.blade, up, w.z, w.y, w.w, time, seed);
     let density = skin.wisp_field.x;
     let smoke = smoothstep(1.0 - density, 1.0 - density + 0.3, n);
-    return smoke * column * shown * pow(1.0 - risen, 1.5);
+    return smoke * fall;
 }
 
 // The tip's glint at `p` (units from the tip, facing the camera): `rays` rays turning
@@ -1473,61 +1494,127 @@ fn skin_wings(skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f
     return min(total, 2.0);
 }
 
+// An afterimage (`afterimage`): the glow alone, at its mean. The capsule unwidened in the
+// corona's colours at their middle heat (the granulation's noise at its middle, no flare,
+// the tongues' mean flicker), beating, tinted and turned as the blade is, without the
+// noise, flares, figures, wisps or motes: a swing's afterimages cost about what stock
+// glows do, where each was the whole blade's work over its widest quad (hub report 64).
+fn afterimage_glow(input: VertexOutput) -> vec3<f32> {
+    let skin = skin_at(input);
+    let time = input.animation.x;
+    let along = skin_along(input);
+    let r = chain_radius(input.radius, input.length, clamp(along / max(input.length, 0.0001), 0.0, 1.0));
+    let x = input.blade.x;
+    let beyond = max(input.blade.y - input.shaft, 0.0);
+    let out = select(abs(x), length(vec2(x, beyond)), beyond > 0.0) / r;
+    let mixed = skin.grain_mix;
+    let grain = smoothstep(mixed.z, mixed.w, 0.5 * (mixed.x + mixed.y));
+    let beat = skin_beat(skin, time);
+    let tb = skin.tongue_b;
+    let flicker = mix(1.0, tb.z + 0.5 * tb.w, smoothstep(tb.x, tb.y, out));
+    let inner = 1.0 - smoothstep(0.0, skin.rim_cool.w, out);
+    let rim = mix(skin.rim_cool.rgb, skin.rim_hot.rgb, clamp(grain * skin.rim_hot.w, 0.0, 1.0));
+    let share = skin.inner_mix;
+    let color = mix(rim, skin.inner.rgb,
+        clamp(inner * inner * (share.x + share.y * grain), 0.0, 1.0));
+    let light = skin.brightness;
+    var glow = glow_capsule(input) * color * (light.x + light.y * grain) * flicker
+        * (1.0 + beat);
+    glow = skin_apply_tint(glow, skin_tint(skin, input));
+    let hue = skin.hue;
+    if any(hue.xyz != vec3(0.0)) {
+        glow = skin_turn_hue(glow, time * hue.x + along * hue.y + out * hue.z);
+    }
+    if input.chroma != 0.0 {
+        glow = skin_turn_hue(glow, input.chroma);
+    }
+    return glow * persona_fade(input);
+}
+
+// Whether a pixel of a skin's glow quad is past everything the glow itself draws (the
+// capsule widened at most `corona.reach` times, round the tip and behind the hilt, which
+// the embers, arcs and motes fade out before): only the quad's room for the wisps (or
+// haze, butterflies, wings) reaches there. Never for a skin whose glow moves or reaches
+// further (glitch, the hologram's jitter or scan, copies, glyphs, the figures), which
+// then shades every pixel as before. A blade up close fills the screen with that room
+// (hub report 63).
+fn skin_past_glow(skin: Skin, input: VertexOutput, beyond: f32) -> bool {
+    let plain = skin.glitch_a.y <= 0.0 && skin.scan_jitter.x <= 0.0 && skin.scan_lines.x <= 0.0
+        && skin.copy_shape.x < 1.0 && skin.glyph_color.w <= 0.0 && skin.sketch_shape.x <= 0.0
+        && skin.hour_shape.x <= 0.0 && skin.serpent_shape.x <= 0.0
+        && skin.strand_shape.x < 2.0 && skin.blob_shape.x < 1.0 && skin.fly_shape.x < 1.0
+        && skin.wing_shape.x <= 0.0;
+    if !plain {
+        return false;
+    }
+    let reach = max(chain_radius(input.radius, input.length, 0.0), input.hilt) * skin.swell.x;
+    // Behind the hilt the arcs may still strike.
+    let behind = input.blade.y < -reach && skin.arc_strike.x <= 0.0;
+    return abs(input.blade.x) > reach || beyond > reach || behind;
+}
+
 fn skin_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
+    if afterimage(input.persona.x, input.off) {
+        return afterimage_glow(input);
+    }
     let skin = skin_at(input);
     let time = input.animation.x;
     let seed = input.animation.y;
     let along = skin_along(input);
     let r = chain_radius(input.radius, input.length, clamp(along / max(input.length, 0.0001), 0.0, 1.0));
-    let glitch = skin_glitch(skin, along, time, seed);
-    let x = input.blade.x - (glitch.x + skin_jitter(skin, time, seed)) * r;
-    var glow: vec3<f32>;
-    if glitch.y > 0.0 {
-        let split = glitch.y * r;
-        glow = vec3(
-            skin_glow_at(input, pixel, x + split).r,
-            skin_glow_at(input, pixel, x).g,
-            skin_glow_at(input, pixel, x - split).b,
-        ) * (1.0 + glitch.z);
-    } else {
-        glow = skin_glow_at(input, pixel, x);
-    }
-    let copies = skin.copy_shape;
-    if copies.x >= 1.0 {
-        // Ghost copies at other angles drifting apart, then collapsing with a flash.
-        let p = fract(time / copies.w + seed * 0.37);
-        let apart = smoothstep(0.0, 0.85, p) * (1.0 - smoothstep(0.92, 1.0, p));
-        let flicker = 1.0 - skin.copy_more.x * skin_hash(vec2(i32(floor(time * 12.0)), 4141));
-        var ghosts = vec3(0.0);
-        // Their angle in the quad's own width (an angle of 0.1 reaches 0.6 of it at the
-        // tip, the outer copy), so they stay inside it whatever the blade's size.
-        let reach = skin_extent(skin, input) * 0.6 * copies.y / 0.1 / max(copies.x, 1.0);
-        for (var c = 1; c <= min(i32(copies.x), 2); c++) {
-            for (var s = 0; s < 2; s++) {
-                let offset = select(-1.0, 1.0, s == 1) * f32(c) * reach * apart
-                    * along / max(input.length, 0.0001);
-                // Its glow, and a thin bright line of its own core.
-                ghosts += (skin_glow_at(input, pixel, x - offset)
-                    + skin_line(abs(x - offset), 0.1 * input.radius, pixel) * skin.core_white.rgb * 1.5)
-                    / f32(c);
-            }
-        }
-        glow = glow * (1.0 + 0.8 * exp(-p * 25.0)) + ghosts * copies.z * flicker * apart;
-    }
-    let extent = skin_extent(skin, input);
     let beyond = max(input.blade.y - input.shaft, 0.0);
-    let room = (1.0 - smoothstep(0.75, 1.0, abs(input.blade.x) / extent))
-        * (1.0 - smoothstep(0.75, 1.0, beyond / extent))
-        * (1.0 - smoothstep(0.75, 1.0, -min(input.blade.y, 0.0) / extent));
-    if skin.ember_field.x > 0.0 {
-        let scale = input.shaft / max(input.length, 0.0001);
-        let embers = skin_embers(skin, input.blade, input.down, scale, input.length, time, seed,
-            pixel);
-        glow += embers * room * skin.ember_color.rgb * skin.ember_color.w;
-    }
-    if skin.glyph_color.w > 0.0 {
-        glow += skin_glyphs(skin, input, along, x, time, pixel) * skin.glyph_color.rgb
-            * skin.glyph_color.w;
+    // Past the glow's own reach the quad holds only the room for the wisps (or haze,
+    // butterflies, wings), where the glow and its parts draw nothing: skip them there.
+    var glow = vec3(0.0);
+    if !skin_past_glow(skin, input, beyond) {
+        let glitch = skin_glitch(skin, along, time, seed);
+        let x = input.blade.x - (glitch.x + skin_jitter(skin, time, seed)) * r;
+        if glitch.y > 0.0 {
+            let split = glitch.y * r;
+            glow = vec3(
+                skin_glow_at(input, pixel, x + split).r,
+                skin_glow_at(input, pixel, x).g,
+                skin_glow_at(input, pixel, x - split).b,
+            ) * (1.0 + glitch.z);
+        } else {
+            glow = skin_glow_at(input, pixel, x);
+        }
+        let copies = skin.copy_shape;
+        if copies.x >= 1.0 {
+            // Ghost copies at other angles drifting apart, then collapsing with a flash.
+            let p = fract(time / copies.w + seed * 0.37);
+            let apart = smoothstep(0.0, 0.85, p) * (1.0 - smoothstep(0.92, 1.0, p));
+            let flicker = 1.0 - skin.copy_more.x * skin_hash(vec2(i32(floor(time * 12.0)), 4141));
+            var ghosts = vec3(0.0);
+            // Their angle in the quad's own width (an angle of 0.1 reaches 0.6 of it at the
+            // tip, the outer copy), so they stay inside it whatever the blade's size.
+            let reach = skin_extent(skin, input) * 0.6 * copies.y / 0.1 / max(copies.x, 1.0);
+            for (var c = 1; c <= min(i32(copies.x), 2); c++) {
+                for (var s = 0; s < 2; s++) {
+                    let offset = select(-1.0, 1.0, s == 1) * f32(c) * reach * apart
+                        * along / max(input.length, 0.0001);
+                    // Its glow, and a thin bright line of its own core.
+                    ghosts += (skin_glow_at(input, pixel, x - offset)
+                        + skin_line(abs(x - offset), 0.1 * input.radius, pixel) * skin.core_white.rgb * 1.5)
+                        / f32(c);
+                }
+            }
+            glow = glow * (1.0 + 0.8 * exp(-p * 25.0)) + ghosts * copies.z * flicker * apart;
+        }
+        let extent = skin_extent(skin, input);
+        let room = (1.0 - smoothstep(0.75, 1.0, abs(input.blade.x) / extent))
+            * (1.0 - smoothstep(0.75, 1.0, beyond / extent))
+            * (1.0 - smoothstep(0.75, 1.0, -min(input.blade.y, 0.0) / extent));
+        if skin.ember_field.x > 0.0 {
+            let scale = input.shaft / max(input.length, 0.0001);
+            let embers = skin_embers(skin, input.blade, input.down, scale, input.length, time, seed,
+                pixel);
+            glow += embers * room * skin.ember_color.rgb * skin.ember_color.w;
+        }
+        if skin.glyph_color.w > 0.0 {
+            glow += skin_glyphs(skin, input, along, x, time, pixel) * skin.glyph_color.rgb
+                * skin.glyph_color.w;
+        }
     }
     if skin.wisp_color.w > 0.0 {
         var smoke = skin_wisps(skin, input, r, time, seed) * skin.wisp_color.rgb
@@ -1885,6 +1972,7 @@ fn star_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
 fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
     // Taken before any branch (uniform control flow).
     let pixel = fwidth(input.blade.x);
+    if input.kind == KIND_BLACK { discard; }
     if input.hilt <= STAR { return vec4(star_glow(input, pixel), 1.0); }
     if input.hilt <= 0.0 { discard; }
     if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
@@ -1900,6 +1988,7 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let core_dx = dpdx(core_uv);
     let core_dy = dpdy(core_uv);
     let pixel = fwidth(input.blade.x);
+    if input.kind == KIND_BLACK { discard; }
     if input.hilt <= STAR {
         return vec4(star_glow(input, pixel), 1.0);
     }
@@ -1935,6 +2024,24 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
         return vec4(CORE_DRAWS * (vec3(texel.r) + input.color * texel.g), 1.0);
     }
     return vec4(CORE_DRAWS * texel.rgb * input.color, 1.0);
+}
+
+// JA+ black blades use alpha blending, not the additive retail/RGB pass.
+@fragment
+fn fragment_black(input: VertexOutput) -> @location(0) vec4<f32> {
+    let uv = core_coordinates(input);
+    let dx = dpdx(uv);
+    let dy = dpdy(uv);
+    if input.hilt <= 0.0 {
+        return textureSampleGrad(core_texture, core_sampler, uv, dx, dy);
+    }
+    // Smooth the sprite chain into a capsule, with the installed alpha profile.
+    let along = input.blade.y / max(input.shaft, 0.0001) * input.length;
+    let beyond = along - clamp(along, 0.0, input.length);
+    let radius = chain_radius(input.radius, input.length, clamp(along / max(input.length, 0.0001), 0.0, 1.0));
+    let glow_uv = vec2(0.5 + input.blade.x / (2.0 * radius), 0.5 + beyond / (2.0 * radius));
+    if any(glow_uv < vec2(0.0)) || any(glow_uv > vec2(1.0)) { return vec4(0.0); }
+    return textureSampleLevel(glow_texture, saber_sampler, glow_uv, 0.0);
 }
 
 // --- Heat haze: drawn first into the effect layer, replacing its pixels ---------------------

@@ -2,8 +2,8 @@
 //! explicit Apply aside) and keyboard handling.
 
 use super::rows::{
-    CharacterRow, FORCE_APPLY_ROW, FORCE_DISCARD_ROW, FORCE_POWER_ROW, FORCE_RESET_ROW,
-    FORCE_SIDE_ROW, SaberRow,
+    CharacterRow, FORCE_APPLY_ROW, FORCE_COMMUNITY_TEMPLATE_ROW, FORCE_DISCARD_ROW,
+    FORCE_POWER_ROW, FORCE_RESET_ROW, FORCE_RETAIL_TEMPLATE_ROW, FORCE_SIDE_ROW, SaberRow,
 };
 use super::*;
 use sjk_client::{ForceSide, LegacyCatalogStatus, LegacySpecies};
@@ -382,6 +382,9 @@ impl PlayerMenu {
             }
             // The Force page edits a draft; only its Apply action writes.
             ProfilePage::Force => match self.selected {
+                FORCE_RETAIL_TEMPLATE_ROW | FORCE_COMMUNITY_TEMPLATE_ROW => {
+                    self.step_template_group(self.selected == FORCE_RETAIL_TEMPLATE_ROW, direction);
+                }
                 // Light is the left card, Dark the right one.
                 FORCE_SIDE_ROW => self.force.set_side(if direction < 0 {
                     ForceSide::Light

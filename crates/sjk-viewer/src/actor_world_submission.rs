@@ -30,10 +30,15 @@ mod grapple_rope;
 #[path = "jetpack_submission.rs"]
 mod jetpack_submission;
 
+#[path = "holstered_saber_submission.rs"]
+mod holster_submission;
+
 #[path = "player_sphere_submission.rs"]
 mod player_spheres;
 
 struct Sinks<'a> {
+    grip_victim: bool,
+    flame: Option<&'static force_powers::flame::Contract>,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -56,6 +61,7 @@ struct Sinks<'a> {
     saber_hilts: Option<&'a saber::HiltCatalog>,
     /// Who wears which blade skin.
     saber_skins: &'a crate::saber_skins::SaberSkins,
+    black_sabers: crate::saber_rgb::black::Policy,
     saber_states: &'a mut saber_trail::StateSlab,
     saber_segments: &'a mut saber_trail::SegmentPool,
     /// Trail edges for held and flying blades; `None` with `cg_saberTrail 0`.
@@ -77,6 +83,8 @@ struct Sinks<'a> {
     viewer_force_powers_active: u32,
     /// `cg_speedTrail`.
     speed_trail: bool,
+    holsters: crate::holstered_sabers::Policy,
+    holster_geometry: crate::holstered_sabers::pose::Geometry,
     /// `cg_cosmetics`: whose hats and capes are drawn.
     cosmetics: crate::cosmetics::Visibility,
     material_overrides: model_materials::Overrides,
@@ -100,6 +108,9 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
+    /// Each client slot's team blade colours in team games: `cg_saberTeamColors`, and
+    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`).
+    team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
     /// The players outlined as teammates and enemies (`hud::team_outline`).
@@ -223,6 +234,12 @@ pub(crate) fn submit(
         .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
         .unwrap_or(0);
     let mut sinks = Sinks {
+        grip_victim: gpu
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(force_powers::victim::CVAR))
+            .unwrap_or(true),
+        flame: force_powers::flame::policy(game_state, gpu.console.as_ref()),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
             .object_meshes
@@ -244,6 +261,18 @@ pub(crate) fn submit(
         entity_instances: &mut gpu.entity_instances,
         saber_hilts: gpu.saber_hilts.as_ref(),
         saber_skins: &gpu.saber_skins,
+        black_sabers: gpu.black_sabers.policy(
+            game_state,
+            gpu.console
+                .as_ref()
+                .and_then(|c| c.bool_cvar(crate::saber_rgb::black::CVAR))
+                .unwrap_or(true),
+            gpu.console
+                .as_ref()
+                .and_then(|c| c.integer_cvar("cp_plugindisable"))
+                .unwrap_or(i64::from(sjk_client::PLUGIN_DISABLE_DEFAULT)),
+            gpu.muted_players.slots().muted,
+        ),
         saber_states: &mut gpu.saber_states,
         saber_segments: &mut gpu.saber_trail_segments,
         trail_edges: trails.then(|| {
@@ -271,6 +300,12 @@ pub(crate) fn submit(
             .or_else(|| snapshot.map(|snapshot| snapshot.player.force_powers_active()))
             .unwrap_or(0),
         speed_trail,
+        holsters: crate::holstered_sabers::Policy::read(
+            gpu.console.as_ref(),
+            &mut gpu.holster_server,
+            game_state,
+        ),
+        holster_geometry: crate::holstered_sabers::pose::Geometry::read(gpu.console.as_ref()),
         cosmetics,
         material_overrides: gpu.model_material_overrides,
         camera_position: gpu.camera_position,
@@ -303,6 +338,7 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
+        team_blades: crate::team_sabers::blades(gpu.console.as_ref(), game_state),
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
         team_outline: gpu.hud.team_outline.groups(),
     };
@@ -310,6 +346,17 @@ pub(crate) fn submit(
         .zip(game_state)
         .map(|(snapshot, game)| sjk_client::LegacyThrownSabers::new(snapshot, game));
     let mut overlay_count = 0;
+    if let Some(snapshot) = snapshot {
+        force_powers::flame::submit_hits(
+            &mut sinks,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
+    }
+    if let Some(audio) = sinks.game_audio.as_mut() {
+        audio.begin_holsters();
+    }
     for entity in active_world
         .entities()
         .filter(|entity| {
@@ -355,6 +402,9 @@ pub(crate) fn submit(
             instance.view_flags = sinks.entity_view_flags;
             sinks.object_groups[mesh].push(instance);
         }
+    }
+    if let Some(audio) = sinks.game_audio.as_mut() {
+        audio.end_holsters();
     }
     overlay_count
 }
@@ -510,6 +560,35 @@ fn submit_actor(
     if mesh.is_some_and(|index| sinks.actor_meshes[index].surfaces.weapon_lost) {
         equipment = None;
     }
+    // An NPC's blades without a colour override wear their `.sab` colour, and with
+    // no saber entity its primary saber is not drawn (`sjk_client::npc_identity`).
+    let npc = state.filter(|state| state.entity_type() == 13);
+    let npc_primary_missing = npc.is_some_and(sjk_client::legacy_npc_primary_saber_missing);
+    if let (Some(npc), Some(catalog), Some(index)) = (npc, sinks.saber_hilts, mesh) {
+        let overrides = sjk_client::legacy_npc_saber_color_overrides(npc);
+        let names = &sinks.actor_meshes[index].saber_names;
+        let definition = |saber: usize| {
+            names[saber].as_deref().map(|name| {
+                sjk_client::legacy_npc_definition_rgb(
+                    catalog.get_any_case(name).default_color,
+                    npc.number(),
+                )
+            })
+        };
+        equipment = equipment.map(|mut held| {
+            if overrides[0].is_none()
+                && let Some(rgb) = definition(0)
+            {
+                held.color = rgb;
+            }
+            if overrides[1].is_none()
+                && let Some(rgb) = definition(1)
+            {
+                held.secondary_color = rgb;
+            }
+            held
+        });
+    }
     // A player muted on this PC, or their body, has the default blade colour.
     let client = match mesh.and_then(|index| sinks.actor_meshes[index].body_identity.as_ref()) {
         Some(body) => u64::from(body.client_num) + 1,
@@ -519,6 +598,45 @@ fn submit_actor(
     let muted = crate::muted_players::entity_muted(sinks.muted, client);
     if muted {
         equipment = equipment.map(crate::muted_players::equipment);
+    }
+    // In team games the blades take the team's colour, muted or not
+    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`).
+    let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
+    if team_blade.any() {
+        equipment = equipment.map(|mut held| {
+            held.color = team_blade.color(0, held.color);
+            held.secondary_color = team_blade.color(1, held.secondary_color);
+            held
+        });
+    }
+    let holster = mesh.map_or_else(holster_submission::Plan::default, |index| {
+        holster_submission::submit(
+            sinks,
+            index,
+            entity,
+            *transform,
+            snapshot,
+            state,
+            equipment,
+            local,
+            draw_actor,
+            trick.hidden || trick.fading,
+        )
+    });
+    if holster.blades_in {
+        equipment = equipment.map(|mut held| {
+            held.active = false;
+            held.secondary_active = false;
+            held
+        });
+    }
+    if holster.on_back {
+        // Do not retain a lit blade or trail while its hilt moves onto the back.
+        for blade in 0..8 {
+            if let Some(state) = sinks.saber_states.blade_mut(entity.id.get(), 0, blade) {
+                state.stow(presentation_time);
+            }
+        }
     }
     // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
     if let Some((equipment, held_mesh)) = equipment
@@ -533,6 +651,7 @@ fn submit_actor(
             *transform,
             draw_actor,
             local,
+            holster.on_back || npc_primary_missing,
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
@@ -582,6 +701,21 @@ fn submit_actor(
     // the body, its afterimages and its shells (`cg_players.c:11351-11356`).
     if trick.hidden {
         return 0;
+    }
+    // A Grip victim's puffs come after that cut-off too (`cg_players.c:13221`), so a
+    // gripped trickster hidden from the viewer gives away nothing.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), Some(snapshot)) = (mesh, snapshot)
+    {
+        force_powers::victim::submit(
+            sinks,
+            mesh,
+            entity,
+            *transform,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
     }
     // An electrified player crackles (`electrify.rs`), the local one in first person too.
     if entity.kind == EntityKind::Actor
@@ -921,6 +1055,7 @@ fn submit_equipment(
     transform: sjk_runtime::Transform,
     draw_actor: bool,
     local: bool,
+    holstered_primary: bool,
     forced_alpha: Option<u8>,
     presentation_time: i64,
     visual_now: Instant,
@@ -929,8 +1064,21 @@ fn submit_equipment(
     let origin = Vec3::from_array(transform.translation);
     if saber_submission::submit(
         entity.id.get(),
-        sinks.saber_skins.get(entity.id.get()),
+        sinks
+            .saber_skins
+            .get(entity.id.get())
+            .filter(|_| !crate::team_sabers::of(&sinks.team_blades, entity.id.get()).plain),
+        // A team colour replaces a black blade too (it is past `SABER_PURPLE`).
+        sinks.black_sabers.without(
+            entity.id.get(),
+            crate::team_sabers::of(&sinks.team_blades, entity.id.get())
+                .colors
+                .map(|color| color.is_some()),
+        ),
         std::array::from_fn(|hand| {
+            if hand == 0 && holstered_primary {
+                return None;
+            }
             let mesh = &sinks.actor_meshes[actor_mesh];
             mesh.saber_names[hand]
                 .as_deref()

@@ -114,6 +114,19 @@ vertical input alone does not accelerate without forward/sideways input.
 See [bridge_cheats.rs](../crates/sjk-dedicated/src/bridge_cheats.rs) and
 [noclip.rs](../crates/sjk-game-jka/src/noclip.rs).
 
+## NPC definition packs
+
+With `g_stockRules 0` (the default), native NPC loading reads every listed
+`ext_data/npcs/*.npc` file without the stock filename-list or aggregate-text
+limits. This allows larger collections of community definitions; it does not
+raise the number of NPCs alive at once or change protocol 26 limits.
+
+`g_stockRules 1` keeps the reference's 2,048-byte filename listing and 256 KiB
+aggregate-text bound, including the existing empty-definition fallback on a
+text-size load error. Both profiles preserve VFS listing order and installed
+content precedence. Reload the map after changing the installed definitions.
+See [map.rs](../crates/sjk-dedicated/src/map.rs).
+
 ## Vehicle boarding and sand creatures
 
 Landing on an empty animal or speeder requests boarding using the multiplayer

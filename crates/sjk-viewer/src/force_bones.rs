@@ -29,6 +29,9 @@ pub(crate) struct ForceBones {
     /// Model-space head bolt (`ci->bolt_head`) from the latest pose, for the confusion
     /// effect over a mind-tricked player's head.
     pub(crate) head: Option<Vec3>,
+    neck_index: Option<usize>,
+    /// Posed cervical joint for Grip victim puffs; absent on models without it.
+    pub(crate) neck: Option<Vec3>,
 }
 
 impl ForceBones {
@@ -53,6 +56,11 @@ impl ForceBones {
                 .iter()
                 .position(|bone| bone.name.eq_ignore_ascii_case("ceyebrow")),
             head: None,
+            neck_index: animation
+                .bones
+                .iter()
+                .position(|bone| bone.name.eq_ignore_ascii_case("cervical")),
+            neck: None,
         }
     }
 
@@ -114,6 +122,10 @@ impl ForceBones {
         preview: &crate::PlayerPreview,
         matrices: &[[[f32; 4]; 3]],
     ) {
+        self.neck = self.neck_index.and_then(|index| {
+            let point = joint_origin(&preview.animation, matrices, index)?;
+            Some(retarget(preview, matrices, index, point))
+        });
         self.head = match preview.bolt("*head_top", matrices) {
             Some(bolt) => Some(Vec3::from_array(crate::bolt::column(&bolt, 3))),
             None => self.eyebrow.and_then(|index| {

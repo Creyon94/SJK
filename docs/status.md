@@ -16,6 +16,96 @@ effect spawning and rendering, and does not establish full-scene performance.
 No installed game data or isolated live server was available: on-screen appearance,
 custom-model attachment parity and populated-scene GPU/frame time remain unverified.
 Protocol encoding, authoritative animation and movement are unchanged.
+## NPC sabers and voices
+
+17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
+(hub report 68, a JoF server on `JoFCrucible`): implemented, after JoF EJK
+`codemp`, NPCs' thrown sabers (owners past the client slots, `npcSaber1` hilt),
+NPC and vehicle custom sounds from their own `csSounds_Std`/`_Combat`/`_Jedi`
+folders instead of player slot 31's voice, `.sab` blade colours for NPCs without a
+`boltToPlayer` override, and no primary saber while `saberEntityNum` is zero. See
+[client](client.md#npc-sabers-and-voices).
+
+Workspace fmt/build/clippy and the touched crates' tests passed on Windows
+x86_64. Unit tests pin the thrown-saber owner range and NPC hilt/colour, the
+per-set NPC voice (own set, silence without one, temporary entities naming an
+NPC, players unchanged, slot reload), the colour overrides and the missing-saber
+rule. Not exercised in a live match or against the reported server; the `_Extra`
+NPC sounds have no event in the client's table and stay unloaded.
+## JoF EJK jetpack sound choices
+
+17/10/2026, `feat/jof-jetpack-sounds-upstream`, based on `Sol-Vulpes/SJK`
+`94b1d1ce`: implemented JoF EJK #43's archived ignition/hover selectors, both
+default 1, with the original integer branches and sound paths. Shutdown is
+fixed; the flaming fire loop is independent. Both menu styles expose the
+choices. Start/stop now use #87's `CHAN_AUTO`, retaining the wearer's actual
+source and position. See [client](client.md#jetpack-sounds) and
+[rendering](rendering.md).
+
+Workspace fmt/build/test/clippy checks passed on Windows x86_64, Rust 1.99.0.
+Four focused regressions pin integer/default choices, fixed shutdown,
+source/channel/position, live local/remote hover selection, independent fire,
+retained loop storage and archived preferences without restarting active jets;
+the existing jetpack tests pass too. Source evidence is EJK `codemp/cgame` at
+#43 merge `364c5ff1` and #87 merge `c3e2331f`. Live listening and jetpack
+reproduction were not exercised; game assets are not configured for the
+ignored installed-assets/GPU check. These checks do not establish audible or
+gameplay parity, or populated-match performance.
+## Tavion and Desann idle poses
+
+17/10/2026, `feat/jof-idle-stances`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented the distinct idle clips from JoF EJK #47 (`1fbe4678`,
+`codemp/game/bg_pmove.c::PM_GetSaberStance`) as default presentation, with no
+toggle. A two-entry style/clip table replaces Tavion's fast idle with
+`BOTH_P1_S1_T_` and Desann's medium idle with `BOTH_STAND9`. Snapshot entities,
+local player snapshots and predicted actors share the mapping, independent of
+menu style. Simulation inputs and attack timers are unchanged. Other clips,
+unlit/thrown sabers, flips and forced frames are retained. See
+[client](client.md#tavion-and-desann-idle-poses).
+
+Five focused Rust regressions passed on Windows x86_64, Rust 1.99.0. They pin
+the source-selected ordinals, exclusions and snapshot/prediction agreement at
+command times advanced by 8/7/4/3 ms; they do not exercise movement simulation
+or establish gameplay parity. Source inspection also checked `bg_misc.c`'s
+`s->fireflag = ps->fd.saberAnimLevel` style transfer. Workspace formatting,
+build, tests and Clippy passed (existing warnings remain).
+Installed-animation/GPU appearance and live-server behavior remain
+unverified; no game assets are configured for an in-game comparison.
+## JA+ black sabers
+
+17/10/2026, `feat/japlus-black-sabers`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented JoF EJK #50's black-blade rendering and corrected plugin-bit
+semantics. Colour 11 uses an independent alpha-blended material and trail for
+both hands and thrown sabers, without blade light or dynamic glow. A set
+`cp_pluginDisable` bit 3 produces orange; the existing mask default 1536 allows
+black. Both settings interfaces include the default-on `cg_blackSabers`
+presentation override. Automatic support follows the session's `CompatProfile`
+(JA+, TaystJK/jaPRO). Review fixes (17/10/2026): no second detection table;
+colour 11 keeps purple/RGB off those servers (EJK shows orange there); the scan
+is cached until configstring 0 or a `CS_PLAYERS` slot changes and covers the 32
+client slots only. Normal RGB and SJK blade skins retain their paths.
+See [client](client.md#ja-black-sabers) and
+[rendering](rendering.md#ja-black-sabers).
+
+Reference evidence: EJK merge `4ebc7e7e`,
+`codemp/cgame/cg_players.c::ClampSaberColor`, black material selection,
+`doLight = qfalse`, and the two alpha stages in
+`assets/japro/shaders/sbRGB.shader`. Installed community textures are optional;
+generated alpha profiles provide a local fallback.
+
+Workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0 (Clippy
+warnings remain). Eight focused regressions cover bit polarity, colour and
+server transitions, both hands, cosmetic suffixes, muted players, material
+separation, no blade light, synthetic installed/generated textures, settings,
+trail timing and WGSL validation. An explicitly run offscreen GPU pixel test
+passed on NVIDIA GeForce RTX 5070 Ti / Vulkan: generated blade centre
+`[0, 0, 0, 255]`, white background preserved. It checks the blade alpha pass,
+not the trail draw or a complete in-game scene. A release measurement on
+AMD Ryzen 7 5800X3D averaged 4.586 us for a 64-slot policy scan over 20,000
+synthetic frames; this excludes trails, submission, rendering and GPU work
+and does not establish a game FPS rate. Live server behavior, installed-texture
+appearance, crowded-scene performance and EJK pixel parity remain unverified;
+simulation and codecs are unchanged.
 
 ## One Russian letter in chat
 
@@ -82,6 +172,47 @@ carrier in view from the snapshot, for servers whose `scores` list no powerups
 ([client.md](client.md#capture-the-flag-hud)). Checked by unit tests and world shots
 `world_shot::ctf_flags_shots::ctf_flags_on_a_demo` (three HUD styles, two states, over
 Sol's demo); not tried on a live server.
+## Clipboard tools follow the desktop session
+
+17/10/2026, SJK pull request #115 (LukasMoudry), on top of the in-process Linux clipboard
+already in `main`: the fallback tools now follow the session, `wl-copy`/`wl-paste` only
+with a Wayland display and `xclip` only with an X11 display, and a selection owner gets
+50 ms to report an immediate startup failure before it is accepted. Console and browser
+copy notices claim success only after the clipboard accepted the text, and a failed cut
+keeps its selection. Checked by unit tests; the real X11/Wayland clipboard and the
+in-game interaction have not been tried.
+
+## Two-key chord binds from JoF EJK
+
+17/10/2026, `feat/key-combo-binds`: the console accepts arbitrary two-key binds
+such as `bind K+L kill`. Either press order works; the first key keeps its normal
+press, the chord replaces the second key's normal bind, and a chord `+command`
+gets its release. Query, `unbind`, `unbindall`, `bindlist`, generated configs and
+the config importer understand chords. The implementation follows JoF EJK alpha
+commit `b6623f51` (`codemp/client/cl_keys.cpp`), including its 256-chord limit,
+last-plus parsing (`++K`) and first-match table order. Unit tests cover name
+normalization, both press orders, release behavior, focus-state clearing,
+console commands, config round-trip and import. On Linux x86_64 with Rust 1.99.1,
+`cargo fmt --all --check`, the locked workspace build and tests, workspace
+all-target clippy, and the release viewer/dedicated build pass (existing clippy
+warnings remain). It has not yet been tried in the game; Sol will test the local
+build before anything is pushed.
+## JoF EJK camera settings
+
+17/10/2026, `feat/ejk-camera-settings`: Advanced > Gameplay > Camera and
+prediction and Classic+ Setup > Game options expose JoF EJK's functional camera
+menu controls: first-person weapon FOV, its three damping timing presets,
+third-person distance, angle, pitch, height and horizontal offset, and camera and
+target damping. The ranges, defaults and preset names follow the official JoF EJK
+alpha commit `9822a9d6` (`1.6.1-alpha.347`), whose
+`assets/japro/ui/jamp/ingame_camera.menu` is unchanged since its initial
+`52e068d0` import. The underlying archived
+cvars and camera behavior already existed in SJK; this change adds their shared
+SJK/classic settings rows and help. On Linux x86_64 with Rust 1.99.1, the focused
+settings tests (101 passed), formatting, locked workspace build and tests,
+workspace all-target Clippy, and release viewer/dedicated build pass (existing
+Clippy warnings remain). The settings have not been tried in the game; the
+GPU/retail-data snapshots were not run.
 
 ## SJK chat messages up to 300 characters
 
@@ -195,6 +326,44 @@ status line. Ban 24 h is not offered on a trusted sender to a player who is not 
 Built against the hub's `trust` field (Sol-Vulpes/SJK-hub branch `trust`, on top of
 `chat-ban`). Checked by unit tests (`trust_badge`, the chat line's marks, `offered` on a
 trusted sender). Not tried in the game or against a running hub.
+## JoF EJK client lists
+
+16/10/2026, `feat/clientlist-commands`: `clientlist` lists client numbers, teams,
+names and bots, with the existing `showplayerid` retained as an alias;
+`clientlistinfo` adds JoF EJK's human-player model, skin, gender, saber, colour,
+team-model group and available body-RGB details
+([client.md](client.md#chat-player-actions)). Ported against JoF EJK
+`cg_consolecmds.c` revision `bd5e202dfedd49500f1b7aadd655619bac152167`; SJK prints the real `c3`/`c4`
+values where that revision's RGB format call omits its arguments. On Linux
+7.3.0-rc5 x86_64 with Rust 1.99.1, its four focused unit tests, `cargo fmt --all
+--check`, the locked workspace build and test suite, all-targets Clippy, and the
+optimized viewer/dedicated build pass (the repository's existing warnings remain).
+Not yet tried against a running game server. SJK has no copied
+`clientInfo_t::deferred` model-load flag, so the EJK-only `(deferred)` diagnostic is
+not shown.
+## Menu and chat text sizes
+
+16/10/2026, `feat/chat-text-size-setting` based on review revision `1d2922c3`
+(Sol's request): the
+existing `cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page,
+SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range.
+**Menu text size** (`ui_textScale`) now reaches 1.4 instead of 1.2 (the pull request asked for 1.5; at 1.5 the home page's key hints were cut, so it was capped at 1.4 at the merge). Classic+
+settings grow their rows and show fewer through their existing scrolling; the
+long SJK Collection tab row closes its gaps, and the dual-saber search leaves its
+heading room at the largest size ([client.md](client.md#text-size-and-spacing)).
+Simple > HUD keeps Team logos beside the new Chat text size (Sol's choice at the
+merge, 17/10/2026), so its row limit is now thirteen.
+Group and layout tests pin those placements. On x86_64 Linux with rustc 1.99.1,
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed (the repository's
+existing warnings remain). The optimized viewer and dedicated-server build also
+passed. The review follow-up removed a 1.5 cap that had made chat beside the SJK
+scoreboard ignore the upper half of the advertised 0.25-3 range; its focused
+regression test passed.
+GPU/world-shot tests requiring `JKA_GAME_DATA` were
+ignored by the suite; the settings and their persistence have not yet been
+checked interactively in the game.
 
 ## Chat bans: Ban 24 h
 
@@ -337,6 +506,235 @@ broadcast, stock's or jaPRO/TaystJK's, or your own duel; an unknown opponent get
 grey badge, never a guess). SJK-made glows (a repeated bubble, a chrome shell, a blue wash)
 were tried in playtest and dropped. Played on JoF (Windows 11): the figures, the badges and
 their colours for duels started in view, no glow on the pair.
+## Weapon selection across view transitions
+
+16/10/2026, `fix/weapon-selection-view-transitions` based on `7026c735`:
+accepted snapshots reset the retained weapon choice/display time when the
+viewed client or follow/spectator mode changes, or server time rewinds. This
+adopts JoF EJK #39's multiplayer `CG_TransitionPlayerState` intent before
+prediction and command submission, including same-client native transitions.
+The auto-switch event baseline is rebased without discarding the current map's
+item catalogue; old predicted acknowledgements cannot suppress the new player's
+events. Ordinary snapshots preserve pending weapon input. Map/session
+presentation resets clear selection/timer state. Live and demo snapshot paths
+share the guard; both menu/HUD styles consume the same selection.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. Five new tests cover target changes,
+returning to the own saber, same-client follow/spectator transitions, pending
+input across ordinary/duplicate snapshots and rewind at 8/7/4/3 ms steps, event
+baseline rebasing, and rejection of another client's queued no-ammo event.
+The original icon bug has not been reproduced in-game; live spectator-to-play
+and GPU icon appearance remain unverified. No gameplay simulation or protocol
+codecs changed.
+## Native NPC definition filename capacity
+
+16/10/2026, `fix/native-npc-definition-list` based on `7026c735`: native NPC
+loading now reads every file listed by the VFS, rather than losing filenames
+beyond the stock 2,048-byte list before reaching its unbounded text loader.
+The stock profile still receives its original filename prefix and text-size
+bound; both preserve VFS order. The regression fixture reproduced the loss at
+`npc_070` before the fix and loads all 100 synthetic definitions after it. A
+second fixture verifies the stock text-size error fallback and native loading
+of the same file. Formatting, locked workspace build/tests and Clippy with all
+targets passed on Windows, Rust 1.99.0, with existing warnings. Fixtures use no
+retail data; GPU/data-dependent workspace tests remain ignored.
+Live map loading and NPC spawning with a large community pack remain unverified.
+This changes definition availability, not gameplay timing, live NPC capacity or
+the wire format. See [NPC definition packs](server.md#npc-definition-packs).
+## Distinct native colours for all seven saber styles
+
+16/10/2026, `fix/native-saber-style-colours` based on `7026c735`: Desann now
+uses violet and Tavion cyan in the native HUD's stance labels and radial meter,
+and in nameplates' saber halos. The existing five style colours and unknown-style
+fallback remain. The shared palette applies in either menu style; custom menu
+HUD pictures retain their existing seven-style support. This adopts the missing
+native colour distinction from [EJK #26](https://github.com/JediofFreedom/JoF_EJK/pull/26).
+The existing radial draw-command test now checks all seven styles, pairwise
+distinct colours, separation from the unknown fallback, full-width strokes and
+matching label colours. Live gameplay and GPU appearance remain unverified.
+Formatting, locked workspace build/tests and Clippy with all targets passed on
+Windows, Rust 1.99.0, with existing warnings. The GPU snapshot check was not run:
+its required `JKA_GAME_DATA` asset path is not configured in this environment.
+See [radial HUD](rendering.md#game-data-hud) and [nameplates](client.md#nameplates).
+## Team powers in outgoing Force profiles
+
+16/10/2026, `fix/team-force-profiles`, based on `7026c735`: Team Heal and Team
+Energize remain in the client's sent profile in non-team modes, within the
+server's rank/point ceiling and the chosen side. This lets a server supporting
+them in FFA read the selected levels; authoritative stock legalization still
+removes them. Both Force menus mark their availability as "Server decides"
+outside team games ([client](client.md#force-profile-on-a-server)). Reference:
+OpenJK `260c59c` `codemp/game/bg_misc.c:513-517` strips team powers without
+invalidating the profile; JoF EJK #10 keeps the allowed side's team power.
+On Windows, Rust 1.99.0, nine Force-profile tests and 80 player-menu tests passed,
+including side/point limits, retained FFA selections, stock removal without an
+illegal-profile result, server disable rules, and both Force-menu layouts.
+Formatting, workspace build/tests and all-target clippy passed with existing
+warnings, using a target on a separate volume with incremental compilation off.
+Live FFA server grants and GPU/UI verification have not been performed.
+## Optional private-duel nameplate filter
+
+16/10/2026, `feat/hide-dueller-nameplates` based on `7026c735`: the archived,
+default-off `cg_nameplateHideDuelers` option hides whole plates for server-marked
+private-duel participants, including the local player's optional third-person
+plate. Both settings interfaces expose it under Nameplates. The reference is
+[EJK #12](https://github.com/JediofFreedom/JoF_EJK/pull/12), whose player-label
+filter uses `entityState_t::bolt1`; the local player uses `duelInProgress`.
+A synthetic-snapshot test on Windows exercises the production collection pass:
+default visibility, immediate suppression and restoration, duel completion,
+Power Duel side independence and NPC field reuse. Formatting, locked workspace
+build/tests and Clippy with all targets passed on Windows with Rust 1.99.0
+(existing warnings; GPU/data-dependent tests remain ignored). Missing player entities have no
+duel marker, so sealed pilots' plates remain visible. Live server duel transitions
+and GPU presentation have not been exercised. See [Nameplates](client.md#nameplates).
+## Game chat substitutions
+
+16/10/2026, `feat/chat-substitutions`, based on `7026c735`: the game-chat send
+path expands EJK's eleven health, shield, Force, weapon, ammo, ping, speed and
+local-time tokens for composer messages, console/binds, team chat, tells and
+replies in both menu styles ([client](client.md#chat-substitutions)). Expansion
+uses the existing serializer and byte budget, before optional chat colouring.
+Five focused unit tests cover all tokens, horizontal speed/shared ammo pools,
+clock formats, literal text, quoting and the post-expansion byte limit. Formatting,
+workspace build/tests and clippy passed on Windows with Rust 1.99.0, using a fresh
+target on another volume and `CARGO_INCREMENTAL=0` after the original volume ran
+out of space during debug-symbol/cache writes. Existing warnings and ignored
+GPU/asset tests remain. Live server delivery and visual checks have not been
+performed. This changes no movement rules or wire codec.
+## Inventory list and selector visibility
+
+16/10/2026, `fix/inventory-list-default` based on `7026c735`: the archived
+`cg_drawInventory` now defaults to 0 for the permanent holdable list, matching
+JoF EJK #40. The transient inventory selector is independent and remains visible
+when cycling. Both settings interfaces expose **Inventory list** in their HUD
+category. Existing saved preferences remain; trip-mine weapons were already
+absent from the holdable list. Input, item use and gameplay are unchanged.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. The retained-HUD regression checks the
+registered default and both list values across Game, Classic and Radial layouts:
+the permanent labels follow the toggle while the inventory selector remains.
+Shared settings layout/category checks passed. Live/GPU appearance remains
+unverified; `JKA_GAME_DATA` is not configured.
+## Grip victim effects
+
+16/10/2026, `feat/grip-victim-effects` based on `7026c735`: red neck puffs
+follow the `BOTH_CHOKE3` leg-animation marker, using JoF EJK #33's puff
+parameters and #90's later victim placement and camera guard. The archived
+`cg_gripVictimFX` setting defaults on in classic Game options and SJK Advanced
+Gameplay. Local prediction and remote snapshot markers are supported; the
+viewed player's puffs are hidden in first person or zoom, while other players
+and detached cameras retain them. Cached neck/head positions reuse the existing
+pose, with missing joints suppressing the effect. Emission uses the existing
+8 ms effect cadence. Gameplay and protocol encoding are unchanged.
+
+Verification on Windows with Rust 1.99.0: `cargo fmt --all --check`, locked
+workspace build/tests, and Clippy with all targets passed. Four focused tests
+cover local/remote animation markers and prediction, camera/setting guards,
+scaled and rotated joint placement, missing joints, and reference puff colour,
+lifetime, motion and density at 8/7/4/3 ms frame steps. These are synthetic
+checks, not live visual parity evidence.
+
+Live Grip play and actual GPU appearance remain unverified. `JKA_GAME_DATA`
+is not configured; no release frame-time measurements have been made.
+## Bundled JoF Force presets
+
+16/10/2026, `feat/jof-force-presets` based on `7026c735`: the client bundles
+JoF EJK #23's 22 community Force templates (13 light, 9 dark) unchanged, with
+upstream attribution. They are content mounted below installed packs, selectable
+through the normal Force draft; loading still applies rank and server rules and
+waits for Apply. The classic list groups retail templates first under Jedi Academy,
+then Community. The SJK Force page now has selectors for the same two groups.
+Retail membership comes from the `base/assets0.pk3` through `assets3.pk3` view,
+and the catalogue exposes its retail count. Saved templates still override
+same-named packaged templates. All 22 files match upstream revision
+`9750845d194ced3d4ef86fcb80ea482339f629d1` byte for byte.
+Synthetic-content tests verify side assignment, archive-based retail grouping,
+installed and saved overrides, and SJK pointer/keyboard selection changing only
+the draft. No retail assets or player-saved files are used by these fixtures.
+Formatting, locked workspace build/tests and Clippy with all targets passed on
+Windows with Rust 1.99.0 (existing warnings; GPU/data-dependent tests ignored).
+Live server use and GPU presentation remain unverified. See
+[the client](client.md#menu-style) and [SJK UI](sjk-ui.md#character).
+## JA+ flamethrower client presentation
+
+16/10/2026, `feat/japlus-flamethrower-presentation` based on `7026c735`: a named
+compatibility table adopts JoF EJK #31's firing/hit flags, flame graphs, sample
+and hold pose. The archived `cg_flameThrower` override (Auto/Off/JA+) is exposed
+in both settings interfaces. Local prediction and remote actors select flames
+instead of Lightning only while firing; Drain and vehicles retain their paths.
+Flame streams use the existing 8 ms effect cadence; impact bursts and sound
+repeats use snapshot server time (100 ms and 2.9 s intervals). The upper-body
+hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
+Sound stops on firing end, mute, disappearance or disconnect and resets across
+map changes and time rewinds. Installed flame graphs/audio are required and are
+not bundled. Live JA+ play, GPU appearance and audible playback remain unverified;
+`JKA_GAME_DATA` is not configured for the asset/GPU checks. Review fixes
+(17/10/2026): the contract accepts JA+ itself only (not abyssmod or UA Galaxy),
+keeps Lightning when the flame graph is not installed, and the sound re-detects
+when the server info changes, as the effects do. See
+[client behaviour](client.md#ja-flamethrower-presentation).
+
+Verification on Windows with Rust 1.99.0: workspace formatting, locked build,
+locked tests and Clippy (all targets) passed. Focused tests pin local/remote
+flag selection, the reference pose ordinal, capability overrides, hit/sound
+cadence, stop/restart and rewind handling, and upper-body blending at integer
+8/7/4/3 ms steps. These synthetic checks do not establish live visual or audio
+parity, or release-build frame-time performance.
+## Holstered saber hilts
+
+16/10/2026, `feat/holstered-saber-hilts`, based on `7026c735`: implemented
+JoF EJK #42/#81/#95/#267/#300's holstered hilt family with shared native meshes,
+independent hip attachments, conditional staff back placement, frame-latched
+handoff and registered hilt/skin sound synchronization. Both settings styles
+expose the controls. Auto support detects the named JA+ contract; the existing
+`cp_pluginDisable 1536` default is preserved. See
+[client](client.md#holstered-saber-hilts) and
+[rendering](rendering.md#holstered-saber-hilts).
+
+Windows x86_64, Rust 1.99.0: workspace fmt/build/test/clippy checks passed.
+Fourteen focused tests cover crowded dual-hilt capacity, cached bolt lookup, missing attachments, placement
+axes, visibility, archived settings, registered sound layers, bounded ignition
+fallback and forward/reverse handoff at 8/7/4/3 ms steps. Source comparison used
+EJK `codemp/cgame/cg_players.c` at `f21eee8`, plus the family's safety/lifecycle
+patches. A release CPU measurement on Ryzen 7 5800X3D averaged about 11 us per
+64-actor frame over 20,000 synthetic frames for attachment placement alone;
+this excludes pose evaluation, visibility/audio work, submission and GPU cost.
+No installed game/JA+ assets, GPU scene comparison, audible timing check or
+populated-server/cache-lifetime stress was exercised. The measurement and
+tests do not establish gameplay parity or 500+ FPS performance. Review fixes
+(17/10/2026): no per-actor work while the feature is off, the server contract
+cached per configstring 0 change, no bolt evaluation for a saber in hand,
+deferred staff sounds played rather than dropped on a slot release, and hilt
+groups sized for 64 carriers (about 16 KB each instead of 256 KB). The staff
+test (`saber_type` staff or more than one blade) is kept: it is EJK's own
+`CG_StaffHolsteredOnBack` rule (`cg_players.c:10812`).
+## Classic scoreboard JoF behavior
+
+16/10/2026, `fix/classic-scoreboard-jof-parity` based on `7026c735`, compares
+classic against JoF EJK `codemp/cgame` at `bd5e202d` (the reference already
+pinned in the client wiki), including #35's crowded-board behavior. Classic
+now opens automatically on death and follows JoF's warmup gate and selective
+HUD suppression. Status and selection rows hide for the playing client while
+scores are held or health is zero; telemetry and votes remain, and spectators
+retain crosshairs. The SJK board retains its existing opening/HUD policy.
+
+Row placement distinguishes connected clients from received scores, uses the
+reference 19/32-row budgets, advances empty sections, preserves team-leading
+spacing, and appends the local row at the reference cursor. A full team board
+can retain its final spectator instead of losing it to the former bottom clip.
+Classic uses white ping text, omits alternating row stripes, and restores the
+reference flag column and header-label position. Native identity/clan marks
+and renderer-native header art remain; pixel-identical rendering is unverified.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. Synthetic scoreboard checks pin 20/21/32
+clients, partial scores, empty sections, team spacing, final spectators, local
+rows, selective HUD visibility and death/respawn fading at 8/7/4/3 ms steps.
+Live JoF comparison and updated GPU screenshots remain unverified;
+`JKA_GAME_DATA` is not configured. No release frame-time measurements were made.
+No wire codecs or gameplay rules changed.
 
 ## Emotes on stock models: limbs out of wider bodies
 
@@ -1556,9 +1954,9 @@ Windows 11 Pro), compared against JoF EJK `codemp/cgame` revision
 `bd5e202dfedd49500f1b7aadd655619bac152167`. Classic uses JoF's bottom-left chat,
 held-board chat suppression above 25 connected players, compact automatic
 intermission list with a full-list hint, instant opening/reordering, score-request
-gate and duel intermission headers. JoF's automatic death board and selective
-HUD visibility are deliberately excluded: the chosen SJK behavior remains
-held/intermission only and hides the whole HUD. The SJK board keeps its side-column
+gate and duel intermission headers. The current classic-parity change
+adopts JoF's automatic death board and selective HUD visibility too. The SJK
+board keeps its held/intermission policy, whole-HUD suppression, side-column
 chat and animated presentation ([client.md](client.md#scoreboard-styles)).
 
 Verified with Rust 1.99.0: `cargo fmt --all --check`,

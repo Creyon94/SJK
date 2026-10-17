@@ -9,6 +9,54 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Sol's faces on the Great Holocron, Sith pyramid and kyber crystal
+- c949f9d |  | Holocrons: Sol's faces for the Great Holocron, the Sith pyramid and the kyber crystal
++ 17/10/2026 | - | Cheaper saber shaders up close and when swinging, hub reports 63, 64
+- 7422364 |  | Add a world shot timing skinned blades up close
+- cd04564 |  | Draw saber skin afterimages as the plain capsule
+- 573fd59 |  | Skip saber skin glow work outside the glow's reach
+- f170a4f |  | Changelog and debug panel for the saber shader cost fix
++ 17/10/2026 | - | Fixes for hub bug reports 57, 62, 68, 69, 70, 73, 75, 76
+- 396421d |  | Changelog and debug panel for the 17/10 hub bug report fixes
++ 17/10/2026 | - | Force team saber colours in team games (cg_saberTeamColors)
+- 62db1a0 |  | Force team saber colours in team games (cg_saberTeamColors)
++ 17/10/2026 | - | Name the followed player in the top left while spectating
+- 75e20ad |  | Name the followed player in the top left while spectating
++ 17/10/2026 | - | Keep the text HUD's saber style on one line
+- 6aed9b6 |  | Keep the text HUD's saber style on one line
++ 17/10/2026 | - | Free camera flies when the server has stopped the body
+- 11631c7 |  | Free camera flies when the server has stopped the body
++ 17/10/2026 | - | Draw NPCs' thrown sabers
+- b80a339 |  | Draw NPCs' thrown sabers
++ 17/10/2026 | - | Give NPCs their own custom sound voices
+- 6414300 |  | Give NPCs their own custom sound voices
++ 17/10/2026 | - | Use .sab colours and saberEntityNum for NPC sabers
+- 6c096f9 |  | Use .sab colours and saberEntityNum for NPC sabers
++ 17/10/2026 | - | Drop repeated and stale player commands from the reliable pacer
+- a1cf16b |  | Drop repeated and stale player commands from the reliable pacer
++ 17/10/2026 | - | Collapse the pacer's window check (clippy)
+- 616c1b3 |  | Collapse the pacer's window check (clippy)
++ 17/10/2026 | - | SJK pull requests #113, #122, #124, #127, #129, #130
+- ea37cfd |  | Leave SJK #124's documentation out of this batch
+- 2d97b1e |  | SJK #113's team saber colours become an option, off by default
+- 7286c3c |  | Review fixes for SJK #122 (JA+ flamethrower)
+- 9f355ea |  | Format SJK #113's team saber adaptation
+- 0bafd11 |  | Review fixes for SJK #130 (JA+ black sabers)
+- 579b887 |  | Review fixes for SJK #127 (holstered saber hilts)
+- 034e796 |  | Holstered hilts: JA+ proper only, as the flamethrower
+- e795a95 |  | Review fixes for SJK #124 (classic scoreboard)
+- 7dcff9c |  | Credits and changelog for SJK #113, #122, #124, #127, #129 and #130
++ 17/10/2026 | - | SJK pull requests #107, #111, #119, #123, #126, #128
+- 2e9a998 |  | Review fixes for SJK #107, #111, #123 and #128
+- e3d21bb |  | Credits and changelog for SJK #107, #111, #119, #123, #126 and #128
++ 17/10/2026 | - | SJK pull request #116, EJK chat substitutions
+- 0d4a423 |  | Credits and changelog for SJK #116
++ 17/10/2026 | - | SJK pull requests #108, #109, #114, #118
+- e7dff9d |  | Credits and changelog for SJK #108, #109, #114 and #118
++ 17/10/2026 | - | SJK pull requests #115, #117, #120, #121, #125
+- 61ed260 |  | Credits and changelog for SJK #115, #117, #120, #121 and #125
++ 17/10/2026 | - | Release 2026.1017.1 (Alpha)
+- 94b1d1c |  | Release 2026.1017.1 (Alpha)
 + 17/10/2026 | - | The four holocrons, each its own object
 - 9e0ef34 |  | Holocrons: four forms of their own, with moving parts (Sol's pick, set B)
 + 17/10/2026 | - | Shatter and Craft on the shader card
@@ -1641,7 +1689,55 @@
 - 8db7327 |  | Wrap centre prints at 50 characters, not UTF-8 bytes
 - 0874042 |  | Decode print and cp text as legacy bytes
 
+= Lukas
++ 17/10/2026 | SJK #111 | Expose JoF EJK camera settings
+- 7ca8f29 |  | feat: expose JoF EJK camera settings
+- 9ac938b |  | docs: cite current JoF alpha camera menu
++ 17/10/2026 | SJK #107 | Expose chat size and allow larger menu text
+- a24a618 |  | Expose chat text size in settings
+- b9a6a72 |  | Allow larger menu text
+- 9b82892 |  | Increase the default console text size
+- 6e1e7ca |  | Address text size review findings
+- 5646ac2 |  | Keep the existing console text settings
++ 17/10/2026 | SJK #109 | Add JoF-style two-key combo binds
+- 471ed6f |  | feat: add two-key combo binds
+- 28f7fba |  | fix: match JoF combo table behavior
++ 17/10/2026 | SJK #108 | Add JoF client list console commands
+- d2968bc |  | Add JoF client list console commands
++ 17/10/2026 | SJK #115 | Fix Linux clipboard integration
+- ddfe116 |  | Fix Linux clipboard integration
+
 = Lumaya
++ 17/10/2026 | SJK #124 | Align classic scoreboard behavior with JoF EJK
+- 6dc514d |  | Align classic scoreboard behavior with JoF EJK
++ 17/10/2026 | SJK #130 | Render JA+ black sabers with the correct plugin toggle
+- d5d3d4b |  | Render JA+ black sabers with the correct plugin toggle
++ 17/10/2026 | SJK #129 | Show distinct Tavion and Desann idle poses by default
+- 7ff9731 |  | Show distinct Tavion and Desann idle poses by default
++ 17/10/2026 | SJK #127 | Add holstered saber hilts and staff handoff
+- 8725346 |  | Add holstered saber hilts and staff handoff
++ 17/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
+- 9fadf99 |  | Add JA+ flamethrower client presentation
++ 17/10/2026 | SJK #128 | Match JoF EJK jetpack sound choices and channels
+- 6f6ca44 |  | Match JoF EJK jetpack sound choices and channels
++ 17/10/2026 | SJK #119 | Add JoF Force presets in both menu styles
+- 192beda |  | Add JoF Force presets and selectors in both menu styles
++ 17/10/2026 | SJK #123 | Add default-on Grip victim effects
+- c643c53 |  | Add default-on Grip victim effects
++ 17/10/2026 | SJK #126 | Hide the permanent inventory list by default and keep its selector
+- d66e599 |  | Separate inventory list visibility from item selection
++ 17/10/2026 | SJK #116 | Add EJK chat substitutions to game messages
+- 92f59b9 |  | Add EJK chat substitutions to outgoing game messages
++ 17/10/2026 | SJK #118 | Add an option to hide private-duel nameplates
+- b4a3d20 |  | Add an option to hide private-duel nameplates
++ 17/10/2026 | SJK #121 | Distinguish Desann and Tavion in native HUD colours
+- 976dc5e |  | Distinguish Desann and Tavion in native HUD colours
++ 17/10/2026 | SJK #117 | Preserve team powers in outgoing Force profiles
+- f8109d5 |  | Preserve team powers in outgoing Force profiles
++ 17/10/2026 | SJK #120 | Fix native NPC definition filename truncation
+- 488d8eb |  | Remove native NPC definition filename truncation
++ 17/10/2026 | SJK #125 | Reset weapon selection across follow and player transitions
+- 8f6f753 |  | Reset weapon selection when the viewed player changes
 + 11/10/2026 | SJK #77 | Fix equipped jetpack attachment and movement prediction
 - 45fccac |  | Fix equipped jetpack attachment and movement prediction
 + 11/10/2026 | SJK #75 | Add an independent lagometer scale setting
@@ -1690,3 +1786,11 @@
 - 5bc6805 |  | Record isolated release GPU review checks
 + 07/10/2026 | SJK #24 | Clip visible saber blades at world walls
 - 8d21001 |  | Clip visible saber blades at world walls
+
+= Slash
++ 17/10/2026 | SJK #113 | Fix/ctf team saber colors
+- 8dd27a5 |  | Draw only red or blue sabers in capture the flag
+- f9ad921 |  | Show team saber colours on the player card in capture the flag
+- fc623b3 |  | Draw team saber colours in siege too
++ 17/10/2026 | SJK #114 | Complete cfg file names after exec with Tab
+- fb81e7a |  | Complete cfg file names after exec with Tab

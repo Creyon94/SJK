@@ -76,9 +76,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - kyber shards and the shop (17/10/2026, Sol's design: shards from shattered duplicates
   and from holocrons craft the shader you choose; credits buy four shaders a day),
   prepared for when the SJK hub turns them on;
-- the four holocrons, each tier an object of its own with moving parts (18/10/2026,
+- the four holocrons, each tier an object of its own with moving parts (17/10/2026,
   Sol's pick of the proposed shapes: the Jedi cube, the Great Holocron, the Sith
-  pyramid, the kyber prism);
+  pyramid, the kyber prism), with Sol's generated faces for the last three;
   grand finds (Legendary or Solar cards, Legendary or Mythical shaders) are told to every
   SJK player in chat;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,
@@ -292,7 +292,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 32 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -330,6 +330,59 @@ merged into SJK
   list on crowded servers, instant open, duel intermission names, roster changes tracked.
 - #77 jetpack flight prediction after OpenJK `PM_JETPACK` (gravity, thrust, hover, directional
   legs) and the pack's chest attachment on equip; jump pads recognise the jetpack movement type.
+- #117 team powers in the sent Force profile: Team Heal and Team Energize bought outside a team
+  game reach the server, which decides (stock still removes them); the Force menu says "Server decides".
+- #120 every NPC definition on native servers: the stock 2,048-byte filename list no longer drops
+  the files of a large pack; stock rules keep their old limits.
+- #121 Desann (violet) and Tavion (cyan) saber styles get their own colours in the native HUD
+  and nameplate halos, after JoF EJK #26.
+- #125 the weapon selection follows the viewed player: following someone else, leaving follow
+  or spectator mode, or a timeline rewind resets it to the equipped weapon, after JoF EJK #39.
+- #118 hiding private duellers' nameplates: `cg_nameplateHideDuelers` (off by default) hides the
+  whole plate of players the server marks as duelling, after EJK #12.
+- #116 chat substitutions: the eleven JoF EJK tokens (`%H%`, `%S%`, `%F%`, `%W%`, `%A%`, `%P%`,
+  `%U%`, `%UKM%`, `%UM%`, `%T%`, `%T2%`) expand in every game-chat message before colouring.
+- #119 JoF EJK #23's 22 community Force presets (13 Light, 9 Dark) beside the retail templates,
+  under Jedi Academy and Community in both menu styles, legalized for the server before Apply.
+- #123 Grip victim effects: red puffs at the choking player's neck (`cg_gripVictimFX`, on by
+  default), after JoF EJK #33 and #90.
+- #126 the permanent inventory list becomes `cg_drawInventory` (Settings > HUD); the item selector
+  shows when cycling items whatever it is set to, after JoF EJK #40.
+- #128 jetpack sounds to choose (`cg_jetpackOnSound`, `cg_jetpackHoverSound`) and positional
+  start/stop sounds, after JoF EJK #43 and #87.
+- #122 the JA+ flamethrower: flame streams, impact fire, the upper-body hold pose and the repeating
+  flame sound from a documented JA+ contract (`cg_flameThrower` Auto/Off/JA+), after JoF EJK #31.
+- #124 the classic scoreboard's JoF EJK behaviour: it opens on death, obeys the warmup gate, keeps
+  telemetry and votes while hiding the player's status and crosshair, and JoF's row budgets.
+- #127 holstered saber hilts: stowed hilts at the hips and a staff across the back with its reach
+  and ignition timing, on JA+ servers (`cg_drawHolsteredSaber`), after JoF EJK #42, #81, #95,
+  #267 and #300.
+- #129 Tavion's and Desann's own idle stances, after JoF EJK.
+- #130 JA+ black sabers on both blades and thrown ones, with dark trails and the plugin toggle.
+
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 5 pull requests
+merged into SJK
+([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
+
+- #115 the Linux clipboard fallbacks follow the desktop session (`wl-copy`/`wl-paste` only
+  under Wayland, `xclip` only under X11), and console and browser copies report success only
+  once the clipboard took the text; a failed cut keeps its selection.
+- #108 `clientlist` (with `showplayerid` kept as its alias) and `clientlistinfo`, JoF EJK's
+  player lists with model, gender, sabers, colours and team.
+- #109 two-key combo binds after JoF EJK (`bind K+L kill`): either press order, the second key
+  runs the combo instead of its own bind, up to 256 combos, saved and imported with the config.
+- #107 Chat text size (`cg_chatBoxFontSize`) in every settings mode, and Menu text size
+  (`ui_textScale`) up to 1.4 with the menus adapted to it.
+- #111 JoF EJK's camera settings: first-person weapon FOV, third-person distance, angle and
+  offsets, and the damping presets, in Advanced > Gameplay and classic+ Game options.
+
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 2 pull requests merged
+into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
+
+- #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
+  from the profile folder and the game folders, as EternalJK's `Cmd_CompleteCfgName`.
+- #113 CTF team saber colours: in capture the flag and capture the ysalamiri every red or blue
+  player's blades in the team's colour; made an option at the merge (`cg_ctfTeamSabers`, off).
 
 ## Art
 

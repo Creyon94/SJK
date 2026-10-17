@@ -1126,8 +1126,8 @@ A player with `EF_JETPACK` wears `models/weapons2/jetpack/model.glm` on the body
 `*chestg` bolt, faded and hidden with a mind trick like a held gun. While
 `EF_JETPACK_ACTIVE` is set, `effects/boba/jet` plays at the pack's `torso_ljet` and
 `torso_rjet` bolts on the 8 ms effect cadence (twice each with `EF_JETPACK_FLAMING`),
-`bf_land` sounds when the jets start and `bf_blast-off` when they stop, and the
-`jethover` loop (plus `fire_lp` while flaming) joins the frame's loops
+the selected ignition sounds when the jets start and `bf_blast-off` when they
+stop, and the selected hover loop (plus `fire_lp` while flaming) joins the frame's loops
 ([jetpack.rs](../crates/sjk-viewer/src/jetpack.rs),
 [jetpack_submission.rs](../crates/sjk-viewer/src/jetpack_submission.rs),
 `cg_players.c:11843-11935`). A player who mind-tricks you shows no flames and makes no
@@ -1138,6 +1138,15 @@ pose is already identity; personal replacement packs may omit its flame bolts.
 Flight prediction now implements the equipped `PM_JETPACK` path described in
 [networking.md](networking.md#equipped-jetpack-prediction). In first person the
 pack remains hidden with the body, as in the reference.
+
+JoF EJK #43's `cg_jetpackOnSound` and `cg_jetpackHoverSound` (both default 1)
+select `bf_land`/`jeton` and `jethover`/`bf_jetpack_lp` respectively. The named
+asset tables and integer-choice semantics live in
+[jetpack_sounds.rs](../crates/sjk-client/src/jetpack_sounds.rs); both hover
+samples are registered at load, with fixed-capacity loop selection per frame.
+Start/stop use the actual wearer's source on `CHAN_AUTO`, following EJK #87,
+with normal positional falloff. The shared settings expose both choices in
+SJK and classic menus; see [client](client.md#jetpack-sounds).
 
 `EV_PLAYER_TELEPORT_IN/OUT` play `mp/spawn`, and `EV_BECOME_JEDIMASTER` plays
 `mp/jedispawn`, where the player's box (mins z -16, maxs z 40) lands when dropped up to
@@ -1177,6 +1186,33 @@ server never sends it; in first person they start at the local body's left
 hand, and Grip's puffs are third-person only. A player who mind-tricked the
 viewer still shows its beam and hand puffs, which stock draws before its
 mind-trick cut-off; only the body push blur is hidden for it.
+
+Grip victim puffs (`cg_gripVictimFX`, archived, default on) follow JoF EJK
+#33 and the later #90 victim path: `BOTH_CHOKE3` on the legs marks a choking
+actor, including while the torso transitions. Two red `gfx/effects/forcePush`
+puffs move in opposite directions at 55 units/s, live for 120 ms, fade their
+RGB from 60/8/8 to black and grow from radius 8 to 10 (`CG_AddPuff`). They use
+the existing 8 ms emission cadence to bound density at higher frame rates.
+The posed `cervical` joint is preferred, with head-minus-eight-world-units as
+fallback and a two-unit forward offset. Missing joints suppress the effect.
+Joint indices are cached at model load; the existing pose supplies positions.
+The viewed player's puffs are hidden in first person or while zoomed; other
+players and detached cameras retain them. This visual animation marker does
+not identify a Grip attacker or change gameplay. See
+[grip_victim.rs](../crates/sjk-viewer/src/grip_victim.rs).
+JA+ flamethrower presentation uses the documented table in
+[japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs), with the archived
+`cg_flameThrower` Auto/Off/JA+ override. `eFlags` bit 17 during a Lightning pass
+selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence
+(only when that graph is installed; otherwise Lightning stays);
+the humanoid upper body uses `BOTH_FORCELIGHTNING_HOLD` with the standard 100 ms
+blend. `ET_GENERAL` entities with `eFlags2` bit 8 replay `env/fire_wall` after
+the reference 100 ms interval. Their timers and the positional `bf_flame.mp3`
+sample's 2.9 s repeats use snapshot server time, not render FPS. The weapon
+channel is stopped when firing ends, the player disappears or is muted, or the
+session ends. Models missing the named pose or hand keep the safe existing
+fallback; effect graphs and audio must exist in installed data. No server
+weapon or protocol rules are changed.
 
 EFX `bounce` and `intensity` are one key in retail: both set a primitive's
 single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
@@ -1342,6 +1378,31 @@ effects carry the weapon's fire sound, which so lands on the event's own fire so
 12/10/2026 the local flash waited for the snapshot, a round trip after the shot, so every
 gun sounded twice (Creyon's report). Other players' flashes still start from the snapshot.
 
+## JA+ black sabers
+
+The compatibility policy in [black_sabers.rs](../crates/sjk-viewer/src/black_sabers.rs)
+takes server support from the session's `sjk_client::CompatProfile` (JA+ and
+TaystJK/jaPRO; no second identifier table) and reads the raw `CS_PLAYERS` colour
+indices, then applies `cg_blackSabers` and disable-mask bit 3 on supported servers
+(orange when black is off); elsewhere colour 11 keeps its ordinary fallback. The
+serverinfo/clientinfo scan, a fixed two-word hand mask over the 32 client slots, is
+redone only when configstring 0 or a player's configstring changes; the cvars are
+read each frame; held and thrown sabers consume it without
+allocating or changing runtime equipment ownership. Muted players retain their
+replacement colours. The default allows the feature, matching JoF EJK #50's
+corrected disable-bit direction.
+
+A separate blade material and alpha pass preserve the retail/RGB additive
+paths and every existing blade-skin slot. Black trails use alpha blending with
+the reference shader's two identical stages combined into one, retaining the
+existing trail lifetime and UV fade. Black blades/trails are excluded from the
+dynamic-glow image and emit no blade light. The renderer resolves installed
+`gfx/effects/sabers/blackglow`, `blackcore` and `blacktrail` images at load time,
+or generates black alpha coverage from its neutral profiles. Its smooth
+capsule presentation and generated fallback are not a claim of pixel parity
+with EJK's sprite chain or community textures. See
+[status](status.md#ja-black-sabers) for verification and limits.
+
 ## First-person saber body
 
 First-person saber mode draws the local posed body and arms instead of hiding
@@ -1488,8 +1549,22 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   the skin's room (the wisps' rise, the haze's reach, when on; `skin_room`, and
   `Instance::room` for the bounds), while the glow's own parts (embers, arcs, motes)
   keep fading at the glow's edge, so switching wisps or haze off changes nothing else.
-  The echo is an afterimage instance (`Instance::echo`) swaying on two slow waves
-  beside the blade, the tip more than the hilt, leaning a little. Heat haze is a
+  That room draws only the wisps, so past the glow's own reach (the capsule widened
+  `corona.reach` times, round the tip and behind the hilt) `skin_past_glow` skips the
+  glow and its parts, for a skin whose glow neither moves nor reaches further (no
+  glitch, scan, copies, glyphs or figures); and the wisps skip their noise where their
+  column cannot show (below the blade, past the top, far aside). Up close the room
+  covers much of the screen (17/10/2026, hub report 63).
+  The echo is a dimmed glow instance (`Instance::echo`) swaying on two slow waves
+  beside the blade, the tip more than the hilt, leaning a little, drawn with the whole
+  look. Afterimages (`Instance::ghost`, 17/10/2026, hub report 64) carry the
+  afterimages' own section bit (`OFF_GHOSTS`, never a section switched off since the
+  CPU makes them) with their fade below 255: the vertex stage gives them the stock
+  quad (no `corona.reach` swell, no room) and `afterimage_glow` draws the plain capsule
+  in the corona's colours at their middle heat (granulation at its middle, no flare,
+  the tongues' mean), beating, tinted and turned, with none of the noise or parts, in
+  both glow passes. Before, each of a swing's four drew the whole look over the widest
+  quad twice a frame; one fainter than 0.06 is no longer drawn (`saber_ghosts.rs`). Heat haze is a
   pipeline of its own (`vertex_haze`, `fragment_haze`, no blending, depth-tested): first
   in the effect pass (`GpuState::draw_particle_tail`), while the effect layer still
   holds the scene, each skinned glow quad with haze on (the vertex stage folds every
@@ -1575,6 +1650,51 @@ sections (10/10/2026) were checked by naga, unit tests and the world shot
 moments, the Spectral's afterimages, the Runic spelling a name, the Banner outside a team
 and in red and blue, the Chameleon in three places' light), rendered on one GPU and
 reviewed by eye; their cost not measured, not seen in a live match.
+
+## Holstered saber hilts
+
+The actor submission uses the same map-owned `HiltCatalog` meshes for held
+and holstered hilts. It creates no second Ghoul2/model instances. Actor-owned
+hip bone/back surface indices are resolved on model load, and visible holsters
+reuse the existing CPU/GPU pose matrices. Their fixed bolt cache follows rig
+retargeting and model scale. Missing left/right attachments are independent;
+a missing `*back` tag falls back to the right hip. The bolts are evaluated only
+while a stowed hilt is drawn, not while the saber is in hand; the staff handoff
+only checks that the model has a `*back` tag. With the feature off (setting,
+plugin bit or a server without the contract) an actor costs one flag test. The
+contract detected from `gamename` is cached until configstring 0 changes. Shared
+hilt object groups reserve two slots for each of 64 saber carriers (32 clients
+plus as many NPCs) on initial/dynamic model load; held and thrown hilts may grow
+them, while frame submission skips a stowed hilt past that capacity.
+
+[holstered_sabers.rs](../crates/sjk-viewer/src/holstered_sabers.rs) holds the
+named JA+ ownership/plugin contract and its player override.
+[holstered_saber_pose.rs](../crates/sjk-viewer/src/holstered_saber_pose.rs)
+implements the `rfemurX`/`lfemurX` hip bases and `*back` tag, with hip-tag
+fallbacks. [holstered_staff.rs](../crates/sjk-viewer/src/holstered_staff.rs)
+samples the installed torso override and latches each forward/reverse reach
+after crossing the handoff fraction. It does not synthesize an animation.
+Clientinfo changes invalidate the latch and give sound synchronization a new
+identity; model replacement and map teardown drop actor-owned state.
+
+[audio_holstered_staff.rs](../crates/sjk-viewer/src/audio_holstered_staff.rs)
+keeps bounded client slots with separate hilt and blade-skin sound layers,
+using the existing adapter's registered handles. Ignition waits for the
+reach (150 ms to appear, at most 2000 ms held). Shutdown at the put-away reach
+suppresses its late copy for 2000 ms. Only a staff carrier with a back reach
+reports a slot. A slot that is disabled or released (death, mount, cloak, an
+actor no longer submitted, a replaced player) plays its held ignitions and
+any shutdown the reach has not already played instead of dropping them; a
+server-time rewind and map changes discard them. Asset decoding remains outside these
+frame paths. The settings and visibility rules are in
+[client.md](client.md#holstered-saber-hilts).
+
+The reference is JoF EJK #42, #81, #95, #267 (`f21eee8`) and #300: its
+`codemp/cgame/cg_players.c` holster placement, visibility, frame latch and
+sound rules. The native cache ownership replaces its additional Ghoul2 slots.
+Mounted bodies are suppressed explicitly even though that reference's vehicle
+check was commented out. Source comparison and unit checks do not establish
+in-game visual, audible or populated-server performance parity.
 
 ## Saber trails
 
@@ -2761,7 +2881,7 @@ font, following OpenJK `codemp`:
 
 | Retail font | Drawn with | Surfaces |
 | --- | --- | --- |
-| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
+| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, followed player's name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
 | Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, connection interrupted |
 
@@ -2894,6 +3014,11 @@ format. A nonzero integer selects the stock text-only HUD; as in EternalJK, `0`
 is the default list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A
 missing list falls back to the default one, as `CG_LoadMenus` does; files
 without a `lefthud` or `righthud` menu leave the engine-drawn HUD in place.
+The text HUD's strings start where retail puts them, but SJK's vector font is
+wider than retail's, so a right-hand string (the six-letter saber styles, the
+ammo count) that would pass 4 units from the screen's right edge moves left to
+end there, and the HUD's text never wraps at the screen's edge (hub reports
+75/76).
 
 When several PK3s replace `ui/hud.menu`, the one mounted last wins, and packs
 usually replace the retail pictures (`gfx/hud/hudleft` ...) under the same names
@@ -2984,7 +3109,8 @@ height down, below the crosshair, where TheRisqe's bars sit (their picture's mid
 height, with the numbers on it: health outside the left bars and armor inside them,
 ammunition inside the right bars and Force outside. With a saber the ammunition's bars
 become one full line in the saber style's colour (the `style_ratio` binding; Fast blue,
-Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are) and
+Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are,
+plus Desann violet and Tavion cyan) and
 the style's name replaces the number, in the same colour. The weapon-name transient rests in
 the hollow between the bars, above the pills.
 It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the

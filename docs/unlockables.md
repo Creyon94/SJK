@@ -575,6 +575,10 @@ Chameleon and Banner are about their colour.
   `saber.wgsl` turns the finished glow and core once; other players' blades take their
   colours from their `CS_PLAYERS` string, so everyone sees a chroma in its wearer's
   colour. A pale skin (the Storm, the Hologram) stays pale, only tinted.
+- **Team games**: with `cg_saberTeamColors` (on by default) a red or blue player's
+  saber colour is their team's, and every skin stays worn with that colour as its base,
+  so a chroma turns red or blue ([client.md](client.md#team-saber-colours)). Only
+  `cg_ctfTeamSabers` in CTF and CTY draws the plain team blade without the skin.
 - **The mark**: a small colour wheel (twelve hue segments round a white dot,
   `swatch::chroma_mark`) beside a chroma's name on the Collection's rack and before
   "Chroma saber shader: takes your saber colour" beside the model, in the corner of its
@@ -717,7 +721,7 @@ switched off needs a wider mask.
 | `scan.rings`, `edge`, `width`, `hollow` | Wireframe rings a unit along (0: none), where its side lines run and their half-width (radii), how much the inside is dimmed | 0-2, 0.1-1.5, 0.01-0.5, 0-1 |
 | `scan.jitter`, `jitter_rate` | How far a jitter throws the projection sideways (radii) and draws a second (a quarter of them jitter) | 0-0.5, 0-60 |
 | `pulse.rate`, `amount`, `second`, `gap`, `width`, `swell` | A heartbeat on the clock (no seed, so blades and their lights beat together): beats a second, how much a beat brightens, the second beat's share and seconds after the first (which peaks 0.1 s into a cycle), a beat's half-length (s) and how much it widens the glow | 0.1-4, 0-2, 0-1, 0.05-1, 0.01-0.5, 0-0.5 |
-| `ghosts.count`, `spacing`, `fade` | Afterimages: the blade's pose kept every `spacing` ms, the last `count` drawn again as glow alone, each `fade` of the one before; a pose the blade has not moved from is skipped | 1-4, 10-250, 0-1 |
+| `ghosts.count`, `spacing`, `fade` | Afterimages: the blade's pose kept every `spacing` ms, the last `count` drawn again as glow alone (the plain capsule in the corona's colours, without its noise, flares or parts), each `fade` of the one before; a pose the blade has not moved from is skipped, and so is one fainter than 0.06 | 1-4, 10-250, 0-1 |
 | `embers.color`, `brightness` | The embers' colour and brightness | 0-4, 0-10 |
 | `embers.density`, `cells`, `fall`, `life` | The share of drip places dripping, places a unit along, how fast they fall (units a second, accelerating) and how long one lasts (s) | 0-1, 0.05-4, 1-400, 0.1-4 |
 | `embers.size`, `spread` | An ember's radius (units) and how much its way strays sideways | 0.05-2, 0-1 |

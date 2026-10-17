@@ -1,6 +1,11 @@
 //! Pose-attached MP force effects, sharing actor matrices and the EFX pool.
 use super::*;
 
+#[path = "grip_victim.rs"]
+pub(crate) mod victim;
+
+#[path = "japlus_flame.rs"]
+pub(crate) mod flame;
 #[path = "force_sprites.rs"]
 pub(crate) mod sprites;
 
@@ -193,6 +198,21 @@ pub(crate) fn select(caster: Caster, third_person: bool) -> Selection {
     }
 }
 
+/// The flame stream replaces Lightning only when its effect is installed (the JoF
+/// assets); without it the caster keeps stock Lightning rather than showing nothing.
+fn select_for_contract(
+    caster: Caster,
+    third_person: bool,
+    rule: Option<&flame::Contract>,
+    installed: impl Fn(&str) -> bool,
+) -> Selection {
+    let mut selection = select(caster, third_person);
+    if let Some(rule) = rule.filter(|rule| rule.firing(caster) && installed(rule.stream)) {
+        selection.beam = Some(rule.stream);
+    }
+    selection
+}
+
 /// Submit effects from the already evaluated hand bolts and body joints.
 pub(super) fn submit(
     sinks: &mut Sinks<'_>,
@@ -210,7 +230,9 @@ pub(super) fn submit(
     let Some(caster) = Caster::find(snapshot, number, sinks.predicted_local_state) else {
         return;
     };
-    let selection = select(caster, sinks.third_person);
+    let selection = select_for_contract(caster, sinks.third_person, sinks.flame, |name| {
+        sinks.effects.contains_definition(name)
+    });
     let unobstructed = body_effect_visible(
         caster.local,
         sinks.third_person,

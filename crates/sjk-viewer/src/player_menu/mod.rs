@@ -23,6 +23,7 @@ mod pointer;
 mod rows;
 mod saber;
 mod sjk_creator;
+mod sjk_force_templates;
 mod sjk_outfit;
 mod sjk_view;
 mod team_filter;

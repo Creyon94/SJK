@@ -9,6 +9,8 @@ use std::path::Path;
 
 #[path = "download_store.rs"]
 pub(crate) mod downloads;
+#[path = "force_presets.rs"]
+pub(crate) mod force_presets;
 #[path = "generated_packs.rs"]
 pub(crate) mod generated;
 #[path = "asset_search_paths.rs"]

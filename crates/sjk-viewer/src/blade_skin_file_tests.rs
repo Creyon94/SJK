@@ -374,8 +374,9 @@ fn options_switch_their_sections_and_the_room_follows() {
             section.name().to_ascii_uppercase(),
             section.bit()
         );
-        // Afterimages and the echo are the CPU's (no instance is made for them).
-        if !matches!(section, Section::Ghosts | Section::Echo) {
+        // The echo is the CPU's (no instance is made for it); the afterimages' bit marks
+        // an afterimage's own instance.
+        if section != Section::Echo {
             assert!(shader.contains(&constant), "saber.wgsl lost {constant}");
         }
     }
