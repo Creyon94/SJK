@@ -53,11 +53,21 @@ pub(super) struct ScoreRow {
     /// Duel wins and losses (`w`, `l` in its clientinfo).
     pub(super) record: Option<(i32, i32)>,
     pub(super) powerups: u32,
+    /// Powerups seen on the client's entity (or the local player state) this frame:
+    /// a flag carrier in view shows even when the server's `scores` lists no powerups.
+    pub(super) seen_powerups: u32,
     pub(super) defends: i32,
     pub(super) assists: i32,
     pub(super) captures: i32,
     /// The SJK hub knows this player under this name (`player_identity.rs`).
     pub(super) identity: Option<crate::player_identity::Tag>,
+}
+
+impl ScoreRow {
+    /// The powerup bits the scores list or the snapshot shows: a flag carrier either way.
+    pub(super) fn carried_bits(&self) -> u32 {
+        self.powerups | self.seen_powerups
+    }
 }
 
 /// Cached scoreboard data and fixed retained presentation storage.
@@ -178,6 +188,7 @@ impl Scoreboard {
         _scale: f32,
     ) {
         self.refresh(session);
+        self.note_carriers(session.latest_snapshot());
         for row in &mut self.rows {
             row.deaths = self.deaths.count(row.client_num);
         }
@@ -292,6 +303,31 @@ impl Scoreboard {
         );
     }
 
+    /// Note the flag carriers the latest snapshot shows (players in view, and the local
+    /// player), for servers whose `scores` carry no powerups; stale bits clear each frame.
+    fn note_carriers(&mut self, snapshot: &sjk_protocol::Snapshot) {
+        const FLAGS: u32 = (1 << 4) | (1 << 5) | (1 << 6);
+        let local = snapshot.player.client_num();
+        let mut local_bits = 0;
+        for power in 4..=6_usize {
+            if i64::from(snapshot.player.powerups[power]) > i64::from(snapshot.server_time) {
+                local_bits |= 1 << power;
+            }
+        }
+        for row in &mut self.rows {
+            let client = u16::from(row.client_num);
+            row.seen_powerups = if client == local {
+                local_bits
+            } else {
+                snapshot
+                    .entities
+                    .iter()
+                    .find(|entity| entity.number() == client)
+                    .map_or(0, |entity| entity.powerups() & FLAGS)
+            };
+        }
+    }
+
     fn refresh(&mut self, session: &ClientSession) {
         let signature = config_signature(session.game_state());
         let server_signature = session
@@ -327,6 +363,7 @@ impl Scoreboard {
                 bot: extra.bot,
                 record: extra.record,
                 powerups: score.powerups,
+                seen_powerups: 0,
                 defends: score.defends,
                 assists: score.assists,
                 captures: score.captures,
@@ -360,6 +397,7 @@ impl Scoreboard {
                 bot: extra.bot,
                 record: extra.record,
                 powerups: 0,
+                seen_powerups: 0,
                 defends: 0,
                 assists: 0,
                 captures: 0,

@@ -6,8 +6,9 @@ use sjk_vfs::VirtualFileSystem;
 
 /// Existing item catalogue, then 43 cause-of-death cells, then two CTY flag variants,
 /// then the weapon selection row's art: each weapon's `_na` (no ammo) icon and the
-/// staff and dual saber icons, then the team logos floated over allies.
-pub(super) const COUNT: usize = 120;
+/// staff and dual saber icons, then the team logos floated over allies, then the two
+/// "flag taken" icons.
+pub(super) const COUNT: usize = 122;
 /// First of the cause-of-death cells, by `meansOfDeath_t`: an icon pack's
 /// `hud/mod/*`, else the weapon's own picture ([`MOD_ITEMS`]); the kill feed's icons.
 pub(super) const MEANS_FIRST: usize = 51;
@@ -20,6 +21,15 @@ pub(super) const SABER_STAFF: usize = 115;
 pub(super) const SABER_DUAL: usize = 116;
 /// First of the team logos' cells, in [`super::team_logo::Logo`]'s order.
 pub(super) const TEAM_LOGO_FIRST: usize = 117;
+
+/// The CTF flag icons: `mpi_rflag`, `mpi_bflag`, their ysalamiri variants (CTY), and the
+/// "taken" ones (`mpi_rflag_x`, `mpi_bflag_x`) that follow the team logos.
+pub(crate) const RED_FLAG: usize = 46;
+pub(crate) const BLUE_FLAG: usize = 47;
+pub(crate) const RED_FLAG_YSALAMIRI: usize = 94;
+pub(crate) const BLUE_FLAG_YSALAMIRI: usize = 95;
+pub(crate) const RED_FLAG_TAKEN: usize = 120;
+pub(crate) const BLUE_FLAG_TAKEN: usize = 121;
 
 /// Stock weapon ordinals -> existing bg_itemlist entries (bg_misc.c:1241-1619).
 pub(crate) const WEAPONS: [usize; 19] = [
@@ -123,6 +133,8 @@ pub(super) fn load(
             }
             SABER_STAFF => "gfx/hud/w_icon_saberstaff".to_owned(),
             SABER_DUAL => "gfx/hud/w_icon_duallightsaber".to_owned(),
+            RED_FLAG_TAKEN => "gfx/hud/mpi_rflag_x".to_owned(),
+            BLUE_FLAG_TAKEN => "gfx/hud/mpi_bflag_x".to_owned(),
             _ => super::team_logo::Logo::ALL[slot - TEAM_LOGO_FIRST]
                 .shader()
                 .to_owned(),

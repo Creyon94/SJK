@@ -7,6 +7,7 @@ pub(crate) mod crosshair;
 pub(crate) mod enemy_info;
 mod estimate;
 pub(crate) mod family;
+pub(crate) mod flag_status;
 mod force_estimate;
 mod force_streams;
 pub(crate) mod force_wheel;
@@ -152,6 +153,8 @@ pub(crate) struct HudOverlay {
     pub(crate) enemy_info: enemy_info::State,
     /// The pilot's vehicle HUD and the crosshair it changes.
     pub(crate) vehicle: vehicle::State,
+    /// The CTF flag icons and the team score plates.
+    pub(crate) flag_status: flag_status::State,
     score_text: String,
     snapshot_text: String,
 
@@ -288,6 +291,7 @@ impl HudOverlay {
             duel_pairs: duel_pairs::DuelPairs::default(),
             team_logo: team_logo::State::default(),
             team_outline: team_outline::State::default(),
+            flag_status: flag_status::State::default(),
             score_text: String::with_capacity(80),
             snapshot_text: String::with_capacity(96),
 
@@ -589,6 +593,8 @@ impl HudOverlay {
                 font,
                 self.theme,
             );
+            self.flag_status
+                .emit(&mut self.draw_list, viewport, &self.icons, visibility);
             self.guides.emit(&mut self.draw_list, viewport);
         }
         // CG_DrawWeaponSelect does not follow cg_drawHud: only the row's own

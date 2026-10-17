@@ -382,6 +382,14 @@ const HELP: &[(&str, &str)] = &[
         "Puts the match time in the upper right under the frame rate, as JoF EJK does, instead of in the HUD layout.",
     ),
     (
+        "cg_drawTeamScores",
+        "Team games: the red and blue scores at the top centre of the HUD, in every HUD style.",
+    ),
+    (
+        "cg_drawFlagStatus",
+        "Capture the flag: the flag icons at the left (taken or dropped, yours and theirs) and a note while you carry a flag.",
+    ),
+    (
         crate::version_overlay::CVAR,
         "Shows SJK's version, build date and commit at the top, so screenshots say which build.",
     ),

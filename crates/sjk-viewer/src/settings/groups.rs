@@ -340,6 +340,8 @@ impl Group {
                 "cg_drawFps",
                 "cg_drawTimer",
                 "cg_drawTimerUpperRight",
+                "cg_drawTeamScores",
+                "cg_drawFlagStatus",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
                 crate::hud::movement::LINES_ROW,

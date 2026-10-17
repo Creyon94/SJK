@@ -27,6 +27,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Ctrl+V and copies work on Linux without xclip or wl-clipboard installed: the clipboard is now reached in process on X11 and Wayland _(Sol, after Nib's report)_
 - Free camera and `fakenoclip` fly freely while your body is held in an emote, taunt or other held animation (it could turn but not move) _(Sol, after Kushina's reports)_
+- Capture the flag: the HUD shows flag icons at the left (the enemy flag taken or dropped, and yours taken), a gold plate with "YOU HAVE THE FLAG" while you carry one, and the red and blue team scores at the top centre, in every HUD style (`cg_drawFlagStatus`, `cg_drawTeamScores`); the scoreboards also mark a carrier you can see when the server lists no powerups, and capture the ysalamiri uses its own flag icons _(Sol, after Slash's report)_
 
 ## 2026.1016.3 (Alpha) | 16/10/2026
 

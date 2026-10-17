@@ -9,6 +9,21 @@ get the fix; the key detection (`text_entry`, `sjk_chat_field::is_paste`, the co
 `shortcut_of`) already covers Linux's U+0016 text. Not run on Linux: the cross
 `cargo check` needs ALSA/pkg-config sysroots; untested in a Linux session.
 
+## Capture the flag HUD
+
+17/10/2026, `personal/ctf-flags` (Slash's report from JoF and JA+ servers: no flag on the
+scoreboard, no sign of carrying one, no team scores on the HUD). The scoreboards already
+drew a carrier's flag from the `scores` command's powerups; the HUD drew nothing but the
+upper-right powerup icon, which `cg_drawUpperRight` and `cg_drawPowerupIcons` can hide and
+which took Capture the Flag for the ysalamiri variant. Added in every HUD style: the flag
+icons at the left (`CG_DrawFlagStatus`, from `CS_FLAGSTATUS`), a gold plate and "YOU HAVE
+THE FLAG" while the local player carries one, and the team scores at the top centre
+(`cg_drawFlagStatus`, `cg_drawTeamScores`, Settings > HUD). The scoreboards also mark a
+carrier in view from the snapshot, for servers whose `scores` list no powerups
+([client.md](client.md#capture-the-flag-hud)). Checked by unit tests and world shots
+`world_shot::ctf_flags_shots::ctf_flags_on_a_demo` (three HUD styles, two states, over
+Sol's demo); not tried on a live server.
+
 ## SJK chat messages up to 300 characters
 
 16/10/2026, `personal/chat-300` (Sol's request), with the hub's `chat-300` (deployed

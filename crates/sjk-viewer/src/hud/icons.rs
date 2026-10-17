@@ -107,6 +107,11 @@ impl Icons {
         (item != 0).then(|| self.handles[item]).flatten()
     }
 
+    /// The loaded picture in icon cell `slot` ([`assets`]), if any.
+    pub(crate) fn cell(&self, slot: usize) -> Option<TextureId> {
+        self.handles.get(slot).copied().flatten()
+    }
+
     /// The loaded picture of team logo `logo`, if any.
     pub(crate) fn team_logo(&self, logo: super::team_logo::Logo) -> Option<TextureId> {
         self.handles[assets::TEAM_LOGO_FIRST + logo as usize]
@@ -189,7 +194,7 @@ impl Icons {
         self.cty = game
             .config_string(0)
             .and_then(|s| sjk_client::LegacyClientInfo::new(s).integer("g_gametype"))
-            == Some(8);
+            == Some(9);
         for (seconds, end) in self.seconds.iter_mut().zip(snapshot.player.powerups) {
             let remaining = i64::from(end) - i64::from(snapshot.server_time);
             *seconds = if remaining > 0 {
