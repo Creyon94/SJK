@@ -1,12 +1,14 @@
 //! The Holocrons tab's 3D holocron ([`crate::console::holocrons_panel`]): one holocron floating in
 //! the world behind the tab, over the left of the screen where the page leaves it clear.
-//! It turns and bobs as Illuminate's does ([`crate::illuminate`]), wears the look of the
-//! tier chosen in the list (that tier's model and shader, and a point light in the tier's
-//! colour) and, for a tier the player holds none of, the locked look: the face drained
-//! and dark, with a faint light (padlock-like dimming; it is never hidden, so every tier
-//! can be seen).
+//! It turns and bobs as Illuminate's does ([`crate::illuminate`]) and is the holocron of
+//! the tier chosen in the list, each tier an object of its own (`docs/holocrons.md`, "The
+//! four holocrons"): the Jedi cube, the Great Holocron with its turning halo, the Sith
+//! pyramid with its floating cap and eye, the kyber prism in its tumbling rings with motes
+//! around it, and a point light in the tier's colour. For a tier the player holds none of
+//! it is the locked look: the same shape drained and dark, its parts at rest, with a faint
+//! light (padlock-like dimming; it is never hidden, so every tier can be seen).
 //!
-//! It is an ordinary object of the world pass: an instance of the look's model in
+//! It is an ordinary object of the world pass: an instance of each part's model in
 //! `object_groups`, loaded with the map's other rigid models ([`models`]), and a point
 //! light, so the menu map's stage (the Character tab's) is not needed: it floats before
 //! the backdrop camera ([`place`]), which the tab asks to park on its own shot
@@ -14,10 +16,10 @@
 //! it floats before the game's camera, the third-person one too: it is placed from the
 //! view the frame renders (`GpuState::frame_view`), with that view's own field.
 //!
-//! A tier is a model of its own because a surface's shader is named by its model file
-//! (`scripts/holocron_assets.py` writes `holocron_<tier>.md3` naming
-//! `models/sjk/holocron_<tier>`); the shared `holocron.md3` would draw the base look for
-//! every tier.
+//! A tier is a model per part ([`PARTS`], written with the models by
+//! `scripts/holocron_assets.py`): its body, and each part that moves against it, posed
+//! from the time ([`Part::pose`]). The locked look has models of its own because a
+//! surface's shader is named by its model file.
 //!
 //! Changing the tier shrinks the old look away and grows the new one ([`Stage`]); the
 //! frame allocates nothing.
@@ -27,22 +29,71 @@ use crate::GpuState;
 use crate::actor_instance::ActorInstance;
 use crate::dynamic_lights::PointLight;
 use crate::hud::identification::Camera;
-use glam::Vec3;
+use glam::{Quat, Vec3};
 use std::time::Instant;
 
-/// The model of each tier, in [`super::TIERS`] order.
-pub(crate) const TIER_MODELS: [&str; COUNT] = [
-    "models/sjk/holocron_uncommon.md3",
-    "models/sjk/holocron_rare.md3",
-    "models/sjk/holocron_legendary.md3",
-    "models/sjk/holocron_mythical.md3",
-];
-/// The model of a tier the player holds none of.
-pub(crate) const LOCKED_MODEL: &str = "models/sjk/holocron_locked.md3";
+/// One part of a tier's holocron: its model in the tier's look and in the locked one, and
+/// how it moves against the holocron (`scripts/holocron_forms.py`'s `Motion`). A moving
+/// part is modelled about its own centre, which it turns about; the body about the
+/// holocron's.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Part {
+    pub(crate) model: &'static str,
+    pub(crate) locked: &'static str,
+    /// Where its centre rests, in model units from the holocron's (z up).
+    at: [f32; 3],
+    /// Its bob along z: units, and radians per second.
+    bob: [f32; 2],
+    /// Its orbit about z: radius in units, radians per second, start angle.
+    orbit: [f32; 3],
+    /// Its turns, each a start angle and radians per second: about its own z (spin),
+    /// then about x (tumble), then about the holocron's z (precess).
+    spin: [f32; 2],
+    tumble: [f32; 2],
+    precess: [f32; 2],
+}
 
-/// Every model the stage may draw, for the world to load with its other rigid models.
+include!("../../assets/holocron/holocron_parts.rs");
+
+impl Part {
+    /// Where it is and how it is turned `seconds` in, against the holocron.
+    pub(crate) fn pose(&self, seconds: f32) -> (Vec3, Quat) {
+        let turn = |[start, rate]: [f32; 2]| start + rate * seconds;
+        let rotation = Quat::from_rotation_z(turn(self.precess))
+            * Quat::from_rotation_x(turn(self.tumble))
+            * Quat::from_rotation_z(turn(self.spin));
+        let [radius, rate, start] = self.orbit;
+        let angle = start + rate * seconds;
+        let [lift, pace] = self.bob;
+        let position = Vec3::from_array(self.at)
+            + Vec3::new(
+                radius * angle.cos(),
+                radius * angle.sin(),
+                lift * (pace * seconds).sin(),
+            );
+        (position, rotation)
+    }
+
+    /// Whether it moves against the holocron at all.
+    #[cfg(test)]
+    pub(crate) fn moves(&self) -> bool {
+        self.pose(0.0) != self.pose(1.0)
+    }
+}
+
+/// Every model the stage may draw, for the world to load with its other rigid models
+/// (a model the table names twice, the motes', once).
 pub(crate) fn models() -> impl Iterator<Item = &'static str> {
-    TIER_MODELS.into_iter().chain([LOCKED_MODEL])
+    let every = || {
+        PARTS
+            .into_iter()
+            .flatten()
+            .flat_map(|part| [part.model, part.locked])
+    };
+    every()
+        .enumerate()
+        .filter(move |(index, model)| every().position(|other| other == *model) == Some(*index))
+        .map(|(_, model)| model)
 }
 
 /// What the tab asks the stage to show.
@@ -55,13 +106,25 @@ pub(crate) struct Request {
 }
 
 impl Request {
-    /// The model that draws it.
+    /// Its parts, the body first.
+    pub(crate) fn parts(self) -> &'static [Part] {
+        PARTS[self.tier.min(COUNT - 1)]
+    }
+
+    /// The model that draws `part` in its look.
+    pub(crate) fn model_of(self, part: &Part) -> &'static str {
+        if self.owned { part.model } else { part.locked }
+    }
+
+    /// The model of its body.
+    #[cfg(test)]
     pub(crate) fn model(self) -> &'static str {
-        if self.owned {
-            TIER_MODELS[self.tier.min(COUNT - 1)]
-        } else {
-            LOCKED_MODEL
-        }
+        self.model_of(&self.parts()[0])
+    }
+
+    /// The time its parts are posed at, `seconds` in: a locked holocron's rest still.
+    pub(crate) fn part_seconds(self, seconds: f32) -> f32 {
+        if self.owned { seconds } else { 0.0 }
     }
 
     /// The light it casts: the tier's colour, a fifth as strong while locked.
@@ -102,7 +165,8 @@ pub(crate) const SIZE: f32 = 185.0;
 const DISTANCE: f32 = 64.0;
 /// The light's reach, in world units, at full level.
 const RADIUS: f32 = 190.0;
-/// The cube's edge in the model (`HOLOCRON_EDGE` in `scripts/holocron_assets.py`).
+/// The model units [`SIZE`] spans: the Jedi cube's edge (`CUBE_HALF` in
+/// `scripts/holocron_forms.py`); the other forms are made to fill about the same room.
 const EDGE: f32 = 6.0;
 
 /// The look on show and how far it has grown (0 gone, 1 full size).
@@ -221,19 +285,24 @@ impl GpuState {
             radius: RADIUS * level * glow.sqrt(),
             color: request.light().map(|channel| channel * glow),
         });
-        let Some(mesh) = self
-            .object_meshes
-            .iter()
-            .position(|mesh| mesh.appearance.model == request.model())
-        else {
-            return;
-        };
-        self.object_groups[mesh].push(ActorInstance::new(
-            position.to_array(),
-            (glam::Quat::from_rotation_z(turn) * crate::illuminate::idle_rotation(seconds))
-                .to_array(),
-            [size; 3],
-        ));
+        let rotation = Quat::from_rotation_z(turn) * crate::illuminate::idle_rotation(seconds);
+        let part_seconds = request.part_seconds(seconds);
+        for part in request.parts() {
+            let model = request.model_of(part);
+            let Some(mesh) = self
+                .object_meshes
+                .iter()
+                .position(|mesh| mesh.appearance.model == model)
+            else {
+                continue;
+            };
+            let (at, turned) = part.pose(part_seconds);
+            self.object_groups[mesh].push(ActorInstance::new(
+                (position + rotation * (at * size)).to_array(),
+                (rotation * turned).to_array(),
+                [size; 3],
+            ));
+        }
     }
 }
 
@@ -243,17 +312,114 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn every_tier_has_a_model_of_its_own_named_by_its_id() {
-        for (tier, model) in super::super::TIERS.iter().zip(TIER_MODELS) {
-            assert_eq!(model, format!("models/sjk/holocron_{}.md3", tier.id));
+    fn every_tier_has_parts_of_its_own_named_by_its_id() {
+        for (tier, parts) in super::super::TIERS.iter().zip(PARTS) {
+            // The body first, standing still at the centre.
+            let body = parts[0];
+            assert_eq!(body.model, format!("models/sjk/holocron_{}.md3", tier.id));
+            assert!(!body.moves(), "{}", tier.id);
+            assert_eq!(body.pose(3.0), (Vec3::ZERO, Quat::IDENTITY));
+            for part in parts {
+                let prefix = format!("models/sjk/holocron_{}", tier.id);
+                assert!(part.model.starts_with(&prefix), "{}", part.model);
+                assert_eq!(
+                    part.locked,
+                    part.model.replace(".md3", "_locked.md3"),
+                    "{}",
+                    part.model
+                );
+            }
+            // Every other part moves.
+            assert!(parts[1..].iter().all(Part::moves), "{}", tier.id);
         }
-        assert_eq!(models().count(), COUNT + 1);
-        let all: std::collections::BTreeSet<_> = models().collect();
-        assert_eq!(all.len(), COUNT + 1, "no model twice");
+        let all: Vec<_> = models().collect();
+        let unique: std::collections::BTreeSet<_> = all.iter().collect();
+        assert_eq!(all.len(), unique.len(), "no model twice");
         assert!(
-            !all.contains(crate::illuminate::MODEL),
+            !all.contains(&crate::illuminate::MODEL),
             "Illuminate's stays its own"
         );
+        // The four forms: a still cube, a halo, a cap and an eye, a crystal in two rings
+        // with ten motes.
+        let lengths: Vec<_> = PARTS.iter().map(|parts| parts.len()).collect();
+        assert_eq!(lengths, [1, 2, 3, 14]);
+        assert_eq!(all.len(), 2 * (1 + 2 + 3 + 5));
+    }
+
+    /// A part's pose follows its table: the Sith pyramid's cap floats over the body and
+    /// bobs, a mote circles at its height, and a locked holocron's parts keep still.
+    #[test]
+    fn parts_move_by_their_table_and_rest_while_locked() {
+        let cap = PARTS[2][1];
+        let (rest, turned) = cap.pose(0.0);
+        assert_eq!(turned, Quat::IDENTITY);
+        assert!(rest.z > 2.0, "above the body: {rest}");
+        let (later, turned) = cap.pose(1.0);
+        assert!((later.z - rest.z).abs() > 0.1, "it bobs");
+        assert!(turned.angle_between(Quat::IDENTITY) > 0.1, "it turns");
+        let mote = PARTS[3][4];
+        let heights = [0.0, 1.0, 2.0].map(|t| mote.pose(t).0.z);
+        assert!(heights.iter().all(|z| (z - heights[0]).abs() < 1e-5));
+        let radii = [0.0, 1.0, 2.0].map(|t| mote.pose(t).0.truncate().length());
+        assert!(
+            radii
+                .iter()
+                .all(|r| (r - radii[0]).abs() < 1e-4 && *r > 2.0)
+        );
+        assert_ne!(mote.pose(0.0).0, mote.pose(1.0).0, "it circles");
+        let locked = Request {
+            tier: 3,
+            owned: false,
+        };
+        assert_eq!(locked.part_seconds(12.5), 0.0);
+        let owned = Request {
+            tier: 3,
+            owned: true,
+        };
+        assert_eq!(owned.part_seconds(12.5), 12.5);
+    }
+
+    /// Every part's model is bundled and loads, a moving one is modelled about its own
+    /// centre (which it turns about), and the forms fill about the room of the cube.
+    #[test]
+    fn every_part_is_bundled_and_moves_about_its_centre() {
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        crate::illuminate::mount(&mut vfs).unwrap();
+        for (tier, parts) in super::super::TIERS.iter().zip(PARTS) {
+            let mut reach = 0.0_f32;
+            for part in parts {
+                for model in [part.model, part.locked] {
+                    let bytes = vfs
+                        .read(model)
+                        .unwrap()
+                        .unwrap_or_else(|| panic!("{model} is not mounted"))
+                        .bytes;
+                    let md3 = sjk_model::Md3::parse(&bytes).unwrap();
+                    let points: Vec<Vec3> = md3
+                        .surfaces
+                        .iter()
+                        .flat_map(|surface| &surface.frames[0])
+                        .map(|vertex| Vec3::from_array(vertex.position))
+                        .collect();
+                    let (low, high) = points.iter().fold(
+                        (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)),
+                        |(low, high), p| (low.min(*p), high.max(*p)),
+                    );
+                    if part.moves() {
+                        let centre = (low + high) * 0.5;
+                        assert!(centre.length() < 0.2, "{model}: centred at {centre}");
+                    }
+                    let (at, _) = part.pose(0.0);
+                    let far = points.iter().map(|p| p.length()).fold(0.0, f32::max);
+                    reach = reach.max(at.length() + far);
+                }
+            }
+            assert!(
+                (4.0..8.0).contains(&reach),
+                "{}: reaches {reach} units",
+                tier.id
+            );
+        }
     }
 
     #[test]
@@ -268,7 +434,7 @@ mod tests {
             tier: 3,
             owned: false,
         };
-        assert_eq!(locked.model(), LOCKED_MODEL);
+        assert_eq!(locked.model(), "models/sjk/holocron_mythical_locked.md3");
         let dim = locked.light();
         for (dim, full) in dim.into_iter().zip(owned.light()) {
             assert!((dim - full * LOCKED_LIGHT).abs() < 1e-6);
@@ -293,7 +459,7 @@ mod tests {
                 owned: true
             }
             .model(),
-            TIER_MODELS[COUNT - 1]
+            PARTS[COUNT - 1][0].model
         );
     }
 

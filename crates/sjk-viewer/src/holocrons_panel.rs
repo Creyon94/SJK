@@ -699,7 +699,10 @@ mod tests {
         assert!(request(&panel).owned);
         panel.select(1);
         assert!(!request(&panel).owned, "none held: the locked look");
-        assert_eq!(request(&panel).model(), holocrons::stage::LOCKED_MODEL);
+        assert_eq!(
+            request(&panel).model(),
+            "models/sjk/holocron_rare_locked.md3"
+        );
         panel.select(2);
         assert_eq!(
             request(&panel).model(),

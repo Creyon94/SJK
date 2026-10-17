@@ -33,8 +33,43 @@ pub(crate) const MODEL: &str = "models/sjk/holocron.md3";
 
 /// A bundled file's bytes, by its name in `assets/holocron`.
 macro_rules! bundled {
-    ($name:literal) => {
+    ($name:expr) => {
         include_bytes!(concat!("../assets/holocron/", $name))
+    };
+}
+
+/// A bundled model, picture (`models/sjk`), icon (`gfx/sjk`) or shader file by its name
+/// without the extension, at its game path.
+macro_rules! model {
+    ($name:literal) => {
+        (
+            concat!("models/sjk/", $name, ".md3"),
+            bundled!(concat!($name, ".md3")),
+        )
+    };
+}
+macro_rules! picture {
+    ($name:literal) => {
+        (
+            concat!("models/sjk/", $name, ".jpg"),
+            bundled!(concat!($name, ".jpg")),
+        )
+    };
+}
+macro_rules! icon {
+    ($name:literal) => {
+        (
+            concat!("gfx/sjk/", $name, ".png"),
+            bundled!(concat!($name, ".png")),
+        )
+    };
+}
+macro_rules! shader {
+    ($name:literal) => {
+        (
+            concat!("shaders/sjk_", $name, ".shader"),
+            bundled!(concat!($name, ".shader")),
+        )
     };
 }
 
@@ -42,118 +77,80 @@ macro_rules! bundled {
 #[cfg(test)]
 const TIERS: [&str; 4] = ["uncommon", "rare", "legendary", "mythical"];
 
-/// The bundled files at their game paths: the holocron, then the four tiers' models,
-/// faces, glows and icons (large and small), the mythical sheen and the tiers' shader,
-/// then the locked look (the Profile screen's tier the player holds none of).
+/// The bundled files at their game paths: the holocron, then each loot-box tier's
+/// holocron (`docs/holocrons.md`, "The four holocrons"): its parts' models in its look and
+/// the locked one ([`crate::holocrons::stage::PARTS`]), its face with the face's glow and
+/// locked pictures, its lit parts' picture and its icons (large and small); then the
+/// shared steel, dark metal and locked light, the mythical sheen and the shaders.
 ///
-/// A tier has a model of its own because a surface's shader is named by its model file:
+/// A tier has models of its own because a surface's shader is named by its model file:
 /// the shared `holocron.md3` always draws `models/sjk/holocron`.
-const FILES: [(&str, &[u8]); 30] = [
+const FILES: &[(&str, &[u8])] = &[
     (MODEL, bundled!("holocron.md3")),
-    ("models/sjk/holocron.jpg", bundled!("holocron.jpg")),
-    (
-        "models/sjk/holocron_glow.jpg",
-        bundled!("holocron_glow.jpg"),
-    ),
+    picture!("holocron"),
+    picture!("holocron_glow"),
     ("gfx/sjk/toy_illuminate.png", bundled!("toy_illuminate.png")),
-    ("shaders/sjk_holocron.shader", bundled!("holocron.shader")),
-    (
-        "models/sjk/holocron_uncommon.md3",
-        bundled!("holocron_uncommon.md3"),
-    ),
-    (
-        "models/sjk/holocron_uncommon.jpg",
-        bundled!("holocron_uncommon.jpg"),
-    ),
-    (
-        "models/sjk/holocron_uncommon_glow.jpg",
-        bundled!("holocron_uncommon_glow.jpg"),
-    ),
-    (
-        "gfx/sjk/holocron_uncommon.png",
-        bundled!("holocron_uncommon.png"),
-    ),
-    (
-        "gfx/sjk/holocron_uncommon_small.png",
-        bundled!("holocron_uncommon_small.png"),
-    ),
-    (
-        "models/sjk/holocron_rare.md3",
-        bundled!("holocron_rare.md3"),
-    ),
-    (
-        "models/sjk/holocron_rare.jpg",
-        bundled!("holocron_rare.jpg"),
-    ),
-    (
-        "models/sjk/holocron_rare_glow.jpg",
-        bundled!("holocron_rare_glow.jpg"),
-    ),
-    ("gfx/sjk/holocron_rare.png", bundled!("holocron_rare.png")),
-    (
-        "gfx/sjk/holocron_rare_small.png",
-        bundled!("holocron_rare_small.png"),
-    ),
-    (
-        "models/sjk/holocron_legendary.md3",
-        bundled!("holocron_legendary.md3"),
-    ),
-    (
-        "models/sjk/holocron_legendary.jpg",
-        bundled!("holocron_legendary.jpg"),
-    ),
-    (
-        "models/sjk/holocron_legendary_glow.jpg",
-        bundled!("holocron_legendary_glow.jpg"),
-    ),
-    (
-        "gfx/sjk/holocron_legendary.png",
-        bundled!("holocron_legendary.png"),
-    ),
-    (
-        "gfx/sjk/holocron_legendary_small.png",
-        bundled!("holocron_legendary_small.png"),
-    ),
-    (
-        "models/sjk/holocron_mythical.md3",
-        bundled!("holocron_mythical.md3"),
-    ),
-    (
-        "models/sjk/holocron_mythical.jpg",
-        bundled!("holocron_mythical.jpg"),
-    ),
-    (
-        "models/sjk/holocron_mythical_glow.jpg",
-        bundled!("holocron_mythical_glow.jpg"),
-    ),
-    (
-        "gfx/sjk/holocron_mythical.png",
-        bundled!("holocron_mythical.png"),
-    ),
-    (
-        "gfx/sjk/holocron_mythical_small.png",
-        bundled!("holocron_mythical_small.png"),
-    ),
-    (
-        "models/sjk/holocron_mythical_sheen.jpg",
-        bundled!("holocron_mythical_sheen.jpg"),
-    ),
-    (
-        "shaders/sjk_holocron_tiers.shader",
-        bundled!("holocron_tiers.shader"),
-    ),
-    (
-        "models/sjk/holocron_locked.md3",
-        bundled!("holocron_locked.md3"),
-    ),
-    (
-        "models/sjk/holocron_locked.jpg",
-        bundled!("holocron_locked.jpg"),
-    ),
-    (
-        "shaders/sjk_holocron_locked.shader",
-        bundled!("holocron_locked.shader"),
-    ),
+    shader!("holocron"),
+    // Uncommon.
+    model!("holocron_uncommon"),
+    model!("holocron_uncommon_locked"),
+    picture!("holocron_uncommon"),
+    picture!("holocron_uncommon_glow"),
+    picture!("holocron_uncommon_locked"),
+    picture!("holocron_uncommon_light"),
+    icon!("holocron_uncommon"),
+    icon!("holocron_uncommon_small"),
+    // Rare.
+    model!("holocron_rare"),
+    model!("holocron_rare_locked"),
+    model!("holocron_rare_halo"),
+    model!("holocron_rare_halo_locked"),
+    picture!("holocron_rare"),
+    picture!("holocron_rare_glow"),
+    picture!("holocron_rare_locked"),
+    picture!("holocron_rare_light"),
+    icon!("holocron_rare"),
+    icon!("holocron_rare_small"),
+    // Legendary.
+    model!("holocron_legendary"),
+    model!("holocron_legendary_locked"),
+    model!("holocron_legendary_cap"),
+    model!("holocron_legendary_cap_locked"),
+    model!("holocron_legendary_eye"),
+    model!("holocron_legendary_eye_locked"),
+    picture!("holocron_legendary"),
+    picture!("holocron_legendary_glow"),
+    picture!("holocron_legendary_locked"),
+    picture!("holocron_legendary_light"),
+    icon!("holocron_legendary"),
+    icon!("holocron_legendary_small"),
+    // Mythical.
+    model!("holocron_mythical"),
+    model!("holocron_mythical_locked"),
+    model!("holocron_mythical_crystal"),
+    model!("holocron_mythical_crystal_locked"),
+    model!("holocron_mythical_ring_a"),
+    model!("holocron_mythical_ring_a_locked"),
+    model!("holocron_mythical_ring_b"),
+    model!("holocron_mythical_ring_b_locked"),
+    model!("holocron_mythical_mote"),
+    model!("holocron_mythical_mote_locked"),
+    picture!("holocron_mythical"),
+    picture!("holocron_mythical_glow"),
+    picture!("holocron_mythical_locked"),
+    picture!("holocron_mythical_light"),
+    icon!("holocron_mythical"),
+    icon!("holocron_mythical_small"),
+    // Shared by the four.
+    picture!("holocron_steel"),
+    picture!("holocron_steel_locked"),
+    picture!("holocron_dark"),
+    picture!("holocron_dark_locked"),
+    picture!("holocron_light_locked"),
+    picture!("holocron_mythical_sheen"),
+    shader!("holocron_tiers"),
+    shader!("holocron_parts"),
+    shader!("holocron_locked"),
 ];
 
 /// Where the holocron floats, from the eye in the view's yaw frame (x forward,
@@ -675,6 +672,7 @@ mod tests {
                 (format!("models/sjk/holocron_{tier}_glow.jpg"), 512),
                 (format!("gfx/sjk/holocron_{tier}.png"), 256),
                 (format!("gfx/sjk/holocron_{tier}_small.png"), 64),
+                (format!("models/sjk/holocron_{tier}_light.jpg"), 64),
             ] {
                 let decoded = picture(&path);
                 assert_eq!((decoded.width(), decoded.height()), (size, size), "{path}");
@@ -749,80 +747,81 @@ mod tests {
         assert!(definitions.iter().all(|d| d.name != base[0].name));
     }
 
-    /// A surface's shader comes from its model file, so every tier's cube names the
-    /// tier's own shader (the shared cube would draw the base look for all four), and
-    /// is the base cube otherwise: the same corners, normals, texture coordinates and
-    /// triangles. The locked look has its own cube and shader the same way.
+    /// A surface's shader comes from its model file, so every part of every tier names
+    /// shaders of its own look: a tier's face, its light, or the shared steel and dark
+    /// metal, all defined by a mounted shader file; the locked look's models only locked
+    /// shaders, which never glow. Every picture a shader names is mounted.
     #[test]
-    fn every_tier_has_a_cube_naming_its_own_shader() {
+    fn every_part_names_shaders_of_its_look_and_they_are_mounted() {
         let mut vfs = VirtualFileSystem::new();
         mount(&mut vfs).unwrap();
-        let model = |path: &str| {
-            sjk_model::Md3::parse(
-                &vfs.read(path)
-                    .unwrap()
-                    .unwrap_or_else(|| panic!("{path} is not mounted"))
-                    .bytes,
-            )
-            .unwrap_or_else(|error| panic!("{path}: {error}"))
-        };
-        let base = model(MODEL);
-        let shader_names = |path: &str| -> Vec<String> {
-            sjk_shader::parse_shader_script(&vfs.read(path).unwrap().unwrap().bytes, path)
+        let read = |path: &str| {
+            vfs.read(path)
                 .unwrap()
+                .unwrap_or_else(|| panic!("{path} is not mounted"))
+                .bytes
+        };
+        let definitions = |path: &str| sjk_shader::parse_shader_script(&read(path), path).unwrap();
+        let shown: Vec<_> = definitions("shaders/sjk_holocron_tiers.shader")
+            .into_iter()
+            .chain(definitions("shaders/sjk_holocron_parts.shader"))
+            .collect();
+        let locked = definitions("shaders/sjk_holocron_locked.shader");
+        for definition in shown.iter().chain(&locked) {
+            for stage in &definition.stages {
+                for image in &stage.images {
+                    assert!(
+                        vfs.read(&format!("{image}.jpg")).unwrap().is_some(),
+                        "{}: {image} is not mounted",
+                        definition.name
+                    );
+                }
+            }
+        }
+        assert!(
+            locked
+                .iter()
+                .all(|definition| definition.stages.iter().all(|stage| !stage.glow))
+        );
+        assert!(
+            locked
+                .iter()
+                .all(|definition| definition.name.ends_with("_locked"))
+        );
+        let names = |path: &str| -> Vec<String> {
+            sjk_model::Md3::parse(&read(path))
+                .unwrap_or_else(|error| panic!("{path}: {error}"))
+                .surfaces
                 .into_iter()
-                .map(|definition| definition.name)
+                .flat_map(|surface| surface.shaders)
                 .collect()
         };
-        let defined = shader_names("shaders/sjk_holocron_tiers.shader");
-        let locked_defined = shader_names("shaders/sjk_holocron_locked.shader");
-        assert_eq!(locked_defined, ["models/sjk/holocron_locked"]);
-        let mut named = Vec::new();
-        for (look, shader) in TIERS
-            .iter()
-            .map(|tier| {
-                (
-                    format!("holocron_{tier}"),
-                    format!("models/sjk/holocron_{tier}"),
-                )
-            })
-            .chain([(
-                "holocron_locked".to_owned(),
-                "models/sjk/holocron_locked".to_owned(),
-            )])
-        {
-            let cube = model(&format!("models/sjk/{look}.md3"));
-            assert_eq!(
-                (cube.surfaces.len(), cube.surfaces[0].shaders.len()),
-                (1, 1)
-            );
-            let surface = &cube.surfaces[0];
-            assert_eq!(surface.shaders, [shader.as_str()], "{look}");
-            assert!(
-                defined.contains(&shader) || locked_defined.contains(&shader),
-                "{look}: {shader} is defined by no mounted shader file"
-            );
-            let first = &base.surfaces[0];
-            assert_eq!(surface.triangles, first.triangles, "{look}");
-            assert_eq!(surface.texture_coordinates, first.texture_coordinates);
-            assert_eq!(surface.frames[0].len(), first.frames[0].len());
-            for (a, b) in surface.frames[0].iter().zip(&first.frames[0]) {
-                assert_eq!((a.position, a.normal), (b.position, b.normal), "{look}");
+        for (tier, parts) in TIERS.iter().zip(crate::holocrons::stage::PARTS) {
+            for part in parts {
+                for shader in names(part.model) {
+                    let own = [
+                        format!("models/sjk/holocron_{tier}"),
+                        format!("models/sjk/holocron_{tier}_light"),
+                        "models/sjk/holocron_steel".to_owned(),
+                        "models/sjk/holocron_dark".to_owned(),
+                    ];
+                    assert!(own.contains(&shader), "{}: {shader}", part.model);
+                    assert!(shown.iter().any(|definition| definition.name == shader));
+                }
+                for shader in names(part.locked) {
+                    assert!(
+                        locked.iter().any(|definition| definition.name == shader),
+                        "{}: {shader}",
+                        part.locked
+                    );
+                }
             }
-            named.push(shader);
+            // The tier's locked face is mounted at its size.
+            let face =
+                image::load_from_memory(&read(&format!("models/sjk/holocron_{tier}_locked.jpg")))
+                    .unwrap();
+            assert_eq!((face.width(), face.height()), (512, 512));
         }
-        named.sort();
-        named.dedup();
-        assert_eq!(named.len(), TIERS.len() + 1, "no two looks share a shader");
-        // The locked face is mounted at its size.
-        let face = image::load_from_memory(
-            &vfs.read("models/sjk/holocron_locked.jpg")
-                .unwrap()
-                .unwrap()
-                .bytes,
-        )
-        .unwrap();
-        assert_eq!((face.width(), face.height()), (512, 512));
     }
 
     /// Step at 60 frames a second from `from` to `to` seconds; the last pose.
