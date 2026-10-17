@@ -529,6 +529,25 @@ checks, not live visual parity evidence.
 
 Live Grip play and actual GPU appearance remain unverified. `JKA_GAME_DATA`
 is not configured; no release frame-time measurements have been made.
+## Bundled JoF Force presets
+
+16/10/2026, `feat/jof-force-presets` based on `7026c735`: the client bundles
+JoF EJK #23's 22 community Force templates (13 light, 9 dark) unchanged, with
+upstream attribution. They are content mounted below installed packs, selectable
+through the normal Force draft; loading still applies rank and server rules and
+waits for Apply. The classic list groups retail templates first under Jedi Academy,
+then Community. The SJK Force page now has selectors for the same two groups.
+Retail membership comes from the `base/assets0.pk3` through `assets3.pk3` view,
+and the catalogue exposes its retail count. Saved templates still override
+same-named packaged templates. All 22 files match upstream revision
+`9750845d194ced3d4ef86fcb80ea482339f629d1` byte for byte.
+Synthetic-content tests verify side assignment, archive-based retail grouping,
+installed and saved overrides, and SJK pointer/keyboard selection changing only
+the draft. No retail assets or player-saved files are used by these fixtures.
+Formatting, locked workspace build/tests and Clippy with all targets passed on
+Windows with Rust 1.99.0 (existing warnings; GPU/data-dependent tests ignored).
+Live server use and GPU presentation remain unverified. See
+[the client](client.md#menu-style) and [SJK UI](sjk-ui.md#character).
 
 ## Emotes on stock models: limbs out of wider bodies
 

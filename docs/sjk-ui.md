@@ -343,9 +343,13 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   and turn before it. World shot: `world_shot::saber_skins::duel6_sjk_saber_page`
   (the search typed, a search finding nothing with no skin owned, Dual; at 1080p,
   with `ui_textScale` 1.2, and at 4K with it).
-- **Force:** the mastery ("Jedi Master") and the points left of the rank's
+- **Force:** the **Force templates** panel at the right offers separate
+  **Jedi Academy** and **Community** selectors, retail first. Left/Right or
+  either half of a selector loads that group's previous/next preset into the
+  draft; Apply sends it. The community group includes the bundled JoF presets
+  ([client.md](client.md#menu-style)). The mastery ("Jedi Master") and points left
   ("18 of 100 points left", and "not applied yet" while the draft differs)
-  over a gold bar of the points left; the Light and Dark sides as two cards
+  sit over a gold bar of the points left; the Light and Dark sides appear as two cards
   with their emblems; the powers in classic+'s groups under sub-headings,
   Neutral and Lightsaber down the left, the side's five on the right (the
   other side's left out, as on classic+): each its holocron, its name and its

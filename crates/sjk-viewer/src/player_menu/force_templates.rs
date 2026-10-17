@@ -29,6 +29,8 @@ pub(super) struct Template {
     pub(super) value: String,
     /// Saved by the player (in the user folder) rather than shipped.
     pub(super) own: bool,
+    /// Present in the retail archives of `base`, regardless of later overrides.
+    pub(super) retail: bool,
 }
 
 /// The templates of both sides, listed once per file system and again
@@ -54,6 +56,18 @@ fn slot(side: ForceSide) -> usize {
 }
 
 impl Templates {
+    /// Synthetic content only, without reading the player's saved files.
+    #[cfg(test)]
+    pub(super) fn from_test_vfs(vfs: Arc<VirtualFileSystem>) -> Self {
+        Self {
+            sides: [
+                list(&vfs, None, ForceSide::Light),
+                list(&vfs, None, ForceSide::Dark),
+            ],
+            listed: Some(vfs),
+        }
+    }
+
     /// List the templates of `vfs` and the user folder unless `vfs` is the
     /// file system listed last.
     pub(super) fn ensure(&mut self, vfs: Option<&Arc<VirtualFileSystem>>) {
@@ -88,14 +102,20 @@ impl Templates {
                 name: format!("My saved template {index:02}"),
                 value: "7-2-031330310000030333".to_owned(),
                 own: true,
+                retail: false,
             })
             .collect();
     }
 
-    /// `side`'s templates: the player's own first, then the game data's,
-    /// each by name.
+    /// `side`'s templates: retail first, then community, with saved templates
+    /// first within each group, each by name.
     pub(super) fn of(&self, side: ForceSide) -> &[Template] {
         &self.sides[slot(side)]
+    }
+
+    /// Number of retail templates at the start of the side's catalogue.
+    pub(super) fn retail_count(&self, side: ForceSide) -> usize {
+        self.of(side).partition_point(|template| template.retail)
     }
 
     /// Save `value` as `name` for `side` in the user folder and list again;
@@ -198,7 +218,16 @@ fn list(vfs: &VirtualFileSystem, user: Option<&Path>, side: ForceSide) -> Vec<Te
             push(&mut templates, name, value, false);
         }
     }
-    templates.sort_by_cached_key(|template| (!template.own, sort_key(&template.name)));
+    let retail = sjk_client::retail_view(vfs);
+    for template in &mut templates {
+        template.retail = retail.as_ref().is_some_and(|retail| {
+            retail
+                .contains(&format!("{}/{}.fcf", folder(side), template.name))
+                .unwrap_or(false)
+        });
+    }
+    templates
+        .sort_by_cached_key(|template| (!template.retail, !template.own, sort_key(&template.name)));
     templates.truncate(MAX_TEMPLATES);
     templates
 }
@@ -216,6 +245,7 @@ fn push(templates: &mut Vec<Template>, name: &str, value: String, own: bool) {
         name: name.to_owned(),
         value,
         own,
+        retail: false,
     });
 }
 
@@ -289,6 +319,66 @@ pub(super) fn append_name(name: &mut String, text: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_jof_presets_load_by_side_after_retail_and_allow_overrides() {
+        let mut vfs = VirtualFileSystem::new();
+        crate::assets::force_presets::mount(&mut vfs).unwrap();
+        assert_eq!(crate::assets::force_presets::FILES.len(), 22);
+        for (path, bytes) in crate::assets::force_presets::FILES {
+            let allocation =
+                sjk_client::ForceAllocation::parse(contents(bytes).as_deref().unwrap()).unwrap();
+            assert_eq!(
+                path.contains("/light/"),
+                allocation.side == ForceSide::Light,
+                "{path}"
+            );
+        }
+        // Synthetic retail input: no retail assets are bundled in the test.
+        vfs.mount_memory(
+            "GameData/base/assets0.pk3",
+            [(
+                "forcecfg/light/Zed.fcf",
+                b"7-1-000000000000000000".as_slice(),
+            )],
+        )
+        .unwrap();
+        let templates = Templates::from_test_vfs(Arc::new(vfs.clone()));
+        assert_eq!(templates.retail_count(ForceSide::Light), 1);
+        assert_eq!(templates.of(ForceSide::Light)[0].name, "Zed");
+        assert_eq!(templates.of(ForceSide::Light).len(), 14);
+        assert_eq!(templates.of(ForceSide::Dark).len(), 9);
+        assert!(
+            templates.of(ForceSide::Light)[1..]
+                .iter()
+                .all(|t| !t.retail)
+        );
+        let path = "forcecfg/light/^5{^2JoF^5}^2Fullforce FFA.fcf";
+        vfs.mount_memory(
+            "installed community pack",
+            [(path, b"7-1-000000000000000000".as_slice())],
+        )
+        .unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let name = "^5{^2JoF^5}^2Fullforce FFA";
+        let installed = list(&vfs, None, ForceSide::Light);
+        assert_eq!(
+            installed.iter().find(|t| t.name == name).unwrap().value,
+            "7-1-000000000000000000"
+        );
+        save_to(
+            directory.path(),
+            ForceSide::Light,
+            name,
+            "7-1-100000000000000000",
+        )
+        .unwrap();
+        let saved = list(&vfs, Some(directory.path()), ForceSide::Light);
+        let own = saved.iter().find(|t| t.name == name).unwrap();
+        assert!(own.own && !own.retail);
+        assert_eq!(own.value, "7-1-100000000000000000");
+        assert_eq!(saved.iter().filter(|t| t.name == name).count(), 1);
+    }
 
     fn vfs() -> VirtualFileSystem {
         let mut vfs = VirtualFileSystem::new();
@@ -375,6 +465,28 @@ mod tests {
 }
 
 impl super::PlayerMenu {
+    /// Step within the retail or community group, loading only the draft.
+    pub(super) fn step_template_group(&mut self, retail: bool, direction: isize) {
+        let side = self.force.allocation().side;
+        let split = self.force_templates.list.retail_count(side);
+        let range = if retail {
+            0..split
+        } else {
+            split..self.force_templates.list.of(side).len()
+        };
+        if range.is_empty() {
+            return;
+        }
+        let row = match self.template_row().filter(|row| range.contains(row)) {
+            Some(row) => {
+                range.start + super::controller::wrap(row - range.start, direction, range.len())
+            }
+            None if direction < 0 => range.end - 1,
+            None => range.start,
+        };
+        self.load_template_row(row);
+    }
+
     /// The list row of the template the draft holds, if it holds one.
     pub(super) fn template_row(&self) -> Option<usize> {
         let name = self.force.template()?;

@@ -501,9 +501,12 @@ impl PlayerMenu {
             );
             return;
         }
+        let retail = self.force_templates.list.retail_count(side);
         let chosen = self.template_row();
+        let chosen_line = chosen.map(|row| row + if row < retail { 1 } else { 2 });
+        let count = count + 2; // Each group has a non-selectable heading.
         let state = &mut self.force_templates;
-        if let Some(row) = chosen {
+        if let Some(row) = chosen_line {
             if row < state.scroll {
                 state.scroll = row;
             } else if row >= state.scroll + rows {
@@ -512,13 +515,31 @@ impl PlayerMenu {
         }
         state.scroll = state.scroll.min(count.saturating_sub(rows));
         let first = state.scroll;
-        for row in first..(first + rows).min(count) {
+        for line in first..(first + rows).min(count) {
             let cell = [
                 x + 1.0,
-                y + 1.0 + (row - first) as f32 * force::TEMPLATE_ROW,
+                y + 1.0 + (line - first) as f32 * force::TEMPLATE_ROW,
                 w - 2.0,
                 force::TEMPLATE_ROW,
             ];
+            if line == 0 || line == retail + 1 {
+                let label = if line == 0 {
+                    "Jedi Academy"
+                } else {
+                    "Community"
+                };
+                self.label(
+                    place,
+                    cell,
+                    label,
+                    10.0,
+                    GOLD,
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                continue;
+            }
+            let row = line - if line <= retail { 1 } else { 2 };
             let token = TEMPLATE_BASE + row as u16;
             let hovered = self.canvas.token_hovered(token);
             if chosen == Some(row) {

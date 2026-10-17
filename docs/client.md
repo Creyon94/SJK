@@ -248,10 +248,17 @@ Settings and SJK in place of retail's Controls and Setup:
     `forcestarN` once bought, `forcecircleN` before), and retail's templates
     down the left: the side's `forcecfg/light` or `forcecfg/dark` `.fcf`
     files from the game data (retail's Blademaster, Knight and others, and
-    any pack's, under their own capitalised names) and the player's own,
-    which come first and are tagged. A click or Left/Right loads a template
+    any pack's, under their own capitalised names) and the player's own.
+    Retail templates come first under **Jedi Academy**, followed by **Community**;
+    saved templates are tagged and sort first within their group. SJK bundles
+    JoF EJK #23's 22 community presets (13 light, 9 dark), preserving their names,
+    colours and values; installed packs and saved files can override them.
+    A click or Left/Right loads a template
     into the draft, legalized at the draft's rank as `UI_ForceConfigHandle`
-    does, and the row stays filled until the draft is edited; Name and Save
+    does, and the row stays filled until the draft is edited. In the SJK UI,
+    the Force page's **Force templates** panel has Jedi Academy and Community
+    selectors; Left/Right or clicking either half steps through that group.
+    Templates edit the draft; Apply sends it. Name and Save
     Template write the draft to `forcecfg/<side>/<name>.fcf` in the client's
     user folder (beside `config.cfg`). The window is as wide as the in-game
     profile. SJK lays the powers out in two columns, the neutral powers over the saber skills and the chosen
