@@ -1798,6 +1798,20 @@ keys are drawn muted. Reset defaults restores them. The console's `bind` and
 `unbind` commands are unrestricted. See
 [keybind_editor.rs](../crates/sjk-viewer/src/keybind_editor.rs).
 
+The console can also bind an arbitrary pair of keys as one chord, using the
+JoF EJK syntax `bind K+L kill`. Hold either key and press the other to run the
+chord. The first key's ordinary bind has already run; the chord replaces the
+ordinary bind of the second key. For a chord bound to a `+command`, releasing
+that second key sends its matching `-command`. The order in the command does
+not matter (`K+L` and `L+K` name the same chord); `unbind K+L`, `bind K+L`,
+`bindlist`, `unbindall` and `config.cfg` handle it like any other bind. There
+are at most 256 chords. A literal plus key can be the first key as `++K`.
+
+The settings editor shows an existing chord as one occupied slot and can clear
+or replace it, but captures one physical key at a time. Create a chord in the
+console. This follows JoF EJK commit `b6623f51` (`codemp/client/cl_keys.cpp`),
+including first-match table order when several held chords could fire.
+
 ## Development maps
 
 Run `devmap mp/ffa3` in the client console to start and join an owned local
@@ -2070,10 +2084,13 @@ Your own whispers, which the server echoes back, do not count; when nobody has
 whispered, or the player left or renamed, `reply` says so and sends nothing
 ([chat/reply.rs](../crates/sjk-viewer/src/chat/reply.rs)).
 
-`showplayerid` (JoF EternalJK's `showPlayerId`) lists each player in the console: the
-client number, a team letter (F free, R red, B blue, S spectator), the name
-and ` (bot)` after bots, then `Listed N clients`. Commands that take a client number
-use it ([player_ids.rs](../crates/sjk-viewer/src/player_ids.rs)).
+`clientlist` (also `showplayerid`, JoF EJK's `showPlayerId` spelling) lists each player
+in the console: the client number, a team letter (F free, R red, B blue, S spectator),
+the name and ` (bot)` after bots, then `Listed N clients`. Commands that take a client
+number use it. `clientlistinfo` gives JoF EJK's human-only detailed view: model and
+skin, gender when advertised, saber names and colours, team model group in team games,
+and non-default body RGB when that player's current snapshot state is available
+([player_ids.rs](../crates/sjk-viewer/src/player_ids.rs)).
 
 `cg_chatRememberChannel` (default 1, Settings > HUD > Remember chat channel)
 makes the chat key (`messagemode`) open the composer on the channel of the last
@@ -2506,6 +2523,13 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
+- `cg_nameplateHideDuelers` (off; "Hide duellers" under Nameplates in SJK Settings >
+  Advanced > HUD and classic Settings > HUD): hide the entire plate (name, bars and
+  icons) on players the server marks as participating in a private duel. This also
+  hides your own third-person plate during a private duel. It uses the player's
+  snapshot duel marker, not the Duel/Power Duel game type or team. Players whose
+  entities are omitted from snapshots, such as sealed vehicle pilots, have no
+  available private-duel marker and keep their plates.
 - `cg_nameplateIcons` (on): up close, a row of the holocron icons of the Force powers a
   player has on sits over the name, at most four, dark side first (lightning, grip,
   drain, rage, then protect, absorb, speed, heal, team force, mind trick, sight). They
@@ -4412,8 +4436,15 @@ and the same in either console style. Enter strips one leading `/` or
 is set, without listing when the input is already a full name. Nothing strips a
 slash on a command after `;`, so completing that command drops it. Command
 boundaries follow the shell's quote and escape rules, and no completion happens
-inside an open quote. Arguments are not completed. See
-[shell_completion.rs](../crates/sjk-shell/src/shell_completion.rs).
+inside an open quote. Tab also completes the file name after `exec`, `execq`,
+`writeconfig` and `write` (`Cmd_CompleteCfgName`): the `.cfg` files at the top of
+the profile's folder, then those at the root of the search paths, matched without
+case and each name once. A unique file completes with a trailing space; several
+extend the typed text to their shared start, keeping its letter case, and are
+listed as grey `File` rows (`PrintFileMatches`). Enter does not complete
+arguments, and no other argument is completed. See
+[shell_completion.rs](../crates/sjk-shell/src/shell_completion.rs) and
+[console_scripting.rs](../crates/sjk-viewer/src/console_scripting.rs).
 
 F3 in the open console, or the bindable `consolebrowser` command, opens a browser of
 every command and cvar with its description, and each cvar's value and default. Typing

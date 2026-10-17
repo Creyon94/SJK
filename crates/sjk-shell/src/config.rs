@@ -104,7 +104,7 @@ fn apply_config(
                 match binds.bind(key, value.clone()) {
                     // A key this client has no name for (another client's
                     // config) cannot be pressed here; it is dropped, not fatal.
-                    Ok(()) | Err(BindError::InvalidKey(_)) => {}
+                    Ok(()) | Err(BindError::InvalidKey(_)) | Err(BindError::TooManyCombos) => {}
                     Err(error) => {
                         return Err(ConfigError::Line {
                             line: line_index + 1,
@@ -124,7 +124,7 @@ fn apply_config(
     Ok(())
 }
 
-/// Atomically save archived cvars and binds in deterministic name order.
+/// Atomically save archived cvars and bindings in stable table order.
 pub fn save_config(
     path: &Path,
     cvars: &CvarRegistry,
@@ -133,7 +133,7 @@ pub fn save_config(
     write_config_text(path, &config_text(cvars, binds)?)
 }
 
-/// The text [`save_config`] writes: archived cvars and binds in name order.
+/// The text [`save_config`] writes: archived cvars in name order, then bindings.
 pub(crate) fn config_text(cvars: &CvarRegistry, binds: &BindTable) -> Result<String, ConfigError> {
     let mut contents = String::from("// SJK generated configuration. Edit while SJK is closed.\n");
     for cvar in cvars
@@ -313,5 +313,18 @@ mod tests {
         let mut cvars = registry();
         let mut binds = BindTable::new();
         assert!(apply_config("exec other.cfg\n", &mut cvars, &mut binds).is_err());
+    }
+
+    #[test]
+    fn two_key_chords_round_trip_through_generated_config() {
+        let cvars = registry();
+        let mut binds = BindTable::new();
+        binds.bind("L+K", "kill").unwrap();
+        let text = config_text(&cvars, &binds).unwrap();
+        assert!(text.contains("bind \"k+l\" \"kill\""), "{text}");
+
+        let mut restored = BindTable::new();
+        apply_config(&text, &mut registry(), &mut restored).unwrap();
+        assert_eq!(restored.get("l+k"), Some("kill"));
     }
 }

@@ -164,7 +164,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 21 merged pull requests
+role: Contributor: 22 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -187,13 +187,22 @@ did: #117 Team Heal and Team Energize kept in the Force profile you send
 did: #120 Native servers load every NPC file of a large pack
 did: #121 Desann and Tavion styles get their own HUD colours
 did: #125 Weapon choice reset when you follow another player or spawn
+did: #118 Hide duellers: an option to hide private duellers' nameplates
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 1 merged pull request
+role: Contributor: 3 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
+did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
+did: #109 Two-key combo binds, such as bind K+L kill
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
+
+[Slash]
+github: JoFSlash
+role: Contributor: 1 merged pull request
+did: #114 Tab completes cfg file names after exec and writeconfig
+link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 == Art
 

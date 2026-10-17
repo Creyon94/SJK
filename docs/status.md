@@ -73,6 +73,21 @@ copy notices claim success only after the clipboard accepted the text, and a fai
 keeps its selection. Checked by unit tests; the real X11/Wayland clipboard and the
 in-game interaction have not been tried.
 
+## Two-key chord binds from JoF EJK
+
+17/10/2026, `feat/key-combo-binds`: the console accepts arbitrary two-key binds
+such as `bind K+L kill`. Either press order works; the first key keeps its normal
+press, the chord replaces the second key's normal bind, and a chord `+command`
+gets its release. Query, `unbind`, `unbindall`, `bindlist`, generated configs and
+the config importer understand chords. The implementation follows JoF EJK alpha
+commit `b6623f51` (`codemp/client/cl_keys.cpp`), including its 256-chord limit,
+last-plus parsing (`++K`) and first-match table order. Unit tests cover name
+normalization, both press orders, release behavior, focus-state clearing,
+console commands, config round-trip and import. On Linux x86_64 with Rust 1.99.1,
+`cargo fmt --all --check`, the locked workspace build and tests, workspace
+all-target clippy, and the release viewer/dedicated build pass (existing clippy
+warnings remain). It has not yet been tried in the game; Sol will test the local
+build before anything is pushed.
 
 ## SJK chat messages up to 300 characters
 
@@ -186,6 +201,21 @@ status line. Ban 24 h is not offered on a trusted sender to a player who is not 
 Built against the hub's `trust` field (Sol-Vulpes/SJK-hub branch `trust`, on top of
 `chat-ban`). Checked by unit tests (`trust_badge`, the chat line's marks, `offered` on a
 trusted sender). Not tried in the game or against a running hub.
+## JoF EJK client lists
+
+16/10/2026, `feat/clientlist-commands`: `clientlist` lists client numbers, teams,
+names and bots, with the existing `showplayerid` retained as an alias;
+`clientlistinfo` adds JoF EJK's human-player model, skin, gender, saber, colour,
+team-model group and available body-RGB details
+([client.md](client.md#chat-player-actions)). Ported against JoF EJK
+`cg_consolecmds.c` revision `bd5e202dfedd49500f1b7aadd655619bac152167`; SJK prints the real `c3`/`c4`
+values where that revision's RGB format call omits its arguments. On Linux
+7.3.0-rc5 x86_64 with Rust 1.99.1, its four focused unit tests, `cargo fmt --all
+--check`, the locked workspace build and test suite, all-targets Clippy, and the
+optimized viewer/dedicated build pass (the repository's existing warnings remain).
+Not yet tried against a running game server. SJK has no copied
+`clientInfo_t::deferred` model-load flag, so the EJK-only `(deferred)` diagnostic is
+not shown.
 
 ## Chat bans: Ban 24 h
 
@@ -395,6 +425,21 @@ illegal-profile result, server disable rules, and both Force-menu layouts.
 Formatting, workspace build/tests and all-target clippy passed with existing
 warnings, using a target on a separate volume with incremental compilation off.
 Live FFA server grants and GPU/UI verification have not been performed.
+## Optional private-duel nameplate filter
+
+16/10/2026, `feat/hide-dueller-nameplates` based on `7026c735`: the archived,
+default-off `cg_nameplateHideDuelers` option hides whole plates for server-marked
+private-duel participants, including the local player's optional third-person
+plate. Both settings interfaces expose it under Nameplates. The reference is
+[EJK #12](https://github.com/JediofFreedom/JoF_EJK/pull/12), whose player-label
+filter uses `entityState_t::bolt1`; the local player uses `duelInProgress`.
+A synthetic-snapshot test on Windows exercises the production collection pass:
+default visibility, immediate suppression and restoration, duel completion,
+Power Duel side independence and NPC field reuse. Formatting, locked workspace
+build/tests and Clippy with all targets passed on Windows with Rust 1.99.0
+(existing warnings; GPU/data-dependent tests remain ignored). Missing player entities have no
+duel marker, so sealed pilots' plates remain visible. Live server duel transitions
+and GPU presentation have not been exercised. See [Nameplates](client.md#nameplates).
 
 ## Emotes on stock models: limbs out of wider bodies
 

@@ -330,6 +330,7 @@ impl Group {
                 "cg_nameplateShare",
                 "cg_nameplateWeapon",
                 "cg_nameplateSelf",
+                "cg_nameplateHideDuelers",
                 "cg_nameplateIcons",
                 "cg_nameplateDuel",
                 "cg_nameplateWalls",

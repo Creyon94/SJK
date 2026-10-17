@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | SJK pull requests #108, #109, #114, #118
+- e7dff9d |  | Credits and changelog for SJK #108, #109, #114 and #118
 + 17/10/2026 | - | SJK pull requests #115, #117, #120, #121, #125
 - 61ed260 |  | Credits and changelog for SJK #115, #117, #120, #121 and #125
 + 17/10/2026 | - | Release 2026.1017.1 (Alpha)
@@ -1646,10 +1648,17 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 17/10/2026 | SJK #109 | Add JoF-style two-key combo binds
+- 471ed6f |  | feat: add two-key combo binds
+- 28f7fba |  | fix: match JoF combo table behavior
++ 17/10/2026 | SJK #108 | Add JoF client list console commands
+- d2968bc |  | Add JoF client list console commands
 + 17/10/2026 | SJK #115 | Fix Linux clipboard integration
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 17/10/2026 | SJK #118 | Add an option to hide private-duel nameplates
+- b4a3d20 |  | Add an option to hide private-duel nameplates
 + 17/10/2026 | SJK #121 | Distinguish Desann and Tavion in native HUD colours
 - 976dc5e |  | Distinguish Desann and Tavion in native HUD colours
 + 17/10/2026 | SJK #117 | Preserve team powers in outgoing Force profiles
@@ -1706,3 +1715,7 @@
 - 5bc6805 |  | Record isolated release GPU review checks
 + 07/10/2026 | SJK #24 | Clip visible saber blades at world walls
 - 8d21001 |  | Clip visible saber blades at world walls
+
+= Slash
++ 17/10/2026 | SJK #114 | Complete cfg file names after exec with Tab
+- fb81e7a |  | Complete cfg file names after exec with Tab

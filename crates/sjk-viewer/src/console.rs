@@ -171,6 +171,8 @@ pub(crate) struct ViewerConsole {
     shift: bool,
     /// Bind names that held keys were pressed under.
     held_keys: crate::input::keys::HeldKeys,
+    /// Held bind names and active two-key chords.
+    bind_state: sjk_shell::BindState,
     /// Held keys whose bind repeats push or pull (`cl_forceRepeat`).
     force_repeat: crate::input::force_repeat::ForceRepeat,
     input: String,
@@ -535,6 +537,7 @@ impl ViewerConsole {
     /// Every key was let go of: the window lost the keyboard.
     pub(crate) fn clear_force_repeat(&mut self) {
         self.force_repeat.clear();
+        self.bind_state.clear();
     }
 
     /// The `generic_cmd` a held push or pull key repeats in the next user command.
@@ -564,7 +567,11 @@ impl ViewerConsole {
             self.force_repeat.release(key);
         }
         let repeat = pressed && self.bool_cvar(crate::input::force_repeat::CVAR) != Some(false);
-        match self.shell.binds.commands_for_event(key, pressed) {
+        match self
+            .shell
+            .binds
+            .commands_for_chord_event(&mut self.bind_state, key, pressed)
+        {
             Ok(commands) => {
                 for command in commands {
                     if repeat && let Some(value) = crate::input::force_repeat::repeated(&command) {
@@ -1045,7 +1052,10 @@ impl ViewerConsole {
     }
 
     fn complete_command(&mut self, key: CompletionKey) {
-        if let Some(line) = self.shell.complete_line(&self.input, key) {
+        let resolver =
+            console_scripting::Resolver::new(&self.config_directory, self.script_vfs.as_deref());
+        let files = |extension: &str| resolver.root_files(extension);
+        if let Some(line) = self.shell.complete_line_with_files(&self.input, key, files) {
             self.input = line;
             self.rebuild_prompt();
         }

@@ -292,7 +292,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 21 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 22 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -338,14 +338,26 @@ merged into SJK
   and nameplate halos, after JoF EJK #26.
 - #125 the weapon selection follows the viewed player: following someone else, leaving follow
   or spectator mode, or a timeline rewind resets it to the equipped weapon, after JoF EJK #39.
+- #118 hiding private duellers' nameplates: `cg_nameplateHideDuelers` (off by default) hides the
+  whole plate of players the server marks as duelling, after EJK #12.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 1 pull request
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 3 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
 - #115 the Linux clipboard fallbacks follow the desktop session (`wl-copy`/`wl-paste` only
   under Wayland, `xclip` only under X11), and console and browser copies report success only
   once the clipboard took the text; a failed cut keeps its selection.
+- #108 `clientlist` (with `showplayerid` kept as its alias) and `clientlistinfo`, JoF EJK's
+  player lists with model, gender, sabers, colours and team.
+- #109 two-key combo binds after JoF EJK (`bind K+L kill`): either press order, the second key
+  runs the combo instead of its own bind, up to 256 combos, saved and imported with the config.
+
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 1 pull request merged
+into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
+
+- #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
+  from the profile folder and the game folders, as EternalJK's `Cmd_CompleteCfgName`.
 
 ## Art
 
