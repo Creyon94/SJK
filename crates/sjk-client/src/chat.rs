@@ -343,9 +343,14 @@ pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     let text = if localized {
         // CG_Chat_f: location-bearing chat uses separate name/location/colour/body args.
         let [name, location, color, body] = [1, 2, 3, 4].map(|i| {
-            arguments
-                .get(i)
-                .map(|arg| crate::legacy_text::decode_legacy(arg))
+            arguments.get(i).map(|arg| {
+                // The body is a whole message: one Russian letter reads as one.
+                if i == 4 {
+                    crate::legacy_text::decode_legacy_message(arg)
+                } else {
+                    crate::legacy_text::decode_legacy(arg)
+                }
+            })
         });
         let location = location?;
         // Use the client's existing localization marker for CG_Chat_f's @key.
@@ -437,6 +442,45 @@ mod escape_tests {
         ));
     }
 
+    /// Every Russian letter alone, then short messages, typed in SJK and read as
+    /// another SJK client reads the server's line (`Name^7\x19: ^2msg\x19`), and
+    /// what an EternalJK Russian client gets: the Windows-1251 byte, never UTF-8.
+    #[test]
+    fn a_single_russian_letter_is_sent_and_read_as_russian() {
+        let letters = ('\u{410}'..='\u{44f}').chain(['\u{401}', '\u{451}']);
+        for letter in letters {
+            let text = letter.to_string();
+            assert_eq!(round_trip(&text), text);
+            let command = chat_command(ChatDestination::Global, &text).unwrap();
+            let sent = crate::legacy_text::legacy_command(command.as_bytes());
+            let byte = sjk_protocol::windows_1251_byte(letter).unwrap();
+            assert_eq!(
+                &*sent,
+                [b"say \"".as_slice(), &[byte], b"\""].concat(),
+                "{text}"
+            );
+            let line = [b"Foshin^7\x19: ^2".as_slice(), &[byte], b"\x19"].concat();
+            assert_eq!(
+                crate::legacy_text::decode_legacy(&line),
+                format!("Foshin^7\x19: ^2{text}\x19"),
+                "{text}"
+            );
+            let one = [byte];
+            let body = crate::legacy_text::decode_legacy_message(&one);
+            assert_eq!(body, text, "a localized chat body");
+        }
+        for text in ["ДА", "НЕ", "я!", "Ж)", "1 я", "ага", "Привет", "лол xD"] {
+            assert_eq!(round_trip(text), text);
+        }
+    }
+
+    #[test]
+    fn a_lone_western_accent_still_reads_back() {
+        for text in ["ÿ", "é", "à", "ÆØ", "ß", "merci à tous", "Größe"] {
+            assert_eq!(round_trip(text), text);
+        }
+    }
+
     #[test]
     fn the_budget_never_splits_an_escape_or_a_character() {
         let text = format!("{}%", "a".repeat(CHAT_INPUT_BYTES - 2));
@@ -463,7 +507,13 @@ mod escape_tests {
         assert!(!quoted.contains(&b'"'), "a quote would end the message");
         // A byte in 0x80..=0x9F decodes as the C1 character of that value, which
         // the renderer draws as its Windows-1252 glyph (`€`, `’`, ...).
-        chat_unescape(&crate::legacy_text::decode_legacy(quoted))
+        let line = [b"Name^7\x19: ^2".as_slice(), quoted, b"\x19"].concat();
+        let line = crate::legacy_text::decode_legacy(&line).into_owned();
+        let shown = line
+            .strip_prefix("Name^7\x19: ^2")
+            .and_then(|line| line.strip_suffix('\x19'))
+            .expect("the line keeps its frame");
+        chat_unescape(shown)
             .chars()
             .map(|c| match u8::try_from(u32::from(c)) {
                 Ok(byte @ 0x80..=0x9f) => sjk_protocol::windows_1252_char(byte),

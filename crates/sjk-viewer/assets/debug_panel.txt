@@ -5081,3 +5081,14 @@ test: Saber page, wear Spectral (or another chroma shader), pick Custom, set R 2
 test: Move Green from 185 to 190 and on: the blade and thumbnails stay violet, no jump to cyan.
 test: Slide each channel slowly: the shader blade changes hue smoothly with the colour swatch.
 note: Kushina's Discord report, build 2026.1016.2.
+
+[russian-one-letter]
+area: Console & chat
+title: One Russian letter in chat reaches other players
+change: A chat message of one Russian letter (or two capitals) went out as UTF-8, garbage to others.
+change: It now goes as the Windows-1251 byte they send; theirs reads as Russian here, not Latin.
+test: Settings > Chat > Other clients' text on Auto; join a JA+ or JoF server with a second client.
+test: Send a single Russian letter (ya, then Zh): the other player sees that letter.
+test: Have a Russian client send one letter (or Da in capitals): you see it as Russian.
+test: Send a normal word and an accented one (cafe with e acute): both unchanged.
+note: Foshin's Discord report, 13/10/2026. A letter next to Latin words is still UTF-8.

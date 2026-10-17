@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | one-letter Russian chat messages go out and read back in Windows-1251
+- 6b98694 |  | Chat: one Russian letter (or two capitals) is sent and read as Windows-1251
 + 17/10/2026 | - | Player card only in sight, grey bars on every non-sharer
 - fb57ae5 |  | Player card only in sight; grey bars on every player who does not share
 + 17/10/2026 | - | Shader blades keep pale custom colours

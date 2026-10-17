@@ -101,6 +101,19 @@ pub fn decode_legacy_text(bytes: &[u8]) -> Cow<'_, str> {
     decode_with(bytes, legacy_charset())
 }
 
+/// [`decode_legacy_text`] for bytes that are a whole chat message (a localized chat's
+/// body), so a single letter or two capitals read as Russian
+/// ([`looks_cyrillic_message`]).
+pub fn decode_legacy_message(bytes: &[u8]) -> Cow<'_, str> {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => Cow::Borrowed(text),
+        Err(_) if legacy_charset() == LegacyCharset::Auto && looks_cyrillic_message(bytes) => {
+            Cow::Owned(bytes.iter().map(|&byte| windows_1251_char(byte)).collect())
+        }
+        Err(_) => decode_legacy_text(bytes),
+    }
+}
+
 fn decode_with(bytes: &[u8], charset: LegacyCharset) -> Cow<'_, str> {
     match std::str::from_utf8(bytes) {
         Ok(text) => Cow::Borrowed(text),
@@ -119,6 +132,12 @@ fn reads_cyrillic(bytes: &[u8], charset: LegacyCharset) -> bool {
     }
 }
 
+/// Whether `byte` is a letter that exists in both code pages' 0xC0..=0xFF block, or
+/// Windows-1251's `Ё` / `ё`.
+fn high_letter(byte: u8) -> bool {
+    matches!(byte, 0xC0..=0xFF | 0xA8 | 0xB8)
+}
+
 /// Whether single-byte `bytes` read as Russian in Windows-1251 rather than as Latin-1.
 ///
 /// Both code pages put letters in 0xC0..=0xFF, Cyrillic's lower case in 0xE0..=0xFF.
@@ -128,14 +147,51 @@ fn reads_cyrillic(bytes: &[u8], charset: LegacyCharset) -> bool {
 /// letters only and is two of them with a lower-case one (`да`), or four or more
 /// (`ПРИВЕТ`). Decorated names stay Latin-1: `ÐÄRK` mixes in ASCII, `ÆØ` is two
 /// capitals.
+///
+/// A chat message has no such name to protect, and a Russian one is often a single
+/// letter (`я`, `Ж`) or two capitals (`ДА`), which no word rule can tell from `ÿ`
+/// or `ÆØ`. So a message (the text after a `"` or a `: `, up to a control byte or the
+/// next quote) with no ASCII letter and at least one high letter reads as Russian
+/// too ([`looks_cyrillic_message`]). That covers a typed `say "я"` and a received
+/// `Name^7\x19: ^2я\x19` alike.
 pub fn looks_cyrillic(bytes: &[u8]) -> bool {
-    let high = |byte: u8| matches!(byte, 0xC0..=0xFF | 0xA8 | 0xB8);
+    words_look_cyrillic(bytes) || messages(bytes).any(message_is_cyrillic_only)
+}
+
+/// [`looks_cyrillic`] for bytes that are a whole chat message with no name or quotes
+/// around them (a localized chat's body argument).
+pub fn looks_cyrillic_message(bytes: &[u8]) -> bool {
+    words_look_cyrillic(bytes) || message_is_cyrillic_only(bytes)
+}
+
+fn words_look_cyrillic(bytes: &[u8]) -> bool {
     bytes
-        .split(|&byte| !(byte.is_ascii_alphabetic() || high(byte)))
+        .split(|&byte| !(byte.is_ascii_alphabetic() || high_letter(byte)))
         .any(|word| {
-            word.iter().all(|&byte| high(byte))
+            word.iter().all(|&byte| high_letter(byte))
                 && (word.len() >= 4 || (word.len() >= 2 && word.iter().any(|&byte| byte >= 0xE0)))
         })
+}
+
+/// A message with high letters and no ASCII one: Windows-1251 Russian, since the
+/// same bytes read as Latin-1 would be accented letters with nothing to attach to.
+fn message_is_cyrillic_only(message: &[u8]) -> bool {
+    !message.iter().any(u8::is_ascii_alphabetic) && message.iter().any(|&byte| high_letter(byte))
+}
+
+/// The messages in `bytes`: what follows each `"` or `: `, up to the next quote or
+/// control byte (the 0x19 that ends a chat line's text).
+fn messages(bytes: &[u8]) -> impl Iterator<Item = &[u8]> {
+    let ends = |byte: &u8| *byte == b'"' || *byte < 0x20;
+    (0..bytes.len()).filter_map(move |at| {
+        let start = match bytes[at] {
+            b'"' => at + 1,
+            b':' if bytes.get(at + 1) == Some(&b' ') => at + 2,
+            _ => return None,
+        };
+        let rest = bytes.get(start..)?;
+        Some(&rest[..rest.iter().position(ends).unwrap_or(rest.len())])
+    })
 }
 
 /// Encode text for the wire as legacy clients read it.
@@ -149,8 +205,8 @@ pub fn looks_cyrillic(bytes: &[u8]) -> bool {
 ///
 /// Under [`LegacyCharset::Auto`] a single-byte encoding is used only when
 /// [`decode_legacy_text`] reads it back as the same text, so SJK players always read
-/// each other exactly: a Cyrillic line too short to read as Russian (`ДА`), or a
-/// Latin-1 one that would (`àé`), is sent as UTF-8. ASCII, the common case, is
+/// each other exactly: a Cyrillic line too short to read as Russian (`ДА` outside
+/// a message), or a Latin-1 one that would (`àé`), is sent as UTF-8. ASCII, the common case, is
 /// returned borrowed without allocating.
 pub fn encode_legacy_text(text: &str) -> Cow<'_, [u8]> {
     encode_with(text, legacy_charset())
@@ -338,6 +394,25 @@ mod tests {
             decode_with(b"\xc4\xc0\xc0\xc0", LegacyCharset::Auto),
             "ДААА"
         );
+    }
+
+    #[test]
+    fn a_message_of_high_letters_only_reads_as_russian() {
+        // One letter and two capitals, in a typed command and a server's chat line.
+        for letter in (0xC0..=0xFF_u8).chain([0xA8, 0xB8]) {
+            for line in [
+                [b"say \"".as_slice(), &[letter], b"\""].concat(),
+                [b"Vasya^7\x19: ^2".as_slice(), &[letter], b"\x19"].concat(),
+            ] {
+                assert!(looks_cyrillic(&line), "{line:?}");
+            }
+            assert!(looks_cyrillic_message(&[letter]));
+        }
+        assert!(looks_cyrillic(b"say \"\xc4\xc0\""));
+        // A name or a line with ASCII letters keeps the word rule.
+        assert!(!looks_cyrillic(b"\xc6\xd8"));
+        assert!(!looks_cyrillic(b"Vasya^7\x19: ^2merci \xe0 tous\x19"));
+        assert!(!looks_cyrillic(b"say \"gg \xff\""));
     }
 
     #[test]

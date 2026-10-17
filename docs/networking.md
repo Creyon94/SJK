@@ -85,7 +85,13 @@ a word of a Latin-script language mixes accented letters with ASCII ones (`été
 leaves in Windows-1252 when every character has a byte there, else in Windows-1251
 when every one has a byte there; under `auto` a single-byte encoding is used only
 when it reads back as the same text, so SJK players always read each other exactly
-(a short capital `ДА` or a Latin `àé` goes as UTF-8). Any other text (Japanese,
+(a Latin `àé` goes as UTF-8, and so does a short capital `ДА` outside a chat message).
+A chat message (the text after a `"` in a typed command, after the `: ` of a received
+line, or a localized chat's body) with no ASCII letter and a high letter reads as
+Windows-1251 too, so a lone `я` or `ДА` goes as the byte EternalJK sends and comes
+back as Russian (`looks_cyrillic`, `looks_cyrillic_message`); before 17/10/2026 these
+went as UTF-8, which JoF, JA+ and EternalJK players saw as two garbage characters.
+A Latin message that is a lone accented letter (`à`) now reads as Cyrillic; `cl_charset western` pins it. A Russian letter next to ASCII words (`я lol`) still goes as UTF-8. Any other text (Japanese,
 Chinese, Korean, emoji, Cyrillic mixed with `é`) is sent as UTF-8, which only SJK
 clients decode;
 EternalJK's Windows-1250 mapping is not reproduced. Incoming text, including the
