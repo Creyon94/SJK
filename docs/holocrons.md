@@ -48,19 +48,19 @@ message by its gem, its wording and having no sender column. Each tier's picture
 `gfx/sjk/holocron_<tier>.png`, bundled with the client and mounted below all game data
 (the list in [illuminate.rs](../crates/sjk-viewer/src/illuminate.rs)); where it is missing
 the tier draws as a gem made of shapes ([holocrons/gem.rs](../crates/sjk-viewer/src/holocrons/gem.rs)).
-Since 18/10/2026 the picture is the tier's own holocron (below), drawn from its parts.
+Since 17/10/2026 the picture is the tier's own holocron (below), drawn from its parts.
 
 ### The four holocrons
 
-Since 18/10/2026 each tier is an object of its own (Sol's pick from the proposals' second
+Since 17/10/2026 each tier is an object of its own (Sol's pick from the proposals' second
 set), not one cube in four colours:
 
 | Tier | Holocron | What moves |
 | --- | --- | --- |
-| Uncommon | The Jedi cube: the holocron's cube with a pyramid boss on each face (the face raised on it), a lamp at each tip, steel edges | nothing of its own |
-| Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with runes and a lit star, lit edges | a broken halo, tilted, turning and bobbing around it |
-| Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, lit edges and underside; a glowing eye turns between them |
-| Mythical | The kyber prism: an eight-sided crystal in a steel sheath, gold, with a sheen sliding over it | the crystal turns; two gimbal rings tumble around it; ten motes of light circle it |
+| Uncommon | The Jedi cube: the holocron's cube with a raised plateau on each face (the face on it, the emblem on its flat top), a lamp over each, steel edges | nothing of its own |
+| Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with the Jedi Order's emblem and runes, lit edges | a broken halo, tilted, turning and bobbing around it |
+| Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, the runes running on over its sides, thin lit edges, a dark underside; a glowing eye turns between them |
+| Mythical | The kyber prism: a broad eight-sided crystal in a steel sheath, gold, with a sheen sliding over it | the crystal turns; two gimbal rings tumble around it; ten motes of light circle it |
 
 They are made by `scripts/holocron_assets.py` with the shapes in `scripts/holocron_forms.py`:
 a model per part (the body, which stands still against the holocron, and each moving
@@ -68,9 +68,11 @@ part, modelled about its own centre), each also in the locked look, and the part
 `holocron_parts.rs` (where each part rests and how it bobs, orbits and turns), which the
 client includes ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs),
 `PARTS`), so the two never disagree. The Jedi cube's face is the shipped face in the tier's
-colour; the Great Holocron's pentagon, the Sith pyramid's side and the kyber crystal are
-drawn by the script until Sol's art replaces them (`--art <tier>=<picture>`, the asset
-folder's [README](../crates/sjk-viewer/assets/holocron/README.md)). The four are sized to
+colour; the Great Holocron's pentagon, the Sith pyramid's triangle of runes (its foot on
+each side, its tip on the cap) and the kyber crystal come from Sol's pictures (17/10/2026)
+in the asset folder's `art/`, fitted and painted in the tier's colours by the script
+(`--art <tier>=<picture>` tries another; the folder's
+[README](../crates/sjk-viewer/assets/holocron/README.md)). The four are sized to
 fill about the cube's room on screen.
 
 The Holocrons tab's tier rows carry the tiers' rarity effects (10/10/2026): from Rare up
@@ -362,7 +364,7 @@ for the chosen tier (and the locked look), the data from every identity state, t
 read, every state at 1080p, 4K, 4:3 and 21:9 on the Profile screen and on its own, the 3D
 holocron's placement in those windows and its swap, and the tier models' and shaders'
 mounting (`illuminate::tests::every_part_names_shaders_of_its_look_and_they_are_mounted`).
-The four holocrons (18/10/2026): `holocrons::stage::tests` check the parts' table, poses and
+The four holocrons (17/10/2026): `holocrons::stage::tests` check the parts' table, poses and
 models, and the world shot `duel6_sjk_holocron_forms` shows each tier held at two moments and
 locked (looked at on this machine, with `duel6_sjk_crate_open`); not tried in a running
 client, so the parts' motion has only been seen as stills. The world shots

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Sol's faces on the Great Holocron, Sith pyramid and kyber crystal
+- c949f9d |  | Holocrons: Sol's faces for the Great Holocron, the Sith pyramid and the kyber crystal
 + 17/10/2026 | - | Cheaper saber shaders up close and when swinging, hub reports 63, 64
 - 7422364 |  | Add a world shot timing skinned blades up close
 - cd04564 |  | Draw saber skin afterimages as the plain capsule

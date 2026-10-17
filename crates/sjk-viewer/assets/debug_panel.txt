@@ -635,9 +635,10 @@ note: The hub's opening is deployed (12/10/2026).
 area: Menus & settings
 title: The four holocrons: Jedi cube, Great Holocron, Sith pyramid, kyber prism
 change: Each tier is its own object; the halo, cap, eye, crystal, rings and motes move.
-change: The tier pictures in the list are drawn from the new shapes.
+change: Sol's faces: the Jedi emblem on the pentagons, Sith runes over pyramid and cap.
 change: A tier held none of keeps its shape, drained and dark, its parts still.
 test: Collection > Holocrons: choose each tier; watch the moving parts for a while.
+test: Legendary: the runes run from each side of the pyramid on up the floating cap.
 test: Choose a tier you hold none of: the same shape, dark, nothing moving.
 test: debug_open legendary: the pyramid glides to the middle, spins and cracks open.
 test: In a match, game menu > Collection > Holocrons: the holocron before the camera.
