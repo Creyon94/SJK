@@ -28,9 +28,13 @@ const JUMP: usize = 1;
 /// `FP_LIGHTNING`.
 const LIGHTNING: u8 = 7;
 /// JoF EJK's own pictures (`CG_RegisterGraphics`), from `jofclient-assets.pk3`,
-const JOF_ICONS: [(usize, &str); 3] = [
+const JOF_ICONS: [(usize, &str); 4] = [
     (force_wheel::REPULSE as usize, "gfx/jof/force_repulse"),
     (force_wheel::DASH as usize, "gfx/jof/force_dash"),
+    (
+        force_wheel::DESTRUCTION as usize,
+        "gfx/forcedestruction/force_destruction",
+    ),
     (FLAMETHROWER, "gfx/jof/force_flamethrower"),
 ];
 /// `colorTable[CT_ICON_BLUE]` (`q_color.c`).
@@ -70,7 +74,11 @@ pub(crate) fn icon(
         LIGHTNING if flamethrower => FLAMETHROWER,
         _ => usize::from(slot),
     };
-    icons.get(index).copied().flatten()
+    icons.get(index).copied().flatten().or_else(|| {
+        (slot == force_wheel::DESTRUCTION)
+            .then(|| icons[LIGHTNING as usize])
+            .flatten()
+    })
 }
 
 /// The name the bar shows under wheel entry `slot` (retail's, as Dark Rage and
@@ -288,13 +296,14 @@ mod tests {
         // wheel holds the 14 selectable powers and JoF's three, no more, and nothing
         // is named Illuminate.
         let (slots, count) = force_wheel::build(u32::MAX);
-        assert_eq!(count, 14 + 3);
+        assert_eq!(count, 14 + 4);
         for slot in &slots[..count] {
             assert_ne!(name(*slot, false), "Illuminate");
             assert_ne!(name(*slot, true), "Illuminate");
         }
-        assert_eq!(name(21, false), "Flamethrower");
-        assert!(placements(&view(1 << 21, 21), [640.0, 480.0], 1.0, |_| true).is_none());
+        assert_eq!(name(21, false), "Destruction");
+        assert_eq!(name(22, false), "Flamethrower");
+        assert!(placements(&view(1 << 21, 21), [640.0, 480.0], 1.0, |_| true).is_some());
         assert!(
             (0..32u8)
                 .map(|slot| name(slot, false))

@@ -8,6 +8,7 @@ pub(crate) mod force_repeat;
 pub(crate) mod idrive;
 pub(crate) mod motion;
 
+pub(crate) mod force_abilities;
 mod selection_commands;
 pub(crate) mod settings;
 mod state;
@@ -65,6 +66,8 @@ pub(crate) enum InputAction {
     /// `forceselect <entry>`: select that Force wheel entry at once (the quick
     /// wheel's Force page); local, as cycling is.
     ForceSelect(u8),
+    /// A capability-gated instant server ability.
+    ForceAbility(u8),
     RequestScores,
     TeamMenu,
     Vote(bool),
@@ -252,6 +255,7 @@ impl GameplayInput {
         };
         button_for_command(&name).is_some()
             || generic_commands::generic_command(&name).is_some()
+            || force_abilities::command_slot(&name).is_some()
             || matches!(
                 name.as_str(),
                 "messagemode"
@@ -416,6 +420,9 @@ impl GameplayInput {
         if let Some(value) = generic_commands::generic_command(&name) {
             return Some(InputAction::GenericCommand(value));
         }
+        if let Some(slot) = force_abilities::command_slot(&name) {
+            return Some(InputAction::ForceAbility(slot));
+        }
         match name.as_str() {
             "messagemode" => Some(InputAction::MessageMode(false)),
             "messagemode2" => Some(InputAction::MessageMode(true)),
@@ -507,6 +514,7 @@ fn button_for_command(command: &str) -> Option<GameButton> {
 
 impl super::GpuState {
     pub(crate) fn apply_input_action(&mut self, action: Option<InputAction>) {
+        self.refresh_force_support();
         match action {
             Some(InputAction::TargetMessage(attacker)) => self.targeted_chat(attacker),
             Some(InputAction::MessageMode(team)) if self.live_session.is_some() => {
@@ -623,6 +631,26 @@ impl super::GpuState {
                     ) {
                         // CG_Draw2D shows only the most recent selector.
                         self.weapon_selected_at = None;
+                    }
+                }
+            }
+            Some(InputAction::ForceAbility(slot)) => {
+                if let Some(session) = &mut self.live_session {
+                    let known = self
+                        .gameplay_input
+                        .selection
+                        .known(&session.latest_snapshot().player);
+                    if sjk_client::force_wheel::valid(known, slot)
+                        && let Some(command) = sjk_client::force_wheel::ABILITIES
+                            .iter()
+                            .find(|a| a.slot == slot)
+                            .and_then(|a| a.command)
+                        && let Err(error) = session.send_reliable_command_from(
+                            command.as_bytes(),
+                            sjk_client::ReliableCommandOrigin::Input,
+                        )
+                    {
+                        eprintln!("failed to send {command}: {error}");
                     }
                 }
             }

@@ -128,6 +128,7 @@ impl GpuState {
                 .as_ref()
                 .and_then(crate::console::ViewerConsole::force_repeat_command)
         };
+        self.refresh_force_support();
         let Some(session) = &mut self.live_session else {
             return;
         };

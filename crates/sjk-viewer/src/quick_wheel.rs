@@ -644,7 +644,11 @@ impl crate::GpuState {
         if player.movement_type() == 4 || player.movement_flags() & 4096 != 0 {
             return None;
         }
-        let selection = &self.gameplay_input.selection;
+        let mut selection = self.gameplay_input.selection;
+        selection.set_support(crate::input::force_abilities::support(
+            Some(session.game_state()),
+            self.console.as_ref(),
+        ));
         Some(force_page::Powers {
             known: selection.known(player),
             selected: selection.selected_force(player),

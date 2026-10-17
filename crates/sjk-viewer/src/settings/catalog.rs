@@ -695,6 +695,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Destruction support",
+        cvar: crate::input::force_abilities::CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    Setting {
         label: "Flamethrower effects",
         cvar: crate::actor_world_submission::force_powers::flame::CVAR,
         kind: ValueKind::Choice(&["-1", "0", "1"]),

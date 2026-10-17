@@ -1,3 +1,20 @@
+## Server-granted Destruction controls
+
+17/10/2026, `feat/destruction-client-support`, based on `Sol-Vulpes/SJK`
+`bb83eb28`, Windows x86_64: implements EJK #338/#389 client capability gates,
+Force wheel/quick-wheel selection, bind and once-per-press command. Existing
+Repulse/Dash binds share the table-driven grant gate. No native server ability
+or new Destruction effects/assets are introduced. See [client](client.md#destruction-client-controls).
+
+All four workspace checks (fmt, locked build/test/clippy) passed on Windows
+x86_64, Rust 1.99.0. Focused synthetic tests cover flag/override/live-state
+gates, all 128 grant/anchor combinations, once-per-press at 8/7/4/3 ms,
+revocation and real-only network selection; both wheel/UI projections pass.
+A Ryzen 7 5800X3D release microbenchmark measured 12.035 us for a capability
+sample plus 128 filtered wheel builds over 20,000 iterations; it excludes
+console lookup, drawing and live gameplay. Live compatible-server behavior,
+installed icon/GPU comparison and audible effects remain unverified.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

@@ -5,6 +5,8 @@ use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 /// Register only options consumed by presentation paths in this batch.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
     crate::actor_world_submission::force_powers::flame::register(cvars)?;
+    cvars.register(CvarDefinition::new(crate::input::force_abilities::CVAR, -1_i64, CvarFlags::ARCHIVE,
+        "Destruction support: -1 server flag, 0 off, 1 interpret grant without flag; never grants the power"))?;
     crate::hud::family::register(cvars)?;
     crate::hud::kill_feed::register(cvars)?;
     crate::hud::movement::register(cvars)?;

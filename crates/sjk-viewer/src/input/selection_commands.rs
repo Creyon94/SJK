@@ -13,7 +13,7 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
         ),
         (
             "forceselect",
-            "Select Force wheel entry N (forcePowers_t number; 18-20 JoF's)",
+            "Select Force wheel entry N (forcePowers_t number; 18-21 JoF's)",
         ),
         (
             "weapmelee",
@@ -43,6 +43,17 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
                 "Viewer input dispatcher required".into(),
             ))
         })?;
+    }
+    for ability in sjk_client::force_wheel::ABILITIES {
+        if let Some(command) = ability.command {
+            shell
+                .commands
+                .register(command, "Use a granted server Force ability", |_| {
+                    Err(sjk_shell::CommandError::Handler(
+                        "Viewer input dispatcher required".into(),
+                    ))
+                })?;
+        }
     }
     Ok(())
 }

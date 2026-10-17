@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// action with a picture. `weapon N` selects weapon `N + 2` of
 /// `weapon_t` (`weapon 1` the saber, else melee; `weapon 10` cycles the
 /// explosives), as `legacy_direct_weapon` reads it.
-const ICONS: [(&str, &str); 42] = [
+const ICONS: [(&str, &str); 43] = [
     // INTERACTION
     ("sv_saberswitch", "gfx/hud/w_icon_lightsaber.tga"),
     ("saberAttackCycle", "gfx/hud/saber_med.tga"),
@@ -69,6 +69,10 @@ const ICONS: [(&str, &str); 42] = [
     ("force_dash", "gfx/jof/force_dash.tga"),
     ("+force_stasis", "gfx/mp/f_icon_levitation.tga"),
     ("force_repulse", "gfx/jof/force_repulse.tga"),
+    (
+        "force_destruction",
+        "gfx/forcedestruction/force_destruction.tga",
+    ),
     // OTHER
     ("teammenu", "gfx/hud/mpi_rflag.tga"),
 ];

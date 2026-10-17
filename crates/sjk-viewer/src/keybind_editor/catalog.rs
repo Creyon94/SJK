@@ -159,6 +159,12 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Force, "Dash (JoF)", "force_dash", ""),
     action(Force, "Stasis (JoF, hold)", "+force_stasis", ""),
     action(Force, "Repulse (JoF)", "force_repulse", ""),
+    action(
+        Force,
+        "Destruction (server granted)",
+        "force_destruction",
+        "",
+    ),
     // OTHER
     // Server commands (`codemp/game/g_cmds.c:3402-3404`); the console forwards
     // them, but they were unbindable from this screen until now.

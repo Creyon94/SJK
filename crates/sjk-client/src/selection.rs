@@ -20,6 +20,7 @@ pub struct Selection {
     /// A selected JoF pseudo-slot ([`force_wheel::STASIS`] and the others): shown
     /// and used by `+useforce`, never sent, kept while the server grants it.
     pseudo: Option<u8>,
+    support: Option<u32>,
     force_time: Option<i32>,
     item_time: Option<i32>,
 }
@@ -158,7 +159,16 @@ impl Selection {
 
     /// The player's `forcePowersKnown` as the wheel reads it: the server's bits.
     pub fn known(&self, player: &PlayerState) -> u32 {
-        player.raw_field(51).unwrap_or(0)
+        force_wheel::known(
+            player,
+            self.support
+                .unwrap_or_else(|| force_wheel::support(None, -1)),
+        )
+    }
+
+    /// Refresh server capability without altering the real network selection.
+    pub fn set_support(&mut self, support: u32) {
+        self.support = Some(support);
     }
 
     /// Reset expired Force overrides and consumed items to authoritative selection.
@@ -245,6 +255,25 @@ mod tests {
         player.set_raw_field(54, u32::from(selected));
         player.stats[0] = 100;
         player
+    }
+
+    #[test]
+    fn destruction_stays_local_and_is_revoked_with_support() {
+        use crate::force_wheel::DESTRUCTION;
+        for step in [8, 7, 4, 3] {
+            let player = player((1 << 3) | (1 << DESTRUCTION), 3);
+            let mut selection = Selection::default();
+            assert!(!selection.select(&player, 0, DESTRUCTION));
+            selection.set_support(force_wheel::support(None, 1));
+            assert!(selection.select(&player, step, 3));
+            assert!(selection.select(&player, step * 2, DESTRUCTION));
+            assert_eq!(selection.force, Some(3));
+            assert_eq!(selection.wheel_pseudo(), Some(DESTRUCTION));
+            selection.set_support(force_wheel::support(None, 0));
+            selection.sync(&player, step * 3);
+            assert_eq!(selection.wheel_pseudo(), None);
+            assert_eq!(selection.force, Some(3));
+        }
     }
 
     #[test]
