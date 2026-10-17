@@ -29,6 +29,14 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             crate::cardboard_box::COMMAND,
             "Toy: hide in a cardboard box, or come out (+use on a boxed player lifts theirs)",
         ),
+        (
+            crate::order66::COMMAND,
+            "Toy: Order 66 on or off (every player who has it on dies when one of them executes it)",
+        ),
+        (
+            crate::order66::EXECUTE_COMMAND,
+            "Execute Order 66: in 3 seconds every player with the toy on blows up (toy_order66 first)",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(

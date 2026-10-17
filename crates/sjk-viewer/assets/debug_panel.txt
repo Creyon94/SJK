@@ -5035,3 +5035,18 @@ test: Red and blue scores show under the clock; try cg_hudStyle game, classic an
 test: Hold the scoreboard: the carrier has a flag icon before the name, in both scoreboard styles.
 test: Settings > HUD > Team scores and Flag status (capture the flag) switch them off.
 note: Slash reported this on JoF servers; the status string is the original CS_FLAGSTATUS.
+
+[order66]
+area: Gameplay
+title: Order 66: everyone with the toy on dies together and blows apart
+change: toy_order66 (key, quick wheel Toys page, Collection Toys tab) turns it on or off.
+change: order66 gives the order: 3 s countdown, then kill for every SJK player with it on.
+change: Holders who die then explode: thermal blast, six pieces fly; confetti if cg_dismember 0.
+test: toy_order66, then order66: centre countdown 3 2 1 with beeps, then you die.
+test: Your body flies apart: head, arms, legs and trunk bounce, smoke and sink after 6 s.
+test: order66 again at once: "Order 66 again in N s" (one order every 30 s).
+test: In a private duel or carrying a flag: "Spared: ...", no kill.
+test: cg_dismember 0, then an order: confetti instead of pieces, the body hidden.
+test: Respawn: your body is whole again; the corpse left behind stays hidden.
+note: Others dying with you needs a second SJK client with the toy on; no hub deploy needed.
+note: The order's voice is sound/sjk/order66/order.wav, yours to add; SJK ships no sound.

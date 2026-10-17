@@ -119,6 +119,10 @@ impl ViewerConsole {
                 self.pending_cardboard_box = Some(on);
                 self.cardboard_box_on = on;
             }
+            PanelAction::Order66(on) => {
+                self.pending_order66 = Some(on);
+                self.order66_on = on;
+            }
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
                 let back = self.collection_panel.back();
@@ -156,6 +160,16 @@ impl ViewerConsole {
     /// The Toys tab asked to get in the cardboard box (`true`) or out, once.
     pub(crate) fn take_cardboard_box_request(&mut self) -> Option<bool> {
         self.pending_cardboard_box.take()
+    }
+
+    /// The viewer says whether the Order 66 toy is on, once a frame.
+    pub(crate) fn set_order66_on(&mut self, on: bool) {
+        self.order66_on = on;
+    }
+
+    /// The Toys tab asked to turn Order 66 on (`true`) or off, once.
+    pub(crate) fn take_order66_request(&mut self) -> Option<bool> {
+        self.pending_order66.take()
     }
 
     /// Give a pressed key to the open page; false when the page is closed.
@@ -224,6 +238,7 @@ impl ViewerConsole {
         let name = self.text_value("name").unwrap_or_default().to_owned();
         let illuminate = self.illuminate_lit();
         let cardboard_box = self.cardboard_box_on;
+        let order66 = self.order66_on;
         let stock = self.stock_blade();
         let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) == Some(1);
         let options = self
@@ -251,6 +266,7 @@ impl ViewerConsole {
                 standings: &standings,
                 illuminate,
                 cardboard_box,
+                order66,
                 name: &name,
                 stock,
                 grid,
@@ -268,6 +284,7 @@ impl ViewerConsole {
             standings: &standings,
             illuminate,
             cardboard_box,
+            order66,
             name: &name,
             stock,
             grid,

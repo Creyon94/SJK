@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Order 66 toy: synced deaths that blow everyone with it on apart, or confetti
+- 371906d |  | Order 66 toy: synced deaths that blow everyone with it on apart
++ 17/10/2026 | - | CTF: flag status, carrier plate and team scores on every HUD; carriers on the scoreboard from the snapshot
+- ee8a97c |  | CTF HUD: flag icons, carrying note and team scores in every HUD style
 + 17/10/2026 | - | Linux: clipboard in process, Ctrl+V without xclip or wl-clipboard
 - 05ac7a1 |  | Linux: read and set the clipboard in process so Ctrl+V works without xclip or wl-clipboard
 + 17/10/2026 | - | Free camera flies during emotes and held animations

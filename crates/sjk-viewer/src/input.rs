@@ -88,6 +88,10 @@ pub(crate) enum InputAction {
     Illuminate,
     /// `toy_box`: put the cardboard box on or take it off ([`crate::cardboard_box`]).
     CardboardBox,
+    /// `toy_order66`: turn the Order 66 toy on or off ([`crate::order66`]).
+    Order66,
+    /// `order66`: execute Order 66 for every player who has the toy on.
+    ExecuteOrder66,
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -280,6 +284,8 @@ impl GameplayInput {
                     | "toy_illuminate"
                     | "force_illuminate"
                     | crate::cardboard_box::COMMAND
+                    | crate::order66::COMMAND
+                    | crate::order66::EXECUTE_COMMAND
                     | "cameracontrol"
             )
     }
@@ -441,6 +447,8 @@ impl GameplayInput {
             // The old name still runs the toy, but is not listed (`selection_commands`).
             "toy_illuminate" | "force_illuminate" => Some(InputAction::Illuminate),
             crate::cardboard_box::COMMAND => Some(InputAction::CardboardBox),
+            crate::order66::COMMAND => Some(InputAction::Order66),
+            crate::order66::EXECUTE_COMMAND => Some(InputAction::ExecuteOrder66),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -562,6 +570,8 @@ impl super::GpuState {
             Some(InputAction::WorldPing) => self.world_ping_press(),
             Some(InputAction::Illuminate) => self.toggle_illuminate(),
             Some(InputAction::CardboardBox) => self.toggle_cardboard_box(),
+            Some(InputAction::Order66) => self.toggle_order66(),
+            Some(InputAction::ExecuteOrder66) => self.execute_order66(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

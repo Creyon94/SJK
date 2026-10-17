@@ -53,6 +53,28 @@ on top of `trust`): an older hub refuses the change and sends no emoji. Checked 
 tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
 chat box, scoreboard). Not tried in the game or against a running hub.
 
+## Order 66 toy
+
+17/10/2026, `personal/order66` (Sol's idea): a meme toy ([client.md](client.md#order-66)).
+`toy_order66` (bind, quick wheel Toys page, Collection's Toys tab) turns it on, and the
+look's `toys` tells the other SJK players. `order66` gives the order through the hub's
+existing toy events (`execute_<moment>`, no hub change): every client with the toy on
+counts down to the same game server moment, 3 seconds on, and sends `kill` unless its
+player is spared (spectating, dead, in a duel, carrying a flag); one order counts every
+30 seconds per server. Holders who die in the order's window blow up on every SJK
+client: the thermal detonator's explosion and six pieces (head, arms, legs, trunk) cut
+with the dismemberment code (`GpuState::blow_apart`) that bounce off the world and sink
+away, or confetti with `cg_dismember 0`. Limb meshes are pooled during the countdown.
+Pooled limb meshes are no longer taken as the fallback mesh of entities without one.
+Checked by unit tests (event parsing, hearing and cooldown, countdown and moment,
+blasts once in the window, the piece's bounce and rest, the throw, ids, the bundled
+files and the confetti's effect and shaders, the hidden body and its trunk, the
+Collection's three toys and Order 66's switch, the wheel's Toys page) and an off-screen
+render of a demo player (`jedi_hf`) blown apart, the pieces at four moments and the
+confetti (`world_shot::order66_shots`); that shot found `jedi_hf`'s head under
+`head_off`, so Order 66's cuts also take a surface's `_off` name. Not tried in a game,
+with two clients or on a server.
+
 ## Cardboard box toy
 
 16/10/2026, `personal/cardboard-box` (Sol's idea) with hub branch `cardboard-box`: a

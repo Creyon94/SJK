@@ -54,6 +54,8 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "rocket/explosion",
     "thermal/explosion",
     "thermal/shockwave",
+    // Order 66's confetti (`order66.rs`), bundled with the client.
+    "sjk/order66_confetti",
     "concussion/explosion",
     "sparks/spark_nosnd",
     "bryar/shot",

@@ -163,6 +163,7 @@ mod notice;
 mod npc_refresh;
 mod object_meshes;
 mod oblique_clip;
+mod order66;
 mod particle_atlas;
 mod particle_draw;
 mod peek;
@@ -432,6 +433,8 @@ struct GpuState {
     illuminate_others: illuminate::Others,
     /// The cardboard box toy (`toy_box`): the player's own and the boxes of others.
     cardboard_box: cardboard_box::CardboardBox,
+    /// The Order 66 toy (`toy_order66`, `order66`): the order and the pieces flying.
+    order66: order66::Order66,
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1344,6 +1347,7 @@ impl GpuState {
             illuminate: Default::default(),
             illuminate_others: Default::default(),
             cardboard_box: Default::default(),
+            order66: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
             holocron_stage_seconds: None,
@@ -2209,7 +2213,7 @@ impl GpuState {
         let fallback_mesh = self
             .actor_meshes
             .iter()
-            .position(|mesh| !mesh.corpse_pool && mesh.entity_id.is_none());
+            .position(|mesh| !mesh.corpse_pool && mesh.limb.is_none() && mesh.entity_id.is_none());
         self.actor_groups.iter_mut().for_each(Vec::clear);
         self.object_groups.iter_mut().for_each(Vec::clear);
         self.pickup_override_instances.clear();
@@ -2220,6 +2224,7 @@ impl GpuState {
         self.dynamic_lights.clear();
         self.submit_illuminate(presentation_time, visual_now);
         self.submit_cardboard_boxes(presentation_time, visual_now);
+        self.submit_order66(presentation_time, visual_now);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());

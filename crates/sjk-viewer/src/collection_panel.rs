@@ -69,8 +69,12 @@ const TOY_TOKEN: u16 = 1_310;
 const TOY_SWITCH_TOKEN: u16 = 1_311;
 /// The cardboard box's niche on Toys (Illuminate's is [`TOY_TOKEN`]).
 const BOX_TOKEN: u16 = 1_314;
-/// The toys the Toys tab shows: Illuminate, then the cardboard box.
-const TOY_COUNT: usize = 2;
+/// Order 66's niche on Toys.
+const ORDER_TOKEN: u16 = 1_315;
+/// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
+const TOY_COUNT: usize = 3;
+/// Each toy's niche, in the order of [`Panel::toy`].
+const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN];
 /// The Shaders tab's view switches: the rack (a list) and the grid of cards.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
@@ -162,6 +166,9 @@ pub(crate) enum PanelAction {
     /// Get in the cardboard box (`true`) or out: the same as `toy_box`, set rather than
     /// toggled.
     CardboardBox(bool),
+    /// Turn Order 66 on (`true`) or off: the same as `toy_order66`, set rather than
+    /// toggled.
+    Order66(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -225,6 +232,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) illuminate: bool,
     /// The player is in the cardboard box now (kept as [`Self::illuminate`] is).
     pub(crate) cardboard_box: bool,
+    /// The Order 66 toy is on now (kept as [`Self::illuminate`] is).
+    pub(crate) order66: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -274,10 +283,12 @@ pub(crate) struct Panel {
     medal: usize,
     achievement: usize,
     shader: usize,
-    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box.
+    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66.
     toy: usize,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
+    /// Order 66 was on, as the last frame's inputs said.
+    order66_on: bool,
     /// The kind of card chosen on Cards, and how many kinds the last frame showed.
     card: usize,
     cards_shown: usize,
@@ -355,6 +366,7 @@ impl Panel {
             shader: 0,
             toy: 0,
             box_on: false,
+            order66_on: false,
             card: 0,
             cards_shown: 0,
             revealable: 0,
@@ -501,6 +513,7 @@ impl Panel {
                 .and_then(|row| row.wear)
                 .map_or(PanelAction::None, PanelAction::Wear),
             Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
+            Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             _ => PanelAction::None,
         }
@@ -880,8 +893,11 @@ impl Panel {
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN => self.activate(illuminate),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
-            TOY_TOKEN | BOX_TOKEN => {
-                let toy = usize::from(token == BOX_TOKEN);
+            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
+                let toy = TOY_TOKENS
+                    .iter()
+                    .position(|&niche| niche == token)
+                    .unwrap_or(0);
                 if self.toy == toy {
                     self.activate(illuminate)
                 } else {
@@ -982,8 +998,7 @@ impl Panel {
                 ACHIEVEMENT_BASE + self.achievement.min(crate::achievements::ALL.len() - 1) as u16
             }
             Tab::Shaders => SHADER_BASE + self.shader as u16,
-            Tab::Toys if self.toy == 1 => BOX_TOKEN,
-            Tab::Toys => TOY_TOKEN,
+            Tab::Toys => TOY_TOKENS[self.toy.min(TOY_COUNT - 1)],
             Tab::Cards if self.cards_shown > 0 => CARD_BASE + self.card as u16,
             _ => BACK_TOKEN,
         }
@@ -1014,6 +1029,7 @@ mod tests {
             standings: &[],
             illuminate: true,
             cardboard_box: false,
+            order66: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
@@ -1350,6 +1366,52 @@ mod tests {
         assert_eq!(
             panel.key(KeyCode::Enter, false, true),
             PanelAction::Illuminate(false)
+        );
+    }
+
+    /// Order 66 is the third toy: chosen, then turned on or off by the state the page
+    /// was told, its niche running it once chosen.
+    #[test]
+    fn order_66_is_chosen_then_turned_on_or_off() {
+        let mut shown = inputs(Holdings::Known(&[]), "");
+        let mut panel = drawn(Tab::Toys, &shown);
+        let _ = panel.key(KeyCode::ArrowRight, false, false);
+        let _ = panel.key(KeyCode::ArrowRight, false, false);
+        assert_eq!(panel.toy, 2);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false, false),
+            PanelAction::Order66(true)
+        );
+        assert!(panel.stage_wish().is_some_and(|wish| !wish.holocron));
+        shown.order66 = true;
+        let click = |panel: &mut Panel, token: u16| {
+            let rect = panel.ui.rect_for(token).expect("a pointer area");
+            let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+            let button = sjk_ui::PointerButton::Primary;
+            [
+                InputEvent::PointerMove(at),
+                InputEvent::PointerPress {
+                    position: at,
+                    button,
+                },
+                InputEvent::PointerRelease {
+                    position: at,
+                    button,
+                },
+            ]
+            .into_iter()
+            .map(|event| panel.pointer_at(event, true, Instant::now()))
+            .find(|action| *action != PanelAction::None)
+            .unwrap_or(PanelAction::None)
+        };
+        let mut panel = drawn(Tab::Toys, &shown);
+        assert_eq!(click(&mut panel, ORDER_TOKEN), PanelAction::None, "chosen");
+        redraw(&mut panel, &shown);
+        assert_eq!(click(&mut panel, ORDER_TOKEN), PanelAction::Order66(false));
+        let all = panel.ui.text_runs().collect::<Vec<_>>().join("\n");
+        assert!(
+            all.contains("toy_order66") && all.contains("In the order"),
+            "{all}"
         );
     }
 

@@ -567,9 +567,9 @@ impl GpuState {
         self.cardboard_box.toggle();
     }
 
-    /// The frame's toy logic, after the looks: the own life, the hub's events, a
-    /// `+use` press and the deaths in the box.
-    pub(crate) fn update_cardboard_box(&mut self, now: Instant) {
+    /// The frame's toy logic, after the looks: the own life, the hub's events (`events`,
+    /// this server's toy events), a `+use` press and the deaths in the box.
+    pub(crate) fn update_cardboard_box(&mut self, now: Instant, events: &[sjk_identity::ToyEvent]) {
         let Some(session) = self
             .live_session
             .as_ref()
@@ -599,7 +599,7 @@ impl GpuState {
         let looks = &self.looks;
         let boxed = |slot: usize| Some(slot) != own.map(usize::from) && looks.toy(slot, TOY);
         // The hub's events: a sender counts only when the game shows the name they claimed.
-        for event in crate::player_identity::take_toy_events(Some(session.server())) {
+        for event in events {
             if event.toy != TOY || event.event != EVENT_SPOTTED || Some(event.slot) == own {
                 continue;
             }

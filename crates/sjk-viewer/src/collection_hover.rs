@@ -78,6 +78,20 @@ impl Panel {
                 ],
             });
         }
+        if token == ORDER_TOKEN {
+            return Some(Card {
+                title: "Order 66".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys \
+                         page or with a key bound to toy_order66; order66 executes it.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
         if let Some(index) = within(CARD_BASE, self.cards_shown) {
             let (stacks, _) = self.holdings(inputs);
             return stacks?.get(index).map(card_card);

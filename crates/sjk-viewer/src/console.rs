@@ -218,6 +218,11 @@ pub(crate) struct ViewerConsole {
     cardboard_box_on: bool,
     /// The Toys tab asked to get in the box (`true`) or out, not yet taken.
     pending_cardboard_box: Option<bool>,
+    /// The Order 66 toy is on: the viewer's state, mirrored as
+    /// [`Self::illuminate_lit`] is.
+    order66_on: bool,
+    /// The Toys tab asked to turn Order 66 on (`true`) or off, not yet taken.
+    pending_order66: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,

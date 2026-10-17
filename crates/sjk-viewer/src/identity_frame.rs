@@ -37,7 +37,15 @@ impl GpuState {
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
         let due = player_identity::due();
         self.update_looks(due);
-        self.update_cardboard_box(Instant::now());
+        // The hub's toy events for this server, taken once for every toy.
+        let toy_events = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .map(|session| player_identity::take_toy_events(Some(session.server())))
+            .unwrap_or_default();
+        self.update_cardboard_box(Instant::now(), &toy_events);
+        self.update_order66(&toy_events);
         if !due {
             return;
         }
