@@ -1,6 +1,6 @@
 ## Repeated player model voices
 
-17/10/2026, `feat/voice-antispam`, based on `6561b03f`, Windows x86_64,
+17/10/2026, `feat/voice-antispam`, based on `bb83eb28`, Windows x86_64,
 Rust 1.99.0: implemented JoF EJK #287/#374's default-on `cg_tauntAntiSpam`
 with one sample-duration taunt hold per player and independent gasp/jump/roll/
 landing holds. Generic/entity custom-sound tokens carry family metadata,
