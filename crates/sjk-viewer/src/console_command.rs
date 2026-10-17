@@ -241,7 +241,10 @@ impl ViewerConsole {
                                 return Some(Err(format!("Unknown command \"{}\"", tokens[0])));
                             };
                             active
-                                .send_reliable_command(payload.as_bytes())
+                                .send_reliable_command_from(
+                                    payload.as_bytes(),
+                                    sjk_client::ReliableCommandOrigin::Input,
+                                )
                                 .map(|()| Vec::new())
                                 .map_err(|error| {
                                     format!("Could not forward {}: {error}", tokens[0])
