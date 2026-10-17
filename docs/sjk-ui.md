@@ -181,7 +181,9 @@ one (4:3, 5:4) scales the frame down to its width.
   the player joined last, newest first, up to four, kept in
   `recent_servers.json` beside `favorites.json` ([recent.rs](../crates/sjk-viewer/src/menu/sjk/recent.rs)):
   a server is recorded when a join reaches the game, with its name and map,
-  except a game this client hosts. Each shows its name (live from the server
+  except a game this client hosts. A map change updates that server's one row;
+  the loading screen's map name is never treated as another server, and invalid
+  rows written by older builds are ignored. Each shows its name (live from the server
   list, or as last seen), its players, map and ping while the server list has
   it, and when it was last played ("2 hours ago", "yesterday": relative, so no
   time zone is needed). Before any join, the column offers the JoF server

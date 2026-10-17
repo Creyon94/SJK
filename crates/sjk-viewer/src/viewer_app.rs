@@ -230,7 +230,7 @@ impl ApplicationHandler for ViewerApplication {
                         if reloaded.live_map_installed
                             && let Some(menu) = &mut reloaded.client_menu
                         {
-                            menu.joined();
+                            menu.joined(reloaded.last_connect_address.as_deref());
                         }
                         reloaded.configure_audio(&mut self.game_audio);
                         if reloaded.live_map_installed {

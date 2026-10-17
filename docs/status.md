@@ -94,6 +94,17 @@ fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
 Installed-scene/GPU and live-server remap
 comparison remain unverified. See [remap controls](client.md#shader-remap-controls)
 and [renderer policy](rendering.md#server-shader-remaps).
+## Recent servers across map changes
+
+17/10/2026, `fix/recent-servers-map-changes`: a remote server keeps one Recent servers row when it
+changes maps. The menu now records the connection owner's canonical address instead
+of the connecting screen's mutable display text, which becomes a map name during a
+live transition. Loading also drops invalid map-name rows left by older builds and
+deduplicates valid addresses, newest first. Focused tests cover a live map change and
+the old persisted-file shape. On Linux x86_64 with Rust 1.99.1, formatting, the locked
+workspace build and test suite, workspace all-target Clippy, and the locked release
+viewer/dedicated build pass; existing warnings remain. Not yet checked by changing
+maps on a live server.
 
 ## NPC sabers and voices
 
