@@ -1,3 +1,19 @@
+## One Russian letter in chat
+
+17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a
+message of one Russian letter "bugs out"). Cause: under `cl_charset auto` a single-byte
+encoding is used only when `looks_cyrillic` reads it back, and the word rule needs two
+letters with a lower-case one or four letters, so `я`, `Ж` or `ДА` were sent as UTF-8
+(`D1 8F`), which JoF, JA+ and EternalJK players draw as two garbage characters; received
+as the byte they send (0xFF), `я` showed as `ÿ`. Now a message (after a `"` in a typed
+command, after the `: ` of a received line, or a localized chat's body) with no ASCII
+letter and a high letter reads as Windows-1251 (`looks_cyrillic`,
+`decode_legacy_message`); names keep the word rule (`ÆØ` stays Latin-1). Unit tests send
+and read back every `А`-`я`, `Ё`, `ё` and short mixed messages (`chat::escape_tests`,
+`legacy_text::tests`). Not tried on a server. Limits: a letter next to ASCII words
+(`я lol`) still goes as UTF-8, and a lone Latin `à` message now reads as Cyrillic
+(`cl_charset western` pins it); see [networking.md](networking.md#player-text).
+
 ## Player card in sight only; grey bars for every non-sharer
 
 17/10/2026, `personal/inspect-sight` (Sol's request). The player card, dwelled or

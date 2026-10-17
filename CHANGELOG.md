@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- A chat message that is a single Russian letter (or two capitals, such as Da and Net in Cyrillic) now reaches Russian players on JoF, JA+ and EternalJK as that letter, not as two garbage characters, and SJK shows such a message from them as Russian instead of Latin accented letters _(Sol, after Foshin's report)_
 - The player card and `inspect` no longer work through walls or from far away (over 1200 units); a pinned card hides when its player goes out of sight and unpins after 3 seconds _(Sol)_
 - Nameplates show grey bars on every player who does not share theirs, players without SJK and bots too; Bars on everyone is gone, as it had nothing left to estimate _(Sol)_
 - Shader blades (Spectral and the other chroma ones) keep a pale custom colour: a tint such as RGB 207 190 234 turned them cyan, because anything under 20% saturation was taken for grey; now only near-grey colours are _(Sol, after Kushina's report)_
