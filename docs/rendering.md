@@ -1182,7 +1182,8 @@ not identify a Grip attacker or change gameplay. See
 JA+ flamethrower presentation uses the documented table in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs), with the archived
 `cg_flameThrower` Auto/Off/JA+ override. `eFlags` bit 17 during a Lightning pass
-selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence;
+selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence
+(only when that graph is installed; otherwise Lightning stays);
 the humanoid upper body uses `BOTH_FORCELIGHTNING_HOLD` with the standard 100 ms
 blend. `ET_GENERAL` entities with `eFlags2` bit 8 replay `env/fire_wall` after
 the reference 100 ms interval. Their timers and the positional `bf_flame.mp3`

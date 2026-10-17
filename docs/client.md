@@ -3403,7 +3403,8 @@ See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
 ### JA+ flamethrower presentation
 
-On a compatible JA+ server, firing the flamethrower shows its flame stream and
+On a JA+ server (gamename `ja+`, `japlus` or `ja_plus`; abyssmod and UA Galaxy,
+which share JA+'s dialect, are left out until their flag meanings are verified), firing the flamethrower shows its flame stream and
 hit effects, uses the Lightning-hold upper-body pose, and plays its positional
 flame sound until firing stops. Local predicted firing and remote players use
 the existing snapshot flags; ordinary Lightning and Drain retain their effects.
@@ -3416,7 +3417,10 @@ documented capability table is in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs); it detects the server
 independently of the optional JA+ command mod. The flame graphs and sound must
 be present in installed game data, such as the JoF EJK client-assets pack.
-SJK does not bundle them. Missing assets leave that effect or sound absent.
+SJK does not bundle them. Without the flame stream graph the player keeps
+showing stock Lightning; other missing assets leave that effect or sound absent.
+The flame sound follows the same detection as the effects, refreshed when the
+server info changes.
 
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
 `forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if

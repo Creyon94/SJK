@@ -633,7 +633,10 @@ hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
 Sound stops on firing end, mute, disappearance or disconnect and resets across
 map changes and time rewinds. Installed flame graphs/audio are required and are
 not bundled. Live JA+ play, GPU appearance and audible playback remain unverified;
-`JKA_GAME_DATA` is not configured for the asset/GPU checks. See
+`JKA_GAME_DATA` is not configured for the asset/GPU checks. Review fixes
+(17/10/2026): the contract accepts JA+ itself only (not abyssmod or UA Galaxy),
+keeps Lightning when the flame graph is not installed, and the sound re-detects
+when the server info changes, as the effects do. See
 [client behaviour](client.md#ja-flamethrower-presentation).
 
 Verification on Windows with Rust 1.99.0: workspace formatting, locked build,

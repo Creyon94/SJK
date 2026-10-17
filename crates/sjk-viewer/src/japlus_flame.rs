@@ -33,7 +33,7 @@ pub(crate) struct Contract {
 /// JA+ reuses Lightning passes 1..=3; EJK #31 supplies the flag/asset contract.
 pub(crate) const CONTRACTS: &[Contract] = &[Contract {
     game_key: "gamename",
-    accepts: sjk_protocol::is_ja_plus_game_name,
+    accepts: ja_plus_itself,
     firing_flag: 1 << 17,
     hit_flag: 1 << 8,
     stream: "mp/fthrw_bobafire",
@@ -44,6 +44,19 @@ pub(crate) const CONTRACTS: &[Contract] = &[Contract {
     hit_millis: 100,
     sound_millis: 2900,
 }];
+
+/// JA+ proper only (`ja+`, `japlus`, `ja_plus` gamenames, spelled as
+/// `sjk_protocol::is_ja_plus_game_name` spells them). That helper also accepts
+/// abyssmod and UA Galaxy, whose eFlags bit 17 / eFlags2 bit 8 meanings are
+/// unverified, so they get no flame contract until an entry documents them.
+fn ja_plus_itself(game_name: &str) -> bool {
+    ["ja+", "japlus", "ja_plus"].iter().any(|prefix| {
+        game_name
+            .as_bytes()
+            .get(..prefix.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(prefix.as_bytes()))
+    })
+}
 
 impl Contract {
     /// `CG_General`'s eFlags2 marker, already decoded at protocol-26 netfield 96.
@@ -271,9 +284,15 @@ mod tests {
         for value in [i64::MIN, -2, 2, i64::MAX] {
             assert!(overridden(rule, value).is_none());
         }
-        game.replace_config_string(0, br"\gamename\basejka".to_vec())
-            .unwrap();
-        assert!(detect(Some(&game)).is_none());
+        // abyssmod and UA Galaxy share JA+'s dialect but not a verified flame contract.
+        for other in [
+            &br"\gamename\basejka"[..],
+            br"\gamename\abyssmod",
+            br"\gamename\^4U^3A^5Galaxy",
+        ] {
+            game.replace_config_string(0, other.to_vec()).unwrap();
+            assert!(detect(Some(&game)).is_none());
+        }
         assert!(detect(None).is_none());
     }
 
@@ -289,9 +308,15 @@ mod tests {
         entity.set_raw_field(68, 3);
         let remote = Caster::from_entity(&entity, 0, 0);
         for caster in [local, remote] {
-            let selected =
-                |caster, rule| super::super::select_for_contract(caster, false, rule).beam;
+            let selected = |caster, rule| {
+                super::super::select_for_contract(caster, false, rule, |_| true).beam
+            };
             assert_eq!(selected(caster, Some(rule)), Some(rule.stream));
+            assert_eq!(
+                super::super::select_for_contract(caster, false, Some(rule), |_| false).beam,
+                Some("force/lightningwide"),
+                "without the JoF effect the caster keeps stock Lightning"
+            );
             assert_eq!(selected(caster, None), Some("force/lightningwide"));
             assert_eq!(
                 selected(

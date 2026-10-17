@@ -52,6 +52,12 @@ impl GameAudio {
         vfs: &VirtualFileSystem,
     ) {
         changes.visit(|index| {
+            // CS_SERVERINFO: the flame contract follows the same detection the
+            // visuals re-run each frame (a mid-map gamename change included).
+            if index == 0 {
+                self.flame.detected =
+                    crate::actor_world_submission::force_powers::flame::detect(Some(game));
+            }
             if matches!(index, 32 | 37..=292 | 811..=1066) {
                 self.refresh_sound_table(index, game, vfs);
             }

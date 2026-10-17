@@ -190,13 +190,16 @@ pub(crate) fn select(caster: Caster, third_person: bool) -> Selection {
     }
 }
 
+/// The flame stream replaces Lightning only when its effect is installed (the JoF
+/// assets); without it the caster keeps stock Lightning rather than showing nothing.
 fn select_for_contract(
     caster: Caster,
     third_person: bool,
     rule: Option<&flame::Contract>,
+    installed: impl Fn(&str) -> bool,
 ) -> Selection {
     let mut selection = select(caster, third_person);
-    if let Some(rule) = rule.filter(|rule| rule.firing(caster)) {
+    if let Some(rule) = rule.filter(|rule| rule.firing(caster) && installed(rule.stream)) {
         selection.beam = Some(rule.stream);
     }
     selection
@@ -219,7 +222,9 @@ pub(super) fn submit(
     let Some(caster) = Caster::find(snapshot, number, sinks.predicted_local_state) else {
         return;
     };
-    let selection = select_for_contract(caster, sinks.third_person, sinks.flame);
+    let selection = select_for_contract(caster, sinks.third_person, sinks.flame, |name| {
+        sinks.effects.contains_definition(name)
+    });
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
