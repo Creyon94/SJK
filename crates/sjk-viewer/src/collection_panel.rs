@@ -76,6 +76,11 @@ const BOX_TOKEN: u16 = 1_314;
 const ORDER_TOKEN: u16 = 1_315;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
+/// The shader card's Shatter (a duplicate into kyber shards) and Craft (with them).
+const SHATTER_TOKEN: u16 = 1_317;
+const CRAFT_TOKEN: u16 = 1_318;
+/// How long a Shatter or Craft waits for its second press, which sends it.
+const TRADE_CONFIRM: std::time::Duration = std::time::Duration::from_secs(5);
 /// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
 const TOY_COUNT: usize = 3;
 /// Each toy's niche, in the order of [`Panel::toy`].
@@ -184,6 +189,10 @@ pub(crate) enum PanelAction {
     },
     /// Set [`SHADER_VIEW_CVAR`]: the grid of cards (`true`) or the rack.
     ShaderView(bool),
+    /// Shatter one duplicate of this shader into kyber shards (`crate::economy`).
+    Shatter(&'static str),
+    /// Craft this shader with kyber shards.
+    Craft(&'static str),
     /// Ask the hub to reveal the player's sealed cards.
     RevealCards,
 }
@@ -339,6 +348,14 @@ pub(crate) struct Panel {
     /// last frame was drawn at (a drag turns it by frame pixels).
     spin: spin::Spin,
     scale: f32,
+    /// The player's kyber shards while the hub lets them trade (`None`: no Shatter or
+    /// Craft), and the hub's answer to the last trade ([`Panel::set_trade`]).
+    trade: Option<u64>,
+    trade_outcome: Option<sjk_identity::TradeOutcome>,
+    /// A Shatter or Craft pressed once, for this shader, waiting for its second press.
+    trade_armed: Option<(u16, &'static str, Instant)>,
+    /// The last trade sent: the outcome's serial before it, and its shader.
+    trade_sent: Option<(u64, &'static unlockables::Unlockable)>,
     /// How much wider than the display family the page's text face is drawn.
     widen: f32,
     epoch: Instant,
@@ -399,6 +416,10 @@ impl Panel {
             tilt: CardTilt::default(),
             spin: spin::Spin::default(),
             scale: 1.0,
+            trade: None,
+            trade_outcome: None,
+            trade_armed: None,
+            trade_sent: None,
             widen: 1.0,
             epoch: Instant::now(),
             skins: Default::default(),
@@ -477,6 +498,42 @@ impl Panel {
     /// Where the model stands this frame.
     pub(crate) fn set_backstage(&mut self, backstage: Backstage) {
         self.backstage = backstage;
+    }
+
+    /// What the shader card may trade this frame: the player's kyber shards while the hub
+    /// lets them trade (`None` hides Shatter and Craft), and the hub's last answer.
+    pub(crate) fn set_trade(
+        &mut self,
+        shards: Option<u64>,
+        outcome: Option<sjk_identity::TradeOutcome>,
+    ) {
+        self.trade = shards;
+        self.trade_outcome = outcome;
+    }
+
+    /// A press on Shatter or Craft at `now`: the first arms it (the button asks to be
+    /// pressed again), a second within [`TRADE_CONFIRM`] on the same shader sends it.
+    fn trade_press(&mut self, token: u16, now: Instant) -> PanelAction {
+        let Some(skin) = self.skin_at(self.shader) else {
+            return PanelAction::None;
+        };
+        let armed = self.trade_armed.take().is_some_and(|(armed, id, at)| {
+            armed == token && id == skin.id && now.duration_since(at) <= TRADE_CONFIRM
+        });
+        if !armed {
+            self.trade_armed = Some((token, skin.id, now));
+            return PanelAction::None;
+        }
+        let serial = self
+            .trade_outcome
+            .as_ref()
+            .map_or(0, |outcome| outcome.serial);
+        self.trade_sent = Some((serial, skin));
+        if token == SHATTER_TOKEN {
+            PanelAction::Shatter(skin.id)
+        } else {
+            PanelAction::Craft(skin.id)
+        }
     }
 
     /// What the stage should show while the page is open on Shaders, Toys or
@@ -934,6 +991,7 @@ impl Panel {
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN => self.activate(illuminate),
+            SHATTER_TOKEN | CRAFT_TOKEN => self.trade_press(token, now),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
                 let toy = TOY_TOKENS
@@ -1024,6 +1082,12 @@ impl Panel {
             _ => TOY_TOKEN,
         };
         self.hover.pin(index.map(|index| base + index as u16));
+    }
+
+    /// Let the shader card trade with `shards` (Shatter and Craft show), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn trade_for_shot(&mut self, shards: Option<u64>) {
+        self.trade = shards;
     }
 
     /// Hold the lone saber turned so, still, as a drag would (`None` lets go), for a
@@ -1603,6 +1667,78 @@ mod tests {
             [1920.0, 1080.0],
         );
         assert_eq!(click(&mut panel, BACK_TOKEN), PanelAction::Close);
+    }
+
+    /// Shatter (a duplicate) and Craft (one not held) show only while the hub lets the
+    /// player trade, and send only on a second press within five seconds on the same
+    /// shader.
+    #[test]
+    fn shatter_and_craft_ask_twice_and_only_while_trading() {
+        let owned = [sjk_identity::Unlock {
+            id: "saber_tidal".to_owned(),
+            count: 3,
+            ..sun()
+        }];
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let mut panel = Panel::new();
+        panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
+        let build = |panel: &mut Panel| {
+            panel.build(
+                &inputs(Holdings::Known(&owned), ""),
+                &fonts.font,
+                [1920.0, 1080.0],
+            );
+        };
+        build(&mut panel);
+        panel.choose_shader_for_shot(row_of("saber_tidal"));
+        build(&mut panel);
+        assert!(panel.ui.rect_for(SHATTER_TOKEN).is_none(), "no trading yet");
+        panel.set_trade(Some(50), None);
+        build(&mut panel);
+        assert!(
+            panel.ui.rect_for(SHATTER_TOKEN).is_some(),
+            "held three times"
+        );
+        assert!(panel.ui.rect_for(CRAFT_TOKEN).is_none(), "already held");
+        let now = Instant::now();
+        let at = |seconds: u64| now + std::time::Duration::from_secs(seconds);
+        assert_eq!(panel.trade_press(SHATTER_TOKEN, at(0)), PanelAction::None);
+        assert_eq!(
+            panel.trade_press(SHATTER_TOKEN, at(1)),
+            PanelAction::Shatter("saber_tidal")
+        );
+        // Sent, the next press arms again; one too late arms again too.
+        assert_eq!(panel.trade_press(SHATTER_TOKEN, at(2)), PanelAction::None);
+        assert_eq!(panel.trade_press(SHATTER_TOKEN, at(9)), PanelAction::None);
+        // The hub's answer reads on the card.
+        panel.set_trade(
+            Some(55),
+            Some(sjk_identity::TradeOutcome {
+                serial: 1,
+                trade: sjk_identity::Trade::Shatter,
+                id: "saber_tidal".to_owned(),
+                amount: 5,
+                message: String::new(),
+            }),
+        );
+        build(&mut panel);
+        let runs: Vec<_> = panel.ui.text_runs().collect();
+        assert!(
+            runs.iter()
+                .any(|run| run.contains("shattered: +5 kyber shards")),
+            "{runs:?}"
+        );
+        // A locked shader of the trade offers Craft, not Shatter.
+        let locked = (1..SHADER_ROWS)
+            .find(|&row| {
+                shader_skin(row)
+                    .is_some_and(|skin| skin.id != "saber_tidal" && crate::economy::in_trade(skin))
+            })
+            .unwrap();
+        panel.choose_shader_for_shot(locked);
+        build(&mut panel);
+        assert!(panel.ui.rect_for(CRAFT_TOKEN).is_some());
+        assert!(panel.ui.rect_for(SHATTER_TOKEN).is_none());
     }
 
     #[test]

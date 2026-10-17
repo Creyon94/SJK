@@ -204,6 +204,42 @@ fn duel6_sjk_collection() {
             if let Some(console) = gpu.console.as_mut() {
                 console.collection_saber_turn_for_shot(None);
             }
+            // Trading open at the hub: a Tidal held three times offers Shatter beside
+            // Equip; a locked Echo offers Craft, dimmed while the shards fall short.
+            let row = |id: &str| {
+                1 + crate::unlockables::blade_skins_by_tier()
+                    .iter()
+                    .position(|skin| skin.id == id)
+                    .expect("the shader")
+            };
+            if let Some(console) = gpu.console.as_mut() {
+                let owned = vec![
+                    sun(),
+                    sjk_identity::Unlock {
+                        id: "saber_tidal".to_owned(),
+                        count: 3,
+                        ..sun()
+                    },
+                ];
+                console.preview_collection(Some(owned), 0.8);
+                console.collection_trade_for_shot(Some(85));
+                console.collection_shader_for_shot(row("saber_tidal"));
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 20, "duel6-collection-shaders-shatter").display()
+            );
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_collection(Some(vec![sun()]), 0.8);
+                console.collection_shader_for_shot(row("saber_echo"));
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 20, "duel6-collection-shaders-craft").display()
+            );
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_trade_for_shot(None);
+            }
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(crate::saber_skin_options::CVAR, "");
                 console.preview_collection(Some(vec![sun()]), 0.8);

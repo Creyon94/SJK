@@ -101,6 +101,12 @@ impl ViewerConsole {
                     &crate::saber_skin_options::with(&setting, skin, &option, on),
                 );
             }
+            PanelAction::Shatter(id) => {
+                let _ = crate::economy::shatter(id);
+            }
+            PanelAction::Craft(id) => {
+                let _ = crate::economy::craft(id);
+            }
             PanelAction::RevealCards => {
                 let _ = crate::player_identity::reveal_cards();
             }
@@ -276,6 +282,11 @@ impl ViewerConsole {
             self.collection_panel.preview = Some(unlocks);
             return;
         }
+        // Shatter and Craft show while the hub lets the player trade.
+        let shards = crate::economy::can_trade()
+            .then(|| crate::economy::balance().map_or(0, |(_, shards)| shards));
+        self.collection_panel
+            .set_trade(shards, crate::economy::trade_outcome());
         let inputs = Inputs {
             enabled,
             snapshot: snapshot.as_ref(),
@@ -347,6 +358,12 @@ impl ViewerConsole {
     #[cfg(test)]
     pub(crate) fn collection_hover_for_shot(&mut self, index: Option<usize>) {
         self.collection_panel.hover_for_shot(index);
+    }
+
+    /// Let the Collection's shader card trade with `shards`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_trade_for_shot(&mut self, shards: Option<u64>) {
+        self.collection_panel.trade_for_shot(shards);
     }
 
     /// Hold the Shaders tab's lone saber turned so (`None` lets go), for a world shot.

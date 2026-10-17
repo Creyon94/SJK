@@ -655,6 +655,8 @@ test: Grid view (V), then back: the tier mark and state icons on each card.
 test: Leave Shaders for Toys: the character comes back holding the saber (no floating hilt).
 test: In a match, game menu > Collection > Shaders: the saber alone in the live preview.
 test: Holocrons tab and debug_open rare: only the holocron, no character behind it.
+test: With the hub's economy on: a duplicate's card offers Shatter, a missing one Craft.
+test: Shatter asks 'Confirm: shatter one'; a second press sends it, the answer shows.
 
 [more-droppable]
 area: Menus & settings
