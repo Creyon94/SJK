@@ -3329,6 +3329,76 @@ The sounds are game paths that SJK does not ship, `sound/sjk/cardboard_box/music
 nothing plays. See
 [cardboard_box.rs](../crates/sjk-viewer/src/cardboard_box.rs).
 
+## Order 66
+
+Order 66 is a meme toy, SJK's own and free for every player (Sol's idea, 17/10/2026):
+every player who has it on dies at once, blown apart, when one of them executes the
+order. `toy_order66` turns it on or off, from a bind (Settings > Key bindings >
+Interaction > Toy: Order 66, unbound until a key is picked), from the quick wheel's
+[Toys page](#toys-page) or from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)).
+It is off at every start and stays on across deaths. `order66` (Interaction > Execute
+Order 66, or the Toys page) gives the order; only a player whose own toy is on, alive in
+the match on a server, can give it.
+
+- **Who takes part:** the players whose toy is on. It is a toy in their look
+  (`toys: ["order66"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every SJK
+  player on the server knows who is in. Players on stock clients, and SJK players with
+  the toy off, are never touched.
+- **The order** travels through the SJK hub as a [toy event](hub-chat.md#toy-events):
+  toy `order66`, event `execute_<moment>`, the moment it falls due in the game server's
+  time (milliseconds), 3 seconds after it was given. Every client on a server shares
+  that clock through its snapshots, so each counts down to the same moment however long
+  its way to the hub took. A client drops an order heard more than half a second after
+  its moment, one more than 10 seconds ahead, one whose sender's claim does not match
+  the name the game shows, and one less than 30 seconds after the last order it took on
+  that server: one order counts every 30 seconds, whoever sends it. The sender's own
+  client refuses sooner ones ("Order 66 again in N s"). Without the hub
+  (`cl_identity 0`) the order reaches only the sender, and the console says so.
+- **The countdown:** for a player in the order, the centre of the screen says
+  "EXECUTE ORDER 66", who gave it and the seconds left (3, 2, 1), with the thermal
+  detonator's warning beep each second; the order itself plays
+  `sound/sjk/order66/order.wav`, a game path SJK does not ship (nothing plays where it is
+  missing).
+- **The moment:** each client sends the stock `kill` command for its own player, so the
+  server sees ordinary suicides (a point lost in FFA, as with `kill`). It does not when
+  its toy is off by then, when the player is spectating, following someone, at the
+  intermission or already dead, in a duel (a private one, or a duel or power duel
+  game), or carrying a flag ("Spared: you are in a duel", "you carry the flag"). These
+  are game rules, not server cases. The order is called off when its sender's look no
+  longer has the toy.
+- **The blast:** a player whose toy is on and who dies from 0.1 seconds before the
+  moment to 2 seconds after blows up on every SJK client that sees it (their entity
+  turning `EF_DEAD`; the own player and the one followed from the player state). The
+  thermal detonator's explosion (`thermal/explosion`, its sound, flash and shake) goes
+  off where they stand, and the body flies apart: the head, both arms, both legs and
+  the trunk each become a piece, cut as [dismemberment](#dismemberment-and-disintegration)
+  cuts a limb (the limb's cap on the piece, the stump's on what is left). The pieces
+  are thrown out from the body and up (the head highest), spinning, fall under gravity,
+  bounce off the world's walls and floors a little slower each time, trail smoke while
+  they fly, lie still on a floor, and after 6 seconds sink away. Nothing is left
+  standing: the body is hidden, weapon and hat too, until the player is alive again,
+  and the corpse the server leaves at the respawn copies it, so it stays hidden as well.
+- **Confetti:** where dismemberment is off (`cg_dismember 0`) the body bursts into
+  confetti instead of pieces: six colours of paper scraps thrown up and falling
+  (`effects/sjk/order66_confetti.efx`).
+- **Limits:** pieces are made only for players within 3000 units of the camera and up
+  to 48 at once (eight players); past that a player still blows up, without pieces. A
+  piece is a limb mesh of the player's model: while the order counts down, the client
+  puts up to six per nearby player's model in the limb pool, one upload a frame, so the
+  blast itself uploads nothing (it may upload up to six a frame when the pool falls
+  short). A [rig model](rig-models.md) has no surfaces to cut: it gets the explosion and
+  stays whole. The cuts take a surface by its name or, failing that, its name and
+  `_off`, as some models name what they leave off by default (`jedi_hf`'s head variants
+  sit under `head_off`, its caps are `..._cap_torso_off`); a server's cut keeps stock's
+  names.
+
+The icons (the toy's red "66" badge, the order's blast) and the confetti scraps are
+drawn by [order66_assets.py](../scripts/order66_assets.py), nothing taken from another
+game or a film; the effect and its shader are written by hand
+([assets/order66](../crates/sjk-viewer/assets/order66/README.md)). They are bundled and
+mounted below all game data. See [order66.rs](../crates/sjk-viewer/src/order66.rs) and
+`GpuState::blow_apart` in [dismember.rs](../crates/sjk-viewer/src/dismember.rs).
+
 ## Blade skins
 
 A blade skin is an unlockable saber look ([unlockables.md](unlockables.md)): the Sun
@@ -3477,9 +3547,10 @@ per toy, so a toy deleted from the page is added again in Settings > Quick wheel
 is Illuminate, which runs `toy_illuminate` (the toggle the bind uses) with the
 Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's own
 state; no cvar holds it). Since 16/10/2026 the default page also has the
-[Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it); a
-wheel saved before keeps its Toys page as it was, and gains the box from Add a
-choice, Toys.
+[Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it), and
+since 17/10/2026 [Order 66](#order-66) (`toy_order66`, marked while it is on, then
+Execute Order 66, `order66`); a wheel saved before keeps its Toys page as it was, and
+gains them from Add a choice, Toys.
 
 ### GIF wheel
 
@@ -3557,7 +3628,7 @@ by its groups in Settings:
 | Interface | Nameplates (`nameplates`, cycles), HUD on/off, Screenshot (`screenshotJPEG`), Game menu (`togglemenu`), First setup (`firstsetup`), Match timer, FPS counter, Speedometer, Lagometer (`toggle cg_...`), Console (`toggleconsole`), What's new (`changelog`) |
 | Player | Cosmetics, AFK, Team menu (`teammenu`), Spectate (`team spectator`), Respawn (`kill`), Inspect player, Engage duel, Saber style (`saberAttackCycle`), Saber on/off (`sv_saberswitch`) |
 | Emotes | Taunt, Bow, Meditate, Flourish, Gloat, Sync emote (`sjkemote sync`), Stop emote (`sjkemote stop`), then the installed emotes (`sjkemote <id>`, [hub-chat.md](hub-chat.md#emotes-in-the-client)) |
-| Toys | Illuminate (`toy_illuminate`, marked while the holocron is lit), Cardboard box (`toy_box`, marked while the player is in it) |
+| Toys | Illuminate (`toy_illuminate`, marked while the holocron is lit), Cardboard box (`toy_box`, marked while the player is in it), Order 66 (`toy_order66`, marked while it is on), Execute Order 66 (`order66`) |
 | Weather | The map's own weather, drizzle, rain, storm, snow (`r_weatherForce`), ground fog everywhere (`r_weatherFog` 1/2), clouds, weather on/off |
 | Time of day | Day (`r_dayHour 12`), Night (`r_dayHour 0`), with the spare sun and moon icons |
 | Votes, demos and server | Vote yes, Vote no, Record demo (`record`), Stop recording (`stoprecord`), Reconnect |

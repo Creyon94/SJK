@@ -101,6 +101,14 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
         crate::cardboard_box::COMMAND,
         "",
     ),
+    // Order 66: the toy's switch, then the order every player with it on obeys.
+    action(Interaction, "Toy: Order 66", crate::order66::COMMAND, ""),
+    action(
+        Interaction,
+        "Execute Order 66",
+        crate::order66::EXECUTE_COMMAND,
+        "",
+    ),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),

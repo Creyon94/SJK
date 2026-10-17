@@ -342,6 +342,7 @@ impl Options {
         // replaces it.
         crate::illuminate::mount(&mut vfs)?;
         crate::cardboard_box::mount(&mut vfs)?;
+        crate::order66::mount(&mut vfs)?;
         crate::card_outline::mount(&mut vfs)?;
         crate::duel_ghost::mount(&mut vfs)?;
         crate::sjk_packs::mount_below_game_data(&mut vfs);

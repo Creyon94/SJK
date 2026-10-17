@@ -62,7 +62,7 @@ fn blade_skin(id: &str) -> Option<&'static str> {
 /// The toys a look can have out that this client draws, by id (`PROTOCOL.md`, "Looks"):
 /// a toy's bit in [`Worn::toys`] is its place here. A look naming another id (a newer
 /// client's toy) draws nothing more.
-pub(crate) const TOYS: [&str; 1] = [crate::cardboard_box::TOY];
+pub(crate) const TOYS: [&str; 2] = [crate::cardboard_box::TOY, crate::order66::TOY];
 
 /// The bit of toy `id` in [`Worn::toys`], if this client knows it.
 fn toy_bit(id: &str) -> Option<u8> {

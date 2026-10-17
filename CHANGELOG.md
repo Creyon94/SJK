@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- New toy, Order 66 (`toy_order66`, the quick wheel's Toys page or the Collection): when one player with it on executes the order (`order66`), everyone with it on gets a three-second countdown, then dies and blows apart into flying pieces, TF2 style, or confetti with dismemberment off. Only SJK players who turned it on take part; nobody in a duel or carrying a flag; one order every 30 seconds _(Sol)_
+
 ## 2026.1016.3 (Alpha) | 16/10/2026
 
 > Cardboard box: A new toy to hide in, Metal Gear style.

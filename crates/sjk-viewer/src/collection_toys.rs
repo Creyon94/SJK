@@ -1,8 +1,9 @@
 //! The Collection's Toys tab: things to use in a match, everyone's. SJK's Illuminate
-//! holocron (`docs/client.md`, Illuminate) and the cardboard box (`docs/client.md`,
-//! Cardboard box) stand on plinths on the left; the chosen one is described beside the
-//! model with the switch that runs it (`toy_illuminate`, `toy_box`). The holocron
-//! floats lit by the model while it is chosen.
+//! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
+//! Cardboard box) and Order 66 (`docs/client.md`, Order 66) stand on plinths on the
+//! left; the chosen one is described beside the model with the switch that runs it
+//! (`toy_illuminate`, `toy_box`, `toy_order66`). The holocron floats lit by the model
+//! while it is chosen.
 
 use super::view::{LEFT_X, STAGE_TEXT_WIDTH, STAGE_TEXT_X, glow, left_lines};
 use super::*;
@@ -12,8 +13,8 @@ use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
 /// The first toy's niche: its corner and size; the next stands [`NICHE_STEP`] to the
 /// right.
-const NICHE: [f32; 3] = [LEFT_X, 300.0, 260.0];
-const NICHE_STEP: f32 = 300.0;
+const NICHE: [f32; 3] = [LEFT_X, 300.0, 230.0];
+const NICHE_STEP: f32 = 265.0;
 
 /// One toy as the tab shows it.
 struct Toy {
@@ -49,6 +50,15 @@ const TOYS: [Toy; TOY_COUNT] = [
         how: "Bind a key to toy_box, or use the quick wheel's Toys page.",
         switch: "In the box",
         token: BOX_TOKEN,
+    },
+    Toy {
+        icon: "order66",
+        name: "Order 66",
+        title: "Order 66",
+        what: "When one player with it on executes the order, everyone with it on dies three seconds later and blows apart. One order every 30 seconds.",
+        how: "Bind keys to toy_order66 and order66, or use the quick wheel's Toys page.",
+        switch: "In the order",
+        token: ORDER_TOKEN,
     },
 ];
 
@@ -92,7 +102,7 @@ impl Panel {
     pub(super) fn toys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         self.lead(
             frame,
-            "2 toys",
+            "3 toys",
             "Things to use in a match, from the quick wheel or a key.",
         );
         let chosen = self.toy.min(TOY_COUNT - 1);
@@ -105,10 +115,10 @@ impl Panel {
             716.0,
             "More toys will stand here as SJK adds them.",
         );
-        let on = if chosen == 1 {
-            inputs.cardboard_box
-        } else {
-            inputs.illuminate
+        let on = match chosen {
+            1 => inputs.cardboard_box,
+            2 => inputs.order66,
+            _ => inputs.illuminate,
         };
         self.toy_beside_model(frame, &TOYS[chosen], on);
     }
@@ -285,7 +295,7 @@ mod tests {
                     assert!(!panel.ui.overflowed(), "{viewport:?}");
                     let frame = Frame::new(viewport);
                     let keys = frame.point(0.0, super::super::view::KEYS_Y)[1];
-                    for token in [TOY_TOKEN, BOX_TOKEN, TOY_SWITCH_TOKEN] {
+                    for token in [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN, TOY_SWITCH_TOKEN] {
                         let area = panel.ui.rect_for(token).expect("a target");
                         assert!(area.bottom() <= keys, "{viewport:?}");
                     }

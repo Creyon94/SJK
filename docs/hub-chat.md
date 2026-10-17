@@ -823,6 +823,16 @@ box: the readers decide, so a modified client could lift anyone's box, which tak
 a toy and nothing else. Without the hub's change (before 16/10/2026) the event is
 refused and only the lifter's screen hides the box, for at most 15 seconds.
 
+The second (since 17/10/2026, no hub change) is [Order 66](client.md#order-66)'s order:
+toy `order66`, event `execute_<moment>`, the game server time (milliseconds) at which
+every player with the toy on dies, 3 seconds after it was given. It concerns everyone
+with the toy on, not one player: the hub wants a target other than the sender, so the
+client names another player who has the toy on (else the next slot), and the readers
+ignore it. A reader takes an order only on time (at most 0.5 seconds late, at most 10
+ahead) and 30 seconds or more after the last one it took on that server; the hub's own
+quota (one toy event a second, ten a minute per key) still applies. The client takes
+the hub's toy events once a frame and hands them to every toy (`identity_frame.rs`).
+
 ## Vitals
 
 Shared vitals ([client.md](client.md#sharing-and-estimates), 15/10/2026) take the

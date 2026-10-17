@@ -127,6 +127,7 @@ pub(crate) fn row_labels(
         standings,
         illuminate: true,
         cardboard_box: false,
+        order66: false,
         name: "",
         stock: color::HOLO,
         grid: false,
@@ -241,6 +242,7 @@ impl Panel {
     pub(super) fn build(&mut self, inputs: &Inputs<'_>, _body: &UiFont, viewport: [f32; 2]) {
         let frame = Frame::new(viewport);
         self.box_on = inputs.cardboard_box;
+        self.order66_on = inputs.order66;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
         let seconds = self.shot_seconds.unwrap_or(seconds);
@@ -411,6 +413,8 @@ impl Panel {
                 match (self.toy, inputs.illuminate, inputs.cardboard_box) {
                     (1, _, true) => "come out",
                     (1, _, false) => "hide",
+                    (2, _, _) if inputs.order66 => "turn off",
+                    (2, _, _) => "turn on",
                     (_, true, _) => "put out",
                     _ => "light",
                 },
