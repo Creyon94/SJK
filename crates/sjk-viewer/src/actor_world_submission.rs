@@ -35,6 +35,7 @@ mod player_spheres;
 
 struct Sinks<'a> {
     grip_victim: bool,
+    flame: Option<&'static force_powers::flame::Contract>,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -232,6 +233,7 @@ pub(crate) fn submit(
             .as_ref()
             .and_then(|console| console.bool_cvar(force_powers::victim::CVAR))
             .unwrap_or(true),
+        flame: force_powers::flame::policy(game_state, gpu.console.as_ref()),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
             .object_meshes
@@ -320,6 +322,14 @@ pub(crate) fn submit(
         .zip(game_state)
         .map(|(snapshot, game)| sjk_client::LegacyThrownSabers::new(snapshot, game));
     let mut overlay_count = 0;
+    if let Some(snapshot) = snapshot {
+        force_powers::flame::submit_hits(
+            &mut sinks,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
+    }
     for entity in active_world
         .entities()
         .filter(|entity| {

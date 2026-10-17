@@ -272,6 +272,7 @@ impl Group {
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
                 crate::actor_world_submission::force_powers::victim::CVAR,
+                crate::actor_world_submission::force_powers::flame::CVAR,
                 "cg_auraShell",
                 "cg_spProtAbsColor",
                 "cg_shieldSphere",

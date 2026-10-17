@@ -77,6 +77,7 @@ pub(crate) struct Runtime {
     pub(crate) saber_rain_steam: saber_rain_steam::Runtime,
     /// Paces effects that stock re-plays every rendered frame (`effect_cadence.rs`).
     pub(crate) continuous: cadence::Cadence,
+    pub(crate) flame_hits: crate::actor_world_submission::force_powers::flame::Hits,
     /// Lights a world shot holds in place every frame (`world_shot_notes.rs`).
     #[cfg(test)]
     pub(crate) held_lights: Vec<PointLight>,
@@ -95,6 +96,7 @@ impl Default for Runtime {
             saber_contacts: saber_contacts::Runtime::default(),
             saber_rain_steam: saber_rain_steam::Runtime::default(),
             continuous: cadence::Cadence::default(),
+            flame_hits: Default::default(),
             #[cfg(test)]
             held_lights: Vec::new(),
         }

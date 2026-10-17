@@ -4,6 +4,8 @@ use super::*;
 #[path = "grip_victim.rs"]
 pub(crate) mod victim;
 
+#[path = "japlus_flame.rs"]
+pub(crate) mod flame;
 #[path = "force_sprites.rs"]
 pub(crate) mod sprites;
 
@@ -188,6 +190,18 @@ pub(crate) fn select(caster: Caster, third_person: bool) -> Selection {
     }
 }
 
+fn select_for_contract(
+    caster: Caster,
+    third_person: bool,
+    rule: Option<&flame::Contract>,
+) -> Selection {
+    let mut selection = select(caster, third_person);
+    if let Some(rule) = rule.filter(|rule| rule.firing(caster)) {
+        selection.beam = Some(rule.stream);
+    }
+    selection
+}
+
 /// Submit effects from the already evaluated hand bolts and body joints.
 pub(super) fn submit(
     sinks: &mut Sinks<'_>,
@@ -205,7 +219,7 @@ pub(super) fn submit(
     let Some(caster) = Caster::find(snapshot, number, sinks.predicted_local_state) else {
         return;
     };
-    let selection = select(caster, sinks.third_person);
+    let selection = select_for_contract(caster, sinks.third_person, sinks.flame);
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);

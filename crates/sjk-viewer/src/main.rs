@@ -2254,6 +2254,7 @@ impl GpuState {
                     self.camera_position.to_array(),
                     active_world,
                     &self.bsp,
+                    predicted,
                 );
             }
             self.map_effects.update(snapshot, presentation_time as i32);

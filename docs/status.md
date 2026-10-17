@@ -568,6 +568,28 @@ Formatting, locked workspace build/tests and Clippy with all targets passed on
 Windows with Rust 1.99.0 (existing warnings; GPU/data-dependent tests ignored).
 Live server use and GPU presentation remain unverified. See
 [the client](client.md#menu-style) and [SJK UI](sjk-ui.md#character).
+## JA+ flamethrower client presentation
+
+16/10/2026, `feat/japlus-flamethrower-presentation` based on `7026c735`: a named
+compatibility table adopts JoF EJK #31's firing/hit flags, flame graphs, sample
+and hold pose. The archived `cg_flameThrower` override (Auto/Off/JA+) is exposed
+in both settings interfaces. Local prediction and remote actors select flames
+instead of Lightning only while firing; Drain and vehicles retain their paths.
+Flame streams use the existing 8 ms effect cadence; impact bursts and sound
+repeats use snapshot server time (100 ms and 2.9 s intervals). The upper-body
+hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
+Sound stops on firing end, mute, disappearance or disconnect and resets across
+map changes and time rewinds. Installed flame graphs/audio are required and are
+not bundled. Live JA+ play, GPU appearance and audible playback remain unverified;
+`JKA_GAME_DATA` is not configured for the asset/GPU checks. See
+[client behaviour](client.md#ja-flamethrower-presentation).
+
+Verification on Windows with Rust 1.99.0: workspace formatting, locked build,
+locked tests and Clippy (all targets) passed. Focused tests pin local/remote
+flag selection, the reference pose ordinal, capability overrides, hit/sound
+cadence, stop/restart and rewind handling, and upper-body blending at integer
+8/7/4/3 ms steps. These synthetic checks do not establish live visual or audio
+parity, or release-build frame-time performance.
 
 ## Emotes on stock models: limbs out of wider bodies
 

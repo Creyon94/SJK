@@ -3356,6 +3356,23 @@ Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
 SJK's own [Illuminate](#illuminate) is a toy, not a Force power: it is not on the wheel.
 See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
+### JA+ flamethrower presentation
+
+On a compatible JA+ server, firing the flamethrower shows its flame stream and
+hit effects, uses the Lightning-hold upper-body pose, and plays its positional
+flame sound until firing stops. Local predicted firing and remote players use
+the existing snapshot flags; ordinary Lightning and Drain retain their effects.
+The server owns damage, fuel and all weapon rules.
+
+`cg_flameThrower` (archived; Settings > Game options in classic, Settings >
+Advanced > Gameplay in SJK, **Flamethrower effects**) selects Auto (`-1`, default),
+Off (`0`) or JA+ (`1`, force support on a server using the same flags). The
+documented capability table is in
+[japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs); it detects the server
+independently of the optional JA+ command mod. The flame graphs and sound must
+be present in installed game data, such as the JoF EJK client-assets pack.
+SJK does not bundle them. Missing assets leave that effect or sound absent.
+
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
 `forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
 `forcenext` had stopped on it: a real power becomes the selection the user

@@ -79,7 +79,7 @@ pub(crate) fn preload_effects(
     missiles: &LegacyMissileEffects,
 ) -> EffectLibrary {
     let mut effects = EffectLibrary::default();
-    effects.preload(vfs, effect_assets::STOCK_EFFECTS);
+    effects.preload(vfs, effect_assets::code_effects());
     effects.preload(vfs, map.effect_names().chain(missiles.effect_names()));
     let _ = effects.shader("gfx/effects/saberFlare");
     for shader in effect_assets::CODE_SHADERS {

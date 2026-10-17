@@ -39,6 +39,8 @@ mod feedback;
 #[path = "audio_transitions.rs"]
 mod transitions;
 pub(crate) use assets::SoundPrefetch;
+#[path = "flame_audio.rs"]
+mod flame;
 #[path = "audio_legacy.rs"]
 mod legacy;
 
@@ -51,6 +53,7 @@ const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/qcommon/q_shared.h:1540
 
 /// Process-lifetime audio state. Only the rodio callback owns the mixer.
 pub(crate) struct GameAudio {
+    flame: flame::State,
     output: AudioOutput,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
@@ -138,6 +141,7 @@ impl GameAudio {
     /// Assemble audio state around a real or test-owned null output.
     pub(super) fn with_output(output: AudioOutput) -> Self {
         let mut audio = Self {
+            flame: Default::default(),
             output,
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),
@@ -415,11 +419,13 @@ impl GameAudio {
         listener_origin: [f32; 3],
         world: &World,
         bsp: &Bsp,
+        predicted: Option<&sjk_client::pmove::MovementState>,
     ) {
         self.poll_legacy_load();
         self.output.send(AudioCommand::ClearLoops);
         self.send_frame_loops(snapshot, presented_time, listener_origin, world, bsp);
         self.send_box_music();
+        self.update_flame(snapshot, presented_time, world, predicted);
         self.output.send(AudioCommand::CommitLoops);
     }
 
