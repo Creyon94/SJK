@@ -17,6 +17,61 @@ the existing jetpack tests pass too. Source evidence is EJK `codemp/cgame` at
 reproduction were not exercised; game assets are not configured for the
 ignored installed-assets/GPU check. These checks do not establish audible or
 gameplay parity, or populated-match performance.
+## Tavion and Desann idle poses
+
+17/10/2026, `feat/jof-idle-stances`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented the distinct idle clips from JoF EJK #47 (`1fbe4678`,
+`codemp/game/bg_pmove.c::PM_GetSaberStance`) as default presentation, with no
+toggle. A two-entry style/clip table replaces Tavion's fast idle with
+`BOTH_P1_S1_T_` and Desann's medium idle with `BOTH_STAND9`. Snapshot entities,
+local player snapshots and predicted actors share the mapping, independent of
+menu style. Simulation inputs and attack timers are unchanged. Other clips,
+unlit/thrown sabers, flips and forced frames are retained. See
+[client](client.md#tavion-and-desann-idle-poses).
+
+Five focused Rust regressions passed on Windows x86_64, Rust 1.99.0. They pin
+the source-selected ordinals, exclusions and snapshot/prediction agreement at
+command times advanced by 8/7/4/3 ms; they do not exercise movement simulation
+or establish gameplay parity. Source inspection also checked `bg_misc.c`'s
+`s->fireflag = ps->fd.saberAnimLevel` style transfer. Workspace formatting,
+build, tests and Clippy passed (existing warnings remain).
+Installed-animation/GPU appearance and live-server behavior remain
+unverified; no game assets are configured for an in-game comparison.
+## JA+ black sabers
+
+17/10/2026, `feat/japlus-black-sabers`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented JoF EJK #50's black-blade rendering and corrected plugin-bit
+semantics. Colour 11 uses an independent alpha-blended material and trail for
+both hands and thrown sabers, without blade light or dynamic glow. A set
+`cp_pluginDisable` bit 3 produces orange; the existing mask default 1536 allows
+black. Both settings interfaces include the default-on `cg_blackSabers`
+presentation override. Automatic support follows the session's `CompatProfile`
+(JA+, TaystJK/jaPRO). Review fixes (17/10/2026): no second detection table;
+colour 11 keeps purple/RGB off those servers (EJK shows orange there); the scan
+is cached until configstring 0 or a `CS_PLAYERS` slot changes and covers the 32
+client slots only. Normal RGB and SJK blade skins retain their paths.
+See [client](client.md#ja-black-sabers) and
+[rendering](rendering.md#ja-black-sabers).
+
+Reference evidence: EJK merge `4ebc7e7e`,
+`codemp/cgame/cg_players.c::ClampSaberColor`, black material selection,
+`doLight = qfalse`, and the two alpha stages in
+`assets/japro/shaders/sbRGB.shader`. Installed community textures are optional;
+generated alpha profiles provide a local fallback.
+
+Workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0 (Clippy
+warnings remain). Eight focused regressions cover bit polarity, colour and
+server transitions, both hands, cosmetic suffixes, muted players, material
+separation, no blade light, synthetic installed/generated textures, settings,
+trail timing and WGSL validation. An explicitly run offscreen GPU pixel test
+passed on NVIDIA GeForce RTX 5070 Ti / Vulkan: generated blade centre
+`[0, 0, 0, 255]`, white background preserved. It checks the blade alpha pass,
+not the trail draw or a complete in-game scene. A release measurement on
+AMD Ryzen 7 5800X3D averaged 4.586 us for a 64-slot policy scan over 20,000
+synthetic frames; this excludes trails, submission, rendering and GPU work
+and does not establish a game FPS rate. Live server behavior, installed-texture
+appearance, crowded-scene performance and EJK pixel parity remain unverified;
+simulation and codecs are unchanged.
 
 ## One Russian letter in chat
 
@@ -568,6 +623,84 @@ Formatting, locked workspace build/tests and Clippy with all targets passed on
 Windows with Rust 1.99.0 (existing warnings; GPU/data-dependent tests ignored).
 Live server use and GPU presentation remain unverified. See
 [the client](client.md#menu-style) and [SJK UI](sjk-ui.md#character).
+## JA+ flamethrower client presentation
+
+16/10/2026, `feat/japlus-flamethrower-presentation` based on `7026c735`: a named
+compatibility table adopts JoF EJK #31's firing/hit flags, flame graphs, sample
+and hold pose. The archived `cg_flameThrower` override (Auto/Off/JA+) is exposed
+in both settings interfaces. Local prediction and remote actors select flames
+instead of Lightning only while firing; Drain and vehicles retain their paths.
+Flame streams use the existing 8 ms effect cadence; impact bursts and sound
+repeats use snapshot server time (100 ms and 2.9 s intervals). The upper-body
+hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
+Sound stops on firing end, mute, disappearance or disconnect and resets across
+map changes and time rewinds. Installed flame graphs/audio are required and are
+not bundled. Live JA+ play, GPU appearance and audible playback remain unverified;
+`JKA_GAME_DATA` is not configured for the asset/GPU checks. Review fixes
+(17/10/2026): the contract accepts JA+ itself only (not abyssmod or UA Galaxy),
+keeps Lightning when the flame graph is not installed, and the sound re-detects
+when the server info changes, as the effects do. See
+[client behaviour](client.md#ja-flamethrower-presentation).
+
+Verification on Windows with Rust 1.99.0: workspace formatting, locked build,
+locked tests and Clippy (all targets) passed. Focused tests pin local/remote
+flag selection, the reference pose ordinal, capability overrides, hit/sound
+cadence, stop/restart and rewind handling, and upper-body blending at integer
+8/7/4/3 ms steps. These synthetic checks do not establish live visual or audio
+parity, or release-build frame-time performance.
+## Holstered saber hilts
+
+16/10/2026, `feat/holstered-saber-hilts`, based on `7026c735`: implemented
+JoF EJK #42/#81/#95/#267/#300's holstered hilt family with shared native meshes,
+independent hip attachments, conditional staff back placement, frame-latched
+handoff and registered hilt/skin sound synchronization. Both settings styles
+expose the controls. Auto support detects the named JA+ contract; the existing
+`cp_pluginDisable 1536` default is preserved. See
+[client](client.md#holstered-saber-hilts) and
+[rendering](rendering.md#holstered-saber-hilts).
+
+Windows x86_64, Rust 1.99.0: workspace fmt/build/test/clippy checks passed.
+Fourteen focused tests cover crowded dual-hilt capacity, cached bolt lookup, missing attachments, placement
+axes, visibility, archived settings, registered sound layers, bounded ignition
+fallback and forward/reverse handoff at 8/7/4/3 ms steps. Source comparison used
+EJK `codemp/cgame/cg_players.c` at `f21eee8`, plus the family's safety/lifecycle
+patches. A release CPU measurement on Ryzen 7 5800X3D averaged about 11 us per
+64-actor frame over 20,000 synthetic frames for attachment placement alone;
+this excludes pose evaluation, visibility/audio work, submission and GPU cost.
+No installed game/JA+ assets, GPU scene comparison, audible timing check or
+populated-server/cache-lifetime stress was exercised. The measurement and
+tests do not establish gameplay parity or 500+ FPS performance. Review fixes
+(17/10/2026): no per-actor work while the feature is off, the server contract
+cached per configstring 0 change, no bolt evaluation for a saber in hand,
+deferred staff sounds played rather than dropped on a slot release, and hilt
+groups sized for 64 carriers (about 16 KB each instead of 256 KB). The staff
+test (`saber_type` staff or more than one blade) is kept: it is EJK's own
+`CG_StaffHolsteredOnBack` rule (`cg_players.c:10812`).
+## Classic scoreboard JoF behavior
+
+16/10/2026, `fix/classic-scoreboard-jof-parity` based on `7026c735`, compares
+classic against JoF EJK `codemp/cgame` at `bd5e202d` (the reference already
+pinned in the client wiki), including #35's crowded-board behavior. Classic
+now opens automatically on death and follows JoF's warmup gate and selective
+HUD suppression. Status and selection rows hide for the playing client while
+scores are held or health is zero; telemetry and votes remain, and spectators
+retain crosshairs. The SJK board retains its existing opening/HUD policy.
+
+Row placement distinguishes connected clients from received scores, uses the
+reference 19/32-row budgets, advances empty sections, preserves team-leading
+spacing, and appends the local row at the reference cursor. A full team board
+can retain its final spectator instead of losing it to the former bottom clip.
+Classic uses white ping text, omits alternating row stripes, and restores the
+reference flag column and header-label position. Native identity/clan marks
+and renderer-native header art remain; pixel-identical rendering is unverified.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. Synthetic scoreboard checks pin 20/21/32
+clients, partial scores, empty sections, team spacing, final spectators, local
+rows, selective HUD visibility and death/respawn fading at 8/7/4/3 ms steps.
+Live JoF comparison and updated GPU screenshots remain unverified;
+`JKA_GAME_DATA` is not configured. No release frame-time measurements were made.
+No wire codecs or gameplay rules changed.
 
 ## Emotes on stock models: limbs out of wider bodies
 
@@ -1787,9 +1920,9 @@ Windows 11 Pro), compared against JoF EJK `codemp/cgame` revision
 `bd5e202dfedd49500f1b7aadd655619bac152167`. Classic uses JoF's bottom-left chat,
 held-board chat suppression above 25 connected players, compact automatic
 intermission list with a full-list hint, instant opening/reordering, score-request
-gate and duel intermission headers. JoF's automatic death board and selective
-HUD visibility are deliberately excluded: the chosen SJK behavior remains
-held/intermission only and hides the whole HUD. The SJK board keeps its side-column
+gate and duel intermission headers. The current classic-parity change
+adopts JoF's automatic death board and selective HUD visibility too. The SJK
+board keeps its held/intermission policy, whole-HUD suppression, side-column
 chat and animated presentation ([client.md](client.md#scoreboard-styles)).
 
 Verified with Rust 1.99.0: `cargo fmt --all --check`,

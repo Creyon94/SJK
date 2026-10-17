@@ -97,6 +97,21 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "-1",
+        "Auto",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "0",
+        "Off",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "1",
+        "JA+",
+    ),
     (crate::text::charset::CVAR, "auto", "Auto"),
     (crate::text::charset::CVAR, "western", "Western"),
     (crate::text::charset::CVAR, "cyrillic", "Cyrillic"),
@@ -195,6 +210,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "Flame visuals, pose and sound: Auto detects JA+ servers; Off disables them; JA+ forces support. Needs installed flame assets.",
     ),
     // VIDEO
     (
@@ -504,6 +523,14 @@ const HELP: &[(&str, &str)] = &[
         "The light trail behind a swinging saber blade.",
     ),
     (
+        crate::team_sabers::CVAR,
+        "In capture the flag, every red or blue player's sabers in their team's colour, with no blade shader. Off by default.",
+    ),
+    (
+        crate::saber_rgb::black::CVAR,
+        "Show black blades on JA+/jaPRO; off uses orange. Plugin feature 3 must also be allowed.",
+    ),
+    (
         crate::effect_aux::saber_rain_steam::CVAR,
         "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),
@@ -514,6 +541,22 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::actor_world_submission::force_powers::victim::CVAR,
         "Red neck puffs on choking players. On by default; your own stay hidden in first person and while zoomed.",
+    ),
+    (
+        crate::holstered_sabers::CVAR,
+        "Show stowed hilts on the hips; a single staff goes on the back when JA+ plugin 9 is enabled. Hidden, dead and mounted players show none.",
+    ),
+    (
+        crate::holstered_sabers::SUPPORT_CVAR,
+        "0: off. 1: detect supported servers. 2: force the JA+ ownership and plugin-bit contract; use only when your server supports it.",
+    ),
+    (
+        crate::holstered_sabers::SWAP_CVAR,
+        "Where the hand takes the staff during a JA+ reach (default 0.45). Requires installed reach animations.",
+    ),
+    (
+        "cg_holsteredStaffSound",
+        "Delay staff ignition until the hand reaches its hilt, sound shutdown at the put-away reach, and suppress its late duplicate.",
     ),
     (
         "cg_auraShell",

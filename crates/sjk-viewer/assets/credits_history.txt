@@ -9,6 +9,16 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | SJK pull requests #113, #122, #124, #127, #129, #130
+- ea37cfd |  | Leave SJK #124's documentation out of this batch
+- 2d97b1e |  | SJK #113's team saber colours become an option, off by default
+- 7286c3c |  | Review fixes for SJK #122 (JA+ flamethrower)
+- 9f355ea |  | Format SJK #113's team saber adaptation
+- 0bafd11 |  | Review fixes for SJK #130 (JA+ black sabers)
+- 579b887 |  | Review fixes for SJK #127 (holstered saber hilts)
+- 034e796 |  | Holstered hilts: JA+ proper only, as the flamethrower
+- e795a95 |  | Review fixes for SJK #124 (classic scoreboard)
+- 7dcff9c |  | Credits and changelog for SJK #113, #122, #124, #127, #129 and #130
 + 17/10/2026 | - | SJK pull requests #107, #111, #119, #123, #126, #128
 - 2e9a998 |  | Review fixes for SJK #107, #111, #123 and #128
 - e3d21bb |  | Credits and changelog for SJK #107, #111, #119, #123, #126 and #128
@@ -1671,6 +1681,16 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 17/10/2026 | SJK #124 | Align classic scoreboard behavior with JoF EJK
+- 6dc514d |  | Align classic scoreboard behavior with JoF EJK
++ 17/10/2026 | SJK #130 | Render JA+ black sabers with the correct plugin toggle
+- d5d3d4b |  | Render JA+ black sabers with the correct plugin toggle
++ 17/10/2026 | SJK #129 | Show distinct Tavion and Desann idle poses by default
+- 7ff9731 |  | Show distinct Tavion and Desann idle poses by default
++ 17/10/2026 | SJK #127 | Add holstered saber hilts and staff handoff
+- 8725346 |  | Add holstered saber hilts and staff handoff
++ 17/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
+- 9fadf99 |  | Add JA+ flamethrower client presentation
 + 17/10/2026 | SJK #128 | Match JoF EJK jetpack sound choices and channels
 - 6f6ca44 |  | Match JoF EJK jetpack sound choices and channels
 + 17/10/2026 | SJK #119 | Add JoF Force presets in both menu styles
@@ -1741,5 +1761,9 @@
 - 8d21001 |  | Clip visible saber blades at world walls
 
 = Slash
++ 17/10/2026 | SJK #113 | Fix/ctf team saber colors
+- 8dd27a5 |  | Draw only red or blue sabers in capture the flag
+- f9ad921 |  | Show team saber colours on the player card in capture the flag
+- fc623b3 |  | Draw team saber colours in siege too
 + 17/10/2026 | SJK #114 | Complete cfg file names after exec with Tab
 - fb81e7a |  | Complete cfg file names after exec with Tab

@@ -40,6 +40,11 @@ pub(super) fn submit(
         owner.name = crate::muted_players::SABER;
         owner.color = crate::muted_players::BLADE;
     }
+    // With CTF team sabers on, the team's colour, with no skin over it.
+    let team_blade = crate::team_sabers::of(&sinks.team_blades, u64::from(owner.owner) + 1);
+    if let Some(rgb) = team_blade {
+        owner.color = rgb;
+    }
     let Some(catalog) = sinks.saber_hilts else {
         return false;
     };
@@ -75,9 +80,16 @@ pub(super) fn submit(
         rotation: hilt_rotation.to_array(),
         ..transform
     };
-    let color = sinks
-        .saber_skins
-        .blade_color(owner_entity, BladeColor::from_rgb(owner.color));
+    let color = if team_blade.is_some() {
+        BladeColor::from_rgb(owner.color)
+    } else {
+        sinks.saber_skins.blade_color(
+            owner_entity,
+            sinks
+                .black_sabers
+                .color(owner_entity, 0, BladeColor::from_rgb(owner.color)),
+        )
+    };
     if let Some((hilt, blades)) = submit_hilt(
         owner,
         color,

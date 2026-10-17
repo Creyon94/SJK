@@ -255,9 +255,11 @@ const CORE_DRAWS: f32 = 2.0;
 const NEUTRAL_MATERIAL: u32 = 6u;
 const SKIN_MATERIAL: u32 = 7u;
 const MAX_SKINS: u32 = 256u;
+const BLACK_MATERIAL: u32 = 263u;
 const KIND_RETAIL: u32 = 0u;
 const KIND_NEUTRAL: u32 = 1u;
-const KIND_SKIN: u32 = 2u;
+const KIND_BLACK: u32 = 2u;
+const KIND_SKIN: u32 = 3u;
 // Colour alpha of a skin's first glint (saber.rs `STAR`), glint n's `STAR - n`; a glow's
 // is its hilt sprite's radius, a core's zero.
 const STAR: f32 = -1.0;
@@ -384,6 +386,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     var output: VertexOutput;
     output.kind = KIND_RETAIL;
     if blade_material == NEUTRAL_MATERIAL { output.kind = KIND_NEUTRAL; }
+    if blade_material == BLACK_MATERIAL { output.kind = KIND_BLACK; }
     var reach = 1.0;
     var room = 0.0;
     var star = 0.0;
@@ -1885,6 +1888,7 @@ fn star_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
 fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
     // Taken before any branch (uniform control flow).
     let pixel = fwidth(input.blade.x);
+    if input.kind == KIND_BLACK { discard; }
     if input.hilt <= STAR { return vec4(star_glow(input, pixel), 1.0); }
     if input.hilt <= 0.0 { discard; }
     if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
@@ -1900,6 +1904,7 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let core_dx = dpdx(core_uv);
     let core_dy = dpdy(core_uv);
     let pixel = fwidth(input.blade.x);
+    if input.kind == KIND_BLACK { discard; }
     if input.hilt <= STAR {
         return vec4(star_glow(input, pixel), 1.0);
     }
@@ -1935,6 +1940,24 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
         return vec4(CORE_DRAWS * (vec3(texel.r) + input.color * texel.g), 1.0);
     }
     return vec4(CORE_DRAWS * texel.rgb * input.color, 1.0);
+}
+
+// JA+ black blades use alpha blending, not the additive retail/RGB pass.
+@fragment
+fn fragment_black(input: VertexOutput) -> @location(0) vec4<f32> {
+    let uv = core_coordinates(input);
+    let dx = dpdx(uv);
+    let dy = dpdy(uv);
+    if input.hilt <= 0.0 {
+        return textureSampleGrad(core_texture, core_sampler, uv, dx, dy);
+    }
+    // Smooth the sprite chain into a capsule, with the installed alpha profile.
+    let along = input.blade.y / max(input.shaft, 0.0001) * input.length;
+    let beyond = along - clamp(along, 0.0, input.length);
+    let radius = chain_radius(input.radius, input.length, clamp(along / max(input.length, 0.0001), 0.0, 1.0));
+    let glow_uv = vec2(0.5 + input.blade.x / (2.0 * radius), 0.5 + beyond / (2.0 * radius));
+    if any(glow_uv < vec2(0.0)) || any(glow_uv > vec2(1.0)) { return vec4(0.0); }
+    return textureSampleLevel(glow_texture, saber_sampler, glow_uv, 0.0);
 }
 
 // --- Heat haze: drawn first into the effect layer, replacing its pixels ---------------------

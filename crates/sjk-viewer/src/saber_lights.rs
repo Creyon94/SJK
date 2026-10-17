@@ -18,7 +18,7 @@ pub(crate) fn append(
     time: i64,
     seed: u64,
 ) {
-    if disabled {
+    if disabled || color == BladeColor::Black {
         return;
     }
     // A skin's light flickers (and turns its hue) as its file says; the stock colours
@@ -81,6 +81,7 @@ pub(crate) fn append(
 pub(crate) fn rgb(color: BladeColor) -> [f32; 3] {
     // CG_RGBForSaberColor, cg_players.c:5246-5273; not the white retail sprite tint.
     match color {
+        BladeColor::Black => [0.0; 3],
         BladeColor::Retail(Color::Red) => [1.0, 0.2, 0.2],
         BladeColor::Retail(Color::Orange) => [1.0, 0.5, 0.1],
         BladeColor::Retail(Color::Yellow) => [1.0, 1.0, 0.2],

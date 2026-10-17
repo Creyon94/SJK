@@ -64,9 +64,8 @@ pub(super) struct Context {
 }
 
 impl Context {
-    pub(super) fn requested(self) -> bool {
-        // SJK's chosen policy: no automatic scoreboard on death, in either look.
-        self.held || self.intermission
+    pub(super) fn requested(self, style: ScoreboardStyle) -> bool {
+        self.held || self.intermission || (self.dead && style == ScoreboardStyle::Classic)
     }
 
     pub(super) fn compact(self) -> bool {
@@ -191,14 +190,16 @@ mod tests {
             dead: true,
             ..Context::default()
         };
-        assert!(!c.requested());
+        assert!(c.requested(ScoreboardStyle::Classic));
+        assert!(!c.requested(ScoreboardStyle::Sjk));
         c.warmup = true;
-        assert!(!c.requested());
+        assert!(c.requested(ScoreboardStyle::Classic));
+        assert!(!c.requested(ScoreboardStyle::Sjk));
         c.held = true;
-        assert!(c.requested());
+        assert!(c.requested(ScoreboardStyle::Classic));
         c.held = false;
         c.intermission = true;
-        assert!(c.requested());
+        assert!(c.requested(ScoreboardStyle::Classic));
     }
     #[test]
     fn an_emote_freeze_or_noclip_is_neither_death_nor_intermission() {

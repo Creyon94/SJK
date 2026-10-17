@@ -665,6 +665,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "CTF team saber colours",
+        cvar: crate::team_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "JA+ black sabers",
+        cvar: crate::saber_rgb::black::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Saber rain steam",
         cvar: crate::effect_aux::saber_rain_steam::CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
@@ -677,6 +687,35 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "Grip victim effects",
         cvar: crate::actor_world_submission::force_powers::victim::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Flamethrower effects",
+        cvar: crate::actor_world_submission::force_powers::flame::CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    Setting {
+        label: "Holstered saber hilts",
+        cvar: crate::holstered_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Holster server support",
+        cvar: crate::holstered_sabers::SUPPORT_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Staff handoff point",
+        cvar: crate::holstered_sabers::SWAP_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Staff handoff sounds",
+        cvar: "cg_holsteredStaffSound",
         kind: ValueKind::Bool,
     },
     Setting {

@@ -26,11 +26,11 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 > Force: JoF's 22 community presets, and team powers bought in FFA reach servers that allow them.
-> Effects: Red puffs around Grip victims, and jetpack sounds to choose as in JoF EJK.
+> Sabers: Holstered hilts on your hips on JA+ servers, black sabers and the JA+ flamethrower.
 > Settings: Camera framing, chat text size, menu text up to 1.4 and the inventory list.
 > Console: Two-key binds like `bind K+L kill`, and Tab completes cfg names after `exec`.
 > Chat: %H%, %S%, %W% and the other EJK tokens send your live values.
-> Fixes: Weapon choice when following, Desann and Tavion colours, Linux copy, big NPC packs.
+> Classic scoreboard: Opens when you die and keeps your HUD, as in JoF EJK.
 
 - Following another player, leaving follow or spectator mode, or a demo rewind resets the weapon selection to the weapon in hand, so the old choice no longer reaches the new player's HUD or your next command _(Lumaya, after JoF EJK)_
 - Team Heal and Team Energize bought outside a team game stay in the Force profile you send, so a server that allows them can grant them; the Force menu says "Server decides" instead of "Team games only" _(Lumaya)_
@@ -48,6 +48,12 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - JoF EJK's camera settings: weapon FOV, third-person distance, angle, height and offsets, and the damping presets, in Settings Advanced Gameplay and classic+ Game options _(Lukas, after JoF EJK)_
 - Chat text size is in every settings mode, and Menu text size now goes up to 1.4 _(Lukas)_
 - Jetpack ignition and hover sound choices match JoF EJK, with both sound selectors in SJK and classic settings and corrected positional start/stop playback _(Lumaya, after JoF EJK)_
+- Tavion and Desann saber styles now show their distinct idle poses by default, for local and remote players, without changing movement or attack timing _(Lumaya, after JoF EJK)_
+- JA+/jaPRO black sabers now render for both hands and thrown blades, with dark trails and the correct plugin toggle; enabled by default in both settings interfaces _(Lumaya, after JoF EJK)_
+- Holstered saber hilts on JA+ servers: a stowed saber hangs at your hip, dual sabers on both hips and a staff across your back when the server's plugin allows it, hidden when cloaked, mind-tricked, dead or mounted; Settings, Holstered saber hilts _(Lumaya, after JoF EJK)_
+- JA+'s flamethrower shows its flames, impact fire, pose and sound instead of Lightning on JA+ servers (Settings, Flamethrower effects: Auto, Off or JA+); without the flame effects installed, Lightning shows as before _(Lumaya, after JoF EJK)_
+- The classic scoreboard follows JoF EJK: it opens when you die, keeps the votes and timers visible, hides your status and crosshair while it is up, and lists up to 19 players, 32 on crowded servers _(Lumaya, after JoF EJK)_
+- CTF team saber colours (Settings, off by default): in capture the flag every red or blue player's sabers in their team's colour, with no blade shader _(Slash)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 
@@ -171,6 +177,7 @@ Seeing bars means sharing yours, a card that says who sees your model, and emote
 - The gold nameplate contour now also shows on players who share because they see everyone's bars (`cg_nameplateEstimate`), and on your own plate (`cg_nameplateSelf`) in that case _(Sol)_
 - The player card says whether the inspected SJK player sees the model you wear ("Sees your model" or "Can't see your model"): SJK tells the hub which player models you have, which `cl_shareModels` (Settings > Network > Share my model list) turns off _(Sol)_
 - Looping emotes loop their music, music made of an intro and a loop plays both, and emote pictures stand on a blue disc so they show on the quick wheel; the Blender add-on takes a Music loop per emote _(Sol)_
+- Holstered saber hilts on supported JA+ servers, with hip and staff back placement, cloak-safe visibility and animation-driven staff handoff; controls are available in both menu styles _(Lumaya, after JoF EJK)_
 
 ## 2026.1015.1 (Alpha) | 15/10/2026
 

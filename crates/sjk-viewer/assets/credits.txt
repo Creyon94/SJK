@@ -164,7 +164,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 27 merged pull requests
+role: Contributor: 32 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -193,6 +193,11 @@ did: #119 JoF's 22 community Force presets in both menu styles
 did: #123 Red puffs around Grip victims, as JoF EJK draws them
 did: #126 The inventory list as a setting; the item selector always shows
 did: #128 Jetpack ignition and hover sounds to choose, as in JoF EJK
+did: #122 JA+ flamethrower: flames, impact fire, pose and sound
+did: #124 Classic scoreboard opens on death and keeps the HUD, as JoF EJK
+did: #127 Holstered saber hilts on the hips and the staff on the back
+did: #129 Tavion and Desann idle stances
+did: #130 JA+ black sabers on both blades, thrown ones and trails
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 [Lukas]
@@ -207,8 +212,9 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 1 merged pull request
+role: Contributor: 2 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
+did: #113 CTF team saber colours, an option
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 == Art

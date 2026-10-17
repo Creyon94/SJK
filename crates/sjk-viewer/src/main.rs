@@ -175,6 +175,7 @@ mod scope;
 mod sender_card;
 mod server_caps;
 mod surface_tables;
+mod team_sabers;
 mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
@@ -188,6 +189,7 @@ mod emotes_frame;
 mod footprints;
 mod gi_voxels;
 mod holocrons_frame;
+mod holstered_sabers;
 mod identity_command;
 mod identity_frame;
 mod illuminate;
@@ -498,6 +500,10 @@ struct GpuState {
     menu_stage: menu_stage::MenuStage,
     clientinfo_watch: clientinfo_refresh::ClientInfoWatch,
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
+    /// Black-blade server/clientinfo scan, redone on configstring changes.
+    black_sabers: saber_rgb::black::Cache,
+    /// Holstered-hilt contract detected from the serverinfo, redone on its change.
+    holster_server: holstered_sabers::ServerCache,
     /// Parsed shader catalogue, kept for materials compiled after map load.
     /// Shared with the workers that load players' models (`player_loads.rs`).
     shaders: Arc<ShaderCatalog>,
@@ -1274,7 +1280,7 @@ impl GpuState {
         let actor_groups = (0..actor_meshes.len())
             .map(|_| Vec::with_capacity(4))
             .collect();
-        let object_groups = object_meshes::instance_groups(&object_meshes);
+        let object_groups = object_meshes::instance_groups(&object_meshes, saber_hilts.as_ref());
         let mover_groups = movers::instance_groups(&mover_catalog.meshes);
         let effects = config_string_refresh::preload_effects(&vfs, &map_effects, &missile_effects);
         load_profile.mark("effect-graphs")?;
@@ -1398,6 +1404,8 @@ impl GpuState {
             menu_stage: menu_stage::MenuStage::default(),
             clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
             config_string_refresh,
+            black_sabers: Default::default(),
+            holster_server: Default::default(),
             shaders: Arc::new(shaders),
             decal_surfaces,
             player_shadows: player_shadows::State::default(),
@@ -2254,6 +2262,7 @@ impl GpuState {
                     self.camera_position.to_array(),
                     active_world,
                     &self.bsp,
+                    predicted,
                 );
             }
             self.map_effects.update(snapshot, presentation_time as i32);

@@ -503,6 +503,16 @@ impl LegacySoundAdapter {
         [first, second, skin]
     }
 
+    /// Both hilt slots and optional blade-skin layer, for ignition then shutdown.
+    /// Uses the registered switch catalog, including default and custom sounds;
+    /// a renderer may synchronize these starts with an attachment handoff.
+    pub fn saber_switch_handles(&self, client: u16) -> [[Option<sjk_audio::SoundHandle>; 3]; 2] {
+        [Switch::On, Switch::Off].map(|switch| {
+            let sounds = self.switch_sounds(client, switch);
+            sounds.map(|index| index.and_then(|index| self.sound(index)?.handle))
+        })
+    }
+
     /// `EV_SABER_UNHOLSTER` from a client: each hand's `soundOn`
     /// (`cg_event.c:2381-2407`), and the blade skin's ignition over them.
     pub(super) fn emit_unholster(&mut self, client: u16, origin: [f32; 3], snapshot: &Snapshot) {

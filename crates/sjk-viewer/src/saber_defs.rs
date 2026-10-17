@@ -11,6 +11,7 @@ pub(crate) struct Definition {
     pub(crate) name: String,
     pub(crate) model: String,
     pub(crate) num_blades: u8,
+    pub(crate) is_staff: bool,
     pub(crate) blade_lengths: [f32; 8],
     pub(crate) blade_radii: [f32; 8],
     pub(crate) blade_style2_start: u8,
@@ -35,6 +36,10 @@ pub(crate) fn load(
                     sound_swing: definition.sound_swing,
                     model: definition.model,
                     num_blades: definition.num_blades,
+                    // EJK CG_StaffHolsteredOnBack (cg_players.c:10812): a staff type
+                    // or any single hilt with more than one blade goes on the back.
+                    is_staff: definition.saber_type == sjk_client::LegacySaberType::Staff
+                        || definition.num_blades > 1,
                     blade_lengths: definition.blade_lengths,
                     blade_radii: definition.blade_radii,
                     blade_style2_start: definition.blade_style2_start,

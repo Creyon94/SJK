@@ -86,6 +86,40 @@ fn player_color_from_config(config: &[u8], custom_rgba: [u8; 4]) -> [u8; 4] {
     }
 }
 
+/// `GT_CTF` / `GT_CTY` from `gametype_t`.
+const GT_CTF: i32 = 8;
+const GT_CTY: i32 = 9;
+
+/// Whether the game is one where SJK's optional team sabers apply (the viewer's
+/// `cg_ctfTeamSabers`): capture the flag and capture the ysalamiri. It is stricter than
+/// cgame's `cg_saberTeamColors 0`, which lets a red player keep a yellow blade
+/// (`cg_players.c:8329-8342`).
+pub fn legacy_team_sabers(game_state: &GameState) -> bool {
+    let serverinfo = game_state.config_string(CS_SERVERINFO).unwrap_or(&[]);
+    matches!(info_int(serverinfo, "g_gametype"), GT_CTF | GT_CTY)
+}
+
+/// The blade colour `client_num`'s team forces on both sabers, if
+/// [`legacy_team_sabers`] holds and the client is on red or blue: the stock
+/// `SABER_RED` / `SABER_BLUE` tints, whatever `c1`..`c4` say.
+pub fn legacy_team_blade(game_state: &GameState, client_num: u16) -> Option<[u8; 3]> {
+    if !legacy_team_sabers(game_state) {
+        return None;
+    }
+    let config = game_state.config_string(CS_PLAYERS + usize::from(client_num))?;
+    team_blade_from_config(config)
+}
+
+/// The team blade of one raw `CS_PLAYERS` string.
+fn team_blade_from_config(config: &[u8]) -> Option<[u8; 3]> {
+    use crate::presentation_equipment::legacy_blade_rgb;
+    match info_int(config, "t") {
+        TEAM_RED => Some(legacy_blade_rgb(0)),
+        TEAM_BLUE => Some(legacy_blade_rgb(4)),
+        _ => None,
+    }
+}
+
 /// Resolve the colour `CG_General` hands to the renderer for a corpse.
 pub fn legacy_body_color(custom_rgba: [u8; 4]) -> [u8; 4] {
     custom_rgba
@@ -107,4 +141,24 @@ fn info_value<'a>(info: &'a [u8], key: &str) -> Option<&'a [u8]> {
 /// `atoi(Info_ValueForKey(...))` with a zero default.
 fn info_int(info: &[u8], key: &str) -> i32 {
     info_value(info, key).map_or(0, crate::team_info::legacy_atoi)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::presentation_equipment::legacy_blade_rgb;
+
+    #[test]
+    fn red_and_blue_players_carry_only_their_teams_blade() {
+        let yellow_rgb = br"n\a\t\1\c1\2\c2\8\c4\65280";
+        assert_eq!(
+            team_blade_from_config(yellow_rgb),
+            Some(legacy_blade_rgb(0))
+        );
+        let red = br"n\b\t\2\c1\0\c2\0";
+        assert_eq!(team_blade_from_config(red), Some(legacy_blade_rgb(4)));
+        // Free and spectating players keep their own colours.
+        assert_eq!(team_blade_from_config(br"n\c\t\0\c1\2"), None);
+        assert_eq!(team_blade_from_config(br"n\d\t\3\c1\2"), None);
+    }
 }

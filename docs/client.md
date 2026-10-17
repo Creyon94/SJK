@@ -910,6 +910,37 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
+## CTF team saber colours
+
+`cg_ctfTeamSabers` (archived, default 0; Settings > Advanced > Gameplay and classic+
+Game options, **CTF team saber colours**) draws every red or blue player's blades in
+their team's stock colour in capture the flag and capture the ysalamiri, whatever their
+`c1`..`c4` colours and blade shader say: held and thrown sabers, muted players' default
+saber, and the player card's swatches. Free players, spectators, other game types and
+the setting off keep each player's own colours. It is stricter than cgame's
+`cg_saberTeamColors 0`, which lets a red player keep a yellow blade. From SJK pull
+request #113 (Slash), made an option at the merge (Sol's choice, 17/10/2026); see
+[team_sabers.rs](../crates/sjk-viewer/src/team_sabers.rs).
+
+## JA+ black sabers
+
+On JA+/jaPRO and TaystJK servers, saber colour number 11 is shown as a black
+blade with an alpha-blended trail and no blade light or bloom. It works for
+both hands and thrown sabers. The archived `cg_blackSabers` setting is on by
+default, under classic Settings > Game Options and SJK Advanced > Gameplay.
+Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
+black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
+The normal plugin-mask default (1536) allows black blades.
+
+Other servers show colour 11 as before: purple, or the player's RGB tint when
+one is set. (JoF EJK shows orange there; SJK keeps its earlier colour.) Ordinary RGB colours, including
+an RGB tint of zero, retain their existing behavior; SJK blade skins retain
+priority over the server's blade colour. Installed community black glow/core/
+trail images are used when available; otherwise SJK generates black alpha
+profiles locally. No extra content download is required. See
+[rendering](rendering.md#ja-black-sabers) and
+[verification](status.md#ja-black-sabers).
+
 ## EternalJK animation fixes
 
 Players' animations are remapped before they are shown, as EternalJK's `CG_Player`
@@ -918,6 +949,21 @@ ordinary ones; the old Bryar's `BOTH_STAND1` (servers without `g_fixWeaponAttack
 such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTACK2`
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
+
+## Tavion and Desann idle poses
+
+Tavion and Desann saber styles use their distinct JoF EJK standing poses by
+default, with no setting: Tavion uses `BOTH_P1_S1_T_`, Desann `BOTH_STAND9`.
+This applies to snapshot and predicted actors in every UI style. The client
+replaces only each style's ordinary idle clip; other custom ready animations,
+attacks and movement clips stay as supplied. Unlit or thrown sabers and other
+weapons retain their ordinary presentation. Already distinct server-sent idle
+poses pass through unchanged.
+
+The change is visual: simulation, prediction inputs, attack timers and protocol
+26 remain unchanged. Source choices follow [JoF EJK #47](https://github.com/JediofFreedom/JoF_EJK/pull/47).
+Live appearance with installed animations remains unverified; see
+[status](status.md#tavion-and-desann-idle-poses).
 
 ## Wall grab facing
 
@@ -2334,9 +2380,14 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   highlighted in your rank's colour (1st blue, 2nd red, 3rd yellow, else grey) and
   is added at the bottom if the list does not reach it. Flag carriers show the
   flag icon before their row; at intermission, ready players are marked `READY`.
-- Rows are 25 units of the 480-line screen, 15 units once more than 12 players
-  are listed (always with `cg_smallScoreboard` and in CTF), and 12 units with the
-  header moved up above 20 clients. `cg_drawScoreboardIcons` (on by default) shows
+- Rows are 25 units of the 480-line screen, 15 units once more than 12 scores
+  arrive (always with `cg_smallScoreboard` and in CTF), and 12 units in that small
+  format above 20 connected clients. The connected roster controls the raised
+  header independently of received scores. Normal small lists have a 19-row
+  budget; crowded lists have 32. Section spacing, empty sections, losing-team
+  reservations and the appended local row follow the pinned JoF reference,
+  rather than an additional screen-bottom clip. `cg_drawScoreboardIcons`
+  (on by default) shows
   each player's head icon (`models/players/<model>/icon_<skin>`), decoded when a
   model changes, two per frame at most.
 - Positions follow the 640x480 screen fitted to the window height, spreading up
@@ -2347,25 +2398,30 @@ The classic board's interaction follows
 [JoF EJK revision bd5e202d](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_scoreboard.c)
 (`CG_DrawOldScoreboard`) and its
 [chat/HUD rules](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_draw.c).
-It opens instantly when held and at intermission. Releasing the key retains the
-board for a 200 ms fade; intermission keeps it open. SJK deliberately keeps the
-chosen policy of no automatic board on death. Warmup suppresses a released board;
-holding the key and intermission still work. Menus, console, pause and
+It opens instantly when held, on death and at intermission. Releasing the key or
+respawning retains the board for a 200 ms fade if neither death nor intermission
+keeps it open. Warmup suppresses the board unless the score key is held, matching
+JoF's warmup gate. Menus, console, pause and
 `cg_drawScores 0` suppress it.
 Rows change places instantly. The SJK style keeps its animated opening and rows.
 
 Classic moves chat to virtual x=8, bottom y=475 on the 640x480 screen, retaining
 the configured font, width, lines and message expiry. Above 25 connected players,
 holding scores hides the chat feed; release restores it, even when the automatic
-intermission board remains open. That automatic crowded board limits the
-list to 24 rows, adds a missed playing client's own row and a **HOLD TAB TO VIEW
-FULL SCOREBOARD** hint. Holding the key shows the full list. Center prints stay
+death or intermission board remains open. That automatic crowded board limits the
+list to 24 rows and adds a **HOLD TAB TO VIEW FULL SCOREBOARD** hint. Its local-row
+append follows the reference too: a missed playing client is appended except
+on the blue team. Holding the key shows the full list. Center prints stay
 hidden through the scoreboard fade. SJK's chat composer stays inside the window
 and can still be used independently of the feed.
 
-SJK deliberately keeps hiding the whole HUD while scores are held, in both
-styles, rather than JoF's selective HUD visibility. Intermission also hides
-the gameplay HUD. Team rows reserve space for the losing side, with connecting
+Classic follows JoF's selective HUD visibility: holding scores or dying hides
+the playing client's status, weapon/Force/inventory selection and crosshair;
+votes, telemetry and independent power indicators remain visible. Spectators
+retain their crosshair while holding scores. Intermission hides the gameplay
+HUD. The SJK scoreboard keeps its whole-HUD suppression while held and its
+held/intermission-only opening policy. Team rows reserve space for the losing
+side, with connecting
 clients listed after scored clients. An intermission duel winner takes precedence
 over the next duel's participants and the killer/player-count header.
 
@@ -3356,6 +3412,27 @@ Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
 SJK's own [Illuminate](#illuminate) is a toy, not a Force power: it is not on the wheel.
 See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
+### JA+ flamethrower presentation
+
+On a JA+ server (gamename `ja+`, `japlus` or `ja_plus`; abyssmod and UA Galaxy,
+which share JA+'s dialect, are left out until their flag meanings are verified), firing the flamethrower shows its flame stream and
+hit effects, uses the Lightning-hold upper-body pose, and plays its positional
+flame sound until firing stops. Local predicted firing and remote players use
+the existing snapshot flags; ordinary Lightning and Drain retain their effects.
+The server owns damage, fuel and all weapon rules.
+
+`cg_flameThrower` (archived; Settings > Game options in classic, Settings >
+Advanced > Gameplay in SJK, **Flamethrower effects**) selects Auto (`-1`, default),
+Off (`0`) or JA+ (`1`, force support on a server using the same flags). The
+documented capability table is in
+[japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs); it detects the server
+independently of the optional JA+ command mod. The flame graphs and sound must
+be present in installed game data, such as the JoF EJK client-assets pack.
+SJK does not bundle them. Without the flame stream graph the player keeps
+showing stock Lightning; other missing assets leave that effect or sound absent.
+The flame sound follows the same detection as the effects, refreshed when the
+server info changes.
+
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
 `forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
 `forcenext` had stopped on it: a real power becomes the selection the user
@@ -3535,6 +3612,54 @@ game or a film; the effect and its shader are written by hand
 ([assets/order66](../crates/sjk-viewer/assets/order66/README.md)). They are bundled and
 mounted below all game data. See [order66.rs](../crates/sjk-viewer/src/order66.rs) and
 `GpuState::blow_apart` in [dismember.rs](../crates/sjk-viewer/src/dismember.rs).
+
+## Holstered saber hilts
+
+Settings > Game offers **Holstered saber hilts**, **Holster server support**,
+**Staff handoff point** and **Staff handoff sounds** in both SJK and classic
+menus. `cg_drawHolsteredSaber` defaults on. Support (`cg_holsteredSaberSupport`)
+defaults to `1`, automatic JA+ detection; `0` disables support and `2` forces
+the documented JA+ ownership/plugin contract for a compatible server. Forcing
+it on an unrelated server can misinterpret that server's ownership flags.
+
+Stowed single hilts sit at the right hip; dual hilts use both hips. A single
+staff goes across the back when JA+ plugin 9 is enabled, with a hip fallback
+for models without a back tag. `cp_pluginDisable` is a disable mask: bit 9
+(`512`) disables the staff back reach, and bit 13 (`8192`) disables holstered
+hilts altogether. SJK preserves its existing default mask `1536`, so the
+default staff placement remains at the hip. This feature does not enable
+JA+ animation plugins or install their animation assets.
+
+With plugin 9 enabled and usable JA+ reach animations installed, the staff
+changes between back and hand at fraction `cg_holsteredStaffSwap` (default
+`0.45`) of the actual torso frame range. It changes once per playing, including
+the reverse put-away. Blades stay off before the drawing hand reaches the
+hilt and retract during put-away. `cg_holsteredStaffSound` (default on) aligns
+the registered hilt and blade-skin ignition/shutdown sounds with that reach;
+missing or interrupted reaches have a bounded ignition fallback. Without the
+reach clip, the normal weapon change controls the attachment.
+
+Holsters are hidden on dead, disintegrating, mounted, mind-tricked or undrawn
+players and on a first-person player's own/followed body. A cloaked player's
+hilts require the viewer's Force Sight; your own cloaked hilts stay hidden.
+A thrown primary hilt is never duplicated on the belt. Missing attachment
+points affect their own hilt independently. The reference's Jedi NPC class
+list is supported too.
+
+Console placement overrides are archived, case-insensitive three-number
+vectors, with finite values bounded to +/-3600; invalid vectors use defaults:
+
+| Cvar | Default | Meaning |
+| --- | --- | --- |
+| `cg_holsteredSaberPos` | `0 3.5 0` | Hip offset: bolt right, forward, up; opposite side for the second hilt |
+| `cg_holsteredSaberAng1` | `0 0 270` | Primary hip pitch, yaw, roll |
+| `cg_holsteredSaberAng2` | `0 0 270` | Secondary hip pitch, yaw, roll |
+| `cg_holsteredStaffPos` | `0 0 0` | Back offset: bolt forward, right, up |
+| `cg_holsteredStaffAng` | `0 0 150` | Back pitch, yaw, roll |
+
+These are client presentation options; they change no gameplay, wire format
+or animation timing. See [rendering](rendering.md#holstered-saber-hilts) for
+attachment ownership and [status](status.md#holstered-saber-hilts) for limits.
 
 ## Blade skins
 
