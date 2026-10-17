@@ -53,7 +53,7 @@ impl Options {
         };
         Self {
             pm_only: console
-                .and_then(|c| c.bool_cvar(super::pm_only::CVAR))
+                .and_then(|c| c.bool_cvar("cg_pmonlychat"))
                 .unwrap_or(false),
             lifetime: integer("cg_chatbox", 10000).max(0) as u64,
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
