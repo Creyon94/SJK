@@ -10,7 +10,9 @@
 //! `inspect` is pressed again or Escape is. A pinned card adds what takes reading:
 //! the medals' names in small print, the achievements unlocked out of the catalogue
 //! with the three rarest as medallions, the first line of their bio and since when
-//! they are in SJK. While the card is up, a ring in the card's accent colour runs
+//! they are in SJK. The card needs the player in sight and near: within
+//! [`SIGHT_RANGE`] of the camera with no wall between it and their head or hips; a
+//! pinned card hides while they are out of sight and unpins after [`LOST_MS`]. While the card is up, a ring in the card's accent colour runs
 //! around the outside of the player's body (`cg_playerCardOutline`,
 //! [`crate::card_outline`]).
 //!
@@ -27,6 +29,7 @@
 use super::identification::Camera;
 use crate::{TextVertex, UiFont};
 use glam::Vec3;
+use sjk_bsp::{Aabb, Bsp, TraceScratch};
 use sjk_client::{LegacyClientInfo, decode_legacy};
 use sjk_protocol::GameState;
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
@@ -57,6 +60,11 @@ const REACH_BELOW: f32 = -30.0;
 const REACH_ABOVE: f32 = 24.0;
 /// How far off screen (in half screens) a pinned player may be and still be followed.
 const PINNED_LIMIT: f32 = 40.0;
+/// World units from the camera beyond which no card shows, dwelled or pinned.
+const SIGHT_RANGE: f32 = 1_200.0;
+/// How long a pinned player may stay out of sight (behind a wall or beyond
+/// [`SIGHT_RANGE`]) before the pin drops; the card is hidden meanwhile.
+const LOST_MS: i32 = 3_000;
 /// Colour index of a saber's blade in `c1`/`c2`: only the six retail colours have
 /// a swatch.
 const RETAIL_COLOURS: i32 = 6;
@@ -170,6 +178,65 @@ impl Pin {
     }
 }
 
+/// How long the pinned player has been out of sight.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Sight {
+    lost_since: Option<i32>,
+}
+
+impl Sight {
+    /// Feed whether the pinned player is in sight this frame (`None`: nothing pinned).
+    /// True once they have been out of sight longer than [`LOST_MS`].
+    pub(crate) fn observe(&mut self, in_sight: Option<bool>, now: i32) -> bool {
+        if in_sight == Some(false) {
+            now - *self.lost_since.get_or_insert(now) > LOST_MS
+        } else {
+            self.lost_since = None;
+            false
+        }
+    }
+
+    /// The pinned player is out of sight now: their card is hidden.
+    pub(crate) fn hidden(self) -> bool {
+        self.lost_since.is_some()
+    }
+}
+
+/// Whether `client` is within [`SIGHT_RANGE`] of the camera with no wall between it and
+/// their head or their hips.
+fn in_sight(input: &mut Input<'_>, client: u16) -> bool {
+    let Some(presented) = input
+        .world
+        .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
+    else {
+        return false;
+    };
+    let origin = Vec3::from_array(presented.sample(i64::from(input.now)).translation);
+    let eye = input.camera.eye;
+    if eye.distance(origin) > SIGHT_RANGE {
+        return false;
+    }
+    let top = input
+        .entities
+        .iter()
+        .find(|entity| entity.number() == client)
+        .map_or(super::nameplate_math::head_height(0), |entity| {
+            super::nameplate_math::head_height(entity.solid())
+        });
+    [origin + Vec3::Z * top, origin + Vec3::Z * HIP_HEIGHT]
+        .into_iter()
+        .any(|point| {
+            let trace = input.bsp.trace_box_with(
+                input.scratch,
+                eye.to_array(),
+                point.to_array(),
+                Aabb::new([0.0; 3], [0.0; 3]).expect("point bounds are valid"),
+                1 | 0x0200_0000,
+            );
+            super::identification::unoccluded(trace.fraction, trace.start_solid, trace.all_solid)
+        })
+}
+
 /// What [`Pin::resolve`] decided.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PinStep {
@@ -260,7 +327,8 @@ pub(crate) enum Vitals {
     Private,
     /// Their health, shield and Force (`cg_nameplateShare`).
     Shared,
-    /// They see everyone's estimated bars (`cg_nameplateEstimate`), which shares theirs.
+    /// They see everyone's estimated bars (`cg_nameplateEstimate` of clients before
+    /// 17/10/2026), which shares theirs.
     SeesAll,
 }
 
@@ -675,6 +743,9 @@ fn put_text(
 pub(crate) struct Input<'a> {
     /// The player under the crosshair this frame.
     pub(crate) seen: Option<u16>,
+    /// The map and a trace scratch, for the walls between the camera and a player.
+    pub(crate) bsp: &'a Bsp,
+    pub(crate) scratch: &'a mut TraceScratch,
     pub(crate) game: &'a GameState,
     pub(crate) world: &'a sjk_runtime::World,
     pub(crate) now: i32,
@@ -707,6 +778,7 @@ pub(crate) struct State {
     delay_ms: i32,
     dwell: Dwell,
     pin: Pin,
+    sight: Sight,
     /// The player whose card an `inspect` press just hid; their dwell is ignored until
     /// the crosshair leaves them, so the card does not come straight back.
     suppressed: Option<u16>,
@@ -730,6 +802,7 @@ impl Default for State {
             delay_ms: 1_500,
             dwell: Dwell::default(),
             pin: Pin::default(),
+            sight: Sight::default(),
             suppressed: None,
             shown: None,
             key: (0, 0, 0, 0),
@@ -801,13 +874,14 @@ impl State {
         self.list.clear();
         self.dwell = Dwell::default();
         self.pin = Pin::default();
+        self.sight = Sight::default();
         self.suppressed = None;
         self.shown = None;
         self.alpha = 0.0;
     }
 
     /// Advance the dwell and the fade and rebuild the draw list.
-    pub(crate) fn update(&mut self, input: Input<'_>) {
+    pub(crate) fn update(&mut self, mut input: Input<'_>) {
         self.list.clear();
         let [width, height] = input.camera.viewport;
         self.area = [0.0, 0.0, width, height];
@@ -820,26 +894,37 @@ impl State {
             self.alpha = 0.0;
             self.suppressed = None;
         }
-        let alive = self.pin.target().is_none_or(|client| {
-            input
-                .world
-                .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
-                .is_some()
+        // No card through a wall or from afar: the crosshair's player counts only in
+        // sight, and a pinned one hides out of sight and drops after a while.
+        let aimed = input.seen;
+        let aimed = aimed.filter(|&client| in_sight(&mut input, client));
+        let before = self.pin.target();
+        let pinned_in_sight = before.map(|client| in_sight(&mut input, client));
+        let lost = self.sight.observe(pinned_in_sight, now);
+        let alive = before.is_none_or(|client| {
+            !lost
+                && input
+                    .world
+                    .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
+                    .is_some()
                 && input
                     .game
                     .config_string(CS_PLAYERS + usize::from(client))
                     .is_some_and(|info| !info.is_empty())
         });
-        let step = self.pin.resolve(input.seen, alive, restarted);
+        let step = self.pin.resolve(aimed, alive, restarted);
+        if step.target != before {
+            self.sight = Sight::default();
+        }
         if let Some(released) = step.released {
             self.suppressed = Some(released);
             self.dwell = Dwell::default();
         }
-        if self.suppressed.is_some() && self.suppressed != input.seen {
+        if self.suppressed.is_some() && self.suppressed != aimed {
             self.suppressed = None;
         }
         let seen = if self.enabled && !input.hidden && self.suppressed.is_none() {
-            input.seen
+            aimed
         } else {
             None
         };
@@ -848,7 +933,7 @@ impl State {
         let want = if input.hidden {
             None
         } else if pinned.is_some() {
-            pinned
+            pinned.filter(|_| !self.sight.hidden())
         } else if self.enabled {
             self.dwell.ready(now, self.delay_ms)
         } else {
@@ -2111,6 +2196,23 @@ mod tests {
         pin.request();
         let step = pin.resolve(Some(9), true, false);
         assert_eq!((step.target, step.released), (None, Some(4)));
+    }
+
+    #[test]
+    fn a_pinned_player_out_of_sight_hides_then_drops() {
+        let mut sight = Sight::default();
+        assert!(!sight.observe(None, 0) && !sight.hidden(), "nothing pinned");
+        assert!(!sight.observe(Some(true), 100) && !sight.hidden());
+        // Behind a wall: hidden at once, still pinned until LOST_MS passes.
+        assert!(!sight.observe(Some(false), 1_000) && sight.hidden());
+        assert!(!sight.observe(Some(false), 1_000 + LOST_MS));
+        // Back in sight before then: shown again, and the wait starts over.
+        assert!(!sight.observe(Some(true), 2_000) && !sight.hidden());
+        assert!(!sight.observe(Some(false), 3_000));
+        assert!(
+            sight.observe(Some(false), 3_001 + LOST_MS),
+            "out of sight too long"
+        );
     }
 
     #[test]

@@ -328,7 +328,6 @@ impl Group {
                 "cg_nameplateBars",
                 "cg_nameplateForce",
                 "cg_nameplateShare",
-                "cg_nameplateEstimate",
                 "cg_nameplateWeapon",
                 "cg_nameplateSelf",
                 "cg_nameplateIcons",

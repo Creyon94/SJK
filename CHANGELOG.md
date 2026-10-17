@@ -25,6 +25,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- The player card and `inspect` no longer work through walls or from far away (over 1200 units); a pinned card hides when its player goes out of sight and unpins after 3 seconds _(Sol)_
+- Nameplates show grey bars on every player who does not share theirs, players without SJK and bots too; Bars on everyone is gone, as it had nothing left to estimate _(Sol)_
 - Ctrl+V and copies work on Linux without xclip or wl-clipboard installed: the clipboard is now reached in process on X11 and Wayland _(Sol, after Nib's report)_
 - Free camera and `fakenoclip` fly freely while your body is held in an emote, taunt or other held animation (it could turn but not move) _(Sol, after Kushina's reports)_
 
