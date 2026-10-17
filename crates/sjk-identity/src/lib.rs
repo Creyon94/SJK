@@ -43,7 +43,7 @@ pub use service::{
     HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome, RevealOutcome,
     Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
 };
-pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use staff::{ChatBanRow, OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
 pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
     Achievement, Bought, BuyAnswer, CardStack, ChatMessage, CraftAnswer, Crafted, DropEvent,

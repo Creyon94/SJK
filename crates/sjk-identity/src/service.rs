@@ -1522,6 +1522,9 @@ impl Worker {
                 staff.message = crate::staff::done(request, profiles.len());
                 if matches!(request, StaffRequest::Search(_)) {
                     staff.players = profiles;
+                } else if let StaffRequest::ChatUnban { key_id } = request {
+                    // Lifted: off the list of bans in force.
+                    staff.chat_bans.retain(|ban| ban.key_id != *key_id);
                 } else if let Some(profile) = profiles.first() {
                     // The player merged away is part of the kept one now.
                     if let StaffRequest::Merge { from, .. } = request {
@@ -3232,6 +3235,16 @@ mod tests {
                 }],
                 StaffRequest::HolocronRemove { key_id, .. } => vec![Profile {
                     key_id: key_id.clone(),
+                    ..profile("Target")
+                }],
+                StaffRequest::Credits { key_id, delta, .. } => vec![Profile {
+                    key_id: key_id.clone(),
+                    credits: delta.unsigned_abs(),
+                    ..profile("Target")
+                }],
+                StaffRequest::Shards { key_id, delta, .. } => vec![Profile {
+                    key_id: key_id.clone(),
+                    shards: delta.unsigned_abs(),
                     ..profile("Target")
                 }],
                 StaffRequest::Unaward { key_id, .. }

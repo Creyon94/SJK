@@ -1,3 +1,27 @@
+## Staff page tabs
+
+18/10/2026, `personal/staff-panel-rework`, based on `Sol-Vulpes/SJK` `1c8887f7` (Sol:
+"update and rework a bit the staff panel to manage all that's needed better"): the
+Staff page's three crowded columns became the player list and, for the chosen player,
+the note field over tabs: Overview, Medals and unlocks, Holocrons and credits,
+Achievements, Keys, Logs, then Crashes and Chat bans for every player
+([identity.md](identity.md#staff)). It now offers what the hub allowed staff and the page
+lacked: credits and kyber shards (`StaffRequest::Credits`/`Shards`), Block and Allow
+pictures, Mute and Unmute at the hub, Lift chat bans, and the chat bans in force with
+Lift (`StaffQuery::ChatBans`); the Overview also lists the account's facts and the names
+worn.
+
+Verified on Windows 11: `sjk-identity` tests (the new requests' paths and bodies, the
+chat bans query and answer, the status lines), the page's tests (every tab, every focus,
+a crowded player and full lists fit the canvas at 1080p, 4K, 4:3 and 21:9 in both
+fonts; credits and shards need an amount above 0 and carry the note; the Overview's
+moderation requests; a ban is lifted by its key and an address-only ban is not), and
+the world shot `duel6_sjk_staff` (Overview, Holocrons and credits, Achievements, Chat
+bans, another player's Medals and unlocks, Keys, a merge's confirmation), looked at. Not
+verified: no game was started and nothing reached the deployed hub; `/v1/staff/shards`
+is on the hub's `feat/shop-shards` branch only, so Give and Take shards are refused until
+it is deployed.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

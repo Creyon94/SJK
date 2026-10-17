@@ -1337,8 +1337,9 @@ like this one.",
         });
     }
 
-    /// The Staff page over the live duel6: players found, the player's own medals and
-    /// achievements, another player chosen, and Clear all waiting for its second press.
+    /// The Staff page over the live duel6: players found, the player's own Overview,
+    /// holocrons and credits, achievements and the chat bans, then another player's
+    /// medals and unlocks, keys and a merge waiting for its confirmation.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_sjk_staff() {
@@ -1391,6 +1392,43 @@ like this one.",
                     unlocked: 1_791_336_225,
                 })
                 .collect(),
+            names: vec![
+                sjk_identity::WornName {
+                    name: "^1Sol^7Vulpes".to_owned(),
+                    first_seen: 1_791_250_000,
+                    last_seen: 1_791_336_225,
+                },
+                sjk_identity::WornName {
+                    name: "^3Padawan".to_owned(),
+                    first_seen: 1_791_250_000,
+                    last_seen: 1_791_260_000,
+                },
+            ],
+            credits: 420,
+            shards: 45,
+            holocron_counts: sjk_identity::HolocronCounts {
+                rare: 1,
+                legendary: 1,
+                ..Default::default()
+            },
+            holocrons: vec![
+                sjk_identity::Holocron {
+                    id: 41,
+                    tier: "legendary".to_owned(),
+                    dropped: 1_791_641_100,
+                    source: "staff".to_owned(),
+                    note: String::new(),
+                    opened: None,
+                },
+                sjk_identity::Holocron {
+                    id: 39,
+                    tier: "rare".to_owned(),
+                    dropped: 1_791_600_000,
+                    source: "play".to_owned(),
+                    note: String::new(),
+                    opened: None,
+                },
+            ],
             ..profile("44f3d0b36c9b2510", "^1Sol^7Vulpes")
         };
         let players = vec![
@@ -1417,6 +1455,16 @@ like this one.",
             message: "4 players seen lately".to_owned(),
             failed: false,
             busy: false,
+            chat_bans: vec![sjk_identity::ChatBanRow {
+                id: 3,
+                key_id: "0b1c2d3e4f5a6b7c".to_owned(),
+                name: "Padawan^1Fox".to_owned(),
+                address: true,
+                by_key_id: "9a0c51e2b7d34f80".to_owned(),
+                by_name: "^5Creyon".to_owned(),
+                created: 1_791_720_000,
+                until: 1_791_806_400,
+            }],
             ..sjk_identity::StaffState::default()
         };
         on_big_stack(move || {
@@ -1441,9 +1489,31 @@ like this one.",
                 }
             }
             println!("{}", shoot(&mut gpu, 6, "duel6-staff").display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::Overview);
+            }
+            // The player's own holocrons, credits and shards, an amount typed.
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::Economy);
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-staff-economy").display());
+            // Their achievements in two columns.
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::Achievements);
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 6, "duel6-staff-achievements").display()
+            );
+            // Every chat ban in force.
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::ChatBans);
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-staff-bans").display());
             // Another player, holding the Sun blade: Relock offered, Unlock not.
             if let Some(console) = gpu.console.as_mut() {
                 console.staff_choose("9a0c51e2b7d34f80");
+                console.staff_tab(crate::console::staff_panel::ShotTab::Rewards);
             }
             println!("{}", shoot(&mut gpu, 6, "duel6-staff-other").display());
             // Their keys, one linked, and Fox's key ready to merge in.

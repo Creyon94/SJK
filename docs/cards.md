@@ -136,7 +136,8 @@ Credits are a ledger at the hub (`credit_ledger`: each change with its reason,
 `holocron`, `holocron_buy`, `staff`, and `shop` from before the shop sold for shards, and
 what it refers to); the balance is its sum and never
 goes below 0. Staff correct a balance with `POST /v1/staff/credits` (logged), the
-operator with `give-credits`. The client has no staff control for it yet.
+operator with `give-credits`; the Staff page's Holocrons and credits tab gives and takes
+credits and kyber shards ([identity.md](identity.md#staff)).
 
 ## Shards and the shop
 
@@ -447,8 +448,9 @@ how its art was made; the footer reads "Art: <artist>".
    over one by one, as an opening's cards turn in).
 2. The Cards tab as a binder by set with progress ("Places 7 of 12"), missing cards
    as dark outlines.
-3. Deploying the economy ([Shards and the shop](#shards-and-the-shop)), the Shaders tab's
-   Shatter and Craft, and a staff control for credits and shards on the Staff page.
+3. Deploying the economy ([Shards and the shop](#shards-and-the-shop)) and the Shaders
+   tab's Shatter and Craft. The Staff page's credits and shards control is built
+   (18/10/2026); shards wait for the hub's `/v1/staff/shards`.
 4. Set completion feeding achievements the hub counts.
 
 Suggested first sets, about 20 to 30 cards: Places (planets, the Jedi Academy, the

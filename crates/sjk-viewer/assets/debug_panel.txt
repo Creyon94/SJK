@@ -538,6 +538,19 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[staff-tabs]
+area: Menus & settings
+title: Staff page in tabs, with credits, shards, moderation and chat bans (staff keys only)
+change: Players on the left; the chosen player's note field over tabs, opening on Overview.
+change: Overview: account facts, names worn, Verify, picture and SJK chat moderation.
+change: Credits and shards Give/Take; Chat bans (every player's) lists bans with Lift.
+test: staff: the page opens on your Overview; every tab shows its part and nothing overlaps.
+test: Holocrons and credits on yourself: type 10, Give credits: the balance rises 10.
+test: Take credits more than you hold: the status line says the hub refused.
+test: Give shards: refused until the hub has /v1/staff/shards (feat/shop-shards).
+test: Chat bans: lists bans in force; Lift one: it leaves the list.
+test: Medals and unlocks: Give a medal, Unlock a blade with a note: both show at once.
+
 [alpha-notice]
 area: Menus & settings
 title: Alpha notice at the first start
