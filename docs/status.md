@@ -425,6 +425,21 @@ illegal-profile result, server disable rules, and both Force-menu layouts.
 Formatting, workspace build/tests and all-target clippy passed with existing
 warnings, using a target on a separate volume with incremental compilation off.
 Live FFA server grants and GPU/UI verification have not been performed.
+## Optional private-duel nameplate filter
+
+16/10/2026, `feat/hide-dueller-nameplates` based on `7026c735`: the archived,
+default-off `cg_nameplateHideDuelers` option hides whole plates for server-marked
+private-duel participants, including the local player's optional third-person
+plate. Both settings interfaces expose it under Nameplates. The reference is
+[EJK #12](https://github.com/JediofFreedom/JoF_EJK/pull/12), whose player-label
+filter uses `entityState_t::bolt1`; the local player uses `duelInProgress`.
+A synthetic-snapshot test on Windows exercises the production collection pass:
+default visibility, immediate suppression and restoration, duel completion,
+Power Duel side independence and NPC field reuse. Formatting, locked workspace
+build/tests and Clippy with all targets passed on Windows with Rust 1.99.0
+(existing warnings; GPU/data-dependent tests remain ignored). Missing player entities have no
+duel marker, so sealed pilots' plates remain visible. Live server duel transitions
+and GPU presentation have not been exercised. See [Nameplates](client.md#nameplates).
 
 ## Emotes on stock models: limbs out of wider bodies
 

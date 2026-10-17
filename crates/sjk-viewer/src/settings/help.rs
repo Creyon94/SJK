@@ -329,6 +329,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_nameplateScale", "Size of the nameplate text."),
     (
+        "cg_nameplateHideDuelers",
+        "Hide names, bars and icons on players the server marks as private duellers, including your own plate. Off by default.",
+    ),
+    (
         "cg_nameplateBars",
         "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
     ),
