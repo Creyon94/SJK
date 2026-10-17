@@ -398,6 +398,21 @@ Prediction keeps 512 unacknowledged commands (JoF EJK's `cl_commandsize` ceiling
 1.5 seconds at a gameplay FPS of 333. The flip kick's frame cvars stay EJK's frames
 at 125 FPS, converted to commands at the step in use.
 
+### Reliable command pacing
+
+Stock servers ignore a client command that arrives within `sv_floodProtect` (1000 ms)
+of the last one they ran, without telling the client. SJK therefore releases its
+reliable commands at most one per 1050 ms, in order
+([reliable_pacing.rs](../crates/sjk-client/src/reliable_pacing.rs)), so a burst the
+client makes itself (`userinfo`, `forcechanged`, `team`, menu actions) is never lost.
+What the player sends waits differently (17/10/2026, hub report 73): a bind or console
+command (`amhug`, `vote yes`, `cmd ...`) pressed again while the same one still waits
+is not queued a second time, and one that could not leave within 1.5 seconds is
+dropped, as the server drops a stock client's extras. Pressing a hug bind twenty times
+used to queue twenty hugs, still firing one a second after the player stopped. Chat
+(`say`, `say_team`, `tell`, typed or bound) is not queued twice while identical chat
+waits, but is never dropped: a message is still worth reading late, a late action is not.
+
 ## Parity requirements
 
 Movement includes integer-millisecond user-command quantization. Validate common

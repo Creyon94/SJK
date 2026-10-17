@@ -369,7 +369,10 @@ impl crate::GpuState {
             |console| console.color_chat_command(&command, console_colors),
         );
         if let Some(session) = self.communication_session_mut()
-            && let Err(error) = session.send_reliable_command(command.as_bytes())
+            && let Err(error) = session.send_reliable_command_from(
+                command.as_bytes(),
+                sjk_client::ReliableCommandOrigin::Chat,
+            )
         {
             eprintln!("failed to send chat: {error}");
         }

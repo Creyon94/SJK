@@ -643,7 +643,10 @@ impl super::GpuState {
             Some(InputAction::Vote(yes)) => {
                 let command: &[u8] = if yes { b"vote yes" } else { b"vote no" };
                 if let Some(session) = &mut self.live_session
-                    && let Err(error) = session.send_reliable_command(command)
+                    && let Err(error) = session.send_reliable_command_from(
+                        command,
+                        sjk_client::ReliableCommandOrigin::Input,
+                    )
                 {
                     eprintln!("failed to cast vote: {error}");
                 }
