@@ -1,3 +1,19 @@
+## Community override shader scripts
+
+17/10/2026, `feat/oshader-overrides`, based on `bb83eb28`, Windows x86_64:
+the shared shader catalogue reads installed `shaders/*.oshader` with JoF EJK #138's
+override-before-normal precedence. In the native deterministic path ordering,
+the first override file and first definition win; ordinary `.shader` ordering
+is preserved. Strict loading, recovery, source authority and add-only downloaded
+content share the rule. Source authority still wins when enabled. Four synthetic
+regressions cover precedence, override-only installations, source/download scope
+and malformed-file isolation. All four required workspace checks passed on
+Windows x86_64, Rust 1.99.0, with code revision `782fe997`; existing warnings
+remain. Rend2 `.omtr` companion
+selection and installed community-pack/GPU comparison remain unimplemented or
+unverified respectively. This adds no frame-loop work, renderer setting or wire change.
+See [rendering](rendering.md#community-override-shader-scripts).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

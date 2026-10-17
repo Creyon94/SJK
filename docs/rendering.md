@@ -3463,3 +3463,20 @@ an empty config, an explicit equivalent config and an existing override config.
 Fresh FFA5 and FFA1 scenes rendered successfully. See [status](status.md) for the
 image comparison result and validation limits. No personal config or assets are
 included in the repository.
+
+## Community override shader scripts
+
+The shared shader catalogue reads installed `shaders/*.oshader` files as ordinary
+Quake 3 shader syntax, following JoF EJK #138. Their definitions override `.shader`
+definitions regardless of filename ordering. Among override files the first
+normalized path wins, and the first definition in an override file wins. Normal
+`.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
+share this policy; malformed override scripts still produce diagnostics.
+
+Existing source-authority and downloaded-content restrictions remain in force:
+retail-authority protection wins when enabled (`fs_protectShaders`, on by
+default; changing it requires restart), and downloaded scripts may add new
+shaders but cannot replace installed definitions. This is format support in
+the shared renderer, independent of menu style; no new setting is required.
+Rend2's separate `.omtr` companion selection is not implemented. Installed-map/GPU
+appearance with community override packs remains unverified.
