@@ -120,7 +120,10 @@ pub(crate) fn update(
     hud::tints::update(gpu, view_position, presentation_time, intermission);
     hud::vehicle_feed::sample(gpu, presentation_time);
     let scoreboard = crate::scoreboard::hides_crosshair(gpu, presentation_time);
+    // Plates and logos stay off any open board, classic's included (held or after death).
     let labels_hidden = crate::scoreboard::hides_hud(gpu)
+        || gpu.gameplay_input.held(input::GameButton::Scores)
+        || scoreboard
         || intermission
         || gpu.console.as_ref().is_some_and(|c| {
             !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)

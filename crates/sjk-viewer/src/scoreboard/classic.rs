@@ -605,8 +605,10 @@ impl RowDraw<'_> {
                 line.min(15.0)
             };
             let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                // Just left of the score line (retail's x 32 drifts far from the
+                // row once positions spread on wide screens).
                 rect: Rect::new(
-                    frame.x(32.0),
+                    frame.x(LINE_X - 8.0 - side / frame.spread),
                     frame.y(
                         if row.powerups & (1 << 6) != 0 && self.size == RowSize::Large {
                             y - 8.0

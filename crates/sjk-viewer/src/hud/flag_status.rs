@@ -282,7 +282,9 @@ impl State {
                 });
             }
         }
-        if self.scores_shown() && visibility.hud {
+        // Under the status gate, as JoF's team scores in `CG_DrawHUD`: an open classic
+        // board keeps the HUD but not these plates over its header.
+        if self.scores_shown() && visibility.hud && visibility.status {
             let s = crate::ui_scale::height_scale(h);
             let (plate_w, plate_h, gap) = (130.0 * s, 30.0 * s, 8.0 * s);
             let top = 76.0 * s;
