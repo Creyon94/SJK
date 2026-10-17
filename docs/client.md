@@ -1793,6 +1793,20 @@ keys are drawn muted. Reset defaults restores them. The console's `bind` and
 `unbind` commands are unrestricted. See
 [keybind_editor.rs](../crates/sjk-viewer/src/keybind_editor.rs).
 
+The console can also bind an arbitrary pair of keys as one chord, using the
+JoF EJK syntax `bind K+L kill`. Hold either key and press the other to run the
+chord. The first key's ordinary bind has already run; the chord replaces the
+ordinary bind of the second key. For a chord bound to a `+command`, releasing
+that second key sends its matching `-command`. The order in the command does
+not matter (`K+L` and `L+K` name the same chord); `unbind K+L`, `bind K+L`,
+`bindlist`, `unbindall` and `config.cfg` handle it like any other bind. There
+are at most 256 chords. A literal plus key can be the first key as `++K`.
+
+The settings editor shows an existing chord as one occupied slot and can clear
+or replace it, but captures one physical key at a time. Create a chord in the
+console. This follows JoF EJK commit `b6623f51` (`codemp/client/cl_keys.cpp`),
+including first-match insertion order when several held chords could fire.
+
 ## Development maps
 
 Run `devmap mp/ffa3` in the client console to start and join an owned local
