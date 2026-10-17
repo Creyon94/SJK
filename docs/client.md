@@ -1433,6 +1433,12 @@ is replay-stable but is not the legacy global random stream; repeats remain
 possible. Animation selection, movement, saber timing and network events are
 unchanged. Gameplay event actions remain outside this audio adapter.
 
+Server-injected player sounds are read from authoritative snapshot external
+events even while movement prediction runs. Held events play once, clearing to
+zero rearms them, and switching the followed player seeds its pending event
+without replaying it, following JoF EJK #123. New events after the switch still
+play from the new player. This changes audio latches, not movement or event encoding.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as

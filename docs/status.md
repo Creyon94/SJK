@@ -1,3 +1,18 @@
+## Snapshot external sounds on follow switches
+
+17/10/2026, `fix/snapshot-external-sounds`, based on `bb83eb28`, Windows:
+JoF EJK #123's authoritative-snapshot dispatch/deduplication already exists in
+SJK. The missing follow-view case now seeds the new player's pending external
+event instead of replaying it. Explicit synchronization seeds view identity too.
+Three focused synthetic regressions cover authoritative fall dispatch, held/
+cleared events, view switches and synchronization at 8/7/4/3 ms snapshot steps.
+The three regressions and all four required workspace checks passed on Windows
+x86_64, Rust 1.99.0, code revision `a2d3a2f8` (existing warnings remain).
+These tests do not exercise movement simulation or
+establish live audible/gameplay parity; installed-asset/server comparison remains
+unverified. No wire, animation timing, simulation or UI option changes.
+See [client audio](client.md#animation-sounds-and-voice-variants).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
