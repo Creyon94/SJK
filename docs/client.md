@@ -1433,6 +1433,22 @@ is replay-stable but is not the legacy global random stream; repeats remain
 possible. Animation selection, movement, saber timing and network events are
 unchanged. Gameplay event actions remain outside this audio adapter.
 
+### Force presentation controls
+
+Both menu styles offer **Force animation effects** (`cg_forceAnimFX`, on) for
+Rage, Heal, Quick Heal and Grip-victim puffs. Plugin settings (`cp_pluginDisable`
+bit 5) can also disable them and the combined cyan Protect/Absorb colour; the
+separate green/blue shells remain. The local animation switch leaves the
+Protect/Absorb colour preference and ordinary Push/Grip-caster effects alone.
+
+**Empower glow** (`cg_empowerEffect`) defaults to -1, following the server's
+`jp_empowerEffect`: 0 full body, 1 arms, 2 hands. Set 0/1/2 to override that shape.
+Only Empower-marked body blur is trimmed; ordinary Push stays full body.
+Mindtrick hides Force effects and flamethrower audio from the affected viewer;
+active Sight reveals them. These presentation rules apply independently of menu
+style and do not change Force gameplay or protocol encoding. Installed-asset
+visual/audio comparison remains unverified.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as

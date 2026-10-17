@@ -18,6 +18,9 @@ pub(super) fn submit(
     let Some(effect) = effect else {
         return;
     };
+    if !sinks.force_fx.animation {
+        return;
+    }
     let actor = &sinks.actor_meshes[mesh];
     let origin = Vec3::from_array(transform.translation);
     let rotation = weapon_view::actor_world_rotation(transform.rotation);

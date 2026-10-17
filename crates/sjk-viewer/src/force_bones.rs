@@ -2,7 +2,8 @@
 use glam::Vec3;
 use sjk_model::Gla;
 
-const NAMES: [&str; 8] = [
+/// Reference body-blur joints, shared with the table selecting Empower scopes.
+pub(crate) const PUSH_BONE_NAMES: [&str; 8] = [
     "cranium",
     "lower_lumbar",
     "rhand",
@@ -38,7 +39,7 @@ impl ForceBones {
     /// Resolve names once while loading an actor (cg_players.c:4995-5006).
     pub(crate) fn new(animation: &Gla) -> Self {
         Self {
-            indices: NAMES.map(|name| {
+            indices: PUSH_BONE_NAMES.map(|name| {
                 animation
                     .bones
                     .iter()

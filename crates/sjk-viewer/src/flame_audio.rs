@@ -85,6 +85,9 @@ impl GameAudio {
             voice.seen = false;
         }
         let local = snapshot.player.client_num();
+        let viewer_powers = predicted.map_or(snapshot.player.force_powers_active(), |p| {
+            p.force_powers_active
+        });
         self.flame_actor(
             local,
             Caster::from_player(&snapshot.player, predicted),
@@ -97,7 +100,7 @@ impl GameAudio {
             }
             self.flame_actor(
                 entity.number(),
-                Caster::from_entity(entity, local, snapshot.player.force_powers_active()),
+                Caster::from_entity(entity, local, viewer_powers),
                 entity.trajectory_base(),
                 frame,
             );
@@ -127,7 +130,7 @@ impl GameAudio {
         let Some(voice) = self.flame.voices.get_mut(usize::from(slot)) else {
             return;
         };
-        let active = rule.firing(caster) && audible;
+        let active = flame_audible(rule, caster, audible);
         let cue = voice.advance(active, clock, rule.sound_millis);
         self.flame.any_playing |= active;
         if cue == Cue::Stop {
@@ -196,5 +199,41 @@ mod tests {
                 "rewound clock"
             );
         }
+    }
+}
+
+/// A hidden caster's flamethrower must not advertise its position through audio.
+fn flame_audible(rule: &flame::Contract, caster: Caster, audible: bool) -> bool {
+    rule.firing(caster) && !caster.tricks_viewer && audible
+}
+
+#[cfg(test)]
+mod mindtrick_tests {
+    use super::*;
+    use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS};
+    #[test]
+    fn hidden_flames_stop_and_force_sight_can_resume_them() {
+        let rule = flame::overridden(None, 1).unwrap();
+        let mut entity = EntityState::zero(2, &LEGACY_ENTITY_FIELDS);
+        entity.set_raw_field(19, 1 << 17);
+        entity.set_raw_field(68, 1);
+        entity.set_raw_field(58, 1);
+        let hidden = Caster::from_entity(&entity, 0, 0);
+        let seen = Caster::from_entity(&entity, 0, 1 << 14);
+        assert!(!flame_audible(rule, hidden, true));
+        assert!(flame_audible(rule, seen, true));
+        let mut voice = Voice::default();
+        assert_eq!(
+            voice.advance(flame_audible(rule, seen, true), 1000, rule.sound_millis),
+            Cue::Start
+        );
+        assert_eq!(
+            voice.advance(flame_audible(rule, hidden, true), 1008, rule.sound_millis),
+            Cue::Stop
+        );
+        assert_eq!(
+            voice.advance(flame_audible(rule, seen, true), 1016, rule.sound_millis),
+            Cue::Start
+        );
     }
 }

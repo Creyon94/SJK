@@ -1041,11 +1041,29 @@ inactive animations reset it and backward demo time restarts it.
 
 The local player's body-push blur and Grip hand puffs are hidden in first person
 and zoom, while remote actors keep them. This follows the local visibility intent
-of [JoF #90](https://github.com/JediofFreedom/JoF_EJK/pull/90); that patch's choke
-effect gate has no corresponding live choke visual in SJK yet. Rage/Heal sprays
-and Quick Heal remain animation-driven in every camera mode, as in #58.
+of [JoF #90](https://github.com/JediofFreedom/JoF_EJK/pull/90), including Grip-victim
+puffs. Rage/Heal sprays and Quick Heal remain animation-driven in every camera
+mode, as in #58.
 These presentation rules apply in every UI style and change no Force gameplay,
 movement, animation timing or protocol encoding.
+
+### Force presentation controls
+
+`cg_forceAnimFX` (on) controls animation-driven Rage, Heal, Quick Heal and Grip-victim
+FX in every UI style. `cp_pluginDisable` bit 5 also disables these new effects,
+following EJK #130, and disables the combined cyan Protect/Absorb shell. In that
+case the existing green/blue shells remain available, following #168; Absorb is
+already shown by default in SJK. The local animation switch does not change the
+separate `cg_spProtAbsColor` preference or ordinary Push/Grip-caster effects.
+
+Empower-marked body blur (`EF_EMPOWERED` with `EF_BODYPUSH`) follows the advertised
+`jp_empowerEffect` scope: 0 full body, 1 hands plus radius joints, 2 hands only,
+after #132. `cg_empowerEffect` defaults to -1 (server); 0/1/2 override it. Both
+settings interfaces expose the controls. Ordinary Push always uses the full
+cached joint set. The named contract/scope tables in
+[force_fx_policy.rs](../crates/sjk-viewer/src/force_fx_policy.rs) document the
+reference; missing or unknown modes use full body. No new pose, per-frame
+allocation or wire field is needed. Installed-model/GPU parity remains unverified.
 
 cgame custom shaders on actors (force shells, pickup placeholders) are extra
 instances of the same mesh in [entity_materials.rs](../crates/sjk-viewer/src/entity_materials.rs).
@@ -1183,9 +1201,10 @@ or Grip puffs there while `PW_DISINT_4` is set, and the body push blur for
 `EF_BODYPUSH`. The local player's effects come from its predicted player state,
 since stock rebuilds the local entity from `cg.predictedPlayerState` and the
 server never sends it; in first person they start at the local body's left
-hand, and Grip's puffs are third-person only. A player who mind-tricked the
-viewer still shows its beam and hand puffs, which stock draws before its
-mind-trick cut-off; only the body push blur is hidden for it.
+hand, and Grip's puffs are third-person only. Mindtrick hides these Force effects,
+the animation-driven sprays and the flamethrower stream/audio from the tricked viewer, after EJK #93. Active Force
+Sight defeats that hiding, as it does for the actor. Jetpack visibility/audio
+already uses the same rule. Existing emitted particles retain their normal lifetime.
 
 Grip victim puffs (`cg_gripVictimFX`, archived, default on) follow JoF EJK
 #33 and the later #90 victim path: `BOTH_CHOKE3` on the legs marks a choking

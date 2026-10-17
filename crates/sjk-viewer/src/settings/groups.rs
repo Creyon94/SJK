@@ -281,6 +281,8 @@ impl Group {
                 crate::holstered_sabers::SWAP_CVAR,
                 "cg_holsteredStaffSound",
                 "cg_auraShell",
+                crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+                crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
                 "cg_spProtAbsColor",
                 "cg_shieldSphere",
                 "cg_shieldBrightness",

@@ -25,7 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Rage and healing effects follow players' and NPCs' full-body animations, with chest and hand attachments; your body-push blur stays out of first-person and zoom views. _(lumayaa, after JoF EJK)_
+- Rage, healing and Grip-victim effects follow animation and plugin settings; Mindtrick hides Force effects, and Empower glow follows the server's body/arms/hands choice with a local override. _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

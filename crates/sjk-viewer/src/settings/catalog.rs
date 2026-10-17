@@ -748,6 +748,20 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Force animation effects",
+        cvar: crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Empower glow (-1 server)",
+        cvar: crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        kind: ValueKind::Integer {
+            min: -1,
+            max: crate::actor_world_submission::force_powers::policy::MAX_SCOPE,
+            step: 1,
+        },
+    },
+    Setting {
         label: "Protect+Absorb combo",
         cvar: "cg_spProtAbsColor",
         kind: ValueKind::Bool,

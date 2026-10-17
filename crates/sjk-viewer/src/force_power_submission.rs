@@ -1,5 +1,7 @@
 //! Pose-attached MP force effects, sharing actor matrices and the EFX pool.
 use super::*;
+#[path = "force_fx_policy.rs"]
+pub(crate) mod policy;
 
 #[path = "grip_victim.rs"]
 pub(crate) mod victim;
@@ -171,12 +173,16 @@ pub(crate) struct Selection {
     pub(crate) hand: HandEffect,
 }
 
-/// `CG_Player`'s hand and body effects (EternalJK `cg_players.c:11100-11335`, stock code).
-/// They all come before the "effects that should be visible during mindtrick" line
-/// (`:11351`), so a caster who tricked the viewer still shows them; only
-/// `CG_ForcePushBodyBlur` returns for that caster (`:5433-5441`). Grip's puffs are skipped
-/// for the local player in first person (`:11236-11237`).
+/// JoF EJK #93 hides force effects from a mind-tricked viewer; active Sight
+/// defeats the trick through Caster::from_entity. Local first-person guards remain.
 pub(crate) fn select(caster: Caster, third_person: bool) -> Selection {
+    if caster.tricks_viewer {
+        return Selection {
+            beam: None,
+            body_push: false,
+            hand: HandEffect::None,
+        };
+    }
     let beam = if caster.npc_class == CLASS_VEHICLE {
         None
     } else {
@@ -207,6 +213,9 @@ fn select_for_contract(
     installed: impl Fn(&str) -> bool,
 ) -> Selection {
     let mut selection = select(caster, third_person);
+    if caster.tricks_viewer {
+        return selection;
+    }
     if let Some(rule) = rule.filter(|rule| rule.firing(caster) && installed(rule.stream)) {
         selection.beam = Some(rule.stream);
     }
@@ -238,7 +247,9 @@ pub(super) fn submit(
         sinks.third_person,
         snapshot.player.zoom_mode(),
     );
-    animation::submit(sinks, mesh, number, transform, snapshot, time, now);
+    if !caster.tricks_viewer {
+        animation::submit(sinks, mesh, number, transform, snapshot, time, now);
+    }
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
@@ -286,7 +297,14 @@ pub(super) fn submit(
     }
     let view_left = Vec3::new(-sinks.camera_yaw.sin(), sinks.camera_yaw.cos(), 0.0);
     if selection.body_push && unobstructed {
-        for local in actor.force_bones.origins.iter().flatten() {
+        let points = sinks.force_fx.body_points(caster.e_flags);
+        for (index, local) in actor.force_bones.origins.iter().enumerate() {
+            if points & (1 << index) == 0 {
+                continue;
+            }
+            let Some(local) = local else {
+                continue;
+            };
             let point = origin + rotation * (*local * Vec3::from_array(transform.scale));
             sprites::pair(
                 sinks.particles,
@@ -378,7 +396,9 @@ pub(super) fn submit_confusion(
 
 #[cfg(test)]
 mod tests {
-    use super::{Caster, HandEffect, beam_rotation, body_effect_visible, select};
+    use super::{
+        Caster, HandEffect, beam_rotation, body_effect_visible, flame, select, select_for_contract,
+    };
 
     #[test]
     fn local_body_blur_is_hidden_in_first_person_and_zoom() {
@@ -487,24 +507,44 @@ mod tests {
         assert!(Caster::find(&snapshot, 9, None).is_none());
     }
 
-    /// A trickster's beam and hand puffs stay visible to its victim; only the body push
-    /// blur is hidden (`cg_players.c:5433-5441`, `:11351`).
+    /// EJK #93 hides a trickster's beams, hand puffs and body blur.
     #[test]
-    fn trickster_keeps_beam_but_hides_body_push() {
+    fn trickster_hides_beam_hand_and_body_push() {
         let snapshot = snapshot(local_player(0), vec![remote(5, true)]);
         let selection = select(Caster::find(&snapshot, REMOTE, None).unwrap(), false);
-        assert_eq!(selection.beam, Some("mp/drain"));
-        assert_eq!(selection.hand, HandEffect::Grip);
+        assert_eq!(selection.beam, None);
+        assert_eq!(selection.hand, HandEffect::None);
         assert!(!selection.body_push);
+    }
+
+    #[test]
+    fn a_flame_contract_cannot_bypass_mindtrick_visibility() {
+        let snapshot = snapshot(local_player(0), vec![remote(2, true)]);
+        let mut caster = Caster::find(&snapshot, REMOTE, None).unwrap();
+        caster.e_flags |= 1 << 17;
+        let rule = flame::overridden(None, 1).unwrap();
+        assert!(rule.firing(caster));
+        assert_eq!(
+            select_for_contract(caster, false, Some(rule), |_| true).beam,
+            None
+        );
+        caster.tricks_viewer = false;
+        assert_eq!(
+            select_for_contract(caster, false, Some(rule), |_| true).beam,
+            Some(rule.stream)
+        );
     }
 
     /// The viewer's active Force Sight sees through the trick (`CG_IsMindTricked`).
     #[test]
-    fn force_sight_shows_a_tricksters_body_push() {
+    fn force_sight_reveals_a_tricksters_force_effects() {
         let mut player = local_player(0);
         player.set_raw_field(82, 1 << 14);
-        let snapshot = snapshot(player, vec![remote(0, true)]);
-        assert!(select(Caster::find(&snapshot, REMOTE, None).unwrap(), false).body_push);
+        let snapshot = snapshot(player, vec![remote(2, true)]);
+        let effects = select(Caster::find(&snapshot, REMOTE, None).unwrap(), false);
+        assert!(effects.body_push);
+        assert_eq!(effects.beam, Some("force/lightning"));
+        assert_eq!(effects.hand, HandEffect::Grip);
     }
 
     /// `AngleVectors` forward for Quake pitch (positive down) and yaw, in degrees.
