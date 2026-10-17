@@ -535,3 +535,35 @@ fn duel6_sjk_crate_open() {
         );
     });
 }
+
+/// The opening in other window shapes (4:3 and 21:9): the holocron cracking open in the
+/// clear middle, five strips at rest and the finds laid out, all inside the window.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_crate_open_windows() {
+    on_big_stack(|| {
+        for (size, shape) in [([1440, 1080], "4x3"), ([2560, 1080], "21x9")] {
+            let Some(mut gpu) = open_holocrons(size) else {
+                return;
+            };
+            let mut moments = Vec::new();
+            for (prizes, elapsed, name) in [
+                (vec![Prize::Card(shown(2, 2, 1, 96))], 1.1 - 7.7, "unseal"),
+                (twelve(), 1.7 + 5.5, "batch-rest"),
+                (twelve(), 1.7 + 5.9 * 3.0 + 3.0, "batch-found"),
+            ] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_opening(Some(prizes), elapsed, 3.1);
+                }
+                let path = shoot(&mut gpu, 40, &format!("duel6-open-{shape}-{name}"));
+                assert!(!overflowed(&gpu), "{shape} {name}");
+                println!("{}", path.display());
+                moments.push(image::open(path).expect("the shot").to_rgba8());
+            }
+            println!(
+                "{}",
+                sheet(&moments, 3, 640, &format!("duel6-open-{shape}")).display()
+            );
+        }
+    });
+}
