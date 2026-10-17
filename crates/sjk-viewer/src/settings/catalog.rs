@@ -197,6 +197,16 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Jetpack ignition sound",
+        cvar: crate::jetpack::ON_SOUND_CVAR,
+        kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
+        label: "Jetpack hover sound",
+        cvar: crate::jetpack::HOVER_SOUND_CVAR,
+        kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
         label: "Footsteps",
         cvar: "cg_footsteps",
         kind: ValueKind::Bool,

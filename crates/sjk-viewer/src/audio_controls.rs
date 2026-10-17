@@ -56,6 +56,7 @@ impl GameAudio {
 
     /// Pull the two codemp volume cvars through the existing shell registry.
     pub(crate) fn sync_gains(&mut self, console: Option<&ViewerConsole>) {
+        self.jetpack_sounds = crate::jetpack::sound_options(console);
         self.transitions.hits = console
             .and_then(|c| c.integer_cvar("cg_hitsounds"))
             .unwrap_or(0);
@@ -122,6 +123,15 @@ impl GameAudio {
         self.poll_legacy_load();
         self.output.send(AudioCommand::ClearLoops);
         self.output.send(AudioCommand::CommitLoops);
+    }
+
+    /// Lookup-only jetpack switch using the original choice and corrected attribution.
+    pub(crate) fn play_jetpack_switch(&mut self, ignition: bool, origin: [f32; 3], wearer: u16) {
+        // EJK #87: the actual wearer on CHAN_AUTO, never hardcoded player zero.
+        let (path, request) = self.jetpack_sounds.switch_request(ignition, wearer, origin);
+        if let Some(handle) = self.find_handle(path) {
+            self.output.send(AudioCommand::Play(handle, request));
+        }
     }
 
     /// Lookup-only EFX sound playback; `vfs` remains in the signature so old

@@ -19,11 +19,24 @@ use std::cell::Cell;
 pub(crate) const MODEL: &str = "models/weapons2/jetpack/model.glm";
 /// `cgs.effects.mBobaJet`.
 pub(crate) const EFFECT: &str = "boba/jet";
-/// `cgs.media.jetpackOnSound` (`cg_jetpackOnSound 1`) and `jetpackOffSound`.
-pub(crate) const SOUNDS: [&str; 2] = [
-    "sound/chars/boba/bf_land.mp3",
-    "sound/chars/boba/bf_blast-off.mp3",
-];
+/// Both `cg_jetpackOnSound` choices and the fixed `jetpackOffSound`.
+pub(crate) const SOUNDS: [&str; 3] = sjk_client::LEGACY_JETPACK_SWITCH_SOUNDS;
+pub(crate) const ON_SOUND_CVAR: &str = "cg_jetpackonsound";
+pub(crate) const HOVER_SOUND_CVAR: &str = "cg_jetpackhoversound";
+
+/// Read the shared archived choices once per audio frame, without allocating.
+pub(crate) fn sound_options(
+    console: Option<&crate::console::ViewerConsole>,
+) -> sjk_client::LegacyJetpackSounds {
+    sjk_client::LegacyJetpackSounds::from_cvars(
+        console
+            .and_then(|c| c.integer_cvar(ON_SOUND_CVAR))
+            .unwrap_or(1),
+        console
+            .and_then(|c| c.integer_cvar(HOVER_SOUND_CVAR))
+            .unwrap_or(1),
+    )
+}
 /// The body bolt the pack hangs on.
 const CHEST_BOLT: &str = "*chestg";
 /// The pack's jet bolts, in `G2API_AddBolt` order.
@@ -147,15 +160,6 @@ pub(crate) enum Cue {
     Off,
 }
 
-impl Cue {
-    pub(crate) const fn path(self) -> &'static str {
-        match self {
-            Self::On => SOUNDS[0],
-            Self::Off => SOUNDS[1],
-        }
-    }
-}
-
 impl Sounds {
     /// Advance one entity's pack for a drawn frame: the on sound the first frame its
     /// jets burn, the off sound the first frame after. A pack hidden by a mind trick
@@ -175,6 +179,39 @@ impl Sounds {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sound_choices_are_archived_without_restarting_active_jets() {
+        let root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/parity-reports");
+        std::fs::create_dir_all(&root).unwrap();
+        let profile = tempfile::Builder::new()
+            .prefix("jetpack-sounds-")
+            .tempdir_in(root)
+            .unwrap();
+        let path = profile.path().join("config.cfg");
+        let mut console = crate::console::ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(
+            sound_options(Some(&console)),
+            sjk_client::LegacyJetpackSounds::from_cvars(1, 1)
+        );
+        let mut played = Sounds::default();
+        assert_eq!(played.advance(7, true, true), Some(Cue::On));
+        console.try_set_cvar(ON_SOUND_CVAR, "2").unwrap();
+        console.try_set_cvar(HOVER_SOUND_CVAR, "2").unwrap();
+        assert_eq!(
+            sound_options(Some(&console)),
+            sjk_client::LegacyJetpackSounds::from_cvars(2, 2)
+        );
+        assert_eq!(played.advance(7, true, true), None);
+        console.flush_config();
+        let console = crate::console::ViewerConsole::new(path).unwrap();
+        assert_eq!(
+            sound_options(Some(&console)),
+            sjk_client::LegacyJetpackSounds::from_cvars(2, 2)
+        );
+        assert_eq!(played.advance(7, false, true), Some(Cue::Off));
+    }
 
     #[test]
     fn equip_resolves_the_current_pose_without_waiting_for_upload() {

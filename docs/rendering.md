@@ -1105,8 +1105,8 @@ A player with `EF_JETPACK` wears `models/weapons2/jetpack/model.glm` on the body
 `*chestg` bolt, faded and hidden with a mind trick like a held gun. While
 `EF_JETPACK_ACTIVE` is set, `effects/boba/jet` plays at the pack's `torso_ljet` and
 `torso_rjet` bolts on the 8 ms effect cadence (twice each with `EF_JETPACK_FLAMING`),
-`bf_land` sounds when the jets start and `bf_blast-off` when they stop, and the
-`jethover` loop (plus `fire_lp` while flaming) joins the frame's loops
+the selected ignition sounds when the jets start and `bf_blast-off` when they
+stop, and the selected hover loop (plus `fire_lp` while flaming) joins the frame's loops
 ([jetpack.rs](../crates/sjk-viewer/src/jetpack.rs),
 [jetpack_submission.rs](../crates/sjk-viewer/src/jetpack_submission.rs),
 `cg_players.c:11843-11935`). A player who mind-tricks you shows no flames and makes no
@@ -1117,6 +1117,15 @@ pose is already identity; personal replacement packs may omit its flame bolts.
 Flight prediction now implements the equipped `PM_JETPACK` path described in
 [networking.md](networking.md#equipped-jetpack-prediction). In first person the
 pack remains hidden with the body, as in the reference.
+
+JoF EJK #43's `cg_jetpackOnSound` and `cg_jetpackHoverSound` (both default 1)
+select `bf_land`/`jeton` and `jethover`/`bf_jetpack_lp` respectively. The named
+asset tables and integer-choice semantics live in
+[jetpack_sounds.rs](../crates/sjk-client/src/jetpack_sounds.rs); both hover
+samples are registered at load, with fixed-capacity loop selection per frame.
+Start/stop use the actual wearer's source on `CHAN_AUTO`, following EJK #87,
+with normal positional falloff. The shared settings expose both choices in
+SJK and classic menus; see [client](client.md#jetpack-sounds).
 
 `EV_PLAYER_TELEPORT_IN/OUT` play `mp/spawn`, and `EV_BECOME_JEDIMASTER` plays
 `mp/jedispawn`, where the player's box (mins z -16, maxs z 40) lands when dropped up to

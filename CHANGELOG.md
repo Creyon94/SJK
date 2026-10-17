@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Jetpack ignition and hover sound choices match JoF EJK, with both sound selectors in SJK and classic settings and corrected positional start/stop playback _(Sol, after JoF EJK)_
+
 ## 2026.1017.1 (Alpha) | 17/10/2026
 
 Holocrons keep dropping, but opening them, the shop and the shards stay closed to players for now: the SJK hub turns them on later.

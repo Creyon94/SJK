@@ -36,13 +36,10 @@ pub(super) fn submit(sinks: &mut Sinks<'_>, body: Body, time: i32, now: Instant)
     if let Some(cue) = cue
         && let Some(audio) = sinks.game_audio.as_mut()
     {
-        // `CHAN_LOCAL` at the player's origin.
-        audio.play_on_channel(
-            cue.path(),
-            1.0,
+        audio.play_jetpack_switch(
+            cue == crate::jetpack::Cue::On,
             origin.to_array(),
-            sjk_audio::SourceId(u32::from(body.number)),
-            sjk_audio::ChannelId(1),
+            body.number,
         );
     }
     let Some(chest) = chest else {

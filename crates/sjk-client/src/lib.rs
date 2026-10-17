@@ -47,9 +47,13 @@ mod join_bootstrap;
 mod join_session;
 mod lagometer;
 use sjk_game_jka::legacy_animation;
+mod jetpack_sounds;
 mod legacy_text;
 mod local_sounds;
 mod loop_sounds;
+pub use jetpack_sounds::{
+    LEGACY_JETPACK_HOVER_SOUNDS, LEGACY_JETPACK_SWITCH_SOUNDS, LegacyJetpackSounds,
+};
 mod maintained_sounds;
 mod map_effects;
 mod match_info;

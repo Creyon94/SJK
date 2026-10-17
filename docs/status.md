@@ -1,3 +1,23 @@
+## JoF EJK jetpack sound choices
+
+17/10/2026, `feat/jof-jetpack-sounds-upstream`, based on `Sol-Vulpes/SJK`
+`94b1d1ce`: implemented JoF EJK #43's archived ignition/hover selectors, both
+default 1, with the original integer branches and sound paths. Shutdown is
+fixed; the flaming fire loop is independent. Both menu styles expose the
+choices. Start/stop now use #87's `CHAN_AUTO`, retaining the wearer's actual
+source and position. See [client](client.md#jetpack-sounds) and
+[rendering](rendering.md).
+
+Workspace fmt/build/test/clippy checks passed on Windows x86_64, Rust 1.99.0.
+Four focused regressions pin integer/default choices, fixed shutdown,
+source/channel/position, live local/remote hover selection, independent fire,
+retained loop storage and archived preferences without restarting active jets;
+the existing jetpack tests pass too. Source evidence is EJK `codemp/cgame` at
+#43 merge `364c5ff1` and #87 merge `c3e2331f`. Live listening and jetpack
+reproduction were not exercised; game assets are not configured for the
+ignored installed-assets/GPU check. These checks do not establish audible or
+gameplay parity, or populated-match performance.
+
 ## One Russian letter in chat
 
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a

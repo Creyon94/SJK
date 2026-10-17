@@ -401,6 +401,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Retail sample-rate preset (11/22/44); SJK always mixes at 44.1 kHz",
         ),
         CvarDefinition::new("s_doppler", true, archive, "Legacy looping-sound Doppler"),
+        CvarDefinition::new(
+            crate::jetpack::ON_SOUND_CVAR,
+            1_i64,
+            archive,
+            "Jetpack ignition sound: 1 default, 2 alternate",
+        ),
+        CvarDefinition::new(
+            crate::jetpack::HOVER_SOUND_CVAR,
+            1_i64,
+            archive,
+            "Jetpack hover sound: 1 default, 2 alternate",
+        ),
         CvarDefinition::new("cg_footsteps", true, archive, "Play footstep sounds"),
         CvarDefinition::new(
             crate::footprints::PRINTS_CVAR,
