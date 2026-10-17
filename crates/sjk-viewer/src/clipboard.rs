@@ -1,6 +1,6 @@
-//! The system clipboard, through the desktop's own tools: text out for `viewpos` and `mark`,
-//! text in for the console's Ctrl+V. winit has no clipboard and this is a console
-//! convenience, not a frame path: a missing tool only means nothing is copied or pasted.
+//! The system clipboard: text out for `viewpos` and `mark`, text in for Ctrl+V. Linux
+//! reaches X11 or Wayland directly and keeps the clipboard owner alive; desktop tools
+//! remain fallbacks. This is an explicit editing action, not a frame path.
 //!
 //! On Windows the clipboard is read and set directly (`clipboard-win`): Ctrl+V waited for
 //! a PowerShell to start, about a quarter of a second in the middle of play (the
@@ -156,6 +156,10 @@ const PASTE: [PasteTool; 5] = [
 /// the copy is reported as done and the tool is left pending (see [`PENDING_COPY`]). This
 /// is a wait on the calling (UI) thread, taken only for an explicit copy.
 const COPY_WAIT: Duration = Duration::from_millis(1500);
+/// Long enough for a selection owner to reject an unusable display before its successful
+/// long-running service is accepted. In particular, `wl-copy` can be installed in an X11
+/// session and exit immediately because there is no Wayland display.
+const COPY_START_WAIT: Duration = Duration::from_millis(50);
 /// The most a paste waits for a copy that outlived [`COPY_WAIT`].
 const PASTE_WAIT: Duration = Duration::from_millis(1000);
 /// How often a wait looks at the child.
@@ -163,6 +167,11 @@ const POLL: Duration = Duration::from_millis(5);
 
 /// The last copy that was still setting the clipboard when its wait ran out.
 static PENDING_COPY: Mutex<Option<Child>> = Mutex::new(None);
+
+/// Linux owns the clipboard selection while this object lives. Dropping it immediately
+/// after a copy can make that text disappear before another application asks for it.
+#[cfg(target_os = "linux")]
+static NATIVE_CLIPBOARD: Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
 
 impl CopyTool {
     /// Whether this tool can carry `text`: the environment holds neither NUL nor more than
@@ -187,10 +196,44 @@ pub(crate) fn copy(text: &str) -> bool {
     if clipboard_win::set_clipboard_string(text).is_ok() {
         return true;
     }
+    #[cfg(target_os = "linux")]
+    if native_copy(text) {
+        return true;
+    }
     let deadline = Instant::now() + COPY_WAIT;
     COPY.iter()
+        .filter(|tool| display_allows(tool.argv[0]))
         .filter(|tool| tool.accepts(text))
         .any(|tool| run_copy(tool, text, deadline))
+}
+
+/// Put text on the Linux clipboard while retaining selection ownership. Initialization
+/// can fail before a desktop session exists, so a later call is allowed to try again.
+#[cfg(target_os = "linux")]
+fn native_copy(text: &str) -> bool {
+    let Ok(mut slot) = NATIVE_CLIPBOARD.lock() else {
+        return false;
+    };
+    if slot.is_none() {
+        *slot = arboard::Clipboard::new().ok();
+    }
+    slot.as_mut()
+        .is_some_and(|clipboard| clipboard.set_text(text).is_ok())
+}
+
+/// Whether the desktop session can host `tool`. Installed Wayland tools must not mask
+/// working X11 tools (or vice versa) merely because their executable can be started.
+fn display_allows(tool: &str) -> bool {
+    let present = |name| std::env::var_os(name).is_some_and(|value| !value.is_empty());
+    display_allows_with(tool, present("WAYLAND_DISPLAY"), present("DISPLAY"))
+}
+
+fn display_allows_with(tool: &str, wayland: bool, x11: bool) -> bool {
+    match tool {
+        "wl-copy" | "wl-paste" => wayland,
+        "xclip" => x11,
+        _ => true,
+    }
 }
 
 /// Run one copy tool; whether it took the text (or, past `deadline`, may still).
@@ -219,7 +262,10 @@ fn run_copy(tool: &CopyTool, text: &str, deadline: Instant) -> bool {
         }
     }
     if !tool.exits {
-        return true;
+        // A selection owner normally keeps serving or forks and exits successfully. Give
+        // an unusable backend a moment to exit non-zero so the next tool is tried.
+        return wait_until(&mut child, deadline.min(Instant::now() + COPY_START_WAIT))
+            .unwrap_or(true);
     }
     match wait_until(&mut child, deadline) {
         Some(success) => success,
@@ -279,21 +325,38 @@ pub(crate) fn paste() -> Option<String> {
     if cfg!(windows) {
         return direct_paste();
     }
-    PASTE.iter().find_map(|tool| {
-        let output = Command::new(tool.argv[0])
-            .args(&tool.argv[1..])
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .output()
-            .ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        match tool.decode {
-            Decode::Utf8 => Some(pasted_text(&output.stdout)),
-            Decode::CodeUnits => decode_code_units(&output.stdout),
-        }
-    })
+    #[cfg(target_os = "linux")]
+    if let Some(text) = native_paste() {
+        return Some(text);
+    }
+    PASTE
+        .iter()
+        .filter(|tool| display_allows(tool.argv[0]))
+        .find_map(|tool| {
+            let output = Command::new(tool.argv[0])
+                .args(&tool.argv[1..])
+                .stdin(Stdio::null())
+                .stderr(Stdio::null())
+                .output()
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            match tool.decode {
+                Decode::Utf8 => Some(pasted_text(&output.stdout)),
+                Decode::CodeUnits => decode_code_units(&output.stdout),
+            }
+        })
+}
+
+/// Read UTF-8 text directly from the Linux desktop, if its clipboard backend is ready.
+#[cfg(target_os = "linux")]
+fn native_paste() -> Option<String> {
+    let mut slot = NATIVE_CLIPBOARD.lock().ok()?;
+    if slot.is_none() {
+        *slot = arboard::Clipboard::new().ok();
+    }
+    slot.as_mut()?.get_text().ok()
 }
 
 #[cfg(windows)]
@@ -403,6 +466,17 @@ mod tests {
             PASTE.last().map(|tool| tool.decode),
             Some(Decode::CodeUnits)
         );
+    }
+
+    #[test]
+    fn clipboard_tools_match_the_desktop_session() {
+        assert!(display_allows_with("wl-copy", true, false));
+        assert!(!display_allows_with("wl-copy", false, true));
+        assert!(display_allows_with("wl-paste", true, false));
+        assert!(!display_allows_with("wl-paste", false, true));
+        assert!(display_allows_with("xclip", false, true));
+        assert!(!display_allows_with("xclip", true, false));
+        assert!(display_allows_with("pbcopy", false, false));
     }
 
     /// Round trip through the real clipboard, so it replaces whatever text is there:

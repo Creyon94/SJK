@@ -1,3 +1,17 @@
+## Clipboard backend follows the desktop session
+
+17/10/2026, `fix/text-field-copy-clipboard`: Linux copy and paste first use the native
+X11 or Wayland data-control clipboard without requiring `xclip` or `wl-clipboard`,
+retaining selection ownership for as long as the client runs. The external tools remain
+fallbacks: SJK skips `wl-copy`/`wl-paste` without a Wayland display and `xclip` without
+an X11 display, and gives a selection owner 50 ms to report an immediate startup failure
+before accepting it. Console copy notices now claim success only after the clipboard
+accepted the text, and a failed cut keeps its selection. Six focused clipboard tests
+passed (the destructive real-clipboard round trip stayed ignored), as did formatting,
+the locked workspace build and tests, full-workspace Clippy, and release builds of the
+client and dedicated server. Existing warnings remain. The real X11/Wayland clipboard
+and the in-game interaction have not been tried.
+
 ## SJK chat messages up to 300 characters
 
 16/10/2026, `personal/chat-300` (Sol's request), with the hub's `chat-300` (deployed

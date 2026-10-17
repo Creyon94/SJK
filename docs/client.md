@@ -4273,6 +4273,13 @@ copied symbols such as `€`, `’` or `×` keep their characters, including und
 PowerShell's Constrained Language Mode (with `clip` as a last resort for copy). A
 copy waits up to 1.5 s for the tool to finish and reports failure if it fails; a
 paste waits for a copy still being set.
+On Linux, SJK first reads and owns the X11 or Wayland clipboard directly. X11 and
+Wayland compositors exposing the data-control protocol therefore need neither
+`xclip` nor `wl-clipboard`; XWayland covers common remaining Wayland sessions. Those
+desktop tools remain fallbacks: `wl-copy`/`wl-paste` are used only in a Wayland
+session and `xclip` only with an X11 display. An installed tool for the other desktop
+type is skipped, and an immediate startup failure falls through to the next clipboard
+backend. Copy notices are shown only after a backend accepts the text.
 See [console_editing.rs](../crates/sjk-viewer/src/console_editing.rs) and
 [console_selection.rs](../crates/sjk-viewer/src/console_selection.rs). The input
 line and output rows are drawn and measured on the console's character grid

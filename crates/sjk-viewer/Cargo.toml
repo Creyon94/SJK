@@ -66,6 +66,12 @@ mod-jof = ["dep:sjk-mod-jof", "dep:sjk-jof-content"]
 # took about a quarter of a second, a hitch in the middle of play.
 clipboard-win = "5.4.0"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Text copy and paste without requiring players to install xclip or wl-clipboard. Keep
+# Wayland's data-control backend alongside X11; the command-line tools remain fallbacks
+# for compositors where the native backend is unavailable.
+arboard = { version = "3.7.0", default-features = false, features = ["wayland-data-control"] }
+
 [build-dependencies]
 # Windows icon and version resource; the build script uses it only for Windows targets.
 winresource = { version = "0.1.31", default-features = false }
