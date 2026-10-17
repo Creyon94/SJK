@@ -1,3 +1,17 @@
+## Expanded Siege content catalogues
+
+17/10/2026, `fix/siege-catalog-limits`, based on `bb83eb28`, Windows:
+EJK #253's 1024 class-file and 256 team-file capacities replace the native
+128-class limit. Theme slots are separately bounded to 16, including the last
+slot and missing references; a gap ends the sequential list. The client selector
+uses the same global/per-theme constants in both UI styles. All bounds remain
+in the compatibility parsers with owned vectors; protocol fields and gameplay
+rules are unchanged. Three synthetic catalogue/boundary and selector regressions
+passed; workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed custom Siege packs, live class/team
+selection and match parity remain unverified.
+See [server content limits](server.md#siege-class-catalogues).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
