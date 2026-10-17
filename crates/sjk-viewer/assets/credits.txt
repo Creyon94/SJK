@@ -47,6 +47,7 @@ did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocro
 did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits (in testing)
 did: The loot table: every chance a holocron brings
 did: Holocrons open like a loot crate: the holocron cracks open, a strip runs to the prize
+did: Every saber shader drops from holocrons, except the ones medals bring
 did: Grand finds told in SJK chat: who opened a holocron and got a grand prize
 did: Hover cards: how every collected thing is obtained
 did: Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage

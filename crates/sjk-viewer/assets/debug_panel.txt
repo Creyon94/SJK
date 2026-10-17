@@ -631,6 +631,16 @@ test: Collection > Cards before opening any: 'No cards yet' and an empty outline
 test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
 note: The hub's opening is deployed (12/10/2026).
 
+[more-droppable]
+area: Menus & settings
+title: Every saber shader drops from holocrons, except the ones medals bring
+change: 48 of the 51 shaders can drop; Glitch, Hologram and Runic stay with their medals.
+change: How to get it reads 'Found in holocrons, or given by the SJK team.' for those 48.
+test: Holocrons tab, Loot table: the shader rows read the same odds as before.
+test: debug_open mythical shader: the strip shows Sun, Void, Molten or Spectral among the tiles.
+test: Collection > Shaders: Sun's 'How to get it' (with debug_collectibles 0) says holocrons.
+note: Needs the hub's feat/more-droppable deployed before any player gets the new drops.
+
 [crate-open]
 area: Menus & settings
 title: Holocrons open like a loot crate: the holocron cracks open, a strip runs to the prize

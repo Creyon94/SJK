@@ -281,12 +281,12 @@ mod tests {
                 .iter()
                 .any(|(item, _)| matches!(item, Item::Shader(s) if s.id == "saber_tidal"))
         );
-        // Nothing the holocrons never drop, whatever the tier: the team's shaders.
+        // Nothing the holocrons never drop, whatever the tier: a medal's shader.
         for tier in 0..COUNT {
             assert!(
                 !pool(tier)
                     .iter()
-                    .any(|(item, _)| matches!(item, Item::Shader(s) if s.id == "saber_sun"))
+                    .any(|(item, _)| matches!(item, Item::Shader(s) if s.id == "saber_glitch"))
             );
         }
     }

@@ -37,7 +37,7 @@ fifteen choices no longer fit. Seen in off-screen GPU renders on duel6 (world sh
 | --- | --- |
 | Who sees a look | Every SJK player on the same game server, through the hub. |
 | Who may wear an unlockable | Only a key the hub lists it for. The hub refuses to relay a look whose blade skin the key does not own (`not_unlocked`). |
-| How one is unlocked | The hub operator or staff grant it by hand (Staff page, operator command), and since 10/10/2026 a medal brings one while held: Bug Hunter the Glitch, Early Tester the Hologram, Early Contributor the Runic blade ([Medal shaders](#medal-shaders)). Achievements granting them are an idea for later, with harder goals than today's; holocrons dropping them are parked until Sol decides the pool and odds. |
+| How one is unlocked | The hub operator or staff grant it by hand (Staff page, operator command), and since 10/10/2026 a medal brings one while held: Bug Hunter the Glitch, Early Tester the Hologram, Early Contributor the Runic blade ([Medal shaders](#medal-shaders)). Achievements granting them are an idea for later, with harder goals than today's. Since 17/10/2026 holocrons drop every shader but the medals' ([Holocron shader drops](#holocron-shader-drops)). |
 | How a look travels | Stored on the key's live claim, listed in presence for players who arrive later, and sent through the feed as a live event when it changes. |
 | Illuminate | Free for everyone, a toy (`toy_illuminate`); its lit state is part of the look so others see the holocron. |
 | Toys in the look | Since 16/10/2026 a look lists the toys out that others draw (`toys`, ids; the [cardboard box](client.md#cardboard-box)'s is `cardboard_box`, [Order 66](client.md#order-66)'s `order66`), sent only when one is out, so older hubs see the look they know. A client draws the toys it knows (`looks::TOYS`) and ignores the rest. Free for everyone, like Illuminate. |
@@ -59,57 +59,57 @@ meaning.
 
 | Id | Name | Kind | How to get it |
 | --- | --- | --- | --- |
-| `saber_sun` | Sun blade | blade skin | Given by the SJK team. |
-| `saber_storm` | Storm blade | blade skin | Given by the SJK team. |
-| `saber_void` | Void blade | blade skin | Given by the SJK team. |
-| `saber_frost` | Frost blade | blade skin | Given by the SJK team. |
-| `saber_prism` | Prism blade | blade skin | Given by the SJK team. |
-| `saber_unstable` | Unstable blade | blade skin | Given by the SJK team. |
-| `saber_molten` | Molten blade | blade skin | Given by the SJK team. |
-| `saber_spectral` | Spectral blade | blade skin | Given by the SJK team. |
+| `saber_sun` | Sun blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_storm` | Storm blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_void` | Void blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_frost` | Frost blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_prism` | Prism blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_unstable` | Unstable blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_molten` | Molten blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_spectral` | Spectral blade | blade skin | Found in holocrons, or given by the SJK team. |
 | `saber_glitch` | Glitch blade | blade skin | Comes with the Bug Hunter medal, for as long as you hold it. |
 | `saber_hologram` | Hologram blade | blade skin | Comes with the Early Tester medal, for as long as you hold it. |
 | `saber_runic` | Runic blade | blade skin | Comes with the Early Contributor medal, for as long as you hold it. |
-| `saber_chameleon` | Chameleon blade | blade skin | Given by the SJK team. |
-| `saber_banner` | Banner blade | blade skin | Given by the SJK team. |
-| `saber_heartbeat` | Heartbeat blade | blade skin | Given by the SJK team. |
-| `saber_tidal` | Tidal blade | blade skin | Given by the SJK team. |
-| `saber_circuit` | Circuit blade | blade skin | Given by the SJK team. |
-| `saber_aurora` | Aurora blade | blade skin | Given by the SJK team. |
-| `saber_echo` | Echo blade | blade skin | Given by the SJK team. |
-| `saber_nebula` | Nebula blade | blade skin | Given by the SJK team. |
-| `saber_cinder` | Cinder blade | blade skin | Given by the SJK team. |
-| `saber_venom` | Venom blade | blade skin | Given by the SJK team. |
-| `saber_sakura` | Sakura blade | blade skin | Given by the SJK team. |
-| `saber_firefly` | Firefly blade | blade skin | Given by the SJK team. |
-| `saber_slate` | Slate blade | blade skin | Given by the SJK team. |
-| `saber_amber` | Amber blade | blade skin | Given by the SJK team. |
-| `saber_lilac` | Lilac blade | blade skin | Given by the SJK team. |
-| `saber_mint` | Mint blade | blade skin | Given by the SJK team. |
-| `saber_coral` | Coral blade | blade skin | Given by the SJK team. |
-| `saber_ivory` | Ivory blade | blade skin | Given by the SJK team. |
-| `saber_glacier` | Glacier blade | blade skin | Given by the SJK team. |
-| `saber_dusk` | Dusk blade | blade skin | Given by the SJK team. |
-| `saber_ruby` | Ruby blade | blade skin | Given by the SJK team. |
-| `saber_amethyst` | Amethyst blade | blade skin | Given by the SJK team. |
-| `saber_jade` | Jade blade | blade skin | Given by the SJK team. |
-| `saber_moonlight` | Moonlight blade | blade skin | Given by the SJK team. |
-| `saber_neon` | Neon blade | blade skin | Given by the SJK team. |
-| `saber_peppermint` | Peppermint blade | blade skin | Given by the SJK team. |
-| `saber_bubble` | Soap Bubble blade | blade skin | Given by the SJK team. |
-| `saber_lavalamp` | Lava Lamp blade | blade skin | Given by the SJK team. |
-| `saber_reactor` | Reactor blade | blade skin | Given by the SJK team. |
-| `saber_bleeding` | Bleeding Kyber blade | blade skin | Given by the SJK team. |
-| `saber_sketch` | Sketch blade | blade skin | Given by the SJK team. |
-| `saber_hourglass` | Hourglass blade | blade skin | Given by the SJK team. |
-| `saber_fiber` | Fiber Optic blade | blade skin | Given by the SJK team. |
-| `saber_serpent` | Serpent blade | blade skin | Given by the SJK team. |
-| `saber_monarch` | Monarch blade | blade skin | Given by the SJK team. |
-| `saber_phoenix` | Phoenix blade | blade skin | Given by the SJK team. |
-| `saber_quantum` | Quantum blade | blade skin | Given by the SJK team. |
-| `saber_comic` | Comic blade | blade skin | Given by the SJK team. |
-| `saber_quicksilver` | Quicksilver blade | blade skin | Given by the SJK team. |
-| `saber_obsidian` | Obsidian Edge blade | blade skin | Given by the SJK team. |
+| `saber_chameleon` | Chameleon blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_banner` | Banner blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_heartbeat` | Heartbeat blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_tidal` | Tidal blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_circuit` | Circuit blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_aurora` | Aurora blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_echo` | Echo blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_nebula` | Nebula blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_cinder` | Cinder blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_venom` | Venom blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_sakura` | Sakura blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_firefly` | Firefly blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_slate` | Slate blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_amber` | Amber blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_lilac` | Lilac blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_mint` | Mint blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_coral` | Coral blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_ivory` | Ivory blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_glacier` | Glacier blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_dusk` | Dusk blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_ruby` | Ruby blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_amethyst` | Amethyst blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_jade` | Jade blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_moonlight` | Moonlight blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_neon` | Neon blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_peppermint` | Peppermint blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_bubble` | Soap Bubble blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_lavalamp` | Lava Lamp blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_reactor` | Reactor blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_bleeding` | Bleeding Kyber blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_sketch` | Sketch blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_hourglass` | Hourglass blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_fiber` | Fiber Optic blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_serpent` | Serpent blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_monarch` | Monarch blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_phoenix` | Phoenix blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_quantum` | Quantum blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_comic` | Comic blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_quicksilver` | Quicksilver blade | blade skin | Found in holocrons, or given by the SJK team. |
+| `saber_obsidian` | Obsidian Edge blade | blade skin | Found in holocrons, or given by the SJK team. |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -502,8 +502,8 @@ holocron look alike:
 | Uncommon | Nebula, Cinder, Venom, Sakura, Firefly, Glacier, Dusk, Ruby, Amethyst, Jade, Moonlight, Neon, Peppermint |
 
 Sol placed eleven; Prism, Glitch and Banner are placed provisionally until Sol says
-otherwise. The tier is the client catalogue's only: the hub does not need it yet (it
-will when holocrons drop shaders, [Planned](#planned-not-built)).
+otherwise. The hub keeps the same tiers (`UnlockKind::tier`) for its loot table
+([Holocron shader drops](#holocron-shader-drops)).
 
 - Lists: the Collection's Shaders tab and the Saber tab's Blade row list the rarest
   first, then in catalogue order within a tier (`unlockables::blade_skins_by_tier`),
@@ -954,11 +954,20 @@ profile's unlocks carry `count` ([wire.rs](../crates/sjk-identity/src/wire.rs)
 `Unlock::count`, 1 from older hubs). Opening a holocron rolls its kind first: a card with
 credits as before, or a shader with no credits and no card (`Opened::unlock`,
 `Opened::card` is then `None`); the shader's tier is rolled next and a droppable shader of
-it picked (the nine plain ones today; the hub's `src/loot.rs` and `PROTOCOL.md` have the
-provisional odds). The client takes the new answer but has no ceremony for a shader yet:
+it picked (the hub's `src/loot.rs` and `PROTOCOL.md` have the provisional odds). The client takes the new answer but has no ceremony for a shader yet:
 an opening that held only shaders says "You found Tidal blade (2 held)." in the pop-up's
 refusal line, and the Collection lists the shader; the crate-style opening comes next.
 Opening is still staff-only. Checked by unit tests on both sides; not in the game.
+
+**What drops** (Sol's rule, 17/10/2026; branch `personal/more-droppable` and hub
+`feat/more-droppable`): every saber shader but those a medal or an achievement brings, so
+today all but Glitch, Hologram and Runic. That makes 48 of the 51 droppable: Common 10,
+Uncommon 13, Rare 6 (3 before), Legendary 8 (4 before) and Mythical 11 (7 before: Sun,
+Void, Molten and Spectral join). Each catalogue entry keeps its `droppable` flag (the
+client's `Unlockable::droppable`, the hub's `UnlockKind::droppable`), so another shader
+could still be kept out; a test on each side pins the rule today (`droppable` exactly when
+no medal brings it), and the droppable shaders' "How to get it" reads "Found in holocrons,
+or given by the SJK team."
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
