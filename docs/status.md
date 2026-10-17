@@ -1,3 +1,18 @@
+## Consistent player-texture remap filtering
+
+17/10/2026, `fix/player-remap-filter`, based on `bb83eb28`, Windows:
+EJK #297's `cg_remaps 1` policy now excludes player-texture sources from
+reliable server commands as well as configstrings, matching the shared
+Not players setting. The default mode 2 still accepts both sources, and
+worldspawn/local remaps remain independent. Ignored player commands do not
+change the filtered table's shared destination time offsets. Command parsing
+and wire decoding are unchanged. Six focused remap tests passed, including
+the updated command filter and new shared-phase/prefix regression; workspace
+fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed-scene/GPU and live-server remap
+comparison remain unverified. See [remap controls](client.md#shader-remap-controls)
+and [renderer policy](rendering.md#server-shader-remaps).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
@@ -6013,8 +6028,9 @@ and tests passed. Not run in the client: the item on that map is unverified.
 Local changes on `dc36792`, verified on Linux/RADV on 2026-10-05, add initial and
 live multiplayer shader-state consumption, reliable `remapShader` commands,
 demo playback support, destination animation offsets and Tayst-style controls.
-`cg_remaps` defaults to 1 (exclude player-texture configstring remaps); 0 disables
-server remaps and 2 includes player textures. The setting applies live.
+The current `cg_remaps` default is 2 (all server remaps); 0 disables them and
+1 excludes player-texture sources from configstrings and reliable commands
+(after EJK #297). The setting applies live.
 `listRemaps` and temporary local `remapShader` overrides are available.
 See [rendering scope and limitations](rendering.md#server-shader-remaps).
 

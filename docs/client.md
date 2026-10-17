@@ -4899,9 +4899,10 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
 ## Shader remap controls
 
 Server map recolors and material replacements are enabled by default. SJK
-defaults to `cg_remaps 2`, EternalJK's default, which includes player-texture
-configstring remaps; `cg_remaps 1` is TaystJK's default policy
-excluding them, and `cg_remaps 0` disables server remaps.
+defaults to `cg_remaps 2`, EternalJK's default, which includes player textures.
+`cg_remaps 1` excludes `models/players/` sources from both configstrings and
+reliable server commands, after JoF EJK #297; `cg_remaps 0` disables server
+remaps. Worldspawn and your explicit local console remaps remain independent.
 Settings > GAME > "Shader remaps" sets the same cvar and applies at once.
 `cg_remapsBlockedMaps` lists maps where server remaps are ignored, as with
 `cg_remaps 0` on those maps only: map names separated by spaces, commas or
