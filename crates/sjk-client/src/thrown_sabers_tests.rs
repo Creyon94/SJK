@@ -81,6 +81,11 @@ fn an_npc_thrown_saber_takes_its_npc_saber_and_packed_colour() {
     );
     assert!(thrown.in_flight);
     assert!(!thrown.returning);
+    assert!(!thrown.definition_color);
+    // Without an override the hilt's `.sab` colour applies.
+    let snapshot = self::snapshot(vec![npc(120, 0), thrown_saber(300, 120, true)]);
+    let sabers = LegacyThrownSabers::new(&snapshot, &game);
+    assert!(sabers.get(300).unwrap().definition_color);
 }
 
 #[test]

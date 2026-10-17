@@ -215,7 +215,8 @@ pub use muzzle_effects::{
     legacy_muzzle_effect, legacy_muzzle_window,
 };
 pub use npc_identity::{
-    legacy_npc_appearance, legacy_npc_body_model, legacy_npc_saber_names,
+    legacy_npc_appearance, legacy_npc_body_model, legacy_npc_definition_rgb,
+    legacy_npc_primary_saber_missing, legacy_npc_saber_color_overrides, legacy_npc_saber_names,
     legacy_npc_saber_names_borrowed, legacy_npc_state, legacy_vehicle_name,
 };
 pub use obituary::{

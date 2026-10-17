@@ -20,6 +20,8 @@ pub(crate) struct Definition {
     /// Authored no-light flag, preserved for hilt light submission.
     pub(crate) no_dlight: bool,
     pub(crate) no_wall_marks: bool,
+    /// `saberColor`, which an NPC's blade without a colour override wears.
+    pub(crate) default_color: sjk_client::LegacySaberColor,
 }
 
 pub(crate) fn load(
@@ -47,6 +49,7 @@ pub(crate) fn load(
                     trail_style2: definition.trail_style2,
                     no_dlight: definition.no_dlight,
                     no_wall_marks: definition.no_wall_marks,
+                    default_color: definition.default_color,
                 },
             )
         })

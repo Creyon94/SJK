@@ -20,6 +20,10 @@ pub struct LegacyThrownSaber<'a> {
     pub name: &'a str,
     /// Primary blade colour, including server-supplied custom RGB.
     pub color: [u8; 3],
+    /// An NPC's blade without a `boltToPlayer` override: `color` is the stand-in
+    /// `SABER_RED`, and the hilt's `.sab` colour replaces it
+    /// ([`crate::legacy_npc_definition_rgb`]).
+    pub definition_color: bool,
     /// False once the owner catches the saber; suppress a lingering entity.
     pub in_flight: bool,
     /// Partial staff holster suppresses every blade after blade zero.
@@ -97,6 +101,7 @@ impl<'a> LegacyThrownSabers<'a> {
             owner,
             name: saber_names_from_config(config)[0]?,
             color: saber_color_from_config(config, 0),
+            definition_color: false,
             in_flight,
             extra_blades: holstered != 1,
             returning: !state.saber_in_flight(),
@@ -114,7 +119,8 @@ impl<'a> LegacyThrownSabers<'a> {
         Some(LegacyThrownSaber {
             owner,
             name: legacy_npc_saber_names_borrowed(self.game, npc)[0]?,
-            color: npc_blade_rgb(npc.bolt_to_player(), 0),
+            color: npc_blade_rgb(npc, 0),
+            definition_color: npc.bolt_to_player() == 0,
             in_flight: npc.saber_in_flight(),
             extra_blades: npc.saber_holstered() != 1,
             returning: !state.saber_in_flight(),

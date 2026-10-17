@@ -441,6 +441,15 @@ impl EntityState {
         self.raw_field(37).unwrap_or(0) as u16
     }
 
+    /// Protocol-26 `entityState_t::saberEntityNum` (netfield 37) of a player or
+    /// NPC: the server-only entity of its primary saber, zero while it has none
+    /// (`BG_PlayerStateToEntityState`, `bg_misc.c:3328`; cleared when the saber is
+    /// knocked away, `w_saber.c:6768`). The same field carries an event's sound
+    /// channel ([`Self::event_sound_channel`]).
+    pub fn saber_entity_num(&self) -> u16 {
+        self.raw_field(37).unwrap_or(0) as u16
+    }
+
     /// Protocol-26 `trickedentindex`, used by tracked sounds and mute events
     /// (netfield 58).
     pub fn tracked_entity_num(&self) -> u16 {

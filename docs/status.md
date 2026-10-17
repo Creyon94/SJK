@@ -1,3 +1,19 @@
+## NPC sabers and voices
+
+17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
+(hub report 68, a JoF server on `JoFCrucible`): implemented, after JoF EJK
+`codemp`, NPCs' thrown sabers (owners past the client slots, `npcSaber1` hilt),
+NPC and vehicle custom sounds from their own `csSounds_Std`/`_Combat`/`_Jedi`
+folders instead of player slot 31's voice, `.sab` blade colours for NPCs without a
+`boltToPlayer` override, and no primary saber while `saberEntityNum` is zero. See
+[client](client.md#npc-sabers-and-voices).
+
+Workspace fmt/build/clippy and the touched crates' tests passed on Windows
+x86_64. Unit tests pin the thrown-saber owner range and NPC hilt/colour, the
+per-set NPC voice (own set, silence without one, temporary entities naming an
+NPC, players unchanged, slot reload), the colour overrides and the missing-saber
+rule. Not exercised in a live match or against the reported server; the `_Extra`
+NPC sounds have no event in the client's table and stay unloaded.
 ## JoF EJK jetpack sound choices
 
 17/10/2026, `feat/jof-jetpack-sounds-upstream`, based on `Sol-Vulpes/SJK`

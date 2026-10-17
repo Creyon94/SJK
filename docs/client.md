@@ -4843,6 +4843,16 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
   saber with its `npcSaber1` hilt and blade colour
   ([thrown_sabers.rs](../crates/sjk-client/src/thrown_sabers.rs)); before
   17/10/2026 an NPC's thrown saber was invisible while its hand was empty.
+- **Blade colours.** With `boltToPlayer` zero, each NPC blade wears its `.sab`
+  `saberColor` (`CG_AddSaberBlade`, `cg_players.c:8049-8064`; `saberColor random`
+  is one of orange to purple, steady per NPC); before 17/10/2026 it was always red.
+  With `boltToPlayer` non-zero both sabers read their packed colour, and one whose
+  three bits are zero gets stock's `-1`, drawn blue (`CG_DoSaber`'s `default`).
+- **No saber entity.** An NPC whose `saberEntityNum` is zero has its primary saber
+  neither in hand nor lit; only a second saber is drawn (`cg_players.c:14210-14212`),
+  as for a saber knocked away. Players are not checked this way yet
+  ([npc_identity.rs](../crates/sjk-client/src/npc_identity.rs),
+  [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs)).
 - **Voices.** `*pain25`, `*death1`, `*jump1` and the other custom sounds of an NPC
   (or a vehicle, which is an NPC) come from its own sound folders: the server names
   each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`

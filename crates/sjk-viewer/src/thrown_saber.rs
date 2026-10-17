@@ -35,6 +35,16 @@ pub(super) fn submit(
     let Some(mut owner) = thrown.and_then(|thrown| thrown.get(number)) else {
         return false;
     };
+    let Some(catalog) = sinks.saber_hilts else {
+        return false;
+    };
+    if owner.definition_color {
+        // An NPC's blade without an override wears its `.sab` colour.
+        owner.color = sjk_client::legacy_npc_definition_rgb(
+            catalog.get_any_case(owner.name).default_color,
+            owner.owner,
+        );
+    }
     // The owner is a client slot or an NPC's entity number (`thrown_sabers.rs`).
     // A player muted on this PC throws the default saber in the default colour.
     if crate::muted_players::entity_muted(sinks.muted, u64::from(owner.owner) + 1) {
@@ -46,9 +56,6 @@ pub(super) fn submit(
     if let Some(rgb) = team_blade {
         owner.color = rgb;
     }
-    let Some(catalog) = sinks.saber_hilts else {
-        return false;
-    };
     let owner_entity = u64::from(owner.owner) + 1;
     let Some(owner_tilt) = sinks.saber_states.tilt_mut(owner_entity) else {
         return false;
