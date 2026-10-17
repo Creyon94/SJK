@@ -756,6 +756,8 @@ pub(crate) struct Input<'a> {
     pub(crate) bsp: &'a Bsp,
     pub(crate) scratch: &'a mut TraceScratch,
     pub(crate) game: &'a GameState,
+    /// `cg_ctfTeamSabers` is on (`team_sabers.rs`).
+    pub(crate) team_sabers: bool,
     pub(crate) world: &'a sjk_runtime::World,
     pub(crate) now: i32,
     pub(crate) camera: Camera,
@@ -1028,10 +1030,12 @@ impl State {
         let hub = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.hub)(slot, &name));
-        // In a team-saber mode (CTF, CTY, siege) the card shows the blades as the world
-        // draws them: the team's colour, with no shader over it
-        // (`sjk_client::legacy_team_blade`).
-        let team_blade = sjk_client::legacy_team_blade(input.game, client);
+        // With CTF team sabers on, the card shows the blades as the world draws them:
+        // the team's colour, with no shader over it (`team_sabers.rs`).
+        let team_blade = input
+            .team_sabers
+            .then(|| sjk_client::legacy_team_blade(input.game, client))
+            .flatten();
         let shader = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.shader)(slot))

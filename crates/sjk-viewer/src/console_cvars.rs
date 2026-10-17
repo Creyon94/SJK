@@ -415,6 +415,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_footsteps", true, archive, "Play footstep sounds"),
         CvarDefinition::new(
+            crate::team_sabers::CVAR,
+            false,
+            archive,
+            "CTF and CTY: draw every red or blue blade in the team's colour",
+        ),
+        CvarDefinition::new(
             crate::footprints::PRINTS_CVAR,
             true,
             archive,

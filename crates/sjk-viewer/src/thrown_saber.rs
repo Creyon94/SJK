@@ -35,13 +35,15 @@ pub(super) fn submit(
     let Some(mut owner) = thrown.and_then(|thrown| thrown.get(number)) else {
         return false;
     };
-    // A player muted on this PC throws the default saber in the default colour, or
-    // in a team-saber mode their team's.
+    // A player muted on this PC throws the default saber in the default colour.
     if crate::muted_players::entity_muted(sinks.muted, u64::from(owner.owner) + 1) {
         owner.name = crate::muted_players::SABER;
-        if !sinks.team_sabers {
-            owner.color = crate::muted_players::BLADE;
-        }
+        owner.color = crate::muted_players::BLADE;
+    }
+    // With CTF team sabers on, the team's colour, with no skin over it.
+    let team_blade = crate::team_sabers::of(&sinks.team_blades, u64::from(owner.owner) + 1);
+    if let Some(rgb) = team_blade {
+        owner.color = rgb;
     }
     let Some(catalog) = sinks.saber_hilts else {
         return false;
@@ -78,7 +80,7 @@ pub(super) fn submit(
         rotation: hilt_rotation.to_array(),
         ..transform
     };
-    let color = if sinks.team_sabers {
+    let color = if team_blade.is_some() {
         BladeColor::from_rgb(owner.color)
     } else {
         sinks.saber_skins.blade_color(

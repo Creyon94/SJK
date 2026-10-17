@@ -157,6 +157,7 @@ mod movement_collision;
 mod mover_models;
 mod movers;
 mod muted_players;
+mod team_sabers;
 mod muted_players_frame;
 mod muzzle_effects;
 mod muzzle_flash;

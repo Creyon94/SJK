@@ -108,9 +108,9 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
-    /// CTF, CTY and siege: every red or blue blade is the team's, with no skin over it
-    /// (`sjk_client::legacy_team_sabers`).
-    team_sabers: bool,
+    /// Each client slot's team blade, with no skin over it, while `cg_ctfTeamSabers`
+    /// is on in CTF or CTY (`team_sabers.rs`).
+    team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
     /// The players outlined as teammates and enemies (`hud::team_outline`).
@@ -334,7 +334,7 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
-        team_sabers: game_state.is_some_and(sjk_client::legacy_team_sabers),
+        team_blades: crate::team_sabers::blades(gpu.console.as_ref(), game_state),
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
         team_outline: gpu.hud.team_outline.groups(),
     };
@@ -563,9 +563,17 @@ fn submit_actor(
         None => 0,
     };
     let muted = crate::muted_players::entity_muted(sinks.muted, client);
-    // In a team-saber mode (CTF, CTY, siege) the blade keeps its team's colour.
-    if muted && !sinks.team_sabers {
+    if muted {
         equipment = equipment.map(crate::muted_players::equipment);
+    }
+    // With CTF team sabers on, both blades take the team's colour, muted or not.
+    let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
+    if let Some(rgb) = team_blade {
+        equipment = equipment.map(|mut held| {
+            held.color = rgb;
+            held.secondary_color = rgb;
+            held
+        });
     }
     let holster = mesh.map_or_else(holster_submission::Plan::default, |index| {
         holster_submission::submit(
@@ -1025,7 +1033,7 @@ fn submit_equipment(
         sinks
             .saber_skins
             .get(entity.id.get())
-            .filter(|_| !sinks.team_sabers),
+            .filter(|_| crate::team_sabers::of(&sinks.team_blades, entity.id.get()).is_none()),
         sinks.black_sabers,
         std::array::from_fn(|hand| {
             if hand == 0 && holstered_primary {

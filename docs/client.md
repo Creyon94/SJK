@@ -910,6 +910,18 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
+## CTF team saber colours
+
+`cg_ctfTeamSabers` (archived, default 0; Settings > Advanced > Gameplay and classic+
+Game options, **CTF team saber colours**) draws every red or blue player's blades in
+their team's stock colour in capture the flag and capture the ysalamiri, whatever their
+`c1`..`c4` colours and blade shader say: held and thrown sabers, muted players' default
+saber, and the player card's swatches. Free players, spectators, other game types and
+the setting off keep each player's own colours. It is stricter than cgame's
+`cg_saberTeamColors 0`, which lets a red player keep a yellow blade. From SJK pull
+request #113 (Slash), made an option at the merge (Sol's choice, 17/10/2026); see
+[team_sabers.rs](../crates/sjk-viewer/src/team_sabers.rs).
+
 ## JA+ black sabers
 
 On JA+/jaPRO and TaystJK servers, saber colour number 11 is shown as a black

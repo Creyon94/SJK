@@ -665,6 +665,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "CTF team saber colours",
+        cvar: crate::team_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "JA+ black sabers",
         cvar: crate::saber_rgb::black::CVAR,
         kind: ValueKind::Bool,

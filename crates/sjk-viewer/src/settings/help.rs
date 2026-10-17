@@ -210,6 +210,8 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
+    ),
+    (
         crate::actor_world_submission::force_powers::flame::CVAR,
         "Flame visuals, pose and sound: Auto detects JA+ servers; Off disables them; JA+ forces support. Needs installed flame assets.",
     ),
@@ -519,6 +521,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_saberTrail",
         "The light trail behind a swinging saber blade.",
+    ),
+    (
+        crate::team_sabers::CVAR,
+        "In capture the flag, every red or blue player's sabers in their team's colour, with no blade shader. Off by default.",
     ),
     (
         crate::saber_rgb::black::CVAR,

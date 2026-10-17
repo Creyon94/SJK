@@ -90,17 +90,13 @@ fn player_color_from_config(config: &[u8], custom_rgba: [u8; 4]) -> [u8; 4] {
 const GT_CTF: i32 = 8;
 const GT_CTY: i32 = 9;
 
-/// Whether every red or blue player's blades are drawn in the team's colour: SJK's
-/// rule for capture the flag, capture the ysalamiri and siege. It is stricter than
-/// cgame's `cg_saberTeamColors 0`, which lets a red player keep a yellow blade, and
-/// unlike cgame it also overrides a siege class's own blade colours
+/// Whether the game is one where SJK's optional team sabers apply (the viewer's
+/// `cg_ctfTeamSabers`): capture the flag and capture the ysalamiri. It is stricter than
+/// cgame's `cg_saberTeamColors 0`, which lets a red player keep a yellow blade
 /// (`cg_players.c:8329-8342`).
 pub fn legacy_team_sabers(game_state: &GameState) -> bool {
     let serverinfo = game_state.config_string(CS_SERVERINFO).unwrap_or(&[]);
-    matches!(
-        info_int(serverinfo, "g_gametype"),
-        GT_SIEGE | GT_CTF | GT_CTY
-    )
+    matches!(info_int(serverinfo, "g_gametype"), GT_CTF | GT_CTY)
 }
 
 /// The blade colour `client_num`'s team forces on both sabers, if
