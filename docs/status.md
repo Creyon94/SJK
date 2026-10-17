@@ -1,3 +1,20 @@
+## Cosmetic visibility in held and cloaked states
+
+17/10/2026, `fix/cosmetic-visibility`, based on `bb83eb28`, Windows:
+implemented EJK #172's missing guards for monster-held and cloaked players.
+Existing scale/dead/Mindtrick and mirror/portal rules remain. Remote cloaked
+pieces appear with the viewer's accepted Sight state; local cloaked pieces
+remain hidden. Held flags work independently of an available holder/look
+attachment. The shared actor path covers both menu styles without new settings,
+asset reads, allocations or traces in submission. Two state regressions and
+an extended synthetic submission test passed, alongside workspace fmt/build/
+test/clippy on Windows x86_64, Rust 1.99.0. The explicit release microbenchmark
+measured 0.276 us per 128 accepted-state decisions over 20,000 frames on Ryzen
+7 5800X3D; it excludes poses, assets and drawing. Installed cosmetics, live
+monster/cloak/Sight visuals and populated
+scene performance remain unverified. No wire, movement or gameplay changes.
+See [hats and capes](client.md#hats-and-capes).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

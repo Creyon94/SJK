@@ -883,8 +883,11 @@ longest `prefix*` key; the skin's entry wins, the model's applies with
 `*back` bolts of the worn slots only. A piece is drawn with the body as
 `CG_DrawCosmeticOnPlayer` places it: the bolt's axes, two units down its up
 axis, plus the offset along the world axes, never on the dead, the
-mind-tricked or a scaled model, and on the local first-person player only in
-mirrors and portals. A piece this client does not have is not drawn.
+mind-tricked, monster-held or scaled model, and on the local first-person
+player only in mirrors and portals. Cloaked players' pieces are hidden unless
+the viewer has active Sight; your own cloaked pieces stay hidden even with
+Sight, after JoF EJK #172. The held flag alone suppresses them, even when the
+holder's attachment is unavailable. A piece this client does not have is not drawn.
 `cg_cosmetics` (archived, 1) draws everyone's (1), only yours (2) or none (0).
 
 `cosmetics hats` and `cosmetics capes` list the installed pieces, with a
