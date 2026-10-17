@@ -68,16 +68,19 @@ parser and check every picture they name is mounted. Everything comes out of
 
 ### Sol's art for the faces
 
-Three faces are drawn by the script for now. A generated picture replaces one with
-`--art <tier>=<picture>` (square, any size and colour; its bright parts are painted along
-the tier's colours and glow):
+Three faces come from Sol's generated pictures (17/10/2026), kept in `art/` at 1024x1024
+(not mounted; the script reads them each time it remakes the tiers, and draws its own
+face for a tier whose picture is missing). A picture is any size and colour; its lit
+parts (bright, or strongly coloured) are painted along the tier's colours and glow:
 
-- `rare`: one pentagon of the Great Holocron, a corner at the top, its corners on the
-  picture's inscribed circle (the pentagon touches the top edge);
-- `legendary`: one side of the Sith pyramid, a trapezoid, its foot along the bottom edge
-  and its top 0.53 as wide, centred (dark metal, a column of runes);
-- `mythical`: one facet of the kyber crystal, a triangle, its tip at the top middle and its
-  foot along the bottom edge.
+- `art/rare.jpg`: one pentagon of the Great Holocron on black, a corner at the top; the
+  script cuts it out and fits it to the face's pentagon;
+- `art/legendary.jpg`: a triangle of the Sith pyramid on black, its tip at the top; cut
+  out and fitted to the whole picture, the pyramid's sides take its foot (up to 0.53 of
+  its height, where it is as wide as their top) and the floating cap its tip;
+- `art/mythical.jpg`: a tiling crystal texture, worked into the crystal's facets.
+
+`--art <tier>=<picture>` tries another picture without replacing the file:
 
     python scripts/holocron_assets.py tiers crates/sjk-viewer/assets/holocron --art rare=pentagon.png
 

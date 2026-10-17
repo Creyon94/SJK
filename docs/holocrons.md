@@ -57,10 +57,10 @@ set), not one cube in four colours:
 
 | Tier | Holocron | What moves |
 | --- | --- | --- |
-| Uncommon | The Jedi cube: the holocron's cube with a pyramid boss on each face (the face raised on it), a lamp at each tip, steel edges | nothing of its own |
-| Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with runes and a lit star, lit edges | a broken halo, tilted, turning and bobbing around it |
-| Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, lit edges and underside; a glowing eye turns between them |
-| Mythical | The kyber prism: an eight-sided crystal in a steel sheath, gold, with a sheen sliding over it | the crystal turns; two gimbal rings tumble around it; ten motes of light circle it |
+| Uncommon | The Jedi cube: the holocron's cube with a raised plateau on each face (the face on it, the emblem on its flat top), a lamp over each, steel edges | nothing of its own |
+| Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with the Jedi Order's emblem and runes, lit edges | a broken halo, tilted, turning and bobbing around it |
+| Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, the runes running on over its sides, thin lit edges, a dark underside; a glowing eye turns between them |
+| Mythical | The kyber prism: a broad eight-sided crystal in a steel sheath, gold, with a sheen sliding over it | the crystal turns; two gimbal rings tumble around it; ten motes of light circle it |
 
 They are made by `scripts/holocron_assets.py` with the shapes in `scripts/holocron_forms.py`:
 a model per part (the body, which stands still against the holocron, and each moving
@@ -68,9 +68,11 @@ part, modelled about its own centre), each also in the locked look, and the part
 `holocron_parts.rs` (where each part rests and how it bobs, orbits and turns), which the
 client includes ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs),
 `PARTS`), so the two never disagree. The Jedi cube's face is the shipped face in the tier's
-colour; the Great Holocron's pentagon, the Sith pyramid's side and the kyber crystal are
-drawn by the script until Sol's art replaces them (`--art <tier>=<picture>`, the asset
-folder's [README](../crates/sjk-viewer/assets/holocron/README.md)). The four are sized to
+colour; the Great Holocron's pentagon, the Sith pyramid's triangle of runes (its foot on
+each side, its tip on the cap) and the kyber crystal come from Sol's pictures (17/10/2026)
+in the asset folder's `art/`, fitted and painted in the tier's colours by the script
+(`--art <tier>=<picture>` tries another; the folder's
+[README](../crates/sjk-viewer/assets/holocron/README.md)). The four are sized to
 fill about the cube's room on screen.
 
 The Holocrons tab's tier rows carry the tiers' rarity effects (10/10/2026): from Rare up

@@ -2,15 +2,16 @@
 
 Each tier is its own object (Sol's pick, 18/10/2026, from the proposals' second set):
 
-- uncommon, the Jedi cube: the holocron's cube with a pyramid boss on each face (the
-  face picture raised on it, emblem at the tip's foot), a lamp at each tip and steel
-  edges;
+- uncommon, the Jedi cube: the holocron's cube with a raised plateau on each face (the
+  face picture on it, the emblem on its flat top, its bevelled sides catching the
+  light), a lamp over each and steel edges;
 - rare, the Great Holocron: a dodecahedron with a raised pentagon in each face, lit
   edges, and a broken halo turning around it;
 - legendary, the Sith pyramid: a dark frustum with runes down its sides and a lit seam,
-  its cap floating free over a glowing eye, both bobbing and turning;
-- mythical, the kyber prism: an eight-sided crystal in a steel sheath, turning, held
-  by two gimbal rings that tumble, ten motes of light circling it.
+  its cap floating free over a glowing eye, both bobbing and turning; one triangle of
+  runes runs up each side and on over the cap;
+- mythical, the kyber prism: a broad eight-sided crystal in a steel sheath, turning,
+  held by two slim gimbal rings that tumble, ten motes of light circling it.
 
 A tier is one model per part: its body, which never moves against the holocron, and
 each moving part (the halo, the cap and the eye, the crystal, the rings, a mote), so
@@ -251,7 +252,8 @@ CUBE_HALF = 3.0
 def jedi_cube(tier: str) -> dict:
     mesh = Mesh()
     face = f"holocron_{tier}"
-    boss_half, boss_height = 1.5, 0.9
+    # The plateau: its foot's and top's half sizes and its height.
+    foot_half, top_half, plateau = 2.3, 1.55, 0.75
     for normal, up in (
         ((1, 0, 0), (0, 0, 1)), ((-1, 0, 0), (0, 0, 1)), ((0, 1, 0), (0, 0, 1)),
         ((0, -1, 0), (0, 0, 1)), ((0, 0, 1), (1, 0, 0)), ((0, 0, -1), (1, 0, 0)),
@@ -266,15 +268,14 @@ def jedi_cube(tier: str) -> dict:
         def square(half):
             return [n * h + r * sx * half + u * sy * half for sx, sy in ((-1, 1), (1, 1), (1, -1), (-1, -1))]
 
-        outer, inner = square(h), square(boss_half)
-        apex = n * (h + boss_height)
+        outer, foot = square(h), square(foot_half)
+        top = [p + n * plateau for p in square(top_half)]
         for k in range(4):
             j = (k + 1) % 4
-            quad = [outer[k], outer[j], inner[j], inner[k]]
-            mesh.polygon(face, quad, (0, 0, 0), [uv(p) for p in quad])
-            tri = [inner[k], inner[j], apex]
-            mesh.polygon(face, tri, (0, 0, 0), [uv(p) for p in tri])
-        octahedron(mesh, light(tier), n * (h + boss_height + 0.12), 0.42)
+            for quad in ([outer[k], outer[j], foot[j], foot[k]], [foot[k], foot[j], top[j], top[k]]):
+                mesh.polygon(face, quad, (0, 0, 0), [uv(p) for p in quad])
+        mesh.polygon(face, top, (0, 0, 0), [uv(p) for p in top])
+        octahedron(mesh, light(tier), n * (h + plateau + 0.45), 0.34)
     # Steel edges and corner caps.
     h = CUBE_HALF
     for axis in range(3):
@@ -342,37 +343,43 @@ def sith_pyramid(tier: str) -> dict:
     z0, z1 = -3.9, -0.5
     corner = math.sqrt(2)
 
+    # The face picture is a triangle, its tip at the top: the side takes its foot up
+    # to where it is the side's top wide (PYRAMID_TOP in holocron_assets.py), the cap
+    # the tip above.
+    ratio = top / bottom
+
     def side_uv(k):
-        # The face picture's bottom edge spans the side's foot; its top, narrower,
-        # the side's top (PYRAMID_TOP in holocron_assets.py).
-        ratio = top / bottom
-        return [(0.0, 1.0), (1.0, 1.0), (0.5 + ratio / 2, 0.0), (0.5 - ratio / 2, 0.0)]
+        return [(0.0, 1.0), (1.0, 1.0), (0.5 + ratio / 2, ratio), (0.5 - ratio / 2, ratio)]
+
+    def cap_uv(k):
+        return [(0.5 - ratio / 2, ratio), (0.5 + ratio / 2, ratio), (0.5, 0.0)]
 
     prism(body, face, 4, bottom * corner, top * corner, z0, z1, math.pi / 4, side_uv,
           bottom_material=DARK, top_material=DARK)
     prism(body, light(tier), 4, (top + 0.1) * corner, (top + 0.1) * corner, z1, z1 + 0.3, math.pi / 4,
           bottom_material=DARK, top_material=DARK)
     prism(body, STEEL, 4, (bottom + 0.25) * corner, (bottom + 0.25) * corner, z0 - 0.4, z0, math.pi / 4)
-    # The cap: dark sides with lit edges, its underside lit over the eye.
+    # The cap: the runes' tip on its sides, thin lit edges, a dark underside so the eye
+    # shows below it.
     cap = Mesh()
     half_height = 1.45
-    prism(cap, DARK, 4, top * corner, 0.0, -half_height, half_height, math.pi / 4, bottom_material=light(tier))
+    prism(cap, face, 4, top * corner, 0.0, -half_height, half_height, math.pi / 4, cap_uv, bottom_material=DARK)
     apex = np.array((0.0, 0.0, half_height))
     for k in range(4):
         a = k * math.tau / 4 + math.pi / 4
         foot = np.array((top * corner * math.cos(a), top * corner * math.sin(a), -half_height))
-        bar(cap, light(tier), foot, apex, 0.16)
+        bar(cap, light(tier), foot, apex, 0.1)
     eye = Mesh()
-    octahedron(eye, light(tier), (0, 0, 0), 0.45)
+    octahedron(eye, light(tier), (0, 0, 0), 0.55, stretch=1.15)
     return {"body": body, "cap": cap, "eye": eye}
 
 
 def kyber_prism(tier: str) -> dict:
     face = f"holocron_{tier}"
     body = Mesh()
-    prism(body, STEEL, 8, 2.1, 2.1, -0.4, 0.4, math.pi / 8)
+    prism(body, STEEL, 8, 2.75, 2.75, -0.4, 0.4, math.pi / 8)
     crystal = Mesh()
-    sides, radius, tip = 8, 1.85, 4.2
+    sides, radius, tip = 8, 2.5, 4.2
     girdle = ring_points(sides, radius, 0.0, 0.0)
     for k in range(sides):
         j = (k + 1) % sides
@@ -380,14 +387,14 @@ def kyber_prism(tier: str) -> dict:
             apex = np.array((0.0, 0.0, end))
             crystal.polygon(face, [girdle[k], girdle[j], apex], (0, 0, 0), [(0.0, 1.0), (1.0, 1.0), (0.5, 0.0)])
     ring_a = Mesh()
-    tube(ring_a, STEEL, 4.5, 0.24, 6, 8, phase=math.pi / 8)
+    tube(ring_a, STEEL, 4.5, 0.15, 6, 8, phase=math.pi / 8)
     for k in range(4):
         a = k * math.tau / 4
-        octahedron(ring_a, light(tier), (4.5 * math.cos(a), 4.5 * math.sin(a), 0.0), 0.38)
+        octahedron(ring_a, light(tier), (4.5 * math.cos(a), 4.5 * math.sin(a), 0.0), 0.26)
     ring_b = Mesh()
-    tube(ring_b, STEEL, 5.4, 0.18, 6, 8)
+    tube(ring_b, STEEL, 5.4, 0.11, 6, 8)
     mote = Mesh()
-    tetrahedron(mote, light(tier), 0.26)
+    tetrahedron(mote, light(tier), 0.2)
     return {"body": body, "crystal": crystal, "ring_a": ring_a, "ring_b": ring_b, "mote": mote}
 
 
@@ -441,7 +448,7 @@ def motes():
             Motion(
                 "mote",
                 at=(0.0, 0.0, round(((i * 0.37) % 1.0 - 0.5) * 7.0, 3)),
-                orbit=(round(3.1 + 0.45 * math.sin(i), 3), 0.6, round(i * 0.63, 3)),
+                orbit=(round(3.5 + 0.4 * math.sin(i), 3), 0.6, round(i * 0.63, 3)),
                 spin=(0.0, 1.6),
                 tumble=(0.6, 0.0),
             )
@@ -454,8 +461,8 @@ PARTS = {
     "rare": [Motion("body"), Motion("halo", bob=(0.25, 1.3), spin=(0.0, 0.3), tumble=(0.55, 0.0), precess=(0.0, 0.25))],
     "legendary": [
         Motion("body"),
-        Motion("cap", at=(0.0, 0.0, 2.55), bob=(0.35, 1.5), spin=(0.0, 0.35)),
-        Motion("eye", at=(0.0, 0.0, 0.45), bob=(0.15, 1.5), spin=(0.0, -1.2)),
+        Motion("cap", at=(0.0, 0.0, 3.0), bob=(0.35, 1.5), spin=(0.0, 0.35)),
+        Motion("eye", at=(0.0, 0.0, 0.55), bob=(0.1, 1.5), spin=(0.0, -1.2)),
     ],
     "mythical": [
         Motion("body"),
