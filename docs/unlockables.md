@@ -960,6 +960,12 @@ an opening that held only shaders says "You found Tidal blade (2 held)." in the 
 refusal line, and the Collection lists the shader; the crate-style opening comes next.
 Opening is still staff-only. Checked by unit tests on both sides; not in the game.
 
+**Proposed (branch `personal/more-droppable` and hub `feat/more-droppable`, waiting for
+Sol's decision):** seven of the team's shaders drop too, so the Rare and Legendary pools are
+not thinner than the Mythical one: Frost, Banner and Heartbeat (Rare, 3 to 6) and Storm,
+Chameleon, Prism and Unstable (Legendary, 4 to 8). Sun, Void, Molten and Spectral and the
+medals' shaders stay out of holocrons.
+
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
 owned line and the hover card say ", 2 held". The tab's headline still counts shaders
