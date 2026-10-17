@@ -206,12 +206,13 @@ impl Panel {
     pub(super) fn build_at(&mut self, viewport: [f32; 2], now: Instant) {
         let frame = Frame::new(viewport);
         self.ui.begin_transparent(viewport);
-        backdrop(&mut self.ui, viewport);
+        // The ceremony draws its own dark, clear round the holocron while it opens.
         if self.ceremony.is_some() {
             self.draw_ceremony(&frame, viewport, now);
             self.ui.finish(super::opening::NEXT_TOKEN);
             return;
         }
+        backdrop(&mut self.ui, viewport);
         if self.loot {
             self.draw_loot(&frame, viewport);
             self.ui.finish(LOOT_BACK_TOKEN);

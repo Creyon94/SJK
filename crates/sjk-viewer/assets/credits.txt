@@ -46,6 +46,7 @@ did: The JoF clan tag: the clan's emblem beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
 did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits (in testing)
 did: The loot table: every chance a holocron brings
+did: Holocrons open like a loot crate: the holocron cracks open, a strip runs to the prize
 did: Hover cards: how every collected thing is obtained
 did: Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 did: Card faces and the first card, art by Sol (AI-assisted)

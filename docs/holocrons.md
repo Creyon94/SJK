@@ -253,7 +253,9 @@ the buttons.
   ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs)), floating before the
   camera on the ray through the clear left of the 16:9 frame (`STAGE_AT`), 64 units ahead,
   scaled to a fixed size on screen in every window shape. It turns and bobs as Illuminate's
-  does (`illuminate::idle_rotation`, `idle_bob`). A new tier shrinks the old look away in
+  does (`illuminate::idle_rotation`, `idle_bob`). While a holocron is opened it is that
+  one: it glides to the middle of the window, spins up and is gone in a flash, then grows
+  back in its place ([cards.md](cards.md#in-the-client), `holocrons::stage::Motion`). A new tier shrinks the old look away in
   0.12 s and grows the new one in 0.32 s. While the tab shows, the backdrop camera parks on
   its own shot (`Shot::Holocrons`, a route on duel6, where the toured camera cuts to it;
   other maps keep the main vantage), and the classic menu style stops hiding the world

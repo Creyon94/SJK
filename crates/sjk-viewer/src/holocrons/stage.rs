@@ -72,6 +72,25 @@ impl Request {
     }
 }
 
+/// How the opening moves the holocron (`docs/cards.md`, "The ceremony"): it glides to the
+/// middle of the window, spins up, swells and brightens, shakes, then is gone in the
+/// flash. The tab's opening works it out each frame
+/// ([`crate::console::holocrons_panel::Panel::stage_motion`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Motion {
+    /// Where it floats, a point of the 1920 by 1080 frame (in place of the tab's
+    /// [`crate::console::holocrons_panel::STAGE_AT`]).
+    pub(crate) at: [f32; 2],
+    /// Its turn about the vertical on top of the idle one, in radians.
+    pub(crate) turn: f32,
+    /// Its size against the tab's, and its light's strength against the tier's.
+    pub(crate) swell: f32,
+    pub(crate) glow: f32,
+    /// False once the flash has taken it: nothing is drawn, and the next showing grows
+    /// it from nothing.
+    pub(crate) shown: bool,
+}
+
 /// How strong a locked holocron's light is against the tier's.
 const LOCKED_LIGHT: f32 = 0.2;
 /// Seconds to shrink away when the look changes, and to grow into the new one.
@@ -158,10 +177,12 @@ impl GpuState {
     /// Add the Holocrons tab's holocron and its light to this frame's world, while the
     /// tab shows. Called with the other frame lights (`submit_illuminate`).
     pub(crate) fn submit_holocron_stage(&mut self, now: Instant) {
-        let wanted = self
-            .console
-            .as_ref()
-            .and_then(crate::console::ViewerConsole::holocrons_stage);
+        let console = self.console.as_ref();
+        let motion = console.and_then(|console| console.holocrons_motion(now));
+        // Gone in the opening's flash: it grows again from nothing when shown.
+        let wanted = console
+            .and_then(crate::console::ViewerConsole::holocrons_stage)
+            .filter(|_| motion.is_none_or(|motion| motion.shown));
         let Some((request, level)) = self.holocron_stage.advance(wanted, now) else {
             return;
         };
@@ -185,16 +206,20 @@ impl GpuState {
                 ],
             }
         });
-        let (centre, scale) = place(&view, crate::console::holocrons_panel::STAGE_AT);
+        let (at, turn, swell, glow) = motion.map_or(
+            (crate::console::holocrons_panel::STAGE_AT, 0.0, 1.0, 1.0),
+            |motion| (motion.at, motion.turn, motion.swell, motion.glow),
+        );
+        let (centre, scale) = place(&view, at);
         let seconds = now.saturating_duration_since(self.ui_epoch).as_secs_f32();
         #[cfg(test)]
         let seconds = self.holocron_stage_seconds.unwrap_or(seconds);
         let position = centre + Vec3::Z * crate::illuminate::idle_bob(seconds) * scale;
-        let size = scale * level;
+        let size = scale * level * swell;
         self.dynamic_lights.push_radiant(PointLight {
             origin: position.to_array(),
-            radius: RADIUS * level,
-            color: request.light(),
+            radius: RADIUS * level * glow.sqrt(),
+            color: request.light().map(|channel| channel * glow),
         });
         let Some(mesh) = self
             .object_meshes
@@ -205,7 +230,8 @@ impl GpuState {
         };
         self.object_groups[mesh].push(ActorInstance::new(
             position.to_array(),
-            crate::illuminate::idle_rotation(seconds).to_array(),
+            (glam::Quat::from_rotation_z(turn) * crate::illuminate::idle_rotation(seconds))
+                .to_array(),
             [size; 3],
         ));
     }

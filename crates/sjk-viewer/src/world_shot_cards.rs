@@ -423,3 +423,115 @@ fn duel6_sjk_crate_spin() {
         );
     });
 }
+
+/// A shader `id` found by a holocron of tier `tier`, numbered `holocron`, held `count`.
+fn found(tier: usize, holocron: u64, id: &str, count: u32) -> Prize {
+    let skin = crate::unlockables::find(id);
+    Prize::Shader(crate::console::holocrons_panel::opening::Found {
+        holocron,
+        tier,
+        skin,
+        id: id.to_owned(),
+        name: skin.map_or("A blade", |skin| skin.name).to_owned(),
+        count,
+    })
+}
+
+/// Twelve holocrons opened at once: cards of every finish and shaders, a few grand.
+fn twelve() -> Vec<Prize> {
+    (0..12_u64)
+        .map(|at| {
+            let tier = [0, 0, 1, 0, 2, 1, 0, 3, 1, 0, 2, 0][at as usize];
+            match at {
+                3 => found(tier, 40 + at, "saber_tidal", 2),
+                5 => found(tier, 40 + at, "saber_nebula", 1),
+                7 => found(tier, 40 + at, "saber_phoenix", 1),
+                10 => found(tier, 40 + at, "saber_quicksilver", 1),
+                _ => {
+                    let rarity = [0, 1, 0, 0, 2, 0, 1, 3, 0, 0, 1, 0][at as usize];
+                    let finish = [0, 0, 1, 0, 0, 0, 0, 2, 0, 1, 0, 0][at as usize];
+                    Prize::Card(Shown {
+                        holocron: 40 + at,
+                        ..shown(tier, rarity, finish, 10 + at * 7)
+                    })
+                }
+            }
+        })
+        .collect()
+}
+
+/// The opening as it plays since 17/10/2026: the 3D holocron gliding to the middle while
+/// the hub answers, cracking open, the strip out of its flash with its bands and smear, the
+/// prize lit at rest (a grand one with rays); then twelve opened at once, their strips
+/// five at a time and everything found laid out.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_crate_open() {
+    on_big_stack(|| {
+        let Some(mut gpu) = open_holocrons([1920, 1080]) else {
+            return;
+        };
+        let mut moments = Vec::new();
+        let mut keep = |gpu: &mut GpuState, frames: u32, name: &str| {
+            let path = shoot(gpu, frames, &format!("duel6-open-{name}"));
+            assert!(!overflowed(gpu), "{name}");
+            println!("{}", path.display());
+            moments.push(image::open(path).expect("the shot").to_rgba8());
+        };
+        // The wait: the holocron glides to the middle and hums.
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_opening_state(None);
+        }
+        keep(&mut gpu, 50, "waiting");
+        // One holocron, seconds before its entrance (the unseal is 1.7, the spin 6).
+        let before = 7.7;
+        for (elapsed, name, prize) in [
+            (
+                0.4 - before,
+                "unseal-early",
+                Prize::Card(shown(2, 2, 1, 96)),
+            ),
+            (
+                1.1 - before,
+                "unseal-charged",
+                Prize::Card(shown(2, 2, 1, 96)),
+            ),
+            (
+                1.55 - before,
+                "unseal-flash",
+                Prize::Card(shown(2, 2, 1, 96)),
+            ),
+            (-5.8, "strip-out-of-flash", Prize::Card(shown(2, 2, 1, 96))),
+            (-4.6, "strip-fast", Prize::Card(shown(2, 2, 1, 96))),
+            (-1.4, "strip-crawl", Prize::Card(shown(2, 2, 1, 96))),
+            (-0.2, "strip-rest", Prize::Card(shown(2, 2, 1, 96))),
+            (-0.2, "rest-solar", Prize::Card(shown(3, 3, 2, 311))),
+            (-0.2, "rest-phoenix", found(3, 9, "saber_phoenix", 1)),
+        ] {
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_opening(Some(vec![prize]), elapsed, 3.1);
+            }
+            // Long enough for the 3D holocron to grow back after the last flash.
+            keep(&mut gpu, 40, name);
+        }
+        // Twelve at once (the batch's clock runs from its start).
+        for (elapsed, name) in [
+            (1.2, "batch-unseal"),
+            (1.7 + 1.4, "batch-running"),
+            (1.7 + 4.3, "batch-stopping"),
+            (1.7 + 5.5, "batch-rest"),
+            (1.7 + 5.9 * 2.0 + 5.5, "batch-last-round"),
+            (1.7 + 5.9 * 3.0 + 0.4, "batch-found-coming"),
+            (1.7 + 5.9 * 3.0 + 3.0, "batch-found"),
+        ] {
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_opening(Some(twelve()), elapsed, 3.1);
+            }
+            keep(&mut gpu, 40, name);
+        }
+        println!(
+            "{}",
+            sheet(&moments, 3, 640, "duel6-open-moments").display()
+        );
+    });
+}

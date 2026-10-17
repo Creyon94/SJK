@@ -66,7 +66,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   Edition) and credits, the ceremony and the Collection's Cards tab, and a loot
   table with every chance; credits will buy droppable cosmetics as a fix for bad
   luck (Sol's design, 12/10/2026); opening stays with the SJK team while it is
-  tested, until the hub opens it to everyone;
+  tested, until the hub opens it to everyone; since 17/10/2026 a holocron opens like a
+  loot crate: the 3D holocron spins up and cracks open in a flash, a strip of prizes
+  runs to a stop, and Open all runs five strips at a time and lays out what was found;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,
   through the hub, your team only in team games;
 - team games (13/10/2026): red outlines on enemies and green on teammates where they

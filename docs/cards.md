@@ -209,23 +209,60 @@ how its art was made; the footer reads "Art: <artist>".
   50 credits."), and under the holocron's caption **Open** (the oldest of the tier
   chosen, Enter) and **Open all (n)** (up to twenty of all tiers, the oldest first,
   A). Opened holocrons stay in the recent list, dimmed, marked "Opened".
-- **The ceremony** is drawn by the tab over its own darkened page (text draws over
-  every shape, so the page under it is not drawn): while the hub answers the tier's
-  gem pulses ("Opening...", 15 seconds at most, then "The SJK hub did not answer");
-  then for each holocron the crate spin (since 14/10/2026: a strip of what its tier
-  can drop, cards and droppable shaders, runs past a gold marker with a click a tile
-  and slows to a stop on what the hub rolled; the strip is made up round the real
-  prize and the stop lands somewhere inside its tile), the burst in its tier's light
-  (rings, turning rays, the gem flaring away), the card turning in, the credits counting up beside the mark, and
-  its words: "Rare card, Holo", "Alpha Edition. From a Rare Holocron", what the finish
-  is, that it is sealed, "1 of 3", Next or Done. A shader instead of a card shows its
-  blade framed in its tier's colour, its name, "Common saber shader. From a Rare
-  Holocron", what it looks like and how many the player holds. Enter, Space, Right or
-  a click skip the spin, then the entrance, then go on; Escape ends it. Openings of more than three play a
-  shorter entrance each. A Solar finish or a Legendary card plays the medals'
-  fanfare, another card the unlocks' chime. A refusal says why ("That holocron was
-  already opened."; a hub from before opening: "This SJK hub cannot open holocrons
-  yet.") and the profile is read again soon.
+- **The ceremony** is drawn by the tab over its own page, which is not drawn under it
+  (text draws over every shape). Since 17/10/2026 it opens the holocron itself, as a
+  loot crate opens
+  ([holocrons_panel_unseal.rs](../crates/sjk-viewer/src/holocrons_panel_unseal.rs)):
+  - **While the hub answers** (15 seconds at most, then "The SJK hub did not answer")
+    the tab's 3D holocron ([holocrons.md](holocrons.md#the-holocrons-tab)), now the one
+    asked for in its own look, glides in 0.6 seconds from its place on the page to the
+    middle of the window, humming round and breathing its light, with "Opening..." under
+    it. The world shows round it through a vignette: four straight fades from the
+    window's edges to a clear box about it (the UI renderer's arcs are strokes, not
+    fills, and take no clip, so rings could not make it).
+  - **The unseal** (1.7 seconds): it spins up (to about 42 radians a second more),
+    swells, shakes a few pixels at the end and its light grows to three and a half
+    times the tier's; rays of the tier's colour break out of its seams, more, longer and
+    faster as it charges, its name above it; then it pops and is gone in a flash of the
+    tier's colour with a white heart, which fades over the strip in 0.45 seconds. It
+    builds on the Force jump's charge (`jumpbuild`) and cracks open on the game's own
+    holocron pick-up sound (`sound/player/holocron.wav`). The motion
+    (`holocrons::stage::Motion`: where, turn, swell, light, shown) is worked out from
+    the ceremony's clock alone and read by the world each frame; gone, the holocron
+    grows back from nothing in its place when the ceremony ends.
+  - **The crate spin** (6 seconds; since 14/10/2026): a strip of what its tier can drop,
+    cards and droppable shaders, runs past a gold marker with a soft tick a tile
+    (`menuroam`) and slows over 88 % of it to a stop on what the hub rolled, the last
+    tile taking about two seconds; the strip is made up round the real prize and the
+    stop lands anywhere up to 45 % of a tile from its middle, a close call near its
+    edge but always inside it (the strip never shows a near miss that was not). Each
+    tile stands over a band of its colour, as a loot crate's, and at speed its colour
+    streaks across it and trails it. At rest (`sub_select`) the prize lifts and lights
+    up in its colour, breathing, the others dim to a third, and a grand prize (a
+    Legendary or Solar card, a Legendary or Mythical shader) turns slow rays behind it.
+  - **The entrance:** the burst in its tier's light (rings, turning rays, the gem
+    flaring away), the card turning in, the credits counting up beside the mark, and
+    its words: "Rare card, Holo", "Alpha Edition. From a Rare Holocron", what the finish
+    is, that it is sealed, "1 of 3", Next or Done. A shader instead of a card shows its
+    blade framed in its tier's colour, its name, "Common saber shader. From a Rare
+    Holocron", what it looks like and how many the player holds. A Solar finish or a
+    Legendary card plays the medals' fanfare, another card the unlocks' chime.
+  - **Opening more than three**
+    ([holocrons_panel_batch.rs](../crates/sjk-viewer/src/holocrons_panel_batch.rs)):
+    the first holocron cracks open ("12 holocrons"), then their strips run five at a
+    time, stacked, each named by its holocron's tier at its left and marked in its
+    colour, each stopping 0.35 seconds after the one above (3.6 seconds for the top);
+    the next five follow on their own ("Holocrons 6 to 10 of 12"). The stacked tiles are
+    light: a plate washed from below in the prize's colour, a card's rarity symbol
+    (ringed in gold for Solar, a rainbow under it for Holo) or a shader's blade. A grand
+    prize plays the fanfare as its strip stops. Then everything found is laid out, the
+    finest first, ten to a row, each coming in on its beat, with its name and its
+    credits or how many the player holds, the credits they brought together, and Done.
+  - Enter, Space, Right or a click skip to the burst (to the strips' stops, then the
+    next five, then the finds, for many), finish the entrance, then go on; Escape ends
+    it (what was opened is the hub's already). A refusal says why ("That holocron was
+    already opened."; a hub from before opening: "This SJK hub cannot open holocrons
+    yet.") and the profile is read again soon.
 - **The Cards tab** (the Collection's seventh): "N cards" and a line about sealed cards
   while there are some, the credits at the right of the headline, up to twelve kinds
   (six by two, the best first, each with "x3" and its finish; more are counted under
@@ -293,3 +330,18 @@ data) were looked at: the tab with Open and the credits, a Holo card's entrance
 moment by moment, each finish, the wait, a refusal, the Cards tab at 1080p and 4:3
 and with none. Not tried: against the real hub (it is not deployed), in a game, the
 keys and clicks in a running client, the motion (the shots are stills).
+
+The crate opening (17/10/2026, Windows 11): unit tests for the 3D holocron's motion
+(glide, hum carried into the unseal, spin-up, swell, light, shake bounds, gone in the
+flash), its handover (the one asked for, then the one opened, back in its place after),
+the strip's stop always inside the prize's tile in both strip sizes and its speed curve,
+the finds' order and grand ones, the batch's moments and skips, Open all's flow, and every
+moment of a single opening (every tenth of a second) and of twenty at once (every
+quarter) fitting the canvas in three windows. World shot `duel6_sjk_crate_open`
+(off-screen, duel6, made-up prizes, no blade-skin packs so shader tiles show plain
+blades) was looked at: the wait, the unseal early, charged and flashing, the strip out
+of the flash, fast, crawling and at rest, a Solar Legendary card and a Mythical shader at
+rest, and a batch of twelve cracking open, running, stopping, at rest, its last round and
+its finds coming in and laid out. Not tried: in a running client (no motion seen, no
+sounds heard: the cue files are checked to exist in the retail `assets0.pk3` only), with
+the hub's packs, at 4K or 4:3 in a shot (the canvas test covers them).

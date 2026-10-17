@@ -18,8 +18,35 @@ pub(crate) const WIN: usize = 46;
 /// A tile's width and the gap after it (frame pixels).
 pub(crate) const TILE: f32 = 176.0;
 pub(crate) const GAP: f32 = 14.0;
-/// How far the stop may land from the winner's middle, as a share of a tile's half.
-const JITTER: f32 = 0.7;
+/// How far the stop may land from the winner's middle, as a share of a tile's half: up
+/// to near its edges, so the last tile is a close call, but always inside it (the hub
+/// rolled it; the strip never shows a near miss that was not).
+const JITTER: f32 = 0.9;
+
+/// A strip's tiles: their width and the gap after each (frame pixels).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Geometry {
+    pub(crate) tile: f32,
+    pub(crate) gap: f32,
+}
+
+impl Geometry {
+    /// From one tile's left edge to the next one's.
+    pub(crate) fn pitch(self) -> f32 {
+        self.tile + self.gap
+    }
+}
+
+/// The strip of one holocron opened on its own.
+pub(crate) const SINGLE: Geometry = Geometry {
+    tile: TILE,
+    gap: GAP,
+};
+/// One of the strips of an opening of many, five at once.
+pub(crate) const STACKED: Geometry = Geometry {
+    tile: 92.0,
+    gap: 12.0,
+};
 
 /// What a tile shows.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -30,6 +57,38 @@ pub(crate) enum Item {
     Shader(&'static Unlockable),
     /// A saber shader newer than this client (only ever the prize).
     New,
+}
+
+impl Item {
+    /// The colour it is shown in: a card's rarity's (gold for Solar), a shader's tier's.
+    pub(crate) fn colour(self) -> sjk_ui::Color {
+        match self {
+            Self::Card { finish: 2, .. } => crate::menu::sjk::color::GOLD_BRIGHT,
+            Self::Card { rarity, .. } => RARITIES[rarity].colour,
+            Self::Shader(skin) => skin.tier.colour(),
+            Self::New => crate::menu::sjk::color::GOLD,
+        }
+    }
+
+    /// How fine a find it is, for the order of an opening's finds (highest first): a
+    /// shader's tier or a card's rarity (Common to Legendary), then a card's finish.
+    pub(crate) fn grade(self) -> u32 {
+        match self {
+            Self::Card { rarity, finish } => rarity as u32 * 10 + finish as u32 * 4,
+            Self::Shader(skin) => skin.tier as u32 * 10 + 1,
+            Self::New => 21,
+        }
+    }
+
+    /// A find worth the fanfare: a Legendary card, a Solar one, a Legendary or Mythical
+    /// shader.
+    pub(crate) fn grand(self) -> bool {
+        match self {
+            Self::Card { rarity, finish } => rarity == 3 || finish == 2,
+            Self::Shader(skin) => skin.tier >= Rarity::Legendary,
+            Self::New => false,
+        }
+    }
 }
 
 /// The shaders an opening can bring from shader tier `tier`: its droppable ones, else
@@ -147,7 +206,7 @@ pub(crate) fn strip(tier: usize, holocron: u64, prize: Item) -> Vec<Item> {
 }
 
 /// Where the stop lands inside the winner's tile, as a share of the tile's width from its
-/// middle (-0.35 to 0.35): the same for the same holocron.
+/// middle (-0.45 to 0.45): the same for the same holocron.
 pub(crate) fn landing(holocron: u64) -> f32 {
     let mut mix = Mix(holocron.wrapping_mul(31) ^ 0xA11C_E000);
     (mix.unit() * 2.0 - 1.0) * JITTER * 0.5
@@ -161,14 +220,21 @@ pub(crate) fn travelled(t: f32) -> f32 {
 }
 
 /// The distance the whole run covers (frame pixels), from tile 0 at the marker to the
-/// stop inside the winner's tile.
-pub(crate) fn run(holocron: u64) -> f32 {
-    WIN as f32 * (TILE + GAP) + landing(holocron) * TILE
+/// stop inside the winner's tile, on a strip of `geometry`.
+pub(crate) fn run(holocron: u64, geometry: Geometry) -> f32 {
+    WIN as f32 * geometry.pitch() + landing(holocron) * geometry.tile
 }
 
 /// The tile under the marker after `distance` of the run.
-pub(crate) fn under_marker(distance: f32) -> usize {
-    ((distance / (TILE + GAP)) + 0.5).floor().max(0.0) as usize
+pub(crate) fn under_marker(distance: f32, geometry: Geometry) -> usize {
+    ((distance / geometry.pitch()) + 0.5).floor().max(0.0) as usize
+}
+
+/// How fast the strip runs at `t` (0 to 1 through the spin), as a share of the whole run
+/// a second of a spin `seconds` long.
+pub(crate) fn speed(t: f32, seconds: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    4.0 * (1.0 - t).powi(3) / seconds.max(1e-3)
 }
 
 #[cfg(test)]
@@ -265,7 +331,33 @@ mod tests {
         for holocron in 0..50 {
             let landing = landing(holocron);
             assert!(landing.abs() <= JITTER * 0.5 + 1e-6);
-            assert_eq!(under_marker(run(holocron)), WIN, "holocron {holocron}");
+            for geometry in [SINGLE, STACKED] {
+                assert_eq!(
+                    under_marker(run(holocron, geometry), geometry),
+                    WIN,
+                    "holocron {holocron}"
+                );
+            }
         }
+        // The speed is the run's slope: fast off the mark, still at the stop.
+        assert!(speed(0.0, 5.0) > speed(0.5, 5.0));
+        assert_eq!(speed(1.0, 5.0), 0.0);
+        let (t, dt) = (0.3, 1e-3);
+        let slope = (travelled(t + dt) - travelled(t)) / (dt * 5.0);
+        assert!((slope - speed(t, 5.0)).abs() < 1e-2, "{slope}");
+    }
+
+    #[test]
+    fn the_finest_finds_come_first_and_the_grand_ones_are_marked() {
+        let card = |rarity, finish| Item::Card { rarity, finish };
+        let shader = |id| Item::Shader(unlockables::find(id).unwrap());
+        assert!(card(3, 0).grand() && card(0, 2).grand());
+        assert!(!card(2, 1).grand());
+        assert!(shader("saber_phoenix").grand());
+        assert!(!shader("saber_tidal").grand());
+        assert!(card(1, 1).grade() > card(1, 0).grade());
+        assert!(card(2, 0).grade() > card(1, 2).grade());
+        assert!(shader("saber_phoenix").grade() > card(3, 2).grade());
+        assert_eq!(card(0, 2).colour(), crate::menu::sjk::color::GOLD_BRIGHT);
     }
 }

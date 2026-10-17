@@ -26,12 +26,16 @@ use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "holocrons_panel_batch.rs"]
+mod batch;
 #[path = "holocrons_panel_loot.rs"]
 mod loot;
 #[path = "holocrons_panel_opening.rs"]
 pub(crate) mod opening;
 #[path = "holocrons_panel_crate.rs"]
 mod strip;
+#[path = "holocrons_panel_unseal.rs"]
+mod unseal;
 #[path = "holocrons_panel_view.rs"]
 mod view;
 
@@ -257,10 +261,14 @@ pub(crate) struct Panel {
     epoch: Instant,
     /// The blade skins the hub's packs brought, the crate tiles' blades.
     skins: std::sync::Arc<crate::saber_skins::LoadedSkins>,
-    /// The crate strip's tile under the marker last frame (one click a tile), and
-    /// whether the entrance after the spin has played its cue.
-    spin_tick: usize,
-    entered: bool,
+    /// The cues the holocron (or round) on show has played, and its strips' tiles under
+    /// the marker last frame (one tick a tile).
+    played: opening::Played,
+    /// When the 3D holocron set off for the middle of the window (the opening was
+    /// asked for), and how long the hub then took to answer, so its glide and turn
+    /// carry on into the unseal.
+    glide_from: Option<Instant>,
+    waited: f32,
     /// The data is a world shot's own, never read again.
     #[cfg(test)]
     pinned: bool,
@@ -287,7 +295,8 @@ impl Panel {
             hub: false,
             hub_header: crate::profile_hub::Header::default(),
             row: Vec::new(),
-            ui: MenuCanvas::with_capacities(160, 160, 1_100),
+            // An opening of twenty: five strips of tiles at once, then all twenty found.
+            ui: MenuCanvas::with_capacities(224, 160, 2_400),
             selected: 0,
             data: Data::nothing(State::Waiting),
             refreshed: None,
@@ -298,8 +307,9 @@ impl Panel {
             #[cfg(test)]
             pinned: false,
             skins: Default::default(),
-            spin_tick: 0,
-            entered: false,
+            played: opening::Played::default(),
+            glide_from: None,
+            waited: 0.0,
             #[cfg(test)]
             shot_seconds: None,
             #[cfg(test)]
@@ -415,8 +425,15 @@ impl Panel {
     }
 
     /// What the 3D holocron shows: the chosen tier, in its own look while the player
-    /// holds one of it, else the locked look.
+    /// holds one of it, else the locked look; while one is opened, that one.
     pub(crate) fn stage_request(&self) -> holocrons::stage::Request {
+        if let Some(tier) = self
+            .ceremony
+            .as_ref()
+            .and_then(opening::Ceremony::stage_tier)
+        {
+            return holocrons::stage::Request { tier, owned: true };
+        }
         holocrons::stage::Request {
             tier: self.selected,
             owned: self
@@ -879,6 +896,86 @@ mod tests {
         assert_eq!(tidal.skin.map(|skin| skin.id), Some("saber_tidal"));
     }
 
+    /// The 3D holocron is the one opened while the ceremony shows: it sets off for the
+    /// middle when the hub is asked, cracks open, is gone in the flash and is back in its
+    /// place after.
+    #[test]
+    fn the_holocron_opened_leaves_the_page_and_comes_back() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        panel.select(1);
+        let start = Instant::now();
+        assert!(panel.stage_motion(start).is_none(), "in its place");
+        let _ = panel.ask(vec![3], start);
+        let asked = panel.stage_motion(start).expect("moving");
+        assert!(asked.shown);
+        assert_eq!(asked.at, STAGE_AT, "from its place");
+        assert_eq!(
+            panel.stage_request(),
+            holocrons::stage::Request {
+                tier: 0,
+                owned: true
+            },
+            "the holocron asked for"
+        );
+        let answer = start + Duration::from_millis(400);
+        panel.show(
+            vec![opening::Prize::of(&opened("legendary", "holo")).unwrap()],
+            answer,
+        );
+        assert_eq!(panel.stage_request().tier, 2, "the one opened");
+        let cracking = panel
+            .stage_motion(answer + Duration::from_millis(1_000))
+            .unwrap();
+        assert!(cracking.shown && cracking.glow > 1.5);
+        assert!(
+            (cracking.at[0] - unseal::MIDDLE[0]).abs() < 8.0,
+            "in the middle, shaking"
+        );
+        let gone = panel
+            .stage_motion(answer + Duration::from_millis(1_800))
+            .unwrap();
+        assert!(!gone.shown, "gone in the flash");
+        panel.end_ceremony();
+        assert!(panel.stage_motion(answer).is_none(), "back in its place");
+        assert_eq!(panel.stage_request().tier, 1);
+    }
+
+    /// More than three at once run as a batch: Enter skips to the stops, on through the
+    /// rounds to the finds, and Done ends it.
+    #[test]
+    fn open_all_runs_strips_together_and_lays_out_the_finds() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        let now = Instant::now();
+        let shown: Vec<_> = (0..7)
+            .map(|_| opening::Prize::of(&opened("rare", "normal")).unwrap())
+            .collect();
+        panel.show(shown, now);
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Batch { .. })
+        ));
+        // To round 1's stops, round 2, its stops, the finds, all of them in; then Done.
+        for _ in 0..5 {
+            panel.advance(now);
+            assert!(panel.opening());
+        }
+        panel.advance(now);
+        assert!(!panel.opening(), "Done after the finds");
+        // Three or fewer still open one by one.
+        let three: Vec<_> = (0..3)
+            .map(|_| opening::Prize::of(&opened("rare", "normal")).unwrap())
+            .collect();
+        panel.show(three, now);
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Showing { .. })
+        ));
+    }
+
     /// While the hub keeps opening to staff, neither Enter nor A asks it anything and the
     /// page says why.
     #[test]
@@ -1022,17 +1119,52 @@ mod tests {
         panel.open(true);
         panel.data = openable();
         let start = Instant::now();
+        let shader = |tier: &str, id: &str| sjk_identity::Opened {
+            card: None,
+            credits: 0,
+            unlock: Some(sjk_identity::OpenedUnlock {
+                id: id.to_owned(),
+                name: "A blade".to_owned(),
+                count: 2,
+            }),
+            ..opened(tier, "normal")
+        };
         for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
+            // One by one: the unseal, the spin, the entrance and the words, every tenth.
             for finish in ["normal", "holo", "solar"] {
                 let shown = vec![
                     opening::Prize::of(&opened("mythical", finish)).unwrap(),
                     opening::Prize::of(&opened("rare", finish)).unwrap(),
                 ];
                 panel.show(shown, start);
-                for tenth in 0..30 {
+                for tenth in 0..110 {
                     panel.build_at(viewport, start + Duration::from_millis(tenth * 100));
                     assert!(!panel.overflowed(), "{finish} at {tenth} in {viewport:?}");
                 }
+            }
+            // Twenty at once, cards of every finish and shaders: every round and the
+            // finds laid out, every quarter second.
+            let twenty: Vec<opening::Prize> = (0..20)
+                .map(|at| {
+                    let tier = ["uncommon", "rare", "legendary", "mythical"][at % 4];
+                    let opened = match at % 5 {
+                        0 => shader(tier, "saber_tidal"),
+                        1 => shader(tier, "saber_phoenix"),
+                        2 => opened(tier, "holo"),
+                        3 => opened(tier, "solar"),
+                        _ => opened(tier, "normal"),
+                    };
+                    opening::Prize::of(&opened).unwrap()
+                })
+                .collect();
+            panel.show(twenty, start);
+            assert!(matches!(
+                panel.ceremony,
+                Some(opening::Ceremony::Batch { .. })
+            ));
+            for quarter in 0..120 {
+                panel.build_at(viewport, start + Duration::from_millis(quarter * 250));
+                assert!(!panel.overflowed(), "batch at {quarter} in {viewport:?}");
             }
             let _ = panel.ask(vec![3], start);
             panel.ceremony = Some(opening::Ceremony::Waiting {
