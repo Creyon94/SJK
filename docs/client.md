@@ -2663,6 +2663,16 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
   [Entity render effects](rendering.md#entity-render-effects)).
+- `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
+  duel) keeps dead bodies out of the presentation world while the local player is
+  in a private duel. It affects `ET_BODY` only: live players and gameplay state are
+  unchanged, and bodies remain visible outside a private duel. Set it to `0` to
+  keep bodies visible during duels too. The archived preference also applies to
+  demo playback.
+- `cg_hidePickupsInDuel` (on; beside the corpse option) similarly hides
+  `ET_ITEM` and `ET_HOLOCRON` presentation during a private duel. That covers
+  health, shield, weapons, ammo, powerups and Force holocrons without changing
+  their server state or pickup behavior. Set it to `0` to keep them visible.
 - **Pilots in a vehicle:** a pilot sealed in a `hideRider` vehicle (a fighter, a
   walker) is `Ghost`ed with `SVF_NOCLIENT` (`g_vehicles.c:1924-1940`), so no snapshot
   carries his entity and the world never presents his body. Like stock's crosshair

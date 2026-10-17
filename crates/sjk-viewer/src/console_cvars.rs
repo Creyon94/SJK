@@ -264,6 +264,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Extrapolate remote players and NPCs from snapshot velocity",
         ),
         CvarDefinition::new(
+            crate::duel_visibility::CORPSES_CVAR,
+            1_i64,
+            archive,
+            "Hide dead bodies only while you are in a private duel",
+        ),
+        CvarDefinition::new(
+            crate::duel_visibility::PICKUPS_CVAR,
+            1_i64,
+            archive,
+            "Hide pickups only while you are in a private duel",
+        ),
+        CvarDefinition::new(
             "cg_errorDecay",
             100.0_f64,
             archive,

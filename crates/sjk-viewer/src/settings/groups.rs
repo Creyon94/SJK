@@ -285,6 +285,8 @@ impl Group {
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
                 crate::duel_ghost::CVAR,
+                crate::duel_visibility::CORPSES_CVAR,
+                crate::duel_visibility::PICKUPS_CVAR,
                 "cg_remaps",
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
