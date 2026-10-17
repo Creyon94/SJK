@@ -874,6 +874,9 @@ fn submit_actor(
                     view_flags: sinks.entity_view_flags,
                     tricked: trick.fading,
                     dead: flags.is_some_and(|flags| flags & EF_DEAD != 0),
+                    state_visible: snapshot.is_none_or(|snapshot| {
+                        crate::cosmetics::actors::visible_in_state(&snapshot.player, state, local)
+                    }),
                 },
                 sinks.object_groups,
             );
