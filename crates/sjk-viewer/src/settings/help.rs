@@ -288,6 +288,10 @@ const HELP: &[(&str, &str)] = &[
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),
+    (
+        "cg_tauntAntiSpam",
+        "Limits repeated player model voices. Taunts wait until the previous line ends; other grunts have separate short holds.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,

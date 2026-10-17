@@ -1433,6 +1433,19 @@ is replay-stable but is not the legacy global random stream; repeats remain
 possible. Animation selection, movement, saber timing and network events are
 unchanged. Gameplay event actions remain outside this audio adapter.
 
+### Repeated model voices
+
+Settings > Sound exposes **Taunt anti-spam** in SJK UI and classic+.
+`cg_tauntAntiSpam` defaults to 1, following JoF EJK #287/#374: each player's
+entire taunt family shares a hold lasting the previous decoded sample's duration
+(2500 ms when duration is unavailable). Gasps hold for 2000 ms; jump, roll and
+landing voices each have an independent 1000 ms hold. Generic/entity custom-voice
+events share these timers, so changing the event route does not bypass them.
+The filter does not suppress animations, body/fall impacts, pain/death, weapons,
+NPCs or world sounds. `cg_tauntAntiSpam 0` disables it. Map changes and backwards
+demo seeks reset the holds. Duration comes from the decode worker; event playback
+does not read files, decode samples or lock the audio callback.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as

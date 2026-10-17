@@ -1,3 +1,21 @@
+## Repeated player model voices
+
+17/10/2026, `feat/voice-antispam`, based on `6561b03f`, Windows x86_64,
+Rust 1.99.0: implemented JoF EJK #287/#374's default-on `cg_tauntAntiSpam`
+with one sample-duration taunt hold per player and independent gasp/jump/roll/
+landing holds. Generic/entity custom-sound tokens carry family metadata,
+including live configstring edits; ordinary sound paths and body/fall impacts
+remain outside the filter. Both settings styles expose the switch. The decode
+worker publishes cached PCM duration without file reads, decoding or locks
+during event playback. Six focused synthetic regressions cover classification,
+event routes, impacts, timers, seek/map resets and asynchronous duration publication.
+Workspace formatting, locked build/tests (including documentation tests) and
+all-target Clippy passed on the rebased branch (existing warnings remain). A release microbenchmark on Ryzen 7 5800X3D measured 0.085
+microseconds per 128 timer decisions across 20,000 synthetic frames, excluding
+duration lookup, decoding, mixing and rendering. No live listening or installed-
+asset/server comparison was performed; this does not certify audio parity or
+full-scene performance. See [voice options](client.md#repeated-model-voices).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

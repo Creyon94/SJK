@@ -355,6 +355,8 @@ pub struct LegacySoundDecision {
     pub handle: Option<SoundHandle>,
     /// True for a second voice emitted by one event (roll/fall/voice radio).
     pub additional: bool,
+    /// Model voice family for optional presentation throttling.
+    pub voice_line: Option<crate::LegacyVoiceLine>,
     /// Engine-generic playback request.
     pub request: PlayRequest,
     /// The client the event names as having caused this sound, when that is not its
@@ -585,6 +587,7 @@ pub struct LegacySoundAdapter {
     sounds: Vec<RegisteredLegacySound>,
     cs_sounds: [Option<u16>; MAX_SOUNDS],
     cs_custom: [Option<CustomKind>; MAX_SOUNDS],
+    cs_voice: [Option<crate::LegacyVoiceLine>; MAX_SOUNDS],
     weapons: [[Option<u16>; 2]; 19],
     footsteps: [[Option<u16>; 4]; 11],
     water_steps: [[Option<u16>; 4]; 3],
@@ -667,6 +670,7 @@ impl LegacySoundAdapter {
         let mut cs_sounds = [None; MAX_SOUNDS];
         let mut cs_custom = [None; MAX_SOUNDS];
         let mut npc_sets = vec![None; MAX_SOUNDS].into_boxed_slice();
+        let mut cs_voice = [None; MAX_SOUNDS];
         for (index, slot) in cs_sounds.iter_mut().enumerate() {
             let Some(bytes) = game_state.config_string(CS_SOUNDS + index) else {
                 continue;
@@ -674,6 +678,7 @@ impl LegacySoundAdapter {
             let Ok(path) = std::str::from_utf8(bytes) else {
                 continue;
             };
+            cs_voice[index] = crate::LegacyVoiceLine::custom_token(path);
             if let Some(kind) = custom_kind(path) {
                 cs_custom[index] = Some(kind);
             } else if let Some(directory) = npc_voices::npc_sound_directory(path) {
@@ -829,6 +834,7 @@ impl LegacySoundAdapter {
             sounds,
             cs_sounds,
             cs_custom,
+            cs_voice,
             weapons,
             footsteps,
             water_steps,
@@ -1546,6 +1552,11 @@ impl LegacySoundAdapter {
                 entity.origin,
                 snapshot,
             );
+            if matches!(kind, LegacySoundEvent::General | LegacySoundEvent::Entity)
+                && let Some(decision) = self.decisions.last_mut()
+            {
+                decision.voice_line = self.cs_voice[usize::from(parameter)];
+            }
             // A blade skin's sound plays over the stock one, on a channel of its own
             // that the stock sound's does not cut.
             if let Some(skin) = layered {
@@ -1721,6 +1732,18 @@ impl LegacySoundAdapter {
             .then(|| self.origin_for_source(snapshot, source, origin));
         self.decisions.push(LegacySoundDecision {
             event: kind,
+            voice_line: match kind {
+                LegacySoundEvent::Taunt => Some(crate::LegacyVoiceLine::Taunt),
+                LegacySoundEvent::Jump => Some(crate::LegacyVoiceLine::Jump),
+                LegacySoundEvent::Roll if channel == CHAN_VOICE => {
+                    Some(crate::LegacyVoiceLine::Roll)
+                }
+                LegacySoundEvent::Fall if channel == CHAN_VOICE => {
+                    Some(crate::LegacyVoiceLine::Land)
+                }
+                LegacySoundEvent::WaterClear => Some(crate::LegacyVoiceLine::Gasp),
+                _ => None,
+            },
             sound,
             handle,
             additional,
@@ -2138,3 +2161,7 @@ mod tests {
         assert_eq!(WEAPON_PATHS[WP_MELEE], [None, None]);
     }
 }
+
+#[cfg(test)]
+#[path = "sound_voice_tests.rs"]
+mod voice_tests;
