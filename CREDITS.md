@@ -292,7 +292,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 23 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 27 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -342,8 +342,16 @@ merged into SJK
   whole plate of players the server marks as duelling, after EJK #12.
 - #116 chat substitutions: the eleven JoF EJK tokens (`%H%`, `%S%`, `%F%`, `%W%`, `%A%`, `%P%`,
   `%U%`, `%UKM%`, `%UM%`, `%T%`, `%T2%`) expand in every game-chat message before colouring.
+- #119 JoF EJK #23's 22 community Force presets (13 Light, 9 Dark) beside the retail templates,
+  under Jedi Academy and Community in both menu styles, legalized for the server before Apply.
+- #123 Grip victim effects: red puffs at the choking player's neck (`cg_gripVictimFX`, on by
+  default), after JoF EJK #33 and #90.
+- #126 the permanent inventory list becomes `cg_drawInventory` (Settings > HUD); the item selector
+  shows when cycling items whatever it is set to, after JoF EJK #40.
+- #128 jetpack sounds to choose (`cg_jetpackOnSound`, `cg_jetpackHoverSound`) and positional
+  start/stop sounds, after JoF EJK #43 and #87.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 3 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 5 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -354,6 +362,10 @@ merged into SJK
   player lists with model, gender, sabers, colours and team.
 - #109 two-key combo binds after JoF EJK (`bind K+L kill`): either press order, the second key
   runs the combo instead of its own bind, up to 256 combos, saved and imported with the config.
+- #107 Chat text size (`cg_chatBoxFontSize`) in every settings mode, and Menu text size
+  (`ui_textScale`) up to 1.4 with the menus adapted to it.
+- #111 JoF EJK's camera settings: first-person weapon FOV, third-person distance, angle and
+  offsets, and the damping presets, in Advanced > Gameplay and classic+ Game options.
 
 Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 1 pull request merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
