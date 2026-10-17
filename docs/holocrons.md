@@ -99,6 +99,8 @@ counted (`cards::loot::card_in`). Since 17/10/2026 (prepared, not deployed) one 
 ten may bring a pile of kyber shards instead ([cards.md](cards.md#shards-and-the-shop)): the
 tables' `shard_pile` and `shards`, a "Kyber shards" column (the chance and the range, the
 average under it, a dash from a hub without piles), and the card's share counts them too.
+A card comes with a few shards beside its credits (the card pack, `card_shards`,
+[cards.md](cards.md#odds)).
 The figures below are with the piles.
 
 Per holocron:
@@ -166,7 +168,8 @@ said and does not count down by itself.
 
 The hub stores each key's active play time (a total carried toward the next holocron) and
 the time of its last claim, and every holocron dropped for a key: its tier, time, source
-(`play` or `staff`), a staff note and the address (or a hash of it) it dropped from, for
+(`play`, `staff`, or `bought` with credits since 17/10/2026, prepared), a staff note and
+the address (or a hash of it) it dropped from, for
 the per-address cap. The profile lists a key's counts and its recent holocrons publicly,
 as it does its medals, and legendary and mythical drops are told to every SJK client in
 the feed with the key's hub name. Uncommon and rare ones reach only their owner. Old
@@ -385,7 +388,8 @@ the world shot `duel6_sjk_collection` renders it from the game menu at a match's
 ## Planned, not built
 
 What opened holocrons will also give: the cards' faces ([cards.md](cards.md#planned-not-built)).
-The shop credits buy from and the kyber shards are prepared, not deployed
-([cards.md](cards.md#shards-and-the-shop)).
+The shop (in kyber shards), the kyber shards and the holocrons credits buy (an Uncommon
+for 150, a Rare for 400, source `bought`, outside the caps) are prepared, not deployed
+([cards.md](cards.md#holocrons-for-credits)).
 Saber shaders drop already
 ([unlockables.md](unlockables.md#holocron-shader-drops)).

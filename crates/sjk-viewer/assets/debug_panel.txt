@@ -643,6 +643,26 @@ test: Choose a tier you hold none of: the same shape, dark, nothing moving.
 test: debug_open legendary: the pyramid glides to the middle, spins and cracks open.
 test: In a match, game menu > Collection > Holocrons: the holocron before the camera.
 
+[shop-shards]
+area: Menus & settings
+title: The shop sells for kyber shards; credits buy Uncommon and Rare holocrons
+change: Each offer's price is in kyber shards (30 to 1 500), with the shards' mark.
+change: Under the offers: Uncommon Holocron 150 credits, Rare Holocron 400, asking twice.
+change: A bought holocron joins the list at once and never counts against the daily caps.
+test: Shop (S): Right past the offers chooses the holocrons; Enter twice buys one.
+test: A holocron too dear is dimmed with "N more credits needed." under it.
+test: After buying: "Uncommon Holocron bought for 150 credits. It waits in your holocrons."
+note: Needs the hub's feat/shop-shards; on a hub before, the shop stays in credits.
+
+[card-pack]
+area: Menus & settings
+title: The card pack: a holocron's card comes with its credits and a few kyber shards
+change: Beside the card, two tiles slide out: its credits left, its kyber shards right.
+change: Open all: a card's note says its shards and the totals at the top count them.
+test: debug_open rare: the card turns in, the two tiles slide out and count up.
+test: debug_open rare x5: the summary's cards say "+N credits, +M shards".
+note: Needs the hub's feat/card-pack; without it a card shows its credits alone, as before.
+
 [economy]
 area: Menus & settings
 title: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a day
@@ -5223,3 +5243,11 @@ test: Send a single Russian letter (ya, then Zh): the other player sees that let
 test: Have a Russian client send one letter (or Da in capitals): you see it as Russian.
 test: Send a normal word and an accented one (cafe with e acute): both unchanged.
 note: Foshin's Discord report, 13/10/2026. A letter next to Latin words is still UTF-8.
+
+[supporter-medal-art]
+area: Menus & settings
+title: Supporter medal art cleaned up
+change: The ribbon's V end had a dark block, cut gold stubs and a gap in the stem below it.
+change: The ribbon now ends in a clean V on the bail; the small medallion has no top line.
+test: Collection > Medals, hover or open Supporter: ribbon V meets the knob, stem unbroken.
+test: Small sizes (scoreboard card, Identity list): the star shows no stray line above it.

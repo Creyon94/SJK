@@ -39,6 +39,7 @@ fn shown(tier: usize, rarity: usize, finish: usize, credits: u64) -> Shown {
         finish: &FINISHES[finish],
         edition: "Alpha Edition".to_owned(),
         credits,
+        shards: 0,
         card: None,
     }
 }

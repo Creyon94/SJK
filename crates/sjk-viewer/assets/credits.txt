@@ -50,6 +50,8 @@ did: Holocrons open like a loot crate: the holocron cracks open, a strip runs to
 did: Every saber shader drops from holocrons, except the ones medals bring
 did: The Shaders tab: your saber on its own to turn, and a card for each shader
 did: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a day
+did: The card pack: a holocron's card comes with its credits and a few kyber shards
+did: The shop in kyber shards, and holocrons bought with credits
 did: The four holocrons: the Jedi cube, the Great Holocron, the Sith pyramid, the kyber prism
 did: Grand finds told in SJK chat: who opened a holocron and got a grand prize
 did: Hover cards: how every collected thing is obtained

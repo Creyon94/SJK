@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | The shop in kyber shards, holocrons for credits
+- 2223e7f |  | Shop in kyber shards, a Mythical one day in four, credits buy holocrons (prepared)
++ 17/10/2026 | - | A holocron's card with its credits and a few kyber shards
+- d40704f |  | Card pack: a card comes with its credits and a few kyber shards beside it
++ 17/10/2026 | - | Release 2026.1017.2 (Alpha)
+- bb83eb2 |  | Release 2026.1017.2 (Alpha)
++ 17/10/2026 | - | private_interfaces warning on the Grip victim submit
+- 04744f8 |  | Grip victim: submit visible only to the actor world submission (private_interfaces warning)
 + 17/10/2026 | - | Sol's faces on the Great Holocron, Sith pyramid and kyber crystal
 - c949f9d |  | Holocrons: Sol's faces for the Great Holocron, the Sith pyramid and the kyber crystal
 + 17/10/2026 | - | Cheaper saber shaders up close and when swinging, hub reports 63, 64

@@ -39,7 +39,7 @@ movers, `func_usable` or the push and pull.
 
 ## Force push and pull on doors and buttons
 
-17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`
+17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`, merged with `1c8887f7`
 (report: siege_korriban's red crystal could not be taken and the blue crystal's lift
 did not move, the green one worked): implemented, after OpenJK `codemp/game/w_force.c`
 `ForceThrow` (`:3209-3237`, `:3584-3663`), the movers' part of a push or pull on the

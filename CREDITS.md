@@ -76,6 +76,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - kyber shards and the shop (17/10/2026, Sol's design: shards from shattered duplicates
   and from holocrons craft the shader you choose; credits buy four shaders a day),
   prepared for when the SJK hub turns them on;
+- the card pack: a card from a holocron with its credits and a few kyber shards beside
+  it (17/10/2026, Sol's request), prepared for when the SJK hub turns the shards on;
+- the shop in kyber shards, a Mythical offer one day in four, and holocrons bought with
+  credits (17/10/2026, Sol's decisions), prepared for when the SJK hub turns them on;
 - the four holocrons, each tier an object of its own with moving parts (17/10/2026,
   Sol's pick of the proposed shapes: the Jedi cube, the Great Holocron, the Sith
   pyramid, the kyber prism), with Sol's generated faces for the last three;

@@ -1,6 +1,7 @@
 //! The holocron economy on this client (`docs/cards.md`, "Shards and the shop"): kyber
 //! shards beside credits, what shattering a duplicate gives and crafting costs, the shop's
-//! prices, and the requests that trade. The hub decides everything; this keeps its tables
+//! prices (in shards since 17/10/2026, Sol's decision), what a holocron costs in credits,
+//! and the requests that trade. The hub decides everything; this keeps its tables
 //! ([`current`]) and says what a screen may offer.
 //!
 //! Only shaders of the *trade* take part: the ones holocrons drop, less any a medal brings
@@ -26,8 +27,12 @@ pub(crate) struct Tables {
     pub(crate) shatter: [u64; TIERS],
     /// The kyber shards crafting one costs.
     pub(crate) craft: [u64; TIERS],
-    /// What one costs in the shop, in credits.
+    /// What one costs in the shop, in shards ([`Tables::shop_in_shards`]) or credits.
     pub(crate) shop: [u64; TIERS],
+    /// Whether the shop sells for kyber shards (hubs since 17/10/2026) or credits (before).
+    pub(crate) shop_in_shards: bool,
+    /// What an Uncommon and a Rare holocron cost in credits; 0 when not for sale.
+    pub(crate) holocrons: [u64; 2],
 }
 
 /// This client's copy of the hub's tables (`src/economy.rs` there, provisional
@@ -35,8 +40,13 @@ pub(crate) struct Tables {
 pub(crate) const BUILT_IN: Tables = Tables {
     shatter: [5, 10, 25, 60, 150],
     craft: [40, 100, 300, 800, 2_000],
-    shop: [250, 600, 1_500, 4_000, 10_000],
+    shop: [30, 75, 225, 600, 1_500],
+    shop_in_shards: true,
+    holocrons: [150, 400],
 };
+
+/// The holocron tiers credits may buy, by the hub's ids, in [`Tables::holocrons`]' order.
+pub(crate) const HOLOCRONS_FOR_SALE: [&str; 2] = ["uncommon", "rare"];
 
 static HUB: Mutex<Option<Tables>> = Mutex::new(None);
 
@@ -65,7 +75,23 @@ fn of_hub(economy: &sjk_identity::EconomyTables) -> Option<Tables> {
         shatter: row(&economy.shatter)?,
         craft: row(&economy.craft)?,
         shop: row(&economy.shop)?,
+        shop_in_shards: economy.shop_currency == "shards",
+        holocrons: HOLOCRONS_FOR_SALE.map(|tier| economy.holocrons.get(tier).copied().unwrap_or(0)),
     })
+}
+
+/// Whether the shop sells for kyber shards (else credits, as hubs before 17/10/2026).
+pub(crate) fn shop_in_shards() -> bool {
+    current().shop_in_shards
+}
+
+/// The holocrons credits may buy now: each tier's id and its price in credits.
+pub(crate) fn holocrons_for_sale() -> Vec<(&'static str, u64)> {
+    HOLOCRONS_FOR_SALE
+        .into_iter()
+        .zip(current().holocrons)
+        .filter(|(_, price)| *price > 0)
+        .collect()
 }
 
 /// Whether `skin` takes part in the trade: holocrons drop it and no medal brings it.
@@ -86,8 +112,8 @@ pub(crate) fn craft_cost(tier: Rarity) -> u64 {
     current().craft[tier as usize]
 }
 
-/// What a shader of tier `tier` costs in the shop, in credits (the shop itself shows the
-/// prices the hub sends with its offers; this is the table's).
+/// What a shader of tier `tier` costs in the shop (the shop itself shows the prices the
+/// hub sends with its offers; this is the table's).
 #[cfg(test)]
 pub(crate) fn shop_price(tier: Rarity) -> u64 {
     current().shop[tier as usize]
@@ -156,13 +182,19 @@ pub(crate) fn craft(id: &str) -> bool {
     crate::player_identity::with_service(|service| service.craft(id)).is_some()
 }
 
+/// Buy a holocron of tier `tier` with credits; false when the identity has not started.
+/// What came of it arrives in [`trade_outcome`], the holocron in the player's list.
+pub(crate) fn buy_holocron(tier: &str) -> bool {
+    crate::player_identity::with_service(|service| service.buy_holocron(tier)).is_some()
+}
+
 /// What became of the last shatter, craft or purchase, once the identity has started.
 pub(crate) fn trade_outcome() -> Option<sjk_identity::TradeOutcome> {
     crate::player_identity::with_snapshot(|snapshot| snapshot.trade.clone()).flatten()
 }
 
 /// What a trade's outcome says, in a line: "Tidal blade shattered: +5 kyber shards.",
-/// or why it failed. `name` is the shader's name.
+/// or why it failed. `name` is the shader's name (a holocron's tier name for one bought).
 pub(crate) fn outcome_words(outcome: &sjk_identity::TradeOutcome, name: &str) -> String {
     use sjk_identity::Trade;
     if !outcome.done() {
@@ -172,7 +204,14 @@ pub(crate) fn outcome_words(outcome: &sjk_identity::TradeOutcome, name: &str) ->
     match outcome.trade {
         Trade::Shatter => format!("{name} shattered: +{amount} kyber shards."),
         Trade::Craft => format!("{name} crafted for {amount} kyber shards. It is yours."),
+        Trade::Buy if shop_in_shards() => {
+            format!("{name} bought for {amount} kyber shards. It is yours.")
+        }
         Trade::Buy => format!("{name} bought for {amount} credits. It is yours."),
+        Trade::Holocron => format!(
+            "{name} bought for {} credits. It waits in your holocrons.",
+            crate::cards::credits_text(outcome.amount)
+        ),
     }
 }
 
@@ -187,9 +226,14 @@ mod tests {
     fn the_built_in_tables_are_the_hubs() {
         assert_eq!(BUILT_IN.shatter, [5, 10, 25, 60, 150]);
         assert_eq!(BUILT_IN.craft, [40, 100, 300, 800, 2_000]);
-        assert_eq!(BUILT_IN.shop, [250, 600, 1_500, 4_000, 10_000]);
+        assert_eq!(BUILT_IN.shop, [30, 75, 225, 600, 1_500]);
+        const { assert!(BUILT_IN.shop_in_shards) };
+        assert_eq!(BUILT_IN.holocrons, [150, 400]);
         for table in [BUILT_IN.shatter, BUILT_IN.craft, BUILT_IN.shop] {
             assert!(table.windows(2).all(|pair| pair[0] < pair[1]));
+        }
+        for tier in HOLOCRONS_FOR_SALE {
+            assert!(crate::holocrons::TIERS.iter().any(|known| known.id == tier));
         }
     }
 
@@ -199,11 +243,22 @@ mod tests {
             shatter,
             craft: vec![1, 2, 3, 4, 5],
             shop: vec![10, 20, 30, 40, 50],
+            ..Default::default()
         };
         assert_eq!(
             of_hub(&wire(vec![9, 8, 7, 6, 5])).map(|t| t.shatter),
             Some([9, 8, 7, 6, 5])
         );
+        // A hub before the shop sold for shards: credits, no holocrons for sale.
+        let older = of_hub(&wire(vec![1, 2, 3, 4, 5])).unwrap();
+        assert_eq!((older.shop_in_shards, older.holocrons), (false, [0, 0]));
+        let newer = of_hub(&sjk_identity::EconomyTables {
+            shop_currency: "shards".to_owned(),
+            holocrons: [("rare".to_owned(), 400)].into_iter().collect(),
+            ..wire(vec![1, 2, 3, 4, 5])
+        })
+        .unwrap();
+        assert_eq!((newer.shop_in_shards, newer.holocrons), (true, [0, 400]));
         assert_eq!(of_hub(&wire(vec![1, 2, 3, 4])), None, "four tiers");
         assert_eq!(of_hub(&wire(vec![0, 2, 3, 4, 5])), None, "a zero");
     }
@@ -247,7 +302,7 @@ mod tests {
         assert_eq!((medal.shatter, medal.craft), (None, None));
         assert_eq!(shatter_yield(Rarity::Mythical), 150);
         assert_eq!(craft_cost(Rarity::Rare), 300);
-        assert_eq!(shop_price(Rarity::Legendary), 4_000);
+        assert_eq!(shop_price(Rarity::Legendary), 600);
     }
 
     #[test]
@@ -266,7 +321,11 @@ mod tests {
         );
         assert_eq!(
             outcome_words(&done(Trade::Buy, 1_500), "Lava Lamp blade"),
-            "Lava Lamp blade bought for 1 500 credits. It is yours."
+            "Lava Lamp blade bought for 1 500 kyber shards. It is yours."
+        );
+        assert_eq!(
+            outcome_words(&done(Trade::Holocron, 400), "Rare Holocron"),
+            "Rare Holocron bought for 400 credits. It waits in your holocrons."
         );
         let refused = TradeOutcome {
             message: "Not enough kyber shards.".to_owned(),
