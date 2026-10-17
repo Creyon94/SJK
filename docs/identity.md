@@ -396,7 +396,8 @@ name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png
 whole medal on its ribbon, 512 square; `<id>_small.png`, the medallion alone, 128
 square, for anything under about 64 pixels). A new medal is one entry there and two
 pictures; new art is a file replacement. Supporter's pictures are Sol's pick of a generated sheet
-(a gold-and-steel star with a sun gem on a crimson ribbon, 14/10/2026). The JoF Clan medal (`jof_clan`) was dropped on
+(a gold-and-steel star with a sun gem on a crimson ribbon, 14/10/2026), its ribbon
+lengthened and cut in a V onto the star's bail like the others (redone cleanly 17/10/2026). The JoF Clan medal (`jof_clan`) was dropped on
 10/10/2026 for the [JoF clan tag](#clan-tags); a client ignores an old award of it as
 an unknown id.
 
