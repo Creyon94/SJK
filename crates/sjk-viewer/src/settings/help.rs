@@ -523,6 +523,10 @@ const HELP: &[(&str, &str)] = &[
         "The light trail behind a swinging saber blade.",
     ),
     (
+        crate::team_sabers::TEAM_COLORS_CVAR,
+        "Team games: sabers in the team's colour, shaders worn over it. Off changes only the other team's colour and RGB or black.",
+    ),
+    (
         crate::team_sabers::CVAR,
         "In capture the flag, every red or blue player's sabers in their team's colour, with no blade shader. Off by default.",
     ),

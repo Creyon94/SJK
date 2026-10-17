@@ -101,6 +101,22 @@ impl Policy {
         Cache::default().policy(game, enabled, disabled, muted)
     }
 
+    /// This policy with entity `entity`'s black blade dropped from each hand where
+    /// `replaced` holds (a team colour forced over it, `team_sabers.rs`).
+    pub(crate) fn without(mut self, entity: u64, replaced: [bool; 2]) -> Self {
+        if let Some(client) = entity
+            .checked_sub(1)
+            .filter(|client| *client < LEGACY_MAX_CLIENTS as u64)
+        {
+            for (bits, replaced) in self.black.iter_mut().zip(replaced) {
+                if replaced {
+                    *bits &= !(1 << client);
+                }
+            }
+        }
+        self
+    }
+
     pub(crate) fn color(self, entity: u64, hand: usize, fallback: BladeColor) -> BladeColor {
         let Some(client) = entity
             .checked_sub(1)
