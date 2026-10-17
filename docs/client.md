@@ -1488,6 +1488,15 @@ neither placed nor solid), and the use key fires one only when the map made it
 starts off is not sent (`SVF_NOCLIENT`, `EF_NODRAW`); it used to carry `EF_PERMANENT`
 (bit 7) in the place of `EF_NODRAW` (bit 8).
 
+Used, by the use key or by name (`G_UseTargets`, a `target_counter`, a breakable's
+`target`), a `func_usable` runs `func_usable_use`: it goes away (no contents, not sent)
+and fires its `target`, or comes back solid and fires its `target2`; an `ALWAYS_ON` one
+(spawnflag 8) fires its `target` and is out of use for its `wait`, for good without one.
+Until 17/10/2026 a named use never reached one, so a wall a map took down after an
+objective (siege_korriban's red crystal, as reported) stayed solid. Not ported: the
+shader-frame step of one with `endframe`, its use script, spawnflag 16's wait for a
+clear space, and one used by being shot (`health`).
+
 ## Door and mover sounds
 
 A brush entity (a door, lift, button or breakable) has its entity origin at the

@@ -1,3 +1,16 @@
+## func_usable toggled by name
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: after the push/pull change below, the
+reporter could open siege_korriban's blue crystal and still had the green, but the red
+one kept an invisible wall after its satellites were destroyed. The server never used a
+`func_usable` by name (`fire_targets` skipped them) and the use key only fired its
+target. Implemented `func_usable_use` (OpenJK `g_mover.c:3070-3126`); see
+[client](client.md). Two unit tests pin the toggle and `ALWAYS_ON`'s wait; the
+touched crates' clippy and tests pass on Linux. That the red crystal's wall is a
+`func_usable` is inferred from the report and not checked against the map's entities.
+Checked open pull requests in `Sol-Vulpes/SJK` (#132, #142, #143, #150): none touches
+movers, `func_usable` or the push and pull.
+
 ## Force push and pull on doors and buttons
 
 17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`
