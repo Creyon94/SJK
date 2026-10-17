@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Opening title placement, window-shape shots
+- 84ec2cb |  | Holocron opening: the title clears the swelling holocron; world shots at 4:3 and 21:9
 + 17/10/2026 | - | Grand finds told in SJK chat
 - fec4367 |  | Grand finds in SJK chat: who opened a holocron and got a grand prize
 + 17/10/2026 | - | Holocrons open like a loot crate
