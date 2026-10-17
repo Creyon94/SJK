@@ -630,6 +630,7 @@ struct GpuState {
     mimic: mimic::Mimic,
 
     selected_weapon: Option<u8>,
+    weapon_selection_view: weapon_select::view::Tracker,
     weapon_selected_at: Option<Instant>,
     pending_generic_command: u8,
     vfs: Option<Arc<VirtualFileSystem>>,
@@ -1494,6 +1495,7 @@ impl GpuState {
             mimic: mimic::Mimic::default(),
 
             selected_weapon: None,
+            weapon_selection_view: Default::default(),
             weapon_selected_at: None,
             pending_generic_command: 0,
             effects,

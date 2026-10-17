@@ -328,6 +328,27 @@ broadcast, stock's or jaPRO/TaystJK's, or your own duel; an unknown opponent get
 grey badge, never a guess). SJK-made glows (a repeated bubble, a chrome shell, a blue wash)
 were tried in playtest and dropped. Played on JoF (Windows 11): the figures, the badges and
 their colours for duels started in view, no glow on the pair.
+## Weapon selection across view transitions
+
+16/10/2026, `fix/weapon-selection-view-transitions` based on `7026c735`:
+accepted snapshots reset the retained weapon choice/display time when the
+viewed client or follow/spectator mode changes, or server time rewinds. This
+adopts JoF EJK #39's multiplayer `CG_TransitionPlayerState` intent before
+prediction and command submission, including same-client native transitions.
+The auto-switch event baseline is rebased without discarding the current map's
+item catalogue; old predicted acknowledgements cannot suppress the new player's
+events. Ordinary snapshots preserve pending weapon input. Map/session
+presentation resets clear selection/timer state. Live and demo snapshot paths
+share the guard; both menu/HUD styles consume the same selection.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. Five new tests cover target changes,
+returning to the own saber, same-client follow/spectator transitions, pending
+input across ordinary/duplicate snapshots and rewind at 8/7/4/3 ms steps, event
+baseline rebasing, and rejection of another client's queued no-ammo event.
+The original icon bug has not been reproduced in-game; live spectator-to-play
+and GPU icon appearance remain unverified. No gameplay simulation or protocol
+codecs changed.
 
 ## Emotes on stock models: limbs out of wider bodies
 

@@ -4301,6 +4301,17 @@ weapon and is not chosen. Like `weapnext` it only changes the client's selection
 (the user command sends it); the rule is
 [`legacy_melee_weapon`](../crates/sjk-client/src/weapon_selection.rs).
 
+Weapon selection belongs to the viewed player. When an accepted snapshot changes
+that player, enters/leaves follow or spectator mode, or rewinds the timeline,
+SJK resets the retained weapon choice to the snapshot's equipped weapon and
+refreshes the selection display time before the next user command. This follows
+JoF EJK #39's `CG_TransitionPlayerState` reset and also covers native transitions
+that keep the same client slot. Old pickup/no-ammo event baselines and predicted
+acknowledgements do not carry into the new view. Ordinary snapshots preserve a
+pending local weapon choice; map/session presentation resets clear the retained
+choice and display timer. Both HUD/menu styles share this behavior. See
+[weapon_selection_view.rs](../crates/sjk-viewer/src/weapon_selection_view.rs).
+
 `cl_idrive` is JoF EJK's "last key wins" input (archived, default 0): while both
 keys of a movement pair are held, the one pressed last moves the player instead of
 the two cancelling out. `1` resolves every pair (forward/back, strafe left/right
