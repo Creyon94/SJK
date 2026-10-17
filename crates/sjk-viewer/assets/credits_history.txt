@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | The shop in kyber shards, holocrons for credits
+- 2223e7f |  | Shop in kyber shards, a Mythical one day in four, credits buy holocrons (prepared)
 + 17/10/2026 | - | A holocron's card with its credits and a few kyber shards
 - d40704f |  | Card pack: a card comes with its credits and a few kyber shards beside it
 + 17/10/2026 | - | Release 2026.1017.2 (Alpha)

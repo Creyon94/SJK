@@ -643,6 +643,17 @@ test: Choose a tier you hold none of: the same shape, dark, nothing moving.
 test: debug_open legendary: the pyramid glides to the middle, spins and cracks open.
 test: In a match, game menu > Collection > Holocrons: the holocron before the camera.
 
+[shop-shards]
+area: Menus & settings
+title: The shop sells for kyber shards; credits buy Uncommon and Rare holocrons
+change: Each offer's price is in kyber shards (30 to 1 500), with the shards' mark.
+change: Under the offers: Uncommon Holocron 150 credits, Rare Holocron 400, asking twice.
+change: A bought holocron joins the list at once and never counts against the daily caps.
+test: Shop (S): Right past the offers chooses the holocrons; Enter twice buys one.
+test: A holocron too dear is dimmed with "N more credits needed." under it.
+test: After buying: "Uncommon Holocron bought for 150 credits. It waits in your holocrons."
+note: Needs the hub's feat/shop-shards; on a hub before, the shop stays in credits.
+
 [card-pack]
 area: Menus & settings
 title: The card pack: a holocron's card comes with its credits and a few kyber shards

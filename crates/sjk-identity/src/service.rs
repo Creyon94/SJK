@@ -237,8 +237,10 @@ pub enum Trade {
     Shatter,
     /// A shader made with kyber shards.
     Craft,
-    /// One of the shop's offers bought with credits.
+    /// One of the shop's offers bought (with kyber shards since 17/10/2026).
     Buy,
+    /// A holocron bought with credits; the outcome's `id` is its tier.
+    Holocron,
 }
 
 /// What became of a shatter, a craft or a purchase.
@@ -250,8 +252,8 @@ pub struct TradeOutcome {
     pub trade: Trade,
     /// The shader's id.
     pub id: String,
-    /// The shards a shatter gave, the shards a craft cost or the credits a purchase cost;
-    /// 0 when it failed.
+    /// The shards a shatter gave or a craft cost, what an offer cost (in the shop's
+    /// currency) or the credits a holocron cost; 0 when it failed.
     pub amount: u64,
     /// Why it failed; empty when it worked.
     pub message: String,
@@ -475,6 +477,8 @@ enum Command {
     ReadShop,
     /// Buy this offer of the day.
     Buy(String),
+    /// Buy a holocron of this tier with credits.
+    BuyHolocron(String),
     Stop,
 }
 
@@ -656,6 +660,7 @@ fn trade_refusal(error: &HubError) -> String {
             "not_on_offer" => "That shader is not in the shop any more: the offers changed.",
             "not_enough_credits" => "Not enough credits.",
             "already_bought" => "You bought that one today already.",
+            "not_for_sale" => "That holocron is not for sale.",
             "opening_staff_only" => "Shards and the shop open with holocrons: soon.",
             _ => return message.clone(),
         },
@@ -1132,6 +1137,7 @@ impl Worker {
             Command::Craft(id) => self.trade(Trade::Craft, &id),
             Command::ReadShop => self.read_shop(now),
             Command::Buy(id) => self.trade(Trade::Buy, &id),
+            Command::BuyHolocron(tier) => self.trade(Trade::Holocron, &tier),
             Command::Stop => self.release(),
         }
         self.publish_feed();
@@ -1352,7 +1358,12 @@ impl Worker {
                     let shards = answer.crafted.balance;
                     (answer.crafted.cost, None, Some(shards), answer.profile)
                 }),
-                Trade::Buy => hub.buy_offer(&self.identity, id).map(|answer| {
+                // The balances from the profile: an offer's price is in shards on hubs
+                // since 17/10/2026, in credits before.
+                Trade::Buy => hub
+                    .buy_offer(&self.identity, id)
+                    .map(|answer| (answer.bought.price, None, None, answer.profile)),
+                Trade::Holocron => hub.buy_holocron(&self.identity, id).map(|answer| {
                     let credits = answer.bought.balance;
                     (answer.bought.price, Some(credits), None, answer.profile)
                 }),
@@ -1368,7 +1379,13 @@ impl Worker {
                     if let Some(shop) = snapshot.shop.as_mut() {
                         shop.day.credits = credits.unwrap_or(profile.credits);
                         shop.day.shards = shards.unwrap_or(profile.shards);
-                        for offer in shop.day.offers.iter_mut().filter(|offer| offer.id == id) {
+                        let shader = trade != Trade::Holocron;
+                        for offer in shop
+                            .day
+                            .offers
+                            .iter_mut()
+                            .filter(|offer| shader && offer.id == id)
+                        {
                             offer.owned = trade != Trade::Shatter || offer.owned;
                             offer.bought |= trade == Trade::Buy;
                         }
@@ -2359,7 +2376,13 @@ impl Service {
         let _ = self.commands.send(Command::ReadShop);
     }
 
-    /// Buy today's offer `id` with credits: what came of it arrives in
+    /// Buy a holocron of tier `tier` with credits: what came of it arrives in
+    /// [`Snapshot::trade`] (its `id` the tier), the holocron in the profile.
+    pub fn buy_holocron(&self, tier: &str) {
+        let _ = self.commands.send(Command::BuyHolocron(tier.to_owned()));
+    }
+
+    /// Buy today's offer `id`: what came of it arrives in
     /// [`Snapshot::trade`], and the profile after it.
     pub fn buy(&self, id: &str) {
         let _ = self.commands.send(Command::Buy(id.to_owned()));
@@ -2874,14 +2897,14 @@ mod tests {
                     id: "saber_aurora".to_owned(),
                     name: "Aurora blade".to_owned(),
                     tier: "common".to_owned(),
-                    price: 250,
+                    price: 30,
                     bought: false,
                     owned: false,
                 }],
                 next: 1_791_003_600,
                 server_time: 1_791_000_000,
                 credits: 300,
-                shards: 0,
+                shards: 45,
             })
         }
         fn buy_offer(
@@ -2894,14 +2917,36 @@ mod tests {
                 return Err(refused(409, "not_on_offer"));
             }
             let mut profile = profile("Sol");
-            profile.credits = 50;
+            profile.credits = 300;
+            profile.shards = 15;
             Ok(crate::wire::BuyAnswer {
                 bought: crate::wire::Bought {
                     id: id.to_owned(),
                     name: "Aurora blade".to_owned(),
                     count: 1,
-                    price: 250,
-                    balance: 50,
+                    price: 30,
+                    balance: 15,
+                },
+                profile,
+            })
+        }
+        fn buy_holocron(
+            &mut self,
+            _: &Identity,
+            tier: &str,
+        ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+            self.record(format!("buy holocron {tier}"))?;
+            if tier != "rare" {
+                return Err(refused(400, "not_for_sale"));
+            }
+            let mut profile = profile("Sol");
+            profile.credits = 100;
+            Ok(crate::wire::HolocronBuyAnswer {
+                bought: crate::wire::HolocronBought {
+                    holocron: 42,
+                    tier: tier.to_owned(),
+                    price: 400,
+                    balance: 100,
                 },
                 profile,
             })
@@ -3658,10 +3703,23 @@ mod tests {
         assert_eq!(shop.seconds_left(t0 + Duration::from_secs(4_000)), 0);
         worker.handle(Command::Buy("saber_aurora".to_owned()), t0);
         let bought = lock(&snapshot).trade.clone().unwrap();
-        assert_eq!((bought.trade, bought.amount), (Trade::Buy, 250));
+        assert_eq!((bought.trade, bought.amount), (Trade::Buy, 30));
         let shop = lock(&snapshot).shop.clone().unwrap();
         assert!(shop.day.offers[0].bought && shop.day.offers[0].owned);
-        assert_eq!(shop.day.credits, 50);
+        assert_eq!((shop.day.credits, shop.day.shards), (300, 15));
+        // A holocron for credits: the shop's credits follow, no offer changes.
+        worker.handle(Command::BuyHolocron("rare".to_owned()), t0);
+        let holocron = lock(&snapshot).trade.clone().unwrap();
+        assert_eq!(
+            (holocron.trade, holocron.id.as_str(), holocron.amount),
+            (Trade::Holocron, "rare", 400)
+        );
+        assert_eq!(lock(&snapshot).shop.clone().unwrap().day.credits, 100);
+        worker.handle(Command::BuyHolocron("mythical".to_owned()), t0);
+        assert_eq!(
+            lock(&snapshot).trade.clone().unwrap().message,
+            "That holocron is not for sale."
+        );
         worker.handle(Command::Buy("saber_gone".to_owned()), t0);
         assert_eq!(
             lock(&snapshot).trade.clone().unwrap().message,
@@ -3680,7 +3738,7 @@ mod tests {
                     || line.starts_with("buy")
                     || *line == "shop")
                 .count(),
-            7
+            9
         );
     }
 
