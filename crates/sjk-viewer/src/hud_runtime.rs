@@ -205,11 +205,7 @@ pub(crate) fn update(
         gpu.hud
             .nameplate
             .refresh_marks(i64::from(presentation_time), || {
-                let game_state = session.game_state();
-                (
-                    player_identity::slot_marks(game_state),
-                    player_identity::sjk_slots(game_state),
-                )
+                player_identity::slot_marks(session.game_state())
             });
         gpu.hud
             .nameplate
@@ -305,6 +301,8 @@ pub(crate) fn update(
         let own_slot = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player).own;
         gpu.hud.card.update(hud::player_card::Input {
             seen: gpu.crosshair_scan.hit_now(presentation_time),
+            bsp: &gpu.bsp,
+            scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
             world: &gpu.live_world,
             now: presentation_time,
@@ -477,6 +475,8 @@ pub(crate) fn update(
         let own_slot = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player).own;
         gpu.hud.card.update(hud::player_card::Input {
             seen: gpu.crosshair_scan.hit_now(presentation_time),
+            bsp: &gpu.bsp,
+            scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
             world: session.world(),
             now: presentation_time,

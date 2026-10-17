@@ -1,3 +1,16 @@
+## Player card in sight only; grey bars for every non-sharer
+
+17/10/2026, `personal/inspect-sight` (Sol's request). The player card, dwelled or
+pinned with `inspect`, needs its player within 1200 units of the camera with no wall
+between the camera and their head or hips (the nameplates' trace); a pinned card fades
+out of sight and unpins after 3 seconds ([client.md](client.md#player-card)). Nameplates
+give grey bars to every player who does not share, bots and players without SJK
+included (the SJK-only check, `player_identity::sjk_slots`, is gone), so
+`cg_nameplateEstimate` ("Bars on everyone") had nothing left to show and was removed
+(Sol's choice); the client always sends the hub `estimates: false`, and cards still read
+the flag from older clients. Checked by unit tests (the new `Sight` grace); not tried in
+the game.
+
 ## Chroma blades on pale custom colours
 
 17/10/2026, `personal/rgb-saber` (Kushina's report, build 2026.1016.2: moving the Green

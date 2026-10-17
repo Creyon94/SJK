@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Player card only in sight, grey bars on every non-sharer
+- fb57ae5 |  | Player card only in sight; grey bars on every player who does not share
 + 17/10/2026 | - | Shader blades keep pale custom colours
 - cc1ad92 |  | Chroma blades keep pale custom colours: grey threshold 0.2 -> 0.03
 - 9e450d8 |  | Debug panel: reword the chroma-pastel note

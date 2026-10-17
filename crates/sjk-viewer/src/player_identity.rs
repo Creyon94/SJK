@@ -641,29 +641,6 @@ pub(crate) fn slot_marks(game_state: &GameState) -> SlotMarks {
 /// Each slot's mark after its nameplate's name ([`slot_marks`]).
 pub(crate) type SlotMarks = [Option<sjk_ui::TextureId>; MAX_CLIENTS];
 
-/// The slots of the other SJK players on this server: each one the hub lists with a
-/// claim naming the name the game shows there. A nameplate greys their bars unless
-/// they share them.
-pub(crate) fn sjk_slots(game_state: &GameState) -> [bool; MAX_CLIENTS] {
-    let mut slots = [false; MAX_CLIENTS];
-    let runtime = lock();
-    let Some(service) = runtime.service.as_ref() else {
-        return slots;
-    };
-    service.with_snapshot(|snapshot| {
-        for player in snapshot
-            .players
-            .iter()
-            .filter(|player| usize::from(player.slot) < MAX_CLIENTS)
-        {
-            let slot = usize::from(player.slot);
-            slots[slot] = shown_name(game_state, slot)
-                .is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown));
-        }
-    });
-    slots
-}
-
 /// How long the hub's list of sharers stays good without a new answer: a little over
 /// the life of its entries.
 const SHARED_FRESH: Duration = Duration::from_secs(6);
@@ -1239,7 +1216,6 @@ mod tests {
         assert_eq!(revision(), 0);
         assert!(snapshot().is_none());
         assert_eq!(slot_marks(&GameState::empty_local(0)), [None; MAX_CLIENTS]);
-        assert_eq!(sjk_slots(&GameState::empty_local(0)), [false; MAX_CLIENTS]);
         assert_eq!(report_gate(), crate::ingame_menu::players::Gate::NoIdentity);
         assert_eq!(hub_mark(3, "Sol"), None);
         assert!(player_report_outcome().is_none());

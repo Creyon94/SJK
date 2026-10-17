@@ -1074,6 +1074,27 @@ test: Team game, the non-sharer a teammate: grey too, no HP/shield from the serv
 test: The non-sharer turns sharing on: real bars and the gold contour within a second or two.
 note: Needs cl_identity on both; a player the hub does not list is treated as stock.
 
+[nameplate-grey-all]
+area: HUD
+title: Grey bars on every player who does not share, on SJK or not; Bars on everyone removed
+change: Stock players and bots get the same full grey, empty bars as SJK non-sharers.
+change: No teammate HP from the server either; Bars on everyone (cg_nameplateEstimate) is gone.
+test: Join with a bot or a stock client: its plate shows grey bars, not estimates, not none.
+test: Team game, a stock teammate: grey bars, no HP/shield from the server.
+test: An SJK player sharing: real bars and gold contour as before.
+test: Settings, Nameplates: no Bars on everyone row; help has no entry for it.
+note: NPC plates (cg_nameplateNpcs) keep their bars.
+
+[card-sight]
+area: HUD
+title: Player card and inspect only in sight and within 1200 units
+change: No card through a wall or from farther than 1200 units, by dwell or by inspect.
+change: A pinned card hides when its player goes out of sight; it unpins after 3 seconds.
+test: Aim at a player across a large map (over 1200 units) and press X: no card.
+test: Pin a player close by, let them walk behind a wall: the card fades out.
+test: They come back within 3 s: the card returns; stay hidden longer: the pin is gone.
+test: Pin, then back off past 1200 units: same as behind a wall.
+
 [model-check]
 area: HUD
 title: Player card says if the inspected player sees your model (cl_shareModels)

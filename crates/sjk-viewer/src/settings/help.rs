@@ -341,10 +341,6 @@ const HELP: &[(&str, &str)] = &[
         "Your real health, shield and Force for the other SJK players, through the SJK hub. Always on while your nameplates show bars.",
     ),
     (
-        "cg_nameplateEstimate",
-        "Estimated bars on players who don't share, while the hub has yours. Your player card tells others you see theirs.",
-    ),
-    (
         "cg_nameplateSelf",
         "Your own nameplate over your head in third person, with your real bars.",
     ),

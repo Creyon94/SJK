@@ -2518,8 +2518,8 @@ that font is not loaded), whatever `cg_classicHudFont` says.
 ### Sharing and estimates
 
 Another player's health, shield and Force bars show only when that player shares
-them, unless you turn the estimates on (decided 15/10/2026), and seeing any of them
-means sharing your own, through the hub (Sol's rule, 15/10/2026):
+them (decided 15/10/2026; since 17/10/2026 with no estimates on anyone else), and
+seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/2026):
 
 - `cg_nameplateShare` (Settings > Interface "Share my bars", and First setup):
   your client sends your real health, shield and Force (from the snapshot the server
@@ -2527,40 +2527,33 @@ means sharing your own, through the hub (Sol's rule, 15/10/2026):
   SJK players of your server ([hub-chat.md](hub-chat.md#vitals)). It needs
   `cl_identity` and a live claim, so it starts a few seconds after joining. It is
   held on (the client sets it back) while nameplates show bars (`cg_nameplate` on,
-  `cg_nameplateBars` not 0) or `cg_nameplateEstimate` is on; it can only be off with
-  bars off.
-- **Tied to the hub:** shared and estimated bars on other players show only while the
+  `cg_nameplateBars` not 0); it can only be off with bars off.
+- **Tied to the hub:** shared bars on other players show only while the
   hub's last answer (under 6 seconds old) lists you sharing in your slot. With
   `cl_identity` off, no hub, no claim yet or the hub down, other players get no such
   bars; the server's own (teammates' `tinfo`, NPCs) stay. The hub itself gives the
   values only to players who share: a post without `share` gets who shares, not
   their numbers.
-- **SJK players who do not share** (16/10/2026, Sol's rule): a player the hub lists
-  in that slot under the name the game shows (`player_identity::sjk_slots`) who does
-  not share gets grey bars, full length and empty, for every viewer: health, shield,
-  and Force with `cg_nameplateForce`. Nothing overrides it: not `cg_nameplateEstimate`,
-  not a teammate's `tinfo`. Their name, weapon and power icons stay.
-- **Default (players without SJK):** a player the hub does not know gets their name,
-  weapon and power icons but no bars. Teammates' health and shield, which the server
-  itself sends (`tinfo`), and NPCs' stay; a teammate without SJK has no Force bar.
+- **Players who do not share** (Sol's rule, 16/10/2026 for SJK players, 17/10/2026
+  for everyone, bots and players without SJK too): grey bars, full length and empty,
+  for every viewer: health, shield, and Force with `cg_nameplateForce`. Nothing
+  overrides it, not even a teammate's `tinfo`. Their name, weapon and power icons
+  stay. NPCs keep their bars.
 - **Sharers:** their bars are the estimates below, corrected with every value they
   share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
   shared value is up to about a second old by the time it arrives, so it re-bases the
   estimate as it stood at that server time: what was seen since (a hit, a pain, a
   heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
   seen since, the bar is exact; it never waits for the next value to move.
-- **Gold contour:** the plate of a player who shares (`cg_nameplateShare`, or
-  `cg_nameplateEstimate`, which makes them share) is framed in the verified badge's
+- **Gold contour:** the plate of a player who shares (`cg_nameplateShare`) is framed in the verified badge's
   gold instead of grey; in team games a thin line of the
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too
   while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.
-- `cg_nameplateEstimate` (off; "Bars on everyone"): the estimated bars on every
-  player without SJK, as before 15/10/2026, and only while the hub has your sharing
-  (SJK players who do not share stay grey). It shares
-  your own bars whatever `cg_nameplateShare` says (the client sets
-  `cg_nameplateShare` back on while it is on), and the hub tells
-  the others: your player card (`inspect`) says, in amber, "Sees your health, shield
-  and Force". A sharer's card says "Shares their health, shield and Force".
+- `cg_nameplateEstimate` ("Bars on everyone", estimates on every player without
+  SJK) was removed on 17/10/2026, when they turned grey. A client from before may
+  still tell the hub it sees everyone's bars: their player card (`inspect`) says, in
+  amber, "Sees your health, shield and Force". A sharer's card says "Shares their
+  health, shield and Force".
 - The hub cannot check what a client says: a modified client could share false
   values or estimate without saying so. The protocol keeps honest clients honest.
 
@@ -2572,8 +2565,7 @@ Where the numbers come from, and what is not known:
 - **NPCs** (and any entity whose `entityState_t::health`/`maxhealth` the server
   sets): exact. The SJK server sets them for NPCs, breakables and emplaced guns, not
   for clients; stock JKA does not either.
-- **Everyone else's health and shield** (with `cg_nameplateEstimate`, or players who
-  share) are estimated
+- **Sharers' health and shield** are estimated
   ([vitals_estimate.rs](../crates/sjk-viewer/src/hud/vitals_estimate.rs)) once per
   snapshot (every one, so no event is missed) from what the server sends everyone,
   with its own rules:
@@ -3113,6 +3105,12 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   screen), and a second press or Escape hides it (Escape then does not open the game
   menu); it also drops when the player leaves or the map changes. After hiding it, the
   card does not return until the crosshair leaves that player. Behind you, the card is not drawn but stays pinned.
+- **In sight only** (17/10/2026, Sol's request): no card, by looking or by `inspect`,
+  for a player farther than 1200 units from the camera or with a wall between the
+  camera and both their head and their hips (the nameplates' trace, solid and terrain
+  brushes). A pinned card fades out while its player is out of sight that way and
+  comes back if they return within 3 seconds; after that the pin drops
+  (`player_card::SIGHT_RANGE`, `LOST_MS`).
 - World notes: `worldnote` (Settings > Key bindings > Interaction > World note; bound
   to O by default, or `bind <key> worldnote`; until 10/10/2026 `inspect` did it when no
   player was under the crosshair) selects the world surface under the crosshair, or the mover whose bounds the view ray

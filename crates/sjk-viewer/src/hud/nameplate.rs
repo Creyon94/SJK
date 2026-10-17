@@ -156,10 +156,10 @@ const MAX_ICONS: usize = 4;
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 /// Frame colour of players who follow no team.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
-/// The contour of a player who shares their bars (`cg_nameplateShare`, or
-/// `cg_nameplateEstimate`, which shares them), the verified badge's gold.
+/// The contour of a player who shares their bars (`cg_nameplateShare`), the verified
+/// badge's gold.
 const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
-/// The flat grey of every bar of an SJK player who does not share.
+/// The flat grey of every bar of a player who does not share.
 const WITHHELD_BAR: Color = Color::new(0.42, 0.44, 0.48, 0.55);
 /// Frame colour of NPC plates.
 const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.9);
@@ -236,12 +236,6 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Share your health, shield and Force with the other SJK players of your server; on whenever your nameplates show bars",
     ))?;
     cvars.register(CvarDefinition::new(
-        "cg_nameplateEstimate",
-        false,
-        CvarFlags::ARCHIVE,
-        "Estimated bars on players without SJK, while the hub has yours (SJK players who do not share stay grey); turning it on shares your own, and the others are told",
-    ))?;
-    cvars.register(CvarDefinition::new(
         "cg_nameplateWeapon",
         true,
         CvarFlags::ARCHIVE,
@@ -287,14 +281,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
 }
 
 /// Seeing bars shares the player's own (Sol's rule, 15/10/2026): nameplates with bars
-/// (`cg_nameplate` and `cg_nameplateBars` not 0) or `cg_nameplateEstimate` turn
-/// `cg_nameplateShare` back on whenever it is off, so the settings say what is sent.
+/// (`cg_nameplate` and `cg_nameplateBars` not 0) turn `cg_nameplateShare` back on
+/// whenever it is off, so the settings say what is sent.
 pub(crate) fn hold_sharing(console: &mut ViewerConsole) {
     let bars = console.bool_cvar("cg_nameplate") != Some(false)
         && console.integer_cvar("cg_nameplatebars").unwrap_or(2) != 0;
-    if (bars || console.bool_cvar("cg_nameplateestimate") == Some(true))
-        && console.bool_cvar("cg_nameplateshare") != Some(true)
-    {
+    if bars && console.bool_cvar("cg_nameplateshare") != Some(true) {
         console.set_cvar("cg_nameplateShare", "1");
     }
 }
@@ -311,9 +303,6 @@ struct Settings {
     /// `cg_nameplateShare`: the player shares their own values (held on while the
     /// plates show bars, [`hold_sharing`]).
     share: bool,
-    /// `cg_nameplateEstimate`: estimated bars on players who do not share, which
-    /// makes the player share whatever `share` says.
-    estimate: bool,
     weapon: bool,
     walls: bool,
     npcs: bool,
@@ -339,7 +328,6 @@ impl Default for Settings {
             bars: 2,
             force: true,
             share: false,
-            estimate: false,
             weapon: true,
             walls: false,
             npcs: false,
@@ -392,7 +380,7 @@ struct Entry {
     /// They share their bars, of their own will or because they see everyone's: a
     /// gold contour.
     shared: bool,
-    /// An SJK player who does not share: their bars are drawn grey and empty.
+    /// A player who does not share: their bars are drawn grey and empty.
     withheld: bool,
     /// In a private duel (a player entity's `bolt1`, its `duelInProgress`): the duel
     /// badge before the name.
@@ -441,9 +429,6 @@ pub(crate) struct State {
     /// Each slot's mark after its name (`player_identity::slot_marks`), and when they were
     /// last read.
     marks: crate::player_identity::SlotMarks,
-    /// The slots of the other SJK players (`player_identity::sjk_slots`), read with
-    /// the marks: their bars are grey unless they share them.
-    sjk: [bool; MAX_PLAYER_TAGS],
     marks_read: Option<i64>,
     /// What each slot's player shares (`PROTOCOL.md`, "Vitals"), and when it was last
     /// read.
@@ -484,7 +469,6 @@ impl Default for State {
             vitals: vitals_estimate::Estimator::default(),
             colors: BarColors::default(),
             marks: [None; 32],
-            sjk: [false; MAX_PLAYER_TAGS],
             marks_read: None,
             shared: [None; MAX_PLAYER_TAGS],
             shared_read: None,
@@ -520,7 +504,6 @@ impl State {
                 .unwrap_or(2),
             force: flag("cg_nameplateforce", true),
             share: flag("cg_nameplateshare", false),
-            estimate: flag("cg_nameplateestimate", false),
             weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
@@ -555,13 +538,12 @@ impl State {
         };
     }
 
-    /// Read each slot's mark and which slots are SJK players (`read` asks the identity
-    /// service) at most once a second, so the names it compares are not rebuilt every
-    /// frame.
+    /// Read each slot's mark (`read` asks the identity service) at most once a second,
+    /// so the names it compares are not rebuilt every frame.
     pub(crate) fn refresh_marks(
         &mut self,
         now: i64,
-        read: impl FnOnce() -> (crate::player_identity::SlotMarks, [bool; MAX_PLAYER_TAGS]),
+        read: impl FnOnce() -> crate::player_identity::SlotMarks,
     ) {
         if self
             .marks_read
@@ -570,7 +552,7 @@ impl State {
             return;
         }
         self.marks_read = Some(now);
-        (self.marks, self.sjk) = read();
+        self.marks = read();
     }
 
     /// Slot `number`'s mark.
@@ -612,10 +594,10 @@ impl State {
 
     /// What the player shares this frame: their own health, shield and Force while
     /// alive in a match, with `cg_nameplateShare`, or whenever they may see others'
-    /// bars (plates with bars, `cg_nameplateEstimate`) whatever it says.
+    /// bars (plates with bars) whatever it says.
     pub(crate) fn sharing(&self, snapshot: Option<&Snapshot>) -> sjk_identity::Sharing {
         let settings = &self.settings;
-        let share = settings.share || settings.estimate || (settings.enabled && settings.bars != 0);
+        let share = settings.share || (settings.enabled && settings.bars != 0);
         let vitals = snapshot
             .filter(|snapshot| {
                 share && snapshot.player.health() > 0 && !snapshot.player.is_spectator()
@@ -631,7 +613,9 @@ impl State {
             });
         sjk_identity::Sharing {
             share,
-            estimates: settings.estimate,
+            // `cg_nameplateEstimate` is gone (17/10/2026): nobody's bars are estimated
+            // without their sharing, so this client never says it sees them.
+            estimates: false,
             vitals,
         }
     }
@@ -938,26 +922,21 @@ impl State {
                     .shared
                     .get(usize::from(number))
                     .is_some_and(Option::is_some);
-            // An SJK player who does not share has grey bars for everyone: no
-            // estimate, not even the server's own for a teammate (Sol's rule,
-            // 16/10/2026).
-            let withheld = bars
-                && player
-                && !shares
-                && self.sjk.get(usize::from(number)).copied().unwrap_or(false);
-            // Estimates show on players who share (corrected by what they share) and,
-            // with `cg_nameplateEstimate`, on everyone else not withheld; either only
-            // while the hub has the player's own sharing.
+            // A player who does not share, on SJK or not, has grey bars for everyone:
+            // no estimate, not even the server's own for a teammate (Sol's rule,
+            // 16/10/2026 for SJK players, 17/10/2026 for everyone).
+            let withheld = bars && player && !shares;
+            // Estimates show only on players who share, corrected by what they share,
+            // and only while the hub has the player's own sharing.
             let estimated = player
                 && !withheld
                 && self.sharing_live
-                && (settings.estimate
-                    || self
-                        .shared
-                        .get(usize::from(number))
-                        .copied()
-                        .flatten()
-                        .is_some_and(|shared| shared.vitals.is_some()));
+                && self
+                    .shared
+                    .get(usize::from(number))
+                    .copied()
+                    .flatten()
+                    .is_some_and(|shared| shared.vitals.is_some());
             let (health, shield) = if withheld {
                 (Some(Range::exact(0.0)), Some(Range::exact(0.0)))
             } else if bars {
@@ -1740,7 +1719,7 @@ impl State {
         }
     }
 
-    /// The bar of an SJK player who does not share: a flat grey bar the whole way,
+    /// The bar of a player who does not share: a flat grey bar the whole way,
     /// so it reads as hidden rather than empty.
     fn withheld_meter(&mut self, rect: Rect, u: f32) {
         let radius = rect.height * 0.5;
@@ -2143,7 +2122,7 @@ pub(crate) struct PreviewPlate {
     pub(crate) team: Option<bool>,
     /// The gold contour of a player who shares their bars.
     pub(crate) shared: bool,
-    /// An SJK player who does not share: grey bars.
+    /// A player who does not share: grey bars.
     pub(crate) withheld: bool,
 }
 
