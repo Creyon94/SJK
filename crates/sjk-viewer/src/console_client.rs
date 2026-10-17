@@ -54,6 +54,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "s_dynamic",
         "Select dynamic music state (untimed transitions)",
     ),
+    (
+        "pmonly",
+        "Toggle private-only game chat for this map: pmonly [on|off]",
+    ),
     ("messagemode", "Compose global chat"),
     ("messagemode2", "Compose team chat"),
     (
@@ -935,6 +939,12 @@ impl crate::GpuState {
             crate::am_color::COMMAND => {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::am_color::run(console, args);
+            }
+            "pmonly" => {
+                return crate::chat::pm_only::command(
+                    self.console.as_mut().ok_or("Console unavailable")?,
+                    args,
+                );
             }
             "reply" => return self.reply_command(args),
             crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {

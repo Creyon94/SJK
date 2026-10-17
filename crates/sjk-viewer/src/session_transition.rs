@@ -449,6 +449,9 @@ impl GpuState {
 
     pub(crate) fn adopt_world(&mut self, mut loaded: GpuState) -> GpuState {
         self.hand_shell_to(&mut loaded);
+        if let Some(console) = &mut loaded.console {
+            crate::chat::pm_only::reset(console);
+        }
         // The world was built at the window's size when its install began; the window
         // may have been resized in the seconds since. Its depth and scene targets would
         // then no longer match the swapchain, and wgpu refuses that frame.

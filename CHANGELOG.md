@@ -11,7 +11,9 @@ assistant.
 <!--
 Format, read by the client (crates/sjk-viewer/src/changelog_data.rs, whose
 tests check this file):
-- "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased" for main
+- "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased
+
+- Add current-map PM-only game chat, with a console command and a switch in both menu styles; recognize server tell markers before display cleanup. _(lumayaa, after JoF EJK)_" for main
   after the last release, without a date);
 - other lines up to the first item are the release's introduction;
 - "> <Heading>: <sentence>" lines before the first item are the release's short

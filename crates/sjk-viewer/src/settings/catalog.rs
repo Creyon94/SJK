@@ -550,6 +550,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Game PM-only chat",
+        cvar: crate::chat::pm_only::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Chat text size",
         cvar: "cg_chatBoxFontSize",
         kind: ValueKind::Float {

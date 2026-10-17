@@ -288,6 +288,10 @@ const HELP: &[(&str, &str)] = &[
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),
+    (
+        crate::chat::pm_only::CVAR,
+        "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,

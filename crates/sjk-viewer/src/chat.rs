@@ -12,6 +12,7 @@ mod layout;
 pub(crate) mod marks;
 mod options;
 mod player_actions;
+pub(crate) mod pm_only;
 pub(crate) mod reply;
 pub(crate) mod sjk;
 mod social;
@@ -54,6 +55,7 @@ struct ChatLine {
     body: String,
     sender: Option<ChatTarget>,
     channel: Channel,
+    server_private: bool,
     received_ms: u64,
     muted: bool,
     /// The emojis the body's marks stand for, in order ([`emoji::Emojis::markup`]).
@@ -270,8 +272,20 @@ impl ChatOverlay {
     pub(crate) fn receive(
         &mut self,
         kind: ServerEventKind,
+        text: String,
+        sender: Option<u16>,
+        now: Instant,
+    ) {
+        let private = kind == ServerEventKind::Chat && text.starts_with("\u{19}[");
+        self.receive_classified(kind, text, sender, private, now);
+    }
+
+    pub(crate) fn receive_classified(
+        &mut self,
+        kind: ServerEventKind,
         mut text: String,
         sender: Option<u16>,
+        server_private: bool,
         now: Instant,
     ) {
         // Console output never enters conversation history, including direct callers.
@@ -345,6 +359,7 @@ impl ChatOverlay {
             } else {
                 Channel::Global
             },
+            server_private,
             received_ms: ms,
             // Ignored for this map, or muted on this PC (`muted_players.rs`).
             muted: match target {
@@ -361,7 +376,7 @@ impl ChatOverlay {
             self.lines.pop_front();
         }
         self.lines.push_back(line);
-        if self.is_typing() && self.scroll > 0 {
+        if self.is_typing() && self.scroll > 0 && (!self.options.pm_only || server_private) {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));
             self.unread = (self.unread + 1).min(HISTORY_LIMIT);
         }

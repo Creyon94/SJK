@@ -2101,6 +2101,16 @@ counts bytes of its one-byte code page, so the limit counts characters, and a na
 with `×` or `é` (two bytes in UTF-8) in a duel challenge wraps like any other. The scoreboard continues
 to use structured server scores rather than parsing printed statistics tables.
 
+`pmonly` toggles **Game PM-only chat** for the current map; `pmonly on`/`off`
+(and 1/0) select it explicitly. The same default-off switch is in both settings
+styles (`cg_pmOnlyChat`). Only game-server tells with the stock private marker
+before the sender name remain in the overlay and produce a chat notification;
+lookalike names, colours and quoted message bodies cannot mark a public line as
+private. Sent tell echoes qualify too. Existing history is hidden, not erased,
+and returns when the switch is off; console history/logs, centre notices and
+SJK hub chat are independent. Moving to another map resets the choice; a graphics
+reload preserves it. Unmarked private formats from other mods are not guessed.
+
 Chat remains connected to the real server during intermission, including
 global/team/private composer messages and console/bound chat commands. Messages
 received during background loading are retained; its loading notice hides the HUD. The scoreboard reserves a separate left column for messages and the

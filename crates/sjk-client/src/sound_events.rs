@@ -653,6 +653,11 @@ impl LegacySoundAdapter {
         self.local.chat_filter.enabled = clean;
     }
 
+    /// Filter non-private chat notifications without suppressing other local sounds.
+    pub fn set_pm_only_chat(&mut self, enabled: bool) {
+        self.local.pm_only = enabled;
+    }
+
     /// Resolve and decode all static tables, CS_SOUNDS, and model custom sounds.
     ///
     /// `register` is called at most once per distinct resolved asset and is
