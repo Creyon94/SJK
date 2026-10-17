@@ -139,6 +139,8 @@ pub(super) struct SjkHeader<'a> {
     pub(super) local: LocalStatus,
     /// Who last killed you, while you are dead.
     pub(super) killer: Option<&'a str>,
+    /// The siege team that won the round now over (1 red, 2 blue).
+    pub(super) siege_winner: Option<u8>,
     pub(super) duel: Duelists,
     /// `cg_compactScoreboard`: thin rows, every player in one column.
     pub(super) compact: bool,
@@ -1034,7 +1036,13 @@ impl Painter<'_> {
         }
         if header.gametype >= TEAM {
             if header.gametype == SIEGE {
-                return RIGHT;
+                // Siege scores no team: the round's winner, once it is over.
+                let (line, tint) = match header.siege_winner {
+                    Some(RED) => ("Red team won", RED_TEAM),
+                    Some(BLUE) => ("Blue team won", BLUE_TEAM),
+                    _ => return RIGHT,
+                };
+                return self.right_run(line, RIGHT, 34.0, tint);
             }
             let [red, blue] = header.team_scores;
             let line = match local.team {
@@ -1960,6 +1968,7 @@ mod tests {
                 intermission: false,
             },
             killer: None,
+            siege_winner: None,
             duel: Duelists::default(),
             compact: false,
             fps: None,

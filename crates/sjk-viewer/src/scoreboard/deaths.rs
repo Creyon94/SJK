@@ -59,6 +59,9 @@ impl Scoreboard {
             }
         }
         d.consumed = tracker.decoded();
+        if let Some(round) = tracker.siege_round_over() {
+            self.siege_round_over = Some(round);
+        }
         if let Some(client) = killer {
             self.killer = Some(client);
             self.killer_name.clear();
