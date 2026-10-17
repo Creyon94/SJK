@@ -114,7 +114,7 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     ("cg_remaps", "2", "Always"),
     ("cg_cameraFPS", "125.0", "Default"),
     ("cg_cameraFPS", "30.0", "Smooth (SP)"),
-    ("cg_cameraFPS", "0.0", "Base JKA"),
+    ("cg_cameraFPS", "0.0", "BaseJKA"),
     (crate::brush_view::CVAR, "0", "Off"),
     (crate::brush_view::CVAR, "1", "Gameplay"),
     (crate::brush_view::CVAR, "2", "All"),
@@ -521,7 +521,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_cameraFPS",
-        "EJK damping timing: Default 125, Smooth (SP) 30, or Base JKA's original 50 ms steps.",
+        "With SJK camera style, use EJK damping timing: Default 125, Smooth (SP) 30, or BaseJKA's original 50 ms steps.",
     ),
     (
         "cg_thirdPersonRange",
@@ -1052,6 +1052,6 @@ mod tests {
     fn camera_damping_styles_have_their_ejk_names() {
         assert_eq!(choice_name("cg_cameraFPS", "125.0"), Some("Default"));
         assert_eq!(choice_name("cg_cameraFPS", "30.0"), Some("Smooth (SP)"));
-        assert_eq!(choice_name("cg_cameraFPS", "0.0"), Some("Base JKA"));
+        assert_eq!(choice_name("cg_cameraFPS", "0.0"), Some("BaseJKA"));
     }
 }

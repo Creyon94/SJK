@@ -1050,9 +1050,10 @@ profile also sets `cg_thirdPersonRange 100`, which SJK leaves to that cvar. SJK'
 
 Settings > Advanced > Gameplay > Camera and prediction, and Classic+ Setup >
 Game options, expose the camera controls from JoF EJK's
-`assets/japro/ui/jamp/ingame_camera.menu` (release 1.5.1, commit `52e068d0`). The
+`assets/japro/ui/jamp/ingame_camera.menu` at official alpha commit `9822a9d6`
+(`1.6.1-alpha.347`; the file is unchanged since its initial `52e068d0` import). The
 shared settings rows cover the first-person weapon FOV; EJK's damping timing
-presets (Default 125, Smooth (SP) 30 and Base JKA); third-person distance, angle,
+presets (Default 125, Smooth (SP) 30 and BaseJKA); third-person distance, angle,
 pitch, height and horizontal offset; and camera/target damping. Their ranges and
 defaults match that menu. The ordinary world FOV stays under Display, the HUD
 switch under HUD, and first/third-person switching remains the Camera key rather

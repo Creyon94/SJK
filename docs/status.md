@@ -4,8 +4,10 @@
 prediction and Classic+ Setup > Game options expose JoF EJK's functional camera
 menu controls: first-person weapon FOV, its three damping timing presets,
 third-person distance, angle, pitch, height and horizontal offset, and camera and
-target damping. The ranges, defaults and preset names follow JoF EJK 1.5.1 commit
-`52e068d0` (`assets/japro/ui/jamp/ingame_camera.menu`). The underlying archived
+target damping. The ranges, defaults and preset names follow the official JoF EJK
+alpha commit `9822a9d6` (`1.6.1-alpha.347`), whose
+`assets/japro/ui/jamp/ingame_camera.menu` is unchanged since its initial
+`52e068d0` import. The underlying archived
 cvars and camera behavior already existed in SJK; this change adds their shared
 SJK/classic settings rows and help. On Linux x86_64 with Rust 1.99.1, the focused
 settings tests (101 passed), formatting, locked workspace build and tests,
