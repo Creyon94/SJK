@@ -167,7 +167,7 @@ fn put(rows: &mut [String], hints: &mut [String], row: usize, label: &str, hint:
 }
 
 /// "1 player", "4 players".
-struct Players(usize);
+pub(super) struct Players(pub(super) usize);
 
 impl std::fmt::Display for Players {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -275,8 +275,8 @@ pub(super) fn prepare(view: &View<'_>, rows: &mut [String], hints: &mut [String]
     row_count(view.page, view.team_game)
 }
 
-/// Rows of the shared pages written "label  /  detail" (Siege's team row, a
-/// client number to kick) keep the label; the detail becomes the hint. A game
+/// Rows of the shared pages written "label  /  detail" (Siege's sides and
+/// classes, a client number to kick) keep the label; the detail becomes the hint. A game
 /// type's number is left out.
 pub(super) fn split_hints(page: Page, rows: &mut [String], hints: &mut [String]) {
     for (row, hint) in rows.iter_mut().zip(hints.iter_mut()) {
@@ -297,7 +297,8 @@ fn page_title(page: Page, siege: bool) -> Option<&'static str> {
         Page::Main | Page::Shot => return None,
         Page::Team if siege => "Class",
         Page::Team => "Team",
-        Page::Siege => "Choose your class",
+        // Its step's own title comes with the rows (`Rows::title`).
+        Page::Siege => "Choose your team",
         Page::Vote => "Vote",
         Page::CallVote => "Call a vote",
         Page::VoteMap => "Change map",
@@ -470,6 +471,10 @@ pub(super) struct Rows<'a> {
     pub(super) labels: &'a [String],
     pub(super) hints: &'a [String],
     pub(super) enabled: &'a [bool],
+    /// Each row's team mark (1 red, 2 blue) beside its label, if any.
+    pub(super) marks: &'a [Option<u8>],
+    /// The page's name when it depends on more than the page (Siege's step).
+    pub(super) title: Option<&'static str>,
 }
 
 /// The main page beyond its list: the icons of the row under the emblem, the match
@@ -787,7 +792,7 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
         return;
     }
     let m = metrics(count);
-    if let Some(title) = page_title(view.page, view.siege) {
+    if let Some(title) = rows.title.or_else(|| page_title(view.page, view.siege)) {
         let offset = entry_offset(0, count) - m.pitch.max(56.0);
         let x = CENTRE[0]
             + (TEXT_RADIUS * TEXT_RADIUS - offset * offset)
@@ -833,7 +838,7 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
             );
         } else {
             // A compact page has no room under the chosen entry: the row's
-            // detail (a client number, Siege's other team) follows its label.
+            // detail (a client number, a Siege class's side) follows its label.
             text(
                 canvas,
                 TextFamily::Display,
@@ -857,12 +862,7 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
                 TextAlign::Start,
             );
         }
-        let team = match (view.page, view.team_game, row) {
-            (Page::Team, true, 1) => Some(1),
-            (Page::Team, true, 2) => Some(2),
-            _ => None,
-        };
-        if let Some(team) = team {
+        if let Some(team) = rows.marks.get(row).copied().flatten() {
             let height = size * 0.62;
             let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
                 rect: frame.rect(x - 14.0, y - height * 0.5, 5.0, height),
@@ -2076,6 +2076,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2133,6 +2135,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2231,6 +2235,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2315,6 +2321,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2398,6 +2406,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2477,13 +2487,13 @@ mod tests {
     #[test]
     fn shared_rows_keep_their_label_and_move_the_detail_to_the_hint() {
         let (mut labels, mut hints, _) = rows([
-            "Red team  /  switch to Blue",
+            "Red team  /  Your team, 4 players",
             "Padawan  /  client 3",
             "Back",
         ]);
         split_hints(Page::VoteClientKick, &mut labels, &mut hints);
         assert_eq!(labels, ["Red team", "Padawan", "Back"]);
-        assert_eq!(hints, ["switch to Blue", "client 3", ""]);
+        assert_eq!(hints, ["Your team, 4 players", "client 3", ""]);
         let (mut labels, mut hints, _) = rows(["Duel  /  3"]);
         split_hints(Page::VoteGameType, &mut labels, &mut hints);
         assert_eq!((labels[0].as_str(), hints[0].as_str()), ("Duel", ""));

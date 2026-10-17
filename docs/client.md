@@ -541,7 +541,8 @@ SJK's own screens, for now the [changelog page](#changelog-page)
 the SJK UI's in-game menu has them in its row of icons instead
 ([sjk-ui.md](sjk-ui.md#in-game-menu)), its Join and Vote on the match card.
 About shows the server info. Join picks
-a team, or opens the class list in Siege; in a team game Team Red and Team Blue
+a team, or opens the class page in Siege (the team first, then that team's
+classes, as in the SJK UI); in a team game Team Red and Team Blue
 carry their flag (`gfx/hud/mpi_rflag`, `mpi_bflag`) and the team's player count. Vote is Yes/No. Call Vote opens the
 call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
 with a Yes/No confirmation. Profile opens the retail in-game profile window
@@ -932,6 +933,14 @@ further in capture the flag and capture the ysalamiri: every red or blue player'
 in their team's stock colour with no blade shader over them, muted players' default
 saber included, whatever `cg_saberTeamColors` says. From SJK pull request #113 (Slash),
 made an option at the merge (Sol's choice, 17/10/2026).
+
+`cg_siegeTeamSabers` (archived, default 1; same pages, **Siege saber colours**)
+covers Siege, which EJK's rule leaves out: every red player's blades in the stock red
+and every blue player's in the stock blue, both sabers, whatever `c1`..`c4` say, a
+blade shader worn over the colour as under `cg_saberTeamColors`. Spectators keep their
+own colours; at 0 Siege keeps each player's choice, as in EJK. Slash's request
+(17/10/2026), `sjk_client::legacy_siege_team_blade`; verified by unit tests, not tried
+in the game.
 
 Verified by unit tests (team FFA, CTF and CTY force red and blue, free players and
 spectators untouched, FFA, duel, siege and jedi-vs-merc keep the choice, the `0`

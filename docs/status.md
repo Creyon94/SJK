@@ -1,3 +1,18 @@
+## Siege team and class menu, Siege saber colours
+
+17/10/2026, `claude/zealous-dijkstra-9dechb`, based on `Sol-Vulpes/SJK` `bb83eb2`
+(Slash's request): implemented. Siege's class page now opens on the team choice
+as the other team games' Team page (Red team, Blue team with colour marks and
+player counts, Spectate, Back); a side lists its classes, and Back or Escape
+returns to the team choice. Both menu styles share it. `cg_siegeTeamSabers`
+(archived, default 1) draws red players' blades red and blue players' blue in
+Siege, which JoF EJK's `cg_saberTeamColors` rule leaves out. See
+[sjk-ui](sjk-ui.md#in-game-menu) and [client](client.md#team-saber-colours).
+
+Workspace fmt/build/test passed on Linux x86_64; clippy reports nothing in the
+touched files. Unit tests pin the two-step page (rows, marks, titles, Back,
+Escape, Spectate, class command) and the Siege blades (red, blue, spectator,
+setting off). Not tried in a live Siege match.
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

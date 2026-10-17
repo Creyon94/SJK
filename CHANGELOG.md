@@ -23,6 +23,11 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Siege's class menu works like the team menu of the other team games: Red team and Blue team first (each with its colour mark and players, your team said), then that side's classes, with Spectate and Back; Back and Escape return from a side's classes to the team choice _(Slash)_
+- Siege saber colours (Settings, on by default, `cg_siegeTeamSabers`): in Siege every red player's sabers are red and every blue player's blue, blade shaders worn over the colour _(Slash)_
+
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
 > Force: JoF's 22 community presets in the Force menu.

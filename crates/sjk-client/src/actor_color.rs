@@ -103,7 +103,28 @@ pub fn legacy_team_sabers(game_state: &GameState) -> bool {
 /// [`legacy_team_sabers`] holds and the client is on red or blue: the stock
 /// `SABER_RED` / `SABER_BLUE` tints, whatever `c1`..`c4` say.
 pub fn legacy_team_blade(game_state: &GameState, client_num: u16) -> Option<[u8; 3]> {
-    if !legacy_team_sabers(game_state) {
+    team_blade_when(legacy_team_sabers(game_state), game_state, client_num)
+}
+
+/// Whether the game is Siege, where SJK's siege team sabers apply (the viewer's
+/// `cg_siegeTeamSabers`). cgame leaves Siege's blades their own colour
+/// (`cg_players.c:8096-8111` skips `GT_SIEGE`); the option draws each side's in its
+/// colour, as `cg_saberTeamColors` does in the other team games.
+pub fn legacy_siege(game_state: &GameState) -> bool {
+    let serverinfo = game_state.config_string(CS_SERVERINFO).unwrap_or(&[]);
+    info_int(serverinfo, "g_gametype") == GT_SIEGE
+}
+
+/// The blade colour `client_num`'s Siege side gives both sabers, if the game is
+/// Siege ([`legacy_siege`]) and the client is on red (team 1) or blue (team 2): the
+/// stock `SABER_RED` / `SABER_BLUE` tints, whatever `c1`..`c4` say.
+pub fn legacy_siege_team_blade(game_state: &GameState, client_num: u16) -> Option<[u8; 3]> {
+    team_blade_when(legacy_siege(game_state), game_state, client_num)
+}
+
+/// `client_num`'s team blade while `applies`, from its `CS_PLAYERS` string.
+fn team_blade_when(applies: bool, game_state: &GameState, client_num: u16) -> Option<[u8; 3]> {
+    if !applies {
         return None;
     }
     let config = game_state.config_string(CS_PLAYERS + usize::from(client_num))?;
