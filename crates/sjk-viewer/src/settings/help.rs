@@ -208,6 +208,14 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 
 const HELP: &[(&str, &str)] = &[
     (
+        sjk_client::player_model_eligibility::METADATA_CVAR,
+        "Respect installed NPC-only model declarations and pack lists. Off ignores those rules; your blacklist still applies.",
+    ),
+    (
+        sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        "Model names separated by spaces, commas or semicolons. Players use Kyle instead; NPCs are unaffected.",
+    ),
+    (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
     ),

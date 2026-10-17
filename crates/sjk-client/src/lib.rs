@@ -28,6 +28,7 @@ mod demo_recorder;
 pub mod download;
 mod download_session;
 mod duel_isolation;
+pub mod player_model_eligibility;
 pub use duel_isolation::duel_passes_through;
 mod duel_look;
 pub use duel_look::{DuelActor, DuelViewer, legacy_duel_ghost, legacy_duel_tint};
@@ -139,7 +140,7 @@ pub fn legacy_death_animation(clip: usize) -> bool {
 }
 pub use asset_catalog::{
     LEGACY_SABER_COLORS, LegacyAssetCatalog, LegacyAssetCatalogLoader, LegacyCatalogStatus,
-    legacy_asset_catalog,
+    legacy_asset_catalog, legacy_asset_catalog_with_model_policy,
 };
 pub use base_server_commands::{
     BaseServerCommandEvent, BodyIdentity, ForceRankUpdate, Ghoul2Restore, ImmediateBodyCopy,
@@ -147,7 +148,7 @@ pub use base_server_commands::{
 };
 pub use character_catalog::{
     LegacyCharacter, LegacyCharacterCatalog, LegacySpecies, LegacySpeciesColor,
-    legacy_character_catalog,
+    legacy_character_catalog, legacy_character_catalog_with_policy,
 };
 pub use chat::{
     CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, chat_body, chat_command,
@@ -229,8 +230,8 @@ pub use player_angles::{
     LegacyPlayerAngleController, LegacyPlayerAngleInputs, LegacyPlayerAngleSample,
 };
 pub use player_identity::{
-    legacy_client_appearance, legacy_client_appearance_forced, legacy_client_saber_name,
-    legacy_client_saber_names,
+    legacy_client_appearance, legacy_client_appearance_forced,
+    legacy_client_appearance_with_policy, legacy_client_saber_name, legacy_client_saber_names,
 };
 pub use player_lookup::{PlayerLookup, lookup_player};
 pub use player_profile::{

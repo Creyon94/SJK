@@ -660,6 +660,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Respect model metadata",
+        cvar: sjk_client::player_model_eligibility::METADATA_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Player model blacklist",
+        cvar: sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Saber trail",
         cvar: "cg_saberTrail",
         kind: ValueKind::Bool,

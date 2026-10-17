@@ -5,7 +5,33 @@
 //! replacement mesh for a player who changed model.
 
 use super::*;
-use sjk_client::{legacy_client_appearance, legacy_client_saber_names};
+use sjk_client::{legacy_client_appearance_with_policy, legacy_client_saber_names};
+
+/// Player loading/picker options; normalized lookups do not allocate on idle frames.
+pub(crate) fn model_options(console: Option<&crate::console::ViewerConsole>) -> (&str, bool) {
+    (
+        console
+            .and_then(|c| c.text_value("cg_modelblacklist"))
+            .unwrap_or(""),
+        console
+            .and_then(|c| c.bool_cvar("cg_modeleligibility"))
+            .unwrap_or(true),
+    )
+}
+
+/// Apply player eligibility after model overrides, leaving NPCs and archived choices intact.
+pub(crate) fn eligible_appearance(
+    appearance: Appearance,
+    player: bool,
+    eligibility: &sjk_client::player_model_eligibility::PlayerModelEligibility,
+    options: (&str, bool),
+) -> Appearance {
+    if player && !eligibility.allows(&appearance.model, options.0, options.1) {
+        fallback_appearance()
+    } else {
+        appearance
+    }
+}
 
 /// The player everyone falls back to when their model cannot be loaded.
 pub(crate) fn fallback_appearance() -> Appearance {
@@ -212,6 +238,8 @@ pub(crate) fn load_actor_meshes(
     game_state: Option<&GameState>,
     world: &World,
     scene: &mut FlattenedScene,
+    eligibility: &sjk_client::player_model_eligibility::PlayerModelEligibility,
+    console: Option<&crate::console::ViewerConsole>,
 ) -> Result<Vec<ActorMesh>, Box<dyn Error>> {
     let fallback = fallback_appearance();
     let mut cache = crate::player_assets::GlaCache::default();
@@ -219,10 +247,15 @@ pub(crate) fn load_actor_meshes(
     // deformable mesh for every advertised client, even if that player
     // was outside the first snapshot's PVS. Otherwise a later arrival
     // can only use the shared Kyle fallback and cannot hold its own pose.
+    let options = model_options(console);
     let mut actors = BTreeMap::new();
     if let Some(game_state) = game_state {
         for client_num in 0..32_u16 {
-            if let Some(appearance) = legacy_client_appearance(game_state, client_num) {
+            if let Some(appearance) =
+                legacy_client_appearance_with_policy(game_state, client_num, None, |appearance| {
+                    eligible_appearance(appearance, true, eligibility, options)
+                })
+            {
                 actors.insert(EntityId::new(u64::from(client_num) + 1), appearance);
             }
         }
@@ -232,10 +265,15 @@ pub(crate) fn load_actor_meshes(
         .filter(|entity| entity.kind == EntityKind::Actor)
     {
         actors.entry(entity.id).or_insert_with(|| {
-            entity
-                .appearance()
-                .cloned()
-                .unwrap_or_else(|| fallback.clone())
+            eligible_appearance(
+                entity
+                    .appearance()
+                    .cloned()
+                    .unwrap_or_else(|| fallback.clone()),
+                entity.id.get() <= 32,
+                eligibility,
+                options,
+            )
         });
     }
     let mut meshes = Vec::with_capacity(actors.len() * 2 + 1);
@@ -324,4 +362,42 @@ pub(crate) fn load_actor_meshes(
         )?);
     }
     Ok(meshes)
+}
+
+#[cfg(test)]
+mod eligibility_tests {
+    use super::*;
+    #[test]
+    fn player_overrides_fall_back_but_the_same_npc_appearance_remains() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "synthetic",
+            [(
+                "models/players/creature/settings.txt",
+                b"notInMP 1".to_vec(),
+            )],
+        )
+        .unwrap();
+        let policy = sjk_client::player_model_eligibility::PlayerModelEligibility::load(&vfs);
+        let model = Appearance {
+            model: "models/players/creature".into(),
+            variant: "red".into(),
+        };
+        assert_eq!(
+            eligible_appearance(model.clone(), true, &policy, ("", true)),
+            fallback_appearance()
+        );
+        assert_eq!(
+            eligible_appearance(model.clone(), false, &policy, ("creature", true)),
+            model
+        );
+        assert_eq!(
+            eligible_appearance(model.clone(), true, &policy, ("", false)),
+            model
+        );
+        assert_eq!(
+            eligible_appearance(model, true, &policy, ("CREATURE/default", false)),
+            fallback_appearance()
+        );
+    }
 }

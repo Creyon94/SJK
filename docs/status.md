@@ -1,3 +1,21 @@
+## Player model eligibility
+
+17/10/2026, `feat/model-eligibility`, based on `bb83eb28`, Windows:
+implemented EJK #126's content-authored `notInMP` settings and merged model
+blacklist files, plus the archived local blacklist and metadata override.
+Both profile pickers and initial/live player loads share the policy; overrides
+are resolved before eligibility and NPC model loading bypasses it. World-owned
+metadata is parsed at installation and reused for clientinfo refresh. Idle
+frames only compare normalized cvar values; no policy parsing or VFS reads run
+in actor submission. Retail ownership/counts remain independent of restrictions.
+Both settings interfaces include the text field and metadata switch.
+Six synthetic metadata/catalogue/player-scope regressions passed, including
+rapid-option stale-result rejection and red/blue fallback before team skins.
+Final workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed-pack/player/NPC visuals and live model changes remain unverified.
+No protocol encoding, animation, movement or gameplay changes.
+See [player models](client.md#player-models).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

@@ -910,6 +910,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Draw pickup icons instead of models",
         ),
         CvarDefinition::new(
+            sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+            "",
+            archive,
+            "Player model names replaced with Kyle; NPCs are unaffected",
+        ),
+        CvarDefinition::new(
+            sjk_client::player_model_eligibility::METADATA_CVAR,
+            true,
+            archive,
+            "Respect installed player-model eligibility metadata",
+        ),
+        CvarDefinition::new(
             "cg_forceModel",
             false,
             archive,

@@ -268,6 +268,8 @@ impl Group {
                 "assetbrowser",
                 "cg_simpleItems",
                 "cg_forceModel",
+                sjk_client::player_model_eligibility::METADATA_CVAR,
+                sjk_client::player_model_eligibility::BLACKLIST_CVAR,
                 "cg_saberTrail",
                 crate::team_sabers::TEAM_COLORS_CVAR,
                 crate::team_sabers::CVAR,

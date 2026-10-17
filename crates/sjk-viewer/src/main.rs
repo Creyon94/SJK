@@ -825,11 +825,19 @@ impl GpuState {
         let player_animation = player_preview
             .map(|preview| GpuPlayerAnimation::append(&mut flattened, preview))
             .transpose()?;
+        let clientinfo_watch = clientinfo_refresh::ClientInfoWatch::new(&vfs);
         let mut actor_meshes = if session_active {
             let active_world = demo_session
                 .as_ref()
                 .map_or(&live_world, demo_playback::Session::world);
-            actor_load::load_actor_meshes(&vfs, active_game_state, active_world, &mut flattened)?
+            actor_load::load_actor_meshes(
+                &vfs,
+                active_game_state,
+                active_world,
+                &mut flattened,
+                &clientinfo_watch.model_policy,
+                console.as_ref(),
+            )?
         } else {
             Vec::new()
         };
@@ -1402,7 +1410,7 @@ impl GpuState {
             bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
-            clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
+            clientinfo_watch,
             config_string_refresh,
             black_sabers: Default::default(),
             holster_server: Default::default(),
