@@ -23,7 +23,9 @@ struct Contract {
     npc_classes: &'static [u8],
 }
 const CONTRACTS: &[Contract] = &[Contract {
-    matches: sjk_protocol::is_ja_plus_game_name,
+    // JA+ proper only, as the flamethrower's contract: abyssmod's and UA Galaxy's
+    // ownership flags are unverified.
+    matches: crate::actor_world_submission::force_powers::flame::ja_plus_itself,
     absent_flag: 0x1000,
     disable_all: 1 << 13,
     disable_back: 1 << 9,

@@ -49,7 +49,7 @@ pub(crate) const CONTRACTS: &[Contract] = &[Contract {
 /// `sjk_protocol::is_ja_plus_game_name` spells them). That helper also accepts
 /// abyssmod and UA Galaxy, whose eFlags bit 17 / eFlags2 bit 8 meanings are
 /// unverified, so they get no flame contract until an entry documents them.
-fn ja_plus_itself(game_name: &str) -> bool {
+pub(crate) fn ja_plus_itself(game_name: &str) -> bool {
     ["ja+", "japlus", "ja_plus"].iter().any(|prefix| {
         game_name
             .as_bytes()
