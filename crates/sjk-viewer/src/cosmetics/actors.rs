@@ -8,6 +8,7 @@
 
 use super::{Visibility, fitting_offset, model_path, placement};
 use crate::actor_instance::ActorInstance;
+use crate::actor_world_submission::monster_hold;
 use crate::bolt::BoltMatrix;
 use sjk_client::CosmeticSlot;
 use sjk_runtime::Appearance;
@@ -160,13 +161,38 @@ pub(crate) struct Frame {
     pub(crate) tricked: bool,
     /// `EF_DEAD` on the entity.
     pub(crate) dead: bool,
+    /// Held/cloak visibility from the accepted player/entity state.
+    pub(crate) state_visible: bool,
+}
+
+/// EJK #172's accepted-state cosmetic guards, independent of camera/menu style.
+/// Sight reveals a remote cloaked player's pieces, never the viewer's own.
+pub(crate) fn visible_in_state(
+    player: &sjk_protocol::PlayerState,
+    state: Option<&sjk_protocol::EntityState>,
+    local: bool,
+) -> bool {
+    // `PW_CLOAKED` and `FP_SEE`, codemp/game/bg_public.h.
+    const CLOAKED: usize = 11;
+    const SIGHT: u32 = 1 << 14;
+    if (local || state.is_some()) && monster_hold::held_by_monster(player, state.filter(|_| !local))
+    {
+        return false;
+    }
+    let cloaked = if local {
+        player.powerups[CLOAKED] != 0
+    } else {
+        state.is_some_and(|state| state.powerups() & (1 << CLOAKED) != 0)
+    };
+    !cloaked || (!local && player.force_powers_active() & SIGHT != 0)
 }
 
 /// Bolt the actor's pieces on for this frame, under `CG_DrawCosmeticOnPlayer`'s
-/// rules: none on the dead, the tricked or a scaled model, the local
+/// rules: none on the dead, tricked, held, unsupported cloaked or scaled model; the local
 /// first-person player's only in mirrors and portals.
 pub(crate) fn submit(worn: &Worn, frame: &Frame, object_groups: &mut [Vec<ActorInstance>]) {
-    if frame.dead
+    if !frame.state_visible
+        || frame.dead
         || frame.tricked
         || !frame.visibility.shows(frame.local)
         || frame.transform.scale != [1.0; 3]
@@ -200,6 +226,7 @@ mod tests {
             view_flags: 0,
             tricked: false,
             dead: false,
+            state_visible: true,
         }
     }
 
@@ -229,6 +256,10 @@ mod tests {
         assert_eq!(groups[1].len(), 1);
         assert!(groups[0].is_empty());
         for hidden in [
+            Frame {
+                state_visible: false,
+                ..frame()
+            },
             Frame {
                 dead: true,
                 ..frame()
@@ -262,5 +293,71 @@ mod tests {
         };
         submit(&worn(), &first_person, &mut groups);
         assert_eq!(groups[1][0].view_flags, 1);
+    }
+    #[test]
+    fn held_flags_hide_pieces_even_without_a_valid_monster_attachment() {
+        use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};
+        assert_eq!(LEGACY_ENTITY_FIELDS[96].name, "eFlags2");
+        let mut player = PlayerState::zero();
+        player.set_raw_field(103, 1);
+        player.set_raw_field(82, 1 << 14);
+        assert!(monster_hold::holder(&player, None).is_none());
+        assert!(!visible_in_state(&player, None, true));
+        let mut remote = EntityState::zero(2, &LEGACY_ENTITY_FIELDS);
+        remote.set_raw_field(96, 1);
+        assert!(monster_hold::holder(&player, Some(&remote)).is_none());
+        assert!(!visible_in_state(&player, Some(&remote), false));
+        // Unknown remote state must not inherit the held viewer's own flags.
+        assert!(visible_in_state(&player, None, false));
+    }
+
+    #[test]
+    fn sight_reveals_remote_cloaked_pieces_but_never_the_viewers_own() {
+        use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};
+        let mut player = PlayerState::zero();
+        let mut remote = EntityState::zero(2, &LEGACY_ENTITY_FIELDS);
+        assert!(visible_in_state(&player, Some(&remote), false));
+        remote.set_raw_field(77, 1 << 11);
+        player.powerups[11] = 1;
+        assert!(!visible_in_state(&player, Some(&remote), false));
+        assert!(!visible_in_state(&player, None, true));
+        player.set_raw_field(82, 1 << 14);
+        assert!(visible_in_state(&player, Some(&remote), false));
+        assert!(!visible_in_state(&player, None, true));
+    }
+
+    #[test]
+    #[ignore = "release microbenchmark; run explicitly with --release --ignored --nocapture"]
+    fn release_cosmetic_visibility_cost() {
+        use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};
+        let mut player = PlayerState::zero();
+        player.set_raw_field(82, 1 << 14);
+        player.powerups[11] = 1;
+        let regular = EntityState::zero(2, &LEGACY_ENTITY_FIELDS);
+        let mut cloaked = regular.clone();
+        cloaked.set_raw_field(77, 1 << 11);
+        let mut held = regular.clone();
+        held.set_raw_field(96, 1);
+        let actors = [
+            (None, true),
+            (Some(&cloaked), false),
+            (Some(&held), false),
+            (Some(&regular), false),
+        ];
+        let start = std::time::Instant::now();
+        for _ in 0..20000 {
+            for index in 0..128 {
+                let (state, local) = std::hint::black_box(actors[index % actors.len()]);
+                std::hint::black_box(visible_in_state(
+                    std::hint::black_box(&player),
+                    state,
+                    local,
+                ));
+            }
+        }
+        eprintln!(
+            "Cosmetic visibility guard: {:.3} us/frame for 128 accepted-state decisions",
+            start.elapsed().as_secs_f64() * 1e6 / 20000.0
+        );
     }
 }

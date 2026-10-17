@@ -883,8 +883,11 @@ longest `prefix*` key; the skin's entry wins, the model's applies with
 `*back` bolts of the worn slots only. A piece is drawn with the body as
 `CG_DrawCosmeticOnPlayer` places it: the bolt's axes, two units down its up
 axis, plus the offset along the world axes, never on the dead, the
-mind-tricked or a scaled model, and on the local first-person player only in
-mirrors and portals. A piece this client does not have is not drawn.
+mind-tricked, monster-held or scaled model, and on the local first-person
+player only in mirrors and portals. Cloaked players' pieces are hidden unless
+the viewer has active Sight; your own cloaked pieces stay hidden even with
+Sight, after JoF EJK #172. The held flag alone suppresses them, even when the
+holder's attachment is unavailable. A piece this client does not have is not drawn.
 `cg_cosmetics` (archived, 1) draws everyone's (1), only yours (2) or none (0).
 
 `cosmetics hats` and `cosmetics capes` list the installed pieces, with a
@@ -894,7 +897,12 @@ clear` takes both off and `cosmetics visibility [off|on|onlyme]` shows or sets
 A colour number typed alone (`color1 2` in the console, a bind or a script, `set` and
 `seta` too) keeps the worn piece after it, as JoF's own colour commands do; a value
 with a name after its digits (`2tophat`, `4none`) is set as it is
-([typed_colour.rs](../crates/sjk-viewer/src/cosmetics/typed_colour.rs)). JoF's
+([typed_colour.rs](../crates/sjk-viewer/src/cosmetics/typed_colour.rs)). Each
+write uses the piece worn at that command's position in the buffer: `color1
+3newhat; color1 2` ends at `2newhat`; `color1 2; color1 4none` ends at `4none`.
+Queries and `vstr` expansion see earlier writes immediately, including across
+`wait` boundaries; normal userinfo notifications and `seta`/`setu` flags apply.
+JoF's
 `saberColor <r> <g> <b>` (or `<blade> <r> <g> <b>`, or six values for the two blades)
 makes the blades custom RGB, colour 6 with `cp_sbRGB1`/`cp_sbRGB2`, keeping the pieces
 too ([saber_colour_command.rs](../crates/sjk-viewer/src/saber_colour_command.rs)).
@@ -1433,6 +1441,13 @@ is replay-stable but is not the legacy global random stream; repeats remain
 possible. Animation selection, movement, saber timing and network events are
 unchanged. Gameplay event actions remain outside this audio adapter.
 
+Server-injected player sounds are read from authoritative snapshot external
+events even while movement prediction runs. Held events play once, clearing to
+zero rearms them, and switching the followed player seeds its pending event and
+its last two predictable events (as CG_TransitionPlayerState does)
+without replaying them, following JoF EJK #123. New events after the switch still
+play from the new player. This changes audio latches, not movement or event encoding.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as
@@ -1920,6 +1935,12 @@ The settings editor shows an existing chord as one occupied slot and can clear
 or replace it, but captures one physical key at a time. Create a chord in the
 console. This follows JoF EJK commit `b6623f51` (`codemp/client/cl_keys.cpp`),
 including first-match table order when several held chords could fire.
+
+Keyboard releases retire held chord keys before a newly opened menu or text
+field handles them. Thus a chord whose command opens the chat composer, such as
+`bind SHIFT+U reply`, does not leave either key held internally and cannot be
+retriggered later by pressing only Shift or U. Releases without a corresponding
+binding press are ignored rather than synthesizing a button release.
 
 ## Development maps
 
@@ -4900,9 +4921,10 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
 ## Shader remap controls
 
 Server map recolors and material replacements are enabled by default. SJK
-defaults to `cg_remaps 2`, EternalJK's default, which includes player-texture
-configstring remaps; `cg_remaps 1` is TaystJK's default policy
-excluding them, and `cg_remaps 0` disables server remaps.
+defaults to `cg_remaps 2`, EternalJK's default, which includes player textures.
+`cg_remaps 1` excludes `models/players/` sources from both configstrings and
+reliable server commands, after JoF EJK #297; `cg_remaps 0` disables server
+remaps. Worldspawn and your explicit local console remaps remain independent.
 Settings > GAME > "Shader remaps" sets the same cvar and applies at once.
 `cg_remapsBlockedMaps` lists maps where server remaps are ignored, as with
 `cg_remaps 0` on those maps only: map names separated by spaces, commas or

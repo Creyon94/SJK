@@ -91,7 +91,7 @@ fn step(gpu: &mut GpuState, parked: &mut crate::menu_world::Parked, size: [u32; 
             if installed.live_map_installed
                 && let Some(menu) = &mut installed.client_menu
             {
-                menu.joined();
+                menu.joined(installed.last_connect_address.as_deref());
             }
             if installed.live_map_installed {
                 installed.present_latest_live_snapshot(&mut None);

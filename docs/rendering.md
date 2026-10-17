@@ -117,11 +117,14 @@ each `CS_SHADERSTATE` update applies all its entries again, as `CG_ShaderStateCh
 does. The session keeps the server state and stamps each entry; the displayed map
 keeps its worldspawn and local remaps and picks the latest of the three.
 
-`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (Tayst's
-default) accepts them while excluding player-texture configstring entries, and
-**2** (the default, as in EternalJK) includes those entries. Like Tayst, a reliable
-`remapShader` command is accepted in either nonzero mode. The client applies this
-preference live rather than requiring a map reload; a server remap it excludes reveals the earlier remap it had replaced.
+`cg_remaps` uses **0** to disable server remaps, **1** to exclude
+`models/players/` sources in both configstrings and reliable `remapShader`
+commands, and **2** (the default) to include all server entries. Mode 1 follows
+JoF EJK #297; it previously retained Tayst's reliable-command exception. An
+excluded player command also leaves the mode-1 destination time offset alone.
+Worldspawn and explicit local console remaps are independent. The preference
+applies live without reloading the map; an excluded server remap reveals the
+earlier remap it replaced.
 `cg_remapsBlockedMaps` lists maps on which SJK ignores server remaps, as `cg_remaps 0`
 does there; worldspawn and local remaps still apply. The frame reads a cached answer,
 refreshed when the cvar or the loaded map changes
@@ -3463,3 +3466,20 @@ an empty config, an explicit equivalent config and an existing override config.
 Fresh FFA5 and FFA1 scenes rendered successfully. See [status](status.md) for the
 image comparison result and validation limits. No personal config or assets are
 included in the repository.
+
+## Community override shader scripts
+
+The shared shader catalogue reads installed `shaders/*.oshader` files as ordinary
+Quake 3 shader syntax, following JoF EJK #138. Their definitions override `.shader`
+definitions regardless of filename ordering. Among override files the first
+normalized path wins, and the first definition in an override file wins. Normal
+`.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
+share this policy; malformed override scripts still produce diagnostics.
+
+Existing source-authority and downloaded-content restrictions remain in force:
+retail-authority protection wins when enabled (`fs_protectShaders`, on by
+default; changing it requires restart), and downloaded scripts may add new
+shaders but cannot replace installed definitions. This is format support in
+the shared renderer, independent of menu style; no new setting is required.
+Rend2's separate `.omtr` companion selection is not implemented. Installed-map/GPU
+appearance with community override packs remains unverified.

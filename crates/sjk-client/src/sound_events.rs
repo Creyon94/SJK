@@ -632,6 +632,7 @@ pub struct LegacySoundAdapter {
     player_event_sequence: i32,
     player_events: [u16; 2],
     player_external_event: u16,
+    player_external_client: Option<u16>,
     pain_deadline: Box<[i32]>,
     local_health_pain: bool,
     /// The client the event being resolved names as its cause ([`event_cause`]).
@@ -873,6 +874,7 @@ impl LegacySoundAdapter {
             player_event_sequence: 0,
             player_events: [0; 2],
             player_external_event: 0,
+            player_external_client: None,
             pain_deadline: vec![i32::MIN; MAX_ENTITIES].into_boxed_slice(),
             local_health_pain: false,
             cause: None,
@@ -956,6 +958,7 @@ impl LegacySoundAdapter {
         self.player_event_sequence = snapshot.player.event_sequence();
         self.player_events = [0, 1].map(|i| snapshot.player.event(i).unwrap_or(0));
         self.player_external_event = snapshot.player.external_event();
+        self.player_external_client = Some(snapshot.player.client_num());
         for entity in &snapshot.entities {
             if let Some(slot) = self
                 .previous_entity_event

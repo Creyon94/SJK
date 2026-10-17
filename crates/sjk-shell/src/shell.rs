@@ -360,6 +360,26 @@ impl Shell {
         R: CommandFileResolver,
         F: FnMut(&str, &[String], bool) -> Option<Result<Vec<String>, String>>,
     {
+        self.execute_buffered_frame_with_cvars(resolver, |text, tokens, local, _| {
+            intercept(text, tokens, local)
+        })
+    }
+
+    /// Execute buffered commands with access to the current cvar registry.
+    ///
+    /// The application interceptor runs immediately before each command, so
+    /// compatibility rewrites observe earlier writes in the same script and can
+    /// publish their result before later commands, `vstr` expansion or `wait` boundaries.
+    /// Returning `None` continues ordinary built-in dispatch.
+    pub fn execute_buffered_frame_with_cvars<R, F>(
+        &mut self,
+        resolver: &mut R,
+        mut intercept: F,
+    ) -> Result<Vec<String>, ShellError>
+    where
+        R: CommandFileResolver,
+        F: FnMut(&str, &[String], bool, &mut CvarRegistry) -> Option<Result<Vec<String>, String>>,
+    {
         self.resume_scheduled()?;
         if self.command_buffer.is_idle() {
             return Ok(Vec::new());
@@ -382,7 +402,7 @@ impl Shell {
                         continue;
                     };
                     let local = self.recognizes_local_command(name);
-                    if let Some(result) = intercept(&queued.text, &tokens, local) {
+                    if let Some(result) = intercept(&queued.text, &tokens, local, &mut self.cvars) {
                         result.map_err(ShellError::Application)
                     } else {
                         self.execute_buffered_one(name, arguments, queued.exec_depth, resolver)

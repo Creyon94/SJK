@@ -93,6 +93,10 @@ pub(crate) struct Scoreboard {
     /// Who last killed the viewing player, named in `killer_name`.
     killer: Option<u16>,
     killer_name: String,
+    /// The last siege round won that the snapshots carried (`EV_SIEGE_ROUNDOVER`) in this
+    /// session, and the tracker's last one, which a new session does not take again.
+    siege_round_over: Option<sjk_client::SiegeRoundOver>,
+    siege_round_seen: Option<sjk_client::SiegeRoundOver>,
     context: behavior::Context,
     requests: behavior::Requests,
     /// The hub roster revision the rows' `identity` tags were derived from;
@@ -129,6 +133,8 @@ impl Scoreboard {
             icons: icons::HeadIcons::default(),
             killer: None,
             killer_name: String::with_capacity(64),
+            siege_round_over: None,
+            siege_round_seen: None,
             context: behavior::Context::default(),
             requests: behavior::Requests::default(),
             identity_revision: u64::MAX,
@@ -227,6 +233,10 @@ impl Scoreboard {
                 team_scores: session.team_scores(),
                 local: local_status,
                 killer,
+                // Siege's alone: two configuration strings read per frame otherwise.
+                siege_winner: (self.gametype == sjk_game_jka::match_end::GT_SIEGE)
+                    .then(|| sjk_client::siege_round_winner(game, self.siege_round_over))
+                    .flatten(),
                 duel: sjk::Duelists {
                     local: Some((player.health(), player.armor())),
                     ..duelists(game)

@@ -9,6 +9,21 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
+- a9b6650 |  | Review fixes: follow switch seeds the event ring, unblocked chat wording, .oshader mount note
+- 77c626a |  | Credits and changelog for SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
++ 18/10/2026 | - | JKR as a footnote, Sol's reviewed pull requests counted
+- 0a7e03a |  | Credits: JKR moves to a footnote; Sol's card counts the reviewed and merged pull requests
++ 18/10/2026 | - | Bug report limits in the docs
+- 32f12be |  | Identity docs: the hub's higher bug report limits for verified and staff keys
++ 18/10/2026 | - | Staff page in tabs with credits, moderation, chat bans
+- d0040c5 |  | Staff page in tabs, with credits, shards, moderation and chat bans
++ 18/10/2026 | - | Mute becomes Block: emotes, toys, cards; block/unblock
+- 73afc96 |  | Block a player: Mute becomes Block and covers emotes, toys and player cards
++ 17/10/2026 | - | Discord link on the site
+- cfcae72 |  | Site: link the SJK Discord (permanent #welcome invite)
++ 17/10/2026 | - | Supporter medal art cleaned up
+- 7eca874 |  | Supporter medal: clean V ribbon end, unbroken bail, small medallion without the top line
 + 17/10/2026 | - | The shop in kyber shards, holocrons for credits
 - 2223e7f |  | Shop in kyber shards, a Mythical one day in four, credits buy holocrons (prepared)
 + 17/10/2026 | - | A holocron's card with its credits and a few kyber shards
@@ -1698,6 +1713,12 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 18/10/2026 | SJK #133 | Show SJK chat in the console
+- 9698a68 |  | feat: show SJK chat in console
++ 18/10/2026 | SJK #144 | Fix recent servers across map changes
+- d0e4878 |  | Fix recent servers across map changes
++ 18/10/2026 | SJK #155 | Fix reply chords after opening chat
+- 2142222 |  | Fix reply chords after opening chat
 + 17/10/2026 | SJK #111 | Expose JoF EJK camera settings
 - 7ca8f29 |  | feat: expose JoF EJK camera settings
 - 9ac938b |  | docs: cite current JoF alpha camera menu
@@ -1716,6 +1737,18 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 18/10/2026 | SJK #143 | Expand custom Siege catalogues and align selector limits
+- bde4bbf |  | Expand Siege catalogues and bound theme class slots
++ 18/10/2026 | SJK #137 | Support community override shader scripts
+- 45f79e3 |  | Support community override shader scripts
++ 18/10/2026 | SJK #145 | Hide cosmetics on held and cloaked players
+- e361429 |  | Hide cosmetics in held and cloaked player states
++ 18/10/2026 | SJK #146 | Honor Not players mode for reliable shader remaps
+- 22b8500 |  | Filter reliable player remaps in Not players mode
++ 18/10/2026 | SJK #140 | Fix cosmetic colour writes in scripts
+- ed93155 |  | Preserve cosmetic colour writes in command-buffer order
++ 18/10/2026 | SJK #138 | Avoid replaying external sounds when switching followed players
+- 18a4907 |  | Seed pending external sounds when switching followed players
 + 17/10/2026 | SJK #124 | Align classic scoreboard behavior with JoF EJK
 - 6dc514d |  | Align classic scoreboard behavior with JoF EJK
 + 17/10/2026 | SJK #130 | Render JA+ black sabers with the correct plugin toggle
@@ -1796,6 +1829,11 @@
 - 8d21001 |  | Clip visible saber blades at world walls
 
 = Slash
++ 18/10/2026 | SJK #153 | Show the Siege round's winner on the SJK scoreboard
+- 515331d |  | Show the Siege round's winner on the SJK scoreboard
+- 6358f36 |  | Siege scoreboard: winner large in the middle, no team scores
+- d8bc828 |  | Review fixes: siege result in sjk-client, no stale or overflowing round
+- 01e1c96 |  | Team games tell their result on the SJK scoreboard at the intermission
 + 17/10/2026 | SJK #113 | Fix/ctf team saber colors
 - 8dd27a5 |  | Draw only red or blue sabers in capture the flag
 - f9ad921 |  | Show team saber colours on the player card in capture the flag

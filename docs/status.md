@@ -42,6 +42,128 @@ bans, another player's Medals and unlocks, Keys, a merge's confirmation), looked
 verified: no game was started and nothing reached the deployed hub; `/v1/staff/shards`
 is on the hub's `feat/shop-shards` branch only, so Give and Take shards are refused until
 it is deployed.
+## Chords that open text input
+
+18/10/2026, `fix/reply-chord-release`: keyboard releases now retire held
+bind-chord keys before a chat composer, menu or other text field can consume
+them. This fixes non-button chords such as `bind SHIFT+U reply`: opening the
+reply composer no longer leaves both keys internally held, so a later Shift or
+U alone cannot retrigger `reply`. An unpaired release now runs no bind. On Linux
+x86_64 with Rust 1.99.1, focused shell and viewer tests, formatting, the locked
+workspace build and test suite, workspace all-target Clippy, and the locked
+release viewer/dedicated build pass; existing warnings remain. The exact key
+sequence has not yet been checked interactively in the game.
+## Snapshot external sounds on follow switches
+
+17/10/2026, `fix/snapshot-external-sounds`, based on `bb83eb28`, Windows:
+JoF EJK #123's authoritative-snapshot dispatch/deduplication already exists in
+SJK. The missing follow-view case now seeds the new player's pending external
+event instead of replaying it. Explicit synchronization seeds view identity too.
+Three focused synthetic regressions cover authoritative fall dispatch, held/
+cleared events, view switches and synchronization at 8/7/4/3 ms snapshot steps.
+The three regressions and all four required workspace checks passed on Windows
+x86_64, Rust 1.99.0, code revision `a2d3a2f8` (existing warnings remain).
+These tests do not exercise movement simulation or
+establish live audible/gameplay parity; installed-asset/server comparison remains
+unverified. No wire, animation timing, simulation or UI option changes.
+See [client audio](client.md#animation-sounds-and-voice-variants).
+## Cosmetic colour script order
+
+17/10/2026, `fix/cosmetic-script-order`, based on `bb83eb28`, Windows:
+EJK #167's individual colour-command preservation already existed, but the
+native adapter took one snapshot of worn pieces per buffered frame and deferred
+its writes. It now samples and writes at each command, preserving semicolon,
+`vstr`, query and `wait` ordering, explicit later names and ordinary cvar callbacks
+and flags. The shell exposes generic current-registry interception; cosmetic
+semantics remain in the viewer. Both UI styles use the same command path.
+Two command-order regressions plus the existing console cases passed; workspace
+fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+No live cosmetic-model/server comparison was run. Wire encoding and gameplay
+are unchanged. See [client cosmetics](client.md#hats-and-capes).
+## Consistent player-texture remap filtering
+
+17/10/2026, `fix/player-remap-filter`, based on `bb83eb28`, Windows:
+EJK #297's `cg_remaps 1` policy now excludes player-texture sources from
+reliable server commands as well as configstrings, matching the shared
+Not players setting. The default mode 2 still accepts both sources, and
+worldspawn/local remaps remain independent. Ignored player commands do not
+change the filtered table's shared destination time offsets. Command parsing
+and wire decoding are unchanged. Six focused remap tests passed, including
+the updated command filter and new shared-phase/prefix regression; workspace
+fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed-scene/GPU and live-server remap
+comparison remain unverified. See [remap controls](client.md#shader-remap-controls)
+and [renderer policy](rendering.md#server-shader-remaps).
+## Recent servers across map changes
+
+17/10/2026, `fix/recent-servers-map-changes`: a remote server keeps one Recent servers row when it
+changes maps. The menu now records the connection owner's canonical address instead
+of the connecting screen's mutable display text, which becomes a map name during a
+live transition. Loading also drops invalid map-name rows left by older builds and
+deduplicates valid addresses, newest first. Focused tests cover a live map change and
+the old persisted-file shape. On Linux x86_64 with Rust 1.99.1, formatting, the locked
+workspace build and test suite, workspace all-target Clippy, and the locked release
+viewer/dedicated build pass; existing warnings remain. Not yet checked by changing
+maps on a live server.
+## Cosmetic visibility in held and cloaked states
+
+17/10/2026, `fix/cosmetic-visibility`, based on `bb83eb28`, Windows:
+implemented EJK #172's missing guards for monster-held and cloaked players.
+Existing scale/dead/Mindtrick and mirror/portal rules remain. Remote cloaked
+pieces appear with the viewer's accepted Sight state; local cloaked pieces
+remain hidden. Held flags work independently of an available holder/look
+attachment. The shared actor path covers both menu styles without new settings,
+asset reads, allocations or traces in submission. Two state regressions and
+an extended synthetic submission test passed, alongside workspace fmt/build/
+test/clippy on Windows x86_64, Rust 1.99.0. The explicit release microbenchmark
+measured 0.276 us per 128 accepted-state decisions over 20,000 frames on Ryzen
+7 5800X3D; it excludes poses, assets and drawing. Installed cosmetics, live
+monster/cloak/Sight visuals and populated
+scene performance remain unverified. No wire, movement or gameplay changes.
+See [hats and capes](client.md#hats-and-capes).
+## Community override shader scripts
+
+17/10/2026, `feat/oshader-overrides`, based on `bb83eb28`, Windows x86_64:
+the shared shader catalogue reads installed `shaders/*.oshader` with JoF EJK #138's
+override-before-normal precedence. In the native deterministic path ordering,
+the first override file and first definition win; ordinary `.shader` ordering
+is preserved. Strict loading, recovery, source authority and add-only downloaded
+content share the rule. Source authority still wins when enabled. Four synthetic
+regressions cover precedence, override-only installations, source/download scope
+and malformed-file isolation. All four required workspace checks passed on
+Windows x86_64, Rust 1.99.0, with code revision `782fe997`; existing warnings
+remain. Rend2 `.omtr` companion
+selection and installed community-pack/GPU comparison remain unimplemented or
+unverified respectively. This adds no frame-loop work, renderer setting or wire change.
+See [rendering](rendering.md#community-override-shader-scripts).
+## Expanded Siege content catalogues
+
+17/10/2026, `fix/siege-catalog-limits`, based on `bb83eb28`, Windows:
+EJK #253's 1024 class-file and 256 team-file capacities replace the native
+128-class limit. Theme slots are separately bounded to 16, including the last
+slot and missing references; a gap ends the sequential list. The client selector
+uses the same global/per-theme constants in both UI styles. All bounds remain
+in the compatibility parsers with owned vectors; protocol fields and gameplay
+rules are unchanged. Three synthetic catalogue/boundary and selector regressions
+passed; workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed custom Siege packs, live class/team
+selection and match parity remain unverified.
+See [server content limits](server.md#siege-class-catalogues).
+## Siege winner on the SJK scoreboard
+
+17/10/2026, `feat/siege-winner-scoreboard`, based on `Sol-Vulpes/SJK` `1c8887f7`: Siege counts no team score, so the SJK
+scoreboard's header said nothing about who won. Implemented: the obituary tracker's
+entity scan keeps the last `EV_SIEGE_ROUNDOVER` (event 101, eight past `EV_OBITUARY`,
+checked against OpenJK's `entity_event_t`) and its winner; while `CS_SIEGE_STATE` is
+"3|time" the board shows "Red team won" or "Blue team won" in the team's colour, from
+the event of that moment, else `CS_SIEGE_WINTEAM` (set only after a switched match's
+second round, so a player who joined after any other round's event sees no winner); large and centred over both teams,
+with "Winner" by the team that won and a faint wash of its colour over the window, and
+the team heads show no score in siege. The other team games (team free for all, CTF,
+CTY) tell their result the same way at the intermission, from the team scores: "5 : 4
+Blue team won" or "Tied 3 : 3". See
+[SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
+yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
 ## NPC sabers and voices
 
@@ -133,6 +255,18 @@ synthetic frames; this excludes trails, submission, rendering and GPU work
 and does not establish a game FPS rate. Live server behavior, installed-texture
 appearance, crowded-scene performance and EJK pixel parity remain unverified;
 simulation and codecs are unchanged.
+## SJK chat in the console
+
+17/10/2026, `feat/sjk-chat-console`: each live SJK chat message from an unblocked player now also enters the
+console scrollback through its quiet chat path, with a textual yellow `SJK` tag in
+place of the graphical feed emblem. It stays out of the closed-console notify feed
+and crash reports, and the hub's initial backlog is still only marked rather than
+replayed. A focused unit test covers new-message filtering, mute filtering, the
+textual tag and a holocron drop. On Linux x86_64 with Rust 1.99.1, the focused
+test, `cargo fmt --all --check`, the locked workspace build and test suite,
+workspace all-target Clippy, and the locked release viewer/dedicated build pass;
+the repository's existing warnings remain. The result has not yet been tried
+interactively against the live SJK chat.
 
 ## One Russian letter in chat
 
@@ -6058,8 +6192,9 @@ and tests passed. Not run in the client: the item on that map is unverified.
 Local changes on `dc36792`, verified on Linux/RADV on 2026-10-05, add initial and
 live multiplayer shader-state consumption, reliable `remapShader` commands,
 demo playback support, destination animation offsets and Tayst-style controls.
-`cg_remaps` defaults to 1 (exclude player-texture configstring remaps); 0 disables
-server remaps and 2 includes player textures. The setting applies live.
+The current `cg_remaps` default is 2 (all server remaps); 0 disables them and
+1 excludes player-texture sources from configstrings and reliable commands
+(after EJK #297). The setting applies live.
 `listRemaps` and temporary local `remapShader` overrides are available.
 See [rendering scope and limitations](rendering.md#server-shader-remaps).
 
