@@ -5243,3 +5243,11 @@ test: Send a single Russian letter (ya, then Zh): the other player sees that let
 test: Have a Russian client send one letter (or Da in capitals): you see it as Russian.
 test: Send a normal word and an accented one (cafe with e acute): both unchanged.
 note: Foshin's Discord report, 13/10/2026. A letter next to Latin words is still UTF-8.
+
+[supporter-medal-art]
+area: Menus & settings
+title: Supporter medal art cleaned up
+change: The ribbon's V end had a dark block, cut gold stubs and a gap in the stem below it.
+change: The ribbon now ends in a clean V on the bail; the small medallion has no top line.
+test: Collection > Medals, hover or open Supporter: ribbon V meets the knob, stem unbroken.
+test: Small sizes (scoreboard card, Identity list): the star shows no stray line above it.
