@@ -137,7 +137,7 @@ fn held_on_the_stage() {
 /// the hilt search being typed ("ka") with its matches, and the blade choice offering
 /// the stock blade and every blade skin (made-up grants; the Storm worn, the model
 /// holding it); then a kept search that finds nothing with no skin owned; then Dual
-/// with every skin. At 1080p, with the menu text at its largest (`ui_textScale` 1.2),
+/// with every skin. At 1080p, with the menu text at its largest (`ui_textScale` 1.4),
 /// and at 4K with it, as Sol plays. No canvas runs out of room.
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
@@ -157,8 +157,8 @@ fn duel6_sjk_saber_page() {
         };
         for (size, scale, suffix) in [
             ([1920, 1080], None, ""),
-            ([1920, 1080], Some("1.2"), "-text-1.2"),
-            ([3840, 2160], Some("1.2"), "-4k"),
+            ([1920, 1080], Some("1.4"), "-text-1.4"),
+            ([3840, 2160], Some("1.4"), "-4k"),
         ] {
             let mut cvars = vec![
                 ("ui_menuStyle", "sjk"),

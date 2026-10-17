@@ -156,7 +156,10 @@ pub(super) const FORCE_RESET_ROW: usize = 19;
 pub(super) const FORCE_DISCARD_ROW: usize = 20;
 /// Row index of the action writing the draft to `forcepowers`.
 pub(super) const FORCE_APPLY_ROW: usize = 21;
-const FORCE_ROWS: usize = 22;
+/// SJK UI: selectors for retail templates, followed by community templates.
+pub(super) const FORCE_RETAIL_TEMPLATE_ROW: usize = 22;
+pub(super) const FORCE_COMMUNITY_TEMPLATE_ROW: usize = 23;
+const FORCE_ROWS: usize = 24;
 
 impl PlayerMenu {
     pub(super) fn character_rows(&self) -> &'static [CharacterRow] {
@@ -214,7 +217,13 @@ impl PlayerMenu {
                     && !row.is_blade()
                     && !matches!(row, SaberRow::Search | SaberRow::Skin)
             }),
-            ProfilePage::Force => self.selected < FORCE_RESET_ROW,
+            ProfilePage::Force => {
+                self.selected < FORCE_RESET_ROW
+                    || matches!(
+                        self.selected,
+                        FORCE_RETAIL_TEMPLATE_ROW | FORCE_COMMUNITY_TEMPLATE_ROW
+                    )
+            }
         }
     }
 }

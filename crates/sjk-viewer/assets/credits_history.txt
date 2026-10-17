@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | SJK pull requests #107, #111, #119, #123, #126, #128
+- 2e9a998 |  | Review fixes for SJK #107, #111, #123 and #128
+- e3d21bb |  | Credits and changelog for SJK #107, #111, #119, #123, #126 and #128
 + 17/10/2026 | - | SJK pull request #116, EJK chat substitutions
 - 0d4a423 |  | Credits and changelog for SJK #116
 + 17/10/2026 | - | SJK pull requests #108, #109, #114, #118
@@ -1650,6 +1653,15 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 17/10/2026 | SJK #111 | Expose JoF EJK camera settings
+- 7ca8f29 |  | feat: expose JoF EJK camera settings
+- 9ac938b |  | docs: cite current JoF alpha camera menu
++ 17/10/2026 | SJK #107 | Expose chat size and allow larger menu text
+- a24a618 |  | Expose chat text size in settings
+- b9a6a72 |  | Allow larger menu text
+- 9b82892 |  | Increase the default console text size
+- 6e1e7ca |  | Address text size review findings
+- 5646ac2 |  | Keep the existing console text settings
 + 17/10/2026 | SJK #109 | Add JoF-style two-key combo binds
 - 471ed6f |  | feat: add two-key combo binds
 - 28f7fba |  | fix: match JoF combo table behavior
@@ -1659,6 +1671,14 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 17/10/2026 | SJK #128 | Match JoF EJK jetpack sound choices and channels
+- 6f6ca44 |  | Match JoF EJK jetpack sound choices and channels
++ 17/10/2026 | SJK #119 | Add JoF Force presets in both menu styles
+- 192beda |  | Add JoF Force presets and selectors in both menu styles
++ 17/10/2026 | SJK #123 | Add default-on Grip victim effects
+- c643c53 |  | Add default-on Grip victim effects
++ 17/10/2026 | SJK #126 | Hide the permanent inventory list by default and keep its selector
+- d66e599 |  | Separate inventory list visibility from item selection
 + 17/10/2026 | SJK #116 | Add EJK chat substitutions to game messages
 - 92f59b9 |  | Add EJK chat substitutions to outgoing game messages
 + 17/10/2026 | SJK #118 | Add an option to hide private-duel nameplates

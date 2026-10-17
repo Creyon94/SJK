@@ -62,6 +62,13 @@ pub(super) fn row_label(label: &str) -> (&str, Timing) {
 const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_drawFps", "FPS readout"),
     ("cg_forceModel", "Everyone as my model"),
+    ("cg_fovViewmodel", "Weapon FOV"),
+    ("cg_cameraFPS", "Damping style"),
+    ("cg_thirdPersonRange", "Camera distance"),
+    ("cg_thirdPersonAngle", "Camera angle"),
+    ("cg_thirdPersonPitchOffset", "Camera pitch"),
+    ("cg_thirdPersonVertOffset", "Camera height"),
+    ("cg_thirdPersonHorzOffset", "Camera side"),
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
     ("cg_errorDecay", "Error smoothing"),
@@ -105,6 +112,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     ("cg_remaps", "0", "Never"),
     ("cg_remaps", "1", "Not players"),
     ("cg_remaps", "2", "Always"),
+    ("cg_cameraFPS", "125.0", "Default"),
+    ("cg_cameraFPS", "30.0", "Smooth (SP)"),
+    ("cg_cameraFPS", "0.0", "BaseJKA"),
     (crate::brush_view::CVAR, "0", "Off"),
     (crate::brush_view::CVAR, "1", "Gameplay"),
     (crate::brush_view::CVAR, "2", "All"),
@@ -182,6 +192,10 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    (
+        "cg_drawInventory",
+        "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
+    ),
     // VIDEO
     (
         crate::graphics_quality::ROW_NAME,
@@ -229,6 +243,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows your weapon in first person; off hides it for a clear view.",
     ),
     (
+        "cg_fovViewmodel",
+        "Width of the first-person weapon view. 80 is EJK; 0 uses the world FOV like the original game.",
+    ),
+    (
         "cg_drawFps",
         "Shows frames per second and frame time in a corner of the screen.",
     ),
@@ -239,6 +257,14 @@ const HELP: &[(&str, &str)] = &[
     // AUDIO
     ("s_volume", "Loudness of every sound but the music."),
     ("s_musicVolume", "Loudness of the music."),
+    (
+        crate::jetpack::ON_SOUND_CVAR,
+        "Jetpack ignition: 1 default, 2 alternate, as in JoF EJK. Shutdown uses one fixed sound.",
+    ),
+    (
+        crate::jetpack::HOVER_SOUND_CVAR,
+        "Jetpack hover: 1 default, 2 alternate, as in JoF EJK. The flaming fire loop is independent.",
+    ),
     (
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
@@ -407,6 +433,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawChat", "Shows chat messages over the game."),
     (
+        "cg_chatBoxFontSize",
+        "Size of chat messages and their rows; higher is larger and wraps sooner.",
+    ),
+    (
         crate::chat::emoji::CVAR,
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),
@@ -482,6 +512,10 @@ const HELP: &[(&str, &str)] = &[
         "Afterimages behind players using Force Speed.",
     ),
     (
+        crate::actor_world_submission::force_powers::victim::CVAR,
+        "Red neck puffs on choking players. On by default; your own stay hidden in first person and while zoomed.",
+    ),
+    (
         "cg_auraShell",
         "The glowing shell Force Sight shows around other players.",
     ),
@@ -512,6 +546,30 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::camera::STYLE_CVAR,
         "EJK: the third-person camera stays locked behind you, as in JoF EJK. SJK: it trails you a little as you move and turn.",
+    ),
+    (
+        "cg_cameraFPS",
+        "With SJK camera style, use EJK damping timing: Default 125, Smooth (SP) 30, or BaseJKA's original 50 ms steps.",
+    ),
+    (
+        "cg_thirdPersonRange",
+        "Distance of the third-person camera behind your character, from 40 to 500 units.",
+    ),
+    (
+        "cg_thirdPersonAngle",
+        "Turns the third-person camera around your character: 0 is directly behind.",
+    ),
+    (
+        "cg_thirdPersonPitchOffset",
+        "Raises or lowers the direction the third-person camera looks, in degrees.",
+    ),
+    (
+        "cg_thirdPersonVertOffset",
+        "Raises or lowers the third-person camera relative to your character.",
+    ),
+    (
+        "cg_thirdPersonHorzOffset",
+        "Moves the third-person camera sideways: negative left, positive right.",
     ),
     (
         "cg_thirdPersonCameraDamp",
@@ -1016,5 +1074,12 @@ mod tests {
             row_label("Supersampling, 1 off (reload)").0,
             "Supersampling, 1 off"
         );
+    }
+
+    #[test]
+    fn camera_damping_styles_have_their_ejk_names() {
+        assert_eq!(choice_name("cg_cameraFPS", "125.0"), Some("Default"));
+        assert_eq!(choice_name("cg_cameraFPS", "30.0"), Some("Smooth (SP)"));
+        assert_eq!(choice_name("cg_cameraFPS", "0.0"), Some("BaseJKA"));
     }
 }

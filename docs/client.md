@@ -248,10 +248,17 @@ Settings and SJK in place of retail's Controls and Setup:
     `forcestarN` once bought, `forcecircleN` before), and retail's templates
     down the left: the side's `forcecfg/light` or `forcecfg/dark` `.fcf`
     files from the game data (retail's Blademaster, Knight and others, and
-    any pack's, under their own capitalised names) and the player's own,
-    which come first and are tagged. A click or Left/Right loads a template
+    any pack's, under their own capitalised names) and the player's own.
+    Retail templates come first under **Jedi Academy**, followed by **Community**;
+    saved templates are tagged and sort first within their group. SJK bundles
+    JoF EJK #23's 22 community presets (13 light, 9 dark), preserving their names,
+    colours and values; installed packs and saved files can override them.
+    A click or Left/Right loads a template
     into the draft, legalized at the draft's rank as `UI_ForceConfigHandle`
-    does, and the row stays filled until the draft is edited; Name and Save
+    does, and the row stays filled until the draft is edited. In the SJK UI,
+    the Force page's **Force templates** panel has Jedi Academy and Community
+    selectors; Left/Right or clicking either half steps through that group.
+    Templates edit the draft; Apply sends it. Name and Save
     Template write the draft to `forcecfg/<side>/<name>.fcf` in the client's
     user folder (beside `config.cfg`). The window is as wide as the in-game
     profile. SJK lays the powers out in two columns, the neutral powers over the saber skills and the chosen
@@ -390,9 +397,9 @@ panel holds scrolls: the wheel over its items moves the list one item per notch
 position and can be dragged, and Up and Down keep the selected item in view.
 
 SJK makes these panels [classic+](classic-plus.md): a search field and the items
-fill the panel's upper part (10 rows on the main menu, 8 in game, where retail's
-taller panel held 15 and 12) and a detail box under them describes the focused
-item. For a setting
+fill the panel's upper part (up to 10 rows on the main menu and 8 in game, where
+retail's taller panel held 15 and 12; larger menu text can show fewer) and a
+detail box under them describes the focused item. For a setting
 it shows the full name and value, what the setting does
 ([help.rs](../crates/sjk-viewer/src/settings/help.rs), one or two lines for
 every setting), its default, its range (or how many choices it has), "applies
@@ -1051,6 +1058,20 @@ and the first/third person choice are the same in both styles; Sol's JoF EJK
 profile also sets `cg_thirdPersonRange 100`, which SJK leaves to that cvar. SJK's
 `sjk` style does not apply EternalJK's strafe helper rule.
 
+### Camera settings
+
+Settings > Advanced > Gameplay > Camera and prediction, and Classic+ Setup >
+Game options, expose the camera controls from JoF EJK's
+`assets/japro/ui/jamp/ingame_camera.menu` at official alpha commit `9822a9d6`
+(`1.6.1-alpha.347`; the file is unchanged since its initial `52e068d0` import). The
+shared settings rows cover the first-person weapon FOV; EJK's damping timing
+presets (Default 125, Smooth (SP) 30 and BaseJKA); third-person distance, angle,
+pitch, height and horizontal offset; and camera/target damping. Their ranges and
+defaults match that menu. The ordinary world FOV stays under Display, the HUD
+switch under HUD, and first/third-person switching remains the Camera key rather
+than a persistent option. The damping rows (timing preset, camera and target damping)
+only act under `cg_cameraStyle sjk`; the default `ejk` style keeps its own camera.
+
 ### Camera control
 
 Camera control (named Shot controls until 08/10/2026) is a panel for framing
@@ -1244,6 +1265,32 @@ and a leader doing the same choreography at walking pace (keys of 46, walk held,
 attacks included) every command holds the walk with no key past 64, the attacks come
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
+
+## Jetpack sounds
+
+Settings > Audio (classic) and Settings > Advanced > Sound (SJK UI) offer
+**Jetpack ignition sound** and **Jetpack hover sound**, matching JoF EJK #43.
+Both default to `1`; `2` selects the alternate. The archived console cvars
+are `cg_jetpackOnSound` and `cg_jetpackHoverSound`. As in EJK, values <= 1
+use the default and values > 1 use the alternate; zero does not mute them.
+
+| Choice | Ignition | Hover |
+| --- | --- | --- |
+| `1` (default) | `sound/chars/boba/bf_land.mp3` | `sound/chars/boba/jethover.wav` |
+| `2` | `sound/chars/boba/jeton.wav` | `sound/chars/boba/bf_jetpack_lp.wav` |
+
+Shutdown always uses `sound/chars/boba/bf_blast-off.mp3`; EJK has no shutdown
+selector. The additional `sound/effects/fire_lp.wav` loop while flaming is
+independent of the hover choice. A hover change applies on the next audio
+frame; changing ignition during flight does not restart it. Choices apply to
+every audible jetpack, including your own.
+
+Start/stop sounds use the wearer's actual source and position on `CHAN_AUTO`,
+including EJK #87's later attribution/channel correction. All variants are
+preloaded/registered before frame playback; choosing them does not read or
+decode sound assets during a frame. See [rendering](rendering.md) for the
+existing pack, flame and visibility behavior, and
+[status](status.md#jof-ejk-jetpack-sound-choices) for verification limits.
 
 ## Saber ignition and retraction sounds
 
@@ -2185,6 +2232,13 @@ with a 32-unit top margin and the existing 40-unit right margin at 1080p (scaled
 with the HUD). Optional snapshot diagnostics and inventory flow below that block.
 Visibility and server-selected leader/opponent rules are unchanged. There is no team
 overlay ([Team outlines and logos](#team-outlines-and-logos)).
+
+`cg_drawInventory` (archived, default **0**) controls the permanent list of
+carried holdable items below that block, following JoF EJK #40's quieter default.
+Enable **Inventory list** in classic Settings > HUD or SJK Settings > Advanced >
+HUD to show it. The brief inventory selector still appears when cycling items,
+whether this permanent list is on or off. Trip-mine weapons are not part of the
+holdable list. Existing saved values remain in effect.
 
 ## Lagometer size
 
@@ -3270,7 +3324,7 @@ eye to that point hides it behind walls. The nameplate, or the plain overhead na
 stands above it. It hides with the nameplates (menus, the scoreboard, intermission,
 `cg_drawHud 0`).
 
-- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos, and Simple > HUD) turns
+- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos) turns
   them on. It was a small coloured square until 13/10/2026.
 
 The team overlay at the top right (`cg_drawTeamOverlay`, teammates' names, health and
@@ -4411,6 +4465,16 @@ crouch key of the jump/crouch pair, as `+movedown` is. Unlike EJK, whose `-duck`
 also lets go of every `+movedown` and `+speed` key, `-duck` releases only itself. See
 [input.rs](../crates/sjk-viewer/src/input.rs) (`up_move`).
 
+`cg_gripVictimFX` (archived, default **on**) shows red puffs near choking players'
+necks, following JoF EJK's Grip victim effect. Turn **Grip victim effects** off in
+classic Settings > Game options or SJK Settings > Advanced > Gameplay to hide
+them. Your viewed player's puffs stay hidden in first person and while zoomed;
+other players and detached cameras retain theirs. A missing neck uses the posed
+head as fallback; models with neither show no puff. The choking animation is a
+visual marker, so the effect can also accompany other uses of that animation.
+It changes no Grip damage, timing, targeting or movement. See
+[rendering](rendering.md) for the reference and effect details.
+
 `cp_pluginDisable` is the archived userinfo cvar a JA+ server reads to switch its
 client-plugin features off for this client (a set bit disables one). Its default,
 1536, disables the holstered saber and ledge grab, which need JA+ animations SJK
@@ -4527,13 +4591,16 @@ draws as before at the defaults.
 
 | Cvar | Default | Range | Effect |
 | --- | --- | --- | --- |
-| `ui_textScale` | 1 | 0.8 to 1.2 | Text size on menu screens and the in-game menu |
+| `ui_textScale` | 1 | 0.8 to 1.4 | Text size on menu screens and the in-game menu |
 | `ui_letterSpacing` | 0 | -0.05 to 0.15 | Extra space after each letter of menu text, as a fraction of the text size; the console's character grid keeps its cells |
 | `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: its character cells, margins and rows |
 
-Menu text grows or shrinks about the centre of its line without moving the
-layout, so the range is limited to what menu rows can hold; that style is
-applied where retained text commands become glyph quads, see
+Menu text grows or shrinks about the centre of its line. SJK Settings' option
+rows have room for the largest size; long Profile and Collection tab rows close
+their gaps as the text grows. Classic+ option panels grow their rows above size
+1 and show fewer at once through their existing scrolling, so their labels,
+controls and pointer targets do not overlap. Other layout positions stay
+unchanged. The style is applied where retained text commands become glyph quads, see
 [text/style.rs](../crates/sjk-viewer/src/text/style.rs). These settings do not
 affect chat, the scoreboard or the HUD. Letter spacing stays 0: Inter's average
 advance relative to its x-height (0.89) is already close to stock's cells (0.8),
@@ -4549,6 +4616,11 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 0.18 of the box. A sender's name line advances 20 px to the body (was 26) and
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
+
+`cg_chatBoxFontSize` (default 1, archived; SJK Advanced > Chat > **Chat text size**,
+0.25 to 3 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
+The wrapping width stays in its configured screen position, so larger text wraps
+sooner. The setting is also on Simple > HUD and the classic+ HUD page.
 
 `cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > Chat > Chat letter
 spacing, -2 to 8 in steps of 0.5) adds that many 1080p pixels after each character of

@@ -1,6 +1,9 @@
 //! Pose-attached MP force effects, sharing actor matrices and the EFX pool.
 use super::*;
 
+#[path = "grip_victim.rs"]
+pub(crate) mod victim;
+
 #[path = "force_sprites.rs"]
 pub(crate) mod sprites;
 

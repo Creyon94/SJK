@@ -25,12 +25,12 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-> Weapons: Following another player no longer keeps your old weapon choice.
-> Force: Team powers bought in FFA reach servers that allow them.
-> HUD: Desann and Tavion styles have their own colours.
-> Fixes: Linux copy, large NPC packs on native servers.
+> Force: JoF's 22 community presets, and team powers bought in FFA reach servers that allow them.
+> Effects: Red puffs around Grip victims, and jetpack sounds to choose as in JoF EJK.
+> Settings: Camera framing, chat text size, menu text up to 1.4 and the inventory list.
 > Console: Two-key binds like `bind K+L kill`, and Tab completes cfg names after `exec`.
 > Chat: %H%, %S%, %W% and the other EJK tokens send your live values.
+> Fixes: Weapon choice when following, Desann and Tavion colours, Linux copy, big NPC packs.
 
 - Following another player, leaving follow or spectator mode, or a demo rewind resets the weapon selection to the weapon in hand, so the old choice no longer reaches the new player's HUD or your next command _(Lumaya, after JoF EJK)_
 - Team Heal and Team Energize bought outside a team game stay in the Force profile you send, so a server that allows them can grant them; the Force menu says "Server decides" instead of "Team games only" _(Lumaya)_
@@ -42,6 +42,12 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - `clientlist` lists the players with their client numbers (`showplayerid` still works), and `clientlistinfo` adds their model, gender, sabers and colours _(Lukas, after JoF EJK)_
 - Chat messages expand JoF EJK's substitutions: %H% health, %S% shield, %F% Force, %W% weapon, %A% ammo, %P% ping, %U% %UKM% %UM% speed, %T% %T2% local time, each written as its own word, from the composer, the console, binds, team chat and tells _(Lumaya, after JoF EJK)_
 - Hide duellers (Settings, Nameplates, `cg_nameplateHideDuelers`, off by default) hides the nameplates of players in a private duel _(Lumaya, after EJK)_
+- The Force menu offers JoF EJK's 22 community presets (13 Light, 9 Dark) under Community, beside the Jedi Academy templates, in both menu styles; each is fitted to the server's rank and rules before Apply _(Lumaya, after JoF EJK)_
+- Grip victims are surrounded by red puffs, as in JoF EJK; Settings, Grip victim effects (`cg_gripVictimFX`) turns them off _(Lumaya, after JoF EJK)_
+- The permanent inventory list is a setting (Settings, HUD, Inventory list); the item selector still shows when you cycle items _(Lumaya, after JoF EJK)_
+- JoF EJK's camera settings: weapon FOV, third-person distance, angle, height and offsets, and the damping presets, in Settings Advanced Gameplay and classic+ Game options _(Lukas, after JoF EJK)_
+- Chat text size is in every settings mode, and Menu text size now goes up to 1.4 _(Lukas)_
+- Jetpack ignition and hover sound choices match JoF EJK, with both sound selectors in SJK and classic settings and corrected positional start/stop playback _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 

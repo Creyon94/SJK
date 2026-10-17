@@ -1,3 +1,23 @@
+## JoF EJK jetpack sound choices
+
+17/10/2026, `feat/jof-jetpack-sounds-upstream`, based on `Sol-Vulpes/SJK`
+`94b1d1ce`: implemented JoF EJK #43's archived ignition/hover selectors, both
+default 1, with the original integer branches and sound paths. Shutdown is
+fixed; the flaming fire loop is independent. Both menu styles expose the
+choices. Start/stop now use #87's `CHAN_AUTO`, retaining the wearer's actual
+source and position. See [client](client.md#jetpack-sounds) and
+[rendering](rendering.md).
+
+Workspace fmt/build/test/clippy checks passed on Windows x86_64, Rust 1.99.0.
+Four focused regressions pin integer/default choices, fixed shutdown,
+source/channel/position, live local/remote hover selection, independent fire,
+retained loop storage and archived preferences without restarting active jets;
+the existing jetpack tests pass too. Source evidence is EJK `codemp/cgame` at
+#43 merge `364c5ff1` and #87 merge `c3e2331f`. Live listening and jetpack
+reproduction were not exercised; game assets are not configured for the
+ignored installed-assets/GPU check. These checks do not establish audible or
+gameplay parity, or populated-match performance.
+
 ## One Russian letter in chat
 
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a
@@ -88,6 +108,22 @@ console commands, config round-trip and import. On Linux x86_64 with Rust 1.99.1
 all-target clippy, and the release viewer/dedicated build pass (existing clippy
 warnings remain). It has not yet been tried in the game; Sol will test the local
 build before anything is pushed.
+## JoF EJK camera settings
+
+17/10/2026, `feat/ejk-camera-settings`: Advanced > Gameplay > Camera and
+prediction and Classic+ Setup > Game options expose JoF EJK's functional camera
+menu controls: first-person weapon FOV, its three damping timing presets,
+third-person distance, angle, pitch, height and horizontal offset, and camera and
+target damping. The ranges, defaults and preset names follow the official JoF EJK
+alpha commit `9822a9d6` (`1.6.1-alpha.347`), whose
+`assets/japro/ui/jamp/ingame_camera.menu` is unchanged since its initial
+`52e068d0` import. The underlying archived
+cvars and camera behavior already existed in SJK; this change adds their shared
+SJK/classic settings rows and help. On Linux x86_64 with Rust 1.99.1, the focused
+settings tests (101 passed), formatting, locked workspace build and tests,
+workspace all-target Clippy, and release viewer/dedicated build pass (existing
+Clippy warnings remain). The settings have not been tried in the game; the
+GPU/retail-data snapshots were not run.
 
 ## SJK chat messages up to 300 characters
 
@@ -216,6 +252,29 @@ optimized viewer/dedicated build pass (the repository's existing warnings remain
 Not yet tried against a running game server. SJK has no copied
 `clientInfo_t::deferred` model-load flag, so the EJK-only `(deferred)` diagnostic is
 not shown.
+## Menu and chat text sizes
+
+16/10/2026, `feat/chat-text-size-setting` based on review revision `1d2922c3`
+(Sol's request): the
+existing `cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page,
+SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range.
+**Menu text size** (`ui_textScale`) now reaches 1.4 instead of 1.2 (the pull request asked for 1.5; at 1.5 the home page's key hints were cut, so it was capped at 1.4 at the merge). Classic+
+settings grow their rows and show fewer through their existing scrolling; the
+long SJK Collection tab row closes its gaps, and the dual-saber search leaves its
+heading room at the largest size ([client.md](client.md#text-size-and-spacing)).
+Simple > HUD keeps Team logos beside the new Chat text size (Sol's choice at the
+merge, 17/10/2026), so its row limit is now thirteen.
+Group and layout tests pin those placements. On x86_64 Linux with rustc 1.99.1,
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed (the repository's
+existing warnings remain). The optimized viewer and dedicated-server build also
+passed. The review follow-up removed a 1.5 cap that had made chat beside the SJK
+scoreboard ignore the upper half of the advertised 0.25-3 range; its focused
+regression test passed.
+GPU/world-shot tests requiring `JKA_GAME_DATA` were
+ignored by the suite; the settings and their persistence have not yet been
+checked interactively in the game.
 
 ## Chat bans: Ban 24 h
 
@@ -454,6 +513,61 @@ target on another volume and `CARGO_INCREMENTAL=0` after the original volume ran
 out of space during debug-symbol/cache writes. Existing warnings and ignored
 GPU/asset tests remain. Live server delivery and visual checks have not been
 performed. This changes no movement rules or wire codec.
+## Inventory list and selector visibility
+
+16/10/2026, `fix/inventory-list-default` based on `7026c735`: the archived
+`cg_drawInventory` now defaults to 0 for the permanent holdable list, matching
+JoF EJK #40. The transient inventory selector is independent and remains visible
+when cycling. Both settings interfaces expose **Inventory list** in their HUD
+category. Existing saved preferences remain; trip-mine weapons were already
+absent from the holdable list. Input, item use and gameplay are unchanged.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. The retained-HUD regression checks the
+registered default and both list values across Game, Classic and Radial layouts:
+the permanent labels follow the toggle while the inventory selector remains.
+Shared settings layout/category checks passed. Live/GPU appearance remains
+unverified; `JKA_GAME_DATA` is not configured.
+## Grip victim effects
+
+16/10/2026, `feat/grip-victim-effects` based on `7026c735`: red neck puffs
+follow the `BOTH_CHOKE3` leg-animation marker, using JoF EJK #33's puff
+parameters and #90's later victim placement and camera guard. The archived
+`cg_gripVictimFX` setting defaults on in classic Game options and SJK Advanced
+Gameplay. Local prediction and remote snapshot markers are supported; the
+viewed player's puffs are hidden in first person or zoom, while other players
+and detached cameras retain them. Cached neck/head positions reuse the existing
+pose, with missing joints suppressing the effect. Emission uses the existing
+8 ms effect cadence. Gameplay and protocol encoding are unchanged.
+
+Verification on Windows with Rust 1.99.0: `cargo fmt --all --check`, locked
+workspace build/tests, and Clippy with all targets passed. Four focused tests
+cover local/remote animation markers and prediction, camera/setting guards,
+scaled and rotated joint placement, missing joints, and reference puff colour,
+lifetime, motion and density at 8/7/4/3 ms frame steps. These are synthetic
+checks, not live visual parity evidence.
+
+Live Grip play and actual GPU appearance remain unverified. `JKA_GAME_DATA`
+is not configured; no release frame-time measurements have been made.
+## Bundled JoF Force presets
+
+16/10/2026, `feat/jof-force-presets` based on `7026c735`: the client bundles
+JoF EJK #23's 22 community Force templates (13 light, 9 dark) unchanged, with
+upstream attribution. They are content mounted below installed packs, selectable
+through the normal Force draft; loading still applies rank and server rules and
+waits for Apply. The classic list groups retail templates first under Jedi Academy,
+then Community. The SJK Force page now has selectors for the same two groups.
+Retail membership comes from the `base/assets0.pk3` through `assets3.pk3` view,
+and the catalogue exposes its retail count. Saved templates still override
+same-named packaged templates. All 22 files match upstream revision
+`9750845d194ced3d4ef86fcb80ea482339f629d1` byte for byte.
+Synthetic-content tests verify side assignment, archive-based retail grouping,
+installed and saved overrides, and SJK pointer/keyboard selection changing only
+the draft. No retail assets or player-saved files are used by these fixtures.
+Formatting, locked workspace build/tests and Clippy with all targets passed on
+Windows with Rust 1.99.0 (existing warnings; GPU/data-dependent tests ignored).
+Live server use and GPU presentation remain unverified. See
+[the client](client.md#menu-style) and [SJK UI](sjk-ui.md#character).
 
 ## Emotes on stock models: limbs out of wider bodies
 

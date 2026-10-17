@@ -999,6 +999,11 @@ impl LegacySoundAdapter {
         &self.ledger
     }
 
+    /// Select pre-registered JoF EJK hover variants without loading frame assets.
+    pub fn set_jetpack_sounds(&mut self, options: crate::LegacyJetpackSounds) {
+        self.loops.jetpack_sounds = options;
+    }
+
     /// Build the current rendered frame's fixed-capacity loop requests.
     pub fn observe_loops(
         &mut self,

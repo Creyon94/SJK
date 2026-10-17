@@ -90,7 +90,8 @@ Sizes are in pixels of a 1080-line screen and scale with the window's height:
 the main page's entries 44 (chosen 68), server names 27, the player's name 26,
 details 16 to 18, key hints 15 to 17; on Settings, its name 48, the categories
 26, sub-headings 22, row names and descriptions 19, the detail's title 32 and
-its facts 17.
+its facts 17. `ui_textScale` multiplies them from 0.8 to 1.4; Settings > General
+in Simple or Interface in Advanced exposes it as **Menu text size**.
 
 Names keep their colour codes (`^1`...), drawn in a palette lifted to read on
 the navy ground (`text::CodePalette::Legible`, which every text in the UI's
@@ -342,9 +343,13 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   and turn before it. World shot: `world_shot::saber_skins::duel6_sjk_saber_page`
   (the search typed, a search finding nothing with no skin owned, Dual; at 1080p,
   with `ui_textScale` 1.2, and at 4K with it).
-- **Force:** the mastery ("Jedi Master") and the points left of the rank's
+- **Force:** the **Force templates** panel at the right offers separate
+  **Jedi Academy** and **Community** selectors, retail first. Left/Right or
+  either half of a selector loads that group's previous/next preset into the
+  draft; Apply sends it. The community group includes the bundled JoF presets
+  ([client.md](client.md#menu-style)). The mastery ("Jedi Master") and points left
   ("18 of 100 points left", and "not applied yet" while the draft differs)
-  over a gold bar of the points left; the Light and Dark sides as two cards
+  sit over a gold bar of the points left; the Light and Dark sides appear as two cards
   with their emblems; the powers in classic+'s groups under sub-headings,
   Neutral and Lightsaber down the left, the side's five on the right (the
   other side's left out, as on classic+): each its holocron, its name and its
@@ -762,9 +767,10 @@ that mode for the visit and leaves the player's choice as it was.
     FPS, first-person weapon, saber trail, everyone as my model, Force Seeing
     aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
     damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
-    feed, chat) and General (Menus: menu style and text size; From another
-    client: import; JoF content: its card, since 16/10/2026; SJK online: check for
-    updates, SJK chat, crash reports, settings usage, SJK identity key). They are `settings::Group::Simple`.
+    feed, chat and its text size) and General (Menus: menu style and text size;
+    From another client: import; JoF content: its card, since 16/10/2026; SJK
+    online: check for updates, SJK chat, crash reports, settings usage, SJK
+    identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
     12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
     HUD, Chat, Quick wheel, Mods, Network (Chat and Mods since 12/10/2026, when
@@ -786,12 +792,14 @@ that mode for the visit and leaves the player's choice as it was.
     their names; Display is Video's other rows under Screen, Frame rate and
     View; Sound holds every sound, the game's under Game, then the unlock
     sound, the SJK chat sound and the quick wheel's sounds under
-    Notifications; Gameplay is Game options without the packs and mods;
+    Notifications; Gameplay is Game options without the packs and mods, with
+    JoF EJK's camera framing and damping rows under Camera and prediction;
     Interface the menus and the console (the quick wheel's rows are its
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person
     weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
-    Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
+    Scoreboard heading; Chat the chat box (Chat box: visibility, text size,
+    emojis, remembered channel and letter spacing) and the SJK chat (SJK
     chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
     JoF tools (Server mods), JoF content's card and host (JoF content),
     invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that

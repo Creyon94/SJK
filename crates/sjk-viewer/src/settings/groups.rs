@@ -84,6 +84,7 @@ impl Advanced {
 /// (Network's).
 const CHAT_ROWS: &[&str] = &[
     "cg_drawChat",
+    "cg_chatBoxFontSize",
     crate::chat::emoji::CVAR,
     crate::chat::reply::REMEMBER_CVAR,
     "cg_chatBoxLetterSpacing",
@@ -270,6 +271,7 @@ impl Group {
                 "cg_saberTrail",
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
+                crate::actor_world_submission::force_powers::victim::CVAR,
                 "cg_auraShell",
                 "cg_spProtAbsColor",
                 "cg_shieldSphere",
@@ -278,6 +280,13 @@ impl Group {
                 "cg_remaps",
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
+                "cg_fovViewmodel",
+                "cg_cameraFPS",
+                "cg_thirdPersonRange",
+                "cg_thirdPersonAngle",
+                "cg_thirdPersonPitchOffset",
+                "cg_thirdPersonVertOffset",
+                "cg_thirdPersonHorzOffset",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
                 "cg_errorDecay",
@@ -310,6 +319,7 @@ impl Group {
                 "cg_classicHudFont",
                 "cg_drawStatus",
                 "cg_drawWeapon",
+                "cg_drawInventory",
                 "cg_crosshair",
                 "cg_crosshairSize",
                 "cg_hitMarker",
@@ -350,6 +360,7 @@ impl Group {
                 "cg_killfeed",
                 crate::ground_hud::CVAR,
                 "cg_drawChat",
+                "cg_chatBoxFontSize",
                 crate::chat::emoji::CVAR,
                 crate::chat::reply::REMEMBER_CVAR,
                 "cg_chatBoxLetterSpacing",
@@ -425,6 +436,7 @@ impl Group {
                 "cg_speedometer",
                 "cg_killfeed",
                 "cg_drawChat",
+                "cg_chatBoxFontSize",
             ],
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
@@ -719,7 +731,7 @@ mod tests {
         for simple in Simple::ALL {
             let rows = Group::Simple(simple).rows();
             assert!(
-                (3..=12).contains(&rows.len()),
+                (3..=13).contains(&rows.len()),
                 "{simple:?}: {} rows",
                 rows.len()
             );
@@ -729,6 +741,74 @@ mod tests {
             Group::Simple(Simple::Graphics).rows()[0].cvar,
             crate::graphics_quality::ROW_NAME
         );
+    }
+
+    #[test]
+    fn chat_text_size_is_offered_in_every_settings_mode() {
+        let has_size = |group: Group| {
+            group
+                .rows()
+                .iter()
+                .any(|setting| setting.cvar.eq_ignore_ascii_case("cg_chatBoxFontSize"))
+        };
+        assert!(has_size(Group::Hud), "classic+ HUD");
+        assert!(has_size(Group::Advanced(Advanced::Chat)), "SJK Advanced");
+        assert!(has_size(Group::Simple(Simple::Hud)), "SJK Simple");
+    }
+
+    #[test]
+    fn console_text_size_stays_in_the_full_settings_modes() {
+        let has_size = |group: Group| {
+            group
+                .rows()
+                .iter()
+                .any(|setting| setting.cvar.eq_ignore_ascii_case("con_scale"))
+        };
+        assert!(has_size(Group::Interface), "classic+ Interface");
+        assert!(
+            has_size(Group::Advanced(Advanced::Interface)),
+            "SJK Advanced"
+        );
+        assert!(!has_size(Group::Simple(Simple::General)), "SJK Simple");
+    }
+
+    #[test]
+    fn ejk_camera_rows_stay_together_in_classic_and_advanced_gameplay() {
+        let expected = [
+            crate::camera::STYLE_CVAR,
+            "cg_drawGun",
+            "cg_fovViewmodel",
+            "cg_cameraFPS",
+            "cg_thirdPersonRange",
+            "cg_thirdPersonAngle",
+            "cg_thirdPersonPitchOffset",
+            "cg_thirdPersonVertOffset",
+            "cg_thirdPersonHorzOffset",
+            "cg_thirdPersonCameraDamp",
+            "cg_thirdPersonTargetDamp",
+            "cg_errorDecay",
+        ];
+        for group in [Group::GameOptions, Group::Advanced(Advanced::Gameplay)] {
+            let rows: Vec<&str> = group.rows().iter().map(|setting| setting.cvar).collect();
+            assert!(
+                rows.windows(expected.len())
+                    .any(|window| window == expected)
+            );
+        }
+
+        let float_range = |cvar| match find(cvar).unwrap().kind {
+            ValueKind::Float { min, max, step } => (min, max, step),
+            _ => panic!("{cvar} is not a float slider"),
+        };
+        assert_eq!(float_range("cg_fovViewmodel"), (0.0, 120.0, 5.0));
+        assert_eq!(float_range("cg_thirdPersonRange"), (40.0, 500.0, 5.0));
+        assert_eq!(float_range("cg_thirdPersonAngle"), (-180.0, 180.0, 5.0));
+        assert_eq!(
+            float_range("cg_thirdPersonPitchOffset"),
+            (-129.0, 50.0, 1.0)
+        );
+        assert_eq!(float_range("cg_thirdPersonVertOffset"), (-58.0, 80.0, 1.0));
+        assert_eq!(float_range("cg_thirdPersonHorzOffset"), (-64.0, 64.0, 1.0));
     }
 
     #[test]

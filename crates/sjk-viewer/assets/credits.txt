@@ -164,7 +164,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 23 merged pull requests
+role: Contributor: 27 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -189,14 +189,20 @@ did: #121 Desann and Tavion styles get their own HUD colours
 did: #125 Weapon choice reset when you follow another player or spawn
 did: #118 Hide duellers: an option to hide private duellers' nameplates
 did: #116 Chat substitutions: %H%, %S%, %W% and the other EJK tokens
+did: #119 JoF's 22 community Force presets in both menu styles
+did: #123 Red puffs around Grip victims, as JoF EJK draws them
+did: #126 The inventory list as a setting; the item selector always shows
+did: #128 Jetpack ignition and hover sounds to choose, as in JoF EJK
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 3 merged pull requests
+role: Contributor: 5 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
+did: #107 Chat text size in every settings mode, menu text up to 1.4
+did: #111 JoF EJK's camera framing settings and damping presets
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]

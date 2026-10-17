@@ -34,6 +34,7 @@ mod jetpack_submission;
 mod player_spheres;
 
 struct Sinks<'a> {
+    grip_victim: bool,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -223,6 +224,11 @@ pub(crate) fn submit(
         .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
         .unwrap_or(0);
     let mut sinks = Sinks {
+        grip_victim: gpu
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(force_powers::victim::CVAR))
+            .unwrap_or(true),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
             .object_meshes
@@ -582,6 +588,21 @@ fn submit_actor(
     // the body, its afterimages and its shells (`cg_players.c:11351-11356`).
     if trick.hidden {
         return 0;
+    }
+    // A Grip victim's puffs come after that cut-off too (`cg_players.c:13221`), so a
+    // gripped trickster hidden from the viewer gives away nothing.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), Some(snapshot)) = (mesh, snapshot)
+    {
+        force_powers::victim::submit(
+            sinks,
+            mesh,
+            entity,
+            *transform,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
     }
     // An electrified player crackles (`electrify.rs`), the local one in first person too.
     if entity.kind == EntityKind::Actor

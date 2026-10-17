@@ -909,8 +909,8 @@ mod tests {
         }
     }
 
-    /// The settings in the SJK UI's look, at 1080p and 4K with Sol's
-    /// larger menu text (`ui_textScale 1.2`): the resolution list as the SJK
+    /// The settings in the SJK UI's look, at 1080p and 4K with the largest
+    /// menu text (`ui_textScale 1.4`): the resolution list as the SJK
     /// UI's card over its Settings and over a classic+ panel, then the
     /// classic Graphics page's renderer route, which opens the SJK UI's
     /// Settings on Graphics.
@@ -923,7 +923,7 @@ mod tests {
                 let cvars = [
                     ("ui_menuStyle", "sjk"),
                     (crate::settings::quick::HIDE_CVAR, "1"),
-                    (crate::text::style::SCALE_CVAR, "1.2"),
+                    (crate::text::style::SCALE_CVAR, "1.4"),
                 ];
                 let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
                 else {
@@ -1954,8 +1954,8 @@ like this one.",
         });
     }
 
-    /// The Profile screen's tabs and the main page at Sol's text style
-    /// (`ui_textScale 1.2`): every tab's name whole, on Character and on
+    /// The Profile screen's tabs and the main page at the largest text style
+    /// (`ui_textScale 1.4`): every tab's name whole, on Character and on
     /// Achievements, and the main page's Profile line clear of the servers.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
@@ -1966,7 +1966,7 @@ like this one.",
                 ("ui_menuStyle", "sjk"),
                 (crate::settings::quick::HIDE_CVAR, "1"),
                 ("name", "^1Sol^7Vulpes"),
-                (crate::text::style::SCALE_CVAR, "1.2"),
+                (crate::text::style::SCALE_CVAR, "1.4"),
             ];
             let menu = menu::ClientMenu::new(true, String::new());
             let Some((mut gpu, _profile)) =
