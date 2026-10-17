@@ -48,6 +48,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - JoF EJK's camera settings: weapon FOV, third-person distance, angle, height and offsets, and the damping presets, in Settings Advanced Gameplay and classic+ Game options _(Lukas, after JoF EJK)_
 - Chat text size is in every settings mode, and Menu text size now goes up to 1.4 _(Lukas)_
 - Jetpack ignition and hover sound choices match JoF EJK, with both sound selectors in SJK and classic settings and corrected positional start/stop playback _(Lumaya, after JoF EJK)_
+- Tavion and Desann saber styles now show their distinct idle poses by default, for local and remote players, without changing movement or attack timing _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 

@@ -919,6 +919,21 @@ such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTAC
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
 
+## Tavion and Desann idle poses
+
+Tavion and Desann saber styles use their distinct JoF EJK standing poses by
+default, with no setting: Tavion uses `BOTH_P1_S1_T_`, Desann `BOTH_STAND9`.
+This applies to snapshot and predicted actors in every UI style. The client
+replaces only each style's ordinary idle clip; other custom ready animations,
+attacks and movement clips stay as supplied. Unlit or thrown sabers and other
+weapons retain their ordinary presentation. Already distinct server-sent idle
+poses pass through unchanged.
+
+The change is visual: simulation, prediction inputs, attack timers and protocol
+26 remain unchanged. Source choices follow [JoF EJK #47](https://github.com/JediofFreedom/JoF_EJK/pull/47).
+Live appearance with installed animations remains unverified; see
+[status](status.md#tavion-and-desann-idle-poses).
+
 ## Wall grab facing
 
 A player grabbing a wall to jump off it (Force jump 3, pushing into a wall in the
