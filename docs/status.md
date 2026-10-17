@@ -257,7 +257,7 @@ appearance, crowded-scene performance and EJK pixel parity remain unverified;
 simulation and codecs are unchanged.
 ## SJK chat in the console
 
-17/10/2026, `feat/sjk-chat-console`: each live, unmuted SJK chat message now also enters the
+17/10/2026, `feat/sjk-chat-console`: each live SJK chat message from an unblocked player now also enters the
 console scrollback through its quiet chat path, with a textual yellow `SJK` tag in
 place of the graphical feed emblem. It stays out of the closed-console notify feed
 and crash reports, and the hub's initial backlog is still only marked rather than

@@ -138,7 +138,14 @@ impl LegacySoundAdapter {
         } else {
             previous
         };
-        for i in sequence - 2..sequence {
+        // CG_TransitionPlayerState copies the new view over the old one on a
+        // client change, so the followed player's ring is seeded, not replayed.
+        let ring = if changed_view {
+            sequence..sequence
+        } else {
+            sequence - 2..sequence
+        };
+        for i in ring {
             let slot = (i & 1) as usize;
             if i >= previous || (i > previous - 2 && events[slot] != self.player_events[slot]) {
                 let parameter = snapshot.player.event_parameter(slot).unwrap_or(0);

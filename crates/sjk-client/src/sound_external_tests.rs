@@ -72,6 +72,25 @@ fn follow_switch_seeds_the_new_players_pending_event_then_accepts_new_events() {
 }
 
 #[test]
+fn follow_switch_seeds_the_new_players_event_ring() {
+    let ring = |time, client: u16, sequence: u32| {
+        let mut state = snapshot(time, client, 0);
+        state.player.set_raw_field(19, sequence);
+        // EV_FALL in the slot of event sequence - 1, with its strength.
+        let (event, parameter) = if sequence & 1 == 0 { (28, 60) } else { (27, 65) };
+        state.player.set_raw_field(event, 11);
+        state.player.set_raw_field(parameter, 51);
+        state
+    };
+    let mut adapter = adapter();
+    adapter.observe_snapshot(&ring(1000, 0, 100));
+    adapter.observe_snapshot(&ring(1008, 2, 500));
+    assert_eq!(falls(&adapter), 0);
+    adapter.observe_snapshot(&ring(1016, 2, 501));
+    assert_eq!(falls(&adapter), 2);
+}
+
+#[test]
 fn explicit_synchronization_seeds_both_event_and_view_identity() {
     let mut adapter = adapter();
     adapter.synchronize(&snapshot(1000, 2, 0x100 | 11));
