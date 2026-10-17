@@ -218,6 +218,13 @@ impl NativeGame {
             number => usize::try_from(number).ok(),
         };
         let Some(target) = target else { return };
+        // A siege player waiting for its wave is still on its side: its follower keeps
+        // watching rather than being dropped and begun again (`sessionTeam != TEAM_SPECTATOR`).
+        if self.peer(target).is_some_and(|peer| {
+            peer.begun && peer.session.team != i32::from(TEAM_SPECTATOR) && !peer.playing()
+        }) {
+            return;
+        }
         let followed = self
             .peer(target)
             .filter(|peer| peer.begun && peer.playing())
@@ -225,7 +232,14 @@ impl NativeGame {
         match followed {
             Some(state) => {
                 if let Some(peer) = self.peer_mut(client) {
+                    // A siege player watching while it waits keeps its own score and
+                    // team, which its respawn carries over.
+                    let own = (peer.session.team != i32::from(TEAM_SPECTATOR))
+                        .then_some(peer.state.persistent);
                     peer.state = state;
+                    if let Some(persistent) = own {
+                        peer.state.persistent = persistent;
+                    }
                 }
             }
             None if wanted >= 0 => {

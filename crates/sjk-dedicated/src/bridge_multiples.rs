@@ -174,10 +174,11 @@ impl NativeGame {
                 continue;
             }
             match target {
-                sjk_game_jka::triggers::Target::Print { message, .. } => {
-                    self.told
-                        .push(Told::Everyone(format!("cp \"{message}\"").into_bytes()));
-                }
+                sjk_game_jka::triggers::Target::Print {
+                    message,
+                    to_activator,
+                    team,
+                } => self.target_print(&message, to_activator, team, client),
                 // Speakers are entities of their own (`use_map_effects`, below).
                 sjk_game_jka::triggers::Target::Speaker { .. } => {}
                 sjk_game_jka::triggers::Target::Relay { target, .. } => {
@@ -251,5 +252,37 @@ impl NativeGame {
                 self.fire_targets(&target, 0, level_time);
             }
         }
+    }
+}
+
+impl NativeGame {
+    /// `Use_Target_Print` (`g_target.c`): the activator alone (spawnflag 4), one team
+    /// (spawnflags 1 and 2) or everyone is told — as `cps` when the message names a string
+    /// table entry (`@FILE_KEY`, not `@@@`), which the client looks up, else as `cp`.
+    fn target_print(&mut self, message: &str, to_activator: bool, team: Option<u8>, client: usize) {
+        let command = if message.starts_with('@') && !message.starts_with("@@") {
+            format!("cps \"{message}\"")
+        } else {
+            format!("cp \"{message}\"")
+        }
+        .into_bytes();
+        if to_activator {
+            if self.peer(client).is_some() {
+                self.told.push(Told::One(client, command));
+            }
+            return;
+        }
+        if let Some(team) = team {
+            for other in 0..self.players.places() {
+                if self
+                    .peer(other)
+                    .is_some_and(|peer| peer.session.team == i32::from(team))
+                {
+                    self.told.push(Told::One(other, command.clone()));
+                }
+            }
+            return;
+        }
+        self.told.push(Told::Everyone(command));
     }
 }

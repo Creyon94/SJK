@@ -1,3 +1,24 @@
+## Siege respawn waves and map messages
+
+17/10/2026, `claude/nifty-brahmagupta-mbtppb`, based on `Sol-Vulpes/SJK` `bb83eb2`
+(player report: stuck out of a native siege game with bots after two or three deaths;
+`siege_korr_print_1` shown when the Korriban gates fall). Fixed, after OpenJK `codemp`:
+
+- A player waiting for its respawn wave who pressed attack followed through
+  `set_team_to`, which skipped `SetTeam`'s siege branch and made it a real spectator
+  with `tempSpectate` still set; the wave skips spectators, and a later spawn with the
+  stale value came in "not playing" (invisible, unarmed, unhurtable). `set_team_to`
+  now runs the siege branch (a waiting player stays on its side and watches a
+  teammate), a spawn clears `tempSpectate` and the follow state, a watcher keeps its own
+  persistants, and following a waiting teammate no longer drops and re-begins the
+  watcher (`SpectatorClientEndFrame` tests `sessionTeam`).
+- `target_print` honours its spawnflags (activator alone, one team) and sends a
+  single-`@` message as `cps`; the client resolves `cps` against every
+  `strings/english/*.str` table, the map's included, as `<FILE>_<KEY>`.
+
+Workspace fmt, build, clippy (no new warnings) and tests passed on Linux x86_64; a unit
+test pins the map-table lookup. Not exercised in a live siege match.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
