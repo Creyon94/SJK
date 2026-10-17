@@ -63,6 +63,16 @@ carrier in view from the snapshot, for servers whose `scores` list no powerups
 ([client.md](client.md#capture-the-flag-hud)). Checked by unit tests and world shots
 `world_shot::ctf_flags_shots::ctf_flags_on_a_demo` (three HUD styles, two states, over
 Sol's demo); not tried on a live server.
+## Clipboard tools follow the desktop session
+
+17/10/2026, SJK pull request #115 (LukasMoudry), on top of the in-process Linux clipboard
+already in `main`: the fallback tools now follow the session, `wl-copy`/`wl-paste` only
+with a Wayland display and `xclip` only with an X11 display, and a selection owner gets
+50 ms to report an immediate startup failure before it is accepted. Console and browser
+copy notices claim success only after the clipboard accepted the text, and a failed cut
+keeps its selection. Checked by unit tests; the real X11/Wayland clipboard and the
+in-game interaction have not been tried.
+
 
 ## SJK chat messages up to 300 characters
 

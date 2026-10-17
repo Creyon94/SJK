@@ -82,26 +82,26 @@ impl ViewerConsole {
                 self.edit.select_all(&self.input);
             }
             Shortcut::Copy => {
-                let characters = match self.copy_output() {
-                    Some(characters) => characters,
+                let (characters, copied) = match self.copy_output() {
+                    Some(result) => result,
                     None => {
                         let text = match self.edit.selection(&self.input) {
                             Some(range) => &self.input[range],
                             None if self.input.is_empty() => &self.copied,
                             None => &self.input,
                         };
-                        super::clipboard::copy(text);
-                        text.chars().count()
+                        (text.chars().count(), super::clipboard::copy(text))
                     }
                 };
-                if characters != 0 {
+                if copied && characters != 0 {
                     self.classic.sjk.note_copy(characters);
                 }
             }
             Shortcut::Cut => {
                 if let Some(range) = self.edit.selection(&self.input) {
-                    super::clipboard::copy(&self.input[range]);
-                    self.erase(Motion::Left);
+                    if super::clipboard::copy(&self.input[range]) {
+                        self.erase(Motion::Left);
+                    }
                 }
             }
             Shortcut::Paste => {
@@ -131,8 +131,9 @@ impl ViewerConsole {
     }
 
     /// Copy selected scrollback text, as the console shows it but without colour
-    /// codes; how many characters, or `None` if none is selected.
-    fn copy_output(&mut self) -> Option<usize> {
+    /// codes; how many characters and whether the clipboard took them, or `None` if
+    /// none is selected.
+    fn copy_output(&mut self) -> Option<(usize, bool)> {
         let (start, end) = self.selection.range()?;
         // The console draws stamps beside the text, so its marks count bytes
         // of the text alone.
@@ -140,8 +141,8 @@ impl ViewerConsole {
         let first = self.shell.lines_written() - self.shell.lines().count() as u64;
         let mut text = String::new();
         copy_range(lines, first, start, end, &mut text);
-        super::clipboard::copy(&text);
-        Some(text.chars().count())
+        let characters = text.chars().count();
+        Some((characters, super::clipboard::copy(&text)))
     }
 
     /// Apply what the last frame resolved of a pointer gesture on the input line.

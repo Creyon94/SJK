@@ -379,7 +379,10 @@ impl Browser {
                 None => return BrowserAction::None,
             },
         };
-        super::clipboard::copy(&text);
+        if !super::clipboard::copy(&text) {
+            self.set_status("Clipboard unavailable.", true);
+            return BrowserAction::None;
+        }
         let characters = text.chars().count();
         let shown = if characters <= 48 {
             format!("Copied {text}")
