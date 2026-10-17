@@ -43,6 +43,8 @@ pub(crate) struct Hilt {
     pub(crate) no_dlight: bool,
     /// Authored contact-effect suppression.
     pub(crate) no_wall_marks: bool,
+    /// The `.sab` `saberColor` an NPC's blade wears without an override.
+    pub(crate) default_color: sjk_client::LegacySaberColor,
 }
 
 impl Hilt {
@@ -85,6 +87,19 @@ impl HiltCatalog {
 
     pub(crate) fn get(&self, name: &str) -> Hilt {
         self.hilts.get(name).copied().unwrap_or(self.fallback)
+    }
+
+    /// [`Self::get`] for a name as the server wrote it (an NPC's `npcSaber1`
+    /// keeps its `.sab` case), lower-cased on the stack without allocating.
+    pub(crate) fn get_any_case(&self, name: &str) -> Hilt {
+        let mut buffer = [0u8; 64];
+        if !name.bytes().any(|byte| byte.is_ascii_uppercase()) || name.len() > buffer.len() {
+            return self.get(name);
+        }
+        let lower = &mut buffer[..name.len()];
+        lower.copy_from_slice(name.as_bytes());
+        lower.make_ascii_lowercase();
+        std::str::from_utf8(lower).map_or(self.fallback, |lower| self.get(lower))
     }
 
     /// Whether `name` is loaded, unknown to the `.sab` files, or failed —
@@ -188,6 +203,7 @@ fn default_definition() -> crate::saber_defs::Definition {
         trail_style2: 0,
         no_dlight: false,
         no_wall_marks: false,
+        default_color: sjk_client::LegacySaberColor::Fixed(sjk_client::SaberColor::Red),
     }
 }
 
@@ -212,6 +228,7 @@ fn append_hilt(
         is_staff: definition.is_staff,
         no_dlight: definition.no_dlight,
         no_wall_marks: definition.no_wall_marks,
+        default_color: definition.default_color,
     })
 }
 
@@ -313,5 +330,48 @@ mod capacity_tests {
             }
         }
         assert_eq!(group.as_ptr(), storage);
+    }
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    fn hilt(mesh_index: usize, default_color: sjk_client::LegacySaberColor) -> Hilt {
+        Hilt {
+            mesh_index,
+            blades: [None; 8],
+            num_blades: 1,
+            is_staff: false,
+            no_dlight: false,
+            no_wall_marks: false,
+            default_color,
+        }
+    }
+
+    #[test]
+    fn an_npc_saber_name_finds_its_hilt_in_any_case() {
+        let fallback = hilt(
+            0,
+            sjk_client::LegacySaberColor::Fixed(sjk_client::SaberColor::Red),
+        );
+        let desann = hilt(
+            7,
+            sjk_client::LegacySaberColor::Fixed(sjk_client::SaberColor::Purple),
+        );
+        let catalog = HiltCatalog {
+            hilts: BTreeMap::from([("desann".to_owned(), desann)]),
+            fallback,
+            definitions: BTreeMap::new(),
+            model_cache: BTreeMap::new(),
+            failed: BTreeSet::new(),
+        };
+        for name in ["desann", "Desann", "DESANN"] {
+            let found = catalog.get_any_case(name);
+            assert_eq!(found.mesh_index, 7, "{name}");
+            assert_eq!(found.default_color, desann.default_color);
+        }
+        assert_eq!(catalog.get_any_case("Kyle").mesh_index, 0);
+        assert_eq!(catalog.get_any_case(&"X".repeat(80)).mesh_index, 0);
     }
 }

@@ -560,6 +560,35 @@ fn submit_actor(
     if mesh.is_some_and(|index| sinks.actor_meshes[index].surfaces.weapon_lost) {
         equipment = None;
     }
+    // An NPC's blades without a colour override wear their `.sab` colour, and with
+    // no saber entity its primary saber is not drawn (`sjk_client::npc_identity`).
+    let npc = state.filter(|state| state.entity_type() == 13);
+    let npc_primary_missing = npc.is_some_and(sjk_client::legacy_npc_primary_saber_missing);
+    if let (Some(npc), Some(catalog), Some(index)) = (npc, sinks.saber_hilts, mesh) {
+        let overrides = sjk_client::legacy_npc_saber_color_overrides(npc);
+        let names = &sinks.actor_meshes[index].saber_names;
+        let definition = |saber: usize| {
+            names[saber].as_deref().map(|name| {
+                sjk_client::legacy_npc_definition_rgb(
+                    catalog.get_any_case(name).default_color,
+                    npc.number(),
+                )
+            })
+        };
+        equipment = equipment.map(|mut held| {
+            if overrides[0].is_none()
+                && let Some(rgb) = definition(0)
+            {
+                held.color = rgb;
+            }
+            if overrides[1].is_none()
+                && let Some(rgb) = definition(1)
+            {
+                held.secondary_color = rgb;
+            }
+            held
+        });
+    }
     // A player muted on this PC, or their body, has the default blade colour.
     let client = match mesh.and_then(|index| sinks.actor_meshes[index].body_identity.as_ref()) {
         Some(body) => u64::from(body.client_num) + 1,
@@ -622,7 +651,7 @@ fn submit_actor(
             *transform,
             draw_actor,
             local,
-            holster.on_back,
+            holster.on_back || npc_primary_missing,
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
