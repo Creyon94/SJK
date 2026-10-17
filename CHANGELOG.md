@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Force Push and Pull move the doors and lifts a map made Force-usable and press Force-pushable buttons, which maps such as Siege Korriban use _(JoF, after OpenJK)_
+
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
 > Force: JoF's 22 community presets in the Force menu.

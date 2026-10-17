@@ -1,3 +1,25 @@
+## Force push and pull on doors and buttons
+
+17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`
+(report: siege_korriban's red crystal could not be taken and the blue crystal's lift
+did not move, the green one worked): implemented, after OpenJK `codemp/game/w_force.c`
+`ForceThrow` (`:3209-3237`, `:3584-3663`), the movers' part of a push or pull on the
+server. A `func_door` with `MOVER_FORCE_ACTIVATE` (spawnflag 2) at rest is reached as
+the reference reaches it (no PVS test for a brush) and, when aimed at straight from
+the eyes, a push moves it to whichever of its two places is further from the thrower
+and a pull to the nearer (`GEntity_UseFunc`); a `func_button` with
+`SPF_BUTTON_FPUSHABLE` is pressed by a push at rest (`Touch_Button`). The used movers
+run `use_mover` once the throw is over, firing their targets as the use key does. A
+throw's traces now meet the level's brushes (doors, lifts, breakables, scripted
+brushes), as `MASK_SHOT` does in the reference, so a closed door also stops a push
+on a player behind it. `func_static`s with `F_PUSH`/`F_PULL` are still not moved.
+
+fmt, and clippy and the tests of `sjk-game-jka` and `sjk-dedicated`, passed on Linux
+x86_64; the workspace build stops in this container at `alsa-sys` (no ALSA
+development files). Four unit tests pin the push/pull choice, the aim, a moving door
+and the button rules. siege_korriban's entity lump was not inspected (no retail data
+here): that its crystal rooms open by push and pull is the likely cause of the report,
+not a verified one, and it was not played.
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
