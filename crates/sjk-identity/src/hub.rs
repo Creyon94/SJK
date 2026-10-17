@@ -350,7 +350,7 @@ pub trait Hub: Send {
         ))
     }
 
-    /// Buy today's offer `id` with credits (`POST /v1/shop/buy`, 17/10/2026).
+    /// Buy today's offer `id` (`POST /v1/shop/buy`, 17/10/2026).
     fn buy_offer(
         &mut self,
         _identity: &Identity,
@@ -358,6 +358,17 @@ pub trait Hub: Send {
     ) -> Result<crate::wire::BuyAnswer, HubError> {
         Err(HubError::Protocol(
             "this hub client does not buy".to_owned(),
+        ))
+    }
+
+    /// Buy a holocron of tier `tier` with credits (`POST /v1/holocrons/buy`, 17/10/2026).
+    fn buy_holocron(
+        &mut self,
+        _identity: &Identity,
+        _tier: &str,
+    ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not buy holocrons".to_owned(),
         ))
     }
     /// Withdraw the identity's claim on `server`.
@@ -1252,6 +1263,19 @@ impl Hub for HttpHub {
             "POST",
             "/v1/shop/buy",
             Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn buy_holocron(
+        &mut self,
+        identity: &Identity,
+        tier: &str,
+    ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/holocrons/buy",
+            Some(json!({ "tier": tier })),
         )?)
     }
 

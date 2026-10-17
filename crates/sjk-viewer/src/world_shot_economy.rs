@@ -1,8 +1,9 @@
 //! World shots of the holocron economy (`docs/cards.md`, "Shards and the shop") over the
 //! live duel6 in the SJK UI: the Holocrons tab with the kyber shards beside the credits
 //! and its Shop button; the loot table with its shards column; the shop with the day's
-//! four offers (one too dear, one owned, one waiting for its Confirm), while it reads the
-//! hub and after a purchase; a pile of shards coming out of a holocron (the strip at
+//! four offers for kyber shards (one too dear, one owned, one waiting for its Confirm) and
+//! the holocrons for credits (one waiting for its Confirm, one too dear), while it reads
+//! the hub, after a purchase and after a holocron bought; a pile of shards coming out of a holocron (the strip at
 //! rest, the crystals and the count, the words) and among twelve opened at once; the
 //! Cards tab with both balances; and the shop in a 4:3, a 21:9 and a 4K window. Made-up
 //! holdings; off-screen renders (no game window), ignored like the other world shots:
@@ -23,8 +24,8 @@ use crate::profile_hub::Tab;
 fn holdings(left: i64) -> Data {
     Data {
         sealed: [vec![11, 12, 15], vec![13], Vec::new(), vec![14]],
-        credits: Some(2_000),
-        shards: Some(45),
+        credits: Some(300),
+        shards: Some(160),
         shop: Some(crate::console::holocrons_panel::shop::sample_day(left)),
         ..super::holocrons_tab::holdings()
     }
@@ -151,20 +152,44 @@ fn duel6_sjk_economy_shots() {
             shop.day.offers[1].bought = true;
             shop.day.offers[1].owned = true;
         }
-        bought.credits = Some(1_400);
+        bought.shards = Some(85);
         bought.trade = Some(sjk_identity::TradeOutcome {
             serial: 1,
             trade: sjk_identity::Trade::Buy,
             id: "saber_sakura".to_owned(),
-            amount: 600,
+            amount: 75,
             message: String::new(),
         });
         if let Some(console) = gpu.console.as_mut() {
             console.preview_holocrons(bought, 0);
             console.preview_shop(false, None);
             console.preview_shop(true, None);
+            console.preview_shop_answer();
         }
         keep(&mut gpu, 2, "shop-bought");
+        // The Uncommon holocron for credits waiting for its Confirm, then bought.
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_shop(false, None);
+            console.preview_holocrons(holdings(3_600), 0);
+            console.preview_shop(true, Some(4));
+        }
+        keep(&mut gpu, 2, "shop-holocron-confirm");
+        let mut holocron = holdings(3_600);
+        holocron.credits = Some(150);
+        holocron.trade = Some(sjk_identity::TradeOutcome {
+            serial: 1,
+            trade: sjk_identity::Trade::Holocron,
+            id: "uncommon".to_owned(),
+            amount: 150,
+            message: String::new(),
+        });
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_holocrons(holocron, 0);
+            console.preview_shop(false, None);
+            console.preview_shop(true, None);
+            console.preview_shop_answer();
+        }
+        keep(&mut gpu, 2, "shop-holocron-bought");
         if let Some(console) = gpu.console.as_mut() {
             console.preview_shop(false, None);
             console.preview_holocrons(holdings(3_600), 0);

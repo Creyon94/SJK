@@ -64,6 +64,8 @@ pub(crate) const SHOP_TOKEN: u16 = 1_325;
 pub(crate) const SHOP_BACK_TOKEN: u16 = 1_326;
 pub(crate) const SHOP_BUY_BASE: u16 = 1_330;
 pub(crate) const SHOP_CARD_BASE: u16 = 1_334;
+/// The shop's holocrons for credits (an Uncommon and a Rare one).
+pub(crate) const SHOP_HOLOCRON_BASE: u16 = 1_338;
 
 /// What the page knows of the player's holocrons: whether the hub could say, and what.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -256,6 +258,8 @@ pub(crate) enum PanelAction {
     ReadShop,
     /// Ask the hub to sell the player this offer of the day.
     Buy(String),
+    /// Ask the hub to sell the player a holocron of this tier for credits.
+    BuyHolocron(String),
 }
 
 pub(crate) struct Panel {
