@@ -1069,7 +1069,8 @@ presets (Default 125, Smooth (SP) 30 and BaseJKA); third-person distance, angle,
 pitch, height and horizontal offset; and camera/target damping. Their ranges and
 defaults match that menu. The ordinary world FOV stays under Display, the HUD
 switch under HUD, and first/third-person switching remains the Camera key rather
-than a persistent option.
+than a persistent option. The damping rows (timing preset, camera and target damping)
+only act under `cg_cameraStyle sjk`; the default `ejk` style keeps its own camera.
 
 ### Camera control
 
@@ -4590,7 +4591,7 @@ draws as before at the defaults.
 
 | Cvar | Default | Range | Effect |
 | --- | --- | --- | --- |
-| `ui_textScale` | 1 | 0.8 to 1.5 | Text size on menu screens and the in-game menu |
+| `ui_textScale` | 1 | 0.8 to 1.4 | Text size on menu screens and the in-game menu |
 | `ui_letterSpacing` | 0 | -0.05 to 0.15 | Extra space after each letter of menu text, as a fraction of the text size; the console's character grid keeps its cells |
 | `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: its character cells, margins and rows |
 

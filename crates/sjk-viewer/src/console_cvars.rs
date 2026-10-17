@@ -402,13 +402,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("s_doppler", true, archive, "Legacy looping-sound Doppler"),
         CvarDefinition::new(
-            crate::jetpack::ON_SOUND_CVAR,
+            "cg_jetpackOnSound",
             1_i64,
             archive,
             "Jetpack ignition sound: 1 default, 2 alternate",
         ),
         CvarDefinition::new(
-            crate::jetpack::HOVER_SOUND_CVAR,
+            "cg_jetpackHoverSound",
             1_i64,
             archive,
             "Jetpack hover sound: 1 default, 2 alternate",

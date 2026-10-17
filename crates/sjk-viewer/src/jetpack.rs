@@ -21,6 +21,8 @@ pub(crate) const MODEL: &str = "models/weapons2/jetpack/model.glm";
 pub(crate) const EFFECT: &str = "boba/jet";
 /// Both `cg_jetpackOnSound` choices and the fixed `jetpackOffSound`.
 pub(crate) const SOUNDS: [&str; 3] = sjk_client::LEGACY_JETPACK_SWITCH_SOUNDS;
+// Lower case, so the per-frame lookups need no allocation; registered as
+// `cg_jetpackOnSound` and `cg_jetpackHoverSound` (console_cvars.rs).
 pub(crate) const ON_SOUND_CVAR: &str = "cg_jetpackonsound";
 pub(crate) const HOVER_SOUND_CVAR: &str = "cg_jetpackhoversound";
 

@@ -59,7 +59,7 @@ fn point(
 }
 
 /// Submit through the existing fixed cadence and bounded pool, without another pose.
-pub(super) fn submit(
+pub(crate) fn submit(
     sinks: &mut Sinks<'_>,
     mesh: usize,
     entity: &sjk_runtime::SceneEntity,

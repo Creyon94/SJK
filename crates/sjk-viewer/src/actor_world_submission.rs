@@ -589,6 +589,21 @@ fn submit_actor(
     if trick.hidden {
         return 0;
     }
+    // A Grip victim's puffs come after that cut-off too (`cg_players.c:13221`), so a
+    // gripped trickster hidden from the viewer gives away nothing.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), Some(snapshot)) = (mesh, snapshot)
+    {
+        force_powers::victim::submit(
+            sinks,
+            mesh,
+            entity,
+            *transform,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
+    }
     // An electrified player crackles (`electrify.rs`), the local one in first person too.
     if entity.kind == EntityKind::Actor
         && !muted

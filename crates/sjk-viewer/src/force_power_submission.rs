@@ -206,7 +206,6 @@ pub(super) fn submit(
         return;
     };
     let selection = select(caster, sinks.third_person);
-    victim::submit(sinks, mesh, entity, transform, snapshot, time, now);
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);

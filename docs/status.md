@@ -258,12 +258,12 @@ not shown.
 (Sol's request): the
 existing `cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page,
 SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range.
-**Menu text size** (`ui_textScale`) now reaches 1.5 instead of 1.2. Classic+
+**Menu text size** (`ui_textScale`) now reaches 1.4 instead of 1.2 (the pull request asked for 1.5; at 1.5 the home page's key hints were cut, so it was capped at 1.4 at the merge). Classic+
 settings grow their rows and show fewer through their existing scrolling; the
 long SJK Collection tab row closes its gaps, and the dual-saber search leaves its
 heading room at the largest size ([client.md](client.md#text-size-and-spacing)).
-To keep Simple > HUD within its twelve-row limit, Team logos remains in HUD+
-and Advanced > HUD instead of the Simple page.
+Simple > HUD keeps Team logos beside the new Chat text size (Sol's choice at the
+merge, 17/10/2026), so its row limit is now thirteen.
 Group and layout tests pin those placements. On x86_64 Linux with rustc 1.99.1,
 `cargo fmt --all --check`, `cargo build --locked --workspace`,
 `cargo test --locked --workspace` and

@@ -430,6 +430,7 @@ impl Group {
                 "cg_crosshairSize",
                 "cg_hitMarker",
                 "cg_nameplate",
+                "cg_drawFriend",
                 crate::hud::team_outline::CVAR,
                 "cg_drawFps",
                 "cg_speedometer",
@@ -730,7 +731,7 @@ mod tests {
         for simple in Simple::ALL {
             let rows = Group::Simple(simple).rows();
             assert!(
-                (3..=12).contains(&rows.len()),
+                (3..=13).contains(&rows.len()),
                 "{simple:?}: {} rows",
                 rows.len()
             );
