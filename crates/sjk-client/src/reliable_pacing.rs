@@ -117,10 +117,10 @@ impl ReliableCommandPacer {
         if self.outbox.is_empty() {
             return None;
         }
-        if let Some(last) = self.last_sent {
-            if now.saturating_duration_since(last) < self.interval {
-                return None;
-            }
+        if let Some(last) = self.last_sent
+            && now.saturating_duration_since(last) < self.interval
+        {
+            return None;
         }
         self.last_sent = Some(now);
         self.outbox.pop_front().map(|queued| queued.command)
