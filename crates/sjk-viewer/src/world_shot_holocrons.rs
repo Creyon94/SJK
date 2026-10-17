@@ -1,7 +1,8 @@
 //! World shots of the Profile screen's Holocrons tab ([`crate::console::holocrons_panel`])
 //! over the live duel6 in the SJK UI, with the 3D holocron ([`crate::holocrons::stage`])
 //! floating before the backdrop camera: made-up counts (a tier held, one held none of),
-//! each tier chosen in turn, then a tier with the identity off, a 4:3, a 21:9 and a 4K
+//! each tier chosen in turn, the four holocrons up close (held at two moments, and
+//! locked), then a tier with the identity off, a 4:3, a 21:9 and a 4K
 //! window, the page over the classic menus (where the world must still show) and the
 //! page in a window with `ui_textScale 1.2`. They are off-screen renders (no game
 //! window), ignored like the other world shots: they need a GPU adapter and the
@@ -133,6 +134,51 @@ fn duel6_sjk_holocrons() {
         println!(
             "{}",
             shoot(&mut gpu, 2, "duel6-holocrons-waiting").display()
+        );
+    });
+}
+
+/// The four holocrons up close (`docs/holocrons.md`, "The four holocrons"): each tier
+/// held, at two moments (its parts moved between them), then each held none of (the
+/// locked look, its parts at rest), cropped to the stage on one sheet.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_holocron_forms() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+        ];
+        let mut held = holdings();
+        held.counts = Some([12, 3, 2, 1]);
+        let Some(mut gpu) = open_tab([1920, 1080], &cvars, held) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 150);
+        let stage = |picture: &image::RgbaImage| {
+            image::imageops::crop_imm(picture, 200, 230, 640, 640).to_image()
+        };
+        let mut moments = Vec::new();
+        for seconds in [2.4, 4.1] {
+            gpu.holocron_stage_seconds = Some(seconds);
+            for index in 0..crate::holocrons::TIERS.len() {
+                choose(&mut gpu, index, 60);
+                moments.push(stage(&frame(&mut gpu, 2)));
+            }
+        }
+        if let Some(console) = gpu.console.as_mut() {
+            let mut none = holdings();
+            none.counts = Some([0; 4]);
+            console.preview_holocrons(none, 0);
+        }
+        gpu.holocron_stage_seconds = Some(2.4);
+        for index in 0..crate::holocrons::TIERS.len() {
+            choose(&mut gpu, index, 60);
+            moments.push(stage(&frame(&mut gpu, 2)));
+        }
+        println!(
+            "{}",
+            sheet(&moments, 4, 480, "duel6-holocron-forms").display()
         );
     });
 }

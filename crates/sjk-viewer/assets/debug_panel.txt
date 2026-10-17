@@ -631,6 +631,17 @@ test: Collection > Cards before opening any: 'No cards yet' and an empty outline
 test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
 note: The hub's opening is deployed (12/10/2026).
 
+[holocron-forms]
+area: Menus & settings
+title: The four holocrons: Jedi cube, Great Holocron, Sith pyramid, kyber prism
+change: Each tier is its own object; the halo, cap, eye, crystal, rings and motes move.
+change: The tier pictures in the list are drawn from the new shapes.
+change: A tier held none of keeps its shape, drained and dark, its parts still.
+test: Collection > Holocrons: choose each tier; watch the moving parts for a while.
+test: Choose a tier you hold none of: the same shape, dark, nothing moving.
+test: debug_open legendary: the pyramid glides to the middle, spins and cracks open.
+test: In a match, game menu > Collection > Holocrons: the holocron before the camera.
+
 [economy]
 area: Menus & settings
 title: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a day

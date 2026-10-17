@@ -1,15 +1,93 @@
-// The holocron of a tier the player holds none of (SJK; see README.md): the face
-// drained and dark, lit by the world and a faint light of its own, no glow.
+// The holocrons of a tier the player holds none of (SJK; see README.md): every
+// material drained and dark, lit by the world and a faint light of its own, no glow.
 // Made by scripts/holocron_assets.py: edit that, not this.
-models/sjk/holocron_locked
+models/sjk/holocron_uncommon_locked
 {
 	q3map_nolightmap
 	{
-		map models/sjk/holocron_locked
+		map models/sjk/holocron_uncommon_locked
 		rgbGen lightingDiffuse
 	}
 	{
-		map models/sjk/holocron_locked
+		map models/sjk/holocron_uncommon_locked
+		blendFunc GL_ONE GL_ONE
+		rgbGen wave sin 0.16 0 0 0
+	}
+}
+models/sjk/holocron_rare_locked
+{
+	q3map_nolightmap
+	{
+		map models/sjk/holocron_rare_locked
+		rgbGen lightingDiffuse
+	}
+	{
+		map models/sjk/holocron_rare_locked
+		blendFunc GL_ONE GL_ONE
+		rgbGen wave sin 0.16 0 0 0
+	}
+}
+models/sjk/holocron_legendary_locked
+{
+	q3map_nolightmap
+	{
+		map models/sjk/holocron_legendary_locked
+		rgbGen lightingDiffuse
+	}
+	{
+		map models/sjk/holocron_legendary_locked
+		blendFunc GL_ONE GL_ONE
+		rgbGen wave sin 0.16 0 0 0
+	}
+}
+models/sjk/holocron_mythical_locked
+{
+	q3map_nolightmap
+	{
+		map models/sjk/holocron_mythical_locked
+		rgbGen lightingDiffuse
+	}
+	{
+		map models/sjk/holocron_mythical_locked
+		blendFunc GL_ONE GL_ONE
+		rgbGen wave sin 0.16 0 0 0
+	}
+}
+models/sjk/holocron_steel_locked
+{
+	q3map_nolightmap
+	{
+		map models/sjk/holocron_steel_locked
+		rgbGen lightingDiffuse
+	}
+	{
+		map models/sjk/holocron_steel_locked
+		blendFunc GL_ONE GL_ONE
+		rgbGen wave sin 0.16 0 0 0
+	}
+}
+models/sjk/holocron_dark_locked
+{
+	q3map_nolightmap
+	{
+		map models/sjk/holocron_dark_locked
+		rgbGen lightingDiffuse
+	}
+	{
+		map models/sjk/holocron_dark_locked
+		blendFunc GL_ONE GL_ONE
+		rgbGen wave sin 0.16 0 0 0
+	}
+}
+models/sjk/holocron_light_locked
+{
+	q3map_nolightmap
+	{
+		map models/sjk/holocron_light_locked
+		rgbGen lightingDiffuse
+	}
+	{
+		map models/sjk/holocron_light_locked
 		blendFunc GL_ONE GL_ONE
 		rgbGen wave sin 0.16 0 0 0
 	}

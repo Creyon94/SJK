@@ -1,7 +1,8 @@
-// The holocron's loot-box tiers (SJK; see README.md): holocron.shader once per
-// tier. Lit steel that also glows faintly of itself, and an emblem and ring kept
-// bright and in the dynamic glow, breathing; the tiers climb in how bright.
-// Mythical also breathes the whole face and has a sheen stripe sliding across.
+// The holocron's loot-box tiers (SJK; see README.md): each tier's face (the Jedi
+// cube's plates, the Great Holocron's pentagons, the Sith pyramid's sides, the kyber
+// crystal). Lit, also glowing faintly of itself, and its lit parts kept bright and in
+// the dynamic glow, breathing; the tiers climb in how bright. Mythical also breathes
+// the whole face and has a sheen stripe sliding across.
 // Made by scripts/holocron_assets.py from its TIERS table: edit that, not this.
 models/sjk/holocron_uncommon
 {

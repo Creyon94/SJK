@@ -48,6 +48,30 @@ message by its gem, its wording and having no sender column. Each tier's picture
 `gfx/sjk/holocron_<tier>.png`, bundled with the client and mounted below all game data
 (the list in [illuminate.rs](../crates/sjk-viewer/src/illuminate.rs)); where it is missing
 the tier draws as a gem made of shapes ([holocrons/gem.rs](../crates/sjk-viewer/src/holocrons/gem.rs)).
+Since 18/10/2026 the picture is the tier's own holocron (below), drawn from its parts.
+
+### The four holocrons
+
+Since 18/10/2026 each tier is an object of its own (Sol's pick from the proposals' second
+set), not one cube in four colours:
+
+| Tier | Holocron | What moves |
+| --- | --- | --- |
+| Uncommon | The Jedi cube: the holocron's cube with a pyramid boss on each face (the face raised on it), a lamp at each tip, steel edges | nothing of its own |
+| Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with runes and a lit star, lit edges | a broken halo, tilted, turning and bobbing around it |
+| Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, lit edges and underside; a glowing eye turns between them |
+| Mythical | The kyber prism: an eight-sided crystal in a steel sheath, gold, with a sheen sliding over it | the crystal turns; two gimbal rings tumble around it; ten motes of light circle it |
+
+They are made by `scripts/holocron_assets.py` with the shapes in `scripts/holocron_forms.py`:
+a model per part (the body, which stands still against the holocron, and each moving
+part, modelled about its own centre), each also in the locked look, and the parts' table
+`holocron_parts.rs` (where each part rests and how it bobs, orbits and turns), which the
+client includes ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs),
+`PARTS`), so the two never disagree. The Jedi cube's face is the shipped face in the tier's
+colour; the Great Holocron's pentagon, the Sith pyramid's side and the kyber crystal are
+drawn by the script until Sol's art replaces them (`--art <tier>=<picture>`, the asset
+folder's [README](../crates/sjk-viewer/assets/holocron/README.md)). The four are sized to
+fill about the cube's room on screen.
 
 The Holocrons tab's tier rows carry the tiers' rarity effects (10/10/2026): from Rare up
 a breathing frame, Legendary's sheen, Mythical's running spark and motes, faint for a
@@ -264,7 +288,8 @@ the buttons.
   to twenty (both only when the hub lets the player open). L, or Loot table at the right of what the chosen tier holds, shows the
   [loot table](#loot-table); S, or Shop, the shop ([cards.md](cards.md#the-shop)).
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
-  tab: an instance of the chosen look's model and a point light in the tier's colour
+  tab: an instance of each part's model of the chosen look ([the four
+  holocrons](#the-four-holocrons)), posed from the time, and a point light in the tier's colour
   ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs)), floating before the
   camera on the ray through the clear left of the 16:9 frame (`STAGE_AT`), 64 units ahead,
   scaled to a fixed size on screen in every window shape. It turns and bobs as Illuminate's
@@ -278,18 +303,19 @@ the buttons.
   camera. The Character tab's stage was not used because that stage is the player model's
   (one actor with a pose, sabers and cosmetics) and is not drawn in a match, while the tab
   needs a rigid model that swaps by tier and works in both.
-- **A tier of its own** is a model of its own. A surface's shader is named by its model
+- **A tier of its own** has models of its own. A surface's shader is named by its model
   file, so the shared `holocron.md3` (shader `models/sjk/holocron`) would draw the base look
-  for every tier whatever shader was given. `scripts/holocron_assets.py` writes
-  `holocron_<tier>.md3` (the same cube, surface shader `models/sjk/holocron_<tier>`), they
-  are mounted with the other files and loaded with the map's rigid models; a test checks
-  each names its tier's shader and is the base cube otherwise. Illuminate's holocron is
-  unchanged.
+  for every tier whatever shader was given. `scripts/holocron_assets.py` writes each tier's
+  parts (`holocron_<tier>.md3`, the body, and `holocron_<tier>_<part>.md3`), naming the
+  tier's face, its light, and the shared steel and dark metal; they are mounted with the
+  other files and loaded with the map's rigid models. Tests check each part names shaders of
+  its own look, every shader and picture is mounted, and a moving part is modelled about its
+  centre. Illuminate's holocron is unchanged.
 - **A tier held none of** (or not known) shows the locked look and not nothing, so all four
-  can be seen: `holocron_locked.md3` with its shader `models/sjk/holocron_locked`, the face
-  drained of colour and dark, no glow, lit by a light a fifth as strong in the tier's colour;
-  a padlock stands over the tier's name and by its row's count, and the caption says "None
-  held yet: shown dimmed".
+  can be seen: the same shape (`holocron_<tier>_locked.md3` and each part's `_locked.md3`)
+  with every material drained of colour and dark (`holocron_locked.shader`), no glow, its
+  parts at rest, lit by a light a fifth as strong in the tier's colour; a padlock stands over
+  the tier's name and by its row's count, and the caption says "None held yet: shown dimmed".
 - The hub's counts, list and progress are copied from the identity's snapshot twice a second
   while the page is open (`Data::of`), never per frame, and the hub is asked for fresh
   progress when the page opens (at most every 30 seconds).
@@ -335,7 +361,11 @@ The Holocrons tab (10/10/2026): unit tests for its keys, wheel and clicks, the s
 for the chosen tier (and the locked look), the data from every identity state, the twice a second
 read, every state at 1080p, 4K, 4:3 and 21:9 on the Profile screen and on its own, the 3D
 holocron's placement in those windows and its swap, and the tier models' and shaders'
-mounting (`illuminate::tests::every_tier_has_a_cube_naming_its_own_shader`). The world shots
+mounting (`illuminate::tests::every_part_names_shaders_of_its_look_and_they_are_mounted`).
+The four holocrons (18/10/2026): `holocrons::stage::tests` check the parts' table, poses and
+models, and the world shot `duel6_sjk_holocron_forms` shows each tier held at two moments and
+locked (looked at on this machine, with `duel6_sjk_crate_open`); not tried in a running
+client, so the parts' motion has only been seen as stills. The world shots
 `world_shot::holocrons_tab::duel6_sjk_holocrons` and `duel6_sjk_holocrons_windows` (off-screen
 renders on duel6 with made-up holdings) were rendered and looked at on this machine: the tab
 in the SJK UI with each tier chosen, a tier held none of, the identity off, and 4:3, 21:9, 4K,

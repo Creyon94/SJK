@@ -76,6 +76,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - kyber shards and the shop (17/10/2026, Sol's design: shards from shattered duplicates
   and from holocrons craft the shader you choose; credits buy four shaders a day),
   prepared for when the SJK hub turns them on;
+- the four holocrons, each tier an object of its own with moving parts (18/10/2026,
+  Sol's pick of the proposed shapes: the Jedi cube, the Great Holocron, the Sith
+  pyramid, the kyber prism);
   grand finds (Legendary or Solar cards, Legendary or Mythical shaders) are told to every
   SJK player in chat;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,
