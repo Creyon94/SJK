@@ -409,7 +409,8 @@ fn saber_parms(files: &VirtualFileSystem) -> sjk_game_jka::saber_definition::Sab
     )
 }
 
-/// Load strict stock definitions plus an unbounded native set. The native profile
+/// Load strict stock definitions plus a native set without the stock filename-list
+/// or aggregate-text limits. Both keep the VFS listing order. The native profile
 /// enables existing, single-frame MD3 bodies without rewriting their NPC class or
 /// pretending that they have another droid's Ghoul2 skeleton.
 fn npc_parms(
@@ -421,19 +422,28 @@ fn npc_parms(
     use sjk_game_jka::npc_parms::NpcParms;
     use sjk_game_jka::saber_definition::listed_files;
     let names = files.list_files("ext_data/npcs", ".npc");
+    let stock_count = listed_files(names.iter().map(String::as_str)).len();
     let mut texts = Vec::new();
-    for name in listed_files(names.iter().map(String::as_str)) {
+    for (index, name) in names.iter().enumerate() {
         match files.read(&format!("ext_data/npcs/{name}")) {
-            Ok(Some(asset)) => texts.push((name, asset.bytes)),
+            Ok(Some(asset)) => texts.push((index, name.as_str(), asset.bytes)),
             _ => eprintln!("NPC_LoadParms: error reading file: {name}"),
         }
     }
-    let stock = NpcParms::load(texts.iter().map(|(name, text)| (*name, text.as_slice())))
-        .unwrap_or_else(|error| {
-            eprintln!("NPC_LoadParms: {error}");
-            NpcParms::default()
-        });
-    let whole = NpcParms::load_unbounded(texts.iter().map(|(name, text)| (*name, text.as_slice())));
+    // Count the original listing positions, including any unreadable files, so
+    // stock sees exactly its old prefix while native sees every readable file.
+    let stock = NpcParms::load(
+        texts
+            .iter()
+            .filter(|(index, _, _)| *index < stock_count)
+            .map(|(_, name, text)| (*name, text.as_slice())),
+    )
+    .unwrap_or_else(|error| {
+        eprintln!("NPC_LoadParms: {error}");
+        NpcParms::default()
+    });
+    let whole =
+        NpcParms::load_unbounded(texts.iter().map(|(_, name, text)| (*name, text.as_slice())));
     let rigid = sjk_game_jka::npc_rigid::discover(
         &whole,
         |path| files.contains(path).unwrap_or(false),
@@ -482,5 +492,61 @@ fn chain_end(bsp: &Bsp, entity: &sjk_entity::Entity, index: usize) -> ChainEnd {
         index,
         model,
         centre,
+    }
+}
+
+#[cfg(test)]
+mod npc_definition_tests {
+    use super::*;
+
+    #[test]
+    fn native_npc_definitions_include_files_beyond_the_stock_filename_buffer() {
+        let mut files = VirtualFileSystem::new();
+        files
+            .mount_memory(
+                "synthetic community NPCs",
+                (0..100).map(|index| {
+                    (
+                        format!("ext_data/npcs/community_definition_{index:03}.npc"),
+                        format!("npc_{index:03} {{\n health 100\n}}\n").into_bytes(),
+                    )
+                }),
+            )
+            .unwrap();
+        let names = files.list_files("ext_data/npcs", ".npc");
+        assert!(names.iter().map(|name| name.len() + 1).sum::<usize>() > 2048);
+        let (stock, native) = npc_parms(&files);
+        assert!(stock.defines(b"npc_000"));
+        assert!(
+            !stock.defines(b"npc_099"),
+            "the stock filename limit stays in effect"
+        );
+        for index in 0..100 {
+            let name = format!("npc_{index:03}");
+            assert!(
+                native.defines(name.as_bytes()),
+                "native listing dropped {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_npc_loading_keeps_the_stock_text_size_limit_separate() {
+        // OpenJK codemp's MAX_NPC_DATA_SIZE is 0x40000 before compression.
+        let mut contents = b"large_pack_npc {\n health 100\n}\n//".to_vec();
+        contents.resize(0x40000, b'x');
+        let mut files = VirtualFileSystem::new();
+        files
+            .mount_memory(
+                "synthetic large NPC file",
+                [("ext_data/npcs/large.npc", contents)],
+            )
+            .unwrap();
+        let (stock, native) = npc_parms(&files);
+        assert!(
+            stock.text().is_empty(),
+            "stock keeps its existing load-error fallback"
+        );
+        assert!(native.defines(b"large_pack_npc"));
     }
 }
