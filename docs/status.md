@@ -1,3 +1,23 @@
+## NPC health requires active Sense 3
+
+17/10/2026, `feat/npc-health-sense-gate`, based on `cb03b251` on Windows:
+ordinary NPC nameplate health now requires active level 3 Sense, following JoF
+EJK PR #80's multiplayer `CG_DrawCrosshair` predicate. Mapper `showhealth` remains
+an exception; NPC names, player bars and non-NPC map entities retain their rules.
+The client adapter reads the already-decoded Sense rank and presented active
+power bits, without changing protocol encoding or server health disclosure.
+Four focused synthetic regressions cover ranks/activation, mapper exceptions,
+non-NPC/player scope and predicted versus snapshot activation. Required workspace
+formatting, locked build/tests and all-target Clippy passed on the rebased branch
+(warnings remain), including the newer private-dueller nameplate regression.
+Installed-asset
+rendering, live server comparison and full-scene performance remain unverified.
+Release measurement on Ryzen 7 5800X3D: 0.182 microseconds per synthetic frame
+for 128 visibility checks over 20,000 frames, excluding projection, traces,
+layout and rendering. This does not establish full-scene frame time.
+See [nameplates](client.md#nameplates) and
+[rendering](rendering.md#entity-render-effects).
+
 ## JoF EJK jetpack sound choices
 
 17/10/2026, `feat/jof-jetpack-sounds-upstream`, based on `Sol-Vulpes/SJK`

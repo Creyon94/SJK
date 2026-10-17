@@ -1026,6 +1026,17 @@ exhaustive quality/map coverage remain open.
 
 ## Entity render effects
 
+NPC nameplate health uses JoF EJK
+[#80](https://github.com/JediofFreedom/JoF_EJK/pull/80)'s visibility rule: active
+level 3 Sense is required for an ordinary NPC, while mapper `showhealth`
+(`shouldtarget`) bypasses the gate. The server's decoded Sense-rank field supplies
+the level; live prediction supplies active-power bits when present, otherwise
+the viewed player state does (including demos). Names remain visible, and player
+bar consent, non-NPC map entities and ordinary bar-mode settings keep their rules.
+The shared nameplate renderer applies this in every HUD/menu style. SJK's older
+overhead-label pass handles players only; this change adds no separate crosshair
+health widget. Wire codecs and server NPC behavior are unchanged.
+
 cgame custom shaders on actors (force shells, pickup placeholders) are extra
 instances of the same mesh in [entity_materials.rs](../crates/sjk-viewer/src/entity_materials.rs).
 The same path also draws rd-vanilla's `RF_FORCE_ENT_ALPHA`: the mesh keeps its

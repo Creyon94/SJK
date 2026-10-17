@@ -2661,7 +2661,11 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   for whose), `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
-  adds NPC plates (class name, health; at most 16; vehicles skipped).
+  adds NPC plates (class name; at most 16; vehicles skipped). Their health bar
+  requires level 3 Sense to be active, unless the mapper explicitly enabled the
+  NPC's health display (`showhealth`, sent as `shouldtarget`). NPC names still
+  show without Sense; ordinary bar-mode settings still apply. This applies in
+  every HUD and menu style, including demo playback.
 - `cg_nameplateHideDuelers` (off; "Hide duellers" under Nameplates in SJK Settings >
   Advanced > HUD and classic Settings > HUD): hide the entire plate (name, bars and
   icons) on players the server marks as participating in a private duel. This also
@@ -2734,6 +2738,9 @@ Where the numbers come from, and what is not known:
 - **NPCs** (and any entity whose `entityState_t::health`/`maxhealth` the server
   sets): exact. The SJK server sets them for NPCs, breakables and emplaced guns, not
   for clients; stock JKA does not either.
+  Ordinary NPC nameplate health is displayed only with active Sense 3, with the
+  mapper-enabled exception above. This is a display rule; it does not change
+  which health fields the server sends or estimate missing NPC health.
 - **Sharers' health and shield** are estimated
   ([vitals_estimate.rs](../crates/sjk-viewer/src/hud/vitals_estimate.rs)) once per
   snapshot (every one, so no event is missed) from what the server sends everyone,

@@ -54,6 +54,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - JA+'s flamethrower shows its flames, impact fire, pose and sound instead of Lightning on JA+ servers (Settings, Flamethrower effects: Auto, Off or JA+); without the flame effects installed, Lightning shows as before _(Lumaya, after JoF EJK)_
 - The classic scoreboard follows JoF EJK: it opens when you die, keeps the votes and timers visible, hides your status and crosshair while it is up, and lists up to 19 players, 32 on crowded servers _(Lumaya, after JoF EJK)_
 - CTF team saber colours (Settings, off by default): in capture the flag every red or blue player's sabers in their team's colour, with no blade shader _(Slash)_
+- NPC nameplate health requires active level 3 Sense, except when the mapper explicitly enables the health display; NPC names remain visible. _(lumayaa, after JoF EJK)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 

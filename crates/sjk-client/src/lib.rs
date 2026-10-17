@@ -59,6 +59,8 @@ mod maintained_sounds;
 mod map_effects;
 mod match_info;
 mod mind_trick;
+mod npc_health;
+pub use npc_health::LegacyNpcHealthView;
 mod missile_effects;
 mod muzzle_effects;
 mod npc_identity;

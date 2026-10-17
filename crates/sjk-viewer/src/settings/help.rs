@@ -411,7 +411,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateNpcs",
-        "Nameplates on NPCs with their class and health, such as Stormtrooper.",
+        "NPC names, such as Stormtrooper. Health requires active level 3 Sense unless the mapper enables it.",
     ),
     (
         crate::world_ping::SHOW_CVAR,

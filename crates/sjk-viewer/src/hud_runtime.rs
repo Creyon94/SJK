@@ -236,6 +236,10 @@ pub(crate) fn update(
             camera,
             &gpu.bsp,
             &mut gpu.trace_scratch,
+            gpu.local_prediction
+                .predicted_state()
+                .filter(|_| !detached_flight)
+                .map(|state| state.force_powers_active),
             plates_hidden,
         );
         gpu.hud.rocket_lock.update(
@@ -409,6 +413,7 @@ pub(crate) fn update(
             camera,
             &gpu.bsp,
             &mut gpu.trace_scratch,
+            None,
             plates_hidden,
         );
         gpu.hud.rocket_lock.update(
