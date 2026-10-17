@@ -27,17 +27,19 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Mute is now Block, and it blocks everything: a blocked player's game and SJK chat stay hidden, they are drawn as Kyle with the default saber, silent, and now their emotes, Order 66 orders, cardboard box events and player card are ignored too; `block <player>` and `unblock <player|all>` in the console, and the SJK chat page lists who you blocked with Unblock _(Sol)_
 - The Staff page is reworked into tabs for the chosen player (Overview, Medals and unlocks, Holocrons and credits, Achievements, Keys, Logs) plus Crashes and Chat bans for everyone, and it now gives and takes credits and kyber shards, blocks or allows a player's pictures, mutes them at the hub, lifts their chat bans and lists every chat ban in force _(Sol)_
-- The SJK scoreboard in Siege drops the team scores Siege never counts, and once a round is over says "Red team won" or "Blue team won" large in the middle, in the winner's colour over a faint wash of it, with "Winner" by that team _(JoF)_
-- At the end of a team match (Capture the flag and the other team modes) the SJK scoreboard says the result large in the middle with the score, such as "5 : 4  Blue team won", over a faint wash of the winner's colour, or "Tied 3 : 3" _(JoF)_
 - The Supporter medal is no longer oddly cut: its ribbon ends in a clean V on the star's bail (no dark block or broken stem under it), and its small medallion loses the stray line at its top _(Sol)_
 - The shop sells its four daily saber shaders for kyber shards (30 to 1 500, below what crafting costs), the Legendary offer turns Mythical one day in four, and credits now buy holocrons: an Uncommon for 150 or a Rare for 400 under the offers, asking twice, the holocron joining your list at once, once the SJK hub turns them on _(Sol)_
 - A card from a holocron now comes as a pack, once the SJK hub turns the shards on: beside the card its credits and a few kyber shards slide out in two tiles and count up, and Open all adds the pack's shards to its totals _(Sol)_
-- Avoid replaying a followed player's pending server-injected sound when changing views. _(Lumaya, after JoF EJK)_
-- Fix cosmetic colour commands in scripts so each uses the current hat or cape and later explicit choices win. _(Lumaya)_
-- Make the Not players shader-remap setting filter reliable server commands as well as configstrings. _(Lumaya, after JoF EJK)_
-- Hide hats and capes on monster-held and cloaked players, with the remote Force Sight exception. _(Lumaya, after JoF EJK)_
-- Read community `.oshader` override scripts while preserving shader authority and download restrictions. _(Lumaya, after JoF EJK)_
-- Load larger custom Siege catalogues and keep class selectors aligned with the native catalogue and sixteen slots per theme. _(Lumaya, after JoF EJK)_
+- Following another player no longer replays the sounds they had just made: their last pending sounds are taken as already heard _(Lumaya, after JoF EJK)_
+- Cosmetic colour commands in a script, such as `color1 3newhat; color1 2`, act on the hat or cape worn at that command, so a later explicit choice wins _(Lumaya)_
+- The Not players shader remap mode also ignores the remaps a server sends as commands for player textures _(Lumaya, after JoF EJK)_
+- Hats and capes are hidden on players held by a monster and on cloaked players, unless your Force Sight reveals them _(Lumaya, after JoF EJK)_
+- Community `.oshader` override scripts load ahead of ordinary shader scripts _(Lumaya, after JoF EJK)_
+- Custom Siege packs can have up to 1 024 class files and 256 team files, with sixteen classes per team as in the game _(Lumaya, after JoF EJK)_
+- The SJK scoreboard says who won: in Siege the round's winner large in the middle, without the team scores Siege never counts, and at the end of a team match the result with the score, such as "5 : 4  Blue team won" _(Slash)_
+- Replying with Shift+U no longer leaves Shift or U stuck, and a key held in game and released in a menu or the chat is released in game too _(Lukas)_
+- A server that changes maps keeps its one row in the recent servers, instead of a new row named after each map _(Lukas)_
+- Live SJK chat messages also appear in the console, with a yellow SJK tag _(Lukas)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

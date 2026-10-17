@@ -77,7 +77,11 @@ fn follow_switch_seeds_the_new_players_event_ring() {
         let mut state = snapshot(time, client, 0);
         state.player.set_raw_field(19, sequence);
         // EV_FALL in the slot of event sequence - 1, with its strength.
-        let (event, parameter) = if sequence & 1 == 0 { (28, 60) } else { (27, 65) };
+        let (event, parameter) = if sequence & 1 == 0 {
+            (28, 60)
+        } else {
+            (27, 65)
+        };
         state.player.set_raw_field(event, 11);
         state.player.set_raw_field(parameter, 51);
         state

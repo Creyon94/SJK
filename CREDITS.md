@@ -300,7 +300,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 32 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 38 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -367,8 +367,20 @@ merged into SJK
   #267 and #300.
 - #129 Tavion's and Desann's own idle stances, after JoF EJK.
 - #130 JA+ black sabers on both blades and thrown ones, with dark trails and the plugin toggle.
+- #138 following another player seeds their pending sounds instead of replaying them, after
+  JoF EJK #123.
+- #140 cosmetic colour commands in scripts (`color1 3newhat; color1 2`) act on the hat or cape
+  worn at each command, so later explicit choices win.
+- #146 the Not players remap mode (`cg_remaps 1`) also drops player-texture `remapShader`
+  commands, after JoF EJK #297.
+- #145 hats and capes hidden on monster-held players and on cloaked ones unless Force Sight
+  reveals them, after JoF EJK #172.
+- #137 community `.oshader` override scripts load ahead of ordinary shader scripts, after
+  JoF EJK #138.
+- #143 custom Siege packs up to 1,024 class and 256 team files, sixteen classes per team,
+  after JoF EJK #253.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 5 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 8 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -383,14 +395,20 @@ merged into SJK
   (`ui_textScale`) up to 1.4 with the menus adapted to it.
 - #111 JoF EJK's camera settings: first-person weapon FOV, third-person distance, angle and
   offsets, and the damping presets, in Advanced > Gameplay and classic+ Game options.
+- #155 key releases go through the bind path before chat or menus take them, so the Shift+U
+  reply chord no longer leaves keys stuck.
+- #144 recent servers keep the server's address across live map changes: one row per server.
+- #133 live SJK chat messages also enter the console scrollback with a yellow `SJK` tag.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 2 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
   from the profile folder and the game folders, as EternalJK's `Cmd_CompleteCfgName`.
 - #113 CTF team saber colours: in capture the flag and capture the ysalamiri every red or blue
   player's blades in the team's colour; made an option at the merge (`cg_ctfTeamSabers`, off).
+- #153 the SJK scoreboard says who won: the Siege round's winner without the unused team
+  scores, and the result of a team match at the intermission.
 
 ## Art
 
