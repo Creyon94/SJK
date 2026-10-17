@@ -1,3 +1,18 @@
+## JoF EJK camera settings
+
+17/10/2026, `feat/ejk-camera-settings`: Advanced > Gameplay > Camera and
+prediction and Classic+ Setup > Game options expose JoF EJK's functional camera
+menu controls: first-person weapon FOV, its three damping timing presets,
+third-person distance, angle, pitch, height and horizontal offset, and camera and
+target damping. The ranges, defaults and preset names follow JoF EJK 1.5.1 commit
+`52e068d0` (`assets/japro/ui/jamp/ingame_camera.menu`). The underlying archived
+cvars and camera behavior already existed in SJK; this change adds their shared
+SJK/classic settings rows and help. On Linux x86_64 with Rust 1.99.1, the focused
+settings tests (101 passed), formatting, locked workspace build and tests,
+workspace all-target Clippy, and release viewer/dedicated build pass (existing
+Clippy warnings remain). The settings have not been tried in the game; the
+GPU/retail-data snapshots were not run.
+
 ## SJK chat messages up to 300 characters
 
 16/10/2026, `personal/chat-300` (Sol's request), with the hub's `chat-300` (deployed

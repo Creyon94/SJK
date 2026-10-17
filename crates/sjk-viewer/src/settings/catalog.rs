@@ -686,6 +686,67 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "First-person weapon FOV",
+        cvar: "cg_fovViewmodel",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 120.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Camera damping style",
+        cvar: "cg_cameraFPS",
+        // `cg_cameraFPS` is a float so console values such as 60.5 still work;
+        // choices use its canonical text representation.
+        kind: ValueKind::Choice(&["125.0", "30.0", "0.0"]),
+    },
+    Setting {
+        label: "Third-person distance",
+        cvar: "cg_thirdPersonRange",
+        kind: ValueKind::Float {
+            min: 40.0,
+            max: 500.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Third-person angle",
+        cvar: "cg_thirdPersonAngle",
+        kind: ValueKind::Float {
+            min: -180.0,
+            max: 180.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Third-person pitch",
+        cvar: "cg_thirdPersonPitchOffset",
+        kind: ValueKind::Float {
+            min: -129.0,
+            max: 50.0,
+            step: 1.0,
+        },
+    },
+    Setting {
+        label: "Third-person height",
+        cvar: "cg_thirdPersonVertOffset",
+        kind: ValueKind::Float {
+            min: -58.0,
+            max: 80.0,
+            step: 1.0,
+        },
+    },
+    Setting {
+        label: "Third-person horizontal offset",
+        cvar: "cg_thirdPersonHorzOffset",
+        kind: ValueKind::Float {
+            min: -64.0,
+            max: 64.0,
+            step: 1.0,
+        },
+    },
+    Setting {
         label: "Third-person camera damping",
         cvar: "cg_thirdPersonCameraDamp",
         kind: ValueKind::Float {

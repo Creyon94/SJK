@@ -1046,6 +1046,18 @@ and the first/third person choice are the same in both styles; Sol's JoF EJK
 profile also sets `cg_thirdPersonRange 100`, which SJK leaves to that cvar. SJK's
 `sjk` style does not apply EternalJK's strafe helper rule.
 
+### Camera settings
+
+Settings > Advanced > Gameplay > Camera and prediction, and Classic+ Setup >
+Game options, expose the camera controls from JoF EJK's
+`assets/japro/ui/jamp/ingame_camera.menu` (release 1.5.1, commit `52e068d0`). The
+shared settings rows cover the first-person weapon FOV; EJK's damping timing
+presets (Default 125, Smooth (SP) 30 and Base JKA); third-person distance, angle,
+pitch, height and horizontal offset; and camera/target damping. Their ranges and
+defaults match that menu. The ordinary world FOV stays under Display, the HUD
+switch under HUD, and first/third-person switching remains the Camera key rather
+than a persistent option.
+
 ### Camera control
 
 Camera control (named Shot controls until 08/10/2026) is a panel for framing

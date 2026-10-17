@@ -278,6 +278,13 @@ impl Group {
                 "cg_remaps",
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
+                "cg_fovViewmodel",
+                "cg_cameraFPS",
+                "cg_thirdPersonRange",
+                "cg_thirdPersonAngle",
+                "cg_thirdPersonPitchOffset",
+                "cg_thirdPersonVertOffset",
+                "cg_thirdPersonHorzOffset",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
                 "cg_errorDecay",
@@ -727,6 +734,45 @@ mod tests {
             Group::Simple(Simple::Graphics).rows()[0].cvar,
             crate::graphics_quality::ROW_NAME
         );
+    }
+
+    #[test]
+    fn ejk_camera_rows_stay_together_in_classic_and_advanced_gameplay() {
+        let expected = [
+            crate::camera::STYLE_CVAR,
+            "cg_drawGun",
+            "cg_fovViewmodel",
+            "cg_cameraFPS",
+            "cg_thirdPersonRange",
+            "cg_thirdPersonAngle",
+            "cg_thirdPersonPitchOffset",
+            "cg_thirdPersonVertOffset",
+            "cg_thirdPersonHorzOffset",
+            "cg_thirdPersonCameraDamp",
+            "cg_thirdPersonTargetDamp",
+            "cg_errorDecay",
+        ];
+        for group in [Group::GameOptions, Group::Advanced(Advanced::Gameplay)] {
+            let rows: Vec<&str> = group.rows().iter().map(|setting| setting.cvar).collect();
+            assert!(
+                rows.windows(expected.len())
+                    .any(|window| window == expected)
+            );
+        }
+
+        let float_range = |cvar| match find(cvar).unwrap().kind {
+            ValueKind::Float { min, max, step } => (min, max, step),
+            _ => panic!("{cvar} is not a float slider"),
+        };
+        assert_eq!(float_range("cg_fovViewmodel"), (0.0, 120.0, 5.0));
+        assert_eq!(float_range("cg_thirdPersonRange"), (40.0, 500.0, 5.0));
+        assert_eq!(float_range("cg_thirdPersonAngle"), (-180.0, 180.0, 5.0));
+        assert_eq!(
+            float_range("cg_thirdPersonPitchOffset"),
+            (-129.0, 50.0, 1.0)
+        );
+        assert_eq!(float_range("cg_thirdPersonVertOffset"), (-58.0, 80.0, 1.0));
+        assert_eq!(float_range("cg_thirdPersonHorzOffset"), (-64.0, 64.0, 1.0));
     }
 
     #[test]
