@@ -736,40 +736,37 @@ impl NativeGame {
             sjk_game_jka::breakables::Hit::Broken { at } if at > level_time => {
                 self.publish_breakable(index)
             }
-            sjk_game_jka::breakables::Hit::Broken { .. } => {
-                self.break_brush(index, from, level_time)
-            }
+            sjk_game_jka::breakables::Hit::Broken { .. } => self.break_brush(index, level_time),
         }
         true
     }
 
     /// `G_UseTargets` reaching the `func_breakable`s called `name` (`funcBBrushUse`): each
     /// comes apart (after its `delay`, if it has one), or one made `USE_NOT_BREAK` fires
-    /// its targets.
+    /// its targets. Those of the name are found first: what one fires may break others.
     pub(super) fn use_breakables(&mut self, name: &str, client: usize, level_time: i32) {
-        let mut index = 0;
-        while index < self.breakables.len() {
-            let brush = &mut self.breakables[index].1;
-            // One already coming apart is not used again.
-            if !brush.targetname.eq_ignore_ascii_case(name)
-                || brush.thinking != sjk_game_jka::breakables::Thinking::None
-            {
-                index += 1;
+        let named: Vec<EntityId> = self
+            .breakables
+            .iter()
+            .filter(|(_, brush)| brush.targetname.eq_ignore_ascii_case(name))
+            .map(|(id, _)| *id)
+            .collect();
+        let from = self.peer(client).map(|peer| peer.state.origin());
+        for id in named {
+            // Gone already, or coming apart: it is not used again.
+            let Some(index) = self.breakables.iter().position(|(ours, brush)| {
+                *ours == id && brush.thinking == sjk_game_jka::breakables::Thinking::None
+            }) else {
                 continue;
-            }
-            match sjk_game_jka::breakables::used(brush, level_time) {
+            };
+            let brush = &mut self.breakables[index].1;
+            match sjk_game_jka::breakables::used(brush, from, level_time) {
                 Some(target) => self.fire_targets(&target, client, level_time),
                 None if brush.thinking == sjk_game_jka::breakables::Thinking::Breaking => {
                     self.publish_breakable(index)
                 }
-                None => {
-                    let from = self.peer(client).map(|peer| peer.state.origin());
-                    // It leaves the list.
-                    self.break_brush(index, from, level_time);
-                    continue;
-                }
+                None => self.break_brush(index, level_time),
             }
-            index += 1;
         }
     }
 
@@ -782,7 +779,8 @@ impl NativeGame {
             if brush.thinking == sjk_game_jka::breakables::Thinking::Breaking
                 && brush.next_think <= level_time
             {
-                self.break_brush(index, None, level_time);
+                // It leaves the list.
+                self.break_brush(index, level_time);
                 continue;
             }
             index += 1;
@@ -791,40 +789,37 @@ impl NativeGame {
 
     /// A door or button the map gave health, struck (`G_Damage`, `g_combat.c`: "shootable
     /// doors / buttons don't actually have any health"): at rest where it started it is
-    /// used (`GlobalUse`), anywhere else the blow does nothing. Whether `number` is one.
-    fn shoot_mover(&mut self, number: u16, client: usize, level_time: i32) -> bool {
+    /// used (`GlobalUse`, a team's part handing it to its master), anywhere else the blow
+    /// does nothing. Whether `number` is one.
+    fn shoot_mover(&mut self, number: u16, owner: usize, level_time: i32) -> bool {
         let Some(index) = self.shootable_mover(number) else {
             return false;
         };
         if self.doors[index].1.state == sjk_game_jka::movers::MoverState::Pos1 {
-            let fired = sjk_game_jka::mover_team::use_mover(
-                &mut self.doors,
-                index,
-                level_time,
-                Some(client),
-            );
-            self.publish_team(index);
-            if let Some(target) = fired
-                && !target.is_empty()
-            {
-                self.fire_targets(&target, client, level_time);
-            }
+            // A blow from no player (the world, a turret, an NPC) has no client to name.
+            let client = if self.peer(owner).is_some() {
+                owner
+            } else {
+                usize::MAX
+            };
+            self.use_door_at(index, client, level_time);
         }
         true
     }
 
     /// The place among the doors of the mover numbered `number` when a blow can reach it:
-    /// one with `health`, a team's master (`SP_func_door` gives a slave no `takedamage`).
+    /// one with `health` (`SP_func_door` gives every one `takedamage`, a team's slaves
+    /// too, before the teams are found).
     pub(super) fn shootable_mover(&self, number: u16) -> Option<usize> {
-        self.doors.iter().position(|(id, door)| {
-            id.legacy_number() == number && door.health != 0 && !door.team_slave
-        })
+        self.doors
+            .iter()
+            .position(|(id, door)| id.legacy_number() == number && door.health != 0)
     }
 
     /// `funcBBrushDieGo` on the server: the brush leaves the world, fires what it targets,
     /// throws its fireball and its debris as the two event entities a client draws them
     /// from, hurts whoever is close, and is freed.
-    fn break_brush(&mut self, index: usize, from: Option<[f32; 3]>, level_time: i32) {
+    fn break_brush(&mut self, index: usize, level_time: i32) {
         let (id, number) = (
             self.breakables[index].0,
             self.breakables[index].0.legacy_number(),
@@ -833,7 +828,6 @@ impl NativeGame {
         let drawn = self.deaths.rng.flrand(0.0, 1.0);
         let broken = sjk_game_jka::breakables::break_apart(
             &mut self.breakables[index].1,
-            from,
             number,
             drawn,
             level_time,
@@ -2606,6 +2600,7 @@ impl NativeGame {
         self.run_holocrons(server_time);
         self.run_siege_items(server_time);
         self.run_breakables(server_time);
+        self.run_usables(server_time);
         self.run_multiples(server_time);
         self.run_map_effects(server_time);
         self.run_stock_entities(server_time);

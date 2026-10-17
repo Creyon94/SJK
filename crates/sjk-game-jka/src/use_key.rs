@@ -99,6 +99,11 @@ impl Usable {
         }
     }
 
+    /// `MOVER_INACTIVE`: `GlobalUse` passes it by.
+    pub fn inactive(&self) -> bool {
+        self.spawnflags & USABLE_INACTIVE != 0
+    }
+
     /// Whether the use key reaches it and fires it (`ValidUseTarget`,
     /// `g_utils.c:1628-1646`): a mover the map made `PLAYER_USE`, not deactivated.
     pub fn answers_use(&self) -> bool {

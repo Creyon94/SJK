@@ -106,29 +106,15 @@ impl NativeGame {
         if let Some(index) = self.doors.iter().position(|(number, door)| {
             number.legacy_number() == found && door.kind == sjk_game_jka::movers::MoverKind::Button
         }) {
-            let fired = sjk_game_jka::mover_team::use_mover(
-                &mut self.doors,
-                index,
-                level_time,
-                Some(client),
-            );
-            self.publish_team(index);
-            if let Some(target) = fired
-                && !target.is_empty()
-            {
-                self.fire_targets(&target, client, level_time);
-            }
+            self.use_door_at(index, client, level_time);
             return;
         }
         // A `func_usable` the map made `PLAYER_USE` is used (`ValidUseTarget`,
         // `func_usable_use`).
         if let Some(index) = self
             .usable_entities
-            .iter_mut()
-            .position(|(number, usable)| {
-                usable.wake(level_time);
-                number.legacy_number() == found && usable.answers_use()
-            })
+            .iter()
+            .position(|(number, usable)| number.legacy_number() == found && usable.answers_use())
         {
             self.use_usable(index, client, level_time);
         }
@@ -148,16 +134,21 @@ impl NativeGame {
         self.fire_targets(&fired, client, level_time);
     }
 
-    /// `G_UseTargets` reaching the `func_usable`s called `name`: each is used in turn.
+    /// `G_UseTargets` reaching the `func_usable`s called `name`: each is used in turn, but
+    /// one the map made `INACTIVE` (`GlobalUse`).
     pub(super) fn use_usables(&mut self, name: &str, client: usize, level_time: i32) {
         for index in 0..self.usable_entities.len() {
-            if self.usable_entities[index]
-                .1
-                .targetname
-                .eq_ignore_ascii_case(name)
-            {
+            let usable = &self.usable_entities[index].1;
+            if usable.targetname.eq_ignore_ascii_case(name) && !usable.inactive() {
                 self.use_usable(index, client, level_time);
             }
+        }
+    }
+
+    /// `func_usable_think`: the `ALWAYS_ON` usables whose `wait` is over answer again.
+    pub(super) fn run_usables(&mut self, level_time: i32) {
+        for (_, usable) in &mut self.usable_entities {
+            usable.wake(level_time);
         }
     }
 

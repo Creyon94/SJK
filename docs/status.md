@@ -13,7 +13,13 @@ on the server, after OpenJK `g_mover.c` and `g_combat.c`:
   door or button with `health` (opened when struck at rest, `GlobalUse`) are now hurt
   by it; any blow that reaches `hurt_brush` opens such a door.
 
-Three unit tests pin `funcBBrushUse`; the touched crates' tests pass on Linux. That the
+A breakable's targets now fire whoever broke it (`G_Damage` makes a missing attacker
+the world), so one broken by an NPC, a turret or after its delay fires them too; its
+chunks fly from where the breaker stood (`breaker`), straight up when unknown. A
+missile that carries no damage hurts nothing; a door with health opens whichever part of
+its team is struck; an `INACTIVE` `func_usable` is passed by, and `ALWAYS_ON` ones wake
+every frame. The reporter confirmed the korriban door broke after the laser. Four unit
+tests pin `funcBBrushUse` and the targets; the touched crates' tests pass on Linux. That the
 korriban door is a breakable used by name is inferred from the report (the laser), not
 checked against the map, which is not here. Not done: `func_static`s pushed or pulled
 (`F_PUSH`/`F_PULL`), a breakable's `teamnodmg`, the use key on `PLAYER_USE` breakables.

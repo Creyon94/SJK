@@ -210,18 +210,7 @@ impl NativeGame {
             else {
                 continue;
             };
-            let fired = sjk_game_jka::mover_team::use_mover(
-                &mut self.doors,
-                index,
-                server_time,
-                Some(client),
-            );
-            self.publish_team(index);
-            if let Some(target) = fired
-                && !target.is_empty()
-            {
-                self.fire_targets(&target, client, server_time);
-            }
+            self.use_door_at(index, client, server_time);
         }
         for (number, before) in before.into_iter().enumerate() {
             if let Some(peer) = self.peer_mut(number)
