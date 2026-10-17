@@ -217,6 +217,30 @@ pub(crate) fn worth_a_sound<'a>(
         .any(|message| message.id > after && message.holocron.is_none() && !muted(&message.key_id))
 }
 
+/// Console text for the live SJK messages newer than `after`. The initial hub
+/// backlog never supplies an `after` ([`ChatOverlay::sync_sjk`]), and a locally
+/// muted sender stays out of the console just as they stay out of the visible feed.
+/// The console cannot draw the feed's emblem, tick, emoji or exact gold, so its
+/// plain-text substitute starts with a yellow `SJK` tag.
+pub(crate) fn console_lines<'a>(
+    messages: impl IntoIterator<Item = &'a ChatMessage>,
+    after: u64,
+    muted: impl Fn(&str) -> bool,
+) -> Vec<String> {
+    messages
+        .into_iter()
+        .filter(|message| message.id > after && !muted(&message.key_id))
+        .filter_map(|message| {
+            let shown = crate::sjk_chat_look::shown(message)?;
+            Some(if shown.name.is_empty() {
+                format!("* ^3SJK^7: {}", shown.text)
+            } else {
+                format!("* ^3SJK^7 {}^7: {}", shown.name, shown.text)
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -438,6 +462,25 @@ mod tests {
         assert!(!news(1), "2 is muted, 3 a holocron drop");
         assert!(!news(3), "nothing newer");
         assert!(worth_a_sound(&messages, 1, |_| false));
+    }
+
+    #[test]
+    fn console_gets_only_new_visible_sjk_lines() {
+        let mut messages: Vec<ChatMessage> = (1..=4).map(|id| message(id, "hi ^1there")).collect();
+        let muted = messages[3].key_id.clone();
+        messages[1].holocron = Some(sjk_identity::DropMark {
+            tier: "legendary".to_owned(),
+            own: false,
+            find: None,
+        });
+        assert_eq!(
+            console_lines(&messages, 1, |key| key == muted),
+            [
+                "* ^3SJK^7: Sol found a Legendary Holocron!",
+                "* ^3SJK^7 ^2Sol^7: hi there",
+            ]
+        );
+        assert!(console_lines(&messages, 4, |_| false).is_empty());
     }
 
     #[test]
