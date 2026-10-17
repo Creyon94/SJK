@@ -196,6 +196,18 @@ synthetic frames; this excludes trails, submission, rendering and GPU work
 and does not establish a game FPS rate. Live server behavior, installed-texture
 appearance, crowded-scene performance and EJK pixel parity remain unverified;
 simulation and codecs are unchanged.
+## SJK chat in the console
+
+17/10/2026, `feat/sjk-chat-console`: each live, unmuted SJK chat message now also enters the
+console scrollback through its quiet chat path, with a textual yellow `SJK` tag in
+place of the graphical feed emblem. It stays out of the closed-console notify feed
+and crash reports, and the hub's initial backlog is still only marked rather than
+replayed. A focused unit test covers new-message filtering, mute filtering, the
+textual tag and a holocron drop. On Linux x86_64 with Rust 1.99.1, the focused
+test, `cargo fmt --all --check`, the locked workspace build and test suite,
+workspace all-target Clippy, and the locked release viewer/dedicated build pass;
+the repository's existing warnings remain. The result has not yet been tried
+interactively against the live SJK chat.
 
 ## One Russian letter in chat
 

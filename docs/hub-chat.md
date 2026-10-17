@@ -148,7 +148,11 @@ Old clients ignore all of it, so it stays `/v1/`.
   the composer is open, resting the pointer on a sender's name shows their profile
   card with Mute or Unmute. Joining a game
   does not replay the hub's backlog in the feed (the dock and the page show it). A
-  refusal (quota, rules) shows as an `SJK chat:` line.
+  refusal (quota, rules) shows as an `SJK chat:` line. Each live, unmuted message is
+  also kept in the console scrollback with a textual yellow `SJK` tag (the console
+  cannot draw the feed's emblem); it uses the quiet chat path, so it does not enter
+  the closed-console notify feed or crash reports. The initial backlog is not copied
+  into the console.
 - `cl_sjkChat` (default 1, Settings > Chat > SJK chat) shows SJK chat and runs the
   feed; 0 hides it. On a game server the feed still reads, for the players' looks and
   emotes, but no message reaches the game's feed, the dock or the page; in the menus it
