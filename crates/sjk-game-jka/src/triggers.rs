@@ -1107,11 +1107,12 @@ pub fn fire_multiple(
 #[derive(Clone, Debug, PartialEq)]
 pub enum Target {
     /// `target_print`: the message, and who is told — the activator alone (spawnflag 4),
-    /// a team (1 or 2), or everyone.
+    /// the red team (spawnflag 1) and/or the blue one (2), or everyone.
     Print {
         message: String,
         to_activator: bool,
-        team: Option<u8>,
+        /// Spawnflags 1 and 2: bit 0 red, bit 1 blue; none means everyone.
+        teams: u8,
     },
     /// `target_speaker`: the sound, and how it is played (a looping toggle at 3, on the
     /// activator at 8, everywhere at 4, else on itself).
@@ -1154,11 +1155,7 @@ pub fn map_targets(
             "target_print" => Target::Print {
                 message: entity.get("message").unwrap_or_default().to_owned(),
                 to_activator: spawnflags & 4 != 0,
-                team: match spawnflags & 3 {
-                    1 => Some(1),
-                    2 => Some(2),
-                    _ => None,
-                },
+                teams: (spawnflags & 3) as u8,
             },
             "target_speaker" => Target::Speaker {
                 noise: entity.get("noise").map_or(0, |noise| sound(noise)),

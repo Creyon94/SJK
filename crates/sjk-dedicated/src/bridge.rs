@@ -68,11 +68,12 @@ pub enum SpawnOrder {
     MapFrom(usize),
 }
 
-/// What a target of the map is doing: a delay on its way, and whether something
-/// deactivated it.
+/// What a target of the map is doing: a delay on its way (and who started it), and
+/// whether something deactivated it.
 #[derive(Clone, Copy, Debug, Default)]
 struct MapTarget {
     next_think: i32,
+    activator: usize,
     inactive: bool,
 }
 

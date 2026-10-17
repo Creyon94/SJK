@@ -177,8 +177,8 @@ impl NativeGame {
                 sjk_game_jka::triggers::Target::Print {
                     message,
                     to_activator,
-                    team,
-                } => self.target_print(&message, to_activator, team, client),
+                    teams,
+                } => self.target_print(&message, to_activator, teams, client),
                 // Speakers are entities of their own (`use_map_effects`, below).
                 sjk_game_jka::triggers::Target::Speaker { .. } => {}
                 sjk_game_jka::triggers::Target::Relay { target, .. } => {
@@ -197,6 +197,8 @@ impl NativeGame {
                     let spread = self.deaths.rng.flrand(-1.0, 1.0);
                     self.targets[index].2.next_think =
                         level_time + ((wait + random * spread) * 1_000.0) as i32;
+                    // `Use_Target_Delay`: `ent->activator = activator`, which its think uses.
+                    self.targets[index].2.activator = client;
                 }
                 sjk_game_jka::triggers::Target::SetActive { target, active } => {
                     for (name, _, state) in self.targets.iter_mut() {
@@ -248,18 +250,20 @@ impl NativeGame {
                 continue;
             }
             state.next_think = 0;
+            let activator = state.activator;
             if let sjk_game_jka::triggers::Target::Delay { target, .. } = target.clone() {
-                self.fire_targets(&target, 0, level_time);
+                self.fire_targets(&target, activator, level_time);
             }
         }
     }
 }
 
 impl NativeGame {
-    /// `Use_Target_Print` (`g_target.c`): the activator alone (spawnflag 4), one team
-    /// (spawnflags 1 and 2) or everyone is told — as `cps` when the message names a string
-    /// table entry (`@FILE_KEY`, not `@@@`), which the client looks up, else as `cp`.
-    fn target_print(&mut self, message: &str, to_activator: bool, team: Option<u8>, client: usize) {
+    /// `Use_Target_Print` (`g_target.c`): the activator alone (spawnflag 4), the red and/or
+    /// blue team (spawnflags 1 and 2, `G_TeamCommand`) or everyone is told — as `cps` when
+    /// the message names a string table entry (`@FILE_KEY`, not `@@@`), which the client
+    /// looks up, else as `cp`.
+    fn target_print(&mut self, message: &str, to_activator: bool, teams: u8, client: usize) {
         let command = if message.starts_with('@') && !message.starts_with("@@") {
             format!("cps \"{message}\"")
         } else {
@@ -272,12 +276,11 @@ impl NativeGame {
             }
             return;
         }
-        if let Some(team) = team {
+        if teams != 0 {
             for other in 0..self.players.places() {
-                if self
-                    .peer(other)
-                    .is_some_and(|peer| peer.session.team == i32::from(team))
-                {
+                if self.peer(other).is_some_and(|peer| {
+                    (1..=2).any(|team| teams & (1 << (team - 1)) != 0 && peer.session.team == team)
+                }) {
                     self.told.push(Told::One(other, command.clone()));
                 }
             }

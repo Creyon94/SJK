@@ -26,7 +26,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Siege on native servers: pressing attack while you wait for the respawn wave follows a teammate instead of moving you to the spectators, so after a death or two you come back with the next wave instead of being stuck out of the game, invisible and unarmed _(Slash)_
-- Siege map messages such as the Korriban gates' read their text from the map's string table, and each one reaches only the team (or player) the map meant it for, instead of everyone seeing a raw `@SIEGE_...` key _(Slash)_
+- Siege map messages such as the Korriban gates' read their text from the map's string table, and each one reaches only the team (or player) the map meant it for, instead of everyone seeing a raw `@SIEGE_...` key; a delayed map target remembers who set it off _(Slash)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

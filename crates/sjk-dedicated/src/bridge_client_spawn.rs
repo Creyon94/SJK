@@ -41,11 +41,14 @@ impl NativeGame {
             .at(client)
             .and_then(|handle| server.world_mut(*world)?.entity_mut(handle));
         let Some(peer) = peer else { return };
-        // A spawn ends any wait for a siege respawn wave, and a player spawning on a side
-        // follows nobody (`tempSpectate` is only read against `level.time`, so a stale one
-        // never kept the reference's player out of the world).
-        peer.temp_spectate = 0;
-        if peer.session.team != i32::from(TEAM_SPECTATOR) {
+        // The reference reads `tempSpectate` only against `level.time`: a wait that is over
+        // never keeps a player out of the world, while one still running (a `ClientBegin`
+        // mid-wait) lasts until the wave. A player spawning on a side for real follows
+        // nobody.
+        if peer.temp_spectate < *last_frame_time {
+            peer.temp_spectate = 0;
+        }
+        if peer.temp_spectate == 0 && peer.session.team != i32::from(TEAM_SPECTATOR) {
             peer.session.spectator_state = sjk_game_jka::client_begin::SPECTATOR_NOT;
         }
         let playing = peer.playing();

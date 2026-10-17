@@ -218,16 +218,11 @@ impl NativeGame {
             number => usize::try_from(number).ok(),
         };
         let Some(target) = target else { return };
-        // A siege player waiting for its wave is still on its side: its follower keeps
-        // watching rather than being dropped and begun again (`sessionTeam != TEAM_SPECTATOR`).
-        if self.peer(target).is_some_and(|peer| {
-            peer.begun && peer.session.team != i32::from(TEAM_SPECTATOR) && !peer.playing()
-        }) {
-            return;
-        }
+        // The reference tests `sessionTeam`, not the world: a siege player waiting for its
+        // wave is still followed, its view included, rather than its follower dropped.
         let followed = self
             .peer(target)
-            .filter(|peer| peer.begun && peer.playing())
+            .filter(|peer| peer.begun && peer.session.team != i32::from(TEAM_SPECTATOR))
             .map(|peer| follow::followed_state(&peer.state));
         match followed {
             Some(state) => {

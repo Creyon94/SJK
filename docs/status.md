@@ -9,12 +9,20 @@
   with `tempSpectate` still set; the wave skips spectators, and a later spawn with the
   stale value came in "not playing" (invisible, unarmed, unhurtable). `set_team_to`
   now runs the siege branch (a waiting player stays on its side and watches a
-  teammate), a spawn clears `tempSpectate` and the follow state, a watcher keeps its own
-  persistants, and following a waiting teammate no longer drops and re-begins the
-  watcher (`SpectatorClientEndFrame` tests `sessionTeam`).
-- `target_print` honours its spawnflags (activator alone, one team) and sends a
+  teammate); a spawn clears a `tempSpectate` that is over (one still running, as at a
+  `ClientBegin` mid-wait, lasts until the wave, as in the reference) and the follow
+  state of a player spawning on a side; following tests `sessionTeam`, as
+  `SpectatorClientEndFrame` does, so a waiting teammate stays followed. A watcher on a
+  side keeps its own persistants (a deliberate departure: the reference copies the
+  followed player's, which its next `ClientSpawn` would carry over as its own score).
+- `target_print` honours its spawnflags (activator alone, red and/or blue) and sends a
   single-`@` message as `cps`; the client resolves `cps` against every
-  `strings/english/*.str` table, the map's included, as `<FILE>_<KEY>`.
+  `strings/english/*.str` table, the map's included, as `<FILE>_<KEY>` without case.
+  `target_delay` keeps its activator for its think (`Use_Target_Delay`), which used to
+  be slot 0.
+
+The native server's bridge has no test harness yet, so the server side is pinned by no
+unit test.
 
 Workspace fmt, build, clippy (no new warnings) and tests passed on Linux x86_64; a unit
 test pins the map-table lookup. Not exercised in a live siege match.

@@ -30,8 +30,12 @@ impl Localization {
             .map(|name| format!("strings/english/{name}"))
             .collect();
         let paths: Vec<&str> = tables.iter().map(String::as_str).collect();
+        // `cps` asks in upper case; the string package matches references without it.
         for (key, value) in sjk_client::string_table::load_referenced(vfs, &paths) {
-            localization.strings.entry(key).or_insert(value);
+            localization
+                .strings
+                .entry(key.to_ascii_uppercase())
+                .or_insert(value);
         }
         localization
     }
@@ -72,7 +76,7 @@ mod tests {
             "maps.pk3",
             [(
                 "strings/english/siege_test.str",
-                b"REFERENCE GATE_DOWN\nLANG_ENGLISH \"The gate is down\"\n".to_vec(),
+                b"REFERENCE Gate_Down\nLANG_ENGLISH \"The gate is down\"\n".to_vec(),
             )],
         )
         .unwrap();
