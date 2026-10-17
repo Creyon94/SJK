@@ -715,9 +715,9 @@ filters the grid as the classic profile's search does (see above).
 `forcepowers` is the player's own profile. On a server, every userinfo sends it
 fitted to the server's rules from `CS_SERVERINFO` (`g_maxForceRank`, free saber
 skills when every other weapon is off, the game type), as stock
-`BG_LegalizedForcePowers` would fit it, but keeping the powers
-`g_forcePowerDisable` turns off: the server drops those from its own copy
-without calling the profile illegal, so sending them never parks the player in
+`BG_LegalizedForcePowers` would fit it, but keeping team powers and the powers
+`g_forcePowerDisable` turns off: the server drops unavailable powers from its own
+copy without calling the profile illegal, so sending them never parks the player in
 spectator, and a mod that gives them back in a full Force duel finds them
 (jaPRO lets the powers its `g_forcePowerDisableFFA` holds back work in duels).
 Apply on a server sends the new profile and then `forcechanged`, as stock
@@ -740,12 +740,17 @@ Opened on a server, the Force page takes the server's highest rank and free
 saber skills, which decide whether the server keeps the profile it is sent. What
 the server only will not let be used stays buyable and is marked: its disabled
 powers ("Off on this server"; Jump "fixed" at 1 and Saber Offense and Defense
-at 3, as the server holds them), and team powers outside team games ("Team
-games only"). They cost points like any other, so the profile still fits where
-they work. The SJK UI's Force page lists the server's rules under the side's
-powers (This server: the highest rank and its points, free saber skills, the
-powers it turns off or, past eight, how many, whether team powers work); off a
-server it says a server's rules show there once you join, and team powers can
+at 3, as the server holds them), and team powers outside team games ("Server
+decides", since modified servers can grant them there). They cost points like
+any other, so the profile still fits where they work. Team powers are kept in
+the sent profile even in FFA, so a server
+that permits them can read the purchased levels; stock servers still remove
+them in non-team games without treating the profile as illegal. Team Heal
+remains light-side and Team Energize dark-side. The SJK UI's Force page lists
+the server's rules under the side's powers (This server: the highest rank and
+its points, free saber skills, the
+powers it turns off or, past eight, how many, and the server-dependent team-power
+notice); off a server it says a server's rules show there once you join, and team powers can
 be bought. A mod's own limits that are not in `CS_SERVERINFO` (jaPRO's
 `g_forcePowerDisableFFA`) cannot be shown. The rules are in
 [force_profile_negotiation.rs](../crates/sjk-client/src/force_profile_negotiation.rs)

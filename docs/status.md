@@ -379,6 +379,22 @@ Formatting, locked workspace build/tests and Clippy with all targets passed on
 Windows, Rust 1.99.0, with existing warnings. The GPU snapshot check was not run:
 its required `JKA_GAME_DATA` asset path is not configured in this environment.
 See [radial HUD](rendering.md#game-data-hud) and [nameplates](client.md#nameplates).
+## Team powers in outgoing Force profiles
+
+16/10/2026, `fix/team-force-profiles`, based on `7026c735`: Team Heal and Team
+Energize remain in the client's sent profile in non-team modes, within the
+server's rank/point ceiling and the chosen side. This lets a server supporting
+them in FFA read the selected levels; authoritative stock legalization still
+removes them. Both Force menus mark their availability as "Server decides"
+outside team games ([client](client.md#force-profile-on-a-server)). Reference:
+OpenJK `260c59c` `codemp/game/bg_misc.c:513-517` strips team powers without
+invalidating the profile; JoF EJK #10 keeps the allowed side's team power.
+On Windows, Rust 1.99.0, nine Force-profile tests and 80 player-menu tests passed,
+including side/point limits, retained FFA selections, stock removal without an
+illegal-profile result, server disable rules, and both Force-menu layouts.
+Formatting, workspace build/tests and all-target clippy passed with existing
+warnings, using a target on a separate volume with incremental compilation off.
+Live FFA server grants and GPU/UI verification have not been performed.
 
 ## Emotes on stock models: limbs out of wider bodies
 
