@@ -57,6 +57,9 @@ const CARD_BAN_TOKEN: u16 = 1_362;
 const NAME_BASE: u16 = 1_370;
 /// The players in the who-is-online window, one token each.
 const PERSON_BASE: u16 = 1_420;
+/// Unblock beside each blocked player the side lists while no message is chosen.
+const UNBLOCK_BASE: u16 = 1_470;
+const UNBLOCK_SHOWN: usize = 6;
 const PEOPLE_SHOWN: usize = people::ONLINE_FACES + people::RECENT_FACES;
 /// Pictures' versions the page keeps for faces whose row does not carry one.
 const PICTURES_KEPT: usize = 32;
@@ -93,6 +96,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) chat: Option<&'a ChatState>,
     /// The keys muted on this PC.
     pub(crate) muted: &'a [String],
+    /// Every player blocked on this PC (the mute list), in the order they were blocked:
+    /// listed with Unblock while no message is chosen.
+    pub(crate) blocked: &'a [crate::chat_mutes::Mute],
     /// Whether the player's key is SJK staff.
     pub(crate) staff: bool,
     /// Whether `cl_sjkChat` is on.
@@ -130,6 +136,8 @@ struct Shown {
     total: usize,
     /// Whether the sender card's player is muted here.
     card_muted: bool,
+    /// The blocked players listed with Unblock, in token order.
+    blocked: Vec<crate::chat_mutes::Mute>,
     /// Whether the chosen message offers Ban 24 h.
     chosen_bannable: bool,
     /// The keys of the players in the who-is-online window, by token.
@@ -597,6 +605,20 @@ impl Panel {
             };
         }
         if let Some(index) = token
+            .checked_sub(UNBLOCK_BASE)
+            .filter(|index| usize::from(*index) < UNBLOCK_SHOWN)
+        {
+            // Unblock a player of the list; the keyboard stays on the list.
+            let Some(blocked) = self.shown.blocked.get(usize::from(index)).cloned() else {
+                return PanelAction::None;
+            };
+            return PanelAction::Mute {
+                key_id: blocked.key_id.unwrap_or_default(),
+                name: blocked.name,
+                muted: false,
+            };
+        }
+        if let Some(index) = token
             .checked_sub(NAME_BASE)
             .filter(|index| usize::from(*index) < MESSAGES_SHOWN)
         {
@@ -881,6 +903,7 @@ mod tests {
         Inputs {
             chat: Some(chat),
             muted,
+            blocked: &[],
             staff,
             enabled: true,
             now: 1_791_400_000,
@@ -991,6 +1014,71 @@ mod tests {
     }
 
     #[test]
+    fn the_blocked_players_are_listed_with_unblock_while_nothing_is_chosen() {
+        let chat = chat(2);
+        let mut panel = Panel::new();
+        panel.open(true);
+        let blocked: Vec<crate::chat_mutes::Mute> = (0..9)
+            .map(|index| crate::chat_mutes::Mute {
+                key_id: (index == 0).then(|| "0123456789abcdef".to_owned()),
+                name: format!("^1Blocked {index}"),
+            })
+            .collect();
+        let with = Inputs {
+            blocked: &blocked,
+            ..inputs(&chat, &[], false)
+        };
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1024.0, 768.0]] {
+            panel.build_with(&with, &fonts.font, viewport);
+            let runs: Vec<String> = panel.ui.text_runs().map(str::to_owned).collect();
+            assert!(
+                runs.iter().any(|run| run == "Blocked on this PC (9)"),
+                "{runs:?}"
+            );
+            assert!(
+                runs.iter()
+                    .any(|run| run.contains("more: block in the console")),
+                "{runs:?}"
+            );
+            let shown = (0..UNBLOCK_SHOWN as u16)
+                .filter(|index| panel.order.contains(&(UNBLOCK_BASE + index)))
+                .count();
+            assert!(shown >= 3, "{viewport:?}: {shown}");
+            let last = panel
+                .ui
+                .rect_for(UNBLOCK_BASE + shown as u16 - 1)
+                .expect("the last Unblock");
+            assert!(
+                last.y + last.height <= viewport[1],
+                "{viewport:?}: {last:?}"
+            );
+        }
+        assert_eq!(
+            panel.activate(UNBLOCK_BASE),
+            PanelAction::Mute {
+                key_id: "0123456789abcdef".to_owned(),
+                name: "^1Blocked 0".to_owned(),
+                muted: false,
+            }
+        );
+        assert_eq!(
+            panel.activate(UNBLOCK_BASE + 1),
+            PanelAction::Mute {
+                key_id: String::new(),
+                name: "^1Blocked 1".to_owned(),
+                muted: false,
+            },
+            "by name"
+        );
+        // A chosen message takes the place: no list.
+        let _ = panel.activate(MESSAGE_BASE + 1);
+        drawn(&mut panel, &with);
+        assert!(!panel.order.contains(&UNBLOCK_BASE));
+        assert_eq!(panel.activate(UNBLOCK_BASE), PanelAction::None);
+    }
+
+    #[test]
     fn resting_on_a_name_shows_the_sender_card_with_mute() {
         use crate::sender_card::Place;
         use sjk_ui::{InputEvent, Rect, Vec2};
@@ -1044,7 +1132,7 @@ mod tests {
         );
         drawn(&mut panel, &inputs(&chat, &[], false));
         let texts: Vec<&str> = panel.ui.text_runs().collect();
-        for wanted in ["On this server, slot 5, matched by name", "Mute"] {
+        for wanted in ["On this server, slot 5, matched by name", "Block"] {
             assert!(texts.contains(&wanted), "{wanted:?} in {texts:?}");
         }
         let card = panel.ui.rect_for(CARD_TOKEN).expect("the card's target");
@@ -1065,7 +1153,7 @@ mod tests {
         let muted = [key.clone()];
         drawn(&mut panel, &inputs(&chat, &muted, false));
         assert!(panel.card.is_some(), "kept while the pointer is on it");
-        assert!(panel.ui.text_runs().any(|text| text == "Unmute"));
+        assert!(panel.ui.text_runs().any(|text| text == "Unblock"));
         assert_eq!(panel.activate(CARD_MUTE_TOKEN), mute(false));
         // A click on the name chooses its message.
         let _ = panel.activate(NAME_BASE + 1);

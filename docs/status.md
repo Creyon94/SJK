@@ -1,3 +1,23 @@
+## Blocking a player
+
+18/10/2026, `personal/block-players`, based on `Sol-Vulpes/SJK` `1c8887f7`, Sol's
+request ("block another SJK player and never see their chat ... models and sabers
+default to kyle, emotes blocked, everything"): the PC-wide mute of 08/10 is now Block
+([hub-chat.md](hub-chat.md#blocking-a-player)). The sender cards and the SJK chat
+page say Block/Unblock and "Blocked on this PC"; the list stays `chat-mutes.txt`. Gaps
+closed: a blocked player's emotes no longer play (only `sjkemote mute` stopped them),
+their Order 66 orders and cardboard box spots are ignored, and aiming at them shows no
+player card (a pinned one loses their hub profile). New: `block <player|target>`,
+`block` (list), `unblock <player|all>`, and the SJK chat page's list of blocked players
+with Unblock while no message is chosen. Left as they were: their name where the game
+itself shows it (scoreboard, kill feed, nameplates).
+
+Verified on Windows 11: unit tests for the commands' name matching and listing and for
+the page's list (rows above the keys' line at 1080p, 4K and 1024x768, Unblock by key
+and by name, no list with a message chosen); the existing mute, sender card, chat and
+dock tests with the new labels. `cargo fmt --all --check`, `cargo build --locked --workspace`, `cargo clippy --locked --workspace --all-targets` (no warnings in the changed code) and `cargo test --locked --workspace` pass. Not verified: the emote, Order 66,
+cardboard box and player-card gates run in `GpuState`'s frame, which no test drives;
+nothing was tried in a game.
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
@@ -3301,7 +3321,7 @@ mask worked out only when the list, the hub's claims or the players change; the
 renderer swaps the model, sabers, blade colour and hat or cape, and the sound filter
 tests the source entity and, for saber hits and blocks, voice commands and chat beeps,
 the cause the sound events now name (`LegacySoundDecision::cause`)
-([hub-chat.md](hub-chat.md#muting-a-player)). Merged with main (`bde59f7`, through
+([hub-chat.md](hub-chat.md#blocking-a-player)). Merged with main (`bde59f7`, through
 `feat/sjk-chat-look`), a muted player's look goes too: no blade skin, so none of its
 sounds, and no lit Illuminate holocron (`Looks::set_muted`). Stacked on
 `feat/sjk-profile-card` too (#62), the hover card is the sender card (`sender_card.rs`,

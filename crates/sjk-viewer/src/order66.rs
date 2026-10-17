@@ -621,9 +621,13 @@ impl GpuState {
         let now = snapshot.server_time;
         let own = u8::try_from(game_state.client_num).ok();
         self.order66.rewind(now);
-        // The hub's orders: a sender counts only when the game shows the name they claimed.
+        // The hub's orders: a sender counts only when the game shows the name they claimed,
+        // and never one blocked on this PC.
         for event in events {
-            if event.toy != TOY || Some(event.slot) == own {
+            if event.toy != TOY
+                || Some(event.slot) == own
+                || self.muted_players.contains(u16::from(event.slot))
+            {
                 continue;
             }
             let Some(at) = order_moment(&event.event) else {

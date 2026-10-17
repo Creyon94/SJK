@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[block-players]
+area: Console & chat
+title: Block a player: no chat, Kyle, silent, no emotes, toys or card (was Mute)
+change: The sender card's Mute is now Block; the list stays in chat-mutes.txt.
+change: Their emotes, Order 66 orders, cardboard box spots and player card are ignored too.
+change: block <player|target>, block (lists), unblock <player|all>; SJK chat page lists them.
+test: Rest on a name in chat, Block: their lines go, they turn Kyle with a blue single saber.
+test: Have them play an emote (sjkemote) and spot your box: nothing happens on your screen.
+test: Aim at them: no player card. block alone lists them; unblock <name> brings them back.
+test: SJK chat page with no message chosen: "Blocked on this PC" with Unblock beside each.
+
 [name-emoji]
 area: Console & chat
 title: Name emoji: one emoji at the right of your name, picked on the Profile page

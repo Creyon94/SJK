@@ -2253,9 +2253,10 @@ sender's name. The cursor is free while composing. The player menu offers:
 - **copy:** copies the complete name, including its colour escapes.
 
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their
-sender card (picture, name, hub, medals) beside it, with Mute or Unmute: unlike ignore, a mute is kept on this PC
-(`chat-mutes.txt`) and, besides their chat, draws them as Kyle with the default saber
-and silences every sound they cause ([hub-chat.md](hub-chat.md#muting-a-player)).
+sender card (picture, name, hub, medals) beside it, with Block or Unblock: unlike ignore, a block is kept on this PC
+(`chat-mutes.txt`) and, besides their chat, draws them as Kyle with the default saber,
+silences every sound they cause and ignores their emotes, toys and player card; `block
+<player>` and `unblock <player|all>` do it from the console ([hub-chat.md](hub-chat.md#blocking-a-player)).
 
 The dropdown opens without a highlighted action. Hover follows the pointer;
 keyboard navigation highlights only its current row until the pointer moves.
@@ -2935,7 +2936,7 @@ arrives, the HUD pass).
   words.
 - **Hiding and muting:** `cg_worldPings` (archived, default 1; Settings > HUD > World
   pings > Others' world pings) 0 hides other players' pings; one's own still show and
-  are still sent. A player muted on this PC ([hub-chat.md](hub-chat.md#muting-a-player))
+  are still sent. A player blocked on this PC ([hub-chat.md](hub-chat.md#blocking-a-player))
   shows no pings. `cg_worldPingSound` (archived, default 1; Settings > HUD, and in the
   SJK UI's Advanced Sound under Notifications) plays `sound/interface/update` from the
   game's own data, the player's own pings included.
@@ -3241,9 +3242,9 @@ are in [identity.md](identity.md).
   ([hub-chat.md](hub-chat.md#how-a-line-looks)). The SJK UI's main page docks it under Recent servers;
   `sjkchat`, the dock's Open chat and the in-game SJK menu open its page. Resting the
   pointer on a name in the chat (composer open), on the dock or on the page shows the
-  player's sender card with Mute: a muted player's chat is hidden and, on the server,
+  player's sender card with Block: a blocked player's chat is hidden and, on the server,
   they are drawn as Kyle with the default saber and nothing they cause is heard, on
-  this PC only ([hub-chat.md](hub-chat.md#muting-a-player)). `cl_sjkChat 0` (Settings > Network > SJK
+  this PC only ([hub-chat.md](hub-chat.md#blocking-a-player)). `cl_sjkChat 0` (Settings > Network > SJK
   chat) hides it and stops the reading. `sjkemote <id>` sends an emote the SJK players
   on the server see (`sjkemote` alone lists the installed ones; none ship yet).
 - Back up `identity.key`: losing it loses the identity.

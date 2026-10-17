@@ -302,8 +302,13 @@ pub(crate) fn update(
         let head_icons = &gpu.scoreboard;
         let (looks, skins) = (&gpu.looks, &*gpu.blade_skins);
         let own_slot = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player).own;
+        // A player blocked on this PC gets no card, and a pinned one loses their profile.
+        let blocked = gpu.muted_players.slots();
         gpu.hud.card.update(hud::player_card::Input {
-            seen: gpu.crosshair_scan.hit_now(presentation_time),
+            seen: gpu
+                .crosshair_scan
+                .hit_now(presentation_time)
+                .filter(|&client| !blocked.contains(usize::from(client))),
             bsp: &gpu.bsp,
             scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
@@ -312,10 +317,17 @@ pub(crate) fn update(
             now: presentation_time,
             camera,
             hidden: plates_hidden,
-            hub: &player_identity::hub_info,
+            hub: &|slot, name| {
+                if blocked.contains(usize::from(slot)) {
+                    None
+                } else {
+                    player_identity::hub_info(slot, name)
+                }
+            },
             // What players share changes their card too.
             hub_revision: player_identity::revision()
-                ^ player_identity::vitals_flags(session.game_state()).rotate_left(17),
+                ^ player_identity::vitals_flags(session.game_state()).rotate_left(17)
+                ^ u64::from(blocked.muted).rotate_left(40),
             entities: &snapshot.entities,
             icon: &|slot| head_icons.head_icon(slot),
             shader: &|slot| card_shader(looks, skins, own_slot, slot),

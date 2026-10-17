@@ -201,6 +201,7 @@ impl ViewerConsole {
         self.sjk_chat_panel
             .find_pictures(crate::player_identity::avatar_version);
         let muted = crate::player_mutes::muted_keys();
+        let blocked = crate::player_mutes::entries();
         let staff = crate::player_identity::is_staff();
         let staff_state = staff.then(crate::player_identity::staff_state).flatten();
         let staff_shown = staff_state.as_ref().map(|state| StaffShown {
@@ -225,6 +226,7 @@ impl ViewerConsole {
         let inputs = Inputs {
             chat: chat.as_ref(),
             muted: &muted,
+            blocked: &blocked,
             staff,
             enabled,
             now,

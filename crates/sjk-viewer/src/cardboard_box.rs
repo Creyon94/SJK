@@ -598,9 +598,14 @@ impl GpuState {
         };
         let looks = &self.looks;
         let boxed = |slot: usize| Some(slot) != own.map(usize::from) && looks.toy(slot, TOY);
-        // The hub's events: a sender counts only when the game shows the name they claimed.
+        // The hub's events: a sender counts only when the game shows the name they claimed,
+        // and never one blocked on this PC.
         for event in events {
-            if event.toy != TOY || event.event != EVENT_SPOTTED || Some(event.slot) == own {
+            if event.toy != TOY
+                || event.event != EVENT_SPOTTED
+                || Some(event.slot) == own
+                || self.muted_players.contains(u16::from(event.slot))
+            {
                 continue;
             }
             let shown = crate::player_identity::shown_name(game_state, usize::from(event.slot));
