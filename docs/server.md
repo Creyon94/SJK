@@ -26,6 +26,18 @@ address and open the chosen UDP port.
 Always supply `--game-data` for a playable map. Without it the process can
 advertise a map name but does not load that map's content.
 
+## Siege class catalogues
+
+Installed Siege content follows JoF EJK #253's expanded catalogue capacities:
+the first 1024 `.scl` files and 256 `.team` files in load order are considered.
+A theme has up to 16 sequential `classN` slots (`class1` through `class16`),
+stopping at the first missing key; missing class references retain their slot.
+Oversized/refused files still occupy a global listing slot. The named limits
+live in the `sjk-game-jka` Siege compatibility parser; owned registries remain
+vectors. The client class selector uses the same capacities in both UI styles,
+so it does not exceed those catalogue capacities. These content limits
+change no protocol-26 field, class loadout, movement or combat timing.
+
 ## Options and configuration
 
 The authoritative option parser and usage text are in

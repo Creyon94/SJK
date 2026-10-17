@@ -2,7 +2,7 @@
 //!
 //! Siege is the one stock game type where a player does not simply spawn with the usual
 //! loadout: each side is a *theme* (a team file, `ext_data/Siege/Teams/*.team`) listing
-//! up to [`MAX_SIEGE_CLASSES`] classes, and a class file (`ext_data/Siege/Classes/*.scl`)
+//! up to [`MAX_SIEGE_CLASSES_PER_TEAM`] classes, and a class file (`ext_data/Siege/Classes/*.scl`)
 //! says what that class carries, how much health and armour it has, which Force powers it
 //! knows and at what rank, and — optionally — which model and saber it is forced to use.
 //!
@@ -14,9 +14,12 @@
 
 use crate::siege_text::{self, FORCE_POWER_COUNT, TextError};
 
-/// `MAX_SIEGE_CLASSES`: how many classes the game keeps, and how far a team's `classN`
-/// keys are read.
-pub const MAX_SIEGE_CLASSES: usize = 128;
+/// JoF EJK #253's global `.scl` file capacity (`bg_saga.h`).
+pub const MAX_SIEGE_CLASSES: usize = 1024;
+/// JoF EJK #253's global `.team` file capacity; independent of the two map sides.
+pub const MAX_SIEGE_TEAMS: usize = 256;
+/// `MAX_SIEGE_CLASSES_PER_TEAM`: named class slots in one theme, not the global catalogue.
+pub const MAX_SIEGE_CLASSES_PER_TEAM: usize = 16;
 /// `NUM_FORCE_POWERS` in multiplayer.
 pub const NUM_FORCE_POWERS: usize = FORCE_POWER_COUNT;
 
@@ -287,7 +290,7 @@ pub fn parse_team(text: &str) -> Result<SiegeTheme, ClassError> {
         .ok_or(ClassError::Missing("Siege team with no name definition"))?;
     let mut classes = Vec::new();
     if let Some(block) = siege_text::value_group(bytes, b"Classes")? {
-        for index in 1..MAX_SIEGE_CLASSES {
+        for index in 1..=MAX_SIEGE_CLASSES_PER_TEAM {
             let Some(class) = siege_text::paired(&block, &format!("class{index}"))? else {
                 break;
             };
@@ -314,14 +317,15 @@ pub struct SiegeRegistry {
 impl SiegeRegistry {
     /// Reads the class files and then the team files, each list in listing order; a file
     /// longer than the reference's buffer (4096 bytes for a class, 2048 for a team) is not
-    /// read, as `FS_Open`'s caller skips it.
+    /// read, as `FS_Open`'s caller skips it. Only the first global-capacity number
+    /// of files is considered, including invalid/oversized entries, after EJK #253.
     pub fn load<'a>(
         class_files: impl IntoIterator<Item = &'a str>,
         team_files: impl IntoIterator<Item = &'a str>,
     ) -> Self {
         let mut registry = Self::default();
-        for text in class_files {
-            if text.len() >= 4_096 || registry.classes.len() >= MAX_SIEGE_CLASSES {
+        for text in class_files.into_iter().take(MAX_SIEGE_CLASSES) {
+            if text.len() >= 4_096 {
                 continue;
             }
             match parse(text) {
@@ -329,7 +333,7 @@ impl SiegeRegistry {
                 Err(error) => eprintln!("siege: a class file is refused: {error:?}"),
             }
         }
-        for text in team_files {
+        for text in team_files.into_iter().take(MAX_SIEGE_TEAMS) {
             if text.len() >= 2_048 {
                 continue;
             }
@@ -366,9 +370,15 @@ impl SiegeRegistry {
                     classes: theme
                         .classes
                         .iter()
+                        .take(MAX_SIEGE_CLASSES_PER_TEAM)
                         .map(|name| self.class_index(name))
                         .collect(),
-                    names: theme.classes.clone(),
+                    names: theme
+                        .classes
+                        .iter()
+                        .take(MAX_SIEGE_CLASSES_PER_TEAM)
+                        .cloned()
+                        .collect(),
                 })
         };
         SiegeTeams {
@@ -418,7 +428,12 @@ impl SiegeTeams {
             (SIEGETEAM_TEAM2, &self.team2),
         ] {
             let Some(side) = side else { continue };
-            for class in side.classes.iter().take(MAX_SIEGE_CLASSES).flatten() {
+            for class in side
+                .classes
+                .iter()
+                .take(MAX_SIEGE_CLASSES_PER_TEAM)
+                .flatten()
+            {
                 let class = &registry.classes[*class];
                 if !class.name.is_empty() && class.name.eq_ignore_ascii_case(name) {
                     return Some(team);
@@ -611,3 +626,63 @@ pub const CS_SIEGE_OBJECTIVES: usize = 294;
 pub const CS_SIEGE_TIMEOVERRIDE: usize = 295;
 pub const CS_SIEGE_WINTEAM: usize = 296;
 pub const CS_SIEGE_ICONS: usize = 297;
+
+#[cfg(test)]
+mod catalogue_limit_tests {
+    use super::*;
+    #[test]
+    fn expanded_global_catalogues_keep_their_reference_file_bounds() {
+        let classes: Vec<_> = (0..=MAX_SIEGE_CLASSES)
+            .map(|i| {
+                format!(
+                    "ClassInfo\n{{\nname class{i}\nweapons WP_MELEE\nuishader synthetic/ui\n}}\n"
+                )
+            })
+            .collect();
+        let themes: Vec<_> = (0..=MAX_SIEGE_TEAMS)
+            .map(|i| format!("name team{i}\nClasses\n{{\nclass1 class129\n}}\n"))
+            .collect();
+        let registry = SiegeRegistry::load(
+            classes.iter().map(String::as_str),
+            themes.iter().map(String::as_str),
+        );
+        assert_eq!(registry.classes.len(), 1024);
+        assert_eq!(registry.themes.len(), 256);
+        assert_eq!(registry.class_index("class129"), Some(129));
+        assert!(registry.class_index("class1024").is_none());
+        assert!(registry.theme("team255").is_some());
+        assert!(registry.theme("team256").is_none());
+        let oversized = "x".repeat(4096);
+        let registry = SiegeRegistry::load(
+            std::iter::once(oversized.as_str()).chain(classes.iter().map(String::as_str)),
+            std::iter::empty(),
+        );
+        assert_eq!(
+            registry.classes.len(),
+            1023,
+            "a refused file still occupies a listing slot"
+        );
+        assert!(registry.class_index("class1023").is_none());
+    }
+    #[test]
+    fn a_team_keeps_sixteen_slots_and_stops_at_the_first_gap() {
+        let entries = (1..=20)
+            .map(|i| format!("class{i} name{i}\n"))
+            .collect::<String>();
+        let theme = parse_team(&format!("name theme\nClasses\n{{\n{entries}}}\n")).unwrap();
+        assert_eq!(theme.classes.len(), 16);
+        assert_eq!(theme.classes.last().unwrap(), "name16");
+        let gap = parse_team("name gap\nClasses\n{\nclass1 first\nclass3 third\n}\n").unwrap();
+        assert_eq!(gap.classes, ["first"]);
+        let registry = SiegeRegistry {
+            classes: Vec::new(),
+            themes: vec![theme],
+        };
+        let sides = registry.sides(Some("theme"), None);
+        assert_eq!(sides.team1.as_ref().unwrap().classes.len(), 16);
+        assert!(
+            sides.team1.unwrap().classes.iter().all(Option::is_none),
+            "missing class references keep their slots"
+        );
+    }
+}
