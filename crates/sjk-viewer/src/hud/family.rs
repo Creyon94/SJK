@@ -12,6 +12,16 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             2,
             "Local score: 0 hidden, 1 personal, 2 includes team scores",
         ),
+        (
+            "cg_drawFlagStatus",
+            1,
+            "Capture the flag: the flag icons at the left and a note while you carry one",
+        ),
+        (
+            "cg_drawTeamScores",
+            1,
+            "Team games: the red and blue scores at the top centre",
+        ),
         ("cg_drawSnapshot", 0, "Snapshot time and message number"),
         ("cg_drawUpperRight", 1, "Show upper-right match information"),
         ("cg_drawVote", 1, "Show vote information"),
@@ -137,6 +147,7 @@ impl HudOverlay {
         self.family = Policy::read(console);
         self.kill_feed.sample(console);
         self.icons.update(snapshot, game, console);
+        self.flag_status.update(snapshot, game, console);
         self.targeting.update(console, &snapshot.player);
         self.inventory_bits = if snapshot.player.health() > 0
             && snapshot.player.movement_type() != 4
@@ -152,7 +163,10 @@ impl HudOverlay {
             "SCORE {}",
             snapshot.player.persistent[0] as i32
         );
-        if self.family.score > 1 && matches!(snapshot.player.team(), 1 | 2) {
+        if self.family.score > 1
+            && matches!(snapshot.player.team(), 1 | 2)
+            && !self.flag_status.scores_shown()
+        {
             for index in [6, 7] {
                 let value = config_number(game, index);
                 let _ = write!(self.score_text, " / {value}");

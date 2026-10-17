@@ -496,6 +496,16 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Team scores",
+        cvar: "cg_drawTeamScores",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Flag status (capture the flag)",
+        cvar: "cg_drawFlagStatus",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Version and date",
         cvar: crate::version_overlay::CVAR,
         kind: ValueKind::Bool,

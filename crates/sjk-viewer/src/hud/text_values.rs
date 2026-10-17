@@ -36,6 +36,9 @@ impl HudOverlay {
                 crate::scope::binoculars::DIGIT_TEXT
                     [(value - crate::scope::binoculars::TEXT_FIRST) as usize]
             }
+            value @ flag_status::TEXT_FIRST..=flag_status::TEXT_LAST => {
+                self.flag_status.text(value)
+            }
             value @ 400..=415 => self.icons.text((value - 400) as usize),
             value @ kill_feed::TEXT_FIRST..=kill_feed::TEXT_LAST => self.kill_feed.text(value),
             _ => selection::text(id),

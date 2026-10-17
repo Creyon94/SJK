@@ -5012,3 +5012,16 @@ test: On a JA+ server: amhips, then freecam: the camera flies with the move keys
 test: Same from the quick wheel, and during an SJK dance emote.
 test: Leave free cam: you are still in the emote where you left it.
 note: Fix not confirmed for JA+ emotes; if it still fails, note which emote.
+
+[ctf-flags]
+area: HUD
+title: Capture the flag: flag icons, "you have the flag" and team scores on the HUD
+change: Flag icons at the left (theirs taken/dropped, yours taken), in every HUD style.
+change: A gold plate and "YOU HAVE THE FLAG" while you carry one; red and blue scores at the top centre.
+change: Scoreboards also mark a carrier in view when the server sends no powerups. CTY icons fixed.
+test: On a CTF server take the enemy flag: gold plate and "YOU HAVE THE FLAG" at the left.
+test: A teammate takes it, then drops it: the icon says TAKEN, then DROPPED; same for your flag.
+test: Red and blue scores show under the clock; try cg_hudStyle game, classic and radial.
+test: Hold the scoreboard: the carrier has a flag icon before the name, in both scoreboard styles.
+test: Settings > HUD > Team scores and Flag status (capture the flag) switch them off.
+note: Slash reported this on JoF servers; the status string is the original CS_FLAGSTATUS.

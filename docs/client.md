@@ -2324,6 +2324,32 @@ retail's colours and highlight art on the classic menus and the theme's with
 the SJK UI. "Game HUD files" stays on the tab for lists the picker does not
 find.
 
+## Capture the flag HUD
+
+In Capture the Flag and Capture the Ysalamiri every HUD style shows the flags' state
+([flag_status.rs](../crates/sjk-viewer/src/hud/flag_status.rs)), reading what
+the original cgame reads:
+
+- Flag icons at the left (`cg_drawFlagStatus`, on by default, Settings > HUD), as
+  `CG_DrawFlagStatus` places them (32 units at x 2, y 328 and one icon up): the enemy flag
+  (`gfx/hud/mpi_bflag` or `mpi_rflag`, the `_ys` pictures in CTY) while your team holds it,
+  taken or dropped, and your own flag's `mpi_*flag_x` picture while the enemy holds it. The
+  state is `CS_FLAGSTATUS` (config string 23: red then blue, `0` at base, `1` taken, `2`
+  dropped); the caption beside each says TAKEN or DROPPED.
+- While the local player carries a flag (`PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG`
+  in the player state, whatever the status string says) the enemy flag's icon stands on a
+  gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
+  still follows `cg_drawPowerupIcons` and `cg_drawUpperRight`; it now uses the ysalamiri
+  pictures in CTY only (it took CTF for CTY).
+- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): "RED 3"
+  and "BLUE 5" plates under the clock at the top centre, from `CS_SCORES1` and `CS_SCORES2`
+  (`-` while the server has not sent one). With them on, the layouts' score line drops its
+  trailing team scores (`cg_drawScore 2`), which they replace.
+
+The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name from the
+`scores` command's powerups; they also use the powerups of a player in view in the
+snapshot (and the local player state), for servers whose `scores` list none.
+
 ## Kill feed
 
 `cg_killfeed` (on by default, Settings > HUD > "Kill feed") lists the last kills
