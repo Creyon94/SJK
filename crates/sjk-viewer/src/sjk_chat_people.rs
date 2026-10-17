@@ -378,6 +378,7 @@ mod tests {
         drop.holocron = Some(DropMark {
             tier: "legendary".to_owned(),
             own: false,
+            find: None,
         });
         let chat = ChatState {
             online: 4,

@@ -69,6 +69,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   tested, until the hub opens it to everyone; since 17/10/2026 a holocron opens like a
   loot crate: the 3D holocron spins up and cracks open in a flash, a strip of prizes
   runs to a stop, and Open all runs five strips at a time and lays out what was found;
+  grand finds (Legendary or Solar cards, Legendary or Mythical shaders) are told to every
+  SJK player in chat;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,
   through the hub, your team only in team games;
 - team games (13/10/2026): red outlines on enemies and green on teammates where they

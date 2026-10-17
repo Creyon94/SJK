@@ -35,6 +35,16 @@ test: Say something in SJK chat and game chat: the fox stands between your name 
 test: Open the scoreboard (SJK style): the fox follows your name.
 test: Paste two emoji or a letter on the panel: it says a name emoji is one emoji picture.
 
+[grand-finds]
+area: Console & chat
+title: Grand finds in SJK chat: who opened a holocron and got a grand prize
+change: A Legendary or Solar card, or a Legendary or Mythical shader, is told to everyone.
+change: The line reads "Sol opened a Mythical Holocron: Phoenix blade!" with the tier's gem.
+test: Needs the hub branch feat/grand-finds deployed; then open holocrons until a grand find.
+test: Your line reads "You opened ..."; a second SJK client sees "Sol opened ...".
+test: A muted player's finds are not shown.
+note: The hub part is NOT deployed yet; until then nothing changes.
+
 [chat-limits]
 area: Console & chat
 title: Unverified players: one SJK chat message every 30 s, no links or GIFs
