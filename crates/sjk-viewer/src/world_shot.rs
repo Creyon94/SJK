@@ -282,6 +282,8 @@ mod cardboard_box;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 
+#[path = "world_shot_saber_cost.rs"]
+mod saber_cost;
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
 
