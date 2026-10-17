@@ -594,12 +594,10 @@ pub(super) fn build(
     };
     let board = painter.board(rows);
     dim(painter.ui, &frame, viewport, board.span);
-    if header.gametype == SIEGE {
-        match header.siege_winner {
-            Some(RED) => won_tint(painter.ui, viewport, RED_TEAM),
-            Some(BLUE) => won_tint(painter.ui, viewport, BLUE_TEAM),
-            _ => {}
-        }
+    match outcome(header) {
+        Some(Outcome::Won(RED)) => won_tint(painter.ui, viewport, RED_TEAM),
+        Some(Outcome::Won(_)) => won_tint(painter.ui, viewport, BLUE_TEAM),
+        Some(Outcome::Tied) | None => {}
     }
     // It settles into place as it opens, as the classic board does.
     painter.frame.origin[1] -= (1.0 - opacity) * 12.0 * frame.s;
@@ -652,7 +650,33 @@ fn dim(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], span: Option<[f32
     }
 }
 
-/// A siege round won: the whole window washed faintly in the winner's colour,
+/// How a team match came out, once it is known: a siege round over (siege scores no
+/// team), or any other team game at its intermission, by the team scores.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Outcome {
+    Won(u8),
+    Tied,
+}
+
+fn outcome(header: &SjkHeader<'_>) -> Option<Outcome> {
+    if header.gametype == SIEGE {
+        return header
+            .siege_winner
+            .filter(|team| matches!(*team, RED | BLUE))
+            .map(Outcome::Won);
+    }
+    if header.gametype < TEAM || !header.local.intermission {
+        return None;
+    }
+    let [red, blue] = header.team_scores;
+    Some(match red.cmp(&blue) {
+        std::cmp::Ordering::Greater => Outcome::Won(RED),
+        std::cmp::Ordering::Less => Outcome::Won(BLUE),
+        std::cmp::Ordering::Equal => Outcome::Tied,
+    })
+}
+
+/// A team match won: the whole window washed faintly in the winner's colour,
 /// a little deeper towards the top, where the winner is told.
 fn won_tint(ui: &mut MenuCanvas, viewport: [f32; 2], tint: Color) {
     let [width, height] = viewport;
@@ -1064,8 +1088,9 @@ impl Painter<'_> {
             return RIGHT;
         }
         if header.gametype >= TEAM {
-            if header.gametype == SIEGE {
-                // Siege scores no team; its winner is told above the teams.
+            // Siege scores no team, and a match over tells its outcome above the
+            // teams ([`Self::outcome`]): nothing to say here.
+            if header.gametype == SIEGE || outcome(header).is_some() {
                 return RIGHT;
             }
             let [red, blue] = header.team_scores;
@@ -1184,9 +1209,7 @@ impl Painter<'_> {
         let capture = matches!(self.header.gametype, CTF | CTY);
         let siege = self.header.gametype == SIEGE;
         let width = board.width;
-        if siege {
-            self.siege_winner(board);
-        }
+        self.outcome(board);
         let [red, blue] = self.header.team_scores;
         for (team, x) in [(RED, board.x), (BLUE, board.x + width + GUTTER)] {
             let (score, other) = if team == RED {
@@ -1211,17 +1234,31 @@ impl Painter<'_> {
         }
     }
 
-    /// Siege's round over: "Blue team won" or "Red team won", large and in the
-    /// winner's colour, centred over both teams.
-    fn siege_winner(&mut self, board: &Board) {
-        let (line, tint) = match self.header.siege_winner {
-            Some(RED) => ("Red team won", RED_TEAM),
-            Some(BLUE) => ("Blue team won", BLUE_TEAM),
-            _ => return,
+    /// The match's outcome, large and in the winner's colour, centred over both teams:
+    /// in siege "Blue team won"; in the other team games at the intermission the score
+    /// with the winner's first, "5 : 4  Blue team won", or "Tied 5 : 5".
+    fn outcome(&mut self, board: &Board) {
+        let Some(outcome) = outcome(self.header) else {
+            return;
+        };
+        let [red, blue] = self.header.team_scores;
+        let siege = self.header.gametype == SIEGE;
+        let (line, tint) = match outcome {
+            Outcome::Won(RED) if siege => (Short::of(format_args!("Red team won")), RED_TEAM),
+            Outcome::Won(_) if siege => (Short::of(format_args!("Blue team won")), BLUE_TEAM),
+            Outcome::Won(RED) => (
+                Short::of(format_args!("{red} : {blue}  Red team won")),
+                RED_TEAM,
+            ),
+            Outcome::Won(_) => (
+                Short::of(format_args!("{blue} : {red}  Blue team won")),
+                BLUE_TEAM,
+            ),
+            Outcome::Tied => (Short::of(format_args!("Tied {red} : {blue}")), color::TEXT),
         };
         self.run(
             TextFamily::Display,
-            format_args!("{line}"),
+            format_args!("{}", line.as_str()),
             board.x,
             142.0,
             board.width * 2.0 + GUTTER,
@@ -2025,6 +2062,27 @@ mod tests {
                 ..Default::default()
             }),
         }
+    }
+
+    #[test]
+    fn a_team_match_tells_its_outcome_only_once_it_is_over() {
+        let mut ctf = header(CTF, 5);
+        // `header` gives red 5, blue 3.
+        assert_eq!(outcome(&ctf), None);
+        ctf.local.intermission = true;
+        assert_eq!(outcome(&ctf), Some(Outcome::Won(RED)));
+        ctf.team_scores = [3, 4];
+        assert_eq!(outcome(&ctf), Some(Outcome::Won(BLUE)));
+        ctf.team_scores = [2, 2];
+        assert_eq!(outcome(&ctf), Some(Outcome::Tied));
+        let mut free = header(0, 5);
+        free.local.intermission = true;
+        assert_eq!(outcome(&free), None);
+        // Siege: its round's winner, whatever the (unkept) team scores say.
+        let mut siege = header(SIEGE, 5);
+        assert_eq!(outcome(&siege), None);
+        siege.siege_winner = Some(BLUE);
+        assert_eq!(outcome(&siege), Some(Outcome::Won(BLUE)));
     }
 
     fn header(gametype: i32, local: u16) -> SjkHeader<'static> {
