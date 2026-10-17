@@ -1805,7 +1805,7 @@ are at most 256 chords. A literal plus key can be the first key as `++K`.
 The settings editor shows an existing chord as one occupied slot and can clear
 or replace it, but captures one physical key at a time. Create a chord in the
 console. This follows JoF EJK commit `b6623f51` (`codemp/client/cl_keys.cpp`),
-including first-match insertion order when several held chords could fire.
+including first-match table order when several held chords could fire.
 
 ## Development maps
 

@@ -12,8 +12,8 @@ pub const MAX_KEY_COMBOS: usize = 256;
 #[derive(Clone, Debug, Default)]
 pub struct BindTable {
     bindings: BTreeMap<String, Binding>,
-    // Insertion order decides which chord wins when several held chords match,
-    // as JoF EJK's fixed combo array does.
+    // Table order decides which chord wins when several held chords match, as
+    // JoF EJK's fixed combo array does. Removing one swaps the last into its slot.
     combos: Vec<ComboBinding>,
     /// Stamp of the bindings ([`Self::revision`]); not part of equality.
     revision: u64,
@@ -143,7 +143,7 @@ impl BindTable {
                 .combos
                 .iter()
                 .position(|combo| combo.first == *first && combo.second == *second)
-                .map(|index| self.combos.remove(index))
+                .map(|index| self.combos.swap_remove(index))
                 .is_some(),
         };
         if removed {
@@ -225,8 +225,10 @@ impl BindTable {
         }
 
         state.held.remove(&normalized);
-        if let Some(combo) = state.active.remove(&normalized) {
-            return commands_for_script(self.get(&combo), false);
+        if let Some(combo) = state.active.remove(&normalized)
+            && let Some(command) = self.get(&combo)
+        {
+            return commands_for_script(Some(command), false);
         }
         commands_for_script(
             self.bindings
@@ -459,5 +461,34 @@ mod tests {
             binds.bind(&names[MAX_KEY_COMBOS], "kill"),
             Err(BindError::TooManyCombos)
         ));
+    }
+
+    #[test]
+    fn removing_a_combo_moves_the_last_into_its_jof_table_slot() {
+        let mut binds = BindTable::new();
+        let mut state = BindState::default();
+        binds.bind("A+X", "removed").unwrap();
+        binds.bind("B+K", "older").unwrap();
+        binds.bind("C+K", "last").unwrap();
+        assert!(binds.unbind("X+A"));
+
+        assert!(
+            binds
+                .commands_for_chord_event(&mut state, "B", true)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            binds
+                .commands_for_chord_event(&mut state, "C", true)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            binds
+                .commands_for_chord_event(&mut state, "K", true)
+                .unwrap(),
+            ["last"]
+        );
     }
 }

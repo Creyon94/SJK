@@ -124,7 +124,7 @@ fn apply_config(
     Ok(())
 }
 
-/// Atomically save archived cvars and binds in deterministic name order.
+/// Atomically save archived cvars and bindings in stable table order.
 pub fn save_config(
     path: &Path,
     cvars: &CvarRegistry,
@@ -133,7 +133,7 @@ pub fn save_config(
     write_config_text(path, &config_text(cvars, binds)?)
 }
 
-/// The text [`save_config`] writes: archived cvars and binds in name order.
+/// The text [`save_config`] writes: archived cvars in name order, then bindings.
 pub(crate) fn config_text(cvars: &CvarRegistry, binds: &BindTable) -> Result<String, ConfigError> {
     let mut contents = String::from("// SJK generated configuration. Edit while SJK is closed.\n");
     for cvar in cvars

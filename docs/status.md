@@ -6,7 +6,7 @@ press, the chord replaces the second key's normal bind, and a chord `+command`
 gets its release. Query, `unbind`, `unbindall`, `bindlist`, generated configs and
 the config importer understand chords. The implementation follows JoF EJK alpha
 commit `b6623f51` (`codemp/client/cl_keys.cpp`), including its 256-chord limit,
-last-plus parsing (`++K`) and first-match insertion order. Unit tests cover name
+last-plus parsing (`++K`) and first-match table order. Unit tests cover name
 normalization, both press orders, release behavior, focus-state clearing,
 console commands, config round-trip and import. On Linux x86_64 with Rust 1.99.1,
 `cargo fmt --all --check`, the locked workspace build and tests, workspace
