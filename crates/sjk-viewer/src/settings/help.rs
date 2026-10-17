@@ -288,6 +288,10 @@ const HELP: &[(&str, &str)] = &[
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),
+    (
+        crate::audio::music::CVAR,
+        "Resume map music by level time on join or after duels. Off restarts it. Dynamic music keeps its own timing.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,

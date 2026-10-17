@@ -38,6 +38,8 @@ mod dynamic;
 mod feedback;
 #[path = "audio_holstered_staff.rs"]
 mod holstered_staff;
+#[path = "audio_music.rs"]
+pub(crate) mod music;
 #[path = "audio_transitions.rs"]
 mod transitions;
 pub(crate) use assets::SoundPrefetch;
@@ -71,6 +73,8 @@ pub(crate) struct GameAudio {
     dynamic: Option<dynamic::Level>,
     allow_dynamic: bool,
     duel_enabled: bool,
+    music_sync: bool,
+    music_sync_pending: bool,
     chat_beeps: [bool; 2],
     deferred_starts: u64,
     maximum_deferred_start_ms: f64,
@@ -163,6 +167,8 @@ impl GameAudio {
             dynamic: None,
             allow_dynamic: true,
             duel_enabled: true,
+            music_sync: true,
+            music_sync_pending: false,
             chat_beeps: [true; 2],
             deferred_starts: 0,
             maximum_deferred_start_ms: 0.0,
@@ -223,6 +229,10 @@ impl GameAudio {
             glam::Vec3::Z,
             glam::Vec3::ZERO,
         );
+        if self.music_sync_pending {
+            self.music_sync_pending = false;
+            self.restore_map_music(snapshot, game_state);
+        }
         self.poll_legacy_load();
         self.output
             .send(AudioCommand::ListenerSource(Some(SourceId(u32::from(
@@ -308,19 +318,7 @@ impl GameAudio {
             music_action = adapter.music_actions().last().copied();
         }
         self.transition_cues(snapshot, true);
-        match music_action {
-            Some(LegacyMusicAction::StartPrivateDuel) if self.duel_enabled => {
-                if let Some(handle) = self.duel_music {
-                    self.output.start_music(handle, handle);
-                }
-            }
-            Some(LegacyMusicAction::RestoreMap) => {
-                if let Some((intro, repeating)) = self.map_music {
-                    self.output.start_music(intro, repeating);
-                }
-            }
-            _ => {}
-        }
+        self.apply_music_action(music_action, snapshot, game_state);
     }
 
     fn play_deferred_snapshots(&mut self) {

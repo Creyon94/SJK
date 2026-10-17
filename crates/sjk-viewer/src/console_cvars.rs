@@ -171,6 +171,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Kill cue: 0 off, 1 normal, 2 midair",
         ),
         CvarDefinition::new(
+            crate::audio::music::CVAR,
+            true,
+            archive,
+            "Resume file-based map music using level time; dynamic music keeps its own transitions",
+        ),
+        CvarDefinition::new(
             "cg_jumpSounds",
             0_i64,
             archive,

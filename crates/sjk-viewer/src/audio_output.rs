@@ -97,8 +97,12 @@ impl Iterator for MixerSource {
                         }
                     }
                     DecodedAction::StopMusic => self.mixer.stop_background_track(),
-                    DecodedAction::StartMusic(intro, repeating) => {
-                        let counter = if self.mixer.start_background_track(intro, repeating, 1.0) {
+                    DecodedAction::StartMusic(intro, repeating, offset) => {
+                        let elapsed = offset.map_or(0, |offset| offset.position(Instant::now()));
+                        let counter = if self
+                            .mixer
+                            .start_background_track_at(intro, repeating, 1.0, elapsed)
+                        {
                             &self.stats.music_starts
                         } else {
                             &self.stats.music_rejections
@@ -197,9 +201,25 @@ pub(super) enum AudioCommand {
     Shutdown,
 }
 
+/// Clock anchor travels with one synced start through decoding and callback queues.
+#[derive(Clone, Copy)]
+struct MusicOffset {
+    elapsed_ms: u64,
+    queued_at: Instant,
+}
+impl MusicOffset {
+    fn position(self, now: Instant) -> u64 {
+        self.elapsed_ms.saturating_add(
+            now.saturating_duration_since(self.queued_at)
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64,
+        )
+    }
+}
+
 enum DecodedAction {
     Register(SoundHandle, DecodedSound),
-    StartMusic(SoundHandle, SoundHandle),
+    StartMusic(SoundHandle, SoundHandle, Option<MusicOffset>),
     StopMusic,
 }
 
@@ -233,7 +253,7 @@ enum DecodeJob {
         extension: Box<str>,
         make: fn(&[f32], u32) -> Vec<f32>,
     },
-    StartMusic(SoundHandle, SoundHandle),
+    StartMusic(SoundHandle, SoundHandle, Option<MusicOffset>),
     StopMusic,
 }
 
@@ -298,6 +318,23 @@ impl AudioOutput {
             cache: std::cell::RefCell::new(Vec::new()),
         };
         Some((audio, source))
+    }
+
+    /// Reuse the normal queues/decoder/mixer without opening a device in focused tests.
+    #[cfg(test)]
+    pub(super) fn test_output() -> (Self, impl Iterator<Item = f32>) {
+        Self::assemble(
+            MixerConfig {
+                voices: VOICES,
+                loops: LOOPS,
+                sample_rate: SAMPLE_RATE,
+                loop_attenuation: sjk_client::legacy_sound_attenuation(0),
+                doppler: sjk_client::legacy_doppler_config(true),
+                protected_channel: Some(crate::audio::EMOTE_CHANNEL),
+            },
+            "detached music test".into(),
+        )
+        .unwrap()
     }
 
     pub(super) fn send(&mut self, command: AudioCommand) {
@@ -374,11 +411,31 @@ impl AudioOutput {
     }
 
     pub(super) fn start_music(&self, intro: SoundHandle, repeating: SoundHandle) {
+        self.queue_music(intro, repeating, None);
+    }
+
+    pub(super) fn start_music_at(
+        &self,
+        intro: SoundHandle,
+        repeating: SoundHandle,
+        elapsed_ms: u64,
+    ) {
+        self.queue_music(
+            intro,
+            repeating,
+            Some(MusicOffset {
+                elapsed_ms,
+                queued_at: Instant::now(),
+            }),
+        );
+    }
+
+    fn queue_music(&self, intro: SoundHandle, repeating: SoundHandle, offset: Option<MusicOffset>) {
         let Some(sender) = &self.decode_jobs else {
             return;
         };
         if sender
-            .try_send(DecodeJob::StartMusic(intro, repeating))
+            .try_send(DecodeJob::StartMusic(intro, repeating, offset))
             .is_err()
         {
             crate::log::progress(format_args!("audio decode queue is full; music deferred"));
@@ -437,7 +494,9 @@ fn decode(
                 },
             ),
             DecodeJob::StopMusic => DecodedAction::StopMusic,
-            DecodeJob::StartMusic(intro, repeating) => DecodedAction::StartMusic(intro, repeating),
+            DecodeJob::StartMusic(intro, repeating, offset) => {
+                DecodedAction::StartMusic(intro, repeating, offset)
+            }
         };
         if !feed::push_until_closed(&mut registrations, action, closing, feed::PATIENCE) {
             return;
@@ -588,5 +647,28 @@ mod stopped_stream_tests {
             let _ = done.send(());
         });
         assert_eq!(finished.recv_timeout(LIMIT), Ok(()));
+    }
+}
+
+#[cfg(test)]
+mod music_clock_tests {
+    use super::*;
+    #[test]
+    fn music_start_clock_compensates_queue_delay_without_leaking_to_other_starts() {
+        let start = Instant::now();
+        let offset = MusicOffset {
+            elapsed_ms: 1234,
+            queued_at: start,
+        };
+        assert_eq!(offset.position(start + Duration::from_millis(76)), 1310);
+        assert_eq!(offset.position(start - Duration::from_millis(1)), 1234);
+        assert_eq!(
+            MusicOffset {
+                elapsed_ms: u64::MAX,
+                queued_at: start
+            }
+            .position(start + Duration::from_millis(1)),
+            u64::MAX
+        );
     }
 }

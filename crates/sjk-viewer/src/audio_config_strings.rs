@@ -129,6 +129,7 @@ impl GameAudio {
             self.start_music(vfs, &music);
         } else {
             self.map_music = None;
+            self.dynamic = None;
             self.output.stop_music();
         }
     }

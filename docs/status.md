@@ -1,3 +1,22 @@
+## Map music lifecycle and clock starts
+
+17/10/2026, `fix/map-music-recovery`, based on `bb83eb28`, Windows:
+implemented file-track level-clock starts after JoF EJK #161, with default-on
+`cg_musicSync` in both settings styles. Starts carry a typed per-request offset,
+including decode/callback queue delay, instead of a global one-shot cvar. The
+native sequencer preserves distinct intro/loop semantics; dynamic music retains
+its own transitions. Empty server CS_MUSIC is authoritative silence, including
+after duels, and clears dynamic state; offline world viewing keeps BSP music.
+The existing map-handoff stop already covers #146; #103's remaining lifecycle
+gaps are addressed. Seven synthetic regressions cover PCM phase/boundaries,
+invalid handles, clock clamping, server/offline selection, queue delay and
+musicless-map duel restoration through the decoder/mixer without an audio device.
+All seven regressions and the four required workspace checks passed on Windows
+x86_64, Rust 1.99.0, code revision `927a51de`; existing warnings remain.
+No live listening, peer synchronization or installed-
+asset/server comparison has run. No wire or gameplay changes.
+See [client music](client.md#map-music-synchronization).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

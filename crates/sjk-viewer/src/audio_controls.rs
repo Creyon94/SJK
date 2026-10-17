@@ -73,6 +73,9 @@ impl GameAudio {
             .and_then(|c| c.bool_cvar("cg_oldpainsounds"))
             .unwrap_or(false);
         self.voice_policy.sample(console);
+        self.music_sync = console
+            .and_then(|c| c.bool_cvar("cg_musicsync"))
+            .unwrap_or(true);
         self.kill_sounds = console
             .and_then(|c| c.integer_cvar("cg_killsounds"))
             .unwrap_or(2);
