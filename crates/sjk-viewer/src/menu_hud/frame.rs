@@ -96,6 +96,10 @@ pub(crate) struct TextRun {
     pub(crate) color: [f32; 4],
     pub(crate) centred: bool,
     pub(crate) side: Option<Side>,
+    /// The x (640x480 units, on `side`) the run must end at or before: a run
+    /// that would pass it moves left to end there. SJK's vector font is wider
+    /// than retail's, so the text HUD's right-hand runs could leave the screen.
+    pub(crate) end_limit: Option<f32>,
 }
 
 /// One frame's pictures and text, reused frame to frame.
@@ -128,6 +132,10 @@ impl Default for Frame {
 /// `FONT_MEDIUM` (`ergoec`) and `FONT_SMALL` (`ocr_a`) point sizes.
 const MEDIUM_POINTS: f32 = 20.0;
 const SMALL_POINTS: f32 = 18.0;
+
+/// Units the text HUD's right-hand runs keep from the screen's right edge, as
+/// EternalJK keeps its followed name 4 units from the left.
+pub(crate) const SIMPLE_MARGIN: f32 = 4.0;
 
 impl Frame {
     pub(crate) fn clear(&mut self) {
@@ -233,6 +241,7 @@ impl Frame {
                     color: piece.color,
                     centred: true,
                     side: Some(piece.side),
+                    end_limit: None,
                 };
             }
             for piece in right.scanline.iter().chain(&right.frame) {
@@ -356,6 +365,7 @@ impl Frame {
                     color: piece.color,
                     centred: true,
                     side: Some(piece.side),
+                    end_limit: None,
                 };
             }
             (8.0, (8 / TICS) as f32)
@@ -490,7 +500,10 @@ impl Frame {
             run.size = SMALL_POINTS;
             run.color = color;
             run.centred = false;
-            run.side = Some(if x > 320.0 { Side::Right } else { Side::Left });
+            let right = x > 320.0;
+            run.side = Some(if right { Side::Right } else { Side::Left });
+            // Retail's narrower font fits; keep SJK's on screen (hub reports 75/76).
+            run.end_limit = right.then_some(640.0 - SIMPLE_MARGIN);
         }
     }
 }

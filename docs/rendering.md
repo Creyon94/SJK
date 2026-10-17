@@ -2979,6 +2979,11 @@ format. A nonzero integer selects the stock text-only HUD; as in EternalJK, `0`
 is the default list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A
 missing list falls back to the default one, as `CG_LoadMenus` does; files
 without a `lefthud` or `righthud` menu leave the engine-drawn HUD in place.
+The text HUD's strings start where retail puts them, but SJK's vector font is
+wider than retail's, so a right-hand string (the six-letter saber styles, the
+ammo count) that would pass 4 units from the screen's right edge moves left to
+end there, and the HUD's text never wraps at the screen's edge (hub reports
+75/76).
 
 When several PK3s replace `ui/hud.menu`, the one mounted last wins, and packs
 usually replace the retail pictures (`gfx/hud/hudleft` ...) under the same names
