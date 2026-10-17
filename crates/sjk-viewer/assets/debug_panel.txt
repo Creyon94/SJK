@@ -5103,7 +5103,56 @@ change: The body still stays in its emote on the server. Hub reports 47, 57, 62.
 test: On a JA+ server: amhips, then freecam: the camera flies with the move keys.
 test: Same from the quick wheel, and during an SJK dance emote.
 test: Leave free cam: you are still in the emote where you left it.
-note: Fix not confirmed for JA+ emotes; if it still fails, note which emote.
+test: JA+ amsit/amhips/dance, then freecam: camera flies off the body; developer 1 logs basespeed.
+note: 2nd fix 17/10: flight speed no longer follows a body the server holds at speed 0.
+
+[hug-queue]
+area: Input
+title: Spamming a bind (amhug) no longer queues the extra presses to fire later
+change: A bind or console command pressed again while the same one waits is not queued twice.
+change: One that cannot leave within 1.5 s is dropped instead of sent late. Chat is never dropped.
+test: On a JA+ server, press the amhug bind 20 times fast near a player, then stop.
+test: Walk away and come back after 3 s: no further hug starts on its own.
+test: Type two different chat lines quickly: both still arrive, about a second apart.
+note: Hub report 73. Client-made commands (userinfo, team, menus) keep the ordered pacing.
+
+[saber-team-colors]
+area: Rendering & effects
+title: Team saber colours (cg_saberTeamColors), as in JoF EJK
+change: Team games force red or blue blades, custom RGB and black included; shaders stay worn.
+change: cg_saberTeamColors 0 changes only the other team's colour and RGB/black. Hub report 70.
+test: Team FFA or CTF: red team blades red, blue team blue, also custom RGB/black and thrown sabers.
+test: cg_saberTeamColors 0: red player keeps yellow, blue/RGB/black turn red; FFA keeps own colours.
+test: Wear a chroma shader in a team game: it stays and turns red or blue; player card swatches match.
+note: CTF team saber colours (Slash's option) now only adds plain blades in CTF.
+
+[spectator-name]
+area: HUD
+title: Spectating names the followed player in the top left, as JoF EJK
+change: Following someone (or playing a demo) shows their name, colours kept, in the top left.
+change: The warmup line is hidden while the name shows, as in EJK. Hub report 69.
+test: Spectate on a local server and follow a player: their coloured name shows in the top left.
+test: Free-fly spectate: no name. Play a demo: the recorded player's name shows.
+test: ui_gameFont 1 then 0: the name switches between SJK Menu and the HUD font.
+
+[simple-hud-wrap]
+area: HUD
+title: Text HUD (cg_hudFiles 1): the saber style stays on one line
+change: Six-letter styles (MEDIUM, STRONG, DESANN, TAVION, AKIMBO) no longer wrap their last letter.
+change: Right-hand text moves left only when it would pass 4 units from the right edge.
+test: cg_hudFiles 1, saber out, cycle every style: each name on one line, inside the screen.
+test: Switch to a gun: the ammo count still sits at the bottom right, on one line.
+note: Hub reports 75 and 76.
+
+[npc-sabers-sounds]
+area: Gameplay
+title: NPCs: thrown sabers visible, own voices, hilt colour instead of always red
+change: An NPC's thrown saber draws with its own hilt and colour; it was drawn nowhere.
+change: NPC and vehicle pain/death/jump sounds use the NPC's sound set, not player slot 31's.
+change: NPC blades take the .sab colour; no saber entity, no blade. Hub report 68.
+test: JoFCrucible (JoF): saber NPCs throw: the spinning saber is visible, with its colour.
+test: Hit NPCs and the tauntaun: each cries in its own voice, never a player's.
+test: NPCs without sabers (gunners, creatures) show no red blade.
 
 [linux-paste]
 area: Input

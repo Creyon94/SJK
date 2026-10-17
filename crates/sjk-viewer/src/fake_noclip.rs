@@ -32,6 +32,24 @@ impl GpuState {
             console.set_cvar("cg_fakeNoclip", "0");
             console.set_cvar("cg_freeCamera", "0");
         }
+        if wanted
+            && allowed
+            && !self.local_prediction.fake_noclip()
+            && self
+                .console
+                .as_ref()
+                .is_some_and(|console| console.integer_cvar("developer").unwrap_or(0) != 0)
+        {
+            // The body's speed, which the flight does without when it is zero
+            // (`Predictor::fake_noclip_speed`).
+            eprintln!(
+                "fake noclip on: pm_type {}, speed {}, basespeed {}, hand extend {}",
+                player.movement_type(),
+                player.speed(),
+                player.raw_field(37).unwrap_or(0) as i32,
+                player.force_hand_extend(),
+            );
+        }
         self.local_prediction.set_fake_noclip(wanted && allowed);
         self.local_prediction
             .set_free_camera(free_camera && allowed, player.weapon());

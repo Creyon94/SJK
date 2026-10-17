@@ -88,6 +88,7 @@ pub mod string_table;
 pub use permanent_entities::{legacy_permanent_visible, legacy_scene_entities};
 mod presentation_equipment;
 mod reliable_pacing;
+pub use reliable_pacing::{INPUT_COMMAND_TTL, ReliableCommandOrigin};
 mod retail_assets;
 mod saber_clash_flare;
 mod saber_command;
@@ -113,7 +114,8 @@ use sjk_game_jka::weapon_data;
 mod weapon_selection;
 
 pub use actor_color::{
-    TeamColorPolicy, legacy_body_color, legacy_player_color, legacy_team_blade, legacy_team_sabers,
+    TeamColorPolicy, legacy_body_color, legacy_player_color, legacy_saber_team_colors,
+    legacy_team_blade, legacy_team_sabers,
 };
 pub use ambient_sets::{AmbientSet, AmbientSetKind, AmbientSets};
 pub use ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyRandom};
@@ -215,7 +217,8 @@ pub use muzzle_effects::{
     legacy_muzzle_effect, legacy_muzzle_window,
 };
 pub use npc_identity::{
-    legacy_npc_appearance, legacy_npc_body_model, legacy_npc_saber_names,
+    legacy_npc_appearance, legacy_npc_body_model, legacy_npc_definition_rgb,
+    legacy_npc_primary_saber_missing, legacy_npc_saber_color_overrides, legacy_npc_saber_names,
     legacy_npc_saber_names_borrowed, legacy_npc_state, legacy_vehicle_name,
 };
 pub use obituary::{
@@ -755,15 +758,29 @@ impl ClientSession {
     /// Windows-1252 when every character has a byte there, as UTF-8 otherwise
     /// ([`sjk_protocol::encode_legacy_text`]). Other bytes pass unchanged.
     pub fn send_reliable_command(&mut self, command: &[u8]) -> Result<(), ClientError> {
+        self.send_reliable_command_from(command, ReliableCommandOrigin::System)
+    }
+
+    /// [`Self::send_reliable_command`] for a command whose origin changes how
+    /// it waits: a player's bind, console command or chat is not queued again
+    /// while an identical one waits, and a bind or console command that cannot
+    /// leave within [`INPUT_COMMAND_TTL`] is dropped rather
+    /// than sent late ([`ReliableCommandOrigin`]).
+    pub fn send_reliable_command_from(
+        &mut self,
+        command: &[u8],
+        origin: ReliableCommandOrigin,
+    ) -> Result<(), ClientError> {
         let command = legacy_text::legacy_command(command);
         if let Some(local) = &mut self.local {
             local.reliable(&command);
             return Ok(());
         }
-        if !self.command_pacer.push(command.into_owned()) {
+        let now = Instant::now();
+        if !self.command_pacer.push(command.into_owned(), origin, now) {
             return Err(ClientError::ReliableCommandOverflow);
         }
-        self.pump_reliable_commands(Instant::now())
+        self.pump_reliable_commands(now)
     }
 
     /// Release the next paced reliable command if its window has opened.

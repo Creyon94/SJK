@@ -2846,7 +2846,7 @@ font, following OpenJK `codemp`:
 
 | Retail font | Drawn with | Surfaces |
 | --- | --- | --- |
-| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
+| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, followed player's name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
 | Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, connection interrupted |
 
@@ -2979,6 +2979,11 @@ format. A nonzero integer selects the stock text-only HUD; as in EternalJK, `0`
 is the default list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A
 missing list falls back to the default one, as `CG_LoadMenus` does; files
 without a `lefthud` or `righthud` menu leave the engine-drawn HUD in place.
+The text HUD's strings start where retail puts them, but SJK's vector font is
+wider than retail's, so a right-hand string (the six-letter saber styles, the
+ammo count) that would pass 4 units from the screen's right edge moves left to
+end there, and the HUD's text never wraps at the screen's edge (hub reports
+75/76).
 
 When several PK3s replace `ui/hud.menu`, the one mounted last wins, and packs
 usually replace the retail pictures (`gfx/hud/hudleft` ...) under the same names

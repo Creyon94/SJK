@@ -307,7 +307,7 @@ pub(crate) fn update(
             bsp: &gpu.bsp,
             scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
-            team_sabers: crate::team_sabers::enabled(gpu.console.as_ref()),
+            team_sabers: crate::team_sabers::Settings::of(gpu.console.as_ref()),
             world: &gpu.live_world,
             now: presentation_time,
             camera,
@@ -354,6 +354,7 @@ pub(crate) fn update(
             crosshair,
             !session.is_local()
                 && sjk_client::connection_interrupted(presentation_time, snapshot.server_time),
+            hud::follow_shown(snapshot.player.movement_flags(), false),
         );
     } else if let Some(session) = &gpu.demo_session {
         let snapshot = session.snapshot_at_or_before(presentation_time);
@@ -482,7 +483,7 @@ pub(crate) fn update(
             bsp: &gpu.bsp,
             scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
-            team_sabers: crate::team_sabers::enabled(gpu.console.as_ref()),
+            team_sabers: crate::team_sabers::Settings::of(gpu.console.as_ref()),
             world: session.world(),
             now: presentation_time,
             camera,
@@ -530,6 +531,7 @@ pub(crate) fn update(
             &gpu.lagometer,
             crosshair,
             false,
+            hud::follow_shown(snapshot.player.movement_flags(), true),
         );
     }
     let game = gpu
