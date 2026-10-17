@@ -25,7 +25,8 @@ pub(crate) fn enabled(console: Option<&ViewerConsole>) -> bool {
 /// The team blades of every client slot, read once a frame.
 pub(crate) fn blades(console: Option<&ViewerConsole>, game: Option<&GameState>) -> Blades {
     let mut blades = [None; 32];
-    if let Some(game) = game.filter(|game| enabled(console) && sjk_client::legacy_team_sabers(game)) {
+    if let Some(game) = game.filter(|game| enabled(console) && sjk_client::legacy_team_sabers(game))
+    {
         for (client, blade) in (0u16..).zip(blades.iter_mut()) {
             *blade = sjk_client::legacy_team_blade(game, client);
         }
