@@ -364,6 +364,21 @@ retail data; GPU/data-dependent workspace tests remain ignored.
 Live map loading and NPC spawning with a large community pack remain unverified.
 This changes definition availability, not gameplay timing, live NPC capacity or
 the wire format. See [NPC definition packs](server.md#npc-definition-packs).
+## Distinct native colours for all seven saber styles
+
+16/10/2026, `fix/native-saber-style-colours` based on `7026c735`: Desann now
+uses violet and Tavion cyan in the native HUD's stance labels and radial meter,
+and in nameplates' saber halos. The existing five style colours and unknown-style
+fallback remain. The shared palette applies in either menu style; custom menu
+HUD pictures retain their existing seven-style support. This adopts the missing
+native colour distinction from [EJK #26](https://github.com/JediofFreedom/JoF_EJK/pull/26).
+The existing radial draw-command test now checks all seven styles, pairwise
+distinct colours, separation from the unknown fallback, full-width strokes and
+matching label colours. Live gameplay and GPU appearance remain unverified.
+Formatting, locked workspace build/tests and Clippy with all targets passed on
+Windows, Rust 1.99.0, with existing warnings. The GPU snapshot check was not run:
+its required `JKA_GAME_DATA` asset path is not configured in this environment.
+See [radial HUD](rendering.md#game-data-hud) and [nameplates](client.md#nameplates).
 
 ## Emotes on stock models: limbs out of wider bodies
 

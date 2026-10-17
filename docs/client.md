@@ -2435,7 +2435,8 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   the staff and dual saber icons for those styles) left of the plate, or left of
   the name when there is no plate. A saber's is ringed and haloed in its stance's
   colour (`fireflag`, which carries `fd.saberAnimLevel`; the Radial HUD's colours:
-  fast blue, medium yellow, strong red, dual green, staff magenta), dimmed while
+  fast blue, medium yellow, strong red, Desann violet, Tavion cyan, dual green,
+  staff magenta), dimmed while
   the blade is put away.
 - **Verified badge:** a player the SJK hub's operator vouches for (see
   [Identity](#identity)) gets a gold seal with a white tick after the name, drawn at
