@@ -300,7 +300,11 @@ pub(crate) fn submit(
             .or_else(|| snapshot.map(|snapshot| snapshot.player.force_powers_active()))
             .unwrap_or(0),
         speed_trail,
-        holsters: crate::holstered_sabers::Policy::read(gpu.console.as_ref(), game_state),
+        holsters: crate::holstered_sabers::Policy::read(
+            gpu.console.as_ref(),
+            &mut gpu.holster_server,
+            game_state,
+        ),
         holster_geometry: crate::holstered_sabers::pose::Geometry::read(gpu.console.as_ref()),
         cosmetics,
         material_overrides: gpu.model_material_overrides,

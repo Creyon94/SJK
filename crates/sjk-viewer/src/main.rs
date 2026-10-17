@@ -502,6 +502,8 @@ struct GpuState {
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
     /// Black-blade server/clientinfo scan, redone on configstring changes.
     black_sabers: saber_rgb::black::Cache,
+    /// Holstered-hilt contract detected from the serverinfo, redone on its change.
+    holster_server: holstered_sabers::ServerCache,
     /// Parsed shader catalogue, kept for materials compiled after map load.
     /// Shared with the workers that load players' models (`player_loads.rs`).
     shaders: Arc<ShaderCatalog>,
@@ -1403,6 +1405,7 @@ impl GpuState {
             clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
             config_string_refresh,
             black_sabers: Default::default(),
+            holster_server: Default::default(),
             shaders: Arc::new(shaders),
             decal_surfaces,
             player_shadows: player_shadows::State::default(),

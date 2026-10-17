@@ -12,9 +12,15 @@ const DEFAULT_HILT_MODEL: &str = "models/weapons2/saber_1/saber_1.glm";
 const DEFAULT_BLADE_LENGTH: f32 = 40.0;
 const DEFAULT_BLADE_RADIUS: f32 = 3.0;
 
-/// Two hilts per presented legacy actor, reserved at load rather than on a frame.
+/// Saber carriers one hilt mesh is sized for: every client slot plus as many
+/// saber NPCs (`LEGACY_MAX_CLIENTS` each way), not every entity number.
+const HILT_ACTORS: usize = 2 * sjk_protocol::LEGACY_MAX_CLIENTS;
+
+/// Two hilts per saber carrier, reserved at load rather than on a frame (about
+/// 16 KB per hilt mesh). Held and thrown hilts may still grow it; only stowed
+/// hilts past this many are skipped rather than growing it in the frame loop.
 pub(crate) fn instance_group() -> Vec<crate::actor_instance::ActorInstance> {
-    Vec::with_capacity(2 * sjk_protocol::MAX_LEGACY_ENTITIES)
+    Vec::with_capacity(2 * HILT_ACTORS)
 }
 
 /// One numbered blade socket and its `.sab` presentation parameters.
@@ -293,10 +299,10 @@ mod capacity_tests {
     use super::*;
 
     #[test]
-    fn dual_holstered_hilts_fit_every_actor_without_growing_the_group() {
+    fn dual_holstered_hilts_fit_every_carrier_without_growing_the_group() {
         let mut group = instance_group();
         let storage = group.as_ptr();
-        for _ in 0..sjk_protocol::MAX_LEGACY_ENTITIES {
+        for _ in 0..HILT_ACTORS {
             for _ in 0..2 {
                 assert!(group.len() < group.capacity());
                 group.push(crate::actor_instance::ActorInstance::new(

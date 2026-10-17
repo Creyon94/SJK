@@ -141,6 +141,7 @@ impl GpuState {
                 }
                 Consumer::ServerInfo => {
                     self.black_sabers.invalidate();
+                    self.holster_server.invalidate();
                     self.local_prediction.refresh_roll_rules(game);
                     if let Some(console) = &mut self.console {
                         if let Some(session) = &self.live_session {

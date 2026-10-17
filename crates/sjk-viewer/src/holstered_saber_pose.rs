@@ -114,6 +114,10 @@ impl Worn {
         };
         placements(cached, back, geometry)
     }
+    /// Whether the model has the `*back` tag a staff is stowed on.
+    pub(crate) fn has_back_tag(&self) -> bool {
+        self.bolts[2].is_some()
+    }
     pub(crate) fn hide(&self) {
         self.wanted.set(false);
     }

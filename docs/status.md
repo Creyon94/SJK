@@ -669,7 +669,13 @@ patches. A release CPU measurement on Ryzen 7 5800X3D averaged about 11 us per
 this excludes pose evaluation, visibility/audio work, submission and GPU cost.
 No installed game/JA+ assets, GPU scene comparison, audible timing check or
 populated-server/cache-lifetime stress was exercised. The measurement and
-tests do not establish gameplay parity or 500+ FPS performance.
+tests do not establish gameplay parity or 500+ FPS performance. Review fixes
+(17/10/2026): no per-actor work while the feature is off, the server contract
+cached per configstring 0 change, no bolt evaluation for a saber in hand,
+deferred staff sounds played rather than dropped on a slot release, and hilt
+groups sized for 64 carriers (about 16 KB each instead of 256 KB). The staff
+test (`saber_type` staff or more than one blade) is kept: it is EJK's own
+`CG_StaffHolsteredOnBack` rule (`cg_players.c:10812`).
 
 ## Emotes on stock models: limbs out of wider bodies
 

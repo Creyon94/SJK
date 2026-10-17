@@ -22,6 +22,13 @@ pub(super) fn submit(
     hidden: bool,
 ) -> Plan {
     let mesh = &sinks.actor_meshes[index];
+    // Off (setting, plugin bit or a server without the contract): no per-actor work.
+    // The audio slot, no longer reported, is released by `end_holsters`.
+    if !sinks.holsters.enabled {
+        mesh.holsters.hide();
+        mesh.holsters.swap.reset();
+        return Plan::default();
+    }
     let player = snapshot.map(|s| &s.player);
     let predicted = sinks.predicted_local_state.filter(|_| local);
     let in_flight = if local {
@@ -93,27 +100,15 @@ pub(super) fn submit(
         && mesh.saber_names[0]
             .as_deref()
             .is_some_and(|name| catalog.get(name).is_staff);
-    // A missing tag must never remove the held staff during a reach.
-    let attachments = if sinks.holsters.visible(Body {
+    let staff_back = staff && sinks.holsters.back;
+    let worn = sinks.holsters.visible(Body {
         viewed_player: false,
         ..body
-    }) {
-        mesh.holsters
-            .attachments(mesh, staff && sinks.holsters.back, sinks.holster_geometry)
-    } else {
-        mesh.holsters.hide();
-        [None; 2]
-    };
-    let (phase, putting_away) = if staff
-        && sinks.holsters.back
-        && sinks.holsters.visible(Body {
-            viewed_player: false,
-            ..body
-        })
-        && attachments[0].is_some()
-        && mesh.entity_id == Some(entity.id)
-        && !in_flight
-    {
+    });
+    // The handoff only needs the model's back tag to exist; its matrix is evaluated
+    // below only when a hilt is drawn. A missing tag never removes the held staff.
+    let back_tag = staff_back && worn && mesh.holsters.has_back_tag();
+    let (phase, putting_away) = if back_tag && mesh.entity_id == Some(entity.id) && !in_flight {
         mesh.holsters
             .swap
             .phase(mesh, sinks.presentation_time, sinks.holsters.swap)
@@ -125,21 +120,17 @@ pub(super) fn submit(
         on_back: phase == Phase::OnBack,
         blades_in: phase == Phase::OnBack || putting_away,
     };
-    if let Some(audio) = sinks.game_audio.as_mut()
+    let audio_enabled = back_tag
+        && crate::holstered_sabers::staff::installed(mesh)
+        && !crate::muted_players::entity_muted(sinks.muted, entity.id.get());
+    // Only a staff reach has sounds to synchronise; any other slot is released.
+    if audio_enabled
+        && let Some(audio) = sinks.game_audio.as_mut()
         && mesh.saber_names[0].is_some()
     {
         audio.holstered_staff(
             entity.id.get().saturating_sub(1) as usize,
             mesh.holsters.identity(),
-            staff
-                && sinks.holsters.back
-                && sinks.holsters.visible(Body {
-                    viewed_player: false,
-                    ..body
-                })
-                && attachments[0].is_some()
-                && crate::holstered_sabers::staff::installed(mesh)
-                && !crate::muted_players::entity_muted(sinks.muted, entity.id.get()),
             transform.translation,
             phase,
             putting_away,
@@ -151,9 +142,14 @@ pub(super) fn submit(
         );
     }
     let saber_held = equipment.is_some_and(|e| e.kind == sjk_runtime::HeldItemKind::EnergyBlade);
+    // Bolts are evaluated only while a hilt is drawn, never for a saber in hand.
     if !sinks.holsters.visible(body) || phase == Phase::InHand || (saber_held && !plan.on_back) {
+        mesh.holsters.hide();
         return plan;
     }
+    let attachments = mesh
+        .holsters
+        .attachments(mesh, staff_back, sinks.holster_geometry);
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let scale = Vec3::from_array(transform.scale);
     for (hand, attachment) in attachments.into_iter().enumerate() {

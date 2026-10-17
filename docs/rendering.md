@@ -1623,9 +1623,14 @@ and holstered hilts. It creates no second Ghoul2/model instances. Actor-owned
 hip bone/back surface indices are resolved on model load, and visible holsters
 reuse the existing CPU/GPU pose matrices. Their fixed bolt cache follows rig
 retargeting and model scale. Missing left/right attachments are independent;
-a missing `*back` tag falls back to the right hip. Shared hilt object groups
-reserve two slots per legacy entity on initial/dynamic model load; frame
-submission keeps that capacity when adding holsters.
+a missing `*back` tag falls back to the right hip. The bolts are evaluated only
+while a stowed hilt is drawn, not while the saber is in hand; the staff handoff
+only checks that the model has a `*back` tag. With the feature off (setting,
+plugin bit or a server without the contract) an actor costs one flag test. The
+contract detected from `gamename` is cached until configstring 0 changes. Shared
+hilt object groups reserve two slots for each of 64 saber carriers (32 clients
+plus as many NPCs) on initial/dynamic model load; held and thrown hilts may grow
+them, while frame submission skips a stowed hilt past that capacity.
 
 [holstered_sabers.rs](../crates/sjk-viewer/src/holstered_sabers.rs) holds the
 named JA+ ownership/plugin contract and its player override.
@@ -1641,8 +1646,11 @@ identity; model replacement and map teardown drop actor-owned state.
 keeps bounded client slots with separate hilt and blade-skin sound layers,
 using the existing adapter's registered handles. Ignition waits for the
 reach (150 ms to appear, at most 2000 ms held). Shutdown at the put-away reach
-suppresses its late copy for 2000 ms. Client removal, replacement and map
-changes discard stale pending starts. Asset decoding remains outside these
+suppresses its late copy for 2000 ms. Only a staff carrier with a back reach
+reports a slot. A slot that is disabled or released (death, mount, cloak, an
+actor no longer submitted, a replaced player) plays its held ignitions and
+any shutdown the reach has not already played instead of dropping them; a
+server-time rewind and map changes discard them. Asset decoding remains outside these
 frame paths. The settings and visibility rules are in
 [client.md](client.md#holstered-saber-hilts).
 

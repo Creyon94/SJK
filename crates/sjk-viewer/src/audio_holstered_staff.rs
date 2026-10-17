@@ -21,9 +21,35 @@ struct Slot {
     off_key: Option<(usize, u64, i64)>,
     off_time: Option<i64>,
     seen: bool,
+    /// The last reported presentation time, for a release on an unseen frame.
+    now: i64,
 }
 
 impl Slot {
+    /// Release the server's deferred copies instead of losing them when the slot
+    /// is disabled or reset (death, mount, cloak, an actor no longer submitted):
+    /// held ignitions, and shutdowns the reach has not already played.
+    fn take_deferred(&mut self, client: usize) -> [Option<(SoundHandle, PlayRequest)>; 6] {
+        let covered = self
+            .off_time
+            .is_some_and(|time| (0..HOLD).contains(&(self.now - time)));
+        let ignitions = std::mem::take(&mut self.pending).map(|pending| {
+            pending.map(|(handle, mut request, ..)| {
+                request.origin = Some(self.origin);
+                request.source = SourceId(client as u32);
+                (handle, request)
+            })
+        });
+        let offs = std::mem::take(&mut self.pending_off).map(|off| off.filter(|_| !covered));
+        std::array::from_fn(|index| {
+            if index < 3 {
+                ignitions[index]
+            } else {
+                offs[index - 3]
+            }
+        })
+    }
+
     fn release_ignitions(
         &mut self,
         client: usize,
@@ -152,12 +178,13 @@ impl GameAudio {
         }
     }
 
+    /// Report a staff carrier whose reach is synchronised this frame; a slot not
+    /// reported is released by [`Self::end_holsters`].
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn holstered_staff(
         &mut self,
         client: usize,
         identity: u64,
-        enabled: bool,
         origin: [f32; 3],
         phase: Phase,
         putting_away: bool,
@@ -172,17 +199,22 @@ impl GameAudio {
             return;
         };
         if slot.identity != identity || (slot.sounds != handles && slot.sounds != [[None; 3]; 2]) {
+            for (handle, request) in slot.take_deferred(client).into_iter().flatten() {
+                self.output.send(AudioCommand::Play(handle, request));
+            }
             *slot = Slot::default();
         }
         slot.identity = identity;
         slot.sounds = handles;
-        slot.enabled = enabled && self.holster_sync.enabled;
+        slot.enabled = self.holster_sync.enabled;
         slot.origin = origin;
         slot.phase = phase;
         slot.seen = true;
+        slot.now = now;
         if !slot.enabled {
-            slot.pending = [None; 3];
-            slot.pending_off = [None; 3];
+            for (handle, request) in slot.take_deferred(client).into_iter().flatten() {
+                self.output.send(AudioCommand::Play(handle, request));
+            }
             slot.off_key = None;
             slot.off_time = None;
             return;
@@ -234,8 +266,11 @@ impl GameAudio {
     }
 
     pub(crate) fn end_holsters(&mut self) {
-        for slot in &mut self.holster_sync.slots {
+        for (client, slot) in self.holster_sync.slots.iter_mut().enumerate() {
             if !slot.seen {
+                for (handle, request) in slot.take_deferred(client).into_iter().flatten() {
+                    self.output.send(AudioCommand::Play(handle, request));
+                }
                 *slot = Slot::default();
             }
         }
@@ -295,6 +330,39 @@ mod tests {
         slot.pending[0] = Some((SoundHandle(4), request, 0, true));
         assert!(slot.release_ignitions(3, [0.; 3], Phase::OnBack, 1999)[0].is_none());
         assert!(slot.release_ignitions(3, [0.; 3], Phase::OnBack, 2000)[0].is_some());
+    }
+    #[test]
+    fn a_released_slot_plays_its_deferred_sounds_instead_of_dropping_them() {
+        let request = PlayRequest {
+            source: SourceId(40),
+            origin: None,
+            channel: ChannelId(0),
+            volume: 1.,
+            attenuation: sjk_audio::Attenuation::None,
+        };
+        let mut slot = Slot {
+            origin: [1., 2., 3.],
+            pending: [Some((SoundHandle(4), request, 0, true)), None, None],
+            pending_off: [None, Some((SoundHandle(5), request)), None],
+            now: 5000,
+            ..Slot::default()
+        };
+        let released = slot.take_deferred(3);
+        let ignition = released[0].expect("held ignition");
+        assert_eq!(ignition.0, SoundHandle(4));
+        assert_eq!(ignition.1.origin, Some([1., 2., 3.]));
+        assert_eq!(ignition.1.source, SourceId(3));
+        assert_eq!(released[4].map(|s| s.0), Some(SoundHandle(5)));
+        assert_eq!(released.iter().flatten().count(), 2);
+        assert!(slot.take_deferred(3).iter().all(Option::is_none));
+        // A shutdown the reach already played stays the late copy and is dropped.
+        let mut slot = Slot {
+            pending_off: [Some((SoundHandle(5), request)), None, None],
+            off_time: Some(4000),
+            now: 5000,
+            ..Slot::default()
+        };
+        assert!(slot.take_deferred(3).iter().all(Option::is_none));
     }
     #[test]
     fn ignition_interception_requires_ownership_handle_and_recent_draw() {
