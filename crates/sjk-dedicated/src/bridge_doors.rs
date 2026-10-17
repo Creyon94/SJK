@@ -124,7 +124,13 @@ impl NativeGame {
                     })
                     .flatten(),
                 MoverKind::Door | MoverKind::Button => {
-                    mover_team::touch_trigger(&mut self.doors, index, level_time, Some(client))
+                    let toucher = self.peer(client).map(|peer| mover_team::DoorToucher {
+                        client: Some(client),
+                        team: Some(peer.session.team),
+                        on_vehicle: peer.state.vehicle_entity_num() != 0,
+                    });
+                    let Some(toucher) = toucher else { return };
+                    mover_team::touch_trigger(&mut self.doors, index, level_time, toucher)
                 }
             };
             self.publish_team(index);

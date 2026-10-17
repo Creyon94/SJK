@@ -1,3 +1,21 @@
+## Siege doors: teamallow and vehopen
+
+17/10/2026, `fix/siege-door-teamallow`, based on `Sol-Vulpes/SJK` `1c8887f7`: the
+native server ignored two `func_door` keys of `Touch_DoorTrigger` (OpenJK
+`g_mover.c:1112-1190`, keys read at `:1421` and `:1446`). Implemented:
+
+- `teamallow`: a locked door (`MOVER_LOCKED`) opens when a player of that team walks
+  up to it, unlocked only while it is used (`relockEnt`), so it stays locked to the
+  other side; without the key a locked door opens for nobody, as before. Siege maps
+  lock base doors this way for their defenders (reported as doors that do not open on
+  their own; suspected on siege_hoth, whose entities were not inspected).
+- `vehopen`: a vehicle, or a player riding one (`m_iVehicleNum`), opens only a door
+  with this key; riders used to open every door, vehicle NPCs none.
+
+Three unit tests pin both keys; the workspace fmt, build, tests and clippy pass on
+Linux. An NPC's own team is not read (`team: None`), so no NPC opens a `teamallow`
+door; not played on a siege map yet.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

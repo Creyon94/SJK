@@ -306,9 +306,10 @@ impl NativeGame {
     }
 
     /// `Touch_DoorTrigger` and `Touch_PlatCenterTrigger` for an NPC in a mover's own
-    /// trigger: a door opens for any NPC but a vehicle, a plat at the bottom is used.
+    /// trigger: a door opens for any NPC but a vehicle (unless `vehopen`), a plat at the
+    /// bottom is used.
     fn npc_touch_doors(&mut self, number: u16, level_time: i32) {
-        let opens = self
+        let on_vehicle = !self
             .npc_actor(number)
             .is_some_and(|npc| sjk_game_jka::npc_triggers::opens_doors(npc));
         for index in 0..self.doors.len() {
@@ -342,13 +343,16 @@ impl NativeGame {
                         )
                     })
                     .flatten(),
-                MoverKind::Door | MoverKind::Button if opens => mover_team::touch_trigger(
+                MoverKind::Door | MoverKind::Button => mover_team::touch_trigger(
                     &mut self.doors,
                     index,
                     level_time,
-                    Some(usize::from(number)),
+                    mover_team::DoorToucher {
+                        client: Some(usize::from(number)),
+                        team: None,
+                        on_vehicle,
+                    },
                 ),
-                MoverKind::Door | MoverKind::Button => continue,
             };
             self.publish_team(index);
             if let Some(target) = fired {
