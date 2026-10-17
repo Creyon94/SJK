@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A card from a holocron now comes as a pack, once the SJK hub turns the shards on: beside the card its credits and a few kyber shards slide out in two tiles and count up, and Open all adds the pack's shards to its totals _(Sol)_
 - Avoid replaying a followed player's pending server-injected sound when changing views. _(Lumaya, after JoF EJK)_
 - Fix cosmetic colour commands in scripts so each uses the current hat or cape and later explicit choices win. _(Lumaya)_
+- Make the Not players shader-remap setting filter reliable server commands as well as configstrings. _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

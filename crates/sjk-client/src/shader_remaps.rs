@@ -55,8 +55,8 @@ impl ShaderRemaps {
         *self = Self::from_game_state(game);
         self.revision = revision;
     }
-    /// Tayst mode 1 excludes player-texture configstring remaps; mode 2 accepts
-    /// all. Reliable remapShader commands are accepted by either nonzero mode.
+    /// Mode 1 excludes player-texture remaps from configstrings and reliable
+    /// commands (EJK #297); mode 2 accepts all. Mode 0 returns no server table.
     pub fn table(&self, mode: i64) -> Option<&ShaderRemapTable> {
         (mode != 0).then(|| &self.tables[usize::from(mode != 1)])
     }
@@ -74,7 +74,7 @@ impl ShaderRemaps {
             let Some((offset, tail)) = tail.split_once('@') else {
                 break;
             };
-            self.apply(original, target, offset, false);
+            self.apply(original, target, offset);
             rest = tail;
         }
     }
@@ -101,19 +101,19 @@ impl ShaderRemaps {
                 std::str::from_utf8(&arguments[2]),
                 std::str::from_utf8(&arguments[3]),
             ) {
-                self.apply(old, new, offset, true);
+                self.apply(old, new, offset);
             }
         }
         true
     }
-    fn apply(&mut self, original: &str, target: &str, offset: &str, command: bool) {
+    fn apply(&mut self, original: &str, target: &str, offset: &str) {
         let (Some(original), Some(target)) = (shader_name(original), shader_name(target)) else {
             return;
         };
         let offset = Some(atof(offset)).filter(|v| v.is_finite()).unwrap_or(0.);
         let order = next_remap_order();
         let mut changed = self.tables[1].apply(&original, &target, offset, order);
-        if command || !original.starts_with("models/players/") {
+        if !original.starts_with("models/players/") {
             changed |= self.tables[0].apply(&original, &target, offset, order);
         }
         self.revision = self.revision.wrapping_add(u64::from(changed));
@@ -272,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn player_entries_stay_out_of_the_default_table_but_commands_do_not() {
+    fn not_players_mode_filters_configstrings_and_reliable_commands() {
         let mut state = ShaderRemaps::default();
         state.apply_config(b"models/players/kyle/body=textures/x:0@");
         assert!(table(&state, 1).alias("models/players/kyle/body").is_none());
@@ -280,12 +280,43 @@ mod tests {
         let command = ["remapShader", "models/players/kyle/head", "textures/y", "2"]
             .map(|a| a.as_bytes().to_vec());
         assert!(state.command(&command));
+        assert!(table(&state, 1).alias("models/players/kyle/head").is_none());
+        assert_eq!(table(&state, 1).time_offset("textures/y"), 0.);
         assert_eq!(
-            table(&state, 1).destination("models/players/kyle/head"),
+            table(&state, 2).destination("models/players/kyle/head"),
             "textures/y"
         );
-        assert_eq!(table(&state, 1).time_offset("textures/y"), 2.);
+        assert_eq!(table(&state, 2).time_offset("textures/y"), 2.);
         assert!(state.table(0).is_none());
+    }
+
+    #[test]
+    fn blocked_player_commands_preserve_map_phase_and_prefix_rules() {
+        let mut state = ShaderRemaps::default();
+        state.apply_config(b"textures/map=textures/shared:1.5@");
+        let player = [
+            "remapShader",
+            "MODELS/PLAYERS/example/body",
+            "textures/shared",
+            "8",
+        ]
+        .map(|a| a.as_bytes().to_vec());
+        assert!(state.command(&player));
+        assert!(
+            table(&state, 1)
+                .alias("models/players/example/body")
+                .is_none()
+        );
+        assert_eq!(table(&state, 1).time_offset("textures/shared"), 1.5);
+        assert_eq!(table(&state, 2).time_offset("textures/shared"), 8.);
+        for name in ["textures/another", "models/players_extra/body"] {
+            let command = ["remapShader", name, "textures/new", "3"].map(|a| a.as_bytes().to_vec());
+            assert!(state.command(&command));
+            for mode in [1, 2] {
+                assert_eq!(table(&state, mode).destination(name), "textures/new");
+                assert_eq!(table(&state, mode).time_offset("textures/new"), 3.);
+            }
+        }
     }
 
     #[test]
