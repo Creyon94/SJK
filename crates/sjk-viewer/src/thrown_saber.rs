@@ -35,10 +35,13 @@ pub(super) fn submit(
     let Some(mut owner) = thrown.and_then(|thrown| thrown.get(number)) else {
         return false;
     };
-    // A player muted on this PC throws the default saber in the default colour.
+    // A player muted on this PC throws the default saber in the default colour, or
+    // in a team-saber mode their team's.
     if crate::muted_players::entity_muted(sinks.muted, u64::from(owner.owner) + 1) {
         owner.name = crate::muted_players::SABER;
-        owner.color = crate::muted_players::BLADE;
+        if !sinks.team_sabers {
+            owner.color = crate::muted_players::BLADE;
+        }
     }
     let Some(catalog) = sinks.saber_hilts else {
         return false;
@@ -75,9 +78,13 @@ pub(super) fn submit(
         rotation: hilt_rotation.to_array(),
         ..transform
     };
-    let color = sinks
-        .saber_skins
-        .blade_color(owner_entity, BladeColor::from_rgb(owner.color));
+    let color = if sinks.team_sabers {
+        BladeColor::from_rgb(owner.color)
+    } else {
+        sinks
+            .saber_skins
+            .blade_color(owner_entity, BladeColor::from_rgb(owner.color))
+    };
     if let Some((hilt, blades)) = submit_hilt(
         owner,
         color,

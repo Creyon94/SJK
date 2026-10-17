@@ -67,9 +67,13 @@ fn client_saber_color(game_state: &GameState, client_num: u16) -> [u8; 3] {
     client_saber_color_at(game_state, client_num, 0)
 }
 
-/// Blade colour of the selected primary or secondary clientinfo slot.
+/// Blade colour of the selected primary or secondary clientinfo slot; in capture
+/// the flag, the team's (`legacy_team_blade`).
 fn client_saber_color_at(game_state: &GameState, client_num: u16, saber: usize) -> [u8; 3] {
     const CS_PLAYERS: usize = 1_131;
+    if let Some(team) = crate::actor_color::legacy_team_blade(game_state, client_num) {
+        return team;
+    }
     game_state
         .config_string(CS_PLAYERS + usize::from(client_num))
         .map_or(legacy_blade_rgb(4), |config| {
