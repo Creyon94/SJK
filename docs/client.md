@@ -2683,11 +2683,11 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   only, target, everyone, and round again, showing the mode's name near the top of the
   screen for a moment; `nameplates off|names|target|all` picks one. Target shows bars
   (and the weapon and power icons) only on the player you aim at, kept for three
-  seconds after the crosshair leaves them, and on your duel opponent. Names only is
+  seconds after the crosshair leaves them. Names only is
   just the names. The modes set `cg_nameplate` and `cg_nameplateBars` (0 names, 3
   target, 2 everyone); 1 (allies only) stays reachable in the settings.
-- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target and duel
-  opponent. `cg_nameplateScale`
+- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target; never on
+  a duel opponent ([Sharing](#sharing-and-estimates)). `cg_nameplateScale`
   sets the text size, `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
@@ -2736,6 +2736,19 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   to choose it again (`= cg_nameplate reset: ...` in the changelog): the what's-new card
   puts it back off and opens on it with its switch, and the player turns it on again
   knowing that it shares ([sjk-ui.md](sjk-ui.md#whats-new-card)).
+- **Duels** (Milamber's rule, 18/10/2026): nobody sees a duel opponent's health,
+  shield and Force, and a duellist sends nobody theirs, whatever either side's
+  settings (`hud::nameplate::Duel`). In a private duel (`duelInProgress`) the opponent
+  is the one your player state names (`duelIndex`); in the Duel game type every other
+  player in the arena; in Power Duel the other side (`ds` in `CS_PLAYERS`); a
+  spectator duels nobody. The opponent's plate keeps its name, weapon and icons but
+  shows no bars (not the grey ones either), in every bar mode; target mode no longer
+  shows bars on the duel opponent. While you duel your client sends the hub no values
+  (as when dead), so nobody on the server, bystanders and a Power Duel partner
+  included, sees your bars until the duel ends; the hub still lists you as sharing, so
+  you keep seeing bystanders'. The server's own duel health (`g_showDuelHealths`,
+  `CS_CLIENT_DUELHEALTHS`, on the scoreboard and the duel opponent display) is the
+  server's choice and is not affected.
 - **Tied to the hub:** shared bars on other players show only while the
   hub's last answer (under 6 seconds old) lists you sharing in your slot. With
   `cl_identity` off, no hub, no claim yet or the hub down, other players get no such

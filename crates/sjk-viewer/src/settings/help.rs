@@ -379,7 +379,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateBars",
-        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
+        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target. Never on a duel opponent. V cycles modes.",
     ),
     (
         "cg_nameplateSelf",

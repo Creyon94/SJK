@@ -1,6 +1,6 @@
-## See & share nameplates, Settings to review, no Force estimate
+## See & share nameplates, Settings to review, no Force estimate, duels
 
-17/10/2026, `feat/see-and-share-nameplates`, based on `Sol-Vulpes/SJK` `1c8887f7`:
+17-18/10/2026, `feat/see-and-share-nameplates`, based on `Sol-Vulpes/SJK` `1c8887f7`:
 implemented See & share nameplates (`cg_nameplate`, now off by default), the one setting
 for seeing other players' nameplates and sharing your own health, shield and Force. It
 replaces `cg_nameplateShare` and the hold that kept it on while plates showed bars,
@@ -9,18 +9,21 @@ switch, in a row pulsing gold. The what's-new card opens on a Settings to review
 fed by `= <cvar>[ reset]: <text>` changelog lines, which resets `cg_nameplate` once for
 profiles from before, with no migration cvar of its own. A nameplate's Force bar is
 the value the player shares: the Force estimate (`force_estimate.rs`) and
-`cg_nameplateForce` are removed. See
+`cg_nameplateForce` are removed. In a duel (private, Duel, Power Duel) the opponent's
+plate shows no bars and the duellist sends no values. See
 [client](client.md#sharing-and-estimates), [sjk-ui](sjk-ui.md#whats-new-card) and
 [sjk](sjk.md#changelog).
 
 Workspace `cargo fmt --check`, build, test and clippy (no new warnings) passed on
 Windows 11 x86_64, Rust 1.99.0. Unit tests pin sharing following `cg_nameplate` (on
-with bars, names only, off, and off by default), the shared Force bar, the Collection switch (click and
-Enter, its words, its fit at 1080 lines, 4K, 4:3 and 21:9, its pulse), the review
-lines' parsing and checks, their gathering across skipped releases, the reset, and the
-card's review page and switches. The client was launched to the main menu; the shared
-bars were not exercised against a hub or a second client, and the review page shows
-on its own only in a tagged release (`whatsnew` previews it).
+with bars, names only, off, and off by default), the shared Force bar, duel opponents
+by kind and a duel hiding the opponent's bars and sending nothing, the Collection
+switch (click and Enter, its words, its fit at 1080 lines, 4K, 4:3 and 21:9, its
+pulse), the review lines' parsing and checks, their gathering across skipped releases,
+the reset, and the card's review page and switches. The client was launched to the
+main menu; the shared bars and duels were not exercised against a hub or a second
+client, and the review page shows on its own only in a tagged release (`whatsnew`
+previews it). The server's own duel health (`g_showDuelHealths`) is not affected.
 
 ## NPC sabers and voices
 
