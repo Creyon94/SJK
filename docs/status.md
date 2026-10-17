@@ -42,6 +42,17 @@ bans, another player's Medals and unlocks, Keys, a merge's confirmation), looked
 verified: no game was started and nothing reached the deployed hub; `/v1/staff/shards`
 is on the hub's `feat/shop-shards` branch only, so Give and Take shards are refused until
 it is deployed.
+## Chords that open text input
+
+18/10/2026, `fix/reply-chord-release`: keyboard releases now retire held
+bind-chord keys before a chat composer, menu or other text field can consume
+them. This fixes non-button chords such as `bind SHIFT+U reply`: opening the
+reply composer no longer leaves both keys internally held, so a later Shift or
+U alone cannot retrigger `reply`. An unpaired release now runs no bind. On Linux
+x86_64 with Rust 1.99.1, focused shell and viewer tests, formatting, the locked
+workspace build and test suite, workspace all-target Clippy, and the locked
+release viewer/dedicated build pass; existing warnings remain. The exact key
+sequence has not yet been checked interactively in the game.
 
 ## NPC sabers and voices
 

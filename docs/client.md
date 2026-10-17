@@ -1921,6 +1921,12 @@ or replace it, but captures one physical key at a time. Create a chord in the
 console. This follows JoF EJK commit `b6623f51` (`codemp/client/cl_keys.cpp`),
 including first-match table order when several held chords could fire.
 
+Keyboard releases retire held chord keys before a newly opened menu or text
+field handles them. Thus a chord whose command opens the chat composer, such as
+`bind SHIFT+U reply`, does not leave either key held internally and cannot be
+retriggered later by pressing only Shift or U. Releases without a corresponding
+binding press are ignored rather than synthesizing a button release.
+
 ## Development maps
 
 Run `devmap mp/ffa3` in the client console to start and join an owned local

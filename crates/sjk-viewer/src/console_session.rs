@@ -1183,7 +1183,7 @@ mod tests {
         assert_eq!(console.force_repeat_command(), Some(6), "the last pressed");
         console.queue_bound_script("MOUSE4", false);
         assert_eq!(console.force_repeat_command(), Some(6));
-        console.force_repeat_key_up(KeyCode::KeyF, None);
+        console.queue_bound_key(KeyCode::KeyF, None, false);
         assert_eq!(
             console.force_repeat_command(),
             None,

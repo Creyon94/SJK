@@ -517,18 +517,6 @@ impl ViewerConsole {
         }
     }
 
-    /// A key went up, wherever the release was routed: a held push or pull key stops
-    /// repeating even when a menu or the chat took the release.
-    pub(crate) fn force_repeat_key_up(
-        &mut self,
-        code: KeyCode,
-        name: Option<crate::input::keys::KeyName>,
-    ) {
-        if let Some(name) = self.held_keys.name(code).or(name) {
-            self.force_repeat.release(name.as_str());
-        }
-    }
-
     /// A mouse button bound under `key` went up, wherever the release was routed.
     pub(crate) fn force_repeat_button_up(&mut self, key: &str) {
         self.force_repeat.release(key);
