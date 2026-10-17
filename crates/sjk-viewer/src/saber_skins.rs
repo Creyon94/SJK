@@ -159,8 +159,10 @@ pub(crate) struct Chroma {
     pub(crate) turn: f32,
 }
 
-/// Below this saturation (`(max − min) / max` of a colour) a colour has no hue to take.
-const CHROMA_GREY: f32 = 0.2;
+/// Below this saturation (`(max − min) / max` of a colour) a colour has no hue to take. Kept
+/// small: a pastel (207, 190, 234 is 0.19) still has one, and a cliff higher up flipped a
+/// chroma blade from violet to its own cyan between two slider steps (Kushina's report).
+const CHROMA_GREY: f32 = 0.03;
 
 /// `rgb`'s hue in turns [0, 1): its angle round the grey axis from pure red, in the
 /// direction [`turn_hue`] turns; `None` for a colour too grey to have one.

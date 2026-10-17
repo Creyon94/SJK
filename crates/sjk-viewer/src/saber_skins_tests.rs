@@ -724,11 +724,12 @@ fn hues_run_round_the_grey_axis_as_turn_hue_turns() {
     assert!(close(hue_of([1.0, 0.0, 0.0]).unwrap(), 0.0));
     assert!(close(hue_of([0.0, 1.0, 0.0]).unwrap(), 1.0 / 3.0));
     assert!(close(hue_of([0.0, 0.0, 1.0]).unwrap(), 2.0 / 3.0));
-    // Grey, white, black and nearly grey colours have none.
+    // Grey, white, black and almost grey colours have none; a pastel has its hue.
     assert_eq!(hue_of([0.5, 0.5, 0.5]), None);
     assert_eq!(hue_of([1.0, 1.0, 1.0]), None);
     assert_eq!(hue_of([0.0, 0.0, 0.0]), None);
-    assert_eq!(hue_of([1.0, 0.95, 0.9]), None);
+    assert_eq!(hue_of([1.0, 0.99, 0.98]), None);
+    assert!(hue_of([0.81, 0.725, 0.918]).is_some());
     // Turning a colour by the gap between two hues lands on the second.
     let from = [0.9, 0.3, 0.1];
     for target in [[0.1, 0.4, 1.0], [0.2, 1.0, 0.3], [1.0, 0.0, 0.8]] {
@@ -886,4 +887,44 @@ fn a_wearers_options_leave_out_their_parts_on_the_cpu_and_the_gpu() {
     assert_eq!(extras.len(), 2);
     assert!(extras[0].is_star() && !extras[1].is_star());
     assert!(pair.iter().all(|instance| instance.contact().is_none()));
+}
+
+#[test]
+fn a_custom_tint_never_jumps_hue_between_neighbouring_values() {
+    // Kushina's report: (207, 185, 234) drew violet, (207, 190, 234) cyan, because
+    // pastels under a saturation cliff kept the skin's own hue. Step every channel by
+    // 5 across the cube: the hue the tint gives a chroma moves no more than the
+    // input's own, never by a jump, and any non-grey tint has one.
+    let hue = |rgb: [u8; 3]| hue_of(rgb.map(|c| f32::from(c) / 255.0));
+    let gap = |a: f32, b: f32| (a - b).abs().min(1.0 - (a - b).abs());
+    for red in (0..=250u8).step_by(5) {
+        for green in (0..=250u8).step_by(5) {
+            for blue in (0..=250u8).step_by(5) {
+                let here = [red, green, blue];
+                let high = here.iter().copied().max().unwrap();
+                let low = here.iter().copied().min().unwrap();
+                if high < 120 || f32::from(high - low) / f32::from(high) < 0.2 {
+                    // Near grey the hue moves fast by nature; only demand it exists
+                    // above the grey threshold.
+                    continue;
+                }
+                let Some(a) = hue(here) else {
+                    panic!("{here:?} has no hue")
+                };
+                for step in 0..3 {
+                    let mut next = here;
+                    next[step] += 5;
+                    if let Some(b) = hue(next) {
+                        assert!(gap(a, b) < 0.06, "{here:?} -> {next:?}: {a} -> {b}");
+                    }
+                }
+            }
+        }
+    }
+    let pastel = |green| {
+        hue(crate::saber_rgb::BladeColor::Rgb([207, green, 234])
+            .tint()
+            .map(|c| (c * 255.0).round() as u8))
+    };
+    assert!(gap(pastel(185).unwrap(), pastel(190).unwrap()) < 0.02);
 }
