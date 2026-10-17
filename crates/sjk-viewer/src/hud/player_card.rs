@@ -943,8 +943,9 @@ impl State {
         let hub = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.hub)(slot, &name));
-        // In capture the flag the card shows the blades as the world draws them: the
-        // team's colour, with no shader over it (`sjk_client::legacy_team_blade`).
+        // In a team-saber mode (CTF, CTY, siege) the card shows the blades as the world
+        // draws them: the team's colour, with no shader over it
+        // (`sjk_client::legacy_team_blade`).
         let team_blade = sjk_client::legacy_team_blade(input.game, client);
         let shader = u8::try_from(client)
             .ok()

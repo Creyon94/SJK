@@ -36,7 +36,7 @@ pub(super) fn submit(
         return false;
     };
     // A player muted on this PC throws the default saber in the default colour, or
-    // in capture the flag their team's.
+    // in a team-saber mode their team's.
     if crate::muted_players::entity_muted(sinks.muted, u64::from(owner.owner) + 1) {
         owner.name = crate::muted_players::SABER;
         if !sinks.team_sabers {

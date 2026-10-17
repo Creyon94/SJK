@@ -100,7 +100,7 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
-    /// Capture the flag: every red or blue blade is the team's, with no skin over it
+    /// CTF, CTY and siege: every red or blue blade is the team's, with no skin over it
     /// (`sjk_client::legacy_team_sabers`).
     team_sabers: bool,
     /// The player whose card is up with its outline on (`card_outline.rs`).
@@ -521,7 +521,7 @@ fn submit_actor(
         None => 0,
     };
     let muted = crate::muted_players::entity_muted(sinks.muted, client);
-    // In capture the flag the blade keeps its team's colour.
+    // In a team-saber mode (CTF, CTY, siege) the blade keeps its team's colour.
     if muted && !sinks.team_sabers {
         equipment = equipment.map(crate::muted_players::equipment);
     }
