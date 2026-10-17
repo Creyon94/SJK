@@ -2092,6 +2092,35 @@ skin, gender when advertised, saber names and colours, team model group in team 
 and non-default body RGB when that player's current snapshot state is available
 ([player_ids.rs](../crates/sjk-viewer/src/player_ids.rs)).
 
+### Chat substitutions
+
+Game-chat messages expand JoF EJK's substitutions when sent, from the console,
+binds, the chat composer in either menu style, team chat, tells and `reply`.
+Write each token as a separate word; matching ignores case. For example,
+`say_team "Health %H% shield %S% Force %F%"` sends the current values.
+
+| Token | Value |
+| --- | --- |
+| `%H%` | Health |
+| `%S%` | Shield/armor |
+| `%F%` | Force reserve |
+| `%W%` | Current weapon's EJK display name |
+| `%A%` | Current weapon's ammo pool, including its negative sentinel |
+| `%P%` | SJK lagometer's latest snapshot latency estimate in milliseconds |
+| `%U%` | Horizontal speed in units per second, rounded to an integer |
+| `%UKM%` | Horizontal speed using EJK's km/h conversion, one decimal |
+| `%UM%` | Horizontal speed using EJK's mph conversion, one decimal |
+| `%T%` | Local time, 12-hour clock with AM/PM |
+| `%T2%` | Local time, 24-hour clock |
+
+Unknown tokens, embedded tokens such as `health=%H%`, and ordinary percent signs
+stay literal. Expansion precedes chat colouring, quoting and the outgoing byte
+limit. It runs only for messages the player sends to the game server; received
+messages and the separate SJK hub chat are unchanged. Player values follow the
+viewed snapshot, with predicted health, Force, weapon, ammo and velocity when
+available; model/map transitions do not borrow the previous player's prediction.
+See [chat/substitutions.rs](../crates/sjk-viewer/src/chat/substitutions.rs).
+
 `cg_chatRememberChannel` (default 1, Settings > HUD > Remember chat channel)
 makes the chat key (`messagemode`) open the composer on the channel of the last
 message sent from it: All, Team, SJK, or a whisper to a player still in the game

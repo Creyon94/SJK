@@ -205,15 +205,23 @@ impl ViewerConsole {
     }
 
     /// Color the existing safe chat command, preserving destination and escaping.
-    pub(crate) fn color_chat_command(&self, command: &str) -> String {
-        let mask = self.integer_cvar("cl_colorstring").unwrap_or(0) as u16 & 1023;
-        let colored = color_chat(
-            command,
-            mask,
-            self.integer_cvar("cl_colorstringrandom")
-                .unwrap_or(2)
-                .clamp(1, 1000) as u32,
-        );
+    pub(crate) fn color_chat_command(
+        &self,
+        command: &str,
+        console_colors: Option<(u16, u32)>,
+    ) -> String {
+        let (mask, randomness) = console_colors.unwrap_or_else(|| {
+            (
+                self.integer_cvar("cl_colorstring").unwrap_or(0) as u16 & 1023,
+                self.integer_cvar("cl_colorstringrandom")
+                    .unwrap_or(2)
+                    .clamp(1, 1000) as u32,
+            )
+        });
+        let colored = color_chat(command, mask, randomness);
+        if console_colors.is_some() {
+            return colored;
+        }
         super::super::client_options::style_chat(
             &colored,
             self.text_value("cl_chatstyleprefix").unwrap_or(""),

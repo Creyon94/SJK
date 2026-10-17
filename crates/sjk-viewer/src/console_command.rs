@@ -221,8 +221,6 @@ impl ViewerConsole {
                                 }
                                 _ => payload,
                             };
-                            let payload =
-                                console_client::color_chat(payload, chat_mask, chat_random);
                             if ["say", "say_team", "tell"]
                                 .iter()
                                 .any(|name| tokens[0].eq_ignore_ascii_case(name))
@@ -230,7 +228,13 @@ impl ViewerConsole {
                                 if pending_chat.len() >= 64 {
                                     return Some(Err("Chat command queue is full".into()));
                                 }
-                                pending_chat.push_back(payload);
+                                // Keep the frame's colour policy while expanding the
+                                // message later against the presented player state.
+                                pending_chat.push_back((
+                                    payload.to_owned(),
+                                    chat_mask,
+                                    chat_random,
+                                ));
                                 return Some(Ok(Vec::new()));
                             }
                             let Some(active) = session.as_deref_mut() else {

@@ -15,6 +15,7 @@ mod player_actions;
 pub(crate) mod reply;
 pub(crate) mod sjk;
 mod social;
+mod substitutions;
 
 mod view;
 

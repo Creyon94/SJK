@@ -23,8 +23,6 @@ mod remaps;
 #[path = "console_restarts.rs"]
 mod restarts;
 
-pub(super) use identity::color_chat;
-
 /// Completion/help inventory for commands owned by viewer services.
 pub(super) const COMMANDS: &[(&str, &str)] = &[
     (
@@ -803,22 +801,18 @@ impl crate::GpuState {
         ) else {
             return Ok(Vec::new());
         };
-        let command = self.console.as_ref().map_or_else(
-            || command.clone(),
-            |console| console.color_chat_command(&command),
-        );
-        self.send_chat_command(&command);
+        self.send_chat_command(&command, None);
         Ok(Vec::new())
     }
 
     /// Consume explicit service requests and nonblocking query replies each frame.
     pub(crate) fn run_client_commands(&mut self, audio: &mut Option<crate::GameAudio>) {
-        while let Some(command) = self
+        while let Some((command, mask, randomness)) = self
             .console
             .as_mut()
             .and_then(|c| c.pending_chat.pop_front())
         {
-            self.send_chat_command(&command);
+            self.send_chat_command(&command, Some((mask, randomness)));
         }
         if self.live_presentation_ready()
             && self

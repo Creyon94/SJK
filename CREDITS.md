@@ -292,7 +292,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 22 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 23 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -340,6 +340,8 @@ merged into SJK
   or spectator mode, or a timeline rewind resets it to the equipped weapon, after JoF EJK #39.
 - #118 hiding private duellers' nameplates: `cg_nameplateHideDuelers` (off by default) hides the
   whole plate of players the server marks as duelling, after EJK #12.
+- #116 chat substitutions: the eleven JoF EJK tokens (`%H%`, `%S%`, `%F%`, `%W%`, `%A%`, `%P%`,
+  `%U%`, `%UKM%`, `%UM%`, `%T%`, `%T2%`) expand in every game-chat message before colouring.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 3 pull requests
 merged into SJK
