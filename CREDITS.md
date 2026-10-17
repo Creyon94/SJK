@@ -292,7 +292,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 27 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 32 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -350,6 +350,15 @@ merged into SJK
   shows when cycling items whatever it is set to, after JoF EJK #40.
 - #128 jetpack sounds to choose (`cg_jetpackOnSound`, `cg_jetpackHoverSound`) and positional
   start/stop sounds, after JoF EJK #43 and #87.
+- #122 the JA+ flamethrower: flame streams, impact fire, the upper-body hold pose and the repeating
+  flame sound from a documented JA+ contract (`cg_flameThrower` Auto/Off/JA+), after JoF EJK #31.
+- #124 the classic scoreboard's JoF EJK behaviour: it opens on death, obeys the warmup gate, keeps
+  telemetry and votes while hiding the player's status and crosshair, and JoF's row budgets.
+- #127 holstered saber hilts: stowed hilts at the hips and a staff across the back with its reach
+  and ignition timing, on JA+ servers (`cg_drawHolsteredSaber`), after JoF EJK #42, #81, #95,
+  #267 and #300.
+- #129 Tavion's and Desann's own idle stances, after JoF EJK.
+- #130 JA+ black sabers on both blades and thrown ones, with dark trails and the plugin toggle.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 5 pull requests
 merged into SJK
@@ -367,11 +376,13 @@ merged into SJK
 - #111 JoF EJK's camera settings: first-person weapon FOV, third-person distance, angle and
   offsets, and the damping presets, in Advanced > Gameplay and classic+ Game options.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 1 pull request merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
   from the profile folder and the game folders, as EternalJK's `Cmd_CompleteCfgName`.
+- #113 CTF team saber colours: in capture the flag and capture the ysalamiri every red or blue
+  player's blades in the team's colour; made an option at the merge (`cg_ctfTeamSabers`, off).
 
 ## Art
 
