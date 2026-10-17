@@ -559,6 +559,15 @@ impl NativeGame {
         true
     }
 
+    /// Whether entity `number` is a siege item a blow can hurt (`takedamage`).
+    pub(super) fn siege_item_struck(&self, number: u16) -> bool {
+        self.siege.as_ref().is_some_and(|siege| {
+            siege.items.iter().any(|placed| {
+                placed.id.legacy_number() == number && placed.item.take_damage && !placed.item.freed
+            })
+        })
+    }
+
     /// The solid items (a breakable one that cannot be picked up), as players' traces meet
     /// them.
     pub(super) fn siege_item_obstacles(&self) -> Vec<BoxObstacle> {

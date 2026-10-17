@@ -573,3 +573,45 @@ fn place(fields: &mut Vec<(usize, u32)>, indices: [usize; 3], vector: [f32; 3]) 
         fields.push((indices[axis], vector[axis].to_bits()));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn brush(pairs: &[(&str, &str)]) -> Breakable {
+        let mut text = String::from("{\n\"classname\" \"func_breakable\"\n\"model\" \"*4\"\n");
+        for (key, value) in pairs {
+            text.push_str(&format!("\"{key}\" \"{value}\"\n"));
+        }
+        text.push_str("}\n");
+        let entity = sjk_entity::parse_entity_lump(text.as_bytes())
+            .unwrap()
+            .remove(0);
+        spawn(&entity, ([-8.0; 3], [8.0; 3])).unwrap()
+    }
+
+    #[test]
+    fn an_invincible_door_used_by_name_comes_apart() {
+        // A siege gate the map opens by name: no health, never struck down.
+        let mut gate = brush(&[("spawnflags", "1"), ("targetname", "gate")]);
+        assert!(!gate.takes_damage);
+        assert_eq!(used(&mut gate, 1_000), None);
+        assert_eq!(gate.thinking, Thinking::None);
+        assert_eq!(gate.health, 0);
+    }
+
+    #[test]
+    fn a_delayed_one_waits_its_whole_seconds() {
+        let mut gate = brush(&[("delay", "2"), ("targetname", "gate")]);
+        assert_eq!(used(&mut gate, 1_000), None);
+        assert_eq!(gate.thinking, Thinking::Breaking);
+        assert_eq!(gate.next_think, 3_000);
+    }
+
+    #[test]
+    fn a_use_not_break_one_fires_its_targets() {
+        let mut lever = brush(&[("spawnflags", "64"), ("target", "relay")]);
+        assert_eq!(used(&mut lever, 0).as_deref(), Some("relay"));
+        assert!(lever.takes_damage);
+    }
+}

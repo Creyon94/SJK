@@ -27,6 +27,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Force Push and Pull move the doors and lifts a map made Force-usable and press Force-pushable buttons, which maps such as Siege Korriban use _(JoF, after OpenJK)_
 - Walls and barriers a map switches off by name go away, as the one in front of Siege Korriban's red crystal once its satellites are destroyed _(JoF, after OpenJK)_
+- Breakable walls and doors a map brings down by itself come apart, also after their delay, and sabers can damage siege objectives and the doors made to be struck open, as Siege Korriban's door after the crystals _(JoF, after OpenJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

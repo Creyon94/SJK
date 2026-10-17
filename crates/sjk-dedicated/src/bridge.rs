@@ -711,7 +711,7 @@ impl NativeGame {
             .iter()
             .position(|(ours, _)| ours.legacy_number() == number)
         else {
-            return false;
+            return self.shoot_mover(number, usize::from(owner), level_time);
         };
         let from = self
             .peer_mut(usize::from(owner))
@@ -741,6 +741,84 @@ impl NativeGame {
             }
         }
         true
+    }
+
+    /// `G_UseTargets` reaching the `func_breakable`s called `name` (`funcBBrushUse`): each
+    /// comes apart (after its `delay`, if it has one), or one made `USE_NOT_BREAK` fires
+    /// its targets.
+    pub(super) fn use_breakables(&mut self, name: &str, client: usize, level_time: i32) {
+        let mut index = 0;
+        while index < self.breakables.len() {
+            let brush = &mut self.breakables[index].1;
+            // One already coming apart is not used again.
+            if !brush.targetname.eq_ignore_ascii_case(name)
+                || brush.thinking != sjk_game_jka::breakables::Thinking::None
+            {
+                index += 1;
+                continue;
+            }
+            match sjk_game_jka::breakables::used(brush, level_time) {
+                Some(target) => self.fire_targets(&target, client, level_time),
+                None if brush.thinking == sjk_game_jka::breakables::Thinking::Breaking => {
+                    self.publish_breakable(index)
+                }
+                None => {
+                    let from = self.peer(client).map(|peer| peer.state.origin());
+                    // It leaves the list.
+                    self.break_brush(index, from, level_time);
+                    continue;
+                }
+            }
+            index += 1;
+        }
+    }
+
+    /// `G_RunThink` for the breakables: one whose `delay` (`funcBBrushDieGo` put off) is
+    /// over comes apart.
+    pub(super) fn run_breakables(&mut self, level_time: i32) {
+        let mut index = 0;
+        while index < self.breakables.len() {
+            let brush = &self.breakables[index].1;
+            if brush.thinking == sjk_game_jka::breakables::Thinking::Breaking
+                && brush.next_think <= level_time
+            {
+                self.break_brush(index, None, level_time);
+                continue;
+            }
+            index += 1;
+        }
+    }
+
+    /// A door or button the map gave health, struck (`G_Damage`, `g_combat.c`: "shootable
+    /// doors / buttons don't actually have any health"): at rest where it started it is
+    /// used (`GlobalUse`), anywhere else the blow does nothing. Whether `number` is one.
+    fn shoot_mover(&mut self, number: u16, client: usize, level_time: i32) -> bool {
+        let Some(index) = self.shootable_mover(number) else {
+            return false;
+        };
+        if self.doors[index].1.state == sjk_game_jka::movers::MoverState::Pos1 {
+            let fired = sjk_game_jka::mover_team::use_mover(
+                &mut self.doors,
+                index,
+                level_time,
+                Some(client),
+            );
+            self.publish_team(index);
+            if let Some(target) = fired
+                && !target.is_empty()
+            {
+                self.fire_targets(&target, client, level_time);
+            }
+        }
+        true
+    }
+
+    /// The place among the doors of the mover numbered `number` when a blow can reach it:
+    /// one with `health`, a team's master (`SP_func_door` gives a slave no `takedamage`).
+    pub(super) fn shootable_mover(&self, number: u16) -> Option<usize> {
+        self.doors.iter().position(|(id, door)| {
+            id.legacy_number() == number && door.health != 0 && !door.team_slave
+        })
     }
 
     /// `funcBBrushDieGo` on the server: the brush leaves the world, fires what it targets,
@@ -2527,6 +2605,7 @@ impl NativeGame {
         self.run_jedi_master(server_time);
         self.run_holocrons(server_time);
         self.run_siege_items(server_time);
+        self.run_breakables(server_time);
         self.run_multiples(server_time);
         self.run_map_effects(server_time);
         self.run_stock_entities(server_time);

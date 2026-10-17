@@ -1,3 +1,23 @@
+## Breakables used by name, delayed breaks, sabers on objectives
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: on siege_korriban, after the crystals were
+placed a laser pointed at the next door and the door could not be destroyed. Three gaps
+on the server, after OpenJK `g_mover.c` and `g_combat.c`:
+
+- A `func_breakable` used by name (`funcBBrushUse`) never came apart: `breakables::used`
+  had no caller. `G_UseTargets` now reaches them; an `INVINCIBLE` one breaks too, and a
+  `USE_NOT_BREAK` one fires its targets.
+- One with a `delay`, broken by a blow or a use, was left `Breaking` for good: nothing
+  ran its `funcBBrushDieGo`. `run_breakables` does each frame.
+- A saber blow only hurt players, NPCs and breakables. A siege item with health and a
+  door or button with `health` (opened when struck at rest, `GlobalUse`) are now hurt
+  by it; any blow that reaches `hurt_brush` opens such a door.
+
+Three unit tests pin `funcBBrushUse`; the touched crates' tests pass on Linux. That the
+korriban door is a breakable used by name is inferred from the report (the laser), not
+checked against the map, which is not here. Not done: `func_static`s pushed or pulled
+(`F_PUSH`/`F_PULL`), a breakable's `teamnodmg`, the use key on `PLAYER_USE` breakables.
+
 ## func_usable toggled by name
 
 17/10/2026, `claude/modest-johnson-3vkbmn`: after the push/pull change below, the
