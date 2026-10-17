@@ -2590,7 +2590,9 @@ default; a profile that saved that 0 has it moved once to 1
 
 ## Nameplates
 
-`cg_nameplate` (on by default) draws MMO-style nameplates over players
+`cg_nameplate` (off by default since 17/10/2026; Settings "See & share nameplates") draws MMO-style
+nameplates over players, and shares your own health, shield and Force with the other
+SJK players of your server ([Sharing and estimates](#sharing-and-estimates))
 ([nameplate.rs](../crates/sjk-viewer/src/hud/nameplate.rs); layout in
 [nameplate_math.rs](../crates/sjk-viewer/src/hud/nameplate_math.rs)): 2D HUD shapes
 and text at the projected point 8 units above the head of the player's box (decoded
@@ -2719,13 +2721,18 @@ Another player's health, shield and Force bars show only when that player shares
 them (decided 15/10/2026; since 17/10/2026 with no estimates on anyone else), and
 seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/2026):
 
-- `cg_nameplateShare` (Settings > Interface "Share my bars", and First setup):
-  your client sends your real health, shield and Force (from the snapshot the server
-  sends you, with its server time) to the SJK hub, which passes them to the other
-  SJK players of your server ([hub-chat.md](hub-chat.md#vitals)). It needs
-  `cl_identity` and a live claim, so it starts a few seconds after joining. It is
-  held on (the client sets it back) while nameplates show bars (`cg_nameplate` on,
-  `cg_nameplateBars` not 0); it can only be off with bars off.
+- **See & share nameplates** is one setting, `cg_nameplate` (17/10/2026, off by default;
+  Settings > Interface, First setup, and the switch on the Collection's Nameplates tab,
+  [sjk-ui.md](sjk-ui.md#collection)): with nameplates on, whatever bars they show
+  (names only too), your client sends your real health, shield and Force (from the
+  snapshot the server sends you, with its server time) to the SJK hub, which passes
+  them to the other SJK players of your server ([hub-chat.md](hub-chat.md#vitals));
+  off, you see no nameplates and nothing is sent (`hud::nameplate::see_and_share`). It
+  needs `cl_identity` and a live claim, so it starts a few seconds after joining. It
+  replaces `cg_nameplateShare` ("Share my bars"), which the client held on while
+  nameplates showed bars: two settings for one value, and in Settings the row looked
+  stuck off, since the hold put the cvar back the next frame while the row still read
+  OFF. A `cg_nameplateShare` line in an older `config.cfg` no longer does anything.
 - **Tied to the hub:** shared bars on other players show only while the
   hub's last answer (under 6 seconds old) lists you sharing in your slot. With
   `cl_identity` off, no hub, no claim yet or the hub down, other players get no such
@@ -2743,7 +2750,7 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   estimate as it stood at that server time: what was seen since (a hit, a pain, a
   heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
   seen since, the bar is exact; it never waits for the next value to move.
-- **Gold contour:** the plate of a player who shares (`cg_nameplateShare`) is framed in the verified badge's
+- **Gold contour:** the plate of a player who shares (See & share nameplates) is framed in the verified badge's
   gold instead of grey; in team games a thin line of the
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too
   while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.

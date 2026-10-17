@@ -1,3 +1,20 @@
+## See & share nameplates
+
+17/10/2026, `feat/see-and-share-nameplates`, based on `Sol-Vulpes/SJK` `1c8887f7`:
+implemented See & share nameplates (`cg_nameplate`, now off by default), the one setting
+for seeing other players' nameplates and sharing your own health, shield and Force. It
+replaces `cg_nameplateShare` and the hold that kept it on while plates showed bars,
+under which the Settings row looked stuck off. The Collection's Nameplates tab has its
+switch, in a row pulsing gold. See [client](client.md#sharing-and-estimates) and
+[sjk-ui](sjk-ui.md#collection).
+
+Workspace `cargo fmt --check`, build, test and clippy (no new warnings) passed on
+Windows 11 x86_64, Rust 1.99.0. Unit tests pin sharing following `cg_nameplate` (on
+with bars, names only, off, and off by default) and the Collection switch (click and
+Enter, its words, its fit at 1080 lines, 4K, 4:3 and 21:9, its pulse). The client was
+launched to the main menu; the shared bars were not exercised against a hub or a
+second client.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
@@ -762,7 +779,7 @@ arrows were) and the workspace checks; not yet seen in the game.
 
 15/10/2026, `nameplate-share` (hub `nameplate-share`), Sol's rule: other players' health,
 shield and Force bars show only for SJK players who share them (`cg_nameplateShare`,
-off), through the hub (`POST /v1/vitals`, twice a second, in memory 5 s). Estimated bars
+off; merged into `cg_nameplate`, See & share nameplates, on 17/10/2026), through the hub (`POST /v1/vitals`, twice a second, in memory 5 s). Estimated bars
 on everyone (`cg_nameplateEstimate`, off, replacing `cg_nameplatePredict`, which was on)
 share the player's own and say so on their player card ("Sees your health, shield and
 Force"). A sharer's bars are the estimates re-based on each shared value at its server

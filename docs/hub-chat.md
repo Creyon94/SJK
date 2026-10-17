@@ -861,7 +861,7 @@ or emote they send with the name they wear. With `cl_sjkChat` off it still sees 
 feed requests made on a game server (for the looks), with the server's address. A ping sends the hub the point, its scope and,
 through the claim, the player's slot and name on that server; it is kept 10 seconds in
 the hub's memory and reaches the SJK players reading that server. Shared vitals
-(`cg_nameplateShare`) send the hub the player's health,
+(`cg_nameplate`, See & share nameplates; `cg_nameplateShare` before 17/10/2026) send the hub the player's health,
 shield and Force twice a second and whether they see everyone's bars; the hub keeps
 them 5 seconds in memory and gives them to every SJK player on that server. Without
 either setting, the client still asks the hub every 2 seconds, on a game server, who

@@ -156,8 +156,8 @@ const MAX_ICONS: usize = 4;
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 /// Frame colour of players who follow no team.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
-/// The contour of a player who shares their bars (`cg_nameplateShare`), the verified
-/// badge's gold.
+/// The contour of a player who shares their bars (`cg_nameplate`, See and share
+/// nameplates), the verified badge's gold.
 const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
 /// The flat grey of every bar of a player who does not share.
 const WITHHELD_BAR: Color = Color::new(0.42, 0.44, 0.48, 0.55);
@@ -195,9 +195,10 @@ pub(crate) struct SharedSlot {
 pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
     cvars.register(CvarDefinition::new(
         "cg_nameplate",
-        true,
+        // Off by default (17/10/2026): it shares the player's own values too.
+        false,
         CvarFlags::ARCHIVE,
-        "MMO-style nameplates over players; they replace cg_drawPlayerNames",
+        "See and share nameplates: MMO-style nameplates over players (they replace cg_drawPlayerNames), and your own health, shield and Force for the other SJK players of your server",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateRange",
@@ -228,12 +229,6 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         true,
         CvarFlags::ARCHIVE,
         "Nameplate Force bar, estimated from the player's powers",
-    ))?;
-    cvars.register(CvarDefinition::new(
-        "cg_nameplateShare",
-        false,
-        CvarFlags::ARCHIVE,
-        "Share your health, shield and Force with the other SJK players of your server; on whenever your nameplates show bars",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateWeapon",
@@ -286,15 +281,13 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     Ok(())
 }
 
-/// Seeing bars shares the player's own (Sol's rule, 15/10/2026): nameplates with bars
-/// (`cg_nameplate` and `cg_nameplateBars` not 0) turn `cg_nameplateShare` back on
-/// whenever it is off, so the settings say what is sent.
-pub(crate) fn hold_sharing(console: &mut ViewerConsole) {
-    let bars = console.bool_cvar("cg_nameplate") != Some(false)
-        && console.integer_cvar("cg_nameplatebars").unwrap_or(2) != 0;
-    if bars && console.bool_cvar("cg_nameplateshare") != Some(true) {
-        console.set_cvar("cg_nameplateShare", "1");
-    }
+/// See and share nameplates is one setting, `cg_nameplate` (17/10/2026): seeing other
+/// players' nameplates shares the player's own health, shield and Force, and turning
+/// the nameplates off stops both. It replaces `cg_nameplateShare` and the hold that kept
+/// it on while the plates showed bars (Sol's rule, 15/10/2026: seeing bars means
+/// sharing).
+pub(crate) fn see_and_share(console: &ViewerConsole) -> bool {
+    console.bool_cvar("cg_nameplate") == Some(true)
 }
 
 /// Settings, sampled once per frame.
@@ -306,9 +299,6 @@ struct Settings {
     scale: f32,
     bars: i64,
     force: bool,
-    /// `cg_nameplateShare`: the player shares their own values (held on while the
-    /// plates show bars, [`hold_sharing`]).
-    share: bool,
     weapon: bool,
     walls: bool,
     npcs: bool,
@@ -335,7 +325,6 @@ impl Default for Settings {
             scale: 0.5,
             bars: 2,
             force: true,
-            share: false,
             weapon: true,
             walls: false,
             npcs: false,
@@ -504,7 +493,7 @@ impl State {
         };
         let profile = console.and_then(ViewerConsole::own_force_allocation);
         self.settings = Settings {
-            enabled: flag("cg_nameplate", true),
+            enabled: flag("cg_nameplate", false),
             range: number("cg_nameplaterange", 3000.0).clamp(500.0, 10_000.0),
             near: number("cg_nameplatenear", 1000.0).clamp(0.0, 10_000.0),
             scale: crate::cgame_options::scalar(console, "cg_nameplatescale", 0.5).clamp(0.1, 3.0),
@@ -512,7 +501,6 @@ impl State {
                 .and_then(|c| c.integer_cvar("cg_nameplatebars"))
                 .unwrap_or(2),
             force: flag("cg_nameplateforce", true),
-            share: flag("cg_nameplateshare", false),
             weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
@@ -603,11 +591,10 @@ impl State {
     }
 
     /// What the player shares this frame: their own health, shield and Force while
-    /// alive in a match, with `cg_nameplateShare`, or whenever they may see others'
-    /// bars (plates with bars) whatever it says.
+    /// alive in a match, whenever their nameplates are on ([`see_and_share`]).
     pub(crate) fn sharing(&self, snapshot: Option<&Snapshot>) -> sjk_identity::Sharing {
         let settings = &self.settings;
-        let share = settings.share || (settings.enabled && settings.bars != 0);
+        let share = settings.enabled;
         let vitals = snapshot
             .filter(|snapshot| {
                 share && snapshot.player.health() > 0 && !snapshot.player.is_spectator()
@@ -2218,7 +2205,7 @@ impl crate::GpuState {
             .as_mut()
             .ok_or_else(|| "no console".to_owned())?;
         let current = Mode::of(
-            console.bool_cvar("cg_nameplate").unwrap_or(true),
+            console.bool_cvar("cg_nameplate").unwrap_or(false),
             console.integer_cvar("cg_nameplateBars").unwrap_or(2),
         );
         let mode = match args.first() {
@@ -2239,6 +2226,26 @@ impl crate::GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// See and share nameplates is one switch, off by default: nameplates on share,
+    /// whatever bars they show (names only too); off shares nothing.
+    #[test]
+    fn nameplates_on_share_and_off_does_not() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut state = State::default();
+        // Off by default: a new player sees no nameplates and shares nothing.
+        assert!(!see_and_share(&console));
+        state.sample(Some(&console));
+        assert!(!state.sharing(None).share);
+        for (enabled, bars, shares) in [("1", "2", true), ("1", "0", true), ("0", "2", false)] {
+            console.set_cvar("cg_nameplate", enabled);
+            console.set_cvar("cg_nameplateBars", bars);
+            state.sample(Some(&console));
+            assert_eq!(state.sharing(None).share, shares, "{enabled} {bars}");
+            assert_eq!(see_and_share(&console), shares, "{enabled} {bars}");
+        }
+    }
 
     #[test]
     fn v_cycles_off_names_target_everyone_and_round() {

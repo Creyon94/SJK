@@ -362,7 +362,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplate",
-        "MMO-style nameplates: a name far away, with bars and a frame up close.",
+        "Nameplates over players, and your health, shield and Force for SJK players on your server. Off: neither.",
     ),
     (
         "cg_nameplateRange",
@@ -384,10 +384,6 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_nameplateForce",
         "Force bar under the name, estimated from the powers the player uses. The grey haze shows how unsure the estimate is.",
-    ),
-    (
-        "cg_nameplateShare",
-        "Your real health, shield and Force for the other SJK players, through the SJK hub. Always on while your nameplates show bars.",
     ),
     (
         "cg_nameplateSelf",

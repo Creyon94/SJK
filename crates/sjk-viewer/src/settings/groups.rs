@@ -345,7 +345,6 @@ impl Group {
                 "cg_nameplateScale",
                 "cg_nameplateBars",
                 "cg_nameplateForce",
-                "cg_nameplateShare",
                 "cg_nameplateWeapon",
                 "cg_nameplateSelf",
                 "cg_nameplateHideDuelers",

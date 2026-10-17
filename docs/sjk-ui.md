@@ -1524,6 +1524,12 @@ for the run.
   model's head with the last frame's view, `GpuState::frame_view`; over the preview's
   head without a stage) the player's nameplate as a match draws it near: the name in
   its colours, the shield, health and Force bars, with dashed marks at the three places.
+  Under the words beside it, **See & share nameplates** (a switch; a click or Enter flips
+  it, its row pulsing gold every 1.2 s, a ring round it and a glow behind the switch)
+  puts `cg_nameplate` in plain view: the one setting for seeing other players'
+  nameplates and sharing your health, shield and Force
+  ([client.md](client.md#sharing-and-estimates)). A quiet line under it says what on or
+  off means (or, with the identity off, that sharing needs it).
 - **Holocrons** ([holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs),
   [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs),
   [holocrons.md](holocrons.md#the-holocrons-tab), 10/10/2026, Sol's holocron drops): a
