@@ -14,6 +14,7 @@ pub(crate) mod glow_integral;
 
 pub(crate) struct Runtime {
     pipeline: wgpu::RenderPipeline,
+    black_pipeline: wgpu::RenderPipeline,
     /// The glow capsules alone, for the dynamic glow image: the retail `*_glow` blade
     /// shaders carry `glow`, the `*_line` cores do not (`sabers.shader`).
     glow_pipeline: wgpu::RenderPipeline,
@@ -248,6 +249,13 @@ impl Runtime {
             "fragment_solid",
             Some(wgpu::BlendState::ALPHA_BLENDING),
         );
+        let black_pipeline = special(
+            "SJK JA+ black saber pipeline",
+            &layout,
+            "vertex_main",
+            "fragment_black",
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+        );
         let haze_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("SJK saber haze sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -270,6 +278,7 @@ impl Runtime {
         });
         Ok(Self {
             pipeline,
+            black_pipeline,
             glow_pipeline,
             materials,
             texture_layout,
@@ -349,9 +358,9 @@ impl Runtime {
         pass: &mut wgpu::RenderPass<'pass>,
         camera: &'pass wgpu::BindGroup,
     ) {
-        self.trails.draw(pass, camera);
+        self.trails.draw(pass, camera, true);
         self.draw_blades(pass, camera, &self.pipeline);
-        self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges);
+        self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges, true);
     }
 
     /// Whether this frame's blades may bend the scene with heat haze or a black hole's
@@ -369,7 +378,20 @@ impl Runtime {
         camera: &'pass wgpu::BindGroup,
         buffer: &'pass wgpu::Buffer,
         ranges: &[Range<u32>],
+        black_blades: bool,
     ) {
+        let black = crate::saber_rgb::BLACK_MATERIAL as usize;
+        if black_blades && !ranges[black].is_empty() {
+            draw_instances(
+                pass,
+                camera,
+                &self.skins,
+                &self.black_pipeline,
+                &self.materials[black..],
+                buffer,
+                &ranges[black..],
+            );
+        }
         if self.any_holes && skinned(ranges) {
             draw_instances(
                 pass,
@@ -488,7 +510,13 @@ impl Runtime {
             &self.preview_buffer,
             &self.preview_ranges,
         );
-        self.draw_horizons(pass, camera, &self.preview_buffer, &self.preview_ranges);
+        self.draw_horizons(
+            pass,
+            camera,
+            &self.preview_buffer,
+            &self.preview_ranges,
+            true,
+        );
     }
 
     /// Draw into the dynamic glow image: the trails (`saberBlur`/`swordTrail` glow)
@@ -501,11 +529,11 @@ impl Runtime {
         blades_only: bool,
     ) {
         if !blades_only {
-            self.trails.draw(pass, camera);
+            self.trails.draw(pass, camera, false);
         }
         self.draw_blades(pass, camera, &self.glow_pipeline);
         // A hole in front of the blade hides its glow there too.
-        self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges);
+        self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges, false);
     }
 
     /// Whether the glow image gets any saber this frame.
@@ -548,7 +576,7 @@ impl Runtime {
 
 /// Whether `ranges` holds a skinned blade.
 fn skinned(ranges: &[Range<u32>]) -> bool {
-    ranges[crate::saber_rgb::SKIN_MATERIAL as usize..]
+    ranges[crate::saber_rgb::SKIN_MATERIAL as usize..crate::saber_rgb::BLACK_MATERIAL as usize]
         .iter()
         .any(|range| !range.is_empty())
 }

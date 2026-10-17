@@ -521,6 +521,10 @@ const HELP: &[(&str, &str)] = &[
         "The light trail behind a swinging saber blade.",
     ),
     (
+        crate::saber_rgb::black::CVAR,
+        "Show black blades on JA+/jaPRO; off uses orange. Plugin feature 3 must also be allowed.",
+    ),
+    (
         crate::effect_aux::saber_rain_steam::CVAR,
         "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),

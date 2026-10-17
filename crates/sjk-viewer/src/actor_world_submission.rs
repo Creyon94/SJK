@@ -61,6 +61,7 @@ struct Sinks<'a> {
     saber_hilts: Option<&'a saber::HiltCatalog>,
     /// Who wears which blade skin.
     saber_skins: &'a crate::saber_skins::SaberSkins,
+    black_sabers: crate::saber_rgb::black::Policy,
     saber_states: &'a mut saber_trail::StateSlab,
     saber_segments: &'a mut saber_trail::SegmentPool,
     /// Trail edges for held and flying blades; `None` with `cg_saberTrail 0`.
@@ -260,6 +261,18 @@ pub(crate) fn submit(
         entity_instances: &mut gpu.entity_instances,
         saber_hilts: gpu.saber_hilts.as_ref(),
         saber_skins: &gpu.saber_skins,
+        black_sabers: crate::saber_rgb::black::Policy::new(
+            game_state,
+            gpu.console
+                .as_ref()
+                .and_then(|c| c.bool_cvar(crate::saber_rgb::black::CVAR))
+                .unwrap_or(true),
+            gpu.console
+                .as_ref()
+                .and_then(|c| c.integer_cvar("cp_plugindisable"))
+                .unwrap_or(i64::from(sjk_client::PLUGIN_DISABLE_DEFAULT)),
+            gpu.muted_players.slots().muted,
+        ),
         saber_states: &mut gpu.saber_states,
         saber_segments: &mut gpu.saber_trail_segments,
         trail_edges: trails.then(|| {
@@ -1013,6 +1026,7 @@ fn submit_equipment(
             .saber_skins
             .get(entity.id.get())
             .filter(|_| !sinks.team_sabers),
+        sinks.black_sabers,
         std::array::from_fn(|hand| {
             if hand == 0 && holstered_primary {
                 return None;

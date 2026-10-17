@@ -269,6 +269,7 @@ impl Group {
                 "cg_simpleItems",
                 "cg_forceModel",
                 "cg_saberTrail",
+                crate::saber_rgb::black::CVAR,
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
                 crate::actor_world_submission::force_powers::victim::CVAR,

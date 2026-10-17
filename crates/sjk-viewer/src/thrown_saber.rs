@@ -81,9 +81,12 @@ pub(super) fn submit(
     let color = if sinks.team_sabers {
         BladeColor::from_rgb(owner.color)
     } else {
-        sinks
-            .saber_skins
-            .blade_color(owner_entity, BladeColor::from_rgb(owner.color))
+        sinks.saber_skins.blade_color(
+            owner_entity,
+            sinks
+                .black_sabers
+                .color(owner_entity, 0, BladeColor::from_rgb(owner.color)),
+        )
     };
     if let Some((hilt, blades)) = submit_hilt(
         owner,
