@@ -162,4 +162,28 @@ mod tests {
         assert_eq!(saber_color_from_config(config, 0), legacy_blade_rgb(2));
         assert_eq!(saber_color_from_config(br"n\x", 0), legacy_blade_rgb(4));
     }
+
+    #[test]
+    fn every_custom_tint_reads_back_from_its_configstring() {
+        // `c1`/`c2` 6 with the packed tint in `c3`/`c4`, as the sliders and JA+/JoF
+        // servers write them: every green value, with strided reds and blues, reads
+        // back as itself and never as a stock colour.
+        for red in (0..=255u32).step_by(5).chain([255]) {
+            for green in 0..=255u32 {
+                for blue in (0..=255u32).step_by(3).chain([255]) {
+                    let rgb = [red as u8, green as u8, blue as u8];
+                    let packed = crate::pack_saber_rgb(rgb);
+                    let config = format!(r"n\Sol\c1\6\c3\{packed}\c2\6\c4\{packed}");
+                    let expected = if packed == 0 { [255, 0, 0] } else { rgb };
+                    for saber in 0..2 {
+                        assert_eq!(
+                            saber_color_from_config(config.as_bytes(), saber),
+                            expected,
+                            "packed {packed}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

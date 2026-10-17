@@ -5050,3 +5050,13 @@ test: cg_dismember 0, then an order: confetti instead of pieces, the body hidden
 test: Respawn: your body is whole again; the corpse left behind stays hidden.
 note: Others dying with you needs a second SJK client with the toy on; no hub deploy needed.
 note: The order's voice is sound/sjk/order66/order.wav, yours to add; SJK ships no sound.
+
+[chroma-pastel]
+area: Rendering & effects
+title: Shader blades keep their colour on pale custom tints
+change: A pale custom blade colour (RGB 207 190 234) turned a Spectral or other chroma blade cyan.
+change: Only near-grey colours (under 3 percent saturation) now leave a chroma at its own hue.
+test: Saber page, wear Spectral (or another chroma shader), pick Custom, set R 207, B 234.
+test: Move Green from 185 to 190 and on: the blade and thumbnails stay violet, no jump to cyan.
+test: Slide each channel slowly: the shader blade changes hue smoothly with the colour swatch.
+note: Kushina's Discord report, build 2026.1016.2.

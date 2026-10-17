@@ -430,3 +430,46 @@ pub(super) fn allowed(hilt: &LegacySaberDefinition, style: SaberStyle) -> bool {
         SaberStyle::Single | SaberStyle::Dual => hilt.saber_type == LegacySaberType::Single,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The tint the menu's draft shows, after its cvars were written and read back
+    /// by a fresh menu, and as the userinfo sent to a server carries it.
+    fn round_trip(start: u8, channel: usize, value: u8) -> ([u8; 3], [u8; 3], Option<u32>) {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("color1", &start.to_string());
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        menu.set_channel(false, channel, value);
+        let shown = menu.rgb(false);
+        menu.apply(&mut console);
+        let mut reopened = SaberMenu::new();
+        reopened.open(&console);
+        let userinfo = console.userinfo().unwrap();
+        (shown, reopened.rgb(false), userinfo.saber_rgb[0])
+    }
+
+    #[test]
+    fn a_nudged_channel_keeps_the_other_two_and_reaches_the_server() {
+        for start in 0..=5u8 {
+            let stock = Color::ALL[usize::from(start)].blade_rgb();
+            for channel in 0..3 {
+                for value in (0..=255u8).step_by(5).chain([255]) {
+                    let mut expected = stock;
+                    expected[channel] = value;
+                    let (shown, reopened, sent) = round_trip(start, channel, value);
+                    assert_eq!(shown, expected, "colour {start} channel {channel}={value}");
+                    let packed = pack_saber_rgb(expected);
+                    // An all-zero tint is the packed 0 that reads as red, as in JA+.
+                    if packed != 0 {
+                        assert_eq!(reopened, expected, "reopened {start}/{channel}/{value}");
+                        assert_eq!(sent, Some(packed), "sent {start}/{channel}/{value}");
+                    }
+                }
+            }
+        }
+    }
+}

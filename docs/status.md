@@ -1,3 +1,14 @@
+## Chroma blades on pale custom colours
+
+17/10/2026, `personal/rgb-saber` (Kushina's report, build 2026.1016.2: moving the Green
+slider five steps turned a Spectral blade and its thumbnails from violet to cyan). A
+chroma shader blade turns its colours to the wearer's hue (`saber_skins::hue_of`), but
+`CHROMA_GREY` 0.2 took every colour under 20% saturation for grey and left the skin at its
+own hue: RGB 207 185 234 (0.21) turned, 207 190 234 (0.19) did not. The threshold is now
+0.03. Unit tests: `a_custom_tint_never_jumps_hue_between_neighbouring_values` and, for
+the plain path (all fine, kept as regression tests), a custom tint's round trip through
+the menu, userinfo and configstring (`saber::tests`, `presentation_equipment::tests`).
+
 ## Linux clipboard in process
 
 17/10/2026, `personal/linux-paste` (hub report 58, Nib, build 2026.1015.1): Ctrl+V did
