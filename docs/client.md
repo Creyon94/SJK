@@ -2330,6 +2330,19 @@ is drawn on JAPRO servers (their serverinfo names `japro`), whose movement style
 change the physics, while in a vehicle, zoomed or in a special movement type. The
 helper's sound, accel bar, Weze, Warsow and original styles are not drawn.
 
+## Followed player's name
+
+While following (spectating) someone, and throughout demo playback, the HUD names
+the player whose view it shows in the top left, as JoF EternalJK's `CG_DrawFollow`
+does (stock Jedi Academy centred "following" and the name at the top): the name with
+its colour codes, white otherwise, its line top at (4, 27) of the 640x480 screen and
+`FONT_MEDIUM` at 0.85 (SJK Menu with "Classic game fonts", the HUD font otherwise), placed
+in the HUD's 1080-line frame like the other HUD text
+([follow.rs](../crates/sjk-viewer/src/hud/follow.rs)). While it shows, the warmup
+line ("WAITING FOR PLAYERS", "STARTS IN") is not drawn, as `CG_Draw2D` skips
+`CG_DrawWarmup` then. It follows `cg_drawHud` and `cg_draw2D` and steps aside with
+the rest of the HUD while the scoreboard is held (hub report 69).
+
 ## Scoreboard styles
 
 `cg_scoreboardStyle` (Settings > HUD > Scoreboard > "Scoreboard style") picks the

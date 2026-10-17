@@ -2846,7 +2846,7 @@ font, following OpenJK `codemp`:
 
 | Retail font | Drawn with | Surfaces |
 | --- | --- | --- |
-| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
+| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, followed player's name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
 | Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, connection interrupted |
 
