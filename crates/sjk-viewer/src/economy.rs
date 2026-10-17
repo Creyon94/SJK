@@ -12,9 +12,6 @@
 //! [`choices`], [`shatter_yield`], [`craft_cost`], [`balance`], [`can_trade`],
 //! [`shatter`], [`craft`], [`trade_outcome`] and [`outcome_words`]. The shop is the
 //! Holocrons tab's ([`crate::holocrons_panel`]).
-// The Shaders tab's hooks wait for its shader cards (being redesigned apart, 17/10/2026):
-// until they call them, some are called by nothing.
-#![allow(dead_code)]
 
 use crate::unlockables::{Rarity, Unlockable};
 use std::sync::Mutex;
@@ -89,7 +86,9 @@ pub(crate) fn craft_cost(tier: Rarity) -> u64 {
     current().craft[tier as usize]
 }
 
-/// What a shader of tier `tier` costs in the shop, in credits.
+/// What a shader of tier `tier` costs in the shop, in credits (the shop itself shows the
+/// prices the hub sends with its offers; this is the table's).
+#[cfg(test)]
 pub(crate) fn shop_price(tier: Rarity) -> u64 {
     current().shop[tier as usize]
 }
@@ -209,7 +208,8 @@ mod tests {
         assert_eq!(of_hub(&wire(vec![0, 2, 3, 4, 5])), None, "a zero");
     }
 
-    /// Medal blades and the team's shaders never take part; what holocrons drop does.
+    /// Medal blades never take part; every shader holocrons drop does (since 17/10/2026
+    /// every one but the medals' drops, so the team's Sun too).
     #[test]
     fn only_what_holocrons_drop_and_no_medal_brings_is_traded() {
         for medal in crate::medals::Medal::ALL {
@@ -217,7 +217,7 @@ mod tests {
                 assert!(!in_trade(unlockables::find(id).unwrap()), "{id}");
             }
         }
-        assert!(!in_trade(unlockables::find("saber_sun").unwrap()));
+        assert!(in_trade(unlockables::find("saber_sun").unwrap()));
         assert!(in_trade(unlockables::find("saber_tidal").unwrap()));
         assert!(
             unlockables::blade_skins()

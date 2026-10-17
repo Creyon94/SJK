@@ -896,6 +896,11 @@ Profile page's See the collection) open it on its own:
   colour, with the chance an opening of one does (the hub's odds split evenly among
   the droppable shaders of its tier, `cards::loot::shader_in`); then its parts and, at
   the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
+  While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
+  the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
+  twice or more, or Craft (its cost) for one not held, dimmed while the shards fall
+  short; the first press arms it ("Confirm: ..."), a second within five seconds sends
+  it, and the line at the right says the hub's answer or the shards at hand.
   The rack's and the grid's state lines carry the same icons, and the grid's tier line
   its rarity mark. The classic menus have no stage: the area shows the swatch, larger;
 - with the identity off, no hub or no answer yet, the tab says so and no skin is

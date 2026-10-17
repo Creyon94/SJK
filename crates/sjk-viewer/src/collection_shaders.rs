@@ -16,6 +16,7 @@ use crate::rarity_fx;
 use crate::symbols;
 use crate::unlockables::Unlockable;
 use sjk_ui::{DrawCommand, FontWeight, TextAlign};
+use std::time::Instant;
 
 /// The rack: where its first row starts, a row's room and a swatch's size.
 const RACK_TOP: f32 = 324.0;
@@ -1151,6 +1152,7 @@ impl Panel {
             );
         }
         let wear = self.shader_rows.get(self.shader).and_then(|row| row.wear);
+        let mut left = x;
         if let Some(wear) = wear {
             let label = if wear.is_empty() && row.skin.is_some() {
                 "Unequip"
@@ -1170,7 +1172,124 @@ impl Panel {
                 false,
                 WEAR_TOKEN,
             );
+            left += button_width + 12.0;
         }
+        self.trade_buttons(frame, row, inputs, [left, button_y], x + width);
+    }
+
+    /// Shatter and Craft at `[x, y]` on the card's foot, while the hub lets the player
+    /// trade (`docs/cards.md`, "Shards and the shop"): Shatter for a shader of the trade
+    /// held twice or more (one copy into kyber shards, never the last), Craft for one not
+    /// held (dimmed while the shards fall short). The first press arms the button ("Confirm:
+    /// ..."), a second within five seconds sends it. Up to `right`, the hub's answer to the
+    /// last trade of this shader, or the player's shards.
+    fn trade_buttons(
+        &mut self,
+        frame: &Frame,
+        row: Row,
+        inputs: &Inputs<'_>,
+        [x, y]: [f32; 2],
+        right: f32,
+    ) {
+        let (Some(skin), Some(shards)) = (row.skin, self.trade) else {
+            return;
+        };
+        let s = frame.s;
+        // A medal's copy is not the player's to trade.
+        let held = inputs
+            .holdings
+            .unlock(skin.id)
+            .filter(|unlock| unlock.medal.is_none())
+            .map_or(0, |unlock| unlock.count);
+        let choices = crate::economy::choices(skin, held, shards);
+        let now = Instant::now();
+        let armed = |token: u16| {
+            self.trade_armed.is_some_and(|(armed, id, at)| {
+                armed == token && id == skin.id && now.duration_since(at) <= TRADE_CONFIRM
+            })
+        };
+        let (shatter_armed, craft_armed) = (armed(SHATTER_TOKEN), armed(CRAFT_TOKEN));
+        let mut left = x;
+        if let Some(gain) = choices.shatter {
+            let label = if shatter_armed {
+                "Confirm: shatter one".to_owned()
+            } else {
+                format!(
+                    "Shatter a copy  +{} {}",
+                    crate::economy::shards_text(gain),
+                    symbols::SHARD
+                )
+            };
+            let width = (crate::text::display_width(&label, 18.0) + 48.0).max(180.0);
+            kit::button(
+                &mut self.ui,
+                frame,
+                [left, y, width, 44.0],
+                &label,
+                shatter_armed,
+                true,
+                false,
+                SHATTER_TOKEN,
+            );
+            left += width + 12.0;
+        }
+        if let Some(cost) = choices.craft {
+            let cost = crate::economy::shards_text(cost);
+            let label = if craft_armed {
+                format!("Confirm: {cost} shards")
+            } else {
+                format!("Craft  {cost} {}", symbols::SHARD)
+            };
+            let width = (crate::text::display_width(&label, 18.0) + 48.0).max(180.0);
+            kit::button(
+                &mut self.ui,
+                frame,
+                [left, y, width, 44.0],
+                &label,
+                choices.affordable,
+                choices.affordable,
+                false,
+                CRAFT_TOKEN,
+            );
+            left += width + 12.0;
+        }
+        if choices.shatter.is_none() && choices.craft.is_none() {
+            return;
+        }
+        // The last trade's answer while it is this shader's, else the shards at hand.
+        let (line, colour) = match (&self.trade_sent, &self.trade_outcome) {
+            (Some((serial, sent)), Some(outcome))
+                if sent.id == skin.id && outcome.serial > *serial && outcome.id == sent.id =>
+            {
+                let colour = if outcome.done() {
+                    color::GOLD
+                } else {
+                    color::MUTED
+                };
+                (crate::economy::outcome_words(outcome, sent.name), colour)
+            }
+            (Some((_, sent)), _) if sent.id == skin.id => {
+                ("Asking the SJK hub...".to_owned(), color::MUTED)
+            }
+            _ => (
+                format!(
+                    "{}  {} kyber shards",
+                    symbols::SHARD,
+                    crate::economy::shards_text(shards)
+                ),
+                color::HOLO,
+            ),
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{line}"),
+            frame.rect(left, y + 11.0, (right - left).max(0.0), 22.0),
+            15.0 * s,
+            colour,
+            FontWeight::Semibold,
+            TextAlign::End,
+        );
     }
 
     /// The room above the card: the stage's lone saber, which a drag turns (a hint says
