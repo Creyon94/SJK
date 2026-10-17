@@ -181,6 +181,12 @@ impl ViewerConsole {
         self.staff_panel.view_for_shot(logs, group);
     }
 
+    /// Show the open page's tab named by its token, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn staff_tab(&mut self, tab: super::staff_panel::ShotTab) {
+        self.staff_panel.tab_for_shot(tab);
+    }
+
     /// Choose the player with `key_id` on the open page, for a world shot.
     #[cfg(test)]
     pub(crate) fn staff_choose(&mut self, key_id: &str) {

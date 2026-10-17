@@ -250,13 +250,12 @@ goes, in all three places the SJK chat shows ([hub-chat.md](hub-chat.md#how-a-li
 
 ### Staff
 
-The Staff page ([identity.md](identity.md#staff)) has a Holocrons section under the
-players: the chosen player's counts, the four tiers to choose (the choice ringed in its
-colour), Give (with the note field, `StaffRequest::HolocronGive`, `POST
-/v1/staff/holocron-give`) and the player's four newest holocrons with Remove
+The Staff page ([identity.md](identity.md#staff)) has a Holocrons section on its
+Holocrons and credits tab: the chosen player's counts, the four tiers to choose (the
+choice ringed in its colour), Give (with the note field, `StaffRequest::HolocronGive`,
+`POST /v1/staff/holocron-give`) and the player's twelve newest holocrons with Remove
 (`StaffRequest::HolocronRemove`, `POST /v1/staff/holocron-remove`). The hub's answer is the
 target's profile and replaces the chosen player's, and the player's own when it is theirs.
-To make room the player list shows 10 players instead of 14.
 
 ### `debug_holocron`
 
