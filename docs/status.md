@@ -1,4 +1,4 @@
-## See & share nameplates, Settings to review
+## See & share nameplates, Settings to review, no Force estimate
 
 17/10/2026, `feat/see-and-share-nameplates`, based on `Sol-Vulpes/SJK` `1c8887f7`:
 implemented See & share nameplates (`cg_nameplate`, now off by default), the one setting
@@ -7,13 +7,15 @@ replaces `cg_nameplateShare` and the hold that kept it on while plates showed ba
 under which the Settings row looked stuck off. The Collection's Nameplates tab has its
 switch, in a row pulsing gold. The what's-new card opens on a Settings to review page
 fed by `= <cvar>[ reset]: <text>` changelog lines, which resets `cg_nameplate` once for
-profiles from before, with no migration cvar of its own. See
+profiles from before, with no migration cvar of its own. A nameplate's Force bar is
+the value the player shares: the Force estimate (`force_estimate.rs`) and
+`cg_nameplateForce` are removed. See
 [client](client.md#sharing-and-estimates), [sjk-ui](sjk-ui.md#whats-new-card) and
 [sjk](sjk.md#changelog).
 
 Workspace `cargo fmt --check`, build, test and clippy (no new warnings) passed on
 Windows 11 x86_64, Rust 1.99.0. Unit tests pin sharing following `cg_nameplate` (on
-with bars, names only, off, and off by default) and the Collection switch (click and
+with bars, names only, off, and off by default), the shared Force bar, the Collection switch (click and
 Enter, its words, its fit at 1080 lines, 4K, 4:3 and 21:9, its pulse), the review
 lines' parsing and checks, their gathering across skipped releases, the reset, and the
 card's review page and switches. The client was launched to the main menu; the shared

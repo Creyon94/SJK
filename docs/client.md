@@ -2688,8 +2688,7 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   target, 2 everyone); 1 (allies only) stays reachable in the settings.
 - `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target and duel
   opponent. `cg_nameplateScale`
-  sets the text size, `cg_nameplateForce` the Force bar (see [Sharing](#sharing-and-estimates)
-  for whose), `cg_nameplateWalls` shows
+  sets the text size, `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
@@ -2745,15 +2744,17 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   their numbers.
 - **Players who do not share** (Sol's rule, 16/10/2026 for SJK players, 17/10/2026
   for everyone, bots and players without SJK too): grey bars, full length and empty,
-  for every viewer: health, shield, and Force with `cg_nameplateForce`. Nothing
+  for every viewer: health, shield and Force. Nothing
   overrides it, not even a teammate's `tinfo`. Their name, weapon and power icons
   stay. NPCs keep their bars.
-- **Sharers:** their bars are the estimates below, corrected with every value they
-  share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
+- **Sharers:** their health and shield bars are the estimates below, corrected with
+  every value they share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
   shared value is up to about a second old by the time it arrives, so it re-bases the
   estimate as it stood at that server time: what was seen since (a hit, a pain, a
   heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
-  seen since, the bar is exact; it never waits for the next value to move.
+  seen since, the bar is exact; it never waits for the next value to move. Their
+  Force bar is the last Force they shared, not estimated (17/10/2026,
+  `hud::nameplate::shared_force`), so it moves with each value, about twice a second.
 - **Gold contour:** the plate of a player who shares (See & share nameplates) is framed in the verified badge's
   gold instead of grey; in team games a thin line of the
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too
@@ -2803,9 +2804,8 @@ Where the numbers come from, and what is not known:
     does 2 a second past the shield (its crushing blow is a pain);
   - rage costs 2 health every 150, 300 or 450 ms by level (the guess level 3), down
     to 1, and halves every blow and fall before the shield; protect keeps 40, 60 or
-    80% of a blow off the health (the guess 80%) and pays for it with Force, point
-    for point, a half or a quarter (halved with the boon), which the Force estimate
-    takes;
+    80% of a blow off the health (the guess 80%) and pays for it with Force (not
+    estimated);
   - private duels (`EV_PRIVATE_DUEL`, 1 at the start, 0 at the end): on JA+ both
     duellists are set to 100 health and 100 shield when it starts, and the winner to
     100 and 25 when it ends, whatever they had left; on stock JKA the start changes
@@ -2831,41 +2831,13 @@ Where the numbers come from, and what is not known:
   trusted but their absence proves nothing; if they do not match (or every pain says
   50), they are ignored and a pain only says ten or more landed. JA+ is closed source
   and not verified.
-- **Force** is never sent for other players, so it is estimated
-  ([force_estimate.rs](../crates/sjk-viewer/src/hud/force_estimate.rs)) from their
-  entity state with the server's own rules: a full pool at spawn, a point per
-  regen pace (measured from your own pool while you idle, which the server does send,
-  else `g_forceRegenTime` from the server's info string, else 200 ms; six times as
-  fast with the boon) while no power but drain is on and no saber is thrown or in a
-  special move, and these costs:
-  - the price of each power when it switches on (a grip a flat 30; drain and
-    lightning need 25 to start), and the running costs of protect, absorb, grip and
-    lightning;
-  - a force jump nothing to start, then while it lasts every 300 ms (200 at level 1)
-    20, 16, 12, 8, 6 or 4 by how fast it rises (`pos.trDelta[2]` over 250, 200, 150,
-    100, 50, 0), over the jump level;
-  - push and pull (by their animation) and a saber throw at their price; a disarm
-    flies the saber too but its own entity is not in flight, and costs nothing;
-  - saber specials when their `saberMove` starts, proving the pool held the price:
-    a kata 50, a cartwheel or butterfly 10, a lunge, spin, flip attack, death from
-    above, stab down, roll stab or dual/staff jump attack 25; a wall run-up's flip
-    and a jump off a wall grab 6, a level-2 flip back off a wall half the rise's
-    band;
-  - heal (its sound) and team heal or energize (`EV_TEAM_POWER`, the caster stands
-    at it), which never show as active, at their price; an energize gives its 50,
-    33 or 25 to each named teammate;
-  - protect's share of the blows it softens; drain shots and absorb's point back a
-    drain or lightning shot (see below); an absorb's hit sound while somebody pushes
-    or pulls gives 6 to 18 back;
-  - `EV_NOAMMO` 0 (a special refused for want of Force) proves the pool under 50;
-    becoming the Jedi Master fills it.
-
-  Power levels are not sent, so the low bound pays each power at its dearest level
-  and the high bound at its cheapest (the guess at level 3); until the pace is
-  measured the bounds refill a little slower and faster than the guess. A power
-  starting proves the pool held its price, which raises the low bound. It misses
-  saber blocks in some mods and anything that changes costs. It refills while a
-  player idles, so the range closes within about twenty seconds.
+- **Force** is not estimated (17/10/2026): a sharer's Force bar is the value they
+  share, and a player who shares nothing has the grey one. The estimate that rebuilt
+  every player's pool from their entity state (`force_estimate.rs`: the regeneration
+  pace measured from your own pool, each power's price and running cost, force jumps,
+  saber specials, team powers, absorb and refused specials) was removed with its
+  setting, `cg_nameplateForce` ("Force bar (estimated)"); the bar shows whenever the
+  plate shows bars.
 - **Force streams** ([force_streams.rs](../crates/sjk-viewer/src/hud/force_streams.rs))
   rebuild drain, lightning and grip shot by shot, as `ForceShootDrain`,
   `ForceShootLightning` and `DoGripAction` do it. Drain and lightning shoot every
@@ -2885,8 +2857,7 @@ Where the numbers come from, and what is not known:
   drain shot, and a renewed electrification (`emplacedOwner`, which lightning sets
   800 ms ahead) while somebody casts lightning that a bolt landed, even where the
   geometry missed it. Doors, movers and other players in the arc's line of sight are
-  not checked. Your own pace measurement skips the time drain holds your refill
-  back.
+  not checked.
 
   Your own drain is measured, not rebuilt: the server sends you your pool, which
   each shot takes 5 from, and your health, which each shot raises by what it took

@@ -4,14 +4,13 @@
 //! framed plate fades in beneath it with health, shield and Force bars, and the
 //! weapon the player holds beside it, haloed in the saber stance's colour.
 //! Names come from the chat roster and are drawn in the classic HUD font with
-//! their colour codes; the layout maths is in [`super::nameplate_math`]. What the
-//! server does not send is estimated, once per snapshot: Force in
-//! [`super::force_estimate`], health and shield in [`super::vitals_estimate`],
-//! each as a range whose uncertainty the bar shows as a grey haze. The plain
+//! their colour codes; the layout maths is in [`super::nameplate_math`]. A sharer's
+//! health and shield are estimated between the values they share, once per snapshot,
+//! in [`super::vitals_estimate`], each as a range whose uncertainty the bar shows as a
+//! grey haze; their Force is the last value they shared, not estimated (17/10/2026). The plain
 //! TaystJK names stay in [`super::identification`] (`cg_drawPlayerNames`); a
 //! nameplate replaces them.
 use super::estimate::Range;
-use super::force_estimate::{self, Calibration, Estimator};
 use super::force_streams;
 use super::identification::{Camera, info_number, unoccluded};
 use super::nameplate_math::{self as math, Rows, Stack};
@@ -120,15 +119,13 @@ impl Mode {
 const UNSURE_WIDTH: f32 = 0.6;
 /// A shield whose high bound is under this share is known to be empty.
 const EMPTY_SHARE: f32 = 0.005;
-/// `ET_PLAYER` and `ET_NPC` entity types, `EF_DEAD`, and `PW_FORCE_BOON`.
+/// `ET_PLAYER` and `ET_NPC` entity types, and `EF_DEAD`.
 const ET_PLAYER: u8 = 1;
 const ET_NPC: u8 = 13;
 const EF_DEAD: u32 = 2;
-const PW_FORCE_BOON: u32 = 14;
-/// `GT_JEDIMASTER` and the first team game type.
-const GT_JEDIMASTER: i32 = 2;
 /// `WP_SABER`.
 const WP_SABER: u8 = 3;
+/// The first team game type.
 const GT_TEAM: i32 = 6;
 /// Tags drawn at most: every client slot, plus a bounded number of NPCs.
 const MAX_PLAYER_TAGS: usize = 32;
@@ -225,12 +222,6 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Nameplate bars: 0 none, 1 allies only, 2 everyone, 3 the player you aim at and your duel opponent",
     ))?;
     cvars.register(CvarDefinition::new(
-        "cg_nameplateForce",
-        true,
-        CvarFlags::ARCHIVE,
-        "Nameplate Force bar, estimated from the player's powers",
-    ))?;
-    cvars.register(CvarDefinition::new(
         "cg_nameplateWeapon",
         true,
         CvarFlags::ARCHIVE,
@@ -298,7 +289,6 @@ struct Settings {
     near: f32,
     scale: f32,
     bars: i64,
-    force: bool,
     weapon: bool,
     walls: bool,
     npcs: bool,
@@ -324,7 +314,6 @@ impl Default for Settings {
             near: 1000.0,
             scale: 0.5,
             bars: 2,
-            force: true,
             weapon: true,
             walls: false,
             npcs: false,
@@ -414,13 +403,7 @@ pub(crate) struct State {
     fades: Box<[Fade; ENTITY_SLOTS]>,
     last_update: i64,
     last_debug: i64,
-    force: Estimator,
     streams: force_streams::Tracker,
-    calibration: Calibration,
-    /// Until when drain holds the local player's own refill back (calibration).
-    own_hold: i32,
-    /// Where the Force regeneration pace came from, for the debug log.
-    regen_source: &'static str,
     vitals: vitals_estimate::Estimator,
     /// The health, shield and Force colours of the HUD in use, which the bars take.
     colors: BarColors,
@@ -459,11 +442,7 @@ impl Default for State {
             fades: Box::new([Fade::default(); ENTITY_SLOTS]),
             last_update: 0,
             last_debug: 0,
-            force: Estimator::default(),
             streams: force_streams::Tracker::default(),
-            calibration: Calibration::default(),
-            own_hold: i32::MIN,
-            regen_source: "default",
             vitals: vitals_estimate::Estimator::default(),
             colors: BarColors::default(),
             marks: [None; 32],
@@ -500,7 +479,6 @@ impl State {
             bars: console
                 .and_then(|c| c.integer_cvar("cg_nameplatebars"))
                 .unwrap_or(2),
-            force: flag("cg_nameplateforce", true),
             weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
@@ -585,9 +563,21 @@ impl State {
             let slot = slot as u16;
             self.vitals
                 .anchor(slot, values.t, values.health as f32, values.armor as f32);
-            let pool = values.force as f32 * 100.0 / values.max_force.max(1) as f32;
-            self.force.anchor(slot, values.t, pool);
         }
+    }
+
+    /// The Force player `number` last shared, as a share of a full pool: what their
+    /// nameplate's Force bar shows (`None` while they share nothing).
+    fn shared_force(&self, number: u16) -> Option<Range> {
+        let values = self
+            .shared
+            .get(usize::from(number))
+            .copied()
+            .flatten()?
+            .vitals?;
+        Some(Range::exact(
+            (values.force as f32 / values.max_force.max(1) as f32).clamp(0.0, 1.0),
+        ))
     }
 
     /// What the player shares this frame: their own health, shield and Force while
@@ -647,11 +637,10 @@ impl State {
     ) {
         let mode = info_number(game.config_string(0), "g_gametype");
         // The events first (drain names its victims), then the shots, which the
-        // health and the Force both take.
+        // health takes.
         self.vitals.read(snapshot, game);
         self.observe_streams(snapshot, game, mode, bsp, scratch);
         self.vitals.apply(snapshot, game, mode, &self.streams);
-        self.observe_force(snapshot, game, mode);
     }
 
     /// Rebuild this snapshot's drain, lightning and grip shots from where every
@@ -945,12 +934,13 @@ impl State {
             } else {
                 (None, None)
             };
+            // Force is the last value the player shared, never estimated (17/10/2026).
             let force = if withheld {
-                settings.force.then(|| Range::exact(0.0))
+                Some(Range::exact(0.0))
+            } else if bars && estimated {
+                self.shared_force(number)
             } else {
-                (bars && estimated && settings.force)
-                    .then(|| self.force.ratio(number))
-                    .flatten()
+                None
             };
             let rows = Rows {
                 health: health.is_some(),
@@ -1191,7 +1181,7 @@ impl State {
             power_count: 0,
             health: bars.then(|| exact(player.health(), full)),
             shield: shield.filter(|_| bars),
-            force: (bars && settings.force).then(|| {
+            force: bars.then(|| {
                 exact(
                     i32::from(player.force_power()),
                     sjk_game_jka::force_powers::FORCE_POWER_MAX as f32,
@@ -1244,18 +1234,10 @@ impl State {
             })
             .unwrap_or_default();
         eprintln!(
-            "nameplate: regen pace {:.0} ms/point ({}; measured {:?}), server info force keys {force_keys:?}, pain events {:?}",
-            self.force.regen_millis(),
-            self.regen_source,
-            self.calibration.millis_per_point().map(f32::round),
+            "nameplate: server info force keys {force_keys:?}, pain events {:?}",
             self.vitals.pain_report(),
         );
         let local = snapshot.player.client_num();
-        eprintln!(
-            "nameplate: own Force actual {} estimated {}",
-            snapshot.player.force_power(),
-            shown(self.force.ratio(local).map(|r| r.map(|v| v * 100.0))),
-        );
         for entity in &snapshot.entities {
             let number = entity.number();
             if entity.entity_type() != ET_PLAYER || number >= 32 || number == local {
@@ -1273,110 +1255,9 @@ impl State {
                 shown(self.vitals.health(number)),
                 shown(self.vitals.armor(number)),
                 entity.force_powers_active(),
-                shown(self.force.ratio(number).map(|r| r.map(|v| v * 100.0))),
+                shown(self.shared_force(number).map(|r| r.map(|v| v * 100.0))),
                 entity.weapon(),
                 entity.fire_flag(),
-            );
-        }
-    }
-
-    /// Feed every player's Force use to the estimator, shown or not, and
-    /// measure the server's regeneration pace from the local player's own pool.
-    ///
-    /// The local player is tracked too, but never shown: its estimate is
-    /// compared with its real pool in the `cg_nameplateDebug` log.
-    fn observe_force(&mut self, snapshot: &Snapshot, game: &GameState, mode: i32) {
-        let time = snapshot.server_time;
-        let player = &snapshot.player;
-        let boon = player.powerup_active(PW_FORCE_BOON as usize, time);
-        let master = mode == GT_JEDIMASTER && player.is_jedi_master();
-        // Draining, and being drained, hold the refill back for a while.
-        if time < self.own_hold.saturating_sub(1_000) {
-            self.own_hold = i32::MIN;
-        }
-        if player.force_powers_active() & (1 << FP_DRAIN) != 0 {
-            self.own_hold = self.own_hold.max(time + 500);
-        }
-        if self.vitals.drained() & (1 << player.client_num()) != 0 {
-            self.own_hold = self.own_hold.max(time + 800);
-        }
-        let special = player.weapon() == WP_SABER
-            && sjk_game_jka::saber_rules::in_special(player.saber_move());
-        let refilling = player.force_powers_active() & !(1 << FP_DRAIN) == 0
-            && !player.saber_in_flight()
-            && !special
-            && !boon
-            && !master;
-        self.calibration.observe(
-            time,
-            i32::from(player.force_power()),
-            refilling && time >= self.own_hold,
-        );
-        let info = game
-            .config_string(0)
-            .and_then(|b| sjk_client::LegacyClientInfo::new(b).integer("g_forceRegenTime"))
-            .map(|millis| millis as f32);
-        let measured = self.calibration.millis_per_point();
-        self.regen_source = if measured.is_some() {
-            "measured"
-        } else if info.is_some() {
-            "serverinfo"
-        } else {
-            "default"
-        };
-        self.force
-            .set_regen_millis(measured.or(info), measured.is_some());
-        for entity in &snapshot.entities {
-            let number = entity.number();
-            if entity.entity_type() != ET_PLAYER || number >= 32 {
-                continue;
-            }
-            let stream = self.streams.effect(number);
-            let facts = self.vitals.force_facts(number);
-            // An absorb's hit sound while somebody else pushes or pulls, with no shot
-            // of drain or lightning absorbed: the throw gave Force back.
-            let absorbed_throw = facts.absorbed
-                && stream.force[1] >= 0.0
-                && snapshot.entities.iter().any(|other| {
-                    other.entity_type() == ET_PLAYER
-                        && other.number() != number
-                        && self.force.throwing(other.torso_animation())
-                });
-            // A saber knocked away flies too, but its own entity says it was not thrown.
-            let disarmed = entity.saber_in_flight()
-                && snapshot
-                    .entities
-                    .binary_search_by_key(&entity.event_sound_channel(), |e| e.number())
-                    .ok()
-                    .is_some_and(|index| !snapshot.entities[index].saber_in_flight());
-            let saber = entity.weapon() == WP_SABER;
-            let regen_multiplier = if entity.powerups() & (1 << PW_FORCE_BOON) != 0 {
-                6.0
-            } else if mode == GT_JEDIMASTER && entity.is_jedi_master() {
-                4.0
-            } else {
-                1.0
-            };
-            self.force.observe(
-                number,
-                force_estimate::Observation {
-                    time,
-                    active: entity.force_powers_active(),
-                    torso_animation: entity.torso_animation(),
-                    saber_in_flight: entity.saber_in_flight(),
-                    saber_special: saber
-                        && sjk_game_jka::saber_rules::in_special(entity.saber_move()),
-                    regen_multiplier,
-                    dead: entity.e_flags() & EF_DEAD != 0,
-                    stream,
-                    rising: entity.trajectory_delta()[2],
-                    legs_animation: entity.leg_animation(),
-                    saber_move: saber.then_some(entity.saber_move() as u16),
-                    disarmed,
-                    jedi_master: mode == GT_JEDIMASTER && entity.is_jedi_master(),
-                    facts,
-                    absorbed_throw,
-                },
             );
         }
     }
@@ -2227,6 +2108,28 @@ impl crate::GpuState {
 mod tests {
     use super::*;
 
+    /// A sharer's Force bar is the Force they last shared, as a share of their pool,
+    /// with no estimate; a player who shares nothing has none.
+    #[test]
+    fn the_force_bar_is_the_shared_value() {
+        let mut state = State::default();
+        let mut shared = [None; MAX_PLAYER_TAGS];
+        shared[3] = Some(SharedSlot {
+            estimates: false,
+            vitals: Some(sjk_identity::Vitals {
+                t: 1_000,
+                health: 80,
+                armor: 20,
+                force: 40,
+                max_health: 100,
+                max_force: 100,
+            }),
+        });
+        state.refresh_shared(0, || (shared, true));
+        assert_eq!(state.shared_force(3), Some(Range::exact(0.4)));
+        assert_eq!(state.shared_force(4), None);
+    }
+
     /// See and share nameplates is one switch, off by default: nameplates on share,
     /// whatever bars they show (names only too); off shares nothing.
     #[test]
@@ -2503,42 +2406,5 @@ mod tests {
         snapshot.entities[0].set_raw_field(69, 100);
         snapshot.entities[0].set_raw_field(91, 1);
         assert_eq!(collect(&mut state, &snapshot).len(), 2);
-    }
-
-    #[test]
-    fn your_drain_empties_the_bar_of_the_player_in_front() {
-        let game = GameState::empty_local(0);
-        let bsp = Bsp::empty([-4_096.0; 3], [4_096.0; 3]);
-        let mut scratch = TraceScratch::default();
-        let mut state = State::default();
-        state.settings.drain_level = Some(3);
-        let mut time = 1_000;
-        for _ in 0..10 {
-            state.observe_snapshot(
-                &drain::snapshot(time, false, 200.0, 100),
-                &game,
-                &bsp,
-                &mut scratch,
-            );
-            time += 25;
-        }
-        assert_eq!(state.force.ratio(3).map(|r| r.best), Some(1.0));
-        // Half a second of level 3 drain at full health: 10 shots paid (5 each, every
-        // other snapshot), 4 taken each.
-        let mut pool = 100;
-        for step in 0..20 {
-            if step % 2 == 0 {
-                pool -= 5;
-            }
-            state.observe_snapshot(
-                &drain::snapshot(time, true, 200.0, pool),
-                &game,
-                &bsp,
-                &mut scratch,
-            );
-            time += 25;
-        }
-        let left = state.force.ratio(3).expect("tracked").best * 100.0;
-        assert!((left - 60.0).abs() < 4.5, "{left}");
     }
 }

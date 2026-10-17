@@ -451,11 +451,6 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Force bar (estimated)",
-        cvar: "cg_nameplateForce",
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Weapon icon",
         cvar: "cg_nameplateWeapon",
         kind: ValueKind::Bool,

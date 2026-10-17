@@ -49,7 +49,6 @@ const CVARS: &[&str] = &[
     "cg_nameplate",
     "cg_nameplateRange",
     "cg_nameplateBars",
-    "cg_nameplateForce",
     "cg_nameplateIcons",
     "cg_nameplateDuel",
     "cg_auraShell",

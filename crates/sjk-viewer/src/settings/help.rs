@@ -382,10 +382,6 @@ const HELP: &[(&str, &str)] = &[
         "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
     ),
     (
-        "cg_nameplateForce",
-        "Force bar under the name, estimated from the powers the player uses. The grey haze shows how unsure the estimate is.",
-    ),
-    (
         "cg_nameplateSelf",
         "Your own nameplate over your head in third person, with your real bars.",
     ),
