@@ -391,28 +391,16 @@ impl MenuHud {
             return;
         }
         for run in &self.frame.texts[..self.frame.text_count] {
-            let [x, y, _, size] = gpu::to_pixels(
-                [run.x, run.y, 0.0, run.size],
-                run.side.unwrap_or(Side::Left),
-                viewport,
-                scale,
-            );
-            let glyph_scale = size / font.height.max(1.0);
-            let face = crate::text::TextFace::Regular;
-            let x = if run.centred {
-                x - crate::text::visible_text_width_style(font, &run.text, glyph_scale, face, 0.0)
-                    * 0.5
-            } else {
-                x
-            };
-            crate::text::append_text_style(
+            let (origin, glyph_scale) = run_origin(run, font, viewport, scale);
+            // Placed runs never wrap at the screen's edge (hub reports 75/76).
+            crate::text::append_text_unwrapped(
                 vertices,
                 font,
                 &run.text,
-                [x, y],
+                origin,
                 glyph_scale,
                 viewport,
-                face,
+                crate::text::TextFace::Regular,
                 run.color,
                 0.0,
             );
@@ -425,6 +413,27 @@ impl MenuHud {
             self.gpu.draw(pass);
         }
     }
+}
+
+/// Where `run` starts in pixels and its glyph scale: centred on its x, or
+/// starting there, moved left when it would pass its `end_limit`.
+fn run_origin(
+    run: &frame::TextRun,
+    font: &crate::text::UiFont,
+    viewport: [f32; 2],
+    scale: f32,
+) -> ([f32; 2], f32) {
+    let side = run.side.unwrap_or(Side::Left);
+    let [x, y, _, size] = gpu::to_pixels([run.x, run.y, 0.0, run.size], side, viewport, scale);
+    let glyph_scale = size / font.height.max(1.0);
+    let face = crate::text::TextFace::Regular;
+    let width = || crate::text::visible_text_width_style(font, &run.text, glyph_scale, face, 0.0);
+    let mut x = if run.centred { x - width() * 0.5 } else { x };
+    if let Some(limit) = run.end_limit {
+        let [edge, ..] = gpu::to_pixels([limit, 0.0, 0.0, 0.0], side, viewport, scale);
+        x = x.min(edge - width());
+    }
+    ([x, y], glyph_scale)
 }
 
 /// The values the HUD shows, or `None` when retail would not draw it.
@@ -520,6 +529,81 @@ fn read_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn simple_hud_styles_stay_on_one_line_on_screen() {
+        let font = crate::text::test_font();
+        for (viewport, scale) in [
+            ([640.0, 480.0], 1.0),
+            ([1920.0, 1080.0], 1.0),
+            ([3840.0, 1600.0], 1.3),
+        ] {
+            for (name, offset) in [
+                ("FAST", 0.0),
+                ("MEDIUM", 16.0),
+                ("STRONG", 16.0),
+                ("DESANN", 16.0),
+                ("TAVION", 16.0),
+                ("AKIMBO", 16.0),
+                ("STAFF", 16.0),
+            ] {
+                let run = frame::TextRun {
+                    text: name.to_owned(),
+                    x: 640.0 - (offset + 48.0),
+                    y: 440.0,
+                    size: 18.0,
+                    color: [1.0; 4],
+                    centred: false,
+                    side: Some(Side::Right),
+                    end_limit: Some(640.0 - frame::SIMPLE_MARGIN),
+                };
+                let (origin, glyph_scale) = run_origin(&run, &font, viewport, scale);
+                let width = crate::text::visible_text_width_style(
+                    &font,
+                    name,
+                    glyph_scale,
+                    crate::text::TextFace::Regular,
+                    0.0,
+                );
+                let margin = frame::SIMPLE_MARGIN * viewport[1] / 480.0 * scale;
+                assert!(
+                    origin[0] + width <= viewport[0] - margin + 0.01,
+                    "{name} ends at {} of {viewport:?}",
+                    origin[0] + width
+                );
+                let mut vertices = Vec::new();
+                let lines = crate::text::append_text_unwrapped(
+                    &mut vertices,
+                    &font,
+                    name,
+                    origin,
+                    glyph_scale,
+                    viewport,
+                    crate::text::TextFace::Regular,
+                    run.color,
+                    0.0,
+                );
+                assert_eq!(lines, 1, "{name}");
+            }
+        }
+    }
+
+    #[test]
+    fn short_simple_hud_runs_keep_the_retail_position() {
+        let font = crate::text::test_font();
+        let run = frame::TextRun {
+            text: "80".to_owned(),
+            x: 576.0,
+            y: 454.0,
+            size: 18.0,
+            color: [1.0; 4],
+            centred: false,
+            side: Some(Side::Right),
+            end_limit: Some(640.0 - frame::SIMPLE_MARGIN),
+        };
+        let (origin, _) = run_origin(&run, &font, [640.0, 480.0], 1.0);
+        assert_eq!(origin, [576.0, 454.0]);
+    }
 
     #[test]
     fn hud_files_values_follow_retail_and_eternaljk() {
