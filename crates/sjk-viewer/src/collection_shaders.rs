@@ -8,11 +8,12 @@
 //! when it is the player's or how to get it, and Equip or Unequip. Body shaders, for the
 //! whole character, are to come: their kind is shown, not yet offered.
 
-use super::view::{LEAD_Y, LEFT_X, STAGE_TEXT_WIDTH, STAGE_TEXT_X, left_lines};
+use super::view::{LEAD_Y, LEFT_X, RIGHT_X, SABER_AREA, left_lines};
 use super::*;
 use crate::menu::sjk::{Frame, color, kit, text};
 use crate::menu_widgets::TextFamily;
 use crate::rarity_fx;
+use crate::symbols;
 use crate::unlockables::Unlockable;
 use sjk_ui::{DrawCommand, FontWeight, TextAlign};
 
@@ -42,8 +43,40 @@ const SWITCH_X: f32 = LEFT_X + 466.0;
 const TAG_HEIGHT: f32 = 26.0;
 const TAG_MIN_WIDTH: f32 = 80.0;
 const TAG_GAP: f32 = 18.0;
-/// The detail's tier pill's height.
-const PILL_HEIGHT: f32 = 30.0;
+/// The chosen shader's card, under the lone saber (frame pixels), the room inside its
+/// edge and its corners' radius.
+const SHADER_CARD: [f32; 4] = [1_000.0, 512.0, RIGHT_X - 1_000.0, 478.0];
+const CARD_PAD: f32 = 28.0;
+const CARD_RADIUS: f32 = 16.0;
+/// The card's facts: a chip's height, its icon's side and the room between chips.
+const FACT_HEIGHT: f32 = 34.0;
+const FACT_ICON: f32 = 20.0;
+const FACT_GAP: f32 = 10.0;
+
+/// What a fact's chip shows before its words.
+#[derive(Clone, Copy)]
+enum Fact {
+    /// The chroma's colour wheel.
+    Chroma,
+    /// One of SJK Symbols' icons.
+    Icon(char),
+}
+
+/// Where `skin` comes from, as a fact's icon and words: the medal that brings it, a
+/// holocron (it drops), or the SJK team.
+fn source(skin: &unlockables::Unlockable) -> (char, String) {
+    if let Some(medal) = crate::medals::Medal::ALL
+        .iter()
+        .find(|medal| medal.blade() == Some(skin.id))
+    {
+        return (symbols::MEDAL, format!("{} medal", medal.name()));
+    }
+    if skin.droppable {
+        (symbols::HOLOCRON, "Holocron drop".to_owned())
+    } else {
+        (symbols::GIFT, "SJK team gift".to_owned())
+    }
+}
 
 /// Where a rack row's words go (frame pixels, `[x, y, width, height]`), the row's top
 /// at `y`: the chroma mark (a chroma only) and the name on the first line, the name
@@ -191,14 +224,28 @@ impl Row {
         }
     }
 
-    /// Its state, as the rack says it.
+    /// Its state, as the rack and the grid say it, after its icon (a lightsaber worn, a
+    /// tick held, a padlock locked) and with how many are held.
     fn status(self) -> String {
         match (self.skin, self.worn, self.owned) {
-            (None, true, _) => "Worn, in your colour".to_owned(),
+            (None, true, _) => format!("{}  Worn, in your colour", symbols::SABER),
             (None, false, _) => "In your colour".to_owned(),
-            (Some(_), true, _) => held_words("Worn", self.count),
-            (Some(_), false, true) => held_words("Yours", self.count),
-            (Some(_), false, false) => "Locked".to_owned(),
+            (Some(_), true, _) => format!("{}  {}", symbols::SABER, held_words("Worn", self.count)),
+            (Some(_), false, true) => {
+                format!("{}  {}", symbols::TICK, held_words("Yours", self.count))
+            }
+            (Some(_), false, false) => format!("{}  Locked", symbols::LOCK),
+        }
+    }
+
+    /// Its state on its card's pill (the copies held are a fact of their own there):
+    /// `None` for the stock blade.
+    fn state(self) -> Option<String> {
+        match (self.skin, self.worn, self.owned) {
+            (None, _, _) => None,
+            (Some(_), true, _) => Some(format!("{}  Worn", symbols::SABER)),
+            (Some(_), false, true) => Some(format!("{}  Yours", symbols::TICK)),
+            (Some(_), false, false) => Some(format!("{}  Locked", symbols::LOCK)),
         }
     }
 }
@@ -322,7 +369,7 @@ impl Panel {
             self.rack_scroll_bar(frame, first, rows.len());
         }
         if let Some(row) = rows.get(self.shader).copied() {
-            self.shader_beside_model(frame, row, inputs, seconds);
+            self.shader_card(frame, row, inputs, seconds);
         }
         let _ = s;
     }
@@ -639,10 +686,10 @@ impl Panel {
         );
         let (tier_text, tier_colour) = match row.tier() {
             Some(tier) => (
-                tier.label(),
+                format!("{}  {}", tier.symbol(), tier.label()),
                 color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.6 }),
             ),
-            None => ("Your colour", color::QUIET),
+            None => ("Your colour".to_owned(), color::QUIET),
         };
         text(
             &mut self.ui,
@@ -654,11 +701,10 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        let state = match (row.skin, row.worn, row.owned) {
-            (_, true, _) => held_words("Worn", row.count),
-            (None, false, _) => String::new(),
-            (Some(_), false, true) => held_words("Yours", row.count),
-            (Some(_), false, false) => "Locked".to_owned(),
+        let state = match row.skin {
+            None if !row.worn => String::new(),
+            None => format!("{}  Worn", symbols::SABER),
+            Some(_) => row.status(),
         };
         text(
             &mut self.ui,
@@ -860,112 +906,72 @@ impl Panel {
             .hit_region(token, frame.rect(LEFT_X - 12.0, y, RACK_WIDTH, ROW_HEIGHT));
     }
 
-    /// What the chosen row is, beside the model: its kind, name and state, what it is,
-    /// since when it is the player's (with the team's note) or how to get it, and Equip
-    /// or Unequip. Without a model it shows the swatch, larger.
-    fn shader_beside_model(&mut self, frame: &Frame, row: Row, inputs: &Inputs<'_>, seconds: f32) {
+    /// The chosen shader over the right of the screen: the saber on its own above (the
+    /// stage draws it in [`SABER_AREA`], turned by a drag; with no stage, its swatch,
+    /// larger), and its card under it, framed in its tier's colour and alive as its tier
+    /// is: the tier's mark and name and the edition, the name and its state, its facts as
+    /// icons (a chroma, how many are held, where it comes from, its smith), what it is,
+    /// since when it is the player's (with the team's note) or how to get it, its parts
+    /// and Equip or Unequip.
+    fn shader_card(&mut self, frame: &Frame, row: Row, inputs: &Inputs<'_>, seconds: f32) {
         let s = frame.s;
-        let x = STAGE_TEXT_X;
-        let width = STAGE_TEXT_WIDTH;
-        if self.backstage == Backstage::None {
-            let rect = [x, 300.0, width, 118.0];
-            match row.skin {
-                None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
-                Some(skin) => {
-                    let look = self.skins.get(skin.id);
-                    let _ = swatch::small_swatch(
-                        self.ui.draw_list_mut(),
-                        frame,
-                        rect,
-                        look,
-                        row.owned,
-                        seconds,
-                        swatch::chroma_turn(look, swatch::rgb_bytes(inputs.stock)),
-                    );
-                }
-            }
-        } else if !row.owned {
-            let rect = frame.rect(x, 232.0, 360.0, 34.0);
-            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                rect,
-                radius: 17.0 * s,
-                color: color::alpha(color::SPACE, 0.6),
-            });
-            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                rect,
-                radius: 17.0 * s,
-                width: 1.2 * s,
-                color: color::alpha(color::HOLO, 0.6),
-            });
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("Preview on your saber: not yours yet"),
-                frame.rect(x, 238.0, 360.0, 22.0),
-                15.0 * s,
-                color::HOLO,
-                FontWeight::Semibold,
-                TextAlign::Center,
-            );
-        }
-        let mut y = 618.0;
-        // Its tier first, a pill in the tier's colour, alive as its tier is.
+        self.scale = s;
+        self.spin.advance(seconds);
+        self.saber_area(frame, row, inputs, seconds);
+        let [card_x, card_y, card_width, card_height] = SHADER_CARD;
+        let area = frame.rect(card_x, card_y, card_width, card_height);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: area,
+            radius: CARD_RADIUS * s,
+            color: color::alpha(color::SPACE, 0.82),
+        });
         if let Some(tier) = row.tier() {
-            let label = tier.label();
-            let pill_width = crate::text::display_width(label, 17.0) + 34.0;
-            let rect = frame.rect(x, y - 44.0, pill_width, PILL_HEIGHT);
+            // The tier's band along the top, and its glow under it, as on the grid's cards.
             let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                rect,
-                radius: PILL_HEIGHT * 0.5 * s,
-                color: color::alpha(tier.colour(), 0.16),
+                rect: frame.rect(card_x + 24.0, card_y, card_width - 48.0, 4.0),
+                radius: 2.0 * s,
+                color: color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.5 }),
             });
-            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                rect,
-                radius: PILL_HEIGHT * 0.5 * s,
-                width: 1.2 * s,
-                color: tier.colour(),
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(card_x + 6.0, card_y + 6.0, card_width - 12.0, 56.0),
+                radius: (CARD_RADIUS - 4.0) * s,
+                color: color::alpha(tier.colour(), if row.owned { 0.09 } else { 0.04 }),
             });
+        }
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: area,
+            radius: CARD_RADIUS * s,
+            width: 1.4 * s,
+            color: row.frame_colour(),
+        });
+        if let Some(tier) = row.tier() {
             rarity_fx::draw(
                 self.ui.draw_list_mut(),
-                rarity_fx::Item::of(tier, row.owned, rarity_fx::Size::Small),
-                rect,
-                PILL_HEIGHT * 0.5 * s,
+                rarity_fx::Item::of(tier, row.owned, rarity_fx::Size::Full),
+                area,
+                CARD_RADIUS * s,
                 s,
                 seconds,
             );
-            text(
-                &mut self.ui,
-                TextFamily::Display,
-                format_args!("{label}"),
-                frame.rect(x, y - 41.0, pill_width, 24.0),
-                17.0 * s,
-                tier.colour(),
-                FontWeight::Semibold,
-                TextAlign::Center,
-            );
         }
-        // A chroma says so first, with its mark: it takes the player's saber colour.
-        let chroma = row.skin.is_some_and(|skin| skin.chroma);
-        let kind_x = if chroma {
-            swatch::chroma_mark(self.ui.draw_list_mut(), frame, x, y - 1.0, 22.0, 1.0);
-            x + 22.0 + MARK_GAP
-        } else {
-            x
+        let x = card_x + CARD_PAD;
+        let width = card_width - CARD_PAD * 2.0;
+        let mut y = card_y + 20.0;
+        // Its tier's mark and name, or what the stock blade is; its edition at the right.
+        let (kind, kind_colour) = match row.tier() {
+            Some(tier) => (
+                format!("{}  {}", tier.symbol(), tier.label()),
+                color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.7 }),
+            ),
+            None => (format!("{}  Your saber", symbols::SABER), color::HOLO),
         };
         text(
             &mut self.ui,
-            TextFamily::Body,
-            format_args!(
-                "{}",
-                match (row.skin.is_some(), chroma) {
-                    (true, true) => "Chroma saber shader: takes your saber colour",
-                    (true, false) => "Saber shader",
-                    (false, _) => "Your saber",
-                }
-            ),
-            frame.rect(kind_x, y, x + width - kind_x, 22.0),
-            16.0 * s,
-            color::HOLO,
+            TextFamily::Display,
+            format_args!("{kind}"),
+            frame.rect(x, y, width, 28.0),
+            21.0 * s,
+            kind_colour,
             FontWeight::Semibold,
             TextAlign::Start,
         );
@@ -973,44 +979,42 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{}", crate::editions::name(skin.edition)),
-                frame.rect(x, y, width, 22.0),
+                format_args!(
+                    "{}  {}",
+                    symbols::EDITION,
+                    crate::editions::name(skin.edition)
+                ),
+                frame.rect(x, y + 3.0, width, 22.0),
                 15.0 * s,
                 color::MUTED,
                 FontWeight::Semibold,
                 TextAlign::End,
             );
         }
-        y += 26.0;
-        let name = row.name();
+        y += 36.0;
         let lit = row.owned && row.skin.is_some();
-        let tag = match (row.skin, row.worn, row.owned) {
-            (None, _, _) => None,
-            (Some(_), true, _) => Some(held_words("Worn", row.count)),
-            (Some(_), false, true) => Some(held_words("Yours", row.count)),
-            (Some(_), false, false) => Some("Locked".to_owned()),
-        };
         // The name never runs under the state: it ends short of the pill, ellipsised,
         // whatever face and size the text is drawn in.
-        let (name_rect, tag_rect) = match tag {
+        let tag = row.state();
+        let (name_rect, tag_rect) = match &tag {
             Some(tag) => {
                 let (name, pill) =
-                    title_rects(x, y, width, crate::text::display_width(&tag, 15.0) + 26.0);
-                (name, Some((tag, pill)))
+                    title_rects(x, y, width, crate::text::display_width(tag, 15.0) + 40.0);
+                (name, Some(pill))
             }
             None => ([x, y, width, 62.0], None),
         };
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{name}"),
+            format_args!("{}", row.name()),
             frame.rect(name_rect[0], name_rect[1], name_rect[2], name_rect[3]),
-            56.0 * s,
+            52.0 * s,
             if lit { color::GOLD_BRIGHT } else { color::TEXT },
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        if let Some((tag, [tag_x, tag_y, tag_width, tag_height])) = tag_rect {
+        if let (Some(tag), Some([tag_x, tag_y, tag_width, tag_height])) = (&tag, tag_rect) {
             let rect = frame.rect(tag_x, tag_y, tag_width, tag_height);
             let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
                 rect,
@@ -1030,20 +1034,49 @@ impl Panel {
             );
         }
         y += 72.0;
-        // Its saber smith signs it at the right, beside the description (which wraps
-        // well short of it), so the card keeps its height.
-        if let Some(skin) = row.skin {
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("Saber smith: {}", skin.smith),
-                frame.rect(x, y, width, 24.0),
-                16.0 * s,
+        // Its facts, a chip each: a chroma, the copies held, where it comes from, its
+        // smith.
+        let mut left = x;
+        if row.skin.is_some_and(|skin| skin.chroma) {
+            left = self.fact(
+                frame,
+                [left, y],
+                Fact::Chroma,
+                "Takes your colour",
                 color::HOLO,
-                FontWeight::Semibold,
-                TextAlign::End,
             );
         }
+        if row.count > 1 {
+            let copies = format!("{} copies", row.count);
+            left = self.fact(
+                frame,
+                [left, y],
+                Fact::Icon(symbols::COPIES),
+                &copies,
+                color::HOLO,
+            );
+        }
+        if let Some(skin) = row.skin {
+            let (icon, from) = source(skin);
+            left = self.fact(frame, [left, y], Fact::Icon(icon), &from, color::HOLO);
+            let smith = format!("Smith: {}", skin.smith);
+            let _ = self.fact(
+                frame,
+                [left, y],
+                Fact::Icon(symbols::SMITH),
+                &smith,
+                color::HOLO,
+            );
+        } else {
+            let _ = self.fact(
+                frame,
+                [left, y],
+                Fact::Icon(symbols::GIFT),
+                "Every player's",
+                color::HOLO,
+            );
+        }
+        y += FACT_HEIGHT + 16.0;
         let description = row.skin.map_or(
             "Your blade in the colour you pick on Profile, Saber.",
             |skin| skin.description,
@@ -1053,7 +1086,7 @@ impl Panel {
             frame,
             description,
             [x, y, width],
-            (52, 3),
+            (78, 3),
             18.0,
             color::TEXT,
             TextAlign::Start,
@@ -1061,10 +1094,19 @@ impl Panel {
         y += 6.0;
         let grant = row.skin.and_then(|skin| inputs.holdings.unlock(skin.id));
         let (line, colour) = match (row.skin, grant) {
-            (None, _) if row.worn => ("What you hold now: no shader on.".to_owned(), color::MUTED),
+            (None, _) if row.worn => (
+                format!("{}  What you hold now: no shader on.", symbols::SABER),
+                color::MUTED,
+            ),
             (None, _) => ("Wearing it takes your shader off.".to_owned(), color::MUTED),
-            (Some(_), Some(grant)) => (owned_line(grant), color::GOLD),
-            (Some(skin), None) => (format!("How to get it: {}", skin.how_to_get), color::MUTED),
+            (Some(_), Some(grant)) => (
+                format!("{}  {}", symbols::TICK, owned_line(grant)),
+                color::GOLD,
+            ),
+            (Some(skin), None) => (
+                format!("{}  How to get it: {}", symbols::LOCK, skin.how_to_get),
+                color::MUTED,
+            ),
         };
         text(
             &mut self.ui,
@@ -1087,10 +1129,25 @@ impl Panel {
                 frame,
                 &quoted,
                 [x, y, width],
-                (56, 1),
+                (80, 1),
                 16.0,
                 color::MUTED,
                 TextAlign::Start,
+            );
+        }
+        // A locked shader a holocron may drop says which, and how likely.
+        if let Some(skin) = row.skin.filter(|skin| !row.owned && skin.droppable) {
+            self.drops(frame, skin, [x, y + 12.0]);
+        }
+        // Equip or Unequip at the foot of the card, its parts between.
+        let button_y = card_y + card_height - CARD_PAD - 44.0;
+        self.shader_options.clear();
+        if let Some(skin) = row.skin.filter(|_| row.owned) {
+            self.shader_parts(
+                frame,
+                skin.id,
+                [x, y + 10.0, width, button_y - 12.0],
+                inputs,
             );
         }
         let wear = self.shader_rows.get(self.shader).and_then(|row| row.wear);
@@ -1102,8 +1159,7 @@ impl Panel {
             } else {
                 "Equip"
             };
-            let button_width = if row.skin.is_none() { 250.0 } else { 160.0 };
-            let button_y = (y + 10.0).min(946.0);
+            let button_width = if row.skin.is_none() { 250.0 } else { 180.0 };
             kit::button(
                 &mut self.ui,
                 frame,
@@ -1114,19 +1170,186 @@ impl Panel {
                 false,
                 WEAR_TOKEN,
             );
-            y = button_y + 44.0;
         }
-        self.shader_options.clear();
-        if let Some(skin) = row.skin.filter(|_| row.owned) {
-            self.shader_parts(frame, skin.id, y + 16.0, inputs);
+    }
+
+    /// The room above the card: the stage's lone saber, which a drag turns (a hint says
+    /// so, and a locked one says it is a preview); with no stage, the swatch, larger.
+    fn saber_area(&mut self, frame: &Frame, row: Row, inputs: &Inputs<'_>, seconds: f32) {
+        let s = frame.s;
+        let [x, y, width, height] = SABER_AREA;
+        if self.backstage == Backstage::None {
+            let rect = [x + 40.0, y + height * 0.5 - 59.0, width - 80.0, 118.0];
+            match row.skin {
+                None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
+                Some(skin) => {
+                    let look = self.skins.get(skin.id);
+                    let _ = swatch::small_swatch(
+                        self.ui.draw_list_mut(),
+                        frame,
+                        rect,
+                        look,
+                        row.owned,
+                        seconds,
+                        swatch::chroma_turn(look, swatch::rgb_bytes(inputs.stock)),
+                    );
+                }
+            }
+            return;
         }
+        self.ui
+            .hit_region(SABER_TOKEN, frame.rect(x, y, width, height));
+        let hint_colour = if self.spin.held() {
+            color::HOLO
+        } else {
+            color::QUIET
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{}  Drag to turn", symbols::TURN),
+            frame.rect(x, y + height - 24.0, width, 22.0),
+            15.0 * s,
+            hint_colour,
+            FontWeight::Semibold,
+            TextAlign::End,
+        );
+        if !row.owned {
+            let words = format!("{}  Preview: not yours yet", symbols::LOCK);
+            let pill = crate::text::display_width(&words, 16.0) + 40.0;
+            let rect = frame.rect(x, y, pill, 34.0);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect,
+                radius: 17.0 * s,
+                color: color::alpha(color::SPACE, 0.6),
+            });
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: 17.0 * s,
+                width: 1.2 * s,
+                color: color::alpha(color::HOLO, 0.6),
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{words}"),
+                frame.rect(x, y + 6.0, pill, 22.0),
+                16.0 * s,
+                color::HOLO,
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+        }
+    }
+
+    /// Where a locked `skin` drops, from `[x, y]`: a chip for each holocron tier that may
+    /// bring it, in the tier's colour, with the chance an opening of one does (the hub's
+    /// odds, [`crate::loot_odds`], split evenly among the droppable shaders of its tier).
+    fn drops(&mut self, frame: &Frame, skin: &unlockables::Unlockable, [x, y]: [f32; 2]) {
+        let s = frame.s;
+        let rarity = skin.tier as usize;
+        let pool = unlockables::blade_skins()
+            .filter(|other| other.droppable && other.tier == skin.tier)
+            .count();
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!(
+                "{}  Where it drops, a chance per opening",
+                symbols::HOLOCRON
+            ),
+            frame.rect(x, y, SHADER_CARD[2] - CARD_PAD * 2.0, 22.0),
+            16.0 * s,
+            color::HOLO,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        let mut left = x;
+        for tier in &crate::holocrons::TIERS {
+            let chance = crate::cards::loot::shader_in(tier.index, rarity, pool);
+            if chance <= 0.0 {
+                continue;
+            }
+            let words = format!("{} {}", tier.label, crate::cards::loot::percent(chance));
+            left = self.fact(
+                frame,
+                [left, y + 30.0],
+                Fact::Icon(symbols::RARITY[tier.index + 1]),
+                &words,
+                tier.colour,
+            );
+        }
+    }
+
+    /// One of the card's facts at `[x, y]`: a chip with its icon (or the chroma's colour
+    /// wheel) in `tint` and its words. Returns where the next one starts.
+    fn fact(
+        &mut self,
+        frame: &Frame,
+        [x, y]: [f32; 2],
+        fact: Fact,
+        words: &str,
+        tint: sjk_ui::Color,
+    ) -> f32 {
+        let s = frame.s;
+        let width = 14.0 + FACT_ICON + 8.0 + crate::text::display_width(words, 16.0) + 16.0;
+        let rect = frame.rect(x, y, width, FACT_HEIGHT);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect,
+            radius: FACT_HEIGHT * 0.5 * s,
+            color: color::alpha(color::SPACE, 0.55),
+        });
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect,
+            radius: FACT_HEIGHT * 0.5 * s,
+            width: 1.0 * s,
+            color: color::alpha(color::HOLO, 0.35),
+        });
+        let icon_x = x + 14.0;
+        match fact {
+            Fact::Chroma => swatch::chroma_mark(
+                self.ui.draw_list_mut(),
+                frame,
+                icon_x,
+                y + (FACT_HEIGHT - FACT_ICON) * 0.5,
+                FACT_ICON,
+                1.0,
+            ),
+            Fact::Icon(icon) => text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{icon}"),
+                frame.rect(icon_x - 2.0, y + 6.0, FACT_ICON + 4.0, 22.0),
+                17.0 * s,
+                tint,
+                FontWeight::Semibold,
+                TextAlign::Center,
+            ),
+        }
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{words}"),
+            frame.rect(icon_x + FACT_ICON + 8.0, y + 6.0, width, 22.0),
+            16.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        x + width + FACT_GAP
     }
 
     /// The chosen shader's parts its wearer may switch off, under its words from `y`:
     /// a tick each in two columns (three past four), named as its file names them,
     /// ticked while on; a click or its number key switches it, on the model at once and,
     /// worn, for every SJK player.
-    fn shader_parts(&mut self, frame: &Frame, skin: &'static str, y: f32, inputs: &Inputs<'_>) {
+    fn shader_parts(
+        &mut self,
+        frame: &Frame,
+        skin: &'static str,
+        [x, y, width, bottom]: [f32; 4],
+        inputs: &Inputs<'_>,
+    ) {
         let Some(look) = self.skins.get(skin) else {
             return;
         };
@@ -1135,17 +1358,16 @@ impl Panel {
             return;
         }
         let s = frame.s;
-        let x = STAGE_TEXT_X;
         let columns = if options.len() > 4 { 3 } else { 2 };
-        let column = STAGE_TEXT_WIDTH / columns as f32;
-        // Never under the keys' line: the rows close up when room is short.
+        let column = width / columns as f32;
+        // Never under `bottom` (the card's button): the rows close up when room is short.
         let rows = options.len().div_ceil(columns);
-        let step = ((view::KEYS_Y - 22.0 - (y + 28.0)) / rows as f32).clamp(28.0, 38.0);
+        let step = ((bottom - (y + 28.0)) / rows as f32).clamp(26.0, 36.0);
         text(
             &mut self.ui,
             TextFamily::Body,
             format_args!("Parts"),
-            frame.rect(x, y, STAGE_TEXT_WIDTH, 22.0),
+            frame.rect(x, y, width, 22.0),
             16.0 * s,
             color::HOLO,
             FontWeight::Semibold,
@@ -1265,18 +1487,19 @@ mod tests {
                 assert!(name.x + name.width <= rack_right);
                 assert!(name.width >= crate::text::display_width(longest, 28.0) * frame.s);
             }
+            let inner_x = SHADER_CARD[0] + CARD_PAD;
+            let inner_width = SHADER_CARD[2] - CARD_PAD * 2.0;
             for tag in ["Worn", "Yours", "Locked"] {
                 let (name, pill) = title_rects(
-                    STAGE_TEXT_X,
-                    644.0,
-                    STAGE_TEXT_WIDTH,
-                    crate::text::display_width(tag, 15.0) + 26.0,
+                    inner_x,
+                    SHADER_CARD[1] + 56.0,
+                    inner_width,
+                    crate::text::display_width(tag, 15.0) + 40.0,
                 );
                 let (name, pill) = (window(name), window(pill));
                 assert!(!overlap(name, pill), "{viewport:?} {tag}");
                 assert!(
-                    pill.x + pill.width
-                        <= window([STAGE_TEXT_X + STAGE_TEXT_WIDTH, 0.0, 0.0, 0.0]).x + 0.01
+                    pill.x + pill.width <= window([inner_x + inner_width, 0.0, 0.0, 0.0]).x + 0.01
                 );
                 assert!(
                     name.width > 200.0 * frame.s,
@@ -1284,6 +1507,33 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The lone saber's room and the card under it stand clear of each other, of the
+    /// rack and the grid on the left and of the keys' line.
+    #[test]
+    fn the_saber_and_its_card_keep_to_the_right() {
+        let [sx, sy, sw, sh] = SABER_AREA;
+        let [cx, cy, cw, ch] = SHADER_CARD;
+        assert!(sy + sh <= cy, "the saber above the card");
+        assert!(cy + ch < view::KEYS_Y, "the card above the keys");
+        let list_right =
+            (LEFT_X - 12.0 + RACK_WIDTH).max(card_rect(GRID_COLUMNS - 1, 0)[0] + CARD[0]);
+        assert!(sx > list_right + 30.0 && cx > list_right + 30.0);
+        assert!(sx + sw <= RIGHT_X && cx + cw <= RIGHT_X);
+        // A shader's facts fit along the card: the widest a chroma held twice from a
+        // medal could ask.
+        let facts = [
+            "Takes your colour",
+            "2 copies",
+            "Early Contributor medal",
+            "Smith: Creyon",
+        ]
+        .iter()
+        .map(|words| 14.0 + FACT_ICON + 8.0 + crate::text::display_width(words, 16.0) + 16.0)
+        .sum::<f32>()
+            + FACT_GAP * 3.0;
+        assert!(facts <= cw - CARD_PAD * 2.0, "{facts}");
     }
 
     #[test]

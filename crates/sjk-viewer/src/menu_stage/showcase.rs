@@ -38,11 +38,11 @@ pub(super) struct Span {
 }
 
 impl Span {
-    fn middle(self) -> f32 {
+    pub(super) fn middle(self) -> f32 {
         (self.back + self.front) * 0.5
     }
 
-    fn length(self) -> f32 {
+    pub(super) fn length(self) -> f32 {
         self.front - self.back
     }
 }
@@ -128,16 +128,18 @@ impl View {
 
     /// The grip and orientation that lay the saber on `line` across the
     /// view, its length centred `height` above the focus, turned `degrees`
-    /// about its own blade line.
-    pub(super) fn pose(&self, line: &Line, height: f32, degrees: f32) -> (Vec3, Quat) {
+    /// about its own blade line and `yaw` radians about the vertical (the
+    /// Collection's Shaders tab turns it so; lightsaber creation never).
+    pub(super) fn pose(&self, line: &Line, height: f32, degrees: f32, yaw: f32) -> (Vec3, Quat) {
         let right = self.right();
-        let rotation = Quat::from_axis_angle(right, degrees.to_radians())
+        let rotation = Quat::from_rotation_z(yaw)
+            * Quat::from_axis_angle(right, degrees.to_radians())
             * Quat::from_rotation_arc(line.axis, right);
-        // The blade line runs through `through`; keep it on the centre line
-        // while the hilt turns about it.
+        // The blade line runs through `through`; keep the middle of its length
+        // on the focus while the hilt turns about it.
         let lateral = line.through - line.axis * line.through.dot(line.axis);
         let centre = self.focus + Vec3::Z * height;
-        let grip = centre - right * line.span.middle() - rotation * lateral;
+        let grip = centre - rotation * (lateral + line.axis * line.span.middle());
         (grip, rotation)
     }
 
@@ -222,7 +224,7 @@ mod tests {
         let view = View::new(focus, Vec3::X, [Some(line), None]);
         let right = view.right();
         for degrees in [0.0, 90.0, 217.0] {
-            let (grip, rotation) = view.pose(&line, 0.0, degrees);
+            let (grip, rotation) = view.pose(&line, 0.0, degrees, 0.0);
             // The blade's direction is the view's right.
             assert!((rotation * line.axis - right).length() < 1e-4);
             // The middle of the saber's length is on the focus, whatever the turn.
@@ -259,7 +261,7 @@ mod tests {
             let (view_projection, eye, forward) = view.camera(aspect);
             assert!(forward.dot(view.facing) < -0.99);
             assert!((eye - focus).dot(view.facing) > 0.0);
-            let (grip, rotation) = view.pose(&line, 0.0, 0.0);
+            let (grip, rotation) = view.pose(&line, 0.0, 0.0, 0.0);
             let base = ndc(view_projection, grip + rotation * Vec3::ZERO);
             let tip = ndc(
                 view_projection,

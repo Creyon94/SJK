@@ -25,6 +25,10 @@ pub(super) const SHOWCASE_WIDTH: f32 = RIGHT_X - SHOWCASE_X;
 /// Where the live preview of the player's model shows over a match (frame pixels):
 /// where the model stands on the menu map's stage.
 pub(crate) const MODEL_AREA: [f32; 4] = [760.0, 110.0, 820.0, 840.0];
+/// Where the Shaders tab's saber lies on its own (frame pixels), over the clear right of
+/// the screen above the shader's card: on the menu map's stage before the backdrop
+/// camera, and over a match in the live preview drawn there.
+pub(crate) const SABER_AREA: [f32; 4] = [1_000.0, 196.0, RIGHT_X - 1_000.0, 300.0];
 /// Under Shaders, Toys and Nameplates, the column that says what is chosen, over the
 /// clear right of the screen beside the model.
 pub(super) const STAGE_TEXT_X: f32 = 1_300.0;
@@ -256,7 +260,12 @@ impl Panel {
         if let Backstage::Preview { ready: true } = self.backstage
             && kit
         {
-            let [x, y, width, height] = MODEL_AREA;
+            // The Shaders tab's preview is its saber on its own.
+            let [x, y, width, height] = if self.tab == Tab::Shaders {
+                SABER_AREA
+            } else {
+                MODEL_AREA
+            };
             let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
                 rect: frame.rect(x, y, width, height),
                 texture: crate::ui_renderer::PREVIEW_TEXTURE,

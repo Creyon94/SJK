@@ -1944,6 +1944,16 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
 | U+E010 | a card's outline | Normal finish |
 | U+E011 | a card with two slanting bands | Holo finish |
 | U+E012 | a card with a sun at its heart | Solar finish |
+| U+E020 | a cube seen from above a corner | a holocron: found in one |
+| U+E021 | a medallion on a ribbon's V | a medal: comes with one |
+| U+E022 | a padlock | locked |
+| U+E023 | a tick | yours |
+| U+E024 | a card with a second behind it | held more than once |
+| U+E025 | a smith's hammer | its saber smith |
+| U+E026 | a turning arrow | drag to turn |
+| U+E027 | a lightsaber held up | worn |
+| U+E028 | a gift box with a bow | from the SJK team |
+| U+E029 | a five-pointed star | its edition |
 
 - **Drawn from strokes:** the script draws every symbol from lines with round ends,
   polygon rings and diamonds in font units (1000 to the em, capitals 700 high, the

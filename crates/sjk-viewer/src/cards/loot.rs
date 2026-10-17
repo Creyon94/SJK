@@ -20,6 +20,20 @@ pub(crate) fn card_in(tier: usize) -> f64 {
     1.0 - f64::from(current().shader[tier]) / 1_000.0
 }
 
+/// The chance an opening of a holocron of tier `tier` brings one given saber shader of
+/// shader tier `rarity` (0 Common to 4 Mythical), one of the `pool` droppable shaders of
+/// that tier the hub picks among evenly.
+pub(crate) fn shader_in(tier: usize, rarity: usize, pool: usize) -> f64 {
+    if pool == 0 {
+        return 0.0;
+    }
+    let table = current();
+    let tier_share = table.shader_tier[tier]
+        .get(rarity)
+        .map_or(0.0, |share| f64::from(*share) / 1_000.0);
+    f64::from(table.shader[tier]) / 1_000.0 * tier_share / pool as f64
+}
+
 /// The chance a holocron found brings a card.
 fn card_any() -> f64 {
     (0..COUNT).map(|tier| drop(tier) * card_in(tier)).sum()
@@ -116,6 +130,18 @@ pub(crate) fn one_in(chance: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn one_shader_is_its_tiers_share_split_among_its_pool() {
+        // A Mythical holocron: 500 in 1000 bring a shader, 120 in 1000 of those Mythical.
+        let mythical = crate::holocrons::COUNT - 1;
+        assert!(close(shader_in(mythical, 4, 1), 0.5 * 0.12));
+        assert!(close(shader_in(mythical, 4, 4), 0.5 * 0.12 / 4.0));
+        // An Uncommon holocron never brings a Mythical shader, and an empty pool nothing.
+        assert_eq!(shader_in(0, 4, 3), 0.0);
+        assert_eq!(shader_in(mythical, 2, 0), 0.0);
+        assert_eq!(shader_in(mythical, 9, 2), 0.0);
+    }
 
     fn close(a: f64, b: f64) -> bool {
         (a - b).abs() < 1e-9

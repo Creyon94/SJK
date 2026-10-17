@@ -202,6 +202,8 @@ pub(crate) struct ClientMenu {
     /// to the player's shot and the model stands on the stage, or shows in a preview
     /// over a match ([`Self::set_collection_stage`]).
     collection_stage: bool,
+    /// The Collection's Shaders tab shows the saber on its own, not the model holding it.
+    collection_saber: bool,
     /// The model the `modelviewer` page has chosen: it stands on the stage in place of
     /// the player's own ([`Self::follow_model_viewer`]).
     viewer_model: Option<String>,
@@ -286,6 +288,7 @@ impl ClientMenu {
             backdrop: None,
             uploaded_into: None,
             collection_stage: false,
+            collection_saber: false,
             viewer_model: None,
             viewer_prop: None,
         }
@@ -457,6 +460,11 @@ impl ClientMenu {
         self.collection_stage = wanted;
     }
 
+    /// Whether the Collection's Shaders tab shows the saber on its own.
+    pub(crate) fn set_collection_saber(&mut self, alone: bool) {
+        self.collection_saber = alone;
+    }
+
     /// Follow the `modelviewer` page: show the player model it has chosen in place of the
     /// player's own, or note the rigid one for the stage to show instead.
     pub(crate) fn follow_model_viewer(&mut self, console: &ViewerConsole) {
@@ -491,16 +499,20 @@ impl ClientMenu {
         if !self.collection_stage {
             return None;
         }
+        // The Shaders tab's saber alone lies across the room above the shader's card.
+        let area = if self.collection_saber {
+            crate::console::collection_panel::SABER_AREA
+        } else {
+            crate::console::collection_panel::MODEL_AREA
+        };
         let preview = crate::player_menu::ModelPreview {
-            area: crate::player_menu::PreviewArea::Sjk(
-                crate::console::collection_panel::MODEL_AREA,
-            ),
+            area: crate::player_menu::PreviewArea::Sjk(area),
             stance: "BOTH_STAND2",
             sabers: true,
             pose: None,
             shell: None,
             effect: None,
-            showcase: false,
+            showcase: self.collection_saber,
             room: 1.35,
             angle: Some(-28.0),
         };
@@ -522,6 +534,11 @@ impl ClientMenu {
         // the screen shows the model in its own preview: the menu map's stage
         // is not the match's.
         if self.player.is_classic() || self.player.return_target() == ReturnTarget::InGame {
+            return None;
+        }
+        // Behind the Holocrons tab the holocron floats on its own: its shot looks over
+        // the stage, but no one stands there (Sol, 17/10/2026).
+        if self.holocron_shot {
             return None;
         }
         let stage = self.backdrop.as_ref()?.stage()?;

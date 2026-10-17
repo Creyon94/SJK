@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- The Shaders tab shows your saber on its own, turning slowly over the right of the screen: drag it to turn it and look at the hilt and blade from any side. Under it each shader has a card in its tier's colours, with icons for where it comes from, its smith, the copies you hold, and for a locked one which holocrons can drop it and how likely. Behind the Holocrons tab the holocron now floats alone, without your character _(Sol)_
 - Grand finds are announced: when someone opens a holocron and gets a Legendary or Solar card or a Legendary or Mythical shader, every SJK player reads it in chat ("Sol opened a Mythical Holocron: Phoenix blade!"), once the SJK hub sends them _(Sol)_
 - Opening a holocron is now a show, loot-crate style: the holocron glides to the middle, spins up and cracks open in a flash, then a strip of what it can hold runs past a marker, a tick a tile, and slows to a stop on your prize, lit, with rays for a grand one. Open all runs five strips at a time and then lays out everything you found, the finest first _(Sol)_
 - A chat message that is a single Russian letter (or two capitals, such as Da and Net in Cyrillic) now reaches Russian players on JoF, JA+ and EternalJK as that letter, not as two garbage characters, and SJK shows such a message from them as Russian instead of Latin accented letters _(Sol, after Foshin's report)_
