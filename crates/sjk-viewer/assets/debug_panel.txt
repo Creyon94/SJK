@@ -5154,6 +5154,16 @@ test: JoFCrucible (JoF): saber NPCs throw: the spinning saber is visible, with i
 test: Hit NPCs and the tauntaun: each cries in its own voice, never a player's.
 test: NPCs without sabers (gunners, creatures) show no red blade.
 
+[saber-skin-cost]
+area: Rendering & effects
+title: Saber shaders cost less up close and when swinging
+change: Afterimages (Spectral's ghosts) draw as a plain glow; the faintest one is dropped.
+change: Pixels past a blade's glow skip the shader's work. Hub reports 63 and 64.
+test: Spectral in first person, blade close to the screen: FPS holds better than before.
+test: Swing fast with Spectral: the afterimages still fade behind the blade, FPS steadier.
+test: Sun and other shaders up close: the look is unchanged.
+note: Measured on an RTX 5080 only (swing +5.3 ms -> +1.3 ms); a weak GPU still needs a try.
+
 [linux-paste]
 area: Input
 title: Ctrl+V works on Linux without xclip or wl-clipboard

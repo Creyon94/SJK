@@ -61,6 +61,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Free camera and `fakenoclip` fly during JA+ sit and dance emotes (amsit, amhips): a server holding your body at speed 0 no longer keeps the camera stuck inside it _(Sol, after Kushina's reports)_
 - NPCs' thrown sabers are visible, with the NPC's own hilt and colour; NPC sabers take their hilt's colour instead of always red, and an NPC without a saber shows no blade _(Sol, after JoF EJK)_
 - NPCs and vehicles such as the tauntaun cry, jump and die in their own voice instead of a player's, and stay silent when they have none _(Sol, after JoF EJK)_
+- Shadered sabers cost far less up close and when swinging: afterimages are drawn as a plain glow, the faintest is dropped, and the empty space round a blade's glow is skipped _(Sol, after Kushina's reports)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 
