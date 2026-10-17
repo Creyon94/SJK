@@ -1,6 +1,6 @@
 ## PM-only game chat
 
-17/10/2026, `feat/pm-only-chat`, based on `6561b03f`, Windows x86_64,
+17/10/2026, `feat/pm-only-chat`, based on `bb83eb28`, Windows x86_64,
 Rust 1.99.0: implemented JoF EJK #331's current-map PM-only command and
 shared settings switch, default off. The client marks only non-localized `chat`
 commands whose first argument starts with the stock tell marker, before display

@@ -11,9 +11,7 @@ assistant.
 <!--
 Format, read by the client (crates/sjk-viewer/src/changelog_data.rs, whose
 tests check this file):
-- "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased
-
-- Add current-map PM-only game chat, with a console command and a switch in both menu styles; recognize server tell markers before display cleanup. _(lumayaa, after JoF EJK)_" for main
+- "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased" for main
   after the last release, without a date);
 - other lines up to the first item are the release's introduction;
 - "> <Heading>: <sentence>" lines before the first item are the release's short
@@ -25,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Add current-map PM-only game chat, with a console command and a switch in both menu styles; recognize server tell markers before display cleanup. _(Lumaya, after JoF EJK)_
+
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
 > Force: JoF's 22 community presets in the Force menu.
