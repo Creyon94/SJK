@@ -584,6 +584,15 @@ impl EntityState {
         [72, 102].map(|field| self.raw_field(field).unwrap_or(0) as u16)
     }
 
+    /// Protocol-26 `entityState_t::csSounds_Std`, `csSounds_Combat`,
+    /// `csSounds_Extra` and `csSounds_Jedi` (netfields 80, 103, 104 and 105):
+    /// `CS_SOUNDS` indices of an NPC's `*$<dir>` custom sound directories, zero
+    /// when the NPC has none of that kind (`NPC_stats.c:757-814`, read back by
+    /// `CG_HandleNPCSounds`, `cg_servercmds.c:718`).
+    pub fn npc_sound_sets(&self) -> [u8; 4] {
+        [80, 103, 104, 105].map(|field| self.raw_field(field).unwrap_or(0) as u8)
+    }
+
     /// Protocol-26 `entityState_t::boltToPlayer` (netfield 101). NPCs reuse
     /// it as two packed 3-bit saber colours (`NPC_stats.c:2723-2724`,
     /// `:2833-2834`): bits 0-2 are saber 0's `saber_colors_t + 1`, bits 3-5

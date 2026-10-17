@@ -4843,6 +4843,19 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
   saber with its `npcSaber1` hilt and blade colour
   ([thrown_sabers.rs](../crates/sjk-client/src/thrown_sabers.rs)); before
   17/10/2026 an NPC's thrown saber was invisible while its hand was empty.
+- **Voices.** `*pain25`, `*death1`, `*jump1` and the other custom sounds of an NPC
+  (or a vehicle, which is an NPC) come from its own sound folders: the server names
+  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`
+  and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in `cg_servercmds.c:718`).
+  As `CG_CustomSound` (`cg_players.c:213-322`), death, jump, pain, choke, gasp, land
+  and taunt come from the standard set, anger, victory and pushed from the combat
+  set, and taunt1-3, deflect, gloat and pushfail from the Jedi set, each
+  `sound/chars/<dir>/misc/<name>`. An NPC with no set for a sound, or whose file is
+  missing, is silent: unlike a player it has no `mp_generic` fallback. Sets load
+  when their `CS_SOUNDS` slot changes, not per event
+  ([sound_npc_voices.rs](../crates/sjk-client/src/sound_npc_voices.rs)). Before
+  17/10/2026 every NPC spoke with the voice of player slot 31. The `_Extra` set
+  (`*chase1`, `*cover1`, ...) has no event in the sound table and is not loaded.
 
 ## Shader remap controls
 
