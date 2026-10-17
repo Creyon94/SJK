@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Fix cosmetic colour commands in scripts so each uses the current hat or cape and later explicit choices win. _(Lumaya)_
 - Make the Not players shader-remap setting filter reliable server commands as well as configstrings. _(Lumaya, after JoF EJK)_
 - Hide hats and capes on monster-held and cloaked players, with the remote Force Sight exception. _(Lumaya, after JoF EJK)_
+- Read community `.oshader` override scripts while preserving shader authority and download restrictions. _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

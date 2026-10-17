@@ -40,11 +40,12 @@ impl ShaderCatalog {
                 }
                 match vfs.read_from_mount(source.mount_id, path.as_str()) {
                     Ok(Some(asset)) => {
-                        for definition in
+                        for definition in definition_order(
                             crate::recovery::parse_recovering(&asset.bytes, path, |error| {
                                 warning(path, &error)
-                            })
-                        {
+                            }),
+                            path,
+                        ) {
                             let name = normalize_name(&definition.name);
                             origins.insert(
                                 name.clone(),
@@ -72,11 +73,12 @@ impl ShaderCatalog {
                         script: path.clone(),
                         asset: asset.source,
                     };
-                    for definition in
+                    for definition in definition_order(
                         crate::recovery::parse_recovering(&asset.bytes, path, |error| {
                             warning(path, &error)
-                        })
-                    {
+                        }),
+                        path,
+                    ) {
                         let name = normalize_name(&definition.name);
                         if let Some(winner) = origins.get(&name) {
                             let conflict = (name.clone(), source.asset.mount_id, path.clone());
@@ -121,9 +123,12 @@ impl ShaderCatalog {
                 script: path.clone(),
                 asset: asset.source,
             };
-            for definition in crate::recovery::parse_recovering(&asset.bytes, &path, |error| {
-                warning(&path, &error)
-            }) {
+            for definition in definition_order(
+                crate::recovery::parse_recovering(&asset.bytes, &path, |error| {
+                    warning(&path, &error)
+                }),
+                &path,
+            ) {
                 let name = normalize_name(&definition.name);
                 if !own.contains(&name) && (self.definitions.contains_key(&name) || claimed(&name))
                 {
