@@ -17,6 +17,11 @@ tests check this file):
 - "> <Heading>: <sentence>" lines before the first item are the release's short
   recap (3 to 6 lines, shown by the what's-new card after an update); every release
   dated 12/10/2026 or later needs one;
+- "= <cvar>: <sentence>" lines before the first item are settings the release
+  changed and asks players to choose again: the what's-new card opens on them, the
+  setting's Settings name, the sentence and a switch each ("= <cvar> reset: ..."
+  puts the setting back to its default first, so a value saved before the change
+  does not carry over unchosen); the cvar must be an on/off row in Settings;
 - a command or cvar in backticks (`whatsnew`), in a recap or a change, is drawn
   in a clickable chip by the what's-new card and the changelog page;
 - "- <change> _(<credit>)_" is one change; every change ends with its credit;
@@ -25,6 +30,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
+
+- The what's-new card opens on Settings to review when an update changed a setting: each with why and a switch, a reset one off until you choose it again _(Milamber)_
 - See & share nameplates (`cg_nameplate`, off by default) replaces Share my bars (`cg_nameplateShare`): seeing other players' nameplates shares your own health, shield and Force, and off does neither _(Milamber)_
 - The Collection's Nameplates tab has a See & share nameplates switch, its row pulsing gold so it is not missed _(Milamber)_
 - The Supporter medal is no longer oddly cut: its ribbon ends in a clean V on the star's bail (no dark block or broken stem under it), and its small medallion loses the stray line at its top _(Sol)_

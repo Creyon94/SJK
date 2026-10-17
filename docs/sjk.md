@@ -282,6 +282,18 @@ section; the tests reject a dated release from 12/10/2026 on without one, and th
 release notes' introduction may repeat it. A player who skips releases sees the recaps
 of each, so a recap must read on its own.
 
+A release that changes what a setting does, or its default, asks players to choose it
+again with a line `= <cvar>: <one sentence>` beside the recap, before the changes
+(17/10/2026), in place of a migration marker cvar of its own: the what's-new card
+opens on a "Settings to review" page listing every such setting of the releases the
+player has not seen, each with its Settings name, the sentence and a switch
+([sjk-ui.md](sjk-ui.md#whats-new-card)). `= <cvar> reset: ...` also puts the setting back
+to its default when the card is offered, so a value every profile saved under the old
+meaning does not carry over unchosen (`cg_nameplate`, when it became See & share
+nameplates). The cvar must be an on/off row in Settings, and the sentence at most 160
+characters; the tests reject anything else. Write the line under "Unreleased" with the
+change, so it is part of the release it ships in.
+
 ## Credits
 
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits

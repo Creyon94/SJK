@@ -1897,6 +1897,19 @@ same look in every menu style, on the 16:9 frame:
   release lists shows nothing. Closing writes the marker; quitting with the card up
   shows it again next time. `whatsnew` shows the newest recap again, "Unreleased"
   included, as a preview that writes nothing.
+- **Settings to review** (17/10/2026): when the releases since the seen one name
+  settings to choose again (`= <cvar>[ reset]: <sentence>` in the changelog,
+  [sjk.md](sjk.md#changelog); `changelog::reviews`, every release since the seen one,
+  past the five recap pages), the card opens on a page of them before the recaps:
+  "Settings to review" as its headline, "Changed by this update: choose again" on the
+  right, and a row each with the heading's icon, "1." and the setting's Settings name
+  (`settings::switch_label`) in gold, its switch at the right and the sentence under
+  them. A click on the switch or the row's number key (1 to 9) flips the setting and
+  leaves the card up; the switches read the console each frame. A `reset` setting is
+  put back to its default when the card is offered, not in a preview (`whatsnew` shows
+  "Unreleased"'s with working switches), so a player who quits with the card up sees it
+  reset again next time. No marker of its own: `cl_whatsNewSeen` already says what the
+  player has not seen.
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
   tall as its tallest page, so the buttons stay put while the pages turn.
 - **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22) and, right-aligned on

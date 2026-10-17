@@ -2733,6 +2733,10 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   nameplates showed bars: two settings for one value, and in Settings the row looked
   stuck off, since the hold put the cvar back the next frame while the row still read
   OFF. A `cg_nameplateShare` line in an older `config.cfg` no longer does anything.
+  Every profile had saved nameplates on (the old default), so the release asks players
+  to choose it again (`= cg_nameplate reset: ...` in the changelog): the what's-new card
+  puts it back off and opens on it with its switch, and the player turns it on again
+  knowing that it shares ([sjk-ui.md](sjk-ui.md#whats-new-card)).
 - **Tied to the hub:** shared bars on other players show only while the
   hub's last answer (under 6 seconds old) lists you sharing in your slot. With
   `cl_identity` off, no hub, no claim yet or the hub down, other players get no such

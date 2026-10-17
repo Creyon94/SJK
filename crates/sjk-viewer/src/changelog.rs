@@ -63,6 +63,56 @@ pub(crate) struct Digest {
     pub(crate) after: Vec<String>,
 }
 
+/// A setting an update asks the player to choose again (`= <cvar>[ reset]: <text>` in
+/// `CHANGELOG.md`): the what's-new card's first page lists them with a switch each.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Review {
+    pub(crate) cvar: String,
+    /// Put back to its default when the card is offered, so a value saved before the
+    /// change does not carry over unchosen.
+    pub(crate) reset: bool,
+    /// Why it is asked, code in backticks.
+    pub(crate) text: String,
+}
+
+/// The settings to review of every release after `seen` up to `installed`, however many
+/// releases were skipped (unlike [`digests`]), each cvar once: the newest release's words,
+/// reset when any of them resets it. Empty for a build no release lists.
+pub(crate) fn reviews(installed: &str, seen: &str) -> Vec<Review> {
+    data::parse(data::EMBEDDED)
+        .map(|releases| {
+            let range = since(&releases, installed, seen, usize::MAX);
+            merged_reviews(&releases[range])
+        })
+        .unwrap_or_default()
+}
+
+/// The newest release's settings to review, "Unreleased" included: the `whatsnew`
+/// command's preview.
+pub(crate) fn newest_reviews() -> Vec<Review> {
+    data::parse(data::EMBEDDED)
+        .map(|releases| merged_reviews(releases.get(..1).unwrap_or_default()))
+        .unwrap_or_default()
+}
+
+fn merged_reviews(releases: &[data::Release]) -> Vec<Review> {
+    let mut merged: Vec<Review> = Vec::new();
+    for review in releases.iter().flat_map(|release| &release.review) {
+        match merged
+            .iter_mut()
+            .find(|known| known.cvar.eq_ignore_ascii_case(&review.cvar))
+        {
+            Some(known) => known.reset |= review.reset,
+            None => merged.push(Review {
+                cvar: review.cvar.clone(),
+                reset: review.reset,
+                text: review.text.clone(),
+            }),
+        }
+    }
+    merged
+}
+
 /// What an update brought: the recaps of the releases after `seen` up to
 /// `installed` (newest first, at most [`DIGEST_LIMIT`]). With no `seen`, or one
 /// the file does not list, only `installed`'s. Empty when `installed` is not a
@@ -91,15 +141,32 @@ pub(crate) fn newest_release_digest() -> Option<Digest> {
 }
 
 fn digests_of(releases: &[data::Release], installed: &str, seen: &str) -> Vec<Digest> {
+    releases[since(releases, installed, seen, DIGEST_LIMIT)]
+        .iter()
+        .map(digest)
+        .collect()
+}
+
+/// The releases after `seen` up to `installed`, newest first and at most `limit` of them:
+/// only `installed` with no `seen` or one the file does not list, none when `installed`
+/// is not a release the file lists (a local build).
+fn since(
+    releases: &[data::Release],
+    installed: &str,
+    seen: &str,
+    limit: usize,
+) -> std::ops::Range<usize> {
     let Some(newest) = releases.iter().position(|r| r.version() == Some(installed)) else {
-        return Vec::new();
+        return 0..0;
     };
     let first_seen = releases
         .iter()
         .position(|r| !seen.is_empty() && r.version() == Some(seen))
         .filter(|at| *at > newest);
-    let end = first_seen.unwrap_or(newest + 1).min(newest + DIGEST_LIMIT);
-    releases[newest..end].iter().map(digest).collect()
+    let end = first_seen
+        .unwrap_or(newest + 1)
+        .min(newest.saturating_add(limit));
+    newest..end
 }
 
 fn digest(release: &data::Release) -> Digest {
@@ -507,6 +574,47 @@ mod tests {
         let first = &digests_of(&releases, "1.0", "")[0];
         assert!(first.lines.is_empty());
         assert_eq!(first.intro, "First.");
+    }
+
+    /// The settings to review gather from every release since the one seen, past the
+    /// card's page limit, each cvar once with the newest words, reset if any release
+    /// resets it.
+    #[test]
+    fn settings_to_review_gather_every_release_since_the_seen_one() {
+        let mut text = String::new();
+        for minor in (1..=8).rev() {
+            text.push_str(&format!("## 1.{minor} | 0{minor}/10/2026\n\n"));
+            match minor {
+                8 => text.push_str("= cg_fov: Newest words.\n\n"),
+                5 => text.push_str("= cg_fov reset: Older words.\n\n"),
+                2 => text.push_str("= cg_nameplate reset: Shares now.\n\n"),
+                _ => {}
+            }
+            text.push_str("- x _(Sol)_\n\n");
+        }
+        let releases = data::parse(&text).unwrap();
+        let range = since(&releases, "1.8", "1.1", usize::MAX);
+        let merged = merged_reviews(&releases[range]);
+        assert_eq!(
+            merged,
+            [
+                Review {
+                    cvar: "cg_fov".to_owned(),
+                    reset: true,
+                    text: "Newest words.".to_owned(),
+                },
+                Review {
+                    cvar: "cg_nameplate".to_owned(),
+                    reset: true,
+                    text: "Shares now.".to_owned(),
+                },
+            ]
+        );
+        // The card's recaps stop at its page limit; the review does not.
+        assert_eq!(digests_of(&releases, "1.8", "1.1").len(), DIGEST_LIMIT);
+        let range = since(&releases, "1.8", "1.5", usize::MAX);
+        assert_eq!(merged_reviews(&releases[range]).len(), 1);
+        assert!(since(&releases, "dev", "1.1", usize::MAX).is_empty());
     }
 
     #[test]
