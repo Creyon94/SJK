@@ -23,7 +23,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1017.1 (Alpha) | 17/10/2026
+
+Holocrons keep dropping, but opening them, the shop and the shards stay closed to players for now: the SJK hub turns them on later.
+
+> CTF HUD: Flag status, the carrier's plate and team scores in every HUD style.
+> Order 66: A new toy; everyone with it on dies together, TF2 style.
+> Holocrons: Four new shapes and a crate-style opening, ready for when opening opens.
+> Saber shaders: Each has a card on the Shaders tab; drag your saber to turn it.
+> Player card: Only for players in sight, within 1200 units.
+> Fixes: Linux paste, one-letter Russian chat, pale shader blades, freecam in emotes.
 
 - Each holocron tier is now an object of its own: Uncommon the Jedi cube with a lamp on each face, Rare the Great Holocron with a halo turning around it, Legendary the Sith pyramid whose cap floats over a glowing eye, Mythical the kyber prism turning in two gimbal rings with motes of light around it. The Holocrons tab, the opening and the tier pictures show the new shapes, and a tier you hold none of keeps its shape, dark and still _(Sol)_
 - The Shaders tab shows your saber on its own, turning slowly over the right of the screen: drag it to turn it and look at the hilt and blade from any side. Under it each shader has a card in its tier's colours, with icons for where it comes from, its smith, the copies you hold, and for a locked one which holocrons can drop it and how likely; once the SJK hub turns the shards on, its card shatters a duplicate or crafts a shader you lack. Behind the Holocrons tab the holocron now floats alone, without your character _(Sol)_
