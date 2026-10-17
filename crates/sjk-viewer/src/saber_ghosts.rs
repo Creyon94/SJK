@@ -22,6 +22,10 @@ pub(crate) struct GhostSpec {
 /// How far (units) a kept pose's tip must be from the blade's for it to be drawn.
 const MOVED: f32 = 1.5;
 
+/// The faintest afterimage drawn: one dimmer barely shows over the others and the scene
+/// (the Spectral's fourth, 0.45⁴ ≈ 0.04, hub report 64).
+const FAINTEST: f32 = 0.06;
+
 /// One blade's kept poses, newest first.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct GhostTrail {
@@ -63,10 +67,9 @@ impl GhostTrail {
             .enumerate()
             .filter_map(move |(index, pose)| {
                 let pose = (*pose)?;
-                (tip(&pose).distance(now_tip) >= MOVED).then(|| {
-                    let fade = spec.fade.powi(index as i32 + 1);
-                    Instance::ghost(pose, color, fade)
-                })
+                let fade = spec.fade.powi(index as i32 + 1);
+                (fade >= FAINTEST && tip(&pose).distance(now_tip) >= MOVED)
+                    .then(|| Instance::ghost(pose, color, fade))
             })
     }
 }
@@ -112,6 +115,23 @@ mod tests {
         }
         // From the newest pose itself, that one is skipped.
         assert_eq!(trail.instances(blade(40.0), color, SPEC).count(), 2);
+        // Each is marked as an afterimage, drawn as the plain capsule.
+        assert!(
+            trail
+                .instances(blade(50.0), color, SPEC)
+                .all(|i| i.is_afterimage())
+        );
+        // One fainter than `FAINTEST` is left out: the Spectral's fourth.
+        let spectral = GhostSpec {
+            count: 4,
+            fade: 0.45,
+            ..SPEC
+        };
+        let fades: Vec<f32> = trail
+            .instances(blade(50.0), color, spectral)
+            .map(|i| i.fade())
+            .collect();
+        assert_eq!(fades.len(), 3, "{fades:?}");
     }
 
     #[test]

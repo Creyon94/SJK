@@ -1528,8 +1528,16 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   the skin's room (the wisps' rise, the haze's reach, when on; `skin_room`, and
   `Instance::room` for the bounds), while the glow's own parts (embers, arcs, motes)
   keep fading at the glow's edge, so switching wisps or haze off changes nothing else.
-  The echo is an afterimage instance (`Instance::echo`) swaying on two slow waves
-  beside the blade, the tip more than the hilt, leaning a little. Heat haze is a
+  The echo is a dimmed glow instance (`Instance::echo`) swaying on two slow waves
+  beside the blade, the tip more than the hilt, leaning a little, drawn with the whole
+  look. Afterimages (`Instance::ghost`, 17/10/2026, hub report 64) carry the
+  afterimages' own section bit (`OFF_GHOSTS`, never a section switched off since the
+  CPU makes them) with their fade below 255: the vertex stage gives them the stock
+  quad (no `corona.reach` swell, no room) and `afterimage_glow` draws the plain capsule
+  in the corona's colours at their middle heat (granulation at its middle, no flare,
+  the tongues' mean), beating, tinted and turned, with none of the noise or parts, in
+  both glow passes. Before, each of a swing's four drew the whole look over the widest
+  quad twice a frame; one fainter than 0.06 is no longer drawn (`saber_ghosts.rs`). Heat haze is a
   pipeline of its own (`vertex_haze`, `fragment_haze`, no blending, depth-tested): first
   in the effect pass (`GpuState::draw_particle_tail`), while the effect layer still
   holds the scene, each skinned glow quad with haze on (the vertex stage folds every

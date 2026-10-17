@@ -273,6 +273,9 @@ const OFF_SPUTTER: u32 = 8u;
 const OFF_GLITCH: u32 = 16u;
 const OFF_SCAN: u32 = 32u;
 const OFF_PULSE: u32 = 64u;
+// The afterimages are the CPU's (it makes them), so their bit never reaches the shader as
+// a section switched off: it marks an afterimage itself (saber.rs `Instance::ghost`).
+const OFF_GHOSTS: u32 = 128u;
 const OFF_EMBERS: u32 = 256u;
 const OFF_VEINS: u32 = 512u;
 const OFF_TEAM: u32 = 1024u;
@@ -339,6 +342,12 @@ fn skin_room(skin: Skin, off: u32) -> f32 {
     return min(room, 16.0);
 }
 
+// Whether an instance is an afterimage: dimmed (the blade itself is 255) and marked with
+// the afterimages' bit (the echo, dimmed too, is not; saber.rs `Instance::ghost`).
+fn afterimage(persona: u32, off: u32) -> bool {
+    return (persona >> 24u) != 255u && (off & OFF_GHOSTS) != 0u;
+}
+
 @vertex
 fn vertex_main(@builtin(vertex_index) vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     return blade_vertex(vertex_index, blade);
@@ -399,8 +408,11 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
         let skin = skins[blade_material - SKIN_MATERIAL];
         // A skin's glow reaches further, for its flares and shimmer, and its quad further
         // still for its wisps and haze.
-        reach = skin.swell.x;
-        room = skin_room(skin, blade.off);
+        // An afterimage is the plain capsule (`afterimage_glow`): neither.
+        if !afterimage(blade_persona.x, blade.off) {
+            reach = skin.swell.x;
+            room = skin_room(skin, blade.off);
+        }
         star = skin.star_shape.y;
         if skin.hole_shape.x > 0.0 { star = skin.hole_shape.w; }
         glints = skin.star_motion.w;
@@ -1476,7 +1488,47 @@ fn skin_wings(skin: Skin, along: f32, x: f32, r: f32, blade_length: f32, time: f
     return min(total, 2.0);
 }
 
+// An afterimage (`afterimage`): the glow alone, at its mean. The capsule unwidened in the
+// corona's colours at their middle heat (the granulation's noise at its middle, no flare,
+// the tongues' mean flicker), beating, tinted and turned as the blade is, without the
+// noise, flares, figures, wisps or motes: a swing's afterimages cost about what stock
+// glows do, where each was the whole blade's work over its widest quad (hub report 64).
+fn afterimage_glow(input: VertexOutput) -> vec3<f32> {
+    let skin = skin_at(input);
+    let time = input.animation.x;
+    let along = skin_along(input);
+    let r = chain_radius(input.radius, input.length, clamp(along / max(input.length, 0.0001), 0.0, 1.0));
+    let x = input.blade.x;
+    let beyond = max(input.blade.y - input.shaft, 0.0);
+    let out = select(abs(x), length(vec2(x, beyond)), beyond > 0.0) / r;
+    let mixed = skin.grain_mix;
+    let grain = smoothstep(mixed.z, mixed.w, 0.5 * (mixed.x + mixed.y));
+    let beat = skin_beat(skin, time);
+    let tb = skin.tongue_b;
+    let flicker = mix(1.0, tb.z + 0.5 * tb.w, smoothstep(tb.x, tb.y, out));
+    let inner = 1.0 - smoothstep(0.0, skin.rim_cool.w, out);
+    let rim = mix(skin.rim_cool.rgb, skin.rim_hot.rgb, clamp(grain * skin.rim_hot.w, 0.0, 1.0));
+    let share = skin.inner_mix;
+    let color = mix(rim, skin.inner.rgb,
+        clamp(inner * inner * (share.x + share.y * grain), 0.0, 1.0));
+    let light = skin.brightness;
+    var glow = glow_capsule(input) * color * (light.x + light.y * grain) * flicker
+        * (1.0 + beat);
+    glow = skin_apply_tint(glow, skin_tint(skin, input));
+    let hue = skin.hue;
+    if any(hue.xyz != vec3(0.0)) {
+        glow = skin_turn_hue(glow, time * hue.x + along * hue.y + out * hue.z);
+    }
+    if input.chroma != 0.0 {
+        glow = skin_turn_hue(glow, input.chroma);
+    }
+    return glow * persona_fade(input);
+}
+
 fn skin_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
+    if afterimage(input.persona.x, input.off) {
+        return afterimage_glow(input);
+    }
     let skin = skin_at(input);
     let time = input.animation.x;
     let seed = input.animation.y;

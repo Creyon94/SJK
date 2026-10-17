@@ -154,6 +154,11 @@ pub(crate) struct Instance {
     glint: [f32; 2],
 }
 
+/// The afterimages' section bit, on an afterimage's own instance (`OFF_GHOSTS` in
+/// `saber.wgsl`): the CPU makes the afterimages, so the shader never reads the bit as a
+/// section switched off, and a dimmed instance with it is an afterimage.
+const AFTERIMAGE: u32 = crate::blade_skin_file::extras::Section::Ghosts.bit();
+
 /// Colour alpha marking a skin's first glint ([`Instance::stars`]): neither a glow (a hilt
 /// sprite's radius) nor a core (zero). Glint `n` of an orbit is `STAR - n`.
 const STAR: f32 = -1.0;
@@ -264,8 +269,19 @@ impl Instance {
     }
 
     /// An afterimage of a skinned blade ([`crate::saber_ghosts`]): its glow alone at
-    /// `blade`'s pose, `fade` as bright.
+    /// `blade`'s pose, `fade` as bright, marked with [`AFTERIMAGE`] so `saber.wgsl`
+    /// draws it as the plain capsule in the skin's colours (`afterimage_glow`).
     pub(crate) fn ghost(blade: Blade, color: BladeColor, fade: f32) -> Self {
+        let faded = Self::faded(blade, color, fade);
+        Self {
+            off: faded.off | AFTERIMAGE,
+            ..faded
+        }
+    }
+
+    /// `blade`'s glow alone, `fade` as bright, not marked as an afterimage (the echo is
+    /// drawn with the whole look).
+    fn faded(blade: Blade, color: BladeColor, fade: f32) -> Self {
         let [glow, _core] = Self::pair(blade, color);
         let byte = (fade.clamp(0.0, 1.0) * 255.0).round() as u32;
         Self {
@@ -275,8 +291,15 @@ impl Instance {
                 glow.persona[2],
                 glow.persona[3],
             ],
+            off: glow.off & !AFTERIMAGE,
             ..glow
         }
+    }
+
+    /// Whether this is an afterimage ([`Self::ghost`]), as `saber.wgsl` tells it.
+    #[cfg(test)]
+    pub(crate) fn is_afterimage(&self) -> bool {
+        self.persona[0] >> 24 != 255 && self.off & AFTERIMAGE != 0
     }
 
     /// A skin's glints, when its skin has them switched on: the one at `blade`'s tip, or
@@ -336,7 +359,7 @@ impl Instance {
             length: (tip - base).length(),
             radius: blade.radius,
         };
-        Some(Self::ghost(swayed, color, echo.fade))
+        Some(Self::faded(swayed, color, echo.fade))
     }
 
     /// Whether this is a glint ([`Self::stars`]).
