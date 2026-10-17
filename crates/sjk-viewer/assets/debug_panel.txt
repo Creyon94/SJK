@@ -5059,4 +5059,4 @@ change: Only near-grey colours (under 3 percent saturation) now leave a chroma a
 test: Saber page, wear Spectral (or another chroma shader), pick Custom, set R 207, B 234.
 test: Move Green from 185 to 190 and on: the blade and thumbnails stay violet, no jump to cyan.
 test: Slide each channel slowly: the shader blade changes hue smoothly with the colour swatch.
-note: Kushina reported it (hub-less, Discord, build 2026.1016.2).
+note: Kushina's Discord report, build 2026.1016.2.
