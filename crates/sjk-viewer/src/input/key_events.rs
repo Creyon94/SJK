@@ -4,12 +4,15 @@ use crate::*;
 
 impl GpuState {
     pub(crate) fn keyboard(&mut self, event: KeyEvent) {
-        // Whoever takes the release, a held push or pull key stops repeating.
+        // Whoever takes the release, retire it from the binding stream before
+        // routing. A chord such as `SHIFT+U reply` can open the chat composer on
+        // its press; the composer then owns both releases, but they must still
+        // clear the chord or either key would trigger it alone next time.
         if event.state == ElementState::Released
             && let PhysicalKey::Code(code) = event.physical_key
             && let Some(console) = &mut self.console
         {
-            console.force_repeat_key_up(code, crate::input::keys::key_name(&event));
+            console.queue_bound_key(code, crate::input::keys::key_name(&event), false);
         }
         let typing = self.text_has_keyboard();
         match self.alt_code.key(&event, typing) {
@@ -227,9 +230,13 @@ impl GpuState {
         if event.repeat {
             return;
         }
-        if let Some(console) = &mut self.console {
+        // Releases were handled before routing, including the ones swallowed by
+        // a menu or text field. Only presses reach this gameplay-binding path.
+        if event.state == ElementState::Pressed
+            && let Some(console) = &mut self.console
+        {
             let name = crate::input::keys::key_name(&event);
-            console.queue_bound_key(key, name, event.state == ElementState::Pressed);
+            console.queue_bound_key(key, name, true);
         }
     }
 }
