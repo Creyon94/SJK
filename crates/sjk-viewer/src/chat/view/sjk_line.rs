@@ -564,6 +564,7 @@ mod tests {
             holocron: Some(sjk_identity::DropMark {
                 tier: tier.to_owned(),
                 own,
+                find: None,
             }),
             ..message(id, name, "", true)
         }

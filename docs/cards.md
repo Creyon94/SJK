@@ -258,6 +258,10 @@ how its art was made; the footer reads "Art: <artist>".
     prize plays the fanfare as its strip stops. Then everything found is laid out, the
     finest first, ten to a row, each coming in on its beat, with its name and its
     credits or how many the player holds, the credits they brought together, and Done.
+  - **Grand finds** are told to everyone: a hub that sends the feed's `finds` (hub branch
+    `feat/grand-finds`, not deployed yet) relays a Legendary or Solar card, or a
+    Legendary or Mythical shader, to every SJK player as a chat line, "Sol opened a
+    Mythical Holocron: Phoenix blade!" ([holocrons.md](holocrons.md#chat-lines)).
   - Enter, Space, Right or a click skip to the burst (to the strips' stops, then the
     next five, then the finds, for many), finish the entrance, then go on; Escape ends
     it (what was opened is the hub's already). A refusal says why ("That holocron was

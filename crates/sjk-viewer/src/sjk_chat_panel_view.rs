@@ -1470,11 +1470,13 @@ mod tests {
         drop.holocron = Some(sjk_identity::DropMark {
             tier: "legendary".to_owned(),
             own: false,
+            find: None,
         });
         let mut future = message(2, "bbbbbbbbbbbbbbbb", "");
         future.holocron = Some(sjk_identity::DropMark {
             tier: "from_the_future".to_owned(),
             own: false,
+            find: None,
         });
         state.messages.extend([drop, future]);
         let mut panel = Panel::new();

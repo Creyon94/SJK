@@ -87,6 +87,7 @@ impl ChatOverlay {
             holocron: Some(sjk_identity::DropMark {
                 tier: tier.to_owned(),
                 own: true,
+                find: None,
             }),
         };
         self.push_sjk(&message, false, now);
@@ -429,6 +430,7 @@ mod tests {
         messages[2].holocron = Some(sjk_identity::DropMark {
             tier: "legendary".to_owned(),
             own: false,
+            find: None,
         });
         let troll = message(2, "").key_id;
         let news = |after| worth_a_sound(&messages, after, |key| key == troll);

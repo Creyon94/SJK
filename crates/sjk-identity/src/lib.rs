@@ -46,9 +46,9 @@ pub use service::{
 pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
 pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
-    Achievement, CardStack, ChatMessage, DropEvent, DropMark, Emote, Feed, HOLOCRONS_LISTED,
-    Holocron, HolocronCounts, HolocronState, Look, LookEvent, LootTier, Medal, OPEN_MAX,
-    OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence, Profile,
-    RevealAnswer, Revealed, SharedVitals, ToyEvent, Trust, Unlock, Vitals, WornName, names_match,
-    normal_form,
+    Achievement, CardStack, ChatMessage, DropEvent, DropMark, Emote, Feed, FindEvent, FindMark,
+    HOLOCRONS_LISTED, Holocron, HolocronCounts, HolocronState, Look, LookEvent, LootTier, Medal,
+    OPEN_MAX, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence,
+    Profile, RevealAnswer, Revealed, SharedVitals, ToyEvent, Trust, Unlock, Vitals, WornName,
+    names_match, normal_form,
 };

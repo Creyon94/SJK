@@ -204,6 +204,16 @@ goes, in all three places the SJK chat shows ([hub-chat.md](hub-chat.md#how-a-li
   their owner only, by the hub; a fresh reader gets only the drops of the last 60 seconds,
   so a joiner is not replayed history. With `cl_sjkChat 0` no line is kept, but the
   player's own drop still makes the worker read the profile.
+- **Grand finds** (since 17/10/2026, with a hub that sends the feed's `finds`): when a
+  holocron someone opened gives a Legendary or Solar card, or a Legendary or Mythical
+  shader, every SJK player gets a line like a drop's, in the holocron's colour with its
+  gem: `Sol opened a Mythical Holocron: Phoenix blade!`, `Fox opened an Uncommon
+  Holocron: a Legendary card!`, `You opened a Rare Holocron: an Uncommon card, Solar!`
+  (the shader's name plain and at most 40 characters, the card's rarity and its finish
+  unless plain). The identity service relays a find as a drop line whose mark carries
+  the prize (`DropMark::find`, [feed.rs](../crates/sjk-identity/src/feed.rs)); the
+  words are [holocrons/line.rs](../crates/sjk-viewer/src/holocrons/line.rs)'s. Muted
+  players' finds and unknown tiers are left out as drops are.
 
 ### Staff
 

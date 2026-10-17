@@ -27,7 +27,8 @@ use crate::hub::Hub;
 use crate::keys::Identity;
 use crate::service::{HubFactory, ReportOutcome};
 use crate::wire::{
-    ChatMessage, DropEvent, DropMark, Emote, Feed, LookEvent, People, Ping, ToyEvent,
+    ChatMessage, DropEvent, DropMark, Emote, Feed, FindEvent, FindMark, LookEvent, People, Ping,
+    ToyEvent,
 };
 use std::collections::VecDeque;
 use std::net::SocketAddr;
@@ -436,11 +437,13 @@ impl FeedWorker {
                 .retain(|message| !feed.deleted.contains(&message.id));
             changed |= state.messages.len() != before;
         }
-        // Drops share the messages' ids: merged, the chat keeps the order they came in.
+        // Drops and finds share the messages' ids: merged, the chat keeps the order they
+        // came in.
         let mut incoming = std::mem::take(&mut feed.chat);
-        if !feed.drops.is_empty() {
+        if !feed.drops.is_empty() || !feed.finds.is_empty() {
             let own = &self.key_id;
             incoming.extend(feed.drops.drain(..).map(|drop| drop_message(drop, own)));
+            incoming.extend(feed.finds.drain(..).map(|find| find_message(find, own)));
             incoming.sort_by_key(|message| message.id);
         }
         for message in incoming {
@@ -473,10 +476,37 @@ fn drop_message(drop: DropEvent, own: &str) -> ChatMessage {
         holocron: Some(DropMark {
             own: drop.key_id == own,
             tier: drop.tier,
+            find: None,
         }),
         key_id: drop.key_id,
         name: drop.name,
         verified: drop.verified,
+        staff: false,
+        trust: None,
+        emoji: String::new(),
+        text: String::new(),
+    }
+}
+
+/// The chat entry for the grand find `find`, as `own` (the player's key id) sees it: a
+/// drop line marked with what the holocron gave, worded by the viewer.
+fn find_message(find: FindEvent, own: &str) -> ChatMessage {
+    ChatMessage {
+        id: find.id,
+        at: find.at,
+        holocron: Some(DropMark {
+            own: find.key_id == own,
+            tier: find.tier,
+            find: Some(FindMark {
+                shader: find.prize == "shader",
+                name: find.item_name,
+                rarity: find.rarity,
+                finish: find.finish,
+            }),
+        }),
+        key_id: find.key_id,
+        name: find.name,
+        verified: find.verified,
         staff: false,
         trust: None,
         emoji: String::new(),
@@ -739,6 +769,41 @@ mod tests {
         }));
         rig.worker.step(t0 + POLL_GAP);
         assert_eq!(lock(&rig.state).messages.len(), 4);
+    }
+
+    /// A grand find joins the chat in the feed's order as a drop line marked with what
+    /// the holocron gave; the wire's field is parsed, and absent from older hubs.
+    #[test]
+    fn grand_finds_join_the_chat_marked_with_their_prize() {
+        let parsed: Feed = serde_json::from_str(
+            r#"{"next":7,"finds":[{"id":7,"at":9,"key_id":"ff","name":"Fox","verified":true,
+                "tier":"mythical","prize":"shader","item":"saber_phoenix",
+                "item_name":"Phoenix blade","rarity":"mythical","finish":""}]}"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.finds.len(), 1);
+        let old: Feed = serde_json::from_str(r#"{"next":7}"#).unwrap();
+        assert!(old.finds.is_empty(), "an older hub sends no finds");
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub", None);
+        rig.script(Ok(Feed {
+            chat: vec![message(6, "gg")],
+            ..parsed
+        }));
+        rig.worker.step(t0);
+        let state = lock(&rig.state).clone();
+        let ids: Vec<u64> = state.messages.iter().map(|m| m.id).collect();
+        assert_eq!(ids, [6, 7]);
+        let mark = state.messages[1].holocron.as_ref().expect("a find line");
+        assert_eq!((mark.tier.as_str(), mark.own), ("mythical", false));
+        let find = mark.find.as_ref().expect("its prize");
+        assert!(find.shader);
+        assert_eq!(
+            (find.name.as_str(), find.rarity.as_str()),
+            ("Phoenix blade", "mythical")
+        );
+        assert_eq!(state.messages[1].name, "Fox");
     }
 
     #[test]

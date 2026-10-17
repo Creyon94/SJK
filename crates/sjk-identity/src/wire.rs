@@ -610,13 +610,63 @@ pub struct ChatMessage {
     pub holocron: Option<DropMark>,
 }
 
-/// What marks a [`ChatMessage`] as a holocron drop.
+/// What marks a [`ChatMessage`] as a holocron drop, or a grand find of one opened.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DropMark {
     /// The tier's wire id.
     pub tier: String,
     /// The drop is the reader's own.
     pub own: bool,
+    /// Set when the line is a grand find ([`FindEvent`]): what the holocron gave.
+    pub find: Option<FindMark>,
+}
+
+/// What a holocron someone opened gave, for a grand find's line ([`FindEvent`]).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FindMark {
+    /// A shader (`true`) or a card.
+    pub shader: bool,
+    /// The shader's name (empty for a card).
+    pub name: String,
+    /// The card's rarity or the shader's tier, as a wire id.
+    pub rarity: String,
+    /// The card's finish as a wire id (empty for a shader).
+    pub finish: String,
+}
+
+/// A grand find (`PROTOCOL.md`, "The feed", `finds`; since 17/10/2026): a holocron someone
+/// opened gave a Legendary or Solar card, or a Legendary or Mythical shader. Every reader
+/// is told of it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct FindEvent {
+    /// Its id in the feed's sequence.
+    pub id: u64,
+    /// When it was opened, unix seconds.
+    pub at: i64,
+    /// The opener's key.
+    pub key_id: String,
+    /// The opener's hub display name, with colour codes. Show it only through
+    /// [`crate::chat::for_display`].
+    pub name: String,
+    /// Whether the hub's operator vouches for the opener's key.
+    #[serde(default)]
+    pub verified: bool,
+    /// The holocron's tier.
+    pub tier: String,
+    /// `card` or `shader`.
+    pub prize: String,
+    /// The shader's unlock id, or the card's id (empty while sealed).
+    #[serde(default)]
+    pub item: String,
+    /// The shader's name (empty for a card).
+    #[serde(default)]
+    pub item_name: String,
+    /// The card's rarity or the shader's tier.
+    #[serde(default)]
+    pub rarity: String,
+    /// The card's finish (empty for a shader).
+    #[serde(default)]
+    pub finish: String,
 }
 
 /// One emote on a game server (`PROTOCOL.md`, "Emotes"): the slot and name come from
@@ -725,6 +775,9 @@ pub struct Feed {
     /// holocrons).
     #[serde(default)]
     pub drops: Vec<DropEvent>,
+    /// New grand finds (absent from hubs before 17/10/2026, and when none).
+    #[serde(default)]
+    pub finds: Vec<FindEvent>,
     /// Messages staff deleted.
     #[serde(default)]
     pub deleted: Vec<u64>,
