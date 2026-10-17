@@ -1,63 +1,72 @@
 //! JA+/jaPRO black blades: JoF EJK #50 (`4ebc7e7e`, `ClampSaberColor`).
-//! A set plugin bit disables black; unsupported/disabled blades become orange.
+//! On a plugin server a set plugin bit (or `cg_blackSabers 0`) turns black into
+//! orange; elsewhere colour 11 keeps the client's ordinary fallback.
 //! Raw colour numbers stay in this adapter rather than the runtime world.
 
 use super::BladeColor;
-use sjk_client::LegacyClientInfo;
-use sjk_protocol::GameState;
+use sjk_client::{CompatProfile, LegacyClientInfo};
+use sjk_protocol::{GameState, LEGACY_MAX_CLIENTS};
 
 // Lowercase for allocation-free registry reads in the frame path.
 pub(crate) const CVAR: &str = "cg_blacksabers";
 const DISABLE_BIT: i64 = 1 << 3;
 
-/// Server identifiers advertising the black-blade contract, also recognized by
-/// `sjk_client::CompatProfile`. EJK #50 permits JA+ and its jaPRO lineage;
-/// TaystJK inherits jaPRO's colour enumeration. Generic code reads these rows.
-const CONTRACTS: &[(&str, &str)] = &[
-    ("gamename", "ja+"),
-    ("gamename", "japlus"),
-    ("gamename", "japro"),
-    ("gamename", "taystjk"),
-    ("fs_game", "japlus"),
-    ("game", "japlus"),
-    ("fs_game", "japro"),
-    ("game", "japro"),
-    ("fs_game", "taystjk"),
-    ("game", "taystjk"),
-    ("version", "ja+"),
-    ("version", "japlus"),
-    ("version", "taystjk"),
-];
-
-/// One bounded scan per presented frame, reused by held and flying blades.
-#[derive(Clone, Copy, Default)]
-pub(crate) struct Policy {
-    black: [u64; 2],
-    allowed: bool,
-    muted: u32,
+/// Servers with the black-blade contract, told by the session's
+/// [`CompatProfile`] (its documented serverinfo table) rather than a second one:
+/// EJK #50 permits JA+ and its jaPRO lineage, and TaystJK inherits jaPRO's colour
+/// enumeration.
+fn supports_black(profile: &CompatProfile) -> bool {
+    matches!(
+        profile,
+        CompatProfile::JaPlus { .. } | CompatProfile::TaystJk
+    )
 }
 
-impl Policy {
-    pub(crate) fn new(game: Option<&GameState>, enabled: bool, disabled: i64, muted: u32) -> Self {
+/// The serverinfo and clientinfo part of the policy, rebuilt only after
+/// `CS_SERVERINFO` or a `CS_PLAYERS` slot changed ([`Self::invalidate`]).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Cache {
+    valid: bool,
+    supported: bool,
+    black: [u32; 2],
+}
+
+impl Cache {
+    /// Called by the configstring dispatch for slots 0 and `CS_PLAYERS`.
+    pub(crate) fn invalidate(&mut self) {
+        self.valid = false;
+    }
+
+    /// The frame's policy; the cvars and mutes are read each frame, the
+    /// configstrings only when they changed.
+    pub(crate) fn policy(
+        &mut self,
+        game: Option<&GameState>,
+        enabled: bool,
+        disabled: i64,
+        muted: u32,
+    ) -> Policy {
         let Some(game) = game else {
-            return Self::default();
+            return Policy::default();
         };
-        let supported = game.config_string(0).is_some_and(|raw| {
-            let info = LegacyClientInfo::new(raw);
-            CONTRACTS.iter().any(|(key, token)| {
-                info.bytes(key).is_some_and(|value| {
-                    value
-                        .windows(token.len())
-                        .any(|part| part.eq_ignore_ascii_case(token.as_bytes()))
-                })
-            })
-        });
-        let mut policy = Self {
-            allowed: supported && enabled && disabled & DISABLE_BIT == 0,
+        if !self.valid {
+            *self = Self::scan(game);
+        }
+        Policy {
+            black: self.black,
+            supported: self.supported,
+            allowed: self.supported && enabled && disabled & DISABLE_BIT == 0,
             muted,
-            ..Self::default()
+        }
+    }
+
+    fn scan(game: &GameState) -> Self {
+        let mut cache = Self {
+            valid: true,
+            supported: supports_black(&CompatProfile::from_game_state(game)),
+            black: [0; 2],
         };
-        for client in 0..64 {
+        for client in 0..LEGACY_MAX_CLIENTS {
             let Some(raw) = game.config_string(1131 + client) else {
                 continue;
             };
@@ -68,18 +77,38 @@ impl Policy {
                     .map(sjk_client::split_color_value)
                     .map(|value| value.0);
                 if color.is_some_and(|color| color >= 0 && color % 12 == 11) {
-                    policy.black[hand] |= 1 << client;
+                    cache.black[hand] |= 1 << client;
                 }
             }
         }
-        policy
+        cache
+    }
+}
+
+/// One frame's black-blade decisions, reused by held and flying blades.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Policy {
+    black: [u32; 2],
+    supported: bool,
+    allowed: bool,
+    muted: u32,
+}
+
+impl Policy {
+    /// Uncached, for tests and one-off callers.
+    #[cfg(test)]
+    pub(crate) fn new(game: Option<&GameState>, enabled: bool, disabled: i64, muted: u32) -> Self {
+        Cache::default().policy(game, enabled, disabled, muted)
     }
 
     pub(crate) fn color(self, entity: u64, hand: usize, fallback: BladeColor) -> BladeColor {
-        let Some(client) = entity.checked_sub(1).filter(|client| *client < 64) else {
+        let Some(client) = entity
+            .checked_sub(1)
+            .filter(|client| *client < LEGACY_MAX_CLIENTS as u64)
+        else {
             return fallback;
         };
-        if client < 32 && self.muted & (1 << client) != 0 {
+        if self.muted & (1 << client) != 0 || !self.supported {
             return fallback;
         }
         if self

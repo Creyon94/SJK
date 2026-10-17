@@ -45,8 +45,11 @@ semantics. Colour 11 uses an independent alpha-blended material and trail for
 both hands and thrown sabers, without blade light or dynamic glow. A set
 `cp_pluginDisable` bit 3 produces orange; the existing mask default 1536 allows
 black. Both settings interfaces include the default-on `cg_blackSabers`
-presentation override. A named server-contract table scopes automatic support
-to JA+/jaPRO/TaystJK. Normal RGB and SJK blade skins retain their paths.
+presentation override. Automatic support follows the session's `CompatProfile`
+(JA+, TaystJK/jaPRO). Review fixes (17/10/2026): no second detection table;
+colour 11 keeps purple/RGB off those servers (EJK shows orange there); the scan
+is cached until configstring 0 or a `CS_PLAYERS` slot changes and covers the 32
+client slots only. Normal RGB and SJK blade skins retain their paths.
 See [client](client.md#ja-black-sabers) and
 [rendering](rendering.md#ja-black-sabers).
 

@@ -261,7 +261,7 @@ pub(crate) fn submit(
         entity_instances: &mut gpu.entity_instances,
         saber_hilts: gpu.saber_hilts.as_ref(),
         saber_skins: &gpu.saber_skins,
-        black_sabers: crate::saber_rgb::black::Policy::new(
+        black_sabers: gpu.black_sabers.policy(
             game_state,
             gpu.console
                 .as_ref()

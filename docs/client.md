@@ -932,7 +932,8 @@ Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
 black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
 The normal plugin-mask default (1536) allows black blades.
 
-Unsupported servers show colour 11 as orange. Ordinary RGB colours, including
+Other servers show colour 11 as before: purple, or the player's RGB tint when
+one is set. (JoF EJK shows orange there; SJK keeps its earlier colour.) Ordinary RGB colours, including
 an RGB tint of zero, retain their existing behavior; SJK blade skins retain
 priority over the server's blade colour. Installed community black glow/core/
 trail images are used when available; otherwise SJK generates black alpha

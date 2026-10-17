@@ -1360,9 +1360,13 @@ gun sounded twice (Creyon's report). Other players' flashes still start from the
 ## JA+ black sabers
 
 The compatibility policy in [black_sabers.rs](../crates/sjk-viewer/src/black_sabers.rs)
-reads a documented server-identifier table and the raw player colour indices,
-then applies `cg_blackSabers` and disable-mask bit 3. A fixed two-word hand mask
-is rebuilt once per presented frame; held and thrown sabers consume it without
+takes server support from the session's `sjk_client::CompatProfile` (JA+ and
+TaystJK/jaPRO; no second identifier table) and reads the raw `CS_PLAYERS` colour
+indices, then applies `cg_blackSabers` and disable-mask bit 3 on supported servers
+(orange when black is off); elsewhere colour 11 keeps its ordinary fallback. The
+serverinfo/clientinfo scan, a fixed two-word hand mask over the 32 client slots, is
+redone only when configstring 0 or a player's configstring changes; the cvars are
+read each frame; held and thrown sabers consume it without
 allocating or changing runtime equipment ownership. Muted players retain their
 replacement colours. The default allows the feature, matching JoF EJK #50's
 corrected disable-bit direction.

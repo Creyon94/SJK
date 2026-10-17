@@ -51,11 +51,17 @@ fn contracts_and_reconnects_do_not_leave_black_on_an_unsupported_server() {
         r"\hostname\A JA+ fan server\gamename\basejka",
         "",
     ] {
+        // Off a plugin server colour 11 keeps the client's ordinary fallback
+        // (purple, or the player's c3/c4 tint), as before black blades.
         let unsupported = game(server, r"\c1\11");
-        assert_eq!(
-            Policy::new(Some(&unsupported), true, 0, 0).color(1, 0, BladeColor::Rgb([0; 3])),
-            BladeColor::Retail(Color::Orange)
-        );
+        for fallback in [BladeColor::Retail(Color::Purple), BladeColor::Rgb([9; 3])] {
+            for disabled in [0, DISABLE_BIT] {
+                assert_eq!(
+                    Policy::new(Some(&unsupported), true, disabled, 0).color(1, 0, fallback),
+                    fallback
+                );
+            }
+        }
     }
     assert_eq!(
         Policy::new(None, true, 0, 0).color(1, 0, BladeColor::Rgb([0; 3])),
@@ -66,26 +72,41 @@ fn contracts_and_reconnects_do_not_leave_black_on_an_unsupported_server() {
 #[test]
 fn indices_cosmetics_secondary_blades_and_muted_players_remain_distinct() {
     let mut game = game(r"\gamename\JA+ Mod", r"\c1\11santahat\c2\6\c4\0");
-    game.replace_config_string(1194, br"\c1\6\c2\23cape".to_vec())
+    game.replace_config_string(1162, br"\c1\6\c2\23cape".to_vec())
+        .unwrap();
+    // 1163 is CS_G2BONES, past CS_PLAYERS: never read as a player's colours.
+    game.replace_config_string(1163, br"\c1\11".to_vec())
         .unwrap();
     let fallback = BladeColor::Rgb([0; 3]);
     let policy = Policy::new(Some(&game), true, 0, 0);
     assert_eq!(policy.color(1, 0, fallback), BladeColor::Black);
     assert_eq!(policy.color(1, 1, fallback), fallback);
-    assert_eq!(policy.color(64, 0, fallback), fallback);
-    assert_eq!(policy.color(64, 1, fallback), BladeColor::Black);
-    for (entity, hand) in [(0, 0), (65, 0), (1, 2)] {
+    assert_eq!(policy.color(32, 0, fallback), fallback);
+    assert_eq!(policy.color(32, 1, fallback), BladeColor::Black);
+    for (entity, hand) in [(0, 0), (33, 0), (1, 2)] {
         assert_eq!(policy.color(entity, hand, fallback), fallback);
     }
     assert_eq!(
         Policy::new(Some(&game), true, 0, 1).color(1, 0, fallback),
         fallback
     );
-    // A live colour change, including an invalid negative number, clears the bit.
+    // A live colour change, including an invalid negative number, clears the bit
+    // once the configstring dispatch invalidates the cache.
+    let mut cache = Cache::default();
+    assert_eq!(
+        cache.policy(Some(&game), true, 0, 0).color(1, 0, fallback),
+        BladeColor::Black
+    );
     game.replace_config_string(1131, br"\c1\-1\c2\6".to_vec())
         .unwrap();
     assert_eq!(
-        Policy::new(Some(&game), true, 0, 0).color(1, 0, fallback),
+        cache.policy(Some(&game), true, 0, 0).color(1, 0, fallback),
+        BladeColor::Black,
+        "cached until invalidated"
+    );
+    cache.invalidate();
+    assert_eq!(
+        cache.policy(Some(&game), true, 0, 0).color(1, 0, fallback),
         fallback
     );
 }
@@ -189,7 +210,7 @@ fn black_saber_shaders_validate_without_game_assets() {
 #[ignore = "release-only CPU cost measurement, not an FPS or GPU benchmark"]
 fn black_saber_policy_release_cost() {
     let mut game = game(r"\gamename\JA+ Mod v2.5", r"\c1\11\c2\11");
-    for client in 1..64 {
+    for client in 1..32 {
         game.replace_config_string(
             1131 + client,
             br"\n\Synthetic player\c1\11hat\c2\11cape\c3\0\c4\0".to_vec(),
@@ -206,7 +227,7 @@ fn black_saber_policy_release_cost() {
         ));
     }
     eprintln!(
-        "64-slot black-saber policy: {:.3} us/frame (20,000 synthetic scans)",
+        "32-slot black-saber scan: {:.3} us/frame (20,000 synthetic scans)",
         start.elapsed().as_secs_f64() * 1_000_000. / 20_000.
     );
 }
