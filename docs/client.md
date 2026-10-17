@@ -4412,8 +4412,15 @@ and the same in either console style. Enter strips one leading `/` or
 is set, without listing when the input is already a full name. Nothing strips a
 slash on a command after `;`, so completing that command drops it. Command
 boundaries follow the shell's quote and escape rules, and no completion happens
-inside an open quote. Arguments are not completed. See
-[shell_completion.rs](../crates/sjk-shell/src/shell_completion.rs).
+inside an open quote. Tab also completes the file name after `exec`, `execq`,
+`writeconfig` and `write` (`Cmd_CompleteCfgName`): the `.cfg` files at the top of
+the profile's folder, then those at the root of the search paths, matched without
+case and each name once. A unique file completes with a trailing space; several
+extend the typed text to their shared start, keeping its letter case, and are
+listed as grey `File` rows (`PrintFileMatches`). Enter does not complete
+arguments, and no other argument is completed. See
+[shell_completion.rs](../crates/sjk-shell/src/shell_completion.rs) and
+[console_scripting.rs](../crates/sjk-viewer/src/console_scripting.rs).
 
 F3 in the open console, or the bindable `consolebrowser` command, opens a browser of
 every command and cvar with its description, and each cvar's value and default. Typing

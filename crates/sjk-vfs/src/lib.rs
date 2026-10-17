@@ -307,9 +307,15 @@ impl VirtualFileSystem {
     /// the files in it (or one directory below) ending in `extension`. The
     /// highest-priority source comes first, each source in its own order (an archive
     /// in its central directory's), and a name only the first time it is met — the
-    /// order a game reading "every file of a kind" joins them in.
+    /// order a game reading "every file of a kind" joins them in. An empty
+    /// `directory` is the root: its files, and those one directory below.
     pub fn list_files(&self, directory: &str, extension: &str) -> Vec<String> {
-        let prefix = format!("{}/", directory.trim_end_matches('/').to_ascii_lowercase());
+        let directory = directory.trim_end_matches('/').to_ascii_lowercase();
+        let prefix = if directory.is_empty() {
+            directory
+        } else {
+            format!("{directory}/")
+        };
         let extension = extension.to_ascii_lowercase();
         let mut listed: Vec<String> = Vec::new();
         let mut paths = Vec::new();
@@ -848,6 +854,23 @@ mod original_name_tests {
             Some("forcecfg/light/^2Side Mission.fcf")
         );
         assert_eq!(vfs.original_name("forcecfg/light/none.fcf"), None);
+    }
+
+    #[test]
+    fn an_empty_directory_lists_the_root() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [
+                ("autoexec.cfg", b"".to_vec()),
+                ("cfg/a.cfg", b"".to_vec()),
+                ("a/b/c.cfg", b"".to_vec()),
+            ],
+        )
+        .unwrap();
+        let mut listed = vfs.list_files("", ".cfg");
+        listed.sort();
+        assert_eq!(listed, ["autoexec.cfg", "cfg/a.cfg"]);
     }
 }
 

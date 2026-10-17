@@ -1045,7 +1045,10 @@ impl ViewerConsole {
     }
 
     fn complete_command(&mut self, key: CompletionKey) {
-        if let Some(line) = self.shell.complete_line(&self.input, key) {
+        let resolver =
+            console_scripting::Resolver::new(&self.config_directory, self.script_vfs.as_deref());
+        let files = |extension: &str| resolver.root_files(extension);
+        if let Some(line) = self.shell.complete_line_with_files(&self.input, key, files) {
             self.input = line;
             self.rebuild_prompt();
         }
