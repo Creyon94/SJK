@@ -11,6 +11,7 @@ mod base_server_commands;
 mod body_animation;
 mod idle_stances;
 mod shader_remaps;
+mod siege_result;
 pub use shader_remaps::{
     SHADER_STATE_CONFIG, ShaderRemapTable, ShaderRemaps, next_remap_order, shader_name,
 };
@@ -222,7 +223,8 @@ pub use npc_identity::{
     legacy_npc_saber_names_borrowed, legacy_npc_state, legacy_vehicle_name,
 };
 pub use obituary::{
-    EV_OBITUARY, Gender, KillFeed, ObituaryEvent, ObituaryTracker, legacy_obituary, obituary_name,
+    EV_OBITUARY, EV_SIEGE_ROUNDOVER, Gender, KillFeed, ObituaryEvent, ObituaryTracker,
+    SiegeRoundOver, legacy_obituary, obituary_name,
 };
 pub use player_angle_rules::{PredictedPoseFields, legacy_predicted_pose};
 pub use player_angles::{
@@ -269,6 +271,7 @@ pub use saber_move::legacy_saber_trail_length;
 pub use server_address::{LegacyAddressError, LegacyServerAddress};
 pub use server_clock::ServerClock;
 pub use session_transition::{SessionTransition, SessionTransitionKind};
+pub use siege_result::siege_round_winner;
 pub use sound_events::{
     LegacyMusicAction, LegacySaberView, LegacySoundAdapter, LegacySoundDecision, LegacySoundEvent,
     LegacySoundLedger, RegisteredLegacySound, SABER_SOUND_CLIENTS, SaberSoundSet, TOGGLE_REACH,
