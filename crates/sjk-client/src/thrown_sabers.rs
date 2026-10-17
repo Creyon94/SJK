@@ -80,7 +80,8 @@ impl<'a> LegacyThrownSabers<'a> {
         Some(LegacyThrownSaber {
             owner,
             name: saber_names_from_config(config)[0]?,
-            color: saber_color_from_config(config, 0),
+            color: crate::actor_color::legacy_team_blade(self.game, owner)
+                .unwrap_or_else(|| saber_color_from_config(config, 0)),
             in_flight,
             extra_blades: holstered != 1,
             returning: !state.saber_in_flight(),

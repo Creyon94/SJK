@@ -100,6 +100,9 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
+    /// Capture the flag: every red or blue blade is the team's, with no skin over it
+    /// (`sjk_client::legacy_team_sabers`).
+    team_sabers: bool,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
     /// The players outlined as teammates and enemies (`hud::team_outline`).
@@ -303,6 +306,7 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
+        team_sabers: game_state.is_some_and(sjk_client::legacy_team_sabers),
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
         team_outline: gpu.hud.team_outline.groups(),
     };
@@ -517,7 +521,8 @@ fn submit_actor(
         None => 0,
     };
     let muted = crate::muted_players::entity_muted(sinks.muted, client);
-    if muted {
+    // In capture the flag the blade keeps its team's colour.
+    if muted && !sinks.team_sabers {
         equipment = equipment.map(crate::muted_players::equipment);
     }
     // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
@@ -929,7 +934,10 @@ fn submit_equipment(
     let origin = Vec3::from_array(transform.translation);
     if saber_submission::submit(
         entity.id.get(),
-        sinks.saber_skins.get(entity.id.get()),
+        sinks
+            .saber_skins
+            .get(entity.id.get())
+            .filter(|_| !sinks.team_sabers),
         std::array::from_fn(|hand| {
             let mesh = &sinks.actor_meshes[actor_mesh];
             mesh.saber_names[hand]
