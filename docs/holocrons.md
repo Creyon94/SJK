@@ -348,5 +348,5 @@ the world shot `duel6_sjk_collection` renders it from the game menu at a match's
 ## Planned, not built
 
 What opened holocrons will also give: the cards' faces and the shop credits buy from
-([cards.md](cards.md#planned-not-built)); saber shaders dropping from holocrons at a low
-chance is Sol's idea for later, undecided.
+([cards.md](cards.md#planned-not-built)). Saber shaders drop already
+([unlockables.md](unlockables.md#holocron-shader-drops)).
