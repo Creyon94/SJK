@@ -617,7 +617,8 @@ impl ViewerConsole {
     ) {
         frame.atlas = atlas;
         self.presentation.clear(viewport);
-        if self.debug_panel.is_open()
+        if self.dialogue.is_open()
+            || self.debug_panel.is_open()
             || self.model_viewer.is_open()
             || self.changelog.is_open()
             || self.credits.is_open()

@@ -1,3 +1,19 @@
+## Server dialogue client presentation
+
+17/10/2026, `feat/server-dialogue-client`, based on `Sol-Vulpes/SJK`
+`bb83eb28`, Windows x86_64: implements EJK #301/#307/#342's bounded reliable
+command adapter, serial-safe node/response lifecycle, SJK modal in both menu
+styles, and optional installed node voice audio. Quest logic remains remote;
+no native quest system, new protocol codec or assets are added. See
+[client](client.md#server-dialogue-and-quests).
+
+All four workspace checks (fmt, locked build/test/clippy) passed on Windows
+x86_64, Rust 1.99.0. Five focused synthetic regressions cover stale serials,
+show/retry/limit behavior, optional/invalid sound paths, all twelve choices at
+three viewport sizes, and modal ownership/cancel/reset. Live compatible-server conversations,
+actual GPU appearance, installed voice playback and decoder cancellation remain
+unverified; no game assets or isolated server scenario are configured.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

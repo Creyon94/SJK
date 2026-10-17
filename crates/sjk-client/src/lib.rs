@@ -9,6 +9,8 @@ mod animation_selection;
 mod asset_catalog;
 mod base_server_commands;
 mod body_animation;
+/// Server-authored dialogue client adapter.
+pub mod dialogue;
 mod idle_stances;
 mod shader_remaps;
 pub use shader_remaps::{
@@ -1172,6 +1174,13 @@ impl ClientSession {
                 text,
                 sender: None,
             });
+            return Ok(());
+        }
+        if name == dialogue::COMMAND {
+            if let Some(event) = dialogue::parse(&arguments) {
+                self.base_command_events
+                    .push_back(BaseServerCommandEvent::Dialogue(event));
+            }
             return Ok(());
         }
         if self.shader_remaps.command(&arguments) {

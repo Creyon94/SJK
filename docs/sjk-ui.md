@@ -31,6 +31,11 @@ one of the SJK Settings categories; a new page is drawn with the kit
 its SJK UI before it is merged. Fixes to an existing classic+ screen alone are
 fine.
 
+Server-authored conversations use an SJK modal in every menu style: speaker and
+body above five scrolling response rows, gold selection, a Leave conversation
+control and keyboard hints. [Client dialogue support](client.md#server-dialogue-and-quests)
+describes the server-owned quest boundary and voice lifecycle.
+
 ## Design
 
 Sol chose the direction on 07/10/2026 from three mock-ups (a design canvas of

@@ -24,6 +24,11 @@ pub(super) fn consume(
 
     while let Some(event) = session.pop_base_command_event() {
         match event {
+            BaseServerCommandEvent::Dialogue(event) => {
+                if let Some(console) = &mut console {
+                    console.dialogue_event(event);
+                }
+            }
             BaseServerCommandEvent::UnknownCommand(name) => {
                 if console
                     .as_ref()

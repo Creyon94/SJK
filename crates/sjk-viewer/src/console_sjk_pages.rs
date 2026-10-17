@@ -23,6 +23,9 @@ impl ViewerConsole {
         if !self.open {
             return false;
         }
+        if self.dialogue.is_open() {
+            return true;
+        }
         if self.asset_browser.open || self.jof_content_open() || self.model_viewer.is_open() {
             return true;
         }
@@ -61,6 +64,10 @@ impl ViewerConsole {
 
     /// Draw the open page ([`Self::sjk_page_open`]) with its text to `target`.
     pub(crate) fn append_sjk_page(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
+        if self.dialogue.is_open() {
+            self.append_dialogue(target, viewport);
+            return;
+        }
         #[cfg(feature = "mod-jof")]
         if self.jof_content.open {
             self.jof_content.append(target, viewport);

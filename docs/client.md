@@ -3419,6 +3419,40 @@ is who. The setting and its position settings (`cg_drawTeamOverlayX`, `Y`, `Scal
 `team_rows` widget draws nothing, and the client asks the server for the team data
 only for the nameplates' bars.
 
+## Server dialogue and quests
+
+Compatible servers can send EJK #301/#307/#342's `jof_dialogue` commands.
+SJK presents their speaker, body and up to twelve choices in its own UI in
+both menu styles. Five answers are visible at a time; arrows or the mouse wheel
+scroll without wrapping, pointer hover selects, a click or Enter answers, and
+Escape or Leave conversation cancels. Number keys 1-9 and 0 answer choices
+1-10; the last two remain reachable with navigation. Opening a conversation
+releases held gameplay controls. Closing it never executes server text as a
+console script.
+
+The server alone evaluates quest conditions, rewards, stages and node transitions.
+The client implements presentation and `dialogueresponse <serial> <choice>`;
+it does not add a native quest server, journal, dialogue-file loader or persistence.
+It accepts `begin`, bounded `choice`, `show` and matching-serial `stop`; stale
+choice/show/stop commands cannot affect another node. Answer retries are limited
+to one per second while awaiting the server, and a new node discards any unsent
+old response. A map change, new connection or disconnect clears the modal.
+
+An optional game-relative sound path on `show` plays once, listener-relative,
+on EJK's `ENTITYNUM_NONE` / `CHAN_VOICE_GLOBAL`. Replacement, cancellation and
+close stop the old voice, including a pending decode. Missing installed audio
+leaves the node usable and logs the missing path. Older silent `show` commands
+remain valid. Audio must already be installed in the active VFS; nothing is
+bundled, downloaded or sent between players. Paths are bounded to 63 bytes and
+reject absolute/traversal forms.
+
+`cg_serverDialogue` (archived, on by default; classic Game options and SJK
+Settings > Advanced > Gameplay, **Server dialogue**) enables this presentation.
+Turning it off cancels an active conversation. Demos do not send answers or play
+node voices. See [dialogue.rs](../crates/sjk-client/src/dialogue.rs) and
+[dialogue_panel.rs](../crates/sjk-viewer/src/dialogue_panel.rs). Protocol-26 codecs
+and native server gameplay are unchanged.
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF

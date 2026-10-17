@@ -50,6 +50,8 @@ mod console_update;
 pub(crate) mod credits;
 #[path = "debug_panel.rs"]
 pub(crate) mod debug_panel;
+#[path = "dialogue_panel.rs"]
+pub(crate) mod dialogue_panel;
 #[path = "demo_director.rs"]
 pub(crate) mod director;
 #[path = "console_holocrons_page.rs"]
@@ -201,6 +203,7 @@ pub(crate) struct ViewerConsole {
     identity_panel: identity_panel::Panel,
     profile_panel: profile_panel::Panel,
     staff_panel: staff_panel::Panel,
+    dialogue: dialogue_panel::Panel,
     collection_panel: collection_panel::Panel,
     /// The Holocrons page, the Profile screen's Holocrons tab in the SJK UI.
     holocrons_panel: holocrons_panel::Panel,
@@ -484,6 +487,7 @@ impl ViewerConsole {
                 || self.update_panel.is_open()
                 || self.identity_panel.is_open()
                 || self.profile_panel.is_open()
+                || self.dialogue.is_open()
                 || self.staff_panel.is_open()
                 || self.collection_panel.is_open()
                 || self.holocrons_panel.is_open()
@@ -918,6 +922,9 @@ impl ViewerConsole {
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
+        if let Some(draw_list) = self.dialogue_draw_list() {
+            return draw_list;
+        }
         if self.open && self.asset_browser.open {
             return self.asset_browser.draw_list();
         }
@@ -1012,6 +1019,7 @@ impl ViewerConsole {
         self.open = open;
         self.history_index = None;
         if !open {
+            self.dialogue_closed();
             self.asset_browser.open = false;
             #[cfg(feature = "mod-jof")]
             {

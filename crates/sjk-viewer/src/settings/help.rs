@@ -208,6 +208,10 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 
 const HELP: &[(&str, &str)] = &[
     (
+        crate::console::dialogue_panel::CVAR,
+        "Show server conversations and their installed voice audio. Off cancels the current conversation; quests remain server-owned.",
+    ),
+    (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
     ),

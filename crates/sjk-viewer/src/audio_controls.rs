@@ -18,6 +18,13 @@ impl crate::GpuState {
                 glam::Vec3::ZERO,
             );
             audio.sync_gains(self.console.as_ref());
+            let dialogue = self
+                .live_session
+                .as_ref()
+                .filter(|_| self.live_presentation_ready())
+                .and(self.console.as_ref())
+                .map(|console| console.dialogue_voice());
+            audio.sync_dialogue(dialogue, self.vfs.as_deref());
             if self.live_session.is_none() && self.demo_session.is_none() {
                 audio.idle_frame();
             }

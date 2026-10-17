@@ -339,6 +339,7 @@ impl ViewerConsole {
     }
 
     pub(crate) fn clear_server_info(&mut self) {
+        self.reset_dialogue();
         self.movement_policy_log = None;
         // Off a server no mod is loaded.
         self.mods.set_server(None);
