@@ -929,3 +929,17 @@ fn a_custom_tint_never_jumps_hue_between_neighbouring_values() {
     };
     assert!(gap(pastel(185).unwrap(), pastel(190).unwrap()) < 0.02);
 }
+
+#[test]
+fn a_skins_blur_trail_is_drawn_in_its_own_colour() {
+    use crate::saber_trail::vertex_style;
+    let skin = BladeColor::Skin(sample_color());
+    // The blur trail of a skin tints its white core too (style 3)...
+    assert_eq!(vertex_style(0, skin), 3);
+    // ...while the sword trail, stock blades and black blades keep their styles.
+    assert_eq!(vertex_style(1, skin), 1);
+    assert_eq!(vertex_style(0, BladeColor::Retail(Color::Blue)), 0);
+    assert_eq!(vertex_style(1, BladeColor::Retail(Color::Blue)), 1);
+    assert_eq!(vertex_style(0, BladeColor::Black), 2);
+    assert_eq!(vertex_style(1, BladeColor::Black), 1);
+}

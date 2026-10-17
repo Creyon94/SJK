@@ -1835,7 +1835,12 @@ A slice lives `trailLen / 5` ms of the current `saberMove` (30–40 ms for most
 moves, 40 ms when the move authors none) and fades by scrolling the clamped
 blur texture, not by alpha. The short visible arc is stock behavior; frame rate
 changes the slice count, not the arc's duration. Slices split along new tip to
-old muzzle as `CTrail::Draw` does. With `cg_saberContact` on, the tip stops at
+old muzzle as `CTrail::Draw` does. A blade skin's blur trail is drawn in the skin's trail colour throughout:
+stock adds the white `blurcore` untinted, which washed every skin's trail out to white
+(Creyon's report, 17/10/2026), so for a skin the glow and the core both take the trail colour,
+deepened (normalised to its brightest channel and squared) so a pale trail colour does
+not add up to white (vertex style 3, `saber_trail::vertex_style`). Stock blades, black blades
+and the sword trail are unchanged. With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which the client does not trace yet. A flying
