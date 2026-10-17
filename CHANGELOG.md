@@ -23,6 +23,19 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> Weapons: Following another player no longer keeps your old weapon choice.
+> Force: Team powers bought in FFA reach servers that allow them.
+> HUD: Desann and Tavion styles have their own colours.
+> Fixes: Linux copy, large NPC packs on native servers.
+
+- Following another player, leaving follow or spectator mode, or a demo rewind resets the weapon selection to the weapon in hand, so the old choice no longer reaches the new player's HUD or your next command _(Lumaya, after JoF EJK)_
+- Team Heal and Team Energize bought outside a team game stay in the Force profile you send, so a server that allows them can grant them; the Force menu says "Server decides" instead of "Team games only" _(Lumaya)_
+- Native servers load every NPC definition file of a large pack instead of dropping those past the stock 2,048-byte file list _(Lumaya)_
+- Desann's saber style shows violet and Tavion's cyan in the native HUD and nameplate halos, no longer the colour of an unknown style _(Lumaya, after JoF EJK)_
+- On Linux the clipboard tools follow the desktop session (wl-copy under Wayland, xclip under X11), and a copy that fails no longer says it worked; a failed cut keeps the text _(Lukas)_
+
 ## 2026.1017.1 (Alpha) | 17/10/2026
 
 Holocrons keep dropping, but opening them, the shop and the shards stay closed to players for now: the SJK hub turns them on later.
