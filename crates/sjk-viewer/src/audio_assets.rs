@@ -315,6 +315,12 @@ impl GpuState {
         }
         let music_done = Instant::now();
         audio.register_duel_music(vfs);
+        audio.register_effect_paths(
+            vfs,
+            sjk_client::force_feedback::FEEDBACK
+                .iter()
+                .map(|entry| entry.sound),
+        );
         audio.register_effect_paths(vfs, ["sound/weapons/disruptor/zoomloop.wav"]);
         let mut effect_sound_paths = Vec::new();
         self.effects.append_sound_paths(&mut effect_sound_paths);

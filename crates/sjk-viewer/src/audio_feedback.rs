@@ -19,6 +19,18 @@ pub(super) fn kill_sound(
 }
 
 impl GameAudio {
+    /// EJK's local CHAN_LOCAL confirmation; input alone never plays this cue.
+    pub(crate) fn force_feedback(&mut self, index: usize, snapshot: &Snapshot) {
+        if let Some(entry) = self.force_feedback.accept(index, snapshot.server_time) {
+            self.play_local(
+                entry.sound,
+                1.0,
+                SourceId(u32::from(snapshot.player.client_num())),
+                ChannelId(1),
+            );
+        }
+    }
+
     /// Consume the shared obituary tracker's newly accepted event, never re-scan snapshots.
     pub(crate) fn kill_cue(&mut self, event: sjk_client::ObituaryEvent, snapshot: &Snapshot) {
         let airborne = snapshot

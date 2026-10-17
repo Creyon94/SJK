@@ -208,6 +208,10 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 
 const HELP: &[(&str, &str)] = &[
     (
+        "cg_serverAbilitySounds",
+        "Play installed Stasis and Repulse sounds when the server confirms firing. Duplicate cues within 250 ms are suppressed.",
+    ),
+    (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
     ),

@@ -15,6 +15,7 @@ pub(super) fn consume(
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
     duels: &mut crate::hud::duel_pairs::DuelPairs,
+    mut audio: Option<&mut crate::GameAudio>,
 ) {
     if let Some(chat) = chat {
         consume_messages(session, localization, chat, console.as_deref_mut(), duels);
@@ -24,6 +25,15 @@ pub(super) fn consume(
 
     while let Some(event) = session.pop_base_command_event() {
         match event {
+            BaseServerCommandEvent::ForceFeedback(index) => {
+                if console
+                    .as_ref()
+                    .is_none_or(|c| c.bool_cvar("cg_serverabilitysounds").unwrap_or(true))
+                    && let Some(audio) = &mut audio
+                {
+                    audio.force_feedback(index, session.latest_snapshot());
+                }
+            }
             BaseServerCommandEvent::UnknownCommand(name) => {
                 if console
                     .as_ref()

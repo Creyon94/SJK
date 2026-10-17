@@ -46,6 +46,8 @@ pub struct ImmediateBodyCopy {
 /// Typed client-shell or presentation action emitted by a BaseJKA command.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaseServerCommandEvent {
+    /// Server confirmation of a pseudo-power firing (table index, not input).
+    ForceFeedback(usize),
     /// Update force-rank UI state from `nfr`.
     ForceRank(ForceRankUpdate),
     /// Rebuild a client actor, with an optional `ircg` body copy.

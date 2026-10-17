@@ -1,3 +1,20 @@
+## Server-confirmed pseudo-power sounds
+
+17/10/2026, `fix/server-force-feedback`, based on `Sol-Vulpes/SJK`
+`bb83eb28`, Windows x86_64: source audit of EJK #110/#112/#117 found Stasis
+and Repulse controls already present but their reliable firing-confirmation
+sounds absent. Adds typed command events, installed-asset preloading, local
+channel-1 playback and independent 250 ms gates, with a shared archived switch.
+Dash has no corresponding EJK #117 confirmation to port. See
+[client](client.md#server-confirmed-stasis-and-repulse-sounds).
+
+All four workspace checks (fmt, locked build/test/clippy) passed on Windows
+x86_64, Rust 1.99.0. A focused synthetic regression pins recognition, independent
+gates, exact 250 ms boundaries, rewinds/map resets and overflow-safe arithmetic
+at 8/7/4/3 ms command steps. Installed-pack listening, real server confirmations
+and full match performance remain unverified. No codec, native
+server gameplay or asset-distribution changes.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

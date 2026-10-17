@@ -695,6 +695,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Server ability sounds",
+        cvar: "cg_serverAbilitySounds",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Flamethrower effects",
         cvar: crate::actor_world_submission::force_powers::flame::CVAR,
         kind: ValueKind::Choice(&["-1", "0", "1"]),

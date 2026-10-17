@@ -276,6 +276,7 @@ impl Group {
                 "cg_speedTrail",
                 crate::actor_world_submission::force_powers::victim::CVAR,
                 crate::actor_world_submission::force_powers::flame::CVAR,
+                "cg_serverAbilitySounds",
                 crate::holstered_sabers::CVAR,
                 crate::holstered_sabers::SUPPORT_CVAR,
                 crate::holstered_sabers::SWAP_CVAR,

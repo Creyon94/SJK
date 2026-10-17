@@ -9,6 +9,8 @@ mod animation_selection;
 mod asset_catalog;
 mod base_server_commands;
 mod body_animation;
+/// Server-confirmed pseudo-power audio contracts.
+pub mod force_feedback;
 mod idle_stances;
 mod shader_remaps;
 pub use shader_remaps::{
@@ -1172,6 +1174,11 @@ impl ClientSession {
                 text,
                 sender: None,
             });
+            return Ok(());
+        }
+        if let Some(index) = force_feedback::command(name) {
+            self.base_command_events
+                .push_back(BaseServerCommandEvent::ForceFeedback(index));
             return Ok(());
         }
         if self.shader_remaps.command(&arguments) {

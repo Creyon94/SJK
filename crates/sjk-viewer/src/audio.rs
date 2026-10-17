@@ -56,6 +56,7 @@ const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/qcommon/q_shared.h:1540
 /// Process-lifetime audio state. Only the rodio callback owns the mixer.
 pub(crate) struct GameAudio {
     flame: flame::State,
+    force_feedback: sjk_client::force_feedback::Gate,
     output: AudioOutput,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
@@ -145,6 +146,7 @@ impl GameAudio {
     pub(super) fn with_output(output: AudioOutput) -> Self {
         let mut audio = Self {
             flame: Default::default(),
+            force_feedback: Default::default(),
             output,
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),
