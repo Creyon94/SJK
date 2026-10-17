@@ -33,6 +33,7 @@ impl LegacySoundAdapter {
         match index {
             CS_SOUNDS..=1066 => {
                 let slot = index - CS_SOUNDS;
+                self.npc.refresh(slot, game_state, vfs, &mut intern);
                 self.cs_custom[slot] = custom_kind(path);
                 self.cs_sounds[slot] = if path.is_empty() || path.starts_with('*') {
                     None

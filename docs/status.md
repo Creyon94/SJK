@@ -1,3 +1,35 @@
+## NPC custom voice banks
+
+17/10/2026, `feat/npc-custom-voices`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented standard/combat/extra/Jedi NPC voice banks from the existing
+`csSounds_*` entity fields and `*$directory` sound configstrings. Initial
+registration uses the existing audio loader; changed entries use the existing
+sound-table refresh path. Playback uses cached sound indices. A fixed source
+lookup handles forwarded events without per-event entity searches and clears
+despawned identities. Player sound sets remain separate; missing NPC banks or
+samples remain silent. Both menu styles use the same audio behavior. No codec,
+movement or combat-timing changes. See [client](client.md#npc-voices).
+
+Source evidence: JoF EJK #55 merge `289e14ce`, `codemp/cgame/cg_players.c`
+(`CG_CustomSound` and the four name tables), `cg_servercmds.c`
+(`CG_HandleNPCSounds`, `CG_RegisterCustomSounds`), `cg_event.c` and
+`codemp/game/bg_public.h`'s vocal event numbers. The native lookup excludes
+the player duel bank entirely for NPCs: EJK #55's same-index reorder still
+allows earlier-index duel names to shadow later Jedi names such as deflect.
+Standard choke names keep precedence over their combat duplicates.
+
+Six synthetic regressions pass on Windows x86_64, Rust 1.99.0, covering vocal
+event families, configured names, standard reactions, missing banks/player
+isolation, refreshed entries, handle remapping, forwarded-event identity reuse
+and preservation of the independent roll body cue. Workspace formatting,
+build, tests and Clippy passed (warnings remain). A release measurement on
+AMD Ryzen 7 5800X3D averaged 2.450 us for a 128-NPC snapshot-cache update,
+common voice-set projection and one cached voice lookup per NPC over 20,000
+synthetic frames. It excludes registration, full event resolution, mixing and
+rendering; it is not a game FPS claim. No game assets or live servers were
+exercised; audible behavior and populated-server performance remain unverified.
+Passing these checks does not establish gameplay parity.
+
 ## One Russian letter in chat
 
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a

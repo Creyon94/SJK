@@ -1240,6 +1240,22 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## NPC voices
+
+NPCs use the standard, combat, extra and Jedi sound directories advertised by
+the server's `csSounds_*` fields and `*$directory` sound-table entries. Their
+reactions and combat/Jedi lines, including custom-sound requests and forwarded
+events, play from those banks rather than a player duel-voice bank. This works
+automatically in every menu style; no option or extra download is required.
+
+Missing NPC samples remain silent. They do not borrow a player's voice or a
+generic player fallback. Normal player voice sets stay separate. Directory
+and sound-token changes take effect through the existing sound-table refresh
+path; entity removal and reuse clear the previous NPC identity. Voice files
+are registered when the game/sound tables load or change, and event playback
+uses cached indices. Installed assets must provide the advertised files.
+See [status](status.md#npc-custom-voice-banks) for verification and limits.
+
 ## Saber ignition and retraction sounds
 
 Two sources voice a saber turning on or off, as in OpenJK `codemp`. The server

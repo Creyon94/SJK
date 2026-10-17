@@ -1,8 +1,7 @@
 //! Occurrence-based voice selection with registered-sample fallbacks.
 use super::*;
 impl LegacySoundAdapter {
-    pub(super) fn taunt_sound(&mut self, client: usize, parameter: u8) -> Option<u16> {
-        let set = self.custom[client];
+    pub(super) fn taunt_sound(&mut self, set: CustomSet, parameter: u8) -> Option<u16> {
         let valid =
             |index: Option<u16>| index.filter(|i| self.sounds[usize::from(*i)].handle.is_some());
         let mut pick = |bank: [Option<u16>; 3]| valid(bank[self.taunt_random.index(3)]);
