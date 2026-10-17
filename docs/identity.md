@@ -203,8 +203,10 @@ or why it refused, for example a quota) shows on the SJK UI's card, which waits 
 ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)), else as a centre print. The report carries the
 in-game name the player wears (the service fills it from the `name` it already sends the
 hub); the hub keeps it with the report and adds it to the key's worn names. The hub checks
-everything again and limits reports per key (3 a day, 20 once verified, 5 an hour, no
-repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
+everything again and limits reports per key (3 a day and 5 an hour; once verified 60 a
+day and 20 an hour; none for staff; no repeat within a day), per address (3 in 10
+minutes, 10 for a verified or staff key) and overall (500 a day, 5000 kept; raised
+18/10/2026),
 so a troll with fresh keys gets little through and nothing that is not plain words. The
 operator reads them with the hub's `reports` command or `/admin/v1/reports`.
 
