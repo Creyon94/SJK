@@ -344,7 +344,7 @@ mod tests {
         assert_eq!(card.title, "Legendary card, Solar");
         assert_eq!(
             card.lines[1].words,
-            "About 1 in 11 001 holocrons found holds a Legendary Solar card (0.0091%)."
+            "About 1 in 13 633 holocrons found holds a Legendary Solar card (0.0073%)."
         );
         assert_eq!(
             card.lines.last().unwrap().words,

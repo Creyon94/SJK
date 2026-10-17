@@ -3,8 +3,9 @@
 //! of the hub's ([`crate::cards::loot`]).
 //!
 //! - How often holocrons drop (the hub's pace and daily limit, once it said).
-//! - Per holocron: each tier's chance of dropping, its card's rarity and finish odds and
-//!   its credits, then the same for any holocron found.
+//! - Per holocron: each tier's chance of dropping, its card's rarity and finish odds, its
+//!   credits and its chance of a pile of kyber shards and how big, then the same for any
+//!   holocron found.
 //! - Every kind of card (each rarity in each finish) per holocron found, as a share and as
 //!   "1 in N", with notes on how the rolls are made and the rarest card.
 //!
@@ -35,15 +36,17 @@ const ROW_HEIGHT: f32 = 52.0;
 const ROW_GAP: f32 = 4.0;
 const ANY_GAP: f32 = 10.0;
 /// The per-holocron table's columns: the tier, its drop chance, the four rarities, the
-/// three finishes and the credits.
-const TIER_WIDTH: f32 = 330.0;
+/// three finishes, the credits and the kyber shards.
+const TIER_WIDTH: f32 = 290.0;
 const DROP_X: f32 = LEFT + TIER_WIDTH;
-const DROP_WIDTH: f32 = 130.0;
-const CELL_WIDTH: f32 = 135.0;
+const DROP_WIDTH: f32 = 116.0;
+const CELL_WIDTH: f32 = 118.0;
 const RARITY_X: f32 = DROP_X + DROP_WIDTH;
-const FINISH_X: f32 = RARITY_X + CELL_WIDTH * 4.0 + 24.0;
-const CREDITS_X: f32 = FINISH_X + CELL_WIDTH * 3.0 + 24.0;
-const CREDITS_WIDTH: f32 = RIGHT - CREDITS_X;
+const FINISH_X: f32 = RARITY_X + CELL_WIDTH * 4.0 + 20.0;
+const CREDITS_X: f32 = FINISH_X + CELL_WIDTH * 3.0 + 20.0;
+const CREDITS_WIDTH: f32 = 200.0;
+const SHARDS_X: f32 = CREDITS_X + CREDITS_WIDTH;
+const SHARDS_WIDTH: f32 = RIGHT - SHARDS_X;
 /// The kinds' grid: its heading, the finishes' names and the rarities' rows.
 const GRID_Y: f32 = 632.0;
 const GRID_COLUMNS_Y: f32 = 652.0;
@@ -64,7 +67,7 @@ fn notes() -> [String; 5] {
     [
         "A card's rarity and its finish are rolled apart, so a kind of card is the two chances multiplied, weighed by how often each holocron drops."
             .to_owned(),
-        "Credits are rolled evenly between the least and the most. A holocron that brings a saber shader brings no card and no credits; the averages and chances count it.".to_owned(),
+        "Credits and a pile of kyber shards are rolled evenly between the least and the most. A holocron that brings a saber shader or kyber shards brings no card and no credits; the averages count it.".to_owned(),
         format!(
             "The rarest card is a {} {}: about {} holocrons.",
             RARITIES[rarity].name,
@@ -303,6 +306,13 @@ impl Panel {
             CREDITS_WIDTH,
             color::GOLD,
         );
+        name(
+            &mut self.ui,
+            &format!("{} Kyber shards", crate::symbols::SHARD),
+            SHARDS_X,
+            SHARDS_WIDTH,
+            crate::cards::shard::KYBER,
+        );
         // A row per tier.
         for (index, tier) in holocrons::TIERS.iter().enumerate() {
             let y = ROWS_TOP + index as f32 * (ROW_HEIGHT + ROW_GAP);
@@ -340,6 +350,14 @@ impl Panel {
                 &format!("{least} to {most}"),
                 loot::credits_mean(index),
             );
+            let (least, most) = crate::loot_odds::current().shards[index];
+            self.loot_shards(
+                frame,
+                y,
+                loot::shards_in(index),
+                &format!("{least} to {most}"),
+                loot::shards_mean(index),
+            );
         }
         // Any holocron found.
         let y = ROWS_TOP + holocrons::COUNT as f32 * (ROW_HEIGHT + ROW_GAP) + ANY_GAP;
@@ -368,6 +386,55 @@ impl Panel {
         let least = credits.iter().map(|range| range.0).min().unwrap_or(0);
         let most = credits.iter().map(|range| range.1).max().unwrap_or(0);
         self.loot_credits(frame, y, &format!("{least} to {most}"), loot::credits_any());
+        let shards = crate::loot_odds::current().shards;
+        let least = shards.iter().map(|range| range.0).min().unwrap_or(0);
+        let most = shards.iter().map(|range| range.1).max().unwrap_or(0);
+        self.loot_shards(
+            frame,
+            y,
+            loot::shards_any(),
+            &format!("{least} to {most}"),
+            loot::shards_any_mean(),
+        );
+    }
+
+    /// A row's kyber shards: how often a pile comes and its range, and the shards a
+    /// holocron brings on average under them. A dash from a hub that gives none.
+    fn loot_shards(&mut self, frame: &Frame, y: f32, chance: f64, range: &str, mean: f64) {
+        let kyber = crate::cards::shard::KYBER;
+        if chance <= 0.0 {
+            centred(
+                &mut self.ui,
+                frame,
+                "\u{2014}",
+                [SHARDS_X, y + 13.0, SHARDS_WIDTH, 28.0],
+                20.0,
+                color::QUIET,
+                TextFamily::Display,
+                FontWeight::Semibold,
+            );
+            return;
+        }
+        centred(
+            &mut self.ui,
+            frame,
+            &format!("{}: {range}", loot::percent(chance)),
+            [SHARDS_X, y + 5.0, SHARDS_WIDTH, 26.0],
+            20.0,
+            kyber,
+            TextFamily::Display,
+            FontWeight::Semibold,
+        );
+        centred(
+            &mut self.ui,
+            frame,
+            &format!("{:.1} on average", mean),
+            [SHARDS_X, y + 30.0, SHARDS_WIDTH, 18.0],
+            13.0,
+            color::QUIET,
+            TextFamily::Body,
+            FontWeight::Regular,
+        );
     }
 
     /// A row's faint ground over the table's width, with a bar in `bar` at its left.
@@ -679,7 +746,7 @@ mod tests {
         let notes = notes();
         assert_eq!(
             notes[2],
-            "The rarest card is a Legendary Solar: about 1 in 11 001 holocrons."
+            "The rarest card is a Legendary Solar: about 1 in 13 633 holocrons."
         );
         let lines: usize = notes
             .iter()
@@ -688,7 +755,9 @@ mod tests {
         let end = GRID_TOP - 6.0 + lines as f32 * 21.0 + notes.len() as f32 * 9.0;
         assert!(end < super::view::KEYS_Y - 10.0, "the notes reach {end}");
         // The table's columns stay inside the page.
-        const { assert!(CREDITS_X + 200.0 <= RIGHT && FINISH_X + CELL_WIDTH * 3.0 < CREDITS_X) };
+        const {
+            assert!(SHARDS_X + 200.0 <= RIGHT && FINISH_X + CELL_WIDTH * 3.0 < CREDITS_X);
+        };
         const { assert!(DROP_X + GRID_CELL * 3.0 < NOTES_X) };
     }
 }

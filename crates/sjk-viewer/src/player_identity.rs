@@ -898,6 +898,24 @@ pub(crate) fn reveal_cards() -> bool {
         .is_some()
 }
 
+/// Run `act` on the identity service; `None` before it started (the economy's requests,
+/// `crate::economy`, and the shop's).
+pub(crate) fn with_service<R>(act: impl FnOnce(&Service) -> R) -> Option<R> {
+    lock().service.as_ref().map(act)
+}
+
+/// Ask the hub to sell today's offer `id` for credits; false when the service has not
+/// started. What came of it arrives in the snapshot's `trade`.
+pub(crate) fn buy(id: &str) -> bool {
+    with_service(|service| service.buy(id)).is_some()
+}
+
+/// Ask the hub for the shop's offers of the day; false when the service has not
+/// started. They arrive in the snapshot's `shop`.
+pub(crate) fn read_shop() -> bool {
+    with_service(Service::read_shop).is_some()
+}
+
 /// What became of the last reveal of sealed cards, if the service has started.
 pub(crate) fn reveal_outcome() -> Option<sjk_identity::RevealOutcome> {
     with_snapshot(|snapshot| snapshot.reveal.clone()).flatten()

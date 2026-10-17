@@ -85,6 +85,11 @@ pub struct Profile {
     /// holocrons brought, never below 0 (absent from hubs older than opening).
     #[serde(default)]
     pub credits: u64,
+    /// The person's kyber shards (`PROTOCOL.md`, "Shards and the shop", 17/10/2026): what
+    /// shattering duplicates and holocrons' shard piles brought, never below 0 (absent from
+    /// hubs older than them).
+    #[serde(default)]
+    pub shards: u64,
     /// The person's cards, one entry per kind of copy held, the best first (absent from
     /// hubs older than opening).
     #[serde(default)]
@@ -251,6 +256,10 @@ pub struct Opened {
     /// The shader it held instead of a card (14/10/2026).
     #[serde(default)]
     pub unlock: Option<OpenedUnlock>,
+    /// The kyber shards it held instead of a card (17/10/2026); 0 for a card or a shader
+    /// (the hub leaves the field out then).
+    #[serde(default)]
+    pub shards: u64,
 }
 
 /// A shader an opening brought.
@@ -327,6 +336,151 @@ pub struct HolocronState {
     /// (14/10/2026); empty from hubs before.
     #[serde(default)]
     pub loot: Vec<LootTier>,
+    /// The kyber shards' and the shop's tables (17/10/2026); `None` from hubs before.
+    #[serde(default)]
+    pub economy: Option<EconomyTables>,
+}
+
+/// The economy's tables as the hub sends them with the progress (`PROTOCOL.md`, "Shards
+/// and the shop", 17/10/2026), each by saber shader tier, common to mythical.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct EconomyTables {
+    /// The shards shattering one duplicate gives.
+    #[serde(default)]
+    pub shatter: Vec<u64>,
+    /// The shards crafting one costs.
+    #[serde(default)]
+    pub craft: Vec<u64>,
+    /// What one costs in the shop, in credits.
+    #[serde(default)]
+    pub shop: Vec<u64>,
+}
+
+/// A duplicate the hub shattered (`POST /v1/unlocks/shatter`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Shattered {
+    /// The shader's id.
+    pub id: String,
+    /// How many of it the person holds now.
+    #[serde(default)]
+    pub count: u32,
+    /// The shards it gave.
+    #[serde(default)]
+    pub shards: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/shatter`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatterAnswer {
+    /// What the shatter gave.
+    pub shattered: Shattered,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// A shader the hub crafted with the person's shards (`POST /v1/unlocks/craft`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Crafted {
+    /// The shader's id.
+    pub id: String,
+    /// Its name ("Circuit blade").
+    #[serde(default)]
+    pub name: String,
+    /// How many of it the person holds now.
+    #[serde(default = "one")]
+    pub count: u32,
+    /// The shards it cost.
+    #[serde(default)]
+    pub cost: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/craft`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct CraftAnswer {
+    /// What was made.
+    pub crafted: Crafted,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// One of the shop's offers of the day, as the person asking sees it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Offer {
+    /// The shader's id.
+    pub id: String,
+    /// Its name ("Aurora blade").
+    #[serde(default)]
+    pub name: String,
+    /// Its tier's id (`common` to `mythical`).
+    #[serde(default)]
+    pub tier: String,
+    /// Its price in credits.
+    #[serde(default)]
+    pub price: u64,
+    /// Whether the person bought it today.
+    #[serde(default)]
+    pub bought: bool,
+    /// Whether the person holds it already (then the hub will not sell it).
+    #[serde(default)]
+    pub owned: bool,
+}
+
+/// The hub's answer to `GET /v1/shop` (`PROTOCOL.md`, "Shards and the shop"): the day's
+/// offers, the same for everyone, and when the next day's come.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct ShopDay {
+    /// The day in Paris, `YYYY-MM-DD`.
+    #[serde(default)]
+    pub day: String,
+    /// The offers, one Common, one Uncommon, one Rare and one Legendary or Mythical.
+    #[serde(default)]
+    pub offers: Vec<Offer>,
+    /// When the offers change, unix seconds.
+    #[serde(default)]
+    pub next: i64,
+    /// The hub's clock when it answered.
+    #[serde(default)]
+    pub server_time: i64,
+    /// The person's credits then.
+    #[serde(default)]
+    pub credits: u64,
+    /// The person's kyber shards then.
+    #[serde(default)]
+    pub shards: u64,
+}
+
+/// A shader the person bought in the shop (`POST /v1/shop/buy`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Bought {
+    /// The shader's id.
+    pub id: String,
+    /// Its name.
+    #[serde(default)]
+    pub name: String,
+    /// How many of it the person holds now.
+    #[serde(default = "one")]
+    pub count: u32,
+    /// The credits it cost.
+    #[serde(default)]
+    pub price: u64,
+    /// The person's credits after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/shop/buy`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct BuyAnswer {
+    /// What was bought.
+    pub bought: Bought,
+    /// The person's profile after.
+    pub profile: Profile,
 }
 
 /// One holocron tier's odds as the hub rolls them (`PROTOCOL.md`, "Holocrons"), every
@@ -349,6 +503,13 @@ pub struct LootTier {
     /// The shader's tier then (common to mythical).
     #[serde(default)]
     pub shader_tier: Vec<u32>,
+    /// How often an opening brings a pile of kyber shards instead of the card and credits
+    /// (17/10/2026; 0 from hubs before).
+    #[serde(default)]
+    pub shard_pile: u32,
+    /// The shards a pile holds: the least and the most.
+    #[serde(default)]
+    pub shards: [u64; 2],
 }
 
 /// A holocron dropping for a key, as the feed relays it (`PROTOCOL.md`, "The feed").
@@ -1176,6 +1337,7 @@ mod tests {
                 server_time: 1_791_000_000,
                 can_open: false,
                 loot: Vec::new(),
+                economy: None,
             }
         );
         let odds: HolocronState = serde_json::from_str(
@@ -1186,6 +1348,25 @@ mod tests {
         .unwrap();
         assert_eq!(odds.loot[0].tier, "uncommon");
         assert_eq!((odds.loot[0].credits, odds.loot[0].shader), ([10, 20], 300));
+        // Hubs before shard piles leave them out.
+        assert_eq!((odds.loot[0].shard_pile, odds.loot[0].shards), (0, [0, 0]));
+        let economy: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,"loot":[{"tier":"uncommon",
+                "drop":600,"rarity":[700,240,55,5],"finish":[970,30,0],"credits":[10,20],
+                "shader":300,"shader_tier":[750,220,30,0,0],"shard_pile":100,"shards":[5,15]}],
+                "economy":{"shatter":[5,10,25,60,150],"craft":[40,100,300,800,2000],
+                "shop":[250,600,1500,4000,10000]}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            (economy.loot[0].shard_pile, economy.loot[0].shards),
+            (100, [5, 15])
+        );
+        let tables = economy.economy.unwrap();
+        assert_eq!(
+            (tables.shatter[0], tables.craft[4], tables.shop[2]),
+            (5, 2_000, 1_500)
+        );
         let staff: HolocronState = serde_json::from_str(
             r#"{"progress_secs":0,"every_secs":1800,"today":0,"daily_cap":8,"server_time":1,"can_open":true}"#,
         )

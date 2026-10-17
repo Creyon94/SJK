@@ -826,6 +826,7 @@ mod tests {
             unlocks: Vec::new(),
             holocron_counts: sjk_identity::HolocronCounts::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 

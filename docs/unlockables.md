@@ -970,7 +970,8 @@ deployed when built, nothing tried in the game.
 
 Built 14/10/2026 (hub branch `loot-kinds`, merged into the hub's `main`, not deployed).
 An unlock is held in a **count** now: a holocron may drop a shader the key already
-holds, and the duplicate is another one (to be sold or traded later, not built). A
+holds, and the duplicate is another one (since 17/10/2026, prepared: shattered into kyber
+shards, see below). A
 profile's unlocks carry `count` ([wire.rs](../crates/sjk-identity/src/wire.rs)
 `Unlock::count`, 1 from older hubs). Opening a holocron rolls its kind first: a card with
 credits as before, or a shader with no credits and no card (`Opened::unlock`,
@@ -1001,10 +1002,39 @@ the rack and the grid scroll as before and the lead line says "n of 23 shaders s
 while anything is filtered. Row numbers are of the list shown, so the choice goes back
 to the top when the filter changes.
 
+## Shattering, crafting and the shop
+
+Prepared 17/10/2026, not deployed ([cards.md](cards.md#shards-and-the-shop) has the
+numbers, the rules and the open points): a droppable shader held twice or more can be
+shattered into kyber shards, one copy a request, never the last; shards craft any
+droppable shader the player does not hold; the Holocrons tab's shop sells four droppable
+shaders a day for credits. Only shaders of the *trade* take part: droppable and brought by
+no medal (`economy::in_trade`, read from the catalogue's `droppable` and `Medal::blade`, as
+the hub reads its own), so Glitch, Hologram and Runic never do, and a shader made
+droppable joins by itself.
+
+The Shaders tab is being redesigned apart, so its Shatter and Craft buttons are not wired
+yet. Its hooks are in [economy.rs](../crates/sjk-viewer/src/economy.rs):
+
+| Hook | What it gives |
+| --- | --- |
+| `in_trade(&Unlockable) -> bool` | Whether a shader can be shattered, crafted or sold at all |
+| `choices(&Unlockable, held: u32, shards: u64) -> Choices` | `shatter: Option<u64>` (the shards one duplicate gives, when held twice or more), `craft: Option<u64>` (the cost, when held none), `affordable` |
+| `shatter_yield(Rarity) -> u64`, `craft_cost(Rarity) -> u64`, `shop_price(Rarity) -> u64` | The hub's tables (its copy until the hub sent them) |
+| `balance() -> Option<(u64, u64)>` | The player's credits and kyber shards |
+| `can_trade() -> bool` | Whether the hub lets the player trade (as opening) |
+| `shatter(id: &str) -> bool`, `craft(id: &str) -> bool` | Ask the hub; false before the identity started |
+| `trade_outcome() -> Option<TradeOutcome>` | The last answer (`serial` counts up, `trade`, `id`, `amount`, `message` empty when done) |
+| `outcome_words(&TradeOutcome, name: &str) -> String` | "Tidal blade shattered: +5 kyber shards.", or why not |
+
+`held` is the profile's `Unlock::count` when it has no `medal` (a medal's copy is not
+counted), 0 when the shader is not listed. The kyber shard's mark to draw beside a count is
+`cards::shard::draw` (or the symbol `symbols::SHARD` in text).
+
 ## Planned, not built
 
 Achievements granting unlockables (with harder goals), holocron drops beyond shaders
-(toys, body shaders, nameplates, medals), selling and trading duplicates, other kinds of unlockable (holocron
+(toys, body shaders, nameplates, medals), trading duplicates, other kinds of unlockable (holocron
 skins, trails, emotes). Up to 256 blade skins load at once (the renderer's slots; the
 skin array is a storage buffer of 253952 bytes since 14/10/2026, no longer a 16 KiB uniform,
 so the limit is the material slots, not the lanes).

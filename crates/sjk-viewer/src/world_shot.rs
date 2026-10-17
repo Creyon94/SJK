@@ -305,6 +305,9 @@ mod holocrons_tab;
 #[path = "world_shot_cards.rs"]
 mod cards_shots;
 
+#[path = "world_shot_economy.rs"]
+mod economy_shots;
+
 #[path = "world_shot_create_game.rs"]
 mod create_game;
 
@@ -1200,6 +1203,7 @@ Found the fog bug, ask me about it!"
             }],
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         };
         let snapshot = sjk_identity::Snapshot {
             loot: Vec::new(),
@@ -1228,6 +1232,9 @@ Found the fog bug, ask me about it!"
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            shop: None,
+            trade: None,
         };
         let standings = crate::achievements::ALL
             .iter()
@@ -1353,6 +1360,7 @@ like this one.",
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         };
         let medal = |id: &str, count, note: &str| sjk_identity::Medal {
             id: id.to_owned(),

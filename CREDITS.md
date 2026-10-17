@@ -73,6 +73,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   decision, 17/10/2026);
 - the Shaders tab's saber on its own, turned by a drag, and a card for each shader
   with SJK Symbols icons and its drop chances (17/10/2026, Sol's request);
+- kyber shards and the shop (17/10/2026, Sol's design: shards from shattered duplicates
+  and from holocrons craft the shader you choose; credits buy four shaders a day),
+  prepared for when the SJK hub turns them on;
   grand finds (Legendary or Solar cards, Legendary or Mythical shaders) are told to every
   SJK player in chat;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,

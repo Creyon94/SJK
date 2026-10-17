@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Kyber shards and the shop, prepared
+- f41dfe6 |  | Economy: kyber shards, a shard prize, the daily shop (client, prepared)
 + 17/10/2026 | - | Debug panel entry within three change lines
 - c09a68a |  | Debug panel: the shader-cards entry in three change lines
 + 17/10/2026 | - | The saber alone to turn, a card for each shader

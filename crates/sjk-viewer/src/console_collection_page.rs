@@ -321,8 +321,13 @@ impl ViewerConsole {
     /// Show `cards` and `credits` on the Cards tab in place of the own profile's, for a
     /// world shot.
     #[cfg(test)]
-    pub(crate) fn preview_cards(&mut self, cards: Vec<sjk_identity::CardStack>, credits: u64) {
-        self.collection_panel.preview_cards = Some((cards, credits));
+    pub(crate) fn preview_cards(
+        &mut self,
+        cards: Vec<sjk_identity::CardStack>,
+        credits: u64,
+        shards: u64,
+    ) {
+        self.collection_panel.preview_cards = Some((cards, credits, shards));
     }
 
     /// Choose the Cards tab's kind `index`, for a world shot.

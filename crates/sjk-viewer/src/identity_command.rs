@@ -186,6 +186,7 @@ mod tests {
                 unlocks: Vec::new(),
                 holocron_counts: Default::default(),
                 holocrons: Vec::new(),
+                shards: 0,
             }),
             server: None,
             players: vec![Presence {
@@ -217,6 +218,9 @@ mod tests {
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            shop: None,
+            trade: None,
         }
     }
 
@@ -282,6 +286,7 @@ mod tests {
                 unlocks: Vec::new(),
                 holocron_counts: Default::default(),
                 holocrons: Vec::new(),
+                shards: 0,
             },
         );
         let lines = who_lines(&shown, Some(3));

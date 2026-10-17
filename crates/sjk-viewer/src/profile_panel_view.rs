@@ -1323,6 +1323,7 @@ mod tests {
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 

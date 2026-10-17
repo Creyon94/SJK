@@ -69,26 +69,30 @@ opening may bring a saber shader instead of the card and its credits (30% of Unc
 holocrons to 50% of Mythical ones, [unlockables.md](unlockables.md)): the card columns of a
 tier are the card's odds when it holds one, the "any holocron" shares are of the cards
 found, and the credits' averages and the second table are per holocron found, shaders
-counted (`cards::loot::card_in`).
+counted (`cards::loot::card_in`). Since 17/10/2026 (prepared, not deployed) one opening in
+ten may bring a pile of kyber shards instead ([cards.md](cards.md#shards-and-the-shop)): the
+tables' `shard_pile` and `shards`, a "Kyber shards" column (the chance and the range, the
+average under it, a dash from a hub without piles), and the card's share counts them too.
+The figures below are with the piles.
 
 Per holocron:
 
-| Holocron | Drop chance | Common | Uncommon | Rare | Legendary | Normal | Holo | Solar | Credits (average) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Uncommon | 60% | 70% | 24% | 5.5% | 0.5% | 97% | 3% | 0% | 10 to 20 (11) |
-| Rare | 28% | 50% | 33% | 15% | 2% | 90% | 10% | 0% | 30 to 50 (24) |
-| Legendary | 10.5% | 30% | 38% | 26% | 6% | 70% | 29% | 1% | 80 to 120 (55) |
-| Mythical | 1.5% | 10% | 30% | 45% | 15% | 40% | 55% | 5% | 250 to 350 (150) |
-| Any holocron found | 100% | 60.6% | 27.6% | 10.2% | 1.54% | 92.2% | 7.7% | 0.146% | 10 to 350 (21) |
+| Holocron | Drop chance | Common | Uncommon | Rare | Legendary | Normal | Holo | Solar | Credits (average) | Kyber shards (average) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Uncommon | 60% | 70% | 24% | 5.5% | 0.5% | 97% | 3% | 0% | 10 to 20 (9) | 10%: 5 to 15 (1.0) |
+| Rare | 28% | 50% | 33% | 15% | 2% | 90% | 10% | 0% | 30 to 50 (20) | 10%: 10 to 25 (1.8) |
+| Legendary | 10.5% | 30% | 38% | 26% | 6% | 70% | 29% | 1% | 80 to 120 (45) | 10%: 25 to 50 (3.8) |
+| Mythical | 1.5% | 10% | 30% | 45% | 15% | 40% | 55% | 5% | 250 to 350 (120) | 10%: 100 to 200 (15.0) |
+| Any holocron found | 100% | 60.9% | 27.5% | 10.1% | 1.51% | 92.3% | 7.56% | 0.14% | 10 to 350 (18) | 10%: 5 to 200 (1.7) |
 
 Every card, per holocron found:
 
 | Card | Normal | Holo | Solar |
 | --- | --- | --- | --- |
-| Common (60.6%) | 37.3% (1 in 3) | 2.27% (1 in 44) | 0.0211% (1 in 4 745) |
-| Uncommon (27.6%) | 16.4% (1 in 6) | 1.62% (1 in 62) | 0.0332% (1 in 3 013) |
-| Rare (10.2%) | 5.69% (1 in 18) | 0.942% (1 in 106) | 0.0319% (1 in 3 136) |
-| Legendary (1.54%) | 0.794% (1 in 126) | 0.202% (1 in 494) | 0.0091% (1 in 11 001) |
+| Common (60.9%) | 31.8% (1 in 3) | 1.9% (1 in 53) | 0.0172% (1 in 5 822) |
+| Uncommon (27.5%) | 13.9% (1 in 7) | 1.34% (1 in 75) | 0.027% (1 in 3 710) |
+| Rare (10.1%) | 4.78% (1 in 21) | 0.774% (1 in 129) | 0.0258% (1 in 3 878) |
+| Legendary (1.51%) | 0.661% (1 in 151) | 0.165% (1 in 606) | 0.0073% (1 in 13 633) |
 
 The page: over the darkened tab, the title, what it is and the hub's pace ("One holocron
 about every 30 minutes of active play on a server, at most 8 a day", once the hub has said;
@@ -97,8 +101,8 @@ tier's row in its colour with its picture, the row for any holocron found in gol
 rule, credits as the range with the average under it, a chance of none quiet; "Every card,
 per holocron found", the second table as a grid of cells in the rarity's colour, each its
 share and "1 in N" (left out above one in two); "How it rolls", notes: the rolls made
-apart, credits rolled evenly, the rarest card ("a Legendary Solar: about 1 in 11 001
-holocrons", worked out), how the card is picked among its rarity's (sealed while the rarity has none), gifts given and not found. Back
+apart, credits and piles of shards rolled evenly, the rarest card ("a Legendary Solar:
+about 1 in 13 633 holocrons", worked out), how the card is picked among its rarity's (sealed while the rarity has none), gifts given and not found. Back
 (or Escape, L, Enter) goes back to the tab. Shares read with three figures at most, halves
 rounded up (`cards::loot::percent`). A change to the hub's tables needs the client's copy
 changed with it: until then the page shows the old odds.
@@ -246,9 +250,10 @@ of a drop), what the chosen tier is, "Next holocron in about N minutes of play" 
 and "n of 8 today", the newest ten holocrons (tier, `dd/mm/yyyy HH:MM` in UTC, and for a gift
 "Gift from the SJK team" with the note) and, when the identity is off, no hub is set or the
 hub has not answered, the reason ("Holocrons need the SJK identity"). Since 12/10/2026 the
-counts are the holocrons not opened yet, the player's credits stand at the panel's top
-right, the chosen tier says what opening one gives, Open and Open all stand under the
-holocron's caption and opened holocrons are marked in the recent list; opening and its
+counts are the holocrons not opened yet, the player's credits (and since 17/10/2026 their
+kyber shards) stand at the panel's top right, the chosen tier says what opening one gives,
+Open and Open all (and Shop, while the hub lets the player open, [cards.md](cards.md#in-the-client))
+stand under the holocron's caption and opened holocrons are marked in the recent list; opening and its
 ceremony are in [cards.md](cards.md#in-the-client). While the hub keeps opening to staff
 (`can_open` false, [cards.md](cards.md#opening)) a line says opening comes soon in place of
 the buttons.
@@ -257,7 +262,7 @@ the buttons.
   4, Home and End) choose the tier; Escape goes back; a click on a row chooses it; Ctrl+Tab
   is the Profile screen's. Enter opens the oldest holocron of the tier chosen, A opens up
   to twenty (both only when the hub lets the player open). L, or Loot table at the right of what the chosen tier holds, shows the
-  [loot table](#loot-table).
+  [loot table](#loot-table); S, or Shop, the shop ([cards.md](cards.md#the-shop)).
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
   tab: an instance of the chosen look's model and a point light in the tier's colour
   ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs)), floating before the
@@ -347,6 +352,8 @@ the world shot `duel6_sjk_collection` renders it from the game menu at a match's
 
 ## Planned, not built
 
-What opened holocrons will also give: the cards' faces and the shop credits buy from
-([cards.md](cards.md#planned-not-built)). Saber shaders drop already
+What opened holocrons will also give: the cards' faces ([cards.md](cards.md#planned-not-built)).
+The shop credits buy from and the kyber shards are prepared, not deployed
+([cards.md](cards.md#shards-and-the-shop)).
+Saber shaders drop already
 ([unlockables.md](unlockables.md#holocron-shader-drops)).

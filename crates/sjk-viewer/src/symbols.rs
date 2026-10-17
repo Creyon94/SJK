@@ -36,6 +36,10 @@ pub(crate) const EDITION: char = '\u{E029}';
 const ICONS: [char; 10] = [
     HOLOCRON, MEDAL, LOCK, TICK, COPIES, SMITH, TURN, SABER, GIFT, EDITION,
 ];
+/// The kyber shard (17/10/2026): a long crystal with a ridge down its middle, as the
+/// shapes the client draws it with ([`crate::cards::shard`]). The credits' sign is not in
+/// the font: it is Lucasfilm's, drawn from shapes ([`crate::cards::mark`]).
+pub(crate) const SHARD: char = '\u{E030}';
 
 /// The rarity mark of a card rarity (`crate::cards::RARITIES` order, Common to
 /// Legendary).
@@ -59,7 +63,7 @@ mod tests {
     fn every_symbol_is_in_the_font() {
         let font = FontRef::try_from_slice(include_bytes!("../assets/fonts/SJKSymbols.ttf"))
             .expect("SJK Symbols reads");
-        for symbol in RARITY.iter().chain(FINISH.iter()).chain(ICONS.iter()) {
+        for symbol in RARITY.iter().chain(FINISH.iter()).chain(ICONS.iter()).chain([SHARD].iter()) {
             assert_ne!(font.glyph_id(*symbol).0, 0, "U+{:04X}", u32::from(*symbol));
         }
         // Not a letter the faces have: a symbol never stands in for one.

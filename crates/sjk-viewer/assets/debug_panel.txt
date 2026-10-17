@@ -631,6 +631,17 @@ test: Collection > Cards before opening any: 'No cards yet' and an empty outline
 test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
 note: The hub's opening is deployed (12/10/2026).
 
+[economy]
+area: Menus & settings
+title: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a day
+change: Shards beside credits; a holocron can bring a pile of shards (one opening in ten).
+change: Holocrons tab: Shop (S) sells four shaders a day for credits, new at midnight Paris.
+change: Duplicates shatter into shards and shards craft a shader (needs the hub's economy).
+test: debug_open rare shards: a shard tile on the strip, crystals and a count-up at the end.
+test: Holocrons tab, Loot table: a kyber shards column with each tier's pile chance.
+test: Once the hub's feat/economy is deployed: Shop (S), Buy asks twice, the countdown runs.
+note: Needs the hub's feat/economy; players see nothing until opening is set to everyone.
+
 [shader-cards]
 area: Menus & settings
 title: The Shaders tab: your saber on its own to turn, and a card for each shader

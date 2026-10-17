@@ -534,6 +534,7 @@ mod tests {
             avatar: "fedcba9876543210".to_owned(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 
@@ -565,6 +566,9 @@ mod tests {
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            shop: None,
+            trade: None,
         }
     }
 

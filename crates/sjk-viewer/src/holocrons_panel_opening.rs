@@ -12,7 +12,8 @@
 //! - it bursts open in its tier's light: rings run out, rays turn, the gem flares and
 //!   goes;
 //! - the sealed card turns in to face the player (a shader instead of a card shows its
-//!   blade, framed in its tier's colour, and what it is), in its rarity's colour and its finish's
+//!   blade, framed in its tier's colour, and what it is; a pile of kyber shards its
+//!   crystals and how many), in its rarity's colour and its finish's
 //!   light ([`crate::cards::look`]);
 //! - the credits count up beside the credits' mark ([`crate::cards::mark`]);
 //! - its words fade up: the card's rarity and finish, its edition, what the finish is,
@@ -163,11 +164,23 @@ impl Found {
     }
 }
 
-/// What one holocron brought: a card with credits, or a shader.
+/// A pile of kyber shards an opening brought, instead of a card (17/10/2026).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Pile {
+    /// The holocron's number at the hub (it seeds the crate spin).
+    pub(crate) holocron: u64,
+    /// Position in [`holocrons::TIERS`].
+    pub(crate) tier: usize,
+    /// How many shards.
+    pub(crate) shards: u64,
+}
+
+/// What one holocron brought: a card with credits, a shader, or a pile of kyber shards.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Prize {
     Card(Shown),
     Shader(Found),
+    Shards(Pile),
 }
 
 impl Prize {
@@ -189,6 +202,13 @@ impl Prize {
                 count: unlock.count,
             }));
         }
+        if opened.card.is_none() && opened.shards > 0 {
+            return Some(Self::Shards(Pile {
+                holocron: opened.holocron,
+                tier: holocrons::Tier::from_id(&opened.tier)?.index,
+                shards: opened.shards,
+            }));
+        }
         Shown::of(opened).map(Self::Card)
     }
 
@@ -196,6 +216,7 @@ impl Prize {
         match self {
             Self::Card(shown) => shown.tier,
             Self::Shader(found) => found.tier,
+            Self::Shards(pile) => pile.tier,
         }
     }
 
@@ -203,6 +224,7 @@ impl Prize {
         match self {
             Self::Card(shown) => shown.holocron,
             Self::Shader(found) => found.holocron,
+            Self::Shards(pile) => pile.holocron,
         }
     }
 
@@ -214,6 +236,10 @@ impl Prize {
                 finish: shown.finish.index,
             },
             Self::Shader(found) => found.skin.map_or(strip::Item::New, strip::Item::Shader),
+            Self::Shards(pile) => strip::Item::Shards {
+                tier: pile.tier,
+                shards: pile.shards,
+            },
         }
     }
 }
@@ -516,12 +542,16 @@ impl Panel {
                 match &shown[*index] {
                     Prize::Card(card) => self.entrance(frame, card, entered, seconds),
                     Prize::Shader(found) => self.entrance_shader(frame, found, entered, seconds),
+                    Prize::Shards(pile) => self.entrance_shards(frame, pile, entered),
                 }
                 if entered >= WORDS {
                     match &shown[*index] {
                         Prize::Card(_) => self.words(frame, shown, *index, entered),
                         Prize::Shader(found) => {
                             self.shader_words(frame, found, shown.len(), *index, entered);
+                        }
+                        Prize::Shards(pile) => {
+                            self.shards_words(frame, pile, shown.len(), *index, entered);
                         }
                     }
                 }
@@ -1089,6 +1119,62 @@ impl Panel {
                     TextAlign::Center,
                 );
             }
+            strip::Item::Shards { tier, shards } => {
+                let colour = item.colour();
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: 14.0 * k * s,
+                    color: color::alpha(color::SPACE, 0.9),
+                });
+                glow(
+                    &mut self.ui,
+                    frame,
+                    [x + width * 0.5, y + height * 0.5],
+                    60.0 * k,
+                    colour,
+                    0.25 + 0.15 * near,
+                );
+                crystals(
+                    &mut self.ui,
+                    frame,
+                    [x + width * 0.5, y + height * 0.5 + 6.0 * k],
+                    92.0 * k,
+                    1.0,
+                );
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 14.0 * k * s,
+                    width: (2.0 + near) * s,
+                    color: color::alpha(colour, 0.7 + 0.3 * near),
+                });
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("Kyber shards"),
+                    frame.rect(x, y + 12.0 * k, width, 24.0 * k),
+                    16.0 * k * s,
+                    colour,
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+                let (least, most) =
+                    crate::loot_odds::current().shards[tier.min(holocrons::COUNT - 1)];
+                let words = if shards > 0 {
+                    format!("+{}", crate::economy::shards_text(shards))
+                } else {
+                    format!("{least} to {most}")
+                };
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{words}"),
+                    frame.rect(x, y + height - 40.0 * k, width, 26.0 * k),
+                    17.0 * k * s,
+                    color::TEXT,
+                    FontWeight::Regular,
+                    TextAlign::Center,
+                );
+            }
             strip::Item::New => {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                     rect,
@@ -1175,6 +1261,129 @@ impl Panel {
             width: 3.0 * s,
             color: color::alpha(colour, eased),
         });
+    }
+
+    /// A pile of shards' burst and crystals: the tier's light, then three kyber crystals
+    /// growing in, glowing, and the shards counting up under them.
+    fn entrance_shards(&mut self, frame: &Frame, pile: &Pile, elapsed: f32) {
+        let tier = &holocrons::TIERS[pile.tier];
+        let middle = [CARD_X, SHADER_TOP + SHADER_HEIGHT * 0.5];
+        self.burst(frame, middle, tier, elapsed);
+        let turn = ((elapsed - TURN[0]) / (TURN[1] - TURN[0])).clamp(0.0, 1.0);
+        if turn <= 0.0 {
+            return;
+        }
+        let eased = 1.0 - (1.0 - turn).powi(3);
+        let kyber = cards::shard::KYBER;
+        glow(&mut self.ui, frame, middle, 300.0, kyber, 0.35 * eased);
+        crystals(
+            &mut self.ui,
+            frame,
+            [CARD_X, middle[1] + 10.0],
+            SHADER_HEIGHT * (0.7 + 0.2 * eased),
+            eased,
+        );
+        if elapsed >= COUNT[0] {
+            let t = ((elapsed - COUNT[0]) / (COUNT[1] - COUNT[0])).clamp(0.0, 1.0);
+            let counted = (pile.shards as f32 * t).round() as u64;
+            shards_line(
+                &mut self.ui,
+                frame,
+                CARD_X,
+                CREDITS_Y,
+                &format!("+{}", crate::economy::shards_text(counted)),
+                38.0,
+                (t * 3.0).min(1.0),
+            );
+        }
+    }
+
+    /// What a pile of shards is and does, fading up, and the button.
+    fn shards_words(
+        &mut self,
+        frame: &Frame,
+        pile: &Pile,
+        count: usize,
+        index: usize,
+        entered: f32,
+    ) {
+        let s = frame.s;
+        let alpha = ((entered - WORDS) / 0.4).clamp(0.0, 1.0);
+        let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
+        let tier = &holocrons::TIERS[pile.tier];
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!(
+                "{} kyber shard{}",
+                crate::economy::shards_text(pile.shards),
+                if pile.shards == 1 { "" } else { "s" }
+            ),
+            frame.rect(CARD_X - 500.0, TITLE_Y, 1_000.0, 50.0),
+            42.0 * s,
+            fade(cards::shard::KYBER),
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("From {} {}", tier.article(), tier.name),
+            frame.rect(CARD_X - 500.0, EDITION_Y, 1_000.0, 28.0),
+            19.0 * s,
+            fade(color::TEXT),
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!(
+                "Kyber shards craft the saber shader you choose, among those holocrons drop."
+            ),
+            frame.rect(CARD_X - 600.0, ABOUT_Y, 1_200.0, 26.0),
+            17.0 * s,
+            fade(color::MUTED),
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        if let Some(held) = self.data.shards {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!(
+                    "You hold {} kyber shards now.",
+                    crate::economy::shards_text(held)
+                ),
+                frame.rect(CARD_X - 500.0, SEALED_Y, 1_000.0, 26.0),
+                17.0 * s,
+                fade(color::QUIET),
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+        }
+        if count > 1 {
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{} of {count}", index + 1),
+                frame.rect(CARD_X - 300.0, 120.0, 600.0, 34.0),
+                24.0 * s,
+                fade(color::MUTED),
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+        }
+        kit::button(
+            &mut self.ui,
+            frame,
+            [CARD_X - 110.0, BUTTON_Y, 220.0, 48.0],
+            if index + 1 == count { "Done" } else { "Next" },
+            true,
+            true,
+            true,
+            NEXT_TOKEN,
+        );
     }
 
     /// What the shader is, fading up, and the button.
@@ -1424,6 +1633,21 @@ impl Panel {
                     color: color::alpha(colour, 0.8),
                 });
             }
+            strip::Item::Shards { .. } => {
+                let _ = list.push(DrawCommand::Border {
+                    rect,
+                    radius: 8.0 * k * s,
+                    width: 2.0 * s,
+                    color: color::alpha(colour, 0.8),
+                });
+                crystals(
+                    &mut self.ui,
+                    frame,
+                    [x + width * 0.5, y + height * 0.5],
+                    56.0 * k,
+                    1.0,
+                );
+            }
             strip::Item::New => {
                 let _ = list.push(DrawCommand::Border {
                     rect,
@@ -1569,6 +1793,72 @@ pub(super) fn glow(
             color: color::alpha(colour, strength / LAYERS as f32),
         });
     }
+}
+
+/// Three kyber crystals standing together round `middle` (frame pixels), the tallest
+/// `height` high in the middle and two smaller at its sides, at `alpha`.
+pub(super) fn crystals(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    middle: [f32; 2],
+    height: f32,
+    alpha: f32,
+) {
+    let s = frame.s;
+    let kyber = cards::shard::KYBER;
+    let lit = Color::new(kyber.r, kyber.g, kyber.b, alpha);
+    // The side crystals first, so the middle one stands before them.
+    for (dx, scale, drop) in [(-0.27, 0.62, 0.2), (0.25, 0.7, 0.16), (0.0, 1.0, 0.0)] {
+        let tall = height * scale;
+        let wide = cards::shard::width(tall);
+        let [x, y] = frame.point(
+            middle[0] + dx * height - wide * 0.5,
+            middle[1] - height * 0.5 + height * drop + (height - tall) * 0.5,
+        );
+        cards::shard::draw(canvas.draw_list_mut(), [x, y], tall * s, lit);
+    }
+}
+
+/// The kyber shard's mark and `words` centred on `x` (frame pixels), as [`credits_line`]
+/// lays out the credits, in the kyber cyan.
+pub(super) fn shards_line(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    words: &str,
+    size: f32,
+    alpha: f32,
+) {
+    let s = frame.s;
+    let mark = size * 0.95;
+    let gap = size * 0.3;
+    let words_width = crate::text::display_width(words, size) * crate::text::style::current().scale;
+    let total = cards::shard::width(mark) + gap + words_width;
+    let left = x - total * 0.5;
+    let kyber = cards::shard::KYBER;
+    let [mx, my] = frame.point(left, y + (size * 1.25 - mark) * 0.5);
+    cards::shard::draw(
+        canvas.draw_list_mut(),
+        [mx, my],
+        mark * s,
+        Color::new(kyber.r, kyber.g, kyber.b, alpha),
+    );
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{words}"),
+        frame.rect(
+            left + cards::shard::width(mark) + gap,
+            y,
+            words_width + size,
+            size * 1.25,
+        ),
+        size * s,
+        Color::new(kyber.r, kyber.g, kyber.b, alpha),
+        FontWeight::Semibold,
+        TextAlign::Start,
+    );
 }
 
 /// The credits' mark and `words` centred on `x` (frame pixels), the mark as tall as the

@@ -83,11 +83,11 @@ fn headline(inputs: &Inputs<'_>, stacks: Option<&[Stack]>) -> (String, &'static 
 impl Panel {
     /// The Cards tab.
     pub(super) fn cards(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
-        let (stacks, credits) = self.holdings(inputs);
+        let (stacks, balance) = self.holdings(inputs);
         let (headline, line) = headline(inputs, stacks.as_deref());
         self.lead(frame, &headline, line);
-        if let Some(credits) = credits {
-            self.balance(frame, credits);
+        if let Some((credits, shards)) = balance {
+            self.balance(frame, credits, shards);
         }
         let stacks = stacks.unwrap_or_default();
         let faces = cards::faces::current();
@@ -133,26 +133,71 @@ impl Panel {
         }
     }
 
-    /// The player's cards and credits, once known (a world shot's own in its place).
-    pub(super) fn holdings(&self, inputs: &Inputs<'_>) -> (Option<Vec<Stack>>, Option<u64>) {
+    /// The player's cards, credits and kyber shards, once known (a world shot's own in
+    /// their place).
+    #[allow(clippy::type_complexity)]
+    pub(super) fn holdings(&self, inputs: &Inputs<'_>) -> (Option<Vec<Stack>>, Option<(u64, u64)>) {
         #[cfg(test)]
-        if let Some((list, credits)) = &self.preview_cards {
-            return (Some(cards::stacks(list)), Some(*credits));
+        if let Some((list, credits, shards)) = &self.preview_cards {
+            return (Some(cards::stacks(list)), Some((*credits, *shards)));
         }
         let me = me(inputs);
         (
             me.map(|me| cards::stacks(&me.cards)),
-            me.map(|me| me.credits),
+            me.map(|me| (me.credits, me.shards)),
         )
     }
 
-    /// The player's credits, at the right of the tab's headline.
-    fn balance(&mut self, frame: &Frame, credits: u64) {
+    /// The player's credits at the right of the tab's headline, and their kyber shards
+    /// left of them (17/10/2026), each word under it.
+    fn balance(&mut self, frame: &Frame, credits: u64, shards: u64) {
+        let right = SHOWCASE_X - 40.0;
+        let left = self.credits_balance(frame, credits, right);
+        self.shards_balance(frame, shards, left - 44.0);
+    }
+
+    /// The kyber shards' mark and count, right-aligned to `right` (frame pixels).
+    fn shards_balance(&mut self, frame: &Frame, shards: u64, right: f32) {
+        let s = frame.s;
+        let words = crate::economy::shards_text(shards);
+        let size = 30.0;
+        let width = crate::text::display_width(&words, size) * crate::text::style::current().scale;
+        let kyber = cards::shard::KYBER;
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{words}"),
+            frame.rect(right - width - 8.0, LEAD_Y, width + 8.0, 40.0),
+            size * s,
+            kyber,
+            FontWeight::Semibold,
+            TextAlign::End,
+        );
+        let mark = 26.0;
+        let [x, y] = frame.point(
+            right - width - 8.0 - 10.0 - cards::shard::width(mark),
+            LEAD_Y + 6.0,
+        );
+        cards::shard::draw(self.ui.draw_list_mut(), [x, y], mark * s, kyber);
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("kyber shards"),
+            frame.rect(right - 200.0, LEAD_Y + 42.0, 200.0, 24.0),
+            15.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::End,
+        );
+    }
+
+    /// The credits' mark and sum, right-aligned to `right` (frame pixels), the word
+    /// under them. Answers where the mark begins.
+    fn credits_balance(&mut self, frame: &Frame, credits: u64, right: f32) -> f32 {
         let s = frame.s;
         let words = cards::credits_text(credits);
         let size = 30.0;
         let width = crate::text::display_width(&words, size) * crate::text::style::current().scale;
-        let right = SHOWCASE_X - 40.0;
         text(
             &mut self.ui,
             TextFamily::Display,
@@ -179,6 +224,7 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::End,
         );
+        right - width - 8.0 - 10.0 - cards::mark::width(mark)
     }
 
     /// How card `key` (0 the card up close, 1 and up the grid's) at `[x, y, width]` (frame
@@ -520,9 +566,9 @@ mod tests {
         assert!(many.len() > SHOWN_MAX);
         let states = [
             None,
-            Some((Vec::new(), 0)),
-            Some((many[..1].to_vec(), 35)),
-            Some((many.clone(), 123_456)),
+            Some((Vec::new(), 0, 0)),
+            Some((many[..1].to_vec(), 35, 5)),
+            Some((many.clone(), 123_456, 98_765)),
         ];
         for state in &states {
             let mut panel = Panel::new();

@@ -1962,6 +1962,7 @@ mod tests {
                 mythical: 0,
             },
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 

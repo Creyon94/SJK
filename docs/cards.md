@@ -3,9 +3,11 @@
 **Status (12/10/2026): opening is built, cards are sealed.** Opening a holocron
 gives one *sealed* card and some credits. A sealed card has its rarity, finish and
 edition but no face yet: the faces come with the first set of cards, and every
-sealed card is revealed into that set then. Credits are kept and shown; nothing
-spends them yet. [Holocron drops](holocrons.md) give the holocrons. The wire is
-the hub's `PROTOCOL.md` ("Holocrons", "Opening") in Sol-Vulpes/SJK-hub.
+sealed card is revealed into that set then. Credits are kept and shown. Since
+17/10/2026 the economy is prepared, not deployed ([Shards and the shop](#shards-and-the-shop)):
+kyber shards beside credits, shattering duplicates, crafting, and a daily shop that spends
+credits. [Holocron drops](holocrons.md) give the holocrons. The wire is the hub's
+`PROTOCOL.md` ("Holocrons", "Opening", "Shards and the shop") in Sol-Vulpes/SJK-hub.
 
 Collecting cards grants nothing: no power, setting or right, as with medals
 ([identity.md](identity.md#medals)). There is no trading and never any real money
@@ -23,8 +25,9 @@ in the system. Hats and capes stay free for everyone and are never sold or dropp
 | Finishes | Normal, Holo, Solar (the rarest: an animated sunlit shimmer). |
 | Editions | A stamp apart from the finish: **Alpha Edition** while the alpha lasts. Every other collectible carries one too ([Editions](unlockables.md#editions)). |
 | Credits' sign | The galactic credit's, the slanted seven crossed by two bars (Sol's pick, from Wikipedia); drawn from shapes. |
-| What credits will buy | Droppable cosmetics, as a fix for bad luck ([Credits](#credits)); not built. |
-| Duplicates | Cards keep a count ("x3"). A droppable cosmetic dropped again turns into credits (planned with the shop). |
+| What credits will buy | Droppable saber shaders from the shop's four daily offers, as a fix for bad luck ([The shop](#the-shop)); prepared 17/10/2026, not deployed. |
+| Duplicates | Cards keep a count ("x3"). A droppable shader held twice or more can be shattered into kyber shards, one copy at a time, never the last (Sol, 17/10/2026; it replaced selling duplicates for credits). |
+| Kyber shards | A second currency (Sol, 17/10/2026): from shattering duplicates and from a holocron's pile of shards; spent to craft the droppable shader the player chooses ([Shards and the shop](#shards-and-the-shop)). |
 | Drop rates | Start stingy; buffing later is easy on the hub and nerfing is not. |
 | Money, trading | None. Free, non-commercial, no trading. |
 
@@ -91,35 +94,111 @@ Credits, any whole number in the range, equally likely:
 | Legendary | 80 to 120 | 100 |
 | Mythical | 250 to 350 | 300 |
 
-About 35 credits a holocron on average, so at most about 280 a day under the
-holocrons' daily cap of 8. The client shows the ranges
+About 35 credits a card opening on average; counting the openings that bring a shader or a
+pile of kyber shards instead (no credits), about 17.5 credits a holocron found, so about 140
+a day under the holocrons' daily cap of 8.
+
+Since 17/10/2026 (prepared, not deployed) one opening in ten, in every tier, brings a pile of
+kyber shards instead of the card and its credits, taken from the card's share (the shader's
+odds stay): any whole number in the range, equally likely.
+
+| Holocron | Shard pile | Shards | On average a holocron |
+| --- | --- | --- | --- |
+| Uncommon | 10 % | 5 to 15 | 1 |
+| Rare | 10 % | 10 to 25 | 1.75 |
+| Legendary | 10 % | 25 to 50 | 3.75 |
+| Mythical | 10 % | 100 to 200 | 15 |
+
+The piles are a consolation: about once a day of capped play, a pile is about one
+duplicate of the holocron's own level shattered, a Mythical holocron's as much as a
+Mythical shader's shattering. Provisional, the hub's `src/loot.rs`. The client shows the ranges
 ([cards.rs](../crates/sjk-viewer/src/cards.rs) `CREDITS`, the hub's copy, tested);
 the hub decides. Rolls use the operating system's entropy, as drops do.
 
 ## Credits
 
 Credits are a ledger at the hub (`credit_ledger`: each change with its reason,
-`holocron` or `staff`, and what it refers to); the balance is its sum and never
+`holocron`, `shop` or `staff`, and what it refers to); the balance is its sum and never
 goes below 0. Staff correct a balance with `POST /v1/staff/credits` (logged), the
 operator with `give-credits`. The client has no staff control for it yet.
 
-**Planned: the shop (not built, Sol's direction 12/10/2026).** Credits buy
-droppable cosmetics that are not tied to an achievement or a medal, as a fix for
-bad luck: a player who plays a lot and never gets the one thing they want can buy
-it. The rules agreed:
+## Shards and the shop
 
-- Only what can drop is for sale. Medal blades, achievement rewards, hats and capes
-  never are.
-- A price follows the item's odds, not a list: the credits an unlucky player has
-  earned by the time 80 % of players would have dropped it (about 35 credits a
-  holocron times `1.6 / p` holocrons for an item dropping at `p` per holocron). An
-  item at 0.5 % costs about 11 000 credits, some 40 days of capped play. Buffing an
-  item's odds lowers its price by itself.
-- A droppable item dropped again turns into credits.
-- Mythical items are for sale too; the formula keeps them the dearest.
-- Cards stay luck only at first.
+**Prepared 17/10/2026, not deployed** (hub branch `feat/economy`, client branch
+`personal/economy`; Sol's decisions of 17/10/2026, after his direction of 12/10/2026 for a
+shop that fixes bad luck). Every number here is provisional, in one table each at the hub
+(`src/economy.rs`, `src/loot.rs`), sent to clients with the progress (`economy` and the
+loot tables' `shard_pile` and `shards`), the client keeping a copy for before
+(`economy::BUILT_IN`, `loot_odds::BUILT_IN`, pinned by tests).
 
-No player text promises the shop until it exists.
+- **The trade.** Only saber shaders holocrons drop take part, less any a medal brings
+  (Glitch, Hologram and Runic today). Both sides read it from their catalogues (the
+  droppable flag, the medals' blades), never from a list, so a shader made droppable
+  joins by itself. Achievements grant nothing today; one that brings a shader must be
+  left out the same way. Cards are luck only: never sold, crafted or shattered. Hats and
+  capes are free for everyone and never take part.
+- **Kyber shards** are one currency for every shader (my choice for simplicity; Sol's
+  question had offered "shards of one shader", see the open points), a ledger at the hub
+  like credits (`shard_ledger`, reasons `shatter`, `holocron`, `craft`, `staff`), never
+  below 0, on the profile as `shards`.
+- **Shattering** breaks one duplicate (a shader held twice or more by drops or grants; a
+  medal's copy does not count) into shards, one copy a request, never the last.
+- **Crafting** makes a shader of the trade the player does not hold, for its cost.
+- **Who may:** like opening, everything follows the hub's opening setting: while opening
+  is for staff, others get `opening_staff_only` and the Shop button is not shown.
+
+| Shader tier | Shattering gives | Crafting costs | Shop price |
+| --- | --- | --- | --- |
+| Common | 5 shards | 40 shards | 250 credits |
+| Uncommon | 10 | 100 | 600 |
+| Rare | 25 | 300 | 1 500 |
+| Legendary | 60 | 800 | 4 000 |
+| Mythical | 150 | 2 000 | 10 000 |
+
+Why these numbers:
+
+- **Crafting against shattering:** eight to thirteen duplicates of a tier craft one of it,
+  so shattering never mills one shader into another of the same tier. Shards come in at
+  about 1.7 a holocron from the piles, and up to about 3.9 more once every shader dropped is
+  a duplicate: a Common craft is then about 7 holocrons, a Mythical one about 360 (some 45
+  days of capped play), against about 3 800 holocrons to drop one given Mythical shader.
+- **The shop's prices:** the rule of 12/10/2026 (the credits earned by the time 80 % of
+  players would have dropped the item: 35 credits times `1.6 / p` holocrons) does not give
+  sane numbers with today's catalogue: per holocron found a given Common drops at about
+  1.95 %, an Uncommon at 0.75 %, a Rare at 1.38 % (only three Rares share their tier), a
+  Legendary at 0.27 % and a Mythical at 0.026 %, so it prices them about 2 900, 7 500,
+  4 100, 20 600 and 212 000 credits: a Rare cheaper than an Uncommon, and a Mythical some 750
+  days of capped play. So the prices are per tier instead, rising with it: at about 17.5
+  credits a holocron, 14, 34, 86, 229 and 571 holocrons (2, 4, 11, 29 and 71 days of capped
+  play).
+
+### The shop
+
+- **Four offers a day**, the same for every player: one Common, one Uncommon, one Rare and
+  one Legendary or Mythical (evenly), each a different shader of the trade; a tier with
+  none left takes the nearest that has one.
+- **The day** runs from midnight to midnight in Paris (Europe/Paris, the EU's summer-time
+  rule). The hub deals it from the day and a secret it made once in its database (SHA-256),
+  so nothing is stored per day, a restart keeps the offers, and nobody, even with the hub's
+  code, can tell a later day's.
+- **Once a day, never a duplicate** (my decision): a player buys each offer at most once a
+  day (`already_bought`), and the hub refuses a shader they hold (`already_owned`): credits
+  never buy a duplicate, the shop being a fix for missing shaders. Crafting refuses one held
+  the same way, so the only road to a duplicate is luck, and shattering is there for it.
+- A purchase is a line of the credits ledger (reason `shop`, the shader's id as its note),
+  which is also how the hub tells what was bought today.
+
+### Open points for Sol
+
+1. Generic shards, or shards of one shader (each shader's shards craft only it)?
+2. The shard pile's chance (10 % in every tier) and sizes; the shatter and craft tables.
+3. Shop prices per tier, or a price from odds once the catalogue is bigger (the rule gives
+   sane numbers only when each tier's pool is about as big as its odds warrant).
+4. Refusing to buy or craft a shader already held, or letting it stack as a duplicate.
+5. Whether the fourth offer should be Mythical less often than every other day.
+6. The Shaders tab's Shatter and Craft buttons (the hooks are ready, [economy.rs](../crates/sjk-viewer/src/economy.rs)).
+
+No player text promises any of this until it is deployed.
 
 ## Faces and the first card
 
@@ -159,6 +238,9 @@ how its art was made; the footer reads "Art: <artist>".
 | A card drawn from shapes, the finishes' light | [cards/look.rs](../crates/sjk-viewer/src/cards/look.rs) |
 | The credits' mark | [cards/mark.rs](../crates/sjk-viewer/src/cards/mark.rs) |
 | Open, Open all and the ceremony on the Holocrons tab | [holocrons_panel_opening.rs](../crates/sjk-viewer/src/holocrons_panel_opening.rs), [holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs), [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs) |
+| Kyber shards, shattering, crafting, the tables and the Shaders tab's hooks | [economy.rs](../crates/sjk-viewer/src/economy.rs); wire and requests in [wire.rs](../crates/sjk-identity/src/wire.rs), [hub.rs](../crates/sjk-identity/src/hub.rs), [service.rs](../crates/sjk-identity/src/service.rs) (`Service::shatter`, `craft`, `read_shop`, `buy`, `Snapshot::shop`, `Snapshot::trade`) |
+| The kyber shard's mark | [cards/shard.rs](../crates/sjk-viewer/src/cards/shard.rs) |
+| The shop | [holocrons_panel_shop.rs](../crates/sjk-viewer/src/holocrons_panel_shop.rs) |
 | The Collection's Cards tab | [collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs) |
 | `debug_open` | [cards/rehearsal.rs](../crates/sjk-viewer/src/cards/rehearsal.rs) |
 | The faces from the packs, their pictures decoded on a worker | [cards/faces.rs](../crates/sjk-viewer/src/cards/faces.rs), mounted by [sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs) |
@@ -201,14 +283,32 @@ how its art was made; the footer reads "Art: <artist>".
   6:5 about their middle if they are not, squeezed into a 1024 square with its mip
   chain and drawn back into the 6:5 window (which undoes the squeeze); the renderer
   uploads two a frame. 512 faces at most.
+- **The kyber shard's mark** (17/10/2026) is a long crystal with a point at each end: a
+  square turned on its point (one thick stroke) stretched upright by a transform, its left
+  facet the same square again in the full kyber cyan (`shard::KYBER`) under a clip, its
+  right one deeper, a light ridge between them and a glint near the top. Eight commands.
+  The SJK Symbols font has it too (U+E030, [sjk-ui.md](sjk-ui.md#symbols)).
 - **The credits' mark** is the sign's outline in shapes: the crossbar and four short
   bars as rectangles, the slanting leg one stroke cut level at the bar's top and the
   foot. Eight commands, sharp at every size.
-- **The Holocrons tab:** the player's credits stand at the panel's top right, the
-  chosen tier says what opening one gives ("Opening it gives a sealed card and 30 to
-  50 credits."), and under the holocron's caption **Open** (the oldest of the tier
-  chosen, Enter) and **Open all (n)** (up to twenty of all tiers, the oldest first,
-  A). Opened holocrons stay in the recent list, dimmed, marked "Opened".
+- **The Holocrons tab:** the player's kyber shards and credits stand at the panel's top
+  right, each mark and sum with its word under it, the chosen tier says what opening one
+  gives ("Opening it gives a sealed card and 30 to 50 credits, or a saber shader (40%) or
+  kyber shards (10%)."), and under the holocron's caption **Open** (the oldest of the tier
+  chosen, Enter), **Open all (n)** (up to twenty of all tiers, the oldest first, A) and,
+  while the hub lets the player open, **Shop** (S). Opened holocrons stay in the recent
+  list, dimmed, marked "Opened".
+- **The shop** (17/10/2026, prepared): over the darkened tab as the loot table, "Shop", what
+  it is and its rules, the balances at the top right, "Offers of 17/10/2026" and "New offers
+  in 5 h 12 min, at midnight in Paris" (counting down; once it is due the page reads the
+  hub again, once a day), and the four offers as cards: the tier's symbol and name, the
+  tier's frame, wash and effects, the blade, its name, its price beside the credits' mark,
+  why it cannot be bought ("You hold it already.", "You bought it today.", "8 000 more
+  credits needed.") and Buy. Buy asks twice: it turns into "Confirm: 250 credits" for five
+  seconds, a second press sends it ("Buying..." until the hub answers); the line under the
+  cards then says "Sakura blade bought for 600 credits. It is yours." or why not. Left and
+  Right choose, Enter buys, a click chooses or buys, Escape, S or Back go back. Opening the
+  shop reads the hub's day; "Reading the shop..." until it answers.
 - **The ceremony** is drawn by the tab over its own page, which is not drawn under it
   (text draws over every shape). Since 17/10/2026 it opens the holocron itself, as a
   loot crate opens
@@ -240,6 +340,15 @@ how its art was made; the footer reads "Art: <artist>".
     streaks across it and trails it. At rest (`sub_select`) the prize lifts and lights
     up in its colour, breathing, the others dim to a third, and a grand prize (a
     Legendary or Solar card, a Legendary or Mythical shader) turns slow rays behind it.
+  - **A pile of kyber shards** (17/10/2026) is a tile of its own on the strip: "Kyber
+    shards", three crystals in a kyber glow and the tier's range ("25 to 50"), or for the
+    prize how many ("+37"); stacked, the crystals alone. Its entrance is the burst, then
+    three crystals growing in in a kyber glow and the shards counting up beside the shard
+    mark, then "37 kyber shards", "From a Legendary Holocron", what shards craft and how many
+    the player holds now. Among many opened, the finds show it ("37 kyber shards", "For
+    crafting"), the shards counted beside the credits at the top. A client from before the
+    piles skips such an opening (nothing it knows: an opening of piles alone says "Nothing
+    this client knows came out."); the profile carries the shards either way.
   - **The entrance:** the burst in its tier's light (rings, turning rays, the gem
     flaring away), the card turning in, the credits counting up beside the mark, and
     its words: "Rare card, Holo", "Alpha Edition. From a Rare Holocron", what the finish
@@ -268,7 +377,8 @@ how its art was made; the footer reads "Art: <artist>".
     already opened."; a hub from before opening: "This SJK hub cannot open holocrons
     yet.") and the profile is read again soon.
 - **The Cards tab** (the Collection's seventh): "N cards" and a line about sealed cards
-  while there are some, the credits at the right of the headline, up to twelve kinds
+  while there are some, the credits at the right of the headline and the kyber shards left
+  of them, up to twelve kinds
   (six by two, the best first, each with "x3" and its finish; more are counted under
   them), and the kind chosen up close on the right, 470 frame pixels wide so a face's
   lore reads at 1080p (290 before faces), with its name, rarity, finish, edition, how
@@ -283,8 +393,9 @@ how its art was made; the footer reads "Art: <artist>".
   Holocron" and its set and number in place of the sealed line.
 - **The player card's** rarest holocron gem counts opened holocrons too, as the
   counts now hold only the unopened ones.
-- `debug_open <tier|all> [x<count>] [normal|holo|solar]` plays the ceremony with
-  made-up cards on the Holocrons tab; nothing is sent or kept. A rarity the packs have
+- `debug_open <tier|all> [x<count>] [normal|holo|solar|shader|shards]` plays the ceremony
+  with made-up cards (or shaders, or piles of kyber shards) on the Holocrons tab; nothing is
+  sent or kept. A rarity the packs have
   faces of shows one of them, as the hub would pick.
 
 ## Planned, not built
@@ -294,8 +405,8 @@ how its art was made; the footer reads "Art: <artist>".
    over one by one, as an opening's cards turn in).
 2. The Cards tab as a binder by set with progress ("Places 7 of 12"), missing cards
    as dark outlines.
-3. The shop and the duplicate payout ([Credits](#credits)); a staff control for
-   credits on the Staff page.
+3. Deploying the economy ([Shards and the shop](#shards-and-the-shop)), the Shaders tab's
+   Shatter and Craft, and a staff control for credits and shards on the Staff page.
 4. Set completion feeding achievements the hub counts.
 
 Suggested first sets, about 20 to 30 cards: Places (planets, the Jedi Academy, the
@@ -334,6 +445,22 @@ data) were looked at: the tab with Open and the credits, a Holo card's entrance
 moment by moment, each finish, the wait, a refusal, the Cards tab at 1080p and 4:3
 and with none. Not tried: against the real hub (it is not deployed), in a game, the
 keys and clicks in a running client, the motion (the shots are stills).
+
+The economy (17/10/2026, Windows 11, prepared): the hub's tests (the tables, the trade
+read from the catalogues, Paris's day across summer time, the offers stable and different
+by day and secret, shattering never the last copy, crafting and buying once with enough,
+two crafts with shards for one, refusals that change nothing, the gate, a pile from an
+opening, staff and operator changes with their undo, the shop's secret kept across a
+reopening, the API's shapes and errors); the client's unit tests (the wire with and without
+the new fields, the service's trades and shop read, the tables' copy and the hub's, the
+hooks' choices, the strip's shard share, the odds' figures, the shop's keys, confirm,
+countdown and room in four windows). World shots `duel6_sjk_economy_shots` and
+`duel6_sjk_economy_shop_windows` (off-screen, duel6, made-up data, the hub's packs mounted)
+were looked at: the tab with both balances and Shop, the loot table's shards column, the
+shop with a Confirm, while reading and after a purchase, in 4:3, 21:9 and 4K, a pile at
+rest on the strip, coming in and its words, twelve opened with three piles at rest and laid
+out, the Cards tab's balances. Not tried: against a running hub, in a running client, a
+purchase's or a turned day's flow live.
 
 The crate opening (17/10/2026, Windows 11): unit tests for the 3D holocron's motion
 (glide, hum carried into the unseal, spin-up, swell, light, shake bounds, gone in the

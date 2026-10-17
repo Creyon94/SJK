@@ -197,6 +197,71 @@ pub struct Snapshot {
     pub opening: Option<OpenOutcome>,
     /// What became of the last reveal of sealed cards ([`Service::reveal_cards`]).
     pub reveal: Option<RevealOutcome>,
+    /// The kyber shards' and the shop's tables, as the hub last sent them with the
+    /// progress; `None` before, or from a hub older than them (17/10/2026).
+    pub economy: Option<crate::wire::EconomyTables>,
+    /// The shop's day as the hub last answered it ([`Service::read_shop`]), or why it
+    /// could not be read.
+    pub shop: Option<ShopState>,
+    /// What became of the last shatter, craft or purchase ([`Service::shatter`],
+    /// [`Service::craft`], [`Service::buy`]).
+    pub trade: Option<TradeOutcome>,
+}
+
+/// The shop as last read.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ShopState {
+    /// Counts reads asked for, so a reader can tell a new answer from the last one.
+    pub serial: u64,
+    /// The day's offers; empty when the read failed.
+    pub day: crate::wire::ShopDay,
+    /// Why it could not be read; empty when it was.
+    pub message: String,
+    /// When this client read it (with [`crate::wire::ShopDay::server_time`] it says
+    /// when the next day comes on this client's clock).
+    pub read_at: Instant,
+}
+
+impl ShopState {
+    /// Seconds until the shop's next day at `now`, as read; 0 once it is due.
+    pub fn seconds_left(&self, now: Instant) -> u64 {
+        let left = (self.day.next - self.day.server_time).max(0) as u64;
+        left.saturating_sub(now.saturating_duration_since(self.read_at).as_secs())
+    }
+}
+
+/// What a trade asked of the hub.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Trade {
+    /// One duplicate into kyber shards.
+    Shatter,
+    /// A shader made with kyber shards.
+    Craft,
+    /// One of the shop's offers bought with credits.
+    Buy,
+}
+
+/// What became of a shatter, a craft or a purchase.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TradeOutcome {
+    /// Counts trades asked for, so a reader can tell a new outcome from the last one.
+    pub serial: u64,
+    /// What was asked.
+    pub trade: Trade,
+    /// The shader's id.
+    pub id: String,
+    /// The shards a shatter gave, the shards a craft cost or the credits a purchase cost;
+    /// 0 when it failed.
+    pub amount: u64,
+    /// Why it failed; empty when it worked.
+    pub message: String,
+}
+
+impl TradeOutcome {
+    /// Whether the hub did it.
+    pub fn done(&self) -> bool {
+        self.message.is_empty()
+    }
 }
 
 /// What became of a reveal of sealed cards.
@@ -306,6 +371,9 @@ impl Snapshot {
             log_answer: None,
             opening: None,
             reveal: None,
+            economy: None,
+            shop: None,
+            trade: None,
         }
     }
 
@@ -399,6 +467,14 @@ enum Command {
     OpenHolocrons(Vec<u64>),
     /// Reveal the player's sealed cards.
     RevealCards,
+    /// Shatter one duplicate of this shader.
+    Shatter(String),
+    /// Craft this shader with shards.
+    Craft(String),
+    /// Read the shop's day.
+    ReadShop,
+    /// Buy this offer of the day.
+    Buy(String),
     Stop,
 }
 
@@ -566,6 +642,32 @@ fn opening_refusal(error: &HubError) -> String {
         }
         other => other.to_string(),
     }
+}
+
+/// Why a shatter, a craft, a purchase or a read of the shop failed, in the player's words.
+fn trade_refusal(error: &HubError) -> String {
+    let words = match error {
+        HubError::Rejected { code, message, .. } => match code.as_str() {
+            "not_a_duplicate" => "That is your last one: only duplicates can be shattered.",
+            "not_shatterable" => "That shader cannot be shattered.",
+            "not_craftable" => "That shader cannot be crafted.",
+            "not_enough_shards" => "Not enough kyber shards.",
+            "already_owned" => "You have that shader already.",
+            "not_on_offer" => "That shader is not in the shop any more: the offers changed.",
+            "not_enough_credits" => "Not enough credits.",
+            "already_bought" => "You bought that one today already.",
+            "opening_staff_only" => "Shards and the shop open with holocrons: soon.",
+            _ => return message.clone(),
+        },
+        // A hub from before the economy has no such route.
+        HubError::Protocol(why)
+            if why.starts_with("status 404") || why.starts_with("status 405") =>
+        {
+            "This SJK hub has no shop yet."
+        }
+        other => return other.to_string(),
+    };
+    words.to_owned()
 }
 
 /// Why a reveal failed, as the Cards tab says it.
@@ -1026,6 +1128,10 @@ impl Worker {
             Command::RefreshHolocrons => self.holocrons_soon(now),
             Command::OpenHolocrons(ids) => self.open_holocrons(&ids, now),
             Command::RevealCards => self.reveal_cards(),
+            Command::Shatter(id) => self.trade(Trade::Shatter, &id),
+            Command::Craft(id) => self.trade(Trade::Craft, &id),
+            Command::ReadShop => self.read_shop(now),
+            Command::Buy(id) => self.trade(Trade::Buy, &id),
             Command::Stop => self.release(),
         }
         self.publish_feed();
@@ -1225,6 +1331,91 @@ impl Worker {
                     serial,
                     revealed: Vec::new(),
                     message: reveal_refusal(&error),
+                },
+            });
+        });
+    }
+
+    /// Shatter, craft or buy shader `id`: the outcome goes in [`Snapshot::trade`], the
+    /// hub's profile after it in [`Snapshot::me`], and the shop read last follows the
+    /// balances and what is held. A purchase the day turned under is answered by reading
+    /// the shop again.
+    fn trade(&mut self, trade: Trade, id: &str) {
+        type Done = (u64, Option<u64>, Option<u64>, Profile);
+        let outcome: Result<Done, HubError> = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => match trade {
+                Trade::Shatter => hub.shatter_unlock(&self.identity, id).map(|answer| {
+                    let shards = answer.shattered.balance;
+                    (answer.shattered.shards, None, Some(shards), answer.profile)
+                }),
+                Trade::Craft => hub.craft_unlock(&self.identity, id).map(|answer| {
+                    let shards = answer.crafted.balance;
+                    (answer.crafted.cost, None, Some(shards), answer.profile)
+                }),
+                Trade::Buy => hub.buy_offer(&self.identity, id).map(|answer| {
+                    let credits = answer.bought.balance;
+                    (answer.bought.price, Some(credits), None, answer.profile)
+                }),
+            },
+            _ => Err(not_connected()),
+        };
+        let reread =
+            matches!(&outcome, Err(HubError::Rejected { code, .. }) if code == "not_on_offer");
+        self.update(|snapshot| {
+            let serial = snapshot.trade.as_ref().map_or(1, |last| last.serial + 1);
+            snapshot.trade = Some(match outcome {
+                Ok((amount, credits, shards, profile)) => {
+                    if let Some(shop) = snapshot.shop.as_mut() {
+                        shop.day.credits = credits.unwrap_or(profile.credits);
+                        shop.day.shards = shards.unwrap_or(profile.shards);
+                        for offer in shop.day.offers.iter_mut().filter(|offer| offer.id == id) {
+                            offer.owned = trade != Trade::Shatter || offer.owned;
+                            offer.bought |= trade == Trade::Buy;
+                        }
+                    }
+                    snapshot.set_me(profile);
+                    TradeOutcome {
+                        serial,
+                        trade,
+                        id: id.to_owned(),
+                        amount,
+                        message: String::new(),
+                    }
+                }
+                Err(error) => TradeOutcome {
+                    serial,
+                    trade,
+                    id: id.to_owned(),
+                    amount: 0,
+                    message: trade_refusal(&error),
+                },
+            });
+        });
+        if reread {
+            self.read_shop(Instant::now());
+        }
+    }
+
+    /// Read the shop's day: it goes in [`Snapshot::shop`], or why not.
+    fn read_shop(&mut self, now: Instant) {
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => hub.shop(&self.identity),
+            _ => Err(not_connected()),
+        };
+        self.update(|snapshot| {
+            let serial = snapshot.shop.as_ref().map_or(1, |last| last.serial + 1);
+            snapshot.shop = Some(match outcome {
+                Ok(day) => ShopState {
+                    serial,
+                    day,
+                    message: String::new(),
+                    read_at: now,
+                },
+                Err(error) => ShopState {
+                    serial,
+                    day: crate::wire::ShopDay::default(),
+                    message: trade_refusal(&error),
+                    read_at: now,
                 },
             });
         });
@@ -1555,6 +1746,9 @@ impl Worker {
                 self.update(|snapshot| {
                     if !state.loot.is_empty() {
                         snapshot.loot.clone_from(&state.loot);
+                    }
+                    if state.economy.is_some() {
+                        snapshot.economy.clone_from(&state.economy);
                     }
                     snapshot.holocrons = Some(HolocronProgress::new(state, now));
                 });
@@ -2148,6 +2342,29 @@ impl Service {
         let _ = self.commands.send(Command::RevealCards);
     }
 
+    /// Shatter one duplicate of shader `id` into kyber shards (never the last copy): what
+    /// came of it arrives in [`Snapshot::trade`], and the profile after it.
+    pub fn shatter(&self, id: &str) {
+        let _ = self.commands.send(Command::Shatter(id.to_owned()));
+    }
+
+    /// Craft shader `id` with kyber shards: what came of it arrives in
+    /// [`Snapshot::trade`], and the profile after it.
+    pub fn craft(&self, id: &str) {
+        let _ = self.commands.send(Command::Craft(id.to_owned()));
+    }
+
+    /// Read the shop's offers of the day into [`Snapshot::shop`].
+    pub fn read_shop(&self) {
+        let _ = self.commands.send(Command::ReadShop);
+    }
+
+    /// Buy today's offer `id` with credits: what came of it arrives in
+    /// [`Snapshot::trade`], and the profile after it.
+    pub fn buy(&self, id: &str) {
+        let _ = self.commands.send(Command::Buy(id.to_owned()));
+    }
+
     /// The player is on a game server (call again if `slot` or `name` changes).
     pub fn enter(&self, location: Location) {
         let _ = self.commands.send(Command::Enter(location));
@@ -2533,6 +2750,7 @@ mod tests {
             holocron_counts: crate::wire::HolocronCounts::default(),
             holocrons: Vec::new(),
             credits: 0,
+            shards: 0,
             cards: Vec::new(),
             keys: Vec::new(),
         }
@@ -2612,11 +2830,81 @@ mod tests {
                     }),
                     credits: 40,
                     unlock: None,
+                    shards: 0,
                 })
                 .collect();
             let mut profile = profile("Sol");
             profile.credits = 40 * ids.len() as u64;
             Ok(crate::wire::OpenAnswer { opened, profile })
+        }
+        fn shatter_unlock(
+            &mut self,
+            _: &Identity,
+            id: &str,
+        ) -> Result<crate::wire::ShatterAnswer, HubError> {
+            self.record(format!("shatter {id}"))?;
+            if id == "saber_last" {
+                return Err(refused(409, "not_a_duplicate"));
+            }
+            let mut profile = profile("Sol");
+            profile.shards = 5;
+            Ok(crate::wire::ShatterAnswer {
+                shattered: crate::wire::Shattered {
+                    id: id.to_owned(),
+                    count: 1,
+                    shards: 5,
+                    balance: 5,
+                },
+                profile,
+            })
+        }
+        fn craft_unlock(
+            &mut self,
+            _: &Identity,
+            id: &str,
+        ) -> Result<crate::wire::CraftAnswer, HubError> {
+            self.record(format!("craft {id}"))?;
+            Err(refused(409, "not_enough_shards"))
+        }
+        fn shop(&mut self, _: &Identity) -> Result<crate::wire::ShopDay, HubError> {
+            self.record("shop".to_owned())?;
+            Ok(crate::wire::ShopDay {
+                day: "2026-10-17".to_owned(),
+                offers: vec![crate::wire::Offer {
+                    id: "saber_aurora".to_owned(),
+                    name: "Aurora blade".to_owned(),
+                    tier: "common".to_owned(),
+                    price: 250,
+                    bought: false,
+                    owned: false,
+                }],
+                next: 1_791_003_600,
+                server_time: 1_791_000_000,
+                credits: 300,
+                shards: 0,
+            })
+        }
+        fn buy_offer(
+            &mut self,
+            _: &Identity,
+            id: &str,
+        ) -> Result<crate::wire::BuyAnswer, HubError> {
+            self.record(format!("buy {id}"))?;
+            if id != "saber_aurora" {
+                return Err(refused(409, "not_on_offer"));
+            }
+            let mut profile = profile("Sol");
+            profile.credits = 50;
+            Ok(crate::wire::BuyAnswer {
+                bought: crate::wire::Bought {
+                    id: id.to_owned(),
+                    name: "Aurora blade".to_owned(),
+                    count: 1,
+                    price: 250,
+                    balance: 50,
+                },
+                profile,
+            })
         }
         fn reveal_cards(&mut self, _: &Identity) -> Result<crate::wire::RevealAnswer, HubError> {
             self.record("reveal".to_owned())?;
@@ -2993,6 +3281,7 @@ mod tests {
             server_time: 1_791_000_000,
             can_open: true,
             loot: Vec::new(),
+            economy: None,
         }
     }
 
@@ -3323,6 +3612,76 @@ mod tests {
             older_hub(HubError::Network("down".to_owned())),
             HubError::Network(_)
         ));
+    }
+
+    /// Shattering, crafting, the shop and buying wait for the registration; a shatter
+    /// keeps the shards and the profile, a refusal is said in the player's words, a
+    /// purchase marks the offer bought and held and moves the shop's credits, and an offer
+    /// gone from the shop reads the shop again.
+    #[test]
+    fn trades_wait_for_the_registration_and_the_shop_follows_them() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Shatter("saber_tidal".to_owned()), t0);
+        let first = lock(&snapshot).trade.clone().unwrap();
+        assert!(!first.done() && first.message.contains("not connected"));
+        assert!(
+            fake.log().is_empty(),
+            "nothing goes before the registration"
+        );
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::Shatter("saber_tidal".to_owned()), t0);
+        let shattered = lock(&snapshot).trade.clone().unwrap();
+        assert_eq!(
+            (shattered.serial, shattered.trade, shattered.amount),
+            (2, Trade::Shatter, 5)
+        );
+        assert!(shattered.done());
+        assert_eq!(lock(&snapshot).me.as_ref().map(|me| me.shards), Some(5));
+        worker.handle(Command::Shatter("saber_last".to_owned()), t0);
+        assert_eq!(
+            lock(&snapshot).trade.clone().unwrap().message,
+            "That is your last one: only duplicates can be shattered."
+        );
+        worker.handle(Command::Craft("saber_circuit".to_owned()), t0);
+        let craft = lock(&snapshot).trade.clone().unwrap();
+        assert_eq!(
+            (craft.trade, craft.message.as_str()),
+            (Trade::Craft, "Not enough kyber shards.")
+        );
+        worker.handle(Command::ReadShop, t0);
+        let shop = lock(&snapshot).shop.clone().unwrap();
+        assert_eq!((shop.serial, shop.day.offers.len()), (1, 1));
+        assert_eq!(shop.seconds_left(t0), 3_600);
+        assert_eq!(shop.seconds_left(t0 + Duration::from_secs(4_000)), 0);
+        worker.handle(Command::Buy("saber_aurora".to_owned()), t0);
+        let bought = lock(&snapshot).trade.clone().unwrap();
+        assert_eq!((bought.trade, bought.amount), (Trade::Buy, 250));
+        let shop = lock(&snapshot).shop.clone().unwrap();
+        assert!(shop.day.offers[0].bought && shop.day.offers[0].owned);
+        assert_eq!(shop.day.credits, 50);
+        worker.handle(Command::Buy("saber_gone".to_owned()), t0);
+        assert_eq!(
+            lock(&snapshot).trade.clone().unwrap().message,
+            "That shader is not in the shop any more: the offers changed."
+        );
+        assert_eq!(
+            lock(&snapshot).shop.clone().unwrap().serial,
+            2,
+            "read again"
+        );
+        assert_eq!(
+            fake.log()
+                .iter()
+                .filter(|line| line.starts_with("shatter")
+                    || line.starts_with("craft")
+                    || line.starts_with("buy")
+                    || *line == "shop")
+                .count(),
+            7
+        );
     }
 
     /// Revealing waits for the registration, then keeps what the copies became and the

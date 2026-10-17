@@ -353,7 +353,7 @@ pub(crate) struct Panel {
     pub(crate) shot_seconds: Option<f32>,
     /// What a world shot shows in place of the own profile's cards and credits.
     #[cfg(test)]
-    pub(crate) preview_cards: Option<(Vec<sjk_identity::CardStack>, u64)>,
+    pub(crate) preview_cards: Option<(Vec<sjk_identity::CardStack>, u64, u64)>,
 }
 
 impl Default for Panel {

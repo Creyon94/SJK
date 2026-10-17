@@ -5,9 +5,9 @@
 //! lands somewhere inside its tile (never always dead centre).
 //!
 //! The neighbours are what the holocron's tier can drop and nothing else: the cards it can
-//! hold (each rarity and finish with odds above zero) and the droppable shaders it can
-//! bring, each weighted by its chance, by the hub's odds ([`crate::loot_odds`]); the hub
-//! decides, this only dresses it.
+//! hold (each rarity and finish with odds above zero), the droppable shaders it can bring
+//! and its pile of kyber shards, each weighted by its chance, by the hub's odds
+//! ([`crate::loot_odds`]); the hub decides, this only dresses it.
 
 use crate::cards::{FINISHES, RARITIES};
 use crate::unlockables::{self, Rarity, Unlockable};
@@ -57,6 +57,9 @@ pub(crate) enum Item {
     Shader(&'static Unlockable),
     /// A saber shader newer than this client (only ever the prize).
     New,
+    /// A pile of kyber shards (17/10/2026): `shards` of them for the prize, 0 for a
+    /// neighbour (its tier's range is shown instead).
+    Shards { tier: usize, shards: u64 },
 }
 
 impl Item {
@@ -67,6 +70,7 @@ impl Item {
             Self::Card { rarity, .. } => RARITIES[rarity].colour,
             Self::Shader(skin) => skin.tier.colour(),
             Self::New => crate::menu::sjk::color::GOLD,
+            Self::Shards { .. } => crate::cards::shard::KYBER,
         }
     }
 
@@ -77,6 +81,8 @@ impl Item {
             Self::Card { rarity, finish } => rarity as u32 * 10 + finish as u32 * 4,
             Self::Shader(skin) => skin.tier as u32 * 10 + 1,
             Self::New => 21,
+            // A consolation: above a plain Common card, below everything rarer.
+            Self::Shards { .. } => 2,
         }
     }
 
@@ -86,7 +92,7 @@ impl Item {
         match self {
             Self::Card { rarity, finish } => rarity == 3 || finish == 2,
             Self::Shader(skin) => skin.tier >= Rarity::Legendary,
-            Self::New => false,
+            Self::New | Self::Shards { .. } => false,
         }
     }
 }
@@ -126,12 +132,17 @@ fn shaders_of(tier: Rarity) -> Vec<&'static Unlockable> {
 pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
     let table = crate::loot_odds::current();
     let shader = u64::from(table.shader[tier]);
+    let pile = u64::from(table.shard_pile[tier]);
     let odds = &table.card[tier];
     let mut pool = Vec::new();
+    if pile > 0 {
+        pool.push((Item::Shards { tier, shards: 0 }, pile * 1_000_000));
+    }
     for rarity in 0..RARITIES.len() {
         for finish in 0..FINISHES.len() {
-            let weight =
-                (1_000 - shader) * u64::from(odds.rarity[rarity]) * u64::from(odds.finish[finish]);
+            let weight = (1_000 - shader - pile)
+                * u64::from(odds.rarity[rarity])
+                * u64::from(odds.finish[finish]);
             if weight > 0 {
                 pool.push((Item::Card { rarity, finish }, weight));
             }
@@ -266,6 +277,9 @@ mod tests {
                     }
                     Item::Shader(skin) => assert!(skin.droppable, "{}", skin.id),
                     Item::New => panic!("only a prize is new"),
+                    Item::Shards { tier: of, shards } => {
+                        assert_eq!((*of, *shards), (tier, 0), "a neighbour's pile");
+                    }
                 }
             }
         }
@@ -304,6 +318,49 @@ mod tests {
             let share = shaders as f64 / all as f64 * 1_000.0;
             assert!((share - f64::from(*odds)).abs() < 1.0, "{share}");
         }
+    }
+
+    /// A pile of shards comes up as often as the hub's odds say, and the cards' share
+    /// shrinks by it.
+    #[test]
+    fn a_pile_of_shards_comes_up_at_its_tables_share() {
+        let table = crate::loot_odds::current();
+        for tier in 0..COUNT {
+            let pool = pool(tier);
+            let all: u64 = pool.iter().map(|(_, weight)| weight).sum();
+            let piles: u64 = pool
+                .iter()
+                .filter(|(item, _)| matches!(item, Item::Shards { .. }))
+                .map(|(_, weight)| weight)
+                .sum();
+            let share = piles as f64 / all as f64 * 1_000.0;
+            assert!(
+                (share - f64::from(table.shard_pile[tier])).abs() < 1.0,
+                "{share}"
+            );
+        }
+        let pile = Item::Shards {
+            tier: 3,
+            shards: 140,
+        };
+        assert!(!pile.grand());
+        assert!(
+            pile.grade()
+                > Item::Card {
+                    rarity: 0,
+                    finish: 0
+                }
+                .grade()
+        );
+        assert!(
+            pile.grade()
+                < Item::Card {
+                    rarity: 1,
+                    finish: 0
+                }
+                .grade()
+        );
+        assert_eq!(pile.colour(), crate::cards::shard::KYBER);
     }
 
     #[test]

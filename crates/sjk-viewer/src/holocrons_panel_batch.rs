@@ -7,7 +7,8 @@
 //! ([`moment`]), so a world shot draws any moment.
 
 use super::opening::{
-    BAND, BAND_GAP, Prize, UNSEAL, credits_line, marker, prize_light, smooth, strip_ends,
+    BAND, BAND_GAP, Prize, UNSEAL, credits_line, marker, prize_light, shards_line, smooth,
+    strip_ends,
 };
 use super::*;
 use crate::audio::ui_cues::{self, Cue};
@@ -316,16 +317,40 @@ impl Panel {
             .iter()
             .map(|prize| match prize {
                 Prize::Card(card) => card.credits,
-                Prize::Shader(_) => 0,
+                Prize::Shader(_) | Prize::Shards(_) => 0,
             })
             .sum();
+        let shards: u64 = shown
+            .iter()
+            .map(|prize| match prize {
+                Prize::Shards(pile) => pile.shards,
+                Prize::Card(_) | Prize::Shader(_) => 0,
+            })
+            .sum();
+        // Side by side when both came.
+        let apart = if credits > 0 && shards > 0 {
+            170.0
+        } else {
+            0.0
+        };
         if credits > 0 {
             credits_line(
                 &mut self.ui,
                 frame,
-                MIDDLE_X,
+                MIDDLE_X - apart,
                 142.0,
                 &format!("+{}", cards::credits_text(credits)),
+                32.0,
+                (since / 0.4).min(1.0),
+            );
+        }
+        if shards > 0 {
+            shards_line(
+                &mut self.ui,
+                frame,
+                MIDDLE_X + apart,
+                142.0,
+                &format!("+{}", crate::economy::shards_text(shards)),
                 32.0,
                 (since / 0.4).min(1.0),
             );
@@ -376,7 +401,7 @@ impl Panel {
                     1.0,
                     1.0,
                 ),
-                Prize::Shader(_) => {
+                Prize::Shader(_) | Prize::Shards(_) => {
                     self.tile(
                         frame,
                         &faces,
@@ -425,6 +450,21 @@ impl Panel {
                         [x, words_y + 22.0],
                     );
                 }
+                Prize::Shards(pile) => {
+                    found_line(
+                        self,
+                        frame,
+                        format_args!("{} kyber shards", crate::economy::shards_text(pile.shards)),
+                        [x, words_y],
+                        item.colour(),
+                    );
+                    found_note(
+                        self,
+                        frame,
+                        format_args!("For crafting"),
+                        [x, words_y + 22.0],
+                    );
+                }
                 Prize::Shader(found) => {
                     found_line(
                         self,
@@ -456,7 +496,9 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Cards are on the Collection's Cards tab, shaders on its Shaders tab."),
+            format_args!(
+                "Cards are on the Collection's Cards tab, shaders on its Shaders tab; kyber shards craft shaders."
+            ),
             frame.rect(MIDDLE_X - 600.0, 836.0, 1_200.0, 26.0),
             17.0 * s,
             color::alpha(color::QUIET, done),

@@ -31,6 +31,7 @@ fn profile(key: &str, name: &str) -> sjk_identity::Profile {
         unlocks: Vec::new(),
         holocron_counts: Default::default(),
         holocrons: Vec::new(),
+        shards: 0,
     }
 }
 
