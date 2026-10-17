@@ -1026,6 +1026,27 @@ exhaustive quality/map coverage remain open.
 
 ## Entity render effects
 
+JoF EJK's animation-driven Force sprays run in live play for the local player,
+other players and NPCs ([#58](https://github.com/JediofFreedom/JoF_EJK/pull/58),
+with [#89](https://github.com/JediofFreedom/JoF_EJK/pull/89)'s full-body gate).
+Rage uses `force/rage2`, Heal `force/heal2`, every 120 ms while both animation
+tracks match and speed is below 250 units/s. They follow `*chestg`, then
+`thoracic`, then `lower_lumbar`, falling back to the actor's origin. Quick Heal
+uses Push-blur puffs at the left hand, falling back to the actor's origin when
+the attachment is absent. The hand effect uses SJK's reference 8 ms cadence
+instead of multiplying emissions with rendering FPS. Local animation selection
+uses prediction, falling back to player state; remote players and NPCs use their
+own snapshot state. Timer storage belongs to the rendered world's effect pool;
+inactive animations reset it and backward demo time restarts it.
+
+The local player's body-push blur and Grip hand puffs are hidden in first person
+and zoom, while remote actors keep them. This follows the local visibility intent
+of [JoF #90](https://github.com/JediofFreedom/JoF_EJK/pull/90); that patch's choke
+effect gate has no corresponding live choke visual in SJK yet. Rage/Heal sprays
+and Quick Heal remain animation-driven in every camera mode, as in #58.
+These presentation rules apply in every UI style and change no Force gameplay,
+movement, animation timing or protocol encoding.
+
 cgame custom shaders on actors (force shells, pickup placeholders) are extra
 instances of the same mesh in [entity_materials.rs](../crates/sjk-viewer/src/entity_materials.rs).
 The same path also draws rd-vanilla's `RF_FORCE_ENT_ALPHA`: the mesh keeps its

@@ -1,3 +1,22 @@
+## Live animation-driven Force effects
+
+17/10/2026, `feat/force-animation-effects`, based on `94b1d1ce` on Windows:
+live Rage/Heal chest sprays and Quick Heal hand puffs now use each actor's own
+full-body animation, including the predicted local player and NPCs. Reference:
+JoF EJK `codemp/cgame/cg_players.c`, PRs #58/#89; local body-blur/Grip visibility
+also follows #90's first-person/zoom intent. See
+[rendering](rendering.md#entity-render-effects) for attachment fallbacks and cadence.
+Focused synthetic tests cover source ownership, full-body/speed gates, independent
+timers, demo seeks, 8/7/4/3 ms sampling, local camera visibility and chest placement.
+All six focused regressions and the required workspace formatting, build, tests
+and Clippy checks passed (warnings remain). A release-only synthetic run on the
+Ryzen 7 5800X3D averaged 0.123 microseconds per frame for selecting/timing 128
+actors over 20,000 frames; this excludes snapshot lookup, pose/attachment updates,
+effect spawning and rendering, and does not establish full-scene performance.
+No installed game data or isolated live server was available: on-screen appearance,
+custom-model attachment parity and populated-scene GPU/frame time remain unverified.
+Protocol encoding, authoritative animation and movement are unchanged.
+
 ## One Russian letter in chat
 
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a

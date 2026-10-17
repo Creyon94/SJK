@@ -4,6 +4,14 @@ use super::*;
 #[path = "force_sprites.rs"]
 pub(crate) mod sprites;
 
+#[path = "force_animation_submission.rs"]
+mod animation;
+
+/// JoF local body-blur/Grip visibility: remote effects remain visible through zoom.
+fn body_effect_visible(local: bool, third_person: bool, zoom_mode: u8) -> bool {
+    !local || (third_person && zoom_mode == 0)
+}
+
 /// Select the activeForcePass graph (cg_players.c:9408-9510).
 pub(crate) fn beam(pass: u8) -> Option<&'static str> {
     match pass {
@@ -203,6 +211,12 @@ pub(super) fn submit(
         return;
     };
     let selection = select(caster, sinks.third_person);
+    let unobstructed = body_effect_visible(
+        caster.local,
+        sinks.third_person,
+        snapshot.player.zoom_mode(),
+    );
+    animation::submit(sinks, mesh, number, transform, snapshot, time, now);
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
@@ -249,7 +263,7 @@ pub(super) fn submit(
         );
     }
     let view_left = Vec3::new(-sinks.camera_yaw.sin(), sinks.camera_yaw.cos(), 0.0);
-    if selection.body_push {
+    if selection.body_push && unobstructed {
         for local in actor.force_bones.origins.iter().flatten() {
             let point = origin + rotation * (*local * Vec3::from_array(transform.scale));
             sprites::pair(
@@ -266,7 +280,8 @@ pub(super) fn submit(
     let (grip, count) = match selection.hand {
         HandEffect::None => return,
         HandEffect::Push => (false, 1),
-        HandEffect::Grip => (true, 2),
+        HandEffect::Grip if unobstructed => (true, 2),
+        HandEffect::Grip => return,
     };
     if let Some(hand) = left {
         for _ in 0..count {
@@ -341,7 +356,16 @@ pub(super) fn submit_confusion(
 
 #[cfg(test)]
 mod tests {
-    use super::{Caster, HandEffect, beam_rotation, select};
+    use super::{Caster, HandEffect, beam_rotation, body_effect_visible, select};
+
+    #[test]
+    fn local_body_blur_is_hidden_in_first_person_and_zoom() {
+        assert!(!body_effect_visible(true, false, 0));
+        assert!(!body_effect_visible(true, true, 1));
+        assert!(body_effect_visible(true, true, 0));
+        assert!(body_effect_visible(false, false, 0));
+        assert!(body_effect_visible(false, true, 1));
+    }
     use glam::Vec3;
     use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState, Snapshot};
 
