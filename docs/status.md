@@ -1,14 +1,3 @@
-## Siege winner on the SJK scoreboard
-
-17/10/2026, `claude/modest-johnson-3vkbmn`: Siege counts no team score, so the SJK
-scoreboard's header said nothing about who won. Implemented: the obituary tracker's
-entity scan keeps the last `EV_SIEGE_ROUNDOVER` (event 101, eight past `EV_OBITUARY`,
-checked against OpenJK's `entity_event_t`) and its winner; while `CS_SIEGE_STATE` is
-"3|time" the header shows "Red team won" or "Blue team won" in the team's colour, from
-the event of that moment, else `CS_SIEGE_WINTEAM`. See
-[SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
-yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
-
 ## Breakables used by name, delayed breaks, sabers on objectives
 
 17/10/2026, `claude/modest-johnson-3vkbmn`: on siege_korriban, after the crystals were

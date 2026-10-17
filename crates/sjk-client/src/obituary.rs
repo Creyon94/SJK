@@ -10,18 +10,6 @@ const CS_PLAYERS: usize = 1_131;
 
 /// `EV_OBITUARY` in `codemp/game/bg_public.h:927`.
 pub const EV_OBITUARY: u16 = 93;
-/// `EV_SIEGE_ROUNDOVER`, eight past `EV_OBITUARY` in `entity_event_t`: a siege round is
-/// won, by the team in its `eventParm` (`SiegeRoundComplete`, `g_saga.c`).
-pub const EV_SIEGE_ROUNDOVER: u16 = 101;
-
-/// The last siege round won that a snapshot carried.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SiegeRoundOver {
-    /// `SIEGETEAM_TEAM1` (1, red) or `SIEGETEAM_TEAM2` (2, blue).
-    pub winner: u8,
-    /// The snapshot's server time.
-    pub server_time: i32,
-}
 
 /// Gender used by the gendered self-kill strings in `CG_Obituary`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -112,7 +100,6 @@ pub struct ObituaryTracker {
     present: [bool; MAX_ENTITIES],
     feed: KillFeed,
     decoded: u64,
-    siege_round_over: Option<SiegeRoundOver>,
 }
 
 impl ObituaryTracker {
@@ -123,7 +110,6 @@ impl ObituaryTracker {
             present: [false; MAX_ENTITIES],
             feed: KillFeed::new(),
             decoded: 0,
-            siege_round_over: None,
         }
     }
 
@@ -141,15 +127,7 @@ impl ObituaryTracker {
                 continue;
             }
             self.signatures[index] = signature;
-            let event = event_number(entity, signature);
-            if event == EV_SIEGE_ROUNDOVER {
-                self.siege_round_over = Some(SiegeRoundOver {
-                    winner: entity.event_parameter(),
-                    server_time: snapshot.server_time,
-                });
-                continue;
-            }
-            if event != EV_OBITUARY {
+            if event_number(entity, signature) != EV_OBITUARY {
                 continue;
             }
             let gender = client_gender(game, entity.other_entity_num());
@@ -178,12 +156,6 @@ impl ObituaryTracker {
     /// Total obituary events decoded by this tracker.
     pub const fn decoded(&self) -> u64 {
         self.decoded
-    }
-
-    /// The last siege round won that this tracker saw (`EV_SIEGE_ROUNDOVER`), the same
-    /// entity scan the obituaries take.
-    pub const fn siege_round_over(&self) -> Option<SiegeRoundOver> {
-        self.siege_round_over
     }
 }
 
@@ -364,39 +336,6 @@ mod tests {
         entity.set_raw_field(39, u32::from(client));
         entity.set_raw_field(42, u32::from(means));
         entity
-    }
-
-    #[test]
-    fn a_siege_round_won_is_kept_once_with_its_winner() {
-        let mut won = EntityState::zero(300, &LEGACY_ENTITY_FIELDS);
-        won.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_SIEGE_ROUNDOVER));
-        won.set_raw_field(42, 2);
-        let snapshot = |server_time| sjk_protocol::Snapshot {
-            message_sequence: 0,
-            reliable_acknowledge: 0,
-            server_commands: Vec::new(),
-            server_time,
-            delta_from: None,
-            flags: 0,
-            area_mask: Vec::new(),
-            player: sjk_protocol::PlayerState::zero(),
-            vehicle_player: None,
-            entities: vec![won.clone()],
-            consumed_bits: 0,
-        };
-        let (mut tracker, game) = (ObituaryTracker::new(), GameState::empty_local(1));
-        assert_eq!(tracker.siege_round_over(), None);
-        tracker.observe(&snapshot(5_000), &game);
-        // The same event entity in the next snapshot is not a second round.
-        tracker.observe(&snapshot(5_050), &game);
-        assert_eq!(
-            tracker.siege_round_over(),
-            Some(SiegeRoundOver {
-                winner: 2,
-                server_time: 5_000
-            })
-        );
-        assert_eq!(tracker.decoded(), 0);
     }
 
     #[test]
