@@ -82,6 +82,7 @@ fn twelve() -> Vec<Prize> {
             finish: &crate::cards::FINISHES[finish],
             edition: "Alpha Edition".to_owned(),
             credits: 10 + holocron % 30,
+            shards: 1 + holocron % 4,
             card: None,
         })
     };
@@ -200,6 +201,60 @@ fn duel6_sjk_economy_shots() {
             "{}",
             sheet(&moments, 3, 640, "duel6-economy-moments").display()
         );
+    });
+}
+
+/// A card as a pack (17/10/2026): a sealed Rare card with its credits and shards in
+/// tiles beside it, coming in, counted and with its words; then a card with a face, and
+/// the pack in a 4:3 window.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_card_pack() {
+    on_big_stack(|| {
+        let pack = |card: Option<String>| {
+            Prize::Card(Shown {
+                holocron: 21,
+                tier: 1,
+                rarity: &crate::cards::RARITIES[1],
+                finish: &crate::cards::FINISHES[1],
+                edition: "Alpha Edition".to_owned(),
+                credits: 42,
+                shards: 4,
+                card,
+            })
+        };
+        // Sol's first card, as the card shots show it (from the hub's packs).
+        let face = Some("sol_lore_001".to_owned());
+        let mut moments = Vec::new();
+        for (size, name) in [([1920, 1080], ""), ([1440, 1080], "-4x3")] {
+            let Some(mut gpu) = open_holocrons(size, holdings(3_600)) else {
+                return;
+            };
+            let mut keep = |gpu: &mut GpuState, frames: u32, name: &str| {
+                let path = shoot(gpu, frames, &format!("duel6-card-pack-{name}"));
+                assert!(!overflowed(gpu), "{name}");
+                println!("{}", path.display());
+                moments.push(image::open(path).expect("the shot").to_rgba8());
+            };
+            let moments_here: &[(f32, &str, bool)] = if name.is_empty() {
+                &[
+                    (1.15, "sliding", false),
+                    (1.6, "counting", false),
+                    (3.0, "words", false),
+                    (3.0, "face", true),
+                ]
+            } else {
+                &[(3.0, "words", false)]
+            };
+            for &(elapsed, moment, with_face) in moments_here {
+                let card = if with_face { face.clone() } else { None };
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_opening(Some(vec![pack(card)]), elapsed, 3.1);
+                }
+                keep(&mut gpu, 40, &format!("{moment}{name}"));
+            }
+        }
+        println!("{}", sheet(&moments, 3, 640, "duel6-card-pack").display());
     });
 }
 

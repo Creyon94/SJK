@@ -921,6 +921,31 @@ mod tests {
         }
     }
 
+    /// A card with shards beside its credits is a pack (17/10/2026): still the card, its
+    /// shards kept for the tiles; shards without a card are a pile.
+    #[test]
+    fn a_card_with_shards_is_a_pack_and_shards_alone_a_pile() {
+        let pack = sjk_identity::Opened {
+            shards: 4,
+            ..opened("rare", "normal")
+        };
+        let Some(opening::Prize::Card(shown)) = opening::Prize::of(&pack) else {
+            panic!("a card prize");
+        };
+        assert_eq!((shown.credits, shown.shards), (42, 4));
+        let plain = opening::Prize::of(&opened("rare", "normal"));
+        assert!(matches!(plain, Some(opening::Prize::Card(shown)) if shown.shards == 0));
+        let pile = sjk_identity::Opened {
+            card: None,
+            credits: 0,
+            ..pack
+        };
+        assert!(matches!(
+            opening::Prize::of(&pile),
+            Some(opening::Prize::Shards(pile)) if pile.shards == 4
+        ));
+    }
+
     /// A shader newer than this client is still a prize: shown by the hub's name, ending
     /// the spin on the "new shader" tile; a known one keeps its catalogue entry.
     #[test]

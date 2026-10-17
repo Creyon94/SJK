@@ -510,6 +510,10 @@ pub struct LootTier {
     /// The shards a pile holds: the least and the most.
     #[serde(default)]
     pub shards: [u64; 2],
+    /// The shards a card brings beside its credits, the card pack: the least and the most
+    /// (17/10/2026; none from hubs before).
+    #[serde(default)]
+    pub card_shards: [u64; 2],
 }
 
 /// A holocron dropping for a key, as the feed relays it (`PROTOCOL.md`, "The feed").

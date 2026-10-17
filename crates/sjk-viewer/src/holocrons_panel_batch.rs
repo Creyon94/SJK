@@ -324,7 +324,8 @@ impl Panel {
             .iter()
             .map(|prize| match prize {
                 Prize::Shards(pile) => pile.shards,
-                Prize::Card(_) | Prize::Shader(_) => 0,
+                Prize::Card(card) => card.shards,
+                Prize::Shader(_) => 0,
             })
             .sum();
         // Side by side when both came.
@@ -446,7 +447,19 @@ impl Panel {
                     found_note(
                         self,
                         frame,
-                        format_args!("+{} credits", card.credits),
+                        format_args!(
+                            "+{} credits{}",
+                            card.credits,
+                            if card.shards > 0 {
+                                format!(
+                                    ", +{} shard{}",
+                                    crate::economy::shards_text(card.shards),
+                                    if card.shards == 1 { "" } else { "s" }
+                                )
+                            } else {
+                                String::new()
+                            }
+                        ),
                         [x, words_y + 22.0],
                     );
                 }

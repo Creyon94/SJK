@@ -111,7 +111,22 @@ odds stay): any whole number in the range, equally likely.
 
 The piles are a consolation: about once a day of capped play, a pile is about one
 duplicate of the holocron's own level shattered, a Mythical holocron's as much as a
-Mythical shader's shattering. Provisional, the hub's `src/loot.rs`. The client shows the ranges
+Mythical shader's shattering.
+
+**The card pack** (Sol's request, 17/10/2026, prepared on hub branch `feat/card-pack`, not
+deployed): a card is the most common and least wanted prize, so it comes as a pack, a few
+kyber shards beside its credits (about a fifth of the tier's pile), rolled after the card,
+any whole number in the range, only while the economy is on:
+
+| Holocron | Shards with a card | On average a holocron |
+| --- | --- | --- |
+| Uncommon | 1 to 3 | 1.2 |
+| Rare | 2 to 5 | 1.75 |
+| Legendary | 5 to 10 | 3.4 |
+| Mythical | 20 to 40 | 12 |
+
+The hub sends the range as the loot tables' `card_shards`; the opening answer's `shards`
+then rides with the `card` (a pile has no card). Provisional, the hub's `src/loot.rs`. The client shows the ranges
 ([cards.rs](../crates/sjk-viewer/src/cards.rs) `CREDITS`, the hub's copy, tested);
 the hub decides. Rolls use the operating system's entropy, as drops do.
 
@@ -128,7 +143,7 @@ operator with `give-credits`. The client has no staff control for it yet.
 `personal/economy`; Sol's decisions of 17/10/2026, after his direction of 12/10/2026 for a
 shop that fixes bad luck). Every number here is provisional, in one table each at the hub
 (`src/economy.rs`, `src/loot.rs`), sent to clients with the progress (`economy` and the
-loot tables' `shard_pile` and `shards`), the client keeping a copy for before
+loot tables' `shard_pile`, `shards` and `card_shards`), the client keeping a copy for before
 (`economy::BUILT_IN`, `loot_odds::BUILT_IN`, pinned by tests).
 
 - **The trade.** Only saber shaders holocrons drop take part, less any a medal brings
@@ -346,11 +361,14 @@ how its art was made; the footer reads "Art: <artist>".
     three crystals growing in in a kyber glow and the shards counting up beside the shard
     mark, then "37 kyber shards", "From a Legendary Holocron", what shards craft and how many
     the player holds now. Among many opened, the finds show it ("37 kyber shards", "For
-    crafting"), the shards counted beside the credits at the top. A client from before the
+    crafting"), the shards counted beside the credits at the top, a pack's shards with them
+    (a card's note "+24 credits, +3 shards"). A client from before the
     piles skips such an opening (nothing it knows: an opening of piles alone says "Nothing
     this client knows came out."); the profile carries the shards either way.
   - **The entrance:** the burst in its tier's light (rings, turning rays, the gem
-    flaring away), the card turning in, the credits counting up beside the mark, and
+    flaring away), the card turning in, the credits counting up beside the mark (a card
+    pack, 17/10/2026: two tiles slide out from beside the card instead, its credits on
+    the left, its kyber shards on the right, each with its mark, counting up), and
     its words: "Rare card, Holo", "Alpha Edition. From a Rare Holocron", what the finish
     is, that it is sealed, "1 of 3", Next or Done. A shader instead of a card shows its
     blade framed in its tier's colour, its name, "Common saber shader. From a Rare
@@ -395,7 +413,7 @@ how its art was made; the footer reads "Art: <artist>".
   counts now hold only the unopened ones.
 - `debug_open <tier|all> [x<count>] [normal|holo|solar|shader|shards]` plays the ceremony
   with made-up cards (or shaders, or piles of kyber shards) on the Holocrons tab; nothing is
-  sent or kept. A rarity the packs have
+  sent or kept. A card comes as a pack, with made-up shards from the tier's card shards. A rarity the packs have
   faces of shows one of them, as the hub would pick.
 
 ## Planned, not built
@@ -459,7 +477,8 @@ countdown and room in four windows). World shots `duel6_sjk_economy_shots` and
 were looked at: the tab with both balances and Shop, the loot table's shards column, the
 shop with a Confirm, while reading and after a purchase, in 4:3, 21:9 and 4K, a pile at
 rest on the strip, coming in and its words, twelve opened with three piles at rest and laid
-out, the Cards tab's balances. Not tried: against a running hub, in a running client, a
+out, the Cards tab's balances; `duel6_sjk_card_pack`: a sealed Rare pack sliding out,
+counting and with its words, one with a face, and the pack in 4:3. Not tried: against a running hub, in a running client, a
 purchase's or a turned day's flow live.
 
 The crate opening (17/10/2026, Windows 11): unit tests for the 3D holocron's motion
