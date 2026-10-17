@@ -49,6 +49,19 @@ impl crate::GpuState {
                 chance.to_string().into(),
             ]);
         }
+        // So is its `g_forceRegenTime`, the Force refill pace.
+        if let Some(regen) = self
+            .console
+            .as_ref()
+            .and_then(|console| console.integer_cvar(local_server::FORCE_REGEN_CVAR))
+            .filter(|regen| *regen > 0)
+        {
+            arguments.extend([
+                "--set".into(),
+                local_server::FORCE_REGEN_CVAR.into(),
+                regen.to_string().into(),
+            ]);
+        }
         crate::log::progress(format_args!(
             "local server: {} {}",
             program.display(),

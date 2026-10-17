@@ -65,7 +65,10 @@ Put `sjk` (`sjk.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep
 `sjk-server` (`sjk-server.exe` on Windows) beside the client for Create game
-and local `devmap`.
+and local `devmap`. The server is its own process, so the client's console does not
+reach it once it runs; the console's `g_dismember` and `g_forceRegenTime` (the
+milliseconds a point of Force takes to come back, 200 by default as in the
+reference; servers often run 30 to 50) are handed to it at launch.
 
 From that folder:
 

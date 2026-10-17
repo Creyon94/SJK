@@ -23,6 +23,9 @@ const SERVER_BINARY: &str = "sjk-server";
 pub(crate) const SERVER_BINARY_ENV: &str = "JKA_DEDICATED";
 /// Environment variable naming the server log file explicitly.
 pub(crate) const SERVER_LOG_ENV: &str = "SJK_SERVER_LOG";
+/// `g_forceRegenTime`, the milliseconds a point of Force takes to come back in
+/// games this client hosts.
+pub(crate) const FORCE_REGEN_CVAR: &str = "g_forceRegenTime";
 /// File name of the server log beside the client's own log.
 const SERVER_LOG: &str = "last-server.log";
 /// Ports a LAN-visible server tries first: the stock game port and the nine

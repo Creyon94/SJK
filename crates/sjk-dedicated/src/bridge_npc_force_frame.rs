@@ -26,8 +26,6 @@ use sjk_game_jka::npc_roster::{Fired, NpcRoster};
 use sjk_game_jka::player_death::Rng;
 use sjk_game_jka::pmove::{MovementCollision, MovementTrace};
 
-/// `g_forceRegenTime`'s default: a point of Force every 200 ms.
-const FORCE_REGEN_TIME: i32 = 200;
 /// `CONTENTS_BODY`.
 const CONTENTS_BODY: u32 = 0x100;
 /// `PERS_HITS`, `PERS_ATTACKEE_ARMOR`.
@@ -81,6 +79,8 @@ impl NativeGame {
             self.limits.duel_fraglimit,
             self.gametype,
         );
+        // `g_forceRegenTime`: the milliseconds a point of Force takes to come back.
+        let regen_time = self.cvars.integer(b"g_forceRegenTime");
         // The Jedi Master's rule for the user's blows on an NPC, which is never the master.
         let spared_by_master = self.jedi_master_spares(Some(client as u16), usize::MAX);
         let mut scratch = std::mem::take(&mut self.force_scratch);
@@ -99,6 +99,7 @@ impl NativeGame {
                 duel_fraglimit,
                 gametype,
                 spared_by_master,
+                regen_time,
             ),
             run,
         );
@@ -170,12 +171,13 @@ fn run_frame<T>(
     scratch: &mut ForceScratch,
     client: usize,
     server_time: i32,
-    (since_last_frame, saber_only, duel_fraglimit, gametype, spared_by_master): (
+    (since_last_frame, saber_only, duel_fraglimit, gametype, spared_by_master, regen_time): (
         i32,
         bool,
         i32,
         i32,
         bool,
+        i32,
     ),
     run: impl FnOnce(&mut PlayerState, &mut ForcePowers, &mut ForceFrame) -> T,
 ) -> Option<(T,)> {
@@ -215,11 +217,7 @@ fn run_frame<T>(
     let lone_regen = (gametype == super::super::GAMETYPE_POWERDUEL
         && peer.session.duel_team == sjk_game_jka::power_duel::DUELTEAM_LONE)
         .then(|| {
-            sjk_game_jka::power_duel::lone_regen_time(
-                FORCE_REGEN_TIME,
-                peer.session.wins,
-                duel_fraglimit,
-            )
+            sjk_game_jka::power_duel::lone_regen_time(regen_time, peer.session.wins, duel_fraglimit)
         });
     touched.clear();
     let mut others = ServerOthers {
@@ -236,7 +234,7 @@ fn run_frame<T>(
     let mut frame = ForceFrame {
         level_time: server_time,
         gametype,
-        regen_time: FORCE_REGEN_TIME,
+        regen_time,
         since_last_frame,
         client: client as u16,
         npc: false,

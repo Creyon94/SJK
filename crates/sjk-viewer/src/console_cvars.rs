@@ -722,6 +722,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Chance (0-100) that games you host cut off limbs",
         ),
+        // The reference's `g_forceRegenTime` default (`g_xcvar.h`).
+        CvarDefinition::new(
+            crate::connection::local_server::FORCE_REGEN_CVAR,
+            200_i64,
+            archive,
+            "Milliseconds a point of Force takes to come back in games you host",
+        ),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
         CvarDefinition::new(
             "cg_debugMissiles",
