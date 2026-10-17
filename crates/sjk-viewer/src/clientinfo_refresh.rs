@@ -195,6 +195,7 @@ impl GpuState {
             .position(|mesh| !mesh.corpse_pool && mesh.entity_id == Some(entity_id));
         if let Some(index) = index {
             self.actor_meshes[index].saber_names = saber_names.clone();
+            self.actor_meshes[index].holsters.invalidate();
             // `c1`/`c2` may name another hat or cape (JoF EJK).
             self.actor_meshes[index].cosmetics.invalidate();
             if self.actor_meshes[index].appearance == appearance {
@@ -394,7 +395,8 @@ impl GpuState {
         // The catalog appended one object mesh; give it a group slot even if
         // the upload fails, so `mesh_index` stays valid (an empty draw list
         // is an invisible hilt, not a crash).
-        self.object_groups.push(Vec::with_capacity(32));
+        self.object_groups
+            .push(crate::saber_hilts::instance_group());
         let materials = &scene.materials;
         let uploaded = self
             .world_materials

@@ -590,6 +590,28 @@ flag selection, the reference pose ordinal, capability overrides, hit/sound
 cadence, stop/restart and rewind handling, and upper-body blending at integer
 8/7/4/3 ms steps. These synthetic checks do not establish live visual or audio
 parity, or release-build frame-time performance.
+## Holstered saber hilts
+
+16/10/2026, `feat/holstered-saber-hilts`, based on `7026c735`: implemented
+JoF EJK #42/#81/#95/#267/#300's holstered hilt family with shared native meshes,
+independent hip attachments, conditional staff back placement, frame-latched
+handoff and registered hilt/skin sound synchronization. Both settings styles
+expose the controls. Auto support detects the named JA+ contract; the existing
+`cp_pluginDisable 1536` default is preserved. See
+[client](client.md#holstered-saber-hilts) and
+[rendering](rendering.md#holstered-saber-hilts).
+
+Windows x86_64, Rust 1.99.0: workspace fmt/build/test/clippy checks passed.
+Fourteen focused tests cover crowded dual-hilt capacity, cached bolt lookup, missing attachments, placement
+axes, visibility, archived settings, registered sound layers, bounded ignition
+fallback and forward/reverse handoff at 8/7/4/3 ms steps. Source comparison used
+EJK `codemp/cgame/cg_players.c` at `f21eee8`, plus the family's safety/lifecycle
+patches. A release CPU measurement on Ryzen 7 5800X3D averaged about 11 us per
+64-actor frame over 20,000 synthetic frames for attachment placement alone;
+this excludes pose evaluation, visibility/audio work, submission and GPU cost.
+No installed game/JA+ assets, GPU scene comparison, audible timing check or
+populated-server/cache-lifetime stress was exercised. The measurement and
+tests do not establish gameplay parity or 500+ FPS performance.
 
 ## Emotes on stock models: limbs out of wider bodies
 

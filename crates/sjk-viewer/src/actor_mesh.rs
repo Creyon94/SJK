@@ -16,6 +16,7 @@ pub(crate) struct ActorMesh {
     pub(crate) vertex_ranges: Vec<PreviewVertexRange>,
     pub(crate) current_frames: (usize, usize),
     pub(crate) weapon_attachments: [Option<saber::Attachment>; 2],
+    pub(crate) holsters: crate::holstered_sabers::pose::Worn,
     /// A vehicle's driver bolt in this frame's pose, model space.
     pub(crate) driver_seat: Option<[f32; 3]>,
     pub(crate) saber_names: [Option<String>; 2],

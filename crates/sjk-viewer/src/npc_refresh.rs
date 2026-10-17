@@ -48,7 +48,10 @@ impl GpuState {
             return;
         };
         match work {
-            Work::Rename(index, names) => self.actor_meshes[index].saber_names = names,
+            Work::Rename(index, names) => {
+                self.actor_meshes[index].saber_names = names;
+                self.actor_meshes[index].holsters.invalidate();
+            }
             Work::Build(entity_id, appearance, names) => {
                 if let Err(error) = self.build_npc_actor(entity_id, &appearance, names) {
                     self.clientinfo_watch.failed.insert(appearance.clone());

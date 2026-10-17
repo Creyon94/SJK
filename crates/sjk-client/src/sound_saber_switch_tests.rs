@@ -288,6 +288,38 @@ fn general_sound(number: u16, slot: u8, origin: [f32; 3]) -> EntityState {
 use LegacySoundEvent::{SaberSwitchOff as Off, SaberSwitchOn as On, SaberUnholster};
 
 #[test]
+fn handles_include_registered_hilt_and_skin_layers() {
+    let mut fixture = Fixture::new();
+    let plain = fixture.adapter.saber_switch_handles(STAFF);
+    assert!(plain[0][1].is_some()); // Retail's removed second slot retains its ignition.
+    assert!(plain[1][1].is_none()); // It has no model to retract.
+    assert!(
+        plain
+            .into_iter()
+            .all(|pair| pair[0].is_some() && pair[2].is_none())
+    );
+    fixture.wear(&[STAFF]);
+    let skin = fixture.adapter.saber_switch_handles(STAFF);
+    assert!(
+        skin.into_iter()
+            .all(|pair| pair[0].is_some() && pair[2].is_some())
+    );
+    assert_eq!(plain.map(|pair| pair[0]), skin.map(|pair| pair[0]));
+    for (pair, path) in skin.into_iter().zip([SKIN.on, SKIN.off]) {
+        assert_eq!(
+            pair[2],
+            fixture
+                .adapter
+                .sounds()
+                .iter()
+                .find(|sound| &*sound.path == path)
+                .unwrap()
+                .handle
+        );
+    }
+}
+
+#[test]
 fn hilts_resolve_like_cg_new_client_info() {
     let fixture = Fixture::new();
     let hands = |client| {

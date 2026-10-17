@@ -2334,9 +2334,14 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   highlighted in your rank's colour (1st blue, 2nd red, 3rd yellow, else grey) and
   is added at the bottom if the list does not reach it. Flag carriers show the
   flag icon before their row; at intermission, ready players are marked `READY`.
-- Rows are 25 units of the 480-line screen, 15 units once more than 12 players
-  are listed (always with `cg_smallScoreboard` and in CTF), and 12 units with the
-  header moved up above 20 clients. `cg_drawScoreboardIcons` (on by default) shows
+- Rows are 25 units of the 480-line screen, 15 units once more than 12 scores
+  arrive (always with `cg_smallScoreboard` and in CTF), and 12 units in that small
+  format above 20 connected clients. The connected roster controls the raised
+  header independently of received scores. Normal small lists have a 19-row
+  budget; crowded lists have 32. Section spacing, empty sections, losing-team
+  reservations and the appended local row follow the pinned JoF reference,
+  rather than an additional screen-bottom clip. `cg_drawScoreboardIcons`
+  (on by default) shows
   each player's head icon (`models/players/<model>/icon_<skin>`), decoded when a
   model changes, two per frame at most.
 - Positions follow the 640x480 screen fitted to the window height, spreading up
@@ -2347,25 +2352,30 @@ The classic board's interaction follows
 [JoF EJK revision bd5e202d](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_scoreboard.c)
 (`CG_DrawOldScoreboard`) and its
 [chat/HUD rules](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_draw.c).
-It opens instantly when held and at intermission. Releasing the key retains the
-board for a 200 ms fade; intermission keeps it open. SJK deliberately keeps the
-chosen policy of no automatic board on death. Warmup suppresses a released board;
-holding the key and intermission still work. Menus, console, pause and
+It opens instantly when held, on death and at intermission. Releasing the key or
+respawning retains the board for a 200 ms fade if neither death nor intermission
+keeps it open. Warmup suppresses the board unless the score key is held, matching
+JoF's warmup gate. Menus, console, pause and
 `cg_drawScores 0` suppress it.
 Rows change places instantly. The SJK style keeps its animated opening and rows.
 
 Classic moves chat to virtual x=8, bottom y=475 on the 640x480 screen, retaining
 the configured font, width, lines and message expiry. Above 25 connected players,
 holding scores hides the chat feed; release restores it, even when the automatic
-intermission board remains open. That automatic crowded board limits the
-list to 24 rows, adds a missed playing client's own row and a **HOLD TAB TO VIEW
-FULL SCOREBOARD** hint. Holding the key shows the full list. Center prints stay
+death or intermission board remains open. That automatic crowded board limits the
+list to 24 rows and adds a **HOLD TAB TO VIEW FULL SCOREBOARD** hint. Its local-row
+append follows the reference too: a missed playing client is appended except
+on the blue team. Holding the key shows the full list. Center prints stay
 hidden through the scoreboard fade. SJK's chat composer stays inside the window
 and can still be used independently of the feed.
 
-SJK deliberately keeps hiding the whole HUD while scores are held, in both
-styles, rather than JoF's selective HUD visibility. Intermission also hides
-the gameplay HUD. Team rows reserve space for the losing side, with connecting
+Classic follows JoF's selective HUD visibility: holding scores or dying hides
+the playing client's status, weapon/Force/inventory selection and crosshair;
+votes, telemetry and independent power indicators remain visible. Spectators
+retain their crosshair while holding scores. Intermission hides the gameplay
+HUD. The SJK scoreboard keeps its whole-HUD suppression while held and its
+held/intermission-only opening policy. Team rows reserve space for the losing
+side, with connecting
 clients listed after scored clients. An intermission duel winner takes precedence
 over the next duel's participants and the killer/player-count header.
 
@@ -3552,6 +3562,54 @@ game or a film; the effect and its shader are written by hand
 ([assets/order66](../crates/sjk-viewer/assets/order66/README.md)). They are bundled and
 mounted below all game data. See [order66.rs](../crates/sjk-viewer/src/order66.rs) and
 `GpuState::blow_apart` in [dismember.rs](../crates/sjk-viewer/src/dismember.rs).
+
+## Holstered saber hilts
+
+Settings > Game offers **Holstered saber hilts**, **Holster server support**,
+**Staff handoff point** and **Staff handoff sounds** in both SJK and classic
+menus. `cg_drawHolsteredSaber` defaults on. Support (`cg_holsteredSaberSupport`)
+defaults to `1`, automatic JA+ detection; `0` disables support and `2` forces
+the documented JA+ ownership/plugin contract for a compatible server. Forcing
+it on an unrelated server can misinterpret that server's ownership flags.
+
+Stowed single hilts sit at the right hip; dual hilts use both hips. A single
+staff goes across the back when JA+ plugin 9 is enabled, with a hip fallback
+for models without a back tag. `cp_pluginDisable` is a disable mask: bit 9
+(`512`) disables the staff back reach, and bit 13 (`8192`) disables holstered
+hilts altogether. SJK preserves its existing default mask `1536`, so the
+default staff placement remains at the hip. This feature does not enable
+JA+ animation plugins or install their animation assets.
+
+With plugin 9 enabled and usable JA+ reach animations installed, the staff
+changes between back and hand at fraction `cg_holsteredStaffSwap` (default
+`0.45`) of the actual torso frame range. It changes once per playing, including
+the reverse put-away. Blades stay off before the drawing hand reaches the
+hilt and retract during put-away. `cg_holsteredStaffSound` (default on) aligns
+the registered hilt and blade-skin ignition/shutdown sounds with that reach;
+missing or interrupted reaches have a bounded ignition fallback. Without the
+reach clip, the normal weapon change controls the attachment.
+
+Holsters are hidden on dead, disintegrating, mounted, mind-tricked or undrawn
+players and on a first-person player's own/followed body. A cloaked player's
+hilts require the viewer's Force Sight; your own cloaked hilts stay hidden.
+A thrown primary hilt is never duplicated on the belt. Missing attachment
+points affect their own hilt independently. The reference's Jedi NPC class
+list is supported too.
+
+Console placement overrides are archived, case-insensitive three-number
+vectors, with finite values bounded to +/-3600; invalid vectors use defaults:
+
+| Cvar | Default | Meaning |
+| --- | --- | --- |
+| `cg_holsteredSaberPos` | `0 3.5 0` | Hip offset: bolt right, forward, up; opposite side for the second hilt |
+| `cg_holsteredSaberAng1` | `0 0 270` | Primary hip pitch, yaw, roll |
+| `cg_holsteredSaberAng2` | `0 0 270` | Secondary hip pitch, yaw, roll |
+| `cg_holsteredStaffPos` | `0 0 0` | Back offset: bolt forward, right, up |
+| `cg_holsteredStaffAng` | `0 0 150` | Back pitch, yaw, roll |
+
+These are client presentation options; they change no gameplay, wire format
+or animation timing. See [rendering](rendering.md#holstered-saber-hilts) for
+attachment ownership and [status](status.md#holstered-saber-hilts) for limits.
 
 ## Blade skins
 

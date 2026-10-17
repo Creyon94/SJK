@@ -30,6 +30,9 @@ mod grapple_rope;
 #[path = "jetpack_submission.rs"]
 mod jetpack_submission;
 
+#[path = "holstered_saber_submission.rs"]
+mod holster_submission;
+
 #[path = "player_sphere_submission.rs"]
 mod player_spheres;
 
@@ -79,6 +82,8 @@ struct Sinks<'a> {
     viewer_force_powers_active: u32,
     /// `cg_speedTrail`.
     speed_trail: bool,
+    holsters: crate::holstered_sabers::Policy,
+    holster_geometry: crate::holstered_sabers::pose::Geometry,
     /// `cg_cosmetics`: whose hats and capes are drawn.
     cosmetics: crate::cosmetics::Visibility,
     material_overrides: model_materials::Overrides,
@@ -282,6 +287,8 @@ pub(crate) fn submit(
             .or_else(|| snapshot.map(|snapshot| snapshot.player.force_powers_active()))
             .unwrap_or(0),
         speed_trail,
+        holsters: crate::holstered_sabers::Policy::read(gpu.console.as_ref(), game_state),
+        holster_geometry: crate::holstered_sabers::pose::Geometry::read(gpu.console.as_ref()),
         cosmetics,
         material_overrides: gpu.model_material_overrides,
         camera_position: gpu.camera_position,
@@ -330,6 +337,9 @@ pub(crate) fn submit(
             visual_now,
         );
     }
+    if let Some(audio) = sinks.game_audio.as_mut() {
+        audio.begin_holsters();
+    }
     for entity in active_world
         .entities()
         .filter(|entity| {
@@ -375,6 +385,9 @@ pub(crate) fn submit(
             instance.view_flags = sinks.entity_view_flags;
             sinks.object_groups[mesh].push(instance);
         }
+    }
+    if let Some(audio) = sinks.game_audio.as_mut() {
+        audio.end_holsters();
     }
     overlay_count
 }
@@ -541,6 +554,35 @@ fn submit_actor(
     if muted && !sinks.team_sabers {
         equipment = equipment.map(crate::muted_players::equipment);
     }
+    let holster = mesh.map_or_else(holster_submission::Plan::default, |index| {
+        holster_submission::submit(
+            sinks,
+            index,
+            entity,
+            *transform,
+            snapshot,
+            state,
+            equipment,
+            local,
+            draw_actor,
+            trick.hidden || trick.fading,
+        )
+    });
+    if holster.blades_in {
+        equipment = equipment.map(|mut held| {
+            held.active = false;
+            held.secondary_active = false;
+            held
+        });
+    }
+    if holster.on_back {
+        // Do not retain a lit blade or trail while its hilt moves onto the back.
+        for blade in 0..8 {
+            if let Some(state) = sinks.saber_states.blade_mut(entity.id.get(), 0, blade) {
+                state.stow(presentation_time);
+            }
+        }
+    }
     // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
     if let Some((equipment, held_mesh)) = equipment
         .filter(|held| !trick.hidden || held.primary_in_flight)
@@ -554,6 +596,7 @@ fn submit_actor(
             *transform,
             draw_actor,
             local,
+            holster.on_back,
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
@@ -957,6 +1000,7 @@ fn submit_equipment(
     transform: sjk_runtime::Transform,
     draw_actor: bool,
     local: bool,
+    holstered_primary: bool,
     forced_alpha: Option<u8>,
     presentation_time: i64,
     visual_now: Instant,
@@ -970,6 +1014,9 @@ fn submit_equipment(
             .get(entity.id.get())
             .filter(|_| !sinks.team_sabers),
         std::array::from_fn(|hand| {
+            if hand == 0 && holstered_primary {
+                return None;
+            }
             let mesh = &sinks.actor_meshes[actor_mesh];
             mesh.saber_names[hand]
                 .as_deref()

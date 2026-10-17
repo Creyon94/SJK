@@ -1590,6 +1590,43 @@ moments, the Spectral's afterimages, the Runic spelling a name, the Banner outsi
 and in red and blue, the Chameleon in three places' light), rendered on one GPU and
 reviewed by eye; their cost not measured, not seen in a live match.
 
+## Holstered saber hilts
+
+The actor submission uses the same map-owned `HiltCatalog` meshes for held
+and holstered hilts. It creates no second Ghoul2/model instances. Actor-owned
+hip bone/back surface indices are resolved on model load, and visible holsters
+reuse the existing CPU/GPU pose matrices. Their fixed bolt cache follows rig
+retargeting and model scale. Missing left/right attachments are independent;
+a missing `*back` tag falls back to the right hip. Shared hilt object groups
+reserve two slots per legacy entity on initial/dynamic model load; frame
+submission keeps that capacity when adding holsters.
+
+[holstered_sabers.rs](../crates/sjk-viewer/src/holstered_sabers.rs) holds the
+named JA+ ownership/plugin contract and its player override.
+[holstered_saber_pose.rs](../crates/sjk-viewer/src/holstered_saber_pose.rs)
+implements the `rfemurX`/`lfemurX` hip bases and `*back` tag, with hip-tag
+fallbacks. [holstered_staff.rs](../crates/sjk-viewer/src/holstered_staff.rs)
+samples the installed torso override and latches each forward/reverse reach
+after crossing the handoff fraction. It does not synthesize an animation.
+Clientinfo changes invalidate the latch and give sound synchronization a new
+identity; model replacement and map teardown drop actor-owned state.
+
+[audio_holstered_staff.rs](../crates/sjk-viewer/src/audio_holstered_staff.rs)
+keeps bounded client slots with separate hilt and blade-skin sound layers,
+using the existing adapter's registered handles. Ignition waits for the
+reach (150 ms to appear, at most 2000 ms held). Shutdown at the put-away reach
+suppresses its late copy for 2000 ms. Client removal, replacement and map
+changes discard stale pending starts. Asset decoding remains outside these
+frame paths. The settings and visibility rules are in
+[client.md](client.md#holstered-saber-hilts).
+
+The reference is JoF EJK #42, #81, #95, #267 (`f21eee8`) and #300: its
+`codemp/cgame/cg_players.c` holster placement, visibility, frame latch and
+sound rules. The native cache ownership replaces its additional Ghoul2 slots.
+Mounted bodies are suppressed explicitly even though that reference's vehicle
+check was commented out. Source comparison and unit checks do not establish
+in-game visual, audible or populated-server performance parity.
+
 ## Saber trails
 
 A blade grows and shrinks as it is switched on and off after

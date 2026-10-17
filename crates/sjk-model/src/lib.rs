@@ -1142,6 +1142,23 @@ impl Glm {
         else {
             return Ok(None);
         };
+        self.surface_bolt_matrix_at(surface_index, lod, matrices)
+    }
+
+    /// Evaluate a bolt whose surface index was resolved when its model loaded.
+    /// Indices belong to this mesh; malformed or unavailable surfaces return an error.
+    pub fn surface_bolt_matrix_at(
+        &self,
+        surface_index: usize,
+        lod: usize,
+        matrices: &[[[f32; 4]; 3]],
+    ) -> Result<Option<[[f32; 4]; 3]>, ModelError> {
+        if matrices.len() != self.bone_count {
+            return Err(ModelError::invalid(
+                matrices.len(),
+                "pose matrix count differs from GLM bone count",
+            ));
+        }
         let source = self
             .lods
             .get(lod)

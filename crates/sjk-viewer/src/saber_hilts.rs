@@ -12,6 +12,11 @@ const DEFAULT_HILT_MODEL: &str = "models/weapons2/saber_1/saber_1.glm";
 const DEFAULT_BLADE_LENGTH: f32 = 40.0;
 const DEFAULT_BLADE_RADIUS: f32 = 3.0;
 
+/// Two hilts per presented legacy actor, reserved at load rather than on a frame.
+pub(crate) fn instance_group() -> Vec<crate::actor_instance::ActorInstance> {
+    Vec::with_capacity(2 * sjk_protocol::MAX_LEGACY_ENTITIES)
+}
+
 /// One numbered blade socket and its `.sab` presentation parameters.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct HiltBlade {
@@ -27,6 +32,7 @@ pub(crate) struct Hilt {
     pub(crate) mesh_index: usize,
     blades: [Option<HiltBlade>; 8],
     pub(crate) num_blades: u8,
+    pub(crate) is_staff: bool,
     /// Suppress scene lights for this hilt without suppressing its visible blade.
     pub(crate) no_dlight: bool,
     /// Authored contact-effect suppression.
@@ -53,6 +59,10 @@ pub(crate) struct HiltCatalog {
 }
 
 impl HiltCatalog {
+    /// Recognize shared hilt meshes by catalog ownership, never by asset path.
+    pub(crate) fn uses_mesh(&self, index: usize) -> bool {
+        self.model_cache.values().any(|(mesh, _)| *mesh == index)
+    }
     /// Animation-event overrides from the same catalog as the visible hilt.
     pub(crate) fn animation_sound(&self, name: &str, path: &str, variant: usize) -> Option<&str> {
         let definition = self.definitions.get(name)?;
@@ -164,6 +174,7 @@ fn default_definition() -> crate::saber_defs::Definition {
         sound_swing: [None, None, None],
         model: DEFAULT_HILT_MODEL.to_owned(),
         num_blades: 1,
+        is_staff: false,
         blade_lengths: [DEFAULT_BLADE_LENGTH; 8],
         blade_radii: [DEFAULT_BLADE_RADIUS; 8],
         blade_style2_start: 0,
@@ -192,6 +203,7 @@ fn append_hilt(
         mesh_index,
         blades: hilt_blades(definition, &sockets),
         num_blades: definition.num_blades,
+        is_staff: definition.is_staff,
         no_dlight: definition.no_dlight,
         no_wall_marks: definition.no_wall_marks,
     })
@@ -274,4 +286,26 @@ fn load_hilt_model(
     let cached = (mesh_index, sockets);
     model_cache.insert(definition.model.clone(), cached);
     Ok(cached)
+}
+
+#[cfg(test)]
+mod capacity_tests {
+    use super::*;
+
+    #[test]
+    fn dual_holstered_hilts_fit_every_actor_without_growing_the_group() {
+        let mut group = instance_group();
+        let storage = group.as_ptr();
+        for _ in 0..sjk_protocol::MAX_LEGACY_ENTITIES {
+            for _ in 0..2 {
+                assert!(group.len() < group.capacity());
+                group.push(crate::actor_instance::ActorInstance::new(
+                    [0.; 3],
+                    [0., 0., 0., 1.],
+                    [1.; 3],
+                ));
+            }
+        }
+        assert_eq!(group.as_ptr(), storage);
+    }
 }

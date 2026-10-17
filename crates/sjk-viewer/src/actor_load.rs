@@ -93,6 +93,7 @@ pub(crate) fn build_actor_mesh(
         appearance,
         angle_controller: actor_pose::angle_storage(&preview.animation),
         force_bones: actor_pose::ForceBones::new(&preview.animation),
+        holsters: crate::holstered_sabers::pose::Worn::new(&preview),
         preview,
         draws,
         vertex_ranges,

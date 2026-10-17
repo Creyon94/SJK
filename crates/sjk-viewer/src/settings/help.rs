@@ -533,6 +533,22 @@ const HELP: &[(&str, &str)] = &[
         "Red neck puffs on choking players. On by default; your own stay hidden in first person and while zoomed.",
     ),
     (
+        crate::holstered_sabers::CVAR,
+        "Show stowed hilts on the hips; a single staff goes on the back when JA+ plugin 9 is enabled. Hidden, dead and mounted players show none.",
+    ),
+    (
+        crate::holstered_sabers::SUPPORT_CVAR,
+        "0: off. 1: detect supported servers. 2: force the JA+ ownership and plugin-bit contract; use only when your server supports it.",
+    ),
+    (
+        crate::holstered_sabers::SWAP_CVAR,
+        "Where the hand takes the staff during a JA+ reach (default 0.45). Requires installed reach animations.",
+    ),
+    (
+        "cg_holsteredStaffSound",
+        "Delay staff ignition until the hand reaches its hilt, sound shutdown at the put-away reach, and suppress its late duplicate.",
+    ),
+    (
         "cg_auraShell",
         "The glowing shell Force Sight shows around other players.",
     ),

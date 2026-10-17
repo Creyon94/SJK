@@ -60,6 +60,9 @@ impl GameAudio {
         self.flame.override_value = console
             .and_then(|c| c.integer_cvar(crate::actor_world_submission::force_powers::flame::CVAR))
             .unwrap_or(-1);
+        self.holster_sync.enabled = console
+            .and_then(|c| c.bool_cvar("cg_holsteredstaffsound"))
+            .unwrap_or(true);
         self.transitions.hits = console
             .and_then(|c| c.integer_cvar("cg_hitsounds"))
             .unwrap_or(0);

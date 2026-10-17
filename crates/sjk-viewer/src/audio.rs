@@ -36,6 +36,8 @@ pub(crate) use controls::{EMOTE_CHANNEL, TOY_CHANNEL};
 mod dynamic;
 #[path = "audio_feedback.rs"]
 mod feedback;
+#[path = "audio_holstered_staff.rs"]
+mod holstered_staff;
 #[path = "audio_transitions.rs"]
 mod transitions;
 pub(crate) use assets::SoundPrefetch;
@@ -78,6 +80,7 @@ pub(crate) struct GameAudio {
     kill_sounds: i64,
     transitions: transitions::Transitions,
     jetpack_sounds: sjk_client::LegacyJetpackSounds,
+    holster_sync: holstered_staff::Sync,
     /// `SJK_TRACE_AUDIO=1`: when the next level line is due.
     trace_due: Option<Instant>,
     /// Players muted on this PC, whose sounds are not played (`audio_mute.rs`).
@@ -168,6 +171,7 @@ impl GameAudio {
             kill_sounds: 2,
             transitions: transitions::Transitions::default(),
             jetpack_sounds: sjk_client::LegacyJetpackSounds::default(),
+            holster_sync: holstered_staff::Sync::default(),
             trace_due: std::env::var_os("SJK_TRACE_AUDIO").map(|_| Instant::now()),
             mute: crate::audio_mute::AudioMute::default(),
         };
@@ -266,6 +270,7 @@ impl GameAudio {
             });
             adapter.set_local_health_pain(self.transitions.old_pain);
             adapter.observe_snapshot(snapshot);
+            self.holster_sync.observe(snapshot);
             self.mute.observe(&snapshot.entities);
             let footsteps = self.footsteps;
             for decision in adapter.decisions() {
@@ -275,6 +280,11 @@ impl GameAudio {
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
                     && !self.mute.silences(decision.request.source, decision.cause)
+                    && !self.holster_sync.intercept(
+                        handle,
+                        decision.request,
+                        i64::from(snapshot.server_time),
+                    )
                 {
                     self.output
                         .send(AudioCommand::Play(handle, decision.request));
@@ -376,9 +386,15 @@ impl GameAudio {
             LegacySaberView::from_movement_state,
         );
         adapter.observe_saber_switches(snapshot, view);
+        self.holster_sync.observe(snapshot);
         for decision in adapter.decisions() {
             if let Some(handle) = decision.handle
                 && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                && !self.holster_sync.intercept(
+                    handle,
+                    decision.request,
+                    i64::from(snapshot.server_time),
+                )
             {
                 self.output
                     .send(AudioCommand::Play(handle, decision.request));

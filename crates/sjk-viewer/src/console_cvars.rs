@@ -598,6 +598,60 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         // Stock default "1" (`codemp/cgame/cg_xcvar.h`).
         CvarDefinition::new(
+            crate::holstered_sabers::CVAR,
+            true,
+            archive,
+            "Show holstered saber hilts",
+        ),
+        CvarDefinition::new(
+            crate::holstered_sabers::SUPPORT_CVAR,
+            1_i64,
+            archive,
+            "Holster server contract: 0 off, 1 auto, 2 force JA+",
+        ),
+        CvarDefinition::new(
+            crate::holstered_sabers::SWAP_CVAR,
+            0.45_f64,
+            archive,
+            "Staff reach fraction where the hilt changes hands",
+        ),
+        CvarDefinition::new(
+            "cg_holsteredStaffSound",
+            true,
+            archive,
+            "Synchronize JA+ staff ignition and shutdown with its reach",
+        ),
+        CvarDefinition::new(
+            "cg_holsteredSaberPos",
+            "0 3.5 0",
+            archive,
+            "Hip hilt offset along bolt right, forward, up",
+        ),
+        CvarDefinition::new(
+            "cg_holsteredSaberAng1",
+            "0 0 270",
+            archive,
+            "Primary hip hilt pitch yaw roll",
+        ),
+        CvarDefinition::new(
+            "cg_holsteredSaberAng2",
+            "0 0 270",
+            archive,
+            "Secondary hip hilt pitch yaw roll",
+        ),
+        CvarDefinition::new(
+            "cg_holsteredStaffPos",
+            "0 0 0",
+            archive,
+            "Back hilt offset along bolt forward right up",
+        ),
+        CvarDefinition::new(
+            "cg_holsteredStaffAng",
+            "0 0 150",
+            archive,
+            "Back hilt pitch yaw roll",
+        ),
+        CvarDefinition::new(
             "cg_speedTrail",
             1_i64,
             archive,

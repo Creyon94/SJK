@@ -171,6 +171,7 @@ Seeing bars means sharing yours, a card that says who sees your model, and emote
 - The gold nameplate contour now also shows on players who share because they see everyone's bars (`cg_nameplateEstimate`), and on your own plate (`cg_nameplateSelf`) in that case _(Sol)_
 - The player card says whether the inspected SJK player sees the model you wear ("Sees your model" or "Can't see your model"): SJK tells the hub which player models you have, which `cl_shareModels` (Settings > Network > Share my model list) turns off _(Sol)_
 - Looping emotes loop their music, music made of an intro and a loop plays both, and emote pictures stand on a blue disc so they show on the quick wheel; the Blender add-on takes a Music loop per emote _(Sol)_
+- Holstered saber hilts on supported JA+ servers, with hip and staff back placement, cloak-safe visibility and animation-driven staff handoff; controls are available in both menu styles _(Lumaya, after JoF EJK)_
 
 ## 2026.1015.1 (Alpha) | 15/10/2026
 

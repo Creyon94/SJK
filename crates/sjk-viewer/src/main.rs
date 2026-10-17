@@ -188,6 +188,7 @@ mod emotes_frame;
 mod footprints;
 mod gi_voxels;
 mod holocrons_frame;
+mod holstered_sabers;
 mod identity_command;
 mod identity_frame;
 mod illuminate;
@@ -1274,7 +1275,7 @@ impl GpuState {
         let actor_groups = (0..actor_meshes.len())
             .map(|_| Vec::with_capacity(4))
             .collect();
-        let object_groups = object_meshes::instance_groups(&object_meshes);
+        let object_groups = object_meshes::instance_groups(&object_meshes, saber_hilts.as_ref());
         let mover_groups = movers::instance_groups(&mover_catalog.meshes);
         let effects = config_string_refresh::preload_effects(&vfs, &map_effects, &missile_effects);
         load_profile.mark("effect-graphs")?;
