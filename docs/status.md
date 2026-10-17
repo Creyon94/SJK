@@ -1,3 +1,17 @@
+## Blade skin sounds only
+
+18/10/2026, `feat/skin-sounds-replace-option`, based on `Sol-Vulpes/SJK` `1c8887f7`
+(Creyon's report of 17/10/2026: the skins' own sounds were drowned by the stock saber
+sounds, `s_show 1` showing both for each ignition and swing): implemented
+`s_saberSkinSoundsOnly` (Settings > Sound > Blade skin sounds only, off by default, so
+the 09/10/2026 layering stays the default). On, a worn skin's ignition, switching off,
+swings (events and animation cues) and hum play in place of the stock and hilt sounds.
+A thrown saber keeps its own hum under the skin's. See
+[client](client.md#blade-skins).
+
+Unit tests in `sjk-client` pin the replacement for ignition, swings and hum, for the
+wearer only; the existing layering tests pass unchanged. Not yet heard in the game.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`

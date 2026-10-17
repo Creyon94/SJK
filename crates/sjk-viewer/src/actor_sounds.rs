@@ -109,13 +109,20 @@ pub(crate) fn update(gpu: &mut GpuState, time: i64, audio: &mut Option<GameAudio
                             )
                         })
                         .unwrap_or(standard);
-                    audio.play_animation(path, *channel, false, origin, id, is_local);
                     // A blade skin's swing plays over the stock or the hilt's own, on a
-                    // channel of its own so that it does not cut it.
-                    if let Some(swing) =
-                        skin.and_then(|skin| skin_swing(&skins, skin, standard, variant))
-                    {
-                        audio.play_animation(swing, 0, false, origin, id, is_local);
+                    // channel of its own so that it does not cut it; with
+                    // `s_saberSkinSoundsOnly` it plays in their place.
+                    let swing = skin.and_then(|skin| skin_swing(&skins, skin, standard, variant));
+                    match swing {
+                        Some(swing) if audio.skin_sounds_only => {
+                            audio.play_animation(swing, *channel, false, origin, id, is_local);
+                        }
+                        _ => {
+                            audio.play_animation(path, *channel, false, origin, id, is_local);
+                            if let Some(swing) = swing {
+                                audio.play_animation(swing, 0, false, origin, id, is_local);
+                            }
+                        }
                     }
                 }
                 Cue::Footstep {

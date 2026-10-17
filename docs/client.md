@@ -3928,7 +3928,9 @@ unequipped and any is previewed on the player's own saber
 
 A skin brings its own sounds, heard for each player wearing it, over the stock ones,
 which keep playing (the skin's sound goes on a channel of its own, so that it does not
-cut the stock one): its ignition for
+cut the stock one), or, with `s_saberSkinSoundsOnly 1` (Settings > Sound > Blade skin
+sounds only, off by default), in their place, so a skin's own sounds are heard clearly
+(Creyon's request, 18/10/2026; a thrown saber still hums its own over the skin's): its ignition for
 `EV_SABER_UNHOLSTER`, its ignition or switching off once when the player draws the
 saber from another weapon or puts a lit one away
 ([saber ignition sounds](#saber-ignition-and-retraction-sounds)), and for a general sound that is a stock `saberon*`/`saberoff*`

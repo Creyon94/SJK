@@ -202,6 +202,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Blade skin sounds only",
+        cvar: crate::audio::SKIN_SOUNDS_ONLY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Jetpack ignition sound",
         cvar: crate::jetpack::ON_SOUND_CVAR,
         kind: ValueKind::Choice(&["1", "2"]),

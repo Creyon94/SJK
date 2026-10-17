@@ -51,6 +51,10 @@ pub(crate) const EMOTE_CHANNEL: ChannelId = ChannelId(13);
 /// game's channels, so a toy's sound never cuts a voice, a swing or an emote.
 pub(crate) const TOY_CHANNEL: ChannelId = ChannelId(14);
 
+/// Whether a blade skin's sounds replace the stock saber sounds (on) or play over them
+/// (off, the default): its ignition, switching off, swings and hum.
+pub(crate) const SKIN_SOUNDS_ONLY_CVAR: &str = "s_saberSkinSoundsOnly";
+
 /// Apply independent notification and footstep switches without muting combat.
 pub(super) fn allows_event(
     event: sjk_client::LegacySoundEvent,
@@ -143,6 +147,9 @@ impl GameAudio {
         self.footsteps = console
             .and_then(|console| console.bool_cvar("cg_footsteps"))
             .unwrap_or(true);
+        self.skin_sounds_only = console
+            .and_then(|console| console.bool_cvar(SKIN_SOUNDS_ONLY_CVAR))
+            .unwrap_or(false);
         self.output.send(AudioCommand::Doppler(
             console
                 .and_then(|console| console.bool_cvar("s_doppler"))

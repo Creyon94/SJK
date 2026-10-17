@@ -342,6 +342,10 @@ const HELP: &[(&str, &str)] = &[
         crate::chat::pm_only::CVAR,
         "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
     ),
+    (
+        crate::audio::SKIN_SOUNDS_ONLY_CVAR,
+        "A blade skin's own ignition, swings and hum play instead of the normal saber sounds. Off: they play over them.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,
