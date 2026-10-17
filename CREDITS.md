@@ -71,6 +71,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   runs to a stop, and Open all runs five strips at a time and lays out what was found;
   every saber shader drops from holocrons except the ones a medal brings (Sol's
   decision, 17/10/2026);
+- the Shaders tab's saber on its own, turned by a drag, and a card for each shader
+  with SJK Symbols icons and its drop chances (17/10/2026, Sol's request);
   grand finds (Legendary or Solar cards, Legendary or Mythical shaders) are told to every
   SJK player in chat;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,

@@ -631,6 +631,22 @@ test: Collection > Cards before opening any: 'No cards yet' and an empty outline
 test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
 note: The hub's opening is deployed (12/10/2026).
 
+[shader-cards]
+area: Menus & settings
+title: The Shaders tab: your saber on its own to turn, and a card for each shader
+change: No character: the saber floats over the right of the screen, rolling slowly.
+change: Drag it to turn it; let go, it keeps spinning, slows, and its tip swings back.
+change: Under it a card in the tier's colours: icons for source, smith, copies, edition.
+change: A locked shader a holocron can drop lists each holocron tier's chance to bring it.
+change: Behind the Holocrons tab (and its opening) the character no longer stands there.
+test: Collection > Shaders: the worn saber turns alone; drag across, then up and down.
+test: Choose a staff saber on Profile > Saber: the staff fills the same room as a single.
+test: Pick a locked Common shader: 'Where it drops' shows Uncommon to Mythical chips.
+test: Grid view (V), then back: the tier mark and state icons on each card.
+test: Leave Shaders for Toys: the character comes back holding the saber (no floating hilt).
+test: In a match, game menu > Collection > Shaders: the saber alone in the live preview.
+test: Holocrons tab and debug_open rare: only the holocron, no character behind it.
+
 [more-droppable]
 area: Menus & settings
 title: Every saber shader drops from holocrons, except the ones medals bring

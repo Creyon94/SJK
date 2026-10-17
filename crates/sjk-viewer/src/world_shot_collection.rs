@@ -188,6 +188,22 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 60, "duel6-collection-shaders-parts").display()
             );
             assert!(!overflowed(&gpu), "the parts");
+            // Turned by a drag: its tip swung towards the viewer and rolled.
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_saber_turn_for_shot(Some(
+                    crate::console::collection_panel::SaberTurn {
+                        yaw: -0.9,
+                        roll: 1.1,
+                    },
+                ));
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 20, "duel6-collection-shaders-turned").display()
+            );
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_saber_turn_for_shot(None);
+            }
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(crate::saber_skin_options::CVAR, "");
                 console.preview_collection(Some(vec![sun()]), 0.8);

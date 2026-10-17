@@ -6,6 +6,7 @@
 //! lightsaber creation's preview the hilts leave the hands for the
 //! [`showcase`](super::showcase).
 
+use super::lone;
 use super::showcase::{self, Line, View};
 use super::throw::{Pose, Throw};
 use super::*;
@@ -277,6 +278,7 @@ impl GpuState {
                 }),
             _ => self.saber_skins.local(),
         };
+        let frame_view = self.frame_view;
         let stage = &mut self.menu_stage;
         stage.preview.blades.clear();
         // The classic preview's blades are drawn into it, not into the world.
@@ -287,7 +289,7 @@ impl GpuState {
         };
         // Lightsaber creation lays the sabers out on their own, turning, in
         // front of the preview camera (the model faces its yaw, as there).
-        let showcase = (preview && stage.showcase).then(|| {
+        let showcase = (preview && (stage.showcase || stage.lone.is_some())).then(|| {
             let facing =
                 actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
             View::new(
@@ -306,29 +308,52 @@ impl GpuState {
             .flatten()
             .filter(|saber| saber.line.is_some())
             .count();
+        // The Collection's Shaders tab lays them before the backdrop camera instead, as
+        // long as the longest of them asks.
+        let lone = stage
+            .lone
+            .filter(|_| !preview)
+            .zip(frame_view)
+            .map(|(turn, view)| {
+                let longest = stage
+                    .sabers
+                    .iter()
+                    .flatten()
+                    .filter_map(|saber| saber.line)
+                    .map(|line| line.span.length())
+                    .fold(0.0, f32::max);
+                (turn, lone::Place::new(&view, longest))
+            });
         let seconds = crate::menu::art::motion::seconds();
-        let roll = showcase::roll_degrees(seconds as f32);
+        // On the live preview the Shaders tab's turn takes the place of retail's roll.
+        let (roll, yaw) = match stage.lone {
+            Some(turn) => (turn.roll.to_degrees(), turn.yaw),
+            None => (showcase::roll_degrees(seconds as f32), 0.0),
+        };
         // A jumping preview's blades drawn in (none at all once they are off).
         let out = 1.0 - stage.blades_in.clamp(0.0, 1.0);
         for (hand, saber) in stage.sabers.iter().enumerate() {
             let Some(saber) = saber else {
                 continue;
             };
-            let pose = match (&showcase, actor.hands[hand]) {
-                (Some(view), _) => saber
+            let pose = match (&showcase, &lone, actor.hands[hand]) {
+                (Some(view), _, _) => saber
                     .line
-                    .map(|line| view.pose(&line, View::offset(hand, shown), roll)),
-                (None, Some(attachment)) => Some(match stage.flying[hand] {
+                    .map(|line| view.pose(&line, View::offset(hand, shown), roll, yaw)),
+                (None, Some((turn, place)), _) => saber
+                    .line
+                    .map(|line| place.pose(&line, View::offset(hand, shown), *turn)),
+                (None, None, Some(attachment)) => Some(match stage.flying[hand] {
                     Some(pose) => (pose.grip, pose.rotation),
                     None => saber::world_attachment(actor.origin, actor.rotation, attachment),
                 }),
-                (None, None) => None,
+                (None, None, None) => None,
             };
             let Some((grip, rotation)) = pose else {
                 continue;
             };
-            // The showcase turns every frame.
-            if stage.sabers_dirty || showcase.is_some() {
+            // The showcase and the lone saber turn every frame.
+            if stage.sabers_dirty || showcase.is_some() || lone.is_some() {
                 // In the hand (and on the showcase) the hilt shares the
                 // model's light sample; thrown, the grid is read where the
                 // hilt actually is.

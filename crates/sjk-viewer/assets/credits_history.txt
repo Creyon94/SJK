@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | The saber alone to turn, a card for each shader
+- 22be64d |  | Shaders tab: the saber alone, turned by a drag, and a card for each shader
 + 17/10/2026 | - | Every shader drops but the medal ones
 - bc3b75d |  | Proposal: seven team shaders drop from holocrons (Rare 3 to 6, Legendary 4 to 8)
 - 2a256a1 |  | Every shader but the medals' drops from holocrons (Mythical 7 to 11)

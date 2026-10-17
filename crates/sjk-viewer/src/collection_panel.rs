@@ -44,6 +44,8 @@ mod medals;
 mod nameplates;
 #[path = "collection_shaders.rs"]
 mod shaders;
+#[path = "collection_spin.rs"]
+mod spin;
 #[path = "collection_swatch.rs"]
 pub(crate) mod swatch;
 #[path = "collection_toys.rs"]
@@ -51,7 +53,8 @@ mod toys;
 #[path = "collection_view.rs"]
 mod view;
 
-pub(crate) use view::{MODEL_AREA, row_labels};
+pub(crate) use spin::SaberTurn;
+pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
 
 /// The things' tokens: the medals, the achievements, the shaders' rows, the shader's
 /// Equip or Unequip, the toy and its switch.
@@ -71,6 +74,8 @@ const TOY_SWITCH_TOKEN: u16 = 1_311;
 const BOX_TOKEN: u16 = 1_314;
 /// Order 66's niche on Toys.
 const ORDER_TOKEN: u16 = 1_315;
+/// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
+const SABER_TOKEN: u16 = 1_316;
 /// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
 const TOY_COUNT: usize = 3;
 /// Each toy's niche, in the order of [`Panel::toy`].
@@ -209,9 +214,11 @@ pub(crate) enum PreviewSkin {
 }
 
 /// What the page wants the stage to show.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct StageWish {
     pub(crate) skin: PreviewSkin,
+    /// The saber on its own, turned so, in place of the model holding it (Shaders).
+    pub(crate) saber: Option<SaberTurn>,
     /// The Illuminate holocron floats by the model, lit.
     pub(crate) holocron: bool,
 }
@@ -328,6 +335,10 @@ pub(crate) struct Panel {
     pointer: Option<[f32; 2]>,
     /// The card tilting towards the pointer on Cards.
     tilt: CardTilt,
+    /// The Shaders tab's lone saber's turn, and the window pixels to a frame pixel the
+    /// last frame was drawn at (a drag turns it by frame pixels).
+    spin: spin::Spin,
+    scale: f32,
     /// How much wider than the display family the page's text face is drawn.
     widen: f32,
     epoch: Instant,
@@ -386,6 +397,8 @@ impl Panel {
             hover: Default::default(),
             pointer: None,
             tilt: CardTilt::default(),
+            spin: spin::Spin::default(),
+            scale: 1.0,
             widen: 1.0,
             epoch: Instant::now(),
             skins: Default::default(),
@@ -480,14 +493,17 @@ impl Panel {
                         .skin_at(row)
                         .map_or(PreviewSkin::Worn, |skin| PreviewSkin::Skin(skin.id)),
                 },
+                saber: Some(self.spin.turn()),
                 holocron: false,
             }),
             Tab::Toys => Some(StageWish {
                 skin: PreviewSkin::Worn,
+                saber: None,
                 holocron: self.toy == 0,
             }),
             Tab::Nameplates => Some(StageWish {
                 skin: PreviewSkin::Worn,
+                saber: None,
                 holocron: false,
             }),
             _ => None,
@@ -788,6 +804,32 @@ impl Panel {
             InputEvent::PointerLeave => self.pointer = None,
             InputEvent::Action(_) => {}
         }
+        // The lone saber turns with a drag that starts on it, wherever it goes after.
+        if self.tab == Tab::Shaders {
+            match event {
+                InputEvent::PointerPress { position: at, .. }
+                    if self.backstage != Backstage::None
+                        && self
+                            .ui
+                            .rect_for(SABER_TOKEN)
+                            .is_some_and(|rect| rect.contains(at)) =>
+                {
+                    self.spin.grab([at.x, at.y]);
+                    return PanelAction::None;
+                }
+                InputEvent::PointerMove(at) if self.spin.held() => {
+                    self.spin.drag([at.x, at.y], self.scale);
+                    return PanelAction::None;
+                }
+                InputEvent::PointerRelease { .. } | InputEvent::PointerLeave
+                    if self.spin.held() =>
+                {
+                    self.spin.release(self.epoch.elapsed().as_secs_f32());
+                    return PanelAction::None;
+                }
+                _ => {}
+            }
+        }
         if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Shaders
         {
@@ -982,6 +1024,16 @@ impl Panel {
             _ => TOY_TOKEN,
         };
         self.hover.pin(index.map(|index| base + index as u16));
+    }
+
+    /// Hold the lone saber turned so, still, as a drag would (`None` lets go), for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn hold_saber_for_shot(&mut self, turn: Option<SaberTurn>) {
+        match turn {
+            Some(turn) => self.spin.hold(turn),
+            None => self.spin.release(f32::NEG_INFINITY),
+        }
     }
 
     /// Choose shader row `row` (0 the stock blade), for a world shot.

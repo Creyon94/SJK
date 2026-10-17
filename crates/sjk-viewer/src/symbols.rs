@@ -15,6 +15,28 @@ pub(crate) const RARITY: [char; 5] = ['\u{E000}', '\u{E001}', '\u{E002}', '\u{E0
 /// card with a sun at its heart).
 pub(crate) const FINISH: [char; 3] = ['\u{E010}', '\u{E011}', '\u{E012}'];
 
+/// The items' icons (`docs/sjk-ui.md`, "Symbols"), line pictures in the rarity marks'
+/// stroke: a holocron (found in one), a medal (comes with one), a padlock (locked), a
+/// tick (yours), two copies (held more than once), a smith's hammer (who made it), a
+/// turning arrow (drag to turn), a lightsaber (worn), a gift (from the team) and a star
+/// (its edition).
+pub(crate) const HOLOCRON: char = '\u{E020}';
+pub(crate) const MEDAL: char = '\u{E021}';
+pub(crate) const LOCK: char = '\u{E022}';
+pub(crate) const TICK: char = '\u{E023}';
+pub(crate) const COPIES: char = '\u{E024}';
+pub(crate) const SMITH: char = '\u{E025}';
+pub(crate) const TURN: char = '\u{E026}';
+pub(crate) const SABER: char = '\u{E027}';
+pub(crate) const GIFT: char = '\u{E028}';
+pub(crate) const EDITION: char = '\u{E029}';
+
+/// Every icon, for the font's test.
+#[cfg(test)]
+const ICONS: [char; 10] = [
+    HOLOCRON, MEDAL, LOCK, TICK, COPIES, SMITH, TURN, SABER, GIFT, EDITION,
+];
+
 /// The rarity mark of a card rarity (`crate::cards::RARITIES` order, Common to
 /// Legendary).
 pub(crate) fn card_rarity(index: usize) -> char {
@@ -37,7 +59,7 @@ mod tests {
     fn every_symbol_is_in_the_font() {
         let font = FontRef::try_from_slice(include_bytes!("../assets/fonts/SJKSymbols.ttf"))
             .expect("SJK Symbols reads");
-        for symbol in RARITY.iter().chain(FINISH.iter()) {
+        for symbol in RARITY.iter().chain(FINISH.iter()).chain(ICONS.iter()) {
             assert_ne!(font.glyph_id(*symbol).0, 0, "U+{:04X}", u32::from(*symbol));
         }
         // Not a letter the faces have: a symbol never stands in for one.

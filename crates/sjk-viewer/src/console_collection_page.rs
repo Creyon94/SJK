@@ -344,6 +344,15 @@ impl ViewerConsole {
         self.collection_panel.hover_for_shot(index);
     }
 
+    /// Hold the Shaders tab's lone saber turned so (`None` lets go), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_saber_turn_for_shot(
+        &mut self,
+        turn: Option<super::collection_panel::SaberTurn>,
+    ) {
+        self.collection_panel.hold_saber_for_shot(turn);
+    }
+
     /// Choose the Collection's shader row `row` (0 the stock blade), for a world shot.
     #[cfg(test)]
     pub(crate) fn collection_shader_for_shot(&mut self, row: usize) {

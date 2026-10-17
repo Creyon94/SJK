@@ -869,17 +869,35 @@ Profile page's See the collection) open it on its own:
   bar at the right shows where it is once there are more lines than three. Two
   switches left of the kinds (three bars: the rack; four squares: the grid) and V
   change the view; `ui_shaderView` (archived, 0 the rack, 1 the grid) keeps it;
-- the player's model holding the chosen blade, on the menu map's stage or in the
-  page's live preview over a match: a locked one too, as a preview this screen alone
-  draws (`PreviewSkin`; nothing is set or sent);
-- beside the model what the chosen one is: its tier as a pill in the tier's colour,
-  its kind, its name and, at the column's
-  right end, its state pill (10/10/2026: the name ends short of the pill, ellipsised,
-  instead of the pill following a measured name, which overlapped it when the drawn
-  face was wider than the measure), owned (`Yours since dd/mm/yyyy, from the
-  SJK team` and the team's note, or `..., with your Bug Hunter medal` when a medal
-  brings it) or how to get it, and Equip, Unequip or Wear the
-  stock blade, which set `cg_saberSkin`;
+- the chosen saber on its own (17/10/2026, Sol's request: "see and turn the saber, we
+  don't need to see the character"), over the clear right of the screen
+  (`SABER_AREA`): the hilts the stage model would hold float before the backdrop
+  camera, lying across the window, rolling slowly about their length, and the model is
+  not drawn ([menu_stage/lone.rs](../crates/sjk-viewer/src/menu_stage/lone.rs)); over a
+  match the page's live preview shows them the same way (lightsaber creation's
+  showcase). A drag that starts on the saber turns it: across about the window's
+  vertical, up and down about its length; let go, it keeps the drag's speed, slows to
+  its own roll, and after 1.4 s its tip swings back to where it rests, a little towards
+  the viewer ([collection_spin.rs](../crates/sjk-viewer/src/collection_spin.rs)). It
+  stands as far off as makes the longest saber 600 frame pixels long, so a staff and a
+  single saber fill the same room. A locked one shows too, as a preview this screen
+  alone draws (`PreviewSkin`; nothing is set or sent), with a "Preview: not yours yet"
+  pill; "Drag to turn" sits at the area's foot;
+- under it, the shader's card (17/10/2026), framed and banded in its tier's colour and
+  alive as its tier is (the rarity effects): the tier's mark and name, its edition
+  with a star, its name and its state pill (a lightsaber Worn, a tick Yours, a padlock
+  Locked; the name ends short of the pill, ellipsised), its facts as chips with
+  [SJK Symbols](sjk-ui.md#symbols) icons (a chroma's colour wheel and "Takes your
+  colour", the copies held, where it comes from: the medal that brings it, a holocron
+  drop or an SJK team gift, and its saber smith), what it is, owned (a tick and `Yours
+  since dd/mm/yyyy, from the SJK team` with the team's note, or `..., with your Bug
+  Hunter medal`) or how to get it (a padlock), and for a locked shader a holocron may
+  drop, where it drops: a chip for each holocron tier that may bring it, in that tier's
+  colour, with the chance an opening of one does (the hub's odds split evenly among
+  the droppable shaders of its tier, `cards::loot::shader_in`); then its parts and, at
+  the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
+  The rack's and the grid's state lines carry the same icons, and the grid's tier line
+  its rarity mark. The classic menus have no stage: the area shows the swatch, larger;
 - with the identity off, no hub or no answer yet, the tab says so and no skin is
   owned.
 
@@ -895,7 +913,10 @@ page's Unlock and Relock; the grid's switches and V, its arrows in two direction
 wheel, a double click on a card, every card above the keys at the four shapes) and the
 world shot `duel6_sjk_collection` (the Sun worn on the stage, the Storm previewed, the
 grid with five owned, a 4:3 window and its grid, the in-game preview, the classic
-menus) with the hub's pack; not tried in the game.
+menus; since 17/10/2026 the saber alone and `duel6-collection-shaders-turned`, turned by
+a drag) with the hub's pack; unit tests for the lone saber's place in every window
+shape and field, its turn, drag, fling and settle, and the card's room; not tried in
+the game.
 
 ### Saber tab's blade choice
 

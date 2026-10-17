@@ -11,6 +11,7 @@
 mod cosmetics;
 mod force_fx;
 mod force_motion;
+mod lone;
 pub(crate) mod preview;
 mod prop;
 mod sabers;
@@ -80,6 +81,9 @@ pub(crate) struct MenuStage {
     /// The blade the Collection's Shaders tab has the model hold instead of the one
     /// worn (only drawn here, never sent); `None` outside it.
     skin_override: Option<crate::console::collection_panel::PreviewSkin>,
+    /// The Collection's Shaders tab: the saber on its own, turned so, before the
+    /// backdrop camera (or on the live preview's showcase), and no model drawn.
+    lone: Option<crate::console::collection_panel::SaberTurn>,
     /// The Collection's Toys tab: the Illuminate holocron floats by the model.
     holocron_wanted: bool,
     /// The Force shell the preview's model wears (the Force page's power).
@@ -185,6 +189,15 @@ impl GpuState {
             menu.follow_model_viewer(console);
         }
         self.menu_stage.skin_override = wish.map(|wish| wish.skin);
+        let lone = wish.and_then(|wish| wish.saber);
+        if lone.is_some() != self.menu_stage.lone.is_some() {
+            // Into or out of the lone saber: the hilts' places are written again.
+            self.menu_stage.sabers_dirty = true;
+        }
+        self.menu_stage.lone = lone;
+        if let Some(menu) = &mut self.client_menu {
+            menu.set_collection_saber(self.menu_stage.lone.is_some());
+        }
         self.menu_stage.holocron_wanted = wish.is_some_and(|wish| wish.holocron);
         let staged = menu_backdrop::standalone_menu_visible(self)
             .then(|| {
@@ -447,8 +460,9 @@ impl GpuState {
         self.sync_stage_shell(shell.filter(|_| shell_on));
         self.advance_force_fx(preview.and_then(|preview| preview.effect), emitting, now);
         self.sync_force_trail(emitting);
-        // The showcase draws no actor: its pose and what it wears can wait.
-        if self.menu_stage.showcase {
+        // The showcase and the lone saber draw no actor: its pose and what it wears can
+        // wait.
+        if self.menu_stage.showcase || self.menu_stage.lone.is_some() {
             return;
         }
         if let Err(error) = self.animate_stage_actor(now) {
@@ -800,7 +814,7 @@ impl MenuStage {
             prop.draw(pass, world_materials, camera, blended);
             return;
         }
-        if self.showcase {
+        if self.showcase || self.lone.is_some() {
             for saber in self.sabers.iter().flatten() {
                 saber.draw(pass, world_materials, camera, blended);
             }
