@@ -277,7 +277,7 @@ mod tests {
         assert_eq!(card.person.key_id.as_deref(), Some(KEY));
         assert!(card.person.verified && card.person.staff && !card.muted);
         let texts = texts(&chat);
-        for wanted in ["^2Sol", "SJK player, SJK staff", "Mute"] {
+        for wanted in ["^2Sol", "SJK player, SJK staff", "Block"] {
             assert!(
                 texts.iter().any(|text| text == wanted),
                 "{wanted:?} in {texts:?}"
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(chat.take_mute_request(), None, "once");
         assert!(
             chat.card.as_ref().is_some_and(|card| card.muted),
-            "now Unmute"
+            "now Unblock"
         );
         // Away from both: gone. Closed, the feed has no targets and no card.
         chat.pointer(InputEvent::PointerMove(Vec2::new(1_900.0, 10.0)));

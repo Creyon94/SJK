@@ -157,7 +157,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   achievements, bio and join date;
 - the kill feed at the top right with weapon icons (`cg_killfeed`);
 - the SJK profile card and the profile pictures kept at the SJK hub;
-- muting a player from their name in chat (chat, model, saber and sounds);
+- muting a player from their name in chat (chat, model, saber and sounds), made
+  blocking on 18/10/2026 at Sol's request (emotes, toys and player cards too, the `block`
+  and `unblock` commands and the SJK chat page's list);
 - the console socket for external apps (after JoF EJK), muting in the
   background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK);
 - the camera style setting, its locked camera after JoF EJK (`cg_cameraStyle`);

@@ -92,7 +92,7 @@ did: Rarity effects: Rare frames breathe, Legendary shine, Mythical spark
 did: Player cards with the worn saber shader, picture, SJK TEAM mark and achievements
 did: The kill feed with weapon icons
 did: The SJK profile card and profile pictures
-did: Muting players from their name in chat
+did: Blocking players: no chat, Kyle, no sounds, emotes or toys (block, unblock)
 did: Graphics quality levels, EJK graphics, and the graphics reload that applies them live
 did: Low FPS help (help_fps): EJK graphics offered on heavy maps
 did: Lighter memory on servers: the menu world dropped during matches

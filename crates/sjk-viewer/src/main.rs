@@ -16,6 +16,7 @@ mod audio_output;
 mod auto_switch;
 mod avatar_command;
 mod avatars;
+mod block_command;
 mod bolt;
 mod brush_view;
 mod build_info;

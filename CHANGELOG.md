@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Mute is now Block, and it blocks everything: a blocked player's game and SJK chat stay hidden, they are drawn as Kyle with the default saber, silent, and now their emotes, Order 66 orders, cardboard box events and player card are ignored too; `block <player>` and `unblock <player|all>` in the console, and the SJK chat page lists who you blocked with Unblock _(Sol)_
 - The Supporter medal is no longer oddly cut: its ribbon ends in a clean V on the star's bail (no dark block or broken stem under it), and its small medallion loses the stray line at its top _(Sol)_
 - The shop sells its four daily saber shaders for kyber shards (30 to 1 500, below what crafting costs), the Legendary offer turns Mythical one day in four, and credits now buy holocrons: an Uncommon for 150 or a Rare for 400 under the offers, asking twice, the holocron joining your list at once, once the SJK hub turns them on _(Sol)_
 - A card from a holocron now comes as a pack, once the SJK hub turns the shards on: beside the card its credits and a few kyber shards slide out in two tiles and count up, and Open all adds the pack's shards to its totals _(Sol)_

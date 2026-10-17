@@ -195,8 +195,8 @@ one (4:3, 5:4) scales the frame down to its width.
   it, which opens the SJK chat page. The same dock, drawn by the same code
   ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), sits in the
   [in-game menu](#in-game-menu). Resting the pointer on a name shows the sender's
-  [sender card](#sjks-pages) with Mute
-  ([hub-chat.md](hub-chat.md#muting-a-player)), left of the dock, level with the name
+  [sender card](#sjks-pages) with Block
+  ([hub-chat.md](hub-chat.md#blocking-a-player)), left of the dock, level with the name
   and above the keys (shapes never cover text: beside the name it lay over the message
   and the lines under it). It keeps clear of the dock, the keys, the arc's labels and
   the profile card bottom left in every window
@@ -644,11 +644,12 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   line ([hub-chat.md](hub-chat.md#how-a-line-looks)): its name in its colours, the
   verified tick for a verified sender, and its text in the SJK chat's gold going on
   after them and wrapping when too long, with Staff and how long ago on the right of
-  its first row; a chosen one is banded and shown on the right with Mute on this PC and, for
+  its first row; a chosen one is banded and shown on the right with Block on this PC and, for
   staff, Delete for everyone, Mute and Unmute at the hub. "N older: Page Up" and "N
   newer: Page Down" mark the ends when it scrolls. Resting the pointer on a name shows
-  the sender's sender card over the page, beside the name, with Mute or Unmute
-  ([hub-chat.md](hub-chat.md#muting-a-player)).
+  the sender's sender card over the page, beside the name, with Block or Unblock
+  ([hub-chat.md](hub-chat.md#blocking-a-player)). With no message chosen, the right
+  column lists the players blocked on this PC, each with Unblock.
 - **Sender card** ([sender_card.rs](../crates/sjk-viewer/src/sender_card.rs),
   08/10/2026, Sol's request): a name under the pointer in the game's chat (composer
   open), on the main page's dock and on the SJK chat page. A 340-wide navy card with a
@@ -656,7 +657,7 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   initial on their colour until it loads or when they have none), the name and the
   verified tick alone, "SJK player" (gold, with "SJK staff")
   or "Not known to the SJK hub", the hub name when it differs, the key, where they are
-  on the server being played, their medals' medallions, Mute or Unmute (gold edged) and
+  on the server being played, their medals' medallions, Block or Unblock (gold edged) and
   what that does. It sits right of the name, or left of it at the screen's edge.
 - **Test list** ([debug_panel_view.rs](../crates/sjk-viewer/src/debug_panel_view.rs),
   10/10/2026, Sol asked for every trace of the old hero look to go): the `debug_panel`
