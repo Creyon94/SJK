@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- JA+ flamethrower effects fall back to the retail Boba flame when the custom stream is missing; impact bursts advance smoothly between snapshots. _(lumayaa, after JoF EJK)_
+
 ## 2026.1015.1 (Alpha) | 15/10/2026
 
 Nameplate bars you choose to share, emotes on every JKA model, and the grey settings icons back.

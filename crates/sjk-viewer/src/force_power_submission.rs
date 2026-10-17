@@ -217,6 +217,13 @@ pub(super) fn submit(
         return;
     };
     let selection = select_for_contract(caster, sinks.third_person, sinks.flame);
+    let (beam, reverse_forward) = if let Some(rule) = sinks.flame.filter(|rule| rule.firing(caster))
+    {
+        rule.stream_effect(|name| sinks.effects.contains_definition(name))
+            .map_or((None, false), |(name, reverse)| (Some(name), reverse))
+    } else {
+        (selection.beam, false)
+    };
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
@@ -226,7 +233,7 @@ pub(super) fn submit(
     let left =
         actor.weapon_attachments[1].map(|bolt| saber::world_attachment(origin, rotation, bolt).0);
     // The beam is re-played on the reference 8 ms cadence (`effect_cadence.rs`).
-    if let (Some(name), Some(hand)) = (selection.beam, left)
+    if let (Some(name), Some(hand)) = (beam, left)
         && sinks.effects.contains_definition(name)
         && sinks.effect_aux.continuous.due(now)
     {
@@ -248,6 +255,7 @@ pub(super) fn submit(
                 .unwrap_or(0.0)
         };
         let frame = beam_rotation(actor.angle_controller.torso_pitch_degrees(), yaw);
+        let frame = flame::stream_rotation(frame, reverse_forward);
         effect_runtime::spawn_effect(
             sinks.particles,
             sinks.effect_aux,

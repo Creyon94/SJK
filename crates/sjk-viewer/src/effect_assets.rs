@@ -101,7 +101,7 @@ pub(crate) fn code_effects() -> impl Iterator<Item = &'static str> {
     STOCK_EFFECTS.iter().copied().chain(
         crate::actor_world_submission::force_powers::flame::CONTRACTS
             .iter()
-            .flat_map(|rule| [rule.stream, rule.hit]),
+            .flat_map(|rule| [rule.stream, rule.fallback_stream, rule.hit]),
     )
 }
 

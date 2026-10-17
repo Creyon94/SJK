@@ -21,6 +21,8 @@ pub(crate) struct Contract {
     pub(crate) firing_flag: u32,
     pub(crate) hit_flag: u32,
     pub(crate) stream: &'static str,
+    /// Retail fallback from JoF EJK #67; its forward axis is opposite the custom graph.
+    pub(crate) fallback_stream: &'static str,
     pub(crate) hit: &'static str,
     pub(crate) sound: &'static str,
     pub(crate) pose: &'static str,
@@ -37,6 +39,7 @@ pub(crate) const CONTRACTS: &[Contract] = &[Contract {
     firing_flag: 1 << 17,
     hit_flag: 1 << 8,
     stream: "mp/fthrw_bobafire",
+    fallback_stream: "boba/fthrw",
     hit: "env/fire_wall",
     sound: "sound/weapons/boba/bf_flame.mp3",
     pose: "BOTH_FORCELIGHTNING_HOLD",
@@ -46,6 +49,20 @@ pub(crate) const CONTRACTS: &[Contract] = &[Contract {
 }];
 
 impl Contract {
+    /// Choose only preloaded definitions; a missing graph never retries disk I/O
+    /// in actor submission. The custom graph always wins when both are installed.
+    pub(crate) fn stream_effect(
+        &self,
+        mut available: impl FnMut(&str) -> bool,
+    ) -> Option<(&'static str, bool)> {
+        if available(self.stream) {
+            Some((self.stream, false))
+        } else if available(self.fallback_stream) {
+            Some((self.fallback_stream, true))
+        } else {
+            None
+        }
+    }
     /// `CG_General`'s eFlags2 marker, already decoded at protocol-26 netfield 96.
     pub(crate) fn hit_marker(&self, entity: &sjk_protocol::EntityState) -> bool {
         entity.entity_type() == 0 && entity.raw_field(96).unwrap_or(0) & self.hit_flag != 0
@@ -56,6 +73,17 @@ impl Contract {
             && caster.e_flags & EF_DEAD == 0
             && (1..=3).contains(&caster.active_force_pass)
             && caster.e_flags & self.firing_flag != 0
+    }
+}
+
+/// Reverse the fallback's forward direction in SJK's proper-rotation EFX frame.
+/// Keep up fixed; the side axis necessarily turns too (EJK flips forward alone).
+/// Live comparison of asymmetric community replacements remains unverified.
+pub(crate) fn stream_rotation(frame: glam::Quat, reverse_forward: bool) -> glam::Quat {
+    if reverse_forward {
+        frame * glam::Quat::from_rotation_z(std::f32::consts::PI)
+    } else {
+        frame
     }
 }
 
@@ -188,6 +216,15 @@ impl Default for Hits {
     }
 }
 
+impl Hits {
+    /// A marker's timer uses the presented trajectory clock, never snapshot arrival.
+    fn due(&mut self, rule: &Contract, entity: &sjk_protocol::EntityState, time: i32) -> bool {
+        self.timers
+            .get_mut(usize::from(entity.number()))
+            .is_some_and(|timer| timer.due(rule.hit_marker(entity), time, rule.hit_millis))
+    }
+}
+
 /// Play ET_GENERAL hit markers once per reference interval, independently of actors.
 pub(in crate::actor_world_submission) fn submit_hits(
     sinks: &mut super::Sinks<'_>,
@@ -203,14 +240,11 @@ pub(in crate::actor_world_submission) fn submit_hits(
         return;
     };
     sinks.effect_aux.flame_hits.enabled = true;
-    let clock = snapshot.server_time;
+    // JoF EJK #67: advance hit effects between snapshots, using the same
+    // presentation clock that evaluates their trajectories (including demos).
+    let clock = time;
     for entity in &snapshot.entities {
-        let slot = usize::from(entity.number());
-        let active = rule.hit_marker(entity);
-        let Some(timer) = sinks.effect_aux.flame_hits.timers.get_mut(slot) else {
-            continue;
-        };
-        if !timer.due(active, clock, rule.hit_millis)
+        if !sinks.effect_aux.flame_hits.due(rule, entity, clock)
             || !sinks.effects.contains_definition(rule.hit)
         {
             continue;
@@ -252,6 +286,78 @@ pub(in crate::actor_world_submission) fn submit_hits(
 mod tests {
     use super::*;
     use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};
+
+    #[test]
+    #[ignore = "release-only synthetic flame selection/timer measurement"]
+    fn measure_flame_policy() {
+        let rule = &CONTRACTS[0];
+        let available: std::collections::HashSet<&str> =
+            [rule.fallback_stream].into_iter().collect();
+        let mut timers = vec![Timer::default(); 128];
+        let start = std::time::Instant::now();
+        let mut bursts = 0_u64;
+        for frame in 0..20_000 {
+            for timer in &mut timers {
+                let selection =
+                    rule.stream_effect(|name| available.contains(std::hint::black_box(name)));
+                std::hint::black_box(selection);
+                bursts += u64::from(timer.due(true, frame * 3, rule.hit_millis));
+            }
+        }
+        eprintln!(
+            "128 flame graph selections/timers: {:.3} us/frame; bursts={}",
+            start.elapsed().as_secs_f64() * 1e6 / 20_000.0,
+            std::hint::black_box(bursts)
+        );
+    }
+
+    #[test]
+    fn stream_prefers_custom_graph_and_falls_back_only_when_missing() {
+        let rule = &CONTRACTS[0];
+        assert_eq!(rule.stream_effect(|_| true), Some((rule.stream, false)));
+        assert_eq!(
+            rule.stream_effect(|name| name == rule.fallback_stream),
+            Some((rule.fallback_stream, true))
+        );
+        assert_eq!(rule.stream_effect(|_| false), None);
+        for pitch in [-70.0, 0.0, 70.0] {
+            for yaw in [0.0, 90.0, 180.0, 270.0] {
+                let frame = super::super::beam_rotation(pitch, yaw);
+                assert_eq!(stream_rotation(frame, false), frame);
+                let fallback = stream_rotation(frame, true);
+                assert!((fallback * glam::Vec3::X).abs_diff_eq(-(frame * glam::Vec3::X), 0.0001));
+                assert!((fallback * glam::Vec3::Z).abs_diff_eq(frame * glam::Vec3::Z, 0.0001));
+            }
+        }
+    }
+
+    #[test]
+    fn impact_clock_advances_between_snapshots_at_all_command_steps() {
+        let rule = &CONTRACTS[0];
+        for step in [8, 7, 4, 3] {
+            let mut hits = Hits::default();
+            let mut marker = EntityState::zero(77, &LEGACY_ENTITY_FIELDS);
+            marker.set_raw_field(96, rule.hit_flag);
+            let mut bursts = Vec::new();
+            for presentation_time in (1000..=1500).step_by(step) {
+                if hits.due(rule, &marker, presentation_time) {
+                    bursts.push(presentation_time);
+                }
+                assert!(!hits.due(rule, &marker, presentation_time));
+            }
+            assert_eq!(bursts.len(), 5);
+            assert!(
+                bursts
+                    .windows(2)
+                    .all(|pair| (101..=108).contains(&(pair[1] - pair[0])))
+            );
+            marker.set_raw_field(96, 0);
+            assert!(!hits.due(rule, &marker, 1501));
+            marker.set_raw_field(96, rule.hit_flag);
+            assert!(hits.due(rule, &marker, 1502));
+            assert!(hits.due(rule, &marker, 900));
+        }
+    }
 
     #[test]
     fn flame_contract_is_detected_and_can_be_overridden() {

@@ -3166,8 +3166,11 @@ Off (`0`) or JA+ (`1`, force support on a server using the same flags). The
 documented capability table is in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs); it detects the server
 independently of the optional JA+ command mod. The flame graphs and sound must
-be present in installed game data, such as the JoF EJK client-assets pack.
-SJK does not bundle them. Missing assets leave that effect or sound absent.
+be present in installed game data. The custom `mp/fthrw_bobafire` stream has
+priority; if absent, SJK uses the retail `boba/fthrw` stream with its forward
+direction reversed. No assets are bundled. If both graphs are missing the stream
+stays absent; missing sound stays silent. Impact bursts follow presentation time
+between snapshots, including during demo playback.
 
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
 `forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
