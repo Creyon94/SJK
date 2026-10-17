@@ -715,9 +715,9 @@ filters the grid as the classic profile's search does (see above).
 `forcepowers` is the player's own profile. On a server, every userinfo sends it
 fitted to the server's rules from `CS_SERVERINFO` (`g_maxForceRank`, free saber
 skills when every other weapon is off, the game type), as stock
-`BG_LegalizedForcePowers` would fit it, but keeping the powers
-`g_forcePowerDisable` turns off: the server drops those from its own copy
-without calling the profile illegal, so sending them never parks the player in
+`BG_LegalizedForcePowers` would fit it, but keeping team powers and the powers
+`g_forcePowerDisable` turns off: the server drops unavailable powers from its own
+copy without calling the profile illegal, so sending them never parks the player in
 spectator, and a mod that gives them back in a full Force duel finds them
 (jaPRO lets the powers its `g_forcePowerDisableFFA` holds back work in duels).
 Apply on a server sends the new profile and then `forcechanged`, as stock
@@ -740,12 +740,17 @@ Opened on a server, the Force page takes the server's highest rank and free
 saber skills, which decide whether the server keeps the profile it is sent. What
 the server only will not let be used stays buyable and is marked: its disabled
 powers ("Off on this server"; Jump "fixed" at 1 and Saber Offense and Defense
-at 3, as the server holds them), and team powers outside team games ("Team
-games only"). They cost points like any other, so the profile still fits where
-they work. The SJK UI's Force page lists the server's rules under the side's
-powers (This server: the highest rank and its points, free saber skills, the
-powers it turns off or, past eight, how many, whether team powers work); off a
-server it says a server's rules show there once you join, and team powers can
+at 3, as the server holds them), and team powers outside team games ("Server
+decides", since modified servers can grant them there). They cost points like
+any other, so the profile still fits where they work. Team powers are kept in
+the sent profile even in FFA, so a server
+that permits them can read the purchased levels; stock servers still remove
+them in non-team games without treating the profile as illegal. Team Heal
+remains light-side and Team Energize dark-side. The SJK UI's Force page lists
+the server's rules under the side's powers (This server: the highest rank and
+its points, free saber skills, the
+powers it turns off or, past eight, how many, and the server-dependent team-power
+notice); off a server it says a server's rules show there once you join, and team powers can
 be bought. A mod's own limits that are not in `CS_SERVERINFO` (jaPRO's
 `g_forcePowerDisableFFA`) cannot be shown. The rules are in
 [force_profile_negotiation.rs](../crates/sjk-client/src/force_profile_negotiation.rs)
@@ -2435,7 +2440,8 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   the staff and dual saber icons for those styles) left of the plate, or left of
   the name when there is no plate. A saber's is ringed and haloed in its stance's
   colour (`fireflag`, which carries `fd.saberAnimLevel`; the Radial HUD's colours:
-  fast blue, medium yellow, strong red, dual green, staff magenta), dimmed while
+  fast blue, medium yellow, strong red, Desann violet, Tavion cyan, dual green,
+  staff magenta), dimmed while
   the blade is put away.
 - **Verified badge:** a player the SJK hub's operator vouches for (see
   [Identity](#identity)) gets a gold seal with a white tick after the name, drawn at
@@ -4301,6 +4307,17 @@ weapon and is not chosen. Like `weapnext` it only changes the client's selection
 (the user command sends it); the rule is
 [`legacy_melee_weapon`](../crates/sjk-client/src/weapon_selection.rs).
 
+Weapon selection belongs to the viewed player. When an accepted snapshot changes
+that player, enters/leaves follow or spectator mode, or rewinds the timeline,
+SJK resets the retained weapon choice to the snapshot's equipped weapon and
+refreshes the selection display time before the next user command. This follows
+JoF EJK #39's `CG_TransitionPlayerState` reset and also covers native transitions
+that keep the same client slot. Old pickup/no-ammo event baselines and predicted
+acknowledgements do not carry into the new view. Ordinary snapshots preserve a
+pending local weapon choice; map/session presentation resets clear the retained
+choice and display timer. Both HUD/menu styles share this behavior. See
+[weapon_selection_view.rs](../crates/sjk-viewer/src/weapon_selection_view.rs).
+
 `cl_idrive` is JoF EJK's "last key wins" input (archived, default 0): while both
 keys of a movement pair are held, the one pressed last moves the player instead of
 the two cancelling out. `1` resolves every pair (forward/back, strafe left/right
@@ -4368,6 +4385,13 @@ copied symbols such as `€`, `’` or `×` keep their characters, including und
 PowerShell's Constrained Language Mode (with `clip` as a last resort for copy). A
 copy waits up to 1.5 s for the tool to finish and reports failure if it fails; a
 paste waits for a copy still being set.
+On Linux, SJK first reads and owns the X11 or Wayland clipboard directly. X11 and
+Wayland compositors exposing the data-control protocol therefore need neither
+`xclip` nor `wl-clipboard`; XWayland covers common remaining Wayland sessions. Those
+desktop tools remain fallbacks: `wl-copy`/`wl-paste` are used only in a Wayland
+session and `xclip` only with an X11 display. An installed tool for the other desktop
+type is skipped, and an immediate startup failure falls through to the next clipboard
+backend. Copy notices are shown only after a backend accepts the text.
 See [console_editing.rs](../crates/sjk-viewer/src/console_editing.rs) and
 [console_selection.rs](../crates/sjk-viewer/src/console_selection.rs). The input
 line and output rows are drawn and measured on the console's character grid

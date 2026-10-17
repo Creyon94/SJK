@@ -1656,7 +1656,7 @@ impl PlayerMenu {
             0 => line(
                 &mut self.canvas,
                 &mut y,
-                "Every power is allowed",
+                "No powers explicitly disabled",
                 color::TEXT,
             ),
             // A long list would run past the page: the rows say which.
@@ -1677,7 +1677,7 @@ impl PlayerMenu {
             line(
                 &mut self.canvas,
                 &mut y,
-                "Team powers: team games only",
+                "Team powers outside team games: server decides",
                 color::MUTED,
             );
         }

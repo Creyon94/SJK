@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | SJK pull requests #115, #117, #120, #121, #125
+- 61ed260 |  | Credits and changelog for SJK #115, #117, #120, #121 and #125
++ 17/10/2026 | - | Release 2026.1017.1 (Alpha)
+- 94b1d1c |  | Release 2026.1017.1 (Alpha)
 + 17/10/2026 | - | The four holocrons, each its own object
 - 9e0ef34 |  | Holocrons: four forms of their own, with moving parts (Sol's pick, set B)
 + 17/10/2026 | - | Shatter and Craft on the shader card
@@ -1641,7 +1645,19 @@
 - 8db7327 |  | Wrap centre prints at 50 characters, not UTF-8 bytes
 - 0874042 |  | Decode print and cp text as legacy bytes
 
+= Lukas
++ 17/10/2026 | SJK #115 | Fix Linux clipboard integration
+- ddfe116 |  | Fix Linux clipboard integration
+
 = Lumaya
++ 17/10/2026 | SJK #121 | Distinguish Desann and Tavion in native HUD colours
+- 976dc5e |  | Distinguish Desann and Tavion in native HUD colours
++ 17/10/2026 | SJK #117 | Preserve team powers in outgoing Force profiles
+- f8109d5 |  | Preserve team powers in outgoing Force profiles
++ 17/10/2026 | SJK #120 | Fix native NPC definition filename truncation
+- 488d8eb |  | Remove native NPC definition filename truncation
++ 17/10/2026 | SJK #125 | Reset weapon selection across follow and player transitions
+- 8f6f753 |  | Reset weapon selection when the viewed player changes
 + 11/10/2026 | SJK #77 | Fix equipped jetpack attachment and movement prediction
 - 45fccac |  | Fix equipped jetpack attachment and movement prediction
 + 11/10/2026 | SJK #75 | Add an independent lagometer scale setting

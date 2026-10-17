@@ -14,6 +14,9 @@
 
 use crate::GpuState;
 use sjk_client::{LegacyWeaponInventory, legacy_weapon_data, legacy_weapon_selectable};
+
+#[path = "weapon_selection_view.rs"]
+pub(crate) mod view;
 use sjk_ui::{Color, DrawCommand, DrawList, Rect};
 use sjk_vfs::VirtualFileSystem;
 use std::time::Duration;

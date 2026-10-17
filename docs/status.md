@@ -63,6 +63,16 @@ carrier in view from the snapshot, for servers whose `scores` list no powerups
 ([client.md](client.md#capture-the-flag-hud)). Checked by unit tests and world shots
 `world_shot::ctf_flags_shots::ctf_flags_on_a_demo` (three HUD styles, two states, over
 Sol's demo); not tried on a live server.
+## Clipboard tools follow the desktop session
+
+17/10/2026, SJK pull request #115 (LukasMoudry), on top of the in-process Linux clipboard
+already in `main`: the fallback tools now follow the session, `wl-copy`/`wl-paste` only
+with a Wayland display and `xclip` only with an X11 display, and a selection owner gets
+50 ms to report an immediate startup failure before it is accepted. Console and browser
+copy notices claim success only after the clipboard accepted the text, and a failed cut
+keeps its selection. Checked by unit tests; the real X11/Wayland clipboard and the
+in-game interaction have not been tried.
+
 
 ## SJK chat messages up to 300 characters
 
@@ -318,6 +328,73 @@ broadcast, stock's or jaPRO/TaystJK's, or your own duel; an unknown opponent get
 grey badge, never a guess). SJK-made glows (a repeated bubble, a chrome shell, a blue wash)
 were tried in playtest and dropped. Played on JoF (Windows 11): the figures, the badges and
 their colours for duels started in view, no glow on the pair.
+## Weapon selection across view transitions
+
+16/10/2026, `fix/weapon-selection-view-transitions` based on `7026c735`:
+accepted snapshots reset the retained weapon choice/display time when the
+viewed client or follow/spectator mode changes, or server time rewinds. This
+adopts JoF EJK #39's multiplayer `CG_TransitionPlayerState` intent before
+prediction and command submission, including same-client native transitions.
+The auto-switch event baseline is rebased without discarding the current map's
+item catalogue; old predicted acknowledgements cannot suppress the new player's
+events. Ordinary snapshots preserve pending weapon input. Map/session
+presentation resets clear selection/timer state. Live and demo snapshot paths
+share the guard; both menu/HUD styles consume the same selection.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. Five new tests cover target changes,
+returning to the own saber, same-client follow/spectator transitions, pending
+input across ordinary/duplicate snapshots and rewind at 8/7/4/3 ms steps, event
+baseline rebasing, and rejection of another client's queued no-ammo event.
+The original icon bug has not been reproduced in-game; live spectator-to-play
+and GPU icon appearance remain unverified. No gameplay simulation or protocol
+codecs changed.
+## Native NPC definition filename capacity
+
+16/10/2026, `fix/native-npc-definition-list` based on `7026c735`: native NPC
+loading now reads every file listed by the VFS, rather than losing filenames
+beyond the stock 2,048-byte list before reaching its unbounded text loader.
+The stock profile still receives its original filename prefix and text-size
+bound; both preserve VFS order. The regression fixture reproduced the loss at
+`npc_070` before the fix and loads all 100 synthetic definitions after it. A
+second fixture verifies the stock text-size error fallback and native loading
+of the same file. Formatting, locked workspace build/tests and Clippy with all
+targets passed on Windows, Rust 1.99.0, with existing warnings. Fixtures use no
+retail data; GPU/data-dependent workspace tests remain ignored.
+Live map loading and NPC spawning with a large community pack remain unverified.
+This changes definition availability, not gameplay timing, live NPC capacity or
+the wire format. See [NPC definition packs](server.md#npc-definition-packs).
+## Distinct native colours for all seven saber styles
+
+16/10/2026, `fix/native-saber-style-colours` based on `7026c735`: Desann now
+uses violet and Tavion cyan in the native HUD's stance labels and radial meter,
+and in nameplates' saber halos. The existing five style colours and unknown-style
+fallback remain. The shared palette applies in either menu style; custom menu
+HUD pictures retain their existing seven-style support. This adopts the missing
+native colour distinction from [EJK #26](https://github.com/JediofFreedom/JoF_EJK/pull/26).
+The existing radial draw-command test now checks all seven styles, pairwise
+distinct colours, separation from the unknown fallback, full-width strokes and
+matching label colours. Live gameplay and GPU appearance remain unverified.
+Formatting, locked workspace build/tests and Clippy with all targets passed on
+Windows, Rust 1.99.0, with existing warnings. The GPU snapshot check was not run:
+its required `JKA_GAME_DATA` asset path is not configured in this environment.
+See [radial HUD](rendering.md#game-data-hud) and [nameplates](client.md#nameplates).
+## Team powers in outgoing Force profiles
+
+16/10/2026, `fix/team-force-profiles`, based on `7026c735`: Team Heal and Team
+Energize remain in the client's sent profile in non-team modes, within the
+server's rank/point ceiling and the chosen side. This lets a server supporting
+them in FFA read the selected levels; authoritative stock legalization still
+removes them. Both Force menus mark their availability as "Server decides"
+outside team games ([client](client.md#force-profile-on-a-server)). Reference:
+OpenJK `260c59c` `codemp/game/bg_misc.c:513-517` strips team powers without
+invalidating the profile; JoF EJK #10 keeps the allowed side's team power.
+On Windows, Rust 1.99.0, nine Force-profile tests and 80 player-menu tests passed,
+including side/point limits, retained FFA selections, stock removal without an
+illegal-profile result, server disable rules, and both Force-menu layouts.
+Formatting, workspace build/tests and all-target clippy passed with existing
+warnings, using a target on a separate volume with incremental compilation off.
+Live FFA server grants and GPU/UI verification have not been performed.
 
 ## Emotes on stock models: limbs out of wider bodies
 

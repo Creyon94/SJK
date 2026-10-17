@@ -292,7 +292,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 21 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -330,6 +330,22 @@ merged into SJK
   list on crowded servers, instant open, duel intermission names, roster changes tracked.
 - #77 jetpack flight prediction after OpenJK `PM_JETPACK` (gravity, thrust, hover, directional
   legs) and the pack's chest attachment on equip; jump pads recognise the jetpack movement type.
+- #117 team powers in the sent Force profile: Team Heal and Team Energize bought outside a team
+  game reach the server, which decides (stock still removes them); the Force menu says "Server decides".
+- #120 every NPC definition on native servers: the stock 2,048-byte filename list no longer drops
+  the files of a large pack; stock rules keep their old limits.
+- #121 Desann (violet) and Tavion (cyan) saber styles get their own colours in the native HUD
+  and nameplate halos, after JoF EJK #26.
+- #125 the weapon selection follows the viewed player: following someone else, leaving follow
+  or spectator mode, or a timeline rewind resets it to the equipped weapon, after JoF EJK #39.
+
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 1 pull request
+merged into SJK
+([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
+
+- #115 the Linux clipboard fallbacks follow the desktop session (`wl-copy`/`wl-paste` only
+  under Wayland, `xclip` only under X11), and console and browser copies report success only
+  once the clipboard took the text; a failed cut keeps its selection.
 
 ## Art
 
