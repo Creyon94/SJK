@@ -99,6 +99,8 @@ counted (`cards::loot::card_in`). Since 17/10/2026 (prepared, not deployed) one 
 ten may bring a pile of kyber shards instead ([cards.md](cards.md#shards-and-the-shop)): the
 tables' `shard_pile` and `shards`, a "Kyber shards" column (the chance and the range, the
 average under it, a dash from a hub without piles), and the card's share counts them too.
+A card comes with a few shards beside its credits (the card pack, `card_shards`,
+[cards.md](cards.md#odds)).
 The figures below are with the piles.
 
 Per holocron:
