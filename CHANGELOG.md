@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > HUD: Desann and Tavion styles have their own colours.
 > Fixes: Linux copy, large NPC packs on native servers.
 > Console: Two-key binds like `bind K+L kill`, and Tab completes cfg names after `exec`.
+> Chat: %H%, %S%, %W% and the other EJK tokens send your live values.
 
 - Following another player, leaving follow or spectator mode, or a demo rewind resets the weapon selection to the weapon in hand, so the old choice no longer reaches the new player's HUD or your next command _(Lumaya, after JoF EJK)_
 - Team Heal and Team Energize bought outside a team game stay in the Force profile you send, so a server that allows them can grant them; the Force menu says "Server decides" instead of "Team games only" _(Lumaya)_
@@ -39,6 +40,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Two-key combo binds as in JoF EJK: `bind K+L kill` runs when both keys are held, in either order, instead of the second key's own bind; they are listed, saved and imported like other binds _(Lukas, after JoF EJK)_
 - Tab completes the cfg file name after `exec`, `execq`, `writeconfig` and `write` _(Slash, after EternalJK)_
 - `clientlist` lists the players with their client numbers (`showplayerid` still works), and `clientlistinfo` adds their model, gender, sabers and colours _(Lukas, after JoF EJK)_
+- Chat messages expand JoF EJK's substitutions: %H% health, %S% shield, %F% Force, %W% weapon, %A% ammo, %P% ping, %U% %UKM% %UM% speed, %T% %T2% local time, each written as its own word, from the composer, the console, binds, team chat and tells _(Lumaya, after JoF EJK)_
 - Hide duellers (Settings, Nameplates, `cg_nameplateHideDuelers`, off by default) hides the nameplates of players in a private duel _(Lumaya, after EJK)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
