@@ -2491,7 +2491,9 @@ with `cg_drawTimerMsec`, counting down with `cg_drawTimerCountdown`), right-alig
 480 from the edge, under `cg_drawUpperRight`. Without that option the layouts keep their own
 clock at the top centre (Sol's choice, 12/10/2026); with it that clock steps aside. The
 game-data HUD draws no clock of its own, so `cg_drawTimer` showed nothing there until the
-option existed (Creyon's report, 11/10/2026). The kill feed stands under the stack.
+option existed (Creyon's report, 11/10/2026). The HUD's snapshot line (`cg_drawSnapshot`) and
+inventory stand under these readouts, which used to write over the snapshot line. The
+kill feed stands under the stack.
 
 In SJK's own layouts, health and armour over the maximum (125 health at spawn, up
 to 199 armour from a large shield picked up at 99) show on their meter: the meter
@@ -2525,7 +2527,11 @@ the original cgame reads:
   (`gfx/hud/mpi_bflag` or `mpi_rflag`, the `_ys` pictures in CTY) while your team holds it,
   taken or dropped, and your own flag's `mpi_*flag_x` picture while the enemy holds it. The
   state is `CS_FLAGSTATUS` (config string 23: red then blue, `0` at base, `1` taken, `2`
-  dropped); the caption beside each says TAKEN or DROPPED.
+  dropped); the caption beside each says DROPPED, or for a taken flag its carrier's name
+  (TAKEN while the client does not know who). The carrier comes from the viewed player's
+  state, a player in the snapshot, a teammate's `tinfo` row, then the last carrier seen
+  while the flag stays taken; the name is formatted again only when the carrier or their
+  client info changes, and keeps its colours under `cg_drawCrosshairNamesColours`.
 - While the local player carries a flag (`PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG`
   in the player state, whatever the status string says) the enemy flag's icon stands on a
   gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
@@ -2536,9 +2542,20 @@ the original cgame reads:
   (`-` while the server has not sent one). With them on, the layouts' score line drops its
   trailing team scores (`cg_drawScore 2`), which they replace.
 
-The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name from the
-`scores` command's powerups; they also use the powerups of a player in view in the
-snapshot (and the local player state), for servers whose `scores` list none.
+The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
+`scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
+flag bits follow live state: the viewed player's own state, a player in the snapshot, a
+teammate's `tinfo` row, then the `scores` row; `CS_FLAGSTATUS` clears a flag that is back
+at its base or dropped
+([live_flags.rs](../crates/sjk-viewer/src/scoreboard/live_flags.rs)). SJK's own server
+sends the carriers' powerup bits in `scores` (`bridge_ranks.rs`), as
+`DeathmatchScoreboardMessage` does.
+
+A flag carrier wears the flag on the back (`CG_PlayerFlag`) and glows in its colour
+(`CG_PlayerPowerups`' dynamic light, red or blue, radius 200 to 231). The local
+carrier's flag comes from its player state, as the server never sends a client its
+own entity, so it shows in third person and its glow in first person
+([flag_carrier.rs](../crates/sjk-viewer/src/flag_carrier.rs)).
 
 ## Kill feed
 

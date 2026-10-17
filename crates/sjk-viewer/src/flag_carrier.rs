@@ -60,6 +60,25 @@ pub(crate) fn placement(
     )
 }
 
+/// `CG_PlayerPowerups`' carrier light colours: red, then blue.
+const LIGHT_COLORS: [[f32; 3]; 2] = [[1.0, 0.2, 0.2], [0.2, 0.2, 1.0]];
+
+/// `R_AddLightToScene(cent->lerpOrigin, 200 + (rand()&31), ...)`: a carrier glows in
+/// its flag's colour, in first person too. The flicker comes from the frame time
+/// instead of `rand()`, so it allocates and stores nothing.
+pub(crate) fn light(
+    origin: [f32; 3],
+    time: i64,
+    color: [f32; 3],
+) -> crate::dynamic_lights::PointLight {
+    let flicker = (time as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 59;
+    crate::dynamic_lights::PointLight {
+        origin,
+        radius: 200.0 + flicker as f32,
+        color,
+    }
+}
+
 /// Append to the existing rigid-model groups; no persistent carried state to go stale.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn submit(
@@ -71,26 +90,41 @@ pub(super) fn submit(
     time: i64,
     draw_actor: bool,
 ) {
+    if entity.kind != EntityKind::Actor {
+        return;
+    }
+    // The server never sends a client its own entity: the local carrier's bits come
+    // from its player state, as stock rebuilds them (see `force_powers::Caster`).
+    let number = entity.id.get().saturating_sub(1) as u16;
+    let Some(caster) = super::force_powers::Caster::find(snapshot, number, None) else {
+        return;
+    };
+    let flags = carried(caster.powerups);
+    for (active, color) in flags.into_iter().zip(LIGHT_COLORS) {
+        if active {
+            sinks.lights.push(light(transform.translation, time, color));
+        }
+    }
     if !eligible(draw_actor, entity.kind) {
         return;
     }
-    let number = entity.id.get().saturating_sub(1) as u16;
-    let Ok(index) = snapshot
-        .entities
-        .binary_search_by_key(&number, |state| state.number())
-    else {
-        return;
-    };
-    let state = &snapshot.entities[index];
     let Some(raw) = sinks.actor_meshes[mesh].force_bones.lumbar else {
         return;
     };
+    let fallback = if caster.local {
+        snapshot.player.view_angles()
+    } else {
+        snapshot
+            .entities
+            .binary_search_by_key(&number, |state| state.number())
+            .map_or([0.0; 3], |index| {
+                snapshot.entities[index].angular_trajectory_base()
+            })
+    };
     let angles = entity
         .sample_pose(time)
-        .map_or(state.angular_trajectory_base(), |pose| {
-            pose.view_angles_degrees
-        });
-    for (active, model) in carried(state.powerups()).into_iter().zip(sinks.flag_meshes) {
+        .map_or(fallback, |pose| pose.view_angles_degrees);
+    for (active, model) in flags.into_iter().zip(sinks.flag_meshes) {
         if let (true, Some(model)) = (active, model) {
             let mut instance = placement(raw, transform, angles);
             instance.view_flags = sinks.entity_view_flags;

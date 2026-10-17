@@ -1629,11 +1629,11 @@ impl Painter<'_> {
             );
         }
         if let Some(x) = columns.flag {
-            let carried = if row.carried_bits() & (1 << 6) != 0 {
+            let carried = if row.powerups & (1 << 6) != 0 {
                 self.flags.neutral
-            } else if row.carried_bits() & (1 << 4) != 0 {
+            } else if row.powerups & (1 << 4) != 0 {
                 self.flags.red
-            } else if row.carried_bits() & (1 << 5) != 0 {
+            } else if row.powerups & (1 << 5) != 0 {
                 self.flags.blue
             } else {
                 None
@@ -1928,7 +1928,6 @@ mod tests {
             bot: client % 5 == 4,
             record: Some((i32::from(client % 4), i32::from(client % 3))),
             powerups: 0,
-            seen_powerups: 0,
             defends: 1,
             assists: 2,
             captures: 3,

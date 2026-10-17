@@ -250,6 +250,11 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
+        gpu.hud.update_flag_carriers(
+            snapshot,
+            session.game_state(),
+            session.team_info().entries(),
+        );
         let ja_plus = matches!(
             session.compat_profile(),
             sjk_client::CompatProfile::JaPlus { .. }
@@ -424,6 +429,9 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
+        // A demo keeps no `tinfo`: the carriers come from the snapshot.
+        gpu.hud
+            .update_flag_carriers(snapshot, session.game_state(), &[]);
         // Only merc mode needs the server's mod; read it from the demo's gamestate then.
         let ja_plus = snapshot.player.entity_flags() & 0x1000 != 0
             && matches!(

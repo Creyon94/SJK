@@ -23,6 +23,13 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Capture the Flag: the scoreboard shows who carries a flag as soon as they take it, and stops when it is captured or dropped, even while it stays open; SJK servers now send the carried flags in their scores _(Slash)_
+- The flag icons at the left name who carries each taken flag, and the caption of your own flag shows when it is the only one _(Slash)_
+- A flag carrier glows red or blue, and you see the flag on your own back in third person _(Slash, after JoF EJK)_
+- The `cg_drawSnapshot` line in the upper right no longer overlaps the frame rate and its frame times _(Slash)_
+
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
 > Force: JoF's 22 community presets in the Force menu.

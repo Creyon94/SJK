@@ -589,11 +589,11 @@ impl RowDraw<'_> {
             );
         }
         // Flag carriers show the flag they hold before the row.
-        let flag = if row.carried_bits() & (1 << 6) != 0 {
+        let flag = if row.powerups & (1 << 6) != 0 {
             self.flags.neutral
-        } else if row.carried_bits() & (1 << 4) != 0 {
+        } else if row.powerups & (1 << 4) != 0 {
             self.flags.red
-        } else if row.carried_bits() & (1 << 5) != 0 {
+        } else if row.powerups & (1 << 5) != 0 {
             self.flags.blue
         } else {
             None
@@ -841,7 +841,6 @@ mod tests {
             bot: false,
             record: None,
             powerups: 0,
-            seen_powerups: 0,
             defends: 0,
             assists: 0,
             captures: 0,
