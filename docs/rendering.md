@@ -1528,6 +1528,12 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   the skin's room (the wisps' rise, the haze's reach, when on; `skin_room`, and
   `Instance::room` for the bounds), while the glow's own parts (embers, arcs, motes)
   keep fading at the glow's edge, so switching wisps or haze off changes nothing else.
+  That room draws only the wisps, so past the glow's own reach (the capsule widened
+  `corona.reach` times, round the tip and behind the hilt) `skin_past_glow` skips the
+  glow and its parts, for a skin whose glow neither moves nor reaches further (no
+  glitch, scan, copies, glyphs or figures); and the wisps skip their noise where their
+  column cannot show (below the blade, past the top, far aside). Up close the room
+  covers much of the screen (17/10/2026, hub report 63).
   The echo is a dimmed glow instance (`Instance::echo`) swaying on two slow waves
   beside the blade, the tip more than the hilt, leaning a little, drawn with the whole
   look. Afterimages (`Instance::ghost`, 17/10/2026, hub report 64) carry the
