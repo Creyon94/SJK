@@ -120,7 +120,7 @@ pub(crate) fn npc_packed_saber_color(bolt_to_player: u8, saber: usize) -> Option
 }
 
 /// Blade colour of NPC saber `saber`: the packed override, else `SABER_RED`.
-fn npc_blade_rgb(bolt_to_player: u8, saber: usize) -> [u8; 3] {
+pub(crate) fn npc_blade_rgb(bolt_to_player: u8, saber: usize) -> [u8; 3] {
     legacy_blade_rgb(npc_packed_saber_color(bolt_to_player, saber).unwrap_or(0))
 }
 

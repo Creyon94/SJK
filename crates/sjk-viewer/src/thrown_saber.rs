@@ -35,6 +35,7 @@ pub(super) fn submit(
     let Some(mut owner) = thrown.and_then(|thrown| thrown.get(number)) else {
         return false;
     };
+    // The owner is a client slot or an NPC's entity number (`thrown_sabers.rs`).
     // A player muted on this PC throws the default saber in the default colour.
     if crate::muted_players::entity_muted(sinks.muted, u64::from(owner.owner) + 1) {
         owner.name = crate::muted_players::SABER;
@@ -171,7 +172,7 @@ pub(super) fn submit_hilt(
     if !owner.in_flight {
         return None;
     }
-    let hilt = catalog.get(owner.name);
+    let hilt = catalog.get_any_case(owner.name);
     objects[hilt.mesh_index].push(ActorInstance::new(
         transform.translation,
         transform.rotation,

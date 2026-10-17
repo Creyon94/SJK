@@ -4831,6 +4831,19 @@ definition alone cannot supply a missing mesh. SJK does not distribute those
 packs. The animation-error isolation described in [rendering.md](rendering.md#actor-animation-failures)
 protects other actors from malformed custom clips, but does not repair the clip.
 
+## NPC sabers and voices
+
+NPCs (`ET_NPC`, entity numbers 32 and up) have no clientinfo, so their sabers and
+voices come from their own entity rather than a player slot (hub report 68, a JoF
+server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
+
+- **Thrown sabers.** The server tags a flying saber with `genericenemyindex = owner
+  + 1024` for a player and an NPC alike (`w_saber.c:6939`). The client accepts any
+  owner entity number, not only the 32 client slots, and draws an NPC's thrown
+  saber with its `npcSaber1` hilt and blade colour
+  ([thrown_sabers.rs](../crates/sjk-client/src/thrown_sabers.rs)); before
+  17/10/2026 an NPC's thrown saber was invisible while its hand was empty.
+
 ## Shader remap controls
 
 Server map recolors and material replacements are enabled by default. SJK

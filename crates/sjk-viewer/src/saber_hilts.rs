@@ -87,6 +87,19 @@ impl HiltCatalog {
         self.hilts.get(name).copied().unwrap_or(self.fallback)
     }
 
+    /// [`Self::get`] for a name as the server wrote it (an NPC's `npcSaber1`
+    /// keeps its `.sab` case), lower-cased on the stack without allocating.
+    pub(crate) fn get_any_case(&self, name: &str) -> Hilt {
+        let mut buffer = [0u8; 64];
+        if !name.bytes().any(|byte| byte.is_ascii_uppercase()) || name.len() > buffer.len() {
+            return self.get(name);
+        }
+        let lower = &mut buffer[..name.len()];
+        lower.copy_from_slice(name.as_bytes());
+        lower.make_ascii_lowercase();
+        std::str::from_utf8(lower).map_or(self.fallback, |lower| self.get(lower))
+    }
+
     /// Whether `name` is loaded, unknown to the `.sab` files, or failed —
     /// in every case [`Self::get`] has an answer without loading anything.
     pub(crate) fn is_resolved(&self, name: &str) -> bool {

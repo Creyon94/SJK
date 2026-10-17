@@ -1,5 +1,12 @@
 //! Snapshot-indexed thrown saber ownership; no renderer or predicted state.
+//!
+//! A player's thrown saber takes its hilt and colour from the owner's
+//! `CS_PLAYERS` clientinfo; an NPC's, which has no clientinfo, from the NPC
+//! entity's `npcSaber1` and packed `boltToPlayer` colour ([`crate::npc_identity`]),
+//! as `CG_Player` draws both from the owner's `clientInfo_t`/`npcClient`
+//! (`cg_players.c:10050-10305`).
 
+use crate::npc_identity::{ET_NPC, legacy_npc_saber_names_borrowed, npc_blade_rgb};
 use crate::player_identity::saber_names_from_config;
 use crate::presentation_equipment::saber_color_from_config;
 use sjk_protocol::{EntityState, GameState, Snapshot};
@@ -7,7 +14,7 @@ use sjk_protocol::{EntityState, GameState, Snapshot};
 /// Owner-authored presentation of the primary saber detached from the hand.
 #[derive(Clone, Copy, Debug)]
 pub struct LegacyThrownSaber<'a> {
-    /// Legacy owner client number.
+    /// Owner entity number: a client slot, or an NPC's entity number.
     pub owner: u16,
     /// Borrowed primary `.sab` definition name from clientinfo.
     pub name: &'a str,
@@ -23,17 +30,23 @@ pub struct LegacyThrownSaber<'a> {
     pub returning: bool,
 }
 
-/// Client owner of an `ET_GENERAL`/`WP_SABER` entity.
+/// `MAX_GENTITIES`: an owner is any entity number, NPCs included.
+const MAX_GENTITIES: u32 = 1_024;
+/// `MAX_CLIENTS`: owners below it are players with clientinfo.
+const MAX_CLIENTS: u16 = 32;
+
+/// Owner entity number of an `ET_GENERAL`/`WP_SABER` entity.
 ///
-/// OpenJK `codemp/game/w_saber.c:8679,8683` writes `genericenemyindex =
-/// client + 1024` (entity netfield 18) and weapon 3 (`bg_weapons.h:30-35`).
-/// Neither `owner` (netfield 40) nor `otherEntityNum` carries this link.
+/// OpenJK `codemp/game/w_saber.c:8679,8683` (JoF EJK `w_saber.c:6939`) writes
+/// `genericenemyindex = owner->s.number + 1024` (entity netfield 18) and weapon 3
+/// (`bg_weapons.h:30-35`), for a player's and an NPC's saber alike. Neither
+/// `owner` (netfield 40) nor `otherEntityNum` carries this link.
 pub fn legacy_thrown_saber_owner(state: &EntityState) -> Option<u16> {
     if state.entity_type() != 0 || state.weapon() != 3 {
         return None;
     }
     let owner = state.raw_field(18)?.checked_sub(1_024)?;
-    (owner < 32).then_some(owner as u16)
+    (owner < MAX_GENTITIES).then_some(owner as u16)
 }
 
 /// One stack-allocated entity table; every thrown-saber/owner lookup is O(1).
@@ -63,6 +76,9 @@ impl<'a> LegacyThrownSabers<'a> {
     pub fn get(&self, number: u16) -> Option<LegacyThrownSaber<'a>> {
         let state = (*self.states.get(usize::from(number))?)?;
         let owner = legacy_thrown_saber_owner(state)?;
+        if owner >= MAX_CLIENTS {
+            return self.npc(state, owner);
+        }
         let config = self.game.config_string(1_131 + usize::from(owner))?;
         if config.is_empty() {
             return None;
@@ -86,4 +102,26 @@ impl<'a> LegacyThrownSabers<'a> {
             returning: !state.saber_in_flight(),
         })
     }
+
+    /// An NPC owner's thrown primary: `npcSaber1`'s hilt and the packed
+    /// `boltToPlayer` colour. `None` while the NPC is out of the snapshot or
+    /// carries no saber definition, as stock then has no `saber[0].model`.
+    fn npc(&self, state: &EntityState, owner: u16) -> Option<LegacyThrownSaber<'a>> {
+        let npc = (*self.states.get(usize::from(owner))?)?;
+        if npc.entity_type() != ET_NPC {
+            return None;
+        }
+        Some(LegacyThrownSaber {
+            owner,
+            name: legacy_npc_saber_names_borrowed(self.game, npc)[0]?,
+            color: npc_blade_rgb(npc.bolt_to_player(), 0),
+            in_flight: npc.saber_in_flight(),
+            extra_blades: npc.saber_holstered() != 1,
+            returning: !state.saber_in_flight(),
+        })
+    }
 }
+
+#[cfg(test)]
+#[path = "thrown_sabers_tests.rs"]
+mod tests;
