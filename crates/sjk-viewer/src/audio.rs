@@ -74,6 +74,7 @@ pub(crate) struct GameAudio {
     voice_policy: feedback::VoicePolicy,
     kill_sounds: i64,
     transitions: transitions::Transitions,
+    jetpack_sounds: sjk_client::LegacyJetpackSounds,
     /// `SJK_TRACE_AUDIO=1`: when the next level line is due.
     trace_due: Option<Instant>,
     /// Players muted on this PC, whose sounds are not played (`audio_mute.rs`).
@@ -162,6 +163,7 @@ impl GameAudio {
             voice_policy: feedback::VoicePolicy::default(),
             kill_sounds: 2,
             transitions: transitions::Transitions::default(),
+            jetpack_sounds: sjk_client::LegacyJetpackSounds::default(),
             trace_due: std::env::var_os("SJK_TRACE_AUDIO").map(|_| Instant::now()),
             mute: crate::audio_mute::AudioMute::default(),
         };
@@ -459,6 +461,7 @@ impl GameAudio {
         let Some(adapter) = &mut self.legacy else {
             return;
         };
+        adapter.set_jetpack_sounds(self.jetpack_sounds);
         adapter.observe_loops(snapshot, presented_time, listener_origin, |state| {
             presented_entity_origin(world, bsp, state, presented_time)
         });

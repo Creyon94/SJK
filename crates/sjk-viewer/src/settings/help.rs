@@ -258,6 +258,14 @@ const HELP: &[(&str, &str)] = &[
     ("s_volume", "Loudness of every sound but the music."),
     ("s_musicVolume", "Loudness of the music."),
     (
+        crate::jetpack::ON_SOUND_CVAR,
+        "Jetpack ignition: 1 default, 2 alternate, as in JoF EJK. Shutdown uses one fixed sound.",
+    ),
+    (
+        crate::jetpack::HOVER_SOUND_CVAR,
+        "Jetpack hover: 1 default, 2 alternate, as in JoF EJK. The flaming fire loop is independent.",
+    ),
+    (
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),

@@ -1265,6 +1265,32 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## Jetpack sounds
+
+Settings > Audio (classic) and Settings > Advanced > Sound (SJK UI) offer
+**Jetpack ignition sound** and **Jetpack hover sound**, matching JoF EJK #43.
+Both default to `1`; `2` selects the alternate. The archived console cvars
+are `cg_jetpackOnSound` and `cg_jetpackHoverSound`. As in EJK, values <= 1
+use the default and values > 1 use the alternate; zero does not mute them.
+
+| Choice | Ignition | Hover |
+| --- | --- | --- |
+| `1` (default) | `sound/chars/boba/bf_land.mp3` | `sound/chars/boba/jethover.wav` |
+| `2` | `sound/chars/boba/jeton.wav` | `sound/chars/boba/bf_jetpack_lp.wav` |
+
+Shutdown always uses `sound/chars/boba/bf_blast-off.mp3`; EJK has no shutdown
+selector. The additional `sound/effects/fire_lp.wav` loop while flaming is
+independent of the hover choice. A hover change applies on the next audio
+frame; changing ignition during flight does not restart it. Choices apply to
+every audible jetpack, including your own.
+
+Start/stop sounds use the wearer's actual source and position on `CHAN_AUTO`,
+including EJK #87's later attribution/channel correction. All variants are
+preloaded/registered before frame playback; choosing them does not read or
+decode sound assets during a frame. See [rendering](rendering.md) for the
+existing pack, flame and visibility behavior, and
+[status](status.md#jof-ejk-jetpack-sound-choices) for verification limits.
+
 ## Saber ignition and retraction sounds
 
 Two sources voice a saber turning on or off, as in OpenJK `codemp`. The server

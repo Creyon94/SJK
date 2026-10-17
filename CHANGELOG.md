@@ -42,6 +42,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - `clientlist` lists the players with their client numbers (`showplayerid` still works), and `clientlistinfo` adds their model, gender, sabers and colours _(Lukas, after JoF EJK)_
 - Chat messages expand JoF EJK's substitutions: %H% health, %S% shield, %F% Force, %W% weapon, %A% ammo, %P% ping, %U% %UKM% %UM% speed, %T% %T2% local time, each written as its own word, from the composer, the console, binds, team chat and tells _(Lumaya, after JoF EJK)_
 - Hide duellers (Settings, Nameplates, `cg_nameplateHideDuelers`, off by default) hides the nameplates of players in a private duel _(Lumaya, after EJK)_
+- Jetpack ignition and hover sound choices match JoF EJK, with both sound selectors in SJK and classic settings and corrected positional start/stop playback _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 
