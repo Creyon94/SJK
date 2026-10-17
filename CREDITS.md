@@ -8,7 +8,9 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 
 ## Sol JK, by Sol
 
-Sol develops SJK and sets its direction. Sol's work includes:
+Sol develops SJK and sets its direction, and has reviewed and merged the
+contributors' 91 pull requests (Creyon 52, Lumaya 32, Lukas 5, Slash 2). Sol's
+work includes:
 
 - the Sol JK name, README, credits and website;
 - the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
@@ -400,28 +402,6 @@ serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone m
 wear it and SJK players see it on each other. Reyced keeps the rights to the model;
 it is distributed with his permission and is not part of SJK's code or its licence.
 
-## Origins: JKR, by Bishop
-
-SJK began in October 2026 as a modified version of
-[JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)
-created JKR and wrote its initial source and most of its code: the Rust engine,
-the wgpu renderer and its lighting, the native client and dedicated server,
-protocol 26 networking, prediction and the shared Jedi Academy game rules,
-content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
-server browser, demos and the project wiki. Bishop's later JKR pull requests
-brought renderer frame cost, frame submission and deferred lighting (#50, #79),
-fixture lighting and sky/terrain stability (#81), volumetric fringes (#84), the
-default visual profile (#85), sun-shadow banding (#4), billboard orientation
-(#51), playable worlds through joins and map changes (#82), intermission (#83),
-faster map loading (#89), console browsing and editing (#88, with Sol as
-co-author), manual slider values (#94), compact chat player actions (#92),
-upright player status icons (#96), footsteps and animation sound cues (#90),
-legacy server pak references (#91), the leader display (#93), client devmap and
-server noclip (#95), drop-in installs and portable storage (#103),
-distributable ZIPs (#104) and actor animation isolation (#112). Sol contributed
-to JKR before SJK
-([Sol's JKR pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes)).
-
 ## Tools
 
 Many of Sol's changes were written with Claude (Anthropic) as a
@@ -463,3 +443,28 @@ keep their respective licenses.
 Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective
 owners. SJK is a fan project and is not affiliated with or endorsed by Lucasfilm,
 Disney, Raven Software or Activision. No retail game assets are included.
+
+## Footnote: JKR, by Bishop
+
+SJK began in October 2026 as a modified version of
+[JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)
+created JKR and wrote its initial source and most of its code: the Rust engine,
+the wgpu renderer and its lighting, the native client and dedicated server,
+protocol 26 networking, prediction and the shared Jedi Academy game rules,
+content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
+server browser, demos and the project wiki. Bishop's later JKR pull requests
+brought renderer frame cost, frame submission and deferred lighting (#50, #79),
+fixture lighting and sky/terrain stability (#81), volumetric fringes (#84), the
+default visual profile (#85), sun-shadow banding (#4), billboard orientation
+(#51), playable worlds through joins and map changes (#82), intermission (#83),
+faster map loading (#89), console browsing and editing (#88, with Sol as
+co-author), manual slider values (#94), compact chat player actions (#92),
+upright player status icons (#96), footsteps and animation sound cues (#90),
+legacy server pak references (#91), the leader display (#93), client devmap and
+server noclip (#95), drop-in installs and portable storage (#103),
+distributable ZIPs (#104) and actor animation isolation (#112). Sol contributed
+to JKR before SJK
+([Sol's JKR pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes)).
+
+JKR was the starting point; SJK has since replaced most of that code, and it
+stands on its own (no merges from JKR since 08/10/2026).

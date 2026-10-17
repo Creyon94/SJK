@@ -31,7 +31,7 @@
 
 [Sol]
 github: Sol-Vulpes
-role: Creator and developer of Sol JK
+role: Creator and developer of Sol JK: 91 contributor pull requests reviewed and merged
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
 did: The SJK UI, Sol JK's own menus over the live map
@@ -225,18 +225,6 @@ link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 role: Artist: the Solfox player model
 did: Made Solfox, Sol's fox player model, which every SJK player gets through the hub
 
-== Origins
-
-[Bishop]
-github: Bishop-R
-role: Creator of JKR, the engine Sol JK began from
-did: The Rust engine and the wgpu renderer with its lighting
-did: The native client, the dedicated server and protocol 26 networking
-did: Prediction and the shared Jedi Academy game rules
-did: Content loading: PK3, BSP, models, shaders and sounds
-did: The console, menus, HUD, server browser and demos
-link: https://github.com/Bishop-R/JKR
-
 == Made with
 
 [Claude]
@@ -284,3 +272,12 @@ role: References for how Jedi Academy behaves
 did: SJK reimplements their behaviour and includes none of their code
 link: https://github.com/JACoders/OpenJK
 link: https://github.com/eternalcodes/EternalJK
+
+== Footnote
+
+[Bishop]
+github: Bishop-R
+role: Creator of JKR, the starting point of Sol JK
+did: SJK began from JKR's code in October 2026; most of it has since been replaced
+did: JKR's Rust engine, wgpu renderer, client, server and protocol 26 networking
+link: https://github.com/Bishop-R/JKR
