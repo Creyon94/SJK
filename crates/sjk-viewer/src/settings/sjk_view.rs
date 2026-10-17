@@ -1060,7 +1060,7 @@ mod tests {
             (
                 [1920.0, 1080.0],
                 TextStyle {
-                    scale: 1.2,
+                    scale: crate::text::style::SCALE_RANGE.1,
                     tracking: 0.1,
                 },
             ),

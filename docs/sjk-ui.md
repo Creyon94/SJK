@@ -90,7 +90,8 @@ Sizes are in pixels of a 1080-line screen and scale with the window's height:
 the main page's entries 44 (chosen 68), server names 27, the player's name 26,
 details 16 to 18, key hints 15 to 17; on Settings, its name 48, the categories
 26, sub-headings 22, row names and descriptions 19, the detail's title 32 and
-its facts 17.
+its facts 17. `ui_textScale` multiplies them from 0.8 to 1.5; Settings > General
+in Simple or Interface in Advanced exposes it as **Menu text size**.
 
 Names keep their colour codes (`^1`...), drawn in a palette lifted to read on
 the navy ground (`text::CodePalette::Legible`, which every text in the UI's
@@ -762,9 +763,10 @@ that mode for the visit and leaves the player's choice as it was.
     FPS, first-person weapon, saber trail, everyone as my model, Force Seeing
     aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
     damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
-    feed, chat) and General (Menus: menu style and text size; From another
-    client: import; JoF content: its card, since 16/10/2026; SJK online: check for
-    updates, SJK chat, crash reports, settings usage, SJK identity key). They are `settings::Group::Simple`.
+    feed, chat and its text size) and General (Menus: menu style and text size;
+    From another client: import; JoF content: its card, since 16/10/2026; SJK
+    online: check for updates, SJK chat, crash reports, settings usage, SJK
+    identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
     12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
     HUD, Chat, Quick wheel, Mods, Network (Chat and Mods since 12/10/2026, when
@@ -791,7 +793,8 @@ that mode for the visit and leaves the player's choice as it was.
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person
     weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
-    Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
+    Scoreboard heading; Chat the chat box (Chat box: visibility, text size,
+    emojis, remembered channel and letter spacing) and the SJK chat (SJK
     chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
     JoF tools (Server mods), JoF content's card and host (JoF content),
     invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that

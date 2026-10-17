@@ -390,9 +390,9 @@ panel holds scrolls: the wheel over its items moves the list one item per notch
 position and can be dragged, and Up and Down keep the selected item in view.
 
 SJK makes these panels [classic+](classic-plus.md): a search field and the items
-fill the panel's upper part (10 rows on the main menu, 8 in game, where retail's
-taller panel held 15 and 12) and a detail box under them describes the focused
-item. For a setting
+fill the panel's upper part (up to 10 rows on the main menu and 8 in game, where
+retail's taller panel held 15 and 12; larger menu text can show fewer) and a
+detail box under them describes the focused item. For a setting
 it shows the full name and value, what the setting does
 ([help.rs](../crates/sjk-viewer/src/settings/help.rs), one or two lines for
 every setting), its default, its range (or how many choices it has), "applies
@@ -3270,7 +3270,7 @@ eye to that point hides it behind walls. The nameplate, or the plain overhead na
 stands above it. It hides with the nameplates (menus, the scoreboard, intermission,
 `cg_drawHud 0`).
 
-- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos, and Simple > HUD) turns
+- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos) turns
   them on. It was a small coloured square until 13/10/2026.
 
 The team overlay at the top right (`cg_drawTeamOverlay`, teammates' names, health and
@@ -4527,13 +4527,16 @@ draws as before at the defaults.
 
 | Cvar | Default | Range | Effect |
 | --- | --- | --- | --- |
-| `ui_textScale` | 1 | 0.8 to 1.2 | Text size on menu screens and the in-game menu |
+| `ui_textScale` | 1 | 0.8 to 1.5 | Text size on menu screens and the in-game menu |
 | `ui_letterSpacing` | 0 | -0.05 to 0.15 | Extra space after each letter of menu text, as a fraction of the text size; the console's character grid keeps its cells |
 | `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: its character cells, margins and rows |
 
-Menu text grows or shrinks about the centre of its line without moving the
-layout, so the range is limited to what menu rows can hold; that style is
-applied where retained text commands become glyph quads, see
+Menu text grows or shrinks about the centre of its line. SJK Settings' option
+rows have room for the largest size; long Profile and Collection tab rows close
+their gaps as the text grows. Classic+ option panels grow their rows above size
+1 and show fewer at once through their existing scrolling, so their labels,
+controls and pointer targets do not overlap. Other layout positions stay
+unchanged. The style is applied where retained text commands become glyph quads, see
 [text/style.rs](../crates/sjk-viewer/src/text/style.rs). These settings do not
 affect chat, the scoreboard or the HUD. Letter spacing stays 0: Inter's average
 advance relative to its x-height (0.89) is already close to stock's cells (0.8),
@@ -4549,6 +4552,11 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 0.18 of the box. A sender's name line advances 20 px to the body (was 26) and
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
+
+`cg_chatBoxFontSize` (default 1, archived; SJK Advanced > Chat > **Chat text size**,
+0.25 to 3 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
+The wrapping width stays in its configured screen position, so larger text wraps
+sooner. The setting is also on Simple > HUD and the classic+ HUD page.
 
 `cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > Chat > Chat letter
 spacing, -2 to 8 in steps of 0.5) adds that many 1080p pixels after each character of

@@ -535,6 +535,15 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Chat text size",
+        cvar: "cg_chatBoxFontSize",
+        kind: ValueKind::Float {
+            min: 0.25,
+            max: 3.0,
+            step: 0.05,
+        },
+    },
+    Setting {
         label: "Chat emojis",
         cvar: crate::chat::emoji::CVAR,
         kind: ValueKind::Bool,
@@ -880,7 +889,7 @@ pub(super) const TEXT: &[Setting] = &[
         cvar: crate::text::style::SCALE_CVAR,
         kind: ValueKind::Float {
             min: 0.8,
-            max: 1.2,
+            max: 1.5,
             step: 0.05,
         },
     },

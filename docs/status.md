@@ -216,6 +216,29 @@ optimized viewer/dedicated build pass (the repository's existing warnings remain
 Not yet tried against a running game server. SJK has no copied
 `clientInfo_t::deferred` model-load flag, so the EJK-only `(deferred)` diagnostic is
 not shown.
+## Menu and chat text sizes
+
+16/10/2026, `feat/chat-text-size-setting` based on review revision `1d2922c3`
+(Sol's request): the
+existing `cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page,
+SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range.
+**Menu text size** (`ui_textScale`) now reaches 1.5 instead of 1.2. Classic+
+settings grow their rows and show fewer through their existing scrolling; the
+long SJK Collection tab row closes its gaps, and the dual-saber search leaves its
+heading room at the largest size ([client.md](client.md#text-size-and-spacing)).
+To keep Simple > HUD within its twelve-row limit, Team logos remains in HUD+
+and Advanced > HUD instead of the Simple page.
+Group and layout tests pin those placements. On x86_64 Linux with rustc 1.99.1,
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed (the repository's
+existing warnings remain). The optimized viewer and dedicated-server build also
+passed. The review follow-up removed a 1.5 cap that had made chat beside the SJK
+scoreboard ignore the upper half of the advertised 0.25-3 range; its focused
+regression test passed.
+GPU/world-shot tests requiring `JKA_GAME_DATA` were
+ignored by the suite; the settings and their persistence have not yet been
+checked interactively in the game.
 
 ## Chat bans: Ban 24 h
 
