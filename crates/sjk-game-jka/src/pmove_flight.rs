@@ -121,7 +121,24 @@ impl Predictor {
             return 0.0;
         }
         let total = ((forward * forward + right * right + up * up) as f32).sqrt();
-        self.state.speed * maximum as f32 / (127.0 * total)
+        self.fake_noclip_speed() * maximum as f32 / (127.0 * total)
+    }
+
+    /// The speed a fake noclip flies at. JoF EJK flies at `ps->speed` as
+    /// `BG_AdjustClientSpeed` left it; that is the body's speed, which a server zeroes to
+    /// hold the body still (a JA+ seated or dance emote's `basespeed` 0, a dodge or
+    /// knockdown hand extend), and the camera then turned but never moved. The camera is
+    /// not the body: when the body's speed is zero it flies at the base speed, and when
+    /// that is zero too at codemp's default `g_speed`, which no server advertises (the
+    /// cvar is not `CVAR_SERVERINFO`). Walking movement never reads this.
+    fn fake_noclip_speed(&self) -> f32 {
+        if self.state.speed > 0.0 {
+            self.state.speed
+        } else if self.state.base_speed > 0.0 {
+            self.state.base_speed
+        } else {
+            FAKE_NOCLIP_DEFAULT_SPEED
+        }
     }
 
     /// PM_NoclipMove, bg_pmove.c:3487-3552: full view axes, no collision.
@@ -198,6 +215,10 @@ impl<C: MovementCollision> MovementCollision for WithoutBodies<'_, C> {
         self.0.trace(start, mins, maxs, end, mask & !self.1)
     }
 }
+
+/// codemp's default `g_speed` (`g_xcvar.h`), the fake noclip's speed when the body has
+/// none ([`Predictor::fake_noclip_speed`]).
+const FAKE_NOCLIP_DEFAULT_SPEED: f32 = 250.0;
 
 /// AngleVectors forward/right rows, codemp/qcommon/q_math.c.
 pub fn flight_axes(angles: [f32; 3]) -> (Vec3, Vec3) {
@@ -396,6 +417,59 @@ mod tests {
                     "{name} (JA+ {ja_plus}) held the camera: {flown}"
                 );
             }
+        }
+    }
+
+    /// A JA+ seated or dance emote (`amsit`, `amhips`): the body frozen (`PM_FREEZE`) with
+    /// no speed, and a hand extend that zeroes speed (`HANDEXTEND_DODGE`) for good measure.
+    fn stopped_body(base_speed: u32, hand_extend: u32) -> sjk_protocol::PlayerState {
+        let mut player = player(0);
+        player.set_raw_field(63, 6); // PM_FREEZE
+        player.set_raw_field(37, base_speed);
+        player.set_raw_field(80, hand_extend);
+        player
+    }
+
+    #[test]
+    fn fake_noclip_flies_when_the_server_stops_the_body() {
+        // Hub reports 57 and 62: the camera turned but never moved.
+        for (base_speed, hand_extend) in [(0, 0), (0, 7), (250, 7), (250, 8), (0, 13), (0, 14)] {
+            let player = stopped_body(base_speed, hand_extend);
+            let flown = flown_from(&player, MovementConfig::default());
+            assert!(
+                flown > 1.0,
+                "basespeed {base_speed}, hand extend {hand_extend}: {flown}"
+            );
+        }
+        // At the default `g_speed`, as a body with its speed would: 80 ms of forward input.
+        let stopped = flown_from(&stopped_body(0, 7), MovementConfig::default());
+        let free = flown_from(&player(0), MovementConfig::default());
+        assert!((stopped - free).abs() < 1e-3, "{stopped} vs {free}");
+    }
+
+    #[test]
+    fn walking_keeps_the_servers_zero_speed() {
+        // `BG_AdjustClientSpeed` parity: outside a fake noclip the body keeps the server's
+        // zero speed and a speed-zeroing hand extend.
+        for (base_speed, hand_extend, expected) in
+            [(0, 0, 0.0), (0, 7, 0.0), (250, 7, 0.0), (250, 0, 250.0)]
+        {
+            let mut player = stopped_body(base_speed, hand_extend);
+            player.set_raw_field(63, 0); // PM_NORMAL
+            let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());
+            predictor.predict_command(
+                UserCommand {
+                    server_time: player.command_time() + 8,
+                    forward_move: 127,
+                    ..UserCommand::default()
+                },
+                &Solid(Cell::new(0)),
+            );
+            assert_eq!(
+                predictor.state().speed,
+                expected,
+                "basespeed {base_speed}, hand extend {hand_extend}"
+            );
         }
     }
 

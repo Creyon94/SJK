@@ -300,6 +300,14 @@ smoothing. Turbo (attack held) sets the velocity along the aim directly.
 The flight ignores the animations that hold a body still (a taunt, a JA+ emote, a kick, a
 saber lock): `pmove_input_freeze` does not run for a fake-noclip predictor, so the camera
 flies while the real body stays in its emote.
+Nor does the flight take the body's speed when the server has stopped it: EJK flies at
+`ps.speed` as `BG_AdjustClientSpeed` leaves it, but a server can hold a body in a JA+
+seated or dance emote (`amsit`, `amhips`) with no speed, and a dodge, knockdown or throw
+hand extend zeroes it too, so the camera turned but never moved (hub reports 57 and 62).
+When that speed is zero the flight uses the base speed, and when that is zero as well
+codemp's default `g_speed`, 250 (servers do not advertise `g_speed`). Walking movement
+keeps the server's speed unchanged. With `developer 1` the console log records the body's
+move type, speed, base speed and hand extend as the flight starts.
 
 A ghost replay ([Ghost replay](client.md#ghost-replay)) or the mimic
 ([Mimic](client.md#mimic)) sends its own commands in place of the keys' ones through the
