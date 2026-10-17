@@ -788,7 +788,8 @@ that mode for the visit and leaves the player's choice as it was.
     their names; Display is Video's other rows under Screen, Frame rate and
     View; Sound holds every sound, the game's under Game, then the unlock
     sound, the SJK chat sound and the quick wheel's sounds under
-    Notifications; Gameplay is Game options without the packs and mods;
+    Notifications; Gameplay is Game options without the packs and mods, with
+    JoF EJK's camera framing and damping rows under Camera and prediction;
     Interface the menus and the console (the quick wheel's rows are its
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person
