@@ -29,8 +29,8 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_drawTimerMsec", 0, "Show timer milliseconds"),
         (
             "cg_drawInventory",
-            1,
-            "Show owned inventory and the inventory selector",
+            0,
+            "Show the permanent owned-inventory list; item selection stays visible when cycling",
         ),
         ("cg_drawCrosshairNamesColours", 1, "Colored target names"),
     ] {
@@ -82,8 +82,8 @@ pub(super) struct Policy {
     pub(super) snapshot: bool,
     /// Vote visibility.
     pub(super) vote: bool,
-    /// Inventory selector visibility.
-    pub(super) inventory: bool,
+    /// Permanent inventory list visibility, independent of the transient selector.
+    pub(super) inventory_list: bool,
     /// Match clock direction and precision.
     pub(super) timer: [bool; 2],
     /// The match clock stands in the upper right under the frame rate
@@ -112,7 +112,7 @@ impl Policy {
             upper: i("cg_drawupperright", 1) != 0,
             snapshot: i("cg_drawsnapshot", 0) != 0,
             vote: i("cg_drawvote", 1) != 0,
-            inventory: i("cg_drawinventory", 1) != 0,
+            inventory_list: i("cg_drawinventory", 0) != 0,
             timer: [
                 i("cg_drawtimercountdown", 0) != 0,
                 i("cg_drawtimermsec", 0) != 0,
@@ -204,7 +204,7 @@ impl HudOverlay {
         if self.family.upper && self.family.snapshot {
             bottom = bottom.max((snapshot_top + 28.0) * s);
         }
-        if self.family.upper && self.family.inventory {
+        if self.family.upper && self.family.inventory_list {
             let mut row = 0;
             for tag in 1..12 {
                 if self.inventory_bits & (1 << tag) == 0 {
@@ -317,6 +317,56 @@ pub(super) fn name(text: &mut String, value: &str, colors: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inventory_list_toggle_keeps_selector_visible_in_every_hud() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(console.integer_cvar("cg_drawInventory"), Some(0));
+        assert!(!Policy::default().inventory_list);
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        for look in [HudLook::Game, HudLook::Classic, HudLook::Radial] {
+            for list in [0, 1] {
+                console.set_cvar("cg_drawInventory", &list.to_string());
+                let mut hud = HudOverlay::new();
+                hud.family = Policy::read(Some(&console));
+                hud.inventory_bits = 1 << 2;
+                hud.selector = Some(sjk_client::selection::SelectionView {
+                    inventory: true,
+                    available: 1 << 2,
+                    selected: 2,
+                    alpha: 1.0,
+                });
+                hud.layout(
+                    &font,
+                    look,
+                    [1920.0, 1080.0],
+                    1.0,
+                    HudVisibility::from_console(Some(&console)),
+                    0,
+                );
+                let commands = hud.draw_list().commands();
+                assert!(
+                    commands.iter().any(|command| matches!(
+                        command,
+                        DrawCommand::Text {
+                            text: TextId(1201),
+                            ..
+                        }
+                    )),
+                    "cycling still shows INVENTORY with list={list}"
+                );
+                let permanent = commands
+                    .iter()
+                    .filter(|command| {
+                        matches!(command,
+                    DrawCommand::Text { text: TextId(1102), rect, .. } if rect.x > 1000.0)
+                    })
+                    .count();
+                assert_eq!(permanent, list as usize);
+            }
+        }
+    }
 
     /// The layouts keep their own match clock unless `cg_drawTimerUpperRight` moves it to
     /// the upper right (Sol, 12/10/2026: the clock stays in the layout by default).

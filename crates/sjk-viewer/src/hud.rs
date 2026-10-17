@@ -545,9 +545,7 @@ impl HudOverlay {
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
             }
             self.speed.emit(&mut self.draw_list, self.theme, viewport);
-            let selector = self
-                .selector
-                .filter(|s| !s.inventory || self.family.inventory);
+            let selector = self.selector;
             match selector {
                 Some(view) if !view.inventory && self.force_wheel_bar => force_wheel::emit(
                     &mut self.draw_list,

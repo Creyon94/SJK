@@ -318,6 +318,7 @@ impl Group {
                 "cg_classicHudFont",
                 "cg_drawStatus",
                 "cg_drawWeapon",
+                "cg_drawInventory",
                 "cg_crosshair",
                 "cg_crosshairSize",
                 "cg_hitMarker",

@@ -493,6 +493,21 @@ target on another volume and `CARGO_INCREMENTAL=0` after the original volume ran
 out of space during debug-symbol/cache writes. Existing warnings and ignored
 GPU/asset tests remain. Live server delivery and visual checks have not been
 performed. This changes no movement rules or wire codec.
+## Inventory list and selector visibility
+
+16/10/2026, `fix/inventory-list-default` based on `7026c735`: the archived
+`cg_drawInventory` now defaults to 0 for the permanent holdable list, matching
+JoF EJK #40. The transient inventory selector is independent and remains visible
+when cycling. Both settings interfaces expose **Inventory list** in their HUD
+category. Existing saved preferences remain; trip-mine weapons were already
+absent from the holdable list. Input, item use and gameplay are unchanged.
+
+Verification on Windows, Rust 1.99.0: formatting, locked workspace build/tests
+and Clippy with all targets passed. The retained-HUD regression checks the
+registered default and both list values across Game, Classic and Radial layouts:
+the permanent labels follow the toggle while the inventory selector remains.
+Shared settings layout/category checks passed. Live/GPU appearance remains
+unverified; `JKA_GAME_DATA` is not configured.
 
 ## Emotes on stock models: limbs out of wider bodies
 
