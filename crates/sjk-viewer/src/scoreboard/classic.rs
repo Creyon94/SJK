@@ -19,8 +19,7 @@
 //! in its retail font. Horizontal positions spread up to 1.25x on wide screens,
 //! as EternalJK's widescreen correction does, while text keeps its proportions.
 //!
-//! Presence, chat and crowded-server rules follow JoF's classic board. SJK's
-//! existing ping colours, row stripes and identity marks remain presentation.
+//! Presence, chat and crowded-server rules follow the pinned JoF classic board.
 
 use super::ScoreRow;
 use super::icons::HeadIcons;
@@ -50,9 +49,6 @@ const HEADER_Y: f32 = 86.0;
 const TOP_Y: f32 = 118.0;
 /// `BIGCHAR_HEIGHT`, the gap between groups.
 const GROUP_GAP: f32 = 16.0;
-/// Rows stop above this virtual line (retail stops at 420; the classic style
-/// keeps the HUD clear but uses the room retail left empty).
-const BOTTOM_Y: f32 = 470.0;
 /// Most players listed at the large row size (`SB_MAXCLIENTS_NORMAL`).
 const LARGE_ROWS: usize = 12;
 /// Clients from which every metric shrinks (`cgs.numClients >= 20`).
@@ -120,11 +116,9 @@ pub(super) enum RowSize {
 
 impl RowSize {
     /// `CG_DrawOldScoreboard`'s choice for `listed` rows.
-    pub(super) fn choose(listed: usize, small: bool, gametype: i32) -> Self {
-        if listed >= MANY_CLIENTS {
-            Self::Many
-        } else if small || gametype == CTF || listed > LARGE_ROWS {
-            Self::Small
+    pub(super) fn choose(scored: usize, crowded: bool, small: bool, gametype: i32) -> Self {
+        if small || gametype == CTF || scored > LARGE_ROWS {
+            if crowded { Self::Many } else { Self::Small }
         } else {
             Self::Large
         }
@@ -155,19 +149,13 @@ impl RowSize {
             Self::Many => (4.0, 8.0),
         }
     }
-
-    fn gap(self) -> f32 {
-        if self == Self::Many {
-            GROUP_GAP - 8.0
-        } else {
-            GROUP_GAP
-        }
-    }
 }
 
 /// Where every listed row goes, in virtual units; fixed storage.
 pub(super) struct Plan {
     pub(super) size: RowSize,
+    /// JoF uses the connected roster for header placement, independent of score count.
+    pub(super) crowded: bool,
     /// `(row index, y)` in drawing order.
     pub(super) placed: [(u8, f32); 33],
     pub(super) len: usize,
@@ -179,150 +167,12 @@ pub(super) struct Plan {
     pub(super) hint_y: Option<f32>,
 }
 
-/// Lay out the rows: groups in retail order, then your row if not reached.
+#[path = "classic_plan.rs"]
+mod placement;
+
+/// Lay out rows with the pinned JoF EJK section budgets and cursor rules.
 pub(super) fn plan(rows: &[ScoreRow], header: &ClassicHeader<'_>, small: bool) -> Plan {
-    let size = RowSize::choose(rows.len(), small, header.gametype);
-    let line = size.height();
-    let (top_border, bottom_border) = size.borders();
-    let team_game = header.gametype >= TEAM;
-    let red_leads = header.team_scores[0] >= header.team_scores[1];
-    let groups: [u8; 4] = if !team_game {
-        [FREE, SPECTATOR, u8::MAX, u8::MAX]
-    } else if red_leads {
-        [RED, BLUE, FREE, SPECTATOR]
-    } else {
-        [BLUE, RED, FREE, SPECTATOR]
-    };
-    let mut out = Plan {
-        size,
-        placed: [(0, 0.0); 33],
-        len: 0,
-        bands: [(0, 0.0, 0.0); 2],
-        band_len: 0,
-        local_appended: false,
-        hint_y: None,
-    };
-    let compact = header.context.compact();
-    let max_rows = if compact {
-        24
-    } else {
-        match size {
-            RowSize::Large => 12,
-            RowSize::Small => 18,
-            RowSize::Many => 32,
-        }
-    };
-    let mut remaining = max_rows;
-    let count = |team| {
-        rows.iter()
-            .filter(|row| row.has_score && row.team == team)
-            .count()
-    };
-    let leading = count(groups[0]).min(max_rows);
-    let losing = count(groups[1]).min(max_rows);
-    let leading_max = if team_game && leading > 10 && leading + losing > max_rows {
-        leading.saturating_sub(losing).max(10)
-    } else {
-        leading
-    };
-    let local_row = rows
-        .iter()
-        .position(|row| row.has_score && u16::from(row.client_num) == header.local.client);
-    let has_scores = rows.iter().any(|row| row.has_score);
-    // CG_DrawOldScoreboard starts the crowded list at SB_TOP - 62.
-    let mut y = if size == RowSize::Many {
-        TOP_Y - 62.0
-    } else {
-        TOP_Y
-    };
-    if team_game {
-        y += line / 2.0;
-    }
-    let mut local_listed = false;
-    for (group, team) in groups.into_iter().enumerate() {
-        if team == u8::MAX {
-            continue;
-        }
-        let start = out.len;
-        let reserve_local =
-            !local_listed && local_row.is_some_and(|index| rows[index].team != SPECTATOR);
-        let cap = if compact && team == SPECTATOR {
-            remaining.saturating_sub(1 + usize::from(reserve_local))
-        } else if team_game && group == 0 {
-            leading_max
-        } else if team_game && group == 1 {
-            max_rows.saturating_sub(leading_max)
-        } else if compact || !team_game {
-            remaining
-        } else {
-            max_rows
-        };
-        let gap = if compact && group == 1 {
-            GROUP_GAP
-        } else {
-            size.gap()
-        };
-        let has_group = rows
-            .iter()
-            .any(|row| row.team == team && (row.has_score || has_scores));
-        if cap > 0 && has_group && out.len > 0 {
-            y += gap;
-        }
-        for (index, row) in rows.iter().enumerate() {
-            let member = row.team == team;
-            if !member
-                || (!row.has_score && !has_scores)
-                || out.len - start >= cap
-                || y + line > BOTTOM_Y
-                || out.len >= 32
-            {
-                continue;
-            }
-            out.placed[out.len] = (index as u8, y);
-            out.len += 1;
-            local_listed |= u16::from(row.client_num) == header.local.client;
-            y += line;
-        }
-        let count = out.len - start;
-        remaining = remaining.saturating_sub(count);
-        if count == 0 {
-            continue;
-        }
-        if (team == RED || team == BLUE) && out.band_len < 2 {
-            let top = out.placed[start].1 - top_border;
-            out.bands[out.band_len] = (team, top, count as f32 * line + bottom_border);
-            out.band_len += 1;
-        }
-    }
-    // `CG_DrawOldScoreboard`: your row at the bottom when the list stops short
-    // of it (not with the many-clients layout or at intermission).
-    if !local_listed
-        && size != RowSize::Many
-        && !header.local.intermission
-        && !header.context.dead
-        && y + line <= BOTTOM_Y + GROUP_GAP
-        && let Some(index) = rows
-            .iter()
-            .position(|row| row.has_score && u16::from(row.client_num) == header.local.client)
-    {
-        y += size.gap();
-        out.placed[out.len] = (index as u8, y);
-        out.len += 1;
-        out.local_appended = true;
-    }
-    if compact {
-        if !local_listed
-            && !out.local_appended
-            && let Some(index) = local_row.filter(|index| rows[*index].team != SPECTATOR)
-        {
-            out.placed[out.len] = (index as u8, y);
-            out.len += 1;
-            y += line;
-            out.local_appended = true;
-        }
-        out.hint_y = Some(y);
-    }
-    out
+    placement::plan(rows, header, small)
 }
 
 /// The 640x480 virtual screen fitted to the window: heights follow the
@@ -410,16 +260,6 @@ impl Columns {
     }
 }
 
-/// Ping colour: green when good, through yellow and orange, red when poor.
-pub(super) fn ping_color(ping: i32) -> Color {
-    match ping {
-        ..80 => Color::new(0.55, 1.0, 0.55, 1.0),
-        80..150 => Color::new(1.0, 0.92, 0.45, 1.0),
-        150..250 => Color::new(1.0, 0.65, 0.3, 1.0),
-        _ => Color::new(1.0, 0.38, 0.35, 1.0),
-    }
-}
-
 /// `CG_PlaceString`: "1st" in blue, "2nd" red, "3rd" yellow, "Tied for".
 fn place(rank: u32, out: &mut impl std::fmt::Write) {
     let tied = rank & RANK_TIED != 0;
@@ -462,7 +302,7 @@ pub(super) fn build(
     let frame = Frame::new(viewport, 0.0);
     ui.push_opacity(opacity);
     let layout = plan(rows, header, options.small);
-    let many = layout.size == RowSize::Many;
+    let many = layout.crowded;
     let columns = Columns::for_gametype(header.gametype);
     header_lines(ui, frame, rows, header, options, many);
     header_bar(ui, frame, header, columns, options, many);
@@ -477,7 +317,6 @@ pub(super) fn build(
             color,
         );
     }
-    let line = layout.size.height();
     for (order, &(index, target)) in layout.placed[..layout.len].iter().enumerate() {
         let row = &rows[usize::from(index)];
         let y = if layout.local_appended && order + 1 == layout.len {
@@ -485,12 +324,6 @@ pub(super) fn build(
         } else {
             motion.row(row.client_num, target)
         };
-        if order % 2 == 1 {
-            ui.accent_bar(
-                frame.rect(LINE_X - 5.0, y + 2.0, LINE_WIDTH + 10.0, line),
-                Color::new(1.0, 1.0, 1.0, 0.035),
-            );
-        }
         let draw = RowDraw {
             frame,
             columns,
@@ -543,7 +376,14 @@ fn header_lines(
     let scale = if many { 0.85 } else { 1.0 };
     let size = frame.text(MEDIUM_CAP * scale);
     let first = frame.rect(0.0, if many { 2.0 } else { 40.0 }, 640.0, 22.0 * scale);
-    let second = frame.rect(0.0, if many { 18.0 } else { 60.0 }, 640.0, 22.0 * scale);
+    let second_y = if !many {
+        60.0
+    } else if header.gametype >= TEAM {
+        19.0
+    } else {
+        18.0
+    };
+    let second = frame.rect(0.0, second_y, 640.0, 22.0 * scale);
     let centered = |ui: &mut MenuCanvas, args: std::fmt::Arguments<'_>, rect: Rect| {
         ui.text_fmt_aligned(
             args,
@@ -695,9 +535,7 @@ fn header_bar(
     );
     let scale = if many { 0.75 } else { 1.0 };
     let size = frame.text(MEDIUM_CAP * scale);
-    // Centred in the bar (retail paints them along its top edge, under the
-    // picture's dark rim).
-    let text_y = y + (height - 22.0 * scale) * 0.5;
+    let text_y = y - 1.0;
     let label = |ui: &mut MenuCanvas, text: &str, at: f32| {
         ui.text_aligned(
             text,
@@ -766,12 +604,16 @@ impl RowDraw<'_> {
             } else {
                 line.min(15.0)
             };
-            // Just left of the score line (retail's x 32 drifts far from the
-            // row once positions spread on wide screens).
             let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
                 rect: Rect::new(
-                    frame.x(LINE_X - 8.0 - side / frame.spread),
-                    frame.y(y + 2.0),
+                    frame.x(32.0),
+                    frame.y(
+                        if row.powerups & (1 << 6) != 0 && self.size == RowSize::Large {
+                            y - 8.0
+                        } else {
+                            y
+                        },
+                    ),
                     frame.height(side),
                     frame.height(side),
                 ),
@@ -909,19 +751,9 @@ impl RowDraw<'_> {
                 }
             }
             if row.bot {
-                numbers(
-                    ui,
-                    format_args!("BOT"),
-                    self.columns.ping,
-                    Color::new(0.8, 0.8, 0.8, 1.0),
-                );
+                numbers(ui, format_args!("BOT"), self.columns.ping, WHITE);
             } else {
-                numbers(
-                    ui,
-                    format_args!("{}", row.ping),
-                    self.columns.ping,
-                    ping_color(row.ping),
-                );
+                numbers(ui, format_args!("{}", row.ping), self.columns.ping, WHITE);
             }
             numbers(ui, format_args!("{}", row.time), self.columns.time, WHITE);
         }
@@ -1099,12 +931,12 @@ mod tests {
 
     #[test]
     fn row_size_follows_player_count_and_options() {
-        assert_eq!(RowSize::choose(12, false, 0), RowSize::Large);
-        assert_eq!(RowSize::choose(13, false, 0), RowSize::Small);
-        assert_eq!(RowSize::choose(4, true, 0), RowSize::Small);
-        assert_eq!(RowSize::choose(4, false, CTF), RowSize::Small);
-        assert_eq!(RowSize::choose(20, false, 0), RowSize::Small);
-        assert_eq!(RowSize::choose(21, false, 0), RowSize::Many);
+        assert_eq!(RowSize::choose(12, false, false, 0), RowSize::Large);
+        assert_eq!(RowSize::choose(13, false, false, 0), RowSize::Small);
+        assert_eq!(RowSize::choose(4, false, true, 0), RowSize::Small);
+        assert_eq!(RowSize::choose(4, false, false, CTF), RowSize::Small);
+        assert_eq!(RowSize::choose(20, false, false, 0), RowSize::Small);
+        assert_eq!(RowSize::choose(21, true, false, 0), RowSize::Many);
     }
 
     #[test]
@@ -1141,17 +973,102 @@ mod tests {
     #[test]
     fn many_clients_shrink_and_move_up() {
         let rows: Vec<_> = (0..24).map(|client| row(client, FREE)).collect();
-        let plan = plan(&rows, &header(0, 0), false);
+        let mut h = header(0, 0);
+        h.context.connected = 24;
+        let plan = plan(&rows, &h, false);
         assert_eq!(plan.size, RowSize::Many);
         assert_eq!(plan.len, 24);
         assert_eq!(plan.placed[0].1, TOP_Y - 62.0);
-        assert!(plan.placed[23].1 + 12.0 <= BOTTOM_Y);
+        assert_eq!(plan.placed[23].1, 332.0);
+    }
+
+    /// Pinned to CG_DrawOldScoreboard/CG_TeamScoreboard at JoF bd5e202d.
+    #[test]
+    fn reference_twenty_twenty_one_and_full_server_row_budgets() {
+        for (connected, expected, first, last) in [
+            (20, 19, 118.0, 388.0),
+            (21, 21, 56.0, 296.0),
+            (32, 32, 56.0, 428.0),
+        ] {
+            let rows: Vec<_> = (0..connected).map(|i| row(i as u8, FREE)).collect();
+            let mut h = header(0, 0);
+            h.context.connected = connected;
+            let p = plan(&rows, &h, false);
+            assert_eq!(p.len, expected);
+            assert_eq!(p.placed[0].1, first);
+            assert_eq!(p.placed[p.len - 1].1, last);
+        }
+        let rows: Vec<_> = (0..20).map(|i| row(i, FREE)).collect();
+        let mut h = header(0, 19);
+        h.context.connected = 20;
+        let p = plan(&rows, &h, false);
+        assert!(p.local_appended);
+        assert_eq!(p.placed[19], (19, 435.0)); // two section advances, no extra append gap
+    }
+
+    #[test]
+    fn reference_full_team_board_does_not_clip_last_spectator() {
+        let rows: Vec<_> = (0..32)
+            .map(|i| {
+                row(
+                    i,
+                    if i < 16 {
+                        RED
+                    } else if i < 31 {
+                        BLUE
+                    } else {
+                        SPECTATOR
+                    },
+                )
+            })
+            .collect();
+        let mut h = header(TEAM, 0);
+        h.context.connected = 32;
+        for (scores, blue_y, spectator_y) in [([1, 0], 270.0, 466.0), ([0, 1], 62.0, 450.0)] {
+            h.team_scores = scores;
+            let p = plan(&rows, &h, false);
+            assert_eq!(p.len, 32);
+            assert_eq!(
+                p.placed[..p.len].iter().find(|(i, _)| *i == 16).unwrap().1,
+                blue_y
+            );
+            assert_eq!(p.placed[31], (31, spectator_y));
+        }
+    }
+
+    #[test]
+    fn reference_connected_count_and_sent_scores_are_separate() {
+        let mut rows: Vec<_> = (0..21).map(|i| row(i, FREE)).collect();
+        rows[20].has_score = false;
+        let mut h = header(0, 0);
+        h.context.connected = 21;
+        let p = plan(&rows, &h, false);
+        assert!(p.crowded);
+        assert_eq!(p.size, RowSize::Many);
+        assert_eq!(p.len, 21);
+        for row in &mut rows[12..] {
+            row.has_score = false;
+        }
+        let p = plan(&rows, &h, false);
+        assert!(p.crowded);
+        assert_eq!(p.size, RowSize::Large);
+        assert_eq!(p.placed[0].1, 56.0);
+        assert_eq!(p.len, 12);
+    }
+
+    #[test]
+    fn reference_empty_sections_still_advance_full_board_cursor() {
+        let rows = [row(0, SPECTATOR)];
+        let p = plan(&rows, &header(0, 0), false);
+        assert_eq!(p.placed[0], (0, 134.0));
+        let rows = [row(0, BLUE), row(1, SPECTATOR)];
+        let p = plan(&rows, &header(TEAM, 0), false);
+        assert_eq!(p.placed[0], (0, 146.5));
+        assert_eq!(p.placed[1], (1, 187.5));
     }
 
     #[test]
     fn ids_and_pings_and_places() {
-        assert_eq!(ping_color(40), Color::new(0.55, 1.0, 0.55, 1.0));
-        assert_eq!(ping_color(400), Color::new(1.0, 0.38, 0.35, 1.0));
         let text = |rank| {
             let mut out = PlaceText::default();
             place(rank, &mut out);

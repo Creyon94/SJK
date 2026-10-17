@@ -79,6 +79,8 @@ pub(crate) struct HudVisibility {
     pub(crate) hud: bool,
     pub(crate) status: bool,
     pub(crate) weapon: bool,
+    /// Weapon, inventory and Force selection rows, independently of status cvars.
+    pub(crate) selection: bool,
     pub(crate) crosshair: bool,
     pub(crate) crosshair_names: bool,
     pub(crate) timer: bool,
@@ -103,6 +105,7 @@ impl HudVisibility {
             hud,
             status: hud && enabled("cg_drawStatus", true),
             weapon: hud && enabled("cg_drawWeapon", true),
+            selection: hud,
             crosshair: hud
                 && console
                     .and_then(|c| c.integer_cvar("cg_drawCrosshair"))
@@ -121,6 +124,7 @@ impl HudVisibility {
         hud: false,
         status: false,
         weapon: false,
+        selection: false,
         crosshair: false,
         crosshair_names: false,
         timer: false,
@@ -545,7 +549,7 @@ impl HudOverlay {
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
             }
             self.speed.emit(&mut self.draw_list, self.theme, viewport);
-            let selector = self.selector;
+            let selector = self.selector.filter(|_| visibility.selection);
             match selector {
                 Some(view) if !view.inventory && self.force_wheel_bar => force_wheel::emit(
                     &mut self.draw_list,

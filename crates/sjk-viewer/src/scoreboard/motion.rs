@@ -139,6 +139,29 @@ mod tests {
     use std::time::Duration;
 
     #[test]
+    fn classic_death_and_respawn_fade_at_integer_frame_steps() {
+        for step in [8, 7, 4, 3] {
+            let mut motion = Motion::default();
+            motion.set_classic(true);
+            let start = Instant::now();
+            // Automatic death boards remain opaque until the player respawns.
+            for ms in (0..1000).step_by(step) {
+                assert!(motion.present(true, true, start + Duration::from_millis(ms)));
+                assert_eq!(motion.opacity(), 1.0);
+            }
+            for ms in (1000..=1200 + step as u64).step_by(step) {
+                let visible = motion.present(false, true, start + Duration::from_millis(ms));
+                assert_eq!(visible, ms < 1200);
+                if visible {
+                    assert!(
+                        (motion.opacity() - (1.0 - (ms - 1000) as f32 / 200.0)).abs() < 0.00001
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn classic_opens_and_reorders_at_once_and_closes_at_the_release_deadline() {
         let mut motion = Motion::default();
         motion.set_classic(true);

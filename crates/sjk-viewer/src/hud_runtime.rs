@@ -119,8 +119,8 @@ pub(crate) fn update(
     let (view_target, view_up, vertical_fov) = view;
     hud::tints::update(gpu, view_position, presentation_time, intermission);
     hud::vehicle_feed::sample(gpu, presentation_time);
-    let scoreboard = gpu.gameplay_input.held(input::GameButton::Scores);
-    let labels_hidden = scoreboard
+    let scoreboard = crate::scoreboard::hides_crosshair(gpu, presentation_time);
+    let labels_hidden = crate::scoreboard::hides_hud(gpu)
         || intermission
         || gpu.console.as_ref().is_some_and(|c| {
             !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)
