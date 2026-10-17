@@ -15,6 +15,9 @@
 //! therefore selects the declared clips rather than deriving clips from timers.
 //! View pitch is likewise a bone-angle contribution in `CG_G2PlayerAngles`, not
 //! an animation-clip selection rule.
+//!
+//! Presentation additionally replaces the stock Tavion/Desann idle clips with
+//! JoF EJK #47's poses; [`crate::idle_stances`] never edits the simulation input.
 
 use sjk_protocol::{EntityState, PlayerState};
 use sjk_runtime::{AnimationState, AnimationTrackInput, EntityId, World};
@@ -36,7 +39,7 @@ struct LegacyTrackSelection {
 }
 
 impl LegacyAnimationSelection {
-    /// Decode an on-wire entity exactly as `CG_PlayerAnimation` consumes it.
+    /// Decode an on-wire entity, then apply the client presentation remaps.
     pub(crate) fn from_entity(state: &EntityState) -> Self {
         let (legs, torso) = ejk_animation_fixes(
             state.leg_animation(),
@@ -44,6 +47,14 @@ impl LegacyAnimationSelection {
             state.weapon(),
             state.saber_in_flight(),
             state.entity_type() == crate::npc_identity::ET_NPC,
+        );
+        let (legs, torso) = crate::idle_stances::present(
+            legs,
+            torso,
+            state.weapon(),
+            state.saber_in_flight(),
+            state.saber_holstered(),
+            state.fire_flag(),
         );
         let lower_clip = usize::from(legs);
         let upper_clip = usize::from(torso);
@@ -83,6 +94,14 @@ impl LegacyAnimationSelection {
             state.saber_in_flight(),
             false,
         );
+        let (legs, torso) = crate::idle_stances::present(
+            legs,
+            torso,
+            state.weapon(),
+            state.saber_in_flight(),
+            state.saber_holstered(),
+            state.saber_style(),
+        );
         let lower_clip = usize::from(legs);
         let upper_clip = usize::from(torso);
         Self {
@@ -120,6 +139,14 @@ impl LegacyAnimationSelection {
             state.weapon,
             state.saber_in_flight,
             false,
+        );
+        let (legs, torso) = crate::idle_stances::present(
+            legs,
+            torso,
+            state.weapon,
+            state.saber_in_flight,
+            state.saber_holstered,
+            state.saber_anim_level,
         );
         let lower_clip = usize::from(legs);
         let upper_clip = usize::from(torso);
@@ -180,6 +207,7 @@ impl LegacyAnimationSelection {
 /// OpenJK copies `legsAnim`, `torsoAnim`, `legsFlip`, and `torsoFlip` in
 /// `BG_PlayerStateToEntityState` (`codemp/game/bg_misc.c:2762-2830`) before
 /// presenting the local entity (`codemp/cgame/cg_ents.c:3457`).
+/// SJK's default Tavion/Desann idle remaps affect only these output tracks.
 pub fn legacy_predicted_animation_inputs(
     state: &MovementState,
     previous: Option<AnimationState>,
@@ -525,5 +553,69 @@ mod ejk_fix_tests {
         );
         // A thrown saber's standing torso follows the legs.
         assert_eq!(ejk_animation_fixes(1102, 915, 3, true, false), (1102, 1102));
+    }
+}
+
+#[cfg(test)]
+mod idle_stance_tests {
+    use super::*;
+
+    #[test]
+    fn snapshots_players_and_prediction_select_the_same_idle_pose() {
+        for (style, stock, expected) in [(5, 850, 665), (4, 917, 942)] {
+            let mut entity = EntityState::zero(1, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+            // Protocol-26 weapon, legsAnim, torsoAnim and fireflag (saber style).
+            for (field, value) in [(14, 3), (16, stock), (17, stock), (27, style)] {
+                assert!(entity.set_raw_field(field, value));
+            }
+            let mut player = PlayerState::zero();
+            for (field, value) in [(47, 3), (13, stock), (15, stock), (23, style)] {
+                assert!(player.set_raw_field(field, value));
+            }
+            let mut movement = MovementState {
+                weapon: 3,
+                legs_anim: stock as u16,
+                torso_anim: stock as u16,
+                saber_anim_level: style as u8,
+                ..Default::default()
+            };
+            for step in [8, 7, 4, 3] {
+                movement.command_time += step;
+                let before = movement.clone();
+                let remote = LegacyAnimationSelection::from_entity(&entity);
+                let local = LegacyAnimationSelection::from_player(&player);
+                let predicted = LegacyAnimationSelection::from_movement(&movement);
+                assert_eq!(remote, local);
+                assert_eq!(remote, predicted);
+                assert_eq!(remote.lower.clip, expected);
+                assert_eq!(remote.upper.clip, expected);
+                assert_eq!(movement, before);
+                assert_eq!(entity.leg_animation(), stock as u16);
+                assert_eq!(player.leg_animation(), stock as u16);
+            }
+        }
+    }
+
+    #[test]
+    fn flips_forced_frames_and_attacks_survive_the_presentation_remap() {
+        let mut entity = EntityState::zero(1, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+        for (field, value) in [(14, 3), (16, 917), (17, 114), (27, 4), (50, 1), (62, 1)] {
+            assert!(entity.set_raw_field(field, value));
+        }
+        let selection = LegacyAnimationSelection::from_entity(&entity);
+        assert_eq!(selection.lower.clip, 942);
+        assert_eq!(selection.lower.revision, 942 | (1 << 16));
+        assert_eq!(selection.upper.clip, 114);
+        assert_eq!(selection.upper.revision, 114 | (1 << 16));
+        // The remapped pose retains the normal forced-frame override.
+        let field = sjk_protocol::LEGACY_ENTITY_FIELDS
+            .iter()
+            .position(|field| field.name == "forceFrame")
+            .unwrap();
+        assert!(entity.set_raw_field(field, 123));
+        assert_eq!(
+            LegacyAnimationSelection::from_entity(&entity).forced_frame,
+            Some(123)
+        );
     }
 }

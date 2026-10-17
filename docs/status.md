@@ -1,3 +1,24 @@
+## Tavion and Desann idle poses
+
+17/10/2026, `feat/jof-idle-stances`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented the distinct idle clips from JoF EJK #47 (`1fbe4678`,
+`codemp/game/bg_pmove.c::PM_GetSaberStance`) as default presentation, with no
+toggle. A two-entry style/clip table replaces Tavion's fast idle with
+`BOTH_P1_S1_T_` and Desann's medium idle with `BOTH_STAND9`. Snapshot entities,
+local player snapshots and predicted actors share the mapping, independent of
+menu style. Simulation inputs and attack timers are unchanged. Other clips,
+unlit/thrown sabers, flips and forced frames are retained. See
+[client](client.md#tavion-and-desann-idle-poses).
+
+Five focused Rust regressions passed on Windows x86_64, Rust 1.99.0. They pin
+the source-selected ordinals, exclusions and snapshot/prediction agreement at
+command times advanced by 8/7/4/3 ms; they do not exercise movement simulation
+or establish gameplay parity. Source inspection also checked `bg_misc.c`'s
+`s->fireflag = ps->fd.saberAnimLevel` style transfer. Workspace formatting,
+build, tests and Clippy passed (existing warnings remain).
+Installed-animation/GPU appearance and live-server behavior remain
+unverified; no game assets are configured for an in-game comparison.
+
 ## One Russian letter in chat
 
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a
