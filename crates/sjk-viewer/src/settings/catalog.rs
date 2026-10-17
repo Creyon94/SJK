@@ -665,6 +665,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Grip victim effects",
+        cvar: crate::actor_world_submission::force_powers::victim::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Shield hit sphere",
         cvar: "cg_shieldSphere",
         kind: ValueKind::Bool,

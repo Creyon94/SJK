@@ -1157,6 +1157,20 @@ hand, and Grip's puffs are third-person only. A player who mind-tricked the
 viewer still shows its beam and hand puffs, which stock draws before its
 mind-trick cut-off; only the body push blur is hidden for it.
 
+Grip victim puffs (`cg_gripVictimFX`, archived, default on) follow JoF EJK
+#33 and the later #90 victim path: `BOTH_CHOKE3` on the legs marks a choking
+actor, including while the torso transitions. Two red `gfx/effects/forcePush`
+puffs move in opposite directions at 55 units/s, live for 120 ms, fade their
+RGB from 60/8/8 to black and grow from radius 8 to 10 (`CG_AddPuff`). They use
+the existing 8 ms emission cadence to bound density at higher frame rates.
+The posed `cervical` joint is preferred, with head-minus-eight-world-units as
+fallback and a two-unit forward offset. Missing joints suppress the effect.
+Joint indices are cached at model load; the existing pose supplies positions.
+The viewed player's puffs are hidden in first person or while zoomed; other
+players and detached cameras retain them. This visual animation marker does
+not identify a Grip attacker or change gameplay. See
+[grip_victim.rs](../crates/sjk-viewer/src/grip_victim.rs).
+
 EFX `bounce` and `intensity` are one key in retail: both set a primitive's
 single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
 `:448-458`, `:2128`). A particle bounces by it, an electricity bolt uses it as

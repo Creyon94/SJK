@@ -34,6 +34,7 @@ mod jetpack_submission;
 mod player_spheres;
 
 struct Sinks<'a> {
+    grip_victim: bool,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -223,6 +224,11 @@ pub(crate) fn submit(
         .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
         .unwrap_or(0);
     let mut sinks = Sinks {
+        grip_victim: gpu
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(force_powers::victim::CVAR))
+            .unwrap_or(true),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
             .object_meshes

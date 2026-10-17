@@ -1,6 +1,9 @@
 //! Pose-attached MP force effects, sharing actor matrices and the EFX pool.
 use super::*;
 
+#[path = "grip_victim.rs"]
+pub(crate) mod victim;
+
 #[path = "force_sprites.rs"]
 pub(crate) mod sprites;
 
@@ -203,6 +206,7 @@ pub(super) fn submit(
         return;
     };
     let selection = select(caster, sinks.third_person);
+    victim::submit(sinks, mesh, entity, transform, snapshot, time, now);
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);

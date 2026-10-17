@@ -508,6 +508,27 @@ registered default and both list values across Game, Classic and Radial layouts:
 the permanent labels follow the toggle while the inventory selector remains.
 Shared settings layout/category checks passed. Live/GPU appearance remains
 unverified; `JKA_GAME_DATA` is not configured.
+## Grip victim effects
+
+16/10/2026, `feat/grip-victim-effects` based on `7026c735`: red neck puffs
+follow the `BOTH_CHOKE3` leg-animation marker, using JoF EJK #33's puff
+parameters and #90's later victim placement and camera guard. The archived
+`cg_gripVictimFX` setting defaults on in classic Game options and SJK Advanced
+Gameplay. Local prediction and remote snapshot markers are supported; the
+viewed player's puffs are hidden in first person or zoom, while other players
+and detached cameras retain them. Cached neck/head positions reuse the existing
+pose, with missing joints suppressing the effect. Emission uses the existing
+8 ms effect cadence. Gameplay and protocol encoding are unchanged.
+
+Verification on Windows with Rust 1.99.0: `cargo fmt --all --check`, locked
+workspace build/tests, and Clippy with all targets passed. Four focused tests
+cover local/remote animation markers and prediction, camera/setting guards,
+scaled and rotated joint placement, missing joints, and reference puff colour,
+lifetime, motion and density at 8/7/4/3 ms frame steps. These are synthetic
+checks, not live visual parity evidence.
+
+Live Grip play and actual GPU appearance remain unverified. `JKA_GAME_DATA`
+is not configured; no release frame-time measurements have been made.
 
 ## Emotes on stock models: limbs out of wider bodies
 
