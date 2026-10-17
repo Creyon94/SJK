@@ -114,13 +114,14 @@ impl Found {
     }
 
     fn bind(&mut self, key: &str, script: String) {
-        let Some(key) = sjk_shell::key_names::canonical_key(key) else {
+        let Ok(key) = sjk_shell::BindTable::canonical_key(key) else {
             self.unknown_keys += 1;
             return;
         };
-        self.binds.retain(|(old, _)| !old.eq_ignore_ascii_case(key));
+        self.binds
+            .retain(|(old, _)| !old.eq_ignore_ascii_case(&key));
         if !script.is_empty() {
-            self.binds.push((key.to_owned(), script));
+            self.binds.push((key, script));
         }
     }
 }
@@ -416,6 +417,13 @@ mod tests {
         assert_eq!(found.binds.len(), 1);
         assert_eq!(found.binds[0].1, "say bye; wave");
         assert_eq!(found.unknown_keys, 1);
+    }
+
+    #[test]
+    fn jof_two_key_chords_are_imported() {
+        let found = parse("bind l+k kill\nbind L+K say_again\n");
+        assert_eq!(found.unknown_keys, 0);
+        assert_eq!(found.binds, [("k+l".to_owned(), "say_again".to_owned())]);
     }
 
     #[test]

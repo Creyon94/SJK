@@ -21,7 +21,7 @@ mod revision;
 mod shell;
 mod shell_error;
 
-pub use bind::{BindError, BindTable};
+pub use bind::{BindError, BindState, BindTable, MAX_KEY_COMBOS};
 pub use command::{CommandError, CommandRegistry, split_commands, tokenize};
 pub use command_buffer::{
     CommandBuffer, CommandBufferError, CommandFileResolver, MAX_COMMAND_BUFFER_BYTES,

@@ -73,6 +73,21 @@ copy notices claim success only after the clipboard accepted the text, and a fai
 keeps its selection. Checked by unit tests; the real X11/Wayland clipboard and the
 in-game interaction have not been tried.
 
+## Two-key chord binds from JoF EJK
+
+17/10/2026, `feat/key-combo-binds`: the console accepts arbitrary two-key binds
+such as `bind K+L kill`. Either press order works; the first key keeps its normal
+press, the chord replaces the second key's normal bind, and a chord `+command`
+gets its release. Query, `unbind`, `unbindall`, `bindlist`, generated configs and
+the config importer understand chords. The implementation follows JoF EJK alpha
+commit `b6623f51` (`codemp/client/cl_keys.cpp`), including its 256-chord limit,
+last-plus parsing (`++K`) and first-match table order. Unit tests cover name
+normalization, both press orders, release behavior, focus-state clearing,
+console commands, config round-trip and import. On Linux x86_64 with Rust 1.99.1,
+`cargo fmt --all --check`, the locked workspace build and tests, workspace
+all-target clippy, and the release viewer/dedicated build pass (existing clippy
+warnings remain). It has not yet been tried in the game; Sol will test the local
+build before anything is pushed.
 
 ## SJK chat messages up to 300 characters
 
