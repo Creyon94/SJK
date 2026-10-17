@@ -188,7 +188,7 @@ impl SkinColor {
         let rgb = match stock {
             BladeColor::Retail(color) => color.blade_rgb(),
             BladeColor::Rgb(rgb) => rgb,
-            BladeColor::Skin(_) => return self,
+            BladeColor::Skin(_) | BladeColor::Black => return self,
         };
         let turn = hue_of(rgb.map(|channel| f32::from(channel) / 255.0))
             .map_or(0.0, |hue| (hue - base).rem_euclid(1.0));

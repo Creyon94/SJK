@@ -1321,6 +1321,27 @@ effects carry the weapon's fire sound, which so lands on the event's own fire so
 12/10/2026 the local flash waited for the snapshot, a round trip after the shot, so every
 gun sounded twice (Creyon's report). Other players' flashes still start from the snapshot.
 
+## JA+ black sabers
+
+The compatibility policy in [black_sabers.rs](../crates/sjk-viewer/src/black_sabers.rs)
+reads a documented server-identifier table and the raw player colour indices,
+then applies `cg_blackSabers` and disable-mask bit 3. A fixed two-word hand mask
+is rebuilt once per presented frame; held and thrown sabers consume it without
+allocating or changing runtime equipment ownership. Muted players retain their
+replacement colours. The default allows the feature, matching JoF EJK #50's
+corrected disable-bit direction.
+
+A separate blade material and alpha pass preserve the retail/RGB additive
+paths and every existing blade-skin slot. Black trails use alpha blending with
+the reference shader's two identical stages combined into one, retaining the
+existing trail lifetime and UV fade. Black blades/trails are excluded from the
+dynamic-glow image and emit no blade light. The renderer resolves installed
+`gfx/effects/sabers/blackglow`, `blackcore` and `blacktrail` images at load time,
+or generates black alpha coverage from its neutral profiles. Its smooth
+capsule presentation and generated fallback are not a claim of pixel parity
+with EJK's sprite chain or community textures. See
+[status](status.md#ja-black-sabers) for verification and limits.
+
 ## First-person saber body
 
 First-person saber mode draws the local posed body and arms instead of hiding

@@ -1,7 +1,7 @@
 use super::*;
 use crate::blade_skin_file::tests::{SAMPLE, sample_with};
 use crate::saber::{self, Blade, Color, Instance};
-use crate::saber_rgb::{MATERIAL_COUNT, RGB_MATERIAL, SKIN_MATERIAL};
+use crate::saber_rgb::{BLACK_MATERIAL, MATERIAL_COUNT, RGB_MATERIAL, SKIN_MATERIAL};
 use crate::saber_submission::lights;
 
 fn blade() -> Blade {
@@ -28,7 +28,8 @@ fn sample_color() -> SkinColor {
 #[test]
 fn skins_have_their_materials_after_the_neutral_pair() {
     assert_eq!(SKIN_MATERIAL, RGB_MATERIAL + 1);
-    assert_eq!(MATERIAL_COUNT, 7 + MAX_SKINS);
+    assert_eq!(BLACK_MATERIAL, 7 + MAX_SKINS as u32);
+    assert_eq!(MATERIAL_COUNT, 8 + MAX_SKINS);
     let skin = BladeColor::Skin(sample_color());
     assert_eq!(skin.material(), 7);
     let third = BladeColor::Skin(SkinColor {

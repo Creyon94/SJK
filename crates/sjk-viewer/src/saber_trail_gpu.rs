@@ -8,6 +8,8 @@ use std::error::Error;
 
 pub(crate) struct Runtime {
     pipeline: wgpu::RenderPipeline,
+    black_pipeline: wgpu::RenderPipeline,
+    any_black: bool,
     material: wgpu::BindGroup,
     buffer: wgpu::Buffer,
     vertices: Vec<Vertex>,
@@ -36,6 +38,7 @@ impl Runtime {
                 texture_layout_entry(0),
                 texture_layout_entry(1),
                 texture_layout_entry(2),
+                texture_layout_entry(4),
                 wgpu::BindGroupLayoutEntry {
                     binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
@@ -56,10 +59,21 @@ impl Runtime {
         let glow = load_shader_texture(device, queue, vfs, shaders, glow_image)?;
         let core = load_shader_texture(device, queue, vfs, shaders, core_image)?;
         let sword = load_shader_texture(device, queue, vfs, shaders, sword_image)?;
+        let black_image = crate::saber_rgb::black::image(vfs, shaders, "trail");
+        let black = crate::gpu_texture::upload_display_image(
+            device,
+            queue,
+            "SJK black saber trail",
+            &black_image,
+        );
         let material = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("SJK stock saber trail material"),
             layout: &texture_layout,
             entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(&black),
+                },
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::TextureView(&glow),
@@ -87,40 +101,44 @@ impl Runtime {
             label: Some("SJK saber trail shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("saber_trail.wgsl").into()),
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("SJK additive saber trail pipeline"),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertex_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Some(Vertex::layout())],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragment_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: Some(blend),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DepthTarget::FORMAT,
-                depth_write_enabled: Some(false),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        let create = |entry, blend| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("SJK additive saber trail pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vertex_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[Some(Vertex::layout())],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: Some(blend),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DepthTarget::FORMAT,
+                    depth_write_enabled: Some(false),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let pipeline = create("fragment_main", blend);
+        let black_pipeline = create("fragment_black", wgpu::BlendState::ALPHA_BLENDING);
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("SJK saber trail vertices"),
             size: (MAX_SEGMENTS * 6 * std::mem::size_of::<Vertex>()) as u64,
@@ -129,6 +147,8 @@ impl Runtime {
         });
         Ok(Self {
             pipeline,
+            black_pipeline,
+            any_black: false,
             material,
             buffer,
             vertices: Vec::with_capacity(MAX_SEGMENTS * 6),
@@ -145,6 +165,7 @@ impl Runtime {
     ) {
         self.vertices.clear();
         self.last_quads = pool.append_vertices(now, &mut self.vertices);
+        self.any_black = self.vertices.iter().any(|vertex| vertex.style == 2);
         self.vertex_count = u32::try_from(self.vertices.len()).unwrap_or(u32::MAX);
         if !self.vertices.is_empty() {
             queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.vertices));
@@ -155,6 +176,7 @@ impl Runtime {
         &'pass self,
         pass: &mut wgpu::RenderPass<'pass>,
         camera: &'pass wgpu::BindGroup,
+        black_trails: bool,
     ) {
         if self.vertex_count == 0 {
             return;
@@ -164,6 +186,10 @@ impl Runtime {
         pass.set_bind_group(1, &self.material, &[]);
         pass.set_vertex_buffer(0, self.buffer.slice(..));
         pass.draw(0..self.vertex_count, 0..1);
+        if black_trails && self.any_black {
+            pass.set_pipeline(&self.black_pipeline);
+            pass.draw(0..self.vertex_count, 0..1);
+        }
     }
 
     /// World positions of the last prepared frame's trail vertices.

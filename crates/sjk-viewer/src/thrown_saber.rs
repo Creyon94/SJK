@@ -75,9 +75,12 @@ pub(super) fn submit(
         rotation: hilt_rotation.to_array(),
         ..transform
     };
-    let color = sinks
-        .saber_skins
-        .blade_color(owner_entity, BladeColor::from_rgb(owner.color));
+    let color = sinks.saber_skins.blade_color(
+        owner_entity,
+        sinks
+            .black_sabers
+            .color(owner_entity, 0, BladeColor::from_rgb(owner.color)),
+    );
     if let Some((hilt, blades)) = submit_hilt(
         owner,
         color,

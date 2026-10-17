@@ -278,7 +278,11 @@ fn build_quad(
         position,
         uv,
         color: [rgb[0], rgb[1], rgb[2], 1.0],
-        style: u32::from(style),
+        style: if style != 1 && color == BladeColor::Black {
+            2
+        } else {
+            u32::from(style)
+        },
         _padding: 0,
     };
     Some(Quad {
@@ -310,6 +314,38 @@ mod tests {
 
     fn color() -> BladeColor {
         BladeColor::Retail(Color::Yellow)
+    }
+
+    #[test]
+    fn black_blades_select_alpha_trails_without_changing_slice_timing() {
+        let make = |color, style| {
+            build_quad(
+                [0.; 3],
+                [0., 0., 40.],
+                [1., 0., 0.],
+                [1., 0., 40.],
+                8,
+                200,
+                style,
+                color,
+            )
+            .unwrap()
+        };
+        let black = make(BladeColor::Black, 0);
+        let ordinary = make(color(), 0);
+        assert_eq!(black.lifetime_millis, ordinary.lifetime_millis);
+        assert_eq!(
+            black.vertices.map(|v| v.position),
+            ordinary.vertices.map(|v| v.position)
+        );
+        assert!(black.vertices.iter().all(|v| v.style == 2));
+        assert!(ordinary.vertices.iter().all(|v| v.style == 0));
+        assert!(
+            make(BladeColor::Black, 1)
+                .vertices
+                .iter()
+                .all(|v| v.style == 1)
+        );
     }
 
     #[test]

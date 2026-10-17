@@ -15,6 +15,8 @@ var blur_core: texture_2d<f32>;
 var sword_trail: texture_2d<f32>;
 @group(1) @binding(3)
 var trail_sampler: sampler;
+@group(1) @binding(4)
+var black_trail: texture_2d<f32>;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -48,6 +50,7 @@ fn vertex_main(
 // `swordTrail` = swordtrail (rgbGen vertex).
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    if input.style == 2u { discard; }
     if input.style == 1u {
         let sword = textureSample(sword_trail, trail_sampler, input.uv);
         return vec4(sword.rgb * input.color.rgb, 1.0);
@@ -55,4 +58,15 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let glow = textureSample(blur_glow, trail_sampler, input.uv);
     let core = textureSample(blur_core, trail_sampler, input.uv);
     return vec4(glow.rgb * input.color.rgb + core.rgb, 1.0);
+}
+
+@fragment
+fn fragment_black(input: VertexOutput) -> @location(0) vec4<f32> {
+    // Explicit gradients keep sampling valid for mixed ordinary/black vertices.
+    let dx = dpdx(input.uv);
+    let dy = dpdy(input.uv);
+    if input.style != 2u { discard; }
+    let texel = textureSampleGrad(black_trail, trail_sampler, input.uv, dx, dy);
+    // EJK's blacktrail shader draws the same alpha stage twice.
+    return vec4(texel.rgb, 1.0 - (1.0 - texel.a) * (1.0 - texel.a));
 }

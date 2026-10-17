@@ -32,6 +32,12 @@ impl ViewerConsole {
             ),
             CvarDefinition::new("name", "Padawan", user, "Multiplayer player name"),
             CvarDefinition::new(
+                crate::saber_rgb::black::CVAR,
+                true,
+                CvarFlags::ARCHIVE,
+                "Show JA+/jaPRO black sabers when plugin feature 3 is allowed",
+            ),
+            CvarDefinition::new(
                 "model",
                 "kyle/default",
                 user,

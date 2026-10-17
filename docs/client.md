@@ -898,6 +898,24 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
+## JA+ black sabers
+
+On JA+/jaPRO and TaystJK servers, saber colour number 11 is shown as a black
+blade with an alpha-blended trail and no blade light or bloom. It works for
+both hands and thrown sabers. The archived `cg_blackSabers` setting is on by
+default, under classic Settings > Game Options and SJK Advanced > Gameplay.
+Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
+black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
+The normal plugin-mask default (1536) allows black blades.
+
+Unsupported servers show colour 11 as orange. Ordinary RGB colours, including
+an RGB tint of zero, retain their existing behavior; SJK blade skins retain
+priority over the server's blade colour. Installed community black glow/core/
+trail images are used when available; otherwise SJK generates black alpha
+profiles locally. No extra content download is required. See
+[rendering](rendering.md#ja-black-sabers) and
+[verification](status.md#ja-black-sabers).
+
 ## EternalJK animation fixes
 
 Players' animations are remapped before they are shown, as EternalJK's `CG_Player`

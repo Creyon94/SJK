@@ -663,6 +663,14 @@ pub(crate) fn create_materials(
         ));
     }
     materials.resize(MATERIAL_COUNT, neutral);
+    materials[crate::saber_rgb::BLACK_MATERIAL as usize] = material(
+        device,
+        queue,
+        layout,
+        samplers,
+        &crate::saber_rgb::black::image(vfs, shaders, "glow"),
+        &crate::saber_rgb::black::image(vfs, shaders, "core"),
+    );
     Ok(materials)
 }
 

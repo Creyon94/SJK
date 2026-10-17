@@ -1,3 +1,36 @@
+## JA+ black sabers
+
+17/10/2026, `feat/japlus-black-sabers`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented JoF EJK #50's black-blade rendering and corrected plugin-bit
+semantics. Colour 11 uses an independent alpha-blended material and trail for
+both hands and thrown sabers, without blade light or dynamic glow. A set
+`cp_pluginDisable` bit 3 produces orange; the existing mask default 1536 allows
+black. Both settings interfaces include the default-on `cg_blackSabers`
+presentation override. A named server-contract table scopes automatic support
+to JA+/jaPRO/TaystJK. Normal RGB and SJK blade skins retain their paths.
+See [client](client.md#ja-black-sabers) and
+[rendering](rendering.md#ja-black-sabers).
+
+Reference evidence: EJK merge `4ebc7e7e`,
+`codemp/cgame/cg_players.c::ClampSaberColor`, black material selection,
+`doLight = qfalse`, and the two alpha stages in
+`assets/japro/shaders/sbRGB.shader`. Installed community textures are optional;
+generated alpha profiles provide a local fallback.
+
+Workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0 (Clippy
+warnings remain). Eight focused regressions cover bit polarity, colour and
+server transitions, both hands, cosmetic suffixes, muted players, material
+separation, no blade light, synthetic installed/generated textures, settings,
+trail timing and WGSL validation. An explicitly run offscreen GPU pixel test
+passed on NVIDIA GeForce RTX 5070 Ti / Vulkan: generated blade centre
+`[0, 0, 0, 255]`, white background preserved. It checks the blade alpha pass,
+not the trail draw or a complete in-game scene. A release measurement on
+AMD Ryzen 7 5800X3D averaged 4.586 us for a 64-slot policy scan over 20,000
+synthetic frames; this excludes trails, submission, rendering and GPU work
+and does not establish a game FPS rate. Live server behavior, installed-texture
+appearance, crowded-scene performance and EJK pixel parity remain unverified;
+simulation and codecs are unchanged.
+
 ## One Russian letter in chat
 
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a
