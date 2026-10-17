@@ -1056,6 +1056,7 @@ mod tests {
             avatar: String::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         };
         let snapshot = |status, me| Snapshot {
             loot: Vec::new(),
@@ -1084,6 +1085,9 @@ mod tests {
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            shop: None,
+            trade: None,
         };
         let online = snapshot(Status::Online, Some(me));
         assert_eq!(Holdings::of(false, Some(&online)), Holdings::IdentityOff);

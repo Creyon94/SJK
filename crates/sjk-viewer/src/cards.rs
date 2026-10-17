@@ -21,6 +21,7 @@ pub(crate) mod look;
 pub(crate) mod loot;
 pub(crate) mod mark;
 pub(crate) mod rehearsal;
+pub(crate) mod shard;
 
 use crate::holocrons::COUNT;
 use sjk_identity::CardStack;
@@ -173,15 +174,24 @@ pub(crate) const ODDS: [Odds; COUNT] = [
 ];
 
 /// What a holocron of tier `index` holds, one line: "A sealed card and 30 to 50 credits,
-/// or (30% of the time) a saber shader."
+/// or a saber shader (40%) or kyber shards (10%)."; without the shards from a hub that
+/// gives none.
 pub(crate) fn inside(index: usize) -> String {
     let index = index.min(COUNT - 1);
     let odds = crate::loot_odds::current();
     let (least, most) = odds.credits[index];
-    let shader = crate::cards::loot::percent(f64::from(odds.shader[index]) / 1_000.0);
+    let percent = |per_mille: u32| crate::cards::loot::percent(f64::from(per_mille) / 1_000.0);
+    let shader = percent(odds.shader[index]);
+    if odds.shard_pile[index] == 0 {
+        return format!(
+            "Opening it gives a sealed card and {least} to {most} credits, or ({shader} of \
+             the time) a saber shader."
+        );
+    }
+    let shards = percent(odds.shard_pile[index]);
     format!(
-        "Opening it gives a sealed card and {least} to {most} credits, or ({shader} of the \
-         time) a saber shader."
+        "Opening it gives a sealed card and {least} to {most} credits, or a saber shader \
+         ({shader}) or kyber shards ({shards})."
     )
 }
 
@@ -438,7 +448,7 @@ mod tests {
         assert_eq!(credits_text(1_234_567), "1 234 567");
         assert_eq!(
             inside(1),
-            "Opening it gives a sealed card and 30 to 50 credits, or (40% of the time) a saber shader."
+            "Opening it gives a sealed card and 30 to 50 credits, or a saber shader (40%) or kyber shards (10%)."
         );
         assert_eq!(inside(99), inside(COUNT - 1));
     }

@@ -1275,6 +1275,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }),
         server: None,
         players: vec![
@@ -1320,6 +1321,9 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         holocrons: None,
         log_requests: Vec::new(),
         log_answer: None,
+        economy: None,
+        shop: None,
+        trade: None,
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);
@@ -1571,6 +1575,7 @@ fn player_card_profile(shots: &mut Snapshot) {
             mythical: 0,
         },
         holocrons: Vec::new(),
+        shards: 0,
     };
     let medal = sjk_identity::Medal {
         id: "bug_hunter".to_owned(),
@@ -2527,6 +2532,7 @@ fn medals_snapshot() {
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }),
         server: None,
         players: Vec::new(),
@@ -2547,6 +2553,9 @@ fn medals_snapshot() {
         holocrons: None,
         log_requests: Vec::new(),
         log_answer: None,
+        economy: None,
+        shop: None,
+        trade: None,
     };
     let with = hub(shot_medals());
     let without = hub(Vec::new());

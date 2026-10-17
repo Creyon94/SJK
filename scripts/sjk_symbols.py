@@ -3,8 +3,8 @@
     python scripts/sjk_symbols.py            write crates/sjk-viewer/assets/fonts/SJKSymbols.ttf
     python scripts/sjk_symbols.py --check    fail when the committed font is out of date
 
-The symbols mark qualities in SJK's text: the rarities (Common to Mythical) and the
-cards' finishes. They sit in Unicode's Private Use Area from U+E000, one code point
+The symbols mark qualities in SJK's text: the rarities (Common to Mythical), the
+cards' finishes and kyber shards. They sit in Unicode's Private Use Area from U+E000, one code point
 each for good: a symbol is never moved or reused, new ones take the next free point of
 their group. The client draws them as it draws any character its fonts lack, from this
 font through the wide-glyph atlas (crates/sjk-viewer/src/text/wide.rs), in the colour of
@@ -173,6 +173,18 @@ def finish(index):
     return shapes
 
 
+# The kyber shard (17/10/2026): a long crystal with a point at each end and a ridge down
+# its middle. The credits' sign, Lucasfilm's, stays out of this font (the client draws it
+# from shapes, crates/sjk-viewer/src/cards/mark.rs).
+def kyber_shard():
+    half, top, shoulder = BOX * 0.2, BOX / 2 - 10, BOX * 0.2
+    crystal = [
+        (0, MIDDLE + top), (half, MIDDLE + shoulder), (half, MIDDLE - shoulder),
+        (0, MIDDLE - top), (-half, MIDDLE - shoulder), (-half, MIDDLE + shoulder),
+    ]
+    return [ring(crystal[::-1]), capsule((0, MIDDLE + top * 0.62), (0, MIDDLE - top * 0.62), STROKE * 0.8)]
+
+
 # Every symbol: (code point, glyph name, shapes). Code points never move.
 SYMBOLS = [
     (0xE000, "rarityCommon", rarity(0)),
@@ -183,6 +195,7 @@ SYMBOLS = [
     (0xE010, "finishNormal", finish(0)),
     (0xE011, "finishHolo", finish(1)),
     (0xE012, "finishSolar", finish(2)),
+    (0xE030, "kyberShard", kyber_shard()),
 ]
 
 

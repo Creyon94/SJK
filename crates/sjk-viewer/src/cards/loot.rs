@@ -3,7 +3,8 @@
 //! holocron of each tier and its credits. A card's rarity and its finish
 //! are rolled apart, so the chance of a kind is the two multiplied; "per holocron found"
 //! weighs each tier by how often it drops, and counts the openings that bring a saber
-//! shader instead of the card and its credits ([`card_in`]). Every chance is 0 to 1.
+//! shader or a pile of kyber shards instead of the card and its credits ([`card_in`]).
+//! Every chance is 0 to 1.
 
 use super::{FINISHES, RARITIES};
 use crate::holocrons::COUNT;
@@ -15,9 +16,32 @@ pub(crate) fn drop(tier: usize) -> f64 {
 }
 
 /// The chance an opening of a holocron of tier `tier` brings a card (and its credits),
-/// not a saber shader.
+/// not a saber shader or a pile of kyber shards.
 pub(crate) fn card_in(tier: usize) -> f64 {
-    1.0 - f64::from(current().shader[tier]) / 1_000.0
+    let table = current();
+    1.0 - f64::from(table.shader[tier] + table.shard_pile[tier]) / 1_000.0
+}
+
+/// The chance an opening of a holocron of tier `tier` brings a pile of kyber shards.
+pub(crate) fn shards_in(tier: usize) -> f64 {
+    f64::from(current().shard_pile[tier]) / 1_000.0
+}
+
+/// The kyber shards a holocron of tier `tier` brings on average: a pile's size rolled
+/// evenly between the least and the most, times how often it brings one.
+pub(crate) fn shards_mean(tier: usize) -> f64 {
+    let (least, most) = current().shards[tier];
+    shards_in(tier) * f64::from(least + most) / 2.0
+}
+
+/// The chance a holocron found brings a pile of kyber shards.
+pub(crate) fn shards_any() -> f64 {
+    (0..COUNT).map(|tier| drop(tier) * shards_in(tier)).sum()
+}
+
+/// The kyber shards a holocron found brings on average.
+pub(crate) fn shards_any_mean() -> f64 {
+    (0..COUNT).map(|tier| drop(tier) * shards_mean(tier)).sum()
 }
 
 /// The chance a holocron found brings a card.
@@ -138,31 +162,34 @@ mod tests {
         assert!(close((0..RARITIES.len()).map(rarity_any).sum(), 1.0));
         assert!(close((0..FINISHES.len()).map(finish_any).sum(), 1.0));
         // The kinds of card sum to the chance a holocron brings a card at all; the rest
-        // brings a shader.
+        // brings a shader or a pile of kyber shards (one in ten).
         let kinds: f64 = (0..RARITIES.len())
             .flat_map(|r| (0..FINISHES.len()).map(move |f| kind_any(r, f)))
             .sum();
         assert!(close(kinds, card_any()));
-        assert!(close(card_any(), 0.65325));
+        assert!(close(card_any(), 0.55325));
+        assert!(close(shards_any(), 0.1));
     }
 
     /// The figures `docs/holocrons.md` gives, worked by hand.
     #[test]
     fn the_figures_are_the_docs() {
         let rarities: Vec<String> = (0..4).map(|r| percent(rarity_any(r))).collect();
-        assert_eq!(rarities, ["60.6%", "27.6%", "10.2%", "1.54%"]);
+        assert_eq!(rarities, ["60.9%", "27.5%", "10.1%", "1.51%"]);
         let finishes: Vec<String> = (0..3).map(|f| percent(finish_any(f))).collect();
-        assert_eq!(finishes, ["92.2%", "7.7%", "0.146%"]);
-        assert!(close(credits_any(), 21.045));
-        assert!(close(credits_mean(0), 10.5));
+        assert_eq!(finishes, ["92.3%", "7.56%", "0.14%"]);
+        assert!(close(credits_any(), 17.525));
+        assert!(close(credits_mean(0), 9.0));
+        assert!(close(shards_any_mean(), 1.70875));
+        assert!(close(shards_mean(3), 15.0));
         let (rarity, finish, chance) = rarest();
         assert_eq!(
             (RARITIES[rarity].id, FINISHES[finish].id),
             ("legendary", "solar")
         );
-        assert_eq!(one_in(chance), "1 in 11 001");
-        assert_eq!(percent(chance), "0.0091%");
-        assert_eq!(percent(kind_any(0, 2)), "0.0211%");
+        assert_eq!(one_in(chance), "1 in 13 633");
+        assert_eq!(percent(chance), "0.0073%");
+        assert_eq!(percent(kind_any(0, 2)), "0.0172%");
     }
 
     #[test]

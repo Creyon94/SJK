@@ -72,6 +72,13 @@ impl ViewerConsole {
                     );
                 }
             }
+            // Without the identity the shop says it is still reading; nothing else to say.
+            PanelAction::ReadShop => {
+                let _ = crate::player_identity::read_shop();
+            }
+            PanelAction::Buy(id) => {
+                let _ = crate::player_identity::buy(&id);
+            }
         }
     }
 
@@ -150,6 +157,10 @@ impl ViewerConsole {
         }
         let now = std::time::Instant::now();
         self.holocrons_panel.refresh(now, || Data::read(enabled));
+        // The shop's day turned while it shows: its new offers.
+        if self.holocrons_panel.shop_due(now) {
+            let _ = crate::player_identity::read_shop();
+        }
         // The opening's answer is looked for every frame only while the page waits.
         if self.holocrons_panel.opening() {
             let outcome = crate::player_identity::opening_outcome();
@@ -217,6 +228,16 @@ impl ViewerConsole {
     #[cfg(test)]
     pub(crate) fn preview_loot(&mut self, show: bool) {
         self.holocrons_panel.show_loot(show);
+    }
+
+    /// Show the shop over the open page (`true`) or the page, for a world shot; with
+    /// `confirm`, offer `confirm`'s Buy waits for its second press.
+    #[cfg(test)]
+    pub(crate) fn preview_shop(&mut self, show: bool, confirm: Option<usize>) {
+        let _ = self.holocrons_panel.show_shop(show);
+        if let Some(index) = confirm {
+            self.holocrons_panel.confirm_for_shot(index);
+        }
     }
 
     /// Show the hover card of tier row `index` on the open page, for a world shot.

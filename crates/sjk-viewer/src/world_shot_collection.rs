@@ -380,7 +380,7 @@ fn duel6_sjk_hover_cards() {
         if let Some(console) = gpu.console.as_mut() {
             console.preview_profile(preview());
             console.preview_collection(Some(vec![sun()]), 0.8);
-            console.preview_cards(cards, 1_340);
+            console.preview_cards(cards, 1_340, 85);
             console.open_profile_hub_page(Tab::Medals, ReturnTarget::MainMenu);
         }
         for _ in 0..240 {

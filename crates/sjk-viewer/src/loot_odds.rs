@@ -1,13 +1,14 @@
 //! The odds holocrons roll with, as the hub sends them (`PROTOCOL.md`, "Holocrons":
 //! `loot` in `GET /v1/holocrons`, 14/10/2026): how often a drop is each tier, the card's
-//! rarity and finish, the credits, and how often an opening brings a saber shader and of
-//! which tier. The Holocrons tab's loot table, the card odds on hover cards, a holocron's
+//! rarity and finish, the credits, how often an opening brings a saber shader and of
+//! which tier, and (17/10/2026) how often a pile of kyber shards and how big. The Holocrons tab's loot table, the card odds on hover cards, a holocron's
 //! line and the crate spin all read [`current`], so they show what the hub rolls with now.
 //!
 //! [`BUILT_IN`] is this client's copy, for before the hub's first answer and for hubs
 //! older than the tables. The hub's tables replace it only when they fit what this client
 //! can show (the same tiers in the same order, four rarities, three finishes, five shader
-//! tiers, every share summing to a thousand); otherwise the copy stays.
+//! tiers, every share summing to a thousand); otherwise the copy stays. A hub from before
+//! the shard piles sends none, read as none.
 
 use crate::cards::{self, FINISHES, RARITIES};
 use crate::holocrons::{COUNT, TIERS};
@@ -29,6 +30,11 @@ pub(crate) struct Table {
     pub(crate) shader: [u32; COUNT],
     /// The shader's tier then, common to mythical.
     pub(crate) shader_tier: [[u32; SHADER_TIERS]; COUNT],
+    /// How often an opening brings a pile of kyber shards instead of the card and its
+    /// credits.
+    pub(crate) shard_pile: [u32; COUNT],
+    /// The shards a pile holds: the least and the most.
+    pub(crate) shards: [(u32, u32); COUNT],
 }
 
 /// This client's copy of the hub's tables (`src/holocrons.rs`, `src/cards.rs` and
@@ -49,6 +55,8 @@ pub(crate) const BUILT_IN: Table = Table {
         [200, 300, 350, 130, 20],
         [50, 150, 350, 330, 120],
     ],
+    shard_pile: [100, 100, 100, 100],
+    shards: [(5, 15), (10, 25), (25, 50), (100, 200)],
 };
 
 static HUB: Mutex<Option<Table>> = Mutex::new(None);
@@ -95,8 +103,9 @@ fn of_hub(tiers: &[sjk_identity::LootTier]) -> Option<Table> {
             && whole(&tier.rarity)
             && whole(&tier.finish)
             && whole(&tier.shader_tier)
-            && tier.shader <= 1_000
-            && tier.credits[0] <= tier.credits[1];
+            && tier.shader + tier.shard_pile <= 1_000
+            && tier.credits[0] <= tier.credits[1]
+            && tier.shards[0] <= tier.shards[1];
         if !fits {
             return None;
         }
@@ -113,6 +122,11 @@ fn of_hub(tiers: &[sjk_identity::LootTier]) -> Option<Table> {
         );
         table.shader[index] = tier.shader;
         table.shader_tier[index].copy_from_slice(&tier.shader_tier);
+        table.shard_pile[index] = tier.shard_pile;
+        table.shards[index] = (
+            u32::try_from(tier.shards[0]).ok()?,
+            u32::try_from(tier.shards[1]).ok()?,
+        );
     }
     (table.drop.iter().map(|&d| u32::from(d)).sum::<u32>() == 1_000).then_some(table)
 }
@@ -143,6 +157,11 @@ mod tests {
                 ],
                 shader: table.shader[index],
                 shader_tier: table.shader_tier[index].to_vec(),
+                shard_pile: table.shard_pile[index],
+                shards: [
+                    u64::from(table.shards[index].0),
+                    u64::from(table.shards[index].1),
+                ],
             })
             .collect()
     }
@@ -155,7 +174,8 @@ mod tests {
         );
         for index in 0..COUNT {
             assert_eq!(BUILT_IN.shader_tier[index].iter().sum::<u32>(), 1_000);
-            assert!(BUILT_IN.shader[index] <= 1_000);
+            assert!(BUILT_IN.shader[index] + BUILT_IN.shard_pile[index] <= 1_000);
+            assert!(BUILT_IN.shards[index].0 <= BUILT_IN.shards[index].1);
         }
         assert_eq!(of_hub(&wire(&BUILT_IN)), Some(BUILT_IN));
     }
@@ -177,6 +197,18 @@ mod tests {
         let mut uneven = wire(&changed);
         uneven[3].shader_tier[0] += 1;
         assert_eq!(of_hub(&uneven), None);
+        // A hub from before the shard piles: none.
+        let mut older = wire(&changed);
+        for tier in &mut older {
+            tier.shard_pile = 0;
+            tier.shards = [0, 0];
+        }
+        let read = of_hub(&older).unwrap();
+        assert_eq!((read.shard_pile, read.shards[2]), ([0; COUNT], (0, 0)));
+        // More shaders and piles than openings.
+        let mut over = wire(&changed);
+        over[0].shard_pile = 1_000;
+        assert_eq!(of_hub(&over), None);
         assert_eq!(of_hub(&wire(&changed)[..3]), None);
     }
 }

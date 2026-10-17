@@ -193,7 +193,7 @@ fn duel6_sjk_cards_tab() {
             };
             let _ = frame(&mut gpu, 10);
             if let Some(console) = gpu.console.as_mut() {
-                console.preview_cards(every_kind(), 1_340);
+                console.preview_cards(every_kind(), 1_340, 85);
                 console.preview_collection(Some(Vec::new()), 3.1);
             }
             gpu.open_profile_hub(Tab::Cards);
@@ -217,7 +217,7 @@ fn duel6_sjk_cards_tab() {
         };
         let _ = frame(&mut gpu, 10);
         if let Some(console) = gpu.console.as_mut() {
-            console.preview_cards(Vec::new(), 0);
+            console.preview_cards(Vec::new(), 0, 0);
         }
         gpu.open_profile_hub(Tab::Cards);
         let _ = frame(&mut gpu, 120);
@@ -303,7 +303,7 @@ fn duel6_sjk_card_faces() {
                 .position(|stack| !stack.sealed())
                 .unwrap_or(0);
             if let Some(console) = gpu.console.as_mut() {
-                console.preview_cards(list, 1_340);
+                console.preview_cards(list, 1_340, 85);
                 console.preview_collection(Some(Vec::new()), 3.1);
             }
             gpu.open_profile_hub(Tab::Cards);
@@ -334,7 +334,7 @@ fn duel6_sjk_card_faces() {
             .position(|stack| !stack.sealed())
             .unwrap_or(0);
         if let Some(console) = gpu.console.as_mut() {
-            console.preview_cards(list, 1_340);
+            console.preview_cards(list, 1_340, 85);
             console.preview_collection(Some(Vec::new()), 3.1);
         }
         gpu.open_profile_hub(Tab::Cards);

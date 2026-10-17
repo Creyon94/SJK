@@ -4,10 +4,11 @@
 //! right, over a dark panel: how many holocrons the player holds (or why that is not
 //! known), the four tiers (picture, name in the tier's colour, the count held or a dash,
 //! the odds of a drop), what the chosen tier is and holds, how long to the next holocron
-//! and how many dropped today, and the newest ten. The player's credits stand at the
-//! panel's top right, Loot table beside what the chosen tier holds, and Open and Open all
-//! under the holocron's caption. While the opening's ceremony or the loot table shows,
-//! only it is drawn ([`super::opening`], [`super::loot`]).
+//! and how many dropped today, and the newest ten. The player's kyber shards and credits
+//! stand at the panel's top right, Loot table beside what the chosen tier holds, and Open,
+//! Open all and Shop under the holocron's caption. While the opening's ceremony, the loot
+//! table or the shop shows, only it is drawn ([`super::opening`], [`super::loot`],
+//! [`super::shop`]).
 //!
 //! Every position is on the 16:9 frame ([`Frame`]); under the Profile screen's row of
 //! tabs the page moves down [`crate::profile_hub::SHIFT`] pixels. The pictures and
@@ -51,6 +52,7 @@ const HELD_Y: f32 = 788.0;
 const BUTTONS_Y: f32 = 838.0;
 const OPEN_WIDTH: f32 = 190.0;
 const OPEN_ALL_WIDTH: f32 = 230.0;
+const SHOP_WIDTH: f32 = 140.0;
 /// In place of Open and Open all while the hub keeps opening to staff.
 pub(crate) const CLOSED_LINE: &str = "Opening comes soon: keep your holocrons, they will wait.";
 const BUTTON_GAP: f32 = 20.0;
@@ -218,6 +220,11 @@ impl Panel {
             self.ui.finish(LOOT_BACK_TOKEN);
             return;
         }
+        if self.shop {
+            self.draw_shop(&frame, viewport, now);
+            self.ui.finish(SHOP_BACK_TOKEN);
+            return;
+        }
         if self.hub {
             crate::profile_hub::collection_header(
                 &mut self.ui,
@@ -321,45 +328,8 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Start,
         );
-        if let Some(credits) = self.data.credits {
-            self.credits(frame, credits);
-        }
-    }
-
-    /// The player's credits at the panel's top right: the mark and the sum, the word
-    /// under them.
-    fn credits(&mut self, frame: &Frame, credits: u64) {
-        let s = frame.s;
-        let words = crate::cards::credits_text(credits);
-        let size = 30.0;
-        let width = crate::text::display_width(&words, size) * crate::text::style::current().scale;
-        let right = RIGHT_X + RIGHT_WIDTH;
-        text(
-            &mut self.ui,
-            TextFamily::Display,
-            format_args!("{words}"),
-            frame.rect(right - width - 8.0, HEAD_Y + 4.0, width + 8.0, 38.0),
-            size * s,
-            color::GOLD_BRIGHT,
-            FontWeight::Semibold,
-            TextAlign::End,
-        );
-        let mark = 24.0;
-        let [x, y] = frame.point(
-            right - width - 8.0 - 10.0 - crate::cards::mark::width(mark),
-            HEAD_Y + 10.0,
-        );
-        crate::cards::mark::draw(self.ui.draw_list_mut(), [x, y], mark * s, color::GOLD);
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!("credits"),
-            frame.rect(right - 200.0, LINE_Y, 200.0, 26.0),
-            15.0 * s,
-            color::QUIET,
-            FontWeight::Regular,
-            TextAlign::End,
-        );
+        // The kyber shards and the credits at the panel's top right, each word under it.
+        self.balances(frame, RIGHT_X + RIGHT_WIDTH, HEAD_Y + 4.0);
     }
 
     /// The four tiers, one row each.
@@ -776,8 +746,30 @@ impl Panel {
         }
         let one = self.open_one().is_some();
         let all = self.data.openable();
-        let total = OPEN_WIDTH + BUTTON_GAP + OPEN_ALL_WIDTH;
+        // The shop opens with opening.
+        let shop = self.data.can_open;
+        let total = OPEN_WIDTH
+            + BUTTON_GAP
+            + OPEN_ALL_WIDTH
+            + if shop { BUTTON_GAP + SHOP_WIDTH } else { 0.0 };
         let left = STAGE_AT[0] - total * 0.5;
+        if shop {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [
+                    left + total - SHOP_WIDTH,
+                    BUTTONS_Y,
+                    SHOP_WIDTH,
+                    BUTTON_HEIGHT,
+                ],
+                "Shop",
+                false,
+                true,
+                false,
+                SHOP_TOKEN,
+            );
+        }
         kit::button(
             &mut self.ui,
             frame,
@@ -813,7 +805,7 @@ impl Panel {
     /// The keys, right-aligned at the bottom.
     fn keys(&mut self, frame: &Frame) {
         let s = frame.s;
-        let mut keys: [(&[&str], &str); 7] = [(&[], ""); 7];
+        let mut keys: [(&[&str], &str); 8] = [(&[], ""); 8];
         let mut count = 0;
         let mut add = |caps: &'static [&'static str], action: &'static str| {
             keys[count] = (caps, action);
@@ -828,6 +820,9 @@ impl Panel {
             add(&["A"], "open all");
         }
         add(&["L"], "loot table");
+        if self.data.can_open {
+            add(&["S"], "shop");
+        }
         if self.hub {
             add(
                 &["Ctrl", "Tab"],

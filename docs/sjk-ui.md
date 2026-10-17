@@ -1944,6 +1944,7 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
 | U+E010 | a card's outline | Normal finish |
 | U+E011 | a card with two slanting bands | Holo finish |
 | U+E012 | a card with a sun at its heart | Solar finish |
+| U+E030 | a long crystal, a ridge down its middle | Kyber shards (17/10/2026) |
 
 - **Drawn from strokes:** the script draws every symbol from lines with round ends,
   polygon rings and diamonds in font units (1000 to the em, capitals 700 high, the
@@ -1953,7 +1954,7 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
   date, and a test checks every symbol `symbols.rs` names is in it. The strokes are
   about two pixels thick in 16 to 20 pixel text.
 - **Where they show:** a card's corner and its footer's rarity (the face), the sealed
-  back's rarity, the loot table's rarity and finish headings and its cards' rows, the
+  back's rarity, the loot table's rarity and finish headings, its kyber shards' heading and its cards' rows, the
   Shaders tab's tier on each row. The rarity's word and colour stay beside the symbol:
   it is never the only sign.
 - **Not in it:** the credits' sign, Lucasfilm's, stays drawn from shapes

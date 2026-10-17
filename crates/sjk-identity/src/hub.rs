@@ -319,6 +319,47 @@ pub trait Hub: Send {
             "this hub client does not reveal cards".to_owned(),
         ))
     }
+
+    /// Shatter one duplicate of shader `id` into kyber shards (`POST
+    /// /v1/unlocks/shatter`, 17/10/2026): never the last copy.
+    fn shatter_unlock(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+    ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not shatter shaders".to_owned(),
+        ))
+    }
+
+    /// Craft shader `id` with kyber shards (`POST /v1/unlocks/craft`, 17/10/2026).
+    fn craft_unlock(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+    ) -> Result<crate::wire::CraftAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not craft shaders".to_owned(),
+        ))
+    }
+
+    /// The shop's offers of the day (`GET /v1/shop`, 17/10/2026).
+    fn shop(&mut self, _identity: &Identity) -> Result<crate::wire::ShopDay, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read the shop".to_owned(),
+        ))
+    }
+
+    /// Buy today's offer `id` with credits (`POST /v1/shop/buy`, 17/10/2026).
+    fn buy_offer(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+    ) -> Result<crate::wire::BuyAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not buy".to_owned(),
+        ))
+    }
     /// Withdraw the identity's claim on `server`.
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
@@ -1169,6 +1210,49 @@ impl Hub for HttpHub {
 
     fn reveal_cards(&mut self, identity: &Identity) -> Result<crate::wire::RevealAnswer, HubError> {
         parse(self.send(Some(identity), "POST", "/v1/cards/reveal", Some(json!({})))?)
+    }
+
+    fn shatter_unlock(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+    ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/unlocks/shatter",
+            Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn craft_unlock(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+    ) -> Result<crate::wire::CraftAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/unlocks/craft",
+            Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn shop(&mut self, identity: &Identity) -> Result<crate::wire::ShopDay, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/shop", None)?)
+    }
+
+    fn buy_offer(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+    ) -> Result<crate::wire::BuyAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/shop/buy",
+            Some(json!({ "id": id })),
+        )?)
     }
 
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {
