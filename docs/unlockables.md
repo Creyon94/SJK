@@ -575,6 +575,10 @@ Chameleon and Banner are about their colour.
   `saber.wgsl` turns the finished glow and core once; other players' blades take their
   colours from their `CS_PLAYERS` string, so everyone sees a chroma in its wearer's
   colour. A pale skin (the Storm, the Hologram) stays pale, only tinted.
+- **Team games**: with `cg_saberTeamColors` (on by default) a red or blue player's
+  saber colour is their team's, and every skin stays worn with that colour as its base,
+  so a chroma turns red or blue ([client.md](client.md#team-saber-colours)). Only
+  `cg_ctfTeamSabers` in CTF and CTY draws the plain team blade without the skin.
 - **The mark**: a small colour wheel (twelve hue segments round a white dot,
   `swatch::chroma_mark`) beside a chroma's name on the Collection's rack and before
   "Chroma saber shader: takes your saber colour" beside the model, in the corner of its

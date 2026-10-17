@@ -441,6 +441,15 @@ impl EntityState {
         self.raw_field(37).unwrap_or(0) as u16
     }
 
+    /// Protocol-26 `entityState_t::saberEntityNum` (netfield 37) of a player or
+    /// NPC: the server-only entity of its primary saber, zero while it has none
+    /// (`BG_PlayerStateToEntityState`, `bg_misc.c:3328`; cleared when the saber is
+    /// knocked away, `w_saber.c:6768`). The same field carries an event's sound
+    /// channel ([`Self::event_sound_channel`]).
+    pub fn saber_entity_num(&self) -> u16 {
+        self.raw_field(37).unwrap_or(0) as u16
+    }
+
     /// Protocol-26 `trickedentindex`, used by tracked sounds and mute events
     /// (netfield 58).
     pub fn tracked_entity_num(&self) -> u16 {
@@ -582,6 +591,15 @@ impl EntityState {
     /// `CG_G2AnimEntModelLoad` in `cg_players.c:7184-7203`).
     pub fn npc_saber_indices(&self) -> [u16; 2] {
         [72, 102].map(|field| self.raw_field(field).unwrap_or(0) as u16)
+    }
+
+    /// Protocol-26 `entityState_t::csSounds_Std`, `csSounds_Combat`,
+    /// `csSounds_Extra` and `csSounds_Jedi` (netfields 80, 103, 104 and 105):
+    /// `CS_SOUNDS` indices of an NPC's `*$<dir>` custom sound directories, zero
+    /// when the NPC has none of that kind (`NPC_stats.c:757-814`, read back by
+    /// `CG_HandleNPCSounds`, `cg_servercmds.c:718`).
+    pub fn npc_sound_sets(&self) -> [u8; 4] {
+        [80, 103, 104, 105].map(|field| self.raw_field(field).unwrap_or(0) as u8)
     }
 
     /// Protocol-26 `entityState_t::boltToPlayer` (netfield 101). NPCs reuse

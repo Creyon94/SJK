@@ -14,7 +14,10 @@ impl ViewerConsole {
                 let session = session.as_deref_mut().ok_or("Not connected to a server.")?;
                 if !args.is_empty() {
                     session
-                        .send_reliable_command(args.join(" ").as_bytes())
+                        .send_reliable_command_from(
+                            args.join(" ").as_bytes(),
+                            sjk_client::ReliableCommandOrigin::Input,
+                        )
                         .map_err(|error| error.to_string())?;
                 }
                 Ok(Vec::new())

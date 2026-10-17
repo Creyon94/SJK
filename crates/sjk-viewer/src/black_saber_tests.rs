@@ -231,3 +231,21 @@ fn black_saber_policy_release_cost() {
         start.elapsed().as_secs_f64() * 1_000_000. / 20_000.
     );
 }
+
+#[test]
+fn a_team_colour_replaces_a_black_blade_per_hand() {
+    let game = game(r"\gamename\JA+ Mod", r"\c1\11\c2\11");
+    let fallback = BladeColor::Retail(Color::Red);
+    let policy = Policy::new(Some(&game), true, 0, 0);
+    let primary = policy.without(1, [true, false]);
+    assert_eq!(primary.color(1, 0, fallback), fallback);
+    assert_eq!(primary.color(1, 1, fallback), BladeColor::Black);
+    assert_eq!(
+        policy.without(2, [true; 2]).color(1, 0, fallback),
+        BladeColor::Black
+    );
+    assert_eq!(
+        policy.without(0, [true; 2]).color(1, 0, fallback),
+        BladeColor::Black
+    );
+}

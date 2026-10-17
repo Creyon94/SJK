@@ -108,8 +108,8 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
-    /// Each client slot's team blade, with no skin over it, while `cg_ctfTeamSabers`
-    /// is on in CTF or CTY (`team_sabers.rs`).
+    /// Each client slot's team blade colours in team games: `cg_saberTeamColors`, and
+    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`).
     team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
@@ -560,6 +560,35 @@ fn submit_actor(
     if mesh.is_some_and(|index| sinks.actor_meshes[index].surfaces.weapon_lost) {
         equipment = None;
     }
+    // An NPC's blades without a colour override wear their `.sab` colour, and with
+    // no saber entity its primary saber is not drawn (`sjk_client::npc_identity`).
+    let npc = state.filter(|state| state.entity_type() == 13);
+    let npc_primary_missing = npc.is_some_and(sjk_client::legacy_npc_primary_saber_missing);
+    if let (Some(npc), Some(catalog), Some(index)) = (npc, sinks.saber_hilts, mesh) {
+        let overrides = sjk_client::legacy_npc_saber_color_overrides(npc);
+        let names = &sinks.actor_meshes[index].saber_names;
+        let definition = |saber: usize| {
+            names[saber].as_deref().map(|name| {
+                sjk_client::legacy_npc_definition_rgb(
+                    catalog.get_any_case(name).default_color,
+                    npc.number(),
+                )
+            })
+        };
+        equipment = equipment.map(|mut held| {
+            if overrides[0].is_none()
+                && let Some(rgb) = definition(0)
+            {
+                held.color = rgb;
+            }
+            if overrides[1].is_none()
+                && let Some(rgb) = definition(1)
+            {
+                held.secondary_color = rgb;
+            }
+            held
+        });
+    }
     // A player muted on this PC, or their body, has the default blade colour.
     let client = match mesh.and_then(|index| sinks.actor_meshes[index].body_identity.as_ref()) {
         Some(body) => u64::from(body.client_num) + 1,
@@ -570,12 +599,13 @@ fn submit_actor(
     if muted {
         equipment = equipment.map(crate::muted_players::equipment);
     }
-    // With CTF team sabers on, both blades take the team's colour, muted or not.
+    // In team games the blades take the team's colour, muted or not
+    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`).
     let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
-    if let Some(rgb) = team_blade {
+    if team_blade.any() {
         equipment = equipment.map(|mut held| {
-            held.color = rgb;
-            held.secondary_color = rgb;
+            held.color = team_blade.color(0, held.color);
+            held.secondary_color = team_blade.color(1, held.secondary_color);
             held
         });
     }
@@ -621,7 +651,7 @@ fn submit_actor(
             *transform,
             draw_actor,
             local,
-            holster.on_back,
+            holster.on_back || npc_primary_missing,
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
@@ -1037,8 +1067,14 @@ fn submit_equipment(
         sinks
             .saber_skins
             .get(entity.id.get())
-            .filter(|_| crate::team_sabers::of(&sinks.team_blades, entity.id.get()).is_none()),
-        sinks.black_sabers,
+            .filter(|_| !crate::team_sabers::of(&sinks.team_blades, entity.id.get()).plain),
+        // A team colour replaces a black blade too (it is past `SABER_PURPLE`).
+        sinks.black_sabers.without(
+            entity.id.get(),
+            crate::team_sabers::of(&sinks.team_blades, entity.id.get())
+                .colors
+                .map(|color| color.is_some()),
+        ),
         std::array::from_fn(|hand| {
             if hand == 0 && holstered_primary {
                 return None;

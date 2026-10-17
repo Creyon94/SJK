@@ -54,6 +54,13 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - JA+'s flamethrower shows its flames, impact fire, pose and sound instead of Lightning on JA+ servers (Settings, Flamethrower effects: Auto, Off or JA+); without the flame effects installed, Lightning shows as before _(Lumaya, after JoF EJK)_
 - The classic scoreboard follows JoF EJK: it opens when you die, keeps the votes and timers visible, hides your status and crosshair while it is up, and lists up to 19 players, 32 on crowded servers _(Lumaya, after JoF EJK)_
 - CTF team saber colours (Settings, off by default): in capture the flag every red or blue player's sabers in their team's colour, with no blade shader _(Slash)_
+- Pressing a bind such as amhug many times no longer queues the extra presses to fire one a second afterwards: a repeated bind or console command waits once and is dropped if it cannot leave within 1.5 s; typed chat is never dropped _(Sol, after chris's report)_
+- Team games colour sabers by team, as in JoF EJK: red players' blades red and blue players' blue, custom and black colours included, with saber shaders worn over the team colour (`cg_saberTeamColors`, on by default; 0 changes only the other team's colour and RGB or black); CTF team saber colours now only adds plain blades in capture the flag _(Sol, after Kushina's report)_
+- Spectating shows the followed player's name in the top left, as in JoF EJK, and hides the warmup line meanwhile _(Sol)_
+- The text HUD (`cg_hudFiles 1`) keeps six-letter saber styles such as MEDIUM and STRONG on one line, inside the screen _(Sol, after SixNine's report)_
+- Free camera and `fakenoclip` fly during JA+ sit and dance emotes (amsit, amhips): a server holding your body at speed 0 no longer keeps the camera stuck inside it _(Sol, after Kushina's reports)_
+- NPCs' thrown sabers are visible, with the NPC's own hilt and colour; NPC sabers take their hilt's colour instead of always red, and an NPC without a saber shows no blade _(Sol, after JoF EJK)_
+- NPCs and vehicles such as the tauntaun cry, jump and die in their own voice instead of a player's, and stay silent when they have none _(Sol, after JoF EJK)_
 
 ## 2026.1017.1 (Alpha) | 17/10/2026
 

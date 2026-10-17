@@ -910,17 +910,33 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
-## CTF team saber colours
+## Team saber colours
 
-`cg_ctfTeamSabers` (archived, default 0; Settings > Advanced > Gameplay and classic+
-Game options, **CTF team saber colours**) draws every red or blue player's blades in
-their team's stock colour in capture the flag and capture the ysalamiri, whatever their
-`c1`..`c4` colours and blade shader say: held and thrown sabers, muted players' default
-saber, and the player card's swatches. Free players, spectators, other game types and
-the setting off keep each player's own colours. It is stricter than cgame's
-`cg_saberTeamColors 0`, which lets a red player keep a yellow blade. From SJK pull
-request #113 (Slash), made an option at the merge (Sol's choice, 17/10/2026); see
-[team_sabers.rs](../crates/sjk-viewer/src/team_sabers.rs).
+`cg_saberTeamColors` (archived, default 1; Settings > Advanced > Gameplay and classic+
+Game options, **Team saber colours**) is JoF EJK's rule (`cg_players.c:8096-8111`,
+`cg_xcvar.h:411`): in team gametypes (team FFA, CTF, CTY; not siege, not jedi-vs-merc,
+never NPCs) a red player's blades are drawn in the stock red and a blue player's in
+the stock blue, whatever `c1`..`c4` say: both sabers, held and thrown, a custom RGB
+or a JA+ black blade included, and the player card's swatches. At 0 a blade keeps its
+own colour unless it is the other team's (blue on red, red on blue) or past purple
+(RGB, black and the other extended colours), as in EJK. Free players, spectators and
+other game types keep each player's own colours. Fixes hub report 70 (random saber
+colours in team FFA). An SJK blade shader stays worn and takes the team colour as its
+base, as it takes the player's own colour elsewhere (a chroma turns to red or blue,
+[unlockables.md](unlockables.md#chromas); integrator's choice, 17/10/2026, Sol may
+revisit). See [team_sabers.rs](../crates/sjk-viewer/src/team_sabers.rs) and
+`sjk_client::legacy_saber_team_colors`.
+
+`cg_ctfTeamSabers` (archived, default 0; same pages, **CTF team saber colours**) goes
+further in capture the flag and capture the ysalamiri: every red or blue player's blades
+in their team's stock colour with no blade shader over them, muted players' default
+saber included, whatever `cg_saberTeamColors` says. From SJK pull request #113 (Slash),
+made an option at the merge (Sol's choice, 17/10/2026).
+
+Verified by unit tests (team FFA, CTF and CTY force red and blue, free players and
+spectators untouched, FFA, duel, siege and jedi-vs-merc keep the choice, the `0`
+semantics per saber, black blades replaced per hand, the card's swatches); not tried
+in the game.
 
 ## JA+ black sabers
 
@@ -2329,6 +2345,19 @@ profile value `2242` (lines, WA, WD, centre) draws the same two lines here. Noth
 is drawn on JAPRO servers (their serverinfo names `japro`), whose movement styles
 change the physics, while in a vehicle, zoomed or in a special movement type. The
 helper's sound, accel bar, Weze, Warsow and original styles are not drawn.
+
+## Followed player's name
+
+While following (spectating) someone, and throughout demo playback, the HUD names
+the player whose view it shows in the top left, as JoF EternalJK's `CG_DrawFollow`
+does (stock Jedi Academy centred "following" and the name at the top): the name with
+its colour codes, white otherwise, its line top at (4, 27) of the 640x480 screen and
+`FONT_MEDIUM` at 0.85 (SJK Menu with "Classic game fonts", the HUD font otherwise), placed
+in the HUD's 1080-line frame like the other HUD text
+([follow.rs](../crates/sjk-viewer/src/hud/follow.rs)). While it shows, the warmup
+line ("WAITING FOR PLAYERS", "STARTS IN") is not drawn, as `CG_Draw2D` skips
+`CG_DrawWarmup` then. It follows `cg_drawHud` and `cg_draw2D` and steps aside with
+the rest of the HUD while the scoreboard is held (hub report 69).
 
 ## Scoreboard styles
 
@@ -4830,6 +4859,42 @@ Community NPCs need their model PK3 mounted by both the server and client. An NP
 definition alone cannot supply a missing mesh. SJK does not distribute those
 packs. The animation-error isolation described in [rendering.md](rendering.md#actor-animation-failures)
 protects other actors from malformed custom clips, but does not repair the clip.
+
+## NPC sabers and voices
+
+NPCs (`ET_NPC`, entity numbers 32 and up) have no clientinfo, so their sabers and
+voices come from their own entity rather than a player slot (hub report 68, a JoF
+server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
+
+- **Thrown sabers.** The server tags a flying saber with `genericenemyindex = owner
+  + 1024` for a player and an NPC alike (`w_saber.c:6939`). The client accepts any
+  owner entity number, not only the 32 client slots, and draws an NPC's thrown
+  saber with its `npcSaber1` hilt and blade colour
+  ([thrown_sabers.rs](../crates/sjk-client/src/thrown_sabers.rs)); before
+  17/10/2026 an NPC's thrown saber was invisible while its hand was empty.
+- **Blade colours.** With `boltToPlayer` zero, each NPC blade wears its `.sab`
+  `saberColor` (`CG_AddSaberBlade`, `cg_players.c:8049-8064`; `saberColor random`
+  is one of orange to purple, steady per NPC); before 17/10/2026 it was always red.
+  With `boltToPlayer` non-zero both sabers read their packed colour, and one whose
+  three bits are zero gets stock's `-1`, drawn blue (`CG_DoSaber`'s `default`).
+- **No saber entity.** An NPC whose `saberEntityNum` is zero has its primary saber
+  neither in hand nor lit; only a second saber is drawn (`cg_players.c:14210-14212`),
+  as for a saber knocked away. Players are not checked this way yet
+  ([npc_identity.rs](../crates/sjk-client/src/npc_identity.rs),
+  [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs)).
+- **Voices.** `*pain25`, `*death1`, `*jump1` and the other custom sounds of an NPC
+  (or a vehicle, which is an NPC) come from its own sound folders: the server names
+  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`
+  and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in `cg_servercmds.c:718`).
+  As `CG_CustomSound` (`cg_players.c:213-322`), death, jump, pain, choke, gasp, land
+  and taunt come from the standard set, anger, victory and pushed from the combat
+  set, and taunt1-3, deflect, gloat and pushfail from the Jedi set, each
+  `sound/chars/<dir>/misc/<name>`. An NPC with no set for a sound, or whose file is
+  missing, is silent: unlike a player it has no `mp_generic` fallback. Sets load
+  when their `CS_SOUNDS` slot changes, not per event
+  ([sound_npc_voices.rs](../crates/sjk-client/src/sound_npc_voices.rs)). Before
+  17/10/2026 every NPC spoke with the voice of player slot 31. The `_Extra` set
+  (`*chase1`, `*cover1`, ...) has no event in the sound table and is not loaded.
 
 ## Shader remap controls
 

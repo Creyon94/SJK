@@ -300,6 +300,14 @@ smoothing. Turbo (attack held) sets the velocity along the aim directly.
 The flight ignores the animations that hold a body still (a taunt, a JA+ emote, a kick, a
 saber lock): `pmove_input_freeze` does not run for a fake-noclip predictor, so the camera
 flies while the real body stays in its emote.
+Nor does the flight take the body's speed when the server has stopped it: EJK flies at
+`ps.speed` as `BG_AdjustClientSpeed` leaves it, but a server can hold a body in a JA+
+seated or dance emote (`amsit`, `amhips`) with no speed, and a dodge, knockdown or throw
+hand extend zeroes it too, so the camera turned but never moved (hub reports 57 and 62).
+When that speed is zero the flight uses the base speed, and when that is zero as well
+codemp's default `g_speed`, 250 (servers do not advertise `g_speed`). Walking movement
+keeps the server's speed unchanged. With `developer 1` the console log records the body's
+move type, speed, base speed and hand extend as the flight starts.
 
 A ghost replay ([Ghost replay](client.md#ghost-replay)) or the mimic
 ([Mimic](client.md#mimic)) sends its own commands in place of the keys' ones through the
@@ -397,6 +405,21 @@ Losing window focus lets the next packet leave at once with the released keys.
 Prediction keeps 512 unacknowledged commands (JoF EJK's `cl_commandsize` ceiling),
 1.5 seconds at a gameplay FPS of 333. The flip kick's frame cvars stay EJK's frames
 at 125 FPS, converted to commands at the step in use.
+
+### Reliable command pacing
+
+Stock servers ignore a client command that arrives within `sv_floodProtect` (1000 ms)
+of the last one they ran, without telling the client. SJK therefore releases its
+reliable commands at most one per 1050 ms, in order
+([reliable_pacing.rs](../crates/sjk-client/src/reliable_pacing.rs)), so a burst the
+client makes itself (`userinfo`, `forcechanged`, `team`, menu actions) is never lost.
+What the player sends waits differently (17/10/2026, hub report 73): a bind or console
+command (`amhug`, `vote yes`, `cmd ...`) pressed again while the same one still waits
+is not queued a second time, and one that could not leave within 1.5 seconds is
+dropped, as the server drops a stock client's extras. Pressing a hug bind twenty times
+used to queue twenty hugs, still firing one a second after the player stopped. Chat
+(`say`, `say_team`, `tell`, typed or bound) is not queued twice while identical chat
+waits, but is never dropped: a message is still worth reading late, a late action is not.
 
 ## Parity requirements
 

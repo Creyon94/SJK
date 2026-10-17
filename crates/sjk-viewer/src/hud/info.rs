@@ -6,7 +6,9 @@ use std::fmt::Write as _;
 
 impl HudOverlay {
     /// `local_client` is the viewed player's client number, whose kills and
-    /// deaths the kill feed marks.
+    /// deaths the kill feed marks. `following` says whether `CG_DrawFollow` names
+    /// that player ([`super::follow::shown`]); the warmup line then gives way, as
+    /// `CG_Draw2D` skips `CG_DrawWarmup` while the name shows.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn update_match_information(
         &mut self,
@@ -17,6 +19,7 @@ impl HudOverlay {
         lagometer: &sjk_client::LagometerSamples,
         crosshair: Option<CrosshairName>,
         interrupted: bool,
+        following: bool,
     ) {
         self.kill_feed
             .observe(obituaries, game, server_time, local_client);
@@ -34,8 +37,18 @@ impl HudOverlay {
         }
         self.match_timer.clear();
         family::timer(&mut self.match_timer, game, server_time, self.family);
+        self.followed_name.clear();
+        if following {
+            self.followed_name
+                .push_str(&client_name_and_team(game, local_client).0);
+        }
         self.warmup_text.clear();
-        match sjk_client::legacy_warmup_text(game, server_time) {
+        let warmup = if following {
+            WarmupText::Hidden
+        } else {
+            sjk_client::legacy_warmup_text(game, server_time)
+        };
+        match warmup {
             WarmupText::Hidden => {}
             WarmupText::WaitingForPlayers => {
                 self.warmup_text.push_str("WAITING FOR PLAYERS");

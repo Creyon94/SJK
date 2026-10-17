@@ -9,6 +9,26 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 17/10/2026 | - | Fixes for hub bug reports 57, 62, 68, 69, 70, 73, 75, 76
+- 396421d |  | Changelog and debug panel for the 17/10 hub bug report fixes
++ 17/10/2026 | - | Force team saber colours in team games (cg_saberTeamColors)
+- 62db1a0 |  | Force team saber colours in team games (cg_saberTeamColors)
++ 17/10/2026 | - | Name the followed player in the top left while spectating
+- 75e20ad |  | Name the followed player in the top left while spectating
++ 17/10/2026 | - | Keep the text HUD's saber style on one line
+- 6aed9b6 |  | Keep the text HUD's saber style on one line
++ 17/10/2026 | - | Free camera flies when the server has stopped the body
+- 11631c7 |  | Free camera flies when the server has stopped the body
++ 17/10/2026 | - | Draw NPCs' thrown sabers
+- b80a339 |  | Draw NPCs' thrown sabers
++ 17/10/2026 | - | Give NPCs their own custom sound voices
+- 6414300 |  | Give NPCs their own custom sound voices
++ 17/10/2026 | - | Use .sab colours and saberEntityNum for NPC sabers
+- 6c096f9 |  | Use .sab colours and saberEntityNum for NPC sabers
++ 17/10/2026 | - | Drop repeated and stale player commands from the reliable pacer
+- a1cf16b |  | Drop repeated and stale player commands from the reliable pacer
++ 17/10/2026 | - | Collapse the pacer's window check (clippy)
+- 616c1b3 |  | Collapse the pacer's window check (clippy)
 + 17/10/2026 | - | SJK pull requests #113, #122, #124, #127, #129, #130
 - ea37cfd |  | Leave SJK #124's documentation out of this batch
 - 2d97b1e |  | SJK #113's team saber colours become an option, off by default
