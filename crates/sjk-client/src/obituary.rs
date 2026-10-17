@@ -12,7 +12,7 @@ const CS_PLAYERS: usize = 1_131;
 pub const EV_OBITUARY: u16 = 93;
 /// `EV_SIEGE_ROUNDOVER`, eight past `EV_OBITUARY` in `entity_event_t`: a siege round is
 /// won, by the team in its `eventParm` (`SiegeRoundComplete`, `g_saga.c`).
-pub const EV_SIEGE_ROUNDOVER: u16 = 101;
+pub const EV_SIEGE_ROUNDOVER: u16 = sjk_game_jka::siege::EV_SIEGE_ROUNDOVER as u16;
 
 /// The last siege round won that a snapshot carried.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -106,7 +106,8 @@ impl Default for KillFeed {
     }
 }
 
-/// Allocation-free entity-event observer for obituary events.
+/// Allocation-free entity-event observer for obituary events, which also keeps the last
+/// siege round won (`EV_SIEGE_ROUNDOVER`) from the same scan.
 pub struct ObituaryTracker {
     signatures: [u16; MAX_ENTITIES],
     present: [bool; MAX_ENTITIES],

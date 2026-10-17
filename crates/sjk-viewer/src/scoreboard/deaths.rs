@@ -31,6 +31,9 @@ impl Scoreboard {
         game: &GameState,
         console: Option<&crate::console::ViewerConsole>,
     ) {
+        if snapshot.server_time < self.deaths.time {
+            self.siege_round_over = None;
+        }
         let d = &mut self.deaths;
         if snapshot.server_time < d.time || tracker.decoded() < d.consumed {
             d.counts.fill(0);
@@ -59,8 +62,12 @@ impl Scoreboard {
             }
         }
         d.consumed = tracker.decoded();
-        if let Some(round) = tracker.siege_round_over() {
-            self.siege_round_over = Some(round);
+        // A round won since the last frame; the clock running back (a new level or
+        // server, a demo sought back) forgets the one before.
+        let round = tracker.siege_round_over();
+        if round != self.siege_round_seen {
+            self.siege_round_seen = round;
+            self.siege_round_over = round;
         }
         if let Some(client) = killer {
             self.killer = Some(client);

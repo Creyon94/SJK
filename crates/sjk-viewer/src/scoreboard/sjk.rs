@@ -1264,7 +1264,15 @@ impl Painter<'_> {
                 ) + 22.0
             }
             Standing::Siege { won } => {
-                if won {
+                // On the name's line at the column's end, where both fit (a compact
+                // board's columns may be too narrow).
+                let fits = || {
+                    let name = self.width(TextFamily::Display, name, 26.0, FontWeight::Semibold);
+                    let mark =
+                        self.width(TextFamily::Display, "Winner", 26.0, FontWeight::Semibold);
+                    name + mark + 16.0 <= width
+                };
+                if won && fits() {
                     self.run(
                         TextFamily::Display,
                         format_args!("Winner"),

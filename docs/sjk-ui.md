@@ -1177,8 +1177,9 @@ and out as the classic board does, settling into place as it opens.
   teams, "Winner" in gold at the end of that team's head, and the whole window
   washed faintly in that colour, deeper towards the top (JoF's request of
   17/10/2026): the winner of the `EV_SIEGE_ROUNDOVER` seen when
-  `CS_SIEGE_STATE` turned "3|time", else `CS_SIEGE_WINTEAM` for one joining
-  late. Under
+  `CS_SIEGE_STATE` turned "3|time" (`sjk_client::siege_round_winner`), else,
+  after the second round of a match whose teams switch, `CS_SIEGE_WINTEAM`; one
+  who joined after another round's event sees no winner. Under
   the map, "Killed by" and the name while you are dead.
 - **Where:** the columns start at x 680 of the frame, right of the chat column
   the scoreboard keeps for messages and the composer (`scoreboard::layout`, 640

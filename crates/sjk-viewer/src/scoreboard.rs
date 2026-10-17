@@ -93,8 +93,10 @@ pub(crate) struct Scoreboard {
     /// Who last killed the viewing player, named in `killer_name`.
     killer: Option<u16>,
     killer_name: String,
-    /// The last siege round won that the snapshots carried (`EV_SIEGE_ROUNDOVER`).
+    /// The last siege round won that the snapshots carried (`EV_SIEGE_ROUNDOVER`) in this
+    /// session, and the tracker's last one, which a new session does not take again.
     siege_round_over: Option<sjk_client::SiegeRoundOver>,
+    siege_round_seen: Option<sjk_client::SiegeRoundOver>,
     context: behavior::Context,
     requests: behavior::Requests,
     /// The hub roster revision the rows' `identity` tags were derived from;
@@ -132,6 +134,7 @@ impl Scoreboard {
             killer: None,
             killer_name: String::with_capacity(64),
             siege_round_over: None,
+            siege_round_seen: None,
             context: behavior::Context::default(),
             requests: behavior::Requests::default(),
             identity_revision: u64::MAX,
@@ -230,7 +233,10 @@ impl Scoreboard {
                 team_scores: session.team_scores(),
                 local: local_status,
                 killer,
-                siege_winner: siege_winner(game, self.siege_round_over),
+                // Siege's alone: two configuration strings read per frame otherwise.
+                siege_winner: (self.gametype == sjk_game_jka::match_end::GT_SIEGE)
+                    .then(|| sjk_client::siege_round_winner(game, self.siege_round_over))
+                    .flatten(),
                 duel: sjk::Duelists {
                     local: Some((player.health(), player.armor())),
                     ..duelists(game)
@@ -440,31 +446,6 @@ impl Scoreboard {
 fn config_text(game: &GameState, index: usize) -> Option<&str> {
     game.config_string(index)
         .and_then(|bytes| std::str::from_utf8(bytes).ok())
-}
-
-/// `CS_SIEGE_STATE` and `CS_SIEGE_WINTEAM` (`bg_public.h`).
-const CS_SIEGE_STATE: usize = 293;
-const CS_SIEGE_WINTEAM: usize = 296;
-
-/// The siege team that won the round now over (1 red, 2 blue), for the scoreboard: while
-/// `CS_SIEGE_STATE` says the round ended ("3|time", `SiegeRoundComplete`), the winner of
-/// the `EV_SIEGE_ROUNDOVER` seen at that time, else the match's winner after the teams
-/// switched (`CS_SIEGE_WINTEAM`), which a player joining late still has. Siege scores no
-/// team, so the team scores cannot tell.
-fn siege_winner(game: &GameState, round_over: Option<sjk_client::SiegeRoundOver>) -> Option<u8> {
-    let ended = config_text(game, CS_SIEGE_STATE)?.strip_prefix('3')?;
-    let ended_at = ended
-        .strip_prefix('|')
-        .and_then(|time| time.parse::<i32>().ok());
-    let side = |team: u8| matches!(team, 1 | 2).then_some(team);
-    round_over
-        .filter(|round| ended_at.is_some_and(|time| (round.server_time - time).abs() <= 2_000))
-        .and_then(|round| side(round.winner))
-        .or_else(|| {
-            config_text(game, CS_SIEGE_WINTEAM)
-                .and_then(|team| team.parse::<u8>().ok())
-                .and_then(side)
-        })
 }
 
 fn classic_duel_result<'a>(
@@ -775,33 +756,6 @@ mod tests {
         assert!(!board.present(Some(&console), false, true));
         assert_eq!(board.killer, None);
         assert!(board.killer_name.is_empty());
-    }
-
-    #[test]
-    fn a_siege_round_names_its_winner_once_it_is_over() {
-        let mut game = GameState::empty_local(0);
-        let won = |winner, server_time| {
-            Some(sjk_client::SiegeRoundOver {
-                winner,
-                server_time,
-            })
-        };
-        // Still running: no winner, whatever was seen before.
-        game.replace_config_string(CS_SIEGE_STATE, b"0|1000".to_vec())
-            .unwrap();
-        assert_eq!(siege_winner(&game, won(2, 90_000)), None);
-        // Over at 90 s: the event of that moment names the side.
-        game.replace_config_string(CS_SIEGE_STATE, b"3|90000".to_vec())
-            .unwrap();
-        assert_eq!(siege_winner(&game, won(2, 90_050)), Some(2));
-        assert_eq!(siege_winner(&game, won(1, 90_000)), Some(1));
-        // An earlier round's event is not this one's; nor is a team that is no side.
-        assert_eq!(siege_winner(&game, won(2, 30_000)), None);
-        assert_eq!(siege_winner(&game, won(3, 90_000)), None);
-        // Joined late: the match's winner after the switch.
-        game.replace_config_string(CS_SIEGE_WINTEAM, b"1".to_vec())
-            .unwrap();
-        assert_eq!(siege_winner(&game, None), Some(1));
     }
 
     #[test]

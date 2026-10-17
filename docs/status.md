@@ -5,7 +5,8 @@ scoreboard's header said nothing about who won. Implemented: the obituary tracke
 entity scan keeps the last `EV_SIEGE_ROUNDOVER` (event 101, eight past `EV_OBITUARY`,
 checked against OpenJK's `entity_event_t`) and its winner; while `CS_SIEGE_STATE` is
 "3|time" the board shows "Red team won" or "Blue team won" in the team's colour, from
-the event of that moment, else `CS_SIEGE_WINTEAM`; large and centred over both teams,
+the event of that moment, else `CS_SIEGE_WINTEAM` (set only after a switched match's
+second round, so a player who joined after any other round's event sees no winner); large and centred over both teams,
 with "Winner" by the team that won and a faint wash of its colour over the window, and
 the team heads show no score in siege. See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
