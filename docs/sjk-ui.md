@@ -1170,7 +1170,11 @@ and out as the classic board does, settling into place as it opens.
   played") and your place,
   the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
   tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
-  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Under
+  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Siege,
+  which scores no team, says nothing there until a round is over, then "Red team
+  won" or "Blue team won" in the team's colour (JoF's request of 17/10/2026): the
+  winner of the `EV_SIEGE_ROUNDOVER` seen when `CS_SIEGE_STATE` turned "3|time",
+  else `CS_SIEGE_WINTEAM` for one joining late. Under
   the map, "Killed by" and the name while you are dead.
 - **Where:** the columns start at x 680 of the frame, right of the chat column
   the scoreboard keeps for messages and the composer (`scoreboard::layout`, 640
