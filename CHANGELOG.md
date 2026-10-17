@@ -23,15 +23,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1017.2 (Alpha) | 17/10/2026
 
-> Force: JoF's 22 community presets, and team powers bought in FFA reach servers that allow them.
-> Sabers: Holstered hilts on your hips on JA+ servers, black sabers and the JA+ flamethrower.
-> Settings: Camera framing, chat text size, menu text up to 1.4 and the inventory list.
-> Console: Two-key binds like `bind K+L kill`, and Tab completes cfg names after `exec`.
-> Chat: %H%, %S%, %W% and the other EJK tokens send your live values.
-> Classic scoreboard: Opens when you die and keeps your HUD, as in JoF EJK.
+> Force: JoF's 22 community presets in the Force menu.
+> Sabers: Holstered hilts on JA+, black sabers, the flamethrower.
+> Settings: Camera framing, chat and menu text size, inventory list.
+> Console: Two-key binds such as `bind K+L kill`.
+> Chat: %H%, %S% and the other EJK tokens send your live values.
+> Scoreboard: The classic one opens when you die, as in JoF EJK.
 
+- The Great Holocron, the Sith pyramid and the kyber crystal wear Sol's own faces: the Sith triangle and runes run up the pyramid onto its floating cap, the crystal's facets carry its texture, and the Jedi cube's faces stand out as raised plateaus _(Sol)_
 - Following another player, leaving follow or spectator mode, or a demo rewind resets the weapon selection to the weapon in hand, so the old choice no longer reaches the new player's HUD or your next command _(Lumaya, after JoF EJK)_
 - Team Heal and Team Energize bought outside a team game stay in the Force profile you send, so a server that allows them can grant them; the Force menu says "Server decides" instead of "Team games only" _(Lumaya)_
 - Native servers load every NPC definition file of a large pack instead of dropping those past the stock 2,048-byte file list _(Lumaya)_
