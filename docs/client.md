@@ -894,7 +894,12 @@ clear` takes both off and `cosmetics visibility [off|on|onlyme]` shows or sets
 A colour number typed alone (`color1 2` in the console, a bind or a script, `set` and
 `seta` too) keeps the worn piece after it, as JoF's own colour commands do; a value
 with a name after its digits (`2tophat`, `4none`) is set as it is
-([typed_colour.rs](../crates/sjk-viewer/src/cosmetics/typed_colour.rs)). JoF's
+([typed_colour.rs](../crates/sjk-viewer/src/cosmetics/typed_colour.rs)). Each
+write uses the piece worn at that command's position in the buffer: `color1
+3newhat; color1 2` ends at `2newhat`; `color1 2; color1 4none` ends at `4none`.
+Queries and `vstr` expansion see earlier writes immediately, including across
+`wait` boundaries; normal userinfo notifications and `seta`/`setu` flags apply.
+JoF's
 `saberColor <r> <g> <b>` (or `<blade> <r> <g> <b>`, or six values for the two blades)
 makes the blades custom RGB, colour 6 with `cp_sbRGB1`/`cp_sbRGB2`, keeping the pieces
 too ([saber_colour_command.rs](../crates/sjk-viewer/src/saber_colour_command.rs)).

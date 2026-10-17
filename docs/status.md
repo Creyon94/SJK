@@ -1,3 +1,17 @@
+## Cosmetic colour script order
+
+17/10/2026, `fix/cosmetic-script-order`, based on `bb83eb28`, Windows:
+EJK #167's individual colour-command preservation already existed, but the
+native adapter took one snapshot of worn pieces per buffered frame and deferred
+its writes. It now samples and writes at each command, preserving semicolon,
+`vstr`, query and `wait` ordering, explicit later names and ordinary cvar callbacks
+and flags. The shell exposes generic current-registry interception; cosmetic
+semantics remain in the viewer. Both UI styles use the same command path.
+Two command-order regressions plus the existing console cases passed; workspace
+fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+No live cosmetic-model/server comparison was run. Wire encoding and gameplay
+are unchanged. See [client cosmetics](client.md#hats-and-capes).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
