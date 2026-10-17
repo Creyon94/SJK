@@ -296,29 +296,48 @@ pub fn touch_trigger(
     master: usize,
     level_time: i32,
     toucher: DoorToucher,
-) -> Option<String> {
+) -> DoorTouch {
     let door = doors[master].door();
+    let nothing = DoorTouch {
+        fired: None,
+        relock: false,
+    };
     // "doors don't open for vehicles", nor for a player riding one, unless `vehopen`.
     if toucher.on_vehicle && !door.vehicle_open {
-        return None;
+        return nothing;
     }
     let locked = door.spawnflags & MOVER_LOCKED != 0;
     if locked && (door.allied_team == 0 || toucher.team != Some(door.allied_team)) {
-        return None;
+        return nothing;
     }
     if door.state == MoverState::OneToTwo {
-        return None;
+        return nothing;
     }
     // The `teamallow` team: unlocked while it is used, so that the use does not unlock
-    // the whole team for good (`relockEnt`), and locked again after.
+    // the whole team for good (`relockEnt`). The caller locks it again once what it
+    // fires has been fired ([`relock`]), as `Use_BinaryMover` fires them in the reference.
     if locked {
         doors[master].door_mut().spawnflags &= !MOVER_LOCKED;
     }
-    let fired = use_mover(doors, master, level_time, toucher.client);
-    if locked {
-        doors[master].door_mut().spawnflags |= MOVER_LOCKED;
+    DoorTouch {
+        fired: use_mover(doors, master, level_time, toucher.client),
+        relock: locked,
     }
-    fired
+}
+
+/// What a touch of a door's trigger did: what to fire, and whether the door was unlocked
+/// for its `teamallow` team, to be locked again ([`relock`]) after the firing.
+#[must_use]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DoorTouch {
+    pub fired: Option<String>,
+    pub relock: bool,
+}
+
+/// The end of `Touch_DoorTrigger` for a door its `teamallow` team opened: `relockEnt`
+/// (the team's master) locked again.
+pub fn relock(doors: &mut [impl DoorSlot], master: usize) {
+    doors[master].door_mut().spawnflags |= MOVER_LOCKED;
 }
 
 /// Who walks into a door's trigger, as `Touch_DoorTrigger` reads it.
@@ -453,27 +472,34 @@ mod tests {
         assert_eq!(shut.allied_team, 2);
         assert!(crate::movers::spawns_own_trigger(&shut));
         // The other side, and anything that is no player, find it shut and untouched.
-        assert_eq!(touch_trigger(&mut doors, 0, 1_000, player(1)), None);
+        assert_eq!(touch_trigger(&mut doors, 0, 1_000, player(1)).fired, None);
         assert_eq!(
             touch_trigger(&mut doors, 0, 1_000, DoorToucher::default()),
-            None
+            DoorTouch {
+                fired: None,
+                relock: false
+            }
         );
         assert_eq!(doors[0], shut);
         // Its own team sets it going, and it is still locked to the others after.
-        let _ = touch_trigger(&mut doors, 0, 1_000, player(2));
+        let touch = touch_trigger(&mut doors, 0, 1_000, player(2));
+        assert!(touch.relock);
+        // Unlocked while its targets are fired, as `Use_BinaryMover` fires them.
+        assert_eq!(doors[0].spawnflags & MOVER_LOCKED, 0);
+        relock(&mut doors, 0);
         assert_ne!(doors[0], shut);
         assert_eq!(doors[0].activator, Some(3));
         assert_ne!(doors[0].spawnflags & MOVER_LOCKED, 0);
         let going = doors[0].clone();
-        assert_eq!(touch_trigger(&mut doors, 0, 1_050, player(1)), None);
+        assert_eq!(touch_trigger(&mut doors, 0, 1_050, player(1)).fired, None);
         assert_eq!(doors[0], going);
     }
 
     #[test]
     fn a_locked_door_without_teamallow_stays_shut() {
         let mut doors = [door(&[("spawnflags", "16")])];
-        assert_eq!(touch_trigger(&mut doors, 0, 1_000, player(1)), None);
-        assert_eq!(touch_trigger(&mut doors, 0, 1_000, player(2)), None);
+        assert_eq!(touch_trigger(&mut doors, 0, 1_000, player(1)).fired, None);
+        assert_eq!(touch_trigger(&mut doors, 0, 1_000, player(2)).fired, None);
         assert_eq!(doors[0], door(&[("spawnflags", "16")]));
     }
 
@@ -485,11 +511,12 @@ mod tests {
         };
         let mut shut = [door(&[])];
         let before = shut[0].clone();
-        assert_eq!(touch_trigger(&mut shut, 0, 1_000, rider), None);
+        assert!(!touch_trigger(&mut shut, 0, 1_000, rider).relock);
         assert_eq!(shut[0], before);
         let mut open = [door(&[("vehopen", "1")])];
         assert!(open[0].vehicle_open);
         let _ = touch_trigger(&mut open, 0, 1_000, rider);
         assert_ne!(open[0], door(&[("vehopen", "1")]));
+        assert_eq!(open[0].activator, Some(3));
     }
 }

@@ -641,11 +641,15 @@ pub fn used(door: &mut Door, level_time: i32) -> Option<String> {
     crate::mover_team::use_mover(std::slice::from_mut(door), 0, level_time, None)
 }
 
-/// A living player is standing in the mover's own trigger: [`touch_door_trigger`] or
+/// `toucher` is standing in the mover's own trigger: [`touch_door_trigger`] or
 /// [`touch_plat_center`], by kind. Returns what the mover fires if it starts moving.
-pub fn touched(mover: &mut Door, level_time: i32) -> Option<String> {
+pub fn touched(
+    mover: &mut Door,
+    toucher: crate::mover_team::DoorToucher,
+    level_time: i32,
+) -> Option<String> {
     match mover.kind {
-        MoverKind::Door | MoverKind::Button => touch_door_trigger(mover, level_time),
+        MoverKind::Door | MoverKind::Button => touch_door_trigger(mover, toucher, level_time),
         MoverKind::Plat => touch_plat_center(mover, level_time),
     }
 }
@@ -677,15 +681,21 @@ pub fn touch_plat(plat: &mut Door, health: i32, level_time: i32) {
     }
 }
 
-/// `Touch_DoorTrigger` (`:1112-1190`) for a living player at a door with no team: see
-/// [`touch_trigger`](crate::mover_team::touch_trigger).
-pub fn touch_door_trigger(door: &mut Door, level_time: i32) -> Option<String> {
-    crate::mover_team::touch_trigger(
-        std::slice::from_mut(door),
-        0,
-        level_time,
-        crate::mover_team::DoorToucher::default(),
-    )
+/// `Touch_DoorTrigger` (`:1112-1190`) for `toucher` at a door with no team: see
+/// [`touch_trigger`](crate::mover_team::touch_trigger). A door its `teamallow` team
+/// opened is locked again before this returns what it fires; a caller whose firing may
+/// use the door itself calls `touch_trigger` and `relock` after the firing instead.
+pub fn touch_door_trigger(
+    door: &mut Door,
+    toucher: crate::mover_team::DoorToucher,
+    level_time: i32,
+) -> Option<String> {
+    let doors = std::slice::from_mut(door);
+    let touch = crate::mover_team::touch_trigger(doors, 0, level_time, toucher);
+    if touch.relock {
+        crate::mover_team::relock(doors, 0);
+    }
+    touch.fired
 }
 
 /// `Reached_BinaryMover` (`:664-730`) for one part: opening, it waits its `wait` and

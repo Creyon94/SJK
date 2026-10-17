@@ -78,6 +78,11 @@ impl NativeGame {
             return;
         };
         let spectating = !peer.body_active();
+        let toucher = mover_team::DoorToucher {
+            client: Some(client),
+            team: Some(peer.session.team),
+            on_vehicle: peer.state.vehicle_entity_num() != 0,
+        };
         if !sjk_game_jka::triggers::may_touch_as_spectator(peer.health) {
             return;
         }
@@ -116,26 +121,26 @@ impl NativeGame {
                 }
                 continue;
             }
-            let fired = match self.doors[index].1.kind {
+            let touch = match self.doors[index].1.kind {
                 // `Touch_PlatCenterTrigger`: a plat at the bottom is used.
-                MoverKind::Plat => (self.doors[index].1.state == MoverState::Pos1)
-                    .then(|| {
-                        mover_team::use_mover(&mut self.doors, index, level_time, Some(client))
-                    })
-                    .flatten(),
+                MoverKind::Plat => mover_team::DoorTouch {
+                    fired: (self.doors[index].1.state == MoverState::Pos1)
+                        .then(|| {
+                            mover_team::use_mover(&mut self.doors, index, level_time, Some(client))
+                        })
+                        .flatten(),
+                    relock: false,
+                },
                 MoverKind::Door | MoverKind::Button => {
-                    let toucher = self.peer(client).map(|peer| mover_team::DoorToucher {
-                        client: Some(client),
-                        team: Some(peer.session.team),
-                        on_vehicle: peer.state.vehicle_entity_num() != 0,
-                    });
-                    let Some(toucher) = toucher else { return };
                     mover_team::touch_trigger(&mut self.doors, index, level_time, toucher)
                 }
             };
             self.publish_team(index);
-            if let Some(target) = fired {
+            if let Some(target) = touch.fired {
                 self.fire_targets(&target, client, level_time);
+            }
+            if touch.relock {
+                mover_team::relock(&mut self.doors, index);
             }
         }
     }
