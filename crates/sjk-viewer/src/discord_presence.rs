@@ -22,7 +22,7 @@ pub(crate) const CVAR: &str = "cl_discordPresence";
 
 /// The "Sol JK" application in Discord's developer portal: its name is the game
 /// name Discord shows. Not a secret; every Rich Presence client carries its id.
-const APPLICATION_ID: &str = "";
+const APPLICATION_ID: &str = "1561491096062922803";
 
 /// The SJK logo on the project site, the activity's picture.
 const LOGO: &str = "https://sol-vulpes.github.io/SJK/assets/sjk-logo-512.png";

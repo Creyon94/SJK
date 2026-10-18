@@ -7,9 +7,9 @@ the join, and in game the server's name, map, mode, team and scores and players 
 slots, with an elapsed timer and a "Get SJK" button; 2 leaves the name out, as does a
 server password. Checked: unit tests of the frame layout, activity JSON (text limits,
 two buttons, party) and the presence text; the pipe against Discord on Windows 11
-(it read the handshake frame and answered "Invalid Client ID" for a dummy id). Not
-checked: an activity shown on a profile (no application id yet: the feature stays
-off until `APPLICATION_ID` is filled in), the game window, Linux and macOS sockets.
+(with the "Sol JK" application id 1561491096062922803 it took the handshake and a
+test activity without an error, `discord_app_takes_an_activity`). Not checked: the
+activity as seen on a profile, the game window, Linux and macOS sockets.
 
 ## Menu pictures and readable world install failures
 
