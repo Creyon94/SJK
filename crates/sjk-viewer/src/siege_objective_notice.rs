@@ -5,6 +5,12 @@
 //! announced as one: `CG_SiegeRoundOver` (`cg_saga.c:575-671`) takes the viewer's team
 //! group's `wonround`/`lostround` line and `roundover_sound_wewon`/`_welost` announcer
 //! instead. The viewer's own team decides which.
+//!
+//! SJK addition: the retail maps name round-over announcers (`40MOM011` to `40MOM014`)
+//! that the retail archives never shipped, so the reference ends every retail round
+//! in silence. A named announcer no installed file answers to gives way to the
+//! announcer's own winner or loser line ([`ROUND_OVER_FALLBACK`]); one that exists,
+//! as a community map's may, still plays as written.
 
 use crate::ingame_menu::siege_data::{group, is_siege, read, value};
 use sjk_protocol::{GameState, InfoString};
@@ -13,6 +19,14 @@ use std::time::Instant;
 
 /// `CHAN_ANNOUNCER`.
 const ANNOUNCER_CHANNEL: sjk_audio::ChannelId = sjk_audio::ChannelId(7);
+
+/// The round-over announcer for a round won and one lost when the `.siege` file's
+/// is missing: `cgs.media.winnerSound` and `loserSound` (`cg_main.c:992-993`), which
+/// the retail cgame registers but never plays.
+const ROUND_OVER_FALLBACK: [&str; 2] = [
+    "sound/chars/protocol/misc/40MOM006",
+    "sound/chars/protocol/misc/40MOM010",
+];
 
 /// The `.siege` objectives of the map last asked about, read once per map.
 #[derive(Default)]
@@ -47,10 +61,11 @@ impl Notices {
         }
         self.load(game, vfs);
         let mine = usize::from(my_team);
-        let mut say = |message: Option<&str>, sound: Option<&str>| {
+        let mut say = |message: Option<&str>, sound: Option<&str>, fallback: Option<&str>| {
             Self::say(
                 message,
                 sound,
+                fallback,
                 client,
                 vfs,
                 localization,
@@ -71,6 +86,7 @@ impl Notices {
             say(
                 value(found, &format!("message_team{mine}")),
                 value(found, &format!("sound_team{mine}")),
+                None,
             );
         }
         // `CG_SiegeRoundOver`: the last objective ends the round instead of being
@@ -78,20 +94,31 @@ impl Notices {
         // a round won (`wonround`, `roundover_sound_wewon`) or lost.
         if let Some(winner) = round_won {
             let team = &self.teams[mine - 1];
-            let (message, sound) = if winner == my_team {
-                ("wonround", "roundover_sound_wewon")
+            let (message, sound, fallback) = if winner == my_team {
+                ("wonround", "roundover_sound_wewon", ROUND_OVER_FALLBACK[0])
             } else {
-                ("lostround", "roundover_sound_welost")
+                (
+                    "lostround",
+                    "roundover_sound_welost",
+                    ROUND_OVER_FALLBACK[1],
+                )
             };
-            say(value(team, message), value(team, sound));
+            say(
+                value(team, message),
+                Some(value(team, sound).unwrap_or(fallback)),
+                Some(fallback),
+            );
         }
     }
 
     /// Centre print `message` (an `@` names a string-table entry,
-    /// `CG_DrawSiegeMessageNonMenu`) and play `sound` on the announcer channel.
+    /// `CG_DrawSiegeMessageNonMenu`) and play `sound` on the announcer channel, or
+    /// `fallback` when no installed file answers to `sound`.
+    #[allow(clippy::too_many_arguments)]
     fn say(
         message: Option<&str>,
         sound: Option<&str>,
+        fallback: Option<&str>,
         client: u16,
         vfs: &VirtualFileSystem,
         localization: &crate::localization::Localization,
@@ -115,7 +142,16 @@ impl Notices {
             );
         }
         if let (Some(path), Some(audio)) = (sound, audio) {
-            audio.register_effect_paths(vfs, [path]);
+            let path = match fallback {
+                Some(fallback) if !audio.register_effect(vfs, path) => {
+                    audio.register_effect(vfs, fallback);
+                    fallback
+                }
+                _ => {
+                    audio.register_effect(vfs, path);
+                    path
+                }
+            };
             audio.play_local(
                 path,
                 1.0,

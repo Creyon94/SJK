@@ -137,6 +137,19 @@ objective or round sounds (they are commented out), so a map's `.siege` file dec
 what is heard. A tracker test covers the round won being reported once; the notices
 remain untested in a game.
 
+`feat/siege-objective-sounds`, on the above: two more announcer lines. The retail
+`.siege` files name round-over announcers (`40MOM011` to `40MOM014`) that no retail
+archive ships, so the round still ended in silence; a named announcer no installed
+file answers to now falls back to `cgs.media.winnerSound`/`loserSound` (`40MOM006`,
+`40MOM010`, registered by the retail cgame but never played; an SJK addition). A
+community map's own file still plays as written. And the round's count-in now speaks
+the reference's 3/2/1 (`count3Sound`..`count1Sound`) while `CS_SIEGE_STATE` counts
+it in (`cg_draw.c:8168-8226`), which the client did not play at all. Objectives
+themselves keep the `.siege` file's lines: the retail maps really do use "secondary
+objective" (`siege2`/`siege6`) for nearly every step, with `siege1`/`siege5` for the
+last. A unit test pins the count-in (3, 2, 1 once each, three again next round); the
+fallback is untested in a game.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.

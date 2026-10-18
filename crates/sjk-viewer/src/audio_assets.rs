@@ -175,6 +175,12 @@ impl GameAudio {
         }
     }
 
+    /// Register `path` as [`Self::register_effect_paths`] does; false when no
+    /// installed sound answers to it (either extension).
+    pub(crate) fn register_effect(&mut self, vfs: &VirtualFileSystem, path: &str) -> bool {
+        self.register_vfs_async(vfs, path).is_some()
+    }
+
     pub(crate) fn register_duel_music(&mut self, vfs: &VirtualFileSystem) {
         self.duel_music = self.register_vfs_async(vfs, DUEL_MUSIC);
     }

@@ -240,6 +240,8 @@ pub enum LegacySoundEvent {
     ThreeFragWarning,
     /// `CG_DrawWarmup` 3/2/1 countdown.
     WarmupCount,
+    /// Siege's 3/2/1 before a round begins (`cg_draw.c:8199-8217`).
+    SiegeRoundCount,
     /// `CG_MapRestart` "fight" line.
     RestartFight,
     /// Buffered, listener-local red/blue team announcement.
@@ -332,6 +334,7 @@ impl LegacySoundEvent {
             Self::TwoFragWarning => "CG_TWO_FRAG_WARNING",
             Self::ThreeFragWarning => "CG_THREE_FRAG_WARNING",
             Self::WarmupCount => "CG_WARMUP_COUNT",
+            Self::SiegeRoundCount => "CG_SIEGE_ROUND_COUNT",
             Self::RestartFight => "CG_RESTART_FIGHT",
         }
     }
