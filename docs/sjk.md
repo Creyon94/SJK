@@ -289,7 +289,7 @@ again with a line `= <cvar>: <one sentence>` beside the recap, before the change
 opens on a "Settings to review" page listing every such setting of the releases the
 player has not seen, each with its Settings name, the sentence and a switch
 ([sjk-ui.md](sjk-ui.md#whats-new-card)). `= <cvar> reset: ...` also puts the setting back
-to its default when the card is offered, so a value every profile saved under the old
+to its default when the card is offered (once per version, `cl_whatsNewReset`), so a value every profile saved under the old
 meaning does not carry over unchosen (`cg_nameplate`, when it became See & share
 nameplates). The cvar must be an on/off row in Settings, and the sentence at most 160
 characters; the tests reject anything else. Write the line under "Unreleased" with the

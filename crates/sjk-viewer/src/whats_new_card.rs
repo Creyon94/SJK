@@ -17,9 +17,11 @@
 //! each with the setting's Settings name, why it is asked and its switch, for every
 //! release since the one seen (`changelog::reviews`). A `reset` setting goes back to its
 //! default when the card is offered, so a value saved before the change does not carry
-//! over unchosen; the player switches it on again if they want it. Switching a row
-//! keeps the card open; no migration marker of its own is needed, since
-//! `cl_whatsNewSeen` already says which releases the player has not seen.
+//! over unchosen; the player switches it on again if they want it. The reset applies
+//! once per version ([`RESET_CVAR`], written as it is applied), though the card stays
+//! offered until answered. Switching a row keeps the card open; no setting needs a
+//! migration marker of its own, since `cl_whatsNewSeen` already says which releases the
+//! player has not seen.
 //!
 //! `cl_whatsNewSeen` holds the version whose recap the player closed. The card shows on
 //! the main menu or over the game menu, never in the middle of play. A new installation
@@ -39,6 +41,9 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 /// The version whose recap the player closed.
 pub(crate) const SEEN_CVAR: &str = "cl_whatsNewSeen";
+/// The version whose settings to reset (`= <cvar> reset:`) were put back to their
+/// default, so they are reset once, though the card stays unanswered over several runs.
+pub(crate) const RESET_CVAR: &str = "cl_whatsNewReset";
 /// Console command that shows the newest recap again.
 pub(crate) const COMMAND: &str = "whatsnew";
 /// Help text for completion and `cmdlist`.
@@ -920,6 +925,21 @@ fn reset_reviewed(console: &mut crate::console::ViewerConsole, reviews: &[Review
     }
 }
 
+/// Reset the settings `resets` names for reaching `installed` from `seen` (given the
+/// version whose resets were applied), and record at once that `installed`'s were: a
+/// player who joins a server from the command line, or quits before answering the
+/// card, keeps what they chose since at the next start.
+fn reset_once(
+    console: &mut crate::console::ViewerConsole,
+    installed: &str,
+    seen: &str,
+    resets: impl FnOnce(&str, &str, &str) -> Vec<Review>,
+) {
+    let applied = console.text_cvar(RESET_CVAR).unwrap_or_default().to_owned();
+    reset_reviewed(console, &resets(installed, seen, &applied));
+    console.set_cvar(RESET_CVAR, installed);
+}
+
 impl crate::GpuState {
     /// Read the marker once and put the recap of an update on the card; a new
     /// installation, and a build no release lists, show nothing. Then say whether the
@@ -978,7 +998,7 @@ impl crate::GpuState {
         let digests = crate::console::changelog::digests(installed, &seen);
         let reviews = crate::console::changelog::reviews(installed, &seen);
         if !digests.is_empty() {
-            reset_reviewed(console, &reviews);
+            reset_once(console, installed, &seen, crate::console::changelog::resets);
         }
         self.whats_new_card.offer(installed, &digests, false);
         self.whats_new_card.offer_reviews(&reviews);
@@ -1136,6 +1156,33 @@ mod tests {
         );
         assert_eq!(console.bool_cvar("cg_nameplate"), Some(false));
         assert_eq!(console.bool_cvar("cg_nameplateWeapon"), Some(false));
+    }
+
+    /// The reset applies once per version: a later start with the card still unanswered,
+    /// after the player turned the setting on again, keeps it on.
+    #[test]
+    fn a_reset_applies_once_per_version() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let resets = |installed: &str, _: &str, applied: &str| {
+            if applied == installed {
+                Vec::new()
+            } else {
+                vec![review("cg_nameplate", true)]
+            }
+        };
+        console.set_cvar("cg_nameplate", "1");
+        reset_once(&mut console, "2.0", "1.0", resets);
+        assert_eq!(console.bool_cvar("cg_nameplate"), Some(false));
+        assert_eq!(console.text_cvar(RESET_CVAR).ok(), Some("2.0"));
+        console.set_cvar("cg_nameplate", "1");
+        reset_once(&mut console, "2.0", "1.0", resets);
+        assert_eq!(
+            console.bool_cvar("cg_nameplate"),
+            Some(true),
+            "not reset again"
+        );
     }
 
     fn review(cvar: &str, reset: bool) -> Review {

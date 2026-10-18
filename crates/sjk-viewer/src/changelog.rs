@@ -87,6 +87,42 @@ pub(crate) fn reviews(installed: &str, seen: &str) -> Vec<Review> {
         .unwrap_or_default()
 }
 
+/// The settings to put back to their default on reaching `installed` from `seen`: the
+/// resets of the releases after `seen` up to `installed`, less those of the releases up
+/// to `applied` (the version whose resets were already applied, `cl_whatsNewReset`) when
+/// it is newer than `seen`. Empty once `installed`'s own were applied, so a card the
+/// player never answered resets nothing again at the next start.
+pub(crate) fn resets(installed: &str, seen: &str, applied: &str) -> Vec<Review> {
+    data::parse(data::EMBEDDED)
+        .map(|releases| resets_of(&releases, installed, seen, applied))
+        .unwrap_or_default()
+}
+
+fn resets_of(
+    releases: &[data::Release],
+    installed: &str,
+    seen: &str,
+    applied: &str,
+) -> Vec<Review> {
+    if applied == installed {
+        return Vec::new();
+    }
+    let at = |version: &str| {
+        releases
+            .iter()
+            .position(|r| !version.is_empty() && r.version() == Some(version))
+    };
+    // Releases are newest first: a smaller position is a newer release.
+    let from = match (at(applied), at(seen)) {
+        (Some(done), Some(seen_at)) if done < seen_at => applied,
+        _ => seen,
+    };
+    merged_reviews(&releases[since(releases, installed, from, usize::MAX)])
+        .into_iter()
+        .filter(|review| review.reset)
+        .collect()
+}
+
 /// The newest release's settings to review, "Unreleased" included: the `whatsnew`
 /// command's preview.
 pub(crate) fn newest_reviews() -> Vec<Review> {
@@ -615,6 +651,35 @@ mod tests {
         let range = since(&releases, "1.8", "1.5", usize::MAX);
         assert_eq!(merged_reviews(&releases[range]).len(), 1);
         assert!(since(&releases, "dev", "1.1", usize::MAX).is_empty());
+    }
+
+    /// Resets apply once per version: none again once the installed one's were applied,
+    /// and those of releases already applied are left out when the card was never
+    /// answered and a later update came.
+    #[test]
+    fn resets_apply_once_per_version() {
+        let text = concat!(
+            "## 1.3 | 03/10/2026\n\n= cg_fov reset: Third.\n\n- x _(Sol)_\n\n",
+            "## 1.2 | 02/10/2026\n\n= cg_nameplate reset: Second.\n\n- x _(Sol)_\n\n",
+            "## 1.1 | 01/10/2026\n\n- x _(Sol)_\n",
+        );
+        let releases = data::parse(text).unwrap();
+        let cvars = |installed: &str, seen: &str, applied: &str| {
+            resets_of(&releases, installed, seen, applied)
+                .into_iter()
+                .map(|review| review.cvar)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(cvars("1.2", "1.1", ""), ["cg_nameplate"]);
+        assert!(cvars("1.2", "1.1", "1.2").is_empty(), "applied already");
+        assert_eq!(cvars("1.3", "1.1", ""), ["cg_fov", "cg_nameplate"]);
+        assert_eq!(cvars("1.3", "1.1", "1.2"), ["cg_fov"], "1.2's were applied");
+        assert_eq!(
+            cvars("1.3", "1.2", "1.1"),
+            ["cg_fov"],
+            "an older marker is ignored"
+        );
+        assert!(cvars("dev", "1.1", "").is_empty());
     }
 
     #[test]

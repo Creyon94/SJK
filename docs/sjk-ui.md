@@ -1933,9 +1933,13 @@ same look in every menu style, on the 16:9 frame:
   them. A click on the switch or the row's number key (1 to 9) flips the setting and
   leaves the card up; the switches read the console each frame. A `reset` setting is
   put back to its default when the card is offered, not in a preview (`whatsnew` shows
-  "Unreleased"'s with working switches), so a player who quits with the card up sees it
-  reset again next time. No marker of its own: `cl_whatsNewSeen` already says what the
-  player has not seen.
+  "Unreleased"'s with working switches), once per version: `cl_whatsNewReset` records
+  the version whose resets were applied as soon as they are, so a player who joins with
+  `+connect` or quits with the card up, then turns the setting on in game, keeps it at
+  the next start, while the card is still offered (`changelog::resets`; an update past
+  it resets only the newer releases' settings). That one generic marker serves every
+  release; no setting has a migration cvar of its own, and `cl_whatsNewSeen` still says
+  what the player has not seen.
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
   tall as its tallest page, so the buttons stay put while the pages turn.
 - **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22) and, right-aligned on
