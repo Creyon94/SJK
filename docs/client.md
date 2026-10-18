@@ -1474,7 +1474,9 @@ landing voices each have an independent 1000 ms hold. Generic/entity custom-voic
 events share these timers, so changing the event route does not bypass them.
 The filter does not suppress animations, body/fall impacts, pain/death, weapons,
 NPCs or world sounds. `cg_tauntAntiSpam 0` disables it. Map changes and backwards
-demo seeks reset the holds. Duration comes from the decode worker; event playback
+demo seeks reset the holds, and so does a player slot whose `CS_PLAYERS` string
+empties or takes another name, so a newcomer in a reused slot is not held by the
+previous occupant's taunt. Duration comes from the decode worker; event playback
 does not read files, decode samples or lock the audio callback.
 
 ### Dust and footprints

@@ -282,6 +282,7 @@ impl GameAudio {
             adapter.set_local_health_pain(self.transitions.old_pain);
             adapter.observe_snapshot(snapshot);
             self.voice_throttle.observe_time(snapshot.server_time);
+            self.voice_throttle.observe_clients(game_state);
             self.holster_sync.observe(snapshot);
             self.mute.observe(&snapshot.entities);
             let footsteps = self.footsteps;

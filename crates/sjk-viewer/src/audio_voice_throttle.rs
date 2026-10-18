@@ -1,6 +1,8 @@
 //! JoF EJK #287/#374 player voice holds. Fixed storage; no mixer or simulation changes.
 use sjk_client::LegacyVoiceLine;
 
+const CS_PLAYERS: usize = 1_131;
+
 #[derive(Clone, Copy, Default)]
 struct Timer {
     start: Option<i32>,
@@ -10,6 +12,8 @@ struct Timer {
 pub(super) struct VoiceThrottle {
     pub(super) enabled: bool,
     timers: [[Timer; 5]; 32],
+    /// Each slot's occupant as seen in CS_PLAYERS: its name, or None when empty.
+    owners: [Option<Vec<u8>>; 32],
     last_time: Option<i32>,
 }
 
@@ -18,6 +22,7 @@ impl Default for VoiceThrottle {
         Self {
             enabled: true,
             timers: [[Timer::default(); 5]; 32],
+            owners: Default::default(),
             last_time: None,
         }
     }
@@ -35,6 +40,30 @@ impl VoiceThrottle {
     pub(super) fn reset(&mut self) {
         self.timers = [[Timer::default(); 5]; 32];
         self.last_time = None;
+    }
+
+    /// A slot that empties or passes to another player (a new name in its
+    /// CS_PLAYERS string) drops the previous occupant's holds, so the newcomer's
+    /// first taunt is not silenced by them.
+    pub(super) fn observe_owner(&mut self, client: usize, info: &[u8]) {
+        let Some(owner) = self.owners.get_mut(client) else {
+            return;
+        };
+        let name = (!info.is_empty()).then(|| info_name(info));
+        if owner.as_deref() != name {
+            *owner = name.map(<[u8]>::to_vec);
+            self.timers[client] = [Timer::default(); 5];
+        }
+    }
+
+    /// [`Self::observe_owner`] for every CS_PLAYERS slot; allocates only on a change.
+    pub(super) fn observe_clients(&mut self, game: &sjk_protocol::GameState) {
+        for client in 0..self.owners.len() {
+            self.observe_owner(
+                client,
+                game.config_string(CS_PLAYERS + client).unwrap_or_default(),
+            );
+        }
     }
 
     /// NPC/world sources bypass the reference's MAX_CLIENTS player-only policy.
@@ -70,6 +99,17 @@ impl VoiceThrottle {
         };
         true
     }
+}
+
+/// The `n` value of a player info string (empty when absent).
+fn info_name(info: &[u8]) -> &[u8] {
+    let mut fields = info.split(|byte| *byte == b'\\').skip(1);
+    while let (Some(key), Some(value)) = (fields.next(), fields.next()) {
+        if key == b"n" {
+            return value;
+        }
+    }
+    &[]
 }
 
 #[cfg(test)]
@@ -117,6 +157,27 @@ mod tests {
         assert!(state.allows(2, Some(LegacyVoiceLine::Taunt), 10000, 10));
         state.reset();
         assert!(state.allows(2, Some(LegacyVoiceLine::Taunt), 10000, 10));
+    }
+    #[test]
+    fn a_reused_slot_does_not_inherit_the_previous_players_hold() {
+        let mut state = VoiceThrottle::default();
+        state.observe_owner(4, br"\n\Alice\t\1\model\kyle");
+        assert!(state.allows(4, Some(LegacyVoiceLine::Taunt), 1000, 5000));
+        // The same player changing team or model keeps the hold.
+        state.observe_owner(4, br"\n\Alice\t\2\model\jan");
+        assert!(!state.allows(4, Some(LegacyVoiceLine::Taunt), 2000, 10));
+        // Alice leaves (the string empties) and Bob takes the slot.
+        state.observe_owner(4, b"");
+        state.observe_owner(4, br"\n\Bob\t\1\model\kyle");
+        assert!(state.allows(4, Some(LegacyVoiceLine::Taunt), 2000, 10));
+        // A replacement seen in one refresh, without the empty string between.
+        state.observe_owner(5, br"\n\Carol");
+        assert!(state.allows(5, Some(LegacyVoiceLine::Taunt), 1000, 5000));
+        state.observe_owner(5, br"\n\Dave");
+        assert!(state.allows(5, Some(LegacyVoiceLine::Taunt), 2000, 10));
+        // Other slots keep their holds; slots past MAX_CLIENTS are ignored.
+        assert!(!state.allows(4, Some(LegacyVoiceLine::Taunt), 2005, 10));
+        state.observe_owner(40, b"");
     }
     #[test]
     #[ignore = "release microbenchmark; run explicitly with --release --ignored --nocapture"]
