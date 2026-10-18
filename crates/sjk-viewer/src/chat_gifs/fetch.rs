@@ -87,10 +87,16 @@ impl Http {
         if !super::enabled() || !super::sources::permits(&checked) {
             return Err(Failure::Refused);
         }
+        let video = super::video::available();
+        let accept = if video {
+            "image/gif, video/mp4, text/html;q=0.5"
+        } else {
+            "image/gif, text/html;q=0.5"
+        };
         let mut response = self
             .media
             .get(url)
-            .header("Accept", "image/gif, video/mp4, text/html;q=0.5")
+            .header("Accept", accept)
             .call()
             .map_err(|error| Failure::Network(error.to_string()))?;
         let status = response.status().as_u16();
@@ -105,6 +111,10 @@ impl Http {
             .and_then(|value| value.to_str().ok())
             .unwrap_or_default()
             .to_ascii_lowercase();
+        // A clip that cannot be decoded here is not downloaded at all.
+        if !video && content_type.starts_with("video/") {
+            return Err(Failure::Refused);
+        }
         let limit = if content_type.starts_with("text/html") {
             super::discover::HTML_BYTES as u64
         } else {

@@ -75,7 +75,7 @@ fn resolve(
         }
         if response.bytes.starts_with(b"GIF87a")
             || response.bytes.starts_with(b"GIF89a")
-            || response.bytes.get(4..8) == Some(b"ftyp")
+            || super::video::is_mp4(&response.bytes)
         {
             return Ok(response.bytes);
         }
@@ -86,12 +86,15 @@ fn resolve(
             return Err(Failure::Refused);
         }
         page_seen = true;
-        url = media_link(&url, &response.bytes).ok_or(Failure::Refused)?;
+        url =
+            media_link(&url, &response.bytes, super::video::available()).ok_or(Failure::Refused)?;
     }
     Err(Failure::Refused)
 }
 /// Standard HTML media declarations only. `<base>` and JavaScript never affect URLs.
-fn media_link(base: &Url, bytes: &[u8]) -> Option<Url> {
+/// Without `video` (no MP4 decoding here) the page's picture is taken instead of its
+/// video.
+fn media_link(base: &Url, bytes: &[u8], video: bool) -> Option<Url> {
     let text = std::str::from_utf8(bytes).ok()?;
     let html = Html::parse_document(text);
     let selector =
@@ -115,6 +118,9 @@ fn media_link(base: &Url, bytes: &[u8]) -> Option<Url> {
             }
             _ => value.attr("src"),
         };
+        if !video {
+            continue;
+        }
         if let Some(url) = candidate
             .and_then(|value| base.join(value).ok())
             .and_then(|url| sources::checked_url(url.as_str()))
@@ -205,7 +211,21 @@ mod tests {
     #[test]
     fn discovery_ignores_script_and_base_tags() {
         let base = Url::parse("https://example.org/a/page").unwrap();
-        assert_eq!(media_link(&base, br#"<base href="https://other.example/"><meta property="og:video" content="clip.mp4">"#).unwrap().as_str(), "https://example.org/a/clip.mp4");
-        assert!(media_link(&base, b"<script>fetch('/private-api')</script>").is_none());
+        assert_eq!(media_link(&base, br#"<base href="https://other.example/"><meta property="og:video" content="clip.mp4">"#, true).unwrap().as_str(), "https://example.org/a/clip.mp4");
+        assert!(media_link(&base, b"<script>fetch('/private-api')</script>", true).is_none());
+    }
+    #[test]
+    fn without_mp4_decoding_the_page_picture_is_taken() {
+        let base = Url::parse("https://example.org/a/page").unwrap();
+        let page = br#"<meta property="og:video" content="clip.mp4"><meta property="og:image" content="still.webp">"#;
+        assert_eq!(
+            media_link(&base, page, true).unwrap().as_str(),
+            "https://example.org/a/clip.mp4"
+        );
+        assert_eq!(
+            media_link(&base, page, false).unwrap().as_str(),
+            "https://example.org/a/still.webp"
+        );
+        assert!(media_link(&base, br#"<video src="clip.mp4"></video>"#, false).is_none());
     }
 }
