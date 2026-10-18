@@ -239,9 +239,15 @@ mod eligibility_tests {
         // The metadata override off lets the restricted model through.
         let mut overridden = body("models/players/creature");
         eligible_body(&mut overridden, &policy, ("", false));
-        assert_eq!(overridden.appearance, body("models/players/creature").appearance);
+        assert_eq!(
+            overridden.appearance,
+            body("models/players/creature").appearance
+        );
         let mut allowed = body("models/players/jedi_hm");
         eligible_body(&mut allowed, &policy, ("", true));
-        assert_eq!(allowed.appearance, body("models/players/jedi_hm").appearance);
+        assert_eq!(
+            allowed.appearance,
+            body("models/players/jedi_hm").appearance
+        );
     }
 }
