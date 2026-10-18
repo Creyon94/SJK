@@ -5005,17 +5005,32 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
   [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs)).
 - **Voices.** `*pain25`, `*death1`, `*jump1` and the other custom sounds of an NPC
   (or a vehicle, which is an NPC) come from its own sound folders: the server names
-  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`
-  and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in `cg_servercmds.c:718`).
-  As `CG_CustomSound` (`cg_players.c:213-322`), death, jump, pain, choke, gasp, land
-  and taunt come from the standard set, anger, victory and pushed from the combat
-  set, and taunt1-3, deflect, gloat and pushfail from the Jedi set, each
-  `sound/chars/<dir>/misc/<name>`. An NPC with no set for a sound, or whose file is
-  missing, is silent: unlike a player it has no `mp_generic` fallback. Sets load
-  when their `CS_SOUNDS` slot changes, not per event
-  ([sound_npc_voices.rs](../crates/sjk-client/src/sound_npc_voices.rs)). Before
-  17/10/2026 every NPC spoke with the voice of player slot 31. The `_Extra` set
-  (`*chase1`, `*cover1`, ...) has no event in the sound table and is not loaded.
+  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`,
+  `_Extra` and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in
+  `cg_servercmds.c:718`). As `CG_CustomSound` (`cg_players.c:191-322`), each name
+  is looked up in the four tables in order (standard, combat, extra, Jedi) and
+  played from `sound/chars/<dir>/misc/<name>` of the set the NPC names for that
+  table: death, jump, pain, falling, choke, gasp, land and taunt from the standard
+  set (its choke wins over the combat duplicates), anger, victory, confuse,
+  pushed and `ffwarn`/`ffturn` from the combat set, chase, cover, detected, lost,
+  outflank, escaping, giveup, look, sight, sound and suspicious from the extra
+  set, and combat, jdetected, taunt1-3, jchase, jlost, deflect, gloat and
+  pushfail from the Jedi set. The vocal events 116-124 and 131-132 (combat), 133-168
+  (extra) and 169-189 (Jedi) play them, as do `*name` entries in the sound table.
+  An NPC with no set for a sound, or whose file is missing, is silent: unlike a
+  player it has no `mp_generic` fallback and never borrows the player duel bank.
+  Sets load when their `CS_SOUNDS` slot changes, not per event
+  ([npc_sounds.rs](../crates/sjk-client/src/npc_sounds.rs)). Before 17/10/2026
+  every NPC spoke with the voice of player slot 31.
+- **Who speaks.** As stock, `EV_ENTITY_SOUND` (79) speaks with the entity its
+  `clientNum` names (`cg_event.c:4174`): `G_EntitySound` sends a pit's `*falling1`
+  and Grip's `*choke1-3` and `*gasp` this way, on a temporary entity, so they keep
+  the player's voice (or the NPC's, when it names one). Every other event speaks
+  with its own entity number, an NPC's banks above the player slots (a forwarded
+  event borrowing those of the NPC it names), so a `*name` on a temporary entity's
+  `EV_GENERAL_SOUND` stays silent as in stock. Voice commands (75) keep
+  `groundEntityNum`. The sound's source stays the speaker's own number, so a
+  blocked player's voice stays muted.
 
 ## Shader remap controls
 
