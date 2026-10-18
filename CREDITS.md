@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 113 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 7). Sol's
+contributors' 114 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 7, Milamber 1). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -437,6 +437,14 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   their text from the string tables and reach the team they are meant for.
 - #142 the Siege class menu in two steps like the Team page: Red team or Blue team with their
   flags and players, then that side's classes (its team saber colours were left out at the merge).
+
+Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 1 pull request merged
+into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
+
+- #156 See & share nameplates (`cg_nameplate`) replaces Share my bars: seeing nameplates shares
+  your own health, shield and Force; the Force bar shows the shared value instead of an
+  estimate; duel opponents' bars are hidden and nothing is sent while duelling; and the
+  what's-new card can ask players to choose a changed setting again.
 
 ## Art
 

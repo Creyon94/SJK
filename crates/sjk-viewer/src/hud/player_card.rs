@@ -325,7 +325,8 @@ pub(crate) enum Vitals {
     /// Nothing, or the hub did not say.
     #[default]
     Private,
-    /// Their health, shield and Force (`cg_nameplateShare`).
+    /// Their health, shield and Force (`cg_nameplate`, See and share nameplates; before
+    /// 17/10/2026 `cg_nameplateShare`).
     Shared,
     /// They see everyone's estimated bars (`cg_nameplateEstimate` of clients before
     /// 17/10/2026), which shares theirs.

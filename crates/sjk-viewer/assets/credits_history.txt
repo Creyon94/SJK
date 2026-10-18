@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull request #156, See & share nameplates, settings to review, Power Duel sides
+- 527dfb4 |  | Power Duel side from "dt", not "ds" (the player's sex)
+- cf99ef1 |  | What's new: a setting to review resets once per version
+- dcae4e4 |  | What's new: lowercase the review cvars once
+- 1258e1f |  | Debug panel: nameplate-share describes See & share nameplates
+- db28990 |  | Credits for SJK pull request #156 (Milamber, new contributor); Power Duel sides in the changelog
 + 18/10/2026 | - | SJK pull request #142 Siege menu, Siege class saber colours
 - bae7b31 |  | Drop PR #142's Siege team saber colours (cg_siegeTeamSabers)
 - 6107f5d |  | Siege menu: classic side step with flags and counts, class names alone, Spectate dimmed while watching
@@ -1876,6 +1882,13 @@
 - 5bc6805 |  | Record isolated release GPU review checks
 + 07/10/2026 | SJK #24 | Clip visible saber blades at world walls
 - 8d21001 |  | Clip visible saber blades at world walls
+
+= Milamber
++ 18/10/2026 | SJK #156 | Feat/nameplates cleanup and review popup
+- 417e95f |  | Merge nameplates and bar sharing into See & share nameplates
+- 10740fb |  | Ask players to review changed settings on the what's-new card
+- e67b3a2 |  | Show the shared Force on nameplates instead of estimating it
+- fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
 + 18/10/2026 | SJK #142 | Siege menu changed to match ctf menu . colours of sabers fixed for red/blue team

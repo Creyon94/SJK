@@ -4,14 +4,13 @@
 //! framed plate fades in beneath it with health, shield and Force bars, and the
 //! weapon the player holds beside it, haloed in the saber stance's colour.
 //! Names come from the chat roster and are drawn in the classic HUD font with
-//! their colour codes; the layout maths is in [`super::nameplate_math`]. What the
-//! server does not send is estimated, once per snapshot: Force in
-//! [`super::force_estimate`], health and shield in [`super::vitals_estimate`],
-//! each as a range whose uncertainty the bar shows as a grey haze. The plain
+//! their colour codes; the layout maths is in [`super::nameplate_math`]. A sharer's
+//! health and shield are estimated between the values they share, once per snapshot,
+//! in [`super::vitals_estimate`], each as a range whose uncertainty the bar shows as a
+//! grey haze; their Force is the last value they shared, not estimated (17/10/2026). The plain
 //! TaystJK names stay in [`super::identification`] (`cg_drawPlayerNames`); a
 //! nameplate replaces them.
 use super::estimate::Range;
-use super::force_estimate::{self, Calibration, Estimator};
 use super::force_streams;
 use super::identification::{Camera, info_number, unoccluded};
 use super::nameplate_math::{self as math, Rows, Stack};
@@ -39,7 +38,8 @@ const MODE_SHOWN: i64 = 1_500;
 const MODE_FADE: i64 = 400;
 /// How long the player last aimed at keeps their bars in [`Mode::Target`].
 const FOCUS_LINGER: i64 = 3_000;
-/// `cg_nameplateBars` 3: bars only on the player aimed at and the duel opponent.
+/// `cg_nameplateBars` 3: bars only on the player aimed at (never a duel opponent's,
+/// [`Duel`]).
 const BARS_TARGET: i64 = 3;
 
 /// Console command that cycles the nameplate modes, or sets one (`nameplates target`).
@@ -55,7 +55,7 @@ pub(crate) enum Mode {
     Off,
     /// Names only (`cg_nameplateBars 0`).
     Names,
-    /// Names, and bars on the player aimed at and the duel opponent (`cg_nameplateBars 3`).
+    /// Names, and bars on the player aimed at (`cg_nameplateBars 3`).
     Target,
     /// Names and bars on everyone (`cg_nameplateBars 2`).
     All,
@@ -110,7 +110,7 @@ impl Mode {
         match self {
             Self::Off => "Nameplates: off",
             Self::Names => "Nameplates: names only",
-            Self::Target => "Nameplates: names, bars on your target and duel opponent",
+            Self::Target => "Nameplates: names, bars on your target",
             Self::All => "Nameplates: names and bars on everyone",
         }
     }
@@ -120,16 +120,18 @@ impl Mode {
 const UNSURE_WIDTH: f32 = 0.6;
 /// A shield whose high bound is under this share is known to be empty.
 const EMPTY_SHARE: f32 = 0.005;
-/// `ET_PLAYER` and `ET_NPC` entity types, `EF_DEAD`, and `PW_FORCE_BOON`.
+/// `ET_PLAYER` and `ET_NPC` entity types, and `EF_DEAD`.
 const ET_PLAYER: u8 = 1;
 const ET_NPC: u8 = 13;
 const EF_DEAD: u32 = 2;
-const PW_FORCE_BOON: u32 = 14;
-/// `GT_JEDIMASTER` and the first team game type.
-const GT_JEDIMASTER: i32 = 2;
 /// `WP_SABER`.
 const WP_SABER: u8 = 3;
+/// The first team game type.
 const GT_TEAM: i32 = 6;
+/// `GT_DUEL`, `GT_POWERDUEL` and `TEAM_SPECTATOR`.
+const GT_DUEL: i32 = 3;
+const GT_POWERDUEL: i32 = 4;
+const TEAM_SPECTATOR: i32 = 3;
 /// Tags drawn at most: every client slot, plus a bounded number of NPCs.
 const MAX_PLAYER_TAGS: usize = 32;
 const MAX_NPC_TAGS: usize = 16;
@@ -156,8 +158,8 @@ const MAX_ICONS: usize = 4;
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 /// Frame colour of players who follow no team.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
-/// The contour of a player who shares their bars (`cg_nameplateShare`), the verified
-/// badge's gold.
+/// The contour of a player who shares their bars (`cg_nameplate`, See and share
+/// nameplates), the verified badge's gold.
 const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
 /// The flat grey of every bar of a player who does not share.
 const WITHHELD_BAR: Color = Color::new(0.42, 0.44, 0.48, 0.55);
@@ -195,9 +197,10 @@ pub(crate) struct SharedSlot {
 pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
     cvars.register(CvarDefinition::new(
         "cg_nameplate",
-        true,
+        // Off by default (17/10/2026): it shares the player's own values too.
+        false,
         CvarFlags::ARCHIVE,
-        "MMO-style nameplates over players; they replace cg_drawPlayerNames",
+        "See and share nameplates: MMO-style nameplates over players (they replace cg_drawPlayerNames), and your own health, shield and Force for the other SJK players of your server",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateRange",
@@ -221,19 +224,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "cg_nameplateBars",
         2_i64,
         CvarFlags::ARCHIVE,
-        "Nameplate bars: 0 none, 1 allies only, 2 everyone, 3 the player you aim at and your duel opponent",
-    ))?;
-    cvars.register(CvarDefinition::new(
-        "cg_nameplateForce",
-        true,
-        CvarFlags::ARCHIVE,
-        "Nameplate Force bar, estimated from the player's powers",
-    ))?;
-    cvars.register(CvarDefinition::new(
-        "cg_nameplateShare",
-        false,
-        CvarFlags::ARCHIVE,
-        "Share your health, shield and Force with the other SJK players of your server; on whenever your nameplates show bars",
+        "Nameplate bars: 0 none, 1 allies only, 2 everyone, 3 the player you aim at; never a duel opponent's",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateWeapon",
@@ -286,15 +277,13 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     Ok(())
 }
 
-/// Seeing bars shares the player's own (Sol's rule, 15/10/2026): nameplates with bars
-/// (`cg_nameplate` and `cg_nameplateBars` not 0) turn `cg_nameplateShare` back on
-/// whenever it is off, so the settings say what is sent.
-pub(crate) fn hold_sharing(console: &mut ViewerConsole) {
-    let bars = console.bool_cvar("cg_nameplate") != Some(false)
-        && console.integer_cvar("cg_nameplatebars").unwrap_or(2) != 0;
-    if bars && console.bool_cvar("cg_nameplateshare") != Some(true) {
-        console.set_cvar("cg_nameplateShare", "1");
-    }
+/// See and share nameplates is one setting, `cg_nameplate` (17/10/2026): seeing other
+/// players' nameplates shares the player's own health, shield and Force, and turning
+/// the nameplates off stops both. It replaces `cg_nameplateShare` and the hold that kept
+/// it on while the plates showed bars (Sol's rule, 15/10/2026: seeing bars means
+/// sharing).
+pub(crate) fn see_and_share(console: &ViewerConsole) -> bool {
+    console.bool_cvar("cg_nameplate") == Some(true)
 }
 
 /// Settings, sampled once per frame.
@@ -305,10 +294,6 @@ struct Settings {
     near: f32,
     scale: f32,
     bars: i64,
-    force: bool,
-    /// `cg_nameplateShare`: the player shares their own values (held on while the
-    /// plates show bars, [`hold_sharing`]).
-    share: bool,
     weapon: bool,
     walls: bool,
     npcs: bool,
@@ -334,8 +319,6 @@ impl Default for Settings {
             near: 1000.0,
             scale: 0.5,
             bars: 2,
-            force: true,
-            share: false,
             weapon: true,
             walls: false,
             npcs: false,
@@ -425,13 +408,7 @@ pub(crate) struct State {
     fades: Box<[Fade; ENTITY_SLOTS]>,
     last_update: i64,
     last_debug: i64,
-    force: Estimator,
     streams: force_streams::Tracker,
-    calibration: Calibration,
-    /// Until when drain holds the local player's own refill back (calibration).
-    own_hold: i32,
-    /// Where the Force regeneration pace came from, for the debug log.
-    regen_source: &'static str,
     vitals: vitals_estimate::Estimator,
     /// The health, shield and Force colours of the HUD in use, which the bars take.
     colors: BarColors,
@@ -445,6 +422,8 @@ pub(crate) struct State {
     shared_read: Option<i64>,
     /// The hub has the player's own sharing: without it, no shared or estimated bars.
     sharing_live: bool,
+    /// The local player is in a duel ([`Duel::of`]): their own values are not sent.
+    duelling: bool,
     /// The server time of the shared values each slot's estimates were last
     /// corrected with: each value corrects them once.
     anchored: [Option<i32>; MAX_PLAYER_TAGS],
@@ -470,11 +449,7 @@ impl Default for State {
             fades: Box::new([Fade::default(); ENTITY_SLOTS]),
             last_update: 0,
             last_debug: 0,
-            force: Estimator::default(),
             streams: force_streams::Tracker::default(),
-            calibration: Calibration::default(),
-            own_hold: i32::MIN,
-            regen_source: "default",
             vitals: vitals_estimate::Estimator::default(),
             colors: BarColors::default(),
             marks: [None; 32],
@@ -482,6 +457,7 @@ impl Default for State {
             shared: [None; MAX_PLAYER_TAGS],
             shared_read: None,
             sharing_live: false,
+            duelling: false,
             anchored: [None; MAX_PLAYER_TAGS],
             own_origin: None,
             focus: None,
@@ -504,15 +480,13 @@ impl State {
         };
         let profile = console.and_then(ViewerConsole::own_force_allocation);
         self.settings = Settings {
-            enabled: flag("cg_nameplate", true),
+            enabled: flag("cg_nameplate", false),
             range: number("cg_nameplaterange", 3000.0).clamp(500.0, 10_000.0),
             near: number("cg_nameplatenear", 1000.0).clamp(0.0, 10_000.0),
             scale: crate::cgame_options::scalar(console, "cg_nameplatescale", 0.5).clamp(0.1, 3.0),
             bars: console
                 .and_then(|c| c.integer_cvar("cg_nameplatebars"))
                 .unwrap_or(2),
-            force: flag("cg_nameplateforce", true),
-            share: flag("cg_nameplateshare", false),
             weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
@@ -597,20 +571,35 @@ impl State {
             let slot = slot as u16;
             self.vitals
                 .anchor(slot, values.t, values.health as f32, values.armor as f32);
-            let pool = values.force as f32 * 100.0 / values.max_force.max(1) as f32;
-            self.force.anchor(slot, values.t, pool);
         }
     }
 
+    /// The Force player `number` last shared, as a share of a full pool: what their
+    /// nameplate's Force bar shows (`None` while they share nothing).
+    fn shared_force(&self, number: u16) -> Option<Range> {
+        let values = self
+            .shared
+            .get(usize::from(number))
+            .copied()
+            .flatten()?
+            .vitals?;
+        Some(Range::exact(
+            (values.force as f32 / values.max_force.max(1) as f32).clamp(0.0, 1.0),
+        ))
+    }
+
     /// What the player shares this frame: their own health, shield and Force while
-    /// alive in a match, with `cg_nameplateShare`, or whenever they may see others'
-    /// bars (plates with bars) whatever it says.
+    /// alive in a match, whenever their nameplates are on ([`see_and_share`]).
     pub(crate) fn sharing(&self, snapshot: Option<&Snapshot>) -> sjk_identity::Sharing {
         let settings = &self.settings;
-        let share = settings.share || (settings.enabled && settings.bars != 0);
+        let share = settings.enabled;
+        // Nothing in a duel, whoever reads it (Milamber's rule, 18/10/2026).
         let vitals = snapshot
             .filter(|snapshot| {
-                share && snapshot.player.health() > 0 && !snapshot.player.is_spectator()
+                share
+                    && !self.duelling
+                    && snapshot.player.health() > 0
+                    && !snapshot.player.is_spectator()
             })
             .map(|snapshot| sjk_identity::Vitals {
                 t: snapshot.server_time,
@@ -659,12 +648,12 @@ impl State {
         scratch: &mut TraceScratch,
     ) {
         let mode = info_number(game.config_string(0), "g_gametype");
+        self.duelling = Duel::of(snapshot, game, mode).active();
         // The events first (drain names its victims), then the shots, which the
-        // health and the Force both take.
+        // health takes.
         self.vitals.read(snapshot, game);
         self.observe_streams(snapshot, game, mode, bsp, scratch);
         self.vitals.apply(snapshot, game, mode, &self.streams);
-        self.observe_force(snapshot, game, mode);
     }
 
     /// Rebuild this snapshot's drain, lightning and grip shots from where every
@@ -822,22 +811,19 @@ impl State {
             mode,
             restrictions: info_number(game.config_string(0), "restricts"),
             local_team: snapshot.player.team() as i32,
-            local_duel: info_number(game.config_string(1131 + usize::from(local)), "ds"),
+            local_duel: info_number(game.config_string(1131 + usize::from(local)), "dt"),
             master: snapshot
                 .entities
                 .iter()
                 .any(|e| e.number() < 32 && e.is_jedi_master()),
             local_master: snapshot.player.is_jedi_master(),
         };
-        // `cg_nameplateBars 3`: the player aimed at lately and the duel opponent.
+        // `cg_nameplateBars 3`: the player aimed at lately.
         let focus = self
             .focus
             .filter(|(_, seen)| (0..=FOCUS_LINGER).contains(&(now - seen)))
             .map(|(client, _)| client);
-        let duel_opponent = snapshot
-            .player
-            .duel_in_progress()
-            .then(|| snapshot.player.duel_index());
+        let duel = Duel::of(snapshot, game, mode);
         let mut npcs = 0;
         for entity in &snapshot.entities {
             let number = entity.number();
@@ -928,9 +914,7 @@ impl State {
                 && match settings.bars {
                     2 => true,
                     1 => ally,
-                    BARS_TARGET => {
-                        player && (focus == Some(number) || duel_opponent == Some(number))
-                    }
+                    BARS_TARGET => player && focus == Some(number),
                     _ => false,
                 };
             let shares = player
@@ -941,7 +925,10 @@ impl State {
             // A player who does not share, on SJK or not, has grey bars for everyone:
             // no estimate, not even the server's own for a teammate (Sol's rule,
             // 16/10/2026 for SJK players, 17/10/2026 for everyone).
-            let withheld = bars && player && !shares;
+            // A duel opponent's health, shield and Force never show, whatever the
+            // settings (Milamber's rule, 18/10/2026); their name, weapon and icons stay.
+            let stats = bars && !(player && duel.opponent(game, number));
+            let withheld = stats && player && !shares;
             // Estimates show only on players who share, corrected by what they share,
             // and only while the hub has the player's own sharing.
             let estimated = player
@@ -955,18 +942,19 @@ impl State {
                     .is_some_and(|shared| shared.vitals.is_some());
             let (health, shield) = if withheld {
                 (Some(Range::exact(0.0)), Some(Range::exact(0.0)))
-            } else if bars && npc_health.permits(entity) {
+            } else if stats && npc_health.permits(entity) {
                 let predicted = estimated.then_some(&self.vitals);
                 bar_values(entity, number, ally && player, team_info, predicted)
             } else {
                 (None, None)
             };
+            // Force is the last value the player shared, never estimated (17/10/2026).
             let force = if withheld {
-                settings.force.then(|| Range::exact(0.0))
+                Some(Range::exact(0.0))
+            } else if stats && estimated {
+                self.shared_force(number)
             } else {
-                (bars && estimated && settings.force)
-                    .then(|| self.force.ratio(number))
-                    .flatten()
+                None
             };
             let rows = Rows {
                 health: health.is_some(),
@@ -1207,7 +1195,7 @@ impl State {
             power_count: 0,
             health: bars.then(|| exact(player.health(), full)),
             shield: shield.filter(|_| bars),
-            force: (bars && settings.force).then(|| {
+            force: bars.then(|| {
                 exact(
                     i32::from(player.force_power()),
                     sjk_game_jka::force_powers::FORCE_POWER_MAX as f32,
@@ -1260,18 +1248,10 @@ impl State {
             })
             .unwrap_or_default();
         eprintln!(
-            "nameplate: regen pace {:.0} ms/point ({}; measured {:?}), server info force keys {force_keys:?}, pain events {:?}",
-            self.force.regen_millis(),
-            self.regen_source,
-            self.calibration.millis_per_point().map(f32::round),
+            "nameplate: server info force keys {force_keys:?}, pain events {:?}",
             self.vitals.pain_report(),
         );
         let local = snapshot.player.client_num();
-        eprintln!(
-            "nameplate: own Force actual {} estimated {}",
-            snapshot.player.force_power(),
-            shown(self.force.ratio(local).map(|r| r.map(|v| v * 100.0))),
-        );
         for entity in &snapshot.entities {
             let number = entity.number();
             if entity.entity_type() != ET_PLAYER || number >= 32 || number == local {
@@ -1289,110 +1269,9 @@ impl State {
                 shown(self.vitals.health(number)),
                 shown(self.vitals.armor(number)),
                 entity.force_powers_active(),
-                shown(self.force.ratio(number).map(|r| r.map(|v| v * 100.0))),
+                shown(self.shared_force(number).map(|r| r.map(|v| v * 100.0))),
                 entity.weapon(),
                 entity.fire_flag(),
-            );
-        }
-    }
-
-    /// Feed every player's Force use to the estimator, shown or not, and
-    /// measure the server's regeneration pace from the local player's own pool.
-    ///
-    /// The local player is tracked too, but never shown: its estimate is
-    /// compared with its real pool in the `cg_nameplateDebug` log.
-    fn observe_force(&mut self, snapshot: &Snapshot, game: &GameState, mode: i32) {
-        let time = snapshot.server_time;
-        let player = &snapshot.player;
-        let boon = player.powerup_active(PW_FORCE_BOON as usize, time);
-        let master = mode == GT_JEDIMASTER && player.is_jedi_master();
-        // Draining, and being drained, hold the refill back for a while.
-        if time < self.own_hold.saturating_sub(1_000) {
-            self.own_hold = i32::MIN;
-        }
-        if player.force_powers_active() & (1 << FP_DRAIN) != 0 {
-            self.own_hold = self.own_hold.max(time + 500);
-        }
-        if self.vitals.drained() & (1 << player.client_num()) != 0 {
-            self.own_hold = self.own_hold.max(time + 800);
-        }
-        let special = player.weapon() == WP_SABER
-            && sjk_game_jka::saber_rules::in_special(player.saber_move());
-        let refilling = player.force_powers_active() & !(1 << FP_DRAIN) == 0
-            && !player.saber_in_flight()
-            && !special
-            && !boon
-            && !master;
-        self.calibration.observe(
-            time,
-            i32::from(player.force_power()),
-            refilling && time >= self.own_hold,
-        );
-        let info = game
-            .config_string(0)
-            .and_then(|b| sjk_client::LegacyClientInfo::new(b).integer("g_forceRegenTime"))
-            .map(|millis| millis as f32);
-        let measured = self.calibration.millis_per_point();
-        self.regen_source = if measured.is_some() {
-            "measured"
-        } else if info.is_some() {
-            "serverinfo"
-        } else {
-            "default"
-        };
-        self.force
-            .set_regen_millis(measured.or(info), measured.is_some());
-        for entity in &snapshot.entities {
-            let number = entity.number();
-            if entity.entity_type() != ET_PLAYER || number >= 32 {
-                continue;
-            }
-            let stream = self.streams.effect(number);
-            let facts = self.vitals.force_facts(number);
-            // An absorb's hit sound while somebody else pushes or pulls, with no shot
-            // of drain or lightning absorbed: the throw gave Force back.
-            let absorbed_throw = facts.absorbed
-                && stream.force[1] >= 0.0
-                && snapshot.entities.iter().any(|other| {
-                    other.entity_type() == ET_PLAYER
-                        && other.number() != number
-                        && self.force.throwing(other.torso_animation())
-                });
-            // A saber knocked away flies too, but its own entity says it was not thrown.
-            let disarmed = entity.saber_in_flight()
-                && snapshot
-                    .entities
-                    .binary_search_by_key(&entity.event_sound_channel(), |e| e.number())
-                    .ok()
-                    .is_some_and(|index| !snapshot.entities[index].saber_in_flight());
-            let saber = entity.weapon() == WP_SABER;
-            let regen_multiplier = if entity.powerups() & (1 << PW_FORCE_BOON) != 0 {
-                6.0
-            } else if mode == GT_JEDIMASTER && entity.is_jedi_master() {
-                4.0
-            } else {
-                1.0
-            };
-            self.force.observe(
-                number,
-                force_estimate::Observation {
-                    time,
-                    active: entity.force_powers_active(),
-                    torso_animation: entity.torso_animation(),
-                    saber_in_flight: entity.saber_in_flight(),
-                    saber_special: saber
-                        && sjk_game_jka::saber_rules::in_special(entity.saber_move()),
-                    regen_multiplier,
-                    dead: entity.e_flags() & EF_DEAD != 0,
-                    stream,
-                    rising: entity.trajectory_delta()[2],
-                    legs_animation: entity.leg_animation(),
-                    saber_move: saber.then_some(entity.saber_move() as u16),
-                    disarmed,
-                    jedi_master: mode == GT_JEDIMASTER && entity.is_jedi_master(),
-                    facts,
-                    absorbed_throw,
-                },
             );
         }
     }
@@ -1993,6 +1872,58 @@ struct Identity {
     ally: bool,
 }
 
+/// The local player's duel, if any: nobody sees a duel opponent's health, shield and
+/// Force, and the duellist sends nobody theirs (Milamber's rule, 18/10/2026), whatever
+/// either side's settings. Read from the snapshot and the game state, every frame.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Duel {
+    /// Not duelling (a spectator of a duel game type included).
+    #[default]
+    None,
+    /// A private duel (`duelInProgress`) against this client.
+    Private(u16),
+    /// `GT_DUEL`: every other player in the arena.
+    Arena,
+    /// `GT_POWERDUEL`, on this duel side (`dt` in `CS_PLAYERS`): the other side.
+    Sides(i32),
+}
+
+impl Duel {
+    pub(crate) fn of(snapshot: &Snapshot, game: &GameState, mode: i32) -> Self {
+        let player = &snapshot.player;
+        if player.duel_in_progress() {
+            return Self::Private(player.duel_index());
+        }
+        if player.is_spectator() || player.team() as i32 == TEAM_SPECTATOR {
+            return Self::None;
+        }
+        match mode {
+            GT_DUEL => Self::Arena,
+            GT_POWERDUEL => Self::Sides(info_number(
+                game.config_string(1131 + usize::from(player.client_num())),
+                "dt",
+            )),
+            _ => Self::None,
+        }
+    }
+
+    pub(crate) fn active(self) -> bool {
+        self != Self::None
+    }
+
+    /// Whether player `number` (not a spectator: those have no plate) is an opponent.
+    pub(crate) fn opponent(self, game: &GameState, number: u16) -> bool {
+        match self {
+            Self::None => false,
+            Self::Private(opponent) => opponent == number,
+            Self::Arena => true,
+            Self::Sides(side) => {
+                info_number(game.config_string(1131 + usize::from(number)), "dt") != side
+            }
+        }
+    }
+}
+
 /// Player `number`'s plate identity from his `CS_PLAYERS` string; `None` where
 /// he has none, is a spectator, or the server's restrictions hide him.
 fn identify(
@@ -2015,7 +1946,7 @@ fn identify(
             standing.local_team,
             team,
             standing.local_duel,
-            info_number(info, "ds"),
+            info_number(info, "dt"),
             standing.master,
             standing.local_master,
             jedi_master,
@@ -2221,7 +2152,7 @@ impl crate::GpuState {
             .as_mut()
             .ok_or_else(|| "no console".to_owned())?;
         let current = Mode::of(
-            console.bool_cvar("cg_nameplate").unwrap_or(true),
+            console.bool_cvar("cg_nameplate").unwrap_or(false),
             console.integer_cvar("cg_nameplateBars").unwrap_or(2),
         );
         let mode = match args.first() {
@@ -2242,6 +2173,48 @@ impl crate::GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A sharer's Force bar is the Force they last shared, as a share of their pool,
+    /// with no estimate; a player who shares nothing has none.
+    #[test]
+    fn the_force_bar_is_the_shared_value() {
+        let mut state = State::default();
+        let mut shared = [None; MAX_PLAYER_TAGS];
+        shared[3] = Some(SharedSlot {
+            estimates: false,
+            vitals: Some(sjk_identity::Vitals {
+                t: 1_000,
+                health: 80,
+                armor: 20,
+                force: 40,
+                max_health: 100,
+                max_force: 100,
+            }),
+        });
+        state.refresh_shared(0, || (shared, true));
+        assert_eq!(state.shared_force(3), Some(Range::exact(0.4)));
+        assert_eq!(state.shared_force(4), None);
+    }
+
+    /// See and share nameplates is one switch, off by default: nameplates on share,
+    /// whatever bars they show (names only too); off shares nothing.
+    #[test]
+    fn nameplates_on_share_and_off_does_not() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut state = State::default();
+        // Off by default: a new player sees no nameplates and shares nothing.
+        assert!(!see_and_share(&console));
+        state.sample(Some(&console));
+        assert!(!state.sharing(None).share);
+        for (enabled, bars, shares) in [("1", "2", true), ("1", "0", true), ("0", "2", false)] {
+            console.set_cvar("cg_nameplate", enabled);
+            console.set_cvar("cg_nameplateBars", bars);
+            state.sample(Some(&console));
+            assert_eq!(state.sharing(None).share, shares, "{enabled} {bars}");
+            assert_eq!(see_and_share(&console), shares, "{enabled} {bars}");
+        }
+    }
 
     #[test]
     fn v_cycles_off_names_target_everyone_and_round() {
@@ -2427,6 +2400,118 @@ mod tests {
         }
     }
 
+    /// Who a duel's opponents are: a private duel's one, the other player in a Duel
+    /// arena, the other side of a Power Duel; nobody for a spectator or outside duels.
+    #[test]
+    fn duel_opponents_by_kind() {
+        let mut snapshot = drain::snapshot(1_000, false, 200.0, 100);
+        let mut game = GameState::empty_local(0);
+        assert_eq!(Duel::of(&snapshot, &game, 0), Duel::None);
+        snapshot.player.set_raw_field(44, 3);
+        snapshot.player.set_raw_field(119, 1);
+        let private = Duel::of(&snapshot, &game, 0);
+        assert_eq!(private, Duel::Private(3));
+        assert!(private.opponent(&game, 3) && !private.opponent(&game, 4));
+        snapshot.player.set_raw_field(119, 0);
+        assert_eq!(Duel::of(&snapshot, &game, GT_DUEL), Duel::Arena);
+        game.replace_config_string(1131, br"\n\Me\t\0\ds\m\dt\1".to_vec())
+            .unwrap();
+        game.replace_config_string(1134, br"\n\Lone\t\0\ds\f\dt\2".to_vec())
+            .unwrap();
+        game.replace_config_string(1135, br"\n\Pair\t\0\ds\m\dt\1".to_vec())
+            .unwrap();
+        let sides = Duel::of(&snapshot, &game, GT_POWERDUEL);
+        assert_eq!(sides, Duel::Sides(1));
+        assert!(sides.opponent(&game, 3) && !sides.opponent(&game, 4));
+    }
+
+    /// In a duel the opponent's health, shield and Force never show, though they share
+    /// and the bars are on, and the duellist's own values are not sent; after the duel
+    /// both come back.
+    #[test]
+    fn a_duel_hides_the_opponents_bars_and_sends_nothing() {
+        use sjk_runtime::{EntityId, EntityKind, MotionSample, Transform, World, WorldId};
+
+        let mut snapshot = drain::snapshot(1_000, false, 200.0, 100);
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(1134, br"\n\Opponent\t\0".to_vec())
+            .unwrap();
+        let mut world = World::new(WorldId::new(1));
+        world.upsert(
+            EntityId::new(4),
+            EntityKind::Actor,
+            MotionSample {
+                time_millis: 1_000,
+                transform: Transform {
+                    translation: [200.0, 0.0, 24.0],
+                    ..Transform::IDENTITY
+                },
+            },
+        );
+        let camera = Camera {
+            eye: Vec3::ZERO,
+            target: Vec3::X,
+            up: Vec3::Z,
+            fov: 90.0,
+            viewport: [1920.0, 1080.0],
+        };
+        let bsp = Bsp::empty([-4096.0; 3], [4096.0; 3]);
+        let mut scratch = TraceScratch::default();
+        let mut state = State::default();
+        let mut shared = [None; MAX_PLAYER_TAGS];
+        shared[3] = Some(SharedSlot {
+            estimates: false,
+            vitals: Some(sjk_identity::Vitals {
+                t: 1_000,
+                health: 80,
+                armor: 20,
+                force: 40,
+                max_health: 100,
+                max_force: 100,
+            }),
+        });
+        state.refresh_shared(0, || (shared, true));
+        let mut now = 1_000;
+        let mut plate = |state: &mut State, snapshot: &Snapshot| {
+            state.observe_snapshot(snapshot, &game, &bsp, &mut scratch);
+            state.update(
+                snapshot,
+                &game,
+                &world,
+                &TeamInfoTable::default(),
+                now,
+                camera,
+                &bsp,
+                &mut scratch,
+                None,
+                false,
+            );
+            now += 100;
+            let entry = *state
+                .entries
+                .iter()
+                .find(|entry| entry.number == 3)
+                .unwrap();
+            (entry.health, entry.shield, entry.force)
+        };
+        let (health, shield, force) = plate(&mut state, &snapshot);
+        assert!(health.is_some() && shield.is_some(), "a sharer's bars show");
+        assert_eq!(force, Some(Range::exact(0.4)));
+        assert!(state.sharing(Some(&snapshot)).vitals.is_some());
+        snapshot.player.set_raw_field(44, 3);
+        snapshot.player.set_raw_field(119, 1);
+        for bars in [2, BARS_TARGET] {
+            state.settings.bars = bars;
+            assert_eq!(plate(&mut state, &snapshot), (None, None, None), "{bars}");
+        }
+        let sharing = state.sharing(Some(&snapshot));
+        assert!(sharing.share && sharing.vitals.is_none());
+        state.settings.bars = 2;
+        snapshot.player.set_raw_field(119, 0);
+        assert!(plate(&mut state, &snapshot).0.is_some());
+        assert!(state.sharing(Some(&snapshot)).vitals.is_some());
+    }
+
     #[test]
     fn private_duel_filter_removes_whole_plates_and_restores_them() {
         use sjk_runtime::{EntityId, EntityKind, MotionSample, Transform, World, WorldId};
@@ -2435,7 +2520,7 @@ mod tests {
         snapshot.entities[0].set_raw_field(91, 1); // Player bolt1: private duel.
         let mut game = GameState::empty_local(0);
         // Power Duel side alone must never hide a plate.
-        game.replace_config_string(1134, br"\n\Player\t\0\ds\1".to_vec())
+        game.replace_config_string(1134, br"\n\Player\t\0\dt\1".to_vec())
             .unwrap();
         let mut world = World::new(WorldId::new(1));
         world.upsert(
@@ -2500,42 +2585,5 @@ mod tests {
         snapshot.entities[0].set_raw_field(69, 100);
         snapshot.entities[0].set_raw_field(91, 1);
         assert_eq!(collect(&mut state, &snapshot).len(), 2);
-    }
-
-    #[test]
-    fn your_drain_empties_the_bar_of_the_player_in_front() {
-        let game = GameState::empty_local(0);
-        let bsp = Bsp::empty([-4_096.0; 3], [4_096.0; 3]);
-        let mut scratch = TraceScratch::default();
-        let mut state = State::default();
-        state.settings.drain_level = Some(3);
-        let mut time = 1_000;
-        for _ in 0..10 {
-            state.observe_snapshot(
-                &drain::snapshot(time, false, 200.0, 100),
-                &game,
-                &bsp,
-                &mut scratch,
-            );
-            time += 25;
-        }
-        assert_eq!(state.force.ratio(3).map(|r| r.best), Some(1.0));
-        // Half a second of level 3 drain at full health: 10 shots paid (5 each, every
-        // other snapshot), 4 taken each.
-        let mut pool = 100;
-        for step in 0..20 {
-            if step % 2 == 0 {
-                pool -= 5;
-            }
-            state.observe_snapshot(
-                &drain::snapshot(time, true, 200.0, pool),
-                &game,
-                &bsp,
-                &mut scratch,
-            );
-            time += 25;
-        }
-        let left = state.force.ratio(3).expect("tracked").best * 100.0;
-        assert!((left - 60.0).abs() < 4.5, "{left}");
     }
 }
