@@ -3656,6 +3656,12 @@ Destruction is a JoF client-mod feature, active only with `mod_jof` on a recogni
 JoF server. See [JoF Destruction controls](mods.md#destruction-client-controls)
 for the mod setting, grant gates, binding and wheel behavior.
 
+### Server-confirmed Stasis and Repulse sounds
+
+These confirmations belong to the JoF client mod, require its server opt-in and
+are inactive on other servers. See [JoF EJK opt-in and confirmation sounds](mods.md#ejk-server-opt-in-and-firing-confirmations)
+for settings, `jofejk` scope and the installed-asset requirement.
+
 ### JA+ flamethrower presentation
 
 On a JA+ server (gamename `ja+`, `japlus` or `ja_plus`; abyssmod and UA Galaxy,

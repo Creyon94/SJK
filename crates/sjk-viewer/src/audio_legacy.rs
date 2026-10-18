@@ -114,6 +114,10 @@ impl GameAudio {
         self.flame = Default::default();
         self.flame.override_value = flame_override;
         self.transitions.reset();
+        #[cfg(feature = "mod-jof")]
+        {
+            self.force_feedback = Default::default();
+        }
         self.voice_throttle.reset();
         self.output.send(AudioCommand::StopEffects);
         self.output.stop_music();

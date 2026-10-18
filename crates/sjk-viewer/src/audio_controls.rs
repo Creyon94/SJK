@@ -29,6 +29,11 @@ impl crate::GpuState {
                     .map(|console| console.dialogue_voice());
                 audio.sync_dialogue(dialogue, self.vfs.as_deref());
             }
+            #[cfg(feature = "mod-jof")]
+            audio.sync_force_feedback(
+                self.live_session.is_some()
+                    && crate::mods::force_feedback::enabled(self.console.as_ref()),
+            );
             if self.live_session.is_none() && self.demo_session.is_none() {
                 audio.idle_frame();
             }

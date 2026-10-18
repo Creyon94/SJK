@@ -223,6 +223,16 @@ const HELP: &[(&str, &str)] = &[
         sjk_mod_jof::dialogue::CVAR,
         "Show server conversations and their installed voice audio. Off cancels the current conversation; quests remain server-owned.",
     ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::EJK_OPT_IN,
+        "Advertise JoF EJK extension support on JoF servers with JoF tools on. Enables server confirmations; see Client mods for scope.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::ABILITY_SOUNDS,
+        "Play installed Stasis and Repulse sounds when the server confirms firing. Duplicate cues within 250 ms are suppressed.",
+    ),
     (
         sjk_client::player_model_eligibility::METADATA_CVAR,
         "Respect installed NPC-only model declarations and pack lists. Off ignores those rules; your blacklist still applies.",

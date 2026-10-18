@@ -123,6 +123,17 @@ pub trait Host {
     fn set_cvar(&mut self, name: &str, value: &str) -> Result<(), String>;
 }
 
+/// A validated field a loaded mod asks the existing userinfo adapter to send.
+#[derive(Clone, Copy, Debug)]
+pub struct UserinfoField {
+    /// Server's existing userinfo key (not a new protocol field).
+    pub key: &'static str,
+    /// Nonempty opt-in value.
+    pub value: &'static str,
+    /// Archived mod setting that enables this opt-in.
+    pub enabled_by: &'static str,
+}
+
 /// A client mod.
 pub trait ClientMod: Send {
     /// Lower-case id: the prefix of its names and of its switch, `mod_<id>`.
@@ -139,6 +150,11 @@ pub trait ClientMod: Send {
     fn commands(&self) -> &'static [Command];
     /// Its saved settings, kept whether it is on or not.
     fn settings(&self) -> &'static [Setting] {
+        &[]
+    }
+    /// Userinfo opt-ins, applied only while this mod is loaded and the setting
+    /// permits them. The host removes them on disable, leave or another server.
+    fn userinfo_fields(&self) -> &'static [UserinfoField] {
         &[]
     }
     /// Server commands it completes on `server` while loaded (none by default).

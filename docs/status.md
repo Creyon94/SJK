@@ -36,6 +36,27 @@ Live conversations, actual GPU appearance, installed voice listening and
 decoder-cancellation playback remain unverified.
 Quest authority stays remote; no native quest server, codec or assets added.
 
+## JoF mod server-confirmed power sounds
+
+18/10/2026, `fix/server-force-feedback`, merged current `sol/main`
+`64698160` without rewriting published history. Per Sol's #149 review, the
+confirmation table/repeat gates live in `sjk-mod-jof`. Compiled optional host
+bridges load/play installed sounds only for loaded JoF tools and the explicit
+`jof.ejkOptIn`/`jof.abilitySounds` settings. Scoped `jofejk=1` userinfo uses the
+existing codec and is withdrawn on opt-out/unload/other servers. See
+[mods](mods.md#ejk-server-opt-in-and-firing-confirmations) for the distinction
+between the server opt-in and a local mute, the separate unadvertised keys,
+and the limits of available server-side evidence.
+
+Migration verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace
+build/tests/Clippy and the no-default-features viewer mod-exclusion test pass.
+Focused regressions cover loaded-server/mod/preference gates, scoped userinfo bytes
+and dirty callbacks, plus independent 250 ms boundaries at 8/7/4/3 ms command steps.
+Installed-pack listening, live server opt-in/withdrawal and other private-server
+`jofejk` effects remain unverified; the public EJK client confirms firing messages
+but does not enumerate all server checks.
+No wire codec, native server gameplay or asset-distribution changes.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect

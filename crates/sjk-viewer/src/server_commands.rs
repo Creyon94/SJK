@@ -15,6 +15,7 @@ pub(super) fn consume(
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
     duels: &mut crate::hud::duel_pairs::DuelPairs,
+    mut audio: Option<&mut crate::GameAudio>,
 ) {
     if let Some(chat) = chat {
         consume_messages(session, localization, chat, console.as_deref_mut(), duels);
@@ -42,6 +43,15 @@ pub(super) fn consume(
                     if let Some(event) = sjk_mod_jof::dialogue::parse(&arguments) {
                         console.dialogue_event(event);
                     }
+                }
+                #[cfg(feature = "mod-jof")]
+                if !handled {
+                    handled = crate::mods::force_feedback::dispatch(
+                        &arguments,
+                        console.as_deref(),
+                        audio.as_deref_mut(),
+                        session.latest_snapshot(),
+                    );
                 }
                 if !handled
                     && first_observation
