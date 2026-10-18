@@ -129,6 +129,14 @@ per map with the team groups the selector already resolves): the viewer's own te
 game. The centre print uses the chat overlay's, not the reference's larger
 `BIGCHAR_WIDTH` text at 30% of the screen height.
 
+The objective that ends the round is never broadcast as an objective (the server sends
+`EV_SIEGE_ROUNDOVER` instead), so the round's end was silent. As `CG_SiegeRoundOver`
+does, the client now centre prints the viewer's team group's `wonround`/`lostround` and
+plays its `roundover_sound_wewon`/`roundover_sound_welost`. The reference has no default
+objective or round sounds (they are commented out), so a map's `.siege` file decides
+what is heard. A tracker test covers the round won being reported once; the notices
+remain untested in a game.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.

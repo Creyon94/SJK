@@ -1,7 +1,10 @@
 //! A completed siege objective's notice (`CG_SiegeObjectiveCompleted`, `cg_saga.c:885-985`):
 //! the map's `.siege` file names, per objective, the line each team is shown in the
 //! middle of the screen (`message_team1`/`message_team2`) and the announcer line each
-//! team hears (`sound_team1`/`sound_team2`). The viewer's own team decides which.
+//! team hears (`sound_team1`/`sound_team2`). The objective that ends the round is not
+//! announced as one: `CG_SiegeRoundOver` (`cg_saga.c:575-671`) takes the viewer's team
+//! group's `wonround`/`lostround` line and `roundover_sound_wewon`/`_welost` announcer
+//! instead. The viewer's own team decides which.
 
 use crate::ingame_menu::siege_data::{group, is_siege, read, value};
 use sjk_protocol::{GameState, InfoString};
@@ -21,25 +24,42 @@ pub(crate) struct Notices {
 }
 
 impl Notices {
-    /// Centre print and announce every objective in `done` for client `client` of
-    /// `my_team` (`PERS_TEAM`); a spectator is told nothing.
+    /// Centre print and announce the objectives completed and the round won in the
+    /// snapshot `events` last observed, for client `client` of `my_team` (`PERS_TEAM`);
+    /// a spectator is told nothing.
     pub(crate) fn announce(
         &mut self,
-        done: &[sjk_client::SiegeObjectiveComplete],
+        events: &sjk_client::ObituaryTracker,
         client: u16,
         my_team: u8,
         game: &GameState,
         vfs: &VirtualFileSystem,
         localization: &crate::localization::Localization,
         chat: &mut crate::chat::ChatOverlay,
-        audio: Option<&mut crate::audio::GameAudio>,
+        mut audio: Option<&mut crate::audio::GameAudio>,
     ) {
-        if done.is_empty() || !matches!(my_team, 1 | 2) || !is_siege(Some(game)) {
+        let (done, round_won) = (events.siege_objectives(), events.siege_round_won());
+        if (done.is_empty() && round_won.is_none())
+            || !matches!(my_team, 1 | 2)
+            || !is_siege(Some(game))
+        {
             return;
         }
         self.load(game, vfs);
         let mine = usize::from(my_team);
-        let mut audio = audio;
+        let mut say = |message: Option<&str>, sound: Option<&str>| {
+            Self::say(
+                message,
+                sound,
+                client,
+                vfs,
+                localization,
+                chat,
+                audio.as_deref_mut(),
+            );
+        };
+        // `CG_SiegeObjectiveCompleted`: the completing team's `ObjectiveN` names what
+        // each team is shown and hears.
         for objective in done {
             let team = if objective.team == 1 { 0 } else { 1 };
             let Some(found) = group(
@@ -48,35 +68,60 @@ impl Notices {
             ) else {
                 continue;
             };
-            // `CG_DrawSiegeMessageNonMenu`: a `@` names a string-table entry.
-            if let Some(message) = value(found, &format!("message_team{mine}")) {
-                let text = match message.strip_prefix('@') {
-                    Some(key) => localization
-                        .strings
-                        .get(&key.to_ascii_uppercase())
-                        .cloned()
-                        .unwrap_or_else(|| key.to_owned()),
-                    None => message.to_owned(),
-                };
-                chat.receive(
-                    sjk_client::ServerEventKind::CenterPrint,
-                    text,
-                    None,
-                    Instant::now(),
-                );
-            }
-            if let (Some(path), Some(audio)) = (
+            say(
+                value(found, &format!("message_team{mine}")),
                 value(found, &format!("sound_team{mine}")),
-                audio.as_deref_mut(),
-            ) {
-                audio.register_effect_paths(vfs, [path]);
-                audio.play_local(
-                    path,
-                    1.0,
-                    sjk_audio::SourceId(u32::from(client)),
-                    ANNOUNCER_CHANNEL,
-                );
-            }
+            );
+        }
+        // `CG_SiegeRoundOver`: the last objective ends the round instead of being
+        // announced; the viewer's own team group names the line and the announcer for
+        // a round won (`wonround`, `roundover_sound_wewon`) or lost.
+        if let Some(winner) = round_won {
+            let team = &self.teams[mine - 1];
+            let (message, sound) = if winner == my_team {
+                ("wonround", "roundover_sound_wewon")
+            } else {
+                ("lostround", "roundover_sound_welost")
+            };
+            say(value(team, message), value(team, sound));
+        }
+    }
+
+    /// Centre print `message` (an `@` names a string-table entry,
+    /// `CG_DrawSiegeMessageNonMenu`) and play `sound` on the announcer channel.
+    fn say(
+        message: Option<&str>,
+        sound: Option<&str>,
+        client: u16,
+        vfs: &VirtualFileSystem,
+        localization: &crate::localization::Localization,
+        chat: &mut crate::chat::ChatOverlay,
+        audio: Option<&mut crate::audio::GameAudio>,
+    ) {
+        if let Some(message) = message {
+            let text = match message.strip_prefix('@') {
+                Some(key) => localization
+                    .strings
+                    .get(&key.to_ascii_uppercase())
+                    .cloned()
+                    .unwrap_or_else(|| key.to_owned()),
+                None => message.to_owned(),
+            };
+            chat.receive(
+                sjk_client::ServerEventKind::CenterPrint,
+                text,
+                None,
+                Instant::now(),
+            );
+        }
+        if let (Some(path), Some(audio)) = (sound, audio) {
+            audio.register_effect_paths(vfs, [path]);
+            audio.play_local(
+                path,
+                1.0,
+                sjk_audio::SourceId(u32::from(client)),
+                ANNOUNCER_CHANNEL,
+            );
         }
     }
 

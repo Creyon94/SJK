@@ -112,7 +112,7 @@ pub(crate) fn observe(
         }
     }
     sinks.siege_notices.announce(
-        sinks.obituaries.siege_objectives(),
+        sinks.obituaries,
         snapshot.player.client_num(),
         snapshot.player.team(),
         game_state,
