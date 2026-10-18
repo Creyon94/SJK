@@ -33,8 +33,15 @@ pub(super) fn spawn_sparks(
             seed.wrapping_add(i),
         );
         if particles.len() > previous {
-            particles[previous].start_length = 8.;
-            particles[previous].end_length = 0.5;
+            particles[previous].length = Some(crate::effect_envelope::Envelope::from_values(
+                8.0,
+                0.5,
+                0.0,
+                sjk_effect::CurveFlags {
+                    linear: true,
+                    ..Default::default()
+                },
+            ));
             particles[previous].motion = crate::particle_motion::Motion::new(
                 point + normal * 0.5,
                 direction * (100. + (seed.wrapping_add(i * 31) % 60) as f32),

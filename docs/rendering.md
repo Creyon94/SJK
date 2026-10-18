@@ -1183,6 +1183,13 @@ jet sound. The chest attachment is initialized with the body's resting pose,
 including the shared fallback body, and equipping resolves the current pose
 immediately rather than waiting for the next pose upload. The stock pack's bind
 pose is already identity; personal replacement packs may omit its flame bolts.
+The jet graph joins the startup effect catalogue, so a replacement PK3's own
+flame/smoke shaders and nested dependencies are available before flight. Tail length
+uses the authored curve flags: a negative constant stays constant instead of
+shrinking toward an unused end value. A shader remapped to `clear` supplies no
+layers, including on exhaust tails; only an unknown shader gets the fallback spark.
+These rules are shared by the other EFX users, without a jetpack-specific renderer.
+
 Flight prediction now implements the equipped `PM_JETPACK` path described in
 [networking.md](networking.md#equipped-jetpack-prediction). In first person the
 pack remains hidden with the body, as in the reference.

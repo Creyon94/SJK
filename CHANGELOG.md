@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
 
+- Jetpack effects load replacement-pack shaders before flight and keep their authored tail lengths; hidden effect layers stay hidden instead of becoming fallback sparks _(Lumaya, after JoF EJK)_
 - Siege on SJK servers: a trigger that fires once fires once, so holding use at siege_hoth's bridge panel no longer scores objective 2 over and over _(Slash, after JKA)_
 - Siege on SJK servers: you can board your own team's vehicles again, siege_hoth's AT-ST included _(Slash, after JKA)_
 - Siege on SJK servers: bots added before the round take both sides, so the round can begin _(Slash, after JKA)_

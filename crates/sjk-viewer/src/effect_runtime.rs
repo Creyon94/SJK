@@ -445,14 +445,23 @@ pub(crate) fn spawn_effect(
                     component.size,
                     particle_seed.wrapping_add(9),
                 ),
-                start_length: component
-                    .length
-                    .start
-                    .sample(random_unit(particle_seed.wrapping_add(23))),
-                end_length: component
-                    .length
-                    .end
-                    .sample(random_unit(particle_seed.wrapping_add(24))),
+                length: (component.kind == ComponentKind::Tail).then(|| {
+                    crate::effect_envelope::Envelope::from_values(
+                        component
+                            .length
+                            .start
+                            .sample(random_unit(particle_seed.wrapping_add(23))),
+                        component
+                            .length
+                            .end
+                            .sample(random_unit(particle_seed.wrapping_add(24))),
+                        component
+                            .length
+                            .parameter
+                            .sample(random_unit(particle_seed.wrapping_add(25))),
+                        component.length.flags,
+                    )
+                }),
                 streak,
                 trace_streak,
                 normal,

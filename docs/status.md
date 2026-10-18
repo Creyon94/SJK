@@ -1,3 +1,30 @@
+## Jetpack effect layers and tail lengths
+
+18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.
+The shared atlas sampler now distinguishes a known hidden shader from a missing
+one: a `clear` remap supplies zero layers, including for single-layer consumers.
+The jetpack graph joins the startup catalogue, including replacement-PK3 shaders;
+retail dependencies were already incidentally available through other graphs.
+Tails retain their signed length unless the authored length curve changes it;
+line endpoints and the custom saber-spark fade retain their existing semantics.
+No new setting, emitter, wire change or gameplay change.
+
+Reference: JoF EJK beta `0f2fa2fc`, `CG_RegisterGraphics` in
+`codemp/cgame/cg_main.c` and `CTail::UpdateLength` in
+`codemp/client/FxPrimitives.cpp`. See [rendering](rendering.md#entity-render-effects).
+Verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace build/tests
+and all-target Clippy pass. Synthetic regressions cover replacement-graph shader
+discovery and signed constant/linear tails plus unchanged line endpoints at
+8/7/4/3 ms. The installed-retail `mp/duel6` offscreen test on RTX 5070 Ti (driver
+617.14) rendered boosted exhaust, verified that every exhaust shader was loaded,
+and checked a real atlas remap to `clear`: zero sampled layers, also for a
+single-layer consumer, while an unknown shader still gets one fallback. The
+exhaust image was inspected; it is not a matching EJK reference capture.
+A release-mode synthetic sample of 128 mixed constant/linear tail lengths over
+20,000 iterations measured 0.299 us per iteration on Ryzen 7 5800X3D; it excludes
+rendering, particle motion and full-scene costs. Live server overlap and full
+JoF EJK visual parity remain unverified.
+
 ## Siege HUD: round state, respawn countdown, hacking
 
 18/10/2026, `feat/siege-hud`, based on `Sol-Vulpes/SJK` `6469816` (tester on

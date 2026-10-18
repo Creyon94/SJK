@@ -102,12 +102,11 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
         crate::effect_geometry::resolve_traced_streak(particle, inputs.bsp, inputs.trace_scratch);
         let particle = &*particle;
         let seconds = age.saturating_sub(particle.delay).as_secs_f32();
-        let progress = (seconds / particle.lifetime.as_secs_f32()).clamp(0.0, 1.0);
         let motion = particle.motion.sample();
         let (size, base_alpha, color) = particle.sample_envelopes(seconds);
         let direction = particle
             .streak
-            .map(|streak| streak_direction(particle, streak, progress))
+            .map(|streak| streak_direction(particle, streak, seconds))
             .unwrap_or(Vec3::ZERO);
         let direction = particle.normal.unwrap_or(direction).to_array();
         let (color_fade, vertex_alpha) =
@@ -192,15 +191,18 @@ pub(crate) fn billboard_uv_transform(shape: PrimitiveShape, uv_transform: [f32; 
     }
 }
 
-fn streak_direction(particle: &Particle, streak: Vec3, progress: f32) -> Vec3 {
-    if streak.length_squared() <= f32::EPSILON {
-        return Vec3::ZERO;
-    }
-    if particle.start_length == 1.0 && particle.end_length == 1.0 {
+/// `CTail::UpdateLength` keeps the start value unless a length flag changes it.
+/// Signed lengths are intentional: exhaust tails can extend along their velocity.
+fn streak_direction(particle: &Particle, streak: Vec3, seconds: f32) -> Vec3 {
+    let Some(length) = particle.length else {
         return streak;
-    }
-    streak.normalize()
-        * (particle.start_length + (particle.end_length - particle.start_length) * progress)
+    };
+    streak.normalize_or_zero()
+        * length.sample(
+            seconds * 1_000.0,
+            particle.lifetime.as_secs_f32() * 1_000.0,
+            particle.seed.wrapping_add(35),
+        )
 }
 
 #[cfg(test)]
@@ -219,6 +221,55 @@ mod tests {
             rotation: 0.0,
             uv_transform: [1.0, 1.0, 0.0, 0.0],
         }
+    }
+
+    fn effect_particle(kind: &str, flags: &str) -> Particle {
+        let source = format!(
+            "{kind} {{ life 120 velocity -2 0 0 origin2 3 4 0 length {{ start -24 end -60 {flags} }} shaders [ gfx/test/exhaust ] }}"
+        );
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory("test", [("effects/test/exhaust.efx", source)])
+            .unwrap();
+        let mut particles = Vec::new();
+        crate::effect_runtime::spawn_effect(
+            &mut particles,
+            &mut crate::effect_aux::Runtime::default(),
+            &mut crate::EffectLibrary::default(),
+            &vfs,
+            "test/exhaust",
+            Vec3::ZERO,
+            Instant::now(),
+            1,
+            0,
+            &mut None,
+            glam::Quat::IDENTITY,
+        );
+        assert_eq!(particles.len(), 1);
+        particles.pop().unwrap()
+    }
+
+    #[test]
+    fn exhaust_tails_keep_signed_length_unless_a_length_flag_changes_it() {
+        let fixed = effect_particle("Tail", "");
+        let linear = effect_particle("Tail", "flags linear");
+        for step in [8, 7, 4, 3] {
+            for millis in (0..120).step_by(step) {
+                let seconds = millis as f32 / 1_000.0;
+                let fixed_direction = streak_direction(&fixed, fixed.streak.unwrap(), seconds);
+                assert!(fixed_direction.abs_diff_eq(-Vec3::X * 24.0, 1e-5));
+                let expected = -24.0 + (-60.0 + 24.0) * millis as f32 / 120.0;
+                assert!(
+                    (streak_direction(&linear, linear.streak.unwrap(), seconds).x - expected).abs()
+                        < 1e-4
+                );
+            }
+        }
+        let line = effect_particle("Line", "flags linear");
+        assert!(line.length.is_none());
+        assert_eq!(
+            streak_direction(&line, line.streak.unwrap(), 0.06),
+            Vec3::new(3.0, 4.0, 0.0)
+        );
     }
 
     #[test]
