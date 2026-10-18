@@ -27,6 +27,7 @@ impl LegacySoundAdapter {
             .handle;
         Some(LegacySoundDecision {
             event: LegacySoundEvent::Pain,
+            voice_line: None,
             sound,
             handle,
             additional: false,

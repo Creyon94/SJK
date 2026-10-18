@@ -27,8 +27,11 @@ fn active(
 ) -> bool {
     let local = number == snapshot.player.client_num();
     let zoom = predicted.map_or(snapshot.player.zoom_mode(), |p| p.zoom_mode);
-    let legs = if local {
-        predicted.map_or(snapshot.player.leg_animation(), |p| p.legs_anim)
+    let (legs, tricked) = if local {
+        (
+            predicted.map_or(snapshot.player.leg_animation(), |p| p.legs_anim),
+            false,
+        )
     } else {
         let Ok(index) = snapshot
             .entities
@@ -36,9 +39,20 @@ fn active(
         else {
             return false;
         };
-        snapshot.entities[index].leg_animation()
+        let entity = &snapshot.entities[index];
+        let powers = predicted.map_or(snapshot.player.force_powers_active(), |p| {
+            p.force_powers_active
+        });
+        (
+            entity.leg_animation(),
+            sjk_client::legacy_mind_tricked(
+                sjk_client::legacy_entity_trick_targets(entity),
+                snapshot.player.client_num(),
+                powers,
+            ),
+        )
     };
-    visible(enabled, legs, local && !detached_camera, third_person, zoom)
+    !tricked && visible(enabled, legs, local && !detached_camera, third_person, zoom)
 }
 
 /// Prefer the posed neck, then the head minus eight world units; never guess a joint.
@@ -127,7 +141,7 @@ mod tests {
         player.set_raw_field(13, u32::from(BOTH_CHOKE3));
         let mut entity = EntityState::zero(7, &LEGACY_ENTITY_FIELDS);
         entity.set_raw_field(16, u32::from(BOTH_CHOKE3));
-        let snapshot = Snapshot {
+        let mut snapshot = Snapshot {
             message_sequence: 1,
             reliable_acknowledge: 0,
             server_commands: Vec::new(),
@@ -152,6 +166,10 @@ mod tests {
         assert!(!active(&snapshot, 3, Some(&predicted), true, true, false));
         assert!(active(&snapshot, 7, Some(&predicted), true, false, false));
         assert!(active(&snapshot, 3, Some(&predicted), true, false, true));
+        snapshot.entities[0].set_raw_field(58, 1 << 3);
+        assert!(!active(&snapshot, 7, None, true, false, false));
+        snapshot.player.set_raw_field(82, 1 << 14);
+        assert!(active(&snapshot, 7, None, true, false, false));
     }
 
     #[test]

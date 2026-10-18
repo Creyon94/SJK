@@ -171,6 +171,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Kill cue: 0 off, 1 normal, 2 midair",
         ),
         CvarDefinition::new(
+            crate::audio::music::CVAR,
+            true,
+            archive,
+            "Resume file-based map music using level time; dynamic music keeps its own transitions",
+        ),
+        CvarDefinition::new(
             "cg_jumpSounds",
             0_i64,
             archive,
@@ -181,6 +187,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1_i64,
             archive,
             "Roll voices: 0 off, 1 all, 2 others, 3 self",
+        ),
+        CvarDefinition::new(
+            "cg_tauntAntiSpam",
+            true,
+            archive,
+            "Limit repeated model voices; taunts wait for the previous sample to finish",
         ),
         CvarDefinition::new(
             "cl_allowDownload",
@@ -676,6 +688,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Display the Force Seeing aura shell on other players",
         ),
         // JoF EJK's `cg_spprotabscolor` (cg_xcvar.h), same default.
+        CvarDefinition::new(
+            crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+            true,
+            archive,
+            "Rage, Heal, Quick Heal and Grip-victim animation effects",
+        ),
+        CvarDefinition::new(
+            crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+            -1_i64,
+            archive,
+            "Empower glow: -1 server, 0 full body, 1 arms, 2 hands; ordinary Push stays full body",
+        ),
         CvarDefinition::new(
             "cg_spProtAbsColor",
             true,

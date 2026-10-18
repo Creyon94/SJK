@@ -192,6 +192,11 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Map music sync",
+        cvar: crate::audio::music::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Doppler",
         cvar: "s_doppler",
         kind: ValueKind::Bool,
@@ -205,6 +210,11 @@ pub(super) const AUDIO: &[Setting] = &[
         label: "Jetpack hover sound",
         cvar: crate::jetpack::HOVER_SOUND_CVAR,
         kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
+        label: "Taunt anti-spam",
+        cvar: "cg_tauntAntiSpam",
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Footsteps",
@@ -751,6 +761,20 @@ pub(super) const GAME: &[Setting] = &[
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Force animation effects",
+        cvar: crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Empower glow (-1 server)",
+        cvar: crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        kind: ValueKind::Integer {
+            min: -1,
+            max: crate::actor_world_submission::force_powers::policy::MAX_SCOPE,
+            step: 1,
+        },
     },
     Setting {
         label: "Protect+Absorb combo",

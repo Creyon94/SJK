@@ -288,6 +288,22 @@ const HELP: &[(&str, &str)] = &[
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),
+    (
+        crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        "Rage, Heal, Quick Heal and Grip-victim effects. Plugin settings can also disable them.",
+    ),
+    (
+        crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        "Empower glow: -1 follows the server; 0 full body, 1 arms, 2 hands. Ordinary Push stays full body.",
+    ),
+    (
+        "cg_tauntAntiSpam",
+        "Limits repeated player model voices. Taunts wait until the previous line ends; other grunts have separate short holds.",
+    ),
+    (
+        crate::audio::music::CVAR,
+        "Resume map music by level time on join or after duels. Off restarts it. Dynamic music keeps its own timing.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,
@@ -568,7 +584,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_spProtAbsColor",
-        "Protect and Absorb at once show one cyan shell like single player, not green plus blue.",
+        "Cyan when Protect and Absorb run together. Plugin settings can force the separate green/blue shells.",
     ),
     (
         "cg_shieldSphere",

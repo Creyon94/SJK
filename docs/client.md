@@ -1448,6 +1448,57 @@ its last two predictable events (as CG_TransitionPlayerState does)
 without replaying them, following JoF EJK #123. New events after the switch still
 play from the new player. This changes audio latches, not movement or event encoding.
 
+### Force presentation controls
+
+Both menu styles offer **Force animation effects** (`cg_forceAnimFX`, on) for
+Rage, Heal, Quick Heal and Grip-victim puffs. Plugin settings (`cp_pluginDisable`
+bit 5) can also disable them and the combined cyan Protect/Absorb colour; the
+separate green/blue shells remain. The local animation switch leaves the
+Protect/Absorb colour preference and ordinary Push/Grip-caster effects alone.
+
+**Empower glow** (`cg_empowerEffect`) defaults to -1, following the server's
+`jp_empowerEffect`: 0 full body, 1 arms, 2 hands. Set 0/1/2 to override that shape.
+Only Empower-marked body blur is trimmed; ordinary Push stays full body.
+Mindtrick hides Force effects and flamethrower audio from the affected viewer;
+active Sight reveals them. These presentation rules apply independently of menu
+style and do not change Force gameplay or protocol encoding. Installed-asset
+visual/audio comparison remains unverified.
+
+### Repeated model voices
+
+Settings > Sound exposes **Taunt anti-spam** in SJK UI and classic+.
+`cg_tauntAntiSpam` defaults to 1, following JoF EJK #287/#374: each player's
+entire taunt family shares a hold lasting the previous decoded sample's duration
+(2500 ms when duration is unavailable). Gasps hold for 2000 ms; jump, roll and
+landing voices each have an independent 1000 ms hold. Generic/entity custom-voice
+events share these timers, so changing the event route does not bypass them.
+The filter does not suppress animations, body/fall impacts, pain/death, weapons,
+NPCs or world sounds. `cg_tauntAntiSpam 0` disables it. Map changes and backwards
+demo seeks reset the holds, and so does a player slot whose `CS_PLAYERS` string
+empties or takes another name, so a newcomer in a reused slot is not held by the
+previous occupant's taunt. Duration comes from the decode worker; event playback
+does not read files, decode samples or lock the audio callback.
+
+### Map music synchronization
+
+**Map music sync** (`cg_musicSync`, on) is in Sound settings in both menu styles.
+After joining or leaving a private duel, file-based map music resumes from the time
+elapsed since its track began instead of restarting. Like JoF EJK's
+`cgs.musicStartTime` (EJK #159), that start is the level start for the map's own
+track and the server time of the last `CS_MUSIC` change for a track set mid-level
+(`target_play_music`); a numeric third `CS_MUSIC` token, when a server sends one,
+states the start outright. The decode/callback queue delay is included in
+the start position. The native sequencer plays a distinct intro once, then wraps
+the loop; a single repeated file has the same phase as JoF EJK #161. Dynamic music
+keeps its own transitions and does not use the file-track offset. Turning sync off
+starts at the beginning. Manual `music` commands also start at the beginning.
+
+An empty server `CS_MUSIC` means silence, including when a duel ends; it does not
+fall back to BSP worldspawn music. Offline world viewing still uses worldspawn.
+Map handoff stops the old track before preparing the next one (JoF EJK #103/#146).
+Actual peer synchronization and live listening remain unverified; clock/sequence
+checks use synthetic PCM and already-decoded snapshot time.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as
@@ -3525,10 +3576,12 @@ documented capability table is in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs); it detects the server
 independently of the optional JA+ command mod. The flame graphs and sound must
 be present in installed game data, such as the JoF EJK client-assets pack.
-SJK does not bundle them. Without the flame stream graph the player keeps
-showing stock Lightning; other missing assets leave that effect or sound absent.
-The flame sound follows the same detection as the effects, refreshed when the
-server info changes.
+SJK does not bundle them. The custom `mp/fthrw_bobafire` stream has priority;
+if absent, SJK uses the retail `boba/fthrw` stream with its forward direction
+reversed; both missing: stock Lightning. A missing sound stays silent. The flame
+sound follows the same detection as the effects, refreshed when the server info
+changes. Impact bursts follow presentation time between snapshots, including
+during demo playback.
 
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
 `forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
@@ -4952,17 +5005,32 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
   [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs)).
 - **Voices.** `*pain25`, `*death1`, `*jump1` and the other custom sounds of an NPC
   (or a vehicle, which is an NPC) come from its own sound folders: the server names
-  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`
-  and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in `cg_servercmds.c:718`).
-  As `CG_CustomSound` (`cg_players.c:213-322`), death, jump, pain, choke, gasp, land
-  and taunt come from the standard set, anger, victory and pushed from the combat
-  set, and taunt1-3, deflect, gloat and pushfail from the Jedi set, each
-  `sound/chars/<dir>/misc/<name>`. An NPC with no set for a sound, or whose file is
-  missing, is silent: unlike a player it has no `mp_generic` fallback. Sets load
-  when their `CS_SOUNDS` slot changes, not per event
-  ([sound_npc_voices.rs](../crates/sjk-client/src/sound_npc_voices.rs)). Before
-  17/10/2026 every NPC spoke with the voice of player slot 31. The `_Extra` set
-  (`*chase1`, `*cover1`, ...) has no event in the sound table and is not loaded.
+  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`,
+  `_Extra` and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in
+  `cg_servercmds.c:718`). As `CG_CustomSound` (`cg_players.c:191-322`), each name
+  is looked up in the four tables in order (standard, combat, extra, Jedi) and
+  played from `sound/chars/<dir>/misc/<name>` of the set the NPC names for that
+  table: death, jump, pain, falling, choke, gasp, land and taunt from the standard
+  set (its choke wins over the combat duplicates), anger, victory, confuse,
+  pushed and `ffwarn`/`ffturn` from the combat set, chase, cover, detected, lost,
+  outflank, escaping, giveup, look, sight, sound and suspicious from the extra
+  set, and combat, jdetected, taunt1-3, jchase, jlost, deflect, gloat and
+  pushfail from the Jedi set. The vocal events 116-124 and 131-132 (combat), 133-168
+  (extra) and 169-189 (Jedi) play them, as do `*name` entries in the sound table.
+  An NPC with no set for a sound, or whose file is missing, is silent: unlike a
+  player it has no `mp_generic` fallback and never borrows the player duel bank.
+  Sets load when their `CS_SOUNDS` slot changes, not per event
+  ([npc_sounds.rs](../crates/sjk-client/src/npc_sounds.rs)). Before 17/10/2026
+  every NPC spoke with the voice of player slot 31.
+- **Who speaks.** As stock, `EV_ENTITY_SOUND` (79) speaks with the entity its
+  `clientNum` names (`cg_event.c:4174`): `G_EntitySound` sends a pit's `*falling1`
+  and Grip's `*choke1-3` and `*gasp` this way, on a temporary entity, so they keep
+  the player's voice (or the NPC's, when it names one). Every other event speaks
+  with its own entity number, an NPC's banks above the player slots (a forwarded
+  event borrowing those of the NPC it names), so a `*name` on a temporary entity's
+  `EV_GENERAL_SOUND` stays silent as in stock. Voice commands (75) keep
+  `groundEntityNum`. The sound's source stays the speaker's own number, so a
+  blocked player's voice stays muted.
 
 ## Shader remap controls
 

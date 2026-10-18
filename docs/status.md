@@ -190,6 +190,68 @@ Blue team won" or "Tied 3 : 3". See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
+## Live Force effects and controls
+
+17/10/2026, `feat/force-animation-effects`, based on `bb83eb28`, Windows:
+Rage/Heal chest sprays and Quick Heal hand puffs follow each actor's full-body
+animation, including local prediction and NPCs, after EJK #58/#89. Existing
+120/8 ms cadence and #90's local body/Grip camera guards remain. The default-on
+`cg_forceAnimFX` option and plugin-disable bit 5 gate the new animation/victim
+FX (#130); that bit also selects the separate green/blue Protect/Absorb shells
+instead of cyan (#168). Mindtrick hides Force emissions/flamethrower audio,
+with the existing Sight exception (#93); jetpacks already follow this rule.
+Empower uses the advertised full-body/arms/hands set (#132), with the shared
+`cg_empowerEffect` override, while ordinary Push keeps every cached joint.
+Both settings interfaces include the new controls. Scope contracts are named,
+documented tables, sampled without allocation and reused across actor submission.
+The original six animation regressions are retained and policy/visibility cases
+have been added. Workspace fmt/build/test/clippy passed on Windows x86_64,
+Rust 1.99.0. The explicit release policy benchmark passed: 0.101 us per frame
+for borrowed serverinfo sampling plus 128 body masks across 20,000 frames on
+Ryzen 7 5800X3D. It excludes console lookups, poses, particle emission and drawing.
+No installed game data or isolated live comparison is available; visual/audio,
+custom-model attachment and populated-scene performance remain unverified. Wire
+encoding, authoritative animation, movement and gameplay are unchanged.
+See [rendering](rendering.md#entity-render-effects) and
+[client controls](client.md#force-presentation-controls).
+
+## Repeated player model voices
+
+17/10/2026, `feat/voice-antispam`, based on `bb83eb28`, Windows x86_64,
+Rust 1.99.0: implemented JoF EJK #287/#374's default-on `cg_tauntAntiSpam`
+with one sample-duration taunt hold per player and independent gasp/jump/roll/
+landing holds. Generic/entity custom-sound tokens carry family metadata,
+including live configstring edits; ordinary sound paths and body/fall impacts
+remain outside the filter. Both settings styles expose the switch. The decode
+worker publishes cached PCM duration without file reads, decoding or locks
+during event playback. Six focused synthetic regressions cover classification,
+event routes, impacts, timers, seek/map resets and asynchronous duration publication.
+Workspace formatting, locked build/tests (including documentation tests) and
+all-target Clippy passed on the rebased branch (existing warnings remain). A release microbenchmark on Ryzen 7 5800X3D measured 0.085
+microseconds per 128 timer decisions across 20,000 synthetic frames, excluding
+duration lookup, decoding, mixing and rendering. No live listening or installed-
+asset/server comparison was performed; this does not certify audio parity or
+full-scene performance. See [voice options](client.md#repeated-model-voices).
+
+## Map music lifecycle and clock starts
+
+17/10/2026, `fix/map-music-recovery`, based on `bb83eb28`, Windows:
+implemented file-track level-clock starts after JoF EJK #161, with default-on
+`cg_musicSync` in both settings styles. Starts carry a typed per-request offset,
+including decode/callback queue delay, instead of a global one-shot cvar. The
+native sequencer preserves distinct intro/loop semantics; dynamic music retains
+its own transitions. Empty server CS_MUSIC is authoritative silence, including
+after duels, and clears dynamic state; offline world viewing keeps BSP music.
+The existing map-handoff stop already covers #146; #103's remaining lifecycle
+gaps are addressed. Seven synthetic regressions cover PCM phase/boundaries,
+invalid handles, clock clamping, server/offline selection, queue delay and
+musicless-map duel restoration through the decoder/mixer without an audio device.
+All seven regressions and the four required workspace checks passed on Windows
+x86_64, Rust 1.99.0, code revision `927a51de`; existing warnings remain.
+No live listening, peer synchronization or installed-
+asset/server comparison has run. No wire or gameplay changes.
+See [client music](client.md#map-music-synchronization).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
@@ -313,6 +375,48 @@ test, `cargo fmt --all --check`, the locked workspace build and test suite,
 workspace all-target Clippy, and the locked release viewer/dedicated build pass;
 the repository's existing warnings remain. The result has not yet been tried
 interactively against the live SJK chat.
+
+## NPC custom voice banks
+
+17/10/2026, `feat/npc-custom-voices`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented standard/combat/extra/Jedi NPC voice banks from the existing
+`csSounds_*` entity fields and `*$directory` sound configstrings. Initial
+registration uses the existing audio loader; changed entries use the existing
+sound-table refresh path. Playback uses cached sound indices. A fixed source
+lookup handles forwarded events without per-event entity searches and clears
+despawned identities. Player sound sets remain separate; missing NPC banks or
+samples remain silent. Both menu styles use the same audio behavior. No codec,
+movement or combat-timing changes. See [client](client.md#npc-sabers-and-voices).
+
+18/10/2026, merged into `personal/prs-g6a` as one implementation with Sol's
+17/10 NPC voices (`sound_npc_voices.rs`, removed; its tests are now `npc_voice_tests.rs`): the PR's `NpcSounds` replaces
+the per-slot sets and `voice_of`. Fixed in the merge: every event on an entity
+past the player slots took NPC banks, which silenced `EV_ENTITY_SOUND` on its
+temporary entity; the speaker is now `clientNum` for event 79 and the entity's
+number for the others, as stock, so pits' `*falling1` (now in the player set)
+and Grip's choke/gasp keep the player's voice. `EV_TAUNT1`-`3` carry the taunt
+voice line for the anti-spam hold. Sol's tests were ported, plus pit/Grip
+entity sounds, a general sound on a temporary entity and the taunt line.
+
+Source evidence: JoF EJK #55 merge `289e14ce`, `codemp/cgame/cg_players.c`
+(`CG_CustomSound` and the four name tables), `cg_servercmds.c`
+(`CG_HandleNPCSounds`, `CG_RegisterCustomSounds`), `cg_event.c` and
+`codemp/game/bg_public.h`'s vocal event numbers. The native lookup excludes
+the player duel bank entirely for NPCs: EJK #55's same-index reorder still
+allows earlier-index duel names to shadow later Jedi names such as deflect.
+Standard choke names keep precedence over their combat duplicates.
+
+Six synthetic regressions pass on Windows x86_64, Rust 1.99.0, covering vocal
+event families, configured names, standard reactions, missing banks/player
+isolation, refreshed entries, handle remapping, forwarded-event identity reuse
+and preservation of the independent roll body cue. Workspace formatting,
+build, tests and Clippy passed (warnings remain). A release measurement on
+AMD Ryzen 7 5800X3D averaged 2.450 us for a 128-NPC snapshot-cache update,
+common voice-set projection and one cached voice lookup per NPC over 20,000
+synthetic frames. It excludes registration, full event resolution, mixing and
+rendering; it is not a game FPS claim. No game assets or live servers were
+exercised; audible behavior and populated-server performance remain unverified.
+Passing these checks does not establish gameplay parity.
 
 ## One Russian letter in chat
 
@@ -871,8 +975,9 @@ compatibility table adopts JoF EJK #31's firing/hit flags, flame graphs, sample
 and hold pose. The archived `cg_flameThrower` override (Auto/Off/JA+) is exposed
 in both settings interfaces. Local prediction and remote actors select flames
 instead of Lightning only while firing; Drain and vehicles retain their paths.
-Flame streams use the existing 8 ms effect cadence; impact bursts and sound
-repeats use snapshot server time (100 ms and 2.9 s intervals). The upper-body
+Flame streams use the existing 8 ms effect cadence; impact
+bursts use presentation time (100 ms interval), while sound repeats retain
+snapshot server time (2.9 s interval). The upper-body
 hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
 Sound stops on firing end, mute, disappearance or disconnect and resets across
 map changes and time rewinds. Installed flame graphs/audio are required and are
@@ -942,6 +1047,19 @@ rows, selective HUD visibility and death/respawn fading at 8/7/4/3 ms steps.
 Live JoF comparison and updated GPU screenshots remain unverified;
 `JKA_GAME_DATA` is not configured. No release frame-time measurements were made.
 No wire codecs or gameplay rules changed.
+
+17/10/2026 follow-up to JoF EJK #67, based on `9fadf990`: the stream now falls
+back from the custom graph to preloaded retail `boba/fthrw`, and impact bursts
+advance using the presented trajectory clock between snapshots. Custom graph
+priority, missing-graph silence, reversed fallback forward/up orientation and
+impact marker timing at 8/7/4/3 ms have focused synthetic regressions. The native
+quaternion fallback frame also reverses the side axis; EJK flips forward alone.
+Live comparison, including asymmetric community replacements, remains unverified.
+The follow-up passed workspace formatting, locked build/tests and all-target
+Clippy on Windows (warnings remain), including the two new regressions. A release
+microbenchmark on Ryzen 7 5800X3D averaged 5.279 microseconds per synthetic frame
+for 128 graph selections/timers over 20,000 frames. It excludes pose evaluation,
+effect spawning, audio and rendering; populated-scene performance is unverified.
 
 ## Emotes on stock models: limbs out of wider bodies
 

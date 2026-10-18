@@ -42,6 +42,11 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A server that changes maps keeps its one row in the recent servers, instead of a new row named after each map _(Lukas)_
 - Live SJK chat messages also appear in the console, with a yellow SJK tag _(Lukas)_
 - NPC nameplates show the NPC's health only while your Force Sense 3 is active, unless the map shows that NPC's health to everyone; their names stay visible _(Lumaya, after JoF EJK)_
+- JA+ flamethrower effects fall back to the retail Boba flame when the custom stream is missing; impact bursts advance smoothly between snapshots. _(lumayaa, after JoF EJK)_
+- Rage, healing and Grip-victim effects follow animation and plugin settings; Mindtrick hides Force effects, and Empower glow follows the server's body/arms/hands choice with a local override. _(Lumaya, after JoF EJK)_
+- Limit repeated player model voices by default, with sample-length taunt holds and a Taunt anti-spam switch in both menu styles. _(Lumaya, after JoF EJK)_
+- Resume map music using level time after joining or a duel, and stop duel music when the map has no track. _(Lumaya, after JoF EJK)_
+- NPCs now use their server-advertised voice banks for reactions and combat/Jedi lines, without player duel sounds shadowing them _(lumayaa, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

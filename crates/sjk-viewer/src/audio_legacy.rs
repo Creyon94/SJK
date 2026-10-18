@@ -114,6 +114,7 @@ impl GameAudio {
         self.flame = Default::default();
         self.flame.override_value = flame_override;
         self.transitions.reset();
+        self.voice_throttle.reset();
         self.output.send(AudioCommand::StopEffects);
         self.output.stop_music();
         self.legacy = None;
@@ -123,6 +124,7 @@ impl GameAudio {
         self.sound_table_refresh = None;
         self.deferred_snapshots.clear();
         self.map_music = None;
+        self.music_sync_pending = false;
         self.music_value = None;
         self.dynamic = None;
     }
@@ -136,6 +138,10 @@ impl GameAudio {
         bsp: &Bsp,
     ) {
         self.begin_map_change();
+        self.music_sync_pending = true;
+        // A map's own track is set before anyone connects: it began with the level.
+        self.music_start_time = super::music::level_start_time(game_state);
+        self.last_server_time = None;
         self.flame.detected =
             crate::actor_world_submission::force_powers::flame::detect(Some(game_state));
         self.sound_table_refresh = Some(SoundTableRefresh::new(game_state));

@@ -33,7 +33,9 @@ pub use duel_isolation::duel_passes_through;
 mod duel_look;
 pub use duel_look::{DuelActor, DuelViewer, legacy_duel_ghost, legacy_duel_tint};
 mod entity_models;
+mod force_anim_fx;
 mod force_overlay_events;
+pub use force_anim_fx::{LegacyForceAnimFx, LegacyForceAnimFxTimers};
 mod force_overlays;
 mod force_profile;
 mod force_profile_negotiation;
@@ -1714,3 +1716,6 @@ mod server_text_tests {
         assert_eq!(server_text(&arguments), "gg ø");
     }
 }
+
+mod voice_lines;
+pub use voice_lines::LegacyVoiceLine;
