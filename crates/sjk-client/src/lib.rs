@@ -1254,16 +1254,18 @@ impl ClientSession {
             if index == 0 {
                 self.compat_profile = CompatProfile::from_game_state(&self.game_state);
             }
-        } else if !matches!(name, b"cs" | b"bcs0" | b"bcs1" | b"bcs2")
-            && self.unknown_command_names.len() < 64
-            && name.len() <= 64
-            && !self.unknown_command_names.iter().any(|known| known == name)
-        {
-            self.unknown_command_names.push(name.to_vec());
+        } else if !matches!(name, b"cs" | b"bcs0" | b"bcs1" | b"bcs2") {
+            let first_observation = self.unknown_command_names.len() < 64
+                && name.len() <= 64
+                && !self.unknown_command_names.iter().any(|known| known == name);
+            if first_observation {
+                self.unknown_command_names.push(name.to_vec());
+            }
             self.base_command_events
-                .push_back(BaseServerCommandEvent::UnknownCommand(
-                    String::from_utf8_lossy(name).into_owned(),
-                ));
+                .push_back(BaseServerCommandEvent::UnhandledCommand {
+                    arguments,
+                    first_observation,
+                });
         }
         Ok(())
     }

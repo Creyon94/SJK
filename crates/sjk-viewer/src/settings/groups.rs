@@ -100,6 +100,14 @@ const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
     "mod_jof",
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::destruction::CVAR,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::dialogue::CVAR,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::EJK_OPT_IN,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::ABILITY_SOUNDS,
     "jof.downloads",
     "jof.contentSource",
     crate::brush_view::CVAR,
@@ -307,6 +315,14 @@ impl Group {
                 "cg_errorDecay",
                 "mod_japlus",
                 "mod_jof",
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::destruction::CVAR,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::dialogue::CVAR,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::EJK_OPT_IN,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::ABILITY_SOUNDS,
                 "jof.downloads",
                 "jof.contentSource",
                 crate::brush_view::CVAR,

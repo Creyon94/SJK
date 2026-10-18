@@ -66,6 +66,9 @@ impl GpuState {
                 );
             }
             if reactions.reload_world {
+                if let Some(console) = &mut self.console {
+                    console.reset_dialogue();
+                }
                 if let Some(audio) = game_audio.as_mut() {
                     audio.begin_map_change();
                 }
@@ -128,6 +131,7 @@ impl GpuState {
                 .as_ref()
                 .and_then(crate::console::ViewerConsole::force_repeat_command)
         };
+        self.refresh_force_support();
         let Some(session) = &mut self.live_session else {
             return;
         };
@@ -152,6 +156,10 @@ impl GpuState {
                 rejected.as_deref().unwrap_or("none"),
             ));
         }
+        let dialogue_was_active = self
+            .console
+            .as_ref()
+            .is_some_and(|c| c.server_dialogue_active());
         server_commands::consume(
             session,
             &self.localization,
@@ -160,7 +168,19 @@ impl GpuState {
             self.legacy_world_adapter.as_mut(),
             &mut self.clientinfo_watch,
             &mut self.hud.duel_pairs,
+            game_audio.as_mut(),
         );
+
+        let dialogue_active = self
+            .console
+            .as_ref()
+            .is_some_and(|c| c.server_dialogue_active());
+        if dialogue_active && !dialogue_was_active {
+            self.gameplay_input.release_keys();
+            self.pending_generic_command = 0;
+        }
+        let talking = talking || dialogue_active;
+        let force_repeat = if dialogue_active { None } else { force_repeat };
 
         // User commands are made on the gameplay FPS's grid and wait for the next
         // `cl_maxpackets` packet (`command_rate`).
@@ -295,6 +315,7 @@ impl GpuState {
         }
         self.gameplay_input.set_command_age(0);
         self.send_due_packet(now);
+        self.sync_cursor_policy();
     }
 
     /// Send the queued user commands once `cl_maxpackets` allows a packet.

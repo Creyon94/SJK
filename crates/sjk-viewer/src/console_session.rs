@@ -234,6 +234,12 @@ impl ViewerConsole {
         console_client::register(&mut shell, &client_commands)?;
         let mods = crate::mods::Mods::new();
         mods.register(&mut shell)?;
+        for name in mods.userinfo_settings() {
+            let dirty = Arc::clone(&userinfo_dirty);
+            shell
+                .cvars
+                .on_change(&name, move |_| dirty.store(true, Ordering::Release))?;
+        }
         shell.set_command_frame(0);
         let server_status = Arc::new(RwLock::new("Not connected".to_owned()));
         for command in ["serverinfo", "status"] {
@@ -590,6 +596,8 @@ impl ViewerConsole {
             identity_panel: super::identity_panel::Panel::new(),
             profile_panel: super::profile_panel::Panel::new(),
             staff_panel: super::staff_panel::Panel::new(),
+            #[cfg(feature = "mod-jof")]
+            dialogue: super::dialogue_panel::Panel::new(),
             collection_panel: super::collection_panel::Panel::new(),
             holocrons_panel: super::holocrons_panel::Panel::new(),
             profile_hub_return: crate::player_menu::ReturnTarget::MainMenu,
@@ -667,6 +675,7 @@ impl ViewerConsole {
     /// Flush an effective profile change through OpenJK's reliable userinfo
     /// command, then send what the Force profile exchange has due.
     pub(crate) fn flush_userinfo(&mut self, session: &mut ClientSession, now: Instant) {
+        self.flush_dialogue(session);
         if self.userinfo_dirty.load(Ordering::Acquire) {
             self.send_userinfo(session, now);
         }
@@ -683,12 +692,13 @@ impl ViewerConsole {
             .map_err(|error| error.to_string())
             .and_then(|userinfo| {
                 session
-                    .update_userinfo_options(
+                    .update_userinfo_with_mod_fields(
                         &userinfo,
                         Some(
                             self.bool_cvar("cg_nameplate").unwrap_or(false)
                                 && self.integer_cvar("cg_nameplateBars").unwrap_or(0) > 0,
                         ),
+                        &self.mods.userinfo_fields(&self.shell),
                         now,
                     )
                     .map_err(|error| error.to_string())
@@ -830,6 +840,7 @@ impl ViewerConsole {
 
     /// Refresh `serverinfo` and profile-specific completion from the active session.
     pub(crate) fn set_server_info(&mut self, session: &ClientSession) {
+        self.reset_dialogue();
         // A change from before this connection is sent by its join.
         self.forcepowers_changed.store(false, Ordering::Release);
         // Each connection starts with the base userinfo payload, without teamoverlay.
@@ -845,6 +856,7 @@ impl ViewerConsole {
 
     /// Refresh demo serverinfo through the same status and completion path as live play.
     pub(crate) fn set_demo_server_info(&mut self, game: &GameState) {
+        self.reset_dialogue();
         self.update_server_info(
             game,
             &sjk_client::CompatProfile::from_game_state(game),
@@ -1084,6 +1096,20 @@ fn renamed_illuminate_command(command: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use crate::console::ViewerConsole;
+
+    #[cfg(feature = "mod-jof")]
+    #[test]
+    fn mod_switch_and_server_opt_in_mark_userinfo_dirty_without_global_key() {
+        use std::sync::atomic::Ordering;
+        let dir = tempfile::tempdir().unwrap();
+        let mut console = super::ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        for (name, value) in [("mod_jof", "0"), (sjk_mod_jof::EJK_OPT_IN, "0")] {
+            console.userinfo_dirty.store(false, Ordering::Release);
+            console.set_cvar(name, value);
+            assert!(console.userinfo_dirty.load(Ordering::Acquire), "{name}");
+        }
+        assert!(console.shell.cvars.get("jofejk").is_none());
+    }
 
     /// A new profile keeps the default 5; a profile saved before the stock units
     /// is rescaled once, and only once.

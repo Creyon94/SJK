@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 121 pull requests (Creyon 52, Lumaya 46, Lukas 9, Slash 12, Milamber 2). Sol's
+contributors' 124 pull requests (Creyon 52, Lumaya 49, Lukas 9, Slash 12, Milamber 2). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -304,7 +304,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 46 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 49 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -400,6 +400,12 @@ merged into SJK
 - #158 jetpack exhaust: its effect registered at map load (replacement-pack shaders included),
   tail lengths kept unless a length flag changes them, as EJK's `CTail`, and layers remapped
   to `clear` hidden instead of drawn as fallback sparks.
+- #147 JoF client mod: server-granted Destruction on the Force wheel, keys and HUD on JoF
+  servers (`jof.destructionSupport`), through generic wheel-extension hooks in base SJK.
+- #148 JoF client mod: JoF server dialogue, its choices and node voices (`jof.dialogue`),
+  base SJK forwarding unhandled server commands to the mod.
+- #149 JoF client mod: the `jofejk` EJK opt-in (`jof.ejkOptIn`) and Stasis/Repulse firing
+  confirmations (`jof.abilitySounds`), through generic mod userinfo fields.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
 merged into SJK

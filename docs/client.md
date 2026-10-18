@@ -3621,6 +3621,13 @@ is who. The setting and its position settings (`cg_drawTeamOverlayX`, `Y`, `Scal
 `team_rows` widget draws nothing, and the client asks the server for the team data
 only for the nameplates' bars.
 
+## Server dialogue and quests
+
+The JoF dialogue window is an optional JoF client-mod feature. It requires JoF
+tools to be loaded on a recognized JoF server. See
+[JoF dialogue and node audio](mods.md#dialogue-window-and-node-audio) for controls,
+settings, response validation and the server-owned quest boundary.
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF
@@ -3642,6 +3649,18 @@ the flamethrower use JoF EJK's pictures from `EternalJK/jofclient-assets.pk3`;
 Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
 SJK's own [Illuminate](#illuminate) is a toy, not a Force power: it is not on the wheel.
 See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
+
+### Destruction client controls
+
+Destruction is a JoF client-mod feature, active only with `mod_jof` on a recognized
+JoF server. See [JoF Destruction controls](mods.md#destruction-client-controls)
+for the mod setting, grant gates, binding and wheel behavior.
+
+### Server-confirmed Stasis and Repulse sounds
+
+These confirmations belong to the JoF client mod, require its server opt-in and
+are inactive on other servers. See [JoF EJK opt-in and confirmation sounds](mods.md#ejk-server-opt-in-and-firing-confirmations)
+for settings, `jofejk` scope and the installed-asset requirement.
 
 ### JA+ flamethrower presentation
 
@@ -3667,7 +3686,7 @@ changes. Impact bursts follow presentation time between snapshots, including
 during demo playback.
 
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
-`forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
+`forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash, 21 Destruction), as if
 `forcenext` had stopped on it: a real power becomes the selection the user
 command sends, a pseudo-slot the one `+useforce` uses, and the bar shows it. An
 entry not on the player's wheel, or spectating, selects nothing

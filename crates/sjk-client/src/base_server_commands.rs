@@ -54,8 +54,12 @@ pub enum BaseServerCommandEvent {
     CopyBody(BodyIdentity),
     /// Release a non-client entity's copied Ghoul2 state (`kg2`).
     KillGhoul2(u16),
-    /// First observation of an unknown reliable command name (bounded to 64).
-    UnknownCommand(String),
+    /// Opaque reliable operands for optional client mods. Base SJK does not parse
+    /// the extension; the frontend may log the first unknown name (bounded to 64).
+    UnhandledCommand {
+        arguments: Vec<Vec<u8>>,
+        first_observation: bool,
+    },
     /// Ask the modern shell to present its siege-profile flow.
     SiegeProfileMenu,
     /// Open Siege class selection (`scl`), with no operands.

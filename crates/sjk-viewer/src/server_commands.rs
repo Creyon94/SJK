@@ -7,6 +7,7 @@ use sjk_client::{BaseServerCommandEvent, ClientSession, LegacyWorldAdapter};
 use std::time::Instant;
 
 /// Drain reliable text/UI/presentation actions without retaining frame state.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn consume(
     session: &mut ClientSession,
     localization: &Localization,
@@ -15,6 +16,9 @@ pub(super) fn consume(
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
     duels: &mut crate::hud::duel_pairs::DuelPairs,
+    #[cfg_attr(not(feature = "mod-jof"), allow(unused_mut, unused_variables))] mut audio: Option<
+        &mut crate::GameAudio,
+    >,
 ) {
     if let Some(chat) = chat {
         consume_messages(session, localization, chat, console.as_deref_mut(), duels);
@@ -24,12 +28,44 @@ pub(super) fn consume(
 
     while let Some(event) = session.pop_base_command_event() {
         match event {
-            BaseServerCommandEvent::UnknownCommand(name) => {
-                if console
-                    .as_ref()
-                    .is_some_and(|c| c.integer_cvar("developer").unwrap_or(0) != 0)
+            BaseServerCommandEvent::UnhandledCommand {
+                arguments,
+                first_observation,
+            } => {
+                #[allow(unused_mut)]
+                let mut handled = false;
+                #[cfg(feature = "mod-jof")]
+                if let Some(console) = &mut console
+                    && console.mods.loaded(sjk_mod_jof::ID)
+                    && console.bool_cvar("mod_jof").unwrap_or(false)
+                    && arguments
+                        .first()
+                        .is_some_and(|name| name == sjk_mod_jof::dialogue::COMMAND)
                 {
-                    crate::log::progress(format_args!("debug: unhandled server command {name}"));
+                    handled = true;
+                    if let Some(event) = sjk_mod_jof::dialogue::parse(&arguments) {
+                        console.dialogue_event(event);
+                    }
+                }
+                #[cfg(feature = "mod-jof")]
+                if !handled {
+                    handled = crate::mods::force_feedback::dispatch(
+                        &arguments,
+                        console.as_deref(),
+                        audio.as_deref_mut(),
+                        session.latest_snapshot(),
+                    );
+                }
+                if !handled
+                    && first_observation
+                    && let Some(console) = &mut console
+                    && console.integer_cvar("developer").unwrap_or(0) != 0
+                {
+                    let name = arguments.first().map(|name| String::from_utf8_lossy(name));
+                    console.push_log(format!(
+                        "^3Unknown server command: {}",
+                        name.as_deref().unwrap_or("")
+                    ));
                 }
             }
             BaseServerCommandEvent::ForceRank(update) => {

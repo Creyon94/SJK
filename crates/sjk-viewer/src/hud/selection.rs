@@ -9,7 +9,7 @@ use sjk_ui::{
 
 /// Retail's `SP_INGAME_*2` names in `forcePowers_t` order, then JoF EJK's wheel
 /// entries and the JA+ flamethrower.
-const POWERS: [&str; 22] = [
+const POWERS: [&str; 23] = [
     "Heal",
     "Jump",
     "Speed",
@@ -31,10 +31,11 @@ const POWERS: [&str; 22] = [
     "Stasis",
     "Repulse",
     "Dash",
+    "",
     "Flamethrower",
 ];
 /// Name of the flamethrower in [`POWERS`].
-const FLAMETHROWER_NAME: u32 = 21;
+const FLAMETHROWER_NAME: u32 = 22;
 /// `FP_LIGHTNING`.
 const LIGHTNING: u8 = 7;
 const ITEMS: [&str; 12] = [
@@ -87,10 +88,14 @@ pub(super) fn name_id(slot: u8, flamethrower: bool) -> TextId {
 
 /// Resolve static selector names (cg_draw.c:92-113).
 pub(super) fn text(id: TextId) -> &'static str {
+    #[cfg(feature = "mod-jof")]
+    if id.0 == 1000 + u32::from(sjk_mod_jof::destruction::SLOT) {
+        return sjk_mod_jof::destruction::LABEL;
+    }
     match id.0 {
         1200 => "FORCE",
         1201 => "INVENTORY",
-        1000..=1021 => POWERS[(id.0 - 1000) as usize],
+        1000..=1022 => POWERS[(id.0 - 1000) as usize],
         1100..=1111 => ITEMS[(id.0 - 1100) as usize],
         _ => "",
     }
@@ -136,7 +141,7 @@ pub(super) fn emit(
         fade(theme.foreground),
     );
     // Force walks JoF EJK's wheel order (stock order plus JoF's entries).
-    let (wheel, wheel_count) = force_wheel::build(view.available);
+    let (wheel, wheel_count) = force_wheel::build_with(view.available, view.extensions);
     let items: [u8; 18] = std::array::from_fn(|tag| tag as u8);
     let tags = if view.inventory {
         &items[..]

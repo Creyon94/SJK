@@ -113,6 +113,65 @@ frame. The touch now ignores a trigger without `CONTENTS_TRIGGER`, as `G_TouchTr
 does once `multi_trigger_run` frees it. Two unit tests pin it; the workspace built on
 Linux, and the test suite and Clippy were not run.
 
+## JoF mod Destruction controls
+
+18/10/2026, `feat/destruction-client-support`, merged current `sol/main`
+`64698160` without rewriting published history. Per Sol's #147 review, Destruction
+metadata/capability policy and focused regressions now belong to `sjk-mod-jof`.
+Only the loaded JoF mod supplies the engine's neutral wheel-extension hooks;
+`mod_jof 0`, a non-JoF server or a build without `mod-jof` cannot activate it.
+Core wheel ordering remains unchanged with no extension, and mod unload clears
+the pseudo-selection. Custom icons load only after mod activation. The archived
+mod setting and both UI views are documented in [mods](mods.md#destruction-client-controls).
+
+Migration verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace
+build/tests/Clippy and the no-default-features viewer mod-exclusion test pass.
+Focused mod/host regressions cover server/switch gates, grants, live-player guards,
+128 anchor/grant combinations and local-only once-per-press input at 8/7/4/3 ms.
+An optimized synthetic sample of mod capability lookup plus 128 filtered wheel
+builds measured 14.447 us per iteration; this is not a rendered-match FPS result.
+Live JoF behavior, installed-icon GPU comparison and full match performance remain
+unverified. No native damage/balance, wire codec or asset-distribution changes.
+
+## JoF mod dialogue presentation
+
+18/10/2026, `feat/server-dialogue-client`, merged current `sol/main`
+`64698160` without rewriting published history. Per Sol's #148 review, the
+bounded parser/node/response state lives in `sjk-mod-jof`; the feature-gated
+viewer bridges provide SJK UI/audio only for loaded JoF tools on recognized JoF
+servers. The mod owns `jof.dialogue`; disable/unload resets the window, queued
+responses and voice. Base sessions forward opaque unknown commands rather than
+implementing JoF dialogue. See [mods](mods.md#dialogue-window-and-node-audio).
+
+Migration verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace
+build/tests/Clippy and the no-default-features viewer mod-exclusion test pass.
+Focused regressions cover bounded parsing/serials, all 12 choices at three viewport
+sizes, modal ownership, server/switch gating and clearing an unsent reply on unload.
+Live conversations, actual GPU appearance, installed voice listening and
+decoder-cancellation playback remain unverified.
+Quest authority stays remote; no native quest server, codec or assets added.
+
+## JoF mod server-confirmed power sounds
+
+18/10/2026, `fix/server-force-feedback`, merged current `sol/main`
+`64698160` without rewriting published history. Per Sol's #149 review, the
+confirmation table/repeat gates live in `sjk-mod-jof`. Compiled optional host
+bridges load/play installed sounds only for loaded JoF tools and the explicit
+`jof.ejkOptIn`/`jof.abilitySounds` settings. Scoped `jofejk=1` userinfo uses the
+existing codec and is withdrawn on opt-out/unload/other servers. See
+[mods](mods.md#ejk-server-opt-in-and-firing-confirmations) for the distinction
+between the server opt-in and a local mute, the separate unadvertised keys,
+and the limits of available server-side evidence.
+
+Migration verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace
+build/tests/Clippy and the no-default-features viewer mod-exclusion test pass.
+Focused regressions cover loaded-server/mod/preference gates, scoped userinfo bytes
+and dirty callbacks, plus independent 250 ms boundaries at 8/7/4/3 ms command steps.
+Installed-pack listening, live server opt-in/withdrawal and other private-server
+`jofejk` effects remain unverified; the public EJK client confirms firing messages
+but does not enumerate all server checks.
+No wire codec, native server gameplay or asset-distribution changes.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect

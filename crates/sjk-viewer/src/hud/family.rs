@@ -342,6 +342,7 @@ mod tests {
                 hud.family = Policy::read(Some(&console));
                 hud.inventory_bits = 1 << 2;
                 hud.selector = Some(sjk_client::selection::SelectionView {
+                    extensions: &[],
                     inventory: true,
                     available: 1 << 2,
                     selected: 2,

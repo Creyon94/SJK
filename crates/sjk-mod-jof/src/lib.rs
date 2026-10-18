@@ -7,7 +7,44 @@
 //! (`gcmds[]`, `cgame/cg_consolecmds.c:3262-3303`) and lists them with
 //! `jof.commands`.
 
-use sjk_mod::{ClientMod, Command, Host, Server, command};
+use sjk_mod::{ClientMod, Command, Host, Server, Setting, UserinfoField, command};
+/// Destruction's community-owned capability and wheel metadata.
+pub mod destruction;
+/// Bounded JoF dialogue command/state/response contract.
+pub mod dialogue;
+/// JoF server firing-confirmation contracts and repeat policy.
+pub mod feedback;
+/// Player opt-in to the JoF EJK server extension, separate from client identity.
+pub const EJK_OPT_IN: &str = "jof.ejkOptIn";
+/// Local confirmation sound preference, kept while the mod is unloaded.
+pub const ABILITY_SOUNDS: &str = "jof.abilitySounds";
+const SETTINGS: &[Setting] = &[
+    Setting {
+        name: destruction::CVAR,
+        default: sjk_mod::SettingValue::Integer(-1),
+        help: "JoF Destruction support: -1 server flag, 0 off, 1 grant without flag; requires loaded JoF tools",
+    },
+    Setting {
+        name: dialogue::CVAR,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Show JoF server dialogue and installed node voices while JoF tools are loaded",
+    },
+    Setting {
+        name: EJK_OPT_IN,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Advertise jofejk on JoF servers while JoF tools are enabled; enables server EJK extensions",
+    },
+    Setting {
+        name: ABILITY_SOUNDS,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Play installed Stasis/Repulse confirmation sounds from a JoF server",
+    },
+];
+const USERINFO: &[UserinfoField] = &[UserinfoField {
+    key: "jofejk",
+    value: "1",
+    enabled_by: EJK_OPT_IN,
+}];
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";
@@ -18,6 +55,7 @@ const COMMANDS: &[Command] = &[command(
 )];
 
 const SERVER_COMMANDS: &[Command] = &[
+    command(destruction::COMMAND, "JoF: use granted Force Destruction"),
     command(
         "gunorigin",
         "JoF admin: print the position of the player you aim at",
@@ -133,6 +171,14 @@ impl ClientMod for JoF {
 
     fn commands(&self) -> &'static [Command] {
         COMMANDS
+    }
+
+    fn settings(&self) -> &'static [Setting] {
+        SETTINGS
+    }
+
+    fn userinfo_fields(&self) -> &'static [UserinfoField] {
+        USERINFO
     }
 
     fn server_commands(&self, server: &Server) -> &'static [Command] {

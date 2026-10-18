@@ -31,6 +31,9 @@ mod assets;
 mod commands;
 #[path = "audio_controls.rs"]
 mod controls;
+#[cfg(feature = "mod-jof")]
+#[path = "jof_dialogue_audio.rs"]
+mod dialogue;
 pub(crate) use controls::{EMOTE_CHANNEL, TOY_CHANNEL};
 #[path = "audio_dynamic.rs"]
 mod dynamic;
@@ -38,6 +41,9 @@ mod dynamic;
 mod feedback;
 #[path = "audio_holstered_staff.rs"]
 mod holstered_staff;
+#[cfg(feature = "mod-jof")]
+#[path = "jof_force_audio.rs"]
+mod jof_force;
 #[path = "audio_music.rs"]
 pub(crate) mod music;
 #[path = "audio_transitions.rs"]
@@ -60,6 +66,10 @@ const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/qcommon/q_shared.h:1540
 /// Process-lifetime audio state. Only the rodio callback owns the mixer.
 pub(crate) struct GameAudio {
     flame: flame::State,
+    #[cfg(feature = "mod-jof")]
+    dialogue: dialogue::Voice,
+    #[cfg(feature = "mod-jof")]
+    force_feedback: jof_force::State,
     output: AudioOutput,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
@@ -164,6 +174,10 @@ impl GameAudio {
     pub(super) fn with_output(output: AudioOutput) -> Self {
         let mut audio = Self {
             flame: Default::default(),
+            #[cfg(feature = "mod-jof")]
+            dialogue: Default::default(),
+            #[cfg(feature = "mod-jof")]
+            force_feedback: Default::default(),
             output,
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),

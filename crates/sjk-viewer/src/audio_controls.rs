@@ -18,6 +18,22 @@ impl crate::GpuState {
                 glam::Vec3::ZERO,
             );
             audio.sync_gains(self.console.as_ref());
+            #[cfg(feature = "mod-jof")]
+            {
+                let dialogue = self
+                    .live_session
+                    .as_ref()
+                    .filter(|_| self.live_presentation_ready())
+                    .and(self.console.as_ref())
+                    .filter(|console| console.server_dialogue_active())
+                    .map(|console| console.dialogue_voice());
+                audio.sync_dialogue(dialogue, self.vfs.as_deref());
+            }
+            #[cfg(feature = "mod-jof")]
+            audio.sync_force_feedback(
+                self.live_session.is_some()
+                    && crate::mods::force_feedback::enabled(self.console.as_ref()),
+            );
             if self.live_session.is_none() && self.demo_session.is_none() {
                 audio.idle_frame();
             }

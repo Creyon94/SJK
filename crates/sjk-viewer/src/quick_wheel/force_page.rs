@@ -46,6 +46,7 @@ pub(crate) const EMPTY: &str = "No Force powers here";
 pub(crate) struct Powers {
     /// `forcePowersKnown` as the Force bar reads it (`Selection::known`).
     pub(crate) known: u32,
+    pub(crate) extensions: &'static [force_wheel::Ability],
     /// The entry selected now (`Selection::selected_force`).
     pub(crate) selected: u8,
     /// JA+ merc mode: Lightning is the flamethrower.
@@ -94,9 +95,24 @@ pub(crate) fn usable(known: u32) -> impl Iterator<Item = u8> {
 /// The page's choices for `powers`.
 pub(crate) fn choices(powers: &Powers) -> Vec<ShownChoice> {
     usable(powers.known)
+        .chain(
+            powers
+                .extensions
+                .iter()
+                .filter(|entry| {
+                    force_wheel::valid_with(powers.known, entry.slot, powers.extensions)
+                })
+                .map(|entry| entry.slot),
+        )
         .map(|slot| ShownChoice {
             label: bar::name(slot, powers.flamethrower).to_owned(),
-            command: command(slot),
+            command: powers
+                .extensions
+                .iter()
+                .find(|entry| entry.slot == slot)
+                .and_then(|entry| entry.command)
+                .map(|command| format!("forceselect {slot}; {command}"))
+                .unwrap_or_else(|| command(slot)),
             icon: bar::icon(&powers.icons, slot, powers.flamethrower),
             on: slot == powers.selected,
             gif: None,
@@ -150,6 +166,7 @@ mod tests {
     fn powers(known: u32, selected: u8) -> Powers {
         Powers {
             known,
+            extensions: &[],
             selected,
             flamethrower: false,
             icons: [None; bar::ICONS],

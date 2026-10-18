@@ -32,6 +32,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
 
+- JoF mod: on JoF servers that grant it, Destruction gets its place on the Force wheel, its key and its HUD icon; Settings > Mods > JoF Destruction support (`jof.destructionSupport`) _(Lumaya, after JoF EJK)_
+- JoF mod: JoF server dialogue shows with its choices and plays its voices; Settings > Mods > JoF dialogue (`jof.dialogue`) _(Lumaya, after JoF EJK)_
+- JoF mod: SJK tells JoF servers it supports EJK's extensions, as JoF EJK does, which turns on their server-side abilities, and Stasis and Repulse play their firing sounds (`jof.ejkOptIn`, `jof.abilitySounds`) _(Lumaya, after JoF EJK)_
 - Jetpack effects load replacement-pack shaders before flight and keep their authored tail lengths; hidden effect layers stay hidden instead of becoming fallback sparks _(Lumaya, after JoF EJK)_
 - Siege on SJK servers: doors a map keeps locked for one team open for that team's players, only doors made for it open for vehicles and their riders, the use key opens doors made to be used, locked doors show their lock lights, and nothing can be used before the round begins _(Slash, after JKA)_
 - The Siege HUD shows waiting for players and the round countdown, how long until your respawn wave, and a hack's progress, and hacking plays its sound _(Slash, after JKA)_

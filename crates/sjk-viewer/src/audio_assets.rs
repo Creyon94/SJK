@@ -320,6 +320,10 @@ impl GpuState {
         }
         let music_done = Instant::now();
         audio.register_duel_music(vfs);
+        #[cfg(feature = "mod-jof")]
+        if crate::mods::force_feedback::enabled(self.console.as_ref()) {
+            audio.prepare_force_feedback(vfs);
+        }
         audio.register_effect_paths(vfs, ["sound/weapons/disruptor/zoomloop.wav"]);
         let mut effect_sound_paths = Vec::new();
         self.effects.append_sound_paths(&mut effect_sound_paths);
