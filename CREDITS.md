@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 124 pull requests (Creyon 52, Lumaya 49, Lukas 9, Slash 12, Milamber 2). Sol's
+contributors' 125 pull requests (Creyon 52, Lumaya 49, Lukas 10, Slash 12, Milamber 2). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -407,7 +407,7 @@ merged into SJK
 - #149 JoF client mod: the `jofejk` EJK opt-in (`jof.ejkOptIn`) and Stasis/Repulse firing
   confirmations (`jof.abilitySounds`), through generic mod userinfo fields.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 10 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -428,6 +428,8 @@ merged into SJK
 - #133 live SJK chat messages also enter the console scrollback with a yellow `SJK` tag.
 - #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
   in a private duel.
+- #164 scoreboard deaths: the deaths JA+, jaPRO and JoF servers send shown as score/deaths,
+  with EJK's `cg_scoreDeaths` modes (server, server or local count, local count).
 
 Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 12 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):

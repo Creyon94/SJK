@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull request #164, server-reported scoreboard deaths
+- f74163e |  | Credits for SJK pull request #164 (Lukas); its changelog line
++ 18/10/2026 | - | am* commands moved from JoF tools to JA+ tools
+- b1fa179 |  | Complete the am* player commands and emotes as JA+ ones, and JoF's own am* commands in JoF tools
 + 18/10/2026 | - | SJK pull requests #147 #148 #149: Destruction, server dialogue, EJK opt-in in the JoF client mod
 - a7f3151 |  | Build without mod-jof free of warnings again
 - a2f46ae |  | Forward force_destruction to the server where Destruction is not active
@@ -1763,6 +1767,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 18/10/2026 | SJK #164 | Show server-reported scoreboard deaths
+- a29c616 |  | Show server-reported scoreboard deaths
 + 18/10/2026 | SJK #154 | Hide corpses and pickups during private duels
 - af1b6be |  | Hide duel corpses and pickups by preference
 + 18/10/2026 | SJK #133 | Show SJK chat in the console
