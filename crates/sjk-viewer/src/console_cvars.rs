@@ -150,7 +150,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "cg_scoreDeaths",
             1_i64,
             archive,
-            "Deaths: 1 plugin, 2/3 observed",
+            "Scoreboard deaths: 0 off, 1 server, 2 server/local fallback, 3 local",
         ),
         CvarDefinition::new(
             "cg_hitsounds",
