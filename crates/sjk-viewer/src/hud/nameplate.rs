@@ -263,7 +263,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "cg_nameplateNpcs",
         false,
         CvarFlags::ARCHIVE,
-        "Nameplates on NPCs: their class and health",
+        "NPC names; health requires active Sense 3 unless the mapper enables it",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateSelf",
@@ -797,9 +797,12 @@ impl State {
         camera: Camera,
         bsp: &Bsp,
         scratch: &mut TraceScratch,
+        predicted_force_powers: Option<u32>,
         hidden: bool,
     ) {
         self.clear();
+        let npc_health =
+            sjk_client::LegacyNpcHealthView::new(&snapshot.player, predicted_force_powers);
         let step = (now - self.last_update).clamp(0, 100) as f32 / math::FADE_MILLIS;
         self.last_update = now;
         let settings = self.settings;
@@ -952,7 +955,7 @@ impl State {
                     .is_some_and(|shared| shared.vitals.is_some());
             let (health, shield) = if withheld {
                 (Some(Range::exact(0.0)), Some(Range::exact(0.0)))
-            } else if bars {
+            } else if bars && npc_health.permits(entity) {
                 let predicted = estimated.then_some(&self.vitals);
                 bar_values(entity, number, ally && player, team_info, predicted)
             } else {
@@ -2470,6 +2473,7 @@ mod tests {
                 camera,
                 &bsp,
                 &mut scratch,
+                None,
                 false,
             );
             now += 100;
