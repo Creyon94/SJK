@@ -141,6 +141,9 @@ pub(crate) struct Instance {
     /// The sections of a skin its wearer switched off
     /// ([`crate::saber_skins::SkinColor::off`]); 0 for every other blade.
     off: u32,
+    /// The blade's motion for the Blade Lab designs ([`crate::saber_motion`]): swing,
+    /// seconds since its last clash, since it was lit and since its last swing began.
+    motion: [f32; 4],
     contact: u32,
     no_light: u32,
     /// The blade's configured radius, for contacts; not a GPU attribute.
@@ -195,9 +198,9 @@ impl Flicker {
 }
 
 impl Instance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 10] = wgpu::vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 11] = wgpu::vertex_attr_array![
         0 => Float32x3, 1 => Float32, 2 => Float32x3, 3 => Float32, 4 => Float32x4, 5 => Uint32,
-        6 => Float32x2, 7 => Uint32x4, 8 => Float32, 9 => Uint32];
+        6 => Float32x2, 7 => Uint32x4, 8 => Float32, 9 => Uint32, 10 => Float32x4];
 
     pub(crate) fn layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -252,6 +255,7 @@ impl Instance {
             persona,
             chroma,
             off,
+            motion: crate::saber_motion::STILL,
             contact: 0,
             no_light: 0,
             nominal_radius: blade.radius,
@@ -413,6 +417,12 @@ impl Instance {
             seconds.rem_euclid(Self::ANIMATION_PERIOD) as f32,
             (hash >> 8) as f32 / (1u32 << 24) as f32,
         ];
+        self
+    }
+
+    /// Stamp the blade's motion ([`crate::saber_motion::BladeMotion::record`]).
+    pub(crate) fn with_motion(mut self, motion: [f32; 4]) -> Self {
+        self.motion = motion;
         self
     }
 
@@ -861,15 +871,15 @@ mod cutoff_tests {
             crate::saber_skins::MAX_SKINS
         )));
         assert!(shader.contains("var<storage, read> skins: array<Skin, MAX_SKINS>;"));
-        // `Skin` is 95 vec4s, as `SkinUniform`, and the array fits a storage binding.
+        // `Skin` is 96 vec4s, as `SkinUniform`, and the array fits a storage binding.
         assert_eq!(
             std::mem::size_of::<crate::saber_skins::SkinUniform>(),
-            95 * 16
+            96 * 16
         );
-        const { assert!(95 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
+        const { assert!(96 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
         let skin = &shader[shader.find("struct Skin {").unwrap()..];
         let skin = &skin[..skin.find('}').unwrap()];
-        assert_eq!(skin.matches(": vec4<f32>,").count(), 95);
+        assert_eq!(skin.matches(": vec4<f32>,").count(), 96);
         // In `SkinUniform`'s order (its lanes are pinned by `saber_skins`' tests).
         let lanes: Vec<&str> = skin
             .lines()
@@ -973,6 +983,7 @@ mod cutoff_tests {
                 "ink_more",
                 "chrome_color",
                 "chrome_shape",
+                "design",
             ]
         );
         assert!(shader.contains(&format!(

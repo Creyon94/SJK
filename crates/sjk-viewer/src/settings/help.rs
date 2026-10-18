@@ -581,6 +581,10 @@ const HELP: &[(&str, &str)] = &[
         "Show black blades on JA+/jaPRO; off uses orange. Plugin feature 3 must also be allowed.",
     ),
     (
+        crate::blade_lab_designs::CVAR,
+        "Draw the Blade Lab skins (Serpent, Comic and the rest) as Creyon's Blade Lab drew them; off uses their skin files.",
+    ),
+    (
         crate::effect_aux::saber_rain_steam::CVAR,
         "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),

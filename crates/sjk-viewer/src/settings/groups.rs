@@ -284,6 +284,7 @@ impl Group {
                 crate::team_sabers::TEAM_COLORS_CVAR,
                 crate::team_sabers::CVAR,
                 crate::saber_rgb::black::CVAR,
+                crate::blade_lab_designs::CVAR,
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
                 crate::actor_world_submission::force_powers::victim::CVAR,

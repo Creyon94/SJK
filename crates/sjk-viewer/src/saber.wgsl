@@ -215,6 +215,9 @@ struct Skin {
     // Chrome: tint and width (blade radii); ripple, beads, speed.
     chrome_color: vec4<f32>,
     chrome_shape: vec4<f32>,
+    // Creyon's Blade Lab design it is drawn as (blade_lab_designs.rs): its number (0 none),
+    // its glow's reach and its particles' room (metres), whether it has a solid pass.
+    design: vec4<f32>,
 }
 
 @group(2) @binding(0)
@@ -244,6 +247,9 @@ struct VertexOutput {
     @location(10) @interpolate(flat) chroma: f32,
     // The sections its wearer switched off (`OFF_*` bits); 0 otherwise.
     @location(11) @interpolate(flat) off: u32,
+    // A skinned blade's swing (0 to 1) and the seconds since its last clash, since it was
+    // lit and since its last swing began (saber_motion.rs).
+    @location(12) @interpolate(flat) motion: vec4<f32>,
 }
 
 // TaystJK's CG_DoSaber submits the core RT_LINE twice (taystjk cgame cg_players.c:6429 and 6465;
@@ -326,6 +332,7 @@ struct BladeInstance {
     @location(7) persona: vec4<u32>,
     @location(8) chroma: f32,
     @location(9) off: u32,
+    @location(10) motion: vec4<f32>,
 }
 
 // How far (units) a skin's glow quad reaches past the glow for the sections its wearer
@@ -413,12 +420,17 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
             reach = skin.swell.x;
             room = skin_room(skin, blade.off);
         }
+        // A Blade Lab design's quad reaches its glow's reach and its particles' room.
+        if skin.design.x > 0.0 {
+            room = max(room, max(skin.design.y, skin.design.z) / LAB_METRE);
+        }
         star = skin.star_shape.y;
         if skin.hole_shape.x > 0.0 { star = skin.hole_shape.w; }
         glints = skin.star_motion.w;
         orbit = skin.star_orbit;
     }
     output.animation = blade_animation;
+    output.motion = blade.motion;
     output.persona = blade_persona;
     output.chroma = blade_chroma;
     output.down = vec2(-side.z, -up.z);
@@ -1975,6 +1987,7 @@ fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
     if input.kind == KIND_BLACK { discard; }
     if input.hilt <= STAR { return vec4(star_glow(input, pixel), 1.0); }
     if input.hilt <= 0.0 { discard; }
+    if lab_design(input) != 0u { return vec4(lab_glow(input, pixel), 1.0); }
     if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
     return vec4(glow_capsule(input) * input.color, 1.0);
 }
@@ -1992,7 +2005,10 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     if input.hilt <= STAR {
         return vec4(star_glow(input, pixel), 1.0);
     }
+    // A Blade Lab design draws its core in its glow (the lab's blade is one shader).
+    let design = lab_design(input);
     if input.hilt > 0.0 {
+        if design != 0u { return vec4(lab_glow(input, pixel), 1.0); }
         if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
         return vec4(glow_capsule(input) * input.color, 1.0);
     }
@@ -2000,6 +2016,7 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // stretch here: the derivatives of `core_uv` itself blow up on the tip's last row, where
     // the stretch runs to a hundred within one pixel, and the rounded tip's cut then left
     // half the line's width lit there, a bar across the tip.
+    if design != 0u { discard; }
     let footprint = pixel / (2.0 * input.radius) * core_stretch(input);
     var texel = textureSampleGrad(core_texture, core_sampler, core_uv, core_dx, core_dy);
     let split = core_split(input);
@@ -2152,7 +2169,7 @@ fn vertex_solid(@builtin(vertex_index) vertex_index: u32, blade: BladeInstance) 
         let ink = (blade.off & OFF_INK) == 0u
             && (skin.ink_color.w > 0.0 || skin.ink_shape.x > 0.0);
         let chrome = (blade.off & OFF_CHROME) == 0u && skin.chrome_color.w > 0.0;
-        solid = ink || chrome;
+        solid = ink || chrome || skin.design.w > 0.0;
     }
     if !solid {
         output.clip_position = vec4(0.0, 0.0, 0.0, 1.0);
@@ -2197,6 +2214,9 @@ fn solid_chrome(skin: Skin, input: VertexOutput, place: f32, x: f32, pixel: f32)
 @fragment
 fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
     let pixel = fwidth(input.blade.x);
+    if lab_design(input) != 0u {
+        return lab_solid(input, pixel);
+    }
     let skin = skin_at(input);
     let time = input.animation.x;
     let place = input.blade.y / max(input.shaft, 0.0001) * input.length;
@@ -2247,4 +2267,1053 @@ fn fragment_shade(input: VertexOutput) -> @location(0) vec4<f32> {
     let horizon = skin.hole_shape.x * glint_scale(STAR - input.hilt);
     let disc = clamp((horizon - length(input.blade)) / max(pixel, 0.0001) + 0.5, 0.0, 1.0);
     return vec4(0.0, 0.0, 0.0, disc * (1.0 - input.shaft));
+}
+
+// --- Creyon's Blade Lab designs (blade_lab_designs.rs) ---------------------------------
+//
+// A skin `blade_lab_designs.rs` names is drawn as its design in Creyon's Blade Lab was:
+// the lab's own blade shader in the lab's units (metres: a stock 40-unit blade is the
+// lab's 1.08 m one), its particles in the glow quad (additive) or the solid pass
+// (blended), and its solid blade in the solid pass. Its `design` lane: the design's
+// number (0: none, the skin's file draws it), the glow's reach and the particles' room
+// (metres), and whether it has a solid pass. The swing, clashes and ignition come with
+// the instance (`motion`, saber_motion.rs).
+
+// Metres a unit (1.08 / 40).
+const LAB_METRE: f32 = 0.027;
+const LAB_PEPPERMINT: u32 = 1u;
+const LAB_BUBBLE: u32 = 2u;
+const LAB_LAVALAMP: u32 = 3u;
+const LAB_SKETCH: u32 = 4u;
+const LAB_HOURGLASS: u32 = 5u;
+const LAB_COMIC: u32 = 6u;
+const LAB_QUICKSILVER: u32 = 7u;
+const LAB_REACTOR: u32 = 8u;
+const LAB_OBSIDIAN: u32 = 9u;
+const LAB_BLEEDING: u32 = 10u;
+const LAB_MONARCH: u32 = 11u;
+const LAB_PHOENIX: u32 = 12u;
+const LAB_SERPENT: u32 = 13u;
+const LAB_QUANTUM: u32 = 14u;
+
+// Where a fragment is, in the lab's terms. `x` along the blade (metres from the hilt, as
+// on the blade itself), `y` across, `big_l` the blade's length, `d` the distance to the
+// blade's axis on screen; `p` the place on screen (along, across; metres) and `shaft`
+// the blade's length there, `k` how much of its length shows; `up` the world's up on
+// screen (along, across); `px` a pixel (metres).
+struct LabPlace {
+    x: f32,
+    y: f32,
+    big_l: f32,
+    d: f32,
+    t: f32,
+    px: f32,
+    p: vec2<f32>,
+    shaft: f32,
+    k: f32,
+    up: vec2<f32>,
+    swing: f32,
+    clash: f32,
+    age: f32,
+    since_swing: f32,
+}
+
+fn lab_design(input: VertexOutput) -> u32 {
+    if input.kind < KIND_SKIN {
+        return 0u;
+    }
+    return u32(skins[skin_index(input)].design.x + 0.5);
+}
+
+fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
+    var p: LabPlace;
+    p.k = max(input.shaft / max(input.length, 0.0001), 0.05);
+    p.p = vec2(input.blade.y, input.blade.x) * LAB_METRE;
+    p.shaft = input.shaft * LAB_METRE;
+    p.x = p.p.x / p.k;
+    p.y = p.p.y;
+    p.big_l = input.length * LAB_METRE;
+    p.d = lab_seg(p.p.x, p.y, p.shaft);
+    p.t = input.animation.x;
+    p.px = max(pixel * LAB_METRE, 0.00001);
+    let up = skin_up(input.down);
+    p.up = vec2(up.y, up.x);
+    p.swing = clamp(input.motion.x, 0.0, 1.0);
+    // The lab's clash fades at 2.2 a second.
+    p.clash = max(1.0 - input.motion.y * 2.2, 0.0);
+    p.age = input.motion.z;
+    p.since_swing = input.motion.w;
+    return p;
+}
+
+fn lab_sstep(a: f32, b: f32, x: f32) -> f32 {
+    let t = clamp((x - a) / (b - a), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+fn lab_hash(n: f32) -> f32 {
+    return fract(sin(n) * 43758.5453);
+}
+
+fn lab_hash2(p: vec2<f32>) -> f32 {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+fn lab_noise(p: vec2<f32>) -> f32 {
+    let i = floor(p);
+    var f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(lab_hash2(i), lab_hash2(i + vec2(1.0, 0.0)), f.x),
+        mix(lab_hash2(i + vec2(0.0, 1.0)), lab_hash2(i + vec2(1.0)), f.x), f.y);
+}
+
+fn lab_fbm(p0: vec2<f32>) -> f32 {
+    var p = p0;
+    var s = 0.0;
+    var a = 0.5;
+    for (var i = 0; i < 4; i++) {
+        s += a * lab_noise(p);
+        p *= 2.03;
+        a *= 0.5;
+    }
+    return s;
+}
+
+fn lab_hsv(h: f32, s: f32, v: f32) -> vec3<f32> {
+    let m = h * 6.0 + vec3(0.0, 4.0, 2.0);
+    let k = clamp(abs(m - 6.0 * floor(m / 6.0) - 3.0) - 1.0, vec3(0.0), vec3(1.0));
+    return v * mix(vec3(1.0), k, s);
+}
+
+fn lab_seg(x: f32, y: f32, l: f32) -> f32 {
+    return length(vec2(max(0.0, max(-x, x - l)), y));
+}
+
+// The lab's plain blade: a white-hot core and a glow round it.
+fn lab_saber(g: vec3<f32>, c: vec3<f32>, d: f32, cr: f32, k: f32) -> vec3<f32> {
+    let core = lab_sstep(cr, cr * 0.35, d);
+    let glow = exp(-d * k) * 0.55 + exp(-d * k * 0.3) * 0.16;
+    return c * core + g * glow * (1.0 - core * 0.6);
+}
+
+fn lab_peppermint(p: LabPlace) -> vec3<f32> {
+    let r = 0.03;
+    let body = lab_sstep(r, r * 0.82, p.d);
+    let th = asin(clamp(p.y / r, -1.0, 1.0));
+    let sh = cos(th);
+    let s = fract(p.x * 5.5 + th / PI * 0.5 - p.t * 0.5);
+    let stripe = lab_sstep(0.44, 0.5, s) - lab_sstep(0.94, 1.0, s);
+    let col = mix(vec3(1.0, 0.96, 0.96), vec3(1.0, 0.05, 0.11), stripe);
+    let spec = pow(max(0.0, 1.0 - abs(th + 0.55) / 0.3), 3.0) * 0.55;
+    let glit = step(0.988, lab_hash2(floor(vec2(p.x * 60.0, th * 8.0)) + floor(p.t * 5.0))) * 1.4;
+    let b = col * (0.4 + 0.6 * sh) * body + (spec + glit) * body;
+    let halo = vec3(1.0, 0.32, 0.36) * (exp(-p.d * 20.0) * 0.42 + exp(-p.d * 6.0) * 0.11);
+    return b + halo * (1.0 - body * 0.5);
+}
+
+fn lab_bubble(p: LabPlace) -> vec3<f32> {
+    let r = 0.028;
+    let body = lab_sstep(r, r * 0.9, p.d);
+    let th = asin(clamp(p.y / r, -1.0, 1.0));
+    let film = lab_fbm(vec2(p.x * 4.0 + p.t * 0.2, th * 1.6 - p.t * 0.35)) + 0.3 * sin(p.x * 9.0 - p.t * 0.8);
+    let col = lab_hsv(film * 1.8 + p.t * 0.03, 0.6, 1.0);
+    let fres = pow(abs(p.y) / r, 4.0);
+    let line = exp(-abs(p.y) * 900.0) * 0.75 * step(0.0, p.x) * step(p.x, p.big_l);
+    let hl = pow(max(0.0, 1.0 - abs(th - 0.7) / 0.2), 4.0) * body * 0.5;
+    let halo = lab_hsv(film * 1.8 + 0.5 + p.t * 0.03, 0.4, 1.0) * (exp(-p.d * 22.0) * 0.28 + exp(-p.d * 7.0) * 0.08);
+    return col * (0.12 + fres * 0.95) * body + vec3(line + hl) + halo;
+}
+
+fn lab_lavalamp(p: LabPlace) -> vec3<f32> {
+    let r = 0.034;
+    let in_glass = lab_sstep(r, r * 0.9, p.d) * step(0.0, p.x);
+    var f = 0.0;
+    for (var i = 0; i < 7; i++) {
+        let fi = f32(i);
+        let sp = 0.05 + 0.04 * lab_hash(fi * 3.1);
+        let xi = fract(lab_hash(fi * 1.7) + p.t * sp) * (p.big_l + 0.12) - 0.06;
+        let yi = sin(p.t * 0.6 + fi * 2.0) * 0.008;
+        let rr = 0.017 + 0.009 * lab_hash(fi * 5.3);
+        let q = vec2((p.x - xi) * 0.75, p.y - yi);
+        f += rr * rr / (dot(q, q) + 1e-5);
+    }
+    let pool = lab_sstep(0.07, 0.0, p.x) + lab_sstep(p.big_l - 0.06, p.big_l, p.x);
+    let m = lab_sstep(0.9, 1.25, f + pool * 1.3);
+    let wax = mix(vec3(1.0, 0.32, 0.14), vec3(1.0, 0.78, 0.4), lab_sstep(1.3, 3.5, f + pool));
+    let inside = mix(vec3(0.3, 0.05, 0.6) * 0.45, wax * 1.2, m) * in_glass;
+    let rim = exp(-abs(abs(p.y) - r) * 700.0) * step(0.0, p.x) * step(p.x, p.big_l) * 0.3;
+    let halo = mix(vec3<f32>(0.62, 0.15, 0.95), vec3<f32>(1.0, 0.4, 0.2), 0.35) * (exp(-p.d * 24.0) * 0.3 + exp(-p.d * 6.0) * 0.08);
+    return inside + vec3(0.9, 0.8, 1.0) * rim + halo;
+}
+
+fn lab_sketch(p: LabPlace) -> vec3<f32> {
+    let ts = floor(p.t * 8.0);
+    let w1 = (lab_noise(vec2(p.x * 14.0, ts * 3.1)) - 0.5) * 0.008;
+    let w2 = (lab_noise(vec2(p.x * 11.0 + 7.0, ts * 5.7)) - 0.5) * 0.008;
+    let inn = step(0.0, p.x) * step(p.x, p.big_l);
+    let taper = 1.0 - lab_sstep(p.big_l - 0.07, p.big_l, p.x);
+    let rr = 0.022 * mix(0.08, 1.0, taper);
+    // A line at least a pixel wide, as bright in all (the lab's are thinner than a pixel
+    // far off).
+    let l1 = exp(-abs(abs(p.y - w1) - rr) / max(1.0 / 1100.0, p.px * 0.5)) * min(1.0, 1.0 / (1100.0 * p.px * 0.5));
+    let l2 = exp(-abs(abs(p.y - w2) - rr * 1.05) / max(1.0 / 1300.0, p.px * 0.5)) * 0.6 * min(1.0, 1.0 / (1300.0 * p.px * 0.5));
+    let h = abs(fract((p.x * 0.7 + p.y) * 48.0 + lab_hash(ts)) - 0.5);
+    let hatch = lab_sstep(0.08, 0.0, h) * step(abs(p.y), rr * 0.9) * 0.42;
+    let grain = 0.72 + 0.28 * lab_noise(vec2(p.x * 400.0, p.y * 400.0 + ts));
+    let ink = vec3(0.93, 0.95, 1.0);
+    return ink * (l1 + l2 + hatch) * inn * grain + vec3(0.55, 0.65, 1.0) * (exp(-p.d * 18.0) * 0.15 + exp(-p.d * 5.0) * 0.05);
+}
+
+fn lab_hourglass(p: LabPlace) -> vec3<f32> {
+    let period = 8.0;
+    let ph = fract(p.t / period);
+    let xn = p.x / max(p.big_l, 0.001);
+    let r = 0.008 + 0.03 * pow(abs(2.0 * xn - 1.0), 0.75);
+    let inn = step(0.0, p.x) * step(p.x, p.big_l);
+    let in_glass = lab_sstep(r, r * 0.85, abs(p.y)) * inn;
+    let rim = exp(-abs(abs(p.y) - r) * 800.0) * inn * 0.45;
+    let h = p.big_l * 0.5;
+    let top_end = h + (1.0 - ph) * p.big_l * 0.36;
+    let bottom_end = ph * p.big_l * 0.36;
+    let sand_top = step(h, p.x) * step(p.x, top_end);
+    let sand_bottom = step(p.x, bottom_end);
+    let grain = 0.7 + 0.3 * lab_noise(vec2(p.x * 500.0, p.y * 500.0));
+    let stream = step(bottom_end, p.x) * step(p.x, h) * exp(-abs(p.y) / max(1.0 / 2500.0, p.px * 0.5))
+        * (0.55 + 0.45 * lab_noise(vec2(p.x * 120.0 - p.t * 40.0, 0.0))) * step(ph, 0.985);
+    let sand = vec3(1.0, 0.78, 0.35);
+    let s = sand * (sand_top + sand_bottom) * in_glass * grain * 1.1 + sand * stream * 1.4;
+    let glass = vec3(0.55, 0.85, 1.0) * (rim + in_glass * 0.06);
+    let flip = exp(-ph * 30.0) + exp(-(1.0 - ph) * 60.0);
+    let halo = mix(vec3<f32>(1.0, 0.7, 0.3), vec3<f32>(0.5, 0.8, 1.0), 0.3) * (exp(-p.d * 14.0) * 0.25 + exp(-p.d * 5.0) * 0.07) * (1.0 + flip * 2.0);
+    return s + glass + halo + vec3(1.0, 0.9, 0.7) * flip * in_glass * 0.8;
+}
+
+// The comic blade's halftone glow and speed lines (its inked body is the solid pass's).
+fn lab_comic(p: LabPlace) -> vec3<f32> {
+    let c = vec3(0.2, 0.7, 1.0);
+    let cell = 0.011;
+    let q = vec2(p.x, p.y) / cell;
+    let g = fract(q) - 0.5;
+    let id = floor(q);
+    let cd = lab_seg((id.x + 0.5) * cell, (id.y + 0.5) * cell, p.big_l);
+    let rad = clamp(exp(-cd * 17.0) * 0.64, 0.0, 0.6);
+    let dots = lab_sstep(rad, rad - 0.1, length(g)) * step(0.03, p.d);
+    var sp = 0.0;
+    for (var i = 0; i < 6; i++) {
+        let fi = f32(i);
+        let yy = (lab_hash(fi * 3.3) * 2.0 - 1.0) * 0.13;
+        let ph = fract(lab_hash(fi) + p.t * 1.9);
+        let xx = ph * p.big_l;
+        sp += exp(-abs(p.y - yy) * 900.0) * lab_sstep(0.25, 0.0, abs(p.x - xx)) * step(0.045, abs(yy));
+    }
+    return c * dots * 0.95 + vec3(1.0) * sp * p.swing * 0.9;
+}
+
+fn lab_quicksilver(p: LabPlace) -> vec3<f32> {
+    let sh = lab_noise(vec2(p.x * 30.0 - p.t * 2.0, p.y * 80.0 + p.t));
+    return vec3(0.75, 0.82, 0.95) * (exp(-p.d * 26.0) * 0.45 + exp(-p.d * 7.0) * 0.1) * (0.8 + 0.4 * sh);
+}
+
+fn lab_reactor(p: LabPlace) -> vec3<f32> {
+    let n = 5.0;
+    let sp = 0.1;
+    let ph = p.x / max(p.big_l, 0.001) * n - p.t * sp * n;
+    let fr = fract(ph);
+    let r = 0.011 + 0.016 * pow(sin(PI * fr), 2.0);
+    let ov = step(fract(p.t / 6.0), 0.13);
+    let pc = mix(vec3(0.45, 0.8, 1.0), vec3(1.0, 0.45, 0.15), ov);
+    let dd = length(vec2(max(0.0, max(-p.x, p.x - p.big_l)), max(0.0, abs(p.y) - r * 0.45)));
+    let plasma = lab_saber(pc, vec3(1.0), dd, r * 0.9, 28.0);
+    var rings = 0.0;
+    for (var k = 0; k < 5; k++) {
+        let xr = fract((f32(k) + p.t * sp * n) / n) * p.big_l;
+        let rr = 0.043;
+        let ay = min(abs(p.y) / rr, 1.0);
+        let arc = xr + 0.006 * sqrt(1.0 - ay * ay);
+        rings += exp(-abs(p.x - arc) / max(1.0 / 700.0, p.px * 0.5 / p.k)) * (0.35 + 0.9 * pow(ay, 6.0)) * step(abs(p.y), rr);
+    }
+    let rc = mix(vec3(0.6, 0.95, 1.0), vec3(1.0, 0.6, 0.3), ov);
+    return plasma + rc * rings * step(0.0, p.x) * step(p.x, p.big_l);
+}
+
+// The obsidian blade's outline: where on its flat shape (`q`: across, along as a share
+// of the length), and how far from its edge (metres).
+const LAB_OBSIDIAN_HALF: f32 = 0.026;
+
+fn lab_seg_to(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
+    let pa = p - a;
+    let ba = b - a;
+    let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h);
+}
+
+fn lab_obsidian_edge(p: LabPlace) -> f32 {
+    let w = LAB_OBSIDIAN_HALF;
+    let l = max(p.big_l, 0.0001);
+    // The shape's own coordinates are across in metres and along as a share of the
+    // blade (the lab stretches it to the blade's length); its distances are in those.
+    let q = vec2(p.y, p.x / l);
+    return min(
+        min(lab_seg_to(q, vec2(-w, 0.0), vec2(-w, 0.86)), lab_seg_to(q, vec2(-w, 0.86), vec2(w * 0.25, 1.0))),
+        min(lab_seg_to(q, vec2(w * 0.25, 1.0), vec2(w, 0.93)), lab_seg_to(q, vec2(w, 0.93), vec2(w, 0.0))),
+    );
+}
+
+// Whether `q` (across, along as a share) is inside the obsidian blade's shape.
+fn lab_obsidian_inside(q: vec2<f32>) -> bool {
+    let w = LAB_OBSIDIAN_HALF;
+    if q.y < 0.0 || abs(q.x) > w {
+        return false;
+    }
+    // Left edge to 0.86, then a slope to the point at (w/4, 1), right edge to 0.93 then a
+    // slope to the point.
+    let left_top = select(0.86 + (q.x + w) / (w * 1.25) * 0.14, 0.86, q.x < -w);
+    let right_top = 0.93 + (w - q.x) / (w * 0.75) * 0.07;
+    let top = select(right_top, left_top, q.x <= w * 0.25);
+    return q.y <= top;
+}
+
+fn lab_obsidian(p: LabPlace) -> vec3<f32> {
+    let e = lab_obsidian_edge(p);
+    let cr = lab_noise(vec2(p.x / max(p.big_l, 0.0001) * 70.0 - p.t * 9.0, p.t * 23.0 + p.y * 40.0));
+    let spike = step(0.86, cr);
+    let rim = exp(-e / max(1.0 / 420.0, p.px * 0.6)) * (0.8 + 0.4 * cr) + exp(-e * 55.0) * 0.28 + exp(-e * 140.0) * spike * 0.9;
+    let halo = vec3(0.85, 0.9, 1.0) * (exp(-p.d * 30.0) * 0.1 + exp(-p.d * 8.0) * 0.04);
+    return vec3(0.9, 0.94, 1.0) * rim + halo;
+}
+
+fn lab_bleeding(p: LabPlace) -> vec3<f32> {
+    let th = asin(clamp(p.y / 0.03, -1.0, 1.0));
+    let b = 0.22 + 0.48 * (0.5 + 0.5 * sin(p.t * 0.4)) + p.clash * 0.35;
+    let lvl = b * p.big_l;
+    let mask = lab_sstep(lvl, lvl - 0.2, p.x);
+    let q = vec2(p.x * 26.0, th * 3.0);
+    let i = floor(q);
+    let f = fract(q);
+    var m1 = 8.0;
+    var m2 = 8.0;
+    for (var a = -1; a <= 1; a++) {
+        for (var c = -1; c <= 1; c++) {
+            let o = vec2(f32(a), f32(c));
+            let pp = o + vec2(lab_hash2(i + o), lab_hash2(i + o + 17.0)) - f;
+            let dd = dot(pp, pp);
+            if dd < m1 {
+                m2 = m1;
+                m1 = dd;
+            } else if dd < m2 {
+                m2 = dd;
+            }
+        }
+    }
+    let crack = lab_sstep(0.13, 0.0, sqrt(m2) - sqrt(m1));
+    let body = lab_sstep(0.026, 0.016, p.d);
+    let white = lab_saber(vec3(0.8, 0.88, 1.0), vec3(1.0), p.d, 0.016, 22.0);
+    let red = lab_saber(vec3(1.0, 0.08, 0.1), vec3(1.0, 0.8, 0.8), p.d, 0.016, 20.0);
+    let c = mix(white, red, mask * 0.85);
+    return mix(c, vec3(1.0, 0.03, 0.05) * 1.6, crack * body * mask);
+}
+
+fn lab_monarch(p: LabPlace) -> vec3<f32> {
+    return lab_saber(vec3(1.0, 0.55, 0.12), vec3(1.0, 0.95, 0.82), p.d, 0.016, 18.0) * (0.95 + 0.05 * sin(p.t * 2.0));
+}
+
+fn lab_phoenix(p: LabPlace) -> vec3<f32> {
+    let ash = 1.0 - lab_sstep(0.35, 0.95, p.age);
+    let n = lab_fbm(vec2(p.x * 7.0 - p.t * 2.6, p.y * 28.0 + p.t * 0.7));
+    let n2 = lab_fbm(vec2(p.x * 15.0 - p.t * 4.0, p.y * 55.0 - p.t));
+    let r = (0.02 + 0.03 * n) * (1.0 - lab_sstep(p.big_l - 0.08, p.big_l + 0.06, p.x) * 0.6);
+    let dd = length(vec2(max(0.0, max(-p.x, p.x - p.big_l - 0.04 * n)), p.y));
+    let flame = lab_sstep(r + 0.02, r * 0.3, abs(p.y)) * step(0.0, p.x) * step(p.x, p.big_l + 0.05);
+    let heat = clamp(1.0 - abs(p.y) / (r + 0.02), 0.0, 1.0) * (0.6 + 0.6 * n2);
+    var col = mix(vec3(0.75, 0.05, 0.02), vec3(1.0, 0.45, 0.05), lab_sstep(0.1, 0.5, heat));
+    col = mix(col, vec3(1.0, 0.9, 0.5), lab_sstep(0.5, 0.85, heat));
+    col = mix(col, vec3(1.0), lab_sstep(0.85, 1.0, heat));
+    let fire = col * flame * 1.1 + vec3(1.0, 0.4, 0.08) * (exp(-dd * 14.0) * 0.35 + exp(-dd * 5.0) * 0.1);
+    let ashes = vec3(0.32, 0.3, 0.28) * lab_sstep(0.022, 0.0, p.d) * (0.4 + 0.6 * lab_noise(vec2(p.x * 80.0, p.y * 200.0)))
+        + vec3(1.0, 0.3, 0.05) * step(0.78, lab_noise(vec2(p.x * 60.0, p.t * 3.0))) * lab_sstep(0.016, 0.0, p.d);
+    return mix(fire, ashes, ash);
+}
+
+fn lab_serpent(p: LabPlace) -> vec3<f32> {
+    let x = p.x;
+    let y = p.y;
+    let t = p.t;
+    let bl = lab_saber(vec3(0.1, 1.0, 0.45), vec3(0.9, 1.0, 0.92), p.d, 0.014, 22.0);
+    let amp = 0.034;
+    let k = 26.0;
+    let w = 2.2;
+    let xh = p.big_l * 0.9 + sin(t * 1.1) * 0.01;
+    let ph = k * x - t * w;
+    let yc = amp * sin(ph);
+    let z = cos(ph);
+    let slope = amp * k * cos(ph);
+    let dy = abs(y - yc) / sqrt(1.0 + slope * slope);
+    let tail = lab_sstep(0.02, 0.25, x);
+    let thk = 0.0085 * mix(0.35, 1.0, tail);
+    let body_on = step(0.02, x) * step(x, xh - 0.008);
+    let body = lab_sstep(thk, thk * 0.5, dy) * body_on;
+    let scales = 0.72 + 0.28 * sin(x * 260.0 - t * 2.0) * sin((y - yc) * 900.0);
+    let vis = mix(0.28, 1.0, step(0.0, z));
+    let gold = vec3(1.0, 0.78, 0.25);
+    let bc = gold * body * scales * vis * 1.25 + gold * exp(-dy * 120.0) * 0.22 * body_on * vis;
+    let hph = k * xh - t * w;
+    let hy = amp * sin(hph);
+    let hp = vec2(x - xh, y - hy);
+    let jaw = lab_sstep(0.7, 1.0, 0.5 + 0.5 * sin(t * 1.7));
+    let hq = hp / vec2(0.028, 0.0145);
+    var head = lab_sstep(1.0, 0.75, length(hq - vec2(-0.1, 0.0)));
+    let mouth = step(0.3, hq.x) * step(abs(hq.y), 0.5 * jaw);
+    head *= 1.0 - mouth;
+    let e = exp(-length(hp - vec2(0.005, 0.0058)) * 900.0) + exp(-length(hp - vec2(0.005, -0.0058)) * 900.0);
+    let tongue = exp(-abs(hp.y - sin(t * 40.0) * 0.002) * 1600.0) * step(0.025, hp.x) * step(hp.x, 0.05) * step(0.5, jaw);
+    return bl * (1.0 - body * step(0.0, z) * 0.6) + bc + gold * head * 1.3 + vec3(1.0, 0.08, 0.04) * e * 2.2 + vec3(1.0, 0.35, 0.4) * tongue;
+}
+
+// Quantum without its ghost copies: the blade itself, jittering while held still, with
+// its interference fringes.
+fn lab_quantum(p: LabPlace) -> vec3<f32> {
+    let jit = (lab_hash(floor(p.t * 12.0)) - 0.5) * 0.004 * (1.0 - p.swing);
+    let yy = p.y - jit;
+    let dd = length(vec2(max(0.0, max(-p.p.x, p.p.x - p.shaft)), yy));
+    let h = 0.5 + 0.5 * sin(p.x * 14.0 - p.t * 3.0);
+    let g = mix(vec3(0.25, 0.85, 1.0), vec3(0.7, 0.35, 1.0), h);
+    let c = lab_saber(g, vec3(0.92, 0.97, 1.0), dd, 0.015, 22.0);
+    return c * (0.82 + 0.18 * cos(yy * 480.0 - p.t * 6.0 + p.x * 20.0));
+}
+
+fn lab_blade(n: u32, p: LabPlace) -> vec3<f32> {
+    switch n {
+        case 1u: { return lab_peppermint(p); }
+        case 2u: { return lab_bubble(p); }
+        case 3u: { return lab_lavalamp(p); }
+        case 4u: { return lab_sketch(p); }
+        case 5u: { return lab_hourglass(p); }
+        case 6u: { return lab_comic(p); }
+        case 7u: { return lab_quicksilver(p); }
+        case 8u: { return lab_reactor(p); }
+        case 9u: { return lab_obsidian(p); }
+        case 10u: { return lab_bleeding(p); }
+        case 11u: { return lab_monarch(p); }
+        case 12u: { return lab_phoenix(p); }
+        case 13u: { return lab_serpent(p); }
+        case 14u: { return lab_quantum(p); }
+        default: { return vec3(0.0); }
+    }
+}
+
+// --- The lab's particles, each a slot reborn every `life` seconds at a new place ---------
+
+// A slot's age and its life's number, `salt` the design's.
+fn lab_cycle(i: f32, life: f32, t: f32, salt: f32) -> vec2<f32> {
+    let ph = t / life + lab_hash(i * 7.31 + salt * 1.37);
+    return vec2(fract(ph) * life, floor(ph));
+}
+
+// A slot's draw `j` for its life `cycle`, in [0, 1).
+fn lab_rand(i: f32, cycle: f32, j: f32, salt: f32) -> f32 {
+    return lab_hash(i * 12.9898 + fract(cycle * 0.0137) * 7853.1 + j * 37.719 + salt * 3.91);
+}
+
+// A place on the blade on screen: `u` of the way up, `radius` out at `angle` round it.
+fn lab_on_blade(p: LabPlace, u: f32, radius: f32, angle: f32) -> vec2<f32> {
+    return vec2(u * p.shaft, radius * cos(angle));
+}
+
+// A particle's sprite at `at` (along, across), `size` across (metres, as the lab's point
+// size): the place in it (-1 to 1: across, along) and how much of its light a pixel-wide
+// sprite keeps (a sprite never narrower than a pixel, its light spread over it).
+fn lab_sprite(p: LabPlace, at: vec2<f32>, size: f32) -> vec3<f32> {
+    let half = size * 0.5;
+    let shown = max(half, p.px);
+    let q = (p.p - at) / shown;
+    return vec3(q.y, q.x, (half / shown) * (half / shown));
+}
+
+// The lab's additive sprite kinds: 0 a soft dot, 1 a spark, 2 a bubble, 4 a feather, 5 a
+// four-pointed glint. `extra` a bubble's hue or a feather's turn.
+fn lab_sprite_light(kind: u32, s: vec3<f32>, color: vec3<f32>, extra: f32) -> vec3<f32> {
+    let q = s.xy;
+    if abs(q.x) > 1.0 || abs(q.y) > 1.0 {
+        return vec3(0.0);
+    }
+    let r = length(q);
+    var c = color;
+    var a = 0.0;
+    switch kind {
+        case 0u: { a = exp(-r * r * 4.0); }
+        case 1u: {
+            a = exp(-r * r * 9.0) * 1.4;
+            c = mix(c, vec3(1.0), exp(-r * r * 30.0));
+        }
+        case 2u: {
+            if r > 1.0 {
+                return vec3(0.0);
+            }
+            let ring = exp(-abs(r - 0.82) * 13.0);
+            let spot = exp(-length(q - vec2(-0.35, 0.35)) * 11.0);
+            c = mix(lab_hsv(atan2(q.y, q.x) / TAU + extra, 0.55, 1.0), vec3(1.0), spot);
+            a = ring * 0.75 + spot * 0.9;
+        }
+        case 4u: {
+            let cs = cos(extra);
+            let sn = sin(extra);
+            let w = vec2(cs * q.x - sn * q.y, sn * q.x + cs * q.y);
+            let f = length(w / vec2(0.28, 0.95));
+            if f > 1.0 {
+                return vec3(0.0);
+            }
+            a = (1.0 - f) * 1.4 + exp(-abs(w.x) * 40.0) * 0.4;
+        }
+        default: {
+            a = max(exp(-abs(q.x) * 12.0) * exp(-abs(q.y) * 2.6), exp(-abs(q.y) * 12.0) * exp(-abs(q.x) * 2.6)) * 1.3;
+        }
+    }
+    return c * a * s.z;
+}
+
+// The lab's fade: in over `fade_in` seconds, out with the square of its age's share.
+fn lab_fade(age: f32, life: f32, fade_in: f32) -> f32 {
+    let k = clamp(age / life, 0.0, 1.0);
+    return min(1.0, age / fade_in) * (1.0 - k * k);
+}
+
+// The additive particles of design `n` at this fragment.
+fn lab_motes(n: u32, p: LabPlace) -> vec3<f32> {
+    var light = vec3(0.0);
+    let t = p.t;
+    let side = vec2(p.up.y, -p.up.x);
+    switch n {
+        case 1u: {
+            // Sugar glints round the candy.
+            for (var i = 0; i < 10; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 0.7, t, 1.0);
+                let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 1.0), 0.034, lab_rand(fi, c.y, 1.0, 1.0) * TAU)
+                    + p.up * mix(-0.02, 0.08, lab_rand(fi, c.y, 2.0, 1.0)) * c.x
+                    + side * (lab_rand(fi, c.y, 3.0, 1.0) - 0.5) * 0.12 * c.x;
+                let col = select(vec3<f32>(1.0, 0.6, 0.65), vec3<f32>(1.0), lab_rand(fi, c.y, 4.0, 1.0) < 0.5);
+                let s = lab_sprite(p, at, mix(0.02, 0.03, lab_rand(fi, c.y, 5.0, 1.0)));
+                light += lab_sprite_light(5u, s, col, 0.0) * lab_fade(c.x, 0.7, 0.06);
+            }
+        }
+        case 2u: {
+            // Bubbles blown off the film, rising, each popping into a puff of droplets.
+            for (var i = 0; i < 14; i++) {
+                let fi = f32(i);
+                let life = 3.6;
+                let c = lab_cycle(fi, life, t, 2.0);
+                let pops = life * mix(0.6, 1.0, lab_rand(fi, c.y, 6.0, 2.0));
+                let start = lab_on_blade(p, mix(0.05, 1.0, lab_rand(fi, c.y, 0.0, 2.0)), 0.03, lab_rand(fi, c.y, 1.0, 2.0) * TAU);
+                let v0 = side * (lab_rand(fi, c.y, 2.0, 2.0) - 0.5) * 0.16 + p.up * mix(0.08, 0.2, lab_rand(fi, c.y, 3.0, 2.0));
+                let a = min(c.x, pops);
+                let at = start + v0 * (1.0 - exp(-0.4 * a)) / 0.4 + p.up * 0.015 * a * a;
+                if c.x < pops {
+                    let s = lab_sprite(p, at, mix(0.035, 0.085, lab_rand(fi, c.y, 4.0, 2.0)));
+                    light += lab_sprite_light(2u, s, vec3(1.0), lab_rand(fi, c.y, 5.0, 2.0)) * 0.9 * min(1.0, c.x / 0.3);
+                } else if c.x < pops + 0.22 {
+                    let since = c.x - pops;
+                    for (var j = 0; j < 7; j++) {
+                        let fj = f32(j);
+                        let dir = fj / 7.0 * TAU + lab_rand(fi, c.y, 7.0 + fj, 2.0);
+                        let speed = mix(0.2, 0.5, lab_rand(fi, c.y, 15.0 + fj, 2.0));
+                        let drop = at + vec2(cos(dir), sin(dir)) * speed * since;
+                        light += lab_sprite_light(0u, lab_sprite(p, drop, 0.012), vec3(0.9, 0.95, 1.0), 0.0) * lab_fade(since, 0.22, 0.06);
+                    }
+                }
+            }
+        }
+        case 3u: {
+            // Warm specks drifting up off the lamp.
+            for (var i = 0; i < 4; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 1.6, t, 3.0);
+                let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 3.0), 0.04, lab_rand(fi, c.y, 1.0, 3.0) * TAU)
+                    + p.up * mix(0.05, 0.12, lab_rand(fi, c.y, 2.0, 3.0)) * c.x;
+                light += lab_sprite_light(0u, lab_sprite(p, at, 0.02), vec3(1.0, 0.45, 0.2), 0.0) * 0.6 * lab_fade(c.x, 1.6, 0.06);
+            }
+        }
+        case 4u: {
+            // Doodled stars round the drawing.
+            for (var i = 0; i < 3; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 0.5, t, 4.0);
+                let at = lab_on_blade(p, mix(0.1, 1.0, lab_rand(fi, c.y, 0.0, 4.0)), mix(0.06, 0.12, lab_rand(fi, c.y, 1.0, 4.0)),
+                    lab_rand(fi, c.y, 2.0, 4.0) * TAU);
+                let s = lab_sprite(p, at, mix(0.03, 0.05, lab_rand(fi, c.y, 3.0, 4.0)));
+                light += lab_sprite_light(5u, s, vec3(0.9, 0.93, 1.0), 0.0) * lab_fade(c.x, 0.5, 0.001);
+            }
+        }
+        case 5u: {
+            // Sand spilling out of a hard swing and falling.
+            if p.swing > 0.35 {
+                for (var i = 0; i < 24; i++) {
+                    let fi = f32(i);
+                    let c = lab_cycle(fi, 0.85, t, 5.0);
+                    if lab_rand(fi, c.y, 9.0, 5.0) < p.swing {
+                        let at = lab_on_blade(p, mix(0.05, 0.95, lab_rand(fi, c.y, 0.0, 5.0)), 0.02, lab_rand(fi, c.y, 1.0, 5.0) * TAU)
+                            + side * (lab_rand(fi, c.y, 2.0, 5.0) - 0.5) * 0.3 * c.x - p.up * 1.7 * c.x * c.x;
+                        light += lab_sprite_light(0u, lab_sprite(p, at, 0.012), vec3(1.0, 0.8, 0.4), 0.0) * lab_fade(c.x, 0.85, 0.06);
+                    }
+                }
+            }
+        }
+        case 8u: {
+            // Vented sparks, a shower while it overheats.
+            let ov = fract(t / 6.0) < 0.13;
+            for (var i = 0; i < 20; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 0.35, t, 8.0);
+                if lab_rand(fi, c.y, 9.0, 8.0) < select(0.04, 1.0, ov) {
+                    let start = lab_on_blade(p, mix(0.6, 1.0, lab_rand(fi, c.y, 0.0, 8.0)), 0.02, lab_rand(fi, c.y, 1.0, 8.0) * TAU);
+                    let out = normalize(start + vec2(0.0, 0.0001));
+                    let at = start + out * mix(0.6, 1.6, lab_rand(fi, c.y, 2.0, 8.0)) * c.x - p.up * c.x * c.x;
+                    let col = select(vec3<f32>(0.5, 0.85, 1.0), vec3<f32>(1.0, 0.55, 0.2), ov);
+                    light += lab_sprite_light(1u, lab_sprite(p, at, mix(0.01, 0.02, lab_rand(fi, c.y, 3.0, 8.0))), col, 0.0)
+                        * lab_fade(c.x, 0.35, 0.06);
+                }
+            }
+        }
+        case 9u: {
+            // Sparks spitting off the white edge.
+            for (var i = 0; i < 3; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 0.18, t, 9.0);
+                if lab_rand(fi, c.y, 9.0, 9.0) < 0.4 {
+                    let s = select(-1.0, 1.0, lab_rand(fi, c.y, 0.0, 9.0) < 0.5);
+                    let start = vec2(lab_rand(fi, c.y, 1.0, 9.0) * 0.85 * p.shaft, s * LAB_OBSIDIAN_HALF);
+                    let at = start + vec2(0.0, s) * mix(0.4, 1.0, lab_rand(fi, c.y, 2.0, 9.0)) * c.x
+                        + p.up * mix(-0.2, 0.4, lab_rand(fi, c.y, 3.0, 9.0)) * c.x;
+                    light += lab_sprite_light(1u, lab_sprite(p, at, 0.012), vec3(0.9, 0.95, 1.0), 0.0) * lab_fade(c.x, 0.18, 0.02);
+                }
+            }
+        }
+        case 11u: {
+            // Pollen floating round the butterflies.
+            for (var i = 0; i < 8; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 2.0, t, 11.0);
+                let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 11.0), mix(0.03, 0.1, lab_rand(fi, c.y, 1.0, 11.0)),
+                    lab_rand(fi, c.y, 2.0, 11.0) * TAU)
+                    + p.up * mix(0.02, 0.07, lab_rand(fi, c.y, 3.0, 11.0)) * c.x + side * (lab_rand(fi, c.y, 4.0, 11.0) - 0.5) * 0.06 * c.x;
+                light += lab_sprite_light(0u, lab_sprite(p, at, 0.012), vec3(1.0, 0.85, 0.4), 0.0) * 0.7 * lab_fade(c.x, 2.0, 0.06);
+            }
+        }
+        case 12u: {
+            if p.age > 0.6 {
+                // Flames licking up off the fire.
+                for (var i = 0; i < 22; i++) {
+                    let fi = f32(i);
+                    let c = lab_cycle(fi, 0.85, t, 12.0);
+                    let v = p.up * mix(0.3, 0.7, lab_rand(fi, c.y, 2.0, 12.0)) + side * (lab_rand(fi, c.y, 3.0, 12.0) - 0.5) * 0.2;
+                    let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 12.0), 0.02, lab_rand(fi, c.y, 1.0, 12.0) * TAU)
+                        + v * (1.0 - exp(-0.6 * c.x)) / 0.6;
+                    let col = vec3(1.0, mix(0.35, 0.6, lab_rand(fi, c.y, 4.0, 12.0)), 0.08);
+                    light += lab_sprite_light(1u, lab_sprite(p, at, mix(0.008, 0.016, lab_rand(fi, c.y, 5.0, 12.0))), col, 0.0)
+                        * lab_fade(c.x, 0.85, 0.06);
+                }
+                // Burning feathers shed by the flame, more on a swing, greying as they fall.
+                for (var i = 0; i < 12; i++) {
+                    let fi = f32(i);
+                    let c = lab_cycle(fi, 1.8, t, 112.0);
+                    if lab_rand(fi, c.y, 9.0, 112.0) < (3.0 + p.swing * 28.0) / 6.7 {
+                        let v = side * (lab_rand(fi, c.y, 2.0, 112.0) - 0.5) * 0.3 + p.up * mix(-0.05, 0.2, lab_rand(fi, c.y, 3.0, 112.0));
+                        let at = lab_on_blade(p, mix(0.1, 1.0, lab_rand(fi, c.y, 0.0, 112.0)), 0.03, lab_rand(fi, c.y, 1.0, 112.0) * TAU)
+                            + v * (1.0 - exp(-1.2 * c.x)) / 1.2 - p.up * 0.1 * c.x * c.x;
+                        let k = c.x / 1.8;
+                        let col = vec3(1.0 - 0.62 * k, 0.5 - 0.18 * k, 0.1 + 0.2 * k);
+                        let turn = lab_rand(fi, c.y, 4.0, 112.0) * TAU + c.x * 1.5;
+                        light += lab_sprite_light(4u, lab_sprite(p, at, mix(0.05, 0.08, lab_rand(fi, c.y, 5.0, 112.0))), col, turn)
+                            * lab_fade(c.x, 1.8, 0.06);
+                    }
+                }
+            } else {
+                // Embers in the ash.
+                for (var i = 0; i < 6; i++) {
+                    let fi = f32(i);
+                    let c = lab_cycle(fi, 0.6, t, 212.0);
+                    let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 212.0), 0.015, lab_rand(fi, c.y, 1.0, 212.0) * TAU)
+                        + p.up * mix(0.05, 0.2, lab_rand(fi, c.y, 2.0, 212.0)) * c.x;
+                    light += lab_sprite_light(1u, lab_sprite(p, at, 0.008), vec3(1.0, 0.35, 0.05), 0.0) * lab_fade(c.x, 0.6, 0.06);
+                }
+            }
+        }
+        case 13u: {
+            // Green motes rising off the blade.
+            for (var i = 0; i < 4; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 1.2, t, 13.0);
+                let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 13.0), 0.04, lab_rand(fi, c.y, 1.0, 13.0) * TAU) + p.up * 0.05 * c.x;
+                light += lab_sprite_light(0u, lab_sprite(p, at, 0.012), vec3(0.4, 1.0, 0.6), 0.0) * 0.6 * lab_fade(c.x, 1.2, 0.06);
+            }
+        }
+        case 14u: {
+            // The probability cloud, gone while it swings.
+            let shown = 1.0 - clamp(p.swing * 1.8, 0.0, 1.0);
+            for (var i = 0; i < 14; i++) {
+                let fi = f32(i);
+                let c = lab_cycle(fi, 0.19, t, 14.0);
+                if lab_rand(fi, c.y, 9.0, 14.0) < shown {
+                    let out = abs(lab_rand(fi, c.y, 1.0, 14.0) + lab_rand(fi, c.y, 2.0, 14.0) - 1.0) * 2.0 * 0.06 + 0.015;
+                    let at = lab_on_blade(p, lab_rand(fi, c.y, 0.0, 14.0), out, lab_rand(fi, c.y, 3.0, 14.0) * TAU);
+                    let col = select(vec3<f32>(0.7, 0.4, 1.0), vec3<f32>(0.3, 0.85, 1.0), lab_rand(fi, c.y, 4.0, 14.0) < 0.5);
+                    light += lab_sprite_light(0u, lab_sprite(p, at, mix(0.008, 0.016, lab_rand(fi, c.y, 5.0, 14.0))), col, 0.0)
+                        * lab_fade(c.x, 0.19, 0.001);
+                }
+            }
+        }
+        default: {}
+    }
+    return light;
+}
+
+// A design's glow: its blade fading out at its reach, its particles fading at their
+// room's edge; turned to its wearer's colour for a chroma, faded for the persona.
+fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
+    let design = skins[skin_index(input)].design;
+    let n = u32(design.x + 0.5);
+    // An afterimage, or a design with nothing for this pass.
+    if afterimage(input.persona.x, input.off) {
+        return vec3(0.0);
+    }
+    let p = lab_place(input, pixel);
+    let reach = design.y;
+    let e = 1.0 - lab_sstep(reach * 0.45, reach * 0.98, max(p.d, abs(p.y)));
+    var light = vec3(0.0);
+    if e > 0.0 {
+        light = max(lab_blade(n, p), vec3(0.0)) * e;
+    }
+    let room = design.z;
+    if room > 0.0 && p.d < room {
+        light += lab_motes(n, p) * (1.0 - lab_sstep(room * 0.75, room, p.d));
+    }
+    if input.chroma != 0.0 {
+        light = skin_turn_hue(light, input.chroma);
+    }
+    return light * persona_fade(input);
+}
+
+// --- The lab's solids and blended particles: the solid pass ------------------------------
+
+// A blended particle (the lab's second set): 3 a butterfly (`extra` how far its wings
+// are open), 6 a drop. Colour and coverage.
+fn lab_sprite_cover(kind: u32, s: vec3<f32>, color: vec3<f32>, extra: f32) -> vec4<f32> {
+    let q = s.xy;
+    if abs(q.x) > 1.0 || abs(q.y) > 1.0 {
+        return vec4(0.0);
+    }
+    if kind == 3u {
+        let fl = max(extra, 0.12);
+        let w = vec2(abs(q.x) / fl, q.y);
+        let upper = length((w - vec2(0.5, 0.3)) / vec2(0.5, 0.42));
+        let lower = length((w - vec2(0.36, -0.3)) / vec2(0.36, 0.3));
+        let wing = min(upper, lower);
+        let body = step(abs(q.x), 0.045) * step(abs(q.y), 0.62);
+        if wing > 1.0 && body < 0.5 {
+            return vec4(0.0);
+        }
+        let edge = lab_sstep(0.78, 0.9, wing);
+        let vein = lab_sstep(0.9, 0.97, abs(sin(atan2(w.y, w.x - 0.05) * 7.0)));
+        var c = mix(color, vec3(0.02), max(edge, vein * 0.8));
+        let dots = step(0.86, wing) * step(0.6, fract(atan2(w.y, w.x) * 3.0));
+        c = mix(c, vec3(1.0), dots * 0.8);
+        if body > 0.5 {
+            c = vec3(0.03);
+        }
+        return vec4(c, min(s.z * 4.0, 1.0));
+    }
+    let r = length(q);
+    if r > 0.85 {
+        return vec4(0.0);
+    }
+    var c = mix(color * 0.7, color * 1.25, lab_sstep(0.6, -0.4, q.y));
+    c = mix(c, vec3(1.0), exp(-length(q - vec2(-0.28, 0.3)) * 14.0) * 0.8);
+    return vec4(c, lab_sstep(0.85, 0.7, r) * min(s.z * 4.0, 1.0));
+}
+
+// `top` over `under`, both straight colour and coverage.
+fn lab_over(under: vec4<f32>, top: vec4<f32>) -> vec4<f32> {
+    let a = top.a + under.a * (1.0 - top.a);
+    if a <= 0.0 {
+        return vec4(0.0);
+    }
+    return vec4((top.rgb * top.a + under.rgb * under.a * (1.0 - top.a)) / a, a);
+}
+
+// The comic blade's cel-shaded body in its black outline, a hemisphere at the tip.
+fn lab_comic_body(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
+    if p.p.x < 0.0 {
+        return vec4(0.0);
+    }
+    let soft = p.px;
+    let outline = clamp((0.03 - p.d) / soft + 0.5, 0.0, 1.0);
+    if outline <= 0.0 {
+        return vec4(0.0);
+    }
+    let inside = clamp((0.019 - p.d) / soft + 0.5, 0.0, 1.0);
+    // Two tones of a toon light from the upper left.
+    let n = clamp(p.y / 0.019, -1.0, 1.0);
+    let lit = select(0.72, 1.0, n < 0.35);
+    let toon = min((color * 0.6 + 0.3) * lit + (color * 0.7 + 0.15), vec3(1.0));
+    return vec4(mix(vec3(0.0), toon, inside), outline);
+}
+
+// The comic font: five by six, a bit a cell from the top left; V M H S W O A K Z T R B !.
+const LAB_FONT: array<u32, 13> = array<u32, 13>(
+    145049137u, 588830577u, 588840497u, 520632382u, 599447089u, 488162862u, 589284910u,
+    588553521u, 1041305887u, 138547359u, 580042287u, 521715247u, 134353028u,
+);
+// The words, four bits a letter (15 ends one): VMMMM! on ignition; SHWOOM! VWOSH! ZZAKT!
+// on a swing; KRAKK! SHZAK! BZZT! on a clash.
+const LAB_WORDS: array<u32, 7> = array<u32, 7>(
+    4290842896u, 4229256227u, 4290917696u, 4291393160u, 4291262119u, 4291258403u, 4294744203u,
+);
+
+fn lab_word_letter(word: u32, i: i32) -> u32 {
+    if i < 0 || i > 7 {
+        return 15u;
+    }
+    return (LAB_WORDS[word] >> (u32(i) * 4u)) & 15u;
+}
+
+fn lab_word_length(word: u32) -> i32 {
+    var n = 0;
+    for (var i = 0; i < 8; i++) {
+        if lab_word_letter(word, i) == 15u {
+            break;
+        }
+        n = i + 1;
+    }
+    return n;
+}
+
+// Whether the word's cell (column, row; six columns a letter, a gap last) is inked.
+fn lab_word_cell(word: u32, cell: vec2<i32>) -> bool {
+    if cell.y < 0 || cell.y > 5 || cell.x < 0 {
+        return false;
+    }
+    let letter = lab_word_letter(word, cell.x / 6);
+    let column = cell.x % 6;
+    if letter == 15u || column == 5 {
+        return false;
+    }
+    return ((LAB_FONT[letter] >> u32(cell.y * 5 + column)) & 1u) == 1u;
+}
+
+// A comic word `age` seconds old, born at `at` (along, across): yellow letters with a
+// thick black outline and a thin line of the blade's colour round them, popping up,
+// growing and rising as it fades (the lab's sprite).
+fn lab_comic_word(p: LabPlace, word: u32, at: vec2<f32>, tilt: f32, age: f32, color: vec3<f32>) -> vec4<f32> {
+    let life = 1.1;
+    let k = age / life;
+    if k < 0.0 || k >= 1.0 {
+        return vec4(0.0);
+    }
+    let size = select(0.42 + k * 0.08, k / 0.15 * 0.42, k < 0.15);
+    let centre = at + p.up * 0.08 * age;
+    // The word's frame: right and up on screen as the world's (across runs to the
+    // screen's left).
+    let right = vec2(-p.up.y, p.up.x);
+    let v = p.p - centre;
+    let cs = cos(tilt);
+    let sn = sin(tilt);
+    let local = vec2(dot(v, right), dot(v, p.up));
+    let w = vec2(cs * local.x + sn * local.y, -sn * local.x + cs * local.y);
+    let letters = lab_word_length(word);
+    let columns = f32(letters * 6 - 1);
+    let cell = size * 0.8 / columns;
+    let g = vec2(w.x / cell + columns * 0.5, 3.0 - w.y / cell);
+    if g.x < -2.5 || g.x > columns + 2.5 || g.y < -2.5 || g.y > 8.5 {
+        return vec4(0.0);
+    }
+    let base = vec2<i32>(floor(g));
+    var nearest = 4.0;
+    for (var dy = -2; dy <= 2; dy++) {
+        for (var dx = -2; dx <= 2; dx++) {
+            let c = base + vec2(dx, dy);
+            if lab_word_cell(word, c) {
+                let q = abs(g - (vec2<f32>(c) + 0.5)) - vec2(0.42);
+                let dist = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - 0.12;
+                nearest = min(nearest, dist);
+            }
+        }
+    }
+    let soft = max(p.px / cell, 0.05);
+    let ink = clamp((1.05 - nearest) / soft + 0.5, 0.0, 1.0);
+    let fill = clamp((-nearest) / soft + 0.5, 0.0, 1.0);
+    let stroke = clamp((0.16 - abs(nearest + 0.08)) / soft + 0.5, 0.0, 1.0);
+    var rgb = mix(vec3(0.0), vec3(1.0, 0.886, 0.239), fill);
+    rgb = mix(rgb, color, stroke * fill);
+    return vec4(rgb, ink * (1.0 - k * k * k));
+}
+
+// The comic words now showing: on ignition, the last swing and the last clash.
+fn lab_comic_words(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
+    var out = vec4(0.0);
+    let ignite = p.age - 0.18;
+    if ignite >= 0.0 && ignite < 1.1 {
+        let born = p.t - ignite;
+        let side = select(-1.0, 1.0, lab_hash(floor(born * 10.0) + 3.0) < 0.5);
+        out = lab_over(out, lab_comic_word(p, 0u, vec2(0.75 * p.shaft, 0.12 * side), (lab_hash(born) - 0.5) * 0.36, ignite, color));
+    }
+    let swung = p.since_swing - 0.36;
+    if swung >= 0.0 && swung < 1.1 {
+        let born = floor((p.t - swung) * 10.0);
+        let word = 1u + u32(lab_hash(born + 1.0) * 2.999);
+        let side = select(-1.0, 1.0, lab_hash(born + 5.0) < 0.5);
+        out = lab_over(out, lab_comic_word(p, word, vec2(0.7 * p.shaft, 0.15 * side), (lab_hash(born + 2.0) - 0.5) * 0.36, swung, color));
+    }
+    let clashed = 1.0 - p.clash;
+    if p.clash > 0.0 && clashed / 2.2 < 1.1 {
+        let age = clashed / 2.2;
+        let born = floor((p.t - age) * 10.0);
+        let word = 4u + u32(lab_hash(born + 7.0) * 2.999);
+        out = lab_over(out, lab_comic_word(p, word, vec2(0.68 * p.shaft, 0.0) + p.up * 0.12, (lab_hash(born + 8.0) - 0.5) * 0.36, age, color));
+    }
+    return out;
+}
+
+// The quicksilver blade: a mirror column wobbling like mercury, three beads swelling it
+// as they roll up to the tip, and the drops they leave falling off it.
+fn lab_quicksilver_body(p: LabPlace, light: f32) -> vec4<f32> {
+    let v = p.x / max(p.big_l, 0.0001);
+    if p.p.x < 0.0 || v > 1.0 {
+        return vec4(0.0);
+    }
+    let t = p.t;
+    // The side of the column this pixel sees (its angle round the axis).
+    let side = clamp(p.y / 0.03, -1.0, 1.0);
+    let angle = asin(side);
+    var r = 0.022 * (1.0 + 0.1 * sin(v * 38.0 - t * 3.0 + sin(angle * 3.0 + t * 1.3) * 1.2));
+    for (var b = 0; b < 3; b++) {
+        let ph = fract(f32(b) * 0.33 + t * 0.16);
+        let dv = (v - ph) / 0.03;
+        r += 0.011 * exp(-dv * dv) * min(1.0, ph * 6.0);
+    }
+    if v > 0.955 {
+        r *= sqrt(max(0.0, 1.0 - pow((v - 0.955) / 0.045, 2.0)));
+    }
+    let cover = clamp((r - abs(p.y)) / p.px + 0.5, 0.0, 1.0);
+    if cover <= 0.0 {
+        return vec4(0.0);
+    }
+    // A made-up room in the mirror: a dark floor, a bright sky, a hot highlight.
+    let n = clamp(p.y / max(r, 0.0001), -1.0, 1.0);
+    let warp = n + 0.25 * sin(v * 18.0 - t * 1.5 + n * 2.0);
+    // The lab's mirror is lit by a bright room (its environment map, 2.6 times as
+    // bright): a blue-grey floor, a pale sky.
+    var env = mix(vec3(0.16, 0.18, 0.26), vec3(0.78, 0.84, 0.98), lab_sstep(-0.8, 0.9, warp));
+    env += vec3(1.0) * exp(-pow((warp + 0.45) / 0.1, 2.0)) * 1.3;
+    env += vec3(0.6, 0.7, 0.9) * pow(abs(n), 6.0) * 0.6;
+    env *= vec3(0.95, 0.96, 1.0) * (0.75 + 0.4 * light);
+    return vec4(min(env, vec3(1.0)), cover);
+}
+
+fn lab_quicksilver_drops(p: LabPlace) -> vec4<f32> {
+    var out = vec4(0.0);
+    for (var b = 0; b < 3; b++) {
+        let fb = f32(b);
+        let ph = f32(b) * 0.33 + p.t * 0.16;
+        // Seconds since this bead reached the tip.
+        let since = fract(ph) / 0.16;
+        let drop = floor(ph);
+        if since < 1.4 {
+            let tip = vec2(p.shaft, 0.0);
+            let v0 = vec2(p.up.y, -p.up.x) * (lab_rand(fb, drop, 0.0, 7.0) - 0.5) * 0.3
+                + p.up * mix(-0.1, 0.2, lab_rand(fb, drop, 1.0, 7.0));
+            let at = tip + v0 * since - p.up * 1.6 * since * since;
+            let s = lab_sprite(p, at, 0.03);
+            var c = lab_sprite_cover(6u, s, vec3(0.82, 0.86, 0.95), 0.0);
+            c.a *= 1.0 - pow(since / 1.4, 2.0);
+            out = lab_over(out, c);
+        }
+    }
+    return out;
+}
+
+// The obsidian blade: flat black glass, its point toward the tip, glossy where the room
+// shows in it.
+fn lab_obsidian_body(p: LabPlace) -> vec4<f32> {
+    let q = vec2(p.y, p.x / max(p.big_l, 0.0001));
+    // Coverage from the edge's distance, a pixel soft.
+    let e = lab_obsidian_edge(p);
+    let inside = lab_obsidian_inside(q);
+    let cover = select(clamp(0.5 - e / p.px, 0.0, 1.0), clamp(0.5 + e / p.px, 0.0, 1.0), inside);
+    if cover <= 0.0 {
+        return vec4(0.0);
+    }
+    let gloss = exp(-pow((q.x / LAB_OBSIDIAN_HALF + 0.3 - 0.4 * sin(p.t * 0.3 + q.y * 2.0)) / 0.18, 2.0));
+    let bevel = exp(-e / 0.0025);
+    let c = vec3(0.02, 0.02, 0.028) + vec3(0.3, 0.32, 0.38) * gloss * 0.6 + vec3(0.45, 0.48, 0.55) * bevel * 0.5;
+    return vec4(c, cover);
+}
+
+// The bleeding blade's drops falling from below the corruption's line.
+fn lab_bleeding_drops(p: LabPlace) -> vec4<f32> {
+    var out = vec4(0.0);
+    let level = min(0.22 + 0.48 * (0.5 + 0.5 * sin(p.t * 0.4)) + p.clash * 0.35, 1.0);
+    let more = p.clash;
+    for (var i = 0; i < 6; i++) {
+        let fi = f32(i);
+        let c = lab_cycle(fi, 1.1, p.t, 10.0);
+        // Two drops a second, many more on a clash.
+        if lab_rand(fi, c.y, 9.0, 10.0) < 0.33 + more {
+            let at = lab_on_blade(p, mix(0.03, level, lab_rand(fi, c.y, 0.0, 10.0)), 0.018, lab_rand(fi, c.y, 1.0, 10.0) * TAU)
+                - p.up * (0.05 * c.x + 1.1 * c.x * c.x);
+            var d = lab_sprite_cover(6u, lab_sprite(p, at, 0.022), vec3(0.6, 0.02, 0.04), 0.0);
+            d.a *= 1.0 - pow(c.x / 1.1, 2.0);
+            out = lab_over(out, d);
+        }
+    }
+    return out;
+}
+
+// The monarchs: seven sitting on the blade slowly opening their wings; a swing sends
+// them flying round it, and once it is still again they come back and land.
+fn lab_butterflies(p: LabPlace) -> vec4<f32> {
+    var out = vec4(0.0);
+    // How far off they are: all of it from the swing's start, drifting home after two
+    // seconds still.
+    let away = select(1.0 - lab_sstep(2.2, 3.6, p.since_swing), 0.0, p.since_swing > 3.6);
+    for (var i = 0; i < 7; i++) {
+        let fi = f32(i);
+        let u = 0.18 + fi * 0.11 + (lab_hash(fi * 3.7) - 0.5) * 0.06;
+        let angle = lab_hash(fi * 5.1) * TAU;
+        let ph = lab_hash(fi * 9.3) * 6.0;
+        let perch = lab_on_blade(p, u, 0.028, angle);
+        let flight = perch
+            + vec2(p.up.y, -p.up.x) * (sin(p.t * 2.3 + ph) * 0.12 + select(-0.08, 0.08, lab_hash(fi * 2.1) < 0.5))
+            + p.up * (0.1 + 0.06 * sin(p.t * 1.7 + ph * 2.0));
+        let at = mix(perch, flight, lab_sstep(0.0, 1.0, away));
+        let open = select(0.35 + 0.3 * abs(sin(p.t * 1.4 + ph)), 0.15 + 0.85 * abs(sin(p.t * 24.0 + ph)), away > 0.05);
+        let s = lab_sprite(p, at, 0.075);
+        out = lab_over(out, lab_sprite_cover(3u, s, vec3(1.0, mix(0.42, 0.55, lab_hash(fi * 6.6)), 0.05), open));
+    }
+    return out;
+}
+
+// A design's solid pass: its solid blade and its blended particles, colour and coverage.
+fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
+    let n = lab_design(input);
+    let p = lab_place(input, pixel);
+    var color = vec3(0.2, 0.7, 1.0);
+    if input.chroma != 0.0 {
+        color = skin_turn_hue(color, input.chroma);
+    }
+    var out = vec4(0.0);
+    switch n {
+        case 6u: {
+            out = lab_comic_body(p, color);
+            out = lab_over(out, lab_comic_words(p, color));
+        }
+        case 7u: {
+            out = lab_quicksilver_body(p, persona_light(input).g);
+            out = lab_over(out, lab_quicksilver_drops(p));
+        }
+        case 9u: { out = lab_obsidian_body(p); }
+        case 10u: { out = lab_bleeding_drops(p); }
+        case 11u: { out = lab_butterflies(p); }
+        default: {}
+    }
+    out.a *= persona_fade(input);
+    return out;
 }

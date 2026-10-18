@@ -627,6 +627,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Saber motion trails; mode 2 currently uses the normal trail",
         ),
         CvarDefinition::new(
+            crate::blade_lab_designs::CVAR,
+            true,
+            archive,
+            "Draw the blade skins from Creyon's Blade Lab as the lab drew them",
+        ),
+        CvarDefinition::new(
             crate::effect_aux::saber_rain_steam::CVAR,
             1_i64,
             archive,

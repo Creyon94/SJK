@@ -106,6 +106,8 @@ pub(crate) struct BladeState {
     pub(crate) trail: Trail,
     /// Its afterimages' poses, for a skin leaving them (`saber_ghosts.rs`).
     pub(crate) ghosts: crate::saber_ghosts::GhostTrail,
+    /// Its swing, ignition and clashes, for the Blade Lab designs (`saber_motion.rs`).
+    pub(crate) motion: crate::saber_motion::BladeMotion,
 }
 
 impl BladeState {

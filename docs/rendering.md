@@ -1820,6 +1820,56 @@ Mounted bodies are suppressed explicitly even though that reference's vehicle
 check was commented out. Source comparison and unit checks do not establish
 in-game visual, audible or populated-server performance parity.
 
+## Blade Lab designs
+
+Fourteen blade skins came from Creyon's Blade Lab, a three.js page in which each was
+first drawn by its own shader: Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass,
+Comic, Quicksilver, Reactor, Obsidian Edge, Bleeding Kyber, Monarch, Phoenix, Serpent
+and Quantum. Their skin files describe them with the parts every skin shares, which
+came out far from the lab's look (Creyon's review of 17/10/2026, with videos of both).
+[blade_lab_designs.rs](../crates/sjk-viewer/src/blade_lab_designs.rs) names them in a
+table (`DESIGNS`: the skin, its number, the lab's glow reach `R`, how far its particles
+go, whether it has a solid pass, the lab's colour), and while `cg_saberLabDesigns` is on
+(archived, default 1; **Blade Lab designs** under Game options in both settings
+interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_*`):
+
+- **Units.** The lab works in metres on a 1.08 m blade; a stock blade is 40 units, so a
+  unit is 0.027 m (`LAB_METRE`, `blade_lab_designs::METRE`). `lab_place` turns the glow
+  quad's place into the lab's: along the blade as on the blade itself (foreshortening
+  undone), across and the distance to the blade's axis as on screen.
+- **The skin.** `LoadedSkin::shown` is the file without its sections (the design draws
+  its own parts, and the afterimages, echo, glints and pulse the CPU makes go too) and
+  with the lab's colour for its trail and light; its uniform carries the design in its
+  last lane (`design`: number, reach, room, solid). A chroma (Comic) turns the lab's
+  colour. The sounds stay the file's. With `cg_saberLabDesigns 0` the files draw them
+  again; the change uploads the skins anew (`sync_saber_skins`).
+- **Glow.** `fragment_glow`/`fragment_main` draw a design's glow quad with `lab_glow`: the
+  lab's blade (`lab_blade`, the lab's `fx` for that design, core and all) faded out at its
+  reach, and its particles (`lab_motes`: sugar glints, bubbles that pop, wax specks,
+  doodled stars, spilled sand, vented sparks, edge sparks, pollen, flames and burning
+  feathers, green motes, the probability cloud), each a slot reborn every life at a new
+  place, never narrower than a pixel. The core line draws nothing for a design.
+- **Solid pass.** `vertex_solid` keeps a design with a solid pass, and `lab_solid` draws
+  the comic blade's cel-shaded body in its black outline and its words (VMMMM! on
+  ignition, SHWOOM!/VWOSH!/ZZAKT! on a swing, KRAKK!/SHZAK!/BZZT! on a clash, in a
+  five-by-six font), the quicksilver mirror column with its beads and drops, the flat
+  obsidian blade, Bleeding Kyber's drops and the monarchs, which sit on the blade, fly off
+  on a swing and land again once it is still.
+- **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
+  since its last swing began reach the shader per instance (`motion`, location 10;
+  [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
+  trail state: the swing follows the tip's speed as the lab's did (a full swing at its
+  5.5 m/s), a clash is one whose flare latched within 12 units of the blade
+  (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
+  Thrown and menu blades are still.
+- **Left out.** What grew out of the blade in the lab is not drawn: Quantum's two ghost
+  copies at other angles and the Phoenix's wings. The lab's bloom pass is not; its halos
+  are the shader's own.
+
+An ignored GPU test (`blade_lab_designs_gpu_test.rs`) renders every design still, mid-
+swing and after a clash, checks the blade is lit and the picture's corner dark, and saves
+the pictures to the folder `SJK_LAB_PREVIEW` names.
+
 ## Saber trails
 
 A blade grows and shrinks as it is switched on and off after

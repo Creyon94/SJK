@@ -98,6 +98,9 @@ pub(crate) fn submit(
             );
             let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
             let flicker = saber::Flicker::sample(key, presentation_time);
+            let motion = state
+                .motion
+                .record(blade, presentation_time, length < hilt_blade.length);
             saber_instances.extend(
                 Instance::pair_flickering(blade, color, hilt_blade.length, flicker).map(|i| {
                     i.with_contact(
@@ -108,6 +111,7 @@ pub(crate) fn submit(
                         hilt.no_dlight,
                     )
                     .with_animation(presentation_time as f64 * 0.001, key as u32)
+                    .with_motion(motion)
                 }),
             );
             saber_instances.extend(saber::skin_extras(

@@ -248,8 +248,8 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 95 `vec4`s (1520 bytes, so
-/// the [`MAX_SKINS`] array is 389120 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 96 `vec4`s (1536 bytes, so
+/// the [`MAX_SKINS`] array is 393216 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -350,6 +350,9 @@ pub(crate) struct SkinUniform {
     ink_more: [f32; 4],
     chrome_color: [f32; 4],
     chrome_shape: [f32; 4],
+    /// The Blade Lab design it is drawn as ([`crate::blade_lab_designs::Design::lane`]);
+    /// zeros for every other skin.
+    design: [f32; 4],
 }
 
 impl SkinUniform {
@@ -611,6 +614,10 @@ pub(crate) struct LoadedSkin {
     /// The catalogue's id of the unlock it is.
     pub(crate) id: &'static str,
     pub(crate) def: BladeSkinDef,
+    /// Its Blade Lab design, if it has one, and `def` as the design draws it
+    /// ([`crate::blade_lab_designs`]).
+    pub(crate) design: Option<&'static crate::blade_lab_designs::Design>,
+    designed: Option<Box<BladeSkinDef>>,
     /// Its glow and core images, RGBA.
     pub(crate) glow: image::RgbaImage,
     pub(crate) core: image::RgbaImage,
@@ -637,12 +644,28 @@ impl LoadedSkin {
         let core = image(&def.core_image, crate::saber_rgb::core_size(), |def| {
             crate::saber_rgb::generated_core(def.core_profile)
         })?;
+        let design = crate::blade_lab_designs::of(id);
         Ok(Self {
             id,
+            designed: design.map(|design| Box::new(design.shown(&def))),
+            design,
             def,
             glow,
             core,
         })
+    }
+
+    /// Its design, while `cg_saberLabDesigns` draws the designs.
+    pub(crate) fn design_shown(&self) -> Option<&'static crate::blade_lab_designs::Design> {
+        self.design.filter(|_| crate::blade_lab_designs::enabled())
+    }
+
+    /// Its file as drawn: as its design draws it while the designs are drawn.
+    pub(crate) fn shown(&self) -> &BladeSkinDef {
+        match &self.designed {
+            Some(designed) if crate::blade_lab_designs::enabled() => designed,
+            _ => &self.def,
+        }
     }
 
     /// How far a blade whose stock colour is `stock` turns its colours: a chroma's turn
@@ -655,17 +678,18 @@ impl LoadedSkin {
     /// the options in `off` switched off.
     fn color(&self, index: u8, off: crate::saber_skin_options::OptionsOff) -> SkinColor {
         use crate::blade_skin_file::extras::Section;
-        let off = self.def.off_mask(off);
+        let def = self.shown();
+        let off = def.off_mask(off);
         let on = |section: Section| off & section.bit() == 0;
-        let flicker = &self.def.light.flicker;
+        let flicker = &def.light.flicker;
         let mut waves = [[0.0; 3]; 2];
         for (slot, wave) in waves.iter_mut().zip(&flicker.waves) {
             *slot = [wave.rate, wave.weight, wave.phase];
         }
         SkinColor {
             index,
-            trail: self.def.trail,
-            light: self.def.light.color,
+            trail: def.trail,
+            light: def.light.color,
             flicker: LightFlicker {
                 amount: flicker.amount,
                 waves,
@@ -698,14 +722,20 @@ impl LoadedSkin {
             persona: crate::saber_persona::Persona::default(),
             chroma: Chroma {
                 base: crate::unlockables::is_chroma(self.id)
-                    .then(|| {
-                        hue_of(self.def.corona.rim_cool).or_else(|| hue_of(self.def.light.color))
+                    .then(|| match self.design_shown() {
+                        // The design's colour is what the shader turns.
+                        Some(design) => hue_of(design.color),
+                        None => hue_of(def.corona.rim_cool).or_else(|| hue_of(def.light.color)),
                     })
                     .flatten(),
                 turn: 0.0,
             },
             off,
-            room: self.def.room(off),
+            // A design's quad reaches its glow's reach and its particles' room
+            // (`saber.wgsl` `blade_vertex`).
+            room: self.design_shown().map_or(def.room(off), |design| {
+                design.reach.max(design.room) / crate::blade_lab_designs::METRE
+            }),
             star: self
                 .def
                 .star
@@ -717,7 +747,7 @@ impl LoadedSkin {
                         .filter(|_| on(Section::Holes))
                         .map(|holes| holes.reach())
                 })
-                .map(|length| match self.def.orbit {
+                .map(|length| match def.orbit {
                     Some(orbit) => Glint {
                         length,
                         at: orbit.at,
@@ -731,7 +761,7 @@ impl LoadedSkin {
                         reach: 0.0,
                     },
                 }),
-            echo: self.def.echo.filter(|_| on(Section::Echo)),
+            echo: def.echo.filter(|_| on(Section::Echo)),
         }
     }
 
@@ -875,7 +905,10 @@ impl LoadedSkins {
     pub(crate) fn uniforms(&self) -> Vec<SkinUniform> {
         let mut uniforms = vec![SkinUniform::default(); MAX_SKINS];
         for (uniform, skin) in uniforms.iter_mut().zip(&self.skins) {
-            *uniform = SkinUniform::of(&skin.def);
+            *uniform = SkinUniform::of(skin.shown());
+            if let Some(design) = skin.design_shown() {
+                uniform.design = design.lane();
+            }
         }
         uniforms
     }
@@ -886,7 +919,7 @@ impl LoadedSkins {
     pub(crate) fn takes_ambient(&self, index: u8) -> bool {
         self.skins
             .get(usize::from(index))
-            .is_some_and(|skin| skin.def.ambient.is_some())
+            .is_some_and(|skin| skin.shown().ambient.is_some())
     }
 
     /// The skins' sound sets in their numbers' order, for the audio adapter.
@@ -1081,7 +1114,9 @@ impl GpuState {
         game_audio: &mut Option<GameAudio>,
         presentation_time: i64,
     ) {
-        if crate::sjk_packs::generation() != self.blade_skins.generation() {
+        // `cg_saberLabDesigns` changes what the loaded skins draw: upload them again.
+        let designs = crate::blade_lab_designs::set_enabled(self.console.as_ref());
+        if designs || crate::sjk_packs::generation() != self.blade_skins.generation() {
             self.blade_skins = crate::sjk_packs::skins();
             self.saber_gpu
                 .upload_skins(&self.device, &self.queue, &self.blade_skins);

@@ -1,3 +1,22 @@
+## Blade Lab designs in game
+
+18/10/2026, `feat/blade-lab-designs`, based on `Sol-Vulpes/SJK` `1c8887f7`
+(Creyon's review of the fourteen Blade Lab skins, with videos of the lab and the
+game): implemented the lab's own shaders for Peppermint, Soap Bubble, Lava Lamp,
+Sketch, Hourglass, Comic, Quicksilver, Reactor, Obsidian Edge, Bleeding Kyber,
+Monarch, Phoenix, Serpent and Quantum, with their particles, the comic, quicksilver
+and obsidian solids, the comic words and the monarchs; a per-blade swing, ignition and
+clash for them; `cg_saberLabDesigns` (default on) to draw the files instead. Quantum's
+copies and the Phoenix's wings are left out. See
+[rendering](rendering.md#blade-lab-designs).
+
+Workspace fmt/build/test passed on Linux x86_64; clippy adds no warning. Tests pin the
+table against the catalogue and the shader's numbers, the new lane, the motion's swing,
+ignition and clash, and the settings row; `saber.wgsl` validates with naga. The ignored
+GPU test renders every design on llvmpipe (GL) and passed. Not yet compared in a live
+match; the sounds are still the skin files' (a separate change, the files are in the
+hub's pack).
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`

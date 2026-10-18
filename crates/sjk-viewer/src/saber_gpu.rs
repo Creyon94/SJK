@@ -323,9 +323,11 @@ impl Runtime {
             0,
             bytemuck::cast_slice(&skins.uniforms()),
         );
-        self.any_haze = skins.iter().any(|(_, skin)| skin.def.haze.is_some());
-        self.any_holes = skins.iter().any(|(_, skin)| skin.def.holes.is_some());
-        self.any_solids = skins.iter().any(|(_, skin)| skin.def.solids().any());
+        self.any_haze = skins.iter().any(|(_, skin)| skin.shown().haze.is_some());
+        self.any_holes = skins.iter().any(|(_, skin)| skin.shown().holes.is_some());
+        self.any_solids = skins.iter().any(|(_, skin)| {
+            skin.shown().solids().any() || skin.design_shown().is_some_and(|design| design.solid)
+        });
         for (index, skin) in skins.iter() {
             self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
                 saber::material(

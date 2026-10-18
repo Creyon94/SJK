@@ -96,6 +96,8 @@ pub(crate) fn latch_clash_flare(
     let latches = sjk_client::legacy_impact_latches_saber_flare(impact);
     if latches {
         clash_flare.observe(impact.origin, server_time);
+        // The blades near it clash too (the Blade Lab designs answer it).
+        crate::saber_motion::note_clash(impact.origin);
     }
     latches
 }

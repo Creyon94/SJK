@@ -443,6 +443,10 @@ from the looks.
   trail and light colours and the light's flicker (and hue, when it turns) are the
   file's. Retail and RGB blades are unchanged. A skin whose pack is not loaded (no hub
   yet, a client offline that never had it) is the stock blade, sounds too.
+- The fourteen skins from Creyon's Blade Lab (Peppermint to Quantum) are drawn by the
+  lab's own shaders while `cg_saberLabDesigns` is on (the default), not from their
+  files' sections; their trail and light take the lab's colours, their sounds stay the
+  files' ([rendering.md](rendering.md#blade-lab-designs)).
 - A skinned blade ends round (09/10/2026; Sol saw the Sun's tip square). The core line
   is a flat quad from behind the hilt to the tip, and the generated core's fringe is
   still about a fifth of its brightness at the quad's edges and end, so its end and
