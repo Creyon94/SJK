@@ -596,8 +596,9 @@ impl InGameMenu {
         // the SJK UI says so under it. Siege's side step dims Spectate while
         // watching.
         for row in 0..self.row_count {
-            self.enabled[row] &= !current_team_row(view, row)
-                && !(view.page == Page::Siege && self.siege.current_row(row));
+            let taken = current_team_row(view, row)
+                || (view.page == Page::Siege && self.siege.current_row(row));
+            self.enabled[row] &= !taken;
         }
         for (row, mark) in self.marks.iter_mut().enumerate() {
             *mark = match (view.page, view.team_game, row) {
