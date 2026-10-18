@@ -119,7 +119,9 @@ sources explicitly document Stasis/Repulse firing confirmations behind it
 ([cg_xcvar.h](https://github.com/JediofFreedom/JoF_EJK/blob/beta/codemp/cgame/cg_xcvar.h),
 [cg_servercmds.c](https://github.com/JediofFreedom/JoF_EJK/blob/beta/codemp/cgame/cg_servercmds.c)).
 Those client sources do not enumerate the private JoF server's other checks of
-`jofejk`; further server-side effects cannot be certified from them. In
+`jofejk`. Sol (who wrote JoF EJK's side of it) confirmed on 18/10/2026 that the JoF
+server gates all of its abilities on it, plus some quirks that are server-side
+only; that is why it is on by default, as JoF EJK players have it. In
 particular this switch does not advertise `binoScan` or `cg_pickupConfirm`:
 those separately opt into binocular/party data and versioned pickup confirmation,
 and are still not implemented here. The existing `cjp_client` identity stays SJK.
