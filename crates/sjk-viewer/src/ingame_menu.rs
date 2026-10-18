@@ -105,6 +105,9 @@ pub(crate) struct InGameMenu {
     art: ArtSet,
     /// The SJK UI's line under each row (what it opens, who is on a team).
     hints: [String; 24],
+    /// The SJK UI's team mark beside each row (1 red, 2 blue): the team page's
+    /// sides and Siege's.
+    marks: [Option<u8>; 24],
     /// The SJK UI's match card.
     card: sjk_view::Card,
     /// The SJK UI's gold mark along its arc.
@@ -161,6 +164,7 @@ impl InGameMenu {
             style: MenuStyle::default(),
             art: ArtSet::default(),
             hints: std::array::from_fn(|_| String::with_capacity(96)),
+            marks: [None; 24],
             card: sjk_view::Card::default(),
             motion: sjk_view::Motion::default(),
             return_row: 0,
@@ -420,6 +424,8 @@ impl InGameMenu {
             labels: &self.rows[..count],
             hints: &self.hints[..count],
             enabled: &self.enabled[..count],
+            marks: &self.marks[..count],
+            title: (view.page == Page::Siege).then(|| self.siege.title()),
         };
         let mut extras = if main {
             sjk_view::Extras {
@@ -573,7 +579,13 @@ impl InGameMenu {
                 &mut self.enabled,
             )
         } else if view.page == Page::Siege {
-            self.siege.prepare(&mut self.rows)
+            self.siege.prepare(
+                &mut self.rows,
+                siege::Sides {
+                    red_players: view.red_players,
+                    blue_players: view.blue_players,
+                },
+            )
         } else if view.page.is_vote_page() {
             self.callvote.prepare_rows(view.page, &mut self.rows)
         } else {
@@ -583,6 +595,14 @@ impl InGameMenu {
         // the SJK UI says so under it.
         for row in 0..self.row_count {
             self.enabled[row] &= !current_team_row(view, row);
+        }
+        for (row, mark) in self.marks.iter_mut().enumerate() {
+            *mark = match (view.page, view.team_game, row) {
+                (Page::Team, true, 1) => Some(1),
+                (Page::Team, true, 2) => Some(2),
+                (Page::Siege, _, row) => self.siege.mark(row),
+                _ => None,
+            };
         }
         if self.is_sjk() {
             sjk_view::split_hints(

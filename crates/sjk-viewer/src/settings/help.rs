@@ -378,6 +378,10 @@ const HELP: &[(&str, &str)] = &[
         "Hide names, bars and icons on players the server marks as private duellers, including your own plate. Off by default.",
     ),
     (
+        crate::team_sabers::SIEGE_CVAR,
+        "Siege: red and blue players' sabers in their side's colour, shaders worn over it. On by default; off keeps each player's own.",
+    ),
+    (
         "cg_nameplateBars",
         "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
     ),

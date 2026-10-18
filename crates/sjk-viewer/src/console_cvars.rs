@@ -427,6 +427,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "CTF and CTY: draw every red or blue blade in the team's colour",
         ),
         CvarDefinition::new(
+            crate::team_sabers::SIEGE_CVAR,
+            true,
+            archive,
+            "Siege: red and blue players' sabers in their side's colour",
+        ),
+        CvarDefinition::new(
             crate::footprints::PRINTS_CVAR,
             true,
             archive,

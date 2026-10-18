@@ -25,6 +25,13 @@ impl GpuState {
     }
 
     pub(crate) fn back_or_close_game_menu(&mut self) {
+        // A Siege side's classes go back to the side step first, in either look.
+        if self.game_menu_page == GameMenuPage::Siege
+            && let Some(row) = self.in_game_menu.siege_back()
+        {
+            self.game_menu_row = row;
+            return;
+        }
         if self.in_game_menu.is_sjk() {
             // Back to the entry that opened the page.
             self.sjk_back();
@@ -69,7 +76,7 @@ impl GpuState {
                     self.capture_pointer();
                 }
                 ingame_menu::CallVoteAction::Back => self.back_or_close_game_menu(),
-                _ => self.game_menu_row = 0,
+                _ => self.game_menu_row = self.in_game_menu.siege_row(),
             },
             GameMenuPage::About => self.open_game_menu_page(GameMenuPage::Main),
             GameMenuPage::Sjk => self.activate_sjk_row(),
@@ -245,6 +252,7 @@ impl GpuState {
                 self.release_pointer();
                 self.game_menu = true;
                 self.open_game_menu_page(GameMenuPage::Siege);
+                self.game_menu_row = self.in_game_menu.siege_row();
             }
             Err(error) => {
                 crate::log::progress(format_args!("Siege class selection: {error}"));

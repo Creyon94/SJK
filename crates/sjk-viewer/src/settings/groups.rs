@@ -271,6 +271,7 @@ impl Group {
                 "cg_saberTrail",
                 crate::team_sabers::TEAM_COLORS_CVAR,
                 crate::team_sabers::CVAR,
+                crate::team_sabers::SIEGE_CVAR,
                 crate::saber_rgb::black::CVAR,
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",

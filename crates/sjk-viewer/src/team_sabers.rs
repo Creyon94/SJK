@@ -1,4 +1,4 @@
-//! Team saber colours, two settings:
+//! Team saber colours, three settings:
 //!
 //! - `cg_saberTeamColors` (archived, default 1), JoF EJK's: in team gametypes other than
 //!   siege and jedi-vs-merc a red player's blades are red and a blue player's blue
@@ -10,6 +10,10 @@
 //!   option at the merge, Sol's choice 17/10/2026): in capture the flag and capture the
 //!   ysalamiri every red or blue player's blades are drawn in the team's stock colour with
 //!   no blade shader over them (`sjk_client::legacy_team_blade`).
+//! - `cg_siegeTeamSabers` (archived, on by default; Slash's request, 17/10/2026): in Siege,
+//!   which EJK's rule leaves out, a red player's blades are red and a blue player's blue,
+//!   the blade skin worn over the colour as under `cg_saberTeamColors`
+//!   (`sjk_client::legacy_siege_team_blade`).
 
 use crate::console::ViewerConsole;
 use sjk_protocol::GameState;
@@ -21,14 +25,19 @@ const LOOKUP: &str = "cg_ctfteamsabers";
 /// The archived JoF EJK setting.
 pub(crate) const TEAM_COLORS_CVAR: &str = "cg_saberTeamColors";
 const TEAM_COLORS_LOOKUP: &str = "cg_saberteamcolors";
+/// The archived Siege setting.
+pub(crate) const SIEGE_CVAR: &str = "cg_siegeTeamSabers";
+const SIEGE_LOOKUP: &str = "cg_siegeteamsabers";
 
-/// The two settings, read once a frame.
+/// The three settings, read once a frame.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Settings {
     /// `cg_ctfTeamSabers`.
     pub(crate) ctf: bool,
     /// `cg_saberTeamColors`: every blade, not only the other team's or an extended one.
     pub(crate) always: bool,
+    /// `cg_siegeTeamSabers`.
+    pub(crate) siege: bool,
 }
 
 impl Settings {
@@ -40,6 +49,9 @@ impl Settings {
                 .unwrap_or(false),
             always: console
                 .and_then(|console| console.bool_cvar(TEAM_COLORS_LOOKUP))
+                .unwrap_or(true),
+            siege: console
+                .and_then(|console| console.bool_cvar(SIEGE_LOOKUP))
                 .unwrap_or(true),
         }
     }
@@ -72,6 +84,8 @@ impl TeamBlade {
 pub(crate) struct Rules {
     /// `cg_ctfTeamSabers` is on and the game is CTF or CTY.
     ctf: bool,
+    /// `cg_siegeTeamSabers` is on and the game is Siege.
+    siege: bool,
     always: bool,
     policy: sjk_client::TeamColorPolicy,
 }
@@ -81,6 +95,7 @@ impl Rules {
     pub(crate) fn new(settings: Settings, game: &GameState) -> Self {
         Self {
             ctf: settings.ctf && sjk_client::legacy_team_sabers(game),
+            siege: settings.siege && sjk_client::legacy_siege(game),
             always: settings.always,
             policy: sjk_client::TeamColorPolicy::from_game_state(game),
         }
@@ -94,6 +109,12 @@ impl Rules {
             return TeamBlade {
                 colors: [Some(rgb); 2],
                 plain: true,
+            };
+        }
+        if self.siege {
+            return TeamBlade {
+                colors: [sjk_client::legacy_siege_team_blade(game, client); 2],
+                plain: false,
             };
         }
         TeamBlade {
@@ -183,5 +204,34 @@ mod tests {
         );
         // Team FFA is not CTF: the skin stays.
         assert!(!blades(Some(&console), Some(&game(br"\g_gametype\6")))[3].plain);
+    }
+
+    #[test]
+    fn siege_sides_take_their_colour_unless_turned_off() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut siege = game(br"\g_gametype\7");
+        siege
+            .replace_config_string(1131 + 5, br"\n\Blue\t\2\c1\0\c2\3".to_vec())
+            .unwrap();
+        siege
+            .replace_config_string(1131 + 6, br"\n\Watcher\t\3\c1\2".to_vec())
+            .unwrap();
+        let on = blades(Some(&console), Some(&siege));
+        assert_eq!(
+            on[3],
+            TeamBlade {
+                colors: [Some(RED); 2],
+                plain: false
+            }
+        );
+        assert_eq!(on[5].colors, [Some(BLUE); 2]);
+        assert_eq!(on[6], TeamBlade::default(), "spectators keep their own");
+        // Off, Siege keeps every choice, as in EJK.
+        console.set_cvar(SIEGE_CVAR, "0");
+        assert_eq!(
+            blades(Some(&console), Some(&siege)),
+            [TeamBlade::default(); 32]
+        );
     }
 }
