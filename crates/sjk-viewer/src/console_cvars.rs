@@ -276,6 +276,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Extrapolate remote players and NPCs from snapshot velocity",
         ),
         CvarDefinition::new(
+            crate::duel_visibility::CORPSES_CVAR,
+            1_i64,
+            archive,
+            "Hide dead bodies only while you are in a private duel",
+        ),
+        CvarDefinition::new(
+            crate::duel_visibility::PICKUPS_CVAR,
+            1_i64,
+            archive,
+            "Hide pickups only while you are in a private duel",
+        ),
+        CvarDefinition::new(
             "cg_errorDecay",
             100.0_f64,
             archive,
@@ -932,6 +944,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             false,
             archive,
             "Draw pickup icons instead of models",
+        ),
+        CvarDefinition::new(
+            sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+            "",
+            archive,
+            "Player model names replaced with Kyle; NPCs are unaffected",
+        ),
+        CvarDefinition::new(
+            sjk_client::player_model_eligibility::METADATA_CVAR,
+            true,
+            archive,
+            "Respect installed player-model eligibility metadata",
         ),
         CvarDefinition::new(
             "cg_forceModel",

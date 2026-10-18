@@ -252,6 +252,160 @@ No live listening, peer synchronization or installed-
 asset/server comparison has run. No wire or gameplay changes.
 See [client music](client.md#map-music-synchronization).
 
+## Private-duel world visibility
+
+17/10/2026, `feat/duel-visibility`: the archived `cg_hideCorpsesInDuel` and
+`cg_hidePickupsInDuel` preferences are on by default. They keep `ET_BODY`
+corpses and `ET_ITEM`/`ET_HOLOCRON` pickups respectively out of the presentation
+world only while the local player is in a private duel. Both remain visible
+outside duels, and each override can retain its category during duels. SJK
+Advanced Gameplay and classic Game Options expose both settings; live and demo
+presentation apply changes immediately. A focused unit test covers the default,
+both duel states, health, shield, holocrons and the independent overrides. A
+second regression test covers the dedicated direct-snapshot `ET_ITEM` renderer,
+so its healthpacks follow the pickup preference too. See
+[client](client.md#nameplates). On Linux x86_64 with Rust 1.99.1, formatting,
+the locked workspace build and test suite, workspace all-target Clippy, and the
+locked release viewer build pass; existing warnings remain. The behavior has
+not yet been checked interactively on a live server or in demo playback.
+
+## PM-only game chat
+
+17/10/2026, `feat/pm-only-chat`, based on `bb83eb28`, Windows x86_64,
+Rust 1.99.0: implemented JoF EJK #331's current-map PM-only command and
+shared settings switch, default off. The client marks only `chat` commands, and
+the `lchat` that `G_Say` sends for a tell to a teammate with a location, whose
+first argument starts with the stock tell marker, before display
+cleanup/localization. Chat history visibility and notification audio use that
+classification, including sent echoes; ordinary/team messages and
+lookalike name/body colours do not qualify. Hidden history is retained. Console
+logs/history, centre notices and the independent SJK hub chat remain available.
+Map adoption resets the non-archived choice; graphics reload preserves it.
+Four focused synthetic regressions passed for marker/command classification,
+notification routing/deduplication, command parsing/reset and retained history.
+Workspace formatting, locked build/tests (including documentation tests) and
+all-target Clippy passed; existing warnings remain. The current PM-only choice
+is also applied before newly loaded sound tables replay queued chat. No live server, audible comparison or
+installed-asset/GPU check was performed. Wire encoding and server rules are unchanged.
+See [client chat behavior](client.md).
+
+## Player model eligibility
+
+17/10/2026, `feat/model-eligibility`, based on `bb83eb28`, Windows:
+implemented EJK #126's content-authored `notInMP` settings and merged model
+blacklist files, plus the archived local blacklist and metadata override.
+Both profile pickers, initial/live player loads and copied corpses (Kyle in the
+body's team skin) share the policy; overrides
+are resolved before eligibility and NPC model loading bypasses it. World-owned
+metadata is parsed at installation and reused for clientinfo refresh. Idle
+frames only compare normalized cvar values; no policy parsing or VFS reads run
+in actor submission. Retail ownership/counts remain independent of restrictions.
+Both settings interfaces include the text field and metadata switch.
+Six synthetic metadata/catalogue/player-scope regressions passed, including
+rapid-option stale-result rejection and red/blue fallback before team skins.
+Final workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed-pack/player/NPC visuals and live model changes remain unverified.
+No protocol encoding, animation, movement or gameplay changes.
+See [player models](client.md#player-models).
+
+## Breakables used by name, delayed breaks, sabers on objectives
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: on siege_korriban, after the crystals were
+placed a laser pointed at the next door and the door could not be destroyed. Three gaps
+on the server, after OpenJK `g_mover.c` and `g_combat.c`:
+
+- A `func_breakable` used by name (`funcBBrushUse`) never came apart: `breakables::used`
+  had no caller. `G_UseTargets` now reaches them; an `INVINCIBLE` one breaks too, and a
+  `USE_NOT_BREAK` one fires its targets.
+- One with a `delay`, broken by a blow or a use, was left `Breaking` for good: nothing
+  ran its `funcBBrushDieGo`. `run_breakables` does each frame.
+- A saber blow only hurt players, NPCs and breakables. A siege item with health and a
+  door or button with `health` (opened when struck at rest, `GlobalUse`) are now hurt
+  by it; any blow that reaches `hurt_brush` opens such a door.
+
+A breakable's targets now fire whoever broke it (`G_Damage` makes a missing attacker
+the world), so one broken by an NPC, a turret or after its delay fires them too, with
+the player who broke it, if one did, as their activator (`self->enemy`); its
+chunks fly from where the breaker stood (`breaker`), straight up when unknown. A
+missile that carries no damage hurts nothing; a door with health opens whichever part of
+its team is struck (a plat never, as `SP_func_plat` gives none `takedamage`); an `INACTIVE` `func_usable` is passed by, and `ALWAYS_ON` ones wake
+every frame. The reporter confirmed the korriban door broke after the laser. Four unit
+tests pin `funcBBrushUse` and the targets; the touched crates' tests pass on Linux. That the
+korriban door is a breakable used by name is inferred from the report (the laser), not
+checked against the map, which is not here. Not done: `func_static`s pushed or pulled
+(`F_PUSH`/`F_PULL`), a breakable's `teamnodmg`, the use key on `PLAYER_USE` breakables.
+
+## func_usable toggled by name
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: after the push/pull change below, the
+reporter could open siege_korriban's blue crystal and still had the green, but the red
+one kept an invisible wall after its satellites were destroyed. The server never used a
+`func_usable` by name (`fire_targets` skipped them) and the use key only fired its
+target. Implemented `func_usable_use` (OpenJK `g_mover.c:3070-3126`); see
+[client](client.md). Two unit tests pin the toggle and `ALWAYS_ON`'s wait; the
+touched crates' clippy and tests pass on Linux. That the red crystal's wall is a
+`func_usable` is inferred from the report and not checked against the map's entities.
+Checked open pull requests in `Sol-Vulpes/SJK` (#132, #142, #143, #150): none touches
+movers, `func_usable` or the push and pull.
+
+## Force push and pull on doors and buttons
+
+17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`, merged with `1c8887f7`
+(report: siege_korriban's red crystal could not be taken and the blue crystal's lift
+did not move, the green one worked): implemented, after OpenJK `codemp/game/w_force.c`
+`ForceThrow` (`:3209-3237`, `:3584-3663`), the movers' part of a push or pull on the
+server. A `func_door` with `MOVER_FORCE_ACTIVATE` (spawnflag 2) at rest is reached as
+the reference reaches it (no PVS test for a brush) and, when aimed at straight from
+the eyes, a push moves it to whichever of its two places is further from the thrower
+and a pull to the nearer (`GEntity_UseFunc`); a `func_button` with
+`SPF_BUTTON_FPUSHABLE` is pressed by a push at rest (`Touch_Button`). The used movers
+run `use_mover` once the throw is over, firing their targets as the use key does. A
+throw's traces now meet the level's brushes (doors, lifts, breakables, scripted
+brushes, solid `func_usable` walls), as `MASK_SHOT` does in the reference, so a closed door also stops a push
+on a player behind it. `func_static`s with `F_PUSH`/`F_PULL` are still not moved.
+
+fmt, and clippy and the tests of `sjk-game-jka` and `sjk-dedicated`, passed on Linux
+x86_64; the workspace build stops in this container at `alsa-sys` (no ALSA
+development files). Four unit tests pin the push/pull choice, the aim, a moving door
+and the button rules. siege_korriban's entity lump was not inspected (no retail data
+here): that its crystal rooms open by push and pull is the likely cause of the report,
+not a verified one, and it was not played.
+
+## Siege respawn waves and map messages
+
+17/10/2026, `claude/nifty-brahmagupta-mbtppb`, based on `Sol-Vulpes/SJK` `bb83eb2`
+(player report: stuck out of a native siege game with bots after two or three deaths;
+`siege_korr_print_1` shown when the Korriban gates fall). Fixed, after OpenJK `codemp`:
+
+- A player waiting for its respawn wave who pressed attack followed through
+  `set_team_to`, which skipped `SetTeam`'s siege branch and made it a real spectator
+  with `tempSpectate` still set; the wave skips spectators, and a later spawn with the
+  stale value came in "not playing" (invisible, unarmed, unhurtable). The root cause
+  was `spectator_buttons`, which lacked `SpectatorThink`'s
+  `if (client->tempSpectate < level.time)` around all its buttons (`g_active.c`): as
+  in JKA, a player waiting for its wave can no longer follow or stop following with
+  attack, alternate attack or jump (the buttons are still tracked, so one held through
+  the wait is no press after it). `set_team_to` now runs `SetTeam`'s siege branch too
+  (a waiting player is not made a spectator, by `forceteam` either), and
+  `spectate_to_follow` starts the five-second team-change wait only when the team
+  really became spectator. A spawn clears a `tempSpectate` that is over (one still
+  running, as at a `ClientBegin` mid-wait, lasts until the wave, as in the reference)
+  and the follow state of a player spawning on a side; following tests `sessionTeam`,
+  as `SpectatorClientEndFrame` does, so a spectator following a player who dies keeps
+  following them through the wait.
+- `target_print` honours its spawnflags (activator alone, red and/or blue) and sends a
+  single-`@` message as `cps`; the client resolves `cps` against every
+  `strings/english/*.str` table, the map's included, as `<FILE>_<KEY>` without case.
+  `target_delay` keeps its activator for its think (`Use_Target_Delay`), which used to
+  be slot 0.
+
+The native server's bridge has no test harness yet: unit tests pin only the wave
+guard's time test, `target_print`'s spawnflags (`map_targets`) and the client's
+`cps` key rewrite.
+
+Workspace fmt, build, clippy (no new warnings) and tests passed on Linux x86_64; a unit
+test pins the map-table lookup. Not exercised in a live siege match.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

@@ -223,6 +223,23 @@ impl Session {
         self.adapter.set_smooth_clients(enabled);
     }
 
+    /// Apply local duel-world visibility preferences immediately, including
+    /// while a demo is paused on its first or last snapshot.
+    pub(crate) fn set_duel_visibility(&mut self, corpses: bool, pickups: bool) {
+        let corpses_changed = self.adapter.set_hide_corpses_in_duel(corpses);
+        let pickups_changed = self.adapter.set_hide_pickups_in_duel(pickups);
+        if !corpses_changed && !pickups_changed {
+            return;
+        }
+        self.adapter.apply_snapshot(
+            self.stream
+                .latest_snapshot()
+                .expect("an open demo retains its current snapshot"),
+            self.stream.game_state(),
+            &mut self.world,
+        );
+    }
+
     /// Open and prime a demo at its first authoritative snapshot.
     pub(crate) fn open(path: &Path, camera: Camera, fps: u32) -> Result<Self, Box<dyn Error>> {
         let mut stream = DemoPlayback::new(BufReader::new(File::open(path)?))?;

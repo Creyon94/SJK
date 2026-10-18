@@ -37,6 +37,7 @@ mod client_state;
 mod clientinfo_refresh;
 mod debug_collectibles;
 mod duel_ghost;
+mod duel_visibility;
 mod economy;
 mod editions;
 mod entity_view;
@@ -826,11 +827,19 @@ impl GpuState {
         let player_animation = player_preview
             .map(|preview| GpuPlayerAnimation::append(&mut flattened, preview))
             .transpose()?;
+        let clientinfo_watch = clientinfo_refresh::ClientInfoWatch::new(&vfs);
         let mut actor_meshes = if session_active {
             let active_world = demo_session
                 .as_ref()
                 .map_or(&live_world, demo_playback::Session::world);
-            actor_load::load_actor_meshes(&vfs, active_game_state, active_world, &mut flattened)?
+            actor_load::load_actor_meshes(
+                &vfs,
+                active_game_state,
+                active_world,
+                &mut flattened,
+                &clientinfo_watch.model_policy,
+                console.as_ref(),
+            )?
         } else {
             Vec::new()
         };
@@ -1403,7 +1412,7 @@ impl GpuState {
             bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
-            clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
+            clientinfo_watch,
             config_string_refresh,
             black_sabers: Default::default(),
             holster_server: Default::default(),
@@ -2306,8 +2315,14 @@ impl GpuState {
             }
             projectiles::collect(snapshot, presentation_time as i32, &mut self.projectiles);
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
-            self.local_prediction
-                .pickups(snapshot, presentation_time as i32, &mut self.pickups);
+            self.local_prediction.pickups(
+                snapshot,
+                presentation_time as i32,
+                self.console
+                    .as_ref()
+                    .is_none_or(console::ViewerConsole::hide_pickups_in_duel),
+                &mut self.pickups,
+            );
             trip_mine_lasers::spawn(
                 &mut self.trip_mine_beams,
                 snapshot,

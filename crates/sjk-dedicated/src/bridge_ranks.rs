@@ -105,7 +105,9 @@ impl NativeGame {
                     persistant: peer.state.persistent.map(|value| value as i32),
                     ping: peer.ping,
                     enter_time: peer.enter_time,
-                    powerups: 0,
+                    // `g_entities[...].s.powerups` in `DeathmatchScoreboardMessage`
+                    // (`g_cmds.c`): the scoreboard's carried-flag icons read these bits.
+                    powerups: sjk_game_jka::player_entity::powerup_bits(&peer.state),
                     accuracy: peer.accuracy,
                 })
             })

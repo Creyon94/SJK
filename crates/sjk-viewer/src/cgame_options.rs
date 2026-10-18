@@ -14,6 +14,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         CvarFlags::ARCHIVE,
         "Red neck puffs on choking Grip victims; hidden on the viewed player in first person or zoom",
     ))?;
+    cvars.register(CvarDefinition::new(
+        crate::chat::pm_only::CVAR,
+        false,
+        CvarFlags::NONE,
+        "Show only private game-server chat for this map; SJK hub chat is independent",
+    ))?;
     for (name, value, help) in [
         (
             "cg_chatBox",

@@ -29,6 +29,7 @@ mod demo_recorder;
 pub mod download;
 mod download_session;
 mod duel_isolation;
+pub mod player_model_eligibility;
 pub use duel_isolation::duel_passes_through;
 mod duel_look;
 pub use duel_look::{DuelActor, DuelViewer, legacy_duel_ghost, legacy_duel_tint};
@@ -144,7 +145,7 @@ pub fn legacy_death_animation(clip: usize) -> bool {
 }
 pub use asset_catalog::{
     LEGACY_SABER_COLORS, LegacyAssetCatalog, LegacyAssetCatalogLoader, LegacyCatalogStatus,
-    legacy_asset_catalog,
+    legacy_asset_catalog, legacy_asset_catalog_with_model_policy,
 };
 pub use base_server_commands::{
     BaseServerCommandEvent, BodyIdentity, ForceRankUpdate, Ghoul2Restore, ImmediateBodyCopy,
@@ -152,7 +153,7 @@ pub use base_server_commands::{
 };
 pub use character_catalog::{
     LegacyCharacter, LegacyCharacterCatalog, LegacySpecies, LegacySpeciesColor,
-    legacy_character_catalog,
+    legacy_character_catalog, legacy_character_catalog_with_policy,
 };
 pub use chat::{
     CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, chat_body, chat_command,
@@ -235,8 +236,8 @@ pub use player_angles::{
     LegacyPlayerAngleController, LegacyPlayerAngleInputs, LegacyPlayerAngleSample,
 };
 pub use player_identity::{
-    legacy_client_appearance, legacy_client_appearance_forced, legacy_client_saber_name,
-    legacy_client_saber_names,
+    legacy_client_appearance, legacy_client_appearance_forced,
+    legacy_client_appearance_with_policy, legacy_client_saber_name, legacy_client_saber_names,
 };
 pub use player_lookup::{PlayerLookup, lookup_player};
 pub use player_profile::{
@@ -350,6 +351,8 @@ pub struct ServerEvent {
     pub text: String,
     /// Sender slot emitted by codemp's G_SayTo, absent for system/older-mod text.
     pub sender: Option<u16>,
+    /// Stock tell marker on a non-localized `chat` command, before display cleanup.
+    pub is_private: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1169,15 +1172,19 @@ impl ClientSession {
         }
         let event_kind = match name {
             b"print" => Some(ServerEventKind::Print),
-            b"cp" => Some(ServerEventKind::CenterPrint),
+            b"cp" | b"cps" => Some(ServerEventKind::CenterPrint),
             _ => None,
         };
         if let Some(kind) = event_kind {
-            let text = server_text(arguments.get(1..).unwrap_or_default());
+            let mut text = server_text(arguments.get(1..).unwrap_or_default());
+            if name == b"cps" {
+                text = cps_key(&text);
+            }
             self.events.push_back(ServerEvent {
                 kind,
                 text,
                 sender: None,
+                is_private: false,
             });
             return Ok(());
         }
@@ -1719,3 +1726,25 @@ mod server_text_tests {
 
 mod voice_lines;
 pub use voice_lines::LegacyVoiceLine;
+
+/// `cps` (`cg_servercmds.c`): a centre print naming a string-table entry, `@FILE_KEY`
+/// as `target_print` sends it, turned into the `@@@` reference the viewer resolves.
+fn cps_key(text: &str) -> String {
+    let key = text.trim();
+    format!(
+        "@@@{}",
+        key.strip_prefix('@').unwrap_or(key).to_ascii_uppercase()
+    )
+}
+
+#[cfg(test)]
+mod cps_tests {
+    use super::cps_key;
+
+    #[test]
+    fn a_cps_key_becomes_an_upper_case_string_reference() {
+        assert_eq!(cps_key("@siege_korr_print_1"), "@@@SIEGE_KORR_PRINT_1");
+        assert_eq!(cps_key(" @Siege_Gate "), "@@@SIEGE_GATE");
+        assert_eq!(cps_key("SIEGE_GATE"), "@@@SIEGE_GATE");
+    }
+}

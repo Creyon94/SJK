@@ -558,13 +558,25 @@ impl NativeGame {
             } else if self.npcs.roster.is_npc(blow.victim) {
                 self.npc_surface_location(blow.victim, blow.flags, blow.spot, level_time)
             } else {
-                let _ = self.hurt_brush(
+                if !self.hurt_brush(
                     blow.victim,
                     blow.damage,
                     MOD_SABER,
                     client as u16,
                     level_time,
-                );
+                ) {
+                    // A siege item (`G_Damage` on it, `bridge_siege_items`).
+                    let request = DamageRequest {
+                        level_time,
+                        attacker: Some(attacker),
+                        direction: Some(blow.direction),
+                        point: Some(blow.spot),
+                        damage: blow.damage,
+                        flags: blow.flags,
+                        means: MOD_SABER,
+                    };
+                    let _ = self.strike_siege_item(blow.victim, request);
+                }
                 continue;
             };
             let request = DamageRequest {
@@ -777,16 +789,19 @@ impl SaberTargets for BladeTargets<'_> {
             if let Some(npc) = game.npc_saber_victim(number, self.swinger) {
                 return Some(npc);
             }
-            // A breakable brush; a saber entity is not a victim but a saber owner.
-            return game
+            // A breakable brush, a door or button with health, or a siege item that can be
+            // struck; a saber entity is not a victim but a saber owner.
+            let brush = game
                 .breakables
                 .iter()
                 .any(|(ours, _)| ours.legacy_number() == number)
-                .then_some(SaberVictim {
-                    takes_damage: true,
-                    health: 1,
-                    ..SaberVictim::default()
-                });
+                || game.shootable_mover(number).is_some()
+                || game.siege_item_struck(number);
+            return brush.then_some(SaberVictim {
+                takes_damage: true,
+                health: 1,
+                ..SaberVictim::default()
+            });
         }
         let peer = game.peer(usize::from(number))?;
         let swinger = game.peer(self.swinger)?;

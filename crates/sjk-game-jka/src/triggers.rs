@@ -1107,11 +1107,12 @@ pub fn fire_multiple(
 #[derive(Clone, Debug, PartialEq)]
 pub enum Target {
     /// `target_print`: the message, and who is told — the activator alone (spawnflag 4),
-    /// a team (1 or 2), or everyone.
+    /// the red team (spawnflag 1) and/or the blue one (2), or everyone.
     Print {
         message: String,
         to_activator: bool,
-        team: Option<u8>,
+        /// Spawnflags 1 and 2: bit 0 red, bit 1 blue; none means everyone.
+        teams: u8,
     },
     /// `target_speaker`: the sound, and how it is played (a looping toggle at 3, on the
     /// activator at 8, everywhere at 4, else on itself).
@@ -1154,11 +1155,7 @@ pub fn map_targets(
             "target_print" => Target::Print {
                 message: entity.get("message").unwrap_or_default().to_owned(),
                 to_activator: spawnflags & 4 != 0,
-                team: match spawnflags & 3 {
-                    1 => Some(1),
-                    2 => Some(2),
-                    _ => None,
-                },
+                teams: (spawnflags & 3) as u8,
             },
             "target_speaker" => Target::Speaker {
                 noise: entity.get("noise").map_or(0, |noise| sound(noise)),
@@ -1192,4 +1189,42 @@ pub fn map_targets(
         targets.push((name, target));
     }
     targets
+}
+
+#[cfg(test)]
+mod print_tests {
+    use super::*;
+
+    fn print(spawnflags: &str) -> Target {
+        let text = format!(
+            "{{\n\"classname\" \"target_print\"\n\"targetname\" \"gate\"\n\
+             \"message\" \"@SIEGE_GATE\"\n\"spawnflags\" \"{spawnflags}\"\n}}\n"
+        );
+        let entities = sjk_entity::parse_entity_lump(text.as_bytes()).unwrap();
+        let mut targets = map_targets(&entities, &mut |_| 0);
+        assert_eq!(targets.len(), 1);
+        targets.remove(0).1
+    }
+
+    #[test]
+    fn target_print_spawnflags_name_the_red_and_blue_teams_or_the_activator() {
+        for (spawnflags, to_activator, teams) in [
+            ("0", false, 0),
+            ("1", false, 1),
+            ("2", false, 2),
+            ("3", false, 3),
+            ("4", true, 0),
+            ("5", true, 1),
+        ] {
+            assert_eq!(
+                print(spawnflags),
+                Target::Print {
+                    message: "@SIEGE_GATE".to_owned(),
+                    to_activator,
+                    teams,
+                },
+                "spawnflags {spawnflags}"
+            );
+        }
+    }
 }

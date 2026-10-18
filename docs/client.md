@@ -766,6 +766,28 @@ and the page's handling in
 
 ## Player models
 
+Player model eligibility follows JoF EJK #126: `notInMP 1` (any nonzero integer)
+in `models/players/<model>/settings.txt`, or a model named in any visible
+`ext_data/modelblacklist/*.txt`, excludes it from both profile pickers and
+replaces it with Kyle when a player would wear it. This includes your model
+and forced ally/enemy models. Fallback precedes team-skin selection, so team
+players still wear the appropriate red or blue Kyle. NPCs load the same
+restricted model normally.
+Same-named files follow ordinary VFS priority; distinct blacklist files merge.
+Unreadable, empty or oversized optional files are ignored (settings below
+4096 bytes, lists below 16384 bytes). Metadata is cached for the mounted world;
+remount/restart after changing pack files.
+
+Settings > Gameplay > Items and models in either menu style includes
+**Player model blacklist** (`cg_modelBlacklist`, empty by default): names
+separated by spaces, commas or semicolons, case-insensitive; a `/skin` suffix
+matches the whole model. **Respect model metadata** (`cg_modelEligibility`, on)
+can be switched off to ignore pack-authored restrictions; your own blacklist
+still applies. Both preferences are archived and apply to player presentation
+and the next profile catalogue, without rewriting your saved model or changing
+server gameplay. Retail choices remain first under Jedi Academy, with their
+filtered count, and Community follows.
+
 A player's or NPC's appearance (`models/players/<model>/<skin>`) loads its
 `model.glm`, the skeleton the mesh names (`<name>.gla`), that skeleton's
 `animation.cfg` and a skin; if the model cannot be loaded or built, the client
@@ -1554,6 +1576,15 @@ neither placed nor solid), and the use key fires one only when the map made it
 starts off is not sent (`SVF_NOCLIENT`, `EF_NODRAW`); it used to carry `EF_PERMANENT`
 (bit 7) in the place of `EF_NODRAW` (bit 8).
 
+Used, by the use key or by name (`G_UseTargets`, a `target_counter`, a breakable's
+`target`), a `func_usable` runs `func_usable_use`: it goes away (no contents, not sent)
+and fires its `target`, or comes back solid and fires its `target2`; an `ALWAYS_ON` one
+(spawnflag 8) fires its `target` and is out of use for its `wait`, for good without one.
+Until 17/10/2026 a named use never reached one, so a wall a map took down after an
+objective (siege_korriban's red crystal, as reported) stayed solid. Not ported: the
+shader-frame step of one with `endframe`, its use script, spawnflag 16's wait for a
+clear space, and one used by being shot (`health`).
+
 ## Door and mover sounds
 
 A brush entity (a door, lift, button or breakable) has its entity origin at the
@@ -2173,6 +2204,16 @@ counts bytes of its one-byte code page, so the limit counts characters, and a na
 with `×` or `é` (two bytes in UTF-8) in a duel challenge wraps like any other. The scoreboard continues
 to use structured server scores rather than parsing printed statistics tables.
 
+`pmonly` toggles **Game PM-only chat** for the current map; `pmonly on`/`off`
+(and 1/0) select it explicitly. The same default-off switch is in both settings
+styles (`cg_pmOnlyChat`). Only game-server tells with the stock private marker
+before the sender name remain in the overlay and produce a chat notification;
+lookalike names, colours and quoted message bodies cannot mark a public line as
+private. Sent tell echoes qualify too. Existing history is hidden, not erased,
+and returns when the switch is off; console history/logs, centre notices and
+SJK hub chat are independent. Moving to another map resets the choice; a graphics
+reload preserves it. Unmarked private formats from other mods are not guessed.
+
 Chat remains connected to the real server during intermission, including
 global/team/private composer messages and console/bound chat commands. Messages
 received during background loading are retained; its loading notice hides the HUD. The scoreboard reserves a separate left column for messages and the
@@ -2603,7 +2644,9 @@ with `cg_drawTimerMsec`, counting down with `cg_drawTimerCountdown`), right-alig
 480 from the edge, under `cg_drawUpperRight`. Without that option the layouts keep their own
 clock at the top centre (Sol's choice, 12/10/2026); with it that clock steps aside. The
 game-data HUD draws no clock of its own, so `cg_drawTimer` showed nothing there until the
-option existed (Creyon's report, 11/10/2026). The kill feed stands under the stack.
+option existed (Creyon's report, 11/10/2026). The HUD's snapshot line (`cg_drawSnapshot`) and
+inventory stand under these readouts, which used to write over the snapshot line. The
+kill feed stands under the stack.
 
 In SJK's own layouts, health and armour over the maximum (125 health at spawn, up
 to 199 armour from a large shield picked up at 99) show on their meter: the meter
@@ -2637,7 +2680,11 @@ the original cgame reads:
   (`gfx/hud/mpi_bflag` or `mpi_rflag`, the `_ys` pictures in CTY) while your team holds it,
   taken or dropped, and your own flag's `mpi_*flag_x` picture while the enemy holds it. The
   state is `CS_FLAGSTATUS` (config string 23: red then blue, `0` at base, `1` taken, `2`
-  dropped); the caption beside each says TAKEN or DROPPED.
+  dropped); the caption beside each says DROPPED, or for a taken flag its carrier's name
+  (TAKEN while the client does not know who). The carrier comes from the viewed player's
+  state, a player in the snapshot, a teammate's `tinfo` row, then the last carrier seen
+  while the flag stays taken; the name is formatted again only when the carrier or their
+  client info changes, and keeps its colours under `cg_drawCrosshairNamesColours`.
 - While the local player carries a flag (`PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG`
   in the player state, whatever the status string says) the enemy flag's icon stands on a
   gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
@@ -2648,9 +2695,19 @@ the original cgame reads:
   (`-` while the server has not sent one). With them on, the layouts' score line drops its
   trailing team scores (`cg_drawScore 2`), which they replace.
 
-The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name from the
-`scores` command's powerups; they also use the powerups of a player in view in the
-snapshot (and the local player state), for servers whose `scores` list none.
+The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
+`scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
+flag bits follow live state: the viewed player's own state, a player in the snapshot, a
+teammate's `tinfo` row, then the `scores` row; `CS_FLAGSTATUS` clears a flag that is back
+at its base or dropped
+([live_flags.rs](../crates/sjk-viewer/src/scoreboard/live_flags.rs)). SJK's own server
+sends the carriers' powerup bits in `scores` (`bridge_ranks.rs`), as
+`DeathmatchScoreboardMessage` does.
+
+A flag carrier wears the flag on the back (`CG_PlayerFlag`). The local carrier's
+flag comes from its player state, as the server never sends a client its own entity,
+so it shows in third person
+([flag_carrier.rs](../crates/sjk-viewer/src/flag_carrier.rs)).
 
 ## Kill feed
 
@@ -2775,6 +2832,16 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
   [Entity render effects](rendering.md#entity-render-effects)).
+- `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
+  duel) keeps dead bodies out of the presentation world while the local player is
+  in a private duel. It affects `ET_BODY` only: live players and gameplay state are
+  unchanged, and bodies remain visible outside a private duel. Set it to `0` to
+  keep bodies visible during duels too. The archived preference also applies to
+  demo playback.
+- `cg_hidePickupsInDuel` (on; beside the corpse option) similarly hides
+  `ET_ITEM` and `ET_HOLOCRON` presentation during a private duel. That covers
+  health, shield, weapons, ammo, powerups and Force holocrons without changing
+  their server state or pickup behavior. Set it to `0` to keep them visible.
 - **Pilots in a vehicle:** a pilot sealed in a `hideRider` vehicle (a fighter, a
   walker) is `Ghost`ed with `SVF_NOCLIENT` (`g_vehicles.c:1924-1940`), so no snapshot
   carries his entity and the world never presents his body. Like stock's crosshair

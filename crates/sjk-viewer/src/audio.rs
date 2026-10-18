@@ -82,6 +82,7 @@ pub(crate) struct GameAudio {
     /// The last observed snapshot's server time, for a `CS_MUSIC` change.
     last_server_time: Option<i32>,
     chat_beeps: [bool; 2],
+    pm_only_chat: bool,
     deferred_starts: u64,
     maximum_deferred_start_ms: f64,
     /// `cg_footsteps`: whether the footstep event family is voiced.
@@ -186,6 +187,7 @@ impl GameAudio {
             music_start_time: 0,
             last_server_time: None,
             chat_beeps: [true; 2],
+            pm_only_chat: false,
             deferred_starts: 0,
             maximum_deferred_start_ms: 0.0,
             footsteps: true,

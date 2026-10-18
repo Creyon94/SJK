@@ -238,6 +238,8 @@ pub(crate) struct ViewerConsole {
     show_timedelta: crate::net_timing::CvarSetting,
     time_nudge: crate::presentation_clock::CvarSetting,
     smooth_clients: console_cvars::IntegerSetting,
+    hide_corpses_in_duel: console_cvars::IntegerSetting,
+    hide_pickups_in_duel: console_cvars::IntegerSetting,
     draw_fog: console_cvars::IntegerSetting,
     remaps: console_cvars::IntegerSetting,
     /// Changes of `cg_remapsBlockedMaps`, for [`crate::remap_blocked_maps`].
@@ -327,6 +329,16 @@ impl ViewerConsole {
     /// Cached `cg_smoothClients` for live and demo snapshot translation.
     pub(crate) fn smooth_clients(&self) -> bool {
         self.smooth_clients.enabled()
+    }
+
+    /// Cached local corpse-visibility policy for snapshot presentation.
+    pub(crate) fn hide_corpses_in_duel(&self) -> bool {
+        self.hide_corpses_in_duel.enabled()
+    }
+
+    /// Cached local pickup-visibility policy for snapshot presentation.
+    pub(crate) fn hide_pickups_in_duel(&self) -> bool {
+        self.hide_pickups_in_duel.enabled()
     }
 
     /// Cached `cl_showtimedelta` state for the allocation-free runtime read.

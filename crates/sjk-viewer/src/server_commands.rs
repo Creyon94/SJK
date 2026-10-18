@@ -128,10 +128,22 @@ pub(crate) fn consume_messages(
                 if let Some(console) = &mut console {
                     console.push_chat_line(sjk_client::chat_display_text(&text), &text);
                 }
-                chat.receive(event.kind, text, event.sender, Instant::now());
+                chat.receive_classified(
+                    event.kind,
+                    text,
+                    event.sender,
+                    event.is_private,
+                    Instant::now(),
+                );
             }
             sjk_client::ServerEventKind::CenterPrint => {
-                chat.receive(event.kind, text, event.sender, Instant::now());
+                chat.receive_classified(
+                    event.kind,
+                    text,
+                    event.sender,
+                    event.is_private,
+                    Instant::now(),
+                );
             }
         }
     }

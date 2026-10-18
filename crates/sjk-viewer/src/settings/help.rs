@@ -208,6 +208,14 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 
 const HELP: &[(&str, &str)] = &[
     (
+        sjk_client::player_model_eligibility::METADATA_CVAR,
+        "Respect installed NPC-only model declarations and pack lists. Off ignores those rules; your blacklist still applies.",
+    ),
+    (
+        sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        "Model names separated by spaces, commas or semicolons. Players use Kyle instead; NPCs are unaffected.",
+    ),
+    (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
     ),
@@ -303,6 +311,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::audio::music::CVAR,
         "Resume map music by level time on join or after duels. Off restarts it. Dynamic music keeps its own timing.",
+    ),
+    (
+        crate::chat::pm_only::CVAR,
+        "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
@@ -601,6 +613,14 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::duel_ghost::CVAR,
         "On: players in a duel show as see-through blue figures, as on JoF EJK. Off: dark under a blue bubble, as in the base game.",
+    ),
+    (
+        crate::duel_visibility::CORPSES_CVAR,
+        "Hide dead bodies while you are in a private duel. Bodies remain visible outside duels. On by default.",
+    ),
+    (
+        crate::duel_visibility::PICKUPS_CVAR,
+        "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
     ),
     (
         "cg_remaps",

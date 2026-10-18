@@ -565,6 +565,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Game PM-only chat",
+        cvar: crate::chat::pm_only::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Chat text size",
         cvar: "cg_chatBoxFontSize",
         kind: ValueKind::Float {
@@ -675,6 +680,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Respect model metadata",
+        cvar: sjk_client::player_model_eligibility::METADATA_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Player model blacklist",
+        cvar: sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Saber trail",
         cvar: "cg_saberTrail",
         kind: ValueKind::Bool,
@@ -755,6 +770,16 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "Duel figures (JoF)",
         cvar: crate::duel_ghost::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide corpses in duel",
+        cvar: crate::duel_visibility::CORPSES_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide pickups in duel",
+        cvar: crate::duel_visibility::PICKUPS_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
