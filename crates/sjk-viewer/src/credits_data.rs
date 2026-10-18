@@ -349,7 +349,10 @@ pub(super) fn parse_all(credits: &str, history: &str) -> Result<Vec<Section>, St
         .flat_map(|card| &card.work)
         .filter(|work| work.reference.starts_with("SJK #"))
         .count();
-    if let Some(sol) = sections.first_mut().and_then(|section| section.cards.first_mut()) {
+    if let Some(sol) = sections
+        .first_mut()
+        .and_then(|section| section.cards.first_mut())
+    {
         sol.reviewed = reviewed;
     }
     Ok(sections)
