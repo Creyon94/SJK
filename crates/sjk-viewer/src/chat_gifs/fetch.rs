@@ -29,6 +29,8 @@ pub(crate) enum Failure {
     Network(String),
     /// The address is not one SJK fetches (never, as it is rebuilt).
     Refused,
+    /// A redirect or a page led to this host, which the player has not trusted.
+    Untrusted(String),
 }
 
 impl std::fmt::Display for Failure {
@@ -38,6 +40,9 @@ impl std::fmt::Display for Failure {
             Self::TooLarge => write!(f, "larger than {} MiB", MAX_BYTES >> 20),
             Self::Network(error) => write!(f, "{error}"),
             Self::Refused => write!(f, "Media source blocked or unsupported; check GIF Sources"),
+            Self::Untrusted(host) => {
+                write!(f, "its media is on {host}, not trusted; check GIF Sources")
+            }
         }
     }
 }

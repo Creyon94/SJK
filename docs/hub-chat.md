@@ -362,7 +362,8 @@ Redirects and media CDN hosts need their own trust. Up to four requests are allo
 per resolution, each HTTPS-only, standard port, credential-free, with a ten-second
 timeout and four-MiB response cap (HTML: 256 KiB). Discovered untrusted hosts appear
 under **Blocked media hosts** in Sources without being contacted; select one and
-press Trust source to approve it. IP literals/local names are refused, and generic
+press Trust source to approve it. The client log names such a host too ("its media is on <host>,
+not trusted"). IP literals/local names are refused, and generic
 requests filter the actual resolved addresses to public IPv4/native global IPv6.
 Generic media does not use environment proxies, which could resolve private targets
 elsewhere. No referrer or GIPHY API key is sent to generic sources.

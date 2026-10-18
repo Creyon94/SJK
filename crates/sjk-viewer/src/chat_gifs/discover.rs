@@ -53,13 +53,18 @@ fn resolve(
 ) -> Result<Vec<u8>, Failure> {
     let mut url = sources::checked_url(start).ok_or(Failure::Refused)?;
     let mut page_seen = false;
-    for _ in 0..HOPS {
+    for hop in 0..HOPS {
         if !current() {
             return Err(Failure::Refused);
         }
         if !permits(&url) {
-            sources::blocked(url.host_str().unwrap_or_default());
-            return Err(Failure::Refused);
+            let host = url.host_str().unwrap_or_default();
+            sources::blocked(host);
+            return Err(if hop > 0 {
+                Failure::Untrusted(host.to_owned())
+            } else {
+                Failure::Refused
+            });
         }
         let response = http.request(url.as_str(), !page_seen)?;
         if !current() {
@@ -192,15 +197,16 @@ mod tests {
                 pages: vec![],
                 answers: [response].into(),
             };
-            assert!(
+            // The log names the host the player would have to trust.
+            assert_eq!(
                 resolve(
                     &mut http,
                     "https://example.org/page",
                     || true,
                     |url| url.host_str() == Some("example.org"),
                     true
-                )
-                .is_err()
+                ),
+                Err(Failure::Untrusted("cdn.example.org".to_owned()))
             );
             assert_eq!(http.asked, ["https://example.org/page"]);
         }
