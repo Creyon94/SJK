@@ -41,6 +41,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Replying with Shift+U no longer leaves Shift or U stuck, and a key held in game and released in a menu or the chat is released in game too _(Lukas)_
 - A server that changes maps keeps its one row in the recent servers, instead of a new row named after each map _(Lukas)_
 - Live SJK chat messages also appear in the console, with a yellow SJK tag _(Lukas)_
+- NPC nameplates show the NPC's health only while your Force Sense 3 is active, unless the map shows that NPC's health to everyone; their names stay visible _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

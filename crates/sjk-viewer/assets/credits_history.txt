@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull request #134, NPC health with Force Sense 3
+- 0d81601 |  | Credits for SJK pull request #134 (Lumaya)
++ 18/10/2026 | - | Away players faint at the bottom of the scoreboard
+- 4138ab0 |  | Scoreboard: away players faint at the bottom of their list
 + 18/10/2026 | - | SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
 - a9b6650 |  | Review fixes: follow switch seeds the event ring, unblocked chat wording, .oshader mount note
 - 77c626a |  | Credits and changelog for SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
@@ -1737,6 +1741,8 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 18/10/2026 | SJK #134 | Require active Sense 3 for NPC health bars
+- 0e0c11a |  | Require active Sense 3 for NPC health bars
 + 18/10/2026 | SJK #143 | Expand custom Siege catalogues and align selector limits
 - bde4bbf |  | Expand Siege catalogues and bound theme class slots
 + 18/10/2026 | SJK #137 | Support community override shader scripts
