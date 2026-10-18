@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 114 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 7, Milamber 1). Sol's
+contributors' 118 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 10, Milamber 2). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -420,7 +420,7 @@ merged into SJK
 - #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
   in a private duel.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 7 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 10 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -437,14 +437,22 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   their text from the string tables and reach the team they are meant for.
 - #142 the Siege class menu in two steps like the Team page: Red team or Blue team with their
   flags and players, then that side's classes (its team saber colours were left out at the merge).
+- #159 a `trigger_once` that fired is never touched again: holding use at siege_hoth's bridge
+  panel no longer completes objective 2 every frame.
+- #161 the use key boards a vehicle with the player's own team, as `TryUse`: siege_hoth's
+  AT-ST takes the Empire again.
+- #162 bots take both sides before a Siege round: side counts include the side a waiting
+  player wants, as `TeamCount`.
 
-Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 1 pull request merged
+Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
 
 - #156 See & share nameplates (`cg_nameplate`) replaces Share my bars: seeing nameplates shares
   your own health, shield and Force; the Force bar shows the shared value instead of an
   estimate; duel opponents' bars are hidden and nothing is sent while duelling; and the
   what's-new card can ask players to choose a changed setting again.
+- #163 a shader remap to content the player lacks is looked up and logged once a map, ending
+  ~400 ms hitches at skin changes on JoF's night ffa3.
 
 ## Art
 

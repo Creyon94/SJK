@@ -31,7 +31,7 @@
 
 [Sol]
 github: Sol-Vulpes
-role: Creator and developer of Sol JK: 114 contributor pull requests reviewed and merged
+role: Creator and developer of Sol JK: 118 contributor pull requests reviewed and merged
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
 did: The SJK UI, Sol JK's own menus over the live map
@@ -232,7 +232,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 7 merged pull requests
+role: Contributor: 10 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -240,12 +240,16 @@ did: #110 Live CTF flag carriers on the scoreboard and HUD
 did: #152 Siege Korriban: Force on doors, walls switched off, breakable door
 did: #150 Siege: back with the next respawn wave; map messages readable
 did: #142 Siege class menu in two steps: team first, then its classes
+did: #159 A trigger_once fires once (siege_hoth bridge panel)
+did: #161 Team vehicles board for their own team (siege_hoth AT-ST)
+did: #162 Siege: bots take both sides before the round
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
 github: Milamber0
-role: Contributor: 1 merged pull request
+role: Contributor: 2 merged pull requests
 did: #156 See & share nameplates, settings to review on What's new, duel bars hidden
+did: #163 No hitch when a map remaps to a missing skin
 link: Milamber's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0
 
 == Art
