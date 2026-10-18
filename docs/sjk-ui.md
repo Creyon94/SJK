@@ -2197,6 +2197,17 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
   families when they are loaded (`quick_wheel::append`), else to Inter; it does
   not load them itself.
 
+## Chat media sources
+
+SJK chat's GIF picker includes a Sources tab in every menu style. It edits the
+profile's exact-host trust list, keeps GIPHY by default, and requires an explicit
+Trust source action after typing or selecting a host. A selected message's Manage
+GIF source action opens the same editor. Discovered media CDN hosts are listed for
+separate approval; removing a source stops cached playback. See
+[trusted media sources](hub-chat.md#trusted-media-sources) for formats and privacy.
+The field uses the shared text-entry handler, including selection, clipboard and
+held-key editing.
+
 ## Plan
 
 The next screens, in order; each gets snapshot tests before it replaces its

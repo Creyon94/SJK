@@ -1,3 +1,38 @@
+## Trusted chat media sources
+
+18/10/2026, `feat/trusted-gif-sources`, based on `Sol-Vulpes/SJK` `96569426`:
+implemented the shared SJK chat Sources editor, profile-local exact-host approval
+and revocation, generic HTTPS direct/HTML media discovery, and silent AVC/H.264 MP4
+decoding. GIPHY remains the default trusted provider. Unknown sources stay text;
+redirect/CDN hosts require separate approval. Removing a host invalidates cached,
+queued and in-flight results. The existing media switch and muted-sender rules apply.
+See [hub-chat.md](hub-chat.md#trusted-media-sources) for limits and privacy.
+
+Verified on Windows 11 Pro, Rust 1.99.0: workspace formatting, locked build, tests
+and clippy pass (warnings remain). Focused tests cover exact hosts, credential/local
+URL refusal, public-address filtering, blocked initial requests/redirects/CDNs,
+HTML media resolution without scripts, stale job rejection, untrusted links staying
+text, URL favourites, shared field editing and explicit source selection. An original
+three-frame MP4 encoded in memory decodes with its colours and timing; malformed box
+sizes and oversized tables are refused before third-party parsing. An isolated
+optimized-build profile check verifies saved approval/removal, cached-media invalidation,
+removing the GIPHY default and a failed save leaving the policy unchanged. The release
+CPU measurement on a Ryzen 7 5800X3D formats/checks 24 messages (12 repeats each
+of one GIPHY and one untrusted HTTPS link) with a warm 512-entry parse cache in
+2.662 microseconds per iteration (100,000 iterations). It
+excludes cold parsing, HTTP, decoding, layout, uploads and whole-scene frame time.
+The offscreen picker test passes with ten 1080p/4K captures. Focused Sources captures
+with a typed URL and an uncontacted CDN pass at 1080p with classic menus and at 4K
+with SJK menus, visually inspected on an RTX 5070 Ti. Windows release dependency
+notice collection succeeds, including OpenH264's upstream notice and bindings'
+declared license/author manifest. No automated chat or live game server was used.
+
+Not verified: arbitrary third-party site compatibility or Linux runtime. Private
+APIs, login/script players, non-AVC codecs, fragmented MP4 and streaming playlists
+are unsupported. The bounded MP4 path loops its retained beginning on long clips;
+already-started network traffic cannot be recalled after revocation. These checks
+are not a gameplay parity or whole-scene performance certification.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.

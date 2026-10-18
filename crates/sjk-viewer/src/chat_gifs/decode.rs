@@ -86,6 +86,9 @@ pub(crate) fn fitted(size: [u32; 2]) -> [u32; 2] {
 /// `bytes` (a GIF file) decoded, or `None` when it is not a GIF, is broken, has no
 /// frame or a canvas over [`MAX_CANVAS`].
 pub(crate) fn decode(bytes: &[u8]) -> Option<Gif> {
+    if bytes.get(4..8) == Some(b"ftyp") {
+        return super::video::decode(bytes);
+    }
     decode_within(bytes, MAX_DECODED)
 }
 

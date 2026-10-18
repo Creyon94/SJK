@@ -267,7 +267,7 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   letters and digits with a capital or a digit among them (a slug word such as
   `birthday` is not an id). A message shows at most one GIF, its first link's; that link
   reads `GIF` in the line, and other links stay text.
-- **What is fetched** ([fetch.rs](../crates/sjk-viewer/src/chat_gifs/fetch.rs)): never
+- **What is fetched for GIPHY** ([fetch.rs](../crates/sjk-viewer/src/chat_gifs/fetch.rs)): never
   the pasted address. SJK rebuilds `https://media.giphy.com/media/<id>/200.gif` (the
   rendition 200 pixels high GIPHY makes for every GIF; a typical one is 0.2 to 0.6 MB)
   and checks it again before the request; only when GIPHY answers 404 for it,
@@ -284,10 +284,10 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   frames or 32 MiB of RGBA keeps its first frame only, still. Delays under 20 ms are
   shown as 100 ms, as browsers do.
 - **The cache** ([chat_gifs.rs](../crates/sjk-viewer/src/chat_gifs.rs)): decoded GIFs
-  stay in memory only, by id, so a GIF in several messages loads once: at most 24 GIFs
-  and 96 MiB of pixels, those used least recently dropped first (never one on screen).
+  stay in memory only, by id, so a GIF in several messages loads once: at most 48 GIFs
+  and 128 MiB of pixels, those used least recently dropped first (never one on screen).
   Nothing is written to disk. A GIF that could not be had is asked for again after five
-  minutes. Eight GIFs can be drawn at once, each in a texture of its own made at its size
+  minutes. Twenty-four GIFs can be drawn at once, each in a texture of its own made at its size
   ([gif_textures.rs](../crates/sjk-viewer/src/ui_renderer/gif_textures.rs)); once a frame
   each gets the frame of its animation, uploaded only when it changes, so a GIF on screen
   costs one small texture write per frame change and none otherwise. Every copy of a GIF
@@ -329,6 +329,60 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   media link without its query fits. Pasting (Ctrl+V) writes every GIPHY link as its
   shortest address, `https://giphy.com/gifs/<id>` (`link::shortened`), so a copied share
   link fits; a link typed by hand is sent as typed.
+
+## Trusted media sources
+
+Open **SJK chat > GIF > Sources** in any menu style. GIPHY stays trusted by default.
+Other sites are opt-in: paste an HTTPS link or type a hostname, then press **Trust
+source**. Selecting a message offers **Manage GIF source...**, which fills the same
+field; selecting a host or message never approves it. Remove a source with **Remove**.
+The list is local to this profile (`gif-sources.txt` beside `config.cfg`, one exact
+host per line, at most 64). An empty file trusts none; deleting it restores the
+GIPHY default next start. An unreadable existing file disables media sources.
+`cl_sjkChatGifs 0` disables all inline media requests and playback, including search.
+
+Untrusted links remain text. Each client fetches directly from sources it trusts;
+the chat hub carries only the message. A source can see the client's IP address and
+requested URL, including its query. Trust applies to the whole exact host, so any
+content hosted there may play automatically. No adult providers, addresses or
+provider-specific APIs are included. This is a content/privacy preference, not age
+verification or a guarantee about the site's content or legal requirements.
+
+Generic HTTPS links support direct GIF files and silent AVC/H.264 MP4 files, plus
+one HTML page advertising media through Open Graph (`og:video`, with `og:image` as a
+fallback), a `video`/`source` element, or `link rel=image_src`. SJK never runs scripts
+or uses browser sessions, cookies or credentials. Sites needing a private API,
+login, JavaScript or another codec remain links/unavailable. Generic websites are
+not searchable through the GIPHY search tab. Favourites preserve their original
+HTTPS URL, including any query needed to fetch it; they do not grant trust.
+
+Redirects and media CDN hosts need their own trust. Up to four requests are allowed
+per resolution, each HTTPS-only, standard port, credential-free, with a ten-second
+timeout and four-MiB response cap (HTML: 256 KiB). Discovered untrusted hosts appear
+under **Blocked media hosts** in Sources without being contacted; select one and
+press Trust source to approve it. IP literals/local names are refused, and generic
+requests filter the actual resolved addresses to public IPv4/native global IPv6.
+Generic media does not use environment proxies, which could resolve private targets
+elsewhere. No referrer or GIPHY API key is sent to generic sources.
+
+The worker decodes MP4 without playing audio, using bundled OpenH264. Only ordinary
+(nonfragmented) AVC MP4 is supported; HEVC, AV1, WebM, script players and streaming
+playlists are unsupported. MP4 boxes/counts and every sequence parameter set are
+checked before native decoding; eight-bit video with at most eight reference frames
+and a bounded canvas is accepted. Frames fit 480 pixels, with at most 240 frames,
+32 MiB of retained pixels and five seconds of decode work checked between samples.
+Long clips loop their retained beginning. Existing GIF limits remain unchanged.
+
+Removing a source clears all cached media and changes the job revision: queued and
+finished work from the old policy cannot appear. Already-started network traffic
+cannot be recalled, but its result is discarded. Existing feed and dock links are
+restored on the next UI update. GIPHY's existing fixed-host adapter remains the
+only default provider; removing `giphy.com` disables that adapter and its search.
+
+Implementation: [sources.rs](../crates/sjk-viewer/src/chat_gifs/sources.rs),
+[discover.rs](../crates/sjk-viewer/src/chat_gifs/discover.rs),
+[video.rs](../crates/sjk-viewer/src/chat_gifs/video.rs) and the shared
+[SJK source editor](../crates/sjk-viewer/src/sjk_chat_gif_sources.rs).
 
 ## The GIF picker
 
@@ -907,7 +961,7 @@ The GIF picker ([The GIF picker](#the-gif-picker)): a search sends GIPHY the wor
 (after 700 ms without a key, or Enter), the player's own key and, as any
 request, the player's IP address; opening the Search tab with nothing typed asks for
 GIPHY's trending GIFs. No name, SJK key or cookie is sent. Favourites stay on this PC
-(`gif-favourites.txt`, GIPHY ids only) and are never sent; Seen in chat and Favourites
+(`gif-favourites.txt`, GIPHY ids or approved-source HTTPS links) and are never sent; Seen in chat and Favourites
 ask GIPHY only for the GIFs themselves.
 
 ## Verification
