@@ -2612,10 +2612,9 @@ at its base or dropped
 sends the carriers' powerup bits in `scores` (`bridge_ranks.rs`), as
 `DeathmatchScoreboardMessage` does.
 
-A flag carrier wears the flag on the back (`CG_PlayerFlag`) and glows in its colour
-(`CG_PlayerPowerups`' dynamic light, red or blue, radius 200 to 231). The local
-carrier's flag comes from its player state, as the server never sends a client its
-own entity, so it shows in third person and its glow in first person
+A flag carrier wears the flag on the back (`CG_PlayerFlag`). The local carrier's
+flag comes from its player state, as the server never sends a client its own entity,
+so it shows in third person
 ([flag_carrier.rs](../crates/sjk-viewer/src/flag_carrier.rs)).
 
 ## Kill feed

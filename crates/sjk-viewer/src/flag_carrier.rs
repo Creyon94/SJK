@@ -60,25 +60,6 @@ pub(crate) fn placement(
     )
 }
 
-/// `CG_PlayerPowerups`' carrier light colours: red, then blue.
-const LIGHT_COLORS: [[f32; 3]; 2] = [[1.0, 0.2, 0.2], [0.2, 0.2, 1.0]];
-
-/// `R_AddLightToScene(cent->lerpOrigin, 200 + (rand()&31), ...)`: a carrier glows in
-/// its flag's colour, in first person too. The flicker comes from the frame time
-/// instead of `rand()`, so it allocates and stores nothing.
-pub(crate) fn light(
-    origin: [f32; 3],
-    time: i64,
-    color: [f32; 3],
-) -> crate::dynamic_lights::PointLight {
-    let flicker = (time as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 59;
-    crate::dynamic_lights::PointLight {
-        origin,
-        radius: 200.0 + flicker as f32,
-        color,
-    }
-}
-
 /// Append to the existing rigid-model groups; no persistent carried state to go stale.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn submit(
@@ -100,11 +81,6 @@ pub(super) fn submit(
         return;
     };
     let flags = carried(caster.powerups);
-    for (active, color) in flags.into_iter().zip(LIGHT_COLORS) {
-        if active {
-            sinks.lights.push(light(transform.translation, time, color));
-        }
-    }
     if !eligible(draw_actor, entity.kind) {
         return;
     }
