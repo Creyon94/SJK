@@ -28,12 +28,19 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1018.2 (Alpha) | 18/10/2026
+
+> Map changes: The next map shares textures with the last one, about 730 MB less video memory at the peak.
+> Out of memory: A map that fails to load says why, instead of "world installer stopped unexpectedly".
+> Menu pictures: Pictures of the map can stand behind the menus to save video memory; they turn on by themselves after an out-of-memory.
+> Chat: Tenor GIFs work, and a sender's card no longer shows the chat's text through it.
 
 = ui_menuPictures: Pictures of the map behind the menus instead of the live map save video memory. It turns on by itself if a map runs out of it.
 
 - Menu pictures (Settings > Interface, `ui_menuPictures`): pictures of the menu's map stand in for the live map, saving the video memory the map held; the player, saber and holocron still stand in them in 3D. A map that runs out of video memory turns them on, and the error now says so instead of "world installer stopped unexpectedly" _(Sol)_
 - Map changes use less video memory: the new map shares the textures it has in common with the last one while both are loaded (saber glows, fonts, effects, menu art, textures from the same files), about 730 MB less at the peak, which ran 6 GB cards out of memory _(Sol)_
+- Tenor GIFs show in SJK chat: Tenor's media host is asked for the GIF, not its viewer page, GIFs up to 8 MiB download, and the log names the host to trust when one is missing _(Sol)_
+- SJK chat: the old name dropdown (whisper, per-map ignore, friend star) is gone, the sender card with Block replaces it, and that card no longer shows the chat's text through it _(Sol)_
 
 ## 2026.1018.1 (Alpha) | 18/10/2026
 
