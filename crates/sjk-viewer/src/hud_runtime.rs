@@ -170,6 +170,12 @@ pub(crate) fn update(
             session.game_state(),
             gpu.console.as_ref(),
         );
+        gpu.scoreboard.observe_afk(
+            snapshot,
+            session.game_state(),
+            session.scores(),
+            gpu.chat.spoken(),
+        );
         // Team logos first: the overhead names and plates stand above them.
         gpu.hud.team_logo.update(
             snapshot,
@@ -376,6 +382,8 @@ pub(crate) fn update(
             session.game_state(),
             gpu.console.as_ref(),
         );
+        gpu.scoreboard
+            .observe_afk(snapshot, session.game_state(), &[], gpu.chat.spoken());
         gpu.hud.team_logo.update(
             snapshot,
             session.game_state(),

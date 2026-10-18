@@ -1,5 +1,7 @@
 //! Cached authoritative scoreboard projection rendered through `sjk-ui`.
 
+mod afk;
+pub(crate) use afk::CVAR as AFK_CVAR;
 pub(crate) mod behavior;
 mod classic;
 mod deaths;
@@ -61,6 +63,12 @@ pub(super) struct ScoreRow {
     pub(super) captures: i32,
     /// The SJK hub knows this player under this name (`player_identity.rs`).
     pub(super) identity: Option<crate::player_identity::Tag>,
+    /// The row's place in the server's `scores` order, which away rows leave.
+    pub(super) order: u8,
+    /// The name wears an away tag ([`afk::NAME_TAGS`]).
+    pub(super) tagged: bool,
+    /// Away from the keyboard ([`afk`]), with the whole minutes seen idle.
+    pub(super) away: Option<u32>,
 }
 
 impl ScoreRow {
@@ -81,6 +89,7 @@ pub(crate) struct Scoreboard {
     rows: Vec<ScoreRow>,
     ui: MenuCanvas,
     deaths: deaths::Deaths,
+    afk: afk::Afk,
     hostname: String,
     max_clients: i32,
     gametype: i32,
@@ -123,6 +132,7 @@ impl Scoreboard {
             rows: Vec::with_capacity(32),
             ui: MenuCanvas::with_capacities(TEXT_SLOTS, 96, DRAWS),
             deaths: deaths::Deaths::default(),
+            afk: afk::Afk::default(),
             hostname: String::with_capacity(64),
             max_clients: 0,
             gametype: 0,
@@ -198,6 +208,7 @@ impl Scoreboard {
         for row in &mut self.rows {
             row.deaths = self.deaths.count(row.client_num);
         }
+        self.mark_away(afk::enabled(options));
         // Tags follow the hub's roster, not the frame: derived again only when it
         // or the rows changed.
         let revision = crate::player_identity::revision();
@@ -313,6 +324,20 @@ impl Scoreboard {
         );
     }
 
+    /// Mark who is away and move them below the others of their list, in the
+    /// server's order again once back; with `enabled` off, nobody is.
+    fn mark_away(&mut self, enabled: bool) {
+        for row in &mut self.rows {
+            row.away = if !enabled || row.bot || !row.has_score {
+                None
+            } else {
+                self.afk.away(row.client_num).or(row.tagged.then_some(0))
+            };
+        }
+        self.rows
+            .sort_unstable_by_key(|row| (row.away.is_some(), row.order));
+    }
+
     /// Note the flag carriers the latest snapshot shows (players in view, and the local
     /// player), for servers whose `scores` carry no powerups; stale bits clear each frame.
     fn note_carriers(&mut self, snapshot: &sjk_protocol::Snapshot) {
@@ -378,6 +403,9 @@ impl Scoreboard {
                 assists: score.assists,
                 captures: score.captures,
                 identity: None,
+                order: 0,
+                tagged: false,
+                away: None,
             });
         }
         // Connected clients the scores do not list yet (`CG_TeamScoreboard`'s
@@ -412,7 +440,14 @@ impl Scoreboard {
                 assists: 0,
                 captures: 0,
                 identity: None,
+                order: 0,
+                tagged: false,
+                away: None,
             });
+        }
+        for (order, row) in self.rows.iter_mut().enumerate() {
+            row.order = order as u8;
+            row.tagged = afk::tagged(&row.name);
         }
         let server = server_info(game);
         self.map.clear();
@@ -521,6 +556,18 @@ const STAT_CLIENTS_READY: usize = 7;
 const PM_INTERMISSION: u8 = 6;
 
 impl Scoreboard {
+    /// Watch the players for the away marks ([`afk`]); every frame, scores and
+    /// chat counters included, whether the board shows or not.
+    pub(crate) fn observe_afk(
+        &mut self,
+        snapshot: &sjk_protocol::Snapshot,
+        game: &GameState,
+        scores: &[ScoreEntry],
+        spoken: &[u32; 32],
+    ) {
+        self.afk.observe(snapshot, game, scores, spoken);
+    }
+
     /// The resolved model icon of `client`'s slot.
     pub(crate) fn head_icon(&self, client: u8) -> Option<sjk_ui::TextureId> {
         self.icons.texture(client)

@@ -767,6 +767,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows your frame rate on SJK's scoreboard, left of the match clock.",
     ),
     (
+        crate::scoreboard::AFK_CVAR,
+        "Players whose view has not moved for 3 minutes, or with [AFK] in their name, show faint below the others.",
+    ),
+    (
         "cg_showClientIDs",
         "Shows each player's client number on the scoreboard.",
     ),

@@ -1162,6 +1162,19 @@ test: 301 characters: the box stops at 300; sjksay with more sends the first 300
 
 # ---- HUD ----
 
+[scoreboard-afk]
+area: HUD
+title: Away players faint at the bottom of the scoreboard (cg_scoreboardAfk, on by default)
+change: A player whose view has not moved for 3 minutes in view, or named [AFK], is away.
+change: SJK look: below their list, no place, faint name, "AFK 7m" where the ping goes.
+change: Classic look: their row faint and "AFK" left of it. Chat, a turn or a kill: back.
+test: Local server, a second client standing still in view: after 3 minutes, Tab: AFK row.
+test: Turn that client's mouse a little: back in place, numbered, ping shown again.
+test: Rename it [AFK]Name: away at once. Chat from a still client: present again.
+test: Kill the idle client and let it respawn: it stays away (the idle time is kept).
+test: Settings > HUD > Scoreboard > Away players apart off: nobody marked, server order.
+note: Unit tests and world shots only; never tried with real players.
+
 [nameplate-share]
 area: HUD
 title: Nameplate bars only on players who share them (cg_nameplateShare, cg_nameplateEstimate)

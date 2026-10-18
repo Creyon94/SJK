@@ -377,6 +377,7 @@ impl Group {
                 crate::scoreboard::style::CVAR,
                 crate::scoreboard::style::COMPACT_CVAR,
                 crate::scoreboard::style::FPS_CVAR,
+                crate::scoreboard::AFK_CVAR,
                 "cg_showClientIDs",
                 crate::jof_tag::CVAR,
                 "cg_drawScoreboardIcons",

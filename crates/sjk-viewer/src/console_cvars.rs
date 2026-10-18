@@ -972,6 +972,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "SJK scoreboard: show the frame rate on the header line, left of the clock",
         ),
         CvarDefinition::new(
+            crate::scoreboard::AFK_CVAR,
+            true,
+            archive,
+            "Scoreboard: players seen still for 3 minutes (or wearing [AFK]) drawn faint below the others",
+        ),
+        CvarDefinition::new(
             "cg_smallScoreboard",
             false,
             archive,

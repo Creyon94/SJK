@@ -2489,6 +2489,45 @@ handshake, Siege class/winner presentation and recorded demo score rows remain
 existing compatibility gaps; this change does not synthesize those server facts.
 The retained text and draw storage is reserved for 32 clients.
 
+### Away players
+
+Both scoreboards set away-from-keyboard players apart (`cg_scoreboardAfk`,
+Settings > HUD > Scoreboard > "Away players apart", on by default; Sol's request
+of 18/10/2026, as often half a server stands idle). Nothing comes from the server
+beyond what every client receives, so it works everywhere
+([scoreboard/afk.rs](../crates/sjk-viewer/src/scoreboard/afk.rs)):
+
+- A player in view whose view angles (`apos.trBase`, the player state's
+  `viewangles`) and weapon have not changed for 3 minutes is away. Someone
+  playing moves the mouse all the time, so a still view is the sign; position is
+  not read, since players push idle ones around.
+- Time out of view counts once the player is seen again with the same view: it
+  could not come back to the same angle by chance. A player never seen, or seen
+  only briefly, counts as present, so the board can miss someone away but does
+  not mark someone playing.
+- A chat line from them (the sender slot `G_SayTo` sends, or the line's name on
+  servers that leave it out), a weapon change, a score gain or a new name brings
+  them back. A respawn or teleport (`EF_TELEPORT_BIT` toggled) and a new map's
+  clock start a fresh watch that keeps the idle time; while `EF_DEAD` the view
+  follows the killer and is not read.
+- A name wearing `[AFK]` (the `afk` command's prefix), `(AFK)`, `<AFK>`,
+  `{AFK}` or `|AFK|` is away at once (`afk::NAME_TAGS`, colours and case
+  ignored).
+- Yourself, bots and players still joining are never marked.
+
+Away players drop below the others of their list, back to their place once
+present. The SJK look draws them unnumbered, their name faint with its colours,
+and "AFK 7m" (the minutes seen idle, or "AFK" alone) where the ping goes; the
+places above them still count them, so they match the header's "3rd of 14"
+([SJK UI](sjk-ui.md#scoreboard)). The classic look draws their row faint and
+"AFK" left of it, where `READY` goes at intermission.
+
+Limits: someone who goes away out of your sight stays present until seen, and an
+anti-AFK bind that keeps turning (`+left`) reads as playing. The view angles are
+the player state's own (`BG_PlayerStateToEntityState` copies `viewangles`), which
+`codemp` pmove only holds still for an idle player; a mod that turns players
+itself would count as activity.
+
 ## HUD style
 
 `cg_hudStyle` chooses `game`, the status HUD of the game's own menu files (the
