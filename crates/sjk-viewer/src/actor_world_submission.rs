@@ -110,7 +110,8 @@ struct Sinks<'a> {
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
     /// Each client slot's team blade colours in team games: `cg_saberTeamColors`, and
-    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`).
+    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`); in
+    /// Siege the class-forced colours (`siege_sabers.rs`).
     team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
@@ -343,7 +344,10 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
-        team_blades: crate::team_sabers::blades(gpu.console.as_ref(), game_state),
+        team_blades: crate::team_sabers::with_classes(
+            crate::team_sabers::blades(gpu.console.as_ref(), game_state),
+            gpu.siege_sabers.forced(game_state, gpu.vfs.as_deref()),
+        ),
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
         team_outline: gpu.hud.team_outline.groups(),
     };
@@ -605,7 +609,8 @@ fn submit_actor(
         equipment = equipment.map(crate::muted_players::equipment);
     }
     // In team games the blades take the team's colour, muted or not
-    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`).
+    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`), and in Siege the class's forced
+    // colour (`siege_sabers.rs`): the game sets those, not the player.
     let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
     if team_blade.any() {
         equipment = equipment.map(|mut held| {

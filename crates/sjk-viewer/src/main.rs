@@ -176,6 +176,7 @@ mod scene_views;
 mod scope;
 mod sender_card;
 mod server_caps;
+mod siege_sabers;
 mod surface_tables;
 mod team_sabers;
 mod trip_mine_lasers;
@@ -504,6 +505,8 @@ struct GpuState {
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
     /// Black-blade server/clientinfo scan, redone on configstring changes.
     black_sabers: saber_rgb::black::Cache,
+    /// Siege class saber colours, redone on configstring changes.
+    siege_sabers: siege_sabers::Cache,
     /// Holstered-hilt contract detected from the serverinfo, redone on its change.
     holster_server: holstered_sabers::ServerCache,
     /// Parsed shader catalogue, kept for materials compiled after map load.
@@ -1415,6 +1418,7 @@ impl GpuState {
             clientinfo_watch,
             config_string_refresh,
             black_sabers: Default::default(),
+            siege_sabers: Default::default(),
             holster_server: Default::default(),
             shaders: Arc::new(shaders),
             decal_surfaces,

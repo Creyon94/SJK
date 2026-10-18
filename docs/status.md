@@ -190,6 +190,34 @@ Blue team won" or "Tied 3 : 3". See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
+## Siege team and class menu
+
+17/10/2026, `claude/zealous-dijkstra-9dechb`, based on `Sol-Vulpes/SJK` `bb83eb2`
+(Slash's request): implemented. Siege's class page now opens on the team choice
+as the other team games' Team page (Red team, Blue team with colour marks and
+player counts, Spectate, Back); a side lists its classes, and Back or Escape
+returns to the team choice. Both menu styles share it. At the merge (18/10/2026)
+Sol kept the menu and dropped the PR's `cg_siegeTeamSabers` (every Siege side's
+blades in its colour) for stock's class-forced Siege saber colours, below. The
+merge also gave the classic look's side step the Team page's flags and player
+counts, dropped the side after each class name (the long stock names were cut in
+the classic pop-up) and dims Spectate while the player watches; world shots
+`duel6_ingame_siege` (both looks). See [sjk-ui](sjk-ui.md#in-game-menu).
+
+Workspace fmt/build/test passed on Linux x86_64; clippy reports nothing in the
+touched files. Unit tests pin the two-step page (rows, marks, titles, Back,
+Escape, Spectate, class command). Not tried in a live Siege match.
+
+## Siege class saber colours
+
+18/10/2026, `personal/pr-142`, at the merge of SJK pull request #142 (Sol's choice
+over the PR's `cg_siegeTeamSabers`): implemented. In Siege a class's `sabercolor` /
+`saber2color` replace its players' own colours, as cgame's `CG_NewClientInfo` does
+(`sjk_client::legacy_siege_class_blades`, `siege_sabers.rs`), for held and thrown
+blades and the player card; the class files are read once per map and the colours
+redone on serverinfo or player configstring changes. The server takes no part, as in
+stock. See [client](client.md#siege-class-saber-colours). Unit tests only; not tried in
+a Siege match.
 ## Live Force effects and controls
 
 17/10/2026, `feat/force-animation-effects`, based on `bb83eb28`, Windows:

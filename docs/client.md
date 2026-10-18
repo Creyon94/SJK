@@ -541,7 +541,8 @@ SJK's own screens, for now the [changelog page](#changelog-page)
 the SJK UI's in-game menu has them in its row of icons instead
 ([sjk-ui.md](sjk-ui.md#in-game-menu)), its Join and Vote on the match card.
 About shows the server info. Join picks
-a team, or opens the class list in Siege; in a team game Team Red and Team Blue
+a team, or opens the class page in Siege (the team first, then that team's
+classes, as in the SJK UI); in a team game Team Red and Team Blue
 carry their flag (`gfx/hud/mpi_rflag`, `mpi_bflag`) and the team's player count. Vote is Yes/No. Call Vote opens the
 call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
 with a Yes/No confirmation. Profile opens the retail in-game profile window
@@ -967,6 +968,26 @@ Verified by unit tests (team FFA, CTF and CTY force red and blue, free players a
 spectators untouched, FFA, duel, siege and jedi-vs-merc keep the choice, the `0`
 semantics per saber, black blades replaced per hand, the card's swatches); not tried
 in the game.
+
+### Siege class saber colours
+
+In Siege a class file may force its sabers' colours (`sabercolor`, `saber2color`,
+`bg_saga.c:874-893`), as stock does for its Jedi and Sith classes. cgame applies them
+(`CG_NewClientInfo`, `cg_players.c:2492-2537`): the class named by a player's
+`siegeclass` replaces the colour they chose, primary and secondary separately, and a
+class without one leaves the player's own. SJK does the same client-side
+(`sjk_client::legacy_siege_class_blades`, [siege_sabers.rs](../crates/sjk-viewer/src/siege_sabers.rs)):
+it reads the installed class files once per Siege map (in the order SJK's server reads them) and
+works each player's colours out again only when the serverinfo or a player's
+configstring changes. The colours apply to held and thrown blades and the player
+card's swatches, replace a JA+ black blade, and keep an SJK blade shader worn over
+them, as the team colours do. Blocking a player still leaves their class colour (the
+game sets it, not the player), as it leaves a team colour. Only cgame forces the
+colour: the server, stock and SJK's own, sends `c1`/`c2` as the player set them.
+Other game types ignore the class. No setting: it is stock behaviour. Verified by
+unit tests (a class with `sabercolor 5` purple, a class without one and the other
+game types untouched, the class files read once per map); not tried in a Siege
+match.
 
 ## JA+ black sabers
 

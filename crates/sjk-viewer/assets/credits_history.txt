@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull request #142 Siege menu, Siege class saber colours
+- bae7b31 |  | Drop PR #142's Siege team saber colours (cg_siegeTeamSabers)
+- 6107f5d |  | Siege menu: classic side step with flags and counts, class names alone, Spectate dimmed while watching
+- 2d199ee |  | Siege menu: simpler Spectate check (clippy nonminimal_bool)
+- 2a70ffb |  | Siege class saber colours, as stock cgame forces them
+- ba3c89e |  | Credits for SJK pull request #142 (Slash)
 + 18/10/2026 | - | SJK pull requests #110 #122 #131 #132 #135 #136 #139 #141 #150 #152 #154
 - 8d44269 |  | Credits and changelog for SJK pull requests #110 #131 #132 #135 #136 #139 #141 #150 #152 #154; two clippy fixes
 + 18/10/2026 | - | Flag carriers: drop the duplicate carrier light from #110
@@ -1872,6 +1878,8 @@
 - 8d21001 |  | Clip visible saber blades at world walls
 
 = Slash
++ 18/10/2026 | SJK #142 | Siege menu changed to match ctf menu . colours of sabers fixed for red/blue team
+- 4f6f68b |  | Siege menu: team first, then that team's classes; Siege team saber colours
 + 18/10/2026 | SJK #150 | Siege: no more stuck players after a death; map messages show their text - #1
 - a66aca7 |  | Siege: keep a waiting player on its side, clear stale waits; target_print team/cps messages
 - d58e9f7 |  | Review fixes: siege waits, follow and target_print routing

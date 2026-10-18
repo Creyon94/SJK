@@ -45,6 +45,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A server that changes maps keeps its one row in the recent servers, instead of a new row named after each map _(Lukas)_
 - Live SJK chat messages also appear in the console, with a yellow SJK tag _(Lukas)_
 - NPC nameplates show the NPC's health only while your Force Sense 3 is active, unless the map shows that NPC's health to everyone; their names stay visible _(Lumaya, after JoF EJK)_
+- Siege's class menu works like the team menu of the other team games: Red team and Blue team first (each with its colour mark and players, your team said), then that side's classes, with Spectate and Back; Back and Escape return from a side's classes to the team choice _(Slash)_
+- In Siege a class that forces its saber colours, such as the stock Jedi and Sith classes, shows them on its players, as in the game, instead of each player's own colours _(Sol)_
 - The JA+ flamethrower falls back to the retail Boba Fett flame when a server's own flame effect is missing, and its impact bursts move smoothly between snapshots _(Lumaya, after JoF EJK)_
 - Rage, Heal and Quick Heal glow from the body as their animations play, on players and NPCs; a player who Mind Tricked you hides their Force effects too, unless your Force Sight is on, and the Empower glow follows the server's body, arms or hands choice _(Lumaya, after JoF EJK)_
 - Taunts and grunts no longer pile up: a player's taunt waits until their last one has finished, and gasps, jumps and landings have short holds (`cg_tauntAntiSpam`, on) _(Lumaya, after JoF EJK)_

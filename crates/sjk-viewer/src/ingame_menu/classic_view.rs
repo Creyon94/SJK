@@ -27,6 +27,11 @@ pub(super) struct Rows<'a> {
     pub(super) scroll: Option<(usize, usize)>,
     /// Read-only lines shown above the entries.
     pub(super) info: &'a [String],
+    /// Each row's team mark (1 red, 2 blue): Siege's side step draws them as
+    /// the Team page's flags and counts.
+    pub(super) marks: &'a [Option<u8>],
+    /// Siege's side step, drawn centred as the Team page rather than as a list.
+    pub(super) siege_sides: bool,
 }
 
 /// Build the bar and the open pop-up of `view` into `canvas`.
@@ -183,7 +188,9 @@ fn popup(
     }
     let row_height = classic::row_height(count);
     let compact = row_height < 30.0;
-    let list = view.page.is_vote_page() || matches!(view.page, Page::Siege | Page::Players);
+    let list = view.page.is_vote_page()
+        || view.page == Page::Players
+        || (view.page == Page::Siege && !rows.siege_sides);
     let mut described = view.selected_row;
     for (row, label) in rows.labels.iter().enumerate() {
         let token = row as u16;
@@ -241,7 +248,7 @@ fn popup(
                 align,
             );
         }
-        if let Some((flag, players)) = team_row(view, row) {
+        if let Some((flag, players)) = team_row(view, rows.marks, row) {
             team_badge(canvas, place, art_set, target, flag, players, enabled);
         }
         canvas.hit_region(token, target);
@@ -270,12 +277,18 @@ fn popup(
     }
 }
 
-/// The flag and player count of Join's team row `row`, in a team game
-/// (classic+).
-fn team_row(view: &View<'_>, row: usize) -> Option<(ArtPiece, usize)> {
-    match (view.page, view.team_game, row) {
-        (Page::Team, true, 1) => Some((ArtPiece::RedFlag, view.red_players)),
-        (Page::Team, true, 2) => Some((ArtPiece::BlueFlag, view.blue_players)),
+/// The flag and player count of Join's team row `row`, in a team game, or of
+/// Siege's side step row marked with its team in `marks` (classic+).
+fn team_row(view: &View<'_>, marks: &[Option<u8>], row: usize) -> Option<(ArtPiece, usize)> {
+    let team = match (view.page, view.team_game, row) {
+        (Page::Team, true, 1) => 1,
+        (Page::Team, true, 2) => 2,
+        (Page::Siege, _, _) => marks.get(row).copied().flatten()?,
+        _ => return None,
+    };
+    match team {
+        1 => Some((ArtPiece::RedFlag, view.red_players)),
+        2 => Some((ArtPiece::BlueFlag, view.blue_players)),
         _ => None,
     }
 }
