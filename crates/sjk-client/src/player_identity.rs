@@ -30,6 +30,17 @@ pub fn legacy_client_appearance_forced(
     client_num: u16,
     forced: Option<&str>,
 ) -> Option<Appearance> {
+    legacy_client_appearance_with_policy(game_state, client_num, forced, std::convert::identity)
+}
+
+/// Apply a player-loading policy after forced-model selection and before team skins.
+/// The callback can replace an ineligible appearance without changing saved userinfo.
+pub fn legacy_client_appearance_with_policy(
+    game_state: &GameState,
+    client_num: u16,
+    forced: Option<&str>,
+    policy: impl FnOnce(Appearance) -> Appearance,
+) -> Option<Appearance> {
     let config = game_state.config_string(CS_PLAYERS + usize::from(client_num))?;
     let mut appearance = appearance_from_config(config)?;
     if let Some(model) = forced {
@@ -44,6 +55,7 @@ pub fn legacy_client_appearance_forced(
             appearance.variant = skin.to_owned();
         }
     }
+    appearance = policy(appearance);
     if crate::TeamColorPolicy::from_game_state(game_state).team_override_active {
         let team = crate::LegacyClientInfo::new(config)
             .integer("t")
@@ -239,5 +251,39 @@ impl LegacyPlayerIdentities {
         let id = EntityId::new(u64::from(number) + 1);
         self.copied.remove(&id);
         self.corpse_appearances.remove(&id);
+    }
+}
+
+#[cfg(test)]
+mod model_policy_tests {
+    use super::*;
+    #[test]
+    fn model_fallback_precedes_team_skin_selection_without_rewriting_clientinfo() {
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(0, b"\\g_gametype\\6".to_vec())
+            .unwrap();
+        let info = b"\\model\\creature/custom\\t\\1".to_vec();
+        game.replace_config_string(CS_PLAYERS, info.clone())
+            .unwrap();
+        let fallback = Appearance {
+            model: "models/players/kyle".into(),
+            variant: "default".into(),
+        };
+        for forced in [None, Some("forced/blue")] {
+            let appearance =
+                legacy_client_appearance_with_policy(&game, 0, forced, |_| fallback.clone())
+                    .unwrap();
+            assert_eq!(appearance.model, fallback.model);
+            assert_eq!(appearance.variant, "red");
+            assert_eq!(game.config_string(CS_PLAYERS), Some(info.as_slice()));
+        }
+        game.replace_config_string(CS_PLAYERS, b"\\model\\creature/custom\\t\\2".to_vec())
+            .unwrap();
+        assert_eq!(
+            legacy_client_appearance_with_policy(&game, 0, None, |_| fallback)
+                .unwrap()
+                .variant,
+            "blue"
+        );
     }
 }

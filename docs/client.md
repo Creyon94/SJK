@@ -766,6 +766,28 @@ and the page's handling in
 
 ## Player models
 
+Player model eligibility follows JoF EJK #126: `notInMP 1` (any nonzero integer)
+in `models/players/<model>/settings.txt`, or a model named in any visible
+`ext_data/modelblacklist/*.txt`, excludes it from both profile pickers and
+replaces it with Kyle when a player would wear it. This includes your model
+and forced ally/enemy models. Fallback precedes team-skin selection, so team
+players still wear the appropriate red or blue Kyle. NPCs load the same
+restricted model normally.
+Same-named files follow ordinary VFS priority; distinct blacklist files merge.
+Unreadable, empty or oversized optional files are ignored (settings below
+4096 bytes, lists below 16384 bytes). Metadata is cached for the mounted world;
+remount/restart after changing pack files.
+
+Settings > Gameplay > Items and models in either menu style includes
+**Player model blacklist** (`cg_modelBlacklist`, empty by default): names
+separated by spaces, commas or semicolons, case-insensitive; a `/skin` suffix
+matches the whole model. **Respect model metadata** (`cg_modelEligibility`, on)
+can be switched off to ignore pack-authored restrictions; your own blacklist
+still applies. Both preferences are archived and apply to player presentation
+and the next profile catalogue, without rewriting your saved model or changing
+server gameplay. Retail choices remain first under Jedi Academy, with their
+filtered count, and Community follows.
+
 A player's or NPC's appearance (`models/players/<model>/<skin>`) loads its
 `model.glm`, the skeleton the mesh names (`<name>.gla`), that skeleton's
 `animation.cfg` and a skin; if the model cannot be loaded or built, the client

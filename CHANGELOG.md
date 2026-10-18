@@ -47,6 +47,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - You see the flag on your own back in third person _(Slash, after JoF EJK)_
 - The `cg_drawSnapshot` line in the upper right no longer overlaps the frame rate and its frame times _(Slash)_
 - Add current-map PM-only game chat, with a console command and a switch in both menu styles; recognize server tell markers before display cleanup. _(Lumaya, after JoF EJK)_
+- Respect installed player-model restrictions and your model blacklist in both profile pickers and player loads, with a metadata override; NPCs are unaffected. _(Lumaya)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
