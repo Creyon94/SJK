@@ -871,8 +871,9 @@ compatibility table adopts JoF EJK #31's firing/hit flags, flame graphs, sample
 and hold pose. The archived `cg_flameThrower` override (Auto/Off/JA+) is exposed
 in both settings interfaces. Local prediction and remote actors select flames
 instead of Lightning only while firing; Drain and vehicles retain their paths.
-Flame streams use the existing 8 ms effect cadence; impact bursts and sound
-repeats use snapshot server time (100 ms and 2.9 s intervals). The upper-body
+Flame streams use the existing 8 ms effect cadence; impact
+bursts use presentation time (100 ms interval), while sound repeats retain
+snapshot server time (2.9 s interval). The upper-body
 hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
 Sound stops on firing end, mute, disappearance or disconnect and resets across
 map changes and time rewinds. Installed flame graphs/audio are required and are
@@ -942,6 +943,19 @@ rows, selective HUD visibility and death/respawn fading at 8/7/4/3 ms steps.
 Live JoF comparison and updated GPU screenshots remain unverified;
 `JKA_GAME_DATA` is not configured. No release frame-time measurements were made.
 No wire codecs or gameplay rules changed.
+
+17/10/2026 follow-up to JoF EJK #67, based on `9fadf990`: the stream now falls
+back from the custom graph to preloaded retail `boba/fthrw`, and impact bursts
+advance using the presented trajectory clock between snapshots. Custom graph
+priority, missing-graph silence, reversed fallback forward/up orientation and
+impact marker timing at 8/7/4/3 ms have focused synthetic regressions. The native
+quaternion fallback frame also reverses the side axis; EJK flips forward alone.
+Live comparison, including asymmetric community replacements, remains unverified.
+The follow-up passed workspace formatting, locked build/tests and all-target
+Clippy on Windows (warnings remain), including the two new regressions. A release
+microbenchmark on Ryzen 7 5800X3D averaged 5.279 microseconds per synthetic frame
+for 128 graph selections/timers over 20,000 frames. It excludes pose evaluation,
+effect spawning, audio and rendering; populated-scene performance is unverified.
 
 ## Emotes on stock models: limbs out of wider bodies
 

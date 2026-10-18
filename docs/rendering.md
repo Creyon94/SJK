@@ -1196,12 +1196,19 @@ not identify a Grip attacker or change gameplay. See
 JA+ flamethrower presentation uses the documented table in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs), with the archived
 `cg_flameThrower` Auto/Off/JA+ override. `eFlags` bit 17 during a Lightning pass
-selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence
-(only when that graph is installed; otherwise Lightning stays);
+selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence;
+when missing, the preloaded retail `boba/fthrw` graph is used instead (JoF EJK
+[#67](https://github.com/JediofFreedom/JoF_EJK/pull/67)). Its forward direction is
+reversed with a half-turn around local up. SJK's quaternion frame also reverses
+the side axis, whereas EJK flips forward alone; asymmetric community replacements
+need live comparison before claiming exact appearance parity. When both graphs
+are missing, stock Lightning stays, without repeated load attempts during actor
+submission;
 the humanoid upper body uses `BOTH_FORCELIGHTNING_HOLD` with the standard 100 ms
 blend. `ET_GENERAL` entities with `eFlags2` bit 8 replay `env/fire_wall` after
-the reference 100 ms interval. Their timers and the positional `bf_flame.mp3`
-sample's 2.9 s repeats use snapshot server time, not render FPS. The weapon
+the reference 100 ms interval. Impact timers use presentation time, so they
+advance between snapshots and restart on a backward demo seek. The positional
+`bf_flame.mp3` sample's 2.9 s repeats retain snapshot server time. The weapon
 channel is stopped when firing ends, the player disappears or is muted, or the
 session ends. Models missing the named pose or hand keep the safe existing
 fallback; effect graphs and audio must exist in installed data. No server

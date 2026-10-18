@@ -190,19 +190,26 @@ pub(crate) fn select(caster: Caster, third_person: bool) -> Selection {
     }
 }
 
-/// The flame stream replaces Lightning only when its effect is installed (the JoF
-/// assets); without it the caster keeps stock Lightning rather than showing nothing.
+/// The JA+ flame replaces Lightning through one chain: the custom stream graph
+/// (JoF assets), else the retail `boba/fthrw` graph with its forward reversed,
+/// else stock Lightning, so a caster never shows nothing. The flag says whether
+/// the chosen graph must be reversed.
 fn select_for_contract(
     caster: Caster,
     third_person: bool,
     rule: Option<&flame::Contract>,
     installed: impl Fn(&str) -> bool,
-) -> Selection {
+) -> (Selection, bool) {
     let mut selection = select(caster, third_person);
-    if let Some(rule) = rule.filter(|rule| rule.firing(caster) && installed(rule.stream)) {
-        selection.beam = Some(rule.stream);
+    let mut reverse = false;
+    if let Some((name, flip)) = rule
+        .filter(|rule| rule.firing(caster))
+        .and_then(|rule| rule.stream_effect(&installed))
+    {
+        selection.beam = Some(name);
+        reverse = flip;
     }
-    selection
+    (selection, reverse)
 }
 
 /// Submit effects from the already evaluated hand bolts and body joints.
@@ -222,9 +229,10 @@ pub(super) fn submit(
     let Some(caster) = Caster::find(snapshot, number, sinks.predicted_local_state) else {
         return;
     };
-    let selection = select_for_contract(caster, sinks.third_person, sinks.flame, |name| {
-        sinks.effects.contains_definition(name)
-    });
+    let (selection, reverse_forward) =
+        select_for_contract(caster, sinks.third_person, sinks.flame, |name| {
+            sinks.effects.contains_definition(name)
+        });
     let actor = &sinks.actor_meshes[mesh];
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
@@ -256,6 +264,7 @@ pub(super) fn submit(
                 .unwrap_or(0.0)
         };
         let frame = beam_rotation(actor.angle_controller.torso_pitch_degrees(), yaw);
+        let frame = flame::stream_rotation(frame, reverse_forward);
         effect_runtime::spawn_effect(
             sinks.particles,
             sinks.effect_aux,
