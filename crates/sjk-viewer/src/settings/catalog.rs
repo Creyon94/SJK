@@ -415,7 +415,7 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Nameplates",
+        label: "See & share nameplates",
         cvar: "cg_nameplate",
         kind: ValueKind::Bool,
     },
@@ -463,16 +463,6 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Duel badge",
         cvar: "cg_nameplateDuel",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Force bar (estimated)",
-        cvar: "cg_nameplateForce",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Share my bars",
-        cvar: "cg_nameplateShare",
         kind: ValueKind::Bool,
     },
     Setting {

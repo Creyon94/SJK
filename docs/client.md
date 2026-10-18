@@ -2780,7 +2780,9 @@ default; a profile that saved that 0 has it moved once to 1
 
 ## Nameplates
 
-`cg_nameplate` (on by default) draws MMO-style nameplates over players
+`cg_nameplate` (off by default since 17/10/2026; Settings "See & share nameplates") draws MMO-style
+nameplates over players, and shares your own health, shield and Force with the other
+SJK players of your server ([Sharing and estimates](#sharing-and-estimates))
 ([nameplate.rs](../crates/sjk-viewer/src/hud/nameplate.rs); layout in
 [nameplate_math.rs](../crates/sjk-viewer/src/hud/nameplate_math.rs)): 2D HUD shapes
 and text at the projected point 8 units above the head of the player's box (decoded
@@ -2881,13 +2883,12 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   only, target, everyone, and round again, showing the mode's name near the top of the
   screen for a moment; `nameplates off|names|target|all` picks one. Target shows bars
   (and the weapon and power icons) only on the player you aim at, kept for three
-  seconds after the crosshair leaves them, and on your duel opponent. Names only is
+  seconds after the crosshair leaves them. Names only is
   just the names. The modes set `cg_nameplate` and `cg_nameplateBars` (0 names, 3
   target, 2 everyone); 1 (allies only) stays reachable in the settings.
-- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target and duel
-  opponent. `cg_nameplateScale`
-  sets the text size, `cg_nameplateForce` the Force bar (see [Sharing](#sharing-and-estimates)
-  for whose), `cg_nameplateWalls` shows
+- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target; never on
+  a duel opponent ([Sharing](#sharing-and-estimates)). `cg_nameplateScale`
+  sets the text size, `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name; at most 16; vehicles skipped). Their health bar
@@ -2923,13 +2924,35 @@ Another player's health, shield and Force bars show only when that player shares
 them (decided 15/10/2026; since 17/10/2026 with no estimates on anyone else), and
 seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/2026):
 
-- `cg_nameplateShare` (Settings > Interface "Share my bars", and First setup):
-  your client sends your real health, shield and Force (from the snapshot the server
-  sends you, with its server time) to the SJK hub, which passes them to the other
-  SJK players of your server ([hub-chat.md](hub-chat.md#vitals)). It needs
-  `cl_identity` and a live claim, so it starts a few seconds after joining. It is
-  held on (the client sets it back) while nameplates show bars (`cg_nameplate` on,
-  `cg_nameplateBars` not 0); it can only be off with bars off.
+- **See & share nameplates** is one setting, `cg_nameplate` (17/10/2026, off by default;
+  Settings > Interface, First setup, and the switch on the Collection's Nameplates tab,
+  [sjk-ui.md](sjk-ui.md#collection)): with nameplates on, whatever bars they show
+  (names only too), your client sends your real health, shield and Force (from the
+  snapshot the server sends you, with its server time) to the SJK hub, which passes
+  them to the other SJK players of your server ([hub-chat.md](hub-chat.md#vitals));
+  off, you see no nameplates and nothing is sent (`hud::nameplate::see_and_share`). It
+  needs `cl_identity` and a live claim, so it starts a few seconds after joining. It
+  replaces `cg_nameplateShare` ("Share my bars"), which the client held on while
+  nameplates showed bars: two settings for one value, and in Settings the row looked
+  stuck off, since the hold put the cvar back the next frame while the row still read
+  OFF. A `cg_nameplateShare` line in an older `config.cfg` no longer does anything.
+  Every profile had saved nameplates on (the old default), so the release asks players
+  to choose it again (`= cg_nameplate reset: ...` in the changelog): the what's-new card
+  puts it back off and opens on it with its switch, and the player turns it on again
+  knowing that it shares ([sjk-ui.md](sjk-ui.md#whats-new-card)).
+- **Duels** (Milamber's rule, 18/10/2026): nobody sees a duel opponent's health,
+  shield and Force, and a duellist sends nobody theirs, whatever either side's
+  settings (`hud::nameplate::Duel`). In a private duel (`duelInProgress`) the opponent
+  is the one your player state names (`duelIndex`); in the Duel game type every other
+  player in the arena; in Power Duel the other side (`ds` in `CS_PLAYERS`); a
+  spectator duels nobody. The opponent's plate keeps its name, weapon and icons but
+  shows no bars (not the grey ones either), in every bar mode; target mode no longer
+  shows bars on the duel opponent. While you duel your client sends the hub no values
+  (as when dead), so nobody on the server, bystanders and a Power Duel partner
+  included, sees your bars until the duel ends; the hub still lists you as sharing, so
+  you keep seeing bystanders'. The server's own duel health (`g_showDuelHealths`,
+  `CS_CLIENT_DUELHEALTHS`, on the scoreboard and the duel opponent display) is the
+  server's choice and is not affected.
 - **Tied to the hub:** shared bars on other players show only while the
   hub's last answer (under 6 seconds old) lists you sharing in your slot. With
   `cl_identity` off, no hub, no claim yet or the hub down, other players get no such
@@ -2938,16 +2961,18 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   their numbers.
 - **Players who do not share** (Sol's rule, 16/10/2026 for SJK players, 17/10/2026
   for everyone, bots and players without SJK too): grey bars, full length and empty,
-  for every viewer: health, shield, and Force with `cg_nameplateForce`. Nothing
+  for every viewer: health, shield and Force. Nothing
   overrides it, not even a teammate's `tinfo`. Their name, weapon and power icons
   stay. NPCs keep their bars.
-- **Sharers:** their bars are the estimates below, corrected with every value they
-  share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
+- **Sharers:** their health and shield bars are the estimates below, corrected with
+  every value they share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
   shared value is up to about a second old by the time it arrives, so it re-bases the
   estimate as it stood at that server time: what was seen since (a hit, a pain, a
   heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
-  seen since, the bar is exact; it never waits for the next value to move.
-- **Gold contour:** the plate of a player who shares (`cg_nameplateShare`) is framed in the verified badge's
+  seen since, the bar is exact; it never waits for the next value to move. Their
+  Force bar is the last Force they shared, not estimated (17/10/2026,
+  `hud::nameplate::shared_force`), so it moves with each value, about twice a second.
+- **Gold contour:** the plate of a player who shares (See & share nameplates) is framed in the verified badge's
   gold instead of grey; in team games a thin line of the
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too
   while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are a paler gold, drawn thinner.
@@ -2999,9 +3024,8 @@ Where the numbers come from, and what is not known:
     does 2 a second past the shield (its crushing blow is a pain);
   - rage costs 2 health every 150, 300 or 450 ms by level (the guess level 3), down
     to 1, and halves every blow and fall before the shield; protect keeps 40, 60 or
-    80% of a blow off the health (the guess 80%) and pays for it with Force, point
-    for point, a half or a quarter (halved with the boon), which the Force estimate
-    takes;
+    80% of a blow off the health (the guess 80%) and pays for it with Force (not
+    estimated);
   - private duels (`EV_PRIVATE_DUEL`, 1 at the start, 0 at the end): on JA+ both
     duellists are set to 100 health and 100 shield when it starts, and the winner to
     100 and 25 when it ends, whatever they had left; on stock JKA the start changes
@@ -3027,41 +3051,13 @@ Where the numbers come from, and what is not known:
   trusted but their absence proves nothing; if they do not match (or every pain says
   50), they are ignored and a pain only says ten or more landed. JA+ is closed source
   and not verified.
-- **Force** is never sent for other players, so it is estimated
-  ([force_estimate.rs](../crates/sjk-viewer/src/hud/force_estimate.rs)) from their
-  entity state with the server's own rules: a full pool at spawn, a point per
-  regen pace (measured from your own pool while you idle, which the server does send,
-  else `g_forceRegenTime` from the server's info string, else 200 ms; six times as
-  fast with the boon) while no power but drain is on and no saber is thrown or in a
-  special move, and these costs:
-  - the price of each power when it switches on (a grip a flat 30; drain and
-    lightning need 25 to start), and the running costs of protect, absorb, grip and
-    lightning;
-  - a force jump nothing to start, then while it lasts every 300 ms (200 at level 1)
-    20, 16, 12, 8, 6 or 4 by how fast it rises (`pos.trDelta[2]` over 250, 200, 150,
-    100, 50, 0), over the jump level;
-  - push and pull (by their animation) and a saber throw at their price; a disarm
-    flies the saber too but its own entity is not in flight, and costs nothing;
-  - saber specials when their `saberMove` starts, proving the pool held the price:
-    a kata 50, a cartwheel or butterfly 10, a lunge, spin, flip attack, death from
-    above, stab down, roll stab or dual/staff jump attack 25; a wall run-up's flip
-    and a jump off a wall grab 6, a level-2 flip back off a wall half the rise's
-    band;
-  - heal (its sound) and team heal or energize (`EV_TEAM_POWER`, the caster stands
-    at it), which never show as active, at their price; an energize gives its 50,
-    33 or 25 to each named teammate;
-  - protect's share of the blows it softens; drain shots and absorb's point back a
-    drain or lightning shot (see below); an absorb's hit sound while somebody pushes
-    or pulls gives 6 to 18 back;
-  - `EV_NOAMMO` 0 (a special refused for want of Force) proves the pool under 50;
-    becoming the Jedi Master fills it.
-
-  Power levels are not sent, so the low bound pays each power at its dearest level
-  and the high bound at its cheapest (the guess at level 3); until the pace is
-  measured the bounds refill a little slower and faster than the guess. A power
-  starting proves the pool held its price, which raises the low bound. It misses
-  saber blocks in some mods and anything that changes costs. It refills while a
-  player idles, so the range closes within about twenty seconds.
+- **Force** is not estimated (17/10/2026): a sharer's Force bar is the value they
+  share, and a player who shares nothing has the grey one. The estimate that rebuilt
+  every player's pool from their entity state (`force_estimate.rs`: the regeneration
+  pace measured from your own pool, each power's price and running cost, force jumps,
+  saber specials, team powers, absorb and refused specials) was removed with its
+  setting, `cg_nameplateForce` ("Force bar (estimated)"); the bar shows whenever the
+  plate shows bars.
 - **Force streams** ([force_streams.rs](../crates/sjk-viewer/src/hud/force_streams.rs))
   rebuild drain, lightning and grip shot by shot, as `ForceShootDrain`,
   `ForceShootLightning` and `DoGripAction` do it. Drain and lightning shoot every
@@ -3081,8 +3077,7 @@ Where the numbers come from, and what is not known:
   drain shot, and a renewed electrification (`emplacedOwner`, which lightning sets
   800 ms ahead) while somebody casts lightning that a bolt landed, even where the
   geometry missed it. Doors, movers and other players in the arc's line of sight are
-  not checked. Your own pace measurement skips the time drain holds your refill
-  back.
+  not checked.
 
   Your own drain is measured, not rebuilt: the server sends you your pool, which
   each shot takes 5 from, and your health, which each shot raises by what it took

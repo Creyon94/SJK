@@ -17,6 +17,11 @@ tests check this file):
 - "> <Heading>: <sentence>" lines before the first item are the release's short
   recap (3 to 6 lines, shown by the what's-new card after an update); every release
   dated 12/10/2026 or later needs one;
+- "= <cvar>: <sentence>" lines before the first item are settings the release
+  changed and asks players to choose again: the what's-new card opens on them, the
+  setting's Settings name, the sentence and a switch each ("= <cvar> reset: ..."
+  puts the setting back to its default first, so a value saved before the change
+  does not carry over unchosen); the cvar must be an on/off row in Settings;
 - a command or cvar in backticks (`whatsnew`), in a recap or a change, is drawn
   in a clickable chip by the what's-new card and the changelog page;
 - "- <change> _(<credit>)_" is one change; every change ends with its credit;
@@ -25,12 +30,19 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
+
 - The scoreboard sets away players apart: anyone whose view has not moved for 3 minutes (or with [AFK] in their name) drops to the bottom of their list, faint, with "AFK" and how long; chat, a turn of the mouse or a kill brings them back. Settings > HUD > Scoreboard > Away players apart (`cg_scoreboardAfk`) _(Sol)_
 - Mute is now Block, and it blocks everything: a blocked player's game and SJK chat stay hidden, they are drawn as Kyle with the default saber, silent, and now their emotes, Order 66 orders, cardboard box events and player card are ignored too; `block <player>` and `unblock <player|all>` in the console, and the SJK chat page lists who you blocked with Unblock _(Sol)_
 - The Staff page is reworked into tabs for the chosen player (Overview, Medals and unlocks, Holocrons and credits, Achievements, Keys, Logs) plus Crashes and Chat bans for everyone, and it now gives and takes credits and kyber shards, blocks or allows a player's pictures, mutes them at the hub, lifts their chat bans and lists every chat ban in force _(Sol)_
 - Force Push and Pull move the doors and lifts a map made Force-usable and press Force-pushable buttons, which maps such as Siege Korriban use _(Slash, after OpenJK)_
 - Walls and barriers a map switches off by name go away, as the one in front of Siege Korriban's red crystal once its satellites are destroyed _(Slash, after OpenJK)_
 - Breakable walls and doors a map brings down by itself come apart, also after their delay, and sabers can damage siege objectives and the doors made to be struck open, as Siege Korriban's door after the crystals _(Slash, after OpenJK)_
+- A nameplate's Force bar is the Force the player shares, no longer estimated from the powers they use; Force bar (estimated) (`cg_nameplateForce`) is gone _(Milamber)_
+- In a duel (private, Duel or Power Duel) your opponent's health, shield and Force never show on their nameplate, and yours are not sent until the duel ends _(Milamber)_
+- The what's-new card opens on Settings to review when an update changed a setting: each with why and a switch, a reset one off until you choose it again _(Milamber)_
+- See & share nameplates (`cg_nameplate`, off by default) replaces Share my bars (`cg_nameplateShare`): seeing other players' nameplates shares your own health, shield and Force, and off does neither _(Milamber)_
+- The Collection's Nameplates tab has a See & share nameplates switch, its row pulsing gold so it is not missed _(Milamber)_
 - The Supporter medal is no longer oddly cut: its ribbon ends in a clean V on the star's bail (no dark block or broken stem under it), and its small medallion loses the stray line at its top _(Sol)_
 - The shop sells its four daily saber shaders for kyber shards (30 to 1 500, below what crafting costs), the Legendary offer turns Mythical one day in four, and credits now buy holocrons: an Uncommon for 150 or a Rare for 400 under the offers, asking twice, the holocron joining your list at once, once the SJK hub turns them on _(Sol)_
 - A card from a holocron now comes as a pack, once the SJK hub turns the shards on: beside the card its credits and a few kyber shards slide out in two tiles and count up, and Open all adds the pack's shards to its totals _(Sol)_

@@ -79,6 +79,8 @@ const SABER_TOKEN: u16 = 1_316;
 /// The shader card's Shatter (a duplicate into kyber shards) and Craft (with them).
 const SHATTER_TOKEN: u16 = 1_317;
 const CRAFT_TOKEN: u16 = 1_318;
+/// The Nameplates tab's See and share nameplates switch.
+const SHARE_TOKEN: u16 = 1_319;
 /// How long a Shatter or Craft waits for its second press, which sends it.
 const TRADE_CONFIRM: std::time::Duration = std::time::Duration::from_secs(5);
 /// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
@@ -195,6 +197,9 @@ pub(crate) enum PanelAction {
     Craft(&'static str),
     /// Ask the hub to reveal the player's sealed cards.
     RevealCards,
+    /// See and share nameplates on (`true`) or off: `cg_nameplate`
+    /// ([`crate::hud::nameplate::see_and_share`]).
+    SeeAndShare(bool),
 }
 
 /// Where the player's model stands behind Shaders, Toys and Nameplates this frame, as
@@ -258,6 +263,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) grid: bool,
     /// `cg_saberSkinOptions`: the skins' parts switched off.
     pub(crate) options: &'a str,
+    /// See and share nameplates (`cg_nameplate`): the player sees nameplates and shares
+    /// their health, shield and Force.
+    pub(crate) share: bool,
 }
 
 /// A card tilting towards the pointer ([`crate::cards::look::Tilt`]): which, where the
@@ -305,6 +313,8 @@ pub(crate) struct Panel {
     box_on: bool,
     /// Order 66 was on, as the last frame's inputs said.
     order66_on: bool,
+    /// See and share nameplates was on, as the last frame's inputs said.
+    share_on: bool,
     /// The kind of card chosen on Cards, and how many kinds the last frame showed.
     card: usize,
     cards_shown: usize,
@@ -395,6 +405,7 @@ impl Panel {
             toy: 0,
             box_on: false,
             order66_on: false,
+            share_on: false,
             card: 0,
             cards_shown: 0,
             revealable: 0,
@@ -588,6 +599,7 @@ impl Panel {
             Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
+            Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             _ => PanelAction::None,
         }
     }
@@ -990,7 +1002,7 @@ impl Panel {
             BACK_TOKEN => PanelAction::Close,
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
-            WEAR_TOKEN | TOY_SWITCH_TOKEN => self.activate(illuminate),
+            WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
             SHATTER_TOKEN | CRAFT_TOKEN => self.trade_press(token, now),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
@@ -1116,6 +1128,7 @@ impl Panel {
             Tab::Shaders => SHADER_BASE + self.shader as u16,
             Tab::Toys => TOY_TOKENS[self.toy.min(TOY_COUNT - 1)],
             Tab::Cards if self.cards_shown > 0 => CARD_BASE + self.card as u16,
+            Tab::Nameplates => SHARE_TOKEN,
             _ => BACK_TOKEN,
         }
     }
@@ -1150,6 +1163,7 @@ mod tests {
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
             options: "",
+            share: true,
         }
     }
 
@@ -1527,6 +1541,43 @@ mod tests {
         let all = panel.ui.text_runs().collect::<Vec<_>>().join("\n");
         assert!(
             all.contains("toy_order66") && all.contains("In the order"),
+            "{all}"
+        );
+    }
+
+    /// The Nameplates tab's See and share nameplates switch, clicked or with Enter, flips the
+    /// state the page was told, and says what off means.
+    #[test]
+    fn the_share_switch_flips_sharing() {
+        let mut shown = inputs(Holdings::Known(&[]), "");
+        let mut panel = drawn(Tab::Nameplates, &shown);
+        let rect = panel.ui.rect_for(SHARE_TOKEN).expect("the switch");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        let button = sjk_ui::PointerButton::Primary;
+        let action = [
+            InputEvent::PointerMove(at),
+            InputEvent::PointerPress {
+                position: at,
+                button,
+            },
+            InputEvent::PointerRelease {
+                position: at,
+                button,
+            },
+        ]
+        .into_iter()
+        .map(|event| panel.pointer_at(event, true, Instant::now()))
+        .find(|action| *action != PanelAction::None);
+        assert_eq!(action, Some(PanelAction::SeeAndShare(false)));
+        shown.share = false;
+        redraw(&mut panel, &shown);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false, false),
+            PanelAction::SeeAndShare(true)
+        );
+        let all = panel.ui.text_runs().collect::<Vec<_>>().join("\n");
+        assert!(
+            all.contains("See & share nameplates") && all.contains("you see no nameplates"),
             "{all}"
         );
     }

@@ -129,9 +129,6 @@ pub(crate) fn update(
             !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)
         });
     gpu.hud.identification.sample(gpu.console.as_ref());
-    if let Some(console) = gpu.console.as_mut() {
-        hud::nameplate::hold_sharing(console);
-    }
     gpu.hud.nameplate.sample(gpu.console.as_ref());
     gpu.hud.card.sample(gpu.console.as_ref());
     gpu.hud.team_logo.sample(gpu.console.as_ref());
