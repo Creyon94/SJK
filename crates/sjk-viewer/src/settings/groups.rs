@@ -340,6 +340,7 @@ impl Group {
                 crate::console::console_options::STYLE_CVAR,
                 "con_scale",
                 crate::console::console_options::DRAW_NOTIFY_CVAR,
+                crate::console::console_options::COPY_COLORS_CVAR,
                 crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,
@@ -803,6 +804,23 @@ mod tests {
             "SJK Advanced"
         );
         assert!(!has_size(Group::Simple(Simple::General)), "SJK Simple");
+    }
+
+    #[test]
+    fn console_colour_copy_stays_in_the_full_interface_settings() {
+        let has_switch = |group: Group| {
+            group.rows().iter().any(|setting| {
+                setting
+                    .cvar
+                    .eq_ignore_ascii_case(crate::console::console_options::COPY_COLORS_CVAR)
+            })
+        };
+        assert!(has_switch(Group::Interface), "classic+ Interface");
+        assert!(
+            has_switch(Group::Advanced(Advanced::Interface)),
+            "SJK Advanced"
+        );
+        assert!(!has_switch(Group::Simple(Simple::General)), "SJK Simple");
     }
 
     #[test]

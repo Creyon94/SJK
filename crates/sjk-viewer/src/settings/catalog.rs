@@ -1120,6 +1120,11 @@ pub(super) const TEXT: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Copy console colours",
+        cvar: crate::console::console_options::COPY_COLORS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Other clients' text",
         cvar: crate::text::charset::CVAR,
         kind: ValueKind::Choice(&crate::text::charset::NAMES),

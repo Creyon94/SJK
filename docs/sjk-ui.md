@@ -821,7 +821,9 @@ that mode for the visit and leaves the player's choice as it was.
     emojis, remembered channel and letter spacing) and the SJK chat (SJK
     chat, its GIFs, its video clips opt-in and the GIPHY key); Mods the asset browser (Packs), JA+ and
     JoF tools (Server mods), JoF content's card and host (JoF content),
-    invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that
+    invisible brushes (Map tools) and the showcase tools (Experimental); Interface's
+    Console rows include retaining colour codes when console scrollback is copied;
+    Network SJK online and Connection. A test checks that
     every setting is on exactly one of Advanced's categories. The classic+
     panels keep their groups as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,

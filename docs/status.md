@@ -1,3 +1,17 @@
+## Console scrollback copies with colours
+
+18/10/2026, `feat/console-copy-colors`, based on `origin/main` `046ef86b`: the
+archived, default-off `con_copyColors` switch retains original `^0`-`^9` colour
+codes when Ctrl+C copies selected console scrollback and writes `^7` for an
+implicit-white start, so a pasted green chat line does not recolour its white
+name; off keeps the existing plain-text copy. It is exposed in the shared
+Interface settings used by the classic+ and SJK Advanced menus. The four focused
+copy-policy tests, cvar registration and persistence test, and settings placement
+test pass. On Linux x86_64 with Rust 1.99.1, formatting, the locked workspace
+build and test suite, workspace all-target Clippy, and locked release viewer and
+dedicated-server build pass; existing warnings remain. The final implicit-white
+fix has not yet been rechecked interactively in game.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`

@@ -864,6 +864,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows the newest console lines at the top left while playing. Chat keeps its own box.",
     ),
     (
+        crate::console::console_options::COPY_COLORS_CVAR,
+        "Keeps ^0-^9 colour codes in text copied from console scrollback.",
+    ),
+    (
         crate::text::charset::CVAR,
         "Chat and names of EternalJK and retail players: Auto spots Russian, Cyrillic always reads it as Russian, Western never.",
     ),
