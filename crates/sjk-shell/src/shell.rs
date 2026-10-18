@@ -414,9 +414,9 @@ impl Shell {
             match result {
                 Ok(lines) => {
                     for line in lines {
-                        // Returned as kept: scrubbed of secrets (`secret.rs`).
-                        let line = self.cvars.scrub(&line).into_owned();
-                        self.push_line(ConsoleLineKind::Output, line.clone());
+                        // Returned as kept: scrubbed of secrets (`secret.rs`), once.
+                        let line = self.scrubbed(line);
+                        self.keep_line(ConsoleLineKind::Output, line.clone(), true);
                         output.push(line);
                     }
                 }
@@ -450,6 +450,22 @@ impl Shell {
     }
 
     fn push_line_with(&mut self, kind: ConsoleLineKind, text: String, notify: bool) {
+        let text = self.scrubbed(text);
+        self.keep_line(kind, text, notify);
+    }
+
+    /// The last of the secret layers (`secret.rs`): `text` without the secret
+    /// cvars' values, whichever path printed it; moved, not copied, when it holds
+    /// none.
+    fn scrubbed(&self, text: String) -> String {
+        match self.cvars.scrub(&text) {
+            std::borrow::Cow::Borrowed(_) => text,
+            std::borrow::Cow::Owned(scrubbed) => scrubbed,
+        }
+    }
+
+    /// Keep an already [`Self::scrubbed`] line.
+    fn keep_line(&mut self, kind: ConsoleLineKind, text: String, notify: bool) {
         // OpenJK cl_console.cpp:610-612: suppress console printing at its sink.
         if self
             .cvars
@@ -461,12 +477,6 @@ impl Shell {
         if self.lines.len() == self.log_capacity {
             self.lines.pop_front();
         }
-        // The last of the secret layers (`secret.rs`): no kept line holds a
-        // secret cvar's value, whichever path printed it.
-        let text = match self.cvars.scrub(&text) {
-            std::borrow::Cow::Borrowed(_) => text,
-            std::borrow::Cow::Owned(scrubbed) => scrubbed,
-        };
         if let Some(tap) = self.line_tap {
             tap(&text);
         }
@@ -624,6 +634,16 @@ mod secret_tests {
         TAPPED.lock().unwrap().push(line.to_owned());
     }
 
+    /// Each path gets its own password, so the scrub (which knows only the
+    /// cvars' values) cannot hide a gap in the echo or the listings.
+    const SECRETS: [&str; 5] = [
+        "rconsecret",
+        "bindsecret",
+        "keysecret",
+        "cvarsecret",
+        "delaysecret",
+    ];
+
     #[test]
     fn a_typed_password_reaches_the_cvar_but_no_printed_line() {
         let mut cvars = CvarRegistry::new();
@@ -639,37 +659,44 @@ mod secret_tests {
         shell.set_line_tap(tap);
         let mut printed = Vec::new();
         for line in [
-            "rconpassword hunter2",
-            "seta rconPassword hunter2",
+            "rconpassword rconsecret",
+            "seta rconPassword rconsecret",
             "rconPassword",
             "print rconPassword",
             "cvarlist rcon",
             "cvar_modified",
-            "bind F5 \"amlogin hunter2\"",
+            "bind F5 \"amlogin bindsecret\"",
             "bind F5",
+            "bind P amlogin keysecret",
+            "bind P",
             "bindlist",
-            "bind P amlogin hunter2",
-            "seta autologin \"amlogin hunter2\"",
+            "seta autologin \"amlogin cvarsecret\"",
             "autologin",
+            "print autologin",
             "cvarlist auto",
+            "cvar_modified",
             "strSub echo $rconPassword$",
-            "toggle rconPassword hunter2 other",
-            "toggle rconPassword hunter2 other",
+            "toggle rconPassword rconsecret other",
+            "toggle rconPassword rconsecret other",
+            // Refused (delay takes one argument), but echoed first.
+            "delay 500 amlogin delaysecret",
         ] {
-            printed.extend(shell.execute_line(line).unwrap());
+            if let Ok(lines) = shell.execute_line(line) {
+                printed.extend(lines);
+            }
         }
         // What a mod or a frontend prints by itself is scrubbed too.
-        shell.push_log("userinfo: \\password\\hunter2");
-        assert_eq!(
-            shell.cvars.get("autologin").unwrap().value.as_text(),
-            "amlogin hunter2"
-        );
+        shell.push_log("userinfo: \\rconPassword\\rconsecret");
         assert_eq!(
             shell.cvars.get("rconPassword").unwrap().value.as_text(),
-            "hunter2"
+            "rconsecret"
         );
-        assert_eq!(shell.binds.get("f5"), Some("amlogin hunter2"));
-        assert_eq!(shell.binds.get("p"), Some("amlogin hunter2"));
+        assert_eq!(
+            shell.cvars.get("autologin").unwrap().value.as_text(),
+            "amlogin cvarsecret"
+        );
+        assert_eq!(shell.binds.get("f5"), Some("amlogin bindsecret"));
+        assert_eq!(shell.binds.get("p"), Some("amlogin keysecret"));
         printed.extend(shell.lines().map(|line| line.text.clone()));
         printed.extend(TAPPED.lock().unwrap().iter().cloned());
         assert!(
@@ -678,7 +705,9 @@ mod secret_tests {
                 .any(|line| line.contains(crate::secret::MASK))
         );
         for line in &printed {
-            assert!(!line.contains("hunter2"), "{line}");
+            for secret in SECRETS {
+                assert!(!line.contains(secret), "{line}");
+            }
         }
     }
 }

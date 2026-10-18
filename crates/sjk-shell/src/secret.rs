@@ -12,7 +12,7 @@
 //! - the echo of a typed line goes through [`input_line`], which masks the
 //!   arguments of [`SECRET_COMMANDS`], a secret cvar's new value, and a command line
 //!   held in a cvar or a bind (`seta autologin "amlogin hunter2"`), also inside the
-//!   [`WRAPPERS`] that forward a command line (`rcon`, `cmd`);
+//!   [`COMMAND_LINES`] that carry one (`rcon`, `cmd`, `strSub`, `delay`, `ifCvar`);
 //! - every line the console keeps is scrubbed of the current values of the secret
 //!   cvars ([`crate::CvarRegistry::scrub`]), so a path the first two miss (`strSub
 //!   echo $rconPassword$`, a mod printing userinfo) still prints [`MASK`].
@@ -46,18 +46,31 @@ pub const SECRET_CVAR_PARTS: &[&str] = &[
     "giphykey",
 ];
 
-/// Commands (lowercase) whose arguments are a password.
-pub const SECRET_COMMANDS: &[&str] = &[
-    // JA+ and JoF: `amlogin <password>` (sjk-mod-japlus, JoF EJK codemp/game).
-    "amlogin", // JoF EJK and account mods: `login <name> <password>`.
-    "login",   // JoF EJK and account mods: `register <name> <password>`.
-    "register",
-];
+/// Commands (lowercase) whose arguments are a password:
+///
+/// - `amlogin <password>`: JA+ and JoF admin login (sjk-mod-japlus, JoF EJK
+///   `codemp/game`);
+/// - `login <name> <password>`: JoF EJK and account mods;
+/// - `register <name> <password>`: JoF EJK and account mods.
+pub const SECRET_COMMANDS: &[&str] = &["amlogin", "login", "register"];
 
-/// Commands whose arguments are themselves a command line, masked in turn:
-/// `rcon <command>` runs it on the server, `cmd <command>` sends it as a client
-/// command (`console_info.rs` in the viewer).
-pub const WRAPPERS: &[&str] = &["rcon", "cmd"];
+/// Commands (lowercase) whose arguments from the given one on are a command line,
+/// masked in turn:
+///
+/// - `rcon <command>`: runs it on the server;
+/// - `cmd <command>`: sends it as a client command (`console_info.rs` in the viewer);
+/// - `strSub <command>`: runs it with `$cvar$` substituted;
+/// - `delay <ms> <command>` and `waitf <frames> <command>`: the command typed on
+///   the same line by mistake (the shell refuses it, but echoes it first);
+/// - `ifCvar <cvar> <condition> <argc> <command ...>`: the branches' commands.
+pub const COMMAND_LINES: &[(&str, usize)] = &[
+    ("rcon", 0),
+    ("cmd", 0),
+    ("strsub", 0),
+    ("delay", 1),
+    ("waitf", 1),
+    ("ifcvar", 3),
+];
 
 /// Commands whose first argument is a name (a cvar to set, a key to bind) and
 /// whose other arguments are a value that may hold a command line.
@@ -91,15 +104,28 @@ impl Names for ByName {
 }
 
 /// `value` as a listing may show it: [`MASK`] for a set secret value; a command
-/// line it holds with its passwords masked otherwise.
+/// line it holds with its passwords masked otherwise. Only a value that names a
+/// password command or a secret cvar is parsed, so most cost a scan.
 pub fn shown(secret: bool, value: &str) -> String {
     if value.is_empty() {
         String::new()
     } else if secret {
         MASK.to_owned()
-    } else {
+    } else if mentions_secret(value) {
         input_line(value, &ByName)
+    } else {
+        value.to_owned()
     }
+}
+
+/// Whether `text` holds a word of [`SECRET_COMMANDS`] or [`SECRET_CVAR_PARTS`],
+/// in any case: the only text [`input_line`] can mask.
+fn mentions_secret(text: &str) -> bool {
+    let text = text.to_ascii_lowercase();
+    SECRET_COMMANDS
+        .iter()
+        .chain(SECRET_CVAR_PARTS)
+        .any(|word| text.contains(word))
 }
 
 /// A typed console line as its echo may show it: each command that carries a
@@ -140,10 +166,18 @@ fn command_masked(command: &str, names: &dyn Names) -> Option<String> {
     if !rest.is_empty() && names.is_secret(first) {
         return Some(format!("{name} {first} {MASK}"));
     }
-    if WRAPPERS.contains(&lower.as_str()) {
-        let inner = arguments.join(" ");
+    if let Some(&(_, at)) = COMMAND_LINES.iter().find(|(line, _)| *line == lower) {
+        let (kept, inner) = arguments.split_at(at.min(arguments.len()));
+        if inner.is_empty() {
+            return None;
+        }
+        let inner = inner.join(" ");
         let shown = input_line(&inner, names);
-        return (shown != inner).then(|| format!("{name} {shown}"));
+        let prefix = std::iter::once(name.as_str())
+            .chain(kept.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ");
+        return (shown != inner).then(|| format!("{prefix} {shown}"));
     }
     // A value that is a command line: `seta autologin "amlogin hunter2"`,
     // `bind F5 "amlogin hunter2"`, or `autologin "amlogin hunter2"` for a cvar.
@@ -179,7 +213,7 @@ fn masked_unparsed(line: &str, names: &dyn Names) -> String {
                 let lower = word.to_ascii_lowercase();
                 let secret = SECRET_COMMANDS.contains(&lower.as_str())
                     || names.is_secret(word)
-                    || WRAPPERS.contains(&lower.as_str());
+                    || COMMAND_LINES.iter().any(|(line, _)| *line == lower);
                 if secret && !line[at..].trim_matches(separator).is_empty() {
                     return format!("{} {MASK}", &line[..at]);
                 }
@@ -344,5 +378,30 @@ mod tests {
         }
         assert_eq!(echo("say \"hi"), "say \"hi");
         assert_eq!(echo("say \"amlogin"), "say \"amlogin");
+    }
+
+    #[test]
+    fn command_lines_after_their_arguments_are_masked() {
+        for (typed, shown) in [
+            ("strSub amlogin hunter2", "strSub amlogin ********"),
+            ("delay 500 amlogin hunter2", "delay 500 amlogin ********"),
+            ("waitf 2 login sol hunter2", "waitf 2 login ********"),
+            (
+                "ifCvar g_x =1 2 amlogin hunter2",
+                "ifCvar g_x =1 2 amlogin ********",
+            ),
+        ] {
+            assert_eq!(echo(typed), shown, "{typed}");
+        }
+        for typed in ["delay 500", "strSub echo $name$", "ifCvar g_x =1 2 say hi"] {
+            assert_eq!(echo(typed), typed);
+        }
+    }
+
+    #[test]
+    fn a_value_without_a_secret_word_is_shown_as_it_is() {
+        assert!(!mentions_secret("say gg; +attack"));
+        assert!(mentions_secret("say gg; AMLOGIN x"));
+        assert_eq!(shown(false, "say gg; +attack"), "say gg; +attack");
     }
 }

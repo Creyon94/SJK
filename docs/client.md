@@ -4643,30 +4643,36 @@ layers keep them out:
 
 - every description and listing (a cvar's value, `print`, `cvarlist`, `cvar_modified`,
   completion's listing, `userinfo`, the cvar browser) shows a set secret value as
-  `********` through `Cvar::shown_value`, and a command line a cvar or bind holds
-  with its password masked (`autologin = "amlogin ********"`);
+  `********` through `Cvar::shown_value`, and a command line a bind or a cvar the
+  player created holds with its password masked (`autologin = "amlogin ********"`);
+  a registered cvar such as `name` is shown as it is, never read as a command;
 - the echo of a typed line masks a password command's arguments, a secret cvar's new
   value (`]rconpassword ********`, also after `set`, `toggle`, `ifCvar` and the
   arithmetic commands) and the password in a command line given to `set`/`seta`, a
-  cvar, `bind` (`]bind P "amlogin ********"`), `rcon` or `cmd`; a line with an open
-  quote is masked from its first password word on;
+  cvar, `bind` (`]bind P "amlogin ********"`), or carried by `rcon`, `cmd`,
+  `strSub`, `delay`/`waitf` or an `ifCvar` branch; a line with an open quote is
+  masked from its first password word on;
 - every kept line, and every command output a frontend gets back, is scrubbed of the
-  current values of the secret cvars of at least four characters, so a path the
+  current values of the secret cvars of at least four characters, the longest first
+  (so `jedi2024` is not left as `********2024` beside `jedi`), so a path the
   first two miss (`strSub echo $rconPassword$`, a mod printing userinfo) prints
   `********` too.
 
 The values themselves are unchanged: the cvar and the bind keep them, the command and
 the server still get them (`bind P amlogin <password>` logs in as before), and
 `config.cfg` still saves the archived ones and binds as plain text. The cvar browser
-edits a secret from an empty field and copies it by name, so the mask is never typed
-back as its value. There is no setting to show them again (`secret.rs` says why), and
+treats a secret, and a cvar whose shown value has a password masked, alike: it edits
+it from an empty field drawn as one `*` per character, keeps it when Enter confirms
+the empty field, and copies it by name, so the mask is never typed back as its value
+and the value is never drawn. There is no setting to show them again (`secret.rs` says why), and
 lines printed before this change (an older session log, a crash report already
 waiting) are not rewritten.
 
-Covered by unit tests of the tables and each layer, and a shell test that types,
-queries, lists, binds, holds in a cvar and `strSub`s a password and finds it in no
-printed line, returned output or tap line while the cvar and binds keep it; not
-exercised in a live game.
+Covered by unit tests of the tables, each layer and the cvar browser's edit and copy,
+and a shell test that types, queries, lists, binds, holds in a cvar, `strSub`s and
+`delay`s passwords, each path its own so the scrub cannot hide a gap in the others,
+and finds none in a printed line, returned output or tap line while the cvar and binds
+keep them; not exercised in a live game.
 
 ## Console socket
 

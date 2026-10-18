@@ -62,9 +62,13 @@ enum Kind {
         default: String,
         read_only: bool,
         archived: bool,
-        /// A password or key (`CvarFlags::SECRET`): edited from empty and copied
-        /// by name only, so the mask is never typed back as its value.
+        /// A password or key (`CvarFlags::SECRET`), or a value shown with a
+        /// password masked (`autologin "amlogin ********"`): edited from an empty,
+        /// masked field and copied by name only, so the mask is never typed back as
+        /// the value and the value is never drawn.
         secret: bool,
+        /// The value differs from the default, compared before masking.
+        changed: bool,
     },
 }
 
@@ -81,7 +85,7 @@ struct Entry {
 
 impl Entry {
     fn changed(&self) -> bool {
-        matches!(&self.kind, Kind::Cvar { value, default, .. } if value != default)
+        matches!(self.kind, Kind::Cvar { changed: true, .. })
     }
 
     fn in_tab(&self, tab: usize) -> bool {
@@ -123,6 +127,9 @@ pub(crate) struct Browser {
     rows: usize,
     /// The value being typed for the selected cvar.
     editing: Option<String>,
+    /// The cvar being edited is a secret: its typed value is drawn masked
+    /// ([`EditShown`]) and an empty one cancels instead of clearing it.
+    editing_secret: bool,
     /// `"<shown> of <total>"` line under the title.
     summary: String,
     /// Outcome of the last edit or refusal, shown in the footer.
@@ -151,6 +158,7 @@ impl Browser {
             first: 0,
             rows: 1,
             editing: None,
+            editing_secret: false,
             summary: String::new(),
             status: String::new(),
             status_error: false,
@@ -246,12 +254,14 @@ impl Browser {
         self.entries
             .dedup_by(|later, earlier| later.search_name == earlier.search_name);
         for cvar in shell.cvars.iter() {
+            let value = cvar.shown_value();
             let kind = Kind::Cvar {
-                value: cvar.shown_value(),
+                secret: cvar.flags.contains(CvarFlags::SECRET) || value != cvar.value.as_text(),
+                changed: cvar.value != cvar.default,
+                value,
                 default: cvar.shown_default(),
                 read_only: cvar.flags.contains(CvarFlags::READ_ONLY),
                 archived: cvar.flags.contains(CvarFlags::ARCHIVE),
-                secret: cvar.flags.contains(CvarFlags::SECRET),
             };
             self.entries
                 .push(entry(&cvar.name, &cvar.description, kind));
@@ -356,10 +366,12 @@ impl Browser {
             }
             Kind::Cvar { secret: true, .. } => {
                 self.editing = Some(String::new());
+                self.editing_secret = true;
                 BrowserAction::None
             }
             Kind::Cvar { value, .. } => {
                 self.editing = Some(value.clone());
+                self.editing_secret = false;
                 BrowserAction::None
             }
         }
@@ -368,6 +380,15 @@ impl Browser {
     /// Apply an active edit, or start editing/inserting the selected entry.
     fn accept(&mut self) -> BrowserAction {
         if let Some(value) = self.editing.take() {
+            // Enter on an untouched secret keeps it, as Enter twice keeps any
+            // other value: its field starts empty, never with the value.
+            if self.editing_secret && value.trim().is_empty() {
+                self.set_status(
+                    "Unchanged: type a new value to replace it".to_owned(),
+                    false,
+                );
+                return BrowserAction::None;
+            }
             return self
                 .selected_entry()
                 .map_or(BrowserAction::None, |entry| BrowserAction::Set {
@@ -520,6 +541,36 @@ impl Browser {
     }
 }
 
+/// The value being typed, as the views draw it: one `*` per character for a
+/// secret, so a stream or a screenshot never shows it; drawn without allocating.
+pub(super) struct EditShown<'a> {
+    text: &'a str,
+    masked: bool,
+}
+
+impl<'a> EditShown<'a> {
+    /// The browser's edit (`editing`, `editing_secret`), if one is open; taken by
+    /// field so a view can draw it while it holds the canvas.
+    pub(super) fn of(editing: &'a Option<String>, secret: bool) -> Option<Self> {
+        editing.as_deref().map(|text| Self {
+            text,
+            masked: secret,
+        })
+    }
+}
+
+impl std::fmt::Display for EditShown<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if !self.masked {
+            return formatter.write_str(self.text);
+        }
+        for _ in self.text.chars() {
+            formatter.write_str("*")?;
+        }
+        Ok(())
+    }
+}
+
 /// The entry as a console line: a command's name, or a cvar's name and value
 /// (quoted when it is empty or has spaces), ready to paste.
 fn entry_line(entry: &Entry) -> String {
@@ -567,5 +618,76 @@ fn type_into(
             break;
         }
         field.push(character);
+    }
+}
+
+#[cfg(test)]
+mod secret_tests {
+    use super::*;
+    use sjk_shell::{BindTable, CvarDefinition, CvarRegistry};
+
+    fn browser_on(name: &str, value: &str, flags: CvarFlags) -> Browser {
+        let mut cvars = CvarRegistry::new();
+        cvars
+            .register(CvarDefinition::new(name, "", flags, "test"))
+            .unwrap();
+        cvars.set_text(name, value).unwrap();
+        let mut browser = Browser::new();
+        browser.open(&Shell::new(cvars, BindTable::new()));
+        browser.search_for_snapshot(name);
+        browser
+    }
+
+    fn type_text(browser: &mut Browser, text: &str) {
+        browser.editing.as_mut().unwrap().push_str(text);
+    }
+
+    #[test]
+    fn a_secret_is_edited_from_an_empty_masked_field() {
+        let mut browser = browser_on("rconPassword", "hunter2", CvarFlags::NONE);
+        assert_eq!(browser.activate(), BrowserAction::None);
+        assert_eq!(browser.editing.as_deref(), Some(""));
+        type_text(&mut browser, "new2");
+        let shown = EditShown::of(&browser.editing, browser.editing_secret).unwrap();
+        assert_eq!(shown.to_string(), "****");
+        assert_eq!(
+            browser.accept(),
+            BrowserAction::Set {
+                name: "rconPassword".into(),
+                value: "new2".into()
+            }
+        );
+    }
+
+    #[test]
+    fn enter_twice_keeps_a_secret() {
+        let mut browser = browser_on("rconPassword", "hunter2", CvarFlags::NONE);
+        browser.activate();
+        assert_eq!(browser.accept(), BrowserAction::None);
+        assert!(browser.editing.is_none());
+    }
+
+    #[test]
+    fn a_cvar_holding_a_password_is_never_edited_or_copied_from_its_mask() {
+        let mut browser = browser_on("autologin", "amlogin hunter2", CvarFlags::USER_CREATED);
+        let entry = browser.selected_entry().unwrap();
+        assert!(
+            matches!(&entry.kind, Kind::Cvar { value, secret: true, changed: true, .. }
+            if value == "amlogin ********")
+        );
+        assert_eq!(entry_line(entry), "autologin");
+        browser.activate();
+        assert_eq!(browser.editing.as_deref(), Some(""));
+        assert_eq!(browser.accept(), BrowserAction::None);
+    }
+
+    #[test]
+    fn other_cvars_edit_and_copy_their_value() {
+        let mut browser = browser_on("cg_fov", "110", CvarFlags::NONE);
+        assert_eq!(entry_line(browser.selected_entry().unwrap()), "cg_fov 110");
+        browser.activate();
+        assert_eq!(browser.editing.as_deref(), Some("110"));
+        let shown = EditShown::of(&browser.editing, browser.editing_secret).unwrap();
+        assert_eq!(shown.to_string(), "110");
     }
 }

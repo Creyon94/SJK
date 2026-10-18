@@ -14,7 +14,7 @@
 use super::pointer::{
     ACTIVATE_TOKEN, FILTER_TOKEN, RESET_TOKEN, ROW_BASE, SCROLLBAR_TOKEN, SEARCH_TOKEN,
 };
-use super::{Browser, Entry, Kind, TABS};
+use super::{Browser, EditShown, Entry, Kind, TABS};
 use crate::menu::art::{ArtPiece, ArtSet};
 use crate::menu::classic::layout::Placement;
 use crate::menu::classic::view::{self, Caps, DISABLED, FOCUS, GOLD, HINT};
@@ -304,7 +304,9 @@ impl Browser {
                 default,
                 ..
             } => {
-                if let Some(edit) = self.editing.as_deref().filter(|_| selected) {
+                if let Some(edit) =
+                    EditShown::of(&self.editing, self.editing_secret).filter(|_| selected)
+                {
                     text(
                         &mut self.ui,
                         place,
