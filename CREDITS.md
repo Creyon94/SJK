@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 112 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 6). Sol's
+contributors' 113 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 7). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -420,7 +420,7 @@ merged into SJK
 - #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
   in a private duel.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 6 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 7 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -435,6 +435,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   `func_usable` walls switched by name, breakables used by name and after their delay.
 - #150 Siege on SJK servers: players come back with their respawn wave, and map messages read
   their text from the string tables and reach the team they are meant for.
+- #142 the Siege class menu in two steps like the Team page: Red team or Blue team with their
+  flags and players, then that side's classes (its team saber colours were left out at the merge).
 
 ## Art
 
