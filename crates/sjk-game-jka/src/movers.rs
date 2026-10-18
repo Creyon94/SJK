@@ -187,6 +187,12 @@ pub struct Door {
     /// The `EV_PLAYDOORSOUND`s raised on it (`BMS_START`, `BMS_END`) and not yet sent:
     /// the server takes them as it publishes the mover.
     pub sounds: Vec<u32>,
+    /// `teamallow` (`alliedTeam`): the team that opens it by walking up to it even while
+    /// it is locked; 0 for none. A `func_door` key alone.
+    pub allied_team: i32,
+    /// `vehopen` (`genericValue14`): vehicles and their riders open it by walking up to
+    /// it too. A `func_door` key alone.
+    pub vehicle_open: bool,
 }
 
 /// `BMS_START`, `BMS_END` (`g_mover.c:55-57`): a mover's start and stop sounds.
@@ -324,6 +330,9 @@ pub fn spawn_door(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Door>
         sound_set: entity.get("soundSet").unwrap_or_default().to_owned(),
         looping: false,
         sounds: Vec::new(),
+        allied_team: crate::userinfo::atoi(entity.get("teamallow").unwrap_or_default().as_bytes()),
+        vehicle_open: crate::userinfo::atoi(entity.get("vehopen").unwrap_or_default().as_bytes())
+            != 0,
     })
 }
 
@@ -414,6 +423,8 @@ pub fn spawn_plat(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Door>
         sound_set: entity.get("soundSet").unwrap_or_default().to_owned(),
         looping: false,
         sounds: Vec::new(),
+        allied_team: 0,
+        vehicle_open: false,
     })
 }
 
@@ -504,6 +515,8 @@ pub fn spawn_button(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Doo
         sound_set: entity.get("soundSet").unwrap_or_default().to_owned(),
         looping: false,
         sounds: Vec::new(),
+        allied_team: 0,
+        vehicle_open: false,
     })
 }
 
@@ -628,11 +641,15 @@ pub fn used(door: &mut Door, level_time: i32) -> Option<String> {
     crate::mover_team::use_mover(std::slice::from_mut(door), 0, level_time, None)
 }
 
-/// A living player is standing in the mover's own trigger: [`touch_door_trigger`] or
+/// `toucher` is standing in the mover's own trigger: [`touch_door_trigger`] or
 /// [`touch_plat_center`], by kind. Returns what the mover fires if it starts moving.
-pub fn touched(mover: &mut Door, level_time: i32) -> Option<String> {
+pub fn touched(
+    mover: &mut Door,
+    toucher: crate::mover_team::DoorToucher,
+    level_time: i32,
+) -> Option<String> {
     match mover.kind {
-        MoverKind::Door | MoverKind::Button => touch_door_trigger(mover, level_time),
+        MoverKind::Door | MoverKind::Button => touch_door_trigger(mover, toucher, level_time),
         MoverKind::Plat => touch_plat_center(mover, level_time),
     }
 }
@@ -664,10 +681,21 @@ pub fn touch_plat(plat: &mut Door, health: i32, level_time: i32) {
     }
 }
 
-/// `Touch_DoorTrigger` (`:1112-1190`) for a living player at a door with no team: see
-/// [`touch_trigger`](crate::mover_team::touch_trigger).
-pub fn touch_door_trigger(door: &mut Door, level_time: i32) -> Option<String> {
-    crate::mover_team::touch_trigger(std::slice::from_mut(door), 0, level_time, None)
+/// `Touch_DoorTrigger` (`:1112-1190`) for `toucher` at a door with no team: see
+/// [`touch_trigger`](crate::mover_team::touch_trigger). A door its `teamallow` team
+/// opened is locked again before this returns what it fires; a caller whose firing may
+/// use the door itself calls `touch_trigger` and `relock` after the firing instead.
+pub fn touch_door_trigger(
+    door: &mut Door,
+    toucher: crate::mover_team::DoorToucher,
+    level_time: i32,
+) -> Option<String> {
+    let doors = std::slice::from_mut(door);
+    let touch = crate::mover_team::touch_trigger(doors, 0, level_time, toucher);
+    if touch.relock {
+        crate::mover_team::relock(doors, 0);
+    }
+    touch.fired
 }
 
 /// `Reached_BinaryMover` (`:664-730`) for one part: opening, it waits its `wait` and
