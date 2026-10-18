@@ -1,3 +1,23 @@
+## Passwords in the console
+
+18/10/2026, `fix/console-password-masking`, based on `Sol-Vulpes/SJK` `046ef86b`:
+implemented masking of passwords everywhere the console prints, so they no longer
+reach the scrollback, `qconsole.log`, the session log, crash reports or log uploads.
+`sjk-shell`'s `secret.rs` names the secret cvars (`*password*`, `*loginpass*`,
+`cl_giphyKey`, given the new `SECRET` cvar flag) and password commands (`amlogin`,
+`login`, `register`); listings, `userinfo` and the cvar browser show `********`, the
+typed echo masks passwords (also in binds, cvars holding a command line, `rcon` and
+`cmd`), and every kept line is scrubbed of the secret values. See
+[client](client.md#passwords-in-the-console).
+
+Unit and shell tests pin the tables and each layer, and that a typed, queried, listed,
+bound, cvar-held and `strSub`-expanded password appears in no printed line, returned
+output or tap line while the cvar and binds keep their values. Format, workspace
+build and `sjk-shell` tests passed on Linux x86_64; workspace Clippy and tests were
+not completed for this revision. Not exercised in a live game; reports and logs
+written before the change keep what they had; `config.cfg` still holds passwords as
+plain text.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`

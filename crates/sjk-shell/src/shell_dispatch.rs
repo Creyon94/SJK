@@ -59,14 +59,18 @@ impl Shell {
                 .binds
                 .iter()
                 .map(|(key, command)| {
-                    format!("{:<16} {command}", crate::key_names::display_key(key))
+                    format!(
+                        "{:<16} {}",
+                        crate::key_names::display_key(key),
+                        crate::secret::input_line(command, &self.cvars)
+                    )
                 })
                 .collect()),
             "cvarlist" => Ok(self
                 .cvars
                 .iter()
                 .filter(|cvar| list_matches(&cvar.name, arguments))
-                .map(|cvar| format!("{:<24} {}", cvar.name, cvar.value.as_text()))
+                .map(|cvar| format!("{:<24} {}", cvar.name, cvar.shown_value()))
                 .collect()),
             "cmdlist" => {
                 let mut lines = builtin_commands()
