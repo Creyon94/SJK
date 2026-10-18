@@ -190,6 +190,31 @@ Blue team won" or "Tied 3 : 3". See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
+## Live Force effects and controls
+
+17/10/2026, `feat/force-animation-effects`, based on `bb83eb28`, Windows:
+Rage/Heal chest sprays and Quick Heal hand puffs follow each actor's full-body
+animation, including local prediction and NPCs, after EJK #58/#89. Existing
+120/8 ms cadence and #90's local body/Grip camera guards remain. The default-on
+`cg_forceAnimFX` option and plugin-disable bit 5 gate the new animation/victim
+FX (#130); that bit also selects the separate green/blue Protect/Absorb shells
+instead of cyan (#168). Mindtrick hides Force emissions/flamethrower audio,
+with the existing Sight exception (#93); jetpacks already follow this rule.
+Empower uses the advertised full-body/arms/hands set (#132), with the shared
+`cg_empowerEffect` override, while ordinary Push keeps every cached joint.
+Both settings interfaces include the new controls. Scope contracts are named,
+documented tables, sampled without allocation and reused across actor submission.
+The original six animation regressions are retained and policy/visibility cases
+have been added. Workspace fmt/build/test/clippy passed on Windows x86_64,
+Rust 1.99.0. The explicit release policy benchmark passed: 0.101 us per frame
+for borrowed serverinfo sampling plus 128 body masks across 20,000 frames on
+Ryzen 7 5800X3D. It excludes console lookups, poses, particle emission and drawing.
+No installed game data or isolated live comparison is available; visual/audio,
+custom-model attachment and populated-scene performance remain unverified. Wire
+encoding, authoritative animation, movement and gameplay are unchanged.
+See [rendering](rendering.md#entity-render-effects) and
+[client controls](client.md#force-presentation-controls).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

@@ -77,6 +77,8 @@ pub(crate) struct Runtime {
     pub(crate) saber_rain_steam: saber_rain_steam::Runtime,
     /// Paces effects that stock re-plays every rendered frame (`effect_cadence.rs`).
     pub(crate) continuous: cadence::Cadence,
+    /// JoF animation-driven chest/hand effects, owned by this rendered world.
+    pub(crate) force_anim: sjk_client::LegacyForceAnimFxTimers,
     pub(crate) flame_hits: crate::actor_world_submission::force_powers::flame::Hits,
     /// Lights a world shot holds in place every frame (`world_shot_notes.rs`).
     #[cfg(test)]
@@ -96,6 +98,7 @@ impl Default for Runtime {
             saber_contacts: saber_contacts::Runtime::default(),
             saber_rain_steam: saber_rain_steam::Runtime::default(),
             continuous: cadence::Cadence::default(),
+            force_anim: sjk_client::LegacyForceAnimFxTimers::default(),
             flame_hits: Default::default(),
             #[cfg(test)]
             held_lights: Vec::new(),

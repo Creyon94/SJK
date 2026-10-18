@@ -677,6 +677,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         // JoF EJK's `cg_spprotabscolor` (cg_xcvar.h), same default.
         CvarDefinition::new(
+            crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+            true,
+            archive,
+            "Rage, Heal, Quick Heal and Grip-victim animation effects",
+        ),
+        CvarDefinition::new(
+            crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+            -1_i64,
+            archive,
+            "Empower glow: -1 server, 0 full body, 1 arms, 2 hands; ordinary Push stays full body",
+        ),
+        CvarDefinition::new(
             "cg_spProtAbsColor",
             true,
             archive,
