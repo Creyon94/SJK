@@ -42,6 +42,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A server that changes maps keeps its one row in the recent servers, instead of a new row named after each map _(Lukas)_
 - Live SJK chat messages also appear in the console, with a yellow SJK tag _(Lukas)_
 - NPC nameplates show the NPC's health only while your Force Sense 3 is active, unless the map shows that NPC's health to everyone; their names stay visible _(Lumaya, after JoF EJK)_
+- Capture the Flag: the scoreboard shows who carries a flag as soon as they take it, and stops when it is captured or dropped, even while it stays open; SJK servers now send the carried flags in their scores _(Slash)_
+- The flag icons at the left name who carries each taken flag, and the caption of your own flag shows when it is the only one _(Slash)_
+- You see the flag on your own back in third person _(Slash, after JoF EJK)_
+- The `cg_drawSnapshot` line in the upper right no longer overlaps the frame rate and its frame times _(Slash)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
