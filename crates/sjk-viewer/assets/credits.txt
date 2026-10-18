@@ -31,7 +31,7 @@
 
 [Sol]
 github: Sol-Vulpes
-role: Creator and developer of Sol JK: 125 contributor pull requests reviewed and merged
+role: Creator and developer of Sol JK
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
 did: The SJK UI, Sol JK's own menus over the live map
@@ -222,7 +222,7 @@ link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 10 merged pull requests
+role: Contributor: 9 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
@@ -232,7 +232,6 @@ did: #155 Shift+U reply no longer leaves keys stuck
 did: #144 Recent servers keep one row across map changes
 did: #133 SJK chat in the console
 did: #154 Corpses and pickups hidden during private duels
-did: #164 Server-reported deaths on the scoreboard
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]
