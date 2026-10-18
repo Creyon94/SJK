@@ -207,6 +207,25 @@ the locked workspace build and test suite, workspace all-target Clippy, and the
 locked release viewer build pass; existing warnings remain. The behavior has
 not yet been checked interactively on a live server or in demo playback.
 
+## PM-only game chat
+
+17/10/2026, `feat/pm-only-chat`, based on `bb83eb28`, Windows x86_64,
+Rust 1.99.0: implemented JoF EJK #331's current-map PM-only command and
+shared settings switch, default off. The client marks only non-localized `chat`
+commands whose first argument starts with the stock tell marker, before display
+cleanup/localization. Chat history visibility and notification audio use that
+classification, including sent echoes; ordinary/team/localized messages and
+lookalike name/body colours do not qualify. Hidden history is retained. Console
+logs/history, centre notices and the independent SJK hub chat remain available.
+Map adoption resets the non-archived choice; graphics reload preserves it.
+Four focused synthetic regressions passed for marker/command classification,
+notification routing/deduplication, command parsing/reset and retained history.
+Workspace formatting, locked build/tests (including documentation tests) and
+all-target Clippy passed; existing warnings remain. The current PM-only choice
+is also applied before newly loaded sound tables replay queued chat. No live server, audible comparison or
+installed-asset/GPU check was performed. Wire encoding and server rules are unchanged.
+See [client chat behavior](client.md).
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

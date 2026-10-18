@@ -348,6 +348,8 @@ pub struct ServerEvent {
     pub text: String,
     /// Sender slot emitted by codemp's G_SayTo, absent for system/older-mod text.
     pub sender: Option<u16>,
+    /// Stock tell marker on a non-localized `chat` command, before display cleanup.
+    pub is_private: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1176,6 +1178,7 @@ impl ClientSession {
                 kind,
                 text,
                 sender: None,
+                is_private: false,
             });
             return Ok(());
         }

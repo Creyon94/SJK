@@ -46,6 +46,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The flag icons at the left name who carries each taken flag, and the caption of your own flag shows when it is the only one _(Slash)_
 - You see the flag on your own back in third person _(Slash, after JoF EJK)_
 - The `cg_drawSnapshot` line in the upper right no longer overlaps the frame rate and its frame times _(Slash)_
+- Add current-map PM-only game chat, with a console command and a switch in both menu styles; recognize server tell markers before display cleanup. _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
