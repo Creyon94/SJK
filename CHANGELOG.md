@@ -31,6 +31,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Discord status (Settings > Network, `cl_discordPresence`): your Discord profile shows what you do in SJK, the menu screen, or the server, map, mode, team and players; 2 leaves the server's name out, and a server with a password never shows it _(Sol)_
+- A map object first seen mid-match with an HD texture pack (the Millennium Falcon) no longer freezes the game for 2 seconds: its textures are decoded off the render thread _(Sol)_
 
 ## 2026.1018.2 (Alpha) | 18/10/2026
 

@@ -7,11 +7,15 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 ## Where to work
 
 Unused server-advertised rigid models load on first reference through
-`config_string_refresh::model_demand`. CPU model parsing runs on a single worker
-per world; geometry/material installation stays with the GPU owner. Idle scans
-borrow existing entity appearances and use a sorted set of attempted models,
-without per-frame name allocation. Texture preparation during GPU installation
-can still hitch, and models remain resident until the world is replaced.
+`config_string_refresh::model_demand`. CPU model parsing, texture decoding and
+mip chains run on a single worker per world (`warm_entity_materials`, as for
+players' models); upload and geometry/material installation stay with the GPU
+owner. Idle scans borrow existing entity appearances and use a sorted set of
+attempted models, without per-frame name allocation. Uploading very large
+textures (HD packs: `falcon2.md3` about 110 ms) and new pipelines still cost the
+install frame, and models remain resident until the world is replaced. Vehicle
+projectile, effect and cosmetic models still load whole on the render thread
+(`load_config_model`).
 
 | Area | Entry point |
 | --- | --- |
