@@ -279,6 +279,9 @@ mod holocron;
 #[path = "world_shot_cardboard_box.rs"]
 mod cardboard_box;
 
+#[path = "world_shot_map_edits.rs"]
+mod map_edit_shots;
+
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 
@@ -1233,6 +1236,8 @@ Found the fog bug, ask me about it!"
             avatar: None,
             look_outcome: None,
             packs_revision: 0,
+            map_edits_revision: 0,
+            map_edits_published: None,
             assets_note: None,
             crashes_sent: 0,
             crash_note: None,

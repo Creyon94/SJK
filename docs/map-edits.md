@@ -1,0 +1,83 @@
+# Map edits
+
+SJK's own fixes to maps, drawn by SJK clients only (Sol's request, 18/10/2026): staff hide
+a map's props and surfaces, place models and swap shaders in game, publish them through
+the hub, and every SJK player sees them while `cg_mapEdits` is on (Settings > GAME > "SJK
+map edits", on by default). Code: [map_edits](../crates/sjk-viewer/src/map_edits/mod.rs),
+the hub copies in [sjk-identity's map_edits](../crates/sjk-identity/src/map_edits.rs).
+
+## What an edit does
+
+| Edit | Drawn | Not changed |
+| --- | --- | --- |
+| `hide_prop` | the map's `misc_model_static` prop no longer draws | its lamps, if it has any ([static lamps](rendering.md)) |
+| `hide_surface` | a BSP surface draws nothing, and picks and impact marks skip it | the bake around it |
+| `place` | an MD3 from the game data at a position, turned and scaled | lighting: entity light only, as props get |
+| `remap` | a shader drawn instead of another wherever the map draws it | |
+
+Edits change what is drawn, never collision. The server keeps every brush and entity: a
+hidden prop or surface with clip brushes is an invisible wall, and a placed model can be
+walked and shot through. Server entities (breakables, doors, movers) are refused by
+the hide tool: the game needs them.
+
+Many maps keep no props of their own: the map compiler merges `misc_model`s into the
+world, and only `misc_model_static` stays an entity (retail: none on ffa1-ffa4, 51 on
+duel6, 84 on ffa5, 189 on siege_korriban). A merged model is hidden as surfaces:
+`mapedit_hide group` takes the triangle-soup surfaces touching the one aimed at,
+through shared corners (at most 256), which is usually the whole model.
+
+A remap edit wins over the map's own worldspawn remaps and the server's, so a fix made
+for a server's remaps holds; a console `remapShader` made after them still wins
+([rendering.md](rendering.md#server-shader-remaps)). `listRemaps` names them `edit`.
+
+## Documents and servers
+
+Each map's edits are one JSON document per map and BSP checksum (`CM_LoadMap`'s, the
+one servers send as `sv_mapChecksum`), so they apply only to that exact file:
+`GameData/SJK/map_edits/<map>_<checksum>.json`, `mp/ffa3` as `mp_ffa3_-1234.json`.
+Entity and surface numbers are the BSP's own. Each edit has an id and applies on every
+server, or on one server only (`"server": "ip:port"`): the same map can carry fixes for
+all servers and others for one server's remaps or layout. The map's checksum is read on
+a worker, and only when a document of the map is there or the editor is on.
+
+The identity worker reads the hub's list every 10 minutes once registered, downloads the
+documents newer than its copies and removes the copies of documents the hub no longer
+lists. A copy changed on this PC and not yet published (`"unpublished": true`) is never
+overwritten or removed. The loaded map's document is read again when a copy changes.
+
+## The editor (staff)
+
+`mapedit` turns the editor on for SJK staff (the hub's staff flag). While it is on, the
+world-note key only selects (its outline shows what an edit will touch) and opens no
+note; a command without a selection acts on what is under the crosshair.
+
+| Command | Does |
+| --- | --- |
+| `mapedit [on\|off]` | Turn the editor on or off |
+| `mapedit_hide [group]` | Hide the selected prop or surface (`group`: the whole merged model); on a placed model, remove it |
+| `mapedit_place [model]` | Place an MD3 where you aim, facing you: the path given, or a copy of the selected model |
+| `mapedit_turn [degrees]` | Turn the current placed model (15 by default) |
+| `mapedit_move <up> \| <x y z>` | Move it |
+| `mapedit_scale <factor>` | Scale it (0.01 to 64 times) |
+| `mapedit_grab` | It follows your aim until `mapedit_grab` again |
+| `mapedit_remap <shader> \| -` | Draw `shader` instead of the selected one; `-` removes that remap edit |
+| `mapedit_scope [all\|server]` | New edits for all servers (the default) or only this one |
+| `mapedit_list`, `mapedit_delete <id>`, `mapedit_undo` | List, remove one, remove the newest |
+| `mapedit_publish` | Send the map's document to the hub for every SJK player |
+
+Every change is saved to the map's document at once and drawn at once; it reaches other
+players only with `mapedit_publish`. The current placed model is the last placed, or the
+placed model selected.
+
+## Limits
+
+- Only MD3s already in the player's game data can be placed; a custom model needs a pack
+  the players have (an SJK hub pack).
+- A hidden prop's lamps and a hidden surface's bake stay; a placed model casts no baked
+  shadow.
+- Edits are not drawn in the menu world.
+- Verified: unit tests (documents, scopes, the remap order, the folder's sync against a
+  fake hub), the hub round trip against a local hub (`staff_publish_map_edits_that_every_key_reads`
+  in `hub_e2e.rs`), and the world shot `duel6_prop_hidden_copied_and_floor_remapped`
+  (a duel6 prop hidden, a surface hidden, a copy placed, a wall remapped, then all taken
+  back). Not tried in a game.

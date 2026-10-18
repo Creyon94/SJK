@@ -90,6 +90,17 @@ impl GpuState {
                 crate::mover_models::wanted(game, snapshot, |appearance| {
                     attempted.contains(appearance)
                 })
+            })
+            .or_else(|| {
+                // A model a map edit places (`map_edits`).
+                let attempted = &self.config_string_refresh.models.attempted;
+                self.map_edits
+                    .wanted_models()
+                    .map(|model| Appearance {
+                        model: model.to_owned(),
+                        variant: String::new(),
+                    })
+                    .find(|appearance| !attempted.contains(appearance))
             });
         let (Some(appearance), Some(vfs)) = (wanted, self.vfs.clone()) else {
             return;

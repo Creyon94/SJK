@@ -93,6 +93,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Let servers swap the map's textures (shader remaps); off by default, cg_remaps filters them when on",
         ),
         CvarDefinition::new(
+            crate::map_edits::CVAR,
+            true,
+            archive,
+            "Draw SJK's map edits: props hidden, models placed and textures swapped by the SJK team (on by default)",
+        ),
+        CvarDefinition::new(
             "cg_remaps",
             2_i64,
             archive,

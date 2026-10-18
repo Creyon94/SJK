@@ -94,6 +94,39 @@ pub trait Hub: Send {
             "this hub client does not send staff requests".to_owned(),
         ))
     }
+    /// The maps the hub keeps edits for (`PROTOCOL.md`, "Map edits").
+    fn map_edits(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<Vec<crate::map_edits::Entry>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read map edits".to_owned(),
+        ))
+    }
+    /// One map's edits for one BSP checksum, as the hub answers them.
+    fn map_edits_doc(
+        &mut self,
+        _identity: &Identity,
+        _map: &str,
+        _checksum: i32,
+    ) -> Result<Value, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read map edits".to_owned(),
+        ))
+    }
+    /// Staff: keep `edits` for `map` and `checksum` (none deletes them), answering the
+    /// hub's new revision (0 when deleted).
+    fn publish_map_edits(
+        &mut self,
+        _identity: &Identity,
+        _map: &str,
+        _checksum: i32,
+        _edits: &Value,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send map edits".to_owned(),
+        ))
+    }
     /// A staff query signed by the identity (`PROTOCOL.md`, "Log requests"): asking a
     /// player for their logs, reading the requests and their logs, and crash reports.
     fn staff_query(
@@ -1437,6 +1470,42 @@ impl Hub for HttpHub {
 
     fn assets(&mut self, identity: &Identity) -> Result<Vec<Pack>, HubError> {
         crate::assets::manifest(self.send(Some(identity), "GET", "/v1/assets", None)?)
+    }
+
+    fn map_edits(&mut self, identity: &Identity) -> Result<Vec<crate::map_edits::Entry>, HubError> {
+        crate::map_edits::list(self.send(Some(identity), "GET", "/v1/map-edits", None)?)
+    }
+
+    fn map_edits_doc(
+        &mut self,
+        identity: &Identity,
+        map: &str,
+        checksum: i32,
+    ) -> Result<Value, HubError> {
+        if !crate::map_edits::valid_map(map) {
+            return Err(HubError::Protocol(format!("not a map name: {map}")));
+        }
+        let path = format!("/v1/map-edits/doc?map={map}&checksum={checksum}");
+        self.send(Some(identity), "GET", &path, None)
+    }
+
+    fn publish_map_edits(
+        &mut self,
+        identity: &Identity,
+        map: &str,
+        checksum: i32,
+        edits: &Value,
+    ) -> Result<u64, HubError> {
+        let answer = self.send(
+            Some(identity),
+            "POST",
+            "/v1/staff/map-edits",
+            Some(json!({ "map": map, "checksum": checksum, "edits": edits })),
+        )?;
+        answer
+            .get("revision")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| HubError::Protocol("the map edits answer has no revision".to_owned()))
     }
 
     fn asset(&mut self, identity: &Identity, name: &str) -> Result<Vec<u8>, HubError> {

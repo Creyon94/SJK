@@ -180,6 +180,7 @@ impl ViewerConsole {
             1,
         )?;
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
+        let map_edits = console_cvars::IntegerSetting::bind(&mut cvars, crate::map_edits::CVAR, 1)?;
         let server_remaps = console_cvars::IntegerSetting::bind(
             &mut cvars,
             crate::remap_blocked_maps::SERVER_CVAR,
@@ -626,6 +627,7 @@ impl ViewerConsole {
             draw_fog,
             remaps,
             server_remaps,
+            map_edits,
             remap_blocked_maps,
             packet_dup,
             max_packets,

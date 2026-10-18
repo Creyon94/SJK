@@ -254,6 +254,8 @@ pub(crate) struct ViewerConsole {
     remaps: console_cvars::IntegerSetting,
     /// `cg_serverRemaps`: whether server remaps apply at all.
     server_remaps: console_cvars::IntegerSetting,
+    /// `cg_mapEdits`: whether SJK's map edits are drawn.
+    map_edits: console_cvars::IntegerSetting,
     /// Changes of `cg_remapsBlockedMaps`, for [`crate::remap_blocked_maps`].
     remap_blocked_maps: console_cvars::RevisionSetting,
     packet_dup: console_cvars::IntegerSetting,
@@ -1143,6 +1145,10 @@ impl ViewerConsole {
 
     pub(crate) fn server_remaps_on(&self) -> bool {
         self.server_remaps.value() != 0
+    }
+
+    pub(crate) fn map_edits_on(&self) -> bool {
+        self.map_edits.value() != 0
     }
 
     /// How often `cg_remapsBlockedMaps` has changed, read without a name lookup.

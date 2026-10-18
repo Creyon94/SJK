@@ -21,6 +21,7 @@ use crate::vitals::{Sharing, VitalsTable, VitalsWorker};
 use crate::wire::{
     Achievement, Emote, HolocronState, Look, Ping, Presence, Profile, ToyEvent, Unlock, names_match,
 };
+use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -64,6 +65,12 @@ const LOOK_EVERY: Duration = Duration::from_secs(1);
 /// How long a look waits after the hub said too many (429: `look_quota`, or the
 /// address's `rate_limited`), refused the signature (401) or failed.
 const LOOK_AGAIN: Duration = Duration::from_secs(10);
+/// The hub's answer to a map edits publication: the map, the checksum and the new
+/// revision, or why it was refused.
+pub type MapEditsPublished = Result<(String, i32, u64), String>;
+
+/// How often the hub's list of map edits is read while registered.
+const MAP_EDITS_EVERY: Duration = Duration::from_secs(600);
 /// How often the hub's list of asset packs is read while registered.
 const ASSETS_EVERY: Duration = Duration::from_secs(6 * 3_600);
 /// First wait after an asset check fell short, doubled up to [`ASSETS_EVERY`].
@@ -174,6 +181,12 @@ pub struct Snapshot {
     /// What the last check of the asset packs did, for the log. Asset packs are
     /// cosmetic: a failure shows here, never in [`Snapshot::status`].
     pub assets_note: Option<String>,
+    /// Counts the map edit documents written or removed in the folder given to
+    /// [`Service::keep_map_edits`], so the viewer reads the loaded map's again.
+    pub map_edits_revision: u64,
+    /// The hub's answer to the last [`Service::publish_map_edits`], by serial: the map,
+    /// the checksum and the new revision, or why it was refused.
+    pub map_edits_published: Option<(u64, MapEditsPublished)>,
     /// Counts crash reports the hub took ([`Service::send_crashes`]).
     pub crashes_sent: u64,
     /// What the last round of crash reports did, for the log, once a round sent,
@@ -365,6 +378,8 @@ impl Snapshot {
             look_outcome: None,
             packs_revision: 0,
             assets_note: None,
+            map_edits_revision: 0,
+            map_edits_published: None,
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
@@ -457,6 +472,14 @@ enum Command {
     OwnLook(u64, String),
     /// The folder to keep the hub's asset packs in.
     AssetsDir(PathBuf),
+    /// The folder map edits are kept in ([`crate::map_edits`]).
+    MapEditsDir(PathBuf),
+    /// Staff: publish a map's edits.
+    PublishMapEdits {
+        map: String,
+        checksum: i32,
+        edits: Value,
+    },
     /// The folder crash reports wait in, or none to send none.
     Crashes(Option<PathBuf>),
     /// Whether the player is actively playing (`Service::set_active`).
@@ -565,6 +588,11 @@ struct Worker {
     profile_soon_after: Instant,
     /// The folder the asset packs are kept in; without one none is asked for.
     assets_dir: Option<PathBuf>,
+    /// The folder map edits are kept in, and when the hub's list is next read.
+    map_edits_dir: Option<PathBuf>,
+    due_map_edits: Instant,
+    /// Serial of the last map edits publication.
+    map_edits_serial: u64,
     /// The folder crash reports wait in; without one none is sent.
     crash_dir: Option<PathBuf>,
     /// When the crash folder is next looked at.
@@ -768,6 +796,9 @@ impl Worker {
             look_id: None,
             profile_soon_after: now,
             assets_dir: None,
+            map_edits_dir: None,
+            due_map_edits: now,
+            map_edits_serial: 0,
             crash_dir: None,
             due_crashes: now,
             due_assets: now,
@@ -1122,6 +1153,17 @@ impl Worker {
                     self.assets_backoff = ASSETS_RETRY_MIN;
                 }
             }
+            Command::MapEditsDir(dir) => {
+                if self.map_edits_dir.as_ref() != Some(&dir) {
+                    self.map_edits_dir = Some(dir);
+                    self.due_map_edits = now;
+                }
+            }
+            Command::PublishMapEdits {
+                map,
+                checksum,
+                edits,
+            } => self.publish_map_edits(&map, checksum, &edits, now),
             Command::Crashes(dir) => {
                 if self.crash_dir != dir {
                     self.crash_dir = dir;
@@ -1717,6 +1759,7 @@ impl Worker {
         self.keep_holocrons(now);
         self.keep_log_requests(now);
         self.keep_assets(now);
+        self.keep_map_edits(now);
         self.send_crashes(now);
         let mut wait = IDLE_MAX;
         if self.location.is_some() {
@@ -1742,6 +1785,9 @@ impl Worker {
         }
         if self.assets_dir.is_some() {
             wait = wait.min(self.due_assets.saturating_duration_since(now));
+        }
+        if self.map_edits_dir.is_some() {
+            wait = wait.min(self.due_map_edits.saturating_duration_since(now));
         }
         if self.crash_dir.is_some() {
             wait = wait.min(self.due_crashes.saturating_duration_since(now));
@@ -1807,6 +1853,39 @@ impl Worker {
             snapshot.packs_revision += refresh.written.len() as u64;
             snapshot.assets_note = Some(note);
         });
+    }
+
+    /// Bring the map edits' folder up to the hub's list if a folder was given and it is
+    /// time: next time [`MAP_EDITS_EVERY`] later. Cosmetic: the status stays.
+    fn keep_map_edits(&mut self, now: Instant) {
+        let (Some(dir), Some(hub)) = (self.map_edits_dir.as_ref(), self.hub.as_mut()) else {
+            return;
+        };
+        if now < self.due_map_edits {
+            return;
+        }
+        self.due_map_edits = now + MAP_EDITS_EVERY;
+        let refresh = crate::map_edits::refresh(hub.as_mut(), &self.identity, dir);
+        if refresh.changed > 0 {
+            self.update(|snapshot| snapshot.map_edits_revision += refresh.changed as u64);
+        }
+    }
+
+    /// Send a map's edits for staff; the folder is read again at once after.
+    fn publish_map_edits(&mut self, map: &str, checksum: i32, edits: &Value, now: Instant) {
+        self.map_edits_serial += 1;
+        let serial = self.map_edits_serial;
+        let outcome = match self.hub.as_mut() {
+            None => Err("not connected to the hub".to_owned()),
+            Some(hub) => hub
+                .publish_map_edits(&self.identity, map, checksum, edits)
+                .map(|revision| (map.to_owned(), checksum, revision))
+                .map_err(|error| error.to_string()),
+        };
+        if outcome.is_ok() {
+            self.due_map_edits = now;
+        }
+        self.update(|snapshot| snapshot.map_edits_published = Some((serial, outcome)));
     }
 
     /// Send the crash reports waiting in the folder given, if it is time: next time
@@ -2325,6 +2404,23 @@ impl Service {
     /// is called no asset is asked for.
     pub fn keep_assets(&self, directory: PathBuf) {
         let _ = self.commands.send(Command::AssetsDir(directory));
+    }
+
+    /// Keep the hub's map edits in `directory` (the settings folder's
+    /// [`crate::map_edits::FOLDER`]): once registered, at once and every 10 minutes.
+    /// [`Snapshot::map_edits_revision`] counts the documents changed.
+    pub fn keep_map_edits(&self, directory: PathBuf) {
+        let _ = self.commands.send(Command::MapEditsDir(directory));
+    }
+
+    /// Staff: publish `edits` for `map` and `checksum`; the answer lands in
+    /// [`Snapshot::map_edits_published`].
+    pub fn publish_map_edits(&self, map: String, checksum: i32, edits: Value) {
+        let _ = self.commands.send(Command::PublishMapEdits {
+            map,
+            checksum,
+            edits,
+        });
     }
 
     /// Send the crash reports waiting in `directory` (`crate::crash`) once registered,

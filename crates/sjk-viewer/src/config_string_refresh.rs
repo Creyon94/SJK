@@ -207,6 +207,7 @@ impl GpuState {
         self.refresh_npc_actors();
         self.refresh_demand_models();
         self.refresh_cosmetics();
+        self.refresh_map_edits();
         let mode = self.remap_mode();
         let remaps = self
             .live_session

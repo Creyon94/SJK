@@ -5370,3 +5370,15 @@ change: The what's-new card of the next release asks the player, with its switch
 test: Join a JoF server with remaps (night ffa3, ffa1 walls): textures stay stock.
 test: Turn Server remaps on: the server's remaps appear live, without reloading the map.
 test: listRemaps with it off says "Server shader remaps are off".
+
+[map-edits]
+area: Rendering & effects
+title: Map edits: hide props and surfaces, place models, remap (staff editor)
+change: mapedit (staff) turns the editor on; the world-note key selects, mapedit_* commands edit.
+change: Edits save to GameData/SJK/map_edits; mapedit_publish sends them to the hub for everyone.
+test: On duel6, mapedit, aim at a fern, O, mapedit_hide: the fern goes; mapedit_undo brings it back.
+test: On ffa3, aim at a merged prop, mapedit_hide group: the whole model goes, the wall stays.
+test: mapedit_place on a selected prop, then mapedit_grab, move, mapedit_grab: a copy stays there.
+test: mapedit_remap <shader> on a wall; listRemaps lists it as edit; cg_mapEdits 0 hides all edits.
+test: mapedit_scope server on a server: the edit shows there, not on another server with the map.
+note: Hub endpoints on hub branch map-edits (b504457), not deployed: publish fails until it is.

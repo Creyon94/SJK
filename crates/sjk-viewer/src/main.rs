@@ -206,6 +206,7 @@ mod jetpack;
 mod live_session;
 mod looks;
 mod looks_frame;
+mod map_edits;
 mod net_timing;
 mod particle_motion;
 mod particle_physics;
@@ -521,6 +522,8 @@ struct GpuState {
     /// Shared with the workers that load players' models (`player_loads.rs`).
     shaders: Arc<ShaderCatalog>,
     decal_surfaces: decal_marks::DecalSurfaces,
+    /// SJK's edits of the loaded map ([`map_edits`]).
+    map_edits: map_edits::State,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -1435,6 +1438,7 @@ impl GpuState {
             holster_server: Default::default(),
             shaders: Arc::new(shaders),
             decal_surfaces,
+            map_edits: Default::default(),
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
@@ -2426,6 +2430,7 @@ impl GpuState {
         self.prepare_scene_views(view, projection, presentation_time as i32);
         movers::append_frame(self, presentation_time);
         self.static_models.append_instances(&mut self.object_groups);
+        self.append_map_edit_instances();
         pickups::simple::append_frame(self, visual_now);
         // The charge glow on the view gun's muzzle (`cg_weapons.c` charge bits), after
         // this frame's sprites were cleared.

@@ -644,6 +644,10 @@ const HELP: &[(&str, &str)] = &[
         "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
     ),
     (
+        crate::map_edits::CVAR,
+        "Shows the SJK team's fixes to maps: props removed, models added and textures swapped. Only what you see changes. On by default.",
+    ),
+    (
         crate::remap_blocked_maps::SERVER_CVAR,
         "Lets servers swap the map's textures. Off by default; the map's own swaps and SJK's map fixes always apply.",
     ),

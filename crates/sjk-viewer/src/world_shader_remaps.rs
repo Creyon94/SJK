@@ -193,6 +193,29 @@ impl Runtime {
         self.remaps.applied = None;
         Ok(())
     }
+    /// The map edits' remaps (`map_edits`) that apply now, `from` to `to`. A remap whose
+    /// shaders do not register is left out and named in the answer.
+    pub(crate) fn set_edit_remaps<'a>(
+        &mut self,
+        vfs: &VirtualFileSystem,
+        shaders: &ShaderCatalog,
+        remaps: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> Vec<String> {
+        let mut checked_remaps = std::collections::BTreeMap::new();
+        let mut refused = Vec::new();
+        for (old, new) in remaps {
+            match checked(vfs, shaders, old, new) {
+                Ok((old, new)) => {
+                    checked_remaps.insert(old, new);
+                }
+                Err(error) => refused.push(format!("{old} -> {new}: {error}")),
+            }
+        }
+        if self.remaps.map.set_edits(checked_remaps) {
+            self.remaps.applied = None;
+        }
+        refused
+    }
     /// Map, server and local remaps for listRemaps, in application order.
     pub(crate) fn remap_listing(
         &self,
