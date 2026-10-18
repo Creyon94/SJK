@@ -180,6 +180,11 @@ impl ViewerConsole {
             1,
         )?;
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
+        let server_remaps = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::remap_blocked_maps::SERVER_CVAR,
+            0,
+        )?;
         let remap_blocked_maps =
             console_cvars::RevisionSetting::bind(&mut cvars, crate::remap_blocked_maps::CVAR)?;
         let draw_fog = console_cvars::IntegerSetting::bind(&mut cvars, "r_drawfog", 2)?;
@@ -620,6 +625,7 @@ impl ViewerConsole {
             hide_pickups_in_duel,
             draw_fog,
             remaps,
+            server_remaps,
             remap_blocked_maps,
             packet_dup,
             max_packets,

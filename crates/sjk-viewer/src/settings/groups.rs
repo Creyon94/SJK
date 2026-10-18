@@ -301,6 +301,7 @@ impl Group {
                 crate::duel_ghost::CVAR,
                 crate::duel_visibility::CORPSES_CVAR,
                 crate::duel_visibility::PICKUPS_CVAR,
+                crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",

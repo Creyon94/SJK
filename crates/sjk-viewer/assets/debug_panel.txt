@@ -5361,3 +5361,12 @@ change: A worker now decodes them; the frame only uploads (falcon2: 2040 ms -> 1
 test: With JoF_HD4KTextures.pk3, play a JoF map where the Millennium Falcon (falcon2) appears.
 test: When it first shows, no long freeze; the logs show no hitch near 2000 ms config-refresh.
 note: Sol's hitch log 18/10/2026: config-refresh 2146 ms after loaded demanded model falcon2.
+
+[server-remaps-off]
+area: Rendering & effects
+title: Server shader remaps off by default
+change: New cg_serverRemaps (Settings, off): servers' remaps apply only when it is on.
+change: The what's-new card of the next release asks the player, with its switch.
+test: Join a JoF server with remaps (night ffa3, ffa1 walls): textures stay stock.
+test: Turn Server remaps on: the server's remaps appear live, without reloading the map.
+test: listRemaps with it off says "Server shader remaps are off".
