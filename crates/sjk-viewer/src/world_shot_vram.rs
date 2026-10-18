@@ -2,7 +2,8 @@
 //! world's context, the way the world-install worker does (`session_transition.rs`),
 //! adopts it and drops the old world, again and again. After each change it prints
 //! the allocator's live bytes and the labels that grew, so a world that outlives its
-//! map shows up by name. Players' 2026.1013-2026.1018 builds ran out of video memory
+//! map shows up by name, and the worst peak (both worlds alive) with the textures
+//! they shared ([`crate::shared_textures`]). Players' 2026.1013-2026.1018 builds ran out of video memory
 //! building a map after an hour or more of map changes. Off-screen, ignored like the
 //! other world shots: it needs a GPU adapter and `JKA_GAME_DATA`.
 //!
@@ -51,6 +52,7 @@ fn map_changes_vram() {
         let (start, mut previous) = live(&gpu.device);
         eprintln!("vram: start {:.0} MiB", start as f64 / MIB);
         let mut after = Vec::new();
+        let mut worst = 0;
         for change in 0..CHANGES {
             let map = MAPS[change % MAPS.len()];
             let (mut input, _next) = world_input(map, None, &[]);
@@ -63,6 +65,7 @@ fn map_changes_vram() {
             ))
             .expect("the next map is built");
             let (peak, _) = live(&gpu.device);
+            worst = worst.max(peak);
             let mut adopted = gpu.adopt_world(built);
             attach_target(&mut adopted, size);
             gpu = adopted;
@@ -101,9 +104,17 @@ fn map_changes_vram() {
             first as f64 / MIB,
             last as f64 / MIB
         );
+        eprintln!(
+            "vram: worst peak {:.0} MiB; {} shared textures",
+            worst as f64 / MIB,
+            gpu.context.shared_textures.len()
+        );
         assert!(
             last <= first + first / 20,
             "GPU memory grew across map changes: {first} -> {last} bytes"
         );
+        let cache = Arc::clone(&gpu.context.shared_textures);
+        drop(gpu);
+        assert_eq!(cache.len(), 0, "shared textures outlived the last world");
     });
 }

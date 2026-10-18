@@ -123,27 +123,37 @@ impl Layer {
     fn upload(name: &str, font: UiFont, image: image::RgbaImage, gpu: &Device<'_>) -> Self {
         let started = std::time::Instant::now();
         let (width, height) = image.dimensions();
-        let (field, distance_field) = text::sdf::for_atlas(image);
-        if distance_field {
-            crate::log::progress(format_args!(
-                "game font {name}: {width}x{height} atlas, {}x{} distance field in {:.1} ms",
-                field.width(),
-                field.height(),
-                started.elapsed().as_secs_f64() * 1_000.0
-            ));
-        } else {
-            crate::log::progress(format_args!(
-                "game font {name}: {width}x{height} atlas, drawn from coverage"
-            ));
-        }
-        let view = gpu_texture::create_rgba8_texture_mipmapped(
-            gpu.device,
-            gpu.queue,
-            "SJK game font atlas",
-            &field,
-            true,
-            mip_levels(field.width(), field.height()),
-        );
+        // The same atlas in every world: a map change's next world takes the last one's.
+        let key = crate::shared_textures::key(&[
+            name.as_bytes(),
+            &width.to_le_bytes(),
+            &height.to_le_bytes(),
+            image.as_raw(),
+        ]);
+        let (view, distance_field) = crate::shared_textures::share("game font", key, || {
+            let (field, distance_field) = text::sdf::for_atlas(image);
+            if distance_field {
+                crate::log::progress(format_args!(
+                    "game font {name}: {width}x{height} atlas, {}x{} distance field in {:.1} ms",
+                    field.width(),
+                    field.height(),
+                    started.elapsed().as_secs_f64() * 1_000.0
+                ));
+            } else {
+                crate::log::progress(format_args!(
+                    "game font {name}: {width}x{height} atlas, drawn from coverage"
+                ));
+            }
+            let view = gpu_texture::create_rgba8_texture_mipmapped(
+                gpu.device,
+                gpu.queue,
+                "SJK game font atlas",
+                &field,
+                true,
+                mip_levels(field.width(), field.height()),
+            );
+            (view, distance_field)
+        });
         let bind_group = text::wide_texture::bind_group(
             gpu.device,
             "SJK game font bind group",

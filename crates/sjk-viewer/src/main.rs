@@ -45,6 +45,7 @@ mod loot_odds;
 
 mod saber_colour_command;
 mod shader_image;
+mod shared_textures;
 
 mod clock_trace;
 mod combat_effects;
@@ -364,6 +365,8 @@ use hud_runtime::HudUniform;
 
 struct GpuState {
     context: Arc<gpu_context::Context>,
+    /// This world's claim on the textures it shares with other worlds of its context.
+    shared_textures: shared_textures::Holder,
     /// The context the world loading now is built on, when it is newer than this
     /// world's: a graphics reload on a server ([`graphics_reload`]).
     next_context: Option<Arc<gpu_context::Context>>,
@@ -717,6 +720,9 @@ impl GpuState {
         input: GpuWorldInput,
         cancelled: Option<&std::sync::atomic::AtomicBool>,
     ) -> Result<Self, Box<dyn Error>> {
+        // Until the world is built, textures it makes on this thread are shared with
+        // the other worlds alive on the context (a map change keeps the last one).
+        let (shared_textures, _sharing) = shared_textures::building(&context.shared_textures);
         let input = assets::prepare_instances(input)?;
         let GpuWorldInput {
             scene,
@@ -1307,6 +1313,7 @@ impl GpuState {
         let trace_scratch = bsp.trace_scratch();
         let entity_lighting = entity_lighting::EntityLighting::from_world(&bsp);
         Ok(Self {
+            shared_textures,
             render_scale: None,
             post_aa: frame_target::aa::Runtime::for_context(
                 &context,

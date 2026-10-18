@@ -62,6 +62,9 @@ pub(crate) struct Context {
     pub(crate) adapter_backend: String,
     /// The anisotropy the adapter offers, which [`Self::filtering`] is clamped to.
     pub(crate) anisotropy_limit: u16,
+    /// Textures the worlds built on this context share ([`crate::shared_textures`]);
+    /// a graphics reload's context starts its own.
+    pub(crate) shared_textures: Arc<crate::shared_textures::Cache>,
 }
 
 impl Context {
@@ -222,6 +225,7 @@ impl Context {
             adapter_name: adapter_info.name,
             adapter_backend: format!("{:?}", adapter_info.backend),
             anisotropy_limit: maximum,
+            shared_textures: Arc::default(),
         }))
     }
 
@@ -260,6 +264,7 @@ impl Context {
             adapter_name: self.adapter_name.clone(),
             adapter_backend: self.adapter_backend.clone(),
             anisotropy_limit: self.anisotropy_limit,
+            shared_textures: Arc::default(),
         })
     }
 

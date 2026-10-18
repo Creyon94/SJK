@@ -707,10 +707,27 @@ pub(crate) fn material(
     glow: &image::RgbaImage,
     core: &image::RgbaImage,
 ) -> wgpu::BindGroup {
-    let integral = crate::saber_gpu::glow_integral::upload(device, queue, glow);
-    let glow = crate::gpu_texture::upload_display_image(device, queue, "SJK saber glow", glow);
-    let core =
-        crate::gpu_texture::upload_display_image_mipmapped(device, queue, "SJK saber core", core);
+    // The same images on every map: a map change's next world takes the last one's.
+    let key = crate::shared_textures::key(&[
+        &glow.width().to_le_bytes(),
+        &glow.height().to_le_bytes(),
+        glow.as_raw(),
+        &core.width().to_le_bytes(),
+        &core.height().to_le_bytes(),
+        core.as_raw(),
+    ]);
+    let (integral, glow, core) = crate::shared_textures::share("saber pair", key, || {
+        (
+            crate::saber_gpu::glow_integral::upload(device, queue, glow),
+            crate::gpu_texture::upload_display_image(device, queue, "SJK saber glow", glow),
+            crate::gpu_texture::upload_display_image_mipmapped(
+                device,
+                queue,
+                "SJK saber core",
+                core,
+            ),
+        )
+    });
     let view = |binding, view| wgpu::BindGroupEntry {
         binding,
         resource: wgpu::BindingResource::TextureView(view),

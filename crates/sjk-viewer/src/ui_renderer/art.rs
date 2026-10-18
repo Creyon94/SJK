@@ -166,21 +166,35 @@ impl ArtTextures {
                     (image.as_raw(), [image.width(), image.height()])
                 }
             };
-            let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("SJK classic menu art"),
-                size: wgpu::Extent3d {
-                    width: size[0],
-                    height: size[1],
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: crate::ui_target::TEXTURE_FORMAT,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            });
-            write(queue, &texture, size, pixels);
+            let make = || {
+                let texture = device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("SJK classic menu art"),
+                    size: wgpu::Extent3d {
+                        width: size[0],
+                        height: size[1],
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: crate::ui_target::TEXTURE_FORMAT,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                });
+                write(queue, &texture, size, pixels);
+                texture
+            };
+            // A static piece is the same decoded image in every world (`decoded` lives
+            // for the process); an animated one is rewritten every frame by its own.
+            let texture = if animated.is_some() {
+                make()
+            } else {
+                let key = crate::shared_textures::key(&[
+                    &(piece.index() as u64).to_le_bytes(),
+                    &(pixels.as_ptr() as usize as u64).to_le_bytes(),
+                ]);
+                crate::shared_textures::share("menu art", key, make)
+            };
             let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
             let sampler = if piece.wraps() { &wrapping } else { &clamped };
             self.groups[piece.index()] =
