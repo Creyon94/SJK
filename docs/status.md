@@ -1,19 +1,24 @@
-## Server-confirmed pseudo-power sounds
+## JoF mod server-confirmed power sounds
 
-17/10/2026, `fix/server-force-feedback`, based on `Sol-Vulpes/SJK`
-`bb83eb28`, Windows x86_64: source audit of EJK #110/#112/#117 found Stasis
-and Repulse controls already present but their reliable firing-confirmation
-sounds absent. Adds typed command events, installed-asset preloading, local
-channel-1 playback and independent 250 ms gates, with a shared archived switch.
-Dash has no corresponding EJK #117 confirmation to port. See
-[client](client.md#server-confirmed-stasis-and-repulse-sounds).
+18/10/2026, `fix/server-force-feedback`, merged current `sol/main`
+`64698160` without rewriting published history. Per Sol's #149 review, the
+confirmation table/repeat gates live in `sjk-mod-jof`. Compiled optional host
+bridges load/play installed sounds only for loaded JoF tools and the explicit
+`jof.ejkOptIn`/`jof.abilitySounds` settings. Scoped `jofejk=1` userinfo uses the
+existing codec and is withdrawn on opt-out/unload/other servers. See
+[mods](mods.md#ejk-server-opt-in-and-firing-confirmations) for the distinction
+between the server opt-in and a local mute, the separate unadvertised keys,
+and the limits of available server-side evidence.
 
-All four workspace checks (fmt, locked build/test/clippy) passed on Windows
-x86_64, Rust 1.99.0. A focused synthetic regression pins recognition, independent
-gates, exact 250 ms boundaries, rewinds/map resets and overflow-safe arithmetic
-at 8/7/4/3 ms command steps. Installed-pack listening, real server confirmations
-and full match performance remain unverified. No codec, native
-server gameplay or asset-distribution changes.
+Migration verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace
+build/tests/Clippy and the no-default-features viewer mod-exclusion test pass.
+Focused regressions cover loaded-server/mod/preference gates, scoped userinfo bytes
+and dirty callbacks, plus independent 250 ms boundaries at 8/7/4/3 ms command steps.
+Installed-pack listening, live server opt-in/withdrawal and other private-server
+`jofejk` effects remain unverified; the public EJK client confirms firing messages
+but does not enumerate all server checks.
+No wire codec, native server gameplay or asset-distribution changes.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect

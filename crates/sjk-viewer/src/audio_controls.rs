@@ -18,6 +18,11 @@ impl crate::GpuState {
                 glam::Vec3::ZERO,
             );
             audio.sync_gains(self.console.as_ref());
+            #[cfg(feature = "mod-jof")]
+            audio.sync_force_feedback(
+                self.live_session.is_some()
+                    && crate::mods::force_feedback::enabled(self.console.as_ref()),
+            );
             if self.live_session.is_none() && self.demo_session.is_none() {
                 audio.idle_frame();
             }

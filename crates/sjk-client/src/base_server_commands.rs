@@ -46,8 +46,6 @@ pub struct ImmediateBodyCopy {
 /// Typed client-shell or presentation action emitted by a BaseJKA command.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaseServerCommandEvent {
-    /// Server confirmation of a pseudo-power firing (table index, not input).
-    ForceFeedback(usize),
     /// Update force-rank UI state from `nfr`.
     ForceRank(ForceRankUpdate),
     /// Rebuild a client actor, with an optional `ircg` body copy.
@@ -56,8 +54,12 @@ pub enum BaseServerCommandEvent {
     CopyBody(BodyIdentity),
     /// Release a non-client entity's copied Ghoul2 state (`kg2`).
     KillGhoul2(u16),
-    /// First observation of an unknown reliable command name (bounded to 64).
-    UnknownCommand(String),
+    /// Opaque reliable operands for optional client mods. Base SJK does not parse
+    /// the extension; the frontend may log the first unknown name (bounded to 64).
+    UnhandledCommand {
+        arguments: Vec<Vec<u8>>,
+        first_observation: bool,
+    },
     /// Ask the modern shell to present its siege-profile flow.
     SiegeProfileMenu,
     /// Open Siege class selection (`scl`), with no operands.

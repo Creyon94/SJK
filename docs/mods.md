@@ -1,7 +1,7 @@
 # Client mods
 
-A client mod is a set of console commands and settings kept out of the core
-client. Each one loads only on the servers it is made for, so a player who never
+A client mod owns its commands, settings and optional community presentation,
+kept out of the core client. Each one loads only on the servers it is made for, so a player who never
 joins one sees none of its commands. The mods are built into the client; the line
 they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
 
@@ -30,11 +30,19 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   the core client ([networking.md](networking.md)) and work with every mod off.
   JA+ flamethrower presentation also stays in the core; its detection and player
   override are documented under [flamethrower presentation](client.md#ja-flamethrower-presentation).
+- **Community presentation.** JoF's firing-confirmation sounds belong to `sjk-mod-jof`, not the base compatibility
+  profile. The mod owns their definitions, parsers and state; optional viewer
+  bridges draw/play their output only while JoF tools are loaded. Base sessions
+  forward unhandled reliable operands without interpreting community commands.
+  These additions are compiled out of the viewer without `mod-jof`.
 - **What a mod can do.** A mod sees the game only through
   [`Host`](../crates/sjk-mod/src/lib.rs): it can send a reliable server command,
   read the server's kind, address and serverinfo, the predicted player, the crosshair
   trace's end point and player, and the roster with where each player is drawn, and
   read or set a setting. It does not reach the renderer, prediction or the wire.
+  Typed mod settings distinguish text, booleans and integer choices. A mod may
+  declare scoped userinfo fields through the host; the existing adapter validates
+  and encodes them, and removes them when their mod/setting no longer permits them.
   Commands run on the main thread from the client command queue
   ([mods.rs](../crates/sjk-viewer/src/mods.rs),
   [mods_host.rs](../crates/sjk-viewer/src/mods_host.rs)).
@@ -90,9 +98,42 @@ does, off until the player turns it on. Unlike the commands, it does not wait fo
 JoF server: the card and its folder work from the menus, and `mod_jof` does not
 switch it.
 
-Not ported: JoF EJK's userinfo opt-ins (`jofejk`, `binoScan`, `cg_pickupConfirm`).
-Each one asks the server for something the client must then show, and SJK shows none
-of it yet.
+Not ported: `binoScan` and `cg_pickupConfirm`; these request additional
+server data/protocol behavior which this mod does not yet implement.
+
+### EJK server opt-in and firing confirmations
+
+`jof.ejkOptIn` is an archived JoF mod opt-in, on by default. With it on, the loaded mod asks the
+existing userinfo adapter to send `jofejk=1` to a recognized JoF server. It is
+never a global `CVAR_USERINFO` value: other JA+, jaPRO, base, disconnected and
+mod-off sessions omit the field. The setting and `mod_jof` changes mark userinfo
+dirty; removal uses the normal next rate-limited userinfo update (up to one
+second), while local handlers stop immediately. The mod's settings appear under
+Mods in SJK Settings and Game options in classic.
+
+**This is a server-extension opt-in, not a local sound mute.** A nonempty
+`jofejk` value asks the server to treat the player as EJK-extension capable;
+`jofejk=0` would still be nonempty, so opting out removes the key. Public EJK
+sources explicitly document Stasis/Repulse firing confirmations behind it
+([cg_xcvar.h](https://github.com/JediofFreedom/JoF_EJK/blob/beta/codemp/cgame/cg_xcvar.h),
+[cg_servercmds.c](https://github.com/JediofFreedom/JoF_EJK/blob/beta/codemp/cgame/cg_servercmds.c)).
+Those client sources do not enumerate the private JoF server's other checks of
+`jofejk`; further server-side effects cannot be certified from them. In
+particular this switch does not advertise `binoScan` or `cg_pickupConfirm`:
+those separately opt into binocular/party data and versioned pickup confirmation,
+and are still not implemented here. The existing `cjp_client` identity stays SJK.
+
+`jof.abilitySounds` (archived, on by default) controls only local Stasis/Repulse
+confirmation audio; muting it does not withdraw the broader server opt-in.
+The JoF mod owns the documented command/sound table and independent 250 ms gates
+in [feedback.rs](../crates/sjk-mod-jof/src/feedback.rs). Only server `stasis` and
+`repulse` confirmations trigger installed local channel-1 sounds; key presses
+do not. Gates reset on unload/map changes and handle server-time rewinds.
+Audio is loaded only when the JoF mod and both opt-ins permit playback, including
+when enabled after joining. Missing installed audio stays silent. Turning the
+feature off stops queued/current confirmations. EJK #117 has no separate Dash
+confirmation cue. Nothing is bundled or downloaded, and base SJK owns none of
+these command names, sounds or repeat rules.
 
 ## Verification
 

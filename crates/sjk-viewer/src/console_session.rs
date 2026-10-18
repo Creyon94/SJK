@@ -234,6 +234,12 @@ impl ViewerConsole {
         console_client::register(&mut shell, &client_commands)?;
         let mods = crate::mods::Mods::new();
         mods.register(&mut shell)?;
+        for name in mods.userinfo_settings() {
+            let dirty = Arc::clone(&userinfo_dirty);
+            shell
+                .cvars
+                .on_change(&name, move |_| dirty.store(true, Ordering::Release))?;
+        }
         shell.set_command_frame(0);
         let server_status = Arc::new(RwLock::new("Not connected".to_owned()));
         for command in ["serverinfo", "status"] {
@@ -683,12 +689,13 @@ impl ViewerConsole {
             .map_err(|error| error.to_string())
             .and_then(|userinfo| {
                 session
-                    .update_userinfo_options(
+                    .update_userinfo_with_mod_fields(
                         &userinfo,
                         Some(
                             self.bool_cvar("cg_nameplate").unwrap_or(false)
                                 && self.integer_cvar("cg_nameplateBars").unwrap_or(0) > 0,
                         ),
+                        &self.mods.userinfo_fields(&self.shell),
                         now,
                     )
                     .map_err(|error| error.to_string())
@@ -1084,6 +1091,20 @@ fn renamed_illuminate_command(command: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use crate::console::ViewerConsole;
+
+    #[cfg(feature = "mod-jof")]
+    #[test]
+    fn mod_switch_and_server_opt_in_mark_userinfo_dirty_without_global_key() {
+        use std::sync::atomic::Ordering;
+        let dir = tempfile::tempdir().unwrap();
+        let mut console = super::ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        for (name, value) in [("mod_jof", "0"), (sjk_mod_jof::EJK_OPT_IN, "0")] {
+            console.userinfo_dirty.store(false, Ordering::Release);
+            console.set_cvar(name, value);
+            assert!(console.userinfo_dirty.load(Ordering::Acquire), "{name}");
+        }
+        assert!(console.shell.cvars.get("jofejk").is_none());
+    }
 
     /// A new profile keeps the default 5; a profile saved before the stock units
     /// is rescaled once, and only once.

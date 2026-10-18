@@ -3645,22 +3645,9 @@ See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
 ### Server-confirmed Stasis and Repulse sounds
 
-EJK #110/#112 servers send `stasis` or `repulse` when the ability actually
-fires. SJK plays their installed `sound/jof/stasis.wav` or
-`sound/jof/repulse.wav` locally on `CHAN_LOCAL` (1), without positional falloff.
-Key presses alone never play these confirmations. Each ability suppresses
-repeated commands inside 250 ms, independently of the other. The first valid
-confirmation is accepted immediately; map installation resets the gates and
-a rewound server clock starts a fresh interval.
-
-`cg_serverAbilitySounds` (archived, on by default; classic Game options and
-SJK Settings > Advanced > Gameplay, **Server ability sounds**) disables these
-cues without changing controls. Assets are preloaded from installed VFS data;
-missing audio stays silent, with no downloads or bundled sounds. Existing
-Stasis, Repulse and Dash wheel/binding controls and server-owned gameplay are
-unchanged. EJK #117 defines no separate Dash confirmation command or sound;
-none is invented here. See the documented table in
-[force_feedback.rs](../crates/sjk-client/src/force_feedback.rs).
+These confirmations belong to the JoF client mod, require its server opt-in and
+are inactive on other servers. See [JoF EJK opt-in and confirmation sounds](mods.md#ejk-server-opt-in-and-firing-confirmations)
+for settings, `jofejk` scope and the installed-asset requirement.
 
 ### JA+ flamethrower presentation
 

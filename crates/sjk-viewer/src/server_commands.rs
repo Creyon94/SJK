@@ -25,21 +25,29 @@ pub(super) fn consume(
 
     while let Some(event) = session.pop_base_command_event() {
         match event {
-            BaseServerCommandEvent::ForceFeedback(index) => {
-                if console
-                    .as_ref()
-                    .is_none_or(|c| c.bool_cvar("cg_serverabilitysounds").unwrap_or(true))
-                    && let Some(audio) = &mut audio
+            BaseServerCommandEvent::UnhandledCommand {
+                arguments,
+                first_observation,
+            } => {
+                #[cfg(not(feature = "mod-jof"))]
+                let handled = false;
+                #[cfg(feature = "mod-jof")]
+                let handled = crate::mods::force_feedback::dispatch(
+                    &arguments,
+                    console.as_deref(),
+                    audio.as_deref_mut(),
+                    session.latest_snapshot(),
+                );
+                if !handled
+                    && first_observation
+                    && let Some(console) = &mut console
+                    && console.integer_cvar("developer").unwrap_or(0) != 0
                 {
-                    audio.force_feedback(index, session.latest_snapshot());
-                }
-            }
-            BaseServerCommandEvent::UnknownCommand(name) => {
-                if console
-                    .as_ref()
-                    .is_some_and(|c| c.integer_cvar("developer").unwrap_or(0) != 0)
-                {
-                    crate::log::progress(format_args!("debug: unhandled server command {name}"));
+                    let name = arguments.first().map(|name| String::from_utf8_lossy(name));
+                    console.push_log(format!(
+                        "^3Unknown server command: {}",
+                        name.as_deref().unwrap_or("")
+                    ));
                 }
             }
             BaseServerCommandEvent::ForceRank(update) => {

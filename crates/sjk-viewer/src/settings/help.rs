@@ -207,8 +207,14 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    #[cfg(feature = "mod-jof")]
     (
-        "cg_serverAbilitySounds",
+        sjk_mod_jof::EJK_OPT_IN,
+        "Advertise JoF EJK extension support on JoF servers with JoF tools on. Enables server confirmations; see Client mods for scope.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::ABILITY_SOUNDS,
         "Play installed Stasis and Repulse sounds when the server confirms firing. Duplicate cues within 250 ms are suppressed.",
     ),
     (

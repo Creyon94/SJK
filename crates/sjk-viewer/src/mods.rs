@@ -6,6 +6,9 @@
 use sjk_mod::{ClientMod, Server};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarValue, Shell};
 
+#[cfg(feature = "mod-jof")]
+#[path = "jof_force_feedback.rs"]
+pub(crate) mod force_feedback;
 #[path = "mods_host.rs"]
 mod host;
 
@@ -90,7 +93,11 @@ impl Mods {
             for setting in module.settings() {
                 shell.cvars.register(CvarDefinition::new(
                     setting.name,
-                    setting.default,
+                    match setting.default {
+                        sjk_mod::SettingValue::Text(value) => CvarValue::Text(value.to_owned()),
+                        sjk_mod::SettingValue::Bool(value) => CvarValue::Bool(value),
+                        sjk_mod::SettingValue::Integer(value) => CvarValue::Integer(value),
+                    },
                     CvarFlags::ARCHIVE,
                     setting.help,
                 ))?;
@@ -162,6 +169,53 @@ impl Mods {
             changed = true;
         }
         changed
+    }
+
+    /// Whether a mod is currently loaded according to its shared server rules.
+    pub(crate) fn loaded(&self, id: &str) -> bool {
+        self.entries.iter().any(|entry| entry.id == id && entry.on)
+    }
+
+    /// Userinfo fields requested by loaded mods and permitted by their saved settings.
+    pub(crate) fn userinfo_fields(&self, shell: &Shell) -> Vec<(&'static str, &'static str)> {
+        self.entries
+            .iter()
+            .filter(|entry| {
+                entry.on
+                    && shell
+                        .cvars
+                        .get(&switch(entry.id))
+                        .is_some_and(|cvar| cvar.value.as_text() != "0")
+            })
+            .filter_map(|entry| entry.module.as_ref())
+            .flat_map(|module| module.userinfo_fields())
+            .filter(|field| {
+                shell
+                    .cvars
+                    .get(field.enabled_by)
+                    .is_some_and(|cvar| cvar.value.as_text() != "0")
+            })
+            .map(|field| (field.key, field.value))
+            .collect()
+    }
+
+    /// Setting names whose changes require a scoped userinfo refresh.
+    pub(crate) fn userinfo_settings(&self) -> Vec<String> {
+        let mut names = Vec::new();
+        for entry in &self.entries {
+            if let Some(module) = &entry.module
+                && !module.userinfo_fields().is_empty()
+            {
+                names.push(switch(entry.id));
+                names.extend(
+                    module
+                        .userinfo_fields()
+                        .iter()
+                        .map(|field| field.enabled_by.to_owned()),
+                );
+            }
+        }
+        names
     }
 
     /// The mod a command belongs to, by its `<id>.` prefix.
@@ -302,6 +356,67 @@ mod tests {
         })
     }
 
+    #[cfg(not(feature = "mod-jof"))]
+    #[test]
+    fn a_build_without_jof_has_no_community_settings_or_commands() {
+        let (shell, mods) = shell();
+        for name in [
+            "mod_jof",
+            "jof.destructionSupport",
+            "jof.dialogue",
+            "jof.ejkOptIn",
+            "jof.abilitySounds",
+        ] {
+            assert!(shell.cvars.get(name).is_none(), "{name}");
+        }
+        assert!(!mods.loaded("jof"));
+        assert!(!shell.commands.contains("force_destruction"));
+    }
+
+    #[cfg(feature = "mod-jof")]
+    #[test]
+    fn jof_userinfo_is_scoped_to_loaded_mod_and_explicit_opt_in() {
+        let (mut shell, mut mods) = shell();
+        assert!(mods.userinfo_fields(&shell).is_empty());
+        for (kind, info, expected) in [
+            (sjk_mod::ServerKind::BaseJka, "", false),
+            (sjk_mod::ServerKind::JaPlus, r"\V\2.4B7", false),
+            (sjk_mod::ServerKind::JaPro, r"\V\2.5B0", false),
+            (sjk_mod::ServerKind::JaPlus, r"\V\2.5B0", true),
+        ] {
+            mods.set_server(server(kind, info));
+            mods.sync(&mut shell);
+            let fields = mods.userinfo_fields(&shell);
+            assert_eq!(
+                fields.as_slice(),
+                if expected {
+                    &[("jofejk", "1")][..]
+                } else {
+                    &[]
+                }
+            );
+            let payload = sjk_network::legacy_userinfo_payload_with_extensions(
+                &sjk_network::LegacyUserInfo::with_name("fixture"),
+                &fields,
+            )
+            .unwrap();
+            assert_eq!(payload.as_bytes().ends_with(br"\jofejk\1"), expected);
+        }
+        shell.cvars.set_text(sjk_mod_jof::EJK_OPT_IN, "0").unwrap();
+        assert!(mods.userinfo_fields(&shell).is_empty());
+        shell.cvars.set_text(sjk_mod_jof::EJK_OPT_IN, "1").unwrap();
+        shell.cvars.set_text("mod_jof", "0").unwrap();
+        assert!(mods.userinfo_fields(&shell).is_empty());
+        mods.sync(&mut shell);
+        shell.cvars.set_text("mod_jof", "1").unwrap();
+        mods.sync(&mut shell);
+        assert_eq!(mods.userinfo_fields(&shell), [("jofejk", "1")]);
+        mods.set_server(None);
+        mods.sync(&mut shell);
+        assert!(mods.userinfo_fields(&shell).is_empty());
+    }
+
+    #[cfg(all(feature = "mod-jof", feature = "mod-japlus"))]
     #[test]
     fn mods_load_on_their_servers_only() {
         let (mut shell, mut mods) = shell();
@@ -340,6 +455,7 @@ mod tests {
         assert!(!shell.commands.contains("jof.commands"));
     }
 
+    #[cfg(feature = "mod-japlus")]
     #[test]
     fn an_old_profile_gets_the_mods_on_once() {
         let (mut shell, mods) = shell();
@@ -353,6 +469,7 @@ mod tests {
         assert_eq!(shell.cvars.get("mod_japlus").unwrap().value.as_text(), "0");
     }
 
+    #[cfg(all(feature = "mod-jof", feature = "mod-japlus"))]
     #[test]
     fn settings_exist_while_the_mod_is_off() {
         let (shell, _) = shell();
@@ -360,6 +477,7 @@ mod tests {
         assert!(shell.cvars.get("mod_jof").is_some());
     }
 
+    #[cfg(all(feature = "mod-jof", feature = "mod-japlus"))]
     #[test]
     fn server_commands_complete_only_while_loaded() {
         let (mut shell, mut mods) = shell();

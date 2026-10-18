@@ -79,7 +79,19 @@ impl crate::ClientSession {
         team_overlay: Option<bool>,
         now: Instant,
     ) -> Result<UserinfoUpdateStatus, crate::ClientError> {
+        self.update_userinfo_with_mod_fields(userinfo, team_overlay, &[], now)
+    }
+
+    /// Apply host-selected loaded-mod fields through the existing userinfo codec.
+    pub fn update_userinfo_with_mod_fields(
+        &mut self,
+        userinfo: &LegacyUserInfo,
+        team_overlay: Option<bool>,
+        mod_fields: &[(&str, &str)],
+        now: Instant,
+    ) -> Result<UserinfoUpdateStatus, crate::ClientError> {
         let mut extensions = self.compat_profile.userinfo_extensions().to_vec();
+        extensions.extend_from_slice(mod_fields);
         if let Some(enabled) = team_overlay {
             extensions.push(("teamoverlay", if enabled { "1" } else { "0" }));
         }

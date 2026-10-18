@@ -714,9 +714,16 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::actor_world_submission::force_powers::victim::CVAR,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-jof")]
     Setting {
-        label: "Server ability sounds",
-        cvar: "cg_serverAbilitySounds",
+        label: "JoF EJK server opt-in",
+        cvar: sjk_mod_jof::EJK_OPT_IN,
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF ability sounds",
+        cvar: sjk_mod_jof::ABILITY_SOUNDS,
         kind: ValueKind::Bool,
     },
     Setting {

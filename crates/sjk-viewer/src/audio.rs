@@ -38,6 +38,9 @@ mod dynamic;
 mod feedback;
 #[path = "audio_holstered_staff.rs"]
 mod holstered_staff;
+#[cfg(feature = "mod-jof")]
+#[path = "jof_force_audio.rs"]
+mod jof_force;
 #[path = "audio_music.rs"]
 pub(crate) mod music;
 #[path = "audio_transitions.rs"]
@@ -60,7 +63,8 @@ const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/qcommon/q_shared.h:1540
 /// Process-lifetime audio state. Only the rodio callback owns the mixer.
 pub(crate) struct GameAudio {
     flame: flame::State,
-    force_feedback: sjk_client::force_feedback::Gate,
+    #[cfg(feature = "mod-jof")]
+    force_feedback: jof_force::State,
     output: AudioOutput,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
@@ -165,6 +169,7 @@ impl GameAudio {
     pub(super) fn with_output(output: AudioOutput) -> Self {
         let mut audio = Self {
             flame: Default::default(),
+            #[cfg(feature = "mod-jof")]
             force_feedback: Default::default(),
             output,
             reported_underruns: 0,

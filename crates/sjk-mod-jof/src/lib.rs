@@ -7,7 +7,30 @@
 //! (`gcmds[]`, `cgame/cg_consolecmds.c:3262-3303`) and lists them with
 //! `jof.commands`.
 
-use sjk_mod::{ClientMod, Command, Host, Server, command};
+use sjk_mod::{ClientMod, Command, Host, Server, Setting, UserinfoField, command};
+/// JoF server firing-confirmation contracts and repeat policy.
+pub mod feedback;
+/// Player opt-in to the JoF EJK server extension, separate from client identity.
+pub const EJK_OPT_IN: &str = "jof.ejkOptIn";
+/// Local confirmation sound preference, kept while the mod is unloaded.
+pub const ABILITY_SOUNDS: &str = "jof.abilitySounds";
+const SETTINGS: &[Setting] = &[
+    Setting {
+        name: EJK_OPT_IN,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Advertise jofejk on JoF servers while JoF tools are enabled; enables server EJK extensions",
+    },
+    Setting {
+        name: ABILITY_SOUNDS,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Play installed Stasis/Repulse confirmation sounds from a JoF server",
+    },
+];
+const USERINFO: &[UserinfoField] = &[UserinfoField {
+    key: "jofejk",
+    value: "1",
+    enabled_by: EJK_OPT_IN,
+}];
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";
@@ -133,6 +156,14 @@ impl ClientMod for JoF {
 
     fn commands(&self) -> &'static [Command] {
         COMMANDS
+    }
+
+    fn settings(&self) -> &'static [Setting] {
+        SETTINGS
+    }
+
+    fn userinfo_fields(&self) -> &'static [UserinfoField] {
+        USERINFO
     }
 
     fn server_commands(&self, server: &Server) -> &'static [Command] {
