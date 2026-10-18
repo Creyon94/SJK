@@ -70,6 +70,22 @@ by its users and subtracted from shader time; server offsets are parsed like C
 `atof`. Removing an entry from the server's configstring alone does not undo it,
 matching stock cgame.
 
+A target the client cannot draw (no shader script and no image of that name) leaves
+the surface as it was, as stock does, and is logged once a map:
+`shader remap ignored: missing <target> (not tried again on this map)`
+([world_remap_material.rs](../crates/sjk-viewer/src/world_remap_material.rs)
+`MissingTargets`). Remaps are applied again whenever the world registers a material it
+had not drawn yet (a player's new skin, a prop loaded mid-match), and each slot of a
+remapped model asks again; before 18/10/2026 every one of them searched the game data
+and wrote that line again. JoF's night ffa3 (`dl_JoF_MapFFA3Night`, a `trigger_always`
+firing `target_relay`s on `remap_kyle`) remaps the stock Kyle model's seven shaders to
+`models/players/kyle_new/`, a pack the map does not carry: without it, about 170
+lookups and log lines made each skin change a 400 ms hitch (`config-refresh` in the
+[hitch lines](#gameplay-hitch-lines)). The list lives with the world, as its shader
+catalog and game data do, so the next map checks again. Effect atlas remaps already
+skip a target they could not load (`effect_remaps.rs`, `unloadable`); a sky remap to a
+missing target costs one catalog lookup.
+
 A replacement keeps the lighting of the surface it replaces: a lightmapped world
 surface samples its own lightmap page, a vertex-lit one its vertex light, and an
 entity material its entity light. Here SJK departs from rd-vanilla, whose
@@ -1167,6 +1183,13 @@ jet sound. The chest attachment is initialized with the body's resting pose,
 including the shared fallback body, and equipping resolves the current pose
 immediately rather than waiting for the next pose upload. The stock pack's bind
 pose is already identity; personal replacement packs may omit its flame bolts.
+The jet graph joins the startup effect catalogue, so a replacement PK3's own
+flame/smoke shaders and nested dependencies are available before flight. Tail length
+uses the authored curve flags: a negative constant stays constant instead of
+shrinking toward an unused end value. A shader remapped to `clear` supplies no
+layers, including on exhaust tails; only an unknown shader gets the fallback spark.
+These rules are shared by the other EFX users, without a jetpack-specific renderer.
+
 Flight prediction now implements the equipped `PM_JETPACK` path described in
 [networking.md](networking.md#equipped-jetpack-prediction). In first person the
 pack remains hidden with the body, as in the reference.

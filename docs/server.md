@@ -164,3 +164,15 @@ bait, victim attachment/swallowing, and single-player camera effects are not
 implemented. Pursuit uses local steering and ordinary NPC movement; complex
 obstacles still need broader map playtesting. No new protocol fields or SP entity
 flags are sent, and no new assets are required for the retail sand creature.
+
+## Siege doors
+
+The use key reaches a `PLAYER_USE` door (`ValidUseTarget`, `GlobalUse`). In siege,
+`TryUse`'s `alliedTeam` rule keeps the door's `teamallow` team from using it unless
+`g_ff_objectives` is set. Before the round begins, the use key does nothing.
+
+A door that spawns locked carries `EF_SHADER_ANIM`. Its `s.frame` is 0 while locked and 1
+once unlocked (`LockDoors`, `UnLockDoors`), so the client draws the lock lights by state.
+
+`trigger_multiple` and `trigger_once` take their team from `team`, or else from the generic
+`teamuser`/`alliedteam` spawn fields.

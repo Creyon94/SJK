@@ -9,6 +9,15 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull requests #157 #158 #159 #160 #161 #162 #163: Siege doors, HUD, triggers, vehicles, bots; jetpack exhaust; missing remap targets
+- b96453f |  | Credits for SJK pull requests #159 #161 #162 (Slash) and #163 (Milamber)
+- 86a0dfc |  | Use key: drop the stale button comment above the PLAYER_USE door one
+- af25696 |  | Credits for SJK pull requests #157 #160 (Slash) and #158 (Lumaya); #157's changelog line credited to Slash
+- d6778d1 |  | Jetpack test: no needless borrow of the game data
++ 18/10/2026 | - | Open siege doors for their teamallow team; vehopen for riders
+- c6c6da8 |  | Open siege doors for their teamallow team; vehopen for riders
++ 18/10/2026 | - | Review fixes: relock after the targets fire; NPC and rider checks
+- 76a0a57 |  | Review fixes: relock after the targets fire; NPC and rider checks
 + 18/10/2026 | - | SJK pull request #156, See & share nameplates, settings to review, Power Duel sides
 - 527dfb4 |  | Power Duel side from "dt", not "ds" (the player's sex)
 - cf99ef1 |  | What's new: a setting to review resets once per version
@@ -1773,6 +1782,8 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 18/10/2026 | SJK #158 | Fix jetpack effect loading and hidden exhaust layers
+- 9f40ecf |  | Fix jetpack effect loading and hidden exhaust layers
 + 18/10/2026 | SJK #131 | Resolve NPC voices from their advertised sound banks
 - 5931480 |  | Resolve NPC voices from their advertised sound banks
 + 18/10/2026 | SJK #139 | Resume map music from the level clock and honor silence
@@ -1884,6 +1895,8 @@
 - 8d21001 |  | Clip visible saber blades at world walls
 
 = Milamber
++ 18/10/2026 | SJK #163 | Look up a missing remap target once a map
+- 83f99d0 |  | Look up a missing remap target once a map
 + 18/10/2026 | SJK #156 | Feat/nameplates cleanup and review popup
 - 417e95f |  | Merge nameplates and bar sharing into See & share nameplates
 - 10740fb |  | Ask players to review changed settings on the what's-new card
@@ -1891,6 +1904,16 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 18/10/2026 | SJK #160 | Siege HUD: round state, respawn countdown, hack progress and sound
+- 7582183 |  | Siege HUD: round state, respawn countdown, hack progress and sound
++ 18/10/2026 | SJK #157 | Fix/siege door use lights
+- 5a60ca3 |  | Siege doors: use key on PLAYER_USE doors, lock lights, trigger teams
++ 18/10/2026 | SJK #162 | Siege: bots take both sides before the round
+- 61ea754 |  | Siege: bots take both sides before the round
++ 18/10/2026 | SJK #161 | Vehicles: board a team vehicle with the player's own team
+- c756e35 |  | Vehicles: board a team vehicle with the player's own team
++ 18/10/2026 | SJK #159 | Triggers: a trigger_once that fired is never touched again
+- 62b883f |  | Triggers: a trigger_once that fired is never touched again
 + 18/10/2026 | SJK #142 | Siege menu changed to match ctf menu . colours of sabers fixed for red/blue team
 - 4f6f68b |  | Siege menu: team first, then that team's classes; Siege team saber colours
 + 18/10/2026 | SJK #150 | Siege: no more stuck players after a death; map messages show their text - #1

@@ -1,3 +1,118 @@
+## Jetpack effect layers and tail lengths
+
+18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.
+The shared atlas sampler now distinguishes a known hidden shader from a missing
+one: a `clear` remap supplies zero layers, including for single-layer consumers.
+The jetpack graph joins the startup catalogue, including replacement-PK3 shaders;
+retail dependencies were already incidentally available through other graphs.
+Tails retain their signed length unless the authored length curve changes it;
+line endpoints and the custom saber-spark fade retain their existing semantics.
+No new setting, emitter, wire change or gameplay change.
+
+Reference: JoF EJK beta `0f2fa2fc`, `CG_RegisterGraphics` in
+`codemp/cgame/cg_main.c` and `CTail::UpdateLength` in
+`codemp/client/FxPrimitives.cpp`. See [rendering](rendering.md#entity-render-effects).
+Verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace build/tests
+and all-target Clippy pass. Synthetic regressions cover replacement-graph shader
+discovery and signed constant/linear tails plus unchanged line endpoints at
+8/7/4/3 ms. The installed-retail `mp/duel6` offscreen test on RTX 5070 Ti (driver
+617.14) rendered boosted exhaust, verified that every exhaust shader was loaded,
+and checked a real atlas remap to `clear`: zero sampled layers, also for a
+single-layer consumer, while an unknown shader still gets one fallback. The
+exhaust image was inspected; it is not a matching EJK reference capture.
+A release-mode synthetic sample of 128 mixed constant/linear tail lengths over
+20,000 iterations measured 0.299 us per iteration on Ryzen 7 5800X3D; it excludes
+rendering, particle motion and full-scene costs. Live server overlap and full
+JoF EJK visual parity remain unverified.
+
+## Siege HUD: round state, respawn countdown, hacking
+
+18/10/2026, `feat/siege-hud`, based on `Sol-Vulpes/SJK` `6469816` (tester on
+`mp/siege_hoth`). The client drew none of cgame's siege timers, and a hack was silent:
+
+- The warmup line shows the round's `CS_SIEGE_STATE` ("WAITING FOR PLAYERS",
+  "STARTS IN: n"), as `cg_draw.c:8168-8226` does.
+- A dead player waiting for the respawn wave sees "RESPAWN IN: n", from the viewed player's
+  `EV_SIEGESPEC` time (`CG_DrawSiegeDeathTimer`). It is forgotten once the player is back
+  in play.
+- A hack in progress shows "HACKING: n%" (`CG_DrawHaqrBar`'s share of
+  `ps.hackingTime`/`hackingBaseTime`).
+- A hacker's `ps.loopSound` is `sound/player/hacking.wav` while it hacks
+  (`G_SetClientSound`). The client now plays the viewed player's own `ps.loopSound`, as
+  cgame does through `cg.predictedPlayerEntity`; it is not among the snapshot's entities.
+
+The workspace built on Linux; the unit tests (siege state, wave and hack tracking) and Clippy
+were not run for this branch. Tested by hand with an earlier build of the same change.
+
+## Siege doors: the use key, lock lights, trigger teams
+
+18/10/2026, `fix/siege-door-use-lights`, on `fix/siege-door-teamallow` merged into
+`Sol-Vulpes/SJK` `6469816` (tester on `mp/siege_hoth`). Implemented, after OpenJK `codemp`:
+
+- The use key reaches `PLAYER_USE` doors (`ValidUseTarget`, `GlobalUse`). In siege the
+  door's `teamallow` team may not use one unless `g_ff_objectives` is set (`TryUse`).
+- In siege, the use key does nothing before the round begins (`TryUse`).
+- A door spawned locked carries `EF_SHADER_ANIM`. Its `s.frame` is 0 while locked and 1
+  once unlocked (`LockDoors`, `UnLockDoors`), so the client draws its lock lights. A locked
+  door keeps its red light while its `teamallow` team walks through it, as stock does.
+- `trigger_multiple`/`trigger_once` take their team from `team`, else from the generic
+  `teamuser`/`alliedteam` spawn fields.
+
+See [server](server.md#siege-doors). The workspace built on Linux; tests and Clippy were
+not run for this branch. Tested by hand on `mp/siege_hoth` with an earlier build of the
+same change.
+
+## Missing remap targets: no hitch on skin changes
+
+18/10/2026, `fix/missing-remap-targets`, based on `Sol-Vulpes/SJK` `64698160`: fixed
+400 ms hitches (`config-refresh`) on JoF's night ffa3 (`dl_JoF_MapFFA3Night`), whose
+entities remap the stock Kyle model's seven shaders to `models/players/kyle_new/`, a pack
+it does not carry. Each new material (a skin change, a prop loaded mid-match) applied the
+remaps again, and each slot of every Kyle model searched the game data for the missing
+target and logged it: about 170 times a refresh, 59 000 lines in Milamber's session log.
+A missing target is now checked and logged once a map (`MissingTargets`). Effect atlas
+remaps already skipped unloadable targets; sky remaps cost one lookup. See
+[rendering](rendering.md#server-shader-remaps).
+
+Workspace `cargo fmt --check`, build, test and clippy (no new warnings) passed on
+Windows 11 x86_64, Rust 1.99.0; a unit test pins one lookup for 170 applications of a
+missing target, a present one looked up every time, and a failed lookup not taken for
+a missing one. The cause was read from the hitch lines and the map's entities, and
+Milamber confirmed the fix on the server (18/10/2026): skin changes on the night ffa3
+no longer hitch.
+
+## Siege bots take both sides
+
+18/10/2026, `fix/siege-bot-sides`, based on `Sol-Vulpes/SJK` `6469816` (tester: on
+`mp/siege_hoth` every added bot joined one side, and the round never began). `PickTeam`'s
+side counts left out `siegeDesiredTeam`. Before a siege round every player waits as a
+spectator, so each bot saw two empty sides and joined blue. With the player on blue too,
+red stayed empty and `SiegeCheckTimers` never began the round. The counts now follow
+`TeamCount` (`g_client.c`): a player counts for the side it is on and, in siege, for the
+side it wants. The workspace built on Linux; tests and Clippy were not run. Tested by hand
+with an earlier build of the same change: 15 bots split across both sides.
+
+## Team vehicles board for their team
+
+18/10/2026, `fix/siege-vehicle-team`, based on `Sol-Vulpes/SJK` `6469816` (tester: on
+`mp/siege_hoth` nobody could board the Imperial AT-ST). The use key's boarding test
+(`TryUse`, `g_utils.c:1714-1716`) was handed team 0 instead of the player's
+`sess.sessionTeam`. So in a team game, a vehicle with an allied team (`teamuser`) refused
+every player, and siege_hoth's first objective (drive the rear AT-ST to the wall door)
+could not be done. The workspace built on Linux; tests and Clippy were not run. Tested by
+hand with an earlier build of the same change: the Empire boards the AT-ST and completes
+the objective.
+
+## A trigger_once fires once
+
+18/10/2026, `fix/trigger-once-spent`, based on `Sol-Vulpes/SJK` `6469816` (tester: on
+`mp/siege_hoth` holding use at the bridge panel made the score climb). A `trigger_once`
+that fired (`wait` below zero) only lost its `CONTENTS_TRIGGER`, and no touch read that, so
+it went on firing. Pressing use at the bridge panel completed objective 2 again every
+frame. The touch now ignores a trigger without `CONTENTS_TRIGGER`, as `G_TouchTriggers`
+does once `multi_trigger_run` frees it. Two unit tests pin it; the workspace built on
+Linux, and the test suite and Clippy were not run.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect
@@ -460,6 +575,24 @@ the reset, and the card's review page and switches. The client was launched to t
 main menu; the shared bars and duels were not exercised against a hub or a second
 client, and the review page shows on its own only in a tagged release (`whatsnew`
 previews it). The server's own duel health (`g_showDuelHealths`) is not affected.
+## Siege doors: teamallow and vehopen
+
+17/10/2026, `fix/siege-door-teamallow`, based on `Sol-Vulpes/SJK` `1c8887f7`: the
+native server ignored two `func_door` keys of `Touch_DoorTrigger` (OpenJK
+`g_mover.c:1112-1190`, keys read at `:1421` and `:1446`). Implemented:
+
+- `teamallow`: a locked door (`MOVER_LOCKED`) opens when a player of that team walks
+  up to it, unlocked only while it is used and its targets fire (`relockEnt`, locked
+  again after the firing, `mover_team::relock`), so it stays locked to the other side;
+  without the key a locked door opens for nobody, as before. Siege maps
+  lock base doors this way for their defenders (reported as doors that do not open on
+  their own; suspected on siege_hoth, whose entities were not inspected).
+- `vehopen`: a vehicle, or a player riding one (`m_iVehicleNum`), opens only a door
+  with this key; riders used to open every door, vehicle NPCs none.
+
+Three unit tests pin both keys; the workspace fmt, build, tests and clippy pass on
+Linux. An NPC's own team is not read (`team: None`), so no NPC opens a `teamallow`
+door; not played on a siege map yet.
 
 ## NPC sabers and voices
 
