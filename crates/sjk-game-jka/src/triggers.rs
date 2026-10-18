@@ -1190,3 +1190,41 @@ pub fn map_targets(
     }
     targets
 }
+
+#[cfg(test)]
+mod print_tests {
+    use super::*;
+
+    fn print(spawnflags: &str) -> Target {
+        let text = format!(
+            "{{\n\"classname\" \"target_print\"\n\"targetname\" \"gate\"\n\
+             \"message\" \"@SIEGE_GATE\"\n\"spawnflags\" \"{spawnflags}\"\n}}\n"
+        );
+        let entities = sjk_entity::parse_entity_lump(text.as_bytes()).unwrap();
+        let mut targets = map_targets(&entities, &mut |_| 0);
+        assert_eq!(targets.len(), 1);
+        targets.remove(0).1
+    }
+
+    #[test]
+    fn target_print_spawnflags_name_the_red_and_blue_teams_or_the_activator() {
+        for (spawnflags, to_activator, teams) in [
+            ("0", false, 0),
+            ("1", false, 1),
+            ("2", false, 2),
+            ("3", false, 3),
+            ("4", true, 0),
+            ("5", true, 1),
+        ] {
+            assert_eq!(
+                print(spawnflags),
+                Target::Print {
+                    message: "@SIEGE_GATE".to_owned(),
+                    to_activator,
+                    teams,
+                },
+                "spawnflags {spawnflags}"
+            );
+        }
+    }
+}

@@ -318,22 +318,28 @@ not a verified one, and it was not played.
 - A player waiting for its respawn wave who pressed attack followed through
   `set_team_to`, which skipped `SetTeam`'s siege branch and made it a real spectator
   with `tempSpectate` still set; the wave skips spectators, and a later spawn with the
-  stale value came in "not playing" (invisible, unarmed, unhurtable). `set_team_to`
-  now runs the siege branch (a waiting player stays on its side and watches a
-  teammate); a spawn clears a `tempSpectate` that is over (one still running, as at a
-  `ClientBegin` mid-wait, lasts until the wave, as in the reference) and the follow
-  state of a player spawning on a side; following tests `sessionTeam`, as
-  `SpectatorClientEndFrame` does, so a waiting teammate stays followed. A watcher on a
-  side keeps its own persistants (a deliberate departure: the reference copies the
-  followed player's, which its next `ClientSpawn` would carry over as its own score).
+  stale value came in "not playing" (invisible, unarmed, unhurtable). The root cause
+  was `spectator_buttons`, which lacked `SpectatorThink`'s
+  `if (client->tempSpectate < level.time)` around all its buttons (`g_active.c`): as
+  in JKA, a player waiting for its wave can no longer follow or stop following with
+  attack, alternate attack or jump (the buttons are still tracked, so one held through
+  the wait is no press after it). `set_team_to` now runs `SetTeam`'s siege branch too
+  (a waiting player is not made a spectator, by `forceteam` either), and
+  `spectate_to_follow` starts the five-second team-change wait only when the team
+  really became spectator. A spawn clears a `tempSpectate` that is over (one still
+  running, as at a `ClientBegin` mid-wait, lasts until the wave, as in the reference)
+  and the follow state of a player spawning on a side; following tests `sessionTeam`,
+  as `SpectatorClientEndFrame` does, so a spectator following a player who dies keeps
+  following them through the wait.
 - `target_print` honours its spawnflags (activator alone, red and/or blue) and sends a
   single-`@` message as `cps`; the client resolves `cps` against every
   `strings/english/*.str` table, the map's included, as `<FILE>_<KEY>` without case.
   `target_delay` keeps its activator for its think (`Use_Target_Delay`), which used to
   be slot 0.
 
-The native server's bridge has no test harness yet, so the server side is pinned by no
-unit test.
+The native server's bridge has no test harness yet: unit tests pin only the wave
+guard's time test, `target_print`'s spawnflags (`map_targets`) and the client's
+`cps` key rewrite.
 
 Workspace fmt, build, clippy (no new warnings) and tests passed on Linux x86_64; a unit
 test pins the map-table lookup. Not exercised in a live siege match.

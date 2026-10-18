@@ -1175,14 +1175,8 @@ impl ClientSession {
         };
         if let Some(kind) = event_kind {
             let mut text = server_text(arguments.get(1..).unwrap_or_default());
-            // `cps` (`cg_servercmds.c`): a centre print naming a string-table entry,
-            // `@FILE_KEY` as `target_print` sends it, resolved by the viewer as `@@@`.
             if name == b"cps" {
-                let key = text.trim();
-                text = format!(
-                    "@@@{}",
-                    key.strip_prefix('@').unwrap_or(key).to_ascii_uppercase()
-                );
+                text = cps_key(&text);
             }
             self.events.push_back(ServerEvent {
                 kind,
@@ -1725,5 +1719,27 @@ mod server_text_tests {
     fn server_text_keeps_utf8_and_joins_arguments() {
         let arguments = [b"gg".to_vec(), "ø".as_bytes().to_vec()];
         assert_eq!(server_text(&arguments), "gg ø");
+    }
+}
+
+/// `cps` (`cg_servercmds.c`): a centre print naming a string-table entry, `@FILE_KEY`
+/// as `target_print` sends it, turned into the `@@@` reference the viewer resolves.
+fn cps_key(text: &str) -> String {
+    let key = text.trim();
+    format!(
+        "@@@{}",
+        key.strip_prefix('@').unwrap_or(key).to_ascii_uppercase()
+    )
+}
+
+#[cfg(test)]
+mod cps_tests {
+    use super::cps_key;
+
+    #[test]
+    fn a_cps_key_becomes_an_upper_case_string_reference() {
+        assert_eq!(cps_key("@siege_korr_print_1"), "@@@SIEGE_KORR_PRINT_1");
+        assert_eq!(cps_key(" @Siege_Gate "), "@@@SIEGE_GATE");
+        assert_eq!(cps_key("SIEGE_GATE"), "@@@SIEGE_GATE");
     }
 }

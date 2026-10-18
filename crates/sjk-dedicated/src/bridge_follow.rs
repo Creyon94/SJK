@@ -66,12 +66,13 @@ impl NativeGame {
     }
 
     /// A player asking to follow becomes a spectator first, and may not change teams
-    /// again for five seconds.
+    /// again for five seconds — only when it really became one (`SetTeam`'s siege branch
+    /// keeps a player waiting for its wave on its side).
     fn spectate_to_follow(&mut self, client: usize, server_time: i32) {
         self.set_team_to(client, b"spectator", server_time);
         let level_time = self.last_frame_time;
         if let Some(peer) = self.peer_mut(client)
-            && !peer.playing()
+            && peer.session.team == i32::from(TEAM_SPECTATOR)
         {
             peer.session.switch_team_time = level_time + 5_000;
         }
@@ -161,17 +162,25 @@ impl NativeGame {
 
     /// `SpectatorThink`'s buttons (`g_active.c:741-757`), after its move: a press of attack
     /// follows the next player, of the alternate attack (while following) the one before;
-    /// jumping stops following.
+    /// jumping stops following. None of it while a siege player waits for its respawn
+    /// wave (`if (client->tempSpectate < level.time)` around them all): it neither
+    /// follows nor stops following until it is back.
     pub(super) fn spectator_buttons(
         &mut self,
         client: usize,
         command: &UserCommand,
         server_time: i32,
     ) {
+        let level_time = self.last_frame_time;
         let Some(peer) = self.peer_mut(client) else {
             return;
         };
+        // `ClientThink_real` keeps `oldbuttons` up to date either way, so a button held
+        // through the wait is not a press once it is over.
         let old = std::mem::replace(&mut peer.spectator_buttons, command.buttons);
+        if waiting_for_wave(peer.temp_spectate, level_time) {
+            return;
+        }
         let pressed = |button: u16| command.buttons & button != 0 && old & button == 0;
         let following = peer.session.spectator_state == SPECTATOR_FOLLOW;
         if pressed(BUTTON_ATTACK) {
@@ -227,14 +236,7 @@ impl NativeGame {
         match followed {
             Some(state) => {
                 if let Some(peer) = self.peer_mut(client) {
-                    // A siege player watching while it waits keeps its own score and
-                    // team, which its respawn carries over.
-                    let own = (peer.session.team != i32::from(TEAM_SPECTATOR))
-                        .then_some(peer.state.persistent);
                     peer.state = state;
-                    if let Some(persistent) = own {
-                        peer.state.persistent = persistent;
-                    }
                 }
             }
             None if wanted >= 0 => {
@@ -269,5 +271,25 @@ impl NativeGame {
         for client in followers {
             self.told.push(Told::One(client, message.clone()));
         }
+    }
+}
+
+/// `client->tempSpectate >= level.time`: a siege player still waiting for its wave.
+fn waiting_for_wave(temp_spectate: i32, level_time: i32) -> bool {
+    temp_spectate >= level_time
+}
+
+#[cfg(test)]
+mod tests {
+    use super::waiting_for_wave;
+
+    #[test]
+    fn the_buttons_wait_for_the_wave_as_spectator_think_does() {
+        // Nobody waiting: `tempSpectate` is 0, long past.
+        assert!(!waiting_for_wave(0, 12_000));
+        // Waiting until the wave, its own millisecond included.
+        assert!(waiting_for_wave(20_000, 12_000));
+        assert!(waiting_for_wave(12_000, 12_000));
+        assert!(!waiting_for_wave(11_999, 12_000));
     }
 }
