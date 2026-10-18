@@ -1,3 +1,22 @@
+## Missing remap targets: no hitch on skin changes
+
+18/10/2026, `fix/missing-remap-targets`, based on `Sol-Vulpes/SJK` `64698160`: fixed
+400 ms hitches (`config-refresh`) on JoF's night ffa3 (`dl_JoF_MapFFA3Night`), whose
+entities remap the stock Kyle model's seven shaders to `models/players/kyle_new/`, a pack
+it does not carry. Each new material (a skin change, a prop loaded mid-match) applied the
+remaps again, and each slot of every Kyle model searched the game data for the missing
+target and logged it: about 170 times a refresh, 59 000 lines in Milamber's session log.
+A missing target is now checked and logged once a map (`MissingTargets`). Effect atlas
+remaps already skipped unloadable targets; sky remaps cost one lookup. See
+[rendering](rendering.md#server-shader-remaps).
+
+Workspace `cargo fmt --check`, build, test and clippy (no new warnings) passed on
+Windows 11 x86_64, Rust 1.99.0; a unit test pins one lookup for 170 applications of a
+missing target, a present one looked up every time, and a failed lookup not taken for
+a missing one. The cause was read from the hitch lines and the map's entities, and
+Milamber confirmed the fix on the server (18/10/2026): skin changes on the night ffa3
+no longer hitch.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect
