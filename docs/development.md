@@ -107,6 +107,12 @@ Contributions reach `main` through pull requests, one topic per pull request.
   ([the rule](sjk-ui.md#sjk-ui)); a classic+ view alone is not enough.
 - The description states what changed and why, the exact checks and their
   results, the platform they ran on and what remains unverified, as in a handoff.
+- A change players can see (menus, HUD, effects, models, maps) comes with
+  screenshots in its pull request whenever you can take them (Sol's rule,
+  18/10/2026): the new look, and before/after when something changed. A shot from
+  the game or an off-screen world shot (`world_shot` tests) both do. Sol posts the
+  good ones to the Discord `#screenshots` channel, so pick clear, full-frame shots
+  with no personal details in them.
 - Assistants push only to the contributor's fork or a branch they were
   authorized to use, never to `main` of this repository. Once review has started,
   add commits rather than rewriting the branch unless a reviewer asks for a rebase.
