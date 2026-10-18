@@ -3211,6 +3211,77 @@ like this one.",
         });
     }
 
+    /// The game menu's Siege page in the SJK UI and the classic menus, on a made-up
+    /// Siege over duel6 (it has no Siege data): the side step for a red player and for
+    /// a spectator (Spectate dimmed), then the red side's classes, long stock names
+    /// included.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_ingame_siege() {
+        use crate::ingame_menu::{Page, ShotView, sjk_view::Card};
+        const RED: &[&str] = &[
+            "Imperial Infantry",
+            "Imperial Light Demolitionist",
+            "Imperial Heavy Weapons",
+            "Imperial Tech",
+            "Imperial Commander",
+            "Imperial Sith Lord",
+        ];
+        const BLUE: &[&str] = &["Rebel Assault", "Rebel Demolitions", "Rebel Jedi"];
+        on_big_stack(|| {
+            for style in ["sjk", "classic"] {
+                let menu = menu::ClientMenu::new(false, String::new());
+                let cvars = [
+                    ("ui_menuStyle", style),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) =
+                    open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+                else {
+                    return;
+                };
+                let shots =
+                    menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                gpu.game_menu = true;
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                let _ = frame(&mut gpu, 60);
+                let red = ShotView {
+                    team: 1,
+                    team_game: true,
+                    red_players: 6,
+                    blue_players: 5,
+                    vote_active: false,
+                    staff: false,
+                    siege: true,
+                };
+                let watching = ShotView { team: 3, ..red };
+                for (name, view, side, row) in [
+                    ("sides", red, None, 0),
+                    ("sides-watching", watching, None, 1),
+                    ("classes", red, Some(0), 1),
+                ] {
+                    if style == "sjk" {
+                        gpu.in_game_menu.sjk_for_shot(Card::for_siege_shot(), view);
+                    } else {
+                        gpu.in_game_menu.view_for_shot(view);
+                    }
+                    gpu.in_game_menu.siege_for_shot([RED, BLUE], view.team);
+                    if let Some(side) = side {
+                        let _ = gpu.in_game_menu.siege_action(side);
+                    }
+                    gpu.game_menu_page = Page::Siege;
+                    gpu.game_menu_row = row;
+                    let name = format!("duel6-ingame-{style}-siege-{name}");
+                    println!("{}", shoot(&mut gpu, 16, &name).display());
+                }
+            }
+        });
+    }
+
     /// A made-up profile picture for a world shot, [`sjk_identity::avatar::SIZE`]
     /// square: a head and shoulders in a light tone over a gradient between `top` and
     /// `bottom` (RGB).

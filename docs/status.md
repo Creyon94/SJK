@@ -198,8 +198,11 @@ as the other team games' Team page (Red team, Blue team with colour marks and
 player counts, Spectate, Back); a side lists its classes, and Back or Escape
 returns to the team choice. Both menu styles share it. At the merge (18/10/2026)
 Sol kept the menu and dropped the PR's `cg_siegeTeamSabers` (every Siege side's
-blades in its colour) for stock's class-forced Siege saber colours, below. See
-[sjk-ui](sjk-ui.md#in-game-menu).
+blades in its colour) for stock's class-forced Siege saber colours, below. The
+merge also gave the classic look's side step the Team page's flags and player
+counts, dropped the side after each class name (the long stock names were cut in
+the classic pop-up) and dims Spectate while the player watches; world shots
+`duel6_ingame_siege` (both looks). See [sjk-ui](sjk-ui.md#in-game-menu).
 
 Workspace fmt/build/test passed on Linux x86_64; clippy reports nothing in the
 touched files. Unit tests pin the two-step page (rows, marks, titles, Back,

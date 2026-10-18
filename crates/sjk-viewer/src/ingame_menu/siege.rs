@@ -47,6 +47,18 @@ impl State {
         }
     }
 
+    /// The side step over made-up class names (world shots and tests).
+    #[cfg(test)]
+    pub(super) fn for_shot(teams: [&[&str]; 2], team: u8) -> Self {
+        let names = |names: &[&str]| names.iter().map(|name| (*name).to_owned()).collect();
+        Self::new(
+            Classes {
+                teams: [names(teams[0]), names(teams[1])],
+            },
+            team,
+        )
+    }
+
     fn visible(&self, side: usize) -> &[String] {
         let all = &self.classes.teams[side];
         &all[self.first..(self.first + PAGE_SIZE).min(all.len())]
@@ -88,10 +100,10 @@ impl State {
             rows[SPECTATE + 1].push_str("Back");
             return SIDE_ROWS;
         };
-        // The side follows each class: the classic look draws no page title.
-        let team = if side == RED { "Red team" } else { "Blue team" };
+        // The step already names the side, so a class row is its name alone:
+        // the classic pop-up's 240 units fit the long stock names.
         for (row, name) in self.visible(side).iter().enumerate() {
-            let _ = write!(rows[row], "{name}  /  {team}");
+            rows[row].push_str(name);
         }
         let mut next = self.visible(side).len();
         if self.paged(side) {
@@ -109,6 +121,17 @@ impl State {
             Some(RED) => "Red team classes",
             Some(_) => "Blue team classes",
         }
+    }
+
+    /// Whether the side step is showing (rather than a side's classes).
+    pub(super) fn on_sides(&self) -> bool {
+        self.side.is_none()
+    }
+
+    /// Whether `row` is the side step's Spectate while the player already
+    /// watches: it cannot be taken, as the Team page's current team.
+    pub(super) fn current_row(&self, row: usize) -> bool {
+        self.side.is_none() && row == SPECTATE && self.team == 3
     }
 
     /// The side step's team marks: row `row`'s team (1 red, 2 blue), if any.
@@ -193,16 +216,7 @@ mod tests {
 
     fn menu(team: u8) -> InGameMenu {
         let mut menu = InGameMenu::new();
-        let names = |names: &[&str]| names.iter().map(|name| (*name).to_owned()).collect();
-        menu.siege = State::new(
-            Classes {
-                teams: [
-                    names(&["Jedi Warrior", "Jedi Knight"]),
-                    names(&["Sith Warrior"]),
-                ],
-            },
-            team,
-        );
+        menu.siege = State::for_shot([&["Jedi Warrior", "Jedi Knight"], &["Sith Warrior"]], team);
         menu
     }
 
@@ -239,6 +253,20 @@ mod tests {
     }
 
     #[test]
+    fn spectate_cannot_be_taken_while_watching() {
+        let watching = menu(3);
+        assert!(watching.siege.current_row(SPECTATE));
+        assert!(!watching.siege.current_row(RED) && !watching.siege.current_row(BLUE));
+        assert!(!menu(1).siege.current_row(SPECTATE));
+        let mut listing = menu(3);
+        listing.siege_action(RED);
+        assert!(
+            !listing.siege.current_row(SPECTATE),
+            "a class row, not Spectate"
+        );
+    }
+
+    #[test]
     fn a_side_lists_its_classes_and_back_returns_to_it() {
         let mut menu = menu(3);
         assert_eq!(menu.siege_action(0), Action::None);
@@ -247,8 +275,8 @@ mod tests {
         assert_eq!(
             labels(&menu),
             [
-                "Jedi Warrior  /  Red team",
-                "Jedi Knight  /  Red team",
+                "Jedi Warrior",
+                "Jedi Knight",
                 "Back  /  Choose the other team"
             ]
         );
@@ -262,7 +290,7 @@ mod tests {
         assert_eq!(menu.siege.title(), "Choose your team");
         assert_eq!(menu.siege_back(), None);
         assert_eq!(menu.siege_action(1), Action::None);
-        assert_eq!(labels(&menu)[0], "Sith Warrior  /  Blue team");
+        assert_eq!(labels(&menu)[0], "Sith Warrior");
         assert_eq!(menu.siege_back(), Some(1));
         assert_eq!(menu.siege_row(), 1);
         assert_eq!(menu.siege_action(2), Action::Send("team spectator".into()));

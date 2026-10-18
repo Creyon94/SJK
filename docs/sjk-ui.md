@@ -1307,10 +1307,11 @@ entry of its own under Profile, making seven.
     over by the keys. In Siege the card's Class and side opens the class page in two
     steps, as the team page: "Choose your team" with Red team and Blue team (each
     with its colour mark and players, "Your team" on the player's own, the cursor
-    on it), Spectate and Back; a side then lists its classes ("Red team classes",
-    each class's side as its detail for the classic look's untitled list, Next page
-    past eight,
-    Back to the team choice, where Escape also goes). The shared rows, a row's detail
+    on it), Spectate (dimmed and passed over while the player watches) and Back; a
+    side then lists its classes by name alone ("Red team classes", Next page past
+    eight, Back to the team choice, where Escape also goes). The classic look draws
+    the same two steps in its pop-up: the side step centred with the Team page's
+    flags and player counts, the classes as a list. The shared rows, a row's detail
     after its label ([ingame_menu/siege.rs](../crates/sjk-viewer/src/ingame_menu/siege.rs)).
   - Call a vote (the card's link): its lists (map, game type, kick, warmup, limits)
     are the shared call-vote lists. Calling a vote returns to the match, as
