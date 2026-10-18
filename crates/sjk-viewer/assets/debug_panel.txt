@@ -1177,18 +1177,17 @@ note: Unit tests and world shots only; never tried with real players.
 
 [nameplate-share]
 area: HUD
-title: Nameplate bars only on players who share them (cg_nameplateShare, cg_nameplateEstimate)
-change: Others' health, shield and Force bars show only if they share (off by default).
-change: Bars on everyone (estimates) shares your own; your card says you see others' bars.
-change: A sharer's bars are the estimates corrected twice a second with their real values.
-test: Defaults, a stock or non-sharing player: name, weapon, icons, no bars; teammates keep HP.
-test: Two SJK clients, one with Share my bars on: the other sees its bars, close to its HUD.
+title: See & share nameplates: one switch to see others' bars and share yours (cg_nameplate)
+change: See & share nameplates (cg_nameplate, off by default) replaces Share my bars.
+change: On: you see nameplates and share your health, shield and Force; off: neither.
+change: Others' bars show only if they share; Force is the shared value, never estimated.
+test: Defaults: no nameplates, nothing sent; Settings > Interface shows the switch off.
+test: Two SJK clients, both switched on: each sees the other's bars, close to its HUD.
 test: That sharer's plate has a gold contour (a red or blue line inside it in team games).
 test: Hit the sharer: the bar drops at once, then settles on the real value within a second.
-test: Turn Bars on everyone on: Share my bars turns on too and cannot be turned off.
-test: Inspect a player with Bars on everyone: the card says, in amber, Sees your health...
-test: A player with Bars on everyone has the gold contour too; so does your own plate.
-test: Nameplates with bars on: Share my bars cannot be turned off; bars 0 frees it.
+test: Collection > Nameplates: its switch row pulses gold and flips cg_nameplate.
+test: Switch it off with plates on bars: the Settings row stays off (no hold turns it on).
+test: In a duel (private, Duel, Power Duel): no bars on the opponent, yours not sent.
 test: cl_identity 0: no bars on other players but teammates/NPCs; on again, back in seconds.
 note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
 
