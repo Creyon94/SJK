@@ -78,6 +78,12 @@ pub(crate) fn host(value: &str) -> Option<String> {
 pub(crate) fn revision() -> u64 {
     REVISION.load(Ordering::Acquire)
 }
+/// Start a new policy revision and drop all decoded media and queued work, as
+/// removing a source does (`cl_sjkChatVideo` switched).
+pub(crate) fn invalidate() {
+    REVISION.fetch_add(1, Ordering::AcqRel);
+    super::sources_changed();
+}
 pub(crate) fn trusted(id: &GifId) -> bool {
     trusted_host(id.host())
 }
@@ -287,6 +293,16 @@ mod profile_check {
         assert!(revision() > before);
         assert!(!trusted(&id));
         assert!(super::super::for_message(id.as_str(), false).1.is_none());
+        assert!(!super::super::asked_for(&id));
+        // Switching chat video clips (`cl_sjkChatVideo`) drops decoded media the same way.
+        super::super::insert_for_shot(
+            &id,
+            &super::super::decode::test_animation([8, 8], 2, 100),
+            0,
+        );
+        let before = revision();
+        invalidate();
+        assert!(revision() > before);
         assert!(!super::super::asked_for(&id));
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "giphy.com");
         set("giphy.com", false).unwrap();

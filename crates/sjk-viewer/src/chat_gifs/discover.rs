@@ -37,6 +37,7 @@ pub(crate) fn fetch(
         id.as_str(),
         || super::enabled() && revision == sources::revision(),
         sources::permits,
+        super::video::available(),
     )
 }
 /// Kept separate from HTTP to pin that rejected redirects/CDNs are never requested.
@@ -45,6 +46,7 @@ fn resolve(
     start: &str,
     current: impl Fn() -> bool,
     permits: impl Fn(&Url) -> bool,
+    video: bool,
 ) -> Result<Vec<u8>, Failure> {
     let mut url = sources::checked_url(start).ok_or(Failure::Refused)?;
     let mut page_seen = false;
@@ -86,8 +88,7 @@ fn resolve(
             return Err(Failure::Refused);
         }
         page_seen = true;
-        url =
-            media_link(&url, &response.bytes, super::video::available()).ok_or(Failure::Refused)?;
+        url = media_link(&url, &response.bytes, video).ok_or(Failure::Refused)?;
     }
     Err(Failure::Refused)
 }
@@ -160,7 +161,16 @@ mod tests {
             asked: vec![],
             answers: [].into(),
         };
-        assert!(resolve(&mut http, "https://example.org/a.gif", || true, |_| false).is_err());
+        assert!(
+            resolve(
+                &mut http,
+                "https://example.org/a.gif",
+                || true,
+                |_| false,
+                true
+            )
+            .is_err()
+        );
         assert!(http.asked.is_empty());
         for response in [
             reply(302, Some("https://cdn.example.org/a.gif"), "", b""),
@@ -180,7 +190,8 @@ mod tests {
                     &mut http,
                     "https://example.org/page",
                     || true,
-                    |url| url.host_str() == Some("example.org")
+                    |url| url.host_str() == Some("example.org"),
+                    true
                 )
                 .is_err()
             );
@@ -200,12 +211,28 @@ mod tests {
             answers: [page, reply(200, None, "video/mp4", b"0000ftypvideo")].into(),
         };
         assert_eq!(
-            resolve(&mut http, "https://example.org/page", || true, |_| true).unwrap(),
+            resolve(
+                &mut http,
+                "https://example.org/page",
+                || true,
+                |_| true,
+                true
+            )
+            .unwrap(),
             b"0000ftypvideo"
         );
         assert_eq!(http.asked[1], "https://example.org/clip.mp4?x=1&y=2");
         http.asked.clear();
-        assert!(resolve(&mut http, "https://example.org/page", || false, |_| true).is_err());
+        assert!(
+            resolve(
+                &mut http,
+                "https://example.org/page",
+                || false,
+                |_| true,
+                true
+            )
+            .is_err()
+        );
         assert!(http.asked.is_empty());
     }
     #[test]
@@ -229,6 +256,33 @@ mod tests {
         assert!(media_link(&base, br#"<video src="clip.mp4"></video>"#, false).is_none());
     }
     #[test]
+    fn with_clips_off_a_page_resolves_to_its_picture_not_its_video() {
+        let page = reply(
+            200,
+            None,
+            "text/html",
+            br#"<meta property="og:video" content="/clip.mp4"><meta property="og:image" content="/still.gif">"#,
+        );
+        let mut http = Script {
+            asked: vec![],
+            answers: [page, reply(200, None, "image/gif", b"GIF89a")].into(),
+        };
+        let bytes = resolve(
+            &mut http,
+            "https://example.org/page",
+            || true,
+            |_| true,
+            false,
+        );
+        assert_eq!(bytes.unwrap(), b"GIF89a");
+        assert_eq!(http.asked[1], "https://example.org/still.gif");
+        // The off switch also reaches the real resolutions: off by default.
+        let _switch = super::super::video::SWITCH
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        assert!(!super::super::video::available());
+    }
+    #[test]
     fn webp_media_found_on_a_page_or_linked_directly_is_kept() {
         let webp = crate::chat_gifs::decode::test_webp([8, 8], 2, 50);
         let page = reply(
@@ -241,7 +295,14 @@ mod tests {
             asked: vec![],
             answers: [page, reply(200, None, "image/webp", &webp)].into(),
         };
-        let bytes = resolve(&mut http, "https://example.org/page", || true, |_| true).unwrap();
+        let bytes = resolve(
+            &mut http,
+            "https://example.org/page",
+            || true,
+            |_| true,
+            true,
+        )
+        .unwrap();
         assert_eq!(http.asked[1], "https://example.org/a.webp");
         assert_eq!(
             crate::chat_gifs::decode::decode(&bytes)
@@ -255,7 +316,14 @@ mod tests {
             answers: [reply(200, None, "image/webp", &webp)].into(),
         };
         assert_eq!(
-            resolve(&mut http, "https://example.org/a.webp", || true, |_| true).unwrap(),
+            resolve(
+                &mut http,
+                "https://example.org/a.webp",
+                || true,
+                |_| true,
+                true
+            )
+            .unwrap(),
             webp
         );
     }

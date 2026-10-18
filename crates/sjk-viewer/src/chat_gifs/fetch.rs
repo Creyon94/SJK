@@ -88,15 +88,10 @@ impl Http {
             return Err(Failure::Refused);
         }
         let video = super::video::available();
-        let accept = if video {
-            "image/gif, image/webp, video/mp4, text/html;q=0.5"
-        } else {
-            "image/gif, image/webp, text/html;q=0.5"
-        };
         let mut response = self
             .media
             .get(url)
-            .header("Accept", accept)
+            .header("Accept", accept(video))
             .call()
             .map_err(|error| Failure::Network(error.to_string()))?;
         let status = response.status().as_u16();
@@ -111,8 +106,7 @@ impl Http {
             .and_then(|value| value.to_str().ok())
             .unwrap_or_default()
             .to_ascii_lowercase();
-        // A clip that cannot be decoded here is not downloaded at all.
-        if !video && content_type.starts_with("video/") {
+        if refused_before_body(video, &content_type) {
             return Err(Failure::Refused);
         }
         let limit = if content_type.starts_with("text/html") {
@@ -317,6 +311,22 @@ mod tests {
     }
 }
 
+/// The generic media requests' Accept header: MP4 only while clips can be played
+/// (`video`, [`super::video::available`]).
+fn accept(video: bool) -> &'static str {
+    if video {
+        "image/gif, image/webp, video/mp4, text/html;q=0.5"
+    } else {
+        "image/gif, image/webp, text/html;q=0.5"
+    }
+}
+
+/// Whether a response of `content_type` is refused before its body is read: a clip
+/// that cannot be played here (`video` false) is not downloaded at all.
+fn refused_before_body(video: bool, content_type: &str) -> bool {
+    !video && content_type.starts_with("video/")
+}
+
 /// Filter the actual addresses handed to the connector, avoiding a separate DNS
 /// preflight/rebinding race. IPv6 is restricted to native global unicast (no mapped
 /// IPv4, NAT64 or other transition addresses); no local/network services are fetched.
@@ -387,5 +397,27 @@ mod public_address_tests {
         for ip in ["8.8.8.8", "2606:4700:4700::1111"] {
             assert!(super::public_ip(ip.parse().unwrap()), "{ip}");
         }
+    }
+}
+
+#[cfg(test)]
+mod video_policy_tests {
+    #[test]
+    fn without_clips_video_is_neither_asked_for_nor_downloaded() {
+        assert!(!super::accept(false).contains("video"));
+        assert!(super::accept(true).contains("video/mp4"));
+        assert!(super::accept(false).contains("image/webp"));
+        assert!(super::refused_before_body(false, "video/mp4"));
+        assert!(!super::refused_before_body(true, "video/mp4"));
+        assert!(!super::refused_before_body(false, "image/webp"));
+        assert!(!super::refused_before_body(
+            false,
+            "text/html; charset=utf-8"
+        ));
+        // Off by default: the real requests run without video.
+        let _switch = crate::chat_gifs::video::SWITCH
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        assert!(!crate::chat_gifs::video::available());
     }
 }

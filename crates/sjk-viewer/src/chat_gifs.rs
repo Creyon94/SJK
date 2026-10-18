@@ -29,7 +29,7 @@ pub(crate) mod fetch;
 pub(crate) mod link;
 pub(crate) mod search;
 pub(crate) mod sources;
-mod video;
+pub(crate) mod video;
 
 pub(crate) use link::GifId;
 
@@ -42,6 +42,9 @@ use std::time::{Duration, Instant};
 
 /// `cl_sjkChatGifs`: whether GIPHY links in SJK chat show their GIF.
 pub(crate) const CVAR: &str = "cl_sjkChatGifs";
+/// `cl_sjkChatVideo`: whether MP4 clips from trusted sources play (Windows Media
+/// Foundation), off by default ([`video`]).
+pub(crate) const VIDEO_CVAR: &str = "cl_sjkChatVideo";
 /// GIFs kept decoded at once, the picker's tiles included.
 pub(crate) const ENTRIES: usize = 48;
 /// Bytes of pixels kept for every decoded GIF together (four GIFs at the largest
@@ -62,6 +65,19 @@ static ENABLED: AtomicBool = AtomicBool::new(true);
 /// Follow `cl_sjkChatGifs` (once a frame).
 pub(crate) fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
+}
+
+/// Follow `cl_sjkChatVideo` (twice a second). A change drops every decoded clip and
+/// queued job, as removing a source does, so new resolutions follow the switch.
+pub(crate) fn set_video(on: bool) {
+    switch_video(on, sources::invalidate);
+}
+
+/// [`set_video`], calling `invalidate` only when the switch changed.
+fn switch_video(on: bool, invalidate: impl FnOnce()) {
+    if video::set_allowed(on) {
+        invalidate();
+    }
 }
 
 /// Whether GIPHY links show their GIF.
@@ -759,6 +775,18 @@ mod tests {
         outbox.send((old, Some(small_gif()))).unwrap();
         gifs.take_answers();
         assert_eq!(gifs.show(&new), Shown::Loading);
+    }
+    #[test]
+    fn switching_clips_starts_a_new_policy_only_on_a_change() {
+        let _switch = video::SWITCH
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut invalidated = 0;
+        for (on, changed) in [(true, 1), (true, 1), (false, 2), (false, 2)] {
+            switch_video(on, || invalidated += 1);
+            assert_eq!(invalidated, changed, "{on}");
+        }
+        assert!(!video::available(), "left off, the default");
     }
     #[test]
     fn untrusted_generic_links_remain_text_and_never_enter_the_cache() {

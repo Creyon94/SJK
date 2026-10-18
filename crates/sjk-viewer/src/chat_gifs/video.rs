@@ -9,6 +9,11 @@
 //! Foundation is missing, and on every other system, MP4 media is unavailable
 //! ([`available`]): the link stays text, said once in the log.
 //!
+//! Clips are a player opt-in, off by default (`cl_sjkChatVideo`, Sol's condition,
+//! 18/10/2026): they come from the internet and are parsed by Windows code outside
+//! SJK's memory-safe Rust. While it is off, MP4 is unavailable the same way and Media
+//! Foundation is never loaded ([`set_allowed`]).
+//!
 //! Before any native code sees the file, [`boxes`] walks its boxes within fixed bounds
 //! and refuses what this subset does not take (fragments, external data references,
 //! oversized tables, extended box sizes, no AVC sample entry). [`Clip`] keeps the
@@ -29,10 +34,11 @@ pub(crate) fn is_mp4(bytes: &[u8]) -> bool {
     bytes.get(4..8) == Some(b"ftyp")
 }
 
-/// Whether MP4 clips can be decoded here. The first time they cannot, the log says
-/// why, once for the whole run.
+/// Whether MP4 clips can be decoded here: the player turned them on ([`set_allowed`])
+/// and Media Foundation is present. The first time it is missing, the log says why,
+/// once for the whole run. While clips are off nothing is loaded.
 pub(crate) fn available() -> bool {
-    if UNAVAILABLE.load(Ordering::Relaxed) {
+    if !ALLOWED.load(Ordering::Relaxed) || UNAVAILABLE.load(Ordering::Relaxed) {
         return false;
     }
     match mf::missing() {
@@ -45,6 +51,16 @@ pub(crate) fn available() -> bool {
 }
 
 static UNAVAILABLE: AtomicBool = AtomicBool::new(false);
+static ALLOWED: AtomicBool = AtomicBool::new(false);
+
+/// Follow `cl_sjkChatVideo`; whether that changed the switch.
+pub(crate) fn set_allowed(on: bool) -> bool {
+    ALLOWED.swap(on, Ordering::Relaxed) != on
+}
+
+/// Held by the tests that flip [`set_allowed`] or rely on it being off.
+#[cfg(test)]
+pub(crate) static SWITCH: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Mark MP4 decoding unavailable for the rest of the run, logging `reason` once.
 fn unavailable(reason: &str) {
@@ -531,6 +547,23 @@ mod tests {
         assert!(Clip::default().finish().is_none());
     }
 
+    #[test]
+    fn clips_are_off_by_default_and_then_never_reach_media_foundation() {
+        let _switch = SWITCH
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        assert!(!available());
+        assert!(
+            !UNAVAILABLE.load(Ordering::Relaxed),
+            "off is not logged as missing"
+        );
+        assert!(set_allowed(true), "a change");
+        assert!(!set_allowed(true), "no change");
+        assert_eq!(available(), cfg!(windows) && mf::missing().is_none());
+        assert!(set_allowed(false));
+        assert!(!available());
+    }
+
     #[cfg(not(windows))]
     #[test]
     fn without_media_foundation_mp4_is_unavailable() {
@@ -577,7 +610,8 @@ mod media_foundation_tests {
             "bounded MP4 structure"
         );
         assert!(walk.avc1);
-        let gif = decode(&bytes).expect("H.264 MP4 decodes");
+        // Media Foundation itself: the player's switch (off by default) is not needed.
+        let gif = mf::decode(&bytes).expect("H.264 MP4 decodes");
         assert_eq!(gif.size, SIZE);
         assert_eq!(gif.frames.len(), 3);
         assert_eq!(gif.length_ms, 300);
@@ -594,6 +628,12 @@ mod media_foundation_tests {
         assert_eq!(gif.frame_at(100), 1);
         assert_eq!(gif.frame_at(300), 0);
         // A clip whose tables were cut is refused before Media Foundation sees it.
-        assert!(decode(&bytes[..bytes.len() / 2]).is_none());
+        assert!(boxes(&bytes[..bytes.len() / 2], 0, &mut Walk::default()).is_none());
+        // While the player has clips off (the default), even a good clip is not decoded.
+        let _switch = SWITCH
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        assert!(!available());
+        assert!(decode(&bytes).is_none());
     }
 }

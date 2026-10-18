@@ -84,6 +84,7 @@ impl Panel {
             "Trust only sites whose media you want to see automatically in chat.",
             "Each exact host needs approval, including separate media CDNs. No wildcard domains.",
             "Trusting a site contacts it directly and may show any content it hosts.",
+            "MP4 video clips also need Play chat video clips (Windows) in Settings, off by default.",
         ] {
             text(
                 &mut self.ui,
