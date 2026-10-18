@@ -935,6 +935,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Choice(&crate::menu::style::MenuStyle::NAMES),
     },
     Setting {
+        label: "Menu pictures (saves video memory)",
+        cvar: crate::menu_pictures::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Quick wheel pages",
         cvar: crate::quick_wheel::pages::FILE,
         kind: ValueKind::WheelPages,

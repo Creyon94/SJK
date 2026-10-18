@@ -44,6 +44,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
     }
     crate::rarity_fx::register(cvars)?;
+    crate::menu_pictures::register(cvars)?;
     // Create game's last choices.
     for (name, value, help) in crate::menu::create_game::INTEGER_CVARS {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;

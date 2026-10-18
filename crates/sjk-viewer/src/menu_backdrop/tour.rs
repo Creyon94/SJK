@@ -8,7 +8,7 @@ use super::routes::TourShot;
 use glam::Vec3;
 
 /// How long a shot lasts, its fades included.
-const SHOT_MILLIS: u64 = 15_000;
+pub(super) const SHOT_MILLIS: u64 = 15_000;
 /// The fade into and out of each shot.
 pub(super) const FADE_MILLIS: u64 = 900;
 
@@ -36,6 +36,12 @@ impl Tour {
         };
         tour.shuffle_after_first();
         tour
+    }
+
+    /// The tour's shots in their authored order.
+    #[cfg(test)]
+    pub(crate) fn shots(&self) -> &'static [TourShot] {
+        self.shots
     }
 
     /// Shuffle every shot but the first in the order (Fisher-Yates over a

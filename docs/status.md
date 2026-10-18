@@ -1,3 +1,23 @@
+## Menu pictures and readable world install failures
+
+18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`
+(Settings > Interface, default off) builds the menu world from an empty map and
+shows pictures of duel6 (SJK UI: its ten tour shots, the player, saber and
+holocron shots) or ffa3 (classic: main, browser, settings, player, saber) taken
+off screen at 3840x2160 (18 JPEGs at quality 85, about 25 MB in the executable),
+crossfading between them; the 3D stage draws over them from the picture's camera.
+A world install that panics (wgpu's out of memory, the hub's largest crash group:
+33 reports from 6 players on 3 to 11 GB NVIDIA cards, 11/10 to 18/10) now reports
+the panic's message instead of "world installer stopped unexpectedly", and an out of
+memory turns the pictures on and says so. An empty map's shadow and probe bounds
+now come from its world model (they were infinite and overflowed probe placement).
+Checked: unit tests for the setting, map paths, out-of-memory detection and the
+caught panic, the manifest and the fit of the camera to the screen's shape;
+off-screen shots of the SJK UI main page and player stage at 16:9, 21:9 and 4:3,
+and of the classic main menu and player page, with the player standing on the
+pictured floor. Not checked: the game window, an actual out-of-memory on a small
+card, turning the setting on and off live in the menus, the memory saved.
+
 ## Server-reported scoreboard deaths
 
 18/10/2026, `feat/scoreboard-deaths`, based on `origin/main` `96569426`: the

@@ -84,6 +84,8 @@ impl GpuState {
                 entities: self.entity_draw_queue.opaque(),
             };
 
+            // A picture menu world's picture, behind everything the pass draws.
+            self.menu_pictures.draw(&mut pass);
             self.composite_map_portal(&mut pass);
             self.world_materials.draw_main_opaque(
                 &mut pass,

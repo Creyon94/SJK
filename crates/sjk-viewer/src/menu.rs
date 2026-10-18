@@ -310,6 +310,16 @@ impl ClientMenu {
         self.create_game.forget_levelshot_upload();
     }
 
+    /// Stand the menus on `backdrop` (the menu world changed: [`crate::menu_pictures`]).
+    pub(crate) fn set_backdrop(&mut self, backdrop: Option<crate::menu_backdrop::Backdrop>) {
+        self.backdrop = backdrop;
+    }
+
+    /// The menu picture the backdrop shows, while it is a picture one.
+    pub(crate) fn shown_picture(&self) -> Option<usize> {
+        self.backdrop.as_ref()?.shown_picture()
+    }
+
     /// Advance the live-map backdrop toward the current screen's shot and
     /// return the camera for this frame, once a map is loaded.
     pub(crate) fn drive_backdrop(&mut self, millis: u64) -> Option<Sample> {

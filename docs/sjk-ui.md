@@ -131,6 +131,16 @@ gently while it waits ([New medal](#new-medal)). Nothing else moves on its own.
 
 ## The map behind
 
+With Menu pictures on (Settings > Interface, `ui_menuPictures`, to save video
+memory; on by itself after a map runs out of it) the map behind is pictures of it
+instead: one per tour shot, halfway through its glide, and one per shot the camera
+flies to, crossfading in 0.9 s where the camera would cut or fly
+([pictures.rs](../crates/sjk-viewer/src/menu_backdrop/pictures.rs)). The player on
+the stage, the thrown saber and the holocron are still drawn in 3D, from the
+picture's camera. Rerun `menu_pictures_generate`
+([world_shot_menu_pictures.rs](../crates/sjk-viewer/src/world_shot_menu_pictures.rs))
+after a shot or the look changes.
+
 Behind the SJK UI the camera tours mp/duel6: ten authored shots
 (`YAVIN_TRAINING_TOUR` in
 [routes.rs](../crates/sjk-viewer/src/menu_backdrop/routes.rs), keyed by the map's

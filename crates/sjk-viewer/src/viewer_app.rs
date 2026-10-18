@@ -95,6 +95,7 @@ impl ApplicationHandler for ViewerApplication {
                 let mut gpu = gpu;
                 gpu.is_menu_world = true;
                 gpu.graphics_reload.map = std::mem::take(&mut self.boot_map);
+                crate::menu_pictures::fit_backdrop(&mut gpu);
                 if self.game_audio.is_none()
                     && gpu
                         .console

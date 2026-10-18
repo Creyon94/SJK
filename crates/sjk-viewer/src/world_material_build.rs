@@ -423,6 +423,15 @@ fn build(
             [lo.min(p), hi.max(p)]
         },
     );
+    // A map with nothing in it (a picture menu world, `menu_pictures`) spans its world
+    // model instead of the infinite empty fold.
+    if bsp.render().vertices().is_empty() {
+        let world = &bsp.render().models()[0];
+        result.0.shadow_bounds = [
+            glam::Vec3::from_array(world.minimums),
+            glam::Vec3::from_array(world.maximums),
+        ];
+    }
     result.0.build_shadow_hulls(device, bsp, draws);
     result.0.probe_domain = super::gi_probe_domain::Domain::build(bsp, result.0.shadow_bounds);
     result.0.areas = areas::Areas::new(bsp);
