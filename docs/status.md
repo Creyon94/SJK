@@ -1,3 +1,13 @@
+## A trigger_once fires once
+
+18/10/2026, `fix/trigger-once-spent`, based on `Sol-Vulpes/SJK` `6469816` (tester: on
+`mp/siege_hoth` holding use at the bridge panel made the score climb). A `trigger_once`
+that fired (`wait` below zero) only lost its `CONTENTS_TRIGGER`, and no touch read that, so
+it went on firing. Pressing use at the bridge panel completed objective 2 again every
+frame. The touch now ignores a trigger without `CONTENTS_TRIGGER`, as `G_TouchTriggers`
+does once `multi_trigger_run` frees it. Two unit tests pin it; the workspace built on
+Linux, and the test suite and Clippy were not run.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect
