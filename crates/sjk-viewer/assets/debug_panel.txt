@@ -566,6 +566,16 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[discord-presence]
+area: Menus & settings
+title: Discord status: your Discord profile shows what you do in SJK
+change: Settings > Network > Discord status (cl_discordPresence): Off, On, Server hidden.
+change: Menus show the screen; in game the server, map, mode, team, scores and players.
+test: With Discord open, sit in the main menu: your profile shows Sol JK, In the menus.
+test: Open Collection > Holocrons: the second line turns to Opening holocrons.
+test: Join a server: its name, map, mode and player count show, the timer starts.
+test: Set Server hidden: the name turns to Playing online. Set Off: the status goes away.
+
 [menu-pictures]
 area: Menus & settings
 title: Menu pictures: pictures of the map behind the menus, to save video memory
