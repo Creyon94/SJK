@@ -1,3 +1,14 @@
+## Siege bots take both sides
+
+18/10/2026, `fix/siege-bot-sides`, based on `Sol-Vulpes/SJK` `6469816` (tester: on
+`mp/siege_hoth` every added bot joined one side, and the round never began). `PickTeam`'s
+side counts left out `siegeDesiredTeam`. Before a siege round every player waits as a
+spectator, so each bot saw two empty sides and joined blue. With the player on blue too,
+red stayed empty and `SiegeCheckTimers` never began the round. The counts now follow
+`TeamCount` (`g_client.c`): a player counts for the side it is on and, in siege, for the
+side it wants. The workspace built on Linux; tests and Clippy were not run. Tested by hand
+with an earlier build of the same change: 15 bots split across both sides.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect
