@@ -1,4 +1,5 @@
-//! Tight name hit/hover geometry and a small five-point friend marker.
+//! Tight name hit/hover geometry and a small five-point star (the GIF picker's
+//! favourite mark).
 
 use super::*;
 

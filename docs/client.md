@@ -2371,39 +2371,23 @@ message sent from it: All, Team, SJK, or a whisper to a player still in the game
 and SJK keys always open on their own channel; with 0 the chat key always opens on
 All.
 
-Open the chat composer with your chat binding, then click a
-sender's name. The cursor is free while composing. The player menu offers:
-
-- **whisper:** keeps the current draft and addresses the selected player using
-  the stock `tell` command. Nothing is sent until Enter.
-- **ignore:** hides that player's existing and incoming
-  messages locally for the current map. Opening chat shows a hidden-message row
-  whose name can be clicked to undo the ignore. It does not change server policy
-  or suppress footsteps, saber effects, or other gameplay sounds.
-- **friend:** saves a local name bookmark and adds a
-  small five-point star to the left of that player's name. Bookmarks survive restarts in
-  `chat-friends.txt`, beside `config.cfg`. Names ignore colour codes but otherwise
-  match exactly; these are name bookmarks, not authenticated accounts.
-- **copy:** copies the complete name, including its colour escapes.
-
+Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their
-sender card (picture, name, hub, medals) beside it, with Block or Unblock: unlike ignore, a block is kept on this PC
-(`chat-mutes.txt`) and, besides their chat, draws them as Kyle with the default saber,
-silences every sound they cause and ignores their emotes, toys and player card; `block
-<player>` and `unblock <player|all>` do it from the console ([hub-chat.md](hub-chat.md#blocking-a-player)).
+sender card (picture, name, hub, medals) beside it, with Block or Unblock: a block is
+kept on this PC (`chat-mutes.txt`) and, besides their chat, draws them as Kyle with the
+default saber, silences every sound they cause and ignores their emotes, toys and player
+card; `block <player>` and `unblock <player|all>` do it from the console
+([hub-chat.md](hub-chat.md#blocking-a-player)). The card lies over the feed: the feed's
+text under it is left out (`MenuCanvas::cover`, honoured by the routed game-font path
+too since 18/10/2026; before, the messages showed through the card). Name hover fits
+the visible username glyph bounds. There is no standing player-options hint or success
+notice. Opening the composer exposes history even when passive chat is hidden with
+`cg_chatbox 0`.
 
-The dropdown opens without a highlighted action. Hover follows the pointer;
-keyboard navigation highlights only its current row until the pointer moves.
-Arrow keys/Tab navigate the player menu; Enter selects and Escape dismisses it
-without discarding the draft. The compact square-edged dropdown sits to the left
-of chat, aligned with the clicked name and kept above the composer. It has only
-four labels, no title or description, and never moves the conversation. If the
-left margin is too narrow, it uses the right edge inside the chat lane to avoid
-the scoreboard. Highlighted `ignore`/`friend` rows indicate active toggles; clicking
-again undoes them. Name hover fits the visible username glyph bounds, excluding the star. Dropdown
-row highlights use exactly the same rectangle as their clickable button. There is no
-standing player-options hint or success notice. Opening the composer exposes history even when
-passive chat is hidden with `cg_chatbox 0`.
+Clicking a name does nothing since 18/10/2026 (Sol's decision): the dropdown it opened
+(whisper, a per-map ignore, a local friend star kept in `chat-friends.txt`, copy name)
+was removed, the sender card and `block` having replaced it. Whisper with the `tell`
+command or `reply`; an existing `chat-friends.txt` is no longer read.
 
 The draft shares the console's UTF-8 caret and selection rules: arrows/Home/End,
 Ctrl+arrows and Ctrl+Backspace/Delete, Shift-selection, Ctrl+A/C/X/V,
@@ -2415,7 +2399,7 @@ the console (see below): `^` then a digit is a colour code, `^` then `e` is `ê`
 
 Actions use server-provided sender slots and current roster generations. Old
 messages cannot address a replacement after an observed departure/name change;
-an invalid whisper recipient leaves the draft open. A line the server does not
+an invalid whisper recipient (the channel `reply` or Tab chose) leaves the draft open. A line the server does not
 attribute (JA+) is its sender's when it starts with exactly one connected player's
 name as the game shows it, then `: ` (or `(name): `, `[name]: `), since 16/10/2026
 ([hub-chat.md](hub-chat.md#game-chat-lines-look-the-same)); other unattributed lines
@@ -4240,7 +4224,7 @@ is independent of the executable's location and working directory. The client cr
 | --- | --- |
 | `config.cfg` | Settings and key bindings |
 | `marks.txt` | Marked map positions, views and notes |
-| `favorites.json`, `chat-friends.txt` | Favorite servers and friend names |
+| `favorites.json` | Favorite servers |
 | `jakey` | Persistent client identity key |
 | `hud.json` | Optional custom HUD |
 | `wheel.json` | The quick wheel's pages, once changed ([Quick wheels](#kept-in-wheeljson)) |

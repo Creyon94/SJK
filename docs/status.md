@@ -7768,6 +7768,12 @@ these checks.
 
 ## Chat player menu preview
 
+Removed 18/10/2026 (`personal/chat-card-cleanup`, Sol's decision): clicking a name no
+longer opens this dropdown, and the friend star and per-map ignore went with it; the
+sender card's Block and `block` cover muting. The same branch fixed the chat's sender
+card, which the feed's text showed through: the routed game-font text path now honours
+`MenuCanvas::cover`. Not yet checked in game. The rest of this section is history.
+
 Local preview `chat5` (2026-10-04) adds a compact square-edged dropdown left of
 chat with only `whisper`, `ignore`, `friend`, and `copy`. It follows the clicked
 name, stays above typing controls, and leaves chat positions unchanged. At a

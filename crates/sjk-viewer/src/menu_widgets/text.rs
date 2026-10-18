@@ -244,6 +244,7 @@ impl MenuCanvas {
             (vertices, font),
             viewport,
             TextStyle::NEUTRAL,
+            self.cover,
         );
     }
 

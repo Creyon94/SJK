@@ -11,11 +11,9 @@ mod interaction;
 mod layout;
 pub(crate) mod marks;
 mod options;
-mod player_actions;
 pub(crate) mod pm_only;
 pub(crate) mod reply;
 pub(crate) mod sjk;
-mod social;
 mod substitutions;
 
 mod view;
@@ -83,13 +81,6 @@ struct HubLine {
     tier: Option<&'static crate::holocrons::Tier>,
 }
 
-#[derive(Clone, Copy)]
-struct PlayerMenu {
-    target: ChatTarget,
-    anchor_y: f32,
-    selected: Option<u16>,
-}
-
 /// Bounded incoming history and the currently active unboxed composer.
 pub(crate) struct ChatOverlay {
     lines: VecDeque<ChatLine>,
@@ -101,17 +92,14 @@ pub(crate) struct ChatOverlay {
     input: Option<Editor>,
     modifiers: winit::keyboard::ModifiersState,
     roster: ChatRoster,
-    muted: Vec<ChatTarget>,
-    friends: social::Friends,
-    player_menu: Option<PlayerMenu>,
     scroll: usize,
     unread: usize,
     clock: Instant,
     opened_ms: u64,
     notice: &'static str,
     ui: MenuCanvas,
-    visible_targets: [Option<ChatTarget>; MAX_VISIBLE],
-    pressed_action: Option<(u16, Option<ChatTarget>)>,
+    /// The feed's name or card target a press began on, until its release.
+    pressed_action: Option<u16>,
     /// Whose name each feed token is, for the profile card (`chat/card.rs`).
     visible_people: [Option<card::Who>; MAX_VISIBLE],
     /// The profile card on show while the composer is open.
@@ -174,16 +162,12 @@ impl ChatOverlay {
             input: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
             roster: ChatRoster::default(),
-            muted: Vec::with_capacity(HISTORY_LIMIT),
-            friends: social::Friends::default(),
-            player_menu: None,
             scroll: 0,
             unread: 0,
             clock: Instant::now(),
             opened_ms: 0,
             notice: "",
             ui: MenuCanvas::with_text_capacity(512),
-            visible_targets: [None; MAX_VISIBLE],
             pressed_action: None,
             visible_people: [None; MAX_VISIBLE],
             card: None,
@@ -228,8 +212,6 @@ impl ChatOverlay {
     pub(crate) fn update_roster(&mut self, game: &sjk_protocol::GameState) {
         self.roster.update(game);
         self.own_slot = u16::try_from(game.client_num).ok();
-        self.muted
-            .retain(|target| self.roster.name(*target).is_some());
     }
 
     /// Who is in each slot, as roster observations: one changes when its player
@@ -251,7 +233,7 @@ impl ChatOverlay {
                 continue;
             }
             let muted = match line.sender {
-                Some(target) => self.muted.contains(&target) || self.slot_muted(target),
+                Some(target) => self.slot_muted(target),
                 None => self.prefix_muted(&line.body),
             };
             self.lines[index].muted = muted;
@@ -376,9 +358,9 @@ impl ChatOverlay {
             },
             server_private,
             received_ms: ms,
-            // Ignored for this map, or muted on this PC (`muted_players.rs`).
+            // Muted on this PC (`muted_players.rs`).
             muted: match target {
-                Some(target) => self.muted.contains(&target) || self.slot_muted(target),
+                Some(target) => self.slot_muted(target),
                 None => self.prefix_muted(&display),
             },
             emojis,
@@ -403,7 +385,6 @@ impl ChatOverlay {
         } else {
             Channel::Global
         }));
-        self.player_menu = None;
         self.pressed_action = None;
         self.scroll = 0;
         self.unread = 0;

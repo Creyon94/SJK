@@ -143,9 +143,6 @@ impl ChatOverlay {
     }
     /// Apply cvars without allocating; wrapping invalidates through width/font keys.
     pub(crate) fn configure(&mut self, console: Option<&ViewerConsole>) {
-        if let Some(console) = console {
-            self.friends.initialize(console.config_directory());
-        }
         let options = Options::read(console);
         if self.options != options {
             if self.options.pm_only != options.pm_only {

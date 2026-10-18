@@ -3,10 +3,9 @@
 mod composer;
 mod draft;
 mod name;
-mod player_menu;
 mod sjk_line;
 
-/// The friend's star, also the GIF picker's favourite mark.
+/// The GIF picker's favourite mark.
 pub(crate) use name::star;
 
 use super::*;
@@ -59,7 +58,6 @@ impl ChatOverlay {
             self.pressed_action = None;
         }
         self.ui.begin_transparent(viewport);
-        self.visible_targets.fill(None);
         self.visible_people.fill(None);
         let mut g = self.options.geometry(viewport);
         if self.scoreboard_layout == crate::scoreboard::behavior::ChatLayout::SideColumn {
@@ -129,16 +127,11 @@ impl ChatOverlay {
                 g.bottom = g.bottom.min(viewport[1] - 200.0 * g.scale);
             }
             self.build_composer(font, &g, ms);
-            self.build_player_menu(&g, viewport);
         }
         // A name under the pointer shows its profile card, over everything.
         self.follow_card(self.is_typing());
         self.build_card(font, &g, viewport);
-        self.ui.finish(
-            self.player_menu
-                .and_then(|menu| menu.selected)
-                .unwrap_or(u16::MAX),
-        );
+        self.ui.finish(u16::MAX);
     }
 
     fn build_feed(&mut self, font: &UiFont, g: &Geometry, ms: u64) {
@@ -169,10 +162,9 @@ impl ChatOverlay {
                 continue;
             }
             // A line with a sender flows from its name's row ([`sjk_line`]).
-            let indent = line_marks(line, &self.slot_marks, &self.roster, &self.friends)
-                .map_or(0.0, |(name, marks)| {
-                    sjk_line::Prefix::new(name, marks, font, g).width()
-                });
+            let indent = line_marks(line, &self.slot_marks).map_or(0.0, |(name, marks)| {
+                sjk_line::Prefix::new(name, marks, font, g).width()
+            });
             let wrap_width = g.width - 12.0 * g.scale;
             // An SJK line's GIF under its text takes room of its own (`feed_gif.rs`).
             let gif = self.gif_shown(index);
@@ -208,9 +200,7 @@ impl ChatOverlay {
                 Tween::new(14.0 * g.scale, 0.0, 0, ENTER_MS, Easing::EaseOutCubic).sample(age);
             let x = g.left + slide;
             let line = &self.lines[index];
-            let Some((name, marks)) =
-                line_marks(line, &self.slot_marks, &self.roster, &self.friends)
-            else {
+            let Some((name, marks)) = line_marks(line, &self.slot_marks) else {
                 // No sender: the server's own words, as one text.
                 for (row, range) in line.wrap.rows[..line.wrap.len].iter().enumerate() {
                     let truncated = row + 1 == line.wrap.len && range.end < line.body.len();
@@ -285,7 +275,6 @@ impl ChatOverlay {
                 .sender
                 .filter(|target| self.roster.name(*target).is_some())
             {
-                self.visible_targets[token] = Some(target);
                 self.visible_people[token] = Some(card::Who::Player(target));
                 self.ui.hit_region(token as u16, name);
             }
@@ -300,8 +289,6 @@ impl ChatOverlay {
 fn line_marks<'a>(
     line: &'a ChatLine,
     slots: &'a [super::marks::SlotMark],
-    roster: &ChatRoster,
-    friends: &social::Friends,
 ) -> Option<(&'a str, sjk_line::Marks<'a>)> {
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
@@ -324,9 +311,6 @@ fn line_marks<'a>(
         sjk: mark.is_some(),
         mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
         tier: None,
-        friend: roster
-            .name(target)
-            .is_some_and(|name| friends.contains(name)),
         label: match line.channel {
             _ if line.muted => "",
             Channel::Team => "TEAM",

@@ -632,8 +632,7 @@ request, 08/10/2026):
 Since 16/10/2026 (Sol's request: the JoF tag, the SJK emblem and the verified tick in
 the game's chat too, the two chats told apart only by colour), a game chat line whose
 sender is known flows as an SJK line does, drawn by the same code
-([chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs)): the friend's
-star for a friend, SJK's emblem when the hub holds a claim for the sender's slot under
+([chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs)): SJK's emblem when the hub holds a claim for the sender's slot under
 the name the game shows there (the scoreboard badges' rule; for the player's own line,
 once the hub answered them), the clan emblem for a known clan's tag
 ([identity.md](identity.md#clan-tags)), the name in its colour codes over white, the
@@ -647,8 +646,8 @@ sends as text with no sender, showed no emblem at all.
   one player whose name, as the game shows it, starts the line before `: ` (or inside
   `(...): ` and `[...]: `), colour codes as sent (`ChatOverlay::line_sender`,
   [chat/marks.rs](../crates/sjk-viewer/src/chat/marks.rs)). Two players wearing one name
-  leave the line unattributed. An attributed line is clickable (player menu, whisper)
-  and its name shows the sender card.
+  leave the line unattributed. An attributed line's name shows the sender card
+  (the click menu it also opened was removed on 18/10/2026).
 - **What each slot shows** (`chat::marks::SlotMark`): worked out from the hub's
   claims, the server's players and the player's `name` only when one of them changes
   (`ChatOverlay::follow_marks`, every frame from `identity_frame.rs`), so a frame costs a
