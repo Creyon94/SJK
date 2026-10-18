@@ -5344,3 +5344,12 @@ change: The ribbon's V end had a dark block, cut gold stubs and a gap in the ste
 change: The ribbon now ends in a clean V on the bail; the small medallion has no top line.
 test: Collection > Medals, hover or open Supporter: ribbon V meets the knob, stem unbroken.
 test: Small sizes (scoreboard card, Identity list): the star shows no stray line above it.
+
+[model-demand-hitch]
+area: Rendering & effects
+title: No 2 s freeze when a map object first appears
+change: A model first seen mid-match decoded its textures in the frame: 2.1 s with JoF HD textures.
+change: A worker now decodes them; the frame only uploads (falcon2: 2040 ms -> 111 ms off screen).
+test: With JoF_HD4KTextures.pk3, play a JoF map where the Millennium Falcon (falcon2) appears.
+test: When it first shows, no long freeze; the logs show no hitch near 2000 ms config-refresh.
+note: Sol's hitch log 18/10/2026: config-refresh 2146 ms after loaded demanded model falcon2.
