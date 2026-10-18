@@ -4,7 +4,8 @@
 //! it for `sjkemote <id>`. A picture is fitted into the square cell whole, on a
 //! transparent ground; one that does not decode is reported to the log, and its
 //! emote keeps the plain emote icon. The first [`CELLS`] pictures of the catalogue
-//! are shown.
+//! are shown. Each world the menu moves to (a map change, a connection) has a
+//! renderer of its own with an empty atlas, so the pictures go into every new one.
 
 use crate::ui_renderer::{EMOTE_ICON_CELLS, ICON_SIZE, ShapeRenderer, emote_icon};
 use sjk_ui::TextureId;
@@ -18,6 +19,8 @@ pub(crate) const CELLS: usize = EMOTE_ICON_CELLS;
 struct Icons {
     /// The (id, picture path) pairs last put into the atlas, in cell order.
     served: Vec<(String, String)>,
+    /// The renderer ([`ShapeRenderer::id`]) whose atlas they went into.
+    renderer: Option<u64>,
     /// The cell of each emote whose picture is in the atlas.
     cells: HashMap<String, usize>,
 }
@@ -51,8 +54,8 @@ pub(crate) fn for_command(command: &str) -> Option<TextureId> {
     texture(id)
 }
 
-/// Put the loaded catalogue's pictures into the atlas; nothing happens while it is
-/// the catalogue already served.
+/// Put the loaded catalogue's pictures into `renderer`'s atlas; nothing happens while
+/// it is the catalogue already served into that atlas.
 pub(crate) fn service(
     vfs: &sjk_vfs::VirtualFileSystem,
     renderer: &ShapeRenderer,
@@ -71,7 +74,7 @@ pub(crate) fn service(
             .collect()
     };
     let mut icons = lock();
-    if icons.served == wanted {
+    if icons.served == wanted && icons.renderer == Some(renderer.id()) {
         return;
     }
     icons.cells.clear();
@@ -85,6 +88,7 @@ pub(crate) fn service(
         }
     }
     icons.served = wanted;
+    icons.renderer = Some(renderer.id());
 }
 
 /// The picture at `path`, fitted into one atlas cell.

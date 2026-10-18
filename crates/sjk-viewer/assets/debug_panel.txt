@@ -566,6 +566,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[emote-icons-map-change]
+area: Menus & settings
+title: Emote pictures stay after a map change or a connection
+change: Each new world has an empty icon atlas; the emote pictures were put only into the first.
+change: They now go into every new one, on the quick wheel and in its editor.
+test: Join a server (or change map), open Settings > Quick wheel > add a choice > Emotes.
+test: Every emote with an icon shows its picture; the wheel's emote page shows them too.
+
 [discord-presence]
 area: Menus & settings
 title: Discord status: your Discord profile shows what you do in SJK
