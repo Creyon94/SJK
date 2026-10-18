@@ -25,6 +25,8 @@ pub(super) struct State {
     pub map: MapRemaps,
     pub applied: Option<(u64, u64, i64)>,
     pub generation: u64,
+    /// Remap targets the world's content lacks, each checked once.
+    pub missing: material::MissingTargets,
 }
 
 /// Visible shader and destination clock offset for an original shader name: the
