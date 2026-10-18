@@ -73,6 +73,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Siege on native servers: after a death or two you come back with the next respawn wave instead of being stuck out of the game, invisible and unarmed; as in the game, attack and jump do nothing while you wait for the wave _(Slash)_
 - Siege map messages such as the Korriban gates' read their text from the map's string table, and each one reaches only the team (or player) the map meant it for, instead of everyone seeing a raw `@SIEGE_...` key; a delayed map target remembers who set it off _(Slash)_
 - During a private duel the corpses and pickups around you are hidden, two settings on by default _(Lukas, after JoF EJK)_
+- In Power Duel the duel sides are read from the right player key, so ally logos, crosshair colours and world pings tell your partner from your opponents again _(Sol)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
