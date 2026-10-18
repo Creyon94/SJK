@@ -8,6 +8,14 @@ open. The manifests declare Rust 1.88 or newer and edition 2024.
 
 Install Rust/Cargo, a C/C++ toolchain, CMake and pkg-config. Linux also needs
 ALSA, Wayland and XKB development libraries and a working graphics driver.
+SJK builds no video codec: chat MP4 clips use Windows Media Foundation at run time
+([sjk-mediafoundation](../crates/sjk-mediafoundation/src/lib.rs), the one crate
+allowed `unsafe`), and WebP is decoded in Rust. No FFmpeg installation or runtime
+codec download is required. Crates that omit license files receive their declared SPDX
+license text and original author/license manifest; canonical texts are kept under
+`scripts/licenses` (the MPL-2.0 wording comes from
+[SPDX license-list-data](https://github.com/spdx/license-list-data/tree/main/text)).
+Cargo metadata is read as UTF-8 on Windows as on Linux.
 See [workspace dependencies](../Cargo.toml) and the
 [viewer manifest](../crates/sjk-viewer/Cargo.toml) when diagnosing missing libraries.
 
