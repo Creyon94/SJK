@@ -319,7 +319,8 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
 - **Switch**: `cl_sjkChatGifs` (archived, default 1; Settings > Chat > SJK chat GIFs,
   under SJK chat sound, so in every settings screen and settings search). 0 keeps links
   as text and fetches nothing. With `cl_sjkChat 0` no message shows, so nothing is
-  fetched either.
+  fetched either. Video clips have their own opt-in, `cl_sjkChatVideo` (default 0,
+  under it: [Trusted media sources](#trusted-media-sources)).
 - **The chat's rules** let GIPHY links through: `:`, `/`, `.`, `-`, `_`, `?`, `=`, `&`
   and `%` are in the bio's punctuation, so `chat::check` and `chat::for_display` keep
   them unchanged (a test sends each shape through both). A message is at most 300
@@ -366,6 +367,20 @@ requests filter the actual resolved addresses to public IPv4/native global IPv6.
 Generic media does not use environment proxies, which could resolve private targets
 elsewhere. No referrer or GIPHY API key is sent to generic sources.
 
+**Video clips are opt-in, off by default** (Sol's condition for using Media
+Foundation, 18/10/2026): `cl_sjkChatVideo` (archived, default 0; Settings > Chat
+(classic+: Network) > Play chat video clips (Windows), under SJK chat GIFs; the Sources
+page says so too). Its help reads: "Off by default. MP4 clips from the internet are
+read by Windows' decoder, outside SJK's safe Rust: a crafted clip could exploit it."
+The reason: GIF and WebP are decoded by SJK's own memory-safe Rust, but an MP4 file,
+which any trusted site can serve, is parsed by Windows' MPEG-4 source and H.264
+decoder, native code outside SJK's control, so a flaw there could be exploited by a
+crafted video. While it is off, MP4 behaves exactly as where Media Foundation is
+missing (below), and Media Foundation is not even loaded. Switching it either way
+takes effect without a restart: like removing a source, it starts a new policy
+revision, so decoded media and queued work are dropped and new resolutions follow
+the switch. On Linux the row stays off and cannot be switched on.
+
 SJK ships no video codec (Sol's decision, 18/10/2026: no C in the project). The worker
 decodes MP4 without playing audio through Windows Media Foundation
 ([sjk-mediafoundation](../crates/sjk-mediafoundation/src/lib.rs)): its MPEG-4 source
@@ -374,7 +389,8 @@ give RGB32 pictures, which SJK turns into RGBA. COM and Media Foundation start o
 per media worker thread and shut down with it. `mfplat.dll` and `mfreadwrite.dll` are
 loaded at run time from System32, so the client also starts on a Windows N edition
 without the Media Feature Pack. There, on Linux, and wherever Media Foundation does not
-start or has no H.264 decoder, MP4 is unavailable for the run, said once in the log:
+start or has no H.264 decoder, MP4 is unavailable for the run, said once in the log
+(with `cl_sjkChatVideo 0` it is unavailable too, without a log line):
 MP4 links stay text, a `video/` response is refused before its body is downloaded,
 `video/mp4` leaves the Accept header and HTML discovery takes the page's `og:image`
 instead of its video. Only ordinary (nonfragmented) AVC MP4 is supported; HEVC, AV1,

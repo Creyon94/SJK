@@ -42,6 +42,18 @@ crate. Not verified: a Windows N edition, a real Media Feature Pack absence, cli
 real sites, or the client in game. The MP4 and notice evidence in the next paragraph
 predates the rework.
 
+Sol's condition for the crate (18/10/2026): video clips are a player opt-in,
+`cl_sjkChatVideo` (archived, default 0, Settings > Chat > Play chat video clips
+(Windows), classic+ under Network), because the files come from the internet and are
+parsed by Windows code outside SJK's Rust. While off, MP4 is unavailable exactly as
+without Media Foundation and its DLLs are never loaded; a switch either way starts a
+new source-policy revision (cache and queued work dropped), no restart. On Linux the
+row stays off. The Sources page says clips need the setting. Tests cover the default
+(off, no MF), the Accept header and pre-body refusal without video, discovery taking
+`og:image`, a switch only invalidating on a change, the invalidation dropping decoded
+media, and the settings row (position, default, Windows-only switch); the MF round
+trip calls the decoder directly.
+
 Verified on Windows 11 Pro, Rust 1.99.0: workspace formatting, locked build, tests
 and clippy pass (warnings remain). Focused tests cover exact hosts, credential/local
 URL refusal, public-address filtering, blocked initial requests/redirects/CDNs,
