@@ -1170,11 +1170,20 @@ impl ClientSession {
         }
         let event_kind = match name {
             b"print" => Some(ServerEventKind::Print),
-            b"cp" => Some(ServerEventKind::CenterPrint),
+            b"cp" | b"cps" => Some(ServerEventKind::CenterPrint),
             _ => None,
         };
         if let Some(kind) = event_kind {
-            let text = server_text(arguments.get(1..).unwrap_or_default());
+            let mut text = server_text(arguments.get(1..).unwrap_or_default());
+            // `cps` (`cg_servercmds.c`): a centre print naming a string-table entry,
+            // `@FILE_KEY` as `target_print` sends it, resolved by the viewer as `@@@`.
+            if name == b"cps" {
+                let key = text.trim();
+                text = format!(
+                    "@@@{}",
+                    key.strip_prefix('@').unwrap_or(key).to_ascii_uppercase()
+                );
+            }
             self.events.push_back(ServerEvent {
                 kind,
                 text,
