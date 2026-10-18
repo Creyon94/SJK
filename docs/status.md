@@ -190,6 +190,23 @@ Blue team won" or "Tied 3 : 3". See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
+## Private-duel world visibility
+
+17/10/2026, `feat/duel-visibility`: the archived `cg_hideCorpsesInDuel` and
+`cg_hidePickupsInDuel` preferences are on by default. They keep `ET_BODY`
+corpses and `ET_ITEM`/`ET_HOLOCRON` pickups respectively out of the presentation
+world only while the local player is in a private duel. Both remain visible
+outside duels, and each override can retain its category during duels. SJK
+Advanced Gameplay and classic Game Options expose both settings; live and demo
+presentation apply changes immediately. A focused unit test covers the default,
+both duel states, health, shield, holocrons and the independent overrides. A
+second regression test covers the dedicated direct-snapshot `ET_ITEM` renderer,
+so its healthpacks follow the pickup preference too. See
+[client](client.md#nameplates). On Linux x86_64 with Rust 1.99.1, formatting,
+the locked workspace build and test suite, workspace all-target Clippy, and the
+locked release viewer build pass; existing warnings remain. The behavior has
+not yet been checked interactively on a live server or in demo playback.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

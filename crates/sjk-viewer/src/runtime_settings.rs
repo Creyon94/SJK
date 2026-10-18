@@ -61,11 +61,26 @@ impl GpuState {
             .set_predict_items(console.bool_cvar("cg_predictItems").unwrap_or(true));
         if let Some(adapter) = &mut self.legacy_world_adapter {
             adapter.set_smooth_clients(console.smooth_clients());
+            let corpses_changed = adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
+            let pickups_changed = adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
+            if (corpses_changed || pickups_changed)
+                && let Some(session) = &self.live_session
+            {
+                adapter.apply_snapshot(
+                    session.latest_snapshot(),
+                    session.game_state(),
+                    &mut self.live_world,
+                );
+            }
         }
         self.local_prediction
             .set_smooth_clients(console.smooth_clients());
         if let Some(session) = &mut self.demo_session {
             session.set_smooth_clients(console.smooth_clients());
+            session.set_duel_visibility(
+                console.hide_corpses_in_duel(),
+                console.hide_pickups_in_duel(),
+            );
         }
         self.net_timing.set_enabled(console.show_timedelta());
         self.presentation_clock

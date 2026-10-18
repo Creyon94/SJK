@@ -748,6 +748,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hide corpses in duel",
+        cvar: crate::duel_visibility::CORPSES_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide pickups in duel",
+        cvar: crate::duel_visibility::PICKUPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,

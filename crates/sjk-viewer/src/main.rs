@@ -37,6 +37,7 @@ mod client_state;
 mod clientinfo_refresh;
 mod debug_collectibles;
 mod duel_ghost;
+mod duel_visibility;
 mod economy;
 mod editions;
 mod entity_view;
@@ -2306,8 +2307,14 @@ impl GpuState {
             }
             projectiles::collect(snapshot, presentation_time as i32, &mut self.projectiles);
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
-            self.local_prediction
-                .pickups(snapshot, presentation_time as i32, &mut self.pickups);
+            self.local_prediction.pickups(
+                snapshot,
+                presentation_time as i32,
+                self.console
+                    .as_ref()
+                    .is_none_or(console::ViewerConsole::hide_pickups_in_duel),
+                &mut self.pickups,
+            );
             trip_mine_lasers::spawn(
                 &mut self.trip_mine_beams,
                 snapshot,

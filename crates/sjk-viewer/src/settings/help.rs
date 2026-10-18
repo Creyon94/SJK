@@ -587,6 +587,14 @@ const HELP: &[(&str, &str)] = &[
         "On: players in a duel show as see-through blue figures, as on JoF EJK. Off: dark under a blue bubble, as in the base game.",
     ),
     (
+        crate::duel_visibility::CORPSES_CVAR,
+        "Hide dead bodies while you are in a private duel. Bodies remain visible outside duels. On by default.",
+    ),
+    (
+        crate::duel_visibility::PICKUPS_CVAR,
+        "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
+    ),
+    (
         "cg_remaps",
         "Lets the server swap textures: never, all but player models, or always. Maps' own always apply.",
     ),
