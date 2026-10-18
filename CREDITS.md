@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 101 pull requests (Creyon 52, Lumaya 38, Lukas 8, Slash 3). Sol's
+contributors' 102 pull requests (Creyon 52, Lumaya 39, Lukas 8, Slash 3). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -302,7 +302,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 38 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 39 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -381,6 +381,8 @@ merged into SJK
   JoF EJK #138.
 - #143 custom Siege packs up to 1,024 class and 256 team files, sixteen classes per team,
   after JoF EJK #253.
+- #134 NPC health on nameplates (`cg_nameplateNpcs`) only while Force Sense 3 is active,
+  unless the map's `showhealth` shows it to everyone, after JoF EJK #80.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 8 pull requests
 merged into SJK

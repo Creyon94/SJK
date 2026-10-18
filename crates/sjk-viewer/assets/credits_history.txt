@@ -1737,6 +1737,8 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 18/10/2026 | SJK #134 | Require active Sense 3 for NPC health bars
+- 0e0c11a |  | Require active Sense 3 for NPC health bars
 + 18/10/2026 | SJK #143 | Expand custom Siege catalogues and align selector limits
 - bde4bbf |  | Expand Siege catalogues and bound theme class slots
 + 18/10/2026 | SJK #137 | Support community override shader scripts
