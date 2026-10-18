@@ -8,6 +8,14 @@ open. The manifests declare Rust 1.88 or newer and edition 2024.
 
 Install Rust/Cargo, a C/C++ toolchain, CMake and pkg-config. Linux also needs
 ALSA, Wayland and XKB development libraries and a working graphics driver.
+Chat MP4 decoding builds the bundled OpenH264 sources through the C/C++ toolchain;
+NASM is optional (scalar code is used when it is unavailable). No FFmpeg installation
+or runtime codec download is required. Release packaging collects the codec's
+upstream notices too. Crates that omit license files receive their declared SPDX
+license text and original author/license manifest; canonical texts are kept under
+`scripts/licenses` (the new MIT, BSD-2-Clause and MPL-2.0 license wording comes from
+[SPDX license-list-data](https://github.com/spdx/license-list-data/tree/main/text)).
+Cargo metadata is read as UTF-8 on Windows as on Linux.
 See [workspace dependencies](../Cargo.toml) and the
 [viewer manifest](../crates/sjk-viewer/Cargo.toml) when diagnosing missing libraries.
 

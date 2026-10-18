@@ -55,6 +55,14 @@ wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "gles
 winit = { version = "0.30.13", default-features = false, features = ["rwh_06", "wayland", "wayland-dlopen", "x11"] }
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
 sha2 = "0.11.0"
+# Trusted chat media: exact URL hosts, lock-free policy snapshots, bounded HTML
+# discovery and silent AVC MP4 decode on workers (no runtime codec downloads).
+url = "2"
+arc-swap = "1"
+scraper = { version = "0.24", default-features = false }
+mp4 = "0.14"
+openh264 = "0.8"
+h264-reader = "0.8"
 
 [features]
 default = ["mod-japlus", "mod-jof"]
