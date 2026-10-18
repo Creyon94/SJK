@@ -426,10 +426,10 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("s_doppler", true, archive, "Legacy looping-sound Doppler"),
         CvarDefinition::new(
-            "s_saberSkinSoundsOnly",
-            false,
+            crate::audio::SKIN_SOUNDS_CVAR,
+            1_i64,
             archive,
-            "Blade skin sounds replace the stock saber sounds (1) or play over them (0)",
+            "Blade skin sounds: 0 stock saber sounds only, 1 over the stock ones, 2 in their place",
         ),
         CvarDefinition::new(
             "cg_jetpackOnSound",

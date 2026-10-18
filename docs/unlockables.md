@@ -470,8 +470,8 @@ from the looks.
 - Sounds, per player wearing it: ignition and switching off, the hum loop and three
   swings play over the stock ones, which keep playing below (each on a channel of its
   own, so the skin's does not cut them), at the paths the file names in its pack. With
-  `s_saberSkinSoundsOnly 1` (Settings > Sound > Blade skin sounds only) they play in
-  the stock ones' place. The viewer
+  `s_saberSkinSounds 2` (Settings > Sound > Blade skin sounds: Only skin) they play in
+  the stock ones' place, and with `0` (Off) they are not played: the stock ones alone. The viewer
   passes the table to the audio adapter every frame
   (`LegacySoundAdapter::set_saber_sound_overrides`, [client.md](client.md#blade-skins)),
   so other players' sounds follow their looks too; a pack arriving mid-session has its

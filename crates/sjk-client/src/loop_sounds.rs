@@ -161,7 +161,7 @@ pub(crate) struct LegacyLoopAdapter {
     saber_hums: Vec<u16>,
     /// The hum each client's blade skin plays over its sabers' own.
     hum_overrides: [Option<u16>; MAX_CLIENTS],
-    /// `s_saberSkinSoundsOnly`: a skin's hum replaces the sabers' own.
+    /// `s_saberSkinSounds 2`: a skin's hum replaces the sabers' own.
     pub(crate) skin_hum_only: bool,
     client_config_hash: [u64; MAX_CLIENTS],
     decisions: Vec<LegacyLoopDecision>,
@@ -584,7 +584,7 @@ impl LegacyLoopAdapter {
         let loops = self.saber_loops(client);
         let primary_active = !state.saber_in_flight();
         let secondary_active = state.saber_holstered() == 0 && loops.secondary.is_some();
-        // With `s_saberSkinSoundsOnly` a blade skin's hum replaces the sabers' own.
+        // With `s_saberSkinSounds 2` a blade skin's hum replaces the sabers' own.
         let stock = !(self.skin_hum_only && self.hum_overrides[client].is_some());
         if primary_active && stock {
             self.push(
@@ -627,7 +627,7 @@ impl LegacyLoopAdapter {
         let loops = self.saber_loops(client);
         let primary_active = !player.saber_in_flight();
         let secondary_active = player.saber_holstered() == 0 && loops.secondary.is_some();
-        // With `s_saberSkinSoundsOnly` a blade skin's hum replaces the sabers' own.
+        // With `s_saberSkinSounds 2` a blade skin's hum replaces the sabers' own.
         let stock = !(self.skin_hum_only && self.hum_overrides[client].is_some());
         if primary_active && stock {
             self.push(

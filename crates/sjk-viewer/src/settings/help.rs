@@ -124,6 +124,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
@@ -343,8 +346,8 @@ const HELP: &[(&str, &str)] = &[
         "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
     ),
     (
-        crate::audio::SKIN_SOUNDS_ONLY_CVAR,
-        "A blade skin's own ignition, swings and hum play instead of the normal saber sounds. Off: they play over them.",
+        crate::audio::SKIN_SOUNDS_CVAR,
+        "A blade skin's own ignition, swings and hum: off (normal saber sounds), over the normal ones, or instead of them.",
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
