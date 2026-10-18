@@ -228,7 +228,9 @@ work includes:
   (`cl_forceRepeat`, after JoF EJK);
 - Russian, Japanese, Chinese and Korean text and colour emoji drawn everywhere, Russian
   sent and read in Windows-1251 as EternalJK sends it (`cl_charset`, after EternalJK),
-  and the SJK channel and bios taking them.
+  and the SJK channel and bios taking them;
+- away players set apart on the scoreboard: seen idle for 3 minutes (or tagged
+  `[AFK]`), faint at the bottom of their list (`cg_scoreboardAfk`).
 
 ## Contributors to SJK
 

@@ -120,6 +120,8 @@ pub(crate) struct ChatOverlay {
     muted_slots: u32,
     /// What SJK knows of each slot's player, for their game lines (`chat/marks.rs`).
     slot_marks: Vec<marks::SlotMark>,
+    /// Chat lines each client slot has sent, for the scoreboard's away marks.
+    spoken: [u32; 32],
     /// What the marks were worked out from.
     marks_key: Option<marks::MarksKey>,
     layout_viewport: [f32; 2],
@@ -185,6 +187,7 @@ impl ChatOverlay {
             mute_request: None,
             muted_slots: 0,
             slot_marks: Vec::new(),
+            spoken: [0; 32],
             marks_key: None,
             layout_viewport: [0.0; 2],
             scoreboard_layout: crate::scoreboard::behavior::ChatLayout::Normal,
@@ -267,6 +270,11 @@ impl ChatOverlay {
                 .any(|name| chat_body(text, name).0.len() < text.len())
     }
 
+    /// Chat lines each client slot has sent: a counter that only grows (and wraps).
+    pub(crate) fn spoken(&self) -> &[u32; 32] {
+        &self.spoken
+    }
+
     pub(crate) fn receive(
         &mut self,
         kind: ServerEventKind,
@@ -301,6 +309,11 @@ impl ChatOverlay {
                 .then(|| self.line_sender(&display))
                 .flatten()
         });
+        if let Some(target) = target
+            && let Some(count) = self.spoken.get_mut(usize::from(target.slot()))
+        {
+            *count = count.wrapping_add(1);
+        }
         // Display keeps `^n`; identity, whisper destinations and muting keep
         // using the plain roster name.
         let name = target

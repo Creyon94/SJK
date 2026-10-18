@@ -284,6 +284,8 @@ fn place(rank: u32, out: &mut impl std::fmt::Write) {
 }
 
 const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
+/// An away player's row: the names' colours kept, faint.
+const AWAY: Color = Color::new(1.0, 1.0, 1.0, 0.45);
 
 /// Build the classic board into `ui`.
 #[allow(clippy::too_many_arguments)]
@@ -582,6 +584,8 @@ impl RowDraw<'_> {
         let line = self.size.height();
         let scale = self.size.scale();
         let local = u16::from(row.client_num) == self.header.local.client;
+        // Away players ([`super::afk`]) are drawn faint.
+        let ink = if row.away.is_some() { AWAY } else { WHITE };
         if local {
             ui.accent_bar(
                 frame.rect(LINE_X - 5.0, y + 2.0, LINE_WIDTH + 10.0, line),
@@ -620,7 +624,7 @@ impl RowDraw<'_> {
                     frame.height(side),
                 ),
                 texture,
-                color: WHITE,
+                color: ink,
             });
         }
         let mut name_x = self.columns.name;
@@ -639,7 +643,7 @@ impl RowDraw<'_> {
                         frame.height(side),
                     ),
                     texture,
-                    color: WHITE,
+                    color: ink,
                 });
             }
             // A square offset, as EternalJK's `widthRatioCoef` keeps it.
@@ -682,7 +686,7 @@ impl RowDraw<'_> {
             &row.name,
             name_rect,
             name_size,
-            WHITE,
+            ink,
             FontWeight::Semibold,
             0.0,
             TextAlign::Start,
@@ -712,10 +716,10 @@ impl RowDraw<'_> {
                 .filter(|x| shows_score || *x == self.columns.ping || *x == self.columns.time)
             {
                 if x == self.columns.ping && row.bot {
-                    numbers(ui, format_args!("BOT"), x, WHITE);
+                    numbers(ui, format_args!("BOT"), x, ink);
                     continue;
                 }
-                numbers(ui, format_args!("N/A"), x, WHITE);
+                numbers(ui, format_args!("N/A"), x, ink);
             }
         } else if row.ping == -1 {
             // Still connecting.
@@ -724,52 +728,48 @@ impl RowDraw<'_> {
                 .into_iter()
                 .chain(extra.into_iter().filter(|x| !x.is_nan()))
             {
-                numbers(ui, format_args!("-"), x, WHITE);
+                numbers(ui, format_args!("-"), x, ink);
             }
         } else {
             if row.team != SPECTATOR || gametype == DUEL || gametype == POWER_DUEL {
                 if (gametype == DUEL && self.header.fraglimit > 0) || gametype == POWER_DUEL {
                     let (wins, losses) = row.record.unwrap_or((0, 0));
-                    numbers(
-                        ui,
-                        format_args!("{wins}/{losses}"),
-                        self.columns.score,
-                        WHITE,
-                    );
+                    numbers(ui, format_args!("{wins}/{losses}"), self.columns.score, ink);
                 } else if let Some([captures, assists, defends]) = ctf {
-                    numbers(ui, format_args!("{}", row.score), self.columns.score, WHITE);
-                    numbers(ui, format_args!("{}", row.captures), captures, WHITE);
-                    numbers(ui, format_args!("{}", row.assists), assists, WHITE);
-                    numbers(ui, format_args!("{}", row.defends), defends, WHITE);
+                    numbers(ui, format_args!("{}", row.score), self.columns.score, ink);
+                    numbers(ui, format_args!("{}", row.captures), captures, ink);
+                    numbers(ui, format_args!("{}", row.assists), assists, ink);
+                    numbers(ui, format_args!("{}", row.defends), defends, ink);
                 } else if let Some(deaths) = row.deaths.filter(|_| gametype != DUEL) {
                     numbers(
                         ui,
                         format_args!("{}/{deaths}", row.score),
                         self.columns.score,
-                        WHITE,
+                        ink,
                     );
                 } else {
-                    numbers(ui, format_args!("{}", row.score), self.columns.score, WHITE);
+                    numbers(ui, format_args!("{}", row.score), self.columns.score, ink);
                 }
             }
             if row.bot {
-                numbers(ui, format_args!("BOT"), self.columns.ping, WHITE);
+                numbers(ui, format_args!("BOT"), self.columns.ping, ink);
             } else {
-                numbers(ui, format_args!("{}", row.ping), self.columns.ping, WHITE);
+                numbers(ui, format_args!("{}", row.ping), self.columns.ping, ink);
             }
-            numbers(ui, format_args!("{}", row.time), self.columns.time, WHITE);
+            numbers(ui, format_args!("{}", row.time), self.columns.time, ink);
         }
         if self.options.client_ids {
-            numbers(
-                ui,
-                format_args!("{}", row.client_num),
-                self.columns.id,
-                WHITE,
-            );
+            numbers(ui, format_args!("{}", row.client_num), self.columns.id, ink);
         }
-        if self.header.local.ready & (1 << row.client_num) != 0 {
+        // Ready at intermission, else away, in the room left of the row.
+        let mark = if self.header.local.ready & (1 << row.client_num) != 0 {
+            Some("READY")
+        } else {
+            row.away.map(|_| "AFK")
+        };
+        if let Some(mark) = mark {
             ui.text_aligned(
-                "READY",
+                mark,
                 frame.rect(LINE_X - 64.0, y + 2.0, 60.0, line),
                 frame.text(MEDIUM_CAP * 0.7 * scale),
                 WHITE,
@@ -846,6 +846,9 @@ mod tests {
             assists: 0,
             captures: 0,
             identity: None,
+            order: client,
+            tagged: false,
+            away: None,
         }
     }
 

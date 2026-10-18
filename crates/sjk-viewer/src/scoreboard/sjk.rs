@@ -196,6 +196,9 @@ fn visible_chars(value: &str) -> usize {
     count
 }
 
+/// How strongly an away player's name shows.
+const AWAY_ALPHA: f32 = 0.4;
+
 /// A short run formatted on the stack, to measure and then draw it.
 struct Short {
     bytes: [u8; 64],
@@ -1493,9 +1496,14 @@ impl Painter<'_> {
         let mut slot = 0;
         for (index, row) in rows.iter().filter(|row| member(row)).enumerate() {
             // Players waiting are numbered in turn; others by score, ties
-            // sharing a place.
-            if list.kind == Kind::Waiting || previous != Some(row.score) {
+            // sharing a place, counting the away players moved below.
+            if list.kind == Kind::Waiting {
                 place = index + 1;
+            } else if previous != Some(row.score) {
+                place = 1 + rows
+                    .iter()
+                    .filter(|other| member(other) && other.score > row.score)
+                    .count();
                 previous = Some(row.score);
             }
             let local = self.is_local(row);
@@ -1509,7 +1517,7 @@ impl Painter<'_> {
             } else {
                 target
             };
-            let numbered = (list.numbered && row.has_score).then_some(place);
+            let numbered = (list.numbered && row.has_score && row.away.is_none()).then_some(place);
             self.row(&columns(half), row, numbered, y, row_height);
             slot += 1;
         }
@@ -1610,7 +1618,7 @@ impl Painter<'_> {
             });
         }
         let (name_size, number_size) = text_sizes(self.header.compact, height);
-        let quiet = row.bot || !row.has_score;
+        let quiet = row.bot || !row.has_score || row.away.is_some();
         if let (Some(right), Some(place)) = (columns.place, place) {
             self.run(
                 TextFamily::Display,
@@ -1693,7 +1701,10 @@ impl Painter<'_> {
             middle,
             (room - marks - jof).max(0.0),
             name_size,
-            if quiet {
+            // An away name keeps its colours, faint (they take the run's alpha).
+            if row.away.is_some() {
+                color::alpha(color::TEXT, AWAY_ALPHA)
+            } else if quiet {
                 color::alpha(color::MUTED, 0.85)
             } else {
                 color::TEXT
@@ -1753,6 +1764,27 @@ impl Painter<'_> {
         } else {
             None
         };
+        let away = row.away.filter(|_| status.is_none());
+        if let Some(minutes) = away {
+            // Where the ping goes: what matters of them now.
+            let text = if minutes > 0 {
+                Short::of(format_args!("AFK {minutes}m"))
+            } else {
+                Short::of(format_args!("AFK"))
+            };
+            self.run(
+                TextFamily::Body,
+                format_args!("{}", text.as_str()),
+                columns.ping - 120.0,
+                middle,
+                120.0,
+                15.0,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::End,
+            );
+            return;
+        }
         match status {
             Some(status) => self.run(
                 TextFamily::Body,
@@ -1936,6 +1968,9 @@ mod tests {
                 verified: client % 12 == 1,
                 ..Default::default()
             }),
+            order: client,
+            tagged: false,
+            away: None,
         }
     }
 

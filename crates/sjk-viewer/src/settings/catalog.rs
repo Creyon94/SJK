@@ -282,6 +282,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Away players apart",
+        cvar: crate::scoreboard::AFK_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard client IDs",
         cvar: "cg_showClientIDs",
         kind: ValueKind::Bool,

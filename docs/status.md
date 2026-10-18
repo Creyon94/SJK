@@ -1,3 +1,28 @@
+## Away players on the scoreboard
+
+18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect
+afks reliably ... put them on the side or half hide them when we press tab"):
+implemented, client-side only, `cg_scoreboardAfk` on by default
+([client.md](client.md#away-players)). A player in view whose view angles and weapon
+stay unchanged for 3 minutes is away, the time out of view counting once they are seen
+again unchanged; chat (new `ChatOverlay::spoken` counters), a score gain or a new name
+brings them back; respawns and teleports (`EF_TELEPORT_BIT`) keep the idle time; an
+`[AFK]`-style name tag is away at once. Both scoreboards draw them faint below the
+others of their list; the SJK look leaves them unnumbered with "AFK 7m" in the ping
+column and now ranks the rows above by score count, so places still match the header.
+
+Verified on Windows 11: `scoreboard::afk` unit tests (away after 3 minutes and back on a
+turn, a moving view never away, time out of view counted only when seen again
+unchanged, death and respawn keep the idle time, chat, score gain and rename are
+activity while a score loss is not, the local player and empty slots never marked, name
+tags without colours or case); the world shots `duel6_sjk_scoreboard` and
+`duel6_scoreboard_medals` with two made-up away players (free for all, capture the flag
+and the classic board), looked at. Not verified: nothing was tried in a game or with
+real players; the 3-minute threshold and the false negatives (`+left` spin binds,
+mods that turn players) are reasoned from JoF EJK's `codemp` (`bg_misc.c` copies
+`viewangles` to `apos.trBase`; `ClientSpawn` and `TeleportPlayer` toggle
+`EF_TELEPORT_BIT`), not measured on a server.
+
 ## Blocking a player
 
 18/10/2026, `personal/block-players`, based on `Sol-Vulpes/SJK` `1c8887f7`, Sol's

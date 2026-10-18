@@ -1232,6 +1232,10 @@ and out as the classic board does, settling into place as it opens.
   (compact: one list up to 21, then two).
 - **Spectators:** one line at the bottom, "Watching" then their names without
   colours.
+- **Away players** ([client.md](client.md#away-players), `cg_scoreboardAfk`):
+  below the others of their list, without a place, the name faint with its
+  colours at 40%, numbers muted and "AFK 7m" (or "AFK") in the ping column. The
+  places above count them, so ties and the header's place still agree.
 
 A full server fits the board's canvas (320 text runs, 1024 draw commands) in
 every mode, at 1080 lines and 4K, 5:4, 4:3, 21:9 and 32:9 (unit tests, which

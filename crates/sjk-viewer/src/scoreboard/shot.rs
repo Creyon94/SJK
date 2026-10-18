@@ -121,6 +121,14 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
             }),
             _ => None,
         },
+        order: 0,
+        tagged: name == "Jaden",
+        // Two players away: one seen idle, one wearing a tag.
+        away: match name {
+            "^2Vex" => Some(7),
+            "Jaden" => Some(0),
+            _ => None,
+        },
     }
 }
 
@@ -258,6 +266,12 @@ impl Scoreboard {
                 }
             }
         };
+        // Away players below the others, as `Scoreboard::mark_away` orders them.
+        for (order, row) in self.rows.iter_mut().enumerate() {
+            row.order = order as u8;
+        }
+        self.rows
+            .sort_unstable_by_key(|row| (row.away.is_some(), row.order));
         self.shot = Some(shot);
         self.motion = super::motion::Motion::default();
     }
