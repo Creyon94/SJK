@@ -724,6 +724,11 @@ impl NativeGame {
             from,
             level_time,
         );
+        if let sjk_game_jka::breakables::Hit::Broken { .. } = hit {
+            // `funcBBrushDie`'s `self->enemy = attacker`: a player who broke it is the
+            // activator of what it fires when it goes.
+            self.breakables[index].1.breaker_client = from.is_some().then_some(owner);
+        }
         match hit {
             sjk_game_jka::breakables::Hit::Ignored => {}
             sjk_game_jka::breakables::Hit::Hurt { paintarget, .. } => {
@@ -760,7 +765,12 @@ impl NativeGame {
                 continue;
             };
             let brush = &mut self.breakables[index].1;
-            match sjk_game_jka::breakables::used(brush, from, level_time) {
+            let target = sjk_game_jka::breakables::used(brush, from, level_time);
+            if target.is_none() {
+                // `funcBBrushDie(self, other, activator, ...)`: the user is `self->enemy`.
+                brush.breaker_client = from.and(u16::try_from(client).ok());
+            }
+            match target {
                 Some(target) => self.fire_targets(&target, client, level_time),
                 None if brush.thinking == sjk_game_jka::breakables::Thinking::Breaking => {
                     self.publish_breakable(index)
@@ -809,11 +819,14 @@ impl NativeGame {
 
     /// The place among the doors of the mover numbered `number` when a blow can reach it:
     /// one with `health` (`SP_func_door` gives every one `takedamage`, a team's slaves
-    /// too, before the teams are found).
+    /// too, before the teams are found; so does `SP_func_button`), never a plat, which
+    /// `SP_func_plat` never gives `takedamage`.
     pub(super) fn shootable_mover(&self, number: u16) -> Option<usize> {
-        self.doors
-            .iter()
-            .position(|(id, door)| id.legacy_number() == number && door.health != 0)
+        self.doors.iter().position(|(id, door)| {
+            id.legacy_number() == number
+                && door.health != 0
+                && door.kind != sjk_game_jka::movers::MoverKind::Plat
+        })
     }
 
     /// `funcBBrushDieGo` on the server: the brush leaves the world, fires what it targets,
@@ -840,7 +853,12 @@ impl NativeGame {
             broken.splash.map(|(damage, radius, _)| (damage, radius))
         );
         if let Some(target) = &broken.target {
-            self.fire_targets(target, 0, level_time);
+            // `G_UseTargets(self, self->enemy)`: the client who broke it, if one did.
+            let activator = self.breakables[index]
+                .1
+                .breaker_client
+                .map_or(usize::MAX, usize::from);
+            self.fire_targets(target, activator, level_time);
         }
         if let Some(explosion) = &broken.explosion {
             self.raise_event(

@@ -262,10 +262,11 @@ on the server, after OpenJK `g_mover.c` and `g_combat.c`:
   by it; any blow that reaches `hurt_brush` opens such a door.
 
 A breakable's targets now fire whoever broke it (`G_Damage` makes a missing attacker
-the world), so one broken by an NPC, a turret or after its delay fires them too; its
+the world), so one broken by an NPC, a turret or after its delay fires them too, with
+the player who broke it, if one did, as their activator (`self->enemy`); its
 chunks fly from where the breaker stood (`breaker`), straight up when unknown. A
 missile that carries no damage hurts nothing; a door with health opens whichever part of
-its team is struck; an `INACTIVE` `func_usable` is passed by, and `ALWAYS_ON` ones wake
+its team is struck (a plat never, as `SP_func_plat` gives none `takedamage`); an `INACTIVE` `func_usable` is passed by, and `ALWAYS_ON` ones wake
 every frame. The reporter confirmed the korriban door broke after the laser. Four unit
 tests pin `funcBBrushUse` and the targets; the touched crates' tests pass on Linux. That the
 korriban door is a breakable used by name is inferred from the report (the laser), not
@@ -298,7 +299,7 @@ and a pull to the nearer (`GEntity_UseFunc`); a `func_button` with
 `SPF_BUTTON_FPUSHABLE` is pressed by a push at rest (`Touch_Button`). The used movers
 run `use_mover` once the throw is over, firing their targets as the use key does. A
 throw's traces now meet the level's brushes (doors, lifts, breakables, scripted
-brushes), as `MASK_SHOT` does in the reference, so a closed door also stops a push
+brushes, solid `func_usable` walls), as `MASK_SHOT` does in the reference, so a closed door also stops a push
 on a player behind it. `func_static`s with `F_PUSH`/`F_PULL` are still not moved.
 
 fmt, and clippy and the tests of `sjk-game-jka` and `sjk-dedicated`, passed on Linux

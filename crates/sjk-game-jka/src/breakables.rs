@@ -109,6 +109,10 @@ pub struct Breakable {
     /// Where whoever broke it stood (`self->enemy`, kept for a delayed
     /// `funcBBrushDieGo`): its chunks fly away from there, straight up for nobody known.
     pub breaker: Option<[f32; 3]>,
+    /// The client who broke it, `self->enemy` as `funcBBrushDieGo`'s activator for
+    /// the targets it fires; `None` for anything that is not a player. The server
+    /// sets it with `breaker`.
+    pub breaker_client: Option<u16>,
 }
 
 /// `SP_func_breakable` (`g_mover.c:2751-2849`) with `InitBBrush` (`:2619-2680`): ten
@@ -190,6 +194,7 @@ pub fn spawn(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Breakable>
         next_think: 0,
         thinking: Thinking::None,
         breaker: None,
+        breaker_client: None,
     })
 }
 

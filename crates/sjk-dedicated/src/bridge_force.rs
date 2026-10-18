@@ -149,11 +149,13 @@ impl NativeGame {
         let before: Vec<Option<sjk_protocol::PlayerState>> = (0..self.players.places())
             .map(|number| self.peer(number).map(|peer| peer.state.clone()))
             .collect();
-        // The brushes a throw's traces meet, and the movers it may reach.
+        // The brushes a throw's traces meet (the func_usable walls too, as movement's
+        // `bridge_collision_gather` has them), and the movers it may reach.
         let brushes: Vec<BoxObstacle> =
             crate::collision::brush_obstacles(&self.breakables, &self.doors, server_time)
                 .chain(self.stock.obstacles())
                 .chain(self.scripts.brushes())
+                .chain(crate::collision::usable_obstacles(&self.usable_entities))
                 .collect();
         let movers: Vec<ThrowMover> = self
             .doors
