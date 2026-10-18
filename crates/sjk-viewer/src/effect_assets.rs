@@ -86,6 +86,8 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "saber/blood_sparks_25_mp",
     "saber/blood_sparks_50_mp",
     "mp/itemcone",
+    // `CG_RegisterGraphics`: the worn pack's graph may be replaced by a PK3.
+    crate::jetpack::EFFECT,
     "force/lightning",
     "force/lightningwide",
     "force/confusion_old",
@@ -192,4 +194,22 @@ pub(crate) fn required_models<'a>(
         }
     }
     models
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn installed_jetpack_graph_dependencies_are_registered_before_flight() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "replacement-pack",
+            [(
+                "effects/boba/jet.efx",
+                "Particle { shaders [ gfx/test/custom_exhaust ] }",
+            )],
+        )
+        .unwrap();
+        assert!(required_shaders(&vfs, []).contains("gfx/test/custom_exhaust"));
+    }
 }
