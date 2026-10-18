@@ -385,7 +385,7 @@ impl GpuState {
         }
         self.live_map_installed = true;
         if let Some(menu) = &mut self.client_menu {
-            menu.joined();
+            menu.joined(self.last_connect_address.as_deref());
         }
         self.reset_live_presentation();
         self.server_clock.reset_connection(Instant::now());

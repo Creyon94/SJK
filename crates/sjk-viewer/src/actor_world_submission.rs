@@ -38,6 +38,7 @@ mod player_spheres;
 
 struct Sinks<'a> {
     grip_victim: bool,
+    force_fx: force_powers::policy::Policy,
     flame: Option<&'static force_powers::flame::Contract>,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
@@ -109,7 +110,8 @@ struct Sinks<'a> {
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
     /// Each client slot's team blade colours in team games: `cg_saberTeamColors`, and
-    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`).
+    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`); in
+    /// Siege the class-forced colours (`siege_sabers.rs`).
     team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
@@ -186,11 +188,13 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_auraShell"))
         .unwrap_or(1)
         != 0;
-    let combined_protect_absorb = gpu
-        .console
-        .as_ref()
-        .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
-        .unwrap_or(true);
+    let force_fx = force_powers::policy::Policy::sample(gpu.console.as_ref(), game_state);
+    let combined_protect_absorb = force_fx.combined
+        && gpu
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
+            .unwrap_or(true);
     // 1 draws multiplayer's sphere around a shield hit; 0 hugs the body like single player.
     let shield_sphere = gpu
         .console
@@ -234,11 +238,13 @@ pub(crate) fn submit(
         .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
         .unwrap_or(0);
     let mut sinks = Sinks {
-        grip_victim: gpu
-            .console
-            .as_ref()
-            .and_then(|console| console.bool_cvar(force_powers::victim::CVAR))
-            .unwrap_or(true),
+        force_fx,
+        grip_victim: force_fx.animation
+            && gpu
+                .console
+                .as_ref()
+                .and_then(|console| console.bool_cvar("cg_gripvictimfx"))
+                .unwrap_or(true),
         flame: force_powers::flame::policy(game_state, gpu.console.as_ref()),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
@@ -338,7 +344,10 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
-        team_blades: crate::team_sabers::blades(gpu.console.as_ref(), game_state),
+        team_blades: crate::team_sabers::with_classes(
+            crate::team_sabers::blades(gpu.console.as_ref(), game_state),
+            gpu.siege_sabers.forced(game_state, gpu.vfs.as_deref()),
+        ),
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
         team_outline: gpu.hud.team_outline.groups(),
     };
@@ -600,7 +609,8 @@ fn submit_actor(
         equipment = equipment.map(crate::muted_players::equipment);
     }
     // In team games the blades take the team's colour, muted or not
-    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`).
+    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`), and in Siege the class's forced
+    // colour (`siege_sabers.rs`): the game sets those, not the player.
     let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
     if team_blade.any() {
         equipment = equipment.map(|mut held| {
@@ -874,6 +884,9 @@ fn submit_actor(
                     view_flags: sinks.entity_view_flags,
                     tricked: trick.fading,
                     dead: flags.is_some_and(|flags| flags & EF_DEAD != 0),
+                    state_visible: snapshot.is_none_or(|snapshot| {
+                        crate::cosmetics::actors::visible_in_state(&snapshot.player, state, local)
+                    }),
                 },
                 sinks.object_groups,
             );

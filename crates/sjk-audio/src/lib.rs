@@ -753,19 +753,37 @@ impl Mixer {
         repeating: SoundHandle,
         volume: f32,
     ) -> bool {
-        if self.bank.sample_count(intro).is_none_or(|count| count == 0)
-            || self
-                .bank
-                .sample_count(repeating)
-                .is_none_or(|count| count == 0)
-        {
+        self.start_background_track_at(intro, repeating, volume, 0)
+    }
+
+    /// Start at elapsed milliseconds in the intro/repeating sequence, in constant time.
+    /// The intro plays once; elapsed time beyond it wraps within the repeating sound.
+    /// Decoded PCM must already be registered. A failed start preserves the old track.
+    pub fn start_background_track_at(
+        &mut self,
+        intro: SoundHandle,
+        repeating: SoundHandle,
+        volume: f32,
+        elapsed_ms: u64,
+    ) -> bool {
+        let Some(intro_len) = self.bank.sample_count(intro).filter(|count| *count > 0) else {
             return false;
-        }
+        };
+        let Some(loop_len) = self.bank.sample_count(repeating).filter(|count| *count > 0) else {
+            return false;
+        };
+        let frames = u128::from(elapsed_ms) * u128::from(self.bank.sample_rate) / 1000;
+        let in_intro = frames < intro_len as u128;
+        let cursor = if in_intro {
+            frames as usize
+        } else {
+            ((frames - intro_len as u128) % loop_len as u128) as usize
+        };
         self.background = Some(BackgroundTrack {
             intro,
             repeating,
-            cursor: 0,
-            in_intro: true,
+            cursor,
+            in_intro,
             volume: volume.clamp(0.0, 1.0),
         });
         true
@@ -1091,3 +1109,6 @@ mod spatial_tests;
 mod sync_mix_tests;
 #[cfg(test)]
 mod voice_steal_tests;
+
+#[cfg(test)]
+mod music_offset_tests;

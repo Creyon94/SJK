@@ -180,11 +180,21 @@ impl HudOverlay {
         );
     }
 
-    /// Optional right-side readouts follow the leader block: the snapshot line's and
-    /// the inventory's tops.
-    pub(super) fn upper_right_stack(&self) -> [f32; 2] {
+    /// Optional right-side readouts follow the leader block and the frame rate and
+    /// clock above them (`console_overlay`, drawn apart from the HUD, which wrote
+    /// over the snapshot line): the snapshot line's and the inventory's tops, in
+    /// 1080-line pixels for a window `viewport_height` tall.
+    pub(super) fn upper_right_stack(&self, viewport_height: f32) -> [f32; 2] {
         let bottom = self.enemy_info.bottom();
-        let snapshot = if bottom > 0.0 { bottom + 16.0 } else { 50.0 };
+        let fps = self.kill_feed.options().fps;
+        let readouts = if fps || self.upper_right_timer {
+            crate::console_overlay::upper_right_bottom(viewport_height, fps, self.upper_right_timer)
+                / crate::ui_scale::height_scale(viewport_height)
+                + 6.0
+        } else {
+            0.0
+        };
+        let snapshot = if bottom > 0.0 { bottom + 16.0 } else { 50.0 }.max(readouts);
         let after_snapshot = snapshot + if self.family.snapshot { 28.0 } else { 0.0 };
         let inventory = 100.0_f32.max(after_snapshot);
         [snapshot, inventory]
@@ -199,7 +209,7 @@ impl HudOverlay {
         self.enemy_info
             .emit(&mut self.draw_list, viewport, self.theme);
         let s = crate::ui_scale::height_scale(viewport[1]);
-        let [snapshot_top, inventory_top] = self.upper_right_stack();
+        let [snapshot_top, inventory_top] = self.upper_right_stack(viewport[1]);
         let mut bottom = self.enemy_info.bottom() * s;
         if self.family.upper && self.family.snapshot {
             bottom = bottom.max((snapshot_top + 28.0) * s);

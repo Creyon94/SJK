@@ -169,6 +169,16 @@ impl ViewerConsole {
         let time_nudge = crate::presentation_clock::CvarSetting::bind(&mut cvars)?;
         let smooth_clients =
             console_cvars::IntegerSetting::bind(&mut cvars, "cg_smoothClients", 0)?;
+        let hide_corpses_in_duel = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::duel_visibility::CORPSES_CVAR,
+            1,
+        )?;
+        let hide_pickups_in_duel = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::duel_visibility::PICKUPS_CVAR,
+            1,
+        )?;
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
         let remap_blocked_maps =
             console_cvars::RevisionSetting::bind(&mut cvars, crate::remap_blocked_maps::CVAR)?;
@@ -598,6 +608,8 @@ impl ViewerConsole {
             show_timedelta,
             time_nudge,
             smooth_clients,
+            hide_corpses_in_duel,
+            hide_pickups_in_duel,
             draw_fog,
             remaps,
             remap_blocked_maps,
@@ -1183,7 +1195,7 @@ mod tests {
         assert_eq!(console.force_repeat_command(), Some(6), "the last pressed");
         console.queue_bound_script("MOUSE4", false);
         assert_eq!(console.force_repeat_command(), Some(6));
-        console.force_repeat_key_up(KeyCode::KeyF, None);
+        console.queue_bound_key(KeyCode::KeyF, None, false);
         assert_eq!(
             console.force_repeat_command(),
             None,

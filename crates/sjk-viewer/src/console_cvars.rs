@@ -171,6 +171,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Kill cue: 0 off, 1 normal, 2 midair",
         ),
         CvarDefinition::new(
+            crate::audio::music::CVAR,
+            true,
+            archive,
+            "Resume file-based map music using level time; dynamic music keeps its own transitions",
+        ),
+        CvarDefinition::new(
             "cg_jumpSounds",
             0_i64,
             archive,
@@ -181,6 +187,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1_i64,
             archive,
             "Roll voices: 0 off, 1 all, 2 others, 3 self",
+        ),
+        CvarDefinition::new(
+            "cg_tauntAntiSpam",
+            true,
+            archive,
+            "Limit repeated model voices; taunts wait for the previous sample to finish",
         ),
         CvarDefinition::new(
             "cl_allowDownload",
@@ -262,6 +274,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Extrapolate remote players and NPCs from snapshot velocity",
+        ),
+        CvarDefinition::new(
+            crate::duel_visibility::CORPSES_CVAR,
+            1_i64,
+            archive,
+            "Hide dead bodies only while you are in a private duel",
+        ),
+        CvarDefinition::new(
+            crate::duel_visibility::PICKUPS_CVAR,
+            1_i64,
+            archive,
+            "Hide pickups only while you are in a private duel",
         ),
         CvarDefinition::new(
             "cg_errorDecay",
@@ -677,6 +701,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         // JoF EJK's `cg_spprotabscolor` (cg_xcvar.h), same default.
         CvarDefinition::new(
+            crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+            true,
+            archive,
+            "Rage, Heal, Quick Heal and Grip-victim animation effects",
+        ),
+        CvarDefinition::new(
+            crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+            -1_i64,
+            archive,
+            "Empower glow: -1 server, 0 full body, 1 arms, 2 hands; ordinary Push stays full body",
+        ),
+        CvarDefinition::new(
             "cg_spProtAbsColor",
             true,
             archive,
@@ -735,6 +771,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "",
             archive,
             "The SJK version whose update recap (the what's-new card) you closed; empty shows the current one once",
+        ),
+        CvarDefinition::new(
+            crate::whats_new_card::RESET_CVAR,
+            "",
+            archive,
+            "The SJK version whose update put the settings it changed back to their default (the what's-new card's Settings to review), so they are reset once",
         ),
         CvarDefinition::new(
             crate::donation_goal::CVAR,
@@ -910,6 +952,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Draw pickup icons instead of models",
         ),
         CvarDefinition::new(
+            sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+            "",
+            archive,
+            "Player model names replaced with Kyle; NPCs are unaffected",
+        ),
+        CvarDefinition::new(
+            sjk_client::player_model_eligibility::METADATA_CVAR,
+            true,
+            archive,
+            "Respect installed player-model eligibility metadata",
+        ),
+        CvarDefinition::new(
             "cg_forceModel",
             false,
             archive,
@@ -970,6 +1024,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "SJK scoreboard: show the frame rate on the header line, left of the clock",
+        ),
+        CvarDefinition::new(
+            crate::scoreboard::AFK_CVAR,
+            true,
+            archive,
+            "Scoreboard: players seen still for 3 minutes (or wearing [AFK]) drawn faint below the others",
         ),
         CvarDefinition::new(
             "cg_smallScoreboard",

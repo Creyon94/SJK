@@ -13,6 +13,8 @@ use std::error::Error;
 #[path = "force_bones.rs"]
 mod force_bones;
 pub(crate) use force_bones::ForceBones;
+#[cfg(test)]
+pub(crate) use force_bones::PUSH_BONE_NAMES;
 
 #[path = "actor_pose_retained.rs"]
 pub(crate) mod retained;

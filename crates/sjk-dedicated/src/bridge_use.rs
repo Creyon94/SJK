@@ -18,6 +18,8 @@ const HANDEXTEND_NONE: u8 = 0;
 const HANDEXTEND_DRAGGING: u8 = 15;
 /// `PMF_FOLLOW`.
 const PMF_FOLLOW: u16 = 4_096;
+/// `s.eFlags`' entity field (`msg.cpp`).
+const USABLE_EFLAGS: usize = 19;
 
 impl NativeGame {
     /// The `func_usable` brushes a map places, as the entities the use key reaches for,
@@ -104,31 +106,49 @@ impl NativeGame {
         if let Some(index) = self.doors.iter().position(|(number, door)| {
             number.legacy_number() == found && door.kind == sjk_game_jka::movers::MoverKind::Button
         }) {
-            let fired = sjk_game_jka::mover_team::use_mover(
-                &mut self.doors,
-                index,
-                level_time,
-                Some(client),
-            );
-            self.publish_team(index);
-            if let Some(target) = fired
-                && !target.is_empty()
-            {
-                self.fire_targets(&target, client, level_time);
-            }
+            self.use_door_at(index, client, level_time);
             return;
         }
-        // A `func_usable` the map made `PLAYER_USE` fires what it targets
-        // (`ValidUseTarget`, `func_usable_use`).
-        if let Some((_, usable)) = self
+        // A `func_usable` the map made `PLAYER_USE` is used (`ValidUseTarget`,
+        // `func_usable_use`).
+        if let Some(index) = self
             .usable_entities
             .iter()
-            .find(|(number, usable)| {
-                number.legacy_number() == found && usable.answers_use() && !usable.target.is_empty()
-            })
-            .cloned()
+            .position(|(number, usable)| number.legacy_number() == found && usable.answers_use())
         {
-            self.fire_targets(&usable.target, client, level_time);
+            self.use_usable(index, client, level_time);
+        }
+    }
+
+    /// `func_usable_use` on the usable at `index` of the map's list: it toggles (or, when
+    /// `ALWAYS_ON`, rests), clients are sent what it now is, and it fires what it fires.
+    fn use_usable(&mut self, index: usize, client: usize, level_time: i32) {
+        let (number, usable) = &mut self.usable_entities[index];
+        let number = *number;
+        let fired = usable.used(level_time);
+        let (present, eflags) = (usable.present, usable.eflags);
+        if let Some(state) = self.pool.state_mut(number) {
+            state.set_raw_field(USABLE_EFLAGS, eflags);
+        }
+        self.pool.show(number, present);
+        self.fire_targets(&fired, client, level_time);
+    }
+
+    /// `G_UseTargets` reaching the `func_usable`s called `name`: each is used in turn, but
+    /// one the map made `INACTIVE` (`GlobalUse`).
+    pub(super) fn use_usables(&mut self, name: &str, client: usize, level_time: i32) {
+        for index in 0..self.usable_entities.len() {
+            let usable = &self.usable_entities[index].1;
+            if usable.targetname.eq_ignore_ascii_case(name) && !usable.inactive() {
+                self.use_usable(index, client, level_time);
+            }
+        }
+    }
+
+    /// `func_usable_think`: the `ALWAYS_ON` usables whose `wait` is over answer again.
+    pub(super) fn run_usables(&mut self, level_time: i32) {
+        for (_, usable) in &mut self.usable_entities {
+            usable.wake(level_time);
         }
     }
 

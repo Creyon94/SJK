@@ -3,10 +3,13 @@
 //! where they will go: three empty places on the left (a crest before the name, a
 //! frame round the plate, a trail under it) and, over the player's model beside the
 //! page, their nameplate as a match draws it near, with dashed marks at those places.
+//! Under the words beside it, See and share nameplates switches `cg_nameplate`, the one
+//! setting for seeing other players' nameplates and sharing the player's own health,
+//! shield and Force ([`crate::hud::nameplate::see_and_share`]).
 
-use super::view::{LEFT_X, MODEL_AREA, STAGE_TEXT_WIDTH, STAGE_TEXT_X, left_lines};
+use super::view::{LEFT_X, MODEL_AREA, STAGE_TEXT_WIDTH, STAGE_TEXT_X, glow, left_lines};
 use super::*;
-use crate::menu::sjk::{Frame, color, text};
+use crate::menu::sjk::{Frame, color, kit, text};
 use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign};
 use std::f32::consts::{PI, TAU};
@@ -21,6 +24,17 @@ const PLATE_WIDTH: f32 = 176.0;
 const SHIELD: Color = Color::new(0.25, 0.82, 0.5, 1.0);
 const HEALTH: Color = Color::new(0.9, 0.28, 0.3, 1.0);
 const FORCE: Color = Color::new(0.29, 0.66, 1.0, 1.0);
+
+/// The See and share nameplates row's width, from its name to the switch's right edge.
+const SHARE_ROW: f32 = 420.0;
+/// How long one pulse of the See and share nameplates row takes.
+const SHARE_PULSE_SECONDS: f32 = 1.2;
+
+/// How lit the See and share nameplates row is `seconds` into the page, 0 to 1 and back each
+/// [`SHARE_PULSE_SECONDS`], eased at both ends.
+fn share_pulse(seconds: f32) -> f32 {
+    0.5 - 0.5 * (seconds * TAU / SHARE_PULSE_SECONDS).cos()
+}
 
 /// `name` without its colour codes (`^1`).
 fn plain(name: &str) -> String {
@@ -118,7 +132,7 @@ impl Panel {
         );
         let at = self.plate_spot(frame);
         self.nameplate(frame, inputs, at);
-        self.nameplate_words(frame);
+        self.nameplate_words(frame, inputs);
     }
 
     /// Empty place `index` from `x`: a dashed niche with a drawing of where its kind
@@ -334,8 +348,8 @@ impl Panel {
         );
     }
 
-    /// What the nameplate is, beside the model.
-    fn nameplate_words(&mut self, frame: &Frame) {
+    /// What the nameplate is, beside the model, and the See and share nameplates switch.
+    fn nameplate_words(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
         let x = STAGE_TEXT_X;
         let width = STAGE_TEXT_WIDTH;
@@ -373,7 +387,7 @@ impl Panel {
             TextAlign::Start,
         );
         y += 4.0;
-        left_lines(
+        y = left_lines(
             &mut self.ui,
             frame,
             "Ornaments will go before your name, round your plate and under it: the dashed marks.",
@@ -383,12 +397,79 @@ impl Panel {
             color::MUTED,
             TextAlign::Start,
         );
+        y += 18.0;
+        self.share_switch(frame, inputs, [x, y, width]);
+    }
+
+    /// See and share nameplates: its name, the switch and what it does, from `y`. The row
+    /// pulses, a gold ring round it and a glow behind the switch, so it is not missed.
+    fn share_switch(&mut self, frame: &Frame, inputs: &Inputs<'_>, [x, y, width]: [f32; 3]) {
+        let s = frame.s;
+        let seconds = self.epoch.elapsed().as_secs_f32();
+        #[cfg(test)]
+        let seconds = self.shot_seconds.unwrap_or(seconds);
+        let pulse = share_pulse(seconds);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: frame.rect(x - 14.0, y - 9.0, SHARE_ROW + 28.0, 48.0),
+            radius: 12.0 * s,
+            width: (1.5 + pulse) * s,
+            color: color::alpha(color::GOLD, 0.25 + 0.65 * pulse),
+        });
+        glow(
+            &mut self.ui,
+            frame,
+            [x + SHARE_ROW - 60.0, y + 15.0],
+            40.0 + 10.0 * pulse,
+            color::GOLD,
+            0.15 + 0.35 * pulse,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("See & share nameplates"),
+            frame.rect(x, y, SHARE_ROW - 100.0, 30.0),
+            22.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        let right = x + SHARE_ROW;
+        let left = kit::switch(&mut self.ui, frame, right, y + 15.0, inputs.share, true);
+        self.ui.hit_region(
+            SHARE_TOKEN,
+            frame.rect(left - 4.0, y - 4.0, right - left + 8.0, 38.0),
+        );
+        let note = match (inputs.enabled, inputs.share) {
+            (false, _) => "Needs the SJK identity (Settings > Network) to reach other players.",
+            (true, true) => {
+                "You see other players' nameplates, and your health, shield and Force go to the SJK players of your server."
+            }
+            (true, false) => "Off: you see no nameplates, and nothing of yours is sent.",
+        };
+        left_lines(
+            &mut self.ui,
+            frame,
+            note,
+            [x, y + 40.0, width],
+            (60, 2),
+            16.0,
+            color::QUIET,
+            TextAlign::Start,
+        );
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The pulse starts dark, is fully lit halfway through and dark again at the end.
+    #[test]
+    fn the_share_row_pulses_from_dark_to_lit_and_back() {
+        assert!(share_pulse(0.0) < 1e-6);
+        assert!((share_pulse(SHARE_PULSE_SECONDS * 0.5) - 1.0).abs() < 1e-6);
+        assert!(share_pulse(SHARE_PULSE_SECONDS) < 1e-5);
+    }
 
     /// The empty places, the nameplate and its words fit over the keys with the model
     /// on the stage, in a preview and without it, at 1080 lines, 4K, 4:3 and 21:9.
@@ -415,6 +496,8 @@ mod tests {
                 assert!(!panel.ui.overflowed(), "{viewport:?}");
                 let frame = Frame::new(viewport);
                 let keys = frame.point(0.0, super::super::view::KEYS_Y)[1];
+                let switch = panel.ui.rect_for(SHARE_TOKEN).expect("the share switch");
+                assert!(switch.bottom() <= keys, "{viewport:?}");
                 for command in panel.ui.draw_list().commands() {
                     if let DrawCommand::Text { rect, .. } = command {
                         assert!(rect.bottom() <= keys || rect.y >= keys, "{rect:?}");

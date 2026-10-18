@@ -1,11 +1,12 @@
 //! Siege selection metadata, loaded only when opening the selector.
 //! TaystJK codemp/ui/ui_main.c:8730-8810; game/bg_saga.c:773-823,1255-1366.
 
+use sjk_game_jka::siege_class::{MAX_SIEGE_CLASSES, MAX_SIEGE_CLASSES_PER_TEAM, MAX_SIEGE_TEAMS};
 use sjk_protocol::{GameState, InfoString};
 use sjk_vfs::VirtualFileSystem;
 
 /// The map's two allowed class lists, in theme order.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub(super) struct Classes {
     /// Red and blue lists contain declared names accepted by `siegeclass`.
     pub teams: [Vec<String>; 2],
@@ -62,9 +63,15 @@ impl Classes {
         let teams = group(&map_data, "Teams").ok_or("Missing Siege Teams group")?;
         let mut class_names = Vec::new();
         let mut themes = Vec::new();
+        let mut class_files = 0;
+        let mut team_files = 0;
         for path in vfs.paths() {
             let path = path.as_str();
             if path.starts_with("ext_data/siege/classes/") && path.ends_with(".scl") {
+                if class_files >= MAX_SIEGE_CLASSES {
+                    continue;
+                }
+                class_files += 1;
                 let data = read(vfs, path)?;
                 let class = group(&data, "ClassInfo").ok_or("Missing ClassInfo group")?;
                 let name = value(class, "name").ok_or("Missing Siege class name")?;
@@ -73,6 +80,10 @@ impl Classes {
                 }
                 class_names.push(name.to_owned());
             } else if path.starts_with("ext_data/siege/teams/") && path.ends_with(".team") {
+                if team_files >= MAX_SIEGE_TEAMS {
+                    continue;
+                }
+                team_files += 1;
                 themes.push(read(vfs, path)?);
             }
         }
@@ -92,7 +103,7 @@ impl Classes {
                 .find(|data| value(data, "name").is_some_and(|n| n.eq_ignore_ascii_case(theme)))
                 .ok_or_else(|| format!("Siege theme not installed: {theme}"))?;
             let entries = group(theme, "Classes").ok_or("Missing theme Classes")?;
-            for number in 1..64 {
+            for number in 1..=MAX_SIEGE_CLASSES_PER_TEAM {
                 let Some(name) = value(entries, &format!("class{number}")) else {
                     break;
                 };
@@ -250,4 +261,63 @@ fn group<'a>(tokens: &'a [String], key: &str) -> Option<&'a [String]> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod catalogue_limit_tests {
+    use super::*;
+    fn map(theme: usize) -> Vec<u8> {
+        format!("Teams\n{{\nteam1 red\nteam2 blue\n}}\nred\n{{\nUseTeam theme{theme}\n}}\nblue\n{{\nUseTeam theme{theme}\n}}\n").into_bytes()
+    }
+    #[test]
+    fn both_class_selectors_use_the_same_global_and_per_theme_bounds() {
+        let mut vfs = VirtualFileSystem::new();
+        let mut entries = Vec::new();
+        for index in 0..=1024 {
+            entries.push((format!("ext_data/siege/classes/{index:04}.scl"), format!("ClassInfo\n{{\nname unit{index:04}\nweapons WP_MELEE\nuishader synthetic/ui\n}}\n").into_bytes()));
+        }
+        let classes = (1..=20)
+            .map(|i| format!("class{i} unit{:04}\n", 128 + i))
+            .collect::<String>();
+        for index in 0..=256 {
+            entries.push((
+                format!("ext_data/siege/teams/{index:03}.team"),
+                format!("name theme{index}\nClasses\n{{\n{classes}}}\n").into_bytes(),
+            ));
+        }
+        entries.push(("maps/synthetic.siege".into(), map(255)));
+        vfs.mount_memory("synthetic", entries).unwrap();
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(0, b"\\g_gametype\\7\\mapname\\synthetic".to_vec())
+            .unwrap();
+        let choices = Classes::load(&vfs, &game).unwrap();
+        for side in choices.teams {
+            assert_eq!(side.len(), 16);
+            assert_eq!(side.first().unwrap(), "unit0129");
+            assert_eq!(side.last().unwrap(), "unit0144");
+        }
+        vfs.mount_memory("map override", [("maps/synthetic.siege", map(256))])
+            .unwrap();
+        assert!(
+            Classes::load(&vfs, &game)
+                .unwrap_err()
+                .contains("Siege theme not installed: theme256")
+        );
+        vfs.mount_memory(
+            "class override",
+            [
+                ("maps/synthetic.siege", map(255)),
+                (
+                    "ext_data/siege/teams/255.team",
+                    b"name theme255\nClasses\n{\nclass1 unit1024\n}\n".to_vec(),
+                ),
+            ],
+        )
+        .unwrap();
+        assert!(
+            Classes::load(&vfs, &game)
+                .unwrap_err()
+                .contains("Siege class not installed: unit1024")
+        );
+    }
 }

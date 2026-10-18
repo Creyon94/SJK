@@ -111,7 +111,14 @@ impl LegacySoundAdapter {
             .identity(snapshot.player.client_num(), snapshot.player.entity_flags());
         // External events precede the predictable ring in CG_CheckPlayerstateEvents.
         let external = snapshot.player.external_event();
-        if external != 0 && external != self.player_external_event {
+        // JoF EJK #123: following another player must seed its pending external
+        // event, not replay it as a new sound in the listener's view.
+        let client = snapshot.player.client_num();
+        let changed_view = self
+            .player_external_client
+            .is_some_and(|previous| previous != client);
+        self.player_external_client = Some(client);
+        if !changed_view && external != 0 && external != self.player_external_event {
             self.resolve(
                 external & 0xff,
                 u16::from(snapshot.player.external_event_parameter()),
@@ -131,7 +138,14 @@ impl LegacySoundAdapter {
         } else {
             previous
         };
-        for i in sequence - 2..sequence {
+        // CG_TransitionPlayerState copies the new view over the old one on a
+        // client change, so the followed player's ring is seeded, not replayed.
+        let ring = if changed_view {
+            sequence..sequence
+        } else {
+            sequence - 2..sequence
+        };
+        for i in ring {
             let slot = (i & 1) as usize;
             if i >= previous || (i > previous - 2 && events[slot] != self.player_events[slot]) {
                 let parameter = snapshot.player.event_parameter(slot).unwrap_or(0);
@@ -164,3 +178,7 @@ fn sound_parameter(event: u16, parameter: u16) -> u16 {
         parameter
     }
 }
+
+#[cfg(test)]
+#[path = "sound_external_tests.rs"]
+mod external_tests;

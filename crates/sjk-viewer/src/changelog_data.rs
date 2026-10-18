@@ -16,6 +16,8 @@ pub(super) struct Release {
     pub(super) intro: Vec<String>,
     /// The short recap the what's-new card shows after an update.
     pub(super) recap: Vec<Recap>,
+    /// The settings the release asks players to look at again (`= <cvar>: <sentence>`).
+    pub(super) review: Vec<Review>,
     pub(super) changes: Vec<Change>,
     /// "<date>   /   <n> changes" for the list row.
     pub(super) meta: String,
@@ -25,6 +27,17 @@ pub(super) struct Release {
 #[derive(Debug)]
 pub(super) struct Recap {
     pub(super) heading: String,
+    pub(super) text: String,
+}
+
+/// A setting a release changed, which the what's-new card asks the player to choose again:
+/// `= <cvar>: <sentence>`, or `= <cvar> reset: <sentence>` to put it back to its default
+/// first, so a value saved before the change does not carry over unchosen.
+#[derive(Debug)]
+pub(super) struct Review {
+    pub(super) cvar: String,
+    pub(super) reset: bool,
+    /// Why it is asked, code in backticks.
     pub(super) text: String,
 }
 
@@ -90,6 +103,7 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
                 date: date.to_owned(),
                 intro: Vec::new(),
                 recap: Vec::new(),
+                review: Vec::new(),
                 changes: Vec::new(),
                 meta: String::new(),
             });
@@ -136,6 +150,38 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
             // The card draws the sentence's code spans in chips, so they stay marked.
             release.recap.push(Recap {
                 heading: plain(heading.trim()),
+                text: text.trim().to_owned(),
+            });
+        } else if let Some(entry) = line.strip_prefix("= ") {
+            flush(&mut releases, &mut paragraph);
+            let release = releases.last_mut().expect("checked above");
+            if !release.changes.is_empty() {
+                return Err(format!(
+                    "CHANGELOG.md line {number}: a setting to review comes before a release's changes"
+                ));
+            }
+            let malformed = || {
+                format!(
+                    "CHANGELOG.md line {number}: a setting to review is \"= <cvar>[ reset]: <text>\""
+                )
+            };
+            let (head, text) = entry.split_once(": ").ok_or_else(malformed)?;
+            let (cvar, reset) = match head.trim().split_once(' ') {
+                None => (head.trim(), false),
+                Some((cvar, "reset")) => (cvar, true),
+                Some(_) => return Err(malformed()),
+            };
+            if cvar.is_empty() || !cvar.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+                return Err(malformed());
+            }
+            if crate::inline_code::unbalanced(text) {
+                return Err(format!(
+                    "CHANGELOG.md line {number}: a setting to review leaves a ` code span open"
+                ));
+            }
+            release.review.push(Review {
+                cvar: cvar.to_owned(),
+                reset,
                 text: text.trim().to_owned(),
             });
         } else if line.trim().is_empty() {
@@ -275,6 +321,80 @@ mod tests {
             parse("## Unreleased\n- x _(Sol)_\n").unwrap()[0].version(),
             None
         );
+    }
+
+    #[test]
+    fn settings_to_review_name_a_cvar_and_say_why() {
+        let text = "## 1.0 | 05/10/2026
+
+> A: b.
+
+= cg_nameplate reset: It shares now.
+= cg_fov: Wider.
+
+- x _(Sol)_
+";
+        let releases = parse(text).unwrap();
+        let review = &releases[0].review;
+        assert_eq!(review.len(), 2);
+        assert_eq!(
+            (
+                review[0].cvar.as_str(),
+                review[0].reset,
+                review[0].text.as_str()
+            ),
+            ("cg_nameplate", true, "It shares now.")
+        );
+        assert_eq!(
+            (review[1].cvar.as_str(), review[1].reset),
+            ("cg_fov", false)
+        );
+        for bad in [
+            "= cg_fov later: x.",
+            "= : x.",
+            "= cg_fov no colon",
+            "= cg fov: x.",
+            "= cg_fov: an `open span",
+        ] {
+            let text = format!(
+                "## 1.0 | 05/10/2026
+{bad}
+- x _(Sol)_
+"
+            );
+            assert!(parse(&text).is_err(), "{bad}");
+        }
+        assert!(
+            parse(
+                "## 1.0 | 05/10/2026
+- x _(Sol)_
+= cg_fov: late.
+"
+            )
+            .is_err()
+        );
+    }
+
+    /// Every setting a release asks players to review is a switch Settings shows, so the
+    /// card can draw it with its name and switch it.
+    #[test]
+    fn every_setting_to_review_is_a_settings_switch() {
+        for release in parse(EMBEDDED).unwrap() {
+            for review in &release.review {
+                assert!(
+                    crate::settings::switch_label(&review.cvar).is_some(),
+                    "{}: {} is not an on/off row in Settings",
+                    release.title,
+                    review.cvar
+                );
+                assert!(
+                    (1..=160).contains(&review.text.len()),
+                    "{}: {:?} is not short",
+                    release.title,
+                    review.text
+                );
+            }
+        }
     }
 
     #[test]

@@ -13,9 +13,8 @@
 //!   the drainer 5 a shot (at levels 1 and 2 only when the line found a player) and
 //!   holds back its own refill for 500 ms.
 //! - **Lightning** does 1 or 2 damage a shot, twice that two-handed (no weapon) at
-//!   level 3; the armour takes it first. Its Force cost is the running cost
-//!   ([`super::force_estimate`]). Each shot renews the victim's electrification to 800
-//!   ms ahead when less than 400 ms is left, which every client is sent: a renewal
+//!   level 3; the armour takes it first. Each shot renews the victim's electrification
+//!   to 800 ms ahead when less than 400 ms is left, which every client is sent: a renewal
 //!   proves a shot landed.
 //! - An **absorb** that is up turns drain and lightning down by its level (what the
 //!   levels' difference leaves) and gives the victim a point of Force a shot.

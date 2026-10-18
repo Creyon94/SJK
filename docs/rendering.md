@@ -117,11 +117,14 @@ each `CS_SHADERSTATE` update applies all its entries again, as `CG_ShaderStateCh
 does. The session keeps the server state and stamps each entry; the displayed map
 keeps its worldspawn and local remaps and picks the latest of the three.
 
-`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (Tayst's
-default) accepts them while excluding player-texture configstring entries, and
-**2** (the default, as in EternalJK) includes those entries. Like Tayst, a reliable
-`remapShader` command is accepted in either nonzero mode. The client applies this
-preference live rather than requiring a map reload; a server remap it excludes reveals the earlier remap it had replaced.
+`cg_remaps` uses **0** to disable server remaps, **1** to exclude
+`models/players/` sources in both configstrings and reliable `remapShader`
+commands, and **2** (the default) to include all server entries. Mode 1 follows
+JoF EJK #297; it previously retained Tayst's reliable-command exception. An
+excluded player command also leaves the mode-1 destination time offset alone.
+Worldspawn and explicit local console remaps are independent. The preference
+applies live without reloading the map; an excluded server remap reveals the
+earlier remap it replaced.
 `cg_remapsBlockedMaps` lists maps on which SJK ignores server remaps, as `cg_remaps 0`
 does there; worldspawn and local remaps still apply. The frame reads a cached answer,
 refreshed when the cvar or the loaded map changes
@@ -1026,6 +1029,56 @@ exhaustive quality/map coverage remain open.
 
 ## Entity render effects
 
+NPC nameplate health uses JoF EJK
+[#80](https://github.com/JediofFreedom/JoF_EJK/pull/80)'s visibility rule: active
+level 3 Sense is required for an ordinary NPC, while mapper `showhealth`
+(`shouldtarget`) bypasses the gate. The server's decoded Sense-rank field supplies
+the level; live prediction supplies active-power bits when present, otherwise
+the viewed player state does (including demos). Names remain visible, and player
+bar consent, non-NPC map entities and ordinary bar-mode settings keep their rules.
+The shared nameplate renderer applies this in every HUD/menu style. SJK's older
+overhead-label pass handles players only; this change adds no separate crosshair
+health widget. Wire codecs and server NPC behavior are unchanged.
+
+JoF EJK's animation-driven Force sprays run in live play for the local player,
+other players and NPCs ([#58](https://github.com/JediofFreedom/JoF_EJK/pull/58),
+with [#89](https://github.com/JediofFreedom/JoF_EJK/pull/89)'s full-body gate).
+Rage uses `force/rage2`, Heal `force/heal2`, every 120 ms while both animation
+tracks match and speed is below 250 units/s. They follow `*chestg`, then
+`thoracic`, then `lower_lumbar`, falling back to the actor's origin. Quick Heal
+uses Push-blur puffs at the left hand, falling back to the actor's origin when
+the attachment is absent. The hand effect uses SJK's reference 8 ms cadence
+instead of multiplying emissions with rendering FPS. Local animation selection
+uses prediction, falling back to player state; remote players and NPCs use their
+own snapshot state. Timer storage belongs to the rendered world's effect pool;
+inactive animations reset it and backward demo time restarts it.
+
+The local player's body-push blur and Grip hand puffs are hidden in first person
+and zoom, while remote actors keep them. This follows the local visibility intent
+of [JoF #90](https://github.com/JediofFreedom/JoF_EJK/pull/90), including Grip-victim
+puffs. Rage/Heal sprays and Quick Heal remain animation-driven in every camera
+mode, as in #58.
+These presentation rules apply in every UI style and change no Force gameplay,
+movement, animation timing or protocol encoding.
+
+### Force presentation controls
+
+`cg_forceAnimFX` (on) controls animation-driven Rage, Heal, Quick Heal and Grip-victim
+FX in every UI style. `cp_pluginDisable` bit 5 also disables these new effects,
+following EJK #130, and disables the combined cyan Protect/Absorb shell. In that
+case the existing green/blue shells remain available, following #168; Absorb is
+already shown by default in SJK. The local animation switch does not change the
+separate `cg_spProtAbsColor` preference or ordinary Push/Grip-caster effects.
+
+Empower-marked body blur (`EF_EMPOWERED` with `EF_BODYPUSH`) follows the advertised
+`jp_empowerEffect` scope: 0 full body, 1 hands plus radius joints, 2 hands only,
+after #132. `cg_empowerEffect` defaults to -1 (server); 0/1/2 override it. Both
+settings interfaces expose the controls. Ordinary Push always uses the full
+cached joint set. The named contract/scope tables in
+[force_fx_policy.rs](../crates/sjk-viewer/src/force_fx_policy.rs) document the
+reference; missing or unknown modes use full body. No new pose, per-frame
+allocation or wire field is needed. Installed-model/GPU parity remains unverified.
+
 cgame custom shaders on actors (force shells, pickup placeholders) are extra
 instances of the same mesh in [entity_materials.rs](../crates/sjk-viewer/src/entity_materials.rs).
 The same path also draws rd-vanilla's `RF_FORCE_ENT_ALPHA`: the mesh keeps its
@@ -1162,9 +1215,10 @@ or Grip puffs there while `PW_DISINT_4` is set, and the body push blur for
 `EF_BODYPUSH`. The local player's effects come from its predicted player state,
 since stock rebuilds the local entity from `cg.predictedPlayerState` and the
 server never sends it; in first person they start at the local body's left
-hand, and Grip's puffs are third-person only. A player who mind-tricked the
-viewer still shows its beam and hand puffs, which stock draws before its
-mind-trick cut-off; only the body push blur is hidden for it.
+hand, and Grip's puffs are third-person only. Mindtrick hides these Force effects,
+the animation-driven sprays and the flamethrower stream/audio from the tricked viewer, after EJK #93. Active Force
+Sight defeats that hiding, as it does for the actor. Jetpack visibility/audio
+already uses the same rule. Existing emitted particles retain their normal lifetime.
 
 Grip victim puffs (`cg_gripVictimFX`, archived, default on) follow JoF EJK
 #33 and the later #90 victim path: `BOTH_CHOKE3` on the legs marks a choking
@@ -1182,12 +1236,19 @@ not identify a Grip attacker or change gameplay. See
 JA+ flamethrower presentation uses the documented table in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs), with the archived
 `cg_flameThrower` Auto/Off/JA+ override. `eFlags` bit 17 during a Lightning pass
-selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence
-(only when that graph is installed; otherwise Lightning stays);
+selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence;
+when missing, the preloaded retail `boba/fthrw` graph is used instead (JoF EJK
+[#67](https://github.com/JediofFreedom/JoF_EJK/pull/67)). Its forward direction is
+reversed with a half-turn around local up. SJK's quaternion frame also reverses
+the side axis, whereas EJK flips forward alone; asymmetric community replacements
+need live comparison before claiming exact appearance parity. When both graphs
+are missing, stock Lightning stays, without repeated load attempts during actor
+submission;
 the humanoid upper body uses `BOTH_FORCELIGHTNING_HOLD` with the standard 100 ms
 blend. `ET_GENERAL` entities with `eFlags2` bit 8 replay `env/fire_wall` after
-the reference 100 ms interval. Their timers and the positional `bf_flame.mp3`
-sample's 2.9 s repeats use snapshot server time, not render FPS. The weapon
+the reference 100 ms interval. Impact timers use presentation time, so they
+advance between snapshots and restart on a backward demo seek. The positional
+`bf_flame.mp3` sample's 2.9 s repeats retain snapshot server time. The weapon
 channel is stopped when firing ends, the player disappears or is muted, or the
 session ends. Models missing the named pose or hand keep the safe existing
 fallback; effect graphs and audio must exist in installed data. No server
@@ -3463,3 +3524,20 @@ an empty config, an explicit equivalent config and an existing override config.
 Fresh FFA5 and FFA1 scenes rendered successfully. See [status](status.md) for the
 image comparison result and validation limits. No personal config or assets are
 included in the repository.
+
+## Community override shader scripts
+
+The shared shader catalogue reads installed `shaders/*.oshader` files as ordinary
+Quake 3 shader syntax, following JoF EJK #138. Their definitions override `.shader`
+definitions regardless of filename ordering. Among override files the first
+normalized path wins, and the first definition in an override file wins. Normal
+`.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
+share this policy; malformed override scripts still produce diagnostics.
+
+Existing source-authority and downloaded-content restrictions remain in force:
+retail-authority protection wins when enabled (`fs_protectShaders`, on by
+default; changing it requires restart), and downloaded scripts may add new
+shaders but cannot replace installed definitions. This is format support in
+the shared renderer, independent of menu style; no new setting is required.
+Rend2's separate `.omtr` companion selection is not implemented. Installed-map/GPU
+appearance with community override packs remains unverified.

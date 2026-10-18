@@ -105,6 +105,9 @@ pub(crate) struct InGameMenu {
     art: ArtSet,
     /// The SJK UI's line under each row (what it opens, who is on a team).
     hints: [String; 24],
+    /// The SJK UI's team mark beside each row (1 red, 2 blue): the team page's
+    /// sides and Siege's.
+    marks: [Option<u8>; 24],
     /// The SJK UI's match card.
     card: sjk_view::Card,
     /// The SJK UI's gold mark along its arc.
@@ -161,6 +164,7 @@ impl InGameMenu {
             style: MenuStyle::default(),
             art: ArtSet::default(),
             hints: std::array::from_fn(|_| String::with_capacity(96)),
+            marks: [None; 24],
             card: sjk_view::Card::default(),
             motion: sjk_view::Motion::default(),
             return_row: 0,
@@ -364,19 +368,7 @@ impl InGameMenu {
         measure: Option<crate::sjk_chat_look::Measure<'_>>,
     ) {
         #[cfg(test)]
-        let view = match self.shot_view {
-            Some(shot) => View {
-                team: shot.team,
-                team_game: shot.team_game,
-                red_players: shot.red_players,
-                blue_players: shot.blue_players,
-                vote_active: shot.vote_active,
-                staff: shot.staff,
-                siege: shot.siege,
-                ..view
-            },
-            None => view,
-        };
+        let view = self.with_shot_view(view);
         self.prepare_rows(&view);
         self.active_page = view.page;
         // The main page's row and card: what they offer this frame, and the keyboard
@@ -420,6 +412,8 @@ impl InGameMenu {
             labels: &self.rows[..count],
             hints: &self.hints[..count],
             enabled: &self.enabled[..count],
+            marks: &self.marks[..count],
+            title: (view.page == Page::Siege).then(|| self.siege.title()),
         };
         let mut extras = if main {
             sjk_view::Extras {
@@ -463,6 +457,8 @@ impl InGameMenu {
             self.canvas.append_text(vertices, font, viewport);
             return;
         }
+        #[cfg(test)]
+        let view = self.with_shot_view(view);
         self.prepare_rows(&view);
         self.active_page = view.page;
         let rows = classic_view::Rows {
@@ -470,6 +466,8 @@ impl InGameMenu {
             enabled: &self.enabled[..self.row_count],
             scroll: self.callvote.scroll_metrics(view.page),
             info: info_lines(&self.about, &self.players, view.page),
+            marks: &self.marks[..self.row_count],
+            siege_sides: view.page == Page::Siege && self.siege.on_sides(),
         };
         classic_view::build(&mut self.canvas, &view, rows, self.art, viewport);
         self.canvas.append_text(vertices, font, viewport);
@@ -573,16 +571,42 @@ impl InGameMenu {
                 &mut self.enabled,
             )
         } else if view.page == Page::Siege {
-            self.siege.prepare(&mut self.rows)
+            self.siege.prepare(
+                &mut self.rows,
+                siege::Sides {
+                    red_players: view.red_players,
+                    blue_players: view.blue_players,
+                },
+            )
         } else if view.page.is_vote_page() {
             self.callvote.prepare_rows(view.page, &mut self.rows)
         } else {
             self.prepare_standard_rows(view)
         };
+        // The classic pop-up has no hint line: Siege's rows keep their label,
+        // the side step's flag and count drawn as the Team page's.
+        if self.is_classic() && view.page == Page::Siege {
+            for row in &mut self.rows[..self.row_count] {
+                if let Some(at) = row.find("  /  ") {
+                    row.truncate(at);
+                }
+            }
+        }
         // The current team cannot be taken: the classic pop-up dims it and
-        // the SJK UI says so under it.
+        // the SJK UI says so under it. Siege's side step dims Spectate while
+        // watching.
         for row in 0..self.row_count {
-            self.enabled[row] &= !current_team_row(view, row);
+            let taken = current_team_row(view, row)
+                || (view.page == Page::Siege && self.siege.current_row(row));
+            self.enabled[row] &= !taken;
+        }
+        for (row, mark) in self.marks.iter_mut().enumerate() {
+            *mark = match (view.page, view.team_game, row) {
+                (Page::Team, true, 1) => Some(1),
+                (Page::Team, true, 2) => Some(2),
+                (Page::Siege, _, row) => self.siege.mark(row),
+                _ => None,
+            };
         }
         if self.is_sjk() {
             sjk_view::split_hints(
@@ -614,6 +638,34 @@ impl InGameMenu {
         self.style = MenuStyle::Sjk;
         self.card = card;
         self.shot_view = Some(view);
+    }
+
+    /// `view` in place of the frame's facts, in the menu's own look (world shots).
+    pub(crate) fn view_for_shot(&mut self, view: ShotView) {
+        self.shot_view = Some(view);
+    }
+
+    /// The Siege page's side step over made-up `[red, blue]` class names for a
+    /// player on `team` (world shots: a map without Siege data).
+    pub(crate) fn siege_for_shot(&mut self, teams: [&[&str]; 2], team: u8) {
+        self.siege = siege::State::for_shot(teams, team);
+    }
+
+    /// The frame's `view` with the world shot's facts put in, if any.
+    fn with_shot_view<'a>(&self, view: View<'a>) -> View<'a> {
+        match self.shot_view {
+            Some(shot) => View {
+                team: shot.team,
+                team_game: shot.team_game,
+                red_players: shot.red_players,
+                blue_players: shot.blue_players,
+                vote_active: shot.vote_active,
+                staff: shot.staff,
+                siege: shot.siege,
+                ..view
+            },
+            None => view,
+        }
     }
 
     /// Whether the last frame ran out of room on the canvas (world shots).

@@ -99,7 +99,7 @@ impl SoundPrefetch {
     /// Read the map's music (server `CS_MUSIC`, else worldspawn) and the duel
     /// music that `configure_audio` will ask for.
     pub(crate) fn read(vfs: &VirtualFileSystem, game_state: Option<&GameState>, bsp: &Bsp) -> Self {
-        let music = game_state.and_then(game_music).or_else(|| world_music(bsp));
+        let music = super::music::select_music(game_state, || world_music(bsp));
         let mut paths = vec![DUEL_MUSIC.to_owned()];
         paths.extend(
             sjk_client::animation_events::footsteps::PATHS
@@ -226,8 +226,10 @@ impl GameAudio {
         let intro = self.register_vfs_async(vfs, &intro_path);
         let repeating = self.register_vfs_async(vfs, &loop_path).or(intro);
         if let (Some(intro), Some(repeating)) = (intro, repeating) {
-            self.output.start_music(intro, repeating);
             self.map_music = Some((intro, repeating));
+            if !self.music_sync_pending {
+                self.output.start_music(intro, repeating);
+            }
         }
     }
 
@@ -307,11 +309,14 @@ impl GpuState {
         }
         audio.music_value =
             game_state.map(|game| game.config_string(2).unwrap_or_default().to_vec());
-        let music = game_state
-            .and_then(game_music)
-            .or_else(|| world_music(&self.bsp));
+        audio.music_sync_pending = game_state.is_some();
+        let music = super::music::select_music(game_state, || world_music(&self.bsp));
         if let Some(music) = music.as_ref() {
             audio.start_music(vfs, music);
+        } else {
+            audio.map_music = None;
+            audio.dynamic = None;
+            audio.output.stop_music();
         }
         let music_done = Instant::now();
         audio.register_duel_music(vfs);

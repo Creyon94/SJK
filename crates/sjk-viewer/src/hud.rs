@@ -10,7 +10,6 @@ pub(crate) mod family;
 pub(crate) mod flag_status;
 mod follow;
 pub(crate) use follow::shown as follow_shown;
-mod force_estimate;
 mod force_streams;
 pub(crate) mod force_wheel;
 pub(crate) mod icons;

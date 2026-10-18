@@ -18,8 +18,11 @@
 //! NPCs are clients too: they throw and are thrown alike (an NPC's world is
 //! [`crate::npc_force_throw`]'s), but a vehicle, and any NPC in siege, is out of reach.
 //!
-//! Not yet: doors, buttons and `func_static`s pushed or pulled (the movers' part), thrown
-//! sabers and limbs, a push breaking a saber lock, and riders thrown off their vehicles.
+//! A door the map made Force-usable (`MOVER_FORCE_ACTIVATE`) is pushed away or pulled near
+//! when it is aimed at, and a Force-pushable button is pressed (`w_force.c:3584-3663`).
+//!
+//! Not yet: `func_static`s pushed or pulled, thrown sabers and limbs, a push breaking a
+//! saber lock, and riders thrown off their vehicles.
 
 use crate::event_entity::EventEntity;
 use crate::force_powers::{FORCE_POWER_NEEDED, FP_ABSORB, FP_GRIP, FP_PULL, FP_PUSH, ForcePowers};
@@ -73,8 +76,30 @@ pub enum CandidateKind {
         stuck: bool,
         weapon: u32,
     },
-    /// Anything else the throw leaves alone (items, the world, movers not yet ported).
+    /// A `func_door` the Force opens (`MOVER_FORCE_ACTIVATE`): reached only at rest.
+    ForceDoor {
+        at_rest: bool,
+    },
+    /// A `func_button`: a push presses it where the map made it Force-pushable
+    /// (`SPF_BUTTON_FPUSHABLE`); a pull never does.
+    Button {
+        pushable: bool,
+    },
+    /// Anything else the throw leaves alone (items, the world, other movers).
     Other,
+}
+
+/// A mover a throw reached, as the throw reads it (`moverState`, `pos1`, `pos2`,
+/// `r.currentOrigin`, and whether `s.origin` is the world's origin).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MoverView {
+    pub state: crate::movers::MoverState,
+    pub pos1: [f32; 3],
+    pub pos2: [f32; 3],
+    /// `spawnflags & 1`: it started open (`MOVER_START_OPEN`).
+    pub start_open: bool,
+    /// Made with an origin brush: `pos1` and `pos2` are where it stands, not offsets.
+    pub origin_brush: bool,
 }
 
 /// Everything beyond the thrower that a throw reaches.
@@ -97,6 +122,12 @@ pub trait ThrowWorld {
     fn sound_index(&mut self, name: &[u8]) -> u16;
     /// The game's generator (`Q_irand`).
     fn rng(&mut self) -> &mut Rng;
+    /// The mover numbered `number`, for a door the throw reached.
+    fn mover(&mut self, _number: u16) -> Option<MoverView> {
+        None
+    }
+    /// `GEntity_UseFunc(mover, thrower, thrower)`: the mover is used (`Use_BinaryMover`).
+    fn use_mover(&mut self, _number: u16, _thrower: u16) {}
 }
 
 const RADIUS: f32 = 1_024.0;
@@ -186,6 +217,16 @@ pub fn throw(context: Throw, world: &mut dyn ThrowWorld) {
                 let rolling_thermal = trajectory == TR_INTERPOLATE && weapon == WP_THERMAL;
                 if trajectory != TR_STATIONARY && !rolling_thermal && !context.pull {
                     world.reflect_missile(candidate.number, context.thrower, thrower.forward);
+                }
+            }
+            CandidateKind::ForceDoor { .. } => force_door(context, &thrower, candidate, world),
+            CandidateKind::Button { .. } => {
+                // `Touch_Button`: only a button at rest goes in.
+                if world
+                    .mover(candidate.number)
+                    .is_some_and(|button| button.state == crate::movers::MoverState::Pos1)
+                {
+                    world.use_mover(candidate.number, context.thrower);
                 }
             }
             CandidateKind::Other => {}
@@ -428,6 +469,16 @@ fn in_reach(
                 return None;
             }
         }
+        CandidateKind::ForceDoor { at_rest } => {
+            if !at_rest {
+                return None;
+            }
+        }
+        CandidateKind::Button { pushable } => {
+            if context.pull || !pushable {
+                return None;
+            }
+        }
         CandidateKind::Other => return None,
     }
     let centre = thrower.origin;
@@ -452,7 +503,12 @@ fn in_reach(
     if length(v) >= RADIUS {
         return None;
     }
-    if !world.in_pvs(middle, thrower.origin) {
+    // A brush model is never ruled out by the PVS (`!ent->r.bmodel && !InPVS`).
+    let brush = matches!(
+        candidate.kind,
+        CandidateKind::ForceDoor { .. } | CandidateKind::Button { .. }
+    );
+    if !brush && !world.in_pvs(middle, thrower.origin) {
         return None;
     }
     let sighted = |world: &mut dyn ThrowWorld, from: [f32; 3]| {
@@ -463,6 +519,59 @@ fn in_reach(
         return None;
     }
     Some(candidate)
+}
+
+/// A Force-usable door the throw reached (`w_force.c:3584-3658`): it must be aimed at
+/// straight from the eyes, then a push moves it to whichever of its two places is further
+/// from the thrower and a pull to the nearer; one already there is left alone.
+fn force_door(context: Throw, thrower: &Thrower, candidate: Candidate, world: &mut dyn ThrowWorld) {
+    let end: [f32; 3] =
+        std::array::from_fn(|axis| thrower.eye[axis] + RADIUS * thrower.forward[axis]);
+    let hit = world.trace(thrower.eye, end, context.thrower, MASK_SHOT);
+    if hit.entity_number != candidate.number
+        || hit.fraction == 1.0
+        || hit.all_solid
+        || hit.start_solid
+    {
+        return;
+    }
+    let Some(door) = world.mover(candidate.number) else {
+        return;
+    };
+    let (pos1, pos2) = if door.origin_brush {
+        (door.pos1, door.pos2)
+    } else {
+        // No origin brush: `pos1` and `pos2` are offsets, taken from where the middle of
+        // the door started.
+        use crate::movers::MoverState;
+        let mut centre: [f32; 3] = std::array::from_fn(|axis| {
+            candidate.absmin[axis] + 0.5 * (candidate.absmax[axis] - candidate.absmin[axis])
+        });
+        if door.start_open && door.state == MoverState::Pos1 {
+            centre = std::array::from_fn(|axis| centre[axis] - door.pos1[axis]);
+        } else if !door.start_open && door.state == MoverState::Pos2 {
+            centre = std::array::from_fn(|axis| centre[axis] - door.pos2[axis]);
+        }
+        (
+            std::array::from_fn(|axis| centre[axis] + door.pos1[axis]),
+            std::array::from_fn(|axis| centre[axis] + door.pos2[axis]),
+        )
+    };
+    let distance =
+        |point: [f32; 3]| length(std::array::from_fn(|axis| point[axis] - thrower.eye[axis]));
+    let pos1_closer = distance(pos1) < distance(pos2);
+    let at = match door.state {
+        crate::movers::MoverState::Pos1 => Some(pos1_closer),
+        crate::movers::MoverState::Pos2 => Some(!pos1_closer),
+        _ => None,
+    };
+    // `at`: whether it rests at its place nearer the thrower.
+    match at {
+        Some(true) if context.pull => return,
+        Some(false) if !context.pull => return,
+        _ => {}
+    }
+    world.use_mover(candidate.number, context.thrower);
 }
 
 /// What the throw does to a player it reached (`w_force.c:3326-3571`).
@@ -865,5 +974,153 @@ fn normalize(v: &mut [f32; 3]) {
         for axis in v.iter_mut() {
             *axis *= inverse;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::movers::MoverState;
+
+    /// A level with one mover, numbered 40, struck by every trace that goes its way.
+    struct DoorWorld {
+        door: MoverView,
+        struck: bool,
+        used: Vec<u16>,
+        rng: Rng,
+    }
+
+    impl ThrowWorld for DoorWorld {
+        fn entities_in_box(&mut self, _: [f32; 3], _: [f32; 3], out: &mut Vec<Candidate>) {
+            out.clear();
+        }
+        fn trace(&mut self, _: [f32; 3], end: [f32; 3], _: u16, _: u32) -> MovementTrace {
+            let mut hit = MovementTrace::miss(end);
+            if self.struck {
+                hit.fraction = 0.5;
+                hit.entity_number = 40;
+            }
+            hit
+        }
+        fn in_pvs(&mut self, _: [f32; 3], _: [f32; 3]) -> bool {
+            false
+        }
+        fn player(&mut self, _: u16) -> Option<ThrowPlayer<'_>> {
+            None
+        }
+        fn reflect_missile(&mut self, _: u16, _: u16, _: [f32; 3]) {}
+        fn toss_weapon(&mut self, _: u16, _: [f32; 3], _: f32) {}
+        fn raise(&mut self, _: EventEntity) {}
+        fn sound_index(&mut self, _: &[u8]) -> u16 {
+            0
+        }
+        fn rng(&mut self) -> &mut Rng {
+            &mut self.rng
+        }
+        fn mover(&mut self, number: u16) -> Option<MoverView> {
+            (number == 40).then_some(self.door)
+        }
+        fn use_mover(&mut self, number: u16, _: u16) {
+            self.used.push(number);
+        }
+    }
+
+    /// A thrower at the origin looking down +x.
+    fn thrower() -> Thrower {
+        Thrower {
+            origin: [0.0; 3],
+            eye: [0.0, 0.0, 36.0],
+            view: [0.0; 3],
+            forward: [1.0, 0.0, 0.0],
+            level: 3,
+            cost: 0,
+            team: 0,
+        }
+    }
+
+    /// A door 200 units ahead, with no origin brush, that slides `travel` along x.
+    fn door(state: MoverState, travel: f32) -> (MoverView, Candidate) {
+        let view = MoverView {
+            state,
+            pos1: [0.0; 3],
+            pos2: [travel, 0.0, 0.0],
+            start_open: false,
+            origin_brush: false,
+        };
+        let shift = if state == MoverState::Pos2 {
+            travel
+        } else {
+            0.0
+        };
+        let candidate = Candidate {
+            number: 40,
+            kind: CandidateKind::ForceDoor { at_rest: true },
+            absmin: [200.0 + shift, -64.0, 0.0],
+            absmax: [208.0 + shift, 64.0, 128.0],
+            origin: [shift, 0.0, 0.0],
+        };
+        (view, candidate)
+    }
+
+    fn throw_at(state: MoverState, travel: f32, pull: bool, struck: bool) -> Vec<u16> {
+        let (view, candidate) = door(state, travel);
+        let mut world = DoorWorld {
+            door: view,
+            struck,
+            used: Vec::new(),
+            rng: Rng(0),
+        };
+        let context = Throw {
+            level_time: 1_000,
+            gametype: 0,
+            thrower: 0,
+            pull,
+        };
+        force_door(context, &thrower(), candidate, &mut world);
+        world.used
+    }
+
+    #[test]
+    fn a_push_opens_a_door_that_opens_away() {
+        assert_eq!(throw_at(MoverState::Pos1, 96.0, false, true), [40]);
+        // Already at its far place: a push leaves it, a pull brings it back.
+        assert!(throw_at(MoverState::Pos2, 96.0, false, true).is_empty());
+        assert_eq!(throw_at(MoverState::Pos2, 96.0, true, true), [40]);
+    }
+
+    #[test]
+    fn a_pull_opens_a_door_that_opens_towards_the_thrower() {
+        assert_eq!(throw_at(MoverState::Pos1, -96.0, true, true), [40]);
+        assert!(throw_at(MoverState::Pos1, -96.0, false, true).is_empty());
+    }
+
+    #[test]
+    fn a_door_must_be_aimed_at() {
+        assert!(throw_at(MoverState::Pos1, 96.0, false, false).is_empty());
+    }
+
+    #[test]
+    fn a_door_on_its_way_or_a_pulled_button_is_out_of_reach() {
+        let mut world = DoorWorld {
+            door: door(MoverState::Pos1, 96.0).0,
+            struck: true,
+            used: Vec::new(),
+            rng: Rng(0),
+        };
+        let context = |pull| Throw {
+            level_time: 1_000,
+            gametype: 0,
+            thrower: 0,
+            pull,
+        };
+        let (_, mut candidate) = door(MoverState::Pos1, 96.0);
+        assert!(in_reach(context(false), &thrower(), candidate, &mut world).is_some());
+        candidate.kind = CandidateKind::ForceDoor { at_rest: false };
+        assert!(in_reach(context(false), &thrower(), candidate, &mut world).is_none());
+        candidate.kind = CandidateKind::Button { pushable: true };
+        assert!(in_reach(context(false), &thrower(), candidate, &mut world).is_some());
+        assert!(in_reach(context(true), &thrower(), candidate, &mut world).is_none());
+        candidate.kind = CandidateKind::Button { pushable: false };
+        assert!(in_reach(context(false), &thrower(), candidate, &mut world).is_none());
     }
 }

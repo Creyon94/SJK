@@ -325,7 +325,8 @@ pub(crate) enum Vitals {
     /// Nothing, or the hub did not say.
     #[default]
     Private,
-    /// Their health, shield and Force (`cg_nameplateShare`).
+    /// Their health, shield and Force (`cg_nameplate`, See and share nameplates; before
+    /// 17/10/2026 `cg_nameplateShare`).
     Shared,
     /// They see everyone's estimated bars (`cg_nameplateEstimate` of clients before
     /// 17/10/2026), which shares theirs.
@@ -766,6 +767,8 @@ pub(crate) struct Input<'a> {
     pub(crate) game: &'a GameState,
     /// `cg_saberTeamColors` and `cg_ctfTeamSabers` (`team_sabers.rs`).
     pub(crate) team_sabers: crate::team_sabers::Settings,
+    /// Siege's class-forced blade colours (`siege_sabers.rs`).
+    pub(crate) class_sabers: &'a crate::siege_sabers::Forced,
     pub(crate) world: &'a sjk_runtime::World,
     pub(crate) now: i32,
     pub(crate) camera: Camera,
@@ -1039,9 +1042,17 @@ impl State {
             .ok()
             .and_then(|slot| (input.hub)(slot, &name));
         // In team games the card shows the blades as the world draws them: the team's
-        // colour, with no shader over it under CTF team sabers (`team_sabers.rs`).
+        // colour, with no shader over it under CTF team sabers (`team_sabers.rs`), and
+        // in Siege the class's forced colour.
         let team_blade = crate::team_sabers::Rules::new(input.team_sabers, input.game)
-            .of_client(input.game, client);
+            .of_client(input.game, client)
+            .over_class(
+                input
+                    .class_sabers
+                    .get(usize::from(client))
+                    .copied()
+                    .unwrap_or_default(),
+            );
         let shader = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.shader)(slot))

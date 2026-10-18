@@ -351,9 +351,17 @@ pub struct EconomyTables {
     /// The shards crafting one costs.
     #[serde(default)]
     pub craft: Vec<u64>,
-    /// What one costs in the shop, in credits.
+    /// What one costs in the shop, in [`EconomyTables::shop_currency`].
     #[serde(default)]
     pub shop: Vec<u64>,
+    /// What the shop's prices are in: `shards` (since 17/10/2026); empty from hubs before,
+    /// which sold for credits.
+    #[serde(default)]
+    pub shop_currency: String,
+    /// What a holocron costs in credits, by tier id (`uncommon`, `rare`); a tier left out
+    /// is not for sale. Empty from hubs before.
+    #[serde(default)]
+    pub holocrons: std::collections::BTreeMap<String, u64>,
 }
 
 /// A duplicate the hub shattered (`POST /v1/unlocks/shatter`).
@@ -420,7 +428,7 @@ pub struct Offer {
     /// Its tier's id (`common` to `mythical`).
     #[serde(default)]
     pub tier: String,
-    /// Its price in credits.
+    /// Its price, in the shop's currency ([`EconomyTables::shop_currency`]).
     #[serde(default)]
     pub price: u64,
     /// Whether the person bought it today.
@@ -466,10 +474,10 @@ pub struct Bought {
     /// How many of it the person holds now.
     #[serde(default = "one")]
     pub count: u32,
-    /// The credits it cost.
+    /// What it cost, in the shop's currency.
     #[serde(default)]
     pub price: u64,
-    /// The person's credits after.
+    /// The person's balance of that currency after.
     #[serde(default)]
     pub balance: u64,
 }
@@ -479,6 +487,32 @@ pub struct Bought {
 pub struct BuyAnswer {
     /// What was bought.
     pub bought: Bought,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// A holocron the person bought with credits (`POST /v1/holocrons/buy`, 17/10/2026).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct HolocronBought {
+    /// The new holocron's id.
+    #[serde(default)]
+    pub holocron: i64,
+    /// Its tier's id.
+    #[serde(default)]
+    pub tier: String,
+    /// The credits it cost.
+    #[serde(default)]
+    pub price: u64,
+    /// The person's credits after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/holocrons/buy`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct HolocronBuyAnswer {
+    /// What was bought.
+    pub bought: HolocronBought,
     /// The person's profile after.
     pub profile: Profile,
 }
@@ -510,6 +544,10 @@ pub struct LootTier {
     /// The shards a pile holds: the least and the most.
     #[serde(default)]
     pub shards: [u64; 2],
+    /// The shards a card brings beside its credits, the card pack: the least and the most
+    /// (17/10/2026; none from hubs before).
+    #[serde(default)]
+    pub card_shards: [u64; 2],
 }
 
 /// A holocron dropping for a key, as the feed relays it (`PROTOCOL.md`, "The feed").
@@ -1367,6 +1405,25 @@ mod tests {
             (tables.shatter[0], tables.craft[4], tables.shop[2]),
             (5, 2_000, 1_500)
         );
+        // A hub before the shop sold for shards says neither its currency nor holocrons.
+        assert!(tables.shop_currency.is_empty() && tables.holocrons.is_empty());
+        let shards: EconomyTables = serde_json::from_str(
+            r#"{"shatter":[5,10,25,60,150],"craft":[40,100,300,800,2000],
+                "shop":[30,75,225,600,1500],"shop_currency":"shards",
+                "holocrons":{"uncommon":150,"rare":400}}"#,
+        )
+        .unwrap();
+        assert_eq!(shards.shop_currency, "shards");
+        assert_eq!(
+            (shards.holocrons["uncommon"], shards.holocrons["rare"]),
+            (150, 400)
+        );
+        let bought: HolocronBuyAnswer = serde_json::from_str(
+            r#"{"bought":{"holocron":42,"tier":"rare","price":400,"balance":100},
+                "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,
+        )
+        .unwrap();
+        assert_eq!((bought.bought.holocron, bought.bought.price), (42, 400));
         let staff: HolocronState = serde_json::from_str(
             r#"{"progress_secs":0,"every_secs":1800,"today":0,"daily_cap":8,"server_time":1,"can_open":true}"#,
         )

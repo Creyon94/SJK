@@ -49,8 +49,6 @@ impl ViewerConsole {
         if !self.shell.has_buffered_commands() {
             return;
         }
-        // A colour typed alone keeps the worn hat or cape; set once the frame is done.
-        let worn = crate::cosmetics::typed_colour::worn(self);
         let mut resolver =
             console_scripting::Resolver::new(&self.config_directory, self.script_vfs.as_deref());
         let chat_mask = self.integer_cvar("cl_colorstring").unwrap_or(0) as u16 & 1023;
@@ -79,187 +77,174 @@ impl ViewerConsole {
             })
             .map(|v| v.name.clone())
             .collect();
-        let mut kept_pieces = Vec::new();
-        let result =
-            self.shell
-                .execute_buffered_frame_with(&mut resolver, |command, tokens, local| {
-                    if tokens[0].eq_ignore_ascii_case("sets") {
-                        return Some(Err("sets: no local serverinfo owner/listen server".into()));
+        let result = self.shell.execute_buffered_frame_with_cvars(
+            &mut resolver,
+            |command, tokens, local, cvars| {
+                if tokens[0].eq_ignore_ascii_case("sets") {
+                    return Some(Err("sets: no local serverinfo owner/listen server".into()));
+                }
+                if let Some(result) = crate::cosmetics::typed_colour::apply(tokens, cvars) {
+                    return Some(result);
+                }
+                if tokens[0].eq_ignore_ascii_case("setu")
+                    && tokens.len() > 2
+                    && !userinfo_names
+                        .iter()
+                        .any(|name| name.eq_ignore_ascii_case(&tokens[1]))
+                {
+                    return Some(Err(
+                        "setu: custom userinfo keys lack a protocol adapter".into()
+                    ));
+                }
+                // OpenJK common.cpp:1210 (Com_Quit_f); exit is a client alias.
+                if tokens.first().is_some_and(|n| {
+                    n.eq_ignore_ascii_case("quit") || n.eq_ignore_ascii_case("exit")
+                }) {
+                    if tokens[0].eq_ignore_ascii_case("exit") && !exit_command.enabled() {
+                        return Some(Err("exit disabled by cl_exitCommand; use quit".into()));
                     }
-                    if let Some(write) = crate::cosmetics::typed_colour::keep_worn(tokens, &worn) {
-                        kept_pieces.push(write);
+                    *pending_quit = true;
+                    return Some(Ok(Vec::new()));
+                }
+                match console_connect::parse(tokens) {
+                    Ok(Some(action)) => {
+                        *pending_connection = Some(action);
                         return Some(Ok(Vec::new()));
                     }
-                    if tokens[0].eq_ignore_ascii_case("setu")
-                        && tokens.len() > 2
-                        && !userinfo_names
-                            .iter()
-                            .any(|name| name.eq_ignore_ascii_case(&tokens[1]))
-                    {
-                        return Some(Err(
-                            "setu: custom userinfo keys lack a protocol adapter".into()
-                        ));
-                    }
-                    // OpenJK common.cpp:1210 (Com_Quit_f); exit is a client alias.
-                    if tokens.first().is_some_and(|n| {
-                        n.eq_ignore_ascii_case("quit") || n.eq_ignore_ascii_case("exit")
-                    }) {
-                        if tokens[0].eq_ignore_ascii_case("exit") && !exit_command.enabled() {
-                            return Some(Err("exit disabled by cl_exitCommand; use quit".into()));
-                        }
-                        *pending_quit = true;
+                    Ok(None) => {}
+                    Err(error) => return Some(Err(error.to_string())),
+                }
+                match crate::screenshot::parse_request(tokens) {
+                    Ok(Some(request)) => {
+                        *pending_screenshot = Some(request);
                         return Some(Ok(Vec::new()));
                     }
-                    match console_connect::parse(tokens) {
-                        Ok(Some(action)) => {
-                            *pending_connection = Some(action);
-                            return Some(Ok(Vec::new()));
-                        }
-                        Ok(None) => {}
-                        Err(error) => return Some(Err(error.to_string())),
-                    }
-                    match crate::screenshot::parse_request(tokens) {
-                        Ok(Some(request)) => {
-                            *pending_screenshot = Some(request);
-                            return Some(Ok(Vec::new()));
-                        }
-                        Ok(None) => {}
-                        Err(error) => return Some(Err(error)),
-                    }
-                    if tokens
-                        .first()
-                        .is_some_and(|name| name.eq_ignore_ascii_case("viewpos"))
-                    {
-                        *pending_viewpos = true;
+                    Ok(None) => {}
+                    Err(error) => return Some(Err(error)),
+                }
+                if tokens
+                    .first()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("viewpos"))
+                {
+                    *pending_viewpos = true;
+                    return Some(Ok(Vec::new()));
+                }
+                // `perfmark <text>`: a timestamped line in the client log, here so a
+                // script's markers keep their order against its `wait`s.
+                if tokens
+                    .first()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("perfmark"))
+                {
+                    let text = tokens[1..].join(" ");
+                    crate::log::progress(format_args!("perf-mark {text}"));
+                    return Some(Ok(vec![format!("perf-mark {text}")]));
+                }
+                // `mark <note>`: `viewpos`, kept with the note for whoever reads the marks.
+                if tokens
+                    .first()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("mark"))
+                {
+                    *pending_mark = Some(tokens[1..].join(" "));
+                    return Some(Ok(Vec::new()));
+                }
+                match console_demo::parse(tokens) {
+                    Ok(Some(action)) => {
+                        *pending_demo = Some(action);
                         return Some(Ok(Vec::new()));
                     }
-                    // `perfmark <text>`: a timestamped line in the client log, here so a
-                    // script's markers keep their order against its `wait`s.
-                    if tokens
-                        .first()
-                        .is_some_and(|name| name.eq_ignore_ascii_case("perfmark"))
-                    {
-                        let text = tokens[1..].join(" ");
-                        crate::log::progress(format_args!("perf-mark {text}"));
-                        return Some(Ok(vec![format!("perf-mark {text}")]));
+                    Ok(None) => {}
+                    Err(error) => return Some(Err(error)),
+                }
+                if let Some(result) = director.command(tokens) {
+                    return Some(result);
+                }
+                if application_command(command, tokens) {
+                    return Some(Ok(Vec::new()));
+                }
+                // A mod's command runs with the client's frame state, as the
+                // client commands do; one whose mod is off answers here. The
+                // client's own commands come first, even under a mod's prefix.
+                let mod_answer = if console_client::known(&tokens[0]) {
+                    None
+                } else {
+                    mods.accepts(&tokens[0])
+                };
+                match mod_answer {
+                    Some(Ok(())) if client_commands.pending.len() == 64 => {
+                        return Some(Err("Client command queue is full".into()));
                     }
-                    // `mark <note>`: `viewpos`, kept with the note for whoever reads the marks.
-                    if tokens
-                        .first()
-                        .is_some_and(|name| name.eq_ignore_ascii_case("mark"))
-                    {
-                        *pending_mark = Some(tokens[1..].join(" "));
+                    Some(Ok(())) => {
+                        client_commands.pending.push_back(tokens.to_vec());
                         return Some(Ok(Vec::new()));
                     }
-                    match console_demo::parse(tokens) {
-                        Ok(Some(action)) => {
-                            *pending_demo = Some(action);
-                            return Some(Ok(Vec::new()));
-                        }
-                        Ok(None) => {}
-                        Err(error) => return Some(Err(error)),
+                    Some(Err(error)) => return Some(Err(error)),
+                    None => {}
+                }
+                if let Some(result) = client_commands.queue(command, tokens) {
+                    return Some(result);
+                }
+                if crate::input::GameplayInput::recognizes(command) {
+                    if pending_input.len() == 64 {
+                        return Some(Err("Input command queue is full".into()));
                     }
-                    if let Some(result) = director.command(tokens) {
-                        return Some(result);
-                    }
-                    if application_command(command, tokens) {
-                        return Some(Ok(Vec::new()));
-                    }
-                    // A mod's command runs with the client's frame state, as the
-                    // client commands do; one whose mod is off answers here. The
-                    // client's own commands come first, even under a mod's prefix.
-                    let mod_answer = if console_client::known(&tokens[0]) {
-                        None
-                    } else {
-                        mods.accepts(&tokens[0])
-                    };
-                    match mod_answer {
-                        Some(Ok(())) if client_commands.pending.len() == 64 => {
-                            return Some(Err("Client command queue is full".into()));
-                        }
-                        Some(Ok(())) => {
-                            client_commands.pending.push_back(tokens.to_vec());
-                            return Some(Ok(Vec::new()));
-                        }
-                        Some(Err(error)) => return Some(Err(error)),
-                        None => {}
-                    }
-                    if let Some(result) = client_commands.queue(command, tokens) {
-                        return Some(result);
-                    }
-                    if crate::input::GameplayInput::recognizes(command) {
-                        if pending_input.len() == 64 {
-                            return Some(Err("Input command queue is full".into()));
-                        }
-                        pending_input.push(command.to_owned());
-                        return Some(Ok(Vec::new()));
-                    }
-                    if local {
-                        return None;
-                    }
-                    Some(match forward_payload(command, tokens, session.is_some()) {
-                        ForwardAction::Ignore => Ok(Vec::new()),
-                        ForwardAction::Unknown => Err(format!("Unknown command \"{}\"", tokens[0])),
-                        ForwardAction::Reliable(payload) => {
-                            // JA+ style `tell <name>` is resolved against the roster
-                            // first; chat is then coloured and queued like stock.
-                            let resolved;
-                            let payload = match session.as_deref() {
-                                Some(active) if tokens[0].eq_ignore_ascii_case("tell") => {
-                                    let mut roster = sjk_client::ChatRoster::default();
-                                    roster.update(active.game_state());
-                                    match console_tell::resolve(tokens, &roster) {
-                                        console_tell::Tell::Unchanged => payload,
-                                        console_tell::Tell::Send(command) => {
-                                            resolved = command;
-                                            &resolved
-                                        }
-                                        console_tell::Tell::Refused(lines) => {
-                                            return Some(Ok(lines));
-                                        }
+                    pending_input.push(command.to_owned());
+                    return Some(Ok(Vec::new()));
+                }
+                if local {
+                    return None;
+                }
+                Some(match forward_payload(command, tokens, session.is_some()) {
+                    ForwardAction::Ignore => Ok(Vec::new()),
+                    ForwardAction::Unknown => Err(format!("Unknown command \"{}\"", tokens[0])),
+                    ForwardAction::Reliable(payload) => {
+                        // JA+ style `tell <name>` is resolved against the roster
+                        // first; chat is then coloured and queued like stock.
+                        let resolved;
+                        let payload = match session.as_deref() {
+                            Some(active) if tokens[0].eq_ignore_ascii_case("tell") => {
+                                let mut roster = sjk_client::ChatRoster::default();
+                                roster.update(active.game_state());
+                                match console_tell::resolve(tokens, &roster) {
+                                    console_tell::Tell::Unchanged => payload,
+                                    console_tell::Tell::Send(command) => {
+                                        resolved = command;
+                                        &resolved
+                                    }
+                                    console_tell::Tell::Refused(lines) => {
+                                        return Some(Ok(lines));
                                     }
                                 }
-                                _ => payload,
-                            };
-                            if ["say", "say_team", "tell"]
-                                .iter()
-                                .any(|name| tokens[0].eq_ignore_ascii_case(name))
-                            {
-                                if pending_chat.len() >= 64 {
-                                    return Some(Err("Chat command queue is full".into()));
-                                }
-                                // Keep the frame's colour policy while expanding the
-                                // message later against the presented player state.
-                                pending_chat.push_back((
-                                    payload.to_owned(),
-                                    chat_mask,
-                                    chat_random,
-                                ));
-                                return Some(Ok(Vec::new()));
                             }
-                            let Some(active) = session.as_deref_mut() else {
-                                return Some(Err(format!("Unknown command \"{}\"", tokens[0])));
-                            };
-                            active
-                                .send_reliable_command_from(
-                                    payload.as_bytes(),
-                                    sjk_client::ReliableCommandOrigin::Input,
-                                )
-                                .map(|()| Vec::new())
-                                .map_err(|error| {
-                                    format!("Could not forward {}: {error}", tokens[0])
-                                })
+                            _ => payload,
+                        };
+                        if ["say", "say_team", "tell"]
+                            .iter()
+                            .any(|name| tokens[0].eq_ignore_ascii_case(name))
+                        {
+                            if pending_chat.len() >= 64 {
+                                return Some(Err("Chat command queue is full".into()));
+                            }
+                            // Keep the frame's colour policy while expanding the
+                            // message later against the presented player state.
+                            pending_chat.push_back((payload.to_owned(), chat_mask, chat_random));
+                            return Some(Ok(Vec::new()));
                         }
-                    })
-                });
+                        let Some(active) = session.as_deref_mut() else {
+                            return Some(Err(format!("Unknown command \"{}\"", tokens[0])));
+                        };
+                        active
+                            .send_reliable_command_from(
+                                payload.as_bytes(),
+                                sjk_client::ReliableCommandOrigin::Input,
+                            )
+                            .map(|()| Vec::new())
+                            .map_err(|error| format!("Could not forward {}: {error}", tokens[0]))
+                    }
+                })
+            },
+        );
         if let Err(error) = result {
             crate::log::progress(format_args!("console command: {error}"));
-        }
-        for (name, value) in kept_pieces {
-            if self.set_cvar(name, &value) {
-                self.shell
-                    .push_log(format!("{name} = \"{value}\" (your hat or cape stays on)"));
-            }
         }
         self.persist();
     }
@@ -418,6 +403,69 @@ mod tests {
                 .shell
                 .lines()
                 .any(|line| line.text == "perf-mark lamps off"),
+        );
+    }
+    #[test]
+    fn buffered_colours_observe_prior_changes_and_never_overwrite_later_names() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("color1", "4oldhat");
+        console.execute_console_line("color1 3newhat; color1 2", None);
+        assert_eq!(console.text_value("color1"), Some("2newhat"));
+        console.execute_console_line("color1 5; color1 1lasthat", None);
+        assert_eq!(console.text_value("color1"), Some("1lasthat"));
+        console.execute_console_line("color1 6; color1 3; color1", None);
+        assert_eq!(console.text_value("color1"), Some("3lasthat"));
+        assert!(
+            console
+                .shell
+                .lines()
+                .any(|line| line.text.contains("color1 = \"3lasthat\" (default"))
+        );
+    }
+
+    #[test]
+    fn vstr_and_wait_keep_the_same_order_and_cvar_notifications() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line(
+            "set recolour \"color1 3newhat; color1 2\"; vstr recolour; wait; color1 6",
+            None,
+        );
+        assert_eq!(console.text_value("color1"), Some("2newhat"));
+        console.advance_command_frame();
+        console.execute_buffered_frame(None, |_, _| false);
+        assert_eq!(console.text_value("color1"), Some("6newhat"));
+        console
+            .userinfo_dirty
+            .store(false, std::sync::atomic::Ordering::Release);
+        console.execute_console_line("seta color1 4; setu color2 3cape; setu color2 5", None);
+        assert_eq!(console.text_value("color1"), Some("4newhat"));
+        assert_eq!(console.text_value("color2"), Some("5cape"));
+        assert!(
+            console
+                .userinfo_dirty
+                .load(std::sync::atomic::Ordering::Acquire)
+        );
+        assert!(
+            console
+                .shell
+                .cvars
+                .get("color1")
+                .unwrap()
+                .flags
+                .contains(sjk_shell::CvarFlags::ARCHIVE)
+        );
+        assert!(
+            console
+                .shell
+                .cvars
+                .get("color2")
+                .unwrap()
+                .flags
+                .contains(sjk_shell::CvarFlags::USER_INFO)
         );
     }
 }

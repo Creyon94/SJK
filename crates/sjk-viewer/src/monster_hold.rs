@@ -30,6 +30,16 @@ const PS_LOOK_TARGET: usize = 66;
 /// `thirdPersonRange` of a held player (`cg_view.c:377`).
 pub(crate) const HELD_CAMERA_RANGE: f32 = 120.0;
 
+/// Whether the accepted state marks a monster-held victim, even without a look target.
+/// Cosmetics follow this bit alone (EJK #172), unlike attachment placement.
+pub(crate) fn held_by_monster(player: &PlayerState, state: Option<&EntityState>) -> bool {
+    let flags = state.map_or_else(
+        || player.raw_field(PS_EFLAGS2).unwrap_or(0),
+        |state| state.raw_field(ES_EFLAGS2).unwrap_or(0),
+    );
+    flags & EF2_HELD_BY_MONSTER != 0
+}
+
 /// The monster entity holding the player `state` describes (the local player's own
 /// state, `player`, when `state` is `None`), if it is held.
 pub(crate) fn holder(player: &PlayerState, state: Option<&EntityState>) -> Option<u16> {

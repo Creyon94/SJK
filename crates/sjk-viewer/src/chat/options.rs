@@ -5,6 +5,7 @@ use crate::{cgame_options::scalar, console::ViewerConsole};
 #[derive(Clone, Copy, PartialEq)]
 /// Bounded presentation settings read from the archived cvars.
 pub(super) struct Options {
+    pub(super) pm_only: bool,
     /// Milliseconds before a message expires.
     pub(super) lifetime: u64,
     /// Maximum retained conversation entries displayed together.
@@ -51,6 +52,9 @@ impl Options {
                 .unwrap_or(default)
         };
         Self {
+            pm_only: console
+                .and_then(|c| c.bool_cvar("cg_pmonlychat"))
+                .unwrap_or(false),
             lifetime: integer("cg_chatbox", 10000).max(0) as u64,
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
             font: scalar(console, "cg_chatboxfontsize", 1.0).clamp(0.25, 3.0),
@@ -144,6 +148,10 @@ impl ChatOverlay {
         }
         let options = Options::read(console);
         if self.options != options {
+            if self.options.pm_only != options.pm_only {
+                self.scroll = 0;
+                self.unread = 0;
+            }
             for line in &mut self.lines {
                 line.y = None;
             }

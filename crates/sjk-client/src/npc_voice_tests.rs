@@ -5,10 +5,14 @@ const CS_PLAYERS: usize = 1_131;
 const EV_JUMP: u16 = 16;
 const EV_PAIN: u16 = 89;
 const EV_ENTITY_SOUND: u16 = 79;
+const EV_GENERAL_SOUND: u16 = 76;
 /// `CS_SOUNDS` slots the test server fills.
 const STD: u8 = 10;
 const JEDI: u8 = 11;
 const DEATH: u8 = 12;
+const FALLING: u8 = 13;
+const CHOKE: u8 = 14;
+const GASP: u8 = 15;
 const NPC: u16 = 100;
 const SILENT_NPC: u16 = 101;
 
@@ -23,6 +27,9 @@ fn vfs() -> VirtualFileSystem {
         "sound/chars/kyle/misc/pain25.wav",
         "sound/chars/kyle/misc/jump1.wav",
         "sound/chars/kyle/misc/death1.wav",
+        "sound/chars/kyle/misc/falling1.wav",
+        "sound/chars/kyle/misc/choke1.wav",
+        "sound/chars/kyle/misc/gasp.wav",
         "sound/chars/mp_generic_male/misc/pain25.wav",
         "sound/chars/mp_generic_male/misc/jump1.wav",
         "sound/chars/mp_generic_male/misc/death1.wav",
@@ -40,6 +47,9 @@ fn game_state() -> GameState {
         (STD, "*$stormtrooper"),
         (JEDI, "*$jedi2"),
         (DEATH, "*death1.wav"),
+        (FALLING, "*falling1.wav"),
+        (CHOKE, "*choke1.wav"),
+        (GASP, "*gasp.wav"),
     ] {
         game.replace_config_string(CS_SOUNDS + usize::from(slot), path.as_bytes().to_vec())
             .unwrap();
@@ -76,8 +86,12 @@ fn with_event(mut state: EntityState, event: u16, parameter: u8) -> EntityState 
 
 /// `G_EntitySound`'s temporary entity: `EV_ENTITY_SOUND` naming `client`.
 fn entity_sound(number: u16, client: u16, slot: u8) -> EntityState {
+    temp_event(number, EV_ENTITY_SOUND, client, slot)
+}
+
+fn temp_event(number: u16, event: u16, client: u16, slot: u8) -> EntityState {
     let mut state = EntityState::zero(number, &LEGACY_ENTITY_FIELDS);
-    state.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_ENTITY_SOUND));
+    state.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(event));
     state.set_raw_field(32, u32::from(client));
     state.set_raw_field(42, u32::from(slot));
     state
@@ -151,7 +165,7 @@ fn an_npc_without_a_sound_is_silent_not_a_player() {
 fn each_name_comes_from_its_own_set() {
     let adapter = adapter();
     let state = npc(NPC, STD, JEDI);
-    let voice = adapter.voice_of(&EventSubject::entity(&state), &snapshot(vec![]));
+    let voice = adapter.voice_set(adapter.voice_of(&EventSubject::entity(&state), NPC));
     assert_eq!(
         path(&adapter, voice.death[0]).as_deref(),
         Some("sound/chars/stormtrooper/misc/death1.wav")
@@ -213,4 +227,72 @@ fn a_changed_slot_reloads_its_set() {
         sounds,
         [(NPC, "sound/chars/kyle/misc/jump1.wav".to_owned())]
     );
+}
+
+/// Pits (`trigger_hurt`'s `*falling1`) and Grip (`*choke1`, `*gasp`) voice a
+/// player through `G_EntitySound`: a temporary entity past the player slots
+/// whose `clientNum` is the speaker (`cg_event.c:4174`), never an NPC lookup.
+#[test]
+fn entity_sounds_naming_a_player_use_the_players_voice() {
+    let mut adapter = adapter();
+    for (number, slot, name) in [
+        (400, FALLING, "falling1"),
+        (401, CHOKE, "choke1"),
+        (402, GASP, "gasp"),
+    ] {
+        let sounds = played(&mut adapter, vec![entity_sound(number, 31, slot)]);
+        // The source is the player's own number, which blocking silences.
+        assert_eq!(
+            sounds,
+            [(31, format!("sound/chars/kyle/misc/{name}.wav"))],
+            "{name}"
+        );
+    }
+}
+
+/// `EV_GENERAL_SOUND` voices `es->number`: a custom name on a temporary
+/// entity (`G_Sound`) has no `clientinfo` and stays silent, as in stock,
+/// rather than borrowing whichever player its `clientNum` names.
+#[test]
+fn a_general_sound_on_a_temporary_entity_has_no_voice() {
+    let mut adapter = adapter();
+    assert_eq!(
+        played(
+            &mut adapter,
+            vec![temp_event(400, EV_GENERAL_SOUND, 31, FALLING)]
+        ),
+        []
+    );
+    // On the player's own entity it is that player's voice.
+    let mut player = EntityState::zero(31, &LEGACY_ENTITY_FIELDS);
+    player.set_raw_field(8, 1);
+    player.set_raw_field(32, 31);
+    let sounds = played(
+        &mut adapter,
+        vec![with_event(player, EV_GENERAL_SOUND, FALLING)],
+    );
+    assert_eq!(
+        sounds,
+        [(31, "sound/chars/kyle/misc/falling1.wav".to_owned())]
+    );
+}
+
+/// `EV_TAUNT1`-`3` share the taunt anti-spam hold (JoF EJK #287); the other
+/// vocal events have none.
+#[test]
+fn numbered_taunts_carry_the_taunt_voice_line() {
+    let mut adapter = adapter();
+    for (number, event, line) in [
+        (100, 175, Some(crate::LegacyVoiceLine::Taunt)),
+        (101, 177, Some(crate::LegacyVoiceLine::Taunt)),
+        (102, 116, None),
+    ] {
+        adapter.observe_snapshot(&snapshot(vec![with_event(
+            npc(number, STD, JEDI),
+            event,
+            0,
+        )]));
+        let decision = adapter.decisions().last().unwrap();
+        assert_eq!(decision.voice_line, line, "event {event}");
+    }
 }

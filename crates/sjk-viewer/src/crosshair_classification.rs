@@ -44,7 +44,7 @@ pub(crate) fn classify(e: &EntityState, snap: &Snapshot, game: &GameState) -> Op
         } else {
             allied(
                 (gametype >= 6 && info(game, e.number(), "t") == team)
-                    || (gametype == 4 && info(game, e.number(), "ds") == info(game, local, "ds")),
+                    || (gametype == 4 && info(game, e.number(), "dt") == info(game, local, "dt")),
             )
         }
     } else if npc {

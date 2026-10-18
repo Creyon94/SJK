@@ -110,6 +110,9 @@ impl ViewerConsole {
             PanelAction::RevealCards => {
                 let _ = crate::player_identity::reveal_cards();
             }
+            PanelAction::SeeAndShare(on) => {
+                self.set_cvar("cg_nameplate", if on { "1" } else { "0" });
+            }
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
                     super::collection_panel::SHADER_VIEW_CVAR,
@@ -252,6 +255,7 @@ impl ViewerConsole {
             .unwrap_or_default()
             .to_owned();
         let enabled = self.bool_cvar("cl_identity") == Some(true);
+        let share = crate::hud::nameplate::see_and_share(self);
         let snapshot =
             crate::player_identity::collection_snapshot(crate::debug_collectibles::wanted(self));
         let held = snapshot
@@ -277,6 +281,7 @@ impl ViewerConsole {
                 stock,
                 grid,
                 options: &options,
+                share,
             };
             self.collection_panel.append_sjk(&inputs, target, viewport);
             self.collection_panel.preview = Some(unlocks);
@@ -300,6 +305,7 @@ impl ViewerConsole {
             stock,
             grid,
             options: &options,
+            share,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);
     }

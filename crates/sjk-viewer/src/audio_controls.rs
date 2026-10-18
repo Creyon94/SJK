@@ -73,10 +73,20 @@ impl GameAudio {
             .and_then(|c| c.bool_cvar("cg_oldpainsounds"))
             .unwrap_or(false);
         self.voice_policy.sample(console);
+        self.voice_throttle.enabled = console
+            .and_then(|c| c.bool_cvar("cg_tauntantispam"))
+            .unwrap_or(true);
+        self.music_sync = console
+            .and_then(|c| c.bool_cvar("cg_musicsync"))
+            .unwrap_or(true);
         self.kill_sounds = console
             .and_then(|c| c.integer_cvar("cg_killsounds"))
             .unwrap_or(2);
+        self.pm_only_chat = console
+            .and_then(|c| c.bool_cvar("cg_pmonlychat"))
+            .unwrap_or(false);
         if let Some(adapter) = &mut self.legacy {
+            adapter.set_pm_only_chat(self.pm_only_chat);
             adapter.set_chat_sound_mode(
                 console
                     .and_then(|c| c.integer_cvar("cg_chatsounds"))

@@ -31,7 +31,7 @@
 
 [Sol]
 github: Sol-Vulpes
-role: Creator and developer of Sol JK
+role: Creator and developer of Sol JK: 114 contributor pull requests reviewed and merged
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
 did: The SJK UI, Sol JK's own menus over the live map
@@ -50,6 +50,8 @@ did: Holocrons open like a loot crate: the holocron cracks open, a strip runs to
 did: Every saber shader drops from holocrons, except the ones medals bring
 did: The Shaders tab: your saber on its own to turn, and a card for each shader
 did: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a day
+did: The card pack: a holocron's card comes with its credits and a few kyber shards
+did: The shop in kyber shards, and holocrons bought with credits
 did: The four holocrons: the Jedi cube, the Great Holocron, the Sith pyramid, the kyber prism
 did: Grand finds told in SJK chat: who opened a holocron and got a grand prize
 did: Hover cards: how every collected thing is obtained
@@ -76,7 +78,7 @@ did: Weather: rain, snow, splashes, ground fog and volumetric clouds
 did: Eye adaptation, dynamic glow, metal materials and many renderer fixes
 did: SJK identity and its hub, player reports, the changelog and these credits
 did: The Profile page and achievements counted in matches, with their board
-did: Staff tools in the game: medals, achievements, verifying and merging players
+did: Staff tools in the game: medals, achievements, credits, moderation, verifying and merging players
 did: debug_collectibles: staff try every collectible on their own PC, without the hub
 did: SJK chat through the hub, seen in the menus and in games, and the path for emotes
 did: Synced emotes: join another player's emote in step, music included
@@ -90,7 +92,7 @@ did: Rarity effects: Rare frames breathe, Legendary shine, Mythical spark
 did: Player cards with the worn saber shader, picture, SJK TEAM mark and achievements
 did: The kill feed with weapon icons
 did: The SJK profile card and profile pictures
-did: Muting players from their name in chat
+did: Blocking players: no chat, Kyle, no sounds, emotes or toys (block, unblock)
 did: Graphics quality levels, EJK graphics, and the graphics reload that applies them live
 did: Low FPS help (help_fps): EJK graphics offered on heavy maps
 did: Lighter memory on servers: the menu world dropped during matches
@@ -119,6 +121,7 @@ did: Ghost replay: record a run once, replay it on the server to film a showcase
 did: Mimic: copy another player's moves and saber attacks live, as their mirror image
 did: Strafe lines after JoF EJK: the best strafe heading, in third person and on the ground
 did: Hold push or pull to use it again the moment it is ready, after JoF EJK
+did: Away players set apart on the scoreboard: faint, at the bottom of their list
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 
@@ -164,7 +167,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 32 merged pull requests
+role: Contributor: 45 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -198,42 +201,58 @@ did: #124 Classic scoreboard opens on death and keeps the HUD, as JoF EJK
 did: #127 Holstered saber hilts on the hips and the staff on the back
 did: #129 Tavion and Desann idle stances
 did: #130 JA+ black sabers on both blades, thrown ones and trails
+did: #138 Following another player no longer replays their last sounds
+did: #140 Cosmetic colour commands in scripts apply in order
+did: #146 Not players remap mode also covers server remap commands
+did: #145 Hats and capes hidden on held and cloaked players
+did: #137 Community .oshader override scripts
+did: #143 Larger custom Siege class catalogues
+did: #134 NPC health on nameplates only with Force Sense 3 active
+did: #132 Rage, Heal and Quick Heal glow; Mind Trick hides Force effects
+did: #135 Taunt anti-spam: taunts wait for the last one to finish
+did: #139 Map music resumes where the level is
+did: #131 NPCs speak every line in their own voices
+did: #136 pmonly: only private messages until the next map
+did: #141 Models not for multiplayer show as Kyle
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 5 merged pull requests
+role: Contributor: 9 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
 did: #107 Chat text size in every settings mode, menu text up to 1.4
 did: #111 JoF EJK's camera framing settings and damping presets
+did: #155 Shift+U reply no longer leaves keys stuck
+did: #144 Recent servers keep one row across map changes
+did: #133 SJK chat in the console
+did: #154 Corpses and pickups hidden during private duels
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]
 github: JoFSlash
-role: Contributor: 2 merged pull requests
+role: Contributor: 7 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
+did: #153 The SJK scoreboard tells who won the Siege round or team match
+did: #110 Live CTF flag carriers on the scoreboard and HUD
+did: #152 Siege Korriban: Force on doors, walls switched off, breakable door
+did: #150 Siege: back with the next respawn wave; map messages readable
+did: #142 Siege class menu in two steps: team first, then its classes
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
+
+[Milamber]
+github: Milamber0
+role: Contributor: 1 merged pull request
+did: #156 See & share nameplates, settings to review on What's new, duel bars hidden
+link: Milamber's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0
 
 == Art
 
 [Reyced]
 role: Artist: the Solfox player model
 did: Made Solfox, Sol's fox player model, which every SJK player gets through the hub
-
-== Origins
-
-[Bishop]
-github: Bishop-R
-role: Creator of JKR, the engine Sol JK began from
-did: The Rust engine and the wgpu renderer with its lighting
-did: The native client, the dedicated server and protocol 26 networking
-did: Prediction and the shared Jedi Academy game rules
-did: Content loading: PK3, BSP, models, shaders and sounds
-did: The console, menus, HUD, server browser and demos
-link: https://github.com/Bishop-R/JKR
 
 == Made with
 
@@ -282,3 +301,12 @@ role: References for how Jedi Academy behaves
 did: SJK reimplements their behaviour and includes none of their code
 link: https://github.com/JACoders/OpenJK
 link: https://github.com/eternalcodes/EternalJK
+
+== Footnote
+
+[Bishop]
+github: Bishop-R
+role: Creator of JKR, the starting point of Sol JK
+did: SJK began from JKR's code in October 2026; most of it has since been replaced
+did: JKR's Rust engine, wgpu renderer, client, server and protocol 26 networking
+link: https://github.com/Bishop-R/JKR

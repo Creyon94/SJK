@@ -160,6 +160,8 @@ impl GpuState {
         self.legacy_world_adapter = Some(LegacyWorldAdapter::new(self.live_world.id()));
         if let (Some(adapter), Some(console)) = (&mut self.legacy_world_adapter, &self.console) {
             adapter.set_smooth_clients(console.smooth_clients());
+            adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
+            adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
         }
         self.presentation_clock = presentation_clock::SnapshotPresentationClock::new(
             session.latest_snapshot().server_time,
@@ -344,6 +346,8 @@ impl GpuState {
                 *adapter = LegacyWorldAdapter::new(self.live_world.id());
                 if let Some(console) = &self.console {
                     adapter.set_smooth_clients(console.smooth_clients());
+                    adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
+                    adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
                 }
                 self.local_actor_state = Default::default();
                 for mesh in &mut self.actor_meshes {

@@ -115,6 +115,7 @@ impl LocalSoundMedia {
 pub(crate) struct LegacyLocalSounds {
     /// TaystJK cg_chatSounds mode; final muting remains in the output consumer.
     pub(crate) chat_mode: i64,
+    pub(crate) pm_only: bool,
     /// Fixed-capacity filtering shared with chat presentation policy.
     pub(crate) chat_filter: chat_filter::Filter,
     media: LocalSoundMedia,
@@ -171,6 +172,7 @@ impl LegacyLocalSounds {
             previous_team: None,
             last_command_sequence: game_state.server_command_sequence,
             chat_mode: 1,
+            pm_only: false,
             chat_filter: chat_filter::Filter::default(),
             pending: Vec::with_capacity(MAX_LOCAL_SOUNDS_PER_SNAPSHOT),
         };
@@ -240,6 +242,12 @@ impl LegacyLocalSounds {
                 .split(|byte| matches!(byte, b' ' | b'\n' | b'\r'))
                 .next()
                 .unwrap_or_default();
+            if self.pm_only
+                && matches!(verb, b"chat" | b"lchat" | b"tchat" | b"ltchat")
+                && !crate::chat::private_chat_command(&command.command)
+            {
+                continue;
+            }
             match verb {
                 b"chat" | b"tchat"
                     if self.chat_filter.suppress(&command.command, verb == b"chat") =>
@@ -247,9 +255,8 @@ impl LegacyLocalSounds {
                     continue;
                 }
                 b"chat" | b"lchat" if !CG_TEAM_CHATS_ONLY && CG_CHAT_BEEP => {
-                    let private = self.chat_mode == 2
-                        && verb == b"chat"
-                        && command.command.windows(7).any(|bytes| bytes == b"^7]: ^6");
+                    let private =
+                        self.chat_mode == 2 && crate::chat::private_chat_command(&command.command);
                     if self.push(
                         LegacySoundEvent::ChatBeep,
                         if private {
@@ -473,5 +480,77 @@ mod tests {
         // Servers that send no slot, or one past the clients, name nobody.
         assert_eq!(chat_sender(b"chat \"Sol: hi\""), None);
         assert_eq!(chat_sender(b"chat \"Sol: hi\" 40"), None);
+    }
+}
+
+#[cfg(test)]
+mod pm_only_tests {
+    use super::*;
+    use sjk_protocol::{PlayerState, ReliableServerCommand};
+    #[test]
+    fn pm_only_notifications_keep_only_marked_tells_and_resume_after_toggle() {
+        let game = GameState::empty_local(0);
+        let media = LocalSoundMedia::register(|_| 1);
+        let mut local = LegacyLocalSounds::new(&game, media);
+        local.pm_only = true;
+        local.chat_mode = 2;
+        let mut snapshot = Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: vec![],
+            server_time: 1000,
+            delta_from: None,
+            flags: 0,
+            area_mask: vec![],
+            player: PlayerState::zero(),
+            vehicle_player: None,
+            entities: vec![],
+            consumed_bits: 0,
+        };
+        for (sequence, command) in [
+            b"chat \"Fox: public\" 2".as_slice(),
+            b"tchat \"(Fox): team\" 2",
+            b"chat \"Fox: [Fake^7]: ^6fake\" 2",
+            b"chat \"\x19[Fox]: real PM\" 2",
+            b"lchat Fox 0 7 hi 2",
+        ]
+        .iter()
+        .enumerate()
+        {
+            snapshot.server_commands.push(ReliableServerCommand {
+                sequence: sequence as i32 + 1,
+                command: command.to_vec(),
+            });
+        }
+        local.observe_snapshot(&snapshot);
+        let beeps: Vec<_> = local
+            .pending()
+            .iter()
+            .filter(|sound| {
+                matches!(
+                    sound.event,
+                    LegacySoundEvent::ChatBeep | LegacySoundEvent::TeamChatBeep
+                )
+            })
+            .collect();
+        assert_eq!(beeps.len(), 1);
+        assert_eq!(beeps[0].cause, Some(2));
+        // Repeated snapshots do not replay that notification.
+        local.observe_snapshot(&snapshot);
+        assert!(local.pending().is_empty());
+        local.pm_only = false;
+        snapshot.server_commands = vec![ReliableServerCommand {
+            sequence: 6,
+            command: b"chat \"Fox: back\" 2".to_vec(),
+        }];
+        local.observe_snapshot(&snapshot);
+        assert_eq!(
+            local
+                .pending()
+                .iter()
+                .filter(|sound| sound.event == LegacySoundEvent::ChatBeep)
+                .count(),
+            1
+        );
     }
 }

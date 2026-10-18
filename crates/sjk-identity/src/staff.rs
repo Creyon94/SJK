@@ -7,6 +7,7 @@
 
 use crate::logs::{CrashDetail, CrashGroup, CrashSummary, LogRequestRow};
 use crate::wire::Profile;
+use serde::Deserialize;
 
 /// One staff request.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -122,6 +123,26 @@ pub enum StaffRequest {
         /// The linked key (never a player's main key).
         key_id: String,
     },
+    /// Change a player's credits by `delta` (`PROTOCOL.md`, "Holocrons"); the hub
+    /// refuses one that would go below 0.
+    Credits {
+        /// The player's key.
+        key_id: String,
+        /// Credits given (above 0) or taken (below 0).
+        delta: i64,
+        /// Why, shown with it; may be empty.
+        note: String,
+    },
+    /// Change a player's kyber shards by `delta` (`PROTOCOL.md`, "Shards and the
+    /// shop"), as [`Self::Credits`] does credits.
+    Shards {
+        /// The player's key.
+        key_id: String,
+        /// Shards given (above 0) or taken (below 0).
+        delta: i64,
+        /// Why, shown with it; may be empty.
+        note: String,
+    },
 }
 
 impl StaffRequest {
@@ -142,7 +163,9 @@ impl StaffRequest {
             | Self::HolocronRemove { key_id, .. }
             | Self::Verify { key_id, .. }
             | Self::Merge { key_id, .. }
-            | Self::Unlink { key_id } => Some(key_id),
+            | Self::Unlink { key_id }
+            | Self::Credits { key_id, .. }
+            | Self::Shards { key_id, .. } => Some(key_id),
         }
     }
 }
@@ -168,6 +191,8 @@ pub enum StaffQuery {
     Crashes(String),
     /// One whole crash report, by its number.
     Crash(i64),
+    /// The SJK chat bans in force, newest first (`PROTOCOL.md`, "Chat bans").
+    ChatBans,
 }
 
 /// What the hub answered a [`StaffQuery`].
@@ -183,6 +208,44 @@ pub enum StaffAnswer {
     Crashes(Vec<CrashSummary>),
     /// One crash report.
     Crash(Box<CrashDetail>),
+    /// The chat bans in force.
+    ChatBans(Vec<ChatBanRow>),
+}
+
+/// A chat ban in force, as the hub lists them to staff (`PROTOCOL.md`, "Chat bans",
+/// ChatBan).
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct ChatBanRow {
+    /// The ban's number at the hub.
+    #[serde(default)]
+    pub id: i64,
+    /// The banned player's key, empty for a ban that holds only their address.
+    #[serde(default)]
+    pub key_id: String,
+    /// Their display name.
+    #[serde(default)]
+    pub name: String,
+    /// The address the hub last saw them use is banned too.
+    #[serde(default)]
+    pub address: bool,
+    /// The key of the player who banned them.
+    #[serde(default)]
+    pub by_key_id: String,
+    /// That player's display name.
+    #[serde(default)]
+    pub by_name: String,
+    /// When the ban was made, unix seconds.
+    #[serde(default)]
+    pub created: i64,
+    /// When it ends, unix seconds.
+    #[serde(default)]
+    pub until: i64,
+}
+
+/// `POST /v1/staff/chat-bans`'s answer.
+#[derive(Deserialize)]
+pub(crate) struct ChatBanRows {
+    pub(crate) bans: Vec<ChatBanRow>,
 }
 
 /// A text a staff member opened (logs or a crash report), for the page to save and show.
@@ -215,6 +278,8 @@ pub struct StaffState {
     pub crashes: Vec<CrashSummary>,
     /// That signature (empty: the newest of all).
     pub crashes_of: String,
+    /// The chat bans in force, as the hub last listed them (newest first).
+    pub chat_bans: Vec<ChatBanRow>,
     /// The logs or crash report opened last, until the viewer takes it
     /// (`Service::take_opened`).
     pub opened: Option<OpenedText>,
@@ -282,6 +347,13 @@ impl StaffState {
                 );
                 self.open(name, detail.readable());
                 format!("Opened crash report #{}", detail.summary.id)
+            }
+            StaffAnswer::ChatBans(bans) => {
+                self.chat_bans = bans;
+                match self.chat_bans.len() {
+                    1 => "1 chat ban in force".to_owned(),
+                    count => format!("{count} chat bans in force"),
+                }
             }
         };
     }
@@ -370,6 +442,14 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         } => "No longer verified".to_owned(),
         StaffRequest::Merge { from, .. } => format!("Merged {from} into this player"),
         StaffRequest::Unlink { key_id } => format!("Unlinked {key_id}"),
+        StaffRequest::Credits { delta, .. } if *delta < 0 => {
+            format!("Took {} credits", delta.unsigned_abs())
+        }
+        StaffRequest::Credits { delta, .. } => format!("Gave {delta} credits"),
+        StaffRequest::Shards { delta, .. } if *delta < 0 => {
+            format!("Took {} kyber shards", delta.unsigned_abs())
+        }
+        StaffRequest::Shards { delta, .. } => format!("Gave {delta} kyber shards"),
     }
 }
 
@@ -438,5 +518,29 @@ mod tests {
             StaffAnswer::Crashes(vec![CrashSummary::default()]),
         );
         assert_eq!(state.crashes_of, "00ff00ff00ff00ff");
+        state.answered(
+            &StaffQuery::ChatBans,
+            StaffAnswer::ChatBans(vec![ChatBanRow::default(), ChatBanRow::default()]),
+        );
+        assert_eq!(state.chat_bans.len(), 2);
+        assert_eq!(state.message, "2 chat bans in force");
+    }
+
+    #[test]
+    fn credits_and_shards_say_what_was_given_or_taken() {
+        let credits = |delta| StaffRequest::Credits {
+            key_id: "0123456789abcdef".into(),
+            delta,
+            note: String::new(),
+        };
+        assert_eq!(done(&credits(50), 1), "Gave 50 credits");
+        assert_eq!(done(&credits(-20), 1), "Took 20 credits");
+        let shards = StaffRequest::Shards {
+            key_id: "0123456789abcdef".into(),
+            delta: -5,
+            note: String::new(),
+        };
+        assert_eq!(done(&shards, 1), "Took 5 kyber shards");
+        assert_eq!(shards.target(), Some("0123456789abcdef"));
     }
 }

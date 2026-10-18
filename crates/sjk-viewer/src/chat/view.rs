@@ -148,8 +148,16 @@ impl ChatOverlay {
         let mut visible = [(0_usize, 0.0_f32, 0.0_f32, None); MAX_VISIBLE];
         let mut count = 0;
         let mut bottom = g.bottom;
-        for index in (0..self.lines.len()).rev().skip(self.scroll) {
+        let mut skipped = 0;
+        for index in (0..self.lines.len()).rev() {
             let line = &self.lines[index];
+            if !self.pm_visible(line) {
+                continue;
+            }
+            if skipped < self.scroll {
+                skipped += 1;
+                continue;
+            }
             let age = ms.saturating_sub(line.received_ms);
             let alpha = if active {
                 visibility(age, true)

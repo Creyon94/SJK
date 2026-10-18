@@ -57,6 +57,12 @@ const BURST_END: f32 = 0.75;
 const TURN: [f32; 2] = [0.55, 1.25];
 const COUNT: [f32; 2] = [1.2, 1.9];
 const WORDS: f32 = 1.85;
+/// The card pack's two tiles sliding out from beside the card (seconds into the
+/// entrance), their size, their gap from the card and how far they slide (frame pixels).
+const PACK: [f32; 2] = [1.0, 1.45];
+const PACK_TILE: [f32; 2] = [230.0, 214.0];
+const PACK_GAP: f32 = 46.0;
+const PACK_SLIDE: f32 = 80.0;
 /// More than this many opened at once run five strips at a time ([`super::batch`]).
 pub(super) const ONE_BY_ONE: usize = 3;
 /// The card on show: its middle and width (frame pixels); a revealed card's face is
@@ -101,6 +107,9 @@ pub(crate) struct Shown {
     /// "Alpha Edition", or empty.
     pub(crate) edition: String,
     pub(crate) credits: u64,
+    /// The kyber shards that came with it, beside the credits (the card pack, 17/10/2026;
+    /// 0 while the hub's economy is off, and then the credits show alone).
+    pub(crate) shards: u64,
     /// The card it is, picked by the hub; `None` while sealed.
     pub(crate) card: Option<String>,
 }
@@ -130,6 +139,7 @@ impl Shown {
             finish: Finish::from_id(&held.finish)?,
             edition: cards::edition_name(&held.edition),
             credits: opened.credits,
+            shards: opened.shards,
             card: held.card.clone(),
         })
     }
@@ -712,8 +722,11 @@ impl Panel {
                 eased,
             );
         }
-        // The credits count up.
-        if elapsed >= COUNT[0] {
+        // A pack: its credits and shards in tiles beside the card; else the credits alone
+        // count up under it.
+        if shown.shards > 0 {
+            self.pack(frame, shown, [top, card_width], elapsed);
+        } else if elapsed >= COUNT[0] {
             let t = ((elapsed - COUNT[0]) / (COUNT[1] - COUNT[0])).clamp(0.0, 1.0);
             let counted = (shown.credits as f32 * t).round() as u64;
             credits_line(
@@ -728,6 +741,34 @@ impl Panel {
                 &format!("+{}", cards::credits_text(counted)),
                 38.0,
                 (t * 3.0).min(1.0),
+            );
+        }
+    }
+
+    /// The card pack (17/10/2026): left of the card a tile of its credits, right of it one
+    /// of the kyber shards that came with it, sliding out from the card and counting up;
+    /// `[top, width]` is the card's place.
+    fn pack(&mut self, frame: &Frame, shown: &Shown, [top, width]: [f32; 2], elapsed: f32) {
+        let out = ((elapsed - PACK[0]) / (PACK[1] - PACK[0])).clamp(0.0, 1.0);
+        if out <= 0.0 {
+            return;
+        }
+        let eased = 1.0 - (1.0 - out).powi(3);
+        let counted = ((elapsed - COUNT[0]) / (COUNT[1] - COUNT[0])).clamp(0.0, 1.0);
+        let middle = top + width * cards::look::ASPECT * 0.5;
+        let reach = width * 0.5 + PACK_GAP + PACK_TILE[0] * 0.5 - PACK_SLIDE * (1.0 - eased);
+        for (side, currency) in [(-1.0, Currency::Credits), (1.0, Currency::Shards)] {
+            let amount = match currency {
+                Currency::Credits => shown.credits,
+                Currency::Shards => shown.shards,
+            };
+            pack_tile(
+                &mut self.ui,
+                frame,
+                [CARD_X + side * reach, middle],
+                currency,
+                (amount as f32 * counted).round() as u64,
+                eased,
             );
         }
     }
@@ -1817,6 +1858,96 @@ pub(super) fn crystals(
         );
         cards::shard::draw(canvas.draw_list_mut(), [x, y], tall * s, lit);
     }
+}
+
+/// What a card pack's tile holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Currency {
+    Credits,
+    Shards,
+}
+
+/// One tile of a card pack centred on `centre` (frame pixels), at `alpha`: the dark glass
+/// with an edge in the currency's colour, its mark, `+amount` and what it is.
+fn pack_tile(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    centre: [f32; 2],
+    currency: Currency,
+    amount: u64,
+    alpha: f32,
+) {
+    let s = frame.s;
+    let [width, height] = PACK_TILE;
+    let [left, top] = [centre[0] - width * 0.5, centre[1] - height * 0.5];
+    let (accent, bright, words, label) = match currency {
+        Currency::Credits => (
+            color::GOLD,
+            color::GOLD_BRIGHT,
+            cards::credits_text(amount),
+            "credits",
+        ),
+        Currency::Shards => (
+            cards::shard::KYBER,
+            cards::shard::KYBER,
+            crate::economy::shards_text(amount),
+            if amount == 1 {
+                "kyber shard"
+            } else {
+                "kyber shards"
+            },
+        ),
+    };
+    let fade = |colour: Color, share: f32| {
+        Color::new(colour.r, colour.g, colour.b, colour.a * share * alpha)
+    };
+    let list = canvas.draw_list_mut();
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: frame.rect(left + 4.0, top + 10.0, width, height),
+        radius: 18.0 * s,
+        color: fade(color::SPACE, 0.6),
+    });
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: frame.rect(left, top, width, height),
+        radius: 18.0 * s,
+        color: fade(Color::new(0.04, 0.06, 0.12, 1.0), 0.95),
+    });
+    let _ = list.push(DrawCommand::Border {
+        rect: frame.rect(left, top, width, height),
+        radius: 18.0 * s,
+        width: 1.5 * s,
+        color: fade(accent, 0.6),
+    });
+    let mark = 64.0;
+    let mark_width = match currency {
+        Currency::Credits => cards::mark::width(mark),
+        Currency::Shards => cards::shard::width(mark),
+    };
+    let at = frame.point(centre[0] - mark_width * 0.5, top + 30.0);
+    match currency {
+        Currency::Credits => cards::mark::draw(list, at, mark * s, fade(accent, 1.0)),
+        Currency::Shards => cards::shard::draw(list, at, mark * s, fade(accent, 1.0)),
+    };
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("+{words}"),
+        frame.rect(left, top + 104.0, width, 50.0),
+        40.0 * s,
+        fade(bright, 1.0),
+        FontWeight::Semibold,
+        TextAlign::Center,
+    );
+    text(
+        canvas,
+        TextFamily::Body,
+        format_args!("{label}"),
+        frame.rect(left, top + 158.0, width, 26.0),
+        17.0 * s,
+        fade(color::MUTED, 1.0),
+        FontWeight::Regular,
+        TextAlign::Center,
+    );
 }
 
 /// The kyber shard's mark and `words` centred on `x` (frame pixels), as [`credits_line`]

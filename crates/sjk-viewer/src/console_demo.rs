@@ -177,7 +177,7 @@ impl GpuState {
             console.close_for_connection();
         }
         if let Some(menu) = &mut self.client_menu {
-            menu.joined();
+            menu.joined(None);
         }
     }
 }
