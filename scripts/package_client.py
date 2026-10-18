@@ -48,8 +48,6 @@ CANONICAL_TEXTS = {
     # Older Cargo declarations use a slash for the same dual-license choice.
     "Apache-2.0/MIT": "Apache-2.0",
     "MIT/Apache-2.0": "Apache-2.0",
-    "MIT": "MIT",
-    "BSD-2-Clause": "BSD-2-Clause",
     "MPL-2.0": "MPL-2.0",
     "BSL-1.0": "BSL-1.0",
 }

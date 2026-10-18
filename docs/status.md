@@ -23,6 +23,25 @@ redirect/CDN hosts require separate approval. Removing a host invalidates cached
 queued and in-flight results. The existing media switch and muted-sender rules apply.
 See [hub-chat.md](hub-chat.md#trusted-media-sources) for limits and privacy.
 
+Reworked 18/10/2026 on `personal/pr-165` (Sol's decision: no C in the project).
+OpenH264 and the `mp4` and `h264-reader` crates are gone; MP4 clips decode through
+Windows Media Foundation in the new `sjk-mediafoundation` crate (the one crate allowed
+`unsafe`, DLLs loaded at run time), and are unavailable on Linux and on Windows N
+without the Media Feature Pack. Animated and still WebP were added (pure Rust
+`image-webp`). Verified on Windows 11 Pro, Rust 1.99: `cargo build --locked
+--workspace`, `cargo test --locked --workspace` (3302 passed, 0 failed, 165 ignored)
+and Clippy with no new warnings in the changed files. A 64 x 48 three-frame clip
+encoded at test time by Windows' H.264 encoder passes the box walk and decodes with
+its top/bottom colours (orientation), 100 ms delays and loop; animated WebP files
+built at test time decode with their delays and the GIF frame/pixel limits; box,
+picture-conversion, stride, aperture and delay rules have unit tests. `sjk.exe`
+imports nothing from `mfplat.dll`/`mfreadwrite.dll` (checked in the debug build).
+`cargo check` and Clippy for `x86_64-unknown-linux-gnu` pass with stubbed C build tools
+(no Linux run). `cargo tree` shows no OpenH264, `mp4` or `h264-reader` and no new `-sys`
+crate. Not verified: a Windows N edition, a real Media Feature Pack absence, clips from
+real sites, or the client in game. The MP4 and notice evidence in the next paragraph
+predates the rework.
+
 Verified on Windows 11 Pro, Rust 1.99.0: workspace formatting, locked build, tests
 and clippy pass (warnings remain). Focused tests cover exact hosts, credential/local
 URL refusal, public-address filtering, blocked initial requests/redirects/CDNs,
@@ -39,8 +58,8 @@ excludes cold parsing, HTTP, decoding, layout, uploads and whole-scene frame tim
 The offscreen picker test passes with ten 1080p/4K captures. Focused Sources captures
 with a typed URL and an uncontacted CDN pass at 1080p with classic menus and at 4K
 with SJK menus, visually inspected on an RTX 5070 Ti. Windows release dependency
-notice collection succeeds, including OpenH264's upstream notice and bindings'
-declared license/author manifest. No automated chat or live game server was used.
+notice collection succeeds, including the then-bundled codec's upstream notice and
+bindings' declared license/author manifest. No automated chat or live game server was used.
 
 Not verified: arbitrary third-party site compatibility or Linux runtime. Private
 APIs, login/script players, non-AVC codecs, fragmented MP4 and streaming playlists

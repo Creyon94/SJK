@@ -348,7 +348,8 @@ content hosted there may play automatically. No adult providers, addresses or
 provider-specific APIs are included. This is a content/privacy preference, not age
 verification or a guarantee about the site's content or legal requirements.
 
-Generic HTTPS links support direct GIF files and silent AVC/H.264 MP4 files, plus
+Generic HTTPS links support direct GIF files, WebP pictures (animated or still) and
+silent AVC/H.264 MP4 files (Windows only, below), plus
 one HTML page advertising media through Open Graph (`og:video`, with `og:image` as a
 fallback), a `video`/`source` element, or `link rel=image_src`. SJK never runs scripts
 or uses browser sessions, cookies or credentials. Sites needing a private API,
@@ -365,13 +366,29 @@ requests filter the actual resolved addresses to public IPv4/native global IPv6.
 Generic media does not use environment proxies, which could resolve private targets
 elsewhere. No referrer or GIPHY API key is sent to generic sources.
 
-The worker decodes MP4 without playing audio, using bundled OpenH264. Only ordinary
-(nonfragmented) AVC MP4 is supported; HEVC, AV1, WebM, script players and streaming
-playlists are unsupported. MP4 boxes/counts and every sequence parameter set are
-checked before native decoding; eight-bit video with at most eight reference frames
-and a bounded canvas is accepted. Frames fit 480 pixels, with at most 240 frames,
-32 MiB of retained pixels and five seconds of decode work checked between samples.
-Long clips loop their retained beginning. Existing GIF limits remain unchanged.
+SJK ships no video codec (Sol's decision, 18/10/2026: no C in the project). The worker
+decodes MP4 without playing audio through Windows Media Foundation
+([sjk-mediafoundation](../crates/sjk-mediafoundation/src/lib.rs)): its MPEG-4 source
+reads the clip from memory, its H.264 decoder and the source reader's video processor
+give RGB32 pictures, which SJK turns into RGBA. COM and Media Foundation start once
+per media worker thread and shut down with it. `mfplat.dll` and `mfreadwrite.dll` are
+loaded at run time from System32, so the client also starts on a Windows N edition
+without the Media Feature Pack. There, on Linux, and wherever Media Foundation does not
+start or has no H.264 decoder, MP4 is unavailable for the run, said once in the log:
+MP4 links stay text, a `video/` response is refused before its body is downloaded,
+`video/mp4` leaves the Accept header and HTML discovery takes the page's `og:image`
+instead of its video. Only ordinary (nonfragmented) AVC MP4 is supported; HEVC, AV1,
+WebM, script players and streaming playlists are unsupported. Before Media Foundation
+sees the file, a bounded walk of its boxes refuses fragments, external data references,
+extended or zero box sizes, oversized sample tables and files without an AVC sample
+entry; the reader's own picture size must not exceed 2048 pixels a side. Frames fit
+480 pixels, with at most 240 frames, 32 MiB of retained pixels and five seconds of
+decode work checked between samples. Long clips loop their retained beginning.
+
+WebP is decoded in Rust (`image-webp`) into the same frames as GIFs, with the GIF
+limits: a canvas over 2048 pixels a side is refused, frames fit 480 pixels, and an
+animation over 240 frames or 32 MiB of pixels keeps its first frame, still. Delays
+under 20 ms show as 100 ms.
 
 Removing a source clears all cached media and changes the job revision: queued and
 finished work from the old policy cannot appear. Already-started network traffic
@@ -381,7 +398,8 @@ only default provider; removing `giphy.com` disables that adapter and its search
 
 Implementation: [sources.rs](../crates/sjk-viewer/src/chat_gifs/sources.rs),
 [discover.rs](../crates/sjk-viewer/src/chat_gifs/discover.rs),
-[video.rs](../crates/sjk-viewer/src/chat_gifs/video.rs) and the shared
+[video.rs](../crates/sjk-viewer/src/chat_gifs/video.rs),
+[decode.rs](../crates/sjk-viewer/src/chat_gifs/decode.rs) (GIF and WebP) and the shared
 [SJK source editor](../crates/sjk-viewer/src/sjk_chat_gif_sources.rs).
 
 ## The GIF picker
