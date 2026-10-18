@@ -1,3 +1,21 @@
+## Siege doors: the use key, lock lights, trigger teams
+
+18/10/2026, `fix/siege-door-use-lights`, on `fix/siege-door-teamallow` merged into
+`Sol-Vulpes/SJK` `6469816` (tester on `mp/siege_hoth`). Implemented, after OpenJK `codemp`:
+
+- The use key reaches `PLAYER_USE` doors (`ValidUseTarget`, `GlobalUse`). In siege the
+  door's `teamallow` team may not use one unless `g_ff_objectives` is set (`TryUse`).
+- In siege, the use key does nothing before the round begins (`TryUse`).
+- A door spawned locked carries `EF_SHADER_ANIM`. Its `s.frame` is 0 while locked and 1
+  once unlocked (`LockDoors`, `UnLockDoors`), so the client draws its lock lights. A locked
+  door keeps its red light while its `teamallow` team walks through it, as stock does.
+- `trigger_multiple`/`trigger_once` take their team from `team`, else from the generic
+  `teamuser`/`alliedteam` spawn fields.
+
+See [server](server.md#siege-doors). The workspace built on Linux; tests and Clippy were
+not run for this branch. Tested by hand on `mp/siege_hoth` with an earlier build of the
+same change.
+
 ## Missing remap targets: no hitch on skin changes
 
 18/10/2026, `fix/missing-remap-targets`, based on `Sol-Vulpes/SJK` `64698160`: fixed
@@ -511,6 +529,24 @@ the reset, and the card's review page and switches. The client was launched to t
 main menu; the shared bars and duels were not exercised against a hub or a second
 client, and the review page shows on its own only in a tagged release (`whatsnew`
 previews it). The server's own duel health (`g_showDuelHealths`) is not affected.
+## Siege doors: teamallow and vehopen
+
+17/10/2026, `fix/siege-door-teamallow`, based on `Sol-Vulpes/SJK` `1c8887f7`: the
+native server ignored two `func_door` keys of `Touch_DoorTrigger` (OpenJK
+`g_mover.c:1112-1190`, keys read at `:1421` and `:1446`). Implemented:
+
+- `teamallow`: a locked door (`MOVER_LOCKED`) opens when a player of that team walks
+  up to it, unlocked only while it is used and its targets fire (`relockEnt`, locked
+  again after the firing, `mover_team::relock`), so it stays locked to the other side;
+  without the key a locked door opens for nobody, as before. Siege maps
+  lock base doors this way for their defenders (reported as doors that do not open on
+  their own; suspected on siege_hoth, whose entities were not inspected).
+- `vehopen`: a vehicle, or a player riding one (`m_iVehicleNum`), opens only a door
+  with this key; riders used to open every door, vehicle NPCs none.
+
+Three unit tests pin both keys; the workspace fmt, build, tests and clippy pass on
+Linux. An NPC's own team is not read (`team: None`), so no NPC opens a `teamallow`
+door; not played on a siege map yet.
 
 ## NPC sabers and voices
 
