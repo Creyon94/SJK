@@ -1069,6 +1069,7 @@ fn force_example() -> Vec<crate::quick_wheel::ShownChoice> {
     const LIGHT: [u8; 9] = [3, 4, 2, 14, 0, 9, 10, 5, 11];
     let known = LIGHT.iter().fold(0, |known, slot| known | 1 << slot);
     force_page::choices(&force_page::Powers {
+        extensions: &[],
         known,
         selected: 9,
         flamethrower: false,

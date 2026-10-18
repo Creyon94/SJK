@@ -169,6 +169,7 @@ pub(crate) struct HudOverlay {
     force_wheel_bar: bool,
     /// The bar's map-lifetime pictures.
     force_wheel_icons: [Option<sjk_ui::TextureId>; force_wheel::ICONS],
+    extension_icons_tried: u32,
     /// The holocron tiers' pictures in the UI atlas (`holocrons/icons.rs`), where they
     /// loaded.
     pub(crate) holocron_icons: [Option<sjk_ui::TextureId>; crate::holocrons::COUNT],
@@ -320,6 +321,7 @@ impl HudOverlay {
             selector: None,
             force_wheel_bar: false,
             force_wheel_icons: [None; force_wheel::ICONS],
+            extension_icons_tried: 0,
             holocron_icons: [None; crate::holocrons::COUNT],
             crosshair_pictures: [None; crosshair::PICTURES],
             rocket_lock: rocket_lock::State::default(),

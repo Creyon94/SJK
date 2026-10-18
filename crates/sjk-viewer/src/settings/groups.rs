@@ -100,6 +100,8 @@ const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
     "mod_jof",
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::destruction::CVAR,
     "jof.downloads",
     "jof.contentSource",
     crate::brush_view::CVAR,
@@ -307,6 +309,8 @@ impl Group {
                 "cg_errorDecay",
                 "mod_japlus",
                 "mod_jof",
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::destruction::CVAR,
                 "jof.downloads",
                 "jof.contentSource",
                 crate::brush_view::CVAR,

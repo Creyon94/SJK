@@ -3643,6 +3643,12 @@ Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
 SJK's own [Illuminate](#illuminate) is a toy, not a Force power: it is not on the wheel.
 See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
+### Destruction client controls
+
+Destruction is a JoF client-mod feature, active only with `mod_jof` on a recognized
+JoF server. See [JoF Destruction controls](mods.md#destruction-client-controls)
+for the mod setting, grant gates, binding and wheel behavior.
+
 ### JA+ flamethrower presentation
 
 On a JA+ server (gamename `ja+`, `japlus` or `ja_plus`; abyssmod and UA Galaxy,
@@ -3667,7 +3673,7 @@ changes. Impact bursts follow presentation time between snapshots, including
 during demo playback.
 
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
-`forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
+`forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash, 21 Destruction), as if
 `forcenext` had stopped on it: a real power becomes the selection the user
 command sends, a pseudo-slot the one `+useforce` uses, and the bar shows it. An
 entry not on the player's wheel, or spectating, selects nothing

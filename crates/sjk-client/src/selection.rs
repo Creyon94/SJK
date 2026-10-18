@@ -20,6 +20,7 @@ pub struct Selection {
     /// A selected JoF pseudo-slot ([`force_wheel::STASIS`] and the others): shown
     /// and used by `+useforce`, never sent, kept while the server grants it.
     pseudo: Option<u8>,
+    extensions: &'static [force_wheel::Ability],
     force_time: Option<i32>,
     item_time: Option<i32>,
 }
@@ -35,6 +36,8 @@ pub struct SelectionView {
     pub selected: u8,
     /// UI fade within the stock 1400 ms lifetime.
     pub alpha: f32,
+    /// Optional metadata supplied by loaded mods, never inferred from unknown bits.
+    pub extensions: &'static [force_wheel::Ability],
 }
 
 impl Selection {
@@ -55,7 +58,13 @@ impl Selection {
         let known = self.known(player);
         // CG_NoUseableForce checks known bits only, not energy or force levels;
         // JoF EJK counts the granted pseudo-slots as usable.
-        if inventory || use_held || known & (FORCE_MASK | force_wheel::PSEUDO_MASK) == 0 {
+        if inventory
+            || use_held
+            || known
+                & (FORCE_MASK
+                    | (force_wheel::PSEUDO_MASK | force_wheel::extension_mask(self.extensions)))
+                == 0
+        {
             let current = self.inventory.unwrap_or_else(|| item_tag(player));
             let mut next = current as i32;
             // BG_CycleInven's bounded scan includes the empty initial selection.
@@ -86,7 +95,7 @@ impl Selection {
                 .pseudo
                 .unwrap_or_else(|| self.force.unwrap_or_else(|| player.selected_force_power()));
             // JoF EJK's CG_NextForcePower_f walks its wheel, pseudo-slots included.
-            if let Some(next) = force_wheel::step(known, current, direction) {
+            if let Some(next) = force_wheel::step_with(known, current, direction, self.extensions) {
                 if force_wheel::is_pseudo(next) {
                     self.pseudo = Some(next);
                 } else {
@@ -112,7 +121,7 @@ impl Selection {
             }
             if self.force_time != Some(time) {
                 // Only pseudo-slots granted: JoF EJK starts at the wheel's first entry.
-                let (slots, count) = force_wheel::build(known);
+                let (slots, count) = force_wheel::build_with(known, self.extensions);
                 if count > 0 && force_wheel::is_pseudo(slots[0]) {
                     self.pseudo = Some(slots[0]);
                     self.force_time = Some(time);
@@ -131,7 +140,7 @@ impl Selection {
             return false;
         }
         self.sync(player, time);
-        if !force_wheel::valid(self.known(player), slot) {
+        if !force_wheel::valid_with(self.known(player), slot, self.extensions) {
             return false;
         }
         if force_wheel::is_pseudo(slot) {
@@ -158,7 +167,22 @@ impl Selection {
 
     /// The player's `forcePowersKnown` as the wheel reads it: the server's bits.
     pub fn known(&self, player: &PlayerState) -> u32 {
-        player.raw_field(51).unwrap_or(0)
+        force_wheel::known(player, self.extensions)
+    }
+
+    /// Supply only metadata allowed by the currently loaded client mods.
+    pub fn set_extensions(&mut self, extensions: &'static [force_wheel::Ability]) {
+        self.extensions = extensions;
+        if self
+            .pseudo
+            .is_some_and(|slot| !force_wheel::valid_with(u32::MAX, slot, extensions))
+        {
+            self.pseudo = None;
+        }
+    }
+    /// The metadata retained with the local selection, for UI and input projection.
+    pub fn extensions(&self) -> &'static [force_wheel::Ability] {
+        self.extensions
     }
 
     /// Reset expired Force overrides and consumed items to authoritative selection.
@@ -167,7 +191,7 @@ impl Selection {
         let known = self.known(player);
         if self
             .pseudo
-            .is_some_and(|slot| !force_wheel::valid(known, slot))
+            .is_some_and(|slot| !force_wheel::valid_with(known, slot, self.extensions))
         {
             self.pseudo = None;
         }
@@ -208,10 +232,14 @@ impl Selection {
         }
         let view = SelectionView {
             inventory,
+            extensions: self.extensions,
             available: if inventory {
                 player.stats[2] & ITEM_MASK
             } else {
-                self.known(player) & (FORCE_MASK | force_wheel::PSEUDO_MASK)
+                self.known(player)
+                    & (FORCE_MASK
+                        | force_wheel::PSEUDO_MASK
+                        | force_wheel::extension_mask(self.extensions))
             },
             selected: if inventory {
                 self.inventory.unwrap_or_else(|| item_tag(player))

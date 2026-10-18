@@ -2287,6 +2287,7 @@ fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         ("hud-force-wheel-merc", 7, true),
     ] {
         let view = sjk_client::selection::SelectionView {
+            extensions: &[],
             inventory: false,
             available: powers | jof,
             selected,

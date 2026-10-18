@@ -633,6 +633,7 @@ impl crate::GpuState {
             if let Some((known, selected)) = self.quick_wheel.force_for_shot {
                 return Some(force_page::Powers {
                     known,
+                    extensions: &[],
                     selected,
                     flamethrower: false,
                     icons: self.hud.power_icons(),
@@ -644,9 +645,14 @@ impl crate::GpuState {
         if player.movement_type() == 4 || player.movement_flags() & 4096 != 0 {
             return None;
         }
-        let selection = &self.gameplay_input.selection;
+        let mut selection = self.gameplay_input.selection;
+        selection.set_extensions(crate::input::force_abilities::extensions(
+            Some(session.game_state()),
+            self.console.as_ref(),
+        ));
         Some(force_page::Powers {
             known: selection.known(player),
+            extensions: selection.extensions(),
             selected: selection.selected_force(player),
             flamethrower: self.hud.flamethrower_shown(),
             icons: self.hud.power_icons(),
@@ -983,6 +989,7 @@ mod tests {
         let console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         let powers = force_page::Powers {
+            extensions: &[],
             known: u32::MAX,
             selected: 3,
             flamethrower: false,

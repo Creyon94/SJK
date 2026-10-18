@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// action with a picture. `weapon N` selects weapon `N + 2` of
 /// `weapon_t` (`weapon 1` the saber, else melee; `weapon 10` cycles the
 /// explosives), as `legacy_direct_weapon` reads it.
-const ICONS: [(&str, &str); 42] = [
+const ICONS: &[(&str, &str)] = &[
     // INTERACTION
     ("sv_saberswitch", "gfx/hud/w_icon_lightsaber.tga"),
     ("saberAttackCycle", "gfx/hud/saber_med.tga"),
@@ -69,6 +69,11 @@ const ICONS: [(&str, &str); 42] = [
     ("force_dash", "gfx/jof/force_dash.tga"),
     ("+force_stasis", "gfx/mp/f_icon_levitation.tga"),
     ("force_repulse", "gfx/jof/force_repulse.tga"),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::destruction::COMMAND,
+        "gfx/mp/f_icon_lightning.tga",
+    ),
     // OTHER
     ("teammenu", "gfx/hud/mpi_rflag.tga"),
 ];
@@ -95,7 +100,7 @@ pub(super) fn texture(action: usize) -> Option<TextureId> {
 /// Each distinct picture and its cell.
 pub(super) fn requests() -> Vec<IconRequest> {
     let mut requests: Vec<IconRequest> = Vec::with_capacity(ICONS.len());
-    for (_, path) in ICONS {
+    for &(_, path) in ICONS {
         let Some(texture) = cell(path) else { continue };
         if requests.iter().all(|(other, _)| *other != texture) {
             requests.push((texture, vec![path.to_owned()]));

@@ -116,6 +116,7 @@ pub(crate) fn update(
     presentation_time: i32,
     intermission: bool,
 ) {
+    gpu.refresh_force_support();
     let (view_target, view_up, vertical_fov) = view;
     hud::tints::update(gpu, view_position, presentation_time, intermission);
     hud::vehicle_feed::sample(gpu, presentation_time);

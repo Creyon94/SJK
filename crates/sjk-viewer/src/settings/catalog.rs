@@ -714,6 +714,12 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::actor_world_submission::force_powers::victim::CVAR,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF Destruction support",
+        cvar: sjk_mod_jof::destruction::CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
     Setting {
         label: "Flamethrower effects",
         cvar: crate::actor_world_submission::force_powers::flame::CVAR,
