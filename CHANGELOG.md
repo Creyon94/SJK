@@ -32,6 +32,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
 
+- JoF mod: on JoF servers that grant it, Destruction gets its place on the Force wheel, its key and its HUD icon; Settings > Mods > Destruction (`jof.destructionSupport`) _(Lumaya, after JoF EJK)_
+- JoF mod: JoF server dialogue shows with its choices and plays its voices; Settings > Mods (`jof.dialogue`) _(Lumaya, after JoF EJK)_
+- JoF mod: SJK tells JoF servers it supports EJK's extensions, as JoF EJK does, which turns on their server-side abilities, and Stasis and Repulse play their firing sounds (`jof.ejkOptIn`, `jof.abilitySounds`) _(Lumaya, after JoF EJK)_
 - Jetpack effects load replacement-pack shaders before flight and keep their authored tail lengths; hidden effect layers stay hidden instead of becoming fallback sparks _(Lumaya, after JoF EJK)_
 - Siege on SJK servers: doors a map keeps locked for one team open for that team's players, only doors made for it open for vehicles and their riders, the use key opens doors made to be used, locked doors show their lock lights, and nothing can be used before the round begins _(Slash, after JKA)_
 - The Siege HUD shows waiting for players and the round countdown, how long until your respawn wave, and a hack's progress, and hacking plays its sound _(Slash, after JKA)_
@@ -39,9 +42,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Siege on SJK servers: you can board your own team's vehicles again, siege_hoth's AT-ST included _(Slash, after JKA)_
 - Siege on SJK servers: bots added before the round take both sides, so the round can begin _(Slash, after JKA)_
 - No more 400 ms freezes when a map remaps a model to a skin you do not have, such as JoF's night ffa3 (stock Kyle to `kyle_new`): the missing shader is looked for once a map instead of at every skin change _(Milamber)_
-- JoF tools add server-granted Destruction controls on JoF servers only. _(Lumaya, after JoF EJK)_
-- JoF tools show server dialogue and installed node voices on JoF servers only. _(Lumaya, after JoF EJK)_
-- JoF tools can opt into server EJK extensions and play Stasis/Repulse confirmations. _(Lumaya, after JoF EJK)_
 - The scoreboard sets away players apart: anyone whose view has not moved for 3 minutes (or with [AFK] in their name) drops to the bottom of their list, faint, with "AFK" and how long; chat, a turn of the mouse or a kill brings them back. Settings > HUD > Scoreboard > Away players apart (`cg_scoreboardAfk`) _(Sol)_
 - Mute is now Block, and it blocks everything: a blocked player's game and SJK chat stay hidden, they are drawn as Kyle with the default saber, silent, and now their emotes, Order 66 orders, cardboard box events and player card are ignored too; `block <player>` and `unblock <player|all>` in the console, and the SJK chat page lists who you blocked with Unblock _(Sol)_
 - The Staff page is reworked into tabs for the chosen player (Overview, Medals and unlocks, Holocrons and credits, Achievements, Keys, Logs) plus Crashes and Chat bans for everyone, and it now gives and takes credits and kyber shards, blocks or allows a player's pictures, mutes them at the hub, lifts their chat bans and lists every chat ban in force _(Sol)_
