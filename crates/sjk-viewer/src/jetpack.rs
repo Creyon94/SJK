@@ -343,6 +343,94 @@ mod tests {
                     > 100
             );
             after.save(directory.join("jetpack-equipped.png")).unwrap();
+            let definition = gpu
+                .effects
+                .definition(gpu.vfs.as_ref().unwrap(), EFFECT)
+                .unwrap();
+            let missing: Vec<_> = definition
+                .components
+                .iter()
+                .flat_map(|component| component.shaders.iter())
+                .filter(|name| {
+                    !gpu.particle_atlas
+                        .animations
+                        .contains_key(&name.to_ascii_lowercase())
+                })
+                .collect();
+            assert!(
+                missing.is_empty(),
+                "jetpack shaders fell back instead of being loaded: {missing:?}"
+            );
+            let now = std::time::Instant::now();
+            for millis in (0..=200).step_by(8) {
+                for (jet, flame) in gpu
+                    .jetpack
+                    .flames(pack_origin, pack_rotation)
+                    .into_iter()
+                    .enumerate()
+                {
+                    let (position, direction) = flame.unwrap();
+                    for copy in 0..2 {
+                        crate::effect_runtime::spawn_effect(
+                            &mut gpu.particles,
+                            &mut gpu.effect_aux,
+                            &mut gpu.effects,
+                            gpu.vfs.as_ref().unwrap(),
+                            EFFECT,
+                            position,
+                            now - std::time::Duration::from_millis(200 - millis),
+                            (millis as u32).wrapping_mul(7) + jet as u32 * 2 + copy,
+                            0,
+                            &mut None,
+                            crate::combat_effects::rotation_from_direction(direction.to_array()),
+                        );
+                    }
+                }
+            }
+            let exhaust = crate::world_shot::frame(&mut gpu, 1);
+            assert!(
+                gpu.particles.iter().any(|p| p.length.is_some()),
+                "exhaust tails reached the effect pass"
+            );
+            exhaust.save(directory.join("jetpack-exhaust.png")).unwrap();
+            let atlas = &mut gpu.particle_atlas;
+            atlas
+                .refresh_remaps(
+                    &gpu.device,
+                    &gpu.queue,
+                    gpu.vfs.as_ref().unwrap(),
+                    &gpu.shaders,
+                    u64::MAX,
+                    |name| {
+                        (
+                            if name == "gfx/effects/flamejet" {
+                                "clear"
+                            } else {
+                                name
+                            }
+                            .to_owned(),
+                            0.0,
+                        )
+                    },
+                )
+                .unwrap();
+            assert!(
+                atlas
+                    .animations
+                    .get("gfx/effects/flamejet")
+                    .is_some_and(Vec::is_empty)
+            );
+            assert_eq!(
+                atlas.layers_for("gfx/effects/flamejet", 0.0).iter().count(),
+                0,
+                "a suppressed exhaust shader must not become a fallback spark"
+            );
+            assert!(atlas.first_layer("gfx/effects/flamejet", 0.0).is_none());
+            assert_eq!(
+                atlas.layers_for("gfx/test/missing", 0.0).iter().count(),
+                1,
+                "a genuinely missing shader retains its fallback"
+            );
         });
     }
 

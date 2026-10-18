@@ -41,6 +41,39 @@ impl Look {
     }
 }
 
+/// Remap targets this world's content lacks. A remap is applied again whenever the
+/// world registers a material it had not drawn yet (a player's new skin, a prop loaded
+/// mid-match), and every slot of a remapped player model asks again: a map that remaps
+/// the stock Kyle model to a skin the player has not installed (JoF's night ffa3, to
+/// `models/players/kyle_new/`) searched the game data and logged a line about 170
+/// times each time, a 400 ms hitch. A target is checked and logged once, then skipped;
+/// the shader catalog and game data are the world's own, built with it, so the list
+/// lasts as long as the world and a new one (the next map) checks again.
+#[derive(Default)]
+pub(crate) struct MissingTargets(std::collections::HashSet<String>);
+
+impl MissingTargets {
+    /// Whether `target` can be drawn: `exists` is asked unless `target` is already
+    /// known missing, and a missing one is logged the first time only.
+    pub(crate) fn available(
+        &mut self,
+        target: &str,
+        exists: impl FnOnce() -> Result<bool, Box<dyn Error>>,
+    ) -> Result<bool, Box<dyn Error>> {
+        if self.0.contains(target) {
+            return Ok(false);
+        }
+        if exists()? {
+            return Ok(true);
+        }
+        crate::log::progress(format_args!(
+            "shader remap ignored: missing {target} (not tried again on this map)"
+        ));
+        self.0.insert(target.to_owned());
+        Ok(false)
+    }
+}
+
 /// Stage metadata bit: the stage's vertex colour is the map's baked light, which
 /// real-time lighting replaces (`world_lighting_mode.wgsl`).
 const VERTEX_BAKE: u32 = 1;
@@ -89,12 +122,14 @@ impl Runtime {
         shaders: &ShaderCatalog,
         images: &mut ImageCache,
     ) -> Result<bool, Box<dyn Error>> {
-        let original = &self.remaps.sources[source];
         // A failed registration must not replace usable geometry with the checkerboard.
-        if shaders.get(target).is_none() && shaders.resolve_image(vfs, target)?.is_none() {
-            crate::log::progress(format_args!("shader remap ignored: missing {target}"));
+        let exists = || -> Result<bool, Box<dyn Error>> {
+            Ok(shaders.get(target).is_some() || shaders.resolve_image(vfs, target)?.is_some())
+        };
+        if !self.remaps.missing.available(target, exists)? {
             return Ok(false);
         }
+        let original = &self.remaps.sources[source];
         let index = self.source_to_runtime[source];
         if index == usize::MAX {
             return Ok(false);
@@ -205,7 +240,42 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use super::baked_vertex_light;
+    use super::{MissingTargets, baked_vertex_light};
+    use std::cell::Cell;
+
+    /// A missing target is looked up once however often its remap is applied again
+    /// (every slot of every Kyle model, every new material); one that exists is asked
+    /// every time, so it is never skipped.
+    #[test]
+    fn a_missing_target_is_looked_up_once() {
+        let mut missing = MissingTargets::default();
+        let lookups = Cell::new(0);
+        let lookup = |found: bool| {
+            lookups.set(lookups.get() + 1);
+            Ok(found)
+        };
+        for _ in 0..170 {
+            let available = missing.available("models/players/kyle_new/torso_jo", || lookup(false));
+            assert!(!available.unwrap());
+        }
+        assert_eq!(lookups.get(), 1);
+        for _ in 0..3 {
+            let available = missing.available("models/players/kyle/kyle_torso", || lookup(true));
+            assert!(available.unwrap());
+        }
+        assert_eq!(lookups.get(), 4);
+        // A lookup that fails is not taken for a missing target.
+        assert!(
+            missing
+                .available("textures/broken", || Err("unreadable pack".into()))
+                .is_err()
+        );
+        assert!(
+            missing
+                .available("textures/broken", || lookup(true))
+                .unwrap()
+        );
+    }
 
     #[test]
     fn vertex_colour_on_a_lightmapped_slot_is_baked_light() {

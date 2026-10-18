@@ -306,17 +306,24 @@ impl NativeGame {
     }
 
     /// `Touch_DoorTrigger` and `Touch_PlatCenterTrigger` for an NPC in a mover's own
-    /// trigger: a door opens for any NPC but a vehicle, a plat at the bottom is used.
+    /// trigger: a door opens for any NPC but a vehicle (unless `vehopen`), a plat at the
+    /// bottom is used.
     fn npc_touch_doors(&mut self, number: u16, level_time: i32) {
-        let opens = self
+        let Some(on_vehicle) = self
             .npc_actor(number)
-            .is_some_and(|npc| sjk_game_jka::npc_triggers::opens_doors(npc));
+            .map(|npc| !sjk_game_jka::npc_triggers::opens_doors(npc))
+        else {
+            return;
+        };
         for index in 0..self.doors.len() {
             let Some((origin, (mins, maxs))) = self.npc_box(number) else {
                 return;
             };
             let door = &self.doors[index].1;
-            if !movers::spawns_own_trigger(door) {
+            // A vehicle at a door not made for it: nothing to do, nor to publish.
+            if !movers::spawns_own_trigger(door)
+                || (on_vehicle && door.kind != MoverKind::Plat && !door.vehicle_open)
+            {
                 continue;
             }
             let (low, high) = match door.kind {
@@ -331,28 +338,37 @@ impl NativeGame {
             }) {
                 continue;
             }
-            let fired = match self.doors[index].1.kind {
-                MoverKind::Plat => (self.doors[index].1.state == MoverState::Pos1)
-                    .then(|| {
-                        mover_team::use_mover(
-                            &mut self.doors,
-                            index,
-                            level_time,
-                            Some(usize::from(number)),
-                        )
-                    })
-                    .flatten(),
-                MoverKind::Door | MoverKind::Button if opens => mover_team::touch_trigger(
+            let touch = match self.doors[index].1.kind {
+                MoverKind::Plat => mover_team::DoorTouch {
+                    fired: (self.doors[index].1.state == MoverState::Pos1)
+                        .then(|| {
+                            mover_team::use_mover(
+                                &mut self.doors,
+                                index,
+                                level_time,
+                                Some(usize::from(number)),
+                            )
+                        })
+                        .flatten(),
+                    relock: false,
+                },
+                MoverKind::Door | MoverKind::Button => mover_team::touch_trigger(
                     &mut self.doors,
                     index,
                     level_time,
-                    Some(usize::from(number)),
+                    mover_team::DoorToucher {
+                        client: Some(usize::from(number)),
+                        team: None,
+                        on_vehicle,
+                    },
                 ),
-                MoverKind::Door | MoverKind::Button => continue,
             };
             self.publish_team(index);
-            if let Some(target) = fired {
+            if let Some(target) = touch.fired {
                 self.fire_targets(&target, usize::from(number), level_time);
+            }
+            if touch.relock {
+                mover_team::relock(&mut self.doors, index);
             }
         }
     }

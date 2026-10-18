@@ -98,7 +98,9 @@ pub(crate) fn append(
     let Some(projected) = projected else {
         return;
     };
-    let layer = atlas.first_layer("gfx/effects/saberFlare", 0.0);
+    let Some(layer) = atlas.first_layer("gfx/effects/saberFlare", 0.0) else {
+        return;
+    };
     output.push(crate::EntityInstance {
         position: [projected.center_ndc[0], projected.center_ndc[1], 0.0],
         kind: 6,
