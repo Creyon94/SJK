@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 bytemuck = { version = "1.25.0", features = ["derive"] }
 glam = "0.33.0"
-image = { version = "0.25.9", default-features = false, features = ["gif", "jpeg", "png", "tga"] }
+image = { version = "0.25.9", default-features = false, features = ["gif", "jpeg", "png", "tga", "webp"] }
 half = "2.7.1"
 fontdue = "0.9.3"
 # Glyphs beyond the code-page atlases, outlined on demand (`text/wide.rs`).

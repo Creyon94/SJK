@@ -73,8 +73,8 @@ fn resolve(
         if response.bytes.len() as u64 > MAX_BYTES {
             return Err(Failure::TooLarge);
         }
-        if response.bytes.starts_with(b"GIF87a")
-            || response.bytes.starts_with(b"GIF89a")
+        if super::decode::is_gif(&response.bytes)
+            || super::decode::is_webp(&response.bytes)
             || super::video::is_mp4(&response.bytes)
         {
             return Ok(response.bytes);
@@ -227,5 +227,36 @@ mod tests {
             "https://example.org/a/still.webp"
         );
         assert!(media_link(&base, br#"<video src="clip.mp4"></video>"#, false).is_none());
+    }
+    #[test]
+    fn webp_media_found_on_a_page_or_linked_directly_is_kept() {
+        let webp = crate::chat_gifs::decode::test_webp([8, 8], 2, 50);
+        let page = reply(
+            200,
+            None,
+            "text/html",
+            br#"<meta property="og:image" content="https://example.org/a.webp">"#,
+        );
+        let mut http = Script {
+            asked: vec![],
+            answers: [page, reply(200, None, "image/webp", &webp)].into(),
+        };
+        let bytes = resolve(&mut http, "https://example.org/page", || true, |_| true).unwrap();
+        assert_eq!(http.asked[1], "https://example.org/a.webp");
+        assert_eq!(
+            crate::chat_gifs::decode::decode(&bytes)
+                .unwrap()
+                .frames
+                .len(),
+            2
+        );
+        let mut http = Script {
+            asked: vec![],
+            answers: [reply(200, None, "image/webp", &webp)].into(),
+        };
+        assert_eq!(
+            resolve(&mut http, "https://example.org/a.webp", || true, |_| true).unwrap(),
+            webp
+        );
     }
 }

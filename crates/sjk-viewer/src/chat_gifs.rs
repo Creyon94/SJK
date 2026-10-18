@@ -1,8 +1,8 @@
 //! GIFs in SJK chat (`docs/hub-chat.md`, "GIFs from GIPHY"): a message linking to a
 //! GIPHY GIF shows the GIF, animated, under its line on the SJK chat page and the docks.
-//! Trusted generic sites can also supply GIFs or silent H.264 MP4 clips. Each reader's
-//! client fetches directly from its approved sources; the hub carries only
-//! the text.
+//! Trusted generic sites can also supply GIFs, WebP pictures (animated or still) or
+//! silent H.264 MP4 clips (Windows Media Foundation only). Each reader's client
+//! fetches directly from its approved sources; the hub carries only the text.
 //!
 //! [`for_message`] finds the first GIPHY link of a message ([`link`]) and words the
 //! line with "GIF" in its place, unless GIFs are off (`cl_sjkChatGifs 0`) or the sender

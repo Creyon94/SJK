@@ -89,9 +89,9 @@ impl Http {
         }
         let video = super::video::available();
         let accept = if video {
-            "image/gif, video/mp4, text/html;q=0.5"
+            "image/gif, image/webp, video/mp4, text/html;q=0.5"
         } else {
-            "image/gif, text/html;q=0.5"
+            "image/gif, image/webp, text/html;q=0.5"
         };
         let mut response = self
             .media
