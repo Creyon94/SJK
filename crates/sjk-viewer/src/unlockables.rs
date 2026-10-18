@@ -1106,6 +1106,7 @@ mod tests {
             avatar: None,
             look_outcome: None,
             packs_revision: 0,
+            test_packs: Default::default(),
             map_edits_revision: 0,
             map_edits_published: None,
             assets_note: None,

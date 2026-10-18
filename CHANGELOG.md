@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_serverRemaps: Servers no longer swap the map's textures unless you allow it. Turn this on to see their remaps again.
 
+- Test packs: the SJK team can send test content sealed to the players it picks; it downloads on its own, stays encrypted on disk and mounts at the next map load _(Sol)_
 - Map edits (Settings > Game, `cg_mapEdits`, on): SJK's own fixes to maps, props hidden, models placed and textures swapped by the SJK team, for every server or one; only what you see changes, never collision _(Sol)_
 - Server shader remaps are off by default (Settings > Game, `cg_serverRemaps`): servers no longer swap the map's textures unless you turn them on; `cg_remaps` still picks which apply when they are on, and the map's own remaps always apply _(Sol)_
 - Emote pictures no longer vanish from the quick wheel and its editor after a map change or joining a server _(Sol)_
