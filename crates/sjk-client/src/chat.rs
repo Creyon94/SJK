@@ -360,7 +360,17 @@ pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     } else {
         crate::legacy_text::decode_legacy(arguments.get(1)?).into_owned()
     };
-    Some(ServerEvent { kind, text, sender })
+    Some(ServerEvent {
+        kind,
+        // G_Say's SAY_TELL to a teammate with a location sends `lchat`, whose
+        // argument 1 is the same marked name.
+        is_private: matches!(command, b"chat" | b"lchat")
+            && arguments
+                .get(1)
+                .is_some_and(|text| text.starts_with(b"\x19[")),
+        text,
+        sender,
+    })
 }
 
 #[cfg(test)]
@@ -555,5 +565,59 @@ mod escape_tests {
             .strip_suffix('"')
             .unwrap();
         assert_eq!(chat_unescape(body), "it's 100% \"fine\"");
+    }
+}
+
+/// Whether a reliable command carries the stock private-message marker before its name.
+/// `lchat` (G_Say's tell to a teammate with a location) qualifies, its argument 1
+/// being the marked name; team commands and lookalike colours or bodies do not.
+pub(crate) fn private_chat_command(command: &[u8]) -> bool {
+    let mut parts = command.splitn(2, u8::is_ascii_whitespace);
+    if !parts
+        .next()
+        .is_some_and(|command| matches!(command, b"chat" | b"lchat"))
+    {
+        return false;
+    }
+    let Some(rest) = parts.next() else {
+        return false;
+    };
+    let rest = rest.trim_ascii_start();
+    rest.strip_prefix(b"\"")
+        .unwrap_or(rest)
+        .starts_with(b"\x19[")
+}
+
+#[cfg(test)]
+mod private_marker_tests {
+    use super::*;
+    #[test]
+    fn private_marker_precedes_name_and_only_belongs_to_global_chat() {
+        for command in [
+            b"chat \"\x19[Fox^7]: ^6hello\" 2".as_slice(),
+            b"chat \x19[Fox]: hi 2",
+            // G_Say's SAY_TELL to a teammate in a team game, with a location.
+            b"lchat \"\x19[Fox^7\x19]\x19: \" \"@Base\" \"6\" \"hello\" 2",
+        ] {
+            assert!(private_chat_command(command));
+            assert!(
+                server_chat_event(&crate::tokenize_command(command))
+                    .unwrap()
+                    .is_private
+            );
+        }
+        for command in [
+            b"chat \"Fox: [Other^7]: ^6fake\" 2".as_slice(),
+            b"chat \"Fox: \x19[Other]: fake\" 2",
+            b"tchat \"\x19[Fox]: hi\" 2",
+            b"lchat Fox 0 7 hi 2",
+        ] {
+            assert!(!private_chat_command(command));
+            assert!(
+                !server_chat_event(&crate::tokenize_command(command))
+                    .unwrap()
+                    .is_private
+            );
+        }
     }
 }

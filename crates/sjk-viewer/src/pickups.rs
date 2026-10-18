@@ -80,8 +80,16 @@ enum Kind {
 }
 
 /// Collect visible item models into a reused fixed-capacity output vector.
-pub(crate) fn collect(snapshot: &Snapshot, at_time: i32, output: &mut Vec<Presented>) {
+pub(crate) fn collect(
+    snapshot: &Snapshot,
+    at_time: i32,
+    hide_in_duel: bool,
+    output: &mut Vec<Presented>,
+) {
     output.clear();
+    if hide_in_duel && snapshot.player.duel_in_progress() {
+        return;
+    }
     for state in &snapshot.entities {
         if state.entity_type() != ET_ITEM {
             continue;
@@ -332,5 +340,65 @@ pub(crate) fn spawn_cones(
             audio,
             cone_rotation(),
         );
+    }
+}
+
+#[cfg(test)]
+mod duel_visibility_tests {
+    use super::*;
+    use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};
+
+    fn snapshot(duelling: bool) -> Snapshot {
+        let mut player = PlayerState::default();
+        player.set_raw_field(119, u32::from(duelling));
+        let mut health = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        health.set_raw_field(8, u32::from(ET_ITEM));
+        health.set_raw_field(46, 3);
+        Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities: vec![health],
+            consumed_bits: 0,
+        }
+    }
+
+    #[test]
+    fn the_duel_preference_hides_the_direct_pickup_render_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut output = Vec::new();
+
+        collect(
+            &snapshot(false),
+            1_000,
+            console.hide_pickups_in_duel(),
+            &mut output,
+        );
+        assert_eq!(output.len(), 1);
+
+        collect(
+            &snapshot(true),
+            1_000,
+            console.hide_pickups_in_duel(),
+            &mut output,
+        );
+        assert!(output.is_empty());
+
+        assert!(console.set_cvar(crate::duel_visibility::PICKUPS_CVAR, "0"));
+        collect(
+            &snapshot(true),
+            1_000,
+            console.hide_pickups_in_duel(),
+            &mut output,
+        );
+        assert_eq!(output.len(), 1);
     }
 }

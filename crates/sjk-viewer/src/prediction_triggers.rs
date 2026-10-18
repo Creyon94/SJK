@@ -43,9 +43,10 @@ impl LocalPrediction {
         &self,
         snapshot: &Snapshot,
         time: i32,
+        hide_in_duel: bool,
         out: &mut Vec<crate::pickups::Presented>,
     ) {
-        crate::pickups::collect(snapshot, time, out);
+        crate::pickups::collect(snapshot, time, hide_in_duel, out);
         if let Some(state) = self.predicted_state() {
             out.retain(|item| !state.predicted_item_hidden(item.entity_number));
         }

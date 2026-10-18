@@ -97,8 +97,12 @@ impl Iterator for MixerSource {
                         }
                     }
                     DecodedAction::StopMusic => self.mixer.stop_background_track(),
-                    DecodedAction::StartMusic(intro, repeating) => {
-                        let counter = if self.mixer.start_background_track(intro, repeating, 1.0) {
+                    DecodedAction::StartMusic(intro, repeating, offset) => {
+                        let elapsed = offset.map_or(0, |offset| offset.position(Instant::now()));
+                        let counter = if self
+                            .mixer
+                            .start_background_track_at(intro, repeating, 1.0, elapsed)
+                        {
                             &self.stats.music_starts
                         } else {
                             &self.stats.music_rejections
@@ -197,9 +201,25 @@ pub(super) enum AudioCommand {
     Shutdown,
 }
 
+/// Clock anchor travels with one synced start through decoding and callback queues.
+#[derive(Clone, Copy)]
+struct MusicOffset {
+    elapsed_ms: u64,
+    queued_at: Instant,
+}
+impl MusicOffset {
+    fn position(self, now: Instant) -> u64 {
+        self.elapsed_ms.saturating_add(
+            now.saturating_duration_since(self.queued_at)
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64,
+        )
+    }
+}
+
 enum DecodedAction {
     Register(SoundHandle, DecodedSound),
-    StartMusic(SoundHandle, SoundHandle),
+    StartMusic(SoundHandle, SoundHandle, Option<MusicOffset>),
     StopMusic,
 }
 
@@ -217,6 +237,8 @@ pub(super) struct AudioOutput {
     pub(super) show: bool,
     pub(super) started: std::collections::VecDeque<SoundHandle>,
     pub(super) cache: std::cell::RefCell<Vec<(SoundHandle, usize, String)>>,
+    /// Allocated at registration; the decoder publishes duration without taking a lock.
+    lengths: std::cell::RefCell<Vec<Arc<AtomicU32>>>,
 }
 
 enum DecodeJob {
@@ -224,6 +246,7 @@ enum DecodeJob {
         handle: SoundHandle,
         bytes: Box<[u8]>,
         extension: Box<str>,
+        length_ms: Arc<AtomicU32>,
     },
     /// A sound made from a decoded one: `make` turns its mixer-rate samples into the
     /// new sound's (`sjk_chat_sound.rs`).
@@ -233,7 +256,7 @@ enum DecodeJob {
         extension: Box<str>,
         make: fn(&[f32], u32) -> Vec<f32>,
     },
-    StartMusic(SoundHandle, SoundHandle),
+    StartMusic(SoundHandle, SoundHandle, Option<MusicOffset>),
     StopMusic,
 }
 
@@ -296,8 +319,26 @@ impl AudioOutput {
             show: false,
             started: std::collections::VecDeque::with_capacity(64),
             cache: std::cell::RefCell::new(Vec::new()),
+            lengths: std::cell::RefCell::new(Vec::new()),
         };
         Some((audio, source))
+    }
+
+    /// Reuse the normal queues/decoder/mixer without opening a device in focused tests.
+    #[cfg(test)]
+    pub(super) fn test_output() -> (Self, impl Iterator<Item = f32>) {
+        Self::assemble(
+            MixerConfig {
+                voices: VOICES,
+                loops: LOOPS,
+                sample_rate: SAMPLE_RATE,
+                loop_attenuation: sjk_client::legacy_sound_attenuation(0),
+                doppler: sjk_client::legacy_doppler_config(true),
+                protected_channel: Some(crate::audio::EMOTE_CHANNEL),
+            },
+            "detached music test".into(),
+        )
+        .unwrap()
     }
 
     pub(super) fn send(&mut self, command: AudioCommand) {
@@ -320,6 +361,21 @@ impl AudioOutput {
         }
     }
 
+    /// Cached decoded duration, or zero while unavailable/invalid. No file access or lock.
+    pub(super) fn sample_length_ms(&self, handle: SoundHandle) -> u32 {
+        self.lengths
+            .borrow()
+            .get(handle.0 as usize)
+            .map_or(0, |length| length.load(Ordering::Relaxed))
+    }
+
+    fn reserve_length(&self, handle: SoundHandle) -> Arc<AtomicU32> {
+        let mut lengths = self.lengths.borrow_mut();
+        let needed = (handle.0 as usize + 1).max(lengths.len());
+        lengths.resize_with(needed, || Arc::new(AtomicU32::new(0)));
+        Arc::clone(&lengths[handle.0 as usize])
+    }
+
     pub(super) fn decode(&self, handle: SoundHandle, bytes: &[u8], extension: &str) {
         self.cache
             .borrow_mut()
@@ -331,6 +387,7 @@ impl AudioOutput {
             handle,
             bytes: bytes.into(),
             extension: extension.into(),
+            length_ms: self.reserve_length(handle),
         };
         if sender.try_send(job).is_err() {
             crate::log::progress(format_args!(
@@ -374,11 +431,31 @@ impl AudioOutput {
     }
 
     pub(super) fn start_music(&self, intro: SoundHandle, repeating: SoundHandle) {
+        self.queue_music(intro, repeating, None);
+    }
+
+    pub(super) fn start_music_at(
+        &self,
+        intro: SoundHandle,
+        repeating: SoundHandle,
+        elapsed_ms: u64,
+    ) {
+        self.queue_music(
+            intro,
+            repeating,
+            Some(MusicOffset {
+                elapsed_ms,
+                queued_at: Instant::now(),
+            }),
+        );
+    }
+
+    fn queue_music(&self, intro: SoundHandle, repeating: SoundHandle, offset: Option<MusicOffset>) {
         let Some(sender) = &self.decode_jobs else {
             return;
         };
         if sender
-            .try_send(DecodeJob::StartMusic(intro, repeating))
+            .try_send(DecodeJob::StartMusic(intro, repeating, offset))
             .is_err()
         {
             crate::log::progress(format_args!("audio decode queue is full; music deferred"));
@@ -414,13 +491,25 @@ fn decode(
                 handle,
                 bytes,
                 extension,
-            } => DecodedAction::Register(
-                handle,
-                decode_encoded(&bytes, &extension, SAMPLE_RATE).unwrap_or_else(|_| {
-                    stats.decode_failures.fetch_add(1, Ordering::Relaxed);
-                    DecodedSound::silence()
-                }),
-            ),
+                length_ms,
+            } => {
+                let decoded = match decode_encoded(&bytes, &extension, SAMPLE_RATE) {
+                    Ok(decoded) => {
+                        let milliseconds = (decoded.samples().len() as u64 * 1000)
+                            .div_ceil(u64::from(SAMPLE_RATE))
+                            .min(u64::from(u32::MAX))
+                            as u32;
+                        length_ms.store(milliseconds, Ordering::Relaxed);
+                        decoded
+                    }
+                    Err(_) => {
+                        length_ms.store(0, Ordering::Relaxed);
+                        stats.decode_failures.fetch_add(1, Ordering::Relaxed);
+                        DecodedSound::silence()
+                    }
+                };
+                DecodedAction::Register(handle, decoded)
+            }
             DecodeJob::Variant {
                 handle,
                 bytes,
@@ -437,7 +526,9 @@ fn decode(
                 },
             ),
             DecodeJob::StopMusic => DecodedAction::StopMusic,
-            DecodeJob::StartMusic(intro, repeating) => DecodedAction::StartMusic(intro, repeating),
+            DecodeJob::StartMusic(intro, repeating, offset) => {
+                DecodedAction::StartMusic(intro, repeating, offset)
+            }
         };
         if !feed::push_until_closed(&mut registrations, action, closing, feed::PATIENCE) {
             return;
@@ -545,6 +636,38 @@ mod stopped_stream_tests {
     }
 
     #[test]
+    fn decoded_sample_duration_is_published_without_an_audio_device() {
+        let (output, _source) = detached();
+        assert_eq!(output.sample_length_ms(SoundHandle(0)), 0);
+        // Synthetic 10 ms, 44.1 kHz mono PCM WAV; no game assets.
+        let samples = 441_u32;
+        let size = samples * 2;
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + size).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16_u32.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+        wav.extend_from_slice(&(SAMPLE_RATE * 2).to_le_bytes());
+        wav.extend_from_slice(&2_u16.to_le_bytes());
+        wav.extend_from_slice(&16_u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&size.to_le_bytes());
+        wav.resize(44 + size as usize, 0);
+        output.decode(SoundHandle(0), &wav, "wav");
+        output.decode(SoundHandle(1), b"invalid", "wav");
+        let start = Instant::now();
+        while output.stats.decode_failures.load(Ordering::Relaxed) == 0 {
+            assert!(start.elapsed() < LIMIT);
+            thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(output.sample_length_ms(SoundHandle(0)), 10);
+        assert_eq!(output.sample_length_ms(SoundHandle(1)), 0);
+    }
+
+    #[test]
     fn a_stopped_callback_does_not_hold_the_render_thread() {
         let (done, finished) = channel();
         std::thread::spawn(move || {
@@ -588,5 +711,28 @@ mod stopped_stream_tests {
             let _ = done.send(());
         });
         assert_eq!(finished.recv_timeout(LIMIT), Ok(()));
+    }
+}
+
+#[cfg(test)]
+mod music_clock_tests {
+    use super::*;
+    #[test]
+    fn music_start_clock_compensates_queue_delay_without_leaking_to_other_starts() {
+        let start = Instant::now();
+        let offset = MusicOffset {
+            elapsed_ms: 1234,
+            queued_at: start,
+        };
+        assert_eq!(offset.position(start + Duration::from_millis(76)), 1310);
+        assert_eq!(offset.position(start - Duration::from_millis(1)), 1234);
+        assert_eq!(
+            MusicOffset {
+                elapsed_ms: u64::MAX,
+                queued_at: start
+            }
+            .position(start + Duration::from_millis(1)),
+            u64::MAX
+        );
     }
 }

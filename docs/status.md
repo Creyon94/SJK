@@ -190,6 +190,222 @@ Blue team won" or "Tied 3 : 3". See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
+## Live Force effects and controls
+
+17/10/2026, `feat/force-animation-effects`, based on `bb83eb28`, Windows:
+Rage/Heal chest sprays and Quick Heal hand puffs follow each actor's full-body
+animation, including local prediction and NPCs, after EJK #58/#89. Existing
+120/8 ms cadence and #90's local body/Grip camera guards remain. The default-on
+`cg_forceAnimFX` option and plugin-disable bit 5 gate the new animation/victim
+FX (#130); that bit also selects the separate green/blue Protect/Absorb shells
+instead of cyan (#168). Mindtrick hides Force emissions/flamethrower audio,
+with the existing Sight exception (#93); jetpacks already follow this rule.
+Empower uses the advertised full-body/arms/hands set (#132), with the shared
+`cg_empowerEffect` override, while ordinary Push keeps every cached joint.
+Both settings interfaces include the new controls. Scope contracts are named,
+documented tables, sampled without allocation and reused across actor submission.
+The original six animation regressions are retained and policy/visibility cases
+have been added. Workspace fmt/build/test/clippy passed on Windows x86_64,
+Rust 1.99.0. The explicit release policy benchmark passed: 0.101 us per frame
+for borrowed serverinfo sampling plus 128 body masks across 20,000 frames on
+Ryzen 7 5800X3D. It excludes console lookups, poses, particle emission and drawing.
+No installed game data or isolated live comparison is available; visual/audio,
+custom-model attachment and populated-scene performance remain unverified. Wire
+encoding, authoritative animation, movement and gameplay are unchanged.
+See [rendering](rendering.md#entity-render-effects) and
+[client controls](client.md#force-presentation-controls).
+
+## Repeated player model voices
+
+17/10/2026, `feat/voice-antispam`, based on `bb83eb28`, Windows x86_64,
+Rust 1.99.0: implemented JoF EJK #287/#374's default-on `cg_tauntAntiSpam`
+with one sample-duration taunt hold per player and independent gasp/jump/roll/
+landing holds. Generic/entity custom-sound tokens carry family metadata,
+including live configstring edits; ordinary sound paths and body/fall impacts
+remain outside the filter. Both settings styles expose the switch. The decode
+worker publishes cached PCM duration without file reads, decoding or locks
+during event playback. Six focused synthetic regressions cover classification,
+event routes, impacts, timers, seek/map resets and asynchronous duration publication.
+Workspace formatting, locked build/tests (including documentation tests) and
+all-target Clippy passed on the rebased branch (existing warnings remain). A release microbenchmark on Ryzen 7 5800X3D measured 0.085
+microseconds per 128 timer decisions across 20,000 synthetic frames, excluding
+duration lookup, decoding, mixing and rendering. No live listening or installed-
+asset/server comparison was performed; this does not certify audio parity or
+full-scene performance. See [voice options](client.md#repeated-model-voices).
+
+## Map music lifecycle and clock starts
+
+17/10/2026, `fix/map-music-recovery`, based on `bb83eb28`, Windows:
+implemented file-track level-clock starts after JoF EJK #161, with default-on
+`cg_musicSync` in both settings styles. Starts carry a typed per-request offset,
+including decode/callback queue delay, instead of a global one-shot cvar. The
+native sequencer preserves distinct intro/loop semantics; dynamic music retains
+its own transitions. Empty server CS_MUSIC is authoritative silence, including
+after duels, and clears dynamic state; offline world viewing keeps BSP music.
+The existing map-handoff stop already covers #146; #103's remaining lifecycle
+gaps are addressed. Seven synthetic regressions cover PCM phase/boundaries,
+invalid handles, clock clamping, server/offline selection, queue delay and
+musicless-map duel restoration through the decoder/mixer without an audio device.
+All seven regressions and the four required workspace checks passed on Windows
+x86_64, Rust 1.99.0, code revision `927a51de`; existing warnings remain.
+No live listening, peer synchronization or installed-
+asset/server comparison has run. No wire or gameplay changes.
+See [client music](client.md#map-music-synchronization).
+
+## Private-duel world visibility
+
+17/10/2026, `feat/duel-visibility`: the archived `cg_hideCorpsesInDuel` and
+`cg_hidePickupsInDuel` preferences are on by default. They keep `ET_BODY`
+corpses and `ET_ITEM`/`ET_HOLOCRON` pickups respectively out of the presentation
+world only while the local player is in a private duel. Both remain visible
+outside duels, and each override can retain its category during duels. SJK
+Advanced Gameplay and classic Game Options expose both settings; live and demo
+presentation apply changes immediately. A focused unit test covers the default,
+both duel states, health, shield, holocrons and the independent overrides. A
+second regression test covers the dedicated direct-snapshot `ET_ITEM` renderer,
+so its healthpacks follow the pickup preference too. See
+[client](client.md#nameplates). On Linux x86_64 with Rust 1.99.1, formatting,
+the locked workspace build and test suite, workspace all-target Clippy, and the
+locked release viewer build pass; existing warnings remain. The behavior has
+not yet been checked interactively on a live server or in demo playback.
+
+## PM-only game chat
+
+17/10/2026, `feat/pm-only-chat`, based on `bb83eb28`, Windows x86_64,
+Rust 1.99.0: implemented JoF EJK #331's current-map PM-only command and
+shared settings switch, default off. The client marks only `chat` commands, and
+the `lchat` that `G_Say` sends for a tell to a teammate with a location, whose
+first argument starts with the stock tell marker, before display
+cleanup/localization. Chat history visibility and notification audio use that
+classification, including sent echoes; ordinary/team messages and
+lookalike name/body colours do not qualify. Hidden history is retained. Console
+logs/history, centre notices and the independent SJK hub chat remain available.
+Map adoption resets the non-archived choice; graphics reload preserves it.
+Four focused synthetic regressions passed for marker/command classification,
+notification routing/deduplication, command parsing/reset and retained history.
+Workspace formatting, locked build/tests (including documentation tests) and
+all-target Clippy passed; existing warnings remain. The current PM-only choice
+is also applied before newly loaded sound tables replay queued chat. No live server, audible comparison or
+installed-asset/GPU check was performed. Wire encoding and server rules are unchanged.
+See [client chat behavior](client.md).
+
+## Player model eligibility
+
+17/10/2026, `feat/model-eligibility`, based on `bb83eb28`, Windows:
+implemented EJK #126's content-authored `notInMP` settings and merged model
+blacklist files, plus the archived local blacklist and metadata override.
+Both profile pickers, initial/live player loads and copied corpses (Kyle in the
+body's team skin) share the policy; overrides
+are resolved before eligibility and NPC model loading bypasses it. World-owned
+metadata is parsed at installation and reused for clientinfo refresh. Idle
+frames only compare normalized cvar values; no policy parsing or VFS reads run
+in actor submission. Retail ownership/counts remain independent of restrictions.
+Both settings interfaces include the text field and metadata switch.
+Six synthetic metadata/catalogue/player-scope regressions passed, including
+rapid-option stale-result rejection and red/blue fallback before team skins.
+Final workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
+Installed-pack/player/NPC visuals and live model changes remain unverified.
+No protocol encoding, animation, movement or gameplay changes.
+See [player models](client.md#player-models).
+
+## Breakables used by name, delayed breaks, sabers on objectives
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: on siege_korriban, after the crystals were
+placed a laser pointed at the next door and the door could not be destroyed. Three gaps
+on the server, after OpenJK `g_mover.c` and `g_combat.c`:
+
+- A `func_breakable` used by name (`funcBBrushUse`) never came apart: `breakables::used`
+  had no caller. `G_UseTargets` now reaches them; an `INVINCIBLE` one breaks too, and a
+  `USE_NOT_BREAK` one fires its targets.
+- One with a `delay`, broken by a blow or a use, was left `Breaking` for good: nothing
+  ran its `funcBBrushDieGo`. `run_breakables` does each frame.
+- A saber blow only hurt players, NPCs and breakables. A siege item with health and a
+  door or button with `health` (opened when struck at rest, `GlobalUse`) are now hurt
+  by it; any blow that reaches `hurt_brush` opens such a door.
+
+A breakable's targets now fire whoever broke it (`G_Damage` makes a missing attacker
+the world), so one broken by an NPC, a turret or after its delay fires them too, with
+the player who broke it, if one did, as their activator (`self->enemy`); its
+chunks fly from where the breaker stood (`breaker`), straight up when unknown. A
+missile that carries no damage hurts nothing; a door with health opens whichever part of
+its team is struck (a plat never, as `SP_func_plat` gives none `takedamage`); an `INACTIVE` `func_usable` is passed by, and `ALWAYS_ON` ones wake
+every frame. The reporter confirmed the korriban door broke after the laser. Four unit
+tests pin `funcBBrushUse` and the targets; the touched crates' tests pass on Linux. That the
+korriban door is a breakable used by name is inferred from the report (the laser), not
+checked against the map, which is not here. Not done: `func_static`s pushed or pulled
+(`F_PUSH`/`F_PULL`), a breakable's `teamnodmg`, the use key on `PLAYER_USE` breakables.
+
+## func_usable toggled by name
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: after the push/pull change below, the
+reporter could open siege_korriban's blue crystal and still had the green, but the red
+one kept an invisible wall after its satellites were destroyed. The server never used a
+`func_usable` by name (`fire_targets` skipped them) and the use key only fired its
+target. Implemented `func_usable_use` (OpenJK `g_mover.c:3070-3126`); see
+[client](client.md). Two unit tests pin the toggle and `ALWAYS_ON`'s wait; the
+touched crates' clippy and tests pass on Linux. That the red crystal's wall is a
+`func_usable` is inferred from the report and not checked against the map's entities.
+Checked open pull requests in `Sol-Vulpes/SJK` (#132, #142, #143, #150): none touches
+movers, `func_usable` or the push and pull.
+
+## Force push and pull on doors and buttons
+
+17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`, merged with `1c8887f7`
+(report: siege_korriban's red crystal could not be taken and the blue crystal's lift
+did not move, the green one worked): implemented, after OpenJK `codemp/game/w_force.c`
+`ForceThrow` (`:3209-3237`, `:3584-3663`), the movers' part of a push or pull on the
+server. A `func_door` with `MOVER_FORCE_ACTIVATE` (spawnflag 2) at rest is reached as
+the reference reaches it (no PVS test for a brush) and, when aimed at straight from
+the eyes, a push moves it to whichever of its two places is further from the thrower
+and a pull to the nearer (`GEntity_UseFunc`); a `func_button` with
+`SPF_BUTTON_FPUSHABLE` is pressed by a push at rest (`Touch_Button`). The used movers
+run `use_mover` once the throw is over, firing their targets as the use key does. A
+throw's traces now meet the level's brushes (doors, lifts, breakables, scripted
+brushes, solid `func_usable` walls), as `MASK_SHOT` does in the reference, so a closed door also stops a push
+on a player behind it. `func_static`s with `F_PUSH`/`F_PULL` are still not moved.
+
+fmt, and clippy and the tests of `sjk-game-jka` and `sjk-dedicated`, passed on Linux
+x86_64; the workspace build stops in this container at `alsa-sys` (no ALSA
+development files). Four unit tests pin the push/pull choice, the aim, a moving door
+and the button rules. siege_korriban's entity lump was not inspected (no retail data
+here): that its crystal rooms open by push and pull is the likely cause of the report,
+not a verified one, and it was not played.
+
+## Siege respawn waves and map messages
+
+17/10/2026, `claude/nifty-brahmagupta-mbtppb`, based on `Sol-Vulpes/SJK` `bb83eb2`
+(player report: stuck out of a native siege game with bots after two or three deaths;
+`siege_korr_print_1` shown when the Korriban gates fall). Fixed, after OpenJK `codemp`:
+
+- A player waiting for its respawn wave who pressed attack followed through
+  `set_team_to`, which skipped `SetTeam`'s siege branch and made it a real spectator
+  with `tempSpectate` still set; the wave skips spectators, and a later spawn with the
+  stale value came in "not playing" (invisible, unarmed, unhurtable). The root cause
+  was `spectator_buttons`, which lacked `SpectatorThink`'s
+  `if (client->tempSpectate < level.time)` around all its buttons (`g_active.c`): as
+  in JKA, a player waiting for its wave can no longer follow or stop following with
+  attack, alternate attack or jump (the buttons are still tracked, so one held through
+  the wait is no press after it). `set_team_to` now runs `SetTeam`'s siege branch too
+  (a waiting player is not made a spectator, by `forceteam` either), and
+  `spectate_to_follow` starts the five-second team-change wait only when the team
+  really became spectator. A spawn clears a `tempSpectate` that is over (one still
+  running, as at a `ClientBegin` mid-wait, lasts until the wave, as in the reference)
+  and the follow state of a player spawning on a side; following tests `sessionTeam`,
+  as `SpectatorClientEndFrame` does, so a spectator following a player who dies keeps
+  following them through the wait.
+- `target_print` honours its spawnflags (activator alone, red and/or blue) and sends a
+  single-`@` message as `cps`; the client resolves `cps` against every
+  `strings/english/*.str` table, the map's included, as `<FILE>_<KEY>` without case.
+  `target_delay` keeps its activator for its think (`Use_Target_Delay`), which used to
+  be slot 0.
+
+The native server's bridge has no test harness yet: unit tests pin only the wave
+guard's time test, `target_print`'s spawnflags (`map_targets`) and the client's
+`cps` key rewrite.
+
+Workspace fmt, build, clippy (no new warnings) and tests passed on Linux x86_64; a unit
+test pins the map-table lookup. Not exercised in a live siege match.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`
@@ -313,6 +529,48 @@ test, `cargo fmt --all --check`, the locked workspace build and test suite,
 workspace all-target Clippy, and the locked release viewer/dedicated build pass;
 the repository's existing warnings remain. The result has not yet been tried
 interactively against the live SJK chat.
+
+## NPC custom voice banks
+
+17/10/2026, `feat/npc-custom-voices`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
+implemented standard/combat/extra/Jedi NPC voice banks from the existing
+`csSounds_*` entity fields and `*$directory` sound configstrings. Initial
+registration uses the existing audio loader; changed entries use the existing
+sound-table refresh path. Playback uses cached sound indices. A fixed source
+lookup handles forwarded events without per-event entity searches and clears
+despawned identities. Player sound sets remain separate; missing NPC banks or
+samples remain silent. Both menu styles use the same audio behavior. No codec,
+movement or combat-timing changes. See [client](client.md#npc-sabers-and-voices).
+
+18/10/2026, merged into `personal/prs-g6a` as one implementation with Sol's
+17/10 NPC voices (`sound_npc_voices.rs`, removed; its tests are now `npc_voice_tests.rs`): the PR's `NpcSounds` replaces
+the per-slot sets and `voice_of`. Fixed in the merge: every event on an entity
+past the player slots took NPC banks, which silenced `EV_ENTITY_SOUND` on its
+temporary entity; the speaker is now `clientNum` for event 79 and the entity's
+number for the others, as stock, so pits' `*falling1` (now in the player set)
+and Grip's choke/gasp keep the player's voice. `EV_TAUNT1`-`3` carry the taunt
+voice line for the anti-spam hold. Sol's tests were ported, plus pit/Grip
+entity sounds, a general sound on a temporary entity and the taunt line.
+
+Source evidence: JoF EJK #55 merge `289e14ce`, `codemp/cgame/cg_players.c`
+(`CG_CustomSound` and the four name tables), `cg_servercmds.c`
+(`CG_HandleNPCSounds`, `CG_RegisterCustomSounds`), `cg_event.c` and
+`codemp/game/bg_public.h`'s vocal event numbers. The native lookup excludes
+the player duel bank entirely for NPCs: EJK #55's same-index reorder still
+allows earlier-index duel names to shadow later Jedi names such as deflect.
+Standard choke names keep precedence over their combat duplicates.
+
+Six synthetic regressions pass on Windows x86_64, Rust 1.99.0, covering vocal
+event families, configured names, standard reactions, missing banks/player
+isolation, refreshed entries, handle remapping, forwarded-event identity reuse
+and preservation of the independent roll body cue. Workspace formatting,
+build, tests and Clippy passed (warnings remain). A release measurement on
+AMD Ryzen 7 5800X3D averaged 2.450 us for a 128-NPC snapshot-cache update,
+common voice-set projection and one cached voice lookup per NPC over 20,000
+synthetic frames. It excludes registration, full event resolution, mixing and
+rendering; it is not a game FPS claim. No game assets or live servers were
+exercised; audible behavior and populated-server performance remain unverified.
+Passing these checks does not establish gameplay parity.
 
 ## One Russian letter in chat
 
@@ -871,8 +1129,9 @@ compatibility table adopts JoF EJK #31's firing/hit flags, flame graphs, sample
 and hold pose. The archived `cg_flameThrower` override (Auto/Off/JA+) is exposed
 in both settings interfaces. Local prediction and remote actors select flames
 instead of Lightning only while firing; Drain and vehicles retain their paths.
-Flame streams use the existing 8 ms effect cadence; impact bursts and sound
-repeats use snapshot server time (100 ms and 2.9 s intervals). The upper-body
+Flame streams use the existing 8 ms effect cadence; impact
+bursts use presentation time (100 ms interval), while sound repeats retain
+snapshot server time (2.9 s interval). The upper-body
 hold blends over 100 ms and leaves leg animation and gameplay state unchanged.
 Sound stops on firing end, mute, disappearance or disconnect and resets across
 map changes and time rewinds. Installed flame graphs/audio are required and are
@@ -942,6 +1201,19 @@ rows, selective HUD visibility and death/respawn fading at 8/7/4/3 ms steps.
 Live JoF comparison and updated GPU screenshots remain unverified;
 `JKA_GAME_DATA` is not configured. No release frame-time measurements were made.
 No wire codecs or gameplay rules changed.
+
+17/10/2026 follow-up to JoF EJK #67, based on `9fadf990`: the stream now falls
+back from the custom graph to preloaded retail `boba/fthrw`, and impact bursts
+advance using the presented trajectory clock between snapshots. Custom graph
+priority, missing-graph silence, reversed fallback forward/up orientation and
+impact marker timing at 8/7/4/3 ms have focused synthetic regressions. The native
+quaternion fallback frame also reverses the side axis; EJK flips forward alone.
+Live comparison, including asymmetric community replacements, remains unverified.
+The follow-up passed workspace formatting, locked build/tests and all-target
+Clippy on Windows (warnings remain), including the two new regressions. A release
+microbenchmark on Ryzen 7 5800X3D averaged 5.279 microseconds per synthetic frame
+for 128 graph selections/timers over 20,000 frames. It excludes pose evaluation,
+effect spawning, audio and rendering; populated-scene performance is unverified.
 
 ## Emotes on stock models: limbs out of wider bodies
 

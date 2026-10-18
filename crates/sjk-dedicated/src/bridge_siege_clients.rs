@@ -160,7 +160,7 @@ impl NativeGame {
     /// `SetTeam(ent, word)` on a siege server as the game itself calls it: the siege
     /// branch, else the ordinary change — begun afterwards unless `prevent_begin`
     /// (`g_preventTeamBegin`).
-    fn siege_set_team_word(
+    pub(super) fn siege_set_team_word(
         &mut self,
         client: usize,
         word: &[u8],

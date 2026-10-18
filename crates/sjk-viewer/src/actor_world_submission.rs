@@ -38,6 +38,7 @@ mod player_spheres;
 
 struct Sinks<'a> {
     grip_victim: bool,
+    force_fx: force_powers::policy::Policy,
     flame: Option<&'static force_powers::flame::Contract>,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
@@ -186,11 +187,13 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_auraShell"))
         .unwrap_or(1)
         != 0;
-    let combined_protect_absorb = gpu
-        .console
-        .as_ref()
-        .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
-        .unwrap_or(true);
+    let force_fx = force_powers::policy::Policy::sample(gpu.console.as_ref(), game_state);
+    let combined_protect_absorb = force_fx.combined
+        && gpu
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
+            .unwrap_or(true);
     // 1 draws multiplayer's sphere around a shield hit; 0 hugs the body like single player.
     let shield_sphere = gpu
         .console
@@ -234,11 +237,13 @@ pub(crate) fn submit(
         .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
         .unwrap_or(0);
     let mut sinks = Sinks {
-        grip_victim: gpu
-            .console
-            .as_ref()
-            .and_then(|console| console.bool_cvar(force_powers::victim::CVAR))
-            .unwrap_or(true),
+        force_fx,
+        grip_victim: force_fx.animation
+            && gpu
+                .console
+                .as_ref()
+                .and_then(|console| console.bool_cvar("cg_gripvictimfx"))
+                .unwrap_or(true),
         flame: force_powers::flame::policy(game_state, gpu.console.as_ref()),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
