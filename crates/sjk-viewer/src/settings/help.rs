@@ -207,8 +207,9 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    #[cfg(feature = "mod-jof")]
     (
-        crate::console::dialogue_panel::CVAR,
+        sjk_mod_jof::dialogue::CVAR,
         "Show server conversations and their installed voice audio. Off cancels the current conversation; quests remain server-owned.",
     ),
     (

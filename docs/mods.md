@@ -1,7 +1,7 @@
 # Client mods
 
-A client mod is a set of console commands and settings kept out of the core
-client. Each one loads only on the servers it is made for, so a player who never
+A client mod owns its commands, settings and optional community presentation,
+kept out of the core client. Each one loads only on the servers it is made for, so a player who never
 joins one sees none of its commands. The mods are built into the client; the line
 they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
 
@@ -30,11 +30,19 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   the core client ([networking.md](networking.md)) and work with every mod off.
   JA+ flamethrower presentation also stays in the core; its detection and player
   override are documented under [flamethrower presentation](client.md#ja-flamethrower-presentation).
+- **Community presentation.** The JoF dialogue window belongs to `sjk-mod-jof`, not the base compatibility
+  profile. The mod owns their definitions, parsers and state; optional viewer
+  bridges draw/play their output only while JoF tools are loaded. Base sessions
+  forward unhandled reliable operands without interpreting community commands.
+  These additions are compiled out of the viewer without `mod-jof`.
 - **What a mod can do.** A mod sees the game only through
   [`Host`](../crates/sjk-mod/src/lib.rs): it can send a reliable server command,
   read the server's kind, address and serverinfo, the predicted player, the crosshair
   trace's end point and player, and the roster with where each player is drawn, and
   read or set a setting. It does not reach the renderer, prediction or the wire.
+  Typed mod settings distinguish text, booleans and integer choices. A mod may
+  declare scoped userinfo fields through the host; the existing adapter validates
+  and encodes them, and removes them when their mod/setting no longer permits them.
   Commands run on the main thread from the client command queue
   ([mods.rs](../crates/sjk-viewer/src/mods.rs),
   [mods_host.rs](../crates/sjk-viewer/src/mods_host.rs)).
@@ -93,6 +101,33 @@ switch it.
 Not ported: JoF EJK's userinfo opt-ins (`jofejk`, `binoScan`, `cg_pickupConfirm`).
 Each one asks the server for something the client must then show, and SJK shows none
 of it yet.
+
+### Dialogue window and node audio
+
+[sjk-mod-jof/dialogue.rs](../crates/sjk-mod-jof/src/dialogue.rs) owns EJK
+#301/#307/#342's `jof_dialogue` parser, bounded node state and serial-safe replies.
+The SJK window opens only on recognized JoF servers with `mod_jof 1` and
+`jof.dialogue 1` (archived, on by default). It uses SJK's UI in every menu style;
+Settings > Mods and classic Game options expose the preference.
+
+The server supplies speaker/body text and up to twelve choices, five visible at
+a time. Arrows or mouse wheel scroll without wrapping; hover selects, click or
+Enter answers, 1-9 and 0 choose responses 1-10, and Escape/Leave conversation
+cancels. Opening releases held gameplay keys. Replies are generated as
+`dialogueresponse <serial> <choice>`, never executed as scripts; answer retries
+are limited to one per second. Stale commands and duplicate show messages are
+ignored. Replacing/closing the node clears unsent old replies. Disconnects, map
+changes and disabling/unloading JoF tools reset the modal.
+
+An optional `show` sound plays once from installed VFS data on
+`ENTITYNUM_NONE`/`CHAN_VOICE_GLOBAL`, listener-relative. A replacement or close
+stops the previous voice, including queued decodes. Missing audio leaves the
+window usable. Paths are bounded and reject absolute/traversal forms. Nothing is
+bundled or downloaded; ordinary silent show messages remain valid. Other servers,
+mod-off sessions and builds without `mod-jof` do not interpret this extension,
+open its window, send responses or load its node audio. Demos send no replies.
+The remote server retains all quest conditions, stages, rewards and persistence;
+this is no native SJK quest server system.
 
 ## Verification
 

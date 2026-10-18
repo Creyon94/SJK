@@ -41,6 +41,7 @@ impl ViewerConsole {
     ) {
         // A switch flipped since the last frame adds or removes its mod's commands.
         if self.mods.sync(&mut self.shell) {
+            self.reset_unloaded_dialogue();
             self.refresh_server_help();
         }
         // The JoF folder joins or leaves the search paths with its switch.

@@ -10,3 +10,8 @@ workspace = true
 
 [dependencies]
 sjk-mod.workspace = true
+sjk-client.workspace = true
+sjk-protocol.workspace = true
+
+[dev-dependencies]
+sjk-shell.workspace = true

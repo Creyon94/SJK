@@ -36,8 +36,19 @@ pub const fn command(name: &'static str, help: &'static str) -> Command {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Setting {
     pub name: &'static str,
-    pub default: &'static str,
+    pub default: SettingValue,
     pub help: &'static str,
+}
+
+/// Typed mod defaults, so switches and choices use the same settings widgets as core.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SettingValue {
+    /// A text field, including empty passwords and addresses.
+    Text(&'static str),
+    /// An archived on/off preference.
+    Bool(bool),
+    /// An integer choice.
+    Integer(i64),
 }
 
 /// The game module a server runs, as far as mods care.

@@ -23,7 +23,7 @@ impl ViewerConsole {
         if !self.open {
             return false;
         }
-        if self.dialogue.is_open() {
+        if self.server_dialogue_active() {
             return true;
         }
         if self.asset_browser.open || self.jof_content_open() || self.model_viewer.is_open() {
@@ -64,7 +64,7 @@ impl ViewerConsole {
 
     /// Draw the open page ([`Self::sjk_page_open`]) with its text to `target`.
     pub(crate) fn append_sjk_page(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
-        if self.dialogue.is_open() {
+        if self.server_dialogue_active() {
             self.append_dialogue(target, viewport);
             return;
         }

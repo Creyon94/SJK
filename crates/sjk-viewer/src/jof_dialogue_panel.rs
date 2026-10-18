@@ -1,7 +1,7 @@
 //! Server dialogue modal in SJK's UI in every menu style. Server owns quests.
 use super::ViewerConsole;
 use crate::menu_widgets::MenuCanvas;
-use sjk_client::dialogue::{Dialogue, Event};
+use sjk_mod_jof::dialogue::{Dialogue, Event};
 use sjk_ui::{InputEvent, UiEventKind};
 use std::time::Instant;
 use winit::event::KeyEvent;
@@ -9,7 +9,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 #[path = "dialogue_view.rs"]
 mod view;
 
-pub(crate) const CVAR: &str = "cg_serverDialogue";
+pub(crate) const CVAR: &str = sjk_mod_jof::dialogue::CVAR;
 
 pub(super) struct Panel {
     node: Dialogue,
@@ -41,11 +41,11 @@ impl Panel {
     }
 }
 impl ViewerConsole {
-    pub(crate) fn server_dialogue_active(&self) -> bool {
-        self.open && self.dialogue.is_open()
-    }
     /// Accept only already-decoded bounded dialogue events from the current session.
     pub(crate) fn dialogue_event(&mut self, event: Event) {
+        if !self.mods.loaded(sjk_mod_jof::ID) || !self.bool_cvar("mod_jof").unwrap_or(false) {
+            return;
+        }
         let begin = matches!(event, Event::Begin { .. });
         let stop = matches!(event, Event::Stop { .. });
         if !self.dialogue.node.apply(event) {
@@ -60,7 +60,7 @@ impl ViewerConsole {
             self.dialogue.canvas = MenuCanvas::with_text_capacity(48);
         }
         if self.dialogue.is_open() {
-            if !self.bool_cvar("cg_serverdialogue").unwrap_or(true) {
+            if !self.bool_cvar(CVAR).unwrap_or(true) {
                 self.dialogue.respond(-1);
                 self.dialogue_finished_locally();
                 return;
@@ -75,7 +75,18 @@ impl ViewerConsole {
         }
     }
     /// A new connection/map or disconnect discards old serials and unsent responses.
+    pub(super) fn reset_unloaded_dialogue(&mut self) {
+        if !self.mods.loaded(sjk_mod_jof::ID) || !self.bool_cvar("mod_jof").unwrap_or(false) {
+            self.reset_dialogue();
+        }
+    }
     pub(crate) fn reset_dialogue(&mut self) {
+        if self.dialogue.node.serial.is_none()
+            && self.dialogue.pending.is_none()
+            && !self.dialogue.owns_console
+        {
+            return;
+        }
         self.dialogue.node.reset();
         self.dialogue.pending = None;
         if std::mem::take(&mut self.dialogue.owns_console) {
@@ -95,7 +106,11 @@ impl ViewerConsole {
         }
     }
     pub(super) fn flush_dialogue(&mut self, session: &mut sjk_client::ClientSession) {
-        if !self.bool_cvar("cg_serverdialogue").unwrap_or(true) && self.dialogue.is_open() {
+        if !self.mods.loaded(sjk_mod_jof::ID) || !self.bool_cvar("mod_jof").unwrap_or(false) {
+            self.reset_dialogue();
+            return;
+        }
+        if !self.bool_cvar(CVAR).unwrap_or(true) && self.dialogue.is_open() {
             self.dialogue.respond(-1);
             self.dialogue_finished_locally();
         }
@@ -180,13 +195,13 @@ impl ViewerConsole {
         target.append(&self.dialogue.canvas, viewport);
     }
     pub(super) fn dialogue_draw_list(&self) -> Option<&sjk_ui::DrawList> {
-        (self.open && self.dialogue.is_open()).then(|| self.dialogue.canvas.draw_list())
+        (self.server_dialogue_active()).then(|| self.dialogue.canvas.draw_list())
     }
     /// Audio observes a revision, not a repeated per-frame play request.
     pub(crate) fn dialogue_voice(&self) -> (u64, Option<&str>) {
         (
             self.dialogue.node.revision,
-            (self.open && self.dialogue.is_open())
+            (self.server_dialogue_active())
                 .then_some(self.dialogue.node.sound.as_deref())
                 .flatten(),
         )
@@ -197,7 +212,7 @@ impl ViewerConsole {
 mod tests {
     use super::*;
     fn event(text: &str) -> Event {
-        // Parser state is covered in sjk-client; these are UI integration operands.
+        // Parser state is covered in sjk-mod-jof; these are UI integration operands.
         match text {
             "begin" => Event::Begin {
                 serial: 12,
@@ -211,6 +226,45 @@ mod tests {
             _ => unreachable!(),
         }
     }
+    #[test]
+    fn unrecognized_servers_and_mod_off_never_accept_dialogue_and_unload_clears_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        for (kind, info, expected) in [
+            (sjk_mod::ServerKind::BaseJka, "", false),
+            (sjk_mod::ServerKind::JaPlus, r"\V\2.4B7", false),
+            (sjk_mod::ServerKind::JaPro, r"\V\2.5B0", false),
+            (sjk_mod::ServerKind::JaPlus, r"\V\2.5B0", true),
+        ] {
+            console.mods.set_server(Some(sjk_mod::Server {
+                kind,
+                address: "fixture".into(),
+                info: info.into(),
+            }));
+            console.mods.sync(&mut console.shell);
+            console.dialogue_event(event("begin"));
+            assert_eq!(console.dialogue.node.serial.is_some(), expected);
+        }
+        console.dialogue_event(Event::Choice {
+            serial: 12,
+            index: 0,
+            text: "Continue".into(),
+        });
+        console.dialogue_event(event("show"));
+        assert!(console.server_dialogue_active());
+        console.dialogue.respond(0);
+        console.set_cvar("mod_jof", "0");
+        assert!(!console.server_dialogue_active());
+        assert!(console.dialogue_voice().1.is_none());
+        console.execute_buffered_frame(None, |_, _| false);
+        assert!(console.dialogue.node.serial.is_none() && console.dialogue.pending.is_none());
+        let revision = console.dialogue.node.revision;
+        console.reset_dialogue();
+        assert_eq!(console.dialogue.node.revision, revision);
+        console.dialogue_event(event("begin"));
+        assert!(console.dialogue.node.serial.is_none());
+    }
+
     #[test]
     fn all_twelve_choices_fit_five_visible_rows_and_scroll_without_overflow() {
         let mut panel = Panel::new();
@@ -242,6 +296,12 @@ mod tests {
     fn modal_owns_console_only_when_it_opened_it_and_closing_queues_cancel() {
         let dir = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        console.mods.set_server(Some(sjk_mod::Server {
+            kind: sjk_mod::ServerKind::JaPlus,
+            address: "fixture".into(),
+            info: r"\V\2.5B0".into(),
+        }));
+        console.mods.sync(&mut console.shell);
         console.dialogue_event(event("begin"));
         console.dialogue_event(Event::Choice {
             serial: 12,

@@ -90,7 +90,11 @@ impl Mods {
             for setting in module.settings() {
                 shell.cvars.register(CvarDefinition::new(
                     setting.name,
-                    setting.default,
+                    match setting.default {
+                        sjk_mod::SettingValue::Text(value) => CvarValue::Text(value.to_owned()),
+                        sjk_mod::SettingValue::Bool(value) => CvarValue::Bool(value),
+                        sjk_mod::SettingValue::Integer(value) => CvarValue::Integer(value),
+                    },
                     CvarFlags::ARCHIVE,
                     setting.help,
                 ))?;
@@ -162,6 +166,11 @@ impl Mods {
             changed = true;
         }
         changed
+    }
+
+    /// Whether a mod is currently loaded according to its shared server rules.
+    pub(crate) fn loaded(&self, id: &str) -> bool {
+        self.entries.iter().any(|entry| entry.id == id && entry.on)
     }
 
     /// The mod a command belongs to, by its `<id>.` prefix.
@@ -302,6 +311,24 @@ mod tests {
         })
     }
 
+    #[cfg(not(feature = "mod-jof"))]
+    #[test]
+    fn a_build_without_jof_has_no_community_settings_or_commands() {
+        let (shell, mods) = shell();
+        for name in [
+            "mod_jof",
+            "jof.destructionSupport",
+            "jof.dialogue",
+            "jof.ejkOptIn",
+            "jof.abilitySounds",
+        ] {
+            assert!(shell.cvars.get(name).is_none(), "{name}");
+        }
+        assert!(!mods.loaded("jof"));
+        assert!(!shell.commands.contains("force_destruction"));
+    }
+
+    #[cfg(all(feature = "mod-jof", feature = "mod-japlus"))]
     #[test]
     fn mods_load_on_their_servers_only() {
         let (mut shell, mut mods) = shell();
@@ -340,6 +367,7 @@ mod tests {
         assert!(!shell.commands.contains("jof.commands"));
     }
 
+    #[cfg(feature = "mod-japlus")]
     #[test]
     fn an_old_profile_gets_the_mods_on_once() {
         let (mut shell, mods) = shell();
@@ -353,6 +381,7 @@ mod tests {
         assert_eq!(shell.cvars.get("mod_japlus").unwrap().value.as_text(), "0");
     }
 
+    #[cfg(all(feature = "mod-jof", feature = "mod-japlus"))]
     #[test]
     fn settings_exist_while_the_mod_is_off() {
         let (shell, _) = shell();
@@ -360,6 +389,7 @@ mod tests {
         assert!(shell.cvars.get("mod_jof").is_some());
     }
 
+    #[cfg(all(feature = "mod-jof", feature = "mod-japlus"))]
     #[test]
     fn server_commands_complete_only_while_loaded() {
         let (mut shell, mut mods) = shell();

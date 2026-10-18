@@ -7,7 +7,14 @@
 //! (`gcmds[]`, `cgame/cg_consolecmds.c:3262-3303`) and lists them with
 //! `jof.commands`.
 
-use sjk_mod::{ClientMod, Command, Host, Server, command};
+use sjk_mod::{ClientMod, Command, Host, Server, Setting, command};
+/// Bounded JoF dialogue command/state/response contract.
+pub mod dialogue;
+const SETTINGS: &[Setting] = &[Setting {
+    name: dialogue::CVAR,
+    default: sjk_mod::SettingValue::Bool(true),
+    help: "Show JoF server dialogue and installed node voices while JoF tools are loaded",
+}];
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";
@@ -133,6 +140,10 @@ impl ClientMod for JoF {
 
     fn commands(&self) -> &'static [Command] {
         COMMANDS
+    }
+
+    fn settings(&self) -> &'static [Setting] {
+        SETTINGS
     }
 
     fn server_commands(&self, server: &Server) -> &'static [Command] {

@@ -24,17 +24,35 @@ pub(super) fn consume(
 
     while let Some(event) = session.pop_base_command_event() {
         match event {
-            BaseServerCommandEvent::Dialogue(event) => {
-                if let Some(console) = &mut console {
-                    console.dialogue_event(event);
-                }
-            }
-            BaseServerCommandEvent::UnknownCommand(name) => {
-                if console
-                    .as_ref()
-                    .is_some_and(|c| c.integer_cvar("developer").unwrap_or(0) != 0)
+            BaseServerCommandEvent::UnhandledCommand {
+                arguments,
+                first_observation,
+            } => {
+                #[allow(unused_mut)]
+                let mut handled = false;
+                #[cfg(feature = "mod-jof")]
+                if let Some(console) = &mut console
+                    && console.mods.loaded(sjk_mod_jof::ID)
+                    && console.bool_cvar("mod_jof").unwrap_or(false)
+                    && arguments
+                        .first()
+                        .is_some_and(|name| name == sjk_mod_jof::dialogue::COMMAND)
                 {
-                    crate::log::progress(format_args!("debug: unhandled server command {name}"));
+                    handled = true;
+                    if let Some(event) = sjk_mod_jof::dialogue::parse(&arguments) {
+                        console.dialogue_event(event);
+                    }
+                }
+                if !handled
+                    && first_observation
+                    && let Some(console) = &mut console
+                    && console.integer_cvar("developer").unwrap_or(0) != 0
+                {
+                    let name = arguments.first().map(|name| String::from_utf8_lossy(name));
+                    console.push_log(format!(
+                        "^3Unknown server command: {}",
+                        name.as_deref().unwrap_or("")
+                    ));
                 }
             }
             BaseServerCommandEvent::ForceRank(update) => {

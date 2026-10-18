@@ -30,8 +30,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Show server dialogue choices and installed node voices in the SJK interface. _(Lumaya, after JoF EJK)_
 = cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
+
+- JoF tools show server dialogue and installed node voices on JoF servers only. _(Lumaya, after JoF EJK)_
 
 - The scoreboard sets away players apart: anyone whose view has not moved for 3 minutes (or with [AFK] in their name) drops to the bottom of their list, faint, with "AFK" and how long; chat, a turn of the mouse or a kill brings them back. Settings > HUD > Scoreboard > Away players apart (`cg_scoreboardAfk`) _(Sol)_
 - Mute is now Block, and it blocks everything: a blocked player's game and SJK chat stay hidden, they are drawn as Kyle with the default saber, silent, and now their emotes, Order 66 orders, cardboard box events and player card are ignored too; `block <player>` and `unblock <player|all>` in the console, and the SJK chat page lists who you blocked with Unblock _(Sol)_

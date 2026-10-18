@@ -50,7 +50,8 @@ mod console_update;
 pub(crate) mod credits;
 #[path = "debug_panel.rs"]
 pub(crate) mod debug_panel;
-#[path = "dialogue_panel.rs"]
+#[cfg(feature = "mod-jof")]
+#[path = "jof_dialogue_panel.rs"]
 pub(crate) mod dialogue_panel;
 #[path = "demo_director.rs"]
 pub(crate) mod director;
@@ -60,6 +61,8 @@ mod holocrons_page;
 pub(crate) mod holocrons_panel;
 #[path = "identity_panel.rs"]
 pub(crate) mod identity_panel;
+#[path = "console_mod_dialogue.rs"]
+mod mod_dialogue;
 #[path = "model_viewer.rs"]
 pub(crate) mod model_viewer;
 #[path = "model_viewer_scan.rs"]
@@ -203,6 +206,7 @@ pub(crate) struct ViewerConsole {
     identity_panel: identity_panel::Panel,
     profile_panel: profile_panel::Panel,
     staff_panel: staff_panel::Panel,
+    #[cfg(feature = "mod-jof")]
     dialogue: dialogue_panel::Panel,
     collection_panel: collection_panel::Panel,
     /// The Holocrons page, the Profile screen's Holocrons tab in the SJK UI.
@@ -499,7 +503,7 @@ impl ViewerConsole {
                 || self.update_panel.is_open()
                 || self.identity_panel.is_open()
                 || self.profile_panel.is_open()
-                || self.dialogue.is_open()
+                || self.server_dialogue_active()
                 || self.staff_panel.is_open()
                 || self.collection_panel.is_open()
                 || self.holocrons_panel.is_open()

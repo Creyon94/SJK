@@ -31,9 +31,10 @@ one of the SJK Settings categories; a new page is drawn with the kit
 its SJK UI before it is merged. Fixes to an existing classic+ screen alone are
 fine.
 
-Server-authored conversations use an SJK modal in every menu style: speaker and
+Loaded JoF tools can show a server-authored conversation in an SJK modal in every
+menu style, only on a recognized JoF server: speaker and
 body above five scrolling response rows, gold selection, a Leave conversation
-control and keyboard hints. [Client dialogue support](client.md#server-dialogue-and-quests)
+control and keyboard hints. [JoF dialogue support](mods.md#dialogue-window-and-node-audio)
 describes the server-owned quest boundary and voice lifecycle.
 
 ## Design

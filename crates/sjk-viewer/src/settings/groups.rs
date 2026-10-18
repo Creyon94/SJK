@@ -100,6 +100,8 @@ const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
     "mod_jof",
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::dialogue::CVAR,
     "jof.downloads",
     "jof.contentSource",
     crate::brush_view::CVAR,
@@ -279,7 +281,6 @@ impl Group {
                 "cg_speedTrail",
                 crate::actor_world_submission::force_powers::victim::CVAR,
                 crate::actor_world_submission::force_powers::flame::CVAR,
-                crate::console::dialogue_panel::CVAR,
                 crate::holstered_sabers::CVAR,
                 crate::holstered_sabers::SUPPORT_CVAR,
                 crate::holstered_sabers::SWAP_CVAR,
@@ -308,6 +309,8 @@ impl Group {
                 "cg_errorDecay",
                 "mod_japlus",
                 "mod_jof",
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::dialogue::CVAR,
                 "jof.downloads",
                 "jof.contentSource",
                 crate::brush_view::CVAR,

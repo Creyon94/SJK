@@ -590,6 +590,7 @@ impl ViewerConsole {
             identity_panel: super::identity_panel::Panel::new(),
             profile_panel: super::profile_panel::Panel::new(),
             staff_panel: super::staff_panel::Panel::new(),
+            #[cfg(feature = "mod-jof")]
             dialogue: super::dialogue_panel::Panel::new(),
             collection_panel: super::collection_panel::Panel::new(),
             holocrons_panel: super::holocrons_panel::Panel::new(),

@@ -3,6 +3,9 @@
 //! existing reliable command operands, not additions to protocol-26 codecs.
 
 /// Server command used by the documented dialogue extension.
+/// Archived opt-out owned by the JoF mod.
+pub const CVAR: &str = "jof.dialogue";
+
 pub const COMMAND: &[u8] = b"jof_dialogue";
 /// Matching client response command, with serial and signed choice operands.
 pub const RESPONSE: &str = "dialogueresponse";
@@ -31,7 +34,7 @@ pub enum Event {
 }
 
 fn text(bytes: &[u8], limit: usize) -> String {
-    crate::decode_legacy(&bytes[..bytes.len().min(limit - 1)]).replace("\\n", "\n")
+    sjk_client::decode_legacy(&bytes[..bytes.len().min(limit - 1)]).replace("\\n", "\n")
 }
 
 /// Parse a tokenized reliable command; malformed operands never become responses
@@ -183,7 +186,11 @@ impl Dialogue {
 mod tests {
     use super::*;
     fn command(value: &str) -> Event {
-        let args = crate::tokenize_command(value.as_bytes());
+        let args = sjk_shell::tokenize(&value.replace("\\", "\\\\"))
+            .unwrap()
+            .into_iter()
+            .map(String::into_bytes)
+            .collect::<Vec<_>>();
         parse(&args).unwrap()
     }
     #[test]

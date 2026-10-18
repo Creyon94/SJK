@@ -714,9 +714,10 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::actor_world_submission::force_powers::victim::CVAR,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-jof")]
     Setting {
-        label: "Server dialogue",
-        cvar: crate::console::dialogue_panel::CVAR,
+        label: "JoF dialogue",
+        cvar: sjk_mod_jof::dialogue::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
