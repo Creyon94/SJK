@@ -15,7 +15,9 @@ pub(super) fn consume(
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
     duels: &mut crate::hud::duel_pairs::DuelPairs,
-    mut audio: Option<&mut crate::GameAudio>,
+    #[cfg_attr(not(feature = "mod-jof"), allow(unused_mut, unused_variables))] mut audio: Option<
+        &mut crate::GameAudio,
+    >,
 ) {
     if let Some(chat) = chat {
         consume_messages(session, localization, chat, console.as_deref_mut(), duels);

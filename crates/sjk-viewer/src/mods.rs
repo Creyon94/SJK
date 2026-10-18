@@ -172,6 +172,7 @@ impl Mods {
     }
 
     /// Whether a mod is currently loaded according to its shared server rules.
+    #[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
     pub(crate) fn loaded(&self, id: &str) -> bool {
         self.entries.iter().any(|entry| entry.id == id && entry.on)
     }
@@ -348,6 +349,7 @@ mod tests {
         (shell, mods)
     }
 
+    #[cfg(feature = "mod-jof")]
     fn server(kind: sjk_mod::ServerKind, info: &str) -> Option<Server> {
         Some(Server {
             kind,
