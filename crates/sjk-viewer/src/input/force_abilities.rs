@@ -21,10 +21,12 @@ pub(super) fn command_slot(command: &str) -> Option<u8> {
 /// unloaded, another server, the support setting off), a typed or bound command
 /// goes to the server unchanged, as any other unknown command would.
 pub(super) fn command_for(slot: u8) -> Option<&'static str> {
-    known_entries()
-        .iter()
-        .find(|entry| entry.slot == slot)
-        .and_then(|entry| entry.command)
+    entry(slot).and_then(|entry| entry.command)
+}
+
+/// A built-in mod's wheel entry for `slot`, active or not.
+pub(crate) fn entry(slot: u8) -> Option<&'static Ability> {
+    known_entries().iter().find(|entry| entry.slot == slot)
 }
 
 pub(crate) fn extensions(

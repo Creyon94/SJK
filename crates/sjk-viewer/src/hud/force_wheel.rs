@@ -71,14 +71,9 @@ pub(crate) fn icon(
         _ => usize::from(slot),
     };
     icons.get(index).copied().flatten().or_else(|| {
-        #[cfg(feature = "mod-jof")]
-        if let Some(entry) = sjk_mod_jof::destruction::ENTRIES
-            .iter()
-            .find(|entry| entry.slot == slot)
-        {
-            return icons.get(entry.fallback as usize).copied().flatten();
-        }
-        None
+        // A mod's entry without its own picture borrows a stock one.
+        let entry = crate::input::force_abilities::entry(slot)?;
+        icons.get(usize::from(entry.fallback)).copied().flatten()
     })
 }
 
@@ -216,6 +211,34 @@ pub(crate) fn picture_names() -> impl Iterator<Item = (usize, &'static str)> {
         .chain(JOF_ICONS.iter().copied())
 }
 
+impl super::HudOverlay {
+    /// Load optional extension images only once after their owning mod activates.
+    pub(crate) fn load_extension_icons(
+        &mut self,
+        entries: &[force_wheel::Ability],
+        vfs: &VirtualFileSystem,
+        shaders: &ShaderCatalog,
+        renderer: &crate::ui_renderer::ShapeRenderer,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        for entry in entries {
+            let slot = entry.slot as usize;
+            if slot >= ICONS
+                || entry.slot >= 32
+                || self.extension_icons_tried & (1 << entry.slot) != 0
+            {
+                continue;
+            }
+            self.extension_icons_tried |= 1 << entry.slot;
+            if let Some(pixels) = entry.icon.and_then(|path| decode(vfs, shaders, path)) {
+                let id = TextureId(crate::ui_renderer::FORCE_WHEEL_ICON_FIRST + slot as u32);
+                renderer.upload_icon(queue, id, pixels.as_raw());
+                self.force_wheel_icons[slot] = Some(id);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,33 +347,5 @@ mod tests {
         assert_eq!(icon(&icons, LIGHTNING, false), Some(TextureId(7)));
         assert_eq!(icon(&icons, LIGHTNING, true), Some(TextureId(99)));
         assert_eq!(icon(&icons, force_wheel::DASH, false), None);
-    }
-}
-
-impl super::HudOverlay {
-    /// Load optional extension images only once after their owning mod activates.
-    pub(crate) fn load_extension_icons(
-        &mut self,
-        entries: &[force_wheel::Ability],
-        vfs: &VirtualFileSystem,
-        shaders: &ShaderCatalog,
-        renderer: &crate::ui_renderer::ShapeRenderer,
-        queue: &crate::frame_queue::FrameQueue,
-    ) {
-        for entry in entries {
-            let slot = entry.slot as usize;
-            if slot >= ICONS
-                || entry.slot >= 32
-                || self.extension_icons_tried & (1 << entry.slot) != 0
-            {
-                continue;
-            }
-            self.extension_icons_tried |= 1 << entry.slot;
-            if let Some(pixels) = entry.icon.and_then(|path| decode(vfs, shaders, path)) {
-                let id = TextureId(crate::ui_renderer::FORCE_WHEEL_ICON_FIRST + slot as u32);
-                renderer.upload_icon(queue, id, pixels.as_raw());
-                self.force_wheel_icons[slot] = Some(id);
-            }
-        }
     }
 }

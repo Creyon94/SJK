@@ -7,6 +7,7 @@ use sjk_client::{BaseServerCommandEvent, ClientSession, LegacyWorldAdapter};
 use std::time::Instant;
 
 /// Drain reliable text/UI/presentation actions without retaining frame state.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn consume(
     session: &mut ClientSession,
     localization: &Localization,
