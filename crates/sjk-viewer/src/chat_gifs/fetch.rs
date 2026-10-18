@@ -9,8 +9,10 @@
 use super::link::{self, GifId, Rendition};
 use std::time::Duration;
 
-/// The most bytes read of one file.
-pub(crate) const MAX_BYTES: u64 = 4 << 20;
+/// The most bytes read of one file: 8 MiB since 18/10/2026 (Sol's decision; 4 MiB
+/// before), as the GIF a Tenor page names is often 4 to 5 MB. Memory is bounded by
+/// decoding's own limits, not by this.
+pub(crate) const MAX_BYTES: u64 = 8 << 20;
 /// How long one request may take, from connecting to the last byte.
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(10);
 

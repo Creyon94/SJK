@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | Chat media download cap 8 MiB, for Tenor
+- c0771b2 |  | Raise the chat media download cap to 8 MiB
++ 18/10/2026 | - | Chat name dropdown removed, sender card over the feed's text
+- b5e3b52 |  | Remove the chat's name dropdown; draw the sender card over the feed's text
 + 18/10/2026 | - | The log names the untrusted media host
 - bb392bf |  | Name the untrusted media host a page or redirect led to
 + 18/10/2026 | - | Tenor GIFs: a page's media is asked without accepting HTML
