@@ -944,6 +944,18 @@ pub(crate) fn has_row(cvar: &str) -> bool {
         .any(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
 }
 
+/// Where `cvar` sits in Settings (any case), for the command reference
+/// (`console_command_reference.rs`): the group a Settings search shows it under, the
+/// row's label and the row's help line; `None` when no row edits it.
+#[cfg(test)]
+pub(crate) fn place(cvar: &str) -> Option<(&'static str, &'static str, Option<&'static str>)> {
+    let row = search::rows()
+        .iter()
+        .position(|setting| setting.cvar.eq_ignore_ascii_case(cvar))?;
+    let label = search::rows()[row].label;
+    Some((search::group(row)?, label, help::help(cvar)))
+}
+
 /// The label of `cvar`'s on/off row (any case), `None` when Settings has no plain switch
 /// for it: the what's-new card names and switches the settings a release asks players to
 /// review (`changelog_data.rs`, `= <cvar>: <text>`) with it.

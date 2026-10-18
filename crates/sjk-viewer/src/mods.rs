@@ -15,7 +15,7 @@ mod host;
 /// The mods this build carries, in menu order.
 // Each mod is pushed under its own feature, which `vec![]` cannot express.
 #[allow(clippy::vec_init_then_push)]
-fn builtin() -> Vec<Box<dyn ClientMod>> {
+pub(crate) fn builtin() -> Vec<Box<dyn ClientMod>> {
     #[cfg_attr(
         not(any(feature = "mod-japlus", feature = "mod-jof")),
         allow(unused_mut)

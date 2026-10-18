@@ -4688,6 +4688,9 @@ command execution); not yet run against a game session or Sol's Archive itself.
 
 ## Useful console commands
 
+Every command and cvar the client knows, with its help, default and Settings row, is
+in the generated [command reference](development.md#command-reference).
+
 The console key opens and closes either console style and never types its
 character, as in EternalJK (`IN_TranslateSDLToJKKey` and `IN_IsConsoleKey` turn
 it into `A_CONSOLE`). By default (`cl_consoleUseScanCode 1`, EternalJK's) it is

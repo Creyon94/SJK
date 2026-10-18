@@ -60,6 +60,29 @@ Rust. It does not run the optimized build, check the declared minimum Rust
 version or perform any of the evidence checks below, so a passing run does not
 replace them.
 
+### Command reference
+
+The client writes every console command and cvar it knows into one Markdown page,
+for players, helpers and chat bots, from the tables `cmdlist`, `cvarlist` and
+`help` read, so it never needs editing by hand
+([console_command_reference.rs](../crates/sjk-viewer/src/console_command_reference.rs)).
+It builds a fresh client console without a window and lists: the console's own
+commands, the client's, the client mods' (`japlus.*`, `jof.*`, only on their
+servers), the server commands SJK completes on JA+, JoF and TaystJK servers, the
+key binding actions with their default keys, and every cvar with its default, type,
+flags and, when Settings has a row for it, that row's group, label and help line.
+Tags (developer, staff, cheats, experimental, internal) are guessed from names and
+help text by the module's `TAGS` table. Regenerate it with:
+
+```sh
+SJK_COMMAND_REFERENCE=target/sjk_commands.md \
+  cargo test --locked -p sjk-viewer --bins export_command_reference -- --ignored
+```
+
+The page is generated output, so it is not committed. Its first line carries the
+build's version label (`SJK dev` and the commit for a local build; `SJK_VERSION`
+set at build time gives a release's).
+
 ## Verification appropriate to the change
 
 | Change | Evidence required in addition to workspace checks |
