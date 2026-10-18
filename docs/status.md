@@ -1,3 +1,17 @@
+## JoF-compatible speedometer alignment
+
+18/10/2026, `fix/speedometer-alignment`: `cg_speedometerX` now identifies the
+speed label's right-edge anchor, matching JoF EternalJK's `CG_Speedometer` use
+of `ITEM_ALIGN_RIGHT`. The game-data HUD also follows JoF's named
+`cg_hudFiles` offset table: -8 for 0, -56 for the text HUD (1), and -42 for the
+JK2 HUD (2); the text HUD's armor-above-999 adjustment is also retained. The
+default remains 132; SJK previously treated it as the left
+edge of a centred 240-unit field and omitted the HUD offset. Focused tests pin
+the alignment, JoF's table, and its application to only the game-data HUD. On
+Linux x86_64 with Rust 1.99.1, formatting, the locked workspace build and test
+suite, workspace all-target Clippy, and the locked release viewer build pass;
+existing warnings remain. The result has not yet been inspected in game.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.

@@ -2437,6 +2437,19 @@ HUD to show it. The brief inventory selector still appears when cycling items,
 whether this permanent list is on or off. Trip-mine weapons are not part of the
 holdable list. Existing saved values remain in effect.
 
+## Speedometer placement
+
+`cg_speedometerX` is the speed label's right-edge anchor in the 640-wide virtual
+screen, as in JoF EternalJK's `CG_Speedometer`; its default is 132. With the
+game-data HUD selected, JoF's HUD-specific clearance is then applied: 8 units
+left for `cg_hudFiles 0`, 56 for the text HUD (`1`) and 42 for the JK2 HUD (`2`).
+The text HUD gives 4 units back when the armor value exceeds three digits, as
+JoF does to clear the wider armor counter.
+`cg_speedometerY` sets the baseline and `cg_speedometerSize` sets the scale.
+Earlier SJK builds mistook X for the left edge of a centred 240-unit field and
+omitted the HUD clearance, placing the label too far right. The archived cvar
+values themselves are unchanged.
+
 ## Lagometer size
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
