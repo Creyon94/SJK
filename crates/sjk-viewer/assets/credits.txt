@@ -124,6 +124,7 @@ did: Strafe lines after JoF EJK: the best strafe heading, in third person and on
 did: Hold push or pull to use it again the moment it is ready, after JoF EJK
 did: Away players set apart on the scoreboard: faint, at the bottom of their list
 did: Menu pictures and lighter map changes: less video memory, fewer out-of-memory loads
+did: Discord status: your Discord profile shows the server, map and mode you play
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 

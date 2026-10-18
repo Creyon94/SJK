@@ -3317,6 +3317,36 @@ operator's summary of the most changed settings and searches) is built on a bran
 of the hub and not deployed yet, so nothing reaches it until it is; nothing of this
 was tested in game.
 
+## Discord status
+
+Since 18/10/2026 (Sol's request) the client shows what the player is doing on their
+Discord profile, as Discord's Rich Presence
+([discord_presence.rs](../crates/sjk-viewer/src/discord_presence.rs), the pipe in
+[discord_ipc.rs](../crates/sjk-viewer/src/discord_ipc.rs)). It talks only to the
+Discord desktop app on the same PC, over its local pipe (`\.\pipe\discord-ipc-N`
+on Windows, a `discord-ipc-N` socket in the runtime or temporary folder elsewhere,
+the Flatpak and Snap folders included); without Discord running nothing happens and
+the client looks again every 20 seconds.
+
+- `cl_discordPresence` (archived, default 1; Settings > Network > Discord status,
+  and Simple's General): 0 off (clears the status), 1 on, 2 on without the server's
+  name. A server with a password (`g_needpass`) never shows its name, and the
+  server's address is never sent.
+- Shown, twice a second from the identity frame and sent only when it changes (at
+  most once every 5 seconds, under Discord's limit of 5 per 20 seconds): in the menus,
+  the screen on show (Browsing servers, Settings, Character creator, a Profile or
+  Collection tab); while joining, the map loading; in game, the server's name (colour
+  codes stripped), map, mode, team with the team scores (or Spectating), and the
+  players on the server out of its slots; a local game, a demo or a map explored
+  alone. The elapsed timer counts from entering the menus, a server, a demo or a map.
+- The picture is the SJK logo on the project site, and a "Get SJK" button opens the
+  site. There is no join button: SJK has no link scheme (`sjk://`) yet.
+- The game name Discord shows is the "Sol JK" application's in Discord's developer
+  portal, whose id is `APPLICATION_ID` in `discord_presence.rs`; while it is empty the
+  feature stays off. `SJK_DISCORD_APP=<id> cargo test -p sjk-viewer --bins
+  discord_app_takes_an_activity -- --ignored` checks the pipe against a running
+  Discord.
+
 ## Identity
 
 SJK keeps an identity key and can mark other SJK players on a server with SJK's

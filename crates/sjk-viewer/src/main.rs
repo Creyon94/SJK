@@ -66,6 +66,8 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod discord_ipc;
+mod discord_presence;
 mod disintegration;
 mod dismember;
 mod donation_goal;

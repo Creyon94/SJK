@@ -1,3 +1,16 @@
+## Discord status
+
+18/10/2026, `personal/discord-presence`, based on `main` `046ef86b`:
+`cl_discordPresence` (Settings > Network, default 1) shows the player's activity on
+their Discord profile through the Discord desktop app's local pipe: the menu screen,
+the join, and in game the server's name, map, mode, team and scores and players out of
+slots, with an elapsed timer and a "Get SJK" button; 2 leaves the name out, as does a
+server password. Checked: unit tests of the frame layout, activity JSON (text limits,
+two buttons, party) and the presence text; the pipe against Discord on Windows 11
+(it read the handshake frame and answered "Invalid Client ID" for a dummy id). Not
+checked: an activity shown on a profile (no application id yet: the feature stays
+off until `APPLICATION_ID` is filled in), the game window, Linux and macOS sockets.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`

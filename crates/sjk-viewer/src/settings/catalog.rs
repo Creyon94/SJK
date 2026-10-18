@@ -1057,6 +1057,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Discord status",
+        cvar: crate::discord_presence::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "SJK identity key",
         cvar: IDENTITY_ROW,
         kind: ValueKind::IdentityPage,

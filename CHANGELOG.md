@@ -28,6 +28,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Discord status (Settings > Network, `cl_discordPresence`): your Discord profile shows what you do in SJK, the menu screen, or the server, map, mode, team and players; 2 leaves the server's name out, and a server with a password never shows it _(Sol)_
+
 ## 2026.1018.2 (Alpha) | 18/10/2026
 
 > Map changes: The next map shares textures with the last one, about 730 MB less video memory at the peak.

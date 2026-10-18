@@ -97,6 +97,9 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (crate::discord_presence::CVAR, "0", "Off"),
+    (crate::discord_presence::CVAR, "1", "On"),
+    (crate::discord_presence::CVAR, "2", "Server hidden"),
     #[cfg(feature = "mod-jof")]
     (sjk_mod_jof::destruction::CVAR, "-1", "Auto"),
     #[cfg(feature = "mod-jof")]
@@ -764,6 +767,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::crash_report::CVAR,
         "After a crash, the next start sends the SJK team a report: system, map, the error, recent console lines (no chat). Off sends none.",
+    ),
+    (
+        crate::discord_presence::CVAR,
+        "Shows on your Discord profile what you do in SJK: menus, server, map, mode, players. Server hides its name.",
     ),
     (
         crate::settings_usage::CVAR,

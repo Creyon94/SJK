@@ -821,6 +821,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Tell the SJK team anonymously which settings you change and what you search for in Settings (no key, name or server is sent; 0 sends nothing)",
         ),
         CvarDefinition::new(
+            crate::discord_presence::CVAR,
+            1,
+            archive,
+            "Show what you are doing in SJK on your Discord profile, through the Discord app on this PC (0 off, 1 on, 2 without the server's name)",
+        ),
+        CvarDefinition::new(
             crate::settings::mode::CVAR,
             crate::settings::mode::SettingsMode::Simple.name(),
             archive,
