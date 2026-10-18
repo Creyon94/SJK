@@ -903,7 +903,9 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   is decoded when the catalogue loads and put into the UI atlas's emote cells
   (`emote_icons.rs`, 32 of them): a wheel choice that runs `sjkemote <id>` wears it,
   on a dark disc, in the ring and in the editor; without one it keeps the plain
-  emote icon.
+  emote icon. Every world the menu moves to has a renderer of its own with an empty
+  atlas, so the pictures go into each new one (`ShapeRenderer::id`); until
+  18/10/2026 they reached only the first, and vanished after a map change.
 
 ## Pings
 

@@ -2949,7 +2949,9 @@ like this one.",
 
     /// The quick wheel over duel6 with a page of the installed emotes (`emotes/` of
     /// the game data) and Stop emote: each emote wears its picture when its file
-    /// names one (`emote_icons`), the plain emote icon otherwise.
+    /// names one (`emote_icons`), the plain emote icon otherwise; then the same from a
+    /// second client, as the next world after a map change has its own renderer (in
+    /// 2026.1018 that one showed no pictures).
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_quick_wheel_emotes() {
@@ -2957,59 +2959,62 @@ like this one.",
         use crate::quick_wheel::{ShownChoice, ShownPage, catalog};
         use std::time::{Duration, Instant};
         on_big_stack(|| {
-            let cvars = [
-                ("ui_menuStyle", "sjk"),
-                (crate::settings::quick::HIDE_CVAR, "1"),
-            ];
-            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
-            else {
-                return;
-            };
-            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
-            let (yaw, pitch) = look(shots[0].from, shots[0].at);
-            aim(&mut gpu, shots[0].from, yaw, pitch);
-            if let Some(console) = gpu.console.as_mut() {
-                console.close_for_connection();
-            }
-            gpu.quick_wheel.shot = true;
-            // The frames load the catalogue and put its pictures into the atlas.
-            let _ = frame(&mut gpu, 30);
-            let installed: Vec<Slot> = crate::emotes::lock()
-                .catalogue
-                .iter()
-                .flatten()
-                .take(9)
-                .map(|def| Slot::Custom {
-                    label: def.name.clone(),
-                    command: format!("{} {}", crate::emotes::COMMAND, def.id),
-                })
-                .collect();
-            println!("installed emotes: {}", installed.len());
-            let slots = installed
-                .into_iter()
-                .chain(catalog::action_index("emote_stop").map(Slot::Action));
-            let page = ShownPage {
-                id: "emotes".to_owned(),
-                name: "Emotes".to_owned(),
-                choices: slots
-                    .map(|slot| {
-                        println!("{} -> {:?}", slot.command(), slot.texture());
-                        ShownChoice {
-                            label: slot.label().to_owned(),
-                            command: slot.command().to_owned(),
-                            icon: slot.texture(),
-                            on: false,
-                            gif: None,
-                        }
+            for name in ["duel6-wheel-emotes", "duel6-wheel-emotes-next-world"] {
+                let cvars = [
+                    ("ui_menuStyle", "sjk"),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) =
+                    open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
+                else {
+                    return;
+                };
+                let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                gpu.quick_wheel.shot = true;
+                // The frames load the catalogue and put its pictures into the atlas.
+                let _ = frame(&mut gpu, 30);
+                let installed: Vec<Slot> = crate::emotes::lock()
+                    .catalogue
+                    .iter()
+                    .flatten()
+                    .take(9)
+                    .map(|def| Slot::Custom {
+                        label: def.name.clone(),
+                        command: format!("{} {}", crate::emotes::COMMAND, def.id),
                     })
-                    .collect(),
-                force: false,
-                gifs: false,
-            };
-            let settled = Instant::now() - Duration::from_secs(1);
-            gpu.quick_wheel.open(vec![page], 0, settled);
-            gpu.quick_wheel.moved([60.0, -60.0]);
-            println!("{}", shoot(&mut gpu, 4, "duel6-wheel-emotes").display());
+                    .collect();
+                println!("installed emotes: {}", installed.len());
+                let slots = installed
+                    .into_iter()
+                    .chain(catalog::action_index("emote_stop").map(Slot::Action));
+                let page = ShownPage {
+                    id: "emotes".to_owned(),
+                    name: "Emotes".to_owned(),
+                    choices: slots
+                        .map(|slot| {
+                            println!("{} -> {:?}", slot.command(), slot.texture());
+                            ShownChoice {
+                                label: slot.label().to_owned(),
+                                command: slot.command().to_owned(),
+                                icon: slot.texture(),
+                                on: false,
+                                gif: None,
+                            }
+                        })
+                        .collect(),
+                    force: false,
+                    gifs: false,
+                };
+                let settled = Instant::now() - Duration::from_secs(1);
+                gpu.quick_wheel.open(vec![page], 0, settled);
+                gpu.quick_wheel.moved([60.0, -60.0]);
+                println!("{}", shoot(&mut gpu, 4, name).display());
+            }
         });
     }
 
