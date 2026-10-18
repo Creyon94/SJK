@@ -307,7 +307,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 49 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 50 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -409,6 +409,9 @@ merged into SJK
   base SJK forwarding unhandled server commands to the mod.
 - #149 JoF client mod: the `jofejk` EJK opt-in (`jof.ejkOptIn`) and Stasis/Repulse firing
   confirmations (`jof.abilitySounds`), through generic mod userinfo fields.
+- #165 trusted chat media sources: each player approves the sites whose GIFs show inline,
+  with bounded discovery and fetching; reworked at the merge for animated WebP and
+  opt-in MP4 through Windows Media Foundation (`cl_sjkChatVideo`, off) instead of OpenH264.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
 merged into SJK
