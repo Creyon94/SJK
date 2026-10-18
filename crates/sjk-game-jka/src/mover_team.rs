@@ -113,6 +113,8 @@ fn unlock(doors: &mut [impl DoorSlot], leader: usize) {
             door.targetname.clear();
         }
         door.spawnflags &= !MOVER_LOCKED;
+        // `s.frame = 1`: the second stage of its shader.
+        door.frame = 1;
         at += 1;
     }
 }
@@ -432,7 +434,10 @@ pub fn blocked(
     if relock {
         let mut at = 0;
         while let Some(index) = part(doors, master, at) {
-            doors[index].door_mut().spawnflags |= MOVER_LOCKED;
+            // `LockDoors`: `s.frame = 0`, the first stage of its shader.
+            let door = doors[index].door_mut();
+            door.spawnflags |= MOVER_LOCKED;
+            door.frame = 0;
             at += 1;
         }
     }

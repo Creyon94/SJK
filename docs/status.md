@@ -1,3 +1,21 @@
+## Siege doors: the use key, lock lights, trigger teams
+
+18/10/2026, `fix/siege-door-use-lights`, on `fix/siege-door-teamallow` merged into
+`Sol-Vulpes/SJK` `6469816` (tester on `mp/siege_hoth`). Implemented, after OpenJK `codemp`:
+
+- The use key reaches `PLAYER_USE` doors (`ValidUseTarget`, `GlobalUse`). In siege the
+  door's `teamallow` team may not use one unless `g_ff_objectives` is set (`TryUse`).
+- In siege, the use key does nothing before the round begins (`TryUse`).
+- A door spawned locked carries `EF_SHADER_ANIM`. Its `s.frame` is 0 while locked and 1
+  once unlocked (`LockDoors`, `UnLockDoors`), so the client draws its lock lights. A locked
+  door keeps its red light while its `teamallow` team walks through it, as stock does.
+- `trigger_multiple`/`trigger_once` take their team from `team`, else from the generic
+  `teamuser`/`alliedteam` spawn fields.
+
+See [server](server.md#siege-doors). The workspace built on Linux; tests and Clippy were
+not run for this branch. Tested by hand on `mp/siege_hoth` with an earlier build of the
+same change.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect

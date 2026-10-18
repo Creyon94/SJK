@@ -11,6 +11,9 @@ use sjk_game_jka::movers::{self, MoverKind, MoverState};
 /// `s.loopSound`, `s.loopIsSoundset`.
 const ES_LOOP_SOUND: usize = 55;
 const ES_LOOP_IS_SOUNDSET: usize = 70;
+/// `s.frame`, and `EF_SHADER_ANIM`, which a door spawned locked draws its lock by.
+const ES_FRAME: usize = 83;
+const EF_SHADER_ANIM: u32 = 1 << 4;
 
 impl NativeGame {
     /// `SP_func_door` for every door the map placed: an `ET_MOVER` every client is sent,
@@ -31,6 +34,10 @@ impl NativeGame {
             }
             state.set_raw_field(ES_POS_DURATION, door.duration as u32);
             state.set_raw_field(ES_TIME, door.time as u32);
+            if door.shader_anim {
+                state.set_raw_field(ES_EFLAGS, EF_SHADER_ANIM);
+            }
+            state.set_raw_field(ES_FRAME, door.frame);
             if let Some(number) = self.pool.spawn_entity(state, 0) {
                 self.pool.set_bounds(number, door.bounds);
                 self.doors.push((number, door.clone()));
@@ -411,5 +418,6 @@ impl NativeGame {
         }
         slot.set_raw_field(ES_POS_DURATION, door.duration as u32);
         slot.set_raw_field(ES_TIME, door.time as u32);
+        slot.set_raw_field(ES_FRAME, door.frame);
     }
 }

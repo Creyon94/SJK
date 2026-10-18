@@ -193,6 +193,11 @@ pub struct Door {
     /// `vehopen` (`genericValue14`): vehicles and their riders open it by walking up to
     /// it too. A `func_door` key alone.
     pub vehicle_open: bool,
+    /// `EF_SHADER_ANIM`: spawned locked, it draws its lock by its shader's frame.
+    pub shader_anim: bool,
+    /// `s.frame`: the shader frame, 0 while locked (`LockDoors`) and 1 once unlocked
+    /// (`UnLockDoors`).
+    pub frame: u32,
 }
 
 /// `BMS_START`, `BMS_END` (`g_mover.c:55-57`): a mover's start and stop sounds.
@@ -333,6 +338,8 @@ pub fn spawn_door(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Door>
         allied_team: crate::userinfo::atoi(entity.get("teamallow").unwrap_or_default().as_bytes()),
         vehicle_open: crate::userinfo::atoi(entity.get("vehopen").unwrap_or_default().as_bytes())
             != 0,
+        shader_anim: spawnflags & MOVER_LOCKED != 0,
+        frame: 0,
     })
 }
 
@@ -425,6 +432,8 @@ pub fn spawn_plat(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Door>
         sounds: Vec::new(),
         allied_team: 0,
         vehicle_open: false,
+        shader_anim: false,
+        frame: 0,
     })
 }
 
@@ -517,6 +526,8 @@ pub fn spawn_button(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Doo
         sounds: Vec::new(),
         allied_team: 0,
         vehicle_open: false,
+        shader_anim: false,
+        frame: 0,
     })
 }
 
@@ -679,6 +690,17 @@ pub fn touch_plat(plat: &mut Door, health: i32, level_time: i32) {
     if plat.state == MoverState::Pos2 {
         plat.next_think = level_time + 1_000;
     }
+}
+
+/// Whether the use key reaching `door` uses it (`TryUse`, `g_utils.c:1777-1806`): it is
+/// `PLAYER_USE` (`ValidUseTarget`'s `SVF_PLAYER_USABLE`) and active, and in siege
+/// (`siege`) a player of its `teamallow` `team` may not, unless friendly fire on
+/// objectives (`objectives`, `g_ff_objectives`) is on.
+pub fn usable_by(door: &Door, siege: bool, team: i32, objectives: bool) -> bool {
+    door.svflags & SVF_PLAYER_USABLE != 0
+        && !door.inactive
+        && !door.spent
+        && (!siege || door.allied_team == 0 || door.allied_team != team || objectives)
 }
 
 /// `Touch_DoorTrigger` (`:1112-1190`) for `toucher` at a door with no team: see
