@@ -1022,6 +1022,16 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK chat in game feed",
+        cvar: crate::sjk_chat_frame::FEED_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat in console",
+        cvar: crate::sjk_chat_frame::CONSOLE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "SJK chat sound",
         cvar: crate::sjk_chat_frame::SOUND_CVAR,
         kind: ValueKind::Bool,

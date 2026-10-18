@@ -1,3 +1,17 @@
+## Separate SJK chat feed and console visibility
+
+18/10/2026, `feat/sjk-chat-output-visibility`, based on `origin/main` `f19a8a67`:
+the archived, default-on `cl_sjkChatFeed` and `cl_sjkChatConsole` switches
+independently control whether live SJK messages join the in-game general chat or
+console scrollback. Hiding the game feed removes its existing SJK lines, consumes
+messages and refusal notices received while hidden without replaying them, and leaves
+ordinary server chat alone. Neither switch hides the SJK chat dock at the right of the
+Escape menu or its full page. The three focused feed-policy tests and settings
+registration/default test pass. On Linux x86_64 with Rust 1.99.1, formatting, the
+locked workspace build and test suite, all-target Clippy, and the locked release
+viewer/dedicated build pass; existing warnings remain. Interactive in-game behavior
+and a screenshot remain unverified.
+
 ## Server-reported scoreboard deaths
 
 18/10/2026, `feat/scoreboard-deaths`, based on `origin/main` `96569426`: the

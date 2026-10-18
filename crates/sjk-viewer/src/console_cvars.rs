@@ -839,6 +839,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show the SJK chat, which every SJK player shares through the SJK hub, and read it (0 hides it and stops reading)",
         ),
         CvarDefinition::new(
+            crate::sjk_chat_frame::FEED_CVAR,
+            true,
+            archive,
+            "Show live SJK chat messages in the in-game general chat feed (the ESC menu dock and SJK chat page stay visible)",
+        ),
+        CvarDefinition::new(
+            crate::sjk_chat_frame::CONSOLE_CVAR,
+            true,
+            archive,
+            "Keep live SJK chat messages in console scrollback",
+        ),
+        CvarDefinition::new(
             crate::installed_models::CVAR,
             true,
             archive,
