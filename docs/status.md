@@ -1,3 +1,14 @@
+## Team vehicles board for their team
+
+18/10/2026, `fix/siege-vehicle-team`, based on `Sol-Vulpes/SJK` `6469816` (tester: on
+`mp/siege_hoth` nobody could board the Imperial AT-ST). The use key's boarding test
+(`TryUse`, `g_utils.c:1714-1716`) was handed team 0 instead of the player's
+`sess.sessionTeam`. So in a team game, a vehicle with an allied team (`teamuser`) refused
+every player, and siege_hoth's first objective (drive the rear AT-ST to the wall door)
+could not be done. The workspace built on Linux; tests and Clippy were not run. Tested by
+hand with an earlier build of the same change: the Empire boards the AT-ST and completes
+the objective.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect
