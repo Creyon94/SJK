@@ -361,9 +361,11 @@ impl Card {
         if rows.is_empty() {
             return;
         }
+        // Lowercase once: the cvar table looks a lowercase name up without allocating,
+        // and the switches are read every frame.
         self.switches = rows
             .iter()
-            .map(|(cvar, _, _)| (cvar.clone(), false))
+            .map(|(cvar, _, _)| (cvar.to_ascii_lowercase(), false))
             .collect();
         let blocks = rows
             .into_iter()
@@ -1183,6 +1185,16 @@ mod tests {
             Some(true),
             "not reset again"
         );
+    }
+
+    /// A setting to review is looked up by its lowercase name, which reads without
+    /// allocating each frame, however the changelog spells it.
+    #[test]
+    fn switches_keep_the_lowercase_name() {
+        let mut card = Card::default();
+        card.offer("2.0", &[digest("2.0", &[("Servers", "x")])], false);
+        card.offer_reviews(&[review("CG_Nameplate", true)]);
+        assert_eq!(card.switches, [("cg_nameplate".to_owned(), false)]);
     }
 
     fn review(cvar: &str, reset: bool) -> Review {
