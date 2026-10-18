@@ -43,6 +43,11 @@ impl GpuState {
             body.appearance = crate::muted_players::appearance(&body.appearance);
             crate::muted_players::sabers(&mut body.sabers);
         }
+        eligible_body(
+            &mut body,
+            &self.clientinfo_watch.model_policy,
+            crate::actor_load::model_options(self.console.as_ref()),
+        );
         let id = EntityId::new(u64::from(body.entity_num) + 1);
         for name in body.sabers.iter().flatten() {
             self.load_hilt(name)?;
@@ -175,5 +180,68 @@ impl GpuState {
         Ok(Some(crate::actor_pose::evaluation::Slot::from_animator(
             animator,
         )))
+    }
+}
+
+/// A body is a player's: a model this PC refuses for players (eligibility or the
+/// model blacklist, as `actor_load::eligible_appearance` decides) falls back to Kyle
+/// on the corpse as on the live actor. The copy's skin is already team-resolved, so
+/// Kyle keeps its red or blue as the live fallback gets it.
+fn eligible_body(
+    body: &mut sjk_client::BodyIdentity,
+    policy: &sjk_client::player_model_eligibility::PlayerModelEligibility,
+    options: (&str, bool),
+) {
+    let refused =
+        crate::actor_load::eligible_appearance(body.appearance.clone(), true, policy, options)
+            != body.appearance;
+    if refused {
+        body.appearance = crate::muted_players::appearance(&body.appearance);
+    }
+}
+
+#[cfg(test)]
+mod eligibility_tests {
+    use super::*;
+
+    #[test]
+    fn a_restricted_model_corpse_falls_back_like_the_live_player() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "synthetic",
+            [(
+                "models/players/creature/settings.txt",
+                b"notInMP 1".to_vec(),
+            )],
+        )
+        .unwrap();
+        let policy = sjk_client::player_model_eligibility::PlayerModelEligibility::load(&vfs);
+        let body = |model: &str| sjk_client::BodyIdentity {
+            client_num: 3,
+            entity_num: 70,
+            appearance: Appearance {
+                model: model.into(),
+                variant: "red".into(),
+            },
+            sabers: [Some("single_1".to_owned()), None],
+            weapon: 0,
+        };
+        let red_kyle = Appearance {
+            model: "models/players/kyle".into(),
+            variant: "red".into(),
+        };
+        let mut restricted = body("models/players/creature");
+        eligible_body(&mut restricted, &policy, ("", true));
+        assert_eq!(restricted.appearance, red_kyle);
+        let mut blacklisted = body("models/players/jedi_hm");
+        eligible_body(&mut blacklisted, &policy, ("jedi_hm", false));
+        assert_eq!(blacklisted.appearance, red_kyle);
+        // The metadata override off lets the restricted model through.
+        let mut overridden = body("models/players/creature");
+        eligible_body(&mut overridden, &policy, ("", false));
+        assert_eq!(overridden.appearance, body("models/players/creature").appearance);
+        let mut allowed = body("models/players/jedi_hm");
+        eligible_body(&mut allowed, &policy, ("", true));
+        assert_eq!(allowed.appearance, body("models/players/jedi_hm").appearance);
     }
 }

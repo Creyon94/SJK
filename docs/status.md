@@ -232,7 +232,8 @@ See [client chat behavior](client.md).
 17/10/2026, `feat/model-eligibility`, based on `bb83eb28`, Windows:
 implemented EJK #126's content-authored `notInMP` settings and merged model
 blacklist files, plus the archived local blacklist and metadata override.
-Both profile pickers and initial/live player loads share the policy; overrides
+Both profile pickers, initial/live player loads and copied corpses (Kyle in the
+body's team skin) share the policy; overrides
 are resolved before eligibility and NPC model loading bypasses it. World-owned
 metadata is parsed at installation and reused for clientinfo refresh. Idle
 frames only compare normalized cvar values; no policy parsing or VFS reads run
