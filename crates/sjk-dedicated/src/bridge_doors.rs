@@ -181,15 +181,20 @@ impl NativeGame {
     /// or turn back.
     pub(super) fn use_doors(&mut self, name: &str, client: usize, level_time: i32) {
         for index in 0..self.doors.len() {
-            if self.doors[index].1.targetname != name {
-                continue;
+            if self.doors[index].1.targetname == name {
+                self.use_door_at(index, client, level_time);
             }
-            let activator = (client != usize::MAX).then_some(client);
-            let fired = mover_team::use_mover(&mut self.doors, index, level_time, activator);
-            self.publish_team(index);
-            if let Some(target) = fired {
-                self.fire_targets(&target, client, level_time);
-            }
+        }
+    }
+
+    /// `Use_BinaryMover` on the mover at `index` by `client` (`usize::MAX` for no player):
+    /// its team is sent what it now does, and what it fires is fired.
+    pub(super) fn use_door_at(&mut self, index: usize, client: usize, level_time: i32) {
+        let activator = (client != usize::MAX).then_some(client);
+        let fired = mover_team::use_mover(&mut self.doors, index, level_time, activator);
+        self.publish_team(index);
+        if let Some(target) = fired {
+            self.fire_targets(&target, client, level_time);
         }
     }
 

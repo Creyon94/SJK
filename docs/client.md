@@ -767,6 +767,28 @@ and the page's handling in
 
 ## Player models
 
+Player model eligibility follows JoF EJK #126: `notInMP 1` (any nonzero integer)
+in `models/players/<model>/settings.txt`, or a model named in any visible
+`ext_data/modelblacklist/*.txt`, excludes it from both profile pickers and
+replaces it with Kyle when a player would wear it. This includes your model
+and forced ally/enemy models. Fallback precedes team-skin selection, so team
+players still wear the appropriate red or blue Kyle. NPCs load the same
+restricted model normally.
+Same-named files follow ordinary VFS priority; distinct blacklist files merge.
+Unreadable, empty or oversized optional files are ignored (settings below
+4096 bytes, lists below 16384 bytes). Metadata is cached for the mounted world;
+remount/restart after changing pack files.
+
+Settings > Gameplay > Items and models in either menu style includes
+**Player model blacklist** (`cg_modelBlacklist`, empty by default): names
+separated by spaces, commas or semicolons, case-insensitive; a `/skin` suffix
+matches the whole model. **Respect model metadata** (`cg_modelEligibility`, on)
+can be switched off to ignore pack-authored restrictions; your own blacklist
+still applies. Both preferences are archived and apply to player presentation
+and the next profile catalogue, without rewriting your saved model or changing
+server gameplay. Retail choices remain first under Jedi Academy, with their
+filtered count, and Community follows.
+
 A player's or NPC's appearance (`models/players/<model>/<skin>`) loads its
 `model.glm`, the skeleton the mesh names (`<name>.gla`), that skeleton's
 `animation.cfg` and a skin; if the model cannot be loaded or built, the client
@@ -1469,6 +1491,57 @@ its last two predictable events (as CG_TransitionPlayerState does)
 without replaying them, following JoF EJK #123. New events after the switch still
 play from the new player. This changes audio latches, not movement or event encoding.
 
+### Force presentation controls
+
+Both menu styles offer **Force animation effects** (`cg_forceAnimFX`, on) for
+Rage, Heal, Quick Heal and Grip-victim puffs. Plugin settings (`cp_pluginDisable`
+bit 5) can also disable them and the combined cyan Protect/Absorb colour; the
+separate green/blue shells remain. The local animation switch leaves the
+Protect/Absorb colour preference and ordinary Push/Grip-caster effects alone.
+
+**Empower glow** (`cg_empowerEffect`) defaults to -1, following the server's
+`jp_empowerEffect`: 0 full body, 1 arms, 2 hands. Set 0/1/2 to override that shape.
+Only Empower-marked body blur is trimmed; ordinary Push stays full body.
+Mindtrick hides Force effects and flamethrower audio from the affected viewer;
+active Sight reveals them. These presentation rules apply independently of menu
+style and do not change Force gameplay or protocol encoding. Installed-asset
+visual/audio comparison remains unverified.
+
+### Repeated model voices
+
+Settings > Sound exposes **Taunt anti-spam** in SJK UI and classic+.
+`cg_tauntAntiSpam` defaults to 1, following JoF EJK #287/#374: each player's
+entire taunt family shares a hold lasting the previous decoded sample's duration
+(2500 ms when duration is unavailable). Gasps hold for 2000 ms; jump, roll and
+landing voices each have an independent 1000 ms hold. Generic/entity custom-voice
+events share these timers, so changing the event route does not bypass them.
+The filter does not suppress animations, body/fall impacts, pain/death, weapons,
+NPCs or world sounds. `cg_tauntAntiSpam 0` disables it. Map changes and backwards
+demo seeks reset the holds, and so does a player slot whose `CS_PLAYERS` string
+empties or takes another name, so a newcomer in a reused slot is not held by the
+previous occupant's taunt. Duration comes from the decode worker; event playback
+does not read files, decode samples or lock the audio callback.
+
+### Map music synchronization
+
+**Map music sync** (`cg_musicSync`, on) is in Sound settings in both menu styles.
+After joining or leaving a private duel, file-based map music resumes from the time
+elapsed since its track began instead of restarting. Like JoF EJK's
+`cgs.musicStartTime` (EJK #159), that start is the level start for the map's own
+track and the server time of the last `CS_MUSIC` change for a track set mid-level
+(`target_play_music`); a numeric third `CS_MUSIC` token, when a server sends one,
+states the start outright. The decode/callback queue delay is included in
+the start position. The native sequencer plays a distinct intro once, then wraps
+the loop; a single repeated file has the same phase as JoF EJK #161. Dynamic music
+keeps its own transitions and does not use the file-track offset. Turning sync off
+starts at the beginning. Manual `music` commands also start at the beginning.
+
+An empty server `CS_MUSIC` means silence, including when a duel ends; it does not
+fall back to BSP worldspawn music. Offline world viewing still uses worldspawn.
+Map handoff stops the old track before preparing the next one (JoF EJK #103/#146).
+Actual peer synchronization and live listening remain unverified; clock/sequence
+checks use synthetic PCM and already-decoded snapshot time.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as
@@ -1523,6 +1596,15 @@ neither placed nor solid), and the use key fires one only when the map made it
 `PLAYER_USE` (spawnflag 64) and not `INACTIVE` (128), as `ValidUseTarget` checks. One that
 starts off is not sent (`SVF_NOCLIENT`, `EF_NODRAW`); it used to carry `EF_PERMANENT`
 (bit 7) in the place of `EF_NODRAW` (bit 8).
+
+Used, by the use key or by name (`G_UseTargets`, a `target_counter`, a breakable's
+`target`), a `func_usable` runs `func_usable_use`: it goes away (no contents, not sent)
+and fires its `target`, or comes back solid and fires its `target2`; an `ALWAYS_ON` one
+(spawnflag 8) fires its `target` and is out of use for its `wait`, for good without one.
+Until 17/10/2026 a named use never reached one, so a wall a map took down after an
+objective (siege_korriban's red crystal, as reported) stayed solid. Not ported: the
+shader-frame step of one with `endframe`, its use script, spawnflag 16's wait for a
+clear space, and one used by being shot (`health`).
 
 ## Door and mover sounds
 
@@ -2143,6 +2225,16 @@ counts bytes of its one-byte code page, so the limit counts characters, and a na
 with `×` or `é` (two bytes in UTF-8) in a duel challenge wraps like any other. The scoreboard continues
 to use structured server scores rather than parsing printed statistics tables.
 
+`pmonly` toggles **Game PM-only chat** for the current map; `pmonly on`/`off`
+(and 1/0) select it explicitly. The same default-off switch is in both settings
+styles (`cg_pmOnlyChat`). Only game-server tells with the stock private marker
+before the sender name remain in the overlay and produce a chat notification;
+lookalike names, colours and quoted message bodies cannot mark a public line as
+private. Sent tell echoes qualify too. Existing history is hidden, not erased,
+and returns when the switch is off; console history/logs, centre notices and
+SJK hub chat are independent. Moving to another map resets the choice; a graphics
+reload preserves it. Unmarked private formats from other mods are not guessed.
+
 Chat remains connected to the real server during intermission, including
 global/team/private composer messages and console/bound chat commands. Messages
 received during background loading are retained; its loading notice hides the HUD. The scoreboard reserves a separate left column for messages and the
@@ -2573,7 +2665,9 @@ with `cg_drawTimerMsec`, counting down with `cg_drawTimerCountdown`), right-alig
 480 from the edge, under `cg_drawUpperRight`. Without that option the layouts keep their own
 clock at the top centre (Sol's choice, 12/10/2026); with it that clock steps aside. The
 game-data HUD draws no clock of its own, so `cg_drawTimer` showed nothing there until the
-option existed (Creyon's report, 11/10/2026). The kill feed stands under the stack.
+option existed (Creyon's report, 11/10/2026). The HUD's snapshot line (`cg_drawSnapshot`) and
+inventory stand under these readouts, which used to write over the snapshot line. The
+kill feed stands under the stack.
 
 In SJK's own layouts, health and armour over the maximum (125 health at spawn, up
 to 199 armour from a large shield picked up at 99) show on their meter: the meter
@@ -2607,7 +2701,11 @@ the original cgame reads:
   (`gfx/hud/mpi_bflag` or `mpi_rflag`, the `_ys` pictures in CTY) while your team holds it,
   taken or dropped, and your own flag's `mpi_*flag_x` picture while the enemy holds it. The
   state is `CS_FLAGSTATUS` (config string 23: red then blue, `0` at base, `1` taken, `2`
-  dropped); the caption beside each says TAKEN or DROPPED.
+  dropped); the caption beside each says DROPPED, or for a taken flag its carrier's name
+  (TAKEN while the client does not know who). The carrier comes from the viewed player's
+  state, a player in the snapshot, a teammate's `tinfo` row, then the last carrier seen
+  while the flag stays taken; the name is formatted again only when the carrier or their
+  client info changes, and keeps its colours under `cg_drawCrosshairNamesColours`.
 - While the local player carries a flag (`PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG`
   in the player state, whatever the status string says) the enemy flag's icon stands on a
   gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
@@ -2618,9 +2716,19 @@ the original cgame reads:
   (`-` while the server has not sent one). With them on, the layouts' score line drops its
   trailing team scores (`cg_drawScore 2`), which they replace.
 
-The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name from the
-`scores` command's powerups; they also use the powerups of a player in view in the
-snapshot (and the local player state), for servers whose `scores` list none.
+The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
+`scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
+flag bits follow live state: the viewed player's own state, a player in the snapshot, a
+teammate's `tinfo` row, then the `scores` row; `CS_FLAGSTATUS` clears a flag that is back
+at its base or dropped
+([live_flags.rs](../crates/sjk-viewer/src/scoreboard/live_flags.rs)). SJK's own server
+sends the carriers' powerup bits in `scores` (`bridge_ranks.rs`), as
+`DeathmatchScoreboardMessage` does.
+
+A flag carrier wears the flag on the back (`CG_PlayerFlag`). The local carrier's
+flag comes from its player state, as the server never sends a client its own entity,
+so it shows in third person
+([flag_carrier.rs](../crates/sjk-viewer/src/flag_carrier.rs)).
 
 ## Kill feed
 
@@ -2745,6 +2853,16 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
   [Entity render effects](rendering.md#entity-render-effects)).
+- `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
+  duel) keeps dead bodies out of the presentation world while the local player is
+  in a private duel. It affects `ET_BODY` only: live players and gameplay state are
+  unchanged, and bodies remain visible outside a private duel. Set it to `0` to
+  keep bodies visible during duels too. The archived preference also applies to
+  demo playback.
+- `cg_hidePickupsInDuel` (on; beside the corpse option) similarly hides
+  `ET_ITEM` and `ET_HOLOCRON` presentation during a private duel. That covers
+  health, shield, weapons, ammo, powerups and Force holocrons without changing
+  their server state or pickup behavior. Set it to `0` to keep them visible.
 - **Pilots in a vehicle:** a pilot sealed in a `hideRider` vehicle (a fighter, a
   walker) is `Ghost`ed with `SVF_NOCLIENT` (`g_vehicles.c:1924-1940`), so no snapshot
   carries his entity and the world never presents his body. Like stock's crosshair
@@ -3546,10 +3664,12 @@ documented capability table is in
 [japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs); it detects the server
 independently of the optional JA+ command mod. The flame graphs and sound must
 be present in installed game data, such as the JoF EJK client-assets pack.
-SJK does not bundle them. Without the flame stream graph the player keeps
-showing stock Lightning; other missing assets leave that effect or sound absent.
-The flame sound follows the same detection as the effects, refreshed when the
-server info changes.
+SJK does not bundle them. The custom `mp/fthrw_bobafire` stream has priority;
+if absent, SJK uses the retail `boba/fthrw` stream with its forward direction
+reversed; both missing: stock Lightning. A missing sound stays silent. The flame
+sound follows the same detection as the effects, refreshed when the server info
+changes. Impact bursts follow presentation time between snapshots, including
+during demo playback.
 
 `forceselect <n>` (SJK's) selects wheel entry `n` at once, by its
 `forcePowers_t` number (18 Stasis, 19 Repulse, 20 Dash), as if
@@ -4973,17 +5093,32 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
   [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs)).
 - **Voices.** `*pain25`, `*death1`, `*jump1` and the other custom sounds of an NPC
   (or a vehicle, which is an NPC) come from its own sound folders: the server names
-  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`
-  and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in `cg_servercmds.c:718`).
-  As `CG_CustomSound` (`cg_players.c:213-322`), death, jump, pain, choke, gasp, land
-  and taunt come from the standard set, anger, victory and pushed from the combat
-  set, and taunt1-3, deflect, gloat and pushfail from the Jedi set, each
-  `sound/chars/<dir>/misc/<name>`. An NPC with no set for a sound, or whose file is
-  missing, is silent: unlike a player it has no `mp_generic` fallback. Sets load
-  when their `CS_SOUNDS` slot changes, not per event
-  ([sound_npc_voices.rs](../crates/sjk-client/src/sound_npc_voices.rs)). Before
-  17/10/2026 every NPC spoke with the voice of player slot 31. The `_Extra` set
-  (`*chase1`, `*cover1`, ...) has no event in the sound table and is not loaded.
+  each as `*$<dir>` in `CS_SOUNDS` and points the NPC's `csSounds_Std`, `_Combat`,
+  `_Extra` and `_Jedi` at it (`NPC_stats.c`, `CG_HandleNPCSounds` in
+  `cg_servercmds.c:718`). As `CG_CustomSound` (`cg_players.c:191-322`), each name
+  is looked up in the four tables in order (standard, combat, extra, Jedi) and
+  played from `sound/chars/<dir>/misc/<name>` of the set the NPC names for that
+  table: death, jump, pain, falling, choke, gasp, land and taunt from the standard
+  set (its choke wins over the combat duplicates), anger, victory, confuse,
+  pushed and `ffwarn`/`ffturn` from the combat set, chase, cover, detected, lost,
+  outflank, escaping, giveup, look, sight, sound and suspicious from the extra
+  set, and combat, jdetected, taunt1-3, jchase, jlost, deflect, gloat and
+  pushfail from the Jedi set. The vocal events 116-124 and 131-132 (combat), 133-168
+  (extra) and 169-189 (Jedi) play them, as do `*name` entries in the sound table.
+  An NPC with no set for a sound, or whose file is missing, is silent: unlike a
+  player it has no `mp_generic` fallback and never borrows the player duel bank.
+  Sets load when their `CS_SOUNDS` slot changes, not per event
+  ([npc_sounds.rs](../crates/sjk-client/src/npc_sounds.rs)). Before 17/10/2026
+  every NPC spoke with the voice of player slot 31.
+- **Who speaks.** As stock, `EV_ENTITY_SOUND` (79) speaks with the entity its
+  `clientNum` names (`cg_event.c:4174`): `G_EntitySound` sends a pit's `*falling1`
+  and Grip's `*choke1-3` and `*gasp` this way, on a temporary entity, so they keep
+  the player's voice (or the NPC's, when it names one). Every other event speaks
+  with its own entity number, an NPC's banks above the player slots (a forwarded
+  event borrowing those of the NPC it names), so a `*name` on a temporary entity's
+  `EV_GENERAL_SOUND` stays silent as in stock. Voice commands (75) keep
+  `groundEntityNum`. The sound's source stays the speaker's own number, so a
+  blocked player's voice stays muted.
 
 ## Shader remap controls
 

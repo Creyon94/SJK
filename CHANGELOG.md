@@ -28,6 +28,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The scoreboard sets away players apart: anyone whose view has not moved for 3 minutes (or with [AFK] in their name) drops to the bottom of their list, faint, with "AFK" and how long; chat, a turn of the mouse or a kill brings them back. Settings > HUD > Scoreboard > Away players apart (`cg_scoreboardAfk`) _(Sol)_
 - Mute is now Block, and it blocks everything: a blocked player's game and SJK chat stay hidden, they are drawn as Kyle with the default saber, silent, and now their emotes, Order 66 orders, cardboard box events and player card are ignored too; `block <player>` and `unblock <player|all>` in the console, and the SJK chat page lists who you blocked with Unblock _(Sol)_
 - The Staff page is reworked into tabs for the chosen player (Overview, Medals and unlocks, Holocrons and credits, Achievements, Keys, Logs) plus Crashes and Chat bans for everyone, and it now gives and takes credits and kyber shards, blocks or allows a player's pictures, mutes them at the hub, lifts their chat bans and lists every chat ban in force _(Sol)_
+- Force Push and Pull move the doors and lifts a map made Force-usable and press Force-pushable buttons, which maps such as Siege Korriban use _(Slash, after OpenJK)_
+- Walls and barriers a map switches off by name go away, as the one in front of Siege Korriban's red crystal once its satellites are destroyed _(Slash, after OpenJK)_
+- Breakable walls and doors a map brings down by itself come apart, also after their delay, and sabers can damage siege objectives and the doors made to be struck open, as Siege Korriban's door after the crystals _(Slash, after OpenJK)_
 - The Supporter medal is no longer oddly cut: its ribbon ends in a clean V on the star's bail (no dark block or broken stem under it), and its small medallion loses the stray line at its top _(Sol)_
 - The shop sells its four daily saber shaders for kyber shards (30 to 1 500, below what crafting costs), the Legendary offer turns Mythical one day in four, and credits now buy holocrons: an Uncommon for 150 or a Rare for 400 under the offers, asking twice, the holocron joining your list at once, once the SJK hub turns them on _(Sol)_
 - A card from a holocron now comes as a pack, once the SJK hub turns the shards on: beside the card its credits and a few kyber shards slide out in two tiles and count up, and Open all adds the pack's shards to its totals _(Sol)_
@@ -44,6 +47,20 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - NPC nameplates show the NPC's health only while your Force Sense 3 is active, unless the map shows that NPC's health to everyone; their names stay visible _(Lumaya, after JoF EJK)_
 - Siege's class menu works like the team menu of the other team games: Red team and Blue team first (each with its colour mark and players, your team said), then that side's classes, with Spectate and Back; Back and Escape return from a side's classes to the team choice _(Slash)_
 - In Siege a class that forces its saber colours, such as the stock Jedi and Sith classes, shows them on its players, as in the game, instead of each player's own colours _(Sol)_
+- The JA+ flamethrower falls back to the retail Boba Fett flame when a server's own flame effect is missing, and its impact bursts move smoothly between snapshots _(Lumaya, after JoF EJK)_
+- Rage, Heal and Quick Heal glow from the body as their animations play, on players and NPCs; a player who Mind Tricked you hides their Force effects too, unless your Force Sight is on, and the Empower glow follows the server's body, arms or hands choice _(Lumaya, after JoF EJK)_
+- Taunts and grunts no longer pile up: a player's taunt waits until their last one has finished, and gasps, jumps and landings have short holds (`cg_tauntAntiSpam`, on) _(Lumaya, after JoF EJK)_
+- Map music picks up where the level is, after joining or a private duel, instead of starting over, and a map with no music stays silent after a duel (`cg_musicSync`, on) _(Lumaya, after JoF EJK)_
+- NPCs speak with their own voices for every line the game gives them (anger, victory, chase, cover, Jedi taunts and more), and players' pit falls and Grip chokes sound in their own voice _(Lumaya, after JoF EJK)_
+- Capture the Flag: the scoreboard shows who carries a flag as soon as they take it, and stops when it is captured or dropped, even while it stays open; SJK servers now send the carried flags in their scores _(Slash)_
+- The flag icons at the left name who carries each taken flag, and the caption of your own flag shows when it is the only one _(Slash)_
+- You see the flag on your own back in third person _(Slash, after JoF EJK)_
+- The `cg_drawSnapshot` line in the upper right no longer overlaps the frame rate and its frame times _(Slash)_
+- `pmonly` hides all game chat but private messages until the next map (`cg_pmOnlyChat`, in both settings styles), and teammates' private messages in team games now beep as private ones _(Lumaya, after JoF EJK)_
+- Player models a pack marks as not for multiplayer, or that you list in your model blacklist, leave the model pickers and show as Kyle, corpses included; NPCs keep them _(Lumaya, after JoF EJK)_
+- Siege on native servers: after a death or two you come back with the next respawn wave instead of being stuck out of the game, invisible and unarmed; as in the game, attack and jump do nothing while you wait for the wave _(Slash)_
+- Siege map messages such as the Korriban gates' read their text from the map's string table, and each one reaches only the team (or player) the map meant it for, instead of everyone seeing a raw `@SIEGE_...` key; a delayed map target remembers who set it off _(Slash)_
+- During a private duel the corpses and pickups around you are hidden, two settings on by default _(Lukas, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

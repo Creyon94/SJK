@@ -4,7 +4,9 @@
 //! an explicit worker. A loader instance belongs to one immutable VFS mount
 //! set, so a completed result is reused until the caller replaces the loader.
 
-use crate::character_catalog::{LegacyCharacter, LegacySpecies, legacy_character_catalog};
+use crate::character_catalog::{
+    LegacyCharacter, LegacySpecies, legacy_character_catalog_with_policy,
+};
 use crate::player_profile::SaberColor;
 use crate::saber_definitions::{
     LegacySaberDefinition, legacy_saber_definitions, legacy_saber_load_order,
@@ -55,7 +57,16 @@ pub struct LegacyAssetCatalog {
 pub fn legacy_asset_catalog(
     vfs: &VirtualFileSystem,
 ) -> Result<LegacyAssetCatalog, Box<dyn std::error::Error + Send + Sync>> {
-    let characters = legacy_character_catalog(vfs)?;
+    legacy_asset_catalog_with_model_policy(vfs, "", true)
+}
+
+/// Build a player catalogue with local model restrictions; retail ordering remains intact.
+pub fn legacy_asset_catalog_with_model_policy(
+    vfs: &VirtualFileSystem,
+    blacklist: &str,
+    respect_metadata: bool,
+) -> Result<LegacyAssetCatalog, Box<dyn std::error::Error + Send + Sync>> {
+    let characters = legacy_character_catalog_with_policy(vfs, blacklist, respect_metadata)?;
     let mut all_sabers =
         legacy_saber_definitions(vfs).map_err(|error| std::io::Error::other(error.to_string()))?;
     // `.sab` names are menu string-table references (`@MENUS_SINGLE_HILT1`).
@@ -93,7 +104,7 @@ pub fn legacy_asset_catalog(
     let (retail_characters, retail_species, retail_saber_hilts) =
         match crate::retail_assets::retail_view(vfs) {
             Some(retail) => {
-                let own = legacy_character_catalog(&retail)?;
+                let own = legacy_character_catalog_with_policy(&retail, "", false)?;
                 let own_hilts = legacy_saber_definitions(&retail)
                     .map_err(|error| std::io::Error::other(error.to_string()))?;
                 let own_characters: std::collections::HashSet<&str> = own
@@ -150,6 +161,9 @@ pub struct LegacyAssetCatalogLoader {
     catalog: Option<Arc<LegacyAssetCatalog>>,
     error: Option<String>,
     status: LegacyCatalogStatus,
+    model_blacklist: String,
+    respect_model_metadata: bool,
+    building_model_policy: Option<(String, bool)>,
 }
 
 impl LegacyAssetCatalogLoader {
@@ -161,7 +175,29 @@ impl LegacyAssetCatalogLoader {
             catalog: None,
             error: None,
             status: LegacyCatalogStatus::Idle,
+            model_blacklist: String::new(),
+            respect_model_metadata: true,
+            building_model_policy: None,
         }
+    }
+
+    /// Replace player model options and invalidate a result from the previous options.
+    /// Returns whether callers must rematch their selection against the new catalogue.
+    pub fn set_model_policy(&mut self, blacklist: &str, respect_metadata: bool) -> bool {
+        if self.model_blacklist == blacklist && self.respect_model_metadata == respect_metadata {
+            return false;
+        }
+        self.model_blacklist.clear();
+        self.model_blacklist.push_str(blacklist);
+        self.respect_model_metadata = respect_metadata;
+        self.catalog = None;
+        self.error = None;
+        // Keep one worker in flight. Poll discards an obsolete result and starts
+        // the latest options, rather than spawning one worker per edited key.
+        if self.status != LegacyCatalogStatus::Loading {
+            self.status = LegacyCatalogStatus::Idle;
+        }
+        true
     }
 
     /// Starts exactly one background build; ready and loading requests are no-ops.
@@ -171,8 +207,12 @@ impl LegacyAssetCatalogLoader {
         }
         let (sender, receiver) = mpsc::sync_channel(1);
         let vfs = Arc::clone(&self.vfs);
+        let blacklist = self.model_blacklist.clone();
+        let respect_metadata = self.respect_model_metadata;
+        self.building_model_policy = Some((blacklist.clone(), respect_metadata));
         std::thread::spawn(move || {
-            let result = legacy_asset_catalog(&vfs).map_err(|error| error.to_string());
+            let result = legacy_asset_catalog_with_model_policy(&vfs, &blacklist, respect_metadata)
+                .map_err(|error| error.to_string());
             let _ = sender.send(result);
         });
         self.receiver = Some(receiver);
@@ -187,7 +227,22 @@ impl LegacyAssetCatalogLoader {
         let Some(receiver) = self.receiver.as_ref() else {
             return self.status;
         };
-        match receiver.try_recv() {
+        let result = receiver.try_recv();
+        if !matches!(result, Err(mpsc::TryRecvError::Empty))
+            && self
+                .building_model_policy
+                .as_ref()
+                .is_some_and(|(blacklist, respect)| {
+                    *blacklist != self.model_blacklist || *respect != self.respect_model_metadata
+                })
+        {
+            self.receiver = None;
+            self.building_model_policy = None;
+            self.status = LegacyCatalogStatus::Idle;
+            self.request();
+            return self.status;
+        }
+        match result {
             Ok(Ok(catalog)) => {
                 self.catalog = Some(Arc::new(catalog));
                 self.receiver = None;
@@ -227,6 +282,94 @@ impl LegacyAssetCatalogLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn model_restrictions_cover_rigs_species_and_retail_order_with_overrides() {
+        fn ordinary(name: &str) -> Vec<(String, Vec<u8>)> {
+            ["model.glm", "model_default.skin", "icon_default.jpg"]
+                .map(|file| (format!("models/players/{name}/{file}"), Vec::new()))
+                .to_vec()
+        }
+        let mut vfs = VirtualFileSystem::new();
+        let mut retail = ordinary("zretail");
+        retail.push((
+            "models/players/zretail/settings.txt".into(),
+            b"notInMP 1".to_vec(),
+        ));
+        vfs.mount_memory("fixture/base/assets1.pk3", retail)
+            .unwrap();
+        let mut community = ordinary("community");
+        community.extend([
+            ("models/players/rig/sjk_rig.cfg".into(), Vec::new()),
+            ("models/players/rig/icon_default.png".into(), Vec::new()),
+            ("ext_data/modelblacklist/rig.txt".into(), b"rig".to_vec()),
+            ("models/players/species/model.glm".into(), Vec::new()),
+            ("models/players/species/playerchoice.txt".into(), Vec::new()),
+            (
+                "models/players/species/settings.txt".into(),
+                b"notInMP +1suffix".to_vec(),
+            ),
+        ]);
+        for part in ["head", "torso", "lower"] {
+            for file in [format!("{part}_one.skin"), format!("icon_{part}_one.jpg")] {
+                community.push((format!("models/players/species/{file}"), Vec::new()));
+            }
+        }
+        vfs.mount_memory("community", community).unwrap();
+        let default = legacy_asset_catalog(&vfs).unwrap();
+        assert_eq!(
+            default
+                .characters
+                .iter()
+                .map(|c| c.model.as_str())
+                .collect::<Vec<_>>(),
+            ["community"]
+        );
+        assert!(default.species.is_empty());
+        let overridden = legacy_asset_catalog_with_model_policy(&vfs, "", false).unwrap();
+        assert_eq!(overridden.retail_characters, 1);
+        assert_eq!(
+            overridden
+                .characters
+                .iter()
+                .map(|c| c.model.as_str())
+                .collect::<Vec<_>>(),
+            ["zretail", "community", "rig"]
+        );
+        assert!(overridden.characters[2].rig);
+        assert_eq!(overridden.species[0].model, "species");
+        let local =
+            legacy_asset_catalog_with_model_policy(&vfs, "rig/default,species", false).unwrap();
+        assert_eq!(local.retail_characters, 1);
+        assert_eq!(local.characters.len(), 2);
+        assert!(local.species.is_empty());
+        // A ready result must not survive a changed local restriction policy.
+        let mut loader = LegacyAssetCatalogLoader::new(Arc::new(vfs));
+        loader.catalog = Some(Arc::new(default));
+        loader.status = LegacyCatalogStatus::Ready;
+        assert!(loader.set_model_policy("rig", false));
+        assert_eq!(loader.status(), LegacyCatalogStatus::Idle);
+        assert!(loader.catalog().is_none());
+        assert!(!loader.set_model_policy("rig", false));
+        let (sender, receiver) = mpsc::sync_channel(1);
+        loader.receiver = Some(receiver);
+        loader.status = LegacyCatalogStatus::Loading;
+        loader.building_model_policy = Some(("rig".into(), false));
+        assert!(loader.set_model_policy("community", true));
+        assert!(loader.set_model_policy("species", false));
+        assert_eq!(loader.status(), LegacyCatalogStatus::Loading);
+        // Editing must retain the outstanding receiver and its single worker.
+        sender.send(Ok(overridden)).unwrap();
+        assert_eq!(loader.poll(), LegacyCatalogStatus::Loading);
+        assert!(
+            loader.catalog().is_none(),
+            "the obsolete catalogue must never become visible"
+        );
+        assert_eq!(
+            loader.building_model_policy,
+            Some(("species".into(), false))
+        );
+    }
 
     /// Against the installed game (`JKA_GAME_DATA`): the retail items come first,
     /// then the community's, and a hilt of each kind sits on its side of the line.

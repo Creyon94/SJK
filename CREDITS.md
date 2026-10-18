@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 102 pull requests (Creyon 52, Lumaya 39, Lukas 8, Slash 3). Sol's
+contributors' 112 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 6). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -304,7 +304,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 39 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 45 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -385,8 +385,20 @@ merged into SJK
   after JoF EJK #253.
 - #134 NPC health on nameplates (`cg_nameplateNpcs`) only while Force Sense 3 is active,
   unless the map's `showhealth` shows it to everyone, after JoF EJK #80.
+- #132 live Force effects: Rage, Heal and Quick Heal from the posed chest and hands on players
+  and NPCs, Force effects hidden from a Mind Tricked viewer without Force Sight, the Empower glow's
+  server choice, after JoF EJK.
+- #135 `cg_tauntAntiSpam`: a player's taunt waits for their previous one's sample length, gasps,
+  jumps and landings get short holds, after JoF EJK #287 and #374.
+- #139 `cg_musicSync`: map music resumes from the track's start time after joining or a duel, and an
+  empty music configstring stays silent, after JoF EJK #103, #146 and #161.
+- #131 NPC voices from the four sound banks the server advertises, with every vocal event family;
+  merged with Sol's NPC voices into one implementation.
+- #136 `pmonly` and `cg_pmOnlyChat`: only private game chat until the next map, after JoF EJK #331.
+- #141 player model eligibility: `notInMP` models and pack or player blacklists show as Kyle,
+  after JoF EJK #126.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 8 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -405,8 +417,10 @@ merged into SJK
   reply chord no longer leaves keys stuck.
 - #144 recent servers keep the server's address across live map changes: one row per server.
 - #133 live SJK chat messages also enter the console scrollback with a yellow `SJK` tag.
+- #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
+  in a private duel.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 3 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 6 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -415,6 +429,12 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   player's blades in the team's colour; made an option at the merge (`cg_ctfTeamSabers`, off).
 - #153 the SJK scoreboard says who won: the Siege round's winner without the unused team
   scores, and the result of a team match at the intermission.
+- #110 CTF flag carriers kept live on the scoreboard and named by the flag icons, SJK servers
+  sending the carried flags in their scores, and the snapshot line moved off the frame rate.
+- #152 Siege Korriban on SJK servers: Force Push and Pull on Force-usable doors and buttons,
+  `func_usable` walls switched by name, breakables used by name and after their delay.
+- #150 Siege on SJK servers: players come back with their respawn wave, and map messages read
+  their text from the string tables and reach the team they are meant for.
 
 ## Art
 

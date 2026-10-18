@@ -71,26 +71,36 @@ pub(super) fn submit(
     time: i64,
     draw_actor: bool,
 ) {
+    if entity.kind != EntityKind::Actor {
+        return;
+    }
+    // The server never sends a client its own entity: the local carrier's bits come
+    // from its player state, as stock rebuilds them (see `force_powers::Caster`).
+    let number = entity.id.get().saturating_sub(1) as u16;
+    let Some(caster) = super::force_powers::Caster::find(snapshot, number, None) else {
+        return;
+    };
+    let flags = carried(caster.powerups);
     if !eligible(draw_actor, entity.kind) {
         return;
     }
-    let number = entity.id.get().saturating_sub(1) as u16;
-    let Ok(index) = snapshot
-        .entities
-        .binary_search_by_key(&number, |state| state.number())
-    else {
-        return;
-    };
-    let state = &snapshot.entities[index];
     let Some(raw) = sinks.actor_meshes[mesh].force_bones.lumbar else {
         return;
     };
+    let fallback = if caster.local {
+        snapshot.player.view_angles()
+    } else {
+        snapshot
+            .entities
+            .binary_search_by_key(&number, |state| state.number())
+            .map_or([0.0; 3], |index| {
+                snapshot.entities[index].angular_trajectory_base()
+            })
+    };
     let angles = entity
         .sample_pose(time)
-        .map_or(state.angular_trajectory_base(), |pose| {
-            pose.view_angles_degrees
-        });
-    for (active, model) in carried(state.powerups()).into_iter().zip(sinks.flag_meshes) {
+        .map_or(fallback, |pose| pose.view_angles_degrees);
+    for (active, model) in flags.into_iter().zip(sinks.flag_meshes) {
         if let (true, Some(model)) = (active, model) {
             let mut instance = placement(raw, transform, angles);
             instance.view_flags = sinks.entity_view_flags;

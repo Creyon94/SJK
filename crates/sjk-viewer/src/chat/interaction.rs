@@ -271,10 +271,13 @@ impl ChatOverlay {
     }
 
     fn scroll_by(&mut self, delta: isize) {
-        self.scroll = self
-            .scroll
-            .saturating_add_signed(delta)
-            .min(self.lines.len().saturating_sub(1));
+        self.scroll = self.scroll.saturating_add_signed(delta).min(
+            self.lines
+                .iter()
+                .filter(|line| self.pm_visible(line))
+                .count()
+                .saturating_sub(1),
+        );
         if self.scroll == 0 {
             self.unread = 0;
         }

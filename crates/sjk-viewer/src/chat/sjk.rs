@@ -48,6 +48,7 @@ impl ChatOverlay {
             body,
             sender: None,
             channel: Channel::Sjk,
+            server_private: false,
             received_ms: self.millis(now),
             muted,
             emojis,

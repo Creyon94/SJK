@@ -9,6 +9,24 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull requests #110 #122 #131 #132 #135 #136 #139 #141 #150 #152 #154
+- 8d44269 |  | Credits and changelog for SJK pull requests #110 #131 #132 #135 #136 #139 #141 #150 #152 #154; two clippy fixes
++ 18/10/2026 | - | Flag carriers: drop the duplicate carrier light from #110
+- 2b22739 |  | Flag carriers: drop the duplicate carrier light from #110
++ 18/10/2026 | - | Chat: a marked lchat is a private message too
+- ceb1ca2 |  | Chat: a marked lchat is a private message too
++ 18/10/2026 | - | Corpses: a restricted player model's body falls back to Kyle
+- 49aba56 |  | Corpses: a restricted player model's body falls back to Kyle
++ 18/10/2026 | - | Siege movers: Force traces meet func_usable walls, plats never shootable, breaker activates
+- 364067d |  | Siege movers: Force traces meet func_usable walls, plats never shootable, breaker activates
++ 18/10/2026 | - | Siege: no follow buttons while waiting for the wave, as SpectatorThink
+- 1093665 |  | Siege: no follow buttons while waiting for the wave, as SpectatorThink
++ 18/10/2026 | - | Corpses: format the eligibility test
+- ef35102 |  | Corpses: format the eligibility test
++ 18/10/2026 | - | Voice anti-spam: a reused player slot drops the previous holds
+- 4874a93 |  | Voice anti-spam: a reused player slot drops the previous holds
++ 18/10/2026 | - | Music sync: time a resumed track from its own start
+- f716cad |  | Music sync: time a resumed track from its own start
 + 18/10/2026 | - | SJK pull request #134, NPC health with Force Sense 3
 - 0d81601 |  | Credits for SJK pull request #134 (Lumaya)
 + 18/10/2026 | - | Away players faint at the bottom of the scoreboard
@@ -1717,6 +1735,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 18/10/2026 | SJK #154 | Hide corpses and pickups during private duels
+- af1b6be |  | Hide duel corpses and pickups by preference
 + 18/10/2026 | SJK #133 | Show SJK chat in the console
 - 9698a68 |  | feat: show SJK chat in console
 + 18/10/2026 | SJK #144 | Fix recent servers across map changes
@@ -1741,6 +1761,25 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 18/10/2026 | SJK #131 | Resolve NPC voices from their advertised sound banks
+- 5931480 |  | Resolve NPC voices from their advertised sound banks
++ 18/10/2026 | SJK #139 | Resume map music from the level clock and honor silence
+- 76ecc78 |  | Resume map music from the level clock and honor silence
++ 18/10/2026 | SJK #135 | Limit repeated player model voices by sample duration
+- 438a752 |  | Limit repeated player model voices by sample duration
+- 15cda87 |  | Keep voice anti-spam notes in Unreleased
++ 18/10/2026 | SJK #141 | Respect player model eligibility and local blacklists
+- 4ef5688 |  | Honor player model eligibility metadata and local restrictions
++ 18/10/2026 | SJK #132 | Add live Force effects and presentation controls
+- d07a6c4 |  | Add live animation-driven Force effects
+- e0d879a |  | Honor Force effect visibility and presentation controls
++ 18/10/2026 | SJK #136 | Add current-map PM-only game chat
+- b1686a3 |  | Add current-map PM-only game chat
+- 6e0b954 |  | Keep PM-only chat notes in Unreleased
+- 8d0cba5 |  | Read PM-only chat options without allocating each frame
++ 18/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
+- 9fadf99 |  | Add JA+ flamethrower client presentation
+- 36a0727 |  | Add retail flame fallback and presentation-timed impacts
 + 18/10/2026 | SJK #134 | Require active Sense 3 for NPC health bars
 - 0e0c11a |  | Require active Sense 3 for NPC health bars
 + 18/10/2026 | SJK #143 | Expand custom Siege catalogues and align selector limits
@@ -1763,8 +1802,6 @@
 - 7ff9731 |  | Show distinct Tavion and Desann idle poses by default
 + 17/10/2026 | SJK #127 | Add holstered saber hilts and staff handoff
 - 8725346 |  | Add holstered saber hilts and staff handoff
-+ 17/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
-- 9fadf99 |  | Add JA+ flamethrower client presentation
 + 17/10/2026 | SJK #128 | Match JoF EJK jetpack sound choices and channels
 - 6f6ca44 |  | Match JoF EJK jetpack sound choices and channels
 + 17/10/2026 | SJK #119 | Add JoF Force presets in both menu styles
@@ -1835,6 +1872,18 @@
 - 8d21001 |  | Clip visible saber blades at world walls
 
 = Slash
++ 18/10/2026 | SJK #150 | Siege: no more stuck players after a death; map messages show their text - #1
+- a66aca7 |  | Siege: keep a waiting player on its side, clear stale waits; target_print team/cps messages
+- d58e9f7 |  | Review fixes: siege waits, follow and target_print routing
++ 18/10/2026 | SJK #152 | Siege Korriban: Force on doors, func_usable walls, breakables used by name
+- 08e0da7 |  | Force push and pull move Force-usable doors and press buttons
+- 5f716a8 |  | func_usable toggles when used by name or by the use key
+- ec74352 |  | Break breakables used by name and after their delay; sabers hit objectives
+- a5c6286 |  | Review fixes: breakable targets, missile damage, door teams, usables
+- cd17b5d |  | Show the Siege round's winner on the SJK scoreboard
+- a9e9950 |  | Revert "Show the Siege round's winner on the SJK scoreboard"
++ 18/10/2026 | SJK #110 | Show CTF flag carriers and team scores on screen
+- 0fe872a |  | CTF: live flag carriers on the scoreboard and HUD, carrier glow
 + 18/10/2026 | SJK #153 | Show the Siege round's winner on the SJK scoreboard
 - 515331d |  | Show the Siege round's winner on the SJK scoreboard
 - 6358f36 |  | Siege scoreboard: winner large in the middle, no team scores

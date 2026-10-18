@@ -95,7 +95,6 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
         bot,
         record: None,
         powerups: 0,
-        seen_powerups: 0,
         defends: i32::from(client % 4),
         assists: i32::from(client % 3),
         captures: i32::from(client % 2),
