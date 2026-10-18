@@ -1987,7 +1987,10 @@ fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
     if input.kind == KIND_BLACK { discard; }
     if input.hilt <= STAR { return vec4(star_glow(input, pixel), 1.0); }
     if input.hilt <= 0.0 { discard; }
-    if lab_design(input) != 0u { return vec4(lab_glow(input, pixel), 1.0); }
+    if lab_design(input) != 0u {
+        // Only a little of a design reaches the bloom, its white core least.
+        return vec4(min(lab_glow(input, pixel), vec3(0.6)) * LAB_BLOOM, 1.0);
+    }
     if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
     return vec4(glow_capsule(input) * input.color, 1.0);
 }
@@ -2316,7 +2319,23 @@ struct LabPlace {
     clash: f32,
     age: f32,
     since_swing: f32,
+    // A chroma's turn to its wearer's colour (0: the design's own colours).
+    turn: f32,
+    // How much narrower than the lab's it is drawn (`LAB_THIN`).
+    thin: f32,
 }
+
+// How far each design's blade starts behind its hilt end (metres): stock blades hide
+// the hilt's mouth under their glow and hilt sprite, the lab's start at its emitter.
+const LAB_START: f32 = 0.04;
+// How much narrower each design is drawn than in the lab (its width divided by this),
+// so every blade is a stock blade's thickness and fits its hilt; by number.
+const LAB_THIN: array<f32, 15> = array<f32, 15>(
+    1.0, 1.35, 1.25, 1.5, 1.0, 1.0, 1.35, 1.1, 1.35, 1.15, 1.1, 1.0, 1.5, 1.4, 1.0,
+);
+// How much of a design's light reaches the dynamic glow (the bloom): its white core
+// bloomed into a blob that hid its effects from afar.
+const LAB_BLOOM: f32 = 0.3;
 
 fn lab_design(input: VertexOutput) -> u32 {
     if input.kind < KIND_SKIN {
@@ -2328,11 +2347,13 @@ fn lab_design(input: VertexOutput) -> u32 {
 fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     var p: LabPlace;
     p.k = max(input.shaft / max(input.length, 0.0001), 0.05);
-    p.p = vec2(input.blade.y, input.blade.x) * LAB_METRE;
-    p.shaft = input.shaft * LAB_METRE;
+    p.p = vec2(input.blade.y * LAB_METRE + LAB_START * p.k, input.blade.x * LAB_METRE);
+    p.shaft = input.shaft * LAB_METRE + LAB_START * p.k;
     p.x = p.p.x / p.k;
-    p.y = p.p.y;
-    p.big_l = input.length * LAB_METRE;
+    let n = min(u32(skins[skin_index(input)].design.x + 0.5), 14u);
+    p.thin = LAB_THIN[n];
+    p.y = p.p.y * p.thin;
+    p.big_l = input.length * LAB_METRE + LAB_START;
     p.d = lab_seg(p.p.x, p.y, p.shaft);
     p.t = input.animation.x;
     p.px = max(pixel * LAB_METRE, 0.00001);
@@ -2343,6 +2364,27 @@ fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     p.clash = max(1.0 - input.motion.y * 2.2, 0.0);
     p.age = input.motion.z;
     p.since_swing = input.motion.w;
+    p.turn = input.chroma;
+    return p;
+}
+
+// `c` turned to the wearer's colour, for a chroma's parts that take it.
+fn lab_turn(c: vec3<f32>, p: LabPlace) -> vec3<f32> {
+    if p.turn == 0.0 {
+        return c;
+    }
+    return skin_turn_hue(c, p.turn);
+}
+
+// `p` as a copy of the blade turned `angle` (radians, on screen) about its hilt sees it.
+fn lab_turned(p0: LabPlace, angle: f32) -> LabPlace {
+    var p = p0;
+    let c = cos(angle);
+    let s = sin(angle);
+    p.p = vec2(p0.p.x * c - p0.p.y * s, p0.p.x * s + p0.p.y * c);
+    p.x = p.p.x / p.k;
+    p.y = p.p.y * p.thin;
+    p.d = lab_seg(p.p.x, p.y, p.shaft);
     return p;
 }
 
@@ -2403,11 +2445,11 @@ fn lab_peppermint(p: LabPlace) -> vec3<f32> {
     let sh = cos(th);
     let s = fract(p.x * 5.5 + th / PI * 0.5 - p.t * 0.5);
     let stripe = lab_sstep(0.44, 0.5, s) - lab_sstep(0.94, 1.0, s);
-    let col = mix(vec3(1.0, 0.96, 0.96), vec3(1.0, 0.05, 0.11), stripe);
+    let col = mix(vec3(1.0, 0.96, 0.96), lab_turn(vec3(1.0, 0.05, 0.11), p), stripe);
     let spec = pow(max(0.0, 1.0 - abs(th + 0.55) / 0.3), 3.0) * 0.55;
     let glit = step(0.988, lab_hash2(floor(vec2(p.x * 60.0, th * 8.0)) + floor(p.t * 5.0))) * 1.4;
     let b = col * (0.4 + 0.6 * sh) * body + (spec + glit) * body;
-    let halo = vec3(1.0, 0.32, 0.36) * (exp(-p.d * 20.0) * 0.42 + exp(-p.d * 6.0) * 0.11);
+    let halo = lab_turn(vec3(1.0, 0.32, 0.36), p) * (exp(-p.d * 20.0) * 0.42 + exp(-p.d * 6.0) * 0.11);
     return b + halo * (1.0 - body * 0.5);
 }
 
@@ -2416,11 +2458,11 @@ fn lab_bubble(p: LabPlace) -> vec3<f32> {
     let body = lab_sstep(r, r * 0.9, p.d);
     let th = asin(clamp(p.y / r, -1.0, 1.0));
     let film = lab_fbm(vec2(p.x * 4.0 + p.t * 0.2, th * 1.6 - p.t * 0.35)) + 0.3 * sin(p.x * 9.0 - p.t * 0.8);
-    let col = lab_hsv(film * 1.8 + p.t * 0.03, 0.6, 1.0);
+    let col = lab_hsv(film * 1.8 + p.t * 0.03 + p.turn, 0.6, 1.0);
     let fres = pow(abs(p.y) / r, 4.0);
     let line = exp(-abs(p.y) * 900.0) * 0.75 * step(0.0, p.x) * step(p.x, p.big_l);
     let hl = pow(max(0.0, 1.0 - abs(th - 0.7) / 0.2), 4.0) * body * 0.5;
-    let halo = lab_hsv(film * 1.8 + 0.5 + p.t * 0.03, 0.4, 1.0) * (exp(-p.d * 22.0) * 0.28 + exp(-p.d * 7.0) * 0.08);
+    let halo = lab_hsv(film * 1.8 + 0.5 + p.t * 0.03 + p.turn, 0.4, 1.0) * (exp(-p.d * 22.0) * 0.28 + exp(-p.d * 7.0) * 0.08);
     return col * (0.12 + fres * 0.95) * body + vec3(line + hl) + halo;
 }
 
@@ -2443,7 +2485,7 @@ fn lab_lavalamp(p: LabPlace) -> vec3<f32> {
     let inside = mix(vec3(0.3, 0.05, 0.6) * 0.45, wax * 1.2, m) * in_glass;
     let rim = exp(-abs(abs(p.y) - r) * 700.0) * step(0.0, p.x) * step(p.x, p.big_l) * 0.3;
     let halo = mix(vec3<f32>(0.62, 0.15, 0.95), vec3<f32>(1.0, 0.4, 0.2), 0.35) * (exp(-p.d * 24.0) * 0.3 + exp(-p.d * 6.0) * 0.08);
-    return inside + vec3(0.9, 0.8, 1.0) * rim + halo;
+    return lab_turn(inside + vec3(0.9, 0.8, 1.0) * rim + halo, p);
 }
 
 fn lab_sketch(p: LabPlace) -> vec3<f32> {
@@ -2461,36 +2503,50 @@ fn lab_sketch(p: LabPlace) -> vec3<f32> {
     let hatch = lab_sstep(0.08, 0.0, h) * step(abs(p.y), rr * 0.9) * 0.42;
     let grain = 0.72 + 0.28 * lab_noise(vec2(p.x * 400.0, p.y * 400.0 + ts));
     let ink = vec3(0.93, 0.95, 1.0);
-    return ink * (l1 + l2 + hatch) * inn * grain + vec3(0.55, 0.65, 1.0) * (exp(-p.d * 18.0) * 0.15 + exp(-p.d * 5.0) * 0.05);
+    return ink * (l1 + l2 + hatch) * inn * grain + lab_turn(vec3(0.55, 0.65, 1.0), p) * (exp(-p.d * 18.0) * 0.15 + exp(-p.d * 5.0) * 0.05);
 }
 
 fn lab_hourglass(p: LabPlace) -> vec3<f32> {
-    let period = 8.0;
+    // Two glass bulbs as wide as a stock blade, pinched at the middle, closed in a dome
+    // at the tip and seated in the hilt; the sand runs from the upper bulb down into the
+    // lower one in 24 seconds, then the glass flips with a flash.
+    let period = 24.0;
     let ph = fract(p.t / period);
     let xn = p.x / max(p.big_l, 0.001);
-    let r = 0.008 + 0.03 * pow(abs(2.0 * xn - 1.0), 0.75);
-    let inn = step(0.0, p.x) * step(p.x, p.big_l);
+    let wide = 0.024;
+    let waist = 0.0045;
+    let f = abs(2.0 * xn - 1.0);
+    var r = waist + (wide - waist) * lab_sstep(0.0, 0.5, f);
+    // The dome over the tip.
+    let dome = lab_sstep(0.93, 1.0, xn);
+    r *= sqrt(max(1.0 - dome * dome, 0.0));
+    let inn = step(0.0, p.x) * step(xn, 1.0);
     let in_glass = lab_sstep(r, r * 0.85, abs(p.y)) * inn;
-    let rim = exp(-abs(abs(p.y) - r) * 800.0) * inn * 0.45;
+    let rim = exp(-abs(abs(p.y) - r) / max(1.0 / 800.0, p.px * 0.5)) * inn * 0.45;
     let h = p.big_l * 0.5;
-    let top_end = h + (1.0 - ph) * p.big_l * 0.36;
-    let bottom_end = ph * p.big_l * 0.36;
-    let sand_top = step(h, p.x) * step(p.x, top_end);
-    let sand_bottom = step(p.x, bottom_end);
+    let top_end = h + (1.0 - ph) * p.big_l * 0.42;
+    let bottom_end = ph * p.big_l * 0.42;
+    // A sand surface heaped a little in the middle.
+    let heap = (1.0 - abs(p.y) / wide) * 0.012;
+    let sand_top = step(h, p.x) * step(p.x, top_end - heap * 0.5);
+    let sand_bottom = step(p.x, bottom_end + heap);
     let grain = 0.7 + 0.3 * lab_noise(vec2(p.x * 500.0, p.y * 500.0));
+    let glint = step(0.97, lab_hash2(floor(vec2(p.x * 300.0, p.y * 300.0)) + floor(p.t * 3.0)));
     let stream = step(bottom_end, p.x) * step(p.x, h) * exp(-abs(p.y) / max(1.0 / 2500.0, p.px * 0.5))
-        * (0.55 + 0.45 * lab_noise(vec2(p.x * 120.0 - p.t * 40.0, 0.0))) * step(ph, 0.985);
-    let sand = vec3(1.0, 0.78, 0.35);
-    let s = sand * (sand_top + sand_bottom) * in_glass * grain * 1.1 + sand * stream * 1.4;
+        * (0.55 + 0.45 * lab_noise(vec2(p.x * 120.0 - p.t * 14.0, 0.0))) * step(ph, 0.985);
+    let sand = lab_turn(vec3(1.0, 0.78, 0.35), p);
+    let s = sand * (sand_top + sand_bottom) * in_glass * (grain * 1.1 + glint * 0.8) + sand * stream * 1.4;
     let glass = vec3(0.55, 0.85, 1.0) * (rim + in_glass * 0.06);
+    // The glass's highlight, a thin line down one side.
+    let shine = exp(-abs(p.y - r * 0.55) / max(0.0012, p.px * 0.5)) * in_glass * 0.25;
     let flip = exp(-ph * 30.0) + exp(-(1.0 - ph) * 60.0);
-    let halo = mix(vec3<f32>(1.0, 0.7, 0.3), vec3<f32>(0.5, 0.8, 1.0), 0.3) * (exp(-p.d * 14.0) * 0.25 + exp(-p.d * 5.0) * 0.07) * (1.0 + flip * 2.0);
-    return s + glass + halo + vec3(1.0, 0.9, 0.7) * flip * in_glass * 0.8;
+    let halo = mix(vec3<f32>(1.0, 0.7, 0.3), vec3<f32>(0.5, 0.8, 1.0), 0.3) * (exp(-p.d * 16.0) * 0.22 + exp(-p.d * 5.0) * 0.06) * (1.0 + flip * 2.0);
+    return s + glass + vec3(shine) + halo + vec3(1.0, 0.9, 0.7) * flip * in_glass * 0.8;
 }
 
 // The comic blade's halftone glow and speed lines (its inked body is the solid pass's).
 fn lab_comic(p: LabPlace) -> vec3<f32> {
-    let c = vec3(0.2, 0.7, 1.0);
+    let c = lab_turn(vec3(0.2, 0.7, 1.0), p);
     let cell = 0.011;
     let q = vec2(p.x, p.y) / cell;
     let g = fract(q) - 0.5;
@@ -2514,26 +2570,42 @@ fn lab_quicksilver(p: LabPlace) -> vec3<f32> {
     return vec3(0.75, 0.82, 0.95) * (exp(-p.d * 26.0) * 0.45 + exp(-p.d * 7.0) * 0.1) * (0.8 + 0.4 * sh);
 }
 
+// The reactor's cycle (seconds into its 14): calm until 8, heating to 11, critical to
+// 12.6 (red, strobing, venting), then a flash and it cools back to blue.
+fn lab_reactor_heat(t: f32) -> vec3<f32> {
+    let c = fract(t / 14.0) * 14.0;
+    let heating = lab_sstep(8.0, 11.0, c) * (1.0 - lab_sstep(12.6, 14.0, c));
+    let critical = step(11.0, c) * step(c, 12.6);
+    let flash = exp(-max(c - 12.6, 0.0) * 6.0) * step(12.6, c);
+    return vec3(heating, critical, flash);
+}
+
 fn lab_reactor(p: LabPlace) -> vec3<f32> {
     let n = 5.0;
     let sp = 0.1;
+    let heat = lab_reactor_heat(p.t);
+    let strobe = heat.y * (0.5 + 0.5 * step(0.5, fract(p.t * 4.0)));
+    // The plasma throbs faster as it heats, and swells while critical.
+    let throb = 1.0 + (0.08 + 0.25 * heat.x) * sin(p.t * (5.0 + 22.0 * heat.x));
     let ph = p.x / max(p.big_l, 0.001) * n - p.t * sp * n;
     let fr = fract(ph);
-    let r = 0.011 + 0.016 * pow(sin(PI * fr), 2.0);
-    let ov = step(fract(p.t / 6.0), 0.13);
-    let pc = mix(vec3(0.45, 0.8, 1.0), vec3(1.0, 0.45, 0.15), ov);
+    let r = (0.008 + 0.012 * pow(sin(PI * fr), 2.0)) * (1.0 + 0.35 * heat.y) * throb;
+    let calm = lab_turn(vec3(0.3, 0.7, 1.0), p);
+    let pc = mix(mix(calm, vec3(1.0, 0.45, 0.12), heat.x), vec3(1.0, 0.18, 0.06), heat.y);
     let dd = length(vec2(max(0.0, max(-p.x, p.x - p.big_l)), max(0.0, abs(p.y) - r * 0.45)));
-    let plasma = lab_saber(pc, vec3(1.0), dd, r * 0.9, 28.0);
+    // A coloured core, not a white one, so it reads as plasma from afar.
+    let plasma = lab_saber(pc * (1.0 + strobe * 0.6), mix(vec3(1.0), pc, 0.35), dd, r * 0.9, 30.0);
     var rings = 0.0;
     for (var k = 0; k < 5; k++) {
         let xr = fract((f32(k) + p.t * sp * n) / n) * p.big_l;
-        let rr = 0.043;
+        let rr = 0.026;
         let ay = min(abs(p.y) / rr, 1.0);
-        let arc = xr + 0.006 * sqrt(1.0 - ay * ay);
+        let arc = xr + 0.004 * sqrt(1.0 - ay * ay);
         rings += exp(-abs(p.x - arc) / max(1.0 / 700.0, p.px * 0.5 / p.k)) * (0.35 + 0.9 * pow(ay, 6.0)) * step(abs(p.y), rr);
     }
-    let rc = mix(vec3(0.6, 0.95, 1.0), vec3(1.0, 0.6, 0.3), ov);
-    return plasma + rc * rings * step(0.0, p.x) * step(p.x, p.big_l);
+    let rc = mix(mix(vec3<f32>(0.6, 0.95, 1.0), vec3<f32>(1.0, 0.6, 0.3), heat.x), vec3<f32>(1.0, 0.3, 0.15), heat.y);
+    let flash = vec3(1.0, 0.95, 0.9) * heat.z * (exp(-p.d * 30.0) * 1.5 + exp(-p.d * 8.0) * 0.4);
+    return plasma + rc * rings * step(0.0, p.x) * step(p.x, p.big_l) * (1.0 + strobe) + flash;
 }
 
 // The obsidian blade's outline: where on its flat shape (`q`: across, along as a share
@@ -2607,14 +2679,16 @@ fn lab_bleeding(p: LabPlace) -> vec3<f32> {
     }
     let crack = lab_sstep(0.13, 0.0, sqrt(m2) - sqrt(m1));
     let body = lab_sstep(0.026, 0.016, p.d);
-    let white = lab_saber(vec3(0.8, 0.88, 1.0), vec3(1.0), p.d, 0.016, 22.0);
+    // A chroma's colour is the pure part's; the corruption stays red.
+    let pure = select(lab_turn(vec3(1.0, 0.1, 0.12), p), vec3(0.8, 0.88, 1.0), p.turn == 0.0);
+    let white = lab_saber(pure, vec3(1.0), p.d, 0.016, 22.0);
     let red = lab_saber(vec3(1.0, 0.08, 0.1), vec3(1.0, 0.8, 0.8), p.d, 0.016, 20.0);
     let c = mix(white, red, mask * 0.85);
     return mix(c, vec3(1.0, 0.03, 0.05) * 1.6, crack * body * mask);
 }
 
 fn lab_monarch(p: LabPlace) -> vec3<f32> {
-    return lab_saber(vec3(1.0, 0.55, 0.12), vec3(1.0, 0.95, 0.82), p.d, 0.016, 18.0) * (0.95 + 0.05 * sin(p.t * 2.0));
+    return lab_saber(lab_turn(vec3(1.0, 0.55, 0.12), p), vec3(1.0, 0.95, 0.82), p.d, 0.016, 18.0) * (0.95 + 0.05 * sin(p.t * 2.0));
 }
 
 fn lab_phoenix(p: LabPlace) -> vec3<f32> {
@@ -2638,12 +2712,13 @@ fn lab_serpent(p: LabPlace) -> vec3<f32> {
     let x = p.x;
     let y = p.y;
     let t = p.t;
-    let bl = lab_saber(vec3(0.1, 1.0, 0.45), vec3(0.9, 1.0, 0.92), p.d, 0.014, 22.0);
+    let bl = lab_saber(lab_turn(vec3(0.1, 1.0, 0.45), p), vec3(0.9, 1.0, 0.92), p.d, 0.014, 22.0);
     let amp = 0.034;
     let k = 26.0;
     let w = 2.2;
     let xh = p.big_l * 0.9 + sin(t * 1.1) * 0.01;
-    let ph = k * x - t * w;
+    // The coils travel up toward the head, the serpent climbing the blade.
+    let ph = k * x + t * w;
     let yc = amp * sin(ph);
     let z = cos(ph);
     let slope = amp * k * cos(ph);
@@ -2656,7 +2731,7 @@ fn lab_serpent(p: LabPlace) -> vec3<f32> {
     let vis = mix(0.28, 1.0, step(0.0, z));
     let gold = vec3(1.0, 0.78, 0.25);
     let bc = gold * body * scales * vis * 1.25 + gold * exp(-dy * 120.0) * 0.22 * body_on * vis;
-    let hph = k * xh - t * w;
+    let hph = k * xh + t * w;
     let hy = amp * sin(hph);
     let hp = vec2(x - xh, y - hy);
     let jaw = lab_sstep(0.7, 1.0, 0.5 + 0.5 * sin(t * 1.7));
@@ -2676,9 +2751,43 @@ fn lab_quantum(p: LabPlace) -> vec3<f32> {
     let yy = p.y - jit;
     let dd = length(vec2(max(0.0, max(-p.p.x, p.p.x - p.shaft)), yy));
     let h = 0.5 + 0.5 * sin(p.x * 14.0 - p.t * 3.0);
-    let g = mix(vec3(0.25, 0.85, 1.0), vec3(0.7, 0.35, 1.0), h);
-    let c = lab_saber(g, vec3(0.92, 0.97, 1.0), dd, 0.015, 22.0);
-    return c * (0.82 + 0.18 * cos(yy * 480.0 - p.t * 6.0 + p.x * 20.0));
+    let g = lab_turn(mix(vec3(0.25, 0.85, 1.0), vec3(0.7, 0.35, 1.0), h), p);
+    // A standing wave along it: bright antinodes, dim nodes drifting slowly.
+    let wave = 0.75 + 0.25 * cos(p.x * 38.0 - sin(p.t * 0.7) * 3.0) * cos(p.t * 2.3);
+    var c = lab_saber(g, vec3(0.92, 0.97, 1.0), dd, 0.015, 22.0) * wave;
+    c *= 0.82 + 0.18 * cos(yy * 480.0 - p.t * 6.0 + p.x * 20.0);
+    // Tunnelling: bright points that vanish and appear elsewhere on the blade.
+    var blips = 0.0;
+    for (var i = 0; i < 4; i++) {
+        let fi = f32(i);
+        let cycle = floor(p.t * 3.0 + lab_hash(fi * 3.7));
+        let at = vec2(lab_hash(cycle * 1.31 + fi * 7.1) * p.shaft, (lab_hash(cycle * 2.7 + fi) - 0.5) * 0.02);
+        blips += exp(-length(p.p - at) / max(0.004, p.px)) * step(0.4, lab_hash(cycle + fi * 11.0));
+    }
+    // The collapse: a flash running up the blade as a swing begins.
+    let collapse = exp(-p.since_swing * 5.0) * exp(-abs(p.x / max(p.big_l, 0.001) - p.since_swing * 4.0) * 8.0)
+        * exp(-dd * 40.0) * 2.0;
+    return c + g * blips * 1.2 + vec3(1.0) * collapse;
+}
+
+// Quantum's ghost copies: two faint copies of the blade at other angles about its hilt,
+// drifting round while it is held still and collapsing into it when it swings.
+fn lab_quantum_ghosts(p: LabPlace) -> vec3<f32> {
+    let held = 1.0 - clamp(p.swing * 2.0, 0.0, 1.0);
+    if held <= 0.0 {
+        return vec3(0.0);
+    }
+    var light = vec3(0.0);
+    for (var k = 0; k < 2; k++) {
+        let fk = f32(k);
+        let side = select(-1.0, 1.0, k == 0);
+        let angle = (0.1 + 0.04 * sin(p.t * 1.3 + fk)) * held * side * (0.6 + 0.4 * cos(p.t * 0.7 + fk * 2.4));
+        let ghost = lab_turned(p, angle);
+        let fade = 0.42 * held * (0.85 + 0.15 * sin(p.t * 9.0 + fk * 3.0));
+        let e = 1.0 - lab_sstep(0.045, 0.098, max(ghost.d, abs(ghost.y)));
+        light += lab_quantum(ghost) * fade * e;
+    }
+    return light;
 }
 
 fn lab_blade(n: u32, p: LabPlace) -> vec3<f32> {
@@ -2798,9 +2907,9 @@ fn lab_motes(n: u32, p: LabPlace) -> vec3<f32> {
         }
         case 2u: {
             // Bubbles blown off the film, rising, each popping into a puff of droplets.
-            for (var i = 0; i < 14; i++) {
+            for (var i = 0; i < 18; i++) {
                 let fi = f32(i);
-                let life = 3.6;
+                let life = 3.2;
                 let c = lab_cycle(fi, life, t, 2.0);
                 let pops = life * mix(0.6, 1.0, lab_rand(fi, c.y, 6.0, 2.0));
                 let start = lab_on_blade(p, mix(0.05, 1.0, lab_rand(fi, c.y, 0.0, 2.0)), 0.03, lab_rand(fi, c.y, 1.0, 2.0) * TAU);
@@ -2808,8 +2917,10 @@ fn lab_motes(n: u32, p: LabPlace) -> vec3<f32> {
                 let a = min(c.x, pops);
                 let at = start + v0 * (1.0 - exp(-0.4 * a)) / 0.4 + p.up * 0.015 * a * a;
                 if c.x < pops {
-                    let s = lab_sprite(p, at, mix(0.035, 0.085, lab_rand(fi, c.y, 4.0, 2.0)));
-                    light += lab_sprite_light(2u, s, vec3(1.0), lab_rand(fi, c.y, 5.0, 2.0)) * 0.9 * min(1.0, c.x / 0.3);
+                    // Blown up from nothing as it leaves the film.
+                    let grown = lab_sstep(0.0, 0.5, c.x);
+                    let s = lab_sprite(p, at, mix(0.05, 0.11, lab_rand(fi, c.y, 4.0, 2.0)) * mix(0.3, 1.0, grown));
+                    light += lab_sprite_light(2u, s, vec3(1.0), lab_rand(fi, c.y, 5.0, 2.0) + p.turn) * 1.4 * min(1.0, c.x / 0.3);
                 } else if c.x < pops + 0.22 {
                     let since = c.x - pops;
                     for (var j = 0; j < 7; j++) {
@@ -2859,7 +2970,7 @@ fn lab_motes(n: u32, p: LabPlace) -> vec3<f32> {
         }
         case 8u: {
             // Vented sparks, a shower while it overheats.
-            let ov = fract(t / 6.0) < 0.13;
+            let ov = lab_reactor_heat(t).y > 0.5;
             for (var i = 0; i < 20; i++) {
                 let fi = f32(i);
                 let c = lab_cycle(fi, 0.35, t, 8.0);
@@ -2971,7 +3082,7 @@ fn lab_motes(n: u32, p: LabPlace) -> vec3<f32> {
 fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     let design = skins[skin_index(input)].design;
     let n = u32(design.x + 0.5);
-    // An afterimage, or a design with nothing for this pass.
+    // An afterimage draws nothing.
     if afterimage(input.persona.x, input.off) {
         return vec3(0.0);
     }
@@ -2982,12 +3093,13 @@ fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     if e > 0.0 {
         light = max(lab_blade(n, p), vec3(0.0)) * e;
     }
+    // Quantum's ghost copies, an option its wearer may switch off.
+    if n == LAB_QUANTUM && (input.off & OFF_COPIES) == 0u {
+        light += max(lab_quantum_ghosts(p), vec3(0.0));
+    }
     let room = design.z;
     if room > 0.0 && p.d < room {
         light += lab_motes(n, p) * (1.0 - lab_sstep(room * 0.75, room, p.d));
-    }
-    if input.chroma != 0.0 {
-        light = skin_turn_hue(light, input.chroma);
     }
     return light * persona_fade(input);
 }
@@ -3062,8 +3174,8 @@ const LAB_FONT: array<u32, 13> = array<u32, 13>(
     145049137u, 588830577u, 588840497u, 520632382u, 599447089u, 488162862u, 589284910u,
     588553521u, 1041305887u, 138547359u, 580042287u, 521715247u, 134353028u,
 );
-// The words, four bits a letter (15 ends one): VMMMM! on ignition; SHWOOM! VWOSH! ZZAKT!
-// on a swing; KRAKK! SHZAK! BZZT! on a clash.
+// The words, four bits a letter (15 ends one): VMMMM! (unused: words are for fighting,
+// not for lighting it); SHWOOM! VWOSH! ZZAKT! on a swing; KRAKK! SHZAK! BZZT! on a clash.
 const LAB_WORDS: array<u32, 7> = array<u32, 7>(
     4290842896u, 4229256227u, 4290917696u, 4291393160u, 4291262119u, 4291258403u, 4294744203u,
 );
@@ -3149,13 +3261,7 @@ fn lab_comic_word(p: LabPlace, word: u32, at: vec2<f32>, tilt: f32, age: f32, co
 // The comic words now showing: on ignition, the last swing and the last clash.
 fn lab_comic_words(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
     var out = vec4(0.0);
-    let ignite = p.age - 0.18;
-    if ignite >= 0.0 && ignite < 1.1 {
-        let born = p.t - ignite;
-        let side = select(-1.0, 1.0, lab_hash(floor(born * 10.0) + 3.0) < 0.5);
-        out = lab_over(out, lab_comic_word(p, 0u, vec2(0.75 * p.shaft, 0.12 * side), (lab_hash(born) - 0.5) * 0.36, ignite, color));
-    }
-    let swung = p.since_swing - 0.36;
+    let swung = p.since_swing - 0.12;
     if swung >= 0.0 && swung < 1.1 {
         let born = floor((p.t - swung) * 10.0);
         let word = 1u + u32(lab_hash(born + 1.0) * 2.999);

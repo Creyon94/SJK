@@ -1836,14 +1836,22 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
 - **Units.** The lab works in metres on a 1.08 m blade; a stock blade is 40 units, so a
   unit is 0.027 m (`LAB_METRE`, `blade_lab_designs::METRE`). `lab_place` turns the glow
   quad's place into the lab's: along the blade as on the blade itself (foreshortening
-  undone), across and the distance to the blade's axis as on screen.
+  undone), across and the distance to the blade's axis as on screen. Each blade starts
+  4 cm inside its hilt (`LAB_START`), as a stock glow covers the hilt's mouth, and is
+  drawn narrower than in the lab by its `LAB_THIN` so it is a stock blade's thickness
+  and fits its hilt (Creyon's test, 18/10/2026: a gap above the hilt, blades too thick).
 - **The skin.** `LoadedSkin::shown` is the file without its sections (the design draws
   its own parts, and the afterimages, echo, glints and pulse the CPU makes go too) and
   with the lab's colour for its trail and light; its uniform carries the design in its
-  last lane (`design`: number, reach, room, solid). A chroma (Comic) turns the lab's
-  colour. The sounds stay the file's. With `cg_saberLabDesigns 0` the files draw them
+  last lane (`design`: number, reach, room, solid). Eleven are chromas (all but Phoenix,
+  Obsidian Edge and Quicksilver): `lab_turn` turns only the parts that make sense in
+  another colour (the stripes, the wax, the sand, the plasma at rest, Bleeding Kyber's
+  pure part, Serpent's and Monarch's blade), keeping the red corruption, the snake, the
+  butterflies and the overheat. The sounds stay the file's. With `cg_saberLabDesigns 0` the files draw them
   again; the change uploads the skins anew (`sync_saber_skins`).
-- **Glow.** `fragment_glow`/`fragment_main` draw a design's glow quad with `lab_glow`: the
+- **Glow.** `fragment_main` draws a design's glow quad with `lab_glow` (the dynamic glow,
+  `fragment_glow`, takes only `LAB_BLOOM` of it, capped, so a white core does not bloom
+  into a blob that hides the effects): the
   lab's blade (`lab_blade`, the lab's `fx` for that design, core and all) faded out at its
   reach, and its particles (`lab_motes`: sugar glints, bubbles that pop, wax specks,
   doodled stars, spilled sand, vented sparks, edge sparks, pollen, flames and burning
@@ -1851,20 +1859,27 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   place, never narrower than a pixel. The core line draws nothing for a design.
 - **Solid pass.** `vertex_solid` keeps a design with a solid pass, and `lab_solid` draws
   the comic blade's cel-shaded body in its black outline and its words (VMMMM! on
-  ignition, SHWOOM!/VWOSH!/ZZAKT! on a swing, KRAKK!/SHZAK!/BZZT! on a clash, in a
+  a swing, SHWOOM!/VWOSH!/ZZAKT!, each swing of a chain its own, KRAKK!/SHZAK!/BZZT! on a clash, in a
   five-by-six font), the quicksilver mirror column with its beads and drops, the flat
   obsidian blade, Bleeding Kyber's drops and the monarchs, which sit on the blade, fly off
   on a swing and land again once it is still.
 - **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
   since its last swing began reach the shader per instance (`motion`, location 10;
   [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
-  trail state: the swing follows the tip's speed as the lab's did (a full swing at its
-  5.5 m/s), a clash is one whose flare latched within 12 units of the blade
+  trail state: the swing follows the tip's speed about the hilt as the lab's did (a full
+  swing at its 5.5 m/s; running with the blade still is no swing), a swing begins above
+  an idle stance's sway and again every 0.75 s of a chain without a pause, a clash is one whose flare latched within 12 units of the blade
   (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
   Thrown and menu blades are still.
-- **Left out.** What grew out of the blade in the lab is not drawn: Quantum's two ghost
-  copies at other angles and the Phoenix's wings. The lab's bloom pass is not; its halos
-  are the shader's own.
+- **Changed from the lab** after Creyon's tests: the hourglass's glass closes in a dome
+  over the tip and its sand runs in 24 seconds, not 8; the serpent climbs; the reactor
+  heats over a 14-second cycle (calm, heating, a strobing critical red and a vent flash)
+  with a coloured core that reads from afar; Quantum gained a standing wave, tunnelling
+  blips and a collapse flash on each swing, and its ghost copies are an option its
+  wearer may switch off (`Ghost copies`, the `copies` section bit); bubbles are larger
+  and brighter; the comic words come with swings and clashes only. The Phoenix's wings,
+  which grew out of the blade, are not drawn. The lab's bloom pass is not; its halos are
+  the shader's own.
 
 An ignored GPU test (`blade_lab_designs_gpu_test.rs`) renders every design still, mid-
 swing and after a clash, checks the blade is lit and the picture's corner dark, and saves

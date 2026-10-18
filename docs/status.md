@@ -5,9 +5,12 @@
 game): implemented the lab's own shaders for Peppermint, Soap Bubble, Lava Lamp,
 Sketch, Hourglass, Comic, Quicksilver, Reactor, Obsidian Edge, Bleeding Kyber,
 Monarch, Phoenix, Serpent and Quantum, with their particles, the comic, quicksilver
-and obsidian solids, the comic words and the monarchs; a per-blade swing, ignition and
-clash for them; `cg_saberLabDesigns` (default on) to draw the files instead. Quantum's
-copies and the Phoenix's wings are left out. See
+and obsidian solids, the comic words and the monarchs; a per-blade swing (about the
+hilt), ignition and clash for them; `cg_saberLabDesigns` (default on) to draw the files
+instead. After Creyon's first test: blades seated in the hilt at a stock thickness, the
+bloom tamed, eleven made chromas, comic words per swing, a rounded slower hourglass, a
+climbing serpent, a 14-second reactor overheat, Quantum's ghost copies as an option and
+more effects, larger bubbles. The Phoenix's wings are left out. See
 [rendering](rendering.md#blade-lab-designs).
 
 Workspace fmt/build/test passed on Linux x86_64; clippy adds no warning. Tests pin the

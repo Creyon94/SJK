@@ -767,7 +767,7 @@ impl LoadedSkin {
 
     /// The options its file offers.
     pub(crate) fn options(&self) -> &[crate::blade_skin_file::extras::SkinOption] {
-        &self.def.options
+        &self.shown().options
     }
 }
 

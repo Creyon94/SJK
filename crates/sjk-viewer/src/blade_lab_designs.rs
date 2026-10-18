@@ -71,8 +71,12 @@ pub(crate) const DESIGNS: [Design; 14] = [
     design("saber_monarch", 11, 0.09, 0.3, true, [1.0, 0.58, 0.14]),
     design("saber_phoenix", 12, 0.13, 0.45, false, [1.0, 0.45, 0.08]),
     design("saber_serpent", 13, 0.11, 0.12, false, [0.15, 1.0, 0.5]),
-    design("saber_quantum", 14, 0.1, 0.16, false, [0.35, 0.85, 1.0]),
+    design("saber_quantum", 14, 0.1, 0.25, false, [0.35, 0.85, 1.0]),
 ];
+
+/// Quantum's number: its ghost copies are an option (`saber.wgsl` `lab_quantum_ghosts`,
+/// drawn unless the wearer's `copies` section is off).
+const QUANTUM: u32 = 14;
 
 /// `cg_saberLabDesigns`, as last read ([`set_enabled`]); on until the console says.
 static ENABLED: AtomicBool = AtomicBool::new(true);
@@ -146,7 +150,15 @@ impl Design {
         shown.copies = None;
         shown.ink = None;
         shown.chrome = None;
-        shown.options.clear();
+        // The design's own parts its wearer may switch off.
+        shown.options = match self.number {
+            QUANTUM => vec![crate::blade_skin_file::extras::SkinOption {
+                id: "ghosts".to_owned(),
+                name: "Ghost copies".to_owned(),
+                sections: vec!["copies".to_owned()],
+            }],
+            _ => Vec::new(),
+        };
         shown.trail = self.color;
         shown.light.color = self.color;
         shown

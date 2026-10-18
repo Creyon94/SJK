@@ -9,16 +9,19 @@ use std::sync::Mutex;
 /// Seconds reported for something that has not happened, or long enough ago to be
 /// settled (a blade lit before it was first seen, a swing long over).
 pub(crate) const SETTLED: f32 = 1_000.0;
-/// The tip speed (units a second) of a full swing: the lab's 5.5 m/s.
+/// The tip's speed about the hilt (units a second) of a full swing: the lab's 5.5 m/s.
+/// About the hilt, so running with the blade held still is no swing.
 const FULL_SWING: f32 = 5.5 / 0.027;
 /// The lab's swing rises half the way to the tip's speed each frame and falls 8% of the
 /// way, at 60 frames a second.
 const RISE: f32 = 0.5;
 const FALL: f32 = 0.08;
-/// A swing begins when the swing rises past this (the lab's butterflies' threshold) and
-/// ends when it falls under the other.
-const SWING_BEGINS: f32 = 0.33;
-const SWING_ENDS: f32 = 0.15;
+/// A swing begins when the swing rises past this and ends when it falls under the other,
+/// above an idle stance's sway; a chain of swings without a pause between them begins a
+/// new one every `SWING_EVERY` milliseconds (each swing of a combo is one).
+const SWING_BEGINS: f32 = 0.4;
+const SWING_ENDS: f32 = 0.25;
+const SWING_EVERY: i64 = 750;
 /// A blade unseen this long (milliseconds) was put away; seen again, it is lit anew.
 const UNSEEN: i64 = 250;
 
@@ -63,10 +66,11 @@ impl BladeMotion {
     /// The blade drawn at `now` (presentation milliseconds), `growing` while it is still
     /// coming out of the hilt; its motion for the shader.
     pub(crate) fn record(&mut self, blade: Blade, now: i64, growing: bool) -> [f32; 4] {
+        // The tip from the hilt: how the blade turns, not how its wearer moves.
         let tip = [
-            blade.base[0] + blade.direction[0] * blade.length,
-            blade.base[1] + blade.direction[1] * blade.length,
-            blade.base[2] + blade.direction[2] * blade.length,
+            blade.direction[0] * blade.length,
+            blade.direction[1] * blade.length,
+            blade.direction[2] * blade.length,
         ];
         let gap = now - self.seen;
         let fresh = self.tip.is_none() || !(0..=UNSEEN).contains(&gap);
@@ -93,6 +97,8 @@ impl BladeMotion {
                 self.swung = Some(now);
             } else if self.swinging && self.swing < SWING_ENDS {
                 self.swinging = false;
+            } else if self.swinging && self.swung.is_some_and(|at| now - at >= SWING_EVERY) {
+                self.swung = Some(now);
             }
         }
         if clashes.1 > self.clash_seen {
@@ -196,6 +202,37 @@ mod tests {
         }
         assert!(still[0] < 0.01, "{still:?}");
         assert!(still[3] > 1.9 && still[3] < 2.1, "{still:?}");
+    }
+
+    #[test]
+    fn running_with_the_blade_held_still_is_no_swing() {
+        let mut motion = BladeMotion::default();
+        for frame in 0..60 {
+            // 400 units a second along x, the blade upright.
+            let moving = Blade {
+                base: [frame as f32 * 6.4, 0.0, 0.0],
+                ..blade(1.5)
+            };
+            let m = motion.record(moving, frame * 16, false);
+            assert!(m[0] < 0.01 && m[3] == SETTLED, "{m:?}");
+        }
+    }
+
+    #[test]
+    fn a_long_chain_of_swings_begins_one_every_so_often() {
+        let mut motion = BladeMotion::default();
+        motion.record(blade(0.0), 0, false);
+        let mut starts = 0;
+        let mut last = SETTLED;
+        // Two seconds of turning without a pause.
+        for frame in 1..=125 {
+            let m = motion.record(blade(frame as f32 * 0.25), frame * 16, false);
+            if m[3] < last {
+                starts += 1;
+            }
+            last = m[3];
+        }
+        assert_eq!(starts, 3);
     }
 
     #[test]
