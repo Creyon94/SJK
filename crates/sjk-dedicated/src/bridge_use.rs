@@ -108,7 +108,6 @@ impl NativeGame {
         if self.use_vehicle(client, found, level_time) || self.use_gun(client, found, level_time) {
             return;
         }
-        // A button the use key reached is pressed (`Use_BinaryMover`).
         // A button the use key reached is pressed, and a `PLAYER_USE` door used
         // (`ValidUseTarget`, `GlobalUse` to `Use_BinaryMover`) — in siege not by the team
         // it lets through (`TryUse`'s `alliedTeam` rule, unless `g_ff_objectives`).
