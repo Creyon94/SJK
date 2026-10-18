@@ -285,12 +285,20 @@ pub(crate) fn create(
     // sprite samples a few texels of its 128-pixel tile (a hard black dot for a
     // scorch mark). Five levels keep each tile at least 8 pixels; each tile's
     // border keeps its neighbours out of the filtering.
-    let texture = crate::gpu_texture::upload_levels(
-        device,
-        queue,
-        "SJK retail effect texture atlas",
-        &premultiplied_levels(atlas, ATLAS_MIP_LEVELS),
-    );
+    // Maps that load the same effects share one atlas during a map change.
+    let key = crate::shared_textures::key(&[
+        &atlas.width().to_le_bytes(),
+        &atlas.height().to_le_bytes(),
+        atlas.as_raw(),
+    ]);
+    let texture = crate::shared_textures::share("effect atlas", key, || {
+        crate::gpu_texture::upload_levels(
+            device,
+            queue,
+            "SJK retail effect texture atlas",
+            &premultiplied_levels(atlas, ATLAS_MIP_LEVELS),
+        )
+    });
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("SJK effect texture sampler"),
         address_mode_u: wgpu::AddressMode::ClampToEdge,

@@ -333,6 +333,8 @@ mod map_change;
 
 #[path = "world_shot_menu_pictures.rs"]
 mod menu_pictures_shots;
+#[path = "world_shot_vram.rs"]
+mod vram;
 
 #[path = "world_shot_brushes.rs"]
 mod brushes;

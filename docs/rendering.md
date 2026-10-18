@@ -549,6 +549,56 @@ reserving 5.2 to 5.9 GB). After: 7.2 to 7.4 GB (4.1 to 4.2 GB reserved for 3.3 t
 each time): it was not a leak. Each world also keeps about 1 GB of CPU memory
 after loading, not looked into yet.
 
+The players' "world installer stopped unexpectedly" (18/10/2026: 33 hub crash
+reports, `wgpu error: Out of Memory` in `create_texture` on `sjk-world-install`, on
+NVIDIA cards of 3 to 8 GB) is that peak, not a leak. The ignored world shot
+`map_changes_vram` ([world_shot_vram.rs](../crates/sjk-viewer/src/world_shot_vram.rs))
+installs mp/ffa3, mp/ffa5, mp/siege_desert and mp/duel6 three times over at
+1920x1080 on one device and prints the allocator's live and reserved bytes after each
+change, and the labels that grew. On Sol's PC (release build, a fresh profile):
+
+| Map | In use after | Peak during the build | Reserved at the peak |
+| --- | --- | --- | --- |
+| mp/duel6 | 1.87 GB | 4.22 GB | 3.9 GB |
+| mp/ffa3 | 2.19 GB | 3.85 GB | 4.6 GB |
+| mp/ffa5 | 2.54 GB | 4.51 GB | 5.0 GB |
+| mp/siege_desert | 2.55 GB | 4.87 GB | 5.1 GB |
+
+Every map holds the same bytes on each cycle (duel6 1869 MiB after the first and the
+last), and reserved memory settles back to 2.5 to 3.4 GB. With the desktop and other
+programs, a 6 GB card has no room for two worlds of the larger maps. About 0.55 GB of
+each world was the same whatever the map and was built again for each one: the saber
+glow column integrals (205 MiB), the game font atlas (128 MiB), the saber glow images
+(96 MiB), the UI icon atlas (50 MiB), the effect atlas (39 MiB) and the classic menu
+art (32 MiB). Map textures that two maps share (retail `textures/` among them) were
+uploaded again too.
+
+The worlds alive at once on one context now share those textures
+([shared_textures.rs](../crates/sjk-viewer/src/shared_textures.rs)). A world being
+built (`new_with_context`, on its thread) takes the copy another world holds, keyed by
+what the texture is made from: the saber glow and core images, a game font's atlas, the
+effect atlas's pixels, a static menu art piece, and for map textures the decoded images'
+identities (one `Arc` per mounted file and content, from
+[decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs)) with the
+array's size. A shared map texture skips its mip preparation too. Each entry is freed
+with the last world that took it, so a map change never keeps the old map's own
+textures. Not shared: the UI icon atlas and animated menu art, which a running world
+rewrites; textures a world makes after its build (models and effects that load during a
+match, video frames, the non-mipmapped filtering path); and anything across a graphics
+reload, whose new context may make textures differently and starts its own cache.
+
+| Map | Peak before | Shared assets | Shared map textures too |
+| --- | --- | --- | --- |
+| mp/ffa3 | 3849 MiB | 3479 MiB | 3119 MiB |
+| mp/ffa5 | 4507 MiB | 4133 MiB | 3773 MiB |
+| mp/siege_desert | 4870 MiB | 4496 MiB | 4136 MiB |
+| mp/duel6 | 4220 MiB | 3846 MiB | 3481 MiB |
+
+Memory in use after each change is unchanged, and the worst reserved peak went from
+5.1 to 4.4 GB. The last duel6 of the run, built on 282 shared textures, differs from the
+same run with sharing off in 791 of 2,073,600 pixels; two runs with sharing off differ
+in 477 (animation timing).
+
 ## Eye adaptation
 
 SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the

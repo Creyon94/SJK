@@ -1380,6 +1380,14 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[vram-map-change]
+area: Rendering & effects
+title: Map changes share textures between the old and new map (less video memory)
+change: While the next map builds, textures both maps use are held once (~730 MiB less peak).
+test: Play an hour on a server with map changes: no out-of-memory error on map load.
+test: After a few map changes, sabers, fonts, effects and map textures look right.
+test: Change graphics preset after a map change: nothing turns black or wrong.
+
 [tail-gravity]
 area: Rendering & effects
 title: Tails hang lower

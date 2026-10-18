@@ -39,6 +39,51 @@ pub(crate) fn extent(images: &[Arc<RgbaImage>]) -> (u32, u32) {
     )
 }
 
+/// What the worlds of one context share a map texture as ([`crate::shared_textures`]):
+/// the view, and the images it was made from, held so their addresses (the key) cannot
+/// name other pixels while it lives.
+type Shared = (wgpu::TextureView, Arc<[Arc<RgbaImage>]>);
+const SHARED: &str = "map texture";
+
+/// The key of the `width` x `height` array `images` become. Decoded map images are
+/// one `Arc` per mounted file and content for the process
+/// ([`crate::decoded_image_cache`]), so two maps using the same file give one key.
+fn shared_key(images: &[Arc<RgbaImage>], width: u32, height: u32) -> u64 {
+    let mut parts = vec![width.to_le_bytes().to_vec(), height.to_le_bytes().to_vec()];
+    parts.extend(
+        images
+            .iter()
+            .map(|image| (Arc::as_ptr(image) as usize as u64).to_le_bytes().to_vec()),
+    );
+    crate::shared_textures::key(&parts.iter().map(Vec::as_slice).collect::<Vec<_>>())
+}
+
+/// The mipmapped array of `images` another world of this context holds, if any.
+pub(crate) fn find_shared(images: &[Arc<RgbaImage>]) -> Option<wgpu::TextureView> {
+    let (width, height) = extent(images);
+    crate::shared_textures::find::<Shared>(SHARED, shared_key(images, width, height))
+        .map(|(view, _)| view)
+}
+
+/// [`upload_chains`] of `images`, or another world's copy of the same array.
+pub(crate) fn upload_shared(
+    device: &wgpu::Device,
+    queue: &crate::frame_queue::FrameQueue,
+    images: &[Arc<RgbaImage>],
+    width: u32,
+    height: u32,
+    chains: impl FnOnce() -> Arc<Vec<Vec<RgbaImage>>>,
+) -> Result<wgpu::TextureView, Box<dyn Error>> {
+    let key = shared_key(images, width, height);
+    if let Some((view, _)) = crate::shared_textures::find::<Shared>(SHARED, key) {
+        return Ok(view);
+    }
+    let view = upload_chains(device, queue, width, height, &chains())?;
+    let shared: Shared = (view.clone(), images.into());
+    crate::shared_textures::share(SHARED, key, || shared);
+    Ok(view)
+}
+
 /// Upload mipmapped stage frames once; no frame-path image generation or readback.
 pub(crate) fn upload(
     device: &wgpu::Device,
@@ -46,8 +91,9 @@ pub(crate) fn upload(
     images: &[Arc<RgbaImage>],
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
     let (width, height) = extent(images);
-    let chains = cache::prepare(images, width, height);
-    upload_chains(device, queue, width, height, &chains)
+    upload_shared(device, queue, images, width, height, || {
+        cache::prepare(images, width, height)
+    })
 }
 
 /// Upload one [`chain`] per layer of a `width` x `height` array.

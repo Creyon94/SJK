@@ -233,7 +233,10 @@ includes:
   sent and read in Windows-1251 as EternalJK sends it (`cl_charset`, after EternalJK),
   and the SJK channel and bios taking them;
 - away players set apart on the scoreboard: seen idle for 3 minutes (or tagged
-  `[AFK]`), faint at the bottom of their list (`cg_scoreboardAfk`).
+  `[AFK]`), faint at the bottom of their list (`cg_scoreboardAfk`);
+- menu pictures (`ui_menuPictures`): 4K pictures of the menu's map instead of the live
+  map, turned on by itself when a map runs out of video memory, and map changes sharing
+  the textures the old and new map have in common (about 730 MB less at the peak).
 
 ## Contributors to SJK
 
