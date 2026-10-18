@@ -243,8 +243,13 @@ impl GameplayInput {
     ) -> (u16, Option<&'static str>) {
         let stasis = &self.held[GameButton::ForceStasis.slot()];
         let stasis = stasis.active || stasis.pressed;
-        self.force_wheel_use
-            .apply(buttons, self.selection.wheel_pseudo(), known, stasis)
+        self.force_wheel_use.apply_with(
+            buttons,
+            self.selection.wheel_pseudo(),
+            known,
+            stasis,
+            self.selection.extensions(),
+        )
     }
 
     /// Return whether a buffered console command belongs to gameplay input.
@@ -640,11 +645,17 @@ impl super::GpuState {
                         .gameplay_input
                         .selection
                         .known(&session.latest_snapshot().player);
-                    if sjk_client::force_wheel::valid(known, slot)
-                        && let Some(command) = sjk_client::force_wheel::ABILITIES
-                            .iter()
-                            .find(|a| a.slot == slot)
-                            .and_then(|a| a.command)
+                    if sjk_client::force_wheel::valid_with(
+                        known,
+                        slot,
+                        self.gameplay_input.selection.extensions(),
+                    ) && let Some(command) = self
+                        .gameplay_input
+                        .selection
+                        .extensions()
+                        .iter()
+                        .find(|a| a.slot == slot)
+                        .and_then(|a| a.command)
                         && let Err(error) = session.send_reliable_command_from(
                             command.as_bytes(),
                             sjk_client::ReliableCommandOrigin::Input,

@@ -714,9 +714,10 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::actor_world_submission::force_powers::victim::CVAR,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-jof")]
     Setting {
-        label: "Destruction support",
-        cvar: crate::input::force_abilities::CVAR,
+        label: "JoF Destruction support",
+        cvar: sjk_mod_jof::destruction::CVAR,
         kind: ValueKind::Choice(&["-1", "0", "1"]),
     },
     Setting {

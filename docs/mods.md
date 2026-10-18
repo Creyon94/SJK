@@ -1,7 +1,7 @@
 # Client mods
 
-A client mod is a set of console commands and settings kept out of the core
-client. Each one loads only on the servers it is made for, so a player who never
+A client mod owns its commands, settings and optional community presentation,
+kept out of the core client. Each one loads only on the servers it is made for, so a player who never
 joins one sees none of its commands. The mods are built into the client; the line
 they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
 
@@ -30,11 +30,19 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   the core client ([networking.md](networking.md)) and work with every mod off.
   JA+ flamethrower presentation also stays in the core; its detection and player
   override are documented under [flamethrower presentation](client.md#ja-flamethrower-presentation).
+- **Community presentation.** The Destruction extension belongs to `sjk-mod-jof`, not the base compatibility
+  profile. The mod owns their definitions, parsers and state; optional viewer
+  bridges draw/play their output only while JoF tools are loaded. Base sessions
+  forward unhandled reliable operands without interpreting community commands.
+  These additions are compiled out of the viewer without `mod-jof`.
 - **What a mod can do.** A mod sees the game only through
   [`Host`](../crates/sjk-mod/src/lib.rs): it can send a reliable server command,
   read the server's kind, address and serverinfo, the predicted player, the crosshair
   trace's end point and player, and the roster with where each player is drawn, and
   read or set a setting. It does not reach the renderer, prediction or the wire.
+  Typed mod settings distinguish text, booleans and integer choices. A mod may
+  declare scoped userinfo fields through the host; the existing adapter validates
+  and encodes them, and removes them when their mod/setting no longer permits them.
   Commands run on the main thread from the client command queue
   ([mods.rs](../crates/sjk-viewer/src/mods.rs),
   [mods_host.rs](../crates/sjk-viewer/src/mods_host.rs)).
@@ -93,6 +101,25 @@ switch it.
 Not ported: JoF EJK's userinfo opt-ins (`jofejk`, `binoScan`, `cg_pickupConfirm`).
 Each one asks the server for something the client must then show, and SJK shows none
 of it yet.
+
+### Destruction client controls
+
+Destruction's contract, name, installed icon and capability policy live in
+[sjk-mod-jof/destruction.rs](../crates/sjk-mod-jof/src/destruction.rs).
+It is offered only on a recognized JoF server with `mod_jof 1`, nonzero
+`g_forceDestruction` and the living player's known bit 21, outside spectator/follow.
+`jof.destructionSupport` is an archived mod setting: Auto (`-1`) follows the flag,
+Off (`0`) disables it, and Server grant (`1`) accepts the bit without the flag.
+The override cannot load the mod on another server or grant a power.
+
+The Force bar, SJK selector, quick wheel and key-binding editor support the entry.
+`force_destruction` keeps existing binds working; completion loads with the mod.
+`+useforce` sends it once per press. Slot 21 is local-only and never becomes the
+network Force selection. Loaded extensions use EJK #338's anchor order; base SJK
+keeps its original wheel and never treats bit 21 as Destruction. Turning the mod
+off or leaving clears that local selection. The optional icon is read/uploaded
+only on first activation in the installed world; absent assets use Lightning.
+Settings > Mods (SJK) and Game options (classic) expose the preference.
 
 ## Verification
 

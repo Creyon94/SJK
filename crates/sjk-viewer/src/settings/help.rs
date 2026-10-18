@@ -97,9 +97,12 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
-    (crate::input::force_abilities::CVAR, "-1", "Auto"),
-    (crate::input::force_abilities::CVAR, "0", "Off"),
-    (crate::input::force_abilities::CVAR, "1", "Grant contract"),
+    #[cfg(feature = "mod-jof")]
+    (sjk_mod_jof::destruction::CVAR, "-1", "Auto"),
+    #[cfg(feature = "mod-jof")]
+    (sjk_mod_jof::destruction::CVAR, "0", "Off"),
+    #[cfg(feature = "mod-jof")]
+    (sjk_mod_jof::destruction::CVAR, "1", "Grant contract"),
     (
         crate::actor_world_submission::force_powers::flame::CVAR,
         "-1",
@@ -210,8 +213,9 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    #[cfg(feature = "mod-jof")]
     (
-        crate::input::force_abilities::CVAR,
+        sjk_mod_jof::destruction::CVAR,
         "Auto follows the server flag; Off hides Destruction. Grant contract skips the flag. The server must still grant the power.",
     ),
     (

@@ -1,28 +1,31 @@
-//! Table-driven server ability controls; no server gameplay is implemented here.
-use sjk_client::force_wheel;
-
-/// Player override for the table's explicitly flagged server extensions.
-pub(crate) const CVAR: &str = "cg_forceDestruction";
+//! Host bridge for optional mod-owned Force wheel entries.
+use sjk_client::force_wheel::Ability;
 
 pub(super) fn command_slot(command: &str) -> Option<u8> {
-    // Repulse/Dash already fall through to the server command route. Take all
-    // instant pseudo-abilities here so binds and the wheel use the same grants.
-    force_wheel::ABILITIES
-        .iter()
-        .find(|a| a.command == Some(command))
-        .map(|a| a.slot)
+    #[cfg(feature = "mod-jof")]
+    if command == sjk_mod_jof::destruction::COMMAND {
+        return Some(sjk_mod_jof::destruction::SLOT);
+    }
+    let _ = command;
+    None
 }
 
-pub(crate) fn support(
+pub(crate) fn extensions(
     game: Option<&sjk_protocol::GameState>,
     console: Option<&crate::console::ViewerConsole>,
-) -> u32 {
-    force_wheel::support(
-        game,
-        console
-            .and_then(|c| c.integer_cvar("cg_forcedestruction"))
-            .unwrap_or(-1),
-    )
+) -> &'static [Ability] {
+    #[cfg(feature = "mod-jof")]
+    if let Some(console) = console
+        && console.mods.loaded(sjk_mod_jof::ID)
+        && console.bool_cvar("mod_jof").unwrap_or(false)
+    {
+        return sjk_mod_jof::destruction::entries(
+            game,
+            console.integer_cvar("jof.destructionsupport").unwrap_or(-1),
+        );
+    }
+    let _ = (game, console);
+    &[]
 }
 
 impl crate::GpuState {
@@ -32,27 +35,57 @@ impl crate::GpuState {
             .as_ref()
             .map(|s| s.game_state())
             .or_else(|| self.demo_session.as_ref().map(|s| s.game_state()));
-        self.gameplay_input
-            .selection
-            .set_support(support(game, self.console.as_ref()));
+        let entries = extensions(game, self.console.as_ref());
+        self.gameplay_input.selection.set_extensions(entries);
+        if !entries.is_empty()
+            && let Some(vfs) = &self.vfs
+        {
+            self.hud.load_extension_icons(
+                entries,
+                vfs,
+                &self.shaders,
+                &self.ui_shapes,
+                &self.queue,
+            );
+        }
     }
 }
-
-#[cfg(test)]
+#[cfg(all(test, feature = "mod-jof"))]
 mod tests {
     use super::*;
     use crate::input::{GameplayInput, InputAction};
     #[test]
-    fn all_instant_bindings_use_local_capability_dispatch() {
-        let mut input = GameplayInput::default();
-        for ability in force_wheel::ABILITIES {
-            if let Some(command) = ability.command {
-                assert!(GameplayInput::recognizes(command));
-                assert_eq!(
-                    input.apply(command),
-                    Some(InputAction::ForceAbility(ability.slot))
-                );
-            }
+    fn loaded_jof_switch_and_server_are_required_even_for_override() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        console.set_cvar(sjk_mod_jof::destruction::CVAR, "1");
+        let game = sjk_protocol::GameState::empty_local(0);
+        assert!(extensions(Some(&game), Some(&console)).is_empty());
+        for (kind, info, expected) in [
+            (sjk_mod::ServerKind::BaseJka, "", false),
+            (sjk_mod::ServerKind::JaPlus, r"\V\2.4B7", false),
+            (sjk_mod::ServerKind::JaPro, r"\V\2.5B0", false),
+            (sjk_mod::ServerKind::JaPlus, r"\V\2.5B0", true),
+        ] {
+            console.mods.set_server(Some(sjk_mod::Server {
+                kind,
+                address: "fixture".into(),
+                info: info.into(),
+            }));
+            console.execute_buffered_frame(None, |_, _| false);
+            assert_eq!(
+                !extensions(Some(&game), Some(&console)).is_empty(),
+                expected
+            );
         }
+        console.set_cvar("mod_jof", "0");
+        assert!(extensions(Some(&game), Some(&console)).is_empty());
+        let mut input = GameplayInput::default();
+        assert!(GameplayInput::recognizes(sjk_mod_jof::destruction::COMMAND));
+        assert_eq!(
+            input.apply(sjk_mod_jof::destruction::COMMAND),
+            Some(InputAction::ForceAbility(sjk_mod_jof::destruction::SLOT))
+        );
     }
 }

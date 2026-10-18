@@ -58,32 +58,32 @@ const COMMANDS: &[Command] = &[
 const SETTINGS: &[Setting] = &[
     Setting {
         name: "japlus.loginServer1",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Server address for japlus.autologin (port 29070 when left out)",
     },
     Setting {
         name: "japlus.loginPass1",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer1 (saved as plain text)",
     },
     Setting {
         name: "japlus.loginServer2",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Server address for japlus.autologin (port 29070 when left out)",
     },
     Setting {
         name: "japlus.loginPass2",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer2 (saved as plain text)",
     },
     Setting {
         name: "japlus.loginServer3",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Server address for japlus.autologin (port 29070 when left out)",
     },
     Setting {
         name: "japlus.loginPass3",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer3 (saved as plain text)",
     },
 ];

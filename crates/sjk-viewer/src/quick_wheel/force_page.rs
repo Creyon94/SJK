@@ -21,32 +21,18 @@
 use super::pages::MAX_FORCE_CHOICES;
 use super::{ShownChoice, ShownPage};
 use crate::hud::force_wheel as bar;
-use sjk_client::force_wheel::{self, DASH, DESTRUCTION, REPULSE, STASIS};
+use sjk_client::force_wheel::{self, DASH, REPULSE, STASIS};
 use sjk_ui::TextureId;
 
 /// The page's order, by Force wheel entry (`forcePowers_t`, then the pseudo-slots).
-pub(crate) const ORDER: [u8; 18] = [
+pub(crate) const ORDER: [u8; 17] = [
     // Neutral: Push, Pull, Speed, Sense.
-    3,
-    4,
-    2,
-    14, //
+    3, 4, 2, 14, //
     // Light: Heal, Protect, Absorb, Mind Trick, Team Heal.
-    0,
-    9,
-    10,
-    5,
-    11, //
+    0, 9, 10, 5, 11, //
     // Dark: Grip, Lightning, Dark Rage, Drain, Team Energize.
-    6,
-    7,
-    8,
-    13,
-    12, //
-    DASH,
-    STASIS,
-    REPULSE,
-    DESTRUCTION,
+    6, 7, 8, 13, 12, //
+    DASH, STASIS, REPULSE,
 ];
 
 /// What the id of the second page adds to the Force page's; never part of an id
@@ -60,6 +46,7 @@ pub(crate) const EMPTY: &str = "No Force powers here";
 pub(crate) struct Powers {
     /// `forcePowersKnown` as the Force bar reads it (`Selection::known`).
     pub(crate) known: u32,
+    pub(crate) extensions: &'static [force_wheel::Ability],
     /// The entry selected now (`Selection::selected_force`).
     pub(crate) selected: u8,
     /// JA+ merc mode: Lightning is the flamethrower.
@@ -70,13 +57,6 @@ pub(crate) struct Powers {
 
 /// The command that uses entry `slot` at once; `None` for a power that is held.
 pub(crate) fn use_command(slot: u8) -> Option<&'static str> {
-    if let Some(command) = force_wheel::ABILITIES
-        .iter()
-        .find(|a| a.slot == slot)
-        .and_then(|a| a.command)
-    {
-        return Some(command);
-    }
     Some(match slot {
         0 => "force_heal",
         2 => "force_speed",
@@ -89,6 +69,8 @@ pub(crate) fn use_command(slot: u8) -> Option<&'static str> {
         11 => "force_healother",
         12 => "force_forcepowerother",
         14 => "force_seeing",
+        REPULSE => "force_repulse",
+        DASH => "force_dash",
         // Grip, Lightning, Drain, Stasis.
         _ => return None,
     })
@@ -113,9 +95,24 @@ pub(crate) fn usable(known: u32) -> impl Iterator<Item = u8> {
 /// The page's choices for `powers`.
 pub(crate) fn choices(powers: &Powers) -> Vec<ShownChoice> {
     usable(powers.known)
+        .chain(
+            powers
+                .extensions
+                .iter()
+                .filter(|entry| {
+                    force_wheel::valid_with(powers.known, entry.slot, powers.extensions)
+                })
+                .map(|entry| entry.slot),
+        )
         .map(|slot| ShownChoice {
             label: bar::name(slot, powers.flamethrower).to_owned(),
-            command: command(slot),
+            command: powers
+                .extensions
+                .iter()
+                .find(|entry| entry.slot == slot)
+                .and_then(|entry| entry.command)
+                .map(|command| format!("forceselect {slot}; {command}"))
+                .unwrap_or_else(|| command(slot)),
             icon: bar::icon(&powers.icons, slot, powers.flamethrower),
             on: slot == powers.selected,
             gif: None,
@@ -169,6 +166,7 @@ mod tests {
     fn powers(known: u32, selected: u8) -> Powers {
         Powers {
             known,
+            extensions: &[],
             selected,
             flamethrower: false,
             icons: [None; bar::ICONS],
@@ -202,7 +200,7 @@ mod tests {
     #[test]
     fn a_light_build_is_nine_choices_on_one_ring_and_illuminate_is_not_one() {
         // Illuminate is a toy: no bit of the known powers brings it to the page.
-        let pages = pages("force", "Force", Some(&powers(LIGHT, 9)));
+        let pages = pages("force", "Force", Some(&powers(LIGHT | 1 << 21, 9)));
         assert_eq!(
             labels(&pages),
             [[
@@ -241,10 +239,7 @@ mod tests {
             if let Some(command) = use_command(slot) {
                 assert!(
                     crate::input::generic_commands::generic_command(command).is_some()
-                        || matches!(
-                            command,
-                            "force_repulse" | "force_dash" | "force_destruction"
-                        ),
+                        || matches!(command, "force_repulse" | "force_dash"),
                     "{command}"
                 );
             }
@@ -264,14 +259,7 @@ mod tests {
         );
         assert_eq!(
             labels(&pages)[1],
-            [
-                "Drain",
-                "Team Energize",
-                "Dash",
-                "Stasis",
-                "Repulse",
-                "Destruction"
-            ]
+            ["Drain", "Team Energize", "Dash", "Stasis", "Repulse"]
         );
         // Merc mode names Lightning the flamethrower; it is still only selected.
         let merc = Powers {

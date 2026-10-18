@@ -31,7 +31,7 @@ const POWERS: [&str; 23] = [
     "Stasis",
     "Repulse",
     "Dash",
-    "Destruction",
+    "",
     "Flamethrower",
 ];
 /// Name of the flamethrower in [`POWERS`].
@@ -88,6 +88,10 @@ pub(super) fn name_id(slot: u8, flamethrower: bool) -> TextId {
 
 /// Resolve static selector names (cg_draw.c:92-113).
 pub(super) fn text(id: TextId) -> &'static str {
+    #[cfg(feature = "mod-jof")]
+    if id.0 == 1000 + u32::from(sjk_mod_jof::destruction::SLOT) {
+        return sjk_mod_jof::destruction::LABEL;
+    }
     match id.0 {
         1200 => "FORCE",
         1201 => "INVENTORY",
@@ -137,7 +141,7 @@ pub(super) fn emit(
         fade(theme.foreground),
     );
     // Force walks JoF EJK's wheel order (stock order plus JoF's entries).
-    let (wheel, wheel_count) = force_wheel::build(view.available);
+    let (wheel, wheel_count) = force_wheel::build_with(view.available, view.extensions);
     let items: [u8; 18] = std::array::from_fn(|tag| tag as u8);
     let tags = if view.inventory {
         &items[..]

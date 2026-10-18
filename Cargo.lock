@@ -2574,7 +2574,9 @@ dependencies = [
 name = "sjk-mod-jof"
 version = "0.1.0"
 dependencies = [
+ "sjk-client",
  "sjk-mod",
+ "sjk-protocol",
 ]
 
 [[package]]

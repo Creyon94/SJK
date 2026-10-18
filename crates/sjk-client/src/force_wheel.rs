@@ -25,16 +25,14 @@ pub const STASIS: u8 = 18;
 pub const REPULSE: u8 = 19;
 /// Force Dash (JoF JA+ V69): its known bit and wheel pseudo-slot.
 pub const DASH: u8 = 20;
-/// Most entries a wheel can hold: every real power and the four pseudo-slots.
+/// Fixed adapter storage for real powers and optional extension entries.
 pub const MAX_SLOTS: usize = 22;
-/// Known bits of the four pseudo-slots a server grants.
-pub const PSEUDO_MASK: u32 = (1 << STASIS) | (1 << REPULSE) | (1 << DASH) | (1 << DESTRUCTION);
-
-/// Force Destruction: EJK #338's known bit and local-only wheel slot.
-pub const DESTRUCTION: u8 = 21;
+/// Known bits of the original three pseudo-slots a server grants.
+pub const PSEUDO_MASK: u32 = (1 << STASIS) | (1 << REPULSE) | (1 << DASH);
 
 /// A server-granted pseudo-power's command and position in the stock wheel.
 /// Evidence: EJK #110/#112/#117 and #338 `CG_BuildForceWheel`/`CL_CmdButtons`.
+#[derive(Debug)]
 pub struct Ability {
     /// Local wheel slot, never a protocol force selection.
     pub slot: u8,
@@ -46,69 +44,75 @@ pub struct Ability {
     pub command: Option<&'static str>,
     /// Optional serverinfo flag required in addition to the known bit.
     pub server_flag: Option<&'static str>,
+    /// Require a living player outside spectator/follow states.
+    pub live_only: bool,
+    /// Host label for this optional entry.
+    pub label: &'static str,
+    /// Installed image requested only while this extension is active.
+    pub icon: Option<&'static str>,
+    /// Stock icon index used when the optional image is absent.
+    pub fallback: u8,
 }
 
 /// Compatibility contracts; adding a pseudo-power adds a row, not a server-name check.
 pub const ABILITIES: &[Ability] = &[
     Ability {
         slot: DASH,
+        label: "Dash",
+        icon: None,
+        fallback: 2,
         anchor: 2,
         before: true,
         command: Some("force_dash"),
         server_flag: None,
+        live_only: false,
     },
     Ability {
         slot: STASIS,
+        label: "Stasis",
+        icon: None,
+        fallback: 1,
         anchor: 14,
         before: false,
         command: None,
         server_flag: None,
+        live_only: false,
     },
     Ability {
         slot: REPULSE,
+        label: "Repulse",
+        icon: None,
+        fallback: 3,
         anchor: 14,
         before: false,
         command: Some("force_repulse"),
         server_flag: None,
-    },
-    Ability {
-        slot: DESTRUCTION,
-        anchor: 7,
-        before: true,
-        command: Some("force_destruction"),
-        server_flag: Some("g_forceDestruction"),
+        live_only: false,
     },
 ];
 
-/// Server-advertised pseudo-power support. Only contracts with a server flag
-/// require detection. `override_value`: -1 follows flags, 0 disables flagged
-/// extensions, 1 enables their interpretation; a live player grant is still needed.
-pub fn support(game: Option<&sjk_protocol::GameState>, override_value: i64) -> u32 {
-    let info =
-        crate::LegacyClientInfo::new(game.and_then(|g| g.config_string(0)).unwrap_or_default());
-    ABILITIES
+/// Known-bit mask contributed by optional extension metadata.
+pub fn extension_mask(extensions: &[Ability]) -> u32 {
+    extensions
         .iter()
-        .filter(|a| {
-            a.server_flag.is_none_or(|key| match override_value {
-                0 => false,
-                1 => true,
-                _ => info
-                    .text(key)
-                    .is_some_and(|text| crate::team_info::legacy_atoi(text.as_bytes()) != 0),
-            })
-        })
-        .fold(0, |mask, a| mask | (1 << a.slot))
+        .filter(|entry| entry.slot < 32)
+        .fold(0, |mask, entry| mask | (1 << entry.slot))
 }
 
-/// Filter grants using server capability and EJK #338's active-player guards.
-pub fn known(player: &PlayerState, support: u32) -> u32 {
-    let mut known = player.raw_field(51).unwrap_or(0) & (!PSEUDO_MASK | support);
+/// Filter raw grants by the host's active extension metadata. No mod's server
+/// identification or feature flags are interpreted in base SJK.
+pub fn known(player: &PlayerState, extensions: &[Ability]) -> u32 {
+    let mut known = player.raw_field(51).unwrap_or(0)
+        & (((1 << REAL_POWERS) - 1) | PSEUDO_MASK | extension_mask(extensions));
     if player.health() <= 0
         || matches!(player.movement_type(), 3 | 4)
         || player.movement_flags() & 4096 != 0
     {
-        for ability in ABILITIES.iter().filter(|a| a.server_flag.is_some()) {
-            known &= !(1 << ability.slot);
+        for entry in extensions
+            .iter()
+            .filter(|entry| entry.live_only && entry.slot < 32)
+        {
+            known &= !(1 << entry.slot);
         }
     }
     known
@@ -121,9 +125,7 @@ pub const STASIS_BUTTON: u16 = 1 << 14;
 
 const LEVITATION: u8 = 1;
 const LIGHTNING: u8 = 7;
-#[cfg(test)]
 const SEE: u8 = 14;
-#[cfg(test)]
 const SPEED: u8 = 2;
 const SABER_POWERS: [u8; 3] = [15, 16, 17];
 
@@ -150,29 +152,98 @@ pub fn valid(known: u32, slot: u8) -> bool {
         return false;
     }
     if is_pseudo(slot) {
-        return slot <= DESTRUCTION && known & (1 << slot) != 0;
+        return slot <= DASH && known & (1 << slot) != 0;
     }
     slot != LEVITATION && !SABER_POWERS.contains(&slot) && known & (1 << slot) != 0
 }
 
-/// EJK #338 wheel order: pseudo-powers retain their anchor's place even when
-/// the real anchor is unknown. `known` must already have capability gates applied.
+/// `CG_BuildForceWheel` (JoF EJK `cg_main.c`): the valid powers in stock display
+/// order, with Stasis and Repulse right after Sense, Dash right before Speed, and
+/// a pseudo-slot whose anchor power is not known at the end. Returns the slots
+/// and how many there are.
 pub fn build(known: u32) -> ([u8; MAX_SLOTS], usize) {
+    let (stasis, repulse, dash) = (
+        valid(known, STASIS),
+        valid(known, REPULSE),
+        valid(known, DASH),
+    );
+    let mut slots = [0; MAX_SLOTS];
+    let mut count = 0;
+    let mut push = |slot: u8| {
+        slots[count] = slot;
+        count += 1;
+    };
+    let (mut placed, mut dash_placed) = (false, false);
+    for power in FORCE_ORDER {
+        if !valid(known, power) {
+            continue;
+        }
+        if dash && power == SPEED && !dash_placed {
+            push(DASH);
+            dash_placed = true;
+        }
+        push(power);
+        if (stasis || repulse) && power == SEE && !placed {
+            if stasis {
+                push(STASIS);
+            }
+            if repulse {
+                push(REPULSE);
+            }
+            placed = true;
+        }
+    }
+    if dash && !dash_placed {
+        push(DASH);
+    }
+    if !placed {
+        if stasis {
+            push(STASIS);
+        }
+        if repulse {
+            push(REPULSE);
+        }
+    }
+    (slots, count)
+}
+
+/// Extension-aware validation; base callers retain the original three slots.
+pub fn valid_with(known: u32, slot: u8, extensions: &[Ability]) -> bool {
+    valid(known, slot)
+        || (slot < 32
+            && known & (1 << slot) != 0
+            && extensions.iter().any(|entry| entry.slot == slot))
+}
+
+/// Build an extended wheel using documented insertion metadata. With no loaded
+/// extension, the original base order (including orphan placement) is retained.
+pub fn build_with(known: u32, extensions: &[Ability]) -> ([u8; MAX_SLOTS], usize) {
+    if extensions.is_empty() {
+        return build(known);
+    }
     let mut slots = [0; MAX_SLOTS];
     let mut count = 0;
     let mut push = |slot| {
-        if valid(known, slot) {
+        if count < MAX_SLOTS && valid_with(known, slot, extensions) {
             slots[count] = slot;
             count += 1;
         }
     };
     for power in FORCE_ORDER {
-        for ability in ABILITIES.iter().filter(|a| a.anchor == power && a.before) {
-            push(ability.slot);
+        for entry in ABILITIES
+            .iter()
+            .chain(extensions)
+            .filter(|entry| entry.anchor == power && entry.before)
+        {
+            push(entry.slot);
         }
         push(power);
-        for ability in ABILITIES.iter().filter(|a| a.anchor == power && !a.before) {
-            push(ability.slot);
+        for entry in ABILITIES
+            .iter()
+            .chain(extensions)
+            .filter(|entry| entry.anchor == power && !entry.before)
+        {
+            push(entry.slot);
         }
     }
     (slots, count)
@@ -182,7 +253,12 @@ pub fn build(known: u32) -> ([u8; MAX_SLOTS], usize) {
 /// `CG_NextForcePower_f` and `CG_PrevForcePower_f` walk the wheel; `None` when
 /// `current` is not on the wheel or the wheel is empty.
 pub fn step(known: u32, current: u8, direction: i8) -> Option<u8> {
-    let (slots, count) = build(known);
+    step_with(known, current, direction, &[])
+}
+
+/// Step a host-selected extended wheel, without changing real Force selection.
+pub fn step_with(known: u32, current: u8, direction: i8, extensions: &[Ability]) -> Option<u8> {
+    let (slots, count) = build_with(known, extensions);
     let index = slots[..count].iter().position(|&slot| slot == current)?;
     let next = if direction > 0 {
         (index + 1) % count
@@ -209,12 +285,25 @@ impl UseRemap {
         known: u32,
         stasis_held: bool,
     ) -> (u16, Option<&'static str>) {
+        self.apply_with(buttons, selected, known, stasis_held, &[])
+    }
+
+    /// Apply optional loaded-mod metadata to the same press latch.
+    pub fn apply_with(
+        &mut self,
+        buttons: u16,
+        selected: Option<u8>,
+        known: u32,
+        stasis_held: bool,
+        extensions: &[Ability],
+    ) -> (u16, Option<&'static str>) {
         let mut buttons = buttons;
         // The dedicated bind engages Stasis only where the server granted it.
         if stasis_held && valid(known, STASIS) {
             buttons |= STASIS_BUTTON;
         }
-        let selected = selected.filter(|&slot| is_pseudo(slot) && valid(known, slot));
+        let selected =
+            selected.filter(|&slot| is_pseudo(slot) && valid_with(known, slot, extensions));
         let down = buttons & FORCE_POWER_BUTTON != 0;
         let mut command = None;
         let mut command_down = None;
@@ -224,6 +313,7 @@ impl UseRemap {
             }
         } else if let Some(ability) = ABILITIES
             .iter()
+            .chain(extensions)
             .find(|a| Some(a.slot) == selected && a.command.is_some())
         {
             buttons &= !FORCE_POWER_BUTTON;
@@ -314,13 +404,13 @@ mod tests {
         assert_eq!(&order[see..see + 3], &[SEE, STASIS, REPULSE]);
         let speed = order.iter().position(|&p| p == SPEED).unwrap();
         assert_eq!(order[speed - 1], DASH);
-        assert_eq!(order.len(), 14 + 4);
+        assert_eq!(order.len(), 14 + 3);
     }
 
     #[test]
-    fn pseudo_slots_keep_their_anchor_positions() {
+    fn pseudo_slots_without_their_anchor_go_last() {
         let known = (1 << 3) | (1 << 4) | PSEUDO_MASK;
-        assert_eq!(wheel(known), [DASH, 3, 4, STASIS, REPULSE, DESTRUCTION]);
+        assert_eq!(wheel(known), [3, 4, DASH, STASIS, REPULSE]);
         assert_eq!(wheel(1 << REPULSE), [REPULSE]);
     }
 
@@ -370,90 +460,14 @@ mod tests {
     }
 
     #[test]
-    fn flagged_grants_require_capability_and_active_player() {
-        let mut player = PlayerState::default();
-        player.stats[0] = 100;
-        player.set_raw_field(51, PSEUDO_MASK);
-        assert_eq!(known(&player, support(None, -1)) & (1 << DESTRUCTION), 0);
-        assert_ne!(known(&player, support(None, 1)) & (1 << DESTRUCTION), 0);
-        player.stats[0] = 0;
-        assert_eq!(known(&player, support(None, 1)) & (1 << DESTRUCTION), 0);
-        assert!(!valid(u32::MAX, 22));
-    }
-
-    #[test]
-    fn advertised_flags_override_and_anchor_grants_match_source() {
-        let mut game = sjk_protocol::GameState::empty_local(0);
-        game.replace_config_string(0, br"\g_forceDestruction\ 1enabled".to_vec())
-            .unwrap();
-        assert_ne!(support(Some(&game), -1) & (1 << DESTRUCTION), 0);
-        assert_eq!(support(Some(&game), 0) & (1 << DESTRUCTION), 0);
-        game.replace_config_string(0, br"\g_forceDestruction\0".to_vec())
-            .unwrap();
-        assert_eq!(support(Some(&game), -1) & (1 << DESTRUCTION), 0);
-        let reference = [
-            5, 0, 10, 9, 11, 20, 2, 3, 4, 14, 18, 19, 21, 7, 13, 8, 6, 12,
-        ];
-        // All four grant combinations with/without each of the three anchors.
-        for grants in 0u32..16 {
-            for anchors in 0u32..8 {
-                let known = ((grants & 1) << STASIS)
-                    | (((grants >> 1) & 1) << REPULSE)
-                    | (((grants >> 2) & 1) << DASH)
-                    | (((grants >> 3) & 1) << DESTRUCTION)
-                    | ((anchors & 1) << 2)
-                    | (((anchors >> 1) & 1) << 14)
-                    | (((anchors >> 2) & 1) << 7);
-                let expected: Vec<_> = reference
-                    .into_iter()
-                    .filter(|&slot| known & (1 << slot) != 0)
-                    .collect();
-                assert_eq!(wheel(known), expected);
-            }
-        }
-        let mut player = PlayerState::default();
-        player.stats[0] = 100;
-        player.set_raw_field(51, 1 << DESTRUCTION);
-        let all = support(None, 1);
-        for (field, value) in [(63, 3), (63, 4), (38, 4096)] {
-            let mut blocked = player.clone();
-            blocked.set_raw_field(field, value);
-            assert_eq!(known(&blocked, all) & (1 << DESTRUCTION), 0);
-        }
-    }
-
-    #[test]
-    fn destruction_is_once_per_press_at_every_command_step() {
-        for step in [8, 7, 4, 3] {
-            let mut remap = UseRemap::default();
-            for time in (0..100).step_by(step) {
-                assert_eq!(
-                    remap.apply(
-                        FORCE_POWER_BUTTON | 1,
-                        Some(DESTRUCTION),
-                        1 << DESTRUCTION,
-                        false
-                    ),
-                    (1, (time == 0).then_some("force_destruction"))
-                );
-            }
-            remap.apply(0, Some(DESTRUCTION), 1 << DESTRUCTION, false);
-            assert_eq!(
-                remap
-                    .apply(
-                        FORCE_POWER_BUTTON,
-                        Some(DESTRUCTION),
-                        1 << DESTRUCTION,
-                        false
-                    )
-                    .1,
-                Some("force_destruction")
-            );
-            assert_eq!(
-                remap.apply(FORCE_POWER_BUTTON, Some(DESTRUCTION), 0, false),
-                (FORCE_POWER_BUTTON, None)
-            );
-        }
+    fn nothing_but_the_game_and_the_server_puts_an_entry_on_the_wheel() {
+        // Slot 21 was SJK's Illuminate; it is a toy now, so the bit means nothing.
+        assert_eq!(wheel(1 << 21), Vec::<u8>::new());
+        assert!(!valid(u32::MAX, 21));
+        assert_eq!(build(u32::MAX).1, 14 + 3);
+        let mut remap = UseRemap::default();
+        let held = FORCE_POWER_BUTTON;
+        assert_eq!(remap.apply(held, Some(21), u32::MAX, false), (held, None));
     }
 
     #[test]

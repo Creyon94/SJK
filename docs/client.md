@@ -3645,26 +3645,9 @@ See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
 ### Destruction client controls
 
-EJK #338/#389's Destruction appears after Repulse, before Lightning, when
-serverinfo `g_forceDestruction` is nonzero and the living, non-spectating,
-non-following player has known bit 21. `force_destruction` (Settings > Key
-bindings > Force powers), `forceselect 21` and the SJK quick wheel use the
-same grant. Selecting it keeps the real network Force selection unchanged;
-`+useforce` sends one reliable `force_destruction` command per press. Demos
-can show the selection but never send the command. Stasis, Repulse and Dash
-retain their server-granted controls. Their anchor positions now match #338
-even when Speed or Sense is unknown.
-
-`cg_forceDestruction` is archived and exposed in classic Game options and SJK
-Settings > Advanced > Gameplay: Auto (`-1`, default) follows the flag; Off
-(`0`) disables this contract; Grant contract (`1`) interprets the known bit
-without the flag. The override never grants the power. Contracts are documented
-in [force_wheel.rs](../crates/sjk-client/src/force_wheel.rs), not selected by
-server names. The optional installed icon is
-`gfx/forcedestruction/force_destruction.tga`, with Lightning's icon as fallback.
-No assets are bundled or fetched. This change adds controls, not native server
-Destruction rules, balance or damage, nor custom projectile/charge effects;
-existing stock compatibility presentation remains in use.
+Destruction is a JoF client-mod feature, active only with `mod_jof` on a recognized
+JoF server. See [JoF Destruction controls](mods.md#destruction-client-controls)
+for the mod setting, grant gates, binding and wheel behavior.
 
 ### JA+ flamethrower presentation
 

@@ -159,10 +159,11 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Force, "Dash (JoF)", "force_dash", ""),
     action(Force, "Stasis (JoF, hold)", "+force_stasis", ""),
     action(Force, "Repulse (JoF)", "force_repulse", ""),
+    #[cfg(feature = "mod-jof")]
     action(
         Force,
-        "Destruction (server granted)",
-        "force_destruction",
+        "JoF Destruction (server granted)",
+        sjk_mod_jof::destruction::COMMAND,
         "",
     ),
     // OTHER

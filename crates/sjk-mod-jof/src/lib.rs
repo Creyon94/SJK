@@ -7,7 +7,14 @@
 //! (`gcmds[]`, `cgame/cg_consolecmds.c:3262-3303`) and lists them with
 //! `jof.commands`.
 
-use sjk_mod::{ClientMod, Command, Host, Server, command};
+use sjk_mod::{ClientMod, Command, Host, Server, Setting, command};
+/// Destruction's community-owned capability and wheel metadata.
+pub mod destruction;
+const SETTINGS: &[Setting] = &[Setting {
+    name: destruction::CVAR,
+    default: sjk_mod::SettingValue::Integer(-1),
+    help: "JoF Destruction support: -1 server flag, 0 off, 1 grant without flag; requires loaded JoF tools",
+}];
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";
@@ -18,6 +25,7 @@ const COMMANDS: &[Command] = &[command(
 )];
 
 const SERVER_COMMANDS: &[Command] = &[
+    command(destruction::COMMAND, "JoF: use granted Force Destruction"),
     command(
         "gunorigin",
         "JoF admin: print the position of the player you aim at",
@@ -133,6 +141,10 @@ impl ClientMod for JoF {
 
     fn commands(&self) -> &'static [Command] {
         COMMANDS
+    }
+
+    fn settings(&self) -> &'static [Setting] {
+        SETTINGS
     }
 
     fn server_commands(&self, server: &Server) -> &'static [Command] {
