@@ -59,6 +59,8 @@ pub struct Usable {
     pub model2: String,
     /// What it fires when used.
     pub target: String,
+    /// What it fires when it comes back solid (`func_wait_return_solid`).
+    pub target2: String,
     pub targetname: String,
     pub spawnflags: u32,
     /// `count`: whether it is there at all. A START_OFF brush is not.
@@ -66,8 +68,11 @@ pub struct Usable {
     pub contents: u32,
     pub svflags: u32,
     pub eflags: u32,
-    /// `wait`, in milliseconds, before a hidden one comes back.
+    /// `wait`, in milliseconds: how long an `ALWAYS_ON` one is out of use after a use.
     pub wait: i32,
+    /// An `ALWAYS_ON` one used: when it answers again (`func_usable_think`), `None` while it
+    /// answers, `i32::MAX` for never (`use = 0` with no `wait`).
+    pub disabled_until: Option<i32>,
 }
 
 /// The wire fields [`Usable::project`] writes (`msg.cpp`'s entity fields).
@@ -92,6 +97,11 @@ impl Usable {
         for (field, value) in es::POS_BASE.into_iter().zip(self.origin) {
             state.set_raw_field(field, value.to_bits());
         }
+    }
+
+    /// `MOVER_INACTIVE`: `GlobalUse` passes it by.
+    pub fn inactive(&self) -> bool {
+        self.spawnflags & USABLE_INACTIVE != 0
     }
 
     /// Whether the use key reaches it and fires it (`ValidUseTarget`,
@@ -162,6 +172,7 @@ pub fn spawn_usable(entity: &sjk_entity::Entity, bounds: ([f32; 3], [f32; 3])) -
             model2.to_owned()
         },
         target: entity.get("target").unwrap_or_default().to_owned(),
+        target2: entity.get("target2").unwrap_or_default().to_owned(),
         targetname: entity.get("targetname").unwrap_or_default().to_owned(),
         spawnflags,
         present: !off,
@@ -169,7 +180,57 @@ pub fn spawn_usable(entity: &sjk_entity::Entity, bounds: ([f32; 3], [f32; 3])) -
         svflags: player_use | if off { SVF_NOCLIENT } else { 0 },
         eflags: if off { EF_NODRAW } else { 0 },
         wait: (number("wait") * 1_000.0) as i32,
+        disabled_until: None,
     })
+}
+
+impl Usable {
+    /// `func_usable_think` at `level_time`: an `ALWAYS_ON` one whose `wait` is over is
+    /// usable again, by the use key too.
+    pub fn wake(&mut self, level_time: i32) {
+        if self.disabled_until.is_some_and(|until| until <= level_time) {
+            self.disabled_until = None;
+            self.svflags |= SVF_PLAYER_USABLE;
+        }
+    }
+
+    /// `func_usable_use` (`g_mover.c:3070-3126`) at `level_time`: an `ALWAYS_ON` one fires
+    /// its `target` and is out of use for its `wait` (for good without one); any other
+    /// toggles, going away (not drawn, not solid) and firing its `target`, or coming back
+    /// solid and firing its `target2`. What it fires, empty for nothing.
+    ///
+    /// Not ported: a shader-animating one (`endframe`) steps its frame instead, a use
+    /// script runs, and one with spawnflag 16 waits until nobody stands in it before it
+    /// comes back.
+    pub fn used(&mut self, level_time: i32) -> String {
+        self.wake(level_time);
+        if self.disabled_until.is_some() {
+            // `use = 0`: nothing answers.
+            return String::new();
+        }
+        if self.spawnflags & USABLE_ALWAYS_ON != 0 {
+            self.svflags &= !SVF_PLAYER_USABLE;
+            self.disabled_until = Some(if self.wait != 0 {
+                level_time + self.wait
+            } else {
+                i32::MAX
+            });
+            return self.target.clone();
+        }
+        if self.present {
+            self.present = false;
+            self.contents = 0;
+            self.svflags |= SVF_NOCLIENT;
+            self.eflags |= EF_NODRAW;
+            self.target.clone()
+        } else {
+            self.present = true;
+            self.contents = CONTENTS_SOLID;
+            self.svflags &= !SVF_NOCLIENT;
+            self.eflags &= !EF_NODRAW;
+            self.target2.clone()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -232,6 +293,45 @@ mod tests {
         assert!(!usable(&[("model", "*1")]).answers_use());
         assert!(usable(&[("model", "*1"), ("spawnflags", "64")]).answers_use());
         assert!(!usable(&[("model", "*1"), ("spawnflags", "192")]).answers_use());
+    }
+
+    #[test]
+    fn a_used_wall_goes_away_and_comes_back() {
+        let mut wall = usable(&[
+            ("model", "*9"),
+            ("targetname", "shield"),
+            ("target", "down"),
+            ("target2", "up"),
+        ]);
+        assert_eq!(wall.used(1_000), "down");
+        assert!(!wall.present);
+        assert_eq!(wall.contents, 0);
+        assert_eq!(wall.eflags & EF_NODRAW, EF_NODRAW);
+        assert_eq!(wall.svflags & SVF_NOCLIENT, SVF_NOCLIENT);
+        assert_eq!(wall.used(2_000), "up");
+        assert!(wall.present);
+        assert_eq!(wall.contents, CONTENTS_SOLID);
+        assert_eq!(wall.eflags & EF_NODRAW, 0);
+    }
+
+    #[test]
+    fn an_always_on_usable_fires_and_rests_for_its_wait() {
+        let mut console = usable(&[
+            ("model", "*3"),
+            ("spawnflags", "72"),
+            ("target", "relay"),
+            ("wait", "2"),
+        ]);
+        assert_eq!(console.used(1_000), "relay");
+        assert!(console.present);
+        assert!(!console.answers_use());
+        assert_eq!(console.used(2_000), "");
+        console.wake(3_000);
+        assert!(console.answers_use());
+        assert_eq!(console.used(3_000), "relay");
+        let mut once = usable(&[("model", "*3"), ("spawnflags", "8"), ("target", "t")]);
+        assert_eq!(once.used(0), "t");
+        assert_eq!(once.used(1_000_000), "");
     }
 
     #[test]

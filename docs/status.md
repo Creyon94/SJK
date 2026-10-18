@@ -246,6 +246,67 @@ Installed-pack/player/NPC visuals and live model changes remain unverified.
 No protocol encoding, animation, movement or gameplay changes.
 See [player models](client.md#player-models).
 
+## Breakables used by name, delayed breaks, sabers on objectives
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: on siege_korriban, after the crystals were
+placed a laser pointed at the next door and the door could not be destroyed. Three gaps
+on the server, after OpenJK `g_mover.c` and `g_combat.c`:
+
+- A `func_breakable` used by name (`funcBBrushUse`) never came apart: `breakables::used`
+  had no caller. `G_UseTargets` now reaches them; an `INVINCIBLE` one breaks too, and a
+  `USE_NOT_BREAK` one fires its targets.
+- One with a `delay`, broken by a blow or a use, was left `Breaking` for good: nothing
+  ran its `funcBBrushDieGo`. `run_breakables` does each frame.
+- A saber blow only hurt players, NPCs and breakables. A siege item with health and a
+  door or button with `health` (opened when struck at rest, `GlobalUse`) are now hurt
+  by it; any blow that reaches `hurt_brush` opens such a door.
+
+A breakable's targets now fire whoever broke it (`G_Damage` makes a missing attacker
+the world), so one broken by an NPC, a turret or after its delay fires them too; its
+chunks fly from where the breaker stood (`breaker`), straight up when unknown. A
+missile that carries no damage hurts nothing; a door with health opens whichever part of
+its team is struck; an `INACTIVE` `func_usable` is passed by, and `ALWAYS_ON` ones wake
+every frame. The reporter confirmed the korriban door broke after the laser. Four unit
+tests pin `funcBBrushUse` and the targets; the touched crates' tests pass on Linux. That the
+korriban door is a breakable used by name is inferred from the report (the laser), not
+checked against the map, which is not here. Not done: `func_static`s pushed or pulled
+(`F_PUSH`/`F_PULL`), a breakable's `teamnodmg`, the use key on `PLAYER_USE` breakables.
+
+## func_usable toggled by name
+
+17/10/2026, `claude/modest-johnson-3vkbmn`: after the push/pull change below, the
+reporter could open siege_korriban's blue crystal and still had the green, but the red
+one kept an invisible wall after its satellites were destroyed. The server never used a
+`func_usable` by name (`fire_targets` skipped them) and the use key only fired its
+target. Implemented `func_usable_use` (OpenJK `g_mover.c:3070-3126`); see
+[client](client.md). Two unit tests pin the toggle and `ALWAYS_ON`'s wait; the
+touched crates' clippy and tests pass on Linux. That the red crystal's wall is a
+`func_usable` is inferred from the report and not checked against the map's entities.
+Checked open pull requests in `Sol-Vulpes/SJK` (#132, #142, #143, #150): none touches
+movers, `func_usable` or the push and pull.
+
+## Force push and pull on doors and buttons
+
+17/10/2026, `claude/modest-johnson-3vkbmn`, based on `Sol-Vulpes/SJK` `bb83eb28`, merged with `1c8887f7`
+(report: siege_korriban's red crystal could not be taken and the blue crystal's lift
+did not move, the green one worked): implemented, after OpenJK `codemp/game/w_force.c`
+`ForceThrow` (`:3209-3237`, `:3584-3663`), the movers' part of a push or pull on the
+server. A `func_door` with `MOVER_FORCE_ACTIVATE` (spawnflag 2) at rest is reached as
+the reference reaches it (no PVS test for a brush) and, when aimed at straight from
+the eyes, a push moves it to whichever of its two places is further from the thrower
+and a pull to the nearer (`GEntity_UseFunc`); a `func_button` with
+`SPF_BUTTON_FPUSHABLE` is pressed by a push at rest (`Touch_Button`). The used movers
+run `use_mover` once the throw is over, firing their targets as the use key does. A
+throw's traces now meet the level's brushes (doors, lifts, breakables, scripted
+brushes), as `MASK_SHOT` does in the reference, so a closed door also stops a push
+on a player behind it. `func_static`s with `F_PUSH`/`F_PULL` are still not moved.
+
+fmt, and clippy and the tests of `sjk-game-jka` and `sjk-dedicated`, passed on Linux
+x86_64; the workspace build stops in this container at `alsa-sys` (no ALSA
+development files). Four unit tests pin the push/pull choice, the aim, a moving door
+and the button rules. siege_korriban's entity lump was not inspected (no retail data
+here): that its crystal rooms open by push and pull is the likely cause of the report,
+not a verified one, and it was not played.
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

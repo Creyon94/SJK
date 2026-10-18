@@ -106,6 +106,9 @@ pub struct Breakable {
     /// `nextthink` and `think`.
     pub next_think: i32,
     pub thinking: Thinking,
+    /// Where whoever broke it stood (`self->enemy`, kept for a delayed
+    /// `funcBBrushDieGo`): its chunks fly away from there, straight up for nobody known.
+    pub breaker: Option<[f32; 3]>,
 }
 
 /// `SP_func_breakable` (`g_mover.c:2751-2849`) with `InitBBrush` (`:2619-2680`): ten
@@ -186,6 +189,7 @@ pub fn spawn(entity: &Entity, bounds: ([f32; 3], [f32; 3])) -> Option<Breakable>
         effect: entity.get("playfx").unwrap_or_default().to_owned(),
         next_think: 0,
         thinking: Thinking::None,
+        breaker: None,
     })
 }
 
@@ -341,6 +345,7 @@ pub fn hurt(
     if brush.health <= 0 {
         // `funcBBrushDie`: no more damage, so a chain reaction cannot run away.
         brush.takes_damage = false;
+        brush.breaker = attacker;
         let at = level_time + brush.delay * 1_000;
         if brush.delay != 0 {
             brush.thinking = Thinking::Breaking;
@@ -432,13 +437,10 @@ pub struct Broken {
 /// what it targets, throws its debris and its fireball, hurts whoever is close if the map
 /// asked, and frees itself fifty milliseconds on. `drawn` is `Q_flrand(0,1)` from the
 /// game's own generator, which decides how many chunks there are.
-pub fn break_apart(
-    brush: &mut Breakable,
-    attacker: Option<[f32; 3]>,
-    number: u16,
-    drawn: f32,
-    level_time: i32,
-) -> Broken {
+///
+/// Its targets are fired whoever broke it: `G_Damage` makes a missing attacker the world,
+/// and a use always has its activator.
+pub fn break_apart(brush: &mut Breakable, number: u16, drawn: f32, level_time: i32) -> Broken {
     // So the chunks do not get stuck inside it.
     brush.contents = 0;
     brush.thinking = Thinking::Freeing;
@@ -463,7 +465,7 @@ pub fn break_apart(
     };
     let middle: [f32; 3] = std::array::from_fn(|axis| (low[axis] + high[axis]) * 0.5);
     // A death throws its chunks *away* from whoever broke it.
-    let direction = match attacker {
+    let direction = match brush.breaker {
         Some(from) => {
             let mut away: [f32; 3] = std::array::from_fn(|axis| middle[axis] - from[axis]);
             normalize(&mut away);
@@ -472,7 +474,7 @@ pub fn break_apart(
         None => [0.0, 0.0, 1.0],
     };
     Broken {
-        target: (attacker.is_some() && !brush.target.is_empty()).then(|| brush.target.clone()),
+        target: (!brush.target.is_empty()).then(|| brush.target.clone()),
         explosion: (brush.spawnflags & NO_EXPLOSION == 0).then_some(Explosion {
             origin: middle,
             maximums: high,
@@ -502,15 +504,17 @@ pub fn break_apart(
     }
 }
 
-/// `funcBBrushUse` (`:2536-2550`): the use key breaks it, unless the map said using it
-/// only fires its targets. Returns what to fire when it is the latter.
-pub fn used(brush: &mut Breakable, level_time: i32) -> Option<String> {
+/// `funcBBrushUse` (`:2536-2550`): a use breaks it, unless the map said using it only
+/// fires its targets. Returns what to fire when it is the latter. `activator` is where
+/// whoever used it stands, if known.
+pub fn used(brush: &mut Breakable, activator: Option<[f32; 3]>, level_time: i32) -> Option<String> {
     if brush.spawnflags & USE_NOT_BREAK != 0 {
         return (!brush.target.is_empty()).then(|| brush.target.clone());
     }
     // `funcBBrushDie(self, other, activator, self->health, MOD_UNKNOWN)`: its own health
     // as the damage, so it always dies.
     brush.takes_damage = false;
+    brush.breaker = activator;
     brush.health = 0;
     if brush.delay != 0 {
         brush.thinking = Thinking::Breaking;
@@ -571,5 +575,59 @@ pub fn explosion_fields(explosion: &Explosion) -> Vec<(usize, u32)> {
 fn place(fields: &mut Vec<(usize, u32)>, indices: [usize; 3], vector: [f32; 3]) {
     for axis in 0..3 {
         fields.push((indices[axis], vector[axis].to_bits()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn brush(pairs: &[(&str, &str)]) -> Breakable {
+        let mut text = String::from("{\n\"classname\" \"func_breakable\"\n\"model\" \"*4\"\n");
+        for (key, value) in pairs {
+            text.push_str(&format!("\"{key}\" \"{value}\"\n"));
+        }
+        text.push_str("}\n");
+        let entity = sjk_entity::parse_entity_lump(text.as_bytes())
+            .unwrap()
+            .remove(0);
+        spawn(&entity, ([-8.0; 3], [8.0; 3])).unwrap()
+    }
+
+    #[test]
+    fn an_invincible_door_used_by_name_comes_apart() {
+        // A siege gate the map opens by name: no health, never struck down.
+        let mut gate = brush(&[("spawnflags", "1"), ("targetname", "gate")]);
+        assert!(!gate.takes_damage);
+        assert_eq!(used(&mut gate, None, 1_000), None);
+        assert_eq!(gate.thinking, Thinking::None);
+        assert_eq!(gate.health, 0);
+    }
+
+    #[test]
+    fn a_delayed_one_waits_its_whole_seconds() {
+        let mut gate = brush(&[("delay", "2"), ("targetname", "gate")]);
+        assert_eq!(used(&mut gate, None, 1_000), None);
+        assert_eq!(gate.thinking, Thinking::Breaking);
+        assert_eq!(gate.next_think, 3_000);
+    }
+
+    #[test]
+    fn a_break_fires_its_targets_whoever_broke_it() {
+        let mut gate = brush(&[("target", "open"), ("health", "5")]);
+        assert_eq!(
+            hurt(&mut gate, 10, MOD_SABER, false, None, 0),
+            Hit::Broken { at: 0 }
+        );
+        let broken = break_apart(&mut gate, 40, 0.5, 0);
+        assert_eq!(broken.target.as_deref(), Some("open"));
+        assert_eq!(broken.debris.direction, [0.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn a_use_not_break_one_fires_its_targets() {
+        let mut lever = brush(&[("spawnflags", "64"), ("target", "relay")]);
+        assert_eq!(used(&mut lever, None, 0).as_deref(), Some("relay"));
+        assert!(lever.takes_damage);
     }
 }

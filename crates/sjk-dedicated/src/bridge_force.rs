@@ -2,7 +2,8 @@
 //! knockdown's lying and get-up ([`sjk_game_jka::knockdown::force_update`]), the first
 //! half of the powers' update through the Force button ([`force_powers::begin`]), the
 //! push or pull the button called for ([`force_throw::throw`], over [`ServerThrow`]:
-//! the other players, the missiles, the map), then the rest ([`force_powers::finish`]).
+//! the other players, the missiles, the Force-usable doors and buttons, the map), then the
+//! rest ([`force_powers::finish`]).
 //! Grip, lightning and drain reach the others through the NPCs' host
 //! (`bridge_npc_force_frame.rs`): a blow on an NPC is dealt as it lands, a blow on another
 //! player once the update is over. The others are the players and the begun NPCs
@@ -19,8 +20,11 @@ use sjk_game_jka::entity_id::EntityId;
 use sjk_game_jka::entity_pool::EntityPool;
 use sjk_game_jka::event_entity::EventEntity;
 use sjk_game_jka::force_powers;
-use sjk_game_jka::force_throw::{self, Candidate, CandidateKind, ThrowPlayer, ThrowWorld};
+use sjk_game_jka::force_throw::{
+    self, Candidate, CandidateKind, MoverView, ThrowPlayer, ThrowWorld,
+};
 use sjk_game_jka::items::Pickup;
+use sjk_game_jka::movers::{Door, MoverKind, MoverState};
 use sjk_game_jka::npc_spawn::NpcActor;
 use sjk_game_jka::player_death::Rng;
 use sjk_game_jka::pmove::{MovementCollision, MovementTrace};
@@ -145,6 +149,17 @@ impl NativeGame {
         let before: Vec<Option<sjk_protocol::PlayerState>> = (0..self.players.places())
             .map(|number| self.peer(number).map(|peer| peer.state.clone()))
             .collect();
+        // The brushes a throw's traces meet, and the movers it may reach.
+        let brushes: Vec<BoxObstacle> =
+            crate::collision::brush_obstacles(&self.breakables, &self.doors, server_time)
+                .chain(self.stock.obstacles())
+                .chain(self.scripts.brushes())
+                .collect();
+        let movers: Vec<ThrowMover> = self
+            .doors
+            .iter()
+            .filter_map(|(number, door)| ThrowMover::of(number.legacy_number(), door, server_time))
+            .collect();
         let Self {
             server,
             world,
@@ -180,8 +195,23 @@ impl NativeGame {
             map: map.as_ref(),
             level_time: server_time,
             gametype: *gametype,
+            brushes,
+            movers,
+            used: Vec::new(),
         };
         force_throw::throw(context, &mut throw_world);
+        let used = std::mem::take(&mut throw_world.used);
+        // `GEntity_UseFunc` on each door or button the throw moved, as the use key does.
+        for number in used {
+            let Some(index) = self
+                .doors
+                .iter()
+                .position(|(id, _)| id.legacy_number() == number)
+            else {
+                continue;
+            };
+            self.use_door_at(index, client, server_time);
+        }
         for (number, before) in before.into_iter().enumerate() {
             if let Some(peer) = self.peer_mut(number)
                 && before.as_ref() != Some(&peer.state)
@@ -200,8 +230,63 @@ fn peer_command(game: &mut NativeGame, client: usize) -> sjk_protocol::UserComma
 
 pub(super) use super::bridge_npcs::force_frame::ForceScratch;
 
+/// A door the Force opens (`MOVER_FORCE_ACTIVATE`) or a button, as a throw reaches it:
+/// its number, its linked box where it stands now, its kind and what the throw reads.
+struct ThrowMover {
+    number: u16,
+    absmin: [f32; 3],
+    absmax: [f32; 3],
+    /// `s.pos.trBase`: where it stands now.
+    origin: [f32; 3],
+    kind: CandidateKind,
+    view: MoverView,
+}
+
+impl ThrowMover {
+    /// `func_door` spawnflag `MOVER_START_OPEN`, `MOVER_FORCE_ACTIVATE`; `func_button`
+    /// spawnflag `SPF_BUTTON_FPUSHABLE`.
+    const START_OPEN: u32 = 1;
+    const FORCE_ACTIVATE: u32 = 2;
+    const BUTTON_FPUSHABLE: u32 = 2;
+
+    /// The mover a throw may reach, or `None` for one it never moves (a plat, a door
+    /// without `MOVER_FORCE_ACTIVATE`).
+    fn of(number: u16, door: &Door, level_time: i32) -> Option<Self> {
+        let at_rest = matches!(door.state, MoverState::Pos1 | MoverState::Pos2);
+        let kind = match door.kind {
+            MoverKind::Door if door.spawnflags & Self::FORCE_ACTIVATE != 0 => {
+                CandidateKind::ForceDoor { at_rest }
+            }
+            MoverKind::Button => CandidateKind::Button {
+                pushable: door.spawnflags & Self::BUTTON_FPUSHABLE != 0,
+            },
+            _ => return None,
+        };
+        let start_open = door.kind == MoverKind::Door && door.spawnflags & Self::START_OPEN != 0;
+        // `s.origin`: where the map put it, which START_OPEN made `pos2`.
+        let spawned_at = if start_open { door.pos2 } else { door.pos1 };
+        let origin = sjk_game_jka::movers::origin_at(door, level_time);
+        // `SV_LinkEntity` grows a brush's box by a unit as it does any other.
+        Some(Self {
+            number,
+            absmin: std::array::from_fn(|axis| origin[axis] + door.bounds.0[axis] - 1.0),
+            absmax: std::array::from_fn(|axis| origin[axis] + door.bounds.1[axis] + 1.0),
+            origin,
+            kind,
+            view: MoverView {
+                state: door.state,
+                pos1: door.pos1,
+                pos2: door.pos2,
+                start_open,
+                origin_brush: spawned_at != [0.0; 3],
+            },
+        })
+    }
+}
+
 /// A Force push or pull's reach on the server: the players by their places, the begun
-/// NPCs, the missiles in flight, the pool, the items a pull drops, the map.
+/// NPCs, the missiles in flight, the Force-usable doors and buttons, the pool, the items a
+/// pull drops, the map and its brushes.
 struct ServerThrow<'a> {
     world: &'a mut ServerWorld<(), Peer>,
     peers: &'a crate::players::PlayerRoster,
@@ -218,6 +303,11 @@ struct ServerThrow<'a> {
     map: Option<&'a super::LoadedMap>,
     level_time: i32,
     gametype: i32,
+    /// The doors, lifts, breakables and scripted brushes, which the throw's traces meet.
+    brushes: Vec<BoxObstacle>,
+    movers: Vec<ThrowMover>,
+    /// The movers the throw used, in order, for the game to use once it is over.
+    used: Vec<u16>,
 }
 
 impl ServerThrow<'_> {
@@ -235,6 +325,18 @@ impl ThrowWorld for ServerThrow<'_> {
         out.clear();
         player_candidates(self.world, self.peers, mins, maxs, out);
         missile_candidates(self.missiles, mins, maxs, out);
+        out.extend(
+            self.movers
+                .iter()
+                .filter(|mover| overlaps(mover.absmin, mover.absmax, mins, maxs))
+                .map(|mover| Candidate {
+                    number: mover.number,
+                    kind: mover.kind,
+                    absmin: mover.absmin,
+                    absmax: mover.absmax,
+                    origin: mover.origin,
+                }),
+        );
         out.extend(
             self.npcs
                 .iter()
@@ -271,6 +373,7 @@ impl ThrowWorld for ServerThrow<'_> {
                 .filter(|npc| npc.begun() && npc.contents != 0 && npc.number != pass)
                 .map(NpcActor::body),
         );
+        players.extend(self.brushes.iter().copied());
         match self.map {
             Some(map) => WithPlayers {
                 world: WorldCollision {
@@ -382,6 +485,17 @@ impl ThrowWorld for ServerThrow<'_> {
 
     fn rng(&mut self) -> &mut Rng {
         self.rng
+    }
+
+    fn mover(&mut self, number: u16) -> Option<MoverView> {
+        self.movers
+            .iter()
+            .find(|mover| mover.number == number)
+            .map(|mover| mover.view)
+    }
+
+    fn use_mover(&mut self, number: u16, _thrower: u16) {
+        self.used.push(number);
     }
 }
 

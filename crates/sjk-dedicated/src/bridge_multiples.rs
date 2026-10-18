@@ -214,6 +214,8 @@ impl NativeGame {
             }
         }
         self.use_doors(name, client, level_time);
+        self.use_usables(name, client, level_time);
+        self.use_breakables(name, client, level_time);
         self.use_map_effects(name, client, level_time);
         self.use_map_turrets(name);
         self.use_stock_entities(name, client, level_time);
