@@ -47,6 +47,7 @@ impl GameAudio {
                     },
                     _ => return Err("music <musicfile> [loopfile]".into()),
                 };
+                self.music_sync_pending = false;
                 self.output.stop_music();
                 self.map_music = None;
                 self.start_music(vfs.ok_or("No asset search path attached")?, &music);
@@ -56,6 +57,7 @@ impl GameAudio {
                 Ok(vec![])
             }
             "stopmusic" | "soundstop" => {
+                self.music_sync_pending = false;
                 self.output.stop_music();
                 self.map_music = None;
                 self.dynamic = None;

@@ -64,8 +64,10 @@ impl GpuState {
             if !emotes::trusted(&emote, shown.as_deref()) {
                 continue;
             }
-            // Hidden here (`sjkemote mute`).
-            if state.muted.contains_key(&emote.key_id) {
+            // Hidden here (`sjkemote mute`), or the player is blocked on this PC.
+            if state.muted.contains_key(&emote.key_id)
+                || self.muted_players.contains(u16::from(emote.slot))
+            {
                 continue;
             }
             if emote.emote == emotes::STOP {
@@ -100,6 +102,13 @@ impl GpuState {
                     .map_or(emote.emote.as_str(), |def| def.name.as_str());
                 console.push_log(format!("* {}^7: {name}", shown.unwrap_or_default()));
             }
+        }
+        // A player blocked while an emote of theirs plays: it ends here.
+        let mut blocked = self.muted_players.slots().muted;
+        while blocked != 0 {
+            let slot = blocked.trailing_zeros() as u8;
+            blocked &= blocked - 1;
+            state.active.stop(slot);
         }
         state.active.update(now, position);
     }

@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[block-players]
+area: Console & chat
+title: Block a player: no chat, Kyle, silent, no emotes, toys or card (was Mute)
+change: The sender card's Mute is now Block; the list stays in chat-mutes.txt.
+change: Their emotes, Order 66 orders, cardboard box spots and player card are ignored too.
+change: block <player|target>, block (lists), unblock <player|all>; SJK chat page lists them.
+test: Rest on a name in chat, Block: their lines go, they turn Kyle with a blue single saber.
+test: Have them play an emote (sjkemote) and spot your box: nothing happens on your screen.
+test: Aim at them: no player card. block alone lists them; unblock <name> brings them back.
+test: SJK chat page with no message chosen: "Blocked on this PC" with Unblock beside each.
+
 [name-emoji]
 area: Console & chat
 title: Name emoji: one emoji at the right of your name, picked on the Profile page
@@ -538,6 +549,19 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[staff-tabs]
+area: Menus & settings
+title: Staff page in tabs, with credits, shards, moderation and chat bans (staff keys only)
+change: Players on the left; the chosen player's note field over tabs, opening on Overview.
+change: Overview: account facts, names worn, Verify, picture and SJK chat moderation.
+change: Credits and shards Give/Take; Chat bans (every player's) lists bans with Lift.
+test: staff: the page opens on your Overview; every tab shows its part and nothing overlaps.
+test: Holocrons and credits on yourself: type 10, Give credits: the balance rises 10.
+test: Take credits more than you hold: the status line says the hub refused.
+test: Give shards: refused until the hub has /v1/staff/shards (feat/shop-shards).
+test: Chat bans: lists bans in force; Lift one: it leaves the list.
+test: Medals and unlocks: Give a medal, Unlock a blade with a note: both show at once.
+
 [alpha-notice]
 area: Menus & settings
 title: Alpha notice at the first start
@@ -642,6 +666,26 @@ test: Legendary: the runes run from each side of the pyramid on up the floating 
 test: Choose a tier you hold none of: the same shape, dark, nothing moving.
 test: debug_open legendary: the pyramid glides to the middle, spins and cracks open.
 test: In a match, game menu > Collection > Holocrons: the holocron before the camera.
+
+[shop-shards]
+area: Menus & settings
+title: The shop sells for kyber shards; credits buy Uncommon and Rare holocrons
+change: Each offer's price is in kyber shards (30 to 1 500), with the shards' mark.
+change: Under the offers: Uncommon Holocron 150 credits, Rare Holocron 400, asking twice.
+change: A bought holocron joins the list at once and never counts against the daily caps.
+test: Shop (S): Right past the offers chooses the holocrons; Enter twice buys one.
+test: A holocron too dear is dimmed with "N more credits needed." under it.
+test: After buying: "Uncommon Holocron bought for 150 credits. It waits in your holocrons."
+note: Needs the hub's feat/shop-shards; on a hub before, the shop stays in credits.
+
+[card-pack]
+area: Menus & settings
+title: The card pack: a holocron's card comes with its credits and a few kyber shards
+change: Beside the card, two tiles slide out: its credits left, its kyber shards right.
+change: Open all: a card's note says its shards and the totals at the top count them.
+test: debug_open rare: the card turns in, the two tiles slide out and count up.
+test: debug_open rare x5: the summary's cards say "+N credits, +M shards".
+note: Needs the hub's feat/card-pack; without it a card shows its credits alone, as before.
 
 [economy]
 area: Menus & settings
@@ -1118,20 +1162,32 @@ test: 301 characters: the box stops at 300; sjksay with more sends the first 300
 
 # ---- HUD ----
 
+[scoreboard-afk]
+area: HUD
+title: Away players faint at the bottom of the scoreboard (cg_scoreboardAfk, on by default)
+change: A player whose view has not moved for 3 minutes in view, or named [AFK], is away.
+change: SJK look: below their list, no place, faint name, "AFK 7m" where the ping goes.
+change: Classic look: their row faint and "AFK" left of it. Chat, a turn or a kill: back.
+test: Local server, a second client standing still in view: after 3 minutes, Tab: AFK row.
+test: Turn that client's mouse a little: back in place, numbered, ping shown again.
+test: Rename it [AFK]Name: away at once. Chat from a still client: present again.
+test: Kill the idle client and let it respawn: it stays away (the idle time is kept).
+test: Settings > HUD > Scoreboard > Away players apart off: nobody marked, server order.
+note: Unit tests and world shots only; never tried with real players.
+
 [nameplate-share]
 area: HUD
-title: Nameplate bars only on players who share them (cg_nameplateShare, cg_nameplateEstimate)
-change: Others' health, shield and Force bars show only if they share (off by default).
-change: Bars on everyone (estimates) shares your own; your card says you see others' bars.
-change: A sharer's bars are the estimates corrected twice a second with their real values.
-test: Defaults, a stock or non-sharing player: name, weapon, icons, no bars; teammates keep HP.
-test: Two SJK clients, one with Share my bars on: the other sees its bars, close to its HUD.
+title: See & share nameplates: one switch to see others' bars and share yours (cg_nameplate)
+change: See & share nameplates (cg_nameplate, off by default) replaces Share my bars.
+change: On: you see nameplates and share your health, shield and Force; off: neither.
+change: Others' bars show only if they share; Force is the shared value, never estimated.
+test: Defaults: no nameplates, nothing sent; Settings > Interface shows the switch off.
+test: Two SJK clients, both switched on: each sees the other's bars, close to its HUD.
 test: That sharer's plate has a gold contour (a red or blue line inside it in team games).
 test: Hit the sharer: the bar drops at once, then settles on the real value within a second.
-test: Turn Bars on everyone on: Share my bars turns on too and cannot be turned off.
-test: Inspect a player with Bars on everyone: the card says, in amber, Sees your health...
-test: A player with Bars on everyone has the gold contour too; so does your own plate.
-test: Nameplates with bars on: Share my bars cannot be turned off; bars 0 frees it.
+test: Collection > Nameplates: its switch row pulses gold and flips cg_nameplate.
+test: Switch it off with plates on bars: the Settings row stays off (no hold turns it on).
+test: In a duel (private, Duel, Power Duel): no bars on the opponent, yours not sent.
 test: cl_identity 0: no bars on other players but teammates/NPCs; on again, back in seconds.
 note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
 
@@ -5223,3 +5279,11 @@ test: Send a single Russian letter (ya, then Zh): the other player sees that let
 test: Have a Russian client send one letter (or Da in capitals): you see it as Russian.
 test: Send a normal word and an accented one (cafe with e acute): both unchanged.
 note: Foshin's Discord report, 13/10/2026. A letter next to Latin words is still UTF-8.
+
+[supporter-medal-art]
+area: Menus & settings
+title: Supporter medal art cleaned up
+change: The ribbon's V end had a dark block, cut gold stubs and a gap in the stem below it.
+change: The ribbon now ends in a clean V on the bail; the small medallion has no top line.
+test: Collection > Medals, hover or open Supporter: ribbon V meets the knob, stem unbroken.
+test: Small sizes (scoreboard card, Identity list): the star shows no stray line above it.

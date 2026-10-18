@@ -43,13 +43,13 @@ pub use service::{
     HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome, RevealOutcome,
     Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
 };
-pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use staff::{ChatBanRow, OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
 pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
     Achievement, Bought, BuyAnswer, CardStack, ChatMessage, CraftAnswer, Crafted, DropEvent,
     DropMark, EconomyTables, Emote, Feed, FindEvent, FindMark, HOLOCRONS_LISTED, Holocron,
-    HolocronCounts, HolocronState, Look, LookEvent, LootTier, Medal, OPEN_MAX, Offer, OpenAnswer,
-    Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence, Profile, RevealAnswer,
-    Revealed, SharedVitals, ShatterAnswer, Shattered, ShopDay, ToyEvent, Trust, Unlock, Vitals,
-    WornName, names_match, normal_form,
+    HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, Look, LookEvent, LootTier,
+    Medal, OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping,
+    Presence, Profile, RevealAnswer, Revealed, SharedVitals, ShatterAnswer, Shattered, ShopDay,
+    ToyEvent, Trust, Unlock, Vitals, WornName, names_match, normal_form,
 };

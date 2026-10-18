@@ -54,6 +54,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "s_dynamic",
         "Select dynamic music state (untimed transitions)",
     ),
+    (
+        "pmonly",
+        "Toggle private-only game chat for this map: pmonly [on|off]",
+    ),
     ("messagemode", "Compose global chat"),
     ("messagemode2", "Compose team chat"),
     (
@@ -162,6 +166,11 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::console::SJK_GIF_HELP,
     ),
     (crate::emotes::COMMAND, crate::emotes::HELP),
+    (crate::block_command::COMMAND, crate::block_command::HELP),
+    (
+        crate::block_command::UNBLOCK_COMMAND,
+        crate::block_command::UNBLOCK_HELP,
+    ),
     (
         crate::saber_skin_command::COMMAND,
         crate::saber_skin_command::HELP,
@@ -499,7 +508,7 @@ impl crate::GpuState {
     /// The other player `word` names: [`crate::emotes::TARGET`] (under the crosshair), a
     /// slot number, or part of the name the game shows (a whole name first); with
     /// that name, without colour codes.
-    fn emote_player(&self, own: Option<u8>, word: &str) -> Result<(u8, String), String> {
+    pub(crate) fn emote_player(&self, own: Option<u8>, word: &str) -> Result<(u8, String), String> {
         let Some(session) = self.live_session.as_ref() else {
             return Err("Join a server to emote".to_owned());
         };
@@ -936,6 +945,12 @@ impl crate::GpuState {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::am_color::run(console, args);
             }
+            "pmonly" => {
+                return crate::chat::pm_only::command(
+                    self.console.as_mut().ok_or("Console unavailable")?,
+                    args,
+                );
+            }
             "reply" => return self.reply_command(args),
             crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {
                 let session = self
@@ -1041,6 +1056,8 @@ impl crate::GpuState {
                 self.sync_cursor_policy();
             }
             crate::emotes::COMMAND => return self.emote_command(args),
+            crate::block_command::COMMAND => return self.block_command(args),
+            crate::block_command::UNBLOCK_COMMAND => return self.unblock_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
             crate::holocrons::rehearsal::COMMAND => return self.debug_holocron_command(args),
             crate::cards::rehearsal::COMMAND => return self.debug_open_command(args),

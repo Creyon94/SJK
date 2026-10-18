@@ -1,8 +1,9 @@
 //! World shots of the holocron economy (`docs/cards.md`, "Shards and the shop") over the
 //! live duel6 in the SJK UI: the Holocrons tab with the kyber shards beside the credits
 //! and its Shop button; the loot table with its shards column; the shop with the day's
-//! four offers (one too dear, one owned, one waiting for its Confirm), while it reads the
-//! hub and after a purchase; a pile of shards coming out of a holocron (the strip at
+//! four offers for kyber shards (one too dear, one owned, one waiting for its Confirm) and
+//! the holocrons for credits (one waiting for its Confirm, one too dear), while it reads
+//! the hub, after a purchase and after a holocron bought; a pile of shards coming out of a holocron (the strip at
 //! rest, the crystals and the count, the words) and among twelve opened at once; the
 //! Cards tab with both balances; and the shop in a 4:3, a 21:9 and a 4K window. Made-up
 //! holdings; off-screen renders (no game window), ignored like the other world shots:
@@ -23,8 +24,8 @@ use crate::profile_hub::Tab;
 fn holdings(left: i64) -> Data {
     Data {
         sealed: [vec![11, 12, 15], vec![13], Vec::new(), vec![14]],
-        credits: Some(2_000),
-        shards: Some(45),
+        credits: Some(300),
+        shards: Some(160),
         shop: Some(crate::console::holocrons_panel::shop::sample_day(left)),
         ..super::holocrons_tab::holdings()
     }
@@ -82,6 +83,7 @@ fn twelve() -> Vec<Prize> {
             finish: &crate::cards::FINISHES[finish],
             edition: "Alpha Edition".to_owned(),
             credits: 10 + holocron % 30,
+            shards: 1 + holocron % 4,
             card: None,
         })
     };
@@ -150,20 +152,44 @@ fn duel6_sjk_economy_shots() {
             shop.day.offers[1].bought = true;
             shop.day.offers[1].owned = true;
         }
-        bought.credits = Some(1_400);
+        bought.shards = Some(85);
         bought.trade = Some(sjk_identity::TradeOutcome {
             serial: 1,
             trade: sjk_identity::Trade::Buy,
             id: "saber_sakura".to_owned(),
-            amount: 600,
+            amount: 75,
             message: String::new(),
         });
         if let Some(console) = gpu.console.as_mut() {
             console.preview_holocrons(bought, 0);
             console.preview_shop(false, None);
             console.preview_shop(true, None);
+            console.preview_shop_answer();
         }
         keep(&mut gpu, 2, "shop-bought");
+        // The Uncommon holocron for credits waiting for its Confirm, then bought.
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_shop(false, None);
+            console.preview_holocrons(holdings(3_600), 0);
+            console.preview_shop(true, Some(4));
+        }
+        keep(&mut gpu, 2, "shop-holocron-confirm");
+        let mut holocron = holdings(3_600);
+        holocron.credits = Some(150);
+        holocron.trade = Some(sjk_identity::TradeOutcome {
+            serial: 1,
+            trade: sjk_identity::Trade::Holocron,
+            id: "uncommon".to_owned(),
+            amount: 150,
+            message: String::new(),
+        });
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_holocrons(holocron, 0);
+            console.preview_shop(false, None);
+            console.preview_shop(true, None);
+            console.preview_shop_answer();
+        }
+        keep(&mut gpu, 2, "shop-holocron-bought");
         if let Some(console) = gpu.console.as_mut() {
             console.preview_shop(false, None);
             console.preview_holocrons(holdings(3_600), 0);
@@ -200,6 +226,60 @@ fn duel6_sjk_economy_shots() {
             "{}",
             sheet(&moments, 3, 640, "duel6-economy-moments").display()
         );
+    });
+}
+
+/// A card as a pack (17/10/2026): a sealed Rare card with its credits and shards in
+/// tiles beside it, coming in, counted and with its words; then a card with a face, and
+/// the pack in a 4:3 window.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_card_pack() {
+    on_big_stack(|| {
+        let pack = |card: Option<String>| {
+            Prize::Card(Shown {
+                holocron: 21,
+                tier: 1,
+                rarity: &crate::cards::RARITIES[1],
+                finish: &crate::cards::FINISHES[1],
+                edition: "Alpha Edition".to_owned(),
+                credits: 42,
+                shards: 4,
+                card,
+            })
+        };
+        // Sol's first card, as the card shots show it (from the hub's packs).
+        let face = Some("sol_lore_001".to_owned());
+        let mut moments = Vec::new();
+        for (size, name) in [([1920, 1080], ""), ([1440, 1080], "-4x3")] {
+            let Some(mut gpu) = open_holocrons(size, holdings(3_600)) else {
+                return;
+            };
+            let mut keep = |gpu: &mut GpuState, frames: u32, name: &str| {
+                let path = shoot(gpu, frames, &format!("duel6-card-pack-{name}"));
+                assert!(!overflowed(gpu), "{name}");
+                println!("{}", path.display());
+                moments.push(image::open(path).expect("the shot").to_rgba8());
+            };
+            let moments_here: &[(f32, &str, bool)] = if name.is_empty() {
+                &[
+                    (1.15, "sliding", false),
+                    (1.6, "counting", false),
+                    (3.0, "words", false),
+                    (3.0, "face", true),
+                ]
+            } else {
+                &[(3.0, "words", false)]
+            };
+            for &(elapsed, moment, with_face) in moments_here {
+                let card = if with_face { face.clone() } else { None };
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_opening(Some(vec![pack(card)]), elapsed, 3.1);
+                }
+                keep(&mut gpu, 40, &format!("{moment}{name}"));
+            }
+        }
+        println!("{}", sheet(&moments, 3, 640, "duel6-card-pack").display());
     });
 }
 

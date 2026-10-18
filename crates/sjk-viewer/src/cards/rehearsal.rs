@@ -9,7 +9,8 @@
 //! of shows one of them, as the hub would pick; the others stay sealed. `shader` makes every opening a saber shader (the droppable
 //! ones in turn, the second of each pair held twice) instead of a card, and shows the
 //! crate spin and the shader's entrance; `shards` makes every opening a pile of kyber
-//! shards (sizes going round the tier's range).
+//! shards (sizes going round the tier's range). A card comes as a pack, with a few
+//! made-up kyber shards beside its credits (the tier's card shards, 17/10/2026).
 //!
 //! ```text
 //! debug_open                     the tiers and how to use it
@@ -37,12 +38,13 @@ const MOST: u32 = sjk_identity::OPEN_MAX as u32;
 pub(crate) fn listing() -> Vec<String> {
     let mut lines = vec![
         format!("usage: {COMMAND} <tier|all> [x<count>] [normal|holo|solar|shader|shards]"),
-        "Plays the Holocrons tab's opening as if the hub had opened holocrons: the burst, the sealed card, its finish and the credits. Nothing is sent to the SJK hub and nothing is kept.".to_owned(),
+        "Plays the Holocrons tab's opening as if the hub had opened holocrons: the burst, the sealed card, its finish, the credits and shards beside it. Nothing is sent to the SJK hub and nothing is kept.".to_owned(),
     ];
     for (index, tier) in TIERS.iter().enumerate() {
         let (least, most) = crate::loot_odds::current().credits[index];
+        let (few, many) = crate::loot_odds::current().card_shards[index];
         lines.push(format!(
-            "  {:<12} {}: a sealed card and {least} to {most} credits",
+            "  {:<12} {}: a sealed card, {least} to {most} credits and {few} to {many} kyber shards",
             tier.id, tier.name
         ));
     }
@@ -131,6 +133,8 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
             }
             let rarity = &RARITIES[(tier.index + at) % RARITIES.len()];
             let (least, most) = crate::loot_odds::current().credits[tier.index];
+            // The card pack's shards, made up the same way.
+            let (few, many) = crate::loot_odds::current().card_shards[tier.index];
             opened.push(Opened {
                 holocron: crate::holocrons::rehearsal::FIRST_ID + at as u64,
                 tier: tier.id.to_owned(),
@@ -146,7 +150,7 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
                 }),
                 credits: u64::from(least + (at as u32 * 7) % (most - least + 1)),
                 unlock: None,
-                shards: 0,
+                shards: u64::from(few + (at as u32 * 3) % (many - few + 1)),
             });
         }
     }
@@ -205,6 +209,8 @@ mod tests {
         assert_eq!(one.len(), 1);
         assert_eq!(one[0].tier, "rare");
         assert!((30..=50).contains(&one[0].credits));
+        // A pack: a few shards beside the credits, from the tier's card shards.
+        assert!((2..=5).contains(&one[0].shards));
         let three = parse(&words("Mythical x3")).unwrap();
         assert_eq!(three.len(), 3);
         assert!(three.iter().all(|opened| opened.tier == "mythical"));

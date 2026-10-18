@@ -186,7 +186,9 @@ one (4:3, 5:4) scales the frame down to its width.
   the player joined last, newest first, up to four, kept in
   `recent_servers.json` beside `favorites.json` ([recent.rs](../crates/sjk-viewer/src/menu/sjk/recent.rs)):
   a server is recorded when a join reaches the game, with its name and map,
-  except a game this client hosts. Each shows its name (live from the server
+  except a game this client hosts. A map change updates that server's one row;
+  the loading screen's map name is never treated as another server, and invalid
+  rows written by older builds are ignored. Each shows its name (live from the server
   list, or as last seen), its players, map and ping while the server list has
   it, and when it was last played ("2 hours ago", "yesterday": relative, so no
   time zone is needed). Before any join, the column offers the JoF server
@@ -200,8 +202,8 @@ one (4:3, 5:4) scales the frame down to its width.
   it, which opens the SJK chat page. The same dock, drawn by the same code
   ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), sits in the
   [in-game menu](#in-game-menu). Resting the pointer on a name shows the sender's
-  [sender card](#sjks-pages) with Mute
-  ([hub-chat.md](hub-chat.md#muting-a-player)), left of the dock, level with the name
+  [sender card](#sjks-pages) with Block
+  ([hub-chat.md](hub-chat.md#blocking-a-player)), left of the dock, level with the name
   and above the keys (shapes never cover text: beside the name it lay over the message
   and the lines under it). It keeps clear of the dock, the keys, the arc's labels and
   the profile card bottom left in every window
@@ -649,11 +651,12 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   line ([hub-chat.md](hub-chat.md#how-a-line-looks)): its name in its colours, the
   verified tick for a verified sender, and its text in the SJK chat's gold going on
   after them and wrapping when too long, with Staff and how long ago on the right of
-  its first row; a chosen one is banded and shown on the right with Mute on this PC and, for
+  its first row; a chosen one is banded and shown on the right with Block on this PC and, for
   staff, Delete for everyone, Mute and Unmute at the hub. "N older: Page Up" and "N
   newer: Page Down" mark the ends when it scrolls. Resting the pointer on a name shows
-  the sender's sender card over the page, beside the name, with Mute or Unmute
-  ([hub-chat.md](hub-chat.md#muting-a-player)).
+  the sender's sender card over the page, beside the name, with Block or Unblock
+  ([hub-chat.md](hub-chat.md#blocking-a-player)). With no message chosen, the right
+  column lists the players blocked on this PC, each with Unblock.
 - **Sender card** ([sender_card.rs](../crates/sjk-viewer/src/sender_card.rs),
   08/10/2026, Sol's request): a name under the pointer in the game's chat (composer
   open), on the main page's dock and on the SJK chat page. A 340-wide navy card with a
@@ -661,7 +664,7 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   initial on their colour until it loads or when they have none), the name and the
   verified tick alone, "SJK player" (gold, with "SJK staff")
   or "Not known to the SJK hub", the hub name when it differs, the key, where they are
-  on the server being played, their medals' medallions, Mute or Unmute (gold edged) and
+  on the server being played, their medals' medallions, Block or Unblock (gold edged) and
   what that does. It sits right of the name, or left of it at the screen's edge.
 - **Test list** ([debug_panel_view.rs](../crates/sjk-viewer/src/debug_panel_view.rs),
   10/10/2026, Sol asked for every trace of the old hero look to go): the `debug_panel`
@@ -1175,7 +1178,19 @@ and out as the classic board does, settling into place as it opens.
   played") and your place,
   the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
   tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
-  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Under
+  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Siege,
+  which scores no team, says nothing there, and its team heads carry no score
+  (the zeros meant nothing); once a round is over "Red team won" or "Blue team
+  won" stands large (Rajdhani 56) in the winner's colour, centred over both
+  teams, "Winner" in gold at the end of that team's head, and the whole window
+  washed faintly in that colour, deeper towards the top (JoF's request of
+  17/10/2026): the winner of the `EV_SIEGE_ROUNDOVER` seen when
+  `CS_SIEGE_STATE` turned "3|time" (`sjk_client::siege_round_winner`), else,
+  after the second round of a match whose teams switch, `CS_SIEGE_WINTEAM`; one
+  who joined after another round's event sees no winner. A team game at its
+  intermission tells its result the same way, with the score, the winner's
+  first: "5 : 4  Blue team won" over the blue wash, or "Tied 3 : 3" in white;
+  the line on the right says nothing then. Under
   the map, "Killed by" and the name while you are dead.
 - **Where:** the columns start at x 680 of the frame, right of the chat column
   the scoreboard keeps for messages and the composer (`scoreboard::layout`, 640
@@ -1236,6 +1251,10 @@ and out as the classic board does, settling into place as it opens.
   (compact: one list up to 21, then two).
 - **Spectators:** one line at the bottom, "Watching" then their names without
   colours.
+- **Away players** ([client.md](client.md#away-players), `cg_scoreboardAfk`):
+  below the others of their list, without a place, the name faint with its
+  colours at 40%, numbers muted and "AFK 7m" (or "AFK") in the ping column. The
+  places above count them, so ties and the header's place still agree.
 
 A full server fits the board's canvas (320 text runs, 1024 draw commands) in
 every mode, at 1080 lines and 4K, 5:4, 4:3, 21:9 and 32:9 (unit tests, which
@@ -1290,8 +1309,15 @@ entry of its own under Profile, making seven.
   - Team (the J key's, `teammenu`): Join the game and Spectate, or in a team game
     Auto-join, Red team, Blue team (each with its colour and players) and Spectate;
     the side the player is on is quiet ("Your team", "You are watching") and passed
-    over by the keys. In Siege the card's Class and side opens the class list (the
-    shared rows, a row's detail after its label).
+    over by the keys. In Siege the card's Class and side opens the class page in two
+    steps, as the team page: "Choose your team" with Red team and Blue team (each
+    with its colour mark and players, "Your team" on the player's own, the cursor
+    on it), Spectate (dimmed and passed over while the player watches) and Back; a
+    side then lists its classes by name alone ("Red team classes", Next page past
+    eight, Back to the team choice, where Escape also goes). The classic look draws
+    the same two steps in its pop-up: the side step centred with the Team page's
+    flags and player counts, the classes as a list. The shared rows, a row's detail
+    after its label ([ingame_menu/siege.rs](../crates/sjk-viewer/src/ingame_menu/siege.rs)).
   - Call a vote (the card's link): its lists (map, game type, kick, warmup, limits)
     are the shared call-vote lists. Calling a vote returns to the match, as
     retail's pop-ups do.
@@ -1344,7 +1370,7 @@ entry of its own under Profile, making seven.
     or Blue team in its colour, Playing, or Watching), then the kit's buttons, three
     to the card's width: Join red and Join blue (a mark of the side's colour on each)
     and Spectate in a team game, Join and Spectate otherwise, Class and side (200
-    wide, Siege's class list) and Spectate in Siege. The side the player is on is
+    wide, Siege's class page) and Spectate in Siege. The side the player is on is
     dimmed and passed over. A side sends `team red`, `team blue`, `team free` or
     `team s` and returns to the match, as the Team page does.
   - **Call a vote**, quiet at the card's foot while no vote is on (muted Rajdhani 21,
@@ -1529,6 +1555,12 @@ for the run.
   model's head with the last frame's view, `GpuState::frame_view`; over the preview's
   head without a stage) the player's nameplate as a match draws it near: the name in
   its colours, the shield, health and Force bars, with dashed marks at the three places.
+  Under the words beside it, **See & share nameplates** (a switch; a click or Enter flips
+  it, its row pulsing gold every 1.2 s, a ring round it and a glow behind the switch)
+  puts `cg_nameplate` in plain view: the one setting for seeing other players'
+  nameplates and sharing your health, shield and Force
+  ([client.md](client.md#sharing-and-estimates)). A quiet line under it says what on or
+  off means (or, with the identity off, that sharing needs it).
 - **Holocrons** ([holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs),
   [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs),
   [holocrons.md](holocrons.md#the-holocrons-tab), 10/10/2026, Sol's holocron drops): a
@@ -1896,6 +1928,23 @@ same look in every menu style, on the 16:9 frame:
   release lists shows nothing. Closing writes the marker; quitting with the card up
   shows it again next time. `whatsnew` shows the newest recap again, "Unreleased"
   included, as a preview that writes nothing.
+- **Settings to review** (17/10/2026): when the releases since the seen one name
+  settings to choose again (`= <cvar>[ reset]: <sentence>` in the changelog,
+  [sjk.md](sjk.md#changelog); `changelog::reviews`, every release since the seen one,
+  past the five recap pages), the card opens on a page of them before the recaps:
+  "Settings to review" as its headline, "Changed by this update: choose again" on the
+  right, and a row each with the heading's icon, "1." and the setting's Settings name
+  (`settings::switch_label`) in gold, its switch at the right and the sentence under
+  them. A click on the switch or the row's number key (1 to 9) flips the setting and
+  leaves the card up; the switches read the console each frame. A `reset` setting is
+  put back to its default when the card is offered, not in a preview (`whatsnew` shows
+  "Unreleased"'s with working switches), once per version: `cl_whatsNewReset` records
+  the version whose resets were applied as soon as they are, so a player who joins with
+  `+connect` or quits with the card up, then turns the setting on in game, keeps it at
+  the next start, while the card is still offered (`changelog::resets`; an update past
+  it resets only the newer releases' settings). That one generic marker serves every
+  release; no setting has a migration cvar of its own, and `cl_whatsNewSeen` still says
+  what the player has not seen.
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
   tall as its tallest page, so the buttons stay put while the pages turn.
 - **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22) and, right-aligned on

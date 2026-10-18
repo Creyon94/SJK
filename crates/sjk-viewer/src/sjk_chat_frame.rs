@@ -1,8 +1,9 @@
 //! The per-frame hook of the SJK chat (`docs/hub-chat.md`): when the identity
 //! service's chat changed, bring the game's chat feed in line with it (new messages,
-//! deleted ones, why a message was refused), and play the SJK chat's sound for a new
-//! message, the player's own included (`audio/sjk_chat_sound.rs`). Each frame costs one look
-//! at the chat's revision and the mutes'; nothing is copied unless one changed.
+//! deleted ones, why a message was refused), put live messages in the console, and play
+//! the SJK chat's sound for a new message, the player's own included
+//! (`audio/sjk_chat_sound.rs`). Each frame costs one look at the chat's revision and the
+//! mutes'; nothing is copied unless one changed.
 
 use super::*;
 
@@ -34,12 +35,25 @@ impl GpuState {
         let is_muted = |key: &str| muted.iter().any(|m| m == key);
         let now = Instant::now();
         let chat = &mut self.chat;
-        let news = player_identity::with_chat(|state| {
+        let update = player_identity::with_chat(|state| {
             let after = chat.sync_sjk(state, is_muted, now);
             chat.sjk_outcome(state.outcome.as_ref(), now);
-            after.is_some_and(|after| chat::sjk::worth_a_sound(&state.messages, after, is_muted))
+            let news = after
+                .is_some_and(|after| chat::sjk::worth_a_sound(&state.messages, after, is_muted));
+            let console_lines = after.map_or_else(Vec::new, |after| {
+                chat::sjk::console_lines(&state.messages, after, is_muted)
+            });
+            (news, console_lines)
         });
-        if sound && news == Some(true) && self.chat.sjk_sound_due(now) {
+        let Some((news, console_lines)) = update else {
+            return;
+        };
+        if let Some(console) = self.console.as_mut() {
+            for line in console_lines {
+                console.push_chat_line(line.clone(), &line);
+            }
+        }
+        if sound && news && self.chat.sjk_sound_due(now) {
             audio::ui_cues::post(audio::ui_cues::Cue::SjkChat);
         }
     }

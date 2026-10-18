@@ -71,6 +71,20 @@ pub(crate) fn muted_keys() -> Vec<String> {
         .collect()
 }
 
+/// Every muted (blocked) player, in the order they were muted.
+pub(crate) fn entries() -> Vec<chat_mutes::Mute> {
+    lock().list.entries().to_vec()
+}
+
+/// Unmute every player; returns how many were.
+pub(crate) fn clear() -> usize {
+    let entries = entries();
+    for mute in &entries {
+        set_muted(mute.key_id.as_deref(), &mute.name, false);
+    }
+    entries.len()
+}
+
 /// Whether the player with key `key_id` (or, without one, named `name`) is muted.
 pub(crate) fn is_muted(key_id: Option<&str>, name: &str) -> bool {
     lock().list.contains(key_id, name)

@@ -120,6 +120,14 @@ impl PlayerMenu {
     }
 
     fn read_console(&mut self, console: &ViewerConsole) {
+        let (blacklist, respect_metadata) = crate::actor_load::model_options(Some(console));
+        if let Some(loader) = &mut self.loader
+            && loader.set_model_policy(blacklist, respect_metadata)
+        {
+            self.choice = None;
+            self.resolved_catalogue = false;
+            loader.request();
+        }
         self.draft.name.clear();
         self.draft
             .name

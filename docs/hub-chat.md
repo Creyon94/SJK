@@ -35,10 +35,10 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | Requests (`chat`, `emote`, `feed`) | [hub.rs](../crates/sjk-identity/src/hub.rs) |
 | The feed thread and `ChatState` | [feed.rs](../crates/sjk-identity/src/feed.rs), [service.rs](../crates/sjk-identity/src/service.rs) |
 | Viewer glue | [player_identity.rs](../crates/sjk-viewer/src/player_identity.rs) |
-| Muting a player: the list, matching slots | [chat_mutes.rs](../crates/sjk-viewer/src/chat_mutes.rs), [player_mutes.rs](../crates/sjk-viewer/src/player_mutes.rs) |
+| Blocking a player: the list, matching slots, `block`/`unblock` | [chat_mutes.rs](../crates/sjk-viewer/src/chat_mutes.rs), [player_mutes.rs](../crates/sjk-viewer/src/player_mutes.rs), [block_command.rs](../crates/sjk-viewer/src/block_command.rs) |
 | Chat bans: the words and the hub's answer | [ban.rs](../crates/sjk-identity/src/ban.rs) |
 | Chat bans: Ban 24 h, armed then confirmed | [chat_ban.rs](../crates/sjk-viewer/src/chat_ban.rs) |
-| Muting a player: drawn as Kyle, silenced | [muted_players.rs](../crates/sjk-viewer/src/muted_players.rs), [muted_players_frame.rs](../crates/sjk-viewer/src/muted_players_frame.rs), [audio_mute.rs](../crates/sjk-viewer/src/audio_mute.rs) |
+| Blocking a player: drawn as Kyle, silenced | [muted_players.rs](../crates/sjk-viewer/src/muted_players.rs), [muted_players_frame.rs](../crates/sjk-viewer/src/muted_players_frame.rs), [audio_mute.rs](../crates/sjk-viewer/src/audio_mute.rs) |
 | Sender card (pointer on a name) | [sender_card.rs](../crates/sjk-viewer/src/sender_card.rs), [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs) |
 | In-game SJK channel | [chat/sjk.rs](../crates/sjk-viewer/src/chat/sjk.rs), [chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs), [sjk_chat_frame.rs](../crates/sjk-viewer/src/sjk_chat_frame.rs) |
 | How a line looks everywhere (gold, tick, flow) | [sjk_chat_look.rs](../crates/sjk-viewer/src/sjk_chat_look.rs) |
@@ -144,11 +144,15 @@ Old clients ignore all of it, so it stays `/v1/`.
   10/10/2026); the soft hyphen and what reorders or prints nothing stay out, as from
   a message, which keeps the bio's alphabet. Messages staff delete leave the feed,
   and muting a
-  player ([Muting a player](#muting-a-player)) hides their lines already there. While
+  player ([Muting a player](#blocking-a-player)) hides their lines already there. While
   the composer is open, resting the pointer on a sender's name shows their profile
   card with Mute or Unmute. Joining a game
   does not replay the hub's backlog in the feed (the dock and the page show it). A
-  refusal (quota, rules) shows as an `SJK chat:` line.
+  refusal (quota, rules) shows as an `SJK chat:` line. Each live message from an unblocked player is
+  also kept in the console scrollback with a textual yellow `SJK` tag (the console
+  cannot draw the feed's emblem); it uses the quiet chat path, so it does not enter
+  the closed-console notify feed or crash reports. The initial backlog is not copied
+  into the console.
 - `cl_sjkChat` (default 1, Settings > Chat > SJK chat) shows SJK chat and runs the
   feed; 0 hides it. On a game server the feed still reads, for the players' looks and
   emotes, but no message reaches the game's feed, the dock or the page; in the menus it
@@ -220,7 +224,7 @@ feed: the hub took them, so the sound says the message went out.
   shows the sender's sender card with Mute or Unmute; the page's text whose ink reaches
   the card is left out while it shows, since text draws over every shape and the times
   and messages showed through it (Sol's report, 11/10/2026). A chosen message offers Mute on
-  this PC ([Muting a player](#muting-a-player)); for staff, Delete for everyone, Mute at the hub and Unmute
+  this PC ([Muting a player](#blocking-a-player)); for staff, Delete for everyone, Mute at the hub and Unmute
   at the hub (the client does not know a key's mute flag); under them, what the request
   came to (sending, done, or the hub's refusal). It opens from the dock's
   Open chat, `sjkchat`, `messagemode5` outside a game, the classic in-game SJK menu's
@@ -656,11 +660,13 @@ who is neither verified nor staff; the client draws it
 - A hub before trust sends none, and a level a later hub adds reads as none
   (`Trust::Unknown`): no mark, as before.
 
-## Muting a player
+## Blocking a player
 
-A player can be muted on this PC (Sol's request, 08/10/2026). It is local: nothing goes
+A player can be blocked on this PC (Sol's request, 08/10/2026, as "muting"; named
+blocking and made to cover emotes, toys and player cards on 18/10/2026, Sol's request:
+"never see their chat no more ... emotes blocked, everything"). It is local: nothing goes
 to the hub or the game server, and the game is unchanged; only what this client shows
-and plays changes.
+and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.rs`).
 
 - **Where:** rest the pointer on a name and the player's sender card shows beside it
   ([sender_card.rs](../crates/sjk-viewer/src/sender_card.rs)), in the SJK UI's look
@@ -675,10 +681,17 @@ and plays changes.
   verified tick; whether the hub knows
   them (and staff); their hub name when it differs from the one shown; their key; their
   medals' medallions; where they are on the server being played ("On this server, slot
-  5", or "slot 5, matched by name"); and Mute or Unmute. The Players page's card could
+  5", or "slot 5, matched by name"); and Block or Unblock. The Players page's card could
   not be reused: it is that page's right column, with score and ping. The page's
-  chosen message keeps its Mute on this PC, which uses the same list.
-- **What muting does:** their SJK chat lines are hidden (the page shows "Muted on this
+  chosen message keeps its Block on this PC, which uses the same list. The console's
+  `block <player>` blocks a player of the server being played (`target` for the one
+  under the crosshair, a slot number or part of the name shown), `block` alone lists
+  the blocked players, and `unblock <player|all>` lifts a block by a name of the list
+  (away from the server too) or a player here ([block_command.rs](../crates/sjk-viewer/src/block_command.rs)).
+- **The list on the SJK chat page:** while no message is chosen, the side column lists
+  "Blocked on this PC (N)" under its hint, each with Unblock, as many as fit above the
+  keys' line (six at most; a line says how many more `block` lists).
+- **What blocking does:** their SJK chat lines are hidden (the page shows "Blocked on this
   PC", the dock leaves them out, the game's feed hides them as ignored lines are) and so
   are their game chat lines once they are matched to a slot. While they are on the
   server, their model is drawn as `kyle/default` (Kyle's red or blue skin when a team
@@ -694,6 +707,15 @@ and plays changes.
   `LegacySoundDecision::cause`). Their missiles' flight and impact sounds and the
   sounds of effect files stay: the protocol does not say whose they are. The test is a
   bit mask of slots, so it costs nothing while nobody is muted.
+- **Everything else of theirs:** their emotes do not play (one playing when they are
+  blocked ends; `emotes_frame.rs`, beside `sjkemote mute`'s emote-only list), their
+  Order 66 orders and cardboard box spots are ignored (`order66.rs`,
+  `cardboard_box.rs`), no player card shows when you aim at them and a card pinned
+  before loses their hub profile (`hud_runtime.rs`), their world pings are not shown
+  (`world_ping_frame.rs`), their toys and looks are not drawn (`looks.rs`), their GIFs
+  are never fetched (`chat_gifs.rs`) and their holocron lines go with their chat. Their
+  name still shows where the game itself shows it (scoreboard, kill feed, nameplates,
+  the server's own messages): that is the game's, not theirs to send.
 - **The list:** `chat-mutes.txt` beside `config.cfg`, one player a line: their SJK key
   (or `-` for a player the hub does not know) and the name they were last seen with
   ([chat_mutes.rs](../crates/sjk-viewer/src/chat_mutes.rs),
@@ -861,7 +883,7 @@ or emote they send with the name they wear. With `cl_sjkChat` off it still sees 
 feed requests made on a game server (for the looks), with the server's address. A ping sends the hub the point, its scope and,
 through the claim, the player's slot and name on that server; it is kept 10 seconds in
 the hub's memory and reaches the SJK players reading that server. Shared vitals
-(`cg_nameplateShare`) send the hub the player's health,
+(`cg_nameplate`, See & share nameplates; `cg_nameplateShare` before 17/10/2026) send the hub the player's health,
 shield and Force twice a second and whether they see everyone's bars; the hub keeps
 them 5 seconds in memory and gives them to every SJK player on that server. Without
 either setting, the client still asks the hub every 2 seconds, on a game server, who
@@ -917,10 +939,11 @@ ask GIPHY only for the GIFs themselves.
   off.
 - The dock and the page were rendered off screen over a plain backdrop in the UI's
   families and looked at.
-- Muting a player: unit tests for the list and its file, matching slots by claim and
+- Blocking a player: unit tests for the list and its file, matching slots by claim and
   by name, the card on a name in the feed, the dock and the page, the hidden lines,
-  Kyle and the default saber, and the sound filter ([status.md](status.md#muting-a-player-from-a-name-in-chat)).
-  Not seen or heard in a game.
+  Kyle and the default saber, and the sound filter ([status.md](status.md#muting-a-player-from-a-name-in-chat));
+  the `block`/`unblock` name matching and the page's list with Unblock
+  ([status.md](status.md#blocking-a-player)). Not seen or heard in a game.
 
 - The chat's sound (10/10/2026, Windows 11): unit tests for its making (0.74 seconds
   from a long talk sound, the quickened length and pitch, the highs kept, the fade

@@ -160,7 +160,7 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     let muted = inputs.muted.contains(&message.key_id);
     let mut gif = None;
     let text = if muted {
-        "Muted on this PC".to_owned()
+        "Blocked on this PC".to_owned()
     } else if let Some(words) = &words {
         words.rest.clone()
     } else if drop {
@@ -996,7 +996,80 @@ impl Panel {
         }
     }
 
-    /// The chosen message's sender and what can be done: Mute here, Ban 24 h for a
+    /// The players blocked on this PC, each with Unblock, while no message is chosen:
+    /// as many as there is room for above the keys' line, the console's `block` listing
+    /// the rest.
+    fn blocked_list(&mut self, frame: &Frame, inputs: &Inputs<'_>, top: f32) {
+        const ROW: f32 = 44.0;
+        if inputs.blocked.is_empty() {
+            return;
+        }
+        let s = frame.s;
+        let room = ((KEYS_Y - 40.0 - top - 30.0) / ROW).max(0.0) as usize;
+        let shown = inputs.blocked.len().min(room).min(UNBLOCK_SHOWN);
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Blocked on this PC ({})", inputs.blocked.len()),
+            frame.rect(SIDE_X, top, SIDE_WIDTH, 24.0),
+            17.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        for (index, blocked) in inputs.blocked.iter().take(shown).enumerate() {
+            let y = top + 32.0 + index as f32 * ROW;
+            let token = UNBLOCK_BASE + index as u16;
+            let name = name_for_display(&blocked.name);
+            let name = if name.trim().is_empty() {
+                "(no name)".into()
+            } else {
+                name
+            };
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{name}"),
+                frame.rect(SIDE_X, y + 8.0, SIDE_WIDTH - 160.0, 24.0),
+                16.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            kit::button(
+                &mut self.ui,
+                frame,
+                [SIDE_X + SIDE_WIDTH - 140.0, y, 140.0, 36.0],
+                "Unblock",
+                false,
+                true,
+                self.focus == token,
+                token,
+            );
+            self.order.push(token);
+            self.shown.blocked.push(blocked.clone());
+        }
+        let more = inputs.blocked.len() - shown;
+        if more > 0 {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{more} more: block in the console lists them all"),
+                frame.rect(
+                    SIDE_X,
+                    top + 32.0 + shown as f32 * ROW + 4.0,
+                    SIDE_WIDTH,
+                    22.0,
+                ),
+                15.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+    }
+
+    /// The chosen message's sender and what can be done: Block here, Ban 24 h for a
     /// sender the hub does not vouch for when it vouches for the player, and for staff
     /// Delete, Lift chat ban and Mute at the hub.
     fn chosen(&mut self, frame: &Frame, inputs: &Inputs<'_>, measure: &Measure<'_>, top: f32) {
@@ -1016,11 +1089,12 @@ impl Panel {
                 .and_then(|chat| chat.messages.iter().find(|message| message.id == id))
         });
         self.shown.chosen_gif = None;
+        self.shown.blocked.clear();
         let Some(message) = message else {
             self.shown.chosen = None;
             for (row, line) in [
                 "Choose a message (Up from the field, or a click)",
-                "to mute its sender on this PC.",
+                "to block its sender on this PC.",
             ]
             .into_iter()
             .enumerate()
@@ -1036,6 +1110,7 @@ impl Panel {
                     TextAlign::Start,
                 );
             }
+            self.blocked_list(frame, inputs, top + 98.0);
             return;
         };
         let muted = inputs.muted.contains(&message.key_id);
@@ -1086,9 +1161,9 @@ impl Panel {
             frame,
             [SIDE_X, y, 240.0, 42.0],
             if muted {
-                "Unmute on this PC"
+                "Unblock on this PC"
             } else {
-                "Mute on this PC"
+                "Block on this PC"
             },
             false,
             true,
@@ -1096,7 +1171,7 @@ impl Panel {
             MUTE_TOKEN,
         );
         self.order.push(MUTE_TOKEN);
-        let quiet = "Hides their chat, model, sabers and sounds on this PC.";
+        let quiet = "Hides their chat, model, sabers, sounds and emotes on this PC.";
         let under = frame.rect(SIDE_X, y + 50.0, SIDE_WIDTH, 22.0);
         let bannable = crate::chat_ban::offered(
             Some(&message.key_id),
@@ -1549,7 +1624,7 @@ mod tests {
                 .collect();
             assert_eq!(boxes.len(), 1, "{boxes:?}");
             // The muted sender's line says so, and their GIF was never asked for.
-            found(&texts, "Muted on this PC");
+            found(&texts, "Blocked on this PC");
             assert!(!crate::chat_gifs::asked_for(
                 &crate::chat_gifs::GifId::new("PageGif03Muted").unwrap()
             ));

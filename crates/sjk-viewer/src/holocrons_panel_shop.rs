@@ -1,17 +1,20 @@
 //! The Holocrons tab's shop (`docs/cards.md`, "The shop"): the day's four saber shaders,
-//! the same for every player, sold for credits, over the darkened page as the loot table
-//! is ([`super::loot`]). One Common, one Uncommon, one Rare and one Legendary or Mythical,
-//! dealt by the hub each day at midnight in Paris; a countdown says when the next come.
+//! the same for every player, sold for kyber shards (credits on hubs before 17/10/2026),
+//! over the darkened page as the loot table is ([`super::loot`]). One Common, one
+//! Uncommon, one Rare and a Legendary (a Mythical one day in four), dealt by the hub each
+//! day at midnight in Paris; a countdown says when the next come. Under them, holocrons for
+//! credits: an Uncommon and a Rare one, at the hub's prices, while the hub sells them.
 //!
 //! Each offer is a card: its tier's frame and name, its blade, its name, its price beside
-//! the credits' mark, and Buy. A purchase asks twice (Buy, then Confirm within a few
-//! seconds) since it spends credits for good; the hub refuses a shader the player holds
-//! and a second purchase of an offer the same day, and the card says so before asking.
-//! The player's credits and kyber shards stand at the top right.
+//! the shards' mark, and Buy. A purchase asks twice (Buy, then Confirm within a few
+//! seconds) since it spends for good; the hub refuses a shader the player holds and a
+//! second purchase of an offer the same day, and the card says so before asking. A
+//! holocron asks twice the same way. The player's credits and kyber shards stand at the
+//! top right.
 //!
 //! Shop (beside Open and Open all, while the hub lets the player open holocrons) or S shows
-//! it, and reads the hub's day; Left and Right choose an offer, Enter buys (twice), the
-//! mouse chooses and buys; Escape, S or Back go back to the page.
+//! it, and reads the hub's day; Left and Right choose an offer or a holocron, Enter buys
+//! (twice), the mouse chooses and buys; Escape, S or Back go back to the page.
 
 use super::*;
 use crate::audio::ui_cues::{self, Cue};
@@ -36,6 +39,11 @@ const CARD_HEIGHT: f32 = 540.0;
 const CARD_GAP: f32 = 30.0;
 /// The line under the cards: what came of the last purchase, or why the shop is not read.
 const MESSAGE_Y: f32 = 832.0;
+/// The holocrons for credits: their row's top, each button's size and the gap between.
+const HOLOCRONS_Y: f32 = 886.0;
+const HOLOCRON_WIDTH: f32 = 420.0;
+const HOLOCRON_HEIGHT: f32 = 52.0;
+const HOLOCRON_GAP: f32 = 30.0;
 /// Back, and the keys' line.
 const BACK_Y: f32 = 988.0;
 const BACK_WIDTH: f32 = 150.0;
@@ -99,21 +107,35 @@ pub(super) enum Can {
     Bought,
     /// Held already: the hub sells no duplicate.
     Owned,
-    /// Fewer credits than its price.
+    /// Less than its price.
     Short(u64),
 }
 
-/// What `offer` allows a player holding `credits`.
-pub(super) fn can(offer: &sjk_identity::Offer, credits: u64) -> Can {
+/// What `offer` allows a player holding `purse` of the shop's currency.
+pub(super) fn can(offer: &sjk_identity::Offer, purse: u64) -> Can {
     if offer.bought {
         Can::Bought
     } else if offer.owned {
         Can::Owned
-    } else if credits < offer.price {
-        Can::Short(offer.price - credits)
+    } else if purse < offer.price {
+        Can::Short(offer.price - purse)
     } else {
         Can::Buy
     }
+}
+
+/// `amount` of the shop's currency in words: "75 kyber shards", "250 credits".
+fn priced(amount: u64) -> String {
+    if crate::economy::shop_in_shards() {
+        format!("{} kyber shards", crate::economy::shards_text(amount))
+    } else {
+        format!("{} credits", crate::cards::credits_text(amount))
+    }
+}
+
+/// The holocron tier called `id` (this client's list), if it knows it.
+fn holocron_tier(id: &str) -> Option<&'static crate::holocrons::Tier> {
+    crate::holocrons::TIERS.iter().find(|tier| tier.id == id)
 }
 
 impl Panel {
@@ -167,9 +189,71 @@ impl Panel {
             .map_or(&[], |state| state.day.offers.as_slice())
     }
 
-    /// The player's credits for the shop: the hub's latest word.
+    /// The player's credits: the hub's latest word.
     fn shop_credits(&self) -> u64 {
         self.data.credits.unwrap_or(0)
+    }
+
+    /// What the player holds of the shop's currency: kyber shards, or credits on hubs
+    /// before.
+    fn shop_purse(&self) -> u64 {
+        if crate::economy::shop_in_shards() {
+            self.data.shards.unwrap_or(0)
+        } else {
+            self.shop_credits()
+        }
+    }
+
+    /// How many things the shop offers to choose from: the day's offers, then the
+    /// holocrons for credits (once the day is read).
+    fn shop_choices(&self) -> usize {
+        let offers = self.offers().len();
+        if self
+            .data
+            .shop
+            .as_ref()
+            .is_some_and(|state| state.message.is_empty())
+        {
+            offers + crate::economy::holocrons_for_sale().len()
+        } else {
+            offers
+        }
+    }
+
+    /// Press choice `index`: an offer's Buy or a holocron's.
+    fn press_choice(&mut self, index: usize, now: Instant) -> PanelAction {
+        let offers = self.offers().len();
+        if index < offers {
+            self.press_buy(index, now)
+        } else {
+            self.press_holocron(index - offers, now)
+        }
+    }
+
+    /// Buy holocron `index` of [`crate::economy::holocrons_for_sale`] with credits: the
+    /// first press asks to confirm, the second (within [`CONFIRM`]) asks the hub.
+    fn press_holocron(&mut self, index: usize, now: Instant) -> PanelAction {
+        let Some((tier, price)) = crate::economy::holocrons_for_sale().get(index).copied() else {
+            return PanelAction::None;
+        };
+        let choice = self.offers().len() + index;
+        self.shop_selected = choice;
+        if self.buying() || self.shop_credits() < price {
+            return PanelAction::None;
+        }
+        match self.confirm {
+            Some((at, since)) if at == choice && now.saturating_duration_since(since) < CONFIRM => {
+                self.confirm = None;
+                self.buying = Some(self.data.trade.as_ref().map_or(0, |trade| trade.serial));
+                ui_cues::post(Cue::Click);
+                PanelAction::BuyHolocron(tier.to_owned())
+            }
+            _ => {
+                self.confirm = Some((choice, now));
+                ui_cues::post(Cue::Click);
+                PanelAction::None
+            }
+        }
     }
 
     /// Whether a purchase is on its way to the hub.
@@ -185,7 +269,7 @@ impl Panel {
             return PanelAction::None;
         };
         self.shop_selected = index;
-        if self.buying() || can(&offer, self.shop_credits()) != Can::Buy {
+        if self.buying() || can(&offer, self.shop_purse()) != Can::Buy {
             return PanelAction::None;
         }
         match self.confirm {
@@ -206,14 +290,22 @@ impl Panel {
     /// Wait for the second press on offer `index`'s Buy, chosen, for a world shot.
     #[cfg(test)]
     pub(crate) fn confirm_for_shot(&mut self, index: usize) {
+        self.buying = None;
         self.shop_selected = index;
         self.confirm = Some((index, Instant::now()));
+    }
+
+    /// Take the trade the page holds as asked from the shop, so its line shows, for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn asked_for_shot(&mut self) {
+        self.buying = Some(0);
     }
 
     /// A key while the shop shows.
     pub(super) fn shop_key(&mut self, key: KeyCode) -> PanelAction {
         let now = Instant::now();
-        let count = self.offers().len();
+        let count = self.shop_choices();
         match key {
             KeyCode::Escape | KeyCode::KeyS => return self.show_shop(false),
             KeyCode::ArrowLeft | KeyCode::ArrowUp => {
@@ -225,7 +317,7 @@ impl Panel {
                 self.confirm = None;
             }
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
-                return self.press_buy(self.shop_selected, now);
+                return self.press_choice(self.shop_selected, now);
             }
             _ => {}
         }
@@ -248,6 +340,9 @@ impl Panel {
             Some(SHOP_BACK_TOKEN) => self.show_shop(false),
             Some(token) if (SHOP_BUY_BASE..SHOP_BUY_BASE + 4).contains(&token) => {
                 self.press_buy(usize::from(token - SHOP_BUY_BASE), Instant::now())
+            }
+            Some(token) if (SHOP_HOLOCRON_BASE..SHOP_HOLOCRON_BASE + 2).contains(&token) => {
+                self.press_holocron(usize::from(token - SHOP_HOLOCRON_BASE), Instant::now())
             }
             Some(token) if (SHOP_CARD_BASE..SHOP_CARD_BASE + 4).contains(&token) => {
                 let index = usize::from(token - SHOP_CARD_BASE);
@@ -274,7 +369,100 @@ impl Panel {
             self.offer_card(frame, index, now, seconds);
         }
         self.shop_message(frame);
+        self.holocrons_for_credits(frame, now);
         self.shop_keys(frame);
+    }
+
+    /// Under the message: the holocrons credits buy, each a button with its tier's mark,
+    /// name and price, asking twice. Nothing until the day is read, or when the hub sells
+    /// none.
+    fn holocrons_for_credits(&mut self, frame: &Frame, now: Instant) {
+        if !self
+            .data
+            .shop
+            .as_ref()
+            .is_some_and(|state| state.message.is_empty())
+        {
+            return;
+        }
+        let sale = crate::economy::holocrons_for_sale();
+        if sale.is_empty() {
+            return;
+        }
+        let s = frame.s;
+        let count = sale.len() as f32;
+        let total = count * HOLOCRON_WIDTH + (count - 1.0) * HOLOCRON_GAP;
+        let left = 960.0 - total * 0.5;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Holocrons for credits"),
+            frame.rect(LEFT, HOLOCRONS_Y + 13.0, left - LEFT - 24.0, 26.0),
+            18.0 * s,
+            color::MUTED,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        let credits = self.shop_credits();
+        let offers = self.offers().len();
+        let on_its_way = self.buying();
+        for (index, (tier, price)) in sale.into_iter().enumerate() {
+            let choice = offers + index;
+            let chosen = self.shop_selected == choice;
+            let confirming = self.confirm.is_some_and(|(at, since)| {
+                at == choice && now.saturating_duration_since(since) < CONFIRM
+            });
+            let name = holocron_tier(tier).map_or(tier, |known| known.name);
+            let affordable = credits >= price;
+            let price_words = crate::cards::credits_text(price);
+            let label = if on_its_way && chosen {
+                "Buying...".to_owned()
+            } else if confirming && affordable {
+                format!("Confirm: {price_words} credits")
+            } else {
+                format!("{} {name}  {price_words} credits", crate::symbols::HOLOCRON)
+            };
+            let x = left + index as f32 * (HOLOCRON_WIDTH + HOLOCRON_GAP);
+            if let Some(known) = holocron_tier(tier) {
+                let [bx, by] = frame.point(x, HOLOCRONS_Y);
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect: sjk_ui::Rect::new(
+                        bx - 3.0 * s,
+                        by - 3.0 * s,
+                        (HOLOCRON_WIDTH + 6.0) * s,
+                        (HOLOCRON_HEIGHT + 6.0) * s,
+                    ),
+                    radius: 28.0 * s,
+                    width: if chosen { 2.5 * s } else { 1.5 * s },
+                    color: color::alpha(known.colour, if chosen { 0.95 } else { 0.55 }),
+                });
+            }
+            kit::button(
+                &mut self.ui,
+                frame,
+                [x, HOLOCRONS_Y, HOLOCRON_WIDTH, HOLOCRON_HEIGHT],
+                &label,
+                confirming && affordable,
+                affordable && !on_its_way,
+                chosen,
+                SHOP_HOLOCRON_BASE + index as u16,
+            );
+            if !affordable {
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!(
+                        "{} more credits needed.",
+                        crate::cards::credits_text(price - credits)
+                    ),
+                    frame.rect(x, HOLOCRONS_Y + HOLOCRON_HEIGHT + 8.0, HOLOCRON_WIDTH, 22.0),
+                    15.0 * s,
+                    color::QUIET,
+                    FontWeight::Regular,
+                    TextAlign::Center,
+                );
+            }
+        }
     }
 
     /// Take the loaded blade skins when a pack brought new ones (the offers' blades).
@@ -301,7 +489,12 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!(
-                "Four saber shaders a day, the same for every player, for the credits holocrons bring."
+                "{}",
+                if crate::economy::shop_in_shards() {
+                    "Four saber shaders a day, the same for every player, for kyber shards."
+                } else {
+                    "Four saber shaders a day, the same for every player, for the credits holocrons bring."
+                }
             ),
             frame.rect(LEFT, LINE_Y, WIDTH - 520.0, 26.0),
             17.0 * s,
@@ -446,25 +639,33 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Center,
         );
-        super::opening::credits_line(
-            &mut self.ui,
-            frame,
-            x + CARD_WIDTH * 0.5,
-            y + 352.0,
-            &crate::cards::credits_text(offer.price),
-            32.0,
-            1.0,
-        );
-        let credits = self.shop_credits();
-        let state = can(&offer, credits);
+        if crate::economy::shop_in_shards() {
+            super::opening::shards_line(
+                &mut self.ui,
+                frame,
+                x + CARD_WIDTH * 0.5,
+                y + 352.0,
+                &crate::economy::shards_text(offer.price),
+                32.0,
+                1.0,
+            );
+        } else {
+            super::opening::credits_line(
+                &mut self.ui,
+                frame,
+                x + CARD_WIDTH * 0.5,
+                y + 352.0,
+                &crate::cards::credits_text(offer.price),
+                32.0,
+                1.0,
+            );
+        }
+        let state = can(&offer, self.shop_purse());
         let status = match state {
             Can::Buy => String::new(),
             Can::Bought => "You bought it today.".to_owned(),
             Can::Owned => "You hold it already.".to_owned(),
-            Can::Short(missing) => format!(
-                "{} more credits needed.",
-                crate::cards::credits_text(missing)
-            ),
+            Can::Short(missing) => format!("{} more needed.", priced(missing)),
         };
         text(
             &mut self.ui,
@@ -483,12 +684,7 @@ impl Panel {
         let buying = on_its_way && chosen;
         let label = match state {
             _ if buying => "Buying...".to_owned(),
-            Can::Buy if confirming => {
-                format!(
-                    "Confirm: {} credits",
-                    crate::cards::credits_text(offer.price)
-                )
-            }
+            Can::Buy if confirming => format!("Confirm: {}", priced(offer.price)),
             Can::Buy | Can::Short(_) => "Buy".to_owned(),
             Can::Bought => "Bought".to_owned(),
             Can::Owned => "Owned".to_owned(),
@@ -517,13 +713,21 @@ impl Panel {
             Some(_) => match (&self.data.trade, self.buying) {
                 // Only a purchase asked from this page, once the hub answered it.
                 (Some(trade), Some(asked))
-                    if trade.serial > asked && trade.trade == sjk_identity::Trade::Buy =>
+                    if trade.serial > asked
+                        && matches!(
+                            trade.trade,
+                            sjk_identity::Trade::Buy | sjk_identity::Trade::Holocron
+                        ) =>
                 {
-                    let name = self
-                        .offers()
-                        .iter()
-                        .find(|offer| offer.id == trade.id)
-                        .map_or_else(|| trade.id.clone(), |offer| offer.name.clone());
+                    let name = if trade.trade == sjk_identity::Trade::Holocron {
+                        holocron_tier(&trade.id)
+                            .map_or_else(|| trade.id.clone(), |tier| tier.name.to_owned())
+                    } else {
+                        self.offers()
+                            .iter()
+                            .find(|offer| offer.id == trade.id)
+                            .map_or_else(|| trade.id.clone(), |offer| offer.name.clone())
+                    };
                     (
                         crate::economy::outcome_words(trade, &name),
                         if trade.done() {
@@ -671,15 +875,15 @@ pub(crate) fn sample_day(left: i64) -> sjk_identity::ShopState {
         day: sjk_identity::ShopDay {
             day: "2026-10-17".to_owned(),
             offers: vec![
-                offer("saber_aurora", "common", 250),
-                offer("saber_sakura", "uncommon", 600),
-                offer("saber_lavalamp", "rare", 1_500),
-                offer("saber_phoenix", "mythical", 10_000),
+                offer("saber_aurora", "common", 30),
+                offer("saber_sakura", "uncommon", 75),
+                offer("saber_lavalamp", "rare", 225),
+                offer("saber_phoenix", "mythical", 1_500),
             ],
             next: 1_791_000_000 + left,
             server_time: 1_791_000_000,
-            credits: 2_000,
-            shards: 45,
+            credits: 300,
+            shards: 300,
         },
         message: String::new(),
         read_at: Instant::now(),
@@ -693,8 +897,8 @@ mod tests {
     fn known(shop: Option<sjk_identity::ShopState>) -> Data {
         Data {
             counts: Some([1, 0, 0, 0]),
-            credits: Some(2_000),
-            shards: Some(45),
+            credits: Some(300),
+            shards: Some(300),
             every: Some(1_800),
             can_open: true,
             shop,
@@ -715,9 +919,9 @@ mod tests {
 
     #[test]
     fn an_offer_says_what_the_player_can_do() {
-        let mut lava = offer("saber_lavalamp", "rare", 1_500);
-        assert_eq!(can(&lava, 1_500), Can::Buy);
-        assert_eq!(can(&lava, 1_000), Can::Short(500));
+        let mut lava = offer("saber_lavalamp", "rare", 225);
+        assert_eq!(can(&lava, 225), Can::Buy);
+        assert_eq!(can(&lava, 200), Can::Short(25));
         lava.owned = true;
         assert_eq!(can(&lava, 9_999), Can::Owned);
         lava.bought = true;
@@ -764,6 +968,22 @@ mod tests {
         let _ = panel.key(KeyCode::ArrowRight, false);
         assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
         assert_eq!(panel.confirm, None);
+        // Past the offers, the holocrons for credits: the Uncommon one asks twice; the
+        // Rare one is too dear for 300 credits.
+        let _ = panel.key(KeyCode::ArrowRight, false);
+        assert_eq!(panel.shop_selected, 4);
+        assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false),
+            PanelAction::BuyHolocron("uncommon".to_owned())
+        );
+        panel.buying = None;
+        let _ = panel.key(KeyCode::ArrowRight, false);
+        assert_eq!(panel.shop_selected, 5);
+        assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
+        assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
+        let _ = panel.key(KeyCode::ArrowRight, false);
+        assert_eq!(panel.shop_selected, 5, "the last choice");
         assert_eq!(panel.key(KeyCode::Escape, false), PanelAction::None);
         assert!(!panel.showing_shop(), "Escape goes back to the page");
     }
@@ -817,9 +1037,17 @@ mod tests {
                     let buy = panel.ui.rect_for(SHOP_BUY_BASE + index as u16).unwrap();
                     assert!(buy.bottom() <= card.bottom());
                 }
+                let back_top = back.y;
+                for index in 0..2 {
+                    if let Some(button) = panel.ui.rect_for(SHOP_HOLOCRON_BASE + index) {
+                        assert!(button.x >= 0.0 && button.right() <= viewport[0]);
+                        assert!(button.bottom() < back_top, "{viewport:?}");
+                    }
+                }
             }
         }
-        const { assert!(CARDS_TOP + CARD_HEIGHT < MESSAGE_Y && MESSAGE_Y + 30.0 < BACK_Y) };
+        const { assert!(CARDS_TOP + CARD_HEIGHT < MESSAGE_Y && MESSAGE_Y + 30.0 < HOLOCRONS_Y) };
+        const { assert!(HOLOCRONS_Y + HOLOCRON_HEIGHT + 30.0 < BACK_Y) };
         const { assert!(4.0 * CARD_WIDTH + 3.0 * CARD_GAP <= RIGHT - LEFT) };
     }
 }

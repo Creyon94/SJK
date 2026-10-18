@@ -79,6 +79,9 @@ impl ViewerConsole {
             PanelAction::Buy(id) => {
                 let _ = crate::player_identity::buy(&id);
             }
+            PanelAction::BuyHolocron(tier) => {
+                let _ = crate::economy::buy_holocron(&tier);
+            }
         }
     }
 
@@ -238,6 +241,12 @@ impl ViewerConsole {
         if let Some(index) = confirm {
             self.holocrons_panel.confirm_for_shot(index);
         }
+    }
+
+    /// Say what came of a purchase asked from the shop, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_shop_answer(&mut self) {
+        self.holocrons_panel.asked_for_shot();
     }
 
     /// Show the hover card of tier row `index` on the open page, for a world shot.

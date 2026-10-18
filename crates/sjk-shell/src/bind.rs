@@ -224,7 +224,12 @@ impl BindTable {
             );
         }
 
-        state.held.remove(&normalized);
+        // A release can arrive after a menu or text field took the press. It is
+        // not one of this binding stream's keys and must not synthesize a
+        // `-command` or disturb a chord.
+        if !state.held.remove(&normalized) {
+            return Ok(Vec::new());
+        }
         if let Some(combo) = state.active.remove(&normalized)
             && let Some(command) = self.get(&combo)
         {
@@ -439,6 +444,27 @@ mod tests {
         assert!(
             binds
                 .commands_for_chord_event(&mut state, "K", true)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_release_without_a_bound_press_runs_nothing() {
+        let mut binds = BindTable::new();
+        let mut state = BindState::default();
+        binds.bind("SHIFT", "+speed").unwrap();
+        binds.bind("SHIFT+U", "reply").unwrap();
+
+        assert!(
+            binds
+                .commands_for_chord_event(&mut state, "SHIFT", false)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            binds
+                .commands_for_chord_event(&mut state, "U", false)
                 .unwrap()
                 .is_empty()
         );

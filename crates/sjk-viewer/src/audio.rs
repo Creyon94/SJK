@@ -40,8 +40,12 @@ mod dynamic;
 mod feedback;
 #[path = "audio_holstered_staff.rs"]
 mod holstered_staff;
+#[path = "audio_music.rs"]
+pub(crate) mod music;
 #[path = "audio_transitions.rs"]
 mod transitions;
+#[path = "audio_voice_throttle.rs"]
+mod voice_throttle;
 pub(crate) use assets::SoundPrefetch;
 #[path = "flame_audio.rs"]
 mod flame;
@@ -74,12 +78,20 @@ pub(crate) struct GameAudio {
     dynamic: Option<dynamic::Level>,
     allow_dynamic: bool,
     duel_enabled: bool,
+    music_sync: bool,
+    music_sync_pending: bool,
+    /// `cgs.musicStartTime`: server time the current `CS_MUSIC` track began.
+    music_start_time: i32,
+    /// The last observed snapshot's server time, for a `CS_MUSIC` change.
+    last_server_time: Option<i32>,
     chat_beeps: [bool; 2],
+    pm_only_chat: bool,
     deferred_starts: u64,
     maximum_deferred_start_ms: f64,
     /// `cg_footsteps`: whether the footstep event family is voiced.
     footsteps: bool,
     voice_policy: feedback::VoicePolicy,
+    voice_throttle: voice_throttle::VoiceThrottle,
     kill_sounds: i64,
     transitions: transitions::Transitions,
     jetpack_sounds: sjk_client::LegacyJetpackSounds,
@@ -108,12 +120,19 @@ impl GameAudio {
             return;
         };
         adapter.observe_predicted_event(event, snapshot);
+        self.voice_throttle.observe_time(snapshot.server_time);
         for decision in adapter.decisions() {
             if let Some(handle) = decision.handle
                 && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
                 && self
                     .voice_policy
                     .allows(*decision, snapshot.player.client_num())
+                && self.voice_throttle.allows(
+                    decision.request.source.0,
+                    decision.voice_line,
+                    snapshot.server_time,
+                    self.output.sample_length_ms(handle),
+                )
             {
                 self.output
                     .send(AudioCommand::Play(handle, decision.request));
@@ -167,11 +186,17 @@ impl GameAudio {
             dynamic: None,
             allow_dynamic: true,
             duel_enabled: true,
+            music_sync: true,
+            music_sync_pending: false,
+            music_start_time: 0,
+            last_server_time: None,
             chat_beeps: [true; 2],
+            pm_only_chat: false,
             deferred_starts: 0,
             maximum_deferred_start_ms: 0.0,
             footsteps: true,
             voice_policy: feedback::VoicePolicy::default(),
+            voice_throttle: voice_throttle::VoiceThrottle::default(),
             kill_sounds: 2,
             transitions: transitions::Transitions::default(),
             jetpack_sounds: sjk_client::LegacyJetpackSounds::default(),
@@ -227,6 +252,11 @@ impl GameAudio {
             glam::Vec3::Z,
             glam::Vec3::ZERO,
         );
+        self.last_server_time = Some(snapshot.server_time);
+        if self.music_sync_pending {
+            self.music_sync_pending = false;
+            self.restore_map_music(snapshot, game_state);
+        }
         self.poll_legacy_load();
         self.output
             .send(AudioCommand::ListenerSource(Some(SourceId(u32::from(
@@ -274,6 +304,8 @@ impl GameAudio {
             });
             adapter.set_local_health_pain(self.transitions.old_pain);
             adapter.observe_snapshot(snapshot);
+            self.voice_throttle.observe_time(snapshot.server_time);
+            self.voice_throttle.observe_clients(game_state);
             self.holster_sync.observe(snapshot);
             self.mute.observe(&snapshot.entities);
             let footsteps = self.footsteps;
@@ -283,6 +315,12 @@ impl GameAudio {
                     && self
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
+                    && self.voice_throttle.allows(
+                        decision.request.source.0,
+                        decision.voice_line,
+                        snapshot.server_time,
+                        self.output.sample_length_ms(handle),
+                    )
                     && !self.mute.silences(decision.request.source, decision.cause)
                     && !self.holster_sync.intercept(
                         handle,
@@ -312,19 +350,7 @@ impl GameAudio {
             music_action = adapter.music_actions().last().copied();
         }
         self.transition_cues(snapshot, true);
-        match music_action {
-            Some(LegacyMusicAction::StartPrivateDuel) if self.duel_enabled => {
-                if let Some(handle) = self.duel_music {
-                    self.output.start_music(handle, handle);
-                }
-            }
-            Some(LegacyMusicAction::RestoreMap) => {
-                if let Some((intro, repeating)) = self.map_music {
-                    self.output.start_music(intro, repeating);
-                }
-            }
-            _ => {}
-        }
+        self.apply_music_action(music_action, snapshot, game_state);
     }
 
     fn play_deferred_snapshots(&mut self) {
@@ -339,6 +365,8 @@ impl GameAudio {
             };
             adapter.set_local_health_pain(self.transitions.old_pain);
             adapter.observe_snapshot(&snapshot);
+            self.last_server_time = Some(snapshot.server_time);
+            self.voice_throttle.observe_time(snapshot.server_time);
             self.mute.observe(&snapshot.entities);
             let latency = queued_at.elapsed().as_secs_f64() * 1_000.0;
             // Advance all latches, but never compress loading history into one audio block.
@@ -352,6 +380,12 @@ impl GameAudio {
                     && self
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
+                    && self.voice_throttle.allows(
+                        decision.request.source.0,
+                        decision.voice_line,
+                        snapshot.server_time,
+                        self.output.sample_length_ms(handle),
+                    )
                     && !self.mute.silences(decision.request.source, decision.cause)
                 {
                     self.output

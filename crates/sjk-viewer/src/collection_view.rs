@@ -136,6 +136,7 @@ pub(crate) fn row_labels(
         stock: color::HOLO,
         grid: false,
         options: "",
+        share: false,
     };
     counts(&inputs).iter().map(|count| count.label()).collect()
 }
@@ -247,6 +248,7 @@ impl Panel {
         let frame = Frame::new(viewport);
         self.box_on = inputs.cardboard_box;
         self.order66_on = inputs.order66;
+        self.share_on = inputs.share;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
         let seconds = self.shot_seconds.unwrap_or(seconds);

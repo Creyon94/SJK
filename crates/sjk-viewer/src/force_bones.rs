@@ -2,7 +2,8 @@
 use glam::Vec3;
 use sjk_model::Gla;
 
-const NAMES: [&str; 8] = [
+/// Reference body-blur joints, shared with the table selecting Empower scopes.
+pub(crate) const PUSH_BONE_NAMES: [&str; 8] = [
     "cranium",
     "lower_lumbar",
     "rhand",
@@ -20,6 +21,9 @@ pub(crate) struct ForceBones {
     pub(crate) origins: [Option<Vec3>; 8],
     /// Raw lower-lumbar bolt from this pose, shared by carried-flag submission.
     pub(crate) lumbar: Option<crate::bolt::BoltMatrix>,
+    chest_index: Option<usize>,
+    /// Raw chest bolt for JoF's Rage/Heal sprays, with lumbar fallback.
+    pub(crate) chest: Option<crate::bolt::BoltMatrix>,
     /// `ceyebrow`, stock's head bolt when a model has no `*head_top` tag
     /// (`cg_players.c:671-675`).
     eyebrow: Option<usize>,
@@ -35,7 +39,7 @@ impl ForceBones {
     /// Resolve names once while loading an actor (cg_players.c:4995-5006).
     pub(crate) fn new(animation: &Gla) -> Self {
         Self {
-            indices: NAMES.map(|name| {
+            indices: PUSH_BONE_NAMES.map(|name| {
                 animation
                     .bones
                     .iter()
@@ -43,6 +47,11 @@ impl ForceBones {
             }),
             origins: [None; 8],
             lumbar: None,
+            chest_index: animation
+                .bones
+                .iter()
+                .position(|bone| bone.name.eq_ignore_ascii_case("thoracic")),
+            chest: None,
             eyebrow: animation
                 .bones
                 .iter()
@@ -78,6 +87,26 @@ impl ForceBones {
                 None => bolt,
             })
         });
+        self.chest = preview
+            .bolt("*chestg", matrices)
+            .or_else(|| {
+                let index = self.chest_index?;
+                let matrix = matrices.get(index)?;
+                let bind = animation.bones.get(index)?.base_pose;
+                let bolt = std::array::from_fn(|row| {
+                    std::array::from_fn(|column| {
+                        (0..3)
+                            .map(|axis| matrix[row][axis] * bind[axis][column])
+                            .sum::<f32>()
+                            + if column == 3 { matrix[row][3] } else { 0.0 }
+                    })
+                });
+                Some(match &preview.rig {
+                    Some(rig) => rig.retarget_bolt(index, matrices, Some(&preview.rig_pose), bolt),
+                    None => bolt,
+                })
+            })
+            .or(self.lumbar);
         for (output, index) in self.origins.iter_mut().zip(self.indices) {
             *output = index.and_then(|index| {
                 let point = joint_origin(animation, matrices, index)?;

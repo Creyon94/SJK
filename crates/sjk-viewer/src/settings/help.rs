@@ -212,6 +212,14 @@ const HELP: &[(&str, &str)] = &[
         "Show server conversations and their installed voice audio. Off cancels the current conversation; quests remain server-owned.",
     ),
     (
+        sjk_client::player_model_eligibility::METADATA_CVAR,
+        "Respect installed NPC-only model declarations and pack lists. Off ignores those rules; your blacklist still applies.",
+    ),
+    (
+        sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        "Model names separated by spaces, commas or semicolons. Players use Kyle instead; NPCs are unaffected.",
+    ),
+    (
         "cg_drawInventory",
         "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
     ),
@@ -292,6 +300,26 @@ const HELP: &[(&str, &str)] = &[
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),
+    (
+        crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        "Rage, Heal, Quick Heal and Grip-victim effects. Plugin settings can also disable them.",
+    ),
+    (
+        crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        "Empower glow: -1 follows the server; 0 full body, 1 arms, 2 hands. Ordinary Push stays full body.",
+    ),
+    (
+        "cg_tauntAntiSpam",
+        "Limits repeated player model voices. Taunts wait until the previous line ends; other grunts have separate short holds.",
+    ),
+    (
+        crate::audio::music::CVAR,
+        "Resume map music by level time on join or after duels. Off restarts it. Dynamic music keeps its own timing.",
+    ),
+    (
+        crate::chat::pm_only::CVAR,
+        "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,
@@ -366,7 +394,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplate",
-        "MMO-style nameplates: a name far away, with bars and a frame up close.",
+        "Nameplates over players, and your health, shield and Force for SJK players on your server. Off: neither.",
     ),
     (
         "cg_nameplateRange",
@@ -383,15 +411,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateBars",
-        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
-    ),
-    (
-        "cg_nameplateForce",
-        "Force bar under the name, estimated from the powers the player uses. The grey haze shows how unsure the estimate is.",
-    ),
-    (
-        "cg_nameplateShare",
-        "Your real health, shield and Force for the other SJK players, through the SJK hub. Always on while your nameplates show bars.",
+        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target. Never on a duel opponent. V cycles modes.",
     ),
     (
         "cg_nameplateSelf",
@@ -415,7 +435,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateNpcs",
-        "Nameplates on NPCs with their class and health, such as Stormtrooper.",
+        "NPC names, such as Stormtrooper. Health requires active level 3 Sense unless the mapper enables it.",
     ),
     (
         crate::world_ping::SHOW_CVAR,
@@ -572,7 +592,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_spProtAbsColor",
-        "Protect and Absorb at once show one cyan shell like single player, not green plus blue.",
+        "Cyan when Protect and Absorb run together. Plugin settings can force the separate green/blue shells.",
     ),
     (
         "cg_shieldSphere",
@@ -589,6 +609,14 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::duel_ghost::CVAR,
         "On: players in a duel show as see-through blue figures, as on JoF EJK. Off: dark under a blue bubble, as in the base game.",
+    ),
+    (
+        crate::duel_visibility::CORPSES_CVAR,
+        "Hide dead bodies while you are in a private duel. Bodies remain visible outside duels. On by default.",
+    ),
+    (
+        crate::duel_visibility::PICKUPS_CVAR,
+        "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
     ),
     (
         "cg_remaps",
@@ -769,6 +797,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::scoreboard::style::FPS_CVAR,
         "Shows your frame rate on SJK's scoreboard, left of the match clock.",
+    ),
+    (
+        crate::scoreboard::AFK_CVAR,
+        "Players whose view has not moved for 3 minutes, or with [AFK] in their name, show faint below the others.",
     ),
     (
         "cg_showClientIDs",

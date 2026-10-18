@@ -192,6 +192,11 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Map music sync",
+        cvar: crate::audio::music::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Doppler",
         cvar: "s_doppler",
         kind: ValueKind::Bool,
@@ -205,6 +210,11 @@ pub(super) const AUDIO: &[Setting] = &[
         label: "Jetpack hover sound",
         cvar: crate::jetpack::HOVER_SOUND_CVAR,
         kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
+        label: "Taunt anti-spam",
+        cvar: "cg_tauntAntiSpam",
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Footsteps",
@@ -279,6 +289,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
     Setting {
         label: "Scoreboard frame rate",
         cvar: crate::scoreboard::style::FPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Away players apart",
+        cvar: crate::scoreboard::AFK_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -400,7 +415,7 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Nameplates",
+        label: "See & share nameplates",
         cvar: "cg_nameplate",
         kind: ValueKind::Bool,
     },
@@ -448,16 +463,6 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Duel badge",
         cvar: "cg_nameplateDuel",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Force bar (estimated)",
-        cvar: "cg_nameplateForce",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Share my bars",
-        cvar: "cg_nameplateShare",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -547,6 +552,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Chat",
         cvar: "cg_drawChat",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Game PM-only chat",
+        cvar: crate::chat::pm_only::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -660,6 +670,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Respect model metadata",
+        cvar: sjk_client::player_model_eligibility::METADATA_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Player model blacklist",
+        cvar: sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Saber trail",
         cvar: "cg_saberTrail",
         kind: ValueKind::Bool,
@@ -748,9 +768,33 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hide corpses in duel",
+        cvar: crate::duel_visibility::CORPSES_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide pickups in duel",
+        cvar: crate::duel_visibility::PICKUPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Force animation effects",
+        cvar: crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Empower glow (-1 server)",
+        cvar: crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        kind: ValueKind::Integer {
+            min: -1,
+            max: crate::actor_world_submission::force_powers::policy::MAX_SCOPE,
+            step: 1,
+        },
     },
     Setting {
         label: "Protect+Absorb combo",

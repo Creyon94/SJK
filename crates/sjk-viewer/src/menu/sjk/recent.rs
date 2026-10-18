@@ -58,14 +58,17 @@ impl RecentServers {
     /// goes to the top of the list, which keeps [`MAX`] servers, and the list is
     /// saved.
     pub(crate) fn record(&mut self, address: &str, name: &str, map: &str, now: u64) {
-        let address = address.trim();
-        if address.is_empty() {
+        if !map.trim().is_empty() && address.trim().eq_ignore_ascii_case(map.trim()) {
             return;
         }
+        let Ok(address) = sjk_client::LegacyServerAddress::parse(address) else {
+            return;
+        };
+        let address = address.into_string();
         let known = self
             .servers
             .iter()
-            .position(|server| same_address(&server.address, address))
+            .position(|server| same_address(&server.address, &address))
             .map(|index| self.servers.remove(index));
         let keep = |new: &str, old: Option<&String>| {
             if new.trim().is_empty() {
@@ -77,7 +80,7 @@ impl RecentServers {
         self.servers.insert(
             0,
             Recent {
-                address: address.to_owned(),
+                address,
                 name: keep(name, known.as_ref().map(|server| &server.name)),
                 map: keep(map, known.as_ref().map(|server| &server.map)),
                 played: now,
@@ -111,25 +114,43 @@ fn read(path: &Path) -> Vec<Recent> {
     else {
         return Vec::new();
     };
-    items
-        .iter()
-        .filter_map(|item| {
-            let text = |key: &str| {
-                item.get(key)
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_owned()
-            };
-            let address = text("address");
-            (!address.trim().is_empty()).then(|| Recent {
-                address,
-                name: text("name"),
-                map: text("map"),
-                played: item.get("played").and_then(Value::as_u64).unwrap_or(0),
-            })
-        })
-        .take(MAX)
-        .collect()
+    let mut servers: Vec<Recent> = Vec::with_capacity(MAX);
+    for item in &items {
+        let text = |key: &str| {
+            item.get(key)
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned()
+        };
+        let raw_address = text("address");
+        let map = text("map");
+        if !map.trim().is_empty() && raw_address.trim().eq_ignore_ascii_case(map.trim()) {
+            continue;
+        }
+        let Ok(address) = sjk_client::LegacyServerAddress::parse(&raw_address) else {
+            continue;
+        };
+        let address = address.into_string();
+        // Old builds accidentally stored a map name as the address on every
+        // map change. Invalid rows are discarded above; keep only the newest
+        // row if a valid address was duplicated too.
+        if servers
+            .iter()
+            .any(|server| same_address(&server.address, &address))
+        {
+            continue;
+        }
+        servers.push(Recent {
+            address,
+            name: text("name"),
+            map,
+            played: item.get("played").and_then(Value::as_u64).unwrap_or(0),
+        });
+        if servers.len() == MAX {
+            break;
+        }
+    }
+    servers
 }
 
 fn write(path: &Path, servers: &[Recent]) -> std::io::Result<()> {
@@ -246,6 +267,27 @@ mod tests {
             "135.125.145.49:29071"
         ));
         assert!(same_address("Duel.Example.org", "duel.example.org"));
+    }
+
+    #[test]
+    fn loading_drops_old_map_rows_and_duplicate_server_addresses() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("recent_servers.json");
+        std::fs::write(
+            &path,
+            br#"[
+                {"address":"mp/duel6","name":"JoF","map":"mp/duel6","played":300},
+                {"address":"duel6","name":"JoF","map":"duel6","played":250},
+                {"address":"Duel.Example.org","name":"Duel","map":"mp/ffa3","played":200},
+                {"address":"duel.example.org:29070","name":"Old Duel","map":"mp/duel1","played":100}
+            ]"#,
+        )
+        .unwrap();
+
+        let recent = RecentServers::at(path);
+        assert_eq!(recent.servers().len(), 1);
+        assert_eq!(recent.servers()[0].address, "Duel.Example.org:29070");
+        assert_eq!(recent.servers()[0].map, "mp/ffa3");
     }
 
     #[test]

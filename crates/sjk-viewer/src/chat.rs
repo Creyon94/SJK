@@ -12,6 +12,7 @@ mod layout;
 pub(crate) mod marks;
 mod options;
 mod player_actions;
+pub(crate) mod pm_only;
 pub(crate) mod reply;
 pub(crate) mod sjk;
 mod social;
@@ -54,6 +55,7 @@ struct ChatLine {
     body: String,
     sender: Option<ChatTarget>,
     channel: Channel,
+    server_private: bool,
     received_ms: u64,
     muted: bool,
     /// The emojis the body's marks stand for, in order ([`emoji::Emojis::markup`]).
@@ -120,6 +122,8 @@ pub(crate) struct ChatOverlay {
     muted_slots: u32,
     /// What SJK knows of each slot's player, for their game lines (`chat/marks.rs`).
     slot_marks: Vec<marks::SlotMark>,
+    /// Chat lines each client slot has sent, for the scoreboard's away marks.
+    spoken: [u32; 32],
     /// What the marks were worked out from.
     marks_key: Option<marks::MarksKey>,
     layout_viewport: [f32; 2],
@@ -185,6 +189,7 @@ impl ChatOverlay {
             mute_request: None,
             muted_slots: 0,
             slot_marks: Vec::new(),
+            spoken: [0; 32],
             marks_key: None,
             layout_viewport: [0.0; 2],
             scoreboard_layout: crate::scoreboard::behavior::ChatLayout::Normal,
@@ -267,11 +272,28 @@ impl ChatOverlay {
                 .any(|name| chat_body(text, name).0.len() < text.len())
     }
 
+    /// Chat lines each client slot has sent: a counter that only grows (and wraps).
+    pub(crate) fn spoken(&self) -> &[u32; 32] {
+        &self.spoken
+    }
+
     pub(crate) fn receive(
+        &mut self,
+        kind: ServerEventKind,
+        text: String,
+        sender: Option<u16>,
+        now: Instant,
+    ) {
+        let private = kind == ServerEventKind::Chat && text.starts_with("\u{19}[");
+        self.receive_classified(kind, text, sender, private, now);
+    }
+
+    pub(crate) fn receive_classified(
         &mut self,
         kind: ServerEventKind,
         mut text: String,
         sender: Option<u16>,
+        server_private: bool,
         now: Instant,
     ) {
         // Console output never enters conversation history, including direct callers.
@@ -301,6 +323,11 @@ impl ChatOverlay {
                 .then(|| self.line_sender(&display))
                 .flatten()
         });
+        if let Some(target) = target
+            && let Some(count) = self.spoken.get_mut(usize::from(target.slot()))
+        {
+            *count = count.wrapping_add(1);
+        }
         // Display keeps `^n`; identity, whisper destinations and muting keep
         // using the plain roster name.
         let name = target
@@ -345,6 +372,7 @@ impl ChatOverlay {
             } else {
                 Channel::Global
             },
+            server_private,
             received_ms: ms,
             // Ignored for this map, or muted on this PC (`muted_players.rs`).
             muted: match target {
@@ -361,7 +389,7 @@ impl ChatOverlay {
             self.lines.pop_front();
         }
         self.lines.push_back(line);
-        if self.is_typing() && self.scroll > 0 {
+        if self.is_typing() && self.scroll > 0 && (!self.options.pm_only || server_private) {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));
             self.unread = (self.unread + 1).min(HISTORY_LIMIT);
         }

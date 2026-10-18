@@ -17,7 +17,7 @@ use crate::actor_load::{build_actor_mesh, client_saber_names};
 use crate::player_assets::{GlaCache, load_player_appearance_with};
 use crate::shared_geometry::relocate;
 use crate::world_materials::pipeline_jobs::{Compiled, Jobs as PipelineJobs};
-use sjk_client::legacy_client_appearance_forced;
+use sjk_client::legacy_client_appearance_with_policy;
 
 #[path = "corpse_actors.rs"]
 mod corpse_actors;
@@ -30,6 +30,9 @@ pub(crate) mod player_loads;
 pub(crate) struct ClientInfoWatch {
     pub(crate) body_commands: Vec<sjk_client::BaseServerCommandEvent>,
     gla_cache: GlaCache,
+    pub(crate) model_policy: sjk_client::player_model_eligibility::PlayerModelEligibility,
+    model_blacklist: String,
+    respect_model_metadata: bool,
     forced: bool,
     forced_model: String,
     overrides: [String; 3],
@@ -42,10 +45,13 @@ pub(crate) struct ClientInfoWatch {
 }
 
 impl ClientInfoWatch {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(vfs: &VirtualFileSystem) -> Self {
         Self {
             body_commands: Vec::new(),
             gla_cache: GlaCache::default(),
+            model_policy: sjk_client::player_model_eligibility::PlayerModelEligibility::load(vfs),
+            model_blacklist: String::new(),
+            respect_model_metadata: true,
             forced: false,
             forced_model: String::new(),
             overrides: std::array::from_fn(|_| String::new()),
@@ -105,7 +111,10 @@ impl GpuState {
                 snapshot.map_or(0, |snap| i32::from(snap.player.team())),
             )
         });
-        if self.clientinfo_watch.forced == forced
+        let (blacklist, respect_metadata) = crate::actor_load::model_options(self.console.as_ref());
+        if self.clientinfo_watch.model_blacklist == blacklist
+            && self.clientinfo_watch.respect_model_metadata == respect_metadata
+            && self.clientinfo_watch.forced == forced
             && (!forced || self.clientinfo_watch.forced_model == model)
             && self
                 .clientinfo_watch
@@ -117,6 +126,9 @@ impl GpuState {
         {
             return;
         }
+        self.clientinfo_watch.model_blacklist.clear();
+        self.clientinfo_watch.model_blacklist.push_str(blacklist);
+        self.clientinfo_watch.respect_model_metadata = respect_metadata;
         self.clientinfo_watch.forced = forced;
         self.clientinfo_watch.forced_model.clear();
         self.clientinfo_watch.forced_model.push_str(model);
@@ -169,7 +181,15 @@ impl GpuState {
             } else {
                 override_model.as_deref().or(forced)
             };
-            let Some(appearance) = legacy_client_appearance_forced(game_state, client, model)
+            let Some(appearance) =
+                legacy_client_appearance_with_policy(game_state, client, model, |appearance| {
+                    crate::actor_load::eligible_appearance(
+                        appearance,
+                        true,
+                        &self.clientinfo_watch.model_policy,
+                        crate::actor_load::model_options(self.console.as_ref()),
+                    )
+                })
             else {
                 self.clientinfo_watch.loads.cancel(client);
                 return Ok(());

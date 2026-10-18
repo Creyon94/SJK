@@ -76,12 +76,25 @@ pub struct LegacyCharacterCatalog {
 pub fn legacy_character_catalog(
     vfs: &VirtualFileSystem,
 ) -> Result<LegacyCharacterCatalog, Box<dyn Error + Send + Sync>> {
+    legacy_character_catalog_with_policy(vfs, "", true)
+}
+
+/// Enumerate player choices using content metadata and the local player override.
+pub fn legacy_character_catalog_with_policy(
+    vfs: &VirtualFileSystem,
+    blacklist: &str,
+    respect_metadata: bool,
+) -> Result<LegacyCharacterCatalog, Box<dyn Error + Send + Sync>> {
+    let eligibility = crate::player_model_eligibility::PlayerModelEligibility::load(vfs);
     let paths = vfs.paths();
     let model_dirs = model_directories(&paths);
     let mut characters = BTreeMap::new();
     let mut species = Vec::new();
 
     for model in model_dirs {
+        if !eligibility.allows(&model, blacklist, respect_metadata) {
+            continue;
+        }
         let choice = format!("models/players/{model}/playerchoice.txt");
         if let Some(asset) = vfs.read(&choice)? {
             if let Some(parsed) = parse_species(vfs, &model, &asset.bytes, &paths)? {
@@ -91,6 +104,9 @@ pub fn legacy_character_catalog(
         collect_ordinary_skins(vfs, &model, &paths, &mut characters)?;
     }
     for model in rig_directories(&paths) {
+        if !eligibility.allows(&model, blacklist, respect_metadata) {
+            continue;
+        }
         let cvar_value = format!("{model}/default");
         if characters.contains_key(&cvar_value) {
             continue;
