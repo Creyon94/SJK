@@ -99,7 +99,6 @@ impl ChatOverlay {
             }
             _ => return false,
         }
-        self.player_menu = None;
         true
     }
 
@@ -126,7 +125,6 @@ impl ChatOverlay {
                 }
                 input.layout.last_click = (!double).then_some((now, at));
                 input.layout.dragging = !double;
-                self.player_menu = None;
                 self.pressed_action = None;
                 true
             }

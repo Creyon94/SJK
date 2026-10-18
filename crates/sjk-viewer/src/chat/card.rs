@@ -8,7 +8,7 @@ use super::*;
 use crate::sender_card::{self, Person, Place};
 use sjk_ui::Rect;
 
-/// The card's pointer targets, after the player menu's.
+/// The card's pointer targets, after the composer's.
 pub(super) const CARD: u16 = 120;
 pub(super) const CARD_MUTE: u16 = 121;
 pub(super) const CARD_BAN: u16 = 122;
@@ -43,9 +43,9 @@ pub(crate) struct MuteRequest {
 impl ChatOverlay {
     /// After the feed is laid out: show the card of the name under the pointer, keep
     /// it while the pointer is on the card, else hide it. Not while the composer is
-    /// closed (`active` false) or the player menu is open.
+    /// closed (`active` false).
     pub(super) fn follow_card(&mut self, active: bool) {
-        if !active || self.player_menu.is_some() {
+        if !active {
             self.card = None;
             return;
         }
@@ -161,6 +161,10 @@ impl ChatOverlay {
         let measure = crate::sjk_chat_look::Measure::new(font, crate::text::TextStyle::NEUTRAL);
         let size = sender_card::size(&card.person, g.scale);
         let origin = sender_card::beside(card.anchor, size, viewport, 10.0 * g.scale);
+        // Text draws over every shape: the feed's text under the card is left out, or
+        // the messages showed through it (Sol, 18/10/2026).
+        self.ui
+            .cover(Rect::new(origin[0], origin[1], size[0], size[1]));
         sender_card::draw(
             &mut self.ui,
             &sender_card::Card {

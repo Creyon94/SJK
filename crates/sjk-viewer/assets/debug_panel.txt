@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[chat-card-cleanup]
+area: Console & chat
+title: Chat: old name dropdown removed, sender card drawn over the feed's text
+change: Clicking a name opened whisper/ignore/friend/copy; it is gone with the friend star.
+change: The sender card no longer shows the chat messages under it through its face.
+test: Open chat, hover a sender's name: the card shows, no message text through it.
+test: Hover Block on the card and click it: works as before; Unblock restores.
+test: Click a name: nothing opens; typing, Tab channels and reply still work.
+
 [command-reference]
 area: Console & chat
 title: Every command and cvar exported as one page, for SolBot (developer tool)

@@ -1,6 +1,5 @@
 //! Keyboard and pointer actions for the floating conversation layer.
 
-use super::player_actions::{ACTIONS, MENU_BACK};
 use super::*;
 use sjk_client::{ChatDestination, chat_command};
 use sjk_ui::{InputEvent, PointerButton, UiEventKind};
@@ -63,36 +62,6 @@ impl ChatOverlay {
         // platform reported text for them (see `input::dead_key`).
         if handled_key(key) {
             input.dead.other_key(text);
-        }
-        if let Some(menu) = &mut self.player_menu {
-            match key {
-                KeyCode::Escape => {
-                    self.player_menu = None;
-                    return ChatInputResult::None;
-                }
-                KeyCode::ArrowUp | KeyCode::ArrowDown | KeyCode::Tab => {
-                    let previous = key == KeyCode::ArrowUp
-                        || (key == KeyCode::Tab && self.modifiers.shift_key());
-                    let index = menu
-                        .selected
-                        .and_then(|selected| ACTIONS.iter().position(|token| *token == selected));
-                    let next = match index {
-                        Some(index) if previous => (index + ACTIONS.len() - 1) % ACTIONS.len(),
-                        Some(index) => (index + 1) % ACTIONS.len(),
-                        None if previous => ACTIONS.len() - 1,
-                        None => 0,
-                    };
-                    menu.selected = Some(ACTIONS[next]);
-                    return ChatInputResult::None;
-                }
-                KeyCode::Enter | KeyCode::NumpadEnter => {
-                    if let Some(token) = menu.selected {
-                        self.activate(token);
-                    }
-                    return ChatInputResult::None;
-                }
-                _ => self.player_menu = None,
-            }
         }
         match key {
             KeyCode::Escape => {
@@ -178,13 +147,6 @@ impl ChatOverlay {
         if !self.is_typing() {
             return;
         }
-        if matches!(
-            event,
-            InputEvent::PointerMove(_) | InputEvent::PointerLeave | InputEvent::PointerPress { .. }
-        ) && let Some(menu) = &mut self.player_menu
-        {
-            menu.selected = None;
-        }
         // The profile card lies over the feed and may reach the composer: a press on
         // it is the card's.
         let on_card = matches!(event, InputEvent::PointerPress { position, .. }
@@ -198,23 +160,19 @@ impl ChatOverlay {
             button: PointerButton::Primary,
         } = event
         {
-            // Match the canvas's reverse paint order: popovers cover the
+            // Match the canvas's reverse paint order: the card covers the
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
             self.pressed_action = [card::CARD_BAN, card::CARD_MUTE, card::CARD]
                 .into_iter()
-                .chain(ACTIONS.into_iter().rev())
-                .chain([MENU_BACK, LATEST, SJK, TEAM, GLOBAL])
-                .chain(0..MAX_VISIBLE as u16)
+                .chain([LATEST, SJK, TEAM, GLOBAL])
                 .find(|token| {
                     self.ui
                         .rect_for(*token)
                         .is_some_and(|rect| rect.contains(position))
-                })
-                .map(|token| (token, self.action_target(token)));
+                });
         }
         if let InputEvent::PointerWheel { delta, .. } = event {
-            self.player_menu = None;
             if delta.y != 0.0 {
                 self.scroll_by(if delta.y > 0.0 { 1 } else { -1 });
             }
@@ -224,49 +182,9 @@ impl ChatOverlay {
         if let Some(result) = result
             && result.kind == UiEventKind::Activate
             && let Some(token) = result.token
+            && self.pressed_action.take() == Some(token)
         {
-            let target = self.action_target(token);
-            // A new message can rebuild the name widgets between press and
-            // release. Never reinterpret the old press as a different sender.
-            if self.pressed_action.take() != Some((token, target)) {
-                return;
-            }
-            if usize::from(token) < self.visible_targets.len() {
-                if let Some(target) = self.visible_targets[usize::from(token)]
-                    .filter(|target| self.roster.name(*target).is_some())
-                {
-                    self.player_menu = Some(PlayerMenu {
-                        target,
-                        anchor_y: self.ui.rect_for(token).map_or(0.0, |rect| rect.y),
-                        selected: None,
-                    });
-                }
-            } else {
-                self.activate(token);
-            }
-        }
-        if let InputEvent::PointerPress {
-            position,
-            button: PointerButton::Primary,
-        } = event
-            && self.player_menu.is_some()
-            && !self
-                .ui
-                .rect_for(MENU_BACK)
-                .is_some_and(|r| r.contains(position))
-        {
-            self.player_menu = None;
-        }
-    }
-
-    fn action_target(&self, token: u16) -> Option<ChatTarget> {
-        if ACTIONS.contains(&token) || token == MENU_BACK {
-            self.player_menu.map(|menu| menu.target)
-        } else {
-            self.visible_targets
-                .get(usize::from(token))
-                .copied()
-                .flatten()
+            self.activate(token);
         }
     }
 
@@ -298,14 +216,11 @@ impl ChatOverlay {
                     input.recipient = None;
                     self.notice = "";
                 }
-                self.player_menu = None;
             }
             LATEST => {
                 self.scroll = 0;
                 self.unread = 0;
-                self.player_menu = None;
             }
-            token if ACTIONS.contains(&token) => self.player_action(token),
             card::CARD_MUTE => self.toggle_card_mute(),
             card::CARD_BAN => self.press_card_ban(),
             _ => {}
