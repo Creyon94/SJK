@@ -1,3 +1,22 @@
+## Siege HUD: round state, respawn countdown, hacking
+
+18/10/2026, `feat/siege-hud`, based on `Sol-Vulpes/SJK` `6469816` (tester on
+`mp/siege_hoth`). The client drew none of cgame's siege timers, and a hack was silent:
+
+- The warmup line shows the round's `CS_SIEGE_STATE` ("WAITING FOR PLAYERS",
+  "STARTS IN: n"), as `cg_draw.c:8168-8226` does.
+- A dead player waiting for the respawn wave sees "RESPAWN IN: n", from the viewed player's
+  `EV_SIEGESPEC` time (`CG_DrawSiegeDeathTimer`). It is forgotten once the player is back
+  in play.
+- A hack in progress shows "HACKING: n%" (`CG_DrawHaqrBar`'s share of
+  `ps.hackingTime`/`hackingBaseTime`).
+- A hacker's `ps.loopSound` is `sound/player/hacking.wav` while it hacks
+  (`G_SetClientSound`). The client now plays the viewed player's own `ps.loopSound`, as
+  cgame does through `cg.predictedPlayerEntity`; it is not among the snapshot's entities.
+
+The workspace built on Linux; the unit tests (siege state, wave and hack tracking) and Clippy
+were not run for this branch. Tested by hand with an earlier build of the same change.
+
 ## Siege doors: the use key, lock lights, trigger teams
 
 18/10/2026, `fix/siege-door-use-lights`, on `fix/siege-door-teamallow` merged into
