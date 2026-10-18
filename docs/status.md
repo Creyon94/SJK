@@ -1,3 +1,18 @@
+## Server-reported scoreboard deaths
+
+18/10/2026, `feat/scoreboard-deaths`, based on `origin/main` `96569426`: the
+15th field in JA+/jaPRO `scores` rows is now retained and shown by both
+scoreboard styles as `score/deaths` in the existing score column. Previously it
+was used only to identify the wider row, so the default `cg_scoreDeaths 1`
+still showed score alone. JoF EJK's modes are preserved: 0 hides deaths, 1 uses
+the server value, 2 uses it with a session-local fallback, and 3 forces the
+local counter; duel and CTF exclusions remain. Parser tests cover stock rows,
+plugin rows including a signed value, full servers and ambiguous row lengths;
+a focused policy test covers modes 0-3. On Linux x86_64 with Rust 1.99.1,
+formatting, the locked workspace build and test suite, all-target Clippy, and the
+locked release viewer/dedicated build pass; existing warnings remain.
+Live-server display remains unverified.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.
