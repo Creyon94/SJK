@@ -211,10 +211,11 @@ not yet been checked interactively on a live server or in demo playback.
 
 17/10/2026, `feat/pm-only-chat`, based on `bb83eb28`, Windows x86_64,
 Rust 1.99.0: implemented JoF EJK #331's current-map PM-only command and
-shared settings switch, default off. The client marks only non-localized `chat`
-commands whose first argument starts with the stock tell marker, before display
+shared settings switch, default off. The client marks only `chat` commands, and
+the `lchat` that `G_Say` sends for a tell to a teammate with a location, whose
+first argument starts with the stock tell marker, before display
 cleanup/localization. Chat history visibility and notification audio use that
-classification, including sent echoes; ordinary/team/localized messages and
+classification, including sent echoes; ordinary/team messages and
 lookalike name/body colours do not qualify. Hidden history is retained. Console
 logs/history, centre notices and the independent SJK hub chat remain available.
 Map adoption resets the non-archived choice; graphics reload preserves it.

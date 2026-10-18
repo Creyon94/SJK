@@ -362,7 +362,9 @@ pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     };
     Some(ServerEvent {
         kind,
-        is_private: command == b"chat"
+        // G_Say's SAY_TELL to a teammate with a location sends `lchat`, whose
+        // argument 1 is the same marked name.
+        is_private: matches!(command, b"chat" | b"lchat")
             && arguments
                 .get(1)
                 .is_some_and(|text| text.starts_with(b"\x19[")),
@@ -567,10 +569,14 @@ mod escape_tests {
 }
 
 /// Whether a reliable command carries the stock private-message marker before its name.
-/// Localized/team commands and lookalike colours or message bodies do not qualify.
+/// `lchat` (G_Say's tell to a teammate with a location) qualifies, its argument 1
+/// being the marked name; team commands and lookalike colours or bodies do not.
 pub(crate) fn private_chat_command(command: &[u8]) -> bool {
     let mut parts = command.splitn(2, u8::is_ascii_whitespace);
-    if parts.next() != Some(b"chat".as_slice()) {
+    if !parts
+        .next()
+        .is_some_and(|command| matches!(command, b"chat" | b"lchat"))
+    {
         return false;
     }
     let Some(rest) = parts.next() else {
@@ -586,10 +592,12 @@ pub(crate) fn private_chat_command(command: &[u8]) -> bool {
 mod private_marker_tests {
     use super::*;
     #[test]
-    fn private_marker_precedes_name_and_only_belongs_to_nonlocalized_chat() {
+    fn private_marker_precedes_name_and_only_belongs_to_global_chat() {
         for command in [
             b"chat \"\x19[Fox^7]: ^6hello\" 2".as_slice(),
             b"chat \x19[Fox]: hi 2",
+            // G_Say's SAY_TELL to a teammate in a team game, with a location.
+            b"lchat \"\x19[Fox^7\x19]\x19: \" \"@Base\" \"6\" \"hello\" 2",
         ] {
             assert!(private_chat_command(command));
             assert!(
