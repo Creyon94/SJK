@@ -641,21 +641,20 @@ impl super::GpuState {
             }
             Some(InputAction::ForceAbility(slot)) => {
                 if let Some(session) = &mut self.live_session {
-                    let known = self
-                        .gameplay_input
-                        .selection
-                        .known(&session.latest_snapshot().player);
-                    if sjk_client::force_wheel::valid_with(
-                        known,
-                        slot,
-                        self.gameplay_input.selection.extensions(),
-                    ) && let Some(command) = self
-                        .gameplay_input
-                        .selection
-                        .extensions()
-                        .iter()
-                        .find(|a| a.slot == slot)
-                        .and_then(|a| a.command)
+                    let extensions = self.gameplay_input.selection.extensions();
+                    let command = if extensions.iter().any(|a| a.slot == slot) {
+                        let known = self
+                            .gameplay_input
+                            .selection
+                            .known(&session.latest_snapshot().player);
+                        sjk_client::force_wheel::valid_with(known, slot, extensions)
+                            .then(|| force_abilities::command_for(slot))
+                            .flatten()
+                    } else {
+                        // Not active here: forwarded unchanged, as before the mod owned it.
+                        force_abilities::command_for(slot)
+                    };
+                    if let Some(command) = command
                         && let Err(error) = session.send_reliable_command_from(
                             command.as_bytes(),
                             sjk_client::ReliableCommandOrigin::Input,

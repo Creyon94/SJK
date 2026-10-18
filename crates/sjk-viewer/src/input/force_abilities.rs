@@ -1,13 +1,30 @@
 //! Host bridge for optional mod-owned Force wheel entries.
 use sjk_client::force_wheel::Ability;
 
-pub(super) fn command_slot(command: &str) -> Option<u8> {
+/// Every wheel entry a built-in mod may supply, whether or not it is active now.
+fn known_entries() -> &'static [Ability] {
     #[cfg(feature = "mod-jof")]
-    if command == sjk_mod_jof::destruction::COMMAND {
-        return Some(sjk_mod_jof::destruction::SLOT);
-    }
-    let _ = command;
-    None
+    return sjk_mod_jof::destruction::ENTRIES;
+    #[cfg(not(feature = "mod-jof"))]
+    &[]
+}
+
+/// The wheel slot whose command `command` is (lower case), active or not.
+pub(super) fn command_slot(command: &str) -> Option<u8> {
+    known_entries()
+        .iter()
+        .find(|entry| entry.command == Some(command))
+        .map(|entry| entry.slot)
+}
+
+/// The command a mod's entry sends. While that entry is not active (mod off or
+/// unloaded, another server, the support setting off), a typed or bound command
+/// goes to the server unchanged, as any other unknown command would.
+pub(super) fn command_for(slot: u8) -> Option<&'static str> {
+    known_entries()
+        .iter()
+        .find(|entry| entry.slot == slot)
+        .and_then(|entry| entry.command)
 }
 
 pub(crate) fn extensions(
@@ -83,6 +100,12 @@ mod tests {
         assert!(extensions(Some(&game), Some(&console)).is_empty());
         let mut input = GameplayInput::default();
         assert!(GameplayInput::recognizes(sjk_mod_jof::destruction::COMMAND));
+        // Inactive (mod off here): still the server command, forwarded unchanged.
+        assert_eq!(
+            command_for(sjk_mod_jof::destruction::SLOT),
+            Some(sjk_mod_jof::destruction::COMMAND)
+        );
+        assert_eq!(command_for(sjk_client::force_wheel::DASH), None);
         assert_eq!(
             input.apply(sjk_mod_jof::destruction::COMMAND),
             Some(InputAction::ForceAbility(sjk_mod_jof::destruction::SLOT))

@@ -143,11 +143,13 @@ Destruction's contract, name, installed icon and capability policy live in
 It is offered only on a recognized JoF server with `mod_jof 1`, nonzero
 `g_forceDestruction` and the living player's known bit 21, outside spectator/follow.
 `jof.destructionSupport` is an archived mod setting: Auto (`-1`) follows the flag,
-Off (`0`) disables it, and Server grant (`1`) accepts the bit without the flag.
+Off (`0`) disables it, and Grant contract (`1`) accepts the bit without the flag.
 The override cannot load the mod on another server or grant a power.
 
 The Force bar, SJK selector, quick wheel and key-binding editor support the entry.
 `force_destruction` keeps existing binds working; completion loads with the mod.
+Where the entry is not active (another server, the mod or the setting off), the
+command goes to the server unchanged, as it did before the mod owned it.
 `+useforce` sends it once per press. Slot 21 is local-only and never becomes the
 network Force selection. Loaded extensions use EJK #338's anchor order; base SJK
 keeps its original wheel and never treats bit 21 as Destruction. Turning the mod
