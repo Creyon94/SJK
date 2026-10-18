@@ -18,6 +18,9 @@ pub(crate) mod clipboard;
 mod console_asset_browser;
 #[path = "console_changelog.rs"]
 mod console_changelog;
+#[cfg(test)]
+#[path = "console_command_reference.rs"]
+mod console_command_reference;
 #[path = "console_connect.rs"]
 mod console_connect;
 #[path = "console_credits.rs"]

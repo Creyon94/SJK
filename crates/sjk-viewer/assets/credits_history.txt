@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | Every command and cvar exported as one page, for SolBot
+- 560efb1 |  | Export the console commands and cvars as a Markdown reference
++ 18/10/2026 | - | Pull requests with a visible change carry screenshots
+- 88f2732 |  | Pull requests with a visible change carry screenshots
++ 18/10/2026 | - | Release 2026.1018.1 (Alpha)
+- 638a391 |  | Release 2026.1018.1 (Alpha)
 + 18/10/2026 | - | SJK pull request #165, trusted chat media sources; WebP, opt-in MP4 via Windows Media Foundation
 - f73cef4 |  | Chat clips: decode MP4 through Windows Media Foundation, not OpenH264
 - ac489b6 |  | Chat media: animated and still WebP from trusted sources

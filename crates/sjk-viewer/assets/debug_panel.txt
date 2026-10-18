@@ -24,6 +24,14 @@
 
 # ---- Console & chat ----
 
+[command-reference]
+area: Console & chat
+title: Every command and cvar exported as one page, for SolBot (developer tool)
+change: An ignored test writes the cmdlist/cvarlist/help data to Markdown (development.md).
+change: Nothing changes in game; SolBot's SJK answers come from this page.
+test: cmdlist, cvarlist and help <name> still list and describe everything as before.
+test: Ask SolBot in SJK chat how to show your FPS: it should say cg_drawFPS 1.
+
 [block-players]
 area: Console & chat
 title: Block a player: no chat, Kyle, silent, no emotes, toys or card (was Mute)
