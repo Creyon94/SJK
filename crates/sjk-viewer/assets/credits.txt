@@ -31,7 +31,7 @@
 
 [Sol]
 github: Sol-Vulpes
-role: Creator and developer of Sol JK: 124 contributor pull requests reviewed and merged
+role: Creator and developer of Sol JK
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
 did: The SJK UI, Sol JK's own menus over the live map

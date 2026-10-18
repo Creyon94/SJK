@@ -3253,7 +3253,8 @@ the file (Sol JK, Contributors, Art, Made with, Footnote) is a heading with its 
 
 - Everyone with a history (Sol, Bishop, Creyon, Lumaya) has a panel across the
   column: the name large (the first section's larger still), the role, chips
-  counting their changes, pull requests and commits, their links, and two folds.
+  counting their changes, pull requests and commits (Sol's also the contributors'
+  pull requests reviewed and merged, REVIEWED & MERGED), their links, and two folds.
   HIGHLIGHTS holds the card's own lines; ALL WORK (ALL PULL REQUESTS when all of
   it is pull requests) lists every feature and pull request newest first under
   the day it was merged into main, each row with its pull request's number

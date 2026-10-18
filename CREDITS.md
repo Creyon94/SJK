@@ -8,9 +8,10 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 
 ## Sol JK, by Sol
 
-Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 124 pull requests (Creyon 52, Lumaya 49, Lukas 9, Slash 12, Milamber 2). Sol's
-work includes:
+Sol develops SJK and sets its direction, and reviews and merges every
+contributor's pull request: the credits page counts them on Sol's card
+("REVIEWED & MERGED", beside Sol's own pull requests and commits). Sol's work
+includes:
 
 - the Sol JK name, README, credits and website;
 - the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
