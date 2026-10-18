@@ -89,8 +89,12 @@ jaPRO/TaystJK servers answer. TaystJK's completion lists it.
 [sjk-mod-jof](../crates/sjk-mod-jof/src/lib.rs). A JoF server is a JA+ server
 whose serverinfo `V` is `2.5B0`, as JoF EternalJK's `CL_JoFTrustedServer` checks.
 The mod completes the commands only JoF servers run: the `gun*` admin set, which
-acts on the player you aim at (the server works out who), plus `jetpack`,
-`refuseTele`, `immortal` and the extra emotes. `jof.commands` lists them and says
+acts on the player you aim at (the server works out who), `jetpack`,
+`toggleFlame`, `refuseTele`, `immortal`, `sleep`, and the commands JoF's `amInfo`
+lists under "JoF JA+ Commands" (`amHelp`, `amTips`, `amEmotes`, `amShop`,
+`amCredits`). The `am*` player commands and emotes JoF EJK registered with them
+(`amKnockMeDown`, `amDropSaber`, `amAtEase` to `amWon`) are JA+ ones: JA+ tools
+complete them (Sol, 18/10/2026). `jof.commands` lists the JoF set and says
 whether the current server is a JoF one.
 
 JoF tools also bring [JoF content](jof-content.md) (`jof.downloads`, `jof.content*`):

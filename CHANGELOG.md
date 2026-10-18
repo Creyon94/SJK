@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
 
+- Console completion: `amKnockMeDown`, `amDropSaber` and the emotes from `amAtEase` to `amWon` are completed as JA+ commands instead of JoF ones, and JoF tools complete JoF's own `amHelp`, `amTips`, `amEmotes`, `amShop` and `amCredits` _(Sol)_
 - JoF mod: on JoF servers that grant it, Destruction gets its place on the Force wheel, its key and its HUD icon; Settings > Mods > JoF Destruction support (`jof.destructionSupport`) _(Lumaya, after JoF EJK)_
 - JoF mod: JoF server dialogue shows with its choices and plays its voices; Settings > Mods > JoF dialogue (`jof.dialogue`) _(Lumaya, after JoF EJK)_
 - JoF mod: SJK tells JoF servers it supports EJK's extensions, as JoF EJK does, which turns on their server-side abilities, and Stasis and Repulse play their firing sounds (`jof.ejkOptIn`, `jof.abilitySounds`) _(Lumaya, after JoF EJK)_
