@@ -345,7 +345,7 @@ mod tests {
             after.save(directory.join("jetpack-equipped.png")).unwrap();
             let definition = gpu
                 .effects
-                .definition(&gpu.vfs.as_ref().unwrap(), EFFECT)
+                .definition(gpu.vfs.as_ref().unwrap(), EFFECT)
                 .unwrap();
             let missing: Vec<_> = definition
                 .components
