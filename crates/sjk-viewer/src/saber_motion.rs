@@ -21,7 +21,7 @@ const FALL: f32 = 0.08;
 /// new one every `SWING_EVERY` milliseconds (each swing of a combo is one).
 const SWING_BEGINS: f32 = 0.4;
 const SWING_ENDS: f32 = 0.25;
-const SWING_EVERY: i64 = 750;
+const SWING_EVERY: i64 = 1_000;
 /// A blade unseen this long (milliseconds) was put away; seen again, it is lit anew.
 const UNSEEN: i64 = 250;
 
@@ -232,7 +232,7 @@ mod tests {
             }
             last = m[3];
         }
-        assert_eq!(starts, 3);
+        assert_eq!(starts, 2);
     }
 
     #[test]

@@ -218,6 +218,8 @@ struct Skin {
     // Creyon's Blade Lab design it is drawn as (blade_lab_designs.rs): its number (0 none),
     // its glow's reach and its particles' room (metres), whether it has a solid pass.
     design: vec4<f32>,
+    // Its colour (the lab's), for the light at its emitter.
+    design_color: vec4<f32>,
 }
 
 @group(2) @binding(0)
@@ -2319,6 +2321,7 @@ struct LabPlace {
     clash: f32,
     age: f32,
     since_swing: f32,
+    since_clash: f32,
     // A chroma's turn to its wearer's colour (0: the design's own colours).
     turn: f32,
     // How much narrower than the lab's it is drawn (`LAB_THIN`).
@@ -2327,7 +2330,7 @@ struct LabPlace {
 
 // How far each design's blade starts behind its hilt end (metres): stock blades hide
 // the hilt's mouth under their glow and hilt sprite, the lab's start at its emitter.
-const LAB_START: f32 = 0.04;
+const LAB_START: f32 = 0.08;
 // How much narrower each design is drawn than in the lab (its width divided by this),
 // so every blade is a stock blade's thickness and fits its hilt; by number.
 const LAB_THIN: array<f32, 15> = array<f32, 15>(
@@ -2364,6 +2367,7 @@ fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     p.clash = max(1.0 - input.motion.y * 2.2, 0.0);
     p.age = input.motion.z;
     p.since_swing = input.motion.w;
+    p.since_clash = input.motion.y;
     p.turn = input.chroma;
     return p;
 }
@@ -2573,18 +2577,56 @@ fn lab_quicksilver(p: LabPlace) -> vec3<f32> {
 // The reactor's cycle (seconds into its 14): calm until 8, heating to 11, critical to
 // 12.6 (red, strobing, venting), then a flash and it cools back to blue.
 fn lab_reactor_heat(t: f32) -> vec3<f32> {
-    let c = fract(t / 14.0) * 14.0;
-    let heating = lab_sstep(8.0, 11.0, c) * (1.0 - lab_sstep(12.6, 14.0, c));
-    let critical = step(11.0, c) * step(c, 12.6);
-    let flash = exp(-max(c - 12.6, 0.0) * 6.0) * step(12.6, c);
+    // Its 30-second cycle: calm until 16, heating over 6 seconds, critical for 4 (red,
+    // strobing, venting), then a flash and it cools over 4.
+    let c = fract(t / 30.0) * 30.0;
+    let cooling = 1.0 - lab_sstep(26.0, 30.0, c);
+    let heating = lab_sstep(16.0, 22.0, c) * cooling;
+    let critical = lab_sstep(21.6, 22.4, c) * (1.0 - lab_sstep(25.6, 26.2, c));
+    let flash = exp(-max(c - 26.0, 0.0) * 4.0) * step(26.0, c);
     return vec3(heating, critical, flash);
 }
 
 fn lab_reactor(p: LabPlace) -> vec3<f32> {
+    let core = lab_reactor_core(p);
+    let heat = lab_reactor_heat(p.t);
+    // The containment field: two magnetic field lines winding round the plasma, faster
+    // and brighter as it heats.
+    var field = 0.0;
+    for (var i = 0; i < 2; i++) {
+        let fi = f32(i);
+        let ph = p.x * 52.0 - p.t * (3.0 + 6.0 * heat.x) + fi * PI;
+        let yc = 0.017 * sin(ph);
+        let front = 0.5 + 0.5 * cos(ph);
+        field += exp(-abs(p.y - yc) / max(0.0012, p.px * 0.6)) * (0.25 + 0.75 * front);
+    }
+    field *= step(0.02, p.x) * step(p.x, p.big_l - 0.02) * (0.35 + 0.65 * heat.x + 0.5 * heat.y);
+    let fc = mix(lab_turn(vec3(0.5, 0.85, 1.0), p), vec3(1.0, 0.55, 0.25), heat.x);
+    // Arcs jumping between neighbouring rings while it is hot.
+    var arcs = 0.0;
+    let n = 5.0;
+    for (var k = 0; k < 5; k++) {
+        let x0 = fract((f32(k) + p.t * 0.1 * n) / n) * p.big_l;
+        let x1 = x0 + p.big_l / n;
+        let cycle = floor(p.t * 7.0 + f32(k) * 1.7);
+        let on = step(0.55 - 0.5 * heat.x, lab_hash(cycle * 3.1 + f32(k)));
+        let side = select(-1.0, 1.0, lab_hash(cycle + f32(k) * 5.0) < 0.5);
+        let u = clamp((p.x - x0) / max(x1 - x0, 0.001), 0.0, 1.0);
+        let jag = (lab_noise(vec2(p.x * 300.0, cycle)) - 0.5) * 0.008;
+        let yc = side * (0.02 + 0.006 * sin(u * PI)) + jag;
+        arcs += exp(-abs(p.y - yc) / max(0.0009, p.px * 0.5)) * step(x0, p.x) * step(p.x, x1) * on;
+    }
+    arcs *= heat.x * step(p.x, p.big_l);
+    // The emitter coil glowing at the hilt end.
+    let coil = exp(-length(vec2(p.x, p.y) - vec2(0.03, 0.0)) * 60.0) * (0.6 + 0.4 * sin(p.t * 6.0));
+    return core + fc * field * 0.55 + vec3(0.85, 0.9, 1.0) * arcs * 0.9 + mix(lab_turn(vec3(0.4, 0.8, 1.0), p), vec3(1.0, 0.5, 0.2), heat.x) * coil;
+}
+
+fn lab_reactor_core(p: LabPlace) -> vec3<f32> {
     let n = 5.0;
     let sp = 0.1;
     let heat = lab_reactor_heat(p.t);
-    let strobe = heat.y * (0.5 + 0.5 * step(0.5, fract(p.t * 4.0)));
+    let strobe = heat.y * (0.5 + 0.5 * step(0.5, fract(p.t * 2.0)));
     // The plasma throbs faster as it heats, and swells while critical.
     let throb = 1.0 + (0.08 + 0.25 * heat.x) * sin(p.t * (5.0 + 22.0 * heat.x));
     let ph = p.x / max(p.big_l, 0.001) * n - p.t * sp * n;
@@ -2773,10 +2815,9 @@ fn lab_quantum(p: LabPlace) -> vec3<f32> {
 // Quantum's ghost copies: two faint copies of the blade at other angles about its hilt,
 // drifting round while it is held still and collapsing into it when it swings.
 fn lab_quantum_ghosts(p: LabPlace) -> vec3<f32> {
-    let held = 1.0 - clamp(p.swing * 2.0, 0.0, 1.0);
-    if held <= 0.0 {
-        return vec3(0.0);
-    }
+    // Apart while it is held, close and flickering in superposition while it swings,
+    // never quite gone.
+    let held = mix(0.45, 1.0, 1.0 - clamp(p.swing * 2.0, 0.0, 1.0));
     var light = vec3(0.0);
     for (var k = 0; k < 2; k++) {
         let fk = f32(k);
@@ -3093,6 +3134,11 @@ fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     if e > 0.0 {
         light = max(lab_blade(n, p), vec3(0.0)) * e;
     }
+    // The emitter: light where the blade leaves the hilt, as a stock blade's hilt sprite
+    // gives, so no gap shows between hilt and blade.
+    let mouth = length(p.p - vec2(LAB_START * p.k, 0.0));
+    let emitter = lab_turn(skins[skin_index(input)].design_color.rgb, p);
+    light += emitter * (exp(-mouth / 0.012) * 0.9 + exp(-mouth / 0.035) * 0.22);
     // Quantum's ghost copies, an option its wearer may switch off.
     if n == LAB_QUANTUM && (input.off & OFF_COPIES) == 0u {
         light += max(lab_quantum_ghosts(p), vec3(0.0));
@@ -3215,13 +3261,15 @@ fn lab_word_cell(word: u32, cell: vec2<i32>) -> bool {
 // thick black outline and a thin line of the blade's colour round them, popping up,
 // growing and rising as it fades (the lab's sprite).
 fn lab_comic_word(p: LabPlace, word: u32, at: vec2<f32>, tilt: f32, age: f32, color: vec3<f32>) -> vec4<f32> {
-    let life = 1.1;
+    // Long enough to read: it pops up in a tenth of a second, holds, then fades over its
+    // last third.
+    let life = LAB_WORD_LIFE;
     let k = age / life;
     if k < 0.0 || k >= 1.0 {
         return vec4(0.0);
     }
-    let size = select(0.42 + k * 0.08, k / 0.15 * 0.42, k < 0.15);
-    let centre = at + p.up * 0.08 * age;
+    let size = select(0.66 + k * 0.06, age / 0.1 * 0.66, age < 0.1);
+    let centre = at + p.up * 0.05 * age;
     // The word's frame: right and up on screen as the world's (across runs to the
     // screen's left).
     let right = vec2(-p.up.y, p.up.x);
@@ -3254,29 +3302,33 @@ fn lab_comic_word(p: LabPlace, word: u32, at: vec2<f32>, tilt: f32, age: f32, co
     let fill = clamp((-nearest) / soft + 0.5, 0.0, 1.0);
     let stroke = clamp((0.16 - abs(nearest + 0.08)) / soft + 0.5, 0.0, 1.0);
     var rgb = mix(vec3(0.0), vec3(1.0, 0.886, 0.239), fill);
-    rgb = mix(rgb, color, stroke * fill);
-    return vec4(rgb, ink * (1.0 - k * k * k));
+    // A line of the blade's colour round the letters, only where they are big enough
+    // on screen for it not to drown the yellow.
+    rgb = mix(rgb, color, stroke * fill * lab_sstep(0.25, 0.12, soft));
+    return vec4(rgb, ink * (1.0 - lab_sstep(0.66, 1.0, k)));
 }
 
 // The comic words now showing: on ignition, the last swing and the last clash.
 fn lab_comic_words(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
     var out = vec4(0.0);
-    let swung = p.since_swing - 0.12;
-    if swung >= 0.0 && swung < 1.1 {
+    let swung = p.since_swing - 0.08;
+    if swung >= 0.0 && swung < LAB_WORD_LIFE {
         let born = floor((p.t - swung) * 10.0);
         let word = 1u + u32(lab_hash(born + 1.0) * 2.999);
         let side = select(-1.0, 1.0, lab_hash(born + 5.0) < 0.5);
-        out = lab_over(out, lab_comic_word(p, word, vec2(0.7 * p.shaft, 0.15 * side), (lab_hash(born + 2.0) - 0.5) * 0.36, swung, color));
+        out = lab_over(out, lab_comic_word(p, word, vec2(0.7 * p.shaft, 0.17 * side), (lab_hash(born + 2.0) - 0.5) * 0.3, swung, color));
     }
-    let clashed = 1.0 - p.clash;
-    if p.clash > 0.0 && clashed / 2.2 < 1.1 {
-        let age = clashed / 2.2;
+    if p.since_clash < LAB_WORD_LIFE {
+        let age = p.since_clash;
         let born = floor((p.t - age) * 10.0);
         let word = 4u + u32(lab_hash(born + 7.0) * 2.999);
-        out = lab_over(out, lab_comic_word(p, word, vec2(0.68 * p.shaft, 0.0) + p.up * 0.12, (lab_hash(born + 8.0) - 0.5) * 0.36, age, color));
+        out = lab_over(out, lab_comic_word(p, word, vec2(0.6 * p.shaft, 0.0) + p.up * 0.14, (lab_hash(born + 8.0) - 0.5) * 0.3, age, color));
     }
     return out;
 }
+
+// How long a comic word shows (seconds).
+const LAB_WORD_LIFE: f32 = 1.8;
 
 // The quicksilver blade: a mirror column wobbling like mercury, three beads swelling it
 // as they roll up to the tip, and the drops they leave falling off it.

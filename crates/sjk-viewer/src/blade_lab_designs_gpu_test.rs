@@ -234,7 +234,7 @@ fn every_design_draws_its_blade_and_nothing_at_the_edge() {
         for (seconds, motion, color) in [
             (3.0, crate::saber_motion::STILL, color),
             (5.4, [0.9, 1_000.0, 1_000.0, 0.25], color),
-            (11.7, [0.0, 0.1, 1_000.0, 1_000.0], color),
+            (24.0, [0.0, 0.1, 1_000.0, 1_000.0], color),
             (3.0, crate::saber_motion::STILL, green),
         ] {
             let pair = crate::saber::Instance::pair(

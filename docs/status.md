@@ -9,7 +9,8 @@ and obsidian solids, the comic words and the monarchs; a per-blade swing (about 
 hilt), ignition and clash for them; `cg_saberLabDesigns` (default on) to draw the files
 instead. After Creyon's first test: blades seated in the hilt at a stock thickness, the
 bloom tamed, eleven made chromas, comic words per swing, a rounded slower hourglass, a
-climbing serpent, a 14-second reactor overheat, Quantum's ghost copies as an option and
+climbing serpent, a 30-second reactor overheat with field lines and arcs, emitter light at
+the hilt, longer comic words, Quantum's ghost copies as an option and
 more effects, larger bubbles. The Phoenix's wings are left out. See
 [rendering](rendering.md#blade-lab-designs).
 

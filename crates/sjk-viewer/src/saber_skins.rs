@@ -248,8 +248,8 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 96 `vec4`s (1536 bytes, so
-/// the [`MAX_SKINS`] array is 393216 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 97 `vec4`s (1552 bytes, so
+/// the [`MAX_SKINS`] array is 397312 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -353,6 +353,8 @@ pub(crate) struct SkinUniform {
     /// The Blade Lab design it is drawn as ([`crate::blade_lab_designs::Design::lane`]);
     /// zeros for every other skin.
     design: [f32; 4],
+    /// The design's colour (the lab's), for the light at its emitter.
+    design_color: [f32; 4],
 }
 
 impl SkinUniform {
@@ -908,6 +910,8 @@ impl LoadedSkins {
             *uniform = SkinUniform::of(skin.shown());
             if let Some(design) = skin.design_shown() {
                 uniform.design = design.lane();
+                let [r, g, b] = design.color;
+                uniform.design_color = [r, g, b, 1.0];
             }
         }
         uniforms

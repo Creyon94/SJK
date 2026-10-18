@@ -1868,16 +1868,20 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
   trail state: the swing follows the tip's speed about the hilt as the lab's did (a full
   swing at its 5.5 m/s; running with the blade still is no swing), a swing begins above
-  an idle stance's sway and again every 0.75 s of a chain without a pause, a clash is one whose flare latched within 12 units of the blade
+  an idle stance's sway and again every second of a chain without a pause, a clash is one whose flare latched within 12 units of the blade
   (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
   Thrown and menu blades are still.
-- **Changed from the lab** after Creyon's tests: the hourglass's glass closes in a dome
-  over the tip and its sand runs in 24 seconds, not 8; the serpent climbs; the reactor
-  heats over a 14-second cycle (calm, heating, a strobing critical red and a vent flash)
-  with a coloured core that reads from afar; Quantum gained a standing wave, tunnelling
-  blips and a collapse flash on each swing, and its ghost copies are an option its
-  wearer may switch off (`Ghost copies`, the `copies` section bit); bubbles are larger
-  and brighter; the comic words come with swings and clashes only. The Phoenix's wings,
+- **Changed from the lab** after Creyon's tests: each blade has light at its emitter
+  (`design_color`, as a stock blade's hilt sprite) so no gap shows above the hilt; the
+  hourglass's glass closes in a dome over the tip and its sand runs in 24 seconds, not 8;
+  the serpent climbs; the reactor (a mythical) heats over a 30-second cycle (calm,
+  heating over 6 seconds, a critical red with a slow strobe, a vent flash and cooling)
+  with a coloured core that reads from afar, magnetic field lines winding round it, arcs
+  between its rings while hot and a glowing emitter coil; Quantum gained a standing
+  wave, tunnelling blips and a collapse flash on each swing, and its ghost copies (an
+  option its wearer may switch off: `Ghost copies`, the `copies` section bit) show
+  whether it is held or swung; bubbles are larger and brighter; the comic words come
+  with swings and clashes only, larger and held 1.8 seconds. The Phoenix's wings,
   which grew out of the blade, are not drawn. The lab's bloom pass is not; its halos are
   the shader's own.
 

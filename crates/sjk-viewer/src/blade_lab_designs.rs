@@ -63,7 +63,7 @@ pub(crate) const DESIGNS: [Design; 14] = [
     design("saber_lavalamp", 3, 0.1, 0.16, false, [1.0, 0.45, 0.2]),
     design("saber_sketch", 4, 0.09, 0.16, false, [0.88, 0.92, 1.0]),
     design("saber_hourglass", 5, 0.1, 0.4, false, [1.0, 0.78, 0.35]),
-    design("saber_comic", 6, 0.15, 0.4, true, [0.2, 0.7, 1.0]),
+    design("saber_comic", 6, 0.15, 0.6, true, [0.2, 0.7, 1.0]),
     design("saber_quicksilver", 7, 0.09, 0.3, true, [0.82, 0.86, 0.95]),
     design("saber_reactor", 8, 0.1, 0.3, false, [0.45, 0.8, 1.0]),
     design("saber_obsidian", 9, 0.09, 0.12, true, [0.92, 0.95, 1.0]),

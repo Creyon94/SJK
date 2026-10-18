@@ -667,8 +667,8 @@ fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
     let one = crate::saber_skins::SkinUniform::of(def);
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
     // The thirteen lanes before the sixth and seventh sets' twenty (and the Blade Lab
-    // design's last lane) are the fifth set's.
-    let lab = &lanes[lanes.len() - 34..lanes.len() - 21];
+    // design's last two lanes) are the fifth set's.
+    let lab = &lanes[lanes.len() - 35..lanes.len() - 22];
     assert_eq!(lab[0], [1.0, 0.1, 0.15, 1.2]);
     assert_eq!(lab[1], [4.0, 0.45, 0.6, 2.0]);
     assert_eq!(lab[2], [1.0, 0.3, 0.0, 0.0]);
@@ -687,7 +687,7 @@ fn the_third_additions_file_brings_the_fifth_set_and_its_lanes() {
         crate::saber_skins::SkinUniform::of(&parse("saber_test", &sample_with_effects()).unwrap());
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&plain));
     assert!(
-        lanes[lanes.len() - 34..]
+        lanes[lanes.len() - 35..lanes.len() - 2]
             .iter()
             .all(|lane| *lane == [0.0; 4])
     );
@@ -769,7 +769,7 @@ fn the_fourth_additions_file_brings_the_sixth_set_its_lanes_and_room() {
     assert_eq!(def.room(flight), 0.0);
     let one = crate::saber_skins::SkinUniform::of(def);
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
-    let figures = &lanes[lanes.len() - 21..lanes.len() - 6];
+    let figures = &lanes[lanes.len() - 22..lanes.len() - 7];
     assert_eq!(figures[0], [0.93, 0.95, 1.0, 2.0]);
     assert_eq!(figures[1], [8.0, 0.3, 1.2, 0.3]);
     assert_eq!(figures[3], [8.0, 0.25, 0.8, 0.0]);
@@ -851,7 +851,7 @@ fn the_fifth_additions_file_brings_the_seventh_set_and_its_lanes() {
     assert_eq!(Section::Chrome.bit(), 1 << 31);
     let one = crate::saber_skins::SkinUniform::of(def);
     let lanes: &[[f32; 4]] = bytemuck::cast_slice(std::slice::from_ref(&one));
-    let solids = &lanes[lanes.len() - 6..lanes.len() - 1];
+    let solids = &lanes[lanes.len() - 7..lanes.len() - 2];
     assert_eq!(solids[0], [0.02, 0.02, 0.03, 0.95]);
     assert_eq!(solids[1], [1.0, 0.9, 0.2, 6.0]);
     assert_eq!(solids[2], [0.35, 1.5, 0.0, 0.0]);
