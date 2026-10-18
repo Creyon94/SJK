@@ -87,10 +87,16 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     let archive = CvarFlags::ARCHIVE;
     let definitions = [
         CvarDefinition::new(
+            crate::remap_blocked_maps::SERVER_CVAR,
+            false,
+            archive,
+            "Let servers swap the map's textures (shader remaps); off by default, cg_remaps filters them when on",
+        ),
+        CvarDefinition::new(
             "cg_remaps",
             2_i64,
             archive,
-            "Shader remaps: 0 off, 1 skip player textures, 2 all (default, as EternalJK)",
+            "Server shader remaps while cg_serverRemaps is on: 0 off, 1 skip player textures, 2 all (default, as EternalJK)",
         ),
         CvarDefinition::new(
             crate::fps_help::CVAR,

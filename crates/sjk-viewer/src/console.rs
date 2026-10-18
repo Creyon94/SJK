@@ -252,6 +252,8 @@ pub(crate) struct ViewerConsole {
     hide_pickups_in_duel: console_cvars::IntegerSetting,
     draw_fog: console_cvars::IntegerSetting,
     remaps: console_cvars::IntegerSetting,
+    /// `cg_serverRemaps`: whether server remaps apply at all.
+    server_remaps: console_cvars::IntegerSetting,
     /// Changes of `cg_remapsBlockedMaps`, for [`crate::remap_blocked_maps`].
     remap_blocked_maps: console_cvars::RevisionSetting,
     packet_dup: console_cvars::IntegerSetting,
@@ -1130,8 +1132,17 @@ fn invalid_cvar(name: &str, requirement: &str) -> IoError {
 }
 
 impl ViewerConsole {
+    /// The server remaps to apply: `cg_remaps`, or 0 while `cg_serverRemaps` is off.
     pub(crate) fn remap_mode(&self) -> i64 {
-        self.remaps.value()
+        if self.server_remaps_on() {
+            self.remaps.value()
+        } else {
+            0
+        }
+    }
+
+    pub(crate) fn server_remaps_on(&self) -> bool {
+        self.server_remaps.value() != 0
     }
 
     /// How often `cg_remapsBlockedMaps` has changed, read without a name lookup.
