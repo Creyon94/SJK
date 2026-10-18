@@ -274,7 +274,7 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   `https://media.giphy.com/media/<id>/giphy.gif`, the original. For an id it does not
   know, GIPHY answers the original with 200 and a "not found" picture of its own, marked
   with an `x-retry-not-found-metric` header (seen 10/10/2026), which SJK takes as a 404.
-  HTTPS only, no redirect followed, 10 seconds for the whole request, at most 4 MiB read
+  HTTPS only, no redirect followed, 10 seconds for the whole request, at most 8 MiB read
   (more is refused), `Accept: image/gif`, the user agent `SJK/<version>`. No cookie, no
   key, nothing about the player is sent.
 - **Decoding** ([decode.rs](../crates/sjk-viewer/src/chat_gifs/decode.rs)), on the
@@ -360,10 +360,12 @@ HTTPS URL, including any query needed to fetch it; they do not grant trust.
 
 Redirects and media CDN hosts need their own trust. Up to four requests are allowed
 per resolution, each HTTPS-only, standard port, credential-free, with a ten-second
-timeout and four-MiB response cap (HTML: 256 KiB). Discovered untrusted hosts appear
-under **Blocked media hosts** in Sources without being contacted; select one and
-press Trust source to approve it. The client log names such a host too ("its media is on <host>,
-not trusted"). IP literals/local names are refused, and generic
+timeout and an 8 MiB response cap (HTML: 256 KiB). The cap was 4 MiB until
+18/10/2026 (Sol's decision): the GIF a Tenor page names is often 4 to 5 MB, and the
+memory is bounded by decoding's own limits either way. Discovered untrusted hosts
+appear under **Blocked media hosts** in Sources without being contacted; select one
+and press Trust source to approve it. The client log names such a host too ("its
+media is on <host>, not trusted"). IP literals/local names are refused, and generic
 requests filter the actual resolved addresses to public IPv4/native global IPv6.
 Generic media does not use environment proxies, which could resolve private targets
 elsewhere. No referrer or GIPHY API key is sent to generic sources.
@@ -444,7 +446,7 @@ new GIPHY key allows 100 requests an hour, too few for every player to share.
 - **Tiles**: five columns by three rows, each GIF whole and animated in its tile.
   A tile shows GIPHY's preview file, `200w_d.gif` (200 pixels wide at a lower frame rate,
   a third of `200.gif`'s bytes, seen 12/10/2026), falling back to `200.gif`, then the
-  original, on a 404, with the same rules as a message's GIF (rebuilt address, 4 MiB,
+  original, on a 404, with the same rules as a message's GIF (rebuilt address, 8 MiB,
   no redirect). Tiles are cached apart from messages' GIFs, in the same cache: it holds
   48 GIFs and 128 MiB of pixels now, 24 can be drawn at once, and three workers fetch, so
   a page of tiles fills together; a tile scrolled away before its turn is not fetched.
@@ -1053,7 +1055,7 @@ ask GIPHY only for the GIFs themselves.
 - GIFs (10/10/2026, Windows 11): unit tests for the links (every shape, bad ids,
   look-alike hosts such as `giphy.com.evil.example`, a user or port, `http` fetched over
   `https`), the address rebuilt and checked, the small rendition first and the original
-  only after a 404, the 4 MiB cap, decoding (frames, delays, the 20 to 100 ms clamp,
+  only after a 404, the 4 MiB cap (8 MiB since 18/10/2026), decoding (frames, delays, the 20 to 100 ms clamp,
   scaling to 480, 240 frames and the byte budget falling back to the first frame), the
   cache (asked once, uploaded once per frame change, a failure not asked again at once,
   eviction by count and by bytes, slots for GIFs on screen), muted senders and the switch
