@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | A card on the holocron strip shows as its credits, the card tucked in a corner
+- caa83be |  | Holocron strip: a card shows as its credits, the card tucked in a corner
++ 18/10/2026 | - | REVIEWED & MERGED chip on Sol's credits card
+- d9501d3 |  | Credits: Sol's reviewed and merged pull requests as a chip beside pull requests and commits
 + 18/10/2026 | - | SJK pull request #164, server-reported scoreboard deaths
 - f74163e |  | Credits for SJK pull request #164 (Lukas); its changelog line
 + 18/10/2026 | - | am* commands moved from JoF tools to JA+ tools

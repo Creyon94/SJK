@@ -80,7 +80,9 @@ includes:
   and from holocrons craft the shader you choose; credits buy four shaders a day),
   prepared for when the SJK hub turns them on;
 - the card pack: a card from a holocron with its credits and a few kyber shards beside
-  it (17/10/2026, Sol's request), prepared for when the SJK hub turns the shards on;
+  it (17/10/2026, Sol's request), prepared for when the SJK hub turns the shards on; since
+  18/10/2026 a card shows on the holocron's strip as its credits, the card tucked face
+  down in a corner, and slides out of them and flips over once the strip stops;
 - the shop in kyber shards, a Mythical offer one day in four, and holocrons bought with
   credits (17/10/2026, Sol's decisions), prepared for when the SJK hub turns them on;
 - the four holocrons, each tier an object of its own with moving parts (17/10/2026,
