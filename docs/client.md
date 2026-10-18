@@ -4638,7 +4638,8 @@ are made from ([identity](identity.md#crash-reports)).
 cvars whose name contains `password` (`rconPassword`, `password`, `g_password`,
 `sv_password`, `cl_consoleSocketPassword`), `loginpass` (`japlus.loginPass1-3`) or
 `giphykey` (`cl_giphyKey`), which get the `SECRET` cvar flag when registered, and the
-commands `amlogin`, `login` and `register`, whose arguments are a password. Three
+commands `amlogin`, `login`, `register`, `changepassword`, `clanpass` and `clanwhois`
+(JA+ and JoF EJK), whose arguments are a password. Three
 layers keep them out:
 
 - every description and listing (a cvar's value, `print`, `cvarlist`, `cvar_modified`,

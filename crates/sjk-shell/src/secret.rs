@@ -51,8 +51,20 @@ pub const SECRET_CVAR_PARTS: &[&str] = &[
 /// - `amlogin <password>`: JA+ and JoF admin login (sjk-mod-japlus, JoF EJK
 ///   `codemp/game`);
 /// - `login <name> <password>`: JoF EJK and account mods;
-/// - `register <name> <password>`: JoF EJK and account mods.
-pub const SECRET_COMMANDS: &[&str] = &["amlogin", "login", "register"];
+/// - `register <name> <password>`: JoF EJK and account mods;
+/// - `changepassword <name> <password> <new password>`: JoF EJK's accounts
+///   (`g_account.c`);
+/// - `clanpass <password>`: JA+ and JoF clan chat's password (`g_cmds.c`
+///   `Cmd_Clanpass_f`);
+/// - `clanwhois <clan password>`: JoF EJK lists that clan's members (`g_cmds.c`).
+pub const SECRET_COMMANDS: &[&str] = &[
+    "amlogin",
+    "login",
+    "register",
+    "changepassword",
+    "clanpass",
+    "clanwhois",
+];
 
 /// Commands (lowercase) whose arguments from the given one on are a command line,
 /// masked in turn:
@@ -298,6 +310,9 @@ mod tests {
             ("AMLOGIN hunter2", "AMLOGIN ********"),
             ("login sol hunter2", "login ********"),
             ("register sol hunter2", "register ********"),
+            ("changepassword sol hunter2 new2", "changepassword ********"),
+            ("clanPass hunter2", "clanPass ********"),
+            ("clanwhois hunter2", "clanwhois ********"),
             ("rcon g_password hunter2", "rcon g_password ********"),
             (
                 "rcon set sv_password hunter2",
@@ -351,6 +366,8 @@ mod tests {
             "say I will login later",
             "rconpassword",
             "amlogin",
+            "clanwhois",
+            "clanjoin Jedi",
             "set password",
             "rcon kick 3",
             "cmd say hi",

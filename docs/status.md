@@ -5,19 +5,26 @@ implemented masking of passwords everywhere the console prints, so they no longe
 reach the scrollback, `qconsole.log`, the session log, crash reports or log uploads.
 `sjk-shell`'s `secret.rs` names the secret cvars (`*password*`, `*loginpass*`,
 `cl_giphyKey`, given the new `SECRET` cvar flag) and password commands (`amlogin`,
-`login`, `register`); listings, `userinfo` and the cvar browser show `********`, the
-typed echo masks passwords (also in binds, cvars holding a command line, `rcon`, `cmd`,
-`strSub`, `delay` and `ifCvar`), and every kept line is scrubbed of the secret values. See
-[client](client.md#passwords-in-the-console).
+`login`, `register`, `changepassword`, `clanpass`, `clanwhois`); listings, `userinfo`
+and the cvar browser show `********`, the typed echo masks passwords (also in binds,
+cvars holding a command line, `rcon`, `cmd`, `strSub`, `delay` and `ifCvar`), and
+every kept line is scrubbed of the secret values. See
+[client](client.md#passwords-in-the-console). A chat message typed in the console
+(`say`, `say_team`, `tell`, JA+/JoF `clansay`, `amsay`, ...) is also kept out of the
+crash trail, as received chat already was; see [identity](identity.md#crash-reports).
+Clan or private chat a mod sends as a plain server print cannot be told from other
+prints and still reaches the trail.
 
 Unit, shell and cvar-browser tests pin the tables and each layer, and that a typed,
 queried, listed, bound, cvar-held, `strSub`-expanded and `delay`ed password (each path
-its own, so the scrub cannot hide a gap) appears in no printed line, returned output or
-tap line while the cvar and binds keep their values; the browser never edits or copies
-from a mask and keeps a secret on an empty Enter. On Linux x86_64: format, workspace
-build, `sjk-shell` and the browser's tests passed; workspace Clippy and tests are left
-to CI. Not exercised in a live game; reports and logs written before the change keep
-what they had; `config.cfg` still holds passwords as plain text.
+its own, so the scrub cannot hide a gap) appears in no printed line, returned output
+or tap line while the cvar and binds keep their values; the browser never edits or
+copies from a mask and keeps a secret on an empty Enter. A viewer test types team chat
+and a whisper in the console and finds neither in the trail (and fails with the guard
+off). On Linux x86_64: format, workspace build, `sjk-shell` and the browser's tests
+passed; workspace Clippy and tests are left to CI. Not exercised in a live game;
+reports and logs written before the change keep what they had; `config.cfg` still
+holds passwords as plain text.
 
 ## Menu pictures and readable world install failures
 
