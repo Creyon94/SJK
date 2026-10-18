@@ -556,6 +556,13 @@ pub(crate) fn fail_for_shot(id: &GifId) {
     });
 }
 
+/// Invalidate cached frames and queued work after a trust-list change.
+pub(crate) fn sources_changed() {
+    let mut gifs = lock();
+    gifs.entries.clear();
+    gifs.slots = [const { None }; GPU_SLOTS];
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -777,11 +784,4 @@ mod tests {
             None
         );
     }
-}
-
-/// Invalidate cached frames and queued work after a trust-list change.
-pub(crate) fn sources_changed() {
-    let mut gifs = lock();
-    gifs.entries.clear();
-    gifs.slots = [const { None }; GPU_SLOTS];
 }
