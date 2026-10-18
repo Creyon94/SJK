@@ -36,6 +36,7 @@ impl LegacySoundAdapter {
                 self.cs_custom[slot] = custom_kind(path);
                 self.npc_sets[slot] = npc_voices::npc_sound_directory(path)
                     .map(|directory| npc_voices::npc_custom_set(vfs, directory, &mut intern));
+                self.cs_voice[slot] = crate::LegacyVoiceLine::custom_token(path);
                 self.cs_sounds[slot] = if path.is_empty() || path.starts_with('*') {
                     None
                 } else {

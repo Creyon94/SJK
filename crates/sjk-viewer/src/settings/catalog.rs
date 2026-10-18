@@ -207,6 +207,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Choice(&["1", "2"]),
     },
     Setting {
+        label: "Taunt anti-spam",
+        cvar: "cg_tauntAntiSpam",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Footsteps",
         cvar: "cg_footsteps",
         kind: ValueKind::Bool,

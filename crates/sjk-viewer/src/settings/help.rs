@@ -296,6 +296,10 @@ const HELP: &[(&str, &str)] = &[
         crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
         "Empower glow: -1 follows the server; 0 full body, 1 arms, 2 hands. Ordinary Push stays full body.",
     ),
+    (
+        "cg_tauntAntiSpam",
+        "Limits repeated player model voices. Taunts wait until the previous line ends; other grunts have separate short holds.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,

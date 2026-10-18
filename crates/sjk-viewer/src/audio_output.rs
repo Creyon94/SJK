@@ -217,6 +217,8 @@ pub(super) struct AudioOutput {
     pub(super) show: bool,
     pub(super) started: std::collections::VecDeque<SoundHandle>,
     pub(super) cache: std::cell::RefCell<Vec<(SoundHandle, usize, String)>>,
+    /// Allocated at registration; the decoder publishes duration without taking a lock.
+    lengths: std::cell::RefCell<Vec<Arc<AtomicU32>>>,
 }
 
 enum DecodeJob {
@@ -224,6 +226,7 @@ enum DecodeJob {
         handle: SoundHandle,
         bytes: Box<[u8]>,
         extension: Box<str>,
+        length_ms: Arc<AtomicU32>,
     },
     /// A sound made from a decoded one: `make` turns its mixer-rate samples into the
     /// new sound's (`sjk_chat_sound.rs`).
@@ -296,6 +299,7 @@ impl AudioOutput {
             show: false,
             started: std::collections::VecDeque::with_capacity(64),
             cache: std::cell::RefCell::new(Vec::new()),
+            lengths: std::cell::RefCell::new(Vec::new()),
         };
         Some((audio, source))
     }
@@ -320,6 +324,21 @@ impl AudioOutput {
         }
     }
 
+    /// Cached decoded duration, or zero while unavailable/invalid. No file access or lock.
+    pub(super) fn sample_length_ms(&self, handle: SoundHandle) -> u32 {
+        self.lengths
+            .borrow()
+            .get(handle.0 as usize)
+            .map_or(0, |length| length.load(Ordering::Relaxed))
+    }
+
+    fn reserve_length(&self, handle: SoundHandle) -> Arc<AtomicU32> {
+        let mut lengths = self.lengths.borrow_mut();
+        let needed = (handle.0 as usize + 1).max(lengths.len());
+        lengths.resize_with(needed, || Arc::new(AtomicU32::new(0)));
+        Arc::clone(&lengths[handle.0 as usize])
+    }
+
     pub(super) fn decode(&self, handle: SoundHandle, bytes: &[u8], extension: &str) {
         self.cache
             .borrow_mut()
@@ -331,6 +350,7 @@ impl AudioOutput {
             handle,
             bytes: bytes.into(),
             extension: extension.into(),
+            length_ms: self.reserve_length(handle),
         };
         if sender.try_send(job).is_err() {
             crate::log::progress(format_args!(
@@ -414,13 +434,25 @@ fn decode(
                 handle,
                 bytes,
                 extension,
-            } => DecodedAction::Register(
-                handle,
-                decode_encoded(&bytes, &extension, SAMPLE_RATE).unwrap_or_else(|_| {
-                    stats.decode_failures.fetch_add(1, Ordering::Relaxed);
-                    DecodedSound::silence()
-                }),
-            ),
+                length_ms,
+            } => {
+                let decoded = match decode_encoded(&bytes, &extension, SAMPLE_RATE) {
+                    Ok(decoded) => {
+                        let milliseconds = (decoded.samples().len() as u64 * 1000)
+                            .div_ceil(u64::from(SAMPLE_RATE))
+                            .min(u64::from(u32::MAX))
+                            as u32;
+                        length_ms.store(milliseconds, Ordering::Relaxed);
+                        decoded
+                    }
+                    Err(_) => {
+                        length_ms.store(0, Ordering::Relaxed);
+                        stats.decode_failures.fetch_add(1, Ordering::Relaxed);
+                        DecodedSound::silence()
+                    }
+                };
+                DecodedAction::Register(handle, decoded)
+            }
             DecodeJob::Variant {
                 handle,
                 bytes,
@@ -542,6 +574,38 @@ mod stopped_stream_tests {
             "detached".into(),
         )
         .expect("decode worker starts")
+    }
+
+    #[test]
+    fn decoded_sample_duration_is_published_without_an_audio_device() {
+        let (output, _source) = detached();
+        assert_eq!(output.sample_length_ms(SoundHandle(0)), 0);
+        // Synthetic 10 ms, 44.1 kHz mono PCM WAV; no game assets.
+        let samples = 441_u32;
+        let size = samples * 2;
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + size).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16_u32.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+        wav.extend_from_slice(&(SAMPLE_RATE * 2).to_le_bytes());
+        wav.extend_from_slice(&2_u16.to_le_bytes());
+        wav.extend_from_slice(&16_u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&size.to_le_bytes());
+        wav.resize(44 + size as usize, 0);
+        output.decode(SoundHandle(0), &wav, "wav");
+        output.decode(SoundHandle(1), b"invalid", "wav");
+        let start = Instant::now();
+        while output.stats.decode_failures.load(Ordering::Relaxed) == 0 {
+            assert!(start.elapsed() < LIMIT);
+            thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(output.sample_length_ms(SoundHandle(0)), 10);
+        assert_eq!(output.sample_length_ms(SoundHandle(1)), 0);
     }
 
     #[test]

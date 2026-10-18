@@ -1716,3 +1716,6 @@ mod server_text_tests {
         assert_eq!(server_text(&arguments), "gg ø");
     }
 }
+
+mod voice_lines;
+pub use voice_lines::LegacyVoiceLine;

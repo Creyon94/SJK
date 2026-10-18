@@ -183,6 +183,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Roll voices: 0 off, 1 all, 2 others, 3 self",
         ),
         CvarDefinition::new(
+            "cg_tauntAntiSpam",
+            true,
+            archive,
+            "Limit repeated model voices; taunts wait for the previous sample to finish",
+        ),
+        CvarDefinition::new(
             "cl_allowDownload",
             1_i64,
             archive,
