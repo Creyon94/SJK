@@ -41,6 +41,7 @@ impl ViewerConsole {
     ) {
         // A switch flipped since the last frame adds or removes its mod's commands.
         if self.mods.sync(&mut self.shell) {
+            self.reset_unloaded_dialogue();
             self.refresh_server_help();
         }
         // The JoF folder joins or leaves the search paths with its switch.
@@ -324,6 +325,7 @@ impl ViewerConsole {
     }
 
     pub(crate) fn clear_server_info(&mut self) {
+        self.reset_dialogue();
         self.movement_policy_log = None;
         // Off a server no mod is loaded.
         self.mods.set_server(None);

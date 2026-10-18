@@ -720,6 +720,12 @@ pub(super) const GAME: &[Setting] = &[
         cvar: sjk_mod_jof::destruction::CVAR,
         kind: ValueKind::Choice(&["-1", "0", "1"]),
     },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF dialogue",
+        cvar: sjk_mod_jof::dialogue::CVAR,
+        kind: ValueKind::Bool,
+    },
     Setting {
         label: "Flamethrower effects",
         cvar: crate::actor_world_submission::force_powers::flame::CVAR,

@@ -30,7 +30,7 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   the core client ([networking.md](networking.md)) and work with every mod off.
   JA+ flamethrower presentation also stays in the core; its detection and player
   override are documented under [flamethrower presentation](client.md#ja-flamethrower-presentation).
-- **Community presentation.** The Destruction extension belongs to `sjk-mod-jof`, not the base compatibility
+- **Community presentation.** The Destruction extension and the JoF dialogue window belong to `sjk-mod-jof`, not the base compatibility
   profile. The mod owns their definitions, parsers and state; optional viewer
   bridges draw/play their output only while JoF tools are loaded. Base sessions
   forward unhandled reliable operands without interpreting community commands.
@@ -120,6 +120,33 @@ keeps its original wheel and never treats bit 21 as Destruction. Turning the mod
 off or leaving clears that local selection. The optional icon is read/uploaded
 only on first activation in the installed world; absent assets use Lightning.
 Settings > Mods (SJK) and Game options (classic) expose the preference.
+
+### Dialogue window and node audio
+
+[sjk-mod-jof/dialogue.rs](../crates/sjk-mod-jof/src/dialogue.rs) owns EJK
+#301/#307/#342's `jof_dialogue` parser, bounded node state and serial-safe replies.
+The SJK window opens only on recognized JoF servers with `mod_jof 1` and
+`jof.dialogue 1` (archived, on by default). It uses SJK's UI in every menu style;
+Settings > Mods and classic Game options expose the preference.
+
+The server supplies speaker/body text and up to twelve choices, five visible at
+a time. Arrows or mouse wheel scroll without wrapping; hover selects, click or
+Enter answers, 1-9 and 0 choose responses 1-10, and Escape/Leave conversation
+cancels. Opening releases held gameplay keys. Replies are generated as
+`dialogueresponse <serial> <choice>`, never executed as scripts; answer retries
+are limited to one per second. Stale commands and duplicate show messages are
+ignored. Replacing/closing the node clears unsent old replies. Disconnects, map
+changes and disabling/unloading JoF tools reset the modal.
+
+An optional `show` sound plays once from installed VFS data on
+`ENTITYNUM_NONE`/`CHAN_VOICE_GLOBAL`, listener-relative. A replacement or close
+stops the previous voice, including queued decodes. Missing audio leaves the
+window usable. Paths are bounded and reject absolute/traversal forms. Nothing is
+bundled or downloaded; ordinary silent show messages remain valid. Other servers,
+mod-off sessions and builds without `mod-jof` do not interpret this extension,
+open its window, send responses or load its node audio. Demos send no replies.
+The remote server retains all quest conditions, stages, rewards and persistence;
+this is no native SJK quest server system.
 
 ## Verification
 

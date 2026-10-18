@@ -2577,6 +2577,7 @@ dependencies = [
  "sjk-client",
  "sjk-mod",
  "sjk-protocol",
+ "sjk-shell",
 ]
 
 [[package]]

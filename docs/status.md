@@ -18,6 +18,24 @@ builds measured 14.447 us per iteration; this is not a rendered-match FPS result
 Live JoF behavior, installed-icon GPU comparison and full match performance remain
 unverified. No native damage/balance, wire codec or asset-distribution changes.
 
+## JoF mod dialogue presentation
+
+18/10/2026, `feat/server-dialogue-client`, merged current `sol/main`
+`64698160` without rewriting published history. Per Sol's #148 review, the
+bounded parser/node/response state lives in `sjk-mod-jof`; the feature-gated
+viewer bridges provide SJK UI/audio only for loaded JoF tools on recognized JoF
+servers. The mod owns `jof.dialogue`; disable/unload resets the window, queued
+responses and voice. Base sessions forward opaque unknown commands rather than
+implementing JoF dialogue. See [mods](mods.md#dialogue-window-and-node-audio).
+
+Migration verified on Windows 11 x86_64, Rust 1.99.0: formatting, locked workspace
+build/tests/Clippy and the no-default-features viewer mod-exclusion test pass.
+Focused regressions cover bounded parsing/serials, all 12 choices at three viewport
+sizes, modal ownership, server/switch gating and clearing an unsent reply on unload.
+Live conversations, actual GPU appearance, installed voice listening and
+decoder-cancellation playback remain unverified.
+Quest authority stays remote; no native quest server, codec or assets added.
+
 ## Away players on the scoreboard
 
 18/10/2026, `personal/afk-detect`, based on `Sol-Vulpes/SJK` `fd744924` (Sol: "detect

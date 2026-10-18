@@ -590,6 +590,8 @@ impl ViewerConsole {
             identity_panel: super::identity_panel::Panel::new(),
             profile_panel: super::profile_panel::Panel::new(),
             staff_panel: super::staff_panel::Panel::new(),
+            #[cfg(feature = "mod-jof")]
+            dialogue: super::dialogue_panel::Panel::new(),
             collection_panel: super::collection_panel::Panel::new(),
             holocrons_panel: super::holocrons_panel::Panel::new(),
             profile_hub_return: crate::player_menu::ReturnTarget::MainMenu,
@@ -667,6 +669,7 @@ impl ViewerConsole {
     /// Flush an effective profile change through OpenJK's reliable userinfo
     /// command, then send what the Force profile exchange has due.
     pub(crate) fn flush_userinfo(&mut self, session: &mut ClientSession, now: Instant) {
+        self.flush_dialogue(session);
         if self.userinfo_dirty.load(Ordering::Acquire) {
             self.send_userinfo(session, now);
         }
@@ -830,6 +833,7 @@ impl ViewerConsole {
 
     /// Refresh `serverinfo` and profile-specific completion from the active session.
     pub(crate) fn set_server_info(&mut self, session: &ClientSession) {
+        self.reset_dialogue();
         // A change from before this connection is sent by its join.
         self.forcepowers_changed.store(false, Ordering::Release);
         // Each connection starts with the base userinfo payload, without teamoverlay.
@@ -845,6 +849,7 @@ impl ViewerConsole {
 
     /// Refresh demo serverinfo through the same status and completion path as live play.
     pub(crate) fn set_demo_server_info(&mut self, game: &GameState) {
+        self.reset_dialogue();
         self.update_server_info(
             game,
             &sjk_client::CompatProfile::from_game_state(game),

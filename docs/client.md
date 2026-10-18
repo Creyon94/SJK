@@ -3621,6 +3621,13 @@ is who. The setting and its position settings (`cg_drawTeamOverlayX`, `Y`, `Scal
 `team_rows` widget draws nothing, and the client asks the server for the team data
 only for the nameplates' bars.
 
+## Server dialogue and quests
+
+The JoF dialogue window is an optional JoF client-mod feature. It requires JoF
+tools to be loaded on a recognized JoF server. See
+[JoF dialogue and node audio](mods.md#dialogue-window-and-node-audio) for controls,
+settings, response validation and the server-owned quest boundary.
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF

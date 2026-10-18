@@ -173,6 +173,9 @@ impl ViewerConsole {
         if event.state != ElementState::Pressed {
             return true;
         }
+        if self.dialogue_key(event) {
+            return true;
+        }
         let printable = matches!(
             event.logical_key,
             winit::keyboard::Key::Character(_) | winit::keyboard::Key::Dead(_)

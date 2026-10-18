@@ -10,11 +10,20 @@
 use sjk_mod::{ClientMod, Command, Host, Server, Setting, command};
 /// Destruction's community-owned capability and wheel metadata.
 pub mod destruction;
-const SETTINGS: &[Setting] = &[Setting {
-    name: destruction::CVAR,
-    default: sjk_mod::SettingValue::Integer(-1),
-    help: "JoF Destruction support: -1 server flag, 0 off, 1 grant without flag; requires loaded JoF tools",
-}];
+/// Bounded JoF dialogue command/state/response contract.
+pub mod dialogue;
+const SETTINGS: &[Setting] = &[
+    Setting {
+        name: destruction::CVAR,
+        default: sjk_mod::SettingValue::Integer(-1),
+        help: "JoF Destruction support: -1 server flag, 0 off, 1 grant without flag; requires loaded JoF tools",
+    },
+    Setting {
+        name: dialogue::CVAR,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Show JoF server dialogue and installed node voices while JoF tools are loaded",
+    },
+];
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";

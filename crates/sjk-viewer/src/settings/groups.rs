@@ -102,6 +102,8 @@ const MODS_ROWS: &[&str] = &[
     "mod_jof",
     #[cfg(feature = "mod-jof")]
     sjk_mod_jof::destruction::CVAR,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::dialogue::CVAR,
     "jof.downloads",
     "jof.contentSource",
     crate::brush_view::CVAR,
@@ -311,6 +313,8 @@ impl Group {
                 "mod_jof",
                 #[cfg(feature = "mod-jof")]
                 sjk_mod_jof::destruction::CVAR,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::dialogue::CVAR,
                 "jof.downloads",
                 "jof.contentSource",
                 crate::brush_view::CVAR,

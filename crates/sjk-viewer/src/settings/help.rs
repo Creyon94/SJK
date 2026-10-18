@@ -218,6 +218,11 @@ const HELP: &[(&str, &str)] = &[
         sjk_mod_jof::destruction::CVAR,
         "Auto follows the server flag; Off hides Destruction. Grant contract skips the flag. The server must still grant the power.",
     ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::dialogue::CVAR,
+        "Show server conversations and their installed voice audio. Off cancels the current conversation; quests remain server-owned.",
+    ),
     (
         sjk_client::player_model_eligibility::METADATA_CVAR,
         "Respect installed NPC-only model declarations and pack lists. Off ignores those rules; your blacklist still applies.",
