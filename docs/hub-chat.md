@@ -367,6 +367,13 @@ requests filter the actual resolved addresses to public IPv4/native global IPv6.
 Generic media does not use environment proxies, which could resolve private targets
 elsewhere. No referrer or GIPHY API key is sent to generic sources.
 
+Once a page has been read, its media is asked for without accepting HTML: a media
+host can answer a browser-like request with its own viewer page instead of the file.
+Tenor does (seen 18/10/2026): a `tenor.com/view/...` page names its GIF on
+`media1.tenor.com`, which serves HTML to a request accepting it. A Tenor link needs
+`tenor.com` and `media1.tenor.com` trusted, plus `media.tenor.com` for its MP4 clip
+when video clips are on.
+
 **Video clips are opt-in, off by default** (Sol's condition for using Media
 Foundation, 18/10/2026): `cl_sjkChatVideo` (archived, default 0; Settings > Chat
 (classic+: Network) > Play chat video clips (Windows), under SJK chat GIFs; the Sources

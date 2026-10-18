@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | Tenor GIFs: a page's media is asked without accepting HTML
+- 2806406 |  | Ask a page's media without accepting HTML
 + 18/10/2026 | - | Every command and cvar exported as one page, for SolBot
 - 560efb1 |  | Export the console commands and cvars as a Markdown reference
 + 18/10/2026 | - | Pull requests with a visible change carry screenshots
