@@ -821,6 +821,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK map edits",
+        cvar: crate::map_edits::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Server remaps",
         cvar: crate::remap_blocked_maps::SERVER_CVAR,
         kind: ValueKind::Bool,

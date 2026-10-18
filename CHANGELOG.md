@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_serverRemaps: Servers no longer swap the map's textures unless you allow it. Turn this on to see their remaps again.
 
+- Map edits (Settings > Game, `cg_mapEdits`, on): SJK's own fixes to maps, props hidden, models placed and textures swapped by the SJK team, for every server or one; only what you see changes, never collision _(Sol)_
 - Server shader remaps are off by default (Settings > Game, `cg_serverRemaps`): servers no longer swap the map's textures unless you turn them on; `cg_remaps` still picks which apply when they are on, and the map's own remaps always apply _(Sol)_
 - Emote pictures no longer vanish from the quick wheel and its editor after a map change or joining a server _(Sol)_
 - Discord status (Settings > Network, `cl_discordPresence`): your Discord profile shows what you do in SJK, the menu screen, or the server, map, mode, team and players; 2 leaves the server's name out, and a server with a password never shows it _(Sol)_

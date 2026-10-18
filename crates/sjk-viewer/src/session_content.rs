@@ -234,7 +234,7 @@ fn mount_download(
 }
 
 /// codemp CM_LoadMap: XOR the four little-endian words of MD4 over the entire BSP file.
-fn checksum(bytes: &[u8]) -> i32 {
+pub(crate) fn checksum(bytes: &[u8]) -> i32 {
     Md4::digest(bytes).chunks_exact(4).fold(0u32, |sum, word| {
         sum ^ u32::from_le_bytes(word.try_into().unwrap())
     }) as i32

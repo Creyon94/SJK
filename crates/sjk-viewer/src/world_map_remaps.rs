@@ -6,7 +6,9 @@
 //! Worldspawn keys apply while the world loads (order 0), before cgame reads its
 //! shader state; server and local remaps carry [`sjk_client::next_remap_order`]
 //! stamps. `cg_remaps` only selects the server table, so a server remap it
-//! excludes reveals the remap that it hid.
+//! excludes reveals the remap that it hid. SJK's map edits ([`crate::map_edits`]) win
+//! over the worldspawn and server remaps of a shader; a console remap still wins over
+//! them while it is the latest.
 use sjk_bsp::Bsp;
 use sjk_client::ShaderRemapTable;
 use sjk_shader::ShaderCatalog;
@@ -14,11 +16,14 @@ use sjk_vfs::VirtualFileSystem;
 use std::collections::BTreeMap;
 
 const MAX_LOCAL_REMAPS: usize = 1024;
+/// The application order map edits are listed at: after every stamped remap.
+const EDIT_ORDER: u64 = u64::MAX;
 
 /// One remap as [`MapRemaps::entries`] lists it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct RemapEntry<'a> {
-    /// `map` (a worldspawn key), `server` or `local` (the console's `remapShader`).
+    /// `map` (a worldspawn key), `server`, `edit` (SJK's map edits) or `local` (the
+    /// console's `remapShader`).
     pub(crate) source: &'static str,
     pub(crate) from: &'a str,
     pub(crate) to: &'a str,
@@ -33,6 +38,8 @@ pub(crate) struct RemapEntry<'a> {
 pub(crate) struct MapRemaps {
     worldspawn: BTreeMap<String, String>,
     local: BTreeMap<String, (String, u64)>,
+    /// The map edits' remaps that apply on this server.
+    edits: BTreeMap<String, String>,
 }
 
 impl MapRemaps {
@@ -60,8 +67,16 @@ impl MapRemaps {
         }
         Self {
             worldspawn,
-            local: BTreeMap::new(),
+            ..Self::default()
         }
+    }
+    /// Replace the map edits' remaps with checked `edits`; true when they changed.
+    pub(crate) fn set_edits(&mut self, edits: BTreeMap<String, String>) -> bool {
+        if self.edits == edits {
+            return false;
+        }
+        self.edits = edits;
+        true
     }
     /// Record a checked console remap as the latest remap of `old`.
     pub(crate) fn remap_local(&mut self, old: String, new: String) -> Result<(), &'static str> {
@@ -85,6 +100,7 @@ impl MapRemaps {
     pub(crate) fn affects(&self, name: &str, server: Option<&ShaderRemapTable>) -> bool {
         self.worldspawn.contains_key(name)
             || self.local.contains_key(name)
+            || self.edits.contains_key(name)
             || server.is_some_and(|s| s.affects(name))
     }
     /// Shader drawn for `name`: the target of its latest remap. One hop only.
@@ -114,9 +130,14 @@ impl MapRemaps {
             .local
             .iter()
             .map(|(old, (new, order))| ("local", old.as_str(), new.as_str(), *order));
+        let edits = self
+            .edits
+            .iter()
+            .map(|(old, new)| ("edit", old.as_str(), new.as_str(), EDIT_ORDER));
         let mut entries: Vec<_> = map
             .chain(served)
             .chain(local)
+            .chain(edits)
             .map(|(source, from, to, order)| RemapEntry {
                 source,
                 from,
@@ -153,10 +174,16 @@ impl MapRemaps {
     ) -> Option<(&'a str, u64)> {
         let map = self.worldspawn.get(name).map(|t| (t.as_str(), 0));
         let local = self.local.get(name).map(|(t, order)| (t.as_str(), *order));
-        [map, server.and_then(|s| s.alias(name)), local]
+        let latest = [map, server.and_then(|s| s.alias(name)), local]
             .into_iter()
             .flatten()
-            .max_by_key(|(_, order)| *order)
+            .max_by_key(|(_, order)| *order);
+        match (self.edits.get(name), latest) {
+            // A console remap made after every server one still wins.
+            (Some(_), Some(latest)) if local == Some(latest) => Some(latest),
+            (Some(edit), _) => Some((edit.as_str(), EDIT_ORDER)),
+            (None, latest) => latest,
+        }
     }
 }
 
@@ -223,7 +250,7 @@ mod tests {
                 .iter()
                 .map(|(a, b)| (a.to_string(), b.to_string()))
                 .collect(),
-            local: BTreeMap::new(),
+            ..MapRemaps::default()
         }
     }
     fn local(remaps: &mut MapRemaps, old: &str, new: &str) {
@@ -293,6 +320,42 @@ mod tests {
         assert!(remaps.affects("textures/a", None));
         assert!(!remaps.affects("textures/other", server.table(1)));
         assert_eq!(remaps.target("textures/other", None), "textures/other");
+    }
+
+    #[test]
+    fn map_edits_win_over_the_map_and_the_server_but_not_a_later_console_remap() {
+        let mut remaps = map(&[("textures/a", "textures/map")]);
+        let mut server = ShaderRemaps::default();
+        server.apply_config(b"textures/a=textures/server:0@");
+        let edits = BTreeMap::from([("textures/a".to_owned(), "textures/edit".to_owned())]);
+        assert!(remaps.set_edits(edits.clone()));
+        assert!(!remaps.set_edits(edits), "unchanged edits change nothing");
+        assert_eq!(remaps.target("textures/a", None), "textures/edit");
+        assert_eq!(
+            remaps.target("textures/a", server.table(2)),
+            "textures/edit"
+        );
+        local(&mut remaps, "textures/a", "textures/local");
+        assert_eq!(
+            remaps.target("textures/a", server.table(2)),
+            "textures/local"
+        );
+        // A server remap after the console's: the edit is back on top.
+        server.apply_config(b"textures/a=textures/server:0@");
+        assert_eq!(
+            remaps.target("textures/a", server.table(2)),
+            "textures/edit"
+        );
+        let listing = remaps.listing(server.table(2));
+        assert_eq!(
+            listing.last().map(String::as_str),
+            Some("edit: textures/a -> textures/edit")
+        );
+        assert!(remaps.set_edits(BTreeMap::new()));
+        assert_eq!(
+            remaps.target("textures/a", server.table(2)),
+            "textures/server"
+        );
     }
 
     #[test]

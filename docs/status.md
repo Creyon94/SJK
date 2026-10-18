@@ -1,3 +1,18 @@
+## Map edits
+
+19/10/2026, `personal/map-edits`, based on `main` `7de7fcb7`: SJK's own map fixes
+([map-edits.md](map-edits.md)): staff hide `misc_model_static` props and BSP surfaces
+(a merged model's surfaces as a group), place MD3s and remap shaders in game with the
+`mapedit` commands, for all servers or one; documents per map and BSP checksum in
+`GameData/SJK/map_edits`, published to the hub and kept by every player's identity
+worker; `cg_mapEdits` (on) draws them. A hidden surface gets degenerate triangles in the
+world's index buffer and leaves picks and marks. Verified on Windows 11: unit tests,
+the hub round trip against the hub's `map-edits` branch run locally (`hub_e2e`
+`staff_publish_map_edits_that_every_key_reads`), and the world shot
+`duel6_prop_hidden_copied_and_floor_remapped` (41,180 pixels changed by the edits, 193
+left after taking them back). Not verified: the editor in a game, a live server, the
+deployed hub (not deployed: until it is, publishing fails and players get no copies).
+
 ## Discord status
 
 18/10/2026, `personal/discord-presence`, based on `main` `046ef86b`:

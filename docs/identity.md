@@ -584,6 +584,14 @@ blade-skin unlock id or `""`, and whether the Illuminate holocron is lit.
 
 Looks are public to every SJK player on the server, as badges are.
 
+## Map edits
+
+Staff publish a map's edits to the hub, and the worker keeps every SJK player's copies
+in `map_edits` beside the key: the hub's list every 10 minutes once registered, each
+document newer than its copy downloaded, a copy the hub stopped listing removed, and a
+copy with unpublished changes left alone. What the edits do is in
+[map-edits.md](map-edits.md).
+
 ## Asset packs
 
 The art of the unlockable cosmetics (each blade skin's look and sounds) is not part of

@@ -1,0 +1,549 @@
+//! Map edits: SJK's own fixes to a map, drawn on the client only. Staff hide the map's
+//! props and surfaces, place models and remap shaders in game ([`editor`]); every SJK
+//! player gets the edits from the hub (the identity worker's
+//! [`sjk_identity::map_edits`] keeps them in [`FOLDER`]) and sees them while
+//! `cg_mapEdits` is on (the default).
+//!
+//! Edits change what is drawn, never collision: the server still has a hidden prop's
+//! clip brushes, and nothing stops a player walking through a placed model. An edit
+//! applies on every server, or on one server only (its address), and only to the map
+//! file whose checksum its document carries ([`document`]).
+//!
+//! The world applies the edits that hold for its server as a desired state, compared
+//! with what it applied last, when the document, the server or the setting changes:
+//! - hidden props drop out of [`crate::static_models::StaticModels`];
+//! - hidden surfaces get degenerate triangles in the world's index buffer (every pass
+//!   draws nothing there) and leave the triangles picks and marks use;
+//! - placed models load on demand ([`crate::model_demand`]) and are drawn each frame;
+//! - remaps join the world's remaps as source `edit`, over the map's and the server's.
+
+pub(crate) mod document;
+pub(crate) mod editor;
+
+use crate::{ActorInstance, GpuState};
+use document::{Document, Kind};
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{Receiver, TryRecvError};
+
+/// `cg_mapEdits`: draw SJK's map edits (on by default).
+pub(crate) const CVAR: &str = "cg_mapEdits";
+/// The folder of the documents, in the SJK config folder.
+pub(crate) const FOLDER: &str = "map_edits";
+/// The class picks give a placed model, so they can tell it from the map's entities.
+pub(crate) const PLACED_CLASS: &str = "sjk_map_edit";
+
+/// The map edits of one world.
+#[derive(Default)]
+pub(crate) struct State {
+    lookup: Lookup,
+    /// The loaded map's document, when it has one (or staff began one).
+    pub(super) document: Option<Document>,
+    /// Bumped on every change of [`Self::document`].
+    revision: u64,
+    /// What [`GpuState::refresh_map_edits`] last applied, and for what.
+    applied: Applied,
+    applied_for: Option<(u64, Option<std::net::SocketAddr>, bool)>,
+    /// The placed models drawn now.
+    placed: Vec<Placed>,
+    /// `object_meshes.len()` when [`Self::placed`] last looked their meshes up.
+    meshes_seen: usize,
+    /// The hub copies' revision last read, and when the hub's state was last read.
+    hub_revision: u64,
+    polled: Option<std::time::Instant>,
+    pub(crate) editor: editor::Editor,
+}
+
+/// Finding the loaded map's document.
+#[derive(Default)]
+enum Lookup {
+    #[default]
+    Idle,
+    /// Reading the map's checksum on a worker.
+    Checksum {
+        map: String,
+        receiver: Receiver<Option<i32>>,
+    },
+    /// The map, its checksum (`None` when it could not be read) and its document's file.
+    Done { map: String, checksum: Option<i32> },
+}
+
+#[derive(Default)]
+struct Applied {
+    props: BTreeSet<u32>,
+    surfaces: BTreeSet<u32>,
+}
+
+/// A placed model as drawn.
+struct Placed {
+    id: u32,
+    model: String,
+    instance: ActorInstance,
+    origin: [f32; 3],
+    angles: [f32; 3],
+    scale: [f32; 3],
+    /// Its rigid mesh, once loaded.
+    mesh: Option<usize>,
+}
+
+impl State {
+    /// The loaded map's name and checksum, once known.
+    pub(crate) fn map(&self) -> Option<(&str, i32)> {
+        match &self.lookup {
+            Lookup::Done {
+                map,
+                checksum: Some(checksum),
+            } => Some((map, *checksum)),
+            _ => None,
+        }
+    }
+
+    /// The document changed: save it and apply it again.
+    pub(super) fn changed(&mut self, directory: Option<&Path>) -> Result<(), String> {
+        self.revision += 1;
+        let (Some(document), Some(directory)) = (&self.document, directory) else {
+            return Ok(());
+        };
+        save(directory, document)
+    }
+
+    /// Models placed edits name that no mesh is loaded for yet, for the demand loader.
+    pub(crate) fn wanted_models(&self) -> impl Iterator<Item = &str> {
+        self.placed
+            .iter()
+            .filter(|placed| placed.mesh.is_none())
+            .map(|placed| placed.model.as_str())
+    }
+
+    /// The edit whose placed model has entity number `number` in a pick made over
+    /// [`State::pick_entities`] of a lump of `lump` entities.
+    pub(crate) fn placed_edit(&self, number: usize, lump: usize) -> Option<u32> {
+        number
+            .checked_sub(lump)
+            .and_then(|index| self.placed.get(index))
+            .map(|placed| placed.id)
+    }
+
+    /// The entities picks look at while edits are drawn: the map's, without the props
+    /// hidden, then one per placed model. `None` when no edit changes them.
+    pub(crate) fn pick_entities(&self, bsp: &sjk_bsp::Bsp) -> Option<Vec<sjk_entity::Entity>> {
+        if self.applied.props.is_empty() && self.placed.is_empty() {
+            return None;
+        }
+        let mut entities = sjk_entity::parse_entity_lump(bsp.entities()).ok()?;
+        for &number in &self.applied.props {
+            if let Some(entity) = entities.get_mut(number as usize) {
+                let fields = entity
+                    .fields()
+                    .iter()
+                    .filter(|(key, _)| key != "model")
+                    .cloned()
+                    .collect();
+                *entity = sjk_entity::Entity::from_fields(fields);
+            }
+        }
+        let vector = |v: [f32; 3]| format!("{} {} {}", v[0], v[1], v[2]);
+        entities.extend(self.placed.iter().map(|placed| {
+            sjk_entity::Entity::from_fields(vec![
+                ("classname".into(), PLACED_CLASS.into()),
+                ("model".into(), placed.model.clone()),
+                ("origin".into(), vector(placed.origin)),
+                ("angles".into(), vector(placed.angles)),
+                ("modelscale_vec".into(), vector(placed.scale)),
+                ("targetname".into(), format!("edit {}", placed.id)),
+            ])
+        }));
+        Some(entities)
+    }
+
+    /// Move placed edit `id` where it is drawn, without saving (`mapedit_grab`).
+    pub(super) fn preview_placement(&mut self, id: u32, origin: [f32; 3], angles: [f32; 3]) {
+        if let Some(placed) = self.placed.iter_mut().find(|placed| placed.id == id) {
+            placed.origin = origin;
+            placed.angles = angles;
+            placed.instance = instance(origin, angles, placed.scale);
+        }
+    }
+}
+
+fn instance(origin: [f32; 3], angles: [f32; 3], scale: [f32; 3]) -> ActorInstance {
+    ActorInstance::new(
+        origin,
+        sjk_client::legacy_angles_to_quaternion(angles),
+        scale,
+    )
+}
+
+/// The documents' folder in `config` (the SJK config folder).
+pub(crate) fn folder(config: &Path) -> PathBuf {
+    config.join(FOLDER)
+}
+
+/// Write `document` to its file in `directory`.
+pub(crate) fn save(directory: &Path, document: &Document) -> Result<(), String> {
+    std::fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+    let path = directory.join(document::file_name(&document.map, document.checksum));
+    let text = serde_json::to_string_pretty(document).map_err(|error| error.to_string())?;
+    let temporary = path.with_extension("json.tmp");
+    std::fs::write(&temporary, text)
+        .and_then(|()| std::fs::rename(&temporary, &path))
+        .map_err(|error| format!("{}: {error}", path.display()))
+}
+
+/// Whether `directory` holds a document of `map`, whatever its checksum: only then is
+/// the map's checksum worth reading.
+fn has_documents(directory: &Path, map: &str) -> bool {
+    let prefix = document::file_prefix(map);
+    std::fs::read_dir(directory).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            entry.file_name().to_str().is_some_and(|name| {
+                name.strip_prefix(&prefix)
+                    .and_then(|rest| rest.strip_suffix(".json"))
+                    .is_some_and(|checksum| checksum.parse::<i32>().is_ok())
+            })
+        })
+    })
+}
+
+/// `map`'s document for `checksum` in `directory`, if there is a readable one.
+fn load(directory: &Path, map: &str, checksum: i32) -> Option<Document> {
+    let path = directory.join(document::file_name(map, checksum));
+    let text = std::fs::read_to_string(&path).ok()?;
+    match Document::parse(&text, map, checksum) {
+        Ok(document) => Some(document),
+        Err(error) => {
+            crate::log::progress(format_args!(
+                "map edits {} ignored: {error}",
+                path.display()
+            ));
+            None
+        }
+    }
+}
+
+impl GpuState {
+    /// The map edits' folder, when there is a console (and so a config folder).
+    pub(crate) fn map_edits_folder(&self) -> Option<PathBuf> {
+        self.console
+            .as_ref()
+            .map(|console| folder(console.config_directory()))
+    }
+
+    /// The server the world shows, for edits made for one server: its address.
+    pub(crate) fn map_edits_server(&self) -> Option<String> {
+        self.live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .map(|session| session.server().to_string())
+    }
+
+    /// Once a frame: find the map's document, then apply what changed.
+    pub(crate) fn refresh_map_edits(&mut self) {
+        if self.is_menu_world || crate::menu_pictures::pictured(&self.world_load_map).is_some() {
+            return;
+        }
+        let map = crate::remap_blocked_maps::map_name(&self.world_load_map);
+        if map.is_empty() {
+            return;
+        }
+        // Allocation-free unless the map changed or its checksum is being read.
+        let looked_up = match &self.map_edits.lookup {
+            Lookup::Done { map: done, .. } => done.eq_ignore_ascii_case(map),
+            _ => false,
+        };
+        if !looked_up {
+            let map = map.to_ascii_lowercase();
+            self.lookup_map_edits(&map);
+        }
+        let now = std::time::Instant::now();
+        if self
+            .map_edits
+            .polled
+            .is_none_or(|polled| now.duration_since(polled).as_millis() >= 500)
+        {
+            self.map_edits.polled = Some(now);
+            self.follow_hub_map_edits();
+            self.poll_map_edit_publish();
+        }
+        self.editor_frame();
+        let enabled = self
+            .console
+            .as_ref()
+            .is_none_or(|console| console.map_edits_on());
+        let server = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .map(|session| session.server());
+        let key = (self.map_edits.revision, server, enabled);
+        if self.map_edits.applied_for != Some(key) {
+            let server = server.map(|server| server.to_string());
+            self.apply_map_edits(server.as_deref(), enabled);
+            self.map_edits.applied_for = Some(key);
+        }
+        if self.map_edits.meshes_seen != self.object_meshes.len() {
+            self.map_edits.meshes_seen = self.object_meshes.len();
+            for placed in &mut self.map_edits.placed {
+                placed.mesh = self.object_meshes.iter().position(|mesh| {
+                    mesh.appearance.variant.is_empty()
+                        && mesh.appearance.model.eq_ignore_ascii_case(&placed.model)
+                });
+            }
+        }
+    }
+
+    /// Start or finish the document's lookup for `map`.
+    fn lookup_map_edits(&mut self, map: &str) {
+        let folder = self.map_edits_folder();
+        let state = &mut self.map_edits;
+        match &state.lookup {
+            Lookup::Done { map: done, .. } | Lookup::Checksum { map: done, .. } if done == map => {}
+            _ => {
+                let wanted = folder
+                    .as_deref()
+                    .is_some_and(|directory| has_documents(directory, map))
+                    || state.editor.active;
+                let Some(vfs) = self.vfs.clone().filter(|_| wanted) else {
+                    state.lookup = Lookup::Done {
+                        map: map.to_owned(),
+                        checksum: None,
+                    };
+                    return;
+                };
+                let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+                let path = format!("maps/{map}.bsp");
+                let spawned = std::thread::Builder::new()
+                    .name("sjk-map-edits".into())
+                    .spawn(move || {
+                        let checksum =
+                            vfs.read(&path).ok().flatten().map(|asset| {
+                                crate::assets::session_content::checksum(&asset.bytes)
+                            });
+                        let _ = sender.send(checksum);
+                    });
+                state.lookup = match spawned {
+                    Ok(_) => Lookup::Checksum {
+                        map: map.to_owned(),
+                        receiver,
+                    },
+                    Err(_) => Lookup::Done {
+                        map: map.to_owned(),
+                        checksum: None,
+                    },
+                };
+                return;
+            }
+        }
+        let Lookup::Checksum { map, receiver } = &state.lookup else {
+            return;
+        };
+        let checksum = match receiver.try_recv() {
+            Ok(checksum) => checksum,
+            Err(TryRecvError::Empty) => return,
+            Err(TryRecvError::Disconnected) => None,
+        };
+        let map = map.clone();
+        state.document = checksum
+            .and_then(|checksum| folder.and_then(|directory| load(&directory, &map, checksum)));
+        if let Some(document) = &state.document {
+            crate::log::progress(format_args!(
+                "map edits: {} edits for {map} (checksum {}, hub revision {})",
+                document.edits.len(),
+                document.checksum,
+                document.revision
+            ));
+        }
+        state.lookup = Lookup::Done { map, checksum };
+        state.revision += 1;
+    }
+
+    /// Read the map's document again when the hub brought a newer copy.
+    fn follow_hub_map_edits(&mut self) {
+        let revision = crate::player_identity::map_edits_revision();
+        if revision == self.map_edits.hub_revision {
+            return;
+        }
+        self.map_edits.hub_revision = revision;
+        let Some((map, checksum)) = self.map_edits.map().map(|(m, c)| (m.to_owned(), c)) else {
+            // Not looked up yet, or no checksum: look again for a document now there.
+            if matches!(self.map_edits.lookup, Lookup::Done { checksum: None, .. }) {
+                self.map_edits.lookup = Lookup::Idle;
+            }
+            return;
+        };
+        // Staff's unpublished work stays as it is.
+        if self
+            .map_edits
+            .document
+            .as_ref()
+            .is_some_and(|document| document.unpublished)
+        {
+            return;
+        }
+        let fresh = self
+            .map_edits_folder()
+            .and_then(|directory| load(&directory, &map, checksum));
+        if fresh != self.map_edits.document {
+            self.map_edits.document = fresh;
+            self.map_edits.revision += 1;
+        }
+    }
+
+    /// Apply the document's edits for `server` (none when `enabled` is off).
+    fn apply_map_edits(&mut self, server: Option<&str>, enabled: bool) {
+        let mut props = BTreeSet::new();
+        let mut surfaces = BTreeSet::new();
+        let mut remaps = Vec::new();
+        let mut placed = Vec::new();
+        let edits = self
+            .map_edits
+            .document
+            .as_ref()
+            .filter(|_| enabled)
+            .into_iter()
+            .flat_map(|document| document.active(server));
+        let surface_count = self.bsp.render().surfaces().len();
+        let shader_of = |surface: usize| {
+            let render = self.bsp.render();
+            render
+                .surfaces()
+                .get(surface)
+                .and_then(|surface| self.bsp.shaders().get(surface.shader))
+                .map(|shader| shader.name_lossy().into_owned())
+        };
+        for edit in edits {
+            match &edit.kind {
+                Kind::HideProp { entity, .. } => {
+                    if self.static_models.is_prop(*entity) {
+                        props.insert(*entity);
+                    }
+                }
+                Kind::HideSurface { surface, shader } => {
+                    let index = *surface as usize;
+                    // The checksum pins the map; the shader is a last check.
+                    if index < surface_count
+                        && shader_of(index).is_some_and(|name| name.eq_ignore_ascii_case(shader))
+                    {
+                        surfaces.insert(*surface);
+                    }
+                }
+                Kind::Place {
+                    model,
+                    origin,
+                    angles,
+                    scale,
+                } => placed.push(Placed {
+                    id: edit.id,
+                    model: model.clone(),
+                    instance: instance(*origin, *angles, *scale),
+                    origin: *origin,
+                    angles: *angles,
+                    scale: *scale,
+                    mesh: self.object_meshes.iter().position(|mesh| {
+                        mesh.appearance.variant.is_empty()
+                            && mesh.appearance.model.eq_ignore_ascii_case(model)
+                    }),
+                }),
+                Kind::Remap { from, to } => remaps.push((from.clone(), to.clone())),
+            }
+        }
+        self.static_models.set_hidden(props.clone());
+        let before = std::mem::take(&mut self.map_edits.applied.surfaces);
+        for &surface in before.difference(&surfaces) {
+            self.show_surface(surface as usize, true);
+        }
+        for &surface in surfaces.difference(&before) {
+            self.show_surface(surface as usize, false);
+        }
+        self.map_edits.applied = Applied { props, surfaces };
+        self.map_edits.placed = placed;
+        if let Some(vfs) = self.vfs.clone() {
+            let refused = self.world_materials.set_edit_remaps(
+                &vfs,
+                &self.shaders,
+                remaps.iter().map(|(a, b)| (a.as_str(), b.as_str())),
+            );
+            for line in refused {
+                crate::log::progress(format_args!("map edit remap ignored: {line}"));
+            }
+        }
+    }
+
+    /// Apply `document` for no server at once (the world shots of map edits).
+    #[cfg(test)]
+    pub(crate) fn shot_map_edits(&mut self, document: Option<Document>) {
+        self.map_edits.lookup = Lookup::Done {
+            map: document
+                .as_ref()
+                .map_or_else(String::new, |d| d.map.clone()),
+            checksum: document.as_ref().map(|d| d.checksum),
+        };
+        self.map_edits.document = document;
+        self.apply_map_edits(None, true);
+    }
+
+    /// Draw surface `surface` as loaded, or as nothing.
+    fn show_surface(&mut self, surface: usize, shown: bool) {
+        let Some((range, indices)) = self.decal_surfaces.surface_indices(surface) else {
+            return;
+        };
+        let written: Vec<u32> = if shown {
+            indices.to_vec()
+        } else {
+            // Every corner on the surface's first vertex: no triangle has an area.
+            vec![indices[0]; indices.len()]
+        };
+        self.queue.write_buffer(
+            &self.geometry.index_buffer,
+            u64::from(range.start) * 4,
+            bytemuck::cast_slice(&written),
+        );
+        self.decal_surfaces.set_hidden(surface, !shown);
+    }
+
+    /// Submit the placed models for this frame.
+    pub(crate) fn append_map_edit_instances(&mut self) {
+        for placed in &self.map_edits.placed {
+            if let Some(group) = placed
+                .mesh
+                .and_then(|mesh| self.object_groups.get_mut(mesh))
+            {
+                group.push(placed.instance);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn documents_are_found_by_map_whatever_their_checksum() {
+        let directory = std::env::temp_dir().join(format!(
+            "sjk-map-edits-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&directory);
+        assert!(!has_documents(&directory, "mp/ffa3"));
+        let mut document = Document::new("mp/ffa3", -5);
+        document.add(
+            Kind::Remap {
+                from: "textures/a".into(),
+                to: "textures/b".into(),
+            },
+            None,
+        );
+        save(&directory, &document).unwrap();
+        assert!(has_documents(&directory, "mp/ffa3"));
+        assert!(
+            !has_documents(&directory, "mp/ffa"),
+            "a map whose name starts the same has none"
+        );
+        assert!(!has_documents(&directory, "mp/ffa3_night"));
+        assert_eq!(load(&directory, "mp/ffa3", -5), Some(document));
+        assert_eq!(load(&directory, "mp/ffa3", 6), None);
+        std::fs::remove_dir_all(&directory).unwrap();
+    }
+}

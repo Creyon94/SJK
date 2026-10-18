@@ -275,6 +275,7 @@ pub(crate) fn known(name: &str) -> bool {
         .iter()
         .chain(crate::cosmetics::command::COMMANDS)
         .chain(crate::saber_colour_command::COMMANDS)
+        .chain(crate::map_edits::editor::COMMANDS)
         .chain(jof_commands())
         .any(|(known, _)| known.eq_ignore_ascii_case(name))
 }
@@ -285,6 +286,7 @@ pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box
         .iter()
         .chain(crate::cosmetics::command::COMMANDS)
         .chain(crate::saber_colour_command::COMMANDS)
+        .chain(crate::map_edits::editor::COMMANDS)
         .chain(jof_commands())
     {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
@@ -911,6 +913,9 @@ impl crate::GpuState {
             }
             "blockremaps" | "unblockremaps" => {
                 return self.remap_block_command(name == "blockremaps", args);
+            }
+            name if crate::map_edits::editor::is_command(name) => {
+                return self.map_edit_command(name, args);
             }
             "speedometer" | "strafehelper" => {
                 return hud_commands::execute(
