@@ -1479,6 +1479,22 @@ empties or takes another name, so a newcomer in a reused slot is not held by the
 previous occupant's taunt. Duration comes from the decode worker; event playback
 does not read files, decode samples or lock the audio callback.
 
+### Map music synchronization
+
+**Map music sync** (`cg_musicSync`, on) is in Sound settings in both menu styles.
+After joining or leaving a private duel, file-based map music resumes from elapsed
+level time instead of restarting. The decode/callback queue delay is included in
+the start position. The native sequencer plays a distinct intro once, then wraps
+the loop; a single repeated file has the same phase as JoF EJK #161. Dynamic music
+keeps its own transitions and does not use the file-track offset. Turning sync off
+starts at the beginning. Manual `music` commands also start at the beginning.
+
+An empty server `CS_MUSIC` means silence, including when a duel ends; it does not
+fall back to BSP worldspawn music. Offline world viewing still uses worldspawn.
+Map handoff stops the old track before preparing the next one (JoF EJK #103/#146).
+Actual peer synchronization and live listening remain unverified; clock/sequence
+checks use synthetic PCM and already-decoded snapshot time.
+
 ### Dust and footprints
 
 A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as

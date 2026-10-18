@@ -300,6 +300,10 @@ const HELP: &[(&str, &str)] = &[
         "cg_tauntAntiSpam",
         "Limits repeated player model voices. Taunts wait until the previous line ends; other grunts have separate short holds.",
     ),
+    (
+        crate::audio::music::CVAR,
+        "Resume map music by level time on join or after duels. Off restarts it. Dynamic music keeps its own timing.",
+    ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
         crate::footprints::PRINTS_CVAR,

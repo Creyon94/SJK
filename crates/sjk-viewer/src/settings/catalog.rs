@@ -192,6 +192,11 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Map music sync",
+        cvar: crate::audio::music::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Doppler",
         cvar: "s_doppler",
         kind: ValueKind::Bool,

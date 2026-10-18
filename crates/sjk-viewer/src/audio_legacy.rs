@@ -124,6 +124,7 @@ impl GameAudio {
         self.sound_table_refresh = None;
         self.deferred_snapshots.clear();
         self.map_music = None;
+        self.music_sync_pending = false;
         self.music_value = None;
         self.dynamic = None;
     }
@@ -137,6 +138,7 @@ impl GameAudio {
         bsp: &Bsp,
     ) {
         self.begin_map_change();
+        self.music_sync_pending = true;
         self.flame.detected =
             crate::actor_world_submission::force_powers::flame::detect(Some(game_state));
         self.sound_table_refresh = Some(SoundTableRefresh::new(game_state));

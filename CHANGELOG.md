@@ -45,6 +45,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - JA+ flamethrower effects fall back to the retail Boba flame when the custom stream is missing; impact bursts advance smoothly between snapshots. _(lumayaa, after JoF EJK)_
 - Rage, healing and Grip-victim effects follow animation and plugin settings; Mindtrick hides Force effects, and Empower glow follows the server's body/arms/hands choice with a local override. _(Lumaya, after JoF EJK)_
 - Limit repeated player model voices by default, with sample-length taunt holds and a Taunt anti-spam switch in both menu styles. _(Lumaya, after JoF EJK)_
+- Resume map music using level time after joining or a duel, and stop duel music when the map has no track. _(Lumaya, after JoF EJK)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 
