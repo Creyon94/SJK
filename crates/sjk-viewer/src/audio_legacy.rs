@@ -142,6 +142,7 @@ impl GameAudio {
         bsp: &Bsp,
     ) {
         self.begin_map_change();
+        self.missing_effects.clear();
         self.music_sync_pending = true;
         // A map's own track is set before anyone connects: it began with the level.
         self.music_start_time = super::music::level_start_time(game_state);

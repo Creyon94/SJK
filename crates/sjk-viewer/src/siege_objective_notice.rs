@@ -103,11 +103,8 @@ impl Notices {
                     ROUND_OVER_FALLBACK[1],
                 )
             };
-            say(
-                value(team, message),
-                Some(value(team, sound).unwrap_or(fallback)),
-                Some(fallback),
-            );
+            // A team group that names no announcer stays silent, as in the reference.
+            say(value(team, message), value(team, sound), Some(fallback));
         }
     }
 

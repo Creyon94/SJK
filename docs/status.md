@@ -150,6 +150,15 @@ objective" (`siege2`/`siege6`) for nearly every step, with `siege1`/`siege5` for
 last. A unit test pins the count-in (3, 2, 1 once each, three again next round); the
 fallback is untested in a game.
 
+Review follow-up: a team group that names no round-over announcer stays silent, as
+in the reference; only a named one that no installed file answers falls back, and
+such a miss is remembered until the next gamestate. The count-in is silent in
+intermission (`CG_Draw2D` returns first) and an empty `CS_SIEGE_STATE` keeps the
+previous state, as `CG_ConfigStringModified` ignores it; the state is parsed once in
+`match_info` for both the warmup line and the count. The new sound event had
+outgrown the sound ledger (`EVENT_KIND_COUNT`), which a compile-time check now
+guards. `cargo test -p sjk-client`: 279 passed.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.

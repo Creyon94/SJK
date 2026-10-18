@@ -47,7 +47,9 @@ const CHAN_MENU1: u32 = 11;
 const CHAN_LOCAL: u32 = 1;
 pub(crate) const CHAN_ANNOUNCER: u32 = 9;
 const CS_AMBIENT_SET: usize = 37;
-const EVENT_KIND_COUNT: usize = 60;
+const EVENT_KIND_COUNT: usize = 61;
+// Every `LegacySoundEvent` has a ledger slot; `CustomVoice` is the last variant.
+const _: () = assert!(LegacySoundEvent::CustomVoice as usize + 1 == EVENT_KIND_COUNT);
 const EV_PLAYDOORLOOPSOUND: u16 = 72;
 const EV_MUTE_SOUND: u16 = 74;
 const EV_GENERAL_SOUND: u16 = 76;

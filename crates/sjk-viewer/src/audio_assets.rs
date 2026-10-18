@@ -176,9 +176,17 @@ impl GameAudio {
     }
 
     /// Register `path` as [`Self::register_effect_paths`] does; false when no
-    /// installed sound answers to it (either extension).
+    /// installed sound answers to it (either extension). A miss is remembered
+    /// until the next gamestate, so asking again reads nothing.
     pub(crate) fn register_effect(&mut self, vfs: &VirtualFileSystem, path: &str) -> bool {
-        self.register_vfs_async(vfs, path).is_some()
+        if self.missing_effects.contains(path) {
+            return false;
+        }
+        let found = self.register_vfs_async(vfs, path).is_some();
+        if !found {
+            self.missing_effects.insert(path.to_owned());
+        }
+        found
     }
 
     pub(crate) fn register_duel_music(&mut self, vfs: &VirtualFileSystem) {

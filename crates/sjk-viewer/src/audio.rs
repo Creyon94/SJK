@@ -73,6 +73,9 @@ pub(crate) struct GameAudio {
     output: AudioOutput,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
+    /// Effect paths no installed file answered ([`Self::register_effect`]), until the
+    /// next gamestate brings new content.
+    missing_effects: std::collections::HashSet<String>,
     next_handle: u32,
     legacy: Option<LegacySoundAdapter>,
     legacy_load: Option<LegacyLoadTask>,
@@ -181,6 +184,7 @@ impl GameAudio {
             output,
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),
+            missing_effects: std::collections::HashSet::new(),
             next_handle: 0,
             legacy: None,
             legacy_load: None,
