@@ -811,7 +811,7 @@ impl State {
             mode,
             restrictions: info_number(game.config_string(0), "restricts"),
             local_team: snapshot.player.team() as i32,
-            local_duel: info_number(game.config_string(1131 + usize::from(local)), "ds"),
+            local_duel: info_number(game.config_string(1131 + usize::from(local)), "dt"),
             master: snapshot
                 .entities
                 .iter()
@@ -1884,7 +1884,7 @@ pub(crate) enum Duel {
     Private(u16),
     /// `GT_DUEL`: every other player in the arena.
     Arena,
-    /// `GT_POWERDUEL`, on this duel side (`ds` in `CS_PLAYERS`): the other side.
+    /// `GT_POWERDUEL`, on this duel side (`dt` in `CS_PLAYERS`): the other side.
     Sides(i32),
 }
 
@@ -1901,7 +1901,7 @@ impl Duel {
             GT_DUEL => Self::Arena,
             GT_POWERDUEL => Self::Sides(info_number(
                 game.config_string(1131 + usize::from(player.client_num())),
-                "ds",
+                "dt",
             )),
             _ => Self::None,
         }
@@ -1918,7 +1918,7 @@ impl Duel {
             Self::Private(opponent) => opponent == number,
             Self::Arena => true,
             Self::Sides(side) => {
-                info_number(game.config_string(1131 + usize::from(number)), "ds") != side
+                info_number(game.config_string(1131 + usize::from(number)), "dt") != side
             }
         }
     }
@@ -1946,7 +1946,7 @@ fn identify(
             standing.local_team,
             team,
             standing.local_duel,
-            info_number(info, "ds"),
+            info_number(info, "dt"),
             standing.master,
             standing.local_master,
             jedi_master,
@@ -2414,11 +2414,11 @@ mod tests {
         assert!(private.opponent(&game, 3) && !private.opponent(&game, 4));
         snapshot.player.set_raw_field(119, 0);
         assert_eq!(Duel::of(&snapshot, &game, GT_DUEL), Duel::Arena);
-        game.replace_config_string(1131, br"\n\Me\t\0\ds\1".to_vec())
+        game.replace_config_string(1131, br"\n\Me\t\0\ds\m\dt\1".to_vec())
             .unwrap();
-        game.replace_config_string(1134, br"\n\Lone\t\0\ds\2".to_vec())
+        game.replace_config_string(1134, br"\n\Lone\t\0\ds\f\dt\2".to_vec())
             .unwrap();
-        game.replace_config_string(1135, br"\n\Pair\t\0\ds\1".to_vec())
+        game.replace_config_string(1135, br"\n\Pair\t\0\ds\m\dt\1".to_vec())
             .unwrap();
         let sides = Duel::of(&snapshot, &game, GT_POWERDUEL);
         assert_eq!(sides, Duel::Sides(1));
@@ -2520,7 +2520,7 @@ mod tests {
         snapshot.entities[0].set_raw_field(91, 1); // Player bolt1: private duel.
         let mut game = GameState::empty_local(0);
         // Power Duel side alone must never hide a plate.
-        game.replace_config_string(1134, br"\n\Player\t\0\ds\1".to_vec())
+        game.replace_config_string(1134, br"\n\Player\t\0\dt\1".to_vec())
             .unwrap();
         let mut world = World::new(WorldId::new(1));
         world.upsert(

@@ -2944,7 +2944,7 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   shield and Force, and a duellist sends nobody theirs, whatever either side's
   settings (`hud::nameplate::Duel`). In a private duel (`duelInProgress`) the opponent
   is the one your player state names (`duelIndex`); in the Duel game type every other
-  player in the arena; in Power Duel the other side (`ds` in `CS_PLAYERS`); a
+  player in the arena; in Power Duel the other side (`dt` in `CS_PLAYERS`); a
   spectator duels nobody. The opponent's plate keeps its name, weapon and icons but
   shows no bars (not the grey ones either), in every bar mode; target mode no longer
   shows bars on the duel opponent. While you duel your client sends the hub no values
