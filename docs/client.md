@@ -1482,8 +1482,12 @@ does not read files, decode samples or lock the audio callback.
 ### Map music synchronization
 
 **Map music sync** (`cg_musicSync`, on) is in Sound settings in both menu styles.
-After joining or leaving a private duel, file-based map music resumes from elapsed
-level time instead of restarting. The decode/callback queue delay is included in
+After joining or leaving a private duel, file-based map music resumes from the time
+elapsed since its track began instead of restarting. Like JoF EJK's
+`cgs.musicStartTime` (EJK #159), that start is the level start for the map's own
+track and the server time of the last `CS_MUSIC` change for a track set mid-level
+(`target_play_music`); a numeric third `CS_MUSIC` token, when a server sends one,
+states the start outright. The decode/callback queue delay is included in
 the start position. The native sequencer plays a distinct intro once, then wraps
 the loop; a single repeated file has the same phase as JoF EJK #161. Dynamic music
 keeps its own transitions and does not use the file-track offset. Turning sync off

@@ -125,6 +125,11 @@ impl GameAudio {
             return;
         }
         self.music_value = Some(value.to_vec());
+        // `cgs.musicStartTime = cg.time`: a mid-level `target_play_music` starts
+        // its track now, so a later resync is timed from here, not the level start.
+        self.music_start_time = self
+            .last_server_time
+            .unwrap_or_else(|| super::music::level_start_time(game));
         if let Some(music) = assets::game_music(game) {
             self.start_music(vfs, &music);
         } else {
