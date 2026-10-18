@@ -308,6 +308,29 @@ pub trait Hub: Send {
             "this hub client does not read assets".to_owned(),
         ))
     }
+    /// The test packs this key has an envelope for (`PROTOCOL.md`, "Test packs"),
+    /// newest first.
+    fn test_packs(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<Vec<crate::test_packs::Listed>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read test packs".to_owned(),
+        ))
+    }
+    /// Bytes `first` to `last` (both included, at most
+    /// [`crate::test_packs::RANGE_MAX`]) of test pack `id`'s locked body.
+    fn test_pack_range(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+        _first: u64,
+        _last: u64,
+    ) -> Result<Vec<u8>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read test packs".to_owned(),
+        ))
+    }
     /// Any player's public profile.
     fn profile(&mut self, key_id: &str) -> Result<Profile, HubError>;
     /// Say the identity's player is in `slot` of `server` as `name`. `active` says the
@@ -690,13 +713,30 @@ impl HttpHub {
         limit: u64,
         timeout: Duration,
     ) -> Result<Vec<u8>, HubError> {
+        self.get_bytes_in(identity, path, None, limit, timeout)
+    }
+
+    /// [`HttpHub::get_bytes`] asking for the bytes `range` (first and last included)
+    /// when given (`Range`, not part of the signature).
+    fn get_bytes_in(
+        &mut self,
+        identity: &Identity,
+        path: &str,
+        range: Option<(u64, u64)>,
+        limit: u64,
+        timeout: Duration,
+    ) -> Result<Vec<u8>, HubError> {
         for attempt in 0..2 {
             let url = format!("{}{path}", self.base);
             let header = self.authorization(identity, "GET", path, b"")?;
-            let mut response = self
+            let mut request = self
                 .agent
                 .get(&url)
-                .header("Authorization", header.as_str())
+                .header("Authorization", header.as_str());
+            if let Some((first, last)) = range {
+                request = request.header("Range", format!("bytes={first}-{last}"));
+            }
+            let mut response = request
                 .config()
                 .timeout_global(Some(timeout))
                 .build()
@@ -724,6 +764,41 @@ impl HttpHub {
             }
         }
         Err(clock_disagrees())
+    }
+
+    /// The owner's test pack request `path` (`/v1/test-packs/...`, `PROTOCOL.md`, "Test
+    /// packs") with the JSON `body`, signed by `identity`: what the owner's tool sends.
+    pub fn test_pack_owner(
+        &mut self,
+        identity: &Identity,
+        path: &str,
+        body: Value,
+    ) -> Result<Value, HubError> {
+        self.send(Some(identity), "POST", path, Some(body))
+    }
+
+    /// Part `index` of test pack `id`'s locked body (8 MiB, the last less), signed by
+    /// the owner's `identity`.
+    pub fn test_pack_upload(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+        index: u64,
+        part: &[u8],
+    ) -> Result<Value, HubError> {
+        if !crate::test_packs::valid_id(id) {
+            return Err(HubError::Protocol("not a test pack id".to_owned()));
+        }
+        let path = format!("/v1/test-packs/upload/{id}/{index}");
+        self.send_with(
+            Some(identity),
+            "POST",
+            &path,
+            part,
+            "application/octet-stream",
+            ANSWER_MAX,
+            Some(ASSET_TIMEOUT),
+        )
     }
 
     fn call(
@@ -1516,6 +1591,42 @@ impl Hub for HttpHub {
         }
         let path = format!("/v1/assets/{name}");
         self.get_bytes(identity, &path, PACK_MAX, ASSET_TIMEOUT)
+    }
+
+    fn test_packs(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<Vec<crate::test_packs::Listed>, HubError> {
+        crate::test_packs::listing(self.send(Some(identity), "GET", "/v1/test-packs", None)?)
+    }
+
+    fn test_pack_range(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+        first: u64,
+        last: u64,
+    ) -> Result<Vec<u8>, HubError> {
+        if !crate::test_packs::valid_id(id)
+            || last < first
+            || last - first >= crate::test_packs::RANGE_MAX
+        {
+            return Err(HubError::Protocol("not a test pack range".to_owned()));
+        }
+        let path = format!("/v1/test-packs/{id}");
+        let bytes = self.get_bytes_in(
+            identity,
+            &path,
+            Some((first, last)),
+            last - first + 1,
+            ASSET_TIMEOUT,
+        )?;
+        if bytes.len() as u64 != last - first + 1 {
+            return Err(HubError::Protocol(
+                "the hub sent another length than asked".to_owned(),
+            ));
+        }
+        Ok(bytes)
     }
 
     fn feed(
