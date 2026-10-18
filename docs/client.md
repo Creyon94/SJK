@@ -942,14 +942,6 @@ in their team's stock colour with no blade shader over them, muted players' defa
 saber included, whatever `cg_saberTeamColors` says. From SJK pull request #113 (Slash),
 made an option at the merge (Sol's choice, 17/10/2026).
 
-`cg_siegeTeamSabers` (archived, default 1; same pages, **Siege saber colours**)
-covers Siege, which EJK's rule leaves out: every red player's blades in the stock red
-and every blue player's in the stock blue, both sabers, whatever `c1`..`c4` say, a
-blade shader worn over the colour as under `cg_saberTeamColors`. Spectators keep their
-own colours; at 0 Siege keeps each player's choice, as in EJK. Slash's request
-(17/10/2026), `sjk_client::legacy_siege_team_blade`; verified by unit tests, not tried
-in the game.
-
 Verified by unit tests (team FFA, CTF and CTY force red and blue, free players and
 spectators untouched, FFA, duel, siege and jedi-vs-merc keep the choice, the `0`
 semantics per saber, black blades replaced per hand, the card's swatches); not tried

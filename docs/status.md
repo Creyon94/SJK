@@ -190,21 +190,20 @@ Blue team won" or "Tied 3 : 3". See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
-## Siege team and class menu, Siege saber colours
+## Siege team and class menu
 
 17/10/2026, `claude/zealous-dijkstra-9dechb`, based on `Sol-Vulpes/SJK` `bb83eb2`
 (Slash's request): implemented. Siege's class page now opens on the team choice
 as the other team games' Team page (Red team, Blue team with colour marks and
 player counts, Spectate, Back); a side lists its classes, and Back or Escape
-returns to the team choice. Both menu styles share it. `cg_siegeTeamSabers`
-(archived, default 1) draws red players' blades red and blue players' blue in
-Siege, which JoF EJK's `cg_saberTeamColors` rule leaves out. See
-[sjk-ui](sjk-ui.md#in-game-menu) and [client](client.md#team-saber-colours).
+returns to the team choice. Both menu styles share it. At the merge (18/10/2026)
+Sol kept the menu and dropped the PR's `cg_siegeTeamSabers` (every Siege side's
+blades in its colour) for stock's class-forced Siege saber colours, below. See
+[sjk-ui](sjk-ui.md#in-game-menu).
 
 Workspace fmt/build/test passed on Linux x86_64; clippy reports nothing in the
 touched files. Unit tests pin the two-step page (rows, marks, titles, Back,
-Escape, Spectate, class command) and the Siege blades (red, blue, spectator,
-setting off). Not tried in a live Siege match.
+Escape, Spectate, class command). Not tried in a live Siege match.
 
 ## NPC sabers and voices
 
