@@ -19,12 +19,15 @@ pub(crate) struct Response {
     pub(crate) content_type: String,
     pub(crate) bytes: Vec<u8>,
 }
+/// `page` is whether an HTML page may answer: not once a page has been read, as
+/// a media host can answer a browser-like `Accept` with its own viewer page
+/// (Tenor's `media1.tenor.com`, seen 18/10/2026).
 pub(crate) trait Request {
-    fn request(&mut self, url: &str) -> Result<Response, Failure>;
+    fn request(&mut self, url: &str, page: bool) -> Result<Response, Failure>;
 }
 impl Request for Http {
-    fn request(&mut self, url: &str) -> Result<Response, Failure> {
-        self.media_request(url)
+    fn request(&mut self, url: &str, page: bool) -> Result<Response, Failure> {
+        self.media_request(url, page)
     }
 }
 pub(crate) fn fetch(
@@ -58,7 +61,7 @@ fn resolve(
             sources::blocked(url.host_str().unwrap_or_default());
             return Err(Failure::Refused);
         }
-        let response = http.request(url.as_str())?;
+        let response = http.request(url.as_str(), !page_seen)?;
         if !current() {
             return Err(Failure::Refused);
         }
@@ -139,11 +142,13 @@ mod tests {
     use super::*;
     struct Script {
         asked: Vec<String>,
+        pages: Vec<bool>,
         answers: std::collections::VecDeque<Response>,
     }
     impl Request for Script {
-        fn request(&mut self, url: &str) -> Result<Response, Failure> {
+        fn request(&mut self, url: &str, page: bool) -> Result<Response, Failure> {
             self.asked.push(url.to_owned());
+            self.pages.push(page);
             Ok(self.answers.pop_front().expect("scripted answer"))
         }
     }
@@ -159,6 +164,7 @@ mod tests {
     fn untrusted_initial_links_redirects_and_media_hosts_are_never_requested() {
         let mut http = Script {
             asked: vec![],
+            pages: vec![],
             answers: [].into(),
         };
         assert!(
@@ -183,6 +189,7 @@ mod tests {
         ] {
             let mut http = Script {
                 asked: vec![],
+                pages: vec![],
                 answers: [response].into(),
             };
             assert!(
@@ -208,6 +215,7 @@ mod tests {
         );
         let mut http = Script {
             asked: vec![],
+            pages: vec![],
             answers: [page, reply(200, None, "video/mp4", b"0000ftypvideo")].into(),
         };
         assert_eq!(
@@ -222,6 +230,8 @@ mod tests {
             b"0000ftypvideo"
         );
         assert_eq!(http.asked[1], "https://example.org/clip.mp4?x=1&y=2");
+        // The page's media is asked for without accepting another page.
+        assert_eq!(http.pages, [true, false]);
         http.asked.clear();
         assert!(
             resolve(
@@ -265,6 +275,7 @@ mod tests {
         );
         let mut http = Script {
             asked: vec![],
+            pages: vec![],
             answers: [page, reply(200, None, "image/gif", b"GIF89a")].into(),
         };
         let bytes = resolve(
@@ -293,6 +304,7 @@ mod tests {
         );
         let mut http = Script {
             asked: vec![],
+            pages: vec![],
             answers: [page, reply(200, None, "image/webp", &webp)].into(),
         };
         let bytes = resolve(
@@ -313,6 +325,7 @@ mod tests {
         );
         let mut http = Script {
             asked: vec![],
+            pages: vec![],
             answers: [reply(200, None, "image/webp", &webp)].into(),
         };
         assert_eq!(

@@ -82,6 +82,7 @@ impl Http {
     pub(crate) fn media_request(
         &mut self,
         url: &str,
+        page: bool,
     ) -> Result<super::discover::Response, Failure> {
         let checked = super::sources::checked_url(url).ok_or(Failure::Refused)?;
         if !super::enabled() || !super::sources::permits(&checked) {
@@ -91,7 +92,7 @@ impl Http {
         let mut response = self
             .media
             .get(url)
-            .header("Accept", accept(video))
+            .header("Accept", accept(video, page))
             .call()
             .map_err(|error| Failure::Network(error.to_string()))?;
         let status = response.status().as_u16();
@@ -313,11 +314,12 @@ mod tests {
 
 /// The generic media requests' Accept header: MP4 only while clips can be played
 /// (`video`, [`super::video::available`]).
-fn accept(video: bool) -> &'static str {
-    if video {
-        "image/gif, image/webp, video/mp4, text/html;q=0.5"
-    } else {
-        "image/gif, image/webp, text/html;q=0.5"
+fn accept(video: bool, page: bool) -> &'static str {
+    match (video, page) {
+        (true, true) => "image/gif, image/webp, video/mp4, text/html;q=0.5",
+        (true, false) => "image/gif, image/webp, video/mp4",
+        (false, true) => "image/gif, image/webp, text/html;q=0.5",
+        (false, false) => "image/gif, image/webp",
     }
 }
 
@@ -404,9 +406,12 @@ mod public_address_tests {
 mod video_policy_tests {
     #[test]
     fn without_clips_video_is_neither_asked_for_nor_downloaded() {
-        assert!(!super::accept(false).contains("video"));
-        assert!(super::accept(true).contains("video/mp4"));
-        assert!(super::accept(false).contains("image/webp"));
+        assert!(!super::accept(false, true).contains("video"));
+        assert!(super::accept(true, true).contains("video/mp4"));
+        assert!(super::accept(false, true).contains("image/webp"));
+        // After a page, its media is asked for without accepting another page.
+        assert!(!super::accept(true, false).contains("text/html"));
+        assert!(!super::accept(false, false).contains("text/html"));
         assert!(super::refused_before_body(false, "video/mp4"));
         assert!(!super::refused_before_body(true, "video/mp4"));
         assert!(!super::refused_before_body(false, "image/webp"));
