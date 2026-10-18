@@ -33,6 +33,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = cg_nameplate reset: See & share nameplates now also shares your health, shield and Force with the SJK players of your server. It is off until you turn it on.
 
 - Jetpack effects load replacement-pack shaders before flight and keep their authored tail lengths; hidden effect layers stay hidden instead of becoming fallback sparks _(Lumaya, after JoF EJK)_
+- Siege on SJK servers: doors a map keeps locked for one team open for that team's players, only doors made for it open for vehicles and their riders, the use key opens doors made to be used, locked doors show their lock lights, and nothing can be used before the round begins _(Slash, after JKA)_
+- The Siege HUD shows waiting for players and the round countdown, how long until your respawn wave, and a hack's progress, and hacking plays its sound _(Slash, after JKA)_
 - Siege on SJK servers: a trigger that fires once fires once, so holding use at siege_hoth's bridge panel no longer scores objective 2 over and over _(Slash, after JKA)_
 - Siege on SJK servers: you can board your own team's vehicles again, siege_hoth's AT-ST included _(Slash, after JKA)_
 - Siege on SJK servers: bots added before the round take both sides, so the round can begin _(Slash, after JKA)_
@@ -48,7 +50,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The what's-new card opens on Settings to review when an update changed a setting: each with why and a switch, a reset one off until you choose it again _(Milamber)_
 - See & share nameplates (`cg_nameplate`, off by default) replaces Share my bars (`cg_nameplateShare`): seeing other players' nameplates shares your own health, shield and Force, and off does neither _(Milamber)_
 - The Collection's Nameplates tab has a See & share nameplates switch, its row pulsing gold so it is not missed _(Milamber)_
-- Siege doors a map keeps locked for one team open on their own for that team's players again, as the defenders' doors do, and only doors made for it open for vehicles and their riders _(JoF, after OpenJK)_
 - The Supporter medal is no longer oddly cut: its ribbon ends in a clean V on the star's bail (no dark block or broken stem under it), and its small medallion loses the stray line at its top _(Sol)_
 - The shop sells its four daily saber shaders for kyber shards (30 to 1 500, below what crafting costs), the Legendary offer turns Mythical one day in four, and credits now buy holocrons: an Uncommon for 150 or a Rare for 400 under the offers, asking twice, the holocron joining your list at once, once the SJK hub turns them on _(Sol)_
 - A card from a holocron now comes as a pack, once the SJK hub turns the shards on: beside the card its credits and a few kyber shards slide out in two tiles and count up, and Open all adds the pack's shards to its totals _(Sol)_

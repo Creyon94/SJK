@@ -9,7 +9,7 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 ## Sol JK, by Sol
 
 Sol develops SJK and sets its direction, and has reviewed and merged the
-contributors' 118 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 10, Milamber 2). Sol's
+contributors' 121 pull requests (Creyon 52, Lumaya 46, Lukas 9, Slash 12, Milamber 2). Sol's
 work includes:
 
 - the Sol JK name, README, credits and website;
@@ -304,7 +304,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 45 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 46 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -397,6 +397,9 @@ merged into SJK
 - #136 `pmonly` and `cg_pmOnlyChat`: only private game chat until the next map, after JoF EJK #331.
 - #141 player model eligibility: `notInMP` models and pack or player blacklists show as Kyle,
   after JoF EJK #126.
+- #158 jetpack exhaust: its effect registered at map load (replacement-pack shaders included),
+  tail lengths kept unless a length flag changes them, as EJK's `CTail`, and layers remapped
+  to `clear` hidden instead of drawn as fallback sparks.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
 merged into SJK
@@ -420,7 +423,7 @@ merged into SJK
 - #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
   in a private duel.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 10 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 12 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -443,6 +446,11 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   AT-ST takes the Empire again.
 - #162 bots take both sides before a Siege round: side counts include the side a waiting
   player wants, as `TeamCount`.
+- #157 Siege doors as `Touch_DoorTrigger` and `TryUse`: a locked door opens for its `teamallow`
+  team, `vehopen` doors alone open for vehicles and riders, the use key works `PLAYER_USE`
+  doors, locked doors show their lock lights, and nothing is used before the round begins.
+- #160 the Siege HUD: waiting for players and the round countdown, the respawn wave countdown,
+  hack progress, and the hacking sound (the viewed player's own `ps.loopSound`).
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
