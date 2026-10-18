@@ -11,6 +11,7 @@ mod base_server_commands;
 mod body_animation;
 mod idle_stances;
 mod shader_remaps;
+mod siege_result;
 pub use shader_remaps::{
     SHADER_STATE_CONFIG, ShaderRemapTable, ShaderRemaps, next_remap_order, shader_name,
 };
@@ -28,11 +29,14 @@ mod demo_recorder;
 pub mod download;
 mod download_session;
 mod duel_isolation;
+pub mod player_model_eligibility;
 pub use duel_isolation::duel_passes_through;
 mod duel_look;
 pub use duel_look::{DuelActor, DuelViewer, legacy_duel_ghost, legacy_duel_tint};
 mod entity_models;
+mod force_anim_fx;
 mod force_overlay_events;
+pub use force_anim_fx::{LegacyForceAnimFx, LegacyForceAnimFxTimers};
 mod force_overlays;
 mod force_profile;
 mod force_profile_negotiation;
@@ -59,6 +63,8 @@ mod maintained_sounds;
 mod map_effects;
 mod match_info;
 mod mind_trick;
+mod npc_health;
+pub use npc_health::LegacyNpcHealthView;
 mod missile_effects;
 mod muzzle_effects;
 mod npc_identity;
@@ -115,7 +121,7 @@ mod weapon_selection;
 
 pub use actor_color::{
     TeamColorPolicy, legacy_body_color, legacy_player_color, legacy_saber_team_colors,
-    legacy_team_blade, legacy_team_sabers,
+    legacy_siege_class_blades, legacy_team_blade, legacy_team_sabers,
 };
 pub use ambient_sets::{AmbientSet, AmbientSetKind, AmbientSets};
 pub use ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyRandom};
@@ -139,7 +145,7 @@ pub fn legacy_death_animation(clip: usize) -> bool {
 }
 pub use asset_catalog::{
     LEGACY_SABER_COLORS, LegacyAssetCatalog, LegacyAssetCatalogLoader, LegacyCatalogStatus,
-    legacy_asset_catalog,
+    legacy_asset_catalog, legacy_asset_catalog_with_model_policy,
 };
 pub use base_server_commands::{
     BaseServerCommandEvent, BodyIdentity, ForceRankUpdate, Ghoul2Restore, ImmediateBodyCopy,
@@ -147,7 +153,7 @@ pub use base_server_commands::{
 };
 pub use character_catalog::{
     LegacyCharacter, LegacyCharacterCatalog, LegacySpecies, LegacySpeciesColor,
-    legacy_character_catalog,
+    legacy_character_catalog, legacy_character_catalog_with_policy,
 };
 pub use chat::{
     CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, chat_body, chat_command,
@@ -222,15 +228,16 @@ pub use npc_identity::{
     legacy_npc_saber_names_borrowed, legacy_npc_state, legacy_vehicle_name,
 };
 pub use obituary::{
-    EV_OBITUARY, Gender, KillFeed, ObituaryEvent, ObituaryTracker, legacy_obituary, obituary_name,
+    EV_OBITUARY, EV_SIEGE_ROUNDOVER, Gender, KillFeed, ObituaryEvent, ObituaryTracker,
+    SiegeRoundOver, legacy_obituary, obituary_name,
 };
 pub use player_angle_rules::{PredictedPoseFields, legacy_predicted_pose};
 pub use player_angles::{
     LegacyPlayerAngleController, LegacyPlayerAngleInputs, LegacyPlayerAngleSample,
 };
 pub use player_identity::{
-    legacy_client_appearance, legacy_client_appearance_forced, legacy_client_saber_name,
-    legacy_client_saber_names,
+    legacy_client_appearance, legacy_client_appearance_forced,
+    legacy_client_appearance_with_policy, legacy_client_saber_name, legacy_client_saber_names,
 };
 pub use player_lookup::{PlayerLookup, lookup_player};
 pub use player_profile::{
@@ -269,6 +276,7 @@ pub use saber_move::legacy_saber_trail_length;
 pub use server_address::{LegacyAddressError, LegacyServerAddress};
 pub use server_clock::ServerClock;
 pub use session_transition::{SessionTransition, SessionTransitionKind};
+pub use siege_result::siege_round_winner;
 pub use sound_events::{
     LegacyMusicAction, LegacySaberView, LegacySoundAdapter, LegacySoundDecision, LegacySoundEvent,
     LegacySoundLedger, RegisteredLegacySound, SABER_SOUND_CLIENTS, SaberSoundSet, TOGGLE_REACH,
@@ -343,6 +351,8 @@ pub struct ServerEvent {
     pub text: String,
     /// Sender slot emitted by codemp's G_SayTo, absent for system/older-mod text.
     pub sender: Option<u16>,
+    /// Stock tell marker on a non-localized `chat` command, before display cleanup.
+    pub is_private: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1162,15 +1172,19 @@ impl ClientSession {
         }
         let event_kind = match name {
             b"print" => Some(ServerEventKind::Print),
-            b"cp" => Some(ServerEventKind::CenterPrint),
+            b"cp" | b"cps" => Some(ServerEventKind::CenterPrint),
             _ => None,
         };
         if let Some(kind) = event_kind {
-            let text = server_text(arguments.get(1..).unwrap_or_default());
+            let mut text = server_text(arguments.get(1..).unwrap_or_default());
+            if name == b"cps" {
+                text = cps_key(&text);
+            }
             self.events.push_back(ServerEvent {
                 kind,
                 text,
                 sender: None,
+                is_private: false,
             });
             return Ok(());
         }
@@ -1707,5 +1721,30 @@ mod server_text_tests {
     fn server_text_keeps_utf8_and_joins_arguments() {
         let arguments = [b"gg".to_vec(), "ø".as_bytes().to_vec()];
         assert_eq!(server_text(&arguments), "gg ø");
+    }
+}
+
+mod voice_lines;
+pub use voice_lines::LegacyVoiceLine;
+
+/// `cps` (`cg_servercmds.c`): a centre print naming a string-table entry, `@FILE_KEY`
+/// as `target_print` sends it, turned into the `@@@` reference the viewer resolves.
+fn cps_key(text: &str) -> String {
+    let key = text.trim();
+    format!(
+        "@@@{}",
+        key.strip_prefix('@').unwrap_or(key).to_ascii_uppercase()
+    )
+}
+
+#[cfg(test)]
+mod cps_tests {
+    use super::cps_key;
+
+    #[test]
+    fn a_cps_key_becomes_an_upper_case_string_reference() {
+        assert_eq!(cps_key("@siege_korr_print_1"), "@@@SIEGE_KORR_PRINT_1");
+        assert_eq!(cps_key(" @Siege_Gate "), "@@@SIEGE_GATE");
+        assert_eq!(cps_key("SIEGE_GATE"), "@@@SIEGE_GATE");
     }
 }

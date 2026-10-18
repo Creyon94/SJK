@@ -940,6 +940,20 @@ pub(crate) fn has_row(cvar: &str) -> bool {
         .any(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
 }
 
+/// The label of `cvar`'s on/off row (any case), `None` when Settings has no plain switch
+/// for it: the what's-new card names and switches the settings a release asks players to
+/// review (`changelog_data.rs`, `= <cvar>: <text>`) with it.
+pub(crate) fn switch_label(cvar: &str) -> Option<&'static str> {
+    search::rows()
+        .iter()
+        .find(|setting| {
+            setting.cvar.eq_ignore_ascii_case(cvar)
+                && matches!(setting.kind, ValueKind::Bool)
+                && derived_switch(setting.cvar).is_none()
+        })
+        .map(|setting| setting.label)
+}
+
 /// Whether `cvar` has a row on a general or renderer tab that can show
 /// `value`: a switch's 0 or 1, or a number within its slider's range.
 #[cfg(test)]

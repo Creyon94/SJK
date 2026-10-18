@@ -204,7 +204,8 @@ pub(crate) fn note(page: Page, row: usize, siege: bool) -> Option<&'static str> 
     match page {
         Page::Main => Tab::at(row)?.unavailable(siege),
         Page::Leave if row == leave::RESTART => Some(RESTART_NOTE),
-        Page::Team => Some("You are already here"),
+        // Siege's side step dims only Spectate, while the player watches.
+        Page::Team | Page::Siege => Some("You are already here"),
         _ => None,
     }
 }

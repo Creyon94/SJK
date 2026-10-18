@@ -40,7 +40,7 @@ general contributor rules.
   presents SJK as Sol's: Sol develops it and sets its direction, and Sol comes
   first (Sol's rule, 06/10/2026). SJK stands on its own (Sol's decision,
   08/10/2026): JKR, the engine SJK began from, and Bishop, its creator, appear only
-  in the credits (CREDITS.md's "Origins", the credits page's Origins card), the
+  in the credits (a footnote at the end of CREDITS.md and of the credits page), the
   copyright notice and one footnote in the README and on the site. Code, wiki
   pages and in-game text describe SJK without comparing it to JKR. Keep CREDITS.md
   current when SJK gains notable work.
@@ -57,6 +57,7 @@ migrated, except where the table says so. Where each is documented:
 | `ui_gameFont` | on | [UI ownership](rendering.md#ui-ownership) |
 | `cg_scoreboardStyle` | `auto` (SJK UI's with its menus, else `classic`), saved `modern` reset | [Scoreboard styles](client.md#scoreboard-styles) |
 | `cg_compactScoreboard` | on (SJK UI's scoreboard in one column, as wide as its names, centred) | [SJK UI scoreboard](sjk-ui.md#scoreboard) |
+| `cg_scoreboardAfk` | on (away players faint below the others on both scoreboards) | [Away players](client.md#away-players) |
 | `cg_drawTimer` | on | [status.md](status.md#gameplay-and-interface-defaults) |
 | `cg_teamOutline` | on (red rings on enemies, green on teammates, in team games) | [Team outlines and logos](client.md#team-outlines-and-logos) |
 | `cg_killfeed` | on, saved 0 moved to 1 once | [Kill feed](client.md#kill-feed) |
@@ -282,12 +283,28 @@ section; the tests reject a dated release from 12/10/2026 on without one, and th
 release notes' introduction may repeat it. A player who skips releases sees the recaps
 of each, so a recap must read on its own.
 
+A release that changes what a setting does, or its default, asks players to choose it
+again with a line `= <cvar>: <one sentence>` beside the recap, before the changes
+(17/10/2026), in place of a migration marker cvar of its own: the what's-new card
+opens on a "Settings to review" page listing every such setting of the releases the
+player has not seen, each with its Settings name, the sentence and a switch
+([sjk-ui.md](sjk-ui.md#whats-new-card)). `= <cvar> reset: ...` also puts the setting back
+to its default when the card is offered (once per version, `cl_whatsNewReset`), so a value every profile saved under the old
+meaning does not carry over unchosen (`cg_nameplate`, when it became See & share
+nameplates). The cvar must be an on/off row in Settings, and the sentence at most 160
+characters; the tests reject anything else. Write the line under "Unreleased" with the
+change, so it is part of the release it ships in.
+
 ## Credits
 
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
 page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
 the full written record. Sol develops SJK alone since October 2026; Bishop is
-credited for JKR, the engine SJK began from, in the Origins section of both.
+credited for JKR, SJK's starting point, in a footnote at the end of both (Sol's
+decision, 18/10/2026: most of JKR's code has since been replaced). Sol's card and
+CREDITS.md's Sol section count the contributors' pull requests Sol reviewed and
+merged; each merged contributor pull request raises that count with the
+contributor's own.
 
 Credits are kept for everything (Sol's rule, 06/10/2026): every merge into
 `main` that brings someone's work updates credits.txt, CREDITS.md and the

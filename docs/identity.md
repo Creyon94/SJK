@@ -203,8 +203,10 @@ or why it refused, for example a quota) shows on the SJK UI's card, which waits 
 ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)), else as a centre print. The report carries the
 in-game name the player wears (the service fills it from the `name` it already sends the
 hub); the hub keeps it with the report and adds it to the key's worn names. The hub checks
-everything again and limits reports per key (3 a day, 20 once verified, 5 an hour, no
-repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
+everything again and limits reports per key (3 a day and 5 an hour; once verified 60 a
+day and 20 an hour; none for staff; no repeat within a day), per address (3 in 10
+minutes, 10 for a verified or staff key) and overall (500 a day, 5000 kept; raised
+18/10/2026),
 so a troll with fresh keys gets little through and nothing that is not plain words. The
 operator reads them with the hub's `reports` command or `/admin/v1/reports`.
 
@@ -396,7 +398,8 @@ name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png
 whole medal on its ribbon, 512 square; `<id>_small.png`, the medallion alone, 128
 square, for anything under about 64 pixels). A new medal is one entry there and two
 pictures; new art is a file replacement. Supporter's pictures are Sol's pick of a generated sheet
-(a gold-and-steel star with a sun gem on a crimson ribbon, 14/10/2026). The JoF Clan medal (`jof_clan`) was dropped on
+(a gold-and-steel star with a sun gem on a crimson ribbon, 14/10/2026), its ribbon
+lengthened and cut in a V onto the star's bail like the others (redone cleanly 17/10/2026). The JoF Clan medal (`jof_clan`) was dropped on
 10/10/2026 for the [JoF clan tag](#clan-tags); a client ignores an old award of it as
 an unknown id.
 
@@ -886,34 +889,51 @@ as does the SJK UI in-game menu's row of icons (and the `staff` command opens th
 any other key it says they are for staff).
 
 The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
-UI's look) finds players (a name or part of one, colour codes ignored; a key id; or,
-with Seen lately, the players the hub saw last), shows the chosen one (the player
-themself until another is chosen, or with Me), and offers:
+UI's look) finds players down its left (a name or part of one, colour codes ignored; a
+key id; or, with Seen lately, the players the hub saw last; 15 shown), and shows the
+chosen one (the player themself until another is chosen, or with Me) on the right: their
+picture, name, key id and flags beside the note field (the note sent with the next
+medal, unlock, holocron, credits or shards, and with a log request, which everyone
+reads), over a row of tabs (reworked 18/10/2026 at Sol's request, "manage all that's
+needed better"; the page used to squeeze everything into three columns):
 
-- every medal of the catalogue with what the player holds: Give (Give +1 for a
-  repeatable one already held), Take back (one award; a repeatable one counts down),
-  and a note sent with the next medal, which everyone can read;
-- every unlockable of the catalogue with whether the player holds it (and since
-  when): Unlock (`StaffRequest::Unlock`, with the note field's text as the team's
-  note) and Relock (`StaffRequest::Relock`), as Give and Take back for medals; the
-  hub's answer replaces the chosen profile and shows in the status line;
-- the player's achievements at the hub, each with Clear, and Clear all, which waits
-  for a second press within 3 seconds;
-- the player's picture beside their name, with Take picture down
-  ([Pictures](#pictures));
-- the player's holocrons: the four tiers to choose and Give (`StaffRequest::HolocronGive`,
-  with the note field's text as the team's note), and their four newest with Remove
-  (`StaffRequest::HolocronRemove`) ([holocrons.md](holocrons.md#staff));
-- Verify beside Take picture down (`StaffRequest::Verify`): it reads Unverify while the
-  player is verified and takes the mark away again;
-- the right column's second tab, Keys and merge: the player's main key and their
-  linked keys, each with Unlink (`StaffRequest::Unlink`, which waits for a second press
-  within 3 seconds), then Merge another key into this player ([Players with several
-  keys](#players-with-several-keys));
-- its third, Logs: Request logs for the chosen player and the log requests with Open,
-  and its fourth, Crashes: every player's crash reports by kind, then one kind's with
-  Open ([Log requests](#log-requests)). Clear all sits at the top of the achievements
-  since 11/10/2026, the tabs' row being full.
+- **Overview**, where the page opens: the account (key id, flags, trust, member since,
+  linked keys, medals and unlockables held, achievements, unopened holocrons, credits,
+  shards and cards), Verify (`StaffRequest::Verify`; Unverify while the player is
+  verified), the last six names the hub kept, and moderation: their picture (Take down,
+  `StaffRequest::AvatarRemove`; Block pictures and Allow pictures,
+  `StaffRequest::AvatarBlock`, [Pictures](#pictures)) and the SJK chat (Mute at the hub
+  and Unmute, `StaffRequest::ChatMute`; Lift chat bans, `StaffRequest::ChatUnban`,
+  [hub-chat.md](hub-chat.md)). The hub does not say whether a player's pictures are
+  blocked or whether they are muted at the hub, so both ways are offered;
+- **Medals and unlocks**: every medal of the catalogue with what the player holds: Give
+  (Give +1 for a repeatable one already held) and Take back (one award; a repeatable one
+  counts down); beside them every unlockable with whether the player holds it (and since
+  when): Unlock (`StaffRequest::Unlock`) and Relock (`StaffRequest::Relock`), in pages of
+  36 with `<` and `>`;
+- **Holocrons and credits**: the player's holocrons, the four tiers to choose and Give
+  (`StaffRequest::HolocronGive`) and their twelve newest with Remove
+  (`StaffRequest::HolocronRemove`) ([holocrons.md](holocrons.md#staff)); beside them their
+  credits and kyber shards, an amount (digits only) and Give credits, Take credits, Give
+  shards and Take shards (`StaffRequest::Credits` and `StaffRequest::Shards`, `POST
+  /v1/staff/credits` and `/v1/staff/shards` with the amount as `delta`, negative to take).
+  The hub refuses taking more than they hold; a hub before the shop refuses shards;
+- **Achievements**: the player's achievements at the hub in two columns, each with
+  Clear, and Clear all, which waits for a second press within 3 seconds;
+- **Keys**: the player's main key and their linked keys, each with Unlink
+  (`StaffRequest::Unlink`, which waits for a second press within 3 seconds), then Merge
+  another key into this player ([Players with several keys](#players-with-several-keys));
+- **Logs**: Request logs for the chosen player and the log requests with Open
+  ([Log requests](#log-requests));
+- then two tabs set apart, about every player: **Crashes**, every player's crash reports
+  by kind, then one kind's with Open; and **Chat bans**, the SJK chat bans in force,
+  newest first (`StaffQuery::ChatBans`, `POST /v1/staff/chat-bans`), each with who
+  banned them, until when and whether their address is banned too, and Lift
+  (`StaffRequest::ChatUnban`; a ban that holds only an address has no key to name and
+  cannot be lifted from here). A lift takes the player's bans off the list.
+
+Each request's answer shows in the status line at the bottom left; one that answers a
+profile replaces the chosen player's, and the player's own when it is theirs.
 
 Each action is a request signed by the staff member's own key (`PROTOCOL.md`,
 "Staff"); the hub refuses it from a key that is not staff, keeps a log of every staff

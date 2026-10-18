@@ -1,7 +1,8 @@
 //! The odds holocrons roll with, as the hub sends them (`PROTOCOL.md`, "Holocrons":
 //! `loot` in `GET /v1/holocrons`, 14/10/2026): how often a drop is each tier, the card's
 //! rarity and finish, the credits, how often an opening brings a saber shader and of
-//! which tier, and (17/10/2026) how often a pile of kyber shards and how big. The Holocrons tab's loot table, the card odds on hover cards, a holocron's
+//! which tier, and (17/10/2026) how often a pile of kyber shards and how big, and the few
+//! shards a card brings beside its credits (the card pack). The Holocrons tab's loot table, the card odds on hover cards, a holocron's
 //! line and the crate spin all read [`current`], so they show what the hub rolls with now.
 //!
 //! [`BUILT_IN`] is this client's copy, for before the hub's first answer and for hubs
@@ -35,6 +36,9 @@ pub(crate) struct Table {
     pub(crate) shard_pile: [u32; COUNT],
     /// The shards a pile holds: the least and the most.
     pub(crate) shards: [(u32, u32); COUNT],
+    /// The shards a card brings beside its credits (the card pack): the least and the
+    /// most.
+    pub(crate) card_shards: [(u32, u32); COUNT],
 }
 
 /// This client's copy of the hub's tables (`src/holocrons.rs`, `src/cards.rs` and
@@ -57,6 +61,7 @@ pub(crate) const BUILT_IN: Table = Table {
     ],
     shard_pile: [100, 100, 100, 100],
     shards: [(5, 15), (10, 25), (25, 50), (100, 200)],
+    card_shards: [(1, 3), (2, 5), (5, 10), (20, 40)],
 };
 
 static HUB: Mutex<Option<Table>> = Mutex::new(None);
@@ -105,7 +110,8 @@ fn of_hub(tiers: &[sjk_identity::LootTier]) -> Option<Table> {
             && whole(&tier.shader_tier)
             && tier.shader + tier.shard_pile <= 1_000
             && tier.credits[0] <= tier.credits[1]
-            && tier.shards[0] <= tier.shards[1];
+            && tier.shards[0] <= tier.shards[1]
+            && tier.card_shards[0] <= tier.card_shards[1];
         if !fits {
             return None;
         }
@@ -126,6 +132,10 @@ fn of_hub(tiers: &[sjk_identity::LootTier]) -> Option<Table> {
         table.shards[index] = (
             u32::try_from(tier.shards[0]).ok()?,
             u32::try_from(tier.shards[1]).ok()?,
+        );
+        table.card_shards[index] = (
+            u32::try_from(tier.card_shards[0]).ok()?,
+            u32::try_from(tier.card_shards[1]).ok()?,
         );
     }
     (table.drop.iter().map(|&d| u32::from(d)).sum::<u32>() == 1_000).then_some(table)
@@ -161,6 +171,10 @@ mod tests {
                 shards: [
                     u64::from(table.shards[index].0),
                     u64::from(table.shards[index].1),
+                ],
+                card_shards: [
+                    u64::from(table.card_shards[index].0),
+                    u64::from(table.card_shards[index].1),
                 ],
             })
             .collect()
@@ -202,9 +216,11 @@ mod tests {
         for tier in &mut older {
             tier.shard_pile = 0;
             tier.shards = [0, 0];
+            tier.card_shards = [0, 0];
         }
         let read = of_hub(&older).unwrap();
         assert_eq!((read.shard_pile, read.shards[2]), ([0; COUNT], (0, 0)));
+        assert_eq!(read.card_shards[2], (0, 0));
         // More shaders and piles than openings.
         let mut over = wire(&changed);
         over[0].shard_pile = 1_000;

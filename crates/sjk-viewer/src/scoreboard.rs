@@ -1,11 +1,14 @@
 //! Cached authoritative scoreboard projection rendered through `sjk-ui`.
 
+mod afk;
+pub(crate) use afk::CVAR as AFK_CVAR;
 pub(crate) mod behavior;
 mod classic;
 mod deaths;
 mod icons;
 mod identity_mark;
 pub(crate) mod layout;
+mod live_flags;
 mod motion;
 #[cfg(test)]
 pub(crate) mod shot;
@@ -53,21 +56,17 @@ pub(super) struct ScoreRow {
     /// Duel wins and losses (`w`, `l` in its clientinfo).
     pub(super) record: Option<(i32, i32)>,
     pub(super) powerups: u32,
-    /// Powerups seen on the client's entity (or the local player state) this frame:
-    /// a flag carrier in view shows even when the server's `scores` lists no powerups.
-    pub(super) seen_powerups: u32,
     pub(super) defends: i32,
     pub(super) assists: i32,
     pub(super) captures: i32,
     /// The SJK hub knows this player under this name (`player_identity.rs`).
     pub(super) identity: Option<crate::player_identity::Tag>,
-}
-
-impl ScoreRow {
-    /// The powerup bits the scores list or the snapshot shows: a flag carrier either way.
-    pub(super) fn carried_bits(&self) -> u32 {
-        self.powerups | self.seen_powerups
-    }
+    /// The row's place in the server's `scores` order, which away rows leave.
+    pub(super) order: u8,
+    /// The name wears an away tag ([`afk::NAME_TAGS`]).
+    pub(super) tagged: bool,
+    /// Away from the keyboard ([`afk`]), with the whole minutes seen idle.
+    pub(super) away: Option<u32>,
 }
 
 /// Cached scoreboard data and fixed retained presentation storage.
@@ -81,6 +80,7 @@ pub(crate) struct Scoreboard {
     rows: Vec<ScoreRow>,
     ui: MenuCanvas,
     deaths: deaths::Deaths,
+    afk: afk::Afk,
     hostname: String,
     max_clients: i32,
     gametype: i32,
@@ -93,6 +93,10 @@ pub(crate) struct Scoreboard {
     /// Who last killed the viewing player, named in `killer_name`.
     killer: Option<u16>,
     killer_name: String,
+    /// The last siege round won that the snapshots carried (`EV_SIEGE_ROUNDOVER`) in this
+    /// session, and the tracker's last one, which a new session does not take again.
+    siege_round_over: Option<sjk_client::SiegeRoundOver>,
+    siege_round_seen: Option<sjk_client::SiegeRoundOver>,
     context: behavior::Context,
     requests: behavior::Requests,
     /// The hub roster revision the rows' `identity` tags were derived from;
@@ -119,6 +123,7 @@ impl Scoreboard {
             rows: Vec::with_capacity(32),
             ui: MenuCanvas::with_capacities(TEXT_SLOTS, 96, DRAWS),
             deaths: deaths::Deaths::default(),
+            afk: afk::Afk::default(),
             hostname: String::with_capacity(64),
             max_clients: 0,
             gametype: 0,
@@ -129,6 +134,8 @@ impl Scoreboard {
             icons: icons::HeadIcons::default(),
             killer: None,
             killer_name: String::with_capacity(64),
+            siege_round_over: None,
+            siege_round_seen: None,
             context: behavior::Context::default(),
             requests: behavior::Requests::default(),
             identity_revision: u64::MAX,
@@ -188,10 +195,16 @@ impl Scoreboard {
         _scale: f32,
     ) {
         self.refresh(session);
-        self.note_carriers(session.latest_snapshot());
         for row in &mut self.rows {
             row.deaths = self.deaths.count(row.client_num);
         }
+        self.mark_away(afk::enabled(options));
+        live_flags::apply(
+            &mut self.rows,
+            session.latest_snapshot(),
+            session.team_info().entries(),
+            session.game_state(),
+        );
         // Tags follow the hub's roster, not the frame: derived again only when it
         // or the rows changed.
         let revision = crate::player_identity::revision();
@@ -227,6 +240,10 @@ impl Scoreboard {
                 team_scores: session.team_scores(),
                 local: local_status,
                 killer,
+                // Siege's alone: two configuration strings read per frame otherwise.
+                siege_winner: (self.gametype == sjk_game_jka::match_end::GT_SIEGE)
+                    .then(|| sjk_client::siege_round_winner(game, self.siege_round_over))
+                    .flatten(),
                 duel: sjk::Duelists {
                     local: Some((player.health(), player.armor())),
                     ..duelists(game)
@@ -303,29 +320,18 @@ impl Scoreboard {
         );
     }
 
-    /// Note the flag carriers the latest snapshot shows (players in view, and the local
-    /// player), for servers whose `scores` carry no powerups; stale bits clear each frame.
-    fn note_carriers(&mut self, snapshot: &sjk_protocol::Snapshot) {
-        const FLAGS: u32 = (1 << 4) | (1 << 5) | (1 << 6);
-        let local = snapshot.player.client_num();
-        let mut local_bits = 0;
-        for power in 4..=6_usize {
-            if i64::from(snapshot.player.powerups[power]) > i64::from(snapshot.server_time) {
-                local_bits |= 1 << power;
-            }
-        }
+    /// Mark who is away and move them below the others of their list, in the
+    /// server's order again once back; with `enabled` off, nobody is.
+    fn mark_away(&mut self, enabled: bool) {
         for row in &mut self.rows {
-            let client = u16::from(row.client_num);
-            row.seen_powerups = if client == local {
-                local_bits
+            row.away = if !enabled || row.bot || !row.has_score {
+                None
             } else {
-                snapshot
-                    .entities
-                    .iter()
-                    .find(|entity| entity.number() == client)
-                    .map_or(0, |entity| entity.powerups() & FLAGS)
+                self.afk.away(row.client_num).or(row.tagged.then_some(0))
             };
         }
+        self.rows
+            .sort_unstable_by_key(|row| (row.away.is_some(), row.order));
     }
 
     fn refresh(&mut self, session: &ClientSession) {
@@ -363,11 +369,13 @@ impl Scoreboard {
                 bot: extra.bot,
                 record: extra.record,
                 powerups: score.powerups,
-                seen_powerups: 0,
                 defends: score.defends,
                 assists: score.assists,
                 captures: score.captures,
                 identity: None,
+                order: 0,
+                tagged: false,
+                away: None,
             });
         }
         // Connected clients the scores do not list yet (`CG_TeamScoreboard`'s
@@ -397,12 +405,18 @@ impl Scoreboard {
                 bot: extra.bot,
                 record: extra.record,
                 powerups: 0,
-                seen_powerups: 0,
                 defends: 0,
                 assists: 0,
                 captures: 0,
                 identity: None,
+                order: 0,
+                tagged: false,
+                away: None,
             });
+        }
+        for (order, row) in self.rows.iter_mut().enumerate() {
+            row.order = order as u8;
+            row.tagged = afk::tagged(&row.name);
         }
         let server = server_info(game);
         self.map.clear();
@@ -511,6 +525,18 @@ const STAT_CLIENTS_READY: usize = 7;
 const PM_INTERMISSION: u8 = 6;
 
 impl Scoreboard {
+    /// Watch the players for the away marks ([`afk`]); every frame, scores and
+    /// chat counters included, whether the board shows or not.
+    pub(crate) fn observe_afk(
+        &mut self,
+        snapshot: &sjk_protocol::Snapshot,
+        game: &GameState,
+        scores: &[ScoreEntry],
+        spoken: &[u32; 32],
+    ) {
+        self.afk.observe(snapshot, game, scores, spoken);
+    }
+
     /// The resolved model icon of `client`'s slot.
     pub(crate) fn head_icon(&self, client: u8) -> Option<sjk_ui::TextureId> {
         self.icons.texture(client)

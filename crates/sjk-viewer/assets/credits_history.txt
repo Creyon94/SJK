@@ -9,6 +9,63 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | SJK pull request #156, See & share nameplates, settings to review, Power Duel sides
+- 527dfb4 |  | Power Duel side from "dt", not "ds" (the player's sex)
+- cf99ef1 |  | What's new: a setting to review resets once per version
+- dcae4e4 |  | What's new: lowercase the review cvars once
+- 1258e1f |  | Debug panel: nameplate-share describes See & share nameplates
+- db28990 |  | Credits for SJK pull request #156 (Milamber, new contributor); Power Duel sides in the changelog
++ 18/10/2026 | - | SJK pull request #142 Siege menu, Siege class saber colours
+- bae7b31 |  | Drop PR #142's Siege team saber colours (cg_siegeTeamSabers)
+- 6107f5d |  | Siege menu: classic side step with flags and counts, class names alone, Spectate dimmed while watching
+- 2d199ee |  | Siege menu: simpler Spectate check (clippy nonminimal_bool)
+- 2a70ffb |  | Siege class saber colours, as stock cgame forces them
+- ba3c89e |  | Credits for SJK pull request #142 (Slash)
++ 18/10/2026 | - | SJK pull requests #110 #122 #131 #132 #135 #136 #139 #141 #150 #152 #154
+- 8d44269 |  | Credits and changelog for SJK pull requests #110 #131 #132 #135 #136 #139 #141 #150 #152 #154; two clippy fixes
++ 18/10/2026 | - | Flag carriers: drop the duplicate carrier light from #110
+- 2b22739 |  | Flag carriers: drop the duplicate carrier light from #110
++ 18/10/2026 | - | Chat: a marked lchat is a private message too
+- ceb1ca2 |  | Chat: a marked lchat is a private message too
++ 18/10/2026 | - | Corpses: a restricted player model's body falls back to Kyle
+- 49aba56 |  | Corpses: a restricted player model's body falls back to Kyle
++ 18/10/2026 | - | Siege movers: Force traces meet func_usable walls, plats never shootable, breaker activates
+- 364067d |  | Siege movers: Force traces meet func_usable walls, plats never shootable, breaker activates
++ 18/10/2026 | - | Siege: no follow buttons while waiting for the wave, as SpectatorThink
+- 1093665 |  | Siege: no follow buttons while waiting for the wave, as SpectatorThink
++ 18/10/2026 | - | Corpses: format the eligibility test
+- ef35102 |  | Corpses: format the eligibility test
++ 18/10/2026 | - | Voice anti-spam: a reused player slot drops the previous holds
+- 4874a93 |  | Voice anti-spam: a reused player slot drops the previous holds
++ 18/10/2026 | - | Music sync: time a resumed track from its own start
+- f716cad |  | Music sync: time a resumed track from its own start
++ 18/10/2026 | - | SJK pull request #134, NPC health with Force Sense 3
+- 0d81601 |  | Credits for SJK pull request #134 (Lumaya)
++ 18/10/2026 | - | Away players faint at the bottom of the scoreboard
+- 4138ab0 |  | Scoreboard: away players faint at the bottom of their list
++ 18/10/2026 | - | SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
+- a9b6650 |  | Review fixes: follow switch seeds the event ring, unblocked chat wording, .oshader mount note
+- 77c626a |  | Credits and changelog for SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
++ 18/10/2026 | - | JKR as a footnote, Sol's reviewed pull requests counted
+- 0a7e03a |  | Credits: JKR moves to a footnote; Sol's card counts the reviewed and merged pull requests
++ 18/10/2026 | - | Bug report limits in the docs
+- 32f12be |  | Identity docs: the hub's higher bug report limits for verified and staff keys
++ 18/10/2026 | - | Staff page in tabs with credits, moderation, chat bans
+- d0040c5 |  | Staff page in tabs, with credits, shards, moderation and chat bans
++ 18/10/2026 | - | Mute becomes Block: emotes, toys, cards; block/unblock
+- 73afc96 |  | Block a player: Mute becomes Block and covers emotes, toys and player cards
++ 17/10/2026 | - | Discord link on the site
+- cfcae72 |  | Site: link the SJK Discord (permanent #welcome invite)
++ 17/10/2026 | - | Supporter medal art cleaned up
+- 7eca874 |  | Supporter medal: clean V ribbon end, unbroken bail, small medallion without the top line
++ 17/10/2026 | - | The shop in kyber shards, holocrons for credits
+- 2223e7f |  | Shop in kyber shards, a Mythical one day in four, credits buy holocrons (prepared)
++ 17/10/2026 | - | A holocron's card with its credits and a few kyber shards
+- d40704f |  | Card pack: a card comes with its credits and a few kyber shards beside it
++ 17/10/2026 | - | Release 2026.1017.2 (Alpha)
+- bb83eb2 |  | Release 2026.1017.2 (Alpha)
++ 17/10/2026 | - | private_interfaces warning on the Grip victim submit
+- 04744f8 |  | Grip victim: submit visible only to the actor world submission (private_interfaces warning)
 + 17/10/2026 | - | Sol's faces on the Great Holocron, Sith pyramid and kyber crystal
 - c949f9d |  | Holocrons: Sol's faces for the Great Holocron, the Sith pyramid and the kyber crystal
 + 17/10/2026 | - | Cheaper saber shaders up close and when swinging, hub reports 63, 64
@@ -1690,6 +1747,14 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 18/10/2026 | SJK #154 | Hide corpses and pickups during private duels
+- af1b6be |  | Hide duel corpses and pickups by preference
++ 18/10/2026 | SJK #133 | Show SJK chat in the console
+- 9698a68 |  | feat: show SJK chat in console
++ 18/10/2026 | SJK #144 | Fix recent servers across map changes
+- d0e4878 |  | Fix recent servers across map changes
++ 18/10/2026 | SJK #155 | Fix reply chords after opening chat
+- 2142222 |  | Fix reply chords after opening chat
 + 17/10/2026 | SJK #111 | Expose JoF EJK camera settings
 - 7ca8f29 |  | feat: expose JoF EJK camera settings
 - 9ac938b |  | docs: cite current JoF alpha camera menu
@@ -1708,6 +1773,39 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 18/10/2026 | SJK #131 | Resolve NPC voices from their advertised sound banks
+- 5931480 |  | Resolve NPC voices from their advertised sound banks
++ 18/10/2026 | SJK #139 | Resume map music from the level clock and honor silence
+- 76ecc78 |  | Resume map music from the level clock and honor silence
++ 18/10/2026 | SJK #135 | Limit repeated player model voices by sample duration
+- 438a752 |  | Limit repeated player model voices by sample duration
+- 15cda87 |  | Keep voice anti-spam notes in Unreleased
++ 18/10/2026 | SJK #141 | Respect player model eligibility and local blacklists
+- 4ef5688 |  | Honor player model eligibility metadata and local restrictions
++ 18/10/2026 | SJK #132 | Add live Force effects and presentation controls
+- d07a6c4 |  | Add live animation-driven Force effects
+- e0d879a |  | Honor Force effect visibility and presentation controls
++ 18/10/2026 | SJK #136 | Add current-map PM-only game chat
+- b1686a3 |  | Add current-map PM-only game chat
+- 6e0b954 |  | Keep PM-only chat notes in Unreleased
+- 8d0cba5 |  | Read PM-only chat options without allocating each frame
++ 18/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
+- 9fadf99 |  | Add JA+ flamethrower client presentation
+- 36a0727 |  | Add retail flame fallback and presentation-timed impacts
++ 18/10/2026 | SJK #134 | Require active Sense 3 for NPC health bars
+- 0e0c11a |  | Require active Sense 3 for NPC health bars
++ 18/10/2026 | SJK #143 | Expand custom Siege catalogues and align selector limits
+- bde4bbf |  | Expand Siege catalogues and bound theme class slots
++ 18/10/2026 | SJK #137 | Support community override shader scripts
+- 45f79e3 |  | Support community override shader scripts
++ 18/10/2026 | SJK #145 | Hide cosmetics on held and cloaked players
+- e361429 |  | Hide cosmetics in held and cloaked player states
++ 18/10/2026 | SJK #146 | Honor Not players mode for reliable shader remaps
+- 22b8500 |  | Filter reliable player remaps in Not players mode
++ 18/10/2026 | SJK #140 | Fix cosmetic colour writes in scripts
+- ed93155 |  | Preserve cosmetic colour writes in command-buffer order
++ 18/10/2026 | SJK #138 | Avoid replaying external sounds when switching followed players
+- 18a4907 |  | Seed pending external sounds when switching followed players
 + 17/10/2026 | SJK #124 | Align classic scoreboard behavior with JoF EJK
 - 6dc514d |  | Align classic scoreboard behavior with JoF EJK
 + 17/10/2026 | SJK #130 | Render JA+ black sabers with the correct plugin toggle
@@ -1716,8 +1814,6 @@
 - 7ff9731 |  | Show distinct Tavion and Desann idle poses by default
 + 17/10/2026 | SJK #127 | Add holstered saber hilts and staff handoff
 - 8725346 |  | Add holstered saber hilts and staff handoff
-+ 17/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
-- 9fadf99 |  | Add JA+ flamethrower client presentation
 + 17/10/2026 | SJK #128 | Match JoF EJK jetpack sound choices and channels
 - 6f6ca44 |  | Match JoF EJK jetpack sound choices and channels
 + 17/10/2026 | SJK #119 | Add JoF Force presets in both menu styles
@@ -1787,7 +1883,33 @@
 + 07/10/2026 | SJK #24 | Clip visible saber blades at world walls
 - 8d21001 |  | Clip visible saber blades at world walls
 
+= Milamber
++ 18/10/2026 | SJK #156 | Feat/nameplates cleanup and review popup
+- 417e95f |  | Merge nameplates and bar sharing into See & share nameplates
+- 10740fb |  | Ask players to review changed settings on the what's-new card
+- e67b3a2 |  | Show the shared Force on nameplates instead of estimating it
+- fed9acd |  | Hide duel opponents' bars and send nothing while duelling
+
 = Slash
++ 18/10/2026 | SJK #142 | Siege menu changed to match ctf menu . colours of sabers fixed for red/blue team
+- 4f6f68b |  | Siege menu: team first, then that team's classes; Siege team saber colours
++ 18/10/2026 | SJK #150 | Siege: no more stuck players after a death; map messages show their text - #1
+- a66aca7 |  | Siege: keep a waiting player on its side, clear stale waits; target_print team/cps messages
+- d58e9f7 |  | Review fixes: siege waits, follow and target_print routing
++ 18/10/2026 | SJK #152 | Siege Korriban: Force on doors, func_usable walls, breakables used by name
+- 08e0da7 |  | Force push and pull move Force-usable doors and press buttons
+- 5f716a8 |  | func_usable toggles when used by name or by the use key
+- ec74352 |  | Break breakables used by name and after their delay; sabers hit objectives
+- a5c6286 |  | Review fixes: breakable targets, missile damage, door teams, usables
+- cd17b5d |  | Show the Siege round's winner on the SJK scoreboard
+- a9e9950 |  | Revert "Show the Siege round's winner on the SJK scoreboard"
++ 18/10/2026 | SJK #110 | Show CTF flag carriers and team scores on screen
+- 0fe872a |  | CTF: live flag carriers on the scoreboard and HUD, carrier glow
++ 18/10/2026 | SJK #153 | Show the Siege round's winner on the SJK scoreboard
+- 515331d |  | Show the Siege round's winner on the SJK scoreboard
+- 6358f36 |  | Siege scoreboard: winner large in the middle, no team scores
+- d8bc828 |  | Review fixes: siege result in sjk-client, no stale or overflowing round
+- 01e1c96 |  | Team games tell their result on the SJK scoreboard at the intermission
 + 17/10/2026 | SJK #113 | Fix/ctf team saber colors
 - 8dd27a5 |  | Draw only red or blue sabers in capture the flag
 - f9ad921 |  | Show team saber colours on the player card in capture the flag

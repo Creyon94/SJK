@@ -1226,8 +1226,8 @@ impl ClientMenu {
             && self.keybinds.capture_wheel(up, console)
     }
 
-    pub(crate) fn joined(&mut self) {
-        self.remember_joined_server();
+    pub(crate) fn joined(&mut self, server_address: Option<&str>) {
+        self.remember_joined_server(server_address);
         self.state.entered_game();
     }
 

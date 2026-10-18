@@ -9,7 +9,7 @@ use crate::logs::{
     LogRequests, LogUpload,
 };
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::staff::{StaffAnswer, StaffQuery, StaffRequest};
+use crate::staff::{ChatBanRows, StaffAnswer, StaffQuery, StaffRequest};
 use crate::vitals::Sharing;
 use crate::wire::{
     Achievement, Achievements, Feed, HolocronState, Look, OpenAnswer, Players, Presence, Profile,
@@ -350,7 +350,7 @@ pub trait Hub: Send {
         ))
     }
 
-    /// Buy today's offer `id` with credits (`POST /v1/shop/buy`, 17/10/2026).
+    /// Buy today's offer `id` (`POST /v1/shop/buy`, 17/10/2026).
     fn buy_offer(
         &mut self,
         _identity: &Identity,
@@ -358,6 +358,17 @@ pub trait Hub: Send {
     ) -> Result<crate::wire::BuyAnswer, HubError> {
         Err(HubError::Protocol(
             "this hub client does not buy".to_owned(),
+        ))
+    }
+
+    /// Buy a holocron of tier `tier` with credits (`POST /v1/holocrons/buy`, 17/10/2026).
+    fn buy_holocron(
+        &mut self,
+        _identity: &Identity,
+        _tier: &str,
+    ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not buy holocrons".to_owned(),
         ))
     }
     /// Withdraw the identity's claim on `server`.
@@ -930,6 +941,22 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             ("/v1/staff/merge", json!({ "key_id": key_id, "from": from }))
         }
         StaffRequest::Unlink { key_id } => ("/v1/staff/unlink", json!({ "key_id": key_id })),
+        StaffRequest::Credits {
+            key_id,
+            delta,
+            note,
+        } => (
+            "/v1/staff/credits",
+            json!({ "key_id": key_id, "delta": delta, "note": note }),
+        ),
+        StaffRequest::Shards {
+            key_id,
+            delta,
+            note,
+        } => (
+            "/v1/staff/shards",
+            json!({ "key_id": key_id, "delta": delta, "note": note }),
+        ),
     }
 }
 
@@ -945,6 +972,7 @@ fn staff_query_call(query: &StaffQuery) -> (&'static str, Value) {
         StaffQuery::CrashGroups => ("/v1/staff/crash-groups", json!({})),
         StaffQuery::Crashes(signature) => ("/v1/staff/crashes", json!({ "signature": signature })),
         StaffQuery::Crash(id) => ("/v1/staff/crash", json!({ "id": id })),
+        StaffQuery::ChatBans => ("/v1/staff/chat-bans", json!({})),
     }
 }
 
@@ -1117,6 +1145,7 @@ impl Hub for HttpHub {
                 StaffAnswer::Crashes(parse::<CrashSummaries>(answer)?.crashes)
             }
             StaffQuery::Crash(_) => StaffAnswer::Crash(Box::new(parse::<CrashDetail>(answer)?)),
+            StaffQuery::ChatBans => StaffAnswer::ChatBans(parse::<ChatBanRows>(answer)?.bans),
         })
     }
 
@@ -1252,6 +1281,19 @@ impl Hub for HttpHub {
             "POST",
             "/v1/shop/buy",
             Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn buy_holocron(
+        &mut self,
+        identity: &Identity,
+        tier: &str,
+    ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/holocrons/buy",
+            Some(json!({ "tier": tier })),
         )?)
     }
 
@@ -1783,6 +1825,32 @@ mod tests {
                 key_id: "fedcba9876543210".into(),
             }),
             ("/v1/staff/unlink", json!({"key_id": "fedcba9876543210"}))
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::Credits {
+                key_id: "0123456789abcdef".into(),
+                delta: -20,
+                note: "refund".into(),
+            }),
+            (
+                "/v1/staff/credits",
+                json!({"key_id": "0123456789abcdef", "delta": -20, "note": "refund"})
+            )
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::Shards {
+                key_id: "0123456789abcdef".into(),
+                delta: 15,
+                note: String::new(),
+            }),
+            (
+                "/v1/staff/shards",
+                json!({"key_id": "0123456789abcdef", "delta": 15, "note": ""})
+            )
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::ChatBans),
+            ("/v1/staff/chat-bans", json!({}))
         );
     }
 

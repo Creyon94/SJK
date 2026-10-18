@@ -120,6 +120,43 @@ fn team_blade_from_config(config: &[u8]) -> Option<[u8; 3]> {
     }
 }
 
+/// The blade colours `client_num`'s Siege class forces on its two sabers, `None` for a
+/// saber that keeps the player's own colour.
+///
+/// cgame `CG_NewClientInfo` (`codemp/cgame/cg_players.c:2492-2537`): in Siege the
+/// class named by the player's `siegeclass` (`BG_SiegeFindClassByName`, any case)
+/// replaces `icolor1` with its `sabercolor` and `icolor2` with its `saber2color`
+/// (`bg_saga.c:874-893`) when it has them, before any other colour rule. Only cgame
+/// does this; the server sends `c1`/`c2` as the player set them. The forced number is
+/// read as a `c1` without a custom tint would be (`saber_color_from_config`).
+pub fn legacy_siege_class_blades(
+    game_state: &GameState,
+    registry: &sjk_game_jka::siege_class::SiegeRegistry,
+    client_num: u16,
+) -> [Option<[u8; 3]>; 2] {
+    let serverinfo = game_state.config_string(CS_SERVERINFO).unwrap_or(&[]);
+    if info_int(serverinfo, "g_gametype") != GT_SIEGE {
+        return [None; 2];
+    }
+    let class = game_state
+        .config_string(CS_PLAYERS + usize::from(client_num))
+        .and_then(|config| info_value(config, "siegeclass"))
+        .and_then(|name| std::str::from_utf8(name).ok())
+        .filter(|name| !name.is_empty())
+        .and_then(|name| registry.class_index(name))
+        .and_then(|index| registry.classes.get(index));
+    let Some(class) = class else {
+        return [None; 2];
+    };
+    [class.saber_color, class.saber2_color].map(|color| color.map(forced_blade_rgb))
+}
+
+/// A forced `saber_colors_t` number as a blade tint: past `SABER_PURPLE` it rolls
+/// over as a `c1` without a custom tint does (`ClampSaberColor`).
+fn forced_blade_rgb(color: i32) -> [u8; 3] {
+    crate::presentation_equipment::legacy_blade_rgb(color.rem_euclid(12) % (SABER_PURPLE + 1))
+}
+
 /// `SABER_PURPLE`, the last stock entry of `saber_colors_t`.
 const SABER_PURPLE: i32 = 5;
 /// `SABER_RED` / `SABER_BLUE` from `saber_colors_t`.
@@ -195,6 +232,67 @@ fn info_int(info: &[u8], key: &str) -> i32 {
 mod tests {
     use super::*;
     use crate::presentation_equipment::legacy_blade_rgb;
+
+    fn registry() -> sjk_game_jka::siege_class::SiegeRegistry {
+        let class = |name: &str, colors: &str| {
+            format!(
+                "ClassInfo\n{{\n\tname \"{name}\"\n\tweapons WP_SABER\n\tuishader \"models/players/kyle/icon_default\"\n{colors}}}\n"
+            )
+        };
+        let files = [
+            class("Jedi Knight", "\tsabercolor 5\n"),
+            class("Dark Jedi", "\tsabercolor 0\n\tsaber2color 1\n"),
+            class("Imperial Infantry", ""),
+        ];
+        sjk_game_jka::siege_class::SiegeRegistry::load(files.iter().map(String::as_str), [])
+    }
+
+    fn siege_player(serverinfo: &[u8], class: &str) -> GameState {
+        game(
+            serverinfo,
+            format!(r"n\a\t\1\c1\3\c2\2\siegeclass\{class}").as_bytes(),
+        )
+    }
+
+    #[test]
+    fn siege_classes_force_their_saber_colours() {
+        let registry = registry();
+        assert_eq!(registry.classes.len(), 3, "{registry:?}");
+        let siege = br"\g_gametype\7";
+        let purple = Some(legacy_blade_rgb(5));
+        // A class with `sabercolor 5` draws purple whatever c1 says, any case.
+        assert_eq!(
+            legacy_siege_class_blades(&siege_player(siege, "jedi knight"), &registry, 2),
+            [purple, None]
+        );
+        assert_eq!(
+            legacy_siege_class_blades(&siege_player(siege, "Dark Jedi"), &registry, 2),
+            [Some(legacy_blade_rgb(0)), Some(legacy_blade_rgb(1))]
+        );
+        // A class without one, an unknown class and no class keep the player's own.
+        for class in ["Imperial Infantry", "Nobody", ""] {
+            assert_eq!(
+                legacy_siege_class_blades(&siege_player(siege, class), &registry, 2),
+                [None; 2]
+            );
+        }
+        assert_eq!(
+            legacy_siege_class_blades(&siege_player(siege, "Jedi Knight"), &registry, 5),
+            [None; 2],
+            "an empty slot"
+        );
+        // Other gametypes ignore the class, as cgame reads it only in Siege.
+        for gametype in [
+            br"\g_gametype\0".as_slice(),
+            br"\g_gametype\6",
+            br"\g_gametype\8",
+        ] {
+            assert_eq!(
+                legacy_siege_class_blades(&siege_player(gametype, "Jedi Knight"), &registry, 2),
+                [None; 2]
+            );
+        }
+    }
 
     #[test]
     fn red_and_blue_players_carry_only_their_teams_blade() {

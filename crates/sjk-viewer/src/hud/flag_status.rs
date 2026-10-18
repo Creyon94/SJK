@@ -6,8 +6,14 @@
 //! base, `1` taken, `2` dropped; `ctfFlagStatusRemap` in `cg_servercmds.c`), the team
 //! scores `CS_SCORES1` and `CS_SCORES2`, and carrying is the local player state's
 //! `PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG` timer, as `CG_DrawPowerupIcons` tests.
+//!
+//! A taken flag's caption names its carrier when the client knows who it is, from the
+//! freshest source, as the scoreboard's flags do (`scoreboard/live_flags.rs`): the
+//! viewed player's own state, a player entity in the snapshot, a teammate's `tinfo`
+//! row, then the last carrier seen while the flag stays taken.
 use super::icons::assets;
 use super::*;
+use sjk_client::TeamInfo;
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextOverflow};
 use std::fmt::Write;
 
@@ -30,6 +36,10 @@ const TEAM_RED: u8 = 1;
 const TEAM_BLUE: u8 = 2;
 /// `PW_REDFLAG`, `PW_BLUEFLAG`, `PW_NEUTRALFLAG`.
 const FLAG_POWERUPS: [usize; 3] = [4, 5, 6];
+/// `CS_PLAYERS`: one client-info config string per client from here.
+const CS_PLAYERS: usize = 1_131;
+/// `entityType_t::ET_PLAYER`.
+const ET_PLAYER: u8 = 1;
 
 /// Where a team's flag is (`flagStatus_t`, the states the server sends).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -57,6 +67,8 @@ pub(crate) fn parse_status(status: &[u8]) -> [Flag; 2] {
 /// One flag icon of the left stack.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Row {
+    /// Whose flag it is: 0 red, 1 blue.
+    pub(crate) side: usize,
     /// The icon's cell ([`assets`]).
     pub(crate) slot: usize,
     /// The note beside it.
@@ -79,6 +91,7 @@ pub(crate) fn rows(team: u8, flags: [Flag; 2], carried: bool, ysalamiri: bool) -
         _ => "TAKEN",
     };
     let red = team == TEAM_RED;
+    let (own_side, enemy_side) = if red { (0, 1) } else { (1, 0) };
     let enemy_slot = match (red, ysalamiri) {
         (true, false) => assets::BLUE_FLAG,
         (true, true) => assets::BLUE_FLAG_YSALAMIRI,
@@ -87,6 +100,7 @@ pub(crate) fn rows(team: u8, flags: [Flag; 2], carried: bool, ysalamiri: bool) -
     };
     let held = enemy != Flag::AtBase || carried;
     let first = held.then_some(Row {
+        side: enemy_side,
         slot: enemy_slot,
         caption: if carried {
             "YOU HAVE THE FLAG"
@@ -96,6 +110,7 @@ pub(crate) fn rows(team: u8, flags: [Flag; 2], carried: bool, ysalamiri: bool) -
         carried,
     });
     let second = (own != Flag::AtBase).then_some(Row {
+        side: own_side,
         slot: if red {
             assets::RED_FLAG_TAKEN
         } else {
@@ -119,9 +134,66 @@ pub(crate) struct State {
     show_scores: bool,
     scores: Option<[i32; 2]>,
     labels: [String; 2],
+    /// The red and blue flags' carriers by name ([`Carrier`]).
+    carriers: [Carrier; 2],
     /// A made-up CTF state for world shots.
     #[cfg(test)]
     staged: Option<Staged>,
+}
+
+/// Who carries one flag, and the name the caption shows. The name is formatted again
+/// only when the carrier, their client-info config string or the colour setting
+/// changes, so a steady carrier costs a byte comparison a frame and no allocation.
+#[derive(Default)]
+struct Carrier {
+    client: Option<u16>,
+    colors: bool,
+    /// The client-info config string `name` was read from.
+    source: Vec<u8>,
+    name: String,
+}
+
+impl Carrier {
+    fn set(&mut self, client: Option<u16>, game: &GameState, colors: bool) {
+        let Some(number) = client else {
+            self.client = None;
+            self.name.clear();
+            return;
+        };
+        let info = game
+            .config_string(CS_PLAYERS + usize::from(number))
+            .unwrap_or_default();
+        if self.client == client && self.colors == colors && self.source == info {
+            return;
+        }
+        self.client = client;
+        self.colors = colors;
+        self.source.clear();
+        self.source.extend_from_slice(info);
+        self.name.clear();
+        if let Some((name, _)) = data_source::parse_client_info(info) {
+            family::name(&mut self.name, &name, colors);
+        }
+    }
+}
+
+/// The client carrying flag powerup `power`, from the viewed player's state, a player
+/// entity in the snapshot or a teammate's `tinfo` row.
+fn find_carrier(power: usize, snapshot: &sjk_protocol::Snapshot, team: &[TeamInfo]) -> Option<u16> {
+    let bit = 1_u32 << power;
+    if i64::from(snapshot.player.powerups[power]) > i64::from(snapshot.server_time) {
+        return Some(snapshot.player.client_num());
+    }
+    if let Some(state) = snapshot
+        .entities
+        .iter()
+        .find(|state| state.entity_type() == ET_PLAYER && state.powerups() & bit != 0)
+    {
+        return Some(state.number());
+    }
+    team.iter()
+        .find(|info| info.powerups as u32 & bit != 0)
+        .map(|info| u16::from(info.client_num))
 }
 
 /// What a world shot stages over a recorded game.
@@ -198,6 +270,23 @@ impl State {
         }
     }
 
+    /// Note who carries each taken flag, from `snapshot` and the teammates' `team`
+    /// rows; a carrier out of sight stays named while the flag stays taken.
+    pub(super) fn update_carriers(
+        &mut self,
+        snapshot: &sjk_protocol::Snapshot,
+        game: &GameState,
+        team: &[TeamInfo],
+        colors: bool,
+    ) {
+        for (side, carrier) in self.carriers.iter_mut().enumerate() {
+            let client = (self.ctf && self.flags[side] == Flag::Taken)
+                .then(|| find_carrier(FLAG_POWERUPS[side], snapshot, team).or(carrier.client))
+                .flatten();
+            carrier.set(client, game, colors);
+        }
+    }
+
     /// Play a made-up CTF state over a recorded game, for world shots.
     #[cfg(test)]
     pub(crate) fn stage_for_shot(&mut self, staged: Staged) {
@@ -214,8 +303,21 @@ impl State {
         }
     }
 
+    /// The caption of the `row`th drawn icon: a taken flag's carrier by name when known.
     fn caption(&self, row: usize) -> &str {
-        rows(self.team, self.flags, self.carried, self.ysalamiri)[row].map_or("", |row| row.caption)
+        let Some(row) = rows(self.team, self.flags, self.carried, self.ysalamiri)
+            .into_iter()
+            .flatten()
+            .nth(row)
+        else {
+            return "";
+        };
+        let carrier = &self.carriers[row.side].name;
+        if !row.carried && self.flags[row.side] == Flag::Taken && !carrier.is_empty() {
+            carrier
+        } else {
+            row.caption
+        }
     }
 
     /// Append the icons, their captions and the team score plates.
@@ -317,6 +419,20 @@ impl State {
     }
 }
 
+impl HudOverlay {
+    /// Name the flag carriers after [`HudOverlay::update_family`] has read the flags;
+    /// `team` is the teammates' `tinfo` (empty for a demo, which keeps none).
+    pub(crate) fn update_flag_carriers(
+        &mut self,
+        snapshot: &sjk_protocol::Snapshot,
+        game: &GameState,
+        team: &[TeamInfo],
+    ) {
+        self.flag_status
+            .update_carriers(snapshot, game, team, self.family.name_colors);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -359,6 +475,42 @@ mod tests {
         let [first, _] = rows(TEAM_RED, [Flag::AtBase, Flag::Taken], false, true);
         assert_eq!(first.unwrap().slot, assets::BLUE_FLAG_YSALAMIRI);
         assert_eq!(rows(3, [Flag::Taken; 2], true, false), [None, None]);
+    }
+
+    #[test]
+    fn a_taken_flag_names_its_carrier_and_keeps_the_name_cached() {
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(CS_PLAYERS + 3, b"\\n\\^1Slash\\t\\1".to_vec())
+            .unwrap();
+        let mut state = State {
+            team: TEAM_RED,
+            ctf: true,
+            flags: [Flag::Taken, Flag::Taken],
+            ..State::default()
+        };
+        state.carriers[1].set(Some(3), &game, false);
+        // The blue flag (held by red) first, then red's own flag, no carrier known.
+        assert_eq!(state.caption(0), "Slash");
+        assert_eq!(state.caption(1), "TAKEN");
+        let capacity = state.carriers[1].name.capacity();
+        state.carriers[1].set(Some(3), &game, false);
+        assert_eq!(state.carriers[1].name.capacity(), capacity);
+        state.carriers[1].set(Some(3), &game, true);
+        assert_eq!(state.caption(0), "^1Slash");
+        state.carriers[1].set(None, &game, true);
+        assert_eq!(state.caption(0), "TAKEN");
+    }
+
+    #[test]
+    fn the_own_flag_alone_keeps_its_caption() {
+        let state = State {
+            team: TEAM_BLUE,
+            ctf: true,
+            flags: [Flag::AtBase, Flag::Dropped],
+            ..State::default()
+        };
+        assert_eq!(state.caption(0), "DROPPED");
+        assert_eq!(state.caption(1), "");
     }
 
     #[test]

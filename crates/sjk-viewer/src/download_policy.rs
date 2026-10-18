@@ -44,6 +44,7 @@ const MODEL_TABLES: [&str; 3] = ["animation.cfg", "animevents.cfg", "sounds.cfg"
 ///
 /// Shader scripts always mount: their definitions are screened one by one
 /// (`shader_authority`), since a map's script mixes new shaders with copies.
+/// An `.oshader` override script mounts only at a new path.
 /// A map file may replace an installed one of the same name, as the server
 /// runs it; the session checks it against the server's map checksum.
 pub(crate) fn refusal(path: &VirtualPath, base: &VirtualFileSystem) -> Option<Refusal> {

@@ -96,6 +96,12 @@ impl NativeGame {
 
     /// `SetTeam(ent, wanted)` as the game calls it itself.
     pub(super) fn set_team_to(&mut self, client: usize, wanted: &[u8], server_time: i32) {
+        // `SetTeam`'s siege branch runs for every caller: a player waiting for its respawn
+        // wave may not be made a spectator (`g_cmds.c:772-780`), not even by following.
+        if self.siege.is_some() {
+            self.siege_set_team_word(client, wanted, false, server_time);
+            return;
+        }
         let (gametype, sides) = (self.gametype, self.sides(client));
         let Some(peer) = self.peer_mut(client) else {
             return;

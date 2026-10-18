@@ -332,15 +332,15 @@ pub(crate) fn draw(
         button,
         u,
         tokens.mute,
-        if muted { "Unmute" } else { "Mute" },
+        if muted { "Unblock" } else { "Block" },
         color::GOLD,
     );
     let ban_button = Rect::new(x + inner - 150.0 * u, y, 150.0 * u, 38.0 * u);
     let quiet = |muted: bool| {
         if muted {
-            "Muted on this PC: no chat, Kyle, no sounds"
+            "Blocked on this PC: no chat, Kyle, no sounds, no emotes"
         } else {
-            "Hides their chat, model, sabers and sounds here"
+            "Hides their chat, model, sabers, sounds and emotes here"
         }
     };
     let under = y + 38.0 * u + 4.0 * u;
@@ -515,7 +515,7 @@ mod tests {
             texts.contains(&"On this server, slot 5, matched by name".to_owned()),
             "{texts:?}"
         );
-        assert!(texts.contains(&"Mute".to_owned()), "{texts:?}");
+        assert!(texts.contains(&"Block".to_owned()), "{texts:?}");
         assert_eq!(ticks, 1, "the tick alone says verified");
         assert!(
             !texts.iter().any(|text| text.contains("erified")),
@@ -572,7 +572,7 @@ mod tests {
             ..Person::default()
         };
         let (_, _, texts, ticks) = drawn(&stranger, true);
-        assert!(texts.contains(&"Unmute".to_owned()), "{texts:?}");
+        assert!(texts.contains(&"Unblock".to_owned()), "{texts:?}");
         assert!(texts.contains(&"F".to_owned()), "their initial: {texts:?}");
         assert!(
             texts.contains(&"Not known to the SJK hub".to_owned()),

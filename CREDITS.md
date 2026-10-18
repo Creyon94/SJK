@@ -8,7 +8,9 @@ and changes are kept as separate topic branches merged into SJK's `main`.
 
 ## Sol JK, by Sol
 
-Sol develops SJK and sets its direction. Sol's work includes:
+Sol develops SJK and sets its direction, and has reviewed and merged the
+contributors' 114 pull requests (Creyon 52, Lumaya 45, Lukas 9, Slash 7, Milamber 1). Sol's
+work includes:
 
 - the Sol JK name, README, credits and website;
 - the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
@@ -76,6 +78,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - kyber shards and the shop (17/10/2026, Sol's design: shards from shattered duplicates
   and from holocrons craft the shader you choose; credits buy four shaders a day),
   prepared for when the SJK hub turns them on;
+- the card pack: a card from a holocron with its credits and a few kyber shards beside
+  it (17/10/2026, Sol's request), prepared for when the SJK hub turns the shards on;
+- the shop in kyber shards, a Mythical offer one day in four, and holocrons bought with
+  credits (17/10/2026, Sol's decisions), prepared for when the SJK hub turns them on;
 - the four holocrons, each tier an object of its own with moving parts (17/10/2026,
   Sol's pick of the proposed shapes: the Jedi cube, the Great Holocron, the Sith
   pyramid, the kyber prism), with Sol's generated faces for the last three;
@@ -130,7 +136,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - the Profile page (medals, the bio under strict rules, the player's record) and
   achievements counted in matches and kept on the SJK hub, with their board;
 - the in-game staff tools for medals and achievements, verifying players and merging
-  a reset key's player into the old one (players with several keys), and
+  a reset key's player into the old one (players with several keys), reworked into
+  tabs on 18/10/2026 with credits and shards, picture and chat moderation and the chat
+  bans list, and
   `debug_collectibles`, which shows the team every collectible as held on their own PC;
 - the SJK chat every SJK player shares through the SJK hub, and the path for emotes,
   with emotes joined in step (`sjkemote sync`) on every screen;
@@ -153,7 +161,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   achievements, bio and join date;
 - the kill feed at the top right with weapon icons (`cg_killfeed`);
 - the SJK profile card and the profile pictures kept at the SJK hub;
-- muting a player from their name in chat (chat, model, saber and sounds);
+- muting a player from their name in chat (chat, model, saber and sounds), made
+  blocking on 18/10/2026 at Sol's request (emotes, toys and player cards too, the `block`
+  and `unblock` commands and the SJK chat page's list);
 - the console socket for external apps (after JoF EJK), muting in the
   background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK);
 - the camera style setting, its locked camera after JoF EJK (`cg_cameraStyle`);
@@ -218,7 +228,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   (`cl_forceRepeat`, after JoF EJK);
 - Russian, Japanese, Chinese and Korean text and colour emoji drawn everywhere, Russian
   sent and read in Windows-1251 as EternalJK sends it (`cl_charset`, after EternalJK),
-  and the SJK channel and bios taking them.
+  and the SJK channel and bios taking them;
+- away players set apart on the scoreboard: seen idle for 3 minutes (or tagged
+  `[AFK]`), faint at the bottom of their list (`cg_scoreboardAfk`).
 
 ## Contributors to SJK
 
@@ -292,7 +304,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 32 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 45 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -359,8 +371,34 @@ merged into SJK
   #267 and #300.
 - #129 Tavion's and Desann's own idle stances, after JoF EJK.
 - #130 JA+ black sabers on both blades and thrown ones, with dark trails and the plugin toggle.
+- #138 following another player seeds their pending sounds instead of replaying them, after
+  JoF EJK #123.
+- #140 cosmetic colour commands in scripts (`color1 3newhat; color1 2`) act on the hat or cape
+  worn at each command, so later explicit choices win.
+- #146 the Not players remap mode (`cg_remaps 1`) also drops player-texture `remapShader`
+  commands, after JoF EJK #297.
+- #145 hats and capes hidden on monster-held players and on cloaked ones unless Force Sight
+  reveals them, after JoF EJK #172.
+- #137 community `.oshader` override scripts load ahead of ordinary shader scripts, after
+  JoF EJK #138.
+- #143 custom Siege packs up to 1,024 class and 256 team files, sixteen classes per team,
+  after JoF EJK #253.
+- #134 NPC health on nameplates (`cg_nameplateNpcs`) only while Force Sense 3 is active,
+  unless the map's `showhealth` shows it to everyone, after JoF EJK #80.
+- #132 live Force effects: Rage, Heal and Quick Heal from the posed chest and hands on players
+  and NPCs, Force effects hidden from a Mind Tricked viewer without Force Sight, the Empower glow's
+  server choice, after JoF EJK.
+- #135 `cg_tauntAntiSpam`: a player's taunt waits for their previous one's sample length, gasps,
+  jumps and landings get short holds, after JoF EJK #287 and #374.
+- #139 `cg_musicSync`: map music resumes from the track's start time after joining or a duel, and an
+  empty music configstring stays silent, after JoF EJK #103, #146 and #161.
+- #131 NPC voices from the four sound banks the server advertises, with every vocal event family;
+  merged with Sol's NPC voices into one implementation.
+- #136 `pmonly` and `cg_pmOnlyChat`: only private game chat until the next map, after JoF EJK #331.
+- #141 player model eligibility: `notInMP` models and pack or player blacklists show as Kyle,
+  after JoF EJK #126.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 5 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -375,14 +413,38 @@ merged into SJK
   (`ui_textScale`) up to 1.4 with the menus adapted to it.
 - #111 JoF EJK's camera settings: first-person weapon FOV, third-person distance, angle and
   offsets, and the damping presets, in Advanced > Gameplay and classic+ Game options.
+- #155 key releases go through the bind path before chat or menus take them, so the Shift+U
+  reply chord no longer leaves keys stuck.
+- #144 recent servers keep the server's address across live map changes: one row per server.
+- #133 live SJK chat messages also enter the console scrollback with a yellow `SJK` tag.
+- #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
+  in a private duel.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 2 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 7 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
   from the profile folder and the game folders, as EternalJK's `Cmd_CompleteCfgName`.
 - #113 CTF team saber colours: in capture the flag and capture the ysalamiri every red or blue
   player's blades in the team's colour; made an option at the merge (`cg_ctfTeamSabers`, off).
+- #153 the SJK scoreboard says who won: the Siege round's winner without the unused team
+  scores, and the result of a team match at the intermission.
+- #110 CTF flag carriers kept live on the scoreboard and named by the flag icons, SJK servers
+  sending the carried flags in their scores, and the snapshot line moved off the frame rate.
+- #152 Siege Korriban on SJK servers: Force Push and Pull on Force-usable doors and buttons,
+  `func_usable` walls switched by name, breakables used by name and after their delay.
+- #150 Siege on SJK servers: players come back with their respawn wave, and map messages read
+  their text from the string tables and reach the team they are meant for.
+- #142 the Siege class menu in two steps like the Team page: Red team or Blue team with their
+  flags and players, then that side's classes (its team saber colours were left out at the merge).
+
+Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 1 pull request merged
+into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
+
+- #156 See & share nameplates (`cg_nameplate`) replaces Share my bars: seeing nameplates shares
+  your own health, shield and Force; the Force bar shows the shared value instead of an
+  estimate; duel opponents' bars are hidden and nothing is sent while duelling; and the
+  what's-new card can ask players to choose a changed setting again.
 
 ## Art
 
@@ -391,28 +453,6 @@ Reyced made Solfox, a fox player model (`models/players/solfox`), for Sol in Oct
 serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone may
 wear it and SJK players see it on each other. Reyced keeps the rights to the model;
 it is distributed with his permission and is not part of SJK's code or its licence.
-
-## Origins: JKR, by Bishop
-
-SJK began in October 2026 as a modified version of
-[JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)
-created JKR and wrote its initial source and most of its code: the Rust engine,
-the wgpu renderer and its lighting, the native client and dedicated server,
-protocol 26 networking, prediction and the shared Jedi Academy game rules,
-content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
-server browser, demos and the project wiki. Bishop's later JKR pull requests
-brought renderer frame cost, frame submission and deferred lighting (#50, #79),
-fixture lighting and sky/terrain stability (#81), volumetric fringes (#84), the
-default visual profile (#85), sun-shadow banding (#4), billboard orientation
-(#51), playable worlds through joins and map changes (#82), intermission (#83),
-faster map loading (#89), console browsing and editing (#88, with Sol as
-co-author), manual slider values (#94), compact chat player actions (#92),
-upright player status icons (#96), footsteps and animation sound cues (#90),
-legacy server pak references (#91), the leader display (#93), client devmap and
-server noclip (#95), drop-in installs and portable storage (#103),
-distributable ZIPs (#104) and actor animation isolation (#112). Sol contributed
-to JKR before SJK
-([Sol's JKR pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes)).
 
 ## Tools
 
@@ -455,3 +495,28 @@ keep their respective licenses.
 Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective
 owners. SJK is a fan project and is not affiliated with or endorsed by Lucasfilm,
 Disney, Raven Software or Activision. No retail game assets are included.
+
+## Footnote: JKR, by Bishop
+
+SJK began in October 2026 as a modified version of
+[JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)
+created JKR and wrote its initial source and most of its code: the Rust engine,
+the wgpu renderer and its lighting, the native client and dedicated server,
+protocol 26 networking, prediction and the shared Jedi Academy game rules,
+content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
+server browser, demos and the project wiki. Bishop's later JKR pull requests
+brought renderer frame cost, frame submission and deferred lighting (#50, #79),
+fixture lighting and sky/terrain stability (#81), volumetric fringes (#84), the
+default visual profile (#85), sun-shadow banding (#4), billboard orientation
+(#51), playable worlds through joins and map changes (#82), intermission (#83),
+faster map loading (#89), console browsing and editing (#88, with Sol as
+co-author), manual slider values (#94), compact chat player actions (#92),
+upright player status icons (#96), footsteps and animation sound cues (#90),
+legacy server pak references (#91), the leader display (#93), client devmap and
+server noclip (#95), drop-in installs and portable storage (#103),
+distributable ZIPs (#104) and actor animation isolation (#112). Sol contributed
+to JKR before SJK
+([Sol's JKR pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes)).
+
+JKR was the starting point; SJK has since replaced most of that code, and it
+stands on its own (no merges from JKR since 08/10/2026).

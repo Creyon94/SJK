@@ -348,14 +348,19 @@ impl ClientMenu {
     /// A join just reached the game: the server goes to the top of the recent
     /// list, with its name and map as the server list (or the loading screen)
     /// knows them. A game this client hosts is not a server to come back to.
-    pub(super) fn remember_joined_server(&mut self) {
-        let super::ClientPhase::Connecting(address) = self.state.phase() else {
+    pub(super) fn remember_joined_server(&mut self, server_address: Option<&str>) {
+        if !matches!(self.state.phase(), super::ClientPhase::Connecting(_)) {
             return;
-        };
+        }
         if self.hosting_local() {
             return;
         }
-        let address = address.clone();
+        // The connecting phase's text becomes the map name or download progress
+        // during a live map change. The connection owner retains the canonical
+        // address independently, so only that is a recent-server identity.
+        let Some(address) = server_address else {
+            return;
+        };
         let entry = address
             .parse::<std::net::SocketAddr>()
             .ok()
@@ -371,7 +376,7 @@ impl ClientMenu {
             .filter(|map| !map.is_empty())
             .unwrap_or(self.loading.map())
             .to_owned();
-        self.recent.record(&address, &name, &map, recent::now());
+        self.recent.record(address, &name, &map, recent::now());
     }
 
     /// Join `address` from the main page: through the password prompt when the
@@ -712,6 +717,24 @@ pub(crate) fn blade_name(console: &crate::console::ViewerConsole) -> &'static st
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn map_changes_update_one_recent_server_instead_of_recording_the_map() {
+        let address = "135.125.145.49:29070";
+        let mut menu = ClientMenu::new(true, String::new());
+        menu.state_connecting(address.to_owned());
+        menu.loading.set_map("mp/ffa3");
+        menu.joined(Some(address));
+
+        // Loading replaces the connecting phase's display text with the map,
+        // but the session still belongs to the same remote endpoint.
+        menu.state_loading("mp/duel6");
+        menu.joined(Some(address));
+
+        assert_eq!(menu.recent.servers().len(), 1);
+        assert_eq!(menu.recent.servers()[0].address, address);
+        assert_eq!(menu.recent.servers()[0].map, "mp/duel6");
+    }
 
     #[test]
     fn key_hints_measure_what_they_draw() {

@@ -50,6 +50,14 @@ multiplayer. Read [docs/status.md](docs/status.md),
   the client's what's-new card shows after an update. Write it in the commit that
   renames "Unreleased" to the version; the tests reject a release without one. See
   [the rule in sjk.md](docs/sjk.md#changelog).
+- When a change gives an on/off setting a new default or a new meaning, or adds one
+  players should decide on, put a `= <cvar>: <sentence>` line under "Unreleased" in
+  `CHANGELOG.md` in the same change, rather than a migration marker cvar: after the
+  update the what's-new card opens on it with its switch. Add `reset`
+  (`= <cvar> reset: ...`) when values saved under the old default or meaning must not
+  carry over unchosen. The cvar must be an on/off Settings row (the tests check);
+  other settings still migrate in `console_session.rs`. See
+  [the rule in sjk.md](docs/sjk.md#changelog).
 - Avoid new allocation, locking and quadratic work in per-frame paths. Measure
   performance-sensitive changes in release builds; 500+ FPS is a target, not a
   blanket claim about current performance.

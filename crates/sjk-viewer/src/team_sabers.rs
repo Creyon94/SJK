@@ -10,6 +10,11 @@
 //!   option at the merge, Sol's choice 17/10/2026): in capture the flag and capture the
 //!   ysalamiri every red or blue player's blades are drawn in the team's stock colour with
 //!   no blade shader over them (`sjk_client::legacy_team_blade`).
+//!
+//! Siege's class colours (`siege_sabers.rs`) join the team blades as the colours the
+//! game puts in place of the player's own ([`with_classes`]); a team colour would win
+//! over them, as cgame's team rule comes after the class one, but neither team rule
+//! applies in Siege.
 
 use crate::console::ViewerConsole;
 use sjk_protocol::GameState;
@@ -55,6 +60,14 @@ pub(crate) struct TeamBlade {
 }
 
 impl TeamBlade {
+    /// This blade with a Siege class's forced colours where the team gives none.
+    pub(crate) fn over_class(mut self, class: [Option<[u8; 3]>; 2]) -> Self {
+        for (color, class) in self.colors.iter_mut().zip(class) {
+            *color = color.or(class);
+        }
+        self
+    }
+
     /// Whether any blade takes a team colour.
     pub(crate) fn any(self) -> bool {
         self.colors.iter().any(Option::is_some)
@@ -119,6 +132,14 @@ pub(crate) fn blades(console: Option<&ViewerConsole>, game: Option<&GameState>) 
     blades
 }
 
+/// `blades` with each client's Siege class colours (`siege_sabers.rs`) put in.
+pub(crate) fn with_classes(mut blades: Blades, class: &crate::siege_sabers::Forced) -> Blades {
+    for (blade, class) in blades.iter_mut().zip(class) {
+        *blade = blade.over_class(*class);
+    }
+    blades
+}
+
 /// The team blade of the actor or corpse whose 1-based entity number is `entity`.
 pub(crate) fn of(blades: &Blades, entity: u64) -> TeamBlade {
     entity
@@ -164,6 +185,21 @@ mod tests {
             blades(Some(&console), Some(&game(br"\g_gametype\0"))),
             [TeamBlade::default(); 32]
         );
+    }
+
+    #[test]
+    fn class_colours_fill_in_where_the_team_gives_none() {
+        const PURPLE: [u8; 3] = [230, 51, 255];
+        let mut class = [[None; 2]; 32];
+        class[3] = [Some(PURPLE), None];
+        // Siege: no team rule, the class colour stands.
+        let siege = with_classes(blades(None, Some(&game(br"\g_gametype\7"))), &class);
+        assert_eq!(siege[3].colors, [Some(PURPLE), None]);
+        assert!(!siege[3].plain, "a blade skin is still worn over it");
+        assert_eq!(siege[4], TeamBlade::default(), "a player without one");
+        // A team colour comes after the class's.
+        let tffa = with_classes(blades(None, Some(&game(br"\g_gametype\6"))), &class);
+        assert_eq!(tffa[3].colors, [Some(RED); 2]);
     }
 
     #[test]
