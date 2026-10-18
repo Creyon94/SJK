@@ -28,6 +28,12 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+= ui_menuPictures: Pictures of the map behind the menus instead of the live map save video memory. It turns on by itself if a map runs out of it.
+
+- Menu pictures (Settings > Interface, `ui_menuPictures`): pictures of the menu's map stand in for the live map, saving the video memory the map held; the player, saber and holocron still stand in them in 3D. A map that runs out of video memory turns them on, and the error now says so instead of "world installer stopped unexpectedly" _(Sol)_
+
 ## 2026.1018.1 (Alpha) | 18/10/2026
 
 > Siege: Rounds start, doors, vehicles and objectives work, with a HUD for waves and hacking.

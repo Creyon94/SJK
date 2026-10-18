@@ -358,6 +358,9 @@ impl crate::GpuState {
         self.hand_shell_to(&mut world);
         world.is_menu_world = self.is_menu_world || menu;
         world.graphics_reload.map = map;
+        if menu {
+            crate::menu_pictures::fit_backdrop(&mut world);
+        }
         if !menu {
             world.graphics_reload.card.reloaded();
             world.camera_position = self.camera_position;
@@ -386,8 +389,22 @@ impl crate::GpuState {
             .is_some_and(|rebuild| rebuild.menu)
         {
             crate::log::progress(format_args!("menu world failed to load again: {error}"));
-            self.graphics_reload.rebuild = None;
-            self.graphics_reload.menu_failed = true;
+            let map = self
+                .graphics_reload
+                .rebuild
+                .take()
+                .map(|rebuild| rebuild.map)
+                .unwrap_or_default();
+            // Out of video memory: it comes back as pictures instead, which need little.
+            let retry = crate::menu_pictures::is_out_of_memory(error)
+                && crate::menu_pictures::pictured(&map).is_none();
+            if retry {
+                let notice = crate::menu_pictures::after_out_of_memory(self.console.as_mut(), &map);
+                if let Some(console) = &mut self.console {
+                    console.push_log(format!("^3{notice}"));
+                }
+            }
+            self.graphics_reload.menu_failed = !retry;
             return None;
         }
         crate::log::progress(format_args!("graphics reload failed: {error}"));

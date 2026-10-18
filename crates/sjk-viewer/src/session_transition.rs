@@ -181,13 +181,18 @@ impl WorldInstallTask {
             // to need this month; untouched pages cost nothing.
             .stack_size(WORLD_INSTALL_STACK_BYTES)
             .spawn(move || {
-                let result = pollster::block_on(GpuState::new_with_context(
-                    context,
-                    size,
-                    input,
-                    Some(&worker_cancel),
-                ))
-                .map_err(|error| error.to_string());
+                // wgpu panics on an error nothing captures (the card out of memory, say):
+                // the panic hook reports it as ever, and the player is told what it was
+                // instead of "stopped unexpectedly".
+                let result = caught(|| {
+                    pollster::block_on(GpuState::new_with_context(
+                        context,
+                        size,
+                        input,
+                        Some(&worker_cancel),
+                    ))
+                    .map_err(|error| error.to_string())
+                });
                 let _ = sender.send(result);
             })
             .expect("world install thread creation failed");
@@ -225,6 +230,21 @@ impl WorldInstallTask {
             None => WorldInstallPoll::Pending,
         }
     }
+}
+
+/// `build`'s result, or what it said if it panicked.
+fn caught<T>(build: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(build))
+        .unwrap_or_else(|payload| Err(panic_message(payload.as_ref())))
+}
+
+/// What a caught panic said, for the player.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|text| (*text).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "the world installer failed".to_owned())
 }
 
 impl Drop for WorldInstallTask {
@@ -493,6 +513,12 @@ impl GpuState {
     }
 
     pub(crate) fn fail_world_install(&mut self, error: String) {
+        // Out of video memory: the menus save theirs from now on, and say why.
+        let error = if crate::menu_pictures::is_out_of_memory(&error) {
+            crate::menu_pictures::after_out_of_memory(self.console.as_mut(), &self.world_load_map)
+        } else {
+            error
+        };
         let reaction = self.world_load_state.failed();
         debug_assert_eq!(reaction, Reaction::ReturnToMenu);
         self.world_load_task = None;
@@ -524,5 +550,21 @@ impl GpuState {
             .get("mapname")
             .ok_or("new CS_SERVERINFO has no mapname")?;
         Ok(format!("maps/{map_name}.bsp"))
+    }
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::*;
+
+    #[test]
+    fn a_panicking_install_reports_what_it_said() {
+        let result: Result<(), String> = caught(|| panic!("wgpu error: Out of Memory"));
+        let error = result.expect_err("the panic is an error");
+        assert_eq!(error, "wgpu error: Out of Memory");
+        assert!(crate::menu_pictures::is_out_of_memory(&error));
+        let formatted: Result<(), String> = caught(|| panic!("buffer {} is invalid", 7));
+        assert_eq!(formatted.expect_err("an error"), "buffer 7 is invalid");
+        assert_eq!(caught(|| Ok::<_, String>(3)), Ok(3));
     }
 }

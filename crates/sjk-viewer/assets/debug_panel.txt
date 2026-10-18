@@ -566,6 +566,16 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[menu-pictures]
+area: Menus & settings
+title: Menu pictures: pictures of the map behind the menus, to save video memory
+change: Settings > Interface > Menu pictures stands the menus on 4K pictures of duel6/ffa3.
+change: Running out of video memory on a map turns it on and says so on the error screen.
+test: Turn Menu pictures on in the main menu: the map turns to pictures within a few seconds.
+test: Open Profile/Character: Kyle stands on the pictured courtyard floor.
+test: Join a server and leave: the menus come back on pictures.
+test: Turn it off again: the live duel6 comes back.
+
 [staff-tabs]
 area: Menus & settings
 title: Staff page in tabs, with credits, shards, moderation and chat bans (staff keys only)

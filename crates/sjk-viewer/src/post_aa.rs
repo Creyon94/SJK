@@ -374,6 +374,11 @@ impl Runtime {
     /// (Re)size the legacy effect layer to the scene targets; startup and resize only.
     /// Only a resolve built with an effect layer (`effects` in [`Self::configured`])
     /// merges one.
+    /// The scene exposure state the resolve shows the scene under.
+    pub(crate) fn exposure_state(&self) -> &wgpu::Buffer {
+        &self.inputs.exposure_state
+    }
+
     pub(crate) fn fit_effects(&mut self, device: &wgpu::Device, scene: [u32; 2]) {
         if !self.inputs.merge
             || self

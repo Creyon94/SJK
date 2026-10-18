@@ -58,7 +58,7 @@ pub(crate) struct Encoding {
 }
 
 impl Encoding {
-    fn mode(self) -> f64 {
+    pub(crate) fn mode(self) -> f64 {
         if matches!(
             self.scene,
             wgpu::TextureFormat::Rgba16Float | wgpu::TextureFormat::Rg11b10Ufloat

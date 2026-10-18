@@ -17,6 +17,10 @@
 //! the next frame started one again, each starting a worker that read the whole map:
 //! thousands of them in a few minutes, which stalled the join and could exhaust memory.
 //! Rebuilds also start at most once per [`RETRY`].
+//!
+//! The menu world comes back as pictures or as the live map as `ui_menuPictures` says
+//! then ([`crate::menu_pictures`]), and turning the setting over in the menus builds it
+//! again the other way on the spot.
 
 use crate::GpuState;
 use std::time::{Duration, Instant};
@@ -57,11 +61,25 @@ impl Parked {
     /// and no map is loading. A join started meanwhile cancels it, and it starts
     /// again when the menus are back.
     pub(crate) fn restore_if_idle(&mut self, current: &mut GpuState) {
+        let now = Instant::now();
         if current.is_menu_world {
             self.map = None;
+            // The pictures turned on or off in the menus: the menu world the other way.
+            let pictures = crate::menu_pictures::enabled(current.console.as_ref());
+            let map = &current.graphics_reload.map;
+            let wanted = crate::menu_pictures::menu_map(map, pictures);
+            if !map.is_empty()
+                && wanted != *map
+                && current.shell_is_off_server()
+                && !current.graphics_reload.rebuilding()
+                && !current.graphics_reload.menu_failed
+                && may_start(self.started, now)
+            {
+                self.started = Some(now);
+                current.rebuild_menu_world(wanted);
+            }
             return;
         }
-        let now = Instant::now();
         if !current.shell_is_off_server()
             || current.graphics_reload.rebuilding()
             || current.graphics_reload.menu_failed
@@ -71,7 +89,8 @@ impl Parked {
         }
         if let Some(map) = &self.map {
             self.started = Some(now);
-            current.rebuild_menu_world(map.clone());
+            let pictures = crate::menu_pictures::enabled(current.console.as_ref());
+            current.rebuild_menu_world(crate::menu_pictures::menu_map(map, pictures));
         }
     }
 }

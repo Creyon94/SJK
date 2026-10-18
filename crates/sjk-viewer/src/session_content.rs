@@ -181,6 +181,10 @@ impl Selection {
         vfs: &VirtualFileSystem,
         path: &str,
     ) -> Result<sjk_bsp::Bsp, Box<dyn Error>> {
+        // The menu world rebuilt as a picture one (`menu_pictures`) reads no map.
+        if crate::menu_pictures::pictured(path).is_some() {
+            return Ok(crate::menu_pictures::empty_world());
+        }
         let asset = vfs
             .read(path)?
             .ok_or_else(|| format!("session map missing: {path}"))?;

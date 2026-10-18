@@ -146,6 +146,7 @@ mod medals;
 mod menu;
 mod menu_backdrop;
 mod menu_hud;
+mod menu_pictures;
 #[cfg(test)]
 mod menu_snapshot;
 mod menu_stage;
@@ -385,6 +386,8 @@ struct GpuState {
     post_aa: Option<frame_target::aa::Runtime>,
     render_scale: Option<frame_target::scale::Runtime>,
     screenshots: screenshot::Manager,
+    /// The menu pictures' drawing, while the menu world is a picture one.
+    menu_pictures: menu_pictures::Painter,
     /// The image frames render into without a window: only the off-screen
     /// world shots set it (`world_shot`); without one a windowless frame is
     /// skipped.
@@ -1329,6 +1332,7 @@ impl GpuState {
             whats_new_card: whats_new_card::Card::default(),
 
             screenshots: screenshot_setup.manager,
+            menu_pictures: menu_pictures::Painter::default(),
             headless_frame: None,
             configuration,
             size,
@@ -1621,6 +1625,7 @@ impl GpuState {
         self.refresh_config_strings(game_audio);
         timing.mark(Phase::View);
         menu_backdrop::drive(self, visual_now);
+        menu_pictures::prepare(self);
         // The backdrop keeps the view while a joined map loads behind it.
         let backdrop_view = menu_backdrop::standalone_menu_visible(self);
         self.world_hidden = menu_backdrop::classic_hides_world(self);
@@ -1728,6 +1733,8 @@ impl GpuState {
         let view = look_at_mat4(view_position, view_target, view_up);
         let aspect = self.configuration.width as f32 / self.configuration.height as f32;
         let fov = self.scope_fov(presentation_time as i32, game_audio);
+        // A menu picture's camera sees what the picture shows, whatever cg_fov is.
+        let fov = self.menu_pictures.field_of_view().unwrap_or(fov);
         let projection = perspective(fov.to_radians(), aspect, 2.0, self.far_plane);
         // rd-vanilla `tr_shade.cpp:367` derives tess.shaderTime from the
         // frame/refdef time; materials apply their own remap time offsets.

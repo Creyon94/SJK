@@ -721,6 +721,10 @@ const HELP: &[(&str, &str)] = &[
         "The SJK UI, SJK's own menus over the live map; or classic menus after the original game's.",
     ),
     (
+        crate::menu_pictures::CVAR,
+        "Pictures of the map behind the menus instead of the live map: saves video memory. Turns on by itself if a map runs out of it.",
+    ),
+    (
         crate::quick_wheel::pages::FILE,
         "The quick wheel's pages (+wheel) and the choices on each, kept in wheel.json. Enter edits them.",
     ),

@@ -332,6 +332,7 @@ impl Group {
             ],
             Self::Interface => &[
                 crate::menu::style::CVAR,
+                crate::menu_pictures::CVAR,
                 crate::rarity_fx::CVAR,
                 crate::game_font::CVAR,
                 crate::text::style::SCALE_CVAR,

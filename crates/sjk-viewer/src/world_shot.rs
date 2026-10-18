@@ -331,6 +331,9 @@ mod chat_gifs_shots;
 #[path = "world_shot_map_change.rs"]
 mod map_change;
 
+#[path = "world_shot_menu_pictures.rs"]
+mod menu_pictures_shots;
+
 #[path = "world_shot_brushes.rs"]
 mod brushes;
 

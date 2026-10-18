@@ -50,6 +50,10 @@ pub(crate) fn load_bsp_from_vfs(
     vfs: &VirtualFileSystem,
     map_path: &str,
 ) -> Result<Bsp, Box<dyn Error>> {
+    // A picture menu world has no map to read (`menu_pictures`).
+    if crate::menu_pictures::pictured(map_path).is_some() {
+        return Ok(crate::menu_pictures::empty_world());
+    }
     let asset = vfs
         .read(map_path)?
         .ok_or_else(|| format!("map {map_path:?} was not found in the mounted game data"))?;

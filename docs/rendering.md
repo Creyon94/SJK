@@ -523,6 +523,17 @@ Windows that memory also shows in the process's RAM in Task Manager.
   timed out made the client reconnect, the join cancelled each rebuild and the next
   frame started one again, 13,865 map reads in Sol's log, which stalled the join and
   could exhaust memory.
+- Menu pictures (`ui_menuPictures`, [menu_pictures.rs](../crates/sjk-viewer/src/menu_pictures.rs))
+  build the menu world from an empty map, so the menus hold almost none of this:
+  the backdrop is a 3840x2160 picture per view, taken off screen
+  (`world_shot_menu_pictures.rs` `menu_pictures_generate`, with the scene bloom off,
+  since the client blooms the picture again), decoded on a worker to the size the
+  screen shows and drawn first in the world pass, turned back into scene colour
+  under the frame's exposure (as the effect layer's `scene_value`). The camera
+  stands at the picture's camera with its field of view, narrowed on screens wider
+  than 16:9 so they never see past it, which lines the 3D stage up with the picture.
+  A world install that runs out of memory turns the setting on
+  ([status](status.md#menu-pictures-and-readable-world-install-failures)).
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
