@@ -3,7 +3,8 @@
 //! A map change builds the next world while the last one is still on screen
 //! (`session_transition.rs`), so for those seconds two worlds hold video memory.
 //! Textures that come out the same on both (the saber glows, the game fonts, the
-//! effect atlas, the static menu art) were made twice; on a 6 GB card that second
+//! effect atlas, the static menu art, and map textures from the same files) were
+//! made twice; on a 6 GB card that second
 //! copy was part of what ran out ("world installer stopped unexpectedly",
 //! 18/10/2026). A world being built on this thread ([`building`]) now takes an
 //! existing copy from its context's [`Cache`], keyed by what the texture is made
@@ -56,7 +57,8 @@ impl Cache {
         });
     }
 
-    /// Entries alive, for tests and logs.
+    /// Entries alive, for tests.
+    #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.lock().len()
     }
@@ -111,13 +113,8 @@ where
     let Some((cache, world)) = BUILDING.with(|building| building.borrow().clone()) else {
         return make();
     };
-    if let Some(entry) = cache.lock().get_mut(&(kind, key))
-        && let Some(value) = entry.value.downcast_ref::<T>()
-    {
-        if !entry.worlds.contains(&world) {
-            entry.worlds.push(world);
-        }
-        return value.clone();
+    if let Some(value) = take(&cache, world, kind, key) {
+        return value;
     }
     // Made outside the lock: uploads take time and may share textures of their own.
     let value = make();
@@ -129,6 +126,27 @@ where
         },
     );
     value
+}
+
+/// The `kind` texture made from content `key` if a world of this build's context holds
+/// one, without making it: a caller can then skip preparing what it would be made from.
+pub(crate) fn find<T>(kind: &'static str, key: u64) -> Option<T>
+where
+    T: Clone + Send + Sync + 'static,
+{
+    let (cache, world) = BUILDING.with(|building| building.borrow().clone())?;
+    take(&cache, world, kind, key)
+}
+
+/// `world`'s claim on the entry, and its value.
+fn take<T: Clone + 'static>(cache: &Cache, world: u64, kind: &'static str, key: u64) -> Option<T> {
+    let mut entries = cache.lock();
+    let entry = entries.get_mut(&(kind, key))?;
+    let value = entry.value.downcast_ref::<T>()?.clone();
+    if !entry.worlds.contains(&world) {
+        entry.worlds.push(world);
+    }
+    Some(value)
 }
 
 /// A content key over `parts` (pixels, sizes, options).
@@ -164,6 +182,20 @@ mod tests {
         assert_eq!(cache.len(), 1, "the second world still holds it");
         drop(second);
         assert_eq!(cache.len(), 0, "freed with the last world");
+    }
+
+    #[test]
+    fn find_claims_without_making() {
+        let cache = Arc::new(Cache::default());
+        let (first, scope) = building(&cache);
+        assert_eq!(find::<u32>("t", 1), None);
+        share("t", 1, || 5_u32);
+        drop(scope);
+        let (second, _scope) = building(&cache);
+        assert_eq!(find::<u32>("t", 1), Some(5));
+        drop(first);
+        assert_eq!(cache.len(), 1, "found by the second world, which holds it");
+        drop(second);
     }
 
     #[test]

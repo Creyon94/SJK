@@ -64,7 +64,12 @@ pub(super) fn upload(
                 && !key.starts_with(super::videos::KEY_PREFIX)
                 && seen.insert(key)
             {
-                jobs.push(Job::new(key, images));
+                // The last map's world, still alive during a map change, may hold it.
+                if let Some(view) = mips::find_shared(images) {
+                    forge.texture_cache.insert(key.to_owned(), view);
+                } else {
+                    jobs.push(Job::new(key, images));
+                }
             }
         }
     }
@@ -103,7 +108,10 @@ pub(super) fn upload(
             }
             drop(sender);
             for (job, chains) in receiver {
-                let texture = mips::upload_chains(device, queue, job.width, job.height, &chains)?;
+                let texture =
+                    mips::upload_shared(device, queue, job.images, job.width, job.height, || {
+                        chains
+                    })?;
                 forge.texture_cache.insert(job.key.to_owned(), texture);
             }
             Ok(())

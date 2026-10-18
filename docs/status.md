@@ -1,3 +1,19 @@
+## Map changes: video memory peak
+
+18/10/2026, `personal/vram-map-change`, based on `main` `f19a8a67`: players'
+"world installer stopped unexpectedly" (33 hub crash reports, `wgpu error: Out of
+Memory` on the `sjk-world-install` thread, NVIDIA cards of 3 to 8 GB) is the peak while
+the next map is built beside the last one, not a leak. The ignored world shot
+`map_changes_vram` (four retail maps three times over at 1920x1080) shows each map
+holding the same bytes every cycle. Worlds alive at once on one graphics context now
+share the textures that come out the same for both (saber glows, game fonts, effect
+atlas, static menu art, map textures from the same files): the worst peak went from
+4870 to 4136 MiB (siege_desert) and every map's peak fell by about 730 MiB. Numbers and
+limits in [rendering.md](rendering.md#gpu-memory). Measured off-screen on Sol's PC
+(release build, fresh profile); the picture matches the run with sharing off within
+run-to-run noise. Not verified in game on a live server, on Vulkan, or on the players'
+6 GB cards; a world can still run out on a card too small for one map plus the next.
+
 ## Server-reported scoreboard deaths
 
 18/10/2026, `feat/scoreboard-deaths`, based on `origin/main` `96569426`: the
