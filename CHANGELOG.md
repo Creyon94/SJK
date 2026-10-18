@@ -43,6 +43,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Live SJK chat messages also appear in the console, with a yellow SJK tag _(Lukas)_
 - NPC nameplates show the NPC's health only while your Force Sense 3 is active, unless the map shows that NPC's health to everyone; their names stay visible _(Lumaya, after JoF EJK)_
 - Siege's class menu works like the team menu of the other team games: Red team and Blue team first (each with its colour mark and players, your team said), then that side's classes, with Spectate and Back; Back and Escape return from a side's classes to the team choice _(Slash)_
+- In Siege a class that forces its saber colours, such as the stock Jedi and Sith classes, shows them on its players, as in the game, instead of each player's own colours _(Sol)_
 
 ## 2026.1017.2 (Alpha) | 17/10/2026
 

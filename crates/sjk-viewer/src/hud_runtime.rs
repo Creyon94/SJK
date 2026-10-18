@@ -323,6 +323,9 @@ pub(crate) fn update(
             scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
             team_sabers: crate::team_sabers::Settings::of(gpu.console.as_ref()),
+            class_sabers: gpu
+                .siege_sabers
+                .forced(Some(session.game_state()), gpu.vfs.as_deref()),
             world: &gpu.live_world,
             now: presentation_time,
             camera,
@@ -509,6 +512,9 @@ pub(crate) fn update(
             scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
             team_sabers: crate::team_sabers::Settings::of(gpu.console.as_ref()),
+            class_sabers: gpu
+                .siege_sabers
+                .forced(Some(session.game_state()), gpu.vfs.as_deref()),
             world: session.world(),
             now: presentation_time,
             camera,

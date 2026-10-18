@@ -208,6 +208,17 @@ Workspace fmt/build/test passed on Linux x86_64; clippy reports nothing in the
 touched files. Unit tests pin the two-step page (rows, marks, titles, Back,
 Escape, Spectate, class command). Not tried in a live Siege match.
 
+## Siege class saber colours
+
+18/10/2026, `personal/pr-142`, at the merge of SJK pull request #142 (Sol's choice
+over the PR's `cg_siegeTeamSabers`): implemented. In Siege a class's `sabercolor` /
+`saber2color` replace its players' own colours, as cgame's `CG_NewClientInfo` does
+(`sjk_client::legacy_siege_class_blades`, `siege_sabers.rs`), for held and thrown
+blades and the player card; the class files are read once per map and the colours
+redone on serverinfo or player configstring changes. The server takes no part, as in
+stock. See [client](client.md#siege-class-saber-colours). Unit tests only; not tried in
+a Siege match.
+
 ## NPC sabers and voices
 
 17/10/2026, `personal/npc-sabers-sounds`, based on `Sol-Vulpes/SJK` `cb03b251`

@@ -118,7 +118,7 @@ mod weapon_selection;
 
 pub use actor_color::{
     TeamColorPolicy, legacy_body_color, legacy_player_color, legacy_saber_team_colors,
-    legacy_team_blade, legacy_team_sabers,
+    legacy_siege_class_blades, legacy_team_blade, legacy_team_sabers,
 };
 pub use ambient_sets::{AmbientSet, AmbientSetKind, AmbientSets};
 pub use ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyRandom};

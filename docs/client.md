@@ -947,6 +947,26 @@ spectators untouched, FFA, duel, siege and jedi-vs-merc keep the choice, the `0`
 semantics per saber, black blades replaced per hand, the card's swatches); not tried
 in the game.
 
+### Siege class saber colours
+
+In Siege a class file may force its sabers' colours (`sabercolor`, `saber2color`,
+`bg_saga.c:874-893`), as stock does for its Jedi and Sith classes. cgame applies them
+(`CG_NewClientInfo`, `cg_players.c:2492-2537`): the class named by a player's
+`siegeclass` replaces the colour they chose, primary and secondary separately, and a
+class without one leaves the player's own. SJK does the same client-side
+(`sjk_client::legacy_siege_class_blades`, [siege_sabers.rs](../crates/sjk-viewer/src/siege_sabers.rs)):
+it reads the installed class files once per Siege map (in the order SJK's server reads them) and
+works each player's colours out again only when the serverinfo or a player's
+configstring changes. The colours apply to held and thrown blades and the player
+card's swatches, replace a JA+ black blade, and keep an SJK blade shader worn over
+them, as the team colours do. Blocking a player still leaves their class colour (the
+game sets it, not the player), as it leaves a team colour. Only cgame forces the
+colour: the server, stock and SJK's own, sends `c1`/`c2` as the player set them.
+Other game types ignore the class. No setting: it is stock behaviour. Verified by
+unit tests (a class with `sabercolor 5` purple, a class without one and the other
+game types untouched, the class files read once per map); not tried in a Siege
+match.
+
 ## JA+ black sabers
 
 On JA+/jaPRO and TaystJK servers, saber colour number 11 is shown as a black

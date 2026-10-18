@@ -142,6 +142,7 @@ impl GpuState {
                 Consumer::ServerInfo => {
                     self.black_sabers.invalidate();
                     self.holster_server.invalidate();
+                    self.siege_sabers.invalidate();
                     self.local_prediction.refresh_roll_rules(game);
                     if let Some(console) = &mut self.console {
                         if let Some(session) = &self.live_session {
@@ -181,6 +182,7 @@ impl GpuState {
                 }
                 Consumer::Player(client) => {
                     self.black_sabers.invalidate();
+                    self.siege_sabers.invalidate();
                     if let Some(vfs) = &self.vfs {
                         self.local_prediction.refresh_sabers(game, vfs, client);
                     }
