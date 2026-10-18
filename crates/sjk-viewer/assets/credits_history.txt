@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 18/10/2026 | - | The log names the untrusted media host
+- bb392bf |  | Name the untrusted media host a page or redirect led to
 + 18/10/2026 | - | Tenor GIFs: a page's media is asked without accepting HTML
 - 2806406 |  | Ask a page's media without accepting HTML
 + 18/10/2026 | - | Every command and cvar exported as one page, for SolBot
