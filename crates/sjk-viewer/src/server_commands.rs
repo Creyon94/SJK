@@ -161,8 +161,13 @@ pub(crate) fn consume_messages(
             // console keeps every chat line while the notify lines leave it to
             // the chat box.
             sjk_client::ServerEventKind::Chat | sjk_client::ServerEventKind::TeamChat => {
+                let own_whisper = chat.own_whisper_body(&event.kind, &text, event.sender);
                 if let Some(console) = &mut console {
-                    console.push_chat_line(sjk_client::chat_display_text(&text), &text);
+                    console.push_chat_line(
+                        sjk_client::chat_display_text(&text),
+                        &text,
+                        own_whisper.as_deref(),
+                    );
                 }
                 chat.receive_classified(
                     event.kind,

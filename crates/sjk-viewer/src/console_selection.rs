@@ -68,6 +68,8 @@ pub(super) struct Selection {
     released: bool,
     last_press: Option<(Instant, Vec2)>,
     prompt: Option<PromptPointer>,
+    /// Latest pointer position while it remains over the window, even without a press.
+    hover: Option<Vec2>,
 }
 
 impl Selection {
@@ -82,6 +84,7 @@ impl Selection {
             released: false,
             last_press: None,
             prompt: None,
+            hover: None,
         }
     }
 
@@ -92,6 +95,7 @@ impl Selection {
                 position,
                 button: PointerButton::Primary,
             } => {
+                self.hover = Some(position);
                 let now = Instant::now();
                 let double = self.last_press.is_some_and(|(time, last)| {
                     now.duration_since(time) <= DOUBLE_CLICK
@@ -110,19 +114,24 @@ impl Selection {
                 self.by_token = double;
                 self.released = false;
             }
-            InputEvent::PointerMove(position) if self.held && !self.by_token => {
-                self.drag = Some(position);
+            InputEvent::PointerMove(position) => {
+                self.hover = Some(position);
+                if self.held && !self.by_token {
+                    self.drag = Some(position);
+                }
             }
             InputEvent::PointerRelease {
                 position,
                 button: PointerButton::Primary,
             } if self.held => {
+                self.hover = Some(position);
                 self.held = false;
                 self.released = true;
                 if self.press.is_none() && !self.by_token {
                     self.drag = Some(position);
                 }
             }
+            InputEvent::PointerLeave => self.hover = None,
             _ => {}
         }
     }
@@ -170,6 +179,10 @@ impl Selection {
         self.drag.or(self.press.map(|press| press.position))
     }
 
+    pub(super) fn hover_position(&self) -> Option<Vec2> {
+        self.hover
+    }
+
     /// A press resolved to scrollback text: start a selection there, or with Shift
     /// move the end of the current one. A double click selects `token` instead.
     pub(super) fn press_output(&mut self, press: Press, at: Mark, token: (Mark, Mark)) {
@@ -215,6 +228,7 @@ impl Selection {
         self.drag = None;
         self.held = false;
         self.released = false;
+        self.hover = None;
     }
 }
 
@@ -276,5 +290,21 @@ pub(crate) fn push_uncoloured(text: &str, out: &mut String) {
         } else {
             out.push(character);
         }
+    }
+}
+
+#[cfg(test)]
+mod hover_tests {
+    use super::*;
+
+    #[test]
+    fn passive_pointer_motion_is_retained_until_the_pointer_leaves() {
+        let mut selection = Selection::new();
+        let position = Vec2::new(24.0, 48.0);
+        selection.pointer(InputEvent::PointerMove(position), false);
+        assert_eq!(selection.hover_position(), Some(position));
+
+        selection.pointer(InputEvent::PointerLeave, false);
+        assert_eq!(selection.hover_position(), None);
     }
 }

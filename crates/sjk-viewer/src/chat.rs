@@ -165,6 +165,35 @@ impl ChatOverlay {
             .and_then(|target| self.roster.display_name(target))
             .unwrap_or("")
     }
+
+    /// Current plain roster name for console metadata recorded at send time.
+    pub(crate) fn player_name(&self, slot: u16) -> Option<&str> {
+        self.roster
+            .target(Some(slot))
+            .and_then(|target| self.roster.name(target))
+    }
+
+    /// Normalized body when this server event is our own echoed whisper.
+    pub(crate) fn own_whisper_body(
+        &self,
+        kind: &ServerEventKind,
+        text: &str,
+        sender: Option<u16>,
+    ) -> Option<String> {
+        if *kind != ServerEventKind::Chat {
+            return None;
+        }
+        let display = chat_display_text(&chat_unescape(text));
+        let target = self
+            .roster
+            .target(sender)
+            .or_else(|| self.line_sender(&display))?;
+        if Some(target.slot()) != self.own_slot {
+            return None;
+        }
+        let name = self.roster.display_name(target)?;
+        private_whisper_body(&display, name)
+    }
     pub(crate) fn new() -> Self {
         Self {
             lines: VecDeque::with_capacity(HISTORY_LIMIT),
@@ -502,6 +531,13 @@ impl ChatOverlay {
     }
 }
 
+/// Parse the private grammar rather than requiring the optional 0x19 marker:
+/// compatible servers do not all include that byte in outgoing whisper echoes.
+fn private_whisper_body(display: &str, name: &str) -> Option<String> {
+    let (body, private) = chat_body(display, name);
+    private.then(|| sjk_client::chat_plain_text(&chat_unescape(body)))
+}
+
 pub(crate) enum ChatInputResult {
     None,
     Submit(String),
@@ -541,5 +577,23 @@ mod escape_tests {
                 chat.lines[0].body
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod whisper_echo_tests {
+    use super::*;
+
+    #[test]
+    fn private_echo_does_not_need_the_optional_control_marker() {
+        assert_eq!(
+            private_whisper_body("[Sol]: hello ^1there", "Sol"),
+            Some("hello there".to_owned())
+        );
+    }
+
+    #[test]
+    fn public_chat_is_not_an_outgoing_whisper_echo() {
+        assert_eq!(private_whisper_body("Sol: hello", "Sol"), None);
     }
 }

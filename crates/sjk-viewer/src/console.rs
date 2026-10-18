@@ -151,6 +151,8 @@ mod console_session;
 mod console_tell;
 #[path = "console_view.rs"]
 mod console_view;
+#[path = "console_whisper_hover.rs"]
+mod console_whisper_hover;
 use console_cvars::register_daily_cvars;
 use console_forward::{ForwardAction, forward_payload};
 use console_view::ConsolePresentation;
@@ -302,6 +304,8 @@ pub(crate) struct ViewerConsole {
     pending_quit: bool,
     pending_input: Vec<String>,
     pending_chat: std::collections::VecDeque<(String, u16, u32)>,
+    /// Sent whisper recipients paired with their eventual console echo.
+    whisper_hover: console_whisper_hover::State,
 
     client_commands: console_client::Commands,
     /// The client mods and their switches (`docs/mods.md`).
@@ -517,6 +521,11 @@ impl ViewerConsole {
     /// Add an application diagnostic to the visible bounded scrollback.
     pub(crate) fn push_log(&mut self, text: impl Into<String>) {
         self.shell.push_log(text);
+    }
+
+    /// Remember a sent `tell` until its reliable server echo enters scrollback.
+    pub(crate) fn note_sent_whisper(&mut self, command: &str, recipient: String) {
+        self.whisper_hover.note_sent(command, recipient);
     }
 
     /// Queue the script bound to a key event. A release runs under the name

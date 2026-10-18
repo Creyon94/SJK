@@ -4501,6 +4501,17 @@ work the same in both looks, which share EternalJK's keys below. See
 [console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs) and
 [console_options.rs](../crates/sjk-viewer/src/console_options.rs).
 
+An outgoing whisper's server echo does not say who received it. SJK remembers
+the target when its final `tell` command is successfully queued, matches the
+private `[name]: body` echo from the local player by its plain message body, and
+attaches that historical target to the console line. This does not require the
+optional `0x19` chat marker, which compatible servers may omit. Hovering any
+wrapped row of that line shows `Whisper sent to name (#slot).` in either console
+style. The metadata is bounded with the scrollback, remains the name used at
+send time if the roster changes, and is not inferred for unmatched or incoming
+private messages. See
+[console_whisper_hover.rs](../crates/sjk-viewer/src/console_whisper_hover.rs).
+
 ### Classic console
 
 Text sits on a grid of character cells drawn with the console font, without the

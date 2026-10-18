@@ -1,3 +1,19 @@
+## Console whisper recipient hover
+
+18/10/2026, `feat/console-whisper-recipient-hover`, based on `origin/main`
+`4bcc734d`: after an outgoing `tell` is successfully queued, its recipient name
+and slot are retained until the matching private server echo enters console
+scrollback. Hovering any wrapped row of that echo shows the historical recipient
+in both console styles. Incoming, public and unmatched lines receive no tooltip,
+and the bounded metadata does not follow later roster renames. A JoF check
+exposed that outgoing echoes can omit the optional `0x19` marker, so matching
+uses the same `[name]: body` private grammar as `reply`; the corrected hover was
+then confirmed interactively. Focused tests cover the markerless form,
+public/team rejection, command recognition, echo matching and passive pointer
+tracking. On Linux x86_64 with Rust 1.99.1, formatting, the locked workspace
+build and test suite, and workspace all-target Clippy pass; existing warnings
+remain.
+
 ## Server-reported scoreboard deaths
 
 18/10/2026, `feat/scoreboard-deaths`, based on `origin/main` `96569426`: the

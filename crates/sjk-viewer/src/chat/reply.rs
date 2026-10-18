@@ -193,6 +193,28 @@ mod tests {
     }
 
     #[test]
+    fn our_private_echo_exposes_only_its_body_for_console_metadata() {
+        let chat = chat_with(&roster(0, &[(0, "^2Sol"), (4, "Bob")]));
+        assert_eq!(
+            chat.own_whisper_body(
+                &ServerEventKind::Chat,
+                "[^2Sol^7]: ^6hello ^1there",
+                Some(0),
+            )
+            .as_deref(),
+            Some("hello there")
+        );
+        assert_eq!(
+            chat.own_whisper_body(&ServerEventKind::Chat, "Bob^7: public", Some(4)),
+            None
+        );
+        assert_eq!(
+            chat.own_whisper_body(&ServerEventKind::TeamChat, "[^2Sol^7]: team", Some(0)),
+            None
+        );
+    }
+
+    #[test]
     fn a_whisperer_who_left_cannot_be_replied_to() {
         let mut chat = chat_with(&roster(0, &[(0, "Sol"), (3, "Bob")]));
         whisper(&mut chat, 3, "Bob");
