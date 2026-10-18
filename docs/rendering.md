@@ -538,6 +538,31 @@ reserving 5.2 to 5.9 GB). After: 7.2 to 7.4 GB (4.1 to 4.2 GB reserved for 3.3 t
 each time): it was not a leak. Each world also keeps about 1 GB of CPU memory
 after loading, not looked into yet.
 
+The players' "world installer stopped unexpectedly" (18/10/2026: 33 hub crash
+reports, `wgpu error: Out of Memory` in `create_texture` on `sjk-world-install`, on
+NVIDIA cards of 3 to 8 GB) is that peak, not a leak. The ignored world shot
+`map_changes_vram` ([world_shot_vram.rs](../crates/sjk-viewer/src/world_shot_vram.rs))
+installs mp/ffa3, mp/ffa5, mp/siege_desert and mp/duel6 three times over at
+1920x1080 on one device and prints the allocator's live and reserved bytes after each
+change, and the labels that grew. On Sol's PC (release build, a fresh profile):
+
+| Map | In use after | Peak during the build | Reserved at the peak |
+| --- | --- | --- | --- |
+| mp/duel6 | 1.87 GB | 4.22 GB | 3.9 GB |
+| mp/ffa3 | 2.19 GB | 3.85 GB | 4.6 GB |
+| mp/ffa5 | 2.54 GB | 4.51 GB | 5.0 GB |
+| mp/siege_desert | 2.55 GB | 4.87 GB | 5.1 GB |
+
+Every map holds the same bytes on each cycle (duel6 1869 MiB after the first and the
+last), and reserved memory settles back to 2.5 to 3.4 GB. With the desktop and other
+programs, a 6 GB card has no room for two worlds of the larger maps. About 0.55 GB of
+each world is the same whatever the map and is built again for each one: the saber
+glow column integrals (205 MiB), the game font atlas (128 MiB), the saber glow images
+(96 MiB), the UI icon atlas (50 MiB), the effect atlas (39 MiB) and the classic menu
+art (32 MiB). Map textures that two maps share (retail `textures/` among them) are
+uploaded again too. Sharing those between the worlds alive during a change would
+lower the peak without changing the picture; not built yet.
+
 ## Eye adaptation
 
 SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the
