@@ -81,10 +81,11 @@ impl LegacyForceAnimFxTimers {
             *slot = None;
             return false;
         };
-        if let Some((last, next)) = *slot {
-            if time >= last && time < next {
-                return false;
-            }
+        if let Some((last, next)) = *slot
+            && time >= last
+            && time < next
+        {
+            return false;
         }
         let interval = if effect == LegacyForceAnimFx::QuickHeal {
             8
