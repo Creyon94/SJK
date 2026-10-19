@@ -152,6 +152,50 @@ one when it loads them (`ConvertCRLiterals_Read`); `string_table::parse_into` ke
 two characters. It now converts them, for every table. `cargo check` passes; the
 added unit test and Clippy were not run.
 
+## Siege objective notices
+
+18/10/2026, `feat/siege-objective-notice`, based on `Sol-Vulpes/SJK` `3483b1b`: on
+siege_hoth a completed objective (the shield generator, a hack) went by with nothing
+but the score. The client now reads `EV_SIEGE_OBJECTIVECOMPLETE` in the obituary
+tracker's event scan (`siege_objectives`) and, as `CG_SiegeObjectiveCompleted` does,
+looks the objective up in the map's `.siege` file (`siege_objective_notice`, read once
+per map with the team groups the selector already resolves): the viewer's own team's
+`message_teamN` is centre printed (an `@` reference through the string tables) and its
+`sound_teamN` played as the announcer. Spectators are told nothing. `cargo check` of
+`sjk-viewer` passes; tests and Clippy were not run, and the notice is untested in a
+game. The centre print uses the chat overlay's, not the reference's larger
+`BIGCHAR_WIDTH` text at 30% of the screen height.
+
+The objective that ends the round is never broadcast as an objective (the server sends
+`EV_SIEGE_ROUNDOVER` instead), so the round's end was silent. As `CG_SiegeRoundOver`
+does, the client now centre prints the viewer's team group's `wonround`/`lostround` and
+plays its `roundover_sound_wewon`/`roundover_sound_welost`. The reference has no default
+objective or round sounds (they are commented out), so a map's `.siege` file decides
+what is heard. A tracker test covers the round won being reported once; the notices
+remain untested in a game.
+
+`feat/siege-objective-sounds`, on the above: two more announcer lines. The retail
+`.siege` files name round-over announcers (`40MOM011` to `40MOM014`) that no retail
+archive ships, so the round still ended in silence; a named announcer no installed
+file answers to now falls back to `cgs.media.winnerSound`/`loserSound` (`40MOM006`,
+`40MOM010`, registered by the retail cgame but never played; an SJK addition). A
+community map's own file still plays as written. And the round's count-in now speaks
+the reference's 3/2/1 (`count3Sound`..`count1Sound`) while `CS_SIEGE_STATE` counts
+it in (`cg_draw.c:8168-8226`), which the client did not play at all. Objectives
+themselves keep the `.siege` file's lines: the retail maps really do use "secondary
+objective" (`siege2`/`siege6`) for nearly every step, with `siege1`/`siege5` for the
+last. A unit test pins the count-in (3, 2, 1 once each, three again next round); the
+fallback is untested in a game.
+
+Review follow-up: a team group that names no round-over announcer stays silent, as
+in the reference; only a named one that no installed file answers falls back, and
+such a miss is remembered until the next gamestate. The count-in is silent in
+intermission (`CG_Draw2D` returns first) and an empty `CS_SIEGE_STATE` keeps the
+previous state, as `CG_ConfigStringModified` ignores it; the state is parsed once in
+`match_info` for both the warmup line and the count. The new sound event had
+outgrown the sound ledger (`EVENT_KIND_COUNT`), which a compile-time check now
+guards. `cargo test -p sjk-client`: 279 passed.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.
