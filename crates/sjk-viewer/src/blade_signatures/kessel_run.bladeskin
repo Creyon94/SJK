@@ -172,18 +172,5 @@
     "count": 4,
     "spacing": 40.0,
     "fade": 0.6
-  },
-  "wisps": {
-    "color": [
-      0.6,
-      0.8,
-      1.0
-    ],
-    "brightness": 0.45,
-    "rise": 6.0,
-    "speed": 5.0,
-    "scale": 0.5,
-    "curl": 1.1,
-    "density": 0.5
   }
 }

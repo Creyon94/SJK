@@ -242,6 +242,5 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   fx += fxAura(ro, rd, y0, y1, 2.6, vec3(1.0, 0.1, 0.06))*part(1.0);
-  fx += fxShock(ro, rd, px, L*0.56, 1.0 - cl, 9.0, vec3(1.0, 0.1, 0.06))*1.5;
   return col + fx*uFx;
 }

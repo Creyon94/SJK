@@ -68,6 +68,17 @@ unchanged. Checked on Linux x86_64 (Rust 1.97, lavapipe): the viewer's tests pas
 changed signature previewed from four views and in the lab page. Not verified: Windows, the
 game window, the hub's catalogue (the names players see come from it once Sol updates it).
 
+## Blade Lab signatures, round 12: Creyon's round 11 test, the rares
+
+19/10/2026, `wip/blade-3d`, on round 11: fixes from Creyon's test videos (effects past the
+growing tip during ignition, afterimages left by turning or running, prominences cut off at the
+stock glow's width, square smoke, Wraithlight's glare, Between Worlds' duel and Bleeding Kyber
+taking the wearer's colour), the legendaries reworked, rings and tip glints removed from Creyon's
+blades, and the Blade Lab's 22 rares ported as signatures, reworked to be Star Wars
+([rendering.md](rendering.md#blade-lab-signature-shaders), [unlockables.md](unlockables.md)).
+Checked on Linux x86_64 (lavapipe): the workspace checks and the ignored GPU test's sheets of
+the legendaries and rares looked at. Not verified: Windows, the game window, the hub.
+
 ## Blade Lab signatures, round 11: each its own, every part switchable
 
 20/10/2026, `wip/blade-3d`: after Creyon's notes on round 10: the shared beams are gone and every

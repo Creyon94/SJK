@@ -52,7 +52,6 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
   }
   col += fxAura(ro, rd, y0, y1, 3.0, mix(MO_NIGHT, MO_DAY, day));
-  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, vec3(0.9, 0.9, 1.0))*1.8;
   return col*uFx;
 }
 

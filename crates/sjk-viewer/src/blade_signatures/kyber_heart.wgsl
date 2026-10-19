@@ -162,10 +162,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let rose: vec3<f32> = vec3<f32>(1.0, 0.3, 0.5);
     let ph = fract(t * KH_RATE);
     fx += fxShock(ro, rd, px, L * 0.35, ph * 1.2, 7.0, rose) * 1.2 * part(1.0);
-    fx += fxShock(ro, rd, px, L * 0.7, max(ph - 0.22, 0.0) * 1.2, 6.0, rose) * 0.9 * part(1.0);
     let beat = exp(-ph * 9.0) + 0.6 * exp(-max(ph - 0.22, 0.0) * 9.0) * step(0.22, ph);
     fx += fxFlare(ro, rd, vec3(0.0, L * 0.35, 0.0), px, 0.3, 4.0 + 2.0 * beat, 4.0, 0.785, vec3<f32>(1.0, 0.85, 0.9)) * (0.4 + 1.2 * beat) * part(1.0);
     fx += fxAura(ro, rd, y0, y1, 2.6, rose) * (0.5 + 1.0 * beat) * part(1.0);
-    fx += fxShock(ro, rd, px, L * 0.5, 1.0 - cl, 10.0, vec3<f32>(1.0, 0.85, 0.9)) * 1.8;
     return col + fx * uFx;
 }

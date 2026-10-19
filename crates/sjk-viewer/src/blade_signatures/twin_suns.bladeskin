@@ -174,23 +174,8 @@
     "speed": 8.0,
     "reach": 4.0
   },
-  "star": {
-    "color": [
-      1.0,
-      0.8,
-      0.4
-    ],
-    "brightness": 0.8,
-    "rays": 6,
-    "length": 3.0,
-    "width": 0.05,
-    "spin": 0.1,
-    "twinkle": 1.5,
-    "depth": 0.3,
-    "halo": 0.5
-  },
   "arcs": {
-    "count": 3,
+    "count": 4,
     "color": [
       1.0,
       0.6,

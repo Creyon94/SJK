@@ -138,13 +138,34 @@ pub(crate) fn submit(
             if let BladeColor::Skin(skin) = color
                 && let Some(spec) = skin.ghosts
             {
-                state.ghosts.record(blade, presentation_time, spec);
-                saber_instances.extend(
-                    state
-                        .ghosts
-                        .instances(blade, color, spec)
-                        .map(|i| i.with_animation(presentation_time as f64 * 0.001, key as u32)),
-                );
+                let animate =
+                    |i: Instance| i.with_animation(presentation_time as f64 * 0.001, key as u32);
+                if spec.wearer {
+                    // Kept in the wearer's own frame: turning or running leaves none behind.
+                    let origin = actor_origin;
+                    let to_body = |b: saber::Blade| saber::Blade {
+                        base: (actor_rotation.inverse() * (Vec3::from_array(b.base) - origin))
+                            .to_array(),
+                        direction: (actor_rotation.inverse() * Vec3::from_array(b.direction))
+                            .to_array(),
+                        ..b
+                    };
+                    let to_world = move |b: saber::Blade| saber::Blade {
+                        base: (actor_rotation * Vec3::from_array(b.base) + origin).to_array(),
+                        direction: (actor_rotation * Vec3::from_array(b.direction)).to_array(),
+                        ..b
+                    };
+                    state.ghosts.record(to_body(blade), presentation_time, spec);
+                    saber_instances.extend(
+                        state
+                            .ghosts
+                            .instances_placed(to_body(blade), color, spec, to_world)
+                            .map(animate),
+                    );
+                } else {
+                    state.ghosts.record(blade, presentation_time, spec);
+                    saber_instances.extend(state.ghosts.instances(blade, color, spec).map(animate));
+                }
             }
             light_blades[blade_index] = Some(blade);
             if let Some(edges) = trails.as_deref_mut()

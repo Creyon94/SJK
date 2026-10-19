@@ -39,7 +39,7 @@ macro_rules! signature {
 /// The signatures, mythicals first (Creyon's order, 19/10/2026). The last fourteen are his
 /// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
 /// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`).
-pub(crate) const SIGNATURES: [Signature; 60] = [
+pub(crate) const SIGNATURES: [Signature; 82] = [
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
     signature!("balance"),
@@ -101,6 +101,29 @@ pub(crate) const SIGNATURES: [Signature; 60] = [
     signature!("ord_mantell_storm"),
     signature!("mustafar_eruption"),
     signature!("hyperlane"),
+    // Round 12: the Blade Lab's rares, a tier below the legendaries.
+    signature!("ahch_to_glow"),
+    signature!("death_star_plans"),
+    signature!("jedi_texts"),
+    signature!("star_map"),
+    signature!("ilum_frost"),
+    signature!("christophsis_crystal"),
+    signature!("deflector_shield"),
+    signature!("healed_kyber"),
+    signature!("temple_mosaic"),
+    signature!("dagobah_wisps"),
+    signature!("coruscant_night"),
+    signature!("navigation_beacon"),
+    signature!("puzzle_holocron"),
+    signature!("mon_cala_reef"),
+    signature!("jakku_sandstorm"),
+    signature!("moisture_farm"),
+    signature!("tipoca_stormglass"),
+    signature!("temple_sunbeam"),
+    signature!("ion_coil"),
+    signature!("sith_thorn"),
+    signature!("holo_recording"),
+    signature!("data_disc"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).

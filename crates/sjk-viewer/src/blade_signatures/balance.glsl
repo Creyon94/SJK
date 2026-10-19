@@ -111,7 +111,6 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   col += mix(BA_RED, BA_BLUE, ba_light(ha))*(halo(dAx, 3.0)*0.3 + halo(dAx, 1.2)*0.2);
 
   // a clash: both sides burst outward in one white ring
-  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, mix(BA_BLUE, BA_RED, 0.5))*1.8;
   return col*uFx;
 }
 

@@ -1,7 +1,9 @@
 // Hypermatter: a capital ship's hypermatter stream as a blade. Bright pulses race up the blade in
-// pairs, chasing each other, and meet in a flash just below the tip that throws a few sparks; a
-// glint turns at the tip. A swing sends more pulses; a clash a bright ring.
-// @part Hypermatter flash
+// pairs; three containment rings hold it, flickering as the pulses pass; jets of plasma shoot
+// up beside it and sparks spit off where the stream meets the middle ring. A clash flares it.
+// @part Containment rings
+// @part Plasma jets
+// @part Hypermatter sparks
 // @room 8
 // @palette {"corona.rim_cool":[0.55,0.35,0.05],"corona.rim_hot":[1.0,0.8,0.3],"corona.inner":[1.0,0.95,0.75],"core.white":[1,1,0.95],"core.fringe_cool":[1.0,0.7,0.2],"core.fringe_hot":[1.0,0.9,0.6],"light.color":[1.0,0.8,0.35],"trail":[1.0,0.8,0.35]}
 
@@ -16,9 +18,14 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   vec3 gold = vec3(1.0, 0.8, 0.35);
-  float q = fract(t*0.6);
-  fx += fxFlare(ro, rd, vec3(0.0, L - 3.0, 0.0), px, 0.2, 3.0, 4.0, 0.4, gold)*exp(-q*6.0)*1.5;
-  fx += fxSparks(ro, rd, px, L - 5.0, L - 1.0, 8.0 + 8.0*sw, 4.0, 0.6, 2.5, gold);
-  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 8.0, gold);
-  return fx*uFx*part(0.0);
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float y = mix(y0 + 3.0, y1 - 5.0, fi/2.0);
+    float fl = 0.6 + 0.4*sin(t*9.0 + fi*2.0)*sin(t*3.7 + fi);
+    float d = ringD(ro, rd, y, 2.0);
+    fx += (vec3(1.0)*halo(d, max(0.05, px))*0.9 + gold*halo(d, 0.35)*0.7)*fl*part(0.0);
+  }
+  fx += fxFall(ro, rd, px, y0, y1, 2.8, 22.0, -30.0, 1.4, 0.0, 1.1, gold)*1.3*part(1.0);
+  fx += fxSparks(ro, rd, px, L*0.5, L*0.62, 10.0 + 8.0*sw, 4.0, 0.9, 2.5, gold)*part(2.0);
+  return fx*uFx;
 }

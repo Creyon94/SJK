@@ -167,18 +167,5 @@
       "sound/weapons/saber/saberswing2.wav",
       "sound/weapons/saber/saberswing3.wav"
     ]
-  },
-  "wisps": {
-    "color": [
-      0.8,
-      0.9,
-      1.0
-    ],
-    "brightness": 0.5,
-    "rise": 7.0,
-    "speed": 3.0,
-    "scale": 0.5,
-    "curl": 1.1,
-    "density": 0.5
   }
 }

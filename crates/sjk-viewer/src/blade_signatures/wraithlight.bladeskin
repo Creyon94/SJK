@@ -187,7 +187,7 @@
     "density": 0.5
   },
   "echo": {
-    "fade": 0.35,
+    "fade": 0.3,
     "sway": 1.8,
     "rate": 0.25,
     "lean": 0.05
@@ -198,7 +198,7 @@
       0.85,
       1.0
     ],
-    "brightness": 1.4,
+    "brightness": 0.9,
     "density": 0.22,
     "cells": 0.25,
     "rings": 1.2,

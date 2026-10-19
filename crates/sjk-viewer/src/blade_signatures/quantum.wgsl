@@ -66,7 +66,6 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
     }
     col += fxAura(ro, rd, y0, y1, 3.0, mix(MO_NIGHT, MO_DAY, day));
-    col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 10.0, vec3<f32>(0.9, 0.9, 1.0)) * 1.8;
     return col * uFx;
 }
 

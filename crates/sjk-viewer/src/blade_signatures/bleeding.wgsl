@@ -16,7 +16,7 @@
 // corruption surge up with a red shock ring.
 const BK_RED: vec3<f32> = vec3<f32>(1.0, 0.04, 0.06);
 
-const BK_WHITE: vec3<f32> = vec3<f32>(0.92, 0.96, 1.0);
+const BK_WHITE: vec3<f32> = vec3<f32>(0.78, 0.88, 1.0);
 
 // how high the corruption has climbed (units): rising and pushed back on a slow tide
 fn bk_level() -> f32 {
@@ -39,6 +39,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y0 = L * 0.18;
     let y1 = L * 0.97;
     var col: vec3<f32> = vec3<f32>(0.0);
+    var red: vec3<f32> = vec3<f32>(0.0);
     if fxNear(ro, rd, 0.0, L) > 10.0 {
         return col;
     }
@@ -57,7 +58,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
         let grow = smoothstep(0.0, 0.25, q);
         let d = bolt3(ro, rd, a0, mix(a0, a1, grow), k + fi * 1.37, 0.55);
-        col += (vec3<f32>(1.0, 0.6, 0.6) * halo(d, max(px, 0.035)) * 0.9 + BK_RED * halo(d, 0.22) * 1.0 + BK_RED * halo(d, 0.8) * 0.18) * (1.0 - smoothstep(0.55, 1.0, q)) * part(0.0);
+        red += (vec3<f32>(1.0, 0.6, 0.6) * halo(d, max(px, 0.035)) * 0.9 + BK_RED * halo(d, 0.22) * 1.0 + BK_RED * halo(d, 0.8) * 0.18) * (1.0 - smoothstep(0.55, 1.0, q)) * part(0.0);
     }
     // ---- drops of red light dripping off the bleeding part and falling ----
     for (var i = 0; i < 16; i++) {
@@ -67,19 +68,20 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let y = mix(1.0, max(lv, 2.0), h11(k * 1.9 + fi));
         let p = around(0.6 + 0.8 * f, h11(k * 4.1 + fi), y - 6.0 * f * f);
         let d = rayPt(ro, rd, p, &ta);
-        col += BK_RED * (halo(d, max(0.08, px)) * 2.0 + halo(d, 0.35) * 0.3) * (1.0 - smoothstep(0.7, 1.0, f)) * part(1.0);
+        red += BK_RED * (halo(d, max(0.08, px)) * 2.0 + halo(d, 0.35) * 0.3) * (1.0 - smoothstep(0.7, 1.0, f)) * part(1.0);
     }
     // ---- where the white holds: beams of pure light pushing back, and its motes ----
     let ya = min(lv + 2.0, y1 - 2.0);
     col += fxMotes(ro, rd, px, ya, y1, 1.0, 5.0, 30.0, 0.07, 3.6, BK_WHITE) * part(2.0);
     col += fxAura(ro, rd, ya, y1, 3.0, BK_WHITE) * 0.5 * part(2.0);
     // the front: a ring of struggle where red meets white
-    col += (vec3<f32>(1.0) * halo(ringD(ro, rd, lv, 1.4 + 0.3 * sin(t * 3.0)), max(0.05, px)) * 1.2 + BK_RED * halo(ringD(ro, rd, lv, 1.4), 0.4) * 0.6);
     // the aura: red round the bleeding part, white above
     let dlo = fxNear(ro, rd, 0.0, lv);
     let dhi = fxNear(ro, rd, lv, L);
-    col += BK_RED * halo(dlo, 2.5) * 0.3 + BK_WHITE * halo(dhi, 3.0) * 0.3;
-    col += fxShock(ro, rd, px, lv, 1.0 - cl, 10.0, BK_RED) * 1.8;
+    red += BK_RED * halo(dlo, 2.5) * 0.3;
+    col += BK_WHITE * halo(dhi, 3.0) * 0.3;
+    // the corruption stays red whatever colour the blade is worn in (uKeep, Creyon's round 12)
+    uKeep += red * uFx;
     return col * uFx;
 }
 
@@ -91,11 +93,12 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     var cell: vec2<f32>;
     let e = voro(vec2(b.x * 3.0, b.y * 0.8), &cell);
     let crack = halo(e, 0.06) * m;
-    let c = mix(BK_WHITE, BK_RED * 1.3, m * 0.9);
-    return l * c + BK_RED * crack * l * 1.5;
+    // round 12 (Creyon): the pure part takes its wearer's colour, the corruption stays red
+    uKeep += l * BK_RED * 1.3 * m * 0.9 + BK_RED * crack * l * 1.5;
+    return l * BK_WHITE * (1.0 - 0.9 * m);
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     let m = bk_mask(b.y);
-    return c * mix(vec3<f32>(1.0), vec3<f32>(1.0, 0.55, 0.55), m * 0.8);
+    return c * (1.0 - 0.15 * m);
 }

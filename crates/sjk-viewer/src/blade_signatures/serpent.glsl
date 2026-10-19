@@ -87,6 +87,5 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   fx += fxArcs(ro, rd, px, y0, y1, 3.0, 3.5, 1.2, 8.2, vec3(1.0, 0.8, 0.3))*part(1.0);
-  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, vec3(0.2, 1.0, 0.45))*1.6;
   return col + fx*uFx;
 }

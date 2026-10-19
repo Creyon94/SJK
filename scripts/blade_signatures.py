@@ -955,6 +955,8 @@ def translate(src, uniforms, helpers=None, module_names=(), prefix_clash="sig_")
 
 UNIFORMS = {name: "float" for name in
             "uTime uLength uSwing uClash uIgn uAge uSeed uChroma uRoom uFx uOwn uParts".split()}
+# Light a signature keeps in its own colours under a chroma (round 12: Between Worlds' duel).
+UNIFORMS["uKeep"] = "vec3"
 HERE = Path(__file__).resolve().parent.parent
 FOLDER = HERE / "crates" / "sjk-viewer" / "src" / "blade_signatures"
 SABER = HERE / "crates" / "sjk-viewer" / "src" / "saber.wgsl"

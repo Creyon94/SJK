@@ -167,6 +167,5 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float q = fract(t*0.25 + float(i)/3.0);
     fx += fxShock(ro, rd, px, mix(L*0.3, L*0.85, float(i)*0.5), q, 8.0, blue)*0.8*part(1.0);
   }
-  fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, vec3(0.8, 0.9, 1.0))*1.6;
   return col + fx*uFx;
 }

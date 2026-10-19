@@ -541,6 +541,120 @@ fn part(k: f32) -> f32 {
     return 1.0 - glsl_mod(floor(uParts / exp2(k) + 0.001), 2.0);
 }
 
+// ---- round 12: richer pieces for the lower tiers (each blade sets its own pattern) ----
+// Soft curling smoke in the blade's flat picture between heights y0 and y1, w units to each
+// side at its thickest, rising at `rise` units a second (negative sinks): warped smooth
+// noise with no hard edge (Creyon's round 12: "the smoke looks so squary").
+fn fxSmoke(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, rise: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
+    if abs(rd.z) < 0.0001 {
+        return vec3<f32>(0.0);
+    }
+    let tt = -ro.z / rd.z;
+    let p = ro + rd * tt;
+    let ax = abs(p.x);
+    if ax > w * 1.8 || p.y < y0 - 3.0 || p.y > y1 + 3.0 {
+        return vec3<f32>(0.0);
+    }
+    let q = vec2(p.x * 0.55, p.y * 0.2 - uTime * rise * 0.2) + vec2(seed * 7.3, seed * 3.1);
+    let warp = vec2(fbm3(q * 1.3 + vec2(0.0, uTime * 0.11)), fbm3(q * 1.3 + vec2(5.2, -uTime * 0.09)));
+    let n = fbm3(q + 1.6 * warp);
+    let shape = exp(-pow(ax / w, 2.0)) * smoothstep(y0 - 3.0, y0 + 2.0, p.y) * (1.0 - smoothstep(y1 - 3.0, y1 + 1.0, p.y));
+    let d = smoothstep(0.32, 0.85, n) * shape;
+    return col * d * (0.6 + 0.9 * d);
+}
+
+// Ribbons of energy flowing along the blade: count (up to 4) wavy strands alternating sides,
+// R units out at most, `wave` their waviness, pulses of light running up them at `speed`.
+fn fxStreams(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, R: f32, wave: f32, speed: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0, y1) > R + 1.5 {
+        return acc;
+    }
+    var s: f32;
+    for (var j = 0; j < 4; j++) {
+        let fj = f32(j);
+        if fj >= count {
+            break;
+        }
+        var best: f32 = 1.0e3;
+        var bf: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        let side = select(1.0, -1.0, glsl_mod(fj, 2.0) < 0.5);
+        for (var i = 0; i <= 14; i++) {
+            let f = f32(i) / 14.0;
+            let y = mix(y0, y1, f);
+            let x = side * (0.45 + (R - 0.45) * (0.5 + 0.5 * sin(y * wave + fj * 1.7 + seed + uTime * (0.5 + 0.2 * fj))));
+            let p = vec3(x, y, 0.0);
+            if i > 0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bf = (f32(i) - 1.0 + s) / 14.0;
+                }
+            }
+            prev = p;
+        }
+        let pulse = pow(0.5 + 0.5 * sin(bf * 18.0 - uTime * speed + fj * 2.1 + seed), 4.0);
+        let ends = smoothstep(0.0, 0.1, bf) * (1.0 - smoothstep(0.85, 1.0, bf));
+        acc += (vec3<f32>(1.0) * halo(best, max(0.035, px)) * (0.25 + 1.1 * pulse) + col * halo(best, 0.22) * (0.35 + 0.8 * pulse) + col * halo(best, 0.9) * 0.07) * ends;
+    }
+    return acc;
+}
+
+// Flakes of light (snow, ash, petals, leaves of light) drifting down round the blade: count
+// (up to 24) soft flat ovals `size` long and `aspect` as wide, falling at v, turning at spin,
+// swaying `drift` units, spread up to `spread` units to each side.
+fn fxFlakes(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, spread: f32, count: f32, v: f32, size: f32, aspect: f32, spin: f32, drift: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0 - 3.0, y1) > spread + 1.0 {
+        return acc;
+    }
+    var ta: f32;
+    for (var i = 0; i < 24; i++) {
+        let fi = f32(i);
+        if fi >= count {
+            break;
+        }
+        let f = fract(uTime * v / (y1 - y0 + 4.0) * (0.7 + 0.6 * h11(fi * 2.7 + seed)) + h11(fi * 6.1 + seed));
+        let y = mix(y1, y0 - 3.0, f);
+        let side = select(1.0, -1.0, h11(fi * 4.3 + seed) < 0.5);
+        let p = vec3(side * (0.6 + (spread - 0.6) * h11(fi * 3.9 + seed)) + drift * sin(uTime * 0.9 + fi * 2.0), y, 0.0);
+        let d = rayPt(ro, rd, p, &ta);
+        if d > size * 4.0 + px {
+            continue;
+        }
+        let q = ro + rd * ta - p;
+        let e = rot(uTime * spin + fi * 1.7) * q.xy;
+        let pd = length(e / vec2(size, size * aspect));
+        acc += col * (halo(pd - 1.0, 0.3) * 0.8 + halo(d, size * 2.5) * 0.1) * smoothstep(0.0, 0.1, f) * (1.0 - smoothstep(0.85, 1.0, f));
+    }
+    return acc;
+}
+
+// Waves of light travelling up (or down, v < 0) the blade as rings round it, `count` at a
+// time (up to 6), R across, each fading as it goes.
+fn fxRingWaves(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, R: f32, v: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0, y1) > R + 1.5 {
+        return acc;
+    }
+    for (var i = 0; i < 6; i++) {
+        let fi = f32(i);
+        if fi >= count {
+            break;
+        }
+        var q = fract(uTime * v / (y1 - y0) + fi / max(count, 1.0) + seed);
+        if v < 0.0 {
+            q = 1.0 - q;
+        }
+        let y = mix(y0, y1, q);
+        let d = ringD(ro, rd, y, R * (0.7 + 0.3 * sin(3.1416 * q)));
+        let env = sin(3.1416 * q);
+        acc += (vec3<f32>(1.0) * halo(d, max(0.04, px)) * 0.7 + col * halo(d, 0.3) * 0.6 + col * halo(d, 1.0) * 0.08) * env;
+    }
+    return acc;
+}
+
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
 fn glsl_mod(x: f32, y: f32) -> f32 {
     return x - y * floor(x / y);

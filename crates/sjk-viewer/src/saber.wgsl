@@ -1163,8 +1163,18 @@ fn skin_wisps(skin: Skin, input: VertexOutput, r: f32, time: f32, seed: f32) -> 
     if fall < 1.0 / 1024.0 {
         return 0.0;
     }
-    let n = skin_rising(input.blade, up, w.z, w.y, w.w, time, seed);
     let density = skin.wisp_field.x;
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        // Creyon's signature blades (round 12: "the smoke looks so squary"): finer, more
+        // curled noise with a soft edge, so it reads as smoke rather than square puffs.
+        let a = skin_rising(input.blade, up, w.z * 1.6, w.y, w.w * 1.8, time, seed);
+        let b = skin_rising(input.blade * 2.3 + vec2(4.7, 1.9), up, w.z * 1.6, w.y * 1.3,
+            w.w * 2.2, time, seed + 0.37);
+        let n = 0.62 * a + 0.38 * b;
+        let smoke = smoothstep(1.0 - density - 0.15, 1.0 - density + 0.55, n);
+        return smoke * smoke * fall;
+    }
+    let n = skin_rising(input.blade, up, w.z, w.y, w.w, time, seed);
     let smoke = smoothstep(1.0 - density, 1.0 - density + 0.3, n);
     return smoke * fall;
 }
@@ -1845,9 +1855,15 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     }
     if skin.arc_strike.x > 0.0 || skin.mote_field.x > 0.0 {
         // Both fade out before the quad's edge (vertex_main's `extent`) instead of being cut.
+        // A signature's quad also holds its room (Creyon's round 12: its prominences were
+        // cut off at the stock glow's width).
         let extent = skin_extent(skin, input);
-        let room = (1.0 - smoothstep(0.75, 1.0, abs(x) / extent))
-            * (1.0 - smoothstep(0.75, 1.0, beyond / extent));
+        var faded = extent;
+        if skin.design.x == f32(LAB_SIGNATURE) {
+            faded += max(skin.design.y, skin.design.z) / LAB_METRE;
+        }
+        let room = (1.0 - smoothstep(0.75, 1.0, abs(x) / faded))
+            * (1.0 - smoothstep(0.75, 1.0, beyond / faded));
         if skin.arc_strike.x > 0.0 {
             // Along the axis and straight on past the tip.
             let reach = select(input.blade.y / max(input.shaft, 0.0001) * input.length,
@@ -1886,8 +1902,16 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         // The file's glow round the emitter stays, as a stock blade's covers the hilt's
         // mouth.
         let mouth = (1.0 - smoothstep(0.0, 2.2, length(vec2(place.x * 0.6, max(place.y, 0.0))))) * 0.75;
-        glow = max(sig_glow(glow, place + vec2(x - input.blade.x, 0.0), r, pixel), vec3(0.0))
-            * sig_kept(input, place) + glow * mouth * step(-6.0, place.y);
+        // What its glow draws past the tip the blade has grown to waits until the blade is
+        // out (Creyon's round 12: a Star Dragon's coils stood at full length while the
+        // blade was still igniting).
+        let shown_glow = max(sig_full(input),
+            1.0 - smoothstep(input.length - 1.0, input.length + 1.0, place.y));
+        let own = max(sig_glow(glow, place + vec2(x - input.blade.x, 0.0), r, pixel), vec3(0.0))
+            * sig_kept(input, place);
+        glow = mix(glow, own, shown_glow) + glow * mouth * step(-6.0, place.y);
+        let kept_glow = max(uKeep, vec3(0.0)) * shown_glow;
+        uKeep = vec3(0.0);
         // Its effects as Sol's are: flat round the blade, facing the camera (`sig_flat`),
         // and only what circles the blade in three dimensions, along the true view ray.
         let ray = sig_ray(input);
@@ -1895,7 +1919,8 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         let shown = sig_full(input);
         glow += (max(sig_vol(flat.o, flat.d, pixel), vec3(0.0))
             + max(sig_orbit(ray.o, ray.d, pixel), vec3(0.0))) * shown;
-        return sig_coloured(input, glow * sig_edge(input));
+        let edge = sig_edge(input);
+        return sig_coloured(input, glow * edge) + (kept_glow + max(uKeep, vec3(0.0)) * shown) * edge;
     }
     // A chroma takes its wearer's colour: everything it drew, turned at once.
     if input.chroma != 0.0 {
@@ -3618,6 +3643,9 @@ var<private> uFx: f32;
 // What a signature's solid layer sets where it keeps its own colours under a chroma (the
 // Abyssal Eye's amber eye, Creyon's round 9): 0 takes the wearer's hue, 1 keeps its own.
 var<private> uOwn: f32;
+// Light a signature adds in its own colours whatever its wearer's colour (Creyon's round 12:
+// Between Worlds' white and red duel stays white and red), added after the chroma's turn.
+var<private> uKeep: vec3<f32>;
 // Which of a signature's own parts its wearer left on (round 11: every effect can be
 // switched off): bit k set when part k (`// @part` line k) is off, read by `part(k)`.
 var<private> uParts: f32;
@@ -3634,7 +3662,9 @@ fn sig_take(input: VertexOutput) {
     // The full length when it is known (round 11): everything a signature places along the
     // blade stays where it is while the blade grows or shrinks.
     uLength = max(input.length, input.axis.w);
-    uSwing = clamp(input.motion.x, 0.0, 1.0);
+    // Only a real swing counts (Creyon's round 12: effects stirred while he ran or turned):
+    // the arm's sway while running and the torso following the view stay under this.
+    uSwing = smoothstep(0.45, 1.0, clamp(input.motion.x, 0.0, 1.0));
     uClash = max(1.0 - input.motion.y * 2.2, 0.0);
     uAge = input.motion.z;
     uIgn = clamp(input.motion.z / SIG_IGNITION, 0.0, 1.0);
@@ -3655,6 +3685,7 @@ fn sig_take(input: VertexOutput) {
     uParts = f32(parts);
     uFx = 1.0;
     uOwn = 0.0;
+    uKeep = vec3(0.0);
     // The page turned a chroma's output afterwards; the game turns it after the hooks.
     uChroma = 0.0;
     uRoom = skins[skin_index(input)].design.z / LAB_METRE;

@@ -93,7 +93,6 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y0 = top * 0.2;
     let y1 = top * 0.97;
     col += fxAura(ro, rd, y0, y1, 3.0, vec3<f32>(0.8, 0.9, 0.3));
-    col += fxShock(ro, rd, px, uLength * 0.6, 1.0 - cl, 9.0, vec3<f32>(0.9, 1.0, 0.5)) * 1.5;
     return col * uFx;
 }
 

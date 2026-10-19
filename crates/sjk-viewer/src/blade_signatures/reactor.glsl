@@ -78,7 +78,6 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   float fq = mod(t, 30.0) - 26.0;
   col += fxShock(ro, rd, px, L*0.5, fq/1.6, 11.0, vec3(1.0, 0.9, 0.8))*2.0;
   col += fxSparks(ro, rd, px, y0, y1, 24.0, 7.0, 1.5, 9.1, pc)*h.z*2.0;
-  col += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, pc)*1.6;
   return col*uFx;
 }
 

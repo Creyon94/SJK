@@ -740,6 +740,7 @@ impl LoadedSkin {
                     count: ghosts.count as u8,
                     spacing_millis: ghosts.spacing,
                     fade: ghosts.fade,
+                    wearer: crate::blade_signatures::of(self.id).is_some(),
                 }),
             persona: crate::saber_persona::Persona::default(),
             chroma: Chroma {

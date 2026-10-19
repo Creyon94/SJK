@@ -172,19 +172,5 @@
     "count": 4,
     "spacing": 40.0,
     "fade": 0.6
-  },
-  "embers": {
-    "color": [
-      1.0,
-      0.1,
-      0.06
-    ],
-    "brightness": 1.3,
-    "density": 0.5,
-    "cells": 0.5,
-    "fall": 8.0,
-    "life": 1.2,
-    "size": 0.08,
-    "spread": 0.6
   }
 }

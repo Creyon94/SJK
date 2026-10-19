@@ -470,6 +470,15 @@ from the looks.
   tier down and wearing Sol's own pieces from their files (afterimages, an echo, glints,
   smoke, embers, haze, veins). Like the twenty-one they are in the client's catalogue, not yet
   the hub's, and `FROM_THE_TEAM` until released.
+- Twenty-two rares from the Blade Lab (round 12, 19/10/2026), Star Wars reworks a tier below
+  the legendaries: Bioluminescence to Ahch-To Glow, Blueprint to Death Star Plans, Calligraphy
+  to Jedi Texts, Constellation to Star Map, Frostbite to Ilum Frost, Geode to Christophsis
+  Crystal, Hex Shield to Deflector Shield, Kintsugi to Healed Kyber, Mosaic to Temple Mosaic,
+  Moth to Dagobah Wisps, Neon Rain to Coruscant Night, Polaris to Navigation Beacon, Puzzle
+  Cube to Puzzle Holocron, Reef to Mon Cala Reef, Sandstorm to Jakku Sandstorm, Spider Silk to
+  Moisture Farm, Stormglass to Tipoca Stormglass, Sunbeam to Temple Sunbeam, Tesla Coil to Ion
+  Coil, Thorn to Sith Thorn, VHS to Holo-Recording and Vinyl to Data Disc; none has figures or
+  anything on its tip. In the client's catalogue only, as the legendaries.
 - A skinned blade ends round (09/10/2026; Sol saw the Sun's tip square). The core line
   is a flat quad from behind the hilt to the tip, and the generated core's fringe is
   still about a fifth of its brightness at the quad's edges and end, so its end and

@@ -185,7 +185,6 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 30.0, 0.04, 2.2, pale);
             fx += fxAura(ro, rd, y0, y1, 3.0, gold) * 0.7;
         }
-        fx += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 10.0, pale) * 1.6;
     }
     return col + fx * uFx;
 }
@@ -229,12 +228,13 @@ fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
                 prev = p;
             }
             let tail = 1.0 - bs;
-            fx += vec3<f32>(1.0) * halo(best, max(0.1, px)) * tail * 2.2 + cc * halo(best, 0.5) * tail * 1.8 + cc * halo(best, 1.6) * 0.35 * tail;
+            // in their own colours whatever colour the wearer picked (uKeep, Creyon's round 12)
+            uKeep += (vec3<f32>(1.0) * halo(best, max(0.1, px)) * tail * 2.2 + cc * halo(best, 0.5) * tail * 1.8 + cc * halo(best, 1.6) * 0.35 * tail) * uFx;
         }
         // where they meet: a flash and sparks, white and red
         let meet = around(3.0, h11(k * 2.1), mix(L * 0.4, L * 0.85, h11(k * 4.7)));
         let fl = exp(-ph * 7.0);
-        fx += fxFlare(ro, rd, meet, px, 0.25, 5.0, 6.0, k, mix(ahs, ana, 0.5)) * fl * 1.4;
+        uKeep += fxFlare(ro, rd, meet, px, 0.25, 5.0, 6.0, k, mix(ahs, ana, 0.5)) * fl * 1.4 * uFx;
         fx += fxShock(ro, rd, px, meet.y, ph * 1.6, 6.0, pale) * 0.8;
     }
     return fx * uFx;

@@ -136,7 +136,6 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let ha = atan2(hp.x, hp.z) / 6.2832;
     col += mix(BA_RED, BA_BLUE, ba_light(ha)) * (halo(dAx, 3.0) * 0.3 + halo(dAx, 1.2) * 0.2);
     // a clash: both sides burst outward in one white ring
-    col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 10.0, mix(BA_BLUE, BA_RED, 0.5)) * 1.8;
     return col * uFx;
 }
 

@@ -338,3 +338,89 @@ vec3 fxFall(vec3 ro, vec3 rd, float px, float y0, float y1, float r, float count
 // 1 while the signature's own part k (its `// @part` line k, from 0) is on, 0 when its wearer
 // switched it off in the Collection.
 float part(float k){ return 1.0 - mod(floor(uParts/exp2(k) + 0.001), 2.0); }
+// ---- round 12: richer pieces for the lower tiers (each blade sets its own pattern) ----
+// Soft curling smoke in the blade's flat picture between heights y0 and y1, w units to each
+// side at its thickest, rising at `rise` units a second (negative sinks): warped smooth
+// noise with no hard edge (Creyon's round 12: "the smoke looks so squary").
+vec3 fxSmoke(vec3 ro, vec3 rd, float y0, float y1, float w, float rise, float seed, vec3 col){
+  if (abs(rd.z) < 0.0001) return vec3(0.0);
+  float tt = -ro.z/rd.z;
+  vec3 p = ro + rd*tt;
+  float ax = abs(p.x);
+  if (ax > w*1.8 || p.y < y0 - 3.0 || p.y > y1 + 3.0) return vec3(0.0);
+  vec2 q = vec2(p.x*0.55, p.y*0.2 - uTime*rise*0.2) + vec2(seed*7.3, seed*3.1);
+  vec2 warp = vec2(fbm3(q*1.3 + vec2(0.0, uTime*0.11)), fbm3(q*1.3 + vec2(5.2, -uTime*0.09)));
+  float n = fbm3(q + 1.6*warp);
+  float shape = exp(-pow(ax/w, 2.0))*smoothstep(y0 - 3.0, y0 + 2.0, p.y)*(1.0 - smoothstep(y1 - 3.0, y1 + 1.0, p.y));
+  float d = smoothstep(0.32, 0.85, n)*shape;
+  return col*d*(0.6 + 0.9*d);
+}
+// Ribbons of energy flowing along the blade: count (up to 4) wavy strands alternating sides,
+// R units out at most, `wave` their waviness, pulses of light running up them at `speed`.
+vec3 fxStreams(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float R, float wave, float speed, float seed, vec3 col){
+  vec3 acc = vec3(0.0);
+  if (fxNear(ro, rd, y0, y1) > R + 1.5) return acc;
+  float s;
+  for (int j = 0; j < 4; j++){
+    float fj = float(j);
+    if (fj >= count) break;
+    float best = 1e3, bf = 0.0;
+    vec3 prev = vec3(0.0);
+    float side = mod(fj, 2.0) < 0.5 ? -1.0 : 1.0;
+    for (int i = 0; i <= 14; i++){
+      float f = float(i)/14.0;
+      float y = mix(y0, y1, f);
+      float x = side*(0.45 + (R - 0.45)*(0.5 + 0.5*sin(y*wave + fj*1.7 + seed + uTime*(0.5 + 0.2*fj))));
+      vec3 p = vec3(x, y, 0.0);
+      if (i > 0){
+        float d = raySeg(ro, rd, prev, p, s);
+        if (d < best){ best = d; bf = (float(i) - 1.0 + s)/14.0; }
+      }
+      prev = p;
+    }
+    float pulse = pow(0.5 + 0.5*sin(bf*18.0 - uTime*speed + fj*2.1 + seed), 4.0);
+    float ends = smoothstep(0.0, 0.1, bf)*(1.0 - smoothstep(0.85, 1.0, bf));
+    acc += (vec3(1.0)*halo(best, max(0.035, px))*(0.25 + 1.1*pulse) + col*halo(best, 0.22)*(0.35 + 0.8*pulse) + col*halo(best, 0.9)*0.07)*ends;
+  }
+  return acc;
+}
+// Flakes of light (snow, ash, petals, leaves of light) drifting down round the blade: count
+// (up to 24) soft flat ovals `size` long and `aspect` as wide, falling at v, turning at spin,
+// swaying `drift` units, spread up to `spread` units to each side.
+vec3 fxFlakes(vec3 ro, vec3 rd, float px, float y0, float y1, float spread, float count, float v, float size, float aspect, float spin, float drift, float seed, vec3 col){
+  vec3 acc = vec3(0.0);
+  if (fxNear(ro, rd, y0 - 3.0, y1) > spread + 1.0) return acc;
+  float ta;
+  for (int i = 0; i < 24; i++){
+    float fi = float(i);
+    if (fi >= count) break;
+    float f = fract(uTime*v/(y1 - y0 + 4.0)*(0.7 + 0.6*h11(fi*2.7 + seed)) + h11(fi*6.1 + seed));
+    float y = mix(y1, y0 - 3.0, f);
+    float side = h11(fi*4.3 + seed) < 0.5 ? -1.0 : 1.0;
+    vec3 p = vec3(side*(0.6 + (spread - 0.6)*h11(fi*3.9 + seed)) + drift*sin(uTime*0.9 + fi*2.0), y, 0.0);
+    float d = rayPt(ro, rd, p, ta);
+    if (d > size*4.0 + px) continue;
+    vec3 q = ro + rd*ta - p;
+    vec2 e = rot(uTime*spin + fi*1.7)*q.xy;
+    float pd = length(e/vec2(size, size*aspect));
+    acc += col*(halo(pd - 1.0, 0.3)*0.8 + halo(d, size*2.5)*0.1)*smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.85, 1.0, f));
+  }
+  return acc;
+}
+// Waves of light travelling up (or down, v < 0) the blade as rings round it, `count` at a
+// time (up to 6), R across, each fading as it goes.
+vec3 fxRingWaves(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float R, float v, float seed, vec3 col){
+  vec3 acc = vec3(0.0);
+  if (fxNear(ro, rd, y0, y1) > R + 1.5) return acc;
+  for (int i = 0; i < 6; i++){
+    float fi = float(i);
+    if (fi >= count) break;
+    float q = fract(uTime*v/(y1 - y0) + fi/max(count, 1.0) + seed);
+    if (v < 0.0) q = 1.0 - q;
+    float y = mix(y0, y1, q);
+    float d = ringD(ro, rd, y, R*(0.7 + 0.3*sin(3.1416*q)));
+    float env = sin(3.1416*q);
+    acc += (vec3(1.0)*halo(d, max(0.04, px))*0.7 + col*halo(d, 0.3)*0.6 + col*halo(d, 1.0)*0.08)*env;
+  }
+  return acc;
+}

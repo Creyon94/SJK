@@ -111,6 +111,5 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let gold: vec3<f32> = vec3<f32>(1.0, 0.8, 0.35);
     fx += fxSparks(ro, rd, px, y0, y1, 20.0, 6.5, 1.0, 5.6, gold) * part(1.0);
     fx += fxShock(ro, rd, px, L * 0.5, fract(t / 6.0) * 1.3, 8.0, gold) * part(2.0);
-    fx += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 10.0, gold) * 1.6;
     return col + fx * uFx;
 }

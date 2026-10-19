@@ -180,7 +180,6 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // white-hot beams flashing off the edges
     col += fxAura(ro, rd, y0, y1, 2.8, hot) * 0.8;
     // a clash: a shock ring and a flash
-    col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 9.0, white) * 1.6;
     return col * uFx;
 }
 

@@ -147,7 +147,6 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   // white-hot beams flashing off the edges
   col += fxAura(ro, rd, y0, y1, 2.8, hot)*0.8;
   // a clash: a shock ring and a flash
-  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, white)*1.6;
   return col*uFx;
 }
 // the shards' glow and the magma lightning leaping from the blade to them, in true 3D with them

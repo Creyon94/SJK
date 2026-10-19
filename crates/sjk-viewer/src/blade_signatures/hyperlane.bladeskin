@@ -167,20 +167,5 @@
       "sound/weapons/saber/saberswing2.wav",
       "sound/weapons/saber/saberswing3.wav"
     ]
-  },
-  "star": {
-    "color": [
-      0.7,
-      0.85,
-      1.0
-    ],
-    "brightness": 0.9,
-    "rays": 4,
-    "length": 3.0,
-    "width": 0.05,
-    "spin": 0.5,
-    "twinkle": 1.5,
-    "depth": 0.3,
-    "halo": 0.5
   }
 }

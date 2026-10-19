@@ -274,8 +274,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let cl = clamp(uClash, 0.0, 1.0);
     let y0 = L * 0.2;
     let y1 = L * 0.97;
-    var fx: vec3<f32> = vec3<f32>(0.0);
-    fx += fxShock(ro, rd, px, L * 0.65, 1.0 - cl, 10.0, vec3<f32>(1.0, 0.88, 0.66)) * 1.6;
+    let fx: vec3<f32> = vec3<f32>(0.0);
     return col + fx * uFx;
 }
 

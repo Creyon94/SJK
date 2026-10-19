@@ -213,7 +213,5 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let p = around(1.5 + 4.0 * h11(k * 3.1 + fi), h11(k * 1.7 + fi * 2.0), mix(y0, y1, h11(k * 5.3 + fi)));
         fx += fxFlare(ro, rd, p, px, 0.18, 2.8, 6.0, t * 0.3 + fi, mix(pink, blue, h11(k + fi))) * sin(3.1416 * q) * part(1.0);
     }
-    fx += fxShock(ro, rd, px, mix(y0, y1, h11(floor(t / 3.2) * 2.7)), fract(t / 3.2) * 1.4, 8.0, pink) * part(1.0);
-    fx += fxShock(ro, rd, px, L * 0.5, 1.0 - cl, 10.0, vec3<f32>(1.0)) * 1.6;
     return col + fx * uFx;
 }

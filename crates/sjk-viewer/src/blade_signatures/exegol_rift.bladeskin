@@ -169,8 +169,32 @@
     ]
   },
   "ghosts": {
-    "count": 4,
-    "spacing": 40.0,
-    "fade": 0.6
+    "count": 3,
+    "spacing": 50.0,
+    "fade": 0.5
+  },
+  "arcs": {
+    "count": 3,
+    "color": [
+      0.75,
+      0.6,
+      1.0
+    ],
+    "brightness": 1.4,
+    "width": 0.1,
+    "halo": 0.6,
+    "reach": 1.6,
+    "jag": 0.6,
+    "kinks": 0.6,
+    "span": {
+      "low": 0.1,
+      "high": 0.3
+    },
+    "rate": 3.0,
+    "jitter": 8.0,
+    "threshold": 0.2,
+    "tip": 0.0,
+    "crawl": -6.0,
+    "decay": 0.4
   }
 }

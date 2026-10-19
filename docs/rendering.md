@@ -1960,6 +1960,22 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   options, and the built-in file's ones win over an older pack file (`Signature::adopt`). The
   legendaries use them with fewer flat effects than the mythicals; `lab.glsl` adds `lvl`,
   `recol`, `bands` and `fxFall` (rain, snow, streaks) for them.
+- **Round 12 (Creyon's test of round 11, 19/10/2026).** What a signature's glow draws past
+  the tip it has grown to waits for the blade to be out (`sig_full`; Star Dragon's coils stood
+  at full length while it lit). A signature's afterimages are kept in its wearer's own frame
+  (`GhostSpec::wearer`, `GhostTrail::instances_placed`): turning the view or running leaves
+  none, only the blade's own swing does. Sol's arcs and motes on a signature fade out at its
+  room instead of the stock glow's width, which had cut its prominences off (`faded` in the
+  arcs' block; their tip leaps keep their old reach). A signature's smoke (wisps) uses finer,
+  more curled noise with a soft edge (it looked square), and `lab.glsl` adds `fxSmoke` (soft
+  flat smoke), `fxStreams`, `fxFlakes` and `fxRingWaves`. `uKeep` is light a signature adds
+  in its own colours after a chroma's turn: Between Worlds' white and red duel and Bleeding
+  Kyber's red corruption (which is now a chroma: its pure part takes the wearer's colour) keep
+  their colours. Creyon's blades lost their clash rings, their tip glints and the rings that
+  were not their idea; the legendaries were reworked with three or four switchable effects
+  each, and Wraithlight's aura softened. A signature's swing (`uSwing`) now counts only a real swing
+  (a smoothstep from 0.45 of the measured swing): the arm's sway while running and the torso
+  following the view had stirred the effects that answer a swing.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

@@ -113,8 +113,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y0 = L * 0.2;
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
-    fx += fxAura(ro, rd, y0, y1, 3.4, vec3<f32>(0.55, 0.75, 1.0)) * 1.4 * part(0.0);
+    fx += fxAura(ro, rd, y0, y1, 2.2, vec3<f32>(0.55, 0.75, 1.0)) * 0.35 * part(0.0);
     fx += fxMotes(ro, rd, px, y0, y1, 1.5, 6.0, 24.0, 0.04, 2.9, vec3<f32>(0.85, 0.93, 1.0)) * part(0.0);
-    fx += fxShock(ro, rd, px, L * 0.5, 1.0 - cl, 10.0, vec3<f32>(0.85, 0.93, 1.0)) * 1.6;
     return col + fx * uFx;
 }

@@ -189,6 +189,5 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let q = fract(t * 0.4 + f32(i) / 3.0);
         fx += fxShock(ro, rd, px, mix(L * 0.3, L * 0.8, f32(i) * 0.5), q, 8.0, vio) * 0.8 * part(1.0);
     }
-    fx += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 10.0, vio) * 1.8;
     return col + fx * uFx;
 }

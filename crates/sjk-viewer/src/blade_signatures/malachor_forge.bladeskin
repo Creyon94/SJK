@@ -171,21 +171,21 @@
   "embers": {
     "color": [
       1.0,
-      0.5,
-      0.15
+      0.45,
+      0.1
     ],
     "brightness": 1.1,
-    "density": 0.45,
+    "density": 0.4,
     "cells": 0.5,
-    "fall": 8.0,
+    "fall": 7.0,
     "life": 1.2,
     "size": 0.08,
     "spread": 0.6
   },
   "haze": {
-    "strength": 0.3,
+    "strength": 0.35,
     "scale": 0.45,
     "speed": 8.0,
-    "reach": 3.5
+    "reach": 4.0
   }
 }
