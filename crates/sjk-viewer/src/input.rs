@@ -524,7 +524,6 @@ impl super::GpuState {
             Some(InputAction::TargetMessage(attacker)) => self.targeted_chat(attacker),
             Some(InputAction::MessageMode(team)) if self.live_session.is_some() => {
                 self.gameplay_input.release_keys();
-                // The chat key opens on the last channel used (`chat/reply.rs`).
                 if team {
                     self.chat.open(true);
                 } else {

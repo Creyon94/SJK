@@ -1,20 +1,12 @@
-//! Replying to the last whisper and opening the composer on the last channel used.
+//! Replying to the last whisper.
 //!
 //! `reply <message>` whispers to the last player who whispered to us, as JoF
 //! EternalJK's `reply` does (`CG_Say_f`, `lastWhispererId` set in
 //! `CG_ChatBox_AddString` from a line holding `]: ^6`); a bare `reply`, a key bind,
 //! opens the composer on that whisper instead. Tab in the composer reaches the
 //! same whisper after the SJK channel.
-//!
-//! With `cg_chatRememberChannel 1` (the default) the chat key (`messagemode`) opens
-//! the composer on the channel of the last message sent from it: All, Team, SJK or
-//! a whisper to a player still in the game. The team, crosshair and SJK keys keep
-//! opening on their own channel.
 
 use super::*;
-
-/// `cg_chatRememberChannel`: the chat key opens on the last channel a message went to.
-pub(crate) const REMEMBER_CVAR: &str = "cg_chatRememberChannel";
 
 /// Why `reply` has nobody to whisper to.
 #[derive(Debug, Eq, PartialEq)]
@@ -76,28 +68,9 @@ impl ChatOverlay {
         Ok(())
     }
 
-    /// Open the composer for the chat key: on the last channel used while
-    /// `cg_chatRememberChannel` is on, else on All.
+    /// Open the composer for `messagemode`, always on global chat as in EternalJK.
     pub(crate) fn open_chat(&mut self) {
-        let (channel, recipient) = self.last_channel;
         self.open(false);
-        if !self.options.remember {
-            return;
-        }
-        let recipient = recipient.filter(|target| self.roster.name(*target).is_some());
-        let input = self.input.as_mut().expect("opened composer");
-        match channel {
-            Channel::Whisper if recipient.is_none() => {}
-            channel => {
-                input.channel = channel;
-                input.recipient = recipient;
-            }
-        }
-    }
-
-    /// Remember the channel the composer just sent on.
-    pub(super) fn sent_on(&mut self, channel: Channel, recipient: Option<ChatTarget>) {
-        self.last_channel = (channel, recipient);
     }
 }
 
@@ -266,9 +239,8 @@ mod tests {
     }
 
     #[test]
-    fn the_chat_key_opens_on_the_last_channel_sent_on() {
+    fn the_chat_key_always_opens_global_after_sjk_or_a_whisper() {
         let mut chat = chat_with(&roster(0, &[(0, "Sol"), (3, "Bob")]));
-        chat.options.remember = true;
         chat.open_sjk();
         typed(&mut chat, "hi");
         assert!(matches!(
@@ -276,33 +248,16 @@ mod tests {
             ChatInputResult::Sjk(_)
         ));
         chat.open_chat();
-        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Sjk);
-        // An empty draft sends nothing and changes nothing.
-        press(&mut chat, KeyCode::Tab);
-        press(&mut chat, KeyCode::Enter);
-        chat.open_chat();
-        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Sjk);
+        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Global);
         press(&mut chat, KeyCode::Escape);
 
-        // A whisper is remembered while its player stays.
         whisper(&mut chat, 3, "Bob");
         chat.open_reply().unwrap();
         typed(&mut chat, "ok");
         press(&mut chat, KeyCode::Enter);
         chat.open_chat();
         let input = chat.input.as_ref().unwrap();
-        assert_eq!(input.channel, Channel::Whisper);
-        assert_eq!(input.recipient.map(ChatTarget::slot), Some(3));
-        press(&mut chat, KeyCode::Escape);
-        chat.update_roster(&roster(0, &[(0, "Sol")]));
-        chat.open_chat();
-        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Global);
-        press(&mut chat, KeyCode::Escape);
-
-        // Off, the chat key always opens on All.
-        chat.sent_on(Channel::Team, None);
-        chat.options.remember = false;
-        chat.open_chat();
-        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Global);
+        assert_eq!(input.channel, Channel::Global);
+        assert_eq!(input.recipient, None);
     }
 }

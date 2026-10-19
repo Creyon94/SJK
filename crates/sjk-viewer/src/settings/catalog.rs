@@ -574,11 +574,6 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Remember chat channel",
-        cvar: crate::chat::reply::REMEMBER_CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Chat letter spacing",
         cvar: "cg_chatBoxLetterSpacing",
         kind: ValueKind::Float {

@@ -1,3 +1,14 @@
+## The chat key always opens global chat
+
+19/10/2026: `messagemode` (Y by default) now always opens the composer on global
+chat, matching EternalJK. A previous team message, SJK message or whisper no longer
+changes its destination. The dedicated channel commands and Tab cycling are unchanged;
+the obsolete `cg_chatRememberChannel` setting was removed. Verified on x86_64 Linux
+with Rust 1.99.1: the focused composer regression and Settings tests,
+`cargo fmt --all --check`, the locked workspace build and tests, and all-target Clippy
+pass; the locked release workspace build also passes. The key path has not been
+exercised interactively on a live game server.
+
 ## Map editor panel
 
 19/10/2026, `personal/map-edits-ui`, based on `main` `89b11b38`: the map editor's panel
