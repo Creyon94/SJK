@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
 - Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_
+- An emplaced gun (siege_hoth's trench guns) turns to where its gunner looks, its stand and handles with it and its barrels held to 40 degrees down, and keeps that aim after the gunner leaves; before, it stayed pointing to its side _(Slash, after JKA)_
 - The speedometer is placed as in JoF EternalJK: `cg_speedometerX` is the right edge of its text, shifted clear of JoF's numbered game HUDs, so existing positions move _(Lukas, after JoF EJK)_
 - Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
 - Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
