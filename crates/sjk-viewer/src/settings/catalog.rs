@@ -1037,6 +1037,16 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK chat in game feed",
+        cvar: crate::sjk_chat_frame::FEED_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat in console",
+        cvar: crate::sjk_chat_frame::CONSOLE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "SJK chat sound",
         cvar: crate::sjk_chat_frame::SOUND_CVAR,
         kind: ValueKind::Bool,
@@ -1132,6 +1142,11 @@ pub(super) const TEXT: &[Setting] = &[
     Setting {
         label: "Console feed (top left)",
         cvar: crate::console::console_options::DRAW_NOTIFY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Copy console colours",
+        cvar: crate::console::console_options::COPY_COLORS_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {

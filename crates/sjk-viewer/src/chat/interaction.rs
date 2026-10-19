@@ -286,14 +286,56 @@ impl crate::GpuState {
             || command.clone(),
             |console| console.color_chat_command(&command, console_colors),
         );
-        if let Some(session) = self.communication_session_mut()
-            && let Err(error) = session.send_reliable_command_from(
+        let recipient = whisper_destination(&command).map(|slot| {
+            self.chat
+                .player_name(slot)
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("client {slot}"))
+        });
+        let sent = if let Some(session) = self.communication_session_mut() {
+            if let Err(error) = session.send_reliable_command_from(
                 command.as_bytes(),
                 sjk_client::ReliableCommandOrigin::Chat,
-            )
+            ) {
+                eprintln!("failed to send chat: {error}");
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        };
+        if sent
+            && let Some(name) = recipient
+            && let Some(console) = &mut self.console
         {
-            eprintln!("failed to send chat: {error}");
+            console.note_sent_whisper(&command, name);
         }
+    }
+}
+
+fn whisper_destination(command: &str) -> Option<u16> {
+    let tokens = sjk_shell::tokenize(command).ok()?;
+    let [verb, slot, body @ ..] = tokens.as_slice() else {
+        return None;
+    };
+    (verb.eq_ignore_ascii_case("tell") && !body.is_empty())
+        .then(|| slot.parse().ok())
+        .flatten()
+}
+
+#[cfg(test)]
+mod whisper_destination_tests {
+    use super::whisper_destination;
+
+    #[test]
+    fn reads_only_a_complete_tell_command() {
+        assert_eq!(whisper_destination("tell 7 \"hello there\""), Some(7));
+        assert_eq!(whisper_destination("tell 7 hello there"), Some(7));
+        assert_eq!(whisper_destination("TELL 12 hello"), Some(12));
+        assert_eq!(whisper_destination("say hello"), None);
+        assert_eq!(whisper_destination("tell nope hello"), None);
+        assert_eq!(whisper_destination("tell 7"), None);
     }
 }
 

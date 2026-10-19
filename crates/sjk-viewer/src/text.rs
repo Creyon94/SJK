@@ -233,20 +233,24 @@ pub(crate) struct TextVertex {
     color: [f32; 4],
 }
 
-#[cfg(test)]
 impl TextVertex {
-    /// The vertex's colour, for tests of what a surface drew.
+    /// The vertex's colour, used by drawing assertions.
+    #[cfg(test)]
     pub(crate) fn colour(&self) -> [f32; 4] {
         self.color
     }
 
-    /// The vertex's position in window pixels of `viewport`, for tests of where
-    /// a surface drew.
+    /// The vertex's position in window pixels of `viewport`.
     pub(crate) fn window_position(&self, viewport: [f32; 2]) -> [f32; 2] {
         [
             (self.position[0] + 1.0) * 0.5 * viewport[0],
             (1.0 - self.position[1]) * 0.5 * viewport[1],
         ]
+    }
+
+    /// Make one already-built text vertex transparent.
+    pub(crate) fn hide(&mut self) {
+        self.color[3] = 0.0;
     }
 }
 

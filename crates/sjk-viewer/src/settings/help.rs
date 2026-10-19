@@ -789,6 +789,14 @@ const HELP: &[(&str, &str)] = &[
         "The chat every SJK player shares through the SJK hub, in menus and games. Off hides it.",
     ),
     (
+        crate::sjk_chat_frame::FEED_CVAR,
+        "Shows live SJK chat messages in the in-game general chat feed. Off still leaves SJK chat in the ESC menu and on its own page.",
+    ),
+    (
+        crate::sjk_chat_frame::CONSOLE_CVAR,
+        "Keeps live SJK chat messages in console scrollback. Off does not hide SJK chat anywhere else.",
+    ),
+    (
         crate::sjk_chat_frame::SOUND_CVAR,
         "A sound for each new SJK chat message, yours included, in menus and games. Chat sounds off (cg_chatSounds 0) silences it too.",
     ),
@@ -877,6 +885,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::console::console_options::DRAW_NOTIFY_CVAR,
         "Shows the newest console lines at the top left while playing. Chat keeps its own box.",
+    ),
+    (
+        crate::console::console_options::COPY_COLORS_CVAR,
+        "Keeps ^0-^9 colour codes in text copied from console scrollback.",
     ),
     (
         crate::text::charset::CVAR,

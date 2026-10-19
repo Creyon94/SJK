@@ -26,6 +26,20 @@ two buttons, party) and the presence text; the pipe against Discord on Windows 1
 test activity without an error, `discord_app_takes_an_activity`). Not checked: the
 activity as seen on a profile, the game window, Linux and macOS sockets.
 
+## Console scrollback copies with colours
+
+18/10/2026, `feat/console-copy-colors`, based on `origin/main` `046ef86b`: the
+archived, default-off `con_copyColors` switch retains original `^0`-`^9` colour
+codes when Ctrl+C copies selected console scrollback and writes `^7` for an
+implicit-white start, so a pasted green chat line does not recolour its white
+name; off keeps the existing plain-text copy. It is exposed in the shared
+Interface settings used by the classic+ and SJK Advanced menus. The four focused
+copy-policy tests, cvar registration and persistence test, and settings placement
+test pass. On Linux x86_64 with Rust 1.99.1, formatting, the locked workspace
+build and test suite, workspace all-target Clippy, and locked release viewer and
+dedicated-server build pass; existing warnings remain. The final implicit-white
+fix has not yet been rechecked interactively in game.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`
@@ -61,6 +75,36 @@ limits in [rendering.md](rendering.md#gpu-memory). Measured off-screen on Sol's 
 (release build, fresh profile); the picture matches the run with sharing off within
 run-to-run noise. Not verified in game on a live server, on Vulkan, or on the players'
 6 GB cards; a world can still run out on a card too small for one map plus the next.
+
+## Console whisper recipient hover
+
+18/10/2026, `feat/console-whisper-recipient-hover`, based on `origin/main`
+`4bcc734d`: after an outgoing `tell` is successfully queued, its recipient name
+and slot are retained until the matching private server echo enters console
+scrollback. Hovering any wrapped row of that echo shows the historical recipient
+in both console styles. Incoming, public and unmatched lines receive no tooltip,
+and the bounded metadata does not follow later roster renames. A JoF check
+exposed that outgoing echoes can omit the optional `0x19` marker, so matching
+uses the same `[name]: body` private grammar as `reply`; the corrected hover was
+then confirmed interactively. Focused tests cover the markerless form,
+public/team rejection, command recognition, echo matching and passive pointer
+tracking. On Linux x86_64 with Rust 1.99.1, formatting, the locked workspace
+build and test suite, and workspace all-target Clippy pass; existing warnings
+remain.
+
+## Separate SJK chat feed and console visibility
+
+18/10/2026, `feat/sjk-chat-output-visibility`, based on `origin/main` `f19a8a67`:
+the archived, default-on `cl_sjkChatFeed` and `cl_sjkChatConsole` switches
+independently control whether live SJK messages join the in-game general chat or
+console scrollback. Hiding the game feed removes its existing SJK lines, consumes
+messages and refusal notices received while hidden without replaying them, and leaves
+ordinary server chat alone. Neither switch hides the SJK chat dock at the right of the
+Escape menu or its full page. The three focused feed-policy tests and settings
+registration/default test pass. On Linux x86_64 with Rust 1.99.1, formatting, the
+locked workspace build and test suite, all-target Clippy, and the locked release
+viewer/dedicated build pass; existing warnings remain. Interactive in-game behavior
+and a screenshot remain unverified.
 
 ## Server-reported scoreboard deaths
 
@@ -142,6 +186,73 @@ APIs, login/script players, non-AVC codecs, fragmented MP4 and streaming playlis
 are unsupported. The bounded MP4 path loops its retained beginning on long clips;
 already-started network traffic cannot be recalled after revocation. These checks
 are not a gameplay parity or whole-scene performance certification.
+
+## Line breaks in the string tables
+
+18/10/2026, `fix/string-table-newlines`, based on `Sol-Vulpes/SJK` `3483b1b`: on
+siege_hoth a centre print (the AT-ST through the wall door) showed a literal `\n`. The
+retail `.str` tables write a line break as `\n`, which the string package turns into
+one when it loads them (`ConvertCRLiterals_Read`); `string_table::parse_into` kept the
+two characters. It now converts them, for every table. `cargo check` passes; the
+added unit test and Clippy were not run.
+
+## Siege objective notices
+
+18/10/2026, `feat/siege-objective-notice`, based on `Sol-Vulpes/SJK` `3483b1b`: on
+siege_hoth a completed objective (the shield generator, a hack) went by with nothing
+but the score. The client now reads `EV_SIEGE_OBJECTIVECOMPLETE` in the obituary
+tracker's event scan (`siege_objectives`) and, as `CG_SiegeObjectiveCompleted` does,
+looks the objective up in the map's `.siege` file (`siege_objective_notice`, read once
+per map with the team groups the selector already resolves): the viewer's own team's
+`message_teamN` is centre printed (an `@` reference through the string tables) and its
+`sound_teamN` played as the announcer. Spectators are told nothing. `cargo check` of
+`sjk-viewer` passes; tests and Clippy were not run, and the notice is untested in a
+game. The centre print uses the chat overlay's, not the reference's larger
+`BIGCHAR_WIDTH` text at 30% of the screen height.
+
+The objective that ends the round is never broadcast as an objective (the server sends
+`EV_SIEGE_ROUNDOVER` instead), so the round's end was silent. As `CG_SiegeRoundOver`
+does, the client now centre prints the viewer's team group's `wonround`/`lostround` and
+plays its `roundover_sound_wewon`/`roundover_sound_welost`. The reference has no default
+objective or round sounds (they are commented out), so a map's `.siege` file decides
+what is heard. A tracker test covers the round won being reported once; the notices
+remain untested in a game.
+
+`feat/siege-objective-sounds`, on the above: two more announcer lines. The retail
+`.siege` files name round-over announcers (`40MOM011` to `40MOM014`) that no retail
+archive ships, so the round still ended in silence; a named announcer no installed
+file answers to now falls back to `cgs.media.winnerSound`/`loserSound` (`40MOM006`,
+`40MOM010`, registered by the retail cgame but never played; an SJK addition). A
+community map's own file still plays as written. And the round's count-in now speaks
+the reference's 3/2/1 (`count3Sound`..`count1Sound`) while `CS_SIEGE_STATE` counts
+it in (`cg_draw.c:8168-8226`), which the client did not play at all. Objectives
+themselves keep the `.siege` file's lines: the retail maps really do use "secondary
+objective" (`siege2`/`siege6`) for nearly every step, with `siege1`/`siege5` for the
+last. A unit test pins the count-in (3, 2, 1 once each, three again next round); the
+fallback is untested in a game.
+
+Review follow-up: a team group that names no round-over announcer stays silent, as
+in the reference; only a named one that no installed file answers falls back, and
+such a miss is remembered until the next gamestate. The count-in is silent in
+intermission (`CG_Draw2D` returns first) and an empty `CS_SIEGE_STATE` keeps the
+previous state, as `CG_ConfigStringModified` ignores it; the state is parsed once in
+`match_info` for both the warmup line and the count. The new sound event had
+outgrown the sound ledger (`EVENT_KIND_COUNT`), which a compile-time check now
+guards. `cargo test -p sjk-client`: 279 passed.
+
+## JoF-compatible speedometer alignment
+
+18/10/2026, `fix/speedometer-alignment`: `cg_speedometerX` now identifies the
+speed label's right-edge anchor, matching JoF EternalJK's `CG_Speedometer` use
+of `ITEM_ALIGN_RIGHT`. The game-data HUD also follows JoF's named
+`cg_hudFiles` offset table: -8 for 0, -56 for the text HUD (1), and -42 for the
+JK2 HUD (2); the text HUD's armor-above-999 adjustment is also retained. The
+default remains 132; SJK previously treated it as the left
+edge of a centred 240-unit field and omitted the HUD offset. Focused tests pin
+the alignment, JoF's table, and its application to only the game-data HUD. On
+Linux x86_64 with Rust 1.99.1, formatting, the locked workspace build and test
+suite, workspace all-target Clippy, and the locked release viewer build pass;
+existing warnings remain. The result has not yet been inspected in game.
 
 ## Jetpack effect layers and tail lengths
 

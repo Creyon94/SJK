@@ -31,7 +31,7 @@ use super::ViewerConsole;
 use super::line_edit::token_at;
 use super::selection::{Gesture, Mark, PromptPointer, floor_boundary};
 use crate::console_backdrop::{Background, ConsoleFrame, MAX_TEXT_VERTICES, SolidQuad, TextAtlas};
-use crate::text::{CodePalette, GlyphKey, UiFont, append_cell, glyph_at, quake_color};
+use crate::text::{CodePalette, GlyphKey, TextVertex, UiFont, append_cell, glyph_at, quake_color};
 use sjk_shell::local_time::LocalTime;
 use sjk_shell::{ConsoleLine, ConsoleLineKind};
 use sjk_ui::{Rect, Vec2};
@@ -842,6 +842,20 @@ impl ViewerConsole {
                 let column = grid.column_at(position.x, text_column);
                 (row.max(-1.0) as isize, column)
             });
+        let hover_target = self
+            .open
+            .then(|| self.selection.hover_position())
+            .flatten()
+            .filter(|position| {
+                position.x >= 0.0
+                    && position.x < painter.viewport[0]
+                    && position.y >= layout.rows_top
+                    && position.y < rows_bottom + grid.pitch
+            })
+            .map(|position| {
+                let row = ((rows_bottom - position.y) / grid.pitch).floor() as isize;
+                (row, position)
+            });
         let shown = |y: f32| {
             if layout.partial {
                 y + grid.pitch > layout.rows_top
@@ -853,6 +867,7 @@ impl ViewerConsole {
         let mut resolved = None;
         let mut bottom_end = None;
         let mut top_start = None;
+        let mut hovered_whisper = None;
         let Some(newest) = total.checked_sub(1 + self.scroll_offset) else {
             return;
         };
@@ -911,6 +926,13 @@ impl ViewerConsole {
                     .map_or_else(|| ink.line(entry), |code| ink.palette.colour(code));
                 painter.coloured(frame, text, text_column, y, color);
             }
+            if let Some((row, position)) = hover_target
+                && row == index as isize
+                && visible
+                && self.whisper_hover.label(line).is_some()
+            {
+                hovered_whisper = Some((line, y, position));
+            }
             if let Some((row, column)) = target
                 && row == index as isize
             {
@@ -946,6 +968,46 @@ impl ViewerConsole {
                 None => self.selection.drag_output(at),
             }
         }
+        if let Some((line, row_y, position)) = hovered_whisper {
+            self.whisper_tooltip(frame, painter, layout, line, row_y, position);
+        }
+    }
+
+    fn whisper_tooltip(
+        &self,
+        frame: &mut ConsoleFrame,
+        painter: &Painter<'_>,
+        layout: &Layout,
+        line: u64,
+        row_y: f32,
+        position: Vec2,
+    ) {
+        let Some(label) = self.whisper_hover.label(line) else {
+            return;
+        };
+        let grid = painter.grid;
+        let columns = cell_count(label) + 2;
+        let last_column = grid.columns.saturating_sub(columns).max(1);
+        let column = grid.column_at(position.x + grid.width, 0).min(last_column);
+        let x = grid.x(column);
+        let width = columns as f32 * grid.width;
+        let height = grid.pitch + 2.0;
+        let above = row_y - height;
+        let y = if above >= layout.rows_top {
+            above
+        } else {
+            (row_y + grid.pitch).min((layout.input_y - height).max(layout.rows_top))
+        };
+        frame.quads.push(SolidQuad {
+            rect: [x, y, width, height],
+            color: painter.ink.highlight,
+        });
+        frame.quads.push(SolidQuad {
+            rect: [x + 1.0, y + 1.0, width - 2.0, height - 2.0],
+            color: [0.015, 0.025, 0.055, 0.97],
+        });
+        cover_text(&mut frame.text, [x, y, width, height], painter.viewport);
+        painter.raw(frame, label, column + 1, y + 1.0, painter.ink.text);
     }
 
     /// The input row at `y`: the green clock and `]` (classic) or the prompt
@@ -1120,6 +1182,33 @@ impl ViewerConsole {
         self.classic.rows = rows;
         // The next opening counts every row as already seen.
         self.classic.lines_end = end;
+    }
+}
+
+/// Hide complete console glyphs under an opaque pop-up drawn before the text pass.
+fn cover_text(vertices: &mut [TextVertex], rect: [f32; 4], viewport: [f32; 2]) {
+    let [left, top, width, height] = rect;
+    let right = left + width;
+    let bottom = top + height;
+    for glyph in vertices.as_chunks_mut::<6>().0 {
+        let mut bounds = [
+            f32::INFINITY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::NEG_INFINITY,
+        ];
+        for vertex in glyph.iter() {
+            let [x, y] = vertex.window_position(viewport);
+            bounds[0] = bounds[0].min(x);
+            bounds[1] = bounds[1].min(y);
+            bounds[2] = bounds[2].max(x);
+            bounds[3] = bounds[3].max(y);
+        }
+        if bounds[0] < right && bounds[2] > left && bounds[1] < bottom && bounds[3] > top {
+            for vertex in glyph {
+                vertex.hide();
+            }
+        }
     }
 }
 

@@ -2421,6 +2421,19 @@ HUD to show it. The brief inventory selector still appears when cycling items,
 whether this permanent list is on or off. Trip-mine weapons are not part of the
 holdable list. Existing saved values remain in effect.
 
+## Speedometer placement
+
+`cg_speedometerX` is the speed label's right-edge anchor in the 640-wide virtual
+screen, as in JoF EternalJK's `CG_Speedometer`; its default is 132. With the
+game-data HUD selected, JoF's HUD-specific clearance is then applied: 8 units
+left for `cg_hudFiles 0`, 56 for the text HUD (`1`) and 42 for the JK2 HUD (`2`).
+The text HUD gives 4 units back when the armor value exceeds three digits, as
+JoF does to clear the wider armor counter.
+`cg_speedometerY` sets the baseline and `cg_speedometerSize` sets the scale.
+Earlier SJK builds mistook X for the left edge of a centred 240-unit field and
+omitted the HUD clearance, placing the label too far right. The archived cvar
+values themselves are unchanged.
+
 ## Lagometer size
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
@@ -4515,6 +4528,17 @@ work the same in both looks, which share EternalJK's keys below. See
 [console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs) and
 [console_options.rs](../crates/sjk-viewer/src/console_options.rs).
 
+An outgoing whisper's server echo does not say who received it. SJK remembers
+the target when its final `tell` command is successfully queued, matches the
+private `[name]: body` echo from the local player by its plain message body, and
+attaches that historical target to the console line. This does not require the
+optional `0x19` chat marker, which compatible servers may omit. Hovering any
+wrapped row of that line shows `Whisper sent to name (#slot).` in either console
+style. The metadata is bounded with the scrollback, remains the name used at
+send time if the roster changes, and is not inferred for unmatched or incoming
+private messages. See
+[console_whisper_hover.rs](../crates/sjk-viewer/src/console_whisper_hover.rs).
+
 ### Classic console
 
 Text sits on a grid of character cells drawn with the console font, without the
@@ -4620,7 +4644,11 @@ keeps its chat box (`cg_drawChat`), and centre prints, the kill feed
 (`cg_killfeed`) and the vote panel are drawn by the HUD, so all of them
 stay with the feed off. The open console still shows every line. Dragging the mouse selects
 scrollback text and Ctrl+C copies it; the selection does not include the time
-column.
+column. By default copied text is plain. `con_copyColors 1` (archived; Settings >
+Interface > Copy console colours) retains its original `^0`-`^9` colour codes so
+it can be pasted back into the game with the same colours. A selection whose
+first text uses the console's implicit white starts with `^7`, rather than
+inheriting a chat channel's green or another colour when pasted.
 
 ### SJK UI console
 

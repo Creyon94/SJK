@@ -1,7 +1,7 @@
 //! The per-frame hook of the SJK chat (`docs/hub-chat.md`): when the identity
 //! service's chat changed, bring the game's chat feed in line with it (new messages,
-//! deleted ones, why a message was refused), put live messages in the console, and play
-//! the SJK chat's sound for a new message, the player's own included
+//! deleted ones, why a message was refused), optionally put live messages in the
+//! console, and play the SJK chat's sound for a new message, the player's own included
 //! (`audio/sjk_chat_sound.rs`). Each frame costs one look at the chat's revision and the
 //! mutes'; nothing is copied unless one changed.
 
@@ -16,6 +16,9 @@ impl GpuState {
         if console.bool_cvar("cl_sjkChat") == Some(false) {
             return;
         }
+        let feed = console.bool_cvar(FEED_CVAR) != Some(false);
+        let in_console = console.bool_cvar(CONSOLE_CVAR) != Some(false);
+        self.chat.set_sjk_feed_visible(feed);
         let sound = sound_on(console);
         let mutes = player_mutes::revision();
         let Some(mark) = player_identity::with_chat(|chat| {
@@ -36,13 +39,17 @@ impl GpuState {
         let now = Instant::now();
         let chat = &mut self.chat;
         let update = player_identity::with_chat(|state| {
-            let after = chat.sync_sjk(state, is_muted, now);
+            let after = chat.sync_sjk_in_feed(state, is_muted, now, feed);
             chat.sjk_outcome(state.outcome.as_ref(), now);
             let news = after
                 .is_some_and(|after| chat::sjk::worth_a_sound(&state.messages, after, is_muted));
-            let console_lines = after.map_or_else(Vec::new, |after| {
-                chat::sjk::console_lines(&state.messages, after, is_muted)
-            });
+            let console_lines = if in_console {
+                after.map_or_else(Vec::new, |after| {
+                    chat::sjk::console_lines(&state.messages, after, is_muted)
+                })
+            } else {
+                Vec::new()
+            };
             (news, console_lines)
         });
         let Some((news, console_lines)) = update else {
@@ -50,7 +57,7 @@ impl GpuState {
         };
         if let Some(console) = self.console.as_mut() {
             for line in console_lines {
-                console.push_chat_line(line.clone(), &line);
+                console.push_chat_line(line.clone(), &line, None);
             }
         }
         if sound && news && self.chat.sjk_sound_due(now) {
@@ -67,3 +74,9 @@ fn sound_on(console: &console::ViewerConsole) -> bool {
 
 /// `cl_sjkChatSound`: whether a new SJK chat message plays a sound.
 pub(crate) const SOUND_CVAR: &str = "cl_sjkChatSound";
+
+/// `cl_sjkChatFeed`: whether live SJK messages join the in-game general chat feed.
+pub(crate) const FEED_CVAR: &str = "cl_sjkChatFeed";
+
+/// `cl_sjkChatConsole`: whether live SJK messages enter console scrollback.
+pub(crate) const CONSOLE_CVAR: &str = "cl_sjkChatConsole";

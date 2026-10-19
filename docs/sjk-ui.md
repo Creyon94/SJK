@@ -745,6 +745,11 @@ horizon (no panel edge, the navy fading out under a gold line) and a dock (an
 outlined card with tabs), were offered beside it; Sol chose the deck
 (08/10/2026), which reads best over a bright map and keeps the classic
 console's full-width rows, and the other two were removed.
+Outgoing whisper echoes use those same rows in both console looks: hovering one
+shows the recipient name and client slot retained when the `tell` was sent. The
+server echo is matched before the hover note is attached, so an incoming or
+unmatched private line receives no recipient card
+([client.md](client.md#console-styles)).
 
 ## Settings
 
@@ -819,9 +824,12 @@ that mode for the visit and leaves the player's choice as it was.
     weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
     Scoreboard heading; Chat the chat box (Chat box: visibility, text size,
     emojis, remembered channel and letter spacing) and the SJK chat (SJK
-    chat, its GIFs, its video clips opt-in and the GIPHY key); Mods the asset browser (Packs), JA+ and
+    chat, its game-feed and console visibility, its GIFs, its video clips opt-in and
+    the GIPHY key); Mods the asset browser (Packs), JA+ and
     JoF tools (Server mods), JoF content's card and host (JoF content),
-    invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that
+    invisible brushes (Map tools) and the showcase tools (Experimental); Interface's
+    Console rows include retaining colour codes when console scrollback is copied;
+    Network SJK online and Connection. A test checks that
     every setting is on exactly one of Advanced's categories. The classic+
     panels keep their groups as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,

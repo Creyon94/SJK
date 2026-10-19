@@ -130,17 +130,20 @@ impl ViewerConsole {
         self.edit.insert(&mut self.input, text, INPUT_LIMIT);
     }
 
-    /// Copy selected scrollback text, as the console shows it but without colour
-    /// codes; how many characters and whether the clipboard took them, or `None` if
-    /// none is selected.
+    /// Copy selected scrollback text, retaining its Quake colour codes when
+    /// `con_copyColors` is on; how many characters and whether the clipboard took
+    /// them, or `None` if none is selected.
     fn copy_output(&mut self) -> Option<(usize, bool)> {
         let (start, end) = self.selection.range()?;
+        let colours = self
+            .bool_cvar(super::console_options::COPY_COLORS_CVAR)
+            .unwrap_or(false);
         // The console draws stamps beside the text, so its marks count bytes
         // of the text alone.
         let lines = self.shell.lines().map(|line| line.text.as_str());
         let first = self.shell.lines_written() - self.shell.lines().count() as u64;
         let mut text = String::new();
-        copy_range(lines, first, start, end, &mut text);
+        copy_range(lines, first, start, end, colours, &mut text);
         let characters = text.chars().count();
         Some((characters, super::clipboard::copy(&text)))
     }

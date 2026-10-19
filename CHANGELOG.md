@@ -28,6 +28,15 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
+- Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_
+- The speedometer is placed as in JoF EternalJK: `cg_speedometerX` is the right edge of its text, shifted clear of JoF's numbered game HUDs, so existing positions move _(Lukas, after JoF EJK)_
+- Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
+- Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
+- SJK chat can stay out of the game's chat feed (`cl_sjkChatFeed`) or the console (`cl_sjkChatConsole`), both on; the dock and the SJK chat page keep showing it _(Lukas)_
+
 ## 2026.1019.1 (Alpha) | 19/10/2026
 
 > Discord status: Your Discord profile shows the server, map and mode you play.

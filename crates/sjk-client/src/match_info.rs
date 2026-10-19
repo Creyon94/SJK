@@ -58,23 +58,38 @@ pub fn legacy_warmup_text(game: &GameState, server_time: i32) -> WarmupText {
 
 /// `CS_SIEGE_STATE` before the round begins (see [`legacy_warmup_text`]).
 fn siege_round_text(game: &GameState, server_time: i32) -> WarmupText {
-    let Some(state) = game
+    let Some((state, time)) = game
         .config_string(sjk_game_jka::siege_class::CS_SIEGE_STATE)
-        .and_then(|value| std::str::from_utf8(value).ok())
+        .and_then(parse_siege_state)
     else {
         return WarmupText::Hidden;
     };
-    let (kind, time) = state.split_once('|').unwrap_or((state, ""));
-    match kind {
-        "1" => WarmupText::WaitingForPlayers,
-        "2" => {
-            let since = server_time.wrapping_sub(time.parse().unwrap_or(0));
-            let left = (sjk_game_jka::siege::SIEGE_ROUND_BEGIN_TIME - since)
-                .clamp(0, sjk_game_jka::siege::SIEGE_ROUND_BEGIN_TIME);
-            WarmupText::StartsIn((left / 1_000 + 1).max(1))
-        }
+    match state {
+        1 => WarmupText::WaitingForPlayers,
+        2 => WarmupText::StartsIn(siege_round_seconds(
+            server_time.wrapping_sub(time.unwrap_or(0)),
+        )),
         _ => WarmupText::Hidden,
     }
+}
+
+/// `CG_ParseSiegeState` (`cg_main.c:540-578`): `CS_SIEGE_STATE`'s round state and,
+/// after a `|`, the server time it took effect. `None` for an empty string, which
+/// the reference never parses (`cg_servercmds.c:871-877`, `cg_main.c:964-967`).
+pub(crate) fn parse_siege_state(text: &[u8]) -> Option<(i32, Option<i32>)> {
+    if text.is_empty() {
+        return None;
+    }
+    let mut parts = text.splitn(2, |byte| *byte == b'|');
+    let state = crate::local_sounds::atoi(parts.next().unwrap_or_default());
+    Some((state, parts.next().map(crate::local_sounds::atoi)))
+}
+
+/// The whole seconds `CG_Draw2D` shows, and counts aloud from three, `since`
+/// milliseconds after a siege round began counting in (`cg_draw.c:8180-8199`).
+pub(crate) fn siege_round_seconds(since: i32) -> i32 {
+    let begin = sjk_game_jka::siege::SIEGE_ROUND_BEGIN_TIME;
+    (begin.wrapping_sub(since).clamp(0, begin) / 1_000 + 1).max(1)
 }
 
 fn config_i32(game: &GameState, index: usize) -> i32 {

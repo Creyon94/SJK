@@ -157,6 +157,14 @@ Old clients ignore all of it, so it stays `/v1/`.
   feed; 0 hides it. On a game server the feed still reads, for the players' looks and
   emotes, but no message reaches the game's feed, the dock or the page; in the menus it
   stops.
+- `cl_sjkChatFeed` (default 1, Settings > Chat > SJK chat in game feed) controls only
+  whether live SJK messages join the in-game general chat. Turning it off removes its
+  existing SJK lines and consumes later messages without replaying them when it is
+  turned on again. The dock at the right of the Escape menu and the full SJK chat page
+  remain visible, and the hub's reason for refusing a message the player sent still
+  shows in the feed (the in-game composer has nowhere else to say it).
+- `cl_sjkChatConsole` (default 1, Settings > Chat > SJK chat in console) controls only
+  whether live SJK messages are copied into console scrollback.
 
 ## A sound for a new message
 

@@ -68,6 +68,8 @@ pub(super) struct Selection {
     released: bool,
     last_press: Option<(Instant, Vec2)>,
     prompt: Option<PromptPointer>,
+    /// Latest pointer position while it remains over the window, even without a press.
+    hover: Option<Vec2>,
 }
 
 impl Selection {
@@ -82,6 +84,7 @@ impl Selection {
             released: false,
             last_press: None,
             prompt: None,
+            hover: None,
         }
     }
 
@@ -92,6 +95,7 @@ impl Selection {
                 position,
                 button: PointerButton::Primary,
             } => {
+                self.hover = Some(position);
                 let now = Instant::now();
                 let double = self.last_press.is_some_and(|(time, last)| {
                     now.duration_since(time) <= DOUBLE_CLICK
@@ -110,19 +114,24 @@ impl Selection {
                 self.by_token = double;
                 self.released = false;
             }
-            InputEvent::PointerMove(position) if self.held && !self.by_token => {
-                self.drag = Some(position);
+            InputEvent::PointerMove(position) => {
+                self.hover = Some(position);
+                if self.held && !self.by_token {
+                    self.drag = Some(position);
+                }
             }
             InputEvent::PointerRelease {
                 position,
                 button: PointerButton::Primary,
             } if self.held => {
+                self.hover = Some(position);
                 self.held = false;
                 self.released = true;
                 if self.press.is_none() && !self.by_token {
                     self.drag = Some(position);
                 }
             }
+            InputEvent::PointerLeave => self.hover = None,
             _ => {}
         }
     }
@@ -170,6 +179,10 @@ impl Selection {
         self.drag.or(self.press.map(|press| press.position))
     }
 
+    pub(super) fn hover_position(&self) -> Option<Vec2> {
+        self.hover
+    }
+
     /// A press resolved to scrollback text: start a selection there, or with Shift
     /// move the end of the current one. A double click selects `token` instead.
     pub(super) fn press_output(&mut self, press: Press, at: Mark, token: (Mark, Mark)) {
@@ -215,18 +228,20 @@ impl Selection {
         self.drag = None;
         self.held = false;
         self.released = false;
+        self.hover = None;
     }
 }
 
 /// Write the text between `start` and `end` into `out`, from scrollback whose
 /// oldest displayed line is number `first`. Lines are joined with newlines, Quake
-/// colour codes are left out, and trimmed lines or out-of-range offsets are
-/// skipped rather than trusted.
+/// colour codes are retained only when `colours` is true, and trimmed lines or
+/// out-of-range offsets are skipped rather than trusted.
 pub(super) fn copy_range<'a>(
     lines: impl Iterator<Item = &'a str>,
     first: u64,
     start: Mark,
     end: Mark,
+    colours: bool,
     out: &mut String,
 ) {
     out.clear();
@@ -253,9 +268,42 @@ pub(super) fn copy_range<'a>(
         }
         wrote_line = true;
         if from < to {
-            push_uncoloured(&text[from..to], out);
+            if colours {
+                let selected = &text[from..to];
+                if colour_code_at(selected.as_bytes(), 0).is_none() {
+                    let code = last_colour_code(&text[..from]).unwrap_or(b'7');
+                    out.push('^');
+                    out.push(char::from(code));
+                }
+                out.push_str(selected);
+            } else {
+                push_uncoloured(&text[from..to], out);
+            }
         }
     }
+}
+
+fn colour_code_at(bytes: &[u8], index: usize) -> Option<u8> {
+    (bytes.get(index) == Some(&b'^'))
+        .then(|| bytes.get(index + 1).copied())
+        .flatten()
+        .filter(u8::is_ascii_digit)
+}
+
+/// Last explicit colour in force at the end of `text`.
+fn last_colour_code(text: &str) -> Option<u8> {
+    let bytes = text.as_bytes();
+    let mut colour = None;
+    let mut index = 0;
+    while index < bytes.len() {
+        if let Some(code) = colour_code_at(bytes, index) {
+            colour = Some(code);
+            index += 2;
+        } else {
+            index += 1;
+        }
+    }
+    colour
 }
 
 /// `index` moved down onto a character boundary within `text`.
@@ -276,5 +324,97 @@ pub(crate) fn push_uncoloured(text: &str, out: &mut String) {
         } else {
             out.push(character);
         }
+    }
+}
+
+#[cfg(test)]
+mod copy_tests {
+    use super::*;
+
+    fn mark(line: u64, byte: usize) -> Mark {
+        Mark { line, byte }
+    }
+
+    #[test]
+    fn copying_scrollback_can_keep_or_remove_colour_codes() {
+        let lines = ["^1red ^7white", "^2green"];
+        let mut copied = String::new();
+        copy_range(
+            lines.into_iter(),
+            4,
+            mark(4, 0),
+            mark(5, 7),
+            false,
+            &mut copied,
+        );
+        assert_eq!(copied, "red white\ngreen");
+
+        copy_range(
+            lines.into_iter(),
+            4,
+            mark(4, 0),
+            mark(5, 7),
+            true,
+            &mut copied,
+        );
+        assert_eq!(copied, "^1red ^7white\n^2green");
+    }
+
+    #[test]
+    fn copying_with_colours_keeps_only_the_selected_source_range() {
+        let mut copied = String::new();
+        copy_range(
+            ["before ^3chosen^7 after"].into_iter(),
+            9,
+            mark(9, 7),
+            mark(9, 15),
+            true,
+            &mut copied,
+        );
+        assert_eq!(copied, "^3chosen");
+    }
+
+    #[test]
+    fn copying_inside_a_coloured_run_carries_its_colour() {
+        let mut copied = String::new();
+        copy_range(
+            ["before ^3chosen^7 after"].into_iter(),
+            9,
+            mark(9, 11),
+            mark(9, 15),
+            true,
+            &mut copied,
+        );
+        assert_eq!(copied, "^3osen");
+    }
+
+    #[test]
+    fn copying_an_implicitly_white_prefix_resets_a_green_chat_line() {
+        let mut copied = String::new();
+        copy_range(
+            ["White name^7: ^2green text"].into_iter(),
+            3,
+            mark(3, 0),
+            mark(3, 26),
+            true,
+            &mut copied,
+        );
+        assert_eq!(copied, "^7White name^7: ^2green text");
+    }
+}
+
+#[cfg(test)]
+mod hover_tests {
+    use super::*;
+
+    #[test]
+    fn passive_pointer_motion_is_retained_until_the_pointer_leaves() {
+        let mut selection = Selection::new();
+        let position = Vec2::new(24.0, 48.0);
+        selection.pointer(InputEvent::PointerMove(position), false);
+        assert_eq!(selection.hover_position(), Some(position));
+
+        selection.pointer(InputEvent::PointerLeave, false);
+        assert_eq!(selection.hover_position(), None);
     }
 }
