@@ -1379,6 +1379,18 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## Sound listener
+
+The mixer hears from one place a frame, as cgame's `S_Respatialize` from
+`refdef.vieworg` and its axes (`cg_view.c:3245`): `GpuState::finish_audio_frame` puts
+the listener at the camera with the camera's axes, and every sound is panned and
+attenuated from there. Until 19/10/2026 each new snapshot also moved it, for the rest of
+that frame, to the snapshot's player origin and view angles (`GameAudio::observe_snapshot`);
+the audio thread mixes while the frame is built, so the blocks mixed in between panned
+sounds near the player differently from the others whenever they moved, and the saber's
+hum, a loop on the view, crackled (Toad's report). Unit test:
+`a_snapshot_leaves_the_listener_where_the_frame_put_it`; not yet heard in a game.
+
 ## Jetpack sounds
 
 Settings > Audio (classic) and Settings > Advanced > Sound (SJK UI) offer
