@@ -34,7 +34,7 @@ mod controls;
 #[cfg(feature = "mod-jof")]
 #[path = "jof_dialogue_audio.rs"]
 mod dialogue;
-pub(crate) use controls::{EMOTE_CHANNEL, TOY_CHANNEL};
+pub(crate) use controls::{EMOTE_CHANNEL, SKIN_SOUNDS_CVAR, TOY_CHANNEL};
 #[path = "audio_dynamic.rs"]
 mod dynamic;
 #[path = "audio_feedback.rs"]
@@ -97,6 +97,10 @@ pub(crate) struct GameAudio {
     maximum_deferred_start_ms: f64,
     /// `cg_footsteps`: whether the footstep event family is voiced.
     footsteps: bool,
+    /// `s_saberSkinSounds` 2: a blade skin's sounds replace the stock saber sounds.
+    pub(crate) skin_sounds_only: bool,
+    /// `s_saberSkinSounds` 0: a blade skin's sounds are not played, the stock ones are.
+    pub(crate) skin_sounds_off: bool,
     voice_policy: feedback::VoicePolicy,
     voice_throttle: voice_throttle::VoiceThrottle,
     kill_sounds: i64,
@@ -153,7 +157,11 @@ impl GameAudio {
         clients: &[Option<u8>; sjk_client::SABER_SOUND_CLIENTS],
     ) {
         if let Some(adapter) = &mut self.legacy {
-            adapter.set_saber_sound_overrides(clients);
+            // With the skins' sounds off, nobody wears a sound set.
+            const NONE: [Option<u8>; sjk_client::SABER_SOUND_CLIENTS] =
+                [None; sjk_client::SABER_SOUND_CLIENTS];
+            adapter.set_saber_sound_overrides(if self.skin_sounds_off { &NONE } else { clients });
+            adapter.set_saber_skin_sounds_only(self.skin_sounds_only);
         }
     }
 
@@ -205,6 +213,8 @@ impl GameAudio {
             deferred_starts: 0,
             maximum_deferred_start_ms: 0.0,
             footsteps: true,
+            skin_sounds_only: false,
+            skin_sounds_off: false,
             voice_policy: feedback::VoicePolicy::default(),
             voice_throttle: voice_throttle::VoiceThrottle::default(),
             kill_sounds: 2,

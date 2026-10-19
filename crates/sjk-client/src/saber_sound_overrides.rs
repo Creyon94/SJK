@@ -1,7 +1,8 @@
 //! Per-player additions to the stock saber sounds: a blade skin (an SJK unlockable,
 //! drawn by the viewer) brings its own ignition, switching off, hum and swings, heard for
 //! every player wearing it and only for them, on top of the stock sounds, which keep
-//! playing below.
+//! playing below; or, with `s_saberSkinSounds 2`
+//! ([`LegacySoundAdapter::set_saber_skin_sounds_only`]), in their place.
 //!
 //! The viewer registers its skins' sound sets once per gamestate
 //! ([`LegacySoundAdapter::register_saber_sound_sets`]) and tells the adapter every frame
@@ -73,6 +74,9 @@ pub(crate) struct SaberSoundOverrides {
     clients: [Option<u8>; SABER_SOUND_CLIENTS],
     /// Whether any client wears a set, so stock events skip every check.
     active: bool,
+    /// `s_saberSkinSounds 2`: a worn set's sounds replace the stock ones instead of
+    /// playing over them.
+    pub(crate) only: bool,
     /// The `.sab` definitions' own on/off sounds, lowercase and without extension.
     toggles: Vec<(Box<str>, Toggle)>,
 }
@@ -249,6 +253,20 @@ impl LegacySoundAdapter {
         self.saber_overrides.set_clients(clients);
         self.loops
             .set_saber_hum_overrides(&self.saber_overrides.clients);
+    }
+
+    /// `s_saberSkinSounds 2`: whether a worn blade skin's sounds replace the stock
+    /// saber sounds (ignition, switching off, swings and hum) instead of playing over
+    /// them. Cheap; the viewer calls it every frame.
+    pub fn set_saber_skin_sounds_only(&mut self, only: bool) {
+        self.saber_overrides.only = only;
+        self.loops.skin_hum_only = only;
+    }
+
+    /// Whether a worn blade skin's sounds replace the stock ones
+    /// ([`Self::set_saber_skin_sounds_only`]).
+    pub fn saber_skin_sounds_only(&self) -> bool {
+        self.saber_overrides.only
     }
 
     /// The set each client slot wears, after registration's checks.

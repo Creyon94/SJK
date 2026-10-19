@@ -1588,6 +1588,11 @@ impl LegacySoundAdapter {
             _ => None,
         };
         if let Some((kind, sound, sound_source, channel, listener_relative)) = simple {
+            // With `s_saberSkinSounds 2` a blade skin's sound replaces the stock one.
+            let (sound, layered) = match layered {
+                Some(skin) if self.saber_overrides.only => (Some(skin), None),
+                other => (sound, other),
+            };
             self.emit(
                 kind,
                 sound,

@@ -161,6 +161,8 @@ pub(crate) struct LegacyLoopAdapter {
     saber_hums: Vec<u16>,
     /// The hum each client's blade skin plays over its sabers' own.
     hum_overrides: [Option<u16>; MAX_CLIENTS],
+    /// `s_saberSkinSounds 2`: a skin's hum replaces the sabers' own.
+    pub(crate) skin_hum_only: bool,
     client_config_hash: [u64; MAX_CLIENTS],
     decisions: Vec<LegacyLoopDecision>,
     loops_per_entity: Box<[u8]>,
@@ -241,6 +243,7 @@ impl LegacyLoopAdapter {
             sabers,
             saber_hums: Vec::new(),
             hum_overrides: [None; MAX_CLIENTS],
+            skin_hum_only: false,
             client_config_hash: std::array::from_fn(|client| {
                 player_config_hash(game_state, client)
             }),
@@ -581,7 +584,9 @@ impl LegacyLoopAdapter {
         let loops = self.saber_loops(client);
         let primary_active = !state.saber_in_flight();
         let secondary_active = state.saber_holstered() == 0 && loops.secondary.is_some();
-        if primary_active {
+        // With `s_saberSkinSounds 2` a blade skin's hum replaces the sabers' own.
+        let stock = !(self.skin_hum_only && self.hum_overrides[client].is_some());
+        if primary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumPrimary,
                 loops.primary,
@@ -591,7 +596,7 @@ impl LegacyLoopAdapter {
                 [0.0; 3],
             );
         }
-        if secondary_active {
+        if secondary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumSecondary,
                 loops.secondary,
@@ -622,7 +627,9 @@ impl LegacyLoopAdapter {
         let loops = self.saber_loops(client);
         let primary_active = !player.saber_in_flight();
         let secondary_active = player.saber_holstered() == 0 && loops.secondary.is_some();
-        if primary_active {
+        // With `s_saberSkinSounds 2` a blade skin's hum replaces the sabers' own.
+        let stock = !(self.skin_hum_only && self.hum_overrides[client].is_some());
+        if primary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumPrimary,
                 loops.primary,
@@ -632,7 +639,7 @@ impl LegacyLoopAdapter {
                 [0.0; 3], // CG_Player passes vec3_origin for saber hum.
             );
         }
-        if secondary_active {
+        if secondary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumSecondary,
                 loops.secondary,
