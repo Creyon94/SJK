@@ -88,7 +88,6 @@ impl GpuState {
         self.offer_installed_models();
         let (packs_revision, assets_note) = player_identity::packs();
         crate::sjk_packs::follow_identity(packs_revision, assets_note);
-        crate::test_packs::follow_identity(player_identity::test_packs());
         profile_card::refresh(console);
         self.offer_medals();
         self.offer_holocrons();

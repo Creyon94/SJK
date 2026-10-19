@@ -109,7 +109,6 @@ did: Chat bans: verified players ban unverified ones from SJK chat for 24 hours
 did: Trust marks: an empty tick for new players, green after 30 days, red after a ban
 did: Stop or mute other players' emotes on your screen (sjkemote stop all, sjkemote mute)
 did: The emote help card (help_emotes): the emote commands and the quick wheel
-did: Test packs: sealed PK3s for chosen testers that the hub itself cannot open
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy

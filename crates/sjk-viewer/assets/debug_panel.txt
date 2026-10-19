@@ -1935,16 +1935,6 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
-[test-packs]
-area: Gameplay
-title: Test packs: sealed PK3s for chosen testers, encrypted on disk
-change: The identity worker downloads packs sent to this key into test_packs/ beside the key.
-change: Only the locked .body is on disk; it mounts at the next map load, decrypted as read.
-test: Send a pack to your key with the owner tool; the log says "test pack <file> ready".
-test: Change map: "test pack <file> mounted"; its emotes are in the wheel editor.
-test: Remove yourself from it, restart: the log says "1 removed" and test_packs/ is empty.
-note: Needs the hub with --test-packs (local hub or after the deploy).
-
 [allow-download]
 area: Gameplay
 title: Downloads: spaced names, skip a refused pak, add-only content

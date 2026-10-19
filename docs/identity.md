@@ -631,49 +631,6 @@ from: they are signed by the key. It allows 20 downloads an hour per address, an
 toward its general 30 requests a minute. Packs are SJK's, all rights reserved, served
 only to registered keys; a client keeps them to draw looks and does not pass them on.
 
-## Test packs
-
-Since 19/10/2026 the SJK team can send PK3s to the players it chooses for testing,
-through the hub, so that the hub can never read them (`PROTOCOL.md`, "Test packs";
-`sjk_identity::test_packs`). The owner's tool locks each PK3 on the owner's PC with a new
-random key and seals that key into one *envelope* per chosen identity key: the envelope
-is opened only by that key's private half, taken as an X25519 key (as `age` does with
-SSH keys). The hub stores the locked body, the locked label (the file name and a note)
-and the envelopes under a random id, none of which it can open; the owner's tool checks
-each tester's public key against the key id the tester gave the owner themselves, so a
-hub answering with a key of its own is caught.
-
-- **Format** (`test_packs.rs`): the body is a 48-byte header and the PK3 in 1 MiB chunks,
-  each sealed with ChaCha20-Poly1305 under a key derived from the pack's key and the
-  header's salt; the nonce is the chunk's index with a last-chunk flag and every chunk
-  authenticates the header and the pack's id, so a changed, reordered, cut or appended
-  chunk, or a body moved to another id, fails. The label is sealed under its own key
-  derived from the pack's. An envelope is 81 bytes: version, an ephemeral X25519 key, the
-  pack's key sealed under SHA-256 of the shared secret, both public keys and a domain.
-- **What the client keeps** (`test_pack_cache.rs`): the identity worker reads
-  `GET /v1/test-packs` (at once when registered, then every 10 minutes, after 2 minutes
-  when it failed), opens each envelope and label in memory, and downloads each locked
-  body into `test_packs/<id>.part` beside `identity.key` in 8 MiB ranges, at most 64 MiB
-  a turn so the worker goes back to its other work (the next turn comes a second
-  later), resumed after a break. A complete download is checked against the list's
-  length and SHA-256 before it is renamed `<id>.body`. The envelope, the pack's key, the
-  label and the plain PK3 are never written anywhere. Bodies and parts the list no longer
-  shows are deleted once the list was read, so a pack the owner took away cannot be
-  opened again even from a copy: its key is gone with the envelope.
-- **Mounting** (`crates/sjk-viewer/src/test_packs.rs`): the worker hands the packs ready,
-  each with its key in memory (`Snapshot::test_packs`), to the viewer, and each world's
-  game file system mounts them above the game data
-  (`VirtualFileSystem::mount_pk3_reader`) through `BodyReader`, which decrypts and checks
-  one chunk at a time as the game reads (the last chunk when it mounts), so the plain PK3
-  never touches the disk and is never held whole. A pack that arrives or leaves mid-game
-  takes effect at the next map load, when the emote catalogue is also read again.
-  Without the hub (offline, the identity off, a list that cannot be read at start)
-  there is no test pack.
-- **What it cannot stop**: a chosen player's game sees the plain PK3 while it plays, and
-  SJK is open source, so a player set on it could build a client that keeps a copy.
-  Test packs keep the files from strangers, the hub and anyone who copies a tester's
-  disk, and let the owner take a pack back from players who do not do that.
-
 ## Profile
 
 The Profile page (the SJK UI's [Profile screen](sjk-ui.md#profile-screen), its SJK

@@ -202,9 +202,6 @@ includes:
   (`help_emotes`);
 - crash reports sent to the SJK team at the next start, and world notes sent to the
   SJK hub from the inspect key;
-- test packs: PK3s sealed on the owner's PC to the testers chosen, kept by the SJK hub
-  without any key that opens them, encrypted on the testers' disks and decrypted only as
-  the game reads them;
 - log requests: the SJK team asks a player for their game's logs from the Staff page,
   the player's game asks them before it sends the console lines of this session and
   the last (no chat), and staff read every player's crash reports by kind;
