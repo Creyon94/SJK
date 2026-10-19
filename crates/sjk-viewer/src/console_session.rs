@@ -179,6 +179,16 @@ impl ViewerConsole {
             crate::duel_visibility::PICKUPS_CVAR,
             1,
         )?;
+        let duel_hide_others = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::duel_visibility::HIDE_OTHERS_CVAR,
+            1,
+        )?;
+        let plugin_disable = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            "cp_pluginDisable",
+            i64::from(sjk_client::PLUGIN_DISABLE_DEFAULT),
+        )?;
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
         let map_edits = console_cvars::IntegerSetting::bind(&mut cvars, crate::map_edits::CVAR, 1)?;
         let server_remaps = console_cvars::IntegerSetting::bind(
@@ -624,6 +634,8 @@ impl ViewerConsole {
             smooth_clients,
             hide_corpses_in_duel,
             hide_pickups_in_duel,
+            duel_hide_others,
+            plugin_disable,
             draw_fog,
             remaps,
             server_remaps,

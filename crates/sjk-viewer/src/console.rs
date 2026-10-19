@@ -252,6 +252,10 @@ pub(crate) struct ViewerConsole {
     smooth_clients: console_cvars::IntegerSetting,
     hide_corpses_in_duel: console_cvars::IntegerSetting,
     hide_pickups_in_duel: console_cvars::IntegerSetting,
+    /// `cg_duelHideOthers`.
+    duel_hide_others: console_cvars::IntegerSetting,
+    /// `cp_pluginDisable`, read by `cg_duelHideOthers`'s Auto on JA+.
+    plugin_disable: console_cvars::IntegerSetting,
     draw_fog: console_cvars::IntegerSetting,
     remaps: console_cvars::IntegerSetting,
     /// `cg_serverRemaps`: whether server remaps apply at all.
@@ -357,6 +361,16 @@ impl ViewerConsole {
     /// Cached local pickup-visibility policy for snapshot presentation.
     pub(crate) fn hide_pickups_in_duel(&self) -> bool {
         self.hide_pickups_in_duel.enabled()
+    }
+
+    /// Cached `cg_duelHideOthers` and the `cp_pluginDisable` bits it reads, for
+    /// snapshot presentation.
+    pub(crate) fn duel_hide(&self) -> sjk_client::DuelHideSettings {
+        sjk_client::DuelHideSettings {
+            mode: sjk_client::DuelHideMode::from_cvar(self.duel_hide_others.value()),
+            plugin_disable: u32::try_from(self.plugin_disable.value())
+                .unwrap_or(sjk_client::PLUGIN_DISABLE_DEFAULT),
+        }
     }
 
     /// Cached `cl_showtimedelta` state for the allocation-free runtime read.

@@ -76,6 +76,16 @@ pub enum CompatProfile {
 }
 
 impl CompatProfile {
+    /// The profile's id, which per-family tables key on (`duel_hide.rs`).
+    pub fn id(&self) -> &'static str {
+        match self {
+            Self::BaseJka => "basejka",
+            Self::JaPlus { .. } => "japlus",
+            Self::TaystJk => "taystjk",
+            Self::Unknown(_) => "unknown",
+        }
+    }
+
     /// Adapter-owned fields appended to the stock connection userinfo.
     ///
     /// BaseJKA and unknown modules receive only stock keys. JA+ receives the

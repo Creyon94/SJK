@@ -750,6 +750,19 @@ the locked workspace build and test suite, workspace all-target Clippy, and the
 locked release viewer build pass; existing warnings remain. The behavior has
 not yet been checked interactively on a live server or in demo playback.
 
+## Hiding players outside a private duel
+
+19/10/2026, `personal/duel-hide-others`, after Milamber's report: the archived
+`cg_duelHideOthers` (0 Off, 1 Auto by default, 2 Always; Settings > Advanced >
+Gameplay > Hide others in duel) hides everyone but the two duellists while the
+local or followed player duels, with their sabers, thrown sabers, NPCs, effects,
+events and sounds, on the servers JoF EJK hides them on (JA+ unless
+`cp_pluginDisable` bit 1, jaPRO always; table `DUEL_HIDE_SERVERS`), and by owner
+their missiles where the server sends it (jaPRO). Live and demo presentation apply
+changes at once. Unit tests cover the table, the cvar, each hidden category, the
+world adapter and the frame view. Not yet checked in game on a live server or in
+demo playback. See [client](client.md#nameplates).
+
 ## PM-only game chat
 
 17/10/2026, `feat/pm-only-chat`, based on `bb83eb28`, Windows x86_64,
