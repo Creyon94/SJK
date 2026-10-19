@@ -926,10 +926,7 @@ mod tests {
         assert_eq!(can(&lava, 9_999), Can::Owned);
         lava.bought = true;
         assert_eq!(can(&lava, 9_999), Can::Bought);
-        assert_eq!(
-            tier_of(&offer("saber_phoenix", "common", 1)),
-            Rarity::Mythical
-        );
+        assert_eq!(tier_of(&offer("saber_sun", "common", 1)), Rarity::Mythical);
         assert_eq!(
             tier_of(&offer("saber_future", "legendary", 1)),
             Rarity::Legendary

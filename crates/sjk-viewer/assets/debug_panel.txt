@@ -585,6 +585,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[blade-tiers]
+area: Menus & settings
+title: 26 blades change tier after Sol's review
+change: 049, 092 Mythical; 007 008 040 041 045-047 058 065 067 068 070-072 074 Legendary.
+change: 002 005 006 012 076 080 082 087 Rare; 160 Uncommon. Looks unchanged.
+test: Collection > Shaders: Mythical chip lists 22 blades, Clone Wars and Exegol Rift in it.
+test: Molten, Storm show their new tier colour and frame in grid, rack and hover card.
+
 [blade-numbers]
 area: Menus & settings
 title: Every blade has a number, as cards do
