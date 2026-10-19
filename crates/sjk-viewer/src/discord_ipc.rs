@@ -146,7 +146,9 @@ impl DiscordIpc {
 }
 
 fn run(client_id: &str, receiver: Receiver<Option<Activity>>) {
-    let mut pipe: Option<Pipe> = None;
+    // Every Discord app that answered: Discord, PTB and Canary can run side by side,
+    // each signed in to its own account, and each shows the status on its own.
+    let mut pipes: Vec<Pipe> = Vec::new();
     let mut wanted: Option<Activity> = None;
     let mut shown: Option<Option<Activity>> = None;
     let mut last_send: Option<Instant> = None;
@@ -160,7 +162,7 @@ fn run(client_id: &str, receiver: Receiver<Option<Activity>>) {
             Ok(activity) => wanted = activity,
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => {
-                if let Some(pipe) = pipe.as_mut() {
+                for pipe in &mut pipes {
                     nonce += 1;
                     let _ = pipe.set_activity(None, nonce);
                 }
@@ -176,67 +178,77 @@ fn run(client_id: &str, receiver: Receiver<Option<Activity>>) {
         if last_send.is_some_and(|at| at.elapsed() < SEND_GAP) {
             continue;
         }
-        if pipe.is_none() {
+        if pipes.is_empty() {
             if last_attempt.is_some_and(|at| at.elapsed() < RETRY_GAP) {
                 continue;
             }
             last_attempt = Some(Instant::now());
-            pipe = Pipe::connect(client_id);
-            if pipe.is_none() {
+            pipes = Pipe::connect_all(client_id);
+            if pipes.is_empty() {
                 if !told_missing {
                     eprintln!("Discord status: no Discord app answered; looking again every 20 s");
                     told_missing = true;
                 }
                 continue;
             }
-            eprintln!("Discord status: connected to the Discord app");
+            let apps: Vec<&str> = pipes.iter().map(|pipe| pipe.app).collect();
+            eprintln!("Discord status: connected to {}", apps.join(", "));
             told_missing = false;
             told_shown = false;
-            shown = None;
         }
-        let Some(open) = pipe.as_mut() else { continue };
-        nonce += 1;
         last_send = Some(Instant::now());
-        match open.set_activity(wanted.as_ref(), nonce) {
-            Ok(()) => {
-                if !told_shown && let Some(activity) = wanted.as_ref() {
-                    eprintln!(
-                        "Discord status: showing \"{}\" / \"{}\"",
-                        activity.details, activity.state
-                    );
-                    told_shown = true;
+        pipes.retain_mut(|pipe| {
+            nonce += 1;
+            match pipe.set_activity(wanted.as_ref(), nonce) {
+                Ok(()) => true,
+                Err(error) => {
+                    eprintln!("Discord status: lost {}: {error}", pipe.app);
+                    false
                 }
-                shown = Some(wanted.clone());
             }
-            Err(error) => {
-                eprintln!("Discord status: lost the Discord app: {error}");
-                pipe = None;
-                shown = None;
-                last_attempt = Some(Instant::now());
-            }
+        });
+        if pipes.is_empty() {
+            shown = None;
+            last_attempt = Some(Instant::now());
+            continue;
         }
+        if !told_shown && let Some(activity) = wanted.as_ref() {
+            eprintln!(
+                "Discord status: showing \"{}\" / \"{}\"",
+                activity.details, activity.state
+            );
+            told_shown = true;
+        }
+        shown = Some(wanted.clone());
     }
 }
 
-/// One open connection to the Discord desktop app.
+/// One open connection to a Discord desktop app.
 struct Pipe {
     stream: Box<dyn Stream>,
+    /// Which app it is (Discord, Discord PTB, Discord Canary), for the log.
+    app: &'static str,
 }
 
 trait Stream: Read + Write + Send {}
 impl<T: Read + Write + Send> Stream for T {}
 
 impl Pipe {
-    /// Opens the first Discord pipe that answers the handshake.
-    fn connect(client_id: &str) -> Option<Self> {
-        for stream in candidate_streams() {
-            let mut pipe = Self { stream };
-            let handshake = json!({ "v": 1, "client_id": client_id });
-            if pipe.write(OP_HANDSHAKE, &handshake).is_ok() && pipe.read_reply().is_ok() {
-                return Some(pipe);
-            }
-        }
-        None
+    /// Opens every Discord pipe that answers the handshake.
+    fn connect_all(client_id: &str) -> Vec<Self> {
+        let handshake = json!({ "v": 1, "client_id": client_id });
+        candidate_streams()
+            .filter_map(|stream| {
+                let mut pipe = Self {
+                    stream,
+                    app: "Discord",
+                };
+                pipe.write(OP_HANDSHAKE, &handshake).ok()?;
+                let ready = pipe.read_reply().ok()?;
+                pipe.app = app_name(&ready);
+                Some(pipe)
+            })
+            .collect()
     }
 
     fn set_activity(&mut self, activity: Option<&Activity>, nonce: u64) -> std::io::Result<()> {
@@ -283,6 +295,20 @@ impl Pipe {
                 _ => {}
             }
         }
+    }
+}
+
+/// The app behind a pipe, from the API address its `READY` reply names.
+fn app_name(ready: &Value) -> &'static str {
+    let endpoint = ready["data"]["config"]["api_endpoint"]
+        .as_str()
+        .unwrap_or("");
+    if endpoint.contains("ptb.") {
+        "Discord PTB"
+    } else if endpoint.contains("canary.") {
+        "Discord Canary"
+    } else {
+        "Discord"
     }
 }
 
@@ -369,7 +395,8 @@ mod tests {
     #[ignore = "needs the Discord desktop app running"]
     fn discord_app_takes_an_activity() {
         let id = std::env::var("SJK_DISCORD_APP").unwrap_or_else(|_| "0".into());
-        let mut pipe = Pipe::connect(&id).expect("no Discord pipe answered the handshake");
+        let mut pipes = Pipe::connect_all(&id);
+        assert!(!pipes.is_empty(), "no Discord pipe answered the handshake");
         let activity = Activity {
             details: "Testing the pipe".into(),
             state: "ffa3 · FFA".into(),
@@ -383,9 +410,20 @@ mod tests {
             }],
             ..Activity::default()
         };
-        pipe.set_activity(Some(&activity), 1)
-            .expect("activity refused");
+        for pipe in &mut pipes {
+            println!("{}:", pipe.app);
+            pipe.set_activity(Some(&activity), 1)
+                .expect("activity refused");
+        }
         std::thread::sleep(Duration::from_secs(10));
+    }
+
+    #[test]
+    fn the_ready_reply_names_the_app() {
+        let ready = |endpoint: &str| json!({ "data": { "config": { "api_endpoint": endpoint } } });
+        assert_eq!(app_name(&ready("//discord.com/api")), "Discord");
+        assert_eq!(app_name(&ready("//ptb.discord.com/api")), "Discord PTB");
+        assert_eq!(app_name(&Value::Null), "Discord");
     }
 
     #[test]
