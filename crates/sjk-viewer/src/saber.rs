@@ -141,6 +141,13 @@ pub(crate) struct Instance {
     /// The sections of a skin its wearer switched off
     /// ([`crate::saber_skins::SkinColor::off`]); 0 for every other blade.
     off: u32,
+    /// The blade's motion for the Blade Lab designs ([`crate::saber_motion`]): swing,
+    /// seconds since its last clash, since it was lit and since its last swing began.
+    motion: [f32; 4],
+    /// A direction across the blade fixed to its hilt (world, unit) and the blade's full
+    /// length, for the signatures' three-dimensional frame ([`Self::with_frame`]); zeros
+    /// when unknown (a thrown blade, the menu stage).
+    frame: [f32; 4],
     contact: u32,
     no_light: u32,
     /// The blade's configured radius, for contacts; not a GPU attribute.
@@ -195,9 +202,10 @@ impl Flicker {
 }
 
 impl Instance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 10] = wgpu::vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 12] = wgpu::vertex_attr_array![
         0 => Float32x3, 1 => Float32, 2 => Float32x3, 3 => Float32, 4 => Float32x4, 5 => Uint32,
-        6 => Float32x2, 7 => Uint32x4, 8 => Float32, 9 => Uint32];
+        6 => Float32x2, 7 => Uint32x4, 8 => Float32, 9 => Uint32, 10 => Float32x4,
+        11 => Float32x4];
 
     pub(crate) fn layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -252,6 +260,8 @@ impl Instance {
             persona,
             chroma,
             off,
+            motion: crate::saber_motion::STILL,
+            frame: [0.0; 4],
             contact: 0,
             no_light: 0,
             nominal_radius: blade.radius,
@@ -413,6 +423,21 @@ impl Instance {
             seconds.rem_euclid(Self::ANIMATION_PERIOD) as f32,
             (hash >> 8) as f32 / (1u32 << 24) as f32,
         ];
+        self
+    }
+
+    /// Stamp the blade's frame: `across`, a direction across it that turns with its hilt
+    /// (world), and its `full` length. A signature places its three-dimensional effects
+    /// in that frame on that length (`saber.wgsl` `sig_ray`, `sig_full`), so they keep
+    /// still while the camera turns and do not slide as the blade grows.
+    pub(crate) fn with_frame(mut self, across: [f32; 3], full: f32) -> Self {
+        self.frame = [across[0], across[1], across[2], full];
+        self
+    }
+
+    /// Stamp the blade's motion ([`crate::saber_motion::BladeMotion::record`]).
+    pub(crate) fn with_motion(mut self, motion: [f32; 4]) -> Self {
+        self.motion = motion;
         self
     }
 
@@ -861,15 +886,15 @@ mod cutoff_tests {
             crate::saber_skins::MAX_SKINS
         )));
         assert!(shader.contains("var<storage, read> skins: array<Skin, MAX_SKINS>;"));
-        // `Skin` is 95 vec4s, as `SkinUniform`, and the array fits a storage binding.
+        // `Skin` is 97 vec4s, as `SkinUniform`, and the array fits a storage binding.
         assert_eq!(
             std::mem::size_of::<crate::saber_skins::SkinUniform>(),
-            95 * 16
+            97 * 16
         );
-        const { assert!(95 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
+        const { assert!(97 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
         let skin = &shader[shader.find("struct Skin {").unwrap()..];
         let skin = &skin[..skin.find('}').unwrap()];
-        assert_eq!(skin.matches(": vec4<f32>,").count(), 95);
+        assert_eq!(skin.matches(": vec4<f32>,").count(), 97);
         // In `SkinUniform`'s order (its lanes are pinned by `saber_skins`' tests).
         let lanes: Vec<&str> = skin
             .lines()
@@ -973,6 +998,8 @@ mod cutoff_tests {
                 "ink_more",
                 "chrome_color",
                 "chrome_shape",
+                "design",
+                "design_color",
             ]
         );
         assert!(shader.contains(&format!(

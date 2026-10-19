@@ -443,6 +443,53 @@ from the looks.
   trail and light colours and the light's flicker (and hue, when it turns) are the
   file's. Retail and RGB blades are unchanged. A skin whose pack is not loaded (no hub
   yet, a client offline that never had it) is the stock blade, sounds too.
+- The fourteen skins from Creyon's Blade Lab (Peppermint to Quantum) are drawn by the
+  lab's own shaders while `cg_saberLabDesigns` is on (the default), not from their
+  files' sections; their trail and light take the lab's colours, their sounds stay the
+  files' ([rendering.md](rendering.md#blade-lab-designs)).
+- Twenty-one mythicals from Creyon's Blade Lab collection (Abyssal Eye to Wraithlight,
+  19/10/2026, all Star Wars or space: Fractal, Infinity Mirror and Kitsune were rebuilt as
+  Hyperspace, Superlaser and Witchfire, Paradox, Time Fracture, Crystal Heart and
+  Resonance renamed Balance, Between Worlds, Kyber Heart and Singing Kyber) are drawn by
+  their lab signature shaders ([rendering.md](rendering.md#blade-lab-signature-shaders)),
+  as are Monarch, Obsidian Edge, Quantum, Quicksilver, Reactor and Serpent in their
+  reworked form. The twenty-one are in the client's catalogue but not yet the hub's,
+  which must list them too (the catalogue test pins the same list): not droppable and
+  "Not in holocrons yet: given by the SJK team while it is tried" (`FROM_THE_TEAM`)
+  until they are released. With no pack file, a built-in one draws them, so the
+  Collection previews them now.
+- Twenty-three legendaries from the Blade Lab (round 11, 20/10/2026), each reworked to be
+  Star Wars (Avalanche to Hoth Avalanche, Blood Moon to Dathomir Blood Moon, Chrono to Force
+  Echo, Collider to Hypermatter, Comet to Kessel Run, Cosmic Ink to Unknown Regions,
+  Dragonscale to Krayt Pearl, Frozen Lightning to Starkiller Frost, Gilded Cage to Royal Naboo,
+  Hurricane to Bespin Storm, Koi Dragon to Scarif Tide, Mech Core to Assassin Droid, Midas to
+  Aurodium, Monsoon to Kashyyyk Monsoon, Northern Forge to Malachor Forge, Overgrowth to Yavin
+  Vines, Rift to Exegol Rift, Shatter to Shattered Kyber, Solar Flare to Twin Suns, Spirit
+  Lanterns to Jedi Spirits, Thunderhead to Ord Mantell Thunderhead, Volcano to Mustafar
+  Eruption, Wormhole to Hyperlane), are signatures too, less dramatic than the mythicals as a
+  tier down and wearing Sol's own pieces from their files (afterimages, an echo, glints,
+  smoke, embers, haze, veins). Like the twenty-one they are in the client's catalogue, not yet
+  the hub's, and `FROM_THE_TEAM` until released.
+- Twenty-two rares from the Blade Lab (round 12, 19/10/2026), Star Wars reworks a tier below
+  the legendaries: Bioluminescence to Ahch-To Glow, Blueprint to Imperial Schematics, Calligraphy
+  to Jedi Texts, Constellation to Star Map, Frostbite to Ilum Frost, Geode to Christophsis
+  Crystal, Hex Shield to Deflector Shield, Kintsugi to Healed Kyber, Mosaic to Temple Mosaic,
+  Moth to Dagobah Wisps, Neon Rain to Nar Shaddaa Rain, Polaris to Navigation Beacon, Puzzle
+  Cube to Puzzle Holocron, Reef to Dac Reef, Sandstorm to Jakku Sandstorm, Spider Silk to
+  Moisture Farm, Stormglass to Tipoca Stormglass, Sunbeam to Temple Sunbeam, Tesla Coil to Ion
+  Coil, Thorn to Sith Thorn, VHS to Holo-Recording and Vinyl to Data Disc; none has figures or
+  anything on its tip. In the client's catalogue only, as the legendaries.
+- Twenty-two uncommons and twenty-two commons from the Blade Lab (round 12), each a tier less
+  special than the one above and every name and look made to fit Star Wars: Cargo Stack, Otoh
+  Gunga, Victory Fireworks, Endor Ivy, Naboo Core, Gungan Waters, Cantina Lights, Imperial
+  Searchlight, Flare Stick, Flimsiplast, Canto Bight, Sensor Sweep, Takodana Rain, Starfighter
+  Canopy, Distress Beacon, Orto Plutonia, Rhen Var Frost, Seismic Charge, Thermal Fuse, Senate
+  Glass, Holonet Feed, Holo-Map and Cockpit Console (uncommon); Code Cylinder, Cortosis Weave,
+  Tatooine Dust, Trench Run, Ryloth Dawn, Power Coupling, Kyber Filament, Frosted Viewport,
+  Holo-Stylus, Sabacc Card, Geonosis Hive, Mygeeto Frost, Bogano Moss, Kef Bir Sea Glass, Jedha
+  Lantern, Corellian Pearl, Targeting Display, Raxus Scrap, Pasaana Stone, Smoked
+  Transparisteel, Batuu Dusk and Alderaan Velvet (common). The Glowstick and Ink Brush stayed
+  out. Star Dragon is now the Ashla Radiance blade (same id; the hub's name must follow).
 - A skinned blade ends round (09/10/2026; Sol saw the Sun's tip square). The core line
   is a flat quad from behind the hilt to the tip, and the generated core's fringe is
   still about a fifth of its brightness at the quad's edges and end, so its end and
@@ -469,7 +516,12 @@ from the looks.
   keep their own hub look, blades, thrown saber and sounds alike (`looks::ViewSlots`).
 - Sounds, per player wearing it: ignition and switching off, the hum loop and three
   swings play over the stock ones, which keep playing below (each on a channel of its
-  own, so the skin's does not cut them), at the paths the file names in its pack. The viewer
+  own, so the skin's does not cut them), at the paths the file names in its pack. With
+  `s_saberSkinSounds 2` (Settings > Sound > Blade skin sounds: Only skin) they play in
+  the stock ones' place, and with `0` (Off) they are not played: the stock ones alone. A sound
+  the file names that is not in the game data (no pack carries it yet) is left out: the
+  stock one plays there as for a player without a skin, in either mode, never silence
+  (`sound_present` in `sjk-client`, the viewer's `has_sound` for animation swings). The viewer
   passes the table to the audio adapter every frame
   (`LegacySoundAdapter::set_saber_sound_overrides`, [client.md](client.md#blade-skins)),
   so other players' sounds follow their looks too; a pack arriving mid-session has its
@@ -855,7 +907,14 @@ Profile page's See the collection) open it on its own:
 
 - a rack, a row to each, or a grid of cards (below): the stock blade (in the player's
   `color1`), then every blade skin, the rarest [tier](#tiers) first, with a live swatch
-  framed in its tier's colour (drawn with the UI's shapes from its loaded file's
+  framed in its tier's colour. An owned skin's swatch shows the blade as the game draws
+  it (Creyon's round 13, 19/10/2026: the drawings did not look like the blades): every
+  skin a swatch shows is drawn live by the blade renderer, its own pipelines for a
+  signature, into a cell of one picture (16 cells, two columns of eight, one pass,
+  [blade_pictures.rs](../crates/sjk-viewer/src/blade_pictures.rs)), which the UI adds over
+  the swatch's glass (`BLADE_PICTURES_TEXTURE`, clipped with the list). Until a skin has a
+  cell (the first frame, more than 16 swatches at once) the swatch is the drawing:
+  (drawn with the UI's shapes from its loaded file's
   colours, flicker and flares, moving: a breathing corona, flame loops and granules, a
   flare running hilt to tip, and the file's lightning arcs, motes and turning hue when
   it has them; grey and still under a padlock when locked; owned but with its pack not

@@ -444,6 +444,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("s_doppler", true, archive, "Legacy looping-sound Doppler"),
         CvarDefinition::new(
+            crate::audio::SKIN_SOUNDS_CVAR,
+            1_i64,
+            archive,
+            "Blade skin sounds: 0 stock saber sounds only, 1 over the stock ones, 2 in their place",
+        ),
+        CvarDefinition::new(
             "cg_jetpackOnSound",
             1_i64,
             archive,
@@ -649,6 +655,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1_i64,
             archive,
             "Saber motion trails; mode 2 currently uses the normal trail",
+        ),
+        CvarDefinition::new(
+            crate::blade_lab_designs::CVAR,
+            true,
+            archive,
+            "Draw the blade skins from Creyon's Blade Lab as the lab drew them",
         ),
         CvarDefinition::new(
             crate::effect_aux::saber_rain_steam::CVAR,

@@ -189,6 +189,9 @@ mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod achievements_frame;
+mod blade_lab_designs;
+mod blade_pictures;
+mod blade_signatures;
 mod blade_skin_file;
 mod bug_report;
 mod electrify;
@@ -245,6 +248,7 @@ mod saber_defs;
 mod saber_ghosts;
 mod saber_gpu;
 mod saber_hilts;
+mod saber_motion;
 mod saber_persona;
 mod saber_rgb;
 mod saber_skin_command;
@@ -420,6 +424,8 @@ struct GpuState {
     /// Text pipeline for the retail fonts' distance-field atlases.
     sdf_text_pipeline: wgpu::RenderPipeline,
     saber_gpu: saber_gpu::Runtime,
+    /// The Collection's live blade pictures, once a swatch asked for one.
+    blade_pictures: Option<blade_pictures::Target>,
     dust_motes: dust_motes::Runtime,
     /// The quick wheel open while its key is held (`quick_wheel.rs`).
     quick_wheel: quick_wheel::QuickWheel,
@@ -1369,6 +1375,7 @@ impl GpuState {
             text_pipeline,
             sdf_text_pipeline,
             saber_gpu,
+            blade_pictures: None,
             dust_motes,
             quick_wheel: quick_wheel::QuickWheel::default(),
             weather,
@@ -2765,6 +2772,7 @@ impl GpuState {
             );
         }
         self.encode_stage_preview(&mut encoder);
+        self.encode_blade_pictures(&mut encoder);
         let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => {

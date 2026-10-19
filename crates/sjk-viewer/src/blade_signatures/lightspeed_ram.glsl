@@ -1,0 +1,107 @@
+// Lightspeed Ram: the moment a starship jumps to lightspeed straight through another, as a
+// blade. A white-hot blade in a deep hyperspace-blue glow, its light split at the edges into a
+// red and a cyan fringe, with starlines streaming up past it. Every eight seconds the ram: the
+// blade draws in its breath and goes silent and dark to a thin white line, then cuts the air
+// in a blinding white slice; white streaks of wreckage are flung off both sides, glowing
+// fragments tumble slowly away and a pale blue haze hangs where it struck, until the stars
+// stream again. A swing streams the starlines harder; a clash is a small ram of its own.
+// @part Starlines
+// @part The ram
+// @part Light split
+// @part Drifting wreckage
+// @room 9
+// @palette {"corona.rim_cool":[0.05,0.15,0.75],"corona.rim_hot":[0.4,0.7,1.0],"corona.inner":[0.88,0.95,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.3,0.55,1.0],"core.fringe_hot":[0.8,0.92,1.0],"light.color":[0.45,0.7,1.0],"trail":[0.5,0.75,1.0]}
+
+// The ram's cycle (seconds): it holds its breath, then strikes.
+const float LR_P = 8.0;
+const float LR_HOLD = 6.4;
+const float LR_STRIKE = 7.1;
+// Seconds into the cycle.
+float lr_t(){ return mod(uTime, LR_P); }
+// 1 while it holds its breath (dark, silent), 0 otherwise.
+float lr_hush(){
+  float q = lr_t();
+  return smoothstep(LR_HOLD, LR_STRIKE - 0.15, q)*(1.0 - smoothstep(LR_STRIKE - 0.05, LR_STRIKE, q))*part(1.0);
+}
+// The strike's light: 1 at the strike, falling over a second and a half; a clash strikes too.
+float lr_flash(){
+  float a = lr_t() - LR_STRIKE;
+  if (a < 0.0) a += LR_P;
+  float s = a < 1.6 ? exp(-a*3.2) : 0.0;
+  return max(s*part(1.0), clamp(uClash, 0.0, 1.0)*0.8);
+}
+// Seconds since the last strike (large when it was long ago).
+float lr_since(){
+  float a = lr_t() - LR_STRIKE;
+  return a < 0.0 ? a + LR_P : a;
+}
+
+// the blade: Sol's glow, hushed before the ram, blazing white in the strike, its edges split
+// into a red and a cyan fringe
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float hush = lr_hush(), flash = lr_flash();
+  float l = lvl(g);
+  float edge = smoothstep(0.15, 0.6, abs(b.x));
+  vec3 split = (b.x < 0.0 ? vec3(1.0, 0.15, 0.25) : vec3(0.1, 0.9, 1.0))*edge*l*0.55*part(2.0);
+  float stream = 0.9 + 0.2*pow(0.5 + 0.5*sin(b.y*0.9 - uTime*9.0), 4.0);
+  vec3 c = g*stream + split;
+  c = mix(c, vec3(l)*0.12, hush*0.85);
+  return c + vec3(1.0)*l*flash*2.2;
+}
+vec3 sig_core(vec3 c, vec2 b, float px){
+  float hush = lr_hush(), flash = lr_flash();
+  return c*(1.0 - 0.5*hush) + vec3(1.0)*flash*0.8;
+}
+
+// the effects, flat round the blade as Sol's are
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+  vec3 blue = vec3(0.35, 0.6, 1.0), pale = vec3(0.8, 0.9, 1.0);
+  float hush = lr_hush(), flash = lr_flash(), since = lr_since();
+  float live = 1.0 - hush;
+  // starlines streaming up past the blade, nearer ones longer
+  fx += fxFall(ro, rd, px, y0, y1, 2.4, 20.0, -24.0, 2.2 + 1.5*sw, 0.0, 4.1, pale)*live*part(0.0);
+  fx += fxFall(ro, rd, px, y0, y1, 4.6, 14.0, -14.0, 1.2, 0.0, 9.3, blue)*0.8*live*part(0.0);
+  // the strike: the air cut in a white slice along the blade
+  if (flash > 0.01){
+    float s;
+    float d = raySeg(ro, rd, vec3(0.0, y0 - 2.0, 0.0), vec3(0.0, y1 + 1.0, 0.0), s);
+    float w = 0.6 + 2.2*flash;
+    fx += (vec3(1.0)*halo(d, w)*1.6 + pale*halo(d, w*2.5)*0.6)*flash*part(1.0);
+    fx += fxFlare(ro, rd, vec3(0.0, L*0.62, 0.0), px, 0.5, 6.0 + 10.0*flash, 4.0, 0.785, pale)*flash*part(1.0);
+  }
+  // wreckage flung off both sides: white streaks, then glowing fragments tumbling away
+  if (since < 3.0 && fxNear(ro, rd, y0, y1) < 9.0){
+    float s;
+    for (int i = 0; i < 28; i++){
+      float fi = float(i);
+      float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+      float y = mix(y0, y1, h11(fi*3.7 + floor(uTime/LR_P)));
+      vec3 dir = normalize(vec3(side*(0.6 + 0.8*h11(fi*1.3)), 0.4 + 0.9*h11(fi*5.1), 0.3*(h11(fi*7.9) - 0.5)));
+      float v = 6.0 + 7.0*h11(fi*2.2);
+      float a = since;
+      vec3 o = vec3(side*0.3, y, 0.0);
+      vec3 p1 = o + dir*v*(1.0 - exp(-a*2.5))/2.5;
+      vec3 p0 = o + dir*v*(1.0 - exp(-max(a - 0.06, 0.0)*2.5))/2.5;
+      float d = raySeg(ro, rd, p0, p1, s);
+      float life = exp(-a*1.6);
+      fx += mix(vec3(1.0), blue, smoothstep(0.0, 1.2, a))*(halo(d, max(0.05, px))*2.0 + halo(d, 0.3)*0.25)*life*part(1.0);
+    }
+    // fragments: short glowing pieces turning slowly as they drift off
+    for (int i = 0; i < 10; i++){
+      float fi = float(i);
+      float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+      vec3 c = vec3(side*(0.8 + 1.4*since*(0.5 + 0.5*h11(fi*4.4))), mix(y0 + 2.0, y1 - 2.0, h11(fi*6.6 + floor(uTime/LR_P))) + 0.6*since, 0.0);
+      float ang = since*(1.5 + 2.0*h11(fi*8.8)) + fi;
+      vec3 ext = vec3(cos(ang), sin(ang), 0.0)*(0.25 + 0.25*h11(fi*9.1));
+      float d = raySeg(ro, rd, c - ext, c + ext, s);
+      fx += (vec3(1.0, 0.95, 0.9)*halo(d, max(0.06, px))*1.4 + blue*halo(d, 0.35)*0.4)*exp(-since*0.9)*part(3.0);
+    }
+  }
+  // a pale blue haze hanging where it struck, and the last wreckage drifting
+  fx += fxSmoke(ro, rd, y0, y1, 3.4, 0.6, 2.7, vec3(0.45, 0.6, 0.9))*smoothstep(0.0, 0.3, since)*exp(-since*0.5)*1.2*part(3.0);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 18.0, 0.02, 5.5, pale)*exp(-since*0.35)*part(3.0);
+  return fx*uFx;
+}

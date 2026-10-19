@@ -33,6 +33,10 @@ pub(crate) const PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX
 /// `TexturedQuad` texture naming the settings' HUD picker preview, uploaded by
 /// [`ShapeRenderer::upload_hud_preview`].
 pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 3);
+/// `TexturedQuad` texture naming the Collection's live blade pictures
+/// ([`crate::blade_pictures`]), bound by [`ShapeRenderer::set_blade_pictures`] and added
+/// over what is below (the blades' light, in display values).
+pub(crate) const BLADE_PICTURES_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 4);
 /// `TexturedQuad` texture naming SJK's emblem, uploaded once at start.
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
@@ -223,6 +227,7 @@ pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
             None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
             None if texture == HUD_PREVIEW_TEXTURE => Source::HudPreview,
             None if texture == PREVIEW_TEXTURE => Source::Preview,
+            None if texture == BLADE_PICTURES_TEXTURE => Source::BladePictures,
             None if crate::chat_gifs::slot_of(texture).is_some() => {
                 Source::Gif(crate::chat_gifs::slot_of(texture).unwrap_or_default() as u8)
             }
@@ -277,6 +282,7 @@ pub(crate) struct ShapeRenderer {
     hud_preview: LevelshotTexture,
     /// The model preview's display texture, once one exists.
     preview: Option<wgpu::BindGroup>,
+    blade_pictures: Option<wgpu::BindGroup>,
     preview_sampler: wgpu::Sampler,
     /// Whether a frame past the vertex or run storage has been logged: shapes
     /// past it are dropped, so the log names the cause of a missing picture.
@@ -452,6 +458,7 @@ impl ShapeRenderer {
             levelshot,
             hud_preview,
             preview: None,
+            blade_pictures: None,
             preview_sampler: device.create_sampler(&wgpu::SamplerDescriptor {
                 label: Some("SJK model preview sampler"),
                 mag_filter: wgpu::FilterMode::Linear,
@@ -707,6 +714,7 @@ impl ShapeRenderer {
                         | Source::Gif(_)
                         | Source::Levelshot
                         | Source::HudPreview
+                        | Source::BladePictures
                         | Source::Preview => ([0.0, 0.0], [1.0, 1.0]),
                         Source::Atlas => icons::uv_range(texture),
                     };
@@ -766,6 +774,39 @@ impl ShapeRenderer {
                         | Source::Levelshot
                         | Source::HudPreview
                         | Source::Preview => uv,
+                        // A blade picture is clipped as other shapes are (it scrolls in
+                        // the Collection's list): its coordinates are an upright
+                        // rectangle, cut with it.
+                        Source::BladePictures => {
+                            let clip = clipped(rect, clips[clip_depth]);
+                            if clip.width <= 0.0 || clip.height <= 0.0 {
+                                continue;
+                            }
+                            let [s0, t0] = uv[0];
+                            let [s1, t1] = uv[2];
+                            let at = |x: f32, y: f32| {
+                                [
+                                    s0 + (s1 - s0) * (x - rect.x) / rect.width.max(1e-6),
+                                    t0 + (t1 - t0) * (y - rect.y) / rect.height.max(1e-6),
+                                ]
+                            };
+                            let corners = [
+                                at(clip.x, clip.y),
+                                at(clip.right(), clip.y),
+                                at(clip.right(), clip.bottom()),
+                                at(clip.x, clip.bottom()),
+                            ];
+                            icons::push_quad_corners(
+                                &mut self.vertices,
+                                clip,
+                                corners,
+                                color,
+                                opacity[opacity_depth],
+                                viewport,
+                                MAX_SHAPE_VERTICES,
+                            );
+                            continue;
+                        }
                         Source::Atlas => {
                             let (low, high) = icons::uv_range(texture);
                             uv.map(|[s, t]| {
@@ -875,6 +916,10 @@ impl ShapeRenderer {
                 Some(_) => Source::Preview,
                 None => return None,
             },
+            None if texture == BLADE_PICTURES_TEXTURE => match self.blade_pictures {
+                Some(_) => Source::BladePictures,
+                None => return None,
+            },
             None if gif.is_some() => {
                 let slot = gif.unwrap_or_default();
                 self.gifs.group(slot)?;
@@ -939,6 +984,7 @@ impl ShapeRenderer {
                 Source::Levelshot => Some(self.levelshot.bind_group()),
                 Source::HudPreview => Some(self.hud_preview.bind_group()),
                 Source::Preview => self.preview.as_ref(),
+                Source::BladePictures => self.blade_pictures.as_ref(),
                 Source::Atlas => None,
             };
             pass.set_bind_group(0, group.unwrap_or(self.icons.bind_group()), &[]);
@@ -1182,6 +1228,25 @@ impl ShapeRenderer {
     pub(crate) fn set_preview(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
         self.preview = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("SJK model preview UI binding"),
+            layout: &self.texture_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.preview_sampler),
+                },
+            ],
+        }));
+    }
+
+    /// Sample `view` for `TexturedQuad` commands naming [`BLADE_PICTURES_TEXTURE`]
+    /// (the Collection's blade pictures, once made).
+    pub(crate) fn set_blade_pictures(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
+        self.blade_pictures = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("SJK blade pictures UI binding"),
             layout: &self.texture_layout,
             entries: &[
                 wgpu::BindGroupEntry {

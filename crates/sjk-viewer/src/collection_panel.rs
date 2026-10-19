@@ -1206,9 +1206,9 @@ mod tests {
         let _ = panel.cycle_tier(false);
         assert_eq!(panel.shader, 0, "back to the top");
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 10);
+        assert_eq!(ids(&panel).len(), 32);
         assert_eq!(ids(&panel)[0], "saber_tidal");
-        assert_eq!(panel.shader_count, 11, "the stock blade stays first");
+        assert_eq!(panel.shader_count, 33, "the stock blade stays first");
         for _ in 0..5 {
             let _ = panel.cycle_tier(false);
         }
@@ -1229,10 +1229,10 @@ mod tests {
         let held = [sun()];
         let inputs = inputs(Holdings::Known(&held), "");
         let mut panel = drawn(Tab::Shaders, &inputs);
-        panel.shader_filter.query = "tidal".to_owned();
+        panel.shader_filter.query = "kamino".to_owned();
         redraw(&mut panel, &inputs);
         let card = panel.card_of(SHADER_BASE + 1, &inputs).expect("a card");
-        assert_eq!(card.title, "Tidal blade");
+        assert_eq!(card.title, "Kamino blade");
         assert!(
             panel.card_of(SHADER_BASE + 2, &inputs).is_none(),
             "past the list"
@@ -1244,7 +1244,7 @@ mod tests {
         let _ = panel.focus_search();
         panel.leave_search();
         assert!(!panel.search_focus);
-        assert_eq!(panel.shader_filter.query, "tidal", "what it holds stays");
+        assert_eq!(panel.shader_filter.query, "kamino", "what it holds stays");
     }
 
     /// Owned shows the shaders held; a search matches names and tier words.
@@ -1257,12 +1257,12 @@ mod tests {
         redraw(&mut panel, &inputs);
         assert_eq!(ids(&panel), ["saber_sun"]);
         let _ = panel.toggle_owned();
-        panel.shader_filter.query = " TIDAL ".to_owned();
+        panel.shader_filter.query = " KAMINO ".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 37, "the saber smith is searched");
+        assert_eq!(ids(&panel).len(), 151, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(
@@ -1278,7 +1278,31 @@ mod tests {
                 "saber_monarch",
                 "saber_phoenix",
                 "saber_quantum",
-                "saber_obsidian"
+                "saber_obsidian",
+                "saber_abyssal_eye",
+                "saber_aurora_wyrm",
+                "saber_balance",
+                "saber_between_worlds",
+                "saber_big_bang",
+                "saber_carbonite",
+                "saber_dyson_sphere",
+                "saber_eclipse",
+                "saber_event_horizon",
+                "saber_exogorth",
+                "saber_hyperspace",
+                "saber_kyber_heart",
+                "saber_nebula_song",
+                "saber_quasar",
+                "saber_singing_kyber",
+                "saber_sith_holocron",
+                "saber_star_dragon",
+                "saber_starforge",
+                "saber_superlaser",
+                "saber_uneti_tree",
+                "saber_witchfire",
+                "saber_world_shift",
+                "saber_wraithlight",
+                "saber_lightspeed_ram",
             ]
         );
         panel.shader_filter.query = "nothing".to_owned();

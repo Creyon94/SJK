@@ -106,6 +106,8 @@ pub(crate) struct BladeState {
     pub(crate) trail: Trail,
     /// Its afterimages' poses, for a skin leaving them (`saber_ghosts.rs`).
     pub(crate) ghosts: crate::saber_ghosts::GhostTrail,
+    /// Its swing, ignition and clashes, for the Blade Lab designs (`saber_motion.rs`).
+    pub(crate) motion: crate::saber_motion::BladeMotion,
 }
 
 impl BladeState {
@@ -262,6 +264,19 @@ pub(crate) fn trail_duration(authored_duration: u16) -> u16 {
     if duration == 0 { 40 } else { duration }
 }
 
+/// The vertex style a slice is drawn with: the hilt's stock `trailStyle` (0 the blur
+/// trail, 1 the sword trail), except a black blade's blur trail (2, alpha-blended) and a
+/// blade skin's (3: the blur trail's white core takes the skin's trail colour too, so the
+/// trail reads as the blade's colour rather than white).
+pub(crate) fn vertex_style(style: u8, color: BladeColor) -> u32 {
+    match (style, color) {
+        (1, _) => 1,
+        (_, BladeColor::Black) => 2,
+        (0, BladeColor::Skin(_)) => 3,
+        _ => u32::from(style),
+    }
+}
+
 fn build_quad(
     new_base: [f32; 3],
     new_tip: [f32; 3],
@@ -286,11 +301,7 @@ fn build_quad(
         position,
         uv,
         color: [rgb[0], rgb[1], rgb[2], 1.0],
-        style: if style != 1 && color == BladeColor::Black {
-            2
-        } else {
-            u32::from(style)
-        },
+        style: vertex_style(style, color),
         _padding: 0,
     };
     Some(Quad {

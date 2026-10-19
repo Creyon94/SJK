@@ -98,6 +98,23 @@ pub(crate) fn submit(
             );
             let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
             let flicker = saber::Flicker::sample(key, presentation_time);
+            // The swing is measured in the wearer's own frame (Creyon's round 11): turning the
+            // view or running turns the whole body, which is no swing, and the effects that
+            // answer a swing must not stir then.
+            let body = (actor_rotation.inverse() * Vec3::from_array(blade.direction)).to_array();
+            let motion = state.motion.record_turned(
+                blade,
+                body,
+                presentation_time,
+                length < hilt_blade.length,
+            );
+            // A direction across the blade that turns with the hilt, for the signatures'
+            // three-dimensional effects (`Instance::with_frame`).
+            let across = (weapon_rotation
+                * Vec3::from_array(hilt_blade.socket.direction)
+                    .normalize_or_zero()
+                    .any_orthonormal_vector())
+            .to_array();
             saber_instances.extend(
                 Instance::pair_flickering(blade, color, hilt_blade.length, flicker).map(|i| {
                     i.with_contact(
@@ -108,6 +125,8 @@ pub(crate) fn submit(
                         hilt.no_dlight,
                     )
                     .with_animation(presentation_time as f64 * 0.001, key as u32)
+                    .with_motion(motion)
+                    .with_frame(across, hilt_blade.length)
                 }),
             );
             saber_instances.extend(saber::skin_extras(
@@ -119,13 +138,34 @@ pub(crate) fn submit(
             if let BladeColor::Skin(skin) = color
                 && let Some(spec) = skin.ghosts
             {
-                state.ghosts.record(blade, presentation_time, spec);
-                saber_instances.extend(
-                    state
-                        .ghosts
-                        .instances(blade, color, spec)
-                        .map(|i| i.with_animation(presentation_time as f64 * 0.001, key as u32)),
-                );
+                let animate =
+                    |i: Instance| i.with_animation(presentation_time as f64 * 0.001, key as u32);
+                if spec.wearer {
+                    // Kept in the wearer's own frame: turning or running leaves none behind.
+                    let origin = actor_origin;
+                    let to_body = |b: saber::Blade| saber::Blade {
+                        base: (actor_rotation.inverse() * (Vec3::from_array(b.base) - origin))
+                            .to_array(),
+                        direction: (actor_rotation.inverse() * Vec3::from_array(b.direction))
+                            .to_array(),
+                        ..b
+                    };
+                    let to_world = move |b: saber::Blade| saber::Blade {
+                        base: (actor_rotation * Vec3::from_array(b.base) + origin).to_array(),
+                        direction: (actor_rotation * Vec3::from_array(b.direction)).to_array(),
+                        ..b
+                    };
+                    state.ghosts.record(to_body(blade), presentation_time, spec);
+                    saber_instances.extend(
+                        state
+                            .ghosts
+                            .instances_placed(to_body(blade), color, spec, to_world)
+                            .map(animate),
+                    );
+                } else {
+                    state.ghosts.record(blade, presentation_time, spec);
+                    saber_instances.extend(state.ghosts.instances(blade, color, spec).map(animate));
+                }
             }
             light_blades[blade_index] = Some(blade);
             if let Some(edges) = trails.as_deref_mut()

@@ -30,6 +30,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Lightspeed Ram, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
+- The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
+- A saber shader's sound that has not reached you yet plays the normal saber sound instead of nothing _(Creyon)_
+- Running or switching a saber on or off no longer counts as a swing for the shaders that answer swings _(Creyon)_
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
 - Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_
