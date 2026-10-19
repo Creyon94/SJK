@@ -520,6 +520,10 @@ const HELP: &[(&str, &str)] = &[
         "The chat key opens on your last channel: All, Team, SJK or a whisper. Off, it opens on All.",
     ),
     (
+        crate::chat::options::LINE_SPACING_CVAR,
+        "Space between chat messages; lower packs them closer. A long message's own lines stay together.",
+    ),
+    (
         "cg_chatBoxLetterSpacing",
         "Adds space between the letters of chat messages; below zero packs them closer.",
     ),

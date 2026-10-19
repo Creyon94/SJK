@@ -6,6 +6,14 @@ use crate::{cgame_options::scalar, console::ViewerConsole};
 /// the ends hold every value saved under the smaller pre-19/10/2026 scale (0.25 to 3,
 /// [`super::text_sizes`]).
 pub(crate) const CHAT_SIZE: (f64, f64) = (0.15, 2.0);
+/// Default `cg_chatBoxFontSize`: 0.85 of EternalJK's size, a 26 px line at 1080p,
+/// about 1.45 on the pre-19/10/2026 scale (Sol's choice, 19/10/2026).
+pub(crate) const CHAT_SIZE_DEFAULT: f64 = 0.85;
+/// `cg_chatBoxLineSpacing`: room between chat messages in 1080p pixels at text size
+/// 1, its range and default (8 before 19/10/2026).
+pub(crate) const LINE_SPACING_CVAR: &str = "cg_chatBoxLineSpacing";
+pub(crate) const LINE_SPACING: (f64, f64) = (0.0, 16.0);
+pub(crate) const LINE_SPACING_DEFAULT: f64 = 2.0;
 /// Largest `cg_centerSize`: EternalJK stops at 1; SJK allows twice its size, which
 /// holds the old scale's largest value (4).
 pub(crate) const CENTER_SIZE_MAX: f32 = 2.0;
@@ -32,6 +40,8 @@ pub(super) struct Options {
     pub(super) font: f32,
     /// Extra room after each message character, in 1080p pixels at font scale 1.
     pub(super) spacing: f32,
+    /// Room between messages, in 1080p pixels at font scale 1.
+    pub(super) gap: f32,
     /// Left edge in virtual 640-wide coordinates.
     pub(super) x: f32,
     /// Bottom edge in virtual 480-high coordinates.
@@ -75,9 +85,11 @@ impl Options {
                 .unwrap_or(false),
             lifetime: integer("cg_chatbox", 10000).max(0) as u64,
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
-            font: scalar(console, "cg_chatboxfontsize", 1.0)
+            font: scalar(console, "cg_chatboxfontsize", CHAT_SIZE_DEFAULT)
                 .clamp(CHAT_SIZE.0 as f32, CHAT_SIZE.1 as f32),
             spacing: scalar(console, "cg_chatboxletterspacing", -0.5).clamp(-2.0, 8.0),
+            gap: scalar(console, LINE_SPACING_CVAR, LINE_SPACING_DEFAULT)
+                .clamp(LINE_SPACING.0 as f32, LINE_SPACING.1 as f32),
             x: scalar(console, "cg_chatboxx", 30.0).clamp(0.0, 600.0),
             height: scalar(console, "cg_chatboxheight", 350.0).clamp(0.0, 480.0),
             width: scalar(console, "cg_chatboxcutofflength", 350.0).clamp(60.0, 640.0),
@@ -108,6 +120,7 @@ impl Options {
         g.row *= self.font;
         g.scale *= self.font;
         g.spacing = self.spacing * g.scale;
+        g.gap = self.gap * g.scale;
         g
     }
 }

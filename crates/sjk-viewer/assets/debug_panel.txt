@@ -5515,4 +5515,15 @@ test: Fresh profile on a JA+/JoF server: chat and centre prints match EJK at 1 s
 test: Settings > Chat > Chat text size at 2: the chat wraps sooner and stays clear of the HUD.
 test: Old config with cg_chatBoxFontSize 1.25: it loads as 0.733 and looks as before.
 test: Press the chat key: the typed text is a bit larger than the chat lines, not smaller.
+note: Later on 19/10 the chat's default became 0.85 (a saved 1 moves to it once).
+
+[chat-line-spacing]
+area: Console & chat
+title: Chat line spacing setting, tighter by default; chat text default 0.85
+change: cg_chatBoxLineSpacing (Settings > Chat, classic+ HUD): room between messages, 0-16.
+change: Default 2 (was a fixed 8); scales with Chat text size.
+change: cg_chatBoxFontSize defaults to 0.85 (old 1.45); a profile still at 1 moves once.
+test: Several chat messages: they sit closer than before; a wrapped one keeps its rows.
+test: Chat line spacing at 0 and 16: messages touch, then spread; the composer stays put.
+test: Your config at cg_chatBoxFontSize 1.0: after start it reads 0.85.
 note: A saved 1 (the old default) becomes EJK's size, larger than before.

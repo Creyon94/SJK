@@ -19,8 +19,6 @@ pub(super) const FONT_1080: f32 = 21.0 * 0.65 * VIRTUAL_TO_1080;
 /// [`FONT_1080`]'s 21 x 0.65 line. A descender still clears the next row's capitals
 /// by 0.15 of the box in Inter.
 pub(super) const ROW_PITCH: f32 = 20.0 / 21.0;
-/// Space between consecutive messages, in 1080p pixels.
-pub(super) const MESSAGE_GAP: f32 = 8.0;
 
 pub(super) struct Geometry {
     pub(super) scale: f32,
@@ -32,6 +30,8 @@ pub(super) struct Geometry {
     pub(super) font: f32,
     /// Extra room after each message character, in pixels (`cg_chatBoxLetterSpacing`).
     pub(super) spacing: f32,
+    /// Space between consecutive messages, in pixels (`cg_chatBoxLineSpacing`).
+    pub(super) gap: f32,
 }
 
 impl Geometry {
@@ -47,6 +47,7 @@ impl Geometry {
             row: FONT_1080 * scale * ROW_PITCH,
             font: FONT_1080 * scale,
             spacing: 0.0,
+            gap: super::options::LINE_SPACING_DEFAULT as f32 * scale,
         }
     }
 }
