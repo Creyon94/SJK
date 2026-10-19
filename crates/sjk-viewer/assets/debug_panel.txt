@@ -5402,6 +5402,18 @@ test: mapedit_remap <shader> on a wall; listRemaps lists it as edit; cg_mapEdits
 test: mapedit_scope server on a server: the edit shows there, not on another server with the map.
 note: Hub endpoints on hub branch map-edits (b504457), not deployed: publish fails until it is.
 
+[map-edits-ui]
+area: Rendering & effects
+title: Map editor panel (staff)
+change: With mapedit on, the world-note key selects what you aim at and opens the editor's panel.
+change: Pages Selected, Place (model list with search) and Edits; Esc or Aim goes back to aiming.
+test: On duel6, mapedit, aim at a fern, O: the panel opens on Map prop; Hide: the fern goes.
+test: Click a wall left of the panel: Selected shows its surface; type a shader, Remap.
+test: Place: search tree, click a row twice: a tree stands where you aimed; Turn right, Up, Bigger.
+test: Grab: the panel hides and the tree follows your aim; O puts it down and reopens the panel.
+test: Edits: choose one, Delete; Ctrl+Z undoes the newest; This server: new edits name it.
+test: Esc while aiming shows the Map editor strip at the top; Editor off removes it.
+
 # ---- Bug reports, 19/10/2026 ----
 
 [emote-attack-stop]

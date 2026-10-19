@@ -143,7 +143,7 @@ impl GpuState {
             self.chat_key(&event);
             return;
         }
-        if self.shot_key(&event) {
+        if self.shot_key(&event) || self.map_edit_key(&event) {
             return;
         }
         if self.game_menu {

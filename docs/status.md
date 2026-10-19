@@ -1,3 +1,18 @@
+## Map editor panel
+
+19/10/2026, `personal/map-edits-ui`, based on `main` `89b11b38`: the map editor's panel
+([map-edits.md](map-edits.md#the-panel), [sjk-ui.md](sjk-ui.md#map-editor)), an SJK UI
+column on the right as Camera control's: with `mapedit` on, the world-note key selects
+what is aimed at and opens it; a click on the scene selects there; pages Selected (Hide,
+Hide whole model, Place a copy, Remap), Place (a searchable list of the game data's
+MD3s, Place, then Turn, Up, Down, Smaller, Bigger, Grab, Remove) and Edits (the list,
+Delete, Undo newest); scope, Publish, Aim (Escape) and Editor off at its foot; a strip at
+the top while aiming. Every button runs the `mapedit_*` command. Verified on Windows 11:
+unit tests (layout at four window shapes, the keyboard walk, list scrolling, the search)
+and the world shot `duel6_map_editor_panel` (a prop, the Place page, the Edits page, a
+surface clicked on the scene, 4:3). Not verified: in a game (the strip, keys and clicks
+live).
+
 ## Map edits
 
 19/10/2026, `personal/map-edits`, based on `main` `7de7fcb7`: SJK's own map fixes

@@ -19,6 +19,8 @@
 
 pub(crate) mod document;
 pub(crate) mod editor;
+pub(crate) mod panel;
+mod panel_view;
 
 use crate::{ActorInstance, GpuState};
 use document::{Document, Kind};
@@ -52,6 +54,10 @@ pub(crate) struct State {
     hub_revision: u64,
     polled: Option<std::time::Instant>,
     pub(crate) editor: editor::Editor,
+    /// The editor's panel ([`panel`]).
+    pub(crate) panel: panel::Panel,
+    /// The strip over play while the editor is on and its panel hidden.
+    pub(crate) strip: panel_view::Strip,
 }
 
 /// Finding the loaded map's document.
@@ -294,6 +300,15 @@ impl GpuState {
 
     /// Start or finish the document's lookup for `map`.
     fn lookup_map_edits(&mut self, map: &str) {
+        // Another map: the editor's selection was on the last one.
+        let moved = matches!(
+            &self.map_edits.lookup,
+            Lookup::Done { map: done, .. } | Lookup::Checksum { map: done, .. } if done != map
+        );
+        if moved {
+            self.world_notes.cancel_selection();
+            self.map_edits.panel.stale();
+        }
         let folder = self.map_edits_folder();
         let state = &mut self.map_edits;
         match &state.lookup {

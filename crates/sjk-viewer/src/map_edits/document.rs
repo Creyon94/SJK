@@ -43,8 +43,9 @@ pub(crate) struct Edit {
 }
 
 /// Where an edit applies.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum Scope {
+    #[default]
     AllServers,
     ThisServer,
 }

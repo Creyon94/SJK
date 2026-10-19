@@ -354,8 +354,10 @@ impl GpuState {
         }
         if self.game_menu {
             // The SJK UI has no Report a bug button: it is on its SJK page.
-            if self.game_menu_page != GameMenuPage::Shot
-                && !self.in_game_menu.is_sjk()
+            if !matches!(
+                self.game_menu_page,
+                GameMenuPage::Shot | GameMenuPage::MapEdit
+            ) && !self.in_game_menu.is_sjk()
                 && self.text_dialog.launcher_pointer(event)
             {
                 self.open_bug_report();
@@ -363,6 +365,10 @@ impl GpuState {
             }
             if self.game_menu_page == GameMenuPage::Shot {
                 self.shot_pointer(event);
+                return true;
+            }
+            if self.game_menu_page == GameMenuPage::MapEdit {
+                self.map_edit_pointer(event);
                 return true;
             }
             if let Some((kind, row)) = self.in_game_menu.pointer(event) {

@@ -2079,7 +2079,22 @@ impl GpuState {
                 staff: profile_card::with(|summary| summary.staff),
                 _frame: std::marker::PhantomData,
             };
-            if view.page == GameMenuPage::Shot && !self.in_game_menu.is_sjk() {
+            if view.page == GameMenuPage::MapEdit {
+                // The map editor's panel has only the SJK UI's look, in every menu style.
+                self.refresh_map_edit_panel();
+                let target = ingame_menu::sjk_view::text_target(
+                    &mut self.game_fonts,
+                    &mut self.text_vertices,
+                    &self.ui_font,
+                );
+                let panel = &mut self.map_edits.panel;
+                self.in_game_menu.append_own_page(
+                    GameMenuPage::MapEdit,
+                    |canvas| panel.build(canvas, viewport),
+                    target,
+                    viewport,
+                );
+            } else if view.page == GameMenuPage::Shot && !self.in_game_menu.is_sjk() {
                 // Camera control has only the SJK UI's look, in every menu style.
                 let target = ingame_menu::sjk_view::text_target(
                     &mut self.game_fonts,
@@ -2108,6 +2123,11 @@ impl GpuState {
                 self.in_game_menu.append(view, vertices, font, viewport);
             }
         }
+        // The map editor's strip while its panel is hidden to aim.
+        let map_edit_strip = information_visible
+            && !console_covers_frame
+            && !medal_popup
+            && self.append_map_edit_strip(viewport);
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
@@ -2138,7 +2158,10 @@ impl GpuState {
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
         let launcher = self.game_menu
-            && self.game_menu_page != GameMenuPage::Shot
+            && !matches!(
+                self.game_menu_page,
+                GameMenuPage::Shot | GameMenuPage::MapEdit
+            )
             && !self.in_game_menu.is_sjk()
             && !console_covers_frame
             && !medal_popup
@@ -2197,6 +2220,7 @@ impl GpuState {
                 .then(|| self.quick_wheel.draw_list()),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
+            map_edit_strip.then(|| self.map_edits.strip.0.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
             (self.game_menu && !console_covers_frame && !medal_popup)
                 .then(|| self.in_game_menu.draw_list()),

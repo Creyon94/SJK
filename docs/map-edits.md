@@ -48,12 +48,14 @@ overwritten or removed. The loaded map's document is read again when a copy chan
 ## The editor (staff)
 
 `mapedit` turns the editor on for SJK staff (the hub's staff flag). While it is on, the
-world-note key only selects (its outline shows what an edit will touch) and opens no
-note; a command without a selection acts on what is under the crosshair.
+world-note key selects (its outline shows what an edit will touch) and opens [the
+panel](#the-panel), never a note; a command without a selection acts on what is under
+the crosshair.
 
 | Command | Does |
 | --- | --- |
 | `mapedit [on\|off]` | Turn the editor on or off |
+| `mapedit_panel` | Open [the panel](#the-panel) (turning the editor on) |
 | `mapedit_hide [group]` | Hide the selected prop or surface (`group`: the whole merged model); on a placed model, remove it |
 | `mapedit_place [model]` | Place an MD3 where you aim, facing you: the path given, or a copy of the selected model |
 | `mapedit_turn [degrees]` | Turn the current placed model (15 by default) |
@@ -69,6 +71,32 @@ Every change is saved to the map's document at once and drawn at once; it reache
 players only with `mapedit_publish`. The current placed model is the last placed, or the
 placed model selected.
 
+## The panel
+
+The editor's commands as an SJK UI panel (19/10/2026, Sol's request:
+[sjk-ui.md](sjk-ui.md#map-editor) has its look), in
+[panel.rs](../crates/sjk-viewer/src/map_edits/panel.rs). With the editor on, the
+world-note key selects what is under the crosshair and opens the panel, the pointer freed;
+`mapedit` opens it when it turns the editor on, `mapedit_panel` (bindable) at any time. A
+click on the scene left of the panel selects what is under the pointer instead. Escape, or
+Aim, hides it to aim again; a strip at the top of the screen says the editor is on and
+which key edits. While the editor is on a selection never goes stale (a world note's
+waits 20 seconds), until the map changes.
+
+| Page | Offers |
+| --- | --- |
+| Selected | what it is (map prop, placed model, surface, game entity) with its model and shader; Hide (Remove for a placed model), Hide whole model (a merged model's surfaces), Place a copy; a shader typed in Draw another shader, Remap and Remove remap |
+| Place | every MD3 of the game data outside the player models, narrowed by a search; Place where you aimed (or a second click on the chosen row); the current placed model's Turn left and right (15 degrees), Up and Down (8 units), Smaller and Bigger (by 1.1), Grab and Remove |
+| Edits | the map's edits, newest first, those for another server dimmed; Delete the chosen one, Undo newest |
+
+Under them on every page: New edits for All servers or This server, the last command's
+answer (ember when refused), Publish (gold while the map has edits not published), Aim and
+Editor off. Grab hides the panel and the model follows the aim; the world-note key puts it
+down and opens the panel again. Keys: Up and Down (along a list too), Tab, Left and Right
+on the tabs and the scope, Enter acts (in the search it places, in the shader field it
+remaps), Ctrl+Z undoes, Delete on an edit deletes it. Each button runs the command the
+console would (`mapedit_hide`, `mapedit_place <model>`, ...), so both stay one editor.
+
 ## Limits
 
 - Only MD3s already in the player's game data can be placed; a custom model needs a pack
@@ -80,4 +108,4 @@ placed model selected.
   fake hub), the hub round trip against a local hub (`staff_publish_map_edits_that_every_key_reads`
   in `hub_e2e.rs`), and the world shot `duel6_prop_hidden_copied_and_floor_remapped`
   (a duel6 prop hidden, a surface hidden, a copy placed, a wall remapped, then all taken
-  back). Not tried in a game.
+  back), and `duel6_map_editor_panel` for the panel. Not tried in a game.

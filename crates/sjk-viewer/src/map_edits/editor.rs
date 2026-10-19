@@ -37,9 +37,30 @@ impl Default for Editor {
     }
 }
 
+impl Editor {
+    /// The placed model the panel's controls act on.
+    pub(crate) fn current(&self) -> Option<u32> {
+        self.current
+    }
+
+    /// Whether the current placed model follows the aim.
+    pub(crate) fn grabbing(&self) -> bool {
+        self.grabbing
+    }
+
+    /// Where new edits apply.
+    pub(crate) fn scope(&self) -> Scope {
+        self.scope
+    }
+}
+
 /// The console commands, with their help.
 pub(crate) const COMMANDS: &[(&str, &str)] = &[
     ("mapedit", "Staff: turn the map editor on or off"),
+    (
+        "mapedit_panel",
+        "Map editor: open its panel (the world-note key does, on what you aim at)",
+    ),
     (
         "mapedit_hide",
         "Map editor: hide the selected prop or surface ('group' takes the whole compiled model), or remove a placed model",
@@ -117,6 +138,13 @@ impl GpuState {
         if name == "mapedit" {
             return self.map_edit_toggle(args);
         }
+        if name == "mapedit_panel" {
+            if !self.map_edits.editor.active {
+                self.map_edit_toggle(&[])?;
+            }
+            self.open_map_edit_panel();
+            return Ok(Vec::new());
+        }
         if !self.map_edits.editor.active {
             return Err("Turn the map editor on first: mapedit".into());
         }
@@ -192,16 +220,24 @@ impl GpuState {
         let editor = &mut self.map_edits.editor;
         editor.active = active;
         editor.grabbing = false;
+        self.world_notes.hold_selection(active);
         if !active {
+            self.world_notes.cancel_selection();
+            self.close_map_edit_panel();
             return Ok(vec!["Map editor off".into()]);
         }
         // A map without a document has no checksum read yet: read it now.
         if self.map_edits.map().is_none() {
             self.map_edits.lookup = super::Lookup::Idle;
         }
+        // In a world, its panel opens on what is under the crosshair.
+        if self.live_session.is_some() || self.resident.exploring() {
+            self.map_edit_pick();
+            self.open_map_edit_panel();
+        }
         Ok(vec![
             format!(
-                "Map editor on ({}). The world-note key selects; then:",
+                "Map editor on ({}). The world-note key selects and opens its panel; or:",
                 self.map_edit_scope_text()
             ),
             "  mapedit_hide [group], mapedit_place [model], mapedit_remap <shader|->".into(),
@@ -260,7 +296,7 @@ impl GpuState {
         );
     }
 
-    fn map_edit_pick(&mut self) -> Option<String> {
+    pub(super) fn map_edit_pick(&mut self) -> Option<String> {
         let map = crate::remap_blocked_maps::map_name(&self.world_load_map).to_owned();
         let remaps = Vec::new();
         self.world_notes.select_for_edit(Scene {
