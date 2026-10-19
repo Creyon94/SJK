@@ -13,7 +13,7 @@ const COLUMNS: u32 = ATLAS_SIZE / ICON_SIZE;
 /// menu capacity.
 pub(crate) const ICON_CELLS: u32 = COLUMNS * 13;
 /// HUD icon cells, right after the menu cells (`hud::icons::assets::COUNT`).
-const HUD_CELLS: u32 = 122;
+const HUD_CELLS: u32 = 123;
 /// First of the player screen's Force page cells, after the HUD cells, so the
 /// Force art never takes cells from the character grid.
 pub(crate) const FORCE_ICON_FIRST: u32 = ICON_CELLS + HUD_CELLS;

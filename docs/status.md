@@ -68,6 +68,22 @@ build and test suite, workspace all-target Clippy, and locked release viewer and
 dedicated-server build pass; existing warnings remain. The final implicit-white
 fix has not yet been rechecked interactively in game.
 
+## Siege hack bar
+
+18/10/2026, `feat/siege-hack-bar` (pull request #176, Slash), based on `Sol-Vulpes/SJK`
+`f19a8a67`, finished at the merge 19/10/2026 (`personal/pr-176`): the HUD showed a hack's
+progress only as the `HACKING: n%` line. As JoF EJK's `CG_DrawHaqrBar`
+(`cg_draw.c:7264-7302`) does, a 50 by 5 unit bar now stands 8 units under the drawn
+crosshair (its size, `cg_crosshairX/Y` offset or dynamic point) while the player hacks: a
+black frame, the part still to go in translucent yellow, the part done greyed out, nothing
+for less than a unit or more than the whole, and retail's hacker icon
+(`gfx/mp/c_icon_tech`, 50 units square) on top of it; the bar is drawn alone when the icon
+is missing. It goes with the crosshair, as stock draws it from `CG_DrawCrosshair`
+(`cg_drawCrosshair 0` hides both). Stock pushes it down under a target health bar or Siege
+info; SJK draws neither under the crosshair. The `HACKING: n%` text is gone (Sol's decision,
+so progress is not shown twice). Unit tests cover the position, icon and range; untested in
+a game.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`
@@ -340,8 +356,9 @@ JoF EJK visual parity remain unverified.
 - A dead player waiting for the respawn wave sees "RESPAWN IN: n", from the viewed player's
   `EV_SIEGESPEC` time (`CG_DrawSiegeDeathTimer`). It is forgotten once the player is back
   in play.
-- A hack in progress shows "HACKING: n%" (`CG_DrawHaqrBar`'s share of
-  `ps.hackingTime`/`hackingBaseTime`).
+- A hack in progress showed "HACKING: n%" (`CG_DrawHaqrBar`'s share of
+  `ps.hackingTime`/`hackingBaseTime`); it is now retail's bar and hacker icon under the
+  crosshair (see "Siege hack bar").
 - A hacker's `ps.loopSound` is `sound/player/hacking.wav` while it hacks
   (`G_SetClientSound`). The client now plays the viewed player's own `ps.loopSound`, as
   cgame does through `cg.predictedPlayerEntity`; it is not among the snapshot's entities.

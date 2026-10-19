@@ -54,15 +54,8 @@ impl HudOverlay {
             // (`timeRemaining /= 1000`, as the reference truncates).
             WarmupText::Hidden => {
                 let left = obituaries.siege_respawn_at() - server_time;
-                let (hack_done, hack_length) = obituaries.hack();
                 if left > 0 {
                     let _ = write!(self.warmup_text, "RESPAWN IN: {}", left / 1_000);
-                } else if hack_done != 0 && hack_length > 0 {
-                    // `CG_DrawHaqrBar` (`cg_draw.c:4766-4803`): the hack's progress while
-                    // the use key is held on a `usetime` trigger, shown as a share done.
-                    let remaining = (hack_done - server_time).clamp(0, hack_length);
-                    let done = 100 - remaining * 100 / hack_length;
-                    let _ = write!(self.warmup_text, "HACKING: {done}%");
                 }
             }
             WarmupText::WaitingForPlayers => {
@@ -72,7 +65,53 @@ impl HudOverlay {
                 let _ = write!(self.warmup_text, "STARTS IN: {seconds}");
             }
         }
+        // A hack's progress is the bar under the crosshair (`hack_bar`), not text.
+        let (hack_done, hack_length) = obituaries.hack();
+        self.hack_left = hack_bar::left(hack_done, hack_length, server_time);
         self.interrupted = interrupted;
         self.lagometer.clone_from(lagometer);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sjk_protocol::{GameState, PlayerState, Snapshot};
+
+    #[test]
+    fn a_hack_shows_as_the_bar_and_not_as_text() {
+        let game = GameState::empty_local(0);
+        let mut player = PlayerState::default();
+        // `ps.hackingTime` 15 s, `ps.hackingBaseTime` 10 s.
+        player.set_raw_field(91, 15_000);
+        player.set_raw_field(124, 10_000);
+        let snapshot = Snapshot {
+            message_sequence: 0,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 10_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities: Vec::new(),
+            consumed_bits: 0,
+        };
+        let mut obituaries = ObituaryTracker::new();
+        obituaries.observe(&snapshot, &game);
+        let mut hud = HudOverlay::new();
+        hud.update_match_information(
+            &game,
+            10_000,
+            &obituaries,
+            0,
+            &sjk_client::LagometerSamples::new(),
+            None,
+            false,
+            false,
+        );
+        assert_eq!(hud.hack_left, Some(0.5));
+        assert!(hud.warmup_text.is_empty(), "{}", hud.warmup_text);
     }
 }

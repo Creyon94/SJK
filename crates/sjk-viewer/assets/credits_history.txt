@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | SJK pull request #176, Siege hack bar with retail's hacker icon; HACKING text dropped
+- dbbf46b |  | Hack bar from the drawn crosshair with retail's hacker icon; drop HACKING text
 + 19/10/2026 | - | Duel bystanders hidden as in JoF EJK; chat and centre prints at EJK's size
 - 2cfb97e |  | Changelog and debug panel for duel hiding and EJK text sizes
 + 19/10/2026 | - | Hide players outside a private duel, as JoF EJK does (cg_duelHideOthers)
@@ -2040,6 +2042,8 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 19/10/2026 | SJK #176 | Draw the siege hack bar under the crosshair
+- 7c47706 |  | Draw the siege hack bar under the crosshair
 + 19/10/2026 | SJK #174 | Feat/siege objective sounds
 - 4240677 |  | Announce completed siege objectives from the map's .siege file
 - 72cc3da |  | Announce a siege round's end from the map's .siege file

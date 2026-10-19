@@ -248,7 +248,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 14 merged pull requests
+role: Contributor: 15 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -263,6 +263,7 @@ did: #157 Siege doors: teamallow, use key, lock lights, vehicles
 did: #160 Siege HUD: round state, respawn countdown, hacking
 did: #169 Line breaks in string table text
 did: #174 Siege objective, count-in and round-end announcements
+did: #176 Siege hack bar and hacker icon under the crosshair
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
