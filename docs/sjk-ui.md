@@ -1618,16 +1618,20 @@ for the run.
   identity off, waiting; `duel6_sjk_holocrons_windows`: 4:3, 21:9, 4K, `ui_textScale 1.2`,
   the classic style). Not tried in a game.
 - **Cards** ([collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs),
-  [cards.md](cards.md#in-the-client), 12/10/2026): "N cards" (or why they are not known)
-  with "Sealed until the first set of cards is out" under it, the player's credits at the
-  right of the headline (x up to 1080), up to twelve kinds of card on the left (128 wide,
-  six by two from y 330, the best first, each drawn card with "x3" and its finish under
-  it; more counted under them; none: a dark outline where the first will lie and "Open a
-  holocron on the Holocrons tab"), and the kind chosen up close on the right (290 wide
-  from y 200) in its finish's light, with its title in its rarity's colour (gold for
-  Solar), edition, how many and when the first was found, what the finish is and that it
-  is sealed. Left and Right (Tab, the pointer) choose; Ctrl+Tab goes on to Medals. The
-  row's count is the cards held. World shots: `world_shot::cards_shots`.
+  [cards.md](cards.md#in-the-client), 12/10/2026; a binder since 19/10/2026): "5 of 13
+  cards found" with each set's progress under it ("SJK Alpha 5 / 13"), the kyber shards
+  and credits at the right of the headline (x up to 1080); the filter's chips at y 300
+  (All, Owned, Missing; "Rarity: Any", "Kind: Any", "Finish: Any", a click each on to the
+  next; O, T, K, F) with "N of M cards" at the grid's right; every card of the packs as a
+  tile (122 wide, seven by three from y 350, scrolling a line a wheel notch, a bar at the
+  right): sealed copies first, a tile per rarity, then the cards by set and number in
+  their best finish's light with an "x3" pill, the ones not found yet greyed; Reveal
+  under the grid at y 912 with its outcome beside it; and the tile chosen up close on the
+  right (470 wide from y 150) with its name, the copies by finish and edition (or "Not
+  found yet"), its rarity, kind, set and number, and when the first was found (or its
+  odds). The arrows (Up and Down a line), Tab and the pointer choose; Ctrl+Tab goes on to
+  Medals. The row's count is the copies held. World shots: `world_shot::cards_shots`
+  (`duel6_sjk_card_binder` with the hub's card pack).
 - **The model:** behind Shaders, Toys and Nameplates the page darkens only the left
   and the bottom. From the main page the backdrop camera goes to the player's shot
   (`ClientMenu::set_collection_stage`, which first reads the model, sabers and
@@ -1659,7 +1663,7 @@ takes no input.
 | Achievement | its goal | who counts it (SJK in matches, or the hub); "Unlocked dd/mm/yyyy" or "n of goal so far" |
 | Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known |
 | Toy | everyone's, and where to light it | "Yours" |
-| Card | from opening holocrons | how many holocrons found hold that kind ([loot table](holocrons.md#loot-table)); sealed; how many the player holds |
+| Card (a binder tile) | from opening holocrons: how many holocrons found hold a card of its rarity ([loot table](holocrons.md#loot-table)), one of how many of that rarity | its rarity, kind, set and number (a sealed tile: picked when revealed); the copies by finish and edition and when the first was found, or "Not found yet" |
 | Holocron tier (Holocrons tab) | found by playing, the pace and the daily cap | the tier's share of drops and staff gifts; how many held |
 
 Nameplates have no things yet, so no cards. Text draws over every shape, so the card

@@ -1,36 +1,42 @@
-//! The Collection's Cards tab (`docs/cards.md`, "In the client"): the cards opening
-//! holocrons brought and the player's credits. On the left the copies the player holds,
-//! one card per kind (card, rarity, finish, edition) with how many, the best first; on
-//! the right the one chosen up close, big enough to read, in its finish's light, with
-//! what it is. A revealed card shows its face from the SJK packs
-//! ([`crate::cards::faces`]); a sealed one its back until it is revealed. When the packs
-//! have faces of a sealed copy's rarity, Reveal (or R) asks the hub to reveal them, and a
-//! line under it says what came of it. The cards come from the player's own hub profile
-//! ([`crate::cards::stacks`]).
+//! The Collection's Cards tab (`docs/cards.md`, "The Cards tab"): a binder of every card
+//! the SJK packs have a face of ([`crate::cards::faces`]), found or not, and the player's
+//! credits and kyber shards. On the left the tiles ([`crate::cards::binder`]), seven to
+//! a line and three lines shown, scrolling a line at a time: the sealed copies first (a
+//! tile per rarity), then every card by set and number, one tile whatever the copies
+//! held, in the best finish's light with how many; a card not found yet greyed. Above
+//! them the filter's chips (All, Owned or Missing; a rarity; a kind; a finish held) and
+//! how many cards it shows. On the right the tile chosen up close, big enough to read,
+//! with what it is. When the packs have faces of a sealed copy's rarity, Reveal (or R)
+//! asks the hub to reveal them, and a line beside it says what came of it. The cards
+//! come from the player's own hub profile ([`crate::cards::stacks`]).
 
 use super::view::{LEAD_Y, LEFT_X, SHOWCASE_WIDTH, SHOWCASE_X, centred_lines};
 use super::*;
-use crate::cards::{self, Stack, look};
+use crate::cards::binder::{self, Show, Slot, Tile};
+use crate::cards::{self, FINISHES, Stack, look};
 use crate::menu::sjk::{Frame, color, text};
 use crate::menu_widgets::TextFamily;
 use sjk_ui::{DrawCommand, FontWeight, TextAlign};
 
-/// The cards on the left: their width, the room each takes across and down, how many to
-/// a line and the lines shown.
-const CARD_WIDTH: f32 = 128.0;
-const STEP_X: f32 = 150.0;
-const STEP_Y: f32 = 236.0;
-const COLUMNS: usize = 6;
-const LINES: usize = 2;
-/// The most kinds the tab shows; more are counted under them.
-pub(super) const SHOWN_MAX: usize = COLUMNS * LINES;
+/// The tiles on the left: their width, the room each takes across and down, how many to
+/// a line and the lines shown (the rest scroll into view).
+const CARD_WIDTH: f32 = 122.0;
+const STEP_X: f32 = 138.0;
+const STEP_Y: f32 = 186.0;
+pub(super) const COLUMNS: usize = 7;
+pub(super) const LINES: usize = 3;
 /// The first line's top.
-const GRID_TOP: f32 = 330.0;
+const GRID_TOP: f32 = 350.0;
+/// The filter's chips: their line and height.
+const FILTER_Y: f32 = 300.0;
+const FILTER_HEIGHT: f32 = 28.0;
+/// The grid's right edge, where the filter's count ends and the scroll bar stands.
+const GRID_RIGHT: f32 = LEFT_X + (COLUMNS - 1) as f32 * STEP_X + CARD_WIDTH;
 /// The card up close: wide enough that a face's lore reads at 1080p.
 const BIG_WIDTH: f32 = 470.0;
 const BIG_TOP: f32 = 150.0;
-/// Reveal, under the grid.
-const REVEAL_Y: f32 = 860.0;
+/// Reveal, under the grid; what it brought reads beside it.
+const REVEAL_Y: f32 = 912.0;
 const REVEAL_WIDTH: f32 = 330.0;
 
 /// How many cards the player holds, once the hub answered with the identity on.
@@ -46,51 +52,72 @@ fn me<'a>(inputs: &Inputs<'a>) -> Option<&'a sjk_identity::Profile> {
         .and_then(|snapshot| snapshot.me.as_ref())
 }
 
-/// What the tab says at its top.
-fn headline(inputs: &Inputs<'_>, stacks: Option<&[Stack]>) -> (String, &'static str) {
-    let sealed = stacks.is_some_and(|stacks| stacks.iter().any(Stack::sealed));
-    match (inputs.enabled, stacks) {
-        (false, _) => (
-            "Identity is off".to_owned(),
-            "Your cards are kept on the SJK hub: switch the identity on in Settings, Network, to see them.",
-        ),
-        (true, None) => (
-            "Contacting the hub...".to_owned(),
-            "Your cards show once the SJK hub has answered.",
-        ),
-        (true, Some([])) => (
-            "No cards yet".to_owned(),
-            "Open a holocron on the Holocrons tab: each holds a card and credits.",
-        ),
-        (true, Some(stacks)) => {
-            let total = cards::total(stacks);
+/// What the tab says at its top: how many of the packs' cards are found and, under it,
+/// each set's progress ("SJK Alpha 4 / 13").
+fn headline(
+    inputs: &Inputs<'_>,
+    stacks: Option<&[Stack]>,
+    progress: &[binder::Progress],
+) -> (String, String) {
+    let Some(stacks) = stacks.filter(|_| inputs.enabled) else {
+        return if inputs.enabled {
             (
-                if total == 1 {
-                    "1 card".to_owned()
-                } else {
-                    format!("{total} cards")
-                },
-                if sealed {
-                    "A sealed card shows its face once revealed: its card is picked then."
-                } else {
-                    "Every card you hold, from the holocrons you opened."
-                },
+                "Contacting the hub...".to_owned(),
+                "Your cards show once the SJK hub has answered.".to_owned(),
             )
-        }
+        } else {
+            (
+                "Identity is off".to_owned(),
+                "Your cards are kept on the SJK hub: switch the identity on in Settings, Network, to see them."
+                    .to_owned(),
+            )
+        };
+    };
+    let sets: Vec<String> = progress
+        .iter()
+        .take(4)
+        .map(|set| format!("{} {} / {}", set.name, set.found, set.of))
+        .collect();
+    let mut line = sets.join("   ·   ");
+    if progress.len() > 4 {
+        line.push_str(&format!("   ·   {} more sets", progress.len() - 4));
     }
+    if stacks.is_empty() {
+        let open = "Open a holocron on the Holocrons tab: each holds a card and credits.";
+        line = if line.is_empty() {
+            open.to_owned()
+        } else {
+            format!("{line}.   {open}")
+        };
+    }
+    let total = cards::total(stacks);
+    let of: usize = progress.iter().map(|set| set.of).sum();
+    let found: usize = progress.iter().map(|set| set.found).sum();
+    let headline = match (of, total) {
+        (0, 0) => "No cards yet".to_owned(),
+        (0, 1) => "1 card".to_owned(),
+        (0, total) => format!("{total} cards"),
+        (of, _) => format!("{found} of {of} cards found"),
+    };
+    (headline, line)
 }
 
 impl Panel {
     /// The Cards tab.
     pub(super) fn cards(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         let (stacks, balance) = self.holdings(inputs);
-        let (headline, line) = headline(inputs, stacks.as_deref());
-        self.lead(frame, &headline, line);
+        let faces = cards::faces::current();
+        let all = stacks
+            .as_deref()
+            .map(|stacks| binder::tiles(stacks, &faces))
+            .unwrap_or_default();
+        let progress = binder::progress(&all, &faces);
+        let (headline, line) = headline(inputs, stacks.as_deref(), &progress);
+        self.lead(frame, &headline, &line);
         if let Some((credits, shards)) = balance {
             self.balance(frame, credits, shards);
         }
         let stacks = stacks.unwrap_or_default();
-        let faces = cards::faces::current();
         let can_reveal = inputs
             .snapshot
             .and_then(|snapshot| snapshot.holocrons)
@@ -100,9 +127,17 @@ impl Panel {
         } else {
             0
         };
-        self.cards_shown = stacks.len().min(SHOWN_MAX);
+        let filter = self.card_filter;
+        self.card_tiles.clear();
+        self.card_tiles.extend(
+            all.iter()
+                .filter(|tile| filter.passes(tile, &faces))
+                .take(CARD_TILES_MAX)
+                .cloned(),
+        );
+        self.cards_shown = self.card_tiles.len();
         self.card = self.card.min(self.cards_shown.saturating_sub(1));
-        if stacks.is_empty() {
+        if all.is_empty() {
             // A dark outline where the first card will lie.
             let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
                 rect: frame.rect(LEFT_X, GRID_TOP, CARD_WIDTH, CARD_WIDTH * look::ASPECT),
@@ -112,25 +147,183 @@ impl Panel {
             });
             return;
         }
-        for (index, stack) in stacks.iter().take(SHOWN_MAX).enumerate() {
-            self.small_card(frame, stack, &faces, index, seconds);
+        let cards_in = |tiles: &[Tile]| {
+            tiles
+                .iter()
+                .filter(|tile| matches!(tile.slot, Slot::Card(_)))
+                .count()
+        };
+        let shown_cards = cards_in(&self.card_tiles);
+        self.card_filter_bar(frame, shown_cards, cards_in(&all));
+        // The grid scrolls just enough to keep the chosen tile in view.
+        let lines = self.cards_shown.div_ceil(COLUMNS);
+        self.card_first =
+            super::shaders::window(self.card_first, self.card / COLUMNS, lines, LINES);
+        let first = self.card_first * COLUMNS;
+        let tiles = std::mem::take(&mut self.card_tiles);
+        for (index, tile) in tiles.iter().enumerate().skip(first).take(COLUMNS * LINES) {
+            self.small_card(frame, tile, &faces, [index, index - first], seconds);
         }
-        self.reveal_button(frame);
-        if stacks.len() > SHOWN_MAX {
+        if tiles.is_empty() {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("And {} more kinds", stacks.len() - SHOWN_MAX),
-                frame.rect(LEFT_X, GRID_TOP + STEP_Y * LINES as f32, 600.0, 24.0),
-                15.0 * frame.s,
+                format_args!("No card matches these filters."),
+                frame.rect(LEFT_X, GRID_TOP + 10.0, 900.0, 24.0),
+                16.0 * frame.s,
                 color::QUIET,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
         }
-        if let Some(chosen) = stacks.get(self.card) {
+        self.card_scroll_bar(frame, self.card_first, lines);
+        self.reveal_button(frame);
+        if let Some(chosen) = tiles.get(self.card) {
             self.card_up_close(frame, chosen, &faces, seconds);
         }
+        self.card_tiles = tiles;
+    }
+
+    /// The wheel over the Cards tab: a line a notch, the chosen tile kept in view.
+    pub(super) fn scroll_cards(&mut self, delta: f32) {
+        let lines = self.cards_shown.div_ceil(COLUMNS);
+        let last = lines.saturating_sub(LINES);
+        self.card_first = if delta > 0.0 {
+            self.card_first.saturating_sub(1)
+        } else if delta < 0.0 {
+            (self.card_first + 1).min(last)
+        } else {
+            self.card_first
+        };
+        if self.cards_shown > 0 {
+            let line = (self.card / COLUMNS).clamp(self.card_first, self.card_first + LINES - 1);
+            self.card = (line * COLUMNS + self.card % COLUMNS).min(self.cards_shown - 1);
+        }
+    }
+
+    /// The filter over the grid: All, Owned and Missing, then a chip each for the rarity,
+    /// the kind and the finish held (a click goes on to the next), and at the right how
+    /// many cards it shows of the packs' (`shown` of `of`).
+    fn card_filter_bar(&mut self, frame: &Frame, shown: usize, of: usize) {
+        let s = frame.s;
+        let filter = self.card_filter;
+        let mut chips: Vec<(u16, String, sjk_ui::Color, bool, f32)> = Show::ALL
+            .iter()
+            .enumerate()
+            .map(|(index, show)| {
+                (
+                    CARD_SHOW_BASE + index as u16,
+                    show.name().to_owned(),
+                    if *show == Show::Owned {
+                        color::GOLD
+                    } else {
+                        color::HOLO
+                    },
+                    filter.show == *show,
+                    [56.0, 80.0, 90.0][index],
+                )
+            })
+            .collect();
+        chips.push((
+            CARD_RARITY_TOKEN,
+            format!(
+                "Rarity: {}",
+                filter.rarity.map_or("Any", |rarity| rarity.name)
+            ),
+            filter.rarity.map_or(color::HOLO, |rarity| rarity.colour),
+            filter.rarity.is_some(),
+            158.0,
+        ));
+        chips.push((
+            CARD_KIND_TOKEN,
+            format!("Kind: {}", filter.kind.map_or("Any", |kind| kind.name())),
+            color::HOLO,
+            filter.kind.is_some(),
+            172.0,
+        ));
+        chips.push((
+            CARD_FINISH_TOKEN,
+            format!(
+                "Finish: {}",
+                filter.finish.map_or("Any", |finish| finish.name)
+            ),
+            if filter.finish.is_some_and(|finish| finish.index == 2) {
+                color::GOLD_BRIGHT
+            } else {
+                color::HOLO
+            },
+            filter.finish.is_some(),
+            128.0,
+        ));
+        let mut left = LEFT_X;
+        for (index, (token, label, colour, lit, width)) in chips.into_iter().enumerate() {
+            if index == Show::ALL.len() {
+                left += 12.0;
+            }
+            let rect = frame.rect(left, FILTER_Y, width, FILTER_HEIGHT);
+            let hovered = self.ui.token_hovered(token);
+            if lit || hovered {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: FILTER_HEIGHT * 0.5 * s,
+                    color: color::alpha(colour, if lit { 0.2 } else { 0.09 }),
+                });
+            }
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: FILTER_HEIGHT * 0.5 * s,
+                width: 1.2 * s,
+                color: color::alpha(colour, if lit { 1.0 } else { 0.4 }),
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{label}"),
+                frame.rect(left, FILTER_Y + 4.0, width, FILTER_HEIGHT - 8.0),
+                14.0 * s,
+                if lit { color::TEXT } else { color::MUTED },
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+            self.ui.hit_region(token, rect);
+            left += width + 8.0;
+        }
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{shown} of {of} cards"),
+            frame.rect(left, FILTER_Y + 4.0, GRID_RIGHT - left, FILTER_HEIGHT - 8.0),
+            15.0 * s,
+            if filter.active() {
+                color::TEXT
+            } else {
+                color::QUIET
+            },
+            FontWeight::Regular,
+            TextAlign::End,
+        );
+    }
+
+    /// The grid's scroll bar at its right, when it holds more lines than it shows.
+    fn card_scroll_bar(&mut self, frame: &Frame, first: usize, lines: usize) {
+        if lines <= LINES {
+            return;
+        }
+        let s = frame.s;
+        let x = GRID_RIGHT + 14.0;
+        let height = LINES as f32 * STEP_Y - (STEP_Y - CARD_WIDTH * look::ASPECT);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(x, GRID_TOP, 4.0, height),
+            radius: 2.0 * s,
+            color: color::alpha(color::HOLO, 0.14),
+        });
+        let thumb = height * LINES as f32 / lines as f32;
+        let top = GRID_TOP + (height - thumb) * first as f32 / (lines - LINES) as f32;
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(x, top, 4.0, thumb),
+            radius: 2.0 * s,
+            color: color::GOLD,
+        });
     }
 
     /// The player's cards, credits and kyber shards, once known (a world shot's own in
@@ -279,12 +472,13 @@ impl Panel {
         })
     }
 
-    /// Reveal under the grid, when sealed copies can be revealed, and under it what the
+    /// Reveal under the grid, when sealed copies can be revealed, and beside it what the
     /// last reveal asked here brought.
     fn reveal_button(&mut self, frame: &Frame) {
         let outcome = self.reveal_asked.and_then(|asked| {
             crate::player_identity::reveal_outcome().filter(|outcome| outcome.serial > asked)
         });
+        let mut words_x = LEFT_X;
         if self.revealable > 0 {
             let waiting = self.reveal_asked.is_some() && outcome.is_none();
             let label = if waiting {
@@ -304,6 +498,7 @@ impl Panel {
                 false,
                 REVEAL_TOKEN,
             );
+            words_x += REVEAL_WIDTH + 24.0;
         }
         let Some(outcome) = outcome else {
             return;
@@ -318,7 +513,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("{words}"),
-            frame.rect(LEFT_X, REVEAL_Y + 54.0, 900.0, 24.0),
+            frame.rect(words_x, REVEAL_Y + 11.0, GRID_RIGHT - words_x, 24.0),
             16.0 * frame.s,
             if outcome.message.is_empty() {
                 color::GOLD_BRIGHT
@@ -330,18 +525,19 @@ impl Panel {
         );
     }
 
-    /// Kind `index` on the left: its card, how many, and its finish.
+    /// Tile `index` of the list shown, at place `slot` of the lines in view: its card in
+    /// the best finish held (greyed when not found yet) and how many when more than one.
     fn small_card(
         &mut self,
         frame: &Frame,
-        stack: &Stack,
+        tile: &Tile,
         faces: &cards::faces::Faces,
-        index: usize,
+        [index, slot]: [usize; 2],
         seconds: f32,
     ) {
         let s = frame.s;
-        let x = LEFT_X + (index % COLUMNS) as f32 * STEP_X;
-        let y = GRID_TOP + (index / COLUMNS) as f32 * STEP_Y;
+        let x = LEFT_X + (slot % COLUMNS) as f32 * STEP_X;
+        let y = GRID_TOP + (slot / COLUMNS) as f32 * STEP_Y;
         let chosen = index == self.card;
         let token = CARD_BASE + index as u16;
         let height = CARD_WIDTH * look::ASPECT;
@@ -354,87 +550,98 @@ impl Panel {
             });
         }
         let tilt = self.card_tilt(frame, [x, y, CARD_WIDTH], index + 1, seconds);
+        let best = tile.best();
         look::draw(
             &mut self.ui,
             frame,
             [x, y, CARD_WIDTH],
             look::Card {
-                rarity: stack.rarity,
-                finish: stack.finish,
+                rarity: tile.rarity,
+                finish: tile.finish(),
                 edition: "",
-                face: cards::shown(faces, stack.card.as_deref()),
+                face: shown_face(tile, faces),
                 tilt,
+                dim: !tile.owned(),
             },
             seconds,
             1.0,
             1.0,
         );
-        text(
-            &mut self.ui,
-            TextFamily::Display,
-            format_args!("x{}", stack.count),
-            frame.rect(x, y + height + 6.0, CARD_WIDTH * 0.5, 24.0),
-            19.0 * s,
-            if chosen {
-                color::GOLD_BRIGHT
-            } else {
-                color::TEXT
-            },
-            FontWeight::Semibold,
-            TextAlign::Start,
-        );
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!("{}", stack.finish.name),
-            frame.rect(
-                x + CARD_WIDTH * 0.4,
-                y + height + 8.0,
-                CARD_WIDTH * 0.6,
-                20.0,
-            ),
-            14.0 * s,
-            if stack.finish.index == 2 {
-                color::GOLD
-            } else {
-                color::MUTED
-            },
-            FontWeight::Regular,
-            TextAlign::End,
-        );
+        let count = tile.count();
+        if count > 1 {
+            // The count on a pill over the tile's top right corner.
+            let words = format!("x{count}");
+            let width = 16.0 + 9.0 * words.chars().count() as f32;
+            let rect = frame.rect(x + CARD_WIDTH - width + 6.0, y - 4.0, width, 22.0);
+            let solar = best.is_some_and(|stack| stack.finish.index == 2);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect,
+                radius: 11.0 * s,
+                color: color::alpha(color::SPACE, 0.94),
+            });
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: 11.0 * s,
+                width: 1.2 * s,
+                color: if solar {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::alpha(tile.rarity.colour, 0.9)
+                },
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{words}"),
+                frame.rect(x + CARD_WIDTH - width + 6.0, y - 2.0, width, 18.0),
+                14.0 * s,
+                if solar {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::TEXT
+                },
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+        }
         self.ui.hit_region(
             token,
-            frame.rect(x - 5.0, y - 5.0, CARD_WIDTH + 10.0, height + 36.0),
+            frame.rect(x - 5.0, y - 5.0, CARD_WIDTH + 10.0, height + 10.0),
         );
     }
 
-    /// The kind chosen, up close on the right.
+    /// The tile chosen, up close on the right: its card, its name, the copies held (or
+    /// that it is not found yet), what it is and when the first was found (or how it is
+    /// obtained).
     fn card_up_close(
         &mut self,
         frame: &Frame,
-        stack: &Stack,
+        tile: &Tile,
         faces: &cards::faces::Faces,
         seconds: f32,
     ) {
         let s = frame.s;
         let middle = SHOWCASE_X + SHOWCASE_WIDTH * 0.5;
-        let shown = cards::shown(faces, stack.card.as_deref());
+        let face = shown_face(tile, faces);
         let tilt = self.card_tilt(
             frame,
             [middle - BIG_WIDTH * 0.5, BIG_TOP, BIG_WIDTH],
             0,
             seconds,
         );
+        let finish = tile.finish();
+        let edition = tile.best().map_or("", |stack| stack.edition.as_str());
         look::draw(
             &mut self.ui,
             frame,
             [middle - BIG_WIDTH * 0.5, BIG_TOP, BIG_WIDTH],
             look::Card {
-                rarity: stack.rarity,
-                finish: stack.finish,
-                edition: &stack.edition,
-                face: shown,
+                rarity: tile.rarity,
+                finish,
+                edition,
+                face,
                 tilt,
+                dim: !tile.owned(),
             },
             seconds,
             1.0,
@@ -444,86 +651,128 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", stack.name_in(faces)),
+            format_args!("{}", tile.name(faces)),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 40.0),
             32.0 * s,
-            if stack.finish.index == 2 {
+            if !tile.owned() {
+                color::MUTED
+            } else if finish.index == 2 {
                 color::GOLD_BRIGHT
             } else {
-                stack.rarity.colour
+                tile.rarity.colour
             },
             FontWeight::Semibold,
             TextAlign::Center,
         );
         y += 46.0;
-        let first = crate::medals::date_text(stack.first);
-        let held = match (stack.count, first.is_empty()) {
-            (1, true) => "1 held".to_owned(),
-            (1, false) => format!("1 held, found {first}"),
-            (count, true) => format!("{count} held"),
-            (count, false) => format!("{count} held, the first found {first}"),
-        };
-        let edition = match (stack.sealed(), stack.edition.is_empty()) {
-            (true, true) => held,
-            (true, false) => format!("{}. {held}", stack.edition),
-            (false, true) => format!("{}, {}. {held}", stack.rarity.name, stack.finish.name),
-            (false, false) => format!(
-                "{}, {}. {}. {held}",
-                stack.rarity.name, stack.finish.name, stack.edition
-            ),
+        let held = if tile.owned() {
+            tile.breakdown()
+        } else {
+            "Not found yet".to_owned()
         };
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{edition}"),
+            format_args!("{held}"),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 26.0),
             18.0 * s,
-            color::TEXT,
+            if tile.owned() {
+                color::TEXT
+            } else {
+                color::MUTED
+            },
             FontWeight::Regular,
             TextAlign::Center,
         );
         y += 34.0;
-        if let Some(shown) = shown {
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!(
-                    "{}, {}: card {} of {}",
-                    shown.face.kind.name(),
-                    shown.face.set_name,
-                    shown.face.number,
-                    shown.of
-                ),
-                frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 24.0),
-                16.0 * s,
-                color::QUIET,
-                FontWeight::Regular,
-                TextAlign::Center,
-            );
-            return;
-        }
-        let y = centred_lines(
+        let about = match (&tile.slot, face) {
+            (_, Some(face)) => format!(
+                "{} {}   ·   {}   ·   {} {:03} / {:03}",
+                crate::symbols::card_rarity(tile.rarity.index),
+                tile.rarity.name,
+                face.face.kind.name(),
+                face.face.set_name,
+                face.face.number,
+                face.of
+            ),
+            (Slot::Sealed, _) => {
+                "Sealed: a card is picked for each when it is revealed.".to_owned()
+            }
+            _ => "Its face is not in your card pack yet.".to_owned(),
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{about}"),
+            frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 24.0),
+            16.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        y += 30.0;
+        let last = if tile.owned() {
+            match crate::medals::date_text(tile.first()) {
+                date if date.is_empty() => String::new(),
+                date => format!("First found {date}"),
+            }
+        } else {
+            rarity_odds(tile.rarity, faces)
+        };
+        centred_lines(
             &mut self.ui,
             frame,
-            stack.finish.about,
-            [SHOWCASE_X, y, SHOWCASE_WIDTH],
-            70,
+            &last,
+            [SHOWCASE_X + 40.0, y, SHOWCASE_WIDTH - 80.0],
+            72,
             2,
-            16.0,
-            color::MUTED,
+            15.0,
+            color::QUIET,
         );
-        if stack.sealed() {
-            centred_lines(
-                &mut self.ui,
-                frame,
-                "Sealed: its card is picked when it is revealed.",
-                [SHOWCASE_X, y + 4.0, SHOWCASE_WIDTH],
-                70,
-                2,
-                15.0,
-                color::QUIET,
-            );
-        }
+    }
+}
+
+/// How tile `tile` shows its face, when it is a card the packs have.
+fn shown_face<'a>(tile: &Tile, faces: &'a cards::faces::Faces) -> Option<look::Shown<'a>> {
+    let Slot::Card(index) = tile.slot else {
+        return None;
+    };
+    let face = faces.list.get(index)?;
+    Some(look::Shown {
+        face,
+        index,
+        of: faces.in_set(&face.set),
+    })
+}
+
+/// How a card of `rarity` is obtained, with the odds: "From holocrons: about 1 in 1 912
+/// holocrons found holds a Legendary card (0.05%), one of the 9 Legendary cards."
+pub(super) fn rarity_odds(rarity: &cards::Rarity, faces: &cards::faces::Faces) -> String {
+    use crate::cards::loot;
+    let chance: f64 = FINISHES
+        .iter()
+        .map(|finish| loot::kind_any(rarity.index, finish.index))
+        .sum();
+    let odds = match loot::one_in(chance) {
+        rare if rare.is_empty() => format!(
+            "From holocrons: {} of holocrons found hold a {} card",
+            loot::percent(chance),
+            rarity.name
+        ),
+        rare => format!(
+            "From holocrons: about {rare} holocrons found holds a {} card ({})",
+            rarity.name,
+            loot::percent(chance)
+        ),
+    };
+    match faces
+        .list
+        .iter()
+        .filter(|face| face.rarity.id == rarity.id)
+        .count()
+    {
+        0 | 1 => format!("{odds}."),
+        pool => format!("{odds}, one of the {pool} {} cards.", rarity.name),
     }
 }
 
@@ -552,22 +801,35 @@ mod tests {
         list
     }
 
-    /// Every state fits the canvas: no identity, waiting, none, one kind and more kinds
-    /// than the tab shows; the arrows walk the kinds shown.
+    /// Copies of `count` cards `card_000`, `card_001`... in one finish each.
+    fn revealed(count: usize) -> Vec<sjk_identity::CardStack> {
+        (0..count)
+            .map(|index| sjk_identity::CardStack {
+                card: Some(format!("card_{index:03}")),
+                rarity: "legendary".to_owned(),
+                finish: cards::FINISHES[index % 3].id.to_owned(),
+                edition: "alpha".to_owned(),
+                count: 1 + index as u32 % 3,
+                first: 1_791_641_100,
+                last: 1_791_641_100,
+            })
+            .collect()
+    }
+
+    /// Every state fits the canvas: no identity, waiting, none, one kind, many sealed
+    /// kinds and more tiles than the grid shows; the arrows walk the tiles, the wheel
+    /// scrolls and the filter's keys narrow the list.
     #[test]
-    fn the_tab_shows_the_kinds_and_fits() {
+    fn the_tab_shows_the_tiles_and_fits() {
         let fonts = crate::text::load_modern(1.0, None).expect("Inter");
         let shown = inputs(Holdings::Known(&[]), "");
         let mut many = every_kind();
-        many.push(sjk_identity::CardStack {
-            edition: "beta".to_owned(),
-            ..many[0].clone()
-        });
-        assert!(many.len() > SHOWN_MAX);
+        many.extend(revealed(60));
         let states = [
             None,
             Some((Vec::new(), 0, 0)),
             Some((many[..1].to_vec(), 35, 5)),
+            Some((every_kind(), 35, 5)),
             Some((many.clone(), 123_456, 98_765)),
         ];
         for state in &states {
@@ -581,23 +843,47 @@ mod tests {
         }
         let mut panel = Panel::new();
         panel.open(Tab::Cards, true, true, ReturnTarget::MainMenu);
-        panel.preview_cards = states[3].clone();
+        panel.preview_cards = states[4].clone();
         panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
-        assert_eq!(panel.cards_shown, SHOWN_MAX);
+        // Five sealed rarities, then the sixty unknown cards (no faces in a test).
+        assert_eq!(panel.cards_shown, 65);
         let _ = panel.key(KeyCode::ArrowRight, false, true);
         let _ = panel.key(KeyCode::ArrowRight, false, true);
         assert_eq!(panel.card, 2);
+        let _ = panel.key(KeyCode::ArrowDown, false, true);
+        assert_eq!(panel.card, 2 + COLUMNS);
         for _ in 0..40 {
-            let _ = panel.key(KeyCode::ArrowRight, false, true);
+            let _ = panel.key(KeyCode::ArrowDown, false, true);
         }
+        assert_eq!(panel.card, 64, "Down stops at the last tile");
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
         assert_eq!(
-            panel.card,
-            SHOWN_MAX - 1,
-            "the arrows stop at the last shown"
+            panel.card_first,
+            65usize.div_ceil(COLUMNS) - LINES,
+            "scrolled to it"
         );
         assert!(
-            panel.ui.rect_for(CARD_BASE).is_some(),
-            "a card answers the pointer"
+            panel.ui.rect_for(CARD_BASE + 64).is_some(),
+            "the chosen tile answers the pointer"
         );
+        assert!(
+            panel.ui.rect_for(CARD_BASE).is_none(),
+            "the first is out of view"
+        );
+        for _ in 0..20 {
+            panel.scroll_cards(1.0);
+        }
+        assert_eq!(panel.card_first, 0);
+        assert!(
+            panel.card < COLUMNS * LINES,
+            "the chosen tile stays in view"
+        );
+        // T for one rarity: the sealed Mythical tile alone.
+        for _ in 0..5 {
+            panel.card_filter.cycle_rarity(false);
+        }
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(panel.cards_shown, 1);
+        assert_eq!(panel.card, 0);
     }
 }

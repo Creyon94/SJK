@@ -308,7 +308,7 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
 | Kyber shards, shattering, crafting, the tables and the Shaders tab's hooks | [economy.rs](../crates/sjk-viewer/src/economy.rs); wire and requests in [wire.rs](../crates/sjk-identity/src/wire.rs), [hub.rs](../crates/sjk-identity/src/hub.rs), [service.rs](../crates/sjk-identity/src/service.rs) (`Service::shatter`, `craft`, `read_shop`, `buy`, `Snapshot::shop`, `Snapshot::trade`) |
 | The kyber shard's mark | [cards/shard.rs](../crates/sjk-viewer/src/cards/shard.rs) |
 | The shop | [holocrons_panel_shop.rs](../crates/sjk-viewer/src/holocrons_panel_shop.rs) |
-| The Collection's Cards tab | [collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs) |
+| The Collection's Cards tab | [collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs); its tiles, filter and sets' progress in [cards/binder.rs](../crates/sjk-viewer/src/cards/binder.rs) |
 | `debug_open` | [cards/rehearsal.rs](../crates/sjk-viewer/src/cards/rehearsal.rs) |
 | The faces from the packs, their pictures decoded on a worker | [cards/faces.rs](../crates/sjk-viewer/src/cards/faces.rs), mounted by [sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs) |
 | The pictures' textures | [ui_renderer/card_art.rs](../crates/sjk-viewer/src/ui_renderer/card_art.rs) |
@@ -470,18 +470,47 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
     it (what was opened is the hub's already). A refusal says why ("That holocron was
     already opened."; a hub from before opening: "This SJK hub cannot open holocrons
     yet.") and the profile is read again soon.
-- **The Cards tab** (the Collection's seventh): "N cards" and a line about sealed cards
-  while there are some, the credits at the right of the headline and the kyber shards left
-  of them, up to twelve kinds
-  (six by two, the best first, each with "x3" and its finish; more are counted under
-  them), and the kind chosen up close on the right, 470 frame pixels wide so a face's
-  lore reads at 1080p (290 before faces), with its name, rarity, finish, edition, how
-  many and when the first was found, and its set and number (a sealed one: what its
-  finish is and that it is sealed). **Reveal N sealed cards** (or R) stands under the
-  grid when the hub lets the player open holocrons and the packs have faces of a sealed
-  copy's rarity; it says "Revealing..." until the hub answers, then a line says how
-  many were revealed or why not. Left and Right choose. The tab's count in the row is
-  the cards held.
+- **The Cards tab** (the Collection's seventh), a binder since 19/10/2026 (Sol's
+  request): every card the packs have a face of, found or not, so the collection reads
+  as a binder with its gaps. Nothing in it knows a set: sets, cards, rarities and kinds
+  come from the faces.
+  - **The headline** says "5 of 13 cards found", the line under it each set's progress
+    ("SJK Alpha 5 / 13", four sets at most, then "and N more sets"); with no card yet,
+    "Open a holocron on the Holocrons tab" after it. The kyber shards and credits stand
+    at its right. Without faces in the packs it says how many cards are held, as before.
+  - **The tiles** (122 frame pixels wide, seven to a line, three lines shown from y 350):
+    first the sealed copies, one tile per rarity, the rarest first (their back in the best
+    finish held); then every card by set and number, one tile whatever the copies held,
+    in the light of the best finish held (Solar, then Holo, then Normal) with its edition;
+    a card not found yet is greyed: a grey plate and edge, its picture darkened under a
+    grey veil, its words quiet, no finish light (`look::Card::dim`). Last, copies of a
+    card whose face is not in the packs ("Unknown card <id>", the sealed back). A tile
+    holding more than one copy carries a pill at its top right, "x3", edged gold when its
+    best is Solar. More lines than three scroll: the wheel a line a notch, the arrows keep
+    the chosen tile in view, and a bar at the grid's right shows where.
+  - **The filter** above the tiles: All, Owned and Missing, then a chip each for the
+    rarity ("Rarity: Legendary", in its colour), the kind ("Kind: Meme", only kinds the
+    faces have) and the finish held ("Finish: Holo": a copy in it is held), each a click
+    on to the next value and back to Any; O, T, K and F do the same (with Shift, back).
+    They combine; a kind leaves out the sealed and unknown tiles. "N of M cards" at the
+    row's right counts the cards shown of the packs'; "No card matches these filters."
+    when none does. A filter's change goes back to the first tile.
+  - **Up close** on the right (470 frame pixels wide, so a face's lore reads at 1080p):
+    the tile chosen, its name (in its rarity's colour, gold for Solar), the copies held
+    ("3 copies: 1 Solar, 2 Normal · Alpha Edition") or "Not found yet", the rarity, kind,
+    set and number ("Legendary · Meme · SJK Alpha 010 / 013"; a sealed tile: that a card
+    is picked for each when it is revealed), then when the first was found, or for a card
+    not found yet how it is obtained with its odds. A card not found yet shows greyed.
+  - **Hovering** a tile shows its hover card ([sjk-ui.md](sjk-ui.md#hover-cards)): how a
+    card of its rarity comes ("From holocrons: about 1 in 136 holocrons found holds a
+    Legendary card (0.734%), one of the 9 Legendary cards."), what it is ("Legendary
+    card. Meme, SJK Alpha 010 of 13."), then the copies by finish and edition and "First
+    found 12/10/2026", or "Not found yet".
+  - **Reveal N sealed cards** (or R) stands under the grid when the hub lets the player
+    open holocrons and the packs have faces of a sealed copy's rarity; it says
+    "Revealing..." until the hub answers, then a line beside it says how many were
+    revealed or why not. The arrows (Left and Right a tile, Up and Down a line), Tab and
+    the pointer choose. The tab's count in the row is the copies held.
 - **The ceremony** shows a card the hub picked with its face, bigger (400 wide) and
   higher, its name as the title, "Legendary, Holo. Alpha Edition. From a Mythical
   Holocron" and its set and number in place of the sealed line.
@@ -497,12 +526,10 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
 1. The rest of SJK Alpha: Common, Uncommon and Rare cards (only Mythical and Legendary
    ones exist; drafts for the others wait for art), so every sealed copy can be revealed; a reveal ceremony (the copies turn
    over one by one, as an opening's cards turn in).
-2. The Cards tab as a binder by set with progress ("Places 7 of 12"), missing cards
-   as dark outlines.
-3. Deploying the economy ([Shards and the shop](#shards-and-the-shop)) and the Shaders
+2. Deploying the economy ([Shards and the shop](#shards-and-the-shop)) and the Shaders
    tab's Shatter and Craft. The Staff page's credits and shards control is built
    (18/10/2026); shards wait for the hub's `/v1/staff/shards`.
-4. Set completion feeding achievements the hub counts.
+3. Set completion feeding achievements the hub counts.
 
 Suggested first sets, about 20 to 30 cards: Places (planets, the Jedi Academy, the
 game's maps), Personalities (figures of the lore), Jedi Academy (Force powers,
@@ -584,3 +611,15 @@ rest, and a batch of twelve cracking open, running, stopping, at rest, its last 
 its finds coming in and laid out. Not tried: in a running client (no motion seen, no
 sounds heard: the cue files are checked to exist in the retail `assets0.pk3` only), with
 the hub's packs, at 4K or 4:3 in a shot (the canvas test covers them).
+
+The binder (19/10/2026, Windows 11, `personal/card-binder`): unit tests for its tiles
+(sealed first by rarity, every card in set and number order found or not, unknown cards
+last, the best finish, the copies' breakdown by finish and edition, each set's progress),
+its filters (combined, cycled both ways, kinds from the faces), the tab's room on the
+canvas at 1080p, 4K and 4:3 with up to 65 tiles, the arrows, the wheel and a filter, and
+a tile's hover card. World shot `duel6_sjk_card_binder` (off-screen, duel6, made-up
+holdings, the hub's `sjk_cards` pack mounted) was looked at in 1080p and 4:3: all the
+cards with a hover card on one held in two finishes, Owned, Missing Legendary ones with a
+hover card, Finish Holo, and a missing card chosen. Not tried: in a running client, more
+cards than three lines (the unit tests scroll; SJK Alpha has 13), the keys and the wheel
+live.

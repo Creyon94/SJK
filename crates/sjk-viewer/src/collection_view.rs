@@ -401,7 +401,15 @@ impl Panel {
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(6);
         match self.tab {
             Tab::Medals => keys.push((&["Left", "Right"], "choose")),
-            Tab::Cards if self.cards_shown > 1 => keys.push((&["Left", "Right"], "choose")),
+            Tab::Cards => {
+                if self.cards_shown > 1 {
+                    keys.push((&["Arrows"], "choose"));
+                }
+                keys.push((&["O", "T", "K", "F"], "filter"));
+                if self.revealable > 0 {
+                    keys.push((&["R"], "reveal"));
+                }
+            }
             Tab::Achievements => keys.push((&["Arrows"], "choose")),
             Tab::Shaders => {
                 if self.grid {

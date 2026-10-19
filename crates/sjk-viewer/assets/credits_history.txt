@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Cards tab as a binder: every card, missing ones greyed, stacks, hover breakdown, filters
+- ff58c0c |  | Cards tab as a binder: every card, found or greyed, filters, hover
++ 19/10/2026 | - | Debug panel: staff-only cjp_client, ghost and mimic
+- d840787 |  | Debug panel: staff-only cjp_client, ghost and mimic
++ 19/10/2026 | - | cjp_client, ghost and mimic for SJK staff only
+- 5f289f4 |  | cjp_client and the showcase tools (ghost, mimic) are for SJK staff only
++ 19/10/2026 | - | Server remaps and Map edits switches work
+- a1355ab |  | Server remaps and Map edits switches work
 + 19/10/2026 | - | Cards numbered 0: SJK Alpha's card 000 is Sol's
 - a1d8513 |  | Cards: a set's numbers start at 0 (SJK Alpha's card 000 is Sol's)
 + 19/10/2026 | - | Emotes: a window of every emote, search, click to play

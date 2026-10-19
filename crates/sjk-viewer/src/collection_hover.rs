@@ -93,8 +93,7 @@ impl Panel {
             });
         }
         if let Some(index) = within(CARD_BASE, self.cards_shown) {
-            let (stacks, _) = self.holdings(inputs);
-            return stacks?.get(index).map(card_card);
+            return self.card_tiles.get(index).map(tile_card);
         }
         None
     }
@@ -211,56 +210,53 @@ fn shader_card(
     }
 }
 
-/// A kind of card's card: where cards come from, how likely this kind is, and how many
-/// the player holds.
-fn card_card(stack: &crate::cards::Stack) -> Card {
-    use crate::cards::loot;
-    let chance = loot::kind_any(stack.rarity.index, stack.finish.index);
-    let name = if stack.finish.index == 0 {
-        stack.rarity.name.to_owned()
-    } else {
-        format!("{} {}", stack.rarity.name, stack.finish.name)
-    };
-    let odds = match loot::one_in(chance) {
-        rare if rare.is_empty() => format!(
-            "{} of holocrons found hold a {name} card.",
-            loot::percent(chance)
-        ),
-        rare => format!(
-            "About {rare} holocrons found holds a {name} card ({}).",
-            loot::percent(chance)
-        ),
-    };
+/// A tile's card on the Cards tab: what the card is, how it is obtained and the odds,
+/// then the copies held by finish and edition and when the first was found, or that it
+/// is not found yet.
+fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
+    use crate::cards::binder::Slot;
     let faces = crate::cards::faces::current();
-    let mut lines = vec![
-        Line::how("Opening a holocron gives one card and some credits, or a saber shader instead."),
-        Line::status(odds),
-    ];
-    match crate::cards::shown(&faces, stack.card.as_deref()) {
-        Some(shown) => lines.push(Line::status(format!(
-            "{}, {}: card {} of {}.",
-            shown.face.kind.name(),
-            shown.face.set_name,
-            shown.face.number,
-            shown.of
-        ))),
-        None if stack.sealed() => {
-            lines.push(Line::status(
-                "Sealed: its card is picked when it is revealed.",
-            ));
+    let odds = cards::rarity_odds(tile.rarity, &faces);
+    let mut lines = Vec::with_capacity(4);
+    match (&tile.slot, tile.face(&faces)) {
+        (_, Some(face)) => {
+            lines.push(Line::how(odds));
+            lines.push(Line::status(format!(
+                "{} card. {}, {} {:03} of {}.",
+                tile.rarity.name,
+                face.kind.name(),
+                face.set_name,
+                face.number,
+                faces.in_set(&face.set)
+            )));
         }
-        None => lines.push(Line::status("Its face is not in your card pack yet.")),
+        (Slot::Sealed, _) => {
+            lines.push(Line::how(
+                "Sealed: a card of this rarity whose face is picked when it is revealed,                  into the first set that has cards of it.",
+            ));
+            lines.push(Line::status(odds));
+        }
+        _ => {
+            lines.push(Line::how("Its face is not in your card pack yet."));
+            lines.push(Line::status(format!("{} card.", tile.rarity.name)));
+        }
     }
-    let date = crate::medals::date_text(stack.first);
-    lines.push(Line::held(match (stack.count, date.is_empty()) {
-        (1, true) => "You hold 1".to_owned(),
-        (1, false) => format!("You hold 1, since {date}"),
-        (count, true) => format!("You hold {count}"),
-        (count, false) => format!("You hold {count}, the first since {date}"),
-    }));
+    if tile.owned() {
+        lines.push(Line::held(tile.breakdown()));
+        let date = crate::medals::date_text(tile.first());
+        if !date.is_empty() {
+            lines.push(Line::status(format!("First found {date}")));
+        }
+    } else {
+        lines.push(Line::status("Not found yet"));
+    }
     Card {
-        title: stack.name_in(&faces),
-        colour: stack.rarity.colour,
+        title: tile.name(&faces),
+        colour: if tile.owned() {
+            tile.rarity.colour
+        } else {
+            color::MUTED
+        },
         lines,
     }
 }
@@ -330,25 +326,39 @@ mod tests {
     }
 
     #[test]
-    fn a_card_says_where_it_comes_from_and_its_odds() {
-        let stacks = crate::cards::stacks(&[sjk_identity::CardStack {
-            card: None,
-            rarity: "mythical".to_owned(),
-            finish: "solar".to_owned(),
-            edition: "alpha".to_owned(),
-            count: 2,
-            first: 1_791_641_100,
-            last: 1_791_641_100,
-        }]);
-        let card = card_card(&stacks[0]);
-        assert_eq!(card.title, "Mythical card, Solar");
+    fn a_tile_says_where_it_comes_from_and_what_is_held() {
+        let stacks = crate::cards::stacks(&[
+            sjk_identity::CardStack {
+                card: None,
+                rarity: "mythical".to_owned(),
+                finish: "solar".to_owned(),
+                edition: "alpha".to_owned(),
+                count: 1,
+                first: 1_791_641_100,
+                last: 1_791_641_100,
+            },
+            sjk_identity::CardStack {
+                card: None,
+                rarity: "mythical".to_owned(),
+                finish: "normal".to_owned(),
+                edition: "alpha".to_owned(),
+                count: 2,
+                first: 1_791_700_000,
+                last: 1_791_700_000,
+            },
+        ]);
+        let faces = crate::cards::faces::Faces::of_list(Vec::new());
+        let tiles = crate::cards::binder::tiles(&stacks, &faces);
+        let card = tile_card(&tiles[0]);
+        assert_eq!(card.title, "Sealed Mythical cards");
         assert_eq!(
             card.lines[1].words,
-            "About 1 in 119 581 holocrons found holds a Mythical Solar card (0.0008%)."
+            "From holocrons: about 1 in 1 004 holocrons found holds a Mythical card (0.0996%)."
         );
         assert_eq!(
-            card.lines.last().unwrap().words,
-            "You hold 2, the first since 10/10/2026"
+            card.lines[2].words,
+            "3 copies: 1 Solar, 2 Normal · Alpha Edition"
         );
+        assert_eq!(card.lines[3].words, "First found 10/10/2026");
     }
 }

@@ -880,7 +880,19 @@ change: The hub's SJK Alpha set: 000 Sol, 001 Bishop ... 012 JA+; 010 is still T
 change: Cards may be numbered 0; the client used to drop card 000's face.
 test: Log: "SJK packs: card faces:" lists sjk_alpha_000 to sjk_alpha_012.
 test: debug_open mythical x5: the Mythical card is one of Sol, Bishop, Creyon, Early Team.
-test: Sol's face footer reads "000 / 012".
+test: Sol's face footer reads "000 / 013".
+
+[card-binder]
+area: Menus & settings
+title: Cards tab as a binder: every card, missing ones greyed, stacks, filters
+change: Every card of the packs shows; ones you lack are greyed. "N of M cards found".
+change: One tile per card with an x3 badge, lit in your best finish; sealed copies first.
+change: Hover: copies by finish and edition, first found, odds. Chips filter the grid.
+test: Collection > Cards: 13 SJK Alpha tiles, owned lit, missing greyed; "SJK Alpha N / 13".
+test: Hover a card you hold several of: "3 copies: 1 Solar, 2 Normal - Alpha Edition".
+test: Click Missing, Rarity, Kind, Finish chips (or O T K F): grid and "N of M" follow.
+test: Wheel and arrows scroll and choose; a missing card up close reads "Not found yet".
+test: R or Reveal still reveals sealed copies.
 
 [hover-cards]
 area: Menus & settings
