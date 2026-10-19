@@ -41,7 +41,11 @@ const KEYS_Y: f32 = 992.0;
 const KEYS_RIGHT: f32 = 1824.0;
 
 /// The commands, as typed, and what each does.
-const COMMANDS: [(&str, &str); 7] = [
+const COMMANDS: [(&str, &str); 8] = [
+    (
+        "emotes",
+        "Opens a window of every emote you have: type to search, click one to play it.",
+    ),
     ("sjkemote", "Lists the emotes you have installed."),
     (
         "sjkemote <id>",

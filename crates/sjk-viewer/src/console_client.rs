@@ -231,6 +231,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("vid_restart", "Reapply video settings (device is retained)"),
     (crate::fps_help::COMMAND, crate::fps_help::HELP),
     (crate::emote_help::COMMAND, crate::emote_help::HELP),
+    (crate::emote_picker::COMMAND, crate::emote_picker::HELP),
     (crate::whats_new_card::COMMAND, crate::whats_new_card::HELP),
     (crate::gameplay_fps::COMMAND, crate::gameplay_fps::HELP),
     (
@@ -1195,6 +1196,7 @@ impl crate::GpuState {
             crate::mimic::COMMAND => return self.mimic_command(args),
             crate::fps_help::COMMAND => return self.fps_help_command(),
             crate::emote_help::COMMAND => return self.emote_help_command(),
+            crate::emote_picker::COMMAND => return self.emote_picker_command(),
             crate::whats_new_card::COMMAND => {
                 self.preview_whats_new();
                 return Ok(Vec::new());

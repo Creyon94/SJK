@@ -92,8 +92,8 @@ pub(crate) const ROCKET_LOCK_ICON_FIRST: u32 = HOLOCRON_ICON_FIRST + HOLOCRON_IC
 pub(crate) const ROCKET_LOCK_ICON_CELLS: u32 = 2;
 /// First of the emotes' picture cells (`emote_icons`), after the rocket lock-on's.
 pub(crate) const EMOTE_ICON_FIRST: u32 = ROCKET_LOCK_ICON_FIRST + ROCKET_LOCK_ICON_CELLS;
-/// Emote picture cells: two rows.
-pub(crate) const EMOTE_ICON_CELLS: u32 = 2 * COLUMNS;
+/// Emote picture cells: eight rows, so the emote picker shows a large pack whole.
+pub(crate) const EMOTE_ICON_CELLS: u32 = 8 * COLUMNS;
 /// First of the duel badges' cells (`ui_renderer::duel_texture`), one per duel colour,
 /// after the emotes'.
 pub(crate) const DUEL_ICON_FIRST: u32 = EMOTE_ICON_FIRST + EMOTE_ICON_CELLS;

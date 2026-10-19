@@ -5571,3 +5571,16 @@ test: Pick a looping SJK emote, alt-tab: a 2nd SJK client sees it dance with no 
 test: Dance with music, alt-tab: the 2nd client's music stops; back: it resumes in step.
 test: cg_awayIdle 30, no input for 30 s: same as alt-tab; a key press brings you back.
 note: A quick alt-tab (under 2 s) may send nothing: the hub takes one emote per 2 s.
+
+[emote-picker]
+area: Menus & settings
+title: Emote picker: emotes opens a window of every emote, search and click to play
+change: Tiles with each emote's picture, name and id, sorted by name; typing searches.
+change: A click or Enter plays it as sjkemote <id> and closes the window and game menu.
+change: Emote pictures: 128 now (was 32), so a big pack shows them all.
+test: On a server, type emotes in the console: the window opens with every emote.
+test: Type part of a name: only matching ones stay; Escape clears, Escape again closes.
+test: Click an emote: the window closes and you play it; others with it see it.
+test: Arrows and Page Down move the gold choice and scroll; the mouse wheel scrolls.
+test: Ctrl+A, Ctrl+V and a held Backspace work in the search.
+note: In the main menu (no server) emotes answers Join a server to emote.

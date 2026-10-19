@@ -90,6 +90,11 @@ impl GpuState {
             self.emote_help_choice(choice);
             return;
         }
+        // And the emote picker, which takes the typing for its search.
+        if !console_open && self.emote_picker.card.is_open() {
+            self.emote_picker_key(&event);
+            return;
+        }
         // And the low-FPS card.
         if !console_open && self.fps_card.is_open() {
             let choice = self.fps_card.handle_key(&event);
