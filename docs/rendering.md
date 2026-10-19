@@ -1937,6 +1937,29 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   `sig_orbit` (light) and `sig_orbit_solid` (a layer): the Eclipse's suns, Obsidian Edge's
   shards, Liquid Beskar's orbiting droplets, Carbonite's floating shards, the Kyber Cluster's
   crystals and the Between Worlds duel. `tools/sig3d.py` in the Blade Lab draws the same way.
+- **Each its own, every part switchable (round 11, 20/10/2026).** Creyon: the mythicals all
+  had the same lines (the shared beams) and each effect must switch off on its own. A
+  signature now also wears Sol's lightning and prominences (`arcs`), souls, sparks and
+  starlines (`motes`) and a colour turn (`hue`) from its file, each with its own pattern, and
+  no longer shares the beams. Its options (`Signature::options`, at most six): its own parts,
+  named by `// @part` header lines and read in the shader with `part(k)` (the wearer's
+  choices ride on section bits a signature never uses, `SIG_PART_BITS`, gathered into
+  `uParts` by `sig_take`), then Sol's sections its file has (named by `// @arcs` and like
+  lines), then the swing and clash bursts (the pulse bit). An id that hashes onto a taken
+  choice bit gets a number. The old `Effects round the blade` and `Ignition show` are gone.
+- **Nothing moves with the view (round 11).** Effects still raced when the view turned, the
+  wearer ran or the blade lit: many clocks ran at a rate that followed the swing (`uTime` times
+  `a + b × uSwing` jumps the phase by the clock times the change), and turning the view or
+  running turned the blade about its hilt in the world, which counted as a swing. The swing
+  is now measured in the wearer's own frame (`BladeMotion::record_turned`, the blade's
+  direction turned back by the body's rotation), no clock's rate follows the swing, and
+  `uLength` is the full length from the start (`sig_take`), so nothing placed along the blade
+  slides as it grows.
+- **Lower tiers and Sol's pieces (round 11).** A signature keeps its file's echo, glints
+  (`star`, `orbit`) and veins as well as its afterimages, haze, wisps and embers, offered as
+  options, and the built-in file's ones win over an older pack file (`Signature::adopt`). The
+  legendaries use them with fewer flat effects than the mythicals; `lab.glsl` adds `lvl`,
+  `recol`, `bands` and `fxFall` (rain, snow, streaks) for them.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

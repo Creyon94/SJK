@@ -5,6 +5,9 @@
 // streaks fly out of the tip like a starfield. Ignition is the jump itself: the stars sit as points,
 // then stretch into lines. A swing punches the jump harder: the streaks grow long and bright and a
 // flash races up. A clash drops out of hyperspace: a white reversion flash and a ring of light.
+// @part Star streaks
+// @part Hyperspace tunnel
+// @motes Starlines
 // @room 10
 // @palette {"corona.rim_cool":[0.08,0.25,0.85],"corona.rim_hot":[0.45,0.75,1.0],"corona.inner":[0.85,0.95,1.0],"core.white":[0.96,0.98,1.0],"core.fringe_cool":[0.25,0.55,1.0],"core.fringe_hot":[0.7,0.88,1.0],"light.color":[0.35,0.6,1.0],"trail":[0.4,0.65,1.0]}
 
@@ -103,19 +106,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(0.95 + 0.05*sin(uTime*61.0)); }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 blue = vec3(0.35, 0.6, 1.0), white = vec3(0.85, 0.92, 1.0);
-  fx += fxCoils(ro, rd, px, y0, y1, 2.8, 0.7, 1.4 + 1.5*sw, 4.0, blue);
-  fx += fxSparks(ro, rd, px, y0, y1, 16.0 + 12.0*sw, 7.0, 1.4, 2.4, white);
-  fx += fxRays(ro, rd, px, y0, y1, 8.0, 6.0, 0.8, 4.6, blue);
-  fx += fxFlare(ro, rd, vec3(0.0, L + 0.4, 0.0), px, 0.25, 3.5 + 2.0*sw, 6.0, t*0.6, blue)*(0.7 + 0.3*sin(t*7.0));
-  fx += fxAura(ro, rd, y0, y1, 3.0, blue);
-  fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, white)*1.6;
+  fx += fxCoils(ro, rd, px, y0, y1, 2.8, 0.7, 1.4, 4.0, vec3(0.35, 0.6, 1.0))*part(1.0);
+  fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, vec3(0.85, 0.92, 1.0))*1.6;
   return col + fx*uFx;
 }

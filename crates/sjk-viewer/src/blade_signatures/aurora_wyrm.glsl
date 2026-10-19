@@ -3,6 +3,10 @@
 // slowly and rippling as light runs along them; snow crystals glitter as they whirl round it and
 // kyber glints flash in the cold. Every twelve seconds a storm surge sweeps up the blade and the
 // curtains flare and spread wide. A swing makes the curtains ripple; a clash flashes them all.
+// @part Aurora curtains
+// @arcs Storm lightning
+// @motes Ice crystals
+// @hue Aurora colours
 // @room 10
 // @palette {"corona.rim_cool":[0.05,0.30,0.25],"corona.rim_hot":[0.25,0.95,0.60],"corona.inner":[0.75,1.0,0.88],"core.white":[0.92,1.0,0.95],"core.fringe_cool":[0.25,0.85,0.60],"core.fringe_hot":[0.75,1.0,0.85],"light.color":[0.30,0.95,0.60],"trail":[0.35,0.95,0.65]}
 
@@ -25,7 +29,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     for (int j = 0; j < 9; j++){
       float u = float(j)/8.0;
       float a = a0 + u*0.35;
-      float wav = 0.25*sin(u*7.0 + t*(0.8 + 1.5*sw) + fk*2.0);
+      float wav = 0.25*sin(u*7.0 + t*(0.8) + fk*2.0);
       vec3 base = around(R + wav, a, y0 + 0.6*sin(u*5.0 + t*0.5));
       if (base.y > top) continue;
       vec3 tip = base + vec3(0.0, H*(0.6 + 0.4*sin(u*9.0 + fk + t*0.7)), 0.0);
@@ -40,7 +44,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   for (int i = 0; i < 26; i++){
     float fi = float(i);
     float r = 0.9 + 3.6*h11(fi*3.3);
-    vec3 p = around(r, h11(fi*7.7) + t*(0.2 + 0.2*h11(fi))*(1.0 + sw), mod(h11(fi*5.9)*(top + 2.0) - t*(0.8 + 0.8*h11(fi*2.4)), top + 2.0) - 1.0);
+    vec3 p = around(r, h11(fi*7.7) + t*(0.2 + 0.2*h11(fi)), mod(h11(fi*5.9)*(top + 2.0) - t*(0.8 + 0.8*h11(fi*2.4)), top + 2.0) - 1.0);
     float d = rayPt(ro, rd, p, ta);
     float gl = pow(0.5 + 0.5*sin(t*6.0 + fi*3.1), 8.0);
     col += vec3(0.9, 1.0, 1.0)*halo(d, max(0.04, px))*(0.8 + 1.6*gl);
@@ -65,19 +69,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 green = vec3(0.3, 1.0, 0.6), mag = vec3(0.85, 0.35, 1.0), ice = vec3(0.75, 0.95, 1.0);
-  fx += fxArcs(ro, rd, px, y0, y1, 5.0 + 3.0*sw, 5.0, 1.3 + 1.5*sw, 1.9, green);
-  fx += fxRays(ro, rd, px, y0, y1, 10.0, 7.0, 0.5, 7.7, mix(green, mag, 0.35));
-  fx += fxCoils(ro, rd, px, y0, y1, 2.0, 0.8, 0.25, 3.0, mix(green, mag, 0.5 + 0.5*sin(t*0.4)));
-  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 34.0, 0.07, 4.1, ice);
-  fx += fxAura(ro, rd, y0, y1, 3.0, green)*0.9;
-  fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 9.0, green)*1.5;
+  fx += fxAura(ro, rd, y0, y1, 3.0, vec3(0.3, 1.0, 0.6))*0.8*part(0.0);
+  fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 9.0, vec3(0.3, 1.0, 0.6))*1.5;
   return col + fx*uFx;
 }

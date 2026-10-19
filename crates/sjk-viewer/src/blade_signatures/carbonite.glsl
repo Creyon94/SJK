@@ -5,6 +5,9 @@
 // tumbling for a long while, the freed blade blazing with rays of light; then they fly back and
 // fuse into the slab again, which stays solid for a good while as new cracks spread, and bursts
 // again. A swing makes the cracks flare; a clash chips shards off the slab.
+// @part Carbonite slab
+// @part Floating shards
+// @part Blaze and steam
 // @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.20,0.45,0.75],"corona.rim_hot":[0.60,0.88,1.0],"corona.inner":[0.92,0.98,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.50,0.80,1.0],"core.fringe_hot":[0.80,0.95,1.0],"light.color":[0.60,0.88,1.0],"trail":[0.60,0.88,1.0]}
@@ -44,7 +47,7 @@ float cb_cracks(vec2 f, float px){
 // the slab, drawn over Sol's glow and core as his solid blades are (the Comic's ink, the
 // Quicksilver's chrome): a rounded bar of dark bronze facing the camera, lit from one side,
 // with cast grooves across it, a raised rib, a cold sheen and the trapped light in its cracks
-vec4 sig_solid(vec4 o, vec2 b, float px){
+vec4 base_solid(vec4 o, vec2 b, float px){
   if (uFx < 0.01 || cb_held() < 0.5) return o;
   float top = cb_stop();
   if (top < CB_Y0 + 0.2) return o;
@@ -101,7 +104,7 @@ float cb_shard(vec3 ro, vec3 rd, vec3 c, float sz, float spin, float seed, float
 }
 // the burst and the clash: shards of slab, each a piece facing the camera, flung out in 3D
 // round 10: the shards float round the blade, so they are drawn in true 3D (only orbits are)
-vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   float L = uLength;
   vec4 col = vec4(0.0);
   if (uFx < 0.01) return col;
@@ -130,7 +133,7 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   return col;
 }
 // a clash chips shards off the slab: flat round the blade, as Sol's pieces are
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+vec4 base_vol_solid(vec3 ro, vec3 rd, float px){
   float L = uLength;
   vec4 col = vec4(0.0);
   if (uFx < 0.01) return col;
@@ -170,7 +173,7 @@ vec3 cb_steam(vec3 ro, vec3 rd){
   }
   return col;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float L = uLength;
   float bu = cb_burst();
   vec3 c = vec3(0.6, 0.88, 1.0);
@@ -195,16 +198,34 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   float ph = cb_ph(), free_ = cb_shards()*cb_out();
   vec3 ice = vec3(0.75, 0.95, 1.0);
-  light += fxRays(ro, rd, px, y0, y1, 14.0, 7.5, 0.6, 3.3, c)*free_;
   light += fxSparks(ro, rd, px, y0, y1, 20.0, 6.0, 0.9, 1.9, ice)*free_;
   light += fxArcs(ro, rd, px, y0, y1, 4.0, 4.0, 1.5, 6.6, c)*free_;
   light += fxAura(ro, rd, y0, y1, 3.0, c)*(0.3 + 0.9*free_);
   light += fxShock(ro, rd, px, L*0.5, (ph - 5.0)/1.6, 10.0, ice)*1.6;
   light += fxShock(ro, rd, px, L*0.5, (ph - 12.3)/1.2, 7.0, ice);
-  light += fxRays(ro, rd, px, y0, y1, 6.0, 4.0, 0.9, 8.1, c)*cb_held()*smoothstep(0.3, 1.0, cb_crack());
   return light + cb_steam(ro, rd);
 }
 // the blade: Sol's glow and core from the file, blazing as it breaks free
 float cb_flare(){ float ph = cb_ph(); return 1.0 + 0.9*exp(-max(ph - 5.0, 0.0)*1.5)*step(5.0, ph)*step(ph, 12.4) + 0.3*cb_shards(); }
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*cb_flare(); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*cb_flare(); }
+// round 11: sig_solid gated by part 0
+vec4 sig_solid(vec4 o, vec2 b, float px){
+  if (part(0.0) < 0.5) { return o; }
+  return base_solid(o, b, px);
+}
+// round 11: sig_orbit_solid gated by part 1
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec4(0.0); }
+  return base_orbit_solid(ro, rd, px);
+}
+// round 11: sig_vol_solid gated by part 0
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec4(0.0); }
+  return base_vol_solid(ro, rd, px);
+}
+// round 11: sig_vol gated by part 2
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(2.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}

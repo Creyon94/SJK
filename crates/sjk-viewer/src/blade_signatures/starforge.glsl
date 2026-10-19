@@ -5,6 +5,9 @@
 // and a burst of sparks flying out on every side. Embers drift all round inside a wide warm heat glow.
 // A swing makes it burn brighter and throw more sparks (the rhythm never speeds up); a clash is a huge
 // blow with a ring of sparks.
+// @part The forge
+// @arcs Prominences
+// @motes Rising sparks
 // @room 10
 // @palette {"corona.rim_cool":[0.55,0.12,0.02],"corona.rim_hot":[1.0,0.55,0.12],"corona.inner":[1.0,0.88,0.55],"core.white":[1.0,0.96,0.85],"core.fringe_cool":[1.0,0.40,0.08],"core.fringe_hot":[1.0,0.80,0.45],"light.color":[1.0,0.58,0.18],"trail":[1.0,0.55,0.15]}
 
@@ -162,17 +165,13 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(1.0 + 0.25*sin(uTime
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.8*sf_spot(b.y)); }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 gold = vec3(1.0, 0.72, 0.28), hot = vec3(1.0, 0.42, 0.07);
-  fx += fxRays(ro, rd, px, y0, y1, 18.0, 8.0 + 2.0*sw, 0.6, 2.9, gold);
-  fx += fxArcs(ro, rd, px, y0, y1, 3.0 + 3.0*sw, 4.0, 1.3, 5.1, gold);
-  fx += fxSparks(ro, rd, px, y0, y1, 18.0 + 12.0*sw, 6.5, 0.9, 8.3, hot);
-  fx += fxAura(ro, rd, y0, y1, 3.6, hot)*(1.0 + 0.4*sw);
+  fx += fxAura(ro, rd, y0, y1, 3.6, vec3(1.0, 0.42, 0.07))*part(0.0);
   return col + fx*uFx;
 }

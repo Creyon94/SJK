@@ -167,5 +167,16 @@
       "sound/sjk/sabers/between_worlds/swing2.wav",
       "sound/sjk/sabers/between_worlds/swing3.wav"
     ]
+  },
+  "echo": {
+    "fade": 0.3,
+    "sway": 1.4,
+    "rate": 0.2,
+    "lean": 0.05
+  },
+  "ghosts": {
+    "count": 4,
+    "spacing": 40.0,
+    "fade": 0.6
   }
 }

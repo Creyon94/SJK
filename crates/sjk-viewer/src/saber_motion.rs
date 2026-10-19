@@ -65,12 +65,25 @@ pub(crate) struct BladeMotion {
 impl BladeMotion {
     /// The blade drawn at `now` (presentation milliseconds), `growing` while it is still
     /// coming out of the hilt; its motion for the shader.
+    #[cfg(test)]
     pub(crate) fn record(&mut self, blade: Blade, now: i64, growing: bool) -> [f32; 4] {
+        self.record_turned(blade, blade.direction, now, growing)
+    }
+
+    /// [`Self::record`] with the swing measured along `body`, the blade's direction in its
+    /// wearer's own frame (Creyon's round 11: turning the view or running is no swing).
+    pub(crate) fn record_turned(
+        &mut self,
+        blade: Blade,
+        body: [f32; 3],
+        now: i64,
+        growing: bool,
+    ) -> [f32; 4] {
         // The tip from the hilt: how the blade turns, not how its wearer moves.
         let tip = [
-            blade.direction[0] * blade.length,
-            blade.direction[1] * blade.length,
-            blade.direction[2] * blade.length,
+            body[0] * blade.length,
+            body[1] * blade.length,
+            body[2] * blade.length,
         ];
         let gap = now - self.seen;
         let fresh = self.tip.is_none() || !(0..=UNSEEN).contains(&gap);

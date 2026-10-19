@@ -180,5 +180,26 @@
     "scale": 0.5,
     "curl": 1.0,
     "density": 0.5
+  },
+  "motes": {
+    "color": [
+      0.75,
+      0.6,
+      0.45
+    ],
+    "brightness": 1.0,
+    "density": 0.25,
+    "cells": 0.6,
+    "rings": 2.0,
+    "size": 0.15,
+    "stretch": 1.5,
+    "drift": {
+      "along": 0.5,
+      "out": -0.8
+    },
+    "twinkle": 3.0,
+    "inner": 0.6,
+    "outer": 2.4,
+    "focus": 0.0
   }
 }

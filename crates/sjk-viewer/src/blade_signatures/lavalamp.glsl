@@ -3,6 +3,7 @@
 // it shivers, flickers hot, and spits bright unstable sparks and short arcs off its surface,
 // with a pale vapour boiling off it. A swing makes it churn and spark; a clash nearly sets it
 // off in a blinding flash and a ring of sparks.
+// @part Coaxium sparks
 // @room 6
 // @palette {"corona.rim_cool":[0.35,0.04,0.30],"corona.rim_hot":[1.0,0.25,0.55],"corona.inner":[1.0,0.75,0.88],"core.white":[1.0,0.92,0.96],"core.fringe_cool":[0.85,0.15,0.55],"core.fringe_hot":[1.0,0.55,0.75],"light.color":[1.0,0.30,0.60],"trail":[1.0,0.35,0.65]}
 
@@ -12,7 +13,7 @@ float cx_unst(){
   float k = floor(uTime*3.0);
   return 0.3 + 0.7*step(0.7, h11(k*1.7))*exp(-fract(uTime*3.0)*3.0) + 0.6*clamp(uSwing, 0.0, 1.0);
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = cx_top(), s, ta;
   float cl = clamp(uClash, 0.0, 1.0);
   vec3 hot = vec3(1.0, 0.3, 0.6), white = vec3(1.0, 0.9, 0.95);
@@ -80,3 +81,8 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.75 + 0.9*blob + 0.25*cx_unst() + 1.5*clamp(uClash, 0.0, 1.0)*clamp(uClash, 0.0, 1.0))*sh;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.2*sin(uTime*29.0)*cx_unst()); }
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}

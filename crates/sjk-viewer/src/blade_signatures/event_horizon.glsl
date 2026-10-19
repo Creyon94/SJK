@@ -5,6 +5,9 @@
 // streams of matter spiral in along the blade from the disks in pulses of light. Seen from above
 // the disks are full whirlpools inside a bright Einstein ring; from the side, thin blazing lines.
 // A swing spins the disks up and speeds the infalling streams; a clash fires a gravity wave.
+// @part Accretion disks
+// @part Infalling streams
+// @motes Infalling stars
 // @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.30,0.06,0.70],"corona.rim_hot":[0.70,0.40,1.0],"corona.inner":[0.9,0.85,1.0],"core.white":[0.95,0.9,1.0],"core.fringe_cool":[0.40,0.12,0.90],"core.fringe_hot":[0.80,0.55,1.0],"light.color":[0.55,0.25,1.0],"trail":[0.60,0.35,1.0]}
@@ -27,7 +30,7 @@ vec3 eh_disk(vec3 ro, vec3 rd, float h, float k, float tmax, float g, float px){
   for (int i = 0; i < 40; i++){
     float fi = float(i);
     float r = (0.95 + 4.6*pow(h11(fi*3.1 + k*7.0), 1.6))*g;
-    float a = h11(fi*5.7 + k) + uTime*(0.55 + 0.4*sw)/(0.4 + 0.35*r);
+    float a = h11(fi*5.7 + k) + uTime*(0.55)/(0.4 + 0.35*r);
     vec3 p = around(r, a, h + 0.08*(h11(fi*2.2) - 0.5)*r);
     // each clump a short streak along its orbit
     vec3 q = around(r, a - 0.05/(0.5 + 0.3*r), p.y);
@@ -78,7 +81,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
     for (int j = 0; j < 4; j++){
       float fj = float(j);
       float dir = j < 2 ? 1.0 : -1.0;
-      float a0 = fj*0.5 + fk*0.3 - uTime*(0.35 + 0.4*sw);
+      float a0 = fj*0.5 + fk*0.3 - uTime*(0.35);
       vec3 prev = around(1.7*g, a0, h);
       for (int i = 1; i <= 8; i++){
         float u = float(i)/8.0;
@@ -88,7 +91,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
           float uu = u - (1.0 - s)/8.0;
           vec3 qp = mix(prev, p, s);
           float tt = dot(qp - ro, rd);
-          float pulse = 0.35 + 0.65*pow(0.5 + 0.5*sin(uu*14.0 - uTime*(7.0 + 5.0*sw) + fj*1.3), 3.0);
+          float pulse = 0.35 + 0.65*pow(0.5 + 0.5*sin(uu*14.0 - uTime*(7.0) + fj*1.3), 3.0);
           float fade = (1.0 - smoothstep(0.6, 1.0, uu))*smoothstep(0.0, 0.08, uu);
           vec3 c = mix(vio, white, uu*0.7 + 0.2);
           light += c*(halo(d, max(0.035, px))*1.3 + halo(d, 0.18)*0.35)*pulse*fade*step(tt, tmax);
@@ -140,23 +143,19 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 vio = vec3(0.6, 0.3, 1.0), hot = vec3(1.0, 0.75, 0.5);
-  fx += fxCoils(ro, rd, px, y0, y1, 2.6, 1.6, -0.6 - 0.6*sw, 3.0, vio);
-  fx += fxArcs(ro, rd, px, y0, y1, 4.0 + 3.0*sw, 4.5, 1.2 + 1.5*sw, 6.2, vio);
-  fx += fxRays(ro, rd, px, y0, y1, 8.0, 6.5, 0.5, 1.3, mix(vio, hot, 0.3));
+  vec3 vio = vec3(0.6, 0.3, 1.0);
+  fx += fxCoils(ro, rd, px, y0, y1, 2.6, 1.6, -0.6, 3.0, vio)*part(1.0);
   for (int i = 0; i < 3; i++){
     float q = fract(t*0.4 + float(i)/3.0);
-    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.8, float(i)*0.5), q, 8.0, vio)*0.8;
+    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.8, float(i)*0.5), q, 8.0, vio)*0.8*part(1.0);
   }
-  fx += fxMotes(ro, rd, px, y0, y1, 2.0, 6.0, 24.0, -0.08, 3.9, hot);
-  fx += fxAura(ro, rd, y0, y1, 3.0, vio);
   fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, vio)*1.8;
   return col + fx*uFx;
 }

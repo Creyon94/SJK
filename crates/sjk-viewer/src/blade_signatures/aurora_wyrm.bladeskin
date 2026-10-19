@@ -167,5 +167,55 @@
       "sound/sjk/sabers/aurora_wyrm/swing2.wav",
       "sound/sjk/sabers/aurora_wyrm/swing3.wav"
     ]
+  },
+  "arcs": {
+    "count": 3,
+    "color": [
+      0.4,
+      1.0,
+      0.65
+    ],
+    "brightness": 2.0,
+    "width": 0.06,
+    "halo": 0.5,
+    "reach": 2.0,
+    "jag": 0.35,
+    "kinks": 0.5,
+    "span": {
+      "low": 0.15,
+      "high": 0.5
+    },
+    "rate": 6.0,
+    "jitter": 20.0,
+    "threshold": 0.3,
+    "tip": 0.35,
+    "crawl": 18.0,
+    "decay": 1.5
+  },
+  "motes": {
+    "color": [
+      0.8,
+      0.95,
+      1.0
+    ],
+    "brightness": 1.8,
+    "density": 0.3,
+    "cells": 1.0,
+    "rings": 2.0,
+    "size": 0.1,
+    "stretch": 1.0,
+    "drift": {
+      "along": -1.0,
+      "out": 0.3
+    },
+    "twinkle": 8.0,
+    "inner": 0.5,
+    "outer": 2.2,
+    "focus": 0.0
+  },
+  "hue": {
+    "rate": 0.05,
+    "along": 0.012,
+    "out": 0.15
   }
 }

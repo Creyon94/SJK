@@ -68,6 +68,26 @@ unchanged. Checked on Linux x86_64 (Rust 1.97, lavapipe): the viewer's tests pas
 changed signature previewed from four views and in the lab page. Not verified: Windows, the
 game window, the hub's catalogue (the names players see come from it once Sol updates it).
 
+## Blade Lab signatures, round 11: each its own, every part switchable
+
+20/10/2026, `wip/blade-3d`: after Creyon's notes on round 10: the shared beams are gone and every
+mythical has its own look with Sol's own pieces (lightning and prominences as `arcs`, souls and
+sparks as `motes`, afterimages, wisps, echo), each blade's effects are switchable one by one in the
+Collection (`// @part`, `part(k)`), and effects no longer stir when the view turns, the wearer runs
+or the blade lights ([rendering.md](rendering.md#blade-lab-signature-shaders)). A clash no longer
+fills the Sith Holocron's quad with red (a halo of zero distance outside its triangle). Checked on
+Linux as before, with the ignored GPU test's sheets of every mythical looked at. Not verified:
+Windows, the game window, the Collection's ticks in game.
+
+## Blade Lab signatures, round 11: the legendaries in game
+
+20/10/2026, `wip/blade-3d`, on round 10: the Blade Lab's 23 legendaries ported as signatures,
+each reworked to be Star Wars ([unlockables.md](unlockables.md)), a tier below the mythicals
+(Creyon: less special, still pretty) and drawn Sol's way: flat effects, the file's afterimages,
+echo, glints, smoke, embers, haze and veins (which signatures now keep), 3D only for the
+Shattered Kyber's shards. The catalogue gained 23 entries the hub must list too. Checked as
+round 10 on Linux; not verified: Windows, the game window, the hub.
+
 ## Blade Lab signatures, round 10: flat as Sol's, only orbits in 3D
 
 20/10/2026, `wip/blade-3d`, on round 9: Creyon asked for the blades as Sol has them, flat

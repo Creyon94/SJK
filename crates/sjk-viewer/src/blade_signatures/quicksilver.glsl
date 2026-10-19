@@ -5,6 +5,9 @@
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
 // of droplets out with a shock ring; ignition pours the metal up from the hilt.
 // @full 1
+// @part Forge sparks
+// @part Flung droplets
+// @part Orbiting droplets
 // @room 10
 // @solid 1
 
@@ -125,7 +128,7 @@ vec4 qs_sphere(vec3 ro, vec3 rd, vec4 c, float px, out float th){
   col += vec3(1.0)*pow(max(dot(reflect(rd, n), normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 40.0)*1.5;
   return vec4(col, cov);
 }
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+vec4 base_vol_solid(vec3 ro, vec3 rd, float px){
   vec4 acc = vec4(0.0);
   if (uFx < 0.01 || fxNear(ro, rd, uLength*0.1, uLength) > 9.0) return acc;
   float best = 1e5, th;
@@ -148,19 +151,18 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
   acc.a *= clamp(uIgn*1.5, 0.0, 1.0);
   return acc;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 silver = vec3(0.8, 0.88, 1.0), forge = vec3(1.0, 0.55, 0.2);
   vec3 col = vec3(0.0);
   col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, forge);
-  col += fxRays(ro, rd, px, y0, y1, 8.0, 6.0, 0.5, 1.9, silver)*0.8;
   col += fxAura(ro, rd, y0, y1, 2.6, silver)*0.6;
   col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, silver)*1.5;
   return col*uFx;
 }
 // round 10: the droplets circling the blade, in true 3D (only orbits are; the rest is flat)
-vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   vec4 acc = vec4(0.0);
   if (uFx < 0.01 || fxNear(ro, rd, uLength*0.1, uLength) > 9.0) return acc;
   float best = 1e5, th;
@@ -170,4 +172,19 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   }
   acc.a *= clamp(uIgn*1.5, 0.0, 1.0);
   return acc;
+}
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}
+// round 11: sig_vol_solid gated by part 1
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec4(0.0); }
+  return base_vol_solid(ro, rd, px);
+}
+// round 11: sig_orbit_solid gated by part 2
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+  if (part(2.0) < 0.5) { return vec4(0.0); }
+  return base_orbit_solid(ro, rd, px);
 }

@@ -173,5 +173,50 @@
     "scale": 0.4,
     "speed": 8.0,
     "reach": 3.0
+  },
+  "arcs": {
+    "count": 3,
+    "color": [
+      1.0,
+      0.65,
+      0.2
+    ],
+    "brightness": 1.6,
+    "width": 0.3,
+    "halo": 0.8,
+    "reach": 2.0,
+    "jag": 0.05,
+    "kinks": 0.08,
+    "span": {
+      "low": 0.12,
+      "high": 0.3
+    },
+    "rate": 0.35,
+    "jitter": 0.0,
+    "threshold": 0.15,
+    "tip": 0.0,
+    "crawl": 2.0,
+    "decay": 0.5
+  },
+  "motes": {
+    "color": [
+      1.0,
+      0.7,
+      0.3
+    ],
+    "brightness": 2.0,
+    "density": 0.3,
+    "cells": 0.9,
+    "rings": 2.0,
+    "size": 0.12,
+    "stretch": 2.5,
+    "drift": {
+      "along": 7.0,
+      "out": 0.8
+    },
+    "twinkle": 6.0,
+    "inner": 0.5,
+    "outer": 2.2,
+    "focus": 0.1
   }
 }

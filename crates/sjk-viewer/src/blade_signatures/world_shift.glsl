@@ -7,6 +7,8 @@
 // Each change is an event: the old climate strains, then bursts off the blade in a flash with shock
 // rings and its debris flung out all round, and the new one condenses onto it. Swings stoke it;
 // a clash flashes the ruling climate.
+// @part Climates
+// @part Sparks
 // @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.35,0.20,0.55],"corona.rim_hot":[0.90,0.60,0.50],"corona.inner":[1.0,0.92,0.85],"core.white":[1.0,0.98,0.95],"core.fringe_cool":[0.50,0.70,1.0],"core.fringe_hot":[1.0,0.65,0.35],"light.color":[0.95,0.75,0.60],"trail":[0.90,0.70,0.60]}
@@ -677,16 +679,13 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
 }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 warm = vec3(0.95, 0.75, 0.6);
-  fx += fxRays(ro, rd, px, y0, y1, 10.0, 6.5, 0.5, 4.2, warm);
-  fx += fxSparks(ro, rd, px, y0, y1, 12.0 + 10.0*sw, 6.0, 0.8, 6.4, warm);
-  fx += fxAura(ro, rd, y0, y1, 3.0, warm)*0.7;
+  fx += fxSparks(ro, rd, px, y0, y1, 12.0, 6.0, 0.8, 6.4, vec3(0.95, 0.75, 0.6))*part(1.0);
   return col + fx*uFx;
 }

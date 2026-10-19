@@ -173,5 +173,31 @@
     "scale": 0.4,
     "speed": 8.0,
     "reach": 3.0
+  },
+  "motes": {
+    "color": [
+      0.95,
+      0.85,
+      1.0
+    ],
+    "brightness": 1.5,
+    "density": 0.3,
+    "cells": 0.7,
+    "rings": 2.5,
+    "size": 0.12,
+    "stretch": 1.0,
+    "drift": {
+      "along": 0.3,
+      "out": 0.6
+    },
+    "twinkle": 3.0,
+    "inner": 0.5,
+    "outer": 2.5,
+    "focus": 0.0
+  },
+  "hue": {
+    "rate": 0.04,
+    "along": 0.01,
+    "out": 0.2
   }
 }

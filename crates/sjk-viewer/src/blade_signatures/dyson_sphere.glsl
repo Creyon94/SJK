@@ -5,6 +5,9 @@
 // beams from the star to each hoop, and solar flares arc out of the star in loops of plasma that
 // leap up to the hoops. A swing spins the whole structure up and throws more flares; a clash
 // overloads it, every hoop blazing at once.
+// @part Harvester hoops
+// @arcs Prominences
+// @motes Rising sparks
 // @room 10
 // @palette {"corona.rim_cool":[0.70,0.35,0.05],"corona.rim_hot":[1.0,0.75,0.30],"corona.inner":[1.0,0.95,0.80],"core.white":[1.0,0.97,0.88],"core.fringe_cool":[1.0,0.65,0.20],"core.fringe_hot":[1.0,0.90,0.60],"light.color":[1.0,0.75,0.35],"trail":[1.0,0.78,0.4]}
 
@@ -13,7 +16,7 @@ float ds_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
 float ds_hy(float k){ return uLength*(0.14 + 0.18*k) + 0.4*sin(uTime*0.5 + k*1.7); }
 float ds_hr(float k){ return 2.2 + 2.8*sin(3.1416*(0.1 + 0.2*k)); }
 float ds_tilt(float k){ return 0.42*sin(k*2.3 + 0.6) + 0.12*sin(uTime*0.4 + k); }
-float ds_prec(float k){ return uTime*(0.25 + 0.12*k)*(mod(k, 2.0) < 0.5 ? 1.0 : -1.0)*(1.0 + 1.5*clamp(uSwing, 0.0, 1.0)) + k*1.3; }
+float ds_prec(float k){ return uTime*(0.25 + 0.12*k)*(mod(k, 2.0) < 0.5 ? 1.0 : -1.0) + k*1.3; }
 // a point on hoop k at angle th (radians), with the hoop grown by g
 vec3 ds_pt(float k, float th, float g){
   float tl = ds_tilt(k), pr = ds_prec(k);
@@ -51,7 +54,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     if (g < 0.01) continue;
     float dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), tq);
     if (dc > R*g + 1.2) continue;
-    float flow = (mod(fk, 2.0) < 0.5 ? 1.0 : -1.0)*uTime*(2.0 + 2.5*sw);
+    float flow = (mod(fk, 2.0) < 0.5 ? 1.0 : -1.0)*uTime*(2.0);
     vec3 prev = ds_pt(fk, 0.0, g);
     float best = 1e3, bth = 0.0;
     for (int i = 1; i <= 20; i++){
@@ -70,14 +73,14 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
       vec3 p = ds_pt(fk, th, g);
       vec3 a = normalize(vec3(p.x, 0.0, p.z))*0.5 + vec3(0.0, p.y - 1.5, 0.0);
       float db = raySeg(ro, rd, a, p, s);
-      float fl = 0.08 + 0.92*pow(0.5 + 0.5*sin(s*9.0 - uTime*(10.0 + 6.0*sw) + fk + float(j)*2.0), 6.0);
+      float fl = 0.08 + 0.92*pow(0.5 + 0.5*sin(s*9.0 - uTime*(10.0) + fk + float(j)*2.0), 6.0);
       fx += (white*halo(db, max(0.03, px))*1.1 + gold*halo(db, 0.18)*0.35)*fl*g*(1.0 - 0.5*s)*hot;
     }
   }
   // ---- solar flares: loops of plasma leaping from the star up to a hoop and falling back
   for (int i = 0; i < 3; i++){
     float fi = float(i);
-    float ph = uTime*(0.45 + 0.15*fi)*(1.0 + 0.8*sw) + h11(fi*5.3);
+    float ph = uTime*(0.45 + 0.15*fi) + h11(fi*5.3);
     float cy = floor(ph), f = fract(ph);
     float k = floor(h11(cy*2.9 + fi)*4.99);
     float hy = ds_hy(k);
@@ -110,19 +113,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 gold = vec3(1.0, 0.7, 0.3), hot = vec3(1.0, 0.45, 0.1);
-  fx += fxRays(ro, rd, px, y0, y1, 16.0, 7.5 + 2.0*sw, 0.55, 4.4, gold);
-  fx += fxArcs(ro, rd, px, y0, y1, 4.0 + 3.0*sw, 4.0, 1.2 + 1.5*sw, 8.8, gold);
-  fx += fxSparks(ro, rd, px, y0, y1, 16.0 + 10.0*sw, 6.0, 0.9, 2.6, hot);
-  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.5, 22.0, 0.1, 6.6, hot);
-  fx += fxAura(ro, rd, y0, y1, 3.2, gold);
-  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, gold)*1.6;
+  fx += fxAura(ro, rd, y0, y1, 3.2, vec3(1.0, 0.7, 0.3))*part(0.0);
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, vec3(1.0, 0.7, 0.3))*1.6;
   return col + fx*uFx;
 }

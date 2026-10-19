@@ -6,6 +6,9 @@
 // cracks in the air, drops of red light drip off it and fall, and where the white holds, beams
 // of pure light flash out and push back. A swing helps the light push; a clash lets the
 // corruption surge up with a red shock ring.
+// @part Corruption veins
+// @part Red drops
+// @part Pure light
 // @room 10
 // @palette {"corona.rim_cool":[0.6,0.7,0.95],"corona.rim_hot":[0.95,0.97,1.0],"corona.inner":[1.0,1.0,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.85,0.9,1.0],"core.fringe_hot":[1.0,0.95,0.95],"light.color":[1.0,0.85,0.88],"trail":[1.0,0.75,0.8]}
 
@@ -39,7 +42,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     if (rayPt(ro, rd, (a0 + a1)*0.5, ta) > 6.0) continue;
     float grow = smoothstep(0.0, 0.25, q);
     float d = bolt3(ro, rd, a0, mix(a0, a1, grow), k + fi*1.37, 0.55);
-    col += (vec3(1.0, 0.6, 0.6)*halo(d, max(px, 0.035))*0.9 + BK_RED*halo(d, 0.22)*1.0 + BK_RED*halo(d, 0.8)*0.18)*(1.0 - smoothstep(0.55, 1.0, q));
+    col += (vec3(1.0, 0.6, 0.6)*halo(d, max(px, 0.035))*0.9 + BK_RED*halo(d, 0.22)*1.0 + BK_RED*halo(d, 0.8)*0.18)*(1.0 - smoothstep(0.55, 1.0, q))*part(0.0);
   }
   // ---- drops of red light dripping off the bleeding part and falling ----
   for (int i = 0; i < 16; i++){
@@ -49,12 +52,12 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float y = mix(1.0, max(lv, 2.0), h11(k*1.9 + fi));
     vec3 p = around(0.6 + 0.8*f, h11(k*4.1 + fi), y - 6.0*f*f);
     float d = rayPt(ro, rd, p, ta);
-    col += BK_RED*(halo(d, max(0.08, px))*2.0 + halo(d, 0.35)*0.3)*(1.0 - smoothstep(0.7, 1.0, f));
+    col += BK_RED*(halo(d, max(0.08, px))*2.0 + halo(d, 0.35)*0.3)*(1.0 - smoothstep(0.7, 1.0, f))*part(1.0);
   }
   // ---- where the white holds: beams of pure light pushing back, and its motes ----
   float ya = min(lv + 2.0, y1 - 2.0);
-  col += fxRays(ro, rd, px, ya, y1, 12.0, 7.0 + 2.0*sw, 0.7, 5.2, BK_WHITE)*(1.0 + 0.6*sw);
-  col += fxMotes(ro, rd, px, ya, y1, 1.0, 5.0, 22.0, 0.07, 3.6, BK_WHITE);
+  col += fxMotes(ro, rd, px, ya, y1, 1.0, 5.0, 30.0, 0.07, 3.6, BK_WHITE)*part(2.0);
+  col += fxAura(ro, rd, ya, y1, 3.0, BK_WHITE)*0.5*part(2.0);
   // the front: a ring of struggle where red meets white
   col += (vec3(1.0)*halo(ringD(ro, rd, lv, 1.4 + 0.3*sin(t*3.0)), max(0.05, px))*1.2 + BK_RED*halo(ringD(ro, rd, lv, 1.4), 0.4)*0.6);
   // the aura: red round the bleeding part, white above

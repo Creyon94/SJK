@@ -458,6 +458,18 @@ from the looks.
   "Not in holocrons yet: given by the SJK team while it is tried" (`FROM_THE_TEAM`)
   until they are released. With no pack file, a built-in one draws them, so the
   Collection previews them now.
+- Twenty-three legendaries from the Blade Lab (round 11, 20/10/2026), each reworked to be
+  Star Wars (Avalanche to Hoth Avalanche, Blood Moon to Dathomir Blood Moon, Chrono to Force
+  Echo, Collider to Hypermatter, Comet to Kessel Run, Cosmic Ink to Unknown Regions,
+  Dragonscale to Krayt Pearl, Frozen Lightning to Starkiller Frost, Gilded Cage to Royal Naboo,
+  Hurricane to Bespin Storm, Koi Dragon to Scarif Tide, Mech Core to Assassin Droid, Midas to
+  Aurodium, Monsoon to Kashyyyk Monsoon, Northern Forge to Malachor Forge, Overgrowth to Yavin
+  Vines, Rift to Exegol Rift, Shatter to Shattered Kyber, Solar Flare to Twin Suns, Spirit
+  Lanterns to Jedi Spirits, Thunderhead to Ord Mantell Thunderhead, Volcano to Mustafar
+  Eruption, Wormhole to Hyperlane), are signatures too, less dramatic than the mythicals as a
+  tier down and wearing Sol's own pieces from their files (afterimages, an echo, glints,
+  smoke, embers, haze, veins). Like the twenty-one they are in the client's catalogue, not yet
+  the hub's, and `FROM_THE_TEAM` until released.
 - A skinned blade ends round (09/10/2026; Sol saw the Sun's tip square). The core line
   is a flat quad from behind the hilt to the tip, and the generated core's fringe is
   still about a fifth of its brightness at the quad's edges and end, so its end and

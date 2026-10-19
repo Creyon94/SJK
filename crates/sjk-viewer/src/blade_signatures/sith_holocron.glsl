@@ -6,6 +6,10 @@
 // part on a white-hot core, and red smoke and lightning pour out of the crack all round before it
 // seals again. A swing makes the facets flare and lightning leap off the glass; a clash throws out
 // a triangular shockwave; on ignition the crystal grows from the hilt, facets waking as it rises.
+// @part Holocron
+// @part Lightning storm
+// @arcs Sith lightning
+// @wisps Red smoke
 // @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.40,0.0,0.02],"corona.rim_hot":[1.0,0.10,0.06],"corona.inner":[1.0,0.65,0.60],"core.white":[1.0,0.92,0.90],"core.fringe_cool":[0.85,0.03,0.04],"core.fringe_hot":[1.0,0.30,0.22],"light.color":[1.0,0.12,0.08],"trail":[1.0,0.12,0.08]}
@@ -152,7 +156,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     vec2 q = vec2(dot(off, ux), dot(off, uy));
     float R = 1.5 + 6.0*pow(a, 0.6);
     float tri = max(max(q.y, dot(q, vec2(0.866, -0.5))), dot(q, vec2(-0.866, -0.5))) - R*0.5;
-    light += red*(halo(abs(tri), 0.15 + 0.3*a)*1.8 + halo(max(-tri, 0.0), 1.2)*0.25)*uClash;
+    light += red*(halo(abs(tri), 0.15 + 0.3*a)*1.8 + smoothstep(0.0, -1.5, tri)*0.25)*uClash;
     light += red*halo(dc, 1.3)*pow(uClash, 3.0)*1.5;
   }
   return light;
@@ -162,19 +166,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(0.8 + 0.5*hc_beat() 
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.5*hc_open()); }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 red = vec3(1.0, 0.12, 0.08), hot = vec3(1.0, 0.55, 0.45);
-  fx += fxArcs(ro, rd, px, y0 - 2.0, y1, 8.0 + 2.0*sw, 5.5 + 1.5*sw, 2.2 + 2.0*sw, 2.7, red);
-  fx += fxArcs(ro, rd, px, y0, y1, 4.0, 3.0, 3.1, 9.3, hot);
-  fx += fxCoils(ro, rd, px, y0, y1, 1.7, 1.2, 0.45, 3.0, red*0.8);
-  fx += fxRays(ro, rd, px, y0, y1, 8.0, 6.0, 0.6, 1.5, red);
-  fx += fxAura(ro, rd, y0, y1, 2.8, red);
-  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, red)*1.8;
+  fx += fxArcs(ro, rd, px, y0, y1, 5.0, 5.0, 1.7, 2.7, vec3(1.0, 0.12, 0.08))*part(1.0);
+  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, vec3(1.0, 0.12, 0.08))*1.8;
   return col + fx*uFx;
 }

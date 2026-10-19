@@ -5,6 +5,9 @@
 // the tip down, passing each other. Soft portal rings of shimmering light open and close along it,
 // and star dust drifts slowly through the dark. A swing scatters the echoes wide; a clash makes
 // every portal flash open at once.
+// @part Echoes and voices
+// @part Pathways
+// @part The duel
 // @room 10
 // @palette {"corona.rim_cool":[0.42,0.34,0.16],"corona.rim_hot":[1.0,0.86,0.55],"corona.inner":[1.0,0.96,0.85],"core.white":[1.0,1.0,0.97],"core.fringe_cool":[0.90,0.78,0.50],"core.fringe_hot":[1.0,0.90,0.65],"light.color":[1.0,0.90,0.66],"trail":[1.0,0.90,0.68]}
 
@@ -78,7 +81,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
           float u = (fj - (1.0 - sg)/16.0);
           // travel: rising streams move up, falling ones down
           float pos = dir > 0.0 ? u : 1.0 - u;
-          float pulse = pow(0.5 + 0.5*sin(pos*14.0 - uTime*(2.2 + 2.0*sw) + fk*1.7), 3.0);
+          float pulse = pow(0.5 + 0.5*sin(pos*14.0 - uTime*(2.2) + fk*1.7), 3.0);
           float vis = smoothstep(0.0, 0.12, pos)*(1.0 - smoothstep(0.8, 1.0, pos));
           vec3 vc = dir > 0.0 ? gold : pale;
           float w = max(px*0.8, 0.05);
@@ -132,12 +135,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
+  if (part(1.0) > 0.5){
 
   vec3 gold = vec3(1.0, 0.85, 0.55), pale = vec3(1.0, 0.96, 0.88), ahs = vec3(0.75, 0.88, 1.0), ana = vec3(1.0, 0.12, 0.06);
   float s, ta;
@@ -162,14 +167,16 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.7;
   }
   fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, pale)*1.6;
+  }
   return col + fx*uFx;
 }
 
-// round 10: the duel circles the blade, so it alone is drawn in true 3D (Sol's way)
+// the duel circles the blade, so it alone is drawn in true 3D (Sol's way)
 vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
+  if (part(2.0) > 0.5){
 
   vec3 pale = vec3(1.0, 0.96, 0.88), ahs = vec3(0.75, 0.88, 1.0), ana = vec3(1.0, 0.12, 0.06);
   float s, ta;
@@ -195,5 +202,6 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
     float fl = exp(-ph*7.0);
     fx += fxFlare(ro, rd, meet, px, 0.25, 5.0, 6.0, k, mix(ahs, ana, 0.5))*fl*1.4;
     fx += fxShock(ro, rd, px, meet.y, ph*1.6, 6.0, pale)*0.8;
+  }
   return fx*uFx;
 }

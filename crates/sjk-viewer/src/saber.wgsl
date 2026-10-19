@@ -3618,6 +3618,12 @@ var<private> uFx: f32;
 // What a signature's solid layer sets where it keeps its own colours under a chroma (the
 // Abyssal Eye's amber eye, Creyon's round 9): 0 takes the wearer's hue, 1 keeps its own.
 var<private> uOwn: f32;
+// Which of a signature's own parts its wearer left on (round 11: every effect can be
+// switched off): bit k set when part k (`// @part` line k) is off, read by `part(k)`.
+var<private> uParts: f32;
+// The section bits a signature's parts ride on, part 0 to 5 (sections it never uses).
+const SIG_PART_BITS: array<u32, 6> = array<u32, 6>(OFF_SPUTTER, OFF_GLITCH, OFF_SCAN, OFF_BANDS,
+    OFF_SEGMENTS, OFF_FILM);
 
 // The lab's ignition takes 0.42 s and its clash fades at 2.2 a second.
 const SIG_IGNITION: f32 = 0.42;
@@ -3625,36 +3631,40 @@ const SIG_IGNITION: f32 = 0.42;
 fn sig_take(input: VertexOutput) {
     uTime = input.animation.x;
     uSeed = input.animation.y;
-    uLength = input.length;
+    // The full length when it is known (round 11): everything a signature places along the
+    // blade stays where it is while the blade grows or shrinks.
+    uLength = max(input.length, input.axis.w);
     uSwing = clamp(input.motion.x, 0.0, 1.0);
     uClash = max(1.0 - input.motion.y * 2.2, 0.0);
     uAge = input.motion.z;
     uIgn = clamp(input.motion.z / SIG_IGNITION, 0.0, 1.0);
     // The options every signature has (blade_signatures.rs `Signature::shown`), on bits
-    // a signature skin has no other use for: no bursts, no ignition show.
-    if (input.off & OFF_MOTES) != 0u {
+    // a signature skin has no other use for: no swing and clash bursts (the pulse bit),
+    // and its own parts (`SIG_PART_BITS`). Sol's own sections (arcs, motes, wisps, ...)
+    // switch themselves.
+    if (input.off & OFF_PULSE) != 0u {
         uSwing = 0.0;
         uClash = 0.0;
     }
-    if (input.off & OFF_HUE) != 0u {
-        uAge = 1000.0;
-        uIgn = 1.0;
+    var parts = 0u;
+    for (var k = 0u; k < 6u; k++) {
+        if (input.off & SIG_PART_BITS[k]) != 0u {
+            parts |= 1u << k;
+        }
     }
-    uFx = select(1.0, 0.0, (input.off & OFF_ARCS) != 0u);
+    uParts = f32(parts);
+    uFx = 1.0;
     uOwn = 0.0;
     // The page turned a chroma's output afterwards; the game turns it after the hooks.
     uChroma = 0.0;
     uRoom = skins[skin_index(input)].design.z / LAB_METRE;
 }
 
-// With its `effects` option off (the arcs bit) only the blade itself is left of what a
-// signature draws at `b`: nothing beyond a stock glow's width or past the tip.
+// What a signature keeps of what it draws at `b` (once: only the blade itself with its
+// `effects` option off; since round 11 every part switches on its own).
 fn sig_kept(input: VertexOutput, b: vec2<f32>) -> f32 {
-    if (input.off & OFF_ARCS) == 0u {
-        return 1.0;
-    }
-    let beyond = max(max(b.y - input.length, -b.y - 1.0), 0.0);
-    return 1.0 - smoothstep(1.2, 2.6, length(vec2(b.x, beyond)));
+    // Round 11: each effect switches on its own (`part`), the blade itself never.
+    return 1.0;
 }
 
 // A chroma signature's colour on its wearer: every coloured part takes the wearer's hue
@@ -3736,7 +3746,6 @@ fn sig_full(input: VertexOutput) -> f32 {
     if full <= input.length {
         return 1.0;
     }
-    uLength = full;
     return smoothstep(0.85, 1.0, input.length / full);
 }
 

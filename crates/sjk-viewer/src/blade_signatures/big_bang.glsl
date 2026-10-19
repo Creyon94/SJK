@@ -5,6 +5,10 @@
 // stars turning about it and drifting outward as space expands. Every so often a small new bang
 // goes off somewhere along the blade, a spherical shockwave racing out. A swing stirs the gas and
 // brightens the stars; a clash sets off a big bang flash.
+// @part Young cosmos
+// @part New stars
+// @motes Expanding stars
+// @hue Cosmic colours
 // @room 10
 // @palette {"corona.rim_cool":[0.30,0.08,0.45],"corona.rim_hot":[0.95,0.45,0.75],"corona.inner":[1.0,0.85,0.92],"core.white":[1.0,0.97,0.95],"core.fringe_cool":[0.70,0.40,1.0],"core.fringe_hot":[1.0,0.70,0.80],"light.color":[0.95,0.55,0.85],"trail":[0.90,0.50,0.85]}
 
@@ -149,26 +153,21 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(0.9 + 0.1*sin(uTime*
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.6*bb_mb(b.y)); }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
   vec3 pink = vec3(1.0, 0.45, 0.85), blue = vec3(0.45, 0.6, 1.0);
-  fx += fxRays(ro, rd, px, y0, y1, 14.0, 7.5 + 2.0*sw, 0.6, 2.2, pink);
-  fx += fxRays(ro, rd, px, y0, y1, 8.0, 6.0, 0.45, 9.4, blue);
   for (int i = 0; i < 4; i++){
     float fi = float(i);
     float cyc = t*0.35 + fi*0.25, k = floor(cyc), q = fract(cyc);
     vec3 p = around(1.5 + 4.0*h11(k*3.1 + fi), h11(k*1.7 + fi*2.0), mix(y0, y1, h11(k*5.3 + fi)));
-    fx += fxFlare(ro, rd, p, px, 0.18, 2.8, 6.0, t*0.3 + fi, mix(pink, blue, h11(k + fi)))*sin(3.1416*q);
+    fx += fxFlare(ro, rd, p, px, 0.18, 2.8, 6.0, t*0.3 + fi, mix(pink, blue, h11(k + fi)))*sin(3.1416*q)*part(1.0);
   }
-  float bq = fract(t/3.2);
-  fx += fxShock(ro, rd, px, mix(y0, y1, h11(floor(t/3.2)*2.7)), bq*1.4, 8.0, pink);
-  fx += fxSparks(ro, rd, px, y0, y1, 14.0 + 10.0*sw, 6.0, 0.8, 3.3, pink);
-  fx += fxAura(ro, rd, y0, y1, 3.0, pink)*0.8;
+  fx += fxShock(ro, rd, px, mix(y0, y1, h11(floor(t/3.2)*2.7)), fract(t/3.2)*1.4, 8.0, pink)*part(1.0);
   fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, vec3(1.0))*1.6;
   return col + fx*uFx;
 }

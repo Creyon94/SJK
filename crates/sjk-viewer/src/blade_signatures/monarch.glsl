@@ -3,12 +3,13 @@
 // resting on it while it is still and flying off in spirals when it swings, settling back after; luminous filaments wave off its surface and now and
 // then a spore pod bursts off it in a puff of light that rains spores. A swing whirls the spores
 // into a vortex; a clash bursts a huge cloud of them.
+// @part Spores and filaments
 // @room 10
 // @palette {"corona.rim_cool":[0.30,0.35,0.02],"corona.rim_hot":[0.95,0.80,0.15],"corona.inner":[1.0,0.95,0.60],"core.white":[1.0,0.98,0.85],"core.fringe_cool":[0.70,0.85,0.20],"core.fringe_hot":[1.0,0.92,0.50],"light.color":[0.90,0.85,0.30],"trail":[0.90,0.85,0.35]}
 
 float fs_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
 vec3 fs_col(float k){ return k < 0.33 ? vec3(1.0, 0.75, 0.15) : k < 0.66 ? vec3(0.7, 1.0, 0.25) : vec3(0.25, 0.95, 0.8); }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = fs_top(), s, ta;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
@@ -72,7 +73,6 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   }
   // round 9: the jungle's light: soft beams of bioluminescence and a living aura
   float y0 = top*0.2, y1 = top*0.97;
-  col += fxRays(ro, rd, px, y0, y1, 10.0, 6.0, 0.45, 4.6, vec3(0.75, 1.0, 0.3));
   col += fxAura(ro, rd, y0, y1, 3.0, vec3(0.8, 0.9, 0.3));
   col += fxShock(ro, rd, px, uLength*0.6, 1.0 - cl, 9.0, vec3(0.9, 1.0, 0.5))*1.5;
   return col*uFx;
@@ -83,3 +83,8 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.85 + 0.6*ring + 0.5*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}

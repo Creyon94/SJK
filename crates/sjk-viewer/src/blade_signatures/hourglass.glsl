@@ -3,6 +3,7 @@
 // beskar beads along it and drips off; in a slow rhythm the armorer's hammer strikes, a band of
 // white heat flares where it lands and sparks bounce away and fall; when the heat passes, a
 // hiss of quench steam rises. A swing throws sparks off it; a clash is a hammer strike.
+// @part Forge sparks
 // @room 7
 // @palette {"corona.rim_cool":[0.30,0.36,0.45],"corona.rim_hot":[0.80,0.86,0.95],"corona.inner":[0.95,0.97,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.65,0.72,0.85],"core.fringe_hot":[0.92,0.95,1.0],"light.color":[0.85,0.88,0.95],"trail":[0.80,0.85,0.95]}
 
@@ -13,7 +14,7 @@ vec3 bf_heat(float h){
   vec3 c = mix(vec3(0.6, 0.1, 0.0), vec3(1.0, 0.45, 0.08), smoothstep(0.0, 0.5, h));
   return mix(c, vec3(1.0, 0.92, 0.75), smoothstep(0.5, 1.0, h));
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = bf_top(), s, ta;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
@@ -69,3 +70,8 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return mix(steel, l*bf_heat(heat + band), clamp(heat + band, 0.0, 1.0)) + vec3(1.0, 0.9, 0.75)*band*l*1.2;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}

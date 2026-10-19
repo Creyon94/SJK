@@ -4,6 +4,10 @@
 // living motes of light drift and swirl in the dark, and every so often a hyperspace shimmer rushes
 // up the blade with streaks of starlight. A swing quickens the waves and the ribbons; a clash sings
 // out a bright ring.
+// @part Nebula ribbons
+// @part Rings of song
+// @wisps Nebula clouds
+// @motes Starlight
 // @room 10
 // @palette {"corona.rim_cool":[0.04,0.10,0.45],"corona.rim_hot":[0.20,0.45,1.0],"corona.inner":[0.65,0.82,1.0],"core.white":[0.90,0.95,1.0],"core.fringe_cool":[0.15,0.35,1.0],"core.fringe_hot":[0.60,0.80,1.0],"light.color":[0.22,0.45,1.0],"trail":[0.28,0.50,1.0]}
 
@@ -79,7 +83,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     float tt;
     float d = rayPt(ro, rd, p, tt);
     if (d > 4.0) continue;
-    float wv = 0.5 + 0.5*sin(yy*0.32 - uTime*(1.1 + 1.6*sw));
+    float wv = 0.5 + 0.5*sin(yy*0.32 - uTime*(1.1));
     float jl = jump*exp(-pow((yy - jf)/4.0, 2.0));
     light += mix(deep, bio, 0.3 + 0.4*wv*wv)*(halo(d, 0.9 + 0.6*h11(fi))*0.3 + halo(d, 2.0)*0.06)*(0.6 + 0.6*wv*wv + 1.5*jl)*fxOn;
   }
@@ -87,14 +91,14 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // ribbons of glowing nebula gas winding slowly round the blade
   for (int k = 0; k < 3; k++){
     float fk = float(k);
-    vec3 prev = around(1.6, fk/3.0 - uTime*(0.05 + 0.08*sw), 0.5);
+    vec3 prev = around(1.6, fk/3.0 - uTime*(0.05), 0.5);
     for (int j = 1; j <= 12; j++){
       float u = float(j)/12.0;
       float yy = 0.5 + u*(L - 1.0);
-      vec3 q = around(1.6 + 1.2*sin(u*6.2832 + uTime*0.4 + fk*2.0), fk/3.0 + u*0.9 - uTime*(0.05 + 0.08*sw), yy);
+      vec3 q = around(1.6 + 1.2*sin(u*6.2832 + uTime*0.4 + fk*2.0), fk/3.0 + u*0.9 - uTime*(0.05), yy);
       float sg;
       float d = raySeg(ro, rd, prev, q, sg);
-      float wv = 0.5 + 0.5*sin(yy*0.32 - uTime*(1.1 + 1.6*sw));
+      float wv = 0.5 + 0.5*sin(yy*0.32 - uTime*(1.1));
       if (yy < top) light += mix(deep, bio, 0.4 + 0.4*wv)*(halo(d, 0.25)*0.6 + halo(d, 0.8)*0.18)*(0.6 + 0.8*wv*wv)*fxOn;
       prev = q;
     }
@@ -108,7 +112,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     vec3 q = around(rr, a, yb + 0.8*sin(uTime*0.3 + fi));
     if (q.y < top){
       float tt; float d = rayPt(ro, rd, q, tt);
-      float wv = 0.5 + 0.5*sin(q.y*0.32 - uTime*(1.1 + 1.6*sw));
+      float wv = 0.5 + 0.5*sin(q.y*0.32 - uTime*(1.1));
       float br = (0.35 + 0.65*pow(0.5 + 0.5*sin(uTime*(0.9 + h11(fi*2.3)) + fi*2.0), 3.0) + 0.6*wv*wv)*(1.0 + 3.0*jump*exp(-pow((q.y - jf)/4.0, 2.0)));
       float w = max(px*1.0, 0.045);
       light += (pale*halo(d, w)*1.2 + bio*halo(d, w*4.0)*0.30)*br*fxOn;
@@ -139,7 +143,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 // the blade: Sol's glow and core from the file, breathing, swelling where the slow waves pass,
 // shimmering as it jumps
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  float wave = 0.5 + 0.5*sin(b.y*0.32 - uTime*(1.1 + 1.6*clamp(uSwing, 0.0, 1.0)));
+  float wave = 0.5 + 0.5*sin(b.y*0.32 - uTime*(1.1));
   wave = wave*wave;
   float wave2 = 0.5 + 0.5*sin(b.y*0.11 - uTime*0.45 + 1.0);
   float shim = ns_jump()*uFx*exp(-pow((b.y - ns_front()*uLength)/3.0, 2.0));
@@ -151,22 +155,18 @@ vec3 sig_core(vec3 c, vec2 b, float px){
 }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 blue = vec3(0.25, 0.5, 1.0), vio = vec3(0.6, 0.4, 1.0);
-  fx += fxCoils(ro, rd, px, y0, y1, 2.4, 0.9, 0.4 + 0.5*sw, 3.0, mix(blue, vio, 0.4));
-  fx += fxRays(ro, rd, px, y0, y1, 12.0, 6.5, 0.45, 5.9, blue);
-  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 30.0, 0.06, 7.3, vec3(0.7, 0.8, 1.0));
+  vec3 blue = vec3(0.25, 0.5, 1.0);
   for (int i = 0; i < 3; i++){
     float q = fract(t*0.25 + float(i)/3.0);
-    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.85, float(i)*0.5), q, 8.0, blue)*0.7;
+    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.85, float(i)*0.5), q, 8.0, blue)*0.8*part(1.0);
   }
-  fx += fxAura(ro, rd, y0, y1, 3.0, blue);
   fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, vec3(0.8, 0.9, 1.0))*1.6;
   return col + fx*uFx;
 }

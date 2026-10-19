@@ -167,5 +167,29 @@
       "sound/sjk/sabers/eclipse/swing2.wav",
       "sound/sjk/sabers/eclipse/swing3.wav"
     ]
+  },
+  "arcs": {
+    "count": 2,
+    "color": [
+      1.0,
+      0.9,
+      0.7
+    ],
+    "brightness": 1.4,
+    "width": 0.3,
+    "halo": 0.8,
+    "reach": 1.8,
+    "jag": 0.05,
+    "kinks": 0.08,
+    "span": {
+      "low": 0.12,
+      "high": 0.3
+    },
+    "rate": 0.25,
+    "jitter": 0.0,
+    "threshold": 0.15,
+    "tip": 0.0,
+    "crawl": 2.0,
+    "decay": 0.5
   }
 }

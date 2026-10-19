@@ -3,11 +3,12 @@
 // slowly falls, catching the light; now and then a shimmering haze of spice vapour curls up
 // round it. A swing throws a stream of glittering dust off the blade; a clash bursts a cloud
 // of sparkling spice.
+// @part Spice glitter
 // @room 6
 // @palette {"corona.rim_cool":[0.55,0.38,0.10],"corona.rim_hot":[1.0,0.80,0.40],"corona.inner":[1.0,0.95,0.80],"core.white":[1.0,0.98,0.92],"core.fringe_cool":[1.0,0.75,0.35],"core.fringe_hot":[1.0,0.92,0.70],"light.color":[1.0,0.82,0.45],"trail":[1.0,0.85,0.5]}
 
 float ks_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = ks_top(), s, ta;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 gold = vec3(1.0, 0.8, 0.4), white = vec3(1.0, 0.97, 0.9);
@@ -52,3 +53,8 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.95 + 0.4*clamp(uClash, 0.0, 1.0)) + vec3(1.0, 0.95, 0.8)*sp*tw*1.5*smoothstep(0.0, 0.5, b.y)*(1.0 - smoothstep(uLength - 0.5, uLength, b.y));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}

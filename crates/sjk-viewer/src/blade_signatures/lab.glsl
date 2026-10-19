@@ -310,3 +310,31 @@ vec3 fxAura(vec3 ro, vec3 rd, float y0, float y1, float w, vec3 col){
   float d = fxNear(ro, rd, y0, y1);
   return col*(halo(d, w)*0.35 + halo(d, w*0.4)*0.25);
 }
+// ---- round 11: small helpers for the lower tiers ----
+// The glow's level and the glow at that level in colour c (a tint keeping Sol's shape).
+float lvl(vec3 g){ return max(g.r, max(g.g, g.b)); }
+vec3 recol(vec3 g, vec3 c){ return lvl(g)*c; }
+// Bands of light travelling along the blade: k bands a unit, moving at v units a second.
+float bands(float y, float k, float v){ return 0.5 + 0.5*sin(y*k*6.2832 - uTime*v*k*6.2832); }
+// Falling streaks (rain, snow, ash) in the blade's picture: count of them (up to 32) between
+// heights y0 and y1, reaching r across, falling at v, slanted by lean.
+vec3 fxFall(vec3 ro, vec3 rd, float px, float y0, float y1, float r, float count, float v, float len, float lean, float seed, vec3 col){
+  vec3 acc = vec3(0.0);
+  if (fxNear(ro, rd, y0, y1) > r + 1.0) return acc;
+  float s;
+  for (int i = 0; i < 32; i++){
+    float fi = float(i);
+    if (fi >= count) break;
+    float f = fract(uTime*v/(y1 - y0 + 4.0)*(0.7 + 0.6*h11(fi*2.3 + seed)) + h11(fi*5.9 + seed));
+    float y = mix(y1 + 2.0, y0 - 2.0, f);
+    vec3 p = around(0.8 + (r - 0.8)*h11(fi*3.1 + seed), h11(fi*7.7 + seed), y);
+    vec3 q = p + vec3(lean, 1.0, 0.0)*len;
+    float d = raySeg(ro, rd, p, q, s);
+    acc += col*(halo(d, max(0.04, px))*1.2 + halo(d, 0.2)*0.2)*(1.0 - 0.6*s);
+  }
+  return acc;
+}
+// ---- round 11: every effect can be switched off ----
+// 1 while the signature's own part k (its `// @part` line k, from 0) is on, 0 when its wearer
+// switched it off in the Collection.
+float part(float k){ return 1.0 - mod(floor(uParts/exp2(k) + 0.001), 2.0); }

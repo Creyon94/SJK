@@ -4,6 +4,7 @@
 // line and cross beams, and points of data blinking along them as the plans are read. Now and
 // then the schematic flickers like a damaged hologram. A swing makes the projection jitter;
 // a clash flashes it and blows the rings outward.
+// @part Hologram plans
 // @room 6
 // @palette {"corona.rim_cool":[0.04,0.20,0.50],"corona.rim_hot":[0.30,0.65,1.0],"corona.inner":[0.75,0.90,1.0],"core.white":[0.92,0.97,1.0],"core.fringe_cool":[0.25,0.55,1.0],"core.fringe_hot":[0.70,0.88,1.0],"light.color":[0.35,0.65,1.0],"trail":[0.40,0.70,1.0]}
 
@@ -22,7 +23,7 @@ float dp_ring(vec3 ro, vec3 rd, float y, float R){
   }
   return best;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = dp_top(), s, ta;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 blue = vec3(0.35, 0.7, 1.0), pale = vec3(0.8, 0.93, 1.0);
@@ -73,3 +74,8 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*ln + vec3(0.8, 0.93, 1.0)*halo(b.y - ys, 0.25)*smoothstep(1.5, 0.0, abs(b.x))*1.4;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}

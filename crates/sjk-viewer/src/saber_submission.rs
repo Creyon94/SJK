@@ -98,9 +98,16 @@ pub(crate) fn submit(
             );
             let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
             let flicker = saber::Flicker::sample(key, presentation_time);
-            let motion = state
-                .motion
-                .record(blade, presentation_time, length < hilt_blade.length);
+            // The swing is measured in the wearer's own frame (Creyon's round 11): turning the
+            // view or running turns the whole body, which is no swing, and the effects that
+            // answer a swing must not stir then.
+            let body = (actor_rotation.inverse() * Vec3::from_array(blade.direction)).to_array();
+            let motion = state.motion.record_turned(
+                blade,
+                body,
+                presentation_time,
+                length < hilt_blade.length,
+            );
             // A direction across the blade that turns with the hilt, for the signatures'
             // three-dimensional effects (`Instance::with_frame`).
             let across = (weapon_rotation

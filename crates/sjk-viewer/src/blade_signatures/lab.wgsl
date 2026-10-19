@@ -496,6 +496,51 @@ fn fxAura(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, col: vec3<f32>
     return col * (halo(d, w) * 0.35 + halo(d, w * 0.4) * 0.25);
 }
 
+// ---- round 11: small helpers for the lower tiers ----
+// The glow's level and the glow at that level in colour c (a tint keeping Sol's shape).
+fn lvl(g: vec3<f32>) -> f32 {
+    return max(g.r, max(g.g, g.b));
+}
+
+fn recol(g: vec3<f32>, c: vec3<f32>) -> vec3<f32> {
+    return lvl(g) * c;
+}
+
+// Bands of light travelling along the blade: k bands a unit, moving at v units a second.
+fn bands(y: f32, k: f32, v: f32) -> f32 {
+    return 0.5 + 0.5 * sin(y * k * 6.2832 - uTime * v * k * 6.2832);
+}
+
+// Falling streaks (rain, snow, ash) in the blade's picture: count of them (up to 32) between
+// heights y0 and y1, reaching r across, falling at v, slanted by lean.
+fn fxFall(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, r: f32, count: f32, v: f32, len: f32, lean: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0, y1) > r + 1.0 {
+        return acc;
+    }
+    var s: f32;
+    for (var i = 0; i < 32; i++) {
+        let fi = f32(i);
+        if fi >= count {
+            break;
+        }
+        let f = fract(uTime * v / (y1 - y0 + 4.0) * (0.7 + 0.6 * h11(fi * 2.3 + seed)) + h11(fi * 5.9 + seed));
+        let y = mix(y1 + 2.0, y0 - 2.0, f);
+        let p = around(0.8 + (r - 0.8) * h11(fi * 3.1 + seed), h11(fi * 7.7 + seed), y);
+        let q = p + vec3(lean, 1.0, 0.0) * len;
+        let d = raySeg(ro, rd, p, q, &s);
+        acc += col * (halo(d, max(0.04, px)) * 1.2 + halo(d, 0.2) * 0.2) * (1.0 - 0.6 * s);
+    }
+    return acc;
+}
+
+// ---- round 11: every effect can be switched off ----
+// 1 while the signature's own part k (its `// @part` line k, from 0) is on, 0 when its wearer
+// switched it off in the Collection.
+fn part(k: f32) -> f32 {
+    return 1.0 - glsl_mod(floor(uParts / exp2(k) + 0.001), 2.0);
+}
+
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
 fn glsl_mod(x: f32, y: f32) -> f32 {
     return x - y * floor(x / y);

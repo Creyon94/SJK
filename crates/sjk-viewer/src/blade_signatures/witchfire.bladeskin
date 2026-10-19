@@ -186,5 +186,56 @@
     "scale": 0.5,
     "curl": 1.3,
     "density": 0.55
+  },
+  "arcs": {
+    "count": 2,
+    "color": [
+      0.35,
+      1.0,
+      0.4
+    ],
+    "brightness": 2.0,
+    "width": 0.06,
+    "halo": 0.5,
+    "reach": 1.6,
+    "jag": 0.45,
+    "kinks": 0.5,
+    "span": {
+      "low": 0.15,
+      "high": 0.5
+    },
+    "rate": 6.0,
+    "jitter": 20.0,
+    "threshold": 0.3,
+    "tip": 0.15,
+    "crawl": 6.0,
+    "decay": 1.5
+  },
+  "echo": {
+    "fade": 0.3,
+    "sway": 1.6,
+    "rate": 0.3,
+    "lean": 0.05
+  },
+  "motes": {
+    "color": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "brightness": 1.3,
+    "density": 0.22,
+    "cells": 0.25,
+    "rings": 1.2,
+    "size": 0.38,
+    "stretch": 1.2,
+    "drift": {
+      "along": 1.2,
+      "out": 0.1
+    },
+    "twinkle": 1.0,
+    "inner": 0.9,
+    "outer": 2.4,
+    "focus": 0.0
   }
 }

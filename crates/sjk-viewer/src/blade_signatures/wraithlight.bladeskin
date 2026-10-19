@@ -185,5 +185,32 @@
     "scale": 0.45,
     "curl": 1.4,
     "density": 0.5
+  },
+  "echo": {
+    "fade": 0.35,
+    "sway": 1.8,
+    "rate": 0.25,
+    "lean": 0.05
+  },
+  "motes": {
+    "color": [
+      0.75,
+      0.85,
+      1.0
+    ],
+    "brightness": 1.4,
+    "density": 0.22,
+    "cells": 0.25,
+    "rings": 1.2,
+    "size": 0.38,
+    "stretch": 1.2,
+    "drift": {
+      "along": 1.2,
+      "out": 0.1
+    },
+    "twinkle": 1.0,
+    "inner": 0.9,
+    "outer": 2.4,
+    "focus": 0.0
   }
 }

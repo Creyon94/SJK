@@ -6,6 +6,8 @@
 // swing spins the shards out wider; a clash shatters a burst of shards off the blade with a white
 // flash and a shock ring; ignition: the glass is forged hot from the hilt.
 // @full 1
+// @part Heat glow
+// @part Obsidian shards
 // @room 10
 // @solid 1
 
@@ -113,13 +115,13 @@ float ob_shard(vec3 ro, vec3 rd, vec3 c, float sz, float spin, float seed, float
 // shard i's place round the blade
 vec3 ob_place(float fi){
   float L = uLength, sw = clamp(uSwing, 0.0, 1.0);
-  float a = h11(fi*1.7) + uTime*(0.05 + 0.04*h11(fi*2.9))*(1.0 + 1.5*sw);
+  float a = h11(fi*1.7) + uTime*(0.05 + 0.04*h11(fi*2.9));
   float R = 2.4 + 2.2*h11(fi*5.1) + 2.0*sw;
   float y = (0.18 + 0.78*fract(fi*0.381 + 0.07))*L + 0.8*sin(uTime*0.6 + fi*2.0);
   return around(R, a, y);
 }
 // round 10: the shards circle the blade, so they are drawn in true 3D (only orbits are)
-vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   vec4 col = vec4(0.0);
   if (uFx < 0.01 || fxNear(ro, rd, uLength*0.1, uLength) > 8.0) return col;
   float bestT = 1e5;
@@ -136,21 +138,20 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   }
   return col;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 hot = vec3(1.0, 0.45, 0.1), white = vec3(1.0, 0.92, 0.8);
   vec3 col = vec3(0.0);
   if (fxNear(ro, rd, y0, y1) > 10.0) return col;
   // white-hot beams flashing off the edges
-  col += fxRays(ro, rd, px, y0, y1, 10.0, 6.0 + 2.0*sw, 0.7, 2.3, hot);
   col += fxAura(ro, rd, y0, y1, 2.8, hot)*0.8;
   // a clash: a shock ring and a flash
   col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, white)*1.6;
   return col*uFx;
 }
 // the shards' glow and the magma lightning leaping from the blade to them, in true 3D with them
-vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+vec3 base_orbit(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0);
   vec3 hot = vec3(1.0, 0.45, 0.1);
   vec3 col = vec3(0.0);
@@ -167,4 +168,19 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
     col += boltLight(d, hot, px)*(1.0 - q)*(1.0 - q);
   }
   return col*uFx;
+}
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
+}
+// round 11: sig_orbit gated by part 1
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec3(0.0); }
+  return base_orbit(ro, rd, px);
+}
+// round 11: sig_orbit_solid gated by part 1
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec4(0.0); }
+  return base_orbit_solid(ro, rd, px);
 }

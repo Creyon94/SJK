@@ -167,5 +167,10 @@
       "sound/sjk/sabers/balance/swing2.wav",
       "sound/sjk/sabers/balance/swing3.wav"
     ]
+  },
+  "ghosts": {
+    "count": 4,
+    "spacing": 40.0,
+    "fade": 0.6
   }
 }

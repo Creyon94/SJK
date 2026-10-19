@@ -5,6 +5,10 @@
 // From the tip the jet blasts on up into space, widening and fading, wrapped in twisting
 // magnetic light, with sparks of plasma streaking out of it. Everything pulses with the engine's heartbeat. A swing feeds the engine (the
 // disk flares and the jets lengthen); a clash fires a giant knot and a shockwave off the disk.
+// @part Disk and jet
+// @part Core flare
+// @arcs Jet lightning
+// @motes Plasma sparks
 // @room 10
 // @palette {"corona.rim_cool":[0.35,0.15,0.85],"corona.rim_hot":[0.75,0.55,1.0],"corona.inner":[0.95,0.90,1.0],"core.white":[0.97,0.95,1.0],"core.fringe_cool":[0.55,0.35,1.0],"core.fringe_hot":[0.85,0.75,1.0],"light.color":[0.6,0.45,1.0],"trail":[0.65,0.5,1.0]}
 
@@ -32,7 +36,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // knots racing up the jet, each with a ring of shocked light round the blade
   for (int i = 0; i < 6; i++){
     float fi = float(i);
-    float ky = mod(uTime*(18.0 + 8.0*sw) + fi*(L + 8.0)/6.0, L + 8.0) - 1.0;
+    float ky = mod(uTime*(18.0) + fi*(L + 8.0)/6.0, L + 8.0) - 1.0;
     if (ky > top) continue;
     float fade = smoothstep(-1.0, 1.5, ky)*(1.0 - smoothstep(L - 1.0, L, ky));
     float dk = raySeg(ro, rd, vec3(0.0, ky - 1.2, 0.0), vec3(0.0, ky + 0.4, 0.0), s);
@@ -68,7 +72,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     // sparks of plasma streaking out of the tip along the jet
     for (int i = 0; i < 4; i++){
       float fi = float(i);
-      float f = fract(uTime*(0.9 + 0.5*sw) + fi/4.0);
+      float f = fract(uTime*(0.9) + fi/4.0);
       vec3 sp = around(0.5*f*(0.5 + h11(fi*3.7 + floor(uTime*0.9 + fi/4.0))), h11(fi*1.3 + floor(uTime*0.9 + fi/4.0)), top + f*JL);
       float dk = raySeg(ro, rd, sp - vec3(0.0, 1.2 + 1.5*f, 0.0), sp, s);
       fx += white*(halo(dk, max(0.04, px))*1.4 + halo(dk, 0.3)*0.25)*(1.0 - f)*s*jt;
@@ -80,7 +84,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   vec3 c0 = vec3(0.0, h, 0.0);
   if (g > 0.01){
     vec3 lo = qs_loc(ro - c0), ld = qs_loc(rd);
-    float spin = uTime*(1.4 + 1.2*sw);
+    float spin = uTime*(1.4);
     // the disk: clumps of glowing matter orbiting on many rings in its tilted plane, brighter on
     // the side rushing toward you, each a short streak facing the camera
     if (rayPt(lo, ld, vec3(0.0), tq) < 7.5*g){
@@ -109,7 +113,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     if (dc < 7.0){
       for (int k = 0; k < 3; k++){
         float fk = float(k);
-        float a0 = fk/3.0 - uTime*0.22*(1.0 + sw);
+        float a0 = fk/3.0 - uTime*0.22;
         vec3 prev = vec3(5.6*g*sin(6.2832*a0), 0.0, 5.6*g*cos(6.2832*a0));
         for (int i = 1; i <= 14; i++){
           float u = float(i)/14.0;
@@ -151,19 +155,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
 // ---- round 9: the big effects layer ----
-// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+// Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
+// (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 col = r8_vol(ro, rd, px);
+  vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-
-  vec3 vio = vec3(0.6, 0.45, 1.0), white = vec3(0.9, 0.9, 1.0);
-  fx += fxArcs(ro, rd, px, y0, y1, 5.0 + 3.0*sw, 4.0, 1.5 + 1.5*sw, 4.3, vio);
-  fx += fxRays(ro, rd, px, y0, y1, 12.0, 7.0 + 2.0*sw, 0.6, 8.6, vio);
-  fx += fxSparks(ro, rd, px, L*0.5, L, 16.0 + 10.0*sw, 7.0, 1.0, 1.1, white);
-  fx += fxFlare(ro, rd, vec3(0.0, L*0.22, 0.0), px, 0.35, 5.0, 4.0, t*0.25, vio)*(0.8 + 0.3*sin(t*3.0));
-  fx += fxAura(ro, rd, y0, y1, 3.0, vio);
-  fx += fxShock(ro, rd, px, L*0.22, 1.0 - cl, 11.0, white)*1.8;
+  fx += fxFlare(ro, rd, vec3(0.0, L*0.22, 0.0), px, 0.35, 5.0, 4.0, t*0.25, vec3(0.6, 0.45, 1.0))*(0.8 + 0.3*sin(t*3.0))*part(1.0);
+  fx += fxShock(ro, rd, px, L*0.22, 1.0 - cl, 11.0, vec3(0.9, 0.9, 1.0))*1.8;
   return col + fx*uFx;
 }

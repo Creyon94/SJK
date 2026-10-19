@@ -6,6 +6,8 @@
 // plasma venting and lightning crackling off it, until a containment flash throws a shock ring
 // and beams of light, and it cools again. A swing stretches the loops and vents harder; a clash
 // is a containment breach.
+// @part Containment and venting
+// @wisps Reactor smoke
 // @room 10
 // @palette {"corona.rim_cool":[0.08,0.3,0.9],"corona.rim_hot":[0.35,0.7,1.0],"corona.inner":[0.4,0.7,1.0],"core.white":[0.7,0.88,1.0],"core.fringe_cool":[0.2,0.55,1.0],"core.fringe_hot":[0.7,0.88,1.0],"light.color":[0.4,0.75,1.0],"trail":[0.4,0.75,1.0]}
 
@@ -26,7 +28,7 @@ float rc_ringY(float k){ return fract((k + uTime*RC_V*RC_N)/RC_N)*(uLength + 2.0
 // how much ring k shows: fading in above the hilt and out softly before the tip (never popping)
 float rc_ringVis(float y){ return smoothstep(0.5, 3.0, y)*(1.0 - smoothstep(uLength - 3.5, uLength + 0.5, y)); }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 base_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 h = rc_heat();
   vec3 pc = rc_col(h);
@@ -75,7 +77,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   // ---- the containment flash: a shock ring and beams of light; a clash is a breach ----
   float fq = mod(t, 30.0) - 26.0;
   col += fxShock(ro, rd, px, L*0.5, fq/1.6, 11.0, vec3(1.0, 0.9, 0.8))*2.0;
-  col += fxRays(ro, rd, px, y0, y1, 16.0, 8.0, 1.5, 9.1, pc)*h.z*2.0;
+  col += fxSparks(ro, rd, px, y0, y1, 24.0, 7.0, 1.5, 9.1, pc)*h.z*2.0;
   col += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, pc)*1.6;
   return col*uFx;
 }
@@ -97,4 +99,9 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){
   vec3 h = rc_heat();
   return mix(c, vec3(1.0, 0.85, 0.75)*max(c.r, max(c.g, c.b)), h.y*0.5)*(1.0 + 0.4*rc_pinch(b.y) + 0.6*h.z);
+}
+// round 11: sig_vol gated by part 0
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_vol(ro, rd, px);
 }

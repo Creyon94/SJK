@@ -3,6 +3,7 @@
 // glowing its own colour, linked to the blade by a thin beam of light that pulses as the crystals
 // sing to it; now and then one flares and sends a bead of its colour racing into the blade. A
 // swing spins the ring; a clash makes every crystal flash at once.
+// @part Kyber crystals
 // @room 7
 // @solid 1
 // @palette {"corona.rim_cool":[0.20,0.30,0.70],"corona.rim_hot":[0.60,0.80,1.0],"corona.inner":[0.88,0.95,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.50,0.70,1.0],"core.fringe_hot":[0.85,0.95,1.0],"light.color":[0.65,0.80,1.0],"trail":[0.70,0.85,1.0]}
@@ -10,13 +11,13 @@
 float kc_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
 vec3 kc_col(float i){ return hsv(fract(i*0.137 + 0.55), 0.65, 1.0); }
 vec3 kc_pos(float i, out vec3 axis){
-  float a = i/9.0 + uTime*(0.04 + 0.12*clamp(uSwing, 0.0, 1.0));
+  float a = i/9.0 + uTime*(0.04);
   float y = uLength*(0.15 + 0.08*i) + 0.6*sin(uTime*0.5 + i*1.7);
   axis = normalize(vec3(sin(uTime*0.4 + i), 1.6, cos(uTime*0.3 + i*2.0)));
   return around(3.4 + 0.8*sin(i*2.3), a, y);
 }
 // round 10: the crystals circle the blade, so they are drawn in true 3D (only orbits are)
-vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+vec3 base_orbit(vec3 ro, vec3 rd, float px){
   float t = uTime, top = kc_top(), s, ta;
   float cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
@@ -44,7 +45,7 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   return col*uFx;
 }
 // the crystals themselves: elongated shards facing the camera, faceted, lit in their colour
-vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   vec4 o = vec4(0.0);
   if (uFx < 0.01) return o;
   float top = kc_top(), bestT = 1e5;
@@ -78,3 +79,13 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.9 + 0.3*halo(f, 0.05)*gl + 0.6*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+// round 11: sig_orbit gated by part 0
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return base_orbit(ro, rd, px);
+}
+// round 11: sig_orbit_solid gated by part 0
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec4(0.0); }
+  return base_orbit_solid(ro, rd, px);
+}
