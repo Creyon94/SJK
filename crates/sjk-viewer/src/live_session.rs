@@ -233,6 +233,11 @@ impl GpuState {
         let force_power = snapshot.player.selected_force_power();
         let known = self.gameplay_input.selection.known(&snapshot.player);
         let own_slot = u8::try_from(snapshot.player.client_num()).ok();
+        let attack_stops_emote = self
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(crate::emotes::ATTACK_STOP_CVAR))
+            .unwrap_or(crate::emotes::DEFAULT_ATTACK_STOP);
         let flip_kick = self
             .console
             .as_ref()
@@ -297,13 +302,13 @@ impl GpuState {
             }
             let sent = self.local_prediction.command_for_server(command);
             session.queue_command(&sent);
-            // An attack or alt attack ends the player's own emote, here and, as
-            // `sjkemote stop` does, for the other SJK players: the server attacks
-            // whatever the emote shows.
+            // With `cg_emoteAttackStop`, an attack or alt attack ends the player's
+            // own emote, here and, as `sjkemote stop` does, for the other SJK
+            // players: the server attacks whatever the emote shows.
             if let Some(own) = own_slot
                 && crate::emotes::lock()
                     .active
-                    .end_on_attack(own, sent.buttons)
+                    .end_on_attack(own, sent.buttons, attack_stops_emote)
             {
                 let _ = crate::player_identity::emote(crate::emotes::STOP.to_owned(), None);
             }

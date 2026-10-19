@@ -5418,10 +5418,11 @@ test: Esc while aiming shows the Map editor strip at the top; Editor off removes
 
 [emote-attack-stop]
 area: Gameplay
-title: Emotes: attack or alt attack ends your own emote
-change: A command with attack or alt attack stops your emote and tells the hub (as sjkemote stop).
-change: Hub report 78.
-test: Start a looping dance emote, press attack: the dance stops and your swing shows.
+title: Emotes: Attack ends emote setting (off by default)
+change: Settings > Sound > Emotes: Attack ends emote (cg_emoteAttackStop, default 0).
+change: On, attack or alt attack stops your emote and tells the hub (as sjkemote stop). Report 78.
+test: Default: start a looping dance, attack and alt attack: the dance keeps going.
+test: Turn Attack ends emote on, dance, attack: the dance stops and your swing shows.
 test: Same with alt attack; a second SJK client sees the dance end too.
 
 [audio-listener-once]

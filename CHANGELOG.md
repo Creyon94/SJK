@@ -37,7 +37,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
 - Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
 - SJK chat can stay out of the game's chat feed (`cl_sjkChatFeed`) or the console (`cl_sjkChatConsole`), both on; the dock and the SJK chat page keep showing it _(Lukas)_
-- An attack or alt attack ends your emote, here and for the other SJK players, so you see your real attack instead of the dance _(Sol, after SixNine's report)_
+- New setting Settings > Sound > Emotes: Attack ends emote (`cg_emoteAttackStop`, off by default): on, an attack or alt attack ends your emote, here and for the other SJK players, so you see your real attack; off, you keep dancing _(Sol, after SixNine's report)_
 - Sounds near you no longer crackle while you move, the saber's hum most: each new snapshot briefly moved where the game listens from _(Sol, after Toad's report)_
 - The Holocrons page no longer says "8 of 8 today" after a new day starts: the limit is 8 holocrons in any 24 hours, so it reads "8 of 8 in 24 h" and, once reached, how long until the next one can drop _(Sol, after Toad's report)_
 - Security cameras and mirrors placed in maps show their view instead of a grey texture, such as the camera on JoF's ffa3 _(Sol, after SanjiJ's report)_
