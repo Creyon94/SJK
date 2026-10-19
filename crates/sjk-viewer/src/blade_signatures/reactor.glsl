@@ -88,7 +88,7 @@ float rc_pinch(float y){
   for (int k = 0; k < 5; k++){ float yr = rc_ringY(float(k)); p += halo(y - yr, 0.6)*rc_ringVis(yr); }
   return p;
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   vec3 h = rc_heat();
   float l = max(g.r, max(g.g, g.b));
   float strobe = h.y*(0.5 + 0.5*step(0.5, fract(uTime*2.0)));
@@ -104,3 +104,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   if (part(0.0) < 0.5) { return vec3(0.0); }
   return base_vol(ro, rd, px);
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 60 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.6; }

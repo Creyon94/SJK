@@ -1,9 +1,10 @@
 // Hyperlane: a hyperspace lane folded into a blade. Rings of light rush down round it in a deep
-// blue tunnel, starlines stream along it, two lanes of light wind round it and bands race down the
-// blade. A swing brightens the tunnel; a clash a white ring.
+// blue tunnel, starlines stream along it, lane beacons blink down both sides of it in a chase and
+// bands race down the blade (round 15: the beacons replaced lanes it shared with the Aurodium). A
+// swing brightens the tunnel; a clash a white ring.
 // @part Tunnel rings
 // @part Starlines
-// @part Lane light
+// @part Lane beacons
 // @room 8
 // @palette {"corona.rim_cool":[0.1,0.2,0.6],"corona.rim_hot":[0.45,0.65,1.0],"corona.inner":[0.85,0.92,1.0],"core.white":[1,1,1],"core.fringe_cool":[0.35,0.55,1.0],"core.fringe_hot":[0.8,0.9,1.0],"light.color":[0.4,0.6,1.0],"trail":[0.4,0.6,1.0]}
 
@@ -23,6 +24,19 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     fx += (vec3(1.0)*halo(d, max(0.04, px))*0.8 + blue*halo(d, 0.3)*0.4)*sin(3.1416*q)*(0.8 + 0.4*sw)*part(0.0);
   }
   fx += fxFall(ro, rd, px, y0, y1, 2.0, 12.0, -20.0, 1.5, 0.0, 4.4, vec3(0.8, 0.9, 1.0))*part(1.0);
-  fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.8, 0.15, 4.0, 3.2, blue)*0.7*part(2.0);
+  // lane beacons: two columns of lights marking the lane, a chase running down them
+  float ta;
+  if (fxNear(ro, rd, y0, y1) < 4.5){
+    for (int i = 0; i < 20; i++){
+      float fi = float(i);
+      float row = floor(fi/2.0);
+      float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+      float y = mix(y1, y0, row/9.0);
+      float chase = pow(0.5 + 0.5*cos(6.2832*(row/10.0 - t*0.9)), 12.0);
+      vec3 p = vec3(side*2.3, y, 0.0);
+      float d = rayPt(ro, rd, p, ta);
+      fx += (vec3(1.0)*halo(d, max(0.08, px))*(0.5 + 2.4*chase) + blue*halo(d, 0.45)*(0.3 + 1.3*chase))*part(2.0);
+    }
+  }
   return fx*uFx;
 }

@@ -7,7 +7,7 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.15,0.4,0.05],"corona.rim_hot":[0.55,0.95,0.3],"corona.inner":[0.9,1.0,0.85],"core.white":[1,1,0.95],"core.fringe_cool":[0.45,0.85,0.25],"core.fringe_hot":[0.85,1.0,0.75],"light.color":[0.55,0.95,0.35],"trail":[0.55,0.95,0.35]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   return g*(0.9 + 0.15*bands(b.y, 0.1, 0.6));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
@@ -24,3 +24,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 8.0, 1.2, 0.5, 0.45, 0.4, 1.2, 8.8, vec3(0.6, 1.0, 0.45))*part(2.0);
   return fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.75; }

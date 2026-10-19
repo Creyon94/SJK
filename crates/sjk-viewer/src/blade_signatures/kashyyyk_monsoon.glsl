@@ -1,9 +1,10 @@
 // Kashyyyk Monsoon: the monsoon over Kashyyyk's forests as a blade. Rain lashes down past it and
 // streams down the blade itself, a green jungle mist steams off it, and now and
-// then the sky flashes and lightning forks off it. A clash flares it.
+// then the sky flashes and torn wroshyr leaves tumble down past it in the storm (round 15: the
+// leaves replaced lightning it shared with the other storm blades). A clash flares it.
 // @part Rain
 // @part Jungle mist
-// @arcs Monsoon lightning
+// @part Falling leaves
 // @room 8
 // @palette {"corona.rim_cool":[0.1,0.4,0.15],"corona.rim_hot":[0.45,0.95,0.5],"corona.inner":[0.88,1.0,0.9],"core.white":[1,1,1],"core.fringe_cool":[0.35,0.85,0.45],"core.fringe_hot":[0.8,1.0,0.85],"light.color":[0.45,0.95,0.55],"trail":[0.45,0.95,0.55]}
 
@@ -21,5 +22,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 rain = vec3(0.8, 0.95, 0.9), green = vec3(0.35, 0.8, 0.45);
   fx += fxFall(ro, rd, px, y0, y1, 3.5, 22.0, 24.0, 1.2, 0.15, 5.9, rain)*0.8*part(0.0);
   fx += fxSmoke(ro, rd, y0, y1, 3.8, 1.5, 2.6, green)*0.8*part(1.0);
+  fx += fxFlakes(ro, rd, px, y0, y1, 3.6, 10.0, 4.5, 0.38, 0.45, 2.2, 0.9, 7.3, vec3(0.45, 0.75, 0.25))*part(2.0);
+  fx += fxFlakes(ro, rd, px, y0, y1, 3.0, 6.0, 3.6, 0.3, 0.5, -1.7, 0.7, 2.2, vec3(0.75, 0.6, 0.25))*part(2.0);
   return fx*uFx;
 }

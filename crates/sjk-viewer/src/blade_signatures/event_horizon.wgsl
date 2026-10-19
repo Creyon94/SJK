@@ -161,7 +161,7 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
 
 // the blade: Sol's glow from the file, light streaming down its edges as it falls in, a razor
 // photon ring at the rod's rim
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let stream = 0.65 + 0.35 * sin(b.y * 0.9 + uTime * 12.0) + 0.3 * pow(0.5 + 0.5 * sin(b.y * 0.23 + uTime * 5.0), 6.0);
     let rim = exp(-pow((abs(b.x) - 0.33) / max(0.06, px), 2.0)) * smoothstep(1.0, 1.6, b.y) * (1.0 - smoothstep(eh_top() - 0.6, eh_top() - 0.2, b.y));
     return g + vec3<f32>(1.0, 0.96, 1.0) * rim * (1.2 * stream + 1.5 * clamp(uClash, 0.0, 1.0));
@@ -190,4 +190,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         fx += fxShock(ro, rd, px, mix(L * 0.3, L * 0.8, f32(i) * 0.5), q, 8.0, vio) * 0.8 * part(1.0);
     }
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.75;
 }

@@ -64,7 +64,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     // ---- the tunnel: bands of blue light spiralling round the blade, rushing up
     for (int k = 0; k < 6; k++){
       float fk = float(k);
-      float a0 = fk/6.0 - t*0.35;
+      float a0 = fk/6.0 - t*0.1;   // round 15 (Creyon): a slow twist, it spun far too fast
       float y0 = mod(t*14.0 + fk*(L + 10.0)/6.0, L + 10.0) - 5.0;
       vec3 prev = around(3.3, a0, y0);
       for (int j = 1; j <= 6; j++){
@@ -73,7 +73,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
         float s;
         float d = raySeg(ro, rd, prev, q, s);
         float on = smoothstep(-0.5, 3.0, q.y)*(1.0 - smoothstep(top - 5.0, top + 1.5, q.y));
-        fxl += vec3(0.16, 0.38, 1.0)*(halo(d, 0.18)*0.8 + halo(d, 0.7)*0.25)*sin(3.1416*(u - 0.08))*on*min(S, 1.0);
+        fxl += vec3(0.16, 0.38, 1.0)*(halo(d, 0.18)*0.8 + halo(d, 0.7)*0.25)*sin(3.1416*(u - 0.08))*on*min(S, 1.0)*part(1.0);
         prev = q;
       }
     }
@@ -98,7 +98,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 }
 // the blade: Sol's glow and core from the file, flickering as it shudders, flashing on a swing
 // and a clash
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float t = uTime;
   float fl = 0.9 + 0.1*sin(t*37.0) + 0.06*sin(t*71.0 + b.y*0.3);
   return g*fl*(1.0 + 0.4*clamp(uSwing, 0.0, 1.0) + 0.8*clamp(uClash, 0.0, 1.0));
@@ -113,8 +113,13 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxCoils(ro, rd, px, y0, y1, 2.8, 0.7, 1.4, 4.0, vec3(0.35, 0.6, 1.0))*part(1.0);
-  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
-  uKeep += col + fx*uFx;
-  return vec3(0.0);
+  // round 15 (Creyon): no coils (four at 1.4 turns a second whirled into a fast lattice, and
+  // coils made it look like the Reactor and the Uneti Tree); its tunnel is part 1
+  // round 15 (Creyon): the streaks and the tunnel take the wearer's colour with the blade
+  // (a red blade inside a blue tunnel looked wrong); their white-hot heads stay white
+  return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 65 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.65; }

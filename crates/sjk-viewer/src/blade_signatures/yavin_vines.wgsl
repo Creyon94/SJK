@@ -9,7 +9,7 @@
 // Yavin Vines: the jungle round the old temples of Yavin 4 as a blade. Green veins of life run
 // through it; two vines wind slowly up round it with light pulsing along them, golden pollen drifts
 // up past it and leaves of green light fall from it. A clash flares it.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g * (0.9 + 0.15 * bands(b.y, 0.1, 0.6));
 }
 
@@ -34,4 +34,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxSmoke(ro, rd, y0, y1, 3.4, 0.8, 7.2, vec3<f32>(0.3, 0.6, 0.35)) * 0.8 * part(2.0);
     fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 8.0, 1.2, 0.5, 0.45, 0.4, 1.2, 8.8, vec3<f32>(0.6, 1.0, 0.45)) * part(2.0);
     return fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.75;
 }

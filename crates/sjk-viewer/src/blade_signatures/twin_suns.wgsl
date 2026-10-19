@@ -10,7 +10,7 @@
 // Twin Suns: Tatooine's two suns at full blaze. A blade of gold and orange halves rolling into each
 // other with a seething sun's surface, loops of solar plasma arching off it and snapping back, a
 // solar wind of sparks streaming off it and the air shimmering with heat. A clash flares it.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let a: vec3<f32> = vec3<f32>(1.0, 0.85, 0.4);
     let o: vec3<f32> = vec3<f32>(1.0, 0.45, 0.1);
     let boil = fbm3(vec2(b.x * 3.0, b.y * 0.6 - uTime * 0.7)) * part(0.0);
@@ -35,4 +35,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 24.0, 0.12, 2.4, vec3<f32>(1.0, 0.85, 0.5)) * part(1.0);
     fx += fxSmoke(ro, rd, y0, y1, 2.8, 3.0, 5.0, vec3<f32>(1.0, 0.45, 0.1)) * 0.35 * part(2.0);
     return fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 80 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.8;
 }

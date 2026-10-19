@@ -2,13 +2,15 @@
 // script again.
 // @part Spirit lights
 // @part Spirit mist
+// @part Ascending spirits
 // @room 8
 // @palette {"corona.rim_cool":[0.55,0.4,0.15],"corona.rim_hot":[1.0,0.85,0.55],"corona.inner":[1.0,0.97,0.88],"core.white":[1,1,0.95],"core.fringe_cool":[1.0,0.8,0.5],"core.fringe_hot":[1.0,0.93,0.75],"light.color":[1.0,0.85,0.55],"trail":[1.0,0.85,0.55]}
 
 // Jedi Spirits: the light of the Jedi who became one with the Force. A soft blade breathing
 // slowly; warm lights lift off it one by one and float away upward, fading, a pale spirit mist
-// rises round it, an echo of the blade sways beside it and afterimages linger when it swings. A
-// clash sends a warm ring.
+// rises round it, three spirits climb round it in a slow spiral trailing long veils of light, an
+// echo of the blade sways beside it and afterimages linger when it swings (round 15: mythical,
+// its ribbons, shared with the Aurodium, became the climbing spirits). A clash sends a warm ring.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g * (0.9 + 0.15 * sin(uTime * 1.2));
 }
@@ -36,7 +38,50 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         fx += warm * (halo(d, 0.25) * 1.2 + halo(d, 0.8) * 0.3) * sin(3.1416 * f) * part(0.0);
     }
     fx += fxSmoke(ro, rd, y0, y1, 3.8, 1.0, 4.9, vec3<f32>(0.75, 0.8, 0.9)) * 0.6 * part(1.0);
-    fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.8, 0.14, 0.8, 9.3, vec3<f32>(0.75, 0.85, 1.0)) * 0.6 * part(1.0);
     fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 16.0, 0.03, 5.9, vec3<f32>(1.0, 0.9, 0.7)) * 0.7 * part(0.0);
+    return fx * uFx;
+}
+
+// round 15: three spirits climbing round the blade in a slow spiral, each a soft light trailing a
+// long fading veil; they circle the blade, so they are drawn in 3D (Sol's way)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(2.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    let y0 = L * 0.15;
+    let y1 = L * 1.05;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0, y1) > 5.5 {
+        return fx;
+    }
+    for (var j = 0; j < 3; j++) {
+        let fj = f32(j);
+        let per = 9.0 + 1.5 * fj;
+        var best: f32 = 1.0e3;
+        var bs: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i <= 14; i++) {
+            let tt = t - f32(i) * 0.12;
+            let q = fract(tt / per + fj / 3.0);
+            let p = around(2.1 + 0.9 * q + 0.25 * sin(tt * 0.8 + fj), tt * 0.11 + fj / 3.0, mix(y0, y1, q));
+            if i > 0 && abs(p.y - prev.y) < 4.0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bs = (f32(i) - 1.0 + s) / 14.0;
+                }
+            }
+            prev = p;
+        }
+        let q0 = fract(t / per + fj / 3.0);
+        let fade = smoothstep(0.0, 0.12, q0) * (1.0 - smoothstep(0.75, 1.0, q0));
+        let veil = 1.0 - bs;
+        let warm: vec3<f32> = vec3<f32>(1.0, 0.88, 0.62);
+        let pale: vec3<f32> = vec3<f32>(0.75, 0.86, 1.0);
+        fx += (vec3<f32>(1.0) * halo(best, max(0.07, px)) * pow(veil, 5.0) * 2.4 + mix(pale, warm, veil) * halo(best, 0.4 + 0.4 * bs) * veil * 1.1 + pale * halo(best, 1.1) * 0.1 * veil) * fade;
+    }
     return fx * uFx;
 }

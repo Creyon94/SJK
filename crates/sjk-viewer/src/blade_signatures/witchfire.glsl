@@ -3,9 +3,9 @@
 // tongues lick up its length. Thick ichor mist pours down off it and spills over the hilt, three
 // tendrils of green energy coil round it and slide upward, dark smoke curls through the fire, and
 // pulses of magick climb the blade from the hilt to the tip. Swinging feeds the fire; a clash
-// blasts it outward in a ring of green flame.
+// blasts it outward in a ring of green flame (round 15: no lightning, which made it look like the
+// Sith Alchemy and Superlaser blades; the ghost-fire is its own).
 // @part Ghost-fire
-// @arcs Magick lightning
 // @wisps Ichor smoke
 // @motes Nightsister spirits
 // @room 10
@@ -116,7 +116,7 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
   return vec4(vec3(0.01, 0.025, 0.012), al);
 }
 // the blade: Sol's glow and core from the file, wobbling, pulses of magick climbing it
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float pu = wf_pulse(b.y);
   return g*(0.85 + 0.15*sin(b.y*1.7 - uTime*6.0) + 0.8*pu + 0.6*clamp(uClash, 0.0, 1.0));
 }
@@ -133,3 +133,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxAura(ro, rd, y0, y1, 3.0, vec3(0.3, 1.0, 0.35))*part(0.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 80 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.8; }

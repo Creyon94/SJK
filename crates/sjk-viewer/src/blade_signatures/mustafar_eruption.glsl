@@ -8,7 +8,7 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.5,0.06,0.0],"corona.rim_hot":[1.0,0.4,0.05],"corona.inner":[1.0,0.75,0.4],"core.white":[1,0.92,0.75],"core.fringe_cool":[1.0,0.35,0.05],"core.fringe_hot":[1.0,0.65,0.3],"light.color":[1.0,0.4,0.08],"trail":[1.0,0.4,0.08]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float flow = fbm3(vec2(b.x*2.0, b.y*0.22 + uTime*0.9));
   float crust = smoothstep(0.5, 0.66, fbm3(vec2(b.x*1.5 + 3.1, b.y*0.12 + uTime*0.25)));
   float tongue = pow(0.5 + 0.5*sin(b.y*0.35 + uTime*3.2 + 2.0*flow), 3.0)*part(0.0);
@@ -24,8 +24,24 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 fx = vec3(0.0);
   vec3 fire = vec3(1.0, 0.45, 0.1), hot = vec3(1.0, 0.75, 0.35);
   float s;
-  // lava falls: molten streams running down both sides, pulses of bright rock pouring down them
-  fx += fxStreams(ro, rd, px, y0, y1, 4.0, 1.5, 0.22, -3.5, 2.7, fire)*1.3*part(0.0);
+  // lava falls (round 15: straight runnels pouring down close to the blade, in place of the
+  // wavy streams it shared with the Aurodium): bright heads of molten rock running down, a
+  // glowing trail behind each cooling to dark red
+  if (fxNear(ro, rd, y0, y1) < 3.0){
+    for (int i = 0; i < 8; i++){
+      float fi = float(i);
+      float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+      float x = side*(0.55 + 0.35*h11(fi*4.1));
+      float cyc = t*(0.3 + 0.15*h11(fi*2.3)) + h11(fi*7.9);
+      float q = fract(cyc);
+      float yh = mix(y1, y0 - 2.0, q*q*(3.0 - 2.0*q));
+      float yt = min(yh + 6.0 + 4.0*h11(fi*3.3), y1);
+      float sl;
+      float d = raySeg(ro, rd, vec3(x, yh, 0.0), vec3(x + side*0.15, yt, 0.0), sl);
+      vec3 c = mix(vec3(1.0, 0.85, 0.45), vec3(0.75, 0.12, 0.02), sl);
+      fx += (c*halo(d, max(0.07 - 0.04*sl, px))*1.8 + fire*halo(d, 0.35)*0.35*(1.0 - sl))*(1.0 - smoothstep(0.85, 1.0, q))*part(0.0);
+    }
+  }
   // molten drops dripping off and falling past the hilt
   fx += fxFall(ro, rd, px, y0, y1, 1.8, 16.0, 7.0, 0.9, 0.0, 6.1, hot)*1.4*part(0.0);
   // flames licking up the blade, thin and bright near it
@@ -53,3 +69,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 1.8, 0.2, 0.8, 1.5, 0.6, 3.6, vec3(0.5, 0.45, 0.42))*part(2.0);
   return fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 65 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.65; }

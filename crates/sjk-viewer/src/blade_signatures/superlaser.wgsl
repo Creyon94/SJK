@@ -2,7 +2,6 @@
 // script again.
 // @part Superlaser beam
 // @part Plasma sparks
-// @arcs Beam lightning
 // @room 10
 // @palette {"corona.rim_cool":[0.05,0.55,0.12],"corona.rim_hot":[0.45,1.0,0.35],"corona.inner":[0.85,1.0,0.8],"core.white":[0.95,1.0,0.94],"core.fringe_cool":[0.2,0.9,0.3],"core.fringe_hot":[0.7,1.0,0.6],"light.color":[0.3,1.0,0.35],"trail":[0.35,1.0,0.4]}
 
@@ -13,7 +12,8 @@
 // focus the main beam fires to the tip: a white-hot core in a green plasma sheath that ripples,
 // with two plasma strands twisting round it and surges racing up. On ignition the tributaries
 // light first, then the beam fires. A swing flares the tributaries and sends a surge; a clash
-// fires the focus in a white flash and a shockwave.
+// fires the focus in a white flash and a shockwave (round 15: no lightning along it, which made
+// it look like the Sith Alchemy and Witchfire blades).
 const SL_F: f32 = 5.8;
 
 // the focus's height
@@ -143,6 +143,20 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y0 = L * 0.2;
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
-    fx += fxSparks(ro, rd, px, L * 0.3, y1, 14.0, 6.0, 1.1, 4.8, vec3<f32>(0.85, 1.0, 0.85)) * part(1.0);
+    fx += fxSparks(ro, rd, px, L * 0.3, y1, 18.0, 6.0, 1.1, 4.8, vec3<f32>(0.85, 1.0, 0.85)) * part(1.0);
+    // round 15: each surge racing up the beam swells into a ball of green plasma round it, and a
+    // charge of light gathers at the focus before it fires
+    var ta: f32;
+    for (var j = 0; j < 3; j++) {
+        let y = SL_F + fract(t * 0.9 + f32(j) / 3.0) * (L - SL_F + 4.0) - 2.0;
+        if y > L {
+            continue;
+        }
+        let d = rayPt(ro, rd, vec3(0.0, y, 0.0), &ta);
+        fx += (vec3<f32>(0.25, 1.0, 0.3) * halo(d, 1.2 + 0.6 * sw) * 0.55 + vec3<f32>(0.8, 1.0, 0.8) * halo(abs(d - 1.1), 0.08) * 0.5) * part(0.0);
+    }
+    let charge = fract(t * 0.9);
+    let dF = rayPt(ro, rd, vec3(0.0, SL_F, 0.0), &ta);
+    fx += vec3<f32>(0.25, 1.0, 0.3) * halo(abs(dF - 2.5 * (1.0 - charge)), 0.12) * charge * 0.9 * part(0.0);
     return col + fx * uFx;
 }

@@ -99,8 +99,9 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     }
     // ---- solar flares: tongues of plasma licking up off the blade (round 13, Creyon: no loops
     // round the blade; they were plasma loops arching out and back) ----
-    col += fxSmoke(ro, rd, 0.15 * L, top, 1.6, 6.0, 2.4, vec3<f32>(1.0, 0.45, 0.08)) * 1.6 * fx;
-    col += fxSmoke(ro, rd, 0.15 * L, top, 0.9, 8.0, 5.9, vec3<f32>(1.0, 0.8, 0.4)) * 1.1 * fx;
+    // round 15 (Creyon: it looked like the Phoenix): a star's white-gold plasma, not orange flame
+    col += fxSmoke(ro, rd, 0.15 * L, top, 1.6, 6.0, 2.4, vec3<f32>(1.0, 0.72, 0.3)) * 1.1 * fx;
+    col += fxSmoke(ro, rd, 0.15 * L, top, 0.9, 8.0, 5.9, vec3<f32>(1.0, 0.93, 0.75)) * 0.8 * fx;
     for (var i = 0; i < 0; i++) {
         let fi = f32(i);
         let cyc = t / 3.6 + fi * 0.173 + h11(fi * 5.3) * 0.5;
@@ -200,7 +201,7 @@ fn sf_spot(y: f32) -> f32 {
     return exp(-pow((y - sf_y(n)) / 1.6, 2.0)) * exp(-ph * 1.8) + 0.25 * clamp(uClash, 0.0, 1.0);
 }
 
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g * (1.0 + 0.25 * sin(uTime * 2.1 + b.y * 0.4) * 0.4 + 1.2 * sf_spot(b.y) + 0.3 * uSwing);
 }
 
@@ -220,6 +221,12 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y0 = L * 0.2;
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
-    fx += fxAura(ro, rd, y0, y1, 3.6, vec3<f32>(1.0, 0.42, 0.07)) * part(0.0);
+    fx += fxAura(ro, rd, y0, y1, 3.6, vec3<f32>(1.0, 0.75, 0.35)) * 0.8 * part(0.0);
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.75;
 }

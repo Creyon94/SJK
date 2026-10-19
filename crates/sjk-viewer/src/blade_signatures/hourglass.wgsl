@@ -12,7 +12,9 @@
 // it; forge flames lick up its lower half and forge sparks spit off it; in a slow rhythm the
 // armorer's hammer strikes, a band of white heat flares where it lands and a shower of sparks
 // bounces away and falls; molten beskar beads along it and drips off, and a hiss of quench steam
-// rises. A swing throws sparks off it; a clash is a hammer strike.
+// rises; round 15 (Creyon: it needed more): after each strike the steel is quenched, jets of steam
+// burst hissing out of it and the struck band glows on, and the strike throws more sparks. A swing
+// throws sparks off it; a clash is a hammer strike.
 const BF_P: f32 = 2.2;
 
 fn bf_top() -> f32 {
@@ -45,7 +47,7 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let strike = max(exp(-ph * 3.0), cl);
     // sparks bouncing away from the strike and falling
     if ys < top {
-        for (var i = 0; i < 30; i++) {
+        for (var i = 0; i < 44; i++) {
             let fi = f32(i);
             let a = h11(fi * 3.1 + n);
             let dir = normalize(vec3(sin(6.2832 * a), 0.3 + 0.8 * h11(fi * 5.3 + n), cos(6.2832 * a)));
@@ -73,14 +75,35 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     }
     // quench steam rising off it (round 12: soft smoke, not puffs) and forge embers drifting up
     col += fxSmoke(ro, rd, top * 0.2, top * 0.95, 2.6, 2.5, 5.5, vec3<f32>(0.75, 0.78, 0.85)) * 0.7 * part(3.0);
+    // round 15: the quench, jets of steam bursting sideways out of the struck band once it has
+    // cooled a moment, and its afterglow ring
+    if ys < top && part(3.0) > 0.5 {
+        let qn = smoothstep(0.35, 0.5, ph) * (1.0 - smoothstep(0.9, 1.8, ph));
+        for (var i = 0; i < 6; i++) {
+            let fi = f32(i);
+            let a = h11(fi * 4.7 + n * 1.3);
+            let side = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
+            let grow = smoothstep(0.35, 0.9, ph);
+            let o = vec3(side * 0.4, ys + (fi - 2.5) * 0.5, 0.0);
+            let e = o + vec3(side * (1.0 + 3.0 * grow), 1.2 * grow + 0.4 * h11(fi + n), 0.0);
+            let d = raySeg(ro, rd, o, e, &s);
+            col += vec3<f32>(0.85, 0.88, 0.95) * (halo(d, 0.12 + 0.35 * s * grow) * 0.55 + halo(d, max(0.03, px)) * 0.3 * (1.0 - s)) * qn * (0.6 + 0.4 * a);
+        }
+        let dg = ringD(ro, rd, ys, 0.9);
+        col += vec3<f32>(1.0, 0.5, 0.12) * (halo(dg, max(0.05, px)) * 1.2 + halo(dg, 0.3) * 0.3) * exp(-ph * 1.2);
+    }
     col += fxMotes(ro, rd, px, top * 0.2, top * 0.9, 0.7, 3.0, 20.0, 0.06, 2.6, vec3<f32>(1.0, 0.55, 0.2)) * part(1.0);
     // round 13 (Creyon: more forge): forge flames licking up its lower half, forge sparks
     col += fxSmoke(ro, rd, top * 0.2, top * 0.62, 1.9, 7.5, 3.3, vec3<f32>(1.0, 0.4, 0.06)) * 2.5 * part(1.0);
     col += fxSmoke(ro, rd, top * 0.2, top * 0.5, 1.0, 9.0, 7.9, vec3<f32>(1.0, 0.72, 0.3)) * 1.8 * part(1.0);
     col += fxAura(ro, rd, top * 0.2, top * 0.55, 1.6, vec3<f32>(1.0, 0.4, 0.08)) * 0.6 * part(1.0);
     col += fxSparks(ro, rd, px, top * 0.2, top * 0.7, 8.0 + 10.0 * sw, 3.5, 0.8, 4.4, vec3<f32>(1.0, 0.5, 0.12)) * part(1.0);
-    // a cold steel sheen sliding up its upper half
-    col += fxStreams(ro, rd, px, top * 0.5, top * 0.95, 1.0, 1.4, 0.3, 1.2, 8.1, vec3<f32>(0.75, 0.82, 0.95)) * 0.5 * part(2.0);
+    // round 15: the steel's cold glint, a star of light flashing on its upper half now and then (it
+    // had a sheen stream like the Aurodium's)
+    let gk = floor(t * 0.45);
+    let gq = fract(t * 0.45);
+    let gp = vec3(0.0, top * (0.55 + 0.35 * h11(gk * 3.7)), 0.0);
+    col += fxFlare(ro, rd, gp, px, 0.12, 1.6, 4.0, 0.785, vec3<f32>(0.75, 0.82, 0.95)) * sin(3.1416 * clamp(gq / 0.35, 0.0, 1.0)) * step(gq, 0.35) * part(2.0);
     return col * uFx;
 }
 

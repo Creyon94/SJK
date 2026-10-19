@@ -173,21 +173,25 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
       vec3 cc = j == 0 ? ahs : ana;
       float best = 1e3, bs = 0.0;
       vec3 prev = vec3(0.0);
-      for (int i = 0; i <= 10; i++){
+      // round 15 (Creyon): bigger and further out, with a longer trail, so the two stand out
+      // from the blade whatever its colour (they were lost in a chroma's glow)
+      for (int i = 0; i <= 12; i++){
         float tt = t - float(i)*0.08;
         float a = tt*(0.32 + 0.04*fj)*(fj == 0.0 ? 1.0 : -1.0) + fj*0.5;
-        vec3 p = around(2.6 + 1.2*sin(tt*0.9 + fj*2.0), a, L*0.6 + L*0.25*sin(tt*0.55 + fj*3.1));
-        if (i > 0){ float d = raySeg(ro, rd, prev, p, s); if (d < best){ best = d; bs = (float(i) - 1.0 + s)/10.0; } }
+        vec3 p = around(3.3 + 1.2*sin(tt*0.9 + fj*2.0), a, L*0.6 + L*0.25*sin(tt*0.55 + fj*3.1));
+        if (i > 0){ float d = raySeg(ro, rd, prev, p, s); if (d < best){ best = d; bs = (float(i) - 1.0 + s)/12.0; } }
         prev = p;
       }
       float tail = 1.0 - bs;
+      float head = pow(tail, 6.0);
       // in their own colours whatever colour the wearer picked (uKeep, Creyon's round 12)
-      uKeep += (vec3(1.0)*halo(best, max(0.08, px))*tail*1.1 + cc*halo(best, 0.4)*tail*0.9 + cc*halo(best, 1.2)*0.12*tail)*uFx;
+      uKeep += (vec3(1.0)*halo(best, max(0.17, px))*tail*1.4 + vec3(1.0)*halo(best, 0.32)*head*1.6
+                + cc*halo(best, 0.75)*tail*1.3 + cc*halo(best, 1.9)*0.22*tail)*uFx;
     }
     // where they meet: a flash and sparks, white and red
-    vec3 meet = around(3.0, h11(k*2.1), mix(L*0.4, L*0.85, h11(k*4.7)));
+    vec3 meet = around(3.6, h11(k*2.1), mix(L*0.4, L*0.85, h11(k*4.7)));
     float fl = exp(-ph*7.0);
-    uKeep += fxFlare(ro, rd, meet, px, 0.2, 2.5, 6.0, k, mix(ahs, ana, 0.5))*fl*0.6*uFx;
+    uKeep += fxFlare(ro, rd, meet, px, 0.3, 3.4, 6.0, k, mix(ahs, ana, 0.5))*fl*0.8*uFx;
   }
   return fx*uFx;
 }

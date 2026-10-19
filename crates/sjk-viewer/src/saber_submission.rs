@@ -94,9 +94,10 @@ pub(crate) fn submit(
                 .filter(|skin| skin.linger > 0.0)
                 .and_then(|skin| state.motion.lingering(presentation_time, skin.linger))
             {
-                // Upright from the hilt, so the word stands up to be read however the hilt
-                // hangs once it is put away (round 14: lying along a holstered hilt, it was
-                // seen flat).
+                // Set upright from the hilt here; the vertex stage then stands it up the
+                // screen, so the word faces the camera from every side (round 14: lying along
+                // a holstered hilt, it was seen flat; round 15: upright in the world, it was
+                // read only from in front).
                 let held = saber::world_blade(
                     grip,
                     weapon_rotation,

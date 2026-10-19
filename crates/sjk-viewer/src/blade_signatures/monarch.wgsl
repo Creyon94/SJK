@@ -5,11 +5,11 @@
 // @palette {"corona.rim_cool":[0.30,0.35,0.02],"corona.rim_hot":[0.95,0.80,0.15],"corona.inner":[1.0,0.95,0.60],"core.white":[1.0,0.98,0.85],"core.fringe_cool":[0.70,0.85,0.20],"core.fringe_hot":[1.0,0.92,0.50],"light.color":[0.90,0.85,0.30],"trail":[0.90,0.85,0.35]}
 
 // Felucia Spores: the glowing fungal jungle of Felucia as a blade. A warm amber-green blade
-// breathing with bioluminescent rings that pulse up it; clouds of glowing spores swirl round it
-// resting on it while it is still and lifting off smoothly in spirals when it swings, staying out a few
-// seconds before settling back; luminous filaments wave off its surface and now and
-// then a spore pod bursts off it in a puff of light that rains spores. A swing whirls the spores
-// into a vortex; a clash bursts a huge cloud of them.
+// breathing with bioluminescent rings that pulse up it; glowing spores grow on it, rest there
+// breathing, then lift off smoothly and drift away round it in slow spirals while new ones grow,
+// as if alive; luminous filaments wave off its surface and now and then a spore pod bursts off it
+// in a puff of light that rains spores. A swing brightens the spores; a clash bursts a huge cloud
+// of them.
 fn fs_top() -> f32 {
     return uLength * clamp(uAge / 0.45, 0.0, 1.0);
 }
@@ -29,30 +29,35 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if top < 0.5 {
         return col;
     }
-    // spores: glowing spores resting on the blade, breathing softly while it is still; a swing
-    // shakes them off and they fly out round it in spirals, trailing light, then settle back on
-    // it as it calms (Creyon's round 9, like the butterflies)
-    // round 12 (Creyon): once shaken off they stay off a while before settling back
-    // round 14 (Creyon): they lift off as smoothly as they settle back: over a second from the
-    // swing's start (not at once with it), held off while the swinging goes on, settling back
-    // after it (uSince counts from a chain's first swing: `saber_motion.rs`)
-    let lift = smoothstep(0.0, 1.0, uSince);
-    let fly = lift * max(1.0 - smoothstep(2.2, 3.6, uSince), smoothstep(0.15, 0.45, sw));
+    // spores: glowing spores grow on the blade, rest there breathing, then lift off smoothly and
+    // drift away round it in a slow spiral, fading, while new ones grow (Creyon's round 15: they
+    // flickered off whenever the swing was counted again, running above all; now each lives its
+    // own cycle on the clock alone, the same standing or running, and a swing only brightens them)
     for (var i = 0; i < 44; i++) {
         let fi = f32(i);
-        let yr = (0.06 + 0.9 * h11(fi * 3.1)) * top;
-        let ar = h11(fi * 1.3);
+        let per = 4.5 + 2.5 * h11(fi * 1.7);
+        let ph = t / per + h11(fi * 3.3);
+        let k = floor(ph);
+        let f = fract(ph);
+        // a new spore each cycle, born where the last one cannot be seen (it fades in on the blade)
+        let yr = (0.06 + 0.9 * h11(fi * 3.1 + k * 1.37)) * top;
+        let ar = h11(fi * 1.3 + k * 2.11);
         let rest = 0.75 + 0.25 * h11(fi * 2.7);
         let bob = 0.05 * sin(t * 1.7 + fi * 2.1);
-        let out = fly * (2.0 + 4.0 * h11(fi * 7.7));
-        let spin = fly * (0.35 + 0.5 * h11(fi * 5.1)) * (select(1.0, -1.0, h11(fi * 9.3) < 0.5));
-        let a = ar + spin + 0.05 * sin(t * 0.9 + fi) * fly;
-        let p = around(rest + bob + out, a, yr + fly * 2.5 * (h11(fi * 4.1) - 0.35) + 0.6 * sin(t * 2.0 + fi) * fly);
-        let p0 = around(rest + bob + out * 0.92, a - spin * 0.06, p.y - 0.25 * fly);
-        let d = select(rayPt(ro, rd, p, &ta), raySeg(ro, rd, p0, p, &s), fly > 0.05);
-        let tw = 0.55 + 0.45 * sin(t * (2.0 + 2.0 * h11(fi)) + fi * 2.0);
+        let u = smoothstep(0.3, 1.0, f);
+        let sgn = select(1.0, -1.0, h11(fi * 9.3 + k) < 0.5);
+        let out = u * (1.8 + 3.2 * h11(fi * 7.7 + k));
+        let spin = u * (0.12 + 0.18 * h11(fi * 5.1)) * sgn;
+        let rise = u * (1.2 + 2.2 * h11(fi * 4.1 + k));
+        let a = ar + spin + 0.03 * sin(t * 0.9 + fi) * u;
+        let p = around(rest + bob + out, a, yr + rise);
+        // a short trail behind it as it drifts (none while it rests)
+        let p0 = around(rest + bob + out * 0.88, a - spin * 0.1, yr + rise * 0.86);
+        let d = raySeg(ro, rd, p0, p, &s);
+        let life = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.7, 1.0, f));
+        let tw = 0.65 + 0.35 * sin(t * (1.5 + 1.5 * h11(fi)) + fi * 2.0);
         let sc = fs_col(h11(fi * 8.8));
-        col += (vec3<f32>(1.0) * halo(d, max(0.06, px)) * (0.8 + 0.8 * tw) + sc * halo(d, max(0.16, px)) * (1.4 + 1.2 * tw) + sc * halo(d, 0.5) * 0.3) * (0.9 + 0.5 * fly);
+        col += (vec3<f32>(1.0) * halo(d, max(0.06, px)) * (0.8 + 0.8 * tw) + sc * halo(d, max(0.16, px)) * (1.4 + 1.2 * tw) + sc * halo(d, 0.5) * 0.3) * life * (1.0 + 0.4 * sw);
     }
     // drifting spore dust round it all the time
     col += fxMotes(ro, rd, px, top * 0.1, top, 1.0, 5.0, 24.0, 0.05, 2.7, vec3<f32>(0.8, 1.0, 0.4));
@@ -117,7 +122,6 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if part(0.0) < 0.5 {
         return vec3<f32>(0.0);
     }
-    // round 14 (Creyon): a chroma for the blade only; the spores keep their own colours
-    uKeep += base_vol(ro, rd, px);
-    return vec3<f32>(0.0);
+    // round 15 (Creyon): no longer a chroma (it hid the spores' colours); its own colours
+    return base_vol(ro, rd, px);
 }

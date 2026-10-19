@@ -11,7 +11,8 @@
 // the file, pure white, and a red corruption bleeds up it from the hilt, cracking through the
 // light in jagged veins, then is pushed back down by the crystal before it rises again. Round
 // it in 3D the fight goes on: forked Sith lightning lashes out from the bleeding part, striking
-// with a flash, and small arcs crawl over it, drops of red light drip off it and fall, and where the white holds, beams
+// with a flash, and small arcs crawl over it, drops of red light swell on it and fall in long
+// streaks, hot embers crack off its front in curving arcs, and where the white holds, beams
 // of pure light flash out and push back. A swing helps the light push; a clash lets the
 // corruption surge up with a red shock ring.
 const BK_RED: vec3<f32> = vec3<f32>(1.0, 0.04, 0.06);
@@ -136,15 +137,52 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let d = bolt3(ro, rd, c0, c1, k * 3.3 + fi + floor(t * 12.0) * 0.37, 0.35);
         red += (vec3<f32>(1.0, 0.75, 0.8) * halo(d, max(px, 0.025)) * 1.1 + BK_RED * halo(d, 0.12) * 0.8) * sin(3.1416 * q) * part(0.0);
     }
-    // ---- drops of red light dripping off the bleeding part and falling ----
-    for (var i = 0; i < 16; i++) {
+    // ---- drops of red light bleeding off the corrupted part (round 15, Creyon: the sparks
+    // looked cheap) ----
+    // each drop swells on the blade, clinging, then lets go and falls faster and faster, drawn
+    // as a teardrop streak stretched by its speed: a hot pink head, a red tail thinning behind it
+    for (var i = 0; i < 12; i++) {
         let fi = f32(i);
-        let f = fract(t * (0.35 + 0.2 * h11(fi * 2.9)) + h11(fi * 5.3));
-        let k = floor(t * (0.35 + 0.2 * h11(fi * 2.9)) + h11(fi * 5.3));
-        let y = mix(1.0, max(lv, 2.0), h11(k * 1.9 + fi));
-        let p = around(0.6 + 0.8 * f, h11(k * 4.1 + fi), y - 6.0 * f * f);
-        let d = rayPt(ro, rd, p, &ta);
-        red += BK_RED * (halo(d, max(0.08, px)) * 2.0 + halo(d, 0.35) * 0.3) * (1.0 - smoothstep(0.7, 1.0, f)) * part(1.0);
+        let rate = 0.32 + 0.18 * h11(fi * 2.9);
+        let cyc = t * rate + h11(fi * 5.3);
+        let k = floor(cyc);
+        let f = fract(cyc);
+        let y = mix(1.5, max(lv - 0.5, 2.5), h11(k * 1.9 + fi));
+        let a = h11(k * 4.1 + fi);
+        let cling: f32 = 0.35;
+        let g = max(f - cling, 0.0) / (1.0 - cling);
+        let fall = 9.0 * g * g;
+        let out = 0.45 + 0.5 * g;
+        let head = around(out, a, y - fall);
+        // the streak's length follows the speed (none while it clings)
+        let tail = around(out - 0.1 * g, a, y - fall + 0.25 + 2.2 * g);
+        var sd: f32;
+        let d = raySeg(ro, rd, head, tail, &sd);
+        let swell = smoothstep(0.0, cling, f);
+        let w = mix(0.17, 0.035, sd) * (0.6 + 0.4 * swell);
+        let life = swell * (1.0 - smoothstep(0.75, 1.0, f));
+        red += (vec3<f32>(1.0, 0.6, 0.65) * halo(d, max(w * 0.6, px)) * 1.6 * (1.0 - sd) + BK_RED * halo(d, max(w * 2.2, px)) * 1.8 + BK_RED * halo(d, 0.45) * 0.18) * life * part(1.0);
+    }
+    // ---- corrupted embers: from the red front where it fights the light, glowing shards of
+    // kyber crack off in short hot arcs that curve down and die out ----
+    for (var i = 0; i < 10; i++) {
+        let fi = f32(i);
+        let cyc = t * (0.55 + 0.3 * h11(fi * 1.7)) + h11(fi * 8.1);
+        let k = floor(cyc);
+        let q = fract(cyc);
+        let a = h11(k * 6.7 + fi * 1.3);
+        let y = lv + (h11(k * 2.2 + fi) - 0.6) * 2.0;
+        let dir = vec3(sin(6.2832 * a), 0.0, cos(6.2832 * a));
+        let sp = 2.2 + 2.0 * h11(k * 3.9 + fi);
+        // three points of its curved path: thrown out and up, then pulled down
+        let q0 = max(q - 0.12, 0.0);
+        let p1 = vec3(0.0, y, 0.0) + dir * (0.4 + sp * q) + vec3(0.0, 2.2 * q - 4.5 * q * q, 0.0);
+        let p0 = vec3(0.0, y, 0.0) + dir * (0.4 + sp * q0) + vec3(0.0, 2.2 * q0 - 4.5 * q0 * q0, 0.0);
+        var se: f32;
+        let d = raySeg(ro, rd, p0, p1, &se);
+        let life = (1.0 - smoothstep(0.45, 1.0, q)) * smoothstep(0.0, 0.04, q);
+        let hot = mix(vec3<f32>(1.0, 0.85, 0.85), BK_RED, smoothstep(0.1, 0.6, q));
+        red += (hot * halo(d, max(0.035, px)) * 2.2 * se + BK_RED * halo(d, 0.2) * 0.5) * life * part(0.0);
     }
     // ---- where the white holds: beams of pure light pushing back, and its motes ----
     let ya = min(lv + 2.0, y1 - 2.0);
@@ -170,8 +208,9 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let e = voro(vec2(b.x * 3.0, b.y * 0.8), &cell);
     let crack = halo(e, 0.06) * m;
     // round 12 (Creyon): the pure part takes its wearer's colour, the corruption stays red
-    uKeep += l * BK_RED * 1.3 * m * 0.9 + BK_RED * crack * l * 1.5;
-    return l * BK_WHITE * (1.0 - 0.9 * m);
+    // round 15 (Creyon: some blades glowed so much their effects hardly showed): 70 %
+    uKeep += (l * BK_RED * 1.3 * m * 0.9 + BK_RED * crack * l * 1.5) * 0.7;
+    return l * BK_WHITE * (1.0 - 0.9 * m) * 0.7;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {

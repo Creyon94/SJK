@@ -162,7 +162,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   return light;
 }
 // the blade: Sol's glow and core from the file, beating with the heart, flaring when open
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(0.8 + 0.5*hc_beat() + 0.8*hc_open()); }
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){ return g*(0.8 + 0.5*hc_beat() + 0.8*hc_open()); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.5*hc_open()); }
 
 // ---- round 9: the big effects layer ----
@@ -176,3 +176,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxArcs(ro, rd, px, y0, y1, 5.0, 5.0, 1.7, 2.7, vec3(1.0, 0.12, 0.08))*part(1.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 80 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.8; }

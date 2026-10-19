@@ -1,10 +1,10 @@
 // Ashla Radiance: the Ashla, the light side of the Force in the old Jedi teachings, held as a
 // blade. A white-gold blade glowing calm and steady, slow waves of light rising through it; soft
-// radiant light rises off it like a quiet flame, ribbons of gold light curl slowly up beside it,
+// radiant light rises off it like a quiet flame, soft rays of light reach slowly out of it,
 // motes of light drift upward round it and a faint echo of the blade sways beside it. Nothing is
 // drawn on its tip. A swing brightens the light; a clash flares the blade.
 // @part Radiant light
-// @part Light ribbons
+// @part Rays of light
 // @motes Light of the Ashla
 // @room 10
 // @palette {"corona.rim_cool":[0.55,0.42,0.15],"corona.rim_hot":[1.0,0.86,0.5],"corona.inner":[1.0,0.96,0.82],"core.white":[1.0,0.99,0.94],"core.fringe_cool":[1.0,0.82,0.45],"core.fringe_hot":[1.0,0.95,0.78],"light.color":[1.0,0.86,0.5],"trail":[1.0,0.86,0.55]}
@@ -37,8 +37,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxStreams(ro, rd, px, y0, y1, 3.0, 2.4, 0.16, 1.4, 4.2, vec3(1.0, 0.84, 0.5))*part(1.0);
-  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
-  uKeep += col + fx*uFx;
-  return vec3(0.0);
+  // round 15 (Creyon): soft rays of light reaching out of the blade and fading, slowly, in
+  // place of the ribbons other blades shared with the Aurodium
+  fx += fxRays(ro, rd, px, y0, y1, 8.0, 3.6, 0.3, 4.2, AR_GOLD)*(0.9 + 0.4*sw)*part(1.0);
+  // round 15 (Creyon): the effects take the wearer's colour with the blade (round 14 kept
+  // them gold)
+  return col + fx*uFx;
 }

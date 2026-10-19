@@ -207,7 +207,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 }
 
 // the blade: Sol's glow and core from the file, beating with the heart, flaring when open
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g * (0.8 + 0.5 * hc_beat() + 0.8 * hc_open());
 }
 
@@ -229,4 +229,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var fx: vec3<f32> = vec3<f32>(0.0);
     fx += fxArcs(ro, rd, px, y0, y1, 5.0, 5.0, 1.7, 2.7, vec3<f32>(1.0, 0.12, 0.08)) * part(1.0);
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 80 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.8;
 }

@@ -121,7 +121,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 
 // the blade: Sol's glow and core from the file, swelling and blazing as each pulse passes and
 // dimming between beats
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let p = kh_pulse(b.y) * (1.0 + 0.6 * clamp(uSwing, 0.0, 1.0)) + 1.2 * clamp(uClash, 0.0, 1.0);
     return g * (0.6 + 0.9 * p);
 }
@@ -246,4 +246,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxFlare(ro, rd, vec3(0.0, L * 0.35, 0.0), px, 0.3, 4.0 + 2.0 * beat, 4.0, 0.785, vec3<f32>(1.0, 0.85, 0.9)) * (0.4 + 1.2 * beat) * part(1.0);
     fx += fxAura(ro, rd, y0, y1, 2.6, rose) * (0.5 + 1.0 * beat) * part(1.0);
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 70 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.7;
 }

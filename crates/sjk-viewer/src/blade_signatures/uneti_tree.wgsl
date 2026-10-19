@@ -131,7 +131,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 // the blade: Sol's glow and core from the file grown into living wood: two counter-twisting
 // sets of luminous fibres braided round the heartwood, fine fibres wound tight inside, a
 // breathing bark of grain at its edge, sap climbing in bright pulses; a clash floods them
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let top = ut_top();
     let R: f32 = 0.85;
     var col = g * (0.75 + 0.25 * sin(uTime * 1.3));
@@ -164,4 +164,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var fx: vec3<f32> = vec3<f32>(0.0);
     fx += fxCoils(ro, rd, px, y0, y1, 1.8, 0.9, 0.3, 3.0, vec3<f32>(0.5, 0.85, 0.9)) * part(1.0);
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.75;
 }

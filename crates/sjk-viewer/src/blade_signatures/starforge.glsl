@@ -74,8 +74,9 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 
   // ---- solar flares: tongues of plasma licking up off the blade (round 13, Creyon: no loops
   // round the blade; they were plasma loops arching out and back) ----
-  col += fxSmoke(ro, rd, 0.15*L, top, 1.6, 6.0, 2.4, vec3(1.0, 0.45, 0.08))*1.6*fx;
-  col += fxSmoke(ro, rd, 0.15*L, top, 0.9, 8.0, 5.9, vec3(1.0, 0.8, 0.4))*1.1*fx;
+  // round 15 (Creyon: it looked like the Phoenix): a star's white-gold plasma, not orange flame
+  col += fxSmoke(ro, rd, 0.15*L, top, 1.6, 6.0, 2.4, vec3(1.0, 0.72, 0.3))*1.1*fx;
+  col += fxSmoke(ro, rd, 0.15*L, top, 0.9, 8.0, 5.9, vec3(1.0, 0.93, 0.75))*0.8*fx;
   for (int i = 0; i < 0; i++){
     float fi = float(i);
     float cyc = t/3.6 + fi*0.173 + h11(fi*5.3)*0.5;
@@ -159,7 +160,7 @@ float sf_spot(float y){
   float n = floor(uTime/SF_P), ph = fract(uTime/SF_P)*SF_P;
   return exp(-pow((y - sf_y(n))/1.6, 2.0))*exp(-ph*1.8) + 0.25*clamp(uClash, 0.0, 1.0);
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(1.0 + 0.25*sin(uTime*2.1 + b.y*0.4)*0.4 + 1.2*sf_spot(b.y) + 0.3*uSwing); }
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){ return g*(1.0 + 0.25*sin(uTime*2.1 + b.y*0.4)*0.4 + 1.2*sf_spot(b.y) + 0.3*uSwing); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.8*sf_spot(b.y)); }
 
 // ---- round 9: the big effects layer ----
@@ -170,6 +171,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxAura(ro, rd, y0, y1, 3.6, vec3(1.0, 0.42, 0.07))*part(0.0);
+  fx += fxAura(ro, rd, y0, y1, 3.6, vec3(1.0, 0.75, 0.35))*0.8*part(0.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.75; }

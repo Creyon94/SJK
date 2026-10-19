@@ -122,7 +122,7 @@ fn rc_pinch(y: f32) -> f32 {
     return p;
 }
 
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let h = rc_heat();
     let l = max(g.r, max(g.g, g.b));
     let strobe = h.y * (0.5 + 0.5 * step(0.5, fract(uTime * 2.0)));
@@ -141,4 +141,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         return vec3<f32>(0.0);
     }
     return base_vol(ro, rd, px);
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 60 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.6;
 }

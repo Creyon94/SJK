@@ -98,7 +98,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 }
 // the blade: Sol's glow and core from the file, swelling and blazing as each pulse passes and
 // dimming between beats
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float p = kh_pulse(b.y)*(1.0 + 0.6*clamp(uSwing, 0.0, 1.0)) + 1.2*clamp(uClash, 0.0, 1.0);
   return g*(0.6 + 0.9*p);
 }
@@ -202,3 +202,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxAura(ro, rd, y0, y1, 2.6, rose)*(0.5 + 1.0*beat)*part(1.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 70 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.7; }

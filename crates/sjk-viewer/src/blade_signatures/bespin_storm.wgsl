@@ -2,13 +2,13 @@
 // script again.
 // @part Cloud City clouds
 // @part Gale
-// @arcs Storm lightning
 // @room 8
 // @palette {"corona.rim_cool":[0.55,0.35,0.25],"corona.rim_hot":[1.0,0.75,0.55],"corona.inner":[1.0,0.93,0.85],"core.white":[1,1,1],"core.fringe_cool":[1.0,0.65,0.45],"core.fringe_hot":[1.0,0.88,0.75],"light.color":[1.0,0.75,0.55],"trail":[1.0,0.75,0.55]}
 
 // Bespin Storm: a storm in the clouds round Cloud City. A blade with wind bands slanting across it
 // in the cloud's colour, soft sunset clouds of rose and gold billowing round it, gale streaks
-// racing past and flashes of storm lightning inside the clouds. A clash flares it.
+// racing past (round 15: no lightning, which it shared with the other storm blades). A clash
+// flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g * (0.8 + 0.35 * bands(b.y + b.x * 4.0, 0.15, 1.5));
 }

@@ -10,7 +10,7 @@
 // tongues that cool to dark crust and crack open again; lava falls run down both sides and drip off
 // it, flames lick up its length, lava fountains throw glowing drops that fall back, dark ash smoke
 // billows up, ash drifts down, embers rain and the air shimmers with heat. A clash flares it.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let flow = fbm3(vec2(b.x * 2.0, b.y * 0.22 + uTime * 0.9));
     let crust = smoothstep(0.5, 0.66, fbm3(vec2(b.x * 1.5 + 3.1, b.y * 0.12 + uTime * 0.25)));
     let tongue = pow(0.5 + 0.5 * sin(b.y * 0.35 + uTime * 3.2 + 2.0 * flow), 3.0) * part(0.0);
@@ -35,8 +35,24 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let fire: vec3<f32> = vec3<f32>(1.0, 0.45, 0.1);
     let hot: vec3<f32> = vec3<f32>(1.0, 0.75, 0.35);
     var s: f32;
-    // lava falls: molten streams running down both sides, pulses of bright rock pouring down them
-    fx += fxStreams(ro, rd, px, y0, y1, 4.0, 1.5, 0.22, -3.5, 2.7, fire) * 1.3 * part(0.0);
+    // lava falls (round 15: straight runnels pouring down close to the blade, in place of the
+    // wavy streams it shared with the Aurodium): bright heads of molten rock running down, a
+    // glowing trail behind each cooling to dark red
+    if fxNear(ro, rd, y0, y1) < 3.0 {
+        for (var i = 0; i < 8; i++) {
+            let fi = f32(i);
+            let side = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
+            let x = side * (0.55 + 0.35 * h11(fi * 4.1));
+            let cyc = t * (0.3 + 0.15 * h11(fi * 2.3)) + h11(fi * 7.9);
+            let q = fract(cyc);
+            let yh = mix(y1, y0 - 2.0, q * q * (3.0 - 2.0 * q));
+            let yt = min(yh + 6.0 + 4.0 * h11(fi * 3.3), y1);
+            var sl: f32;
+            let d = raySeg(ro, rd, vec3(x, yh, 0.0), vec3(x + side * 0.15, yt, 0.0), &sl);
+            let c = mix(vec3<f32>(1.0, 0.85, 0.45), vec3<f32>(0.75, 0.12, 0.02), sl);
+            fx += (c * halo(d, max(0.07 - 0.04 * sl, px)) * 1.8 + fire * halo(d, 0.35) * 0.35 * (1.0 - sl)) * (1.0 - smoothstep(0.85, 1.0, q)) * part(0.0);
+        }
+    }
     // molten drops dripping off and falling past the hilt
     fx += fxFall(ro, rd, px, y0, y1, 1.8, 16.0, 7.0, 0.9, 0.0, 6.1, hot) * 1.4 * part(0.0);
     // flames licking up the blade, thin and bright near it
@@ -64,4 +80,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxSmoke(ro, rd, y0, y1, 4.0, 2.4, 8.2, vec3<f32>(0.5, 0.3, 0.22)) * 0.5 * part(2.0);
     fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 1.8, 0.2, 0.8, 1.5, 0.6, 3.6, vec3<f32>(0.5, 0.45, 0.42)) * part(2.0);
     return fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 65 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.65;
 }

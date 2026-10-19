@@ -135,7 +135,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
 }
 // the blade: Sol's glow from the file, light streaming down its edges as it falls in, a razor
 // photon ring at the rod's rim
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float stream = 0.65 + 0.35*sin(b.y*0.9 + uTime*12.0) + 0.3*pow(0.5 + 0.5*sin(b.y*0.23 + uTime*5.0), 6.0);
   float rim = exp(-pow((abs(b.x) - 0.33)/max(0.06, px), 2.0))*smoothstep(1.0, 1.6, b.y)*(1.0 - smoothstep(eh_top() - 0.6, eh_top() - 0.2, b.y));
   return g + vec3(1.0, 0.96, 1.0)*rim*(1.2*stream + 1.5*clamp(uClash, 0.0, 1.0));
@@ -158,3 +158,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   }
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.75; }

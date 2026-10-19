@@ -421,7 +421,20 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     let blade_animation = blade.animation;
     let blade_persona = blade.persona;
     let blade_chroma = blade.chroma;
-    let direction = normalize(blade_direction);
+    var direction = normalize(blade_direction);
+    // A blade gone in whose comic words float on (`saber_motion::BladeMotion::lingering`,
+    // swing -1) stands up the screen, so its word faces the camera from every side and
+    // from above as a lit blade's words do (Creyon's report of 20/10/2026: standing up in
+    // the world, it was read only from in front and lay edge on from above).
+    if blade.motion.x < -0.5 {
+        let eye = normalize(camera.position - blade_base);
+        let vp = camera.view_projection;
+        let screen_up = vec3(vp[0].y, vp[1].y, vp[2].y);
+        let upright = screen_up - eye * dot(screen_up, eye);
+        if length(upright) > 0.00001 {
+            direction = normalize(upright);
+        }
+    }
     let view_direction = normalize(camera.position - (blade_base + direction * blade_length * 0.5));
     var side = cross(direction, view_direction);
     let projected = length(side);

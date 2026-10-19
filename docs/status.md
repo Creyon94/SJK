@@ -1,3 +1,21 @@
+## Creyon's blades, round 15
+
+20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request), on `835cc2d5`: Creyon's
+review of round 14 ([rendering.md](rendering.md#blade-lab-signature-shaders), round 15): blades
+that looked alike parted (twelve that shared the Aurodium's strands, the green lightning blades,
+the storm blades, Starforge and Phoenix, Nebula Song and Singing Kyber, the coil blades), fifteen
+too-bright glows dimmed, Hyperspace's and Ashla Radiance's effects in the wearer's colour,
+Hyperspace slower, Between Worlds' duellists bigger, Felucia's spores smooth whether running or
+still and no longer a chroma (nor Force Echo), new Bleeding Kyber drops and embers, the Star Map
+drawing seven figures, Jedi Spirits mythical and Balance legendary, the Assassin Droid, Liquid
+Beskar, Beskar Forge and Data Disc richer, and the Clone Wars blade's switching-off word facing
+the camera from every side.
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): every signature module validates, the ignored GPU
+test renders all 128 (sheets looked at side by side by tier); workspace checks are listed in the
+pull request. Not verified: Creyon's game test of round 15, the Clone Wars word seen from above
+in a game, frame time with several signature blades on screen.
+
 ## Blade skin trails in their own colour
 
 18/10/2026, `fix/skin-trail-core`, based on `Sol-Vulpes/SJK` `1c8887f7` (Creyon's

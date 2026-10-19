@@ -4,6 +4,7 @@
 // @part Forge sparks
 // @part Flung droplets
 // @part Orbiting droplets
+// @part Forge heat
 // @room 10
 // @solid 1
 
@@ -12,7 +13,9 @@
 // floor, ripples racing up it, beads of beskar rolling up to the tip and dripping off. Round it in
 // 3D, droplets of molten beskar orbit and drip, forge sparks fly and the air shimmers with heat. A
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
-// of droplets out with a shock ring; ignition pours the metal up from the hilt.
+// of droplets out with a shock ring; ignition pours the metal up from the hilt. Round 15 (Creyon:
+// it needed more): waves of forge heat glow orange-hot up through the mirror, its edges glow with
+// heat, molten drops fall glowing off the tip and a slow ring of heat shimmer rises round it.
 fn qs_w(y: f32) -> f32 {
     let L = uLength;
     return 0.5 * smoothstep(-0.3, 0.5, y) * (1.0 - smoothstep(L - 0.9, L + 0.05, y)) + 0.05;
@@ -96,6 +99,9 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px_in: f32) -> vec4<f32> {
         c *= 0.6 + 0.4 * sqrt(max(1.0 - n * n, 0.0));
         c += vec3<f32>(1.0) * exp(-pow((b.y - glsl_mod(uTime * 14.0, L + 10.0) + 4.0) / 0.6, 2.0)) * 0.5;
         // a sliding glint
+        // round 15: waves of forge heat rising through the metal, orange-hot, the edges hottest
+        let heat = pow(0.5 + 0.5 * sin(b.y * 0.22 - uTime * 1.4), 4.0) * part(3.0);
+        c = mix(c, vec3<f32>(1.0, 0.45, 0.12) * (1.2 + 0.6 * abs(n)), heat * (0.35 + 0.4 * abs(n)));
         acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov));
     }
     // beads rolling up the blade, swelling at the tip and dripping off
@@ -201,6 +207,21 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0 * sw, 6.0, 1.0, 3.7, forge);
     col += fxAura(ro, rd, y0, y1, 2.6, silver) * 0.6;
     col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 9.0, silver) * 1.5;
+    // round 15: forge heat round it, molten drops falling glowing off the tip and the edges' glow
+    if part(3.0) > 0.5 {
+        let hot: vec3<f32> = vec3<f32>(1.0, 0.45, 0.12);
+        col += fxAura(ro, rd, y0, y1, 1.4, hot) * 0.5;
+        var s: f32;
+        for (var i = 0; i < 6; i++) {
+            let fi = f32(i);
+            let q = fract(uTime * (0.45 + 0.2 * h11(fi * 3.1)) + h11(fi * 5.7));
+            let side = select(1.0, -1.0, h11(fi * 2.3 + floor(uTime * (0.45 + 0.2 * h11(fi * 3.1)) + h11(fi * 5.7))) < 0.5);
+            let p0 = vec3(side * (0.4 + 0.6 * q), L - 7.0 * q * q, 0.0);
+            let p1 = p0 + vec3(-side * 0.1, 0.6 + 1.6 * q, 0.0);
+            let d = raySeg(ro, rd, p0, p1, &s);
+            col += (vec3<f32>(1.0, 0.8, 0.5) * halo(d, max(0.06, px)) * 1.6 * (1.0 - s) + hot * halo(d, 0.3) * 0.6) * (1.0 - smoothstep(0.7, 1.0, q));
+        }
+    }
     return col * uFx;
 }
 

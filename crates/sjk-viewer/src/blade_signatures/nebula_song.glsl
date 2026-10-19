@@ -1,11 +1,12 @@
 // Nebula Song: a deep-space nebula that sings, held as a blade. A deep-blue luminous blade swells
-// and breathes as slow waves of light roll up it; with each note a ring of song spreads out from it
-// in every direction. Three ribbons of glowing nebula gas wind slowly round it, soft blue clouds and
+// and breathes as slow waves of light roll up it; with each note a cloud of the nebula's colours,
+// rose, violet and teal, glows up beside it and fades (round 15: they replaced its rings of song,
+// which the Singing Kyber has). Three ribbons of glowing nebula gas wind slowly round it, soft blue clouds and
 // living motes of light drift and swirl in the dark, and every so often a hyperspace shimmer rushes
 // up the blade with streaks of starlight. A swing quickens the waves and the ribbons; a clash sings
 // out a bright ring.
 // @part Nebula ribbons
-// @part Rings of song
+// @part Nebula colours
 // @wisps Nebula clouds
 // @motes Starlight
 // @room 10
@@ -48,29 +49,16 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
   vec3 light = vec3(0.0);
 
-  // rings of song: three slow notes on long, staggered cycles, plus the clash
-  float songs = 0.0;
+  // round 15: no rings of song (the Singing Kyber has them); a clash still sings one out
   float songC = 0.0;
   if (fxOn > 0.001){
-    for (int k = 0; k < 3; k++){
-      float fk = float(k);
-      float per = 7.0 + 1.3*fk;
-      float f = fract((uTime + fk*2.9)/per);
-      float h = L*(0.30 + 0.25*fk) + f*2.5;
-      if (h < top){
-        float R = 0.6 + 7.0*(1.0 - pow(1.0 - f, 2.2));
-        float w = 0.55 + 1.3*f;
-        float g = smoothstep(0.0, 0.06, f)*(1.0 - smoothstep(0.45, 1.0, f));
-        songs += ns_ring(ro, rd, h, R, w)*g*(1.0 + 0.6*sw)/(0.5 + 0.6*f);
-      }
-    }
     // the clash sings one fast bright ring from mid blade
     if (cl > 0.01){
       float f = 1.0 - cl;
       songC = ns_ring(ro, rd, L*0.55, 0.8 + 5.5*f, 0.6 + 0.9*f)*cl;
     }
   }
-  light += (mix(bio, pale, 0.15)*songs*0.6 + pale*songC*1.0)*fxOn;
+  light += pale*songC*fxOn;
 
   // nebula gas drifting and swirling round the blade: soft deep-blue puffs, lit where a
   // wave passes and when it jumps
@@ -142,7 +130,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 }
 // the blade: Sol's glow and core from the file, breathing, swelling where the slow waves pass,
 // shimmering as it jumps
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float wave = 0.5 + 0.5*sin(b.y*0.32 - uTime*(1.1));
   wave = wave*wave;
   float wave2 = 0.5 + 0.5*sin(b.y*0.11 - uTime*0.45 + 1.0);
@@ -163,9 +151,25 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   vec3 blue = vec3(0.25, 0.5, 1.0);
-  for (int i = 0; i < 3; i++){
-    float q = fract(t*0.25 + float(i)/3.0);
-    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.85, float(i)*0.5), q, 8.0, blue)*0.8*part(1.0);
+  // the nebula's colours: soft clouds of rose, violet and teal glowing up beside it one after
+  // another, each with a note, and fading
+  float ta;
+  if (fxNear(ro, rd, y0, y1) < 7.0){
+    for (int i = 0; i < 9; i++){
+      float fi = float(i);
+      float q = fract(t*0.11 + fi/9.0);
+      float k = floor(t*0.11 + fi/9.0);
+      vec3 c = mod(fi, 3.0) < 0.5 ? vec3(1.0, 0.35, 0.65) : (mod(fi, 3.0) < 1.5 ? vec3(0.6, 0.3, 1.0) : vec3(0.2, 0.9, 0.85));
+      float side = h11(fi*3.1 + k) < 0.5 ? -1.0 : 1.0;
+      vec3 p = vec3(side*(1.8 + 2.0*h11(fi*5.7 + k)), mix(y0, y1, h11(fi*2.3 + k*1.7)) + 2.0*q, 0.0);
+      float d = rayPt(ro, rd, p, ta);
+      float n = 0.75 + 0.25*vn(vec2(d*1.3 + t*0.4, fi*7.0));
+      fx += c*(halo(d, 1.1 + 0.6*q)*0.45 + halo(d, 0.35)*0.25)*n*sin(3.1416*q)*(1.0 + 0.5*sw)*part(1.0);
+    }
   }
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.75; }

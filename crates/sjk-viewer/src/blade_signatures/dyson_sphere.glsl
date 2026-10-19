@@ -107,7 +107,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   return light;
 }
 // the star: Sol's glow and core from the file, boiling
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   return g*(0.8 + 0.2*sin(b.y*1.1 - uTime*5.0) + 0.15*sin(b.y*0.31 + uTime*1.7) + 0.6*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
@@ -123,3 +123,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxAura(ro, rd, y0, y1, 3.2, vec3(1.0, 0.7, 0.3))*part(0.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 65 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.65; }

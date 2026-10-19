@@ -7,12 +7,36 @@
 
 // Balance: the Force in balance, the light and the dark held level in one blade (Creyon's round
 // 12 rework: the old one looked too much like the Bleeding Kyber). A calm silver blade whose
-// light drifts slowly between a warm and a cool shade; on one side a ribbon of white-gold light
-// winds up it with motes of light rising, on the other a ribbon of deep violet shadow winds down
-// in a slow dark smoke, neither ever winning. A swing brightens both; a clash flares the blade.
+// light drifts slowly between a warm and a cool shade; across it hang the scales of the Force, a
+// beam of light with a white-gold sun on one end and a violet shadow on the other, tipping slowly
+// one way and back, neither ever winning; motes of light rise on the light's side and a slow dark
+// smoke sinks on the dark's (round 15: the ribbons it shared with the Aurodium are gone). A swing
+// brightens both; a clash flares the blade.
 const BA_LIGHT: vec3<f32> = vec3<f32>(1.0, 0.9, 0.65);
 
 const BA_DARK: vec3<f32> = vec3<f32>(0.35, 0.12, 0.55);
+
+// the scales: a beam across the blade at its upper third, tipping slowly, a sun of light on one
+// end and an orb of shadow on the other; `side` 1 draws the light's half, -1 the dark's
+fn ba_scales(ro: vec3<f32>, rd: vec3<f32>, px: f32, side: f32, col: vec3<f32>) -> vec3<f32> {
+    let L = uLength;
+    var ta: f32;
+    var s: f32;
+    let mid = vec3(0.0, L * 0.66, 0.0);
+    let tip = 0.22 * sin(uTime * 0.45);
+    let arm = vec3(cos(tip), sin(tip), 0.0) * side * 3.4;
+    let end = mid + arm;
+    let d = raySeg(ro, rd, mid + arm * 0.12, end, &s);
+    var light = col * (halo(d, max(0.04, px)) * 1.8 + halo(d, 0.25) * 0.5) * (0.4 + 0.6 * s);
+    // the pan: a small orb hanging below the end on a thread of light
+    let pan = end + vec3<f32>(0.0, -1.6, 0.0);
+    let dt = raySeg(ro, rd, end, pan, &s);
+    light += col * halo(dt, max(0.02, px)) * 0.6;
+    let dp = rayPt(ro, rd, pan, &ta);
+    let breathe = 0.8 + 0.2 * sin(uTime * 1.3 + side);
+    light += (mix(col, vec3<f32>(1.0), 0.5) * halo(dp, 0.42) * 2.0 + col * halo(dp, 1.3) * 0.6) * breathe;
+    return light;
+}
 
 // the effects, flat round the blade as Sol's are: the light on one side, the dark on the other
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
@@ -21,13 +45,11 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y1 = L * 0.97;
     let sw = clamp(uSwing, 0.0, 1.0);
     var fx: vec3<f32> = vec3<f32>(0.0);
-    var lit = fxStreams(ro, rd, px, y0, y1, 1.0, 2.4, 0.18, 1.4, 1.3, BA_LIGHT);
+    var lit = ba_scales(ro, rd, px, 1.0, BA_LIGHT);
     lit += fxMotes(ro, rd, px, y0, y1, 0.8, 3.0, 12.0, 0.04, 2.1, BA_LIGHT) * 0.6;
     fx += lit * (0.9 + 0.4 * sw) * part(0.0);
-    // the dark: the same ribbon mirrored to the other side, flowing down, in violet shadow
-    let mo = ro * vec3<f32>(-1.0, 1.0, 1.0);
-    let md = rd * vec3<f32>(-1.0, 1.0, 1.0);
-    var dark = fxStreams(mo, md, px, y0, y1, 1.0, 2.4, 0.18, -1.4, 4.4, BA_DARK * 1.8);
+    // the dark: the scales' other end, in violet shadow
+    var dark = ba_scales(ro, rd, px, -1.0, BA_DARK * 1.8);
     dark += fxSmoke(ro, rd, y0, y1, 3.0, -1.0, 4.4, BA_DARK) * 1.3;
     fx += dark * (0.9 + 0.4 * sw) * part(1.0);
     return fx * uFx;

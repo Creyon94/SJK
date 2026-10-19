@@ -1879,8 +1879,11 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   along it and land again once it is still. A design whose words outlast its blade
   (`blade_lab_designs.rs` `LINGERS`: the comic blade, 1.6 seconds) keeps, from when its
   blade begins going in, a whole-length instance with a swing lane of -1 that draws only
-  its switching-off word, standing upright from the hilt (`saber_submission.rs`,
-  `lab_lingering`), so the word floats on after the blade has gone and can be read.
+  its switching-off word (`saber_submission.rs`, `lab_lingering`), so the word floats on
+  after the blade has gone and can be read. Its vertex stage stands that instance up the
+  screen (the camera's screen-up direction with the view direction taken out), so the word
+  faces the camera from every side and from above (Creyon's report of 20/10/2026: standing
+  upright in the world, it read only from in front and lay edge on seen from above).
 - **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
   since its last swing began reach the shader per instance (`motion`, location 10;
   [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
@@ -2011,6 +2014,41 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   hidden behind the blade. Star Dragon became the Ashla Radiance blade (same id), Balance was
   redrawn as a silver blade between a ribbon of light and one of violet shadow, Ilum Aurora
   Storm's curtains are soft sheets instead of bars, Between Worlds and Wraithlight are calmer.
+- **Round 15 (Creyon's review of 20/10/2026).** No two blades share a look: twelve blades that
+  drew the Aurodium's wavy strands (`fxStreams`, which the Aurodium keeps) got their own effect
+  instead: Balance the scales of the Force (a beam tipping slowly, a sun of light on one end and
+  an orb of shadow on the other), the Jedi Spirits three spirits climbing round the blade in a
+  spiral (drawn in 3D, `sig_orbit`), Dathomir Blood Moon a red moon with a shadow sliding over it,
+  Force Echo a scale of time marks lit one after another, Hyperlane lane beacons in a chase,
+  Mustafar Eruption straight lava runnels, Naboo Core rising plasma globes, Royal Naboo golden
+  scrolls of embroidery, Scarif Tide waves rolling up it, Unknown Regions a far spiral galaxy,
+  the Ashla Radiance soft rays of light (`fxRays`), the Kyber Cluster and the Beskar Forge none
+  (a glint on the forge's steel). Hyperspace's coils turn slowly (two at 0.22 turns a second,
+  were four at 1.4) and its tunnel twists slower; its and the Ashla Radiance's effects take the
+  wearer's colour with the blade (`sig_vol` returns them rather than adding them to `uKeep`).
+  Between Worlds' duellists are bigger, further out and brighter. Felucia's spores each live a
+  cycle on the clock alone (grow on the blade, rest, lift off smoothly and drift away, fade),
+  so running or a chain of swings can no longer snap them back (they read `uSince`); it is no
+  longer a chroma. The Bleeding Kyber's red dots became drops that swell and fall in streaks and
+  hot embers arcing off its front. The Star Map draws a different figure each chart (a route, a
+  ring, a triangle, a spiral, a diamond, a crown, a lightning route). Other blades that looked
+  alike were parted: the Superlaser and Witchfire lost the green lightning (their file's `arcs`)
+  that made them look like the Sith Alchemy blade, the Kashyyyk Monsoon (falling leaves instead)
+  and Bespin Storm lost the lightning the storm blades shared, the Starforge's flames are a star's
+  white-gold rather than the Phoenix's orange, the Nebula Song's rings of song (the Singing Kyber
+  has rings) became clouds of rose, violet and teal, and Hyperspace lost its coils (the Reactor
+  and the Uneti Tree have coils). Fifteen blades whose glow hid their effects draw it at 60 to
+  80 % (a `sig_glow` wrapping their own): the Reactor, Hyperspace, the Dyson Sphere, the Kyber
+  Heart, the Bleeding Kyber, the Event Horizon, the Nebula Song, the Sith Holocron, the
+  Starforge, the Uneti Tree, the Witchfire, Mustafar Eruption, Hoth Avalanche, Yavin Vines and
+  Twin Suns. Legendaries richer than the rares (Creyon: each tier up must look better): the
+  Assassin Droid adds red targeting lasers that lock on and two armoured gear rings turning
+  round it (3D), Liquid Beskar waves of forge heat in its mirror, glowing edges and molten drops
+  off its tip, the Beskar Forge a quench after each strike (jets of steam, an afterglow ring)
+  and more sparks; the Superlaser's surges swell into balls of plasma and a charge gathers at
+  its focus. Of the rares only the Data Disc changed (Creyon: it looked cheap): three discs
+  turning, the middle one the other way, with hubs and written sectors, and packets of data
+  streaming up between them.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
@@ -2060,7 +2098,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
 - **Colour.** A chroma signature takes its wearer's colour outright (`sig_recolour`):
   every coloured part becomes the wearer's hue, at least well saturated, and only its
   white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
-  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron and the Exogorth keep their
+  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron, the Exogorth,
+  Felucia Spores and Force Echo (round 15) keep their
   own colours, as do Obsidian Edge, Quicksilver, Mortis (day and night) and the Bleeding
   Kyber (its red corruption). A signature's solid layer may keep its own colours where it
   sets `uOwn` (0 to 1; the Abyssal Eye's amber eye, round 9).
