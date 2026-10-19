@@ -937,11 +937,18 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   the installed emotes as they are when the page shows (`ValueKind::Live`).
 - The quick wheel's editor lists the installed emotes under Emotes. An emote's `icon`
   is decoded when the catalogue loads and put into the UI atlas's emote cells
-  (`emote_icons.rs`, 32 of them): a wheel choice that runs `sjkemote <id>` wears it,
+  (`emote_icons.rs`, 128 of them): a wheel choice that runs `sjkemote <id>` wears it,
   on a dark disc, in the ring and in the editor; without one it keeps the plain
   emote icon. Every world the menu moves to has a renderer of its own with an empty
   atlas, so the pictures go into each new one (`ShapeRenderer::id`); until
   18/10/2026 they reached only the first, and vanished after a map change.
+- The emote picker (`emotes`, `emote_picker.rs`) is an SJK pop-up card over the game
+  menu, on a server only: every installed emote as a tile with its picture, name and
+  id, sorted by name, 7 by 4 on screen and scrolled by the wheel, the arrows or Page
+  Up/Down. The search field has the typing from the start (the `text_entry` keys) and
+  keeps the emotes whose name or id holds every typed word. A click on a tile, or
+  Enter on the chosen one, closes the card and the game menu and queues
+  `sjkemote <id>`; Escape clears the search, then closes.
 
 ## Pings
 

@@ -324,6 +324,8 @@ mod fps_help_shots;
 
 #[path = "world_shot_emote_help.rs"]
 mod emote_help_shots;
+#[path = "world_shot_emote_picker.rs"]
+mod emote_picker_shots;
 
 #[path = "world_shot_alpha_notice.rs"]
 mod alpha_notice_shots;

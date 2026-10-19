@@ -726,6 +726,7 @@ pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
             format!("{COMMAND} {STOP} ends yours; {STOP} {ALL} or {STOP} <player> ends others' here, once."),
             format!("{COMMAND} {SYNC} [player] joins another player's emote in step."),
             format!("{COMMAND} {MUTE} <player>, {UNMUTE} <player|{ALL}>: hide a player's emotes here ({MUTE} alone lists)."),
+            format!("{} opens a window to search them and click one to play.", crate::emote_picker::COMMAND),
             format!("{} explains emotes and the quick wheel.", crate::emote_help::COMMAND),
         ])
         .collect()
@@ -824,6 +825,7 @@ mod tests {
                 "sjkemote stop ends yours; stop all or stop <player> ends others' here, once.",
                 "sjkemote sync [player] joins another player's emote in step.",
                 "sjkemote mute <player>, unmute <player|all>: hide a player's emotes here (mute alone lists).",
+                "emotes opens a window to search them and click one to play.",
                 "help_emotes explains emotes and the quick wheel."
             ]
         );
