@@ -283,6 +283,7 @@ mod text;
 mod text_dialog;
 mod text_entry;
 mod text_select;
+mod tile_shine;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;

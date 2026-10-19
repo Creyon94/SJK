@@ -1,5 +1,7 @@
-//! A card's finish shaded per pixel ([`crate::DrawCommand::CardShine`]): Holo's smooth
-//! rainbow foil and Solar's living corona round the card's edge, after the Sun blade.
+//! A finish shaded per pixel over any rounded tile ([`crate::DrawCommand::CardShine`]): a
+//! card, or any other tile that wants one (a saber shader's, a medal's). Holo's smooth
+//! rainbow foil, Solar's living corona round the tile's edge, after the Sun blade, and the
+//! soft glare under the pointer.
 //! [`shade`] is the reference for `ui_shapes.wgsl`, which evaluates the same expressions
 //! per fragment, and for CPU previews.
 
@@ -13,24 +15,27 @@ pub enum ShineKind {
     /// A solar corona burning along the card's edge, flares running round it, sparks,
     /// and a faint band of sunlight over the face.
     Solar,
+    /// A soft white light under the pointer, whatever the finish.
+    Glare,
 }
 
-/// What one card's finish draws over the card's rectangle.
+/// What one tile's finish draws over the tile's rectangle.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CardShine {
     pub kind: ShineKind,
-    /// The card's size in pixels, as laid out (before any transform).
+    /// The tile's size in pixels, as laid out (before any transform).
     pub size: [f32; 2],
-    /// Its corner radius, pixels: nothing is drawn outside the rounded card.
+    /// Its corner radius, pixels: nothing is drawn outside the rounded tile.
     pub radius: f32,
     /// Seconds, for the motion.
     pub time: f32,
-    /// Where the light crosses the card, a share of its width and height from its top
-    /// left (across may lie off the card, while a sweep waits): Holo's glint and Solar's
-    /// band of sunlight pass through it.
+    /// Where the light crosses the tile, a share of its width and height from its top
+    /// left (across may lie off the tile, while a sweep waits): Holo's glint and Solar's
+    /// band of sunlight pass through it, and the glare is centred on it.
     pub light: [f32; 2],
-    /// Whether the pointer holds the light there: the foil shines a little brighter.
-    pub held: bool,
+    /// How firmly the pointer holds the light there, 0 to 1 (eased in and out): the foil
+    /// shines a little brighter and the glare shows as much.
+    pub hold: f32,
     /// Opacity, `0..=1`.
     pub alpha: f32,
 }
@@ -121,6 +126,7 @@ pub fn shade(point: [f32; 2], shine: &CardShine) -> [f32; 4] {
     let mut out = match shine.kind {
         ShineKind::Holo => holo(point, shine),
         ShineKind::Solar => solar(point, -outside, shine),
+        ShineKind::Glare => glare(point, shine),
     };
     out[3] = (out[3] * coverage * shine.alpha).clamp(0.0, 1.0);
     out
@@ -144,7 +150,7 @@ fn holo([x, y]: [f32; 2], shine: &CardShine) -> [f32; 4] {
         .map(|offset| 0.5 + 0.5 * (TAU * (hue - offset)).cos())
         .map(|c| c + (1.0 - c) * 0.3);
     let envelope = (-k * k * 2.2).exp();
-    let strength = if shine.held { 0.3 } else { 0.26 };
+    let strength = 0.26 + 0.04 * shine.hold.clamp(0.0, 1.0);
     out = over(out, rainbow, 0.035 + strength * envelope);
     // The glint: a thin white line with a soft halo.
     let line = across / (0.03 * w);
@@ -226,6 +232,17 @@ fn solar([x, y]: [f32; 2], inside: f32, shine: &CardShine) -> [f32; 4] {
     out
 }
 
+/// The glare: a soft round white light about the light's point, its spread a share of
+/// the tile's narrower side, as bright as the pointer's hold.
+fn glare([x, y]: [f32; 2], shine: &CardShine) -> [f32; 4] {
+    let [w, h] = shine.size;
+    let spread = 0.32 * w.min(h);
+    let dx = (x - shine.light[0] * w) / spread;
+    let dy = (y - shine.light[1] * h) / spread;
+    let alpha = 0.16 * (-(dx * dx + dy * dy)).exp() * shine.hold.clamp(0.0, 1.0);
+    [1.0, 1.0, 1.0, alpha]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,15 +254,16 @@ mod tests {
             radius: 28.0,
             time: 1.5,
             light: [0.5, 0.5],
-            held: false,
+            hold: 0.0,
             alpha: 1.0,
         }
     }
 
     #[test]
     fn nothing_shows_outside_the_rounded_card() {
-        for kind in [ShineKind::Holo, ShineKind::Solar] {
-            let shine = card(kind);
+        for kind in [ShineKind::Holo, ShineKind::Solar, ShineKind::Glare] {
+            let mut shine = card(kind);
+            shine.hold = 1.0;
             assert_eq!(shade([1.0, 1.0], &shine)[3], 0.0, "{kind:?} corner");
             assert_eq!(shade([-5.0, 200.0], &shine)[3], 0.0, "{kind:?} left");
             assert!(shade([200.0, 280.0], &shine)[3] > 0.0, "{kind:?} middle");
@@ -299,5 +317,23 @@ mod tests {
         shine.time += 0.7;
         let later = shade([6.0, 300.0], &shine);
         assert!((first[3] - later[3]).abs() > 0.01 || (first[1] - later[1]).abs() > 0.01);
+    }
+
+    /// The glare is round and smooth, brightest at the light, and shows only as much as
+    /// the pointer holds it.
+    #[test]
+    fn the_glare_is_smooth_and_follows_the_hold() {
+        let mut shine = card(ShineKind::Glare);
+        assert_eq!(shade([200.0, 280.0], &shine)[3], 0.0, "not held");
+        shine.hold = 1.0;
+        let peak = shade([200.0, 280.0], &shine)[3];
+        let mut last = peak;
+        for x in 201..380 {
+            let now = shade([x as f32, 280.0], &shine)[3];
+            assert!(now <= last && last - now < 0.01, "{x}: {last} -> {now}");
+            last = now;
+        }
+        shine.hold = 0.5;
+        assert!((shade([200.0, 280.0], &shine)[3] - peak * 0.5).abs() < 1e-4);
     }
 }

@@ -282,22 +282,6 @@ pub(crate) struct Inputs<'a> {
     pub(crate) share: bool,
 }
 
-/// A card tilting towards the pointer ([`crate::cards::look::Tilt`]): which, where the
-/// pointer is on it and where the tilt has eased to.
-#[derive(Clone, Copy, Debug, Default)]
-struct CardTilt {
-    /// The card (0 up close, 1 and up the grid's), `None` while none tilts.
-    key: Option<usize>,
-    /// The pointer on it, -1 to 1 from its middle each way.
-    target: [f32; 2],
-    /// The tilt eased towards `target`, and how far in it is (0 to 1).
-    value: [f32; 2],
-    strength: f32,
-    /// Whether the pointer is on it, and the page's time at the last frame.
-    over: bool,
-    at: f32,
-}
-
 /// What the last frame showed of a shader's row, for keys and clicks.
 #[derive(Clone, Copy, Debug, Default)]
 struct ShaderRow {
@@ -372,8 +356,8 @@ pub(crate) struct Panel {
     hover: crate::menu::sjk::hover::Hover,
     /// Where the pointer is (window pixels), while it is over the window.
     pointer: Option<[f32; 2]>,
-    /// The card tilting towards the pointer on Cards.
-    tilt: CardTilt,
+    /// The cards answering the pointer on Cards, each eased in and out.
+    tilt: crate::tile_shine::HoverEase,
     /// The Shaders tab's lone saber's turn, and the window pixels to a frame pixel the
     /// last frame was drawn at (a drag turns it by frame pixels).
     spin: spin::Spin,
@@ -447,7 +431,7 @@ impl Panel {
             backstage: Backstage::None,
             hover: Default::default(),
             pointer: None,
-            tilt: CardTilt::default(),
+            tilt: crate::tile_shine::HoverEase::default(),
             spin: spin::Spin::default(),
             scale: 1.0,
             trade: None,
@@ -1187,14 +1171,7 @@ impl Panel {
     /// at `at` on it for a while, for a world shot.
     #[cfg(test)]
     pub(crate) fn tilt_card_for_shot(&mut self, key: usize, at: [f32; 2]) {
-        self.tilt = CardTilt {
-            key: Some(key),
-            target: at,
-            value: at,
-            strength: 1.0,
-            over: true,
-            at: self.shot_seconds.unwrap_or(0.0),
-        };
+        self.tilt.rest(key, at, self.shot_seconds.unwrap_or(0.0));
     }
 
     /// Show the hover card of the tab's thing `index` (the toy for Toys; `None` for none),

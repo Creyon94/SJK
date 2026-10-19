@@ -350,11 +350,22 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
   tab (the one up close or one of the grid), the card turns towards it in perspective,
   up to about 9 degrees at its edges, the side under the pointer receding as if pressed;
   its light follows the pointer across it (Holo's foil and glint, a little brighter, Solar's
-  band of sunlight) and a soft glare
-  sits under the pointer. It eases in and out in about a tenth of a second. The card is
-  drawn as usual under `DrawCommand::PushTransform` (a projective transform the UI
-  renderer applies to every shape vertex and text glyph drawn inside it, after clipping;
+  band of sunlight) and a soft round glare sits under the pointer. The card is drawn as
+  usual under `DrawCommand::PushTransform` (a projective transform the UI renderer
+  applies to every shape vertex and text glyph drawn inside it, after clipping;
   `look::tilt_matrix`).
+- **Smooth hover (20/10/2026, Sol's request):** the pointer's hold on each card eases in
+  and out over about a third of a second (`tile_shine::HoverEase`): the tilt, the
+  foil's brightness and the glare grow and fade with it, and the light glides from
+  where its sweep was to the pointer and back instead of jumping. Each card eases on
+  its own, so the card the pointer leaves settles while the next one rises. The glare
+  is shaded too (`ShineKind::Glare`, one quad, a gaussian), not four stacked discs.
+- **Reusable on any tile:** [tile_shine.rs](../crates/sjk-viewer/src/tile_shine.rs)
+  holds the finishes for any rounded tile, not only cards: `tile_shine::push(list, rect,
+  radius, kind, hover, seconds)` lays Holo or Solar (or nothing) and the glare over
+  `rect`, and a page keeps one `HoverEase` and asks it each frame for each tile's
+  `Hover` (`update(key, rect, pointer, seconds)`). A saber shader's or a medal's tile
+  gets the same look with those two calls (and `look::tilt_matrix` for the lean).
 - **A revealed card** shows its face as a trading card: its name and its rarity's
   symbol ([sjk-ui.md](sjk-ui.md#symbols)) on top, its picture in a gold-edged 6:5 window (dark until the
   picture is decoded and uploaded), a strip with its kind and set ("Meme ·

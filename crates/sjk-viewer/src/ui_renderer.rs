@@ -1254,7 +1254,8 @@ impl ShapeRenderer {
         let kind = match shine.kind {
             sjk_ui::ShineKind::Holo => 0.0,
             sjk_ui::ShineKind::Solar => 1.0,
-        } + if shine.held { 2.0 } else { 0.0 };
+            sjk_ui::ShineKind::Glare => 2.0,
+        };
         let points = [
             ([shown.x, shown.y], [0.0, 0.0]),
             ([shown.right(), shown.y], [1.0, 0.0]),
@@ -1269,7 +1270,7 @@ impl ShapeRenderer {
                 local,
                 size: [shown.width, shown.height],
                 start_color: [kind, shine.time, shine.light[0], shine.light[1]],
-                end_color: [shine.size[0], shine.size[1], shine.radius, 0.0],
+                end_color: [shine.size[0], shine.size[1], shine.radius, shine.hold],
                 parameters: [shine.alpha * opacity, SHINE_MODE],
                 uv: [shown.x - rect.x, shown.y - rect.y],
             }));
