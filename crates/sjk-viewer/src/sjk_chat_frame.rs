@@ -40,7 +40,7 @@ impl GpuState {
         let chat = &mut self.chat;
         let update = player_identity::with_chat(|state| {
             let after = chat.sync_sjk_in_feed(state, is_muted, now, feed);
-            chat.sjk_outcome(state.outcome.as_ref(), now, feed);
+            chat.sjk_outcome(state.outcome.as_ref(), now);
             let news = after
                 .is_some_and(|after| chat::sjk::worth_a_sound(&state.messages, after, is_muted));
             let console_lines = if in_console {

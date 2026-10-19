@@ -426,7 +426,7 @@ merged into SJK
   with bounded discovery and fetching; reworked at the merge for animated WebP and
   opt-in MP4 through Windows Media Foundation (`cl_sjkChatVideo`, off) instead of OpenH264.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 14 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -447,8 +447,18 @@ merged into SJK
 - #133 live SJK chat messages also enter the console scrollback with a yellow `SJK` tag.
 - #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
   in a private duel.
+- #164 the 15th field of JA+/jaPRO `scores` rows kept: both scoreboards show score/deaths, with
+  JoF EJK's `cg_scoreDeaths` modes.
+- #167 the speedometer placed as in JoF EternalJK: `cg_speedometerX` is the text's right edge,
+  with JoF's offsets for its numbered game HUDs (only a numeric `cg_hudFiles`, at the merge).
+- #171 hovering a whisper you sent in the console shows its recipient, kept from the `tell`
+  until the server's echo, in both console looks.
+- #173 `cl_sjkChatFeed` and `cl_sjkChatConsole`: SJK chat in the game's feed and the console can
+  be switched off separately (a refusal from the hub still shows, at the merge).
+- #177 `con_copyColors`: copied console text keeps its colour codes, with `^7` before text that
+  was white by default.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 12 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 14 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -476,6 +486,10 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   doors, locked doors show their lock lights, and nothing is used before the round begins.
 - #160 the Siege HUD: waiting for players and the round countdown, the respawn wave countdown,
   hack progress, and the hacking sound (the viewed player's own `ps.loopSound`).
+- #169 a written `\n` in the string tables is a line break, as `ConvertCRLiterals_Read`.
+- #174 (with #168) Siege announcements from the map's `.siege` file, as `CG_SiegeObjectiveCompleted`
+  and `CG_SiegeRoundOver`: completed objectives' messages and sounds for the viewer's team, the
+  3, 2, 1 count-in, and the round's end.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):

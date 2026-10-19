@@ -55,15 +55,15 @@ impl Speed {
             ("cg_speedometersize", 0.75),
         ]
         .map(|(name, value)| crate::cgame_options::scalar(console, name, value));
-        if console
-            .and_then(|c| c.text_value("cg_hudStyle"))
-            .is_some_and(|style| style.eq_ignore_ascii_case("game"))
-        {
-            let files = console
-                .and_then(|c| c.text_value("cg_hudFiles"))
-                .map(|value| sjk_game_jka::userinfo::atoi(value.as_bytes()))
-                .unwrap_or_default();
-            self.position[0] += speedometer_hud_x_offset(i64::from(files), armor);
+        // JoF shifts only for its numbered HUDs (`cgs.newHud`); a menu file path such as
+        // the retail `ui/jahud.txt` gets no shift.
+        if crate::menu_hud::HudStyle::read(console) == crate::menu_hud::HudStyle::Game {
+            if let Some(files) = console
+                .and_then(|c| c.text_value(crate::menu_hud::FILES_CVAR))
+                .and_then(|value| value.trim().parse::<i64>().ok())
+            {
+                self.position[0] += speedometer_hud_x_offset(files, armor);
+            }
         }
         let bits = console
             .and_then(|c| c.integer_cvar("cg_speedometer"))
@@ -186,6 +186,25 @@ mod tests {
         assert!(console.set_cvar("cg_hudStyle", "classic"));
         speed.update([300.0, 400.0, 0.0], 0, Some(&console));
         draw.clear();
+        speed.emit(&mut draw, Theme::default(), [1_920.0, 1_080.0]);
+        let [DrawCommand::Text { rect, .. }] = draw.commands() else {
+            panic!("expected one speedometer text command");
+        };
+        assert!((rect.right() - 396.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn a_menu_file_path_gets_no_jof_offset() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert!(console.set_cvar("cg_speedometer", "1"));
+        assert!(console.set_cvar("cg_speedometerX", "132"));
+        assert!(console.set_cvar("cg_hudStyle", "game"));
+        assert!(console.set_cvar("cg_hudFiles", "ui/jahud.txt"));
+
+        let mut speed = Speed::default();
+        speed.update([300.0, 400.0, 0.0], 0, Some(&console));
+        let mut draw = DrawList::new(1);
         speed.emit(&mut draw, Theme::default(), [1_920.0, 1_080.0]);
         let [DrawCommand::Text { rect, .. }] = draw.commands() else {
             panic!("expected one speedometer text command");

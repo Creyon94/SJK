@@ -400,7 +400,10 @@ mod copy_tests {
             &mut copied,
         );
         assert_eq!(copied, "^7White name^7: ^2green text");
+    }
+}
 
+#[cfg(test)]
 mod hover_tests {
     use super::*;
 

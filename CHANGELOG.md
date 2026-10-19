@@ -13,7 +13,6 @@ Format, read by the client (crates/sjk-viewer/src/changelog_data.rs, whose
 tests check this file):
 - "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased" for main
   after the last release, without a date);
-- Clan emblems: names tagged JAWA, such as `(JAWA)Name`, get the clan's Jawa hood on their left, in the chats, on the scoreboard and on player cards _(Sol)_
 - other lines up to the first item are the release's introduction;
 - "> <Heading>: <sentence>" lines before the first item are the release's short
   recap (3 to 6 lines, shown by the what's-new card after an update); every release
@@ -33,6 +32,13 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_serverRemaps: Servers no longer swap the map's textures unless you allow it. Turn this on to see their remaps again.
 
+- Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
+- Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_
+- The speedometer is placed as in JoF EternalJK: `cg_speedometerX` is the right edge of its text, shifted clear of JoF's numbered game HUDs, so existing positions move _(Lukas, after JoF EJK)_
+- Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
+- Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
+- SJK chat can stay out of the game's chat feed (`cl_sjkChatFeed`) or the console (`cl_sjkChatConsole`), both on; the dock and the SJK chat page keep showing it _(Lukas)_
+- Clan emblems: names tagged JAWA, such as `(JAWA)Name`, get the clan's Jawa hood on their left, in the chats, on the scoreboard and on player cards _(Sol)_
 - Test packs: the SJK team can send test content sealed to the players it picks; it downloads on its own, stays encrypted on disk and mounts at the next map load _(Sol)_
 - Map edits (Settings > Game, `cg_mapEdits`, on): SJK's own fixes to maps, props hidden, models placed and textures swapped by the SJK team, for every server or one; only what you see changes, never collision _(Sol)_
 - Server shader remaps are off by default (Settings > Game, `cg_serverRemaps`): servers no longer swap the map's textures unless you turn them on; `cg_remaps` still picks which apply when they are on, and the map's own remaps always apply _(Sol)_

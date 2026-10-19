@@ -115,20 +115,15 @@ impl ChatOverlay {
         }
     }
 
-    /// Say in the feed why the hub refused what was sent, once per outcome. Hidden
-    /// outcomes are still consumed, so turning the feed on cannot replay one later.
-    pub(crate) fn sjk_outcome(
-        &mut self,
-        outcome: Option<&ReportOutcome>,
-        now: Instant,
-        feed: bool,
-    ) {
+    /// Say in the feed why the hub refused what was sent, once per outcome. Shown even
+    /// with the SJK feed off: the in-game composer has no other place to say it.
+    pub(crate) fn sjk_outcome(&mut self, outcome: Option<&ReportOutcome>, now: Instant) {
         let Some(outcome) = outcome else { return };
         if self.sjk_outcome == outcome.serial {
             return;
         }
         self.sjk_outcome = outcome.serial;
-        if feed && !outcome.sent {
+        if !outcome.sent {
             self.receive(
                 ServerEventKind::Chat,
                 format!("^3SJK chat: {}", outcome.message),
@@ -547,8 +542,8 @@ mod tests {
             sent: false,
             message: "you send messages too fast; wait a moment".to_owned(),
         };
-        chat.sjk_outcome(Some(&refused), now, true);
-        chat.sjk_outcome(Some(&refused), now, true);
+        chat.sjk_outcome(Some(&refused), now);
+        chat.sjk_outcome(Some(&refused), now);
         assert_eq!(
             bodies(&chat),
             ["^3SJK chat: you send messages too fast; wait a moment"]
@@ -558,22 +553,8 @@ mod tests {
             sent: true,
             message: String::new(),
         };
-        chat.sjk_outcome(Some(&sent), now, true);
+        chat.sjk_outcome(Some(&sent), now);
         assert_eq!(chat.lines.len(), 1);
-    }
-
-    #[test]
-    fn a_refusal_hidden_with_the_feed_is_not_replayed_later() {
-        let mut chat = ChatOverlay::new();
-        let now = Instant::now();
-        let refused = ReportOutcome {
-            serial: 1,
-            sent: false,
-            message: "no".to_owned(),
-        };
-        chat.sjk_outcome(Some(&refused), now, false);
-        chat.sjk_outcome(Some(&refused), now, true);
-        assert!(chat.lines.is_empty());
     }
 
     #[test]
