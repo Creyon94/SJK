@@ -152,6 +152,9 @@ fn run(client_id: &str, receiver: Receiver<Option<Activity>>) {
     let mut last_send: Option<Instant> = None;
     let mut last_attempt: Option<Instant> = None;
     let mut nonce = 0u64;
+    // Log a missing Discord once, not every retry, and the first status it takes.
+    let mut told_missing = false;
+    let mut told_shown = false;
     loop {
         match receiver.recv_timeout(Duration::from_secs(1)) {
             Ok(activity) => wanted = activity,
@@ -180,17 +183,33 @@ fn run(client_id: &str, receiver: Receiver<Option<Activity>>) {
             last_attempt = Some(Instant::now());
             pipe = Pipe::connect(client_id);
             if pipe.is_none() {
+                if !told_missing {
+                    eprintln!("Discord status: no Discord app answered; looking again every 20 s");
+                    told_missing = true;
+                }
                 continue;
             }
+            eprintln!("Discord status: connected to the Discord app");
+            told_missing = false;
+            told_shown = false;
             shown = None;
         }
         let Some(open) = pipe.as_mut() else { continue };
         nonce += 1;
         last_send = Some(Instant::now());
         match open.set_activity(wanted.as_ref(), nonce) {
-            Ok(()) => shown = Some(wanted.clone()),
+            Ok(()) => {
+                if !told_shown && let Some(activity) = wanted.as_ref() {
+                    eprintln!(
+                        "Discord status: showing \"{}\" / \"{}\"",
+                        activity.details, activity.state
+                    );
+                    told_shown = true;
+                }
+                shown = Some(wanted.clone());
+            }
             Err(error) => {
-                eprintln!("discord presence: {error}");
+                eprintln!("Discord status: lost the Discord app: {error}");
                 pipe = None;
                 shown = None;
                 last_attempt = Some(Instant::now());
@@ -231,8 +250,10 @@ impl Pipe {
         });
         self.write(OP_FRAME, &message)?;
         let reply = self.read_reply()?;
+        #[cfg(test)]
+        println!("discord reply: {reply}");
         if reply.get("evt").and_then(Value::as_str) == Some("ERROR") {
-            eprintln!("discord presence refused: {}", reply["data"]);
+            eprintln!("Discord status refused: {}", reply["data"]);
         }
         Ok(())
     }
@@ -353,6 +374,13 @@ mod tests {
             details: "Testing the pipe".into(),
             state: "ffa3 · FFA".into(),
             party: Some((3, 32)),
+            large_image: "https://sol-vulpes.github.io/SJK/assets/sjk-logo-512.png".into(),
+            large_text: "Sol JK".into(),
+            start: Some(1_760_000_000),
+            buttons: vec![ActivityButton {
+                label: "Get SJK".into(),
+                url: "https://sol-vulpes.github.io/SJK/".into(),
+            }],
             ..Activity::default()
         };
         pipe.set_activity(Some(&activity), 1)
