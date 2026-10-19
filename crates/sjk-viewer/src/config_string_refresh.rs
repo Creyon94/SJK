@@ -269,18 +269,37 @@ impl GpuState {
 
     fn install_config_model(
         &mut self,
-        mut mesh: StaticModelMesh,
+        mesh: StaticModelMesh,
         scene: FlattenedScene,
     ) -> Result<(), Box<dyn Error>> {
+        let Some((mesh, jobs)) = self.upload_config_model(mesh, scene)? else {
+            return Ok(());
+        };
+        self.world_materials.install_pipelines(jobs.compile());
+        self.push_config_model(mesh);
+        Ok(())
+    }
+
+    /// Upload `mesh`'s materials and geometry, leaving its new pipelines to the returned
+    /// jobs: the mesh must not be drawn ([`Self::push_config_model`]) before they are
+    /// installed. `None`: the model is in already.
+    fn upload_config_model(
+        &mut self,
+        mut mesh: StaticModelMesh,
+        scene: FlattenedScene,
+    ) -> Result<
+        Option<(StaticModelMesh, crate::world_materials::pipeline_jobs::Jobs)>,
+        Box<dyn Error>,
+    > {
         if self
             .object_meshes
             .iter()
             .any(|loaded| loaded.appearance == mesh.appearance)
         {
-            return Ok(());
+            return Ok(None);
         }
         let vfs = self.vfs.as_ref().ok_or("no VFS")?;
-        let materials = self.world_materials.append_entity_materials(
+        let (materials, jobs) = self.world_materials.append_entity_materials_deferred(
             &self.device,
             &self.queue,
             vfs,
@@ -292,6 +311,18 @@ impl GpuState {
                 .append(&self.device, &self.queue, &scene.vertices, &scene.indices)?;
         shared_geometry::relocate(&mut mesh.draws, &mut [], placement, materials);
         self.world_materials.bind_geometry(&self.geometry);
+        Ok(Some((mesh, jobs)))
+    }
+
+    /// Make an uploaded model drawable, unless it went in meanwhile.
+    fn push_config_model(&mut self, mesh: StaticModelMesh) {
+        if self
+            .object_meshes
+            .iter()
+            .any(|loaded| loaded.appearance == mesh.appearance)
+        {
+            return;
+        }
         self.emitter_model_catalog
             .insert(&mesh.appearance.model, self.object_meshes.len());
         log::progress(format_args!(
@@ -300,7 +331,6 @@ impl GpuState {
         ));
         self.object_meshes.push(mesh);
         self.object_groups.push(Vec::with_capacity(32));
-        Ok(())
     }
 
     fn preload_config_effect(&mut self, name: &str, audio: &mut Option<GameAudio>) {

@@ -739,23 +739,32 @@ impl Runtime {
         queue: &crate::frame_queue::FrameQueue,
         textures: Vec<PreparedTexture>,
     ) {
-        if !self.forge.filtering.mipmapped() {
+        for texture in textures {
+            self.upload_prepared_texture(device, queue, texture);
+        }
+    }
+
+    /// [`Self::upload_prepared_textures`] for one texture: an HD pack's texture with
+    /// its mips is near 90 MB to copy, so a model's textures go up one a frame.
+    pub(crate) fn upload_prepared_texture(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        texture: PreparedTexture,
+    ) {
+        if !self.forge.filtering.mipmapped() || self.forge.texture_cache.contains_key(&texture.key)
+        {
             return;
         }
-        for texture in textures {
-            if self.forge.texture_cache.contains_key(&texture.key) {
-                continue;
-            }
-            // A failure leaves the texture to the material's own upload.
-            if let Ok(view) = super::filtering::mips::upload_chains(
-                device,
-                queue,
-                texture.width,
-                texture.height,
-                &texture.chains,
-            ) {
-                self.forge.texture_cache.insert(texture.key, view);
-            }
+        // A failure leaves the texture to the material's own upload.
+        if let Ok(view) = super::filtering::mips::upload_chains(
+            device,
+            queue,
+            texture.width,
+            texture.height,
+            &texture.chains,
+        ) {
+            self.forge.texture_cache.insert(texture.key, view);
         }
     }
 

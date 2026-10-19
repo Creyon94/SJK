@@ -2,7 +2,12 @@
 //! The worker also decodes the model's textures and builds their mip chains
 //! ([`crate::world_materials::warm_entity_materials`]), as for players' models: decoded
 //! at install, HD texture packs' 15 MB JPEGs for `falcon2.md3` stalled a frame 2.1 s.
+//! Its textures then go up one a frame: an HD pack's texture with its mips is near 90 MB
+//! to copy, and the falcon's all at once still held a frame 208 ms. The pipelines its
+//! materials need and the map lacks compile on another worker (`world_pipeline_jobs.rs`)
+//! before the model is drawn, as for players' models.
 use super::*;
+use crate::world_materials::pipeline_jobs::Compiled;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
 type Prepared = Result<
@@ -20,6 +25,14 @@ pub(super) struct Demand {
     /// Includes attempted failures so a broken community model is not retried every frame.
     attempted: BTreeSet<Appearance>,
     task: Option<(Appearance, Receiver<Prepared>)>,
+    /// A model read, its textures going up one a frame.
+    uploading: Option<(
+        StaticModelMesh,
+        FlattenedScene,
+        Vec<crate::world_materials::PreparedTexture>,
+    )>,
+    /// A model uploaded, drawn once its pipelines are compiled.
+    compiling: Option<(StaticModelMesh, Receiver<Compiled>)>,
 }
 
 fn rigid(appearance: &Appearance) -> bool {
@@ -38,27 +51,7 @@ impl GpuState {
             );
             self.config_string_refresh.models.initialized = true;
         }
-        let result =
-            self.config_string_refresh.models.task.as_ref().and_then(
-                |(_, receiver)| match receiver.try_recv() {
-                    Ok(result) => Some(result),
-                    Err(TryRecvError::Empty) => None,
-                    Err(TryRecvError::Disconnected) => Some(Err("model loader stopped".to_owned())),
-                },
-            );
-        if let Some(result) = result {
-            let (appearance, _) = self.config_string_refresh.models.task.take().unwrap();
-            let installed = result.and_then(|(mesh, scene, textures)| {
-                self.world_materials
-                    .upload_prepared_textures(&self.device, &self.queue, textures);
-                self.install_config_model(mesh, scene)
-                    .map_err(|error| error.to_string())
-            });
-            if let Err(error) = installed {
-                log::progress(format_args!("model {}: {error}", appearance.model));
-            }
-        }
-        if self.config_string_refresh.models.task.is_some() {
+        if self.advance_demand_model() {
             return;
         }
         let world = self
@@ -143,6 +136,77 @@ impl GpuState {
             }) {
             Ok(_) => self.config_string_refresh.models.task = Some((appearance, receiver)),
             Err(error) => log::progress(format_args!("could not start model loader: {error}")),
+        }
+    }
+
+    /// Take the model on its way one step further: its read, one texture, its upload
+    /// or its pipelines. `true` while it is still on its way: no other starts.
+    fn advance_demand_model(&mut self) -> bool {
+        let models = &mut self.config_string_refresh.models;
+        if let Some((mesh, receiver)) = models.compiling.take() {
+            match receiver.try_recv() {
+                Ok(compiled) => self.world_materials.install_pipelines(compiled),
+                Err(TryRecvError::Empty) => {
+                    models.compiling = Some((mesh, receiver));
+                    return true;
+                }
+                // The pipelines compile on the model's first draw instead.
+                Err(TryRecvError::Disconnected) => {}
+            }
+            self.push_config_model(mesh);
+            return false;
+        }
+        if let Some((mesh, scene, mut textures)) = models.uploading.take() {
+            if let Some(texture) = textures.pop() {
+                self.world_materials
+                    .upload_prepared_texture(&self.device, &self.queue, texture);
+                self.config_string_refresh.models.uploading = Some((mesh, scene, textures));
+                return true;
+            }
+            let appearance = mesh.appearance.model.clone();
+            match self.upload_config_model(mesh, scene) {
+                Ok(Some((mesh, jobs))) if jobs.is_empty() => self.push_config_model(mesh),
+                Ok(Some((mesh, jobs))) => {
+                    let (sender, receiver) = std::sync::mpsc::channel();
+                    let spawned = std::thread::Builder::new()
+                        .name("sjk-model-pipelines".into())
+                        .spawn(move || {
+                            let _ = sender.send(jobs.compile());
+                        });
+                    match spawned {
+                        Ok(_) => {
+                            self.config_string_refresh.models.compiling = Some((mesh, receiver));
+                            return true;
+                        }
+                        // The pipelines compile on the model's first draw instead.
+                        Err(_) => self.push_config_model(mesh),
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => log::progress(format_args!("model {appearance}: {error}")),
+            }
+            return false;
+        }
+        let Some((appearance, receiver)) = models.task.take() else {
+            return false;
+        };
+        let result = match receiver.try_recv() {
+            Ok(result) => result,
+            Err(TryRecvError::Empty) => {
+                models.task = Some((appearance, receiver));
+                return true;
+            }
+            Err(TryRecvError::Disconnected) => Err("model loader stopped".to_owned()),
+        };
+        match result {
+            Ok(read) => {
+                models.uploading = Some(read);
+                true
+            }
+            Err(error) => {
+                log::progress(format_args!("model {}: {error}", appearance.model));
+                false
+            }
         }
     }
 }
