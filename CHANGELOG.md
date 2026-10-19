@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Siege: hacking an objective shows retail's hacker icon and progress bar under the crosshair, in place of the HACKING percentage _(Slash, after JKA)_
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
 - Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_

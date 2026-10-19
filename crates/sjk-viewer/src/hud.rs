@@ -497,9 +497,6 @@ impl HudOverlay {
         self.draw_list.clear();
         self.tints.emit(&mut self.draw_list, viewport);
         self.rocket_lock.emit(&mut self.draw_list);
-        if visibility.hud {
-            hack_bar::emit(&mut self.draw_list, viewport, self.hack_left);
-        }
         self.binoculars.emit(&mut self.draw_list, viewport);
         // A pilot's crosshair is doubled, and is the vehicle's own picture when its
         // `.veh` names one that loaded.
@@ -523,6 +520,16 @@ impl HudOverlay {
                     viewport,
                 ),
             };
+        // Drawn by `CG_DrawCrosshair` after the crosshair, so only with it.
+        if visibility.crosshair {
+            hack_bar::emit(
+                &mut self.draw_list,
+                viewport,
+                self.hack_left,
+                crosshair::rect(crosshair_look, self.targeting.center(viewport), viewport),
+                self.icons.cell(icons::assets::HACKER),
+            );
+        }
         let mut output = HudLayout::default();
         let low_health = self.values.is_some_and(|value| value.health <= 25);
         let low_ammo = self

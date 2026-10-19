@@ -460,7 +460,7 @@ merged into SJK
 - #177 `con_copyColors`: copied console text keeps its colour codes, with `^7` before text that
   was white by default.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 14 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 15 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -492,6 +492,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #174 (with #168) Siege announcements from the map's `.siege` file, as `CG_SiegeObjectiveCompleted`
   and `CG_SiegeRoundOver`: completed objectives' messages and sounds for the viewer's team, the
   3, 2, 1 count-in, and the round's end.
+- #176 the Siege hack bar under the crosshair, as `CG_DrawHaqrBar`; placed from the drawn
+  crosshair, with retail's hacker icon added and the `HACKING: n%` text dropped at the merge.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):

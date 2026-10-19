@@ -7,8 +7,8 @@ use sjk_vfs::VirtualFileSystem;
 /// Existing item catalogue, then 43 cause-of-death cells, then two CTY flag variants,
 /// then the weapon selection row's art: each weapon's `_na` (no ammo) icon and the
 /// staff and dual saber icons, then the team logos floated over allies, then the two
-/// "flag taken" icons.
-pub(super) const COUNT: usize = 122;
+/// "flag taken" icons, then the Siege hacker icon.
+pub(super) const COUNT: usize = 123;
 /// First of the cause-of-death cells, by `meansOfDeath_t`: an icon pack's
 /// `hud/mod/*`, else the weapon's own picture ([`MOD_ITEMS`]); the kill feed's icons.
 pub(super) const MEANS_FIRST: usize = 51;
@@ -30,6 +30,8 @@ pub(crate) const RED_FLAG_YSALAMIRI: usize = 94;
 pub(crate) const BLUE_FLAG_YSALAMIRI: usize = 95;
 pub(crate) const RED_FLAG_TAKEN: usize = 120;
 pub(crate) const BLUE_FLAG_TAKEN: usize = 121;
+/// `cgs.media.hackerIconShader` (`gfx/mp/c_icon_tech`), drawn over the hack bar.
+pub(crate) const HACKER: usize = 122;
 
 /// Stock weapon ordinals -> existing bg_itemlist entries (bg_misc.c:1241-1619).
 pub(crate) const WEAPONS: [usize; 19] = [
@@ -135,6 +137,7 @@ pub(super) fn load(
             SABER_DUAL => "gfx/hud/w_icon_duallightsaber".to_owned(),
             RED_FLAG_TAKEN => "gfx/hud/mpi_rflag_x".to_owned(),
             BLUE_FLAG_TAKEN => "gfx/hud/mpi_bflag_x".to_owned(),
+            HACKER => "gfx/mp/c_icon_tech".to_owned(),
             _ => super::team_logo::Logo::ALL[slot - TEAM_LOGO_FIRST]
                 .shader()
                 .to_owned(),
