@@ -924,9 +924,10 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   keeps time, so `loud`, posted on the way back, plays it again from where it would be.
   With no emote playing, the pick starts: on a JA+ server (its `gamename`, JoF
   included) the JA+ emote of `cg_awayEmoteJaplus` (JA+ away emote: the sit, kneel,
-  hips, wait, surrender and Neo ones, which hold the player), sent to the server and
-  sent again on the way back while it still holds the player (`PM_FREEZE`), which
-  stands them up; else the looping SJK emote of `cg_awayEmote` (Away emote, any
+  hips, wait, surrender and Neo ones, which hold the player until they crouch), sent to
+  the server; on the way back, while it still holds the player (`PM_FREEZE`), the
+  commands crouch until it lets go, for a second at most (`away_emote::shape_command`;
+  sending it again does not end it); else the looping SJK emote of `cg_awayEmote` (Away emote, any
   looping emote that is not `local`), posted with `quiet` so no client plays its
   music, and stopped (`stop`) on the way back unless it already ended. The hub takes
   one emote every 2 seconds from a key, so a post waits for its turn

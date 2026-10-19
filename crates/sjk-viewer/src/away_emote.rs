@@ -3,8 +3,8 @@
 //! they play goes quiet for the other SJK players, or one they picked in Settings >
 //! Sound > Emotes starts: a JA+ emote on a JA+ server, else a looping SJK emote,
 //! quiet from the start. Coming back undoes it: the music plays again from where it
-//! is, the away emote ends (a JA+ one by sending it again while it still holds the
-//! player).
+//! is, the away emote ends (a JA+ one by crouching while it still holds the player,
+//! as a player gets up from it: [`shape_command`]).
 //!
 //! The hub takes one emote every 2 seconds from a key, so a post waits for its turn
 //! ([`player_identity::emote_ready`]); one still waiting when the player comes back
@@ -27,8 +27,8 @@ pub(crate) const IDLE_CVAR: &str = "cg_awayIdle";
 pub(crate) const DEFAULT_IDLE: i64 = 180;
 /// No away emote; never an emote id.
 pub(crate) const NONE: &str = "none";
-/// The JA+ emotes that hold the player until they move or send it again: the ones
-/// worth leaving on while away.
+/// The JA+ emotes that hold the player until they crouch: the ones worth leaving on
+/// while away.
 pub(crate) const JAPLUS_EMOTES: [&str; 11] = [
     NONE,
     "amsit",
@@ -44,6 +44,11 @@ pub(crate) const JAPLUS_EMOTES: [&str; 11] = [
 ];
 /// `PM_FREEZE`: a JA+ emote holds the player.
 const PM_FREEZE: u8 = 6;
+/// The longest the player crouches to get up from a JA+ emote; it ends sooner,
+/// once the emote lets go of them.
+const CROUCH_FOR: Duration = Duration::from_secs(1);
+/// `up_move` held down (`cardboard_box.rs`'s crouch).
+const CROUCH: i8 = -127;
 
 /// What one change of the player's presence does.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,6 +63,8 @@ pub(crate) enum Step {
     Stop,
     /// Send this JA+ emote to the server.
     Japlus(String),
+    /// Crouch, which ends a JA+ emote.
+    Crouch,
 }
 
 /// What going away did, undone on the way back.
@@ -112,7 +119,7 @@ impl Away {
             Did::Nothing => None,
             Did::Quieted => own.is_some().then_some(Step::Loud),
             Did::Started(id) => (own == Some(id.as_str())).then_some(Step::Stop),
-            Did::Japlus(command) => Some(Step::Japlus(command)),
+            Did::Japlus(_) => Some(Step::Crouch),
         }
     }
 
@@ -131,6 +138,24 @@ impl Away {
 }
 
 static AWAY: Mutex<Option<Away>> = Mutex::new(None);
+/// Until when the commands sent crouch ([`Step::Crouch`]).
+static CROUCH_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Crouch in `command` while the player gets up from a JA+ away emote.
+pub(crate) fn shape_command(command: &mut sjk_protocol::UserCommand) {
+    let until = *CROUCH_UNTIL
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if until.is_some_and(|until| Instant::now() < until) {
+        command.up_move = CROUCH;
+    }
+}
+
+fn crouch_until(until: Option<Instant>) {
+    *CROUCH_UNTIL
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = until;
+}
 
 /// Whether the player is away: their window is out of focus or minimised (with
 /// `alt_tab`), or they gave no input for `idle` (zero never).
@@ -223,6 +248,10 @@ impl crate::GpuState {
         let own = u8::try_from(player.client_num()).ok();
         let playing = !session.is_local() && !player.is_spectator();
         let frozen = player.movement_type() == PM_FREEZE;
+        // Up from the JA+ emote: the crouch is over.
+        if !frozen {
+            crouch_until(None);
+        }
         let unfocused = console.bool_cvar("com_unfocused") == Some(true)
             || console.bool_cvar("com_minimized") == Some(true);
         let idle = Duration::from_secs(
@@ -293,15 +322,15 @@ impl crate::GpuState {
                     state.active.stop(own);
                     away_state.post(emotes::STOP, false);
                 }
-                // Back, it is sent again only while it still holds the player: that
-                // ends it, where once it let go it would start it anew.
                 Step::Japlus(command) => {
-                    if (away || frozen)
-                        && let Err(error) = session.send_reliable_command(command.as_bytes())
-                    {
+                    if let Err(error) = session.send_reliable_command(command.as_bytes()) {
                         eprintln!("failed to send {command}: {error}");
                     }
                 }
+                // Only while the emote still holds the player: once it let go, a
+                // crouch would only duck them.
+                Step::Crouch if frozen => crouch_until(Some(now + CROUCH_FOR)),
+                Step::Crouch => {}
             }
         }
         drop(state);
@@ -342,10 +371,7 @@ mod tests {
             away.turn(true, None, Some("amsit"), Some("dance")),
             Some(Step::Japlus("amsit".into()))
         );
-        assert_eq!(
-            away.turn(false, None, None, None),
-            Some(Step::Japlus("amsit".into()))
-        );
+        assert_eq!(away.turn(false, None, None, None), Some(Step::Crouch));
         assert_eq!(
             away.turn(true, None, None, Some("dance")),
             Some(Step::Start("dance".into()))
