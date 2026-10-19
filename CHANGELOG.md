@@ -28,6 +28,18 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> Blade Lab: Creyon's 128 signature blades, each drawn by its own shader.
+> Blade numbers: Every blade has a number, as cards do.
+> Live swatches: The Collection shows owned blades as the game draws them.
+
+- Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
+- The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
+- A saber shader's sound that has not reached you yet plays the normal saber sound instead of nothing _(Creyon)_
+- Running or switching a saber on or off no longer counts as a swing for the shaders that answer swings _(Creyon)_
+- Blades have numbers, as cards do (Sun is 001): the Collection shows each after its tier and in its hover card, its search finds "42" or "#42", `saberskin 42` wears that blade and docs/unlockables.md lists them all _(Sol)_
+
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
 > Strafe aura: A crosshair glow shows where turning gains speed.
@@ -47,10 +59,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Cards: a fifth rarity, Mythical, in gold, rarer than Legendary and opened with the same fanfare; two new kinds, Credits and Meme; and the first collection is SJK Alpha, its card 1 "Bishop", honouring the author of JKR _(Sol)_
 - Siege: hacking an objective shows retail's hacker icon and progress bar under the crosshair, in place of the HACKING percentage _(Slash, after JKA)_
 - Settings > Game > Server remaps (`cg_serverRemaps`) and Map edits (`cg_mapEdits`) work: since 2026.1019.1 server remaps stayed off and map edits on whatever they said _(Sol)_
-- Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
-- The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
-- A saber shader's sound that has not reached you yet plays the normal saber sound instead of nothing _(Creyon)_
-- Running or switching a saber on or off no longer counts as a swing for the shaders that answer swings _(Creyon)_
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
 - Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_

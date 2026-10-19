@@ -585,6 +585,15 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[blade-numbers]
+area: Menus & settings
+title: Every blade has a number, as cards do
+change: Collection > Shaders shows "Tier . 042" on each blade; the hover card reads Blade 042.
+change: saberskin lists numbers; saberskin 42 wears blade 042. docs/unlockables.md lists all.
+test: Collection > Shaders: grid, rack and card show the number after the tier, nothing cut.
+test: Search 42, 042 or #42: only blade 042 stays. Search a name still works.
+test: Console: saberskin lists numbers; saberskin 1 wears the Sun blade.
+
 [emote-icons-map-change]
 area: Menus & settings
 title: Emote pictures stay after a map change or a connection

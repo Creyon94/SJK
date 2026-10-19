@@ -211,6 +211,13 @@ impl Row {
         self.skin.map_or("Stock blade", |skin| skin.name)
     }
 
+    /// Its blade number after its tier ("  ·  042"), nothing for the stock blade.
+    fn number_words(self) -> String {
+        self.skin
+            .map(|skin| format!("  ·  {}", skin.number_text()))
+            .unwrap_or_default()
+    }
+
     /// Its tier, `None` for the stock blade.
     fn tier(self) -> Option<unlockables::Rarity> {
         self.skin.map(|skin| skin.tier)
@@ -687,7 +694,7 @@ impl Panel {
         );
         let (tier_text, tier_colour) = match row.tier() {
             Some(tier) => (
-                format!("{}  {}", tier.symbol(), tier.label()),
+                format!("{}  {}{}", tier.symbol(), tier.label(), row.number_words()),
                 color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.6 }),
             ),
             None => ("Your colour".to_owned(), color::QUIET),
@@ -857,7 +864,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{} {}", tier.symbol(), tier.label()),
+                format_args!("{} {}{}", tier.symbol(), tier.label(), row.number_words()),
                 frame.rect(status[0], status[1], status[2], status[3]),
                 15.0 * s,
                 color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.6 }),
@@ -961,7 +968,7 @@ impl Panel {
         // Its tier's mark and name, or what the stock blade is; its edition at the right.
         let (kind, kind_colour) = match row.tier() {
             Some(tier) => (
-                format!("{}  {}", tier.symbol(), tier.label()),
+                format!("{}  {}{}", tier.symbol(), tier.label(), row.number_words()),
                 color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.7 }),
             ),
             None => (format!("{}  Your saber", symbols::SABER), color::HOLO),

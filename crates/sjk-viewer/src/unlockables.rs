@@ -77,6 +77,10 @@ pub(crate) const FROM_THE_TEAM: &str =
 pub(crate) struct Unlockable {
     /// The id the hub, a look and `cg_saberSkin` name it by.
     pub(crate) id: &'static str,
+    /// Its number, as a card's in its set: given once, in the order blades came (the Sun
+    /// is 1), never changed or reused, so notes and reviews can name a blade by it
+    /// ("Blade 042"). A new blade takes the next free number.
+    pub(crate) number: u16,
     pub(crate) name: &'static str,
     pub(crate) kind: Kind,
     /// How rare it is: the holocrons' four tiers, their names and colours.
@@ -105,12 +109,32 @@ impl Unlockable {
     pub(crate) const fn is_blade_skin(&self) -> bool {
         matches!(self.kind, Kind::BladeSkin)
     }
+
+    /// Its [`number`](Self::number) as players and notes read it: three digits, "042".
+    pub(crate) fn number_text(&self) -> String {
+        format!("{:03}", self.number)
+    }
+}
+
+/// The blade skin numbered `number` ([`Unlockable::number`]).
+pub(crate) fn blade_skin_numbered(number: u16) -> Option<&'static Unlockable> {
+    blade_skins().find(|unlockable| unlockable.number == number)
+}
+
+/// The blade skin a word names: its id, or its number ("42", "042" or "#42").
+pub(crate) fn blade_skin_named(word: &str) -> Option<&'static Unlockable> {
+    let digits = word.strip_prefix('#').unwrap_or(word);
+    if !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return digits.parse().ok().and_then(blade_skin_numbered);
+    }
+    blade_skin(word)
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
 pub(crate) static ALL: [Unlockable; 165] = [
     Unlockable {
         id: "saber_sun",
+        number: 1,
         name: "Sun blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -123,6 +147,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_storm",
+        number: 2,
         name: "Storm blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -135,6 +160,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_void",
+        number: 3,
         name: "Void blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -147,6 +173,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_frost",
+        number: 4,
         name: "Frost blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -159,6 +186,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_prism",
+        number: 5,
         name: "Prism blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -171,6 +199,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_unstable",
+        number: 6,
         name: "Unstable blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -183,6 +212,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_molten",
+        number: 7,
         name: "Molten blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -195,6 +225,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_spectral",
+        number: 8,
         name: "Spectral blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -207,6 +238,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_glitch",
+        number: 9,
         name: "Glitch blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -219,6 +251,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_hologram",
+        number: 10,
         name: "Hologram blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -231,6 +264,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_runic",
+        number: 11,
         name: "Runic blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -243,6 +277,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_chameleon",
+        number: 12,
         name: "Chameleon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -255,6 +290,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_banner",
+        number: 13,
         name: "Banner blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -267,6 +303,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_heartbeat",
+        number: 14,
         name: "Heartbeat blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -279,6 +316,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_tidal",
+        number: 15,
         name: "Kamino blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -291,6 +329,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_circuit",
+        number: 16,
         name: "Droid Logic blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -303,6 +342,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_aurora",
+        number: 17,
         name: "Hoth Aurora blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -315,6 +355,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_echo",
+        number: 18,
         name: "Echo Base blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -327,6 +368,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_nebula",
+        number: 19,
         name: "Nebula blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -339,6 +381,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_cinder",
+        number: 20,
         name: "Mustafar Ember blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -351,6 +394,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_venom",
+        number: 21,
         name: "Geonosis Acid blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -363,6 +407,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_sakura",
+        number: 22,
         name: "Naboo Blossom blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -375,6 +420,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_firefly",
+        number: 23,
         name: "Endor Lights blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -387,6 +433,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_slate",
+        number: 24,
         name: "Durasteel blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -399,6 +446,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_amber",
+        number: 25,
         name: "Tatooine Gold blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -411,6 +459,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_lilac",
+        number: 26,
         name: "Lothal Twilight blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -423,6 +472,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_mint",
+        number: 27,
         name: "Yavin Jungle blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -435,6 +485,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_coral",
+        number: 28,
         name: "Mon Cala Coral blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -447,6 +498,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ivory",
+        number: 29,
         name: "Jedi Temple blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -459,6 +511,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_glacier",
+        number: 30,
         name: "Ilum blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -471,6 +524,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_dusk",
+        number: 31,
         name: "Binary Sunset blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -483,6 +537,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ruby",
+        number: 32,
         name: "Sith Ruby blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -495,6 +550,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_amethyst",
+        number: 33,
         name: "Kyber Amethyst blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -507,6 +563,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_jade",
+        number: 34,
         name: "Dagobah Jade blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -519,6 +576,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_moonlight",
+        number: 35,
         name: "Ahch-To Moonlight blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -531,6 +589,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_neon",
+        number: 36,
         name: "Coruscant Neon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -543,6 +602,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_peppermint",
+        number: 37,
         name: "Kessel Spice blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -555,6 +615,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_bubble",
+        number: 38,
         name: "Bacta blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -567,6 +628,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_lavalamp",
+        number: 39,
         name: "Coaxium blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -579,6 +641,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_reactor",
+        number: 40,
         name: "Reactor blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -591,6 +654,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_bleeding",
+        number: 41,
         name: "Bleeding Kyber blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -603,6 +667,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_sketch",
+        number: 42,
         name: "Death Star Plans blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -615,6 +680,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_hourglass",
+        number: 43,
         name: "Beskar Forge blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -627,6 +693,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_fiber",
+        number: 44,
         name: "Kyber Cluster blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -639,6 +706,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_serpent",
+        number: 45,
         name: "Sith Alchemy blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -651,6 +719,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_monarch",
+        number: 46,
         name: "Felucia Spores blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -663,6 +732,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_phoenix",
+        number: 47,
         name: "Phoenix Squadron blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -675,6 +745,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_quantum",
+        number: 48,
         name: "Mortis blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -687,6 +758,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_comic",
+        number: 49,
         name: "Clone Wars blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -699,6 +771,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_quicksilver",
+        number: 50,
         name: "Liquid Beskar blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -711,6 +784,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_obsidian",
+        number: 51,
         name: "Obsidian Edge blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -725,6 +799,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     // the holocrons yet, given by the team while they are tried in game.
     Unlockable {
         id: "saber_abyssal_eye",
+        number: 52,
         name: "Abyssal Eye blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -737,6 +812,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_aurora_wyrm",
+        number: 53,
         name: "Ilum Aurora Storm blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -749,6 +825,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_balance",
+        number: 54,
         name: "Balance blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -761,6 +838,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_between_worlds",
+        number: 55,
         name: "Between Worlds blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -773,6 +851,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_big_bang",
+        number: 56,
         name: "Big Bang blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -785,6 +864,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_carbonite",
+        number: 57,
         name: "Carbonite blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -797,6 +877,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_dyson_sphere",
+        number: 58,
         name: "Dyson Sphere blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -809,6 +890,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_eclipse",
+        number: 59,
         name: "Eclipse blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -821,6 +903,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_event_horizon",
+        number: 60,
         name: "Event Horizon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -833,6 +916,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_exogorth",
+        number: 61,
         name: "Exogorth blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -845,6 +929,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_hyperspace",
+        number: 62,
         name: "Hyperspace blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -857,6 +942,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_kyber_heart",
+        number: 63,
         name: "Kyber Heart blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -869,6 +955,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_nebula_song",
+        number: 64,
         name: "Nebula Song blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -881,6 +968,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_quasar",
+        number: 65,
         name: "Quasar blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -893,6 +981,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_singing_kyber",
+        number: 66,
         name: "Singing Kyber blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -905,6 +994,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_sith_holocron",
+        number: 67,
         name: "Sith Holocron blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -917,6 +1007,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_star_dragon",
+        number: 68,
         name: "Ashla Radiance blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -929,6 +1020,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_starforge",
+        number: 69,
         name: "Starforge blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -941,6 +1033,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_superlaser",
+        number: 70,
         name: "Superlaser blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -953,6 +1046,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_uneti_tree",
+        number: 71,
         name: "Uneti Tree blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -965,6 +1059,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_witchfire",
+        number: 72,
         name: "Witchfire blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -977,6 +1072,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_world_shift",
+        number: 73,
         name: "World Shift blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -989,6 +1085,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_wraithlight",
+        number: 74,
         name: "Wraithlight blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -1001,6 +1098,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_lightspeed_ram",
+        number: 75,
         name: "Holdo Maneuver blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
@@ -1013,6 +1111,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_hoth_avalanche",
+        number: 76,
         name: "Hoth Avalanche blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1025,6 +1124,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_blood_moon",
+        number: 77,
         name: "Dathomir Blood Moon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1037,6 +1137,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_force_echo",
+        number: 78,
         name: "Force Echo blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1049,6 +1150,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_hypermatter",
+        number: 79,
         name: "Hypermatter blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1061,6 +1163,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_kessel_run",
+        number: 80,
         name: "Kessel Run blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1073,6 +1176,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_unknown_regions",
+        number: 81,
         name: "Unknown Regions blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1085,6 +1189,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_krayt_pearl",
+        number: 82,
         name: "Krayt Pearl blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1097,6 +1202,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_starkiller_frost",
+        number: 83,
         name: "Starkiller Frost blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1109,6 +1215,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_royal_naboo",
+        number: 84,
         name: "Royal Naboo blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1121,6 +1228,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_bespin_storm",
+        number: 85,
         name: "Bespin Storm blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1133,6 +1241,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_scarif_tide",
+        number: 86,
         name: "Scarif Tide blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1145,6 +1254,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_assassin_droid",
+        number: 87,
         name: "Assassin Droid blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1157,6 +1267,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_aurodium",
+        number: 88,
         name: "Aurodium blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1169,6 +1280,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_kashyyyk_monsoon",
+        number: 89,
         name: "Kashyyyk Monsoon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1181,6 +1293,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_malachor_forge",
+        number: 90,
         name: "Malachor Forge blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1193,6 +1306,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_yavin_vines",
+        number: 91,
         name: "Yavin Vines blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1205,6 +1319,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_exegol_rift",
+        number: 92,
         name: "Exegol Rift blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1217,6 +1332,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_shattered_kyber",
+        number: 93,
         name: "Shattered Kyber blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1229,6 +1345,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_twin_suns",
+        number: 94,
         name: "Twin Suns blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1241,6 +1358,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_jedi_spirits",
+        number: 95,
         name: "Jedi Spirits blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1253,6 +1371,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ord_mantell_storm",
+        number: 96,
         name: "Ord Mantell Thunderhead blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1265,6 +1384,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_mustafar_eruption",
+        number: 97,
         name: "Mustafar Eruption blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1277,6 +1397,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_hyperlane",
+        number: 98,
         name: "Hyperlane blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Legendary,
@@ -1289,6 +1410,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ahch_to_glow",
+        number: 99,
         name: "Ahch-To Glow blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1301,6 +1423,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_imperial_schematics",
+        number: 100,
         name: "Imperial Schematics blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1313,6 +1436,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_jedi_texts",
+        number: 101,
         name: "Jedi Texts blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1325,6 +1449,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_star_map",
+        number: 102,
         name: "Star Map blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1337,6 +1462,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ilum_frost",
+        number: 103,
         name: "Ilum Frost blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1349,6 +1475,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_christophsis_crystal",
+        number: 104,
         name: "Christophsis Crystal blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1361,6 +1488,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_deflector_shield",
+        number: 105,
         name: "Deflector Shield blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1373,6 +1501,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_healed_kyber",
+        number: 106,
         name: "Healed Kyber blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1385,6 +1514,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_temple_mosaic",
+        number: 107,
         name: "Temple Mosaic blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1397,6 +1527,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_dagobah_wisps",
+        number: 108,
         name: "Dagobah Wisps blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1409,6 +1540,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_nar_shaddaa_rain",
+        number: 109,
         name: "Nar Shaddaa Rain blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1421,6 +1553,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_navigation_beacon",
+        number: 110,
         name: "Navigation Beacon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1433,6 +1566,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_puzzle_holocron",
+        number: 111,
         name: "Puzzle Holocron blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1445,6 +1579,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_dac_reef",
+        number: 112,
         name: "Dac Reef blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1457,6 +1592,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_jakku_sandstorm",
+        number: 113,
         name: "Jakku Sandstorm blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1469,6 +1605,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_moisture_farm",
+        number: 114,
         name: "Moisture Farm blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1481,6 +1618,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_tipoca_stormglass",
+        number: 115,
         name: "Tipoca Stormglass blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1493,6 +1631,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_temple_sunbeam",
+        number: 116,
         name: "Temple Sunbeam blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1505,6 +1644,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ion_coil",
+        number: 117,
         name: "Ion Coil blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1517,6 +1657,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_sith_thorn",
+        number: 118,
         name: "Sith Thorn blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1529,6 +1670,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_holo_recording",
+        number: 119,
         name: "Holo-Recording blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1541,6 +1683,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_data_disc",
+        number: 120,
         name: "Data Disc blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
@@ -1553,6 +1696,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_cargo_stack",
+        number: 121,
         name: "Cargo Stack blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1565,6 +1709,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_otoh_gunga",
+        number: 122,
         name: "Otoh Gunga blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1577,6 +1722,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_victory_fireworks",
+        number: 123,
         name: "Victory Fireworks blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1589,6 +1735,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_endor_ivy",
+        number: 124,
         name: "Endor Ivy blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1601,6 +1748,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_naboo_core",
+        number: 125,
         name: "Naboo Core blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1613,6 +1761,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_gungan_waters",
+        number: 126,
         name: "Gungan Waters blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1625,6 +1774,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_cantina_lights",
+        number: 127,
         name: "Cantina Lights blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1637,6 +1787,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_imperial_searchlight",
+        number: 128,
         name: "Imperial Searchlight blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1649,6 +1800,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_flare_stick",
+        number: 129,
         name: "Flare Stick blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1661,6 +1813,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_flimsiplast",
+        number: 130,
         name: "Flimsiplast blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1673,6 +1826,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_canto_bight",
+        number: 131,
         name: "Canto Bight blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1685,6 +1839,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_sensor_sweep",
+        number: 132,
         name: "Sensor Sweep blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1697,6 +1852,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_takodana_rain",
+        number: 133,
         name: "Takodana Rain blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1709,6 +1865,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_starfighter_canopy",
+        number: 134,
         name: "Starfighter Canopy blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1721,6 +1878,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_distress_beacon",
+        number: 135,
         name: "Distress Beacon blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1733,6 +1891,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_orto_plutonia",
+        number: 136,
         name: "Orto Plutonia blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1745,6 +1904,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_rhen_var_frost",
+        number: 137,
         name: "Rhen Var Frost blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1757,6 +1917,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_seismic_charge",
+        number: 138,
         name: "Seismic Charge blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1769,6 +1930,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_thermal_fuse",
+        number: 139,
         name: "Thermal Fuse blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1781,6 +1943,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_senate_glass",
+        number: 140,
         name: "Senate Glass blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1793,6 +1956,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_holonet_feed",
+        number: 141,
         name: "Holonet Feed blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1805,6 +1969,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_holo_map",
+        number: 142,
         name: "Holo-Map blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1817,6 +1982,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_cockpit_console",
+        number: 143,
         name: "Cockpit Console blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Uncommon,
@@ -1829,6 +1995,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_code_cylinder",
+        number: 144,
         name: "Code Cylinder blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1841,6 +2008,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_cortosis_weave",
+        number: 145,
         name: "Cortosis Weave blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1853,6 +2021,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_tatooine_dust",
+        number: 146,
         name: "Tatooine Dust blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1865,6 +2034,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_trench_run",
+        number: 147,
         name: "Trench Run blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1877,6 +2047,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_ryloth_dawn",
+        number: 148,
         name: "Ryloth Dawn blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1889,6 +2060,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_power_coupling",
+        number: 149,
         name: "Power Coupling blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1901,6 +2073,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_kyber_filament",
+        number: 150,
         name: "Kyber Filament blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1913,6 +2086,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_frosted_viewport",
+        number: 151,
         name: "Frosted Viewport blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1925,6 +2099,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_holo_stylus",
+        number: 152,
         name: "Holo-Stylus blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1937,6 +2112,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_sabacc_card",
+        number: 153,
         name: "Sabacc Card blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1949,6 +2125,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_geonosis_hive",
+        number: 154,
         name: "Geonosis Hive blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1961,6 +2138,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_mygeeto_frost",
+        number: 155,
         name: "Mygeeto Frost blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1973,6 +2151,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_bogano_moss",
+        number: 156,
         name: "Bogano Moss blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1985,6 +2164,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_kef_bir_sea_glass",
+        number: 157,
         name: "Kef Bir Sea Glass blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -1997,6 +2177,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_jedha_lantern",
+        number: 158,
         name: "Jedha Lantern blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2009,6 +2190,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_corellian_pearl",
+        number: 159,
         name: "Corellian Pearl blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2021,6 +2203,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_targeting_display",
+        number: 160,
         name: "Targeting Display blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2033,6 +2216,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_raxus_scrap",
+        number: 161,
         name: "Raxus Scrap blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2045,6 +2229,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_pasaana_stone",
+        number: 162,
         name: "Pasaana Stone blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2057,6 +2242,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_smoked_transparisteel",
+        number: 163,
         name: "Smoked Transparisteel blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2069,6 +2255,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_batuu_dusk",
+        number: 164,
         name: "Batuu Dusk blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2081,6 +2268,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
     },
     Unlockable {
         id: "saber_alderaan_velvet",
+        number: 165,
         name: "Alderaan Velvet blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Common,
@@ -2794,6 +2982,42 @@ mod tests {
     /// The hub's catalogue (`src/unlocks.rs` in Sol-Vulpes/SJK-hub) lists exactly these, in
     /// this order and with these names; its test pins the same list, so a change to one
     /// side fails until the other follows.
+    /// Numbers are the blades' names in notes: each its own, from 1, and given in the
+    /// order blades came, so a new one appended takes the next.
+    #[test]
+    fn every_blade_has_its_own_number_in_catalogue_order() {
+        let numbers: Vec<u16> = blade_skins().map(|skin| skin.number).collect();
+        let expected: Vec<u16> = (1..=numbers.len() as u16).collect();
+        assert_eq!(numbers, expected);
+        assert_eq!(
+            blade_skin_numbered(1).map(|skin| skin.id),
+            Some("saber_sun")
+        );
+        assert_eq!(blade_skin_numbered(0), None);
+        assert_eq!(ALL[41].number_text(), "042");
+    }
+
+    /// `docs/unlockables.md` lists every blade by number, the list Sol reviews them from.
+    #[test]
+    fn the_docs_number_every_blade() {
+        let docs = include_str!("../../../docs/unlockables.md");
+        for skin in blade_skins() {
+            let row = format!("| {} | `{}` | {} |", skin.number_text(), skin.id, skin.name);
+            assert!(docs.contains(&row), "docs/unlockables.md lacks {row}");
+        }
+    }
+
+    #[test]
+    fn a_blade_is_named_by_its_id_or_its_number() {
+        let sun = Some("saber_sun");
+        assert_eq!(blade_skin_named("saber_sun").map(|skin| skin.id), sun);
+        assert_eq!(blade_skin_named("1").map(|skin| skin.id), sun);
+        assert_eq!(blade_skin_named("001").map(|skin| skin.id), sun);
+        assert_eq!(blade_skin_named("#1").map(|skin| skin.id), sun);
+        assert_eq!(blade_skin_named("9999"), None);
+        assert_eq!(blade_skin_named("#"), None);
+    }
+
     #[test]
     fn the_catalogue_matches_the_hubs() {
         let listed: Vec<(&str, &str)> = ALL.iter().map(|u| (u.id, u.name)).collect();
