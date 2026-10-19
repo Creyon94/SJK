@@ -120,13 +120,18 @@ impl ChatOverlay {
         if self.is_typing() {
             // JoF's message input is independent of its chat feed. Keep SJK's
             // composer inside the window when the feed sits at virtual y=475.
+            // The composer keeps its pre-19/10/2026 proportion to the feed's text,
+            // which grew to EternalJK's size then.
+            let composer_scale = g.scale * crate::chat::text_sizes::CHAT_FACTOR;
             if matches!(
                 self.scoreboard_layout,
                 crate::scoreboard::behavior::ChatLayout::Classic { .. }
             ) {
-                g.bottom = g.bottom.min(viewport[1] - 200.0 * g.scale);
+                g.bottom = g.bottom.min(viewport[1] - 200.0 * composer_scale);
             }
+            let feed_scale = std::mem::replace(&mut g.scale, composer_scale);
             self.build_composer(font, &g, ms);
+            g.scale = feed_scale;
         }
         // A name under the pointer shows its profile card, over everything.
         self.follow_card(self.is_typing());
