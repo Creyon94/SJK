@@ -3682,7 +3682,8 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   pop-up card over the scene, darkened by half so the selection still shows round it
   ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)). The selection's outline also
   shows over a map explored without a server. As it is typed the text
-  keeps the bug reports' alphabet (letters, digits, spaces and `. , ! ? ' - : ( )`), and
+  keeps the bug reports' alphabet (letters, digits, spaces and
+  `. , ! ? ' - : ( ) _ / \ + = " ; [ ] < > #`), and
   Send needs 3 characters with 2 letters. Enter or
   Send appends the note to `notes.jsonl` (one JSON object: map, UTC time,
   `setviewpos`, camera pose, hit point and normal, draw surface, collision flags,
