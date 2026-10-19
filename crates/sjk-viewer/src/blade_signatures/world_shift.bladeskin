@@ -13,19 +13,19 @@
   "core": {
     "white": [
       1.0,
-      0.95,
-      0.8
+      0.98,
+      0.95
     ],
     "white_flare": 0.4,
     "fringe_cool": [
-      0.6,
-      0.45,
+      0.5,
+      0.7,
       1.0
     ],
     "fringe_hot": [
       1.0,
-      0.88,
-      0.6
+      0.65,
+      0.35
     ],
     "fringe_heat": {
       "base": 0.3,
@@ -46,19 +46,19 @@
   },
   "corona": {
     "rim_cool": [
-      0.1,
-      0.06,
-      0.3
+      0.35,
+      0.2,
+      0.55
     ],
     "rim_hot": [
-      0.55,
-      0.4,
-      0.95
+      0.9,
+      0.6,
+      0.5
     ],
     "inner": [
       1.0,
-      0.9,
-      0.62
+      0.92,
+      0.85
     ],
     "inner_width": 0.6,
     "rim_heat": {
@@ -133,14 +133,14 @@
   },
   "trail": [
     0.9,
-    0.75,
-    0.5
+    0.7,
+    0.6
   ],
   "light": {
     "color": [
       0.95,
-      0.8,
-      0.5
+      0.75,
+      0.6
     ],
     "flicker": {
       "amount": 0.05,
@@ -159,13 +159,19 @@
     }
   },
   "sounds": {
-    "on": "sound/sjk/sabers/world_tree/on.wav",
-    "off": "sound/sjk/sabers/world_tree/off.wav",
-    "hum": "sound/sjk/sabers/world_tree/hum.wav",
+    "on": "sound/sjk/sabers/world_shift/on.wav",
+    "off": "sound/sjk/sabers/world_shift/off.wav",
+    "hum": "sound/sjk/sabers/world_shift/hum.wav",
     "swings": [
-      "sound/sjk/sabers/world_tree/swing1.wav",
-      "sound/sjk/sabers/world_tree/swing2.wav",
-      "sound/sjk/sabers/world_tree/swing3.wav"
+      "sound/sjk/sabers/world_shift/swing1.wav",
+      "sound/sjk/sabers/world_shift/swing2.wav",
+      "sound/sjk/sabers/world_shift/swing3.wav"
     ]
+  },
+  "haze": {
+    "strength": 0.3,
+    "scale": 0.4,
+    "speed": 8.0,
+    "reach": 3.0
   }
 }

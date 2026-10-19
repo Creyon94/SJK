@@ -10,14 +10,6 @@
 // stars turning about it and drifting outward as space expands. Every so often a small new bang
 // goes off somewhere along the blade, a spherical shockwave racing out. A swing stirs the gas and
 // brightens the stars; a clash sets off a big bang flash.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
 // the blade lights in half a second behind a racing fireball
 fn bb_top() -> f32 {
     return uLength * smoothstep(0.04, 0.48, uAge);
@@ -28,6 +20,31 @@ fn bb_shell(ro: vec3<f32>, rd: vec3<f32>, c: vec3<f32>, R: f32, w: f32, dc: ptr<
     var t: f32;
     (*dc) = rayPt(ro, rd, c, &t);
     return halo(abs((*dc) - R), w) + 0.35 * smoothstep(max(R, 0.02), 0.0, (*dc));
+}
+
+// the ray's distance to a ring of radius R round the blade at height y
+fn bb_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
+    var best: f32 = 1.0e3;
+    let h = rayAt(ro, rd, y);
+    if h.z > 0.0 {
+        best = abs(length(h.xy) - R);
+    }
+    let a = dot(rd.xz, rd.xz);
+    let b = dot(ro.xz, rd.xz);
+    let c = dot(ro.xz, ro.xz) - R * R;
+    let dsc = b * b - a * c;
+    if dsc > 0.0 && a > 1.0e-6 {
+        let q = sqrt(dsc);
+        let t0 = (-b - q) / a;
+        let t1 = (-b + q) / a;
+        if t0 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t0 - y));
+        }
+        if t1 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t1 - y));
+        }
+    }
+    return best;
 }
 
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
@@ -60,7 +77,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let rd2 = normalize(rd * sc);
         var tt: f32;
         let dS = rayPt(ro * sc - O * sc, rd2, vec3<f32>(0.0), &tt);
-        var sh = halo(abs(dS - Rh), 0.3 + 0.25 * Rh / 5.0) + 0.35 * smoothstep(Rh, 0.0, dS);
+        let sh = halo(abs(dS - Rh), 0.3 + 0.25 * Rh / 5.0) + 0.35 * smoothstep(Rh, 0.0, dS);
         dO = rayPt(ro, rd, O, &ta);
         col += white * (halo(dO, 0.35) * pre * 6.0 + exp(-dO / 1.5) * pre * 1.5);
         col += mix(white, rose, smoothstep(0.0, 0.8, age)) * sh * burst * 1.3 * fx;
@@ -69,55 +86,41 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         col += mix(white, gold, 0.3) * (halo(fb, 0.8) * 2.0 + exp(-fb / 2.0) * 0.6) * (1.0 - smoothstep(0.4, 0.6, age)) * step(0.05, age);
     }
     if top < 0.1 {
-        return (1.0 - exp(-col * 1.1)) * 1.05;
+        return col;
     }
-    // ---- the white-hot core ----
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
-    let y = -0.6 + s * (top + 0.6);
-    // mini-bangs (two at a time): heat the core where they go off
-    var mb: f32 = 0.0;
-    for (var i = 0; i < 2; i++) {
-        let fi = f32(i);
-        let cyc = t / 2.6 + fi * 0.5;
-        var k = floor(cyc);
-        let q = fract(cyc) * 2.6;
-        let yb = (0.15 + 0.75 * h11(k * 3.3 + fi * 7.1)) * L;
-        mb += exp(-pow((y - yb) / 1.4, 2.0)) * exp(-q * 3.0);
-    }
-    let pul = 0.85 + 0.15 * sin(t * 1.7 - y * 0.35);
-    col += white * exp(-pow(d / max(0.36, px), 2.0)) * (1.45 + mb + young + cl) * pul;
-    col += mix(rose, white, 0.35) * halo(d, 0.9) * (0.6 + 0.5 * mb + 0.3 * st + young);
-    col += rose * halo(d, 2.4) * 0.25 + violet * halo(d, 2.8) * 0.1 * fx;
+    // The blade itself is Sol's glow and core from the skin's file (sig_glow, sig_core).
     let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 9.0 {
-        return (1.0 - exp(-col * 1.1)) * 1.05;
+        return col;
     }
-    // ---- nebula gas and rippling shells (marched) ----
-    let ms = marchSteps(ro, rd, 5.2, -0.5, top + 2.0, 20.0);
-    if ms.y > ms.x {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 3.0));
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 20; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            // differential swirl: the inner gas turns faster
-            let q = rot(t * 0.35 / (0.6 + 0.3 * r) + p.y * 0.07) * p.xz;
-            let n1 = fbm3(vec2(q.x * 0.6 + p.y * 0.33, q.y * 0.6 - p.y * 0.27) + vec2<f32>(3.1, 1.7));
-            let n2 = fbm3(vec2(q.x * 0.45 - q.y * 0.35 + p.y * 0.1, p.y * 0.42 - t * 0.1));
-            let neb = smoothstep(0.45, 0.95, n1 * 0.7 + n2 * 0.55);
-            let fall = exp(-r * r / 7.0) * smoothstep(-0.5, 1.0, p.y) * (1.0 - smoothstep(top - 1.0, top + 2.0, p.y));
-            // shells of light rippling outward from the core
-            var sh: f32 = 0.0;
-            for (var k = 0; k < 3; k++) {
-                let f = fract(t * 0.28 + f32(k) / 3.0 + 0.04 * sin(p.y * 0.25 - t * 0.6));
-                let R = 0.5 + 4.6 * f + 0.35 * sin(p.y * 0.5 - t * 1.5 + f32(k) * 2.0) * f;
-                sh += exp(-pow((r - R) / (0.18 + 0.35 * f), 2.0)) * (1.0 - f) * (1.0 - f);
-            }
-            let gas = mix(mix(vec3<f32>(0.3, 0.35, 1.0), violet, smoothstep(0.3, 0.5, n2)), rose, smoothstep(0.45, 0.7, n2)) * neb * 1.3 + gold * neb * neb * smoothstep(2.0, 0.6, r) * 0.8;
-            acc += (gas * (1.0 + 0.5 * st + 1.5 * young) + mix(white, rose, 0.4) * sh * (0.5 + 1.4 * neb)) * fall;
+    // ---- nebula clouds: soft puffs of gas turning round the blade, inner ones faster ----
+    for (var i = 0; i < 16; i++) {
+        let fi = f32(i);
+        let r = 1.0 + 3.2 * h11(fi * 5.3);
+        let yy = (0.05 + 0.9 * h11(fi * 2.7)) * L;
+        if yy > top + 1.0 {
+            continue;
         }
-        col += acc * ms.z * 0.32;
+        let p = around(r, h11(fi * 1.9) + t * 0.1 / (0.6 + 0.3 * r), yy + 1.2 * sin(t * 0.25 + fi * 1.3));
+        let dd = rayPt(ro, rd, p, &ta);
+        if dd > 4.0 {
+            continue;
+        }
+        var k = h11(fi * 8.1);
+        let gas = select(select(rose, violet, k < 0.66), vec3<f32>(0.3, 0.35, 1.0), k < 0.33);
+        let br = 0.55 + 0.45 * sin(t * 0.9 + fi * 2.1);
+        col += gas * (halo(dd, 0.7 + 0.6 * h11(fi * 3.3)) * 0.7 + halo(dd, 1.8) * 0.16) * br * (1.0 + 0.5 * st + 1.5 * young);
+    }
+    // ---- shells of light rippling outward from the blade, as rings round it ----
+    for (var k = 0; k < 3; k++) {
+        let f = fract(t * 0.28 + f32(k) / 3.0);
+        let yr = (0.2 + 0.6 * h11(f32(k) * 4.1 + floor(t * 0.28 + f32(k) / 3.0))) * L;
+        if yr > top {
+            continue;
+        }
+        let R = 0.6 + 5.0 * f;
+        let dr = bb_ring(ro, rd, yr, R);
+        col += mix(white, rose, 0.4) * (halo(dr, max(0.05, px)) * 1.2 + halo(dr, 0.4) * 0.25) * (1.0 - f) * (1.0 - f) * smoothstep(0.0, 0.08, f);
     }
     // ---- stars turning round the blade and drifting outward as space expands ----
     for (var i = 0; i < 40; i++) {
@@ -148,7 +151,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let c = vec3(0.0, yb, 0.0);
         var dc: f32;
         let R = 4.8 * (1.0 - exp(-q * 2.2));
-        var sh = bb_shell(ro, rd, c, R, 0.12 + 0.12 * R, &dc);
+        let sh = bb_shell(ro, rd, c, R, 0.12 + 0.12 * R, &dc);
         let fade = exp(-q * 1.4) * smoothstep(0.0, 0.05, q);
         col += (mix(white, rose, smoothstep(0.0, 1.2, q)) * sh * 1.2 + white * halo(dc, 0.6) * exp(-q * 6.0) * 2.0) * fade;
     }
@@ -156,8 +159,30 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if cl > 0.01 {
         let a = 1.0 - cl;
         var dc: f32;
-        var sh = bb_shell(ro, rd, vec3(0.0, min(L * 0.6, top), 0.0), 0.5 + 5.5 * (1.0 - exp(-a * 4.0)), 0.5, &dc);
+        let sh = bb_shell(ro, rd, vec3(0.0, min(L * 0.6, top), 0.0), 0.5 + 5.5 * (1.0 - exp(-a * 4.0)), 0.5, &dc);
         col += white * (halo(dc, 1.8) * 3.5 + halo(dc, 3.4) * 1.2) * cl * cl + mix(white, rose, a) * sh * cl * 1.4;
     }
-    return (1.0 - exp(-col * 1.1)) * 1.05;
+    return col;
+}
+
+// the blade: Sol's glow and core from the file, heated where a small bang goes off
+fn bb_mb(y: f32) -> f32 {
+    var mb: f32 = 0.0;
+    for (var i = 0; i < 2; i++) {
+        let fi = f32(i);
+        let cyc = uTime / 2.6 + fi * 0.5;
+        let k = floor(cyc);
+        let q = fract(cyc) * 2.6;
+        let yb = (0.15 + 0.75 * h11(k * 3.3 + fi * 7.1)) * uLength;
+        mb += exp(-pow((y - yb) / 1.4, 2.0)) * exp(-q * 3.0);
+    }
+    return mb + exp(-uAge * 2.5) + 0.5 * clamp(uClash, 0.0, 1.0);
+}
+
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return g * (0.9 + 0.1 * sin(uTime * 1.7 - b.y * 0.35) + bb_mb(b.y) + 0.3 * uSwing);
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c * (1.0 + 0.6 * bb_mb(b.y));
 }

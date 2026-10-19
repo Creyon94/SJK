@@ -50,6 +50,22 @@ GPU test renders every design on llvmpipe (GL) and passed. Not yet compared in a
 match; the sounds are still the skin files' (a separate change, the files are in the
 hub's pack).
 
+## Blade Lab signatures, round 8: effects round the blade as Sol's
+
+19/10/2026, `wip/blade-3d`, based on `feat/blade-signatures` (on `main` `046ef86b`): after
+Creyon's round 8 test, every signature blade is built as Sol's blades are
+([rendering.md](rendering.md#blade-lab-signature-shaders)): the blade is the skin file's
+glow and core (filling the emitter in first person), its effects are soft pieces placed
+round it in 3D that face the camera (`sig_vol`, `sig_vol_solid` with the view ray in the
+blade's frame), fading before the quad's edges; no small figures on any blade. New:
+Carbonite (replaces Nine Lives), the Uneti Tree (replaces World Tree), World Shift
+(replaces Elemental: six climates, each change an explosion), the Sith Holocron and the
+Exogorth; heat haze on the hot blades; their sounds in the Blade Lab's scripts. Checked on
+Linux x86_64 (Rust 1.97, lavapipe): the signatures translate and validate, previews of
+every changed blade from the side, above, the tip and first person looked at, the lab page
+draws the same hooks. Not verified: Windows, the game window, a live server, the sounds in
+game (the hub's pack), frame time with several of these blades on screen.
+
 ## Blade Lab signature shaders in game
 
 19/10/2026, `feat/blade-signatures`, based on `feat/blade-lab-designs` (on `main`

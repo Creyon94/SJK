@@ -10,32 +10,29 @@
 // the tip down, passing each other. Soft portal rings of shimmering light open and close along it,
 // and star dust drifts slowly through the dark. A swing scatters the echoes wide; a clash makes
 // every portal flash open at once.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-// a soft ring (torus) of radius R at height h, thickness w: its density integrated along the ray
-fn bww_ring(ro: vec3<f32>, rd: vec3<f32>, h: f32, R: f32, w: f32) -> f32 {
-    let sp = raySpan(ro, rd, R + 2.5 * w, h - 2.5 * w, h + 2.5 * w);
-    if sp.y <= sp.x {
-        return 0.0;
+// the ray's distance to a ring of radius R round the blade at height h
+fn bww_ring(ro: vec3<f32>, rd: vec3<f32>, h: f32, R: f32) -> f32 {
+    var best: f32 = 1.0e3;
+    let q = rayAt(ro, rd, h);
+    if q.z > 0.0 {
+        best = abs(length(q.xy) - R);
     }
-    let dt = (sp.y - sp.x) / 6.0;
-    var t = sp.x + dt * 0.5;
-    var acc: f32 = 0.0;
-    for (var i = 0; i < 6; i++) {
-        let p = ro + rd * t;
-        let r = length(p.xz);
-        let a = atan2(p.x, p.z);
-        let d2 = (r - R) * (r - R) + (p.y - h) * (p.y - h) * 0.5;
-        acc += exp(-d2 / (w * w)) * dt * (0.7 + 0.3 * sin(a * 5.0 + uTime * 1.3 + h));
-        t += dt;
+    let a = dot(rd.xz, rd.xz);
+    let b = dot(ro.xz, rd.xz);
+    let c = dot(ro.xz, ro.xz) - R * R;
+    let dsc = b * b - a * c;
+    if dsc > 0.0 && a > 1.0e-6 {
+        let k = sqrt(dsc);
+        let t0 = (-b - k) / a;
+        let t1 = (-b + k) / a;
+        if t0 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t0 - h));
+        }
+        if t1 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t1 - h));
+        }
     }
-    return acc;
+    return best;
 }
 
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
@@ -47,12 +44,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let gold: vec3<f32> = vec3<f32>(1.0, 0.80, 0.45);
     let pale: vec3<f32> = vec3<f32>(1.0, 0.95, 0.85);
     let dusk: vec3<f32> = vec3<f32>(0.55, 0.45, 0.30);
-    // the blade: a calm white-gold path of light
-    var s: f32;
-    let dA = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
-    let ya = mix(-0.6, top, s);
-    let br = 0.85 + 0.15 * sin(ya * 0.5 - uTime * 0.8) + 0.10 * sin(ya * 0.21 + uTime * 0.5);
-    var light = vec3<f32>(1.0) * exp(-pow(dA / max(0.24, px), 2.0)) * (1.35 + cl * 0.5) + gold * halo(dA, 0.55) * 0.75 * br + gold * halo(dA, 1.8) * 0.22 * br + dusk * halo(dA, 5.0) * 0.06;
+    // The blade itself is Sol's glow and core from the file (sig_glow, sig_core).
+    var light: vec3<f32> = vec3<f32>(0.0);
     if fxOn < 0.001 {
         return light;
     }
@@ -114,16 +107,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let h = L * (0.25 + 0.27 * fk) + 1.2 * sin(uTime * 0.25 + fk * 2.0);
         if h < top && open > 0.01 {
             let R = 0.6 + 2.4 * open + 4.0 * cl * (1.0 - cl);
-            let ring = bww_ring(ro, rd, h, R, 0.35 + 0.35 * open);
-            light += mix(gold, pale, 0.5) * ring * open * (0.6 + 0.5 * cl) * (0.35 + 0.65 * smoothstep(0.05, 0.5, abs(rd.y)));
-            let hp = rayAt(ro, rd, h);
-            if hp.z > 0.0 {
-                let r = length(hp.xy);
-                let a = atan2(hp.x, hp.y);
-                let veil = exp(-pow(r / (R * 0.85), 4.0)) * (0.5 + 0.5 * sin(r * 5.0 - uTime * 3.0 + 0.6 * sin(a * 3.0 + uTime)));
-                let gz = clamp(abs(rd.y), 0.15, 1.0);
-                light += pale * veil * open * 0.07 / gz * smoothstep(0.3, 0.9, r);
-            }
+            let dr = bww_ring(ro, rd, h, R);
+            let sh = 0.7 + 0.3 * sin(uTime * 1.3 + h);
+            light += (pale * halo(dr, max(0.05, px)) * 1.2 + mix(gold, pale, 0.5) * halo(dr, 0.3 + 0.3 * open) * 0.45) * open * sh * (0.6 + 0.5 * cl);
         }
     }
     // the starry void: tiny stars round the blade, some slowly drifting, twinkling
@@ -143,25 +129,16 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             light += (sc * halo(d, w) * 1.4 + sc * halo(d, w * 3.5) * 0.18) * tw * edge;
         }
     }
-    // star dust and ripples of time: a faint marched haze round the blade, rings of rippling light
-    let ms = marchSteps(ro, rd, 5.6, -0.3, L + 1.5, 16.0);
-    if ms.y > ms.x {
-        var t = ms.x + ms.z * h21(rd.xy * 517.0 + rd.z * 29.0);
-        var acc: f32 = 0.0;
-        for (var i = 0; i < 16; i++) {
-            let p = ro + rd * t;
-            if p.y < top {
-                let r = length(p.xz);
-                let n = fbm3(vec2(p.x * 0.35 + p.y * 0.05, p.y * 0.10 + uTime * 0.04)) * fbm3(vec2(p.z * 0.35 - p.y * 0.04 + 3.0, p.y * 0.12 - uTime * 0.05));
-                let rip = 0.55 + 0.45 * sin(r * 2.2 - uTime * 1.1 + p.y * 0.15);
-                let sh = smoothstep(0.6, 2.2, r) * (1.0 - smoothstep(2.8, 5.4, r)) * smoothstep(-0.3, 2.0, p.y) * (1.0 - smoothstep(L - 1.5, L + 1.5, p.y));
-                acc += smoothstep(0.28, 0.6, n * 1.4) * sh * rip;
-            }
-            t += ms.z;
-        }
-        light += mix(dusk, gold, 0.4) * acc * ms.z * 0.12;
-    }
     return light;
+}
+
+// the blade: Sol's glow and core from the file, breathing calmly
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return g * (0.85 + 0.15 * sin(b.y * 0.5 - uTime * 0.8) + 0.10 * sin(b.y * 0.21 + uTime * 0.5) + 0.5 * clamp(uClash, 0.0, 1.0));
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c;
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

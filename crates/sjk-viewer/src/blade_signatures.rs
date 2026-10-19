@@ -39,27 +39,29 @@ macro_rules! signature {
 /// The signatures, mythicals first (Creyon's order, 19/10/2026). The last six are his
 /// Blade Lab designs reworked in full, which replace their hand-ported designs
 /// (`blade_lab_designs.rs`).
-pub(crate) const SIGNATURES: [Signature; 27] = [
+pub(crate) const SIGNATURES: [Signature; 29] = [
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
     signature!("balance"),
     signature!("between_worlds"),
     signature!("big_bang"),
+    signature!("carbonite"),
     signature!("dyson_sphere"),
     signature!("eclipse"),
-    signature!("elemental"),
     signature!("event_horizon"),
+    signature!("exogorth"),
     signature!("hyperspace"),
     signature!("kyber_heart"),
-    signature!("nine_lives"),
     signature!("quasar"),
     signature!("singing_kyber"),
+    signature!("sith_holocron"),
     signature!("star_dragon"),
     signature!("star_whale"),
     signature!("starforge"),
     signature!("superlaser"),
+    signature!("uneti_tree"),
     signature!("witchfire"),
-    signature!("world_tree"),
+    signature!("world_shift"),
     signature!("wraithlight"),
     signature!("monarch"),
     signature!("obsidian"),
@@ -242,11 +244,16 @@ mod tests {
     fn every_signature_has_its_room_and_its_own_three_passes() {
         for signature in &SIGNATURES {
             let room = signature.room();
-            assert!((0.0..=8.0).contains(&room), "{}: room {room}", signature.id);
+            assert!(
+                (0.0..=10.0).contains(&room),
+                "{}: room {room}",
+                signature.id
+            );
             assert!(signature.wgsl.contains("fn sig_glow("), "{}", signature.id);
             assert_eq!(
                 signature.solid(),
-                signature.wgsl.contains("fn sig_solid("),
+                signature.wgsl.contains("fn sig_solid(")
+                    || signature.wgsl.contains("fn sig_vol_solid("),
                 "{}: @solid and sig_solid disagree",
                 signature.id
             );

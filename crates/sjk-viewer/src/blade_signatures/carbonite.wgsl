@@ -62,85 +62,60 @@ fn cb_beat() -> f32 {
     return 0.55 + 0.45 * pow(0.5 + 0.5 * sin(uTime * 2.6), 10.0) + 0.35 * pow(0.5 + 0.5 * sin(uTime * 2.6 - 0.6), 14.0);
 }
 
-// the slab's shape: a rounded, slightly lumpy square prism turned a little round the blade
-fn cb_q(p: vec3<f32>) -> vec2<f32> {
-    let sh = smoothstep(7.4, 8.0, cb_ph()) * 0.05 * sin(uTime * 70.0);
-    // it shudders before it bursts
-    return rot(0.5) * p.xz + vec2(sh, 0.0);
-}
-
-fn cb_sdf(p: vec3<f32>) -> f32 {
-    let L = uLength;
-    var w = CB_W + 0.06 * (vn(vec2(p.y * 0.7, 3.0)) - 0.5);
-    w *= 1.0 - 0.35 * smoothstep(L - 1.5, L + 0.5, p.y);
-    let q = cb_q(p);
-    let d2 = sdBox(q, vec2(w - CB_RR)) - CB_RR;
-    let top = cb_stop();
-    let e = vec2(d2, max(p.y - top, CB_Y0 - p.y) + 0.25);
-    return min(max(e.x, e.y), 0.0) + length(max(e, vec2<f32>(0.0))) - 0.25;
-}
-
-// cold steam: density of the vapour at p (two noise slices crossed, so it is round in 3D)
-fn cb_dens(p: vec3<f32>) -> f32 {
-    let t = uTime;
-    let L = uLength;
-    let r = length(p.xz);
-    let ph = cb_ph();
-    let held = cb_held();
-    var n = fbm3(vec2(p.x * 0.55 + 1.3, p.y * 0.32 - t * 1.1 - r * 0.25)) * fbm3(vec2(p.z * 0.55 - 2.1, p.y * 0.29 - t * 0.9 - r * 0.3 + 4.0));
-    n = smoothstep(0.12, 0.55, n);
-    // a sleeve of vapour pouring off the slab, a soft mist round the free blade
-    let shell = exp(-max(r - 0.9, 0.0) / 1.3) * smoothstep(0.5, 1.0, r);
-    let base = held * 0.55 * smoothstep(-0.5, 0.0, cb_front() - p.y) + (1.0 - held) * 0.22;
-    // the freezing wave: a thick billow at the climbing front
-    let wave = exp(-pow((p.y - cb_front()) / 1.8, 2.0)) * smoothstep(2.6, 1.6, ph) * 2.2 * exp(-max(r - 1.0, 0.0) / 2.2);
-    // the burst: a shell of mist blown outward
-    let bu = cb_burst();
-    let burst = select(0.0, exp(-pow((r - 0.8 - 2.6 * sqrt(bu)) / 1.1, 2.0)) * (1.0 - bu) * 1.5, (bu > 0.0 && bu < 1.0));
-    let cl = select(0.0, exp(-length(p - vec3(0.0, L * 0.6, 0.0)) / 2.0) * uClash * 2.0, uClash > 0.01);
-    let d = n * (base * shell + wave + burst + cl);
-    return d * (1.0 - smoothstep(2.8, 4.8, r)) * smoothstep(cb_btop() + 2.5, cb_btop(), p.y) * smoothstep(-0.8, 0.5, p.y) * (1.0 - smoothstep(L + 0.5, L + 3.5, p.y));
-}
-
-// march the steam from the start of its span up to tmax
-fn cb_steam(ro: vec3<f32>, rd: vec3<f32>, tmax: f32) -> vec3<f32> {
-    let m = marchSteps(ro, rd, 5.0, -0.8, uLength + 3.5, 18.0);
-    if m.y <= m.x {
-        return vec3<f32>(0.0);
-    }
-    let te = min(m.y, tmax);
-    if te <= m.x {
-        return vec3<f32>(0.0);
-    }
-    let dt = (te - m.x) / 18.0;
-    var t = m.x + dt * h21(rd.xy * 517.0 + ro.xz);
-    var acc: f32 = 0.0;
-    var lit: f32 = 0.0;
-    let beat = cb_beat();
-    let free = 1.0 - cb_held();
-    for (var i = 0; i < 18; i++) {
-        let p = ro + rd * t;
-        let d = cb_dens(p);
-        if d > 0.001 {
-            let r = length(p.xz);
-            // lit by the blade: brighter near it, beating with the trapped heart while frozen
-            let g = 0.35 + 1.1 * exp(-r / 1.4) * mix(0.5 + 0.6 * beat * cb_crack(), 1.6, free);
-            let tr = exp(-acc * 1.2);
-            lit += d * g * tr * dt;
-            acc += d * dt;
-        }
-        t += dt;
-    }
-    return vec3<f32>(0.72, 0.86, 0.95) * lit * 0.75;
-}
-
-// the light beating through the hairline cracks on a face: face coords (u, y)
+// the light beating through the hairline cracks at (across, along) on the slab
 fn cb_cracks(f: vec2<f32>, px: f32) -> f32 {
     var cell: vec2<f32>;
     let e = voro(vec2(f.x * 2.4, f.y * 0.75), &cell);
     let reach = cb_crack();
     let keep = step(h21(cell + 3.1), reach);
     return halo(e, max(0.045 + 0.05 * reach, px * 1.2)) * keep;
+}
+
+// the slab, drawn over Sol's glow and core as his solid blades are (the Comic's ink, the
+// Quicksilver's chrome): a rounded bar of dark bronze facing the camera, lit from one side,
+// with cast grooves across it, a raised rib, a cold sheen and the trapped light in its cracks
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
+    if uFx < 0.01 || cb_held() < 0.5 {
+        return o;
+    }
+    let top = cb_stop();
+    if top < CB_Y0 + 0.2 {
+        return o;
+    }
+    let t = uTime;
+    let L = uLength;
+    let sh = smoothstep(7.4, 8.0, cb_ph()) * 0.05 * sin(uTime * 70.0);
+    var w = CB_W + 0.06 * (vn(vec2(b.y * 0.7, 3.0)) - 0.5);
+    w *= 1.0 - 0.35 * smoothstep(L - 1.5, L + 0.5, b.y);
+    let x = b.x + sh;
+    // a rounded end at the foot and the top
+    let dy = max(max(b.y - (top - CB_RR), (CB_Y0 + CB_RR) - b.y), 0.0);
+    let d = length(vec2(max(abs(x) - (w - CB_RR), 0.0), dy)) - CB_RR;
+    let cov = fillD(d, px);
+    if cov <= 0.0 {
+        return o;
+    }
+    let u = x / w;
+    let nz = fbm3(vec2(u * 2.6 + 7.0, b.y * 0.9));
+    let gy = abs(fract(b.y / 4.0) - 0.5) * 4.0;
+    let groove = 1.0 - 0.55 * halo(gy, 0.12);
+    let lip = halo(gy - 0.18, 0.08) * 0.5;
+    let rib = halo(abs(abs(u) - 0.55), 0.06) * 0.35;
+    // a bar's shading: the light from the upper left, a bright edge, darker toward the far side
+    let nx = clamp(u, -1.0, 1.0);
+    let dif = clamp(0.55 - 0.5 * nx + 0.15 * sqrt(1.0 - nx * nx), 0.0, 1.0);
+    let spec = pow(halo(nx + 0.45, 0.22), 2.0);
+    let fres = pow(abs(nx), 4.0);
+    var rgb = vec3<f32>(0.34, 0.27, 0.19) * (0.55 + 0.7 * (nz - 0.35)) * groove * (0.25 + 0.95 * dif);
+    rgb += vec3<f32>(0.55, 0.48, 0.38) * (lip + rib) * (0.4 + 0.6 * dif);
+    rgb += vec3<f32>(0.75, 0.82, 0.9) * spec * 0.4 * (0.6 + 0.4 * nz);
+    let sheen = halo(b.y - glsl_mod(t * 6.0, L + 20.0) + 10.0 - u * 2.0, 1.4);
+    rgb += vec3<f32>(0.45, 0.6, 0.7) * sheen * (0.25 + 0.5 * fres) + vec3<f32>(0.35, 0.5, 0.6) * fres * 0.3;
+    rgb = mix(rgb, vec3<f32>(0.78, 0.88, 0.94) * (0.6 + 0.4 * nz), halo(b.y - cb_front(), 1.3) * 0.7 * smoothstep(2.6, 1.4, cb_ph()));
+    let glowIn = (0.5 + 1.5 * cb_beat()) * (0.5 + 0.9 * cb_crack());
+    rgb += vec3<f32>(0.75, 0.95, 1.0) * cb_cracks(vec2(u, b.y), px) * glowIn * 1.2;
+    rgb += vec3<f32>(0.25, 0.55, 0.8) * halo(u, 0.5) * 0.12 * glowIn * smoothstep(0.4, 1.2, cb_crack());
+    return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
 }
 
 // a flying shard of slab: how much it covers the ray; th its depth, sh.x its facet shade,
@@ -164,112 +139,33 @@ fn cb_shard(ro: vec3<f32>, rd: vec3<f32>, c: vec3<f32>, sz: f32, spin: f32, seed
     return clamp(0.5 - k / max(px, 1.0e-3), 0.0, 1.0);
 }
 
+// the burst and the clash: shards of slab, each a piece facing the camera, flung out in 3D
 fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let L = uLength;
-    let t = uTime;
     var col: vec4<f32> = vec4<f32>(0.0);
-    var tHit: f32 = 1.0e5;
     if uFx < 0.01 {
         return col;
     }
-    // ---- the slab ----
-    if cb_held() > 0.5 && cb_stop() > CB_Y0 + 0.2 {
-        let sp = raySpan(ro, rd, CB_W * 1.5, CB_Y0 - 0.1, cb_stop() + 0.2);
-        if sp.y > sp.x {
-            var tt = sp.x;
-            var dmin: f32 = 1.0e3;
-            var tmin = sp.x;
-            var hit: bool = false;
-            for (var i = 0; i < 40; i++) {
-                let d = cb_sdf(ro + rd * tt);
-                if d < dmin {
-                    dmin = d;
-                    tmin = tt;
-                }
-                if d < 0.002 {
-                    hit = true;
-                    break;
-                }
-                tt += d * 0.9;
-                if tt > sp.y {
-                    break;
-                }
-            }
-            let cov = select(clamp(1.0 - dmin / max(px, 1.0e-3), 0.0, 1.0), 1.0, hit);
-            if cov > 0.0 {
-                let p = ro + rd * (select(tmin, tt, hit));
-                let e: vec2<f32> = vec2<f32>(0.03, 0.0);
-                let n = normalize(vec3(cb_sdf(p + e.xyy) - cb_sdf(p - e.xyy), cb_sdf(p + e.yxy) - cb_sdf(p - e.yxy), cb_sdf(p + e.yyx) - cb_sdf(p - e.yyx)));
-                let q = cb_q(p);
-                // face coordinates: across the face (u) and up it (y); each face its own pattern
-                let fx = abs(q.x) > abs(q.y);
-                let u = select(q.x, q.y, fx);
-                let fid = select((select(3.0, 2.0, q.y > 0.0)), (select(1.0, 0.0, q.x > 0.0)), fx);
-                let f = vec2(u + fid * 5.3, p.y);
-                // cast relief: a lumpy surface, grooves across, raised panel ribs
-                let nz = fbm3(vec2(f.x * 2.6, f.y * 0.9));
-                let gy = abs(fract(p.y / 4.0) - 0.5) * 4.0;
-                let groove = 1.0 - 0.55 * halo(gy, 0.12);
-                let lipLight = halo(gy - 0.18, 0.08) * 0.5;
-                // the lit lip above each groove
-                let panel = halo(abs(abs(u) - 0.42), 0.05) * 0.35;
-                // a raised rib down each face
-                let kl = normalize(vec3<f32>(-0.45, 0.6, 0.65));
-                let v = -rd;
-                let dif = max(dot(n, kl), 0.0);
-                let spec = pow(max(dot(reflect(-kl, n), v), 0.0), 24.0);
-                let fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-                let bronze = vec3<f32>(0.34, 0.27, 0.19) * (0.55 + 0.7 * (nz - 0.35)) * groove;
-                var rgb = bronze * (0.25 + 0.95 * dif) + vec3<f32>(0.55, 0.48, 0.38) * (lipLight + panel) * (0.4 + 0.6 * dif);
-                rgb += vec3<f32>(0.75, 0.82, 0.9) * spec * 0.45 * (0.6 + 0.4 * nz);
-                // a cold sheen sliding up the slab
-                let sheen = halo(p.y - glsl_mod(t * 6.0, L + 20.0) + 10.0 - u * 2.0, 1.4);
-                rgb += vec3<f32>(0.45, 0.6, 0.7) * sheen * (0.25 + 0.5 * fres);
-                rgb += vec3<f32>(0.35, 0.5, 0.6) * fres * 0.35;
-                // frost where it is newest, at the climbing front
-                rgb = mix(rgb, vec3<f32>(0.78, 0.88, 0.94) * (0.6 + 0.4 * nz), halo(p.y - cb_front(), 1.3) * 0.7 * smoothstep(2.6, 1.4, cb_ph()));
-                // the light inside beating through the cracks, the glow under the surface around them
-                let cr = cb_cracks(f, px);
-                let glowIn = (0.5 + 1.5 * cb_beat()) * (0.5 + 0.9 * cb_crack());
-                rgb += vec3<f32>(0.75, 0.95, 1.0) * cr * glowIn * 1.2;
-                rgb += vec3<f32>(0.25, 0.55, 0.8) * halo(abs(u), 0.5) * 0.12 * glowIn * smoothstep(0.4, 1.2, cb_crack());
-                // steam that hangs in front of the slab
-                rgb += cb_steam(ro, rd, select(tmin, tt, hit)) * uFx;
-                col = vec4(rgb, cov);
-                tHit = select(tmin, tt, hit);
-            }
-        }
-    }
-    // ---- the burst: shards of slab flying outward all round, lit by the freed blade ----
     let bu = cb_burst();
     if bu > 0.0 && bu < 1.0 {
         var bestT: f32 = 1.0e5;
-        var sc: vec4<f32> = vec4<f32>(0.0);
         for (var i = 0; i < 30; i++) {
             let fi = f32(i);
             let a = h11(fi * 1.7 + 0.3);
             let y0 = (0.03 + 0.94 * fract(fi * 0.381 + 0.07)) * L;
-            let vr = 2.2 + 3.6 * h11(fi * 5.1);
+            let vr = 3.0 + 5.0 * h11(fi * 5.1);
             let c = around(0.55 + vr * bu, a, y0 + 2.2 * (h11(fi * 7.3) - 0.35) * bu - 2.5 * bu * bu);
-            let sz = (0.75 + 0.55 * h11(fi * 9.1)) * (1.0 - smoothstep(0.55, 1.0, bu));
+            let sz = (0.6 + 0.45 * h11(fi * 9.1)) * (1.0 - smoothstep(0.55, 1.0, bu));
             var th: f32;
             var sh: vec2<f32>;
             let cv = cb_shard(ro, rd, c, sz, bu * (5.0 + 7.0 * h11(fi)), fi, px, &th, &sh);
             if cv > 0.0 && th < bestT {
                 bestT = th;
-                var rgb = vec3<f32>(0.30, 0.24, 0.17) * sh.x * 1.2 + vec3<f32>(0.7, 0.92, 1.0) * sh.y * 1.6 * (1.0 - bu * 0.7);
-                sc = vec4(rgb, cv * (1.0 - smoothstep(0.7, 1.0, bu)));
+                let rgb = vec3<f32>(0.30, 0.24, 0.17) * sh.x * 1.2 + vec3<f32>(0.7, 0.92, 1.0) * sh.y * 1.6 * (1.0 - bu * 0.7);
+                col = vec4(rgb, cv * (1.0 - smoothstep(0.7, 1.0, bu)));
             }
         }
-        if sc.a > 0.0 {
-            let sig_t0 = cb_steam(ro, rd, bestT);
-            sc.r += sig_t0.x;
-            sc.g += sig_t0.y;
-            sc.b += sig_t0.z;
-            col = vec4(mix(col.rgb, sc.rgb, sc.a), max(col.a, sc.a));
-        }
     }
-    // ---- a clash chips the slab: a few shards blown off where it was struck ----
     if uClash > 0.01 && cb_held() > 0.5 {
         let a = 1.0 - uClash;
         for (var i = 0; i < 6; i++) {
@@ -278,57 +174,85 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
             var th: f32;
             var sh: vec2<f32>;
             let cv = cb_shard(ro, rd, c, 0.4 * (1.0 - a * 0.6), a * 9.0, fi + 40.0, px, &th, &sh);
-            if cv > 0.0 && th < tHit {
+            if cv > 0.0 {
                 col = vec4(mix(col.rgb, vec3<f32>(0.32, 0.26, 0.19) * sh.x + vec3<f32>(0.6, 0.9, 1.0) * sh.y * 1.5 * uClash, cv), max(col.a, cv));
             }
         }
     }
-    col.a *= uFx;
+    return col;
+}
+
+// cold vapour: soft puffs rolling off the slab and climbing with the freezing front, blown
+// out in a ring when it bursts; each puff faces the camera
+fn cb_steam(ro: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
+    let t = uTime;
+    let L = uLength;
+    var ta: f32;
+    let held = cb_held();
+    let bu = cb_burst();
+    let ph = cb_ph();
+    let front = cb_front();
+    var col: vec3<f32> = vec3<f32>(0.0);
+    for (var i = 0; i < 22; i++) {
+        let fi = f32(i);
+        let f = fract(t * (0.18 + 0.1 * h11(fi * 2.1)) + h11(fi * 5.7));
+        let y0 = h11(fi * 3.3 + floor(t * (0.18 + 0.1 * h11(fi * 2.1)) + h11(fi * 5.7))) * min(cb_stop(), cb_btop());
+        var r = 0.9 + 1.6 * f;
+        var yy = y0 + 1.5 * f;
+        // at the freezing front the steam billows thick; when it bursts it is blown out
+        let wave = smoothstep(2.6, 1.6, ph);
+        yy = mix(yy, front - 1.0 + 2.0 * h11(fi * 1.3), wave * step(fi, 9.0));
+        r += 3.5 * bu * (1.0 - bu) * 4.0 * step(0.001, bu);
+        let p = around(r, h11(fi * 8.9) + 0.05 * t, yy);
+        let dd = rayPt(ro, rd, p, &ta);
+        if dd > 3.0 {
+            continue;
+        }
+        let life = sin(3.1416 * f) * (held * 0.8 + (1.0 - held) * 0.4) + wave * 0.6 * step(fi, 9.0);
+        col += vec3<f32>(0.72, 0.86, 0.95) * (halo(dd, 0.55 + 0.6 * f) * 0.22 + halo(dd, 1.3) * 0.05) * life;
+    }
     return col;
 }
 
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
-    let t = uTime;
-    let top = cb_btop();
-    let held = cb_held();
     let bu = cb_burst();
-    // the freed blade blazes as the slab bursts
-    let flare = 1.0 + 0.9 * (1.0 - bu) * step(0.001, bu);
     let c: vec3<f32> = vec3<f32>(0.6, 0.88, 1.0);
-    var light = blade3(ro, rd, px, c, 0.36, top) * flare;
-    var ta: f32;
-    let dAx = raySeg(ro, rd, vec3(0.0, CB_Y0, 0.0), vec3(0.0, min(cb_stop(), top), 0.0), &ta);
-    if uFx > 0.01 {
-        // trapped light: a soft heartbeat glow round the frozen slab
-        light += c * halo(max(dAx - CB_W * 1.1, 0.0), 0.55) * held * cb_beat() * 0.45 * cb_crack() * step(CB_Y0 + 0.2, cb_stop()) * uFx;
-        // the burst: the freed blade's blaze lights the air round it
-        if bu > 0.0 && bu < 1.0 {
-            light += c * halo(max(dAx, 0.0), 1.5 + 3.0 * bu) * (1.0 - bu) * 0.6 * uFx;
-        }
-        // clash: a ring of light round the struck point, and a flash
-        if uClash > 0.01 {
-            let a = 1.0 - uClash;
-            let h = rayAt(ro, rd, L * 0.6);
-            if h.z > 0.0 {
-                light += vec3<f32>(0.75, 0.95, 1.0) * halo(abs(length(h.xy) - 0.8 - 6.0 * a), 0.25) * 1.4 * uClash * uFx;
-            }
-            var tc: f32;
-            let dc = rayPt(ro, rd, vec3(0.0, L * 0.6, 0.0), &tc);
-            light += vec3<f32>(0.75, 0.95, 1.0) * halo(dc, 1.4) * pow(uClash, 2.0) * uFx;
-        }
-        // the vapour all round
-        light += cb_steam(ro, rd, 1.0e5) * uFx;
+    var light: vec3<f32> = vec3<f32>(0.0);
+    if uFx < 0.01 {
+        return light;
     }
-    return (1.0 - exp(-light * 1.15)) * 1.05;
+    var ta: f32;
+    // the burst: the freed blade's blaze
+    if bu > 0.0 && bu < 1.0 {
+        let dAx = raySeg(ro, rd, vec3(0.0, CB_Y0, 0.0), vec3(0.0, cb_btop(), 0.0), &ta);
+        light += c * (halo(dAx, 0.9) * 1.2 + halo(dAx, 2.5) * 0.25) * (1.0 - bu);
+    }
+    // clash: a ring of light round the struck point, and a flash
+    if uClash > 0.01 {
+        let a = 1.0 - uClash;
+        let h = rayAt(ro, rd, L * 0.6);
+        if h.z > 0.0 {
+            light += vec3<f32>(0.75, 0.95, 1.0) * halo(abs(length(h.xy) - 0.8 - 6.0 * a), 0.25) * 1.4 * uClash;
+        }
+        let dc = rayPt(ro, rd, vec3(0.0, L * 0.6, 0.0), &ta);
+        light += vec3<f32>(0.75, 0.95, 1.0) * halo(dc, 1.4) * pow(uClash, 2.0);
+    }
+    return light + cb_steam(ro, rd);
+}
+
+// the blade: Sol's glow and core from the file, blazing as it breaks free
+fn cb_flare() -> f32 {
+    let bu = cb_burst();
+    return 1.0 + 0.9 * (1.0 - bu) * step(0.001, bu);
 }
 
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return g * cb_flare();
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c * cb_flare();
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

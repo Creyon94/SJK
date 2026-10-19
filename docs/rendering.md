@@ -1894,13 +1894,29 @@ the pictures to the folder `SJK_LAB_PREVIEW` names.
 Creyon's Blade Lab grew into a collection of more than a hundred blades, each drawn by
 its own **signature shader** on top of SJK's skin shading, which the lab runs as a GLSL
 port of `saber.wgsl` (19/10/2026: the twenty-one mythicals first, then six of his reworked
-Blade Lab designs). A signature is three functions, each handed what the skin's file drew
+Blade Lab designs; round 8 replaced Nine Lives, World Tree and Elemental with Carbonite,
+the Uneti Tree and World Shift and added the Sith Holocron and the Exogorth: twenty-nine).
+A signature is three functions (and two more, below), each handed what the skin's file drew
 at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's light,
 `sig_core(c, b, px)` the core line's, `sig_solid(o, b, px)` a layer blended over the glow;
 `b` is the place in units (across, along: 0 at the hilt, the blade's length at the tip),
 `r` the stock glow's radius there, `px` a pixel. They read the lab's uniforms: `uTime`,
-`uLength`, `uSwing`, `uClash`, `uIgn`, `uAge`, `uSeed`.
+`uLength`, `uSwing`, `uClash`, `uIgn`, `uAge`, `uSeed`, `uFx`.
 
+- **Effects round the blade (round 8, 19/10/2026).** Built as Sol's own blades are: the
+  blade itself is the skin file's glow and core, which `sig_glow` and `sig_core` only
+  brighten, tint or mark (so it fits the hilt and fills the emitter as a stock blade
+  does), and solid parts (Carbonite's slab, the Sith Holocron's crystal, the Exogorth's
+  gullet) are drawn by `sig_solid` over it as Sol's ink and chrome are. Everything round
+  the blade is drawn by two more hooks, `sig_vol(ro, rd, px)` (added light) and
+  `sig_vol_solid(ro, rd, px)` (a blended layer), handed the view ray in the blade's own
+  frame (`sig_ray`: y along the blade from the hilt, x across to the camera's side, z
+  toward the camera): sparks, flames, bolts, rings, puffs of mist and shards are placed
+  round the blade in 3D and each is drawn as a soft piece facing the camera (the ray's
+  distance to a point or segment, `rayPt`, `raySeg`, `bolt3` in `lab.glsl`), as Sol's
+  arcs and the Void's orbiting black holes are; no volume is marched. `sig_edge` fades
+  everything out before the quad's edges, and `uFx` is 0 when the wearer turns the
+  effects off. `@solid 1` marks a signature with `sig_solid` or `sig_vol_solid`.
 - **Source.** The lab's GLSL is the source, kept in
   [blade_signatures/](../crates/sjk-viewer/src/blade_signatures/) (`<name>.glsl`, the lab's
   helpers in `lab.glsl`, which also holds the shared lightning bolt, Storm-like arc loop
@@ -1940,8 +1956,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
 - **Colour.** A chroma signature takes its wearer's colour outright (`sig_recolour`):
   every coloured part becomes the wearer's hue, at least well saturated, and only its
   white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
-  blades hardly changed. Twenty-three of the twenty-seven are chromas (not Elemental and
-  Balance, whose colours are their idea, nor Obsidian Edge and Quicksilver).
+  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron and the Exogorth keep their
+  own colours, as do Obsidian Edge and Quicksilver.
 - **Options.** Every signature skin offers its wearer `Effects round the blade` (off: only
   the blade itself, nothing past a stock glow's width or the tip), `Swing and clash
   bursts` (off: swings and clashes set nothing off) and `Ignition show` (off: lit at
@@ -1961,7 +1977,9 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   is shown, not how fast.
 - **Files and sounds.** A signature skin whose file is in no pack is drawn from the file
   built into the client (`<name>.bladeskin`: the lab's base colours with the signature's
-  `@palette`), so they show before the hub's pack carries them. Its sounds are at
+  `@palette`, and a heat `haze` for the hot ones: Starforge, Quasar, Dyson Sphere, Star
+  Dragon, Superlaser, Witchfire, World Shift and Big Bang), so they show before the hub's
+  pack carries them. Its sounds are at
   `sound/sjk/sabers/<name>/`, synthesized by the Blade Lab's sound scripts; until a pack
   carries them only the stock sounds play.
 

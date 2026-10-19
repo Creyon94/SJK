@@ -1262,7 +1262,7 @@ mod tests {
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 58, "the saber smith is searched");
+        assert_eq!(ids(&panel).len(), 60, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(
@@ -1284,21 +1284,23 @@ mod tests {
                 "saber_balance",
                 "saber_between_worlds",
                 "saber_big_bang",
+                "saber_carbonite",
                 "saber_dyson_sphere",
                 "saber_eclipse",
-                "saber_elemental",
                 "saber_event_horizon",
+                "saber_exogorth",
                 "saber_hyperspace",
                 "saber_kyber_heart",
-                "saber_nine_lives",
                 "saber_quasar",
                 "saber_singing_kyber",
+                "saber_sith_holocron",
                 "saber_star_dragon",
                 "saber_star_whale",
                 "saber_starforge",
                 "saber_superlaser",
+                "saber_uneti_tree",
                 "saber_witchfire",
-                "saber_world_tree",
+                "saber_world_shift",
                 "saber_wraithlight",
             ]
         );

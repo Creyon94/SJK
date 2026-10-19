@@ -10,14 +10,6 @@
 // and a burst of sparks flying out on every side. Embers drift all round inside a wide warm heat glow.
 // A swing makes it burn brighter and throw more sparks (the rhythm never speeds up); a clash is a huge
 // blow with a ring of sparks.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
 // one hammer blow every SF_P seconds, always (a swing never changes the rate)
 const SF_P: f32 = 1.25;
 
@@ -78,48 +70,33 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let ys = sf_y(n);
     let yp = sf_y(n - 1.0);
     let as_ = h11(n * 1.37 + 0.2);
-    // ---- the molten core ----
+    // The blade itself is Sol's glow and core from the skin's file (sig_glow, sig_core);
+    // everything here is a piece placed round it in 3D, each one facing the camera.
     var s: f32;
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
-    let y = -0.6 + s * (top + 0.6);
-    let spot = exp(-pow((y - ys) / 1.6, 2.0)) * exp(-ph * 1.8) + exp(-pow((y - yp) / 1.6, 2.0)) * exp(-(ph + SF_P) * 1.8);
-    let front = select(0.0, exp(-pow((y - top) / 1.5, 2.0)) * (1.0 - smoothstep(0.4, 0.6, uAge)), uAge < 0.6);
-    let pulse = 0.9 + 0.1 * sin(t * 2.1 + y * 0.4);
-    var col = mix(white, vec3<f32>(1.0), clamp(spot, 0.0, 1.0)) * exp(-pow(d / max(0.3, px), 2.0)) * (1.5 + spot + front) * pulse;
-    col += gold * halo(d, 0.8) * (0.45 + 0.8 * spot + 0.3 * st + cl);
-    col += hot * halo(d, 2.6) * (0.32 + 0.3 * spot + 0.2 * st);
-    // the wide heat glow of a star
-    col += vec3<f32>(1.0, 0.33, 0.05) * (halo(d, 3.4) * 0.3 + halo(d, 1.4) * 0.16) * (1.0 + 0.4 * st) * fx;
+    var col: vec3<f32> = vec3<f32>(0.0);
     if top < 0.2 {
-        return (1.0 - exp(-col * 1.1)) * 1.05;
+        return col;
     }
-    // ---- the plasma surface: a boiling photosphere (marched) ----
-    let ms = marchSteps(ro, rd, 1.45, -0.5, top + 0.7, 16.0);
-    if ms.y > ms.x && fx > 0.0 {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 7.0));
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 16; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let g1 = fbm3(vec2(p.x * 2.4 + p.z * 1.3, p.y * 1.05 - t * 0.32));
-            let g2 = fbm3(vec2(p.z * 2.4 - p.x * 1.2, p.y * 1.25 + t * 0.27 + 3.1));
-            let gran = smoothstep(0.42, 0.85, g1 * 0.55 + g2 * 0.55);
-            let shell = smoothstep(1.45, 0.75, r) * smoothstep(-0.5, 0.2, p.y) * (1.0 - smoothstep(top - 0.2, top + 0.7, p.y));
-            let spt = exp(-pow((p.y - ys) / 2.0, 2.0)) * exp(-ph * 1.8);
-            let dens = shell * (0.12 + 2.2 * gran * gran) * (1.0 + 0.4 * st + spt + cl);
-            acc += sf_heat(0.15 + 0.85 * gran + 0.3 * (1.0 - r) + spt) * dens;
-        }
-        col += acc * ms.z * 0.6 * fx;
+    // ---- the plasma surface: granules of star-stuff boiling up round the blade ----
+    var ta: f32;
+    for (var i = 0; i < 26; i++) {
+        let fi = f32(i);
+        let f = fract(t * (0.22 + 0.12 * h11(fi * 1.7)) + h11(fi * 4.3));
+        let yy = -0.3 + f * (top + 0.3);
+        let p = around(0.55 + 0.35 * h11(fi * 2.9 + floor(t * 0.22 + h11(fi * 4.3))), h11(fi * 6.1) + t * 0.05, yy);
+        let dd = rayPt(ro, rd, p, &ta);
+        let life = sin(3.1416 * f);
+        let spt = exp(-pow((yy - ys) / 2.0, 2.0)) * exp(-ph * 1.8);
+        let g = 0.5 + 0.5 * sin(t * 6.0 + fi * 2.7);
+        col += sf_heat(0.55 + 0.4 * g + spt) * (halo(dd, max(0.16 + 0.1 * g, px)) * 1.1 + halo(dd, 0.6) * 0.2) * life * (1.0 + 0.5 * st + spt) * fx;
     }
     // the rest is out of the hilt's way: skip rays far from the blade
-    var ta: f32;
     let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if far > 9.0 {
-        return (1.0 - exp(-col * 1.1)) * 1.05;
+        return col;
     }
     // ---- solar flares: plasma loops arching off the blade and falling back ----
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 7; i++) {
         let fi = f32(i);
         let cyc = t / 3.6 + fi * 0.173 + h11(fi * 5.3) * 0.5;
         let k = floor(cyc);
@@ -129,7 +106,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         if y0 + dy > top {
             continue;
         }
-        let H = (1.8 + 2.0 * h11(k * 1.7 + fi * 2.0)) * smoothstep(0.0, 0.45, q);
+        let H = (3.2 + 3.0 * h11(k * 1.7 + fi * 2.0)) * smoothstep(0.0, 0.45, q);
         let a = h11(k * 6.1 + fi * 1.3);
         let env = smoothstep(0.0, 0.12, q) * (1.0 - smoothstep(0.65, 1.0, q));
         if far > H + 3.0 {
@@ -162,7 +139,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let fade = exp(-ph * 2.2) * smoothstep(0.0, 0.04, ph);
         let yu = ys + 20.0 * ph;
         let yd = ys - 13.0 * ph;
-        let ru = 1.0 + 1.8 * ph;
+        let ru = 1.0 + 3.0 * ph;
         if yu < top {
             let du = sf_ring(ro, rd, yu, ru);
             col += (white * halo(du, max(0.06, px)) * 1.4 + gold * halo(du, 0.35) * 0.5) * fade * fx;
@@ -182,7 +159,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
                 let sa = as_ + (h11(fi * 3.1 + n) - 0.5) * 0.9;
                 let up = (h11(fi * 7.3 + n * 1.3) - 0.35) * 1.2;
                 let dir = normalize(vec3(sin(6.2832 * sa), up, cos(6.2832 * sa)));
-                let v = 6.0 + 7.0 * h11(fi * 1.7 + n * 0.7);
+                let v = 9.0 + 9.0 * h11(fi * 1.7 + n * 0.7);
                 let tp = ph;
                 let tq = max(ph - 0.05, 0.0);
                 let p1 = o + dir * v * (1.0 - exp(-tp * 2.0)) / 2.0 + vec3(0.0, 1.5 * tp * tp, 0.0);
@@ -212,5 +189,20 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let dr = sf_ring(ro, rd, yc, 0.6 + 7.0 * (1.0 - exp(-3.0 * a)));
         col += mix(white, hot, a) * (halo(dr, max(0.08, px)) * 1.8 + halo(dr, 0.5) * 0.4) * cl;
     }
-    return (1.0 - exp(-col * 1.1)) * 1.05;
+    return col;
+}
+
+// the blade: Sol's glow and core from the file, white-hot where the last blow landed
+fn sf_spot(y: f32) -> f32 {
+    let n = floor(uTime / SF_P);
+    let ph = fract(uTime / SF_P) * SF_P;
+    return exp(-pow((y - sf_y(n)) / 1.6, 2.0)) * exp(-ph * 1.8) + 0.25 * clamp(uClash, 0.0, 1.0);
+}
+
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return g * (1.0 + 0.25 * sin(uTime * 2.1 + b.y * 0.4) * 0.4 + 1.2 * sf_spot(b.y) + 0.3 * uSwing);
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c * (1.0 + 0.8 * sf_spot(b.y));
 }

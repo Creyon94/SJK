@@ -8,8 +8,6 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.08,0.25,0.85],"corona.rim_hot":[0.45,0.75,1.0],"corona.inner":[0.85,0.95,1.0],"core.white":[0.96,0.98,1.0],"core.fringe_cool":[0.25,0.55,1.0],"core.fringe_hot":[0.7,0.88,1.0],"light.color":[0.35,0.6,1.0],"trail":[0.4,0.65,1.0]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
 // how stretched the stars are: 0 points, 1 full streaks (the jump on ignition, a drop on a clash)
 float hy_stretch(){
@@ -23,16 +21,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 blue = vec3(0.25, 0.5, 1.0), ice = vec3(0.7, 0.86, 1.0), white = vec3(1.0);
   float top = L*clamp(uAge/0.45, 0.0, 1.0);
-  // ---- the blade: a blue-white shaft that shudders (the tip trembles, the light flickers)
-  float sh = 0.05 + 0.06*sw;
-  vec3 tipOff = vec3(sin(t*61.0) + 0.5*sin(t*97.0 + 1.3), 0.0, cos(t*53.0) + 0.5*sin(t*83.0))*sh;
-  float sb;
-  float db = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0) + tipOff, sb);
-  float fl = 0.9 + 0.1*sin(t*37.0) + 0.06*sin(t*71.0 + sb*9.0);
-  float flash = sw*0.5 + cl*1.2;
-  vec3 light = white*exp(-pow(db/max(0.33, px), 2.0))*1.5*fl
-             + mix(blue, ice, 0.35)*halo(db, 0.8)*0.75*fl
-             + blue*halo(db, 2.4)*(0.2 + 0.25*flash);
+  // The blade is Sol's glow and core from the file, flickering (sig_glow, sig_core); here
+  // only the effects, each a piece placed round it in 3D.
+  vec3 light = vec3(0.0);
   float ta;
   float axd = rayPt(ro, rd, vec3(0.0, clamp(ro.y + rd.y*dot(-ro, rd), 0.0, L), 0.0), ta);
   // nearest approach of the ray to the axis segment (for culling and depth)
@@ -67,25 +58,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       vec3 c = mix(blue, white, 0.35 + 0.65*s);
       fxl += c*(halo(d, w)*1.7 + halo(d, 0.22)*0.25)*(0.3 + 0.7*s)*on*(0.6 + 0.4*nearF)*(1.0 + 0.8*sw);
     }
-    // ---- the tunnel: a twisting blue corridor of light round the blade
-    vec3 m = marchSteps(ro, rd, 5.4, -0.5, top + 1.5, 16.0);
-    if (m.y > m.x){
-      float tt = m.x + m.z*h21(rd.xy*517.0 + ro.xz*3.1);
-      float acc = 0.0;
-      for (int k = 0; k < 16; k++){
-        vec3 p = ro + rd*tt;
-        float rad = length(p.xz);
-        float shell = exp(-pow((rad - 3.3)/1.0, 2.0));
-        vec2 q = rot(p.y*0.13 - t*1.6) * p.xz;
-        float n = fbm3(q*0.55 + vec2(0.0, p.y*0.05 - t*0.6));
-        float streak = fbm3(q*1.1 + vec2(p.y*0.09 - t*3.0, n*2.0));
-        float band = pow(0.5 + 0.5*sin(3.0*atan(p.z, p.x) + p.y*0.28 - t*4.0 + n*2.5), 2.5);
-        float dn = shell*(pow(clamp(n*0.5 + streak*0.6 - 0.4, 0.0, 1.0), 1.6)*0.6 + band*streak*1.1);
-        dn *= smoothstep(-0.5, 3.0, p.y)*(1.0 - smoothstep(top - 5.0, top + 1.5, p.y));
-        acc += dn*m.z;
-        tt += m.z;
+    // ---- the tunnel: bands of blue light spiralling round the blade, rushing up
+    for (int k = 0; k < 6; k++){
+      float fk = float(k);
+      float a0 = fk/6.0 - t*0.35;
+      float y0 = mod(t*14.0 + fk*(L + 10.0)/6.0, L + 10.0) - 5.0;
+      vec3 prev = around(3.3, a0, y0);
+      for (int j = 1; j <= 6; j++){
+        float u = float(j)/6.0;
+        vec3 q = around(3.3 + 0.3*sin(u*6.0 + fk), a0 + u*0.35, y0 + u*6.0);
+        float s;
+        float d = raySeg(ro, rd, prev, q, s);
+        float on = smoothstep(-0.5, 3.0, q.y)*(1.0 - smoothstep(top - 5.0, top + 1.5, q.y));
+        fxl += vec3(0.16, 0.38, 1.0)*(halo(d, 0.18)*0.8 + halo(d, 0.7)*0.25)*sin(3.1416*(u - 0.08))*on*min(S, 1.0);
+        prev = q;
       }
-      fxl += vec3(0.16, 0.38, 1.0)*acc*(0.17 + 0.06*sw)*min(S, 1.0);
     }
     // ---- a swing's flash racing up the blade
     float yf = fract(t*1.3)*(L + 8.0) - 4.0;
@@ -104,5 +91,13 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
     light += fxl*fx;
   }
-  return (1.0 - exp(-light*1.1))*1.05;
+  return light;
 }
+// the blade: Sol's glow and core from the file, flickering as it shudders, flashing on a swing
+// and a clash
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float t = uTime;
+  float fl = 0.9 + 0.1*sin(t*37.0) + 0.06*sin(t*71.0 + b.y*0.3);
+  return g*fl*(1.0 + 0.4*clamp(uSwing, 0.0, 1.0) + 0.8*clamp(uClash, 0.0, 1.0));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c*(0.95 + 0.05*sin(uTime*61.0)); }

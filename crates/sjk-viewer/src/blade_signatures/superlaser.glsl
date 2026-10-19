@@ -9,8 +9,6 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.05,0.55,0.12],"corona.rim_hot":[0.45,1.0,0.35],"corona.inner":[0.85,1.0,0.8],"core.white":[0.95,1.0,0.94],"core.fringe_cool":[0.2,0.9,0.3],"core.fringe_hot":[0.7,1.0,0.6],"light.color":[0.3,1.0,0.35],"trail":[0.35,1.0,0.4]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
 const float SL_F = 5.8;    // the focus's height
 const float SL_R = 2.2;    // the tributaries' ring radius at the base
@@ -26,29 +24,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 F = vec3(0.0, SL_F, 0.0);
   vec3 light = vec3(0.0);
   float fx = uFx;
-  // ---- the feed: a bright column from inside the hilt up to the focus (fills the emitter)
+  // The beam is Sol's glow and core from the file with surges racing up it (sig_glow,
+  // sig_core); here only the effects, each a piece placed round it in 3D.
   float s;
-  float df = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), F, s);
-  light += (white*exp(-pow(df/max(0.3, px), 2.0))*1.3 + green*halo(df, 0.75)*0.7 + green*halo(df, 2.0)*0.15)*lit;
-  // ---- the main beam from the focus to the tip, its sheath rippling
-  float sb;
-  float db = raySeg(ro, rd, F, vec3(0.0, top, 0.0), sb);
-  float yb = mix(SL_F, top, sb);
-  float on = step(0.001, fire)*smoothstep(SL_F - 0.6, SL_F + 0.6, yb);
-  float jit = 1.0 + 0.08*(vn(vec2(yb*2.0, floor(t*30.0))) - 0.5);
-  float rip = 0.5 + 0.5*sin(yb*1.6 - t*14.0);
-  float R = (0.85 + 0.18*rip)*(1.0 + 0.3*sw);
-  float shell = clamp(0.14/sqrt(max(R*R - db*db, 0.09)), 0.0, 0.6)*smoothstep(R + 0.45, R - 0.35, db);
-  // surges racing up the beam
-  float surge = 0.0;
-  for (int j = 0; j < 3; j++){
-    float fj = float(j);
-    float y = SL_F + fract(t*0.9 + fj/3.0)*(L - SL_F + 4.0) - 2.0;
-    surge += halo(abs(yb - y), 1.0 + 0.6*sw);
-  }
-  light += (white*exp(-pow(db/max(0.4*jit, px), 2.0))*1.5 + pale*halo(db, 0.6)*0.8
-          + green*halo(db, 1.3)*(0.7 + 0.45*surge) + green*halo(db, 3.2)*(0.16 + 0.14*surge))*on;
-  light += (green*shell*(0.9 + 0.6*rip) + pale*shell*surge*0.6)*on*fx;
   if (fx > 0.0){
     vec3 fxl = vec3(0.0);
     float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
@@ -114,5 +92,19 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
     light += fxl*fx;
   }
-  return (1.0 - exp(-light*1.1))*1.05;
+  return light;
 }
+// the beam: Sol's glow and core from the file, its sheath rippling, surges racing up it from
+// the focus
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float t = uTime, L = uLength;
+  float surge = 0.0;
+  for (int j = 0; j < 3; j++){
+    float y = SL_F + fract(t*0.9 + float(j)/3.0)*(L - SL_F + 4.0) - 2.0;
+    surge += halo(abs(b.y - y), 1.0 + 0.6*clamp(uSwing, 0.0, 1.0));
+  }
+  float rip = 0.5 + 0.5*sin(b.y*1.6 - t*14.0);
+  float above = smoothstep(SL_F - 0.6, SL_F + 0.6, b.y);
+  return g*(0.85 + 0.15*rip + 0.6*surge*above + 0.5*clamp(uClash, 0.0, 1.0));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.08*(vn(vec2(b.y*2.0, floor(uTime*30.0))) - 0.5)); }

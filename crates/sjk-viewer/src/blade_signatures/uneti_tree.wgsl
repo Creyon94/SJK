@@ -83,32 +83,11 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let top = ut_top();
     let cl = clamp(uClash, 0.0, 1.0);
     var col: vec3<f32> = vec3<f32>(0.0);
-    // heartwood core: a slim white-blue line inside the fibres, filling the emitter
+    // The heartwood and its braided fibres are Sol's glow and core from the file with the
+    // wood's grain drawn into them (sig_glow); here only the effects, each a piece placed
+    // round it in 3D.
     var sa: f32;
     let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
-    col += vec3<f32>(1.0) * exp(-pow(dax / max(0.16, px * 0.7), 2.0)) * 1.1;
-    col += mix(UT_COL, UT_PALE, 0.4) * halo(dax, 0.5) * 0.55;
-    // the living aura: breathes slowly
-    let breathe = 0.75 + 0.25 * sin(uTime * 1.3 + ro.y * 0.0);
-    col += UT_COL * halo(dax, 2.2) * 0.22 * breathe * (1.0 + uSwing * 0.6 + cl * 1.5);
-    col += UT_COL * exp(-dax / 4.0) * 0.05 * uFx;
-    // the fibre body, marched
-    if dax < 1.3 {
-        let ms = marchSteps(ro, rd, 1.1, -0.6, top + 0.4, 22.0);
-        if ms.z > 0.0 {
-            let dt = ms.z;
-            var t = ms.x + dt * h21(rd.xy * 517.0 + rd.z * 91.0);
-            var acc: vec3<f32> = vec3<f32>(0.0);
-            for (var i = 0; i < 22; i++) {
-                let p = ro + rd * t;
-                let w = ut_wood(p, top);
-                acc += (UT_COL * w.x * 1.2 + UT_PALE * w.y * 1.6 + vec3<f32>(1.0) * w.y * w.y * 0.6) * dt;
-                t += dt;
-            }
-            // keep long end-on paths from blowing out
-            col += acc * (3.6 / (1.0 + length(acc) * 0.25)) * (1.0 + cl * 1.5);
-        }
-    }
     // the growing tip: a bright bud of light while it ignites
     var tt: f32;
     let dt0 = rayPt(ro, rd, vec3(0.0, top, 0.0), &tt);
@@ -130,15 +109,40 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         if h.z > 0.0 {
             col += (UT_PALE * halo(abs(rr - R), 0.35) + vec3<f32>(1.0) * halo(abs(rr - R), 0.08)) * cl * 1.4 * uFx;
         }
-        col += UT_PALE * halo(dax, 1.5) * cl * 0.8;
     }
-    return (1.0 - exp(-col * 1.1)) * 1.05;
+    // sap sparks: bright drops of the Force flung off the fibres as a pulse passes
+    for (var i = 0; i < 14; i++) {
+        let fi = f32(i);
+        let f = fract(uTime * (0.5 + 0.3 * h11(fi * 2.7)) + h11(fi * 7.3));
+        let k = floor(uTime * (0.5 + 0.3 * h11(fi * 2.7)) + h11(fi * 7.3));
+        let y0 = (0.05 + 0.9 * h11(fi * 3.1 + k)) * top;
+        let p = around(0.7 + 2.2 * f, h11(fi * 5.9 + k) + 0.2 * f, y0 + 1.5 * f);
+        let q = around(0.7 + 2.2 * max(f - 0.08, 0.0), h11(fi * 5.9 + k) + 0.2 * max(f - 0.08, 0.0), y0 + 1.5 * max(f - 0.08, 0.0));
+        var sk: f32;
+        let dk = raySeg(ro, rd, q, p, &sk);
+        col += (vec3<f32>(1.0) * halo(dk, max(0.04, px)) * 1.3 + UT_COL * halo(dk, 0.25) * 0.35) * sin(3.1416 * f) * uFx;
+    }
+    return col;
 }
 
+// the blade: Sol's glow and core from the file grown into living wood: two counter-twisting
+// sets of luminous fibres braided round the heartwood, fine fibres wound tight inside, a
+// breathing bark of grain at its edge, sap climbing in bright pulses; a clash floods them
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    let top = ut_top();
+    let R: f32 = 0.85;
+    var col = g * (0.75 + 0.25 * sin(uTime * 1.3));
+    if abs(b.x) < R {
+        let z = sqrt(R * R - b.x * b.x);
+        let wf = ut_wood(vec3(b.x, b.y, z * 0.6), top);
+        let wb = ut_wood(vec3(b.x, b.y, -z * 0.6), top);
+        let w = wf + wb * 0.4;
+        let cl = clamp(uClash, 0.0, 1.0);
+        col += (UT_COL * w.x * 1.6 + UT_PALE * w.y * 2.0 + vec3<f32>(1.0) * w.y * w.y * 0.6) * (1.0 + 1.5 * cl);
+    }
+    return col;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c * 0.8;
 }

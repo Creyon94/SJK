@@ -167,5 +167,11 @@
       "sound/sjk/sabers/superlaser/swing2.wav",
       "sound/sjk/sabers/superlaser/swing3.wav"
     ]
+  },
+  "haze": {
+    "strength": 0.2,
+    "scale": 0.4,
+    "speed": 8.0,
+    "reach": 3.0
   }
 }

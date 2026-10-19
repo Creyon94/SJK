@@ -27,27 +27,6 @@ fn wf_pulse(y: f32) -> f32 {
     return pow(f, 10.0) * smoothstep(1.0, 0.97, f) * 2.0;
 }
 
-// ghost-fire and ichor mist at point p: (fire, mist)
-fn wf_dens(p: vec3<f32>, top: f32) -> vec2<f32> {
-    let y = p.y;
-    let r = length(p.xz);
-    let a = atan2(p.x, p.z) / 6.2832;
-    let hot = 1.0 + uSwing * 0.3 + uClash * 0.45;
-    // the fire: tongues swirling round and racing up
-    let sw = a + y * 0.035 + uTime * 0.22;
-    let n = fbm3(vec2(sw * 5.0, y * 0.42 - uTime * 2.6));
-    let n2 = vn(vec2(sw * 11.0, y * 0.9 - uTime * 4.1));
-    let reach = (0.9 + 3.4 * n * n + 0.8 * n2) * hot;
-    var fire = pow(smoothstep(reach, 0.3, r), 1.5) * smoothstep(0.28, 0.6, n + 0.15 * n2);
-    fire *= smoothstep(-0.4, 1.0, y) * (1.0 - smoothstep(top - 1.5, top + 1.5, y));
-    // the ichor mist: pours down, thickens and spreads toward the hilt
-    let sp = 1.0 - clamp(y / uLength, 0.0, 1.0);
-    let m = fbm3(vec2(a * 4.0 - uTime * 0.05, y * 0.28 + uTime * 1.5));
-    let mr = 0.9 + 2.6 * sp * sp + 1.0 * m;
-    let mist = smoothstep(mr, 0.2, r) * smoothstep(0.35, 0.75, m) * smoothstep(top + 0.5, top - 3.0, y) * smoothstep(-4.0, 0.0, y);
-    return vec2(fire, mist * 0.55);
-}
-
 // one coiling tendril of green energy
 fn wf_tendril(ro: vec3<f32>, rd: vec3<f32>, k: f32, px: f32, top: f32) -> vec3<f32> {
     var best: f32 = 1.0e3;
@@ -80,31 +59,41 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let top = wf_top();
     let cl = clamp(uClash, 0.0, 1.0);
     var col: vec3<f32> = vec3<f32>(0.0);
-    // the ichor blade itself: pale burning heart, sickly green body, pulses climbing it
+    // The ichor blade is Sol's glow and core from the file with pulses of magick climbing it
+    // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
     var sa: f32;
     let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
-    let yb = sa * (top + 0.6) - 0.6;
-    let pu = wf_pulse(yb);
-    let wob = 0.30 + 0.05 * sin(yb * 1.7 - uTime * 6.0) + 0.06 * pu;
-    col += WF_PALE * exp(-pow(dax / max(wob * 0.45, px * 0.7), 2.0)) * 1.0;
-    col += WF_G * halo(dax, wob * 1.5) * (0.9 + 0.8 * pu);
-    col += WF_G * halo(dax, 1.6) * 0.25 * (1.0 + pu);
-    // ghost-fire and ichor mist, marched
-    if dax < 4.2 {
-        let ms = marchSteps(ro, rd, 4.0, -4.0, top + 2.0, 22.0);
-        if ms.z > 0.0 {
-            let dt = ms.z;
-            var t = ms.x + dt * h21(rd.xy * 517.0 + rd.z * 91.0);
-            var acc: vec3<f32> = vec3<f32>(0.0);
-            for (var i = 0; i < 22; i++) {
-                let p = ro + rd * t;
-                let d = wf_dens(p, top);
-                let pu2 = wf_pulse(p.y);
-                acc += (WF_G * d.x * (1.0 + 1.2 * pu2) + WF_PALE * d.x * d.x * d.x * 0.2 + WF_DEEP * d.y * 2.2) * dt;
-                t += dt;
-            }
-            col += acc * (1.0 / (1.0 + length(acc) * 0.3)) * uFx;
+    let hot = 1.0 + uSwing * 0.6 + cl * 0.8;
+    // ghost-fire: green tongues licking up off the blade, swirling round it
+    for (var i = 0; i < 24; i++) {
+        let fi = f32(i);
+        let rate = 0.8 + 0.5 * h11(fi * 2.3);
+        let f = fract(uTime * rate + h11(fi * 6.7));
+        var k = floor(uTime * rate + h11(fi * 6.7));
+        let y0 = (0.02 + 0.92 * h11(fi * 3.1 + k)) * top;
+        let a0 = h11(fi * 5.3 + k) + uTime * 0.22;
+        let p0 = around(0.4, a0, y0 + 2.0 * f);
+        let p1 = around(0.6 + (1.2 + 1.6 * h11(fi * 9.1)) * f * hot, a0 + 0.08 * f, y0 + 2.0 * f + 1.3);
+        var sk: f32;
+        let dk = raySeg(ro, rd, p0, p1, &sk);
+        if dk > 2.0 {
+            continue;
         }
+        let w = max(0.12 + 0.25 * (1.0 - sk) * (1.0 - f), px);
+        let pu2 = wf_pulse(p0.y);
+        col += (WF_G * halo(dk, w) * 0.9 * (1.0 + pu2) + WF_PALE * halo(dk, w * 0.3) * 0.4) * sin(3.1416 * f) * (1.0 - 0.5 * sk) * uFx;
+    }
+    // ichor mist pouring down the blade and spilling over the hilt
+    for (var i = 0; i < 12; i++) {
+        let fi = f32(i);
+        let f = fract(uTime * (0.25 + 0.1 * h11(fi * 1.7)) + h11(fi * 8.3));
+        let y0 = (0.15 + 0.8 * h11(fi * 4.1)) * top;
+        let yy = mix(y0, -2.5, f);
+        let sp = 1.0 - clamp(yy / uLength, 0.0, 1.0);
+        let p = around(0.6 + 2.2 * sp * sp * f + 0.4 * f, h11(fi * 2.9) + 0.1 * f, yy);
+        var tt: f32;
+        let dm = rayPt(ro, rd, p, &tt);
+        col += WF_DEEP * (halo(dm, 0.5 + 0.8 * f) * 0.45 + halo(dm, 1.5) * 0.08) * sin(3.1416 * f) * uFx;
     }
     // tendrils
     if dax < 3.4 {
@@ -124,38 +113,34 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let tongue = 0.6 + 0.4 * vn(vec2(aa * 4.0, uTime * 8.0));
             col += (WF_G * halo(abs(rr - R), 0.5 * tongue) + WF_PALE * halo(abs(rr - R), 0.12)) * cl * 1.5 * uFx;
         }
-        col += WF_G * halo(dax, 2.5) * cl * 0.7;
     }
-    return (1.0 - exp(-col * 1.1)) * 1.05;
+    return col;
 }
 
-// dark smoke curling through the outer fire
+// dark smoke curling through the fire: dim puffs drifting up round it, each facing the camera
 fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let top = wf_top();
-    let ms = marchSteps(ro, rd, 4.2, 0.0, top + 3.0, 14.0);
-    if ms.z <= 0.0 || uFx < 0.5 {
+    if uFx < 0.5 {
         return vec4<f32>(0.0);
     }
-    let dt = ms.z;
-    var t = ms.x + dt * h21(rd.xy * 311.0 + rd.z * 57.0);
-    var tr: f32 = 1.0;
-    for (var i = 0; i < 14; i++) {
-        let p = ro + rd * t;
-        let r = length(p.xz);
-        let a = atan2(p.x, p.z) / 6.2832;
-        let n = fbm3(vec2(a * 3.0 + p.y * 0.05 + uTime * 0.1, p.y * 0.22 - uTime * 0.7));
-        let d = smoothstep(0.55, 0.85, n) * smoothstep(1.0, 2.0, r) * smoothstep(4.0, 2.6, r) * smoothstep(0.0, 3.0, p.y) * smoothstep(top + 2.0, top - 2.0, p.y);
-        tr *= exp(-d * dt * 0.35);
-        t += dt;
+    var al: f32 = 0.0;
+    for (var i = 0; i < 10; i++) {
+        let fi = f32(i);
+        let f = fract(uTime * 0.12 + h11(fi * 3.9));
+        let p = around(1.5 + 1.2 * h11(fi * 6.1) + 0.6 * f, h11(fi * 2.2) + uTime * 0.1, (0.1 + 0.85 * h11(fi * 7.7)) * top + 3.0 * f);
+        var tt: f32;
+        let d = rayPt(ro, rd, p, &tt);
+        al = max(al, halo(d, 0.6 + 0.5 * f) * 0.45 * sin(3.1416 * f));
     }
-    let al = clamp((1.0 - tr) * 0.85, 0.0, 0.55);
     return vec4(vec3<f32>(0.01, 0.025, 0.012), al);
 }
 
+// the blade: Sol's glow and core from the file, wobbling, pulses of magick climbing it
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    let pu = wf_pulse(b.y);
+    return g * (0.85 + 0.15 * sin(b.y * 1.7 - uTime * 6.0) + 0.8 * pu + 0.6 * clamp(uClash, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c * (1.0 + 0.3 * wf_pulse(b.y));
 }

@@ -40,7 +40,6 @@ float ae_w(float y){
   float top = ae_top();
   return max(base, alm)*smoothstep(-0.2, 0.25, y)*(1.0 - smoothstep(top - 0.6, top, y));
 }
-float ae_sdf(vec3 p){ return (length(p.xz) - ae_w(p.y))*0.7; }
 // the abyss and the eye, seen on the cut at b (across, along)
 vec3 ae_inside(vec2 b, float px){
   float t = uTime;
@@ -113,42 +112,25 @@ float ae_crack(float fi, out vec3 a, out vec3 c, out vec3 m, out vec3 e, out flo
   seed = cy*13.0 + fi;
   return grow*step(0.05, reach);
 }
+// the cut, drawn over Sol's glow and core as his solid blades are: black abyss and the eye
+// inside it, its lips burning crimson with a white-hot hairline at the edge
+vec4 sig_solid(vec4 o, vec2 b, float px){
+  float top = ae_top();
+  if (top < 0.3) return o;
+  float w = ae_w(b.y);
+  float cov = fillD(abs(b.x) - w, px)*step(0.015, w);
+  if (cov <= 0.0) return o;
+  vec3 rgb = ae_inside(b, px);
+  float rim = clamp(abs(b.x)/max(w, 0.01), 0.0, 1.0);
+  rgb += vec3(1.0, 0.18, 0.1)*pow(rim, 3.0)*1.4 + vec3(1.0, 0.6, 0.45)*pow(rim, 10.0)*1.2;
+  return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
+}
+// shadow tendrils: dark smoky arms, crimson at the tips, reaching out round the blade in 3D,
+// each piece facing the camera
 vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
   float L = uLength;
   vec4 col = vec4(0.0);
-  float tHit = 1e5;
   float top = ae_top();
-  // ---- the cut itself: black inside, its lips burning where it turns away from you ----
-  if (top > 0.3){
-    vec2 sp = raySpan(ro, rd, 1.7, -0.3, top + 0.2);
-    if (sp.y > sp.x){
-      float tt = sp.x, dmin = 1e3, tmin = sp.x, hit = 0.0;
-      for (int i = 0; i < 56; i++){
-        float d = ae_sdf(ro + rd*tt);
-        if (d < dmin){ dmin = d; tmin = tt; }
-        if (d < 0.002){ hit = 1.0; break; }
-        tt += max(d, 0.003);
-        if (tt > sp.y) break;
-      }
-      float cov = hit > 0.5 ? 1.0 : clamp(1.0 - dmin/max(px, 1e-3), 0.0, 1.0);
-      if (cov > 0.0){
-        float th = hit > 0.5 ? tt : tmin;
-        vec3 p = ro + rd*th;
-        float dw = (ae_w(p.y + 0.05) - ae_w(p.y - 0.05))/0.1;
-        vec3 n = normalize(vec3(p.x, -dw*length(p.xz), p.z) + vec3(0.0, 0.0, 1e-4));
-        float ndv = abs(dot(n, -rd));
-        vec3 rgb = ae_inside(vec2(p.x, p.y), px);
-        // the glowing lips: crimson where the cut turns away, a white-hot hairline at the edge
-        // measured round the blade, so the cut reads as a slit from every side
-        float hv = length(rd.xz);
-        float rimH = 1.0 - abs(dot(normalize(n.xz + vec2(1e-5)), -rd.xz/max(hv, 1e-4)));
-        float rim = mix(1.0 - ndv, rimH, smoothstep(0.01, 0.05, hv));
-        rgb += vec3(1.0, 0.18, 0.1)*pow(rim, 3.0)*1.4 + vec3(1.0, 0.6, 0.45)*pow(rim, 10.0)*1.2;
-        col = vec4(rgb, cov);
-        tHit = th;
-      }
-    }
-  }
   // ---- shadow tendrils: dark smoky arms, crimson at the tips ----
   if (uFx > 0.01 && top > L*0.5){
     vec2 bx = raySpan(ro, rd, 7.0, 0.0, L + 3.0);
@@ -166,7 +148,7 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
           if (d < th*2.0 + px*1.5){
             vec3 q = mix(prev, nx, s);
             float tq = dot(q - ro, rd);
-            if (tq < tHit){
+            if (tq > 0.0){
               float core = exp(-pow(d/max(th, px*0.7), 2.0));
               float aura = exp(-pow(d/max(th*2.2, px*1.5), 2.0));
               float fade = 1.0 - smoothstep(0.75, 1.0, u);
@@ -188,19 +170,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 red = vec3(1.0, 0.15, 0.1);
   float top = ae_top();
-  // the cut's glow: closest approach to the axis, measured from its lips
+  // The blade's own light is Sol's glow and core from the file (sig_glow, sig_core).
   float s;
-  float dAx = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, max(top, 0.0), 0.0), s);
-  float y = mix(-0.6, top, s);
-  float ed = max(dAx - ae_w(y), 0.0);
   float o = ae_open();
-  float near = halo(abs((y - ae_Ey())/AE_H), 0.8);
-  float pulse = 0.85 + 0.15*sin(t*1.7 - y*0.2);
-  vec3 light = vec3(1.0, 0.25, 0.15)*halo(ed, 0.06 + px)*1.6 + vec3(1.0, 0.55, 0.4)*halo(ed, 0.02 + px)*(0.6 + 0.8*o*near);
-  light += vec3(0.85, 0.06, 0.06)*halo(ed, 0.7)*0.7*pulse + vec3(0.45, 0.0, 0.05)*halo(ed, 1.8)*0.35;
-  // the emitter: the cut's crimson fire pouring out of the hilt's mouth
-  float de = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, 0.5, 0.0), s);
-  light += vec3(1.0, 0.45, 0.3)*exp(-pow(de/0.3, 2.0))*1.2*step(0.01, top) + red*halo(de, 0.8)*0.5*step(0.01, top);
+  vec3 light = vec3(0.0);
   if (uFx > 0.01 && top > L*0.5){
     vec3 fx = vec3(0.0);
     // crimson tears dripping off the lips and falling
@@ -248,7 +221,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
     light += fx*uFx;
   }
-  return (1.0 - exp(-light*1.15))*1.05;
+  return light;
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+// the blade: Sol's glow from the file, pulsing slowly; its core is hidden under the cut
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(0.85 + 0.15*sin(uTime*1.7 - b.y*0.2)); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return c; }

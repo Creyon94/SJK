@@ -13,14 +13,6 @@
 // Each change is an event: the old climate strains, then bursts off the blade in a flash with shock
 // rings and its debris flung out all round, and the new one condenses onto it. Swings stoke it;
 // a clash flashes the ruling climate.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
 // ---- the cycle: 0 Mustafar, 1 Hoth, 2 Kamino, 3 Tatooine, 4 Crait, 5 Mon Cala ----
 const WS_P: f32 = 6.0;
 
@@ -61,7 +53,8 @@ fn ws_glow(k: f32) -> vec3<f32> {
 
 // a blade body: white-hot core, coloured glow
 fn ws_core(d: f32, px: f32, w: f32, hot: vec3<f32>, glow_: vec3<f32>, gain: f32) -> vec3<f32> {
-    return hot * exp(-pow(d / max(w, px), 2.0)) * 1.4 * gain + glow_ * halo(d, w * 2.5) * 0.8 * gain + glow_ * halo(d, w * 7.0) * 0.2;
+    // the blade itself is Sol's glow and core from the file (sig_glow, sig_core)
+    return vec3<f32>(0.0);
 }
 
 // the ray's distance to a ring of radius R round the blade at height y
@@ -116,28 +109,79 @@ fn ws_wind(ro: vec3<f32>, rd: vec3<f32>, r: f32, a: f32, y: f32, span: f32, rise
     return (halo(best, max(0.035, px)) * 1.0 + halo(best, 0.2) * 0.25) * taper;
 }
 
+// soft clouds of each climate round the blade: fire tongues (Mustafar), snow mist (Hoth),
+// storm cloud (Kamino), sand (Tatooine), red dust (Crait) and spray (Mon Cala), each puff a
+// soft piece facing the camera, drifting with its world's weather
+fn ws_puffs(ro: vec3<f32>, rd: vec3<f32>, k: f32, top: f32, form: f32, st: f32, ch: f32) -> vec3<f32> {
+    let t = uTime;
+    var ta: f32;
+    var col: vec3<f32> = vec3<f32>(0.0);
+    for (var i = 0; i < 20; i++) {
+        let fi = f32(i);
+        let rate = select(select(select(select(select(0.4, 0.18, k < 4.5), 0.35, k < 3.5), 0.12, k < 2.5), 0.25, k < 1.5), 0.9, k < 0.5);
+        let f = fract(t * rate * (0.7 + 0.6 * h11(fi * 2.3)) + h11(fi * 5.9));
+        let cy = floor(t * rate * (0.7 + 0.6 * h11(fi * 2.3)) + h11(fi * 5.9));
+        let y0 = (0.03 + 0.92 * h11(fi * 3.7 + cy)) * top;
+        var r: f32;
+        var a: f32;
+        var yy: f32;
+        var w: f32;
+        var c: vec3<f32>;
+        if k < 0.5 {
+            // fire tongues licking up off the blade
+            r = 0.6 + 1.6 * f;
+            a = h11(fi * 1.3 + cy);
+            yy = y0 + 3.0 * f;
+            w = 0.5 * (1.0 - 0.5 * f) + 0.25;
+            c = ws_fire(1.0 - f * 0.9) * 1.8;
+        } else if k < 1.5 {
+            r = 1.0 + 2.6 * h11(fi * 4.1 + cy);
+            a = h11(fi * 1.3 + cy) + t * 0.12;
+            yy = y0 + 0.6 * sin(t + fi);
+            w = 0.9 + 0.6 * h11(fi);
+            c = vec3<f32>(0.6, 0.8, 1.0) * 0.5;
+        } else if k < 2.5 {
+            r = 1.4 + 2.4 * h11(fi * 4.1 + cy);
+            a = h11(fi * 1.3 + cy) + t * 0.05;
+            yy = y0;
+            w = 1.0 + 0.8 * h11(fi);
+            c = mix(vec3<f32>(0.12, 0.16, 0.3), vec3<f32>(0.5, 0.65, 1.0), 0.5 + 0.5 * sin(t * 9.0 + fi * 3.0) * step(0.85, h11(floor(t * 6.0) + fi)));
+        } else if k < 3.5 {
+            r = 0.9 + 3.0 * f;
+            a = h11(fi * 1.3 + cy) + f * 0.8;
+            yy = y0 + 0.8 * f;
+            w = 0.6 + 0.6 * f;
+            c = vec3<f32>(1.0, 0.66, 0.3) * 0.6;
+        } else if k < 4.5 {
+            r = 0.9 + 1.6 * f;
+            a = h11(fi * 1.3 + cy) + 0.1 * f;
+            yy = y0 + 1.0 * f;
+            w = 0.5 + 0.5 * f;
+            c = vec3<f32>(0.8, 0.12, 0.08) * 0.6;
+        } else {
+            r = 0.7 + 1.2 * f;
+            a = h11(fi * 1.3 + cy) - f * 0.6;
+            yy = y0 + 1.6 * f;
+            w = 0.35 + 0.35 * f;
+            c = vec3<f32>(0.4, 0.8, 1.0) * 0.6;
+        }
+        let p = around(r, a, yy);
+        let dd = rayPt(ro, rd, p, &ta);
+        if dd > 3.5 {
+            continue;
+        }
+        col += c * (halo(dd, w) * 0.6 + halo(dd, w * 2.2) * 0.12) * sin(3.1416 * f) * form * (1.0 + 0.5 * st + 0.5 * ch);
+    }
+    return col;
+}
+
 // ======== MUSTAFAR: molten blade, black crust (solid pass), fire, drips ========
 fn ws_lava(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, ch: f32, st: f32, fx: f32) -> vec3<f32> {
     let t = uTime;
     var s: f32;
     var ta: f32;
     var col = ws_core(d, px, 0.42, vec3<f32>(1.0, 0.85, 0.5), vec3<f32>(1.0, 0.36, 0.05), 1.0 + ch + 0.3 * st);
-    let ms = marchSteps(ro, rd, 3.1, -0.3, top + 1.5, 16.0);
-    if ms.y > ms.x && fx > 0.0 {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 5.0));
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 16; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let n = fbm3(vec2(p.x * 1.3 + p.z * 0.8, p.y * 0.55 - t * 2.4));
-            let n2 = fbm3(vec2(p.z * 1.5 - p.x * 0.7, p.y * 0.9 - t * 3.3 + 4.0));
-            let w = 0.8 + 4.2 * n * n2 + 0.7 * st + 0.8 * ch;
-            let f = form * smoothstep(w, w * 0.2, r) * smoothstep(-0.3, 0.6, p.y) * (1.0 - smoothstep(top - 0.5, top + 1.5, p.y));
-            acc += ws_fire(clamp(1.1 - r / max(w, 0.05), 0.0, 1.0)) * f;
-        }
-        col += acc * ms.z * 0.9 * fx;
-    }
+    col += ws_puffs(ro, rd, 0.0, top, form, st, ch) * fx;
     // molten drips running down the blade and dropping away from it
     for (var i = 0; i < 9; i++) {
         let fi = f32(i);
@@ -168,66 +212,6 @@ fn ws_lava(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, c
 }
 
 // ======== HOTH: a hexagonal ice crystal, frost spikes, blizzard ========
-// light of the crystal sheath: apothem A, from the hilt to height yc
-fn ws_prism(ro: vec3<f32>, rd: vec3<f32>, px: f32, A: f32, yc: f32, ch: f32) -> vec3<f32> {
-    var tn: f32 = -1.0e5;
-    var tf: f32 = 1.0e5;
-    var nn: vec3<f32> = vec3<f32>(0.0, 0.0, 1.0);
-    var nf = nn;
-    for (var i = 0; i < 3; i++) {
-        let an = f32(i) * 1.0472 + 0.3;
-        let n = vec3(sin(an), 0.0, cos(an));
-        let dn = dot(rd, n);
-        let on = dot(ro, n);
-        if abs(dn) < 1.0e-5 {
-            if abs(on) > A {
-                return vec3<f32>(0.0);
-            }
-        } else {
-            let t1 = (-A - on) / dn;
-            let t2 = (A - on) / dn;
-            let sg = select(-1.0, 1.0, dn < 0.0);
-            if min(t1, t2) > tn {
-                tn = min(t1, t2);
-                nn = n * sg;
-            }
-            if max(t1, t2) < tf {
-                tf = max(t1, t2);
-                nf = -n * sg;
-            }
-        }
-    }
-    if abs(rd.y) > 1.0e-5 {
-        let ta = (0.1 - ro.y) / rd.y;
-        let tb = (yc - ro.y) / rd.y;
-        tn = max(tn, min(ta, tb));
-        tf = min(tf, max(ta, tb));
-    }
-    if tf <= max(tn, 0.0) {
-        return vec3<f32>(0.0);
-    }
-    var col: vec3<f32> = vec3<f32>(0.0);
-    let hw = A * 0.57735;
-    for (var k = 0; k < 2; k++) {
-        let th = select(tf, tn, k == 0);
-        if th <= 0.0 {
-            continue;
-        }
-        let n = select(nf, nn, k == 0);
-        let p = ro + rd * th;
-        let tg = vec3(n.z, 0.0, -n.x);
-        let u = dot(p, tg);
-        let ed = hw - abs(u);
-        let fres = pow(1.0 - abs(dot(n, rd)), 3.0);
-        let frost = vn(vec2(u * 9.0, p.y * 4.0)) * vn(vec2(u * 3.0 + 5.0, p.y * 1.3));
-        let crack = halo(abs(vn(vec2(u * 2.0 + 9.0, p.y * 0.6)) - 0.5), 0.02) * ch;
-        let fade = smoothstep(0.1, 0.8, p.y) * (1.0 - smoothstep(yc - 2.5, yc, p.y));
-        let c = vec3<f32>(0.5, 0.8, 1.0) * (0.1 + 0.7 * fres + 0.5 * frost) + vec3<f32>(0.9, 0.97, 1.0) * halo(ed, max(0.035, px)) * 1.1 + vec3<f32>(1.0) * crack * 1.5;
-        col += c * fade * (select(0.45, 1.0, k == 0));
-    }
-    return col;
-}
-
 fn ws_ice(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, ch: f32, st: f32, fx: f32) -> vec3<f32> {
     let t = uTime;
     var s: f32;
@@ -235,7 +219,6 @@ fn ws_ice(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, ch
     var col = ws_core(d, px, 0.32, vec3<f32>(0.9, 0.97, 1.0), vec3<f32>(0.4, 0.75, 1.0), 1.0 + ch + 0.3 * st);
     let yc = -0.3 + (top + 0.3) * form;
     let jit = ch * 0.04 * sin(t * 70.0);
-    col += ws_prism(ro + vec3(jit, 0.0, 0.0), rd, px, 0.62, yc, ch);
     let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
@@ -276,20 +259,7 @@ fn ws_ice(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, ch
         col += vec3<f32>(0.92, 0.97, 1.0) * (halo(dd, max(0.05, px)) * 1.4 + halo(dd, 0.2) * 0.1) * form * fx;
     }
     // snow mist
-    let ms = marchSteps(ro, rd, 4.4, -0.3, top + 1.5, 12.0);
-    if ms.y > ms.x {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 5.0));
-        var acc: f32 = 0.0;
-        for (var i = 0; i < 12; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let q = rot(t * 0.8 / (0.6 + 0.3 * r)) * p.xz;
-            let n = fbm3(vec2(q.x * 0.7 + p.y * 0.15, q.y * 0.7 - p.y * 0.2));
-            acc += smoothstep(0.45, 0.85, n) * exp(-r * r / 9.0) * smoothstep(-0.3, 1.0, p.y) * (1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
-        }
-        col += vec3<f32>(0.6, 0.8, 1.0) * acc * ms.z * 0.18 * form * (1.0 + 0.6 * st);
-    }
+    col += ws_puffs(ro, rd, 1.0, top, form, st, ch) * fx;
     return col;
 }
 
@@ -329,24 +299,7 @@ fn ws_storm(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, 
         }
     }
     // the churning sea round the blade and the storm cloud beyond (marched)
-    let ms = marchSteps(ro, rd, 4.6, -0.3, top + 1.5, 18.0);
-    if ms.y > ms.x {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 5.0));
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 18; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let q = rot(t * 1.1 / (0.5 + 0.4 * r) + p.y * 0.1) * p.xz;
-            let on = smoothstep(-0.3, 0.8, p.y) * (1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
-            let wv = fbm3(vec2(q.x * 1.5 + p.y * 0.3, q.y * 1.5 - p.y * 0.25 + t * 0.8));
-            let sea = form * smoothstep(1.7, 0.5, r) * smoothstep(0.4, 0.75, wv);
-            let cn = fbm3(vec2(q.x * 0.5 + p.y * 0.12, q.y * 0.5 - p.y * 0.1 + 7.0));
-            let cloud = smoothstep(0.4, 0.85, cn) * smoothstep(1.0, 2.0, r) * exp(-r * r / 12.0);
-            acc += (vec3<f32>(0.02, 0.3, 0.38) * sea + vec3<f32>(0.5, 0.9, 1.0) * sea * smoothstep(0.7, 0.9, wv) * 0.8 + vec3<f32>(0.16, 0.2, 0.34) * cloud * (0.25 + 1.6 * fl)) * on;
-        }
-        col += acc * ms.z * 0.45 * form * (1.0 + 0.5 * st);
-    }
+    col += ws_puffs(ro, rd, 2.0, top, form, st, ch) * fx;
     // driving rain
     for (var i = 0; i < 26; i++) {
         let fi = f32(i);
@@ -372,26 +325,7 @@ fn ws_sand(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, c
     }
     let wr = 1.0 + 2.0 * (1.0 - form);
     // the sand vortex (marched)
-    let ms = marchSteps(ro, rd, 4.8, -0.3, top + 1.5, 20.0);
-    if ms.y > ms.x {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 5.0));
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 20; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let a = atan2(p.x, p.z);
-            let band = 0.5 + 0.5 * sin(3.0 * a - r * 1.8 + p.y * 0.45 - t * 3.2);
-            let q = rot(t * 1.6 / (0.5 + 0.3 * r)) * p.xz;
-            let n = fbm3(vec2(q.x * 0.9 + p.y * 0.25, q.y * 0.9 - p.y * 0.2));
-            let rad = (0.9 + 1.6 * clamp(p.y / max(top, 1.0), 0.0, 1.0)) * wr;
-            let sh = exp(-pow((r - rad) / 1.1, 2.0));
-            let on = smoothstep(-0.3, 0.8, p.y) * (1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
-            let dens = sh * (0.25 + 0.75 * band) * smoothstep(0.3, 0.75, n) * on;
-            acc += mix(vec3<f32>(0.75, 0.42, 0.16), vec3<f32>(1.0, 0.78, 0.45), band * n) * dens;
-        }
-        col += acc * ms.z * 0.5 * (0.6 + 0.4 * form) * (1.0 + 0.6 * st);
-    }
+    col += ws_puffs(ro, rd, 3.0, top, form, st, ch) * fx;
     // wind streaks whipping round
     for (var i = 0; i < 8; i++) {
         let fi = f32(i);
@@ -436,19 +370,7 @@ fn ws_rock(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, c
         return col;
     }
     // red salt dust rising off the cracks (marched)
-    let ms = marchSteps(ro, rd, 3.2, -0.3, top + 1.5, 14.0);
-    if ms.y > ms.x {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 5.0));
-        var acc: f32 = 0.0;
-        for (var i = 0; i < 14; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let n = fbm3(vec2(p.x * 0.9 + p.z * 0.7, p.y * 0.5 - t * 0.9));
-            acc += smoothstep(0.45, 0.85, n) * exp(-(r - 0.5) / 1.0) * step(0.5, r) * smoothstep(-0.3, 0.8, p.y) * (1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
-        }
-        col += vec3<f32>(1.0, 0.12, 0.08) * acc * ms.z * 0.45 * form * (1.0 + 0.7 * st + ch);
-    }
+    col += ws_puffs(ro, rd, 4.0, top, form, st, ch) * fx;
     // red light round the floating shards (the shards themselves are in the solid pass)
     for (var i = 0; i < 9; i++) {
         let fi = f32(i);
@@ -468,24 +390,9 @@ fn ws_water(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, 
     let t = uTime;
     var s: f32;
     var ta: f32;
-    var col = ws_core(d, px, 0.3, vec3<f32>(0.85, 1.0, 1.0), vec3<f32>(0.15, 0.6, 0.95), 1.0 + ch + 0.3 * st) + vec3<f32>(0.1, 0.45, 0.9) * halo(d, 2.6) * 0.22 * fx;
+    var col = ws_core(d, px, 0.3, vec3<f32>(0.85, 1.0, 1.0), vec3<f32>(0.15, 0.6, 0.95), 1.0 + ch + 0.3 * st);
     // the flowing column (marched): water racing up, with bright caustic ridges
-    let ms = marchSteps(ro, rd, 1.9, -0.3, top + 1.0, 16.0);
-    if ms.y > ms.x {
-        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 5.0));
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 16; i++) {
-            let p = ro + rd * tt;
-            tt += ms.z;
-            let r = length(p.xz);
-            let q = rot(p.y * 0.35 - t * 2.0) * p.xz;
-            let n = fbm3(vec2(q.x * 1.6 + p.y * 0.2, q.y * 1.6 + p.y * 0.6 - t * 3.0));
-            let ridge = pow(1.0 - abs(2.0 * n - 1.0), 6.0);
-            let sheath = form * smoothstep(1.45, 0.45, r) * smoothstep(-0.3, 0.6, p.y) * (1.0 - smoothstep(top - 0.6, top + 1.0, p.y));
-            acc += (vec3<f32>(0.03, 0.25, 0.7) * 0.9 + vec3<f32>(0.2, 0.7, 1.0) * n * 0.9 + vec3<f32>(0.85, 1.0, 1.0) * ridge * 2.2) * sheath;
-        }
-        col += acc * ms.z * 0.8 * (1.0 + 0.4 * st);
-    }
+    col += ws_puffs(ro, rd, 5.0, top, form, st, ch) * fx;
     let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
@@ -546,8 +453,31 @@ fn ws_burst(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, kp: f32, kn
     // the blast: a shell of light bursting outward from the whole blade
     let Rb = 3.4 * (1.0 - exp(-lt * 5.0));
     col += mix(vec3<f32>(1.0), gp, 0.5) * halo(abs(d - Rb), 0.3 + 0.25 * Rb) * exp(-lt * 4.5) * smoothstep(0.0, 0.03, lt) * 0.55;
-    // shock rings tearing out across the blade, one after another
+    // the explosion itself: a billowing shell of the old climate's fire, frost, storm, sand,
+    // dust or spray rolling out from the whole blade, white-hot inside, fading as it spreads
     let nb = floor(uTime / WS_P);
+    // the explosion itself: a billowing shell of the old climate's fire, frost, storm, sand,
+    // dust or spray rolling out from the whole blade, white-hot inside, as soft puffs that
+    // each face the camera
+    if lt < 1.1 {
+        let Rx = 0.6 + 5.2 * (1.0 - exp(-lt * 3.2));
+        var ta: f32;
+        for (var i = 0; i < 28; i++) {
+            let fi = f32(i);
+            let a = h11(fi * 3.1 + nb);
+            let yy = (0.02 + 0.98 * h11(fi * 5.7 + nb)) * top;
+            let up = (h11(fi * 7.9 + nb) - 0.5) * Rx * 0.5;
+            let c = around(Rx * (0.6 + 0.4 * h11(fi * 1.3 + nb)), a, yy + up);
+            let dd = rayPt(ro, rd, c, &ta);
+            if dd > 4.0 {
+                continue;
+            }
+            let heat = clamp(1.0 - lt * 1.6, 0.0, 1.0);
+            let w = 0.5 + 0.9 * lt + 0.4 * h11(fi * 2.2);
+            col += mix(gp * 0.8, vec3<f32>(1.0, 0.95, 0.9), heat * heat) * (halo(dd, w) * 0.55 + halo(dd, w * 2.2) * 0.1) * exp(-lt * 2.6) * smoothstep(0.0, 0.05, lt);
+        }
+    }
+    // shock rings tearing out across the blade, one after another
     for (var i = 0; i < 3; i++) {
         let fi = f32(i);
         let lr = max(lt - fi * 0.07, 0.0);
@@ -627,46 +557,6 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 }
 
 // ======== the solid parts: crusts (Mustafar basalt, Crait salt), chunks and shards ========
-fn ws_crust(ro: vec3<f32>, rd: vec3<f32>, px: f32, k: f32, top: f32, grow: f32, crack: f32, tc: ptr<function, f32>) -> vec4<f32> {
-    let Rc = select(0.62, 0.6, k < 0.5);
-    (*tc) = 1.0e5;
-    let a = dot(rd.xz, rd.xz);
-    let b = dot(ro.xz, rd.xz);
-    let c = dot(ro.xz, ro.xz) - Rc * Rc;
-    let h = b * b - a * c;
-    if h <= 0.0 || a < 1.0e-6 {
-        return vec4<f32>(0.0);
-    }
-    let t0 = (-b - sqrt(h)) / a;
-    if t0 <= 0.0 {
-        return vec4<f32>(0.0);
-    }
-    let p = ro + rd * t0;
-    let y1 = min(top - 0.9, grow * (top + 1.0));
-    if p.y < 0.1 || p.y > y1 + 0.6 {
-        return vec4<f32>(0.0);
-    }
-    let n = vec3(p.x, 0.0, p.z) / Rc;
-    let ang = atan2(p.x, p.z) / 6.2832;
-    var cell: vec2<f32>;
-    let e = select(voro(vec2(ang * 8.0, p.y * 1.2), &cell), voro(vec2(ang * 8.0, p.y * 1.0 + uTime * 0.22), &cell), k < 0.5);
-    let w = (select(0.04 + 0.03 * sin(uTime * 1.5 + cell.x * 2.0 + cell.y * 1.3), 0.13 + 0.05 * sin(uTime * 2.0 + cell.x * 3.0 + cell.y), k < 0.5)) + crack * 0.12;
-    var al = smoothstep(w, w + 0.06, e);
-    al *= smoothstep(0.0, 0.3, -dot(n, rd));
-    al *= smoothstep(0.1, 0.7, p.y) * (1.0 - smoothstep(y1 - 0.4, y1 + 0.6, p.y));
-    let dif = 0.45 + 0.55 * max(dot(n, normalize(vec3<f32>(0.5, 0.6, 0.6))), 0.0);
-    let nz = vn(vec2(ang * 40.0, p.y * 6.0));
-    let glow_ = exp(-max(e - w, 0.0) / (select(0.09, 0.07, k < 0.5)));
-    var col: vec3<f32>;
-    if k < 0.5 {
-        col = vec3<f32>(0.09, 0.055, 0.04) * (0.6 + 0.7 * nz) * dif + vec3<f32>(1.0, 0.32, 0.04) * glow_ * 1.2 + vec3<f32>(0.35, 0.05, 0.0) * h21(cell) * h21(cell + 3.1);
-    } else {
-        col = vec3<f32>(1.0, 0.98, 0.96) * (0.75 + 0.25 * nz) * (0.55 + 0.6 * dif) + vec3<f32>(1.0, 0.1, 0.08) * glow_ * 1.0;
-    }
-    (*tc) = t0;
-    return vec4(col, al);
-}
-
 fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let top = ws_top();
     let lt = ws_lt();
@@ -677,23 +567,9 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let boom = ws_boom();
     var s: f32;
     var ta: f32;
-    var tc: f32 = 1.0e5;
+    let tc: f32 = 1.0e5;
     var o: vec4<f32> = vec4<f32>(0.0);
-    let crustK = select((select(0.0, 1.0, k > 3.5 && k < 4.5)), 1.0, k < 0.5);
-    if crustK > 0.5 {
-        o = ws_crust(ro, rd, px, k, top, form, ch, &tc);
-    }
-    // an old crust in its last instant, bursting apart
     let oldCrust = select((select(0.0, 1.0, kp > 3.5 && kp < 4.5)), 1.0, kp < 0.5);
-    if boom > 0.5 && oldCrust > 0.5 && lt < 0.12 {
-        var t2: f32;
-        var c2 = ws_crust(ro, rd, px, kp, top, 1.0, 1.0 + lt * 8.0, &t2);
-        c2.a *= 1.0 - smoothstep(0.03, 0.12, lt);
-        if c2.a > o.a {
-            o = c2;
-            tc = t2;
-        }
-    }
     if uFx <= 0.0 {
         return o;
     }
@@ -715,9 +591,6 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
                 continue;
             }
             let tmid = rayPt(ro, rd, (b0 + b1) * 0.5, &ta);
-            if ta > tc && o.a > 0.5 {
-                continue;
-            }
             let rim = smoothstep(w * 0.3, w, dd);
             let c = select(vec3<f32>(0.88, 0.86, 0.84) * (0.95 - 0.35 * rim) + vec3<f32>(1.0, 0.12, 0.1) * rim * 0.5, vec3<f32>(0.08, 0.05, 0.04) * (1.0 - 0.5 * rim) + vec3<f32>(1.0, 0.35, 0.05) * rim * 0.8, kp < 0.5);
             o = vec4(mix(o.rgb, c, al), max(o.a, al));
@@ -739,13 +612,81 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
                 continue;
             }
             let tmid = rayPt(ro, rd, (b0 + b1) * 0.5, &ta);
-            if ta > tc && o.a > 0.5 {
-                continue;
-            }
             let rim = smoothstep(w * 0.2, w, dd);
             let c = vec3<f32>(0.9, 0.88, 0.86) * (1.0 - 0.45 * rim) + vec3<f32>(1.0, 0.12, 0.1) * rim * 0.45;
             o = vec4(mix(o.rgb, c, al), max(o.a, al));
         }
+    }
+    return o;
+}
+
+// the blade: Sol's glow and core from the file, taking the ruling climate's colour (and
+// the next one's as it condenses up the blade after a change)
+fn ws_tint(g: vec3<f32>, b: vec2<f32>) -> vec3<f32> {
+    let k = ws_cur();
+    let lt = ws_lt();
+    let l = max(g.r, max(g.g, g.b));
+    let cn = ws_glow(k);
+    let fr = select(1.0e5, -1.0 + (uLength + 3.0) * smoothstep(0.1, 0.7, lt), ws_boom() > 0.5);
+    let c = select(ws_glow(ws_prev()), cn, b.y < fr);
+    return l * c / max(max(c.r, max(c.g, c.b)), 0.01);
+}
+
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    let ch = ws_charge();
+    return ws_tint(g, b) * (1.0 + ch * ch * (0.6 + 0.4 * sin(uTime * 40.0)) + 0.3 * uSwing);
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    let t = ws_tint(c, b);
+    return mix(c, t, 0.35);
+}
+
+// the solid sheaths, drawn over Sol's glow as his solid blades are: Mustafar's cracked
+// basalt crust, Hoth's ice crystal, Crait's white salt crust over the red
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
+    let k = ws_cur();
+    let top = ws_top();
+    let form = ws_form();
+    let ch = ws_charge();
+    let yc = -0.3 + (top + 0.3) * form;
+    if k > 0.5 && k < 1.5 {
+        // ice: a pale faceted sheath, see-through, its edges bright, frost on it
+        let A: f32 = 0.62;
+        let cov = fillD(abs(b.x) - A, px) * smoothstep(0.1, 0.8, b.y) * (1.0 - smoothstep(yc - 2.5, yc, b.y));
+        if cov <= 0.0 {
+            return o;
+        }
+        let u = b.x / A;
+        let frost = vn(vec2(u * 9.0, b.y * 4.0)) * vn(vec2(u * 3.0 + 5.0, b.y * 1.3));
+        let edge = halo(1.0 - abs(u), 0.06) + halo(abs(u) - 0.5, 0.03 + px) * 0.6;
+        var c = vec3<f32>(0.5, 0.8, 1.0) * (0.15 + 0.5 * frost) + vec3<f32>(0.9, 0.97, 1.0) * edge * 0.9;
+        c += vec3<f32>(1.0) * halo(abs(vn(vec2(u * 2.0 + 9.0, b.y * 0.6)) - 0.5), 0.02) * ch * 1.5;
+        let al = cov * (0.35 + 0.4 * frost + 0.3 * edge);
+        return vec4(mix(o.rgb, c, al), max(o.a, al));
+    }
+    if k < 0.5 || (k > 3.5 && k < 4.5) {
+        let Rc: f32 = 0.6;
+        let y1 = min(top - 0.9, form * (top + 1.0));
+        let cov = fillD(abs(b.x) - Rc, px) * smoothstep(0.1, 0.7, b.y) * (1.0 - smoothstep(y1 - 0.4, y1 + 0.6, b.y));
+        if cov <= 0.0 {
+            return o;
+        }
+        let u = clamp(b.x / Rc, -1.0, 1.0);
+        var cell: vec2<f32>;
+        let e = select(voro(vec2(u * 2.5, b.y * 1.2), &cell), voro(vec2(u * 2.5, b.y * 1.0 + uTime * 0.22), &cell), k < 0.5);
+        let w = (select(0.04 + 0.03 * sin(uTime * 1.5 + cell.x * 2.0 + cell.y * 1.3), 0.13 + 0.05 * sin(uTime * 2.0 + cell.x * 3.0 + cell.y), k < 0.5)) + ch * 0.12;
+        let al = cov * smoothstep(w, w + 0.06, e);
+        let dif = clamp(0.55 - 0.45 * u + 0.2 * sqrt(1.0 - u * u), 0.0, 1.0);
+        let nz = vn(vec2(u * 12.0, b.y * 6.0));
+        let glow_ = exp(-max(e - w, 0.0) / (select(0.09, 0.07, k < 0.5)));
+        var c: vec3<f32>;
+        if k < 0.5 {
+            c = vec3<f32>(0.09, 0.055, 0.04) * (0.6 + 0.7 * nz) * (0.45 + 0.55 * dif) + vec3<f32>(1.0, 0.32, 0.04) * glow_ * 1.2;
+        } else {
+            c = vec3<f32>(1.0, 0.98, 0.96) * (0.75 + 0.25 * nz) * (0.55 + 0.6 * dif) + vec3<f32>(1.0, 0.1, 0.08) * glow_;
+        }
+        return vec4(mix(o.rgb, c, al), max(o.a, al));
     }
     return o;
 }

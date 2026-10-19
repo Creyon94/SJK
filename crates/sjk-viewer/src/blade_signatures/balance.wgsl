@@ -76,52 +76,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var col: vec3<f32> = vec3<f32>(0.0);
     var sa: f32;
     let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
-    // the closest point to the axis decides which side's glow we see
-    // each flow's own glow, from its spiralling middle line, so the two colours twine in 3D
-    if dax < 4.0 {
-        var dB: f32 = 1.0e3;
-        var dR: f32 = 1.0e3;
-        var s: f32;
-        var pB = around(0.42, bl_phi(-0.6), -0.6);
-        var pR = around(0.42, bl_phi(-0.6) + 0.5, -0.6);
-        for (var i = 1; i <= 24; i++) {
-            let y = -0.6 + (top + 0.6) * f32(i) / 24.0;
-            let qB = around(0.42, bl_phi(y), y);
-            let qR = around(0.42, bl_phi(y) + 0.5, y);
-            dB = min(dB, raySeg(ro, rd, pB, qB, &s));
-            dR = min(dR, raySeg(ro, rd, pR, qR, &s));
-            pB = qB;
-            pR = qR;
-        }
-        let puls = 0.85 + 0.15 * sin(uTime * 2.0);
-        col += BL_BLUE * (halo(dB, 0.9) * 0.8 + halo(dB, 2.4) * 0.2) * puls;
-        col += BL_RED * (halo(dR, 0.9) * 0.75 + halo(dR, 2.4) * 0.22) * (1.9 - puls);
-    }
-    // a white heart where the two meet
-    col += vec3<f32>(1.0) * exp(-pow(dax / max(0.08, px * 0.6), 2.0)) * 0.6;
-    // the two flows, marched through the blade's body
-    if dax < 1.0 {
-        let ms = marchSteps(ro, rd, 0.9, -0.6, top + 0.3, 20.0);
-        if ms.z > 0.0 {
-            let dt = ms.z;
-            var t = ms.x + dt * h21(rd.xy * 517.0 + rd.z * 91.0);
-            var acc: vec3<f32> = vec3<f32>(0.0);
-            for (var i = 0; i < 20; i++) {
-                let p = ro + rd * t;
-                let r = length(p.xz);
-                var w = bl_side(p);
-                let body = smoothstep(0.9, 0.35, r) * smoothstep(-0.7, -0.3, p.y) * (1.0 - smoothstep(top - 0.6, top + 0.3, p.y));
-                // plasma flowing up each side
-                let fl = 0.75 + 0.35 * vn(vec2(p.y * 0.8 - uTime * 5.0, atan2(p.x, p.z) * 2.0));
-                // the churning border burns white
-                let border = 4.0 * w * (1.0 - w);
-                let c = mix(BL_RED * 1.5, mix(BL_BLUE, BL_PALE, 0.2), w) * fl + vec3<f32>(1.0, 0.8, 0.9) * border * 0.5;
-                acc += c * body * dt * 3.2;
-                t += dt;
-            }
-            col += acc / (1.0 + length(acc) * 0.2) * (1.0 + cl);
-        }
-    }
+    // The blade itself is Sol's glow and core from the file, split into the two flows
+    // (sig_glow); here only the effects, each a piece placed round it in 3D.
     // dark-side lightning crackling off the red flow
     if dax < 5.0 {
         for (var i = 0; i < 4; i++) {
@@ -159,13 +115,30 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             col += (rc * halo(abs(rr - R), 0.45) + vec3<f32>(1.0) * halo(abs(rr - R), 0.1)) * cl * 1.6 * uFx;
         }
     }
-    return (1.0 - exp(-col * 1.1)) * 1.05;
+    return col;
+}
+
+// the light side's weight (1 blue, 0 red) across Sol's glow at b: the border between the two
+// flows winds round the blade with the spiral, so it sweeps across the glow as it turns,
+// churning and pushed one way or the other by the surges
+fn bl_w(b: vec2<f32>, r: f32) -> f32 {
+    let ph = bl_phi(b.y);
+    let sh = bl_share(b.y);
+    let ch = (fbm3(vec2(b.y * 0.7 - uTime * 1.6, 3.0 + uTime * 0.3)) - 0.5) * 0.5;
+    let border = r * (cos(6.2832 * ph) + (sh - 0.5) * 2.0 + ch);
+    let side = select(-1.0, 1.0, sin(6.2832 * ph) >= 0.0);
+    return smoothstep(-0.12 * r, 0.12 * r, side * (b.x - border * 0.6));
 }
 
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    let l = max(g.r, max(g.g, g.b));
+    let w = bl_w(b, max(r, 0.5));
+    let fl = 0.8 + 0.3 * vn(vec2(b.y * 0.8 - uTime * 5.0, b.x * 2.0));
+    let c = mix(BL_RED * 1.3, mix(BL_BLUE, BL_PALE, 0.2), w) * fl + vec3<f32>(1.0, 0.8, 0.9) * 4.0 * w * (1.0 - w) * 0.4;
+    return l * c * (1.0 + clamp(uClash, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    let w = bl_w(b, 0.5);
+    return c * mix(vec3<f32>(1.0, 0.75, 0.75), vec3<f32>(0.85, 0.92, 1.0), w);
 }

@@ -7,30 +7,26 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.04,0.10,0.45],"corona.rim_hot":[0.20,0.45,1.0],"corona.inner":[0.65,0.82,1.0],"core.white":[0.90,0.95,1.0],"core.fringe_cool":[0.15,0.35,1.0],"core.fringe_hot":[0.60,0.80,1.0],"light.color":[0.22,0.45,1.0],"trail":[0.28,0.50,1.0]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
 // the jump: 0..1 while a hyperspace shimmer runs up the blade (every 11 s), and its front
 float swh_jump(){ float p = mod(uTime - 3.0, 11.0); return smoothstep(0.0, 0.15, p)*(1.0 - smoothstep(1.1, 1.6, p)); }
 float swh_front(){ return mod(uTime - 3.0, 11.0)/1.2; }
 
-// one ring of song: height h, radius R, thickness w; integrated soft torus density along the ray
+// one ring of song: height h, radius R, softness w; the ray's distance to the ring gives a
+// soft band of light that keeps its shape from any side
 float swh_ring(vec3 ro, vec3 rd, float h, float R, float w){
-  vec2 sp = raySpan(ro, rd, R + 2.5*w, h - 2.5*w, h + 2.5*w);
-  if (sp.y <= sp.x) return 0.0;
-  float dt = (sp.y - sp.x)/6.0;
-  float t = sp.x + dt*0.5;
-  float acc = 0.0;
-  for (int i = 0; i < 6; i++){
-    vec3 p = ro + rd*t;
-    float r = length(p.xz);
-    float a = atan(p.x, p.z);
-    float yy = p.y - h - 0.25*w*sin(a*3.0 + uTime*0.7);
-    float d2 = (r - R)*(r - R) + yy*yy*0.55;
-    acc += exp(-d2/(w*w))*dt*(0.65 + 0.35*sin(a*2.0 - uTime*0.5 + h));
-    t += dt;
+  float best = 1e3;
+  vec3 q = rayAt(ro, rd, h);
+  if (q.z > 0.0) best = abs(length(q.xy) - R);
+  float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
+  float dsc = b*b - a*c;
+  if (dsc > 0.0 && a > 1e-6){
+    float k = sqrt(dsc);
+    float t0 = (-b - k)/a, t1 = (-b + k)/a;
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - h));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - h));
   }
-  return acc;
+  return halo(best, max(0.05, w*0.15))*1.4 + halo(best, w*0.45)*0.35;
 }
 
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
@@ -44,21 +40,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float jump = swh_jump()*uFx;
   float jf = swh_front()*L;
 
-  // the blade: it breathes, swelling where the slow waves pass
-  float s;
-  float dA = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
-  float ya = mix(-0.6, top, s);
-  float tA; rayPt(ro, rd, vec3(0.0, ya, 0.0), tA);
-  float wph = ya*0.32 - uTime*(1.1 + 1.6*sw);
-  float wave = 0.5 + 0.5*sin(wph);
-  wave = wave*wave;
-  float wave2 = 0.5 + 0.5*sin(ya*0.11 - uTime*0.45 + 1.0);
-  float shim = jump*exp(-pow((ya - jf)/3.0, 2.0));
-  float gw = 0.40 + 0.45*wave + 0.15*wave2;
-  vec3 light = vec3(1.0)*exp(-pow(dA/max(0.20 + 0.06*wave, px), 2.0))*(1.1 + 0.4*wave + 1.2*shim)
-    + mix(deep, bio, 0.35*wave + 0.4*shim)*halo(dA, gw)*(0.6 + 1.1*wave + shim)
-    + deep*halo(dA, gw*3.5)*(0.20 + 0.18*wave2 + 0.2*sw)
-    + deep*halo(dA, 7.0)*0.05;
+  // The blade is Sol's glow and core from the file, breathing with the slow waves
+  // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
+  vec3 light = vec3(0.0);
 
   // rings of song: three slow notes on long, staggered cycles, plus the clash
   float songs = 0.0;
@@ -82,31 +66,22 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       songC = swh_ring(ro, rd, L*0.55, 0.8 + 5.5*f, 0.6 + 0.9*f)*cl;
     }
   }
-  light += (mix(bio, pale, 0.15)*songs*0.32 + pale*songC*1.0)*fxOn*(0.35 + 0.65*smoothstep(0.05, 0.5, abs(rd.y)));
+  light += (mix(bio, pale, 0.15)*songs*0.6 + pale*songC*1.0)*fxOn;
 
-  // nebula gas and plankton glow drifting and swirling round the blade
-  vec3 ms = marchSteps(ro, rd, 6.2, -0.5, L + 2.0, 20.0);
-  if (ms.y > ms.x && fxOn > 0.001){
-    float t = ms.x + ms.z*h21(rd.xy*517.0 + rd.z*37.0);
-    vec3 acc = vec3(0.0);
-    for (int i = 0; i < 20; i++){
-      vec3 p = ro + rd*t;
-      if (p.y < top + 1.0){
-        float r = length(p.xz);
-        float a = uTime*0.10 + p.y*0.04 + 0.6/(0.6 + r);
-        vec2 q = rot(a)*p.xz;
-        float yy = p.y*0.12 - uTime*0.05;
-        float n = fbm3(vec2(q.x*0.30, yy + q.y*0.12))*fbm3(vec2(q.y*0.30 + 5.0, yy*1.3 - q.x*0.1));
-        float sh = smoothstep(0.6, 1.6, r)*(1.0 - smoothstep(3.4, 5.8, r))*smoothstep(-0.5, 3.0, p.y)*(1.0 - smoothstep(L - 2.0, L + 2.0, p.y));
-        float d = smoothstep(0.12, 0.45, n*1.4)*sh;
-        // light from the blade: brighter where a wave passes at this height
-        float wv = 0.5 + 0.5*sin(p.y*0.32 - uTime*(1.1 + 1.6*sw));
-        float jl = jump*exp(-pow((p.y - jf)/4.0, 2.0));
-        acc += mix(deep, bio, 0.3 + 0.4*wv*wv)*d*(0.6 + 0.6*wv*wv + 1.5*jl)*exp(-r*0.25);
-      }
-      t += ms.z;
-    }
-    light += acc*ms.z*0.22*fxOn;
+  // nebula gas drifting and swirling round the blade: soft deep-blue puffs, lit where a
+  // wave passes and when it jumps
+  for (int i = 0; i < 14; i++){
+    float fi = float(i);
+    float r = 1.4 + 3.0*h11(fi*4.7);
+    float yy = L*(0.06 + 0.88*h11(fi*2.3));
+    if (yy > top + 1.0) continue;
+    vec3 p = around(r, h11(fi*8.1) + uTime*0.1/(0.6 + 0.3*r), yy + 1.0*sin(uTime*0.2 + fi));
+    float tt;
+    float d = rayPt(ro, rd, p, tt);
+    if (d > 4.0) continue;
+    float wv = 0.5 + 0.5*sin(yy*0.32 - uTime*(1.1 + 1.6*sw));
+    float jl = jump*exp(-pow((yy - jf)/4.0, 2.0));
+    light += mix(deep, bio, 0.3 + 0.4*wv*wv)*(halo(d, 0.9 + 0.6*h11(fi))*0.3 + halo(d, 2.0)*0.06)*(0.6 + 0.6*wv*wv + 1.5*jl)*fxOn;
   }
 
   // plankton: tiny motes of living light drifting slowly round it
@@ -145,4 +120,17 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
   }
   return light;
+}
+// the blade: Sol's glow and core from the file, breathing, swelling where the slow waves pass,
+// shimmering as it jumps
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float wave = 0.5 + 0.5*sin(b.y*0.32 - uTime*(1.1 + 1.6*clamp(uSwing, 0.0, 1.0)));
+  wave = wave*wave;
+  float wave2 = 0.5 + 0.5*sin(b.y*0.11 - uTime*0.45 + 1.0);
+  float shim = swh_jump()*uFx*exp(-pow((b.y - swh_front()*uLength)/3.0, 2.0));
+  return g*(0.6 + 0.9*wave + 0.2*wave2 + 1.2*shim + 0.6*clamp(uClash, 0.0, 1.0));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){
+  float shim = swh_jump()*uFx*exp(-pow((b.y - swh_front()*uLength)/3.0, 2.0));
+  return c*(1.0 + shim);
 }

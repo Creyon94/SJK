@@ -8,8 +8,6 @@
 // @room 7
 // @palette {"corona.rim_cool":[0.45,0.04,0.18],"corona.rim_hot":[1.0,0.30,0.50],"corona.inner":[1.0,0.80,0.88],"core.white":[1.0,0.94,0.96],"core.fringe_cool":[0.90,0.20,0.45],"core.fringe_hot":[1.0,0.65,0.78],"light.color":[1.0,0.30,0.50],"trail":[1.0,0.32,0.52]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
 const float KH_RATE = 1.2;   // beats a second (steady: a changing rate makes the phase race)
 const float KH_V = 52.0;     // how fast a pulse climbs the blade (units a second)
@@ -31,16 +29,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float top = L*clamp(uAge/0.45, 0.0, 1.0);
   float fx = uFx;
   float pump = 1.0 + 0.6*sw;
-  // ---- the blade: it swells and blazes as each pulse passes, and dims between beats
+  // The blade is Sol's glow and core from the file, swelling with each pulse (sig_glow,
+  // sig_core); here only the effects, each a piece placed round it in 3D.
   float s;
-  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
-  float y = mix(-0.6, top, s);
-  float p = kh_pulse(y)*pump + cl*1.2;
-  float w = 0.22 + 0.16*p;
-  float pw = mix(p, 0.45*pump + cl, smoothstep(0.4, 2.0, d));
-  vec3 light = white*exp(-pow(d/max(w, px), 2.0))*(0.85 + 0.6*p)
-             + rose*halo(d, 0.55 + 0.45*p)*(0.6 + 0.9*p)
-             + deep*halo(d, 2.0 + 0.9*min(pw, 1.3))*(0.16 + 0.35*min(pw, 1.5));
+  vec3 light = vec3(0.0);
   if (fx > 0.0){
     vec3 fxl = vec3(0.0);
     float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
@@ -81,6 +73,22 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float sh = clamp(wr/sqrt(max(R*R - rr*rr, wr*wr)), 0.0, 1.0)*smoothstep(R + wr, R - 2.0*wr, rr) + halo(abs(rr - R), wr*1.4)*0.4;
       fxl += mix(pale, rose, 0.65)*sh*amp*1.0*step(yr, top);
     }
+    // ---- each beat throws a spray of rose sparks off the blade where the pulse is passing
+    float bt = fract(t*KH_RATE)/KH_RATE, bn = floor(t*KH_RATE);
+    for (int i = 0; i < 18; i++){
+      float fi = float(i);
+      float y0 = min(bt*KH_V, top) - 1.0 - 6.0*h11(fi*3.3 + bn);
+      if (y0 < 0.5 || y0 > top) continue;
+      vec3 dir = normalize(vec3(sin(6.2832*h11(fi*1.9 + bn)), 0.4*(h11(fi*4.4 + bn) - 0.3), cos(6.2832*h11(fi*1.9 + bn))));
+      float age = bt - y0/KH_V;
+      if (age < 0.0) continue;
+      float v = (4.0 + 5.0*h11(fi*7.1 + bn))*pump;
+      vec3 p0 = vec3(0.0, y0, 0.0) + dir*(0.4 + v*(1.0 - exp(-age*3.0))/3.0);
+      vec3 p1 = p0 - dir*(0.3 + 0.6*exp(-age*3.0));
+      float sk;
+      float dk = raySeg(ro, rd, p1, p0, sk);
+      fxl += mix(white, rose, smoothstep(0.0, 0.6, age))*(halo(dk, max(0.05, px))*1.6 + halo(dk, 0.3)*0.3)*exp(-age*2.5)*sk;
+    }
     // ---- a clash: the heart skips, a white flare floods the blade and a strong ring bursts out
     if (cl > 0.01){
       float R = 1.0 + 6.5*(1.0 - cl);
@@ -89,9 +97,20 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       vec3 dd = rd; dd.y *= 3.0; dd = normalize(dd);
       float rr = length(o + dd*max(dot(-o, dd), 0.0));
       float sh = clamp(wr/sqrt(max(R*R - rr*rr, wr*wr)), 0.0, 1.0)*smoothstep(R + wr, R - 2.0*wr, rr) + halo(abs(rr - R), wr*1.4)*0.5;
-      fxl += (pale*sh*1.2)*cl + white*halo(d, 1.5)*pow(cl, 2.0)*0.6;
+      float tc;
+      fxl += (pale*sh*1.2)*cl + white*halo(rayPt(ro, rd, vec3(0.0, L*0.5, 0.0), tc), 1.5)*pow(cl, 2.0)*0.6;
     }
     light += fxl*fx;
   }
-  return (1.0 - exp(-light*1.1))*1.05;
+  return light;
+}
+// the blade: Sol's glow and core from the file, swelling and blazing as each pulse passes and
+// dimming between beats
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float p = kh_pulse(b.y)*(1.0 + 0.6*clamp(uSwing, 0.0, 1.0)) + 1.2*clamp(uClash, 0.0, 1.0);
+  return g*(0.6 + 0.9*p);
+}
+vec3 sig_core(vec3 c, vec2 b, float px){
+  float p = kh_pulse(b.y) + 1.2*clamp(uClash, 0.0, 1.0);
+  return c*(0.85 + 0.5*p);
 }

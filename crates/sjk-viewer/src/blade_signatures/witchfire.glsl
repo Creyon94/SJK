@@ -18,26 +18,6 @@ float wf_pulse(float y){
   float f = fract(y*0.045 - uTime*0.7);
   return pow(f, 10.0)*smoothstep(1.0, 0.97, f)*2.0;
 }
-// ghost-fire and ichor mist at point p: (fire, mist)
-vec2 wf_dens(vec3 p, float top){
-  float y = p.y;
-  float r = length(p.xz);
-  float a = atan(p.x, p.z)/6.2832;
-  float hot = 1.0 + uSwing*0.3 + uClash*0.45;
-  // the fire: tongues swirling round and racing up
-  float sw = a + y*0.035 + uTime*0.22;
-  float n = fbm3(vec2(sw*5.0, y*0.42 - uTime*2.6));
-  float n2 = vn(vec2(sw*11.0, y*0.9 - uTime*4.1));
-  float reach = (0.9 + 3.4*n*n + 0.8*n2)*hot;
-  float fire = pow(smoothstep(reach, 0.3, r), 1.5)*smoothstep(0.28, 0.6, n + 0.15*n2);
-  fire *= smoothstep(-0.4, 1.0, y)*(1.0 - smoothstep(top - 1.5, top + 1.5, y));
-  // the ichor mist: pours down, thickens and spreads toward the hilt
-  float sp = 1.0 - clamp(y/uLength, 0.0, 1.0);
-  float m = fbm3(vec2(a*4.0 - uTime*0.05, y*0.28 + uTime*1.5));
-  float mr = 0.9 + 2.6*sp*sp + 1.0*m;
-  float mist = smoothstep(mr, 0.2, r)*smoothstep(0.35, 0.75, m)*smoothstep(top + 0.5, top - 3.0, y)*smoothstep(-4.0, 0.0, y);
-  return vec2(fire, mist*0.55);
-}
 // one coiling tendril of green energy
 vec3 wf_tendril(vec3 ro, vec3 rd, float k, float px, float top){
   float best = 1e3; float bs = 0.0; float s;
@@ -64,31 +44,39 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float top = wf_top();
   float cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
-  // the ichor blade itself: pale burning heart, sickly green body, pulses climbing it
+  // The ichor blade is Sol's glow and core from the file with pulses of magick climbing it
+  // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
   float sa;
   float dax = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
-  float yb = sa*(top + 0.6) - 0.6;
-  float pu = wf_pulse(yb);
-  float wob = 0.30 + 0.05*sin(yb*1.7 - uTime*6.0) + 0.06*pu;
-  col += WF_PALE*exp(-pow(dax/max(wob*0.45, px*0.7), 2.0))*1.0;
-  col += WF_G*halo(dax, wob*1.5)*(0.9 + 0.8*pu);
-  col += WF_G*halo(dax, 1.6)*0.25*(1.0 + pu);
-  // ghost-fire and ichor mist, marched
-  if (dax < 4.2){
-    vec3 ms = marchSteps(ro, rd, 4.0, -4.0, top + 2.0, 22.0);
-    if (ms.z > 0.0){
-      float dt = ms.z;
-      float t = ms.x + dt*h21(rd.xy*517.0 + rd.z*91.0);
-      vec3 acc = vec3(0.0);
-      for (int i = 0; i < 22; i++){
-        vec3 p = ro + rd*t;
-        vec2 d = wf_dens(p, top);
-        float pu2 = wf_pulse(p.y);
-        acc += (WF_G*d.x*(1.0 + 1.2*pu2) + WF_PALE*d.x*d.x*d.x*0.2 + WF_DEEP*d.y*2.2)*dt;
-        t += dt;
-      }
-      col += acc*(1.0/(1.0 + length(acc)*0.3))*uFx;
-    }
+  float hot = 1.0 + uSwing*0.6 + cl*0.8;
+  // ghost-fire: green tongues licking up off the blade, swirling round it
+  for (int i = 0; i < 24; i++){
+    float fi = float(i);
+    float rate = 0.8 + 0.5*h11(fi*2.3);
+    float f = fract(uTime*rate + h11(fi*6.7));
+    float k = floor(uTime*rate + h11(fi*6.7));
+    float y0 = (0.02 + 0.92*h11(fi*3.1 + k))*top;
+    float a0 = h11(fi*5.3 + k) + uTime*0.22;
+    vec3 p0 = around(0.4, a0, y0 + 2.0*f);
+    vec3 p1 = around(0.6 + (1.2 + 1.6*h11(fi*9.1))*f*hot, a0 + 0.08*f, y0 + 2.0*f + 1.3);
+    float sk;
+    float dk = raySeg(ro, rd, p0, p1, sk);
+    if (dk > 2.0) continue;
+    float w = max(0.12 + 0.25*(1.0 - sk)*(1.0 - f), px);
+    float pu2 = wf_pulse(p0.y);
+    col += (WF_G*halo(dk, w)*0.9*(1.0 + pu2) + WF_PALE*halo(dk, w*0.3)*0.4)*sin(3.1416*f)*(1.0 - 0.5*sk)*uFx;
+  }
+  // ichor mist pouring down the blade and spilling over the hilt
+  for (int i = 0; i < 12; i++){
+    float fi = float(i);
+    float f = fract(uTime*(0.25 + 0.1*h11(fi*1.7)) + h11(fi*8.3));
+    float y0 = (0.15 + 0.8*h11(fi*4.1))*top;
+    float yy = mix(y0, -2.5, f);
+    float sp = 1.0 - clamp(yy/uLength, 0.0, 1.0);
+    vec3 p = around(0.6 + 2.2*sp*sp*f + 0.4*f, h11(fi*2.9) + 0.1*f, yy);
+    float tt;
+    float dm = rayPt(ro, rd, p, tt);
+    col += WF_DEEP*(halo(dm, 0.5 + 0.8*f)*0.45 + halo(dm, 1.5)*0.08)*sin(3.1416*f)*uFx;
   }
   // tendrils
   if (dax < 3.4){
@@ -105,30 +93,27 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float tongue = 0.6 + 0.4*vn(vec2(aa*4.0, uTime*8.0));
       col += (WF_G*halo(abs(rr - R), 0.5*tongue) + WF_PALE*halo(abs(rr - R), 0.12))*cl*1.5*uFx;
     }
-    col += WF_G*halo(dax, 2.5)*cl*0.7;
   }
-  return (1.0 - exp(-col*1.1))*1.05;
+  return col;
 }
-// dark smoke curling through the outer fire
+// dark smoke curling through the fire: dim puffs drifting up round it, each facing the camera
 vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
   float top = wf_top();
-  vec3 ms = marchSteps(ro, rd, 4.2, 0.0, top + 3.0, 14.0);
-  if (ms.z <= 0.0 || uFx < 0.5) return vec4(0.0);
-  float dt = ms.z;
-  float t = ms.x + dt*h21(rd.xy*311.0 + rd.z*57.0);
-  float tr = 1.0;
-  for (int i = 0; i < 14; i++){
-    vec3 p = ro + rd*t;
-    float r = length(p.xz);
-    float a = atan(p.x, p.z)/6.2832;
-    float n = fbm3(vec2(a*3.0 + p.y*0.05 + uTime*0.1, p.y*0.22 - uTime*0.7));
-    float d = smoothstep(0.55, 0.85, n)*smoothstep(1.0, 2.0, r)*smoothstep(4.0, 2.6, r)
-      *smoothstep(0.0, 3.0, p.y)*smoothstep(top + 2.0, top - 2.0, p.y);
-    tr *= exp(-d*dt*0.35);
-    t += dt;
+  if (uFx < 0.5) return vec4(0.0);
+  float al = 0.0;
+  for (int i = 0; i < 10; i++){
+    float fi = float(i);
+    float f = fract(uTime*0.12 + h11(fi*3.9));
+    vec3 p = around(1.5 + 1.2*h11(fi*6.1) + 0.6*f, h11(fi*2.2) + uTime*0.1, (0.1 + 0.85*h11(fi*7.7))*top + 3.0*f);
+    float tt;
+    float d = rayPt(ro, rd, p, tt);
+    al = max(al, halo(d, 0.6 + 0.5*f)*0.45*sin(3.1416*f));
   }
-  float al = clamp((1.0 - tr)*0.85, 0.0, 0.55);
   return vec4(vec3(0.01, 0.025, 0.012), al);
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+// the blade: Sol's glow and core from the file, wobbling, pulses of magick climbing it
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float pu = wf_pulse(b.y);
+  return g*(0.85 + 0.15*sin(b.y*1.7 - uTime*6.0) + 0.8*pu + 0.6*clamp(uClash, 0.0, 1.0));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.3*wf_pulse(b.y)); }

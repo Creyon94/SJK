@@ -35,37 +35,10 @@ fn hc_beat() -> f32 {
     return 0.55 + 0.3 * pow(0.5 + 0.5 * sin(uTime * 2.4), 6.0) + 0.25 * pow(0.5 + 0.5 * sin(uTime * 2.4 - 0.7), 10.0);
 }
 
-// the crystal's cross-section turned with its twist at height y
-fn hc_q(p: vec3<f32>) -> vec2<f32> {
-    return rot(0.35 + p.y * 0.045) * p.xz;
-}
-
-// the crystal's inner radius at y: a point at the tip, a short neck at the hilt
+// the crystal's half width at y: a short neck at the hilt, drawn to a point at the tip
 fn hc_a(y: f32) -> f32 {
-    let L = uLength;
     let top = hc_top();
-    return HC_A * (1.0 - smoothstep(top - 2.6, top + 0.2, y) * 0.97) * smoothstep(-0.2, 0.5, y);
-}
-
-fn hc_prism(q: vec2<f32>, a: f32) -> f32 {
-    // a smooth maximum of the three faces: crisp facets with softened corners
-    let d0 = q.y;
-    let d1 = dot(q, vec2<f32>(0.866, -0.5));
-    let d2 = dot(q, vec2<f32>(-0.866, -0.5));
-    let k = 0.15 * a + 0.002;
-    let m = max(max(d0, d1), d2);
-    return m + k * log(exp((d0 - m) / k) + exp((d1 - m) / k) + exp((d2 - m) / k)) - a;
-}
-
-fn hc_sdf(p: vec3<f32>) -> f32 {
-    let g = hc_gap(p.y);
-    let s = select(-1.0, 1.0, p.x >= 0.0);
-    let c = vec3(p.x - s * g, p.y, p.z);
-    var d = hc_prism(hc_q(c), hc_a(p.y));
-    d = max(d, -s * c.x - 0.0001 * step(g, 0.001));
-    // each half ends at the seam
-    d = max(d, max(0.1 - p.y, p.y - hc_top() - 0.3));
-    return d;
+    return HC_A * 1.45 * (1.0 - smoothstep(top - 2.6, top + 0.2, y) * 0.97) * smoothstep(-0.2, 0.5, y);
 }
 
 // a triangle lattice: x = distance to the nearest facet edge, yz = the facet's id
@@ -83,41 +56,88 @@ fn hc_front() -> f32 {
     return glsl_mod(uTime * 9.0, uLength + 16.0) - 4.0;
 }
 
-// red smoke: density at p (two crossed noise slices, so it is round in 3D)
-fn hc_dens(p: vec3<f32>) -> f32 {
-    let t = uTime;
+// the crystal, drawn over Sol's glow and core as his solid blades are: a three-sided prism
+// facing the camera (two faces seen, meeting on a ridge that turns with its slow twist), its
+// glass cut into triangular facets, the heart beating red through it; it splits along the
+// seam when the holocron opens and the white-hot core shows between the halves
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     let L = uLength;
-    let r = length(p.xz);
-    let op = hc_open();
-    var n = fbm3(vec2(p.x * 0.6 - sign(p.x) * t * 0.6 * op + 2.0, p.y * 0.3 - t * 0.8 - r * 0.3)) * fbm3(vec2(p.z * 0.6 + 5.0, p.y * 0.27 - t * 0.6 + r * 0.2));
-    n = smoothstep(0.15, 0.6, n);
-    // a thin veil hugging the glass, pouring out wide from the crack while open
-    let veil = exp(-max(r - 0.7, 0.0) / (0.8 + 1.8 * op)) * smoothstep(0.35, 0.8, r) * (0.5 + 1.6 * op * smoothstep(0.0, 0.25, hc_gap(p.y)));
-    let cl = select(0.0, exp(-length(p - vec3(0.0, L * 0.6, 0.0)) / 2.0) * uClash * 1.5, uClash > 0.01);
-    return n * (veil + cl) * (1.0 - smoothstep(3.0, 4.8, r)) * smoothstep(-0.5, 1.0, p.y) * smoothstep(hc_top() + 2.0, hc_top() - 0.5, p.y);
+    let t = uTime;
+    let top = hc_top();
+    if top < 0.3 {
+        return o;
+    }
+    let y = b.y;
+    let a = hc_a(y);
+    let g = hc_gap(y);
+    let side = select(-1.0, 1.0, b.x >= 0.0);
+    let x = abs(b.x) - g;
+    if x < -0.001 && g > 0.001 {
+        return o;
+    }
+    // the open seam: the core shows through
+    let xs = side * x;
+    let cov = fillD(abs(xs) - a, px) * step(0.1, y) * (1.0 - smoothstep(top - 0.05, top + 0.3, y));
+    if cov <= 0.0 {
+        return o;
+    }
+    // the ridge where two faces meet wanders across with the twist
+    let ridge = a * 0.7 * sin(0.35 + y * 0.045 + t * 0.25);
+    let fid = select(0.0, 1.0, xs > ridge);
+    let u = (xs - ridge) / max(a, 0.01);
+    let tr = hc_tri(vec2(u * 2.2 + fid * 3.7 + 0.3 * side, y * 0.45));
+    let id = h21(tr.yz + fid * 13.0 + side * 5.0);
+    let awake = smoothstep(0.0, 0.25, uAge * 2.2 - y / L - id * 0.15);
+    let beat = hc_beat();
+    let fr = hc_front();
+    let pass_ = exp(-pow((y - fr) / 3.0, 2.0)) + 0.6 * exp(-pow((y - fr + 14.0) / 2.0, 2.0));
+    let lk = y * 2.6 - t * 3.5 + id * 0.5;
+    let lines = halo(abs(fract(lk) - 0.5), 0.06) * step(0.55, h11(floor(lk) + fid * 5.0 + side * 3.0)) * halo(abs(fract(u * 3.0 + id) - 0.5), 0.12);
+    // each facet glints in turn as the crystal turns
+    let glint = pow(0.5 + 0.5 * sin(t * 1.3 + id * 12.0 + fid * 2.0), 12.0);
+    let lit = clamp(0.12 + 0.9 * id * id * beat + pass_ * (0.5 + 0.6 * id) + 0.9 * uSwing * step(0.5, id), 0.0, 2.0);
+    var face = mix(vec3<f32>(0.22, 0.0, 0.015), vec3<f32>(0.95, 0.10, 0.05), clamp(lit, 0.0, 1.0) * 0.75) + vec3<f32>(1.0, 0.5, 0.4) * max(lit - 1.0, 0.0) * 0.6;
+    // the faces' shading: one face toward the light, the other away
+    face *= select(1.0, 0.75, fid > 0.5);
+    // the heart, deep inside at the axis, and the lines of knowledge
+    face += vec3<f32>(1.0, 0.12, 0.06) * halo(b.x, a * 0.55 + 0.05) * beat * 0.9 + vec3<f32>(1.0, 0.55, 0.45) * halo(b.x, 0.12) * beat * 0.35;
+    face += vec3<f32>(1.0, 0.35, 0.25) * lines * 0.8 * (0.4 + pass_);
+    // cut lines between the facets, the ridge, and a hot rim along the glass's edges
+    face += vec3<f32>(1.0, 0.45, 0.35) * halo(tr.x, 0.03 + px * 1.2) * (0.45 + 0.8 * pass_ + 0.6 * uSwing);
+    face += vec3<f32>(1.0, 0.5, 0.4) * halo(xs - ridge, 0.03 + px) * 0.6;
+    face += vec3<f32>(1.0, 0.2, 0.12) * pow(clamp(abs(xs) / max(a, 0.01), 0.0, 1.0), 6.0) * 0.7 + vec3<f32>(1.0, 0.85, 0.8) * glint * 0.8 * step(0.6, id);
+    // the seam's faces glow white-hot from the core when open
+    face += vec3<f32>(1.0, 0.75, 0.65) * halo(x, 0.06 + px) * smoothstep(0.02, 0.1, g) * 1.6 * hc_open();
+    face *= mix(0.25, 1.0, awake);
+    let al = cov * mix(0.3, 0.92, awake);
+    return vec4(mix(o.rgb, face, al), max(o.a, al));
 }
 
-fn hc_smoke(ro: vec3<f32>, rd: vec3<f32>, tmax: f32) -> vec3<f32> {
-    let m = marchSteps(ro, rd, 4.8, -0.5, uLength + 2.0, 16.0);
-    let te = min(m.y, tmax);
-    if te <= m.x {
-        return vec3<f32>(0.0);
-    }
-    let dt = (te - m.x) / 16.0;
-    var t = m.x + dt * h21(rd.xy * 517.0 + ro.xz);
-    var lit: f32 = 0.0;
-    var acc: f32 = 0.0;
-    for (var i = 0; i < 16; i++) {
-        let p = ro + rd * t;
-        let d = hc_dens(p);
-        if d > 0.001 {
-            let r = length(p.xz);
-            lit += d * (0.3 + 1.2 * exp(-r / 1.0)) * exp(-acc * 0.8) * dt;
-            acc += d * dt;
+// red smoke: soft puffs hugging the glass, pouring out of the crack while it is open; each
+// puff faces the camera
+fn hc_smoke(ro: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
+    let t = uTime;
+    let op = hc_open();
+    let top = hc_top();
+    var ta: f32;
+    var col: vec3<f32> = vec3<f32>(0.0);
+    for (var i = 0; i < 20; i++) {
+        let fi = f32(i);
+        let rate = 0.16 + 0.1 * h11(fi * 2.3);
+        let f = fract(t * rate + h11(fi * 6.1));
+        let k = floor(t * rate + h11(fi * 6.1));
+        let y0 = (0.08 + 0.84 * h11(fi * 3.9 + k)) * top;
+        let sd = select(1.0, -1.0, h11(fi * 1.1 + k) < 0.5);
+        let r = 0.7 + (0.8 + 3.0 * op) * f;
+        let p = around(r, h11(fi * 7.7 + k) * 0.6 + (select(0.6, 0.1, sd > 0.0)) + 0.04 * t, y0 + 1.6 * f);
+        let dd = rayPt(ro, rd, p, &ta);
+        if dd > 3.0 {
+            continue;
         }
-        t += dt;
+        let life = sin(3.1416 * f) * (0.35 + 0.9 * op);
+        col += vec3<f32>(0.75, 0.05, 0.03) * (halo(dd, 0.5 + 0.7 * f) * 0.4 + halo(dd, 1.4) * 0.08) * life;
     }
-    return vec3<f32>(0.75, 0.05, 0.03) * lit * 1.7;
+    return col;
 }
 
 // lightning: crawling off the glass and leaping out of the crack. front: 1 = only the bolts on
@@ -149,135 +169,46 @@ fn hc_bolts(ro: vec3<f32>, rd: vec3<f32>, px: f32, front: f32) -> vec3<f32> {
     return light;
 }
 
-fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
-    let L = uLength;
-    let t = uTime;
-    let top = hc_top();
-    let col: vec4<f32> = vec4<f32>(0.0);
-    if top < 0.3 {
-        return col;
-    }
-    let sp = raySpan(ro, rd, HC_A * 2.2 + 0.35, 0.0, top + 0.4);
-    if sp.y <= sp.x {
-        return col;
-    }
-    var tt = sp.x;
-    var dmin: f32 = 1.0e3;
-    var tmin = sp.x;
-    var hit: f32 = 0.0;
-    for (var i = 0; i < 40; i++) {
-        let d = hc_sdf(ro + rd * tt);
-        if d < dmin {
-            dmin = d;
-            tmin = tt;
-        }
-        if d < 0.002 {
-            hit = 1.0;
-            break;
-        }
-        tt += max(d * 0.8, 0.004);
-        if tt > sp.y {
-            break;
-        }
-    }
-    let cov = select(clamp(1.0 - dmin / max(px, 1.0e-3), 0.0, 1.0), 1.0, hit > 0.5);
-    if cov <= 0.0 {
-        return col;
-    }
-    let th = select(tmin, tt, hit > 0.5);
-    let p = ro + rd * th;
-    let e: vec2<f32> = vec2<f32>(0.02, 0.0);
-    var n = normalize(vec3(hc_sdf(p + e.xyy) - hc_sdf(p - e.xyy), hc_sdf(p + e.yxy) - hc_sdf(p - e.yxy), hc_sdf(p + e.yyx) - hc_sdf(p - e.yyx)));
-    let g = hc_gap(p.y);
-    let side = select(-1.0, 1.0, p.x >= 0.0);
-    let q = hc_q(vec3(p.x - side * g, p.y, p.z));
-    // which face, and where across it
-    let d0 = q.y;
-    let d1 = dot(q, vec2<f32>(0.866, -0.5));
-    let d2 = dot(q, vec2<f32>(-0.866, -0.5));
-    let fid = select((select(2.0, 1.0, d1 > d2)), 0.0, d0 > max(d1, d2));
-    let tg = select((select(vec2<f32>(-0.5, 0.866), vec2<f32>(-0.5, -0.866), fid < 1.5)), vec2<f32>(1.0, 0.0), fid < 0.5);
-    let u = dot(q, tg);
-    let a = hc_a(p.y);
-    // the facets: a triangle lattice cut into each face
-    let tr = hc_tri(vec2(u * 2.2 + fid * 3.7 + 0.3 * side, p.y * 0.45));
-    let id = h21(tr.yz + fid * 13.0 + side * 5.0);
-    let id2 = h21(tr.yz * 1.7 + fid * 3.0);
-    // each facet tilted a little its own way, so they glint one by one as the blade turns
-    let tg3 = normalize(vec3(rot(-(0.35 + p.y * 0.045)) * tg, 0.0).xzy);
-    n = normalize(n + tg3 * (id - 0.5) * 0.55 + vec3<f32>(0.0, 1.0, 0.0) * (id2 - 0.5) * 0.5);
-    let awake = smoothstep(0.0, 0.25, uAge * 2.2 - p.y / L - id * 0.15);
-    let beat = hc_beat();
-    // the knowledge stream rising: facets lit as it passes, thin lines of light climbing
-    let fr = hc_front();
-    let pass_ = exp(-pow((p.y - fr) / 3.0, 2.0)) + 0.6 * exp(-pow((p.y - fr + 14.0) / 2.0, 2.0));
-    let lk = p.y * 2.6 - t * 3.5 + id * 0.5;
-    let lines = halo(abs(fract(lk) - 0.5), 0.06) * step(0.55, h11(floor(lk) + fid * 5.0 + side * 3.0)) * halo(abs(fract(u * 3.0 + id) - 0.5), 0.12);
-    let lit = clamp(0.12 + 0.9 * id * id * beat + pass_ * (0.5 + 0.6 * id) + 0.9 * uSwing * step(0.5, id), 0.0, 2.0);
-    var face = mix(vec3<f32>(0.22, 0.0, 0.015), vec3<f32>(0.95, 0.10, 0.05), clamp(lit, 0.0, 1.0) * 0.75) + vec3<f32>(1.0, 0.5, 0.4) * max(lit - 1.0, 0.0) * 0.6;
-    // the heart: red light deep inside, seen through the glass where the ray passes the axis
-    var sAx: f32;
-    let dAx = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &sAx);
-    face += vec3<f32>(1.0, 0.12, 0.06) * halo(dAx, a * 0.8 + 0.05) * beat * 0.9 + vec3<f32>(1.0, 0.55, 0.45) * halo(dAx, 0.12) * beat * 0.35;
-    face += vec3<f32>(1.0, 0.35, 0.25) * lines * 0.8 * (0.4 + pass_);
-    // facet edges: bright cut lines in the glass
-    face += vec3<f32>(1.0, 0.45, 0.35) * halo(tr.x, 0.03 + px * 1.2) * (0.45 + 0.8 * pass_ + 0.6 * uSwing);
-    // glass: a hot rim where it turns away, a sharp glint off the facets
-    let v = -rd;
-    let kl = normalize(vec3<f32>(-0.4, 0.7, 0.6));
-    let fres = pow(1.0 - abs(dot(n, v)), 3.0);
-    let spec = pow(max(dot(reflect(-kl, n), v), 0.0), 40.0);
-    face += vec3<f32>(1.0, 0.2, 0.12) * fres * 0.7 + vec3<f32>(1.0, 0.85, 0.8) * spec * 0.9;
-    // the seam faces glow white-hot from the core when open
-    let seamFace = smoothstep(0.6, 0.95, abs(n.x)) * smoothstep(0.02, 0.1, g) * step(abs(p.x), g + 0.12);
-    face += vec3<f32>(1.0, 0.75, 0.65) * seamFace * 1.6 * hc_open();
-    face *= mix(0.25, 1.0, awake);
-    // what hangs in front of the glass: smoke and the bolts on this side
-    face += (hc_smoke(ro, rd, th) + hc_bolts(ro, rd, px, 1.0)) * uFx;
-    return vec4(face, cov * mix(0.3, 0.97, awake));
-}
-
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
-    let t = uTime;
     let top = hc_top();
     let op = hc_open();
-    let beat = hc_beat();
     let red: vec3<f32> = vec3<f32>(1.0, 0.1, 0.05);
-    // the core: white-hot inside, seen in the emitter and through the open seam
-    var light = blade3(ro, rd, px, red, 0.32 + 0.08 * op, top);
+    var light: vec3<f32> = vec3<f32>(0.0);
+    if uFx < 0.01 {
+        return light;
+    }
     var s: f32;
     let d = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
-    // the crystal's red aura beating with the heart, and the light spilling from the crack
-    light += red * halo(max(d - HC_A * 1.3, 0.0), 0.6) * 0.8 * beat + vec3<f32>(0.6, 0.0, 0.02) * halo(d, 3.0) * 0.22;
+    // the light spilling from the crack while it is open
     light += vec3<f32>(1.0, 0.25, 0.12) * halo(d, 0.6 + 1.4 * op) * op * 0.6 * sin(3.1416 * clamp(s, 0.0, 1.0));
-    if uFx > 0.01 {
-        light += (hc_smoke(ro, rd, 1.0e5) + hc_bolts(ro, rd, px, 0.0)) * uFx;
-        // clash: a triangular shockwave, the holocron's face, rushing out across the blade
-        if uClash > 0.01 {
-            let a = 1.0 - uClash;
-            let hy = L * 0.6;
-            let h = rayAt(ro, rd, hy);
-            if h.z > 0.0 {
-                let q = hc_q(vec3(h.x, hy, h.y));
-                let R = 2.5 + 9.0 * pow(a, 0.6);
-                let tri = max(max(q.y, dot(q, vec2<f32>(0.866, -0.5))), dot(q, vec2<f32>(-0.866, -0.5))) - R * 0.5;
-                light += red * (halo(abs(tri), 0.15 + 0.3 * a) * 1.8 + halo(max(-tri, 0.0), 1.2) * 0.35) * uClash * (1.0 - smoothstep(3.0, 6.0, length(h.xy))) * uFx;
-            }
-            var tc: f32;
-            let dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), &tc);
-            light += red * halo(dc, 1.3) * pow(uClash, 3.0) * 1.5 * uFx;
-        }
+    light += hc_smoke(ro, rd) + hc_bolts(ro, rd, px, 0.0);
+    // clash: a triangular shockwave, the holocron's face, rushing out from the struck point,
+    // facing the camera
+    if uClash > 0.01 {
+        let a = 1.0 - uClash;
+        let hy = L * 0.6;
+        var tc: f32;
+        let dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), &tc);
+        let off = ro + rd * tc - vec3(0.0, hy, 0.0);
+        let ux = normalize(cross(rd, vec3<f32>(0.0, 1.0, 0.0)) + vec3<f32>(1.0e-4, 0.0, 0.0));
+        let uy = cross(ux, rd);
+        let q = vec2(dot(off, ux), dot(off, uy));
+        let R = 1.5 + 6.0 * pow(a, 0.6);
+        let tri = max(max(q.y, dot(q, vec2<f32>(0.866, -0.5))), dot(q, vec2<f32>(-0.866, -0.5))) - R * 0.5;
+        light += red * (halo(abs(tri), 0.15 + 0.3 * a) * 1.8 + halo(max(-tri, 0.0), 1.2) * 0.25) * uClash;
+        light += red * halo(dc, 1.3) * pow(uClash, 3.0) * 1.5;
     }
-    return (1.0 - exp(-light * 1.15)) * 1.05;
+    return light;
 }
 
+// the blade: Sol's glow and core from the file, beating with the heart, flaring when open
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return g * (0.8 + 0.5 * hc_beat() + 0.8 * hc_open());
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c * (1.0 + 0.5 * hc_open());
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

@@ -10,14 +10,6 @@
 // streaks fly out of the tip like a starfield. Ignition is the jump itself: the stars sit as points,
 // then stretch into lines. A swing punches the jump harder: the streaks grow long and bright and a
 // flash races up. A clash drops out of hyperspace: a white reversion flash and a ring of light.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
 // how stretched the stars are: 0 points, 1 full streaks (the jump on ignition, a drop on a clash)
 fn hy_stretch() -> f32 {
     let jump = smoothstep(0.05, 0.55, uAge);
@@ -34,14 +26,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let ice: vec3<f32> = vec3<f32>(0.7, 0.86, 1.0);
     let white: vec3<f32> = vec3<f32>(1.0);
     let top = L * clamp(uAge / 0.45, 0.0, 1.0);
-    // ---- the blade: a blue-white shaft that shudders (the tip trembles, the light flickers)
-    let sh = 0.05 + 0.06 * sw;
-    let tipOff = vec3(sin(t * 61.0) + 0.5 * sin(t * 97.0 + 1.3), 0.0, cos(t * 53.0) + 0.5 * sin(t * 83.0)) * sh;
-    var sb: f32;
-    let db = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0) + tipOff, &sb);
-    let fl = 0.9 + 0.1 * sin(t * 37.0) + 0.06 * sin(t * 71.0 + sb * 9.0);
-    let flash = sw * 0.5 + cl * 1.2;
-    var light = white * exp(-pow(db / max(0.33, px), 2.0)) * 1.5 * fl + mix(blue, ice, 0.35) * halo(db, 0.8) * 0.75 * fl + blue * halo(db, 2.4) * (0.2 + 0.25 * flash);
+    // The blade is Sol's glow and core from the file, flickering (sig_glow, sig_core); here
+    // only the effects, each a piece placed round it in 3D.
+    var light: vec3<f32> = vec3<f32>(0.0);
     var ta: f32;
     let axd = rayPt(ro, rd, vec3(0.0, clamp(ro.y + rd.y * dot(-ro, rd), 0.0, L), 0.0), &ta);
     // nearest approach of the ray to the axis segment (for culling and depth)
@@ -80,25 +67,21 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let c = mix(blue, white, 0.35 + 0.65 * s);
             fxl += c * (halo(d, w) * 1.7 + halo(d, 0.22) * 0.25) * (0.3 + 0.7 * s) * on * (0.6 + 0.4 * nearF) * (1.0 + 0.8 * sw);
         }
-        // ---- the tunnel: a twisting blue corridor of light round the blade
-        let m = marchSteps(ro, rd, 5.4, -0.5, top + 1.5, 16.0);
-        if m.y > m.x {
-            var tt = m.x + m.z * h21(rd.xy * 517.0 + ro.xz * 3.1);
-            var acc: f32 = 0.0;
-            for (var k = 0; k < 16; k++) {
-                let p = ro + rd * tt;
-                let rad = length(p.xz);
-                let shell = exp(-pow((rad - 3.3) / 1.0, 2.0));
-                let q = rot(p.y * 0.13 - t * 1.6) * p.xz;
-                let n = fbm3(q * 0.55 + vec2(0.0, p.y * 0.05 - t * 0.6));
-                let streak = fbm3(q * 1.1 + vec2(p.y * 0.09 - t * 3.0, n * 2.0));
-                let band = pow(0.5 + 0.5 * sin(3.0 * atan2(p.z, p.x) + p.y * 0.28 - t * 4.0 + n * 2.5), 2.5);
-                var dn = shell * (pow(clamp(n * 0.5 + streak * 0.6 - 0.4, 0.0, 1.0), 1.6) * 0.6 + band * streak * 1.1);
-                dn *= smoothstep(-0.5, 3.0, p.y) * (1.0 - smoothstep(top - 5.0, top + 1.5, p.y));
-                acc += dn * m.z;
-                tt += m.z;
+        // ---- the tunnel: bands of blue light spiralling round the blade, rushing up
+        for (var k = 0; k < 6; k++) {
+            let fk = f32(k);
+            let a0 = fk / 6.0 - t * 0.35;
+            let y0 = glsl_mod(t * 14.0 + fk * (L + 10.0) / 6.0, L + 10.0) - 5.0;
+            var prev = around(3.3, a0, y0);
+            for (var j = 1; j <= 6; j++) {
+                let u = f32(j) / 6.0;
+                let q = around(3.3 + 0.3 * sin(u * 6.0 + fk), a0 + u * 0.35, y0 + u * 6.0);
+                var s: f32;
+                let d = raySeg(ro, rd, prev, q, &s);
+                let on = smoothstep(-0.5, 3.0, q.y) * (1.0 - smoothstep(top - 5.0, top + 1.5, q.y));
+                fxl += vec3<f32>(0.16, 0.38, 1.0) * (halo(d, 0.18) * 0.8 + halo(d, 0.7) * 0.25) * sin(3.1416 * (u - 0.08)) * on * min(S, 1.0);
+                prev = q;
             }
-            fxl += vec3<f32>(0.16, 0.38, 1.0) * acc * (0.17 + 0.06 * sw) * min(S, 1.0);
         }
         // ---- a swing's flash racing up the blade
         let yf = fract(t * 1.3) * (L + 8.0) - 4.0;
@@ -119,5 +102,22 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
         light += fxl * fx;
     }
-    return (1.0 - exp(-light * 1.1)) * 1.05;
+    return light;
+}
+
+// the blade: Sol's glow and core from the file, flickering as it shudders, flashing on a swing
+// and a clash
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    let t = uTime;
+    let fl = 0.9 + 0.1 * sin(t * 37.0) + 0.06 * sin(t * 71.0 + b.y * 0.3);
+    return g * fl * (1.0 + 0.4 * clamp(uSwing, 0.0, 1.0) + 0.8 * clamp(uClash, 0.0, 1.0));
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c * (0.95 + 0.05 * sin(uTime * 61.0));
+}
+
+// GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
+fn glsl_mod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
 }

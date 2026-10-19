@@ -53,10 +53,6 @@ fn ae_w(y: f32) -> f32 {
     return max(base, alm) * smoothstep(-0.2, 0.25, y) * (1.0 - smoothstep(top - 0.6, top, y));
 }
 
-fn ae_sdf(p: vec3<f32>) -> f32 {
-    return (length(p.xz) - ae_w(p.y)) * 0.7;
-}
-
 // the abyss and the eye, seen on the cut at b (across, along)
 fn ae_inside(b: vec2<f32>, px: f32) -> vec3<f32> {
     let t = uTime;
@@ -141,53 +137,30 @@ fn ae_crack(fi: f32, a: ptr<function, vec3<f32>>, c: ptr<function, vec3<f32>>, m
     return grow * step(0.05, reach);
 }
 
+// the cut, drawn over Sol's glow and core as his solid blades are: black abyss and the eye
+// inside it, its lips burning crimson with a white-hot hairline at the edge
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
+    let top = ae_top();
+    if top < 0.3 {
+        return o;
+    }
+    let w = ae_w(b.y);
+    let cov = fillD(abs(b.x) - w, px) * step(0.015, w);
+    if cov <= 0.0 {
+        return o;
+    }
+    var rgb = ae_inside(b, px);
+    let rim = clamp(abs(b.x) / max(w, 0.01), 0.0, 1.0);
+    rgb += vec3<f32>(1.0, 0.18, 0.1) * pow(rim, 3.0) * 1.4 + vec3<f32>(1.0, 0.6, 0.45) * pow(rim, 10.0) * 1.2;
+    return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
+}
+
+// shadow tendrils: dark smoky arms, crimson at the tips, reaching out round the blade in 3D,
+// each piece facing the camera
 fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let L = uLength;
     var col: vec4<f32> = vec4<f32>(0.0);
-    var tHit: f32 = 1.0e5;
     let top = ae_top();
-    // ---- the cut itself: black inside, its lips burning where it turns away from you ----
-    if top > 0.3 {
-        let sp = raySpan(ro, rd, 1.7, -0.3, top + 0.2);
-        if sp.y > sp.x {
-            var tt = sp.x;
-            var dmin: f32 = 1.0e3;
-            var tmin = sp.x;
-            var hit: f32 = 0.0;
-            for (var i = 0; i < 56; i++) {
-                let d = ae_sdf(ro + rd * tt);
-                if d < dmin {
-                    dmin = d;
-                    tmin = tt;
-                }
-                if d < 0.002 {
-                    hit = 1.0;
-                    break;
-                }
-                tt += max(d, 0.003);
-                if tt > sp.y {
-                    break;
-                }
-            }
-            let cov = select(clamp(1.0 - dmin / max(px, 1.0e-3), 0.0, 1.0), 1.0, hit > 0.5);
-            if cov > 0.0 {
-                let th = select(tmin, tt, hit > 0.5);
-                let p = ro + rd * th;
-                let dw = (ae_w(p.y + 0.05) - ae_w(p.y - 0.05)) / 0.1;
-                let n = normalize(vec3(p.x, -dw * length(p.xz), p.z) + vec3<f32>(0.0, 0.0, 1.0e-4));
-                let ndv = abs(dot(n, -rd));
-                var rgb = ae_inside(vec2(p.x, p.y), px);
-                // the glowing lips: crimson where the cut turns away, a white-hot hairline at the edge
-                // measured round the blade, so the cut reads as a slit from every side
-                let hv = length(rd.xz);
-                let rimH = 1.0 - abs(dot(normalize(n.xz + vec2<f32>(1.0e-5)), -rd.xz / max(hv, 1.0e-4)));
-                let rim = mix(1.0 - ndv, rimH, smoothstep(0.01, 0.05, hv));
-                rgb += vec3<f32>(1.0, 0.18, 0.1) * pow(rim, 3.0) * 1.4 + vec3<f32>(1.0, 0.6, 0.45) * pow(rim, 10.0) * 1.2;
-                col = vec4(rgb, cov);
-                tHit = th;
-            }
-        }
-    }
     // ---- shadow tendrils: dark smoky arms, crimson at the tips ----
     if uFx > 0.01 && top > L * 0.5 {
         let bx = raySpan(ro, rd, 7.0, 0.0, L + 3.0);
@@ -205,13 +178,13 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
                     if d < th * 2.0 + px * 1.5 {
                         let q = mix(prev, nx, s);
                         let tq = dot(q - ro, rd);
-                        if tq < tHit {
+                        if tq > 0.0 {
                             let core = exp(-pow(d / max(th, px * 0.7), 2.0));
                             let aura = exp(-pow(d / max(th * 2.2, px * 1.5), 2.0));
                             let fade = 1.0 - smoothstep(0.75, 1.0, u);
                             let a = max(core * 0.92, aura * 0.45) * fade * uFx;
                             // smoky shadow at the heart of it, its edges and thinning end smouldering crimson
-                            var rgb = mix(vec3<f32>(0.9, 0.1, 0.07) * (0.5 + 0.9 * u), vec3<f32>(0.02, 0.0, 0.008), core * (1.0 - u * u));
+                            let rgb = mix(vec3<f32>(0.9, 0.1, 0.07) * (0.5 + 0.9 * u), vec3<f32>(0.02, 0.0, 0.008), core * (1.0 - u * u));
                             col = vec4(mix(col.rgb, rgb, a), max(col.a, a));
                         }
                     }
@@ -230,19 +203,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let cl = clamp(uClash, 0.0, 1.0);
     let red: vec3<f32> = vec3<f32>(1.0, 0.15, 0.1);
     let top = ae_top();
-    // the cut's glow: closest approach to the axis, measured from its lips
+    // The blade's own light is Sol's glow and core from the file (sig_glow, sig_core).
     var s: f32;
-    let dAx = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, max(top, 0.0), 0.0), &s);
-    let y = mix(-0.6, top, s);
-    let ed = max(dAx - ae_w(y), 0.0);
     let o = ae_open();
-    let near = halo(abs((y - ae_Ey()) / AE_H), 0.8);
-    let pulse = 0.85 + 0.15 * sin(t * 1.7 - y * 0.2);
-    var light = vec3<f32>(1.0, 0.25, 0.15) * halo(ed, 0.06 + px) * 1.6 + vec3<f32>(1.0, 0.55, 0.4) * halo(ed, 0.02 + px) * (0.6 + 0.8 * o * near);
-    light += vec3<f32>(0.85, 0.06, 0.06) * halo(ed, 0.7) * 0.7 * pulse + vec3<f32>(0.45, 0.0, 0.05) * halo(ed, 1.8) * 0.35;
-    // the emitter: the cut's crimson fire pouring out of the hilt's mouth
-    let de = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3<f32>(0.0, 0.5, 0.0), &s);
-    light += vec3<f32>(1.0, 0.45, 0.3) * exp(-pow(de / 0.3, 2.0)) * 1.2 * step(0.01, top) + red * halo(de, 0.8) * 0.5 * step(0.01, top);
+    var light: vec3<f32> = vec3<f32>(0.0);
     if uFx > 0.01 && top > L * 0.5 {
         var fx: vec3<f32> = vec3<f32>(0.0);
         // crimson tears dripping off the lips and falling
@@ -298,15 +262,16 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
         light += fx * uFx;
     }
-    return (1.0 - exp(-light * 1.15)) * 1.05;
+    return light;
 }
 
+// the blade: Sol's glow from the file, pulsing slowly; its core is hidden under the cut
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return g * (0.85 + 0.15 * sin(uTime * 1.7 - b.y * 0.2));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c;
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

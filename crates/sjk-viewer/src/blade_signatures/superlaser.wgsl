@@ -11,14 +11,6 @@
 // with two plasma strands twisting round it and surges racing up. On ignition the tributaries
 // light first, then the beam fires. A swing flares the tributaries and sends a surge; a clash
 // fires the focus in a white flash and a shockwave.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
 const SL_F: f32 = 5.8;
 
 // the focus's height
@@ -44,28 +36,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let F = vec3(0.0, SL_F, 0.0);
     var light: vec3<f32> = vec3<f32>(0.0);
     let fx = uFx;
-    // ---- the feed: a bright column from inside the hilt up to the focus (fills the emitter)
+    // The beam is Sol's glow and core from the file with surges racing up it (sig_glow,
+    // sig_core); here only the effects, each a piece placed round it in 3D.
     var s: f32;
-    let df = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), F, &s);
-    light += (white * exp(-pow(df / max(0.3, px), 2.0)) * 1.3 + green * halo(df, 0.75) * 0.7 + green * halo(df, 2.0) * 0.15) * lit;
-    // ---- the main beam from the focus to the tip, its sheath rippling
-    var sb: f32;
-    let db = raySeg(ro, rd, F, vec3(0.0, top, 0.0), &sb);
-    let yb = mix(SL_F, top, sb);
-    let on = step(0.001, fire) * smoothstep(SL_F - 0.6, SL_F + 0.6, yb);
-    let jit = 1.0 + 0.08 * (vn(vec2(yb * 2.0, floor(t * 30.0))) - 0.5);
-    let rip = 0.5 + 0.5 * sin(yb * 1.6 - t * 14.0);
-    let R = (0.85 + 0.18 * rip) * (1.0 + 0.3 * sw);
-    let shell = clamp(0.14 / sqrt(max(R * R - db * db, 0.09)), 0.0, 0.6) * smoothstep(R + 0.45, R - 0.35, db);
-    // surges racing up the beam
-    var surge: f32 = 0.0;
-    for (var j = 0; j < 3; j++) {
-        let fj = f32(j);
-        let y = SL_F + fract(t * 0.9 + fj / 3.0) * (L - SL_F + 4.0) - 2.0;
-        surge += halo(abs(yb - y), 1.0 + 0.6 * sw);
-    }
-    light += (white * exp(-pow(db / max(0.4 * jit, px), 2.0)) * 1.5 + pale * halo(db, 0.6) * 0.8 + green * halo(db, 1.3) * (0.7 + 0.45 * surge) + green * halo(db, 3.2) * (0.16 + 0.14 * surge)) * on;
-    light += (green * shell * (0.9 + 0.6 * rip) + pale * shell * surge * 0.6) * on * fx;
     if fx > 0.0 {
         var fxl: vec3<f32> = vec3<f32>(0.0);
         let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
@@ -133,5 +106,24 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
         light += fxl * fx;
     }
-    return (1.0 - exp(-light * 1.1)) * 1.05;
+    return light;
+}
+
+// the beam: Sol's glow and core from the file, its sheath rippling, surges racing up it from
+// the focus
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    let t = uTime;
+    let L = uLength;
+    var surge: f32 = 0.0;
+    for (var j = 0; j < 3; j++) {
+        let y = SL_F + fract(t * 0.9 + f32(j) / 3.0) * (L - SL_F + 4.0) - 2.0;
+        surge += halo(abs(b.y - y), 1.0 + 0.6 * clamp(uSwing, 0.0, 1.0));
+    }
+    let rip = 0.5 + 0.5 * sin(b.y * 1.6 - t * 14.0);
+    let above = smoothstep(SL_F - 0.6, SL_F + 0.6, b.y);
+    return g * (0.85 + 0.15 * rip + 0.6 * surge * above + 0.5 * clamp(uClash, 0.0, 1.0));
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c * (1.0 + 0.08 * (vn(vec2(b.y * 2.0, floor(uTime * 30.0))) - 0.5));
 }

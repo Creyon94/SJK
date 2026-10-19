@@ -9,14 +9,6 @@
 // direction, slowly, long after it was sung. Luminous plankton and blue nebula gas drift and swirl
 // round it in the dark. Every so often a hyperspace shimmer rushes up the blade with streaks of
 // starlight, as a purrgil jumps. A swing quickens the waves; a clash sings out a bright ring.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
 // the jump: 0..1 while a hyperspace shimmer runs up the blade (every 11 s), and its front
 fn swh_jump() -> f32 {
     let p = glsl_mod(uTime - 3.0, 11.0);
@@ -27,25 +19,30 @@ fn swh_front() -> f32 {
     return glsl_mod(uTime - 3.0, 11.0) / 1.2;
 }
 
-// one ring of song: height h, radius R, thickness w; integrated soft torus density along the ray
+// one ring of song: height h, radius R, softness w; the ray's distance to the ring gives a
+// soft band of light that keeps its shape from any side
 fn swh_ring(ro: vec3<f32>, rd: vec3<f32>, h: f32, R: f32, w: f32) -> f32 {
-    let sp = raySpan(ro, rd, R + 2.5 * w, h - 2.5 * w, h + 2.5 * w);
-    if sp.y <= sp.x {
-        return 0.0;
+    var best: f32 = 1.0e3;
+    let q = rayAt(ro, rd, h);
+    if q.z > 0.0 {
+        best = abs(length(q.xy) - R);
     }
-    let dt = (sp.y - sp.x) / 6.0;
-    var t = sp.x + dt * 0.5;
-    var acc: f32 = 0.0;
-    for (var i = 0; i < 6; i++) {
-        let p = ro + rd * t;
-        let r = length(p.xz);
-        let a = atan2(p.x, p.z);
-        let yy = p.y - h - 0.25 * w * sin(a * 3.0 + uTime * 0.7);
-        let d2 = (r - R) * (r - R) + yy * yy * 0.55;
-        acc += exp(-d2 / (w * w)) * dt * (0.65 + 0.35 * sin(a * 2.0 - uTime * 0.5 + h));
-        t += dt;
+    let a = dot(rd.xz, rd.xz);
+    let b = dot(ro.xz, rd.xz);
+    let c = dot(ro.xz, ro.xz) - R * R;
+    let dsc = b * b - a * c;
+    if dsc > 0.0 && a > 1.0e-6 {
+        let k = sqrt(dsc);
+        let t0 = (-b - k) / a;
+        let t1 = (-b + k) / a;
+        if t0 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t0 - h));
+        }
+        if t1 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t1 - h));
+        }
     }
-    return acc;
+    return halo(best, max(0.05, w * 0.15)) * 1.4 + halo(best, w * 0.45) * 0.35;
 }
 
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
@@ -59,19 +56,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let pale: vec3<f32> = vec3<f32>(0.80, 0.92, 1.0);
     let jump = swh_jump() * uFx;
     let jf = swh_front() * L;
-    // the blade: it breathes, swelling where the slow waves pass
-    var s: f32;
-    let dA = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
-    let ya = mix(-0.6, top, s);
-    var tA: f32;
-    _ = rayPt(ro, rd, vec3(0.0, ya, 0.0), &tA);
-    let wph = ya * 0.32 - uTime * (1.1 + 1.6 * sw);
-    var wave = 0.5 + 0.5 * sin(wph);
-    wave = wave * wave;
-    let wave2 = 0.5 + 0.5 * sin(ya * 0.11 - uTime * 0.45 + 1.0);
-    let shim = jump * exp(-pow((ya - jf) / 3.0, 2.0));
-    let gw = 0.40 + 0.45 * wave + 0.15 * wave2;
-    var light = vec3<f32>(1.0) * exp(-pow(dA / max(0.20 + 0.06 * wave, px), 2.0)) * (1.1 + 0.4 * wave + 1.2 * shim) + mix(deep, bio, 0.35 * wave + 0.4 * shim) * halo(dA, gw) * (0.6 + 1.1 * wave + shim) + deep * halo(dA, gw * 3.5) * (0.20 + 0.18 * wave2 + 0.2 * sw) + deep * halo(dA, 7.0) * 0.05;
+    // The blade is Sol's glow and core from the file, breathing with the slow waves
+    // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
+    var light: vec3<f32> = vec3<f32>(0.0);
     // rings of song: three slow notes on long, staggered cycles, plus the clash
     var songs: f32 = 0.0;
     var songC: f32 = 0.0;
@@ -94,30 +81,25 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             songC = swh_ring(ro, rd, L * 0.55, 0.8 + 5.5 * f, 0.6 + 0.9 * f) * cl;
         }
     }
-    light += (mix(bio, pale, 0.15) * songs * 0.32 + pale * songC * 1.0) * fxOn * (0.35 + 0.65 * smoothstep(0.05, 0.5, abs(rd.y)));
-    // nebula gas and plankton glow drifting and swirling round the blade
-    let ms = marchSteps(ro, rd, 6.2, -0.5, L + 2.0, 20.0);
-    if ms.y > ms.x && fxOn > 0.001 {
-        var t = ms.x + ms.z * h21(rd.xy * 517.0 + rd.z * 37.0);
-        var acc: vec3<f32> = vec3<f32>(0.0);
-        for (var i = 0; i < 20; i++) {
-            let p = ro + rd * t;
-            if p.y < top + 1.0 {
-                let r = length(p.xz);
-                let a = uTime * 0.10 + p.y * 0.04 + 0.6 / (0.6 + r);
-                let q = rot(a) * p.xz;
-                let yy = p.y * 0.12 - uTime * 0.05;
-                let n = fbm3(vec2(q.x * 0.30, yy + q.y * 0.12)) * fbm3(vec2(q.y * 0.30 + 5.0, yy * 1.3 - q.x * 0.1));
-                let sh = smoothstep(0.6, 1.6, r) * (1.0 - smoothstep(3.4, 5.8, r)) * smoothstep(-0.5, 3.0, p.y) * (1.0 - smoothstep(L - 2.0, L + 2.0, p.y));
-                let d = smoothstep(0.12, 0.45, n * 1.4) * sh;
-                // light from the blade: brighter where a wave passes at this height
-                let wv = 0.5 + 0.5 * sin(p.y * 0.32 - uTime * (1.1 + 1.6 * sw));
-                let jl = jump * exp(-pow((p.y - jf) / 4.0, 2.0));
-                acc += mix(deep, bio, 0.3 + 0.4 * wv * wv) * d * (0.6 + 0.6 * wv * wv + 1.5 * jl) * exp(-r * 0.25);
-            }
-            t += ms.z;
+    light += (mix(bio, pale, 0.15) * songs * 0.6 + pale * songC * 1.0) * fxOn;
+    // nebula gas drifting and swirling round the blade: soft deep-blue puffs, lit where a
+    // wave passes and when it jumps
+    for (var i = 0; i < 14; i++) {
+        let fi = f32(i);
+        let r = 1.4 + 3.0 * h11(fi * 4.7);
+        let yy = L * (0.06 + 0.88 * h11(fi * 2.3));
+        if yy > top + 1.0 {
+            continue;
         }
-        light += acc * ms.z * 0.22 * fxOn;
+        let p = around(r, h11(fi * 8.1) + uTime * 0.1 / (0.6 + 0.3 * r), yy + 1.0 * sin(uTime * 0.2 + fi));
+        var tt: f32;
+        let d = rayPt(ro, rd, p, &tt);
+        if d > 4.0 {
+            continue;
+        }
+        let wv = 0.5 + 0.5 * sin(yy * 0.32 - uTime * (1.1 + 1.6 * sw));
+        let jl = jump * exp(-pow((yy - jf) / 4.0, 2.0));
+        light += mix(deep, bio, 0.3 + 0.4 * wv * wv) * (halo(d, 0.9 + 0.6 * h11(fi)) * 0.3 + halo(d, 2.0) * 0.06) * (0.6 + 0.6 * wv * wv + 1.5 * jl) * fxOn;
     }
     // plankton: tiny motes of living light drifting slowly round it
     for (var i = 0; i < 26; i++) {
@@ -155,6 +137,21 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
     }
     return light;
+}
+
+// the blade: Sol's glow and core from the file, breathing, swelling where the slow waves pass,
+// shimmering as it jumps
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    var wave = 0.5 + 0.5 * sin(b.y * 0.32 - uTime * (1.1 + 1.6 * clamp(uSwing, 0.0, 1.0)));
+    wave = wave * wave;
+    let wave2 = 0.5 + 0.5 * sin(b.y * 0.11 - uTime * 0.45 + 1.0);
+    let shim = swh_jump() * uFx * exp(-pow((b.y - swh_front() * uLength) / 3.0, 2.0));
+    return g * (0.6 + 0.9 * wave + 0.2 * wave2 + 1.2 * shim + 0.6 * clamp(uClash, 0.0, 1.0));
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    let shim = swh_jump() * uFx * exp(-pow((b.y - swh_front() * uLength) / 3.0, 2.0));
+    return c * (1.0 + shim);
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

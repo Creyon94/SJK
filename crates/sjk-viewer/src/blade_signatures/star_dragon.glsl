@@ -7,17 +7,7 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.45,0.26,0.04],"corona.rim_hot":[1.0,0.66,0.18],"corona.inner":[1.0,0.88,0.60],"core.white":[1.0,0.97,0.90],"core.fringe_cool":[1.0,0.60,0.15],"core.fringe_hot":[1.0,0.86,0.55],"light.color":[1.0,0.68,0.24],"trail":[1.0,0.70,0.28]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
-// both crossings of the ray with the cylinder of radius R round the axis (x > y: none)
-vec2 sdr_cyl(vec3 ro, vec3 rd, float R){
-  float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
-  float h = b*b - a*c;
-  if (a < 1e-6 || h < 0.0) return vec2(1.0, -1.0);
-  h = sqrt(h);
-  return vec2((-b - h)/a, (-b + h)/a);
-}
 // the scale hide at point p on the shell: light of the scale that covers p (shingled, free edges
 // toward the hilt), flare = how far they stand open
 float sdr_scale(vec3 p, float flare, float aa){
@@ -46,29 +36,6 @@ float sdr_scale(vec3 p, float flare, float aa){
   }
   return best;
 }
-// the breath: soft fire density at p (rolling up and peeling off toward the tip)
-float sdr_fire(vec3 p, float roar){
-  float L = uLength;
-  float r = length(p.xz);
-  float yl = clamp(p.y/L, 0.0, 1.2);
-  float rc = 0.9 + 2.2*yl*yl + roar*0.8;
-  float sh = exp(-pow(max(r - 0.6, 0.0)/rc, 2.0)*2.2)*smoothstep(0.55, 1.0, r);
-  float n = fbm3(vec2(p.x*0.75 + p.z*0.25, p.y*0.16 - uTime*1.4))*fbm3(vec2(p.z*0.75 - p.x*0.25, p.y*0.19 - uTime*1.15 + 7.0));
-  n = smoothstep(0.26, 0.52, n*1.5);
-  float lo = smoothstep(L*0.04, L*0.35, p.y);
-  float hi = 1.0 - smoothstep(L*0.97, L*1.12, p.y);
-  return sh*n*lo*hi*(1.0 - smoothstep(3.6, 6.2, r));
-}
-// smoke round the hilt
-float sdr_smoke(vec3 p){
-  float r = length(p.xz);
-  float a = atan(p.x, p.z);
-  vec2 q = vec2(cos(a + p.y*0.7 - uTime*0.6), sin(a + p.y*0.7 - uTime*0.6))*r;
-  float n = fbm3(q*0.9 + vec2(0.0, -uTime*0.3) + vec2(p.y*0.35));
-  float sh = exp(-pow((r - 0.9 - p.y*0.18)/0.9, 2.0))*(1.0 - smoothstep(2.5, 5.5, p.y))*smoothstep(-0.8, 0.4, p.y);
-  return sh*smoothstep(0.35, 0.75, n);
-}
-
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
@@ -79,59 +46,28 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 hot = vec3(1.0, 0.90, 0.65);
   float flare = clamp(sw*0.9 + cl, 0.0, 1.0);
 
-  // the body: a white-hot heart with a slow inner fire pulsing up it
+  // The body and its scale hide are Sol's glow and core from the file (sig_glow); here only
+  // the effects, each a piece placed round it in 3D.
   float s;
-  float dA = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
-  float ya = mix(-0.6, top, s);
-  float pulse = 0.5 + 0.5*sin(ya*0.35 - uTime*2.2);
-  pulse = pulse*pulse*pulse;
-  float tipF = 1.0 - smoothstep(top - 0.4, top + 0.3, ya);
-  vec3 light = vec3(1.0)*exp(-pow(dA/max(0.22, px), 2.0))*(1.25 + 0.35*pulse + cl)
-    + mix(gold, hot, 0.3*pulse)*halo(dA, 0.45)*(0.45 + 0.5*pulse + 0.4*flare)
-    + gold*halo(dA, 2.2)*(0.16 + 0.10*pulse + 0.15*flare);
-  light += ember*halo(dA, 1.0)*0.25*(0.5 + 0.5*sin(ya*1.3 + uTime*5.0 + 2.0*sin(ya*0.4 - uTime)));
-
-  // the scale hide: a shell wrapped round the blade, front and back sheets
-  float Rs = 0.85 + 0.2*flare;
-  vec2 c2 = sdr_cyl(ro, rd, Rs);
-  if (c2.y > c2.x){
-    for (int k = 0; k < 2; k++){
-      float t = k == 0 ? c2.x : c2.y;
-      if (t > 0.0){
-        vec3 p = ro + rd*t;
-        if (p.y > -0.4 && p.y < top - 0.2){
-          vec3 nrm = vec3(p.x, 0.0, p.z)/Rs;
-          float cs = abs(dot(nrm, rd));
-          float aa = px/0.4;
-          float sc = sdr_scale(p, flare, aa);
-          float fres = 1.0/max(cs, 0.35);
-          float fadeY = smoothstep(-0.4, 0.4, p.y)*(1.0 - smoothstep(top - 1.6, top - 0.2, p.y));
-          // a ripple of lifting scales running up the hide
-          float rip = smoothstep(0.75, 1.0, sin(p.y*0.25 - uTime*1.8));
-          float w = (k == 0 ? 0.55 : 0.30)*fadeY*fres*(0.8 + 0.6*rip + 0.4*pulse);
-          light += mix(gold, hot, clamp(sc - 0.8, 0.0, 1.0) + cl*0.6)*sc*w;
-        }
-      }
-    }
-  }
-
-  // dragon breath: a marched volume of stardust-fire round the upper blade
+  vec3 light = vec3(0.0);
   float roar = sw*0.8 + cl*0.5;
-  vec3 ms = marchSteps(ro, rd, 6.3, L*0.03, L*1.12, 22.0);
-  if (ms.y > ms.x && fxOn > 0.001){
-    float t = ms.x + ms.z*h21(rd.xy*517.0 + rd.z*91.0);
-    vec3 acc = vec3(0.0);
-    for (int i = 0; i < 22; i++){
-      vec3 p = ro + rd*t;
-      if (p.y < top){
-        float d = sdr_fire(p, roar);
-        float r = length(p.xz);
-        float heat = exp(-r*0.55)*(0.7 + 0.3*d);
-        acc += mix(ember, mix(gold, hot, heat), 0.4 + 0.6*heat)*d*ms.z;
-      }
-      t += ms.z;
-    }
-    light += acc*(0.75 + 0.3*roar)*fxOn;
+  // dragon breath: tongues of stardust-fire rolling up the blade and peeling off near the tip
+  for (int i = 0; i < 22; i++){
+    float fi = float(i);
+    float rate = 0.35 + 0.2*h11(fi*2.9);
+    float f = fract(uTime*rate*(1.0 + roar) + h11(fi*6.1));
+    float cy = floor(uTime*rate*(1.0 + roar) + h11(fi*6.1));
+    float y0 = L*(0.06 + 0.7*h11(fi*3.3 + cy));
+    float yy = y0 + f*(6.0 + 4.0*roar);
+    if (yy > top) continue;
+    float yl = clamp(yy/L, 0.0, 1.0);
+    vec3 p = around(0.8 + (1.8 + 3.6*yl*yl + 1.5*roar)*f, h11(fi*7.7 + cy) + 0.2*f, yy);
+    float tt;
+    float d = rayPt(ro, rd, p, tt);
+    if (d > 3.0) continue;
+    float heat = 1.0 - f;
+    float w = 0.5 + 1.0*f;
+    light += mix(ember, mix(gold, hot, heat), 0.4 + 0.6*heat)*(halo(d, w)*0.7 + halo(d, w*2.0)*0.15)*sin(3.1416*f)*(0.8 + 0.4*roar)*fxOn;
   }
 
   // star sparks riding the breath up and off the blade
@@ -149,20 +85,39 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
   }
 
-  // smoke curling at the hilt (dim warm haze, lit by the blade)
-  vec3 mk = marchSteps(ro, rd, 3.2, -0.8, 6.0, 12.0);
-  if (mk.y > mk.x && fxOn > 0.001){
-    float t = mk.x + mk.z*h21(rd.xy*311.0 + rd.z*13.0);
-    float acc = 0.0;
-    for (int i = 0; i < 12; i++){
-      vec3 p = ro + rd*t;
-      acc += sdr_smoke(p)*mk.z;
-      t += mk.z;
-    }
-    light += vec3(0.55, 0.38, 0.18)*acc*0.28*fxOn;
+  // smoke curling up from the hilt: dim warm puffs
+  for (int i = 0; i < 8; i++){
+    float fi = float(i);
+    float f = fract(uTime*0.3 + fi/8.0);
+    vec3 p = around(0.9 + 0.8*f, fi*0.37 + f*0.5 - uTime*0.1, -0.3 + 4.0*f);
+    float tt;
+    float d = rayPt(ro, rd, p, tt);
+    light += vec3(0.55, 0.38, 0.18)*halo(d, 0.5 + 0.6*f)*0.25*sin(3.1416*f)*fxOn;
   }
 
   // a clash: a burst of light off the hide
-  light += hot*halo(dA, 3.0)*cl*0.5*fxOn;
+  float tc;
+  light += hot*halo(rayPt(ro, rd, vec3(0.0, L*0.6, 0.0), tc), 3.0)*cl*0.5*fxOn;
   return light;
 }
+
+// the blade: Sol's glow and core from the file sheathed in the dragon's scale hide: shingled
+// scales of gold light rippling up it, a slow inner fire pulsing up its heart, the scales
+// flaring open and blazing on a swing, white-hot on a clash
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float flare = clamp(sw*0.9 + cl, 0.0, 1.0);
+  float pulse = 0.5 + 0.5*sin(b.y*0.35 - uTime*2.2);
+  pulse = pulse*pulse*pulse;
+  float Rs = 0.85 + 0.2*flare;
+  float sc = 0.0;
+  if (abs(b.x) < Rs){
+    vec3 p = vec3(b.x, b.y, sqrt(Rs*Rs - b.x*b.x));
+    sc = sdr_scale(p, flare, px/0.4)*smoothstep(-0.4, 0.4, b.y)*(1.0 - smoothstep(uLength - 1.6, uLength - 0.2, b.y));
+    float rip = smoothstep(0.75, 1.0, sin(b.y*0.25 - uTime*1.8));
+    sc *= 0.55*(0.8 + 0.6*rip + 0.4*pulse)*(1.0 - smoothstep(Rs*0.8, Rs, abs(b.x)));
+  }
+  vec3 gold = vec3(1.0, 0.66, 0.20), hot = vec3(1.0, 0.90, 0.65);
+  return g*(0.8 + 0.4*pulse + 0.4*flare) + mix(gold, hot, clamp(sc - 0.8, 0.0, 1.0) + cl*0.6)*sc;
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.5*clamp(uClash, 0.0, 1.0)); }

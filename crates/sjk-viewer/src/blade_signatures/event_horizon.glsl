@@ -14,43 +14,37 @@ float eh_h(float k){ return uLength*(0.36 + 0.34*k) + 0.9*sin(uTime*(0.4 - 0.07*
 // how far a disk has grown (it spreads out from the blade as the ignition passes its height)
 float eh_grow(float h){ return smoothstep(h - 1.0, h + 5.0, eh_top()); }
 
-// one accretion disk at height h: a thin slab of hot matter marched along the ray, up to tmax
-vec3 eh_disk(vec3 ro, vec3 rd, float h, float k, float tmax, float g){
+// one accretion disk at height h: clumps of hot matter orbiting the blade on many rings,
+// brighter on the side rushing toward you, a thin blazing ring at its inner edge; each clump
+// a piece facing the camera, as Sol's Void blade orbits its black holes
+vec3 eh_disk(vec3 ro, vec3 rd, float h, float k, float tmax, float g, float px){
   vec3 vio = vec3(0.62, 0.36, 1.0), white = vec3(1.0, 0.96, 1.0);
-  float Ro = 6.2*g;
-  vec3 m = marchSteps(ro, rd, Ro, h - 0.7, h + 0.7, 16.0);
   vec3 acc = vec3(0.0);
-  if (m.y <= m.x || g < 0.01) return acc;
+  float tq;
+  if (g < 0.01 || rayPt(ro, rd, vec3(0.0, h, 0.0), tq) > 7.5*g) return acc;
   float sw = clamp(uSwing, 0.0, 1.0);
-  float spin = uTime*(1.7 + 0.5*k + 1.5*sw);
-  float t = m.x + m.z*h21(rd.xy*517.0 + k);
-  for (int i = 0; i < 16; i++){
-    if (t > tmax) break;
-    vec3 p = ro + rd*t;
-    float r = length(p.xz)/max(g, 0.05);
-    float dy = p.y - h;
-    float thick = 0.07 + 0.045*r;
-    float vert = exp(-dy*dy/(thick*thick));
-    if (vert > 0.01 && r > 0.45){
-      float a = atan(p.z, p.x);
-      // rigid spiral arms and swirling clumps (no runaway shear)
-      float arms = pow(0.5 + 0.5*sin(2.0*(a - spin) + 4.5*log(r) + k*1.7), 2.0);
-      vec2 q = rot(spin*0.8 + 1.6*log(r))*p.xz;
-      float clump = fbm3(vec2(q.x*0.9 + k*7.0, q.y*2.6));
-      float lanes = 0.5 + 0.5*sin(r*7.0 - clump*5.0);
-      float rad = smoothstep(0.55, 0.85, r)*(1.0 - smoothstep(2.8, 6.0, r));
-      float isco = exp(-pow((r - 0.85)/0.12, 2.0));
-      float T = clamp(1.25/r, 0.0, 1.0);
-      // Doppler: the side whose matter rushes toward the camera is brighter and whiter
-      vec3 vt = normalize(vec3(-p.z, 0.0, p.x) + 1e-4);
-      float dop = dot(vt, -rd);
-      float beam = pow(1.0 + 0.6*dop, 3.0);
-      float dens = rad*vert*(0.15 + 0.85*arms)*(0.3 + 1.2*smoothstep(0.35, 0.75, clump))*(0.55 + 0.45*lanes)*(1.0 + 0.6*sw + 1.2*clamp(uClash, 0.0, 1.0));
-      dens += isco*vert*1.5;
-      vec3 c = mix(vio, white, T*T*(0.6 + 0.4*clamp(dop, 0.0, 1.0)));
-      acc += c*dens*beam*(0.6 + 2.6*T*T)*m.z*4.5;
-    }
-    t += m.z;
+  float boost = 1.0 + 0.6*sw + 1.2*clamp(uClash, 0.0, 1.0);
+  for (int i = 0; i < 40; i++){
+    float fi = float(i);
+    float r = (0.95 + 4.6*pow(h11(fi*3.1 + k*7.0), 1.6))*g;
+    float a = h11(fi*5.7 + k) + uTime*(0.55 + 0.4*sw)/(0.4 + 0.35*r);
+    vec3 p = around(r, a, h + 0.08*(h11(fi*2.2) - 0.5)*r);
+    // each clump a short streak along its orbit
+    vec3 q = around(r, a - 0.05/(0.5 + 0.3*r), p.y);
+    float s;
+    float d = raySeg(ro, rd, q, p, s);
+    float T = clamp(1.25*g/r, 0.0, 1.0);
+    vec3 vt = normalize(vec3(cos(6.2832*a), 0.0, -sin(6.2832*a)));
+    float dop = dot(vt, -rd);
+    float beam = pow(1.0 + 0.6*dop, 3.0);
+    vec3 c = mix(vio, white, T*T*(0.6 + 0.4*clamp(dop, 0.0, 1.0)));
+    acc += c*(halo(d, max(0.06 + 0.04*r, px))*1.1 + halo(d, 0.35 + 0.1*r)*0.25)*beam*(0.5 + 1.5*T)*boost*step(dot(p - ro, rd), tmax);
+  }
+  // the innermost stable orbit: a thin ring blazing round the hole
+  vec3 hp = rayAt(ro, rd, h);
+  if (hp.z > 0.0 && hp.z < tmax){
+    float rr = abs(length(hp.xy) - 0.85*g);
+    acc += white*(halo(rr, max(0.04, px))*1.3 + vio*halo(rr, 0.3)*0.4)*boost;
   }
   return acc;
 }
@@ -66,7 +60,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
     float fk = float(k);
     float h = eh_h(fk), g = eh_grow(h);
     if (g < 0.01) continue;
-    light += eh_disk(ro, rd, h, fk, tmax, g);
+    light += eh_disk(ro, rd, h, fk, tmax, g, px);
     // the lensed photon ring: a thin ring of bent light hugging the hole at the disk's height,
     // always facing you; brighter when seen from above
     float dc = rayPt(ro, rd, vec3(0.0, h, 0.0), tq);
@@ -77,8 +71,6 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
       float rr = abs(dc - 0.95*g);
       float up = 0.55 + 0.9*rd.y*rd.y;
       light += (white*halo(rr, max(0.035, px))*1.8 + vio*halo(rr, 0.25)*0.35)*(0.7 + 0.5*side)*flick*up*g;
-      // soft bloom round the whole disk
-      light += vio*halo(dc, 3.2*g)*0.07;
     }
     // matter streams spiralling in along the blade from the disk's inner edge, up and down
     float da = raySeg(ro, rd, vec3(0.0, h - 7.5, 0.0), vec3(0.0, h + 7.5, 0.0), s);
@@ -125,42 +117,24 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
   return light;
 }
 
-// the blade: the emitter fills with violet-white light, then the black rod with its photon rim,
-// light streaming down its edges as it falls in
-vec3 eh_blade(vec3 ro, vec3 rd, float px){
-  float top = eh_top(), s;
-  vec3 vio = vec3(0.62, 0.36, 1.0), white = vec3(1.0, 0.96, 1.0);
-  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, max(top - 0.3, -0.5), 0.0), s);
-  float y = mix(-0.6, top - 0.3, s);
-  float stream = 0.65 + 0.35*sin(y*0.9 + uTime*12.0) + 0.3*pow(0.5 + 0.5*sin(y*0.23 + uTime*5.0), 6.0);
-  float rim = exp(-pow((d - 0.34)/max(0.06, px), 2.0));
-  vec3 light = white*rim*1.6*stream + vio*halo(d, 0.85)*0.6 + vio*halo(d, 2.6)*0.12;
-  // the emitter: plain light from inside the hilt up to where the darkness begins
-  float sm;
-  float de = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, min(top, 1.2), 0.0), sm);
-  light += white*exp(-pow(de/0.38, 2.0))*1.3*(1.0 - smoothstep(0.6, 1.0, sm*min(top, 1.2)/1.2));
-  light += vio*halo(de, 0.9)*0.4;
-  float cl = clamp(uClash, 0.0, 1.0);
-  light += white*rim*cl*1.5;
-  return light;
-}
-
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  vec3 light = eh_blade(ro, rd, px) + eh_fx(ro, rd, px, 1e9)*uFx;
-  return (1.0 - exp(-light*1.1))*1.05;
+  // The blade is Sol's glow and core from the file round the black rod (sig_glow,
+  // sig_solid); here only the effects, each a piece placed round it in 3D.
+  return eh_fx(ro, rd, px, 1e9)*uFx;
 }
-// the black rod itself, with any light in front of it drawn over it
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
-  float top = eh_top(), s;
-  if (top < 1.3) return vec4(0.0);
-  float d = raySeg(ro, rd, vec3(0.0, 1.0, 0.0), vec3(0.0, top - 0.3, 0.0), s);
-  float a = (1.0 - smoothstep(0.24, 0.31, d))*smoothstep(0.0, 0.12, s*(top - 1.3));
-  if (a < 0.002) return vec4(0.0);
-  vec3 c = vec3(0.0, 1.0 + s*(top - 1.3), 0.0);
-  float tc = dot(c - ro, rd);
-  vec3 front = eh_fx(ro, rd, px, tc)*uFx;
-  vec3 col = vec3(0.01, 0.0, 0.02) + (1.0 - exp(-front*1.1))*1.05;
-  return vec4(col, a*0.96);
+// the black rod, drawn over Sol's glow as his solid blades are: pure darkness from just
+// above the emitter to the tip
+vec4 sig_solid(vec4 o, vec2 b, float px){
+  float top = eh_top();
+  if (top < 1.3) return o;
+  float a = fillD(abs(b.x) - 0.28, px)*smoothstep(1.0, 1.6, b.y)*(1.0 - smoothstep(top - 0.6, top - 0.2, b.y));
+  return vec4(mix(o.rgb, vec3(0.01, 0.0, 0.02), a*0.96), max(o.a, a*0.96));
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+// the blade: Sol's glow from the file, light streaming down its edges as it falls in, a razor
+// photon ring at the rod's rim
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float stream = 0.65 + 0.35*sin(b.y*0.9 + uTime*12.0) + 0.3*pow(0.5 + 0.5*sin(b.y*0.23 + uTime*5.0), 6.0);
+  float rim = exp(-pow((abs(b.x) - 0.33)/max(0.06, px), 2.0))*smoothstep(1.0, 1.6, b.y)*(1.0 - smoothstep(eh_top() - 0.6, eh_top() - 0.2, b.y));
+  return g + vec3(1.0, 0.96, 1.0)*rim*(1.2*stream + 1.5*clamp(uClash, 0.0, 1.0));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c; }

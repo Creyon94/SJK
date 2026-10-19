@@ -8,25 +8,21 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.42,0.34,0.16],"corona.rim_hot":[1.0,0.86,0.55],"corona.inner":[1.0,0.96,0.85],"core.white":[1.0,1.0,0.97],"core.fringe_cool":[0.90,0.78,0.50],"core.fringe_hot":[1.0,0.90,0.65],"light.color":[1.0,0.90,0.66],"trail":[1.0,0.90,0.68]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
-// a soft ring (torus) of radius R at height h, thickness w: its density integrated along the ray
-float bww_ring(vec3 ro, vec3 rd, float h, float R, float w){
-  vec2 sp = raySpan(ro, rd, R + 2.5*w, h - 2.5*w, h + 2.5*w);
-  if (sp.y <= sp.x) return 0.0;
-  float dt = (sp.y - sp.x)/6.0;
-  float t = sp.x + dt*0.5;
-  float acc = 0.0;
-  for (int i = 0; i < 6; i++){
-    vec3 p = ro + rd*t;
-    float r = length(p.xz);
-    float a = atan(p.x, p.z);
-    float d2 = (r - R)*(r - R) + (p.y - h)*(p.y - h)*0.5;
-    acc += exp(-d2/(w*w))*dt*(0.7 + 0.3*sin(a*5.0 + uTime*1.3 + h));
-    t += dt;
+// the ray's distance to a ring of radius R round the blade at height h
+float bww_ring(vec3 ro, vec3 rd, float h, float R){
+  float best = 1e3;
+  vec3 q = rayAt(ro, rd, h);
+  if (q.z > 0.0) best = abs(length(q.xy) - R);
+  float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
+  float dsc = b*b - a*c;
+  if (dsc > 0.0 && a > 1e-6){
+    float k = sqrt(dsc);
+    float t0 = (-b - k)/a, t1 = (-b + k)/a;
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - h));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - h));
   }
-  return acc;
+  return best;
 }
 
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
@@ -38,15 +34,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 pale = vec3(1.0, 0.95, 0.85);
   vec3 dusk = vec3(0.55, 0.45, 0.30);
 
-  // the blade: a calm white-gold path of light
-  float s;
-  float dA = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
-  float ya = mix(-0.6, top, s);
-  float br = 0.85 + 0.15*sin(ya*0.5 - uTime*0.8) + 0.10*sin(ya*0.21 + uTime*0.5);
-  vec3 light = vec3(1.0)*exp(-pow(dA/max(0.24, px), 2.0))*(1.35 + cl*0.5)
-    + gold*halo(dA, 0.55)*0.75*br
-    + gold*halo(dA, 1.8)*0.22*br
-    + dusk*halo(dA, 5.0)*0.06;
+  // The blade itself is Sol's glow and core from the file (sig_glow, sig_core).
+  vec3 light = vec3(0.0);
 
   if (fxOn < 0.001) return light;
 
@@ -110,16 +99,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float h = L*(0.25 + 0.27*fk) + 1.2*sin(uTime*0.25 + fk*2.0);
     if (h < top && open > 0.01){
       float R = 0.6 + 2.4*open + 4.0*cl*(1.0 - cl);
-      float ring = bww_ring(ro, rd, h, R, 0.35 + 0.35*open);
-      light += mix(gold, pale, 0.5)*ring*open*(0.6 + 0.5*cl)*(0.35 + 0.65*smoothstep(0.05, 0.5, abs(rd.y)));
-      vec3 hp = rayAt(ro, rd, h);
-      if (hp.z > 0.0){
-        float r = length(hp.xy);
-        float a = atan(hp.x, hp.y);
-        float veil = exp(-pow(r/(R*0.85), 4.0))*(0.5 + 0.5*sin(r*5.0 - uTime*3.0 + 0.6*sin(a*3.0 + uTime)));
-        float gz = clamp(abs(rd.y), 0.15, 1.0);
-        light += pale*veil*open*0.07/gz*smoothstep(0.3, 0.9, r);
-      }
+      float dr = bww_ring(ro, rd, h, R);
+      float sh = 0.7 + 0.3*sin(uTime*1.3 + h);
+      light += (pale*halo(dr, max(0.05, px))*1.2 + mix(gold, pale, 0.5)*halo(dr, 0.3 + 0.3*open)*0.45)*open*sh*(0.6 + 0.5*cl);
     }
   }
 
@@ -140,23 +122,11 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
   }
 
-  // star dust and ripples of time: a faint marched haze round the blade, rings of rippling light
-  vec3 ms = marchSteps(ro, rd, 5.6, -0.3, L + 1.5, 16.0);
-  if (ms.y > ms.x){
-    float t = ms.x + ms.z*h21(rd.xy*517.0 + rd.z*29.0);
-    float acc = 0.0;
-    for (int i = 0; i < 16; i++){
-      vec3 p = ro + rd*t;
-      if (p.y < top){
-        float r = length(p.xz);
-        float n = fbm3(vec2(p.x*0.35 + p.y*0.05, p.y*0.10 + uTime*0.04))*fbm3(vec2(p.z*0.35 - p.y*0.04 + 3.0, p.y*0.12 - uTime*0.05));
-        float rip = 0.55 + 0.45*sin(r*2.2 - uTime*1.1 + p.y*0.15);
-        float sh = smoothstep(0.6, 2.2, r)*(1.0 - smoothstep(2.8, 5.4, r))*smoothstep(-0.3, 2.0, p.y)*(1.0 - smoothstep(L - 1.5, L + 1.5, p.y));
-        acc += smoothstep(0.28, 0.6, n*1.4)*sh*rip;
-      }
-      t += ms.z;
-    }
-    light += mix(dusk, gold, 0.4)*acc*ms.z*0.12;
-  }
   return light;
 }
+
+// the blade: Sol's glow and core from the file, breathing calmly
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  return g*(0.85 + 0.15*sin(b.y*0.5 - uTime*0.8) + 0.10*sin(b.y*0.21 + uTime*0.5) + 0.5*clamp(uClash, 0.0, 1.0));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c; }

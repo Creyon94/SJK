@@ -24,48 +24,40 @@ fn eh_grow(h: f32) -> f32 {
     return smoothstep(h - 1.0, h + 5.0, eh_top());
 }
 
-// one accretion disk at height h: a thin slab of hot matter marched along the ray, up to tmax
-fn eh_disk(ro: vec3<f32>, rd: vec3<f32>, h: f32, k: f32, tmax: f32, g: f32) -> vec3<f32> {
+// one accretion disk at height h: clumps of hot matter orbiting the blade on many rings,
+// brighter on the side rushing toward you, a thin blazing ring at its inner edge; each clump
+// a piece facing the camera, as Sol's Void blade orbits its black holes
+fn eh_disk(ro: vec3<f32>, rd: vec3<f32>, h: f32, k: f32, tmax: f32, g: f32, px: f32) -> vec3<f32> {
     let vio: vec3<f32> = vec3<f32>(0.62, 0.36, 1.0);
     let white: vec3<f32> = vec3<f32>(1.0, 0.96, 1.0);
-    let Ro = 6.2 * g;
-    let m = marchSteps(ro, rd, Ro, h - 0.7, h + 0.7, 16.0);
     var acc: vec3<f32> = vec3<f32>(0.0);
-    if m.y <= m.x || g < 0.01 {
+    var tq: f32;
+    if g < 0.01 || rayPt(ro, rd, vec3(0.0, h, 0.0), &tq) > 7.5 * g {
         return acc;
     }
     let sw = clamp(uSwing, 0.0, 1.0);
-    let spin = uTime * (1.7 + 0.5 * k + 1.5 * sw);
-    var t = m.x + m.z * h21(rd.xy * 517.0 + k);
-    for (var i = 0; i < 16; i++) {
-        if t > tmax {
-            break;
-        }
-        let p = ro + rd * t;
-        let r = length(p.xz) / max(g, 0.05);
-        let dy = p.y - h;
-        let thick = 0.07 + 0.045 * r;
-        let vert = exp(-dy * dy / (thick * thick));
-        if vert > 0.01 && r > 0.45 {
-            let a = atan2(p.z, p.x);
-            // rigid spiral arms and swirling clumps (no runaway shear)
-            let arms = pow(0.5 + 0.5 * sin(2.0 * (a - spin) + 4.5 * log(r) + k * 1.7), 2.0);
-            let q = rot(spin * 0.8 + 1.6 * log(r)) * p.xz;
-            let clump = fbm3(vec2(q.x * 0.9 + k * 7.0, q.y * 2.6));
-            let lanes = 0.5 + 0.5 * sin(r * 7.0 - clump * 5.0);
-            let rad = smoothstep(0.55, 0.85, r) * (1.0 - smoothstep(2.8, 6.0, r));
-            let isco = exp(-pow((r - 0.85) / 0.12, 2.0));
-            let T = clamp(1.25 / r, 0.0, 1.0);
-            // Doppler: the side whose matter rushes toward the camera is brighter and whiter
-            let vt = normalize(vec3(-p.z, 0.0, p.x) + 1.0e-4);
-            let dop = dot(vt, -rd);
-            let beam = pow(1.0 + 0.6 * dop, 3.0);
-            var dens = rad * vert * (0.15 + 0.85 * arms) * (0.3 + 1.2 * smoothstep(0.35, 0.75, clump)) * (0.55 + 0.45 * lanes) * (1.0 + 0.6 * sw + 1.2 * clamp(uClash, 0.0, 1.0));
-            dens += isco * vert * 1.5;
-            let c = mix(vio, white, T * T * (0.6 + 0.4 * clamp(dop, 0.0, 1.0)));
-            acc += c * dens * beam * (0.6 + 2.6 * T * T) * m.z * 4.5;
-        }
-        t += m.z;
+    let boost = 1.0 + 0.6 * sw + 1.2 * clamp(uClash, 0.0, 1.0);
+    for (var i = 0; i < 40; i++) {
+        let fi = f32(i);
+        let r = (0.95 + 4.6 * pow(h11(fi * 3.1 + k * 7.0), 1.6)) * g;
+        let a = h11(fi * 5.7 + k) + uTime * (0.55 + 0.4 * sw) / (0.4 + 0.35 * r);
+        let p = around(r, a, h + 0.08 * (h11(fi * 2.2) - 0.5) * r);
+        // each clump a short streak along its orbit
+        let q = around(r, a - 0.05 / (0.5 + 0.3 * r), p.y);
+        var s: f32;
+        let d = raySeg(ro, rd, q, p, &s);
+        let T = clamp(1.25 * g / r, 0.0, 1.0);
+        let vt = normalize(vec3(cos(6.2832 * a), 0.0, -sin(6.2832 * a)));
+        let dop = dot(vt, -rd);
+        let beam = pow(1.0 + 0.6 * dop, 3.0);
+        let c = mix(vio, white, T * T * (0.6 + 0.4 * clamp(dop, 0.0, 1.0)));
+        acc += c * (halo(d, max(0.06 + 0.04 * r, px)) * 1.1 + halo(d, 0.35 + 0.1 * r) * 0.25) * beam * (0.5 + 1.5 * T) * boost * step(dot(p - ro, rd), tmax);
+    }
+    // the innermost stable orbit: a thin ring blazing round the hole
+    let hp = rayAt(ro, rd, h);
+    if hp.z > 0.0 && hp.z < tmax {
+        let rr = abs(length(hp.xy) - 0.85 * g);
+        acc += white * (halo(rr, max(0.04, px)) * 1.3 + vio * halo(rr, 0.3) * 0.4) * boost;
     }
     return acc;
 }
@@ -88,7 +80,7 @@ fn eh_fx(ro: vec3<f32>, rd: vec3<f32>, px: f32, tmax: f32) -> vec3<f32> {
         if g < 0.01 {
             continue;
         }
-        light += eh_disk(ro, rd, h, fk, tmax, g);
+        light += eh_disk(ro, rd, h, fk, tmax, g, px);
         // the lensed photon ring: a thin ring of bent light hugging the hole at the disk's height,
         // always facing you; brighter when seen from above
         let dc = rayPt(ro, rd, vec3(0.0, h, 0.0), &tq);
@@ -99,8 +91,6 @@ fn eh_fx(ro: vec3<f32>, rd: vec3<f32>, px: f32, tmax: f32) -> vec3<f32> {
             let rr = abs(dc - 0.95 * g);
             let up = 0.55 + 0.9 * rd.y * rd.y;
             light += (white * halo(rr, max(0.035, px)) * 1.8 + vio * halo(rr, 0.25) * 0.35) * (0.7 + 0.5 * side) * flick * up * g;
-            // soft bloom round the whole disk
-            light += vio * halo(dc, 3.2 * g) * 0.07;
         }
         // matter streams spiralling in along the blade from the disk's inner edge, up and down
         let da = raySeg(ro, rd, vec3(0.0, h - 7.5, 0.0), vec3(0.0, h + 7.5, 0.0), &s);
@@ -149,56 +139,31 @@ fn eh_fx(ro: vec3<f32>, rd: vec3<f32>, px: f32, tmax: f32) -> vec3<f32> {
     return light;
 }
 
-// the blade: the emitter fills with violet-white light, then the black rod with its photon rim,
-// light streaming down its edges as it falls in
-fn eh_blade(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
-    let top = eh_top();
-    var s: f32;
-    let vio: vec3<f32> = vec3<f32>(0.62, 0.36, 1.0);
-    let white: vec3<f32> = vec3<f32>(1.0, 0.96, 1.0);
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, max(top - 0.3, -0.5), 0.0), &s);
-    let y = mix(-0.6, top - 0.3, s);
-    let stream = 0.65 + 0.35 * sin(y * 0.9 + uTime * 12.0) + 0.3 * pow(0.5 + 0.5 * sin(y * 0.23 + uTime * 5.0), 6.0);
-    let rim = exp(-pow((d - 0.34) / max(0.06, px), 2.0));
-    var light = white * rim * 1.6 * stream + vio * halo(d, 0.85) * 0.6 + vio * halo(d, 2.6) * 0.12;
-    // the emitter: plain light from inside the hilt up to where the darkness begins
-    var sm: f32;
-    let de = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, min(top, 1.2), 0.0), &sm);
-    light += white * exp(-pow(de / 0.38, 2.0)) * 1.3 * (1.0 - smoothstep(0.6, 1.0, sm * min(top, 1.2) / 1.2));
-    light += vio * halo(de, 0.9) * 0.4;
-    let cl = clamp(uClash, 0.0, 1.0);
-    light += white * rim * cl * 1.5;
-    return light;
-}
-
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
-    let light = eh_blade(ro, rd, px) + eh_fx(ro, rd, px, 1.0e9) * uFx;
-    return (1.0 - exp(-light * 1.1)) * 1.05;
+    // The blade is Sol's glow and core from the file round the black rod (sig_glow,
+    // sig_solid); here only the effects, each a piece placed round it in 3D.
+    return eh_fx(ro, rd, px, 1.0e9) * uFx;
 }
 
-// the black rod itself, with any light in front of it drawn over it
-fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+// the black rod, drawn over Sol's glow as his solid blades are: pure darkness from just
+// above the emitter to the tip
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     let top = eh_top();
-    var s: f32;
     if top < 1.3 {
-        return vec4<f32>(0.0);
+        return o;
     }
-    let d = raySeg(ro, rd, vec3<f32>(0.0, 1.0, 0.0), vec3(0.0, top - 0.3, 0.0), &s);
-    let a = (1.0 - smoothstep(0.24, 0.31, d)) * smoothstep(0.0, 0.12, s * (top - 1.3));
-    if a < 0.002 {
-        return vec4<f32>(0.0);
-    }
-    let c = vec3(0.0, 1.0 + s * (top - 1.3), 0.0);
-    let tc = dot(c - ro, rd);
-    let front = eh_fx(ro, rd, px, tc) * uFx;
-    let col = vec3<f32>(0.01, 0.0, 0.02) + (1.0 - exp(-front * 1.1)) * 1.05;
-    return vec4(col, a * 0.96);
+    let a = fillD(abs(b.x) - 0.28, px) * smoothstep(1.0, 1.6, b.y) * (1.0 - smoothstep(top - 0.6, top - 0.2, b.y));
+    return vec4(mix(o.rgb, vec3<f32>(0.01, 0.0, 0.02), a * 0.96), max(o.a, a * 0.96));
 }
 
+// the blade: Sol's glow from the file, light streaming down its edges as it falls in, a razor
+// photon ring at the rod's rim
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    let stream = 0.65 + 0.35 * sin(b.y * 0.9 + uTime * 12.0) + 0.3 * pow(0.5 + 0.5 * sin(b.y * 0.23 + uTime * 5.0), 6.0);
+    let rim = exp(-pow((abs(b.x) - 0.33) / max(0.06, px), 2.0)) * smoothstep(1.0, 1.6, b.y) * (1.0 - smoothstep(eh_top() - 0.6, eh_top() - 0.2, b.y));
+    return g + vec3<f32>(1.0, 0.96, 1.0) * rim * (1.2 * stream + 1.5 * clamp(uClash, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c;
 }

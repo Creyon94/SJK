@@ -41,11 +41,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let beat = qs_beat() * (1.0 + 0.4 * sw + 0.6 * cl);
     let vio: vec3<f32> = vec3<f32>(0.6, 0.38, 1.0);
     let white: vec3<f32> = vec3<f32>(1.0, 0.97, 1.0);
-    // ---- the blade: a white-hot jet in a violet sheath, from inside the hilt to the tip
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, max(top, -0.5), 0.0), &s);
-    let y = mix(-0.6, top, s);
-    let ripple = 0.8 + 0.2 * sin(y * 0.9 - uTime * 14.0);
-    var light = white * exp(-pow(d / max(0.42, px), 2.0)) * 1.5 + vio * halo(d, 0.95) * 0.7 * ripple * beat + vio * halo(d, 2.8) * 0.14 * beat;
+    // The jet is Sol's glow and core from the file, rippling (sig_glow, sig_core); here only
+    // the effects, each a piece placed round it in 3D.
+    let d: f32 = 0.0;
+    var light: vec3<f32> = vec3<f32>(0.0);
     var fx: vec3<f32> = vec3<f32>(0.0);
     // knots racing up the jet, each with a ring of shocked light round the blade
     for (var i = 0; i < 6; i++) {
@@ -67,7 +66,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // ---- the tip jet: blasting on up from the tip, widening, with shock diamonds and knots
     let jt = smoothstep(L - 2.0, L, top);
     if jt > 0.0 {
-        let JL = 7.5 + 2.0 * sw + 1.0 * sin(uTime * 1.7);
+        let JL = 5.0 + 1.0 * sw + 0.6 * sin(uTime * 1.7);
         let dj = raySeg(ro, rd, vec3(0.0, top - 0.3, 0.0), vec3(0.0, top + JL, 0.0), &s);
         let w = 0.3 + 0.9 * s;
         let diamonds = 0.6 + 0.4 * sin(s * JL * 2.2 - uTime * 20.0);
@@ -101,31 +100,28 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if g > 0.01 {
         let lo = qs_loc(ro - c0);
         let ld = qs_loc(rd);
-        let Ro = 6.0 * g;
-        let m = marchSteps(lo, ld, Ro, -0.8, 0.8, 18.0);
-        if m.y > m.x {
-            let spin = uTime * (1.4 + 1.2 * sw);
-            var t = m.x + m.z * h21(rd.xy * 517.0);
-            for (var i = 0; i < 18; i++) {
-                let p = lo + ld * t;
-                let r = length(p.xz) / g;
-                let thick = 0.08 + 0.05 * r;
-                let vert = exp(-p.y * p.y / (thick * thick));
-                if vert > 0.01 && r > 0.4 {
-                    let a = atan2(p.z, p.x);
-                    let q = rot(spin + 1.8 * log(r)) * p.xz;
-                    let n = fbm3(vec2(q.x * 0.8 + 3.0, q.y * 2.4));
-                    let arms = pow(0.5 + 0.5 * sin(3.0 * (a - spin) + 5.0 * log(r)), 2.0);
-                    let rad = smoothstep(0.5, 1.0, r) * (1.0 - smoothstep(2.5, 6.0, r));
-                    let T = clamp(1.4 / r, 0.0, 1.0);
-                    let vt = normalize(vec3(-p.z, 0.0, p.x) + 1.0e-4);
-                    let dop = dot(vt, -ld);
-                    let bm = pow(1.0 + 0.55 * dop, 3.0);
-                    var dens = rad * vert * (0.2 + 0.8 * arms) * (0.3 + 1.3 * smoothstep(0.3, 0.75, n));
-                    dens += exp(-pow((r - 0.75) / 0.15, 2.0)) * vert * 1.6;
-                    fx += mix(vio, white, T * T) * dens * bm * (0.6 + 2.4 * T * T) * m.z * 4.0 * beat;
-                }
-                t += m.z;
+        let spin = uTime * (1.4 + 1.2 * sw);
+        // the disk: clumps of glowing matter orbiting on many rings in its tilted plane, brighter on
+        // the side rushing toward you, each a short streak facing the camera
+        if rayPt(lo, ld, vec3<f32>(0.0), &tq) < 7.5 * g {
+            for (var i = 0; i < 44; i++) {
+                let fi = f32(i);
+                let r = (0.9 + 5.0 * pow(h11(fi * 3.9), 1.5)) * g;
+                let a = h11(fi * 6.7) + spin * 0.4 / (0.4 + 0.35 * r) + 0.08 * sin(3.0 * log(r + 1.0));
+                let p = around(r, a, 0.06 * (h11(fi * 2.1) - 0.5) * r);
+                let q = around(r, a - 0.05 / (0.5 + 0.3 * r), p.y);
+                let dk = raySeg(lo, ld, q, p, &s);
+                let T = clamp(1.4 * g / r, 0.0, 1.0);
+                let vt = normalize(vec3(cos(6.2832 * a), 0.0, -sin(6.2832 * a)));
+                let bm = pow(1.0 + 0.55 * dot(vt, -ld), 3.0);
+                fx += mix(vio, white, T * T) * (halo(dk, max(0.07 + 0.04 * r, px)) * 1.1 + halo(dk, 0.35 + 0.1 * r) * 0.25) * bm * (0.5 + 1.6 * T) * beat;
+            }
+            // its bright inner rim
+            let tt = select(-1.0, -lo.y / ld.y, abs(ld.y) > 1.0e-4);
+            if tt > 0.0 {
+                let pp = lo + ld * tt;
+                let rr = abs(length(pp.xz) - 0.75 * g);
+                fx += white * (halo(rr, max(0.04, px)) * 1.4 + halo(rr, 0.3) * 0.4) * beat;
             }
         }
         // matter streaming inward on spirals across the disk, in bright pulses
@@ -149,7 +145,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             }
         }
         // the blinding core: white heat round the blade at the disk's heart, beating
-        light += white * (halo(dc, 0.9) * 1.3 + halo(dc, 2.4) * 0.35) * beat * g + vio * halo(dc, 5.5) * 0.12 * beat * g;
+        light += white * (halo(dc, 0.9) * 1.3 + halo(dc, 2.4) * 0.35) * beat * g;
         // a clash: a shockwave ring racing out across the disk
         if cl > 0.01 {
             let p0: vec3<f32> = vec3<f32>(0.0);
@@ -165,15 +161,17 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
     }
     light += fx * uFx;
-    return (1.0 - exp(-light * 1.1)) * 1.05;
+    return light;
 }
 
+// the jet: Sol's glow and core from the file, rippling with the engine's heartbeat
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    let beat = qs_beat() * (1.0 + 0.4 * clamp(uSwing, 0.0, 1.0) + 0.6 * clamp(uClash, 0.0, 1.0));
+    return g * (0.8 + 0.2 * sin(b.y * 0.9 - uTime * 14.0)) * beat;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c;
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

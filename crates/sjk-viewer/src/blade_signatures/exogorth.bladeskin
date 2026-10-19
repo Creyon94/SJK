@@ -13,19 +13,19 @@
   "core": {
     "white": [
       1.0,
-      0.98,
-      1.0
+      0.95,
+      0.85
     ],
     "white_flare": 0.4,
     "fringe_cool": [
-      0.75,
-      0.6,
-      1.0
+      1.0,
+      0.45,
+      0.12
     ],
     "fringe_hot": [
       1.0,
-      0.85,
-      1.0
+      0.75,
+      0.4
     ],
     "fringe_heat": {
       "base": 0.3,
@@ -47,18 +47,18 @@
   "corona": {
     "rim_cool": [
       0.55,
-      0.4,
-      0.95
+      0.2,
+      0.04
     ],
     "rim_hot": [
-      0.95,
-      0.7,
-      1.0
+      1.0,
+      0.55,
+      0.18
     ],
     "inner": [
       1.0,
-      0.95,
-      1.0
+      0.88,
+      0.65
     ],
     "inner_width": 0.6,
     "rim_heat": {
@@ -132,15 +132,15 @@
     "range": 0.7
   },
   "trail": [
-    0.78,
-    0.62,
-    1.0
+    1.0,
+    0.55,
+    0.2
   ],
   "light": {
     "color": [
-      0.8,
-      0.65,
-      1.0
+      1.0,
+      0.55,
+      0.2
     ],
     "flicker": {
       "amount": 0.05,
@@ -159,13 +159,13 @@
     }
   },
   "sounds": {
-    "on": "sound/sjk/sabers/nine_lives/on.wav",
-    "off": "sound/sjk/sabers/nine_lives/off.wav",
-    "hum": "sound/sjk/sabers/nine_lives/hum.wav",
+    "on": "sound/sjk/sabers/exogorth/on.wav",
+    "off": "sound/sjk/sabers/exogorth/off.wav",
+    "hum": "sound/sjk/sabers/exogorth/hum.wav",
     "swings": [
-      "sound/sjk/sabers/nine_lives/swing1.wav",
-      "sound/sjk/sabers/nine_lives/swing2.wav",
-      "sound/sjk/sabers/nine_lives/swing3.wav"
+      "sound/sjk/sabers/exogorth/swing1.wav",
+      "sound/sjk/sabers/exogorth/swing2.wav",
+      "sound/sjk/sabers/exogorth/swing3.wav"
     ]
   }
 }

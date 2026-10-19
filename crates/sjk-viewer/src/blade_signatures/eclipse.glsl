@@ -31,43 +31,29 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float flare = max(cl, exp(-uAge*1.6)*step(0.0, uAge)*0.35);
   vec3 pearl = vec3(1.0, 0.9, 0.72), white = vec3(1.0, 0.98, 0.94);
   float yb = ec_y(), hw = ec_hw(), R0 = ec_ringR();
-  // ---- the blade: a thin pearl core with light running up it, dark in the moon's band
-  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, max(top, -0.5), 0.0), s);
-  float y = mix(-0.6, top, s);
-  float sheen = 0.85 + 0.15*sin(y*1.3 - uTime*6.0) + 0.1*sin(y*0.37 + uTime*2.3);
-  float shade = ec_shade(y);
-  vec3 light = (white*exp(-pow(d/max(0.3, px), 2.0))*1.45 + pearl*halo(d, 0.75)*0.6*sheen + pearl*halo(d, 2.2)*0.12)*(1.0 - 0.94*shade);
+  // The blade is Sol's glow and core from the file, dark in the moon's band (sig_glow,
+  // sig_core, sig_solid); here only the effects, each a piece placed round it in 3D.
+  vec3 light = vec3(0.0);
   vec3 fx = vec3(0.0);
   float vis = smoothstep(0.1, 0.6, uAge);
-  // ---- the corona: a fan of streamers radiating out from the dark ring in 3D
-  float Rc = 6.2;
-  vec3 m = marchSteps(ro, rd, Rc, yb - 3.2, yb + 3.2, 24.0);
-  if (m.y > m.x && vis > 0.0){
-    float t = m.x + m.z*h21(rd.xy*517.0);
-    float reach = 1.0 + 0.35*sw + 0.45*flare;
-    for (int i = 0; i < 24; i++){
-      vec3 p = ro + rd*t;
-      vec3 q = p - vec3(0.0, yb, 0.0);
-      float r = length(q.xz);
-      vec2 mer = vec2(r - R0*0.6, q.y);
-      float rho = length(mer);
-      float el = atan(q.y, max(r - R0*0.6, 0.05));
-      // streamers: a pattern of direction only, so it reads as rays fanning outward
-      vec2 az = q.xz/max(r, 1e-3);
-      vec2 az2 = rot(uTime*0.05 + sw*0.3)*az;
-      float n = vn(az2*3.2 + vec2(el*3.0, 0.0) + vec2(3.0, uTime*0.08));
-      float n2 = vn(az2*11.0 + vec2(el*8.0, 7.0) - vec2(0.0, uTime*0.15));
-      float strm = smoothstep(0.4, 0.9, n*0.6 + n2*0.4);
-      float fine = pow(n2, 5.0);
-      float fan = exp(-el*el/(0.28 + 0.25*sw)) + 0.25*exp(-pow((abs(el) - 1.3)/0.25, 2.0));
-      float fall = exp(-max(rho - 0.3, 0.0)/(1.1*reach)) + 0.4*exp(-max(rho - 0.3, 0.0)/(3.0*reach));
-      float inner = exp(-max(rho - 0.3, 0.0)/0.4);
-      float dens = (strm*strm*2.2 + fine*1.6 + 0.08)*fall*fan + inner*0.8;
-      dens *= smoothstep(0.2, 0.55, rho)*(1.0 - smoothstep(Rc - 2.4, Rc, r))*exp(-q.y*q.y/2.2);
-      vec3 c = mix(white, pearl, smoothstep(0.3, 3.0, rho));
-      fx += c*dens*m.z*0.9*(1.0 + 0.6*flare);
-      t += m.z;
+  // ---- the corona: long pearly streamers fanning out from the dark band in every direction
+  float reach = 1.0 + 0.35*sw + 0.45*flare;
+  if (rayPt(ro, rd, vec3(0.0, yb, 0.0), tq) < 7.5 && vis > 0.0){
+    for (int i = 0; i < 28; i++){
+      float fi = float(i);
+      float a = fi/28.0 + 0.012*sin(uTime*0.3 + fi) + uTime*0.008;
+      float el = (h11(fi*3.7) - 0.5)*0.9 + 0.12*sin(uTime*0.4 + fi*1.3);
+      float len = (3.0 + 4.5*pow(h11(fi*5.1), 1.3))*reach*(0.85 + 0.15*sin(uTime*0.7 + fi*2.0));
+      vec3 p0 = around(0.5, a, yb + el*0.6);
+      vec3 p1 = around(0.5 + len, a + 0.03*sw, yb + el*(0.6 + len*0.7));
+      float dd = raySeg(ro, rd, p0, p1, s);
+      float taper = 1.0 - s*s;
+      float w = max(0.06 + 0.26*(1.0 - s), px);
+      fx += mix(white, pearl, s)*(halo(dd, w)*1.2 + halo(dd, w*3.0)*0.25)*taper*(1.0 + 0.6*flare)*vis;
     }
+    // the inner corona: a bright soft ring of light hugging the band
+    float dc = rayPt(ro, rd, vec3(0.0, yb, 0.0), tq);
+    fx += white*(halo(abs(dc - 0.9), 0.35)*0.5 + halo(dc, 1.6)*0.15)*vis*(1.0 + flare);
   }
   // ---- the chromosphere: thin bright rims along both edges of the band, round the blade
   for (int k = 0; k < 2; k++){
@@ -75,7 +61,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     vec3 hp = rayAt(ro, rd, ey);
     if (hp.z > 0.0){
       float rr = length(hp.xy);
-      float rim = halo(abs(rr - 0.42), max(0.05, px))*1.1 + halo(rr, 0.5)*0.4;
+      float rim = halo(abs(rr - 0.42), max(0.05, px))*1.1;
       fx += white*rim*vis*(1.0 - smoothstep(0.6, 1.2, rr));
     }
   }
@@ -126,14 +112,17 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
   }
   light += fx*uFx;
-  return (1.0 - exp(-light*1.1))*1.05;
+  return light;
 }
-// the moon's shadow: the blade's heart goes dark across the band (only within the blade's width)
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
-  float yb = ec_y(), hw = ec_hw(), s;
-  float d0 = raySeg(ro, rd, vec3(0.0, yb - hw*0.45, 0.0), vec3(0.0, yb + hw*0.45, 0.0), s);
-  float a = (1.0 - smoothstep(0.22, 0.42, d0))*smoothstep(0.1, 0.5, uAge);
-  return vec4(vec3(0.02, 0.018, 0.015), a*0.9);
+// the moon's shadow, drawn over Sol's glow as his solid blades are: the blade's heart goes
+// dark across the band
+vec4 sig_solid(vec4 o, vec2 b, float px){
+  float a = (1.0 - smoothstep(0.22, 0.42, abs(b.x)))*ec_shade(b.y)*smoothstep(0.1, 0.5, uAge);
+  return vec4(mix(o.rgb, vec3(0.02, 0.018, 0.015), a*0.9), max(o.a, a*0.9));
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+// the blade: Sol's glow and core from the file, light running up it, out in the band
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float sheen = 0.85 + 0.15*sin(b.y*1.3 - uTime*6.0) + 0.1*sin(b.y*0.37 + uTime*2.3);
+  return g*sheen*(1.0 - 0.94*ec_shade(b.y));
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 - 0.94*ec_shade(b.y)); }

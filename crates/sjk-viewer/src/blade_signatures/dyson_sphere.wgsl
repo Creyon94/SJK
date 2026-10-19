@@ -50,26 +50,21 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let cl = clamp(uClash, 0.0, 1.0);
     let gold: vec3<f32> = vec3<f32>(1.0, 0.72, 0.3);
     let white: vec3<f32> = vec3<f32>(1.0, 0.96, 0.86);
-    // ---- the star column: a white-hot core in a glowing golden body
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, max(top, -0.5), 0.0), &s);
-    let y = mix(-0.6, top, s);
-    let boil = 0.8 + 0.2 * sin(y * 1.1 - uTime * 5.0) + 0.15 * sin(y * 0.31 + uTime * 1.7);
-    var light = white * exp(-pow(d / max(0.45, px), 2.0)) * 1.5 + gold * halo(d, 1.0) * 0.75 * boil + gold * halo(d, 2.8) * 0.16 * (1.0 + 0.6 * cl);
+    // The star column is Sol's glow and core from the file (sig_glow, sig_core); here only
+    // the effects, each a piece placed round it in 3D.
+    var light: vec3<f32> = vec3<f32>(0.0);
     var fx: vec3<f32> = vec3<f32>(0.0);
-    // boiling plasma round the core: granules and tongues of flame licking up the column
-    let m = marchSteps(ro, rd, 1.5, 0.0, max(top, 0.01), 16.0);
-    if m.y > m.x {
-        var t = m.x + m.z * h21(rd.xy * 517.0);
-        for (var i = 0; i < 16; i++) {
-            let p = ro + rd * t;
-            let r = length(p.xz);
-            let n1 = fbm3(vec2(p.x * 1.8 + p.z * 0.9, p.y * 0.55 - uTime * 2.2));
-            let n2 = fbm3(vec2(p.z * 1.8 - p.x * 0.9 + 4.0, p.y * 0.55 - uTime * 1.7));
-            let fl = smoothstep(0.35, 0.85, n1 * n2 * 2.2);
-            let dens = fl * exp(-pow(max(r - 0.45, 0.0) / 0.5, 2.0)) * smoothstep(0.0, 1.0, p.y) * (1.0 - smoothstep(top - 1.5, top, p.y));
-            light += mix(gold, white, exp(-r * 2.0)) * dens * m.z * 1.3;
-            t += m.z;
-        }
+    // tongues of flame licking up the column
+    for (var i = 0; i < 16; i++) {
+        let fi = f32(i);
+        let f = fract(uTime * (0.7 + 0.4 * h11(fi * 2.1)) + h11(fi * 6.3));
+        let cy = floor(uTime * (0.7 + 0.4 * h11(fi * 2.1)) + h11(fi * 6.3));
+        let y0 = (0.03 + 0.9 * h11(fi * 3.9 + cy)) * top;
+        let a0 = h11(fi * 1.7 + cy);
+        let p0 = around(0.5, a0, y0 + 1.2 * f);
+        let p1 = around(0.6 + 0.7 * f, a0 + 0.04, y0 + 1.2 * f + 0.9);
+        let dd = raySeg(ro, rd, p0, p1, &s);
+        fx += mix(white, gold, f) * (halo(dd, max(0.08 * (1.0 - s) + 0.03, px)) * 1.3 + gold * halo(dd, 0.35) * 0.3) * sin(3.1416 * f);
     }
     // ---- the hoops: thin rings of light, each with pulses of energy racing round it
     for (var k = 0; k < 5; k++) {
@@ -144,15 +139,16 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
     }
     light += fx * uFx;
-    return (1.0 - exp(-light * 1.1)) * 1.05;
+    return light;
 }
 
+// the star: Sol's glow and core from the file, boiling
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return g * (0.8 + 0.2 * sin(b.y * 1.1 - uTime * 5.0) + 0.15 * sin(b.y * 0.31 + uTime * 1.7) + 0.6 * clamp(uClash, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
+    return c;
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
