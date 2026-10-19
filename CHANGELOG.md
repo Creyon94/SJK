@@ -44,6 +44,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Scoreboard deaths match EJK: the local count (`cg_scoreDeaths` 3, or 2 when the server sends none) starts again on a map restart or a new map and when a player changes team or leaves, and duels and CTF show the score alone _(Sol, after Kushina's report)_
 - The death camera no longer tilts with the mouse, and a death is always seen in third person, as in EJK _(Sol, after Milamber's report)_
 - Falling into a pit no longer takes the camera down with you: it stays where the fall began and watches you drop, as in EJK _(Sol, after belyash's report)_
+- No more pause when a model comes into view, such as the FFA3 falcon flying over or a vehicle an admin spawns: NPCs and vehicles load in the background like players' models, and big textures go up a few at a time _(Sol, after Nib's report)_
+- Leaving a server no longer sometimes closes the game as the menu comes back _(Sol, after players' crash reports)_
+- Quitting or updating from exclusive fullscreen no longer leaves a crash report behind _(Sol, after players' crash reports)_
 
 ## 2026.1019.1 (Alpha) | 19/10/2026
 
