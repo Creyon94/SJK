@@ -251,6 +251,11 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Attack ends emote",
+        cvar: crate::emotes::ATTACK_STOP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,

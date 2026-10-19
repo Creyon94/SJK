@@ -72,6 +72,12 @@ pub(crate) const HELP: &str = "Play an emote the SJK players on this server see 
 pub(crate) const VOLUME_CVAR: &str = "s_emoteVolume";
 /// [`VOLUME_CVAR`]'s default: recorded music sits well under the game's effects.
 pub(crate) const DEFAULT_VOLUME: f64 = 2.0;
+/// Whether an attack or alt attack ends the player's own emote (Settings > Sound >
+/// Emotes, [`ActiveEmotes::end_on_attack`]). Off by default: the dance goes on
+/// through the attacks, as before 19/10/2026.
+pub(crate) const ATTACK_STOP_CVAR: &str = "cg_emoteAttackStop";
+/// [`ATTACK_STOP_CVAR`]'s default.
+pub(crate) const DEFAULT_ATTACK_STOP: bool = false;
 /// How long an emote the catalogue does not know lasts.
 const UNKNOWN_LENGTH: Duration = Duration::from_secs(3);
 /// How far a player may move (game units) before their emote stops.
@@ -502,11 +508,12 @@ impl ActiveEmotes {
         }
     }
 
-    /// The player's own command carried `buttons`: an attack or alt attack ends
-    /// their emote in `slot`, as the server attacks whatever the emote shows. True
-    /// when one ended, so the caller tells the others (as `sjkemote stop`).
-    pub(crate) fn end_on_attack(&mut self, slot: u8, buttons: u16) -> bool {
-        if buttons & ATTACK_BUTTONS == 0 || self.get(slot).is_none() {
+    /// The player's own command carried `buttons`: with `enabled`
+    /// ([`ATTACK_STOP_CVAR`]), an attack or alt attack ends their emote in `slot`, as
+    /// the server attacks whatever the emote shows. True when one ended, so the
+    /// caller tells the others (as `sjkemote stop`).
+    pub(crate) fn end_on_attack(&mut self, slot: u8, buttons: u16, enabled: bool) -> bool {
+        if !enabled || buttons & ATTACK_BUTTONS == 0 || self.get(slot).is_none() {
             return false;
         }
         self.stop(slot);
@@ -775,17 +782,30 @@ mod tests {
         .unwrap();
         let mut active = ActiveEmotes::default();
         // Nobody dancing: nothing to tell. Walking (16) alone leaves it.
-        assert!(!active.end_on_attack(2, 1));
+        assert!(!active.end_on_attack(2, 1, true));
         active.start(2, "dance", Some(&dance), [0.0; 3], t0);
         active.take_cues();
-        assert!(!active.end_on_attack(2, 16));
+        assert!(!active.end_on_attack(2, 16, true));
         assert!(active.get(2).is_some());
-        assert!(active.end_on_attack(2, 1 | 16));
+        assert!(active.end_on_attack(2, 1 | 16, true));
         assert!(active.get(2).is_none());
         assert_eq!(active.take_cues(), vec![Cue::Stop { slot: 2 }]);
         active.start(2, "dance", Some(&dance), [0.0; 3], t0);
-        assert!(active.end_on_attack(2, 128), "alt attack");
+        assert!(active.end_on_attack(2, 128, true), "alt attack");
         assert!(active.get(2).is_none());
+    }
+
+    #[test]
+    fn by_default_an_attack_leaves_the_own_emote_dancing() {
+        let t0 = Instant::now();
+        let dance = parse("dance", r#"{"name": "Dance", "loop": true}"#).unwrap();
+        let mut active = ActiveEmotes::default();
+        active.start(2, "dance", Some(&dance), [0.0; 3], t0);
+        active.take_cues();
+        assert!(!active.end_on_attack(2, 1, DEFAULT_ATTACK_STOP));
+        assert!(!active.end_on_attack(2, 128, DEFAULT_ATTACK_STOP));
+        assert!(active.get(2).is_some());
+        assert!(active.take_cues().is_empty());
     }
 
     #[test]
