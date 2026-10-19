@@ -105,13 +105,13 @@ The figures below are with the piles.
 
 Per holocron:
 
-| Holocron | Drop chance | Common | Uncommon | Rare | Legendary | Normal | Holo | Solar | Credits (average) | Kyber shards (average) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Uncommon | 60% | 70% | 24% | 5.5% | 0.5% | 97% | 3% | 0% | 10 to 20 (9) | 10%: 5 to 15 (1.0) |
-| Rare | 28% | 50% | 33% | 15% | 2% | 90% | 10% | 0% | 30 to 50 (20) | 10%: 10 to 25 (1.8) |
-| Legendary | 10.5% | 30% | 38% | 26% | 6% | 70% | 29% | 1% | 80 to 120 (45) | 10%: 25 to 50 (3.8) |
-| Mythical | 1.5% | 10% | 30% | 45% | 15% | 40% | 55% | 5% | 250 to 350 (120) | 10%: 100 to 200 (15.0) |
-| Any holocron found | 100% | 60.9% | 27.5% | 10.1% | 1.51% | 92.3% | 7.56% | 0.14% | 10 to 350 (18) | 10%: 5 to 200 (1.7) |
+| Holocron | Drop chance | Common | Uncommon | Rare | Legendary | Mythical | Normal | Holo | Solar | Credits (average) | Kyber shards (average) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Uncommon | 60% | 70% | 24% | 5.5% | 0.4% | 0.1% | 97% | 3% | 0% | 10 to 20 (9) | 10%: 5 to 15 (1.0) |
+| Rare | 28% | 50% | 33% | 15% | 1.8% | 0.2% | 90% | 10% | 0% | 30 to 50 (20) | 10%: 10 to 25 (1.8) |
+| Legendary | 10.5% | 30% | 38% | 26% | 5.5% | 0.5% | 70% | 29% | 1% | 80 to 120 (45) | 10%: 25 to 50 (3.8) |
+| Mythical | 1.5% | 10% | 30% | 45% | 13% | 2% | 40% | 55% | 5% | 250 to 350 (120) | 10%: 100 to 200 (15.0) |
+| Any holocron found | 100% | 60.9% | 27.5% | 10.1% | 1.33% | 0.18% | 92.3% | 7.56% | 0.14% | 10 to 350 (18) | 10%: 5 to 200 (1.7) |
 
 Every card, per holocron found:
 
@@ -120,7 +120,8 @@ Every card, per holocron found:
 | Common (60.9%) | 31.8% (1 in 3) | 1.9% (1 in 53) | 0.0172% (1 in 5 822) |
 | Uncommon (27.5%) | 13.9% (1 in 7) | 1.34% (1 in 75) | 0.027% (1 in 3 710) |
 | Rare (10.1%) | 4.78% (1 in 21) | 0.774% (1 in 129) | 0.0258% (1 in 3 878) |
-| Legendary (1.51%) | 0.661% (1 in 151) | 0.165% (1 in 606) | 0.0073% (1 in 13 633) |
+| Legendary (1.33%) | 0.58% (1 in 173) | 0.148% (1 in 677) | 0.0065% (1 in 15 388) |
+| Mythical (0.18%) | 0.0815% (1 in 1 228) | 0.0173% (1 in 5 770) | 0.0008% (1 in 119 581) |
 
 The page: over the darkened tab, the title, what it is and the hub's pace ("One holocron
 about every 30 minutes of active play on a server, at most 8 in 24 hours", once the hub has said;
@@ -129,8 +130,8 @@ tier's row in its colour with its picture, the row for any holocron found in gol
 rule, credits as the range with the average under it, a chance of none quiet; "Every card,
 per holocron found", the second table as a grid of cells in the rarity's colour, each its
 share and "1 in N" (left out above one in two); "How it rolls", notes: the rolls made
-apart, credits and piles of shards rolled evenly, the rarest card ("a Legendary Solar:
-about 1 in 13 633 holocrons", worked out), how the card is picked among its rarity's (sealed while the rarity has none), gifts given and not found. Back
+apart, credits and piles of shards rolled evenly, the rarest card ("a Mythical Solar:
+about 1 in 119 581 holocrons", worked out), how the card is picked among its rarity's (sealed while the rarity has none), gifts given and not found. Back
 (or Escape, L, Enter) goes back to the tab. Shares read with three figures at most, halves
 rounded up (`cards::loot::percent`). A change to the hub's tables needs the client's copy
 changed with it: until then the page shows the old odds.
@@ -238,8 +239,8 @@ goes, in all three places the SJK chat shows ([hub-chat.md](hub-chat.md#how-a-li
   so a joiner is not replayed history. With `cl_sjkChat 0` no line is kept, but the
   player's own drop still makes the worker read the profile.
 - **Grand finds** (since 17/10/2026, with a hub that sends the feed's `finds`): when a
-  holocron someone opened gives a Legendary or Solar card, or a Legendary or Mythical
-  shader, every SJK player gets a line like a drop's, in the holocron's colour with its
+  holocron someone opened gives a Legendary, Mythical or Solar card, or a Legendary or
+  Mythical shader, every SJK player gets a line like a drop's, in the holocron's colour with its
   gem: `Sol opened a Mythical Holocron: Phoenix blade!`, `Fox opened an Uncommon
   Holocron: a Legendary card!`, `You opened a Rare Holocron: an Uncommon card, Solar!`
   (the shader's name plain and at most 40 characters, the card's rarity and its finish

@@ -3055,7 +3055,7 @@ mod tests {
             Ok(crate::wire::RevealAnswer {
                 revealed: vec![crate::wire::Revealed {
                     id: 1_007,
-                    card: "sol_lore_001".to_owned(),
+                    card: "sjk_alpha_010".to_owned(),
                     rarity: "legendary".to_owned(),
                     finish: "holo".to_owned(),
                     edition: "alpha".to_owned(),
@@ -3871,7 +3871,7 @@ mod tests {
         let revealed = lock(&snapshot).reveal.clone().unwrap();
         assert_eq!(revealed.serial, 2);
         assert!(revealed.message.is_empty());
-        assert_eq!(revealed.revealed[0].card, "sol_lore_001");
+        assert_eq!(revealed.revealed[0].card, "sjk_alpha_010");
         assert!(fake.log().iter().any(|line| line == "reveal"));
     }
 

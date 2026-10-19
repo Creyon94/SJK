@@ -1,3 +1,18 @@
+## Mythical cards, Credits and Meme kinds, SJK Alpha
+
+19/10/2026, `personal/sjk-alpha-cards`, based on `main` `848fde62` (Sol's decision): cards
+get a fifth rarity, Mythical (gold, the Mythical holocron's colour), its odds taken from
+each tier's Legendary share ([cards.md](cards.md#odds)), and two kinds, Credits and Meme.
+The first collection is SJK Alpha: card 1 Bishop (Mythical, Credits), card 10 the Toxiee
+card (Legendary, Meme; it was `sol_lore_001`). A Mythical card gets the Legendary
+treatment (flourish, fanfare, grand find); the loot table has a fifth rarity column and
+row and its rarest card is now a Mythical Solar (1 in 119 581). The hub's side is
+separate (Sol-Vulpes/SJK-hub). Verified on Windows 11: unit tests (the odds pinned, the
+loot figures, the table fitting four window shapes, a Credits/Mythical face read) and the
+world shot `duel6_sjk_loot_table` (1080p and 4:3) looked at. Not verified: a Mythical card's
+opening and face looked at, in a game against a hub with the new tables. Clients from before keep their four-rarity copy of the
+odds, leave Mythical copies out and drop the two new faces (unknown rarity and kind).
+
 ## Chat and centre-print sizes on EternalJK's scale
 
 19/10/2026, `personal/text-sizes-ejk`, based on `main` `58809a31` (Sol, after Milamber's
@@ -2383,7 +2398,7 @@ Sol-Vulpes/SJK-hub: the catalogue (`cards.json`), a card picked at opening, `POS
 /v1/cards/reveal`, `scripts/import_cards.py`, and the `sjk_cards` pack with the first
 card. Client: faces read from the packs and their pictures uploaded, the face drawn as
 a trading card on the Cards tab (bigger up close) and in the ceremony, Reveal (R), the
-loot table's note. See [cards.md](cards.md#faces-and-the-first-card). Verified: unit
+loot table's note. See [cards.md](cards.md#faces-and-the-first-set). Verified: unit
 tests on both sides, the world shots `duel6_sjk_card_faces` with the real pack looked
 at. Not tried: in a game against the deployed hub.
 

@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Cards: a fifth rarity, Mythical, in gold, rarer than Legendary and opened with the same fanfare; two new kinds, Credits and Meme; and the first collection is SJK Alpha, its card 1 "Bishop", honouring the author of JKR _(Sol)_
 - Siege: hacking an objective shows retail's hacker icon and progress bar under the crosshair, in place of the HACKING percentage _(Slash, after JKA)_
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_

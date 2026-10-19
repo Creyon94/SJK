@@ -333,7 +333,7 @@ mod tests {
     fn a_card_says_where_it_comes_from_and_its_odds() {
         let stacks = crate::cards::stacks(&[sjk_identity::CardStack {
             card: None,
-            rarity: "legendary".to_owned(),
+            rarity: "mythical".to_owned(),
             finish: "solar".to_owned(),
             edition: "alpha".to_owned(),
             count: 2,
@@ -341,10 +341,10 @@ mod tests {
             last: 1_791_641_100,
         }]);
         let card = card_card(&stacks[0]);
-        assert_eq!(card.title, "Legendary card, Solar");
+        assert_eq!(card.title, "Mythical card, Solar");
         assert_eq!(
             card.lines[1].words,
-            "About 1 in 13 633 holocrons found holds a Legendary Solar card (0.0073%)."
+            "About 1 in 119 581 holocrons found holds a Mythical Solar card (0.0008%)."
         );
         assert_eq!(
             card.lines.last().unwrap().words,

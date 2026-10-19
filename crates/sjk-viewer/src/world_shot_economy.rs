@@ -256,7 +256,7 @@ fn duel6_sjk_card_pack() {
         let uncommon = pack(23, 0, [0, 0], 14);
         let mythical = pack(27, 3, [3, 2], 312);
         // Sol's first card, as the card shots show it (from the hub's packs).
-        let face = Some("sol_lore_001".to_owned());
+        let face = Some("sjk_alpha_010".to_owned());
         let mut moments = Vec::new();
         for (size, name) in [([1920, 1080], ""), ([1440, 1080], "-4x3")] {
             let Some(mut gpu) = open_holocrons(size, holdings(3_600)) else {

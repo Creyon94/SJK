@@ -7,7 +7,7 @@
 //!
 //! [`BUILT_IN`] is this client's copy, for before the hub's first answer and for hubs
 //! older than the tables. The hub's tables replace it only when they fit what this client
-//! can show (the same tiers in the same order, four rarities, three finishes, five shader
+//! can show (the same tiers in the same order, five rarities, three finishes, five shader
 //! tiers, every share summing to a thousand); otherwise the copy stays. A hub from before
 //! the shard piles sends none, read as none.
 
@@ -199,7 +199,7 @@ mod tests {
         let mut changed = BUILT_IN;
         changed.shader[0] = 100;
         changed.credits[3] = (300, 400);
-        changed.card[1].rarity = [400, 400, 180, 20];
+        changed.card[1].rarity = [400, 400, 180, 18, 2];
         assert_eq!(of_hub(&wire(&changed)), Some(changed));
         // Another tier order, a missing finish, shares not summing to a thousand.
         let mut swapped = wire(&changed);

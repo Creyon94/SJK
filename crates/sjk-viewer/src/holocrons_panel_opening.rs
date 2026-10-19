@@ -16,7 +16,7 @@
 //! - a card comes as its pack: the credits' tile rises where the strip stopped, counting
 //!   up, then slides aside while the tucked card slides out to the middle, grows and
 //!   flips over to face the player in its rarity's colour and its finish's light
-//!   ([`crate::cards::look`]), a Holo, Solar or Legendary one in a flourish of its light;
+//!   ([`crate::cards::look`]), a Holo, Solar, Legendary or Mythical one in a flourish of its light;
 //!   then the kyber shards slide out on the other side and count up (a shader instead of
 //!   a card shows its blade, framed in its tier's colour, and what it is; a pile of kyber
 //!   shards its crystals and how many);
@@ -342,10 +342,10 @@ pub(crate) struct Played {
 }
 
 /// The cue a card's entrance plays: the medals' fanfare for a Solar finish or a Legendary
-/// card, the unlocks' chime otherwise.
+/// or Mythical card, the unlocks' chime otherwise.
 fn cue(prize: &Prize) -> Cue {
     match prize {
-        Prize::Card(shown) if shown.finish.index == 2 || shown.rarity.index == 3 => Cue::Medal,
+        Prize::Card(shown) if shown.finish.index == 2 || shown.rarity.index >= 3 => Cue::Medal,
         Prize::Shader(found)
             if found
                 .skin
@@ -723,7 +723,7 @@ impl Panel {
     /// the middle, where the strip stopped, its card tucked face down in its corner, and
     /// its credits counting up; the tile sliding aside to the left while the card slides
     /// out of its corner to the middle, growing and straightening, and flips over to face
-    /// the player (a Holo, Solar or Legendary one in a flourish of its light); then the
+    /// the player (a Holo, Solar, Legendary or Mythical one in a flourish of its light); then the
     /// kyber shards' tile sliding out on the right and counting up (none while the hub's
     /// economy is off).
     fn entrance(&mut self, frame: &Frame, shown: &Shown, elapsed: f32, seconds: f32) {
@@ -2357,7 +2357,7 @@ pub(super) fn tucked_card(
 /// The light a card flips over into, `t` (0 to 1) of the way through: a glow of its
 /// colour, a ring running out from round the card at `middle` (`[width, height]` its
 /// size, frame pixels) and rays turning, gold for Solar and the rainbow for Holo; only for
-/// a Holo, Solar or Legendary card.
+/// a Holo, Solar, Legendary or Mythical card.
 fn flourish(
     canvas: &mut crate::menu_widgets::MenuCanvas,
     frame: &Frame,
@@ -2367,7 +2367,7 @@ fn flourish(
     t: f32,
 ) {
     let (finish, rarity) = (shown.finish.index, shown.rarity.index);
-    if (finish == 0 && rarity != 3) || !(0.0..1.0).contains(&t) {
+    if (finish == 0 && rarity < 3) || !(0.0..1.0).contains(&t) {
         return;
     }
     let s = frame.s;

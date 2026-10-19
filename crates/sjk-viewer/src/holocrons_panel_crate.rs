@@ -86,7 +86,7 @@ impl Item {
     }
 
     /// How fine a find it is, for the order of an opening's finds (highest first): a
-    /// shader's tier or a card's rarity (Common to Legendary), then a card's finish.
+    /// shader's tier or a card's rarity (Common to Mythical), then a card's finish.
     pub(crate) fn grade(self) -> u32 {
         match self {
             Self::Card { rarity, finish, .. } => rarity as u32 * 10 + finish as u32 * 4,
@@ -97,11 +97,11 @@ impl Item {
         }
     }
 
-    /// A find worth the fanfare: a Legendary card, a Solar one, a Legendary or Mythical
-    /// shader.
+    /// A find worth the fanfare: a Legendary or Mythical card, a Solar one, a Legendary or
+    /// Mythical shader.
     pub(crate) fn grand(self) -> bool {
         match self {
-            Self::Card { rarity, finish, .. } => rarity == 3 || finish == 2,
+            Self::Card { rarity, finish, .. } => rarity >= 3 || finish == 2,
             Self::Shader(skin) => skin.tier >= Rarity::Legendary,
             Self::New | Self::Shards { .. } => false,
         }
@@ -501,7 +501,7 @@ mod tests {
             credits: 0,
         };
         let shader = |id| Item::Shader(unlockables::find(id).unwrap());
-        assert!(card(3, 0).grand() && card(0, 2).grand());
+        assert!(card(3, 0).grand() && card(4, 0).grand() && card(0, 2).grand());
         assert!(!card(2, 1).grand());
         assert!(shader("saber_phoenix").grand());
         assert!(!shader("saber_tidal").grand());

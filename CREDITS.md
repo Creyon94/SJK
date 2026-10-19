@@ -243,7 +243,10 @@ includes:
   the textures the old and new map have in common (about 730 MB less at the peak);
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
-  local pipe.
+  local pipe;
+- SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
+  Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
+  Sol, AI-assisted: a rusted helmet portrait).
 
 ## Contributors to SJK
 

@@ -35,24 +35,24 @@ const ROWS_TOP: f32 = 296.0;
 const ROW_HEIGHT: f32 = 52.0;
 const ROW_GAP: f32 = 4.0;
 const ANY_GAP: f32 = 10.0;
-/// The per-holocron table's columns: the tier, its drop chance, the four rarities, the
+/// The per-holocron table's columns: the tier, its drop chance, the five rarities, the
 /// three finishes, the credits and the kyber shards.
 const TIER_WIDTH: f32 = 290.0;
 const DROP_X: f32 = LEFT + TIER_WIDTH;
 const DROP_WIDTH: f32 = 116.0;
-const CELL_WIDTH: f32 = 118.0;
+const CELL_WIDTH: f32 = 104.0;
 const RARITY_X: f32 = DROP_X + DROP_WIDTH;
-const FINISH_X: f32 = RARITY_X + CELL_WIDTH * 4.0 + 20.0;
+const FINISH_X: f32 = RARITY_X + CELL_WIDTH * RARITIES.len() as f32 + 20.0;
 const CREDITS_X: f32 = FINISH_X + CELL_WIDTH * 3.0 + 20.0;
 const CREDITS_WIDTH: f32 = 200.0;
 const SHARDS_X: f32 = CREDITS_X + CREDITS_WIDTH;
 const SHARDS_WIDTH: f32 = RIGHT - SHARDS_X;
 /// The kinds' grid: its heading, the finishes' names and the rarities' rows.
-const GRID_Y: f32 = 632.0;
-const GRID_COLUMNS_Y: f32 = 652.0;
-const GRID_TOP: f32 = 686.0;
-const GRID_HEIGHT: f32 = 66.0;
-const GRID_GAP: f32 = 6.0;
+const GRID_Y: f32 = 612.0;
+const GRID_COLUMNS_Y: f32 = 632.0;
+const GRID_TOP: f32 = 666.0;
+const GRID_HEIGHT: f32 = 54.0;
+const GRID_GAP: f32 = 4.0;
 const GRID_CELL: f32 = 300.0;
 /// The notes, right of the grid.
 const NOTES_X: f32 = 1_390.0;
@@ -235,7 +235,7 @@ impl Panel {
         kit::heading(&mut self.ui, frame, LEFT, TABLE_Y, WIDTH, "Per holocron");
         // The groups' labels over a rule each.
         for (label, x, columns) in [
-            ("Card rarity", RARITY_X, 4.0),
+            ("Card rarity", RARITY_X, RARITIES.len() as f32),
             ("Card finish", FINISH_X, 3.0),
         ] {
             let width = CELL_WIDTH * columns;
@@ -537,7 +537,7 @@ impl Panel {
                     crate::symbols::card_rarity(rarity.index),
                     rarity.name
                 ),
-                frame.rect(LEFT + 16.0, y + 8.0, TIER_WIDTH - 16.0, 28.0),
+                frame.rect(LEFT + 16.0, y + 4.0, TIER_WIDTH - 16.0, 26.0),
                 22.0 * s,
                 rarity.colour,
                 FontWeight::Semibold,
@@ -547,8 +547,8 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{} of cards", loot::percent(loot::rarity_any(rarity.index))),
-                frame.rect(LEFT + 16.0, y + 38.0, TIER_WIDTH - 16.0, 20.0),
-                14.0 * s,
+                frame.rect(LEFT + 16.0, y + 31.0, TIER_WIDTH - 16.0, 18.0),
+                13.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
                 TextAlign::Start,
@@ -565,8 +565,8 @@ impl Panel {
                     &mut self.ui,
                     frame,
                     &loot::percent(chance),
-                    [x, y + 7.0, GRID_CELL, 30.0],
-                    24.0,
+                    [x, y + 3.0, GRID_CELL, 28.0],
+                    22.0,
                     color::TEXT,
                     TextFamily::Display,
                     FontWeight::Semibold,
@@ -575,8 +575,8 @@ impl Panel {
                     &mut self.ui,
                     frame,
                     &loot::one_in(chance),
-                    [x, y + 38.0, GRID_CELL, 20.0],
-                    14.0,
+                    [x, y + 31.0, GRID_CELL, 18.0],
+                    13.0,
                     color::MUTED,
                     TextFamily::Body,
                     FontWeight::Regular,
@@ -736,7 +736,8 @@ mod tests {
                 let frame = Frame::new(viewport);
                 let back = panel.ui.rect_for(LOOT_BACK_TOKEN).expect("Back");
                 assert!(back.bottom() <= viewport[1] && back.x >= 0.0);
-                let grid_end = frame.point(0.0, GRID_TOP + 4.0 * (GRID_HEIGHT + GRID_GAP))[1];
+                let rows = RARITIES.len() as f32;
+                let grid_end = frame.point(0.0, GRID_TOP + rows * (GRID_HEIGHT + GRID_GAP))[1];
                 assert!(grid_end < back.y, "{viewport:?}");
                 let [right, _] = frame.point(RIGHT, 0.0);
                 assert!(right <= viewport[0]);
@@ -746,7 +747,7 @@ mod tests {
         let notes = notes();
         assert_eq!(
             notes[2],
-            "The rarest card is a Legendary Solar: about 1 in 13 633 holocrons."
+            "The rarest card is a Mythical Solar: about 1 in 119 581 holocrons."
         );
         let lines: usize = notes
             .iter()

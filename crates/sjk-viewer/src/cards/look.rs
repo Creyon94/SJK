@@ -928,17 +928,17 @@ pub(crate) mod tests {
 
     pub(crate) fn face() -> Face {
         Face {
-            id: "sol_lore_001".to_owned(),
+            id: "sjk_alpha_010".to_owned(),
             name: "Toxiee and Sol on JoF Memorial".to_owned(),
-            set: "sol_lore".to_owned(),
-            set_name: "Sol lore".to_owned(),
-            number: 1,
-            kind: super::super::faces::Kind::Community,
+            set: "sjk_alpha".to_owned(),
+            set_name: "SJK Alpha".to_owned(),
+            number: 10,
+            kind: super::super::faces::Kind::Meme,
             rarity: &super::super::RARITIES[3],
             lore: "Tox was simply chilling when a pestering fox started taking pictures and                    turning them into art for its card collection, who knows why."
                 .to_owned(),
             artist: "Sol".to_owned(),
-            art: "cards/sol_lore_001.jpg".to_owned(),
+            art: "cards/sjk_alpha_010.jpg".to_owned(),
         }
     }
 
@@ -990,7 +990,7 @@ pub(crate) mod tests {
                     assert_eq!(runs[0], "Toxiee and Sol on JoF Memorial");
                 }
                 if width >= WORDS {
-                    assert!(runs.contains(&"001 / 001"), "{runs:?}");
+                    assert!(runs.contains(&"010 / 001"), "{runs:?}");
                     assert!(runs.contains(&"Art: Sol"), "{runs:?}");
                 }
             }

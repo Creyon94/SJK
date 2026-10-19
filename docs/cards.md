@@ -67,14 +67,19 @@ them, with the chances per holocron found, on the Holocrons tab's loot table
 ([holocrons.md](holocrons.md#loot-table)); the client's copy (`cards::ODDS`,
 `cards::CREDITS`) is pinned to these by a test.
 
-Rarity of the card:
+Rarity of the card (Mythical since 19/10/2026, Sol's decision: its share taken from each
+tier's Legendary one, the rest unchanged):
 
-| Holocron | Common | Uncommon | Rare | Legendary |
-| --- | --- | --- | --- | --- |
-| Uncommon | 70 % | 24 % | 5.5 % | 0.5 % |
-| Rare | 50 % | 33 % | 15 % | 2 % |
-| Legendary | 30 % | 38 % | 26 % | 6 % |
-| Mythical | 10 % | 30 % | 45 % | 15 % |
+| Holocron | Common | Uncommon | Rare | Legendary | Mythical |
+| --- | --- | --- | --- | --- | --- |
+| Uncommon | 70 % | 24 % | 5.5 % | 0.4 % | 0.1 % |
+| Rare | 50 % | 33 % | 15 % | 1.8 % | 0.2 % |
+| Legendary | 30 % | 38 % | 26 % | 5.5 % | 0.5 % |
+| Mythical | 10 % | 30 % | 45 % | 13 % | 2 % |
+
+A client counts five rarities only since 19/10/2026: an older one finds the hub's
+five-rarity tables do not fit and keeps showing its own copy (the four-rarity odds), and
+leaves Mythical copies out of the Cards tab (an id it does not know).
 
 Finish of the copy:
 
@@ -235,12 +240,28 @@ proposed, not built).
 
 No player text promises any of this until it is deployed.
 
-## Faces and the first card
+## Faces and the first set
 
-Since 12/10/2026 (Sol's first card, "Toxiee and Sol on JoF Memorial", Sol lore 001,
-Legendary, its art by "Sol (AI-assisted)": the names in the title follow the picture,
-Toxiee on the left) a sealed copy can become a real card. A card's `artist` line says
-how its art was made; the footer reads "Art: <artist>".
+Since 12/10/2026 (Sol's first card, "Toxiee and Sol on JoF Memorial", its art by "Sol
+(AI-assisted)": the names in the title follow the picture, Toxiee on the left) a sealed
+copy can become a real card. A card's `artist` line says how its art was made; the
+footer reads "Art: <artist>".
+
+The first collection is **SJK Alpha** (set `sjk_alpha`, Sol's decision of 19/10/2026; it
+was "Sol lore" before):
+
+| Card | Name | Rarity | Kind | Art |
+| --- | --- | --- | --- | --- |
+| `sjk_alpha_001` | Bishop | Mythical | Credits | Sol (AI-assisted): a rusted helmet portrait of Bishop, the author of JKR, which SJK forked |
+| `sjk_alpha_010` | Toxiee and Sol on JoF Memorial | Legendary | Meme | Sol (AI-assisted); it was `sol_lore_001`, Community |
+
+A card's kind says what it is about and reads on its strip: `community` (Community),
+`place` (Place), `personality` (Personality), `game` (Jedi Academy), and since
+19/10/2026 `credits` (Credits: the people the project owes) and `meme` (Meme). Its
+rarity is one of `common`, `uncommon`, `rare`, `legendary` and `mythical`. A face whose
+kind or rarity a client does not know is left out on its own (named in the log) while the
+pack's other faces still read: a client from before 19/10/2026 shows no Bishop face, and
+the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sealed back.
 
 - **Where cards are made:** Sol keeps each card's picture and words in `card_import/`
   at the repository's root, which git ignores (`card_import/README.txt` says the format):
@@ -250,7 +271,7 @@ how its art was made; the footer reads "Art: <artist>".
   and a frame overlay to frame new ones in `templates/`.
 - **How they reach players:** the hub's `scripts/import_cards.py <card_import>` writes
   them into the hub's `sjk_cards` pack sources (`cards/<id>.card` JSON and
-  `cards/<id>.jpg`, id `<set>_<NNN>` such as `sol_lore_001`), and its
+  `cards/<id>.jpg`, id `<set>_<NNN>` such as `sjk_alpha_001`), and its
   `scripts/build_packs.py` builds `sjk_cards.pk3` and the hub's catalogue
   `cards.json` (id, set, number, rarity). The hub serves the pack like the blade skins'
   (`GET /v1/assets`), so every SJK client downloads it into `assets/` beside
@@ -261,8 +282,8 @@ how its art was made; the footer reads "Art: <artist>".
   yet stays sealed. `POST /v1/cards/reveal` gives the person's sealed copies of a
   rarity that has cards a card each (oldest first). Both follow who may open
   holocrons (staff only for now).
-- **Each card has one rarity** (Sol lore 001 is Legendary): the first set needs cards
-  of every rarity before every copy can be revealed.
+- **Each card has one rarity** (Bishop is Mythical, the Toxiee card Legendary): the
+  first set needs cards of every rarity before every copy can be revealed.
 
 ## In the client
 
@@ -282,8 +303,8 @@ how its art was made; the footer reads "Art: <artist>".
 | The pictures' textures | [ui_renderer/card_art.rs](../crates/sjk-viewer/src/ui_renderer/card_art.rs) |
 | Reveal (`Service::reveal_cards`, `Snapshot::reveal`) | [service.rs](../crates/sjk-identity/src/service.rs), [player_identity.rs](../crates/sjk-viewer/src/player_identity.rs) |
 
-- **Rarities' colours:** Common silver `#B4C0D4`, then the holocron tiers' green, blue
-  and purple for Uncommon, Rare and Legendary.
+- **Rarities' colours:** Common silver `#B4C0D4`, then the holocron tiers' green, blue,
+  purple and gold for Uncommon, Rare, Legendary and Mythical.
 - **A card** is drawn, not a picture: a dark plate edged in its rarity's colour, the
   holocron's gem at its heart in a ring, the rarity's name above, "Sealed" under the
   gem and the edition stamped at the foot. Holo lays slanted bands of the rainbow
@@ -307,8 +328,8 @@ how its art was made; the footer reads "Art: <artist>".
   `look::tilt_matrix`).
 - **A revealed card** shows its face as a trading card: its name and its rarity's
   symbol ([sjk-ui.md](sjk-ui.md#symbols)) on top, its picture in a gold-edged 6:5 window (dark until the
-  picture is decoded and uploaded), a strip with its kind and set ("Community ·
-  Sol lore") and its edition and finish, its lore in a box (cut into lines at spaces,
+  picture is decoded and uploaded), a strip with its kind and set ("Meme ·
+  SJK Alpha") and its edition and finish, its lore in a box (cut into lines at spaces,
   seven at most), and at the foot its number in its set ("001 / 001", counting the
   set's cards the packs hold), its artist and its rarity. The plate, the rarity's edge
   and the finishes' light are the sealed card's. A card narrower than 200 frame pixels
@@ -379,7 +400,8 @@ how its art was made; the footer reads "Art: <artist>".
     tile stands over a band of its colour, as a loot crate's, and at speed its colour
     streaks across it and trails it. At rest (`sub_select`) the prize lifts and lights
     up in its colour, breathing, the others dim to a third, and a grand prize (a
-    Legendary or Solar card, a Legendary or Mythical shader) turns slow rays behind it.
+    Legendary, Mythical or Solar card, a Legendary or Mythical shader) turns slow rays
+    behind it.
   - **A card shows as its credits** on the strip (Sol's request, 18/10/2026): a card is
     the commonest and least wanted prize, so its tile is a stack of three credit coins
     with the amount ("+42 credits"), washed from above in the holocron's colour, and the
@@ -406,15 +428,16 @@ how its art was made; the footer reads "Art: <artist>".
     the strip showed it, rises where the strip stopped with the card tucked in its corner
     and its credits counting up; it slides aside to the left while the card slides out of
     its corner to the middle, growing and straightening, and flips over (it narrows
-    edge-on and opens on its front, its rarity and finish or its face); a Holo, Solar or
-    Legendary card flips into a flourish, a glow, a ring running out and rays turning
-    (gold for Solar, the rainbow for Holo, its rarity's colour for a plain Legendary);
+    edge-on and opens on its front, its rarity and finish or its face); a Holo, Solar,
+    Legendary or Mythical card flips into a flourish, a glow, a ring running out and rays
+    turning (gold for Solar, the rainbow for Holo, its rarity's colour for a plain
+    Legendary or Mythical);
     then the kyber shards' tile slides out on the right and counts up (none while the
     hub's economy is off). Then its words: "Rare card, Holo", "Alpha Edition. From a Rare
     Holocron", what the finish is, that it is sealed, "1 of 3", Next or Done. A shader instead of a card shows its
     blade framed in its tier's colour, its name, "Common saber shader. From a Rare
     Holocron", what it looks like and how many the player holds. A Solar finish or a
-    Legendary card plays the medals' fanfare, another card the unlocks' chime.
+    Legendary or Mythical card plays the medals' fanfare, another card the unlocks' chime.
   - **Opening more than three**
     ([holocrons_panel_batch.rs](../crates/sjk-viewer/src/holocrons_panel_batch.rs)):
     the first holocron cracks open ("12 holocrons"), then their strips run five at a
@@ -428,7 +451,7 @@ how its art was made; the footer reads "Art: <artist>".
     finest first, ten to a row, each coming in on its beat, with its name and its
     credits or how many the player holds, the credits they brought together, and Done.
   - **Grand finds** are told to everyone: a hub that sends the feed's `finds` (hub branch
-    `feat/grand-finds`, not deployed yet) relays a Legendary or Solar card, or a
+    `feat/grand-finds`, not deployed yet) relays a Legendary, Mythical or Solar card, or a
     Legendary or Mythical shader, to every SJK player as a chat line, "Sol opened a
     Mythical Holocron: Phoenix blade!" ([holocrons.md](holocrons.md#chat-lines)).
   - Enter, Space, Right or a click skip to the burst (to the strips' stops, then the
@@ -460,8 +483,8 @@ how its art was made; the footer reads "Art: <artist>".
 
 ## Planned, not built
 
-1. The rest of the first set: cards of every rarity (only Sol lore 001, Legendary,
-   exists), so every sealed copy can be revealed; a reveal ceremony (the copies turn
+1. The rest of SJK Alpha: cards of every rarity (only Bishop, Mythical, and the Toxiee
+   card, Legendary, exist), so every sealed copy can be revealed; a reveal ceremony (the copies turn
    over one by one, as an opening's cards turn in).
 2. The Cards tab as a binder by set with progress ("Places 7 of 12"), missing cards
    as dark outlines.

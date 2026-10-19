@@ -204,7 +204,8 @@ pub struct CardStack {
     /// when it is revealed.
     #[serde(default)]
     pub card: Option<String>,
-    /// `common`, `uncommon`, `rare` or `legendary`; a client shows only the ids it knows.
+    /// `common`, `uncommon`, `rare`, `legendary` or `mythical` (19/10/2026); a client
+    /// shows only the ids it knows.
     pub rarity: String,
     /// `normal`, `holo` or `solar`.
     pub finish: String,
@@ -525,7 +526,7 @@ pub struct LootTier {
     pub tier: String,
     /// How often a drop is this tier.
     pub drop: u32,
-    /// The card's rarity (common to legendary).
+    /// The card's rarity (common to mythical; common to legendary before 19/10/2026).
     pub rarity: Vec<u32>,
     /// The card's finish (normal, holo, solar).
     pub finish: Vec<u32>,
@@ -834,8 +835,8 @@ pub struct FindMark {
 }
 
 /// A grand find (`PROTOCOL.md`, "The feed", `finds`; since 17/10/2026): a holocron someone
-/// opened gave a Legendary or Solar card, or a Legendary or Mythical shader. Every reader
-/// is told of it.
+/// opened gave a Legendary, Mythical or Solar card, or a Legendary or Mythical shader.
+/// Every reader is told of it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct FindEvent {
     /// Its id in the feed's sequence.

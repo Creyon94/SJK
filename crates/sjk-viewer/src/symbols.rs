@@ -42,9 +42,9 @@ const ICONS: [char; 10] = [
 pub(crate) const SHARD: char = '\u{E030}';
 
 /// The rarity mark of a card rarity (`crate::cards::RARITIES` order, Common to
-/// Legendary).
+/// Mythical).
 pub(crate) fn card_rarity(index: usize) -> char {
-    RARITY[index.min(3)]
+    RARITY[index.min(RARITY.len() - 1)]
 }
 
 /// The mark of a card finish (`crate::cards::FINISHES` order).
@@ -79,6 +79,7 @@ mod tests {
     fn the_ranks_line_up() {
         assert_eq!(card_rarity(0), '\u{E000}');
         assert_eq!(card_rarity(3), '\u{E003}');
+        assert_eq!(card_rarity(4), '\u{E004}');
         use crate::unlockables::Rarity;
         assert_eq!(Rarity::Common.symbol(), '\u{E000}');
         assert_eq!(
