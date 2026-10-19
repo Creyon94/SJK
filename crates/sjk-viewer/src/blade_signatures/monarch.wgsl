@@ -6,7 +6,7 @@
 
 // Felucia Spores: the glowing fungal jungle of Felucia as a blade. A warm amber-green blade
 // breathing with bioluminescent rings that pulse up it; clouds of glowing spores swirl round it
-// resting on it while it is still and flying off in spirals when it swings, settling back after; luminous filaments wave off its surface and now and
+// resting on it while it is still and flying off in spirals when it swings, staying out a few seconds before settling back; luminous filaments wave off its surface and now and
 // then a spore pod bursts off it in a puff of light that rains spores. A swing whirls the spores
 // into a vortex; a clash bursts a huge cloud of them.
 fn fs_top() -> f32 {
@@ -31,7 +31,8 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // spores: glowing spores resting on the blade, breathing softly while it is still; a swing
     // shakes them off and they fly out round it in spirals, trailing light, then settle back on
     // it as it calms (Creyon's round 9, like the butterflies)
-    let fly = sqrt(sw);
+    // round 12 (Creyon): once shaken off they stay off a while before settling back
+    let fly = max(sqrt(sw), 1.0 - smoothstep(1.5, 4.0, uSince));
     for (var i = 0; i < 44; i++) {
         let fi = f32(i);
         let yr = (0.06 + 0.9 * h11(fi * 3.1)) * top;

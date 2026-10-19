@@ -18,6 +18,20 @@
 use crate::blade_skin_file::BladeSkinDef;
 use crate::blade_skin_file::extras::SkinOption;
 
+/// What a signature draws round its blade, for its Collection swatch ([`Signature::swatch_hints`]):
+/// each count is how many times it calls that piece (at most 4).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct SwatchHints {
+    pub(crate) smoke: u8,
+    pub(crate) streams: u8,
+    pub(crate) flakes: u8,
+    pub(crate) sparks: u8,
+    pub(crate) fall: u8,
+    pub(crate) motes: u8,
+    pub(crate) coils: u8,
+    pub(crate) orbit: bool,
+}
+
 /// One signature shader: the skin it draws and its translated WGSL.
 #[derive(Debug)]
 pub(crate) struct Signature {
@@ -352,6 +366,23 @@ impl Signature {
     /// The lab's blade-skin file for it, for when no pack carries one.
     pub(crate) fn default_file(&self) -> &'static str {
         self.file
+    }
+
+    /// What kinds of effects it draws round its blade, read from its shader, for the
+    /// Collection's swatch (Creyon's round 12: the swatches showed every signature as a plain
+    /// blade): how often it calls each of the lab's effect pieces.
+    pub(crate) fn swatch_hints(&self) -> SwatchHints {
+        let count = |name: &str| self.wgsl.matches(name).count().min(4) as u8;
+        SwatchHints {
+            smoke: count("fxSmoke("),
+            streams: count("fxStreams("),
+            flakes: count("fxFlakes("),
+            sparks: count("fxSparks("),
+            fall: count("fxFall("),
+            motes: count("fxMotes("),
+            coils: count("fxCoils("),
+            orbit: self.wgsl.contains("fn sig_orbit(") || self.wgsl.contains("fn sig_orbit_solid("),
+        }
     }
 
     /// The shader its pipelines are built from: `saber.wgsl` with its own signature.

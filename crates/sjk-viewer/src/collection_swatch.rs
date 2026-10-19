@@ -164,6 +164,27 @@ pub(crate) fn blade(
                 seconds,
                 turn,
             );
+            if let Some(signature) = skin.signature {
+                let tint = |rgb: Rgb, alpha: f32| {
+                    let rgb = if turn == 0.0 {
+                        rgb
+                    } else {
+                        crate::saber_skins::turn_hue(rgb, turn)
+                    };
+                    ui(rgb, alpha)
+                };
+                effects::signature(
+                    canvas,
+                    frame,
+                    signature.swatch_hints(),
+                    skin.def.light.color,
+                    [start, centre],
+                    length,
+                    13.0,
+                    seconds,
+                    &tint,
+                );
+            }
             Shown::Skin
         }
         (true, None) => {

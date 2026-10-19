@@ -736,3 +736,155 @@ pub(super) fn solids(
         }
     }
 }
+
+/// A signature blade's own effects ([`crate::blade_signatures::SwatchHints`]) over its swatch
+/// from `at` (its hilt end) along `length`, `corona` pixels a capsule radius, in its light's
+/// colour `accent`: soft smoke drifting off it, ribbons winding along it, flakes and rain
+/// drifting down past it, sparks flying off, motes, coils and lights circling it — so each
+/// signature's swatch shows what its blade does (Creyon's round 12).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn signature(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    hints: crate::blade_signatures::SwatchHints,
+    accent: Rgb,
+    at: [f32; 2],
+    length: f32,
+    corona: f32,
+    t: f32,
+    ui: &dyn Fn(Rgb, f32) -> Color,
+) {
+    use std::f32::consts::TAU;
+    let [x0, y0] = at;
+    let pale = mix(accent, [1.0; 3], 0.55);
+    // Smoke: soft puffs drifting along and off the blade, fading as they go.
+    for index in 0..(hints.smoke as usize * 5) {
+        let i = index as f32;
+        let life = fract(t * (0.07 + 0.02 * draw(i + 1.1)) + draw(i + 2.3));
+        let along = fract(draw(i + 5.7) + life * 0.15);
+        let side = if index % 2 == 0 { -1.0 } else { 1.0 };
+        let rise = corona * (0.6 + 1.6 * life);
+        let r = corona * (0.7 + 1.1 * life);
+        let fade = (life * std::f32::consts::PI).sin();
+        capsule(
+            canvas,
+            frame,
+            [
+                x0 + along * length - r,
+                y0 + side * rise - r * 0.6,
+                r * 2.0,
+                r * 1.2,
+            ],
+            ui(mix(accent, [0.6; 3], 0.4), 0.07 * fade),
+        );
+    }
+    // Ribbons: dotted waves of light winding along the blade, a pulse running on them.
+    for strand in 0..hints.streams.min(3) as usize {
+        let k = strand as f32;
+        let side = if strand % 2 == 0 { 1.0 } else { -1.0 };
+        for dot in 0..44 {
+            let u = dot as f32 / 43.0;
+            let wave = (u * 9.0 + t * 0.8 + k * 1.7).sin();
+            let y = y0 + side * corona * (0.55 + 0.75 * (0.5 + 0.5 * wave));
+            let pulse = (0.5 + 0.5 * (u * 14.0 - t * 2.5 + k).sin()).powi(4);
+            disc(
+                canvas,
+                frame,
+                x0 + u * length,
+                y,
+                1.1 + 0.8 * pulse,
+                ui(pale, 0.35 + 0.5 * pulse),
+            );
+        }
+    }
+    // Flakes (snow, ash, petals, leaves of light) drifting down past it.
+    for index in 0..(hints.flakes as usize * 6) {
+        let i = index as f32;
+        let fall = fract(t * (0.12 + 0.06 * draw(i + 0.7)) + draw(i + 3.3));
+        let x = x0 + draw(i + 8.1) * length + 6.0 * (t * 0.9 + i).sin();
+        let y = y0 - corona * 2.2 + fall * corona * 4.4;
+        let fade = (fall * std::f32::consts::PI).sin();
+        capsule(
+            canvas,
+            frame,
+            [x - 2.2, y - 1.2, 4.4, 2.4],
+            ui(pale, 0.75 * fade),
+        );
+    }
+    // Rain and falling streaks.
+    for index in 0..(hints.fall as usize * 6) {
+        let i = index as f32;
+        let fall = fract(t * (0.6 + 0.3 * draw(i + 4.4)) + draw(i + 1.9));
+        let x = x0 + draw(i + 6.6) * length;
+        let y = y0 - corona * 2.4 + fall * corona * 4.8;
+        let fade = (fall * std::f32::consts::PI).sin();
+        capsule(
+            canvas,
+            frame,
+            [x - 0.6, y - 4.0, 1.2, 8.0],
+            ui(pale, 0.55 * fade),
+        );
+    }
+    // Sparks flying off and fading.
+    for index in 0..(hints.sparks as usize * 6) {
+        let i = index as f32;
+        let life = fract(t * (0.5 + 0.4 * draw(i + 2.2)) + draw(i + 7.7));
+        let along = draw(i + 0.3 + (t * (0.5 + 0.4 * draw(i + 2.2)) + draw(i + 7.7)).floor());
+        let angle = TAU * draw(i + 9.1);
+        let reach = corona * 2.6 * life;
+        let x = x0 + along * length + angle.cos() * reach;
+        let y = y0 + angle.sin() * reach;
+        disc(
+            canvas,
+            frame,
+            x,
+            y,
+            1.6,
+            ui(mix([1.0; 3], accent, life), 0.9 * (1.0 - life)),
+        );
+    }
+    // Motes drifting round it, twinkling.
+    for index in 0..(hints.motes as usize * 7) {
+        let i = index as f32;
+        let along = fract(draw(i + 1.7) + t * 0.02 * (0.5 + draw(i)));
+        let out = corona * (0.8 + 1.6 * draw(i + 4.9)) * if index % 2 == 0 { 1.0 } else { -1.0 };
+        let tw = 0.5 + 0.5 * (t * 3.0 + i * 2.3).sin();
+        disc(
+            canvas,
+            frame,
+            x0 + along * length,
+            y0 + out,
+            1.5,
+            ui(pale, 0.4 + 0.5 * tw),
+        );
+    }
+    // Coils wound round the blade.
+    for strand in 0..hints.coils.min(2) as usize {
+        let k = strand as f32;
+        for dot in 0..60 {
+            let u = dot as f32 / 59.0;
+            let phase = u * TAU * 5.0 - t * 1.5 + k * std::f32::consts::PI;
+            let front = phase.cos() > 0.0;
+            disc(
+                canvas,
+                frame,
+                x0 + u * length,
+                y0 + phase.sin() * corona * 1.3,
+                1.3,
+                ui(accent, if front { 0.75 } else { 0.25 }),
+            );
+        }
+    }
+    // Lights circling it, held by the hilt in the game.
+    if hints.orbit {
+        for index in 0..3 {
+            let i = index as f32;
+            let along = 0.35 + 0.22 * i;
+            let phase = t * 0.6 + i * 2.1;
+            let x = x0 + along * length + phase.cos() * corona * 0.8;
+            let y = y0 + phase.sin() * corona * 1.6;
+            let near = 0.5 + 0.5 * phase.cos();
+            disc(canvas, frame, x, y, 2.4, ui(pale, 0.35 + 0.55 * near));
+        }
+    }
+}

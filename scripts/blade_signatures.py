@@ -954,7 +954,7 @@ def translate(src, uniforms, helpers=None, module_names=(), prefix_clash="sig_")
 # ---------------------------------------------------------------- the repository's signatures
 
 UNIFORMS = {name: "float" for name in
-            "uTime uLength uSwing uClash uIgn uAge uSeed uChroma uRoom uFx uOwn uParts".split()}
+            "uTime uLength uSwing uClash uIgn uAge uSeed uChroma uRoom uFx uOwn uParts uSince".split()}
 # Light a signature keeps in its own colours under a chroma (round 12: Between Worlds' duel).
 UNIFORMS["uKeep"] = "vec3"
 HERE = Path(__file__).resolve().parent.parent

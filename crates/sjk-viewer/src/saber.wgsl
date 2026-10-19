@@ -3665,6 +3665,8 @@ var<private> uSwing: f32;
 var<private> uClash: f32;
 var<private> uIgn: f32;
 var<private> uAge: f32;
+// Seconds since the last swing began (Creyon's round 12: Felucia's spores stay off a while).
+var<private> uSince: f32;
 var<private> uSeed: f32;
 var<private> uChroma: f32;
 var<private> uRoom: f32;
@@ -3698,6 +3700,7 @@ fn sig_take(input: VertexOutput) {
     uSwing = smoothstep(0.45, 1.0, clamp(input.motion.x, 0.0, 1.0));
     uClash = max(1.0 - input.motion.y * 2.2, 0.0);
     uAge = input.motion.z;
+    uSince = input.motion.w;
     uIgn = clamp(input.motion.z / SIG_IGNITION, 0.0, 1.0);
     // The options every signature has (blade_signatures.rs `Signature::shown`), on bits
     // a signature skin has no other use for: no swing and clash bursts (the pulse bit),
@@ -3706,6 +3709,7 @@ fn sig_take(input: VertexOutput) {
     if (input.off & OFF_PULSE) != 0u {
         uSwing = 0.0;
         uClash = 0.0;
+        uSince = 1000.0;
     }
     var parts = 0u;
     for (var k = 0u; k < 6u; k++) {
