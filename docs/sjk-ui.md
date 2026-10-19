@@ -1330,7 +1330,9 @@ entry of its own under Profile, making seven.
     Auto-join, Red team, Blue team (each with its colour and players) and Spectate;
     the side the player is on is quiet ("Your team", "You are watching") and passed
     over by the keys. In Siege the card's Class and side opens the class page in two
-    steps, as the team page: "Choose your team" with Red team and Blue team (each
+    steps, as the team page: "Choose your team" with Auto-join (`team free`: the
+    side with fewer players, in the class the server settles; the cursor on it
+    while the player watches), Red team and Blue team (each
     with its colour mark and players, "Your team" on the player's own, the cursor
     on it), Spectate (dimmed and passed over while the player watches) and Back; a
     side then lists its classes by name alone ("Red team classes", Next page past
