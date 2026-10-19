@@ -2552,7 +2552,13 @@ submits and presents in order while the render thread prepares the next frame.
 Only one handed-off frame can remain outstanding. With an offscreen scene target,
 swapchain acquisition happens after world recording; direct-to-surface rendering
 still acquires its image first. Resize, out-of-band submissions and teardown wait
-for the outstanding batch. `SJK_SUBMIT_THREAD=0` selects inline submission as a
+for the outstanding batch, and so does a world handing the window over to the next
+one (a map change, a graphics reload, the menu world coming back after leaving a
+server): both draw to the one surface, and configuring it while the old world's frame
+was still being presented made wgpu refuse the configure and close the game. A
+renderer's teardown also joins its submit thread, so the queue clone it holds (and
+with it the last handle to the window) is never released on that thread after the
+event loop has gone, which made winit panic on exit from exclusive fullscreen. `SJK_SUBMIT_THREAD=0` selects inline submission as a
 fallback. See [frame_queue.rs](../crates/sjk-viewer/src/frame_queue.rs),
 [frame_split.rs](../crates/sjk-viewer/src/frame_split.rs) and
 [frame_target.rs](../crates/sjk-viewer/src/frame_target.rs).

@@ -419,6 +419,12 @@ impl GpuState {
     /// reload ([`crate::graphics_reload`]).
     pub(crate) fn hand_shell_to(&mut self, to: &mut GpuState) {
         debug_assert!(to.context.id >= self.context.id || to.is_menu_world || self.is_menu_world);
+        // Both worlds draw to the one window surface: this world's last frame must be
+        // presented on its submit thread before `to` reconfigures the surface or takes
+        // its next image. Otherwise wgpu refuses the configure ("The `SurfaceOutput`
+        // ... must be dropped before re-configuring"), which closed the game as it
+        // left a server for the menu world.
+        self.frame_pacer.split.wait_previous();
         let now = Instant::now();
         let was_local = self
             .live_session
