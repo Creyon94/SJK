@@ -1999,6 +1999,57 @@ fn sjk_settings_snapshot() {
     }
 }
 
+/// The HUD picker's card over the duel6 levelshot, with the retail HUD, SJK
+/// radial and SJK classic highlighted.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn sjk_hud_picker_snapshot() {
+    use crate::game_font::SjkFonts;
+    use crate::menu::sjk::TextTarget;
+    let (_, vfs) = art();
+    let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
+    let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
+    let backdrop = decode(&vfs, "levelshots/mp/duel6.jpg").expect("the duel6 levelshot");
+    let directory = tempfile::tempdir().unwrap();
+    let console = crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+    for (name, label) in [
+        ("sjk-hud-picker", "Jedi Academy"),
+        ("sjk-hud-picker-radial", "SJK radial"),
+        ("sjk-hud-picker-classic", "SJK classic"),
+    ] {
+        let mut settings = crate::settings::SettingsMenu::new();
+        let picture = settings
+            .hud_picker_for_shot(&console, &vfs, label)
+            .expect("the HUD's picture");
+        let icons = HashMap::from([(crate::ui_renderer::HUD_PREVIEW_TEXTURE.0, picture)]);
+        let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
+        settings.append_hud_picker_sjk(
+            TextTarget::Families(
+                SjkFonts {
+                    display: (&mut display_text, &display.font),
+                    body: (&mut body_text, &body.font),
+                    code: None,
+                },
+                crate::text::TextStyle::NEUTRAL,
+            ),
+            VIEWPORT_WIDE,
+            1.0,
+        );
+        let fonts = SjkShotFonts {
+            display: (&display_text, &display.image),
+            body: (&body_text, &body.image),
+        };
+        save_sjk_shot(
+            name,
+            VIEWPORT_WIDE,
+            &backdrop,
+            settings.draw_list(),
+            &icons,
+            fonts,
+        );
+    }
+}
+
 /// A 16:9 window, the shape most players have.
 const VIEWPORT_WIDE: [f32; 2] = [1920.0, 1080.0];
 

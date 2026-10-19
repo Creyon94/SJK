@@ -497,11 +497,13 @@ impl SettingsMenu {
             self.append_wheel_overlay(vertices, font, viewport, reveal);
             return;
         }
+        // The HUD picker and the resolution list are the SJK UI's cards in
+        // every style.
         if self.hud.is_open() {
-            self.append_hud_picker(vertices, font, viewport, reveal, Some(frame.art));
+            let target = crate::menu::sjk::TextTarget::Inter(vertices, font);
+            self.append_hud_picker(target, viewport, reveal);
             return;
         }
-        // The resolution list is the SJK UI's card in every style.
         if self.picker.is_open() {
             let target = crate::menu::sjk::TextTarget::Inter(vertices, font);
             self.append_resolutions(target, viewport, reveal);

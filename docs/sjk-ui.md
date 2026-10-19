@@ -866,6 +866,14 @@ that mode for the visit and leaves the player's choice as it was.
     more; the keys' line under the card (Up/Down, PgUp/PgDn, Enter, Esc, whose
     cap is the pointer's way back). Home/End and the wheel move too; Enter or a
     click picks, Esc returns to the rows.
+  - The HUD picker (HUD look's Enter) is a pop-up card the same way, in every
+    menu style since 19/10/2026 (`settings/hud_picker.rs`; x 240, 1440 wide):
+    HUD look and what it is, the HUDs' names on the left (up to 12 rows, the
+    highlighted one on the band, the one in use in gold with its dot), the
+    highlighted HUD's picture on the right (16:9, rounded, a thin holo edge)
+    with its name and origin under it, and the keys' line under the card.
+    Hovering a name shows its picture; SJK's radial and classic layouts are
+    drawn on it by the live HUD ([client.md](client.md#hud-style)).
   - The focused row has a soft band and a gold bar at its left; a row changed
     from its default a gold dot after its name, and when focused the reset arrow.
     The dot is placed from the name's width as the body font draws it (the

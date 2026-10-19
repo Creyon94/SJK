@@ -345,10 +345,7 @@ impl ClientMenu {
         // Its Settings and Key bindings, whatever the style: the screens a
         // classic page has no classic+ panel for open them too.
         let settings = match self.state.phase() {
-            ClientPhase::Settings => {
-                self.sjk_settings_on_show() && !self.settings.hud_picker_open()
-            }
-            ClientPhase::Keybinds => self.sjk_settings_on_show(),
+            ClientPhase::Settings | ClientPhase::Keybinds => self.sjk_settings_on_show(),
             _ => false,
         };
         settings
