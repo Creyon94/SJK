@@ -4619,8 +4619,8 @@ never shows through an opaque console.
 | --- | --- |
 | Console key (the key under Escape, or `cl_consoleKeys` with `cl_consoleUseScanCode 0`) | Opens to `con_height` (0.5) |
 | Ctrl + console key | Opens full screen |
-| Shift + console key | Opens a quarter of the screen |
-| Shift+Escape | Opens to `con_height`; Escape closes |
+| Shift + console key | Opens to `con_height` (0.5) |
+| Shift+Escape | Opens a quarter of the screen; Escape closes |
 | Page Up, Page Down, mouse wheel | Scroll back or forward two rows; ten with Ctrl |
 | Ctrl+Home, Ctrl+End | Oldest row, newest row |
 | Up, Down, keypad 8 and 2 (Num Lock off), Shift+wheel, Ctrl+P, Ctrl+N | Command history (32 commands) |
@@ -4628,9 +4628,10 @@ never shows through an opaque console.
 | Insert | Toggle overstrike: typing replaces the character after the cursor |
 
 A normal console opening follows `con_height` live, so changing it while the
-console is open resizes it in both styles. Ctrl and Shift openings keep their
-full-screen and quarter-screen overrides; a normal opening or Shift+Escape
-clears that override. A `toggleconsole` bind reuses the last opening mode,
+console is open resizes it in both styles, including Shift plus the console key.
+Ctrl plus the console key and Shift+Escape keep their full-screen and
+quarter-screen overrides; a plain or Shift console-key opening clears those
+overrides. A `toggleconsole` bind reuses the last opening mode,
 following the current `con_height` when that mode was normal. The console
 slides at `scr_conspeed` screens per second and is drawn from its first pixel.
 A disconnected client whose menu
