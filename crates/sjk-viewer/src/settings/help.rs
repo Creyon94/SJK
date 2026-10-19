@@ -745,7 +745,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::ghost_replay::SHOWCASE_CVAR,
-        "Experimental, for filming: ghost replays a run you recorded, mimic copies a player facing you. Any key stops them.",
+        "Staff only, experimental, for filming: ghost replays a run you recorded, mimic copies a player facing you. Any key stops them.",
     ),
     (
         crate::brush_view::CVAR,

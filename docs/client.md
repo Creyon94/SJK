@@ -1246,10 +1246,12 @@ was removed on 10/10/2026.
 film a showcase: the player records a run once, then replays it while another player
 films ([ghost_replay.rs](../crates/sjk-viewer/src/ghost_replay.rs)).
 
-`ghost` and [`mimic`](#mimic) are experimental and off by default: Settings > Mods >
-"Experimental: showcase tools (ghost, mimic)" (`cl_experimentalShowcase`, archived;
-"Experimental showcase" in the classic menus) turns both on. Off, either command says
-so and where to turn it on; switching it off ends a replay or a copy, and a recording
+`ghost` and [`mimic`](#mimic) are experimental, for SJK staff keys only (Sol,
+19/10/2026: not for everyone to use), and off by default: Settings > Mods >
+"Experimental: showcase tools (ghost, mimic), staff only" (`cl_experimentalShowcase`,
+archived; "Experimental showcase" in the classic menus) turns both on for a staff key.
+For another key either command says it is a staff tool, and the switch does nothing;
+off, either command says so and where to turn it on; switching it off ends a replay or a copy, and a recording
 is saved. They have no other menu entry.
 
 | Command | Does |

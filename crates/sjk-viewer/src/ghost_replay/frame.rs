@@ -225,12 +225,15 @@ impl crate::GpuState {
         )
     }
 
-    /// Whether the experimental showcase tools are switched on.
+    /// Whether the experimental showcase tools are switched on, for an SJK staff
+    /// key: they are not for everyone to use.
     pub(crate) fn showcase_enabled(&self) -> bool {
-        self.console
-            .as_ref()
-            .and_then(|console| console.bool_cvar(SHOWCASE_CVAR))
-            .unwrap_or(false)
+        crate::player_identity::is_staff()
+            && self
+                .console
+                .as_ref()
+                .and_then(|console| console.bool_cvar(SHOWCASE_CVAR))
+                .unwrap_or(false)
     }
 
     /// Save a recording that ended on its own and print the ghost's lines; switching
