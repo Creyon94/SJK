@@ -341,7 +341,7 @@ pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box
             crate::ghost_replay::SHOWCASE_CVAR,
             false,
             CvarFlags::ARCHIVE,
-            "Experimental, SJK staff only: the ghost and mimic showcase commands",
+            "Showcase tools, SJK staff only",
         ),
     ] {
         shell

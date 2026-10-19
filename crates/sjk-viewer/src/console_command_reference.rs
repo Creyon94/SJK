@@ -582,11 +582,7 @@ mod tests {
     #[test]
     fn tags_mark_tools_players_rarely_need() {
         let cases: [(&str, &str, &[&str]); 5] = [
-            (
-                "ghost",
-                "Experimental (cl_experimentalShowcase): ...",
-                &["experimental"],
-            ),
+            ("ghost", "Showcase tools, SJK staff only: ...", &["staff"]),
             ("graphicsquality", "vanilla, sjk or experimental", &[]),
             ("fs_debug", "Log mounted sources", &["developer"]),
             (
