@@ -568,8 +568,8 @@ pub(super) const HUD: &[Setting] = &[
         label: "Chat text size",
         cvar: "cg_chatBoxFontSize",
         kind: ValueKind::Float {
-            min: 0.25,
-            max: 3.0,
+            min: crate::chat::options::CHAT_SIZE.0,
+            max: crate::chat::options::CHAT_SIZE.1,
             step: 0.05,
         },
     },
@@ -790,6 +790,11 @@ pub(super) const GAME: &[Setting] = &[
         label: "Duel figures (JoF)",
         cvar: crate::duel_ghost::CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide others in duel",
+        cvar: crate::duel_visibility::HIDE_OTHERS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Hide corpses in duel",

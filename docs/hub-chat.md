@@ -311,8 +311,8 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
 - **In the chat box during play** ([chat/feed_gif.rs](../crates/sjk-viewer/src/chat/feed_gif.rs),
   drawn by `chat/view.rs`, the one path that draws the chat box: in play, beside the
   scoreboard and over the history while the composer is open): an SJK line's link reads
-  `GIF` and the GIF shows under its text, three of the box's rows high (54 pixels at 1080p
-  and chat font size 1, 108 at 4K; it grows with `cg_chatBoxFontSize` as the rows do) and
+  `GIF` and the GIF shows under its text, three of the box's rows high (88 pixels at 1080p
+  and chat font size 1, 176 at 4K; it grows with `cg_chatBoxFontSize` as the rows do) and
   within its column. It takes the room of its rows, so later lines start under it, and it
   is drawn at its line's place and alpha: it slides in, scrolls and fades out with the
   line (`cg_chatBox`), and shows again with the history when the composer opens. The

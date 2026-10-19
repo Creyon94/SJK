@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Duel bystanders hidden as in JoF EJK; chat and centre prints at EJK's size
+- 2cfb97e |  | Changelog and debug panel for duel hiding and EJK text sizes
++ 19/10/2026 | - | Hide players outside a private duel, as JoF EJK does (cg_duelHideOthers)
+- 4eb63ef |  | Hide players outside a private duel, as JoF EJK does (cg_duelHideOthers)
++ 19/10/2026 | - | Chat and centre-print sizes at EternalJK's scale
+- ee2850c |  | Chat and centre-print sizes at EternalJK's scale
 + 19/10/2026 | - | Attack ends emote setting, off by default
 - f47c47b |  | Emotes: attack ending your own emote is a setting, off by default
 - cfe2e58 |  | Changelog and debug panel for the Attack ends emote setting

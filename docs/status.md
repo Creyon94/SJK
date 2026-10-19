@@ -1,3 +1,16 @@
+## Chat and centre-print sizes on EternalJK's scale
+
+19/10/2026, `personal/text-sizes-ejk`, based on `main` `58809a31` (Sol, after Milamber's
+report): `cg_chatBoxFontSize` 1 and `cg_centerSize` 1 draw JoF EternalJK's absolute sizes
+([client.md](client.md#text-size-and-spacing)): chat text 1.71
+times and centre prints 2.25 times the old size, computed from EternalJK's
+`CG_ChatBox_DrawStrings` and `CG_DrawCenterString` and the retail `ocr_a`/`ergoec`
+`.fontdat` metrics and atlases. Saved values other than 1 are moved once to the new scale
+(`cg_textSizeEjkVersion`). Verified on Windows 11: unit tests (the sizes, the migration,
+the GIF still three rows high) and the world shot `duel6_text_sizes_shot` (game fonts and
+Inter, 1080p, before and after). Not verified: side by side with EternalJK in a game, the
+HUD around the larger chat in a game, the scoreboard's chat column live.
+
 ## Map editor panel
 
 19/10/2026, `personal/map-edits-ui`, based on `main` `89b11b38`: the map editor's panel
@@ -762,6 +775,19 @@ so its healthpacks follow the pickup preference too. See
 the locked workspace build and test suite, workspace all-target Clippy, and the
 locked release viewer build pass; existing warnings remain. The behavior has
 not yet been checked interactively on a live server or in demo playback.
+
+## Hiding players outside a private duel
+
+19/10/2026, `personal/duel-hide-others`, after Milamber's report: the archived
+`cg_duelHideOthers` (0 Off, 1 Auto by default, 2 Always; Settings > Advanced >
+Gameplay > Hide others in duel) hides everyone but the two duellists while the
+local or followed player duels, with their sabers, thrown sabers, NPCs, effects,
+events and sounds, on the servers JoF EJK hides them on (JA+ unless
+`cp_pluginDisable` bit 1, jaPRO always; table `DUEL_HIDE_SERVERS`), and by owner
+their missiles where the server sends it (jaPRO). Live and demo presentation apply
+changes at once. Unit tests cover the table, the cvar, each hidden category, the
+world adapter and the frame view. Not yet checked in game on a live server or in
+demo playback. See [client](client.md#nameplates).
 
 ## PM-only game chat
 

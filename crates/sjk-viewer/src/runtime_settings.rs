@@ -63,7 +63,8 @@ impl GpuState {
             adapter.set_smooth_clients(console.smooth_clients());
             let corpses_changed = adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
             let pickups_changed = adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
-            if (corpses_changed || pickups_changed)
+            let others_changed = adapter.set_duel_hide(console.duel_hide());
+            if (corpses_changed || pickups_changed || others_changed)
                 && let Some(session) = &self.live_session
             {
                 adapter.apply_snapshot(
@@ -80,6 +81,7 @@ impl GpuState {
             session.set_duel_visibility(
                 console.hide_corpses_in_duel(),
                 console.hide_pickups_in_duel(),
+                console.duel_hide(),
             );
         }
         self.net_timing.set_enabled(console.show_timedelta());

@@ -301,6 +301,7 @@ impl Group {
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
                 crate::duel_ghost::CVAR,
+                crate::duel_visibility::HIDE_OTHERS_CVAR,
                 crate::duel_visibility::CORPSES_CVAR,
                 crate::duel_visibility::PICKUPS_CVAR,
                 crate::map_edits::CVAR,

@@ -288,6 +288,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Extrapolate remote players and NPCs from snapshot velocity",
         ),
         CvarDefinition::new(
+            crate::duel_visibility::HIDE_OTHERS_CVAR,
+            1_i64,
+            archive,
+            "Hide players outside your private duel: 0 never, 1 where the server expects it, 2 always",
+        ),
+        CvarDefinition::new(
             crate::duel_visibility::CORPSES_CVAR,
             1_i64,
             archive,
@@ -1168,6 +1174,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the kill feed being on by default",
+        ),
+        CvarDefinition::new(
+            crate::chat::text_sizes::VERSION_CVAR,
+            0_i64,
+            archive,
+            "Internal migration marker for chat and centre-print sizes on EternalJK's scale",
         ),
     ];
     for definition in definitions {

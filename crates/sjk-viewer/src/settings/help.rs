@@ -124,6 +124,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::text::charset::CVAR, "auto", "Auto"),
     (crate::text::charset::CVAR, "western", "Western"),
     (crate::text::charset::CVAR, "cyrillic", "Cyrillic"),
+    (crate::duel_visibility::HIDE_OTHERS_CVAR, "0", "Off"),
+    (crate::duel_visibility::HIDE_OTHERS_CVAR, "1", "Auto"),
+    (crate::duel_visibility::HIDE_OTHERS_CVAR, "2", "Always"),
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
@@ -506,7 +509,7 @@ const HELP: &[(&str, &str)] = &[
     ("cg_drawChat", "Shows chat messages over the game."),
     (
         "cg_chatBoxFontSize",
-        "Size of chat messages and their rows; higher is larger and wraps sooner.",
+        "Size of chat messages and their rows; 1 is EternalJK's size, higher is larger and wraps sooner.",
     ),
     (
         crate::chat::emoji::CVAR,
@@ -638,6 +641,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::duel_ghost::CVAR,
         "On: players in a duel show as see-through blue figures, as on JoF EJK. Off: dark under a blue bubble, as in the base game.",
+    ),
+    (
+        crate::duel_visibility::HIDE_OTHERS_CVAR,
+        "In a duel, hides all but you and your opponent: bodies, sabers, shots, sounds. Auto: JA+ and jaPRO servers. Always: all. Off: dark.",
     ),
     (
         crate::duel_visibility::CORPSES_CVAR,

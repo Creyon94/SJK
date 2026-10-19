@@ -44,7 +44,7 @@ fn place_beside_scoreboard(g: &mut Geometry, viewport: [f32; 2], font_scale: f32
     g.width = layout.chat_width;
     g.top = 150.0 * layout.scale;
     g.bottom = viewport[1] - 200.0 * g.scale;
-    g.font = 18.0 * g.scale;
+    g.font = layout::FONT_1080 * g.scale;
     g.row = g.font * layout::ROW_PITCH;
 }
 
@@ -87,7 +87,7 @@ impl ChatOverlay {
                 let color = Color::new(base.r, base.g, base.b, base.a * fade);
                 let size = self.options.center_size;
                 let center_scale = crate::ui_scale::height_scale(viewport[1]);
-                let row = 30.0 * center_scale * size;
+                let row = center_row(size) * center_scale;
                 let rows = center_rows(text).count() as f32;
                 let height = if self.options.center_height == 0.0 {
                     self.combat.height.unwrap_or(0.0)
@@ -100,7 +100,7 @@ impl ChatOverlay {
                     self.ui.text_aligned(
                         line,
                         Rect::new(32.0, y, viewport[0] - 64.0, row),
-                        22.0 * center_scale * size,
+                        CENTER_FONT_1080 * center_scale * size,
                         color,
                         FontWeight::Semibold,
                         0.0,
@@ -260,7 +260,7 @@ impl ChatOverlay {
                     shown,
                     [x, y + rows as f32 * g.row],
                     g.width - 12.0 * g.scale,
-                    g.scale,
+                    feed_gif::scale(g),
                     alpha,
                 );
             }
@@ -418,6 +418,19 @@ fn row_box(g: &Geometry) -> f32 {
     g.row.max(g.font + 1.0)
 }
 
+/// Line box of centre-print text in 1080p pixels at `cg_centerSize` 1, the size
+/// EternalJK draws it: `CG_DrawCenterString` (JoF EJK `cg_draw.c:6985`) draws
+/// `ergoec` (`FONT_MEDIUM`) at scale `cg_centerSize`, and `ergoec`'s line is 22
+/// retail pixels (`mHeight`), which SJK Menu keeps (`text::retail_font::MENU`): 49.5
+/// px at 1080 lines, capitals about 29 px. Before 19/10/2026 it was 22 px.
+pub(super) const CENTER_FONT_1080: f32 = 22.0 * 1080.0 / 480.0;
+
+/// Pitch of centre-print rows in 1080p pixels for `size`: EternalJK advances
+/// `CG_Text_Height` (`ergoec`'s point size 20 times the scale) plus 6 virtual pixels.
+pub(super) fn center_row(size: f32) -> f32 {
+    (20.0 * size + 6.0) * 1080.0 / 480.0
+}
+
 /// CG_DrawCenterString wraps rows longer than this at their last space ([BugFix19];
 /// `BG_IsWhiteSpace` counts only the space, so a tab or vertical tab in a name
 /// does not break the row).
@@ -477,8 +490,8 @@ mod tests {
         let mut geometry = crate::chat::options::Options::default().geometry(viewport);
         super::place_beside_scoreboard(&mut geometry, viewport, 3.0);
         assert_eq!(geometry.scale, 3.0);
-        assert_eq!(geometry.font, 54.0);
-        assert_eq!(geometry.row, 54.0 * crate::chat::layout::ROW_PITCH);
+        assert_eq!(geometry.font, 3.0 * crate::chat::layout::FONT_1080);
+        assert_eq!(geometry.row, geometry.font * crate::chat::layout::ROW_PITCH);
     }
 
     /// The texts and emoji rectangles drawn for `body` with `names` loaded.

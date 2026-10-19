@@ -679,6 +679,9 @@ struct GpuState {
     crosshair_scan: crosshair_scan::State,
     auto_switch: auto_switch::Tracker,
     previous_particle_events: HashMap<u16, u16>,
+    /// The presented snapshot without the players outside the duel
+    /// (`cg_duelHideOthers`), for the frame's snapshot readers.
+    duel_hidden_view: duel_visibility::HiddenView,
     particles: Vec<Particle>,
     /// Frees the old end of the effect pool for each frame's new particles.
     particle_room: particle_room::Room,
@@ -1562,6 +1565,7 @@ impl GpuState {
             lagometer: sjk_client::LagometerSamples::new(),
             auto_switch: auto_switch::Tracker::default(),
             previous_particle_events: HashMap::new(),
+            duel_hidden_view: Default::default(),
             particles: Vec::with_capacity(particle_types::PARTICLE_POOL),
             particle_room: particle_room::Room::default(),
             pending_particle_effects: particle_physics::PendingEffects::new(),
@@ -2325,6 +2329,25 @@ impl GpuState {
             self.demo_session.as_ref(),
             presentation_time as i32,
         );
+        // Players outside the duel and what they bring leave every snapshot reader
+        // below (`cg_duelHideOthers`, `sjk_client::DuelHide`).
+        let active_game = self
+            .live_session
+            .as_ref()
+            .map(ClientSession::game_state)
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(demo_playback::Session::game_state)
+            });
+        self.duel_hidden_view.update(
+            active_snapshot.zip(active_game),
+            self.console
+                .as_ref()
+                .map(console::ViewerConsole::duel_hide)
+                .unwrap_or_default(),
+        );
+        let active_snapshot = self.duel_hidden_view.get().or(active_snapshot);
         if let Some(snapshot) = active_snapshot {
             let active_world = self
                 .demo_session

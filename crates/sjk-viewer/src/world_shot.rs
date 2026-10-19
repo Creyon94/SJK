@@ -331,6 +331,9 @@ mod alpha_notice_shots;
 #[path = "world_shot_chat_gifs.rs"]
 mod chat_gifs_shots;
 
+#[path = "world_shot_text_sizes.rs"]
+mod text_sizes_shots;
+
 #[path = "world_shot_map_change.rs"]
 mod map_change;
 

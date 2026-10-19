@@ -5502,3 +5502,26 @@ test: Join a server, then disconnect to the menu several times: the menu world c
 test: Change map on a local server (devmap) a few times: no crash.
 test: In exclusive fullscreen, quit and use update: no crash report at the next start.
 note: Crashes went with an exact frame timing; a few clean tries are not proof.
+
+[duel-hide-others]
+area: Gameplay
+title: Duel: players outside your private duel are hidden, as in JoF EJK
+change: On JA+ (cp_pluginDisable bit 1 clear) and jaPRO, bystanders vanish while you duel.
+change: Their bodies, sabers, thrown sabers, NPCs, effects and sounds go; jaPRO shots too.
+change: cg_duelHideOthers: 0 Off (dark as before), 1 Auto (default), 2 Always. Report 82.
+test: On a JoF/JA+ server, duel someone near others: only you and your opponent show.
+test: Have a bystander throw a saber and swing near you: no saber, no sounds, no sparks.
+test: cg_duelHideOthers 0: bystanders show dark again; 2 on a base server hides them.
+test: Follow a duellist as a spectator: the others are hidden from that view too.
+note: JA+ bystanders' shots stay (the server does not say whose).
+
+[text-sizes-ejk]
+area: Console & chat
+title: Chat text and centre prints at JoF EJK's size (1 = EJK's 1)
+change: cg_chatBoxFontSize 1 draws chat 1.7x larger, cg_centerSize 1 centre prints 2.25x.
+change: Chat size range is now 0.15-2, centre 0-2 (0 draws at 1, as in EJK). Reports 79, 85.
+change: Old profiles keep their look once: a saved non-1 size is divided by that factor.
+test: Fresh profile on a JA+/JoF server: chat and centre prints match EJK at 1 side by side.
+test: Settings > Chat > Chat text size at 2: the chat wraps sooner and stays clear of the HUD.
+test: Old config with cg_chatBoxFontSize 1.25: it loads as 0.733 and looks as before.
+note: A saved 1 (the old default) becomes EJK's size, larger than before.

@@ -134,6 +134,20 @@ pub(crate) fn observe(
     sinks.counters.saber_flare_latches += impact.flare_latches as u64;
 }
 
+/// `snapshot` without the players outside the duel and their events, for the event
+/// observers, when `cg_duelHideOthers` hides some (`sjk_client::DuelHide`).
+fn duel_hidden(
+    console: Option<&console::ViewerConsole>,
+    snapshot: &Snapshot,
+    game_state: &GameState,
+) -> Option<Snapshot> {
+    sjk_client::duel_hidden_snapshot(
+        snapshot,
+        game_state,
+        console.map(console::ViewerConsole::duel_hide)?,
+    )
+}
+
 /// The console line `CG_Obituary` prints (`cg_event.c:124-454`): each name ends
 /// with `^7` (`S_COLOR_WHITE`), so a colour left open in a name stops there.
 fn format_obituary(
@@ -174,6 +188,7 @@ impl GpuState {
             adapter.set_smooth_clients(console.smooth_clients());
             adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
             adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
+            adapter.set_duel_hide(console.duel_hide());
         }
         self.presentation_clock = presentation_clock::SnapshotPresentationClock::new(
             session.latest_snapshot().server_time,
@@ -211,8 +226,9 @@ impl GpuState {
                 third_person: self.third_person,
                 flash_point: self.last_first_person_flash,
             };
+            let hidden = duel_hidden(self.console.as_ref(), snapshot, game_state);
             observe(
-                snapshot,
+                hidden.as_ref().unwrap_or(snapshot),
                 game_state,
                 local,
                 false,
@@ -306,8 +322,9 @@ impl GpuState {
         }
         let obituaries_before = self.obituaries.decoded();
         if observe_events {
+            let hidden = duel_hidden(self.console.as_ref(), snapshot, session.game_state());
             observe(
-                snapshot,
+                hidden.as_ref().unwrap_or(snapshot),
                 session.game_state(),
                 impact_spawn::LocalView {
                     client_num: snapshot.player.client_num(),
@@ -364,6 +381,7 @@ impl GpuState {
                     adapter.set_smooth_clients(console.smooth_clients());
                     adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
                     adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
+                    adapter.set_duel_hide(console.duel_hide());
                 }
                 self.local_actor_state = Default::default();
                 for mesh in &mut self.actor_meshes {
