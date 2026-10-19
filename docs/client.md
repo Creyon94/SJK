@@ -1107,6 +1107,14 @@ the presentation history. The ordinary range, height, angle and damping cvars
 remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 `cg_cameraStyle` chooses whether the damping applies ([Camera style](#camera-style)).
 
+A dead player is always seen in third person, whatever the camera choice
+(EternalJK `cg_view.c:3098`), and the death camera is fixed: it turns to the
+player state's dead yaw (`STAT_DEAD_YAW`, towards the killer) and keeps the pitch
+the player had when he died, as pmove stops updating a dead player's view angles
+(`bg_pmove.c:10159`). Moving the mouse while dead no longer tilts it
+([camera.rs](../crates/sjk-viewer/src/camera.rs) `dead_view_angles`,
+[scope.rs](../crates/sjk-viewer/src/scope.rs) `third_person_wanted`).
+
 The decaying prediction error (`cg_errorDecay`) moves the third-person camera's
 focus before its collision and damping traces, as `CG_CalcViewValues`
 (`cg_view.c`) adds it to the view origin before `CG_OffsetThirdPersonView`. A
