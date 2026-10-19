@@ -1,3 +1,16 @@
+## Chat and centre-print sizes on EternalJK's scale
+
+19/10/2026, `personal/text-sizes-ejk`, based on `main` `58809a31` (Sol, after Milamber's
+report): `cg_chatBoxFontSize` 1 and `cg_centerSize` 1 draw JoF EternalJK's absolute sizes
+([client.md](client.md#text-size-and-spacing)): chat text 1.71
+times and centre prints 2.25 times the old size, computed from EternalJK's
+`CG_ChatBox_DrawStrings` and `CG_DrawCenterString` and the retail `ocr_a`/`ergoec`
+`.fontdat` metrics and atlases. Saved values other than 1 are moved once to the new scale
+(`cg_textSizeEjkVersion`). Verified on Windows 11: unit tests (the sizes, the migration,
+the GIF still three rows high) and the world shot `duel6_text_sizes_shot` (game fonts and
+Inter, 1080p, before and after). Not verified: side by side with EternalJK in a game, the
+HUD around the larger chat in a game, the scoreboard's chat column live.
+
 ## Map editor panel
 
 19/10/2026, `personal/map-edits-ui`, based on `main` `89b11b38`: the map editor's panel

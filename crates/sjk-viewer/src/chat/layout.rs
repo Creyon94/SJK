@@ -5,12 +5,20 @@ use std::ops::Range;
 
 pub(super) const WRAP_LINES: usize = 4;
 
-/// Pitch of a message's wrapped body rows as a multiple of the body text size.
-/// Inter's capitals are 0.60 of its line box, so rows one line box apart give the
-/// same capital-to-pitch ratio as the stock chat box (`ocr_a` capitals 12 px at
-/// scale 0.65, rows `CHATBOX_FONT_HEIGHT` 20 x 0.65 apart in `CG_ChatBox_DrawStrings`),
-/// and a descender still clears the next row's ascenders by 0.18 of the box.
-pub(super) const ROW_PITCH: f32 = 1.0;
+/// Virtual 640x480 HUD pixels to 1080p pixels: the HUD's 480 lines fill the height.
+const VIRTUAL_TO_1080: f32 = 1080.0 / 480.0;
+/// Line box of the chat's body text in 1080p pixels at `cg_chatBoxFontSize` 1, the
+/// size EternalJK draws it: `CG_ChatBox_DrawStrings` (JoF EJK `cg_draw.c:10672`)
+/// draws `ocr_a` at scale `0.65 * cg_chatBoxFontSize`, and `ocr_a`'s line is 21
+/// retail pixels (`mHeight`), which SJK Chat keeps (`text::retail_font::CHAT`). So
+/// its 12-pixel capitals stand 17.6 px tall at 1080 lines, as Inter's do (0.60 of
+/// this box). Before 19/10/2026 the box was 18 px, 0.59 of this.
+pub(super) const FONT_1080: f32 = 21.0 * 0.65 * VIRTUAL_TO_1080;
+/// Pitch of a message's wrapped body rows as a multiple of the body text size:
+/// EternalJK's rows are `CHATBOX_FONT_HEIGHT` 20 x 0.65 virtual pixels apart, to
+/// [`FONT_1080`]'s 21 x 0.65 line. A descender still clears the next row's capitals
+/// by 0.15 of the box in Inter.
+pub(super) const ROW_PITCH: f32 = 20.0 / 21.0;
 /// Space between consecutive messages, in 1080p pixels.
 pub(super) const MESSAGE_GAP: f32 = 8.0;
 
@@ -36,8 +44,8 @@ impl Geometry {
             top: 150.0 * scale,
             bottom: (viewport[1] * 0.64).min(viewport[1] - 210.0 * scale),
             width: (620.0 * scale).min(viewport[0] - left * 2.0).max(1.0),
-            row: 18.0 * scale * ROW_PITCH,
-            font: 18.0 * scale,
+            row: FONT_1080 * scale * ROW_PITCH,
+            font: FONT_1080 * scale,
             spacing: 0.0,
         }
     }

@@ -502,7 +502,7 @@ const HELP: &[(&str, &str)] = &[
     ("cg_drawChat", "Shows chat messages over the game."),
     (
         "cg_chatBoxFontSize",
-        "Size of chat messages and their rows; higher is larger and wraps sooner.",
+        "Size of chat messages and their rows; 1 is EternalJK's size, higher is larger and wraps sooner.",
     ),
     (
         crate::chat::emoji::CVAR,
