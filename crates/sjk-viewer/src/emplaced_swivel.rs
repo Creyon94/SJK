@@ -59,21 +59,15 @@ impl Part {
     }
 
     fn appearance(self, model: &str) -> Appearance {
+        let variant = match self {
+            Self::Stand => STAND,
+            Self::Turning => TURNING,
+        };
         Appearance {
             model: model.to_owned(),
-            variant: match self {
-                Self::Stand => STAND,
-                Self::Turning => TURNING,
-            }
-            .to_owned(),
+            variant: variant.to_owned(),
         }
     }
-}
-
-/// The turning part's bone: its bind pose, which the turn replaces.
-#[derive(Clone, Debug)]
-pub(crate) struct Turning {
-    bone: GlaBone,
 }
 
 /// The last angles each gun's top was turned to, by entity number: Ghoul2 keeps a
@@ -92,10 +86,10 @@ fn worked(state: &EntityState) -> bool {
 
 /// The parts of `model` a worked gun needs and `attempted` lacks, one at a time, for the
 /// model loader ([`crate::model_demand`]).
-pub(crate) fn wanted<'a>(
+pub(crate) fn wanted(
     snapshot: &Snapshot,
     world: &World,
-    attempted: impl Fn(&Appearance) -> bool + 'a,
+    attempted: impl Fn(&Appearance) -> bool,
 ) -> Option<Appearance> {
     snapshot
         .entities
@@ -164,9 +158,7 @@ pub(crate) fn load_part(
         draws,
         center: render_helpers::mesh_center(&flattened.vertices[vertex_start..]),
         flash_bolt: None,
-        turning: (part == Part::Turning).then(|| Turning {
-            bone: skeleton.bones[bone].clone(),
-        }),
+        turning_bone: (part == Part::Turning).then(|| skeleton.bones[bone].clone()),
     })
 }
 
@@ -177,9 +169,9 @@ fn bone_angles(view: [f32; 3], gun_yaw: f32) -> [f32; 3] {
 }
 
 /// Draw the gun `state` describes in its two parts when its top has been turned, the
-/// turning part carried by `Bone02`'s matrix and the stand by its yaw; `false` (nothing drawn) for any other
-/// entity, a gun no one has worked, or one whose parts are not loaded yet.
-/// `gunner_view` gives a gunner's view angles by client number.
+/// turning part carried by `Bone02`'s matrix and the stand by its yaw; `false` (nothing
+/// drawn) for any other entity, a gun no one has worked, or one whose parts are not
+/// loaded yet. `gunner_view` gives a gunner's view angles by client number.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn submit(
     turned: &mut Turned,
@@ -211,42 +203,38 @@ pub(crate) fn submit(
     let (Some(stand), Some(turning)) = (part(Part::Stand), part(Part::Turning)) else {
         return false;
     };
-    let Some(bone) = meshes[turning]
-        .turning
-        .as_ref()
-        .map(|turning| &turning.bone)
-    else {
+    let Some(bone) = meshes[turning].turning_bone.as_ref() else {
         return false;
     };
-    let matrix = sjk_model::replace_bone_matrix(
+    for (mesh, matrix) in [
+        (stand, stand_matrix(bone, angles)),
+        (turning, turned_matrix(bone, angles)),
+    ] {
+        let (translation, rotation) = carried(transform, matrix);
+        let mut instance = ActorInstance::new(translation, rotation, transform.scale);
+        instance.view_flags = view_flags;
+        groups[mesh].push(instance);
+    }
+    true
+}
+
+/// `Bone02`'s model-space matrix at `angles`, with `CG_General`'s axes: up `NEGATIVE_Y`,
+/// left `NEGATIVE_X`, forward `POSITIVE_Z`.
+fn turned_matrix(bone: &GlaBone, angles: [f32; 3]) -> [[f32; 4]; 3] {
+    sjk_model::replace_bone_matrix(
         bone,
         angles,
         BoneAxis::NegativeY,
         BoneAxis::NegativeX,
         BoneAxis::PositiveZ,
-    );
-    let (translation, rotation) = carried(transform, stand_matrix(bone, angles));
-    let mut stand_instance = ActorInstance::new(translation, rotation, transform.scale);
-    stand_instance.view_flags = view_flags;
-    groups[stand].push(stand_instance);
-    let (translation, rotation) = carried(transform, matrix);
-    let mut turning_instance = ActorInstance::new(translation, rotation, transform.scale);
-    turning_instance.view_flags = view_flags;
-    groups[turning].push(turning_instance);
-    true
+    )
 }
 
 /// The stand's model-space matrix: the yaw the top takes at `angles`, about the vertical
 /// through the bone's origin, without its pitch or roll, so the stand stays upright on
 /// the ground and its handles stay behind the top.
 fn stand_matrix(bone: &GlaBone, angles: [f32; 3]) -> [[f32; 4]; 3] {
-    let level = sjk_model::replace_bone_matrix(
-        bone,
-        [0.0, angles[1], 0.0],
-        BoneAxis::NegativeY,
-        BoneAxis::NegativeX,
-        BoneAxis::PositiveZ,
-    );
+    let level = turned_matrix(bone, [0.0, angles[1], 0.0]);
     let (sine, cosine) = level[1][0].atan2(level[0][0]).sin_cos();
     let pivot = [bone.base_pose[0][3], bone.base_pose[1][3]];
     [
@@ -288,6 +276,9 @@ fn carried(transform: &Transform, matrix: [[f32; 4]; 3]) -> ([f32; 3], [f32; 4])
 mod tests {
     use super::*;
 
+    /// `entityState_t::NPC_class` on the wire.
+    const NPC_CLASS: usize = 88;
+
     #[test]
     fn the_top_is_held_to_forty_degrees_down_and_turned_from_the_gun_yaw() {
         assert_eq!(bone_angles([60.0, 100.0, 0.0], 90.0), [40.0, 10.0, 0.0]);
@@ -307,9 +298,6 @@ mod tests {
         assert!(!worked(&gun(5, WORKED, 0)));
         assert!(!worked(&gun(100, WORKED, u32::from(CLASS_VEHICLE))));
     }
-
-    /// `entityState_t::NPC_class` on the wire.
-    const NPC_CLASS: usize = 88;
 
     /// The bone's matrix carries the part about the entity: at yaw 90 a part moved one
     /// unit along the model's +X lands one unit along the world's +Y.
@@ -385,13 +373,7 @@ mod tests {
         };
         for angles in [[0.0, 0.0, 0.0], [40.0, 0.0, 0.0], [-30.0, 70.0, 0.0]] {
             let stand = stand_matrix(&bone, angles);
-            let top = sjk_model::replace_bone_matrix(
-                &bone,
-                angles,
-                BoneAxis::NegativeY,
-                BoneAxis::NegativeX,
-                BoneAxis::PositiveZ,
-            );
+            let top = turned_matrix(&bone, angles);
             // The barrels' level heading and the handles' are opposite.
             let barrel = apply(top, [0.0, -60.0, 46.6]);
             let handle = apply(stand, [0.0, 21.2, 46.6]);

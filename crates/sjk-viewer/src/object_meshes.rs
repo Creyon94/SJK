@@ -36,8 +36,8 @@ pub(super) struct StaticModelMesh {
     pub(super) draws: Vec<ActorDraw>,
     pub(super) center: [f32; 3],
     pub(super) flash_bolt: Option<bolt::BoltMatrix>,
-    /// For an emplaced gun's turning part, the bone that carries it.
-    pub(super) turning: Option<emplaced_swivel::Turning>,
+    /// For an emplaced gun's turning part, the bind pose of the bone that carries it.
+    pub(super) turning_bone: Option<sjk_model::GlaBone>,
 }
 
 /// Gather preload defaults and the initial world's rigid appearances and append
@@ -153,6 +153,6 @@ pub(super) fn load_one(
         draws,
         center: mesh_center(&flattened.vertices[vertex_start..]),
         flash_bolt,
-        turning: None,
+        turning_bone: None,
     })
 }

@@ -240,7 +240,7 @@ mod tests {
             draws: Vec::new(),
             center: [0.0; 3],
             flash_bolt: None,
-            turning: None,
+            turning_bone: None,
         }
     }
 
