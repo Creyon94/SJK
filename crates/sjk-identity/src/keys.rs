@@ -165,16 +165,6 @@ impl Identity {
             .collect()
     }
 
-    /// The X25519 secret this key shares with the holder of the X25519 public key
-    /// `ephemeral`: the private key taken as an X25519 one (the seed's SHA-512, first
-    /// half, clamped, as libsodium's `crypto_sign_ed25519_sk_to_curve25519`). Test packs
-    /// (`crate::test_packs`) open their envelopes with it; the key never leaves.
-    pub(crate) fn shared_secret(&self, ephemeral: [u8; 32]) -> [u8; 32] {
-        curve25519_dalek::montgomery::MontgomeryPoint(ephemeral)
-            .mul_clamped(self.signing.to_scalar_bytes())
-            .to_bytes()
-    }
-
     /// The signature of `message`, unpadded base64url.
     pub(crate) fn sign_text(&self, message: &str) -> String {
         B64.encode(self.signing.sign(message.as_bytes()).to_bytes())

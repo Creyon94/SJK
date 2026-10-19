@@ -234,9 +234,6 @@ pub(crate) fn apply(
                 );
                 // The hub's packs (unlockables' art) are kept beside the key.
                 service.keep_assets(crate::sjk_packs::directory_in(config_directory));
-                // Test packs sent to this key: only their locked bodies, beside the key.
-                service
-                    .keep_test_packs(config_directory.join(sjk_identity::test_pack_cache::FOLDER));
                 // SJK's map edits, every player's copy beside the key too.
                 service.keep_map_edits(crate::map_edits::folder(config_directory));
                 runtime.service = Some(service);
@@ -280,17 +277,6 @@ pub(crate) fn packs() -> (u64, Option<String>) {
     lock().service.as_ref().map_or((0, None), |service| {
         service.with_snapshot(|snapshot| (snapshot.packs_revision, snapshot.assets_note.clone()))
     })
-}
-
-/// The service's test packs (`test_packs.rs` takes them when they change); none before
-/// the service starts. Read twice a second.
-pub(crate) fn test_packs() -> sjk_identity::service::TestPacks {
-    lock()
-        .service
-        .as_ref()
-        .map_or_else(Default::default, |service| {
-            service.with_snapshot(|snapshot| snapshot.test_packs.clone())
-        })
 }
 
 /// How many map edit documents the service has changed in their folder
