@@ -136,10 +136,17 @@ impl ViewerConsole {
                 && !event.repeat
                 && self.toggles_console(event, key)
             {
-                // Shift+Escape opens a quarter screen; Ctrl+console opens full.
-                // Plain and Shift+console follow con_height.
-                self.open_height =
-                    super::classic::open_height(key == KeyCode::Escape, self.control);
+                // `CL_KeyDownEvent`: Ctrl opens the console full screen, Shift a
+                // quarter of it; `con_shiftHeight` moves the quarter to Shift+Escape.
+                let shift_height = self
+                    .bool_cvar(super::console_options::SHIFT_HEIGHT_CVAR)
+                    .unwrap_or(false);
+                self.open_height = super::classic::open_height(
+                    key == KeyCode::Escape,
+                    self.control,
+                    self.shift,
+                    shift_height,
+                );
                 self.set_open(true);
                 return true;
             }

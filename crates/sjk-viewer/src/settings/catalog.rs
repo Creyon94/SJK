@@ -1150,6 +1150,11 @@ pub(super) const TEXT: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Swap Shift console size",
+        cvar: crate::console::console_options::SHIFT_HEIGHT_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Other clients' text",
         cvar: crate::text::charset::CVAR,
         kind: ValueKind::Choice(&crate::text::charset::NAMES),
