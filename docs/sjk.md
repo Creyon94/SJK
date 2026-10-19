@@ -40,7 +40,7 @@ general contributor rules.
   presents SJK as Sol's: Sol develops it and sets its direction, and Sol comes
   first (Sol's rule, 06/10/2026). SJK stands on its own (Sol's decision,
   08/10/2026): JKR, the engine SJK began from, and Bishop, its creator, appear only
-  in the credits (a footnote at the end of CREDITS.md and of the credits page), the
+  in the credits (the Origins section, last in CREDITS.md and on the credits page), the
   copyright notice and one footnote in the README and on the site. Code, wiki
   pages and in-game text describe SJK without comparing it to JKR. Keep CREDITS.md
   current when SJK gains notable work.
@@ -302,7 +302,7 @@ change, so it is part of the release it ships in.
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
 page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
 the full written record. Sol develops SJK alone since October 2026; Bishop is
-credited for JKR, SJK's starting point, in a footnote at the end of both (Sol's
+credited for JKR, SJK's starting point, in the Origins section, last in both (Sol's
 decision, 18/10/2026: most of JKR's code has since been replaced). Sol's card shows
 the contributors' pull requests Sol reviewed and merged as a "REVIEWED & MERGED"
 chip beside the pull requests and commits: the client counts every "SJK #" piece
