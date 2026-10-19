@@ -36,6 +36,14 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
 - Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
 - SJK chat can stay out of the game's chat feed (`cl_sjkChatFeed`) or the console (`cl_sjkChatConsole`), both on; the dock and the SJK chat page keep showing it _(Lukas)_
+- An attack or alt attack ends your emote, here and for the other SJK players, so you see your real attack instead of the dance _(Sol, after SixNine's report)_
+- Sounds near you no longer crackle while you move, the saber's hum most: each new snapshot briefly moved where the game listens from _(Sol, after Toad's report)_
+- The Holocrons page no longer says "8 of 8 today" after a new day starts: the limit is 8 holocrons in any 24 hours, so it reads "8 of 8 in 24 h" and, once reached, how long until the next one can drop _(Sol, after Toad's report)_
+- Security cameras and mirrors placed in maps show their view instead of a grey texture, such as the camera on JoF's ffa3 _(Sol, after SanjiJ's report)_
+- The E11 from JoF's HD weapon pack no longer shows a purple bit at the end of the barrel: a texture name with a stray extension loads its image, as in the original game _(Sol, after Nib's report)_
+- Scoreboard deaths match EJK: the local count (`cg_scoreDeaths` 3, or 2 when the server sends none) starts again on a map restart or a new map and when a player changes team or leaves, and duels and CTF show the score alone _(Sol, after Kushina's report)_
+- The death camera no longer tilts with the mouse, and a death is always seen in third person, as in EJK _(Sol, after Milamber's report)_
+- Falling into a pit no longer takes the camera down with you: it stays where the fall began and watches you drop, as in EJK _(Sol, after belyash's report)_
 
 ## 2026.1019.1 (Alpha) | 19/10/2026
 

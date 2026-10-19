@@ -5401,3 +5401,71 @@ test: mapedit_place on a selected prop, then mapedit_grab, move, mapedit_grab: a
 test: mapedit_remap <shader> on a wall; listRemaps lists it as edit; cg_mapEdits 0 hides all edits.
 test: mapedit_scope server on a server: the edit shows there, not on another server with the map.
 note: Hub endpoints on hub branch map-edits (b504457), not deployed: publish fails until it is.
+
+# ---- Bug reports, 19/10/2026 ----
+
+[emote-attack-stop]
+area: Gameplay
+title: Emotes: attack or alt attack ends your own emote
+change: A command with attack or alt attack stops your emote and tells the hub (as sjkemote stop).
+change: Hub report 78.
+test: Start a looping dance emote, press attack: the dance stops and your swing shows.
+test: Same with alt attack; a second SJK client sees the dance end too.
+
+[audio-listener-once]
+area: Audio
+title: Audio: saber hum no longer crackles while moving
+change: A new snapshot no longer moves the sound listener for part of the frame. Hub report 95.
+test: Saber out, run and strafe in first and third person: the hum stays smooth and centred.
+test: Other players' sounds still pan correctly as you turn.
+
+[holocron-cap-window]
+area: Menus & settings
+title: Holocrons: limit shown as 8 in 24 hours, with when the next one can drop
+change: The page said "8 of 8 today"; the hub's cap is a rolling 24 hours, not a calendar day.
+change: Capped, it says "Limit reached: next one in about N h M min". Hub report 77.
+test: Open Holocrons (not capped): the counter reads "n of 8 in 24 h".
+test: Capped key: the line reads "Limit reached: next one in about ..." and drops over minutes.
+test: Hover a tier: the card says "at most 8 in 24 hours".
+
+[portal-cameras]
+area: Rendering & effects
+title: Map security cameras and mirrors show their view (JoF ffa3 camera screen)
+change: Portal faces now find their misc_portal_surface (ET_PORTAL 8; SJK looked for 7, ET_BEAM).
+change: Hub report 84.
+test: On JoF's ffa3, the camera screen in the extra area shows the remote view, not grey.
+test: Walk away from it: the camera texture fades in with distance (alphaGen portal 2048).
+
+[e11-purple-tip]
+area: Rendering & effects
+title: E11 (JoF HD weapon pack): no purple bit at the end of the barrel
+change: A model naming its texture with an unknown extension (tex.jpgv) now loads tex.png, as JA.
+change: Hub report 88.
+test: With JoF_HDWeaponModels.pk3 in base, take the E11 and stand idle: no magenta at the barrel.
+test: Third person (cg_thirdPerson 1) and another player holding an E11: the barrel is textured.
+
+[score-deaths]
+area: HUD
+title: Scoreboard deaths: local count resets as in EJK, none in duel and CTF
+change: cg_scoreDeaths 2 (no server deaths) and 3 restart a player's count on team change or leave.
+change: Everyone's count restarts on map_restart or a new map; duel and CTF show score alone.
+test: cg_scoreDeaths 3 on a TFFA server: die twice, switch team: your deaths restart from 0.
+test: Wait for a map_restart (warmup end or callvote): every player's deaths restart from 0.
+test: On a CTF server with cg_scoreDeaths 1: the SJK scoreboard shows score without /deaths.
+note: Report #94 (Kushina, TFFA on JoF): ask whether the numbers now match what she expected.
+
+[dead-camera]
+area: Gameplay
+title: Death camera: fixed pitch, always third person
+change: Dead, the camera keeps the death yaw and the pitch you died with, as EternalJK.
+change: A first-person player is shown the death in third person. Hub report 80.
+test: Die in third person and move the mouse up and down: the camera must not tilt.
+test: Die in first person: the view switches to third person until you respawn.
+
+[fall-camera]
+area: Gameplay
+title: Pit falls: camera stays at the edge, watches you drop
+change: Falling to death leaves the camera where the fall began, looking down at you (EJK).
+change: Hub report 92.
+test: Jump into a fall-to-death pit (screen fades to black): the camera stays at the edge.
+test: After respawning, the camera follows you normally again.
