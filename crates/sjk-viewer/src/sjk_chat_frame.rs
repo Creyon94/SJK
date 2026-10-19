@@ -50,7 +50,7 @@ impl GpuState {
         };
         if let Some(console) = self.console.as_mut() {
             for line in console_lines {
-                console.push_chat_line(line.clone(), &line);
+                console.push_chat_line(line.clone(), &line, None);
             }
         }
         if sound && news && self.chat.sjk_sound_due(now) {

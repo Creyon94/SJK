@@ -745,6 +745,11 @@ horizon (no panel edge, the navy fading out under a gold line) and a dock (an
 outlined card with tabs), were offered beside it; Sol chose the deck
 (08/10/2026), which reads best over a bright map and keeps the classic
 console's full-width rows, and the other two were removed.
+Outgoing whisper echoes use those same rows in both console looks: hovering one
+shows the recipient name and client slot retained when the `tell` was sent. The
+server echo is matched before the hover note is attached, so an incoming or
+unmatched private line receives no recipient card
+([client.md](client.md#console-styles)).
 
 ## Settings
 

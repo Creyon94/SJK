@@ -119,12 +119,23 @@ impl ViewerConsole {
     /// Add a chat line to the scrollback without notifying, as `push_log_quiet`
     /// does, and keep `raw` (the server's text, `0x19` separators included) for
     /// the console socket.
-    pub(crate) fn push_chat_line(&mut self, display: String, raw: &str) {
+    pub(crate) fn push_chat_line(
+        &mut self,
+        display: String,
+        raw: &str,
+        own_whisper_body: Option<&str>,
+    ) {
         let number = self.shell.lines_written();
         // Chat stays out of crash reports.
         crate::crash_report::privately(|| self.shell.push_log_quiet(display));
         // A line `cl_noprint` suppressed has no number to name.
-        if self.socket.socket.has_reader() && self.shell.lines_written() != number {
+        if self.shell.lines_written() == number {
+            return;
+        }
+        if let Some(body) = own_whisper_body {
+            self.whisper_hover.note_echo(number, body);
+        }
+        if self.socket.socket.has_reader() {
             if self.socket.raw_chat.len() == MAX_RAW_CHAT {
                 self.socket.raw_chat.pop_front();
             }
@@ -364,7 +375,7 @@ mod tests {
         // Console output and chat arrive as lines; chat keeps the 0x19 separator,
         // and a high character is one Windows-1252 byte, as apps expect.
         console.push_log("^5plain output");
-        console.push_chat_line("T\u{f8}x^7: hello".into(), "T\u{f8}x^7\u{19}: hello");
+        console.push_chat_line("T\u{f8}x^7: hello".into(), "T\u{f8}x^7\u{19}: hello", None);
         let got = read_until(&mut console, &mut app, b"hello\n");
         assert!(
             got.windows(14).any(|window| window == b"^5plain output"),
