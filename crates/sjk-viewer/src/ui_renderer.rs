@@ -142,6 +142,9 @@ const ARC_MODE: f32 = 3.0;
 /// `parameters.y` value that selects the line shader path (`ui_shapes.wgsl`).
 const LINE_MODE: f32 = 4.0;
 
+/// `parameters.y` value that selects the strafe aura shader path (`ui_shapes.wgsl`).
+const AURA_MODE: f32 = 5.0;
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub(super) struct ShapeVertex {
@@ -807,6 +810,9 @@ impl ShapeRenderer {
                         viewport,
                     );
                 }
+                DrawCommand::StrafeAura { center, aura } => {
+                    self.push_aura(center, aura, opacity[opacity_depth], viewport);
+                }
                 DrawCommand::Line {
                     from,
                     to,
@@ -1106,6 +1112,65 @@ impl ShapeRenderer {
             self.vertices.push(vertex(points[index]));
             self.vertices.push(vertex(points[index + 1]));
         }
+    }
+
+    /// One quad over the aura's shown part; `ui_shapes.wgsl` shades it per pixel as
+    /// [`sjk_ui::strafe_aura_shade`] does, from the aura packed in the colours.
+    fn push_aura(
+        &mut self,
+        center: [f32; 2],
+        aura: sjk_ui::StrafeAura,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        // The shader draws up to 1.6 half widths off the centre line, within the span.
+        let outer = aura.radius + aura.width * 0.8 + 1.0;
+        let inner = (aura.radius - aura.width * 0.8).max(0.0);
+        let span = aura.span.clamp(0.0, std::f32::consts::PI);
+        let bottom = if span < std::f32::consts::FRAC_PI_2 {
+            -inner * span.cos()
+        } else {
+            -outer * span.cos()
+        };
+        let side = if span < std::f32::consts::FRAC_PI_2 {
+            outer * span.sin()
+        } else {
+            outer
+        };
+        let rect = Rect::new(
+            center[0] - side,
+            center[1] - outer,
+            side * 2.0,
+            outer + bottom.min(outer),
+        );
+        if aura.radius <= 0.0
+            || aura.width <= 0.0
+            || rect.height <= 0.0
+            || self.vertices.len() + 6 > MAX_SHAPE_VERTICES
+        {
+            return;
+        }
+        art::untextured(&mut self.runs, self.vertices.len());
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let points = [
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.y], [1.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.bottom()], [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(pixel, local)| ShapeVertex {
+                position: position(pixel[0], pixel[1]),
+                local,
+                size: [rect.width, rect.height],
+                start_color: [aura.speed, aura.acceleration, aura.wishspeed, aura.base],
+                end_color: [aura.radius, aura.width, aura.span, aura.time],
+                parameters: [aura.alpha * opacity, AURA_MODE],
+                // The quad's top-left corner relative to the aura's centre.
+                uv: [rect.x - center[0], rect.y - center[1]],
+            }));
     }
 
     fn push_shape(
@@ -1592,5 +1657,22 @@ mod line_clip_tests {
         assert_eq!(top, 0.0);
         // Wholly in the corner, outside the arc: nothing.
         assert_eq!(clip_polygon(quad(0.0, 0.0, 3.0, 3.0), clip, round).1, 0);
+    }
+}
+
+#[cfg(test)]
+mod shape_shader_tests {
+    #[test]
+    fn the_shape_shader_validates() {
+        use wgpu::naga;
+        let source = include_str!("ui_shapes.wgsl");
+        let module = naga::front::wgsl::parse_str(source)
+            .unwrap_or_else(|error| panic!("{}", error.emit_to_string(source)));
+        naga::valid::Validator::new(
+            naga::valid::ValidationFlags::all(),
+            naga::valid::Capabilities::all(),
+        )
+        .validate(&module)
+        .unwrap_or_else(|error| panic!("{}", error.emit_to_string(source)));
     }
 }

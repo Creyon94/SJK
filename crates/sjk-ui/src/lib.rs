@@ -6,6 +6,7 @@
 
 mod animation;
 mod arc;
+mod aura;
 mod document;
 mod draw;
 mod geometry;
@@ -20,6 +21,7 @@ pub use arc::{
     ArcSegment, MAX_ARC_SEGMENTS, arc_distance, knockout_coverage, knockout_remainder,
     segments as arc_segments, span as arc_span,
 };
+pub use aura::{StrafeAura, shade as strafe_aura_shade, strafe_gain, strafe_peak};
 pub use document::{
     ArcStyle, HudLayoutDocument, HudWidget, HudWidgetKind, StyleOverrides, VisibilityCondition,
 };

@@ -34,8 +34,89 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
     return output;
 }
 
+// SJK's strafe aura, the same expressions as `sjk_ui::strafe_aura_shade` (aura.rs).
+fn strafe_gain(speed: f32, acceleration: f32, wishspeed: f32, angle: f32) -> f32 {
+    let along = speed * cos(angle);
+    let add = clamp(wishspeed - along, 0.0, acceleration);
+    let grow = 2.0 * along * add + add * add;
+    let next = sqrt(max(speed * speed + grow, 0.0));
+    if next + speed > 0.0 {
+        return grow / (next + speed);
+    }
+    return 0.0;
+}
+
+// WGSL's pow is undefined for a negative base.
+fn square(x: f32) -> f32 {
+    return x * x;
+}
+
+fn wrap_angle(angle: f32) -> f32 {
+    return angle - 6.2831855 * floor((angle + 3.1415927) / 6.2831855);
+}
+
+fn strafe_aura(input: VertexOutput) -> vec4<f32> {
+    // start_color = (speed, acceleration, wish speed, base angle), end_color = (radius,
+    // width, span, time), parameters.x = opacity, uv = the quad's corner from the centre.
+    let speed = input.start_color.x;
+    let acceleration = input.start_color.y;
+    let wishspeed = input.start_color.z;
+    let base = input.start_color.w;
+    let radius = input.end_color.x;
+    let half = input.end_color.y * 0.5;
+    let span = input.end_color.z;
+    let t = input.end_color.w;
+    let pixel = input.uv + input.local * input.size;
+    let across = (length(pixel) - radius) / half;
+    if abs(across) > 1.6 || half <= 0.0 || speed <= 0.0 {
+        discard;
+    }
+    let turn = wrap_angle(-1.5707964 - atan2(pixel.y, pixel.x));
+    let fade = 1.0 - smoothstep(span - 0.15, span, abs(turn));
+    let peak = acos(clamp((wishspeed - acceleration) / speed, -1.0, 1.0));
+    let top = strafe_gain(speed, acceleration, wishspeed, peak);
+    if fade <= 0.0 || top <= 0.0 {
+        discard;
+    }
+    let angle = base + turn;
+    let n = strafe_gain(speed, acceleration, wishspeed, angle) / top;
+    let to_best = min(abs(wrap_angle(angle - peak)), abs(wrap_angle(angle + peak)));
+    let flow = 0.5 + 0.5 * sin(to_best * 40.0 - t * 5.0 + sin(across * 3.0 + t * 1.7) * 1.2);
+    let flicker = 0.5 + 0.5 * (sin(turn * 23.0 + t * 2.3 + across * 4.0) * sin(turn * 11.0 - t * 1.3));
+    var pulse = 1.0;
+    if strafe_gain(speed, acceleration, wishspeed, base) / top > 0.9 {
+        pulse = 1.0 + 0.35 * sin(t * 9.0);
+    }
+    let seam = exp(-square(to_best / 0.02)) * exp(-square(across / 0.55));
+    var rgb = vec3(1.0);
+    var a = 0.0;
+    if n > 0.0 {
+        let hot = n * n;
+        let flame = across / (0.35 + 0.65 * n) + (flow - 0.5) * 0.35;
+        let body = exp(-flame * flame * 3.0);
+        let core = exp(-square(across / 0.18));
+        rgb = vec3(0.22 + 0.63 * hot, 0.5 + 0.45 * hot, 1.0);
+        a = (body * (0.3 + 0.4 * flow + 0.2 * flicker) * sqrt(n) + core * 0.6 * hot) * pulse;
+    } else if n < 0.0 {
+        rgb = vec3(1.0, 0.28, 0.2);
+        a = min(-n, 1.0) * 0.55 * exp(-square(across / 0.3)) * (0.7 + 0.3 * flow);
+    }
+    if seam > 0.0 {
+        rgb = rgb + (vec3(1.0) - rgb) * seam;
+        a = max(a, seam * 0.95 * min(pulse, 1.0));
+    }
+    a = clamp(a * fade * input.parameters.x, 0.0, 1.0);
+    if a <= 0.0 {
+        discard;
+    }
+    return vec4(rgb, a);
+}
+
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    if input.parameters.y > 4.5 {
+        return strafe_aura(input);
+    }
     if input.parameters.y > 3.5 {
         // Straight stroke: the quad runs along the line with one pixel of margin on
         // each side; coverage fades across one pixel at the stroke's edges.

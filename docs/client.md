@@ -2500,19 +2500,23 @@ are drawn, one at a time (the command switches between them as JoF EJK's does):
   crosshair at the same headings, airborne only.
 
 The strafe aura (`cg_strafeAura`, Settings > HUD+ > "Strafe aura", off) is SJK's own
-guide, drawn on its own or with a helper style. Where the lines mark one heading per
-key, it shows the speed every heading gains: an arc over the crosshair, its top the
-view and each point a turn of that many degrees (left on the left, 60 each side),
-glowing in Force blue with what one move would add there with the keys held
-(`PM_Accelerate`: the push along the wish direction is `wishspeed` less the speed
-already along it, at most the acceleration; `math::gain`). The best heading, where
-the push first reaches the acceleration, is a white-hot edge: short of it nothing is
-gained, so the arc is dark; past it the glow fades with the cosine; red marks headings
-that slow you down. Ripples run towards the best heading, and the tick at the top
-turns blue while the view gains at least 90% of the best (red when it loses). It
-uses the lines' physics, frame rate (`cg_strafeHelper_FPS`), speed gate and
-restrictions; `cg_strafeAuraRadius` (virtual pixels of 480 lines, 40) and
-`cg_strafeAuraAlpha` (1) set its size and opacity.
+guide, drawn on its own or with a helper style, while you jump or fall (on the ground
+too with `cg_strafeAuraGround`, "Aura on the ground"). Where the lines mark one
+heading per key, it shows the speed every heading gains: an arc over the crosshair,
+its top the view and each point a turn of that many degrees (left on the left, 60
+each side), glowing in Force blue with what one move would add there with the keys
+held (`PM_Accelerate`: the push along the wish direction is `wishspeed` less the
+speed already along it, at most the acceleration; `sjk_ui::strafe_gain`). The best
+heading, where the push first reaches the acceleration, is a white-hot seam: short
+of it nothing is gained, so the arc is dark; past it the glow thins and fades with
+the cosine; red marks headings that slow you down. It is one draw command,
+`DrawCommand::StrafeAura`, shaded per pixel by `ui_shapes.wgsl` (wisps flowing
+towards the best heading, a pulse while the view gains at least 90% of the best),
+with `sjk_ui::strafe_aura_shade` as the CPU reference the menu snapshots draw
+(`strafe_aura_snapshot`). The tick at the top turns blue while the view gains at least
+90% of the best (red when it loses). It uses the lines' physics, frame rate
+(`cg_strafeHelper_FPS`), speed gate and restrictions; `cg_strafeAuraRadius` (virtual
+pixels of 480 lines, 40) and `cg_strafeAuraAlpha` (1) set its size and opacity.
 
 Settings > HUD+ > "Strafe lines" switches option 1 (a derived switch: on replaces
 the other style and adds WA and WD when no key is picked, off clears it). The

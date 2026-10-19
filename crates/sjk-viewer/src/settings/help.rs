@@ -873,7 +873,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::hud::movement::AURA_CVAR,
-        "A glow over the crosshair: the speed each heading gains. Turn until its top tick sits on the white edge.",
+        "A glow over the crosshair while you jump or fall: the speed each heading gains. Turn until its top tick sits on the white edge.",
+    ),
+    (
+        crate::hud::movement::AURA_GROUND_CVAR,
+        "Shows the strafe aura while you run on the ground too, not only in the air.",
     ),
     (
         crate::scoreboard::style::CVAR,

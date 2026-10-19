@@ -1336,7 +1336,10 @@ area: HUD
 title: Strafe aura: a glow over the crosshair showing where turning gains speed
 change: cg_strafeAura draws an arc over the crosshair; each point is a turn left/right.
 change: It glows with the gain of the keys held: white edge = best, nothing short, red slows.
+change: Own shader now (flowing wisps), and only in the air unless cg_strafeAuraGround 1.
 test: Settings > HUD+ > Strafe aura on (or cg_strafeAura 1); run and strafe-jump with W+A.
+test: Running on the ground: no aura; Aura on the ground on: it shows while running too.
+test: The glow flows towards the white seam and pulses while you sit on it.
 test: Turn until the top tick sits on the white edge: it turns blue and speed should climb.
 test: Under-turn: tick white, no glow under it; over-turn far: glow fades, then red.
 test: Compare with Strafe lines on: the white edge sits where the green line points.

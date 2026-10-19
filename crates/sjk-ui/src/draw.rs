@@ -138,6 +138,12 @@ pub enum DrawCommand {
         color: Color,
         knockout: Option<Rect>,
     },
+    /// SJK's strafe aura centred on `center`, shaded per pixel by the renderer
+    /// ([`crate::strafe_aura_shade`]).
+    StrafeAura {
+        center: [f32; 2],
+        aura: crate::StrafeAura,
+    },
     /// Straight stroke from `from` to `to` with square ends, anti-aliased along its
     /// sides by the renderer. `width` is the stroke thickness in pixels.
     Line {

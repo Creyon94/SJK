@@ -372,6 +372,25 @@ fn raster(
                     }
                 }
             }
+            DrawCommand::StrafeAura { center, aura } => {
+                let outer = aura.radius + aura.width * 0.8 + 1.0;
+                let area = Rect::new(
+                    center[0] - outer,
+                    center[1] - outer,
+                    outer * 2.0,
+                    outer * 2.0,
+                );
+                let (xs, ys) = span(area, clip);
+                for y in ys {
+                    for x in xs.clone() {
+                        let point = [x as f32 + 0.5 - center[0], y as f32 + 0.5 - center[1]];
+                        let [r, g, b, a] = sjk_ui::strafe_aura_shade(point, aura);
+                        if a > 0.0 {
+                            blend(image, x, y, [r, g, b, a * o]);
+                        }
+                    }
+                }
+            }
             DrawCommand::Line {
                 from,
                 to,
@@ -2720,5 +2739,65 @@ fn medals_snapshot() {
             std::time::Instant::now(),
         );
         shots.save_at(name, popup.draw_list(), &vertices, true, VIEWPORT);
+    }
+}
+
+/// The strafe aura at three moments of a W+A strafe jump at 520 ups (short of the best
+/// heading, on it, too far), over a dark backdrop with a crosshair; needs no game data.
+#[test]
+#[ignore = "writes preview pictures to target/menu-snapshots"]
+fn strafe_aura_snapshot() {
+    let size = [480.0, 300.0];
+    let center = [size[0] * 0.5, size[1] * 0.62];
+    let best = sjk_ui::strafe_peak(520.0, 2.0, 250.0);
+    for (name, base, time) in [
+        ("strafe-aura-short", 45f32.to_radians(), 0.0),
+        ("strafe-aura-on", best + 0.004, 0.4),
+        ("strafe-aura-far", best + 40f32.to_radians(), 0.8),
+    ] {
+        let mut list = DrawList::new(8);
+        let _ = list.push(DrawCommand::StrafeAura {
+            center,
+            aura: sjk_ui::StrafeAura {
+                radius: 110.0,
+                width: 110.0 * 0.45,
+                span: 60f32.to_radians(),
+                speed: 520.0,
+                acceleration: 2.0,
+                wishspeed: 250.0,
+                base,
+                time,
+                alpha: 1.0,
+            },
+        });
+        for (from, to) in [
+            ([center[0] - 8.0, center[1]], [center[0] + 8.0, center[1]]),
+            ([center[0], center[1] - 8.0], [center[0], center[1] + 8.0]),
+            (
+                [center[0], center[1] - 126.0],
+                [center[0], center[1] - 94.0],
+            ),
+        ] {
+            let _ = list.push(DrawCommand::Line {
+                from,
+                to,
+                width: 2.0,
+                color: sjk_ui::Color::new(1.0, 1.0, 1.0, 0.7),
+            });
+        }
+        let mut image =
+            RgbaImage::from_pixel(size[0] as u32, size[1] as u32, Rgba([24, 26, 34, 255]));
+        raster(
+            &mut image,
+            &list,
+            &[],
+            &RgbaImage::new(1, 1),
+            &HashMap::new(),
+        );
+        let directory = workspace_root().join("target/menu-snapshots");
+        std::fs::create_dir_all(&directory).expect("create the snapshot directory");
+        let path = directory.join(format!("{name}.png"));
+        image.save(&path).expect("write the snapshot");
+        println!("{}", path.display());
     }
 }
