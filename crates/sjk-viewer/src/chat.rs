@@ -128,6 +128,8 @@ pub(crate) struct ChatOverlay {
     sjk_mark: Option<(u64, u64, u64)>,
     /// When the SJK chat's sound last played (`chat/sjk.rs`, [`sjk::SOUND_GAP`]).
     sjk_sound_at: Option<Instant>,
+    /// Whether SJK messages join the in-game general chat feed (`cl_sjkChatFeed`).
+    sjk_feed_visible: bool,
     /// Whether the lines with a GIF read "GIF" and show it (`cl_sjkChatGifs`), or keep
     /// their links as text (`chat/feed_gif.rs`).
     gifs_shown: bool,
@@ -214,6 +216,7 @@ impl ChatOverlay {
             sjk_outcome: 0,
             sjk_mark: None,
             sjk_sound_at: None,
+            sjk_feed_visible: true,
             gifs_shown: true,
             gif_sources_revision: 0,
             own_slot: None,

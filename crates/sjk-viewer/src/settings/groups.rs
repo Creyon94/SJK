@@ -91,6 +91,8 @@ const CHAT_ROWS: &[&str] = &[
     "cg_chatBoxLetterSpacing",
     crate::text::charset::CVAR,
     "cl_sjkChat",
+    crate::sjk_chat_frame::FEED_CVAR,
+    crate::sjk_chat_frame::CONSOLE_CVAR,
     crate::chat_gifs::CVAR,
     crate::chat_gifs::VIDEO_CVAR,
     crate::chat_gifs::search::KEY_CVAR,
