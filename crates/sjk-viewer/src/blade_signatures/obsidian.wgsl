@@ -140,7 +140,8 @@ fn ob_place(fi: f32) -> vec3<f32> {
     return around(R, a, y);
 }
 
-fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+// round 10: the shards circle the blade, so they are drawn in true 3D (only orbits are)
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     var col: vec4<f32> = vec4<f32>(0.0);
     if uFx < 0.01 || fxNear(ro, rd, uLength * 0.1, uLength) > 8.0 {
         return col;
@@ -174,6 +175,24 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if fxNear(ro, rd, y0, y1) > 10.0 {
         return col;
     }
+    // white-hot beams flashing off the edges
+    col += fxRays(ro, rd, px, y0, y1, 10.0, 6.0 + 2.0 * sw, 0.7, 2.3, hot);
+    col += fxAura(ro, rd, y0, y1, 2.8, hot) * 0.8;
+    // a clash: a shock ring and a flash
+    col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 9.0, white) * 1.6;
+    return col * uFx;
+}
+
+// the shards' glow and the magma lightning leaping from the blade to them, in true 3D with them
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    let t = uTime;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let hot: vec3<f32> = vec3<f32>(1.0, 0.45, 0.1);
+    var col: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, L * 0.1, L) > 10.0 {
+        return col;
+    }
     var ta: f32;
     // the shards' glow, and magma lightning leaping from the blade to them
     for (var i = 0; i < 18; i++) {
@@ -188,10 +207,5 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let d = bolt3(ro, rd, vec3(0.0, p.y + (h11(k + fi) - 0.5) * 3.0, 0.0), p, k + fi * 1.7, 0.45);
         col += boltLight(d, hot, px) * (1.0 - q) * (1.0 - q);
     }
-    // white-hot beams flashing off the edges
-    col += fxRays(ro, rd, px, y0, y1, 10.0, 6.0 + 2.0 * sw, 0.7, 2.3, hot);
-    col += fxAura(ro, rd, y0, y1, 2.8, hot) * 0.8;
-    // a clash: a shock ring and a flash
-    col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 9.0, white) * 1.6;
     return col * uFx;
 }

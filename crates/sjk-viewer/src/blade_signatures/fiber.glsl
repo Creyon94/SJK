@@ -15,7 +15,8 @@ vec3 kc_pos(float i, out vec3 axis){
   axis = normalize(vec3(sin(uTime*0.4 + i), 1.6, cos(uTime*0.3 + i*2.0)));
   return around(3.4 + 0.8*sin(i*2.3), a, y);
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+// round 10: the crystals circle the blade, so they are drawn in true 3D (only orbits are)
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   float t = uTime, top = kc_top(), s, ta;
   float cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
@@ -43,7 +44,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   return col*uFx;
 }
 // the crystals themselves: elongated shards facing the camera, faceted, lit in their colour
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   vec4 o = vec4(0.0);
   if (uFx < 0.01) return o;
   float top = kc_top(), bestT = 1e5;
@@ -52,10 +53,10 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
     vec3 ax;
     vec3 c = kc_pos(fi, ax);
     if (c.y > top) continue;
-    float ln = 1.0 + 0.5*h11(fi*3.3);
+    float ln = 1.8 + 0.8*h11(fi*3.3);
     float s, ta;
     float d = raySeg(ro, rd, c - ax*ln, c + ax*ln, s);
-    float w = 0.38*(1.0 - pow(abs(s*2.0 - 1.0), 1.5)) + 0.01;
+    float w = 0.62*(1.0 - pow(abs(s*2.0 - 1.0), 1.5)) + 0.01;
     float cv = fillD(d - w, px);
     if (cv <= 0.0) continue;
     rayPt(ro, rd, c, ta);

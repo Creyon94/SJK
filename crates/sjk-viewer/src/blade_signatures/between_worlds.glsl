@@ -158,6 +158,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       fx += (vec3(1.0)*halo(d, max(0.04, px))*(0.35 + 1.4*pulse) + gold*halo(d, 0.25)*(0.25 + 0.6*pulse))*ends*vis;
       fx += fxFlare(ro, rd, c, px, 0.12, 1.8, 4.0, 0.0, gold)*vis*0.6;
     }
+    fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 30.0, 0.04, 2.2, pale);
+    fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.7;
+  }
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, pale)*1.6;
+  return col + fx*uFx;
+}
+
+// round 10: the duel circles the blade, so it alone is drawn in true 3D (Sol's way)
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 pale = vec3(1.0, 0.96, 0.88), ahs = vec3(0.75, 0.88, 1.0), ana = vec3(1.0, 0.12, 0.06);
+  float s, ta;
     // the duel: two lights circling the blade on crossing paths, trailing, meeting in a flash
     float P = 4.0, ph = fract(t/P), k = floor(t/P);
     for (int j = 0; j < 2; j++){
@@ -180,9 +195,5 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float fl = exp(-ph*7.0);
     fx += fxFlare(ro, rd, meet, px, 0.25, 5.0, 6.0, k, mix(ahs, ana, 0.5))*fl*1.4;
     fx += fxShock(ro, rd, px, meet.y, ph*1.6, 6.0, pale)*0.8;
-    fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 30.0, 0.04, 2.2, pale);
-    fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.7;
-  }
-  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, pale)*1.6;
-  return col + fx*uFx;
+  return fx*uFx;
 }

@@ -134,10 +134,6 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
     vec4 dr = qs_sphere(ro, rd, c, px, th);
     if (dr.a > 0.0 && th < best){ best = th; acc = dr; }
   }
-  for (int k = 0; k < 10; k++){
-    vec4 dr = qs_sphere(ro, rd, qs_orbit3(float(k)), px, th);
-    if (dr.a > 0.0 && th < best){ best = th; acc = dr; }
-  }
   // a clash: a ring of droplets blown out
   float cl = clamp(uClash, 0.0, 1.0);
   if (cl > 0.01){
@@ -162,4 +158,16 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   col += fxAura(ro, rd, y0, y1, 2.6, silver)*0.6;
   col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, silver)*1.5;
   return col*uFx;
+}
+// round 10: the droplets circling the blade, in true 3D (only orbits are; the rest is flat)
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
+  vec4 acc = vec4(0.0);
+  if (uFx < 0.01 || fxNear(ro, rd, uLength*0.1, uLength) > 9.0) return acc;
+  float best = 1e5, th;
+  for (int k = 0; k < 10; k++){
+    vec4 dr = qs_sphere(ro, rd, qs_orbit3(float(k)), px, th);
+    if (dr.a > 0.0 && th < best){ best = th; acc = dr; }
+  }
+  acc.a *= clamp(uIgn*1.5, 0.0, 1.0);
+  return acc;
 }

@@ -24,7 +24,8 @@ fn kc_pos(i: f32, axis: ptr<function, vec3<f32>>) -> vec3<f32> {
     return around(3.4 + 0.8 * sin(i * 2.3), a, y);
 }
 
-fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+// round 10: the crystals circle the blade, so they are drawn in true 3D (only orbits are)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let t = uTime;
     let top = kc_top();
     var s: f32;
@@ -60,7 +61,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 }
 
 // the crystals themselves: elongated shards facing the camera, faceted, lit in their colour
-fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     var o: vec4<f32> = vec4<f32>(0.0);
     if uFx < 0.01 {
         return o;
@@ -74,11 +75,11 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
         if c.y > top {
             continue;
         }
-        let ln = 1.0 + 0.5 * h11(fi * 3.3);
+        let ln = 1.8 + 0.8 * h11(fi * 3.3);
         var s: f32;
         var ta: f32;
         let d = raySeg(ro, rd, c - ax * ln, c + ax * ln, &s);
-        let w = 0.38 * (1.0 - pow(abs(s * 2.0 - 1.0), 1.5)) + 0.01;
+        let w = 0.62 * (1.0 - pow(abs(s * 2.0 - 1.0), 1.5)) + 0.01;
         let cv = fillD(d - w, px);
         if cv <= 0.0 {
             continue;

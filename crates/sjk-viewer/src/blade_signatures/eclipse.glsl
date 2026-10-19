@@ -28,13 +28,14 @@ float ec_shade(float y){
 
 // the eclipsed suns: three dark moons, each in front of its own small sun, orbiting the blade
 // in 3D like the Void's black holes: centre and radius of orb i
-vec3 ec_orb(float i, out float R){
+vec3 ec_orbAt(float i, float tt, out float R){
   float L = uLength;
   R = 0.9 + 0.25*i;
-  float a = i/3.0 + uTime*(0.12 + 0.05*i)*(i == 1.0 ? -1.0 : 1.0);
-  float y = L*(0.5 + 0.17*i) + 1.0*sin(uTime*0.4 + i*2.0);
+  float a = i/3.0 + tt*(0.12 + 0.05*i)*(i == 1.0 ? -1.0 : 1.0);
+  float y = L*(0.5 + 0.17*i) + 1.0*sin(tt*0.4 + i*2.0);
   return around(3.4 + 0.4*i, a, y);
 }
+vec3 ec_orb(float i, out float R){ return ec_orbAt(i, uTime, R); }
 // a point's place in the plane facing the camera round centre c: (across, up) and distance
 vec3 ec_face(vec3 ro, vec3 rd, vec3 c){
   float t;
@@ -73,39 +74,6 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     // the inner corona: a bright soft ring of light hugging the band
     float dc = rayPt(ro, rd, vec3(0.0, yb, 0.0), tq);
     fx += white*(halo(abs(dc - 0.9), 0.35)*0.5 + halo(dc, 1.6)*0.15)*vis*(1.0 + flare);
-  }
-  // ---- the eclipsed suns orbiting the blade: a black moon rimmed by a blazing corona with
-  // streamers, a diamond-ring flash, beads of light and a pearly wake behind each
-  for (int i = 0; i < 3; i++){
-    float fi = float(i), R;
-    vec3 c = ec_orb(fi, R);
-    if (c.y > top + 2.0) continue;
-    vec3 f = ec_face(ro, rd, c);
-    if (f.z > R*6.0) continue;
-    float ang = atan(f.y, f.x);
-    float rr = f.z/R;
-    float strm = pow(0.5 + 0.5*sin(ang*7.0 + uTime*0.3 + fi*2.0), 3.0)*0.7 + pow(0.5 + 0.5*sin(ang*13.0 - uTime*0.5 + fi), 6.0)*0.5;
-    float cor = exp(-max(rr - 1.0, 0.0)*(1.1 - 0.7*strm))*smoothstep(0.95, 1.02, rr)*(1.0 - smoothstep(3.0, 5.5, rr));
-    float rim = halo(abs(rr - 1.02), 0.04 + px/R);
-    float spin = uTime*0.9 + fi*2.1;
-    float dia = pow(max(cos(ang - spin), 0.0), 60.0)*halo(abs(rr - 1.0), 0.15);
-    fx += (pearl*cor*(1.6 + 0.8*flare) + white*rim*2.2 + white*dia*4.0 + white*halo(abs(rr - 1.0), 0.6)*pow(max(cos(ang - spin), 0.0), 8.0)*0.6)*vis;
-    // beads of light circling the rim
-    for (int j = 0; j < 5; j++){
-      float aj = spin + 0.4 + float(j)*0.25;
-      vec2 bp = vec2(cos(aj), sin(aj))*R*1.02;
-      float db = length(f.xy - bp);
-      fx += white*halo(db, max(0.05, px))*1.4*(0.6 + 0.4*sin(uTime*9.0 + float(j)))*vis;
-    }
-    // a pearly wake trailing the orbit
-    for (int j = 1; j <= 6; j++){
-      float lag = float(j)*0.018*(fi == 1.0 ? -1.0 : 1.0);
-      float Rw;
-      float a0 = fi/3.0 + (uTime - float(j)*0.25)*(0.12 + 0.05*fi)*(fi == 1.0 ? -1.0 : 1.0);
-      vec3 cw = around(4.2 + 0.5*fi, a0, uLength*(0.3 + 0.25*fi) + 1.2*sin((uTime - float(j)*0.25)*0.4 + fi*2.0));
-      float dw = rayPt(ro, rd, cw, tq);
-      fx += pearl*halo(dw, 0.35*(1.0 - float(j)/7.0) + 0.05)*0.35*(1.0 - float(j)/7.0)*vis;
-    }
   }
   // ---- solar wind: pearly motes streaming out from the band and the suns
   for (int i = 0; i < 18; i++){
@@ -175,8 +143,51 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   light += fx*uFx;
   return light;
 }
-// the orbiting moons' dark discs, each a disc facing the camera
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+// the orbiting moons' dark discs, each a disc facing the camera, in true 3D
+// round 10: the eclipsed suns circle the blade, so they alone are drawn in true 3D
+// (Sol's way: only what orbits is 3D, everything else flat)
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  float top = ec_top(), tq;
+  float cl = clamp(uClash, 0.0, 1.0);
+  float flare = max(cl, exp(-uAge*1.6)*step(0.0, uAge)*0.35);
+  vec3 pearl = vec3(1.0, 0.9, 0.72), white = vec3(1.0, 0.98, 0.94);
+  vec3 fx = vec3(0.0);
+  float vis = smoothstep(0.1, 0.6, uAge);
+  // ---- the eclipsed suns orbiting the blade: a black moon rimmed by a blazing corona with
+  // streamers, a diamond-ring flash, beads of light and a pearly wake behind each
+  for (int i = 0; i < 3; i++){
+    float fi = float(i), R;
+    vec3 c = ec_orb(fi, R);
+    if (c.y > top + 2.0) continue;
+    vec3 f = ec_face(ro, rd, c);
+    if (f.z > R*6.0) continue;
+    float ang = atan(f.y, f.x);
+    float rr = f.z/R;
+    float strm = pow(0.5 + 0.5*sin(ang*7.0 + uTime*0.3 + fi*2.0), 3.0)*0.7 + pow(0.5 + 0.5*sin(ang*13.0 - uTime*0.5 + fi), 6.0)*0.5;
+    float cor = exp(-max(rr - 1.0, 0.0)*(1.1 - 0.7*strm))*smoothstep(0.95, 1.02, rr)*(1.0 - smoothstep(3.0, 5.5, rr));
+    float rim = halo(abs(rr - 1.02), 0.04 + px/R);
+    float spin = uTime*0.9 + fi*2.1;
+    float dia = pow(max(cos(ang - spin), 0.0), 60.0)*halo(abs(rr - 1.0), 0.15);
+    fx += (pearl*cor*(1.6 + 0.8*flare) + white*rim*2.2 + white*dia*4.0 + white*halo(abs(rr - 1.0), 0.6)*pow(max(cos(ang - spin), 0.0), 8.0)*0.6)*vis;
+    // beads of light circling the rim
+    for (int j = 0; j < 5; j++){
+      float aj = spin + 0.4 + float(j)*0.25;
+      vec2 bp = vec2(cos(aj), sin(aj))*R*1.02;
+      float db = length(f.xy - bp);
+      fx += white*halo(db, max(0.05, px))*1.4*(0.6 + 0.4*sin(uTime*9.0 + float(j)))*vis;
+    }
+    // a pearly wake trailing the orbit
+    for (int j = 1; j <= 6; j++){
+      float lag = float(j)*0.018*(fi == 1.0 ? -1.0 : 1.0);
+      float Rw;
+      vec3 cw = ec_orbAt(fi, uTime - float(j)*0.25, Rw);
+      float dw = rayPt(ro, rd, cw, tq);
+      fx += pearl*halo(dw, 0.35*(1.0 - float(j)/7.0) + 0.05)*0.35*(1.0 - float(j)/7.0)*vis;
+    }
+  }
+  return fx*uFx;
+}
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   vec4 o = vec4(0.0);
   float top = ec_top();
   for (int i = 0; i < 3; i++){

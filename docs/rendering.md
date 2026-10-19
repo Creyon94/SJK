@@ -1928,8 +1928,17 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   direction). `sig_full` places the three-dimensional effects on the full length and
   shows them only once the blade is nearly all out (85 to 100 % of it), so nothing slides
   up the blade while it ignites (it did, fast, with `uLength` growing).
+- **Flat as Sol's, only orbits in 3D (round 10, 20/10/2026).** Creyon: Sol's blades "only have
+  parts that are 3D". `sig_vol` and `sig_vol_solid` are now handed a flat view (`sig_flat`): a
+  ray straight through the blade's picture at its place `b`, from a little above (rings round
+  the blade read as ellipses), so everything they draw is a flat picture round the blade
+  facing the camera, as Sol's arcs, flares and wisps are, the same from every side. Only what
+  circles the blade is drawn along the true view ray in the hilt's frame, by two more hooks,
+  `sig_orbit` (light) and `sig_orbit_solid` (a layer): the Eclipse's suns, Obsidian Edge's
+  shards, Liquid Beskar's orbiting droplets, Carbonite's floating shards, the Kyber Cluster's
+  crystals and the Between Worlds duel. `tools/sig3d.py` in the Blade Lab draws the same way.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
-  own way, all in that frame: `fxRays` (beams shooting out of the blade and fading),
+  own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
   back, with a fork), `fxSparks`, `fxCoils` (strands of light wound round it with knots
   running along them), `fxMotes`, `fxShock` (a ring racing out), `fxFlare` (a star facing

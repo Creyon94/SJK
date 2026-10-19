@@ -287,7 +287,8 @@ mod tests {
             assert_eq!(
                 signature.solid(),
                 signature.wgsl.contains("fn sig_solid(")
-                    || signature.wgsl.contains("fn sig_vol_solid("),
+                    || signature.wgsl.contains("fn sig_vol_solid(")
+                    || signature.wgsl.contains("fn sig_orbit_solid("),
                 "{}: @solid and sig_solid disagree",
                 signature.id
             );

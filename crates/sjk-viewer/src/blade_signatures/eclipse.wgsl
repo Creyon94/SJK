@@ -41,12 +41,16 @@ fn ec_shade(y: f32) -> f32 {
 
 // the eclipsed suns: three dark moons, each in front of its own small sun, orbiting the blade
 // in 3D like the Void's black holes: centre and radius of orb i
-fn ec_orb(i: f32, R: ptr<function, f32>) -> vec3<f32> {
+fn ec_orbAt(i: f32, tt: f32, R: ptr<function, f32>) -> vec3<f32> {
     let L = uLength;
     (*R) = 0.9 + 0.25 * i;
-    let a = i / 3.0 + uTime * (0.12 + 0.05 * i) * (select(1.0, -1.0, i == 1.0));
-    let y = L * (0.5 + 0.17 * i) + 1.0 * sin(uTime * 0.4 + i * 2.0);
+    let a = i / 3.0 + tt * (0.12 + 0.05 * i) * (select(1.0, -1.0, i == 1.0));
+    let y = L * (0.5 + 0.17 * i) + 1.0 * sin(tt * 0.4 + i * 2.0);
     return around(3.4 + 0.4 * i, a, y);
+}
+
+fn ec_orb(i: f32, R: ptr<function, f32>) -> vec3<f32> {
+    return ec_orbAt(i, uTime, R);
 }
 
 // a point's place in the plane facing the camera round centre c: (across, up) and distance
@@ -95,44 +99,6 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         // the inner corona: a bright soft ring of light hugging the band
         let dc = rayPt(ro, rd, vec3(0.0, yb, 0.0), &tq);
         fx += white * (halo(abs(dc - 0.9), 0.35) * 0.5 + halo(dc, 1.6) * 0.15) * vis * (1.0 + flare);
-    }
-    // ---- the eclipsed suns orbiting the blade: a black moon rimmed by a blazing corona with
-    // streamers, a diamond-ring flash, beads of light and a pearly wake behind each
-    for (var i = 0; i < 3; i++) {
-        let fi = f32(i);
-        var R: f32;
-        let c = ec_orb(fi, &R);
-        if c.y > top + 2.0 {
-            continue;
-        }
-        let f = ec_face(ro, rd, c);
-        if f.z > R * 6.0 {
-            continue;
-        }
-        let ang = atan2(f.y, f.x);
-        let rr = f.z / R;
-        let strm = pow(0.5 + 0.5 * sin(ang * 7.0 + uTime * 0.3 + fi * 2.0), 3.0) * 0.7 + pow(0.5 + 0.5 * sin(ang * 13.0 - uTime * 0.5 + fi), 6.0) * 0.5;
-        let cor = exp(-max(rr - 1.0, 0.0) * (1.1 - 0.7 * strm)) * smoothstep(0.95, 1.02, rr) * (1.0 - smoothstep(3.0, 5.5, rr));
-        let rim = halo(abs(rr - 1.02), 0.04 + px / R);
-        let spin = uTime * 0.9 + fi * 2.1;
-        let dia = pow(max(cos(ang - spin), 0.0), 60.0) * halo(abs(rr - 1.0), 0.15);
-        fx += (pearl * cor * (1.6 + 0.8 * flare) + white * rim * 2.2 + white * dia * 4.0 + white * halo(abs(rr - 1.0), 0.6) * pow(max(cos(ang - spin), 0.0), 8.0) * 0.6) * vis;
-        // beads of light circling the rim
-        for (var j = 0; j < 5; j++) {
-            let aj = spin + 0.4 + f32(j) * 0.25;
-            let bp = vec2(cos(aj), sin(aj)) * R * 1.02;
-            let db = length(f.xy - bp);
-            fx += white * halo(db, max(0.05, px)) * 1.4 * (0.6 + 0.4 * sin(uTime * 9.0 + f32(j))) * vis;
-        }
-        // a pearly wake trailing the orbit
-        for (var j = 1; j <= 6; j++) {
-            let lag = f32(j) * 0.018 * (select(1.0, -1.0, fi == 1.0));
-            var Rw: f32;
-            let a0 = fi / 3.0 + (uTime - f32(j) * 0.25) * (0.12 + 0.05 * fi) * (select(1.0, -1.0, fi == 1.0));
-            let cw = around(4.2 + 0.5 * fi, a0, uLength * (0.3 + 0.25 * fi) + 1.2 * sin((uTime - f32(j) * 0.25) * 0.4 + fi * 2.0));
-            let dw = rayPt(ro, rd, cw, &tq);
-            fx += pearl * halo(dw, 0.35 * (1.0 - f32(j) / 7.0) + 0.05) * 0.35 * (1.0 - f32(j) / 7.0) * vis;
-        }
     }
     // ---- solar wind: pearly motes streaming out from the band and the suns
     for (var i = 0; i < 18; i++) {
@@ -208,8 +174,59 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     return light;
 }
 
-// the orbiting moons' dark discs, each a disc facing the camera
-fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+// the orbiting moons' dark discs, each a disc facing the camera, in true 3D
+// round 10: the eclipsed suns circle the blade, so they alone are drawn in true 3D
+// (Sol's way: only what orbits is 3D, everything else flat)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let top = ec_top();
+    var tq: f32;
+    let cl = clamp(uClash, 0.0, 1.0);
+    let flare = max(cl, exp(-uAge * 1.6) * step(0.0, uAge) * 0.35);
+    let pearl: vec3<f32> = vec3<f32>(1.0, 0.9, 0.72);
+    let white: vec3<f32> = vec3<f32>(1.0, 0.98, 0.94);
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    let vis = smoothstep(0.1, 0.6, uAge);
+    // ---- the eclipsed suns orbiting the blade: a black moon rimmed by a blazing corona with
+    // streamers, a diamond-ring flash, beads of light and a pearly wake behind each
+    for (var i = 0; i < 3; i++) {
+        let fi = f32(i);
+        var R: f32;
+        let c = ec_orb(fi, &R);
+        if c.y > top + 2.0 {
+            continue;
+        }
+        let f = ec_face(ro, rd, c);
+        if f.z > R * 6.0 {
+            continue;
+        }
+        let ang = atan2(f.y, f.x);
+        let rr = f.z / R;
+        let strm = pow(0.5 + 0.5 * sin(ang * 7.0 + uTime * 0.3 + fi * 2.0), 3.0) * 0.7 + pow(0.5 + 0.5 * sin(ang * 13.0 - uTime * 0.5 + fi), 6.0) * 0.5;
+        let cor = exp(-max(rr - 1.0, 0.0) * (1.1 - 0.7 * strm)) * smoothstep(0.95, 1.02, rr) * (1.0 - smoothstep(3.0, 5.5, rr));
+        let rim = halo(abs(rr - 1.02), 0.04 + px / R);
+        let spin = uTime * 0.9 + fi * 2.1;
+        let dia = pow(max(cos(ang - spin), 0.0), 60.0) * halo(abs(rr - 1.0), 0.15);
+        fx += (pearl * cor * (1.6 + 0.8 * flare) + white * rim * 2.2 + white * dia * 4.0 + white * halo(abs(rr - 1.0), 0.6) * pow(max(cos(ang - spin), 0.0), 8.0) * 0.6) * vis;
+        // beads of light circling the rim
+        for (var j = 0; j < 5; j++) {
+            let aj = spin + 0.4 + f32(j) * 0.25;
+            let bp = vec2(cos(aj), sin(aj)) * R * 1.02;
+            let db = length(f.xy - bp);
+            fx += white * halo(db, max(0.05, px)) * 1.4 * (0.6 + 0.4 * sin(uTime * 9.0 + f32(j))) * vis;
+        }
+        // a pearly wake trailing the orbit
+        for (var j = 1; j <= 6; j++) {
+            let lag = f32(j) * 0.018 * (select(1.0, -1.0, fi == 1.0));
+            var Rw: f32;
+            let cw = ec_orbAt(fi, uTime - f32(j) * 0.25, &Rw);
+            let dw = rayPt(ro, rd, cw, &tq);
+            fx += pearl * halo(dw, 0.35 * (1.0 - f32(j) / 7.0) + 0.05) * 0.35 * (1.0 - f32(j) / 7.0) * vis;
+        }
+    }
+    return fx * uFx;
+}
+
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     var o: vec4<f32> = vec4<f32>(0.0);
     let top = ec_top();
     for (var i = 0; i < 3; i++) {

@@ -100,7 +100,8 @@ float cb_shard(vec3 ro, vec3 rd, vec3 c, float sz, float spin, float seed, float
   return clamp(0.5 - k/max(px, 1e-3), 0.0, 1.0);
 }
 // the burst and the clash: shards of slab, each a piece facing the camera, flung out in 3D
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+// round 10: the shards float round the blade, so they are drawn in true 3D (only orbits are)
+vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   float L = uLength;
   vec4 col = vec4(0.0);
   if (uFx < 0.01) return col;
@@ -126,6 +127,13 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
       }
     }
   }
+  return col;
+}
+// a clash chips shards off the slab: flat round the blade, as Sol's pieces are
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  float L = uLength;
+  vec4 col = vec4(0.0);
+  if (uFx < 0.01) return col;
   if (uClash > 0.01 && cb_held() > 0.5){
     float a = 1.0 - uClash;
     for (int i = 0; i < 6; i++){

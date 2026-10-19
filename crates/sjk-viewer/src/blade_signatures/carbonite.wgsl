@@ -162,7 +162,8 @@ fn cb_shard(ro: vec3<f32>, rd: vec3<f32>, c: vec3<f32>, sz: f32, spin: f32, seed
 }
 
 // the burst and the clash: shards of slab, each a piece facing the camera, flung out in 3D
-fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+// round 10: the shards float round the blade, so they are drawn in true 3D (only orbits are)
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let L = uLength;
     var col: vec4<f32> = vec4<f32>(0.0);
     if uFx < 0.01 {
@@ -191,6 +192,16 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
                 col = vec4(rgb, cv);
             }
         }
+    }
+    return col;
+}
+
+// a clash chips shards off the slab: flat round the blade, as Sol's pieces are
+fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    let L = uLength;
+    var col: vec4<f32> = vec4<f32>(0.0);
+    if uFx < 0.01 {
+        return col;
     }
     if uClash > 0.01 && cb_held() > 0.5 {
         let a = 1.0 - uClash;

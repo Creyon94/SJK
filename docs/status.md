@@ -68,6 +68,17 @@ unchanged. Checked on Linux x86_64 (Rust 1.97, lavapipe): the viewer's tests pas
 changed signature previewed from four views and in the lab page. Not verified: Windows, the
 game window, the hub's catalogue (the names players see come from it once Sol updates it).
 
+## Blade Lab signatures, round 10: flat as Sol's, only orbits in 3D
+
+20/10/2026, `wip/blade-3d`, on round 9: Creyon asked for the blades as Sol has them, flat
+with only some parts in 3D. The signatures' effects are drawn flat round the blade, facing the
+camera (`sig_flat`); only what circles it is drawn in 3D (`sig_orbit`, `sig_orbit_solid`: the
+Eclipse's suns, Obsidian Edge's shards, Liquid Beskar's orbiting droplets, Carbonite's floating
+shards, the Kyber Cluster's crystals, made bigger, and the Between Worlds duel)
+([rendering.md](rendering.md#blade-lab-signature-shaders)). Checked on Linux x86_64 (Rust
+1.97, lavapipe) as round 9, with previews from the side, above and first person. Not
+verified: Windows, the game window.
+
 ## Blade Lab signatures, round 9: a fixed frame and big effects
 
 20/10/2026, `wip/blade-3d`, on round 8 (`main` `046ef86b`): after Creyon's in-game test of

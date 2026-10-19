@@ -1888,10 +1888,13 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         let mouth = (1.0 - smoothstep(0.0, 2.2, length(vec2(place.x * 0.6, max(place.y, 0.0))))) * 0.75;
         glow = max(sig_glow(glow, place + vec2(x - input.blade.x, 0.0), r, pixel), vec3(0.0))
             * sig_kept(input, place) + glow * mouth * step(-6.0, place.y);
-        // Its effects in three dimensions, drawn along the true view ray.
+        // Its effects as Sol's are: flat round the blade, facing the camera (`sig_flat`),
+        // and only what circles the blade in three dimensions, along the true view ray.
         let ray = sig_ray(input);
+        let flat = sig_flat(place);
         let shown = sig_full(input);
-        glow += max(sig_vol(ray.o, ray.d, pixel), vec3(0.0)) * shown;
+        glow += (max(sig_vol(flat.o, flat.d, pixel), vec3(0.0))
+            + max(sig_orbit(ray.o, ray.d, pixel), vec3(0.0))) * shown;
         return sig_coloured(input, glow * sig_edge(input));
     }
     // A chroma takes its wearer's colour: everything it drew, turned at once.
@@ -2346,8 +2349,11 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
         out = clamp(sig_solid(out, place, pixel), vec4(0.0), vec4(1.0));
         out = vec4(out.rgb, out.a * sig_kept(input, place));
         let ray = sig_ray(input);
+        let flat = sig_flat(place);
         let shown = sig_full(input);
-        let v = clamp(sig_vol_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0)) * shown;
+        let near = clamp(sig_vol_solid(flat.o, flat.d, pixel), vec4(0.0), vec4(1.0));
+        let round = clamp(sig_orbit_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0));
+        let v = vec4(mix(near.rgb, round.rgb, round.a), max(near.a, round.a)) * shown;
         out = vec4(mix(out.rgb, v.rgb, v.a), max(out.a, v.a));
         out = vec4(mix(sig_coloured(input, out.rgb), out.rgb, clamp(uOwn, 0.0, 1.0)),
             out.a * sig_edge(input));
@@ -3708,6 +3714,19 @@ fn sig_ray(input: VertexOutput) -> SigRay {
     return out;
 }
 
+// The flat view of a signature's effects, as Sol's blades draw theirs (Creyon's round 10:
+// "he only has parts that are 3D"): a ray straight through the blade's picture at `b`
+// (across, along), from a little above, so everything placed round the blade is drawn as a
+// flat picture facing the camera and rings round it read as ellipses. Only what circles the
+// blade (`sig_orbit`, `sig_orbit_solid`) takes the true view ray.
+const SIG_FLAT_TILT: f32 = 0.2;
+fn sig_flat(b: vec2<f32>) -> SigRay {
+    var out: SigRay;
+    out.d = normalize(vec3(0.0, -SIG_FLAT_TILT, -1.0));
+    out.o = vec3(b.x, b.y, 0.0) - out.d * 60.0;
+    return out;
+}
+
 // Before a signature's three-dimensional effects: they are placed on the blade's full
 // length, not the length it has grown to, and show only once it is (nearly) all out, so
 // nothing slides up the blade as it ignites or down as it is put away (Creyon's round 9).
@@ -3751,6 +3770,14 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 }
 
 fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    return vec4(0.0);
+}
+
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    return vec3(0.0);
+}
+
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     return vec4(0.0);
 }
 // @signature end

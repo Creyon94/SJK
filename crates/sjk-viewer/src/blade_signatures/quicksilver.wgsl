@@ -168,13 +168,6 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
             acc = dr;
         }
     }
-    for (var k = 0; k < 10; k++) {
-        let dr = qs_sphere(ro, rd, qs_orbit3(f32(k)), px, &th);
-        if dr.a > 0.0 && th < best {
-            best = th;
-            acc = dr;
-        }
-    }
     // a clash: a ring of droplets blown out
     let cl = clamp(uClash, 0.0, 1.0);
     if cl > 0.01 {
@@ -207,4 +200,23 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     col += fxAura(ro, rd, y0, y1, 2.6, silver) * 0.6;
     col += fxShock(ro, rd, px, L * 0.55, 1.0 - cl, 9.0, silver) * 1.5;
     return col * uFx;
+}
+
+// round 10: the droplets circling the blade, in true 3D (only orbits are; the rest is flat)
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    var acc: vec4<f32> = vec4<f32>(0.0);
+    if uFx < 0.01 || fxNear(ro, rd, uLength * 0.1, uLength) > 9.0 {
+        return acc;
+    }
+    var best: f32 = 1.0e5;
+    var th: f32;
+    for (var k = 0; k < 10; k++) {
+        let dr = qs_sphere(ro, rd, qs_orbit3(f32(k)), px, &th);
+        if dr.a > 0.0 && th < best {
+            best = th;
+            acc = dr;
+        }
+    }
+    acc.a *= clamp(uIgn * 1.5, 0.0, 1.0);
+    return acc;
 }
