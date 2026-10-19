@@ -112,6 +112,7 @@ PR_PATTERNS = [
     (re.compile(r"^Merge JKR #(?P<n>\d+) \("), "JKR"),
     (re.compile(r"^Merge \S+(?: round \d+)? \(PR #(?P<n>\d+)"), "JKR"),
     (re.compile(r"^Merge PR #(?P<n>\d+) \((?P<title>.*)\) into "), None),
+    (re.compile(r"^Merge .*\(SJK #(?P<n>\d+)\) into "), "SJK"),
 ]
 # "Merge personal/topic (description) into main", the description optional.
 TOPIC = re.compile(r"^Merge (\S+)(?: round \d+)?(?: \((.*)\))? into (\S+)$")

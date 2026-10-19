@@ -39,6 +39,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A saber shader's sound that has not reached you yet plays the normal saber sound instead of nothing _(Creyon)_
 - Running or switching a saber on or off no longer counts as a swing for the shaders that answer swings _(Creyon)_
 - Blades have numbers, as cards do (Sun is 001): the Collection shows each after its tier and in its hover card, its search finds "42" or "#42", `saberskin 42` wears that blade and docs/unlockables.md lists them all _(Sol)_
+- Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

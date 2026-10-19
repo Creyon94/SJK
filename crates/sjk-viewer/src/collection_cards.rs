@@ -434,8 +434,8 @@ impl Panel {
     }
 
     /// How card `key` (0 the card up close, 1 and up the grid's) at `[x, y, width]` (frame
-    /// pixels) tilts towards the pointer at `seconds`: eased in while the pointer rests on
-    /// it, eased back out when it leaves; one card tilts at a time.
+    /// pixels) answers the pointer at `seconds`: eased in while the pointer rests on it,
+    /// eased back out when it leaves ([`crate::tile_shine::HoverEase`]).
     fn card_tilt(
         &mut self,
         frame: &Frame,
@@ -443,46 +443,8 @@ impl Panel {
         key: usize,
         seconds: f32,
     ) -> Option<look::Tilt> {
-        let height = width * look::ASPECT;
-        let rect = frame.rect(x, y, width, height);
-        let over = self.pointer.filter(|[px, py]| {
-            *px >= rect.x && *px <= rect.right() && *py >= rect.y && *py <= rect.bottom()
-        });
-        let tilt = &mut self.tilt;
-        if let Some([px, py]) = over {
-            if tilt.key != Some(key) {
-                *tilt = CardTilt {
-                    key: Some(key),
-                    at: seconds,
-                    ..CardTilt::default()
-                };
-            }
-            tilt.target = [
-                (px - rect.x - rect.width * 0.5) / (rect.width * 0.5),
-                (py - rect.y - rect.height * 0.5) / (rect.height * 0.5),
-            ];
-            tilt.over = true;
-        } else if tilt.key == Some(key) {
-            tilt.over = false;
-        } else {
-            return None;
-        }
-        // Eased towards the pointer, and in or out, about a tenth of a second.
-        let step = 1.0 - (-(seconds - tilt.at).max(0.0) * 12.0).exp();
-        tilt.at = seconds;
-        for axis in 0..2 {
-            tilt.value[axis] += (tilt.target[axis] - tilt.value[axis]) * step;
-        }
-        let goal = if tilt.over { 1.0 } else { 0.0 };
-        tilt.strength += (goal - tilt.strength) * step;
-        if !tilt.over && tilt.strength < 0.01 {
-            *tilt = CardTilt::default();
-            return None;
-        }
-        Some(look::Tilt {
-            x: tilt.value[0] * tilt.strength,
-            y: tilt.value[1] * tilt.strength,
-        })
+        let rect = frame.rect(x, y, width, width * look::ASPECT);
+        self.tilt.update(key, rect, self.pointer, seconds)
     }
 
     /// Reveal under the grid, when sealed copies can be revealed, and beside it what the

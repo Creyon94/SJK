@@ -5,7 +5,7 @@
 //! and a dot of its rarity's colour on top, its picture in a gold-edged 6:5 window, a
 //! strip with its kind and set and its edition and finish, its lore in a box, and at the
 //! foot its number in its set, its artist and its rarity. The finish lies over it all,
-//! shaded per pixel by the renderer ([`CardShine`]): Holo a smooth rainbow foil sweeping
+//! shaded per pixel by the renderer ([`sjk_ui::CardShine`]): Holo a smooth rainbow foil sweeping
 //! across the card with a glint, Solar the Sun blade's living corona burning along the
 //! card's edge with flares running round it and sparks, a gold edge and a faint band of
 //! sunlight over the face. One drawing serves the Cards tab, the opening's
@@ -20,7 +20,7 @@ use super::{Finish, Rarity};
 use crate::holocrons::gem;
 use crate::menu::sjk::{Frame, color, text};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
-use sjk_ui::{CardShine, Color, DrawCommand, FontWeight, Gradient, ShineKind, TextAlign};
+use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, ShineKind, TextAlign};
 
 /// A card's height against its width.
 pub(crate) const ASPECT: f32 = 1.4;
@@ -29,7 +29,7 @@ const BIG: f32 = 200.0;
 const BIG_ROWS: usize = gem::ROWS;
 const SMALL_ROWS: usize = 9;
 /// The Holo rainbow's hues, red to violet, for the drawings that band it (the opening's
-/// strip); the card itself shades a continuous rainbow ([`CardShine`]).
+/// strip); the card itself shades a continuous rainbow ([`sjk_ui::CardShine`]).
 pub(crate) const HOLO_BANDS: [[f32; 3]; 6] = [
     [1.0, 0.35, 0.45],
     [1.0, 0.75, 0.3],
@@ -44,13 +44,6 @@ const CORNER: f32 = 0.07;
 /// the eye's distance for the perspective, in card heights.
 const TILT_MAX: f32 = 0.16;
 const EYE: f32 = 2.6;
-/// The Holo sweep: seconds from one pass to the next, and the share of them it takes to
-/// cross the card (the rest, it waits off the card).
-const HOLO_PERIOD: f32 = 7.0;
-const HOLO_CROSSING: f32 = 0.6;
-/// The finishes' clock wraps after this many seconds, so its motion keeps its
-/// precision on a page left open.
-const SHINE_CLOCK: f32 = 3_600.0;
 /// A face's name shows on a card this wide (frame pixels) or wider, and all its words
 /// from [`WORDS`]: below, they would be too small to read.
 const TITLE: f32 = 200.0;
@@ -82,13 +75,8 @@ pub(crate) struct Card<'a> {
     pub(crate) dim: bool,
 }
 
-/// Where the pointer rests on a card, from its middle: -1 at its left (top) edge, 1 at
-/// its right (bottom) edge.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct Tilt {
-    pub(crate) x: f32,
-    pub(crate) y: f32,
-}
+/// Where the pointer rests on a card, eased in and out ([`crate::tile_shine::HoverEase`]).
+pub(crate) use crate::tile_shine::Hover as Tilt;
 
 /// A revealed card's face as a card draws it.
 #[derive(Clone, Copy, Debug)]
@@ -160,10 +148,8 @@ pub(crate) fn draw(
 /// at `tilt`, the eye [`EYE`] times its `height` away: the side under the pointer
 /// recedes, as if pressed.
 pub(crate) fn tilt_matrix(centre: [f32; 2], height: f32, tilt: Tilt) -> [f32; 9] {
-    let (yaw, pitch) = (
-        tilt.x.clamp(-1.0, 1.0) * TILT_MAX,
-        -tilt.y.clamp(-1.0, 1.0) * TILT_MAX,
-    );
+    let [lean_x, lean_y] = tilt.lean();
+    let (yaw, pitch) = (lean_x * TILT_MAX, -lean_y * TILT_MAX);
     let (sy, cy) = yaw.sin_cos();
     let (sp, cp) = pitch.sin_cos();
     let eye = height * EYE;
@@ -570,9 +556,9 @@ fn face(
 
 /// The finish's light over a card at `[x, y, width, height]` (frame pixels, `full` its
 /// unturned width), inside its border and rounded corners: Holo's rainbow foil or
-/// Solar's corona, shaded per pixel ([`CardShine`]), their light following the pointer
-/// while it rests on the card ([`Card::tilt`]), and a soft glare under the pointer
-/// whatever the finish.
+/// Solar's corona, their light following the pointer while it rests on the card
+/// ([`Card::tilt`]), and a soft glare under the pointer whatever the finish
+/// ([`crate::tile_shine`]).
 fn finish_light(
     list: &mut sjk_ui::DrawList,
     frame: &Frame,
@@ -585,103 +571,21 @@ fn finish_light(
     let unit = full / 220.0;
     // Inside the rarity's edge, so the light never lies over it.
     let inset = 3.5 * unit;
-    let _ = list.push(DrawCommand::PushRoundedClip {
-        rect: frame.rect(
-            x + inset,
-            y + inset,
-            (width - inset * 2.0).max(1.0),
-            height - inset * 2.0,
-        ),
-        radius: ((full * CORNER - inset) * s).max(0.0),
-    });
-    // Where the pointer is on the card, 0 to 1 each way: the light passes through it.
-    let light = card.tilt.map(|tilt| {
-        [
-            0.5 + 0.5 * tilt.x.clamp(-1.0, 1.0),
-            0.5 + 0.5 * tilt.y.clamp(-1.0, 1.0),
-        ]
-    });
-    if card.finish.index > 0 {
-        let kind = if card.finish.index == 1 {
-            ShineKind::Holo
-        } else {
-            ShineKind::Solar
-        };
-        let rect = frame.rect(
-            x + inset,
-            y + inset,
-            (width - inset * 2.0).max(1.0),
-            height - inset * 2.0,
-        );
-        // The light sweeps across the card (Holo's glint, Solar's band of sunlight)
-        // from where its light is all off the card on the left to where it is off it on
-        // the right, or rests under the pointer.
-        let (period, off) = match kind {
-            ShineKind::Holo => (HOLO_PERIOD, height * 0.42 + width * 0.9),
-            ShineKind::Solar => (HOLO_PERIOD * 1.4, height * 0.35 + width * 0.4),
-        };
-        let across = sweep(
-            seconds,
-            period,
-            [x - off, x + width + off],
-            light.map(|[across, _]| across),
-            [x, width],
-        );
-        let _ = list.push(DrawCommand::CardShine {
-            rect,
-            shine: CardShine {
-                kind,
-                size: [rect.width, rect.height],
-                radius: ((full * CORNER - inset) * s).max(0.0),
-                time: seconds.rem_euclid(SHINE_CLOCK),
-                light: [
-                    (across - x - inset) / (width - inset * 2.0).max(1.0),
-                    light.map_or(0.5, |[_, down]| down),
-                ],
-                held: light.is_some(),
-                alpha: 1.0,
-            },
-        });
-    }
-    if let Some(tilt) = card.tilt {
-        // The glare: soft discs stacked under the pointer.
-        let [gx, gy] = frame.point(
-            x + width * (0.5 + 0.5 * tilt.x.clamp(-1.0, 1.0)),
-            y + height * (0.5 + 0.5 * tilt.y.clamp(-1.0, 1.0)),
-        );
-        for step in 0..4 {
-            let radius = full * (0.55 - step as f32 * 0.12) * s;
-            let _ = list.push(DrawCommand::RoundedRect {
-                rect: sjk_ui::Rect::new(gx - radius, gy - radius, radius * 2.0, radius * 2.0),
-                radius,
-                color: Color::new(1.0, 1.0, 1.0, 0.04),
-            });
-        }
-    }
+    let rect = frame.rect(
+        x + inset,
+        y + inset,
+        (width - inset * 2.0).max(1.0),
+        height - inset * 2.0,
+    );
+    let radius = ((full * CORNER - inset) * s).max(0.0);
+    let kind = match card.finish.index {
+        0 => None,
+        1 => Some(ShineKind::Holo),
+        _ => Some(ShineKind::Solar),
+    };
+    let _ = list.push(DrawCommand::PushRoundedClip { rect, radius });
+    crate::tile_shine::push(list, rect, radius, kind, card.tilt, seconds);
     let _ = list.push(DrawCommand::PopClip);
-}
-
-/// Where a sweeping light's middle is at `seconds` (`period` seconds a pass): from
-/// `from` to `to` over the first [`HOLO_CROSSING`] of the period, then off the card
-/// until the next pass. `light` (0 to 1 across the card, the pointer's) holds it there
-/// instead, at `x` plus that share of `width`.
-fn sweep(
-    seconds: f32,
-    period: f32,
-    [from, to]: [f32; 2],
-    light: Option<f32>,
-    [x, width]: [f32; 2],
-) -> f32 {
-    if let Some(light) = light {
-        return x + width * light;
-    }
-    let phase = (seconds / period).fract() / HOLO_CROSSING;
-    if phase >= 1.0 {
-        return to;
-    }
-    // Eased in and out, so it does not start or stop all at once.
-    let eased = phase * phase * (3.0 - 2.0 * phase);
-    from + (to - from) * eased
 }
 
 #[cfg(test)]
@@ -744,7 +648,7 @@ pub(crate) mod tests {
             let [x, y] = map(flat, point);
             assert!((x - point[0]).abs() < 1e-3 && (y - point[1]).abs() < 1e-3);
         }
-        let right = tilt_matrix(centre, 600.0, Tilt { x: 1.0, y: 0.0 });
+        let right = tilt_matrix(centre, 600.0, Tilt::held([1.0, 0.0]));
         let middle = map(right, centre);
         assert!((middle[0] - centre[0]).abs() < 1e-3 && (middle[1] - centre[1]).abs() < 1e-3);
         let near_right = map(right, [1_160.0, 540.0]);
@@ -759,32 +663,9 @@ pub(crate) mod tests {
         let bottom = map(right, [1_160.0, 840.0]);
         assert!(bottom[1] - top[1] < 600.0);
         // Pointer at the foot: the foot recedes.
-        let foot = tilt_matrix(centre, 600.0, Tilt { x: 0.0, y: 1.0 });
+        let foot = tilt_matrix(centre, 600.0, Tilt::held([0.0, 1.0]));
         let low = map(foot, [960.0, 840.0]);
         assert!(low[1] - centre[1] < 300.0);
-    }
-
-    /// The sweep crosses from one end to the other, eased, then waits off the card; the
-    /// pointer holds it where it is.
-    #[test]
-    fn the_sweep_crosses_then_waits_and_the_pointer_holds_it() {
-        let ends = [-100.0, 500.0];
-        assert_eq!(sweep(0.0, 10.0, ends, None, [0.0, 400.0]), -100.0);
-        let crossing = HOLO_CROSSING * 10.0;
-        let halfway = sweep(crossing * 0.5, 10.0, ends, None, [0.0, 400.0]);
-        assert!((halfway - 200.0).abs() < 1e-3);
-        assert_eq!(
-            sweep(crossing + 0.5, 10.0, ends, None, [0.0, 400.0]),
-            500.0,
-            "waiting"
-        );
-        assert_eq!(sweep(9.9, 10.0, ends, None, [0.0, 400.0]), 500.0);
-        assert_eq!(
-            sweep(10.0, 10.0, ends, None, [0.0, 400.0]),
-            -100.0,
-            "the next pass"
-        );
-        assert_eq!(sweep(3.0, 10.0, ends, Some(0.25), [0.0, 400.0]), 100.0);
     }
 
     pub(crate) fn face() -> Face {

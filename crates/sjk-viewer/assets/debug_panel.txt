@@ -914,6 +914,16 @@ test: A Holo card: smooth rainbow sweep, follows the pointer, no blocky bands.
 test: debug_open mythical solar x3: the ceremony's card burns too.
 test: Many Solar tiles on screen: check the frame rate stays fine.
 
+[smooth-hover]
+area: Menus & settings
+title: Cards answer the pointer smoothly; one soft glare
+change: Tilt, light and glare ease in and out; the light glides to the pointer.
+change: The card you leave settles back while the next one rises.
+change: The glare is one soft shaded light instead of four rings.
+test: Collection > Cards: sweep the pointer across the grid; cards ease, none snaps flat.
+test: Enter a Holo card mid-sweep: the rainbow glides to the pointer.
+test: Hover a plain card: a soft round glare, no visible rings.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

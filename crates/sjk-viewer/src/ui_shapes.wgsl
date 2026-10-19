@@ -152,7 +152,7 @@ const SUN_RIM_HOT: vec3<f32> = vec3(1.0, 0.42, 0.05);
 const SUN_RIM_COOL: vec3<f32> = vec3(1.0, 0.2, 0.02);
 const SUN_MOTE: vec3<f32> = vec3(1.0, 0.82, 0.42);
 
-fn shine_holo(p: vec2<f32>, size: vec2<f32>, t: f32, light: vec2<f32>, held: bool) -> vec4<f32> {
+fn shine_holo(p: vec2<f32>, size: vec2<f32>, t: f32, light: vec2<f32>, hold: f32) -> vec4<f32> {
     let w = size.x;
     let h = size.y;
     let u = p.x / w;
@@ -165,7 +165,7 @@ fn shine_holo(p: vec2<f32>, size: vec2<f32>, t: f32, light: vec2<f32>, held: boo
     var rainbow = 0.5 + 0.5 * cos(6.2831855 * (vec3(hue) - vec3(0.0, 1.0 / 3.0, 2.0 / 3.0)));
     rainbow = rainbow + (vec3(1.0) - rainbow) * 0.3;
     let envelope = exp(-k * k * 2.2);
-    let strength = select(0.26, 0.3, held);
+    let strength = 0.26 + 0.04 * clamp(hold, 0.0, 1.0);
     out = shine_over(out, rainbow, 0.035 + strength * envelope);
     let line = across / (0.03 * w);
     let halo = across / (0.12 * w);
@@ -236,10 +236,16 @@ fn shine_solar(p: vec2<f32>, inside: f32, size: vec2<f32>, t: f32, light: vec2<f
     return out;
 }
 
+fn shine_glare(p: vec2<f32>, size: vec2<f32>, light: vec2<f32>, hold: f32) -> vec4<f32> {
+    let spread = 0.32 * min(size.x, size.y);
+    let d = (p - light * size) / spread;
+    return vec4(vec3(1.0), 0.16 * exp(-dot(d, d)) * clamp(hold, 0.0, 1.0));
+}
+
 fn card_shine(input: VertexOutput) -> vec4<f32> {
-    // start_color = (kind, time, light across, light down): kind 0 Holo, 1 Solar, plus 2
-    // while the pointer holds the light; end_color = (card width, height, corner radius,
-    // unused); parameters.x = opacity; uv = the quad's top-left from the card's.
+    // start_color = (kind, time, light across, light down): kind 0 Holo, 1 Solar, 2 the
+    // glare; end_color = (tile width, height, corner radius, the pointer's hold);
+    // parameters.x = opacity; uv = the quad's top-left from the tile's.
     let size = input.end_color.xy;
     let p = input.uv + input.local * input.size;
     let radius = clamp(input.end_color.z, 0.0, min(size.x, size.y) * 0.5);
@@ -250,13 +256,14 @@ fn card_shine(input: VertexOutput) -> vec4<f32> {
         discard;
     }
     let kind = input.start_color.x;
-    let held = kind > 1.5;
-    let solar = kind - select(0.0, 2.0, held) > 0.5;
+    let hold = input.end_color.w;
     var out: vec4<f32>;
-    if solar {
+    if kind > 1.5 {
+        out = shine_glare(p, size, input.start_color.zw, hold);
+    } else if kind > 0.5 {
         out = shine_solar(p, -outside, size, input.start_color.y, input.start_color.zw);
     } else {
-        out = shine_holo(p, size, input.start_color.y, input.start_color.zw, held);
+        out = shine_holo(p, size, input.start_color.y, input.start_color.zw, hold);
     }
     let a = clamp(out.a * coverage * input.parameters.x, 0.0, 1.0);
     if a <= 0.0 {
