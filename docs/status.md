@@ -121,6 +121,14 @@ formatting, the locked workspace build and test suite, all-target Clippy, and th
 locked release viewer/dedicated build pass; existing warnings remain.
 Live-server display remains unverified.
 
+19/10/2026, `personal/score-deaths`, after report #94 (team FFA on JoF): the
+TFFA `scores` parse was correct (a parse test now covers it); two differences
+from EJK are fixed. The local counter (modes 2 without server deaths, and 3)
+now resets on `map_restart` or a new level, and per player on a team change or
+an emptied slot; it had kept counting across all three. Deaths are hidden in
+duel and CTF as in EJK; SJK hid them in duel and siege, so the SJK style showed
+them in CTF. Unverified in game.
+
 ## Trusted chat media sources
 
 18/10/2026, `feat/trusted-gif-sources`, based on `Sol-Vulpes/SJK` `96569426`:

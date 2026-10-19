@@ -1683,6 +1683,38 @@ mod score_tests {
         assert_eq!(read.len(), 14);
         assert!(read.iter().all(|row| row.1 == 9 && row.2 == 30));
     }
+
+    /// Team FFA on a JA+ server (report #94): the team scores come first, as in
+    /// every gametype, and each row's 15th field is `PERS_KILLED`, read as given.
+    /// Negative scores (team kills, suicides) and a connecting player stay in place.
+    #[test]
+    fn team_ffa_plugin_rows_keep_score_and_deaths_apart() {
+        let command = "scores 6 23 17 \
+            3 12 48 9 0 0 31 0 0 0 0 0 0 0 5 \
+            0 9 62 14 0 0 22 0 0 0 0 0 0 0 11 \
+            5 7 35 6 0 0 18 0 0 0 0 0 0 0 7 \
+            1 4 80 12 0 0 15 0 0 0 0 0 0 0 9 \
+            4 -2 55 3 0 0 0 0 0 0 0 0 0 0 6 \
+            2 0 -1 0 0 0 0 0 0 0 0 0 1 0 0";
+        let (teams, scores) = parse_scores(&tokenize_command(command.as_bytes())).unwrap();
+        assert_eq!(teams, [23, 17]);
+        let read = scores
+            .iter()
+            .map(|row| (row.client_num, row.score, row.ping, row.deaths))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            read,
+            [
+                (3, 12, 48, Some(5)),
+                (0, 9, 62, Some(11)),
+                (5, 7, 35, Some(7)),
+                (1, 4, 80, Some(9)),
+                (4, -2, 55, Some(6)),
+                (2, 0, -1, Some(0)),
+            ]
+        );
+        assert_eq!(scores[0].time_minutes, 9);
+    }
 }
 
 impl ClientSession {

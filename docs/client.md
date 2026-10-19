@@ -2537,7 +2537,10 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   provides deaths. With JoF EJK's `cg_scoreDeaths` modes, 0 hides them, the
   default 1 uses a JA+/jaPRO server's appended value, 2 falls back to the
   session-local counter when the server sends none, and 3 always uses the local
-  counter. Bots show `BOT` for their ping; clients still connecting show
+  counter. As in EJK, duels and CTF never show deaths, and the local counter
+  starts again for everyone on `map_restart` or a new level (a new
+  `CS_LEVEL_START_TIME`), and for one player when they change team or leave
+  (`scoreboard/deaths.rs`). Bots show `BOT` for their ping; clients still connecting show
   `-`, and connected clients the scores do not list yet show `N/A`.
 - Team games list the leading team first over a translucent team band, then the
   spectators; free-for-all lists the players, then the spectators. Your row is
