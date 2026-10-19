@@ -124,8 +124,9 @@ fn parse(id: &str, text: &str) -> Result<Face, String> {
     if file.lore.chars().count() > LORE_MAX {
         return Err(format!("lore is longer than {LORE_MAX} characters"));
     }
-    if !(1..=999).contains(&file.number) {
-        return Err("number must be 1 to 999".to_owned());
+    // 0 is allowed: SJK Alpha's card 000 is Sol's (19/10/2026).
+    if file.number > 999 {
+        return Err("number must be 0 to 999".to_owned());
     }
     let kind = Kind::from_id(&file.kind).ok_or_else(|| format!("unknown kind {}", file.kind))?;
     let rarity =
@@ -371,11 +372,14 @@ mod tests {
         for (from, to) in [
             ("\"legendary\"", "\"mythic\""),
             ("\"meme\"", "\"memes\""),
-            ("\"number\": 10", "\"number\": 0"),
+            ("\"number\": 10", "\"number\": 1000"),
             ("Toxiee and Sol on JoF Memorial", ""),
         ] {
             assert!(parse("x", &FILE.replace(from, to)).is_err(), "{to}");
         }
+        // Card 000 is a card like any other.
+        let zero = FILE.replace("\"number\": 10", "\"number\": 0");
+        assert_eq!(parse("x", &zero).unwrap().number, 0);
         // A field the client does not know yet is read past.
         let later = FILE.replace("\"artist\"", "\"frame\": \"gold\", \"artist\"");
         assert!(parse("x", &later).is_ok());
