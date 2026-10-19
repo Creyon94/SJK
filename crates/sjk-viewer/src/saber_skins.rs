@@ -620,6 +620,8 @@ pub(crate) struct LoadedSkin {
     /// ([`crate::blade_lab_designs`]).
     pub(crate) design: Option<&'static crate::blade_lab_designs::Design>,
     designed: Option<Box<BladeSkinDef>>,
+    /// Its Blade Lab signature shader, if it has one ([`crate::blade_signatures`]).
+    pub(crate) signature: Option<&'static crate::blade_signatures::Signature>,
     /// Its glow and core images, RGBA.
     pub(crate) glow: image::RgbaImage,
     pub(crate) core: image::RgbaImage,
@@ -647,10 +649,16 @@ impl LoadedSkin {
             crate::saber_rgb::generated_core(def.core_profile)
         })?;
         let design = crate::blade_lab_designs::of(id);
+        let signature = crate::blade_signatures::of(id);
         Ok(Self {
             id,
-            designed: design.map(|design| Box::new(design.shown(&def))),
-            design,
+            // A signature replaces a hand-ported design of the same skin.
+            designed: match signature {
+                Some(signature) => Some(Box::new(signature.shown(&def))),
+                None => design.map(|design| Box::new(design.shown(&def))),
+            },
+            design: design.filter(|_| signature.is_none()),
+            signature,
             def,
             glow,
             core,
@@ -660,6 +668,12 @@ impl LoadedSkin {
     /// Its design, while `cg_saberLabDesigns` draws the designs.
     pub(crate) fn design_shown(&self) -> Option<&'static crate::blade_lab_designs::Design> {
         self.design.filter(|_| crate::blade_lab_designs::enabled())
+    }
+
+    /// Its signature shader, while `cg_saberLabDesigns` draws the designs.
+    pub(crate) fn signature_shown(&self) -> Option<&'static crate::blade_signatures::Signature> {
+        self.signature
+            .filter(|_| crate::blade_lab_designs::enabled())
     }
 
     /// Its file as drawn: as its design draws it while the designs are drawn.
@@ -735,9 +749,15 @@ impl LoadedSkin {
             off,
             // A design's quad reaches its glow's reach and its particles' room
             // (`saber.wgsl` `blade_vertex`).
-            room: self.design_shown().map_or(def.room(off), |design| {
-                design.reach.max(design.room) / crate::blade_lab_designs::METRE
-            }),
+            room: self
+                .design_shown()
+                .map_or(def.room(off), |design| {
+                    design.reach.max(design.room) / crate::blade_lab_designs::METRE
+                })
+                .max(
+                    self.signature_shown()
+                        .map_or(0.0, |signature| signature.room()),
+                ),
             star: self
                 .def
                 .star
@@ -840,6 +860,28 @@ impl LoadedSkins {
                 Err(why) => crate::log::progress(format_args!("blade skins: {path}: {why}")),
             }
         }
+        // The signature skins no pack carries yet, from the lab's files built in.
+        for signature in &crate::blade_signatures::SIGNATURES {
+            if skins
+                .iter()
+                .any(|skin: &LoadedSkin| skin.id == signature.id)
+                || skins.len() == MAX_SKINS
+            {
+                continue;
+            }
+            let Some(known) = crate::unlockables::blade_skin(signature.id) else {
+                continue;
+            };
+            let loaded = crate::blade_skin_file::parse(known.id, signature.default_file())
+                .and_then(|def| LoadedSkin::new(known.id, def, &packs));
+            match loaded {
+                Ok(skin) => skins.push(skin),
+                Err(why) => crate::log::progress(format_args!(
+                    "blade skins: {}'s built-in file: {why}",
+                    known.id
+                )),
+            }
+        }
         Self {
             skins,
             packs: Arc::new(packs),
@@ -912,6 +954,18 @@ impl LoadedSkins {
                 uniform.design = design.lane();
                 let [r, g, b] = design.color;
                 uniform.design_color = [r, g, b, 1.0];
+            }
+            if let Some(signature) = skin.signature_shown() {
+                uniform.design = signature.lane();
+                // The light's colour, and a chroma's own hue (turns; -1 for none), which
+                // the shader turns to its wearer's.
+                let [r, g, b] = skin.def.light.color;
+                let hue = crate::unlockables::is_chroma(skin.id)
+                    .then(|| {
+                        hue_of(skin.def.corona.rim_cool).or_else(|| hue_of(skin.def.light.color))
+                    })
+                    .flatten();
+                uniform.design_color = [r, g, b, hue.unwrap_or(-1.0)];
             }
         }
         uniforms

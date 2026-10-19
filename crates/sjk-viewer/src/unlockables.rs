@@ -68,6 +68,9 @@ pub(crate) const CREYON: &str = "Creyon";
 
 /// How to get a shader that holocrons drop ([`Unlockable::how_to_get`]).
 pub(crate) const FROM_HOLOCRONS: &str = "Found in holocrons, or given by the SJK team.";
+/// How to get a shader the holocrons do not drop yet: Creyon's Blade Lab signatures.
+pub(crate) const FROM_THE_TEAM: &str =
+    "Not in holocrons yet: given by the SJK team while it is tried.";
 
 /// One unlockable of the catalogue.
 #[derive(Debug, Eq, PartialEq)]
@@ -105,7 +108,7 @@ impl Unlockable {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) const ALL: [Unlockable; 51] = [
+pub(crate) const ALL: [Unlockable; 72] = [
     Unlockable {
         id: "saber_sun",
         name: "Sun blade",
@@ -718,6 +721,260 @@ pub(crate) const ALL: [Unlockable; 51] = [
         description: "A flat, pointed blade of black volcanic glass with a white-hot edge crackling along it.",
         how_to_get: FROM_HOLOCRONS,
     },
+    // Creyon's Blade Lab signature shaders (blade_signatures.rs), mythicals first: not in
+    // the holocrons yet, given by the team while they are tried in game.
+    Unlockable {
+        id: "saber_abyssal_eye",
+        name: "Abyssal Eye blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A slit cut into an endless dark, its lips glowing crimson; it peels open into a great amber eye that rolls to watch along the blade and flinches shut on a clash.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_aurora_wyrm",
+        name: "Aurora Wyrm blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A serpent of a world's northern lights coiled round a pale-green blade, curtains of rays rippling off its back; now and then it uncoils and weaves up into the sky above the tip.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_balance",
+        name: "Balance blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "The light and the dark side in one blade: a crimson and a pale-blue strand twisting round each other, crimson lightning off the dark side, calm wisps off the light.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_between_worlds",
+        name: "Between Worlds blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A blade from the space between worlds and times: echoes of its past and future beside it, doorways of light onto other stars, and paths of starlight branching off into the dark.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_big_bang",
+        name: "Big Bang blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A young universe: every ignition bursts from one blinding point into a fireball that cools into a cosmic web of tiny spinning galaxies streaming up the blade.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_dyson_sphere",
+        name: "Dyson Sphere blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A star caged in a megastructure: white-gold plasma seen through dark hexagonal panels that slide open in waves; a swing opens every panel and the star blazes.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_eclipse",
+        name: "Eclipse blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A pearl-and-gold blade with a total eclipse circling beside it: corona streamers, prominences and ejecta, and a diamond-ring flash as the black moon passes behind the blade.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_elemental",
+        name: "Elemental blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "Four worlds rule the blade in turn: a fire planet's spiralling flames, an ice world's frost shards, a storm's lightning leaping off it and molten boulders orbiting it.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_event_horizon",
+        name: "Event Horizon blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A gravity well: a violet-white blade with a dark heart, stars spiralling in and stretching into streaks, an accretion swirl and gravitational waves rippling off it.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_hyperspace",
+        name: "Hyperspace blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A ship's jump as a blade: the stars stretched into streaks rushing up it inside a swirling blue tunnel; it jumps when lit and drops out of hyperspace on a clash.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_kyber_heart",
+        name: "Kyber Heart blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A faceted kyber heart beats on the emitter, sending light up the veins of a rose-crystal blade and throwing heart-shaped shockwaves and tiny crystal hearts off it.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_nine_lives",
+        name: "Nine Lives blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A moonlit blade with a gang of glowing cats of a jungle world round it, sitting, prowling and pouncing, paw prints walking up it and cat eyes blinking in the dark.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_quasar",
+        name: "Quasar blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A galaxy's engine: a white-violet jet with bright knots racing up it, a tilted accretion disk spiralling round it and matter flung off on every swing.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_singing_kyber",
+        name: "Singing Kyber blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A kyber crystal that sings: it hums so fast its edges double, sound rings ripple off its nodes, waveform traces run beside it and a clash is a sonic boom.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_star_dragon",
+        name: "Star Dragon blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A dragon made of stars coiled round a royal-blue blade, its horned head over the tip; it rears and breathes a plume of gold stardust.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_star_whale",
+        name: "Star Whale blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A pod of space whales made of stars swimming round an aqua blade, trailing bubbles and spray; once a lap the big one blows a fountain of stars.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_starforge",
+        name: "Starforge blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A kyber blade forged inside a star: white-hot steel cooling at its edges, prominences arching off it and the forge striking fountains of sparks.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_superlaser",
+        name: "Superlaser blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A battle station's main weapon as a blade: eight beams fan in to a blazing focus above the hilt and the main beam fires from there, surges and rings of force racing up it.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_witchfire",
+        name: "Witchfire blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "The dark magick of a witch clan: tendrils of green witchfire wound round the blade fan open like a hood, ichor mist pours off it and runes burn in the air.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_world_tree",
+        name: "World Tree blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A cosmic tree as a blade: three gold strands braid the trunk, roots grip the emitter and its boughs hold spinning galaxies for leaves.",
+        how_to_get: FROM_THE_TEAM,
+    },
+    Unlockable {
+        id: "saber_wraithlight",
+        name: "Wraithlight blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: true,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "A pale blade of the Force's spirits: spectral flames up its edges, souls spiralling round it on long tails and spirit mist pouring down from the tip.",
+        how_to_get: FROM_THE_TEAM,
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -855,6 +1112,26 @@ mod tests {
                 "saber_monarch",
                 "saber_quantum",
                 "saber_comic",
+                // Blade Lab signatures drawn in the palette's colours (blade_signatures.rs).
+                "saber_abyssal_eye",
+                "saber_aurora_wyrm",
+                "saber_between_worlds",
+                "saber_big_bang",
+                "saber_dyson_sphere",
+                "saber_eclipse",
+                "saber_event_horizon",
+                "saber_hyperspace",
+                "saber_kyber_heart",
+                "saber_nine_lives",
+                "saber_quasar",
+                "saber_singing_kyber",
+                "saber_star_dragon",
+                "saber_star_whale",
+                "saber_starforge",
+                "saber_superlaser",
+                "saber_witchfire",
+                "saber_world_tree",
+                "saber_wraithlight",
             ]
         );
         assert!(super::is_chroma("SABER_GLITCH"));
@@ -912,6 +1189,28 @@ mod tests {
                 "saber_comic",
                 "saber_quicksilver",
                 "saber_obsidian",
+                // His Blade Lab's signature shaders (19/10/2026).
+                "saber_abyssal_eye",
+                "saber_aurora_wyrm",
+                "saber_balance",
+                "saber_between_worlds",
+                "saber_big_bang",
+                "saber_dyson_sphere",
+                "saber_eclipse",
+                "saber_elemental",
+                "saber_event_horizon",
+                "saber_hyperspace",
+                "saber_kyber_heart",
+                "saber_nine_lives",
+                "saber_quasar",
+                "saber_singing_kyber",
+                "saber_star_dragon",
+                "saber_star_whale",
+                "saber_starforge",
+                "saber_superlaser",
+                "saber_witchfire",
+                "saber_world_tree",
+                "saber_wraithlight",
             ]
         );
         assert!(blade_skins().all(|skin| [SOL, CREYON].contains(&skin.smith)));
@@ -940,6 +1239,28 @@ mod tests {
                 "saber_phoenix",
                 "saber_quantum",
                 "saber_obsidian",
+                // Creyon's Blade Lab signatures, mythicals first (19/10/2026).
+                "saber_abyssal_eye",
+                "saber_aurora_wyrm",
+                "saber_balance",
+                "saber_between_worlds",
+                "saber_big_bang",
+                "saber_dyson_sphere",
+                "saber_eclipse",
+                "saber_elemental",
+                "saber_event_horizon",
+                "saber_hyperspace",
+                "saber_kyber_heart",
+                "saber_nine_lives",
+                "saber_quasar",
+                "saber_singing_kyber",
+                "saber_star_dragon",
+                "saber_star_whale",
+                "saber_starforge",
+                "saber_superlaser",
+                "saber_witchfire",
+                "saber_world_tree",
+                "saber_wraithlight",
             ]
         );
         assert_eq!(
@@ -1006,7 +1327,7 @@ mod tests {
         assert_eq!(order.len(), blade_skins().count());
         assert!(order.windows(2).all(|pair| pair[0].tier >= pair[1].tier));
         assert_eq!(order[0].id, "saber_sun");
-        assert_eq!(order[11].id, "saber_storm");
+        assert_eq!(order[32].id, "saber_storm");
         // The holocrons' names and colours.
         assert_eq!(Rarity::Mythical.label(), "Mythical");
         assert_eq!(Rarity::Uncommon.label(), "Uncommon");
@@ -1017,17 +1338,25 @@ mod tests {
     }
 
     /// Sol's rule (17/10/2026): every shader drops from holocrons but those a medal
-    /// brings (no achievement brings one yet), and its "How to get it" says which. Relax
-    /// the first check if a shader is ever kept out of holocrons for another reason.
+    /// brings (no achievement brings one yet), and its "How to get it" says which. The
+    /// Blade Lab signatures are kept out too while they are tried (`FROM_THE_TEAM`).
     #[test]
     fn every_shader_but_the_medals_drops() {
         for skin in blade_skins() {
             let medal = crate::medals::Medal::ALL
                 .iter()
                 .any(|medal| medal.blade() == Some(skin.id));
+            // A new signature on trial (the reworked designs drop as before).
+            let trying = skin.how_to_get == FROM_THE_TEAM;
+            assert!(
+                !trying || crate::blade_signatures::of(skin.id).is_some(),
+                "{}",
+                skin.id
+            );
             assert_eq!(
-                skin.droppable, !medal,
-                "{}: a medal's shader never drops, every other one does today",
+                skin.droppable,
+                !medal && !trying,
+                "{}: a medal's shader and a signature on trial never drop, every other one does today",
                 skin.id
             );
             assert_eq!(
@@ -1209,6 +1538,28 @@ mod tests {
                 ("saber_comic", "Comic blade"),
                 ("saber_quicksilver", "Quicksilver blade"),
                 ("saber_obsidian", "Obsidian Edge blade"),
+                // Not in the hub yet: its catalogue follows when the team adds them.
+                ("saber_abyssal_eye", "Abyssal Eye blade"),
+                ("saber_aurora_wyrm", "Aurora Wyrm blade"),
+                ("saber_balance", "Balance blade"),
+                ("saber_between_worlds", "Between Worlds blade"),
+                ("saber_big_bang", "Big Bang blade"),
+                ("saber_dyson_sphere", "Dyson Sphere blade"),
+                ("saber_eclipse", "Eclipse blade"),
+                ("saber_elemental", "Elemental blade"),
+                ("saber_event_horizon", "Event Horizon blade"),
+                ("saber_hyperspace", "Hyperspace blade"),
+                ("saber_kyber_heart", "Kyber Heart blade"),
+                ("saber_nine_lives", "Nine Lives blade"),
+                ("saber_quasar", "Quasar blade"),
+                ("saber_singing_kyber", "Singing Kyber blade"),
+                ("saber_star_dragon", "Star Dragon blade"),
+                ("saber_star_whale", "Star Whale blade"),
+                ("saber_starforge", "Starforge blade"),
+                ("saber_superlaser", "Superlaser blade"),
+                ("saber_witchfire", "Witchfire blade"),
+                ("saber_world_tree", "World Tree blade"),
+                ("saber_wraithlight", "Wraithlight blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

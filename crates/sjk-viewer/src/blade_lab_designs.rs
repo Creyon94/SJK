@@ -116,6 +116,36 @@ impl Design {
     /// the lab's colour for its trail and light. The core and corona stay, unused by the
     /// shader, for a chroma's base hue; the sounds stay the file's.
     pub(crate) fn shown(&self, def: &BladeSkinDef) -> BladeSkinDef {
+        let mut shown = bare(def);
+        // The design's own parts its wearer may switch off.
+        let option =
+            |id: &str, name: &str, section: &str| crate::blade_skin_file::extras::SkinOption {
+                id: id.to_owned(),
+                name: name.to_owned(),
+                sections: vec![section.to_owned()],
+            };
+        // Every design's particles and bursts (on bits it has no other use for: `saber.wgsl`
+        // `lab_glow` and `lab_place`), and Quantum's ghost copies.
+        shown.options = vec![
+            option("particles", "Particles", "arcs"),
+            option("bursts", "Swing and clash bursts", "motes"),
+        ];
+        if self.number == QUANTUM {
+            shown
+                .options
+                .push(option("ghosts", "Ghost copies", "copies"));
+        }
+        shown.trail = self.color;
+        shown.light.color = self.color;
+        shown
+    }
+}
+
+/// `def` without any of its sections (a design or signature draws its own parts, and the
+/// CPU's afterimages, echo, glints and pulse go with them) or options. The core, corona,
+/// colours and sounds stay.
+pub(crate) fn bare(def: &BladeSkinDef) -> BladeSkinDef {
+    {
         let mut shown = def.clone();
         shown.arcs = None;
         shown.motes = None;
@@ -150,17 +180,7 @@ impl Design {
         shown.copies = None;
         shown.ink = None;
         shown.chrome = None;
-        // The design's own parts its wearer may switch off.
-        shown.options = match self.number {
-            QUANTUM => vec![crate::blade_skin_file::extras::SkinOption {
-                id: "ghosts".to_owned(),
-                name: "Ghost copies".to_owned(),
-                sections: vec!["copies".to_owned()],
-            }],
-            _ => Vec::new(),
-        };
-        shown.trail = self.color;
-        shown.light.color = self.color;
+        shown.options = Vec::new();
         shown
     }
 }

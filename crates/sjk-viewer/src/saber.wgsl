@@ -252,6 +252,12 @@ struct VertexOutput {
     // A skinned blade's swing (0 to 1) and the seconds since its last clash, since it was
     // lit and since its last swing began (saber_motion.rs).
     @location(12) @interpolate(flat) motion: vec4<f32>,
+    // The quad's point from the camera (the view ray through the fragment), and the
+    // blade's hilt from the camera and its direction: what `blade_place` finds the true
+    // place on the blade with, where the projected `blade` is off under perspective.
+    @location(13) ray: vec3<f32>,
+    @location(14) @interpolate(flat) hilt_at: vec3<f32>,
+    @location(15) @interpolate(flat) axis: vec3<f32>,
 }
 
 // TaystJK's CG_DoSaber submits the core RT_LINE twice (taystjk cgame cg_players.c:6429 and 6465;
@@ -480,11 +486,34 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
         output.shaft = 0.0;
     }
     output.clip_position = camera.view_projection * vec4(world, 1.0);
+    output.ray = world - camera.position;
+    output.hilt_at = blade_base - camera.position;
+    output.axis = direction;
     output.color = blade_color.rgb;
     output.radius = blade_radius;
     output.length = blade_length;
     output.hilt = hilt;
     return output;
+}
+
+// The true place on the blade a glow quad's fragment shows, in units: across (signed as
+// `blade.x`) and along (0 at the hilt). The point on the blade's axis nearest the view
+// ray, and the ray's distance from it there. The projected `blade` treats the quad as
+// seen square on, which strays far from the blade under a close perspective (first person,
+// looking along it); the Blade Lab's shaders need the place itself.
+fn blade_place(input: VertexOutput) -> vec2<f32> {
+    let r = input.ray;
+    let d = input.axis;
+    let from_hilt = -input.hilt_at;
+    let rr = dot(r, r);
+    let rd = dot(r, d);
+    let rw = dot(r, from_hilt);
+    let dw = dot(d, from_hilt);
+    let denom = max(rr - rd * rd, rr * 0.000001);
+    let along = (rr * dw - rd * rw) / denom;
+    let on_ray = (rd * dw - rw) / denom;
+    let gap = from_hilt + r * on_ray - d * along;
+    return vec2(select(-1.0, 1.0, input.blade.x >= 0.0) * length(gap), along);
 }
 
 fn glow(u: f32, v: f32) -> vec3<f32> {
@@ -1558,7 +1587,8 @@ fn skin_past_glow(skin: Skin, input: VertexOutput, beyond: f32) -> bool {
         && skin.hour_shape.x <= 0.0 && skin.serpent_shape.x <= 0.0
         && skin.strand_shape.x < 2.0 && skin.blob_shape.x < 1.0 && skin.fly_shape.x < 1.0
         && skin.wing_shape.x <= 0.0;
-    if !plain {
+    // A signature shader draws wherever its quad reaches.
+    if !plain || skin.design.x == f32(LAB_SIGNATURE) {
         return false;
     }
     let reach = max(chain_radius(input.radius, input.length, 0.0), input.hilt) * skin.swell.x;
@@ -1822,6 +1852,17 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     if any(hue.xyz != vec3(0.0)) {
         glow = skin_turn_hue(glow, time * hue.x + around * hue.y + radial / r * hue.z);
     }
+    // A signature shader takes the glow the file drew and draws the blade its own way.
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        sig_take(input);
+        let place = blade_place(input);
+        // The file's glow round the emitter stays, as a stock blade's covers the hilt's
+        // mouth.
+        let mouth = (1.0 - smoothstep(0.0, 2.2, length(vec2(place.x * 0.6, max(place.y, 0.0))))) * 0.75;
+        glow = max(sig_glow(glow, place + vec2(x - input.blade.x, 0.0), r, pixel), vec3(0.0))
+            * sig_kept(input, place) + glow * mouth * step(-6.0, place.y);
+        return sig_coloured(input, glow);
+    }
     // A chroma takes its wearer's colour: everything it drew, turned at once.
     if input.chroma != 0.0 {
         glow = skin_turn_hue(glow, input.chroma);
@@ -1891,6 +1932,13 @@ fn skin_core(input: VertexOutput, texel: vec4<f32>, uv: vec2<f32>, footprint: f3
     let cut = skin_cut(skin, input.length, time, seed);
     if cut < input.length {
         core *= 1.0 - smoothstep(cut - 1.5, cut + 0.5, along);
+    }
+    // A signature shader's core, which never runs on past the tip.
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        sig_take(input);
+        core = max(sig_core(core, vec2(x, along), footprint), vec3(0.0))
+            * (1.0 - smoothstep(input.length - 0.2, input.length + 0.4, along));
+        return sig_coloured(input, core);
     }
     if input.chroma != 0.0 {
         core = skin_turn_hue(core, input.chroma);
@@ -2260,6 +2308,13 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
         alpha = max(alpha, ring);
         out = vec4(rgb, alpha);
     }
+    // A signature shader's solid layer (dark stone, scales, a horizon).
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        sig_take(input);
+        let place = blade_place(input);
+        out = clamp(sig_solid(out, place, pixel), vec4(0.0), vec4(1.0));
+        out = vec4(sig_coloured(input, out.rgb), out.a * sig_kept(input, place));
+    }
     return out;
 }
 
@@ -2300,6 +2355,9 @@ const LAB_MONARCH: u32 = 11u;
 const LAB_PHOENIX: u32 = 12u;
 const LAB_SERPENT: u32 = 13u;
 const LAB_QUANTUM: u32 = 14u;
+// A skin drawn by a Blade Lab signature shader (blade_signatures.rs): its `design` lane's
+// number. The skin's own passes draw it, each handing what it drew to the signature.
+const LAB_SIGNATURE: u32 = 100u;
 
 // Where a fragment is, in the lab's terms. `x` along the blade (metres from the hilt, as
 // on the blade itself), `y` across, `big_l` the blade's length, `d` the distance to the
@@ -2330,7 +2388,7 @@ struct LabPlace {
 
 // How far each design's blade starts behind its hilt end (metres): stock blades hide
 // the hilt's mouth under their glow and hilt sprite, the lab's start at its emitter.
-const LAB_START: f32 = 0.08;
+const LAB_START: f32 = 0.027;
 // How much narrower each design is drawn than in the lab (its width divided by this),
 // so every blade is a stock blade's thickness and fits its hilt; by number.
 const LAB_THIN: array<f32, 15> = array<f32, 15>(
@@ -2344,14 +2402,21 @@ fn lab_design(input: VertexOutput) -> u32 {
     if input.kind < KIND_SKIN {
         return 0u;
     }
-    return u32(skins[skin_index(input)].design.x + 0.5);
+    let n = u32(skins[skin_index(input)].design.x + 0.5);
+    // A signature shader is drawn by the skin's own passes, with its hooks.
+    if n == LAB_SIGNATURE {
+        return 0u;
+    }
+    return n;
 }
 
 fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     var p: LabPlace;
-    p.k = max(input.shaft / max(input.length, 0.0001), 0.05);
-    p.p = vec2(input.blade.y * LAB_METRE + LAB_START * p.k, input.blade.x * LAB_METRE);
-    p.shaft = input.shaft * LAB_METRE + LAB_START * p.k;
+    // The true place on the blade (`blade_place`): no foreshortening left to undo.
+    let place = blade_place(input);
+    p.k = 1.0;
+    p.p = vec2(place.y * LAB_METRE + LAB_START, place.x * LAB_METRE);
+    p.shaft = input.length * LAB_METRE + LAB_START;
     p.x = p.p.x / p.k;
     let n = min(u32(skins[skin_index(input)].design.x + 0.5), 14u);
     p.thin = LAB_THIN[n];
@@ -2365,6 +2430,11 @@ fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     p.swing = clamp(input.motion.x, 0.0, 1.0);
     // The lab's clash fades at 2.2 a second.
     p.clash = max(1.0 - input.motion.y * 2.2, 0.0);
+    // Its `bursts` option off (the motes bit): swings and clashes set nothing off.
+    if (input.off & OFF_MOTES) != 0u {
+        p.swing = 0.0;
+        p.clash = 0.0;
+    }
     p.age = input.motion.z;
     p.since_swing = input.motion.w;
     p.since_clash = input.motion.y;
@@ -3144,7 +3214,9 @@ fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
         light += max(lab_quantum_ghosts(p), vec3(0.0));
     }
     let room = design.z;
-    if room > 0.0 && p.d < room {
+    // Its particles, unless its wearer switched them off (the `particles` option, the
+    // arcs bit: blade_lab_designs.rs `Design::shown`).
+    if room > 0.0 && p.d < room && (input.off & OFF_ARCS) == 0u {
         light += lab_motes(n, p) * (1.0 - lab_sstep(room * 0.75, room, p.d));
     }
     return light * persona_fade(input);
@@ -3475,3 +3547,101 @@ fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
     out.a *= persona_fade(input);
     return out;
 }
+
+// --- Blade Lab signature shaders (blade_signatures.rs) ----------------------------------
+//
+// A signature is the lab's own GLSL shader for one blade, translated to WGSL by
+// scripts/blade_signatures.py: `sig_glow` takes the glow the skin's file drew (`g`) and
+// returns the blade's light, `sig_core` the same for the core line, `sig_solid` a layer
+// blended over the glow. `b` is the place on the blade in units (across, along: 0 at the
+// hilt, `uLength` at the tip), `r` the stock glow's radius there, `px` a pixel in units.
+// They read the lab's uniforms, set from the instance by `sig_take`. This module holds
+// stand-ins that change nothing; each signature skin's pipelines are built from this
+// module with the region between the markers replaced by the lab's helpers and its own
+// functions (blade_signatures.rs `module_source`).
+
+var<private> uTime: f32;
+var<private> uLength: f32;
+var<private> uSwing: f32;
+var<private> uClash: f32;
+var<private> uIgn: f32;
+var<private> uAge: f32;
+var<private> uSeed: f32;
+var<private> uChroma: f32;
+var<private> uRoom: f32;
+
+// The lab's ignition takes 0.42 s and its clash fades at 2.2 a second.
+const SIG_IGNITION: f32 = 0.42;
+
+fn sig_take(input: VertexOutput) {
+    uTime = input.animation.x;
+    uSeed = input.animation.y;
+    uLength = input.length;
+    uSwing = clamp(input.motion.x, 0.0, 1.0);
+    uClash = max(1.0 - input.motion.y * 2.2, 0.0);
+    uAge = input.motion.z;
+    uIgn = clamp(input.motion.z / SIG_IGNITION, 0.0, 1.0);
+    // The options every signature has (blade_signatures.rs `Signature::shown`), on bits
+    // a signature skin has no other use for: no bursts, no ignition show.
+    if (input.off & OFF_MOTES) != 0u {
+        uSwing = 0.0;
+        uClash = 0.0;
+    }
+    if (input.off & OFF_HUE) != 0u {
+        uAge = 1000.0;
+        uIgn = 1.0;
+    }
+    // The page turned a chroma's output afterwards; the game turns it after the hooks.
+    uChroma = 0.0;
+    uRoom = skins[skin_index(input)].design.z / LAB_METRE;
+}
+
+// With its `effects` option off (the arcs bit) only the blade itself is left of what a
+// signature draws at `b`: nothing beyond a stock glow's width or past the tip.
+fn sig_kept(input: VertexOutput, b: vec2<f32>) -> f32 {
+    if (input.off & OFF_ARCS) == 0u {
+        return 1.0;
+    }
+    let beyond = max(max(b.y - input.length, -b.y - 1.0), 0.0);
+    return 1.0 - smoothstep(1.2, 2.6, length(vec2(b.x, beyond)));
+}
+
+// A chroma signature's colour on its wearer: every coloured part takes the wearer's hue
+// outright (`hue`, turns from red), at least well saturated, and only its white-hot parts
+// stay white, as a stock blade's core does; turning the colours round (`skin_turn_hue`)
+// left the lab's many-coloured and pale blades looking hardly changed.
+fn sig_recolour(c: vec3<f32>, hue: f32) -> vec3<f32> {
+    let high = max(c.r, max(c.g, c.b));
+    if high <= 0.0 {
+        return c;
+    }
+    let low = min(c.r, min(c.g, c.b));
+    let sat = (high - low) / high;
+    let turned = skin_turn_hue(vec3(1.0, 0.0, 0.0), hue);
+    let tint = turned / max(max(turned.r, max(turned.g, turned.b)), 0.0001);
+    let white = smoothstep(0.7, 1.0, high) * (1.0 - smoothstep(0.08, 0.3, sat));
+    return high * mix(vec3(1.0), tint, mix(max(sat, 0.85), sat, white));
+}
+
+// The colour a signature skin's pass ends with: its wearer's hue for a chroma.
+fn sig_coloured(input: VertexOutput, c: vec3<f32>) -> vec3<f32> {
+    let base = skins[skin_index(input)].design_color.w;
+    if input.chroma == 0.0 || base < 0.0 {
+        return c;
+    }
+    return sig_recolour(c, fract(base + input.chroma));
+}
+
+// @signature begin
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return g;
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c;
+}
+
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
+    return o;
+}
+// @signature end

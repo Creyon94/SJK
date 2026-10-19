@@ -488,7 +488,17 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .unwrap();
     let skins = LoadedSkins::load(packs, 4);
     assert_eq!(skins.generation(), 4);
-    assert_eq!(skins.ids().collect::<Vec<_>>(), ["saber_sun"]);
+    // The pack's skin, then the signature skins no pack carries, from their built-in files.
+    let ids: Vec<_> = skins.ids().collect();
+    assert_eq!(ids[0], "saber_sun");
+    assert!(
+        ids[1..]
+            .iter()
+            .copied()
+            .eq(crate::blade_signatures::SIGNATURES
+                .iter()
+                .map(|signature| signature.id))
+    );
     let skin = skins.get("saber_sun").unwrap();
     assert_eq!(skin.glow.dimensions(), (32, 32));
     assert_eq!(skin.glow.get_pixel(3, 3).0, [90, 90, 90, 255]);
@@ -496,11 +506,11 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
     assert_eq!(skins.color_of("saber_sun").map(|c| c.index), Some(0));
     assert_eq!(skins.color_of("saber_moon"), None);
     let sets = skins.sound_sets();
-    assert_eq!(sets.len(), 1);
+    assert_eq!(sets.len(), 1 + crate::blade_signatures::SIGNATURES.len());
     assert_eq!(sets[0].hum, "sound/test/blade/hum.wav");
     assert_eq!(sets[0].swings[1], "sound/test/blade/s2.wav");
     assert_eq!(skins.swing(0, 4), Some("sound/test/blade/s2.wav"));
-    assert_eq!(skins.swing(1, 0), None);
+    assert_eq!(skins.swing(sets.len() as u8, 0), None);
     // A missing image refuses the skin: the stock blade.
     let mut missing = VirtualFileSystem::new();
     missing
@@ -516,7 +526,12 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
             )],
         )
         .unwrap();
-    assert_eq!(LoadedSkins::load(missing, 5).ids().count(), 0);
+    assert_eq!(
+        LoadedSkins::load(missing, 5)
+            .get("saber_sun")
+            .map(|skin| skin.id),
+        None
+    );
 }
 
 #[test]
