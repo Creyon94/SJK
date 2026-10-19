@@ -225,11 +225,10 @@ impl ShaderCatalog {
     pub fn get(&self, name: &str) -> Option<&ShaderDefinition> {
         let normalized = normalize_name(name);
         self.definitions.get(&normalized).or_else(|| {
-            let stem = normalized
-                .rsplit_once('.')
-                .filter(|(_, extension)| matches!(*extension, "tga" | "jpg" | "jpeg" | "png"))
-                .map(|(stem, _)| stem)?;
-            self.definitions.get(stem)
+            let stem = strip_extension(&normalized);
+            (stem.len() < normalized.len())
+                .then(|| self.definitions.get(stem))
+                .flatten()
         })
     }
 
@@ -289,6 +288,18 @@ impl ShaderCatalog {
                     return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
                 }
             }
+            // Any other extension is dropped, as `COM_StripExtension` does in
+            // `R_FindShader` and `R_LoadImage`: a model naming `tex.jpgv` (a typo in
+            // JoF's HD E11) loads `tex.png` there.
+            let stem = strip_extension(&candidate);
+            if stem.len() < candidate.len() {
+                for extension in IMAGE_EXTENSIONS {
+                    let path = format!("{stem}{extension}");
+                    if vfs.contains(&path)? {
+                        return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
+                    }
+                }
+            }
         }
         Ok(None)
     }
@@ -336,10 +347,8 @@ fn resolve_concrete_image(
     image_name: &str,
 ) -> Result<Option<VirtualPath>, ShaderError> {
     let candidate = normalize_name(image_name);
-    let stem = candidate
-        .rsplit_once('.')
-        .filter(|(_, extension)| matches!(*extension, "tga" | "jpg" | "jpeg" | "png"))
-        .map_or(candidate.clone(), |(stem, _)| stem.to_owned());
+    // `R_LoadImage` drops whatever extension the name has before trying its loaders.
+    let stem = strip_extension(&candidate).to_owned();
     for path in [
         candidate,
         format!("{stem}.jpg"),
@@ -359,6 +368,15 @@ fn resolve_concrete_image(
 /// file is missing or the name has no extension. A `.png` beside a base `.tga`
 /// therefore wins for an extensionless name, not for a name that says `.tga`.
 const IMAGE_EXTENSIONS: [&str; 3] = [".jpg", ".png", ".tga"];
+
+/// The name without its extension, whatever it is: `COM_StripExtension` (q_shared.c)
+/// cuts at the last dot that follows the last slash.
+fn strip_extension(name: &str) -> &str {
+    match name.rfind('.') {
+        Some(dot) if name.rfind('/').is_none_or(|slash| slash < dot) => &name[..dot],
+        _ => name,
+    }
+}
 
 fn is_concrete_image(image: &str) -> bool {
     !image.starts_with('$') && image != "-"
@@ -471,6 +489,46 @@ mod tests {
             resolved(&both, "textures/a/b.png").as_deref(),
             Some("textures/a/b.png")
         );
+    }
+
+    #[test]
+    fn an_unknown_extension_is_stripped_as_com_strip_extension_does() {
+        // JoF's HD E11 (`blaster_w.glm`, surface `bl_low`) names `tex.jpgv`.
+        let files = vfs(&["models/weapons2/blaster_r/tex.png"]);
+        assert_eq!(
+            resolved(&files, "models/weapons2/blaster_r/tex.jpgv").as_deref(),
+            Some("models/weapons2/blaster_r/tex.png")
+        );
+        let stage = ShaderCatalog::default()
+            .resolve_stage_image(&files, "models/weapons2/blaster_r/tex.jpgv")
+            .expect("lookup")
+            .map(|path| path.as_str().to_owned());
+        assert_eq!(stage.as_deref(), Some("models/weapons2/blaster_r/tex.png"));
+        // A dot in a folder name is not an extension.
+        let folder = vfs(&["models/a.b/c.jpg"]);
+        assert_eq!(
+            resolved(&folder, "models/a.b/c").as_deref(),
+            Some("models/a.b/c.jpg")
+        );
+        assert_eq!(strip_extension("models/a.b/c"), "models/a.b/c");
+        assert_eq!(strip_extension("models/a/c.jpgv"), "models/a/c");
+    }
+
+    #[test]
+    fn a_shader_is_found_through_any_extension() {
+        let mut files = VirtualFileSystem::new();
+        files
+            .mount_memory(
+                "test",
+                [(
+                    "shaders/test.shader",
+                    b"models/a/tex\n{\n {\n map models/a/real.tga\n }\n}\n".to_vec(),
+                )],
+            )
+            .expect("memory mount");
+        let catalog = ShaderCatalog::load(&files).expect("catalog");
+        assert!(catalog.get("models/a/tex.jpgv").is_some());
+        assert!(catalog.get("models/a.b").is_none());
     }
 
     #[test]

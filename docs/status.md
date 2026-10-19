@@ -6281,6 +6281,13 @@ effect for extensionless names (for example the disruptor scope in
 `JoF_HDWeaponScopeTrue.pk3`). Unit tests in `sjk-shader` cover the order and the
 named-extension-first rule. Not verified in game.
 
+An extension the loaders do not know is dropped, as `COM_StripExtension` does in
+`R_FindShader` and `R_LoadImage` (the last dot after the last slash): JoF's HD E11
+(`JoF_HDWeaponModels.pk3`, `blaster_w.glm`) names `tex.jpgv` on its barrel surface
+`bl_low`, which the original engines load as `tex.png` and SJK drew as a magenta
+missing image (Nib's report #88). Shader script lookup strips such an extension too.
+Unit tests in `sjk-shader` pin it; not verified in game.
+
 ## Detached free camera
 
 Detached free camera (`feat/free-camera`): `/freecam [on|off]`
