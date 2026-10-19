@@ -70,8 +70,10 @@ pub(super) const PAGE_ROWS: usize = 2;
 pub(super) const FAST_PAGES: usize = 5;
 /// Commands kept for Up and Down (`COMMAND_HISTORY`).
 pub(super) const HISTORY: usize = 32;
-/// Open fraction of Ctrl and Shift with the console key (`CL_KeyDownEvent`).
+/// Open fraction of Ctrl with the console key.
 const FULL_HEIGHT: f32 = 1.0;
+/// Open fraction of Shift with the console key (`CL_KeyDownEvent`), or of
+/// Shift+Escape with `con_shiftHeight`.
 const QUARTER_HEIGHT: f32 = 0.25;
 
 /// The character grid for a viewport and `con_scale`.
@@ -157,14 +159,21 @@ pub(super) fn ratio_fix_range(fraction: f32, viewport: [f32; 2], enabled: bool) 
     }
 }
 
-/// Open fraction for a console key: Ctrl opens it full screen, Shift a quarter,
-/// otherwise follow the live `con_height` setting (`None`). Shift+Escape also
-/// clears the override, rather than caching the setting's current value.
-pub(super) fn open_height(escape: bool, control: bool, shift: bool) -> Option<f32> {
+/// Open fraction for a console key; `None` follows live `con_height`. Ctrl plus
+/// the console key opens full screen. As `CL_KeyDownEvent`, Shift plus the console
+/// key opens a quarter and Shift+Escape the plain height; `con_shiftHeight`
+/// (`shift_height`) swaps those two: Shift plus the console key follows
+/// `con_height` and Shift+Escape opens a quarter.
+pub(super) fn open_height(
+    escape: bool,
+    control: bool,
+    shift: bool,
+    shift_height: bool,
+) -> Option<f32> {
     match (escape, control, shift) {
-        (true, ..) => None,
+        (true, ..) => shift_height.then_some(QUARTER_HEIGHT),
         (false, true, _) => Some(FULL_HEIGHT),
-        (false, false, true) => Some(QUARTER_HEIGHT),
+        (false, false, true) => (!shift_height).then_some(QUARTER_HEIGHT),
         _ => None,
     }
 }
@@ -1355,14 +1364,19 @@ mod tests {
 
     #[test]
     fn console_key_heights() {
-        assert_eq!(open_height(false, false, false), None);
-        assert_eq!(open_height(false, true, false), Some(1.0));
-        assert_eq!(open_height(false, false, true), Some(0.25));
-        // Ctrl wins over Shift; Shift+Escape is the plain height.
-        assert_eq!(open_height(false, true, true), Some(1.0));
-        assert_eq!(open_height(true, false, true), None);
-        // A normal opening follows subsequent changes, even without reopening.
-        let height = open_height(false, false, false);
+        // After EternalJK: Shift+tilde a quarter, Shift+Escape the setting,
+        // Ctrl+tilde full screen (Ctrl wins over Shift).
+        assert_eq!(open_height(false, false, false, false), None);
+        assert_eq!(open_height(false, true, false, false), Some(1.0));
+        assert_eq!(open_height(false, false, true, false), Some(0.25));
+        assert_eq!(open_height(false, true, true, false), Some(1.0));
+        assert_eq!(open_height(true, false, true, false), None);
+        // con_shiftHeight: Shift+tilde follows the setting, Shift+Escape a quarter.
+        assert_eq!(open_height(false, false, true, true), None);
+        assert_eq!(open_height(true, false, true, true), Some(0.25));
+        assert_eq!(open_height(false, true, true, true), Some(1.0));
+        // A normal opening follows changes without reopening.
+        let height = open_height(false, false, false, false);
         assert_eq!(height.unwrap_or(0.5), 0.5);
         assert_eq!(height.unwrap_or(0.75), 0.75);
     }

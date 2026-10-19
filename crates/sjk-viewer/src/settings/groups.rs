@@ -346,6 +346,7 @@ impl Group {
                 "con_scale",
                 crate::console::console_options::DRAW_NOTIFY_CVAR,
                 crate::console::console_options::COPY_COLORS_CVAR,
+                crate::console::console_options::SHIFT_HEIGHT_CVAR,
                 crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,

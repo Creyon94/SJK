@@ -493,6 +493,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Loudness of emote sounds, times the effects volume (SJK)",
         ),
         CvarDefinition::new(
+            crate::emotes::ATTACK_STOP_CVAR,
+            crate::emotes::DEFAULT_ATTACK_STOP,
+            archive,
+            "An attack or alt attack ends your own emote (SJK)",
+        ),
+        CvarDefinition::new(
             crate::unlock_toast::SOUND_CVAR,
             true,
             archive,

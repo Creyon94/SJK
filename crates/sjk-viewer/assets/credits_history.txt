@@ -9,6 +9,11 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Attack ends emote setting, off by default
+- f47c47b |  | Emotes: attack ending your own emote is a setting, off by default
+- cfe2e58 |  | Changelog and debug panel for the Attack ends emote setting
++ 19/10/2026 | - | SJK pull request #166, Shift console heights as the option con_shiftHeight
+- e7f3d40 |  | Shift console heights: SJK pull request #166 made an option, con_shiftHeight
 + 19/10/2026 | - | No pause when models load, hub report 86; no crash leaving a server or quitting from fullscreen
 - b7c566e |  | Changelog and debug panel for the model load and leave crash fixes
 + 19/10/2026 | - | Leaving a server: the old world's frame is presented before the next world takes the window
@@ -1894,6 +1899,8 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 19/10/2026 | SJK #166 | Swap Shift console height shortcuts
+- 6746cfc |  | Swap Shift console height shortcuts
 + 18/10/2026 | SJK #165 | Add trusted chat media sources and silent MP4 playback
 - 8094630 |  | Add player-approved chat media sources and silent video
 + 18/10/2026 | SJK #149 | Move firing confirmations and EJK opt-in into the JoF mod

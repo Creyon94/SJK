@@ -320,7 +320,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 50 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 51 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -425,6 +425,8 @@ merged into SJK
 - #165 trusted chat media sources: each player approves the sites whose GIFs show inline,
   with bounded discovery and fetching; reworked at the merge for animated WebP and
   opt-in MP4 through Windows Media Foundation (`cl_sjkChatVideo`, off) instead of OpenH264.
+- #166 Shift plus the console key opens to `con_height` and Shift+Escape a quarter screen;
+  made an option at the merge (`con_shiftHeight`, off, EternalJK's heights by default).
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 14 pull requests
 merged into SJK

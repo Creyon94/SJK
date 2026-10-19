@@ -417,7 +417,9 @@ plays its glTF's animations on its own skeleton.
   snapshot moves their sound source); the player's own plays in both ears, as their
   own entity is not in the snapshot to move it (until 14/10/2026 it stayed where it
   started). Settings > Sound > Emotes: Emote volume (`s_emoteVolume`, 2 by default,
-  0 to 3) multiplies it over the effects volume.
+  0 to 3) multiplies it over the effects volume; Attack ends emote
+  (`cg_emoteAttackStop`, off by default) makes an attack or alt attack stop your own
+  emote for everyone ([hub chat](hub-chat.md)).
 - The mixer has 128 voices (32 until 15/10/2026, as retail) and, when they are all
   playing, gives up the oldest sound for a new one, except an emote's: voices on the
   music channel go only when nothing else is left (`MixerConfig::protected_channel`).

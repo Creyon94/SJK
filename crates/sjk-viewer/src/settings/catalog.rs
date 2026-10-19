@@ -251,6 +251,11 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Attack ends emote",
+        cvar: crate::emotes::ATTACK_STOP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,
@@ -1152,6 +1157,11 @@ pub(super) const TEXT: &[Setting] = &[
     Setting {
         label: "Copy console colours",
         cvar: crate::console::console_options::COPY_COLORS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Swap Shift console size",
+        cvar: crate::console::console_options::SHIFT_HEIGHT_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
