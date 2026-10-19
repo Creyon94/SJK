@@ -62,7 +62,8 @@ includes:
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
 - the JoF clan tag: the clan's emblem beside the names that carry its tag, in
-  the chats, on the scoreboard and on player cards;
+  the chats, on the scoreboard and on player cards; the JAWA clan's tag with its
+  forum icon, a Jawa's hood (19/10/2026);
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
@@ -201,11 +202,17 @@ includes:
   (`help_emotes`);
 - crash reports sent to the SJK team at the next start, and world notes sent to the
   SJK hub from the inspect key;
+- test packs: PK3s sealed on the owner's PC to the testers chosen, kept by the SJK hub
+  without any key that opens them, encrypted on the testers' disks and decrypted only as
+  the game reads them;
 - log requests: the SJK team asks a player for their game's logs from the Staff page,
   the player's game asks them before it sends the console lines of this session and
   the last (no chat), and staff read every player's crash reports by kind;
 - ghost replay (`ghost`): a run recorded once and replayed on the same server to film
   a showcase, walking to its start and correcting drift through the movement keys;
+- map edits (18/10/2026): SJK's own fixes to maps, made in game by staff (props and
+  surfaces hidden, models placed, shaders swapped, for all servers or one) and drawn by
+  every SJK player through the hub, with its panel in the SJK look (19/10/2026);
 - the mimic (`mimic`): another player's view, movement, jumps, crouches, saber attacks,
   stance and holster copied live, facing them as a mirror image or a copy, after a set
   delay;
@@ -236,7 +243,10 @@ includes:
   `[AFK]`), faint at the bottom of their list (`cg_scoreboardAfk`);
 - menu pictures (`ui_menuPictures`): 4K pictures of the menu's map instead of the live
   map, turned on by itself when a map runs out of video memory, and map changes sharing
-  the textures the old and new map have in common (about 730 MB less at the peak).
+  the textures the old and new map have in common (about 730 MB less at the peak);
+- Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
+  screen, or the server, map, mode, team and players, through the Discord app's
+  local pipe.
 
 ## Contributors to SJK
 
@@ -416,7 +426,7 @@ merged into SJK
   with bounded discovery and fetching; reworked at the merge for animated WebP and
   opt-in MP4 through Windows Media Foundation (`cl_sjkChatVideo`, off) instead of OpenH264.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 9 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 14 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -437,8 +447,18 @@ merged into SJK
 - #133 live SJK chat messages also enter the console scrollback with a yellow `SJK` tag.
 - #154 `cg_hideCorpsesInDuel` and `cg_hidePickupsInDuel`: corpses and pickups hidden while you are
   in a private duel.
+- #164 the 15th field of JA+/jaPRO `scores` rows kept: both scoreboards show score/deaths, with
+  JoF EJK's `cg_scoreDeaths` modes.
+- #167 the speedometer placed as in JoF EternalJK: `cg_speedometerX` is the text's right edge,
+  with JoF's offsets for its numbered game HUDs (only a numeric `cg_hudFiles`, at the merge).
+- #171 hovering a whisper you sent in the console shows its recipient, kept from the `tell`
+  until the server's echo, in both console looks.
+- #173 `cl_sjkChatFeed` and `cl_sjkChatConsole`: SJK chat in the game's feed and the console can
+  be switched off separately (a refusal from the hub still shows, at the merge).
+- #177 `con_copyColors`: copied console text keeps its colour codes, with `^7` before text that
+  was white by default.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 12 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 14 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -466,6 +486,10 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   doors, locked doors show their lock lights, and nothing is used before the round begins.
 - #160 the Siege HUD: waiting for players and the round countdown, the respawn wave countdown,
   hack progress, and the hacking sound (the viewed player's own `ps.loopSound`).
+- #169 a written `\n` in the string tables is a line break, as `ConvertCRLiterals_Read`.
+- #174 (with #168) Siege announcements from the map's `.siege` file, as `CG_SiegeObjectiveCompleted`
+  and `CG_SiegeRoundOver`: completed objectives' messages and sounds for the viewer's team, the
+  3, 2, 1 count-in, and the round's end.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
@@ -527,7 +551,7 @@ Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective
 owners. SJK is a fan project and is not affiliated with or endorsed by Lucasfilm,
 Disney, Raven Software or Activision. No retail game assets are included.
 
-## Footnote: JKR, by Bishop
+## Origins: JKR, by Bishop
 
 SJK began in October 2026 as a modified version of
 [JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)

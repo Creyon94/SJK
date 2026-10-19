@@ -221,6 +221,33 @@ impl Selection {
         format!("{what}, {:.0} units", self.distance)
     }
 
+    /// What a map edit would act on.
+    pub(crate) fn edit_target(&self) -> EditTarget {
+        if let Some(model) = &self.model {
+            return EditTarget::Model {
+                number: model.entity.number,
+                classname: model.entity.classname.clone(),
+                model: model.entity.model.clone(),
+                shader: model.shaders.first().map(|shader| shader.shader.clone()),
+            };
+        }
+        match (&self.surface, &self.entity) {
+            (_, Some(entity)) if !entity.shaders.is_empty() => EditTarget::Other,
+            (Some(surface), _) => EditTarget::Surface {
+                index: surface.index,
+                shader: surface.shader.clone(),
+                kind: surface.kind,
+            },
+            _ => EditTarget::Other,
+        }
+    }
+
+    /// The point aimed at and its normal.
+    pub(crate) fn aim(&self) -> (Vec3, Vec3) {
+        let (hit, normal, _) = self.target();
+        (hit, normal)
+    }
+
     /// The selected model's path, for the dialog's Clear model.
     pub(crate) fn model_path(&self) -> Option<String> {
         self.model.as_ref().map(|model| model.entity.model.clone())
@@ -791,6 +818,8 @@ pub(crate) struct Notes {
     models: ModelCache,
     /// The last frame's size in physical pixels, for a click's ray.
     viewport: [f32; 2],
+    /// The map editor is on: the selection waits until it is replaced or dropped.
+    held: bool,
 }
 
 impl Default for Notes {
@@ -806,6 +835,7 @@ impl Default for Notes {
             sent_serial: 0,
             models: ModelCache::default(),
             viewport: [0.0; 2],
+            held: false,
         }
     }
 }
@@ -821,6 +851,30 @@ pub(crate) struct Scene<'a> {
     pub(crate) remaps: Vec<Remap>,
     /// The entity markers on show (`r_showEntities`): they are picked before the world.
     pub(crate) markers: Vec<crate::entity_view::Marker>,
+    /// The entities models are picked from, when map edits change the map's
+    /// ([`crate::map_edits::State::pick_entities`]); the map's own otherwise.
+    pub(crate) entities: Option<Vec<sjk_entity::Entity>>,
+}
+
+/// What a map edit acts on ([`Selection::edit_target`]).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum EditTarget {
+    /// A model drawn from an entity: its number in the pick's entities, its class, its
+    /// path, and the shader of the surface aimed at.
+    Model {
+        number: usize,
+        classname: String,
+        model: String,
+        shader: Option<String>,
+    },
+    /// A surface of the world.
+    Surface {
+        index: usize,
+        shader: String,
+        kind: &'static str,
+    },
+    /// Something edits do not change (a mover, an entity marker).
+    Other,
 }
 
 /// The selection's subject and its model's path, for the note dialog.
@@ -887,8 +941,15 @@ impl Notes {
         let eye = Vec3::from_array(camera.camera_position);
         let direction = direction.normalize_or_zero();
         let model = scene.vfs.and_then(|vfs| {
-            let entities = sjk_entity::parse_entity_lump(scene.bsp.entities()).ok()?;
-            pick_model(&entities, &mut self.models, vfs, scene.map, eye, direction)
+            let parsed;
+            let entities = match &scene.entities {
+                Some(entities) => entities,
+                None => {
+                    parsed = sjk_entity::parse_entity_lump(scene.bsp.entities()).ok()?;
+                    &parsed
+                }
+            };
+            pick_model(entities, &mut self.models, vfs, scene.map, eye, direction)
         });
         let model = model.filter(|model| {
             world
@@ -972,6 +1033,50 @@ impl Notes {
         })
     }
 
+    /// Select what is under the crosshair for a map edit, never opening the composer:
+    /// its summary, or `None` when nothing is there (the selection is dropped).
+    pub(crate) fn select_for_edit(&mut self, scene: Scene<'_>) -> Option<String> {
+        let camera = self.camera?;
+        let forward = Vec3::from_array(camera.view_forward);
+        self.selection = self.select(scene, &camera, forward);
+        self.selection.as_ref().map(Selection::summary)
+    }
+
+    /// Select what is under `point` (physical pixels) for a map edit, as
+    /// [`Self::select_for_edit`] does under the crosshair.
+    pub(crate) fn select_for_edit_at(
+        &mut self,
+        scene: Scene<'_>,
+        point: [f32; 2],
+    ) -> Option<String> {
+        let camera = self.camera?;
+        let direction = screen_ray(&camera, self.viewport, point)?;
+        self.selection = self.select(scene, &camera, direction);
+        self.selection.as_ref().map(Selection::summary)
+    }
+
+    /// While the map editor is on, a selection never goes stale.
+    pub(crate) fn hold_selection(&mut self, held: bool) {
+        self.held = held;
+    }
+
+    /// The selection waiting for a second press, while it is fresh.
+    pub(crate) fn waiting_selection(&self) -> Option<&Selection> {
+        self.selection
+            .as_ref()
+            .filter(|selection| self.held || selection.fresh(Instant::now()))
+    }
+
+    /// The last rendered main view's eye and forward direction.
+    pub(crate) fn view(&self) -> Option<(Vec3, Vec3)> {
+        self.camera.map(|camera| {
+            (
+                Vec3::from_array(camera.camera_position),
+                Vec3::from_array(camera.view_forward).normalize_or_zero(),
+            )
+        })
+    }
+
     /// A click at `point` (physical pixels) on the scene round the note dialog: what is
     /// under the pointer becomes the note's selection. `None` when nothing is there, and
     /// the selection stays.
@@ -1015,7 +1120,7 @@ impl Notes {
         self.highlight.clear();
         self.fill.clear();
         let now = Instant::now();
-        if self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
+        if !self.held && self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
             self.selection = None;
         }
         let (Some(selection), Some(camera)) = (
@@ -1200,6 +1305,10 @@ impl crate::GpuState {
     /// `worldnote`: select the world under the crosshair, or confirm the selection and
     /// open the note composer.
     pub(crate) fn world_note_press(&mut self) {
+        if self.map_edits.editor.active {
+            self.map_edit_select();
+            return;
+        }
         let map = self.note_map();
         let remaps = self.note_remaps();
         let press = self.world_notes.press(Scene {
@@ -1210,6 +1319,7 @@ impl crate::GpuState {
             map: &map,
             remaps,
             markers: self.entity_view.pickable(),
+            entities: self.map_edits.pick_entities(&self.bsp),
         });
         let centre = |text: String| (sjk_client::ServerEventKind::CenterPrint, text);
         let (kind, text) = match press {
@@ -1246,6 +1356,7 @@ Press World note again to write a note, Escape to drop it"
                 map: &map,
                 remaps,
                 markers: self.entity_view.pickable(),
+                entities: self.map_edits.pick_entities(&self.bsp),
             },
             point,
         );

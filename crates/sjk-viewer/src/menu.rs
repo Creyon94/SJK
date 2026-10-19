@@ -795,6 +795,11 @@ impl ClientMenu {
         self.state.is_overlay_visible()
     }
 
+    /// The menu's screen or connection phase.
+    pub(crate) fn phase(&self) -> &ClientPhase {
+        self.state.phase()
+    }
+
     /// The main menu is up: not a settings, browser or connection screen.
     pub(crate) fn on_main_menu(&self) -> bool {
         matches!(self.state.phase(), ClientPhase::MainMenu)

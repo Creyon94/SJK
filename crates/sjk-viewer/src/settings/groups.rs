@@ -91,6 +91,8 @@ const CHAT_ROWS: &[&str] = &[
     "cg_chatBoxLetterSpacing",
     crate::text::charset::CVAR,
     "cl_sjkChat",
+    crate::sjk_chat_frame::FEED_CVAR,
+    crate::sjk_chat_frame::CONSOLE_CVAR,
     crate::chat_gifs::CVAR,
     crate::chat_gifs::VIDEO_CVAR,
     crate::chat_gifs::search::KEY_CVAR,
@@ -301,6 +303,8 @@ impl Group {
                 crate::duel_ghost::CVAR,
                 crate::duel_visibility::CORPSES_CVAR,
                 crate::duel_visibility::PICKUPS_CVAR,
+                crate::map_edits::CVAR,
+                crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
@@ -340,6 +344,7 @@ impl Group {
                 crate::console::console_options::STYLE_CVAR,
                 "con_scale",
                 crate::console::console_options::DRAW_NOTIFY_CVAR,
+                crate::console::console_options::COPY_COLORS_CVAR,
                 crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,
@@ -426,6 +431,7 @@ impl Group {
                 "cl_hubUrl",
                 crate::crash_report::CVAR,
                 crate::settings_usage::CVAR,
+                crate::discord_presence::CVAR,
                 "rate",
                 "snaps",
                 "cl_master",
@@ -480,6 +486,7 @@ impl Group {
                 "cl_sjkChat",
                 crate::crash_report::CVAR,
                 crate::settings_usage::CVAR,
+                crate::discord_presence::CVAR,
                 super::catalog::IDENTITY_ROW,
             ],
             Self::Advanced(Advanced::Chat) => CHAT_ROWS,
@@ -803,6 +810,23 @@ mod tests {
             "SJK Advanced"
         );
         assert!(!has_size(Group::Simple(Simple::General)), "SJK Simple");
+    }
+
+    #[test]
+    fn console_colour_copy_stays_in_the_full_interface_settings() {
+        let has_switch = |group: Group| {
+            group.rows().iter().any(|setting| {
+                setting
+                    .cvar
+                    .eq_ignore_ascii_case(crate::console::console_options::COPY_COLORS_CVAR)
+            })
+        };
+        assert!(has_switch(Group::Interface), "classic+ Interface");
+        assert!(
+            has_switch(Group::Advanced(Advanced::Interface)),
+            "SJK Advanced"
+        );
+        assert!(!has_switch(Group::Simple(Simple::General)), "SJK Simple");
     }
 
     #[test]

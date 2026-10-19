@@ -97,6 +97,9 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (crate::discord_presence::CVAR, "0", "Off"),
+    (crate::discord_presence::CVAR, "1", "On"),
+    (crate::discord_presence::CVAR, "2", "Server hidden"),
     #[cfg(feature = "mod-jof")]
     (sjk_mod_jof::destruction::CVAR, "-1", "Auto"),
     #[cfg(feature = "mod-jof")]
@@ -641,8 +644,16 @@ const HELP: &[(&str, &str)] = &[
         "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
     ),
     (
+        crate::map_edits::CVAR,
+        "Shows the SJK team's fixes to maps: props removed, models added and textures swapped. Only what you see changes. On by default.",
+    ),
+    (
+        crate::remap_blocked_maps::SERVER_CVAR,
+        "Lets servers swap the map's textures. Off by default; the map's own swaps and SJK's map fixes always apply.",
+    ),
+    (
         "cg_remaps",
-        "Lets the server swap textures: never, all but player models, or always. Maps' own always apply.",
+        "With Server remaps on, which server swaps apply: never, all but player models, or always.",
     ),
     (
         crate::camera::STYLE_CVAR,
@@ -766,12 +777,24 @@ const HELP: &[(&str, &str)] = &[
         "After a crash, the next start sends the SJK team a report: system, map, the error, recent console lines (no chat). Off sends none.",
     ),
     (
+        crate::discord_presence::CVAR,
+        "Shows on your Discord profile what you do in SJK: menus, server, map, mode, players. Server hides its name.",
+    ),
+    (
         crate::settings_usage::CVAR,
         "Tells the SJK team anonymously what you change and search for here, to make Settings clearer. No key or name sent.",
     ),
     (
         "cl_sjkChat",
         "The chat every SJK player shares through the SJK hub, in menus and games. Off hides it.",
+    ),
+    (
+        crate::sjk_chat_frame::FEED_CVAR,
+        "Shows live SJK chat messages in the in-game general chat feed. Off still leaves SJK chat in the ESC menu and on its own page.",
+    ),
+    (
+        crate::sjk_chat_frame::CONSOLE_CVAR,
+        "Keeps live SJK chat messages in console scrollback. Off does not hide SJK chat anywhere else.",
     ),
     (
         crate::sjk_chat_frame::SOUND_CVAR,
@@ -838,7 +861,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::jof_tag::CVAR,
-        "Shows a clan's emblem (JoF, JoFA) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
+        "Shows a clan's emblem (JoF, JoFA, JAWA) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
     ),
     (
         "cg_drawScoreboardIcons",
@@ -862,6 +885,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::console::console_options::DRAW_NOTIFY_CVAR,
         "Shows the newest console lines at the top left while playing. Chat keeps its own box.",
+    ),
+    (
+        crate::console::console_options::COPY_COLORS_CVAR,
+        "Keeps ^0-^9 colour codes in text copied from console scrollback.",
     ),
     (
         crate::text::charset::CVAR,

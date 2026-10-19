@@ -87,10 +87,22 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     let archive = CvarFlags::ARCHIVE;
     let definitions = [
         CvarDefinition::new(
+            crate::remap_blocked_maps::SERVER_CVAR,
+            false,
+            archive,
+            "Let servers swap the map's textures (shader remaps); off by default, cg_remaps filters them when on",
+        ),
+        CvarDefinition::new(
+            crate::map_edits::CVAR,
+            true,
+            archive,
+            "Draw SJK's map edits: props hidden, models placed and textures swapped by the SJK team (on by default)",
+        ),
+        CvarDefinition::new(
             "cg_remaps",
             2_i64,
             archive,
-            "Shader remaps: 0 off, 1 skip player textures, 2 all (default, as EternalJK)",
+            "Server shader remaps while cg_serverRemaps is on: 0 off, 1 skip player textures, 2 all (default, as EternalJK)",
         ),
         CvarDefinition::new(
             crate::fps_help::CVAR,
@@ -821,6 +833,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Tell the SJK team anonymously which settings you change and what you search for in Settings (no key, name or server is sent; 0 sends nothing)",
         ),
         CvarDefinition::new(
+            crate::discord_presence::CVAR,
+            1,
+            archive,
+            "Show what you are doing in SJK on your Discord profile, through the Discord app on this PC (0 off, 1 on, 2 without the server's name)",
+        ),
+        CvarDefinition::new(
             crate::settings::mode::CVAR,
             crate::settings::mode::SettingsMode::Simple.name(),
             archive,
@@ -837,6 +855,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Show the SJK chat, which every SJK player shares through the SJK hub, and read it (0 hides it and stops reading)",
+        ),
+        CvarDefinition::new(
+            crate::sjk_chat_frame::FEED_CVAR,
+            true,
+            archive,
+            "Show live SJK chat messages in the in-game general chat feed (the ESC menu dock and SJK chat page stay visible)",
+        ),
+        CvarDefinition::new(
+            crate::sjk_chat_frame::CONSOLE_CVAR,
+            true,
+            archive,
+            "Keep live SJK chat messages in console scrollback",
         ),
         CvarDefinition::new(
             crate::installed_models::CVAR,
@@ -1053,7 +1083,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::jof_tag::CVAR,
             true,
             archive,
-            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA)",
+            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA, JAWA)",
         ),
         CvarDefinition::new(
             "cg_drawScoreboardIcons",

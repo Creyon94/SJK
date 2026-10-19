@@ -7,11 +7,15 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 ## Where to work
 
 Unused server-advertised rigid models load on first reference through
-`config_string_refresh::model_demand`. CPU model parsing runs on a single worker
-per world; geometry/material installation stays with the GPU owner. Idle scans
-borrow existing entity appearances and use a sorted set of attempted models,
-without per-frame name allocation. Texture preparation during GPU installation
-can still hitch, and models remain resident until the world is replaced.
+`config_string_refresh::model_demand`. CPU model parsing, texture decoding and
+mip chains run on a single worker per world (`warm_entity_materials`, as for
+players' models); upload and geometry/material installation stay with the GPU
+owner. Idle scans borrow existing entity appearances and use a sorted set of
+attempted models, without per-frame name allocation. Uploading very large
+textures (HD packs: `falcon2.md3` about 110 ms) and new pipelines still cost the
+install frame, and models remain resident until the world is replaced. Vehicle
+projectile, effect and cosmetic models still load whole on the render thread
+(`load_config_model`).
 
 | Area | Entry point |
 | --- | --- |
@@ -133,7 +137,11 @@ each `CS_SHADERSTATE` update applies all its entries again, as `CG_ShaderStateCh
 does. The session keeps the server state and stamps each entry; the displayed map
 keeps its worldspawn and local remaps and picks the latest of the three.
 
-`cg_remaps` uses **0** to disable server remaps, **1** to exclude
+SJK's map edits ([map-edits.md](map-edits.md)) are a fourth source, `edit`: they win
+over the worldspawn and server remaps of a shader, and a console remap made after every
+server one still wins over them.
+`cg_serverRemaps` (default **0**, since 18/10/2026) must be on for any server remap
+to apply; it reads as `cg_remaps 0` while off. Then `cg_remaps` uses **0** to disable server remaps, **1** to exclude
 `models/players/` sources in both configstrings and reliable `remapShader`
 commands, and **2** (the default) to include all server entries. Mode 1 follows
 JoF EJK #297; it previously retained Tayst's reliable-command exception. An
@@ -1881,6 +1889,15 @@ The main view's PVS source cluster is the leaf of the camera actually used for t
 the camera sits behind and above the eye, often in another cluster; taking the eye's cluster
 culled walls the camera could see. Reflection, portal and scene views already used their own
 eye.
+
+A `portal` face (sort `portal`) shows a remote camera or a mirror when a `misc_portal_surface`
+entity (`ET_PORTAL`, 8) lies within 64 units of its plane, as stock's
+`R_GetPortalOrientations` requires; the entity's `origin2` is the `misc_portal_camera`
+([scene_views.rs](../crates/sjk-viewer/src/scene_views.rs),
+[scene_portal_math.rs](../crates/sjk-viewer/src/scene_portal_math.rs)). Until 19/10/2026
+the match looked for entity type 7 (`ET_BEAM`), so no network portal was ever found and
+such faces showed only their own texture: the grey `textures/lgnd_misc/camera` screen of
+JoF's `mp/ffa3` security camera, for example.
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses

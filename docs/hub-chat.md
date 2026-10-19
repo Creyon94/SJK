@@ -157,6 +157,14 @@ Old clients ignore all of it, so it stays `/v1/`.
   feed; 0 hides it. On a game server the feed still reads, for the players' looks and
   emotes, but no message reaches the game's feed, the dock or the page; in the menus it
   stops.
+- `cl_sjkChatFeed` (default 1, Settings > Chat > SJK chat in game feed) controls only
+  whether live SJK messages join the in-game general chat. Turning it off removes its
+  existing SJK lines and consumes later messages without replaying them when it is
+  turned on again. The dock at the right of the Escape menu and the full SJK chat page
+  remain visible, and the hub's reason for refusing a message the player sent still
+  shows in the feed (the in-game composer has nowhere else to say it).
+- `cl_sjkChatConsole` (default 1, Settings > Chat > SJK chat in console) controls only
+  whether live SJK messages are copied into console scrollback.
 
 ## A sound for a new message
 
@@ -891,7 +899,11 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,
   the emote, when it started and when it ends (its length, 3 seconds for an id the
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
-  or leaves, unless it is `moving`. A rig model plays an emote's `clip`
+  or leaves, unless it is `moving`. The player's own emote also ends when they attack or
+  alt attack (since 19/10/2026; `ActiveEmotes::end_on_attack`, called for each command
+  sent): the server performs the attack whatever the emote shows, so it stops here and
+  the client sends the hub a `stop`, as `sjkemote stop` does, which ends it for the
+  others. A rig model plays an emote's `clip`
   (`emotes::playing`), and so does a stock model when the emote names its `rig`
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
@@ -903,7 +915,9 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   is decoded when the catalogue loads and put into the UI atlas's emote cells
   (`emote_icons.rs`, 32 of them): a wheel choice that runs `sjkemote <id>` wears it,
   on a dark disc, in the ring and in the editor; without one it keeps the plain
-  emote icon.
+  emote icon. Every world the menu moves to has a renderer of its own with an empty
+  atlas, so the pictures go into each new one (`ShapeRenderer::id`); until
+  18/10/2026 they reached only the first, and vanished after a map change.
 
 ## Pings
 

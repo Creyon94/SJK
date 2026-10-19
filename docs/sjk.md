@@ -40,7 +40,7 @@ general contributor rules.
   presents SJK as Sol's: Sol develops it and sets its direction, and Sol comes
   first (Sol's rule, 06/10/2026). SJK stands on its own (Sol's decision,
   08/10/2026): JKR, the engine SJK began from, and Bishop, its creator, appear only
-  in the credits (a footnote at the end of CREDITS.md and of the credits page), the
+  in the credits (the Origins section, last in CREDITS.md and on the credits page), the
   copyright notice and one footnote in the README and on the site. Code, wiki
   pages and in-game text describe SJK without comparing it to JKR. Keep CREDITS.md
   current when SJK gains notable work.
@@ -61,6 +61,8 @@ migrated, except where the table says so. Where each is documented:
 | `cg_drawTimer` | on | [status.md](status.md#gameplay-and-interface-defaults) |
 | `cg_teamOutline` | on (red rings on enemies, green on teammates, in team games) | [Team outlines and logos](client.md#team-outlines-and-logos) |
 | `cg_killfeed` | on, saved 0 moved to 1 once | [Kill feed](client.md#kill-feed) |
+| `cg_mapEdits` | on (SJK's own map fixes from the hub) | [Map edits](map-edits.md) |
+| `cg_serverRemaps` | off (servers' shader remaps; the map's own apply), asked on the 18/10 what's-new card | [Shader remap controls](client.md#shader-remap-controls) |
 | `cg_hitMarker` | off (red damage-direction indicator) | [Client](client.md#launch) |
 | `cg_shieldBrightness` | 2 passes, old defaults 1 and 4 moved to 2 once | [Client](client.md#launch) |
 | `cg_duelGhost` | on: duellists as JoF EJK's blue figures (off: dark under the bubble) | [Rendering](rendering.md#entity-render-effects) |
@@ -300,7 +302,7 @@ change, so it is part of the release it ships in.
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
 page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
 the full written record. Sol develops SJK alone since October 2026; Bishop is
-credited for JKR, SJK's starting point, in a footnote at the end of both (Sol's
+credited for JKR, SJK's starting point, in the Origins section, last in both (Sol's
 decision, 18/10/2026: most of JKR's code has since been replaced). Sol's card shows
 the contributors' pull requests Sol reviewed and merged as a "REVIEWED & MERGED"
 chip beside the pull requests and commits: the client counts every "SJK #" piece

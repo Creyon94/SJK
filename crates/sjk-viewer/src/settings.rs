@@ -1235,9 +1235,26 @@ mod tests {
             .position(|cvar| *cvar == "cl_hubUrl")
             .unwrap();
         assert_eq!(network.get(hub + 1), Some(&"cl_sjkChat"));
-        // Its sound right under it, on by default.
+        // Its two destinations can be hidden independently, both on by default.
         assert_eq!(
             network.get(hub + 2),
+            Some(&crate::sjk_chat_frame::FEED_CVAR)
+        );
+        assert_eq!(
+            console.bool_cvar(crate::sjk_chat_frame::FEED_CVAR),
+            Some(true)
+        );
+        assert_eq!(
+            network.get(hub + 3),
+            Some(&crate::sjk_chat_frame::CONSOLE_CVAR)
+        );
+        assert_eq!(
+            console.bool_cvar(crate::sjk_chat_frame::CONSOLE_CVAR),
+            Some(true)
+        );
+        // Its sound right under it, on by default.
+        assert_eq!(
+            network.get(hub + 4),
             Some(&crate::sjk_chat_frame::SOUND_CVAR)
         );
         assert_eq!(
@@ -1245,11 +1262,11 @@ mod tests {
             Some(true)
         );
         // Its GIFs under the sound, on by default.
-        assert_eq!(network.get(hub + 3), Some(&crate::chat_gifs::CVAR));
+        assert_eq!(network.get(hub + 5), Some(&crate::chat_gifs::CVAR));
         assert_eq!(console.bool_cvar(crate::chat_gifs::CVAR), Some(true));
         // Video clips under the GIFs, off by default (Sol's condition), and only
         // switchable where Windows' decoder exists.
-        assert_eq!(network.get(hub + 4), Some(&crate::chat_gifs::VIDEO_CVAR));
+        assert_eq!(network.get(hub + 6), Some(&crate::chat_gifs::VIDEO_CVAR));
         assert_eq!(console.bool_cvar(crate::chat_gifs::VIDEO_CVAR), Some(false));
         assert_eq!(available_here(crate::chat_gifs::VIDEO_CVAR), cfg!(windows));
         assert!(available_here("cl_sjkChat"));

@@ -441,6 +441,8 @@ impl Options {
         if !replaced.is_empty() {
             vfs = vfs.without_mounts(&replaced);
         }
+        // Test packs the SJK team sent this player, above the game data.
+        crate::test_packs::mount_on_top(&mut vfs);
         // The player's generated packs, above everything: no other pack replaces them.
         super::generated::mount_on_top(&mut vfs);
         if self.debug {

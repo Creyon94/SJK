@@ -9,6 +9,59 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Fixes for hub bug reports 77, 78, 80, 84, 88, 92, 94, 95
+- 1af4f3f |  | Changelog and debug panel for the 19/10 hub bug report fixes
++ 19/10/2026 | - | Fall to death: the camera stays where the fall began, as EternalJK
+- f822e97 |  | Fall to death: the camera stays where the fall began, as EternalJK
++ 19/10/2026 | - | Emotes: an attack or alt attack ends the player's own emote
+- 71af840 |  | Emotes: an attack or alt attack ends the player's own emote
++ 19/10/2026 | - | Audio: a snapshot no longer moves the listener for part of the frame
+- 61eb2b4 |  | Audio: a snapshot no longer moves the listener for part of the frame
++ 19/10/2026 | - | Holocrons: the cap is the hub's rolling 24 hours, and the page says when it lifts
+- edc1ee0 |  | Holocrons: the cap is the hub's rolling 24 hours, and the page says when it lifts
++ 19/10/2026 | - | Match camera portals to ET_PORTAL entities, not ET_BEAM
+- d55123e |  | Match camera portals to ET_PORTAL entities, not ET_BEAM
++ 19/10/2026 | - | Drop any image extension, as COM_StripExtension does
+- 65da0bf |  | Drop any image extension, as COM_StripExtension does
++ 19/10/2026 | - | Scores: team FFA parse test for JA+ rows with deaths (report #94)
+- b117930 |  | Scores: team FFA parse test for JA+ rows with deaths (report #94)
++ 19/10/2026 | - | Scoreboard deaths: EJK's local-counter resets, hidden in duel and CTF
+- cf4cd20 |  | Scoreboard deaths: EJK's local-counter resets, hidden in duel and CTF
++ 19/10/2026 | - | Death camera: fixed pitch and always third person, as EternalJK
+- 9b56643 |  | Death camera: fixed pitch and always third person, as EternalJK
++ 19/10/2026 | - | SJK pull requests #167 #169 #171 #173 #174 #177: speedometer, string table line breaks, whisper hover, SJK chat switches, siege announcements, console copy colours
+- de19721 |  | Review fixes and credits for SJK pull requests #167 #169 #171 #173 #174 #177
++ 19/10/2026 | - | Release 2026.1019.1 (Alpha)
+- c398beb |  | Release 2026.1019.1 (Alpha)
++ 19/10/2026 | - | Discord status logs whether Discord was found
+- 56f9f17 |  | Discord status: log turning on, finding Discord or not, and the first status shown
++ 19/10/2026 | - | Bishop's section titled Origins, still last
+- 989e93a |  | Credits: Bishop's section is Origins again, still last
++ 19/10/2026 | - | JAWA clan emblem, the clan's Jawa hood
+- 6a7d431 |  | Clan emblems: add JAWA with the clan's Jawa hood icon
++ 19/10/2026 | - | Test packs: PK3s sealed to chosen testers, kept encrypted on their disks; the hub cannot open them
+- 5512a91 |  | Test packs: PK3s sealed to chosen testers, encrypted on their disks
++ 19/10/2026 | - | SJK map edits: staff editor, hub sync, cg_mapEdits
+- a70c5e2 |  | Map edits: SJK's own map fixes, edited in game by staff and synced through the hub
++ 18/10/2026 | - | Server shader remaps off by default, asked on the what's-new card
+- 4f759b3 |  | Server shader remaps off by default (cg_serverRemaps)
++ 18/10/2026 | - | Emote pictures stay on the quick wheel after a map change or a connection
+- f1d56dc |  | Emote pictures go into every world's atlas, not only the first
++ 18/10/2026 | - | The Sol JK Discord application id
+- 016f162 |  | Discord status: the Sol JK application's id
++ 18/10/2026 | - | Map objects first seen mid-match decode their textures off the render thread, no 2 s freeze
+- 77c7414 |  | Demanded map models decode their textures on the worker
+- 2fd5f63 |  | Changelog and debug panel: demanded model textures off the render thread
++ 18/10/2026 | - | Discord status: menus, server, map, mode, players on the Discord profile
+- c9eb811 |  | Discord status: show what the player does in SJK on their Discord profile
++ 18/10/2026 | - | Release 2026.1018.2 (Alpha)
+- 046ef86 |  | Release 2026.1018.2 (Alpha)
++ 18/10/2026 | - | Map changes share textures between the old and new map, ~730 MiB less peak
+- c74c9c1 |  | Measure GPU memory across map changes (no leak; the two-worlds peak)
+- 7281775 |  | Share map-independent textures between worlds alive at once
+- 560a9f2 |  | Share map textures from the same files between worlds alive at once
++ 18/10/2026 | - | Picture menu backdrop to save video memory, readable world install errors
+- d390f32 |  | Menu pictures: stand the menus on pictures to save video memory
 + 18/10/2026 | - | Chat media download cap 8 MiB, for Tenor
 - c0771b2 |  | Raise the chat media download cap to 8 MiB
 + 18/10/2026 | - | Chat name dropdown removed, sender card over the feed's text
@@ -1795,6 +1848,14 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 19/10/2026 | SJK #167 | Align the speedometer with JoF HUDs
+- aa6f759 |  | Align the speedometer with JoF HUDs
++ 19/10/2026 | SJK #173 | Add separate SJK chat output switches
+- 2a7581d |  | Add separate SJK chat output switches
++ 19/10/2026 | SJK #171 | Show whisper recipients on console hover
+- 97efe25 |  | Show whisper recipients on console hover
++ 19/10/2026 | SJK #177 | Preserve console colours when copying
+- 68d342d |  | Preserve console colours when copying
 + 18/10/2026 | SJK #164 | Show server-reported scoreboard deaths
 - a29c616 |  | Show server-reported scoreboard deaths
 + 18/10/2026 | SJK #154 | Hide corpses and pickups during private duels
@@ -1956,6 +2017,13 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 19/10/2026 | SJK #174 | Feat/siege objective sounds
+- 4240677 |  | Announce completed siege objectives from the map's .siege file
+- 72cc3da |  | Announce a siege round's end from the map's .siege file
+- 90f0499 |  | Count siege rounds in and voice the round's end
+- dd996b5 |  | Tighten the siege count-in and round-over fallback after review
++ 19/10/2026 | SJK #169 | Read a written \n in the string tables as a line break
+- 7a6f8be |  | Read a written \n in the string tables as a line break
 + 18/10/2026 | SJK #160 | Siege HUD: round state, respawn countdown, hack progress and sound
 - 7582183 |  | Siege HUD: round state, respawn countdown, hack progress and sound
 + 18/10/2026 | SJK #157 | Fix/siege door use lights

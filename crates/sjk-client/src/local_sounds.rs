@@ -21,6 +21,10 @@
 //!   remaining whole second changes, never in Siege; a negative warmup means
 //!   "waiting for players"; `CG_ParseWarmup` (`cg_servercmds.c:226-236`) resets
 //!   the count on every `CS_WARMUP` change.
+//! - `cg_draw.c:8168-8226`: Siege speaks its own 3/2/1 while `CS_SIEGE_STATE` counts
+//!   the round in (`2|time`, `SIEGE_ROUND_BEGIN_TIME`), once per remaining whole
+//!   second from three; `cgSiegeRoundCountTime` is never reset, so a count that ended
+//!   on one speaks three again at the next round.
 //! - `cg_servercmds.c:1070-1090`: `map_restart` clears both warning masks and
 //!   plays the "fight" line when there is no warmup outside Siege/Power Duel.
 //! - `cg_servercmds.c:1509-1572`: `chat`/`lchat` beep unless `cg_teamChatsOnly`
@@ -44,6 +48,7 @@ const CS_WARMUP: usize = 5;
 const CS_SCORES1: usize = 6;
 const CS_SCORES2: usize = 7;
 const CS_LEVEL_START_TIME: usize = 21;
+const CS_SIEGE_STATE: usize = sjk_game_jka::siege_class::CS_SIEGE_STATE;
 const GT_DUEL: i32 = 3;
 const GT_POWERDUEL: i32 = 4;
 const GT_TEAM: i32 = 6;
@@ -132,6 +137,13 @@ pub(crate) struct LegacyLocalSounds {
     warmup: i32,
     warmup_count: i32,
     warmup_hash: u64,
+    /// `cgSiegeRoundState` and `cgSiegeRoundTime` (`CG_ParseSiegeState`); a state
+    /// with no time takes the time of the snapshot that sees it (`cg.time`).
+    siege_round_state: i32,
+    siege_round_time: Option<i32>,
+    siege_state_hash: u64,
+    /// `cgSiegeRoundCountTime`: the round count last spoken.
+    siege_round_count: i32,
     serverinfo_hash: u64,
     timelimit: i32,
     fraglimit: i32,
@@ -163,6 +175,10 @@ impl LegacyLocalSounds {
             warmup: 0,
             warmup_count: -1,
             warmup_hash: 0,
+            siege_round_state: 0,
+            siege_round_time: None,
+            siege_state_hash: 0,
+            siege_round_count: 0,
             serverinfo_hash: 0,
             timelimit: 0,
             fraglimit: 0,
@@ -199,6 +215,16 @@ impl LegacyLocalSounds {
             self.warmup = atoi(warmup);
             self.warmup_count = -1;
         }
+        let siege_state = game_state.config_string(CS_SIEGE_STATE).unwrap_or_default();
+        let hash = fnv1a(siege_state);
+        if hash != self.siege_state_hash {
+            self.siege_state_hash = hash;
+            // An empty string leaves the state as it was, as in the reference.
+            if let Some((state, time)) = crate::match_info::parse_siege_state(siege_state) {
+                self.siege_round_state = state;
+                self.siege_round_time = time;
+            }
+        }
         self.scores = [CS_SCORES1, CS_SCORES2].map(|index| config_int(game_state, index));
         self.level_start_time = config_int(game_state, CS_LEVEL_START_TIME);
     }
@@ -221,6 +247,10 @@ impl LegacyLocalSounds {
         }
         self.play_buffered(time);
         self.draw_warmup(time);
+        // `CG_Draw2D` returns before its siege count during intermission.
+        if snapshot.player.movement_type() != PM_INTERMISSION {
+            self.draw_siege_round_count(time);
+        }
     }
 
     /// Sounds requested by the latest [`Self::observe_snapshot`].
@@ -416,6 +446,22 @@ impl LegacyLocalSounds {
         }
     }
 
+    /// The countdown half of `CG_Draw2D`'s siege round state (`cg_draw.c:8168-8226`).
+    fn draw_siege_round_count(&mut self, time: i32) {
+        if self.siege_round_state != 2 {
+            return;
+        }
+        let since = time.wrapping_sub(*self.siege_round_time.get_or_insert(time));
+        let seconds = crate::match_info::siege_round_seconds(since);
+        if seconds > 3 || seconds == self.siege_round_count {
+            return;
+        }
+        self.siege_round_count = seconds;
+        if let Some(sound) = self.media.count.get(seconds as usize - 1) {
+            self.push(LegacySoundEvent::SiegeRoundCount, *sound, CHAN_ANNOUNCER);
+        }
+    }
+
     /// Queue a sound; false when the snapshot's room is full.
     fn push(&mut self, event: LegacySoundEvent, sound: Option<u16>, channel: u32) -> bool {
         if self.pending.len() >= MAX_LOCAL_SOUNDS_PER_SNAPSHOT {
@@ -452,7 +498,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 }
 
 /// C `atoi`: optional sign and leading digits, anything else yields zero.
-fn atoi(bytes: &[u8]) -> i32 {
+pub(crate) fn atoi(bytes: &[u8]) -> i32 {
     let text = std::str::from_utf8(bytes).unwrap_or_default().trim_start();
     let end = text
         .char_indices()
@@ -483,10 +529,28 @@ mod tests {
     }
 }
 
+/// An empty snapshot at `server_time`, for the tests below.
+#[cfg(test)]
+fn test_snapshot(server_time: i32) -> Snapshot {
+    Snapshot {
+        message_sequence: 1,
+        reliable_acknowledge: 0,
+        server_commands: vec![],
+        server_time,
+        delta_from: None,
+        flags: 0,
+        area_mask: vec![],
+        player: sjk_protocol::PlayerState::zero(),
+        vehicle_player: None,
+        entities: vec![],
+        consumed_bits: 0,
+    }
+}
+
 #[cfg(test)]
 mod pm_only_tests {
     use super::*;
-    use sjk_protocol::{PlayerState, ReliableServerCommand};
+    use sjk_protocol::ReliableServerCommand;
     #[test]
     fn pm_only_notifications_keep_only_marked_tells_and_resume_after_toggle() {
         let game = GameState::empty_local(0);
@@ -494,19 +558,7 @@ mod pm_only_tests {
         let mut local = LegacyLocalSounds::new(&game, media);
         local.pm_only = true;
         local.chat_mode = 2;
-        let mut snapshot = Snapshot {
-            message_sequence: 1,
-            reliable_acknowledge: 0,
-            server_commands: vec![],
-            server_time: 1000,
-            delta_from: None,
-            flags: 0,
-            area_mask: vec![],
-            player: PlayerState::zero(),
-            vehicle_player: None,
-            entities: vec![],
-            consumed_bits: 0,
-        };
+        let mut snapshot = test_snapshot(1000);
         for (sequence, command) in [
             b"chat \"Fox: public\" 2".as_slice(),
             b"tchat \"(Fox): team\" 2",
@@ -552,5 +604,78 @@ mod pm_only_tests {
                 .count(),
             1
         );
+    }
+}
+
+#[cfg(test)]
+mod siege_round_count_tests {
+    use super::*;
+
+    fn set_state(game: &mut GameState, state: &str) {
+        game.replace_config_string(CS_SIEGE_STATE, state.as_bytes().to_vec())
+            .expect("a configstring");
+    }
+
+    /// The count sounds spoken by the latest snapshot, as 1, 2 or 3.
+    fn counts(local: &LegacyLocalSounds) -> Vec<i32> {
+        local
+            .pending()
+            .iter()
+            .filter(|sound| sound.event == LegacySoundEvent::SiegeRoundCount)
+            .filter_map(|sound| sound.sound.map(i32::from))
+            .collect()
+    }
+
+    #[test]
+    fn a_siege_round_counts_in_three_two_one_once_each() {
+        let mut game = GameState::empty_local(0);
+        set_state(&mut game, "2|10000");
+        // count1Sound, count2Sound and count3Sound intern as 1, 2 and 3.
+        let media = LocalSoundMedia::register(|path| match path.rsplit('/').next() {
+            Some("40MOM037") => 1,
+            Some("40MOM036") => 2,
+            Some("40MOM035") => 3,
+            _ => 99,
+        });
+        let mut local = LegacyLocalSounds::new(&game, media);
+        let mut heard = Vec::new();
+        for time in (10_000..16_000).step_by(50) {
+            local.observe_snapshot(&test_snapshot(time));
+            heard.extend(counts(&local));
+        }
+        assert_eq!(heard, [3, 2, 1]);
+
+        // The round in play says nothing; the next one counts in from three again.
+        set_state(&mut game, "0|15000");
+        local.observe_config(&game);
+        local.observe_snapshot(&test_snapshot(16_000));
+        assert!(counts(&local).is_empty());
+        set_state(&mut game, "2|20000");
+        local.observe_config(&game);
+        local.observe_snapshot(&test_snapshot(22_100));
+        assert_eq!(counts(&local), [3]);
+    }
+
+    #[test]
+    fn an_empty_state_keeps_the_count_and_intermission_silences_it() {
+        let mut game = GameState::empty_local(0);
+        set_state(&mut game, "2|10000");
+        let media = LocalSoundMedia::register(|path| match path.rsplit('/').next() {
+            Some("40MOM035") => 3,
+            _ => 99,
+        });
+        let mut local = LegacyLocalSounds::new(&game, media);
+        // A cleared string is ignored, as `CG_ConfigStringModified` ignores it.
+        set_state(&mut game, "");
+        local.observe_config(&game);
+        let mut intermission = test_snapshot(12_100);
+        intermission.player.set_movement_type(PM_INTERMISSION);
+        local.observe_snapshot(&intermission);
+        assert!(
+            counts(&local).is_empty(),
+            "nothing is counted in intermission"
+        );
+        local.observe_snapshot(&test_snapshot(12_150));
+        assert_eq!(counts(&local), [3], "the round still counts in");
     }
 }

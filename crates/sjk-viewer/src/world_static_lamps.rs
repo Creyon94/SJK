@@ -14,7 +14,7 @@ pub(super) fn extract(
     lightmap: &wgpu::TextureView,
 ) -> Result<Vec<Lamp>, Box<dyn Error>> {
     let mut models = BTreeMap::<String, Vec<crate::static_models::Spawn>>::new();
-    for spawn in crate::static_models::spawns(bsp) {
+    for (_, spawn) in crate::static_models::spawns(bsp) {
         if valid(&spawn) {
             models.entry(spawn.model.clone()).or_default().push(spawn);
         }

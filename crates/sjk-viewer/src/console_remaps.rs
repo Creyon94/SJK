@@ -47,7 +47,15 @@ impl crate::GpuState {
         if lines.is_empty() {
             lines.push("No active shader remaps".into());
         }
-        if mode == 0 && self.console.as_ref().is_some_and(|c| c.remap_mode() != 0) {
+        if self.console.as_ref().is_some_and(|c| !c.server_remaps_on()) {
+            lines.insert(
+                0,
+                format!(
+                    "Server shader remaps are off ({} 0)",
+                    crate::remap_blocked_maps::SERVER_CVAR
+                ),
+            );
+        } else if mode == 0 && self.console.as_ref().is_some_and(|c| c.remap_mode() != 0) {
             lines.insert(
                 0,
                 format!(

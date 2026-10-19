@@ -105,7 +105,7 @@ pub(crate) struct Data {
     pub(crate) recent: Vec<Recent>,
     /// "Next holocron in about 20 minutes of play", empty when the hub did not say.
     pub(crate) next: String,
-    /// Holocrons found in the last day and the most a day brings.
+    /// Holocrons found by play in the last 24 hours and the most 24 hours bring.
     pub(crate) today: Option<(u32, u32)>,
     /// How far along the next one is, 0 to 1.
     pub(crate) fraction: Option<f32>,
@@ -193,7 +193,10 @@ impl Data {
             recent,
             next: progress
                 .as_ref()
-                .map(holocrons::next_text)
+                .map(|progress| {
+                    let lifts_in = holocrons::cap_lifts_in(progress, &me.holocrons, Instant::now());
+                    holocrons::next_text(progress, lifts_in)
+                })
                 .unwrap_or_default(),
             today: progress.map(|progress| (progress.today, progress.daily_cap)),
             fraction: progress
@@ -782,6 +785,9 @@ mod tests {
             avatar: None,
             look_outcome: None,
             packs_revision: 0,
+            test_packs: Default::default(),
+            map_edits_revision: 0,
+            map_edits_published: None,
             assets_note: None,
             crashes_sent: 0,
             crash_note: None,

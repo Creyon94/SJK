@@ -42,7 +42,7 @@ did: Illuminate, SJK's own toy: a holocron that lights the way, art by Sol
 did: The cardboard box toy: hide in a carton, spotted with Use, tipping over
 did: The Order 66 toy: synced deaths that blow players apart, TF2 style
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
-did: The JoF clan tag: the clan's emblem beside tagged names
+did: Clan tags: the JoF, JoFA and JAWA emblems beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
 did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits (in testing)
 did: The loot table: every chance a holocron brings
@@ -109,6 +109,7 @@ did: Chat bans: verified players ban unverified ones from SJK chat for 24 hours
 did: Trust marks: an empty tick for new players, green after 30 days, red after a ban
 did: Stop or mute other players' emotes on your screen (sjkemote stop all, sjkemote mute)
 did: The emote help card (help_emotes): the emote commands and the quick wheel
+did: Test packs: sealed PK3s for chosen testers that the hub itself cannot open
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy
@@ -123,7 +124,9 @@ did: Mimic: copy another player's moves and saber attacks live, as their mirror 
 did: Strafe lines after JoF EJK: the best strafe heading, in third person and on the ground
 did: Hold push or pull to use it again the moment it is ready, after JoF EJK
 did: Away players set apart on the scoreboard: faint, at the bottom of their list
+did: Map edits: SJK's own map fixes, props hidden, models placed, textures swapped
 did: Menu pictures and lighter map changes: less video memory, fewer out-of-memory loads
+did: Discord status: your Discord profile shows the server, map and mode you play
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 
@@ -225,7 +228,7 @@ link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 9 merged pull requests
+role: Contributor: 14 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
@@ -235,11 +238,16 @@ did: #155 Shift+U reply no longer leaves keys stuck
 did: #144 Recent servers keep one row across map changes
 did: #133 SJK chat in the console
 did: #154 Corpses and pickups hidden during private duels
+did: #164 Deaths on the scoreboard as score/deaths
+did: #167 The speedometer placed as in JoF EJK
+did: #171 Whisper recipients shown on console hover
+did: #173 SJK chat switches for the feed and the console
+did: #177 Console copies can keep their colours
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]
 github: JoFSlash
-role: Contributor: 12 merged pull requests
+role: Contributor: 14 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -252,6 +260,8 @@ did: #161 Team vehicles board for their own team (siege_hoth AT-ST)
 did: #162 Siege: bots take both sides before the round
 did: #157 Siege doors: teamallow, use key, lock lights, vehicles
 did: #160 Siege HUD: round state, respawn countdown, hacking
+did: #169 Line breaks in string table text
+did: #174 Siege objective, count-in and round-end announcements
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
@@ -315,7 +325,7 @@ did: SJK reimplements their behaviour and includes none of their code
 link: https://github.com/JACoders/OpenJK
 link: https://github.com/eternalcodes/EternalJK
 
-== Footnote
+== Origins
 
 [Bishop]
 github: Bishop-R

@@ -1,8 +1,18 @@
 //! World-owned first-use rigid-model loading. Parse on a worker, install on the GPU owner.
+//! The worker also decodes the model's textures and builds their mip chains
+//! ([`crate::world_materials::warm_entity_materials`]), as for players' models: decoded
+//! at install, HD texture packs' 15 MB JPEGs for `falcon2.md3` stalled a frame 2.1 s.
 use super::*;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
-type Prepared = Result<(StaticModelMesh, FlattenedScene), String>;
+type Prepared = Result<
+    (
+        StaticModelMesh,
+        FlattenedScene,
+        Vec<crate::world_materials::PreparedTexture>,
+    ),
+    String,
+>;
 
 #[derive(Default)]
 pub(super) struct Demand {
@@ -38,7 +48,9 @@ impl GpuState {
             );
         if let Some(result) = result {
             let (appearance, _) = self.config_string_refresh.models.task.take().unwrap();
-            let installed = result.and_then(|(mesh, scene)| {
+            let installed = result.and_then(|(mesh, scene, textures)| {
+                self.world_materials
+                    .upload_prepared_textures(&self.device, &self.queue, textures);
                 self.install_config_model(mesh, scene)
                     .map_err(|error| error.to_string())
             });
@@ -78,6 +90,17 @@ impl GpuState {
                 crate::mover_models::wanted(game, snapshot, |appearance| {
                     attempted.contains(appearance)
                 })
+            })
+            .or_else(|| {
+                // A model a map edit places (`map_edits`).
+                let attempted = &self.config_string_refresh.models.attempted;
+                self.map_edits
+                    .wanted_models()
+                    .map(|model| Appearance {
+                        model: model.to_owned(),
+                        variant: String::new(),
+                    })
+                    .find(|appearance| !attempted.contains(appearance))
             });
         let (Some(appearance), Some(vfs)) = (wanted, self.vfs.clone()) else {
             return;
@@ -96,12 +119,24 @@ impl GpuState {
         }
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         let requested = appearance.clone();
+        let shaders = Arc::clone(&self.shaders);
+        let lightmap = self.world_materials.entity_lightmap();
+        let mipmapped = self.world_materials.mipmapped();
         match std::thread::Builder::new()
             .name("sjk-model-demand".into())
             .spawn(move || {
                 let mut scene = FlattenedScene::default();
                 let result = object_meshes::load_one(&vfs, &requested, &mut scene)
-                    .map(|mesh| (mesh, scene))
+                    .map(|mesh| {
+                        let textures = crate::world_materials::warm_entity_materials(
+                            &vfs,
+                            &shaders,
+                            &lightmap,
+                            &scene.materials,
+                            mipmapped,
+                        );
+                        (mesh, scene, textures)
+                    })
                     .map_err(|error| error.to_string());
                 // Dropping the owning world discards old results, never installs them in another map.
                 let _ = sender.send(result);
@@ -143,7 +178,8 @@ mod tests {
             )
             .expect("a GPU adapter");
             let model = Appearance {
-                model: "models/map_objects/imperial/antenna.md3".into(),
+                model: std::env::var("SJK_TEST_MODEL")
+                    .unwrap_or_else(|_| "models/map_objects/imperial/antenna.md3".into()),
                 variant: String::new(),
             };
             assert!(
@@ -164,8 +200,12 @@ mod tests {
             gpu.live_world.set_appearance(entity, Some(model.clone()));
             let loading = std::time::Instant::now();
             let deadline = loading + std::time::Duration::from_secs(30);
+            // The longest call is the frame a player feels.
+            let mut worst = std::time::Duration::ZERO;
             loop {
+                let call = std::time::Instant::now();
                 gpu.refresh_demand_models();
+                worst = worst.max(call.elapsed());
                 if gpu
                     .object_meshes
                     .iter()
@@ -186,9 +226,10 @@ mod tests {
                 crate::gpu_context::FrameStatus::Rendered
             ));
             println!(
-                "duel6 startup {:.1} ms; demanded model {:.1} ms; {} initial rigid models",
+                "duel6 startup {:.1} ms; demanded model {:.1} ms, worst frame {:.1} ms; {} initial rigid models",
                 (loading - started).as_secs_f64() * 1000.0,
                 loading.elapsed().as_secs_f64() * 1000.0,
+                worst.as_secs_f64() * 1000.0,
                 count
             );
         });

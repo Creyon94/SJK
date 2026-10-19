@@ -821,6 +821,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK map edits",
+        cvar: crate::map_edits::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Server remaps",
+        cvar: crate::remap_blocked_maps::SERVER_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
         label: "Shader remaps",
         cvar: "cg_remaps",
@@ -1027,6 +1037,16 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK chat in game feed",
+        cvar: crate::sjk_chat_frame::FEED_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat in console",
+        cvar: crate::sjk_chat_frame::CONSOLE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "SJK chat sound",
         cvar: crate::sjk_chat_frame::SOUND_CVAR,
         kind: ValueKind::Bool,
@@ -1055,6 +1075,11 @@ pub(super) const NETWORK: &[Setting] = &[
         label: "Share settings usage",
         cvar: crate::settings_usage::CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Discord status",
+        cvar: crate::discord_presence::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "SJK identity key",
@@ -1117,6 +1142,11 @@ pub(super) const TEXT: &[Setting] = &[
     Setting {
         label: "Console feed (top left)",
         cvar: crate::console::console_options::DRAW_NOTIFY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Copy console colours",
+        cvar: crate::console::console_options::COPY_COLORS_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {

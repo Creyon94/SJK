@@ -25,12 +25,16 @@ const CLASSNAME: &str = "misc_model_static";
 struct Placement {
     mesh: usize,
     instance: ActorInstance,
+    /// The entity's number in the entity lump (worldspawn 0).
+    entity: u32,
 }
 
 /// Constant prop placements resolved against the loaded rigid meshes.
 #[derive(Debug, Default)]
 pub(crate) struct StaticModels {
     placements: Vec<Placement>,
+    /// Props a map edit hides, by entity number ([`crate::map_edits`]).
+    hidden: BTreeSet<u32>,
 }
 
 /// Parsed spawn fields of one `misc_model_static` entity.
@@ -87,16 +91,22 @@ impl Spawn {
     }
 }
 
-/// Every static prop the map places, in entity-lump order.
-pub(crate) fn spawns(bsp: &Bsp) -> Vec<Spawn> {
+/// Every static prop the map places, in entity-lump order, with its entity number.
+pub(crate) fn spawns(bsp: &Bsp) -> Vec<(u32, Spawn)> {
     parse_entity_lump(bsp.entities())
-        .map(|entities| entities.iter().filter_map(Spawn::parse).collect())
+        .map(|entities| {
+            entities
+                .iter()
+                .enumerate()
+                .filter_map(|(number, entity)| Some((number as u32, Spawn::parse(entity)?)))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
 /// Add the prop models to the rigid-mesh load set.
 pub(crate) fn extend_appearances(bsp: &Bsp, appearances: &mut BTreeSet<Appearance>) {
-    appearances.extend(spawns(bsp).into_iter().map(|spawn| Appearance {
+    appearances.extend(spawns(bsp).into_iter().map(|(_, spawn)| Appearance {
         model: spawn.model,
         variant: String::new(),
     }));
@@ -114,11 +124,12 @@ impl StaticModels {
             .collect::<HashMap<_, _>>();
         let placements = spawns(bsp)
             .iter()
-            .filter_map(|spawn| {
+            .filter_map(|(entity, spawn)| {
                 let mesh = *by_model.get(spawn.model.as_str())?;
                 Some(Placement {
                     mesh,
                     instance: spawn.instance(),
+                    entity: *entity,
                 })
             })
             .collect::<Vec<_>>();
@@ -128,14 +139,31 @@ impl StaticModels {
                 placements.len()
             ));
         }
-        Self { placements }
+        Self {
+            placements,
+            hidden: BTreeSet::new(),
+        }
+    }
+
+    /// Hide the props of these entity numbers, showing the others again.
+    pub(crate) fn set_hidden(&mut self, hidden: BTreeSet<u32>) {
+        self.hidden = hidden;
+    }
+
+    /// Whether entity `number` is a prop drawn here.
+    pub(crate) fn is_prop(&self, number: u32) -> bool {
+        self.placements
+            .iter()
+            .any(|placement| placement.entity == number)
     }
 
     /// Submit every prop for this frame. Allocation-free once the groups have
     /// grown to their steady size.
     pub(crate) fn append_instances(&self, groups: &mut [Vec<ActorInstance>]) {
         for placement in &self.placements {
-            groups[placement.mesh].push(placement.instance);
+            if self.hidden.is_empty() || !self.hidden.contains(&placement.entity) {
+                groups[placement.mesh].push(placement.instance);
+            }
         }
     }
 }

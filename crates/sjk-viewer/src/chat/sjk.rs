@@ -103,7 +103,20 @@ impl ChatOverlay {
         changed
     }
 
-    /// Say in the feed why the hub refused what was sent, once per outcome.
+    /// Follow `cl_sjkChatFeed`. Turning it off removes SJK messages already in the
+    /// game chat immediately; repeated frame calls do no further history scan.
+    pub(crate) fn set_sjk_feed_visible(&mut self, visible: bool) {
+        if self.sjk_feed_visible == visible {
+            return;
+        }
+        self.sjk_feed_visible = visible;
+        if !visible {
+            self.lines.retain(|line| line.channel != Channel::Sjk);
+        }
+    }
+
+    /// Say in the feed why the hub refused what was sent, once per outcome. Shown even
+    /// with the SJK feed off: the in-game composer has no other place to say it.
     pub(crate) fn sjk_outcome(&mut self, outcome: Option<&ReportOutcome>, now: Instant) {
         let Some(outcome) = outcome else { return };
         if self.sjk_outcome == outcome.serial {
@@ -129,11 +142,25 @@ impl ChatOverlay {
     /// Returns the id the feed had seen when messages newer than it joined the feed now
     /// (those with a higher id in `state`), `None` when nothing new joined: a marked
     /// backlog is not news ([`worth_a_sound`] picks the ones worth a sound).
+    #[cfg(test)]
     pub(crate) fn sync_sjk(
         &mut self,
         state: &ChatState,
         muted: impl Fn(&str) -> bool,
         now: Instant,
+    ) -> Option<u64> {
+        self.sync_sjk_in_feed(state, muted, now, true)
+    }
+
+    /// [`Self::sync_sjk`], with live messages omitted from the game chat while
+    /// `feed` is false. Their ids are still consumed, so turning the feed back on
+    /// never replays messages received while it was hidden.
+    pub(crate) fn sync_sjk_in_feed(
+        &mut self,
+        state: &ChatState,
+        muted: impl Fn(&str) -> bool,
+        now: Instant,
+        feed: bool,
     ) -> Option<u64> {
         for line in &mut self.lines {
             if let Some(hub) = &line.hub {
@@ -181,7 +208,9 @@ impl ChatOverlay {
             if message.holocron.is_some() && (muted || crate::holocrons::line::unknown(message)) {
                 continue;
             }
-            self.push_sjk(message, muted, now);
+            if feed {
+                self.push_sjk(message, muted, now);
+            }
         }
         self.sjk_seen = Some(newest);
         (newest > seen).then_some(seen)
@@ -579,5 +608,33 @@ mod tests {
         again.loaded = Some(2);
         chat.sync_sjk(&again, |_| false, now);
         assert_eq!(bodies(&chat), ["new"]);
+    }
+
+    #[test]
+    fn a_hidden_feed_consumes_messages_without_touching_other_chat() {
+        let mut chat = ChatOverlay::new();
+        let now = Instant::now();
+        chat.sync_sjk(&hub(&[]), |_| false, now);
+        chat.receive(ServerEventKind::Chat, "server line".to_owned(), None, now);
+        assert_eq!(
+            chat.sync_sjk_in_feed(&hub(&[(1, "hidden")]), |_| false, now, false),
+            Some(0)
+        );
+        assert_eq!(bodies(&chat), ["server line"]);
+        chat.sync_sjk_in_feed(&hub(&[(1, "hidden"), (2, "shown")]), |_| false, now, true);
+        assert_eq!(bodies(&chat), ["server line", "shown"]);
+    }
+
+    #[test]
+    fn turning_the_sjk_feed_off_removes_only_its_existing_lines() {
+        let mut chat = ChatOverlay::new();
+        let now = Instant::now();
+        chat.sync_sjk(&hub(&[]), |_| false, now);
+        chat.receive(ServerEventKind::Chat, "server line".to_owned(), None, now);
+        chat.sync_sjk(&hub(&[(1, "hub line")]), |_| false, now);
+        chat.set_sjk_feed_visible(false);
+        assert_eq!(bodies(&chat), ["server line"]);
+        chat.set_sjk_feed_visible(false);
+        assert_eq!(bodies(&chat), ["server line"]);
     }
 }

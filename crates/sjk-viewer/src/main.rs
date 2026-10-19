@@ -66,6 +66,8 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod discord_ipc;
+mod discord_presence;
 mod disintegration;
 mod dismember;
 mod donation_goal;
@@ -92,6 +94,7 @@ mod effect_wave;
 mod entity_instance;
 mod entity_lighting;
 mod entity_materials;
+mod fall_camera;
 mod first_person_view;
 mod first_person_weapon;
 mod fog_frame;
@@ -178,6 +181,7 @@ mod scene_views;
 mod scope;
 mod sender_card;
 mod server_caps;
+mod siege_objective_notice;
 mod siege_sabers;
 mod surface_tables;
 mod team_sabers;
@@ -204,6 +208,7 @@ mod jetpack;
 mod live_session;
 mod looks;
 mod looks_frame;
+mod map_edits;
 mod net_timing;
 mod particle_motion;
 mod particle_physics;
@@ -268,6 +273,7 @@ mod sky_stage;
 mod snapshot_presentation;
 mod static_models;
 mod symbols;
+mod test_packs;
 mod text;
 mod text_dialog;
 mod text_entry;
@@ -519,6 +525,8 @@ struct GpuState {
     /// Shared with the workers that load players' models (`player_loads.rs`).
     shaders: Arc<ShaderCatalog>,
     decal_surfaces: decal_marks::DecalSurfaces,
+    /// SJK's edits of the loaded map ([`map_edits`]).
+    map_edits: map_edits::State,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -596,6 +604,8 @@ struct GpuState {
     /// Optional per-pass GPU timing printed with the frame-budget report.
     gpu_phases: Option<gpu_phases::Profiler>,
     third_person_camera: camera::State,
+    /// Where a fall to death began, while it lasts ([`fall_camera`]).
+    fall_camera: fall_camera::FallCamera,
     far_plane: f32,
     gameplay_input: input::GameplayInput,
     /// Windows Alt code being typed into a text field.
@@ -661,6 +671,8 @@ struct GpuState {
     remap_blocked_maps: remap_blocked_maps::Cache,
     snapshot_observations: snapshot_presentation::Counters,
     obituaries: sjk_client::ObituaryTracker,
+    /// The siege objectives' notices, read from the map's `.siege` file.
+    siege_notices: siege_objective_notice::Notices,
     /// What the player does in matches, for the achievements (`achievements.rs`).
     achievement_tracker: achievements::tracker::Tracker,
     lagometer: sjk_client::LagometerSamples,
@@ -1433,6 +1445,7 @@ impl GpuState {
             holster_server: Default::default(),
             shaders: Arc::new(shaders),
             decal_surfaces,
+            map_edits: Default::default(),
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
@@ -1492,6 +1505,7 @@ impl GpuState {
             hitches: hitch_log::Recorder::default(),
             gpu_phases,
             third_person_camera: camera::State::default(),
+            fall_camera: fall_camera::FallCamera::default(),
             far_plane,
             gameplay_input: input::GameplayInput::default(),
             alt_code: input::alt_code::AltCode::default(),
@@ -1543,6 +1557,7 @@ impl GpuState {
             remap_blocked_maps: Default::default(),
             snapshot_observations: snapshot_presentation::Counters::default(),
             obituaries: sjk_client::ObituaryTracker::new(),
+            siege_notices: siege_objective_notice::Notices::default(),
             achievement_tracker: achievements::tracker::Tracker::default(),
             lagometer: sjk_client::LagometerSamples::new(),
             auto_switch: auto_switch::Tracker::default(),
@@ -1679,6 +1694,7 @@ impl GpuState {
         let peek_view = (!backdrop_view && intermission_view.is_none())
             .then(|| peek::camera(self, presentation_time))
             .flatten();
+        let fall = self.update_fall_camera(presentation_time as i32);
         let detached_before_peek = self.detached_camera;
         if self.live_session.is_some() && peek_view.is_some() {
             self.detached_camera = true;
@@ -1716,6 +1732,18 @@ impl GpuState {
             let free = (self.camera_position, self.camera_position + forward * 256.0);
             (if backdrop_view { "backdrop" } else { "free" }, free)
         };
+        // A fall to death holds the player's own view where the fall began, looking
+        // down at him (`cg_view.c:3224-3233`, `fall_camera`).
+        let fall = fall.filter(|_| local_view && matches!(branch, "third-person" | "first-person"));
+        let (view_position, view_target) = match fall {
+            Some((fall, origin)) => {
+                let (position, target, up) =
+                    fall_camera::look(fall, origin, view_position, view_target);
+                view_up = up;
+                (position, target)
+            }
+            _ => (view_position, view_target),
+        };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
         // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
         // so an effect's short-range shake reaches a first-person eye but not the
@@ -1725,8 +1753,9 @@ impl GpuState {
             visual_now,
             local_view && cgame_options::screen_shake(self.console.as_ref()),
         );
-        // The third-person camera already traced from the shifted origin.
-        let error_offset = if branch == "third-person" || branch == "peek" {
+        // The third-person camera already traced from the shifted origin, and the
+        // fall camera replaces the view origin outright.
+        let error_offset = if branch == "third-person" || branch == "peek" || fall.is_some() {
             Vec3::ZERO
         } else {
             error_offset
@@ -2050,7 +2079,22 @@ impl GpuState {
                 staff: profile_card::with(|summary| summary.staff),
                 _frame: std::marker::PhantomData,
             };
-            if view.page == GameMenuPage::Shot && !self.in_game_menu.is_sjk() {
+            if view.page == GameMenuPage::MapEdit {
+                // The map editor's panel has only the SJK UI's look, in every menu style.
+                self.refresh_map_edit_panel();
+                let target = ingame_menu::sjk_view::text_target(
+                    &mut self.game_fonts,
+                    &mut self.text_vertices,
+                    &self.ui_font,
+                );
+                let panel = &mut self.map_edits.panel;
+                self.in_game_menu.append_own_page(
+                    GameMenuPage::MapEdit,
+                    |canvas| panel.build(canvas, viewport),
+                    target,
+                    viewport,
+                );
+            } else if view.page == GameMenuPage::Shot && !self.in_game_menu.is_sjk() {
                 // Camera control has only the SJK UI's look, in every menu style.
                 let target = ingame_menu::sjk_view::text_target(
                     &mut self.game_fonts,
@@ -2079,6 +2123,11 @@ impl GpuState {
                 self.in_game_menu.append(view, vertices, font, viewport);
             }
         }
+        // The map editor's strip while its panel is hidden to aim.
+        let map_edit_strip = information_visible
+            && !console_covers_frame
+            && !medal_popup
+            && self.append_map_edit_strip(viewport);
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
@@ -2109,7 +2158,10 @@ impl GpuState {
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
         let launcher = self.game_menu
-            && self.game_menu_page != GameMenuPage::Shot
+            && !matches!(
+                self.game_menu_page,
+                GameMenuPage::Shot | GameMenuPage::MapEdit
+            )
             && !self.in_game_menu.is_sjk()
             && !console_covers_frame
             && !medal_popup
@@ -2168,6 +2220,7 @@ impl GpuState {
                 .then(|| self.quick_wheel.draw_list()),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
+            map_edit_strip.then(|| self.map_edits.strip.0.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
             (self.game_menu && !console_covers_frame && !medal_popup)
                 .then(|| self.in_game_menu.draw_list()),
@@ -2424,6 +2477,7 @@ impl GpuState {
         self.prepare_scene_views(view, projection, presentation_time as i32);
         movers::append_frame(self, presentation_time);
         self.static_models.append_instances(&mut self.object_groups);
+        self.append_map_edit_instances();
         pickups::simple::append_frame(self, visual_now);
         // The charge glow on the view gun's muzzle (`cg_weapons.c` charge bits), after
         // this frame's sprites were cleared.

@@ -73,6 +73,9 @@ pub(crate) struct GameAudio {
     output: AudioOutput,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
+    /// Effect paths no installed file answered ([`Self::register_effect`]), until the
+    /// next gamestate brings new content.
+    missing_effects: std::collections::HashSet<String>,
     next_handle: u32,
     legacy: Option<LegacySoundAdapter>,
     legacy_load: Option<LegacyLoadTask>,
@@ -181,6 +184,7 @@ impl GameAudio {
             output,
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),
+            missing_effects: std::collections::HashSet::new(),
             next_handle: 0,
             legacy: None,
             legacy_load: None,
@@ -249,19 +253,12 @@ impl GameAudio {
         game_state: &GameState,
         vfs: &VirtualFileSystem,
     ) {
-        // Establish the new snapshot listener before any queued starts are consumed.
+        // The listener stays where the frame put it (`finish_audio_frame`, the view's
+        // origin and axes): cgame respatializes once a frame, from `refdef.vieworg`
+        // (`cg_view.c:3245`). Moving it here to the snapshot's origin and angles, until
+        // the frame put it back, panned the sounds near the player for the mix blocks
+        // in between whenever they moved: the saber's hum crackled.
         self.transitions.race = crate::chat::combat::race(game_state, &snapshot.player);
-        let angles = snapshot.player.view_angles();
-        let (sp, cp) = angles[0].to_radians().sin_cos();
-        let (sy, cy) = angles[1].to_radians().sin_cos();
-        self.listener(
-            glam::Vec3::from_array(snapshot.player.origin()),
-            glam::Vec3::new(cp * cy, cp * sy, -sp),
-            // Quake's `AngleVectors` right axis (+Y is the listener's left).
-            glam::Vec3::new(sy, -cy, 0.0),
-            glam::Vec3::Z,
-            glam::Vec3::ZERO,
-        );
         self.last_server_time = Some(snapshot.server_time);
         if self.music_sync_pending {
             self.music_sync_pending = false;

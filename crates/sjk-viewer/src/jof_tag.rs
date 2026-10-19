@@ -60,6 +60,18 @@ pub(crate) const KNOWN: &[ClanTag] = &[
         tint: Color::new(1.0, 1.0, 1.0, 1.0),
         ink_width: 0.79,
     },
+    // JAWA (Sol's request, 19/10/2026): the clan's forum icon, a Jawa's hood, shrunk by
+    // `scripts/clan_emblem.py` (from 60 pixels, so a little soft). Players write
+    // `(JAWA)Name`. Stuck to a name only with capitals (`JAWAKen`), so names such as
+    // Jawad do not count.
+    ClanTag {
+        name: "JAWA",
+        tag: "JAWA",
+        stuck: Stuck::Capitals,
+        emblem: include_bytes!("../../../assets/branding/jawa-emblem.png"),
+        tint: Color::new(1.0, 1.0, 1.0, 1.0),
+        ink_width: 0.80,
+    },
     // JoF, Jedi of Freedom: the clan's J, o, F, white on transparent, rendered from its
     // SVG path by `scripts/jof_emblem.py`, in the teal of the clan's logo (`#02B99D`,
     // Creyon's request, 11/10/2026; it was crimson). Players write `{JoF}Name`,
@@ -298,8 +310,26 @@ mod tests {
         }
         assert_eq!(named("JoF|Sol"), Some("JoF"));
         // The academy's emblem is wider.
-        assert!(room(&KNOWN[0], 20.0) > room(&KNOWN[1], 20.0));
+        let known = |name| KNOWN.iter().find(|clan| clan.name == name).unwrap();
+        assert!(room(known("JoFA"), 20.0) > room(known("JoF"), 20.0));
         assert_eq!(room_for("Padawan", 20.0), 0.0);
+    }
+
+    #[test]
+    fn the_jawas_tag_is_jawa() {
+        for name in [
+            "(JAWA)Ken",
+            "^3(JAWA)^7Ken",
+            "jawa|Ken",
+            "[Jawa] Ken",
+            "JAWAKen",
+            "Ken JAWA",
+        ] {
+            assert_eq!(named(name), Some("JAWA"), "{name}");
+        }
+        for name in ["Jawad", "JAWAD", "jawaken", "MrJAWA", "Java"] {
+            assert_eq!(named(name), None, "{name}");
+        }
     }
 
     #[test]

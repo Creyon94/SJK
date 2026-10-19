@@ -360,6 +360,15 @@ test: Mute someone from the card: their face greys. The window is only as tall a
 test: Turn cl_sjkChat 0: the window says it shows once the hub answers.
 note: The deployed hub has no people list yet: expect Recently in chat for now.
 
+[clan-jawa]
+area: Console & chat
+title: JAWA clan emblem: a Jawa's hood beside names tagged JAWA
+change: (JAWA)Name, jawa|Name, [Jawa] Name and JAWAKen get the hood icon left of the name.
+test: Rename to (JAWA)Test, say something: the brown hood sits left of your name in chat.
+test: Open the scoreboard (classic and SJK) and inspect yourself (X): the hood is there too.
+test: Rename to Jawad: no emblem.
+note: The source icon is 60 px, enlarged to 128: check it is not too blurry at 4K.
+
 [jof-tag]
 area: Console & chat
 title: JoF emblem beside names with the JoF tag; JoF Clan medal removed
@@ -565,6 +574,24 @@ test: With cl_idrive 2: hold C, then SPACE: you jump; let go of SPACE: you crouc
 note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK either.
 
 # ---- Menus & settings ----
+
+[emote-icons-map-change]
+area: Menus & settings
+title: Emote pictures stay after a map change or a connection
+change: Each new world has an empty icon atlas; the emote pictures were put only into the first.
+change: They now go into every new one, on the quick wheel and in its editor.
+test: Join a server (or change map), open Settings > Quick wheel > add a choice > Emotes.
+test: Every emote with an icon shows its picture; the wheel's emote page shows them too.
+
+[discord-presence]
+area: Menus & settings
+title: Discord status: your Discord profile shows what you do in SJK
+change: Settings > Network > Discord status (cl_discordPresence): Off, On, Server hidden.
+change: Menus show the screen; in game the server, map, mode, team, scores and players.
+test: With Discord open, sit in the main menu: your profile shows Sol JK, In the menus.
+test: Open Collection > Holocrons: the second line turns to Opening holocrons.
+test: Join a server: its name, map, mode and player count show, the timer starts.
+test: Set Server hidden: the name turns to Playing online. Set Off: the status goes away.
 
 [menu-pictures]
 area: Menus & settings
@@ -1907,6 +1934,16 @@ test: Turn round with a sound running: it moves to the other ear.
 test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
+
+[test-packs]
+area: Gameplay
+title: Test packs: sealed PK3s for chosen testers, encrypted on disk
+change: The identity worker downloads packs sent to this key into test_packs/ beside the key.
+change: Only the locked .body is on disk; it mounts at the next map load, decrypted as read.
+test: Send a pack to your key with the owner tool; the log says "test pack <file> ready".
+test: Change map: "test pack <file> mounted"; its emotes are in the wheel editor.
+test: Remove yourself from it, restart: the log says "1 removed" and test_packs/ is empty.
+note: Needs the hub with --test-packs (local hub or after the deploy).
 
 [allow-download]
 area: Gameplay
@@ -5334,3 +5371,113 @@ change: The ribbon's V end had a dark block, cut gold stubs and a gap in the ste
 change: The ribbon now ends in a clean V on the bail; the small medallion has no top line.
 test: Collection > Medals, hover or open Supporter: ribbon V meets the knob, stem unbroken.
 test: Small sizes (scoreboard card, Identity list): the star shows no stray line above it.
+
+[model-demand-hitch]
+area: Rendering & effects
+title: No 2 s freeze when a map object first appears
+change: A model first seen mid-match decoded its textures in the frame: 2.1 s with JoF HD textures.
+change: A worker now decodes them; the frame only uploads (falcon2: 2040 ms -> 111 ms off screen).
+test: With JoF_HD4KTextures.pk3, play a JoF map where the Millennium Falcon (falcon2) appears.
+test: When it first shows, no long freeze; the logs show no hitch near 2000 ms config-refresh.
+note: Sol's hitch log 18/10/2026: config-refresh 2146 ms after loaded demanded model falcon2.
+
+[server-remaps-off]
+area: Rendering & effects
+title: Server shader remaps off by default
+change: New cg_serverRemaps (Settings, off): servers' remaps apply only when it is on.
+change: The what's-new card of the next release asks the player, with its switch.
+test: Join a JoF server with remaps (night ffa3, ffa1 walls): textures stay stock.
+test: Turn Server remaps on: the server's remaps appear live, without reloading the map.
+test: listRemaps with it off says "Server shader remaps are off".
+
+[map-edits]
+area: Rendering & effects
+title: Map edits: hide props and surfaces, place models, remap (staff editor)
+change: mapedit (staff) turns the editor on; the world-note key selects, mapedit_* commands edit.
+change: Edits save to GameData/SJK/map_edits; mapedit_publish sends them to the hub for everyone.
+test: On duel6, mapedit, aim at a fern, O, mapedit_hide: the fern goes; mapedit_undo brings it back.
+test: On ffa3, aim at a merged prop, mapedit_hide group: the whole model goes, the wall stays.
+test: mapedit_place on a selected prop, then mapedit_grab, move, mapedit_grab: a copy stays there.
+test: mapedit_remap <shader> on a wall; listRemaps lists it as edit; cg_mapEdits 0 hides all edits.
+test: mapedit_scope server on a server: the edit shows there, not on another server with the map.
+note: Hub endpoints on hub branch map-edits (b504457), not deployed: publish fails until it is.
+
+[map-edits-ui]
+area: Rendering & effects
+title: Map editor panel (staff)
+change: With mapedit on, the world-note key selects what you aim at and opens the editor's panel.
+change: Pages Selected, Place (model list with search) and Edits; Esc or Aim goes back to aiming.
+test: On duel6, mapedit, aim at a fern, O: the panel opens on Map prop; Hide: the fern goes.
+test: Click a wall left of the panel: Selected shows its surface; type a shader, Remap.
+test: Place: search tree, click a row twice: a tree stands where you aimed; Turn right, Up, Bigger.
+test: Grab: the panel hides and the tree follows your aim; O puts it down and reopens the panel.
+test: Edits: choose one, Delete; Ctrl+Z undoes the newest; This server: new edits name it.
+test: Esc while aiming shows the Map editor strip at the top; Editor off removes it.
+
+# ---- Bug reports, 19/10/2026 ----
+
+[emote-attack-stop]
+area: Gameplay
+title: Emotes: attack or alt attack ends your own emote
+change: A command with attack or alt attack stops your emote and tells the hub (as sjkemote stop).
+change: Hub report 78.
+test: Start a looping dance emote, press attack: the dance stops and your swing shows.
+test: Same with alt attack; a second SJK client sees the dance end too.
+
+[audio-listener-once]
+area: Audio
+title: Audio: saber hum no longer crackles while moving
+change: A new snapshot no longer moves the sound listener for part of the frame. Hub report 95.
+test: Saber out, run and strafe in first and third person: the hum stays smooth and centred.
+test: Other players' sounds still pan correctly as you turn.
+
+[holocron-cap-window]
+area: Menus & settings
+title: Holocrons: limit shown as 8 in 24 hours, with when the next one can drop
+change: The page said "8 of 8 today"; the hub's cap is a rolling 24 hours, not a calendar day.
+change: Capped, it says "Limit reached: next one in about N h M min". Hub report 77.
+test: Open Holocrons (not capped): the counter reads "n of 8 in 24 h".
+test: Capped key: the line reads "Limit reached: next one in about ..." and drops over minutes.
+test: Hover a tier: the card says "at most 8 in 24 hours".
+
+[portal-cameras]
+area: Rendering & effects
+title: Map security cameras and mirrors show their view (JoF ffa3 camera screen)
+change: Portal faces now find their misc_portal_surface (ET_PORTAL 8; SJK looked for 7, ET_BEAM).
+change: Hub report 84.
+test: On JoF's ffa3, the camera screen in the extra area shows the remote view, not grey.
+test: Walk away from it: the camera texture fades in with distance (alphaGen portal 2048).
+
+[e11-purple-tip]
+area: Rendering & effects
+title: E11 (JoF HD weapon pack): no purple bit at the end of the barrel
+change: A model naming its texture with an unknown extension (tex.jpgv) now loads tex.png, as JA.
+change: Hub report 88.
+test: With JoF_HDWeaponModels.pk3 in base, take the E11 and stand idle: no magenta at the barrel.
+test: Third person (cg_thirdPerson 1) and another player holding an E11: the barrel is textured.
+
+[score-deaths]
+area: HUD
+title: Scoreboard deaths: local count resets as in EJK, none in duel and CTF
+change: cg_scoreDeaths 2 (no server deaths) and 3 restart a player's count on team change or leave.
+change: Everyone's count restarts on map_restart or a new map; duel and CTF show score alone.
+test: cg_scoreDeaths 3 on a TFFA server: die twice, switch team: your deaths restart from 0.
+test: Wait for a map_restart (warmup end or callvote): every player's deaths restart from 0.
+test: On a CTF server with cg_scoreDeaths 1: the SJK scoreboard shows score without /deaths.
+note: Report #94 (Kushina, TFFA on JoF): ask whether the numbers now match what she expected.
+
+[dead-camera]
+area: Gameplay
+title: Death camera: fixed pitch, always third person
+change: Dead, the camera keeps the death yaw and the pitch you died with, as EternalJK.
+change: A first-person player is shown the death in third person. Hub report 80.
+test: Die in third person and move the mouse up and down: the camera must not tilt.
+test: Die in first person: the view switches to third person until you respawn.
+
+[fall-camera]
+area: Gameplay
+title: Pit falls: camera stays at the edge, watches you drop
+change: Falling to death leaves the camera where the fall began, looking down at you (EJK).
+change: Hub report 92.
+test: Jump into a fall-to-death pit (screen fades to black): the camera stays at the edge.
+test: After respawning, the camera follows you normally again.

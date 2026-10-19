@@ -28,6 +28,41 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
+- Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_
+- The speedometer is placed as in JoF EternalJK: `cg_speedometerX` is the right edge of its text, shifted clear of JoF's numbered game HUDs, so existing positions move _(Lukas, after JoF EJK)_
+- Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
+- Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
+- SJK chat can stay out of the game's chat feed (`cl_sjkChatFeed`) or the console (`cl_sjkChatConsole`), both on; the dock and the SJK chat page keep showing it _(Lukas)_
+- An attack or alt attack ends your emote, here and for the other SJK players, so you see your real attack instead of the dance _(Sol, after SixNine's report)_
+- Sounds near you no longer crackle while you move, the saber's hum most: each new snapshot briefly moved where the game listens from _(Sol, after Toad's report)_
+- The Holocrons page no longer says "8 of 8 today" after a new day starts: the limit is 8 holocrons in any 24 hours, so it reads "8 of 8 in 24 h" and, once reached, how long until the next one can drop _(Sol, after Toad's report)_
+- Security cameras and mirrors placed in maps show their view instead of a grey texture, such as the camera on JoF's ffa3 _(Sol, after SanjiJ's report)_
+- The E11 from JoF's HD weapon pack no longer shows a purple bit at the end of the barrel: a texture name with a stray extension loads its image, as in the original game _(Sol, after Nib's report)_
+- Scoreboard deaths match EJK: the local count (`cg_scoreDeaths` 3, or 2 when the server sends none) starts again on a map restart or a new map and when a player changes team or leaves, and duels and CTF show the score alone _(Sol, after Kushina's report)_
+- The death camera no longer tilts with the mouse, and a death is always seen in third person, as in EJK _(Sol, after Milamber's report)_
+- Falling into a pit no longer takes the camera down with you: it stays where the fall began and watches you drop, as in EJK _(Sol, after belyash's report)_
+
+## 2026.1019.1 (Alpha) | 19/10/2026
+
+> Discord status: Your Discord profile shows the server, map and mode you play.
+> Map edits: SJK's own fixes to maps, made by the SJK team.
+> Server remaps: Off by default; servers keep the map's own textures unless you allow it.
+> Smoother play: No 2-second freeze when a map object first shows mid-match.
+> Clan emblems: JAWA-tagged names wear the clan's Jawa hood.
+
+= cg_serverRemaps: Servers no longer swap the map's textures unless you allow it. Turn this on to see their remaps again.
+
+- Clan emblems: names tagged JAWA, such as `(JAWA)Name`, get the clan's Jawa hood on their left, in the chats, on the scoreboard and on player cards _(Sol)_
+- Test packs: the SJK team can send test content sealed to the players it picks; it downloads on its own, stays encrypted on disk and mounts at the next map load _(Sol)_
+- Map edits (Settings > Game, `cg_mapEdits`, on): SJK's own fixes to maps, props hidden, models placed and textures swapped by the SJK team, for every server or one; only what you see changes, never collision _(Sol)_
+- Server shader remaps are off by default (Settings > Game, `cg_serverRemaps`): servers no longer swap the map's textures unless you turn them on; `cg_remaps` still picks which apply when they are on, and the map's own remaps always apply _(Sol)_
+- Emote pictures no longer vanish from the quick wheel and its editor after a map change or joining a server _(Sol)_
+- Discord status (Settings > Network, `cl_discordPresence`): your Discord profile shows what you do in SJK, the menu screen, or the server, map, mode, team and players; 2 leaves the server's name out, and a server with a password never shows it _(Sol)_
+- A map object first seen mid-match with an HD texture pack (the Millennium Falcon) no longer freezes the game for 2 seconds: its textures are decoded off the render thread _(Sol)_
+
 ## 2026.1018.2 (Alpha) | 18/10/2026
 
 > Map changes: The next map shares textures with the last one, about 730 MB less video memory at the peak.

@@ -42,6 +42,24 @@ fn float_cvar(console: Option<&ViewerConsole>, name: &str, fallback: f32) -> f32
         .map_or(fallback, |v| v as f32)
 }
 
+/// The dead player's camera angles (yaw, pitch; radians, pitch up-positive), or
+/// `None` while alive (`stats[STAT_HEALTH] > 0`).
+///
+/// EternalJK's `CG_OffsetThirdPersonView` (`cg_view.c:793-796`) turns a dead
+/// player's camera to `stats[STAT_DEAD_YAW]` and keeps the pitch of
+/// `cg.refdef.viewangles`, the player state's `viewangles` (`cg_view.c:1875`), with
+/// no pitch offset. Pmove leaves those angles alone while dead
+/// (`PM_UpdateViewAngles`, `bg_pmove.c:10159-10161`), so the mouse cannot tilt the
+/// death camera: it reads the snapshot's angles, not the input angles.
+fn dead_view_angles(player: &sjk_protocol::PlayerState) -> Option<(f32, f32)> {
+    (player.health() <= 0).then(|| {
+        (
+            f32::from(player.stats[6] as u16 as i16).to_radians(),
+            -player.view_angles()[0].to_radians(),
+        )
+    })
+}
+
 /// `CG_OffsetThirdPersonView` and its two collision/damping stages, from OpenJK codemp.
 ///
 /// `focus_offset` is the decaying prediction error. Stock adds it to the view
@@ -130,11 +148,8 @@ pub(crate) fn damped_third_person(
     let (yaw, pitch) = if let Some(yaw) = held {
         framing[2] = crate::actor_world_submission::monster_hold::HELD_CAMERA_RANGE;
         (yaw.to_radians(), 0.0)
-    } else if snapshot.is_some_and(|s| (s.player.stats[0] as i32) <= 0) {
-        (
-            snapshot.unwrap().player.stats[6] as i32 as f32 * std::f32::consts::PI / 180.0,
-            state.camera_pitch,
-        )
+    } else if let Some(angles) = snapshot.and_then(|s| dead_view_angles(&s.player)) {
+        angles
     } else {
         // Stock pitch offsets are down-positive, the renderer's pitch is up-positive.
         (
@@ -160,8 +175,14 @@ pub(crate) fn damped_third_person(
         Some(predicted) if eternal => i64::from(predicted.command_time),
         _ => presentation_time,
     };
+    // A fall to death holds the focus where the fall began, at the eye's height
+    // (`CG_CalcIdealThirdPersonViewTarget`, `cg_view.c:286-296`; `crate::fall_camera`).
+    let focus = match (state.fall_camera.origin(), snapshot) {
+        (Some(fall), Some(s)) => fall + Vec3::Z * s.player.view_height() as f32,
+        _ => state.camera_position + focus_offset,
+    };
     let frame = motion::Frame {
-        focus: state.camera_position + focus_offset,
+        focus,
         yaw,
         pitch,
         range: framing[2],
@@ -221,6 +242,25 @@ fn held_camera_yaw(state: &GpuState, presentation_time: i64) -> Option<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_death_camera_keeps_the_dead_yaw_and_the_frozen_snapshot_pitch() {
+        let mut player = sjk_protocol::PlayerState::default();
+        player.stats[0] = 100;
+        player.set_view_angles([30.0, 10.0, 0.0]);
+        assert_eq!(dead_view_angles(&player), None);
+        // Dead (negative health, sign-extended as the wire's short), killer to the west.
+        player.stats[0] = (-40i32) as u32;
+        player.stats[6] = 180;
+        let (yaw, pitch) = dead_view_angles(&player).expect("dead");
+        assert!((yaw - std::f32::consts::PI).abs() < 1e-6);
+        // Stock pitch is down-positive: looking 30 degrees down at death stays so.
+        assert!((pitch + 30f32.to_radians()).abs() < 1e-6);
+        // A negative dead yaw read from its 16-bit stat.
+        player.stats[6] = u32::from((-90i16) as u16);
+        let (yaw, _) = dead_view_angles(&player).expect("dead");
+        assert!((yaw + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+    }
 
     fn frame(focus: Vec3, time: i64, camera_fps: f32) -> motion::Frame {
         motion::Frame {

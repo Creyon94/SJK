@@ -111,6 +111,8 @@ struct Runtime {
     /// Model questions the player card asked and when, newest last, so each is asked
     /// at most every [`MODEL_CHECK_EVERY`].
     model_asks: Vec<((SocketAddr, u8, String), Instant)>,
+    /// The serial of the last map edits answer shown ([`map_edits_published`]).
+    map_edits_seen: u64,
 }
 
 static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
@@ -128,6 +130,7 @@ static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
     sent_crash_dir: None,
     sent_models: None,
     own_model: None,
+    map_edits_seen: 0,
     model_asks: Vec::new(),
 });
 
@@ -231,6 +234,11 @@ pub(crate) fn apply(
                 );
                 // The hub's packs (unlockables' art) are kept beside the key.
                 service.keep_assets(crate::sjk_packs::directory_in(config_directory));
+                // Test packs sent to this key: only their locked bodies, beside the key.
+                service
+                    .keep_test_packs(config_directory.join(sjk_identity::test_pack_cache::FOLDER));
+                // SJK's map edits, every player's copy beside the key too.
+                service.keep_map_edits(crate::map_edits::folder(config_directory));
                 runtime.service = Some(service);
             }
             Err(error) => {
@@ -272,6 +280,59 @@ pub(crate) fn packs() -> (u64, Option<String>) {
     lock().service.as_ref().map_or((0, None), |service| {
         service.with_snapshot(|snapshot| (snapshot.packs_revision, snapshot.assets_note.clone()))
     })
+}
+
+/// The service's test packs (`test_packs.rs` takes them when they change); none before
+/// the service starts. Read twice a second.
+pub(crate) fn test_packs() -> sjk_identity::service::TestPacks {
+    lock()
+        .service
+        .as_ref()
+        .map_or_else(Default::default, |service| {
+            service.with_snapshot(|snapshot| snapshot.test_packs.clone())
+        })
+}
+
+/// How many map edit documents the service has changed in their folder
+/// ([`crate::map_edits`] reads the loaded map's again when it changes).
+pub(crate) fn map_edits_revision() -> u64 {
+    lock().service.as_ref().map_or(0, |service| {
+        service.with_snapshot(|snapshot| snapshot.map_edits_revision)
+    })
+}
+
+/// Staff: send a map's edits to the hub; the answer comes from
+/// [`map_edits_published`].
+pub(crate) fn publish_map_edits(
+    map: String,
+    checksum: i32,
+    edits: serde_json::Value,
+) -> Result<(), String> {
+    if !sjk_identity::map_edits::valid_map(&map) {
+        return Err(format!("The hub takes no edits for a map named {map}"));
+    }
+    let runtime = lock();
+    let service = runtime
+        .service
+        .as_ref()
+        .ok_or("Not connected to the SJK hub")?;
+    service.publish_map_edits(map, checksum, edits);
+    Ok(())
+}
+
+/// The hub's answer to the last map edits sent, once, when it is new.
+pub(crate) fn map_edits_published() -> Option<Result<(String, i32, u64), String>> {
+    let mut runtime = lock();
+    let runtime = &mut *runtime;
+    let (serial, outcome) = runtime
+        .service
+        .as_ref()?
+        .with_snapshot(|snapshot| snapshot.map_edits_published.clone())?;
+    if runtime.map_edits_seen == serial {
+        return None;
+    }
+    runtime.map_edits_seen = serial;
+    Some(outcome)
 }
 
 /// Send a bug report through the service; false when the service has not started.

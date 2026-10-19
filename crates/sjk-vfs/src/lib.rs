@@ -13,7 +13,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
 use std::fmt;
 use std::fs::{self, File};
-use std::io::{self, Read};
+use std::io::{self, Read, Seek};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -152,6 +152,24 @@ impl VirtualFileSystem {
 
     pub fn mount_pk3(&mut self, archive: impl AsRef<Path>) -> Result<MountId, VfsError> {
         let source = Pk3Source::open(archive.as_ref(), |_| true)?;
+        self.add_mount(source.name.clone(), Arc::new(source))
+    }
+
+    /// Mounts a PK3 read through `reader` instead of a file: an archive kept encrypted on
+    /// disk and decrypted as it is read (a test pack). `name` names the mount in
+    /// diagnostics and errors; nothing is read from a path.
+    pub fn mount_pk3_reader(
+        &mut self,
+        name: impl Into<Arc<str>>,
+        reader: impl Read + Seek + Send + 'static,
+    ) -> Result<MountId, VfsError> {
+        let name = name.into();
+        let source = Pk3Source::from_reader(
+            Arc::clone(&name),
+            PathBuf::from(&*name),
+            Box::new(reader),
+            |_| true,
+        )?;
         self.add_mount(source.name.clone(), Arc::new(source))
     }
 
@@ -587,14 +605,16 @@ struct Pk3Source {
     name: Arc<str>,
     archive_path: PathBuf,
     entries: HashMap<VirtualPath, usize>,
-    archive: Mutex<zip::ZipArchive<File>>,
+    archive: Mutex<zip::ZipArchive<Box<dyn ReadSeek>>>,
 }
 
+/// What a PK3 is read through: its file, or a reader that decrypts one.
+trait ReadSeek: Read + Seek + Send {}
+
+impl<T: Read + Seek + Send> ReadSeek for T {}
+
 impl Pk3Source {
-    fn open(
-        archive_path: &Path,
-        mut keep: impl FnMut(&VirtualPath) -> bool,
-    ) -> Result<Self, VfsError> {
+    fn open(archive_path: &Path, keep: impl FnMut(&VirtualPath) -> bool) -> Result<Self, VfsError> {
         let archive_path = archive_path.canonicalize().map_err(|source| VfsError::Io {
             operation: "canonicalize PK3",
             path: archive_path.to_owned(),
@@ -605,7 +625,17 @@ impl Pk3Source {
             path: archive_path.clone(),
             source,
         })?;
-        let archive = zip::ZipArchive::new(file).map_err(|source| VfsError::Zip {
+        let name: Arc<str> = archive_path.to_string_lossy().into_owned().into();
+        Self::from_reader(name, archive_path, Box::new(file), keep)
+    }
+
+    fn from_reader(
+        name: Arc<str>,
+        archive_path: PathBuf,
+        reader: Box<dyn ReadSeek>,
+        mut keep: impl FnMut(&VirtualPath) -> bool,
+    ) -> Result<Self, VfsError> {
+        let archive = zip::ZipArchive::new(reader).map_err(|source| VfsError::Zip {
             path: archive_path.clone(),
             source,
         })?;
@@ -633,7 +663,6 @@ impl Pk3Source {
             entries.insert(virtual_path, index);
         }
 
-        let name: Arc<str> = archive_path.to_string_lossy().into_owned().into();
         Ok(Self {
             name,
             archive_path,
@@ -996,6 +1025,33 @@ mod filtered_pk3_tests {
         assert!(!vfs.contains("cgamex86.dll").unwrap());
         assert_eq!(vfs.paths().len(), 1);
         assert_eq!(vfs.mounts().next().unwrap().entries, 1);
+    }
+
+    #[test]
+    fn a_pk3_read_through_a_reader_mounts_like_a_file() {
+        let mut bytes = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(io::Cursor::new(&mut bytes));
+            zip.start_file(
+                "emotes/wave.emote",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+            zip.write_all(b"{}").unwrap();
+            zip.finish().unwrap();
+        }
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory("below", [("emotes/wave.emote", b"old".to_vec())])
+            .unwrap();
+        vfs.mount_pk3_reader("test pack wave.pk3", io::Cursor::new(bytes))
+            .unwrap();
+        let asset = vfs.read("emotes/wave.emote").unwrap().unwrap();
+        assert_eq!(asset.bytes, b"{}");
+        assert_eq!(&*asset.source.mount_name, "test pack wave.pk3");
+        assert!(
+            vfs.mount_pk3_reader("broken", io::Cursor::new(b"not a zip".to_vec()))
+                .is_err()
+        );
     }
 }
 

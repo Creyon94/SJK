@@ -1107,6 +1107,23 @@ the presentation history. The ordinary range, height, angle and damping cvars
 remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 `cg_cameraStyle` chooses whether the damping applies ([Camera style](#camera-style)).
 
+A dead player is always seen in third person, whatever the camera choice
+(EternalJK `cg_view.c:3098`), and the death camera is fixed: it turns to the
+player state's dead yaw (`STAT_DEAD_YAW`, towards the killer) and keeps the pitch
+the player had at death, as pmove stops updating a dead player's view angles
+(`bg_pmove.c:10159`). Moving the mouse while dead no longer tilts it
+([camera.rs](../crates/sjk-viewer/src/camera.rs) `dead_view_angles`,
+[scope.rs](../crates/sjk-viewer/src/scope.rs) `third_person_wanted`).
+
+A fall to death (a pit's `trigger_hurt` that fades the screen to black, the
+player state's `fallingToDeath`) does not take the camera down with the player: as
+in EternalJK, the third-person camera's focus stays where the fall began
+(`CG_CalcIdealThirdPersonViewTarget`, `cg_view.c:286`), and the view itself is moved
+to that point, turned from the computed eye towards the falling player
+(`cg_view.c:3224-3233`), in first person too. It lasts until the flag clears at the
+respawn ([fall_camera.rs](../crates/sjk-viewer/src/fall_camera.rs)). A demo's
+detached cameras are left alone.
+
 The decaying prediction error (`cg_errorDecay`) moves the third-person camera's
 focus before its collision and damping traces, as `CG_CalcViewValues`
 (`cg_view.c`) adds it to the view origin before `CG_OffsetThirdPersonView`. A
@@ -1378,6 +1395,18 @@ and a leader doing the same choreography at walking pace (keys of 46, walk held,
 attacks included) every command holds the walk with no key past 64, the attacks come
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
+
+## Sound listener
+
+The mixer hears from one place a frame, as cgame's `S_Respatialize` from
+`refdef.vieworg` and its axes (`cg_view.c:3245`): `GpuState::finish_audio_frame` puts
+the listener at the camera with the camera's axes, and every sound is panned and
+attenuated from there. Until 19/10/2026 each new snapshot also moved it, for the rest of
+that frame, to the snapshot's player origin and view angles (`GameAudio::observe_snapshot`);
+the audio thread mixes while the frame is built, so the blocks mixed in between panned
+sounds near the player differently from the others whenever they moved, and the saber's
+hum, a loop on the view, crackled (Toad's report). Unit test:
+`a_snapshot_leaves_the_listener_where_the_frame_put_it`; not yet heard in a game.
 
 ## Jetpack sounds
 
@@ -2421,6 +2450,19 @@ HUD to show it. The brief inventory selector still appears when cycling items,
 whether this permanent list is on or off. Trip-mine weapons are not part of the
 holdable list. Existing saved values remain in effect.
 
+## Speedometer placement
+
+`cg_speedometerX` is the speed label's right-edge anchor in the 640-wide virtual
+screen, as in JoF EternalJK's `CG_Speedometer`; its default is 132. With the
+game-data HUD selected, JoF's HUD-specific clearance is then applied: 8 units
+left for `cg_hudFiles 0`, 56 for the text HUD (`1`) and 42 for the JK2 HUD (`2`).
+The text HUD gives 4 units back when the armor value exceeds three digits, as
+JoF does to clear the wider armor counter.
+`cg_speedometerY` sets the baseline and `cg_speedometerSize` sets the scale.
+Earlier SJK builds mistook X for the left edge of a centred 240-unit field and
+omitted the HUD clearance, placing the label too far right. The archived cvar
+values themselves are unchanged.
+
 ## Lagometer size
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
@@ -2524,7 +2566,10 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   provides deaths. With JoF EJK's `cg_scoreDeaths` modes, 0 hides them, the
   default 1 uses a JA+/jaPRO server's appended value, 2 falls back to the
   session-local counter when the server sends none, and 3 always uses the local
-  counter. Bots show `BOT` for their ping; clients still connecting show
+  counter. As in EJK, duels and CTF never show deaths, and the local counter
+  starts again for everyone on `map_restart` or a new level (a new
+  `CS_LEVEL_START_TIME`), and for one player when they change team or leave
+  (`scoreboard/deaths.rs`). Bots show `BOT` for their ping; clients still connecting show
   `-`, and connected clients the scores do not list yet show `N/A`.
 - Team games list the leading team first over a translucent team band, then the
   spectators; free-for-all lists the players, then the spectators. Your row is
@@ -3236,7 +3281,7 @@ The main menu's Credits entry (SJK > Credits in the SJK UI; SJK > CREDITS on the
 [credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)), and everyone's
 work from [credits_history.txt](../crates/sjk-viewer/assets/credits_history.txt),
 which `scripts/credits_history.py` writes from git and GitHub. Each section of
-the file (Sol JK, Contributors, Art, Made with, Footnote) is a heading with its people.
+the file (Sol JK, Contributors, Art, Made with, Origins) is a heading with its people.
 
 - Everyone with a history (Sol, Bishop, Creyon, Lumaya) has a panel across the
   column: the name large (the first section's larger still), the role, chips
@@ -3316,6 +3361,36 @@ The hub's side (the endpoint, its storage without the sender's address, and the
 operator's summary of the most changed settings and searches) is built on a branch
 of the hub and not deployed yet, so nothing reaches it until it is; nothing of this
 was tested in game.
+
+## Discord status
+
+Since 18/10/2026 (Sol's request) the client shows what the player is doing on their
+Discord profile, as Discord's Rich Presence
+([discord_presence.rs](../crates/sjk-viewer/src/discord_presence.rs), the pipe in
+[discord_ipc.rs](../crates/sjk-viewer/src/discord_ipc.rs)). It talks only to the
+Discord desktop app on the same PC, over its local pipe (`\.\pipe\discord-ipc-N`
+on Windows, a `discord-ipc-N` socket in the runtime or temporary folder elsewhere,
+the Flatpak and Snap folders included); without Discord running nothing happens and
+the client looks again every 20 seconds.
+
+- `cl_discordPresence` (archived, default 1; Settings > Network > Discord status,
+  and Simple's General): 0 off (clears the status), 1 on, 2 on without the server's
+  name. A server with a password (`g_needpass`) never shows its name, and the
+  server's address is never sent.
+- Shown, twice a second from the identity frame and sent only when it changes (at
+  most once every 5 seconds, under Discord's limit of 5 per 20 seconds): in the menus,
+  the screen on show (Browsing servers, Settings, Character creator, a Profile or
+  Collection tab); while joining, the map loading; in game, the server's name (colour
+  codes stripped), map, mode, team with the team scores (or Spectating), and the
+  players on the server out of its slots; a local game, a demo or a map explored
+  alone. The elapsed timer counts from entering the menus, a server, a demo or a map.
+- The picture is the SJK logo on the project site, and a "Get SJK" button opens the
+  site. There is no join button: SJK has no link scheme (`sjk://`) yet.
+- The game name Discord shows is the "Sol JK" application's in Discord's developer
+  portal, whose id is `APPLICATION_ID` in `discord_presence.rs`; while it is empty the
+  feature stays off. `SJK_DISCORD_APP=<id> cargo test -p sjk-viewer --bins
+  discord_app_takes_an_activity -- --ignored` checks the pipe against a running
+  Discord.
 
 ## Identity
 
@@ -4485,6 +4560,17 @@ work the same in both looks, which share EternalJK's keys below. See
 [console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs) and
 [console_options.rs](../crates/sjk-viewer/src/console_options.rs).
 
+An outgoing whisper's server echo does not say who received it. SJK remembers
+the target when its final `tell` command is successfully queued, matches the
+private `[name]: body` echo from the local player by its plain message body, and
+attaches that historical target to the console line. This does not require the
+optional `0x19` chat marker, which compatible servers may omit. Hovering any
+wrapped row of that line shows `Whisper sent to name (#slot).` in either console
+style. The metadata is bounded with the scrollback, remains the name used at
+send time if the roster changes, and is not inferred for unmatched or incoming
+private messages. See
+[console_whisper_hover.rs](../crates/sjk-viewer/src/console_whisper_hover.rs).
+
 ### Classic console
 
 Text sits on a grid of character cells drawn with the console font, without the
@@ -4590,7 +4676,11 @@ keeps its chat box (`cg_drawChat`), and centre prints, the kill feed
 (`cg_killfeed`) and the vote panel are drawn by the HUD, so all of them
 stay with the feed off. The open console still shows every line. Dragging the mouse selects
 scrollback text and Ctrl+C copies it; the selection does not include the time
-column.
+column. By default copied text is plain. `con_copyColors 1` (archived; Settings >
+Interface > Copy console colours) retains its original `^0`-`^9` colour codes so
+it can be pasted back into the game with the same colours. A selection whose
+first text uses the console's implicit white starts with `^7`, rather than
+inheriting a chat channel's green or another colour when pasted.
 
 ### SJK UI console
 
@@ -5173,12 +5263,16 @@ server on `JoFCrucible`). Sources are JoF EJK `codemp/cgame`.
 
 ## Shader remap controls
 
-Server map recolors and material replacements are enabled by default. SJK
+Server map recolors and material replacements are off by default since 18/10/2026
+(Sol's decision): `cg_serverRemaps` (Settings > GAME > "Server remaps", on/off,
+default off) lets them apply, and the release that brought it asks every player on
+its what's-new card. With it on, `cg_remaps` filters them as in EternalJK: SJK
 defaults to `cg_remaps 2`, EternalJK's default, which includes player textures.
 `cg_remaps 1` excludes `models/players/` sources from both configstrings and
 reliable server commands, after JoF EJK #297; `cg_remaps 0` disables server
 remaps. Worldspawn and your explicit local console remaps remain independent.
-Settings > GAME > "Shader remaps" sets the same cvar and applies at once.
+Settings > GAME > "Shader remaps" sets the same cvar; both apply at once, and
+`listRemaps` says when server remaps are off.
 `cg_remapsBlockedMaps` lists maps where server remaps are ignored, as with
 `cg_remaps 0` on those maps only: map names separated by spaces, commas or
 semicolons (`mp/ffa4 mp/duel6`; `maps/` and `.bsp` are optional, capitals do not
