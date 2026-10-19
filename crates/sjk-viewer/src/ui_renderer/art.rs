@@ -296,6 +296,8 @@ pub(super) enum Source {
     Preview,
     /// The settings' HUD picker preview.
     HudPreview,
+    /// The Collection's live blade pictures, added over what is below.
+    BladePictures,
 }
 
 impl Source {
@@ -303,6 +305,7 @@ impl Source {
     /// and ray layers. Everything else is alpha blended.
     pub(super) fn additive(self) -> bool {
         matches!(self, Self::Emblem(layer) if layer.additive())
+            || matches!(self, Self::BladePictures)
     }
 }
 

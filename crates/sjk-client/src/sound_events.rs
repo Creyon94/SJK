@@ -1593,6 +1593,11 @@ impl LegacySoundAdapter {
             _ => None,
         };
         if let Some((kind, sound, sound_source, channel, listener_relative)) = simple {
+            // With `s_saberSkinSounds 2` a blade skin's sound replaces the stock one.
+            let (sound, layered) = match layered {
+                Some(skin) if self.saber_overrides.only => (Some(skin), None),
+                other => (sound, other),
+            };
             self.emit(
                 kind,
                 sound,
@@ -2107,6 +2112,23 @@ fn player_config_hash(game_state: &GameState, client: usize) -> u64 {
         .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
             (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3)
         })
+}
+
+/// Whether `requested` is in the game data, with the extension fallback
+/// [`intern_sound`] uses (`.wav` asked, `.mp3` found): a blade skin's sound that is not
+/// is left out without a word, its stock sound playing instead.
+pub(crate) fn sound_present(vfs: &VirtualFileSystem, requested: &str) -> bool {
+    let has = |path: &str| vfs.contains(path).unwrap_or(false);
+    if has(requested) {
+        return true;
+    }
+    if let Some(base) = requested.strip_suffix(".wav") {
+        has(&format!("{base}.mp3"))
+    } else if let Some(base) = requested.strip_suffix(".mp3") {
+        has(&format!("{base}.wav"))
+    } else {
+        has(&format!("{requested}.wav")) || has(&format!("{requested}.mp3"))
+    }
 }
 
 pub(crate) fn intern_sound(

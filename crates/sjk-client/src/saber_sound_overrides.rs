@@ -1,7 +1,8 @@
 //! Per-player additions to the stock saber sounds: a blade skin (an SJK unlockable,
 //! drawn by the viewer) brings its own ignition, switching off, hum and swings, heard for
 //! every player wearing it and only for them, on top of the stock sounds, which keep
-//! playing below.
+//! playing below; or, with `s_saberSkinSounds 2`
+//! ([`LegacySoundAdapter::set_saber_skin_sounds_only`]), in their place.
 //!
 //! The viewer registers its skins' sound sets once per gamestate
 //! ([`LegacySoundAdapter::register_saber_sound_sets`]) and tells the adapter every frame
@@ -25,7 +26,7 @@
 //!
 //! Animation swing cues are the viewer's (`actor_sounds.rs`).
 
-use super::{LegacySoundAdapter, RegisteredLegacySound, intern_sound};
+use super::{LegacySoundAdapter, RegisteredLegacySound, intern_sound, sound_present};
 use sjk_audio::SoundHandle;
 use sjk_protocol::Snapshot;
 use sjk_vfs::VirtualFileSystem;
@@ -51,12 +52,14 @@ pub struct SaberSoundSet<'a> {
     pub swings: [&'a str; 3],
 }
 
-/// A set's sounds in the event adapter's table.
+/// A set's sounds in the event adapter's table; `None` where the set's file did not
+/// load (not in the game data yet), so the stock sound plays there as for a player
+/// with no set, in either `s_saberSkinSounds` mode (never silence).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct EventSet {
-    on: u16,
-    off: u16,
-    swings: [u16; 3],
+    on: Option<u16>,
+    off: Option<u16>,
+    swings: [Option<u16>; 3],
 }
 
 /// Whether a sound switches a saber on or off.
@@ -73,6 +76,9 @@ pub(crate) struct SaberSoundOverrides {
     clients: [Option<u8>; SABER_SOUND_CLIENTS],
     /// Whether any client wears a set, so stock events skip every check.
     active: bool,
+    /// `s_saberSkinSounds 2`: a worn set's sounds replace the stock ones instead of
+    /// playing over them.
+    pub(crate) only: bool,
     /// The `.sab` definitions' own on/off sounds, lowercase and without extension.
     toggles: Vec<(Box<str>, Toggle)>,
 }
@@ -85,7 +91,13 @@ impl SaberSoundOverrides {
         vfs: &VirtualFileSystem,
         register: &mut impl FnMut(&str, &[u8]) -> Option<SoundHandle>,
     ) {
-        let mut intern = |path: &str| intern_sound(sounds, vfs, path, register);
+        let mut intern = |path: &str| {
+            if !sound_present(vfs, path) {
+                return None;
+            }
+            let index = intern_sound(sounds, vfs, path, register);
+            sounds[usize::from(index)].handle.map(|_| index)
+        };
         self.sets = sets
             .iter()
             .map(|set| EventSet {
@@ -135,17 +147,17 @@ impl SaberSoundOverrides {
 
     /// The set's swing for `variant`, as `ci->saber[0].swingSound[Q_irand(0, 2)]`.
     pub(crate) fn swing(&self, source: u16, variant: usize) -> Option<u16> {
-        self.for_source(source).map(|set| set.swings[variant % 3])
+        self.for_source(source)?.swings[variant % 3]
     }
 
     /// The set's ignition.
     pub(crate) fn on(&self, source: u16) -> Option<u16> {
-        self.for_source(source).map(|set| set.on)
+        self.for_source(source)?.on
     }
 
     /// The set's switching off.
     pub(crate) fn off(&self, source: u16) -> Option<u16> {
-        self.for_source(source).map(|set| set.off)
+        self.for_source(source)?.off
     }
 
     /// The replacement for a general sound `sound` started at `origin`: the set's on or
@@ -163,10 +175,10 @@ impl SaberSoundOverrides {
         let path = &sounds.get(usize::from(sound?))?.path;
         let toggle = self.toggle(path)?;
         let set = self.for_source(nearest_player(snapshot, origin)?)?;
-        Some(match toggle {
+        match toggle {
             Toggle::On => set.on,
             Toggle::Off => set.off,
-        })
+        }
     }
 
     fn toggle(&self, path: &str) -> Option<Toggle> {
@@ -249,6 +261,20 @@ impl LegacySoundAdapter {
         self.saber_overrides.set_clients(clients);
         self.loops
             .set_saber_hum_overrides(&self.saber_overrides.clients);
+    }
+
+    /// `s_saberSkinSounds 2`: whether a worn blade skin's sounds replace the stock
+    /// saber sounds (ignition, switching off, swings and hum) instead of playing over
+    /// them. Cheap; the viewer calls it every frame.
+    pub fn set_saber_skin_sounds_only(&mut self, only: bool) {
+        self.saber_overrides.only = only;
+        self.loops.skin_hum_only = only;
+    }
+
+    /// Whether a worn blade skin's sounds replace the stock ones
+    /// ([`Self::set_saber_skin_sounds_only`]).
+    pub fn saber_skin_sounds_only(&self) -> bool {
+        self.saber_overrides.only
     }
 
     /// The set each client slot wears, after registration's checks.

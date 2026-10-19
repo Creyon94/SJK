@@ -5,7 +5,8 @@
 // its covered 3x3 neighbours and takes their share as alpha, which smooths the
 // silhouette by a pixel. The lit blades, already in display values, are added
 // last: over the body they add to it, beyond it their brightest channel is the
-// alpha (as additive menu art becomes alpha), so the glow shows on any backdrop.
+// alpha (as additive menu art becomes alpha), so the glow shows on any backdrop; what
+// they cover (their alpha: solid parts, horizons) hides the body and the backdrop.
 //
 // The picture fades out over its outer `EDGE_FADE` (a share of its shorter side), so a
 // beam, a puff or a blade reaching past it softens away instead of ending in a straight,
@@ -94,10 +95,15 @@ fn body(at: vec2<i32>) -> vec4<f32> {
 @fragment fn fs_main(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
     let at = vec2<i32>(p.xy);
     let model = body(at);
-    let light = textureLoad(blades, at, 0).rgb;
+    let lit = textureLoad(blades, at, 0);
+    let light = lit.rgb;
+    // What the blades cover (a skin's solid parts, a black hole's horizon: Creyon's round 14,
+    // Abyssal Eye's cut and Eclipse's moons showed the backdrop through them): over the body
+    // it hides the body, beyond it it is the alpha even where it is dark.
+    let cover = clamp(lit.a, 0.0, 1.0);
     // Premultiplied: the body's colour by its coverage, plus the added light.
-    let colour = model.rgb * model.a + light;
-    let alpha = clamp(max(model.a, max(light.r, max(light.g, light.b))), 0.0, 1.0);
+    let colour = model.rgb * model.a * (1.0 - cover) + light;
+    let alpha = clamp(max(max(model.a, cover), max(light.r, max(light.g, light.b))), 0.0, 1.0);
     if alpha <= 0.0 { return vec4(0.0); }
     return vec4(clamp(colour / alpha, vec3(0.0), vec3(1.0)), alpha * edge_fade(p.xy));
 }
@@ -109,4 +115,10 @@ fn edge_fade(xy: vec2<f32>) -> f32 {
     let width = max(EDGE_FADE * min(size.x, size.y), 1.0);
     let inside = min(min(xy.x, size.x - xy.x), min(xy.y, size.y - xy.y));
     return smoothstep(0.0, width, inside);
+}
+
+// The blades picture's alpha back to none (written with only the alpha channel): what the
+// Force effects left there is not coverage (`preview.rs`).
+@fragment fn clear_alpha() -> @location(0) vec4<f32> {
+    return vec4(0.0);
 }

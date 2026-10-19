@@ -289,6 +289,12 @@ impl GameAudio {
         handle
     }
 
+    /// Whether `path` is a loaded sound (a blade skin's sound not in the game data is
+    /// not, and the stock one plays in its place).
+    pub(crate) fn has_sound(&self, path: &str) -> bool {
+        self.find_handle(path).is_some()
+    }
+
     pub(super) fn find_handle(&self, path: &str) -> Option<SoundHandle> {
         if path.bytes().any(|byte| byte.is_ascii_uppercase()) {
             self.handles.get(&path.to_ascii_lowercase()).copied()

@@ -45,7 +45,8 @@ fn vertex_main(
     return output;
 }
 
-// Both stock materials blend GL_ONE GL_ONE, so only rgb matters here:
+// Both stock materials blend GL_ONE GL_ONE, so only rgb matters here (style 3, a
+// blade skin's blur trail, is SJK's own):
 // `saberTrail` = blurglow (rgbGen vertex) + blurcore (rgbGen identity),
 // `swordTrail` = swordtrail (rgbGen vertex).
 @fragment
@@ -57,6 +58,13 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     }
     let glow = textureSample(blur_glow, trail_sampler, input.uv);
     let core = textureSample(blur_core, trail_sampler, input.uv);
+    // A blade skin (style 3): glow and core both take the skin's trail colour, deepened
+    // (normalised to its brightest channel, then squared) so a pale colour does not wash
+    // out to white once the two add up.
+    if input.style == 3u {
+        let tint = input.color.rgb / max(max(input.color.r, input.color.g), max(input.color.b, 0.001));
+        return vec4((glow.rgb + core.rgb * 0.6) * tint * tint, 1.0);
+    }
     return vec4(glow.rgb * input.color.rgb + core.rgb, 1.0);
 }
 

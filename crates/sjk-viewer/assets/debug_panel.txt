@@ -1483,6 +1483,18 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[creyon-blade-signatures]
+area: Rendering & effects
+title: Creyon's Blade Lab signature blades (SJK #188, hub PR 1)
+change: 128 saber shaders in five tiers, each drawn by its own shader; effects switch in Collection.
+change: Their sounds come from the hub's skins pack (re-downloaded once, 15.5 MB).
+test: Collection > Blades: owned skins show live pictures; switch a blade's parts on and off.
+test: Wear a signature (staff grant): ignite, swing, run, turn: effects stay with the blade.
+test: Several signature blades on screen: frame time stays smooth; no hitch at startup.
+test: Normal sabers look as before (glow, heat haze, trails): a blade alpha change touched all.
+test: Settings > Sound > Blade skin sounds: Off, With normal, Only skin; throw the saber too.
+note: Review: cg_saberLabDesigns 0 + Clone Wars blade leaves a blade up 1.6 s after switch-off.
+
 [vram-map-change]
 area: Rendering & effects
 title: Map changes share textures between the old and new map (less video memory)

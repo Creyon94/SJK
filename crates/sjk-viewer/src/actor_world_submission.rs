@@ -653,6 +653,18 @@ fn submit_actor(
         .filter(|held| !trick.hidden || held.primary_in_flight)
         .zip(mesh)
     {
+        // Whether its saber is in an attack (`saberMove`), for the blade skins that answer a
+        // swing: only an attack is one (Creyon's round 14: a run's arm sway set the Clone
+        // Wars blade's words off); unknown without a snapshot.
+        let saber_move = if local {
+            snapshot.map(|snapshot| snapshot.player.saber_move())
+        } else {
+            state.map(sjk_protocol::EntityState::saber_move)
+        };
+        let attacking = saber_move.map(|saber_move| {
+            sjk_game_jka::saber_rules::in_attack(saber_move)
+                || sjk_game_jka::saber_rules::in_special(saber_move)
+        });
         submit_equipment(
             sinks,
             entity,
@@ -665,6 +677,7 @@ fn submit_actor(
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
+            attacking,
         );
     }
     let ghosts = match (mesh, snapshot) {
@@ -1072,6 +1085,7 @@ fn submit_equipment(
     forced_alpha: Option<u8>,
     presentation_time: i64,
     visual_now: Instant,
+    attacking: Option<bool>,
 ) {
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
@@ -1108,6 +1122,7 @@ fn submit_equipment(
         presentation_time,
         sinks.trail_edges.as_mut(),
         sinks.lights,
+        attacking,
     ) {
         return;
     }

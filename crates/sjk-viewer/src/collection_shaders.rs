@@ -1690,7 +1690,7 @@ mod tests {
         }
         assert_eq!(panel.shader_first, 3);
         assert_eq!(panel.shader, 3, "the chosen row follows into view");
-        for _ in 0..60 {
+        for _ in 0..SHADER_ROWS {
             wheel(&mut panel, -1.0);
         }
         assert_eq!(panel.shader_first, SHADER_ROWS - RACK_SHOWN);
