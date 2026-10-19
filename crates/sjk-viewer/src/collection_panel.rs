@@ -818,8 +818,10 @@ impl Panel {
         let vertical = self.tab == Tab::Shaders;
         if self.tab == Tab::Cards && self.cards_shown > 0 {
             // The binder: Left and Right step a tile, Up and Down a line, stopping at the
-            // ends (a short last line takes Down to its last tile).
+            // ends (a short last line takes Down to its last tile); Page Up and Page Down
+            // a screen of lines, Home and End to the first and last tile.
             let columns = cards::COLUMNS;
+            let page = columns * cards::LINES;
             let last = self.cards_shown - 1;
             let at = self.card.min(last);
             match key {
@@ -830,6 +832,14 @@ impl Panel {
                     self.card = (at + columns).min(last);
                 }
                 KeyCode::ArrowDown => {}
+                KeyCode::PageUp => self.card = at.saturating_sub(page.min(at / columns * columns)),
+                KeyCode::PageDown if at / columns < last / columns => {
+                    self.card =
+                        (at + page.min((last / columns - at / columns) * columns)).min(last);
+                }
+                KeyCode::PageDown => {}
+                KeyCode::Home => self.card = 0,
+                KeyCode::End => self.card = last,
                 _ => return self.key_any(key, shift, illuminate, vertical),
             }
             return PanelAction::None;

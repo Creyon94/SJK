@@ -12,6 +12,7 @@ mod draw;
 mod geometry;
 mod input;
 mod layout;
+mod shine;
 
 mod theme;
 mod tree;
@@ -33,6 +34,9 @@ pub use input::{AbstractAction, InputEvent, InputRouter, PointerButton, UiEvent,
 pub use layout::{
     Align, Anchor, Axis, Dimension, FlexLayout, LayoutContext, LayoutEngine, LayoutKind,
     LayoutScratch, SizeSpec,
+};
+pub use shine::{
+    CardShine, SUN_CORE, SUN_INNER, SUN_RIM_COOL, SUN_RIM_HOT, ShineKind, shade as card_shine_shade,
 };
 pub use theme::{MotionTokens, RadiusTokens, SpacingTokens, Theme, TypeTokens};
 pub use tree::{Widget, WidgetId, WidgetTree};

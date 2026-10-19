@@ -405,6 +405,9 @@ impl Panel {
                 if self.cards_shown > 1 {
                     keys.push((&["Arrows"], "choose"));
                 }
+                if self.cards_shown > cards::COLUMNS * cards::LINES {
+                    keys.push((&["PgUp", "PgDn"], "page"));
+                }
                 keys.push((&["O", "T", "K", "F"], "filter"));
                 if self.revealable > 0 {
                     keys.push((&["R"], "reveal"));

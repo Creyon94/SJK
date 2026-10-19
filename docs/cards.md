@@ -318,21 +318,39 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
   purple and gold for Uncommon, Rare, Legendary and Mythical.
 - **A card** is drawn, not a picture: a dark plate edged in its rarity's colour, the
   holocron's gem at its heart in a ring, the rarity's name above, "Sealed" under the
-  gem and the edition stamped at the foot. Holo lays slanted bands of the rainbow
-  drifting across it with a glint; Solar a warm wash, a corona of arcs turning round
-  the gem, a band of sunlight passing over, embers at the foot and a breathing gold
-  edge. The light is cut to the card, rounded corners included: the finish draws
-  under a rounded clip (`DrawCommand::PushRoundedClip`), and the UI renderer cuts
-  strokes to it, each corner as four chords of its arc
-  ([ui_renderer.rs](../crates/sjk-viewer/src/ui_renderer.rs) `clip_polygon`); the
-  finish's washes take the card's corner radius themselves. The light stays inside the
-  rarity's edge, its slanting strokes reach far past the card so their square ends never
-  show, and Holo's sweep crosses the card in about four seconds, eased, then waits off
-  it for about three before the next pass (Solar's sun the same, slower).
+  gem and the edition stamped at the foot.
+- **The finishes** (19/10/2026, Sol's request) are shaded per pixel: one command a card,
+  `DrawCommand::CardShine`, one quad the UI renderer shades in `ui_shapes.wgsl` (mode 6),
+  with [shine.rs](../crates/sjk-ui/src/shine.rs) (`sjk_ui::card_shine_shade`) as the
+  CPU reference the menu snapshots draw and the unit tests check. It cuts itself to the
+  card's rounded corners and stays inside the rarity's edge; a clip (the binder's
+  scrolling) cuts its quad without moving its pattern.
+  - **Holo**: a faint pearl over the card and a rainbow foil whose hue runs smoothly,
+    red to violet, across a slant through the light, swaying gently as foil does,
+    strongest about the light and fading far from it, with a thin white glint and its
+    soft halo at its middle. No bands: neighbouring pixels differ by under 3 % (the
+    tests walk a line across it). Its sweep crosses the card in about four seconds,
+    eased, then waits off it for about three before the next pass (the foil's faint
+    rest stays).
+  - **Solar** looks like the Sun blade (its colours are the hub's `saber_sun`): a corona
+    burns along the card's edge, a white-gold core at the very edge, gold inside graded
+    to the blade's hot and cool reds as it reaches in; its reach (about 6 % of the
+    card's width, more where it flares) and brightness are stirred by two octaves of
+    drifting granulation, sharp flame tongues licking further in, and three flares
+    running round the card, coming and going; the blade's quick shimmer flickers it and
+    sparks rise through it. Over the face only a warm wash from the top and a soft band
+    of sunlight passing over (the sweep's, slower), so the picture and the words stay
+    clear; its edge is gold.
+  - **Shapes:** a sealed card or a face takes the same commands in every finish but
+    one, the shine (before: 8 for Holo, the bands, glint and pearl, and 8 for Solar,
+    the wash, three arcs, the band of sunlight, the embers and the breathing edge, each
+    stroke cut to the corners into a polygon). A face is 11 shapes (13 with the lore
+    box) plus 1 in Holo or Solar, against 19 (21) before.
 - **Tilt (13/10/2026, Sol's request):** while the pointer rests on a card of the Cards
   tab (the one up close or one of the grid), the card turns towards it in perspective,
   up to about 9 degrees at its edges, the side under the pointer receding as if pressed;
-  its light follows the pointer across it (Holo's bands, Solar's sun) and a soft glare
+  its light follows the pointer across it (Holo's foil and glint, a little brighter, Solar's
+  band of sunlight) and a soft glare
   sits under the pointer. It eases in and out in about a tenth of a second. The card is
   drawn as usual under `DrawCommand::PushTransform` (a projective transform the UI
   renderer applies to every shape vertex and text glyph drawn inside it, after clipping;
@@ -475,7 +493,7 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
   as a binder with its gaps. Nothing in it knows a set: sets, cards, rarities and kinds
   come from the faces.
   - **The headline** says "5 of 13 cards found", the line under it each set's progress
-    ("SJK Alpha 5 / 13", four sets at most, then "and N more sets"); with no card yet,
+    ("SJK Alpha 5 / 13", four sets at most, then "2 more sets"); with no card yet,
     "Open a holocron on the Holocrons tab" after it. The kyber shards and credits stand
     at its right. Without faces in the packs it says how many cards are held, as before.
   - **The tiles** (122 frame pixels wide, seven to a line, three lines shown from y 350):
@@ -487,7 +505,10 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
     card whose face is not in the packs ("Unknown card <id>", the sealed back). A tile
     holding more than one copy carries a pill at its top right, "x3", edged gold when its
     best is Solar. More lines than three scroll: the wheel a line a notch, the arrows keep
-    the chosen tile in view, and a bar at the grid's right shows where.
+    the chosen tile in view, Page Up and Page Down move three lines (the column kept),
+    Home and End go to the first and last tile; a bar at the grid's right shows where,
+    and under its right end "Rows 4-6 of 9" (both only while it scrolls; the keys' hint
+    then adds PgUp PgDn).
   - **The filter** above the tiles: All, Owned and Missing, then a chip each for the
     rarity ("Rarity: Legendary", in its colour), the kind ("Kind: Meme", only kinds the
     faces have) and the finish held ("Finish: Holo": a copy in it is held), each a click
@@ -623,3 +644,16 @@ cards with a hover card on one held in two finishes, Owned, Missing Legendary on
 hover card, Finish Holo, and a missing card chosen. Not tried: in a running client, more
 cards than three lines (the unit tests scroll; SJK Alpha has 13), the keys and the wheel
 live.
+
+The finishes and paging (19/10/2026, Windows 11, `personal/card-finishes`): unit tests for
+the shine (nothing outside the rounded card, Holo's foil without steps, Solar's corona on
+the edge and the face nearly clear, its motion), the shader validated by naga, a card's
+fixed commands, and the binder's Page Up, Page Down, Home, End and its rows line. World
+shots looked at (off-screen, duel6, the hub's `sjk_cards` pack mounted):
+`duel6_sjk_card_finish_motion`, a Solar and a Holo card up close with the tile chosen in the
+grid at three moments each, and a Solar card at rest in the opening at three moments;
+`duel6_sjk_card_binder_many`, a made-up catalogue of 59 cards in three sets (SJK Alpha's and
+two made-up, reusing its pictures) scrolled to a tile in the middle, in 1080p and 4:3, and
+174 cards in six sets for the progress line ("2 more sets"). Not tried: in a running client
+(the motion between the stills, the frame time with a full binder of Solar tiles; each
+shine is one quad, about 470 by 660 pixels up close, a few noise lookups a pixel).

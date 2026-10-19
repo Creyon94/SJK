@@ -145,6 +145,9 @@ const LINE_MODE: f32 = 4.0;
 /// `parameters.y` value that selects the strafe aura shader path (`ui_shapes.wgsl`).
 const AURA_MODE: f32 = 5.0;
 
+/// `parameters.y` value that selects the card finish shader path (`ui_shapes.wgsl`).
+const SHINE_MODE: f32 = 6.0;
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub(super) struct ShapeVertex {
@@ -813,6 +816,15 @@ impl ShapeRenderer {
                 DrawCommand::StrafeAura { center, aura } => {
                     self.push_aura(center, aura, opacity[opacity_depth], viewport);
                 }
+                DrawCommand::CardShine { rect, shine } => {
+                    self.push_shine(
+                        rect,
+                        clipped(rect, clips[clip_depth]),
+                        shine,
+                        opacity[opacity_depth],
+                        viewport,
+                    );
+                }
                 DrawCommand::Line {
                     from,
                     to,
@@ -1170,6 +1182,50 @@ impl ShapeRenderer {
                 parameters: [aura.alpha * opacity, AURA_MODE],
                 // The quad's top-left corner relative to the aura's centre.
                 uv: [rect.x - center[0], rect.y - center[1]],
+            }));
+    }
+
+    /// One quad over `shown` (the part of the card at `rect` left by the clip);
+    /// `ui_shapes.wgsl` shades it per pixel as [`sjk_ui::card_shine_shade`] does, from the
+    /// finish packed in the colours, its pattern held to the whole card.
+    fn push_shine(
+        &mut self,
+        rect: Rect,
+        shown: Rect,
+        shine: sjk_ui::CardShine,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        if shown.width <= 0.0
+            || shown.height <= 0.0
+            || shine.alpha * opacity <= 0.0
+            || self.vertices.len() + 6 > MAX_SHAPE_VERTICES
+        {
+            return;
+        }
+        art::untextured(&mut self.runs, self.vertices.len());
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let kind = match shine.kind {
+            sjk_ui::ShineKind::Holo => 0.0,
+            sjk_ui::ShineKind::Solar => 1.0,
+        } + if shine.held { 2.0 } else { 0.0 };
+        let points = [
+            ([shown.x, shown.y], [0.0, 0.0]),
+            ([shown.right(), shown.y], [1.0, 0.0]),
+            ([shown.right(), shown.bottom()], [1.0, 1.0]),
+            ([shown.x, shown.y], [0.0, 0.0]),
+            ([shown.right(), shown.bottom()], [1.0, 1.0]),
+            ([shown.x, shown.bottom()], [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(pixel, local)| ShapeVertex {
+                position: position(pixel[0], pixel[1]),
+                local,
+                size: [shown.width, shown.height],
+                start_color: [kind, shine.time, shine.light[0], shine.light[1]],
+                end_color: [shine.size[0], shine.size[1], shine.radius, 0.0],
+                parameters: [shine.alpha * opacity, SHINE_MODE],
+                uv: [shown.x - rect.x, shown.y - rect.y],
             }));
     }
 

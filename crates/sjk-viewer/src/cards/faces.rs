@@ -245,6 +245,30 @@ pub(crate) fn current() -> Arc<Faces> {
     lock().clone().unwrap_or_else(|| Arc::new(Faces::empty()))
 }
 
+/// Make `list` the current faces, face `index`'s picture a copy of the current face
+/// `pictures(index)`'s (when decoded): a made-up catalogue over the packs' pictures, for
+/// a world shot.
+#[cfg(test)]
+pub(crate) fn install_for_shot(list: Vec<Face>, pictures: impl Fn(usize) -> usize) {
+    let before = current();
+    let art: Vec<OnceLock<Option<MipChain>>> = (0..list.len())
+        .map(|index| {
+            let cell = OnceLock::new();
+            let copy = before.art(pictures(index)).map(|chain| MipChain {
+                size: chain.size,
+                levels: chain.levels.clone(),
+            });
+            let _ = cell.set(copy);
+            cell
+        })
+        .collect();
+    *lock() = Some(Arc::new(Faces {
+        art,
+        list,
+        generation: before.generation + 1,
+    }));
+}
+
 /// The texture of face `index`'s picture.
 pub(crate) fn texture(index: usize) -> TextureId {
     TextureId(TEXTURE_BASE + index.min(MAX_FACES - 1) as u32)

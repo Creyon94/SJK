@@ -12,7 +12,10 @@
 //! in the folder `SJK_TEST_PACKS` names (the hub's `assets/dist`): up close on the Cards
 //! tab in each finish, and coming out of a holocron. And the Cards tab as a binder
 //! (`duel6_sjk_card_binder`, 19/10/2026) with the same pack: every card, found or greyed,
-//! sealed copies, hover cards and the filter, in 1080p and 4:3.
+//! sealed copies, hover cards and the filter, in 1080p and 4:3. Then the finishes in motion
+//! (`duel6_sjk_card_finish_motion`: Solar and Holo up close and on their tile, and Solar
+//! out of a holocron, at three moments each) and a binder of many cards in several sets,
+//! scrolled (`duel6_sjk_card_binder_many`, a made-up catalogue over the pack's pictures).
 //!
 //! Run: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer cards_shots -- --ignored
 //! --test-threads=1 --nocapture`; the pictures are in `target/world-shots`.
@@ -66,8 +69,10 @@ fn every_kind() -> Vec<sjk_identity::CardStack> {
     list
 }
 
-fn sjk_cvars() -> [(&'static str, &'static str); 3] {
+fn sjk_cvars() -> [(&'static str, &'static str); 4] {
     [
+        // No Discord status from a test.
+        (crate::discord_presence::CVAR, "0"),
         ("ui_menuStyle", "sjk"),
         (crate::settings::quick::HIDE_CVAR, "1"),
         ("name", "^1Sol^7Vulpes"),
@@ -533,6 +538,197 @@ fn duel6_sjk_card_faces() {
         let path = shoot(&mut gpu, 4, "duel6-card-face-opening");
         println!("{}", path.display());
         assert!(!overflowed(&gpu));
+    });
+}
+
+/// The finishes in motion (19/10/2026, Sol's request): Solar's corona after the Sun
+/// blade and Holo's smooth foil, up close on the Cards tab and on its binder tile at
+/// three moments each, then Solar coming out of a holocron at three moments.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_card_finish_motion() {
+    on_big_stack(|| {
+        if !faces_ready() {
+            return;
+        }
+        let moments = [1.0, 2.3, 3.7];
+        for finish in ["solar", "holo"] {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &sjk_cvars())
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            let list = with_face(finish);
+            let revealed = binder_index(&list, "sjk_alpha_010");
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_cards(list, 1_340, 85);
+                console.preview_collection(Some(Vec::new()), moments[0]);
+            }
+            gpu.open_profile_hub(Tab::Cards);
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_card_for_shot(revealed);
+            }
+            let _ = frame(&mut gpu, 90);
+            let mut images = Vec::new();
+            for (index, seconds) in moments.iter().enumerate() {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_collection(Some(Vec::new()), *seconds);
+                }
+                let path = shoot(&mut gpu, 3, &format!("duel6-card-{finish}-{index}"));
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "{finish} {index}");
+                images.push(image::open(path).expect("the shot").to_rgba8());
+            }
+            println!(
+                "{}",
+                sheet(&images, 3, 640, &format!("duel6-card-{finish}-moments")).display()
+            );
+        }
+        let Some(mut gpu) = open_holocrons([1920, 1080]) else {
+            return;
+        };
+        let mut images = Vec::new();
+        for (index, seconds) in moments.iter().enumerate() {
+            let mut card = shown(3, 3, 2, 311);
+            card.card = Some("sjk_alpha_010".to_owned());
+            ceremony_at(&mut gpu, vec![card], 3.0, *seconds);
+            let path = shoot(&mut gpu, 4, &format!("duel6-card-opening-solar-{index}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu));
+            images.push(image::open(path).expect("the shot").to_rgba8());
+        }
+        println!(
+            "{}",
+            sheet(&images, 3, 640, "duel6-card-opening-solar-moments").display()
+        );
+    });
+}
+
+/// Play `cards`' ceremony `elapsed` seconds into the first card's entrance, its finishes
+/// drawn at `seconds`.
+fn ceremony_at(gpu: &mut GpuState, cards: Vec<Shown>, elapsed: f32, seconds: f32) {
+    if let Some(console) = gpu.console.as_mut() {
+        let prizes = cards.into_iter().map(Prize::Card).collect();
+        console.preview_opening(Some(prizes), elapsed, seconds);
+    }
+}
+
+/// A made-up catalogue: the packs' own faces (`real`) first, then `sets` (id, name,
+/// cards) of made-up ones.
+fn made_up_faces(
+    real: &[crate::cards::faces::Face],
+    sets: &[(&str, &str, u16)],
+) -> Vec<crate::cards::faces::Face> {
+    let mut list = real.to_vec();
+    let kinds = crate::cards::faces::Kind::ALL;
+    for (set, set_name, count) in sets {
+        for number in 1..=*count {
+            let at = list.len();
+            list.push(crate::cards::faces::Face {
+                id: format!("{set}_{number:03}"),
+                name: format!("{set_name} No. {number}"),
+                set: (*set).to_owned(),
+                set_name: (*set_name).to_owned(),
+                number,
+                kind: kinds[at % kinds.len()],
+                rarity: &RARITIES[[0, 0, 1, 0, 2, 1, 0, 3, 1, 4][at % 10]],
+                lore: "A made-up card for a world shot.".to_owned(),
+                artist: "Sol".to_owned(),
+                art: String::new(),
+            });
+        }
+    }
+    list
+}
+
+/// Copies of made-up card `id` of `rarity` in `finish`.
+fn copy_of(id: &str, rarity: &str, finish: &str, count: u32) -> sjk_identity::CardStack {
+    sjk_identity::CardStack {
+        card: Some(id.to_owned()),
+        rarity: rarity.to_owned(),
+        finish: finish.to_owned(),
+        edition: "alpha".to_owned(),
+        count,
+        first: 1_791_830_000,
+        last: 1_791_830_000,
+    }
+}
+
+/// Paging (19/10/2026): the binder with about sixty cards in three sets (the packs' own
+/// and two made-up sets), scrolled partway with a tile in the middle chosen, in 1080p
+/// and 4:3; then six sets, for the progress line.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_card_binder_many() {
+    on_big_stack(|| {
+        if !faces_ready() {
+            return;
+        }
+        let packs = crate::cards::faces::current().list.clone();
+        let real = packs.len().max(1);
+        let three = [
+            ("sjk_holonet", "Holonet Legends", 24_u16),
+            ("sjk_duel", "Duel Masters", 22),
+        ];
+        let six = [
+            ("sjk_holonet", "Holonet Legends", 24_u16),
+            ("sjk_duel", "Duel Masters", 22),
+            ("sjk_maps", "Map Makers", 9),
+            ("sjk_force", "Force Echoes", 8),
+            ("sjk_zz_tour", "Tournament", 6),
+        ];
+        let mut holdings = binder_holdings();
+        for (index, number) in [1_u16, 2, 5, 8, 9, 13, 17, 21].into_iter().enumerate() {
+            let finish = ["normal", "holo", "solar", "normal"][index % 4];
+            holdings.push(copy_of(
+                &format!("sjk_holonet_{number:03}"),
+                "rare",
+                finish,
+                1,
+            ));
+        }
+        for number in [3_u16, 4, 11, 20] {
+            holdings.push(copy_of(
+                &format!("sjk_duel_{number:03}"),
+                "common",
+                "normal",
+                2,
+            ));
+        }
+        holdings.push(copy_of("sjk_duel_012", "legendary", "solar", 1));
+        for (sets, label) in [(&three[..], "3sets"), (&six[..], "6sets")] {
+            for (size, name) in [([1920, 1080], "1080p"), ([1440, 1080], "4x3")] {
+                if label == "6sets" && size[0] != 1920 {
+                    continue;
+                }
+                let Some(mut gpu) = open_binder(size) else {
+                    return;
+                };
+                // The packs' faces stay first, so their pictures keep their places.
+                crate::cards::faces::install_for_shot(made_up_faces(&packs, sets), |index| {
+                    index % real
+                });
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_cards(holdings.clone(), 1_340, 85);
+                    console.preview_collection(Some(Vec::new()), 2.3);
+                }
+                let _ = frame(&mut gpu, 30);
+                let chosen = binder_index(&holdings, "sjk_holonet_017");
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_card_filter_for_shot(Filter::default());
+                    console.collection_card_for_shot(chosen);
+                }
+                let path = shoot(
+                    &mut gpu,
+                    6,
+                    &format!("duel6-card-binder-many-{label}-{name}"),
+                );
+                println!("{} (tile {chosen})", path.display());
+                assert!(!overflowed(&gpu), "{label} {name}");
+            }
+        }
     });
 }
 
