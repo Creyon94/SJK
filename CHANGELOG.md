@@ -28,14 +28,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1019.2 (Alpha) | 19/10/2026
 
-> Strafe aura: A glow over the crosshair shows where turning gains speed (`cg_strafeAura`).
-> Card binder: Every card of the packs in one binder, missing ones greyed, with new Solar and Holo finishes.
-> Emotes: `emotes` opens a picker of every emote, and an away emote plays while you are gone.
-> Chat: Chat and centre prints at JoF EJK's size, with tighter line spacing.
-> Duels: Players outside your private duel are hidden, as in JoF EJK.
-> Steadier play: No pause when models load, no crash leaving a server or quitting.
+> Strafe aura: A crosshair glow shows where turning gains speed.
+> Card binder: Every card in one binder, with Solar and Holo finishes.
+> Emotes: `emotes` opens a picker of every emote.
+> Chat: Chat and centre prints at JoF EJK's size.
+> Duels: Players outside your private duel are hidden.
+> Steadier play: No pause when models load, fewer crashes.
 
 = cg_strafeAura: A new strafe guide: a glowing arc over the crosshair shows how much speed each heading gains with the keys you hold. Turn until its tick sits on the white edge.
 
