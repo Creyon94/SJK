@@ -1,14 +1,17 @@
-// Lightspeed Ram: the moment a starship jumps to lightspeed straight through another, as a
-// blade. A white-hot blade in a deep hyperspace-blue glow, its light split at the edges into a
+// Holdo Maneuver: the moment a starship jumps to lightspeed straight through another, as a
+// blade. A white-hot blade in a deep glow (hyperspace blue, or its wearer's colour: a chroma), its light split at the edges into a
 // red and a cyan fringe, with starlines streaming up past it. Every eight seconds the ram: the
 // blade draws in its breath and goes silent and dark to a thin white line, then cuts the air
 // in a blinding white slice; white streaks of wreckage are flung off both sides, glowing
 // fragments tumble slowly away and a pale blue haze hangs where it struck, until the stars
-// stream again. A swing streams the starlines harder; a clash is a small ram of its own.
+// stream again. Before each ram, light is drawn in to the blade from all round it, faster
+// and faster; on a swing it leaves afterimages behind, as a ship does entering hyperspace.
+// A swing streams the starlines harder; a clash is a small ram of its own.
 // @part Starlines
 // @part The ram
 // @part Light split
 // @part Drifting wreckage
+// @ghosts Afterimages
 // @room 9
 // @palette {"corona.rim_cool":[0.05,0.15,0.75],"corona.rim_hot":[0.4,0.7,1.0],"corona.inner":[0.88,0.95,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.3,0.55,1.0],"core.fringe_hot":[0.8,0.92,1.0],"light.color":[0.45,0.7,1.0],"trail":[0.5,0.75,1.0]}
 
@@ -64,6 +67,26 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   // starlines streaming up past the blade, nearer ones longer
   fx += fxFall(ro, rd, px, y0, y1, 2.4, 20.0, -24.0, 2.2 + 1.5*sw, 0.0, 4.1, pale)*live*part(0.0);
   fx += fxFall(ro, rd, px, y0, y1, 4.6, 14.0, -14.0, 1.2, 0.0, 9.3, blue)*0.8*live*part(0.0);
+  // round 14 (Creyon): gathering light: before the ram, streaks of light are drawn in to the
+  // blade from all round it, faster and faster, until the strike
+  float q = lr_t();
+  float gather = smoothstep(LR_HOLD - 1.0, LR_HOLD, q)*(1.0 - smoothstep(LR_STRIKE - 0.08, LR_STRIKE, q))*part(1.0);
+  if (gather > 0.01 && fxNear(ro, rd, y0, y1) < 9.0){
+    float s;
+    float wave = floor(uTime/LR_P);
+    for (int i = 0; i < 26; i++){
+      float fi = float(i);
+      float cyc = (q - (LR_HOLD - 1.0))*(1.1 + 0.6*h11(fi*2.7)) + h11(fi*5.3);
+      float k = floor(cyc), f = fract(cyc);
+      float y = mix(y0 + 1.0, y1 - 1.0, h11(fi*3.1 + k*1.7 + wave));
+      vec3 dir = around(1.0, h11(fi*7.7 + k*2.3 + wave), 0.0);
+      float r1 = 0.5 + 7.0*(1.0 - f*f);
+      float r0 = r1 + 1.5 + 2.5*f;
+      vec3 o = vec3(0.0, y, 0.0);
+      float d = raySeg(ro, rd, o + dir*r0, o + dir*r1, s);
+      fx += mix(blue, vec3(1.0), f)*(halo(d, max(0.04, px))*1.8 + halo(d, 0.25)*0.3)*(0.3 + 0.7*s)*smoothstep(0.0, 0.15, f)*gather;
+    }
+  }
   // the strike: the air cut in a white slice along the blade
   if (flash > 0.01){
     float s;
@@ -103,5 +126,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   // a pale blue haze hanging where it struck, and the last wreckage drifting
   fx += fxSmoke(ro, rd, y0, y1, 3.4, 0.6, 2.7, vec3(0.45, 0.6, 0.9))*smoothstep(0.0, 0.3, since)*exp(-since*0.5)*1.2*part(3.0);
   fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 18.0, 0.02, 5.5, pale)*exp(-since*0.35)*part(3.0);
-  return fx*uFx;
+  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+  uKeep += fx*uFx;
+  return vec3(0.0);
 }

@@ -1,4 +1,5 @@
-// Abyssal Eye: the blade is a slit cut into an endless dark, its lips glowing crimson, faint motes
+// Abyssal Eye: the blade is a slit cut into an endless dark, its lips glowing crimson (or its
+// wearer's colour: a chroma), faint motes
 // drifting down into the black. Along its middle the slit peels open into a great almond and an eye
 // inside looks out: a burning amber iris with a goat's bar pupil, rolling to watch along the blade,
 // darting, blinking, narrowing when you swing; on a clash it flinches shut. The cut is a real
@@ -129,6 +130,9 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   vec3 rgb = ae_inside(b, px);
   float rim = clamp(abs(b.x)/max(w, 0.01), 0.0, 1.0);
   rgb += vec3(1.0, 0.18, 0.1)*pow(rim, 3.0)*1.4 + vec3(1.0, 0.6, 0.45)*pow(rim, 10.0)*1.2;
+  // a chroma (round 14, Creyon): the abyss inside the cut stays black and the eye amber; only
+  // its burning lips, the glow and the effects take the wearer's colour
+  uOwn = max(uOwn, cov*(1.0 - smoothstep(0.55, 0.85, rim)));
   return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
 }
 // shadow tendrils: dark smoky arms, crimson at the tips, reaching out round the blade in 3D,

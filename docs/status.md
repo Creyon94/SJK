@@ -60,8 +60,9 @@ on a background thread. 128 signatures in five tiers (mythical most dramatic, th
 rare, uncommon, common), every one Star Wars, built as Sol's blades are: the blade is the file's
 glow and core, effects are flat round it facing the camera and only what circles it is 3D, held
 by a frame fixed to the hilt (turning the view or running moves nothing), on the full length (no
-racing while igniting), every effect a switchable part in the Collection (at most six). Only ten
-of them take the wearer's colour (kyber, holograms, the Force, the cartoon blade). Engine changes
+racing while igniting), every effect a switchable part in the Collection (at most six). 32 of
+them take the wearer's colour where a colour fits (kyber, holograms, the Force, data and light,
+the cartoon blade), their own effects keeping their colours. Engine changes
 with them: the swing is measured in the wearer's frame at a fixed reach (running and switching
 on or off are no swing); a signature's solid parts stop at the blade's current tip; the
 Collection's swatches show each owned blade drawn live by the blade renderer
@@ -74,9 +75,11 @@ Checked on Linux x86_64 (Rust 1.97, lavapipe): every translation renders as naga
 end, every signature module validates, the ignored GPU test renders every signature lit with
 dark corners (sheets of all looked at, moving cameras with `SJK_SIGNATURE_ORBIT`); workspace
 formatting, build, tests and clippy (no new warnings) pass. Creyon tested the rounds in game on
-Windows 11 (his notes, rounds 8 to 13). Not verified: the last round's blade pictures and
-sounds in his game, frame time with several signature blades on screen, the hub's catalogue and
-pack (Sol's).
+Windows 11 (his notes, rounds 8 to 13; round 13's blade pictures and Lightspeed Ram, now named
+Holdo Maneuver, confirmed). Round 14 (Kyber Heart's arteries, Holdo Maneuver's gathering light
+and afterimages, Eclipse's stars of totality, the new chromas) is checked by the GPU sheets and
+the workspace checks only. Not verified: round 14 in his game, frame time with several signature
+blades on screen, the hub's catalogue and pack (Sol's).
 
 ## Chat and centre-print sizes on EternalJK's scale
 

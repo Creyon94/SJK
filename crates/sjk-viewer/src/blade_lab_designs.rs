@@ -74,6 +74,20 @@ pub(crate) const DESIGNS: [Design; 14] = [
     design("saber_quantum", 14, 0.1, 0.25, false, [0.35, 0.85, 1.0]),
 ];
 
+/// Designs whose words outlast their blade (Creyon's round 14: the Clone Wars blade's
+/// "VMMMM!" on switching off went with the blade before it could be read): seconds the
+/// word keeps floating after the blade has gone in. One entry per design, read by
+/// [`linger`]; the blade itself is not drawn meanwhile (`saber.wgsl` `lab_lingering`).
+const LINGERS: [(&str, f32); 1] = [("saber_comic", 1.6)];
+
+/// How long `id`'s words float on after its blade has gone in (seconds; 0 for none).
+pub(crate) fn linger(id: &str) -> f32 {
+    LINGERS
+        .iter()
+        .find(|(design, _)| *design == id)
+        .map_or(0.0, |(_, seconds)| *seconds)
+}
+
 /// Quantum's number: its ghost copies are an option (`saber.wgsl` `lab_quantum_ghosts`,
 /// drawn unless the wearer's `copies` section is off).
 const QUANTUM: u32 = 14;

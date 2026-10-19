@@ -613,7 +613,12 @@ drawn. The flag is the client catalogue's (`Unlockable::chroma` in
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)); the hub and the packs are
 unchanged. Chromas: Storm, Unstable, Spectral, Glitch, Hologram, Runic and Heartbeat
 (my proposal to Sol). Sun, Frost, Void and Molten keep their themed colours; Prism,
-Chameleon and Banner are about their colour.
+Chameleon and Banner are about their colour. Creyon's chromas (his rounds 13 and 14) are
+those where a colour makes sense: kyber, holograms, the Force, data and light (Droid Logic,
+Echo Base, Amethyst, Neon, Bleeding Kyber, Kyber Cluster, Clone Wars, Between Worlds,
+Eclipse, Hyperspace, Singing Kyber, Ashla Radiance, Holdo Maneuver, Felucia Spores, Abyssal Eye, Force
+Echo, Shattered Kyber and sixteen rares, uncommons and commons); a signature's own effects
+keep their colours through `uKeep` and `uOwn`, so only its blade takes the wearer's.
 
 - **How it is drawn** ([saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs)
   `Chroma`, `SkinColor::worn_with`): the skin's own hue is its corona rim's

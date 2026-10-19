@@ -1,12 +1,10 @@
-// Eclipse: a thin pearl-white blade with a total eclipse travelling along it. Where the moon
-// passes, a dark ring crosses the blade and its light goes out in a band, and round that band a
-// real corona flares out in every direction: long pearly streamers fanning out round the blade,
-// brightest close in, shimmering and slowly turning. Seen from above it is a ring of corona rays
-// round a dark circle, like a true eclipse. The band drifts slowly up and down the blade, with
-// diamond-ring flashes and Baily's beads sparking on its edge, while small pearly prominences
-// loop up off the blade and fade. Ignites fast; a swing sweeps the streamers out, a clash flares the
-// whole corona with a diamond-ring burst.
-// @part Corona
+// Eclipse: a thin blade (pearl-white, or its wearer's colour: a chroma) with a total eclipse
+// travelling along it. Where the moon passes, a dark ring crosses the blade and its light goes
+// out in a band. The band drifts slowly up and down the blade, with diamond-ring flashes and
+// Baily's beads sparking on its edge, while small pearly prominences loop up off the blade and
+// fade, and the stars of totality come out round the band. Ignites fast; a clash flares the
+// band with a diamond-ring burst.
+// @part Totality
 // @part Eclipsed suns
 // @arcs Prominences
 // @room 10
@@ -59,24 +57,16 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   vec3 light = vec3(0.0);
   vec3 fx = vec3(0.0);
   float vis = smoothstep(0.1, 0.6, uAge);
-  // ---- the corona: long pearly streamers fanning out from the dark band in every direction
-  float reach = 1.0 + 0.35*sw + 0.45*flare;
-  if (rayPt(ro, rd, vec3(0.0, yb, 0.0), tq) < 7.5 && vis > 0.0){
-    for (int i = 0; i < 28; i++){
-      float fi = float(i);
-      float a = fi/28.0 + 0.012*sin(uTime*0.3 + fi) + uTime*0.008;
-      float el = (h11(fi*3.7) - 0.5)*0.9 + 0.12*sin(uTime*0.4 + fi*1.3);
-      float len = (3.0 + 4.5*pow(h11(fi*5.1), 1.3))*reach*(0.85 + 0.15*sin(uTime*0.7 + fi*2.0));
-      vec3 p0 = around(0.5, a, yb + el*0.6);
-      vec3 p1 = around(0.5 + len, a + 0.03*sw, yb + el*(0.6 + len*0.7));
-      float dd = raySeg(ro, rd, p0, p1, s);
-      float taper = 1.0 - s*s;
-      float w = max(0.06 + 0.26*(1.0 - s), px);
-      fx += mix(white, pearl, s)*(halo(dd, w)*1.2 + halo(dd, w*3.0)*0.25)*taper*(1.0 + 0.6*flare)*vis;
-    }
-    // the inner corona: a bright soft ring of light hugging the band
-    float dc = rayPt(ro, rd, vec3(0.0, yb, 0.0), tq);
-    fx += white*(halo(abs(dc - 0.9), 0.35)*0.5 + halo(dc, 1.6)*0.15)*vis*(1.0 + flare);
+  // (round 14, Creyon: no corona of streamers round the band; instead) the stars of totality:
+  // as the band darkens the sky, small stars come out round it and twinkle, the nearest the band
+  // the brightest
+  for (int i = 0; i < 22; i++){
+    float fi = float(i);
+    vec3 sp = around(1.2 + 4.2*h11(fi*2.9), h11(fi*6.3), yb + (h11(fi*4.1) - 0.5)*7.0);
+    float ds = rayPt(ro, rd, sp, tq);
+    float tw = 0.55 + 0.45*sin(uTime*(1.5 + 2.0*h11(fi*8.3)) + fi*3.7);
+    float near = 1.0 - smoothstep(2.0, 4.5, abs(sp.y - yb));
+    fx += mix(white, vec3(0.75, 0.85, 1.0), h11(fi*1.1))*(halo(ds, max(0.04, px))*1.6 + halo(ds, 0.18)*0.25)*tw*near*vis;
   }
   // ---- solar wind: pearly motes streaming out from the band and the suns
   for (int i = 0; i < 18; i++){
@@ -225,15 +215,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   
-  return col + fx*uFx;
+  // round 14 (Creyon): a chroma for the blade only; the corona and the suns keep their own
+  // pearly colours (uKeep, uOwn), as Kyber Cluster's crystals do
+  uKeep += col + fx*uFx;
+  return vec3(0.0);
 }
 // round 11: sig_orbit gated by part 1
 vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   if (part(1.0) < 0.5) { return vec3(0.0); }
-  return base_orbit(ro, rd, px);
+  uKeep += base_orbit(ro, rd, px);
+  return vec3(0.0);
 }
 // round 11: sig_orbit_solid gated by part 1
 vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   if (part(1.0) < 0.5) { return vec4(0.0); }
-  return base_orbit_solid(ro, rd, px);
+  vec4 o = base_orbit_solid(ro, rd, px);
+  uOwn = max(uOwn, o.a);
+  return o;
 }

@@ -11,7 +11,8 @@
 // crystal light with a white-hot core, and veins of light wind round it. On every heartbeat,
 // lub-dub, a double pulse of light pumps up from the hilt through the veins to the tip: as the
 // pulse passes, the blade swells and blazes, and each beat sends a soft glow rolling
-// outward from the base of the blade. Between beats the blade dims and rests. A swing makes
+// outward from the base of the blade. Between beats the blade dims and rests. Three arteries
+// of light wind round it, lifeblood surging up them, and sparks crackle off them. A swing makes
 // every beat pump harder and brighter; a clash makes the heart skip: a white flare floods the
 // whole blade at once and a strong ring bursts out.
 const KH_RATE: f32 = 1.2;
@@ -130,11 +131,108 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c * (0.85 + 0.5 * p);
 }
 
+// ---- round 14 (Creyon): arteries of lifeblood and sparks ----
+// Three arteries of light winding slowly round the blade, wider than its veins so they stand
+// clear of its glow (the point of artery fv at height y, thinning towards the tip).
+fn kh_artery(fv: f32, y: f32, top: f32) -> vec3<f32> {
+    let dir = select((select(1.0, -1.0, fv < 1.5)), 1.0, fv < 0.5);
+    let r = (1.7 + 0.35 * sin(y * 0.22 + fv * 2.1)) * (1.0 - 0.6 * smoothstep(top - 6.0, top, y));
+    return around(r, fv / 3.0 + dir * y * 0.022, y);
+}
+
+// Lifeblood: the arteries glow faintly rose, and bright drops of light surge up them without
+// pause (a steady clock, so nothing races when turning or running), flaring white as each
+// heartbeat passes them; sparks crackle off the arteries and fly out. All of it starts above
+// the wearer's head (0.2 of the length) and fades out under the tip.
+fn kh_lifeblood(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    let L = uLength;
+    let t = uTime;
+    let top = L * clamp(uAge / 0.45, 0.0, 1.0);
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let pump = 1.0 + 0.6 * sw;
+    var s: f32;
+    if raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s) > 6.0 {
+        return acc;
+    }
+    let rose: vec3<f32> = vec3<f32>(1.0, 0.3, 0.5);
+    let hot: vec3<f32> = vec3<f32>(1.0, 0.75, 0.85);
+    let white: vec3<f32> = vec3<f32>(1.0);
+    let y0 = L * 0.2;
+    let y1 = max(top - 0.5, y0);
+    for (var v = 0; v < 3; v++) {
+        let fv = f32(v);
+        // the artery: a thin rose line, brighter where the beat is passing
+        var prev = kh_artery(fv, y0 - 1.5, top);
+        var best: f32 = 1.0e3;
+        var by = y0;
+        for (var k = 1; k <= 18; k++) {
+            let yy = mix(y0 - 1.5, y1, f32(k) / 18.0);
+            let q = kh_artery(fv, yy, top);
+            var sv: f32;
+            let dv = raySeg(ro, rd, prev, q, &sv);
+            if dv < best {
+                best = dv;
+                by = mix(prev.y, q.y, sv);
+            }
+            prev = q;
+        }
+        let pb = kh_pulse(by) * pump + cl;
+        let fade = smoothstep(y0 - 1.5, y0 + 1.0, by) * (select(0.0, 1.0, by < top));
+        acc += (mix(rose, hot, min(pb, 1.0)) * halo(best, max(px, 0.035)) * (0.7 + 1.3 * pb) + rose * halo(best, 0.35) * (0.2 + 0.45 * pb)) * fade;
+        // the lifeblood: four drops on each artery, a bright head and a tapering tail
+        for (var j = 0; j < 4; j++) {
+            let fj = f32(j);
+            let f = fract(t * 0.3 + fj / 4.0 + 0.29 * fv);
+            let y = mix(y0 - 3.0, L + 2.0, f);
+            if y > top + 1.0 {
+                continue;
+            }
+            let a = kh_artery(fv, y - 3.0, top);
+            let m = kh_artery(fv, y - 1.4, top);
+            let b = kh_artery(fv, y, top);
+            var s1: f32;
+            var s2: f32;
+            let d1 = raySeg(ro, rd, a, m, &s1);
+            let d2 = raySeg(ro, rd, m, b, &s2);
+            let d = min(d1, d2);
+            let tail = select(0.45 * s1, 0.45 + 0.55 * s2, d2 < d1);
+            let fd = smoothstep(y0 - 2.0, y0 + 0.5, y) * (1.0 - smoothstep(top - 1.5, top + 1.0, y));
+            let pv = kh_pulse(y) * pump + cl;
+            let head = halo(length(ro + rd * max(dot(b - ro, rd), 0.0) - b), 0.22);
+            acc += (mix(hot, white, min(pv, 1.0)) * halo(d, max(px, 0.06)) * 2.2 + rose * halo(d, 0.4) * 0.6) * tail * tail * fd * (0.8 + 0.8 * pv) + white * head * fd * (0.9 + 1.2 * pv);
+        }
+    }
+    // the crackle: sparks jumping off an artery and flying out, each on its own steady cycle
+    for (var i = 0; i < 16; i++) {
+        let fi = f32(i);
+        let cyc = t * 1.1 * (0.7 + 0.6 * h11(fi * 2.3 + 5.0)) + h11(fi * 6.1 + 1.0);
+        var k = floor(cyc);
+        let q = fract(cyc);
+        if q > 0.4 {
+            continue;
+        }
+        let age = q / 0.4;
+        let fv = glsl_mod(fi, 3.0);
+        let y = mix(y0, y1, h11(fi * 3.7 + k * 1.31));
+        let p = kh_artery(fv, y, top);
+        let dir = normalize(normalize(vec3(p.x, 0.0, p.z) + vec3<f32>(1.0e-4, 0.0, 0.0)) + vec3(0.0, 0.8 * (h11(fi * 1.7 + k * 2.9) - 0.25), 0.0));
+        let p1 = p + dir * (0.1 + 4.5 * age * pump);
+        let p0 = p + dir * (0.1 + 4.5 * max(age - 0.22, 0.0) * pump);
+        var sk: f32;
+        let dk = raySeg(ro, rd, p0, p1, &sk);
+        let fd = smoothstep(y0 - 1.0, y0 + 1.0, y);
+        acc += mix(white, rose, age) * (halo(dk, max(px, 0.045)) * 2.2 + halo(dk, 0.25) * 0.4) * (1.0 - age) * (0.4 + 0.6 * sk) * fd;
+    }
+    return acc;
+}
+
 // ---- round 9: the big effects layer ----
 // Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
 // (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
-    let col = r8_vol(ro, rd, px) * part(0.0);
+    let col = (r8_vol(ro, rd, px) + kh_lifeblood(ro, rd, px) * uFx) * part(0.0);
     let L = uLength;
     let t = uTime;
     let sw = clamp(uSwing, 0.0, 1.0);

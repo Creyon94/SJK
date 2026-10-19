@@ -214,7 +214,14 @@ fn blade_pipeline(
             targets: &[Some(wgpu::ColorTargetState {
                 format,
                 blend,
-                write_mask: wgpu::ColorWrites::ALL,
+                // Only what covers (solid parts, black holes) writes alpha, so a target
+                // cleared transparent keeps their coverage apart from the added light (the
+                // model preview lays them over its backdrop by it, `preview.wgsl`).
+                write_mask: if blend == Some(wgpu::BlendState::ALPHA_BLENDING) {
+                    wgpu::ColorWrites::ALL
+                } else {
+                    wgpu::ColorWrites::COLOR
+                },
             })],
         }),
         primitive: wgpu::PrimitiveState {

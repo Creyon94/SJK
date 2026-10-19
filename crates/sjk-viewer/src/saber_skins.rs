@@ -130,6 +130,9 @@ pub(crate) struct SkinColor {
     pub(crate) star: Option<Glint>,
     /// The echo beside the blade; none when absent or off.
     pub(crate) echo: Option<crate::blade_skin_file::extras::Echo>,
+    /// Seconds its words float on after its blade has gone in
+    /// ([`crate::blade_lab_designs::linger`]); 0 for most.
+    pub(crate) linger: f32,
 }
 
 /// Where a skin's glints (or black holes) are, for their quads
@@ -743,6 +746,7 @@ impl LoadedSkin {
                     wearer: crate::blade_signatures::of(self.id).is_some(),
                 }),
             persona: crate::saber_persona::Persona::default(),
+            linger: crate::blade_lab_designs::linger(self.id),
             chroma: Chroma {
                 base: crate::unlockables::is_chroma(self.id)
                     .then(|| match self.design_shown() {

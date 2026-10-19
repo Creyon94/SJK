@@ -86,6 +86,26 @@ pub(crate) fn submit(
             let length = state
                 .extension
                 .update(active, hilt_blade.length, presentation_time);
+            // A design whose words outlast its blade (`SkinColor::linger`): from when the
+            // blade begins going in, a whole-length blade that draws only its words, so they
+            // float on and can be read (Creyon's round 14). No contact, light or trail.
+            if let Some(motion) = skin
+                .filter(|skin| skin.linger > 0.0)
+                .and_then(|skin| state.motion.lingering(presentation_time, skin.linger))
+            {
+                let whole = saber::world_blade(
+                    grip,
+                    weapon_rotation,
+                    hilt_blade.socket,
+                    hilt_blade.length,
+                    hilt_blade.radius,
+                );
+                let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
+                saber_instances.extend(Instance::pair(whole, color).map(|i| {
+                    i.with_animation(presentation_time as f64 * 0.001, key as u32)
+                        .with_motion(motion)
+                }));
+            }
             if length < 0.5 {
                 continue;
             }

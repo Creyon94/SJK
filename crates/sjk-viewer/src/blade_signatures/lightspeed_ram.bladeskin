@@ -168,10 +168,9 @@
       "sound/sjk/creyon/lightspeed_ram/swing3.wav"
     ]
   },
-  "haze": {
-    "strength": 0.3,
-    "scale": 0.45,
-    "speed": 8.0,
-    "reach": 3.5
+  "ghosts": {
+    "count": 4,
+    "spacing": 45.0,
+    "fade": 0.55
   }
 }

@@ -30,5 +30,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       fx += c*dash*0.6*step(0.55, h11(k*5.3 + fi));
     }
   }
-  return fx*uFx*part(0.0);
+  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+  uKeep += fx*uFx*part(0.0);
+  return vec3(0.0);
 }

@@ -114,5 +114,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   fx += fxCoils(ro, rd, px, y0, y1, 2.8, 0.7, 1.4, 4.0, vec3(0.35, 0.6, 1.0))*part(1.0);
-  return col + fx*uFx;
+  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+  uKeep += col + fx*uFx;
+  return vec3(0.0);
 }

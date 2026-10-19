@@ -24,6 +24,14 @@ const SWING_BEGINS: f32 = 0.55;
 const SWING_ENDS: f32 = 0.3;
 /// The length the swing's tip is measured at: a stock blade's (units).
 const SWING_REACH: f32 = 40.0;
+/// A swing also has to turn the blade: its tip (at [`SWING_REACH`]) must have moved this
+/// far (units, about 40 degrees) from where it was within the last [`SWING_SPAN`]
+/// milliseconds (Creyon's round 14: a run's arm sway, fast but short, still set the Clone
+/// Wars blade's words off; it moves the tip some 20 units, a swing 40 and more).
+const SWING_TURN: f32 = 27.0;
+const SWING_SPAN: i64 = 450;
+/// The tips kept for [`SWING_TURN`].
+const RECENT: usize = 16;
 const SWING_EVERY: i64 = 1_000;
 /// A blade unseen this long (milliseconds) was put away; seen again, it is lit anew.
 const UNSEEN: i64 = 250;
@@ -66,6 +74,9 @@ pub(crate) struct BladeMotion {
     /// Its length last seen, and when it began going out (switched off), if it is.
     length: f32,
     going_out: Option<i64>,
+    /// Its tips of the last frames and when (a ring, [`SWING_TURN`]).
+    recent: [Option<([f32; 3], i64)>; RECENT],
+    recent_next: usize,
 }
 
 /// What the lit lane reports while the blade goes out: this plus the seconds since it
@@ -118,7 +129,7 @@ impl BladeMotion {
             let frames = seconds * 60.0;
             let rate = if target > self.swing { RISE } else { FALL };
             self.swing += (target - self.swing) * (1.0 - (1.0 - rate).powf(frames));
-            if !self.swinging && self.swing > SWING_BEGINS {
+            if !self.swinging && self.swing > SWING_BEGINS && self.turned(tip, now) {
                 self.swinging = true;
                 self.swung = Some(now);
             } else if self.swinging && self.swing < SWING_ENDS {
@@ -146,7 +157,30 @@ impl BladeMotion {
         self.length = blade.length;
         self.tip = Some(tip);
         self.seen = now;
+        self.recent[self.recent_next] = Some((tip, now));
+        self.recent_next = (self.recent_next + 1) % RECENT;
         self.motion(now)
+    }
+
+    /// Whether the tip at `tip` has turned [`SWING_TURN`] from a tip of the last
+    /// [`SWING_SPAN`] milliseconds.
+    fn turned(&self, tip: [f32; 3], now: i64) -> bool {
+        self.recent.iter().flatten().any(|&(past, at)| {
+            now - at <= SWING_SPAN
+                && ((tip[0] - past[0]).powi(2)
+                    + (tip[1] - past[1]).powi(2)
+                    + (tip[2] - past[2]).powi(2))
+                .sqrt()
+                    >= SWING_TURN
+        })
+    }
+
+    /// While the blade, gone in, lingers (its words float on: [`crate::saber_skins::SkinColor::linger`]):
+    /// the motion its instance carries, a swing of -1 telling `saber.wgsl` to draw no
+    /// blade, `None` once `linger` seconds have passed since it began going out.
+    pub(crate) fn lingering(&self, now: i64, linger: f32) -> Option<[f32; 4]> {
+        let since = (now - self.going_out?).max(0) as f32 * 0.001;
+        (since < linger).then_some([-1.0, SETTLED, GOING_OUT + since, SETTLED])
     }
 
     /// A clash at `now`.
@@ -249,6 +283,37 @@ mod tests {
             let m = motion.record(moving, frame * 16, false);
             assert!(m[0] < 0.01 && m[3] == SETTLED, "{m:?}");
         }
+    }
+
+    #[test]
+    fn a_runs_arm_sway_is_no_swing() {
+        // The blade rocking 15 degrees each way three times a second, fast enough to pass
+        // the swing's speed, but never turning far (Creyon's round 14).
+        let mut motion = BladeMotion::default();
+        for frame in 0..180 {
+            let angle = 0.26 * (frame as f32 * 16.0 * 0.001 * 3.0 * std::f32::consts::TAU).sin();
+            let m = motion.record(blade(angle), frame * 16, false);
+            assert_eq!(m[3], SETTLED, "{frame}: {m:?}");
+        }
+    }
+
+    #[test]
+    fn a_blade_gone_in_lingers_for_its_words_then_not() {
+        let mut motion = BladeMotion::default();
+        motion.record(blade(0.5), 0, false);
+        motion.record(
+            Blade {
+                length: 20.0,
+                ..blade(0.5)
+            },
+            16,
+            false,
+        );
+        let lingering = motion.lingering(1_000, 1.4).unwrap();
+        assert_eq!(lingering[0], -1.0);
+        assert!(lingering[2] >= GOING_OUT);
+        assert_eq!(motion.lingering(1_500, 1.4), None);
+        assert_eq!(BladeMotion::default().lingering(10, 1.4), None);
     }
 
     #[test]

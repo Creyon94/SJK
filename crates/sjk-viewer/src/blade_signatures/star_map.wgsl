@@ -48,5 +48,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             prev = p;
         }
     }
-    return fx * uFx * part(0.0);
+    // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+    uKeep += fx * uFx * part(0.0);
+    return vec3<f32>(0.0);
 }

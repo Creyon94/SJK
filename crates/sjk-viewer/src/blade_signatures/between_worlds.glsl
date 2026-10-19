@@ -152,7 +152,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.25;
   }
   }
-  return col + fx*uFx;
+  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+  uKeep += col + fx*uFx;
+  return vec3(0.0);
 }
 
 // the duel circles the blade, so it alone is drawn in true 3D (Sol's way)

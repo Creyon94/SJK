@@ -36,5 +36,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxAura(ro, rd, y0, y1, 2.2, vec3<f32>(1.0, 0.95, 0.85)) * 0.45 * breathe * part(1.0);
     fx += fxRingWaves(ro, rd, px, y0, y1, 2.0, 1.8, 2.5, 0.3, gold) * 1.3 * part(1.0);
     fx += fxMotes(ro, rd, px, y0, y1, 0.6, 2.8, 18.0, 0.025, 6.3, gold) * 0.9 * part(2.0);
-    return fx * uFx;
+    // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+    uKeep += fx * uFx;
+    return vec3<f32>(0.0);
 }

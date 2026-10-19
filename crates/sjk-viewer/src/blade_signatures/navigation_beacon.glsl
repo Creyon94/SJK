@@ -19,5 +19,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 c = vec3(0.7, 0.82, 1.0);
   float q = fract(t/2.5);
   fx += fxShock(ro, rd, px, L*0.55, clamp((q - 0.7)/0.3, 0.0, 1.0), 6.0, c)*part(0.0);
-  return fx*uFx*part(0.0);
+  // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+  uKeep += fx*uFx*part(0.0);
+  return vec3(0.0);
 }

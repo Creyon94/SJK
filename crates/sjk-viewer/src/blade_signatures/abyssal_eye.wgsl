@@ -8,7 +8,8 @@
 // @solid 1
 // @palette {"corona.rim_cool":[0.30,0.0,0.04],"corona.rim_hot":[0.95,0.12,0.10],"corona.inner":[1.0,0.45,0.30],"core.white":[1.0,0.70,0.55],"core.fringe_cool":[0.70,0.05,0.08],"core.fringe_hot":[1.0,0.40,0.25],"light.color":[0.95,0.12,0.10],"trail":[0.90,0.10,0.10]}
 
-// Abyssal Eye: the blade is a slit cut into an endless dark, its lips glowing crimson, faint motes
+// Abyssal Eye: the blade is a slit cut into an endless dark, its lips glowing crimson (or its
+// wearer's colour: a chroma), faint motes
 // drifting down into the black. Along its middle the slit peels open into a great almond and an eye
 // inside looks out: a burning amber iris with a goat's bar pupil, rolling to watch along the blade,
 // darting, blinking, narrowing when you swing; on a clash it flinches shut. The cut is a real
@@ -158,6 +159,9 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     var rgb = ae_inside(b, px);
     let rim = clamp(abs(b.x) / max(w, 0.01), 0.0, 1.0);
     rgb += vec3<f32>(1.0, 0.18, 0.1) * pow(rim, 3.0) * 1.4 + vec3<f32>(1.0, 0.6, 0.45) * pow(rim, 10.0) * 1.2;
+    // a chroma (round 14, Creyon): the abyss inside the cut stays black and the eye amber; only
+    // its burning lips, the glow and the effects take the wearer's colour
+    uOwn = max(uOwn, cov * (1.0 - smoothstep(0.55, 0.85, rim)));
     return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
 }
 

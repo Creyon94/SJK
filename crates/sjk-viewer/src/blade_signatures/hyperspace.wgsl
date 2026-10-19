@@ -133,5 +133,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
     fx += fxCoils(ro, rd, px, y0, y1, 2.8, 0.7, 1.4, 4.0, vec3<f32>(0.35, 0.6, 1.0)) * part(1.0);
-    return col + fx * uFx;
+    // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+    uKeep += col + fx * uFx;
+    return vec3<f32>(0.0);
 }

@@ -30,7 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Lightspeed Ram, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
+- Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
 - The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
 - A saber shader's sound that has not reached you yet plays the normal saber sound instead of nothing _(Creyon)_
 - Running or switching a saber on or off no longer counts as a swing for the shaders that answer swings _(Creyon)_

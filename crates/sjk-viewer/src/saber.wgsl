@@ -2487,6 +2487,9 @@ struct LabPlace {
     turn: f32,
     // How much narrower than the lab's it is drawn (`LAB_THIN`).
     thin: f32,
+    // A blade gone in whose words float on (`saber_motion::BladeMotion::lingering`: its
+    // swing lane is -1): only the words are drawn.
+    lingering: bool,
 }
 
 // How far each design's blade starts behind its hilt end (metres): stock blades hide
@@ -2531,6 +2534,7 @@ fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     let up = skin_up(input.down.xy);
     p.up = vec2(up.y, up.x);
     p.swing = clamp(input.motion.x, 0.0, 1.0);
+    p.lingering = input.motion.x < -0.5;
     // The lab's clash fades at 2.2 a second.
     p.clash = max(1.0 - input.motion.y * 2.2, 0.0);
     // Its `bursts` option off (the motes bit): swings and clashes set nothing off.
@@ -3301,6 +3305,9 @@ fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
         return vec3(0.0);
     }
     let p = lab_place(input, pixel);
+    if p.lingering {
+        return vec3(0.0);
+    }
     let reach = design.y;
     let e = 1.0 - lab_sstep(reach * 0.45, reach * 0.98, max(p.d, abs(p.y)));
     var light = vec3(0.0);
@@ -3491,10 +3498,16 @@ fn lab_comic_words(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
     if p.age < LAB_WORD_LIFE {
         out = lab_over(out, lab_comic_word(p, 0u, vec2(0.45 * p.shaft, -0.14), 0.12, p.age, color));
     }
-    // Going out: VMMMM! at once at full size and held, near the hilt, so it reads while the
-    // blade is still there (the word can only show on the blade drawn).
-    if p.age >= SABER_GOING_OUT {
-        out = lab_over(out, lab_comic_word(p, 0u, vec2(0.12 + 0.2 * p.shaft, 0.13), -0.12, 0.6, color));
+    // Going out: VMMMM! at once at full size, on the lingering whole-length blade only
+    // (`lab_lingering`: it floats on after the blade has gone in, Creyon's round 14), held
+    // for a second and more, then fading.
+    if p.age >= SABER_GOING_OUT && p.lingering {
+        let gone = p.age - SABER_GOING_OUT;
+        let age = select(0.6, 1.2 + (gone - 1.2) * 1.5, gone > 1.2);
+        out = lab_over(out, lab_comic_word(p, 0u, vec2(0.12 + 0.2 * p.shaft, 0.13), -0.12, age, color));
+    }
+    if p.lingering {
+        return out;
     }
     let swung = p.since_swing - 0.08;
     if swung >= 0.0 && swung < LAB_WORD_LIFE {
@@ -3612,22 +3625,26 @@ fn lab_bleeding_drops(p: LabPlace) -> vec4<f32> {
     return out;
 }
 
-// The monarchs: seven sitting on the blade slowly opening their wings; a swing sends
-// them flying round it, and once it is still again they come back and land.
+// The monarchs (Felucia's spores): seven sitting on the blade slowly opening their wings; a
+// swing lifts them off it, and once it is still again they come back and land.
 fn lab_butterflies(p: LabPlace) -> vec4<f32> {
     var out = vec4(0.0);
-    // How far off they are: all of it from the swing's start, drifting home after two
-    // seconds still.
-    let away = select(1.0 - lab_sstep(2.2, 3.6, p.since_swing), 0.0, p.since_swing > 3.6);
+    // How far off they are: they lift off gently over the swing's first second rather than
+    // jumping at once (Creyon's round 14: "move in a flow of the blade"), drifting home after
+    // two seconds still.
+    let rise = lab_sstep(0.0, 0.9, p.since_swing);
+    let away = rise * select(1.0 - lab_sstep(2.2, 3.6, p.since_swing), 0.0, p.since_swing > 3.6);
     for (var i = 0; i < 7; i++) {
         let fi = f32(i);
         let u = 0.18 + fi * 0.11 + (lab_hash(fi * 3.7) - 0.5) * 0.06;
         let angle = lab_hash(fi * 5.1) * TAU;
         let ph = lab_hash(fi * 9.3) * 6.0;
         let perch = lab_on_blade(p, u, 0.028, angle);
-        let flight = perch
-            + vec2(p.up.y, -p.up.x) * (sin(p.t * 2.3 + ph) * 0.12 + select(-0.08, 0.08, lab_hash(fi * 2.1) < 0.5))
-            + p.up * (0.1 + 0.06 * sin(p.t * 1.7 + ph * 2.0));
+        // Off the blade they keep with it, swaying in a slow stream along it and close by.
+        let along = lab_on_blade(p, clamp(u + 0.05 * sin(p.t * 0.9 + ph), 0.1, 0.95), 0.028, angle);
+        let flight = along
+            + vec2(p.up.y, -p.up.x) * (sin(p.t * 1.6 + ph) * 0.07 + select(-0.06, 0.06, lab_hash(fi * 2.1) < 0.5))
+            + p.up * (0.04 + 0.03 * sin(p.t * 1.2 + ph * 2.0));
         let at = mix(perch, flight, lab_sstep(0.0, 1.0, away));
         let open = select(0.35 + 0.3 * abs(sin(p.t * 1.4 + ph)), 0.15 + 0.85 * abs(sin(p.t * 24.0 + ph)), away > 0.05);
         let s = lab_sprite(p, at, 0.075);
@@ -3647,7 +3664,9 @@ fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
     var out = vec4(0.0);
     switch n {
         case 6u: {
-            out = lab_comic_body(p, color);
+            if !p.lingering {
+                out = lab_comic_body(p, color);
+            }
             out = lab_over(out, lab_comic_words(p, color));
         }
         case 7u: {
