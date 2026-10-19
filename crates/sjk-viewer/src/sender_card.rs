@@ -100,35 +100,42 @@ pub(crate) struct Tokens {
     pub(crate) ban: u16,
 }
 
-/// The card's width in 1080p pixels.
-const WIDTH: f32 = 340.0;
-const PAD: f32 = 16.0;
+/// The card's width in 1080p pixels: compact, so it sits beside the chat without
+/// covering the game (Sol, 19/10/2026).
+const WIDTH: f32 = 272.0;
+const PAD: f32 = 12.0;
 /// Medallions a card shows at most.
 const MEDALS: usize = 6;
 /// The picture's radius, beside the name and the status line (1080p pixels).
-const PICTURE_RADIUS: f32 = 24.0;
+const PICTURE_RADIUS: f32 = 17.0;
+/// The picture, the name and the status line.
+const HEAD: f32 = 36.0;
+/// The hairline under the head, with its room above and below.
+const RULE: f32 = 13.0;
+/// One line of what is known of them.
+const LINE: f32 = 17.0;
+const MEDAL_ROW: f32 = 26.0;
+const BUTTON: f32 = 28.0;
+/// Between the buttons and the quiet line under them, and that line's own height.
+const QUIET_GAP: f32 = 5.0;
+const QUIET_ROW: f32 = 14.0;
 
 /// The card's size for `person`, at the scale `u` (1 at 1080 lines).
 pub(crate) fn size(person: &Person, u: f32) -> [f32; 2] {
-    let mut height = PAD + 30.0 + 22.0;
-    if person.hub_name.is_some() {
-        height += 20.0;
-    }
-    if person.printed_key().is_some() {
-        height += 20.0;
-    }
-    if person.place != Place::Unknown {
-        height += 20.0;
-    }
-    if person.note.is_some() {
-        height += 20.0;
-    }
+    let mut height = PAD + HEAD + RULE;
+    let lines = [
+        person.hub_name.is_some(),
+        person.printed_key().is_some(),
+        person.place != Place::Unknown,
+        person.note.is_some(),
+    ];
+    height += lines.into_iter().filter(|shown| *shown).count() as f32 * LINE;
     if !person.medals.is_empty() {
-        height += 32.0;
+        height += MEDAL_ROW;
     }
-    height += 12.0 + 38.0 + 22.0 + PAD;
+    height += 6.0 + BUTTON + QUIET_GAP + QUIET_ROW + PAD;
     if person.key_id.is_none() {
-        height += 18.0;
+        height += QUIET_ROW;
     }
     [WIDTH * u, height * u]
 }
@@ -164,16 +171,34 @@ pub(crate) fn draw(
     let [width, height] = size(person, u);
     let card = Rect::new(origin[0], origin[1], width, height);
     let list = canvas.draw_list_mut();
+    // A soft shadow, the panel, its hairline edge and a thin accent along the top.
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: Rect::new(card.x + 2.0 * u, card.y + 4.0 * u, width, height),
+        radius: 9.0 * u,
+        color: Color::new(0.0, 0.0, 0.0, 0.35),
+    });
     let _ = list.push(DrawCommand::RoundedRect {
         rect: card,
-        radius: 10.0 * u,
-        color: color::alpha(color::SPACE, 0.96),
+        radius: 9.0 * u,
+        color: color::alpha(color::SPACE, 0.97),
     });
     let _ = list.push(DrawCommand::Border {
         rect: card,
-        radius: 10.0 * u,
-        width: 1.5 * u,
-        color: color::alpha(color::HOLO, 0.45),
+        radius: 9.0 * u,
+        width: 1.0 * u,
+        color: color::alpha(color::HOLO, 0.28),
+    });
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: Rect::new(card.x + 14.0 * u, card.y, width - 28.0 * u, 2.0 * u),
+        radius: 1.0 * u,
+        color: color::alpha(
+            if person.key_id.is_some() {
+                color::GOLD
+            } else {
+                color::HOLO
+            },
+            0.7,
+        ),
     });
     let x = card.x + PAD * u;
     let inner = width - 2.0 * PAD * u;
@@ -198,7 +223,7 @@ pub(crate) fn draw(
     let radius = PICTURE_RADIUS * u;
     crate::profile_card::avatar(
         canvas,
-        [x + radius, y + 26.0 * u],
+        [x + radius, y + HEAD * 0.5 * u],
         radius,
         &crate::profile_card::Avatar {
             key_id: person.key_id.as_deref().unwrap_or(""),
@@ -210,12 +235,13 @@ pub(crate) fn draw(
             lit: false,
         },
     );
-    let head_x = x + radius * 2.0 + 12.0 * u;
+    let head_x = x + radius * 2.0 + 10.0 * u;
     let head_width = (inner - (head_x - x)).max(1.0);
     // The name and its mark alone: the verified seal or the trust mark.
+    let name_size = 16.0 * u;
     let mark = crate::ui_renderer::mark_texture(person.verified, person.trust);
     let tick_room = if mark.is_some() {
-        crate::sjk_chat_look::tick_room(20.0 * u)
+        crate::sjk_chat_look::tick_room(name_size)
     } else {
         0.0
     };
@@ -227,8 +253,8 @@ pub(crate) fn draw(
     };
     canvas.text_fmt_aligned(
         format_args!("{shown}"),
-        Rect::new(head_x, y, head_width - tick_room, 28.0 * u),
-        20.0 * u,
+        Rect::new(head_x, y, head_width - tick_room, 22.0 * u),
+        name_size,
         color::TEXT,
         FontWeight::Semibold,
         0.0,
@@ -236,24 +262,23 @@ pub(crate) fn draw(
     );
     if let Some(mark) = mark {
         let name = match measure {
-            Some(measure) => measure.width(&shown, 20.0 * u, crate::text::TextFace::Semibold),
-            None => estimated_width(&shown, 20.0 * u),
+            Some(measure) => measure.width(&shown, name_size, crate::text::TextFace::Semibold),
+            None => estimated_width(&shown, name_size),
         };
         let end = head_x + (head_width - tick_room).min(name);
         crate::sjk_chat_look::tick(
             canvas.draw_list_mut(),
             mark,
             end,
-            y + 13.0 * u,
-            20.0 * u,
+            y + 10.5 * u,
+            name_size,
             1.0,
         );
     }
-    y += 30.0 * u;
     canvas.text_fmt_aligned(
         format_args!("{}", person.status()),
-        Rect::new(head_x, y, head_width, 15.0 * u * 1.35),
-        15.0 * u,
+        Rect::new(head_x, y + 21.0 * u, head_width, 12.5 * u * 1.35),
+        12.5 * u,
         if person.key_id.is_some() {
             color::GOLD_BRIGHT
         } else {
@@ -263,70 +288,64 @@ pub(crate) fn draw(
         0.0,
         TextAlign::Start,
     );
-    y += 22.0 * u;
+    y += HEAD * u;
+    let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+        rect: Rect::new(x, y + 6.0 * u, inner, 1.0 * u),
+        color: color::alpha(color::HOLO, 0.14),
+    });
+    y += RULE * u;
+    let info = 12.0 * u;
     if let Some(hub) = &person.hub_name {
         line(
             canvas,
             y,
-            14.0 * u,
+            info,
             color::MUTED,
             format_args!("Known as {hub}"),
         );
-        y += 20.0 * u;
+        y += LINE * u;
     }
     if let Some(key) = person.printed_key() {
-        line(canvas, y, 14.0 * u, color::QUIET, format_args!("Key {key}"));
-        y += 20.0 * u;
+        line(canvas, y, info, color::QUIET, format_args!("Key {key}"));
+        y += LINE * u;
     }
-    match person.place {
-        Place::Unknown => {}
-        Place::Away => {
-            line(
-                canvas,
-                y,
-                14.0 * u,
-                color::QUIET,
-                format_args!("Not on this server"),
-            );
-            y += 20.0 * u;
-        }
-        Place::Slot(slot) => {
-            line(
-                canvas,
-                y,
-                14.0 * u,
-                color::MUTED,
-                format_args!("On this server, slot {slot}"),
-            );
-            y += 20.0 * u;
-        }
-        Place::SlotByName(slot) => {
-            line(
-                canvas,
-                y,
-                14.0 * u,
-                color::MUTED,
-                format_args!("On this server, slot {slot}, matched by name"),
-            );
-            y += 20.0 * u;
-        }
+    let (slot, how) = match person.place {
+        Place::Unknown => (None, ""),
+        Place::Away => (None, "Not on this server"),
+        Place::Slot(slot) => (Some(slot), ""),
+        Place::SlotByName(slot) => (Some(slot), " (by name)"),
+    };
+    match slot {
+        Some(slot) => line(
+            canvas,
+            y,
+            info,
+            color::MUTED,
+            format_args!("On this server, slot {slot}{how}"),
+        ),
+        None if !how.is_empty() => line(canvas, y, info, color::QUIET, format_args!("{how}")),
+        None => {}
+    }
+    if person.place != Place::Unknown {
+        y += LINE * u;
     }
     if let Some(note) = &person.note {
-        line(canvas, y, 14.0 * u, color::MUTED, format_args!("{note}"));
-        y += 20.0 * u;
+        line(canvas, y, info, color::MUTED, format_args!("{note}"));
+        y += LINE * u;
     }
     if !person.medals.is_empty() {
         for (index, (medal, _)) in person.medals.iter().take(MEDALS).enumerate() {
             let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: Rect::new(x + index as f32 * 30.0 * u, y + 2.0 * u, 26.0 * u, 26.0 * u),
+                rect: Rect::new(x + index as f32 * 26.0 * u, y + 2.0 * u, 22.0 * u, 22.0 * u),
                 texture: medal.icon(),
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
         }
-        y += 32.0 * u;
+        y += MEDAL_ROW * u;
     }
-    y += 12.0 * u;
-    let button = Rect::new(x, y, 150.0 * u, 38.0 * u);
+    y += 6.0 * u;
+    let half = (inner - 8.0 * u) * 0.5;
+    let button = Rect::new(x, y, half, BUTTON * u);
     card_button(
         canvas,
         button,
@@ -335,15 +354,16 @@ pub(crate) fn draw(
         if muted { "Unblock" } else { "Block" },
         color::GOLD,
     );
-    let ban_button = Rect::new(x + inner - 150.0 * u, y, 150.0 * u, 38.0 * u);
+    let ban_button = Rect::new(x + inner - half, y, half, BUTTON * u);
     let quiet = |muted: bool| {
         if muted {
-            "Blocked on this PC: no chat, Kyle, no sounds, no emotes"
+            "Blocked here: no chat, Kyle, no sounds"
         } else {
-            "Hides their chat, model, sabers, sounds and emotes here"
+            "Hides their chat, model, sounds and emotes"
         }
     };
-    let under = y + 38.0 * u + 4.0 * u;
+    let under = y + (BUTTON + QUIET_GAP) * u;
+    let small = 10.5 * u;
     // Ban 24 h for a sender the hub does not vouch for, when it vouches for the
     // player; what it came to (or the armed button's warning) takes the quiet line.
     let ban_key = person.key_id.as_deref().filter(|key| {
@@ -368,23 +388,22 @@ pub(crate) fn draw(
                 Some((said, false)) => (said, color::EMBER),
                 None => (quiet(muted), color::QUIET),
             };
-            line(canvas, under, 13.0 * u, colour, format_args!("{said}"));
+            line(canvas, under, small, colour, format_args!("{said}"));
         }),
         None => line(
             canvas,
             under,
-            13.0 * u,
+            small,
             color::QUIET,
             format_args!("{}", quiet(muted)),
         ),
     }
-    y = under;
     if person.key_id.is_none() {
         // Without a key, the mute can only follow the name.
         line(
             canvas,
-            y + 18.0 * u,
-            13.0 * u,
+            under + QUIET_ROW * u,
+            small,
             color::QUIET,
             format_args!("By name, colours aside: anyone wearing it"),
         );
@@ -409,23 +428,19 @@ fn card_button(
     let lit = canvas.token_hovered(token);
     let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
         rect: button,
-        radius: 8.0 * u,
-        color: if lit {
-            color::alpha(edge, 0.3)
-        } else {
-            color::alpha(edge, 0.14)
-        },
+        radius: 6.0 * u,
+        color: color::alpha(edge, if lit { 0.28 } else { 0.1 }),
     });
     let _ = canvas.draw_list_mut().push(DrawCommand::Border {
         rect: button,
-        radius: 8.0 * u,
-        width: 1.5 * u,
-        color: edge,
+        radius: 6.0 * u,
+        width: 1.0 * u,
+        color: color::alpha(edge, if lit { 1.0 } else { 0.7 }),
     });
     canvas.text_fmt_aligned(
         format_args!("{label}"),
-        Rect::new(button.x, button.y + 9.0 * u, button.width, 22.0 * u),
-        17.0 * u,
+        Rect::new(button.x, button.y + 6.5 * u, button.width, 17.0 * u),
+        13.5 * u,
         if lit { color::GOLD_BRIGHT } else { color::TEXT },
         FontWeight::Semibold,
         0.0,
@@ -512,7 +527,7 @@ mod tests {
             "{texts:?}"
         );
         assert!(
-            texts.contains(&"On this server, slot 5, matched by name".to_owned()),
+            texts.contains(&"On this server, slot 5 (by name)".to_owned()),
             "{texts:?}"
         );
         assert!(texts.contains(&"Block".to_owned()), "{texts:?}");
@@ -558,7 +573,7 @@ mod tests {
             texts.contains(&"Seen 3 minutes ago".to_owned()),
             "{texts:?}"
         );
-        assert_eq!(size(&noted, 1.0)[1], size(&plain, 1.0)[1] + 20.0);
+        assert_eq!(size(&noted, 1.0)[1], size(&plain, 1.0)[1] + LINE);
         assert_eq!(rect.height, size(&noted, 1.0)[1]);
         let (_, _, texts, _) = drawn(&plain, false);
         assert!(!texts.iter().any(|text| text.starts_with("Seen")));

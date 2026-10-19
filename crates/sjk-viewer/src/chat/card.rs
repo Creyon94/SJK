@@ -2,7 +2,9 @@
 //! the composer is open the pointer is free, and resting it on a name (an SJK chat
 //! sender's, or the name of a player the server says sent a line) shows their card
 //! ([`crate::sender_card`]) beside it, with Mute or Unmute. The card stays while the
-//! pointer moves onto it. A muted player's lines are hidden as ignored ones are.
+//! pointer is on it, and for [`GRACE_MS`] after the pointer leaves both, so the way
+//! from the name to the card's buttons never loses it. A muted player's lines are
+//! hidden as ignored ones are.
 
 use super::*;
 use crate::sender_card::{self, Person, Place};
@@ -12,6 +14,8 @@ use sjk_ui::Rect;
 pub(super) const CARD: u16 = 120;
 pub(super) const CARD_MUTE: u16 = 121;
 pub(super) const CARD_BAN: u16 = 122;
+/// How long the card stays once the pointer is off the name and the card.
+pub(super) const GRACE_MS: u64 = 400;
 
 /// Whose name a feed token is.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -29,6 +33,8 @@ pub(super) struct Card {
     pub(super) muted: bool,
     /// The name it is beside.
     pub(super) anchor: Rect,
+    /// When the pointer left the name and the card, while it is off both.
+    pub(super) left_ms: Option<u64>,
 }
 
 /// Mute or unmute asked from a card, which the frame carries out
@@ -44,7 +50,7 @@ impl ChatOverlay {
     /// After the feed is laid out: show the card of the name under the pointer, keep
     /// it while the pointer is on the card, else hide it. Not while the composer is
     /// closed (`active` false).
-    pub(super) fn follow_card(&mut self, active: bool) {
+    pub(super) fn follow_card(&mut self, active: bool, ms: u64) {
         if !active {
             self.card = None;
             return;
@@ -59,21 +65,38 @@ impl ChatOverlay {
             Some((who, anchor)) => {
                 let anchor = anchor.unwrap_or_default();
                 match &mut self.card {
-                    Some(card) if card.who == who => card.anchor = anchor,
+                    Some(card) if card.who == who => {
+                        card.anchor = anchor;
+                        card.left_ms = None;
+                    }
                     _ => {
                         self.card = self.person(who).map(|(person, muted)| Card {
                             who,
                             person,
                             muted,
                             anchor,
+                            left_ms: None,
                         });
                     }
                 }
             }
             None if [CARD, CARD_MUTE, CARD_BAN]
                 .into_iter()
-                .any(|token| self.ui.token_hovered(token)) => {}
-            None => self.card = None,
+                .any(|token| self.ui.token_hovered(token)) =>
+            {
+                if let Some(card) = &mut self.card {
+                    card.left_ms = None;
+                }
+            }
+            // Off both: it waits a moment for the pointer on its way to the card.
+            None => {
+                if let Some(card) = &mut self.card {
+                    let left = *card.left_ms.get_or_insert(ms);
+                    if ms.saturating_sub(left) >= GRACE_MS {
+                        self.card = None;
+                    }
+                }
+            }
         }
         // Their picture's version, until the hub's players or their profile say it.
         if let Some(card) = self
@@ -159,8 +182,9 @@ impl ChatOverlay {
             return;
         };
         let measure = crate::sjk_chat_look::Measure::new(font, crate::text::TextStyle::NEUTRAL);
-        let size = sender_card::size(&card.person, g.scale);
-        let origin = sender_card::beside(card.anchor, size, viewport, 10.0 * g.scale);
+        let u = g.scale * self.options.card;
+        let size = sender_card::size(&card.person, u);
+        let origin = sender_card::beside(card.anchor, size, viewport, 4.0 * u);
         // Text draws over every shape: the feed's text under the card is left out, or
         // the messages showed through it (Sol, 18/10/2026).
         self.ui
@@ -173,7 +197,7 @@ impl ChatOverlay {
                 measure: Some(&measure),
             },
             origin,
-            g.scale,
+            u,
             sender_card::Tokens {
                 card: CARD,
                 mute: CARD_MUTE,
@@ -311,9 +335,12 @@ mod tests {
             chat.card.as_ref().is_some_and(|card| card.muted),
             "now Unblock"
         );
-        // Away from both: gone. Closed, the feed has no targets and no card.
+        // Away from both: it waits a moment for the pointer, then goes. Closed, the
+        // feed has no targets and no card.
         chat.pointer(InputEvent::PointerMove(Vec2::new(1_900.0, 10.0)));
         build(&mut chat);
+        assert!(chat.card.is_some(), "kept on the way to the card");
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000 + GRACE_MS);
         assert!(chat.card.is_none());
         chat.input = None;
         build(&mut chat);

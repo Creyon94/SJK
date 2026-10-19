@@ -9,6 +9,11 @@ pub(crate) const CHAT_SIZE: (f64, f64) = (0.15, 2.0);
 /// Largest `cg_centerSize`: EternalJK stops at 1; SJK allows twice its size, which
 /// holds the old scale's largest value (4).
 pub(crate) const CENTER_SIZE_MAX: f32 = 2.0;
+/// The size of the sender card a chat name shows ([`super::card`]), over the chat's
+/// own scale.
+pub(crate) const CARD_SCALE_CVAR: &str = "cg_chatCardScale";
+/// Range of [`CARD_SCALE_CVAR`].
+pub(crate) const CARD_SCALE: (f32, f32) = (0.5, 2.0);
 
 /// `cg_centerSize` as drawn: zero, which would hide the text, is 1 as in
 /// EternalJK's `CG_DrawCenterString`.
@@ -30,6 +35,8 @@ pub(super) struct Options {
     pub(super) lines: usize,
     /// Multiplier for the modern conversation font.
     pub(super) font: f32,
+    /// Multiplier for the sender card, over the chat's scale ([`CARD_SCALE_CVAR`]).
+    pub(super) card: f32,
     /// Extra room after each message character, in 1080p pixels at font scale 1.
     pub(super) spacing: f32,
     /// Left edge in virtual 640-wide coordinates.
@@ -77,6 +84,7 @@ impl Options {
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
             font: scalar(console, "cg_chatboxfontsize", 1.0)
                 .clamp(CHAT_SIZE.0 as f32, CHAT_SIZE.1 as f32),
+            card: scalar(console, CARD_SCALE_CVAR, 1.0).clamp(CARD_SCALE.0, CARD_SCALE.1),
             spacing: scalar(console, "cg_chatboxletterspacing", -0.5).clamp(-2.0, 8.0),
             x: scalar(console, "cg_chatboxx", 30.0).clamp(0.0, 600.0),
             height: scalar(console, "cg_chatboxheight", 350.0).clamp(0.0, 480.0),

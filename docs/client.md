@@ -5134,6 +5134,12 @@ little, and 0 is each font's own spacing. Wrapping measures the same spacing (an
 own width), so a wider setting wraps sooner. Sender names, tags and the composer
 keep their own spacing.
 
+`cg_chatCardScale` (default 1, archived; 0.5 to 2) sizes the player card a chat name
+shows while the composer is open, on top of the chat's own scale (the viewport and
+`cg_chatBoxFontSize`): 0.8 draws it a fifth smaller, 1.5 half as big again. The card
+stays 0.4 s after the pointer leaves the name and the card, so the way to its buttons
+never loses it.
+
 A message too long for one row wraps onto up to four, each drawn as its own text,
 and every row after the first starts in the colour code in force where the row
 before it ended, as if the message were one line: a green `say` (the server puts

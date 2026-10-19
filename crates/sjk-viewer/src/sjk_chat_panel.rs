@@ -1177,7 +1177,7 @@ mod tests {
         );
         drawn(&mut panel, &inputs(&chat, &[], false));
         let texts: Vec<&str> = panel.ui.text_runs().collect();
-        for wanted in ["On this server, slot 5, matched by name", "Block"] {
+        for wanted in ["On this server, slot 5 (by name)", "Block"] {
             assert!(texts.contains(&wanted), "{wanted:?} in {texts:?}");
         }
         let card = panel.ui.rect_for(CARD_TOKEN).expect("the card's target");
