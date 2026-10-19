@@ -9,6 +9,26 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Fixes for hub bug reports 77, 78, 80, 84, 88, 92, 94, 95
+- 1af4f3f |  | Changelog and debug panel for the 19/10 hub bug report fixes
++ 19/10/2026 | - | Fall to death: the camera stays where the fall began, as EternalJK
+- f822e97 |  | Fall to death: the camera stays where the fall began, as EternalJK
++ 19/10/2026 | - | Emotes: an attack or alt attack ends the player's own emote
+- 71af840 |  | Emotes: an attack or alt attack ends the player's own emote
++ 19/10/2026 | - | Audio: a snapshot no longer moves the listener for part of the frame
+- 61eb2b4 |  | Audio: a snapshot no longer moves the listener for part of the frame
++ 19/10/2026 | - | Holocrons: the cap is the hub's rolling 24 hours, and the page says when it lifts
+- edc1ee0 |  | Holocrons: the cap is the hub's rolling 24 hours, and the page says when it lifts
++ 19/10/2026 | - | Match camera portals to ET_PORTAL entities, not ET_BEAM
+- d55123e |  | Match camera portals to ET_PORTAL entities, not ET_BEAM
++ 19/10/2026 | - | Drop any image extension, as COM_StripExtension does
+- 65da0bf |  | Drop any image extension, as COM_StripExtension does
++ 19/10/2026 | - | Scores: team FFA parse test for JA+ rows with deaths (report #94)
+- b117930 |  | Scores: team FFA parse test for JA+ rows with deaths (report #94)
++ 19/10/2026 | - | Scoreboard deaths: EJK's local-counter resets, hidden in duel and CTF
+- cf4cd20 |  | Scoreboard deaths: EJK's local-counter resets, hidden in duel and CTF
++ 19/10/2026 | - | Death camera: fixed pitch and always third person, as EternalJK
+- 9b56643 |  | Death camera: fixed pitch and always third person, as EternalJK
 + 19/10/2026 | - | SJK pull requests #167 #169 #171 #173 #174 #177: speedometer, string table line breaks, whisper hover, SJK chat switches, siege announcements, console copy colours
 - de19721 |  | Review fixes and credits for SJK pull requests #167 #169 #171 #173 #174 #177
 + 19/10/2026 | - | Release 2026.1019.1 (Alpha)

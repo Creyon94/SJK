@@ -1890,6 +1890,15 @@ the camera sits behind and above the eye, often in another cluster; taking the e
 culled walls the camera could see. Reflection, portal and scene views already used their own
 eye.
 
+A `portal` face (sort `portal`) shows a remote camera or a mirror when a `misc_portal_surface`
+entity (`ET_PORTAL`, 8) lies within 64 units of its plane, as stock's
+`R_GetPortalOrientations` requires; the entity's `origin2` is the `misc_portal_camera`
+([scene_views.rs](../crates/sjk-viewer/src/scene_views.rs),
+[scene_portal_math.rs](../crates/sjk-viewer/src/scene_portal_math.rs)). Until 19/10/2026
+the match looked for entity type 7 (`ET_BEAM`), so no network portal was ever found and
+such faces showed only their own texture: the grey `textures/lgnd_misc/camera` screen of
+JoF's `mp/ffa3` security camera, for example.
+
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses
 the same candidate indices; a source-cluster, area-mask or PVS-mode change

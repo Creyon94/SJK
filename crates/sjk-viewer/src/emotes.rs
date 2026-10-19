@@ -78,6 +78,9 @@ const UNKNOWN_LENGTH: Duration = Duration::from_secs(3);
 const MOVE_LIMIT: f32 = 24.0;
 /// Slots the game numbers.
 const SLOTS: usize = 64;
+/// `BUTTON_ATTACK | BUTTON_ALT_ATTACK` (`codemp/qcommon/q_shared.h`): a command with
+/// either ends the player's own emote ([`ActiveEmotes::end_on_attack`]).
+const ATTACK_BUTTONS: u16 = 1 | 128;
 
 /// One emote of the catalogue.
 #[derive(Clone, Debug, PartialEq)]
@@ -499,6 +502,17 @@ impl ActiveEmotes {
         }
     }
 
+    /// The player's own command carried `buttons`: an attack or alt attack ends
+    /// their emote in `slot`, as the server attacks whatever the emote shows. True
+    /// when one ended, so the caller tells the others (as `sjkemote stop`).
+    pub(crate) fn end_on_attack(&mut self, slot: u8, buttons: u16) -> bool {
+        if buttons & ATTACK_BUTTONS == 0 || self.get(slot).is_none() {
+            return false;
+        }
+        self.stop(slot);
+        true
+    }
+
     /// The sounds to start and stop since the last call.
     pub(crate) fn take_cues(&mut self) -> Vec<Cue> {
         std::mem::take(&mut self.cues)
@@ -748,6 +762,30 @@ mod tests {
         assert!(!valid_id(""));
         assert!(!valid_id("Wave"));
         assert!(!valid_id(&"a".repeat(33)));
+    }
+
+    #[test]
+    fn an_attack_or_alt_attack_ends_the_own_emote_and_its_sound() {
+        let t0 = Instant::now();
+        let dance = parse(
+            "dance",
+            r#"{"name": "Dance", "loop": true, "moving": true,
+                "sound": "sound/emotes/dance.wav"}"#,
+        )
+        .unwrap();
+        let mut active = ActiveEmotes::default();
+        // Nobody dancing: nothing to tell. Walking (16) alone leaves it.
+        assert!(!active.end_on_attack(2, 1));
+        active.start(2, "dance", Some(&dance), [0.0; 3], t0);
+        active.take_cues();
+        assert!(!active.end_on_attack(2, 16));
+        assert!(active.get(2).is_some());
+        assert!(active.end_on_attack(2, 1 | 16));
+        assert!(active.get(2).is_none());
+        assert_eq!(active.take_cues(), vec![Cue::Stop { slot: 2 }]);
+        active.start(2, "dance", Some(&dance), [0.0; 3], t0);
+        assert!(active.end_on_attack(2, 128), "alt attack");
+        assert!(active.get(2).is_none());
     }
 
     #[test]

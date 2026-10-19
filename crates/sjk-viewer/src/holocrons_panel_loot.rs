@@ -211,7 +211,7 @@ impl Panel {
         );
         let pace = match (self.data.every, self.data.today) {
             (Some(every), Some((_, cap))) => format!(
-                "One holocron about every {} minutes of active play on a server, at most {cap} a day.",
+                "One holocron about every {} minutes of active play on a server, at most {cap} in 24 hours.",
                 every.div_ceil(60)
             ),
             _ => "Holocrons are found by playing on a server.".to_owned(),

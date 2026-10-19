@@ -1107,6 +1107,23 @@ the presentation history. The ordinary range, height, angle and damping cvars
 remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 `cg_cameraStyle` chooses whether the damping applies ([Camera style](#camera-style)).
 
+A dead player is always seen in third person, whatever the camera choice
+(EternalJK `cg_view.c:3098`), and the death camera is fixed: it turns to the
+player state's dead yaw (`STAT_DEAD_YAW`, towards the killer) and keeps the pitch
+the player had at death, as pmove stops updating a dead player's view angles
+(`bg_pmove.c:10159`). Moving the mouse while dead no longer tilts it
+([camera.rs](../crates/sjk-viewer/src/camera.rs) `dead_view_angles`,
+[scope.rs](../crates/sjk-viewer/src/scope.rs) `third_person_wanted`).
+
+A fall to death (a pit's `trigger_hurt` that fades the screen to black, the
+player state's `fallingToDeath`) does not take the camera down with the player: as
+in EternalJK, the third-person camera's focus stays where the fall began
+(`CG_CalcIdealThirdPersonViewTarget`, `cg_view.c:286`), and the view itself is moved
+to that point, turned from the computed eye towards the falling player
+(`cg_view.c:3224-3233`), in first person too. It lasts until the flag clears at the
+respawn ([fall_camera.rs](../crates/sjk-viewer/src/fall_camera.rs)). A demo's
+detached cameras are left alone.
+
 The decaying prediction error (`cg_errorDecay`) moves the third-person camera's
 focus before its collision and damping traces, as `CG_CalcViewValues`
 (`cg_view.c`) adds it to the view origin before `CG_OffsetThirdPersonView`. A
@@ -1378,6 +1395,18 @@ and a leader doing the same choreography at walking pace (keys of 46, walk held,
 attacks included) every command holds the walk with no key past 64, the attacks come
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
+
+## Sound listener
+
+The mixer hears from one place a frame, as cgame's `S_Respatialize` from
+`refdef.vieworg` and its axes (`cg_view.c:3245`): `GpuState::finish_audio_frame` puts
+the listener at the camera with the camera's axes, and every sound is panned and
+attenuated from there. Until 19/10/2026 each new snapshot also moved it, for the rest of
+that frame, to the snapshot's player origin and view angles (`GameAudio::observe_snapshot`);
+the audio thread mixes while the frame is built, so the blocks mixed in between panned
+sounds near the player differently from the others whenever they moved, and the saber's
+hum, a loop on the view, crackled (Toad's report). Unit test:
+`a_snapshot_leaves_the_listener_where_the_frame_put_it`; not yet heard in a game.
 
 ## Jetpack sounds
 
@@ -2537,7 +2566,10 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   provides deaths. With JoF EJK's `cg_scoreDeaths` modes, 0 hides them, the
   default 1 uses a JA+/jaPRO server's appended value, 2 falls back to the
   session-local counter when the server sends none, and 3 always uses the local
-  counter. Bots show `BOT` for their ping; clients still connecting show
+  counter. As in EJK, duels and CTF never show deaths, and the local counter
+  starts again for everyone on `map_restart` or a new level (a new
+  `CS_LEVEL_START_TIME`), and for one player when they change team or leave
+  (`scoreboard/deaths.rs`). Bots show `BOT` for their ping; clients still connecting show
   `-`, and connected clients the scores do not list yet show `N/A`.
 - Team games list the leading team first over a translucent team band, then the
   spectators; free-for-all lists the players, then the spectators. Your row is

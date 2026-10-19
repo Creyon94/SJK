@@ -121,6 +121,14 @@ formatting, the locked workspace build and test suite, all-target Clippy, and th
 locked release viewer/dedicated build pass; existing warnings remain.
 Live-server display remains unverified.
 
+19/10/2026, `personal/score-deaths`, after report #94 (team FFA on JoF): the
+TFFA `scores` parse was correct (a parse test now covers it); two differences
+from EJK are fixed. The local counter (modes 2 without server deaths, and 3)
+now resets on `map_restart` or a new level, and per player on a team change or
+an emptied slot; it had kept counting across all three. Deaths are hidden in
+duel and CTF as in EJK; SJK hid them in duel and siege, so the SJK style showed
+them in CTF. Unverified in game.
+
 ## Trusted chat media sources
 
 18/10/2026, `feat/trusted-gif-sources`, based on `Sol-Vulpes/SJK` `96569426`:
@@ -6391,6 +6399,13 @@ when it exists. HD packs that ship a `.png` or `.jpg` beside the base `.tga` tak
 effect for extensionless names (for example the disruptor scope in
 `JoF_HDWeaponScopeTrue.pk3`). Unit tests in `sjk-shader` cover the order and the
 named-extension-first rule. Not verified in game.
+
+An extension the loaders do not know is dropped, as `COM_StripExtension` does in
+`R_FindShader` and `R_LoadImage` (the last dot after the last slash): JoF's HD E11
+(`JoF_HDWeaponModels.pk3`, `blaster_w.glm`) names `tex.jpgv` on its barrel surface
+`bl_low`, which the original engines load as `tex.png` and SJK drew as a magenta
+missing image (Nib's report #88). Shader script lookup strips such an extension too.
+Unit tests in `sjk-shader` pin it; not verified in game.
 
 ## Detached free camera
 

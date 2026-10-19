@@ -371,3 +371,89 @@ impl GameAudio {
         ));
     }
 }
+
+#[cfg(test)]
+mod listener_tests {
+    use super::*;
+    use sjk_protocol::PlayerState;
+
+    /// A constant mono WAV, so any difference between the ears is the pan.
+    fn constant_wav() -> Vec<u8> {
+        let samples = 44100_u32;
+        let size = samples * 2;
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + size).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16_u32.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&44100_u32.to_le_bytes());
+        wav.extend_from_slice(&88200_u32.to_le_bytes());
+        wav.extend_from_slice(&2_u16.to_le_bytes());
+        wav.extend_from_slice(&16_u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&size.to_le_bytes());
+        for _ in 0..samples {
+            wav.extend_from_slice(&8192_i16.to_le_bytes());
+        }
+        wav
+    }
+
+    #[test]
+    fn a_snapshot_leaves_the_listener_where_the_frame_put_it() {
+        let (output, mut source) = AudioOutput::test_output();
+        let mut audio = GameAudio::with_output(output);
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory("synthetic", [("sound/hum.wav", constant_wav())])
+            .unwrap();
+        let hum = audio.register_vfs_async(&vfs, "sound/hum.wav").unwrap();
+        // The frame's listener, at the view, and the local saber's hum on it.
+        audio.listener(Vec3::ZERO, Vec3::X, Vec3::NEG_Y, Vec3::Z, Vec3::ZERO);
+        // Sent again until the hum is decoded and sounds, as frames send their loops.
+        let deadline = Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            audio.output.send(AudioCommand::SetLoop(
+                hum,
+                PlayRequest {
+                    origin: Some([0.0; 3]),
+                    source: SourceId(0),
+                    channel: ChannelId(0),
+                    volume: 1.0,
+                    attenuation: sjk_client::legacy_sound_attenuation(0),
+                },
+                [0.0; 3],
+            ));
+            if (0..2048).any(|_| source.next().unwrap().abs() > 0.001) {
+                break;
+            }
+            assert!(Instant::now() < deadline, "the hum did not start");
+            std::thread::yield_now();
+        }
+        // A snapshot whose player stands 200 units to the left of the view: the hum
+        // would sound in the right ear alone from there.
+        let mut player = PlayerState::zero();
+        player.set_origin([0.0, 200.0, 0.0]);
+        let snapshot = Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: vec![],
+            server_time: 1000,
+            delta_from: None,
+            flags: 0,
+            area_mask: vec![],
+            player,
+            vehicle_player: None,
+            entities: vec![],
+            consumed_bits: 0,
+        };
+        audio.observe_snapshot(&snapshot, &GameState::empty_local(0), &vfs);
+        for _ in 0..8192 {
+            let (left, right) = (source.next().unwrap(), source.next().unwrap());
+            assert!(
+                left > 0.001 && (left - right).abs() < 1e-4,
+                "{left} {right}"
+            );
+        }
+    }
+}
