@@ -347,10 +347,17 @@ impl ViewerConsole {
         self.collection_panel.preview_cards = Some((cards, credits, shards));
     }
 
-    /// Choose the Cards tab's kind `index`, for a world shot.
+    /// Choose the Cards tab's tile `index` (in the list its filter shows), for a world
+    /// shot.
     #[cfg(test)]
     pub(crate) fn collection_card_for_shot(&mut self, index: usize) {
         self.collection_panel.choose_card_for_shot(index);
+    }
+
+    /// Set the Cards tab's filter, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_card_filter_for_shot(&mut self, filter: crate::cards::binder::Filter) {
+        self.collection_panel.card_filter_for_shot(filter);
     }
 
     /// Tilt the Cards tab's card `key` (0 up close) as though the pointer rested at `at`

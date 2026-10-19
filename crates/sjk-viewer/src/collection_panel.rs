@@ -92,10 +92,19 @@ const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
 /// The chosen shader's options (its parts the wearer may switch off), one each.
 const OPTION_BASE: u16 = 1_320;
-/// The Cards tab's kinds, one each, and its Reveal button.
-const CARD_BASE: u16 = 1_330;
+/// The Cards tab's Reveal button.
 const REVEAL_TOKEN: u16 = 1_350;
-const _: () = assert!(OPTION_BASE as usize + OPTION_TOKENS <= CARD_BASE as usize);
+const _: () = assert!(OPTION_BASE as usize + OPTION_TOKENS <= REVEAL_TOKEN as usize);
+/// The Cards tab's tiles (19/10/2026, the binder): one token each in the list the filter
+/// shows, up to [`CARD_TILES_MAX`]; then its filter's chips (All, Owned and Missing,
+/// then the rarity, the kind and the finish, each cycling).
+const CARD_BASE: u16 = 7_400;
+pub(super) const CARD_TILES_MAX: usize = 600;
+const CARD_SHOW_BASE: u16 = 8_000;
+const CARD_RARITY_TOKEN: u16 = 8_003;
+const CARD_KIND_TOKEN: u16 = 8_004;
+const CARD_FINISH_TOKEN: u16 = 8_005;
+const _: () = assert!(CARD_BASE as usize + CARD_TILES_MAX <= CARD_SHOW_BASE as usize);
 const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
 /// ([`unlockables::blade_skins_by_tier`]).
@@ -315,9 +324,15 @@ pub(crate) struct Panel {
     order66_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
-    /// The kind of card chosen on Cards, and how many kinds the last frame showed.
+    /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
+    /// frame's list held, and the first line of them shown (the grid scrolls a line at a
+    /// time).
     card: usize,
     cards_shown: usize,
+    card_first: usize,
+    /// The Cards tab's filter, and the tiles it showed last frame (for the hover cards).
+    card_filter: crate::cards::binder::Filter,
+    card_tiles: Vec<crate::cards::binder::Tile>,
     /// How many sealed copies the last frame offered to reveal (0: no Reveal button).
     revealable: u32,
     /// The identity's last reveal when Reveal was pressed: the line under the button
@@ -408,6 +423,9 @@ impl Panel {
             share_on: false,
             card: 0,
             cards_shown: 0,
+            card_first: 0,
+            card_filter: Default::default(),
+            card_tiles: Vec::new(),
             revealable: 0,
             reveal_asked: None,
             shader_first: 0,
@@ -662,6 +680,18 @@ impl Panel {
             return PanelAction::None;
         };
         self.hover.keyed();
+        if self.tab == Tab::Cards && !control {
+            let faces = crate::cards::faces::current();
+            let filter = &mut self.card_filter;
+            match key {
+                KeyCode::KeyO => filter.cycle_show(shift),
+                KeyCode::KeyT => filter.cycle_rarity(shift),
+                KeyCode::KeyK => filter.cycle_kind(&faces, shift),
+                KeyCode::KeyF => filter.cycle_finish(shift),
+                _ => return self.key(key, shift, illuminate),
+            }
+            return self.card_filter_changed();
+        }
         if self.tab == Tab::Shaders {
             if self.search_focus {
                 return self.search_key(event, key, shift, control);
@@ -690,6 +720,13 @@ impl Panel {
         self.shader = 0;
         self.shader_first = 0;
         self.grid_first = 0;
+        PanelAction::None
+    }
+
+    /// The Cards tab's filter changed: back to its first tile.
+    fn card_filter_changed(&mut self) -> PanelAction {
+        self.card = 0;
+        self.card_first = 0;
         PanelAction::None
     }
 
@@ -779,6 +816,24 @@ impl Panel {
     /// A pressed key, by its code.
     fn key(&mut self, key: KeyCode, shift: bool, illuminate: bool) -> PanelAction {
         let vertical = self.tab == Tab::Shaders;
+        if self.tab == Tab::Cards && self.cards_shown > 0 {
+            // The binder: Left and Right step a tile, Up and Down a line, stopping at the
+            // ends (a short last line takes Down to its last tile).
+            let columns = cards::COLUMNS;
+            let last = self.cards_shown - 1;
+            let at = self.card.min(last);
+            match key {
+                KeyCode::ArrowLeft => self.card = at.saturating_sub(1),
+                KeyCode::ArrowRight => self.card = (at + 1).min(last),
+                KeyCode::ArrowUp => self.card = at.checked_sub(columns).unwrap_or(at),
+                KeyCode::ArrowDown if at / columns < last / columns => {
+                    self.card = (at + columns).min(last);
+                }
+                KeyCode::ArrowDown => {}
+                _ => return self.key_any(key, shift, illuminate, vertical),
+            }
+            return PanelAction::None;
+        }
         if self.tab == Tab::Shaders && self.grid {
             // The grid: Left and Right step a card, Up and Down a line, stopping at
             // the ends (a short last line takes Down to its last card).
@@ -801,6 +856,17 @@ impl Panel {
                 return PanelAction::None;
             }
         }
+        self.key_any(key, shift, illuminate, vertical)
+    }
+
+    /// A pressed key the tab's own grid did not take.
+    fn key_any(
+        &mut self,
+        key: KeyCode,
+        shift: bool,
+        illuminate: bool,
+        vertical: bool,
+    ) -> PanelAction {
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::KeyV if self.tab == Tab::Shaders => return self.set_grid(!self.grid),
@@ -900,6 +966,12 @@ impl Panel {
             }
         }
         if let InputEvent::PointerWheel { delta, .. } = event
+            && self.tab == Tab::Cards
+        {
+            self.scroll_cards(delta.y);
+            return PanelAction::None;
+        }
+        if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Shaders
         {
             if self.grid {
@@ -976,6 +1048,26 @@ impl Panel {
             }
             if token == FILTER_OWNED_TOKEN {
                 return self.toggle_owned();
+            }
+            if let Some(show) = token
+                .checked_sub(CARD_SHOW_BASE)
+                .and_then(|index| crate::cards::binder::Show::ALL.get(usize::from(index)))
+            {
+                self.card_filter.show = *show;
+                return self.card_filter_changed();
+            }
+            let faces = crate::cards::faces::current();
+            match token {
+                CARD_RARITY_TOKEN => self.card_filter.cycle_rarity(false),
+                CARD_KIND_TOKEN => self.card_filter.cycle_kind(&faces, false),
+                CARD_FINISH_TOKEN => self.card_filter.cycle_finish(false),
+                _ => {}
+            }
+            if matches!(
+                token,
+                CARD_RARITY_TOKEN | CARD_KIND_TOKEN | CARD_FINISH_TOKEN
+            ) {
+                return self.card_filter_changed();
             }
             if token == SEARCH_TOKEN {
                 return self.focus_search();
@@ -1062,10 +1154,18 @@ impl Panel {
         true
     }
 
-    /// Choose the Cards tab's kind `index`, for a world shot.
+    /// Choose the Cards tab's tile `index` (in the list the filter shows), for a world
+    /// shot.
     #[cfg(test)]
     pub(crate) fn choose_card_for_shot(&mut self, index: usize) {
         self.card = index;
+    }
+
+    /// Set the Cards tab's filter, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn card_filter_for_shot(&mut self, filter: crate::cards::binder::Filter) {
+        self.card_filter = filter;
+        let _ = self.card_filter_changed();
     }
 
     /// Tilt card `key` (0 up close, 1 and up the grid's) as though the pointer had rested

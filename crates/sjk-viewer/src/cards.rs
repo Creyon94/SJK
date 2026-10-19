@@ -12,10 +12,12 @@
 //! | --- | --- |
 //! | a card drawn from shapes, its finishes' light | [`look`] |
 //! | revealed cards' faces, from the SJK packs | [`faces`] |
+//! | the Cards tab's binder: its tiles, filter and sets' progress | [`binder`] |
 //! | the credits' mark | [`mark`] |
 //! | the loot table's odds, worked out | [`loot`] |
 //! | `debug_open` | [`rehearsal`] |
 
+pub(crate) mod binder;
 pub(crate) mod faces;
 pub(crate) mod look;
 pub(crate) mod loot;

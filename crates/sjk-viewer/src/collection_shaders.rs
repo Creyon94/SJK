@@ -109,7 +109,7 @@ fn rack_window(first: usize, chosen: usize, rows: usize) -> usize {
 
 /// The first of `rows` a window of `shown` shows, from the one it showed first: moved
 /// just enough that `chosen` is in view, never past either end.
-fn window(first: usize, chosen: usize, rows: usize, shown: usize) -> usize {
+pub(super) fn window(first: usize, chosen: usize, rows: usize, shown: usize) -> usize {
     let first = if chosen < first {
         chosen
     } else if chosen >= first + shown {

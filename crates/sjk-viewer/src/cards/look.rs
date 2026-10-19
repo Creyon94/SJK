@@ -53,6 +53,11 @@ const TITLE: f32 = 200.0;
 const WORDS: f32 = 300.0;
 /// The face's lore lines at most.
 const LORE_LINES: usize = 7;
+/// A card not found yet: its plate's colour, its picture's tint and the grey veil over
+/// the picture that takes most of its colour away.
+const DIM_PLATE: Color = Color::new(0.42, 0.45, 0.52, 1.0);
+const DIM_TINT: Color = Color::new(0.5, 0.5, 0.54, 1.0);
+const DIM_VEIL: Color = Color::new(0.16, 0.17, 0.2, 0.55);
 /// Solar's gold and its deeper orange.
 const SUN: Color = Color::new(1.0, 0.8, 0.32, 1.0);
 const EMBER: Color = Color::new(1.0, 0.48, 0.16, 1.0);
@@ -69,6 +74,9 @@ pub(crate) struct Card<'a> {
     /// Where the pointer rests on it, when it does: the card tilts towards it and its
     /// light follows it.
     pub(crate) tilt: Option<Tilt>,
+    /// A card the player has not found yet (the Cards tab's binder): its plate grey, its
+    /// picture darkened and greyed, its words quiet. Drawn with the Normal finish.
+    pub(crate) dim: bool,
 }
 
 /// Where the pointer rests on a card, from its middle: -1 at its left (top) edge, 1 at
@@ -112,9 +120,9 @@ pub(crate) fn face_commands(finish: &Finish, width: f32) -> usize {
         _ => 1 + CORONA + 3 + 1,
     };
     let boxes = if width >= WORDS { 2 } else { 0 };
-    // Opacity, plate, wash, edge, the window's dark, picture and gold edge, the lore
-    // box, clip.
-    2 + 1 + 1 + 1 + 3 + boxes + 2 + finish
+    // Opacity, plate, wash, edge, the window's dark, picture, veil and gold edge, the
+    // lore box, clip.
+    2 + 1 + 1 + 1 + 4 + boxes + 2 + finish
 }
 
 /// `colour` at `alpha` times its own.
@@ -211,11 +219,8 @@ fn draw_flat(
     let radius = width * CORNER * s;
     let unit = width / 220.0;
     let rarity = card.rarity;
-    let edge = if card.finish.index == 2 {
-        SUN
-    } else {
-        rarity.colour
-    };
+    let plate = if card.dim { DIM_PLATE } else { rarity.colour };
+    let edge = if card.finish.index == 2 { SUN } else { plate };
     let list = canvas.draw_list_mut();
     let _ = list.push(DrawCommand::PushOpacity(alpha.clamp(0.0, 1.0)));
     let _ = list.push(DrawCommand::RoundedRect {
@@ -227,8 +232,8 @@ fn draw_flat(
         rect,
         radius,
         gradient: Gradient {
-            start: rarity.colour_alpha(0.3),
-            end: rarity.colour_alpha(0.04),
+            start: faded(plate, 0.3),
+            end: faded(plate, 0.04),
             vertical: true,
         },
     });
@@ -236,7 +241,7 @@ fn draw_flat(
         rect,
         radius,
         width: (2.6 * unit * s).max(1.2),
-        color: faded(edge, 0.95),
+        color: faded(edge, if card.dim { 0.6 } else { 0.95 }),
     });
     if let Some(shown_face) = card.face {
         face(
@@ -394,7 +399,22 @@ fn face(
     let _ = list.push(DrawCommand::TexturedQuad {
         rect: window,
         texture: super::faces::texture(face.index),
-        color: Color::new(1.0, 1.0, 1.0, 1.0),
+        color: if card.dim {
+            DIM_TINT
+        } else {
+            Color::new(1.0, 1.0, 1.0, 1.0)
+        },
+    });
+    // A card not found yet: a grey veil over the picture (none otherwise, so the card
+    // keeps its number of commands).
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: window,
+        radius: width * 0.012 * s,
+        color: if card.dim {
+            DIM_VEIL
+        } else {
+            Color::new(0.0, 0.0, 0.0, 0.0)
+        },
     });
     let _ = list.push(DrawCommand::Border {
         rect: frame.rect(
@@ -405,7 +425,11 @@ fn face(
         ),
         radius: width * 0.016 * s,
         width: (width * 0.0032 * s).max(1.0),
-        color: color::GOLD_BRIGHT,
+        color: if card.dim {
+            color::alpha(color::MUTED, 0.5)
+        } else {
+            color::GOLD_BRIGHT
+        },
     });
     let lore_box = [
         across(0.0413),
@@ -442,7 +466,7 @@ fn face(
     if turn < 0.92 || width < TITLE {
         return;
     }
-    let ink = alpha.clamp(0.0, 1.0);
+    let ink = alpha.clamp(0.0, 1.0) * if card.dim { 0.6 } else { 1.0 };
     text(
         canvas,
         TextFamily::Display,
@@ -837,6 +861,7 @@ pub(crate) mod tests {
                             edition: "Alpha Edition",
                             face: None,
                             tilt: None,
+                            dim: false,
                         },
                         1.5,
                         1.0,
@@ -966,6 +991,7 @@ pub(crate) mod tests {
                             of: 1,
                         }),
                         tilt: None,
+                        dim: false,
                     },
                     1.5,
                     1.0,

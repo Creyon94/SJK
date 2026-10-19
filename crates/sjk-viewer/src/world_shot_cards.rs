@@ -10,12 +10,15 @@
 //!
 //! Then the first revealed card's face (`duel6_sjk_card_faces`), from the `sjk_cards` pack
 //! in the folder `SJK_TEST_PACKS` names (the hub's `assets/dist`): up close on the Cards
-//! tab in each finish, and coming out of a holocron.
+//! tab in each finish, and coming out of a holocron. And the Cards tab as a binder
+//! (`duel6_sjk_card_binder`, 19/10/2026) with the same pack: every card, found or greyed,
+//! sealed copies, hover cards and the filter, in 1080p and 4:3.
 //!
 //! Run: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer cards_shots -- --ignored
 //! --test-threads=1 --nocapture`; the pictures are in `target/world-shots`.
 
 use super::*;
+use crate::cards::binder::{Filter, Show};
 use crate::cards::{FINISHES, RARITIES};
 use crate::console::holocrons_panel::Data;
 use crate::console::holocrons_panel::opening::{Prize, Shown};
@@ -200,7 +203,7 @@ fn duel6_sjk_cards_tab() {
             gpu.open_profile_hub(Tab::Cards);
             assert_eq!(gpu.profile_hub_tab(), Some(Tab::Cards));
             let _ = frame(&mut gpu, 120);
-            // The Solar Rare, which the list puts near the start.
+            // The second sealed tile (Legendary).
             if let Some(console) = gpu.console.as_mut() {
                 console.collection_card_for_shot(1);
             }
@@ -265,11 +268,182 @@ fn with_face(finish: &str) -> Vec<sjk_identity::CardStack> {
     list
 }
 
+/// Where the binder (`crate::cards::binder`) puts card `id` among `list`'s tiles, with
+/// the packs' faces.
+fn binder_index(list: &[sjk_identity::CardStack], id: &str) -> usize {
+    let faces = crate::cards::faces::current();
+    crate::cards::binder::tiles(&crate::cards::stacks(list), &faces)
+        .iter()
+        .position(|tile| tile.face(&faces).is_some_and(|face| face.id == id))
+        .unwrap_or(0)
+}
+
+/// Copies of SJK Alpha's card `number` in `finish`, `count` of them.
+fn alpha(number: u16, rarity: &str, finish: &str, count: u32) -> sjk_identity::CardStack {
+    sjk_identity::CardStack {
+        card: Some(format!("sjk_alpha_{number:03}")),
+        rarity: rarity.to_owned(),
+        finish: finish.to_owned(),
+        edition: "alpha".to_owned(),
+        count,
+        first: 1_791_830_000 + i64::from(number) * 3_600,
+        last: 1_791_830_000,
+    }
+}
+
+/// Sealed copies of `rarity` in `finish`.
+fn sealed(rarity: &str, finish: &str, count: u32) -> sjk_identity::CardStack {
+    sjk_identity::CardStack {
+        card: None,
+        rarity: rarity.to_owned(),
+        finish: finish.to_owned(),
+        edition: "alpha".to_owned(),
+        count,
+        first: 1_791_641_100,
+        last: 1_791_641_100,
+    }
+}
+
+/// A binder partly filled: sealed copies of three rarities (a Legendary one the packs
+/// can reveal), five cards of SJK Alpha found, two of them in several finishes, the
+/// rest missing.
+fn binder_holdings() -> Vec<sjk_identity::CardStack> {
+    vec![
+        sealed("legendary", "normal", 1),
+        sealed("rare", "normal", 3),
+        sealed("rare", "holo", 1),
+        sealed("common", "normal", 2),
+        alpha(0, "mythical", "normal", 1),
+        alpha(1, "mythical", "holo", 1),
+        alpha(1, "mythical", "normal", 1),
+        alpha(4, "legendary", "normal", 1),
+        alpha(7, "legendary", "holo", 2),
+        alpha(10, "legendary", "solar", 1),
+        alpha(10, "legendary", "normal", 2),
+    ]
+}
+
+/// The main menu over duel6 in `size`, the Collection open on its Cards tab showing
+/// [`binder_holdings`], the hub letting the player open (so Reveal shows).
+fn open_binder(size: [u32; 2]) -> Option<GpuState> {
+    let menu = menu::ClientMenu::new(true, String::new());
+    let (mut gpu, profile) = open("maps/mp/duel6.bsp", size, Some(menu), &sjk_cvars())?;
+    // The window's profile folder lives as long as the test.
+    std::mem::forget(profile);
+    let _ = frame(&mut gpu, 10);
+    let mut preview = super::tests::profile_preview();
+    preview.snapshot.holocrons = Some(sjk_identity::HolocronProgress {
+        progress_secs: 0,
+        every_secs: 1_800,
+        today: 0,
+        daily_cap: 8,
+        server_time: 1_791_900_000,
+        can_open: true,
+        read_at: std::time::Instant::now(),
+    });
+    if let Some(console) = gpu.console.as_mut() {
+        console.preview_profile(preview);
+        console.preview_cards(binder_holdings(), 1_340, 85);
+        console.preview_collection(Some(Vec::new()), 3.1);
+    }
+    gpu.open_profile_hub(Tab::Cards);
+    assert_eq!(gpu.profile_hub_tab(), Some(Tab::Cards));
+    let _ = frame(&mut gpu, 60);
+    Some(gpu)
+}
+
+/// The binder (19/10/2026) with the hub's card pack mounted, in 1080p and 4:3: every
+/// card of the packs, found or greyed, sealed copies first, Reveal, a hover card on a
+/// card held in two finishes and on a missing one, and the filter narrowing it.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_card_binder() {
+    on_big_stack(|| {
+        if !faces_ready() {
+            return;
+        }
+        let list = binder_holdings();
+        let toxiee = binder_index(&list, "sjk_alpha_010");
+        let missing = binder_index(&list, "sjk_alpha_005");
+        let filters = [
+            ("all", Filter::default()),
+            (
+                "owned",
+                Filter {
+                    show: Show::Owned,
+                    ..Filter::default()
+                },
+            ),
+            (
+                "legendary-missing",
+                Filter {
+                    show: Show::Missing,
+                    rarity: crate::cards::Rarity::from_id("legendary"),
+                    ..Filter::default()
+                },
+            ),
+            (
+                "holo",
+                Filter {
+                    finish: crate::cards::Finish::from_id("holo"),
+                    ..Filter::default()
+                },
+            ),
+        ];
+        for (size, name) in [([1920, 1080], "1080p"), ([1440, 1080], "4x3")] {
+            let Some(mut gpu) = open_binder(size) else {
+                return;
+            };
+            for (filter_name, filter) in &filters {
+                // All: the Toxiee card, held in two finishes, chosen with its hover card;
+                // the Legendary missing ones: a hover card on one; the rest their first
+                // tile chosen.
+                let (chosen, hover) = match *filter_name {
+                    "all" => (toxiee, Some(toxiee)),
+                    "legendary-missing" => (1, Some(2)),
+                    _ => (0, None),
+                };
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_card_filter_for_shot(*filter);
+                    console.collection_card_for_shot(chosen);
+                }
+                let _ = frame(&mut gpu, 4);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_hover_for_shot(hover);
+                }
+                let path = shoot(
+                    &mut gpu,
+                    4,
+                    &format!("duel6-card-binder-{filter_name}-{name}"),
+                );
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "{filter_name} {name}");
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_hover_for_shot(None);
+                }
+            }
+            // A missing card chosen with no filter: greyed up close, its hover card.
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_card_filter_for_shot(Filter::default());
+                console.collection_card_for_shot(missing);
+            }
+            let _ = frame(&mut gpu, 4);
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(Some(missing));
+            }
+            let path = shoot(&mut gpu, 4, &format!("duel6-card-binder-missing-{name}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "missing {name}");
+        }
+    });
+}
+
 /// Mount the test packs and wait for the first card's picture to decode; false (and a
 /// line) when the packs have no such card.
 fn faces_ready() -> bool {
     super::saber_skins::mount_test_packs();
-    for _ in 0..200 {
+    // Up to a minute: a debug build decodes the pack's pictures slowly.
+    for _ in 0..2_400 {
         let faces = crate::cards::faces::current();
         match faces.find("sjk_alpha_010") {
             Some((index, _)) if faces.art(index).is_some() => return true,
@@ -298,11 +472,8 @@ fn duel6_sjk_card_faces() {
             };
             let _ = frame(&mut gpu, 10);
             let list = with_face(finish);
-            // The revealed card, wherever the best-first order puts it.
-            let revealed = crate::cards::stacks(&list)
-                .iter()
-                .position(|stack| !stack.sealed())
-                .unwrap_or(0);
+            // The revealed card, wherever the binder puts it.
+            let revealed = binder_index(&list, "sjk_alpha_010");
             if let Some(console) = gpu.console.as_mut() {
                 console.preview_cards(list, 1_340, 85);
                 console.preview_collection(Some(Vec::new()), 3.1);
@@ -330,10 +501,7 @@ fn duel6_sjk_card_faces() {
         };
         let _ = frame(&mut gpu, 10);
         let list = with_face("holo");
-        let revealed = crate::cards::stacks(&list)
-            .iter()
-            .position(|stack| !stack.sealed())
-            .unwrap_or(0);
+        let revealed = binder_index(&list, "sjk_alpha_010");
         if let Some(console) = gpu.console.as_mut() {
             console.preview_cards(list, 1_340, 85);
             console.preview_collection(Some(Vec::new()), 3.1);

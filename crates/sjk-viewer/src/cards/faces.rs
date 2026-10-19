@@ -49,6 +49,16 @@ pub(crate) enum Kind {
 }
 
 impl Kind {
+    /// Every kind the client knows, in the order the Cards tab's filter walks them.
+    pub(crate) const ALL: [Self; 6] = [
+        Self::Community,
+        Self::Place,
+        Self::Personality,
+        Self::Game,
+        Self::Credits,
+        Self::Meme,
+    ];
+
     fn from_id(id: &str) -> Option<Self> {
         match id {
             "community" => Some(Self::Community),

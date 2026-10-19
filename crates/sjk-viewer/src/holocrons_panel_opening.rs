@@ -782,6 +782,7 @@ impl Panel {
                     edition: &shown.edition,
                     face: cards::shown(&faces, shown.card.as_deref()),
                     tilt: None,
+                    dim: false,
                 },
                 seconds,
                 1.0,
