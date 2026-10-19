@@ -1061,7 +1061,7 @@ pub(super) const GAME: &[Setting] = &[
     },
     // Experimental features, off by default.
     Setting {
-        label: "Experimental: showcase tools (ghost, mimic), staff only",
+        label: "Showcase tools (SJK staff)",
         cvar: crate::ghost_replay::SHOWCASE_CVAR,
         kind: ValueKind::Bool,
     },

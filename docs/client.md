@@ -1248,9 +1248,11 @@ films ([ghost_replay.rs](../crates/sjk-viewer/src/ghost_replay.rs)).
 
 `ghost` and [`mimic`](#mimic) are experimental, for SJK staff keys only (Sol,
 19/10/2026: not for everyone to use), and off by default: Settings > Mods >
-"Experimental: showcase tools (ghost, mimic), staff only" (`cl_experimentalShowcase`,
-archived; "Experimental showcase" in the classic menus) turns both on for a staff key.
-For another key either command says it is a staff tool, and the switch does nothing;
+"Showcase tools (SJK staff)" (`cl_experimentalShowcase`, archived; "Showcase tools" in
+the classic menus) turns both on for a staff key. What players see stays vague (Sol):
+the row, its help and the commands' help say only "showcase tools", and neither
+command is in the changelog or credits. For another key either command answers
+`<command>: showcase tools are for SJK staff`, and the switch does nothing;
 off, either command says so and where to turn it on; switching it off ends a replay or a copy, and a recording
 is saved. They have no other menu entry.
 

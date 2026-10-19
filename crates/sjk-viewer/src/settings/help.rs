@@ -72,7 +72,7 @@ const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
     ("cg_errorDecay", "Error smoothing"),
-    (crate::ghost_replay::SHOWCASE_CVAR, "Experimental showcase"),
+    (crate::ghost_replay::SHOWCASE_CVAR, "Showcase tools"),
     (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
     (
         crate::frame_target::aa::exposure::MAX_EV,
@@ -745,7 +745,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::ghost_replay::SHOWCASE_CVAR,
-        "Staff only, experimental, for filming: ghost replays a run you recorded, mimic copies a player facing you. Any key stops them.",
+        "Showcase tools, for SJK staff.",
     ),
     (
         crate::brush_view::CVAR,
