@@ -62,7 +62,8 @@ includes:
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
 - the JoF clan tag: the clan's emblem beside the names that carry its tag, in
-  the chats, on the scoreboard and on player cards;
+  the chats, on the scoreboard and on player cards; the JAWA clan's tag with its
+  forum icon, a Jawa's hood (19/10/2026);
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
