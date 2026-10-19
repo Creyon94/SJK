@@ -4,7 +4,7 @@ use crate::{
     ActorInstance, Bsp, CameraUniform, GpuState, GpuVertex, scene_flatten::FlattenedScene,
 };
 use glam::{Mat4, Quat, Vec3};
-use sjk_protocol::{GameState, Snapshot};
+use sjk_protocol::{EntityState, GameState, Snapshot};
 use sjk_shader::ShaderCatalog;
 use std::ops::Range;
 
@@ -20,6 +20,16 @@ mod reflection_capture;
 mod render;
 #[path = "scene_sky_visibility.rs"]
 mod sky_visibility;
+
+/// codemp `ET_PORTAL` (bg_public.h `entityType_t`): what `SP_misc_portal_surface` sends.
+/// Until 19/10/2026 this was 7 (`ET_BEAM`), so no camera portal ever found its
+/// marker and portal faces showed only their own texture.
+const ET_PORTAL: u8 = 8;
+
+/// Whether `entity` is a `misc_portal_surface` marker a portal face can match.
+fn is_portal_marker(entity: &EntityState) -> bool {
+    entity.entity_type() == ET_PORTAL
+}
 
 struct Face {
     indices: Range<u32>,
@@ -232,8 +242,7 @@ impl Runtime {
         }
         use std::hash::{Hash, Hasher};
         let mut hash = std::collections::hash_map::DefaultHasher::new();
-        for e in sjk_client::legacy_scene_entities(game, snapshot).filter(|e| e.entity_type() == 7)
-        {
+        for e in sjk_client::legacy_scene_entities(game, snapshot).filter(|e| is_portal_marker(e)) {
             e.number().hash(&mut hash);
             for field in [e.trajectory_base(), e.origin2()] {
                 field.map(f32::to_bits).hash(&mut hash);
@@ -251,7 +260,7 @@ impl Runtime {
         self.portals.clear();
         self.portals.extend(
             sjk_client::legacy_scene_entities(game, snapshot)
-                .filter(|e| e.entity_type() == 7)
+                .filter(|e| is_portal_marker(e))
                 .map(math::Portal::from_entity),
         );
         for face in &mut self.faces {
@@ -446,4 +455,27 @@ fn sphere_visible(matrix: Mat4, center: Vec3, radius: f32) -> bool {
     ]
     .iter()
     .all(|plane| plane.dot(p) >= -radius * plane.truncate().length())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sjk_protocol::LEGACY_ENTITY_FIELDS;
+
+    fn entity(entity_type: u8) -> EntityState {
+        let mut state = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        state.set_raw_field(8, u32::from(entity_type));
+        state
+    }
+
+    #[test]
+    fn portal_surface_entity_is_a_portal_marker() {
+        assert!(is_portal_marker(&entity(8)));
+    }
+
+    #[test]
+    fn beam_entity_is_not_a_portal_marker() {
+        // ET_BEAM (target_laser), which this file mistook for ET_PORTAL.
+        assert!(!is_portal_marker(&entity(7)));
+    }
 }
