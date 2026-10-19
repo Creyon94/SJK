@@ -39,6 +39,15 @@ use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+/// When a holocron found during play shows an unlock card: 0 never, 1 outside a private
+/// duel (the default), 2 always. The waiting holocron still opens in the game menu.
+pub(crate) const NOTIFICATIONS_CVAR: &str = "cl_holocronNotifications";
+pub(crate) const NOTIFICATIONS_DEFAULT: i64 = 1;
+
+fn notification_visible(mode: i64, private_duel: bool) -> bool {
+    mode >= 2 || (mode == 1 && !private_duel)
+}
+
 /// The button (Next, or Close on the last holocron).
 const NEXT_TOKEN: u16 = 972;
 /// The rest of the screen: a click there acts as the button too.
@@ -279,6 +288,14 @@ impl HolocronPopup {
         }
     }
 
+    /// Consume the live cards of every waiting holocron without consuming the holocrons
+    /// themselves. Opening the game menu can still show the large pop-up later.
+    fn suppress_announcements(&mut self) {
+        for waiting in &mut self.queue {
+            waiting.announced = true;
+        }
+    }
+
     /// Move the ceremony on to `now`. A holocron on show begins (with its fanfare) once
     /// the pop-up is `visible`; one that has lifted away gives way to the next waiting, or
     /// closes the pop-up.
@@ -439,6 +456,21 @@ impl crate::GpuState {
     /// Returns whether the pop-up draws this frame (not under the console).
     pub(crate) fn prepare_holocron_popup(&mut self, console_covers_frame: bool) -> bool {
         let now = Instant::now();
+        let notification_mode = self
+            .console
+            .as_ref()
+            .and_then(|console| console.integer_cvar(NOTIFICATIONS_CVAR))
+            .unwrap_or(NOTIFICATIONS_DEFAULT);
+        let private_duel = self
+            .live_session
+            .as_ref()
+            .is_some_and(|session| session.latest_snapshot().player.duel_in_progress());
+        let notifications = notification_visible(notification_mode, private_duel);
+        if !notifications {
+            self.unlock_toast
+                .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
+            self.holocron_popup.suppress_announcements();
+        }
         let console_open = self
             .console
             .as_ref()
@@ -456,7 +488,7 @@ impl crate::GpuState {
                 self.holocron_popup.open_next(now);
                 self.unlock_toast
                     .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
-            } else if !menu && self.live_session.is_some() {
+            } else if notifications && !menu && self.live_session.is_some() {
                 let toast = &mut self.unlock_toast;
                 self.holocron_popup.announce(|unlock| toast.push(unlock));
             }
@@ -706,6 +738,34 @@ mod tests {
         let mut again = HolocronPopup::default();
         again.offer(directory.path(), "aa", &list);
         assert!(!again.pending());
+    }
+
+    #[test]
+    fn suppressing_live_cards_keeps_the_holocrons_for_the_game_menu() {
+        let directory = tempfile::tempdir().expect("a folder");
+        let mut popup = HolocronPopup::default();
+        popup.offer(
+            directory.path(),
+            "aa",
+            &[wire(2, "rare"), wire(1, "uncommon")],
+        );
+
+        popup.suppress_announcements();
+        assert!(cards(&mut popup).is_empty(), "no live cards are replayed");
+        assert!(popup.pending(), "the large pop-up still waits");
+        popup.open_next(Instant::now());
+        assert_eq!(shown(&popup), Some(1), "the ESC menu can still show it");
+        assert_eq!(popup.queue.len(), 1);
+    }
+
+    #[test]
+    fn notification_modes_are_off_outside_duels_or_always() {
+        assert!(!notification_visible(0, false));
+        assert!(!notification_visible(0, true));
+        assert!(notification_visible(1, false));
+        assert!(!notification_visible(1, true));
+        assert!(notification_visible(2, false));
+        assert!(notification_visible(2, true));
     }
 
     #[test]
