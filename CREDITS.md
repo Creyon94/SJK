@@ -212,7 +212,7 @@ includes:
   a showcase, walking to its start and correcting drift through the movement keys;
 - map edits (18/10/2026): SJK's own fixes to maps, made in game by staff (props and
   surfaces hidden, models placed, shaders swapped, for all servers or one) and drawn by
-  every SJK player through the hub;
+  every SJK player through the hub, with its panel in the SJK look (19/10/2026);
 - the mimic (`mimic`): another player's view, movement, jumps, crouches, saber attacks,
   stance and holster copied live, facing them as a mirror image or a copy, after a set
   delay;

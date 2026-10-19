@@ -12,7 +12,7 @@ fixes. A profile saved with the old default `classic` moves to `sjk` once
 Status (08/10/2026): the main page, Settings (with the key bindings),
 Character, What's new, Update, Identity, Credits, Servers (the server browser),
 the loading screen, the scoreboard, the in-game menu (reworked 09/10/2026), the
-Profile screen, the Collection (10/10/2026), Camera control, the report and note
+Profile screen, the Collection (10/10/2026), Camera control, the map editor's panel (19/10/2026), the report and note
 dialog (Report a bug), the new medal pop-up and Create game with its map list
 (10/10/2026, in every menu style) are done. Every other
 screen opens in its classic+ version, which
@@ -1709,6 +1709,39 @@ or a button's white edge. It is the panel's state, tokens, keys and pointer
 (`shot::Panel`), drawn by another view: `InGameMenu::append_sjk` builds it when
 the page is `Page::Shot`, in every menu style (the classic menus' right-edge
 panel was removed on 10/10/2026).
+
+## Map editor
+
+[panel_view.rs](../crates/sjk-viewer/src/map_edits/panel_view.rs): the staff map editor's
+panel ([map-edits.md](map-edits.md#the-panel) has what it does), opened by the world-note
+key while `mapedit` is on, in every menu style (19/10/2026, Sol's request). It is Camera
+control's column: the 1080-line frame on the window's right edge, the column at x 1440,
+416 wide, over the same navy fade, the scene left of x 1400 undimmed, where a click
+selects (the selection's green outline is the screen's one memorable thing).
+
+- **Top:** "Map editor" (Rajdhani 42), the map and its state (no edits yet, N edits not
+  published, or published with the hub's revision), then the pages as tabs: Selected,
+  Place, Edits (Camera control's tabs).
+- **Selected:** what it is (Rajdhani 26), its model or shader and its detail (Exo 2 16,
+  muted, two lines), a row of two kit buttons, then Draw another shader: a kit field and
+  Remap and Remove remap. With nothing selected, how to select.
+- **Place:** the kit's search pill, a list of seven rows (34 each, the chosen one gold with
+  a gold tick at its left, paths without `models/`), Place where you aimed across the
+  column, then Placed model: its line and two rows of four buttons.
+- **Edits:** a list of twelve rows, an edit for another server in quiet print; Delete and
+  Undo newest.
+- **Foot:** New edits for and the kit's segments (All servers, This server) at y 800, the
+  last answer (ember when refused) at 840, Publish (gold), Aim and Editor off at 898, and
+  two lines of keys from 964 as Camera control's. A page's controls end above it (a test
+  checks every page at four window shapes).
+- **Strip:** while the editor is on and the panel hidden, a navy card 600 wide at the top
+  centre of the 16:9 frame: "Map editor" in gold, what to aim at (or that the grabbed model
+  follows the aim), and the world-note key's cap with "edit" (or "put it down").
+
+It is a page of the in-game menu (`Page::MapEdit`), drawn by `InGameMenu::append_own_page`
+from the panel's state, which lives with the map's edits; its keys come before the game
+menu's (`GpuState::map_edit_key`), its pointer through `map_edit_pointer`. World shot:
+`duel6_map_editor_panel` (`world_shot_map_edits.rs`).
 
 ## Report a bug and its dialogs
 

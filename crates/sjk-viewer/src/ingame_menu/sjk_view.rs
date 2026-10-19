@@ -130,7 +130,7 @@ pub(crate) fn row_count(page: Page, team_game: bool) -> Option<usize> {
 /// with [`return_focus`] on the card). `None` closes the menu.
 pub(crate) fn parent(page: Page) -> Option<(Page, usize)> {
     Some(match page {
-        Page::Main | Page::Shot => return None,
+        Page::Main | Page::Shot | Page::MapEdit => return None,
         Page::Team | Page::Siege | Page::CallVote => (Page::Main, Entry::Resume.index()),
         Page::Players => (Page::Main, Entry::Players.index()),
         // The chosen player's row: `sjk_back` takes it from the roster.
@@ -294,7 +294,7 @@ pub(super) fn split_hints(page: Page, rows: &mut [String], hints: &mut [String])
 /// The page's name over its first entry; none on the main page.
 fn page_title(page: Page, siege: bool) -> Option<&'static str> {
     Some(match page {
-        Page::Main | Page::Shot => return None,
+        Page::Main | Page::Shot | Page::MapEdit => return None,
         Page::Team if siege => "Class",
         Page::Team => "Team",
         // Its step's own title comes with the rows (`Rows::title`).

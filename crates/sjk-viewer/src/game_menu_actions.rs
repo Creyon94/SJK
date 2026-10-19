@@ -37,7 +37,10 @@ impl GpuState {
             self.sjk_back();
         } else if self.game_menu_page == GameMenuPage::ReportPlayer {
             self.back_to_players();
-        } else if matches!(self.game_menu_page, GameMenuPage::Main | GameMenuPage::Shot) {
+        } else if matches!(
+            self.game_menu_page,
+            GameMenuPage::Main | GameMenuPage::Shot | GameMenuPage::MapEdit
+        ) {
             self.game_menu = false;
             self.capture_pointer();
         } else if self.game_menu_page.is_vote_page()

@@ -13,7 +13,6 @@ Format, read by the client (crates/sjk-viewer/src/changelog_data.rs, whose
 tests check this file):
 - "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased" for main
   after the last release, without a date);
-- Clan emblems: names tagged JAWA, such as `(JAWA)Name`, get the clan's Jawa hood on their left, in the chats, on the scoreboard and on player cards _(Sol)_
 - other lines up to the first item are the release's introduction;
 - "> <Heading>: <sentence>" lines before the first item are the release's short
   recap (3 to 6 lines, shown by the what's-new card after an update); every release
@@ -33,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_serverRemaps: Servers no longer swap the map's textures unless you allow it. Turn this on to see their remaps again.
 
+- Clan emblems: names tagged JAWA, such as `(JAWA)Name`, get the clan's Jawa hood on their left, in the chats, on the scoreboard and on player cards _(Sol)_
 - Test packs: the SJK team can send test content sealed to the players it picks; it downloads on its own, stays encrypted on disk and mounts at the next map load _(Sol)_
 - Map edits (Settings > Game, `cg_mapEdits`, on): SJK's own fixes to maps, props hidden, models placed and textures swapped by the SJK team, for every server or one; only what you see changes, never collision _(Sol)_
 - Server shader remaps are off by default (Settings > Game, `cg_serverRemaps`): servers no longer swap the map's textures unless you turn them on; `cg_remaps` still picks which apply when they are on, and the map's own remaps always apply _(Sol)_

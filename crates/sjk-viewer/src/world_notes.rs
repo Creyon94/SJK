@@ -818,6 +818,8 @@ pub(crate) struct Notes {
     models: ModelCache,
     /// The last frame's size in physical pixels, for a click's ray.
     viewport: [f32; 2],
+    /// The map editor is on: the selection waits until it is replaced or dropped.
+    held: bool,
 }
 
 impl Default for Notes {
@@ -833,6 +835,7 @@ impl Default for Notes {
             sent_serial: 0,
             models: ModelCache::default(),
             viewport: [0.0; 2],
+            held: false,
         }
     }
 }
@@ -1039,11 +1042,29 @@ impl Notes {
         self.selection.as_ref().map(Selection::summary)
     }
 
+    /// Select what is under `point` (physical pixels) for a map edit, as
+    /// [`Self::select_for_edit`] does under the crosshair.
+    pub(crate) fn select_for_edit_at(
+        &mut self,
+        scene: Scene<'_>,
+        point: [f32; 2],
+    ) -> Option<String> {
+        let camera = self.camera?;
+        let direction = screen_ray(&camera, self.viewport, point)?;
+        self.selection = self.select(scene, &camera, direction);
+        self.selection.as_ref().map(Selection::summary)
+    }
+
+    /// While the map editor is on, a selection never goes stale.
+    pub(crate) fn hold_selection(&mut self, held: bool) {
+        self.held = held;
+    }
+
     /// The selection waiting for a second press, while it is fresh.
     pub(crate) fn waiting_selection(&self) -> Option<&Selection> {
         self.selection
             .as_ref()
-            .filter(|selection| selection.fresh(Instant::now()))
+            .filter(|selection| self.held || selection.fresh(Instant::now()))
     }
 
     /// The last rendered main view's eye and forward direction.
@@ -1099,7 +1120,7 @@ impl Notes {
         self.highlight.clear();
         self.fill.clear();
         let now = Instant::now();
-        if self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
+        if !self.held && self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
             self.selection = None;
         }
         let (Some(selection), Some(camera)) = (

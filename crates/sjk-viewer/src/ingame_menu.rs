@@ -39,6 +39,8 @@ pub(crate) enum Page {
     /// Camera control: camera and sun controls over the live world
     /// ([`shot`]).
     Shot,
+    /// The map editor's panel, for staff ([`crate::map_edits::panel`]).
+    MapEdit,
     Team,
     /// Map/theme constrained Siege class selection.
     Siege,
@@ -332,6 +334,24 @@ impl InGameMenu {
             }
         }
         current.min(count - 1)
+    }
+
+    /// The canvas a page that lays itself out takes its pointer and keys from.
+    pub(crate) fn canvas_mut(&mut self) -> &mut MenuCanvas {
+        &mut self.canvas
+    }
+
+    /// Draw a page that lays itself out (`build` fills the canvas), its text to `target`.
+    pub(crate) fn append_own_page(
+        &mut self,
+        page: Page,
+        build: impl FnOnce(&mut MenuCanvas),
+        target: TextTarget<'_>,
+        viewport: [f32; 2],
+    ) {
+        self.active_page = page;
+        build(&mut self.canvas);
+        target.append(&self.canvas, viewport);
     }
 
     /// Draw `view`'s page in the SJK UI's look, its text to `target`.
