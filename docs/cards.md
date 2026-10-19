@@ -252,8 +252,19 @@ was "Sol lore" before):
 
 | Card | Name | Rarity | Kind | Art |
 | --- | --- | --- | --- | --- |
+| `sjk_alpha_000` | Sol | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it; card zero, because SJK starts with Sol's time, effort and money (a set's numbers start at 0 since 19/10/2026) |
 | `sjk_alpha_001` | Bishop | Mythical | Credits | Sol (AI-assisted): a rusted helmet portrait of Bishop, the author of JKR, which SJK forked |
+| `sjk_alpha_002` | Creyon, the Saber Smith | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_003` | The Early Team (Lumaya, Rollembones, Kushina) | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_004` | Jediman | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_005` | Slash | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_006` | Milamber | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_007` | EternalJK | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_008` | OpenJK | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_009` | TaystJK | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
 | `sjk_alpha_010` | Toxiee and Sol on JoF Memorial | Legendary | Meme | Sol (AI-assisted); it was `sol_lore_001`, Community |
+| `sjk_alpha_011` | jaPRO | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+| `sjk_alpha_012` | JA+, by Slider | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
 
 A card's kind says what it is about and reads on its strip: `community` (Community),
 `place` (Place), `personality` (Personality), `game` (Jedi Academy), and since
@@ -483,8 +494,8 @@ the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sea
 
 ## Planned, not built
 
-1. The rest of SJK Alpha: cards of every rarity (only Bishop, Mythical, and the Toxiee
-   card, Legendary, exist), so every sealed copy can be revealed; a reveal ceremony (the copies turn
+1. The rest of SJK Alpha: Common, Uncommon and Rare cards (only Mythical and Legendary
+   ones exist; drafts for the others wait for art), so every sealed copy can be revealed; a reveal ceremony (the copies turn
    over one by one, as an opening's cards turn in).
 2. The Cards tab as a binder by set with progress ("Places 7 of 12"), missing cards
    as dark outlines.

@@ -863,6 +863,15 @@ test: debug_open mythical x5: cards go round the rarities; the Mythical one show
 test: Holocrons tab > loot table: five rarity rows, all text fits.
 note: The hub is deployed with these cards (19/10); released clients don't show Bishop.
 
+[sjk-alpha-credits]
+area: Menus & settings
+title: SJK Alpha credits cards 000-012 (placeholder art), card numbers from 0
+change: The hub's SJK Alpha set: 000 Sol, 001 Bishop ... 012 JA+; 010 is still Toxiee.
+change: Cards may be numbered 0; the client used to drop card 000's face.
+test: Log: "SJK packs: card faces:" lists sjk_alpha_000 to sjk_alpha_012.
+test: debug_open mythical x5: the Mythical card is one of Sol, Bishop, Creyon, Early Team.
+test: Sol's face footer reads "000 / 012".
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

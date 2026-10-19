@@ -9,6 +9,16 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Cards numbered 0: SJK Alpha's card 000 is Sol's
+- a1d8513 |  | Cards: a set's numbers start at 0 (SJK Alpha's card 000 is Sol's)
++ 19/10/2026 | - | Emotes: a window of every emote, search, click to play
+- d6afbc3 |  | Emote picker: emotes opens a window of every emote to search and click to play
++ 19/10/2026 | - | Strafe aura drawn by its own shader, airborne only unless cg_strafeAuraGround
+- 8fd25f5 |  | Strafe aura: its own shader, and only while jumping or falling
++ 19/10/2026 | - | Map editor console commands reach the client
+- b2f36f4 |  | Map editor: its console commands reach the client
++ 19/10/2026 | - | Discord status reaches every Discord app running
+- 642331a |  | Discord status: tell every Discord app running, not only the first
 + 19/10/2026 | - | SJK Alpha collection: Mythical card rarity, Credits and Meme kinds, Bishop card
 - b56e9d0 |  | Cards: the Mythical rarity, Credits and Meme kinds, the SJK Alpha set
 + 19/10/2026 | - | Strafe aura: cg_strafeAura glow over the crosshair showing where turning gains speed

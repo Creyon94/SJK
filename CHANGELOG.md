@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Strafe aura: a Force-like glow over the crosshair, drawn by its own shader while you jump or fall, shows where turning gains speed for the keys you hold: a white-hot seam at the best heading, nothing short of it, red where it slows you down (Settings > HUD+, `cg_strafeAura`, off; on the ground too with `cg_strafeAuraGround`) _(Sol)_
 - Away emote: alt-tabbing out or staying idle (3 minutes, `cg_awayIdle`) plays an emote you pick in Settings > Sound > Emotes, a JA+ one on JA+ servers (`cg_awayEmoteJaplus`) or a silent looping SJK one (`cg_awayEmote`), and coming back ends it; any emote you play then goes quiet for everyone _(Sol)_
+- Cards: SJK Alpha's credits cards, from 000 (Sol) and 001 (Bishop) to 012 (JA+, by Slider), the people and projects SJK owes, with placeholder art for now; a set's numbers now start at 0 _(Sol)_
 - Cards: a fifth rarity, Mythical, in gold, rarer than Legendary and opened with the same fanfare; two new kinds, Credits and Meme; and the first collection is SJK Alpha, its card 1 "Bishop", honouring the author of JKR _(Sol)_
 - Siege: hacking an objective shows retail's hacker icon and progress bar under the crosshair, in place of the HACKING percentage _(Slash, after JKA)_
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
