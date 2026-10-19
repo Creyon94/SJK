@@ -21,6 +21,24 @@ GPU test renders every design on llvmpipe (GL) and passed. Not yet compared in a
 match; the sounds are still the skin files' (a separate change, the files are in the
 hub's pack).
 
+## Blade Lab signature shaders in game
+
+19/10/2026, `feat/blade-signatures`, based on `feat/blade-lab-designs` (on `main`
+`046ef86b`): the Blade Lab collection's signature shaders are drawn in game, starting with
+its twenty-one mythicals ([rendering.md](rendering.md#blade-lab-signature-shaders)): the
+lab's GLSL kept as the source, translated to WGSL by `scripts/blade_signatures.py`, each
+skin built into pipelines of its own on a background thread the first time it is worn,
+the skins in the client's catalogue (not yet the hub's; not droppable) with built-in
+files for when no pack has them. Checked on Linux x86_64 (Rust 1.97, lavapipe): every
+translation renders the same as naga's GLSL front end over a grid of blade places at four
+moments; every signature module validates with naga; the ignored GPU test renders all
+twenty-one through their own pipelines, lit and with dark corners (pictures looked at);
+Star Dragon compared with the lab page in Chromium (same dragon, clouds and stardust;
+the lab's bloom pass makes it brighter). Workspace formatting, build, tests and clippy
+(no new warnings) pass. Not verified: Windows (DX12 shader compile times), the game
+window, a live server, the hub's catalogue and pack (Sol's), each blade's look against
+the lab one by one, and frame time with several signature blades on screen.
+
 ## Menu pictures and readable world install failures
 
 18/10/2026, `personal/menu-pictures`, based on `main` `f19a8a67`: `ui_menuPictures`

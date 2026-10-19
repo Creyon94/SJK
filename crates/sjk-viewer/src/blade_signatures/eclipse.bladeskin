@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "glow_profile": {
+    "width": 0.4,
+    "peak": 0.5,
+    "tail_width": 0.9,
+    "tail_peak": 0.05
+  },
+  "core_profile": {
+    "width": 0.3,
+    "fringe_width": 0.6
+  },
+  "core": {
+    "white": [
+      1.0,
+      0.98,
+      0.92
+    ],
+    "white_flare": 0.5,
+    "fringe_cool": [
+      0.95,
+      0.75,
+      0.45
+    ],
+    "fringe_hot": [
+      1.0,
+      0.92,
+      0.75
+    ],
+    "fringe_heat": {
+      "base": 0.25,
+      "grain": 0.5
+    },
+    "fringe_brightness": {
+      "base": 0.8,
+      "grain": 0.3,
+      "flare": 0.8
+    },
+    "breathe": {
+      "amount": 0.04,
+      "rate": 6.0,
+      "along": 0.5,
+      "seed": 3.0
+    },
+    "tip": 2.0
+  },
+  "corona": {
+    "rim_cool": [
+      0.75,
+      0.62,
+      0.4
+    ],
+    "rim_hot": [
+      1.0,
+      0.9,
+      0.7
+    ],
+    "inner": [
+      1.0,
+      0.97,
+      0.9
+    ],
+    "inner_width": 0.6,
+    "rim_heat": {
+      "grain": 0.8,
+      "flare": 0.5
+    },
+    "inner_mix": {
+      "base": 0.5,
+      "grain": 0.3,
+      "flare": 0.2
+    },
+    "brightness": {
+      "base": 0.6,
+      "grain": 0.35,
+      "flare": 0.8
+    },
+    "reach": 2.0,
+    "swell": {
+      "grain": 0.1,
+      "flare": 0.3
+    }
+  },
+  "granulation": {
+    "octaves": [
+      {
+        "scale": 0.3,
+        "speed": 1.5,
+        "evolve": 0.4,
+        "offset": 50.0,
+        "weight": 0.7
+      },
+      {
+        "scale": 0.9,
+        "speed": 3.0,
+        "evolve": 0.8,
+        "offset": 90.0,
+        "weight": 0.3
+      }
+    ],
+    "low": 0.2,
+    "high": 0.8
+  },
+  "flares": {
+    "count": 0,
+    "rate": 0.5,
+    "rate_step": 0.1,
+    "rate_seed": 0.05,
+    "phase_seed": 5.0,
+    "phase_step": 0.4,
+    "threshold": 0.5,
+    "overshoot": 4.0,
+    "size": 3.0,
+    "size_jitter": 1.0
+  },
+  "shimmer": [],
+  "tongues": {
+    "along": 0.25,
+    "offset": 11.0,
+    "out": 1.4,
+    "speed": 0.8,
+    "edge_low": 0.2,
+    "edge_high": 0.9,
+    "low": 0.2,
+    "range": 1.8
+  },
+  "trail": [
+    1.0,
+    0.84,
+    0.58
+  ],
+  "light": {
+    "color": [
+      1.0,
+      0.86,
+      0.62
+    ],
+    "flicker": {
+      "amount": 0.0,
+      "waves": []
+    }
+  },
+  "sounds": {
+    "on": "sound/weapons/saber/saberon.wav",
+    "off": "sound/weapons/saber/saberoff.wav",
+    "hum": "sound/weapons/saber/saberhum1.wav",
+    "swings": [
+      "sound/weapons/saber/saberswing1.wav",
+      "sound/weapons/saber/saberswing2.wav",
+      "sound/weapons/saber/saberswing3.wav"
+    ]
+  }
+}

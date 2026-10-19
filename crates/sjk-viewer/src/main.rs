@@ -186,6 +186,7 @@ mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod achievements_frame;
 mod blade_lab_designs;
+mod blade_signatures;
 mod blade_skin_file;
 mod bug_report;
 mod electrify;

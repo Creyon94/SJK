@@ -8,6 +8,7 @@ use sjk_shader::ShaderCatalog;
 use sjk_vfs::VirtualFileSystem;
 use std::error::Error;
 use std::ops::Range;
+use std::sync::{Arc, OnceLock};
 
 #[path = "saber_glow_integral.rs"]
 pub(crate) mod glow_integral;
@@ -53,6 +54,165 @@ pub(crate) struct Runtime {
     /// blades just drawn, and whether a loaded skin has any.
     solid_pipeline: wgpu::RenderPipeline,
     any_solids: bool,
+    /// What the signature skins' own pipelines are made with (`blade_signatures.rs`).
+    builder: SignatureBuilder,
+    /// The loaded skins' signatures by skin number, and their pipelines once built.
+    signed: Vec<Option<Signed>>,
+}
+
+/// A loaded skin's signature shader and its pipelines: built from its own module on a
+/// thread of their own the first time a blade wears it (or the preview shows it), so the
+/// frame never waits; until then its blades are drawn by the shared pipelines, from the
+/// skin's file alone.
+struct Signed {
+    signature: &'static crate::blade_signatures::Signature,
+    built: Arc<OnceLock<Option<SignaturePipelines>>>,
+    started: std::cell::Cell<bool>,
+}
+
+/// A signature skin's glow (`fragment_main`), bloom (`fragment_glow`) and solid
+/// (`fragment_solid`) pipelines.
+struct SignaturePipelines {
+    main: wgpu::RenderPipeline,
+    glow: wgpu::RenderPipeline,
+    solid: wgpu::RenderPipeline,
+}
+
+/// The passes a signature skin has pipelines of its own for.
+#[derive(Clone, Copy)]
+enum Pass {
+    Main,
+    Glow,
+    Solid,
+}
+
+/// The device, layout and target format the blade pipelines are made with, kept to build
+/// the signature skins' own.
+#[derive(Clone)]
+struct SignatureBuilder {
+    device: wgpu::Device,
+    layout: wgpu::PipelineLayout,
+    format: wgpu::TextureFormat,
+}
+
+impl SignatureBuilder {
+    /// A blade pipeline: `vertex` and `fragment` of `module`, depth-tested, blended so.
+    fn pipeline(
+        &self,
+        label: &str,
+        module: &wgpu::ShaderModule,
+        vertex: &str,
+        fragment: &str,
+        blend: Option<wgpu::BlendState>,
+    ) -> wgpu::RenderPipeline {
+        blade_pipeline(
+            &self.device,
+            &self.layout,
+            self.format,
+            label,
+            module,
+            vertex,
+            fragment,
+            blend,
+        )
+    }
+
+    /// `signature`'s pipelines; `None` (logged) when its module does not build.
+    fn build(&self, signature: &crate::blade_signatures::Signature) -> Option<SignaturePipelines> {
+        let started = std::time::Instant::now();
+        let scope = self.device.push_error_scope(wgpu::ErrorFilter::Validation);
+        let module = self
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(signature.id),
+                source: wgpu::ShaderSource::Wgsl(signature.module_source().into()),
+            });
+        let pipelines = SignaturePipelines {
+            main: self.pipeline(
+                signature.id,
+                &module,
+                "vertex_main",
+                "fragment_main",
+                Some(wgpu::BlendState::ADDITIVE),
+            ),
+            glow: self.pipeline(
+                signature.id,
+                &module,
+                "vertex_main",
+                "fragment_glow",
+                Some(wgpu::BlendState::ADDITIVE),
+            ),
+            solid: self.pipeline(
+                signature.id,
+                &module,
+                "vertex_solid",
+                "fragment_solid",
+                Some(wgpu::BlendState::ALPHA_BLENDING),
+            ),
+        };
+        if let Some(error) = pollster::block_on(scope.pop()) {
+            crate::log::progress(format_args!(
+                "blade skins: {}'s signature shader: {error}",
+                signature.id
+            ));
+            return None;
+        }
+        crate::log::progress(format_args!(
+            "blade skins: {}'s signature shader built in {} ms",
+            signature.id,
+            started.elapsed().as_millis()
+        ));
+        Some(pipelines)
+    }
+}
+
+/// A blade pipeline over the instances: `vertex` and `fragment` of `module`, depth-tested
+/// against the scene without writing depth, blended with `blend`.
+#[allow(clippy::too_many_arguments)]
+fn blade_pipeline(
+    device: &wgpu::Device,
+    layout: &wgpu::PipelineLayout,
+    format: wgpu::TextureFormat,
+    label: &str,
+    module: &wgpu::ShaderModule,
+    vertex: &str,
+    fragment: &str,
+    blend: Option<wgpu::BlendState>,
+) -> wgpu::RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some(label),
+        layout: Some(layout),
+        vertex: wgpu::VertexState {
+            module,
+            entry_point: Some(vertex),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            buffers: &[Some(Instance::layout())],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module,
+            entry_point: Some(fragment),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+        primitive: wgpu::PrimitiveState {
+            cull_mode: None,
+            ..Default::default()
+        },
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: DepthTarget::FORMAT,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(wgpu::CompareFunction::LessEqual),
+            stencil: Default::default(),
+            bias: Default::default(),
+        }),
+        multisample: wgpu::MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+    })
 }
 
 /// Blade instances the model preview can draw: two sabers of eight blades, each its glow,
@@ -145,40 +305,16 @@ impl Runtime {
             immediate_size: 0,
         });
         let create = |fragment| {
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("SJK saber pipeline"),
-                layout: Some(&layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: Some("vertex_main"),
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    buffers: &[Some(Instance::layout())],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: Some(fragment),
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(wgpu::BlendState::ADDITIVE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    cull_mode: None,
-                    ..Default::default()
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DepthTarget::FORMAT,
-                    depth_write_enabled: Some(false),
-                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                    stencil: Default::default(),
-                    bias: Default::default(),
-                }),
-                multisample: wgpu::MultisampleState::default(),
-                multiview_mask: None,
-                cache: None,
-            })
+            blade_pipeline(
+                device,
+                &layout,
+                format,
+                "SJK saber pipeline",
+                &shader,
+                "vertex_main",
+                fragment,
+                Some(wgpu::BlendState::ADDITIVE),
+            )
         };
         let pipeline = create("fragment_main");
         let glow_pipeline = create("fragment_glow");
@@ -186,40 +322,9 @@ impl Runtime {
         // effect has drawn yet), depth-tested so a wall before the blade stays sharp; a
         // black hole's lens and horizon blend over what is there.
         let special = |label, layout, vertex, fragment, blend| {
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some(label),
-                layout: Some(layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: Some(vertex),
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    buffers: &[Some(Instance::layout())],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: Some(fragment),
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    cull_mode: None,
-                    ..Default::default()
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DepthTarget::FORMAT,
-                    depth_write_enabled: Some(false),
-                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                    stencil: Default::default(),
-                    bias: Default::default(),
-                }),
-                multisample: wgpu::MultisampleState::default(),
-                multiview_mask: None,
-                cache: None,
-            })
+            blade_pipeline(
+                device, layout, format, label, &shader, vertex, fragment, blend,
+            )
         };
         let haze_pipeline = special(
             "SJK saber haze pipeline",
@@ -299,6 +404,12 @@ impl Runtime {
             any_holes: false,
             solid_pipeline,
             any_solids: false,
+            builder: SignatureBuilder {
+                device: device.clone(),
+                layout,
+                format,
+            },
+            signed: Vec::new(),
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
                 queue,
@@ -326,8 +437,30 @@ impl Runtime {
         self.any_haze = skins.iter().any(|(_, skin)| skin.shown().haze.is_some());
         self.any_holes = skins.iter().any(|(_, skin)| skin.shown().holes.is_some());
         self.any_solids = skins.iter().any(|(_, skin)| {
-            skin.shown().solids().any() || skin.design_shown().is_some_and(|design| design.solid)
+            skin.shown().solids().any()
+                || skin.design_shown().is_some_and(|design| design.solid)
+                || skin
+                    .signature_shown()
+                    .is_some_and(|signature| signature.solid())
         });
+        // Pipelines already built for a signature at the same number are kept.
+        let mut signed: Vec<Option<Signed>> = (0..MAX_SKINS).map(|_| None).collect();
+        for (index, skin) in skins.iter() {
+            let Some(signature) = skin.signature_shown() else {
+                continue;
+            };
+            let kept = self
+                .signed
+                .get_mut(usize::from(index))
+                .and_then(Option::take)
+                .filter(|old| std::ptr::eq(old.signature, signature));
+            signed[usize::from(index)] = Some(kept.unwrap_or(Signed {
+                signature,
+                built: Arc::default(),
+                started: std::cell::Cell::new(false),
+            }));
+        }
+        self.signed = signed;
         for (index, skin) in skins.iter() {
             self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
                 saber::material(
@@ -349,10 +482,58 @@ impl Runtime {
         now: i64,
     ) {
         self.ranges = saber::material_ranges(blades);
+        self.build_signatures(&self.ranges);
         if !blades.is_empty() {
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(blades));
         }
         self.trails.prepare(queue, trails, now);
+    }
+
+    /// Start building the pipelines of every signature skin `ranges` draws that has none
+    /// yet, each on a thread of its own.
+    fn build_signatures(&self, ranges: &[Range<u32>]) {
+        let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
+        for (signed, range) in self.signed.iter().zip(&ranges[skins..]) {
+            let Some(signed) = signed else {
+                continue;
+            };
+            if range.is_empty() || signed.started.replace(true) {
+                continue;
+            }
+            let builder = self.builder.clone();
+            let built = signed.built.clone();
+            let signature = signed.signature;
+            let spawned = std::thread::Builder::new()
+                .name("sjk-blade-signature".to_owned())
+                .spawn(move || {
+                    let _ = built.set(builder.build(signature));
+                });
+            if let Err(why) = spawned {
+                crate::log::progress(format_args!(
+                    "blade skins: {}'s signature shader: no thread: {why}",
+                    signature.id
+                ));
+            }
+        }
+    }
+
+    /// The pipeline drawing material `material` in `pass`: a signature skin's own once
+    /// built, else `shared`.
+    fn pick<'a>(
+        &'a self,
+        material: usize,
+        pass: Pass,
+        shared: &'a wgpu::RenderPipeline,
+    ) -> &'a wgpu::RenderPipeline {
+        let own = material
+            .checked_sub(crate::saber_rgb::SKIN_MATERIAL as usize)
+            .and_then(|index| self.signed.get(index)?.as_ref()?.built.get()?.as_ref());
+        match (own, pass) {
+            (Some(own), Pass::Main) => &own.main,
+            (Some(own), Pass::Glow) => &own.glow,
+            (Some(own), Pass::Solid) => &own.solid,
+            (None, _) => shared,
+        }
     }
 
     pub(crate) fn draw<'pass>(
@@ -361,7 +542,7 @@ impl Runtime {
         camera: &'pass wgpu::BindGroup,
     ) {
         self.trails.draw(pass, camera, true);
-        self.draw_blades(pass, camera, &self.pipeline);
+        self.draw_blades(pass, camera, Pass::Main);
         self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges, true);
     }
 
@@ -388,7 +569,7 @@ impl Runtime {
                 pass,
                 camera,
                 &self.skins,
-                &self.black_pipeline,
+                |_| &self.black_pipeline,
                 &self.materials[black..],
                 buffer,
                 &ranges[black..],
@@ -399,7 +580,7 @@ impl Runtime {
                 pass,
                 camera,
                 &self.skins,
-                &self.shade_pipeline,
+                |_| &self.shade_pipeline,
                 &self.materials,
                 buffer,
                 ranges,
@@ -410,7 +591,7 @@ impl Runtime {
                 pass,
                 camera,
                 &self.skins,
-                &self.solid_pipeline,
+                |material| self.pick(material, Pass::Solid, &self.solid_pipeline),
                 &self.materials,
                 buffer,
                 ranges,
@@ -492,6 +673,7 @@ impl Runtime {
         let count = blades.len().min(PREVIEW_BLADES);
         let blades = &mut blades[..count];
         self.preview_ranges = saber::material_ranges(blades);
+        self.build_signatures(&self.preview_ranges);
         if !blades.is_empty() {
             queue.write_buffer(&self.preview_buffer, 0, bytemuck::cast_slice(blades));
         }
@@ -507,7 +689,7 @@ impl Runtime {
             pass,
             camera,
             &self.skins,
-            &self.pipeline,
+            |material| self.pick(material, Pass::Main, &self.pipeline),
             &self.materials,
             &self.preview_buffer,
             &self.preview_ranges,
@@ -533,7 +715,7 @@ impl Runtime {
         if !blades_only {
             self.trails.draw(pass, camera, false);
         }
-        self.draw_blades(pass, camera, &self.glow_pipeline);
+        self.draw_blades(pass, camera, Pass::Glow);
         // A hole in front of the blade hides its glow there too.
         self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges, false);
     }
@@ -547,13 +729,17 @@ impl Runtime {
         &'pass self,
         pass: &mut wgpu::RenderPass<'pass>,
         camera: &'pass wgpu::BindGroup,
-        pipeline: &'pass wgpu::RenderPipeline,
+        kind: Pass,
     ) {
+        let shared = match kind {
+            Pass::Glow => &self.glow_pipeline,
+            _ => &self.pipeline,
+        };
         draw_instances(
             pass,
             camera,
             &self.skins,
-            pipeline,
+            |material| self.pick(material, kind, shared),
             &self.materials,
             &self.instance_buffer,
             &self.ranges,
@@ -583,12 +769,13 @@ fn skinned(ranges: &[Range<u32>]) -> bool {
         .any(|range| !range.is_empty())
 }
 
-/// Draw the blade instances of `buffer`, a run per material.
+/// Draw the blade instances of `buffer`, a run per material, each with the pipeline
+/// `pipeline` picks for its place in `materials` (a signature skin's may be its own).
 fn draw_instances<'pass>(
     pass: &mut wgpu::RenderPass<'pass>,
     camera: &'pass wgpu::BindGroup,
     skins: &'pass wgpu::BindGroup,
-    pipeline: &'pass wgpu::RenderPipeline,
+    pipeline: impl Fn(usize) -> &'pass wgpu::RenderPipeline,
     materials: &'pass [wgpu::BindGroup],
     buffer: &'pass wgpu::Buffer,
     ranges: &[Range<u32>],
@@ -596,13 +783,22 @@ fn draw_instances<'pass>(
     if ranges.iter().all(Range::is_empty) {
         return;
     }
-    pass.set_pipeline(pipeline);
-    pass.set_bind_group(0, camera, &[]);
-    pass.set_bind_group(2, skins, &[]);
-    pass.set_vertex_buffer(0, buffer.slice(..));
-    for (material, instances) in materials.iter().zip(ranges.iter().cloned()) {
+    // Materials offset from the first (the black blades') pick by their own number.
+    let first = crate::saber_rgb::MATERIAL_COUNT - materials.len();
+    let mut current: Option<&wgpu::RenderPipeline> = None;
+    for (index, (material, instances)) in materials.iter().zip(ranges.iter().cloned()).enumerate() {
         if instances.is_empty() {
             continue;
+        }
+        let chosen = pipeline(first + index);
+        if current.is_none_or(|current| !std::ptr::eq(current, chosen)) {
+            pass.set_pipeline(chosen);
+            if current.is_none() {
+                pass.set_bind_group(0, camera, &[]);
+                pass.set_bind_group(2, skins, &[]);
+                pass.set_vertex_buffer(0, buffer.slice(..));
+            }
+            current = Some(chosen);
         }
         pass.set_bind_group(1, material, &[]);
         pass.draw(0..6, instances);

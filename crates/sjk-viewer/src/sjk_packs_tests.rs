@@ -17,10 +17,15 @@ fn write_pack(directory: &Path, name: &str, files: &[(&str, &[u8])]) {
 #[test]
 fn a_pack_arriving_at_runtime_is_mounted_and_its_skins_loaded() {
     let directory = tempfile::tempdir().unwrap();
-    // Nothing cached yet: no skins, under a new generation all the same.
+    // Nothing cached yet: no pack's skins (only the signature skins built in), under a
+    // new generation all the same.
     let before = generation();
     let empty = mount(directory.path());
-    assert!(empty.ids().next().is_none());
+    assert!(
+        empty
+            .ids()
+            .all(|id| crate::blade_signatures::of(id).is_some())
+    );
     assert!(empty.generation() > before);
     // The service writes a pack: mounting again loads its blade skin, its sounds come
     // from it, and frames see the new generation.
@@ -36,7 +41,7 @@ fn a_pack_arriving_at_runtime_is_mounted_and_its_skins_loaded() {
     std::fs::write(directory.path().join(".sjk_skins.pk3.part"), b"x").unwrap();
     std::fs::write(directory.path().join("notes.txt"), b"x").unwrap();
     let loaded = mount(directory.path());
-    assert_eq!(loaded.ids().collect::<Vec<_>>(), ["saber_sun"]);
+    assert_eq!(loaded.ids().next(), Some("saber_sun"));
     assert!(loaded.generation() > empty.generation());
     assert!(generation() >= loaded.generation());
     assert!(

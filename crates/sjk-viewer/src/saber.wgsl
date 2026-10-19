@@ -1558,7 +1558,8 @@ fn skin_past_glow(skin: Skin, input: VertexOutput, beyond: f32) -> bool {
         && skin.hour_shape.x <= 0.0 && skin.serpent_shape.x <= 0.0
         && skin.strand_shape.x < 2.0 && skin.blob_shape.x < 1.0 && skin.fly_shape.x < 1.0
         && skin.wing_shape.x <= 0.0;
-    if !plain {
+    // A signature shader draws wherever its quad reaches.
+    if !plain || skin.design.x == f32(LAB_SIGNATURE) {
         return false;
     }
     let reach = max(chain_radius(input.radius, input.length, 0.0), input.hilt) * skin.swell.x;
@@ -1822,6 +1823,12 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     if any(hue.xyz != vec3(0.0)) {
         glow = skin_turn_hue(glow, time * hue.x + around * hue.y + radial / r * hue.z);
     }
+    // A signature shader takes the glow the file drew and draws the blade its own way.
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        sig_take(input);
+        let place = input.blade.y / max(input.shaft, 0.0001) * input.length;
+        glow = max(sig_glow(glow, vec2(x, place), r, pixel), vec3(0.0));
+    }
     // A chroma takes its wearer's colour: everything it drew, turned at once.
     if input.chroma != 0.0 {
         glow = skin_turn_hue(glow, input.chroma);
@@ -1891,6 +1898,12 @@ fn skin_core(input: VertexOutput, texel: vec4<f32>, uv: vec2<f32>, footprint: f3
     let cut = skin_cut(skin, input.length, time, seed);
     if cut < input.length {
         core *= 1.0 - smoothstep(cut - 1.5, cut + 0.5, along);
+    }
+    // A signature shader's core, which never runs on past the tip.
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        sig_take(input);
+        core = max(sig_core(core, vec2(x, along), footprint), vec3(0.0))
+            * (1.0 - smoothstep(input.length - 0.2, input.length + 0.4, along));
     }
     if input.chroma != 0.0 {
         core = skin_turn_hue(core, input.chroma);
@@ -2260,6 +2273,11 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
         alpha = max(alpha, ring);
         out = vec4(rgb, alpha);
     }
+    // A signature shader's solid layer (dark stone, scales, a horizon).
+    if skin.design.x == f32(LAB_SIGNATURE) {
+        sig_take(input);
+        out = clamp(sig_solid(out, vec2(x, place), pixel), vec4(0.0), vec4(1.0));
+    }
     return out;
 }
 
@@ -2300,6 +2318,9 @@ const LAB_MONARCH: u32 = 11u;
 const LAB_PHOENIX: u32 = 12u;
 const LAB_SERPENT: u32 = 13u;
 const LAB_QUANTUM: u32 = 14u;
+// A skin drawn by a Blade Lab signature shader (blade_signatures.rs): its `design` lane's
+// number. The skin's own passes draw it, each handing what it drew to the signature.
+const LAB_SIGNATURE: u32 = 100u;
 
 // Where a fragment is, in the lab's terms. `x` along the blade (metres from the hilt, as
 // on the blade itself), `y` across, `big_l` the blade's length, `d` the distance to the
@@ -2344,7 +2365,12 @@ fn lab_design(input: VertexOutput) -> u32 {
     if input.kind < KIND_SKIN {
         return 0u;
     }
-    return u32(skins[skin_index(input)].design.x + 0.5);
+    let n = u32(skins[skin_index(input)].design.x + 0.5);
+    // A signature shader is drawn by the skin's own passes, with its hooks.
+    if n == LAB_SIGNATURE {
+        return 0u;
+    }
+    return n;
 }
 
 fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
@@ -3475,3 +3501,55 @@ fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
     out.a *= persona_fade(input);
     return out;
 }
+
+// --- Blade Lab signature shaders (blade_signatures.rs) ----------------------------------
+//
+// A signature is the lab's own GLSL shader for one blade, translated to WGSL by
+// scripts/blade_signatures.py: `sig_glow` takes the glow the skin's file drew (`g`) and
+// returns the blade's light, `sig_core` the same for the core line, `sig_solid` a layer
+// blended over the glow. `b` is the place on the blade in units (across, along: 0 at the
+// hilt, `uLength` at the tip), `r` the stock glow's radius there, `px` a pixel in units.
+// They read the lab's uniforms, set from the instance by `sig_take`. This module holds
+// stand-ins that change nothing; each signature skin's pipelines are built from this
+// module with the region between the markers replaced by the lab's helpers and its own
+// functions (blade_signatures.rs `module_source`).
+
+var<private> uTime: f32;
+var<private> uLength: f32;
+var<private> uSwing: f32;
+var<private> uClash: f32;
+var<private> uIgn: f32;
+var<private> uAge: f32;
+var<private> uSeed: f32;
+var<private> uChroma: f32;
+var<private> uRoom: f32;
+
+// The lab's ignition takes 0.42 s and its clash fades at 2.2 a second.
+const SIG_IGNITION: f32 = 0.42;
+
+fn sig_take(input: VertexOutput) {
+    uTime = input.animation.x;
+    uSeed = input.animation.y;
+    uLength = input.length;
+    uSwing = clamp(input.motion.x, 0.0, 1.0);
+    uClash = max(1.0 - input.motion.y * 2.2, 0.0);
+    uAge = input.motion.z;
+    uIgn = clamp(input.motion.z / SIG_IGNITION, 0.0, 1.0);
+    // The page turned a chroma's output afterwards; the game turns it after the hooks.
+    uChroma = 0.0;
+    uRoom = skins[skin_index(input)].design.z / LAB_METRE;
+}
+
+// @signature begin
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return g;
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return c;
+}
+
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
+    return o;
+}
+// @signature end
