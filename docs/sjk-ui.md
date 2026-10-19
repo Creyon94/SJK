@@ -1207,8 +1207,10 @@ and out as the classic board does, settling into place as it opens.
   `CS_SIEGE_STATE` turned "3|time" (`sjk_client::siege_round_winner`), else,
   after the second round of a match whose teams switch, `CS_SIEGE_WINTEAM`; one
   who joined after another round's event sees no winner. A team game at its
-  intermission tells its result the same way, with the score, the winner's
-  first: "5 : 4  Blue team won" over the blue wash, or "Tied 3 : 3" in white;
+  intermission tells its result as a siege round does (Slash's request of
+  19/10/2026), from the moment the server sets `CS_INTERMISSION` (or this
+  client's own `PM_INTERMISSION`): "Blue team won" over the blue wash and "Winner" at the end of that
+  team's head, or "Teams tied" in white; the scores stay in the team heads, and
   the line on the right says nothing then. Under
   the map, "Killed by" and the name while you are dead.
 - **Where:** the columns start at x 680 of the frame, right of the chat column

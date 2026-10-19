@@ -246,6 +246,7 @@ impl Scoreboard {
                 siege_winner: (self.gametype == sjk_game_jka::match_end::GT_SIEGE)
                     .then(|| sjk_client::siege_round_winner(game, self.siege_round_over))
                     .flatten(),
+                match_over: local_status.intermission || match_over(game),
                 duel: sjk::Duelists {
                     local: Some((player.health(), player.armor())),
                     ..duelists(game)
@@ -494,6 +495,15 @@ fn level_elapsed(game: &GameState, server_time: i32) -> Option<i32> {
     config_text(game, CS_LEVEL_START_TIME)
         .and_then(|start| start.trim().parse::<i32>().ok())
         .map(|start| server_time.saturating_sub(start).max(0))
+}
+
+/// Whether the server has ended the match (`CS_INTERMISSION` "1"): set the moment a
+/// limit is hit, as siege's round end is told by its own configuration string, so the
+/// result does not wait on this client's `PM_INTERMISSION` (a spectator's or follower's
+/// may never carry it, and a mod may hold it back).
+fn match_over(game: &GameState) -> bool {
+    config_text(game, sjk_game_jka::match_end::CS_INTERMISSION)
+        .is_some_and(|text| text.trim().parse::<i32>().is_ok_and(|value| value != 0))
 }
 
 /// Who duels (`CS_CLIENT_DUELISTS`, `-1` for nobody) and their health when the
@@ -811,6 +821,19 @@ mod tests {
         );
         game.replace_config_string(30, b"-1|0|1".to_vec()).unwrap();
         assert_eq!(classic_duel_result(&game, &board.rows, 4, true), None);
+    }
+
+    #[test]
+    fn the_match_is_over_once_the_server_sets_cs_intermission() {
+        let mut game = GameState::empty_local(0);
+        assert!(!match_over(&game));
+        game.replace_config_string(22, b"1".to_vec()).unwrap();
+        assert!(match_over(&game));
+        // A new map clears it.
+        game.replace_config_string(22, Vec::new()).unwrap();
+        assert!(!match_over(&game));
+        game.replace_config_string(22, b"0".to_vec()).unwrap();
+        assert!(!match_over(&game));
     }
 
     #[test]
