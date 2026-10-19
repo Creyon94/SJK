@@ -1322,7 +1322,10 @@ impl State {
             // The name rises as the plate fades in beneath it.
             let line = size * 1.15;
             let top = bottom - stack_height * entry.detail - line;
-            if entry.names_allowed && !label(id).is_empty() {
+            let named = entry.names_allowed && !label(id).is_empty();
+            // The duel badge takes the weapon icon's place left of the name.
+            let duel_badge = named && entry.duelling && self.settings.duel_badge;
+            if named {
                 let width = (320.0 * unit).min(viewport[0]);
                 let left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
                 let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.proximity;
@@ -1342,7 +1345,6 @@ impl State {
                     letter_spacing: 0.0,
                 });
                 let scale = size / font.height.max(1.0);
-                let duel_badge = entry.duelling && self.settings.duel_badge;
                 // Measured only for a badge beside the name.
                 let text = if duel_badge || entry.mark.is_some() {
                     crate::text::visible_text_width(font, label(id), scale).min(width)
@@ -1393,7 +1395,7 @@ impl State {
                 self.plate(&entry, &stack, u);
                 let _ = self.list.push(DrawCommand::PopOpacity);
             }
-            if entry.weapon != WP_NONE && entry.proximity > 0.01 {
+            if entry.weapon != WP_NONE && entry.proximity > 0.01 && !duel_badge {
                 self.weapon_icon(&entry, weapons, [x, weapon_centre], u, viewport);
             }
             let _ = self.list.push(DrawCommand::PopOpacity);
