@@ -8757,6 +8757,21 @@ Sound tab. The settings tests cover its row label and help text. No client was
 run: the mute on alt-tab and minimize, and the instant gain step (no fade; a
 click is possible), are unverified in game.
 
+## NPC and map model loads off the render thread
+
+Branch `personal/model-preload` (19/10/2026, based on `c398bebf`, Windows 11), after
+Nib's report (#86): the game hung a moment when a model came in, the FFA3 falcon
+flying over or a vehicle an admin spawned. Logs showed `config-refresh` hitches the
+frame an NPC was built (`npc_refresh.rs`, all on the render thread): 36 ms `$swoop`,
+37 ms `$tauntaun`, 70 ms a `jedi_hm` NPC, 965 ms `jaden_new`; and 74 ms for two map
+models. NPC bodies and vehicles now load on a worker (`npc_loads.rs`) as players' models
+do, one NPC at a time; demanded map models and NPCs upload their prepared textures one a
+frame and compile new pipelines on a worker before they are drawn. Off screen on duel6
+in a release build with Sol's HD pack, `falcon2.md3`'s worst frame went from 209 ms
+(all its textures copied at once) to 31 ms; the retail antenna 0.8 ms. Verified by the
+viewer suite, fmt and Clippy and that ignored GPU test; an NPC or vehicle spawn was not
+tried in a game, and saber hilts an NPC brings still load on the render thread.
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.

@@ -11,11 +11,16 @@ Unused server-advertised rigid models load on first reference through
 mip chains run on a single worker per world (`warm_entity_materials`, as for
 players' models); upload and geometry/material installation stay with the GPU
 owner. Idle scans borrow existing entity appearances and use a sorted set of
-attempted models, without per-frame name allocation. Uploading very large
-textures (HD packs: `falcon2.md3` about 110 ms) and new pipelines still cost the
-install frame, and models remain resident until the world is replaced. Vehicle
-projectile, effect and cosmetic models still load whole on the render thread
-(`load_config_model`).
+attempted models, without per-frame name allocation. The prepared textures go up
+one a frame (an HD pack's texture with its mips is near 90 MB to copy), then the
+model's geometry and materials, and new pipelines compile on a
+`sjk-model-pipelines` worker before the model is drawn: `falcon2.md3` with an HD
+pack, off screen on duel6 in a release build, held its worst frame 209 ms, now
+31 ms. Models remain resident until the world is replaced. NPC bodies and vehicles
+(`$swoop`, `$tauntaun`, an admin's spawned NPC) load the same way through
+`npc_refresh::npc_loads`, one NPC at a time, the NPC unseen until its model is in.
+Vehicle projectile, effect and cosmetic models still load whole on the render
+thread (`load_config_model`), as do NPC saber hilts not yet loaded.
 
 | Area | Entry point |
 | --- | --- |
