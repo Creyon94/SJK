@@ -1,3 +1,14 @@
+## Blade numbers
+
+20/10/2026, `personal/blade-numbers`, based on `main` (Sol's request: name blades by
+number in reviews and notes, as cards are): every blade skin has a fixed number
+(`Unlockable::number`, catalogue order, Sun 001 to Alderaan Velvet 165, never reused).
+The Collection's grid, rack and card show it after the tier, the hover card reads "Blade
+042", the search takes a number, `saberskin` lists numbers and wears one by number, and
+[unlockables.md](unlockables.md#catalogue) has the full numbered list (a test checks it
+against the catalogue). Client only: the hub keeps naming blades by id. Verified on
+Windows 11: unit tests. Not verified: in a game.
+
 ## Staff-only plugin name and showcase tools
 
 19/10/2026, `personal/staff-gates`, based on `main` `3fcbdd96` (Sol's decision): the

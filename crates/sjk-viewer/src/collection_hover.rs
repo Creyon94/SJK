@@ -200,7 +200,8 @@ fn shader_card(
         lines: vec![
             Line::how(skin.how_to_get),
             Line::status(format!(
-                "{} blade skin. {}.",
+                "Blade {}. {} blade skin. {}.",
+                skin.number_text(),
                 skin.tier.label(),
                 crate::editions::name(skin.edition)
             )),

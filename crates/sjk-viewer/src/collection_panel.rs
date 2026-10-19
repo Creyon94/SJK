@@ -127,7 +127,7 @@ const FILTER_TIERS: [unlockables::Rarity; 5] = [
 ];
 
 /// What the Shaders tab lists: a tier, the shaders held only, and words of a name (or a
-/// tier) the search names. The stock blade is always the first row.
+/// tier) or a blade's number the search names. The stock blade is always the first row.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(super) struct ShaderFilter {
     pub(super) tier: Option<unlockables::Rarity>,
@@ -147,6 +147,11 @@ impl ShaderFilter {
             return false;
         }
         let query = self.query.trim().to_lowercase();
+        // A number finds that blade alone ("42", "042" or "#42").
+        let digits = query.strip_prefix('#').unwrap_or(&query);
+        if !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()) {
+            return digits.parse() == Ok(skin.number);
+        }
         query.is_empty()
             || skin.name.to_lowercase().contains(&query)
             || skin.tier.label().to_lowercase().contains(&query)
@@ -1302,6 +1307,20 @@ mod tests {
 
     fn ids(panel: &Panel) -> Vec<&'static str> {
         panel.shader_list.iter().map(|skin| skin.id).collect()
+    }
+
+    /// A blade's number in the search lists that blade alone.
+    #[test]
+    fn a_number_searches_for_that_blade_alone() {
+        let filter = ShaderFilter {
+            query: "#2".to_owned(),
+            ..ShaderFilter::default()
+        };
+        let found: Vec<_> = unlockables::blade_skins()
+            .filter(|skin| filter.passes(skin, false))
+            .map(|skin| skin.number)
+            .collect();
+        assert_eq!(found, [2]);
     }
 
     /// A tier chip lists that tier's shaders alone; cycling comes round to All again.

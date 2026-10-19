@@ -57,59 +57,179 @@ blade skins, `saberskin`, the Collection and the Staff page all read it); a new
 unlockable needs both, and a blade skin also its file in a pack. Ids never change
 meaning.
 
-| Id | Name | Kind | How to get it |
-| --- | --- | --- | --- |
-| `saber_sun` | Sun blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_storm` | Storm blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_void` | Void blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_frost` | Frost blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_prism` | Prism blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_unstable` | Unstable blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_molten` | Molten blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_spectral` | Spectral blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_glitch` | Glitch blade | blade skin | Comes with the Bug Hunter medal, for as long as you hold it. |
-| `saber_hologram` | Hologram blade | blade skin | Comes with the Early Tester medal, for as long as you hold it. |
-| `saber_runic` | Runic blade | blade skin | Comes with the Early Contributor medal, for as long as you hold it. |
-| `saber_chameleon` | Chameleon blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_banner` | Banner blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_heartbeat` | Heartbeat blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_tidal` | Tidal blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_circuit` | Circuit blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_aurora` | Aurora blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_echo` | Echo blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_nebula` | Nebula blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_cinder` | Cinder blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_venom` | Venom blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_sakura` | Sakura blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_firefly` | Firefly blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_slate` | Slate blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_amber` | Amber blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_lilac` | Lilac blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_mint` | Mint blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_coral` | Coral blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_ivory` | Ivory blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_glacier` | Glacier blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_dusk` | Dusk blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_ruby` | Ruby blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_amethyst` | Amethyst blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_jade` | Jade blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_moonlight` | Moonlight blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_neon` | Neon blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_peppermint` | Peppermint blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_bubble` | Soap Bubble blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_lavalamp` | Lava Lamp blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_reactor` | Reactor blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_bleeding` | Bleeding Kyber blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_sketch` | Sketch blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_hourglass` | Hourglass blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_fiber` | Fiber Optic blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_serpent` | Serpent blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_monarch` | Monarch blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_phoenix` | Phoenix blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_quantum` | Quantum blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_comic` | Comic blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_quicksilver` | Quicksilver blade | blade skin | Found in holocrons, or given by the SJK team. |
-| `saber_obsidian` | Obsidian Edge blade | blade skin | Found in holocrons, or given by the SJK team. |
+Every blade has a number, as a card has in its set (`Unlockable::number`): given once in
+the order blades came (the Sun is 001), never changed or reused, so notes and reviews
+name a blade by it. The Collection shows it after the tier, its hover card reads "Blade
+042", its search finds a blade by number ("42", "042" or "#42") and `saberskin 42`
+wears it. A new blade takes the next number and a line here (a test checks this table).
+
+| No. | Id | Name | Tier | Smith | Drops |
+| --- | --- | --- | --- | --- | --- |
+| 001 | `saber_sun` | Sun blade | Mythical | Sol | yes |
+| 002 | `saber_storm` | Storm blade | Legendary | Sol | yes |
+| 003 | `saber_void` | Void blade | Mythical | Sol | yes |
+| 004 | `saber_frost` | Frost blade | Rare | Sol | yes |
+| 005 | `saber_prism` | Prism blade | Legendary | Sol | yes |
+| 006 | `saber_unstable` | Unstable blade | Legendary | Sol | yes |
+| 007 | `saber_molten` | Molten blade | Mythical | Sol | yes |
+| 008 | `saber_spectral` | Spectral blade | Mythical | Sol | yes |
+| 009 | `saber_glitch` | Glitch blade | Rare | Sol | no |
+| 010 | `saber_hologram` | Hologram blade | Rare | Sol | no |
+| 011 | `saber_runic` | Runic blade | Rare | Sol | no |
+| 012 | `saber_chameleon` | Chameleon blade | Legendary | Sol | yes |
+| 013 | `saber_banner` | Banner blade | Rare | Sol | yes |
+| 014 | `saber_heartbeat` | Heartbeat blade | Rare | Sol | yes |
+| 015 | `saber_tidal` | Kamino blade | Common | Creyon | yes |
+| 016 | `saber_circuit` | Droid Logic blade | Common | Creyon | yes |
+| 017 | `saber_aurora` | Hoth Aurora blade | Common | Creyon | yes |
+| 018 | `saber_echo` | Echo Base blade | Common | Creyon | yes |
+| 019 | `saber_nebula` | Nebula blade | Uncommon | Creyon | yes |
+| 020 | `saber_cinder` | Mustafar Ember blade | Uncommon | Creyon | yes |
+| 021 | `saber_venom` | Geonosis Acid blade | Uncommon | Creyon | yes |
+| 022 | `saber_sakura` | Naboo Blossom blade | Uncommon | Creyon | yes |
+| 023 | `saber_firefly` | Endor Lights blade | Uncommon | Creyon | yes |
+| 024 | `saber_slate` | Durasteel blade | Common | Creyon | yes |
+| 025 | `saber_amber` | Tatooine Gold blade | Common | Creyon | yes |
+| 026 | `saber_lilac` | Lothal Twilight blade | Common | Creyon | yes |
+| 027 | `saber_mint` | Yavin Jungle blade | Common | Creyon | yes |
+| 028 | `saber_coral` | Mon Cala Coral blade | Common | Creyon | yes |
+| 029 | `saber_ivory` | Jedi Temple blade | Common | Creyon | yes |
+| 030 | `saber_glacier` | Ilum blade | Uncommon | Creyon | yes |
+| 031 | `saber_dusk` | Binary Sunset blade | Uncommon | Creyon | yes |
+| 032 | `saber_ruby` | Sith Ruby blade | Uncommon | Creyon | yes |
+| 033 | `saber_amethyst` | Kyber Amethyst blade | Uncommon | Creyon | yes |
+| 034 | `saber_jade` | Dagobah Jade blade | Uncommon | Creyon | yes |
+| 035 | `saber_moonlight` | Ahch-To Moonlight blade | Uncommon | Creyon | yes |
+| 036 | `saber_neon` | Coruscant Neon blade | Uncommon | Creyon | yes |
+| 037 | `saber_peppermint` | Kessel Spice blade | Uncommon | Creyon | yes |
+| 038 | `saber_bubble` | Bacta blade | Rare | Creyon | yes |
+| 039 | `saber_lavalamp` | Coaxium blade | Rare | Creyon | yes |
+| 040 | `saber_reactor` | Reactor blade | Mythical | Creyon | yes |
+| 041 | `saber_bleeding` | Bleeding Kyber blade | Mythical | Creyon | yes |
+| 042 | `saber_sketch` | Death Star Plans blade | Rare | Creyon | yes |
+| 043 | `saber_hourglass` | Beskar Forge blade | Legendary | Creyon | yes |
+| 044 | `saber_fiber` | Kyber Cluster blade | Legendary | Creyon | yes |
+| 045 | `saber_serpent` | Sith Alchemy blade | Mythical | Creyon | yes |
+| 046 | `saber_monarch` | Felucia Spores blade | Mythical | Creyon | yes |
+| 047 | `saber_phoenix` | Phoenix Squadron blade | Mythical | Creyon | yes |
+| 048 | `saber_quantum` | Mortis blade | Mythical | Creyon | yes |
+| 049 | `saber_comic` | Clone Wars blade | Legendary | Creyon | yes |
+| 050 | `saber_quicksilver` | Liquid Beskar blade | Legendary | Creyon | yes |
+| 051 | `saber_obsidian` | Obsidian Edge blade | Mythical | Creyon | yes |
+| 052 | `saber_abyssal_eye` | Abyssal Eye blade | Mythical | Creyon | no |
+| 053 | `saber_aurora_wyrm` | Ilum Aurora Storm blade | Mythical | Creyon | no |
+| 054 | `saber_balance` | Balance blade | Mythical | Creyon | no |
+| 055 | `saber_between_worlds` | Between Worlds blade | Mythical | Creyon | no |
+| 056 | `saber_big_bang` | Big Bang blade | Mythical | Creyon | no |
+| 057 | `saber_carbonite` | Carbonite blade | Mythical | Creyon | no |
+| 058 | `saber_dyson_sphere` | Dyson Sphere blade | Mythical | Creyon | no |
+| 059 | `saber_eclipse` | Eclipse blade | Mythical | Creyon | no |
+| 060 | `saber_event_horizon` | Event Horizon blade | Mythical | Creyon | no |
+| 061 | `saber_exogorth` | Exogorth blade | Mythical | Creyon | no |
+| 062 | `saber_hyperspace` | Hyperspace blade | Mythical | Creyon | no |
+| 063 | `saber_kyber_heart` | Kyber Heart blade | Mythical | Creyon | no |
+| 064 | `saber_nebula_song` | Nebula Song blade | Mythical | Creyon | no |
+| 065 | `saber_quasar` | Quasar blade | Mythical | Creyon | no |
+| 066 | `saber_singing_kyber` | Singing Kyber blade | Mythical | Creyon | no |
+| 067 | `saber_sith_holocron` | Sith Holocron blade | Mythical | Creyon | no |
+| 068 | `saber_star_dragon` | Ashla Radiance blade | Mythical | Creyon | no |
+| 069 | `saber_starforge` | Starforge blade | Mythical | Creyon | no |
+| 070 | `saber_superlaser` | Superlaser blade | Mythical | Creyon | no |
+| 071 | `saber_uneti_tree` | Uneti Tree blade | Mythical | Creyon | no |
+| 072 | `saber_witchfire` | Witchfire blade | Mythical | Creyon | no |
+| 073 | `saber_world_shift` | World Shift blade | Mythical | Creyon | no |
+| 074 | `saber_wraithlight` | Wraithlight blade | Mythical | Creyon | no |
+| 075 | `saber_lightspeed_ram` | Holdo Maneuver blade | Mythical | Creyon | no |
+| 076 | `saber_hoth_avalanche` | Hoth Avalanche blade | Legendary | Creyon | no |
+| 077 | `saber_blood_moon` | Dathomir Blood Moon blade | Legendary | Creyon | no |
+| 078 | `saber_force_echo` | Force Echo blade | Legendary | Creyon | no |
+| 079 | `saber_hypermatter` | Hypermatter blade | Legendary | Creyon | no |
+| 080 | `saber_kessel_run` | Kessel Run blade | Legendary | Creyon | no |
+| 081 | `saber_unknown_regions` | Unknown Regions blade | Legendary | Creyon | no |
+| 082 | `saber_krayt_pearl` | Krayt Pearl blade | Legendary | Creyon | no |
+| 083 | `saber_starkiller_frost` | Starkiller Frost blade | Legendary | Creyon | no |
+| 084 | `saber_royal_naboo` | Royal Naboo blade | Legendary | Creyon | no |
+| 085 | `saber_bespin_storm` | Bespin Storm blade | Legendary | Creyon | no |
+| 086 | `saber_scarif_tide` | Scarif Tide blade | Legendary | Creyon | no |
+| 087 | `saber_assassin_droid` | Assassin Droid blade | Legendary | Creyon | no |
+| 088 | `saber_aurodium` | Aurodium blade | Legendary | Creyon | no |
+| 089 | `saber_kashyyyk_monsoon` | Kashyyyk Monsoon blade | Legendary | Creyon | no |
+| 090 | `saber_malachor_forge` | Malachor Forge blade | Legendary | Creyon | no |
+| 091 | `saber_yavin_vines` | Yavin Vines blade | Legendary | Creyon | no |
+| 092 | `saber_exegol_rift` | Exegol Rift blade | Legendary | Creyon | no |
+| 093 | `saber_shattered_kyber` | Shattered Kyber blade | Legendary | Creyon | no |
+| 094 | `saber_twin_suns` | Twin Suns blade | Legendary | Creyon | no |
+| 095 | `saber_jedi_spirits` | Jedi Spirits blade | Legendary | Creyon | no |
+| 096 | `saber_ord_mantell_storm` | Ord Mantell Thunderhead blade | Legendary | Creyon | no |
+| 097 | `saber_mustafar_eruption` | Mustafar Eruption blade | Legendary | Creyon | no |
+| 098 | `saber_hyperlane` | Hyperlane blade | Legendary | Creyon | no |
+| 099 | `saber_ahch_to_glow` | Ahch-To Glow blade | Rare | Creyon | no |
+| 100 | `saber_imperial_schematics` | Imperial Schematics blade | Rare | Creyon | no |
+| 101 | `saber_jedi_texts` | Jedi Texts blade | Rare | Creyon | no |
+| 102 | `saber_star_map` | Star Map blade | Rare | Creyon | no |
+| 103 | `saber_ilum_frost` | Ilum Frost blade | Rare | Creyon | no |
+| 104 | `saber_christophsis_crystal` | Christophsis Crystal blade | Rare | Creyon | no |
+| 105 | `saber_deflector_shield` | Deflector Shield blade | Rare | Creyon | no |
+| 106 | `saber_healed_kyber` | Healed Kyber blade | Rare | Creyon | no |
+| 107 | `saber_temple_mosaic` | Temple Mosaic blade | Rare | Creyon | no |
+| 108 | `saber_dagobah_wisps` | Dagobah Wisps blade | Rare | Creyon | no |
+| 109 | `saber_nar_shaddaa_rain` | Nar Shaddaa Rain blade | Rare | Creyon | no |
+| 110 | `saber_navigation_beacon` | Navigation Beacon blade | Rare | Creyon | no |
+| 111 | `saber_puzzle_holocron` | Puzzle Holocron blade | Rare | Creyon | no |
+| 112 | `saber_dac_reef` | Dac Reef blade | Rare | Creyon | no |
+| 113 | `saber_jakku_sandstorm` | Jakku Sandstorm blade | Rare | Creyon | no |
+| 114 | `saber_moisture_farm` | Moisture Farm blade | Rare | Creyon | no |
+| 115 | `saber_tipoca_stormglass` | Tipoca Stormglass blade | Rare | Creyon | no |
+| 116 | `saber_temple_sunbeam` | Temple Sunbeam blade | Rare | Creyon | no |
+| 117 | `saber_ion_coil` | Ion Coil blade | Rare | Creyon | no |
+| 118 | `saber_sith_thorn` | Sith Thorn blade | Rare | Creyon | no |
+| 119 | `saber_holo_recording` | Holo-Recording blade | Rare | Creyon | no |
+| 120 | `saber_data_disc` | Data Disc blade | Rare | Creyon | no |
+| 121 | `saber_cargo_stack` | Cargo Stack blade | Uncommon | Creyon | no |
+| 122 | `saber_otoh_gunga` | Otoh Gunga blade | Uncommon | Creyon | no |
+| 123 | `saber_victory_fireworks` | Victory Fireworks blade | Uncommon | Creyon | no |
+| 124 | `saber_endor_ivy` | Endor Ivy blade | Uncommon | Creyon | no |
+| 125 | `saber_naboo_core` | Naboo Core blade | Uncommon | Creyon | no |
+| 126 | `saber_gungan_waters` | Gungan Waters blade | Uncommon | Creyon | no |
+| 127 | `saber_cantina_lights` | Cantina Lights blade | Uncommon | Creyon | no |
+| 128 | `saber_imperial_searchlight` | Imperial Searchlight blade | Uncommon | Creyon | no |
+| 129 | `saber_flare_stick` | Flare Stick blade | Uncommon | Creyon | no |
+| 130 | `saber_flimsiplast` | Flimsiplast blade | Uncommon | Creyon | no |
+| 131 | `saber_canto_bight` | Canto Bight blade | Uncommon | Creyon | no |
+| 132 | `saber_sensor_sweep` | Sensor Sweep blade | Uncommon | Creyon | no |
+| 133 | `saber_takodana_rain` | Takodana Rain blade | Uncommon | Creyon | no |
+| 134 | `saber_starfighter_canopy` | Starfighter Canopy blade | Uncommon | Creyon | no |
+| 135 | `saber_distress_beacon` | Distress Beacon blade | Uncommon | Creyon | no |
+| 136 | `saber_orto_plutonia` | Orto Plutonia blade | Uncommon | Creyon | no |
+| 137 | `saber_rhen_var_frost` | Rhen Var Frost blade | Uncommon | Creyon | no |
+| 138 | `saber_seismic_charge` | Seismic Charge blade | Uncommon | Creyon | no |
+| 139 | `saber_thermal_fuse` | Thermal Fuse blade | Uncommon | Creyon | no |
+| 140 | `saber_senate_glass` | Senate Glass blade | Uncommon | Creyon | no |
+| 141 | `saber_holonet_feed` | Holonet Feed blade | Uncommon | Creyon | no |
+| 142 | `saber_holo_map` | Holo-Map blade | Uncommon | Creyon | no |
+| 143 | `saber_cockpit_console` | Cockpit Console blade | Uncommon | Creyon | no |
+| 144 | `saber_code_cylinder` | Code Cylinder blade | Common | Creyon | no |
+| 145 | `saber_cortosis_weave` | Cortosis Weave blade | Common | Creyon | no |
+| 146 | `saber_tatooine_dust` | Tatooine Dust blade | Common | Creyon | no |
+| 147 | `saber_trench_run` | Trench Run blade | Common | Creyon | no |
+| 148 | `saber_ryloth_dawn` | Ryloth Dawn blade | Common | Creyon | no |
+| 149 | `saber_power_coupling` | Power Coupling blade | Common | Creyon | no |
+| 150 | `saber_kyber_filament` | Kyber Filament blade | Common | Creyon | no |
+| 151 | `saber_frosted_viewport` | Frosted Viewport blade | Common | Creyon | no |
+| 152 | `saber_holo_stylus` | Holo-Stylus blade | Common | Creyon | no |
+| 153 | `saber_sabacc_card` | Sabacc Card blade | Common | Creyon | no |
+| 154 | `saber_geonosis_hive` | Geonosis Hive blade | Common | Creyon | no |
+| 155 | `saber_mygeeto_frost` | Mygeeto Frost blade | Common | Creyon | no |
+| 156 | `saber_bogano_moss` | Bogano Moss blade | Common | Creyon | no |
+| 157 | `saber_kef_bir_sea_glass` | Kef Bir Sea Glass blade | Common | Creyon | no |
+| 158 | `saber_jedha_lantern` | Jedha Lantern blade | Common | Creyon | no |
+| 159 | `saber_corellian_pearl` | Corellian Pearl blade | Common | Creyon | no |
+| 160 | `saber_targeting_display` | Targeting Display blade | Common | Creyon | no |
+| 161 | `saber_raxus_scrap` | Raxus Scrap blade | Common | Creyon | no |
+| 162 | `saber_pasaana_stone` | Pasaana Stone blade | Common | Creyon | no |
+| 163 | `saber_smoked_transparisteel` | Smoked Transparisteel blade | Common | Creyon | no |
+| 164 | `saber_batuu_dusk` | Batuu Dusk blade | Common | Creyon | no |
+| 165 | `saber_alderaan_velvet` | Alderaan Velvet blade | Common | Creyon | no |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.

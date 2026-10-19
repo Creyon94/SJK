@@ -1,6 +1,7 @@
 //! The `saberskin` console command (`docs/unlockables.md`, "Settings and commands"):
 //! alone it lists the catalogue's blade skins ([`crate::unlockables`]), each owned or
-//! locked, and which one is worn; `saberskin <id>` or `saberskin none` sets
+//! locked, with its number, and which one is worn; `saberskin <id>` (or its number,
+//! `saberskin 42`) or `saberskin none` sets
 //! `cg_saberSkin`. A locked skin is set all the same and shows once the player's own hub
 //! profile lists it (the gate is `GpuState::local_saber_skin`'s). `saberskin <id> parts`
 //! lists the parts a skin's file lets its wearer switch off, and `saberskin <id> <part>
@@ -97,7 +98,7 @@ pub(crate) fn parse(word: &str) -> Result<Choice, String> {
     if word.eq_ignore_ascii_case("none") {
         return Ok(Choice::Stock);
     }
-    unlockables::blade_skin(word)
+    unlockables::blade_skin_named(word)
         .map(Choice::Skin)
         .ok_or_else(|| {
             format!("No blade skin \"{word}\": saberskin alone lists them (usage: {USAGE})")
@@ -109,8 +110,10 @@ pub(crate) fn parse(word: &str) -> Result<Choice, String> {
 /// unknown when it is.
 pub(crate) fn listing(setting: &str, holdings: Holdings<'_>) -> Vec<String> {
     let chosen = unlockables::blade_skin(setting);
-    let mut lines =
-        vec!["Blade skins (saberskin <id> wears one, saberskin none the stock blade):".to_owned()];
+    let mut lines = vec![
+        "Blade skins (saberskin <id> or <number> wears one, saberskin none the stock blade):"
+            .to_owned(),
+    ];
     for unlockable in unlockables::blade_skins() {
         let picked = chosen.is_some_and(|chosen| chosen.id == unlockable.id);
         let state = match holdings.unlock(unlockable.id) {
@@ -133,7 +136,12 @@ pub(crate) fn listing(setting: &str, holdings: Holdings<'_>) -> Vec<String> {
             ),
             None => format!("^3locked^7: {}", unlockable.how_to_get),
         };
-        lines.push(format!("  {}  {}  {state}", unlockable.id, unlockable.name));
+        lines.push(format!(
+            "  {}  {}  {}  {state}",
+            unlockable.number_text(),
+            unlockable.id,
+            unlockable.name
+        ));
     }
     let setting = setting.trim();
     if chosen.is_none() && !setting.is_empty() {
@@ -298,6 +306,8 @@ mod tests {
 
     #[test]
     fn words_choose_a_skin_or_the_stock_blade() {
+        assert_eq!(parse("1").map(Choice::setting), Ok("saber_sun"));
+        assert_eq!(parse("#001").map(Choice::setting), Ok("saber_sun"));
         assert_eq!(parse("none"), Ok(Choice::Stock));
         assert_eq!(parse("NONE"), Ok(Choice::Stock));
         assert_eq!(
