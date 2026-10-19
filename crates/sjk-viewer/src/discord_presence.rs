@@ -95,6 +95,7 @@ impl crate::GpuState {
             return;
         };
         if state.ipc.is_none() {
+            eprintln!("Discord status: on (cl_discordPresence {mode})");
             state.ipc = DiscordIpc::start(APPLICATION_ID);
         }
         let key = timer_key(&place);
