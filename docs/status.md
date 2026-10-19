@@ -6202,6 +6202,16 @@ to 89 degrees on a reset frame (EternalJK 80), and `sjk` does not apply
 EternalJK's strafe helper rule (the lines and CGaz styles, bits 1 and 2, would
 turn damping off in EternalJK).
 
+## Strafe aura
+
+Branch `personal/strafe-aura` (19/10/2026, based on `5bddbc6b`, Windows 11): Sol
+asked for an SJK take on the strafe lines, a Force-like hint rather than lines. The
+strafe aura (`cg_strafeAura`, off) draws the gain of every heading as an arc over the
+crosshair ([client.md](client.md#strafe-helper)). Unit tests pin the gain curve (zero
+short of the best angle, highest at it, negative far past it) and the arc's best
+heading for W+A at 400 ups; the workspace checks passed. No game was started: the
+look, and whether its best heading matches JoF EJK's lines in play, are unverified.
+
 ## Strafe lines (JoF EJK's strafe helper)
 
 Branch `personal/strafe-lines` (11/10/2026, based on `059f347f`, Windows 11): the

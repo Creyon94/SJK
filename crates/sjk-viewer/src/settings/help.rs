@@ -872,6 +872,10 @@ const HELP: &[(&str, &str)] = &[
         "JoF EJK's strafe helper: a line to the best heading for each strafe key. Keep the crosshair on the green one to gain speed.",
     ),
     (
+        crate::hud::movement::AURA_CVAR,
+        "A glow over the crosshair: the speed each heading gains. Turn until its top tick sits on the white edge.",
+    ),
+    (
         crate::scoreboard::style::CVAR,
         "Auto matches the menus: SJK's own with the SJK UI, else the classic one after the original game's.",
     ),

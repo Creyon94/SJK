@@ -56,7 +56,8 @@ use std::path::Path;
 const WIDGET_LIMIT: usize = 64;
 /// The HUD's draw commands: the 384 its other widgets had, and room for a full
 /// kill feed (55).
-const DRAW_LIMIT: usize = 384 + kill_feed::CAPACITY * kill_feed::ENTRY_COMMANDS;
+const DRAW_LIMIT: usize =
+    384 + kill_feed::CAPACITY * kill_feed::ENTRY_COMMANDS + movement::AURA_COMMANDS;
 const DEFAULT_LAYOUT: &str = include_str!("../assets/hud/default.json");
 /// The weapon name fades over this long at the end of its life.
 const WEAPON_FADE_MS: u64 = 600;
@@ -624,7 +625,7 @@ impl HudOverlay {
             );
             self.flag_status
                 .emit(&mut self.draw_list, viewport, &self.icons, visibility);
-            self.guides.emit(&mut self.draw_list, viewport);
+            self.guides.emit(&mut self.draw_list, viewport, time_ms);
         }
         // CG_DrawWeaponSelect does not follow cg_drawHud: only the row's own
         // conditions (`GpuState::sample_weapon_select`) decide.

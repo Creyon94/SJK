@@ -1331,6 +1331,17 @@ test: Two lines rise from the bottom; holding W+A or W+D turns its line green.
 test: Third and first person both show them; on the ground too once at running speed.
 test: Compare with JoF EJK: the crosshair on the green line should gain speed the same way.
 
+[strafe-aura]
+area: HUD
+title: Strafe aura: a glow over the crosshair showing where turning gains speed
+change: cg_strafeAura draws an arc over the crosshair; each point is a turn left/right.
+change: It glows with the gain of the keys held: white edge = best, nothing short, red slows.
+test: Settings > HUD+ > Strafe aura on (or cg_strafeAura 1); run and strafe-jump with W+A.
+test: Turn until the top tick sits on the white edge: it turns blue and speed should climb.
+test: Under-turn: tick white, no glow under it; over-turn far: glow fades, then red.
+test: Compare with Strafe lines on: the white edge sits where the green line points.
+test: Size and opacity: cg_strafeAuraRadius (40), cg_strafeAuraAlpha (1).
+
 [card-profile]
 area: HUD
 title: Player card: saber shader, picture, SJK TEAM, holocron gem; pinned: achievements, bio

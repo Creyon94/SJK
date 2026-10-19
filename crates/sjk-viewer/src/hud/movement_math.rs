@@ -15,6 +15,28 @@ pub fn optimal(vf: f32, acceleration: f32, wishspeed: f32) -> f32 {
     }
 }
 
+/// Speed gained in one move by wishing `angle` degrees off the horizontal velocity
+/// `vf` (`PM_Accelerate`, codemp `bg_pmove.c`): the velocity grows along the wish
+/// direction by `wishspeed` less the speed already along it, at most `acceleration`.
+/// Negative past the angle where the push slows the player down.
+pub fn gain(vf: f32, acceleration: f32, wishspeed: f32, angle: f32) -> f32 {
+    let along = vf * angle.to_radians().cos();
+    let add = (wishspeed - along).clamp(0.0, acceleration);
+    (vf * vf + 2.0 * along * add + add * add).max(0.0).sqrt() - vf
+}
+
+/// The wish angle off the velocity that gains the most ([`gain`] peaks where the
+/// push first reaches `acceleration`): [`optimal`] without its 45-degree offset.
+pub fn peak(vf: f32, acceleration: f32, wishspeed: f32) -> f32 {
+    if vf <= 0.0 {
+        return 0.0;
+    }
+    ((wishspeed - acceleration) / vf)
+        .clamp(-1.0, 1.0)
+        .acos()
+        .to_degrees()
+}
+
 /// Reference command-direction offsets (`DF_GetLine`, :1088-1186), front optimum lines.
 pub fn direction(delta: f32, key: usize) -> f32 {
     match key {
