@@ -1229,10 +1229,10 @@ mod tests {
         let held = [sun()];
         let inputs = inputs(Holdings::Known(&held), "");
         let mut panel = drawn(Tab::Shaders, &inputs);
-        panel.shader_filter.query = "tidal".to_owned();
+        panel.shader_filter.query = "kamino".to_owned();
         redraw(&mut panel, &inputs);
         let card = panel.card_of(SHADER_BASE + 1, &inputs).expect("a card");
-        assert_eq!(card.title, "Tidal blade");
+        assert_eq!(card.title, "Kamino blade");
         assert!(
             panel.card_of(SHADER_BASE + 2, &inputs).is_none(),
             "past the list"
@@ -1244,7 +1244,7 @@ mod tests {
         let _ = panel.focus_search();
         panel.leave_search();
         assert!(!panel.search_focus);
-        assert_eq!(panel.shader_filter.query, "tidal", "what it holds stays");
+        assert_eq!(panel.shader_filter.query, "kamino", "what it holds stays");
     }
 
     /// Owned shows the shaders held; a search matches names and tier words.
@@ -1257,7 +1257,7 @@ mod tests {
         redraw(&mut panel, &inputs);
         assert_eq!(ids(&panel), ["saber_sun"]);
         let _ = panel.toggle_owned();
-        panel.shader_filter.query = " TIDAL ".to_owned();
+        panel.shader_filter.query = " KAMINO ".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();

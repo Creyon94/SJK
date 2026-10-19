@@ -36,10 +36,10 @@ macro_rules! signature {
     };
 }
 
-/// The signatures, mythicals first (Creyon's order, 19/10/2026). The last six are his
-/// Blade Lab designs reworked in full, which replace their hand-ported designs
-/// (`blade_lab_designs.rs`).
-pub(crate) const SIGNATURES: [Signature; 29] = [
+/// The signatures, mythicals first (Creyon's order, 19/10/2026). The last thirteen are his
+/// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework), which replace
+/// their hand-ported designs (`blade_lab_designs.rs`).
+pub(crate) const SIGNATURES: [Signature; 36] = [
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
     signature!("balance"),
@@ -69,6 +69,13 @@ pub(crate) const SIGNATURES: [Signature; 29] = [
     signature!("quicksilver"),
     signature!("reactor"),
     signature!("serpent"),
+    signature!("peppermint"),
+    signature!("bubble"),
+    signature!("lavalamp"),
+    signature!("sketch"),
+    signature!("hourglass"),
+    signature!("fiber"),
+    signature!("phoenix"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).

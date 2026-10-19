@@ -1934,7 +1934,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`,
   and its chroma's own hue in `design_color.w` (-1 for none). A signature replaces a
   hand-ported design of the same skin (Monarch, Obsidian Edge, Quantum, Quicksilver,
-  Reactor and Serpent now draw Creyon's reworked lab shaders). `saber.wgsl` draws it by
+  Reactor, Serpent, Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass, Fiber Optic and
+  Phoenix now draw Creyon's reworked lab shaders). `saber.wgsl` draws it by
   the skin's own passes, as the lab does: `skin_glow_at`, `skin_core` and
   `fragment_solid` each hand their result to the signature (`sig_take` sets the uniforms
   from the instance: its clock and seed, length, `motion`'s swing, the clash fading at

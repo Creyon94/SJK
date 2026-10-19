@@ -50,6 +50,24 @@ GPU test renders every design on llvmpipe (GL) and passed. Not yet compared in a
 match; the sounds are still the skin files' (a separate change, the files are in the
 hub's pack).
 
+## Creyon's blades: Star Wars only, built as Sol's
+
+19/10/2026, `wip/blade-3d`: Creyon's rule that every blade of his in game is Star Wars, and
+that his effects are drawn as Sol's are. His in-game blades keep their ids (owners keep
+them) and get Star Wars names (Tidal is the Kamino blade, Dusk the Binary Sunset, Comic the
+Clone Wars, Quantum Mortis, Quicksilver Liquid Beskar, and so on; the full list is in
+`unlockables.rs`). Seven of his hand-ported designs that were not Star Wars, or drew figures,
+become signatures in Sol's way ([rendering.md](rendering.md#blade-lab-signature-shaders)):
+Kessel Spice (Peppermint), Bacta (Soap Bubble), Coaxium (Lava Lamp), Death Star Plans
+(Sketch), Beskar Forge (Hourglass), Kyber Cluster (Fiber Optic) and Phoenix Squadron
+(Phoenix, no wings); Monarch becomes Felucia Spores (no butterflies), Serpent Sith Alchemy
+(no snake) and Aurora Wyrm the Ilum Aurora Storm (no serpent). Star Whale is the Nebula Song
+(no whales); World Shift's climates, Eclipse (three eclipsed suns orbiting it) and Carbonite
+(its shards float round the blade and fuse back) got bigger effects. Sol's own blades are
+unchanged. Checked on Linux x86_64 (Rust 1.97, lavapipe): the viewer's tests pass, every
+changed signature previewed from four views and in the lab page. Not verified: Windows, the
+game window, the hub's catalogue (the names players see come from it once Sol updates it).
+
 ## Blade Lab signatures, round 8: effects round the blade as Sol's
 
 19/10/2026, `wip/blade-3d`, based on `feat/blade-signatures` (on `main` `046ef86b`): after
