@@ -88,6 +88,7 @@ impl BladeColor {
                 star: None,
                 echo: None,
                 linger: 0.0,
+                each_swing: false,
             });
         }
         Self::Rgb(tint.map(|c| (c * 255.).round().clamp(0., 255.) as u8))

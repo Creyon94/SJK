@@ -271,13 +271,13 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     return vec3<f32>(0.0);
 }
 
-// round 11: sig_orbit gated by part 1
+// round 11: sig_orbit gated by part 1; round 14 (Creyon): the eclipsed suns' glow takes the
+// wearer's colour with the blade (their moons stay black, `sig_orbit_solid`)
 fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if part(1.0) < 0.5 {
         return vec3<f32>(0.0);
     }
-    uKeep += base_orbit(ro, rd, px);
-    return vec3<f32>(0.0);
+    return base_orbit(ro, rd, px);
 }
 
 // round 11: sig_orbit_solid gated by part 1

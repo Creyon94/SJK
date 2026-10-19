@@ -133,6 +133,9 @@ pub(crate) struct SkinColor {
     /// Seconds its words float on after its blade has gone in
     /// ([`crate::blade_lab_designs::linger`]); 0 for most.
     pub(crate) linger: f32,
+    /// Whether it answers each swing of a chain on its own
+    /// ([`crate::blade_lab_designs::each_swing`]).
+    pub(crate) each_swing: bool,
 }
 
 /// Where a skin's glints (or black holes) are, for their quads
@@ -747,6 +750,7 @@ impl LoadedSkin {
                 }),
             persona: crate::saber_persona::Persona::default(),
             linger: crate::blade_lab_designs::linger(self.id),
+            each_swing: crate::blade_lab_designs::each_swing(self.id),
             chroma: Chroma {
                 base: crate::unlockables::is_chroma(self.id)
                     .then(|| match self.design_shown() {

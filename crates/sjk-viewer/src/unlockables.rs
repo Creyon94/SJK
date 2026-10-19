@@ -816,7 +816,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A blade in its wearer's colour with a total eclipse travelling along its upper half: the moon's band darkens it, diamond-ring flashes spark on its edge, the stars of totality come out round it and eclipsed suns circle it.",
+        description: "A blade in its wearer's colour with a total eclipse travelling along its upper half: the moon's band darkens it, diamond-ring flashes spark on its edge, the stars of totality come out round it and eclipsed suns circle it, glowing in its colour.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {

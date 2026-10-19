@@ -89,17 +89,23 @@ impl BladeMotion {
     /// coming out of the hilt; its motion for the shader.
     #[cfg(test)]
     pub(crate) fn record(&mut self, blade: Blade, now: i64, growing: bool) -> [f32; 4] {
-        self.record_turned(blade, blade.direction, now, growing)
+        self.record_turned(blade, blade.direction, now, growing, None, true)
     }
 
     /// [`Self::record`] with the swing measured along `body`, the blade's direction in its
     /// wearer's own frame (Creyon's round 11: turning the view or running is no swing).
+    /// `each_swing`: a chain's swings are marked one by one ([`SWING_EVERY`]), else the chain
+    /// counts from its first. `attacking` is whether its wearer's saber is in an attack (`saberMove`), when known:
+    /// then only an attack begins a swing (Creyon's round 14: whatever the arm does while
+    /// running is none); unknown, the blade must also have turned ([`SWING_TURN`]).
     pub(crate) fn record_turned(
         &mut self,
         blade: Blade,
         body: [f32; 3],
         now: i64,
         growing: bool,
+        attacking: Option<bool>,
+        each_swing: bool,
     ) -> [f32; 4] {
         // The tip from the hilt: how the blade turns, not how its wearer moves, nor how long
         // it is now (Creyon's round 13: switching a blade off read as a swing, and the Clone
@@ -129,12 +135,17 @@ impl BladeMotion {
             let frames = seconds * 60.0;
             let rate = if target > self.swing { RISE } else { FALL };
             self.swing += (target - self.swing) * (1.0 - (1.0 - rate).powf(frames));
-            if !self.swinging && self.swing > SWING_BEGINS && self.turned(tip, now) {
+            let attack = attacking.unwrap_or_else(|| self.turned(tip, now));
+            if !self.swinging && self.swing > SWING_BEGINS && attack {
                 self.swinging = true;
                 self.swung = Some(now);
             } else if self.swinging && self.swing < SWING_ENDS {
                 self.swinging = false;
-            } else if self.swinging && self.swung.is_some_and(|at| now - at >= SWING_EVERY) {
+            } else if each_swing
+                && self.swinging
+                && attack
+                && self.swung.is_some_and(|at| now - at >= SWING_EVERY)
+            {
                 self.swung = Some(now);
             }
         }
@@ -294,6 +305,30 @@ mod tests {
             let angle = 0.26 * (frame as f32 * 16.0 * 0.001 * 3.0 * std::f32::consts::TAU).sin();
             let m = motion.record(blade(angle), frame * 16, false);
             assert_eq!(m[3], SETTLED, "{frame}: {m:?}");
+        }
+    }
+
+    #[test]
+    fn only_an_attack_swings_when_the_saber_move_is_known() {
+        // A fast quarter turn, not in an attack: no swing; the same in one: a swing.
+        for attacking in [false, true] {
+            let mut motion = BladeMotion::default();
+            motion.record_turned(
+                blade(0.0),
+                blade(0.0).direction,
+                0,
+                false,
+                Some(attacking),
+                true,
+            );
+            let mut began = false;
+            for frame in 1..=8 {
+                let b = blade(frame as f32 * 0.25);
+                let m =
+                    motion.record_turned(b, b.direction, frame * 16, false, Some(attacking), true);
+                began |= m[3] < SETTLED;
+            }
+            assert_eq!(began, attacking);
         }
     }
 

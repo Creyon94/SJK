@@ -302,7 +302,15 @@ impl crate::GpuState {
         let Some(target) = self.blade_pictures.as_ref() else {
             return;
         };
-        let eye = Vec3::new(0.0, -200.0, 0.0);
+        // The blades' shaders aim their view rays from the camera's position: far off in
+        // front of the picture's middle, so every cell is seen straight on (Creyon's round 14:
+        // from one near corner, the lower cells were seen at a slant and Abyssal Eye's cut sat
+        // off its glow). The picture itself is orthographic (`view_projection`).
+        let eye = Vec3::new(
+            CELL[0] * COLUMNS as f32 * 0.5,
+            -20_000.0,
+            -CELL[1] * ROWS as f32 * 0.5,
+        );
         let uniform = CameraUniform {
             view_projection: view_projection().to_cols_array_2d(),
             camera_position: eye.to_array(),

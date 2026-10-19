@@ -220,11 +220,11 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   uKeep += col + fx*uFx;
   return vec3(0.0);
 }
-// round 11: sig_orbit gated by part 1
+// round 11: sig_orbit gated by part 1; round 14 (Creyon): the eclipsed suns' glow takes the
+// wearer's colour with the blade (their moons stay black, `sig_orbit_solid`)
 vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   if (part(1.0) < 0.5) { return vec3(0.0); }
-  uKeep += base_orbit(ro, rd, px);
-  return vec3(0.0);
+  return base_orbit(ro, rd, px);
 }
 // round 11: sig_orbit_solid gated by part 1
 vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){

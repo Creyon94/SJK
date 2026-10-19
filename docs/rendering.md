@@ -1879,16 +1879,19 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   along it and land again once it is still. A design whose words outlast its blade
   (`blade_lab_designs.rs` `LINGERS`: the comic blade, 1.6 seconds) keeps, from when its
   blade begins going in, a whole-length instance with a swing lane of -1 that draws only
-  its switching-off word (`saber_submission.rs`, `lab_lingering`), so the word floats on
-  after the blade has gone and can be read.
+  its switching-off word, standing upright from the hilt (`saber_submission.rs`,
+  `lab_lingering`), so the word floats on after the blade has gone and can be read.
 - **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
   since its last swing began reach the shader per instance (`motion`, location 10;
   [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
   trail state: the swing follows the tip's speed about the hilt as the lab's did (a full
   swing at its 5.5 m/s; running with the blade still is no swing), a swing begins above
-  an idle stance's sway when the tip has also turned some 40 degrees within the last
-  0.45 seconds (a run's arm sway, fast but short, is none: Creyon's round 14), and again
-  every second of a chain without a pause, a clash is one whose flare latched within 12 units of the blade
+  an idle stance's sway, only while its wearer's saber is in an attack (`saberMove`,
+  `in_attack` or `in_special`: a run's arm sway is none, Creyon's round 14; without a
+  snapshot the tip must have turned some 40 degrees within 0.45 seconds instead), and for
+  the designs that answer each swing (`blade_lab_designs.rs` `EACH_SWING`: the comic
+  blade's words) again every second of a chain without a pause; for the others a chain
+  counts from its first swing, a clash is one whose flare latched within 12 units of the blade
   (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
   Thrown and menu blades are still.
 - **Changed from the lab** after Creyon's tests: each blade has light at its emitter

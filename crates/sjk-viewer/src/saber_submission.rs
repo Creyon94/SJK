@@ -31,6 +31,7 @@ pub(crate) fn submit(
     presentation_time: i64,
     mut trails: Option<&mut Edges<'_>>,
     lights: &mut crate::dynamic_lights::PointLightList,
+    attacking: Option<bool>,
 ) -> bool {
     if equipment.kind != HeldItemKind::EnergyBlade {
         return false;
@@ -93,13 +94,20 @@ pub(crate) fn submit(
                 .filter(|skin| skin.linger > 0.0)
                 .and_then(|skin| state.motion.lingering(presentation_time, skin.linger))
             {
-                let whole = saber::world_blade(
+                // Upright from the hilt, so the word stands up to be read however the hilt
+                // hangs once it is put away (round 14: lying along a holstered hilt, it was
+                // seen flat).
+                let held = saber::world_blade(
                     grip,
                     weapon_rotation,
                     hilt_blade.socket,
                     hilt_blade.length,
                     hilt_blade.radius,
                 );
+                let whole = saber::Blade {
+                    direction: [0.0, 0.0, 1.0],
+                    ..held
+                };
                 let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
                 saber_instances.extend(Instance::pair(whole, color).map(|i| {
                     i.with_animation(presentation_time as f64 * 0.001, key as u32)
@@ -127,6 +135,8 @@ pub(crate) fn submit(
                 body,
                 presentation_time,
                 length < hilt_blade.length,
+                attacking,
+                skin.is_some_and(|skin| skin.each_swing),
             );
             // A direction across the blade that turns with the hilt, for the signatures'
             // three-dimensional effects (`Instance::with_frame`).

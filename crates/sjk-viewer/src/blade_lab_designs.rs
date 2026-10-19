@@ -80,6 +80,17 @@ pub(crate) const DESIGNS: [Design; 14] = [
 /// [`linger`]; the blade itself is not drawn meanwhile (`saber.wgsl` `lab_lingering`).
 const LINGERS: [(&str, f32); 1] = [("saber_comic", 1.6)];
 
+/// Designs that answer each swing of a chain on its own (the Clone Wars blade's words, one
+/// per swing): their swing's start is marked again every second of a chain. The others
+/// count a chain as one swing from its first (Creyon's round 14: Felucia's spores fell back
+/// onto the blade at every mark).
+const EACH_SWING: [&str; 1] = ["saber_comic"];
+
+/// Whether `id` answers each swing of a chain on its own ([`EACH_SWING`]).
+pub(crate) fn each_swing(id: &str) -> bool {
+    EACH_SWING.contains(&id)
+}
+
 /// How long `id`'s words float on after its blade has gone in (seconds; 0 for none).
 pub(crate) fn linger(id: &str) -> f32 {
     LINGERS
