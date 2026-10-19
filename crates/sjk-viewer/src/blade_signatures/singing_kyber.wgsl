@@ -3,104 +3,180 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.11,0.50,0.47],"corona.rim_hot":[0.2,0.9,0.85],"corona.inner":[0.9,1.0,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.12,0.54,0.51],"core.fringe_hot":[0.2,0.9,0.85],"light.color":[0.2,0.9,0.85],"trail":[0.2,0.9,0.85]}
 
-// Singing Kyber (was Resonance): a kyber crystal that sings, as kyber does. a singing crystal blade. The thin teal crystal hums so fast its edges double, a standing
-// wave shows bright nodes down its length, and from each node sound rings ripple out and fade. Two
-// glowing waveform traces run up beside the blade like an oscilloscope, and tiny crystal shards hover
-// round it, trembling to the note. A swing raises the pitch (tighter waves, the traces swell); a clash
-// is a sonic boom: a shock cone and a burst of shards. No blinking tip.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px_in: f32) -> vec3<f32> {
-    var px = px_in;
-    let L = uLength;
-    px = min(px, 0.06);
-    let sw = clamp(uSwing, 0.0, 1.0);
-    let cl = clamp(uClash, 0.0, 1.0);
-    let pitch = 1.0 + 0.9 * sw;
-    let teal: vec3<f32> = vec3<f32>(0.2, 0.92, 0.86);
-    let pale: vec3<f32> = vec3<f32>(0.85, 1.0, 1.0);
-    let deep: vec3<f32> = vec3<f32>(0.1, 0.55, 0.75);
-    let on = smoothstep(-0.5, 0.3, b.y);
-    let yc = clamp(b.y, 0.0, L - 0.35);
-    let d = length(vec2(b.x, b.y - yc));
-    // ---- the crystal: a white core, edges doubled by the vibration, a standing wave along it
-    let nodes: f32 = 7.0;
-    let sw_ = sin(b.y / L * 3.14159 * nodes);
-    let amp = abs(sw_) * (0.16 + 0.1 * sw);
-    // the antinodes swell, nodes stay still
-    let vib = sin(uTime * 90.0);
-    let d1 = length(vec2(b.x - amp * vib, b.y - yc));
-    let d2 = length(vec2(b.x + amp * vib, b.y - yc));
-    var light = pale * exp(-pow(d / 0.3, 2.0)) * 1.3 * on;
-    light += teal * (exp(-pow(d1 / 0.22, 2.0)) + exp(-pow(d2 / 0.22, 2.0))) * 0.55 * on;
-    light += teal * halo(d, 0.8) * 0.5 * on + deep * halo(d, 2.0) * 0.08 * on;
-    // the nodes: bright still points on the standing wave
-    for (var k = 1; k < 7; k++) {
-        let y = f32(k) / nodes * L;
-        light += pale * halo(length(vec2(b.x, (b.y - y) * 1.6)), 0.25) * 0.9;
-    }
-    // ---- sound rings rippling out from the nodes, one after another
-    for (var j = 0; j < 6; j++) {
-        let fj = f32(j);
-        let age = fract(uTime * 0.7 + fj / 6.0);
-        var k = 1.0 + floor(h11(fj * 3.7 + floor(uTime * 0.7 + fj / 6.0)) * 6.0);
-        let o = vec2(0.0, k / nodes * L);
-        let rad = 0.6 + 6.0 * age;
-        let ring = abs(length((b - o) * vec2<f32>(1.0, 1.15)) - rad);
-        let fade = (1.0 - age) * smoothstep(0.0, 0.06, age);
-        let wav = 0.6 + 0.4 * sin(atan2(b.y - o.y, b.x) * 12.0 + uTime * 4.0);
-        // the ring carries its own ripple
-        light += teal * (halo(ring, 0.05 + px) + halo(ring, 0.35) * 0.2) * fade * wav * 1.2;
-    }
-    // ---- oscilloscope traces running up both sides of the blade
-    for (var s = 0; s < 2; s++) {
-        let sd = select(-1.0, 1.0, s == 0);
-        let x0 = sd * (3.4 + 0.4 * sin(uTime * 0.6 + sd));
-        let env = 0.5 + 0.5 * sin(b.y * 0.12 - uTime * 1.5 + sd);
-        let w = (0.45 + 0.35 * sw) * env * sin(b.y * (1.4 * pitch) - uTime * 9.0 + sd * 1.3) + 0.05 * sin(b.y * 4.3 * pitch - uTime * 17.0);
-        let dd = abs(b.x - x0 - w);
-        let span = smoothstep(1.0, 4.0, b.y) * (1.0 - smoothstep(L - 4.0, L - 0.5, b.y));
-        light += mix(teal, pale, 0.3) * (exp(-pow(dd / 0.045, 2.0)) * 1.4 + halo(dd, 0.25) * 0.25) * span;
-    }
-    // ---- crystal shards hovering round the blade, trembling to the note and rising slowly
-    for (var i = 0; i < 9; i++) {
-        let fi = f32(i);
-        let ph = uTime * 0.12 + h11(fi * 5.3);
-        let f = fract(ph);
-        let sd = select(-1.0, 1.0, glsl_mod(fi, 2.0) < 0.5);
-        var p = vec2(sd * (1.6 + 1.3 * h11(fi * 2.1)) + 0.06 * sin(uTime * 70.0 + fi), (0.08 + 0.8 * fract(h11(fi * 7.7) + f * 0.5)) * L);
-        p.x += sd * sw * 3.0;
-        var q = b - p;
-        let an = uTime * (1.0 + h11(fi)) + fi;
-        q = vec2(q.x * cos(an) - q.y * sin(an), q.x * sin(an) + q.y * cos(an));
-        let sh = abs(q.x) / 0.16 + abs(q.y) / 0.42 - 1.0;
-        let glint = pow(0.5 + 0.5 * sin(uTime * 3.0 + fi * 2.0), 8.0);
-        light += mix(teal, pale, glint) * (clamp(-sh * 2.0, 0.0, 1.0) * (0.8 + 1.2 * glint) + halo(max(sh, 0.0) * 0.2, 0.08) * 0.5);
-    }
-    // ---- clash: a sonic boom, a cone of shock lines and a burst of shards
-    if cl > 0.01 {
-        let a = 1.0 - cl;
-        let o = vec2(0.0, L * 0.6);
-        for (var k = 0; k < 3; k++) {
-            let rad = 1.0 + 7.0 * a - f32(k) * 0.9;
-            let ring = abs(length(b - o) - rad);
-            light += pale * halo(ring, 0.08) * cl * (1.0 - f32(k) * 0.3) * step(0.0, rad);
-        }
-        for (var i = 0; i < 10; i++) {
-            let fi = f32(i);
-            let an = fi * 0.628 + 0.3 * h11(fi);
-            var p = o + vec2(cos(an), sin(an)) * (0.5 + 6.5 * (1.0 - exp(-3.0 * a)));
-            var q = b - p;
-            let sh = abs(q.x) / 0.14 + abs(q.y) / 0.4 - 1.0;
-            light += pale * clamp(-sh * 2.0, 0.0, 1.0) * cl * 1.4;
-        }
-        light += teal * halo(length(b - o), 1.6) * pow(cl, 3.0);
-    }
-    let edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-    light *= edge * (1.0 - smoothstep(L + 0.5, L + 3.5, b.y)) * smoothstep(-3.0, -0.5, b.y);
-    return (1.0 - exp(-light * 1.15)) * 1.05;
+// Singing Kyber: a kyber crystal that sings, as kyber does. The blade is a long six-sided
+// crystal of teal light with a white-hot heart: its faces and edges catch the light and glint
+// as you turn it, and fracture planes deep inside it flash. It holds a standing note: bright
+// bands sit still along its length and tremble, and between them a shimmering harmonic aura
+// swells and shrinks with the wave. Sound rings leave the bands and travel up the blade,
+// spreading outward and fading. A swing raises the pitch (more bands, faster rings, a brighter
+// aura); a clash is a sonic boom: a shockwave sphere bursts out from the blade.
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return vec3<f32>(0.0);
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return vec3<f32>(0.0);
+}
+
+// clip the span (x..y) by the half-space dot(p, n) <= c; z, w: the entry normal's angle code
+fn sk_cut(ro: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, c: f32, sp_in: vec4<f32>, code: f32) -> vec4<f32> {
+    var sp = sp_in;
+    let dn = dot(rd, n);
+    let o = dot(ro, n);
+    if abs(dn) < 1.0e-6 {
+        if o > c {
+            sp.y = -1.0;
+        }
+        return sp;
+    }
+    let tc = (c - o) / dn;
+    if dn > 0.0 {
+        sp.y = min(sp.y, tc);
+    } else if tc > sp.x {
+        sp.x = tc;
+        sp.z = code;
+    }
+    return sp;
+}
+
+// a flattened shell of sound: the ray's closest distance to centre c with heights squeezed by k
+// (so the shell is a lens k times wider than tall), and the light of a shell of radius R there
+fn sk_shell(ro: vec3<f32>, rd: vec3<f32>, c: vec3<f32>, R: f32, k: f32, w: f32) -> f32 {
+    var o = ro - c;
+    o.y *= k;
+    var d = rd;
+    d.y *= k;
+    d = normalize(d);
+    let tt = max(dot(-o, d), 0.0);
+    let r = length(o + d * tt);
+    let inside = clamp(w / sqrt(max(R * R - r * r, w * w)), 0.0, 1.0) * smoothstep(R + w, R - 2.0 * w, r);
+    return inside + halo(abs(r - R), w * 1.5) * 0.35;
+}
+
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    let t = uTime;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let teal: vec3<f32> = vec3<f32>(0.2, 0.92, 0.86);
+    let pale: vec3<f32> = vec3<f32>(0.85, 1.0, 1.0);
+    let white: vec3<f32> = vec3<f32>(1.0);
+    let top = L * clamp(uAge / 0.45, 0.0, 1.0);
+    let fx = uFx;
+    // the standing wave: nodes (bright bands) along the blade
+    let N = 7.0 + 2.0 * sw;
+    let vib = 0.75 + 0.25 * sin(t * 41.0) + 0.15 * sin(t * 67.0);
+    // ---- the crystal: a hexagonal prism of light with a pointed tip
+    let ap: f32 = 0.42;
+    let hc: f32 = 1.6;
+    var sp: vec4<f32> = vec4<f32>(0.0, 1.0e5, 0.0, 0.0);
+    sp = sk_cut(ro, rd, vec3<f32>(0.0, -1.0, 0.0), 0.6, sp, 7.0);
+    for (var k = 0; k < 6; k++) {
+        let a = (f32(k) + 0.5) * 1.0472;
+        let n = vec3(cos(a), 0.0, sin(a));
+        sp = sk_cut(ro, rd, n, ap, sp, f32(k));
+        let m = vec3(cos(a) * hc, ap, sin(a) * hc);
+        sp = sk_cut(ro, rd, m, top * ap, sp, f32(k) + 10.0);
+    }
+    var light: vec3<f32> = vec3<f32>(0.0);
+    var s: f32;
+    let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top - 0.6, 0.0), &s);
+    let yax = mix(-0.6, top - 0.6, s);
+    let node = pow(abs(cos(3.14159 * N * clamp(yax, 0.0, L) / L)), 6.0);
+    // the white heart of the crystal and its glow (fills the emitter)
+    light += white * exp(-pow(dax / max(0.2, px), 2.0)) * 1.3 + teal * halo(dax, 0.9) * (0.5 + 0.35 * node * vib) + teal * halo(dax, 2.6) * 0.13;
+    if sp.y > sp.x {
+        let P = ro + rd * sp.x;
+        let Q = ro + rd * sp.y;
+        let th = sp.y - sp.x;
+        let code = sp.z;
+        // which face: its angle; the lateral position across it, to find the edges
+        let fa = (glsl_mod(code, 10.0) + 0.5) * 1.0472;
+        let tg = vec2(-sin(fa), cos(fa));
+        let lat = abs(dot(P.xz, tg));
+        let edge = select(1.0, ap * 0.57735 - lat, code < 6.5);
+        let tipEdge = select(1.0, ap * 0.57735 - lat, code > 9.5);
+        // the face's glint: a light sweeping round the blade, catching each face in turn
+        let sweep = 0.5 + 0.5 * cos(fa - t * 1.7 - P.y * 0.12);
+        let glint = pow(sweep, 18.0);
+        // internal fracture planes flashing deep inside
+        let M = (P + Q) * 0.5;
+        let fr1 = pow(0.5 + 0.5 * sin(dot(M, vec3<f32>(0.8, 0.45, 0.4)) * 5.0 + t * 0.8), 30.0);
+        let fr2 = pow(0.5 + 0.5 * sin(dot(M, vec3<f32>(-0.5, 0.6, 0.62)) * 4.3 - t * 0.6), 30.0);
+        let spark = step(0.86, h21(vec2(floor(M.y * 1.3), floor(t * 6.0 + glsl_mod(code, 10.0) * 0.37))));
+        let lit = smoothstep(-0.6, 0.2, P.y);
+        let gate = smoothstep(0.45, 0.8, vn(vec2(M.y * 0.45, t * 1.3)));
+        let c = teal * (0.25 + 0.6 * th) + pale * (fr1 + fr2) * min(th, 0.8) * 1.3 * gate + white * halo(min(edge, tipEdge), max(px * 0.7, 0.025)) * (0.45 + 1.4 * glint + 0.8 * spark) + pale * glint * 0.5 + pale * node * vib * 0.8 * min(th * 1.5, 1.0);
+        light += c * lit * (1.0 + 0.4 * cl);
+    }
+    if fx > 0.0 {
+        var fxl: vec3<f32> = vec3<f32>(0.0);
+        let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+        if near < 6.5 {
+            // ---- the standing-wave nodes: bright bands that tremble, flat glows round the crystal
+            for (var i = 0; i < 9; i++) {
+                let fi = f32(i);
+                if fi >= N {
+                    continue;
+                }
+                let y = (fi + 0.5) * L / N;
+                if y > top {
+                    continue;
+                }
+                let sh = sk_shell(ro, rd, vec3(0.0, y, 0.0), 0.95 + 0.15 * sin(t * 41.0 + fi * 1.7), 4.0, 0.14);
+                var to: f32;
+                let dn = rayPt(ro, rd, vec3(0.0, y, 0.0), &to);
+                fxl += (pale * sh * 0.8 + teal * halo(dn, 1.3) * 0.5) * vib;
+            }
+            // ---- sound rings travelling up the blade and spreading outward
+            for (var i = 0; i < 8; i++) {
+                let fi = f32(i);
+                let ph = t * (0.55 + 0.25 * sw) + fi / 8.0;
+                let f = fract(ph);
+                let cyc = floor(ph);
+                var k = floor(h11(cyc * 1.7 + fi * 3.1) * N);
+                let y0 = (k + 0.5) * L / N;
+                let y = y0 + f * 7.0;
+                let R = 0.8 + f * 5.0;
+                if y > top + 1.0 {
+                    continue;
+                }
+                let w = 0.12 + 0.35 * f;
+                let amp = (1.0 - f) * (1.0 - f) * smoothstep(0.0, 0.1, f) * (1.0 + 0.6 * sw);
+                let sh = sk_shell(ro, rd, vec3(0.0, y, 0.0), R, 2.2, w);
+                fxl += mix(pale, teal, 0.3 + 0.5 * f) * sh * amp * 1.1;
+            }
+            // ---- the harmonic aura: a shimmering glow that swells at the wave's peaks
+            let m = marchSteps(ro, rd, 3.2, -0.3, top + 0.8, 16.0);
+            if m.y > m.x {
+                var tt = m.x + m.z * h21(rd.xy * 517.0 + ro.xz * 3.7);
+                var acc: f32 = 0.0;
+                for (var k = 0; k < 16; k++) {
+                    let p = ro + rd * tt;
+                    let r = length(p.xz);
+                    let anti = abs(sin(3.14159 * N * clamp(p.y, 0.0, L) / L));
+                    let Ra = 0.7 + 1.5 * anti * (0.8 + 0.2 * sin(t * 23.0));
+                    let q = rot(t * 0.7) * p.xz;
+                    let sh = fbm3(vec2(q.x * 1.5 + p.y * 0.2, q.y * 1.5 - t * 2.0));
+                    acc += exp(-pow(r / Ra, 2.0)) * (0.35 + 0.9 * sh * sh) * smoothstep(-0.3, 1.0, p.y) * (1.0 - smoothstep(top - 1.0, top + 0.8, p.y)) * m.z;
+                    tt += m.z;
+                }
+                fxl += mix(teal, pale, 0.2) * acc * (0.15 + 0.1 * sw);
+            }
+        }
+        // ---- a clash: the sonic boom, a shockwave sphere bursting out
+        if cl > 0.01 {
+            let o = vec3(0.0, L * 0.6, 0.0);
+            var to: f32;
+            let dc = rayPt(ro, rd, o, &to);
+            let R = 1.8 + 5.0 * (1.0 - cl);
+            let sw2 = 0.35 + 0.5 * (1.0 - cl);
+            let shell = sk_shell(ro, rd, o, R, 1.3, sw2);
+            fxl += (pale * shell * 1.1 + teal * shell * 0.6) * cl + pale * halo(dc, 3.0) * pow(cl, 3.0) * 0.35;
+        }
+        light += fxl * fx;
+    }
+    return (1.0 - exp(-light * 1.1)) * 1.05;
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

@@ -1,149 +1,162 @@
-// Between Worlds (was Time Fracture): a blade from the space between worlds and times. Echoes of
-// the blade stand beside it: an amber one a moment in the past trailing behind and a cyan one a
-// moment in the future leading ahead. Two doorways float beside it, triangles of light opening onto
-// the stars of other times (Creyon: no clock), and
-// star-paths branch out from the blade like the roads of a world between worlds, light running
-// along them. Shards of other moments drift away. A swing spreads the echoes wide; a clash freezes
-// time: cracks shoot out and the doorways flare.
+// Between Worlds: a blade from the World Between Worlds, the path of light through the void
+// outside time. A calm white-gold blade stands in its own small starry void. Faint echoes of the
+// blade from other moments drift beside it in depth, translucent, fading in and out like ripples
+// of time. Voices of light, soft streams, flow along it from both ends, from the hilt up and from
+// the tip down, passing each other. Soft portal rings of shimmering light open and close along it,
+// and star dust drifts slowly through the dark. A swing scatters the echoes wide; a clash makes
+// every portal flash open at once.
 // @room 8
-// @palette {"corona.rim_cool":[0.30,0.32,0.50],"corona.rim_hot":[0.78,0.80,0.98],"corona.inner":[0.95,0.96,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.55,0.75,1.0],"core.fringe_hot":[1.0,0.80,0.55],"light.color":[0.85,0.88,1.0],"trail":[0.82,0.86,1.0]}
+// @palette {"corona.rim_cool":[0.42,0.34,0.16],"corona.rim_hot":[1.0,0.86,0.55],"corona.inner":[1.0,0.96,0.85],"core.white":[1.0,1.0,0.97],"core.fringe_cool":[0.90,0.78,0.50],"core.fringe_hot":[1.0,0.90,0.65],"light.color":[1.0,0.90,0.66],"trail":[1.0,0.90,0.68]}
 
-vec3 time_fracture_glow0(vec3 g, vec2 b, float r, float px){
-  float L = uLength;
-  px = min(px, 0.06);
-  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  vec3 amber = vec3(1.0, 0.7, 0.3), cyan = vec3(0.4, 0.9, 1.0), silver = vec3(0.92, 0.95, 1.0);
-  float on = smoothstep(-0.5, 0.3, b.y);
-  float yc = clamp(b.y, 0.0, L - 0.35);
-  float d = length(vec2(b.x, b.y - yc));
-  vec3 light = vec3(1.0)*exp(-pow(d/0.3, 2.0))*1.5*on + silver*halo(d, 0.8)*0.5*on + silver*halo(d, 2.0)*0.06*on;
-  // the echoes: past (amber, behind) and future (cyan, ahead), leaning away from the hilt
-  for (int e = 0; e < 2; e++){
-    float s = e == 0 ? -1.0 : 1.0;
-    float spread = (1.3 + 0.4*sin(uTime*0.9 + s) + 2.2*sw)*(1.0 - cl*0.8);
-    float lean = s*spread*clamp(b.y/L, 0.0, 1.0);
-    float ex = b.x - lean - s*0.2*smoothstep(0.0, 2.0, b.y);
-    float de = length(vec2(ex, b.y - yc));
-    float flick = e == 0 ? 0.75 + 0.25*step(0.15, h11(floor(uTime*14.0))) : 0.8 + 0.2*sin(b.y*12.0 - uTime*20.0);
-    vec3 ec = e == 0 ? amber : cyan;
-    light += ec*(exp(-pow(de/0.22, 2.0))*0.75 + halo(de, 0.6)*0.25)*flick*on*smoothstep(0.5, 3.0, b.y);
-  }
-  // two doorways floating beside the blade: triangles of light, a starfield of another time inside
-  for (int k = 0; k < 2; k++){
-    float fk = float(k);
-    float sd = k == 0 ? 1.0 : -1.0;
-    vec2 c = vec2(sd*(4.6 + 0.4*sin(uTime*0.5 + fk)), L*(0.62 - 0.3*fk) + 1.0*sin(uTime*0.3 + fk*2.0));
-    vec2 q = rot(0.25*sin(uTime*0.4 + fk))*(b - c);
-    float R = 1.9 + 0.3*cl + 0.25*sw;
-    vec2 t0 = vec2(0.0, R*1.15), t1 = vec2(R, -R*0.6), t2 = vec2(-R, -R*0.6);
-    float tri = min(min(sdSeg(q, t0, t1), sdSeg(q, t1, t2)), sdSeg(q, t2, t0));
-    float inside = step(-0.6*R, q.y)*step(abs(q.x), (R*1.15 - q.y)/1.75);
-    vec3 dc = k == 0 ? cyan : amber;
-    light += mix(vec3(1.0), dc, 0.4)*(halo(tri, 0.05 + px)*1.6 + halo(tri, 0.45)*0.3);
-    vec2 sp = q*3.2 + vec2(uTime*0.35*sd, 0.0);
-    vec2 sc = floor(sp);
-    float star = step(0.82, h21(sc + fk*31.0))*halo(length(fract(sp) - h22(sc)), 0.05);
-    light += (dc*0.12 + vec3(1.0)*star*1.6)*inside*smoothstep(0.0, 0.25, tri);
-  }
-  // the paths between worlds: lines of starlight branching off the blade into the dark, forking
-  // again, lights running out along them and stars hung at their joints
-  for (int i = 0; i < 9; i++){
-    float fi = float(i);
-    float ph = uTime*0.22 + h11(fi*4.1);
-    float cyc = floor(ph), life = fract(ph);
-    float grow = smoothstep(0.0, 0.35, life), vis = smoothstep(0.0, 0.1, life)*(1.0 - smoothstep(0.75, 1.0, life));
-    float s = h11(cyc*2.7 + fi) < 0.5 ? -1.0 : 1.0;
-    float y0 = (0.06 + 0.88*h11(cyc*1.9 + fi*3.0))*L;
-    float ang = -0.2 + 0.9*h11(cyc*3.3 + fi);
-    vec2 a0 = vec2(s*0.35, y0);
-    vec2 a1 = a0 + vec2(s*cos(ang), sin(ang))*(3.0 + 1.5*h11(fi + cyc))*grow;
-    vec2 a2 = a1 + vec2(s*cos(ang + 0.5), sin(ang + 0.5))*(2.5 + 1.5*h11(fi*5.0 + cyc))*grow;
-    vec2 a3 = a1 + vec2(s*cos(ang - 0.7), sin(ang - 0.7))*(2.0 + 1.5*h11(fi*7.0 + cyc))*grow;
-    float dp = min(min(sdSeg(b, a0, a1), sdSeg(b, a1, a2)), sdSeg(b, a1, a3));
-    float t = fract(uTime*0.9 + fi*0.17);
-    vec2 pulse = t < 0.5 ? mix(a0, a1, t*2.0) : mix(a1, mod(fi, 3.0) < 1.5 ? a2 : a3, t*2.0 - 1.0);
-    float dashes = 0.55 + 0.45*sin(length(b - a0)*6.0 - uTime*8.0);
-    light += (vec3(0.8, 0.86, 1.0)*(halo(dp, 0.025 + px)*0.9*dashes + halo(dp, 0.3)*0.12) + vec3(1.0)*halo(length(b - pulse), 0.13)*1.8)*vis;
-    light += vec3(1.0)*(halo(length(b - a1), 0.1) + halo(length(b - a2), 0.07) + halo(length(b - a3), 0.07))*1.3*vis*grow;
-  }
-  // star dust drifting in the void
-  for (int i = 0; i < 16; i++){
-    float fi = float(i);
-    vec2 p = vec2((h11(fi*2.3) - 0.5)*16.0, fract(h11(fi*5.9) + uTime*0.02*(0.5 + h11(fi)))*(L + 6.0) - 3.0);
-    light += vec3(0.9, 0.92, 1.0)*halo(length(b - p), 0.06)*(0.6 + 0.6*sin(uTime*3.0 + fi*2.0));
-  }
-  // clash: time freezes, cracks shoot out from the strike
-  if (cl > 0.01){
-    vec2 cq = b - vec2(0.0, L*0.6);
-    float ca = atan(cq.y, cq.x), cr = length(cq);
-    float crack = halo(abs(fract(ca*7.0/6.2832 + 0.15*vn(vec2(cr*1.5, 0.0))) - 0.5), 0.03)*step(cr, 1.0 + 8.0*(1.0 - cl));
-    light += mix(amber, cyan, step(0.0, cq.x))*crack*cl*1.3 + vec3(1.0)*halo(abs(cr - 1.0 - 7.0*(1.0 - cl)), 0.1)*cl;
-  }
-  float edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-  light *= edge*(1.0 - smoothstep(L + 0.5, L + 3.5, b.y))*smoothstep(-3.0, -0.5, b.y);
-  return (1.0 - exp(-light*1.15))*1.05;
-}
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
 
-// ==== show (added) ====
-// Time Fracture show: (gears removed) glass shards of other moments breaking off, and
-// on the other), glass shards breaking off and drifting with time-echo copies trailing them,
-// particles running backward and forward in time; a swing scatters the shards, a clash freezes time
-// with a crack pattern shooting out and a ring.
-float tfGear(vec2 q, float rad, float teeth, float rot){
-  float r = length(q), a = atan(q.y, q.x) + rot;
-  float tooth = smoothstep(-0.2, 0.2, sin(a*teeth))*0.18*rad;
-  float outer = abs(r - rad - tooth) - 0.035;
-  float inner = abs(r - rad*0.45) - 0.03;
-  float spokes = 1e3;
-  for (int k = 0; k < 4; k++){
-    float sa = float(k)*0.785 - rot;
-    vec2 d = vec2(cos(sa), sin(sa));
-    spokes = min(spokes, max(abs(q.x*d.y - q.y*d.x) - 0.03, r - rad));
+// a soft ring (torus) of radius R at height h, thickness w: its density integrated along the ray
+float bww_ring(vec3 ro, vec3 rd, float h, float R, float w){
+  vec2 sp = raySpan(ro, rd, R + 2.5*w, h - 2.5*w, h + 2.5*w);
+  if (sp.y <= sp.x) return 0.0;
+  float dt = (sp.y - sp.x)/6.0;
+  float t = sp.x + dt*0.5;
+  float acc = 0.0;
+  for (int i = 0; i < 6; i++){
+    vec3 p = ro + rd*t;
+    float r = length(p.xz);
+    float a = atan(p.x, p.z);
+    float d2 = (r - R)*(r - R) + (p.y - h)*(p.y - h)*0.5;
+    acc += exp(-d2/(w*w))*dt*(0.7 + 0.3*sin(a*5.0 + uTime*1.3 + h));
+    t += dt;
   }
-  return min(min(outer, inner), max(spokes, rad*0.45 - r));
-}
-vec3 time_fracture_show(vec2 b, float px){
-  float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  vec3 amber = vec3(1.0, 0.7, 0.3), cyan = vec3(0.4, 0.9, 1.0);
-  vec3 light = vec3(0.0);
-  // shards breaking off, each trailed by two fading echoes of itself
-  for (int i = 0; i < 8; i++){
-    float fi = float(i);
-    float ph = uTime*(0.3 + 0.15*h11(fi*2.7)) + h11(fi*7.3);
-    float cy = floor(ph), f = fract(ph);
-    float s = h11(cy*3.9 + fi) < 0.5 ? -1.0 : 1.0;
-    vec2 v = vec2(s*(3.0 + 3.0*h11(cy + fi)), 1.5*(h11(cy*2.0 + fi) - 0.4));
-    vec2 o = vec2(s*0.4, (0.1 + 0.8*h11(cy*1.3 + fi*5.0))*L);
-    vec3 sc = s < 0.0 ? amber : cyan;
-    for (int e = 0; e < 3; e++){
-      float fe = f - float(e)*0.07;
-      if (fe < 0.0) continue;
-      vec2 p = o + v*fe;
-      vec2 q = b - p;
-      float an = uTime*2.0 + fi - float(e)*0.3;
-      q = vec2(q.x*cos(an) - q.y*sin(an), q.x*sin(an) + q.y*cos(an));
-      float sh = max(abs(q.x)*1.2 + q.y*0.4, abs(q.y)*0.9) - 0.35;
-      float k = (1.0 - f)*smoothstep(0.0, 0.08, f)*(e == 0 ? 1.0 : 0.35/float(e));
-      light += sc*(clamp(-sh*8.0, 0.0, 1.0)*0.5 + halo(abs(sh), 0.03 + px)*1.2)*k;
-    }
-  }
-  // time particles: amber ones fall back down, cyan ones race up, each with a ghost trail
-  for (int i = 0; i < 10; i++){
-    float fi = float(i);
-    float s = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
-    float x = s*(1.0 + 1.6*h11(fi*4.7));
-    float y = mod(uTime*(s > 0.0 ? 7.0 : -5.0) + h11(fi*9.1)*L, L);
-    for (int e = 0; e < 4; e++){
-      float ye = y - float(e)*0.5*(s > 0.0 ? 1.0 : -1.0);
-      light += (s < 0.0 ? amber : cyan)*halo(length(b - vec2(x, ye)), 0.07)*(1.4 - float(e)*0.32);
-    }
-  }
-  float edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-  light *= edge*(1.0 - smoothstep(L + 0.5, L + 3.5, b.y))*smoothstep(-3.0, -0.5, b.y);
-  return (1.0 - exp(-light*1.15))*1.05;
+  return acc;
 }
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return time_fracture_glow0(g, b, r, px) + time_fracture_show(b, min(px, 0.06));
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength;
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float top = L*clamp(uAge/0.45, 0.0, 1.0);
+  float fxOn = uFx*smoothstep(0.3, 1.2, uAge);
+  vec3 gold = vec3(1.0, 0.80, 0.45);
+  vec3 pale = vec3(1.0, 0.95, 0.85);
+  vec3 dusk = vec3(0.55, 0.45, 0.30);
+
+  // the blade: a calm white-gold path of light
+  float s;
+  float dA = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
+  float ya = mix(-0.6, top, s);
+  float br = 0.85 + 0.15*sin(ya*0.5 - uTime*0.8) + 0.10*sin(ya*0.21 + uTime*0.5);
+  vec3 light = vec3(1.0)*exp(-pow(dA/max(0.24, px), 2.0))*(1.35 + cl*0.5)
+    + gold*halo(dA, 0.55)*0.75*br
+    + gold*halo(dA, 1.8)*0.22*br
+    + dusk*halo(dA, 5.0)*0.06;
+
+  if (fxOn < 0.001) return light;
+
+  // echoes of the blade from other moments: faint copies offset in depth, drifting and fading
+  for (int e = 0; e < 4; e++){
+    float fe = float(e);
+    float per = 6.0 + 1.7*fe;
+    float f = fract(uTime/per + fe*0.27);
+    float vis = smoothstep(0.0, 0.25, f)*(1.0 - smoothstep(0.55, 1.0, f));
+    float ang = h11(fe*3.3 + floor(uTime/per + fe*0.27)*1.7);
+    float off = (0.9 + 1.6*f + 2.5*sw)*(1.0 - 0.6*cl);
+    vec3 a0 = around(off*0.35, ang, 0.6);
+    vec3 a1 = around(off, ang + 0.06*sin(uTime*0.3 + fe), min(top, L*(0.92 + 0.05*sin(uTime*0.4 + fe))));
+    float se;
+    float de = raySeg(ro, rd, a0, a1, se);
+    float tf = smoothstep(0.0, 0.08, se)*(1.0 - smoothstep(0.85, 1.0, se));
+    float flick = 0.8 + 0.2*sin(se*30.0 - uTime*3.0 + fe);
+    vec3 ec = e == 1 ? mix(gold, vec3(1.0, 0.65, 0.30), 0.6) : (e == 3 ? mix(pale, vec3(0.75, 0.85, 1.0), 0.5) : pale);
+    light += ec*(exp(-pow(de/max(0.16, px), 2.0))*0.55 + halo(de, 0.6)*0.22)*vis*tf*flick;
+  }
+
+  // voices of light: soft streams winding loosely along the blade, two rising from the hilt and
+  // two falling from the tip, glowing pulses travelling along them
+  for (int k = 0; k < 4; k++){
+    float fk = float(k);
+    float dir = k < 2 ? 1.0 : -1.0;
+    float rr = 0.75 + 0.35*fk;
+    float turns = (0.55 + 0.18*fk)*dir;
+    float ph = fk*0.31 + uTime*0.04*dir;
+    vec3 prev = around(rr*0.4, ph, 0.0);
+    for (int j = 1; j <= 16; j++){
+      float fj = float(j)/16.0;
+      float y = fj*L;
+      float rj = rr*(0.4 + 0.6*sin(min(fj*1.6, 1.0)*1.5708))*(1.0 - 0.5*smoothstep(0.85, 1.0, fj)) + 0.10*sin(fj*4.0 + uTime*0.5 + fk);
+      vec3 q = around(rj, ph + fj*turns, y);
+      if (y - L/16.0 < top){
+        float sg;
+        float d = raySeg(ro, rd, prev, q, sg);
+        if (d < 2.0){
+          float u = (fj - (1.0 - sg)/16.0);
+          // travel: rising streams move up, falling ones down
+          float pos = dir > 0.0 ? u : 1.0 - u;
+          float pulse = pow(0.5 + 0.5*sin(pos*14.0 - uTime*(2.2 + 2.0*sw) + fk*1.7), 3.0);
+          float vis = smoothstep(0.0, 0.12, pos)*(1.0 - smoothstep(0.8, 1.0, pos));
+          vec3 vc = dir > 0.0 ? gold : pale;
+          float w = max(px*0.8, 0.05);
+          light += (vec3(1.0)*halo(d, w)*0.45*pulse + vc*halo(d, max(w*2.5, 0.14))*(0.10 + 0.45*pulse) + vc*halo(d, 0.7)*0.06*(0.3 + pulse))*vis;
+        }
+      }
+      prev = q;
+    }
+  }
+
+  // portals: soft shimmering rings opening and closing along the blade, a veil of light inside
+  for (int k = 0; k < 3; k++){
+    float fk = float(k);
+    float per = 5.5 + 1.9*fk;
+    float f = fract(uTime/per + fk*0.37);
+    float open = sin(clamp(f/0.7, 0.0, 1.0)*3.1416);
+    open = max(open, cl*0.45);
+    float h = L*(0.25 + 0.27*fk) + 1.2*sin(uTime*0.25 + fk*2.0);
+    if (h < top && open > 0.01){
+      float R = 0.6 + 2.4*open + 4.0*cl*(1.0 - cl);
+      float ring = bww_ring(ro, rd, h, R, 0.35 + 0.35*open);
+      light += mix(gold, pale, 0.5)*ring*open*(0.6 + 0.5*cl)*(0.35 + 0.65*smoothstep(0.05, 0.5, abs(rd.y)));
+      vec3 hp = rayAt(ro, rd, h);
+      if (hp.z > 0.0){
+        float r = length(hp.xy);
+        float a = atan(hp.x, hp.y);
+        float veil = exp(-pow(r/(R*0.85), 4.0))*(0.5 + 0.5*sin(r*5.0 - uTime*3.0 + 0.6*sin(a*3.0 + uTime)));
+        float gz = clamp(abs(rd.y), 0.15, 1.0);
+        light += pale*veil*open*0.07/gz*smoothstep(0.3, 0.9, r);
+      }
+    }
+  }
+
+  // the starry void: tiny stars round the blade, some slowly drifting, twinkling
+  for (int i = 0; i < 34; i++){
+    float fi = float(i);
+    float rr = 1.6 + 3.8*h11(fi*2.7);
+    float a = h11(fi*6.1) + uTime*0.004*(h11(fi*4.4) - 0.5);
+    float y = mod(L*h11(fi*8.3) + uTime*(0.15 + 0.25*h11(fi*1.1))*(i < 17 ? 1.0 : -1.0), L + 2.0) - 0.5;
+    vec3 q = around(rr, a, y);
+    if (q.y < top){
+      float tt; float d = rayPt(ro, rd, q, tt);
+      float tw = 0.4 + 0.6*pow(0.5 + 0.5*sin(uTime*(1.3 + 2.0*h11(fi*5.5)) + fi*3.0), 2.0);
+      float edge = smoothstep(-0.5, 1.0, y)*(1.0 - smoothstep(L - 1.0, L + 1.5, y));
+      float w = max(px*0.9, 0.035);
+      vec3 sc = h11(fi*9.9) > 0.6 ? vec3(0.80, 0.86, 1.0) : pale;
+      light += (sc*halo(d, w)*1.4 + sc*halo(d, w*3.5)*0.18)*tw*edge;
+    }
+  }
+
+  // star dust and ripples of time: a faint marched haze round the blade, rings of rippling light
+  vec3 ms = marchSteps(ro, rd, 5.6, -0.3, L + 1.5, 16.0);
+  if (ms.y > ms.x){
+    float t = ms.x + ms.z*h21(rd.xy*517.0 + rd.z*29.0);
+    float acc = 0.0;
+    for (int i = 0; i < 16; i++){
+      vec3 p = ro + rd*t;
+      if (p.y < top){
+        float r = length(p.xz);
+        float n = fbm3(vec2(p.x*0.35 + p.y*0.05, p.y*0.10 + uTime*0.04))*fbm3(vec2(p.z*0.35 - p.y*0.04 + 3.0, p.y*0.12 - uTime*0.05));
+        float rip = 0.55 + 0.45*sin(r*2.2 - uTime*1.1 + p.y*0.15);
+        float sh = smoothstep(0.6, 2.2, r)*(1.0 - smoothstep(2.8, 5.4, r))*smoothstep(-0.3, 2.0, p.y)*(1.0 - smoothstep(L - 1.5, L + 1.5, p.y));
+        acc += smoothstep(0.28, 0.6, n*1.4)*sh*rip;
+      }
+      t += ms.z;
+    }
+    light += mix(dusk, gold, 0.4)*acc*ms.z*0.12;
+  }
+  return light;
 }

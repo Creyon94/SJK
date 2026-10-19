@@ -1,191 +1,148 @@
-// Star Whale: a thin aqua blade with a pod of whales made of stars swimming round it: a big humpback
-// and two calves on their own wider, faster circles, bodies of deep-blue nebula packed with stars,
-// starlit outlines, fins sweeping, flukes beating. Each trails rising bubbles; spray and mist droplets
-// come off the blade; once a lap the big one blows a fountain of stars. A swing throws an arc of
-// water off the blade; a clash makes the big whale breach outward in a splash of droplets.
+// Star Whale: the song of the purrgil, the whales that swim through hyperspace, held as a blade. No
+// whales are drawn: the blade is their song. A deep-blue bioluminescent blade swells and breathes as
+// slow luminous waves roll up it; with each note a soft ring of song spreads out from it in every
+// direction, slowly, long after it was sung. Luminous plankton and blue nebula gas drift and swirl
+// round it in the dark. Every so often a hyperspace shimmer rushes up the blade with streaks of
+// starlight, as a purrgil jumps. A swing quickens the waves; a clash sings out a bright ring.
 // @room 8
-// @palette {"corona.rim_cool":[0.04,0.30,0.45],"corona.rim_hot":[0.25,0.85,0.95],"corona.inner":[0.75,1.0,1.0],"core.white":[0.92,1.0,1.0],"core.fringe_cool":[0.20,0.70,0.95],"core.fringe_hot":[0.70,1.0,1.0],"light.color":[0.30,0.85,0.95],"trail":[0.35,0.88,0.95]}
+// @palette {"corona.rim_cool":[0.04,0.10,0.45],"corona.rim_hot":[0.20,0.45,1.0],"corona.inner":[0.65,0.82,1.0],"core.white":[0.90,0.95,1.0],"core.fringe_cool":[0.15,0.35,1.0],"core.fringe_hot":[0.60,0.80,1.0],"light.color":[0.22,0.45,1.0],"trail":[0.28,0.50,1.0]}
 
-const float SW_R = 3.6, SW_T = 0.85, SW_PER = 12.0;
-float sw_a(float dt){ return (uTime + dt - 5.9)*6.28318/SW_PER; }
-float sw_ai(float dt, float per, float ph){ return (uTime + dt - 5.9 + ph)*6.28318/per; }
-float sw_yc(){ return uLength*0.52 + uLength*0.16*sin(uTime*0.09 + 1.0); }
-// projected position (xy) and depth (z) on the orbit at angle a
-vec3 sw_pos(float a){ return vec3(SW_R*sin(a), sw_yc() - SW_R*cos(a)*sin(SW_T), SW_R*cos(a)*cos(SW_T)); }
-vec3 sw_posi(float a, float R, float yo){ return vec3(R*sin(a), sw_yc() + yo - R*cos(a)*sin(SW_T), R*cos(a)*cos(SW_T)); }
-float sw_spout(){ return mod(uTime - 5.0, SW_PER); }
-// the whale's shape in its own frame (u forward, v toward its back), about 6 long: signed distance
-float sw_shape(vec2 q, out float fin, out float fluke){
-  float t = uTime;
-  // the body wave: the tail stock and flukes beat up and down
-  float tw = max(-q.x - 0.6, 0.0);
-  q.y -= sin(t*1.6)*0.10*tw*tw;
-  float body = sdEll(q - vec2(0.55, 0.0), vec2(2.25, 0.68));
-  // flatten the belly behind the jaw, a stout head
-  float stock = sdSeg(q, vec2(-0.6, 0.05), vec2(-2.65, 0.12)) - mix(0.42, 0.10, clamp((-q.x - 0.6)/2.0, 0.0, 1.0));
-  float k = 0.35;
-  float hb = clamp(0.5 + 0.5*(stock - body)/k, 0.0, 1.0);
-  float d = mix(stock, body, hb) - k*hb*(1.0 - hb);
-  // the dorsal fin: a small hooked bump
-  vec2 dq = q - vec2(-1.05, 0.40);
-  float dors = sdEll(rot(0.6)*dq, vec2(0.30, 0.13));
-  d = min(d, dors);
-  // the flukes: two swept lobes at the end of the stock, beating with it
-  vec2 fq = q - vec2(-2.75, 0.12);
-  fq = rot(sin(t*1.6 - 0.6)*0.35)*fq;
-  float l1 = sdEll(rot(0.55)*(fq - vec2(-0.25, 0.32)), vec2(0.48, 0.14));
-  float l2 = sdEll(rot(-0.55)*(fq - vec2(-0.25, -0.32)), vec2(0.48, 0.14));
-  fluke = min(l1, l2);
-  d = min(d, fluke);
-  // the long pectoral fin, sweeping slowly
-  vec2 pq = q - vec2(1.0, -0.42);
-  pq = rot(-2.2 + 0.25*sin(t*0.9))*pq;
-  fin = sdEll(pq - vec2(0.85, 0.0), vec2(0.95, 0.15 - 0.05*clamp(pq.x, 0.0, 1.8)));
-  return min(d, fin);
-}
-float sw_star(vec2 v, float s, float px){
-  float d = length(v);
-  return fillD(d - s*0.35, px) + 0.7*halo(d, s*0.9) + 0.5*(halo(abs(v.x), px + 0.015)*halo(abs(v.y), s*2.0) + halo(abs(v.y), px + 0.015)*halo(abs(v.x), s*2.0))*step(0.15, s);
-}
-// the whale at b: rgb light, a cover; z its depth
-vec4 sw_whale(vec2 b, float px, out float z, float R, float S, float per, float ph, float yo, float big){
-  float a = sw_ai(0.0, per, ph);
-  R *= 1.0 + 0.35*uClash*big;                            // the breach: the big one leaps outward
-  vec3 P = sw_posi(a, R, yo);
-  z = P.z;
-  vec2 tg = vec2(R*cos(a), R*sin(a)*sin(SW_T));
-  float lam = length(tg)/R;
-  vec2 f = normalize(tg);
-  vec2 up = vec2(-f.y, f.x);
-  vec2 C = vec2(0.0, sw_yc() + yo);
-  if (dot(up, C - P.xy) < 0.0) up = -up;               // its back toward the blade: a banked turn
-  vec2 q = b - P.xy;
-  vec2 w = vec2(dot(q, f)/lam, dot(q, up))/S;
-  w.y -= 0.06*w.x*w.x;                                  // bent round the turn
-  if (abs(w.x) > 4.5 || abs(w.y) > 2.6) return vec4(0.0);
-  float fin, fluke;
-  float d = sw_shape(w, fin, fluke)*S;
-  float inside = fillD(d, px);
-  float t = uTime;
-  // nebula fill: deep blue back, paler teal belly
-  vec3 neb = mix(vec3(0.20, 0.60, 0.85), vec3(0.08, 0.16, 0.55), smoothstep(-0.6, 0.6, w.y));
-  neb *= 0.55 + 0.45*fbm3(w*1.8 + vec2(t*0.2, 0.0));
-  // packed with tiny stars
-  vec2 gp = w*7.0; vec2 gc = floor(gp);
-  float st = fillD(length(fract(gp) - h22(gc)) - 0.10, px*7.0/S)*step(0.45, h21(gc))*(0.5 + 0.5*sin(t*4.0 + gc.x*3.1 + gc.y*1.7));
-  // throat grooves along the belly behind the jaw
-  float belly = smoothstep(-0.05, -0.35, w.y)*smoothstep(0.3, 0.9, w.x)*smoothstep(2.6, 2.0, w.x);
-  float grooves = halo(abs(fract(w.y*7.0 + w.x*0.6) - 0.5), 0.08)*belly;
-  // the mouth line and the eye
-  float mouth = halo(sdSeg(w, vec2(2.75, -0.02), vec2(1.45, -0.28)), 0.03 + px);
-  vec3 c = neb*inside*0.75 + vec3(0.85, 0.95, 1.0)*st*inside*1.2 + vec3(0.6, 0.9, 1.0)*grooves*inside*0.6 + vec3(0.7, 0.95, 1.0)*mouth*0.8;
-  // the starlit outline and the bright fin edges
-  c += vec3(0.65, 0.92, 1.0)*halo(abs(d), 0.035 + px)*1.5 + vec3(0.4, 0.8, 1.0)*halo(max(d, 0.0), 0.22)*0.45;
-  // the key stars: snout, eye, dorsal, fin tip, flukes, blowhole
-  float ks = sw_star(w - vec2(2.80, 0.05), 0.30, px/S) + sw_star(w - vec2(1.95, 0.10), 0.22, px/S)
-           + sw_star(w - vec2(-1.25, 0.55), 0.20, px/S) + sw_star(w - vec2(-3.55, 0.75), 0.22, px/S)
-           + sw_star(w - vec2(-3.55, -0.55), 0.22, px/S) + sw_star(w - vec2(1.25, 0.66), 0.16, px/S);
-  vec2 ft = vec2(1.0, -0.42) + rot(2.2 - 0.25*sin(t*0.9))*vec2(1.75, 0.0);
-  ks += sw_star(w - ft, 0.22, px/S);
-  c += vec3(1.0, 0.98, 0.92)*ks*1.3;
-  // the spout: a fountain of stars from the blowhole once a lap
-  float sp = sw_spout();
-  if (sp < 2.2 && big > 0.5){
-    for (int i = 0; i < 16; i++){
-      float fi = float(i);
-      float age = sp - h11(fi*1.7)*0.7;
-      if (age < 0.0 || age > 1.5) continue;
-      vec2 v0 = vec2((h11(fi*3.1) - 0.5)*1.4, 2.4 + 1.2*h11(fi*5.3));
-      vec2 sp2 = vec2(1.25, 0.66) + v0*age + vec2(0.0, -2.2*age*age);
-      float k = 1.0 - age/1.5;
-      c += vec3(0.85, 0.97, 1.0)*(fillD(length(w - sp2) - 0.06*k - 0.02, px/S) + halo(length(w - sp2), 0.15)*0.6)*k*1.6;
-    }
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+
+// the jump: 0..1 while a hyperspace shimmer runs up the blade (every 11 s), and its front
+float swh_jump(){ float p = mod(uTime - 3.0, 11.0); return smoothstep(0.0, 0.15, p)*(1.0 - smoothstep(1.1, 1.6, p)); }
+float swh_front(){ return mod(uTime - 3.0, 11.0)/1.2; }
+
+// one ring of song: height h, radius R, thickness w; integrated soft torus density along the ray
+float swh_ring(vec3 ro, vec3 rd, float h, float R, float w){
+  vec2 sp = raySpan(ro, rd, R + 2.5*w, h - 2.5*w, h + 2.5*w);
+  if (sp.y <= sp.x) return 0.0;
+  float dt = (sp.y - sp.x)/6.0;
+  float t = sp.x + dt*0.5;
+  float acc = 0.0;
+  for (int i = 0; i < 6; i++){
+    vec3 p = ro + rd*t;
+    float r = length(p.xz);
+    float a = atan(p.x, p.z);
+    float yy = p.y - h - 0.25*w*sin(a*3.0 + uTime*0.7);
+    float d2 = (r - R)*(r - R) + yy*yy*0.55;
+    acc += exp(-d2/(w*w))*dt*(0.65 + 0.35*sin(a*2.0 - uTime*0.5 + h));
+    t += dt;
   }
-  float lit = mix(0.42, 1.0, smoothstep(-0.5, 0.5, z));
-  return vec4(c*lit, inside);
+  return acc;
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength;
-  float z; vec4 wh = sw_whale(b, px, z, SW_R, 1.3, SW_PER, 0.0, 0.0, 1.0);
-  float z2, z3;
-  vec4 c1 = sw_whale(b, px, z2, 4.6, 0.78, 8.5, 3.0, 7.0, 0.0);
-  vec4 c2 = sw_whale(b, px, z3, 5.0, 0.7, 7.0, 6.5, -8.0, 0.0);
-  // the blade: thin aqua light with a few stars drifting inside
-  float bd = length(vec2(b.x, max(b.y - L, 0.0) + max(-b.y, 0.0)*4.0));
-  vec3 blade = vec3(0.25, 0.85, 0.95)*(halo(bd, 0.8)*0.75 + halo(bd, 2.0)*0.12)*smoothstep(-0.3, 0.2, b.y);
-  vec2 gp = vec2(b.x*2.5, b.y*1.2 - uTime*0.4); vec2 gc = floor(gp);
-  blade += vec3(0.85, 1.0, 1.0)*fillD(length(fract(gp) - h22(gc)) - 0.05, px*2.5)*step(0.82, h21(gc))*(1.0 - smoothstep(0.5, 1.0, abs(b.x)))*step(0.0, b.y)*step(b.y, L);
-  // the stardust wake left along its orbit
-  vec3 wake = vec3(0.0);
-  for (int i = 1; i < 12; i++){
-    float fi = float(i);
-    vec3 p = sw_pos(sw_a(-2.0 - fi*0.18));
-    vec2 jit = (h22(vec2(fi, floor(uTime*3.0))) - 0.5)*0.5;
-    float k = 1.0 - fi/12.0;
-    wake += vec3(0.7, 0.95, 1.0)*fillD(length(b - p.xy - jit) - 0.05*k - 0.015, px)*k*mix(0.4, 1.0, smoothstep(-0.5, 0.5, p.z))*1.4;
-  }
-  // bubble trails rising behind each whale: small bright rings that wobble up and pop
-  vec3 water = vec3(0.0);
-  for (int k = 0; k < 3; k++){
-    float fk = float(k);
-    float Rk = k == 0 ? SW_R : (k == 1 ? 4.6 : 5.0);
-    float pk = k == 0 ? SW_PER : (k == 1 ? 8.5 : 7.0);
-    float hk = k == 0 ? 0.0 : (k == 1 ? 3.0 : 6.5);
-    float yk = k == 0 ? 0.0 : (k == 1 ? 7.0 : -8.0);
-    for (int j = 0; j < 5; j++){
-      float fj = float(j);
-      float age = fract(uTime*0.6 + fj*0.2 + fk*0.37);
-      vec3 p = sw_posi(sw_ai(-age*1.4 - 0.3, pk, hk), Rk, yk);
-      vec2 bp = p.xy + vec2(0.25*sin(age*12.0 + fj), age*2.5);
-      float rad = 0.08 + 0.12*h11(fj + fk*5.0) + 0.06*age;
-      float ring = abs(length(b - bp) - rad);
-      water += vec3(0.7, 0.95, 1.0)*(halo(ring, 0.025 + px) + 0.6*halo(length(b - bp - vec2(-0.3, 0.3)*rad), 0.03))*(1.0 - age)*mix(0.45, 1.0, smoothstep(-0.5, 0.5, p.z));
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float top = L*clamp(uAge/0.45, 0.0, 1.0);
+  float fxOn = uFx*smoothstep(0.3, 1.2, uAge);
+  vec3 deep = vec3(0.10, 0.28, 1.0);
+  vec3 bio = vec3(0.35, 0.70, 1.0);
+  vec3 pale = vec3(0.80, 0.92, 1.0);
+  float jump = swh_jump()*uFx;
+  float jf = swh_front()*L;
+
+  // the blade: it breathes, swelling where the slow waves pass
+  float s;
+  float dA = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
+  float ya = mix(-0.6, top, s);
+  float tA; rayPt(ro, rd, vec3(0.0, ya, 0.0), tA);
+  float wph = ya*0.32 - uTime*(1.1 + 1.6*sw);
+  float wave = 0.5 + 0.5*sin(wph);
+  wave = wave*wave;
+  float wave2 = 0.5 + 0.5*sin(ya*0.11 - uTime*0.45 + 1.0);
+  float shim = jump*exp(-pow((ya - jf)/3.0, 2.0));
+  float gw = 0.40 + 0.45*wave + 0.15*wave2;
+  vec3 light = vec3(1.0)*exp(-pow(dA/max(0.20 + 0.06*wave, px), 2.0))*(1.1 + 0.4*wave + 1.2*shim)
+    + mix(deep, bio, 0.35*wave + 0.4*shim)*halo(dA, gw)*(0.6 + 1.1*wave + shim)
+    + deep*halo(dA, gw*3.5)*(0.20 + 0.18*wave2 + 0.2*sw)
+    + deep*halo(dA, 7.0)*0.05;
+
+  // rings of song: three slow notes on long, staggered cycles, plus the clash
+  float songs = 0.0;
+  float songC = 0.0;
+  if (fxOn > 0.001){
+    for (int k = 0; k < 3; k++){
+      float fk = float(k);
+      float per = 7.0 + 1.3*fk;
+      float f = fract((uTime + fk*2.9)/per);
+      float h = L*(0.30 + 0.25*fk) + f*2.5;
+      if (h < top){
+        float R = 0.6 + 6.2*(1.0 - pow(1.0 - f, 2.2));
+        float w = 0.55 + 1.3*f;
+        float g = smoothstep(0.0, 0.06, f)*(1.0 - smoothstep(0.45, 1.0, f));
+        songs += swh_ring(ro, rd, h, R, w)*g*(1.0 + 0.6*sw)/(0.5 + 0.6*f);
+      }
+    }
+    // the clash sings one fast bright ring from mid blade
+    if (cl > 0.01){
+      float f = 1.0 - cl;
+      songC = swh_ring(ro, rd, L*0.55, 0.8 + 5.5*f, 0.6 + 0.9*f)*cl;
     }
   }
-  // spray and mist: droplets flicked off the blade, arcing and fading; more on swing
-  for (int i = 0; i < 12; i++){
-    float fi = float(i);
-    float ph = uTime*(0.6 + 0.4*h11(fi*2.7)) + h11(fi*5.9);
-    float cy = floor(ph), f = fract(ph);
-    if (h11(cy*3.7 + fi) > 0.5 + 0.5*uSwing) continue;
-    float s = h11(cy*1.3 + fi) < 0.5 ? -1.0 : 1.0;
-    float y0 = (0.1 + 0.85*h11(cy*2.1 + fi*3.0))*L;
-    vec2 v = vec2(s*(2.5 + 3.0*h11(cy + fi*7.0)), 1.0 + 2.0*h11(cy*5.0 + fi));
-    vec2 p = vec2(s*0.3, y0) + v*f - vec2(0.0, 2.6*f*f);
-    float dd = length(b - p);
-    water += vec3(0.75, 0.97, 1.0)*(fillD(dd - 0.07, px) + halo(dd, 0.25)*0.35)*(1.0 - f)*1.3;
-    water += vec3(0.35, 0.8, 0.95)*halo(dd, 0.9)*(1.0 - f)*0.06;     // a puff of mist round it
+  light += (mix(bio, pale, 0.15)*songs*0.32 + pale*songC*1.0)*fxOn*(0.35 + 0.65*smoothstep(0.05, 0.5, abs(rd.y)));
+
+  // nebula gas and plankton glow drifting and swirling round the blade
+  vec3 ms = marchSteps(ro, rd, 6.2, -0.5, L + 2.0, 20.0);
+  if (ms.y > ms.x && fxOn > 0.001){
+    float t = ms.x + ms.z*h21(rd.xy*517.0 + rd.z*37.0);
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 20; i++){
+      vec3 p = ro + rd*t;
+      if (p.y < top + 1.0){
+        float r = length(p.xz);
+        float a = uTime*0.10 + p.y*0.04 + 0.6/(0.6 + r);
+        vec2 q = rot(a)*p.xz;
+        float yy = p.y*0.12 - uTime*0.05;
+        float n = fbm3(vec2(q.x*0.30, yy + q.y*0.12))*fbm3(vec2(q.y*0.30 + 5.0, yy*1.3 - q.x*0.1));
+        float sh = smoothstep(0.6, 1.6, r)*(1.0 - smoothstep(3.4, 5.8, r))*smoothstep(-0.5, 3.0, p.y)*(1.0 - smoothstep(L - 2.0, L + 2.0, p.y));
+        float d = smoothstep(0.12, 0.45, n*1.4)*sh;
+        // light from the blade: brighter where a wave passes at this height
+        float wv = 0.5 + 0.5*sin(p.y*0.32 - uTime*(1.1 + 1.6*sw));
+        float jl = jump*exp(-pow((p.y - jf)/4.0, 2.0));
+        acc += mix(deep, bio, 0.3 + 0.4*wv*wv)*d*(0.6 + 0.6*wv*wv + 1.5*jl)*exp(-r*0.25);
+      }
+      t += ms.z;
+    }
+    light += acc*ms.z*0.22*fxOn;
   }
-  // swing: an arc of water thrown off the blade
-  if (uSwing > 0.02){
-    for (int i = 0; i < 18; i++){
-      float fi = float(i);
-      float u = fi/17.0;
-      vec2 p = vec2(1.0 + 4.5*sin(u*3.14159)*uSwing, (0.15 + 0.85*u)*L + 1.5*sin(u*3.14159));
-      p += (vec2(h11(fi*3.0), h11(fi*7.0)) - 0.5)*0.6;
-      water += vec3(0.75, 0.97, 1.0)*(fillD(length(b - p) - 0.09, px) + halo(length(b - p), 0.3)*0.3)*uSwing*1.2;
+
+  // plankton: tiny motes of living light drifting slowly round it
+  for (int i = 0; i < 26; i++){
+    float fi = float(i);
+    float yb = L*(0.04 + 0.96*h11(fi*3.1));
+    float rr = 1.2 + 3.6*h11(fi*5.7);
+    float a = h11(fi*1.3) + uTime*(0.012 + 0.02*h11(fi*9.1))/(0.4 + 0.15*rr);
+    vec3 q = around(rr, a, yb + 0.8*sin(uTime*0.3 + fi));
+    if (q.y < top){
+      float tt; float d = rayPt(ro, rd, q, tt);
+      float wv = 0.5 + 0.5*sin(q.y*0.32 - uTime*(1.1 + 1.6*sw));
+      float br = (0.35 + 0.65*pow(0.5 + 0.5*sin(uTime*(0.9 + h11(fi*2.3)) + fi*2.0), 3.0) + 0.6*wv*wv)*(1.0 + 3.0*jump*exp(-pow((q.y - jf)/4.0, 2.0)));
+      float w = max(px*1.0, 0.045);
+      light += (pale*halo(d, w)*1.2 + bio*halo(d, w*4.0)*0.30)*br*fxOn;
     }
   }
-  // clash: the breach splash, a crown of droplets thrown up round the big whale
-  if (uClash > 0.01){
-    vec3 P = sw_posi(sw_ai(0.0, SW_PER, 0.0), SW_R*(1.0 + 0.35*uClash), 0.0);
-    float a = 1.0 - uClash;
+
+  // the jump: streaks of starlight racing up the blade with the shimmer front
+  if (jump > 0.001){
     for (int i = 0; i < 14; i++){
       float fi = float(i);
-      float an = fi*0.449 + 0.3*h11(fi);
-      vec2 p = P.xy + vec2(cos(an), sin(an))*(0.8 + 4.5*a) - vec2(0.0, 3.0*a*a);
-      water += vec3(0.8, 0.97, 1.0)*(fillD(length(b - p) - 0.1, px) + halo(length(b - p), 0.3)*0.4)*uClash*1.4;
+      float rr = 0.7 + 2.6*h11(fi*4.3);
+      float a = h11(fi*7.7);
+      float y1 = jf - 1.0 - 6.0*h11(fi*2.9);
+      float len = 3.0 + 6.0*h11(fi*6.1);
+      float y0 = max(y1 - len, 0.0);
+      y1 = min(y1, top);
+      if (y1 > y0){
+        float sg;
+        float d = raySeg(ro, rd, around(rr, a, y0), around(rr, a, y1), sg);
+        float w = max(px*0.9, 0.04);
+        float fade = sg*sg;
+        light += (pale*halo(d, w)*1.5 + bio*halo(d, w*4.0)*0.4)*fade*jump;
+      }
     }
   }
-  float front = smoothstep(-0.2, 0.3, z);
-  vec3 pod = wh.rgb + c1.rgb + c2.rgb;
-  float cover = max(wh.a*front, max(c1.a*smoothstep(-0.2, 0.3, z2), c2.a*smoothstep(-0.2, 0.3, z3)));
-  float edge = 1.0 - smoothstep(9.0, 10.5, abs(b.x));
-  vec3 outc = (blade*(1.0 - 0.55*cover) + pod + wake + water)*edge*smoothstep(-4.0, -1.0, b.y);
-  return (1.0 - exp(-outc*1.1))*1.05;
-}
-vec3 sig_core(vec3 c, vec2 b, float px){
-  float z; vec4 wh = sw_whale(b, px, z, SW_R, 1.3, SW_PER, 0.0, 0.0, 1.0);
-  float front = smoothstep(-0.2, 0.3, z);
-  return vec3(0.88, 1.0, 1.0)*(1.0 - smoothstep(0.08, 0.35, abs(b.x)))*step(0.0, b.y)*(1.0 - smoothstep(uLength - 0.6, uLength, b.y))*(1.0 - 0.85*wh.a*front);
+  return light;
 }

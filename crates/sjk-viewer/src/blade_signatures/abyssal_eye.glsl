@@ -1,20 +1,26 @@
 // Abyssal Eye: the blade is a slit cut into an endless dark, its lips glowing crimson, faint motes
 // drifting down into the black. Along its middle the slit peels open into a great almond and an eye
 // inside looks out: a burning amber iris with a goat's bar pupil, rolling to watch along the blade,
-// darting, blinking, narrowing when you swing. On a clash it flinches shut.
+// darting, blinking, narrowing when you swing; on a clash it flinches shut. The cut is a real
+// shape in space, so it keeps its form seen from any side, from above and in first person. Round
+// it, shadow tendrils with crimson tips reach out in every direction and curl back, crimson tears
+// drip off the lips and fall, specks of light are sucked in from all round, and jagged cracks in
+// reality tear outward round the blade, pulse with the abyss's heartbeat and heal. A swing lashes
+// the tendrils out; a clash flares a crimson shock ring with the tendrils whipping wide.
 // @room 8
 // @solid 1
 // @palette {"corona.rim_cool":[0.30,0.0,0.04],"corona.rim_hot":[0.95,0.12,0.10],"corona.inner":[1.0,0.45,0.30],"core.white":[1.0,0.70,0.55],"core.fringe_cool":[0.70,0.05,0.08],"core.fringe_hot":[1.0,0.40,0.25],"light.color":[0.95,0.12,0.10],"trail":[0.90,0.10,0.10]}
 
 float ae_Ey(){ return uLength*0.56; }
 const float AE_H = 6.0;
+float ae_top(){ return (uLength + 0.3)*clamp(uAge/0.45, 0.0, 1.0); }
 // how open the eye is: peels open, stays, blinks, closes; flinches on a clash
 float ae_open(){
   float p = mod(uTime - 1.5, 16.0);
   float o = smoothstep(-0.2, 1.4, p)*(1.0 - smoothstep(12.0, 13.0, p));
   float bl = 1.0 - (1.0 - smoothstep(0.0, 0.10, abs(p - 7.0)))*0.97;
   bl *= 1.0 - (1.0 - smoothstep(0.0, 0.10, abs(p - 9.6)))*0.97;
-  o *= bl*(1.0 - 0.95*uClash);
+  o *= bl*(1.0 - 0.95*uClash)*smoothstep(0.3, 0.8, uAge);
   return clamp(o*(1.0 + 0.12*uSwing), 0.0, 1.15);
 }
 // where it looks: saccades along the blade (y) and a little across (x), -1..1
@@ -31,29 +37,14 @@ float ae_w(float y){
   float base = 0.40*(1.0 - smoothstep(L - 3.0, L, y)) + 0.04;
   float dy = (y - ae_Ey())/AE_H;
   float alm = 1.38*ae_open()*pow(max(1.0 - dy*dy, 0.0), 0.75);
-  return max(base, alm)*smoothstep(-0.1, 0.5, y)*step(y, L);
+  float top = ae_top();
+  return max(base, alm)*smoothstep(-0.2, 0.25, y)*(1.0 - smoothstep(top - 0.6, top, y));
 }
-vec3 abyssal_eye_glow0(vec3 g, vec2 b, float r, float px){
-  float L = uLength;
-  float w = ae_w(b.y);
-  float ed = abs(b.x) - w;
-  float on = smoothstep(-0.2, 0.4, b.y)*(1.0 - smoothstep(L - 0.1, L + 0.5, b.y));
-  float o = ae_open();
-  float near = halo(abs((b.y - ae_Ey())/AE_H), 0.8);
-  // the glowing lips of the cut
-  vec3 lip = vec3(1.0, 0.25, 0.15)*halo(max(ed, 0.0), 0.06 + px)*1.6 + vec3(1.0, 0.55, 0.4)*halo(max(ed, 0.0), 0.02 + px)*(0.6 + 0.8*o*near);
-  float pulse = 0.85 + 0.15*sin(uTime*1.7 - b.y*0.2);
-  vec3 glow = vec3(0.85, 0.06, 0.06)*halo(max(ed, 0.0), 0.7)*0.7*pulse + vec3(0.45, 0.0, 0.05)*halo(max(ed, 0.0), 1.8)*0.35;
-  float bd = length(vec2(b.x, max(b.y - L, 0.0) + max(-b.y, 0.0)*4.0));
-  return (lip + glow)*on + vec3(0.5, 0.02, 0.04)*halo(bd, 2.0)*0.12 + g*0.03;
-}
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
-vec4 sig_solid(vec4 o, vec2 b, float px){
-  float L = uLength;
-  float w = ae_w(b.y);
-  float inside = fillD(abs(b.x) - w, px)*smoothstep(-0.1, 0.3, b.y);
-  if (inside <= 0.0) return o;
+float ae_sdf(vec3 p){ return (length(p.xz) - ae_w(p.y))*0.7; }
+// the abyss and the eye, seen on the cut at b (across, along)
+vec3 ae_inside(vec2 b, float px){
   float t = uTime;
+  float w = ae_w(b.y);
   // the endless dark: black, a slow crimson haze far down in it, motes sinking away
   vec3 col = vec3(0.012, 0.0, 0.006);
   col += vec3(0.16, 0.0, 0.03)*fbm3(vec2(b.x*1.5, b.y*0.3 + t*0.15))*smoothstep(0.0, 0.5, w - abs(b.x));
@@ -61,6 +52,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   col += vec3(0.9, 0.3, 0.2)*fillD(length(fract(mp) - h22(mc)) - 0.05, px*3.0)*step(0.86, h21(mc))*0.5*(0.5 + 0.5*sin(t*2.0 + mc.y));
   // the eye
   float op = ae_open();
+  if (op < 0.01) return col;
   vec2 lk = ae_look();
   vec2 ec = vec2(0.0, ae_Ey());
   vec2 ic = ec + vec2(lk.x*0.22, lk.y*2.6);
@@ -77,7 +69,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   // the iris: burning amber, fibres radiating, a dark limbal ring
   float ang = atan(q.y, q.x);
   float fib = 0.6 + 0.4*vn(vec2(ang*9.0, d*3.0 - t*0.3));
-  vec3 iris = mix(vec3(1.0, 0.85, 0.30), vec3(0.95, 0.35, 0.05), smoothstep(0.2, 0.95, d/Ri))*fib*1.0;
+  vec3 iris = mix(vec3(1.0, 0.85, 0.30), vec3(0.95, 0.35, 0.05), smoothstep(0.2, 0.95, d/Ri))*fib;
   iris += vec3(1.0, 0.9, 0.5)*halo(abs(d - 0.42*Ri), 0.08)*0.5;
   iris *= 1.0 - 0.75*smoothstep(0.82, 1.0, d/Ri);
   float irisA = fillD(d - Ri, px)*sclera;
@@ -90,67 +82,173 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   col += vec3(1.0, 0.95, 0.9)*fillD(length(q - vec2(-0.35, 0.45)) - 0.11, px)*irisA*0.9;
   // the lids' shadow at the almond's edge
   col *= mix(1.0, 0.35, smoothstep(w - 0.25, w, abs(b.x))*sclera);
-  return vec4(mix(o.rgb, col, inside), max(o.a, inside));
+  return col;
 }
-
-// ==== show (added) ====
-// Abyssal Eye show: shadow tendrils with crimson tips reach off the slit and curl back, crimson
-// tears drip off it and fall, dark motes and specks of light are sucked in from all round, and
-// glowing sigils flicker into the dark and fade. A swing lashes the tendrils out; a clash flares a
-// crimson shock ring with the tendrils whipping wide.
-vec3 abyssal_eye_show(vec2 b, float px){
+// a shadow tendril i: point at u (0 at the lip .. 1 at the tip)
+vec3 ae_tendril(float fi, float u){
+  float L = uLength, t = uTime;
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = (0.08 + 0.85*fract(fi*0.618 + 0.1))*L;
+  float a0 = fi*0.382 + 0.05*sin(t*0.4 + fi);
+  float reach = (1.8 + 3.6*h11(fi*3.3))*(0.65 + 0.35*sin(t*0.7 + fi*1.9)) + 1.6*sw + 2.0*cl;
+  float r = ae_w(y0) + 0.05 + reach*u;
+  // it writhes like smoke: up and down, and side to side round the blade
+  float wave = sin(u*5.0 - t*2.2 + fi)*0.7*u + u*sin(t*0.5 + fi)*0.8 + u*u*(h11(fi*5.1) - 0.5)*3.0;
+  float curl = u*0.10*sin(u*6.0 - t*1.7 + fi*2.3);
+  return around(r, a0 + curl, y0 + wave);
+}
+// the reality cracks: (start, end, fork) for crack i and its life (grow)
+float ae_crack(float fi, out vec3 a, out vec3 c, out vec3 m, out vec3 e, out float seed){
   float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  vec3 red = vec3(1.0, 0.15, 0.1), ember = vec3(1.0, 0.55, 0.2);
-  vec3 light = vec3(0.0);
-  for (int i = 0; i < 8; i++){
-    float fi = float(i);
-    float s = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
-    float y0 = (0.08 + 0.85*fract(fi*0.618 + 0.1))*L;
-    float reach = (3.0 + 2.5*h11(fi*3.3))*(0.6 + 0.4*sin(uTime*0.7 + fi*1.9)) + 3.0*sw + 3.0*cl;
-    float u = (b.x*s - 0.3)/max(reach, 0.1);
-    if (u < 0.0 || u > 1.0) continue;
-    float wave = sin(u*5.0 - uTime*2.5 + fi)*1.2*u + u*u*1.5*sin(uTime*0.5 + fi);
-    float dy = b.y - y0 - wave;
-    float th = mix(0.28, 0.03, u);
-    float t1 = exp(-pow(dy/th, 2.0));
-    light += mix(vec3(0.25, 0.02, 0.05), red, u*u)*t1*1.2 + red*halo(length(vec2(u - 1.0, dy/reach)*reach), 0.12)*1.5;
+  float ph = uTime*0.22 + h11(fi*9.0);
+  float cy = floor(ph), f = fract(ph);
+  float y0 = (0.1 + 0.8*h11(cy*3.0 + fi))*L;
+  float an = h11(cy*5.3 + fi*1.7);
+  float grow = smoothstep(0.0, 0.25, f)*(1.0 - smoothstep(0.75, 1.0, f));
+  float reach = (3.0 + 2.6*h11(cy*2.0 + fi*5.0))*grow*(1.0 + 0.4*sw + 0.6*cl);
+  a = around(ae_w(y0) + 0.05, an, y0);
+  c = around(ae_w(y0) + 0.05 + reach, an + 0.06*(h11(cy*4.0 + fi) - 0.5), y0 + (h11(cy*7.0 + fi) - 0.5)*reach*0.9);
+  m = mix(a, c, 0.5);
+  e = m + (c - a)*0.45 + vec3(0.0, (h11(cy*11.0 + fi) < 0.5 ? -1.0 : 1.0)*reach*0.35, 0.0) + around(reach*0.3, an + 0.25, 0.0);
+  seed = cy*13.0 + fi;
+  return grow*step(0.05, reach);
+}
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  float L = uLength;
+  vec4 col = vec4(0.0);
+  float tHit = 1e5;
+  float top = ae_top();
+  // ---- the cut itself: black inside, its lips burning where it turns away from you ----
+  if (top > 0.3){
+    vec2 sp = raySpan(ro, rd, 1.7, -0.3, top + 0.2);
+    if (sp.y > sp.x){
+      float tt = sp.x, dmin = 1e3, tmin = sp.x, hit = 0.0;
+      for (int i = 0; i < 56; i++){
+        float d = ae_sdf(ro + rd*tt);
+        if (d < dmin){ dmin = d; tmin = tt; }
+        if (d < 0.002){ hit = 1.0; break; }
+        tt += max(d, 0.003);
+        if (tt > sp.y) break;
+      }
+      float cov = hit > 0.5 ? 1.0 : clamp(1.0 - dmin/max(px, 1e-3), 0.0, 1.0);
+      if (cov > 0.0){
+        float th = hit > 0.5 ? tt : tmin;
+        vec3 p = ro + rd*th;
+        float dw = (ae_w(p.y + 0.05) - ae_w(p.y - 0.05))/0.1;
+        vec3 n = normalize(vec3(p.x, -dw*length(p.xz), p.z) + vec3(0.0, 0.0, 1e-4));
+        float ndv = abs(dot(n, -rd));
+        vec3 rgb = ae_inside(vec2(p.x, p.y), px);
+        // the glowing lips: crimson where the cut turns away, a white-hot hairline at the edge
+        // measured round the blade, so the cut reads as a slit from every side
+        float hv = length(rd.xz);
+        float rimH = 1.0 - abs(dot(normalize(n.xz + vec2(1e-5)), -rd.xz/max(hv, 1e-4)));
+        float rim = mix(1.0 - ndv, rimH, smoothstep(0.01, 0.05, hv));
+        rgb += vec3(1.0, 0.18, 0.1)*pow(rim, 3.0)*1.4 + vec3(1.0, 0.6, 0.45)*pow(rim, 10.0)*1.2;
+        col = vec4(rgb, cov);
+        tHit = th;
+      }
+    }
   }
-  for (int i = 0; i < 8; i++){
-    float fi = float(i);
-    float f = fract(uTime*(0.35 + 0.2*h11(fi*2.1)) + h11(fi*5.5));
-    float s = h11(fi*7.0 + floor(uTime*0.35)) < 0.5 ? -1.0 : 1.0;
-    vec2 p = vec2(s*(0.4 + 0.6*f), (0.15 + 0.75*h11(fi*3.7))*L - 7.0*f*f);
-    float dd = length((b - p)*vec2(1.0, 0.6));
-    light += red*(fillD(dd - 0.12, px)*1.4 + halo(dd, 0.35)*0.3)*(1.0 - f);
+  // ---- shadow tendrils: dark smoky arms, crimson at the tips ----
+  if (uFx > 0.01 && top > L*0.5){
+    vec2 bx = raySpan(ro, rd, 7.0, 0.0, L + 3.0);
+    if (bx.y > bx.x){
+      for (int i = 0; i < 8; i++){
+        float fi = float(i);
+        vec3 prev = ae_tendril(fi, 0.0);
+        for (int k = 1; k <= 6; k++){
+          float u1 = float(k)/6.0;
+          vec3 nx = ae_tendril(fi, u1);
+          float s;
+          float d = raySeg(ro, rd, prev, nx, s);
+          float u = u1 - (1.0 - s)/6.0;
+          float th = mix(0.42, 0.04, sqrt(u));
+          if (d < th*2.0 + px*1.5){
+            vec3 q = mix(prev, nx, s);
+            float tq = dot(q - ro, rd);
+            if (tq < tHit){
+              float core = exp(-pow(d/max(th, px*0.7), 2.0));
+              float aura = exp(-pow(d/max(th*2.2, px*1.5), 2.0));
+              float fade = 1.0 - smoothstep(0.75, 1.0, u);
+              float a = max(core*0.92, aura*0.45)*fade*uFx;
+              // smoky shadow at the heart of it, its edges and thinning end smouldering crimson
+              vec3 rgb = mix(vec3(0.9, 0.1, 0.07)*(0.5 + 0.9*u), vec3(0.02, 0.0, 0.008), core*(1.0 - u*u));
+              col = vec4(mix(col.rgb, rgb, a), max(col.a, a));
+            }
+          }
+          prev = nx;
+        }
+      }
+    }
   }
-  for (int i = 0; i < 12; i++){
-    float fi = float(i);
-    float f = fract(uTime*0.25 + fi/12.0);
-    float a = fi*0.52 + uTime*0.2;
-    vec2 p = vec2(cos(a), sin(a)*0.8)*(8.0*(1.0 - f) + 0.6) + vec2(0.0, (0.2 + 0.6*h11(fi))*L);
-    light += mix(vec3(0.9, 0.85, 1.0), red, f)*halo(length(b - p), 0.07)*1.6*smoothstep(0.0, 0.2, f);
+  return col;
+}
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime;
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  vec3 red = vec3(1.0, 0.15, 0.1);
+  float top = ae_top();
+  // the cut's glow: closest approach to the axis, measured from its lips
+  float s;
+  float dAx = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, max(top, 0.0), 0.0), s);
+  float y = mix(-0.6, top, s);
+  float ed = max(dAx - ae_w(y), 0.0);
+  float o = ae_open();
+  float near = halo(abs((y - ae_Ey())/AE_H), 0.8);
+  float pulse = 0.85 + 0.15*sin(t*1.7 - y*0.2);
+  vec3 light = vec3(1.0, 0.25, 0.15)*halo(ed, 0.06 + px)*1.6 + vec3(1.0, 0.55, 0.4)*halo(ed, 0.02 + px)*(0.6 + 0.8*o*near);
+  light += vec3(0.85, 0.06, 0.06)*halo(ed, 0.7)*0.7*pulse + vec3(0.45, 0.0, 0.05)*halo(ed, 1.8)*0.35;
+  // the emitter: the cut's crimson fire pouring out of the hilt's mouth
+  float de = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, 0.5, 0.0), s);
+  light += vec3(1.0, 0.45, 0.3)*exp(-pow(de/0.3, 2.0))*1.2*step(0.01, top) + red*halo(de, 0.8)*0.5*step(0.01, top);
+  if (uFx > 0.01 && top > L*0.5){
+    vec3 fx = vec3(0.0);
+    // crimson tears dripping off the lips and falling
+    for (int i = 0; i < 8; i++){
+      float fi = float(i);
+      float rate = 0.35 + 0.2*h11(fi*2.1);
+      float f = fract(t*rate + h11(fi*5.5));
+      float cyc = floor(t*rate + h11(fi*5.5));
+      float an = h11(fi*7.0 + cyc*1.3);
+      float y0 = (0.15 + 0.75*h11(fi*3.7 + cyc))*L;
+      vec3 p = around(ae_w(y0) + 0.1 + 0.6*f, an, y0 - 7.0*f*f);
+      float d = raySeg(ro, rd, p, p + vec3(0.0, 0.25 + 1.2*f, 0.0), s);
+      fx += (vec3(1.0, 0.5, 0.35)*halo(d, max(0.06, px))*1.4 + red*halo(d, 0.3)*0.4)*(1.0 - f)*smoothstep(0.0, 0.08, f);
+    }
+    // specks of light sucked in from all round
+    for (int i = 0; i < 12; i++){
+      float fi = float(i);
+      float f = fract(t*0.25 + fi/12.0);
+      float an = fi*0.137 + t*0.05 + f*0.4;
+      vec3 p = around(5.2*(1.0 - f) + 0.5, an, (0.2 + 0.6*h11(fi))*L + 2.5*(1.0 - f)*(h11(fi*3.0) - 0.5));
+      float tq;
+      float d = rayPt(ro, rd, p, tq);
+      fx += mix(vec3(0.9, 0.85, 1.0), red, f)*halo(d, max(0.07, px))*1.6*smoothstep(0.0, 0.2, f);
+    }
+    // cracks in reality: jagged fissures tearing outward round the blade, pulsing with the
+    // abyss's heartbeat, brightest where the eye is looking
+    float beat = 0.6 + 0.4*pow(0.5 + 0.5*sin(t*2.2), 8.0);
+    float gazeY = ae_Ey() + ae_look().y*2.6;
+    for (int i = 0; i < 4; i++){
+      vec3 a, c, m, e; float seed;
+      float live = ae_crack(float(i), a, c, m, e, seed);
+      if (live <= 0.0) continue;
+      float d = bolt3(ro, rd, a, c, seed, 0.3);
+      d = min(d, bolt3(ro, rd, m, e, seed + 3.0, 0.35));
+      float nr = 0.5 + 0.9*halo(abs(a.y - gazeY), 5.0)*o;
+      vec3 cc = vec3(1.0, 0.55, 0.4)*halo(d, max(px, 0.03))*1.2 + red*halo(d, 0.2)*1.2 + vec3(0.6, 0.0, 0.05)*halo(d, 0.9)*0.45;
+      fx += cc*live*beat*nr;
+    }
+    // clash: a crimson shock ring and a flash
+    if (cl > 0.01){
+      vec3 h = rayAt(ro, rd, L*0.55);
+      if (h.z > 0.0) fx += red*halo(abs(length(h.xy) - 1.0 - 6.0*(1.0 - cl)), 0.18 + 0.2*(1.0 - cl))*cl*1.6;
+      float tq;
+      fx += red*halo(rayPt(ro, rd, vec3(0.0, L*0.55, 0.0), tq), 1.2)*pow(cl, 3.0);
+    }
+    light += fx*uFx;
   }
-  for (int i = 0; i < 4; i++){
-    float fi = float(i);
-    float ph = uTime*0.3 + h11(fi*9.0);
-    float cy = floor(ph), f = fract(ph);
-    vec2 c = vec2((h11(cy + fi*3.0) < 0.5 ? -1.0 : 1.0)*(3.5 + 2.5*h11(cy*2.0 + fi)), (0.15 + 0.7*h11(cy*3.0 + fi))*L);
-    vec2 q = b - c;
-    float r = length(q), a = atan(q.y, q.x);
-    float sig = min(abs(r - 0.9), max(abs(r - 0.5), abs(sin(a*3.0 + cy))*r - 0.04));
-    sig = min(sig, abs(q.x*0.7 + q.y*0.7 - 0.0) + step(0.9, r)*9.0);
-    float fl = smoothstep(0.0, 0.2, f)*(1.0 - smoothstep(0.6, 1.0, f))*(0.7 + 0.3*step(0.3, h11(floor(uTime*12.0) + fi)));
-    light += ember*halo(sig, 0.04 + px)*fl*1.3;
-  }
-  if (cl > 0.01){
-    vec2 o = vec2(0.0, L*0.55);
-    light += red*halo(abs(length(b - o) - 1.0 - 7.0*(1.0 - cl)), 0.15)*cl*1.5;
-  }
-  float edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-  light *= edge*(1.0 - smoothstep(L + 0.5, L + 3.5, b.y))*smoothstep(-3.0, -0.5, b.y);
   return (1.0 - exp(-light*1.15))*1.05;
 }
-
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return abyssal_eye_glow0(g, b, r, px) + abyssal_eye_show(b, min(px, 0.06));
-}
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }

@@ -3,116 +3,214 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.55,0.12,0.02],"corona.rim_hot":[1.0,0.55,0.12],"corona.inner":[1.0,0.88,0.55],"core.white":[1.0,0.96,0.85],"core.fringe_cool":[1.0,0.40,0.08],"core.fringe_hot":[1.0,0.80,0.45],"light.color":[1.0,0.58,0.18],"trail":[1.0,0.55,0.15]}
 
-// Starforge: a kyber blade forged inside a star. Thin white-hot steel cooling to orange at its edges,
-// a rounded point. Star-fire prominences arch off it and erupt away; in a steady rhythm the forge
-// strikes: a white flash where it lands, a big fountain of sparks that arc and fall, a shock wave,
-// and a white-hot spot that cools back to orange. Embers drift up all round. A swing strikes faster;
-// a clash is a huge blow with a ring of sparks.
-// A steady rhythm: a period that changed with the swing jumped the phase by uTime times the
-// change, so the forge raced in game (whose clock runs on for minutes).
-fn sf_P() -> f32 {
-    return 0.9;
-}
-
-// the current blow: phase (0 at impact), height along the blade
-fn sf_ph() -> f32 {
-    return fract(uTime / sf_P());
-}
-
-fn sf_y(n: f32) -> f32 {
-    return uLength * (0.25 + 0.55 * h11(n * 3.7));
-}
-
-fn sf_n() -> f32 {
-    return floor(uTime / sf_P());
-}
-
-// the hammer, drawn in its own frame: a head (box) on a handle, pivoting at the handle's end
-fn sf_hammer(q: vec2<f32>) -> f32 {
-    let head = sdBox(q - vec2<f32>(0.0, 3.2), vec2<f32>(1.0, 0.55));
-    let handle = sdBox(q - vec2<f32>(0.0, 1.5), vec2<f32>(0.13, 1.5));
-    return min(head, handle);
-}
-
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px_in: f32) -> vec3<f32> {
-    var px = px_in;
-    let L = uLength;
-    px = min(px, 0.06);
-    let cl = clamp(uClash, 0.0, 1.0);
-    let hot: vec3<f32> = vec3<f32>(1.0, 0.55, 0.12);
-    let white: vec3<f32> = vec3<f32>(1.0, 0.95, 0.85);
-    let on = smoothstep(-0.5, 0.3, b.y);
-    // the blade: rounded point, white-hot core, orange edges
-    let yc = clamp(b.y, 0.0, L - 0.5);
-    let d = length(vec2(b.x, b.y - yc));
-    let ph = sf_ph();
-    let n = sf_n();
-    let y0 = sf_y(n);
-    let y1 = sf_y(n - 1.0);
-    // the spots where the last blows landed, cooling
-    let spot = exp(-pow((b.y - y0) / 1.2, 2.0)) * exp(-ph * 2.0) + exp(-pow((b.y - y1) / 1.2, 2.0)) * exp(-(ph + 1.0) * 2.0);
-    let steel = mix(hot, white, clamp(0.55 + spot * 1.5, 0.0, 1.0));
-    var light = steel * exp(-pow(d / 0.34, 2.0)) * 1.5 * on + hot * halo(d, 0.9) * (0.55 + 0.6 * spot) * on + vec3<f32>(1.0, 0.35, 0.05) * halo(d, 2.2) * 0.1 * on;
-    // star-fire licking off the blade: flame tongues curling up and away on both sides
-    for (var i = 0; i < 10; i++) {
-        let fi = f32(i);
-        let pph = uTime * (0.55 + 0.3 * h11(fi * 3.3)) + h11(fi * 8.1);
-        let cy = floor(pph);
-        let f = fract(pph);
-        let s = select(1.0, -1.0, h11(cy * 2.7 + fi) < 0.5);
-        let yy = (0.06 + 0.85 * h11(cy * 1.9 + fi * 3.0)) * L;
-        let len = (4.0 + 3.5 * h11(cy + fi)) * smoothstep(0.0, 0.3, f);
-        let u = (b.x * s - 0.35) / max(len, 0.01);
-        if u < 0.0 || u > 1.0 {
-            continue;
-        }
-        let dy = b.y - yy - 2.4 * u * u - 0.5 * sin(u * 7.0 - uTime * 12.0 + fi) * u;
-        let th = 0.5 * (1.0 - u) + 0.05;
-        let fl = exp(-pow(dy / th, 2.0)) * (1.0 - u) * (1.0 - f) * smoothstep(0.0, 0.08, f);
-        light += mix(white, vec3<f32>(1.0, 0.3, 0.03), smoothstep(0.0, 0.8, u)) * fl * 2.2;
-    }
-    // the blow: a white flash, a shock ring and a fountain of sparks
-    let k = exp(-ph * 9.0);
-    let o = vec2(0.3, y0);
-    light += white * halo(length(b - o), 0.3 + 0.7 * k) * k * 1.6;
-    let rr = abs(length((b - o) * vec2<f32>(1.0, 1.3)) - 0.5 - 6.0 * ph);
-    light += hot * halo(rr, 0.08) * (1.0 - ph) * smoothstep(0.0, 0.05, ph) * 1.2;
-    for (var i = 0; i < 18; i++) {
-        let fi = f32(i);
-        let an = -0.6 + 2.6 * h11(fi * 3.1 + n);
-        // spray mostly up and to the left
-        let v = vec2(-cos(an) * (3.0 + 5.0 * h11(fi * 7.3)), sin(an) * (3.0 + 5.0 * h11(fi * 1.7)) + 2.0);
-        let t = ph * sf_P() * 1.6;
-        let p = o + v * t - vec2(0.0, 6.0 * t * t);
-        let pv = o + v * max(t - 0.06, 0.0) - vec2(0.0, 6.0 * max(t - 0.06, 0.0) * max(t - 0.06, 0.0));
-        let life = 1.0 - smoothstep(0.4, 1.0, ph);
-        light += mix(white, hot, ph) * (halo(sdSeg(b, pv, p), 0.07) * 2.2 + halo(length(b - p), 0.18) * 0.9) * life;
-    }
-    // embers drifting up all round
-    for (var i = 0; i < 12; i++) {
-        let fi = f32(i);
-        let f = fract(uTime * (0.15 + 0.08 * h11(fi * 2.9)) + h11(fi * 5.1));
-        let p = vec2((h11(fi * 3.7) - 0.5) * 10.0 + 0.6 * sin(uTime + fi), f * (L + 4.0) - 2.0);
-        light += hot * halo(length(b - p), 0.07) * 1.5 * (0.5 + 0.5 * sin(uTime * 5.0 + fi)) * smoothstep(0.0, 0.1, f) * (1.0 - smoothstep(0.8, 1.0, f));
-    }
-    // clash: a huge blow, a ring of sparks
-    if cl > 0.01 {
-        let a = 1.0 - cl;
-        let c = vec2(0.0, L * 0.6);
-        light += white * halo(length(b - c), 1.8) * pow(cl, 3.0) * 2.0;
-        for (var i = 0; i < 14; i++) {
-            let fi = f32(i);
-            let an = fi * 0.449;
-            let dir = vec2(cos(an), sin(an));
-            let rd = 0.6 + 7.0 * (1.0 - exp(-3.0 * a));
-            light += mix(white, hot, a) * halo(sdSeg(b, c + dir * max(rd - 1.0, 0.0), c + dir * rd), 0.05) * cl * 1.6;
-        }
-    }
-    let edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-    light *= edge * (1.0 - smoothstep(L + 0.5, L + 3.5, b.y)) * smoothstep(-3.0, -0.5, b.y);
-    return (1.0 - exp(-light * 1.15)) * 1.05;
+// Starforge: a kyber blade being forged inside a star. A molten white-gold core burns under a living
+// plasma surface that boils like the face of a sun, and solar flares rise off it in glowing loops that
+// arch out round the blade and fall back. In a steady rhythm the forge strikes: a white flash where
+// the blow lands, a hot spot that cools back to gold, bright shock rings racing up and down the blade
+// and a burst of sparks flying out on every side. Embers drift all round inside a wide warm heat glow.
+// A swing makes it burn brighter and throw more sparks (the rhythm never speeds up); a clash is a huge
+// blow with a ring of sparks.
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return vec3<f32>(0.0);
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return vec3<f32>(0.0);
+}
+
+// one hammer blow every SF_P seconds, always (a swing never changes the rate)
+const SF_P: f32 = 1.25;
+
+fn sf_top() -> f32 {
+    return uLength * clamp(uAge / 0.45, 0.0, 1.0);
+}
+
+// star colour by temperature: deep red, orange, gold, white
+fn sf_heat(k: f32) -> vec3<f32> {
+    var c = mix(vec3<f32>(0.45, 0.05, 0.0), vec3<f32>(1.0, 0.38, 0.05), smoothstep(0.0, 0.45, k));
+    c = mix(c, vec3<f32>(1.0, 0.75, 0.32), smoothstep(0.4, 0.85, k));
+    return mix(c, vec3<f32>(1.0, 0.96, 0.86), smoothstep(0.85, 1.25, k));
+}
+
+// the ray's distance to a ring of radius R round the blade at height y: the nearer of where the
+// ray crosses the ring's plane and where it crosses the ring's cylinder (smooth from any side)
+fn sf_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
+    var best: f32 = 1.0e3;
+    let h = rayAt(ro, rd, y);
+    if h.z > 0.0 {
+        best = abs(length(h.xy) - R);
+    }
+    let a = dot(rd.xz, rd.xz);
+    let b = dot(ro.xz, rd.xz);
+    let c = dot(ro.xz, ro.xz) - R * R;
+    let dsc = b * b - a * c;
+    if dsc > 0.0 && a > 1.0e-6 {
+        let q = sqrt(dsc);
+        let t0 = (-b - q) / a;
+        let t1 = (-b + q) / a;
+        if t0 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t0 - y));
+        }
+        if t1 > 0.0 {
+            best = min(best, abs(ro.y + rd.y * t1 - y));
+        }
+    }
+    return best;
+}
+
+// a blow's height and side
+fn sf_y(n: f32) -> f32 {
+    return uLength * (0.18 + 0.68 * h11(n * 3.71 + 0.37));
+}
+
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    let t = uTime;
+    let top = sf_top();
+    let st = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let fx = uFx;
+    let white: vec3<f32> = vec3<f32>(1.0, 0.96, 0.86);
+    let gold: vec3<f32> = vec3<f32>(1.0, 0.72, 0.28);
+    let hot: vec3<f32> = vec3<f32>(1.0, 0.42, 0.07);
+    let n = floor(t / SF_P);
+    let ph = fract(t / SF_P) * SF_P;
+    let ys = sf_y(n);
+    let yp = sf_y(n - 1.0);
+    let as_ = h11(n * 1.37 + 0.2);
+    // ---- the molten core ----
+    var s: f32;
+    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
+    let y = -0.6 + s * (top + 0.6);
+    let spot = exp(-pow((y - ys) / 1.6, 2.0)) * exp(-ph * 1.8) + exp(-pow((y - yp) / 1.6, 2.0)) * exp(-(ph + SF_P) * 1.8);
+    let front = select(0.0, exp(-pow((y - top) / 1.5, 2.0)) * (1.0 - smoothstep(0.4, 0.6, uAge)), uAge < 0.6);
+    let pulse = 0.9 + 0.1 * sin(t * 2.1 + y * 0.4);
+    var col = mix(white, vec3<f32>(1.0), clamp(spot, 0.0, 1.0)) * exp(-pow(d / max(0.3, px), 2.0)) * (1.5 + spot + front) * pulse;
+    col += gold * halo(d, 0.8) * (0.45 + 0.8 * spot + 0.3 * st + cl);
+    col += hot * halo(d, 2.6) * (0.32 + 0.3 * spot + 0.2 * st);
+    // the wide heat glow of a star
+    col += vec3<f32>(1.0, 0.33, 0.05) * (halo(d, 3.4) * 0.3 + halo(d, 1.4) * 0.16) * (1.0 + 0.4 * st) * fx;
+    if top < 0.2 {
+        return (1.0 - exp(-col * 1.1)) * 1.05;
+    }
+    // ---- the plasma surface: a boiling photosphere (marched) ----
+    let ms = marchSteps(ro, rd, 1.45, -0.5, top + 0.7, 16.0);
+    if ms.y > ms.x && fx > 0.0 {
+        var tt = ms.x + ms.z * h21(rd.xy * 517.0 + fract(t * 7.0));
+        var acc: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i < 16; i++) {
+            let p = ro + rd * tt;
+            tt += ms.z;
+            let r = length(p.xz);
+            let g1 = fbm3(vec2(p.x * 2.4 + p.z * 1.3, p.y * 1.05 - t * 0.32));
+            let g2 = fbm3(vec2(p.z * 2.4 - p.x * 1.2, p.y * 1.25 + t * 0.27 + 3.1));
+            let gran = smoothstep(0.42, 0.85, g1 * 0.55 + g2 * 0.55);
+            let shell = smoothstep(1.45, 0.75, r) * smoothstep(-0.5, 0.2, p.y) * (1.0 - smoothstep(top - 0.2, top + 0.7, p.y));
+            let spt = exp(-pow((p.y - ys) / 2.0, 2.0)) * exp(-ph * 1.8);
+            let dens = shell * (0.12 + 2.2 * gran * gran) * (1.0 + 0.4 * st + spt + cl);
+            acc += sf_heat(0.15 + 0.85 * gran + 0.3 * (1.0 - r) + spt) * dens;
+        }
+        col += acc * ms.z * 0.6 * fx;
+    }
+    // the rest is out of the hilt's way: skip rays far from the blade
+    var ta: f32;
+    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    if far > 9.0 {
+        return (1.0 - exp(-col * 1.1)) * 1.05;
+    }
+    // ---- solar flares: plasma loops arching off the blade and falling back ----
+    for (var i = 0; i < 5; i++) {
+        let fi = f32(i);
+        let cyc = t / 3.6 + fi * 0.173 + h11(fi * 5.3) * 0.5;
+        let k = floor(cyc);
+        let q = fract(cyc);
+        let y0 = (0.08 + 0.78 * h11(k * 2.13 + fi * 7.7)) * L;
+        let dy = 4.0 + 4.0 * h11(k * 3.9 + fi);
+        if y0 + dy > top {
+            continue;
+        }
+        let H = (1.8 + 2.0 * h11(k * 1.7 + fi * 2.0)) * smoothstep(0.0, 0.45, q);
+        let a = h11(k * 6.1 + fi * 1.3);
+        let env = smoothstep(0.0, 0.12, q) * (1.0 - smoothstep(0.65, 1.0, q));
+        if far > H + 3.0 {
+            continue;
+        }
+        var best: f32 = 1.0e3;
+        var bs: f32 = 0.0;
+        var prev = around(0.4, a, y0);
+        for (var j = 1; j <= 8; j++) {
+            let f = f32(j) / 8.0;
+            let qq = around(0.4 + H * sin(3.1416 * f), a + 0.06 * sin(3.1416 * f) + 0.02 * sin(t * 1.3 + fi), y0 + dy * f);
+            let dd = raySeg(ro, rd, prev, qq, &s);
+            if dd < best {
+                best = dd;
+                bs = (f32(j) - 1.0 + s) / 8.0;
+            }
+            prev = qq;
+        }
+        let foot = 1.0 - 0.5 * sin(3.1416 * bs);
+        let fl = 0.45 + 1.0 * vn(vec2(bs * 9.0 - t * 2.5, fi * 3.0 + k));
+        col += (sf_heat(0.7 + 0.45 * fl) * halo(best, max(0.07 + 0.16 * fl, px)) * 1.3 * fl + hot * halo(best, 0.7) * 0.6 + vec3<f32>(1.0, 0.25, 0.03) * halo(best, 1.4) * 0.16) * env * foot * fx;
+    }
+    // ---- the hammer blow: flash, shock rings, sparks ----
+    if ys < top {
+        let o = around(0.45, as_, ys);
+        let dp = rayPt(ro, rd, o, &ta);
+        let k = exp(-ph * 7.0);
+        col += white * (halo(dp, 0.4 + 0.9 * k) * 2.2 + exp(-dp / 2.5) * 0.5) * k * fx;
+        // rings racing up and down the blade, and one spreading out flat
+        let fade = exp(-ph * 2.2) * smoothstep(0.0, 0.04, ph);
+        let yu = ys + 20.0 * ph;
+        let yd = ys - 13.0 * ph;
+        let ru = 1.0 + 1.8 * ph;
+        if yu < top {
+            let du = sf_ring(ro, rd, yu, ru);
+            col += (white * halo(du, max(0.06, px)) * 1.4 + gold * halo(du, 0.35) * 0.5) * fade * fx;
+        }
+        if yd > 0.0 {
+            let dr = sf_ring(ro, rd, yd, ru);
+            col += (white * halo(dr, max(0.06, px)) * 1.4 + gold * halo(dr, 0.35) * 0.5) * fade * fx;
+        }
+        let rf = 0.6 + 9.0 * ph;
+        let dfl = sf_ring(ro, rd, ys, rf);
+        col += (gold * halo(dfl, max(0.1, px)) * 1.8 + hot * halo(dfl, 0.7) * 0.5) * fade * (1.0 - smoothstep(0.3, 0.9, ph)) * fx;
+        // sparks flying out in all directions
+        let dist0 = rayPt(ro, rd, vec3(0.0, ys, 0.0), &ta);
+        if dist0 < 9.0 {
+            for (var i = 0; i < 22; i++) {
+                let fi = f32(i);
+                let sa = as_ + (h11(fi * 3.1 + n) - 0.5) * 0.9;
+                let up = (h11(fi * 7.3 + n * 1.3) - 0.35) * 1.2;
+                let dir = normalize(vec3(sin(6.2832 * sa), up, cos(6.2832 * sa)));
+                let v = 6.0 + 7.0 * h11(fi * 1.7 + n * 0.7);
+                let tp = ph;
+                let tq = max(ph - 0.05, 0.0);
+                let p1 = o + dir * v * (1.0 - exp(-tp * 2.0)) / 2.0 + vec3(0.0, 1.5 * tp * tp, 0.0);
+                let p0 = o + dir * v * (1.0 - exp(-tq * 2.0)) / 2.0 + vec3(0.0, 1.5 * tq * tq, 0.0);
+                let dd = raySeg(ro, rd, p0, p1, &s);
+                let life = (1.0 - smoothstep(0.35, 1.1, ph)) * (0.7 + 0.6 * st);
+                col += mix(white, hot, smoothstep(0.0, 0.8, ph)) * (halo(dd, max(0.06, px)) * 2.4 + halo(dd, 0.3) * 0.45) * life * fx;
+            }
+        }
+    }
+    // ---- embers drifting round in the heat ----
+    for (var i = 0; i < 12; i++) {
+        let fi = f32(i);
+        let f = fract(t * (0.05 + 0.03 * h11(fi * 2.9)) + h11(fi * 5.1));
+        let yy = f * (top + 3.0) - 1.0;
+        let p = around(1.3 + 3.0 * h11(fi * 3.7), h11(fi * 1.9) + t * 0.03 + 0.1 * sin(t * 0.7 + fi), yy);
+        let dd = rayPt(ro, rd, p, &ta);
+        let tw = 0.6 + 0.4 * sin(t * 5.0 + fi * 2.3);
+        col += hot * (halo(dd, max(0.06, px)) * 1.6 + halo(dd, 0.3) * 0.15) * tw * smoothstep(0.0, 0.1, f) * (1.0 - smoothstep(0.75, 1.0, f)) * (1.0 + st) * fx;
+    }
+    // ---- clash: a huge blow and a ring of sparks ----
+    if cl > 0.01 {
+        let a = 1.0 - cl;
+        let yc = min(L * 0.6, top);
+        let dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), &ta);
+        col += white * (halo(dc, 1.5) * 2.5 + halo(dc, 3.2) * 0.7) * cl * cl;
+        let dr = sf_ring(ro, rd, yc, 0.6 + 7.0 * (1.0 - exp(-3.0 * a)));
+        col += mix(white, hot, a) * (halo(dr, max(0.08, px)) * 1.8 + halo(dr, 0.5) * 0.4) * cl;
+    }
+    return (1.0 - exp(-col * 1.1)) * 1.05;
 }

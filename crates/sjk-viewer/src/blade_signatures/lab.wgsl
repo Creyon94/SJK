@@ -161,3 +161,111 @@ fn helix(y: f32, r: f32, turns: f32, phase: f32) -> vec2<f32> {
     let a = 6.2832 * (y * turns / 10.0 + phase);
     return vec2(r * sin(a), cos(a));
 }
+
+// ---- 3D helpers (round 8): effects drawn along the true view ray ----
+// In sig_vol(ro, rd, px) a signature gets the view ray in the blade's frame: ro the camera,
+// rd its unit direction, y along the blade from the hilt, x across it to the camera's side,
+// z toward the camera. Everything placed with these sits round the blade in depth and keeps
+// its shape from every side, from above and in first person.
+// The distance from the ray to point p; t returns how far along the ray that is.
+fn rayPt(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, t: ptr<function, f32>) -> f32 {
+    (*t) = max(dot(p - ro, rd), 0.0);
+    return length(ro + rd * (*t) - p);
+}
+
+// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b).
+fn raySeg(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<function, f32>) -> f32 {
+    let ba = b - a;
+    let w = ro - a;
+    let bd = dot(rd, ba);
+    let bb = dot(ba, ba);
+    let dw = dot(rd, w);
+    let bw = dot(ba, w);
+    let den = max(bb - bd * bd, 1.0e-6);
+    (*s) = clamp((bw - bd * dw) / den, 0.0, 1.0);
+    let q = a + ba * (*s);
+    let t = max(dot(q - ro, rd), 0.0);
+    let pr = ro + rd * t;
+    (*s) = clamp(dot(pr - a, ba) / max(bb, 1.0e-6), 0.0, 1.0);
+    return length(pr - (a + ba * (*s)));
+}
+
+// Where the ray crosses the plane across the blade at height h: xz there, and t (negative:
+// never, or behind the camera).
+fn rayAt(ro: vec3<f32>, rd: vec3<f32>, h: f32) -> vec3<f32> {
+    let t = select(-1.0, (h - ro.y) / rd.y, abs(rd.y) > 1.0e-5);
+    let p = ro + rd * max(t, 0.0);
+    return vec3(p.x, p.z, t);
+}
+
+// Where the ray is within R of the blade's axis and between heights y0 and y1: the span of
+// t (empty when x >= y).
+fn raySpan(ro: vec3<f32>, rd: vec3<f32>, R: f32, y0: f32, y1: f32) -> vec2<f32> {
+    let a = dot(rd.xz, rd.xz);
+    let b = dot(ro.xz, rd.xz);
+    let c = dot(ro.xz, ro.xz) - R * R;
+    var s: vec2<f32> = vec2<f32>(0.0, 1.0e5);
+    if a < 1.0e-6 {
+        if c > 0.0 {
+            return vec2<f32>(1.0, 0.0);
+        }
+    } else {
+        var h = b * b - a * c;
+        if h < 0.0 {
+            return vec2<f32>(1.0, 0.0);
+        }
+        h = sqrt(h);
+        s = vec2((-b - h) / a, (-b + h) / a);
+    }
+    if abs(rd.y) > 1.0e-6 {
+        let ta = (y0 - ro.y) / rd.y;
+        let tb = (y1 - ro.y) / rd.y;
+        s = vec2(max(s.x, min(ta, tb)), min(s.y, max(ta, tb)));
+    } else if ro.y < y0 || ro.y > y1 {
+        return vec2<f32>(1.0, 0.0);
+    }
+    s.x = max(s.x, 0.0);
+    return s;
+}
+
+// A point round the blade: radius r, angle a (turns), height y.
+fn around(r: f32, a: f32, y: f32) -> vec3<f32> {
+    return vec3(r * sin(6.2832 * a), y, r * cos(6.2832 * a));
+}
+
+// The blade itself in three dimensions: a white-hot core and a coloured glow round the
+// axis from just inside the hilt to the tip. It fills the hilt's mouth as a stock blade
+// does, seen from any side, from above and in first person. w is the core's half width.
+fn blade3(ro: vec3<f32>, rd: vec3<f32>, px: f32, col: vec3<f32>, w: f32, top: f32) -> vec3<f32> {
+    var s: f32;
+    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
+    return vec3<f32>(1.0) * exp(-pow(d / max(w, px), 2.0)) * 1.4 + col * halo(d, w * 2.2) * 0.75 + col * halo(d, w * 6.0) * 0.18;
+}
+
+// A lightning bolt in three dimensions from a to c: 10 kinks, each pushed off the line in
+// both directions across it by up to jag of its length.
+fn bolt3(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, c: vec3<f32>, seed: f32, jag: f32) -> f32 {
+    let d = c - a;
+    let L = max(length(d), 1.0e-3);
+    let n1 = normalize(cross(d, select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), abs(d.y) < 0.9 * L)));
+    let n2 = cross(d / L, n1);
+    var best: f32 = 1.0e3;
+    var prev = a;
+    var s: f32;
+    for (var i = 1; i <= 10; i++) {
+        let f = f32(i) / 10.0;
+        let k = select(sin(f * 3.1416) * jag * L, 0.0, i == 10);
+        let q = a + d * f + (n1 * (h11(seed * 17.13 + f32(i) * 7.31) - 0.5) + n2 * (h11(seed * 5.71 + f32(i) * 3.17) - 0.5)) * k;
+        best = min(best, raySeg(ro, rd, prev, q, &s));
+        prev = q;
+    }
+    return best;
+}
+
+// A soft cloud of light: march the ray through a smooth density inside radius R between
+// heights y0 and y1 in n steps (the caller sums its own field; this gives the steps).
+// Returns the span and the step length in z.
+fn marchSteps(ro: vec3<f32>, rd: vec3<f32>, R: f32, y0: f32, y1: f32, n: f32) -> vec3<f32> {
+    let s = raySpan(ro, rd, R, y0, y1);
+    return vec3(s, max(s.y - s.x, 0.0) / n);
+}

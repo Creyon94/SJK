@@ -1,0 +1,592 @@
+// World Shift: a blade that carries the climates of the galaxy's worlds, six seconds each: Mustafar
+// (a molten blade under a cracked black crust, running with lava drips and fire), Hoth (a faceted
+// ice crystal with frost spikes in a swirling blizzard), Kamino (a storm blade wrapped in lightning
+// with churning sea water, storm cloud and driving rain), Tatooine (a golden blade in a whirling
+// vortex of sand and wind), Crait (white salt crust cracking to show the red beneath, rock shards
+// drifting round it) and Mon Cala (a flowing column of water with spiralling streams and spray).
+// Each change is an event: the old climate strains, then bursts off the blade in a flash with shock
+// rings and its debris flung out all round, and the new one condenses onto it. Swings stoke it;
+// a clash flashes the ruling climate.
+// @room 8
+// @solid 1
+// @palette {"corona.rim_cool":[0.35,0.20,0.55],"corona.rim_hot":[0.90,0.60,0.50],"corona.inner":[1.0,0.92,0.85],"core.white":[1.0,0.98,0.95],"core.fringe_cool":[0.50,0.70,1.0],"core.fringe_hot":[1.0,0.65,0.35],"light.color":[0.95,0.75,0.60],"trail":[0.90,0.70,0.60]}
+
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+
+// ---- the cycle: 0 Mustafar, 1 Hoth, 2 Kamino, 3 Tatooine, 4 Crait, 5 Mon Cala ----
+const float WS_P = 6.0;
+float ws_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
+float ws_cur(){ return mod(floor(uTime/WS_P), 6.0); }
+float ws_prev(){ return mod(floor(uTime/WS_P) + 5.0, 6.0); }
+float ws_lt(){ return fract(uTime/WS_P)*WS_P; }
+// did the last change happen while the blade was lit? (no burst right after ignition)
+float ws_boom(){ return uAge > ws_lt() + 0.05 ? 1.0 : 0.0; }
+// the new climate condensing onto the blade (0..1)
+float ws_form(){ return ws_boom() > 0.5 ? smoothstep(0.12, 1.1, ws_lt()) : 1.0; }
+// the ruling climate straining just before it bursts
+float ws_charge(){ return smoothstep(WS_P - 0.8, WS_P, ws_lt()); }
+vec3 ws_glow(float k){
+  return k < 0.5 ? vec3(1.0, 0.36, 0.05) : k < 1.5 ? vec3(0.45, 0.8, 1.0) : k < 2.5 ? vec3(0.35, 0.55, 1.0)
+       : k < 3.5 ? vec3(1.0, 0.66, 0.25) : k < 4.5 ? vec3(1.0, 0.14, 0.1) : vec3(0.15, 0.62, 0.95);
+}
+// a blade body: white-hot core, coloured glow
+vec3 ws_core(float d, float px, float w, vec3 hot, vec3 glow, float gain){
+  return hot*exp(-pow(d/max(w, px), 2.0))*1.4*gain + glow*halo(d, w*2.5)*0.8*gain + glow*halo(d, w*7.0)*0.2;
+}
+// the ray's distance to a ring of radius R round the blade at height y
+float ws_ring(vec3 ro, vec3 rd, float y, float R){
+  float best = 1e3;
+  vec3 h = rayAt(ro, rd, y);
+  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
+  float dsc = b*b - a*c;
+  if (dsc > 0.0 && a > 1e-6){
+    float q = sqrt(dsc);
+    float t0 = (-b - q)/a, t1 = (-b + q)/a;
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+  }
+  return best;
+}
+// fire colour by heat 0..1
+vec3 ws_fire(float h){
+  vec3 c = mix(vec3(0.6, 0.05, 0.0), vec3(1.0, 0.38, 0.04), smoothstep(0.0, 0.4, h));
+  c = mix(c, vec3(1.0, 0.75, 0.3), smoothstep(0.4, 0.75, h));
+  return mix(c, vec3(1.0, 0.95, 0.8), smoothstep(0.75, 1.0, h));
+}
+// a wind streak: an arc of 5 pieces sweeping round the blade; returns its light weight
+float ws_wind(vec3 ro, vec3 rd, float r, float a, float y, float span, float rise, float px){
+  float best = 1e3, bf = 0.0, s;
+  vec3 prev = around(r, a, y);
+  for (int j = 1; j <= 5; j++){
+    float f = float(j)/5.0;
+    vec3 q = around(r*(1.0 + 0.08*f), a + span*f, y + rise*f);
+    float dd = raySeg(ro, rd, prev, q, s);
+    if (dd < best){ best = dd; bf = (float(j) - 1.0 + s)/5.0; }
+    prev = q;
+  }
+  float taper = sin(3.1416*bf)*(0.4 + 0.6*bf);
+  return (halo(best, max(0.035, px))*1.0 + halo(best, 0.2)*0.25)*taper;
+}
+
+// ======== MUSTAFAR: molten blade, black crust (solid pass), fire, drips ========
+vec3 ws_lava(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
+  float t = uTime, s, ta;
+  vec3 col = ws_core(d, px, 0.42, vec3(1.0, 0.85, 0.5), vec3(1.0, 0.36, 0.05), 1.0 + ch + 0.3*st);
+  vec3 ms = marchSteps(ro, rd, 3.1, -0.3, top + 1.5, 16.0);
+  if (ms.y > ms.x && fx > 0.0){
+    float tt = ms.x + ms.z*h21(rd.xy*517.0 + fract(t*5.0));
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 16; i++){
+      vec3 p = ro + rd*tt;
+      tt += ms.z;
+      float r = length(p.xz);
+      float n = fbm3(vec2(p.x*1.3 + p.z*0.8, p.y*0.55 - t*2.4));
+      float n2 = fbm3(vec2(p.z*1.5 - p.x*0.7, p.y*0.9 - t*3.3 + 4.0));
+      float w = 0.8 + 4.2*n*n2 + 0.7*st + 0.8*ch;
+      float f = form*smoothstep(w, w*0.2, r)*smoothstep(-0.3, 0.6, p.y)*(1.0 - smoothstep(top - 0.5, top + 1.5, p.y));
+      acc += ws_fire(clamp(1.1 - r/max(w, 0.05), 0.0, 1.0))*f;
+    }
+    col += acc*ms.z*0.9*fx;
+  }
+  // molten drips running down the blade and dropping away from it
+  for (int i = 0; i < 9; i++){
+    float fi = float(i);
+    float cyc = t*0.32 + h11(fi*3.1);
+    float k = floor(cyc), f = fract(cyc);
+    float y0 = (0.25 + 0.7*h11(k*1.9 + fi))*top;
+    float a = h11(fi*5.3 + k);
+    float off = max(f - 0.5, 0.0);
+    float yy = y0 - 5.0*f*f, rr = 0.66 + 6.0*off*off;
+    vec3 p1 = around(rr, a, yy), p0 = around(0.66 + 6.0*max(off - 0.08, 0.0)*max(off - 0.08, 0.0), a, yy + 0.6 + 1.2*f);
+    float dd = raySeg(ro, rd, p0, p1, s);
+    float life = smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.75, 1.0, f))*form;
+    float dh = rayPt(ro, rd, p1, ta);
+    col += (vec3(1.0, 0.55, 0.12)*halo(dd, max(0.05, px))*1.2 + vec3(1.0, 0.8, 0.4)*halo(dh, max(0.11, px))*1.8 + vec3(1.0, 0.3, 0.03)*halo(dd, 0.45)*0.3)*life*fx;
+  }
+  // embers rising
+  for (int i = 0; i < 10; i++){
+    float fi = float(i);
+    float f = fract(t*(0.2 + 0.1*h11(fi*2.9)) + h11(fi*5.1));
+    vec3 p = around(0.8 + 3.0*h11(fi*3.7)*f, h11(fi*1.9) + 0.15*sin(t + fi), f*(top + 2.0));
+    float dd = rayPt(ro, rd, p, ta);
+    col += vec3(1.0, 0.5, 0.1)*(halo(dd, max(0.06, px))*1.8 + halo(dd, 0.3)*0.15)*smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.7, 1.0, f))*form*fx;
+  }
+  return col;
+}
+
+// ======== HOTH: a hexagonal ice crystal, frost spikes, blizzard ========
+// light of the crystal sheath: apothem A, from the hilt to height yc
+vec3 ws_prism(vec3 ro, vec3 rd, float px, float A, float yc, float ch){
+  float tn = -1e5, tf = 1e5;
+  vec3 nn = vec3(0.0, 0.0, 1.0), nf = nn;
+  for (int i = 0; i < 3; i++){
+    float an = float(i)*1.0472 + 0.3;
+    vec3 n = vec3(sin(an), 0.0, cos(an));
+    float dn = dot(rd, n), on = dot(ro, n);
+    if (abs(dn) < 1e-5){
+      if (abs(on) > A) return vec3(0.0);
+    } else {
+      float t1 = (-A - on)/dn, t2 = (A - on)/dn;
+      float sg = dn < 0.0 ? 1.0 : -1.0;
+      if (min(t1, t2) > tn){ tn = min(t1, t2); nn = n*sg; }
+      if (max(t1, t2) < tf){ tf = max(t1, t2); nf = -n*sg; }
+    }
+  }
+  if (abs(rd.y) > 1e-5){
+    float ta = (0.1 - ro.y)/rd.y, tb = (yc - ro.y)/rd.y;
+    tn = max(tn, min(ta, tb)); tf = min(tf, max(ta, tb));
+  }
+  if (tf <= max(tn, 0.0)) return vec3(0.0);
+  vec3 col = vec3(0.0);
+  float hw = A*0.57735;
+  for (int k = 0; k < 2; k++){
+    float th = k == 0 ? tn : tf;
+    if (th <= 0.0) continue;
+    vec3 n = k == 0 ? nn : nf;
+    vec3 p = ro + rd*th;
+    vec3 tg = vec3(n.z, 0.0, -n.x);
+    float u = dot(p, tg);
+    float ed = hw - abs(u);
+    float fres = pow(1.0 - abs(dot(n, rd)), 3.0);
+    float frost = vn(vec2(u*9.0, p.y*4.0)) * vn(vec2(u*3.0 + 5.0, p.y*1.3));
+    float crack = halo(abs(vn(vec2(u*2.0 + 9.0, p.y*0.6)) - 0.5), 0.02)*ch;
+    float fade = smoothstep(0.1, 0.8, p.y)*(1.0 - smoothstep(yc - 2.5, yc, p.y));
+    vec3 c = vec3(0.5, 0.8, 1.0)*(0.1 + 0.7*fres + 0.5*frost) + vec3(0.9, 0.97, 1.0)*halo(ed, max(0.035, px))*1.1 + vec3(1.0)*crack*1.5;
+    col += c*fade*(k == 0 ? 1.0 : 0.45);
+  }
+  return col;
+}
+vec3 ws_ice(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
+  float t = uTime, s, ta;
+  vec3 col = ws_core(d, px, 0.32, vec3(0.9, 0.97, 1.0), vec3(0.4, 0.75, 1.0), 1.0 + ch + 0.3*st);
+  float yc = -0.3 + (top + 0.3)*form;
+  float jit = ch*0.04*sin(t*70.0);
+  col += ws_prism(ro + vec3(jit, 0.0, 0.0), rd, px, 0.62, yc, ch);
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (fx <= 0.0 || far > 8.0) return col;
+  // frost spikes jutting from the crystal
+  for (int i = 0; i < 12; i++){
+    float fi = float(i);
+    float y0 = (0.06 + 0.86*h11(fi*2.7))*top;
+    if (y0 > yc - 1.0) continue;
+    float a = h11(fi*6.1) + fi*0.37;
+    float ln = (0.5 + 1.1*h11(fi*1.3))*form*(1.0 + 0.3*st);
+    vec3 b0 = around(0.55, a, y0), b1 = around(0.55 + ln, a + 0.03, y0 + ln*0.7);
+    float dd = raySeg(ro, rd, b0, b1, s);
+    col += (vec3(0.95, 1.0, 1.0)*halo(dd, max(0.04*(1.0 - s) + 0.012, px))*1.4 + vec3(0.4, 0.75, 1.0)*halo(dd, 0.25)*0.3)*fx;
+  }
+  // blizzard: wind streaks sweeping round the blade
+  float wr = 1.0 + 2.5*(1.0 - form);
+  for (int i = 0; i < 7; i++){
+    float fi = float(i);
+    float cyc = t*0.5 + h11(fi*4.3);
+    float k = floor(cyc), f = fract(cyc);
+    float r = (1.3 + 2.4*h11(fi*2.2 + k))*wr;
+    float y = (0.05 + 0.85*h11(fi*1.7 + k*3.1))*top;
+    float a = h11(fi*8.3 + k) + f*0.9;
+    col += vec3(0.85, 0.93, 1.0)*ws_wind(ro, rd, r, a, y, 0.22, 1.2, px)*sin(3.1416*f)*(0.7 + 0.5*st)*form*fx;
+  }
+  // snow whirling round
+  for (int i = 0; i < 30; i++){
+    float fi = float(i);
+    float r = (1.0 + 3.6*h11(fi*3.3))*wr;
+    float a = h11(fi*7.7) + t*(0.35 + 0.25*h11(fi*1.1));
+    float yy = mod(h11(fi*5.9)*(top + 2.0) - t*(1.2 + 1.5*h11(fi*2.4)), top + 2.0) - 1.0;
+    float dd = rayPt(ro, rd, around(r, a, yy), ta);
+    col += vec3(0.92, 0.97, 1.0)*(halo(dd, max(0.05, px))*1.4 + halo(dd, 0.2)*0.1)*form*fx;
+  }
+  // snow mist
+  vec3 ms = marchSteps(ro, rd, 4.4, -0.3, top + 1.5, 12.0);
+  if (ms.y > ms.x){
+    float tt = ms.x + ms.z*h21(rd.xy*517.0 + fract(t*5.0));
+    float acc = 0.0;
+    for (int i = 0; i < 12; i++){
+      vec3 p = ro + rd*tt;
+      tt += ms.z;
+      float r = length(p.xz);
+      vec2 q = rot(t*0.8/(0.6 + 0.3*r))*p.xz;
+      float n = fbm3(vec2(q.x*0.7 + p.y*0.15, q.y*0.7 - p.y*0.2));
+      acc += smoothstep(0.45, 0.85, n)*exp(-r*r/9.0)*smoothstep(-0.3, 1.0, p.y)*(1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
+    }
+    col += vec3(0.6, 0.8, 1.0)*acc*ms.z*0.18*form*(1.0 + 0.6*st);
+  }
+  return col;
+}
+
+// ======== KAMINO: lightning wrapping the blade, churning sea, storm cloud, rain ========
+vec3 ws_storm(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
+  float t = uTime, s;
+  float fl = 0.0;
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float k = floor(t*6.0 + fi*0.37);
+    fl += step(0.3, h11(k*1.7 + fi))*exp(-fract(t*6.0 + fi*0.37)*4.0);
+  }
+  vec3 col = ws_core(d, px, 0.34, vec3(0.88, 0.93, 1.0), vec3(0.3, 0.55, 1.0), 1.0 + ch + 0.25*fl + 0.3*st);
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (fx <= 0.0 || far > 8.0) return col;
+  // lightning wrapping round the blade in 3D
+  if (far < 5.0){
+    for (int i = 0; i < 3; i++){
+      float fi = float(i);
+      float k = floor(t*6.0 + fi*0.37);
+      float on = step(0.3, h11(k*1.7 + fi))*(0.6 + 0.4*ch);
+      if (on < 0.01) continue;
+      float y0 = (0.06 + 0.72*h11(k*2.3 + fi*3.1))*top;
+      float dy = (3.0 + 4.0*h11(k*3.9 + fi))*(0.6 + 0.4*form);
+      float a = h11(k*5.1 + fi);
+      float reach = (1.6 + 1.4*h11(k*0.7 + fi))*(1.0 + 0.4*st);
+      vec3 A = around(0.35, a, y0), M = around(reach, a + 0.25, y0 + dy*0.5), C = around(0.35, a + 0.5, y0 + dy);
+      float bd = min(bolt3(ro, rd, A, M, k + fi*11.0, 0.3), bolt3(ro, rd, M, C, k + fi*11.0 + 0.5, 0.3));
+      col += boltLight(bd, vec3(0.45, 0.6, 1.0), px)*on*1.3*form;
+    }
+  }
+  // the churning sea round the blade and the storm cloud beyond (marched)
+  vec3 ms = marchSteps(ro, rd, 4.6, -0.3, top + 1.5, 18.0);
+  if (ms.y > ms.x){
+    float tt = ms.x + ms.z*h21(rd.xy*517.0 + fract(t*5.0));
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 18; i++){
+      vec3 p = ro + rd*tt;
+      tt += ms.z;
+      float r = length(p.xz);
+      vec2 q = rot(t*1.1/(0.5 + 0.4*r) + p.y*0.1)*p.xz;
+      float on = smoothstep(-0.3, 0.8, p.y)*(1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
+      float wv = fbm3(vec2(q.x*1.5 + p.y*0.3, q.y*1.5 - p.y*0.25 + t*0.8));
+      float sea = form*smoothstep(1.7, 0.5, r)*smoothstep(0.4, 0.75, wv);
+      float cn = fbm3(vec2(q.x*0.5 + p.y*0.12, q.y*0.5 - p.y*0.1 + 7.0));
+      float cloud = smoothstep(0.4, 0.85, cn)*smoothstep(1.0, 2.0, r)*exp(-r*r/12.0);
+      acc += (vec3(0.02, 0.3, 0.38)*sea + vec3(0.5, 0.9, 1.0)*sea*smoothstep(0.7, 0.9, wv)*0.8 + vec3(0.16, 0.2, 0.34)*cloud*(0.25 + 1.6*fl))*on;
+    }
+    col += acc*ms.z*0.45*form*(1.0 + 0.5*st);
+  }
+  // driving rain
+  for (int i = 0; i < 26; i++){
+    float fi = float(i);
+    float r = (0.8 + 3.8*h11(fi*3.3))*(1.0 + 1.5*(1.0 - form));
+    float a = h11(fi*7.7);
+    float yy = top + 2.0 - mod(h11(fi*5.9)*40.0 + t*(20.0 + 6.0*h11(fi)), top + 4.0);
+    vec3 p = around(r, a, yy);
+    float dd = raySeg(ro, rd, p, p + vec3(0.2, 1.4, 0.1), s);
+    col += vec3(0.7, 0.82, 1.0)*(halo(dd, max(0.02, px))*0.9 + halo(dd, 0.12)*0.12)*form;
+  }
+  return col;
+}
+
+// ======== TATOOINE: golden blade in a vortex of sand and wind ========
+vec3 ws_sand(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
+  float t = uTime, s, ta;
+  vec3 col = ws_core(d, px, 0.36, vec3(1.0, 0.93, 0.72), vec3(1.0, 0.6, 0.2), 1.0 + ch + 0.3*st);
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (fx <= 0.0 || far > 8.0) return col;
+  float wr = 1.0 + 2.0*(1.0 - form);
+  // the sand vortex (marched)
+  vec3 ms = marchSteps(ro, rd, 4.8, -0.3, top + 1.5, 20.0);
+  if (ms.y > ms.x){
+    float tt = ms.x + ms.z*h21(rd.xy*517.0 + fract(t*5.0));
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 20; i++){
+      vec3 p = ro + rd*tt;
+      tt += ms.z;
+      float r = length(p.xz);
+      float a = atan(p.x, p.z);
+      float band = 0.5 + 0.5*sin(3.0*a - r*1.8 + p.y*0.45 - t*3.2);
+      vec2 q = rot(t*1.6/(0.5 + 0.3*r))*p.xz;
+      float n = fbm3(vec2(q.x*0.9 + p.y*0.25, q.y*0.9 - p.y*0.2));
+      float rad = (0.9 + 1.6*clamp(p.y/max(top, 1.0), 0.0, 1.0))*wr;
+      float sh = exp(-pow((r - rad)/1.1, 2.0));
+      float on = smoothstep(-0.3, 0.8, p.y)*(1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
+      float dens = sh*(0.25 + 0.75*band)*smoothstep(0.3, 0.75, n)*on;
+      acc += mix(vec3(0.75, 0.42, 0.16), vec3(1.0, 0.78, 0.45), band*n)*dens;
+    }
+    col += acc*ms.z*0.5*(0.6 + 0.4*form)*(1.0 + 0.6*st);
+  }
+  // wind streaks whipping round
+  for (int i = 0; i < 8; i++){
+    float fi = float(i);
+    float cyc = t*0.8 + h11(fi*4.3);
+    float k = floor(cyc), f = fract(cyc);
+    float r = (0.9 + 3.0*h11(fi*2.2 + k))*wr;
+    float y = (0.03 + 0.9*h11(fi*1.7 + k*3.1))*top;
+    float a = h11(fi*8.3 + k) + f*1.1;
+    col += vec3(1.0, 0.9, 0.72)*ws_wind(ro, rd, r, a, y, 0.28, 0.8, px)*sin(3.1416*f)*(0.8 + 0.6*st)*form;
+  }
+  // glinting grains
+  for (int i = 0; i < 24; i++){
+    float fi = float(i);
+    float r = (0.8 + 3.5*h11(fi*3.3))*wr;
+    float a = h11(fi*7.7) + t*(0.5 + 0.3*h11(fi*1.1))/(0.4 + 0.25*r);
+    float yy = mod(h11(fi*5.9)*(top + 2.0) + t*(0.8 + h11(fi*2.4)), top + 2.0) - 1.0;
+    float dd = rayPt(ro, rd, around(r, a, yy), ta);
+    col += vec3(1.0, 0.85, 0.6)*halo(dd, max(0.05, px))*1.5*(0.5 + 0.5*sin(t*9.0 + fi*2.0))*form;
+  }
+  return col;
+}
+
+// ======== CRAIT: white salt crust (solid pass) over red, rock shards, red dust ========
+vec3 ws_shard(float fi, float form, out vec3 b0){
+  float t = uTime;
+  float r = (1.3 + 1.6*h11(fi*3.3))*(1.0 + 1.5*(1.0 - form));
+  vec3 c = around(r, h11(fi*7.1) + t*0.04*(1.0 + h11(fi)), (0.08 + 0.84*h11(fi*1.9))*uLength + 0.4*sin(t*0.6 + fi));
+  vec3 dir = normalize(vec3(sin(t*0.7 + fi), cos(t*0.5 + fi*2.0), sin(t*0.6 + fi*3.0)));
+  float ln = 0.3 + 0.35*h11(fi*5.5);
+  b0 = c - dir*ln;
+  return c + dir*ln;
+}
+vec3 ws_rock(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
+  float t = uTime, s;
+  float pul = 0.85 + 0.15*sin(t*2.0);
+  vec3 col = ws_core(d, px, 0.42, vec3(1.0, 0.86, 0.84), vec3(1.0, 0.13, 0.1), (1.1 + 1.5*ch + 0.3*st)*pul);
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (fx <= 0.0 || far > 8.0) return col;
+  // red salt dust rising off the cracks (marched)
+  vec3 ms = marchSteps(ro, rd, 3.2, -0.3, top + 1.5, 14.0);
+  if (ms.y > ms.x){
+    float tt = ms.x + ms.z*h21(rd.xy*517.0 + fract(t*5.0));
+    float acc = 0.0;
+    for (int i = 0; i < 14; i++){
+      vec3 p = ro + rd*tt;
+      tt += ms.z;
+      float r = length(p.xz);
+      float n = fbm3(vec2(p.x*0.9 + p.z*0.7, p.y*0.5 - t*0.9));
+      acc += smoothstep(0.45, 0.85, n)*exp(-(r - 0.5)/1.0)*step(0.5, r)*smoothstep(-0.3, 0.8, p.y)*(1.0 - smoothstep(top - 1.0, top + 1.5, p.y));
+    }
+    col += vec3(1.0, 0.12, 0.08)*acc*ms.z*0.45*form*(1.0 + 0.7*st + ch);
+  }
+  // red light round the floating shards (the shards themselves are in the solid pass)
+  for (int i = 0; i < 9; i++){
+    float fi = float(i);
+    vec3 b0;
+    vec3 b1 = ws_shard(fi, form, b0);
+    if (b1.y > top) continue;
+    float dd = raySeg(ro, rd, b0, b1, s);
+    col += vec3(1.0, 0.15, 0.1)*halo(dd, 0.45)*0.35*form;
+  }
+  return col;
+}
+
+// ======== MON CALA: a flowing column of water, spiralling streams, spray ========
+vec3 ws_water(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
+  float t = uTime, s, ta;
+  vec3 col = ws_core(d, px, 0.3, vec3(0.85, 1.0, 1.0), vec3(0.15, 0.6, 0.95), 1.0 + ch + 0.3*st) + vec3(0.1, 0.45, 0.9)*halo(d, 2.6)*0.22*fx;
+  // the flowing column (marched): water racing up, with bright caustic ridges
+  vec3 ms = marchSteps(ro, rd, 1.9, -0.3, top + 1.0, 16.0);
+  if (ms.y > ms.x){
+    float tt = ms.x + ms.z*h21(rd.xy*517.0 + fract(t*5.0));
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 16; i++){
+      vec3 p = ro + rd*tt;
+      tt += ms.z;
+      float r = length(p.xz);
+      vec2 q = rot(p.y*0.35 - t*2.0)*p.xz;
+      float n = fbm3(vec2(q.x*1.6 + p.y*0.2, q.y*1.6 + p.y*0.6 - t*3.0));
+      float ridge = pow(1.0 - abs(2.0*n - 1.0), 6.0);
+      float sheath = form*smoothstep(1.45, 0.45, r)*smoothstep(-0.3, 0.6, p.y)*(1.0 - smoothstep(top - 0.6, top + 1.0, p.y));
+      acc += (vec3(0.03, 0.25, 0.7)*0.9 + vec3(0.2, 0.7, 1.0)*n*0.9 + vec3(0.85, 1.0, 1.0)*ridge*2.2)*sheath;
+    }
+    col += acc*ms.z*0.8*(1.0 + 0.4*st);
+  }
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (fx <= 0.0 || far > 8.0) return col;
+  // three streams of water spiralling up round the blade
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float best = 1e3, by = 0.0;
+    float r = (1.45 + 0.2*sin(t*1.3 + fi*2.0))*(1.0 + 2.0*(1.0 - form))*(1.0 + 0.2*st);
+    vec3 prev = around(r*0.6, fi/3.0 - t*0.35, 0.3);
+    for (int j = 1; j <= 16; j++){
+      float f = float(j)/16.0;
+      float yy = 0.3 + f*(top - 0.8);
+      vec3 q = around(r*(0.6 + 0.4*smoothstep(0.0, 0.15, f)), fi/3.0 + f*1.25 - t*0.35, yy);
+      float dd = raySeg(ro, rd, prev, q, s);
+      if (dd < best){ best = dd; by = (float(j) - 1.0 + s)/16.0; }
+      prev = q;
+    }
+    float fl = 0.5 + 0.8*vn(vec2(by*30.0 - t*6.0, fi*5.0));
+    col += (vec3(0.8, 1.0, 1.0)*halo(best, max(0.05, px))*1.2*fl + vec3(0.2, 0.7, 1.0)*halo(best, 0.2)*0.55 + vec3(0.1, 0.45, 0.9)*halo(best, 0.6)*0.15)*form*fx;
+  }
+  // spray thrown off the streams
+  for (int i = 0; i < 30; i++){
+    float fi = float(i);
+    float f = fract(t*(0.7 + 0.4*h11(fi*2.9)) + h11(fi*5.1));
+    float a0 = h11(fi*1.9) + floor(t*0.7 + h11(fi*5.1))*0.37;
+    vec3 p = around(1.5 + 2.8*f*(1.0 + 0.5*st), a0 + 0.12*f, h11(fi*3.7 + floor(t*0.7))*top + 1.5*f);
+    float dd = rayPt(ro, rd, p, ta);
+    col += vec3(0.7, 0.95, 1.0)*(halo(dd, max(0.05, px))*1.5 + halo(dd, 0.25)*0.12)*(1.0 - f)*smoothstep(0.0, 0.1, f)*form*fx;
+  }
+  return col;
+}
+
+// ======== the change: the old climate's debris flung out ========
+// piece i of the burst: where it is lt seconds after, its trailing end in b0
+vec3 ws_piece(float fi, float lt, float top, float k, out vec3 b0){
+  float a = h11(fi*3.7 + k);
+  float up = (h11(fi*7.1 + k) - 0.4)*0.9;
+  vec3 dir = normalize(vec3(sin(6.2832*a), up, cos(6.2832*a)));
+  float v = 7.0 + 7.0*h11(fi*1.3 + k);
+  vec3 st = around(0.5, a, (0.04 + 0.9*h11(fi*1.9 + k))*top);
+  vec3 p = st + dir*v*(1.0 - exp(-lt*2.4))/2.4;
+  float ln = k < 0.5 ? 0.9 : k < 1.5 ? 0.6 : k < 2.5 ? 1.2 : k < 3.5 ? 1.6 : k < 4.5 ? 0.45 : 0.8;
+  b0 = p - dir*ln*(0.4 + 0.6*exp(-lt*1.5));
+  return p;
+}
+vec3 ws_burst(vec3 ro, vec3 rd, float px, float d, float top, float kp, float kn, float lt){
+  float s;
+  vec3 gp = ws_glow(kp);
+  vec3 col = vec3(0.0);
+  // the flash
+  col += mix(vec3(1.0), gp, 0.3)*(halo(d, 0.6)*2.2 + halo(d, 1.8)*0.45 + halo(d, 4.0)*0.12)*exp(-lt*7.0);
+  // the blast: a shell of light bursting outward from the whole blade
+  float Rb = 3.4*(1.0 - exp(-lt*5.0));
+  col += mix(vec3(1.0), gp, 0.5)*halo(abs(d - Rb), 0.3 + 0.25*Rb)*exp(-lt*4.5)*smoothstep(0.0, 0.03, lt)*0.55;
+  // shock rings tearing out across the blade, one after another
+  float nb = floor(uTime/WS_P);
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float lr = max(lt - fi*0.07, 0.0);
+    float R = 0.5 + 6.0*(1.0 - exp(-lr*2.6));
+    float fade = exp(-lr*2.6)*smoothstep(0.0, 0.03, lr)*(1.0 - smoothstep(0.5, 1.0, lr));
+    float y = top*(0.18 + 0.22*fi + 0.12*h11(nb*3.1 + fi));
+    float dr = ws_ring(ro, rd, y, R);
+    col += (vec3(1.0)*halo(dr, max(0.05, px))*1.3 + mix(vec3(1.0), gp, 0.6)*halo(dr, 0.3)*0.7 + gp*halo(dr, 1.0)*0.25)*fade;
+  }
+  // the new climate condensing up the blade from the hilt
+  float fr = -1.0 + (top + 3.0)*smoothstep(0.1, 0.7, lt);
+  float sf;
+  float dsf = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sf);
+  float yy = -0.6 + sf*(top + 0.6);
+  col += mix(vec3(1.0), ws_glow(kn), 0.5)*halo(dsf, 1.0)*halo(abs(yy - fr), 1.2)*1.6*smoothstep(0.08, 0.15, lt)*(1.0 - smoothstep(0.6, 0.8, lt));
+  // a flash of the new climate's colour as it condenses
+  col += ws_glow(kn)*halo(d, 1.1)*smoothstep(0.1, 0.4, lt)*exp(-max(lt - 0.4, 0.0)*3.0)*0.35;
+  // debris of the old climate flung out in every direction
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (far > 9.0) return col;
+  float life = 1.0 - smoothstep(0.5, 1.6, lt);
+  float w = kp < 0.5 ? 0.11 : kp < 1.5 ? 0.06 : kp < 2.5 ? 0.03 : kp < 3.5 ? 0.035 : kp < 4.5 ? 0.08 : 0.07;
+  vec3 hot = kp < 0.5 ? vec3(1.0, 0.75, 0.35) : kp < 1.5 ? vec3(0.9, 0.97, 1.0) : kp < 2.5 ? vec3(0.85, 0.9, 1.0)
+           : kp < 3.5 ? vec3(1.0, 0.85, 0.55) : kp < 4.5 ? vec3(1.0, 0.3, 0.2) : vec3(0.75, 0.95, 1.0);
+  for (int i = 0; i < 30; i++){
+    float fi = float(i);
+    vec3 b0;
+    vec3 b1 = ws_piece(fi, lt, top, kp, b0);
+    float dd = raySeg(ro, rd, b0, b1, s);
+    float tip = 0.4 + 0.6*s;
+    col += (hot*halo(dd, max(w*1.7*tip, px))*2.0 + gp*halo(dd, 0.5)*0.55)*life;
+  }
+  return col;
+}
+
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float top = ws_top(), lt = ws_lt(), k = ws_cur(), kp = ws_prev();
+  float form = ws_form(), ch = ws_charge(), boom = ws_boom();
+  float st = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0), fx = uFx;
+  float s;
+  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
+  vec3 col = vec3(0.0);
+  if (k < 0.5) col = ws_lava(ro, rd, px, d, top, form, ch, st, fx);
+  else if (k < 1.5) col = ws_ice(ro, rd, px, d, top, form, ch, st, fx);
+  else if (k < 2.5) col = ws_storm(ro, rd, px, d, top, form, ch, st, fx);
+  else if (k < 3.5) col = ws_sand(ro, rd, px, d, top, form, ch, st, fx);
+  else if (k < 4.5) col = ws_rock(ro, rd, px, d, top, form, ch, st, fx);
+  else col = ws_water(ro, rd, px, d, top, form, ch, st, fx);
+  // the straining climate trembles with light just before it bursts
+  col += mix(vec3(1.0), ws_glow(k), 0.5)*halo(d, 0.9)*ch*ch*(0.6 + 0.4*sin(uTime*40.0))*0.8;
+  if (boom > 0.5 && lt < 1.6) col += ws_burst(ro, rd, px, d, top, kp, k, lt)*fx;
+  // clash: the ruling climate flashes
+  if (cl > 0.01){
+    float ta;
+    float dc = rayPt(ro, rd, vec3(0.0, min(uLength*0.6, top), 0.0), ta);
+    col += (vec3(1.0)*halo(dc, 1.0)*2.5 + ws_glow(k)*halo(dc, 2.8)*1.2)*cl*cl;
+    col += ws_glow(k)*halo(ws_ring(ro, rd, min(uLength*0.6, top), 0.5 + 5.0*(1.0 - cl)), 0.25)*cl*1.2;
+  }
+  return (1.0 - exp(-col*1.1))*1.05;
+}
+
+// ======== the solid parts: crusts (Mustafar basalt, Crait salt), chunks and shards ========
+vec4 ws_crust(vec3 ro, vec3 rd, float px, float k, float top, float grow, float crack, out float tc){
+  float Rc = k < 0.5 ? 0.6 : 0.62;
+  tc = 1e5;
+  float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - Rc*Rc;
+  float h = b*b - a*c;
+  if (h <= 0.0 || a < 1e-6) return vec4(0.0);
+  float t0 = (-b - sqrt(h))/a;
+  if (t0 <= 0.0) return vec4(0.0);
+  vec3 p = ro + rd*t0;
+  float y1 = min(top - 0.9, grow*(top + 1.0));
+  if (p.y < 0.1 || p.y > y1 + 0.6) return vec4(0.0);
+  vec3 n = vec3(p.x, 0.0, p.z)/Rc;
+  float ang = atan(p.x, p.z)/6.2832;
+  vec2 cell;
+  float e = k < 0.5 ? voro(vec2(ang*8.0, p.y*1.0 + uTime*0.22), cell) : voro(vec2(ang*8.0, p.y*1.2), cell);
+  float w = (k < 0.5 ? 0.13 + 0.05*sin(uTime*2.0 + cell.x*3.0 + cell.y) : 0.04 + 0.03*sin(uTime*1.5 + cell.x*2.0 + cell.y*1.3)) + crack*0.12;
+  float al = smoothstep(w, w + 0.06, e);
+  al *= smoothstep(0.0, 0.3, -dot(n, rd));
+  al *= smoothstep(0.1, 0.7, p.y)*(1.0 - smoothstep(y1 - 0.4, y1 + 0.6, p.y));
+  float dif = 0.45 + 0.55*max(dot(n, normalize(vec3(0.5, 0.6, 0.6))), 0.0);
+  float nz = vn(vec2(ang*40.0, p.y*6.0));
+  float glow = exp(-max(e - w, 0.0)/(k < 0.5 ? 0.07 : 0.09));
+  vec3 col;
+  if (k < 0.5) col = vec3(0.09, 0.055, 0.04)*(0.6 + 0.7*nz)*dif + vec3(1.0, 0.32, 0.04)*glow*1.2 + vec3(0.35, 0.05, 0.0)*h21(cell)*h21(cell + 3.1);
+  else col = vec3(1.0, 0.98, 0.96)*(0.75 + 0.25*nz)*(0.55 + 0.6*dif) + vec3(1.0, 0.1, 0.08)*glow*1.0;
+  tc = t0;
+  return vec4(col, al);
+}
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  float top = ws_top(), lt = ws_lt(), k = ws_cur(), kp = ws_prev();
+  float form = ws_form(), ch = ws_charge(), boom = ws_boom();
+  float s, ta, tc = 1e5;
+  vec4 o = vec4(0.0);
+  float crustK = k < 0.5 ? 1.0 : (k > 3.5 && k < 4.5 ? 1.0 : 0.0);
+  if (crustK > 0.5) o = ws_crust(ro, rd, px, k, top, form, ch, tc);
+  // an old crust in its last instant, bursting apart
+  float oldCrust = kp < 0.5 ? 1.0 : (kp > 3.5 && kp < 4.5 ? 1.0 : 0.0);
+  if (boom > 0.5 && oldCrust > 0.5 && lt < 0.12){
+    float t2;
+    vec4 c2 = ws_crust(ro, rd, px, kp, top, 1.0, 1.0 + lt*8.0, t2);
+    c2.a *= 1.0 - smoothstep(0.03, 0.12, lt);
+    if (c2.a > o.a){ o = c2; tc = t2; }
+  }
+  if (uFx <= 0.0) return o;
+  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  if (far > 9.0) return o;
+  // chunks of the old crust flung out (basalt or salt)
+  if (boom > 0.5 && oldCrust > 0.5 && lt < 1.6){
+    float life = 1.0 - smoothstep(0.7, 1.6, lt);
+    for (int i = 0; i < 14; i++){
+      float fi = float(i);
+      vec3 b0;
+      vec3 b1 = ws_piece(fi, lt, top, kp, b0);
+      float dd = raySeg(ro, rd, b0, b1, s);
+      float w = (0.09 + 0.06*h11(fi*2.3))*(0.25 + 0.75*sqrt(sin(3.1416*s)));
+      float al = fillD(dd - w, px)*life;
+      if (al <= 0.0) continue;
+      float tmid = rayPt(ro, rd, (b0 + b1)*0.5, ta);
+      if (ta > tc && o.a > 0.5) continue;
+      float rim = smoothstep(w*0.3, w, dd);
+      vec3 c = kp < 0.5 ? vec3(0.08, 0.05, 0.04)*(1.0 - 0.5*rim) + vec3(1.0, 0.35, 0.05)*rim*0.8
+                        : vec3(0.88, 0.86, 0.84)*(0.95 - 0.35*rim) + vec3(1.0, 0.12, 0.1)*rim*0.5;
+      o = vec4(mix(o.rgb, c, al), max(o.a, al));
+    }
+  }
+  // Crait: salt shards drifting round the blade
+  if (k > 3.5 && k < 4.5){
+    for (int i = 0; i < 9; i++){
+      float fi = float(i);
+      vec3 b0;
+      vec3 b1 = ws_shard(fi, form, b0);
+      if (b1.y > top) continue;
+      float dd = raySeg(ro, rd, b0, b1, s);
+      float w = (0.2 + 0.12*h11(fi*4.1))*(0.2 + 0.8*sqrt(sin(3.1416*s)));
+      float al = fillD(dd - w, px)*form;
+      if (al <= 0.0) continue;
+      float tmid = rayPt(ro, rd, (b0 + b1)*0.5, ta);
+      if (ta > tc && o.a > 0.5) continue;
+      float rim = smoothstep(w*0.2, w, dd);
+      vec3 c = vec3(0.9, 0.88, 0.86)*(1.0 - 0.45*rim) + vec3(1.0, 0.12, 0.1)*rim*0.45;
+      o = vec4(mix(o.rgb, c, al), max(o.a, al));
+    }
+  }
+  return o;
+}

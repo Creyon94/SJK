@@ -1861,7 +1861,10 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         let mouth = (1.0 - smoothstep(0.0, 2.2, length(vec2(place.x * 0.6, max(place.y, 0.0))))) * 0.75;
         glow = max(sig_glow(glow, place + vec2(x - input.blade.x, 0.0), r, pixel), vec3(0.0))
             * sig_kept(input, place) + glow * mouth * step(-6.0, place.y);
-        return sig_coloured(input, glow);
+        // Its effects in three dimensions, drawn along the true view ray.
+        let ray = sig_ray(input);
+        glow += max(sig_vol(ray.o, ray.d, pixel), vec3(0.0));
+        return sig_coloured(input, glow * sig_edge(input));
     }
     // A chroma takes its wearer's colour: everything it drew, turned at once.
     if input.chroma != 0.0 {
@@ -2313,7 +2316,11 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
         sig_take(input);
         let place = blade_place(input);
         out = clamp(sig_solid(out, place, pixel), vec4(0.0), vec4(1.0));
-        out = vec4(sig_coloured(input, out.rgb), out.a * sig_kept(input, place));
+        out = vec4(out.rgb, out.a * sig_kept(input, place));
+        let ray = sig_ray(input);
+        let v = clamp(sig_vol_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0));
+        out = vec4(mix(out.rgb, v.rgb, v.a), max(out.a, v.a));
+        out = vec4(sig_coloured(input, out.rgb), out.a * sig_edge(input));
     }
     return out;
 }
@@ -3569,6 +3576,9 @@ var<private> uAge: f32;
 var<private> uSeed: f32;
 var<private> uChroma: f32;
 var<private> uRoom: f32;
+// 1 while its wearer has its effects on (the `effects` option, the arcs bit), else 0: what a
+// signature's own volume (`sig_vol`) keeps of everything but the blade itself.
+var<private> uFx: f32;
 
 // The lab's ignition takes 0.42 s and its clash fades at 2.2 a second.
 const SIG_IGNITION: f32 = 0.42;
@@ -3591,6 +3601,7 @@ fn sig_take(input: VertexOutput) {
         uAge = 1000.0;
         uIgn = 1.0;
     }
+    uFx = select(1.0, 0.0, (input.off & OFF_ARCS) != 0u);
     // The page turned a chroma's output afterwards; the game turns it after the hooks.
     uChroma = 0.0;
     uRoom = skins[skin_index(input)].design.z / LAB_METRE;
@@ -3632,6 +3643,43 @@ fn sig_coloured(input: VertexOutput, c: vec3<f32>) -> vec3<f32> {
     return sig_recolour(c, fract(base + input.chroma));
 }
 
+// The view ray in the blade's own frame, units: `o` the camera, `d` the unit direction; y
+// along the blade from its hilt, x across it to the camera's side and z toward the camera
+// (as the quad faces it), so a signature draws in three dimensions with its depth.
+struct SigRay {
+    o: vec3<f32>,
+    d: vec3<f32>,
+}
+
+fn sig_ray(input: VertexOutput) -> SigRay {
+    let ay = normalize(input.axis);
+    let view = -input.hilt_at - ay * (input.length * 0.5);
+    var side = cross(ay, view);
+    if dot(side, side) < 0.000001 {
+        side = cross(ay, select(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), abs(ay.z) > 0.9));
+    }
+    let ax = normalize(side);
+    let az = cross(ax, ay);
+    let cam = -input.hilt_at;
+    let r = normalize(input.ray);
+    var out: SigRay;
+    out.o = vec3(dot(cam, ax), dot(cam, ay), dot(cam, az));
+    out.d = vec3(dot(r, ax), dot(r, ay), dot(r, az));
+    return out;
+}
+
+// Fades a signature out before its quad's edges (the quad `blade_vertex` builds): nothing it
+// draws ever stops at a straight edge.
+fn sig_edge(input: VertexOutput) -> f32 {
+    let skin = skins[skin_index(input)];
+    let room = max(skin_room(skin, input.off), max(skin.design.y, skin.design.z) / LAB_METRE);
+    let extent = max(chain_radius(input.radius, input.length, 0.0) * skin.swell.x, input.hilt) + room;
+    let across = 1.0 - smoothstep(0.6 * extent, 0.95 * extent, abs(input.blade.x));
+    let below = smoothstep(-0.95 * extent, -0.6 * extent, input.blade.y);
+    let above = 1.0 - smoothstep(input.shaft + 0.6 * extent, input.shaft + 0.95 * extent, input.blade.y);
+    return across * below * above;
+}
+
 // @signature begin
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g;
@@ -3643,5 +3691,13 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
 
 fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     return o;
+}
+
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    return vec3(0.0);
+}
+
+fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    return vec4(0.0);
 }
 // @signature end

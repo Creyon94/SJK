@@ -1,107 +1,112 @@
-// Dyson Sphere: the blade is a star caged in a megastructure: a white-gold plasma core seen
-// through a lattice of dark hexagonal panels along the whole blade. The panels slide open and shut
-// in waves, light pouring through the gaps; on a swing every panel opens and the star blazes.
+// Dyson Sphere: a captive sun harnessed by a megastructure. The blade is a burning column of
+// star-stuff, a white-hot core in boiling golden plasma. Round it hangs a lattice of thin energy
+// hoops at five heights, each tilted differently and turning at its own speed like a vast
+// harvesting machine; pulses of collected energy race round the hoops and up thin collector
+// beams from the star to each hoop, and solar flares arc out of the star in loops of plasma that
+// leap up to the hoops. A swing spins the whole structure up and throws more flares; a clash
+// overloads it, every hoop blazing at once.
 // @room 8
-// @solid 1
 // @palette {"corona.rim_cool":[0.70,0.35,0.05],"corona.rim_hot":[1.0,0.75,0.30],"corona.inner":[1.0,0.95,0.80],"core.white":[1.0,0.97,0.88],"core.fringe_cool":[1.0,0.65,0.20],"core.fringe_hot":[1.0,0.90,0.60],"light.color":[1.0,0.75,0.35],"trail":[1.0,0.78,0.4]}
 
-float ds_d(vec2 b){ return length(vec2(b.x, max(b.y - uLength, 0.0) + max(-b.y, 0.0))); }
-// hex cell coordinates of p: (cell centre offset, id)
-vec4 ds_hex(vec2 p){
-  vec2 s = vec2(1.0, 1.732);
-  vec2 a = mod(p, s) - s*0.5, c = mod(p - s*0.5, s) - s*0.5;
-  vec2 g = dot(a, a) < dot(c, c) ? a : c;
-  return vec4(g, p - g);
-}
-// how open the panel `id` is (0 shut, 1 open)
-float ds_open(vec2 id){
-  float wave = sin(id.y*0.35 - uTime*1.3 + h21(id)*2.0);
-  return clamp(smoothstep(0.2, 0.9, wave) + uSwing*1.5 + uClash, 0.0, 1.0);
-}
-vec3 dyson_sphere_glow0(vec3 g, vec2 b, float r, float px){
-  float d = ds_d(b);
-  vec3 star = vec3(1.0, 0.82, 0.45);
-  float core = fillD(d - 0.35, px);
-  float flare = fbm3(vec2(b.x*3.0, b.y*0.6 - uTime*1.5));
-  vec3 light = mix(star, vec3(1.0, 0.98, 0.9), core)*(fillD(d - 0.8, px)*(0.7 + 0.5*flare) + core*0.6);
-  vec4 h = ds_hex(vec2(b.x*1.6, b.y*1.6));
-  float open = ds_open(h.zw);
-  float gap = smoothstep(0.42, 0.36, length(h.xy))*open;
-  light += star*halo(d - 0.8, 1.2)*(0.25 + 0.6*open)*step(0.0, b.y);
-  light += star*gap*fillD(d - 0.95, px)*1.2;
-  return light;
-}
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
-// the panels: dark metal hexes with lit seams, sliding aside as they open
-vec4 sig_solid(vec4 o, vec2 b, float px){
-  float d = ds_d(b);
-  if (d > 1.0 || b.y < 0.0) return o;
-  vec4 h = ds_hex(vec2(b.x*1.6, b.y*1.6));
-  float open = ds_open(h.zw);
-  float rad = length(h.xy);
-  float panel = fillD(rad - mix(0.47, 0.12, open), px*1.6)*fillD(d - 0.95, px);
-  float seam = smoothstep(0.06, 0.0, abs(rad - mix(0.47, 0.12, open)))*panel;
-  vec3 metal = mix(vec3(0.07, 0.06, 0.05), vec3(0.32, 0.27, 0.2), 0.5 + 0.5*h.y*3.0);
-  vec3 c = mix(metal, vec3(1.0, 0.8, 0.4), seam*0.8);
-  return vec4(mix(o.rgb, c, panel), max(o.a, panel*0.95));
+float ds_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
+// hoop k: centre height, radius, tilt, how fast its tilt turns round
+float ds_hy(float k){ return uLength*(0.14 + 0.18*k) + 0.4*sin(uTime*0.5 + k*1.7); }
+float ds_hr(float k){ return 2.2 + 2.8*sin(3.1416*(0.1 + 0.2*k)); }
+float ds_tilt(float k){ return 0.42*sin(k*2.3 + 0.6) + 0.12*sin(uTime*0.4 + k); }
+float ds_prec(float k){ return uTime*(0.25 + 0.12*k)*(mod(k, 2.0) < 0.5 ? 1.0 : -1.0)*(1.0 + 1.5*clamp(uSwing, 0.0, 1.0)) + k*1.3; }
+// a point on hoop k at angle th (radians), with the hoop grown by g
+vec3 ds_pt(float k, float th, float g){
+  float tl = ds_tilt(k), pr = ds_prec(k);
+  vec3 n = vec3(sin(tl)*cos(pr), cos(tl), sin(tl)*sin(pr));
+  vec3 u = normalize(cross(n, vec3(0.0, 0.0, 1.0)) + vec3(0.0, 0.0, 1e-4));
+  vec3 v = cross(n, u);
+  return vec3(0.0, ds_hy(k), 0.0) + (u*cos(th) + v*sin(th))*ds_hr(k)*g;
 }
 
-// ==== show (added) ====
-// Dyson Sphere show: collector satellites orbit round the blade on tilted paths, each catching a
-// thin beam of starlight from the blade; solar flares burst out through the open panel gaps as
-// plasma jets that curl and fade, and a slow ring of hexagon panels turns round it. A swing makes
-// every flare jet out; a clash blasts a hexagonal shockwave.
-float dsHex(vec2 p){ p = abs(p); return max(p.x*0.866 + p.y*0.5, p.y); }
-vec3 dyson_sphere_show(vec2 b, float px){
-  float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  vec3 gold = vec3(1.0, 0.78, 0.35), white = vec3(1.0, 0.95, 0.85);
-  vec3 light = vec3(0.0);
-  for (int i = 0; i < 6; i++){
-    float fi = float(i);
-    float a = uTime*(0.5 + 0.2*fi) + fi*1.7;
-    float R = 3.0 + 1.0*h11(fi*3.0);
-    float yc = (0.15 + 0.13*fi)*L;
-    vec2 p = vec2(R*sin(a), yc + R*0.25*cos(a));
-    float front = 0.4 + 0.6*step(0.0, cos(a));
-    float hx = abs(dsHex((b - p)/0.35) - 1.0)*0.35;
-    light += gold*(halo(hx, 0.03 + px)*1.4 + fillD(dsHex((b - p)/0.35)*0.35 - 0.35, px)*0.25)*front;
-    vec2 bp = vec2(0.0, p.y);
-    light += white*halo(sdSeg(b, bp, p), 0.02 + px)*0.5*front*(0.6 + 0.4*sin(uTime*7.0 + fi));
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, top = ds_top(), s, tq;
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  vec3 gold = vec3(1.0, 0.72, 0.3), white = vec3(1.0, 0.96, 0.86);
+  // ---- the star column: a white-hot core in a glowing golden body
+  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, max(top, -0.5), 0.0), s);
+  float y = mix(-0.6, top, s);
+  float boil = 0.8 + 0.2*sin(y*1.1 - uTime*5.0) + 0.15*sin(y*0.31 + uTime*1.7);
+  vec3 light = white*exp(-pow(d/max(0.45, px), 2.0))*1.5 + gold*halo(d, 1.0)*0.75*boil + gold*halo(d, 2.8)*0.16*(1.0 + 0.6*cl);
+  vec3 fx = vec3(0.0);
+  // boiling plasma round the core: granules and tongues of flame licking up the column
+  vec3 m = marchSteps(ro, rd, 1.5, 0.0, max(top, 0.01), 16.0);
+  if (m.y > m.x){
+    float t = m.x + m.z*h21(rd.xy*517.0);
+    for (int i = 0; i < 16; i++){
+      vec3 p = ro + rd*t;
+      float r = length(p.xz);
+      float n1 = fbm3(vec2(p.x*1.8 + p.z*0.9, p.y*0.55 - uTime*2.2));
+      float n2 = fbm3(vec2(p.z*1.8 - p.x*0.9 + 4.0, p.y*0.55 - uTime*1.7));
+      float fl = smoothstep(0.35, 0.85, n1*n2*2.2);
+      float dens = fl*exp(-pow(max(r - 0.45, 0.0)/0.5, 2.0))*smoothstep(0.0, 1.0, p.y)*(1.0 - smoothstep(top - 1.5, top, p.y));
+      light += mix(gold, white, exp(-r*2.0))*dens*m.z*1.3;
+      t += m.z;
+    }
   }
-  for (int i = 0; i < 6; i++){
+  // ---- the hoops: thin rings of light, each with pulses of energy racing round it
+  for (int k = 0; k < 5; k++){
+    float fk = float(k);
+    float hy = ds_hy(fk), R = ds_hr(fk);
+    float g = smoothstep(hy - 0.5, hy + 3.0, top);
+    if (g < 0.01) continue;
+    float dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), tq);
+    if (dc > R*g + 1.2) continue;
+    float flow = (mod(fk, 2.0) < 0.5 ? 1.0 : -1.0)*uTime*(2.0 + 2.5*sw);
+    vec3 prev = ds_pt(fk, 0.0, g);
+    float best = 1e3, bth = 0.0;
+    for (int i = 1; i <= 20; i++){
+      float th = float(i)*0.31416;
+      vec3 p = ds_pt(fk, th, g);
+      float dh = raySeg(ro, rd, prev, p, s);
+      if (dh < best){ best = dh; bth = th - 0.31416*(1.0 - s); }
+      prev = p;
+    }
+    float pulse = 0.35 + 0.65*pow(0.5 + 0.5*sin(bth*3.0 - flow*2.0), 6.0) + 0.3*pow(0.5 + 0.5*sin(bth*7.0 + flow*1.3), 8.0);
+    float hot = 1.0 + 2.0*cl;
+    fx += (white*halo(best, max(0.04, px))*1.4*pulse + gold*halo(best, 0.22)*0.45*(0.5 + 0.5*pulse) + gold*halo(best, 0.8)*0.07)*g*hot;
+    // collector beams: thin rays from the star out to the hoop, energy flowing out along them
+    for (int j = 0; j < 3; j++){
+      float th = float(j)*2.0944 + fk*0.7 + uTime*0.3;
+      vec3 p = ds_pt(fk, th, g);
+      vec3 a = normalize(vec3(p.x, 0.0, p.z))*0.5 + vec3(0.0, p.y - 1.5, 0.0);
+      float db = raySeg(ro, rd, a, p, s);
+      float fl = 0.08 + 0.92*pow(0.5 + 0.5*sin(s*9.0 - uTime*(10.0 + 6.0*sw) + fk + float(j)*2.0), 6.0);
+      fx += (white*halo(db, max(0.03, px))*1.1 + gold*halo(db, 0.18)*0.35)*fl*g*(1.0 - 0.5*s)*hot;
+    }
+  }
+  // ---- solar flares: loops of plasma leaping from the star up to a hoop and falling back
+  for (int i = 0; i < 3; i++){
     float fi = float(i);
-    float ph = uTime*(0.5 + 0.3*h11(fi*2.7)) + h11(fi*6.1);
+    float ph = uTime*(0.45 + 0.15*fi)*(1.0 + 0.8*sw) + h11(fi*5.3);
     float cy = floor(ph), f = fract(ph);
-    if (h11(cy*3.7 + fi) > 0.55 + 0.45*sw) continue;
-    float s = h11(cy*1.9 + fi) < 0.5 ? -1.0 : 1.0;
-    float y0 = (0.1 + 0.8*h11(cy*2.3 + fi))*L;
-    float len = (2.5 + 3.5*h11(cy + fi))*smoothstep(0.0, 0.35, f);
-    float u = (b.x*s - 0.5)/max(len, 0.01);
-    if (u < 0.0 || u > 1.0) continue;
-    float curl = u*u*2.0*(h11(cy*5.0 + fi) - 0.5) + 0.3*sin(u*8.0 - uTime*12.0)*u;
-    float dy = b.y - y0 - curl;
-    float th = 0.12 + 0.3*u;
-    light += mix(white, vec3(1.0, 0.45, 0.1), u)*exp(-pow(dy/th, 2.0))*(1.0 - u)*(1.0 - f)*1.6;
+    float k = floor(h11(cy*2.9 + fi)*4.99);
+    float hy = ds_hy(k);
+    if (hy > top - 1.0) continue;
+    float th = 6.2832*h11(cy*1.7 + fi*3.1);
+    vec3 b = ds_pt(k, th, 1.0);
+    vec3 a = vec3(0.0, hy - 2.5 - 2.0*h11(cy*3.3 + fi), 0.0) + normalize(vec3(b.x, 0.0, b.z))*0.45;
+    vec3 mid = (a + b)*0.5 + normalize(vec3(b.x, 0.0, b.z))*(1.2 + 1.0*h11(cy + fi)) + vec3(0.0, -0.3, 0.0);
+    float grow = smoothstep(0.0, 0.45, f), life = 1.0 - smoothstep(0.65, 1.0, f);
+    vec3 prev = a;
+    for (int j = 1; j <= 10; j++){
+      float u = float(j)/10.0;
+      if (u - 0.1 > grow) break;
+      vec3 p = mix(mix(a, mid, u), mix(mid, b, u), u);
+      float df = raySeg(ro, rd, prev, p, s);
+      float uu = u - 0.1*(1.0 - s);
+      float tipf = 1.0 - smoothstep(grow - 0.1, grow, uu);
+      float knot = 0.7 + 0.3*sin(uu*20.0 - uTime*14.0);
+      fx += mix(white, gold, 0.4)*(halo(df, max(0.09, px))*1.6*knot + halo(df, 0.45)*0.45)*life*mix(1.0, tipf, step(grow, 0.99));
+      prev = p;
+    }
   }
-  for (int k = 0; k < 2; k++){
-    float yc = L*(0.3 + 0.4*float(k));
-    vec2 q = vec2(b.x, (b.y - yc)/0.28);
-    float r = length(q);
-    float ang = atan(q.y, q.x) + uTime*0.4*(k == 0 ? 1.0 : -1.0);
-    float cells = step(0.15, abs(fract(ang*12.0/6.2832) - 0.5))*smoothstep(0.35, 0.0, abs(r - 4.5));
-    float behind = step(0.0, q.y);
-    light += gold*cells*0.35*mix(1.0, 1.0 - exp(-pow(b.x/0.5, 2.0)), behind);
-  }
-  if (cl > 0.01){
-    vec2 o = vec2(0.0, L*0.6);
-    float h = abs(dsHex((b - o)/(1.0 + 7.0*(1.0 - cl))) - 1.0)*(1.0 + 7.0*(1.0 - cl));
-    light += white*halo(h, 0.15)*cl*1.6;
-  }
-  float edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-  light *= edge*(1.0 - smoothstep(L + 0.5, L + 3.5, b.y))*smoothstep(-3.0, -0.5, b.y);
-  return (1.0 - exp(-light*1.15))*1.05;
+  light += fx*uFx;
+  return (1.0 - exp(-light*1.1))*1.05;
 }
-
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return dyson_sphere_glow0(g, b, r, px) + dyson_sphere_show(b, min(px, 0.06));
-}
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }

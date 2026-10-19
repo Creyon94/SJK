@@ -1,102 +1,118 @@
-// Superlaser: a battle station's main weapon as a blade. Eight tributary beams fan in from the
-// emitter's sides and meet at a blazing focus just above the hilt, and from there the main beam
-// fires up to the tip: a thin white-hot core in a green glow, energy surges racing up it,
-// rings of force rippling out along it and sparks crackling off. On ignition the tributaries
-// light first, then the beam fires from the focus. A swing flares the tributaries and sends a
-// surge; a clash fires the focus in a white flash and a shockwave ring.
+// Superlaser: a battle station's main weapon as a blade. Eight thin tributary beams rise from a
+// ring round the emitter and lean in to meet at a blazing focus a hand's length above the hilt:
+// a compact cone of beams that, seen from above, makes an eight-pointed star round the blade.
+// Pulses of energy race up each tributary into the focus, which crackles with arcs. From the
+// focus the main beam fires to the tip: a white-hot core in a green plasma sheath that ripples,
+// with two plasma strands twisting round it and surges racing up. On ignition the tributaries
+// light first, then the beam fires. A swing flares the tributaries and sends a surge; a clash
+// fires the focus in a white flash and a shockwave.
 // @room 8
 // @palette {"corona.rim_cool":[0.05,0.55,0.12],"corona.rim_hot":[0.45,1.0,0.35],"corona.inner":[0.85,1.0,0.8],"core.white":[0.95,1.0,0.94],"core.fringe_cool":[0.2,0.9,0.3],"core.fringe_hot":[0.7,1.0,0.6],"light.color":[0.3,1.0,0.35],"trail":[0.35,1.0,0.4]}
 
-const float SL_F = 10.0;   // the focus's height
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  px = min(px, 0.06);
-  float L = uLength, t = uTime, ax = abs(b.x);
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+
+const float SL_F = 5.8;    // the focus's height
+const float SL_R = 2.2;    // the tributaries' ring radius at the base
+const float SL_B = 0.4;    // the tributaries' base height
+
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 green = vec3(0.25, 1.0, 0.3), pale = vec3(0.8, 1.0, 0.75), white = vec3(1.0);
-  float lit = smoothstep(0.0, 0.18, uAge);                       // the tributaries light first
-  float fire = clamp((uAge - 0.12)/0.3, 0.0, 1.0);               // then the beam fires up
+  float lit = smoothstep(0.0, 0.16, uAge);                       // the tributaries light first
+  float fire = clamp((uAge - 0.1)/0.35, 0.0, 1.0);               // then the beam fires up
   float top = mix(SL_F, L, fire);
-  vec2 F = vec2(0.0, SL_F);
+  vec3 F = vec3(0.0, SL_F, 0.0);
   vec3 light = vec3(0.0);
-  // the tributaries: eight beams fanning in to the focus from beside the emitter
-  for (int i = 0; i < 8; i++){
-    float fi = float(i);
-    float s = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
-    float k = floor(fi/2.0);
-    vec2 a = vec2(s*(3.2 + 1.4*k), 2.0 + 1.3*k - 0.15*k*k);
-    float d = sdSeg(b, a, F);
-    float flick = 0.8 + 0.2*sin(t*40.0 + fi*2.1);
-    float u = clamp(dot(b - a, F - a)/dot(F - a, F - a), 0.0, 1.0);
-    light += (white*halo(d, max(px, 0.04))*1.3 + green*halo(d, 0.22)*0.9 + green*halo(d, 0.8)*0.15)*flick*lit*(0.5 + 0.5*u)*(1.0 + 1.2*sw);
-    light += pale*halo(length(b - a), 0.35)*lit*0.7;           // its emitter
-  }
-  // the focus: a blazing knot with rings pulsing off it
-  float dF = length(b - F);
-  float beat = 0.5 + 0.5*sin(t*7.0);
-  light += white*halo(dF, 0.5 + 0.25*beat)*2.2*lit + green*halo(dF, 1.8)*0.8*lit;
-  for (int j = 0; j < 2; j++){
-    float f = fract(t*1.2 + float(j)*0.5);
-    light += green*halo(abs(dF - 0.6 - 3.5*f), 0.08 + 0.1*f)*(1.0 - f)*0.9*lit;
-  }
-  // a thin feed from the emitter up to the focus, so the blade leaves the hilt
-  float feed = abs(b.x);
-  light += (pale*halo(feed, 0.18)*0.9 + green*halo(feed, 0.6)*0.3)*smoothstep(-0.6, 0.0, b.y)*(1.0 - smoothstep(SL_F - 0.5, SL_F, b.y))*lit;
-  // the main beam from the focus to the tip
-  float on = smoothstep(SL_F - 0.4, SL_F + 0.4, b.y)*(1.0 - smoothstep(top - 0.3, top + 0.4, b.y));
-  float jit = (vn(vec2(b.y*3.0, floor(t*30.0))) - 0.5)*0.08;
-  float bd = abs(b.x - jit);
-  light += (white*fillD(bd - 0.22, px)*1.3 + pale*halo(bd, 0.35)*1.0 + green*halo(bd, 1.0)*0.55 + green*halo(bd, 2.4)*0.12)*on;
+  float fx = uFx;
+  // ---- the feed: a bright column from inside the hilt up to the focus (fills the emitter)
+  float s;
+  float df = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), F, s);
+  light += (white*exp(-pow(df/max(0.3, px), 2.0))*1.3 + green*halo(df, 0.75)*0.7 + green*halo(df, 2.0)*0.15)*lit;
+  // ---- the main beam from the focus to the tip, its sheath rippling
+  float sb;
+  float db = raySeg(ro, rd, F, vec3(0.0, top, 0.0), sb);
+  float yb = mix(SL_F, top, sb);
+  float on = step(0.001, fire)*smoothstep(SL_F - 0.6, SL_F + 0.6, yb);
+  float jit = 1.0 + 0.08*(vn(vec2(yb*2.0, floor(t*30.0))) - 0.5);
+  float rip = 0.5 + 0.5*sin(yb*1.6 - t*14.0);
+  float R = (0.85 + 0.18*rip)*(1.0 + 0.3*sw);
+  float shell = clamp(0.14/sqrt(max(R*R - db*db, 0.09)), 0.0, 0.6)*smoothstep(R + 0.45, R - 0.35, db);
   // surges racing up the beam
+  float surge = 0.0;
   for (int j = 0; j < 3; j++){
     float fj = float(j);
-    float y = SL_F + fract(t*0.9 + fj/3.0 + 0.6*sw*fj)*(L - SL_F + 2.0);
-    float dd = length(vec2(bd*1.4, b.y - y));
-    light += white*halo(dd, 0.45)*1.2*on + green*halo(dd, 1.5)*0.35*on;
+    float y = SL_F + fract(t*0.9 + fj/3.0)*(L - SL_F + 4.0) - 2.0;
+    surge += halo(abs(yb - y), 1.0 + 0.6*sw);
   }
-  // rings of force rippling out along the beam
-  for (int j = 0; j < 4; j++){
-    float fj = float(j);
-    float f = fract(t*0.7 + fj*0.25);
-    float y = SL_F + 2.0 + f*(L - SL_F - 2.0);
-    float rr = 0.8 + 4.5*f;
-    float e = abs(length(vec2(b.x, (b.y - y)*3.2)) - rr);
-    float ring = halo(e, 0.1)*(1.0 - f)*step(b.y, top);
-    light += pale*ring*1.4 + green*halo(e, 0.5)*(1.0 - f)*0.3*step(b.y, top);
+  light += (white*exp(-pow(db/max(0.4*jit, px), 2.0))*1.5 + pale*halo(db, 0.6)*0.8
+          + green*halo(db, 1.3)*(0.7 + 0.45*surge) + green*halo(db, 3.2)*(0.16 + 0.14*surge))*on;
+  light += (green*shell*(0.9 + 0.6*rip) + pale*shell*surge*0.6)*on*fx;
+  if (fx > 0.0){
+    vec3 fxl = vec3(0.0);
+    float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
+    // ---- two plasma strands twisting round the main beam
+    if (near < 2.5 && fire > 0.0){
+      for (int h = 0; h < 2; h++){
+        float fh = float(h);
+        vec3 prev = F;
+        for (int k = 1; k <= 20; k++){
+          float f = float(k)/20.0;
+          float y = mix(SL_F, top, f);
+          float r = 0.9 + 0.25*sin(y*0.7 - t*6.0 + fh*3.0);
+          vec3 q = around(r*smoothstep(0.0, 0.12, f), fh*0.5 + y*0.045 - t*1.3, y);
+          float sq;
+          float d = raySeg(ro, rd, prev, q, sq);
+          float yy = mix(prev.y, q.y, sq);
+          float pul = 0.6 + 0.4*sin(yy*0.9 - t*9.0) + 0.6*halo(abs(yy - fract(t*0.9)*(L + 4.0) + 2.0), 1.5);
+          fxl += (white*halo(d, max(px, 0.04))*0.9 + green*halo(d, 0.2)*0.5)*pul*(1.0 - smoothstep(top - 2.0, top, yy));
+          prev = q;
+        }
+      }
+    }
+    // ---- the tributaries: a compact cone of eight beams converging on the focus
+    if (near < 4.5){
+      float spin = t*0.02;
+      for (int i = 0; i < 8; i++){
+        float fi = float(i);
+        vec3 a = around(SL_R, fi/8.0 + spin, SL_B);
+        float u;
+        float d = raySeg(ro, rd, a, F, u);
+        if (d > 1.2) continue;
+        float flick = 0.85 + 0.15*sin(t*40.0 + fi*2.1);
+        // pulses racing up into the focus
+        float ph = fract(u*1.5 - t*2.2 - fi*0.37);
+        float pul = exp(-pow((ph - 0.5)/0.1, 2.0))*2.4;
+        float bright = (0.55 + 0.45*u + pul)*flick*lit*(1.0 + 1.3*sw);
+        fxl += (white*halo(d, max(px, 0.03))*1.3*(0.6 + pul*0.6) + green*halo(d, 0.11 + 0.04*pul)*0.9 + green*halo(d, 0.32)*0.12)*bright;
+        // its emitter: a small glowing node on the ring
+        float te;
+        float de = rayPt(ro, rd, a, te);
+        fxl += (pale*halo(de, 0.18)*0.8 + green*halo(de, 0.6)*0.25)*lit;
+      }
+      // ---- the focus: a blazing, crackling knot
+      float tf;
+      float dF = rayPt(ro, rd, F, tf);
+      float beat = 0.5 + 0.5*sin(t*9.0);
+      fxl += white*halo(dF, 0.4 + 0.2*beat + 0.3*sw)*2.0*lit + green*halo(dF, 1.3)*0.6*lit;
+      for (int j = 0; j < 3; j++){
+        float fj = float(j);
+        float k = floor(t*12.0 + fj*0.31);
+        vec3 e = F + around(0.9 + 1.0*h11(k*1.7 + fj), h11(k*3.1 + fj*5.0), 1.6*(h11(k*2.3 + fj) - 0.4));
+        float db2 = bolt3(ro, rd, F, e, k + fj*11.0, 0.35);
+        fxl += boltLight(db2, green, px)*0.7*lit*step(0.25, h11(k*4.7 + fj));
+      }
+    }
+    // ---- a clash fires the focus: a white flash and a shockwave sphere
+    if (cl > 0.01){
+      float tf;
+      float dF = rayPt(ro, rd, F, tf);
+      float Rr = 0.6 + 5.0*(1.0 - cl);
+      float sh = clamp(0.25/sqrt(max(Rr*Rr - dF*dF, 0.06)), 0.0, 1.2)*smoothstep(Rr + 0.3, Rr - 0.1, dF);
+      fxl += white*halo(dF, 2.2)*pow(cl, 3.0)*2.0 + mix(white, green, 1.0 - cl)*sh*cl*1.4;
+    }
+    light += fxl*fx;
   }
-  // sparks crackling off the beam
-  for (int i = 0; i < 16; i++){
-    float fi = float(i);
-    float ph = t*(1.3 + 0.6*h11(fi*2.7)) + h11(fi*5.3);
-    float cy = floor(ph), f = fract(ph);
-    float s = h11(cy + fi) < 0.5 ? -1.0 : 1.0;
-    vec2 p = vec2(s*(0.3 + 6.5*f), SL_F + (0.1 + 0.85*h11(cy*1.9 + fi))*(L - SL_F) + 1.5*f);
-    light += mix(white, green, f)*halo(length(b - p), max(px, 0.06))*2.0*(1.0 - f)*step(p.y, top);
-  }
-  // energy arcing off the beam and motes spiralling into the focus
-  for (int i = 0; i < 4; i++){
-    float fi = float(i);
-    float k = floor(t*7.0 + fi*0.37);
-    float y0 = SL_F + 2.0 + (L - SL_F - 4.0)*h11(k*1.3 + fi);
-    float sd = h11(k + fi*7.0) < 0.5 ? -1.0 : 1.0;
-    vec2 end = vec2(sd*(3.5 + 3.0*h11(k*2.1 + fi)), y0 + (h11(k*3.3 + fi) - 0.3)*4.0);
-    float on = step(0.35 - 0.3*sw, h11(k*4.7 + fi));
-    light += boltLight(boltD(b, vec2(0.0, y0), end, k + fi, 0.28), green, px)*on*step(b.y, top + 1.0);
-  }
-  for (int i = 0; i < 12; i++){
-    float fi = float(i);
-    float f = fract(t*0.8 + fi/12.0);
-    float an = fi*0.524 + f*5.0;
-    vec2 p = F + vec2(cos(an)*1.3, sin(an))*(7.0*(1.0 - f) + 0.4);
-    light += mix(green, white, f)*halo(length(b - p), 0.12)*1.8*f*lit;
-  }
-  // a clash fires the focus: a white flash and a shockwave ring
-  if (cl > 0.01){
-    float rr = abs(length((b - F)*vec2(1.0, 0.7)) - 0.8 - 8.0*(1.0 - cl));
-    light += white*halo(dF, 2.5)*pow(cl, 3.0)*2.0 + mix(white, green, 1.0 - cl)*halo(rr, 0.15)*cl*1.5;
-  }
-  float tip = length(vec2(b.x, max(b.y - L, 0.0)));
-  light += green*halo(tip, 0.8)*0.4*fire*step(L - 1.0, b.y);
-  float fade = (1.0 - smoothstep(8.5, 10.0, ax))*(1.0 - smoothstep(L + 0.8, L + 3.5, b.y))*smoothstep(-3.0, -1.2, b.y);
-  return (1.0 - exp(-light*fade*1.1))*1.06;
+  return (1.0 - exp(-light*1.1))*1.05;
 }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }

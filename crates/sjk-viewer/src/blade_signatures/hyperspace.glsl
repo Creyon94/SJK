@@ -1,67 +1,108 @@
-// Hyperspace: the blade is a ship's jump. A thin white-blue blade with a hard bright edge, and
-// round it the starfield is stretched into streaks rushing up the blade toward the tip, faster
-// and longer the nearer they pass, inside a mottled blue tunnel that swirls round the blade.
-// Ignition is the jump itself: the stars sit as points, then stretch into lines. A swing pushes
-// the streaks longer and brighter with a flash; a clash drops out of hyperspace for a moment:
-// the streaks snap back to stars in a white ring.
+// Hyperspace: the jump to lightspeed, as a blade. The blade is a blue-white shaft of light that
+// shudders with the strain of the jump. Round it, at several distances, the stars are stretched
+// into streaks rushing up past the blade toward the tip, the nearer ones faster, inside a blue
+// tunnel of light that twists round the blade like the hyperspace corridor. Seen from above the
+// streaks fly out of the tip like a starfield. Ignition is the jump itself: the stars sit as points,
+// then stretch into lines. A swing punches the jump harder: the streaks grow long and bright and a
+// flash races up. A clash drops out of hyperspace: a white reversion flash and a ring of light.
 // @room 8
 // @palette {"corona.rim_cool":[0.08,0.25,0.85],"corona.rim_hot":[0.45,0.75,1.0],"corona.inner":[0.85,0.95,1.0],"core.white":[0.96,0.98,1.0],"core.fringe_cool":[0.25,0.55,1.0],"core.fringe_hot":[0.7,0.88,1.0],"light.color":[0.35,0.6,1.0],"trail":[0.4,0.65,1.0]}
 
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+
 // how stretched the stars are: 0 points, 1 full streaks (the jump on ignition, a drop on a clash)
 float hy_stretch(){
-  float jump = smoothstep(0.08, 0.5, uAge);
-  float drop = 1.0 - smoothstep(0.0, 0.6, uClash)*0.9;
-  return jump*drop*(1.0 + 0.8*clamp(uSwing, 0.0, 1.0));
+  float jump = smoothstep(0.05, 0.55, uAge);
+  float drop = 1.0 - smoothstep(0.0, 0.5, uClash)*0.85;
+  return jump*drop*(1.0 + 1.2*clamp(uSwing, 0.0, 1.0));
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  px = min(px, 0.06);
-  float L = uLength, t = uTime, ax = abs(b.x);
+
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  vec3 blue = vec3(0.3, 0.55, 1.0), ice = vec3(0.75, 0.88, 1.0), white = vec3(1.0);
-  float on = smoothstep(-0.4, 0.4, b.y)*(1.0 - smoothstep(L - 0.3, L + 0.5, b.y));
-  float tipD = length(vec2(b.x, max(b.y - L, 0.0)));
-  // the blade: a thin white core with a hard blue edge and a soft glow
-  float core = fillD(ax - 0.28, px)*on;
-  float edge = halo(abs(ax - 0.42), 0.07)*on;
-  vec3 light = white*core*1.2 + blue*edge*1.2 + blue*halo(tipD, 0.9)*0.55*smoothstep(-0.5, 0.5, b.y) + blue*halo(tipD, 2.4)*0.12*smoothstep(-0.5, 0.5, b.y);
-  float S = hy_stretch();
-  // the streaks: rows of stars at different distances, rushing up the blade
-  for (int i = 0; i < 36; i++){
-    float fi = float(i);
-    float lane = (h11(fi*3.7) - 0.5)*2.0;                 // -1..1 across
-    float x = sign(lane)*(0.9 + 6.8*h11(fi*1.3)*h11(fi*1.3 + 0.5));
-    float near = 1.0 - min(abs(x)/7.5, 1.0);
-    float speed = 18.0 + 30.0*near;
-    float y = fract(t*speed/(L + 12.0) + h11(fi*9.1))*(L + 12.0) - 6.0;
-    float len = (0.25 + (2.0 + 6.0*near)*S);
-    vec2 q = b - vec2(x, y);
-    float along = clamp(q.y, -len, 0.0);
-    float d = length(vec2(q.x, q.y - along));
-    float tail = (along + len)/len;                       // 0 at the tail, 1 at the head
-    float w = 0.03 + 0.05*near;
-    vec3 col = mix(blue, white, 0.4 + 0.6*tail);
-    light += col*(halo(d, max(w, px))*1.8 + halo(d, 0.25)*0.2)*(0.35 + 0.65*tail)*(0.5 + 0.5*near)*(1.0 + 0.8*sw);
+  vec3 blue = vec3(0.25, 0.5, 1.0), ice = vec3(0.7, 0.86, 1.0), white = vec3(1.0);
+  float top = L*clamp(uAge/0.45, 0.0, 1.0);
+  // ---- the blade: a blue-white shaft that shudders (the tip trembles, the light flickers)
+  float sh = 0.05 + 0.06*sw;
+  vec3 tipOff = vec3(sin(t*61.0) + 0.5*sin(t*97.0 + 1.3), 0.0, cos(t*53.0) + 0.5*sin(t*83.0))*sh;
+  float sb;
+  float db = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0) + tipOff, sb);
+  float fl = 0.9 + 0.1*sin(t*37.0) + 0.06*sin(t*71.0 + sb*9.0);
+  float flash = sw*0.5 + cl*1.2;
+  vec3 light = white*exp(-pow(db/max(0.33, px), 2.0))*1.5*fl
+             + mix(blue, ice, 0.35)*halo(db, 0.8)*0.75*fl
+             + blue*halo(db, 2.4)*(0.2 + 0.25*flash);
+  float ta;
+  float axd = rayPt(ro, rd, vec3(0.0, clamp(ro.y + rd.y*dot(-ro, rd), 0.0, L), 0.0), ta);
+  // nearest approach of the ray to the axis segment (for culling and depth)
+  float sa;
+  float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), sa);
+  float fx = uFx;
+  if (near < 7.0 && fx > 0.0){
+    float S = hy_stretch();
+    vec3 fxl = vec3(0.0);
+    // ---- the streaks: stars on cylinders round the blade, rushing up
+    for (int i = 0; i < 36; i++){
+      float fi = float(i);
+      float layer = floor(fi/12.0);                       // 0 inner, 1 middle, 2 outer
+      float r = 1.3 + 1.4*layer + 0.9*h11(fi*1.37);
+      float nearF = 1.0 - layer*0.3;
+      float speed = (26.0 + 12.0*h11(fi*5.1))*nearF;
+      float span = L + 14.0;
+      float ph = t*speed/span + h11(fi*9.13);
+      float cyc = floor(ph);
+      float y = fract(ph)*span - 6.0;                    // the head
+      float a = h11(fi*3.71 + cyc*1.618) + fi/12.0;
+      float rr = r + 0.6*(h11(cyc*2.3 + fi) - 0.5);
+      float len = 0.15 + (2.5 + 5.0*nearF)*S*(1.0 + 0.6*sw);
+      vec3 hd = around(rr, a, y);
+      vec3 tl = around(rr, a, y - len);
+      float s;
+      float d = raySeg(ro, rd, tl, hd, s);
+      if (d > 0.8) continue;
+      float ym = y - len*(1.0 - s);
+      float on = smoothstep(-1.0, 3.0, ym)*(1.0 - smoothstep(top - 4.0, top + 2.0, ym));
+      float w = max(0.035 + 0.025*nearF, px*0.8);
+      vec3 c = mix(blue, white, 0.35 + 0.65*s);
+      fxl += c*(halo(d, w)*1.7 + halo(d, 0.22)*0.25)*(0.3 + 0.7*s)*on*(0.6 + 0.4*nearF)*(1.0 + 0.8*sw);
+    }
+    // ---- the tunnel: a twisting blue corridor of light round the blade
+    vec3 m = marchSteps(ro, rd, 5.4, -0.5, top + 1.5, 16.0);
+    if (m.y > m.x){
+      float tt = m.x + m.z*h21(rd.xy*517.0 + ro.xz*3.1);
+      float acc = 0.0;
+      for (int k = 0; k < 16; k++){
+        vec3 p = ro + rd*tt;
+        float rad = length(p.xz);
+        float shell = exp(-pow((rad - 3.3)/1.0, 2.0));
+        vec2 q = rot(p.y*0.13 - t*1.6) * p.xz;
+        float n = fbm3(q*0.55 + vec2(0.0, p.y*0.05 - t*0.6));
+        float streak = fbm3(q*1.1 + vec2(p.y*0.09 - t*3.0, n*2.0));
+        float band = pow(0.5 + 0.5*sin(3.0*atan(p.z, p.x) + p.y*0.28 - t*4.0 + n*2.5), 2.5);
+        float dn = shell*(pow(clamp(n*0.5 + streak*0.6 - 0.4, 0.0, 1.0), 1.6)*0.6 + band*streak*1.1);
+        dn *= smoothstep(-0.5, 3.0, p.y)*(1.0 - smoothstep(top - 5.0, top + 1.5, p.y));
+        acc += dn*m.z;
+        tt += m.z;
+      }
+      fxl += vec3(0.16, 0.38, 1.0)*acc*(0.17 + 0.06*sw)*min(S, 1.0);
+    }
+    // ---- a swing's flash racing up the blade
+    float yf = fract(t*1.3)*(L + 8.0) - 4.0;
+    float sy = ro.y + rd.y*ta;
+    fxl += ice*halo(abs(sy - yf), 2.0)*halo(axd, 1.6)*sw*1.2;
+    // ---- a clash: the reversion flash and a ring of light expanding round the blade
+    if (cl > 0.01){
+      vec3 o = vec3(0.0, L*0.55, 0.0);
+      float to;
+      float dc = rayPt(ro, rd, o, to);
+      float R = 0.8 + 5.0*(1.0 - cl);
+      float shellL = halo(R - dc, 0.25 + 0.4*(1.0 - cl))*smoothstep(R + 0.3, R - 0.2, dc);
+      fxl += white*shellL*cl*1.1 + ice*halo(dc, 3.0)*pow(cl, 3.0)*1.4;
+      vec3 h = rayAt(ro, rd, o.y);
+      if (h.z > 0.0) fxl += white*halo(abs(length(h.xy) - R*1.1), 0.15 + 0.3*(1.0 - cl))*cl*1.4;
+    }
+    light += fxl*fx;
   }
-  // the tunnel: mottled blue bands swirling round the blade, brighter in front
-  for (int j = 0; j < 2; j++){
-    float fj = float(j);
-    vec2 h = helix(b.y, 3.2 + 1.2*fj, 0.7 - 0.3*fj, t*(0.45 + 0.2*fj) + fj*0.37);
-    float d = abs(b.x - h.x);
-    float mott = 0.5 + 0.7*vn(vec2(b.y*0.6 - t*8.0, fj*5.0 + b.x*0.4));
-    light += mix(blue, ice, 0.3)*halo(d, 0.9)*mott*0.28*(0.4 + 0.6*smoothstep(-0.5, 0.5, h.y))*S;
-  }
-  float swirl = fbm3(vec2(atan(b.x, 6.0)*3.0 - t*0.8, b.y*0.15 - t*2.2));
-  light += blue*swirl*swirl*0.22*exp(-ax/5.0)*smoothstep(-1.0, 2.0, b.y)*(1.0 - smoothstep(L, L + 4.0, b.y))*S;
-  // a swing's flash: a bright pulse racing up the streaks
-  float puls = halo(abs(b.y - fract(t*1.4)*(L + 6.0) + 3.0), 1.2)*exp(-ax/3.0)*sw;
-  light += ice*puls*0.8;
-  // a clash: the drop out of hyperspace, a white ring and the stars snapping back
-  if (cl > 0.01){
-    vec2 o = vec2(0.0, L*0.55);
-    float rr = abs(length((b - o)*vec2(1.0, 0.6)) - 1.0 - 7.5*(1.0 - cl));
-    light += white*halo(rr, 0.12 + 0.3*(1.0 - cl))*cl*1.6 + white*halo(length(b - o), 2.5)*pow(cl, 3.0)*1.5;
-  }
-  float fade = (1.0 - smoothstep(8.5, 10.0, ax))*(1.0 - smoothstep(L + 1.0, L + 4.0, b.y))*smoothstep(-3.0, -0.5, b.y);
-  return (1.0 - exp(-light*fade*1.15))*1.05 + g*0.06;
+  return (1.0 - exp(-light*1.1))*1.05;
 }
-vec3 sig_core(vec3 c, vec2 b, float px){ return c*0.5; }

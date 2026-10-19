@@ -4,228 +4,170 @@
 // @solid 1
 // @palette {"corona.rim_cool":[0.75,0.62,0.40],"corona.rim_hot":[1.0,0.90,0.70],"corona.inner":[1.0,0.97,0.90],"core.white":[1.0,0.98,0.92],"core.fringe_cool":[0.95,0.75,0.45],"core.fringe_hot":[1.0,0.92,0.75],"light.color":[1.0,0.86,0.62],"trail":[1.0,0.84,0.58]}
 
-// Eclipse: a thin pearl-and-gold blade with a total eclipse floating beside it. The black moon in
-// its blazing corona circles the blade (never on it): long pearly streamers, rose prominences and
-// flung ejecta; when it passes behind the blade a diamond-ring flash and Baily's beads fire.
-// Swing sweeps the streamers back and throws ejecta; a clash flares the corona to full size with a
-// giant diamond ring; ignition lifts the eclipse up out of the hilt. Golden coronal loops arch off
-// the blade itself and lift away; when the moon crosses the blade (totality) stars come out round it
-// and the corona flares out in a ring of long rays.
-// the eclipse's centre (x, y) beside the blade and z = +1 in front, -1 behind it
-fn ec_ph() -> f32 {
-    return uTime * 0.55 + uSeed * 6.0;
+// Eclipse: a thin pearl-white blade with a total eclipse travelling along it. Where the moon
+// passes, a dark ring crosses the blade and its light goes out in a band, and round that band a
+// real corona flares out in every direction: long pearly streamers fanning out round the blade,
+// brightest close in, shimmering and slowly turning. Seen from above it is a ring of corona rays
+// round a dark circle, like a true eclipse. The band drifts slowly up and down the blade, with
+// diamond-ring flashes and Baily's beads sparking on its edge, while small pearly prominences
+// loop up off the blade and fade. Ignites fast; a swing sweeps the streamers out, a clash flares the
+// whole corona with a diamond-ring burst.
+fn ec_top() -> f32 {
+    return uLength * clamp(uAge / 0.4, 0.0, 1.0);
 }
 
-fn ec_c() -> vec3<f32> {
+// the band's height: drifting up and down the blade, rising out of the hilt at ignition
+fn ec_y() -> f32 {
     let L = uLength;
-    let ph = ec_ph();
-    let ign = smoothstep(0.0, 0.7, uAge);
-    var y = L * (0.58 + 0.22 * sin(ph * 0.37));
-    y = mix(8.0, y, ign);
-    let x = 3.4 * sin(ph) * mix(0.3, 1.0, ign);
-    return vec3(x, y, cos(ph));
+    let y = L * (0.52 + 0.3 * sin(uTime * 0.3 + uSeed * 6.0));
+    return mix(7.0, y, smoothstep(0.2, 1.2, uAge));
 }
 
-fn ec_my() -> f32 {
-    return ec_c().y;
+fn ec_hw() -> f32 {
+    return 1.4;
 }
 
-fn ec_R() -> f32 {
-    return 1.35;
+fn ec_ringR() -> f32 {
+    return 0.55;
 }
 
-// a starburst: soft heart, wide bloom and four thin spikes
-fn ec_star(q: vec2<f32>, len: f32, a0: f32) -> vec3<f32> {
-    let d = length(q);
-    let ang = atan2(q.y, q.x) + a0;
-    let sp = pow(abs(cos(ang * 2.0)), 70.0) + 0.5 * pow(abs(cos(ang * 2.0 + 0.785)), 110.0);
-    let rays = sp * exp(-d / len);
-    return vec3<f32>(1.0, 0.97, 0.92) * (halo(d, 0.25) * 2.0 + halo(d, 0.9) * 0.5) + vec3<f32>(0.9, 0.94, 1.0) * rays * 2.0;
+// how dark the blade is at height y (1 in the band)
+fn ec_shade(y: f32) -> f32 {
+    let yb = ec_y();
+    let hw = ec_hw();
+    return (1.0 - smoothstep(hw * 0.45, hw * 0.8, abs(y - yb))) * smoothstep(0.0, 0.5, uAge);
 }
 
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px_in: f32) -> vec3<f32> {
-    var px = px_in;
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
-    px = min(px, 0.06);
-    let ax = abs(b.x);
-    let side = sign(b.x + 1.0e-5);
-    let on = smoothstep(-0.8, 0.6, b.y);
-    let edge = 1.0 - smoothstep(9.6, 10.8, ax);
-    let flare = max(uClash, exp(-uAge * 1.4) * step(0.0, uAge) * 0.6);
-    // ---- the blade body: thin pearl-white core and warm gold glow, ending at the tip
-    let yc = clamp(b.y, 0.0, L - 0.4);
-    let bd = length(vec2(b.x, b.y - yc));
-    let bodyOn = smoothstep(-0.3, 0.4, b.y);
-    let C = ec_c();
-    let mR = ec_R() * (1.0 + 0.08 * flare);
-    let mD = length(b - C.xy);
-    let shadow = 1.0 - smoothstep(mR + 0.05, mR - 0.15, mD) * step(0.0, C.z);
-    var light = vec3<f32>(1.0, 0.97, 0.9) * exp(-pow(bd / 0.38, 2.0)) * 1.5 * bodyOn;
-    light += vec3<f32>(1.0, 0.78, 0.45) * halo(bd, 0.8) * 0.45 * bodyOn;
-    light += vec3<f32>(1.0, 0.7, 0.4) * halo(bd, 2.4) * 0.08 * bodyOn;
-    light *= shadow;
-    // ---- faint corona petals along the whole blade (flickering, swept by swings)
-    let x = max(ax - 0.4, 0.0);
-    let yb = b.y + x * x * 0.1 * uSwing * (1.0 + side * 0.6);
-    let f = vn(vec2(yb * 0.4, side * 11.0 + uTime * 0.25)) * 0.7 + vn(vec2(yb * 1.3, side * 3.0 - uTime * 0.4)) * 0.3;
-    let pet = smoothstep(0.45, 0.9, f) * exp(-x / (1.5 + uSwing * 1.2)) * step(0.0, b.y) * (1.0 - smoothstep(L - 2.0, L, b.y));
-    light += vec3<f32>(1.0, 0.9, 0.75) * pet * 0.0;
-    // ---- the eclipse: corona ring, streamers, prominences round the moon
-    let my = C.y;
-    let R = ec_R() * (1.0 + 0.08 * flare);
-    let q = b - C.xy;
-    let d = length(q);
-    let ang = atan2(q.x, q.y);
-    var vis = smoothstep(0.0, 0.4, uAge);
-    // behind the blade: the blade's body hides the corona there
-    let hide = mix(1.0, 1.0 - exp(-pow(b.x / 0.7, 2.0)) * step(0.0, b.y) * step(b.y, L), step(C.z, 0.0));
-    vis *= hide;
-    // the whole corona fades out in a circle, well inside the drawn area (never a square edge)
-    vis *= 1.0 - smoothstep(R + 2.6, R + 5.0, d);
-    // ring: the chromosphere rim right on the limb
-    let rim = exp(-pow((d - R) / 0.12, 2.0));
-    light += vec3<f32>(1.0, 0.95, 0.85) * rim * 2.2 * vis;
-    light += vec3<f32>(1.0, 0.35, 0.45) * exp(-pow((d - R - 0.12) / 0.08, 2.0)) * 0.8 * vis;
-    // inner corona glow
-    let out_ = max(d - R, 0.0);
-    let reach = 1.0 + 0.6 * uSwing + 0.9 * flare;
-    light += vec3<f32>(1.0, 0.93, 0.82) * exp(-out_ / (0.45 * reach)) * 0.9 * vis * step(R, d);
-    // streamers: radial petals tapering to points, slowly turning, swept back on swings
-    let sa = ang + 0.25 * sin(uTime * 0.2) - uSwing * 0.5 * side * smoothstep(0.0, 4.0, out_);
-    let n1 = vn(vec2(sa * 2.4, 3.0 + uTime * 0.05));
-    let n2 = vn(vec2(sa * 7.0, 9.0 - uTime * 0.08));
-    let sharp = mix(0.4, 0.75, smoothstep(0.0, 5.0 * reach, out_));
-    let strm = smoothstep(sharp, 1.0, n1 * 0.75 + n2 * 0.25);
-    let fine = pow(vn(vec2(sa * 22.0, uTime * 0.3)), 4.0);
-    let fall = exp(-out_ / (2.4 * reach)) + 0.25 * exp(-out_ / (5.0 * reach));
-    let sc = mix(vec3<f32>(1.0, 0.94, 0.82), vec3<f32>(0.78, 0.86, 1.0), smoothstep(0.0, 4.0, out_));
-    light += sc * (strm * strm * 1.8 + fine * 2.4) * fall * vis * step(R, d) * (1.0 + 0.8 * flare);
-    // prominences: rose plasma loops rooted on the limb, rising and erupting
-    for (var i = 0; i < 4; i++) {
-        let fi = f32(i);
-        let cyc = uTime * 0.21 + h11(fi * 5.7);
-        var k = fract(cyc);
-        let id = floor(cyc) + fi * 13.0;
-        let a0 = 6.2832 * h11(id * 1.9);
-        let H = (0.7 + 1.0 * h11(id * 2.3)) * smoothstep(0.0, 0.35, k) * (1.0 + 0.6 * flare);
-        let w = 0.5 + 0.5 * h11(id * 3.1);
-        let lift = max(k - 0.6, 0.0) * 7.0;
-        // the loop in the limb's frame: u along the limb, v outward
-        var u = (ang - a0);
-        u = glsl_mod(u + 3.1416, 6.2832) - 3.1416;
-        u *= R;
-        let v = d - R - lift;
-        let e = length(vec2(u / w, v / max(H, 0.05)));
-        let dd = abs(e - 1.0) * min(w, H) + 1.0e3 * step(v, -0.05);
-        let th = 0.1 + 0.07 * vn(vec2(u, v) * 2.0 + fi);
-        let life = smoothstep(0.0, 0.1, k) * (1.0 - smoothstep(0.75, 0.95, k));
-        let pr = exp(-pow(dd / th, 2.0)) + halo(dd, 0.35) * 0.35;
-        light += mix(vec3<f32>(0.95, 0.18, 0.38), vec3<f32>(1.0, 0.7, 0.78), exp(-pow(dd / (th * 0.5), 2.0))) * pr * life * vis * 1.1;
+    let top = ec_top();
+    var s: f32;
+    var tq: f32;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let flare = max(cl, exp(-uAge * 1.6) * step(0.0, uAge) * 0.35);
+    let pearl: vec3<f32> = vec3<f32>(1.0, 0.9, 0.72);
+    let white: vec3<f32> = vec3<f32>(1.0, 0.98, 0.94);
+    let yb = ec_y();
+    let hw = ec_hw();
+    let R0 = ec_ringR();
+    // ---- the blade: a thin pearl core with light running up it, dark in the moon's band
+    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, max(top, -0.5), 0.0), &s);
+    let y = mix(-0.6, top, s);
+    let sheen = 0.85 + 0.15 * sin(y * 1.3 - uTime * 6.0) + 0.1 * sin(y * 0.37 + uTime * 2.3);
+    let shade = ec_shade(y);
+    var light = (white * exp(-pow(d / max(0.3, px), 2.0)) * 1.45 + pearl * halo(d, 0.75) * 0.6 * sheen + pearl * halo(d, 2.2) * 0.12) * (1.0 - 0.94 * shade);
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    let vis = smoothstep(0.1, 0.6, uAge);
+    // ---- the corona: a fan of streamers radiating out from the dark ring in 3D
+    let Rc: f32 = 6.2;
+    let m = marchSteps(ro, rd, Rc, yb - 3.2, yb + 3.2, 24.0);
+    if m.y > m.x && vis > 0.0 {
+        var t = m.x + m.z * h21(rd.xy * 517.0);
+        let reach = 1.0 + 0.35 * sw + 0.45 * flare;
+        for (var i = 0; i < 24; i++) {
+            let p = ro + rd * t;
+            let q = p - vec3(0.0, yb, 0.0);
+            let r = length(q.xz);
+            let mer = vec2(r - R0 * 0.6, q.y);
+            let rho = length(mer);
+            let el = atan2(q.y, max(r - R0 * 0.6, 0.05));
+            // streamers: a pattern of direction only, so it reads as rays fanning outward
+            let az = q.xz / max(r, 1.0e-3);
+            let az2 = rot(uTime * 0.05 + sw * 0.3) * az;
+            let n = vn(az2 * 3.2 + vec2(el * 3.0, 0.0) + vec2(3.0, uTime * 0.08));
+            let n2 = vn(az2 * 11.0 + vec2(el * 8.0, 7.0) - vec2(0.0, uTime * 0.15));
+            let strm = smoothstep(0.4, 0.9, n * 0.6 + n2 * 0.4);
+            let fine = pow(n2, 5.0);
+            let fan = exp(-el * el / (0.28 + 0.25 * sw)) + 0.25 * exp(-pow((abs(el) - 1.3) / 0.25, 2.0));
+            let fall = exp(-max(rho - 0.3, 0.0) / (1.1 * reach)) + 0.4 * exp(-max(rho - 0.3, 0.0) / (3.0 * reach));
+            let inner = exp(-max(rho - 0.3, 0.0) / 0.4);
+            var dens = (strm * strm * 2.2 + fine * 1.6 + 0.08) * fall * fan + inner * 0.8;
+            dens *= smoothstep(0.2, 0.55, rho) * (1.0 - smoothstep(Rc - 2.4, Rc, r)) * exp(-q.y * q.y / 2.2);
+            let c = mix(white, pearl, smoothstep(0.3, 3.0, rho));
+            fx += c * dens * m.z * 0.9 * (1.0 + 0.6 * flare);
+            t += m.z;
+        }
     }
-    // coronal ejecta: glowing fragments flung off the limb, streaking out and fading (more on swing/clash)
-    for (var k = 0; k < 14; k++) {
-        let fk = f32(k);
-        let rate = 0.35 + 0.25 * h11(fk * 2.7);
-        let ph = uTime * rate + h11(fk * 9.1);
-        let cy = floor(ph);
-        let f = fract(ph);
-        let pa = 6.2832 * h11(cy * 3.3 + fk * 1.7) - uSwing * 0.6 * side;
-        let dir = vec2(sin(pa), cos(pa));
-        let rr = R + 0.2 + f * (4.5 + 3.0 * h11(cy + fk)) * (1.0 + 0.5 * flare);
-        let pp = C.xy + dir * rr;
-        let rel = b - pp;
-        let al = dot(rel, dir);
-        let pe = dot(rel, vec2(-dir.y, dir.x));
-        let tail = 0.4 + f * 1.6;
-        let sd = length(vec2(pe, al - clamp(al, -tail, 0.0)));
-        let fade = (1.0 - f) * smoothstep(0.0, 0.1, f) * step(h11(cy * 5.1 + fk), 0.6 + 0.4 * max(uSwing, flare));
-        let ec = mix(vec3<f32>(1.0, 0.92, 0.75), vec3<f32>(1.0, 0.45, 0.55), step(0.7, h11(fk * 4.4)));
-        light += ec * (halo(sd, 0.07) * 1.6 + halo(sd, 0.3) * 0.25) * fade * vis * smoothstep(-tail, 0.0, al);
+    // ---- the chromosphere: thin bright rims along both edges of the band, round the blade
+    for (var k = 0; k < 2; k++) {
+        let ey = yb + (f32(k) * 2.0 - 1.0) * hw * 0.62;
+        let hp = rayAt(ro, rd, ey);
+        if hp.z > 0.0 {
+            let rr = length(hp.xy);
+            let rim = halo(abs(rr - 0.42), max(0.05, px)) * 1.1 + halo(rr, 0.5) * 0.4;
+            fx += white * rim * vis * (1.0 - smoothstep(0.6, 1.2, rr));
+        }
     }
-    // diamond ring: flashes as the moon enters (lower limb clears the hilt) and leaves (upper limb at tip)
-    // the diamond ring fires as the moon's limb crosses the blade (behind it: the blade lights the limb)
-    let cross_ = exp(-pow((abs(C.x) - R * 0.85) / 0.6, 2.0));
-    let dr = cross_;
-    let enter = step(0.0, C.x * C.z);
-    let leave = 1.0 - enter;
-    let da = -sign(C.x) * 1.5708 + 0.35 * sin(uTime * 0.7);
-    let dpos = C.xy + R * vec2(sin(da), cos(da));
-    light += ec_star(b - dpos, 2.2, 0.3 + uTime * 0.15) * dr * 1.6 * vis;
-    // a string of Baily's beads along the limb behind the diamond
+    // ---- diamond ring and Baily's beads: flashes on the band's edge as the moon slides
+    let cyc = uTime * 0.45;
+    let f = fract(cyc);
+    let id = floor(cyc);
+    let fl = exp(-f * 5.0) * smoothstep(0.0, 0.03, f) + flare * 0.8;
+    let upper = select(-1.0, 1.0, h11(id * 3.7) < 0.5);
+    let a0 = h11(id * 1.9);
+    let dp = around(0.42, a0, yb + upper * hw * 0.62);
+    let dd = rayPt(ro, rd, dp, &tq);
+    fx += white * (halo(dd, 0.12) * 2.5 + halo(dd, 0.6) * 0.6 + halo(dd, 2.0) * 0.15) * fl * vis;
+    // a soft horizontal flash streak through the diamond, round the band
+    let hp2 = rayAt(ro, rd, dp.y);
+    if hp2.z > 0.0 {
+        let rr = length(hp2.xy);
+        fx += white * halo(abs(rr - 0.42), 0.25) * exp(-rr / 2.5) * fl * 0.6 * vis;
+    }
     for (var j = 0; j < 5; j++) {
         let fj = f32(j);
-        let ba = da + (0.25 + fj * 0.22) * sign(C.x + 1.0e-4);
-        let bp = C.xy + R * vec2(sin(ba), cos(ba));
-        let fl = 0.6 + 0.4 * sin(uTime * 11.0 + fj * 2.1);
-        light += vec3<f32>(1.0, 0.97, 0.9) * halo(length(b - bp), 0.12) * 1.4 * fl * dr * vis * (1.0 - fj * 0.15);
+        let bp = around(0.42, a0 + (fj + 1.0) * 0.07 * upper, dp.y);
+        let db = rayPt(ro, rd, bp, &tq);
+        let tw = 0.6 + 0.4 * sin(uTime * 13.0 + fj * 2.1);
+        fx += white * halo(db, 0.07) * 1.6 * tw * exp(-f * 3.0) * (1.0 - fj * 0.15) * vis;
     }
-    // clash: the corona flares to full size, a giant diamond ring on the limb
-    if flare > 0.01 {
-        let cp = C.xy + vec2(R * 0.7, R * 0.7);
-        light += ec_star(b - cp, 1.5 + 4.0 * flare, 0.4) * flare * 1.6;
+    // ---- prominences: pearly loops of plasma arching off the blade, rising and lifting away
+    let dA = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+    if dA < 4.5 {
+        for (var i = 0; i < 4; i++) {
+            let fi = f32(i);
+            let ph = uTime * (0.25 + 0.1 * h11(fi * 3.3)) + h11(fi * 8.1);
+            let cy = floor(ph);
+            let fp = fract(ph);
+            let y0 = (0.1 + 0.8 * h11(cy * 1.9 + fi * 3.0)) * top;
+            if abs(y0 - yb) < hw + 1.0 {
+                continue;
+            }
+            let az = h11(cy * 2.7 + fi);
+            let span = 0.5 + 0.6 * h11(cy + fi * 5.0);
+            let H = (0.45 + 0.5 * h11(cy * 4.1 + fi)) * smoothstep(0.0, 0.35, fp) * (1.0 + 0.8 * max(fp - 0.5, 0.0));
+            let life = smoothstep(0.0, 0.1, fp) * (1.0 - smoothstep(0.7, 1.0, fp));
+            var prev = around(0.35, az, y0);
+            for (var j = 1; j <= 10; j++) {
+                let u = f32(j) / 10.0;
+                let lift: f32 = 0.0;
+                let p = around(0.35 + H * sin(u * 3.1416) + lift, az + 0.03 * sin(u * 3.1416 * 2.0) * H, y0 + span * u * 2.0);
+                let dh = raySeg(ro, rd, prev, p, &s);
+                let strand = 0.65 + 0.35 * sin((f32(j) + s) * 2.0 - uTime * 4.0 + fi);
+                fx += mix(white, pearl, 0.6) * (halo(dh, max(0.06, px)) * 0.8 + halo(dh, 0.3) * 0.4) * life * strand;
+                prev = p;
+            }
+        }
     }
-    // ---- off the blade itself: golden coronal loops arching off it and lifting away
-    for (var i = 0; i < 6; i++) {
-        let fi = f32(i);
-        let ph = uTime * (0.32 + 0.15 * h11(fi * 3.3)) + h11(fi * 8.1);
-        let cy = floor(ph);
-        let f = fract(ph);
-        let s = select(1.0, -1.0, h11(cy * 2.7 + fi) < 0.5);
-        let y0 = (0.12 + 0.72 * h11(cy * 1.9 + fi * 3.0)) * L;
-        let hw = 1.0 + 1.2 * h11(cy + fi * 5.0);
-        let H = (1.5 + 2.5 * h11(cy * 4.1 + fi)) * smoothstep(0.0, 0.4, f) + 3.0 * max(f - 0.6, 0.0);
-        let qq = vec2((b.y - y0 - hw) / hw, (b.x * s - 0.35) / max(H, 0.05));
-        let ee = length(qq);
-        let dd = abs(ee - 1.0) * min(hw, H) * 0.8 + 1.0e3 * step(b.x * s, 0.35);
-        let life = smoothstep(0.0, 0.1, f) * (1.0 - smoothstep(0.75, 1.0, f));
-        let strand = 0.6 + 0.4 * sin(atan2(qq.y, qq.x) * 10.0 - uTime * 3.0 + fi);
-        light += mix(vec3<f32>(1.0, 0.85, 0.55), vec3<f32>(1.0, 0.45, 0.5), f) * (exp(-pow(dd / 0.06, 2.0)) * 1.2 + halo(dd, 0.35) * 0.2) * life * strand;
-    }
-    // ---- stars come out round the blade during totality (when the moon crosses the blade)
-    let tot = exp(-pow(C.x / 1.6, 2.0)) * smoothstep(0.0, 0.5, uAge);
-    for (var i = 0; i < 14; i++) {
-        let fi = f32(i);
-        var sp = vec2((h11(fi * 3.1) - 0.5) * 15.0, (0.05 + 0.95 * h11(fi * 7.3)) * L);
-        sp.x += sign(sp.x) * 1.5;
-        let tw = 0.5 + 0.5 * sin(uTime * (3.0 + 2.0 * h11(fi)) + fi * 4.0);
-        let sd = length(b - sp);
-        let cross_ = halo(abs(b.x - sp.x), 0.025) * halo(abs(b.y - sp.y), 0.35) + halo(abs(b.y - sp.y), 0.025) * halo(abs(b.x - sp.x), 0.35);
-        light += vec3<f32>(0.85, 0.9, 1.0) * (halo(sd, 0.07) * 1.6 + cross_ * 0.8) * tw * (0.15 + 0.85 * tot);
-    }
-    // ---- totality: as the moon crosses the blade the corona flares out in a ring of long rays
-    if tot > 0.05 {
-        let q2 = b - C.xy;
-        let rr2 = length(q2);
-        let a2 = atan2(q2.x, q2.y);
-        let rays2 = pow(vn(vec2(a2 * 9.0, floor(uTime * 2.0))), 3.0);
-        light += vec3<f32>(1.0, 0.95, 0.85) * rays2 * exp(-max(rr2 - R, 0.0) / 4.0) * step(R, rr2) * tot * 1.2 * (1.0 - smoothstep(R + 4.0, R + 6.0, rr2));
-    }
-    light *= on * edge;
-    light *= 1.0 - smoothstep(L + 0.5, L + 4.5, b.y);
-    light *= smoothstep(-7.0, -2.0, b.y);
+    light += fx * uFx;
     return (1.0 - exp(-light * 1.1)) * 1.05;
+}
+
+// the moon's shadow: the blade's heart goes dark across the band (only within the blade's width)
+fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    let yb = ec_y();
+    let hw = ec_hw();
+    var s: f32;
+    let d0 = raySeg(ro, rd, vec3(0.0, yb - hw * 0.45, 0.0), vec3(0.0, yb + hw * 0.45, 0.0), &s);
+    let a = (1.0 - smoothstep(0.22, 0.42, d0)) * smoothstep(0.1, 0.5, uAge);
+    return vec4(vec3<f32>(0.02, 0.018, 0.015), a * 0.9);
+}
+
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return vec3<f32>(0.0);
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return vec3<f32>(0.0);
-}
-
-fn sig_solid(o: vec4<f32>, b: vec2<f32>, px_in: f32) -> vec4<f32> {
-    var px = px_in;
-    px = min(px, 0.06);
-    let L = uLength;
-    let C = ec_c();
-    let R = ec_R() * (1.0 + 0.08 * uClash);
-    let vis = smoothstep(0.0, 0.4, uAge);
-    let d = length(b - C.xy);
-    // behind the blade, the blade's body shows through the moon
-    let hide = mix(1.0, 1.0 - fillD(abs(b.x) - 0.42, px) * step(0.0, b.y), step(C.z, 0.0));
-    let moon = fillD(d - R + 0.02, px) * vis * hide;
-    let face = vec3<f32>(0.015, 0.018, 0.03) + vec3<f32>(0.05, 0.06, 0.09) * smoothstep(R * 0.55, R, d);
-    return vec4(face, moon * 0.97);
-}
-
-// GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
-fn glsl_mod(x: f32, y: f32) -> f32 {
-    return x - y * floor(x / y);
 }

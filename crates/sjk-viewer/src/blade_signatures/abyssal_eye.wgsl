@@ -7,12 +7,21 @@
 // Abyssal Eye: the blade is a slit cut into an endless dark, its lips glowing crimson, faint motes
 // drifting down into the black. Along its middle the slit peels open into a great almond and an eye
 // inside looks out: a burning amber iris with a goat's bar pupil, rolling to watch along the blade,
-// darting, blinking, narrowing when you swing. On a clash it flinches shut.
+// darting, blinking, narrowing when you swing; on a clash it flinches shut. The cut is a real
+// shape in space, so it keeps its form seen from any side, from above and in first person. Round
+// it, shadow tendrils with crimson tips reach out in every direction and curl back, crimson tears
+// drip off the lips and fall, specks of light are sucked in from all round, and jagged cracks in
+// reality tear outward round the blade, pulse with the abyss's heartbeat and heal. A swing lashes
+// the tendrils out; a clash flares a crimson shock ring with the tendrils whipping wide.
 fn ae_Ey() -> f32 {
     return uLength * 0.56;
 }
 
 const AE_H: f32 = 6.0;
+
+fn ae_top() -> f32 {
+    return (uLength + 0.3) * clamp(uAge / 0.45, 0.0, 1.0);
+}
 
 // how open the eye is: peels open, stays, blinks, closes; flinches on a clash
 fn ae_open() -> f32 {
@@ -20,7 +29,7 @@ fn ae_open() -> f32 {
     var o = smoothstep(-0.2, 1.4, p) * (1.0 - smoothstep(12.0, 13.0, p));
     var bl = 1.0 - (1.0 - smoothstep(0.0, 0.10, abs(p - 7.0))) * 0.97;
     bl *= 1.0 - (1.0 - smoothstep(0.0, 0.10, abs(p - 9.6))) * 0.97;
-    o *= bl * (1.0 - 0.95 * uClash);
+    o *= bl * (1.0 - 0.95 * uClash) * smoothstep(0.3, 0.8, uAge);
     return clamp(o * (1.0 + 0.12 * uSwing), 0.0, 1.15);
 }
 
@@ -40,36 +49,18 @@ fn ae_w(y: f32) -> f32 {
     let base = 0.40 * (1.0 - smoothstep(L - 3.0, L, y)) + 0.04;
     let dy = (y - ae_Ey()) / AE_H;
     let alm = 1.38 * ae_open() * pow(max(1.0 - dy * dy, 0.0), 0.75);
-    return max(base, alm) * smoothstep(-0.1, 0.5, y) * step(y, L);
+    let top = ae_top();
+    return max(base, alm) * smoothstep(-0.2, 0.25, y) * (1.0 - smoothstep(top - 0.6, top, y));
 }
 
-fn abyssal_eye_glow0(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    let L = uLength;
-    let w = ae_w(b.y);
-    let ed = abs(b.x) - w;
-    let on = smoothstep(-0.2, 0.4, b.y) * (1.0 - smoothstep(L - 0.1, L + 0.5, b.y));
-    let o = ae_open();
-    let near = halo(abs((b.y - ae_Ey()) / AE_H), 0.8);
-    // the glowing lips of the cut
-    let lip = vec3<f32>(1.0, 0.25, 0.15) * halo(max(ed, 0.0), 0.06 + px) * 1.6 + vec3<f32>(1.0, 0.55, 0.4) * halo(max(ed, 0.0), 0.02 + px) * (0.6 + 0.8 * o * near);
-    let pulse = 0.85 + 0.15 * sin(uTime * 1.7 - b.y * 0.2);
-    let glow_ = vec3<f32>(0.85, 0.06, 0.06) * halo(max(ed, 0.0), 0.7) * 0.7 * pulse + vec3<f32>(0.45, 0.0, 0.05) * halo(max(ed, 0.0), 1.8) * 0.35;
-    let bd = length(vec2(b.x, max(b.y - L, 0.0) + max(-b.y, 0.0) * 4.0));
-    return (lip + glow_) * on + vec3<f32>(0.5, 0.02, 0.04) * halo(bd, 2.0) * 0.12 + g * 0.03;
+fn ae_sdf(p: vec3<f32>) -> f32 {
+    return (length(p.xz) - ae_w(p.y)) * 0.7;
 }
 
-fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return vec3<f32>(0.0);
-}
-
-fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
-    let L = uLength;
-    let w = ae_w(b.y);
-    let inside = fillD(abs(b.x) - w, px) * smoothstep(-0.1, 0.3, b.y);
-    if inside <= 0.0 {
-        return o;
-    }
+// the abyss and the eye, seen on the cut at b (across, along)
+fn ae_inside(b: vec2<f32>, px: f32) -> vec3<f32> {
     let t = uTime;
+    let w = ae_w(b.y);
     // the endless dark: black, a slow crimson haze far down in it, motes sinking away
     var col: vec3<f32> = vec3<f32>(0.012, 0.0, 0.006);
     col += vec3<f32>(0.16, 0.0, 0.03) * fbm3(vec2(b.x * 1.5, b.y * 0.3 + t * 0.15)) * smoothstep(0.0, 0.5, w - abs(b.x));
@@ -78,6 +69,9 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     col += vec3<f32>(0.9, 0.3, 0.2) * fillD(length(fract(mp) - h22(mc)) - 0.05, px * 3.0) * step(0.86, h21(mc)) * 0.5 * (0.5 + 0.5 * sin(t * 2.0 + mc.y));
     // the eye
     let op = ae_open();
+    if op < 0.01 {
+        return col;
+    }
     let lk = ae_look();
     let ec = vec2(0.0, ae_Ey());
     let ic = ec + vec2(lk.x * 0.22, lk.y * 2.6);
@@ -95,7 +89,7 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     // the iris: burning amber, fibres radiating, a dark limbal ring
     let ang = atan2(q.y, q.x);
     let fib = 0.6 + 0.4 * vn(vec2(ang * 9.0, d * 3.0 - t * 0.3));
-    var iris = mix(vec3<f32>(1.0, 0.85, 0.30), vec3<f32>(0.95, 0.35, 0.05), smoothstep(0.2, 0.95, d / Ri)) * fib * 1.0;
+    var iris = mix(vec3<f32>(1.0, 0.85, 0.30), vec3<f32>(0.95, 0.35, 0.05), smoothstep(0.2, 0.95, d / Ri)) * fib;
     iris += vec3<f32>(1.0, 0.9, 0.5) * halo(abs(d - 0.42 * Ri), 0.08) * 0.5;
     iris *= 1.0 - 0.75 * smoothstep(0.82, 1.0, d / Ri);
     let irisA = fillD(d - Ri, px) * sclera;
@@ -108,76 +102,211 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     col += vec3<f32>(1.0, 0.95, 0.9) * fillD(length(q - vec2<f32>(-0.35, 0.45)) - 0.11, px) * irisA * 0.9;
     // the lids' shadow at the almond's edge
     col *= mix(1.0, 0.35, smoothstep(w - 0.25, w, abs(b.x)) * sclera);
-    return vec4(mix(o.rgb, col, inside), max(o.a, inside));
+    return col;
 }
 
-// ==== show (added) ====
-// Abyssal Eye show: shadow tendrils with crimson tips reach off the slit and curl back, crimson
-// tears drip off it and fall, dark motes and specks of light are sucked in from all round, and
-// glowing sigils flicker into the dark and fade. A swing lashes the tendrils out; a clash flares a
-// crimson shock ring with the tendrils whipping wide.
-fn abyssal_eye_show(b: vec2<f32>, px: f32) -> vec3<f32> {
+// a shadow tendril i: point at u (0 at the lip .. 1 at the tip)
+fn ae_tendril(fi: f32, u: f32) -> vec3<f32> {
+    let L = uLength;
+    let t = uTime;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let y0 = (0.08 + 0.85 * fract(fi * 0.618 + 0.1)) * L;
+    let a0 = fi * 0.382 + 0.05 * sin(t * 0.4 + fi);
+    let reach = (1.8 + 3.6 * h11(fi * 3.3)) * (0.65 + 0.35 * sin(t * 0.7 + fi * 1.9)) + 1.6 * sw + 2.0 * cl;
+    let r = ae_w(y0) + 0.05 + reach * u;
+    // it writhes like smoke: up and down, and side to side round the blade
+    let wave = sin(u * 5.0 - t * 2.2 + fi) * 0.7 * u + u * sin(t * 0.5 + fi) * 0.8 + u * u * (h11(fi * 5.1) - 0.5) * 3.0;
+    let curl = u * 0.10 * sin(u * 6.0 - t * 1.7 + fi * 2.3);
+    return around(r, a0 + curl, y0 + wave);
+}
+
+// the reality cracks: (start, end, fork) for crack i and its life (grow)
+fn ae_crack(fi: f32, a: ptr<function, vec3<f32>>, c: ptr<function, vec3<f32>>, m: ptr<function, vec3<f32>>, e: ptr<function, vec3<f32>>, seed: ptr<function, f32>) -> f32 {
     let L = uLength;
     let sw = clamp(uSwing, 0.0, 1.0);
     let cl = clamp(uClash, 0.0, 1.0);
-    let red: vec3<f32> = vec3<f32>(1.0, 0.15, 0.1);
-    let ember: vec3<f32> = vec3<f32>(1.0, 0.55, 0.2);
-    var light: vec3<f32> = vec3<f32>(0.0);
-    for (var i = 0; i < 8; i++) {
-        let fi = f32(i);
-        let s = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
-        let y0 = (0.08 + 0.85 * fract(fi * 0.618 + 0.1)) * L;
-        let reach = (3.0 + 2.5 * h11(fi * 3.3)) * (0.6 + 0.4 * sin(uTime * 0.7 + fi * 1.9)) + 3.0 * sw + 3.0 * cl;
-        let u = (b.x * s - 0.3) / max(reach, 0.1);
-        if u < 0.0 || u > 1.0 {
-            continue;
+    let ph = uTime * 0.22 + h11(fi * 9.0);
+    let cy = floor(ph);
+    let f = fract(ph);
+    let y0 = (0.1 + 0.8 * h11(cy * 3.0 + fi)) * L;
+    let an = h11(cy * 5.3 + fi * 1.7);
+    let grow = smoothstep(0.0, 0.25, f) * (1.0 - smoothstep(0.75, 1.0, f));
+    let reach = (3.0 + 2.6 * h11(cy * 2.0 + fi * 5.0)) * grow * (1.0 + 0.4 * sw + 0.6 * cl);
+    (*a) = around(ae_w(y0) + 0.05, an, y0);
+    (*c) = around(ae_w(y0) + 0.05 + reach, an + 0.06 * (h11(cy * 4.0 + fi) - 0.5), y0 + (h11(cy * 7.0 + fi) - 0.5) * reach * 0.9);
+    (*m) = mix((*a), (*c), 0.5);
+    (*e) = (*m) + ((*c) - (*a)) * 0.45 + vec3(0.0, (select(1.0, -1.0, h11(cy * 11.0 + fi) < 0.5)) * reach * 0.35, 0.0) + around(reach * 0.3, an + 0.25, 0.0);
+    (*seed) = cy * 13.0 + fi;
+    return grow * step(0.05, reach);
+}
+
+fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    let L = uLength;
+    var col: vec4<f32> = vec4<f32>(0.0);
+    var tHit: f32 = 1.0e5;
+    let top = ae_top();
+    // ---- the cut itself: black inside, its lips burning where it turns away from you ----
+    if top > 0.3 {
+        let sp = raySpan(ro, rd, 1.7, -0.3, top + 0.2);
+        if sp.y > sp.x {
+            var tt = sp.x;
+            var dmin: f32 = 1.0e3;
+            var tmin = sp.x;
+            var hit: f32 = 0.0;
+            for (var i = 0; i < 56; i++) {
+                let d = ae_sdf(ro + rd * tt);
+                if d < dmin {
+                    dmin = d;
+                    tmin = tt;
+                }
+                if d < 0.002 {
+                    hit = 1.0;
+                    break;
+                }
+                tt += max(d, 0.003);
+                if tt > sp.y {
+                    break;
+                }
+            }
+            let cov = select(clamp(1.0 - dmin / max(px, 1.0e-3), 0.0, 1.0), 1.0, hit > 0.5);
+            if cov > 0.0 {
+                let th = select(tmin, tt, hit > 0.5);
+                let p = ro + rd * th;
+                let dw = (ae_w(p.y + 0.05) - ae_w(p.y - 0.05)) / 0.1;
+                let n = normalize(vec3(p.x, -dw * length(p.xz), p.z) + vec3<f32>(0.0, 0.0, 1.0e-4));
+                let ndv = abs(dot(n, -rd));
+                var rgb = ae_inside(vec2(p.x, p.y), px);
+                // the glowing lips: crimson where the cut turns away, a white-hot hairline at the edge
+                // measured round the blade, so the cut reads as a slit from every side
+                let hv = length(rd.xz);
+                let rimH = 1.0 - abs(dot(normalize(n.xz + vec2<f32>(1.0e-5)), -rd.xz / max(hv, 1.0e-4)));
+                let rim = mix(1.0 - ndv, rimH, smoothstep(0.01, 0.05, hv));
+                rgb += vec3<f32>(1.0, 0.18, 0.1) * pow(rim, 3.0) * 1.4 + vec3<f32>(1.0, 0.6, 0.45) * pow(rim, 10.0) * 1.2;
+                col = vec4(rgb, cov);
+                tHit = th;
+            }
         }
-        let wave = sin(u * 5.0 - uTime * 2.5 + fi) * 1.2 * u + u * u * 1.5 * sin(uTime * 0.5 + fi);
-        let dy = b.y - y0 - wave;
-        let th = mix(0.28, 0.03, u);
-        let t1 = exp(-pow(dy / th, 2.0));
-        light += mix(vec3<f32>(0.25, 0.02, 0.05), red, u * u) * t1 * 1.2 + red * halo(length(vec2(u - 1.0, dy / reach) * reach), 0.12) * 1.5;
     }
-    for (var i = 0; i < 8; i++) {
-        let fi = f32(i);
-        let f = fract(uTime * (0.35 + 0.2 * h11(fi * 2.1)) + h11(fi * 5.5));
-        let s = select(1.0, -1.0, h11(fi * 7.0 + floor(uTime * 0.35)) < 0.5);
-        let p = vec2(s * (0.4 + 0.6 * f), (0.15 + 0.75 * h11(fi * 3.7)) * L - 7.0 * f * f);
-        let dd = length((b - p) * vec2<f32>(1.0, 0.6));
-        light += red * (fillD(dd - 0.12, px) * 1.4 + halo(dd, 0.35) * 0.3) * (1.0 - f);
+    // ---- shadow tendrils: dark smoky arms, crimson at the tips ----
+    if uFx > 0.01 && top > L * 0.5 {
+        let bx = raySpan(ro, rd, 7.0, 0.0, L + 3.0);
+        if bx.y > bx.x {
+            for (var i = 0; i < 8; i++) {
+                let fi = f32(i);
+                var prev = ae_tendril(fi, 0.0);
+                for (var k = 1; k <= 6; k++) {
+                    let u1 = f32(k) / 6.0;
+                    let nx = ae_tendril(fi, u1);
+                    var s: f32;
+                    let d = raySeg(ro, rd, prev, nx, &s);
+                    let u = u1 - (1.0 - s) / 6.0;
+                    let th = mix(0.42, 0.04, sqrt(u));
+                    if d < th * 2.0 + px * 1.5 {
+                        let q = mix(prev, nx, s);
+                        let tq = dot(q - ro, rd);
+                        if tq < tHit {
+                            let core = exp(-pow(d / max(th, px * 0.7), 2.0));
+                            let aura = exp(-pow(d / max(th * 2.2, px * 1.5), 2.0));
+                            let fade = 1.0 - smoothstep(0.75, 1.0, u);
+                            let a = max(core * 0.92, aura * 0.45) * fade * uFx;
+                            // smoky shadow at the heart of it, its edges and thinning end smouldering crimson
+                            var rgb = mix(vec3<f32>(0.9, 0.1, 0.07) * (0.5 + 0.9 * u), vec3<f32>(0.02, 0.0, 0.008), core * (1.0 - u * u));
+                            col = vec4(mix(col.rgb, rgb, a), max(col.a, a));
+                        }
+                    }
+                    prev = nx;
+                }
+            }
+        }
     }
-    for (var i = 0; i < 12; i++) {
-        let fi = f32(i);
-        let f = fract(uTime * 0.25 + fi / 12.0);
-        let a = fi * 0.52 + uTime * 0.2;
-        let p = vec2(cos(a), sin(a) * 0.8) * (8.0 * (1.0 - f) + 0.6) + vec2(0.0, (0.2 + 0.6 * h11(fi)) * L);
-        light += mix(vec3<f32>(0.9, 0.85, 1.0), red, f) * halo(length(b - p), 0.07) * 1.6 * smoothstep(0.0, 0.2, f);
+    return col;
+}
+
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    let t = uTime;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let red: vec3<f32> = vec3<f32>(1.0, 0.15, 0.1);
+    let top = ae_top();
+    // the cut's glow: closest approach to the axis, measured from its lips
+    var s: f32;
+    let dAx = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, max(top, 0.0), 0.0), &s);
+    let y = mix(-0.6, top, s);
+    let ed = max(dAx - ae_w(y), 0.0);
+    let o = ae_open();
+    let near = halo(abs((y - ae_Ey()) / AE_H), 0.8);
+    let pulse = 0.85 + 0.15 * sin(t * 1.7 - y * 0.2);
+    var light = vec3<f32>(1.0, 0.25, 0.15) * halo(ed, 0.06 + px) * 1.6 + vec3<f32>(1.0, 0.55, 0.4) * halo(ed, 0.02 + px) * (0.6 + 0.8 * o * near);
+    light += vec3<f32>(0.85, 0.06, 0.06) * halo(ed, 0.7) * 0.7 * pulse + vec3<f32>(0.45, 0.0, 0.05) * halo(ed, 1.8) * 0.35;
+    // the emitter: the cut's crimson fire pouring out of the hilt's mouth
+    let de = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3<f32>(0.0, 0.5, 0.0), &s);
+    light += vec3<f32>(1.0, 0.45, 0.3) * exp(-pow(de / 0.3, 2.0)) * 1.2 * step(0.01, top) + red * halo(de, 0.8) * 0.5 * step(0.01, top);
+    if uFx > 0.01 && top > L * 0.5 {
+        var fx: vec3<f32> = vec3<f32>(0.0);
+        // crimson tears dripping off the lips and falling
+        for (var i = 0; i < 8; i++) {
+            let fi = f32(i);
+            let rate = 0.35 + 0.2 * h11(fi * 2.1);
+            let f = fract(t * rate + h11(fi * 5.5));
+            let cyc = floor(t * rate + h11(fi * 5.5));
+            let an = h11(fi * 7.0 + cyc * 1.3);
+            let y0 = (0.15 + 0.75 * h11(fi * 3.7 + cyc)) * L;
+            let p = around(ae_w(y0) + 0.1 + 0.6 * f, an, y0 - 7.0 * f * f);
+            var d = raySeg(ro, rd, p, p + vec3(0.0, 0.25 + 1.2 * f, 0.0), &s);
+            fx += (vec3<f32>(1.0, 0.5, 0.35) * halo(d, max(0.06, px)) * 1.4 + red * halo(d, 0.3) * 0.4) * (1.0 - f) * smoothstep(0.0, 0.08, f);
+        }
+        // specks of light sucked in from all round
+        for (var i = 0; i < 12; i++) {
+            let fi = f32(i);
+            let f = fract(t * 0.25 + fi / 12.0);
+            let an = fi * 0.137 + t * 0.05 + f * 0.4;
+            let p = around(5.2 * (1.0 - f) + 0.5, an, (0.2 + 0.6 * h11(fi)) * L + 2.5 * (1.0 - f) * (h11(fi * 3.0) - 0.5));
+            var tq: f32;
+            var d = rayPt(ro, rd, p, &tq);
+            fx += mix(vec3<f32>(0.9, 0.85, 1.0), red, f) * halo(d, max(0.07, px)) * 1.6 * smoothstep(0.0, 0.2, f);
+        }
+        // cracks in reality: jagged fissures tearing outward round the blade, pulsing with the
+        // abyss's heartbeat, brightest where the eye is looking
+        let beat = 0.6 + 0.4 * pow(0.5 + 0.5 * sin(t * 2.2), 8.0);
+        let gazeY = ae_Ey() + ae_look().y * 2.6;
+        for (var i = 0; i < 4; i++) {
+            var a: vec3<f32>;
+            var c: vec3<f32>;
+            var m: vec3<f32>;
+            var e: vec3<f32>;
+            var seed: f32;
+            let live = ae_crack(f32(i), &a, &c, &m, &e, &seed);
+            if live <= 0.0 {
+                continue;
+            }
+            var d = bolt3(ro, rd, a, c, seed, 0.3);
+            d = min(d, bolt3(ro, rd, m, e, seed + 3.0, 0.35));
+            let nr = 0.5 + 0.9 * halo(abs(a.y - gazeY), 5.0) * o;
+            let cc = vec3<f32>(1.0, 0.55, 0.4) * halo(d, max(px, 0.03)) * 1.2 + red * halo(d, 0.2) * 1.2 + vec3<f32>(0.6, 0.0, 0.05) * halo(d, 0.9) * 0.45;
+            fx += cc * live * beat * nr;
+        }
+        // clash: a crimson shock ring and a flash
+        if cl > 0.01 {
+            let h = rayAt(ro, rd, L * 0.55);
+            if h.z > 0.0 {
+                fx += red * halo(abs(length(h.xy) - 1.0 - 6.0 * (1.0 - cl)), 0.18 + 0.2 * (1.0 - cl)) * cl * 1.6;
+            }
+            var tq: f32;
+            fx += red * halo(rayPt(ro, rd, vec3(0.0, L * 0.55, 0.0), &tq), 1.2) * pow(cl, 3.0);
+        }
+        light += fx * uFx;
     }
-    for (var i = 0; i < 4; i++) {
-        let fi = f32(i);
-        let ph = uTime * 0.3 + h11(fi * 9.0);
-        let cy = floor(ph);
-        let f = fract(ph);
-        let c = vec2((select(1.0, -1.0, h11(cy + fi * 3.0) < 0.5)) * (3.5 + 2.5 * h11(cy * 2.0 + fi)), (0.15 + 0.7 * h11(cy * 3.0 + fi)) * L);
-        let q = b - c;
-        let r = length(q);
-        let a = atan2(q.y, q.x);
-        var sig = min(abs(r - 0.9), max(abs(r - 0.5), abs(sin(a * 3.0 + cy)) * r - 0.04));
-        sig = min(sig, abs(q.x * 0.7 + q.y * 0.7 - 0.0) + step(0.9, r) * 9.0);
-        let fl = smoothstep(0.0, 0.2, f) * (1.0 - smoothstep(0.6, 1.0, f)) * (0.7 + 0.3 * step(0.3, h11(floor(uTime * 12.0) + fi)));
-        light += ember * halo(sig, 0.04 + px) * fl * 1.3;
-    }
-    if cl > 0.01 {
-        let o = vec2(0.0, L * 0.55);
-        light += red * halo(abs(length(b - o) - 1.0 - 7.0 * (1.0 - cl)), 0.15) * cl * 1.5;
-    }
-    let edge = 1.0 - smoothstep(8.5, 10.2, abs(b.x));
-    light *= edge * (1.0 - smoothstep(L + 0.5, L + 3.5, b.y)) * smoothstep(-3.0, -0.5, b.y);
     return (1.0 - exp(-light * 1.15)) * 1.05;
 }
 
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return abyssal_eye_glow0(g, b, r, px) + abyssal_eye_show(b, min(px, 0.06));
+    return vec3<f32>(0.0);
+}
+
+fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
+    return vec3<f32>(0.0);
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
