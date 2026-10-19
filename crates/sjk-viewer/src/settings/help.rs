@@ -182,6 +182,7 @@ pub(super) fn choice_name(cvar: &str, value: &str) -> Option<&'static str> {
             name.eq_ignore_ascii_case(cvar) && choice.eq_ignore_ascii_case(value.trim())
         })
         .map(|(_, _, shown)| *shown)
+        .or_else(|| crate::away_emote::choice_name(cvar, value))
 }
 
 /// What the detail column says, in gold, while the SJK renderer is on and a
@@ -368,6 +369,22 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::emotes::VOLUME_CVAR,
         "Loudness of emote sounds: 1 as recorded, 2 twice as loud. Yours plays in both ears; others' follow their player.",
+    ),
+    (
+        crate::away_emote::SJK_CVAR,
+        "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
+    ),
+    (
+        crate::away_emote::JAPLUS_CVAR,
+        "On a JA+ server, the JA+ emote you play while away instead (sit, kneel...). Coming back stands you up.",
+    ),
+    (
+        crate::away_emote::ALT_TAB_CVAR,
+        "On: alt-tabbing out or minimising the game counts as away, for the away emote and quiet emotes.",
+    ),
+    (
+        crate::away_emote::IDLE_CVAR,
+        "How long without a key or the mouse before you count as away; 0 only alt-tabbing does.",
     ),
     (
         crate::emotes::ATTACK_STOP_CVAR,

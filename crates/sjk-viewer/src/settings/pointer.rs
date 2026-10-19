@@ -178,34 +178,34 @@ impl SettingsMenu {
                     && self
                         .rows()
                         .get(row)
-                        .is_some_and(|setting| !matches!(setting.kind, ValueKind::Bool))
+                        .is_some_and(|setting| !matches!(setting.kind(), ValueKind::Bool))
                 {
                     return SettingsResult::None;
                 }
                 if let Some(setting) = self.rows().get(row) {
-                    if matches!(setting.kind, ValueKind::Text) {
+                    if matches!(setting.kind(), ValueKind::Text) {
                         self.begin_text(console, row);
-                    } else if matches!(setting.kind, ValueKind::Resolution) {
+                    } else if matches!(setting.kind(), ValueKind::Resolution) {
                         self.open_resolutions(console);
-                    } else if matches!(setting.kind, ValueKind::HudPicker) {
+                    } else if matches!(setting.kind(), ValueKind::HudPicker) {
                         self.open_hud_picker(console);
-                    } else if matches!(setting.kind, ValueKind::WheelPages) {
+                    } else if matches!(setting.kind(), ValueKind::WheelPages) {
                         return SettingsResult::OpenWheelPages;
-                    } else if matches!(setting.kind, ValueKind::IdentityPage) {
+                    } else if matches!(setting.kind(), ValueKind::IdentityPage) {
                         return SettingsResult::OpenIdentity;
-                    } else if matches!(setting.kind, ValueKind::AssetBrowser) {
+                    } else if matches!(setting.kind(), ValueKind::AssetBrowser) {
                         return SettingsResult::OpenAssets;
-                    } else if matches!(setting.kind, ValueKind::JofContent) {
+                    } else if matches!(setting.kind(), ValueKind::JofContent) {
                         return SettingsResult::OpenJofContent;
-                    } else if matches!(setting.kind, ValueKind::ImportPage) {
+                    } else if matches!(setting.kind(), ValueKind::ImportPage) {
                         return SettingsResult::OpenImport;
-                    } else if matches!(setting.kind, ValueKind::GameplayFps) {
+                    } else if matches!(setting.kind(), ValueKind::GameplayFps) {
                         return SettingsResult::OpenGameplayFps;
                     } else if self.classic.is_some() && self.open_dropdown(console, row) {
                         // Classic+: a choice opens its list; nothing changes yet.
                     } else if let Some(position) = event.position {
                         if !self.set_numeric_from_pointer(console, row, position.x) {
-                            let direction = self.click_direction(setting.kind, row, position.x);
+                            let direction = self.click_direction(setting.kind(), row, position.x);
                             self.adjust(console, direction);
                         }
                     } else {
@@ -253,12 +253,12 @@ impl SettingsMenu {
             }
             None => self.ui.slider_ratio(rect, pointer_x),
         });
-        let raw = match setting.kind {
+        let raw = match setting.kind() {
             ValueKind::Integer { min, max, .. } => min as f64 + (max - min) as f64 * ratio,
             ValueKind::Float { min, max, .. } => min + (max - min) * ratio,
             _ => return false,
         };
-        let Some(value) = setting.kind.snapped(raw) else {
+        let Some(value) = setting.kind().snapped(raw) else {
             return false;
         };
         console.set_cvar(setting.cvar, &value);

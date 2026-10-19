@@ -857,7 +857,7 @@ mod tests {
             );
         }
 
-        let float_range = |cvar| match find(cvar).unwrap().kind {
+        let float_range = |cvar| match find(cvar).unwrap().kind() {
             ValueKind::Float { min, max, step } => (min, max, step),
             _ => panic!("{cvar} is not a float slider"),
         };

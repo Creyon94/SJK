@@ -178,13 +178,14 @@ pub trait Hub: Send {
         ))
     }
     /// Play `emote` for the slot the identity claims on `server`, in step with the
-    /// player in slot `sync` when it is set.
+    /// player in slot `sync` when it is set, without its sound when `quiet`.
     fn emote(
         &mut self,
         _identity: &Identity,
         _server: &str,
         _emote: &str,
         _sync: Option<u8>,
+        _quiet: bool,
     ) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send emotes".to_owned(),
@@ -1401,10 +1402,14 @@ impl Hub for HttpHub {
         server: &str,
         emote: &str,
         sync: Option<u8>,
+        quiet: bool,
     ) -> Result<u64, HubError> {
         let mut body = json!({ "server": server, "emote": emote });
         if let Some(sync) = sync {
             body["sync"] = json!(sync);
+        }
+        if quiet {
+            body["quiet"] = json!(true);
         }
         let answer = self.send(Some(identity), "POST", "/v1/emote", Some(body))?;
         answer["id"]

@@ -488,7 +488,7 @@ impl SettingsMenu {
         if let Some(row) = self
             .rows()
             .iter()
-            .position(|setting| matches!(setting.kind, ValueKind::WheelPages))
+            .position(|setting| matches!(setting.kind(), ValueKind::WheelPages))
         {
             self.selected = row;
             self.reveal_selected();
@@ -663,7 +663,7 @@ impl SettingsMenu {
             KeyCode::Space
                 if self.rows().get(self.selected).is_some_and(|setting| {
                     matches!(
-                        setting.kind,
+                        setting.kind(),
                         ValueKind::Integer { .. } | ValueKind::Float { .. }
                     )
                 }) =>
@@ -672,23 +672,23 @@ impl SettingsMenu {
             }
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(setting) = self.rows().get(self.selected) {
-                    if matches!(setting.kind, ValueKind::Text) {
+                    if matches!(setting.kind(), ValueKind::Text) {
                         self.begin_text(console, self.selected);
-                    } else if matches!(setting.kind, ValueKind::Resolution) {
+                    } else if matches!(setting.kind(), ValueKind::Resolution) {
                         self.open_resolutions(console);
-                    } else if matches!(setting.kind, ValueKind::HudPicker) {
+                    } else if matches!(setting.kind(), ValueKind::HudPicker) {
                         self.open_hud_picker(console);
-                    } else if matches!(setting.kind, ValueKind::WheelPages) {
+                    } else if matches!(setting.kind(), ValueKind::WheelPages) {
                         return SettingsResult::OpenWheelPages;
-                    } else if matches!(setting.kind, ValueKind::IdentityPage) {
+                    } else if matches!(setting.kind(), ValueKind::IdentityPage) {
                         return SettingsResult::OpenIdentity;
-                    } else if matches!(setting.kind, ValueKind::AssetBrowser) {
+                    } else if matches!(setting.kind(), ValueKind::AssetBrowser) {
                         return SettingsResult::OpenAssets;
-                    } else if matches!(setting.kind, ValueKind::JofContent) {
+                    } else if matches!(setting.kind(), ValueKind::JofContent) {
                         return SettingsResult::OpenJofContent;
-                    } else if matches!(setting.kind, ValueKind::ImportPage) {
+                    } else if matches!(setting.kind(), ValueKind::ImportPage) {
                         return SettingsResult::OpenImport;
-                    } else if matches!(setting.kind, ValueKind::GameplayFps) {
+                    } else if matches!(setting.kind(), ValueKind::GameplayFps) {
                         return SettingsResult::OpenGameplayFps;
                     } else if classic && self.open_dropdown(console, self.selected) {
                         // Classic+: a choice opens its list; nothing changes yet.
@@ -721,7 +721,7 @@ impl SettingsMenu {
             return;
         }
         // Choices name text or integer cvars (`cg_saberTrail` is an integer).
-        if let ValueKind::Choice(values) = setting.kind {
+        if let ValueKind::Choice(values) = setting.kind() {
             let cvar = setting.cvar;
             let value = choice_value(console, cvar).unwrap_or_default();
             let index = values
@@ -733,14 +733,14 @@ impl SettingsMenu {
             self.refresh(console);
             return;
         }
-        let next = match (setting.kind, console.cvar(setting.cvar)) {
+        let next = match (setting.kind(), console.cvar(setting.cvar)) {
             (ValueKind::Bool, Some(CvarValue::Bool(value))) => (!value).to_string(),
             (ValueKind::Bool, Some(value)) => if switch_on(value) { "0" } else { "1" }.to_owned(),
             (ValueKind::Integer { min, max, step }, Some(CvarValue::Integer(value))) => {
                 step_integer(*value, direction, min, max, step).to_string()
             }
             (ValueKind::Float { .. }, Some(CvarValue::Float(value))) => {
-                match setting.kind.stepped(*value, direction) {
+                match setting.kind().stepped(*value, direction) {
                     Some(next) => next,
                     None => return,
                 }
@@ -861,7 +861,7 @@ impl SettingsMenu {
         self.usage.rows = read_for;
         self.values.clear();
         self.values
-            .extend(self.rows().iter().map(|setting| match setting.kind {
+            .extend(self.rows().iter().map(|setting| match setting.kind() {
                 ValueKind::DisplayMode => display.label().to_owned(),
                 ValueKind::HudPicker => hud.clone(),
                 ValueKind::WheelPages => wheel_pages_text(console),
@@ -964,7 +964,7 @@ pub(crate) fn switch_label(cvar: &str) -> Option<&'static str> {
         .iter()
         .find(|setting| {
             setting.cvar.eq_ignore_ascii_case(cvar)
-                && matches!(setting.kind, ValueKind::Bool)
+                && matches!(setting.kind(), ValueKind::Bool)
                 && derived_switch(setting.cvar).is_none()
         })
         .map(|setting| setting.label)
@@ -988,7 +988,7 @@ pub(crate) fn row_takes(cvar: &str, value: &str) -> bool {
         return false;
     };
     let number = value.parse::<f64>();
-    match (row.kind, number) {
+    match (row.kind(), number) {
         (ValueKind::Choice(values), _) => values.contains(&value),
         (ValueKind::Bool, Ok(number)) => number == 0.0 || number == 1.0,
         (ValueKind::Integer { min, max, .. }, Ok(number)) => {
@@ -1094,7 +1094,7 @@ fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i6
 /// The value a row shows: AUTO for the one special value below a negative
 /// minimum (`com_maxfps -1`), otherwise the cvar's text.
 fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
-    match (setting.kind, console.cvar(setting.cvar)) {
+    match (setting.kind(), console.cvar(setting.cvar)) {
         (ValueKind::Integer { min, .. }, Some(CvarValue::Integer(value)))
             if min < 0 && *value < 0 =>
         {
@@ -1282,7 +1282,7 @@ mod tests {
                 continue;
             }
             if matches!(
-                setting.kind,
+                setting.kind(),
                 ValueKind::Resolution
                     | ValueKind::DisplayMode
                     | ValueKind::HudPicker
@@ -1298,7 +1298,7 @@ mod tests {
             let value = console
                 .cvar(setting.cvar)
                 .unwrap_or_else(|| panic!("{} is not registered", setting.cvar));
-            let fits = match (setting.kind, value) {
+            let fits = match (setting.kind(), value) {
                 (
                     ValueKind::Bool,
                     CvarValue::Bool(_) | CvarValue::Integer(_) | CvarValue::Float(_),

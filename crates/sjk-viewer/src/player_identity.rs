@@ -1054,7 +1054,40 @@ pub(crate) fn emote(id: String, sync: Option<u8>) -> bool {
         return false;
     };
     service.emote(id, sync);
+    note_emote_post();
     true
+}
+
+/// Play an emote as [`emote`] does, without its sound for the others (the player is
+/// away, `away_emote.rs`); false when the service has not started.
+pub(crate) fn emote_quiet(id: String) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.emote_quiet(id);
+    note_emote_post();
+    true
+}
+
+/// The hub takes one emote every 2 seconds from a key (`PROTOCOL.md`, "Emotes"), and
+/// a little more for the clock's rounding.
+const EMOTE_GAP: Duration = Duration::from_millis(2_100);
+static LAST_EMOTE_POST: Mutex<Option<Instant>> = Mutex::new(None);
+
+fn note_emote_post() {
+    *LAST_EMOTE_POST
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Instant::now());
+}
+
+/// Whether the hub would take an emote from the player at `now`, as far as this
+/// client's own posts go.
+pub(crate) fn emote_ready(now: Instant) -> bool {
+    LAST_EMOTE_POST
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .is_none_or(|last| now.saturating_duration_since(last) >= EMOTE_GAP)
 }
 
 /// Ping `pos` (whole game units) for `scope` from the player's slot

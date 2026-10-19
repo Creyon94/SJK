@@ -455,7 +455,7 @@ enum Command {
     /// Ban the player of this key from the SJK chat for 24 hours.
     ChatBan(String),
     /// An emote, for the slot the player claims, in step with another slot's or not.
-    Emote(String, Option<u8>),
+    Emote(String, Option<u8>, bool),
     /// A ping at a point (whole game units) for a scope, from the slot the player claims.
     Ping([i32; 3], String),
     /// A toy event (toy, event, target slot), from the slot the player claims.
@@ -967,7 +967,7 @@ impl Worker {
 
     /// Send an emote for the slot the player claims on their server, in step with
     /// slot `sync`'s when it is set.
-    fn send_emote(&mut self, emote: &str, sync: Option<u8>) {
+    fn send_emote(&mut self, emote: &str, sync: Option<u8>, quiet: bool) {
         let well_formed = (1..=32).contains(&emote.len())
             && emote
                 .bytes()
@@ -987,14 +987,14 @@ impl Worker {
                 code: "not_on_server".to_owned(),
                 message: "join a server to emote".to_owned(),
             }),
-            // A hub from before 15/10/2026 refuses `sync` (`bad_body`): the emote
-            // still goes, out of step.
+            // A hub from before 15/10/2026 refuses `sync`, one from before 19/10/2026
+            // `quiet` (`bad_body`): the emote still goes, out of step or with its sound.
             (Some(hub), true, Some(server)) => {
-                match hub.emote(&self.identity, &server, emote, sync) {
+                match hub.emote(&self.identity, &server, emote, sync, quiet) {
                     Err(HubError::Rejected { code, .. })
-                        if sync.is_some() && code == "bad_body" =>
+                        if (sync.is_some() || quiet) && code == "bad_body" =>
                     {
-                        hub.emote(&self.identity, &server, emote, None)
+                        hub.emote(&self.identity, &server, emote, None, false)
                     }
                     sent => sent,
                 }
@@ -1138,7 +1138,7 @@ impl Worker {
             }
             Command::Chat(text) => self.send_chat(&text, now),
             Command::ChatBan(key_id) => self.send_chat_ban(key_id),
-            Command::Emote(emote, sync) => self.send_emote(&emote, sync),
+            Command::Emote(emote, sync, quiet) => self.send_emote(&emote, sync, quiet),
             Command::Ping(pos, scope) => self.send_ping(pos, &scope),
             Command::Toy(toy, event, target) => self.send_toy_event(&toy, &event, target),
             Command::SetChat(on) => self.chat_on = on,
@@ -2656,7 +2656,13 @@ impl Service {
     /// Play an emote for the player's slot on their server, in step with slot `sync`'s
     /// when it is set; what became of it arrives in [`ChatState::outcome`].
     pub fn emote(&self, emote: String, sync: Option<u8>) {
-        let _ = self.commands.send(Command::Emote(emote, sync));
+        let _ = self.commands.send(Command::Emote(emote, sync, false));
+    }
+
+    /// Play an emote as [`Service::emote`] does, without its sound for the others (the
+    /// player is away from the game).
+    pub fn emote_quiet(&self, emote: String) {
+        let _ = self.commands.send(Command::Emote(emote, None, true));
     }
 
     /// Read the chat without copying it; keep `read` short.
@@ -3185,8 +3191,9 @@ mod tests {
             server: &str,
             emote: &str,
             sync: Option<u8>,
+            quiet: bool,
         ) -> Result<u64, HubError> {
-            if sync.is_some() && self.old_hub.load(Ordering::SeqCst) {
+            if (sync.is_some() || quiet) && self.old_hub.load(Ordering::SeqCst) {
                 return Err(HubError::Rejected {
                     status: 400,
                     code: "bad_body".to_owned(),
@@ -3194,7 +3201,8 @@ mod tests {
                 });
             }
             let with = sync.map_or_else(String::new, |slot| format!(" with {slot}"));
-            Fake::record(self, format!("emote {emote} on {server}{with}")).map(|()| 13)
+            let quiet = if quiet { " quiet" } else { "" };
+            Fake::record(self, format!("emote {emote} on {server}{with}{quiet}")).map(|()| 13)
         }
         fn ping(
             &mut self,
@@ -4021,27 +4029,35 @@ mod tests {
         let (mut worker, _) = worker(&fake, t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
-        worker.handle(Command::Emote("wave".into(), None), t0);
+        worker.handle(Command::Emote("wave".into(), None, false), t0);
         let nowhere = chat_outcome(&worker);
         assert!(!nowhere.sent && nowhere.message.contains("server"));
         worker.handle(Command::Enter(here(3, "Sol")), t0);
         worker.tick(t0);
-        worker.handle(Command::Emote("Wave!".into(), None), t0);
+        worker.handle(Command::Emote("Wave!".into(), None, false), t0);
         assert!(!chat_outcome(&worker).sent);
         assert!(!fake.log().iter().any(|line| line.starts_with("emote")));
-        worker.handle(Command::Emote("wave".into(), None), t0);
+        worker.handle(Command::Emote("wave".into(), None, false), t0);
         assert_eq!(fake.log().last().unwrap(), "emote wave on 1.2.3.4:29070");
         assert!(chat_outcome(&worker).sent);
-        worker.handle(Command::Emote("wave".into(), Some(5)), t0);
+        worker.handle(Command::Emote("wave".into(), Some(5), false), t0);
         assert_eq!(
             fake.log().last().unwrap(),
             "emote wave on 1.2.3.4:29070 with 5"
         );
-        // A hub that does not know `sync` still gets the emote, out of step.
+        worker.handle(Command::Emote("dance".into(), None, true), t0);
+        assert_eq!(
+            fake.log().last().unwrap(),
+            "emote dance on 1.2.3.4:29070 quiet"
+        );
+        // A hub that does not know `sync` or `quiet` still gets the emote, out of
+        // step or with its sound.
         fake.old_hub.store(true, Ordering::SeqCst);
-        worker.handle(Command::Emote("bow".into(), Some(5)), t0);
+        worker.handle(Command::Emote("bow".into(), Some(5), false), t0);
         assert_eq!(fake.log().last().unwrap(), "emote bow on 1.2.3.4:29070");
         assert!(chat_outcome(&worker).sent);
+        worker.handle(Command::Emote("dance".into(), None, true), t0);
+        assert_eq!(fake.log().last().unwrap(), "emote dance on 1.2.3.4:29070");
     }
 
     #[test]

@@ -41,6 +41,9 @@ pub(super) enum ValueKind {
         step: f64,
     },
     Choice(&'static [&'static str]),
+    /// A [`ValueKind::Choice`] whose choices are known only while the game runs (the
+    /// installed emotes); [`Setting::kind`] hands it on as one.
+    Live(fn() -> &'static [&'static str]),
     Text,
     /// `r_resolution`: steps within the aspect group, Enter opens the list.
     Resolution,
@@ -92,6 +95,16 @@ pub(super) struct Setting {
     pub(super) label: &'static str,
     pub(super) cvar: &'static str,
     pub(super) kind: ValueKind,
+}
+
+impl Setting {
+    /// How the row edits its value: a [`ValueKind::Live`] row as the choice it is now.
+    pub(super) fn kind(&self) -> ValueKind {
+        match self.kind {
+            ValueKind::Live(choices) => ValueKind::Choice(choices()),
+            kind => kind,
+        }
+    }
 }
 
 pub(crate) const RESOLUTIONS: &[&str] = &[
@@ -254,6 +267,30 @@ pub(super) const AUDIO: &[Setting] = &[
         label: "Attack ends emote",
         cvar: crate::emotes::ATTACK_STOP_CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Away emote",
+        cvar: crate::away_emote::SJK_CVAR,
+        kind: ValueKind::Live(crate::away_emote::sjk_choices),
+    },
+    Setting {
+        label: "JA+ away emote",
+        cvar: crate::away_emote::JAPLUS_CVAR,
+        kind: ValueKind::Choice(&crate::away_emote::JAPLUS_EMOTES),
+    },
+    Setting {
+        label: "Away when alt-tabbed",
+        cvar: crate::away_emote::ALT_TAB_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Away after (seconds)",
+        cvar: crate::away_emote::IDLE_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 1800,
+            step: 30,
+        },
     },
     Setting {
         label: "Unlock sound",
