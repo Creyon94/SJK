@@ -34,7 +34,8 @@ released. jaPRO gets `cjp_client 1.4JAPRO`, which is a switch rather than a name
 server enables its client support (the deaths column, client-predicted moves such as
 `amrun`) only for that exact value (TaystJK `g_client.c:2342`). The player's
 `cjp_client` setting (archived, empty by default) replaces the value on both plugin
-profiles; it is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
+profiles, for an SJK staff key only (Sol, 19/10/2026; `player_identity::is_staff`):
+another key always sends the default, whatever the setting says. It is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
 `"`) leaves the default. The userinfo carries it as a generic override of an adapter
 extension (`LegacyUserInfo::extension_overrides`). Both plugin profiles also get the player's
 `cp_pluginDisable` cvar (archived; a set bit switches a plugin feature off),

@@ -55,7 +55,7 @@ impl ViewerConsole {
                 sjk_client::PLUGIN_IDENTITY_KEY,
                 "",
                 CvarFlags::ARCHIVE,
-                "The client plugin name sent to JA+ and jaPRO servers (what admins' amstatus shows); empty sends SJK's default for the server",
+                "SJK staff only: the client plugin name sent to JA+ and jaPRO servers (what admins' amstatus shows); empty, or a key that is not staff, sends SJK's default for the server",
             ),
             CvarDefinition::new(
                 "forcepowers",

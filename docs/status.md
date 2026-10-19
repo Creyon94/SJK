@@ -1,3 +1,14 @@
+## Staff-only plugin name and showcase tools
+
+19/10/2026, `personal/staff-gates`, based on `main` `3fcbdd96` (Sol's decision): the
+`cjp_client` setting is sent only for an SJK staff key, any other key sends the server
+profile's default ([networking.md](networking.md)); `ghost` and `mimic` work only for a
+staff key, and say they are an experimental staff tool, not for everyone, to another
+([client.md](client.md#ghost-replay)). Staff is the hub's word on the player's own key,
+read when the userinfo is built: a key the hub names staff after joining sends its
+`cjp_client` from the next userinfo change or join. Verified on Windows 11: unit tests
+(the userinfo with and without staff). Not verified: in a game, on a JA+ server.
+
 ## Mythical cards, Credits and Meme kinds, SJK Alpha
 
 19/10/2026, `personal/sjk-alpha-cards`, based on `main` `848fde62` (Sol's decision): cards

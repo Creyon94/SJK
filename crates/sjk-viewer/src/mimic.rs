@@ -34,7 +34,7 @@ mod frame;
 mod saber;
 
 pub(crate) const COMMAND: &str = "mimic";
-pub(crate) const HELP: &str = "Experimental (cl_experimentalShowcase): copy a player's moves \
+pub(crate) const HELP: &str = "Experimental, SJK staff only (cl_experimentalShowcase): copy a player's moves \
      while facing them: mimic <player> \
      [delay seconds] [mirror|copy] [walk], mimic off";
 
