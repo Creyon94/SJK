@@ -584,6 +584,15 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Chat line spacing",
+        cvar: crate::chat::options::LINE_SPACING_CVAR,
+        kind: ValueKind::Float {
+            min: crate::chat::options::LINE_SPACING.0,
+            max: crate::chat::options::LINE_SPACING.1,
+            step: 1.0,
+        },
+    },
+    Setting {
         label: "Chat letter spacing",
         cvar: "cg_chatBoxLetterSpacing",
         kind: ValueKind::Float {

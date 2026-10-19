@@ -177,7 +177,7 @@ impl ChatOverlay {
             line.wrap
                 .update_spaced(&line.body, font, wrap_width, g.font, indent, g.spacing);
             let rows = if line.muted { 1 } else { line.wrap.len };
-            let text_height = rows as f32 * g.row + layout::MESSAGE_GAP * g.scale;
+            let text_height = rows as f32 * g.row + g.gap;
             let mut gif = gif;
             let mut top = bottom - text_height - feed_gif::room(g, gif);
             if top < g.top && count == 0 && gif.is_some() {

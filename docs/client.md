@@ -5103,7 +5103,7 @@ size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's v
   and its atlas), so at 1 the line box is 30.7 px at 1080p, capitals 17.6 px and rows
   29.25 px. SJK draws that line box (it was 18 px), with rows 20/21 of it apart: SJK Chat
   keeps `ocr_a`'s layout, and Inter's capitals, 0.60 of its box, stand 18.5 px. A
-  sender's name line advance and the gap between messages keep their sizes; the
+  sender's name line advance keeps its size; the
   composer (channel tabs, draft, caret) grows by the same 1.706 so its draft stays a
   little larger than the feed's text, as before; an SJK line's GIF stays three rows
   high. See
@@ -5114,8 +5114,15 @@ size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's v
   (it was 22 px) and the same advance, 58.5 px at 1 (it was 30); SJK Menu keeps
   `ergoec`'s layout. See [chat/view.rs](../crates/sjk-viewer/src/chat/view.rs).
 
-`cg_chatBoxFontSize` (default 1, archived; SJK Advanced > Chat > **Chat text size**,
-0.15 to 2 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
+`cg_chatBoxFontSize` (default 0.85, archived; SJK Advanced > Chat > **Chat text size**,
+0.15 to 2 in steps of 0.05) scales the chat's text, row spacing, the gap between
+messages, the composer and inline GIFs. 1 is EternalJK's size; the default, a 26 px
+line at 1080p (about 1.45 on the scale before 19/10/2026), is Sol's choice.
+
+`cg_chatBoxLineSpacing` (default 2, archived; SJK Advanced > Chat > **Chat line
+spacing** and the classic+ HUD page, 0 to 16 in steps of 1) is the room between two
+messages in 1080p pixels at text size 1 (it was a fixed 8 before 19/10/2026). A
+wrapped message's own rows stay `ROW_PITCH` apart.
 The wrapping width stays in its configured screen position, so larger text wraps
 sooner. The setting is also on Simple > HUD and the classic+ HUD page.
 `cg_centerSize` (default 1, archived, console only) scales centre prints from 0 to 2;
@@ -5125,8 +5132,9 @@ A profile saved before 19/10/2026 keeps the sizes it showed, once
 ([chat/text_sizes.rs](../crates/sjk-viewer/src/chat/text_sizes.rs), marker
 `cg_textSizeEjkVersion`): a saved value other than 1 is divided by how much larger the
 new 1 is (1.706 for the chat, 2.25 for centre prints) and clamped to the range, so 1.25
-becomes 0.733. A saved 1 was the old default and becomes EternalJK's size, as in a new
-profile.
+becomes 0.733. A saved 1 was the old default and takes today's default, as in a new
+profile. A profile saved later that day while the chat's default was 1 (marker 1) and
+still at 1 also takes 0.85 (marker 2).
 
 `cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > Chat > Chat letter
 spacing, -2 to 8 in steps of 0.5) adds that many 1080p pixels after each character of

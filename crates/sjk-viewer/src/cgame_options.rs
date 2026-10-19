@@ -84,8 +84,13 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ),
         (
             "cg_chatBoxFontSize",
-            1.0,
+            0.85,
             "Chat text scale, 1 is EternalJK's size (0.15 to 2)",
+        ),
+        (
+            crate::chat::options::LINE_SPACING_CVAR,
+            2.0,
+            "Space between chat messages, in 1080p pixels at text size 1 (0 to 16)",
         ),
         (
             "cg_chatBoxLetterSpacing",

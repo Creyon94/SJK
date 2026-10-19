@@ -50,7 +50,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Leaving a server no longer sometimes closes the game as the menu comes back _(Sol, after players' crash reports)_
 - Quitting or updating from exclusive fullscreen no longer leaves a crash report behind _(Sol, after players' crash reports)_
 - In a private duel, players outside it are hidden with their sabers, shots, effects and sounds, as in JoF EJK: by default on JA+ (unless the plugin's duel see others is set) and jaPRO servers; Hide others in duel (`cg_duelHideOthers`) chooses Off, Auto or Always _(Sol, after Milamber's report)_
-- Chat text and centre prints are the size JoF EJK draws them at the same `cg_chatBoxFontSize` and `cg_centerSize` (1 was about 0.6 and 0.45 of it), and the field you type in grows with the chat; sizes you had changed keep their look _(Sol, after Milamber's report)_
+- Chat text and centre prints are the size JoF EJK draws them at the same `cg_chatBoxFontSize` and `cg_centerSize` (1 was about 0.6 and 0.45 of it), and the field you type in grows with the chat; the chat's default is now 0.85 (a bit larger than before), and sizes you had changed keep their look _(Sol, after Milamber's report)_
+- Chat line spacing (`cg_chatBoxLineSpacing`, Settings > Chat): the room between chat messages, 0 to 16, tighter by default (2, was 8) _(Sol)_
 
 ## 2026.1019.1 (Alpha) | 19/10/2026
 

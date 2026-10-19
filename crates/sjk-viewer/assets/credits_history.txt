@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Chat text default 0.85 and a chat line spacing setting (cg_chatBoxLineSpacing)
+- d7f3ad6 |  | Chat text default 0.85 and a chat line spacing setting
++ 19/10/2026 | - | Chat typing field grows with the chat's EternalJK text size
+- 003d1d5 |  | Chat composer grows with the chat's EternalJK text size
 + 19/10/2026 | - | SJK pull request #176, Siege hack bar with retail's hacker icon; HACKING text dropped
 - dbbf46b |  | Hack bar from the drawn crosshair with retail's hacker icon; drop HACKING text
 + 19/10/2026 | - | Duel bystanders hidden as in JoF EJK; chat and centre prints at EJK's size
