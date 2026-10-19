@@ -318,7 +318,7 @@ did: SJK reimplements their behaviour and includes none of their code
 link: https://github.com/JACoders/OpenJK
 link: https://github.com/eternalcodes/EternalJK
 
-== Footnote
+== Origins
 
 [Bishop]
 github: Bishop-R

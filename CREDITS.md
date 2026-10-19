@@ -537,7 +537,7 @@ Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective
 owners. SJK is a fan project and is not affiliated with or endorsed by Lucasfilm,
 Disney, Raven Software or Activision. No retail game assets are included.
 
-## Footnote: JKR, by Bishop
+## Origins: JKR, by Bishop
 
 SJK began in October 2026 as a modified version of
 [JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)
