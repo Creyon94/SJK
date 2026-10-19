@@ -514,12 +514,13 @@ the drawing. `cg_clanEmblems` (archived, default 1, Settings > HUD > Scoreboard 
 The clans are the entries of `jof_tag::KNOWN`, each with its tag, its emblem, its tint,
 the share of the emblem's square its ink spans and how a tag stuck to a name counts,
 with the reason and who asked; supporting a clan means adding an entry and its emblem
-(an icon atlas cell each, room for four). Longer tags come first, so `JoFA` is read
+(an icon atlas cell each, room for four; three are used). Longer tags come first, so `JoFA` is read
 before `JoF`.
 
 | Clan | Tag | Emblem | Stuck to a name |
 | --- | --- | --- | --- |
 | JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | with the tag's capitals and a capitalised word after it (`JoFAKen`) |
+| JAWA (Sol's request, 19/10/2026) | `JAWA` | `jawa-emblem.png`, the clan's forum icon (a Jawa's hood) in its own colours | with the tag's capitals and a capitalised word after it (`JAWAKen`; not `Jawad`) |
 | JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, J o F, tinted in the teal of the clan's logo (`#02B99D`; crimson until 11/10/2026) | in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
 
 The rule, for every clan: the tag's letters in any case, with no letter right before the

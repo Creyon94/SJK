@@ -360,6 +360,15 @@ test: Mute someone from the card: their face greys. The window is only as tall a
 test: Turn cl_sjkChat 0: the window says it shows once the hub answers.
 note: The deployed hub has no people list yet: expect Recently in chat for now.
 
+[clan-jawa]
+area: Console & chat
+title: JAWA clan emblem: a Jawa's hood beside names tagged JAWA
+change: (JAWA)Name, jawa|Name, [Jawa] Name and JAWAKen get the hood icon left of the name.
+test: Rename to (JAWA)Test, say something: the brown hood sits left of your name in chat.
+test: Open the scoreboard (classic and SJK) and inspect yourself (X): the hood is there too.
+test: Rename to Jawad: no emblem.
+note: The source icon is 60 px, enlarged to 128: check it is not too blurry at 4K.
+
 [jof-tag]
 area: Console & chat
 title: JoF emblem beside names with the JoF tag; JoF Clan medal removed
