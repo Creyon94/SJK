@@ -6227,6 +6227,13 @@ short of the best angle, highest at it, negative far past it) and the arc's best
 heading for W+A at 400 ups; the workspace checks passed. No game was started: the
 look, and whether its best heading matches JoF EJK's lines in play, are unverified.
 
+Branch `personal/strafe-aura-shader` (19/10/2026, based on `729b7068`): after Sol's
+first look, the aura waits for a jump (`cg_strafeAuraGround` shows it on the ground)
+and is drawn by its own shader mode in `ui_shapes.wgsl` instead of arc pieces. A
+naga test validates the shape shader; `strafe_aura_snapshot` renders the CPU
+reference (seen: seam, blue wisps, red past 90 degrees). The GPU path itself was not
+seen running.
+
 ## Strafe lines (JoF EJK's strafe helper)
 
 Branch `personal/strafe-lines` (11/10/2026, based on `059f347f`, Windows 11): the

@@ -324,6 +324,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Aura on the ground",
+        cvar: crate::hud::movement::AURA_GROUND_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard style",
         cvar: crate::scoreboard::style::CVAR,
         kind: ValueKind::Choice(&crate::scoreboard::style::ScoreboardStyle::NAMES),

@@ -16,25 +16,16 @@ pub fn optimal(vf: f32, acceleration: f32, wishspeed: f32) -> f32 {
 }
 
 /// Speed gained in one move by wishing `angle` degrees off the horizontal velocity
-/// `vf` (`PM_Accelerate`, codemp `bg_pmove.c`): the velocity grows along the wish
-/// direction by `wishspeed` less the speed already along it, at most `acceleration`.
-/// Negative past the angle where the push slows the player down.
+/// `vf` ([`sjk_ui::strafe_gain`], after `PM_Accelerate`); negative past the angle
+/// where the push slows the player down.
 pub fn gain(vf: f32, acceleration: f32, wishspeed: f32, angle: f32) -> f32 {
-    let along = vf * angle.to_radians().cos();
-    let add = (wishspeed - along).clamp(0.0, acceleration);
-    (vf * vf + 2.0 * along * add + add * add).max(0.0).sqrt() - vf
+    sjk_ui::strafe_gain(vf, acceleration, wishspeed, angle.to_radians())
 }
 
-/// The wish angle off the velocity that gains the most ([`gain`] peaks where the
-/// push first reaches `acceleration`): [`optimal`] without its 45-degree offset.
+/// The wish angle off the velocity that gains the most, degrees
+/// ([`sjk_ui::strafe_peak`]): [`optimal`] without its 45-degree offset.
 pub fn peak(vf: f32, acceleration: f32, wishspeed: f32) -> f32 {
-    if vf <= 0.0 {
-        return 0.0;
-    }
-    ((wishspeed - acceleration) / vf)
-        .clamp(-1.0, 1.0)
-        .acos()
-        .to_degrees()
+    sjk_ui::strafe_peak(vf, acceleration, wishspeed).to_degrees()
 }
 
 /// Reference command-direction offsets (`DF_GetLine`, :1088-1186), front optimum lines.
