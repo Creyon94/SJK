@@ -1590,7 +1590,7 @@ for the run.
   tinted in its colour with a white ring; the counts are the holocrons not opened yet),
   the player's credits at the panel's top right (the credits' mark and the sum, "credits"
   under), the chosen tier's description and in gold what opening one gives ("Opening it
-  gives a sealed card and 30 to 50 credits."), "Next holocron in about 20 minutes of play" with "3 of 8 today" and
+  gives a sealed card and 30 to 50 credits."), "Next holocron in about 20 minutes of play" with "3 of 8 in 24 h" and
   a gold bar, and "Recent holocrons" (times in UTC): the newest ten in two columns, each a
   small picture, the tier's name, `dd/mm/yyyy HH:MM` and, for a gift, "Gift from the SJK
   team" with the note; an opened one dimmed with "Opened". Under the caption, centred on
