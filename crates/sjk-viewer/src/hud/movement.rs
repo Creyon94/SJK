@@ -1,5 +1,5 @@
-//! JKA strafe guides (JoF EJK's lines, CGAZ markers) and snap zones; no simulation or
-//! wire changes.
+//! JKA strafe guides (JoF EJK's lines, CGAZ markers, SJK's strafe aura) and snap zones;
+//! no simulation or wire changes.
 use super::*;
 use sjk_ui::{Color, DrawCommand, Rect};
 
@@ -7,7 +7,18 @@ use sjk_ui::{Color, DrawCommand, Rect};
 pub(crate) mod math;
 #[path = "movement_settings.rs"]
 mod settings;
-pub(crate) use settings::{LINES_ROW, lines_on, register, toggle_lines};
+pub(crate) use settings::{AURA_CVAR, LINES_ROW, lines_on, register, toggle_lines};
+
+/// Arc pieces the strafe aura covers, each [`AURA_STEP`] degrees of turn.
+const AURA_PIECES: usize = 40;
+/// Degrees of turn per aura piece: the arc shows 60 degrees each side of the view.
+const AURA_STEP: f32 = 3.0;
+/// Draw commands the strafe aura may push in a frame: two strokes per piece, two per
+/// best heading and the view tick.
+pub(crate) const AURA_COMMANDS: usize = AURA_PIECES * 2 + 2 * 2 + 1;
+/// The wish direction of each movement direction (numbered as in [`math::direction`]),
+/// in degrees left of the view: W, WA, A, SA, S, SD, D, WD.
+const WISH: [f32; 8] = [0.0, 45.0, 90.0, 135.0, 180.0, -135.0, -90.0, -45.0];
 
 /// Retained guide input and settings, populated from the existing prediction/snapshot projection.
 pub(super) struct Guides {
@@ -86,7 +97,7 @@ impl Guides {
     }
 
     /// Emit fixed-capacity rects; CGAZ markers and snap zones are informational, not backplates.
-    pub(super) fn emit(&mut self, draw: &mut DrawList, viewport: [f32; 2]) {
+    pub(super) fn emit(&mut self, draw: &mut DrawList, viewport: [f32; 2], time_ms: u64) {
         if !self.allowed {
             return;
         }
@@ -100,6 +111,9 @@ impl Guides {
         };
         if s.helper & 2 != 0 {
             self.emit_lines(draw, viewport, fov);
+        }
+        if s.aura {
+            self.emit_aura(draw, viewport, time_ms);
         }
         if s.helper & 4 != 0 && self.airborne {
             let speed = self.velocity[0].hypot(self.velocity[1]);
@@ -248,6 +262,124 @@ impl Guides {
     }
 }
 
+impl Guides {
+    /// SJK's strafe aura: an arc over the crosshair, its top the current view and each
+    /// point a turn of that many degrees (left is left), glowing with the speed the keys
+    /// held would gain there ([`math::gain`]). The best heading is the white-hot edge:
+    /// short of it nothing is gained, past it the glow fades, and red marks headings that
+    /// slow you down. Ripples run towards the best heading; the view tick turns blue
+    /// once you are on it. Same physics and gates as the lines.
+    fn emit_aura(&self, draw: &mut DrawList, viewport: [f32; 2], time_ms: u64) {
+        let s = &self.settings;
+        let Some(&wish) = WISH.get(self.direction) else {
+            return;
+        };
+        let speed = self.velocity[0].hypot(self.velocity[1]);
+        let base = self.speed;
+        if speed < base - 1.0 || s.aura_alpha <= 0.0 {
+            return;
+        }
+        let frame = 1.0 / s.helper_fps;
+        let (vf, acceleration) = if self.airborne {
+            (speed, base * frame)
+        } else {
+            (speed * (1.0 - 6.0 * frame), 10.0 * base * frame)
+        };
+        let best = math::peak(vf, acceleration, base);
+        let top = math::gain(vf, acceleration, base, best);
+        if top <= 0.0 {
+            return;
+        }
+        let velocity_yaw = self.velocity[1].atan2(self.velocity[0]).to_degrees();
+        // The wish angle off the velocity when turning `turn` degrees left of the view.
+        let base_angle = self.angles[1] + wish - velocity_yaw;
+        let off = |turn: f32| (base_angle + turn + 180.0).rem_euclid(360.0) - 180.0;
+        let strength = |turn: f32| math::gain(vf, acceleration, base, off(turn)) / top;
+        // The turns that face the best heading, either side of the velocity.
+        let bests = [best, -best].map(|b| (b - base_angle + 180.0).rem_euclid(360.0) - 180.0);
+        let unit = viewport[1] / 480.0;
+        let center = [viewport[0] * 0.5, viewport[1] * 0.5];
+        let radius = s.aura_radius * unit;
+        let alpha = s.aura_alpha;
+        let span = AURA_STEP * AURA_PIECES as f32 * 0.5;
+        let phase = (time_ms % 100_000) as f32 * 0.001 * std::f32::consts::TAU * 0.8;
+        // Screen angle of a turn: the top is the view, positive turns go left.
+        let screen = |turn: f32| (-90.0 - turn).to_radians();
+        let mut arc = |turn: f32, sweep: f32, width: f32, color: Color| {
+            let _ = draw.push(DrawCommand::Arc {
+                center,
+                radius,
+                width: width * unit,
+                start: screen(turn + sweep * 0.5),
+                sweep: sweep.to_radians(),
+                color,
+                knockout: None,
+            });
+        };
+        for piece in 0..AURA_PIECES {
+            let turn = -span + (piece as f32 + 0.5) * AURA_STEP;
+            let n = strength(turn);
+            if n > 0.02 {
+                let near = bests
+                    .iter()
+                    .map(|b| (b - turn).abs())
+                    .fold(f32::MAX, f32::min);
+                let ripple = 0.8 + 0.2 * (phase + near * 0.35).sin();
+                // Force blue, whitening towards the best heading.
+                let hot = n * n;
+                let color = |a: f32| {
+                    Color::new(
+                        0.35 + 0.55 * hot,
+                        0.62 + 0.33 * hot,
+                        1.0,
+                        a * alpha * ripple,
+                    )
+                };
+                arc(turn, AURA_STEP, 9.0, color(0.22 * n));
+                arc(turn, AURA_STEP, 2.5, color(0.25 + 0.6 * n));
+            } else if n < -0.02 {
+                let a = (-n).min(1.0);
+                arc(
+                    turn,
+                    AURA_STEP,
+                    2.0,
+                    Color::new(1.0, 0.3, 0.25, 0.6 * a * alpha),
+                );
+            }
+        }
+        let current = strength(0.0);
+        let on = current > 0.9;
+        let pulse = if on {
+            0.75 + 0.25 * (phase * 2.5).sin()
+        } else {
+            0.6
+        };
+        for b in bests.into_iter().filter(|b| b.abs() <= span) {
+            arc(
+                b,
+                2.5,
+                12.0,
+                Color::new(0.6, 0.85, 1.0, 0.35 * pulse * alpha),
+            );
+            arc(b, 1.2, 3.5, Color::new(1.0, 1.0, 1.0, 0.95 * alpha));
+        }
+        // The view tick: where the crosshair sits on the arc.
+        let tick = if on {
+            Color::new(0.55, 0.85, 1.0, alpha)
+        } else if current < -0.02 {
+            Color::new(1.0, 0.35, 0.3, 0.8 * alpha)
+        } else {
+            Color::new(1.0, 1.0, 1.0, 0.5 * alpha)
+        };
+        let _ = draw.push(DrawCommand::Line {
+            from: [center[0], center[1] - radius - 6.0 * unit],
+            to: [center[0], center[1] - radius + 6.0 * unit],
+            width: 1.5 * unit,
+            color: tick,
+        });
+    }
+}
+
 impl HudOverlay {
     /// Apply the camera/physics safety gate and real keyboard direction after projection.
     pub(crate) fn restrict_guides(&mut self, supported: bool, keys: Option<[i8; 2]>) {
@@ -326,7 +458,7 @@ mod tests {
         };
         guides.settings.helper = 2242;
         let mut draw = DrawList::new(16);
-        guides.emit(&mut draw, [640.0, 480.0]);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
         let lines: Vec<_> = draw
             .commands()
             .iter()
@@ -351,6 +483,65 @@ mod tests {
     }
 
     #[test]
+    fn the_gain_peaks_at_the_best_angle() {
+        let (v, a, w) = (400.0, 2.0, 250.0);
+        let best = math::peak(v, a, w);
+        assert!((best - (248.0f32 / 400.0).acos().to_degrees()).abs() < 1e-3);
+        let top = math::gain(v, a, w, best);
+        assert!(top > 0.0);
+        assert!(math::gain(v, a, w, best - 1.0) < top);
+        assert!(math::gain(v, a, w, best + 1.0) < top);
+        // Short of the edge the push adds nothing; far past it, it slows you down.
+        assert_eq!(math::gain(v, a, w, best - 2.0), 0.0);
+        assert!(math::gain(v, a, w, 120.0) < 0.0);
+    }
+
+    #[test]
+    fn the_aura_puts_the_best_heading_where_to_turn() {
+        // Holding W+A, looking along the velocity: WA wishes 45 degrees left, the best
+        // angle at 400 ups is about 51.7, so the white edge is about 6.7 degrees left.
+        let mut guides = Guides {
+            velocity: [400.0, 0.0, 0.0],
+            speed: 250.0,
+            airborne: true,
+            allowed: true,
+            direction: 1,
+            ..Guides::default()
+        };
+        guides.settings.helper = 0;
+        guides.settings.helper_fps = 125.0;
+        let mut draw = DrawList::new(super::AURA_COMMANDS);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
+        assert!(draw.is_empty(), "drawn while cg_strafeAura is off");
+        guides.settings.aura = true;
+        guides.emit(&mut draw, [640.0, 480.0], 0);
+        let best = math::peak(400.0, 2.0, 250.0) - 45.0;
+        let core = draw
+            .commands()
+            .iter()
+            .find_map(|command| match *command {
+                DrawCommand::Arc {
+                    start,
+                    sweep,
+                    color,
+                    ..
+                } if color.r == 1.0 && color.g == 1.0 => Some(start + sweep * 0.5),
+                _ => None,
+            })
+            .expect("best heading drawn");
+        // Left of the top of the arc (screen angles turn clockwise, the top is -90).
+        assert!((core.to_degrees() - (-90.0 - best)).abs() < 0.01);
+        // The view itself, short of the edge, gains nothing: no glow at the top.
+        let lit_top = draw.commands().iter().any(|command| {
+            matches!(*command, DrawCommand::Arc { start, sweep, color, .. }
+                if color.b == 1.0 && color.r < 1.0
+                    && start <= -90f32.to_radians() && start + sweep >= -90f32.to_radians())
+        });
+        assert!(!lit_top);
+        assert!(draw.len() <= super::AURA_COMMANDS);
+    }
+
+    #[test]
     fn jof_lines_wait_for_running_speed() {
         let mut guides = Guides {
             velocity: [200.0, 0.0, 0.0],
@@ -360,7 +551,7 @@ mod tests {
         };
         guides.settings.helper = 2242;
         let mut draw = DrawList::new(16);
-        guides.emit(&mut draw, [640.0, 480.0]);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
         assert!(draw.is_empty());
     }
 }

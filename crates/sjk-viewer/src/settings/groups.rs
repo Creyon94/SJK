@@ -394,6 +394,7 @@ impl Group {
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
                 crate::hud::movement::LINES_ROW,
+                crate::hud::movement::AURA_CVAR,
                 "cg_lagometer",
                 "cg_lagometerScale",
                 "cg_killfeed",

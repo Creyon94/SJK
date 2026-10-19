@@ -11,6 +11,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             3008,
             "JKA lines (2) or CGAZ markers (4), with direction bits",
         ),
+        (
+            AURA_CVAR,
+            0,
+            "Glowing arc over the crosshair: where turning gains speed",
+        ),
         ("cg_snapHud", 0, "JKA velocity snap zones"),
         (
             "cg_snapHudAuto",
@@ -56,6 +61,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             0.0,
             "Helper FPS; zero uses com_maxFPS",
         ),
+        (
+            "cg_strafeAuraRadius",
+            40.0,
+            "Strafe aura radius in virtual pixels (480 high)",
+        ),
+        ("cg_strafeAuraAlpha", 1.0, "Strafe aura opacity, 0 to 1"),
         ("cg_snapHudDef", 45.0, "Default snap heading offset"),
         ("cg_snapHudFps", 0.0, "Snap FPS; zero uses com_maxFPS"),
         ("cg_snapHudHeight", 5.0, "Snap zone height"),
@@ -91,6 +102,9 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     }
     Ok(())
 }
+
+/// SJK's strafe aura: the speed gain of every heading as a glow over the crosshair.
+pub(crate) const AURA_CVAR: &str = "cg_strafeAura";
 
 /// The Settings row of the JoF EJK lines (not a cvar): on is `cg_strafeHelper`
 /// option 1, the lines style.
@@ -143,6 +157,12 @@ pub(super) struct Settings {
     pub(super) active: Color,
     /// Inactive opacity.
     pub(super) inactive: f32,
+    /// Strafe aura visibility.
+    pub(super) aura: bool,
+    /// Strafe aura radius, virtual pixels of a 480-line screen.
+    pub(super) aura_radius: f32,
+    /// Strafe aura opacity.
+    pub(super) aura_alpha: f32,
     /// Snap visibility.
     pub(super) snap: bool,
     /// Snap frame rate.
@@ -193,6 +213,9 @@ impl Settings {
                 [0.0, 255.0, 0.0, 200.0],
             ),
             inactive: f("cg_strafehelperinactivealpha", 200.0).clamp(0.0, 255.0) / 255.0,
+            aura: i("cg_strafeaura", 0) != 0,
+            aura_radius: f("cg_strafeauraradius", 40.0).clamp(12.0, 200.0),
+            aura_alpha: f("cg_strafeauraalpha", 1.0).clamp(0.0, 1.0),
             snap: i("cg_snaphud", 0) != 0,
             snap_fps: fps(f("cg_snaphudfps", 0.0)),
             snap_speed: f("cg_snaphudspeed", 0.0),

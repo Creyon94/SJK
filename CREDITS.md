@@ -232,6 +232,8 @@ includes:
   and `+duck` (after JoF EJK), the update check every 30 minutes and its Update card;
 - the strafe helper's lines (`cg_strafeHelper` option 1), JoF EJK's two lines to the
   best strafe heading, in third person and on the ground too (after JoF EJK);
+- the strafe aura (`cg_strafeAura`), SJK's own strafe guide: the speed every heading
+  gains, as a glow over the crosshair;
 - a held push or pull key that pushes or pulls again as soon as it can
   (`cl_forceRepeat`, after JoF EJK);
 - Russian, Japanese, Chinese and Korean text and colour emoji drawn everywhere, Russian

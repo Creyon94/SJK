@@ -319,6 +319,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Strafe aura",
+        cvar: crate::hud::movement::AURA_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard style",
         cvar: crate::scoreboard::style::CVAR,
         kind: ValueKind::Choice(&crate::scoreboard::style::ScoreboardStyle::NAMES),

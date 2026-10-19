@@ -122,6 +122,7 @@ did: Weather under sabers and effects, shield hits, idrive and +duck after JoF E
 did: Ghost replay: record a run once, replay it on the server to film a showcase
 did: Mimic: copy another player's moves and saber attacks live, as their mirror image
 did: Strafe lines after JoF EJK: the best strafe heading, in third person and on the ground
+did: Strafe aura: a glow over the crosshair showing where turning gains speed
 did: Hold push or pull to use it again the moment it is ready, after JoF EJK
 did: Away players set apart on the scoreboard: faint, at the bottom of their list
 did: Map edits: SJK's own map fixes, props hidden, models placed, textures swapped
