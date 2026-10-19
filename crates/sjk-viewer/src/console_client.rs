@@ -271,24 +271,23 @@ fn jof_commands() -> &'static [(&'static str, &'static str)] {
 /// Whether `name` is one of the client's own commands. Checked before the mods,
 /// whose `<id>.` prefix a client command may share (`jof.downloads`).
 pub(crate) fn known(name: &str) -> bool {
+    all_commands().any(|(known, _)| known.eq_ignore_ascii_case(name))
+}
+
+/// Every client command with its help: the one list that registration,
+/// queueing and [`known`] share, so a command can't be registered yet never run.
+fn all_commands() -> impl Iterator<Item = &'static (&'static str, &'static str)> {
     COMMANDS
         .iter()
         .chain(crate::cosmetics::command::COMMANDS)
         .chain(crate::saber_colour_command::COMMANDS)
         .chain(crate::map_edits::editor::COMMANDS)
         .chain(jof_commands())
-        .any(|(known, _)| known.eq_ignore_ascii_case(name))
 }
 
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
-    for &(name, help) in COMMANDS
-        .iter()
-        .chain(crate::cosmetics::command::COMMANDS)
-        .chain(crate::saber_colour_command::COMMANDS)
-        .chain(crate::map_edits::editor::COMMANDS)
-        .chain(jof_commands())
-    {
+    for &(name, help) in all_commands() {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
                 Err(sjk_shell::CommandError::Handler(
@@ -386,13 +385,7 @@ impl Commands {
         command: &str,
         tokens: &[String],
     ) -> Option<Result<Vec<String>, String>> {
-        if !COMMANDS
-            .iter()
-            .chain(crate::cosmetics::command::COMMANDS)
-            .chain(crate::saber_colour_command::COMMANDS)
-            .chain(jof_commands())
-            .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
-        {
+        if !known(&tokens[0]) {
             return None;
         }
         if self.pending.len() == 64 {
@@ -1260,5 +1253,23 @@ mod tests {
         );
         assert_eq!(import_path("firstsetup import"), None);
         assert_eq!(import_path("firstsetup"), None);
+    }
+
+    #[test]
+    fn every_registered_command_reaches_the_client() {
+        // `mapedit` was registered but never queued, so it answered "Viewer
+        // command dispatcher required".
+        for &(name, _) in all_commands() {
+            let mut commands = Commands::default();
+            let tokens = vec![name.to_owned(), "1".to_owned()];
+            assert!(
+                matches!(commands.queue(name, &tokens), Some(Ok(_))),
+                "{name} is not queued"
+            );
+            assert_eq!(commands.pending.len(), 1, "{name}");
+        }
+        let mut commands = Commands::default();
+        let tokens = vec!["MapEdit_Panel".to_owned()];
+        assert!(commands.queue("MapEdit_Panel", &tokens).is_some());
     }
 }
