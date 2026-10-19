@@ -1,20 +1,20 @@
-// Star Whale: the song of the purrgil, the whales that swim through hyperspace, held as a blade. No
-// whales are drawn: the blade is their song. A deep-blue bioluminescent blade swells and breathes as
-// slow luminous waves roll up it; with each note a soft ring of song spreads out from it in every
-// direction, slowly, long after it was sung. Luminous plankton and blue nebula gas drift and swirl
-// round it in the dark. Every so often a hyperspace shimmer rushes up the blade with streaks of
-// starlight, as a purrgil jumps. A swing quickens the waves; a clash sings out a bright ring.
+// Nebula Song: a deep-space nebula that sings, held as a blade. A deep-blue luminous blade swells
+// and breathes as slow waves of light roll up it; with each note a ring of song spreads out from it
+// in every direction. Three ribbons of glowing nebula gas wind slowly round it, soft blue clouds and
+// living motes of light drift and swirl in the dark, and every so often a hyperspace shimmer rushes
+// up the blade with streaks of starlight. A swing quickens the waves and the ribbons; a clash sings
+// out a bright ring.
 // @room 8
 // @palette {"corona.rim_cool":[0.04,0.10,0.45],"corona.rim_hot":[0.20,0.45,1.0],"corona.inner":[0.65,0.82,1.0],"core.white":[0.90,0.95,1.0],"core.fringe_cool":[0.15,0.35,1.0],"core.fringe_hot":[0.60,0.80,1.0],"light.color":[0.22,0.45,1.0],"trail":[0.28,0.50,1.0]}
 
 
 // the jump: 0..1 while a hyperspace shimmer runs up the blade (every 11 s), and its front
-float swh_jump(){ float p = mod(uTime - 3.0, 11.0); return smoothstep(0.0, 0.15, p)*(1.0 - smoothstep(1.1, 1.6, p)); }
-float swh_front(){ return mod(uTime - 3.0, 11.0)/1.2; }
+float ns_jump(){ float p = mod(uTime - 3.0, 11.0); return smoothstep(0.0, 0.15, p)*(1.0 - smoothstep(1.1, 1.6, p)); }
+float ns_front(){ return mod(uTime - 3.0, 11.0)/1.2; }
 
 // one ring of song: height h, radius R, softness w; the ray's distance to the ring gives a
 // soft band of light that keeps its shape from any side
-float swh_ring(vec3 ro, vec3 rd, float h, float R, float w){
+float ns_ring(vec3 ro, vec3 rd, float h, float R, float w){
   float best = 1e3;
   vec3 q = rayAt(ro, rd, h);
   if (q.z > 0.0) best = abs(length(q.xy) - R);
@@ -37,8 +37,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 deep = vec3(0.10, 0.28, 1.0);
   vec3 bio = vec3(0.35, 0.70, 1.0);
   vec3 pale = vec3(0.80, 0.92, 1.0);
-  float jump = swh_jump()*uFx;
-  float jf = swh_front()*L;
+  float jump = ns_jump()*uFx;
+  float jf = ns_front()*L;
 
   // The blade is Sol's glow and core from the file, breathing with the slow waves
   // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
@@ -54,16 +54,16 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float f = fract((uTime + fk*2.9)/per);
       float h = L*(0.30 + 0.25*fk) + f*2.5;
       if (h < top){
-        float R = 0.6 + 6.2*(1.0 - pow(1.0 - f, 2.2));
+        float R = 0.6 + 7.0*(1.0 - pow(1.0 - f, 2.2));
         float w = 0.55 + 1.3*f;
         float g = smoothstep(0.0, 0.06, f)*(1.0 - smoothstep(0.45, 1.0, f));
-        songs += swh_ring(ro, rd, h, R, w)*g*(1.0 + 0.6*sw)/(0.5 + 0.6*f);
+        songs += ns_ring(ro, rd, h, R, w)*g*(1.0 + 0.6*sw)/(0.5 + 0.6*f);
       }
     }
     // the clash sings one fast bright ring from mid blade
     if (cl > 0.01){
       float f = 1.0 - cl;
-      songC = swh_ring(ro, rd, L*0.55, 0.8 + 5.5*f, 0.6 + 0.9*f)*cl;
+      songC = ns_ring(ro, rd, L*0.55, 0.8 + 5.5*f, 0.6 + 0.9*f)*cl;
     }
   }
   light += (mix(bio, pale, 0.15)*songs*0.6 + pale*songC*1.0)*fxOn;
@@ -84,7 +84,22 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     light += mix(deep, bio, 0.3 + 0.4*wv*wv)*(halo(d, 0.9 + 0.6*h11(fi))*0.3 + halo(d, 2.0)*0.06)*(0.6 + 0.6*wv*wv + 1.5*jl)*fxOn;
   }
 
-  // plankton: tiny motes of living light drifting slowly round it
+  // ribbons of glowing nebula gas winding slowly round the blade
+  for (int k = 0; k < 3; k++){
+    float fk = float(k);
+    vec3 prev = around(1.6, fk/3.0 - uTime*(0.05 + 0.08*sw), 0.5);
+    for (int j = 1; j <= 12; j++){
+      float u = float(j)/12.0;
+      float yy = 0.5 + u*(L - 1.0);
+      vec3 q = around(1.6 + 1.2*sin(u*6.2832 + uTime*0.4 + fk*2.0), fk/3.0 + u*0.9 - uTime*(0.05 + 0.08*sw), yy);
+      float sg;
+      float d = raySeg(ro, rd, prev, q, sg);
+      float wv = 0.5 + 0.5*sin(yy*0.32 - uTime*(1.1 + 1.6*sw));
+      if (yy < top) light += mix(deep, bio, 0.4 + 0.4*wv)*(halo(d, 0.25)*0.6 + halo(d, 0.8)*0.18)*(0.6 + 0.8*wv*wv)*fxOn;
+      prev = q;
+    }
+  }
+  // living motes of light: tiny motes of living light drifting slowly round it
   for (int i = 0; i < 26; i++){
     float fi = float(i);
     float yb = L*(0.04 + 0.96*h11(fi*3.1));
@@ -127,10 +142,10 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   float wave = 0.5 + 0.5*sin(b.y*0.32 - uTime*(1.1 + 1.6*clamp(uSwing, 0.0, 1.0)));
   wave = wave*wave;
   float wave2 = 0.5 + 0.5*sin(b.y*0.11 - uTime*0.45 + 1.0);
-  float shim = swh_jump()*uFx*exp(-pow((b.y - swh_front()*uLength)/3.0, 2.0));
+  float shim = ns_jump()*uFx*exp(-pow((b.y - ns_front()*uLength)/3.0, 2.0));
   return g*(0.6 + 0.9*wave + 0.2*wave2 + 1.2*shim + 0.6*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){
-  float shim = swh_jump()*uFx*exp(-pow((b.y - swh_front()*uLength)/3.0, 2.0));
+  float shim = ns_jump()*uFx*exp(-pow((b.y - ns_front()*uLength)/3.0, 2.0));
   return c*(1.0 + shim);
 }

@@ -5,13 +5,12 @@
 // @palette {"corona.rim_cool":[0.20,0.45,0.75],"corona.rim_hot":[0.60,0.88,1.0],"corona.inner":[0.92,0.98,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.50,0.80,1.0],"core.fringe_hot":[0.80,0.95,1.0],"light.color":[0.60,0.88,1.0],"trail":[0.60,0.88,1.0]}
 
 // Carbonite: a blade that keeps being frozen in carbonite and breaking free. A wave of freezing
-// steam climbs from the hilt and seals the blade inside a real block of dark bronze carbonite:
-// a slightly lumpy, rounded square slab with cast relief, grooves across it and a cold sheen,
-// cold vapour billowing off it on every side. The light trapped inside beats through hairline
-// cracks like a heartbeat; the cracks spread and brighten until the slab bursts into shards that
-// fly outward all round and the blade blazes free in a cloud of cold mist, before it freezes
-// over again from the hilt up. A swing makes the cracks flare; a clash chips shards off the slab
-// in a ring of light and steam. The emitter always glows in the gap below the slab.
+// steam climbs from the hilt and seals the blade in a slab of dark bronze carbonite with cast
+// grooves and a cold sheen, vapour billowing off it. The trapped light beats through hairline
+// cracks that spread until the slab bursts: its shards fly out and float round the blade, slowly
+// tumbling, while the freed blade blazes; then they fly back and fuse into the slab again, which
+// holds for a moment and dissolves into cold steam before the next freeze. A swing makes the
+// cracks flare; a clash chips shards off the slab.
 const CB_W: f32 = 0.78;
 
 // the slab's half width
@@ -21,9 +20,9 @@ const CB_RR: f32 = 0.24;
 const CB_Y0: f32 = 0.3;
 
 // the slab's foot, above the glowing emitter
-const CB_P: f32 = 12.0;
+const CB_P: f32 = 14.0;
 
-// seconds per freeze and break
+// seconds per freeze, break, float, return and vanish
 fn cb_ph() -> f32 {
     return glsl_mod(uTime - 0.5, CB_P);
 }
@@ -34,12 +33,31 @@ fn cb_btop() -> f32 {
 
 // the freezing front climbing from the hilt
 fn cb_front() -> f32 {
-    return -0.5 + (uLength + 2.5) * smoothstep(0.0, 1.6, cb_ph());
+    return select(uLength + 2.0, -0.5 + (uLength + 2.5) * smoothstep(0.0, 1.6, cb_ph()), cb_ph() < 6.0);
 }
 
 // 1 while the slab stands
 fn cb_held() -> f32 {
-    return step(cb_ph(), 8.0);
+    let ph = cb_ph();
+    return select(0.0, 1.0, ph < 6.0 || (ph > 11.0 && ph < 13.5));
+}
+
+// how solid the slab is: whole while held, dissolving into steam at the end of the loop
+fn cb_slabA() -> f32 {
+    let ph = cb_ph();
+    return cb_held() * (1.0 - smoothstep(12.4, 13.5, ph));
+}
+
+// the shards' flight: 0 on the blade, 1 out on their orbit (they burst out, float round the
+// blade, then fly back and fuse into the slab again)
+fn cb_out() -> f32 {
+    let ph = cb_ph();
+    return smoothstep(6.0, 6.6, ph) * (1.0 - smoothstep(10.0, 11.0, ph));
+}
+
+fn cb_shards() -> f32 {
+    let ph = cb_ph();
+    return step(6.0, ph) * step(ph, 11.0);
 }
 
 // the slab's top
@@ -50,12 +68,12 @@ fn cb_stop() -> f32 {
 // how far the cracks have spread
 fn cb_crack() -> f32 {
     let ph = cb_ph();
-    return clamp(0.15 + smoothstep(5.0, 7.9, ph) * 0.85 + 0.6 * uSwing + uClash, 0.0, 1.3);
+    return clamp(0.15 + smoothstep(3.0, 5.9, ph) * 0.85 * step(ph, 6.0) + 0.6 * uSwing + uClash, 0.0, 1.3);
 }
 
 // the burst: 0 at the break .. 1 when the shards are gone
 fn cb_burst() -> f32 {
-    return clamp((cb_ph() - 8.0) / 1.5, 0.0, 1.0);
+    return clamp((cb_ph() - 6.0) / 1.5, 0.0, 1.0);
 }
 
 fn cb_beat() -> f32 {
@@ -84,14 +102,14 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     }
     let t = uTime;
     let L = uLength;
-    let sh = smoothstep(7.4, 8.0, cb_ph()) * 0.05 * sin(uTime * 70.0);
+    let sh = smoothstep(5.4, 6.0, cb_ph()) * step(cb_ph(), 6.0) * 0.05 * sin(uTime * 70.0);
     var w = CB_W + 0.06 * (vn(vec2(b.y * 0.7, 3.0)) - 0.5);
     w *= 1.0 - 0.35 * smoothstep(L - 1.5, L + 0.5, b.y);
     let x = b.x + sh;
     // a rounded end at the foot and the top
     let dy = max(max(b.y - (top - CB_RR), (CB_Y0 + CB_RR) - b.y), 0.0);
     let d = length(vec2(max(abs(x) - (w - CB_RR), 0.0), dy)) - CB_RR;
-    let cov = fillD(d, px);
+    var cov = fillD(d, px);
     if cov <= 0.0 {
         return o;
     }
@@ -115,6 +133,9 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     let glowIn = (0.5 + 1.5 * cb_beat()) * (0.5 + 0.9 * cb_crack());
     rgb += vec3<f32>(0.75, 0.95, 1.0) * cb_cracks(vec2(u, b.y), px) * glowIn * 1.2;
     rgb += vec3<f32>(0.25, 0.55, 0.8) * halo(u, 0.5) * 0.12 * glowIn * smoothstep(0.4, 1.2, cb_crack());
+    cov *= cb_slabA();
+    // reforming: the slab glows where the shards fused
+    rgb += vec3<f32>(0.7, 0.92, 1.0) * (1.0 - smoothstep(11.0, 11.8, cb_ph())) * step(11.0, cb_ph()) * 0.8;
     return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
 }
 
@@ -146,23 +167,27 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     if uFx < 0.01 {
         return col;
     }
-    let bu = cb_burst();
-    if bu > 0.0 && bu < 1.0 {
+    // the shards: burst out, float round the blade tumbling slowly, then fly back and fuse
+    if cb_shards() > 0.5 {
+        let ou = cb_out();
+        let ph = cb_ph();
         var bestT: f32 = 1.0e5;
         for (var i = 0; i < 30; i++) {
             let fi = f32(i);
-            let a = h11(fi * 1.7 + 0.3);
+            let a0 = h11(fi * 1.7 + 0.3);
             let y0 = (0.03 + 0.94 * fract(fi * 0.381 + 0.07)) * L;
-            let vr = 3.0 + 5.0 * h11(fi * 5.1);
-            let c = around(0.55 + vr * bu, a, y0 + 2.2 * (h11(fi * 7.3) - 0.35) * bu - 2.5 * bu * bu);
-            let sz = (0.6 + 0.45 * h11(fi * 9.1)) * (1.0 - smoothstep(0.55, 1.0, bu));
+            let R = 2.6 + 3.0 * h11(fi * 5.1);
+            // they drift round the blade while out, each at its own pace
+            let drift = (ph - 6.0) * (0.05 + 0.06 * h11(fi * 2.9)) * ou;
+            let c = around(0.55 + (R - 0.55) * ou, a0 + drift, y0 + 1.5 * (h11(fi * 7.3) - 0.5) * ou + 0.5 * sin(ph * 0.8 + fi) * ou);
+            let sz = (0.6 + 0.45 * h11(fi * 9.1)) * (0.35 + 0.65 * ou);
             var th: f32;
             var sh: vec2<f32>;
-            let cv = cb_shard(ro, rd, c, sz, bu * (5.0 + 7.0 * h11(fi)), fi, px, &th, &sh);
+            let cv = cb_shard(ro, rd, c, sz, ph * (0.6 + 0.8 * h11(fi)) + fi, fi, px, &th, &sh);
             if cv > 0.0 && th < bestT {
                 bestT = th;
-                let rgb = vec3<f32>(0.30, 0.24, 0.17) * sh.x * 1.2 + vec3<f32>(0.7, 0.92, 1.0) * sh.y * 1.6 * (1.0 - bu * 0.7);
-                col = vec4(rgb, cv * (1.0 - smoothstep(0.7, 1.0, bu)));
+                let rgb = vec3<f32>(0.30, 0.24, 0.17) * sh.x * 1.2 + vec3<f32>(0.7, 0.92, 1.0) * sh.y * (0.6 + 1.0 * (1.0 - ou));
+                col = vec4(rgb, cv);
             }
         }
     }
@@ -243,8 +268,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 
 // the blade: Sol's glow and core from the file, blazing as it breaks free
 fn cb_flare() -> f32 {
-    let bu = cb_burst();
-    return 1.0 + 0.9 * (1.0 - bu) * step(0.001, bu);
+    let ph = cb_ph();
+    return 1.0 + 0.9 * exp(-max(ph - 6.0, 0.0) * 1.5) * step(6.0, ph) * step(ph, 11.0) + 0.3 * cb_shards();
 }
 
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {

@@ -6,7 +6,7 @@
 // diamond-ring flashes and Baily's beads sparking on its edge, while small pearly prominences
 // loop up off the blade and fade. Ignites fast; a swing sweeps the streamers out, a clash flares the
 // whole corona with a diamond-ring burst.
-// @room 8
+// @room 9
 // @solid 1
 // @palette {"corona.rim_cool":[0.75,0.62,0.40],"corona.rim_hot":[1.0,0.90,0.70],"corona.inner":[1.0,0.97,0.90],"core.white":[1.0,0.98,0.92],"core.fringe_cool":[0.95,0.75,0.45],"core.fringe_hot":[1.0,0.92,0.75],"light.color":[1.0,0.86,0.62],"trail":[1.0,0.84,0.58]}
 
@@ -25,6 +25,24 @@ float ec_shade(float y){
   return (1.0 - smoothstep(hw*0.45, hw*0.8, abs(y - yb)))*smoothstep(0.0, 0.5, uAge);
 }
 
+// the eclipsed suns: three dark moons, each in front of its own small sun, orbiting the blade
+// in 3D like the Void's black holes: centre and radius of orb i
+vec3 ec_orb(float i, out float R){
+  float L = uLength;
+  R = 0.9 + 0.25*i;
+  float a = i/3.0 + uTime*(0.12 + 0.05*i)*(i == 1.0 ? -1.0 : 1.0);
+  float y = L*(0.3 + 0.25*i) + 1.2*sin(uTime*0.4 + i*2.0);
+  return around(4.2 + 0.5*i, a, y);
+}
+// a point's place in the plane facing the camera round centre c: (across, up) and distance
+vec3 ec_face(vec3 ro, vec3 rd, vec3 c){
+  float t;
+  float d = rayPt(ro, rd, c, t);
+  vec3 off = ro + rd*t - c;
+  vec3 ux = normalize(cross(rd, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));
+  vec3 uy = cross(ux, rd);
+  return vec3(dot(off, ux), dot(off, uy), d);
+}
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, top = ec_top(), s, tq;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
@@ -54,6 +72,48 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     // the inner corona: a bright soft ring of light hugging the band
     float dc = rayPt(ro, rd, vec3(0.0, yb, 0.0), tq);
     fx += white*(halo(abs(dc - 0.9), 0.35)*0.5 + halo(dc, 1.6)*0.15)*vis*(1.0 + flare);
+  }
+  // ---- the eclipsed suns orbiting the blade: a black moon rimmed by a blazing corona with
+  // streamers, a diamond-ring flash, beads of light and a pearly wake behind each
+  for (int i = 0; i < 3; i++){
+    float fi = float(i), R;
+    vec3 c = ec_orb(fi, R);
+    if (c.y > top + 2.0) continue;
+    vec3 f = ec_face(ro, rd, c);
+    if (f.z > R*6.0) continue;
+    float ang = atan(f.y, f.x);
+    float rr = f.z/R;
+    float strm = pow(0.5 + 0.5*sin(ang*7.0 + uTime*0.3 + fi*2.0), 3.0)*0.7 + pow(0.5 + 0.5*sin(ang*13.0 - uTime*0.5 + fi), 6.0)*0.5;
+    float cor = exp(-max(rr - 1.0, 0.0)*(1.1 - 0.7*strm))*smoothstep(0.95, 1.02, rr)*(1.0 - smoothstep(3.0, 5.5, rr));
+    float rim = halo(abs(rr - 1.02), 0.04 + px/R);
+    float spin = uTime*0.9 + fi*2.1;
+    float dia = pow(max(cos(ang - spin), 0.0), 60.0)*halo(abs(rr - 1.0), 0.15);
+    fx += (pearl*cor*(1.6 + 0.8*flare) + white*rim*2.2 + white*dia*4.0 + white*halo(abs(rr - 1.0), 0.6)*pow(max(cos(ang - spin), 0.0), 8.0)*0.6)*vis;
+    // beads of light circling the rim
+    for (int j = 0; j < 5; j++){
+      float aj = spin + 0.4 + float(j)*0.25;
+      vec2 bp = vec2(cos(aj), sin(aj))*R*1.02;
+      float db = length(f.xy - bp);
+      fx += white*halo(db, max(0.05, px))*1.4*(0.6 + 0.4*sin(uTime*9.0 + float(j)))*vis;
+    }
+    // a pearly wake trailing the orbit
+    for (int j = 1; j <= 6; j++){
+      float lag = float(j)*0.018*(fi == 1.0 ? -1.0 : 1.0);
+      float Rw;
+      float a0 = fi/3.0 + (uTime - float(j)*0.25)*(0.12 + 0.05*fi)*(fi == 1.0 ? -1.0 : 1.0);
+      vec3 cw = around(4.2 + 0.5*fi, a0, uLength*(0.3 + 0.25*fi) + 1.2*sin((uTime - float(j)*0.25)*0.4 + fi*2.0));
+      float dw = rayPt(ro, rd, cw, tq);
+      fx += pearl*halo(dw, 0.35*(1.0 - float(j)/7.0) + 0.05)*0.35*(1.0 - float(j)/7.0)*vis;
+    }
+  }
+  // ---- solar wind: pearly motes streaming out from the band and the suns
+  for (int i = 0; i < 18; i++){
+    float fi = float(i);
+    float f = fract(uTime*0.35 + h11(fi*3.3));
+    float a = h11(fi*7.1 + floor(uTime*0.35 + h11(fi*3.3)));
+    vec3 p = around(0.6 + 5.0*f, a + 0.1*f, yb + (h11(fi*5.9) - 0.5)*2.5*f);
+    float dm = rayPt(ro, rd, p, tq);
+    fx += white*halo(dm, max(0.05, px))*1.2*sin(3.1416*f)*vis;
   }
   // ---- the chromosphere: thin bright rims along both edges of the band, round the blade
   for (int k = 0; k < 2; k++){
@@ -113,6 +173,20 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   }
   light += fx*uFx;
   return light;
+}
+// the orbiting moons' dark discs, each a disc facing the camera
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  vec4 o = vec4(0.0);
+  float top = ec_top();
+  for (int i = 0; i < 3; i++){
+    float fi = float(i), R;
+    vec3 c = ec_orb(fi, R);
+    if (c.y > top + 2.0) continue;
+    vec3 f = ec_face(ro, rd, c);
+    float a = fillD(f.z - R, px)*smoothstep(0.2, 0.6, uAge);
+    o = vec4(mix(o.rgb, vec3(0.01, 0.008, 0.006), a), max(o.a, a));
+  }
+  return o;
 }
 // the moon's shadow, drawn over Sol's glow as his solid blades are: the blade's heart goes
 // dark across the band

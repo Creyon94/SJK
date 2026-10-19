@@ -159,13 +159,13 @@
     }
   },
   "sounds": {
-    "on": "sound/sjk/sabers/star_whale/on.wav",
-    "off": "sound/sjk/sabers/star_whale/off.wav",
-    "hum": "sound/sjk/sabers/star_whale/hum.wav",
+    "on": "sound/sjk/sabers/nebula_song/on.wav",
+    "off": "sound/sjk/sabers/nebula_song/off.wav",
+    "hum": "sound/sjk/sabers/nebula_song/hum.wav",
     "swings": [
-      "sound/sjk/sabers/star_whale/swing1.wav",
-      "sound/sjk/sabers/star_whale/swing2.wav",
-      "sound/sjk/sabers/star_whale/swing3.wav"
+      "sound/sjk/sabers/nebula_song/swing1.wav",
+      "sound/sjk/sabers/nebula_song/swing2.wav",
+      "sound/sjk/sabers/nebula_song/swing3.wav"
     ]
   }
 }

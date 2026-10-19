@@ -7,7 +7,7 @@
 // Each change is an event: the old climate strains, then bursts off the blade in a flash with shock
 // rings and its debris flung out all round, and the new one condenses onto it. Swings stoke it;
 // a clash flashes the ruling climate.
-// @room 8
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.35,0.20,0.55],"corona.rim_hot":[0.90,0.60,0.50],"corona.inner":[1.0,0.92,0.85],"core.white":[1.0,0.98,0.95],"core.fringe_cool":[0.50,0.70,1.0],"core.fringe_hot":[1.0,0.65,0.35],"light.color":[0.95,0.75,0.60],"trail":[0.90,0.70,0.60]}
 
@@ -262,10 +262,10 @@ vec3 ws_sand(vec3 ro, vec3 rd, float px, float d, float top, float form, float c
 // ======== CRAIT: white salt crust (solid pass) over red, rock shards, red dust ========
 vec3 ws_shard(float fi, float form, out vec3 b0){
   float t = uTime;
-  float r = (1.3 + 1.6*h11(fi*3.3))*(1.0 + 1.5*(1.0 - form));
+  float r = (2.0 + 2.8*h11(fi*3.3))*(1.0 + 1.0*(1.0 - form));
   vec3 c = around(r, h11(fi*7.1) + t*0.04*(1.0 + h11(fi)), (0.08 + 0.84*h11(fi*1.9))*uLength + 0.4*sin(t*0.6 + fi));
   vec3 dir = normalize(vec3(sin(t*0.7 + fi), cos(t*0.5 + fi*2.0), sin(t*0.6 + fi*3.0)));
-  float ln = 0.3 + 0.35*h11(fi*5.5);
+  float ln = 0.5 + 0.6*h11(fi*5.5);
   b0 = c - dir*ln;
   return c + dir*ln;
 }
@@ -406,6 +406,143 @@ vec3 ws_burst(vec3 ro, vec3 rd, float px, float d, float top, float kp, float kn
   return col;
 }
 
+// ======== the big show of each climate, Storm-blade size, all round the blade ========
+vec3 ws_big(vec3 ro, vec3 rd, float px, float k, float top, float form, float st, float ch){
+  float t = uTime, s, ta;
+  vec3 col = vec3(0.0);
+  float boost = form*(1.0 + 0.6*st + 0.8*ch);
+  if (k < 0.5){
+    // Mustafar: tall tongues of fire curling up off the blade
+    for (int i = 0; i < 12; i++){
+      float fi = float(i);
+      float rate = 0.7 + 0.4*h11(fi*2.3);
+      float f = fract(t*rate + h11(fi*5.1));
+      float cy = floor(t*rate + h11(fi*5.1));
+      float y0 = (0.05 + 0.8*h11(fi*3.7 + cy))*top;
+      float a0 = h11(fi*6.3 + cy);
+      float H = (3.5 + 3.0*h11(fi*1.9 + cy))*(0.4 + 0.6*sin(3.1416*min(f*1.4, 1.0)));
+      vec3 prev = around(0.45, a0, y0);
+      float best = 1e3, bu = 0.0;
+      for (int j = 1; j <= 6; j++){
+        float u = float(j)/6.0;
+        vec3 q = around(0.45 + H*0.55*u + 0.4*sin(u*4.0 + t*6.0 + fi), a0 + 0.07*sin(u*5.0 - t*4.0 + fi), y0 + H*u*1.2);
+        float dd = raySeg(ro, rd, prev, q, s);
+        if (dd < best){ best = dd; bu = (float(j) - 1.0 + s)/6.0; }
+        prev = q;
+      }
+      float w = mix(0.8, 0.12, bu)*(1.0 - 0.4*f);
+      float life = sin(3.1416*f);
+      col += (ws_fire(1.0 - bu*0.7)*halo(best, max(w, px))*2.6 + vec3(1.0, 0.3, 0.03)*halo(best, w*2.5)*0.6)*life;
+    }
+    // lava bursts: blobs of molten rock thrown out on arcs, glowing, trailing sparks
+    for (int i = 0; i < 14; i++){
+      float fi = float(i);
+      float f = fract(t*0.55 + h11(fi*7.7));
+      float cy = floor(t*0.55 + h11(fi*7.7));
+      float y0 = (0.1 + 0.8*h11(fi*2.9 + cy))*top;
+      vec3 dir = normalize(vec3(sin(6.2832*h11(fi*4.1 + cy)), 0.9 + 0.6*h11(fi*1.3 + cy), cos(6.2832*h11(fi*4.1 + cy))));
+      float v = 6.0 + 4.0*h11(fi*5.5 + cy);
+      float tt = f*1.2;
+      vec3 p = vec3(0.0, y0, 0.0) + dir*v*tt + vec3(0.0, -6.0*tt*tt, 0.0);
+      vec3 q = vec3(0.0, y0, 0.0) + dir*v*max(tt - 0.08, 0.0) + vec3(0.0, -6.0*max(tt - 0.08, 0.0)*max(tt - 0.08, 0.0), 0.0);
+      float dd = raySeg(ro, rd, q, p, s);
+      float dh = rayPt(ro, rd, p, ta);
+      col += (vec3(1.0, 0.5, 0.1)*halo(dd, max(0.06, px))*1.2 + vec3(1.0, 0.75, 0.3)*halo(dh, 0.22)*2.0 + vec3(1.0, 0.3, 0.02)*halo(dh, 0.8)*0.4)*(1.0 - f)*smoothstep(0.0, 0.05, f);
+    }
+  } else if (k < 1.5){
+    // Hoth: great ice spikes jutting out of the blade, glinting, and shards whirling round it
+    for (int i = 0; i < 14; i++){
+      float fi = float(i);
+      float y0 = (0.05 + 0.88*h11(fi*2.7))*top;
+      float a = h11(fi*6.1) + fi*0.37;
+      float grow = smoothstep(0.0, 0.6, form - 0.04*fi*0.0);
+      float ln = (2.6 + 2.6*h11(fi*1.3))*grow*(1.0 + 0.3*st);
+      vec3 b0 = around(0.5, a, y0), b1 = around(0.5 + ln, a + 0.02, y0 + ln*0.55);
+      float dd = raySeg(ro, rd, b0, b1, s);
+      float w = max(0.24*(1.0 - s) + 0.03, px);
+      float glint = pow(0.5 + 0.5*sin(t*2.0 + fi*1.7), 16.0);
+      col += (vec3(0.9, 0.97, 1.0)*halo(dd, w)*1.5 + vec3(0.4, 0.75, 1.0)*halo(dd, w*3.5)*0.4 + vec3(1.0)*halo(dd, w)*glint*2.0*step(0.8, s))*form;
+    }
+    for (int i = 0; i < 20; i++){
+      float fi = float(i);
+      float r = 2.0 + 3.0*h11(fi*3.9);
+      float a = h11(fi*8.7) + t*(0.25 + 0.2*h11(fi))/(0.5 + 0.2*r);
+      float yy = (0.05 + 0.9*h11(fi*5.3))*top + 0.8*sin(t + fi);
+      vec3 c = around(r, a, yy);
+      vec3 dv = normalize(vec3(sin(t*2.0 + fi), cos(t*1.7 + fi*2.0), sin(t*1.3 + fi*3.0)))*0.35;
+      float dd = raySeg(ro, rd, c - dv, c + dv, s);
+      col += (vec3(0.9, 0.97, 1.0)*halo(dd, max(0.05, px))*1.6 + vec3(0.5, 0.8, 1.0)*halo(dd, 0.3)*0.3)*boost;
+    }
+    // frost bursts: rings of frost blasting out along the blade
+    for (int i = 0; i < 2; i++){
+      float fi = float(i);
+      float f = fract(t*0.6 + fi*0.5);
+      float yr = (0.25 + 0.5*h11(floor(t*0.6 + fi*0.5) + fi*3.0))*top;
+      float dr = ws_ring(ro, rd, yr, 0.6 + 5.0*f);
+      col += (vec3(0.95, 1.0, 1.0)*halo(dr, max(0.05, px))*1.4 + vec3(0.45, 0.8, 1.0)*halo(dr, 0.4)*0.35)*(1.0 - f)*form;
+    }
+  } else if (k < 2.5){
+    // Kamino: big Storm-blade lightning loops leaping off the blade, struck again and again
+    for (int i = 0; i < 5; i++){
+      float fi = float(i);
+      float kk = floor(t*(7.0 + 3.0*st) + fi*0.31);
+      if (h11(kk*1.7 + fi) < 0.25) continue;
+      float y0 = (0.05 + 0.75*h11(kk*2.3 + fi*3.1))*top;
+      float dy = 3.0 + 6.0*h11(kk*3.9 + fi);
+      float a = h11(kk*5.1 + fi);
+      float reach = (3.8 + 2.2*h11(kk*0.7 + fi))*(1.0 + 0.2*st);
+      vec3 A = around(0.35, a, y0), M = around(reach, a + 0.05*(h11(kk) - 0.5), y0 + dy*0.5), C = around(0.35, a + 0.1, y0 + dy);
+      float bd = min(bolt3(ro, rd, A, M, kk + fi*11.0, 0.35), bolt3(ro, rd, M, C, kk + fi*11.0 + 0.5, 0.35));
+      float fade = exp(-fract(t*(7.0 + 3.0*st) + fi*0.31)*2.5);
+      col += (boltLight(bd, vec3(0.45, 0.65, 1.0), px)*2.2 + vec3(0.4, 0.6, 1.0)*halo(bd, 1.5)*0.4)*fade*form;
+    }
+    // bolts leaping from the tip into the sky
+    for (int i = 0; i < 2; i++){
+      float fi = float(i);
+      float kk = floor(t*5.0 + fi*0.5);
+      if (h11(kk*3.3 + fi) < 0.45) continue;
+      vec3 A = vec3(0.0, top, 0.0);
+      vec3 C = A + around(2.0 + 2.0*h11(kk + fi), h11(kk*2.1 + fi), 3.5 + 2.0*h11(kk*4.4));
+      float bd = bolt3(ro, rd, A, C, kk + fi*7.0, 0.4);
+      col += boltLight(bd, vec3(0.5, 0.7, 1.0), px)*1.4*exp(-fract(t*5.0 + fi*0.5)*3.0)*form;
+    }
+    // sea spray flung off the blade
+    for (int i = 0; i < 16; i++){
+      float fi = float(i);
+      float f = fract(t*0.8 + h11(fi*3.1));
+      float y0 = (0.05 + 0.9*h11(fi*6.3 + floor(t*0.8 + h11(fi*3.1))))*top;
+      vec3 p = around(0.5 + 4.0*f, h11(fi*9.1) + 0.1*f, y0 + 1.5*f - 2.5*f*f);
+      float dd = rayPt(ro, rd, p, ta);
+      col += vec3(0.7, 0.85, 1.0)*(halo(dd, max(0.05, px))*1.2 + halo(dd, 0.25)*0.2)*(1.0 - f)*form;
+    }
+  } else if (k > 3.5 && k < 4.5){
+    // Crait: red energy cracking out from the blade to the floating boulders
+    for (int i = 0; i < 9; i++){
+      float fi = float(i);
+      vec3 b0;
+      vec3 b1 = ws_shard(fi, form, b0);
+      if (b1.y > top) continue;
+      float kk = floor(t*4.0 + fi*0.37);
+      if (h11(kk*1.9 + fi) < 0.55) continue;
+      vec3 c = (b0 + b1)*0.5;
+      vec3 A = around(0.45, atan(c.x, c.z)/6.2832, c.y);
+      float bd = bolt3(ro, rd, A, c, kk + fi*5.0, 0.35);
+      col += (boltLight(bd, vec3(1.0, 0.12, 0.08), px)*1.2)*exp(-fract(t*4.0 + fi*0.37)*3.0)*form;
+    }
+    // red salt dust streaming off the boulders and blade
+    for (int i = 0; i < 18; i++){
+      float fi = float(i);
+      float f = fract(t*0.5 + h11(fi*2.3));
+      float y0 = (0.05 + 0.9*h11(fi*7.1 + floor(t*0.5 + h11(fi*2.3))))*top;
+      vec3 p = around(0.6 + 4.2*f, h11(fi*4.9) + 0.25*f, y0 + 1.0*f);
+      vec3 q = around(0.6 + 4.2*max(f - 0.06, 0.0), h11(fi*4.9) + 0.25*max(f - 0.06, 0.0), y0 + 1.0*max(f - 0.06, 0.0));
+      float dd = raySeg(ro, rd, q, p, s);
+      col += vec3(1.0, 0.2, 0.12)*(halo(dd, max(0.06, px))*1.1 + halo(dd, 0.35)*0.2)*sin(3.1416*f)*form;
+    }
+  }
+  return col;
+}
+
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float top = ws_top(), lt = ws_lt(), k = ws_cur(), kp = ws_prev();
   float form = ws_form(), ch = ws_charge(), boom = ws_boom();
@@ -419,6 +556,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   else if (k < 3.5) col = ws_sand(ro, rd, px, d, top, form, ch, st, fx);
   else if (k < 4.5) col = ws_rock(ro, rd, px, d, top, form, ch, st, fx);
   else col = ws_water(ro, rd, px, d, top, form, ch, st, fx);
+  col += ws_big(ro, rd, px, k, top, form, st, ch)*fx;
   // the straining climate trembles with light just before it bursts
   col += mix(vec3(1.0), ws_glow(k), 0.5)*halo(d, 0.9)*ch*ch*(0.6 + 0.4*sin(uTime*40.0))*0.8;
   if (boom > 0.5 && lt < 1.6) col += ws_burst(ro, rd, px, d, top, kp, k, lt)*fx;
@@ -469,7 +607,7 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
       vec3 b1 = ws_shard(fi, form, b0);
       if (b1.y > top) continue;
       float dd = raySeg(ro, rd, b0, b1, s);
-      float w = (0.2 + 0.12*h11(fi*4.1))*(0.2 + 0.8*sqrt(sin(3.1416*s)));
+      float w = (0.32 + 0.22*h11(fi*4.1))*(0.2 + 0.8*sqrt(sin(3.1416*s)));
       float al = fillD(dd - w, px)*form;
       if (al <= 0.0) continue;
       float tmid = rayPt(ro, rd, (b0 + b1)*0.5, ta);
