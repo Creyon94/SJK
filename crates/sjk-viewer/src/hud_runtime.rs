@@ -1,6 +1,7 @@
 //! Runtime projection feeding match information into the retained HUD.
 
 use super::*;
+use crate::hud::flag_status::ScoreRows;
 use bytemuck::{Pod, Zeroable};
 
 /// Append HUD text and overhead labels without duplicating the classic-font fallback.
@@ -262,6 +263,10 @@ pub(crate) fn update(
             snapshot,
             session.game_state(),
             session.team_info().entries(),
+            ScoreRows {
+                rows: session.scores(),
+                revision: session.scores_revision(),
+            },
         );
         let ja_plus = matches!(
             session.compat_profile(),
@@ -455,9 +460,9 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
-        // A demo keeps no `tinfo`: the carriers come from the snapshot.
+        // A demo keeps no `tinfo` or `scores`: the carriers come from the snapshot.
         gpu.hud
-            .update_flag_carriers(snapshot, session.game_state(), &[]);
+            .update_flag_carriers(snapshot, session.game_state(), &[], ScoreRows::default());
         // Only merc mode needs the server's mod; read it from the demo's gamestate then.
         let ja_plus = snapshot.player.entity_flags() & 0x1000 != 0
             && matches!(
