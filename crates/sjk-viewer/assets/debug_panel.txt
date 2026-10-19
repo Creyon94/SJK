@@ -5514,4 +5514,5 @@ change: Old profiles keep their look once: a saved non-1 size is divided by that
 test: Fresh profile on a JA+/JoF server: chat and centre prints match EJK at 1 side by side.
 test: Settings > Chat > Chat text size at 2: the chat wraps sooner and stays clear of the HUD.
 test: Old config with cg_chatBoxFontSize 1.25: it loads as 0.733 and looks as before.
+test: Press the chat key: the typed text is a bit larger than the chat lines, not smaller.
 note: A saved 1 (the old default) becomes EJK's size, larger than before.

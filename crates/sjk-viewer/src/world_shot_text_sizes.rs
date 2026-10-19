@@ -1,6 +1,7 @@
 //! World shots of the game chat box and a centre print over duel6 at
 //! `cg_chatBoxFontSize` 1 and `cg_centerSize` 1, EternalJK's sizes
-//! ([`crate::chat::text_sizes`]), in the game fonts and in Inter, at 1080p.
+//! ([`crate::chat::text_sizes`]), with a draft in the chat field, in the game fonts
+//! and in Inter, at 1080p.
 //! Off-screen renders (no game window), ignored like the other world shots: they
 //! need a GPU adapter and the installed game data named by `JKA_GAME_DATA`.
 //!
@@ -51,6 +52,7 @@ fn duel6_text_sizes_shot() {
                 None,
                 now,
             );
+            chat.draft_for_shot("the typed text matches the chat's size");
             let name = format!("duel6-text-sizes-{suffix}-1080p");
             println!("{}", shoot(&mut gpu, 12, &name).display());
         });

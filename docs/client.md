@@ -5103,8 +5103,10 @@ size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's v
   and its atlas), so at 1 the line box is 30.7 px at 1080p, capitals 17.6 px and rows
   29.25 px. SJK draws that line box (it was 18 px), with rows 20/21 of it apart: SJK Chat
   keeps `ocr_a`'s layout, and Inter's capitals, 0.60 of its box, stand 18.5 px. A
-  sender's name line advance, the gap between messages and the composer keep their
-  sizes; an SJK line's GIF stays three rows high. See
+  sender's name line advance and the gap between messages keep their sizes; the
+  composer (channel tabs, draft, caret) grows by the same 1.706 so its draft stays a
+  little larger than the feed's text, as before; an SJK line's GIF stays three rows
+  high. See
   [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
 - Centre prints: `CG_DrawCenterString` draws `ergoec` (`FONT_MEDIUM`, a 22-pixel line,
   13-pixel capitals, point size 20) at scale `cg_centerSize` and advances
