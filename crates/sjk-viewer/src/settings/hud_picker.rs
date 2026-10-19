@@ -340,7 +340,7 @@ impl SettingsMenu {
     fn refresh_hud_row(&mut self) {
         let label = self.hud.label();
         for (row, setting) in self.rows().iter().enumerate() {
-            if matches!(setting.kind, ValueKind::HudPicker)
+            if matches!(setting.kind(), ValueKind::HudPicker)
                 && let Some(value) = self.values.get_mut(row)
             {
                 value.clone_from(&label);
@@ -673,7 +673,7 @@ mod tests {
         menu.open_tab(console, SettingsMenu::tab_index("HUD").unwrap());
         menu.rows()
             .iter()
-            .position(|setting| matches!(setting.kind, ValueKind::HudPicker))
+            .position(|setting| matches!(setting.kind(), ValueKind::HudPicker))
             .unwrap()
     }
 

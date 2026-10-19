@@ -59,7 +59,7 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(row) else {
             return value.to_owned();
         };
-        match setting.kind {
+        match setting.kind() {
             ValueKind::Text => TEXT_VALUE.to_owned(),
             ValueKind::Bool => {
                 crate::menu::classic::view::Sentence(&value.to_ascii_lowercase()).to_string()

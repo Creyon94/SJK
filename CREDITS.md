@@ -145,7 +145,8 @@ includes:
   bans list, and
   `debug_collectibles`, which shows the team every collectible as held on their own PC;
 - the SJK chat every SJK player shares through the SJK hub, and the path for emotes,
-  with emotes joined in step (`sjkemote sync`) on every screen;
+  with emotes joined in step (`sjkemote sync`) on every screen, and the away emote
+  (played while the player is alt-tabbed out or idle, every emote quiet then);
 - unlockables kept at the SJK hub: the generic blade-skin renderer and the packs the
   hub delivers (the Sun blade's look and sounds), and looks (blade skins,
   Illuminate) every SJK player on a server sees;

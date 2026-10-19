@@ -77,6 +77,21 @@ impl GpuState {
             if emote.emote == emotes::SYNC {
                 continue;
             }
+            // Its player went away, or came back (`away_emote.rs`).
+            if emote.emote == emotes::QUIET || emote.emote == emotes::LOUD {
+                let def = state.active.get(emote.slot).and_then(|active| {
+                    state
+                        .catalogue
+                        .as_ref()?
+                        .iter()
+                        .find(|def| def.id == active.emote)
+                        .cloned()
+                });
+                state
+                    .active
+                    .set_quiet(emote.slot, emote.emote == emotes::QUIET, def.as_ref(), now);
+                continue;
+            }
             let def = state
                 .catalogue
                 .as_ref()
@@ -94,6 +109,9 @@ impl GpuState {
                 state
                     .active
                     .start(emote.slot, &emote.emote, def.as_ref(), origin, now);
+            }
+            if emote.quiet {
+                state.active.set_quiet(emote.slot, true, def.as_ref(), now);
             }
             // Until the animations exist, the console says it.
             if let Some(console) = &mut self.console {

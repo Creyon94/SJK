@@ -499,6 +499,30 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "An attack or alt attack ends your own emote (SJK)",
         ),
         CvarDefinition::new(
+            crate::away_emote::SJK_CVAR,
+            crate::away_emote::NONE,
+            archive,
+            "Looping SJK emote played, quiet, while you are away: an emote id or none (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::away_emote::JAPLUS_CVAR,
+            crate::away_emote::NONE,
+            archive,
+            "JA+ emote played while you are away on a JA+ server: amsit, amkneel... or none (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::away_emote::ALT_TAB_CVAR,
+            true,
+            archive,
+            "An alt-tabbed out or minimised window counts as away for emotes (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::away_emote::IDLE_CVAR,
+            crate::away_emote::DEFAULT_IDLE,
+            archive,
+            "Seconds without input before you count as away for emotes; 0 never (SJK)",
+        ),
+        CvarDefinition::new(
             crate::unlock_toast::SOUND_CVAR,
             true,
             archive,

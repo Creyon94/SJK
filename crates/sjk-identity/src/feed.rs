@@ -1049,6 +1049,7 @@ mod tests {
             key_id: "aa".to_owned(),
             emote: "wave".to_owned(),
             sync: None,
+            quiet: false,
         };
         rig.script(Ok(Feed {
             next: 4,

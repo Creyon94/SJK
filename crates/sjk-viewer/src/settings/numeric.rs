@@ -7,7 +7,7 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(row) else {
             return false;
         };
-        let (min, max, integer) = match setting.kind {
+        let (min, max, integer) = match setting.kind() {
             ValueKind::Integer { min, max, .. } => (min as f64, max as f64, true),
             ValueKind::Float { min, max, .. } => (min, max, false),
             _ => return false,
@@ -30,7 +30,7 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(row) else {
             return false;
         };
-        let (min, max, integer) = match setting.kind {
+        let (min, max, integer) = match setting.kind() {
             ValueKind::Integer { min, max, .. } => (min as f64, max as f64, true),
             ValueKind::Float { min, max, .. } => (min, max, false),
             _ => return false,
@@ -81,7 +81,7 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(row) else {
             return;
         };
-        let value = if matches!(setting.kind, ValueKind::Integer { .. }) {
+        let value = if matches!(setting.kind(), ValueKind::Integer { .. }) {
             (value as i64).to_string()
         } else {
             value.to_string()

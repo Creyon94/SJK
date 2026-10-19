@@ -860,9 +860,10 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   the quick wheel shows for it, drawn on a blue disc), `sound_ms` (the sound's length: a
   looping emote plays it again each time it ends), `sound_loop` and `sound_loop_ms`
   (music in two parts: the loop follows the sound and repeats while the emote plays) and `rig` (the rig model folder the clip comes from;
-  other rig models with the same joint names borrow it). The ids `stop`, `sync`, `mute`
-  and `unmute` are reserved: `sjkemote stop` ends the player's emote here and, relayed,
-  for the others.
+  other rig models with the same joint names borrow it). The ids `stop`, `sync`,
+  `quiet`, `loud`, `mute`, `unmute` and `none` are reserved: `sjkemote stop` ends the
+  player's emote here and, relayed, for the others; `quiet` and `loud` are the away
+  emote's (below).
   Unknown fields and bad values are refused with the file named in the log. None ship
   with SJK; the rig model add-on writes them for a model's own animations.
 - `help_emotes` (or `sjkemote help`; since 16/10/2026) shows an SJK pop-up card
@@ -913,6 +914,26 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.
+- Away emote (since 19/10/2026, [away_emote.rs](../crates/sjk-viewer/src/away_emote.rs)):
+  the player is away while the game's window is alt-tabbed out or minimised (Settings >
+  Sound > Emotes: Away when alt-tabbed, `cg_awayAltTab`, on) or after
+  `cg_awayIdle` seconds (Away after, 180; 0 never) without a key, mouse button, wheel
+  or mouse move (the input `holocrons::activity` notes), on a remote server and not
+  spectating. Going away, an emote the player plays goes quiet for everyone: the client
+  posts `quiet` and each client stops its music (`ActiveEmotes::set_quiet`) while it
+  keeps time, so `loud`, posted on the way back, plays it again from where it would be.
+  With no emote playing, the pick starts: on a JA+ server (its `gamename`, JoF
+  included) the JA+ emote of `cg_awayEmoteJaplus` (JA+ away emote: the sit, kneel,
+  hips, wait, surrender and Neo ones, which hold the player), sent to the server and
+  sent again on the way back while it still holds the player (`PM_FREEZE`), which
+  stands them up; else the looping SJK emote of `cg_awayEmote` (Away emote, any
+  looping emote that is not `local`), posted with `quiet` so no client plays its
+  music, and stopped (`stop`) on the way back unless it already ended. The hub takes
+  one emote every 2 seconds from a key, so a post waits for its turn
+  (`player_identity::emote_ready`); one still waiting when the player comes back was
+  never seen, and neither it nor its undoing is sent. A hub from before 19/10/2026
+  refuses `quiet` in a post: the emote goes again with its sound. The settings list
+  the installed emotes as they are when the page shows (`ValueKind::Live`).
 - The quick wheel's editor lists the installed emotes under Emotes. An emote's `icon`
   is decoded when the catalogue loads and put into the UI atlas's emote cells
   (`emote_icons.rs`, 32 of them): a wheel choice that runs `sjkemote <id>` wears it,

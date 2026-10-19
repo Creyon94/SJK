@@ -332,7 +332,7 @@ impl SettingsMenu {
             FIELD_WIDTH,
             kit::CONTROL_HEIGHT,
         ];
-        match setting.kind {
+        match setting.kind() {
             ValueKind::Bool => {
                 kit::switch(
                     &mut self.ui,
@@ -397,6 +397,7 @@ impl SettingsMenu {
                 false,
             ),
             ValueKind::Choice(_)
+            | ValueKind::Live(_)
             | ValueKind::Resolution
             | ValueKind::DisplayMode
             | ValueKind::HudPicker
@@ -670,7 +671,7 @@ impl SettingsMenu {
                 color::TEXT,
             );
         }
-        match setting.kind {
+        match setting.kind() {
             ValueKind::Integer { min, max, .. } if min < 0 => {
                 self.fact(
                     frame,
@@ -722,7 +723,7 @@ impl SettingsMenu {
         if let Some(group) = found_in {
             self.fact(frame, &mut y, "In", format_args!("{group}"), color::TEXT);
         }
-        let source = match setting.kind {
+        let source = match setting.kind() {
             ValueKind::WheelPages => "File",
             _ => "Console",
         };
@@ -808,10 +809,10 @@ impl SettingsMenu {
                 .get(self.selected)
                 .filter(|_| self.shows(self.selected))
             {
-                keys.push(match setting.kind {
+                keys.push(match setting.kind() {
                     ValueKind::Bool => (&["Enter"][..], "switch"),
                     ValueKind::Choice(_) | ValueKind::DisplayMode | ValueKind::Quality
-                        if segment_choices(setting.kind).is_none() =>
+                        if segment_choices(setting.kind()).is_none() =>
                     {
                         (&["Enter"][..], "choices")
                     }

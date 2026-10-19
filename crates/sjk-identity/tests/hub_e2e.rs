@@ -486,13 +486,13 @@ fn chat_and_emotes_reach_other_players_through_the_long_poll() {
         "10.97.0.{}:29070",
         u8::from_str_radix(&me.key_id()[..2], 16).unwrap()
     );
-    let nowhere = hub.emote(&me, &server, "wave", None).unwrap_err();
+    let nowhere = hub.emote(&me, &server, "wave", None, false).unwrap_err();
     assert!(
         matches!(nowhere, HubError::Rejected { ref code, .. } if code == "not_on_server"),
         "{nowhere:?}"
     );
     hub.claim(&me, &server, 4, "^2Chatty", false).unwrap();
-    hub.emote(&me, &server, "wave", None).unwrap();
+    hub.emote(&me, &server, "wave", None, false).unwrap();
     let here = reader.feed(&other, feed.next, Some(&server), 0).unwrap();
     assert_eq!(here.emotes.len(), 1);
     assert_eq!(
@@ -503,7 +503,7 @@ fn chat_and_emotes_reach_other_players_through_the_long_poll() {
     assert_eq!(here.emotes[0].sync, None);
     // One in step with slot 7's carries it (after the emote quota's gap).
     std::thread::sleep(std::time::Duration::from_millis(2_100));
-    hub.emote(&me, &server, "wave", Some(7)).unwrap();
+    hub.emote(&me, &server, "wave", Some(7), false).unwrap();
     let synced = reader.feed(&other, here.next, Some(&server), 0).unwrap();
     assert_eq!(synced.emotes.last().map(|emote| emote.sync), Some(Some(7)));
     hub.release(&me, &server).unwrap();

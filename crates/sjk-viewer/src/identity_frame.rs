@@ -7,7 +7,8 @@
 //! (`holocrons_frame.rs`), and the holocron odds the hub's (`loot_odds.rs`). Each frame it also lets the chat feed follow the SJK chat
 //! (`sjk_chat_frame.rs`), keeps crash reports up to date and sent
 //! (`crash_report.rs`), tells Discord what the player is doing
-//! (`discord_presence.rs`), starts and ends emotes (`emotes_frame.rs`), shows the pings
+//! (`discord_presence.rs`), starts and ends emotes (`emotes_frame.rs`) and the away emote
+//! (`away_emote.rs`), shows the pings
 //! relayed for this server (`world_ping_frame.rs`), keeps the
 //! players' looks (`looks_frame.rs`), follows the players muted on this PC
 //! (`muted_players_frame.rs`) and what SJK knows of each slot's player for the game
@@ -26,6 +27,7 @@ impl GpuState {
         self.remember_profile_hub_tab();
         self.update_sjk_chat();
         self.update_emotes();
+        self.update_away_emote();
         self.update_world_pings();
         self.update_muted_players();
         self.update_chat_marks();

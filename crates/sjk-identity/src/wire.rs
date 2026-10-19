@@ -888,6 +888,10 @@ pub struct Emote {
     /// absent from hubs before 15/10/2026.
     #[serde(default)]
     pub sync: Option<u8>,
+    /// Played without its sound: the sender is away from the game; absent (false)
+    /// from hubs before 19/10/2026.
+    #[serde(default)]
+    pub quiet: bool,
 }
 
 /// One ping on a game server (`PROTOCOL.md`, "Pings"): a point a player marked in the

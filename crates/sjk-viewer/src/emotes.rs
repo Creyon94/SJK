@@ -57,6 +57,11 @@ pub(crate) const STOP: &str = "stop";
 /// The word that joins another player's emote in step (`sjkemote sync [player]`),
 /// never a catalogue entry's.
 pub(crate) const SYNC: &str = "sync";
+/// The id that silences the player's emote for the others while they are away
+/// (`away_emote.rs`), never a catalogue entry's.
+pub(crate) const QUIET: &str = "quiet";
+/// The id that gives that emote its sound again, never a catalogue entry's.
+pub(crate) const LOUD: &str = "loud";
 /// `sjkemote mute <player>`: hide that player's emotes on this screen.
 pub(crate) const MUTE: &str = "mute";
 /// `sjkemote unmute <player|all>`: show them again.
@@ -249,8 +254,17 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<EmoteDef> {
         }
     }
     catalogue.retain(|def| {
-        let reserved =
-            [STOP, SYNC, MUTE, UNMUTE, crate::emote_help::WORD].contains(&def.id.as_str());
+        let reserved = [
+            STOP,
+            SYNC,
+            QUIET,
+            LOUD,
+            MUTE,
+            UNMUTE,
+            crate::emote_help::WORD,
+            crate::away_emote::NONE,
+        ]
+        .contains(&def.id.as_str());
         if reserved {
             crate::log::progress(format_args!(
                 "emotes: {FOLDER}/{}.emote: the id is reserved",
@@ -283,6 +297,9 @@ pub(crate) struct ActiveEmote {
     pub(crate) next_sound: Option<(Instant, String, Duration)>,
     /// The player it follows in step (`sjkemote sync`): one joining it follows them.
     pub(crate) leader: Option<u8>,
+    /// Silenced while its player is away ([`ActiveEmotes::set_quiet`]): its music
+    /// keeps time without playing.
+    pub(crate) quiet: bool,
 }
 
 /// An emote's music: its first sound, then the one that repeats after it (its loop,
@@ -423,6 +440,7 @@ impl ActiveEmotes {
             moving: def.is_some_and(|def| def.moving),
             next_sound,
             leader: None,
+            quiet: false,
         });
     }
 
@@ -477,6 +495,7 @@ impl ActiveEmotes {
             moving: def.is_some_and(|def| def.moving),
             next_sound,
             leader: Some(leader),
+            quiet: false,
         });
         true
     }
@@ -506,6 +525,52 @@ impl ActiveEmotes {
         {
             self.cues.push(Cue::Stop { slot });
         }
+    }
+
+    /// Silence `slot`'s emote (`quiet`), or give it its sound again from where its
+    /// music is at `now`; `def` is its catalogue entry. False when `slot` plays nothing
+    /// or the emote already is so.
+    pub(crate) fn set_quiet(
+        &mut self,
+        slot: u8,
+        quiet: bool,
+        def: Option<&EmoteDef>,
+        now: Instant,
+    ) -> bool {
+        let Some(active) = self
+            .slots
+            .get_mut(usize::from(slot))
+            .and_then(Option::as_mut)
+        else {
+            return false;
+        };
+        if active.quiet == quiet {
+            return false;
+        }
+        active.quiet = quiet;
+        if active.sound.is_empty() {
+            return true;
+        }
+        if quiet {
+            // A sound started this frame (a quiet emote just begun) never plays.
+            self.cues
+                .retain(|cue| !matches!(cue, Cue::Start { slot: at, .. } if *at == slot));
+            self.cues.push(Cue::Stop { slot });
+            return true;
+        }
+        let music = def.map(Music::of).unwrap_or_default();
+        if let Some((sound, offset, next)) = music.at(now.saturating_duration_since(active.started))
+        {
+            self.cues.push(Cue::Start {
+                slot,
+                sound: sound.to_owned(),
+                offset,
+                align: active.leader,
+            });
+            active.next_sound =
+                next.map(|next| (now + next, music.then.clone(), music.then_length));
+        }
+        true
     }
 
     /// The player's own command carried `buttons`: with `enabled`
@@ -538,12 +603,14 @@ impl ActiveEmotes {
             if let Some((at, sound, length)) = &mut active.next_sound
                 && now >= *at
             {
-                self.cues.push(Cue::Start {
-                    slot,
-                    sound: sound.clone(),
-                    offset: Duration::ZERO,
-                    align: active.leader,
-                });
+                if !active.quiet {
+                    self.cues.push(Cue::Start {
+                        slot,
+                        sound: sound.clone(),
+                        offset: Duration::ZERO,
+                        align: active.leader,
+                    });
+                }
                 if length.is_zero() {
                     active.next_sound = None;
                 } else {
@@ -565,7 +632,7 @@ impl ActiveEmotes {
                     d > MOVE_LIMIT * MOVE_LIMIT
                 }
             };
-            if gone && !active.sound.is_empty() {
+            if gone && !active.sound.is_empty() && !active.quiet {
                 self.cues.push(Cue::Stop { slot });
             }
             if over || gone {
@@ -902,6 +969,7 @@ mod tests {
             key_id: "0123456789abcdef".to_owned(),
             emote: "wave".to_owned(),
             sync: None,
+            quiet: false,
         };
         assert!(trusted(&emote, Some("Sol")));
         assert!(
@@ -959,6 +1027,41 @@ mod tests {
                 "sound_loop": "b.wav", "sound_loop_ms": 3000}"#,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn a_quiet_emote_keeps_time_silently_and_its_sound_comes_back_in_place() {
+        let t0 = Instant::now();
+        let here = |_: u8| Some([0.0; 3]);
+        let mut active = ActiveEmotes::default();
+        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
+        // Quiet from its start (an away emote): its sound never starts.
+        assert!(active.set_quiet(1, true, Some(&heavy()), t0));
+        assert_eq!(active.take_cues(), [Cue::Stop { slot: 1 }]);
+        assert!(
+            !active.set_quiet(1, true, Some(&heavy()), t0),
+            "already quiet"
+        );
+        active.update(t0 + Duration::from_millis(2500), here);
+        assert!(active.take_cues().is_empty(), "the loop stays silent");
+        // Loud again 3.5 s in: the loop, 1.5 s into it, then again 1.5 s later.
+        let back = t0 + Duration::from_millis(3500);
+        assert!(active.set_quiet(1, false, Some(&heavy()), back));
+        assert_eq!(
+            active.take_cues(),
+            [Cue::Start {
+                slot: 1,
+                sound: "b.wav".to_owned(),
+                offset: Duration::from_millis(1500),
+                align: None,
+            }]
+        );
+        active.update(back + Duration::from_millis(1500), here);
+        assert_eq!(active.take_cues().len(), 1);
+        assert!(
+            !active.set_quiet(2, true, None, back),
+            "nobody emotes there"
+        );
     }
 
     #[test]
