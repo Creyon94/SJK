@@ -1228,6 +1228,14 @@ test: 301 characters: the box stops at 300; sjksay with more sends the first 300
 
 # ---- HUD ----
 
+[duel-no-weapon-icon]
+area: HUD
+title: Nameplates: no weapon icon beside a duellist's name (duel badge sat on top of it)
+change: The duel badge and the saber icon were both drawn left of the name and overlapped.
+change: While the duel badge shows, the plate leaves the weapon icon out.
+test: Duel someone and look at their nameplate: only the crossed-sabers badge before the name.
+test: Out of a duel the weapon icon is back beside the name.
+
 [scoreboard-afk]
 area: HUD
 title: Away players faint at the bottom of the scoreboard (cg_scoreboardAfk, on by default)

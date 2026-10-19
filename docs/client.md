@@ -2883,7 +2883,9 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   seek. Each colour is its own icon
   cell, drawn at start ([duel_badge.rs](../crates/sjk-viewer/src/ui_renderer/duel_badge.rs)).
   The badge sits level with the name's capitals like the verified badge, and stays at
-  least 90% opaque on a far plate whose name dims. `cg_nameplateDuel` (on; Settings >
+  least 90% opaque on a far plate whose name dims. It takes the place of the held-weapon
+  icon, which the plate leaves out while the badge shows (both sit left of the name).
+  `cg_nameplateDuel` (on; Settings >
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
   [Entity render effects](rendering.md#entity-render-effects)).
