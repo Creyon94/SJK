@@ -598,7 +598,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A pure kyber blade, in its wearer's colour, fighting a red corruption that bleeds up from the hilt, veins of it cracking into the air and red drops falling, while beams of light push it back.",
+        description: "A pure kyber blade, in its wearer's colour, fighting a red corruption that bleeds up from the hilt, forked red lightning lashing out from it and red drops falling, while beams of light push it back.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {

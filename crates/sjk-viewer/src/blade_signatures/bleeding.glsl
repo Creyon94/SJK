@@ -2,8 +2,8 @@
 // Blade Lab design, rebuilt in round 9 as Sol builds his). The blade is Sol's glow and core from
 // the file, pure white, and a red corruption bleeds up it from the hilt, cracking through the
 // light in jagged veins, then is pushed back down by the crystal before it rises again. Round
-// it in 3D the fight goes on: red veins of corruption crawl out from the bleeding part like
-// cracks in the air, drops of red light drip off it and fall, and where the white holds, beams
+// it in 3D the fight goes on: forked Sith lightning lashes out from the bleeding part, striking
+// with a flash, and small arcs crawl over it, drops of red light drip off it and fall, and where the white holds, beams
 // of pure light flash out and push back. A swing helps the light push; a clash lets the
 // corruption surge up with a red shock ring.
 // @part Corruption veins
@@ -25,6 +25,44 @@ float bk_mask(float y){
   return 1.0 - smoothstep(front - 1.5, front + 0.3, y);
 }
 
+// round 14 (Creyon: "the lightning looks really poor"): a forked bolt of Sith lightning from a
+// to c, 14 kinks of large jag with a fine crackle on top, and two forks breaking off it; the
+// distance from the ray to the nearest of them
+float bk_bolt(vec3 ro, vec3 rd, vec3 a, vec3 c, float seed, float jag){
+  vec3 d = c - a; float L = max(length(d), 1e-3);
+  vec3 n1 = normalize(cross(d, abs(d.y) < 0.9*L ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec3 n2 = cross(d/L, n1);
+  float best = 1e3, s;
+  vec3 prev = a, f1 = a, f2 = a;
+  for (int i = 1; i <= 14; i++){
+    float f = float(i)/14.0;
+    float big = i == 14 ? 0.0 : sin(f*3.1416)*jag*L;
+    float fine = i == 14 ? 0.0 : 0.05*L;
+    vec3 q = a + d*f
+      + (n1*(h11(seed*17.13 + float(i)*7.31) - 0.5) + n2*(h11(seed*5.71 + float(i)*3.17) - 0.5))*big
+      + (n1*(h11(seed*3.9 + float(i)*13.7) - 0.5) + n2*(h11(seed*8.3 + float(i)*11.1) - 0.5))*fine;
+    best = min(best, raySeg(ro, rd, prev, q, s));
+    if (i == 5) f1 = q;
+    if (i == 9) f2 = q;
+    prev = q;
+  }
+  // the forks: shorter bolts breaking off sideways from two kinks
+  vec3 o1 = (n1*(h11(seed*2.3) - 0.5) + n2*(h11(seed*4.7) - 0.5))*2.0;
+  vec3 o2 = (n1*(h11(seed*6.1) - 0.5) + n2*(h11(seed*9.9) - 0.5))*2.0;
+  vec3 e1 = f1 + d*0.28 + o1*L*0.35;
+  vec3 e2 = f2 + d*0.22 + o2*L*0.3;
+  vec3 p1 = f1, p2 = f2;
+  for (int i = 1; i <= 5; i++){
+    float f = float(i)/5.0;
+    float k = i == 5 ? 0.0 : sin(f*3.1416)*jag*0.35*L;
+    vec3 q1 = mix(f1, e1, f) + (n1*(h11(seed*31.7 + float(i)*5.3) - 0.5) + n2*(h11(seed*23.1 + float(i)*2.9) - 0.5))*k;
+    vec3 q2 = mix(f2, e2, f) + (n1*(h11(seed*41.3 + float(i)*4.1) - 0.5) + n2*(h11(seed*37.7 + float(i)*6.7) - 0.5))*k;
+    best = min(best, min(raySeg(ro, rd, p1, q1, s), raySeg(ro, rd, p2, q2, s)*1.25));
+    p1 = q1; p2 = q2;
+  }
+  return best;
+}
+
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float lv = bk_level();
@@ -32,17 +70,43 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 col = vec3(0.0), red = vec3(0.0);
   if (fxNear(ro, rd, 0.0, L) > 10.0) return col;
   float ta;
-  // ---- red veins of corruption cracking out into the air from the bleeding part ----
-  for (int i = 0; i < 7; i++){
+  // ---- Sith lightning cracking out into the air from the bleeding part (round 14) ----
+  // forked bolts lashing out, each striking with a flash at the blade, flickering while it
+  // lives and fading; a steady clock per bolt, so nothing races when turning or running
+  float ylo = max(y0, 1.0), yhi = max(lv, ylo + 3.0);
+  for (int i = 0; i < 9; i++){
     float fi = float(i);
-    float k = floor(t*1.1 + h11(fi*3.1)*5.0), q = fract(t*1.1 + h11(fi*3.1)*5.0);
-    float y = mix(2.0, max(lv, 3.0), h11(k*2.3 + fi));
+    float rate = 0.7 + 0.4*h11(fi*2.7);
+    float cyc = t*rate + h11(fi*3.1)*5.0;
+    float k = floor(cyc), q = fract(cyc);
+    if (q > 0.6) continue;
+    float y = mix(ylo, yhi, h11(k*2.3 + fi));
     float a = h11(k*5.1 + fi*1.7);
-    vec3 a0 = around(0.3, a, y), a1 = around(2.5 + 3.0*h11(k + fi*4.0), a + 0.08*(h11(k*7.0 + fi) - 0.5), y + (h11(k*3.3 + fi) - 0.3)*4.0);
-    if (rayPt(ro, rd, (a0 + a1)*0.5, ta) > 6.0) continue;
-    float grow = smoothstep(0.0, 0.25, q);
-    float d = bolt3(ro, rd, a0, mix(a0, a1, grow), k + fi*1.37, 0.55);
-    red += (vec3(1.0, 0.6, 0.6)*halo(d, max(px, 0.035))*0.9 + BK_RED*halo(d, 0.22)*1.0 + BK_RED*halo(d, 0.8)*0.18)*(1.0 - smoothstep(0.55, 1.0, q))*part(0.0);
+    // within the blade's room (10 units, `@room`) with its forks and glow
+    float reach = (5.0 + 3.0*h11(k + fi*4.0))*(1.0 + 0.1*cl);
+    vec3 a0 = around(0.35, a, y);
+    vec3 a1 = around(0.35 + reach, a + 0.1*(h11(k*7.0 + fi) - 0.5), y + (h11(k*3.3 + fi) - 0.2)*reach*1.1);
+    if (rayPt(ro, rd, (a0 + a1)*0.5, ta) > reach + 3.0) continue;
+    float life = q/0.6;
+    float grow = smoothstep(0.0, 0.12, life);
+    float fade = 1.0 - smoothstep(0.55, 1.0, life);
+    float flick = 0.65 + 0.35*step(0.4, h11(floor(t*18.0) + fi*7.7));
+    float d = bk_bolt(ro, rd, a0, mix(a0, a1, grow), k*1.91 + fi*1.37, 0.3);
+    float lit = fade*flick*part(0.0);
+    red += (vec3(1.0, 0.85, 0.88)*halo(d, max(px, 0.045))*2.0 + BK_RED*halo(d, 0.22)*1.4 + BK_RED*halo(d, 0.9)*0.35)*lit;
+    // the strike: a flash where it leaves the blade
+    red += (vec3(1.0, 0.7, 0.75)*halo(rayPt(ro, rd, a0, ta), 0.35)*1.2 + BK_RED*halo(rayPt(ro, rd, a0, ta), 1.4)*0.35)*(1.0 - smoothstep(0.0, 0.3, life))*part(0.0);
+  }
+  // crawling arcs: small arcs of corruption creeping over the bleeding part of the blade
+  for (int i = 0; i < 4; i++){
+    float fi = float(i);
+    float cyc = t*1.6 + fi*0.25;
+    float k = floor(cyc), q = fract(cyc);
+    float y = mix(ylo, max(lv - 1.0, ylo + 1.0), h11(k*3.7 + fi*5.3));
+    float a = h11(k*1.3 + fi*2.9);
+    vec3 c0 = around(0.45, a, y), c1 = around(0.45, a + 0.25*(h11(k*9.1 + fi) - 0.5), y + 2.0 + 2.5*h11(k*4.4 + fi));
+    float d = bolt3(ro, rd, c0, c1, k*3.3 + fi + floor(t*12.0)*0.37, 0.35);
+    red += (vec3(1.0, 0.75, 0.8)*halo(d, max(px, 0.025))*1.1 + BK_RED*halo(d, 0.12)*0.8)*sin(3.1416*q)*part(0.0);
   }
   // ---- drops of red light dripping off the bleeding part and falling ----
   for (int i = 0; i < 16; i++){
