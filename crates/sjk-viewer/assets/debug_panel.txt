@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[staff-gates]
+area: Console & chat
+title: cjp_client, ghost and mimic are for SJK staff only
+change: Another key always sends SJK's default plugin name, whatever cjp_client says.
+change: ghost and mimic say they are an experimental staff tool for a key that is not staff.
+test: As staff, cjp_client "1.6.5 JoF", join a JA+ server: an admin amstatus shows that name.
+test: As staff, Experimental: showcase tools on: ghost record test works.
+test: Without a staff key: amstatus shows 1.4 SJK; ghost list says it is a staff tool.
+note: Staff status comes from the hub; known only after joining, cjp_client waits a rejoin.
+
 [chat-card-cleanup]
 area: Console & chat
 title: Chat: old name dropdown removed, sender card drawn over the feed's text
