@@ -3409,8 +3409,10 @@ Discord profile, as Discord's Rich Presence
 [discord_ipc.rs](../crates/sjk-viewer/src/discord_ipc.rs)). It talks only to the
 Discord desktop app on the same PC, over its local pipe (`\.\pipe\discord-ipc-N`
 on Windows, a `discord-ipc-N` socket in the runtime or temporary folder elsewhere,
-the Flatpak and Snap folders included); without Discord running nothing happens and
-the client looks again every 20 seconds.
+the Flatpak and Snap folders included), to every Discord app that answers: Discord,
+PTB and Canary can run side by side signed in to different accounts, and each shows
+the status on its own. Without Discord running nothing happens and the client looks
+again every 20 seconds; the log says which apps it reached.
 
 - `cl_discordPresence` (archived, default 1; Settings > Network > Discord status,
   and Simple's General): 0 off (clears the status), 1 on, 2 on without the server's
