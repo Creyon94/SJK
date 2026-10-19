@@ -97,7 +97,13 @@ impl ChatOverlay {
 
 /// The room (pixels) a GIF block takes under its line in geometry `g`.
 pub(super) fn room(g: &layout::Geometry, shown: Option<Shown>) -> f32 {
-    shown.map_or(0.0, |shown| gif_draw::room(LOOK, shown) * g.scale)
+    shown.map_or(0.0, |shown| gif_draw::room(LOOK, shown) * scale(g))
+}
+
+/// The scale [`LOOK`] is drawn at in geometry `g`: its sizes are for rows 18 pixels
+/// apart, so the GIF stays three of the box's rows high at any text size.
+pub(super) fn scale(g: &layout::Geometry) -> f32 {
+    g.row / 18.0
 }
 
 #[cfg(test)]

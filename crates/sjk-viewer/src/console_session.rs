@@ -556,6 +556,7 @@ impl ViewerConsole {
             let _ = shell.cvars.set_text("cg_killfeedDefaultVersion", "1");
         }
         retire_modern_ui(&mut shell.cvars);
+        crate::chat::text_sizes::migrate(&mut shell.cvars, new_profile);
         // Older profiles archived an earlier default (four passes, then one).
         // Move those values once to two; other strengths, and choices made
         // after migration, remain deliberate.

@@ -568,8 +568,8 @@ pub(super) const HUD: &[Setting] = &[
         label: "Chat text size",
         cvar: "cg_chatBoxFontSize",
         kind: ValueKind::Float {
-            min: 0.25,
-            max: 3.0,
+            min: crate::chat::options::CHAT_SIZE.0,
+            max: crate::chat::options::CHAT_SIZE.1,
             step: 0.05,
         },
     },

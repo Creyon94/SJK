@@ -2,6 +2,24 @@
 use super::*;
 use crate::{cgame_options::scalar, console::ViewerConsole};
 
+/// Range of `cg_chatBoxFontSize`. 1 is EternalJK's size ([`super::layout::FONT_1080`]);
+/// the ends hold every value saved under the smaller pre-19/10/2026 scale (0.25 to 3,
+/// [`super::text_sizes`]).
+pub(crate) const CHAT_SIZE: (f64, f64) = (0.15, 2.0);
+/// Largest `cg_centerSize`: EternalJK stops at 1; SJK allows twice its size, which
+/// holds the old scale's largest value (4).
+pub(crate) const CENTER_SIZE_MAX: f32 = 2.0;
+
+/// `cg_centerSize` as drawn: zero, which would hide the text, is 1 as in
+/// EternalJK's `CG_DrawCenterString`.
+fn center_size(value: f32) -> f32 {
+    if value == 0.0 {
+        1.0
+    } else {
+        value.clamp(0.0, CENTER_SIZE_MAX)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 /// Bounded presentation settings read from the archived cvars.
 pub(super) struct Options {
@@ -57,7 +75,8 @@ impl Options {
                 .unwrap_or(false),
             lifetime: integer("cg_chatbox", 10000).max(0) as u64,
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
-            font: scalar(console, "cg_chatboxfontsize", 1.0).clamp(0.25, 3.0),
+            font: scalar(console, "cg_chatboxfontsize", 1.0)
+                .clamp(CHAT_SIZE.0 as f32, CHAT_SIZE.1 as f32),
             spacing: scalar(console, "cg_chatboxletterspacing", -0.5).clamp(-2.0, 8.0),
             x: scalar(console, "cg_chatboxx", 30.0).clamp(0.0, 600.0),
             height: scalar(console, "cg_chatboxheight", 350.0).clamp(0.0, 480.0),
@@ -66,7 +85,7 @@ impl Options {
                 && console.is_some_and(ViewerConsole::is_open),
             clean: integer("cg_cleanchatbox", 0),
             center_time: (scalar(console, "cg_centertime", 3.0).clamp(0.0, 3600.0) * 1000.0) as u64,
-            center_size: scalar(console, "cg_centersize", 1.0).clamp(0.0, 4.0),
+            center_size: center_size(scalar(console, "cg_centersize", 1.0)),
             center_height: scalar(console, "cg_centerheight", 0.0).clamp(0.0, 480.0),
             emojis: integer("cg_chatboxemojis", 0) != 0,
             gifs: console.is_none_or(|c| c.bool_cvar(crate::chat_gifs::CVAR) != Some(false)),

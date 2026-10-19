@@ -5092,18 +5092,39 @@ would run digits and `il1` together. A profile's `con_lineSpacing` and
 `con_maxLines`, which only the retired modern console read, are dropped at its
 start ([Menu style](#menu-style)).
 
-The chat box's wrapped body rows are one line box apart (18 px at 1080p and
-`cg_chatBoxFontSize` 1; they were 27 px). Inter's capitals are 0.60 of that box,
-the stock chat box's ratio (`ocr_a` capitals at scale 0.65 in rows 13 virtual
-pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
-0.18 of the box. A sender's name line advances 20 px to the body (was 26) and
-messages are 8 px apart (were 10 after a named message, 14 otherwise); see
-[chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
+`cg_chatBoxFontSize` and `cg_centerSize` match JoF EternalJK's absolute sizes at
+the same value (since 19/10/2026; before, SJK kept stock's proportions at a smaller
+size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's virtual
+480 lines fill the window's height, 2.25 pixels each at 1080p:
+
+- Chat: EternalJK's `CG_ChatBox_DrawStrings` draws `ocr_a` at scale
+  `0.65 * cg_chatBoxFontSize` in rows `CHATBOX_FONT_HEIGHT` 20 x 0.65 virtual pixels
+  apart. `ocr_a`'s line is 21 retail pixels and its capitals 12 (`fonts/ocr_a.fontdat`
+  and its atlas), so at 1 the line box is 30.7 px at 1080p, capitals 17.6 px and rows
+  29.25 px. SJK draws that line box (it was 18 px), with rows 20/21 of it apart: SJK Chat
+  keeps `ocr_a`'s layout, and Inter's capitals, 0.60 of its box, stand 18.5 px. A
+  sender's name line advance, the gap between messages and the composer keep their
+  sizes; an SJK line's GIF stays three rows high. See
+  [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
+- Centre prints: `CG_DrawCenterString` draws `ergoec` (`FONT_MEDIUM`, a 22-pixel line,
+  13-pixel capitals, point size 20) at scale `cg_centerSize` and advances
+  `20 * cg_centerSize + 6` virtual pixels a row. SJK draws a 49.5 px line box at 1080p
+  (it was 22 px) and the same advance, 58.5 px at 1 (it was 30); SJK Menu keeps
+  `ergoec`'s layout. See [chat/view.rs](../crates/sjk-viewer/src/chat/view.rs).
 
 `cg_chatBoxFontSize` (default 1, archived; SJK Advanced > Chat > **Chat text size**,
-0.25 to 3 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
+0.15 to 2 in steps of 0.05) scales the chat's text, row spacing and inline GIFs.
 The wrapping width stays in its configured screen position, so larger text wraps
 sooner. The setting is also on Simple > HUD and the classic+ HUD page.
+`cg_centerSize` (default 1, archived, console only) scales centre prints from 0 to 2;
+EternalJK stops at 1, and as there 0 draws at 1.
+
+A profile saved before 19/10/2026 keeps the sizes it showed, once
+([chat/text_sizes.rs](../crates/sjk-viewer/src/chat/text_sizes.rs), marker
+`cg_textSizeEjkVersion`): a saved value other than 1 is divided by how much larger the
+new 1 is (1.706 for the chat, 2.25 for centre prints) and clamped to the range, so 1.25
+becomes 0.733. A saved 1 was the old default and becomes EternalJK's size, as in a new
+profile.
 
 `cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > Chat > Chat letter
 spacing, -2 to 8 in steps of 0.5) adds that many 1080p pixels after each character of

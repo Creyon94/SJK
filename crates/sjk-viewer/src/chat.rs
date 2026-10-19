@@ -10,11 +10,12 @@ mod feed_gif;
 mod interaction;
 mod layout;
 pub(crate) mod marks;
-mod options;
+pub(crate) mod options;
 pub(crate) mod pm_only;
 pub(crate) mod reply;
 pub(crate) mod sjk;
 mod substitutions;
+pub(crate) mod text_sizes;
 
 mod view;
 

@@ -82,7 +82,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             350.0,
             "Chat bottom in virtual 480-high coordinates",
         ),
-        ("cg_chatBoxFontSize", 1.0, "Conversation font scale"),
+        (
+            "cg_chatBoxFontSize",
+            1.0,
+            "Chat text scale, 1 is EternalJK's size (0.15 to 2)",
+        ),
         (
             "cg_chatBoxLetterSpacing",
             -0.5,
@@ -107,7 +111,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_bobPitch", 0.002, "View pitch bob scalar"),
         ("cg_bobRoll", 0.002, "View roll bob scalar"),
         ("cg_centerTime", 3.0, "Centre-print lifetime in seconds"),
-        ("cg_centerSize", 1.0, "Centre-print font scale"),
+        (
+            "cg_centerSize",
+            1.0,
+            "Centre-print text scale, 1 is EternalJK's size (0 is 1, up to 2)",
+        ),
         (
             "cg_centerHeight",
             0.0,

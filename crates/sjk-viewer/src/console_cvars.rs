@@ -1175,6 +1175,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Internal migration marker for the kill feed being on by default",
         ),
+        CvarDefinition::new(
+            crate::chat::text_sizes::VERSION_CVAR,
+            0_i64,
+            archive,
+            "Internal migration marker for chat and centre-print sizes on EternalJK's scale",
+        ),
     ];
     for definition in definitions {
         cvars.register(definition)?;
