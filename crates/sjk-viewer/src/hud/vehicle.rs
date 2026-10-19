@@ -1,5 +1,7 @@
 //! The vehicle HUD: what OpenJK codemp's `CG_DrawVehicleHud` (`cg_draw.c`) shows a
 //! pilot, drawn in SJK's vector style instead of the `swoopvehiclehud` menu's pictures.
+//! Under `cg_hudStyle game` the game-data HUD draws those pictures instead, from the
+//! values this module samples ([`State::readout`], `crate::menu_hud::frame::vehicle_hud`).
 //!
 //! Stock reads the maxima from the vehicle's `.veh` definition ([`Profile`]) and the
 //! values from `cg.predictedVehicleState`: `stats[STAT_HEALTH]` against `armor` (hull,
@@ -15,6 +17,7 @@
 //! `enemyvehicledamagehud`, the no-ammo warning flash and the weapons-linked sound.
 
 use super::*;
+use crate::menu_hud::frame::VehicleReadout;
 use sjk_game_jka::vehicle_fields::VehicleInfo;
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextOverflow, TextureId};
 use std::fmt::Write as _;
@@ -232,6 +235,8 @@ pub(crate) struct State {
     /// Turbo recharge fraction and readiness, where prediction gives the turbo time.
     turbo: Option<(f32, bool)>,
     linked: bool,
+    /// The raw values and maxima, for the game HUD's stock vehicle HUD.
+    stock: VehicleReadout,
     hull_text: String,
     shield_text: String,
     speed_text: String,
@@ -259,6 +264,7 @@ impl Default for State {
             boost_flash: false,
             turbo: None,
             linked: false,
+            stock: VehicleReadout::default(),
             hull_text: String::with_capacity(24),
             shield_text: String::with_capacity(24),
             speed_text: String::with_capacity(24),
@@ -310,6 +316,16 @@ impl State {
             turbo_burning(sample.time, turbo) && (sample.time.div_euclid(FLASH_MS) & 1) == 1
         });
         self.linked = profile.always_linked || sample.linked;
+        self.stock = VehicleReadout {
+            hull: [sample.hull as f32, profile.hull as f32],
+            shields: [sample.shield as f32, profile.shields as f32],
+            speed: [sample.speed, profile.speed_max],
+            ammo: [0, 1].map(|slot| [ammo(slot), max(slot)]),
+            weapons: profile.has_weapon,
+            boost_flash: self.boost_flash,
+            turbo: self.turbo,
+            linked: self.linked,
+        };
         self.hull_text.clear();
         self.shield_text.clear();
         self.speed_text.clear();
@@ -351,6 +367,12 @@ impl State {
     /// status HUD (`CG_DrawVehicleHud` returns false).
     pub(crate) fn hides_player(&self) -> bool {
         self.hides_player
+    }
+
+    /// This frame's values for the game HUD, which draws the vehicle HUD from
+    /// `swoopvehiclehud`'s pictures as stock does; `None` while it is not shown.
+    pub(crate) fn readout(&self) -> Option<VehicleReadout> {
+        self.shown.then_some(self.stock)
     }
 
     /// Hide the player's own status and weapon HUD where stock does; the vehicle's own

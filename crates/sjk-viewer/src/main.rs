@@ -1834,7 +1834,14 @@ impl GpuState {
             );
         }
         // A vehicle that hides its rider takes the player's status and weapon HUD.
-        let hud_visibility = self.hud.vehicle.apply(hud_visibility);
+        let mut hud_visibility = self.hud.vehicle.apply(hud_visibility);
+        // The game HUD draws the vehicle HUD from `swoopvehiclehud`'s pictures, as
+        // stock does; SJK's vector strip stands in for it with the other looks.
+        let stock_vehicle =
+            hud_visibility.hud && hud_visibility.vehicle && self.menu_hud.draws_vehicle();
+        if stock_vehicle {
+            hud_visibility.vehicle = false;
+        }
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // The radial look is laid out for the bundled font (Inter), whatever
         // `cg_classicHudFont` says: its numbers are aligned to that font's metrics.
@@ -2030,8 +2037,16 @@ impl GpuState {
         let menu_readout = (information_visible && intermission_view.is_none())
             .then(|| menu_hud::readout(self, presentation_time as i32))
             .flatten();
-        self.menu_hud
-            .prepare(&self.queue, menu_readout.as_ref(), viewport, hud_scale);
+        let vehicle_readout = (stock_vehicle && information_visible && intermission_view.is_none())
+            .then(|| self.hud.vehicle.readout())
+            .flatten();
+        self.menu_hud.prepare(
+            &self.queue,
+            menu_readout.as_ref(),
+            vehicle_readout.as_ref(),
+            viewport,
+            hud_scale,
+        );
         if classic_hud && let Some(font) = &self.classic_hud_font {
             self.menu_hud
                 .append_text(&mut self.classic_text_vertices, font, viewport, hud_scale);
