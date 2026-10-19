@@ -1,3 +1,17 @@
+## Blade skin trails in their own colour
+
+18/10/2026, `fix/skin-trail-core`, based on `Sol-Vulpes/SJK` `1c8887f7` (Creyon's
+report of 17/10/2026: every skin left a white trail): implemented, a blade skin's blur
+trail draws the stock `blurglow` and `blurcore` both in the skin's trail colour,
+deepened so pale colours stay coloured (vertex style 3). A first version, which left a
+quarter of the core white, still looked white in Creyon's game test (Reactor). Stock blades, black blades and the sword trail are unchanged.
+See [rendering](rendering.md#saber-trails).
+
+A unit test pins the style per blade kind; the trail and blade programs validate
+with naga. Workspace checks are listed in the pull request. Not yet seen in the game:
+some skins' own trail colours are pale (Bleeding Kyber's is near white), which this
+change does not alter.
+
 ## Blade skin sounds choice
 
 18/10/2026, `feat/skin-sounds-replace-option`, based on `Sol-Vulpes/SJK` `1c8887f7`
