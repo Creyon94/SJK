@@ -207,8 +207,7 @@ includes:
   the player's game asks them before it sends the console lines of this session and
   the last (no chat), and staff read every player's crash reports by kind;
 - ghost replay (`ghost`): a run recorded once and replayed on the same server to film
-  a showcase, walking to its start and correcting drift through the movement keys
-  (SJK staff only since 19/10/2026, as is the mimic);
+  a showcase, walking to its start and correcting drift through the movement keys;
 - map edits (18/10/2026): SJK's own fixes to maps, made in game by staff (props and
   surfaces hidden, models placed, shaders swapped, for all servers or one) and drawn by
   every SJK player through the hub, with its panel in the SJK look (19/10/2026);

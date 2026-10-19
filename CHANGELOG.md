@@ -32,7 +32,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_strafeAura: A new strafe guide: a glowing arc over the crosshair shows how much speed each heading gains with the keys you hold. Turn until its tick sits on the white edge.
 
-- `cjp_client` and the experimental showcase tools (`ghost`, `mimic`) are for SJK staff only: other keys always send SJK's default plugin name, and the showcase commands say they are not for everyone to use _(Sol)_
 - Strafe aura: a Force-like glow over the crosshair, drawn by its own shader while you jump or fall, shows where turning gains speed for the keys you hold: a white-hot seam at the best heading, nothing short of it, red where it slows you down (Settings > HUD+, `cg_strafeAura`, off; on the ground too with `cg_strafeAuraGround`) _(Sol)_
 - Away emote: alt-tabbing out or staying idle (3 minutes, `cg_awayIdle`) plays an emote you pick in Settings > Sound > Emotes, a JA+ one on JA+ servers (`cg_awayEmoteJaplus`) or a silent looping SJK one (`cg_awayEmote`), and coming back ends it; any emote you play then goes quiet for everyone _(Sol)_
 - Cards: the Cards tab is a binder: every card of the packs, the ones you have not found yet greyed, one tile per card with how many you hold (x3) in the light of its best finish, sealed cards first; each set's progress (SJK Alpha 5 / 13); filters for owned or missing, rarity, kind and finish held (O, T, K, F); the wheel scrolls; hovering a card shows your copies by finish and edition, or how it is obtained _(Sol)_
