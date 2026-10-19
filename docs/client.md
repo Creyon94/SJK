@@ -4620,7 +4620,11 @@ keeps its chat box (`cg_drawChat`), and centre prints, the kill feed
 (`cg_killfeed`) and the vote panel are drawn by the HUD, so all of them
 stay with the feed off. The open console still shows every line. Dragging the mouse selects
 scrollback text and Ctrl+C copies it; the selection does not include the time
-column.
+column. By default copied text is plain. `con_copyColors 1` (archived; Settings >
+Interface > Copy console colours) retains its original `^0`-`^9` colour codes so
+it can be pasted back into the game with the same colours. A selection whose
+first text uses the console's implicit white starts with `^7`, rather than
+inheriting a chat channel's green or another colour when pasted.
 
 ### SJK UI console
 
