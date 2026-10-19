@@ -391,6 +391,18 @@ fn raster(
                     }
                 }
             }
+            DrawCommand::CardShine { rect, shine } => {
+                let (xs, ys) = span(*rect, clip);
+                for y in ys {
+                    for x in xs.clone() {
+                        let point = [x as f32 + 0.5 - rect.x, y as f32 + 0.5 - rect.y];
+                        let [r, g, b, a] = sjk_ui::card_shine_shade(point, shine);
+                        if a > 0.0 {
+                            blend(image, x, y, [r, g, b, a * o]);
+                        }
+                    }
+                }
+            }
             DrawCommand::Line {
                 from,
                 to,

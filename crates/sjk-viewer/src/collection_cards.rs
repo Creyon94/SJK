@@ -38,6 +38,8 @@ const BIG_TOP: f32 = 150.0;
 /// Reveal, under the grid; what it brought reads beside it.
 const REVEAL_Y: f32 = 912.0;
 const REVEAL_WIDTH: f32 = 330.0;
+/// Room kept at the right of Reveal's line for where the grid has scrolled to.
+const ROWS_WIDTH: f32 = 180.0;
 
 /// How many cards the player holds, once the hub answered with the identity on.
 pub(super) fn held(inputs: &Inputs<'_>) -> Option<usize> {
@@ -324,6 +326,17 @@ impl Panel {
             radius: 2.0 * s,
             color: color::GOLD,
         });
+        // Where the window stands, under the grid's right end: "Rows 4-6 of 9".
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Rows {}-{} of {lines}", first + 1, first + LINES),
+            frame.rect(GRID_RIGHT - ROWS_WIDTH, REVEAL_Y + 11.0, ROWS_WIDTH, 24.0),
+            15.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::End,
+        );
     }
 
     /// The player's cards, credits and kyber shards, once known (a world shot's own in
@@ -513,7 +526,12 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("{words}"),
-            frame.rect(words_x, REVEAL_Y + 11.0, GRID_RIGHT - words_x, 24.0),
+            frame.rect(
+                words_x,
+                REVEAL_Y + 11.0,
+                GRID_RIGHT - ROWS_WIDTH - 12.0 - words_x,
+                24.0,
+            ),
             16.0 * frame.s,
             if outcome.message.is_empty() {
                 color::GOLD_BRIGHT
@@ -877,6 +895,33 @@ mod tests {
         assert!(
             panel.card < COLUMNS * LINES,
             "the chosen tile stays in view"
+        );
+        // Page Down a screen of lines, keeping the column; End and Home to the ends.
+        panel.card = 3;
+        let _ = panel.key(KeyCode::PageDown, false, true);
+        assert_eq!(panel.card, 3 + COLUMNS * LINES);
+        let _ = panel.key(KeyCode::PageUp, false, true);
+        assert_eq!(panel.card, 3);
+        let _ = panel.key(KeyCode::PageUp, false, true);
+        assert_eq!(panel.card, 3, "Page Up stops at the first line");
+        let _ = panel.key(KeyCode::End, false, true);
+        assert_eq!(panel.card, 64);
+        let _ = panel.key(KeyCode::PageDown, false, true);
+        assert_eq!(panel.card, 64, "Page Down stops at the last line");
+        let _ = panel.key(KeyCode::Home, false, true);
+        assert_eq!(panel.card, 0);
+        // Where the window stands reads under the grid.
+        panel.card = 30;
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        let rows = panel
+            .ui
+            .text_runs()
+            .find(|run| run.starts_with("Rows "))
+            .map(str::to_owned);
+        let first = panel.card_first;
+        assert_eq!(
+            rows.as_deref(),
+            Some(format!("Rows {}-{} of 10", first + 1, first + LINES).as_str())
         );
         // T for one rarity: the sealed Mythical tile alone.
         for _ in 0..5 {

@@ -123,13 +123,13 @@ pub(crate) const FINISHES: [Finish; 3] = [
     Finish {
         id: "holo",
         name: "Holo",
-        about: "A rainbow sheen runs over the card.",
+        about: "A rainbow foil shines across the card.",
         index: 1,
     },
     Finish {
         id: "solar",
         name: "Solar",
-        about: "The rarest finish: sunlight shimmers over the card in a warm corona.",
+        about: "The rarest finish: a living solar corona burns along the card's edge.",
         index: 2,
     },
 ];

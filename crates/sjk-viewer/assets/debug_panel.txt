@@ -894,6 +894,17 @@ test: Click Missing, Rarity, Kind, Finish chips (or O T K F): grid and "N of M" 
 test: Wheel and arrows scroll and choose; a missing card up close reads "Not found yet".
 test: R or Reveal still reveals sealed copies.
 
+[card-finishes]
+area: Menus & settings
+title: Card finishes: Solar burns like the Sun blade, Holo a smooth rainbow; paging
+change: Solar: a living corona along the card's edges in the Sun blade's colours.
+change: Holo: a continuous rainbow foil with a soft glint, no more bands or steps.
+change: Cards tab: PgUp/PgDn/Home/End page the grid; "Rows 3-5 of 9" while scrolled.
+test: Collection > Cards: a Solar card up close burns at the edges; art and text stay clear.
+test: A Holo card: smooth rainbow sweep, follows the pointer, no blocky bands.
+test: debug_open mythical solar x3: the ceremony's card burns too.
+test: Many Solar tiles on screen: check the frame rate stays fine.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

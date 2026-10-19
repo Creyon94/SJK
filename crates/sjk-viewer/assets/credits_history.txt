@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Solar finish after the Sun blade, smooth Holo, GPU card shine, binder paging
+- ef1ba08 |  | Card finishes shaded per pixel: Solar burns like the Sun blade, Holo is a smooth foil; binder paging
++ 19/10/2026 | - | Vague showcase tools wording
+- d54e7f2 |  | Showcase tools: vague wording wherever players can see it
++ 19/10/2026 | - | Keep the staff-only gates out of the changelog and credits
+- 2b58986 |  | Keep the staff-only gates out of the changelog and credits
 + 19/10/2026 | - | Cards tab as a binder: every card, missing ones greyed, stacks, hover breakdown, filters
 - ff58c0c |  | Cards tab as a binder: every card, found or greyed, filters, hover
 + 19/10/2026 | - | Debug panel: staff-only cjp_client, ghost and mimic
