@@ -123,7 +123,7 @@ Every card, per holocron found:
 | Legendary (1.51%) | 0.661% (1 in 151) | 0.165% (1 in 606) | 0.0073% (1 in 13 633) |
 
 The page: over the darkened tab, the title, what it is and the hub's pace ("One holocron
-about every 30 minutes of active play on a server, at most 8 a day", once the hub has said;
+about every 30 minutes of active play on a server, at most 8 in 24 hours", once the hub has said;
 else "Holocrons are found by playing on a server."); "Per holocron", the first table, each
 tier's row in its colour with its picture, the row for any holocron found in gold under a
 rule, credits as the range with the average under it, a chance of none quiet; "Every card,
@@ -275,7 +275,11 @@ the SJK UI's look as the Collection page does. Left, the world is left
 clear for one 3D holocron; right, over a dark panel, the four tiers (their picture, name in
 the tier's colour, how many are held or a dash while the hub has not answered, and the odds
 of a drop), what the chosen tier is, "Next holocron in about N minutes of play" with a bar
-and "n of 8 today", the newest ten holocrons (tier, `dd/mm/yyyy HH:MM` in UTC, and for a gift
+and "n of 8 in 24 h" (once the cap is reached, "Limit reached: next one in about 5 h 20 min",
+the time until the 8th newest play drop the profile lists turns a day old and the hub's
+rolling 24 hours let a drop through again, counted from the hub's clock when it answered;
+"Limit reached for the last 24 hours" when the list does not show those drops; a player's
+report (#77, 19/10/2026) read "8 of 8 today" as a calendar day that had not reset), the newest ten holocrons (tier, `dd/mm/yyyy HH:MM` in UTC, and for a gift
 "Gift from the SJK team" with the note) and, when the identity is off, no hub is set or the
 hub has not answered, the reason ("Holocrons need the SJK identity"). Since 12/10/2026 the
 counts are the holocrons not opened yet, the player's credits (and since 17/10/2026 their
@@ -337,8 +341,9 @@ client reads; the Collection's Holocrons tab is built on it.
   the Holocrons tab reads the own profile and `snapshot.holocrons` (the progress) once
   in `holocrons_panel::Data::of`.
 - `refresh()` (ask the hub again when a tab opens)
-  and `next_text(&progress)` ("Next holocron in about 20 minutes of play", or "Daily limit
-  reached: 8 of 8 holocrons today").
+  and `next_text(&progress, lifts_in)` ("Next holocron in about 20 minutes of play", or
+  "Limit reached: next one in about 5 h 20 min" with `lifts_in` from
+  `cap_lifts_in(&progress, &list, now)`, else "Limit reached for the last 24 hours").
 - `icons::texture(index)` is the atlas cell of a tier's picture, uploaded with the HUD's
   pictures; `hud.holocron_icons` says which loaded (`icons::is_loaded(index)` for the pages the
   console draws). `gem::draw(list, centre, half, colour, alpha, rows)` draws the fallback.
