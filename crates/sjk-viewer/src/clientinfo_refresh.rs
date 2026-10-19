@@ -29,7 +29,7 @@ pub(crate) mod player_loads;
 /// Per-world appearance loading caches used by dirty clientinfo notifications.
 pub(crate) struct ClientInfoWatch {
     pub(crate) body_commands: Vec<sjk_client::BaseServerCommandEvent>,
-    gla_cache: GlaCache,
+    pub(crate) gla_cache: GlaCache,
     pub(crate) model_policy: sjk_client::player_model_eligibility::PlayerModelEligibility,
     model_blacklist: String,
     respect_model_metadata: bool,
@@ -42,6 +42,8 @@ pub(crate) struct ClientInfoWatch {
     pub(crate) failed: BTreeSet<Appearance>,
     /// Players' models being read on workers.
     loads: player_loads::Loads,
+    /// The NPC model being read on a worker (`npc_loads.rs`).
+    pub(crate) npc_loads: crate::npc_refresh::npc_loads::Load,
 }
 
 impl ClientInfoWatch {
@@ -58,6 +60,7 @@ impl ClientInfoWatch {
             local_identity: (-1, -1),
             failed: BTreeSet::new(),
             loads: player_loads::Loads::default(),
+            npc_loads: Default::default(),
         }
     }
 }

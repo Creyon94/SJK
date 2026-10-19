@@ -234,7 +234,7 @@ fn prepare(request: Request, sources: Sources) -> Prepared {
 
 impl GpuState {
     /// What the workers read from this world.
-    fn player_load_sources(&self) -> Option<Sources> {
+    pub(crate) fn player_load_sources(&self) -> Option<Sources> {
         Some(Sources {
             vfs: self.vfs.clone()?,
             shaders: Arc::clone(&self.shaders),

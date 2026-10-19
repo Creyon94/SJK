@@ -5481,3 +5481,23 @@ change: Falling to death leaves the camera where the fall began, looking down at
 change: Hub report 92.
 test: Jump into a fall-to-death pit (screen fades to black): the camera stays at the edge.
 test: After respawning, the camera follows you normally again.
+
+[model-preload]
+area: Rendering & effects
+title: NPCs, vehicles and map models load without a pause
+change: NPC bodies and vehicles load on a worker, one at a time, as players' models do.
+change: Map models and NPCs upload a texture a frame; new pipelines compile on a worker. Report 86.
+test: On FFA3, wait for the falcon to fly over: no hang when it appears.
+test: Have an admin spawn a vehicle or NPC (npc spawn vehicle swoop): no hang; it shows soon after.
+test: Watch the console for hitch lines blaming config-refresh when it comes in.
+note: NPC saber hilts and effect/projectile models still load on the render thread.
+
+[leave-crash]
+area: Rendering & effects
+title: Leaving a server no longer closes the game; quit from fullscreen is clean
+change: A world waits for the last one's frame before it takes the window over.
+change: A renderer joins its submit thread when it goes, so quitting never panics in winit.
+test: Join a server, then disconnect to the menu several times: the menu world comes back.
+test: Change map on a local server (devmap) a few times: no crash.
+test: In exclusive fullscreen, quit and use update: no crash report at the next start.
+note: Crashes went with an exact frame timing; a few clean tries are not proof.

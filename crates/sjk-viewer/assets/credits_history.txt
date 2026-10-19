@@ -9,6 +9,16 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | No pause when models load, hub report 86; no crash leaving a server or quitting from fullscreen
+- b7c566e |  | Changelog and debug panel for the model load and leave crash fixes
++ 19/10/2026 | - | Leaving a server: the old world's frame is presented before the next world takes the window
+- 7519b72 |  | Leaving a server: the old world's frame is presented before the next world takes the window
++ 19/10/2026 | - | Quitting: a renderer joins its submit thread when it goes
+- 71d093c |  | Quitting: a renderer joins its submit thread when it goes
++ 19/10/2026 | - | NPCs and vehicles load off the render thread; map models upload a texture a frame
+- b5ed69c |  | NPCs and vehicles load off the render thread; map models upload a texture a frame
++ 19/10/2026 | - | Map editor panel: the staff editor in an SJK UI column
+- 8b89e61 |  | Map editor panel: the staff editor's commands in an SJK UI column
 + 19/10/2026 | - | Fixes for hub bug reports 77, 78, 80, 84, 88, 92, 94, 95
 - 1af4f3f |  | Changelog and debug panel for the 19/10 hub bug report fixes
 + 19/10/2026 | - | Fall to death: the camera stays where the fall began, as EternalJK

@@ -12,11 +12,14 @@
 //! (`:7184-7203`), so an existing mesh only gets its hilt names refreshed.
 //!
 //! Bounded per frame: one entity scan with no allocation, and at most one
-//! mesh build, so a wave of spawns costs one hitch per NPC instead of one
-//! per wave.
+//! NPC model loading at a time, read on a worker ([`npc_loads`]); a wave of
+//! spawns loads one NPC after another.
 
 use super::*;
 use sjk_client::legacy_npc_saber_names_borrowed;
+
+#[path = "npc_loads.rs"]
+pub(crate) mod npc_loads;
 
 /// What one frame's scan decided to do.
 enum Work {
@@ -44,6 +47,7 @@ fn owned_lowercase(names: [Option<&str>; 2]) -> [Option<String>; 2] {
 impl GpuState {
     /// Give every NPC actor in the world a mesh of its own appearance.
     pub(crate) fn refresh_npc_actors(&mut self) {
+        self.poll_npc_load();
         let Some(work) = self.scan_npc_actors() else {
             return;
         };
@@ -53,7 +57,7 @@ impl GpuState {
                 self.actor_meshes[index].holsters.invalidate();
             }
             Work::Build(entity_id, appearance, names) => {
-                if let Err(error) = self.build_npc_actor(entity_id, &appearance, names) {
+                if let Err(error) = self.start_npc_load(entity_id, appearance.clone(), names) {
                     self.clientinfo_watch.failed.insert(appearance.clone());
                     log::progress(format_args!(
                         "npc {}: could not load {}/{}: {error}",
@@ -116,6 +120,8 @@ impl GpuState {
                     }
                 }
                 _ if self.clientinfo_watch.failed.contains(appearance) => {}
+                // One NPC model loads at a time; the next waits, the scan allocating nothing.
+                _ if !self.clientinfo_watch.npc_loads.idle() => {}
                 _ => {
                     return Some(Work::Build(
                         entity.id,
@@ -126,36 +132,6 @@ impl GpuState {
             }
         }
         None
-    }
-
-    fn build_npc_actor(
-        &mut self,
-        entity_id: EntityId,
-        appearance: &Appearance,
-        names: [Option<String>; 2],
-    ) -> Result<(), Box<dyn Error>> {
-        for name in names.iter().flatten() {
-            self.load_hilt(name)?;
-        }
-        let mesh = self.build_live_actor(appearance, entity_id, names)?;
-        let index = self
-            .actor_meshes
-            .iter()
-            .position(|mesh| !mesh.corpse_pool && mesh.entity_id == Some(entity_id));
-        match index {
-            Some(index) => self.actor_meshes[index] = mesh,
-            None => {
-                self.actor_meshes.push(mesh);
-                self.actor_groups.push(Vec::with_capacity(4));
-            }
-        }
-        log::progress(format_args!(
-            "npc {} wears {}/{}",
-            entity_id.get() - 1,
-            appearance.model,
-            appearance.variant
-        ));
-        Ok(())
     }
 }
 
