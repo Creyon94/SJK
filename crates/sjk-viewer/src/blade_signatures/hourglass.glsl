@@ -49,14 +49,11 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
     float d = rayPt(ro, rd, p, ta);
     col += bf_heat(0.8 - 0.4*f)*(halo(d, max(0.09, px))*1.6 + halo(d, 0.4)*0.2)*sin(3.1416*f);
   }
-  // quench steam rising when the heat has passed
-  for (int i = 0; i < 8; i++){
-    float fi = float(i);
-    float f = fract(t*0.25 + fi/8.0);
-    vec3 p = around(0.7 + 1.2*f, fi*0.37 + 0.3*f, (0.15 + 0.7*h11(fi*4.4 + floor(t*0.25 + fi/8.0)))*top + 3.0*f);
-    float d = rayPt(ro, rd, p, ta);
-    col += vec3(0.8, 0.85, 0.9)*halo(d, 0.45 + 0.6*f)*0.14*sin(3.1416*f);
-  }
+  // quench steam rising off it (round 12: soft smoke, not puffs) and forge embers drifting up
+  col += fxSmoke(ro, rd, top*0.2, top*0.95, 2.6, 2.5, 5.5, vec3(0.75, 0.78, 0.85))*0.55;
+  col += fxMotes(ro, rd, px, top*0.2, top*0.9, 0.7, 3.0, 14.0, 0.06, 2.6, vec3(1.0, 0.55, 0.2))*0.8;
+  // a cold steel sheen sliding up its upper half
+  col += fxStreams(ro, rd, px, top*0.5, top*0.95, 1.0, 1.4, 0.3, 1.2, 8.1, vec3(0.75, 0.82, 0.95))*0.5;
   return col*uFx;
 }
 // the blade: Sol's glow and core from the file, forge heat glowing up from the hilt and cooling

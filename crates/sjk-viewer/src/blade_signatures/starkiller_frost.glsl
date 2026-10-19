@@ -21,5 +21,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxSparks(ro, rd, px, y0, y1, 4.0 + 14.0*sw, 3.0, 0.5, 4.1, ice)*part(0.0);
   fx += fxFlakes(ro, rd, px, y0, y1, 2.5, 8.0, 2.0, 0.24, 0.45, 2.5, 0.2, 9.1, ice)*part(0.0);
   fx += fxSmoke(ro, rd, y0, y1, 3, -2.0, 3.3, vec3(0.6, 0.75, 0.95))*0.6*part(1.0);
+  fx += fxMotes(ro, rd, px, y0, y1, 0.7, 3.5, 22.0, 0.02, 1.9, vec3(0.85, 0.95, 1.0))*part(0.0);
+  fx += fxSmoke(ro, rd, y0, y1, 3.6, -1.6, 6.6, vec3(0.65, 0.8, 1.0))*0.5*part(1.0);
   return fx*uFx;
 }

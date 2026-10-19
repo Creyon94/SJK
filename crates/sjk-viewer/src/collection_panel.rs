@@ -1206,9 +1206,9 @@ mod tests {
         let _ = panel.cycle_tier(false);
         assert_eq!(panel.shader, 0, "back to the top");
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 10);
+        assert_eq!(ids(&panel).len(), 32);
         assert_eq!(ids(&panel)[0], "saber_tidal");
-        assert_eq!(panel.shader_count, 11, "the stock blade stays first");
+        assert_eq!(panel.shader_count, 33, "the stock blade stays first");
         for _ in 0..5 {
             let _ = panel.cycle_tier(false);
         }
@@ -1262,7 +1262,7 @@ mod tests {
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 105, "the saber smith is searched");
+        assert_eq!(ids(&panel).len(), 150, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(

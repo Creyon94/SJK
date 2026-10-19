@@ -1,4 +1,4 @@
-// Coruscant Night: a rainy night in Coruscant's lower levels as a blade. Pink and blue neon light
+// Nar Shaddaa Rain: a rainy night on Nar Shaddaa, the smugglers' moon, as a blade. Pink and blue neon light
 // slides slowly along the wet blade, drops streaking it, while thin rain slants past. A clash flares it.
 // @part Rain
 // @room 8

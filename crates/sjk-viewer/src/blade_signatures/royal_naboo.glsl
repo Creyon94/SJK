@@ -22,5 +22,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxStreams(ro, rd, px, y0, y1, 3.0, 2.5, 0.3, 1.2, 5.5, gold)*part(0.0);
   fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 2.2, 0.4, 0.5, 0.8, 0.8, 4.7, rose)*part(1.0);
   fx += fxAura(ro, rd, y0, y1, 2.4, gold)*0.4*part(2.0);
+  fx += fxFlakes(ro, rd, px, y0, y1, 4.5, 10.0, 1.6, 0.45, 0.5, 0.9, 1.0, 9.7, vec3(1.0, 0.75, 0.6))*part(1.0);
+  fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 22.0, 0.03, 6.8, vec3(1.0, 0.9, 0.6))*part(2.0);
   return fx*uFx;
 }

@@ -1976,6 +1976,18 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   each, and Wraithlight's aura softened. A signature's swing (`uSwing`) now counts only a real swing
   (a smoothstep from 0.45 of the measured swing): the arm's sway while running and the torso
   following the view had stirred the effects that answer a swing.
+- **Round 12b (Creyon's second test, 19/10/2026).** Sol's lightning and prominences (`arcs`) on
+  a signature are drawn on two sheets through the blade's axis fixed to the hilt (`sig_arcs`,
+  `sig_ray`'s frame) instead of the picture facing the camera, which kept them on the same side
+  of the screen whatever the view, so they swung round the blade as he turned or ran; a sheet
+  seen edge on fades and the other carries them. The ignored GPU test's `SJK_SIGNATURE_ORBIT`
+  renders five views from a moving camera to check that effects stay with the blade. A
+  signature's echo is its blade alone, faded (it drew its own effects at full strength and cut
+  off). Smoke: `fxSmoke` and a signature's wisps (`sig_rising`) use broad, turned octaves so the
+  value noise's grid never shows, and draw none over the tip. Kyber Cluster's crystals are
+  hidden behind the blade. Star Dragon became the Ashla Radiance blade (same id), Balance was
+  redrawn as a silver blade between a ribbon of light and one of violet shadow, Ilum Aurora
+  Storm's curtains are soft sheets instead of bars, Between Worlds and Wraithlight are calmer.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

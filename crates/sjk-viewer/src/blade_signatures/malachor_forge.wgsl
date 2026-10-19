@@ -15,7 +15,9 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let ph = fract(uTime / 1.1) * 1.1;
     let spot = exp(-pow((b.y - uLength * (0.25 + 0.6 * h11(n * 3.7))) / 1.5, 2.0)) * exp(-ph * 2.0) * part(0.0);
     let steel = mix(vec3<f32>(1.0, 0.45, 0.15), vec3<f32>(1.0, 0.95, 0.85), clamp(lvl(g) - 0.3, 0.0, 1.0));
-    return recol(g, steel) * (0.9 + 1.4 * spot + 0.3 * clamp(uSwing, 0.0, 1.0));
+    var mcell: vec2<f32>;
+    let crack = halo(voro(vec2(b.x * 3.0, b.y * 0.5), &mcell), 0.05) * (0.6 + 0.4 * sin(uTime * 2.0 + h21(mcell) * 6.0));
+    return lvl(g) * vec3<f32>(1.0, 0.1, 0.05) * crack * 1.2 + recol(g, steel) * (0.9 + 1.4 * spot + 0.3 * clamp(uSwing, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
@@ -38,5 +40,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxSparks(ro, rd, px, yh - 1.0, yh + 1.0, 18.0 * exp(-ph * 3.0), 5.0, 1.1, n * 1.7, fire) * part(1.0);
     fx += fxSparks(ro, rd, px, y0, y1, 6.0, 3.0, 0.7, 4.8, fire) * 0.7 * part(1.0);
     fx += fxSmoke(ro, rd, y0, y1, 3.2, 2.2, 9.4, vec3<f32>(0.75, 0.45, 0.3)) * part(2.0);
+    fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 18.0, 0.08, 3.4, vec3<f32>(1.0, 0.5, 0.2)) * part(1.0);
+    fx += fxSmoke(ro, rd, y0, y1, 3.6, 1.5, 2.9, vec3<f32>(0.6, 0.12, 0.08)) * 0.8 * part(2.0);
     return fx * uFx;
 }

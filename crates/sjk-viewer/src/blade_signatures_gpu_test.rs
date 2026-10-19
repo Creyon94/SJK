@@ -3,7 +3,9 @@
 //! swing, just after a clash, while it ignites and, for a chroma, worn green. Each must
 //! light its blade and leave the picture's corners dark (nothing reaching the quad's
 //! edge). With `SJK_SIGNATURE_PREVIEW` set to a folder, each sheet is saved there as
-//! `<id>.png`; `SJK_SIGNATURES` (ids, comma-separated) renders only those.
+//! `<id>.png`; `SJK_SIGNATURES` (ids, comma-separated) renders only those, and
+//! `SJK_SIGNATURE_ORBIT` set renders five views from a camera moving round it instead (to check
+//! that its effects stay with the blade as the view changes).
 use super::*;
 use wgpu::util::DeviceExt;
 
@@ -206,8 +208,41 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
             let green = color.worn_with(crate::saber_rgb::BladeColor::from_rgb([40, 255, 60]));
             moments.push((3.0, crate::saber_motion::STILL, green));
         }
+        let orbit = std::env::var("SJK_SIGNATURE_ORBIT").ok();
+        if orbit.is_some() {
+            moments = vec![(3.0, crate::saber_motion::STILL, color); 5];
+        }
         let mut frames = Vec::new();
-        for (seconds, motion, color) in moments {
+        for (index, (seconds, motion, color)) in moments.into_iter().enumerate() {
+            let camera_bind = if orbit.is_some() {
+                let yaw = [0.0f32, 0.6, 1.2, 1.8, 0.3][index];
+                let lift = [0.0f32, 10.0, 0.0, -10.0, 45.0][index];
+                let eye = glam::Vec3::new(45.0 * yaw.sin(), -45.0 * yaw.cos(), lift);
+                let m =
+                    glam::camera::rh::proj::directx::perspective(
+                        0.75,
+                        WIDTH as f32 / HEIGHT as f32,
+                        1.0,
+                        400.0,
+                    ) * glam::camera::rh::view::look_at_mat4(eye, glam::Vec3::ZERO, glam::Vec3::Z);
+                let mut cam = m.to_cols_array().to_vec();
+                cam.extend_from_slice(&[eye.x, eye.y, eye.z, 0.0]);
+                let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(&cam),
+                    usage: wgpu::BufferUsages::UNIFORM,
+                });
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: None,
+                    layout: &camera_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: buffer.as_entire_binding(),
+                    }],
+                })
+            } else {
+                camera_bind.clone()
+            };
             let pair = crate::saber::Instance::pair(
                 crate::saber::Blade {
                     base: [0.0, 0.0, -22.0],
@@ -273,7 +308,7 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
             queue.submit([encoder.finish()]);
             frames.push(crate::world_shot::read_back(device, queue, &target));
         }
-        for frame in &frames {
+        for frame in frames.iter().filter(|_| orbit.is_none()) {
             let lit = (HEIGHT / 4..HEIGHT * 3 / 4)
                 .flat_map(|y| (WIDTH / 2 - 12..WIDTH / 2 + 12).map(move |x| (x, y)))
                 .map(|(x, y)| {

@@ -19,25 +19,24 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   vec3 col = vec3(0.0);
   if (top < 0.5) return col;
   float su = ia_surge();
-  // aurora curtains: each a band of tall rays standing on an arc round the blade
-  for (int k = 0; k < 3; k++){
-    float fk = float(k);
-    float R = (2.2 + 0.9*fk)*(1.0 + 0.4*su);
-    float y0 = uLength*(0.15 + 0.22*fk);
-    float H = 7.0 + 3.0*su;
-    float a0 = fk*0.33 + t*0.02*(mod(fk, 2.0) < 0.5 ? 1.0 : -1.0);
-    for (int j = 0; j < 9; j++){
-      float u = float(j)/8.0;
-      float a = a0 + u*0.35;
-      float wav = 0.25*sin(u*7.0 + t*(0.8) + fk*2.0);
-      vec3 base = around(R + wav, a, y0 + 0.6*sin(u*5.0 + t*0.5));
-      if (base.y > top) continue;
-      vec3 tip = base + vec3(0.0, H*(0.6 + 0.4*sin(u*9.0 + fk + t*0.7)), 0.0);
-      float d = raySeg(ro, rd, base, tip, s);
-      float run = 0.5 + 0.5*sin(s*8.0 - t*3.0 + u*6.0);
-      float edge = sin(3.1416*u);
-      vec3 c = mix(green, mag, smoothstep(0.35, 1.0, s));
-      col += c*(halo(d, 0.22)*1.4 + halo(d, 0.7)*0.35)*(0.4 + 0.6*run)*(1.0 - s)*(0.3 + 0.7*edge)*(1.0 + 1.2*su + 1.5*cl);
+  // aurora curtains beside the blade (round 12, Creyon: "something seems off"): soft folded
+  // sheets of light with a brighter lower edge, rippling, green fading up to magenta, in the
+  // blade's flat picture as Sol's effects are; no hard bars
+  if (abs(rd.z) > 0.0001){
+    float tc = -ro.z/rd.z;
+    vec3 q = ro + rd*tc;
+    for (int k = 0; k < 3; k++){
+      float fk = float(k);
+      float yb = uLength*(0.22 + 0.22*fk) + 1.2*sin(q.x*0.6 + t*0.5 + fk*2.0);
+      if (yb > top) continue;
+      float h = q.y - yb;
+      float H = 6.0 + 2.0*su;
+      float band = smoothstep(-0.4, 0.8, h)*(1.0 - smoothstep(0.35*H, H, h));
+      float side = smoothstep(0.7, 1.4, abs(q.x))*(1.0 - smoothstep(3.0 + fk, 4.6 + fk, abs(q.x)));
+      float folds = 0.75 + 0.25*sin(q.x*4.0 + 2.0*sin(q.x*1.3 + t*0.6 + fk) + fk*3.0);
+      float run = 0.65 + 0.35*sin(h*1.4 - t*2.0 + q.x*0.8);
+      vec3 c = mix(green, mag, smoothstep(0.25*H, H, h));
+      col += c*band*side*folds*run*0.5*(1.0 + 0.8*su + 1.2*cl);
     }
   }
   // snow crystals whirling round it

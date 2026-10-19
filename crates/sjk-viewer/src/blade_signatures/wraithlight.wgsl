@@ -94,7 +94,8 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let R = 0.42 + 0.04 * sin(b.y * 1.1 - uTime * 2.6);
     let rim = exp(-pow((abs(b.x) - R) / (R * 0.35 + px), 2.0)) * smoothstep(-0.6, 0.2, b.y) * (1.0 - smoothstep(wl_top() - 1.0, wl_top(), b.y));
     let hollow = 1.0 - 0.45 * exp(-pow(b.x / (R * 0.7), 2.0));
-    return (g * hollow + WL_PALE * rim * 0.5 * (0.8 + 0.6 * rip)) * shim * (1.0 + 1.2 * clamp(uClash, 0.0, 1.0));
+    // round 12 (Creyon: still too shiny): the whole blade calmer, the rim fainter
+    return (g * hollow * 0.55 + WL_PALE * rim * 0.2 * (0.8 + 0.6 * rip)) * shim * (1.0 + 0.6 * clamp(uClash, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {

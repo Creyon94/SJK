@@ -1,4 +1,4 @@
-// Death Star Plans: the stolen battle station schematics as a blade. Bands of a technical drawing
+// Imperial Schematics: the schematics of an Imperial battle station, as a blade. Bands of a technical drawing
 // light up the blade as a drawing head climbs it, and two measuring lines with tick marks draw
 // themselves up beside it, then fade and start again. A clash flares it.
 // @part Schematic lines

@@ -32,5 +32,22 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxSparks(ro, rd, px, y0, y1, 10.0 + 10.0 * sw, 4.5, 0.6, 7.7, fire) * part(0.0);
     fx += fxSmoke(ro, rd, y0, y1, 3.8, 2.0, 1.4, vec3<f32>(0.3, 0.2, 0.18)) * 1.3 * part(1.0);
     fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 1.8, 0.2, 0.8, 1.5, 0.6, 3.6, vec3<f32>(0.5, 0.45, 0.42)) * part(2.0);
+    // lava fountains: molten drops thrown up off the blade, falling back in arcs
+    var lta: f32;
+    if fxNear(ro, rd, y0, y1) < 6.0 {
+        for (var i = 0; i < 12; i++) {
+            let fi = f32(i);
+            let cyc = t * 0.45 * (0.8 + 0.4 * h11(fi * 2.9)) + h11(fi * 7.7);
+            let k = floor(cyc);
+            let q = fract(cyc);
+            let y = mix(y0, y1 - 6.0, h11(k * 3.1 + fi));
+            let side = select(1.0, -1.0, h11(k * 5.3 + fi) < 0.5);
+            let tt = q * 1.6;
+            let p = vec3(side * (0.5 + 2.2 * tt), y + 6.0 * tt - 4.5 * tt * tt, 0.0);
+            let d = rayPt(ro, rd, p, &lta);
+            fx += mix(vec3<f32>(1.0, 0.85, 0.5), vec3<f32>(1.0, 0.4, 0.08), q) * (halo(d, max(0.12, px)) * 1.6 + halo(d, 0.5) * 0.3) * (1.0 - q) * part(0.0);
+        }
+    }
+    fx += fxSmoke(ro, rd, y0, y1, 4.0, 2.4, 8.2, vec3<f32>(0.5, 0.3, 0.22)) * 0.6 * part(1.0);
     return fx * uFx;
 }

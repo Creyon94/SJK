@@ -12,20 +12,20 @@
   },
   "core": {
     "white": [
-      0.92,
-      0.94,
-      1.0
+      1.0,
+      0.99,
+      0.94
     ],
     "white_flare": 0.4,
     "fringe_cool": [
-      0.25,
-      0.35,
-      1.0
+      1.0,
+      0.82,
+      0.45
     ],
     "fringe_hot": [
-      0.7,
-      0.8,
-      1.0
+      1.0,
+      0.95,
+      0.78
     ],
     "fringe_heat": {
       "base": 0.3,
@@ -46,19 +46,19 @@
   },
   "corona": {
     "rim_cool": [
-      0.06,
-      0.1,
-      0.45
+      0.55,
+      0.42,
+      0.15
     ],
     "rim_hot": [
-      0.25,
-      0.4,
-      1.0
+      1.0,
+      0.86,
+      0.5
     ],
     "inner": [
-      0.7,
-      0.78,
-      1.0
+      1.0,
+      0.96,
+      0.82
     ],
     "inner_width": 0.6,
     "rim_heat": {
@@ -132,15 +132,15 @@
     "range": 0.7
   },
   "trail": [
-    0.35,
-    0.45,
-    1.0
+    1.0,
+    0.86,
+    0.55
   ],
   "light": {
     "color": [
-      0.3,
-      0.42,
-      1.0
+      1.0,
+      0.86,
+      0.5
     ],
     "flicker": {
       "amount": 0.05,
@@ -168,53 +168,31 @@
       "sound/sjk/sabers/star_dragon/swing3.wav"
     ]
   },
-  "haze": {
-    "strength": 0.25,
-    "scale": 0.4,
-    "speed": 8.0,
-    "reach": 3.0
-  },
-  "arcs": {
-    "count": 3,
+  "motes": {
     "color": [
       1.0,
-      0.7,
-      0.25
+      0.92,
+      0.72
     ],
-    "brightness": 1.6,
-    "width": 0.3,
-    "halo": 0.8,
-    "reach": 2.0,
-    "jag": 0.05,
-    "kinks": 0.08,
-    "span": {
-      "low": 0.12,
-      "high": 0.3
+    "brightness": 0.6,
+    "density": 0.22,
+    "cells": 0.25,
+    "rings": 1.2,
+    "size": 0.38,
+    "stretch": 1.2,
+    "drift": {
+      "along": 1.2,
+      "out": 0.1
     },
-    "rate": 0.35,
-    "jitter": 0.0,
-    "threshold": 0.15,
-    "tip": 0.0,
-    "crawl": 2.0,
-    "decay": 0.5
+    "twinkle": 1.0,
+    "inner": 0.9,
+    "outer": 2.4,
+    "focus": 0.0
   },
-  "embers": {
-    "color": [
-      1.0,
-      0.7,
-      0.3
-    ],
-    "brightness": 1.1,
-    "density": 0.45,
-    "cells": 0.5,
-    "fall": 8.0,
-    "life": 1.2,
-    "size": 0.08,
-    "spread": 0.6
-  },
-  "ghosts": {
-    "count": 4,
-    "spacing": 40.0,
-    "fade": 0.55
+  "echo": {
+    "fade": 0.25,
+    "sway": 1.4,
+    "rate": 0.2,
+    "lean": 0.05
   }
 }

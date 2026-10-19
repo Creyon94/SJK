@@ -22,5 +22,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxSparks(ro, rd, px, y0, y1, 10.0 + 10.0*sw, 4.5, 0.6, 7.7, fire)*part(0.0);
   fx += fxSmoke(ro, rd, y0, y1, 3.8, 2.0, 1.4, vec3(0.3, 0.2, 0.18))*1.3*part(1.0);
   fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 1.8, 0.2, 0.8, 1.5, 0.6, 3.6, vec3(0.5, 0.45, 0.42))*part(2.0);
+  // lava fountains: molten drops thrown up off the blade, falling back in arcs
+  float lta;
+  if (fxNear(ro, rd, y0, y1) < 6.0){
+    for (int i = 0; i < 12; i++){
+      float fi = float(i);
+      float cyc = t*0.45*(0.8 + 0.4*h11(fi*2.9)) + h11(fi*7.7);
+      float k = floor(cyc), q = fract(cyc);
+      float y = mix(y0, y1 - 6.0, h11(k*3.1 + fi));
+      float side = h11(k*5.3 + fi) < 0.5 ? -1.0 : 1.0;
+      float tt = q*1.6;
+      vec3 p = vec3(side*(0.5 + 2.2*tt), y + 6.0*tt - 4.5*tt*tt, 0.0);
+      float d = rayPt(ro, rd, p, lta);
+      fx += mix(vec3(1.0, 0.85, 0.5), vec3(1.0, 0.4, 0.08), q)*(halo(d, max(0.12, px))*1.6 + halo(d, 0.5)*0.3)*(1.0 - q)*part(0.0);
+    }
+  }
+  fx += fxSmoke(ro, rd, y0, y1, 4.0, 2.4, 8.2, vec3(0.5, 0.3, 0.22))*0.6*part(1.0);
   return fx*uFx;
 }

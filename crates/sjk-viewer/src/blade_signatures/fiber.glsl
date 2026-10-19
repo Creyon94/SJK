@@ -4,6 +4,7 @@
 // sing to it; now and then one flares and sends a bead of its colour racing into the blade. A
 // swing spins the ring; a clash makes every crystal flash at once.
 // @part Kyber crystals
+// @part Crystal song
 // @room 7
 // @solid 1
 // @palette {"corona.rim_cool":[0.20,0.30,0.70],"corona.rim_hot":[0.60,0.80,1.0],"corona.inner":[0.88,0.95,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.50,0.70,1.0],"core.fringe_hot":[0.85,0.95,1.0],"light.color":[0.65,0.80,1.0],"trail":[0.70,0.85,1.0]}
@@ -49,6 +50,11 @@ vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   vec4 o = vec4(0.0);
   if (uFx < 0.01) return o;
   float top = kc_top(), bestT = 1e5;
+  // the blade hides the crystals behind it (round 12: they showed through it)
+  float sAx, tAx;
+  float dAx = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), sAx);
+  float dAx2 = rayPt(ro, rd, vec3(0.0, sAx*top, 0.0), tAx);
+  float hide = 1.0 - smoothstep(0.45, 1.1, dAx2);
   for (int i = 0; i < 9; i++){
     float fi = float(i);
     vec3 ax;
@@ -62,6 +68,8 @@ vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
     if (cv <= 0.0) continue;
     rayPt(ro, rd, c, ta);
     if (ta > bestT) continue;
+    if (ta > tAx) cv *= 1.0 - hide;
+    if (cv <= 0.0) continue;
     bestT = ta;
     vec3 kcol = kc_col(fi);
     float facet = step(0.0, sin(s*6.0 + fi))*0.25 + 0.75;
@@ -79,6 +87,19 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.9 + 0.3*halo(f, 0.05)*gl + 0.6*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// round 12 (Creyon: "needs something more"): the crystals' song, motes of every crystal's
+// colour rising round the blade and soft streams of kyber light winding up it
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+  for (int k = 0; k < 3; k++){
+    float fk = float(k);
+    fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 8.0, 0.05, 3.1 + fk*2.7, kc_col(fk*3.0))*0.8;
+  }
+  fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.2, 0.22, 2.5, 6.4, vec3(0.7, 0.85, 1.0))*0.6;
+  return fx*uFx*part(1.0);
+}
 // round 11: sig_orbit gated by part 0
 vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   if (part(0.0) < 0.5) { return vec3(0.0); }

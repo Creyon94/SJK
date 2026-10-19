@@ -552,15 +552,18 @@ fn fxSmoke(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, rise: f32, se
     let tt = -ro.z / rd.z;
     let p = ro + rd * tt;
     let ax = abs(p.x);
-    if ax > w * 1.8 || p.y < y0 - 3.0 || p.y > y1 + 3.0 {
+    if ax > w * 1.8 || p.y < y0 - 3.0 || p.y > y1 {
         return vec3<f32>(0.0);
     }
-    let q = vec2(p.x * 0.55, p.y * 0.2 - uTime * rise * 0.2) + vec2(seed * 7.3, seed * 3.1);
-    let warp = vec2(fbm3(q * 1.3 + vec2(0.0, uTime * 0.11)), fbm3(q * 1.3 + vec2(5.2, -uTime * 0.09)));
-    let n = fbm3(q + 1.6 * warp);
-    let shape = exp(-pow(ax / w, 2.0)) * smoothstep(y0 - 3.0, y0 + 2.0, p.y) * (1.0 - smoothstep(y1 - 3.0, y1 + 1.0, p.y));
-    let d = smoothstep(0.32, 0.85, n) * shape;
-    return col * d * (0.6 + 0.9 * d);
+    // Broad features and octaves turned against each other, so no square grid shows even
+    // far away (round 12: "the smoke still looks squary").
+    let q = vec2(p.x * 0.32, p.y * 0.12 - uTime * rise * 0.12) + vec2(seed * 7.3, seed * 3.1);
+    let warp = vec2(vn(rot(0.6) * q * 0.9 + vec2(0.0, uTime * 0.07)), vn(rot(2.1) * q * 0.9 + vec2(5.2, -uTime * 0.06)));
+    let r = q + 1.3 * warp;
+    let n = 0.6 * vn(rot(0.35) * r) + 0.4 * vn(rot(1.7) * r * 2.1 + vec2<f32>(3.3, 1.1));
+    let shape = exp(-pow(ax / w, 2.0)) * smoothstep(y0 - 3.0, y0 + 2.0, p.y) * (1.0 - smoothstep(y1 - 7.0, y1 - 1.0, p.y));
+    let d = smoothstep(0.35, 0.8, n) * shape;
+    return col * d * 0.9;
 }
 
 // Ribbons of energy flowing along the blade: count (up to 4) wavy strands alternating sides,

@@ -104,7 +104,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
       float R = 0.6 + 2.4*open + 4.0*cl*(1.0 - cl);
       float dr = bww_ring(ro, rd, h, R);
       float sh = 0.7 + 0.3*sin(uTime*1.3 + h);
-      light += (pale*halo(dr, max(0.05, px))*1.2 + mix(gold, pale, 0.5)*halo(dr, 0.3 + 0.3*open)*0.45)*open*sh*(0.6 + 0.5*cl);
+      light += (pale*halo(dr, max(0.05, px))*0.5 + mix(gold, pale, 0.5)*halo(dr, 0.3 + 0.3*open)*0.2)*open*sh*0.6;
     }
   }
 
@@ -130,7 +130,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 
 // the blade: Sol's glow and core from the file, breathing calmly
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return g*(0.85 + 0.15*sin(b.y*0.5 - uTime*0.8) + 0.10*sin(b.y*0.21 + uTime*0.5) + 0.5*clamp(uClash, 0.0, 1.0));
+  return g*(0.75 + 0.12*sin(b.y*0.5 - uTime*0.8) + 0.08*sin(b.y*0.21 + uTime*0.5) + 0.3*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
@@ -147,24 +147,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 gold = vec3(1.0, 0.85, 0.55), pale = vec3(1.0, 0.96, 0.88), ahs = vec3(0.75, 0.88, 1.0), ana = vec3(1.0, 0.12, 0.06);
   float s, ta;
   if (fxNear(ro, rd, y0, y1) < 10.0){
-    // pathways: long straight lines of light through the void round the blade, pulses running on them
-    for (int i = 0; i < 9; i++){
-      float fi = float(i);
-      float a = h11(fi*3.3) + t*0.01, R = 3.0 + 3.0*h11(fi*5.7);
-      float y = mix(y0, y1, h11(fi*7.1));
-      vec3 c = around(R, a, y);
-      vec3 dir = normalize(vec3(cos(6.2832*a), (h11(fi*2.9) - 0.5)*1.6, -sin(6.2832*a)));
-      float len = 6.0 + 6.0*h11(fi*1.3);
-      vec3 pa = c - dir*len, pb = c + dir*len;
-      float d = raySeg(ro, rd, pa, pb, s);
-      float vis = 0.55 + 0.45*sin(t*0.3 + fi*1.7);
-      float pulse = pow(0.5 + 0.5*sin(s*18.0 - t*(2.0 + 0.5*fi)), 8.0);
-      float ends = smoothstep(0.0, 0.15, s)*(1.0 - smoothstep(0.85, 1.0, s));
-      fx += (vec3(1.0)*halo(d, max(0.04, px))*(0.35 + 1.4*pulse) + gold*halo(d, 0.25)*(0.25 + 0.6*pulse))*ends*vis;
-      fx += fxFlare(ro, rd, c, px, 0.12, 1.8, 4.0, 0.0, gold)*vis*0.6;
-    }
-    fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 30.0, 0.04, 2.2, pale);
-    fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.7;
+    fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 14.0, 0.04, 2.2, pale)*0.7;
+    fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.25;
   }
   }
   return col + fx*uFx;
@@ -195,13 +179,12 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
       }
       float tail = 1.0 - bs;
       // in their own colours whatever colour the wearer picked (uKeep, Creyon's round 12)
-      uKeep += (vec3(1.0)*halo(best, max(0.1, px))*tail*2.2 + cc*halo(best, 0.5)*tail*1.8 + cc*halo(best, 1.6)*0.35*tail)*uFx;
+      uKeep += (vec3(1.0)*halo(best, max(0.08, px))*tail*1.1 + cc*halo(best, 0.4)*tail*0.9 + cc*halo(best, 1.2)*0.12*tail)*uFx;
     }
     // where they meet: a flash and sparks, white and red
     vec3 meet = around(3.0, h11(k*2.1), mix(L*0.4, L*0.85, h11(k*4.7)));
     float fl = exp(-ph*7.0);
-    uKeep += fxFlare(ro, rd, meet, px, 0.25, 5.0, 6.0, k, mix(ahs, ana, 0.5))*fl*1.4*uFx;
-    fx += fxShock(ro, rd, px, meet.y, ph*1.6, 6.0, pale)*0.8;
+    uKeep += fxFlare(ro, rd, meet, px, 0.2, 2.5, 6.0, k, mix(ahs, ana, 0.5))*fl*0.6*uFx;
   }
   return fx*uFx;
 }

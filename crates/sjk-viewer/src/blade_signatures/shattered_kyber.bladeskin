@@ -167,5 +167,29 @@
       "sound/weapons/saber/saberswing2.wav",
       "sound/weapons/saber/saberswing3.wav"
     ]
+  },
+  "arcs": {
+    "count": 3,
+    "color": [
+      0.8,
+      0.9,
+      1.0
+    ],
+    "brightness": 1.3,
+    "width": 0.06,
+    "halo": 0.5,
+    "reach": 1.3,
+    "jag": 0.85,
+    "kinks": 0.7,
+    "span": {
+      "low": 0.06,
+      "high": 0.18
+    },
+    "rate": 2.2,
+    "jitter": 6.0,
+    "threshold": 0.3,
+    "tip": 0.0,
+    "crawl": 0.0,
+    "decay": 0.8
   }
 }

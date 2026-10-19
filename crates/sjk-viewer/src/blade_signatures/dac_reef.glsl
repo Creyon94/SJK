@@ -1,4 +1,4 @@
-// Mon Cala Reef: the coral reefs of Mon Cala as a blade. Branches of glowing sea-green coral grow
+// Dac Reef: the coral reefs of Dac, the Mon Calamari world, as a blade. Branches of glowing sea-green coral grow
 // off both sides, swaying gently with pink-lit tips, and small bubbles drift up past them. A
 // clash sends a ring through the water.
 // @part Coral and bubbles

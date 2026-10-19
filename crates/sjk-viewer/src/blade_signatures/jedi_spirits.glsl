@@ -25,5 +25,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     fx += warm*(halo(d, 0.25)*1.2 + halo(d, 0.8)*0.3)*sin(3.1416*f)*part(0.0);
   }
   fx += fxSmoke(ro, rd, y0, y1, 3.8, 1.0, 4.9, vec3(0.75, 0.8, 0.9))*0.6*part(1.0);
+  fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.8, 0.14, 0.8, 9.3, vec3(0.75, 0.85, 1.0))*0.6*part(1.0);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 16.0, 0.03, 5.9, vec3(1.0, 0.9, 0.7))*0.7*part(0.0);
   return fx*uFx;
 }

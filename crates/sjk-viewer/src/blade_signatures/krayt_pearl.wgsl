@@ -34,5 +34,15 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let sand: vec3<f32> = vec3<f32>(1.0, 0.85, 0.6);
     fx += fxFall(ro, rd, px, y0, y1, 3.5, 16.0, 6.0, 0.4, 1.4, 6.2, sand) * 0.8 * part(1.0);
     fx += fxSmoke(ro, rd, y0, y1, 3.4, 1.0, 6.6, sand * 0.7) * part(2.0);
+    var pta: f32;
+    for (var i = 0; i < 12; i++) {
+        let fi = f32(i);
+        let pp = vec3((select(1.0, -1.0, h11(fi * 3.3) < 0.5)) * (0.8 + 2.5 * h11(fi * 5.1)), mix(y0, y1, fract(h11(fi * 1.7) + t * 0.03 * (0.5 + h11(fi)))), 0.0);
+        let d = rayPt(ro, rd, pp, &pta);
+        let irid = hsv(fract(fi * 0.17 + t * 0.1), 0.35, 1.0);
+        fx += irid * (halo(d, max(0.08, px)) * 1.5 + halo(d, 0.4) * 0.25) * (0.5 + 0.5 * sin(t * 2.0 + fi * 2.3)) * part(0.0);
+    }
+    fx += fxAura(ro, rd, y0, y1, 2.4, vec3<f32>(1.0, 0.85, 0.9)) * 0.3 * part(0.0);
+    fx += fxFall(ro, rd, px, y0, y1, 4.0, 12.0, 7.0, 0.5, 1.6, 2.6, vec3<f32>(1.0, 0.85, 0.6)) * 0.6 * part(1.0);
     return fx * uFx;
 }

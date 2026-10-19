@@ -471,14 +471,25 @@ from the looks.
   smoke, embers, haze, veins). Like the twenty-one they are in the client's catalogue, not yet
   the hub's, and `FROM_THE_TEAM` until released.
 - Twenty-two rares from the Blade Lab (round 12, 19/10/2026), Star Wars reworks a tier below
-  the legendaries: Bioluminescence to Ahch-To Glow, Blueprint to Death Star Plans, Calligraphy
+  the legendaries: Bioluminescence to Ahch-To Glow, Blueprint to Imperial Schematics, Calligraphy
   to Jedi Texts, Constellation to Star Map, Frostbite to Ilum Frost, Geode to Christophsis
   Crystal, Hex Shield to Deflector Shield, Kintsugi to Healed Kyber, Mosaic to Temple Mosaic,
-  Moth to Dagobah Wisps, Neon Rain to Coruscant Night, Polaris to Navigation Beacon, Puzzle
-  Cube to Puzzle Holocron, Reef to Mon Cala Reef, Sandstorm to Jakku Sandstorm, Spider Silk to
+  Moth to Dagobah Wisps, Neon Rain to Nar Shaddaa Rain, Polaris to Navigation Beacon, Puzzle
+  Cube to Puzzle Holocron, Reef to Dac Reef, Sandstorm to Jakku Sandstorm, Spider Silk to
   Moisture Farm, Stormglass to Tipoca Stormglass, Sunbeam to Temple Sunbeam, Tesla Coil to Ion
   Coil, Thorn to Sith Thorn, VHS to Holo-Recording and Vinyl to Data Disc; none has figures or
   anything on its tip. In the client's catalogue only, as the legendaries.
+- Twenty-two uncommons and twenty-two commons from the Blade Lab (round 12), each a tier less
+  special than the one above and every name and look made to fit Star Wars: Cargo Stack, Otoh
+  Gunga, Victory Fireworks, Endor Ivy, Naboo Core, Gungan Waters, Cantina Lights, Imperial
+  Searchlight, Flare Stick, Flimsiplast, Canto Bight, Sensor Sweep, Takodana Rain, Starfighter
+  Canopy, Distress Beacon, Orto Plutonia, Rhen Var Frost, Seismic Charge, Thermal Fuse, Senate
+  Glass, Holonet Feed, Holo-Map and Cockpit Console (uncommon); Code Cylinder, Cortosis Weave,
+  Tatooine Dust, Trench Run, Ryloth Dawn, Power Coupling, Kyber Filament, Frosted Viewport,
+  Holo-Stylus, Sabacc Card, Geonosis Hive, Mygeeto Frost, Bogano Moss, Kef Bir Sea Glass, Jedha
+  Lantern, Corellian Pearl, Targeting Display, Raxus Scrap, Pasaana Stone, Smoked
+  Transparisteel, Batuu Dusk and Alderaan Velvet (common). The Glowstick and Ink Brush stayed
+  out. Star Dragon is now the Ashla Radiance blade (same id; the hub's name must follow).
 - A skinned blade ends round (09/10/2026; Sol saw the Sun's tip square). The core line
   is a flat quad from behind the hilt to the tip, and the generated core's fringe is
   still about a fifth of its brightness at the quad's edges and end, so its end and

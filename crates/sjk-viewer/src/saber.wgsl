@@ -1137,6 +1137,21 @@ fn skin_rising(
     return 0.65 * skin_noise(w) + 0.35 * skin_noise(w * 2.3 + vec2(5.2, 1.3));
 }
 
+// [`skin_rising`] for Creyon's signature blades (round 12): broader features and its octaves
+// turned against each other, so the value noise's square grid never shows.
+fn sig_rising(
+    p: vec2<f32>, up: vec2<f32>, scale: f32, speed: f32, curl: f32, time: f32, seed: f32,
+) -> f32 {
+    let q = vec2(dot(p, vec2(up.y, -up.x)), dot(p, up) - time * speed) * scale * 0.7
+        + vec2(seed * 37.0, seed * 11.0);
+    let r1 = mat2x2<f32>(0.825, 0.565, -0.565, 0.825);
+    let r2 = mat2x2<f32>(-0.129, 0.992, -0.992, -0.129);
+    let warp = vec2(skin_noise(r1 * q * 0.7 + vec2(3.1, time * 0.21)),
+        skin_noise(r2 * q * 0.7 + vec2(7.7, -time * 0.17))) - 0.5;
+    let w = q + curl * 2.0 * warp;
+    return 0.6 * skin_noise(r2 * w) + 0.4 * skin_noise(r1 * w * 2.1 + vec2(5.2, 1.3));
+}
+
 // Where a point `p` is from the blade (the segment from the hilt to `shaft` along it):
 // x how high it is above the nearest point of the blade, along `up`, y how far aside.
 fn skin_above(p: vec2<f32>, shaft: f32, up: vec2<f32>) -> vec2<f32> {
@@ -1167,12 +1182,11 @@ fn skin_wisps(skin: Skin, input: VertexOutput, r: f32, time: f32, seed: f32) -> 
     if skin.design.x == f32(LAB_SIGNATURE) {
         // Creyon's signature blades (round 12: "the smoke looks so squary"): finer, more
         // curled noise with a soft edge, so it reads as smoke rather than square puffs.
-        let a = skin_rising(input.blade, up, w.z * 1.6, w.y, w.w * 1.8, time, seed);
-        let b = skin_rising(input.blade * 2.3 + vec2(4.7, 1.9), up, w.z * 1.6, w.y * 1.3,
-            w.w * 2.2, time, seed + 0.37);
-        let n = 0.62 * a + 0.38 * b;
-        let smoke = smoothstep(1.0 - density - 0.15, 1.0 - density + 0.55, n);
-        return smoke * smoke * fall;
+        let n = sig_rising(input.blade, up, w.z, w.y, w.w, time, seed);
+        let smoke = smoothstep(1.0 - density - 0.2, 1.0 - density + 0.5, n);
+        // None over the tip: it rose there as a square-looking plume.
+        let below = 1.0 - smoothstep(-0.2 * rise, 0.15 * rise, at.x);
+        return smoke * fall * below;
     }
     let n = skin_rising(input.blade, up, w.z, w.y, w.w, time, seed);
     let smoke = smoothstep(1.0 - density, 1.0 - density + 0.3, n);
@@ -1853,7 +1867,10 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         }
         glow += (sides + rings) * lines * skin.scan_color.rgb * skin.scan_color.w;
     }
-    if skin.arc_strike.x > 0.0 || skin.mote_field.x > 0.0 {
+    // A signature's echo (a faded copy swaying beside it) is its blade alone (Creyon's round
+    // 12: the echo's own prominences were cut off at its edge and drawn at full strength).
+    let sig_echo = skin.design.x == f32(LAB_SIGNATURE) && (input.persona.x >> 24u) != 255u;
+    if (skin.arc_strike.x > 0.0 || skin.mote_field.x > 0.0) && !sig_echo {
         // Both fade out before the quad's edge (vertex_main's `extent`) instead of being cut.
         // A signature's quad also holds its room (Creyon's round 12: its prominences were
         // cut off at the stock glow's width).
@@ -1864,7 +1881,7 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         }
         let room = (1.0 - smoothstep(0.75, 1.0, abs(x) / faded))
             * (1.0 - smoothstep(0.75, 1.0, beyond / faded));
-        if skin.arc_strike.x > 0.0 {
+        if skin.arc_strike.x > 0.0 && skin.design.x != f32(LAB_SIGNATURE) {
             // Along the axis and straight on past the tip.
             let reach = select(input.blade.y / max(input.shaft, 0.0001) * input.length,
                 input.length + beyond, beyond > 0.0);
@@ -1872,7 +1889,11 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
             glow += arcs * room * skin.arc_color.rgb * skin.arc_color.w;
         }
         if skin.mote_field.x > 0.0 {
-            let unclamped = input.blade.y / max(input.shaft, 0.0001) * input.length;
+            var unclamped = input.blade.y / max(input.shaft, 0.0001) * input.length;
+            if skin.design.x == f32(LAB_SIGNATURE) {
+                // along the blade itself, as `sig_arcs` (round 12)
+                unclamped = blade_place(input).y;
+            }
             let motes = skin_motes(skin, around, radial / r, x < 0.0, unclamped, input.length,
                 time, seed);
             glow += motes * room * skin.mote_color.rgb * skin.mote_color.w;
@@ -1914,11 +1935,17 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         uKeep = vec3(0.0);
         // Its effects as Sol's are: flat round the blade, facing the camera (`sig_flat`),
         // and only what circles the blade in three dimensions, along the true view ray.
+        if sig_echo {
+            return sig_coloured(input, glow * sig_edge(input)) * persona_fade(input);
+        }
         let ray = sig_ray(input);
         let flat = sig_flat(place);
         let shown = sig_full(input);
         glow += (max(sig_vol(flat.o, flat.d, pixel), vec3(0.0))
             + max(sig_orbit(ray.o, ray.d, pixel), vec3(0.0))) * shown;
+        if skin.arc_strike.x > 0.0 {
+            glow += sig_arcs(skin, input, ray, pixel) * shown;
+        }
         let edge = sig_edge(input);
         return sig_coloured(input, glow * edge) + (kept_glow + max(uKeep, vec3(0.0)) * shown) * edge;
     }
@@ -2373,6 +2400,10 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
         let place = blade_place(input);
         out = clamp(sig_solid(out, place, pixel), vec4(0.0), vec4(1.0));
         out = vec4(out.rgb, out.a * sig_kept(input, place));
+        if (input.persona.x >> 24u) != 255u {
+            // An echo keeps its blade's solid parts only, faded (round 12).
+            return vec4(sig_coloured(input, out.rgb), out.a * sig_edge(input) * persona_fade(input));
+        }
         let ray = sig_ray(input);
         let flat = sig_flat(place);
         let shown = sig_full(input);
@@ -3778,6 +3809,40 @@ fn sig_full(input: VertexOutput) -> f32 {
         return 1.0;
     }
     return smoothstep(0.85, 1.0, input.length / full);
+}
+
+// Sol's lightning and prominences (`arcs`) on a signature, held by the hilt (Creyon's round 12:
+// drawn in the picture facing the camera, they kept their side of the screen whatever the view,
+// so they swung round the blade with the camera when he turned or ran). They are drawn on two
+// sheets through the blade's axis fixed to the hilt (`sig_ray`'s frame), each with its own
+// strikes and seen from wherever the camera is, so they stay with the blade as everything held
+// by the hilt does; a sheet seen edge on fades out and the other carries the picture.
+fn sig_arcs(skin: Skin, input: VertexOutput, ray: SigRay, pixel: f32) -> vec3<f32> {
+    let time = input.animation.x;
+    let seed = input.animation.y;
+    let r = chain_radius(input.radius, input.length, 0.5);
+    let extent = skin_extent(skin, input);
+    let faded = extent + max(skin.design.y, skin.design.z) / LAB_METRE;
+    var total = 0.0;
+    for (var sheet = 0; sheet < 2; sheet++) {
+        let facing = select(abs(ray.d.z), abs(ray.d.x), sheet == 1);
+        if facing < 0.05 {
+            continue;
+        }
+        let t = select(-ray.o.z / ray.d.z, -ray.o.x / ray.d.x, sheet == 1);
+        if t <= 0.0 {
+            continue;
+        }
+        let p = ray.o + ray.d * t;
+        let across = select(p.x, p.z, sheet == 1);
+        let beyond = max(p.y - input.length, 0.0);
+        let room = (1.0 - smoothstep(0.75, 1.0, abs(across) / faded))
+            * (1.0 - smoothstep(0.75, 1.0, beyond / faded));
+        let arcs = skin_arcs(skin, p.y, across, r, input.length, extent, pixel / max(facing, 0.25),
+            time, fract(seed + 0.37 * f32(sheet)));
+        total += arcs * room * smoothstep(0.05, 0.35, facing);
+    }
+    return total * skin.arc_color.rgb * skin.arc_color.w;
 }
 
 // Fades a signature out before its quad's edges (the quad `blade_vertex` builds): nothing it
