@@ -1107,6 +1107,15 @@ the presentation history. The ordinary range, height, angle and damping cvars
 remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 `cg_cameraStyle` chooses whether the damping applies ([Camera style](#camera-style)).
 
+A fall to death (a pit's `trigger_hurt` that fades the screen to black, the
+player state's `fallingToDeath`) does not take the camera down with the player: as
+in EternalJK, the third-person camera's focus stays where the fall began
+(`CG_CalcIdealThirdPersonViewTarget`, `cg_view.c:286`), and the view itself is moved
+to that point, turned from the computed eye towards the falling player
+(`cg_view.c:3224-3233`), in first person too. It lasts until the flag clears at the
+respawn ([fall_camera.rs](../crates/sjk-viewer/src/fall_camera.rs)). A demo's
+detached cameras are left alone.
+
 The decaying prediction error (`cg_errorDecay`) moves the third-person camera's
 focus before its collision and damping traces, as `CG_CalcViewValues`
 (`cg_view.c`) adds it to the view origin before `CG_OffsetThirdPersonView`. A
