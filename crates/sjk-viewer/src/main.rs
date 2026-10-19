@@ -94,6 +94,7 @@ mod effect_wave;
 mod entity_instance;
 mod entity_lighting;
 mod entity_materials;
+mod fall_camera;
 mod first_person_view;
 mod first_person_weapon;
 mod fog_frame;
@@ -603,6 +604,8 @@ struct GpuState {
     /// Optional per-pass GPU timing printed with the frame-budget report.
     gpu_phases: Option<gpu_phases::Profiler>,
     third_person_camera: camera::State,
+    /// Where a fall to death began, while it lasts ([`fall_camera`]).
+    fall_camera: fall_camera::FallCamera,
     far_plane: f32,
     gameplay_input: input::GameplayInput,
     /// Windows Alt code being typed into a text field.
@@ -1502,6 +1505,7 @@ impl GpuState {
             hitches: hitch_log::Recorder::default(),
             gpu_phases,
             third_person_camera: camera::State::default(),
+            fall_camera: fall_camera::FallCamera::default(),
             far_plane,
             gameplay_input: input::GameplayInput::default(),
             alt_code: input::alt_code::AltCode::default(),
@@ -1690,6 +1694,7 @@ impl GpuState {
         let peek_view = (!backdrop_view && intermission_view.is_none())
             .then(|| peek::camera(self, presentation_time))
             .flatten();
+        let fall = self.update_fall_camera(presentation_time as i32);
         let detached_before_peek = self.detached_camera;
         if self.live_session.is_some() && peek_view.is_some() {
             self.detached_camera = true;
@@ -1727,6 +1732,18 @@ impl GpuState {
             let free = (self.camera_position, self.camera_position + forward * 256.0);
             (if backdrop_view { "backdrop" } else { "free" }, free)
         };
+        // A fall to death holds the player's own view where the fall began, looking
+        // down at him (`cg_view.c:3224-3233`, `fall_camera`).
+        let fall = fall.filter(|_| local_view && matches!(branch, "third-person" | "first-person"));
+        let (view_position, view_target) = match fall {
+            Some((fall, origin)) => {
+                let (position, target, up) =
+                    fall_camera::look(fall, origin, view_position, view_target);
+                view_up = up;
+                (position, target)
+            }
+            _ => (view_position, view_target),
+        };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
         // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
         // so an effect's short-range shake reaches a first-person eye but not the
@@ -1736,8 +1753,9 @@ impl GpuState {
             visual_now,
             local_view && cgame_options::screen_shake(self.console.as_ref()),
         );
-        // The third-person camera already traced from the shifted origin.
-        let error_offset = if branch == "third-person" || branch == "peek" {
+        // The third-person camera already traced from the shifted origin, and the
+        // fall camera replaces the view origin outright.
+        let error_offset = if branch == "third-person" || branch == "peek" || fall.is_some() {
             Vec3::ZERO
         } else {
             error_offset

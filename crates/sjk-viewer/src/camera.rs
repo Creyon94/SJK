@@ -175,8 +175,14 @@ pub(crate) fn damped_third_person(
         Some(predicted) if eternal => i64::from(predicted.command_time),
         _ => presentation_time,
     };
+    // A fall to death holds the focus where the fall began, at the eye's height
+    // (`CG_CalcIdealThirdPersonViewTarget`, `cg_view.c:286-296`; `crate::fall_camera`).
+    let focus = match (state.fall_camera.origin(), snapshot) {
+        (Some(fall), Some(s)) => fall + Vec3::Z * s.player.view_height() as f32,
+        _ => state.camera_position + focus_offset,
+    };
     let frame = motion::Frame {
-        focus: state.camera_position + focus_offset,
+        focus,
         yaw,
         pitch,
         range: framing[2],

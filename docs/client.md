@@ -1110,10 +1110,19 @@ remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 A dead player is always seen in third person, whatever the camera choice
 (EternalJK `cg_view.c:3098`), and the death camera is fixed: it turns to the
 player state's dead yaw (`STAT_DEAD_YAW`, towards the killer) and keeps the pitch
-the player had when he died, as pmove stops updating a dead player's view angles
+the player had at death, as pmove stops updating a dead player's view angles
 (`bg_pmove.c:10159`). Moving the mouse while dead no longer tilts it
 ([camera.rs](../crates/sjk-viewer/src/camera.rs) `dead_view_angles`,
 [scope.rs](../crates/sjk-viewer/src/scope.rs) `third_person_wanted`).
+
+A fall to death (a pit's `trigger_hurt` that fades the screen to black, the
+player state's `fallingToDeath`) does not take the camera down with the player: as
+in EternalJK, the third-person camera's focus stays where the fall began
+(`CG_CalcIdealThirdPersonViewTarget`, `cg_view.c:286`), and the view itself is moved
+to that point, turned from the computed eye towards the falling player
+(`cg_view.c:3224-3233`), in first person too. It lasts until the flag clears at the
+respawn ([fall_camera.rs](../crates/sjk-viewer/src/fall_camera.rs)). A demo's
+detached cameras are left alone.
 
 The decaying prediction error (`cg_errorDecay`) moves the third-person camera's
 focus before its collision and damping traces, as `CG_CalcViewValues`
