@@ -335,7 +335,8 @@ pub(crate) struct ViewerConsole {
     selection: selection::Selection,
     /// Rows and clocks of the classic console.
     classic: classic::State,
-    /// Explicit height override chosen with Ctrl (full) or Shift (a quarter).
+    /// Explicit height override: Ctrl+console (full) or Shift+console (a quarter;
+    /// Shift+Escape instead with `con_shiftHeight`).
     /// `None` follows live `con_height` in both console styles.
     open_height: Option<f32>,
     /// Insert toggled overstrike: typing replaces the character after the caret

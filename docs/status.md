@@ -277,6 +277,19 @@ Linux x86_64 with Rust 1.99.1, formatting, the locked workspace build and test
 suite, workspace all-target Clippy, and the locked release viewer build pass;
 existing warnings remain. The result has not yet been inspected in game.
 
+## Shift console height
+
+18/10/2026, `fix/shift-console-height-upstream`, based on `Sol-Vulpes/SJK`
+`96569426`, Windows x86_64, Rust 1.99.0: Shift plus the console key follows
+live `con_height` in both console styles; Shift+Escape opens a quarter screen.
+Made an option at the merge (19/10/2026, Sol): `con_shiftHeight`, off by default,
+which keeps EternalJK's heights (Shift plus the console key a quarter).
+Ctrl plus the console key retains its full-screen override. The existing
+height-selection unit test and [console key documentation](client.md) cover
+the revised shortcuts. Formatting, locked workspace build/tests and all-target
+Clippy pass; the console height-selection test passes. In-game keyboard behavior
+remains unverified.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.
