@@ -34,13 +34,18 @@ const TEXTURE_BASE: u32 = 0x6100_0000;
 const NAME_MAX: usize = 40;
 const LORE_MAX: usize = 400;
 
-/// What a card is about.
+/// What a card is about. A face of a kind (or rarity) this client does not know is left
+/// out on its own, named in the log; the pack's other faces still read.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Kind {
     Community,
     Place,
     Personality,
     Game,
+    /// The people the project owes (19/10/2026): card 1 of SJK Alpha is Bishop.
+    Credits,
+    /// A meme of the community (19/10/2026).
+    Meme,
 }
 
 impl Kind {
@@ -50,6 +55,8 @@ impl Kind {
             "place" => Some(Self::Place),
             "personality" => Some(Self::Personality),
             "game" => Some(Self::Game),
+            "credits" => Some(Self::Credits),
+            "meme" => Some(Self::Meme),
             _ => None,
         }
     }
@@ -61,6 +68,8 @@ impl Kind {
             Self::Place => "Place",
             Self::Personality => "Personality",
             Self::Game => "Jedi Academy",
+            Self::Credits => "Credits",
+            Self::Meme => "Meme",
         }
     }
 }
@@ -68,10 +77,10 @@ impl Kind {
 /// One card's face.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Face {
-    /// The card's id ("sol_lore_001"), the hub's.
+    /// The card's id ("sjk_alpha_010"), the hub's.
     pub(crate) id: String,
     pub(crate) name: String,
-    /// The set's id ("sol_lore") and the name players read ("Sol lore").
+    /// The set's id ("sjk_alpha") and the name players read ("SJK Alpha").
     pub(crate) set: String,
     pub(crate) set_name: String,
     /// Its place in its set, from 1.
@@ -331,29 +340,38 @@ mod tests {
 
     const FILE: &str = r#"{
   "name": "Toxiee and Sol on JoF Memorial",
-  "set": "sol_lore",
-  "set_name": "Sol lore",
-  "number": 1,
-  "kind": "community",
+  "set": "sjk_alpha",
+  "set_name": "SJK Alpha",
+  "number": 10,
+  "kind": "meme",
   "rarity": "legendary",
   "lore": "Tox was simply chilling.",
-  "art": "cards/sol_lore_001.jpg",
+  "art": "cards/sjk_alpha_010.jpg",
   "artist": "Sol"
 }
 "#;
 
     #[test]
     fn a_card_file_reads_and_bad_ones_are_refused() {
-        let face = parse("sol_lore_001", FILE).unwrap();
+        let face = parse("sjk_alpha_010", FILE).unwrap();
         assert_eq!(face.name, "Toxiee and Sol on JoF Memorial");
-        assert_eq!((face.set.as_str(), face.number), ("sol_lore", 1));
-        assert_eq!(face.kind, Kind::Community);
+        assert_eq!((face.set.as_str(), face.number), ("sjk_alpha", 10));
+        assert_eq!(face.kind, Kind::Meme);
         assert_eq!(face.rarity.id, "legendary");
-        assert_eq!(face.art, "cards/sol_lore_001.jpg");
+        assert_eq!(face.art, "cards/sjk_alpha_010.jpg");
+        let bishop = FILE
+            .replace("\"meme\"", "\"credits\"")
+            .replace("\"legendary\"", "\"mythical\"");
+        let bishop = parse("sjk_alpha_001", &bishop).unwrap();
+        assert_eq!(
+            (bishop.kind.name(), bishop.rarity.name),
+            ("Credits", "Mythical")
+        );
+        assert_eq!(Kind::Meme.name(), "Meme");
         for (from, to) in [
             ("\"legendary\"", "\"mythic\""),
-            ("\"community\"", "\"memes\""),
-            ("\"number\": 1", "\"number\": 0"),
+            ("\"meme\"", "\"memes\""),
+            ("\"number\": 10", "\"number\": 0"),
             ("Toxiee and Sol on JoF Memorial", ""),
         ] {
             assert!(parse("x", &FILE.replace(from, to)).is_err(), "{to}");

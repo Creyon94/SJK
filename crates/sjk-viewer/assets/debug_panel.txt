@@ -851,6 +851,18 @@ test: As staff: Collection > Cards > Reveal: your sealed Legendary cards become 
 test: Open holocrons (staff): a Legendary card shows the face in the ceremony.
 test: debug_open legendary shows the face offline; other rarities stay sealed.
 
+[sjk-alpha-cards]
+area: Menus & settings
+title: SJK Alpha collection: Mythical rarity, Credits and Meme kinds, card 1 Bishop
+change: Cards gain a fifth rarity, Mythical (gold), with the Legendary fanfare.
+change: Card 1 is Bishop (Mythical, Credits); the Toxiee card is now 010 (Meme).
+change: Holocrons tab loot table has a Mythical column; rarest card is Mythical Solar.
+test: Log: "SJK packs: card faces: sjk_alpha_001, sjk_alpha_010" once the pack downloaded.
+test: Collection > Cards: your old Toxiee card reads 010 / Meme; strip says SJK Alpha.
+test: debug_open mythical x5: cards go round the rarities; the Mythical one shows Bishop.
+test: Holocrons tab > loot table: five rarity rows, all text fits.
+note: The hub is deployed with these cards (19/10); released clients don't show Bishop.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

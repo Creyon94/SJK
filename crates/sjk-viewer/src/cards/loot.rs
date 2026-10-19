@@ -200,8 +200,8 @@ mod tests {
     /// The figures `docs/holocrons.md` gives, worked by hand.
     #[test]
     fn the_figures_are_the_docs() {
-        let rarities: Vec<String> = (0..4).map(|r| percent(rarity_any(r))).collect();
-        assert_eq!(rarities, ["60.9%", "27.5%", "10.1%", "1.51%"]);
+        let rarities: Vec<String> = (0..5).map(|r| percent(rarity_any(r))).collect();
+        assert_eq!(rarities, ["60.9%", "27.5%", "10.1%", "1.33%", "0.18%"]);
         let finishes: Vec<String> = (0..3).map(|f| percent(finish_any(f))).collect();
         assert_eq!(finishes, ["92.3%", "7.56%", "0.14%"]);
         assert!(close(credits_any(), 17.525));
@@ -211,10 +211,12 @@ mod tests {
         let (rarity, finish, chance) = rarest();
         assert_eq!(
             (RARITIES[rarity].id, FINISHES[finish].id),
-            ("legendary", "solar")
+            ("mythical", "solar")
         );
-        assert_eq!(one_in(chance), "1 in 13 633");
-        assert_eq!(percent(chance), "0.0073%");
+        assert_eq!(one_in(chance), "1 in 119 581");
+        assert_eq!(percent(chance), "0.0008%");
+        assert_eq!(one_in(kind_any(3, 2)), "1 in 15 388");
+        assert_eq!(percent(kind_any(3, 2)), "0.0065%");
         assert_eq!(percent(kind_any(0, 2)), "0.0172%");
     }
 

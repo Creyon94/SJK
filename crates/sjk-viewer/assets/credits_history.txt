@@ -9,12 +9,24 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
-+ 19/10/2026 | - | Nameplates: no weapon icon beside a duellist's name, where the duel badge sat on it
++ 19/10/2026 | - | SJK Alpha collection: Mythical card rarity, Credits and Meme kinds, Bishop card
+- b56e9d0 |  | Cards: the Mythical rarity, Credits and Meme kinds, the SJK Alpha set
++ 19/10/2026 | - | Strafe aura: cg_strafeAura glow over the crosshair showing where turning gains speed
+- 9ea9537 |  | Strafe aura: a glow over the crosshair showing where turning gains speed
++ 19/10/2026 | - | Get up from a JA+ away emote by crouching
+- fa94c17 |  | Away emote: get up from a JA+ emote by crouching, not by sending it again
++ 19/10/2026 | - | Away emote while alt-tabbed out or idle, emotes go quiet then
+- 6c91cc6 |  | Away emote: an emote while alt-tabbed out or idle, and emotes go quiet then
++ 19/10/2026 | - | Nameplates drop the weapon icon while the duel badge shows
 - 668aa70 |  | Nameplates leave out the weapon icon while the duel badge shows
-+ 19/10/2026 | - | Chat text default 0.85 and a chat line spacing setting (cg_chatBoxLineSpacing)
+- f9dc13d |  | Credits for the duel nameplate weapon icon fix
++ 19/10/2026 | - | Chat text default 0.85, chat line spacing setting cg_chatBoxLineSpacing, default 2
 - d7f3ad6 |  | Chat text default 0.85 and a chat line spacing setting
+- a6dea5f |  | Credits for the chat size and line spacing changes
 + 19/10/2026 | - | Chat typing field grows with the chat's EternalJK text size
 - 003d1d5 |  | Chat composer grows with the chat's EternalJK text size
++ 19/10/2026 | - | Test packs shelved: Sol keeps test content off the hub
+- e3b224e |  | Shelve test packs: revert the test-packs merge (bbff67e4)
 + 19/10/2026 | - | SJK pull request #176, Siege hack bar with retail's hacker icon; HACKING text dropped
 - dbbf46b |  | Hack bar from the drawn crosshair with retail's hacker icon; drop HACKING text
 + 19/10/2026 | - | Duel bystanders hidden as in JoF EJK; chat and centre prints at EJK's size

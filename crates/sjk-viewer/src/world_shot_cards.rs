@@ -253,7 +253,7 @@ fn duel6_sjk_loot_table() {
 /// The first card, revealed, in `finish`, beside sealed ones.
 fn with_face(finish: &str) -> Vec<sjk_identity::CardStack> {
     let mut list = vec![sjk_identity::CardStack {
-        card: Some("sol_lore_001".to_owned()),
+        card: Some("sjk_alpha_010".to_owned()),
         rarity: "legendary".to_owned(),
         finish: finish.to_owned(),
         edition: "alpha".to_owned(),
@@ -271,13 +271,13 @@ fn faces_ready() -> bool {
     super::saber_skins::mount_test_packs();
     for _ in 0..200 {
         let faces = crate::cards::faces::current();
-        match faces.find("sol_lore_001") {
+        match faces.find("sjk_alpha_010") {
             Some((index, _)) if faces.art(index).is_some() => return true,
             Some(_) => std::thread::sleep(std::time::Duration::from_millis(25)),
             None => break,
         }
     }
-    println!("no sol_lore_001 face in SJK_TEST_PACKS: skipped");
+    println!("no sjk_alpha_010 face in SJK_TEST_PACKS: skipped");
     false
 }
 
@@ -360,7 +360,7 @@ fn duel6_sjk_card_faces() {
             return;
         };
         let mut card = shown(3, 3, 1, 311);
-        card.card = Some("sol_lore_001".to_owned());
+        card.card = Some("sjk_alpha_010".to_owned());
         ceremony(&mut gpu, vec![card, shown(0, 0, 0, 14)], 3.0);
         let path = shoot(&mut gpu, 4, "duel6-card-face-opening");
         println!("{}", path.display());

@@ -44,14 +44,15 @@ pub(crate) struct Rarity {
     pub(crate) id: &'static str,
     /// What players read ("Rare").
     pub(crate) name: &'static str,
-    /// Its colour: silver for common, then the holocron tiers' green, blue and purple.
+    /// Its colour: silver for common, then the holocron tiers' colours (Uncommon's green
+    /// to Mythical's).
     pub(crate) colour: Color,
     /// Position in [`RARITIES`].
     pub(crate) index: usize,
 }
 
 /// Every rarity the client knows.
-pub(crate) const RARITIES: [Rarity; 4] = [
+pub(crate) const RARITIES: [Rarity; 5] = [
     Rarity {
         id: "common",
         name: "Common",
@@ -75,6 +76,12 @@ pub(crate) const RARITIES: [Rarity; 4] = [
         name: "Legendary",
         colour: crate::holocrons::TIERS[2].colour,
         index: 3,
+    },
+    Rarity {
+        id: "mythical",
+        name: "Mythical",
+        colour: crate::holocrons::TIERS[3].colour,
+        index: 4,
     },
 ];
 
@@ -156,19 +163,19 @@ pub(crate) struct Odds {
 /// table. The hub decides; this only says it.
 pub(crate) const ODDS: [Odds; COUNT] = [
     Odds {
-        rarity: [700, 240, 55, 5],
+        rarity: [700, 240, 55, 4, 1],
         finish: [970, 30, 0],
     },
     Odds {
-        rarity: [500, 330, 150, 20],
+        rarity: [500, 330, 150, 18, 2],
         finish: [900, 100, 0],
     },
     Odds {
-        rarity: [300, 380, 260, 60],
+        rarity: [300, 380, 260, 55, 5],
         finish: [700, 290, 10],
     },
     Odds {
-        rarity: [100, 300, 450, 150],
+        rarity: [100, 300, 450, 130, 20],
         finish: [400, 550, 50],
     },
 ];
@@ -329,7 +336,10 @@ mod tests {
     #[test]
     fn the_lists_are_the_hubs() {
         let rarities: Vec<&str> = RARITIES.iter().map(|rarity| rarity.id).collect();
-        assert_eq!(rarities, ["common", "uncommon", "rare", "legendary"]);
+        assert_eq!(
+            rarities,
+            ["common", "uncommon", "rare", "legendary", "mythical"]
+        );
         let finishes: Vec<&str> = FINISHES.iter().map(|finish| finish.id).collect();
         assert_eq!(finishes, ["normal", "holo", "solar"]);
         for (index, rarity) in RARITIES.iter().enumerate() {
@@ -339,21 +349,21 @@ mod tests {
         for (index, finish) in FINISHES.iter().enumerate() {
             assert_eq!(finish.index, index);
         }
-        assert_eq!(Rarity::from_id("mythical"), None);
+        assert_eq!(Rarity::from_id("ascendant_future"), None);
         assert_eq!(
             CREDITS,
             [(10, 20), (30, 50), (80, 120), (250, 350)],
             "the hub's ranges"
         );
-        let odds: Vec<([u16; 4], [u16; 3])> =
+        let odds: Vec<([u16; 5], [u16; 3])> =
             ODDS.iter().map(|odds| (odds.rarity, odds.finish)).collect();
         assert_eq!(
             odds,
             [
-                ([700, 240, 55, 5], [970, 30, 0]),
-                ([500, 330, 150, 20], [900, 100, 0]),
-                ([300, 380, 260, 60], [700, 290, 10]),
-                ([100, 300, 450, 150], [400, 550, 50]),
+                ([700, 240, 55, 4, 1], [970, 30, 0]),
+                ([500, 330, 150, 18, 2], [900, 100, 0]),
+                ([300, 380, 260, 55, 5], [700, 290, 10]),
+                ([100, 300, 450, 130, 20], [400, 550, 50]),
             ],
             "the hub's tables"
         );
@@ -408,9 +418,9 @@ mod tests {
         let face = look::tests::face();
         let faces = faces::Faces::of_list(vec![face]);
         let mut known = wire("legendary", "holo", "alpha", 1);
-        known.card = Some("sol_lore_001".to_owned());
+        known.card = Some("sjk_alpha_010".to_owned());
         let mut unknown = wire("rare", "normal", "alpha", 1);
-        unknown.card = Some("sol_lore_099".to_owned());
+        unknown.card = Some("sjk_alpha_099".to_owned());
         let list = [
             known,
             unknown,
@@ -420,20 +430,20 @@ mod tests {
         let stacks = stacks(&list);
         let names: Vec<String> = stacks.iter().map(|stack| stack.name_in(&faces)).collect();
         assert!(names.contains(&"Toxiee and Sol on JoF Memorial".to_owned()));
-        assert!(names.contains(&"Unknown card sol_lore_099".to_owned()));
+        assert!(names.contains(&"Unknown card sjk_alpha_099".to_owned()));
         assert!(names.contains(&"Legendary card".to_owned()));
         assert_eq!(
             revealable(&stacks, &faces),
             2,
             "the sealed Legendaries only"
         );
-        let shown = shown(&faces, Some("sol_lore_001")).unwrap();
+        let shown = shown(&faces, Some("sjk_alpha_010")).unwrap();
         assert_eq!((shown.index, shown.of), (0, 1));
         assert!(shown_none(&faces));
     }
 
     fn shown_none(faces: &faces::Faces) -> bool {
-        shown(faces, None).is_none() && shown(faces, Some("sol_lore_099")).is_none()
+        shown(faces, None).is_none() && shown(faces, Some("sjk_alpha_099")).is_none()
     }
 
     #[test]

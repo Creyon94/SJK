@@ -140,6 +140,10 @@ mod tests {
             "Fox opened an Uncommon Holocron: a Legendary card!"
         );
         assert_eq!(
+            said(&find("Fox", "mythical", false, card("mythical", "holo"))),
+            "Fox opened a Mythical Holocron: a Mythical card, Holo!"
+        );
+        assert_eq!(
             said(&find("Fox", "rare", true, card("uncommon", "solar"))),
             "You opened a Rare Holocron: an Uncommon card, Solar!"
         );

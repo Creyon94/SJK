@@ -152,8 +152,8 @@ mod tests {
         let face = crate::cards::faces::Face {
             id: "sol_001".to_owned(),
             name: "Sol".to_owned(),
-            set: "sol_lore".to_owned(),
-            set_name: "Sol lore".to_owned(),
+            set: "sjk_alpha".to_owned(),
+            set_name: "SJK Alpha".to_owned(),
             number: 1,
             kind: crate::cards::faces::Kind::Game,
             rarity: &crate::cards::RARITIES[2],
