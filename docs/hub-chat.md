@@ -891,7 +891,11 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,
   the emote, when it started and when it ends (its length, 3 seconds for an id the
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
-  or leaves, unless it is `moving`. A rig model plays an emote's `clip`
+  or leaves, unless it is `moving`. The player's own emote also ends when they attack or
+  alt attack (since 19/10/2026; `ActiveEmotes::end_on_attack`, called for each command
+  sent): the server performs the attack whatever the emote shows, so it stops here and
+  the client sends the hub a `stop`, as `sjkemote stop` does, which ends it for the
+  others. A rig model plays an emote's `clip`
   (`emotes::playing`), and so does a stock model when the emote names its `rig`
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
