@@ -1,3 +1,13 @@
+## Blade tiers reviewed
+
+20/10/2026, `personal/blade-tiers`, based on `main` (Sol's review by blade number): 26
+blades change tier in the client catalogue and the hub's (`src/unlocks.rs`, hub branch
+`blade-tiers`): 049 and 092 up to Mythical; 007, 008, 040, 041, 045, 046, 047, 058, 065,
+067, 068, 070, 071, 072 and 074 down to Legendary; 002, 005, 006, 012, 076, 080, 082 and
+087 down to Rare; 160 up to Uncommon. Tiers only set the label, colour, Collection order
+and holocron drop odds; the looks are unchanged. Verified on Windows 11: unit tests,
+client and hub. Not verified: in a game.
+
 ## Blade numbers
 
 20/10/2026, `personal/blade-numbers`, based on `main` (Sol's request: name blades by

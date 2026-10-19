@@ -63,20 +63,26 @@ name a blade by it. The Collection shows it after the tier, its hover card reads
 042", its search finds a blade by number ("42", "042" or "#42") and `saberskin 42`
 wears it. A new blade takes the next number and a line here (a test checks this table).
 
+Tiers in this table are Sol's after his review of 20/10/2026, which moved 26 blades
+(Clone Wars and Exegol Rift up to Mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith
+Alchemy, Felucia Spores, Phoenix Squadron and eight of Creyon's mythicals down to Legendary;
+Storm, Prism, Unstable, Chameleon and four of Creyon's legendaries down to Rare; Targeting
+Display up to Uncommon). The rounds' notes below keep the tiers the blades came in.
+
 | No. | Id | Name | Tier | Smith | Drops |
 | --- | --- | --- | --- | --- | --- |
 | 001 | `saber_sun` | Sun blade | Mythical | Sol | yes |
-| 002 | `saber_storm` | Storm blade | Legendary | Sol | yes |
+| 002 | `saber_storm` | Storm blade | Rare | Sol | yes |
 | 003 | `saber_void` | Void blade | Mythical | Sol | yes |
 | 004 | `saber_frost` | Frost blade | Rare | Sol | yes |
-| 005 | `saber_prism` | Prism blade | Legendary | Sol | yes |
-| 006 | `saber_unstable` | Unstable blade | Legendary | Sol | yes |
-| 007 | `saber_molten` | Molten blade | Mythical | Sol | yes |
-| 008 | `saber_spectral` | Spectral blade | Mythical | Sol | yes |
+| 005 | `saber_prism` | Prism blade | Rare | Sol | yes |
+| 006 | `saber_unstable` | Unstable blade | Rare | Sol | yes |
+| 007 | `saber_molten` | Molten blade | Legendary | Sol | yes |
+| 008 | `saber_spectral` | Spectral blade | Legendary | Sol | yes |
 | 009 | `saber_glitch` | Glitch blade | Rare | Sol | no |
 | 010 | `saber_hologram` | Hologram blade | Rare | Sol | no |
 | 011 | `saber_runic` | Runic blade | Rare | Sol | no |
-| 012 | `saber_chameleon` | Chameleon blade | Legendary | Sol | yes |
+| 012 | `saber_chameleon` | Chameleon blade | Rare | Sol | yes |
 | 013 | `saber_banner` | Banner blade | Rare | Sol | yes |
 | 014 | `saber_heartbeat` | Heartbeat blade | Rare | Sol | yes |
 | 015 | `saber_tidal` | Kamino blade | Common | Creyon | yes |
@@ -104,16 +110,16 @@ wears it. A new blade takes the next number and a line here (a test checks this 
 | 037 | `saber_peppermint` | Kessel Spice blade | Uncommon | Creyon | yes |
 | 038 | `saber_bubble` | Bacta blade | Rare | Creyon | yes |
 | 039 | `saber_lavalamp` | Coaxium blade | Rare | Creyon | yes |
-| 040 | `saber_reactor` | Reactor blade | Mythical | Creyon | yes |
-| 041 | `saber_bleeding` | Bleeding Kyber blade | Mythical | Creyon | yes |
+| 040 | `saber_reactor` | Reactor blade | Legendary | Creyon | yes |
+| 041 | `saber_bleeding` | Bleeding Kyber blade | Legendary | Creyon | yes |
 | 042 | `saber_sketch` | Death Star Plans blade | Rare | Creyon | yes |
 | 043 | `saber_hourglass` | Beskar Forge blade | Legendary | Creyon | yes |
 | 044 | `saber_fiber` | Kyber Cluster blade | Legendary | Creyon | yes |
-| 045 | `saber_serpent` | Sith Alchemy blade | Mythical | Creyon | yes |
-| 046 | `saber_monarch` | Felucia Spores blade | Mythical | Creyon | yes |
-| 047 | `saber_phoenix` | Phoenix Squadron blade | Mythical | Creyon | yes |
+| 045 | `saber_serpent` | Sith Alchemy blade | Legendary | Creyon | yes |
+| 046 | `saber_monarch` | Felucia Spores blade | Legendary | Creyon | yes |
+| 047 | `saber_phoenix` | Phoenix Squadron blade | Legendary | Creyon | yes |
 | 048 | `saber_quantum` | Mortis blade | Mythical | Creyon | yes |
-| 049 | `saber_comic` | Clone Wars blade | Legendary | Creyon | yes |
+| 049 | `saber_comic` | Clone Wars blade | Mythical | Creyon | yes |
 | 050 | `saber_quicksilver` | Liquid Beskar blade | Legendary | Creyon | yes |
 | 051 | `saber_obsidian` | Obsidian Edge blade | Mythical | Creyon | yes |
 | 052 | `saber_abyssal_eye` | Abyssal Eye blade | Mythical | Creyon | no |
@@ -122,41 +128,41 @@ wears it. A new blade takes the next number and a line here (a test checks this 
 | 055 | `saber_between_worlds` | Between Worlds blade | Mythical | Creyon | no |
 | 056 | `saber_big_bang` | Big Bang blade | Mythical | Creyon | no |
 | 057 | `saber_carbonite` | Carbonite blade | Mythical | Creyon | no |
-| 058 | `saber_dyson_sphere` | Dyson Sphere blade | Mythical | Creyon | no |
+| 058 | `saber_dyson_sphere` | Dyson Sphere blade | Legendary | Creyon | no |
 | 059 | `saber_eclipse` | Eclipse blade | Mythical | Creyon | no |
 | 060 | `saber_event_horizon` | Event Horizon blade | Mythical | Creyon | no |
 | 061 | `saber_exogorth` | Exogorth blade | Mythical | Creyon | no |
 | 062 | `saber_hyperspace` | Hyperspace blade | Mythical | Creyon | no |
 | 063 | `saber_kyber_heart` | Kyber Heart blade | Mythical | Creyon | no |
 | 064 | `saber_nebula_song` | Nebula Song blade | Mythical | Creyon | no |
-| 065 | `saber_quasar` | Quasar blade | Mythical | Creyon | no |
+| 065 | `saber_quasar` | Quasar blade | Legendary | Creyon | no |
 | 066 | `saber_singing_kyber` | Singing Kyber blade | Mythical | Creyon | no |
-| 067 | `saber_sith_holocron` | Sith Holocron blade | Mythical | Creyon | no |
-| 068 | `saber_star_dragon` | Ashla Radiance blade | Mythical | Creyon | no |
+| 067 | `saber_sith_holocron` | Sith Holocron blade | Legendary | Creyon | no |
+| 068 | `saber_star_dragon` | Ashla Radiance blade | Legendary | Creyon | no |
 | 069 | `saber_starforge` | Starforge blade | Mythical | Creyon | no |
-| 070 | `saber_superlaser` | Superlaser blade | Mythical | Creyon | no |
-| 071 | `saber_uneti_tree` | Uneti Tree blade | Mythical | Creyon | no |
-| 072 | `saber_witchfire` | Witchfire blade | Mythical | Creyon | no |
+| 070 | `saber_superlaser` | Superlaser blade | Legendary | Creyon | no |
+| 071 | `saber_uneti_tree` | Uneti Tree blade | Legendary | Creyon | no |
+| 072 | `saber_witchfire` | Witchfire blade | Legendary | Creyon | no |
 | 073 | `saber_world_shift` | World Shift blade | Mythical | Creyon | no |
-| 074 | `saber_wraithlight` | Wraithlight blade | Mythical | Creyon | no |
+| 074 | `saber_wraithlight` | Wraithlight blade | Legendary | Creyon | no |
 | 075 | `saber_lightspeed_ram` | Holdo Maneuver blade | Mythical | Creyon | no |
-| 076 | `saber_hoth_avalanche` | Hoth Avalanche blade | Legendary | Creyon | no |
+| 076 | `saber_hoth_avalanche` | Hoth Avalanche blade | Rare | Creyon | no |
 | 077 | `saber_blood_moon` | Dathomir Blood Moon blade | Legendary | Creyon | no |
 | 078 | `saber_force_echo` | Force Echo blade | Legendary | Creyon | no |
 | 079 | `saber_hypermatter` | Hypermatter blade | Legendary | Creyon | no |
-| 080 | `saber_kessel_run` | Kessel Run blade | Legendary | Creyon | no |
+| 080 | `saber_kessel_run` | Kessel Run blade | Rare | Creyon | no |
 | 081 | `saber_unknown_regions` | Unknown Regions blade | Legendary | Creyon | no |
-| 082 | `saber_krayt_pearl` | Krayt Pearl blade | Legendary | Creyon | no |
+| 082 | `saber_krayt_pearl` | Krayt Pearl blade | Rare | Creyon | no |
 | 083 | `saber_starkiller_frost` | Starkiller Frost blade | Legendary | Creyon | no |
 | 084 | `saber_royal_naboo` | Royal Naboo blade | Legendary | Creyon | no |
 | 085 | `saber_bespin_storm` | Bespin Storm blade | Legendary | Creyon | no |
 | 086 | `saber_scarif_tide` | Scarif Tide blade | Legendary | Creyon | no |
-| 087 | `saber_assassin_droid` | Assassin Droid blade | Legendary | Creyon | no |
+| 087 | `saber_assassin_droid` | Assassin Droid blade | Rare | Creyon | no |
 | 088 | `saber_aurodium` | Aurodium blade | Legendary | Creyon | no |
 | 089 | `saber_kashyyyk_monsoon` | Kashyyyk Monsoon blade | Legendary | Creyon | no |
 | 090 | `saber_malachor_forge` | Malachor Forge blade | Legendary | Creyon | no |
 | 091 | `saber_yavin_vines` | Yavin Vines blade | Legendary | Creyon | no |
-| 092 | `saber_exegol_rift` | Exegol Rift blade | Legendary | Creyon | no |
+| 092 | `saber_exegol_rift` | Exegol Rift blade | Mythical | Creyon | no |
 | 093 | `saber_shattered_kyber` | Shattered Kyber blade | Legendary | Creyon | no |
 | 094 | `saber_twin_suns` | Twin Suns blade | Legendary | Creyon | no |
 | 095 | `saber_jedi_spirits` | Jedi Spirits blade | Legendary | Creyon | no |
@@ -224,7 +230,7 @@ wears it. A new blade takes the next number and a line here (a test checks this 
 | 157 | `saber_kef_bir_sea_glass` | Kef Bir Sea Glass blade | Common | Creyon | no |
 | 158 | `saber_jedha_lantern` | Jedha Lantern blade | Common | Creyon | no |
 | 159 | `saber_corellian_pearl` | Corellian Pearl blade | Common | Creyon | no |
-| 160 | `saber_targeting_display` | Targeting Display blade | Common | Creyon | no |
+| 160 | `saber_targeting_display` | Targeting Display blade | Uncommon | Creyon | no |
 | 161 | `saber_raxus_scrap` | Raxus Scrap blade | Common | Creyon | no |
 | 162 | `saber_pasaana_stone` | Pasaana Stone blade | Common | Creyon | no |
 | 163 | `saber_smoked_transparisteel` | Smoked Transparisteel blade | Common | Creyon | no |
