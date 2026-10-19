@@ -130,6 +130,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
@@ -348,6 +351,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::chat::pm_only::CVAR,
         "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
+    ),
+    (
+        crate::audio::SKIN_SOUNDS_CVAR,
+        "A blade skin's own ignition, swings and hum: off (normal saber sounds), over the normal ones, or instead of them.",
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
@@ -610,6 +617,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::saber_rgb::black::CVAR,
         "Show black blades on JA+/jaPRO; off uses orange. Plugin feature 3 must also be allowed.",
+    ),
+    (
+        crate::blade_lab_designs::CVAR,
+        "Draw the Blade Lab skins (Serpent, Comic and the rest) as Creyon's Blade Lab drew them; off uses their skin files.",
     ),
     (
         crate::effect_aux::saber_rain_steam::CVAR,

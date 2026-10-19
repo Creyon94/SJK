@@ -155,6 +155,9 @@ pub(crate) fn blade(
     let start = x + 26.0 + hilt;
     let length = width - (start - x) - 34.0;
     let shown = match (owned, skin) {
+        (true, Some(skin)) if real_picture(canvas, frame, skin, rect, [start, centre, length]) => {
+            Shown::Skin
+        }
         (true, Some(skin)) => {
             lit_blade(
                 canvas,
@@ -164,6 +167,27 @@ pub(crate) fn blade(
                 seconds,
                 turn,
             );
+            if let Some(signature) = skin.signature {
+                let tint = |rgb: Rgb, alpha: f32| {
+                    let rgb = if turn == 0.0 {
+                        rgb
+                    } else {
+                        crate::saber_skins::turn_hue(rgb, turn)
+                    };
+                    ui(rgb, alpha)
+                };
+                effects::signature(
+                    canvas,
+                    frame,
+                    signature.swatch_hints(),
+                    skin.def.light.color,
+                    [start, centre],
+                    length,
+                    13.0,
+                    seconds,
+                    &tint,
+                );
+            }
             Shown::Skin
         }
         (true, None) => {
@@ -189,6 +213,47 @@ pub(crate) fn blade(
         padlock(canvas, frame, x + width * 0.5, centre);
     }
     shown
+}
+
+/// Draw `skin`'s live picture from the game's blade renderer ([`crate::blade_pictures`]) on
+/// the swatch `rect`, its blade from `start` along `length` at `centre` (frame pixels):
+/// false while it has none yet (the drawing stands in).
+fn real_picture(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    skin: &LoadedSkin,
+    rect: [f32; 4],
+    [start, centre, length]: [f32; 3],
+) -> bool {
+    let [x, _, width, height] = rect;
+    let unit = length / crate::blade_pictures::BLADE_LENGTH;
+    if unit <= 0.0 {
+        return false;
+    }
+    let shown = (height / unit).min(26.0);
+    let Some([u0, v0, u1, v1]) = crate::blade_pictures::picture(skin.id, shown) else {
+        return false;
+    };
+    // The picture runs from its cell's left edge, faded under the hilt, to its cell's end
+    // (`blade_pictures.wgsl` softens them); it stops short of the swatch's edge.
+    let left = start - crate::blade_pictures::BLADE_START * unit;
+    let full =
+        (crate::blade_pictures::BLADE_LENGTH + crate::blade_pictures::BLADE_START + 9.0) * unit;
+    let wide = full.min(x + width - 6.0 - left);
+    if wide <= 0.0 {
+        return false;
+    }
+    let u1 = u0 + (u1 - u0) * wide / full;
+    push(
+        canvas,
+        DrawCommand::TexturedQuadUv {
+            rect: frame.rect(left, centre - shown * unit * 0.5, wide, shown * unit),
+            texture: crate::ui_renderer::BLADE_PICTURES_TEXTURE,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            uv: [[u0, v0], [u1, v0], [u1, v1], [u0, v1]],
+        },
+    );
+    true
 }
 
 /// The height [`blade`] draws a swatch at (frame pixels); a small one is that swatch

@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Release 2026.1019.2 (Alpha)
+- b79186b |  | Release 2026.1019.2 (Alpha)
++ 19/10/2026 | - | Changelog: recap for the next release, Discord apps and duel nameplate lines
+- 8442c03 |  | Changelog: recap for the next release, Discord apps and duel nameplate lines
 + 19/10/2026 | - | Solar finish after the Sun blade, smooth Holo, GPU card shine, binder paging
 - ef1ba08 |  | Card finishes shaded per pixel: Solar burns like the Sun blade, Holo is a smooth foil; binder paging
 + 19/10/2026 | - | Vague showcase tools wording

@@ -24,6 +24,89 @@ world shot `duel6_sjk_loot_table` (1080p and 4:3) looked at. Not verified: a Myt
 opening and face looked at, in a game against a hub with the new tables. Clients from before keep their four-rarity copy of the
 odds, leave Mythical copies out and drop the two new faces (unknown rarity and kind).
 
+## Blade skin trails in their own colour
+
+18/10/2026, `fix/skin-trail-core`, based on `Sol-Vulpes/SJK` `1c8887f7` (Creyon's
+report of 17/10/2026: every skin left a white trail): implemented, a blade skin's blur
+trail draws the stock `blurglow` and `blurcore` both in the skin's trail colour,
+deepened so pale colours stay coloured (vertex style 3). A first version, which left a
+quarter of the core white, still looked white in Creyon's game test (Reactor). Stock blades, black blades and the sword trail are unchanged.
+See [rendering](rendering.md#saber-trails).
+
+A unit test pins the style per blade kind; the trail and blade programs validate
+with naga. Workspace checks are listed in the pull request. Not yet seen in the game:
+some skins' own trail colours are pale (Bleeding Kyber's is near white), which this
+change does not alter.
+
+## Blade skin sounds choice
+
+18/10/2026, `feat/skin-sounds-replace-option`, based on `Sol-Vulpes/SJK` `1c8887f7`
+(Creyon's report of 17/10/2026: the skins' own sounds were drowned by the stock saber
+sounds, `s_show 1` showing both for each ignition and swing; and his request of
+18/10/2026 to choose the skins' sounds or the normal ones): implemented
+`s_saberSkinSounds` (Settings > Sound > Blade skin sounds): 0 Off, the stock saber
+sounds alone; 1 With normal, the default, the 09/10/2026 layering; 2 Only skin, a worn
+skin's ignition, switching off, swings (events and animation cues) and hum in place of
+the stock and hilt sounds. A thrown saber keeps its own hum under the skin's. See
+[client](client.md#blade-skins).
+
+Unit tests in `sjk-client` pin the replacement for ignition, swings and hum, for the
+wearer only; the existing layering tests pass unchanged. Not yet heard in the game.
+
+## Blade Lab designs in game
+
+18/10/2026, `feat/blade-lab-designs`, based on `Sol-Vulpes/SJK` `1c8887f7`
+(Creyon's review of the fourteen Blade Lab skins, with videos of the lab and the
+game): implemented the lab's own shaders for Peppermint, Soap Bubble, Lava Lamp,
+Sketch, Hourglass, Comic, Quicksilver, Reactor, Obsidian Edge, Bleeding Kyber,
+Monarch, Phoenix, Serpent and Quantum, with their particles, the comic, quicksilver
+and obsidian solids, the comic words and the monarchs; a per-blade swing (about the
+hilt), ignition and clash for them; `cg_saberLabDesigns` (default on) to draw the files
+instead. After Creyon's first test: blades seated in the hilt at a stock thickness, the
+bloom tamed, eleven made chromas, comic words per swing, a rounded slower hourglass, a
+climbing serpent, a 30-second reactor overheat with field lines and arcs, emitter light at
+the hilt, longer comic words, Quantum's ghost copies as an option and
+more effects, larger bubbles. The Phoenix's wings are left out. See
+[rendering](rendering.md#blade-lab-designs).
+
+Workspace fmt/build/test passed on Linux x86_64; clippy adds no warning. Tests pin the
+table against the catalogue and the shader's numbers, the new lane, the motion's swing,
+ignition and clash, and the settings row; `saber.wgsl` validates with naga. The ignored
+GPU test renders every design on llvmpipe (GL) and passed. Not yet compared in a live
+match; the sounds are still the skin files' (a separate change, the files are in the
+hub's pack).
+
+## Creyon's Blade Lab signatures in game
+
+19/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request), on `main` `7bd3a00f`:
+Creyon's Blade Lab blades drawn in game by their own shaders
+([rendering.md](rendering.md#blade-lab-signature-shaders)): the lab's GLSL kept as the source,
+translated to WGSL by `scripts/blade_signatures.py`, each skin built into pipelines of its own
+on a background thread. 128 signatures in five tiers (mythical most dramatic, then legendary,
+rare, uncommon, common), every one Star Wars, built as Sol's blades are: the blade is the file's
+glow and core, effects are flat round it facing the camera and only what circles it is 3D, held
+by a frame fixed to the hilt (turning the view or running moves nothing), on the full length (no
+racing while igniting), every effect a switchable part in the Collection (at most six). 32 of
+them take the wearer's colour where a colour fits (kyber, holograms, the Force, data and light,
+the cartoon blade), their own effects keeping their colours. Engine changes
+with them: the swing is measured in the wearer's frame at a fixed reach (running and switching
+on or off are no swing); a signature's solid parts stop at the blade's current tip; the
+Collection's swatches show each owned blade drawn live by the blade renderer
+(`blade_pictures.rs`); a skin's sound missing from the game data is left out and the stock one
+plays in both `s_saberSkinSounds` modes (`sound_present`), so the 102 signatures that name their
+own sounds (`sound/sjk/creyon/<id>/`, made in Creyon's Blade Lab, not in this repository) are
+silent for nobody until the hub's pack carries them.
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): every translation renders as naga's GLSL front
+end, every signature module validates, the ignored GPU test renders every signature lit with
+dark corners (sheets of all looked at, moving cameras with `SJK_SIGNATURE_ORBIT`); workspace
+formatting, build, tests and clippy (no new warnings) pass. Creyon tested the rounds in game on
+Windows 11 (his notes, rounds 8 to 13; round 13's blade pictures and Lightspeed Ram, now named
+Holdo Maneuver, confirmed). Round 14 (Kyber Heart's arteries, Holdo Maneuver's gathering light
+and afterimages, Eclipse's stars of totality, the new chromas) is checked by the GPU sheets and
+the workspace checks only. Not verified: round 14 in his game, frame time with several signature
+blades on screen, the hub's catalogue and pack (Sol's).
+
 ## Chat and centre-print sizes on EternalJK's scale
 
 19/10/2026, `personal/text-sizes-ejk`, based on `main` `58809a31` (Sol, after Milamber's

@@ -291,7 +291,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 95 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 97 * 16);
     // The array stays inside the storage binding WebGPU guarantees (128 MiB).
     assert!(bytes.len() <= 128 * 1024 * 1024);
 }
@@ -488,7 +488,17 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .unwrap();
     let skins = LoadedSkins::load(packs, 4);
     assert_eq!(skins.generation(), 4);
-    assert_eq!(skins.ids().collect::<Vec<_>>(), ["saber_sun"]);
+    // The pack's skin, then the signature skins no pack carries, from their built-in files.
+    let ids: Vec<_> = skins.ids().collect();
+    assert_eq!(ids[0], "saber_sun");
+    assert!(
+        ids[1..]
+            .iter()
+            .copied()
+            .eq(crate::blade_signatures::SIGNATURES
+                .iter()
+                .map(|signature| signature.id))
+    );
     let skin = skins.get("saber_sun").unwrap();
     assert_eq!(skin.glow.dimensions(), (32, 32));
     assert_eq!(skin.glow.get_pixel(3, 3).0, [90, 90, 90, 255]);
@@ -496,11 +506,11 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
     assert_eq!(skins.color_of("saber_sun").map(|c| c.index), Some(0));
     assert_eq!(skins.color_of("saber_moon"), None);
     let sets = skins.sound_sets();
-    assert_eq!(sets.len(), 1);
+    assert_eq!(sets.len(), 1 + crate::blade_signatures::SIGNATURES.len());
     assert_eq!(sets[0].hum, "sound/test/blade/hum.wav");
     assert_eq!(sets[0].swings[1], "sound/test/blade/s2.wav");
     assert_eq!(skins.swing(0, 4), Some("sound/test/blade/s2.wav"));
-    assert_eq!(skins.swing(1, 0), None);
+    assert_eq!(skins.swing(sets.len() as u8, 0), None);
     // A missing image refuses the skin: the stock blade.
     let mut missing = VirtualFileSystem::new();
     missing
@@ -516,7 +526,12 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
             )],
         )
         .unwrap();
-    assert_eq!(LoadedSkins::load(missing, 5).ids().count(), 0);
+    assert_eq!(
+        LoadedSkins::load(missing, 5)
+            .get("saber_sun")
+            .map(|skin| skin.id),
+        None
+    );
 }
 
 #[test]
@@ -928,4 +943,18 @@ fn a_custom_tint_never_jumps_hue_between_neighbouring_values() {
             .map(|c| (c * 255.0).round() as u8))
     };
     assert!(gap(pastel(185).unwrap(), pastel(190).unwrap()) < 0.02);
+}
+
+#[test]
+fn a_skins_blur_trail_is_drawn_in_its_own_colour() {
+    use crate::saber_trail::vertex_style;
+    let skin = BladeColor::Skin(sample_color());
+    // The blur trail of a skin tints its white core too (style 3)...
+    assert_eq!(vertex_style(0, skin), 3);
+    // ...while the sword trail, stock blades and black blades keep their styles.
+    assert_eq!(vertex_style(1, skin), 1);
+    assert_eq!(vertex_style(0, BladeColor::Retail(Color::Blue)), 0);
+    assert_eq!(vertex_style(1, BladeColor::Retail(Color::Blue)), 1);
+    assert_eq!(vertex_style(0, BladeColor::Black), 2);
+    assert_eq!(vertex_style(1, BladeColor::Black), 1);
 }

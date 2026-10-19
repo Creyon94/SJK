@@ -1,0 +1,25 @@
+// Kashyyyk Monsoon: the monsoon over Kashyyyk's forests as a blade. Rain lashes down past it and
+// streams down the blade itself, a green jungle mist steams off it, and now and
+// then the sky flashes and lightning forks off it. A clash flares it.
+// @part Rain
+// @part Jungle mist
+// @arcs Monsoon lightning
+// @room 8
+// @palette {"corona.rim_cool":[0.1,0.4,0.15],"corona.rim_hot":[0.45,0.95,0.5],"corona.inner":[0.88,1.0,0.9],"core.white":[1,1,1],"core.fringe_cool":[0.35,0.85,0.45],"core.fringe_hot":[0.8,1.0,0.85],"light.color":[0.45,0.95,0.55],"trail":[0.45,0.95,0.55]}
+
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float fl = step(0.93, h11(floor(uTime*3.0)));
+  float run = pow(0.5 + 0.5*sin(b.x*12.0 + floor(b.y*0.3 + uTime*2.0)*2.0), 16.0)*part(0.0);
+  return g*(0.85 + 0.8*fl + 0.4*run);
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+// the effects, flat round the blade as Sol's are
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+  vec3 rain = vec3(0.8, 0.95, 0.9), green = vec3(0.35, 0.8, 0.45);
+  fx += fxFall(ro, rd, px, y0, y1, 3.5, 22.0, 24.0, 1.2, 0.15, 5.9, rain)*0.8*part(0.0);
+  fx += fxSmoke(ro, rd, y0, y1, 3.8, 1.5, 2.6, green)*0.8*part(1.0);
+  return fx*uFx;
+}

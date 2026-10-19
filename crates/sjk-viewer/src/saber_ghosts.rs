@@ -17,6 +17,10 @@ pub(crate) struct GhostSpec {
     pub(crate) spacing_millis: f32,
     /// The first one's brightness; each next is this much of the one before.
     pub(crate) fade: f32,
+    /// Kept in the wearer's own frame (Creyon's signature blades, round 12): turning the
+    /// view or running moves the whole body, which leaves no afterimage; only the blade's
+    /// own swing does.
+    pub(crate) wearer: bool,
 }
 
 /// How far (units) a kept pose's tip must be from the blade's for it to be drawn.
@@ -57,6 +61,18 @@ impl GhostTrail {
         color: BladeColor,
         spec: GhostSpec,
     ) -> impl Iterator<Item = Instance> + '_ {
+        self.instances_placed(blade, color, spec, |pose| pose)
+    }
+
+    /// [`Self::instances`] for poses kept in another frame (the wearer's): `blade` in that
+    /// frame too, and `place` taking a pose back to the world before it is drawn.
+    pub(crate) fn instances_placed<'s>(
+        &'s self,
+        blade: Blade,
+        color: BladeColor,
+        spec: GhostSpec,
+        place: impl Fn(Blade) -> Blade + 's,
+    ) -> impl Iterator<Item = Instance> + 's {
         let tip = |b: &Blade| {
             glam::Vec3::from_array(b.base) + glam::Vec3::from_array(b.direction) * b.length
         };
@@ -69,7 +85,7 @@ impl GhostTrail {
                 let pose = (*pose)?;
                 let fade = spec.fade.powi(index as i32 + 1);
                 (fade >= FAINTEST && tip(&pose).distance(now_tip) >= MOVED)
-                    .then(|| Instance::ghost(pose, color, fade))
+                    .then(|| Instance::ghost(place(pose), color, fade))
             })
     }
 }
@@ -88,6 +104,7 @@ mod tests {
     }
 
     const SPEC: GhostSpec = GhostSpec {
+        wearer: false,
         count: 3,
         spacing_millis: 40.0,
         fade: 0.5,
@@ -123,6 +140,7 @@ mod tests {
         );
         // One fainter than `FAINTEST` is left out: the Spectral's fourth.
         let spectral = GhostSpec {
+            wearer: false,
             count: 4,
             fade: 0.45,
             ..SPEC

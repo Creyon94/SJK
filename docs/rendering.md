@@ -1833,6 +1833,275 @@ Mounted bodies are suppressed explicitly even though that reference's vehicle
 check was commented out. Source comparison and unit checks do not establish
 in-game visual, audible or populated-server performance parity.
 
+## Blade Lab designs
+
+Fourteen blade skins came from Creyon's Blade Lab, a three.js page in which each was
+first drawn by its own shader: Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass,
+Comic, Quicksilver, Reactor, Obsidian Edge, Bleeding Kyber, Monarch, Phoenix, Serpent
+and Quantum. Their skin files describe them with the parts every skin shares, which
+came out far from the lab's look (Creyon's review of 17/10/2026, with videos of both).
+[blade_lab_designs.rs](../crates/sjk-viewer/src/blade_lab_designs.rs) names them in a
+table (`DESIGNS`: the skin, its number, the lab's glow reach `R`, how far its particles
+go, whether it has a solid pass, the lab's colour), and while `cg_saberLabDesigns` is on
+(archived, default 1; **Blade Lab designs** under Game options in both settings
+interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_*`):
+
+- **Units.** The lab works in metres on a 1.08 m blade; a stock blade is 40 units, so a
+  unit is 0.027 m (`LAB_METRE`, `blade_lab_designs::METRE`). `lab_place` turns the glow
+  quad's place into the lab's: along the blade as on the blade itself (foreshortening
+  undone), across and the distance to the blade's axis as on screen. Each blade starts
+  4 cm inside its hilt (`LAB_START`), as a stock glow covers the hilt's mouth, and is
+  drawn narrower than in the lab by its `LAB_THIN` so it is a stock blade's thickness
+  and fits its hilt (Creyon's test, 18/10/2026: a gap above the hilt, blades too thick).
+- **The skin.** `LoadedSkin::shown` is the file without its sections (the design draws
+  its own parts, and the afterimages, echo, glints and pulse the CPU makes go too) and
+  with the lab's colour for its trail and light; its uniform carries the design in its
+  last lane (`design`: number, reach, room, solid). Eleven are chromas (all but Phoenix,
+  Obsidian Edge and Quicksilver): `lab_turn` turns only the parts that make sense in
+  another colour (the stripes, the wax, the sand, the plasma at rest, Bleeding Kyber's
+  pure part, Serpent's and Monarch's blade), keeping the red corruption, the snake, the
+  butterflies and the overheat. The sounds stay the file's. With `cg_saberLabDesigns 0` the files draw them
+  again; the change uploads the skins anew (`sync_saber_skins`).
+- **Glow.** `fragment_main` draws a design's glow quad with `lab_glow` (the dynamic glow,
+  `fragment_glow`, takes only `LAB_BLOOM` of it, capped, so a white core does not bloom
+  into a blob that hides the effects): the
+  lab's blade (`lab_blade`, the lab's `fx` for that design, core and all) faded out at its
+  reach, and its particles (`lab_motes`: sugar glints, bubbles that pop, wax specks,
+  doodled stars, spilled sand, vented sparks, edge sparks, pollen, flames and burning
+  feathers, green motes, the probability cloud), each a slot reborn every life at a new
+  place, never narrower than a pixel. The core line draws nothing for a design.
+- **Solid pass.** `vertex_solid` keeps a design with a solid pass, and `lab_solid` draws
+  the comic blade's cel-shaded body in its black outline and its words (VMMMM! on
+  lighting and switching off, SHWOOM!/VWOSH!/ZZAKT! on a swing, each swing of a chain its
+  own, KRAKK!/SHZAK!/BZZT! on a clash, in a five-by-six font), the quicksilver mirror column
+  with its beads and drops, the flat obsidian blade, Bleeding Kyber's drops and the
+  monarchs (Felucia's spores), which sit on the blade, lift off gently on a swing, drift
+  along it and land again once it is still. A design whose words outlast its blade
+  (`blade_lab_designs.rs` `LINGERS`: the comic blade, 1.6 seconds) keeps, from when its
+  blade begins going in, a whole-length instance with a swing lane of -1 that draws only
+  its switching-off word, standing upright from the hilt (`saber_submission.rs`,
+  `lab_lingering`), so the word floats on after the blade has gone and can be read.
+- **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
+  since its last swing began reach the shader per instance (`motion`, location 10;
+  [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
+  trail state: the swing follows the tip's speed about the hilt as the lab's did (a full
+  swing at its 5.5 m/s; running with the blade still is no swing), a swing begins above
+  an idle stance's sway, only while its wearer's saber is in an attack (`saberMove`,
+  `in_attack` or `in_special`: a run's arm sway is none, Creyon's round 14; without a
+  snapshot the tip must have turned some 40 degrees within 0.45 seconds instead), and for
+  the designs that answer each swing (`blade_lab_designs.rs` `EACH_SWING`: the comic
+  blade's words) again every second of a chain without a pause; for the others a chain
+  counts from its first swing, a clash is one whose flare latched within 12 units of the blade
+  (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
+  Thrown and menu blades are still.
+- **Changed from the lab** after Creyon's tests: each blade has light at its emitter
+  (`design_color`, as a stock blade's hilt sprite) so no gap shows above the hilt; the
+  hourglass's glass closes in a dome over the tip and its sand runs in 24 seconds, not 8;
+  the serpent climbs; the reactor (a mythical) heats over a 30-second cycle (calm,
+  heating over 6 seconds, a critical red with a slow strobe, a vent flash and cooling)
+  with a coloured core that reads from afar, magnetic field lines winding round it, arcs
+  between its rings while hot and a glowing emitter coil; Quantum gained a standing
+  wave, tunnelling blips and a collapse flash on each swing, and its ghost copies (an
+  option its wearer may switch off: `Ghost copies`, the `copies` section bit) show
+  whether it is held or swung; bubbles are larger and brighter; the comic words come
+  with swings and clashes only, larger and held 1.8 seconds. The Phoenix's wings,
+  which grew out of the blade, are not drawn. The lab's bloom pass is not; its halos are
+  the shader's own.
+
+An ignored GPU test (`blade_lab_designs_gpu_test.rs`) renders every design still, mid-
+swing and after a clash, checks the blade is lit and the picture's corner dark, and saves
+the pictures to the folder `SJK_LAB_PREVIEW` names.
+
+## Blade Lab signature shaders
+
+Creyon's Blade Lab grew into a collection of more than a hundred blades, each drawn by
+its own **signature shader** on top of SJK's skin shading, which the lab runs as a GLSL
+port of `saber.wgsl` (19/10/2026: the twenty-one mythicals first, then six of his reworked
+Blade Lab designs; round 8 replaced Nine Lives, World Tree and Elemental with Carbonite,
+the Uneti Tree and World Shift and added the Sith Holocron and the Exogorth: twenty-nine).
+A signature is three functions (and two more, below), each handed what the skin's file drew
+at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's light,
+`sig_core(c, b, px)` the core line's, `sig_solid(o, b, px)` a layer blended over the glow;
+`b` is the place in units (across, along: 0 at the hilt, the blade's length at the tip),
+`r` the stock glow's radius there, `px` a pixel. They read the lab's uniforms: `uTime`,
+`uLength`, `uSwing`, `uClash`, `uIgn`, `uAge`, `uSeed`, `uFx`.
+
+- **Effects round the blade (round 8, 19/10/2026).** Built as Sol's own blades are: the
+  blade itself is the skin file's glow and core, which `sig_glow` and `sig_core` only
+  brighten, tint or mark (so it fits the hilt and fills the emitter as a stock blade
+  does), and solid parts (Carbonite's slab, the Sith Holocron's crystal, the Exogorth's
+  gullet) are drawn by `sig_solid` over it as Sol's ink and chrome are. Everything round
+  the blade is drawn by two more hooks, `sig_vol(ro, rd, px)` (added light) and
+  `sig_vol_solid(ro, rd, px)` (a blended layer), handed the view ray in the blade's own
+  frame (`sig_ray`: y along the blade from the hilt, z along a direction across it fixed
+  to the hilt, x across both): sparks, flames, bolts, rings, puffs of mist and shards are placed
+  round the blade in 3D and each is drawn as a soft piece facing the camera (the ray's
+  distance to a point or segment, `rayPt`, `raySeg`, `bolt3` in `lab.glsl`), as Sol's
+  arcs and the Void's orbiting black holes are; no volume is marched. `sig_edge` fades
+  everything out before the quad's edges, and `uFx` is 0 when the wearer turns the
+  effects off. `@solid 1` marks a signature with `sig_solid` or `sig_vol_solid`.
+- **A fixed frame and the full length (round 9, 20/10/2026).** Until round 9 the frame's x
+  pointed to the camera's side, so every effect turned round the blade with the view: in
+  Creyon's test they raced round it whenever he turned the mouse. The hand path now stamps
+  each blade instance with a direction across it that turns with the hilt (the socket's
+  direction's orthonormal turned by the weapon's rotation) and the blade's full length
+  (`Instance::with_frame`, vertex attribute 11, `frame`); the vertex stage passes the
+  direction octahedron-packed in `down.zw` and the length in `axis.w`, and `sig_ray` builds
+  the frame from it (a thrown blade or the menu stage, without one, from a fixed world
+  direction). `sig_full` places the three-dimensional effects on the full length and
+  shows them only once the blade is nearly all out (85 to 100 % of it), so nothing slides
+  up the blade while it ignites (it did, fast, with `uLength` growing).
+- **Flat as Sol's, only orbits in 3D (round 10, 20/10/2026).** Creyon: Sol's blades "only have
+  parts that are 3D". `sig_vol` and `sig_vol_solid` are now handed a flat view (`sig_flat`): a
+  ray straight through the blade's picture at its place `b`, from a little above (rings round
+  the blade read as ellipses), so everything they draw is a flat picture round the blade
+  facing the camera, as Sol's arcs, flares and wisps are, the same from every side. Only what
+  circles the blade is drawn along the true view ray in the hilt's frame, by two more hooks,
+  `sig_orbit` (light) and `sig_orbit_solid` (a layer): the Eclipse's suns, Obsidian Edge's
+  shards, Liquid Beskar's orbiting droplets, Carbonite's floating shards, the Kyber Cluster's
+  crystals and the Between Worlds duel. `tools/sig3d.py` in the Blade Lab draws the same way.
+- **Each its own, every part switchable (round 11, 20/10/2026).** Creyon: the mythicals all
+  had the same lines (the shared beams) and each effect must switch off on its own. A
+  signature now also wears Sol's lightning and prominences (`arcs`), souls, sparks and
+  starlines (`motes`) and a colour turn (`hue`) from its file, each with its own pattern, and
+  no longer shares the beams. Its options (`Signature::options`, at most six): its own parts,
+  named by `// @part` header lines and read in the shader with `part(k)` (the wearer's
+  choices ride on section bits a signature never uses, `SIG_PART_BITS`, gathered into
+  `uParts` by `sig_take`), then Sol's sections its file has (named by `// @arcs` and like
+  lines), then the swing and clash bursts (the pulse bit). An id that hashes onto a taken
+  choice bit gets a number. The old `Effects round the blade` and `Ignition show` are gone.
+- **Nothing moves with the view (round 11).** Effects still raced when the view turned, the
+  wearer ran or the blade lit: many clocks ran at a rate that followed the swing (`uTime` times
+  `a + b × uSwing` jumps the phase by the clock times the change), and turning the view or
+  running turned the blade about its hilt in the world, which counted as a swing. The swing
+  is now measured in the wearer's own frame (`BladeMotion::record_turned`, the blade's
+  direction turned back by the body's rotation), no clock's rate follows the swing, and
+  `uLength` is the full length from the start (`sig_take`), so nothing placed along the blade
+  slides as it grows.
+- **Lower tiers and Sol's pieces (round 11).** A signature keeps its file's echo, glints
+  (`star`, `orbit`) and veins as well as its afterimages, haze, wisps and embers, offered as
+  options, and the built-in file's ones win over an older pack file (`Signature::adopt`). The
+  legendaries use them with fewer flat effects than the mythicals; `lab.glsl` adds `lvl`,
+  `recol`, `bands` and `fxFall` (rain, snow, streaks) for them.
+- **Round 12 (Creyon's test of round 11, 19/10/2026).** What a signature's glow draws past
+  the tip it has grown to waits for the blade to be out (`sig_full`; Star Dragon's coils stood
+  at full length while it lit). A signature's afterimages are kept in its wearer's own frame
+  (`GhostSpec::wearer`, `GhostTrail::instances_placed`): turning the view or running leaves
+  none, only the blade's own swing does. Sol's arcs and motes on a signature fade out at its
+  room instead of the stock glow's width, which had cut its prominences off (`faded` in the
+  arcs' block; their tip leaps keep their old reach). A signature's smoke (wisps) uses finer,
+  more curled noise with a soft edge (it looked square), and `lab.glsl` adds `fxSmoke` (soft
+  flat smoke), `fxStreams`, `fxFlakes` and `fxRingWaves`. `uKeep` is light a signature adds
+  in its own colours after a chroma's turn: Between Worlds' white and red duel and Bleeding
+  Kyber's red corruption (which is now a chroma: its pure part takes the wearer's colour) keep
+  their colours. Creyon's blades lost their clash rings, their tip glints and the rings that
+  were not their idea; the legendaries were reworked with three or four switchable effects
+  each, and Wraithlight's aura softened. A signature's swing (`uSwing`) now counts only a real swing
+  (a smoothstep from 0.45 of the measured swing): the arm's sway while running and the torso
+  following the view had stirred the effects that answer a swing.
+- **Round 12b (Creyon's second test, 19/10/2026).** Sol's lightning and prominences (`arcs`) on
+  a signature are drawn on two sheets through the blade's axis fixed to the hilt (`sig_arcs`,
+  `sig_ray`'s frame) instead of the picture facing the camera, which kept them on the same side
+  of the screen whatever the view, so they swung round the blade as he turned or ran; a sheet
+  seen edge on fades and the other carries them. The ignored GPU test's `SJK_SIGNATURE_ORBIT`
+  renders five views from a moving camera to check that effects stay with the blade. A
+  signature's echo is its blade alone, faded (it drew its own effects at full strength and cut
+  off). Smoke: `fxSmoke` and a signature's wisps (`sig_rising`) use broad, turned octaves so the
+  value noise's grid never shows, and draw none over the tip. Kyber Cluster's crystals are
+  hidden behind the blade. Star Dragon became the Ashla Radiance blade (same id), Balance was
+  redrawn as a silver blade between a ribbon of light and one of violet shadow, Ilum Aurora
+  Storm's curtains are soft sheets instead of bars, Between Worlds and Wraithlight are calmer.
+- **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
+  own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
+  `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
+  back, with a fork), `fxSparks`, `fxCoils` (strands of light wound round it with knots
+  running along them), `fxMotes`, `fxShock` (a ring racing out), `fxFlare` (a star facing
+  the camera), `fxAura` and the ring distance `ringD`. Each mythical's round-8 effects are
+  kept (`r8_vol`) and its own layer of these added on top (`sig_vol`).
+- **Source.** The lab's GLSL is the source, kept in
+  [blade_signatures/](../crates/sjk-viewer/src/blade_signatures/) (`<name>.glsl`, the lab's
+  helpers in `lab.glsl`, which also holds the shared lightning bolt, Storm-like arc loop
+  and helix helpers) beside its WGSL, which
+  [scripts/blade_signatures.py](../scripts/blade_signatures.py) writes (`--check` fails
+  when one is out of date). The script reads the lab's GLSL subset, infers every
+  expression's type and writes readable WGSL (scalar builtin arguments splatted, `mod`
+  a floor modulo, `?:` a `select`, `out` parameters pointers, assigned parameters local
+  copies, swizzle assignments split, names `saber.wgsl` already takes renamed). Each
+  translation was checked against naga's own GLSL front end: every signature rendered
+  through both over a grid of blade places at four moments gave the same colours
+  (largest difference 0.001), on Linux with lavapipe.
+- **Drawing.** [blade_signatures.rs](../crates/sjk-viewer/src/blade_signatures.rs) names
+  the signature skins (`SIGNATURES`); a loaded skin with one carries `LAB_SIGNATURE`
+  (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`,
+  and its chroma's own hue in `design_color.w` (-1 for none). A signature replaces a
+  hand-ported design of the same skin (Monarch, Obsidian Edge, Quantum, Quicksilver,
+  Reactor, Serpent, Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass, Fiber Optic,
+  Phoenix and, since round 9, the Bleeding Kyber now draw Creyon's reworked lab shaders;
+  round 9 rebuilt the Reactor, Mortis and Bleeding Kyber Sol's way and gave Obsidian Edge
+  and Liquid Beskar their pieces in 3D). `saber.wgsl` draws it by
+  the skin's own passes, as the lab does: `skin_glow_at`, `skin_core` and
+  `fragment_solid` each hand their result to the signature (`sig_take` sets the uniforms
+  from the instance: its clock and seed, length, `motion`'s swing, the clash fading at
+  2.2 a second, the age, and the ignition over its first 0.42 s), the glow quad reaches
+  the signature's room and the past-glow shortcut is off for it, its core never runs past
+  the tip, and the file's own glow stays round the emitter as a stock blade's covers the
+  hilt's mouth. The `saber.wgsl` every other blade uses holds stand-ins that change
+  nothing between `// @signature begin` and `// @signature end`; a signature skin's own
+  module is that file with them replaced by `lab.wgsl` and its own (`module_source`).
+- **The place on the blade.** The glow quad's `blade` coordinates are measured as if the
+  quad were seen square on; under a close perspective (first person, looking along the
+  blade) they stray far from the blade itself, so the lab's blades started well above the
+  hilt and ran on in a line past the tip there (Creyon's test, 19/10/2026). The quad now
+  passes the view ray and the blade's axis (`ray`, `hilt_at`, `axis`, locations 13 to 15),
+  and `blade_place` finds the true place: the point on the axis nearest the ray (along) and
+  the ray's distance from it (across). The signatures and the hand-ported designs
+  (`lab_place`, which no longer undoes a foreshortening, and whose blades now start 1
+  unit inside the hilt, `LAB_START`, as a stock core does) use it.
+- **Colour.** A chroma signature takes its wearer's colour outright (`sig_recolour`):
+  every coloured part becomes the wearer's hue, at least well saturated, and only its
+  white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
+  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron and the Exogorth keep their
+  own colours, as do Obsidian Edge, Quicksilver, Mortis (day and night) and the Bleeding
+  Kyber (its red corruption). A signature's solid layer may keep its own colours where it
+  sets `uOwn` (0 to 1; the Abyssal Eye's amber eye, round 9).
+- **Options.** Every signature skin offers its wearer `Effects round the blade` (off: only
+  the blade itself, nothing past a stock glow's width or the tip), `Swing and clash
+  bursts` (off: swings and clashes set nothing off) and `Ignition show` (off: lit at
+  once), `Heat haze`, `Smoke` (wisps) and `Embers` when its file has them, which the
+  renderer draws round it as round Sol's blades (round 9: they were stripped before, so
+  the Starforge never had the Sun's heat), and `Afterimages` (`Signature::shown`); a hand-ported
+  design offers `Particles` and `Swing and clash bursts` (and Quantum its ghost copies).
+  They ride on the section bits these skins have no other use for (arcs, motes, hue).
+- **Pipelines.** [saber_gpu.rs](../crates/sjk-viewer/src/saber_gpu.rs) builds every loaded
+  signature skin's glow, bloom and solid pipelines from its module one after another on a
+  thread of its own as soon as the skins load (`sjk-blade-signatures`), so a blade worn
+  later is ready; one a blade wears before its turn comes is built at once on a thread of
+  its own. That skin's run of instances is drawn with them once they exist; until then
+  the shared pipelines draw it from its file alone. The log names how long each took, or
+  why it failed. `cg_saberLabDesigns 0` turns the signatures off as it does the designs.
+- **Time.** A signature never speeds its clock up with the swing (`uTime` times a rate
+  that follows `uSwing` jumps the phase by the clock times the change, and the game's
+  clock runs on for minutes: Starforge's forge raced, 19/10/2026); swings change how much
+  is shown, not how fast.
+- **Files and sounds.** A signature skin whose file is in no pack is drawn from the file
+  built into the client (`<name>.bladeskin`: the lab's base colours with the signature's
+  `@palette`, and a heat `haze` for the hot ones: Starforge, Quasar, Dyson Sphere, Star
+  Dragon, Superlaser, Witchfire, World Shift and Big Bang), so they show before the hub's
+  pack carries them. Its sounds are at
+  `sound/sjk/sabers/<name>/`, synthesized by the Blade Lab's sound scripts; until a pack
+  carries them only the stock sounds play. A pack's older file of a skin that is now a
+  signature keeps its images and colours, but the sounds, haze, wisps and embers are always
+  the built-in file's (`Signature::adopt`, round 9: the Sith Alchemy still hissed with the
+  snake design's sounds from the hub's pack).
+
+Two ignored GPU tests render the signatures through their own pipelines and real glow
+and core images: `blade_signatures_gpu_test.rs` still, mid-swing, after a clash,
+igniting and green for a chroma, checking the blade is lit and the corners dark, saving
+the sheets to `SJK_SIGNATURE_PREVIEW` (`SJK_SIGNATURES` picks some); and
+`blade_views_gpu_test.rs` each signature and design beside a stock blade side on, from a
+third-person camera and from first person looking along the blade, saving to
+`SJK_VIEWS` (`SJK_VIEW_SKINS` picks some).
+
 ## Saber trails
 
 A blade grows and shrinks as it is switched on and off after
@@ -1848,7 +2117,12 @@ A slice lives `trailLen / 5` ms of the current `saberMove` (30–40 ms for most
 moves, 40 ms when the move authors none) and fades by scrolling the clamped
 blur texture, not by alpha. The short visible arc is stock behavior; frame rate
 changes the slice count, not the arc's duration. Slices split along new tip to
-old muzzle as `CTrail::Draw` does. With `cg_saberContact` on, the tip stops at
+old muzzle as `CTrail::Draw` does. A blade skin's blur trail is drawn in the skin's trail colour throughout:
+stock adds the white `blurcore` untinted, which washed every skin's trail out to white
+(Creyon's report, 17/10/2026), so for a skin the glow and the core both take the trail colour,
+deepened (normalised to its brightest channel and squared) so a pale trail colour does
+not add up to white (vertex style 3, `saber_trail::vertex_style`). Stock blades, black blades
+and the sword trail are unchanged. With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which the client does not trace yet. A flying

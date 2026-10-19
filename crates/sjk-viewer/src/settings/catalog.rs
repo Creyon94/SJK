@@ -215,6 +215,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Blade skin sounds",
+        cvar: crate::audio::SKIN_SOUNDS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "Jetpack ignition sound",
         cvar: crate::jetpack::ON_SOUND_CVAR,
         kind: ValueKind::Choice(&["1", "2"]),
@@ -758,6 +763,11 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "JA+ black sabers",
         cvar: crate::saber_rgb::black::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Blade Lab designs",
+        cvar: crate::blade_lab_designs::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {

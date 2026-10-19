@@ -48,6 +48,10 @@ struct Encode {
     /// The same, for while the speed trail's see-through copies are drawn
     /// (`preview.wgsl`'s `TRAIL`).
     trail_pipeline: wgpu::RenderPipeline,
+    /// Sets the blades picture's alpha back to none, keeping its colour (`clear_alpha`
+    /// in `preview.wgsl`): the Force effects drawn first leave their alpha behind, and only
+    /// what the blades cover may stand as coverage.
+    clear_alpha: wgpu::RenderPipeline,
     layout: wgpu::BindGroupLayout,
 }
 
@@ -262,10 +266,48 @@ impl Encode {
                 cache: None,
             })
         };
+        let clear_alpha = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("SJK model preview blades alpha clear"),
+            layout: Some(
+                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: None,
+                    bind_group_layouts: &[],
+                    immediate_size: 0,
+                }),
+            ),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("clear_alpha"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: crate::frame_target::aa::effects::FORMAT,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALPHA,
+                })],
+            }),
+            primitive: Default::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DepthTarget::FORMAT,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: Default::default(),
+            multiview_mask: None,
+            cache: None,
+        });
         Self {
             format,
             pipeline: pipeline(false),
             trail_pipeline: pipeline(true),
+            clear_alpha,
             layout,
         }
     }
@@ -626,16 +668,20 @@ impl GpuState {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            if !preview.blades.is_empty() {
-                self.saber_gpu.draw_preview(&mut pass, &target.camera_bind);
-            }
-            // The power's beam, puffs or spray, in the layer the blades glow in.
+            // The power's beam, puffs or spray, in the layer the blades glow in; then
+            // their alpha is cleared, so only what the blades cover (a skin's solid parts,
+            // a horizon: Creyon's round 14) hides the backdrop (`preview.wgsl`).
             self.menu_stage.force_fx.draw(
                 &mut pass,
                 &target.camera_bind,
                 &self.particle_atlas.bind_group,
                 &self.particle_pipelines,
             );
+            pass.set_pipeline(&encode.clear_alpha);
+            pass.draw(0..3, 0..1);
+            if !preview.blades.is_empty() {
+                self.saber_gpu.draw_preview(&mut pass, &target.camera_bind);
+            }
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("SJK model preview encode"),
