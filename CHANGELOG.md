@@ -37,6 +37,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Cards: SJK Alpha's credits cards, from 000 (Sol) and 001 (Bishop) to 012 (JA+, by Slider), the people and projects SJK owes, with placeholder art for now; a set's numbers now start at 0 _(Sol)_
 - Cards: a fifth rarity, Mythical, in gold, rarer than Legendary and opened with the same fanfare; two new kinds, Credits and Meme; and the first collection is SJK Alpha, its card 1 "Bishop", honouring the author of JKR _(Sol)_
 - Siege: hacking an objective shows retail's hacker icon and progress bar under the crosshair, in place of the HACKING percentage _(Slash, after JKA)_
+- Settings > Game > Server remaps (`cg_serverRemaps`) and Map edits (`cg_mapEdits`) work: since 2026.1019.1 server remaps stayed off and map edits on whatever they said _(Sol)_
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
 - Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_

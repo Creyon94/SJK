@@ -29,10 +29,11 @@ impl IntegerSetting {
     ) -> Result<Self, sjk_shell::CvarError> {
         let value = Arc::new(AtomicI64::new(default));
         let changed = Arc::clone(&value);
-        cvars.on_change(name, move |change| {
-            if let sjk_shell::CvarValue::Integer(value) = change.current {
-                changed.store(value, Ordering::Relaxed);
-            }
+        // An on/off cvar (`cg_serverRemaps`, `cg_mapEdits`) is 0 or 1 here.
+        cvars.on_change(name, move |change| match change.current {
+            sjk_shell::CvarValue::Integer(value) => changed.store(value, Ordering::Relaxed),
+            sjk_shell::CvarValue::Bool(on) => changed.store(i64::from(on), Ordering::Relaxed),
+            _ => {}
         })?;
         Ok(Self(value))
     }
@@ -1211,4 +1212,30 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     }
     cvars.register_alias("r_vsync", "r_swapInterval")?;
     crate::cgame_options::register(cvars)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_integer_setting_follows_an_on_off_cvar() {
+        // cg_serverRemaps 1 answered "1" yet remaps stayed off: the binding
+        // only took integer values.
+        let mut cvars = CvarRegistry::new();
+        cvars
+            .register(CvarDefinition::new("on_off", false, CvarFlags::ARCHIVE, ""))
+            .unwrap();
+        let setting = IntegerSetting::bind(&mut cvars, "on_off", 0).unwrap();
+        cvars.set_text("on_off", "1").unwrap();
+        assert_eq!(setting.value(), 1);
+        cvars.set_text("on_off", "0").unwrap();
+        assert_eq!(setting.value(), 0);
+        cvars
+            .register(CvarDefinition::new("level", 2_i64, CvarFlags::ARCHIVE, ""))
+            .unwrap();
+        let level = IntegerSetting::bind(&mut cvars, "level", 2).unwrap();
+        cvars.set_text("level", "1").unwrap();
+        assert_eq!(level.value(), 1);
+    }
 }
