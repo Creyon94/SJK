@@ -30,6 +30,13 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+> Strafe aura: A glow over the crosshair shows where turning gains speed (`cg_strafeAura`).
+> Card binder: Every card of the packs in one binder, missing ones greyed, with new Solar and Holo finishes.
+> Emotes: `emotes` opens a picker of every emote, and an away emote plays while you are gone.
+> Chat: Chat and centre prints at JoF EJK's size, with tighter line spacing.
+> Duels: Players outside your private duel are hidden, as in JoF EJK.
+> Steadier play: No pause when models load, no crash leaving a server or quitting.
+
 = cg_strafeAura: A new strafe guide: a glowing arc over the crosshair shows how much speed each heading gains with the keys you hold. Turn until its tick sits on the white edge.
 
 - Strafe aura: a Force-like glow over the crosshair, drawn by its own shader while you jump or fall, shows where turning gains speed for the keys you hold: a white-hot seam at the best heading, nothing short of it, red where it slows you down (Settings > HUD+, `cg_strafeAura`, off; on the ground too with `cg_strafeAuraGround`) _(Sol)_
@@ -62,6 +69,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Chat text and centre prints are the size JoF EJK draws them at the same `cg_chatBoxFontSize` and `cg_centerSize` (1 was about 0.6 and 0.45 of it), and the field you type in grows with the chat; the chat's default is now 0.85 (a bit larger than before), and sizes you had changed keep their look _(Sol, after Milamber's report)_
 - Emote picker: `emotes` opens a window of every emote you have, with its picture; type to search by name and click one (or press Enter) to play it, and the window closes _(Sol)_
 - Chat line spacing (`cg_chatBoxLineSpacing`, Settings > Chat): the room between chat messages, 0 to 16, tighter by default (2, was 8) _(Sol)_
+- Nameplates leave out the weapon icon while the duel badge shows, where the two sat on each other _(Sol)_
+- Discord status reaches every Discord app running (such as Discord and Discord PTB side by side), not only the first _(Sol)_
 
 ## 2026.1019.1 (Alpha) | 19/10/2026
 
