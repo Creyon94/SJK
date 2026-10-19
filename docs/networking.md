@@ -357,7 +357,11 @@ apart in one table, [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)
 (`KNOWN_SERVERS`: an id, a name, the game module, a serverinfo key and value), which
 the client and the mods (the `jof` mod's `is_jof`) both read; the caps are a second
 table keyed by family id, [server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)
-(`KNOWN`: the family, the step). Its one entry so far is JoF's servers (JA+ with
+(`KNOWN`: the family, the step); private-duel hiding has its own table keyed by
+compatibility profile, `DUEL_HIDE_SERVERS` in
+[duel_hide.rs](../crates/sjk-client/src/duel_hide.rs) (JA+ unless `cp_pluginDisable`
+bit 1, jaPRO always and with missile owners; `cg_duelHideOthers` overrides it, see
+[client](client.md#nameplates)). The caps table's one entry so far is JoF's servers (JA+ with
 serverinfo `V` 2.5B0) at 8 ms: they are not `pmove_fixed` (they report 0),
 yet faster commands made the game unplayable there (Sol, 11/10/2026), and JoF EJK
 sends them 125 a second. The player lifts every listed cap with `gameplay_fps_nocap 1`

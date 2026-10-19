@@ -2887,6 +2887,28 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
   [Entity render effects](rendering.md#entity-render-effects)).
+- `cg_duelHideOthers` (1, Auto; Settings > Advanced > Gameplay > Hide others in
+  duel) hides everyone but you and your duel partner while you, or the player you
+  follow, are in a private duel, as JoF EJK does (EternalJK `CG_Player`,
+  `cg_players.c:11983-11990`). The rule is per server family, in the table
+  `DUEL_HIDE_SERVERS` ([duel_hide.rs](../crates/sjk-client/src/duel_hide.rs)): JA+
+  hides unless your `cp_pluginDisable` sets bit 1 ("duel see others", `japlus.plugin
+  1`; SJK's default 1536 leaves it clear), since a JA+ server sends bystanders to a
+  plugin client and expects it to hide them; jaPRO (TaystJK) always hides; other
+  servers do not. `2` (Always) hides on every server, `0` (Off) never, and they are
+  then drawn very dark as in stock (`legacy_duel_tint`). Hiding leaves them out of
+  what is presented, as if the server had not sent them: their bodies, held sabers
+  with blade glow, trails and lights, thrown sabers (by the saber's
+  `genericenemyindex` owner), Force effects, sounds and loops, nameplates, every NPC
+  but your own vehicle, and the one-shot events EJK skips for a non-duellist
+  (`cg_event.c`: footsteps, falls, jumps, rolls, taunts, saber swings, hits and blocks
+  by the wielder, unholster, zoom, teleport in and out, pain and death; table
+  `EVENT_ACTORS`). Missiles are hidden by their `owner` only on a family whose table
+  entry says the server sets it (jaPRO, `CG_DuelCull`); stock and JA+ leave it unset,
+  so their shots stay. Prediction (duellers already pass through bystanders,
+  [duel_isolation.rs](../crates/sjk-client/src/duel_isolation.rs)), the HUD,
+  scoreboard, kill feed and recorded demos keep the snapshot as received; demo
+  playback hides by the same setting.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are

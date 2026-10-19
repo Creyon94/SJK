@@ -225,10 +225,16 @@ impl Session {
 
     /// Apply local duel-world visibility preferences immediately, including
     /// while a demo is paused on its first or last snapshot.
-    pub(crate) fn set_duel_visibility(&mut self, corpses: bool, pickups: bool) {
+    pub(crate) fn set_duel_visibility(
+        &mut self,
+        corpses: bool,
+        pickups: bool,
+        others: sjk_client::DuelHideSettings,
+    ) {
         let corpses_changed = self.adapter.set_hide_corpses_in_duel(corpses);
         let pickups_changed = self.adapter.set_hide_pickups_in_duel(pickups);
-        if !corpses_changed && !pickups_changed {
+        let others_changed = self.adapter.set_duel_hide(others);
+        if !corpses_changed && !pickups_changed && !others_changed {
             return;
         }
         self.adapter.apply_snapshot(

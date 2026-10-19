@@ -792,6 +792,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hide others in duel",
+        cvar: crate::duel_visibility::HIDE_OTHERS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "Hide corpses in duel",
         cvar: crate::duel_visibility::CORPSES_CVAR,
         kind: ValueKind::Bool,
