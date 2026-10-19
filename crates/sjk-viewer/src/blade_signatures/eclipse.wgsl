@@ -19,7 +19,7 @@ fn ec_ph() -> f32 {
 fn ec_c() -> vec3<f32> {
     let L = uLength;
     let ph = ec_ph();
-    let ign = smoothstep(0.0, 1.8, uAge);
+    let ign = smoothstep(0.0, 0.7, uAge);
     var y = L * (0.58 + 0.22 * sin(ph * 0.37));
     y = mix(8.0, y, ign);
     let x = 3.4 * sin(ph) * mix(0.3, 1.0, ign);
@@ -76,7 +76,7 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px_in: f32) -> vec3<f32> {
     let q = b - C.xy;
     let d = length(q);
     let ang = atan2(q.x, q.y);
-    var vis = smoothstep(0.0, 0.8, uAge);
+    var vis = smoothstep(0.0, 0.4, uAge);
     // behind the blade: the blade's body hides the corona there
     let hide = mix(1.0, 1.0 - exp(-pow(b.x / 0.7, 2.0)) * step(0.0, b.y) * step(b.y, L), step(C.z, 0.0));
     vis *= hide;
@@ -182,7 +182,7 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px_in: f32) -> vec3<f32> {
         light += mix(vec3<f32>(1.0, 0.85, 0.55), vec3<f32>(1.0, 0.45, 0.5), f) * (exp(-pow(dd / 0.06, 2.0)) * 1.2 + halo(dd, 0.35) * 0.2) * life * strand;
     }
     // ---- stars come out round the blade during totality (when the moon crosses the blade)
-    let tot = exp(-pow(C.x / 1.6, 2.0)) * smoothstep(0.0, 1.0, uAge);
+    let tot = exp(-pow(C.x / 1.6, 2.0)) * smoothstep(0.0, 0.5, uAge);
     for (var i = 0; i < 14; i++) {
         let fi = f32(i);
         var sp = vec2((h11(fi * 3.1) - 0.5) * 15.0, (0.05 + 0.95 * h11(fi * 7.3)) * L);
@@ -216,7 +216,7 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px_in: f32) -> vec4<f32> {
     let L = uLength;
     let C = ec_c();
     let R = ec_R() * (1.0 + 0.08 * uClash);
-    let vis = smoothstep(0.0, 0.8, uAge);
+    let vis = smoothstep(0.0, 0.4, uAge);
     let d = length(b - C.xy);
     // behind the blade, the blade's body shows through the moon
     let hide = mix(1.0, 1.0 - fillD(abs(b.x) - 0.42, px) * step(0.0, b.y), step(C.z, 0.0));

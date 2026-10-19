@@ -1,4 +1,4 @@
-// Wraithlight: a pale haunted blade. Cold spirit mist pours DOWN from its tip like dry ice and
+// Wraithlight: a pale haunted blade of the Force's spirits. Cold spirit mist pours DOWN from its tip like dry ice and
 // spills off at the hilt, and three soul-lights with comet tails climb it in a slow spiral, fade
 // out at the tip and are born again at the hilt. A clash scatters the souls and blows the mist
 // out in a ring; a swing leaves fading copies of the blade behind it.
@@ -113,6 +113,51 @@ vec3 wraithlight_show(vec2 b, float px){
   return (1.0 - exp(-light*1.15))*1.05;
 }
 
+// ==== the spirits (round 7) ====
+// Force spirits round the blade: cold spectral flames lick up both its edges, three souls spiral
+// round it on long glowing tails reaching four units out, and spirit flames break off the edges
+// and rise away. A swing whips the souls out wide; a clash flashes every spirit at once.
+vec3 wl_spirits(vec2 b, float px){
+  float L = uLength, t = uTime, ax = abs(b.x);
+  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  vec3 spirit = vec3(0.45, 1.0, 0.85), pale = vec3(0.85, 1.0, 0.97);
+  float along = smoothstep(-0.5, 1.5, b.y)*(1.0 - smoothstep(L - 1.0, L + 1.5, b.y));
+  vec3 light = vec3(0.0);
+  // spectral flames up both edges
+  float fl = fbm3(vec2(ax*1.4 - t*0.3, b.y*0.45 - t*2.2) + vec2(step(0.0, b.x)*7.0, 0.0));
+  float flame = smoothstep(0.35, 0.9, fl*1.4 - (ax - 0.4)*0.45)*smoothstep(0.25, 0.7, ax);
+  light += spirit*flame*0.9*along + pale*flame*flame*0.6*along;
+  // three souls spiralling round on long tails
+  for (int k = 0; k < 3; k++){
+    float fk = float(k);
+    float y = fract(t*0.09 + fk/3.0)*(L + 4.0) - 2.0;
+    float R = 3.0 + 1.5*sw + 0.5*sin(t + fk);
+    for (int j = 0; j < 16; j++){
+      float fj = float(j);
+      float yy = y - fj*0.45;
+      vec2 h = helix(yy, R*(1.0 - fj*0.03), 0.8, t*0.25 + fk/3.0);
+      float d = length(b - vec2(h.x, yy));
+      float w = j == 0 ? 0.55 : 0.38 - fj*0.02;
+      light += mix(pale, spirit, fj/16.0)*halo(d, max(w, 0.05))*(j == 0 ? 2.6 : 0.55*(1.0 - fj/16.0))*(0.45 + 0.55*smoothstep(-0.6, 0.6, h.y));
+    }
+  }
+  // spirit flames breaking off the edges and rising away, curling as they fade
+  for (int i = 0; i < 10; i++){
+    float fi = float(i);
+    float ph = t*(0.35 + 0.2*h11(fi*2.9)) + h11(fi*6.3);
+    float cyc = floor(ph), f = fract(ph);
+    float sd = h11(cyc + fi*3.0) < 0.5 ? -1.0 : 1.0;
+    vec2 p = vec2(sd*(0.8 + 5.0*f + 0.9*sin(f*7.0 + fi)), (0.08 + 0.8*h11(cyc*1.7 + fi))*L + 6.0*f);
+    vec2 q = b - p;
+    float tongue = length(vec2(q.x*1.4, max(q.y, 0.0)*0.35 + min(q.y, 0.0)*1.3)) - 0.55*(1.0 - f) - 0.1*sin(t*12.0 + fi + q.y*5.0);
+    light += (pale*fillD(tongue + 0.25, px)*0.9 + spirit*halo(max(tongue, 0.0), 0.35)*0.8)*(1.0 - f)*smoothstep(0.0, 0.1, f)*(1.0 + cl);
+  }
+  float edge = 1.0 - smoothstep(8.5, 10.0, ax);
+  light *= edge*(1.0 - smoothstep(L + 1.0, L + 4.0, b.y))*smoothstep(-2.5, -0.5, b.y);
+  return (1.0 - exp(-max(light, vec3(0.0))*1.15))*1.05;
+}
+
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return wraithlight_glow0(g, b, r, px) + wraithlight_show(b, min(px, 0.06));
+  px = min(px, 0.06);
+  return wraithlight_glow0(g, b, r, px) + wraithlight_show(b, px) + wl_spirits(b, px);
 }

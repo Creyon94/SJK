@@ -9,8 +9,13 @@
 // while it reigns: a licking flame with rising embers, faceted ice with frost and snow glints, a
 // violet core wrapped in crawling arcs, and dark granite split by glowing seams. Swings stoke
 // whichever element rules; clashes flash it.
-const EL_P: f32 = 4.0;
+fn L_EL() -> f32 {
+    return uLength;
+}
 
+const EL_P: f32 = 6.0;
+
+// seconds each element rules (Creyon: change them more slowly)
 fn el_u() -> f32 {
     return (uTime - 1.0) / EL_P;
 }
@@ -244,8 +249,133 @@ fn elemental_show(b: vec2<f32>, px: f32) -> vec3<f32> {
     return (1.0 - exp(-light * 1.15)) * 1.05;
 }
 
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return elemental_glow0(g, b, r, px) + elemental_show(b, min(px, 0.06));
+// ==== aura (round 7) ====
+// Each element wraps the blade the way Sol's Storm blade wraps it in lightning: two strands
+// winding round it and effects leaping 6 to 8 units off it. Fire: a flaming ribbon spiralling
+// up, tongues licking out and sparks flung off. Ice: a chain of frost shards spiralling round,
+// glinting, with cold mist and crystal spikes standing off the blade. Lightning: crackling arcs
+// round the blade and great loops jumping out and back, struck anew many times a second.
+// Stone: boulders with molten cracks orbiting in a helix, lava drips and dust. The next element
+// takes over from the hilt behind the seam.
+fn el_aura(k: f32, b: vec2<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    let t = uTime;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    var light: vec3<f32> = vec3<f32>(0.0);
+    let along = smoothstep(-0.5, 1.5, b.y) * (1.0 - smoothstep(L - 1.0, L + 2.0, b.y));
+    if k < 0.5 {
+        // fire: two flame ribbons spiralling up, tongues and sparks
+        for (var j = 0; j < 2; j++) {
+            let fj = f32(j);
+            let h = helix(b.y, 2.4 + 0.6 * sin(b.y * 0.3 - t * 2.0), 1.1, -t * 0.55 + fj * 0.5);
+            let d = abs(b.x - h.x);
+            let flick = 0.6 + 0.6 * vn(vec2(b.y * 0.9 - t * 6.0, fj * 7.0));
+            let front = 0.45 + 0.55 * smoothstep(-0.6, 0.6, h.y);
+            light += mix(vec3<f32>(1.0, 0.35, 0.05), vec3<f32>(1.0, 0.85, 0.4), front) * (halo(d, 0.35 * flick) * 1.3 + halo(d, 1.1) * 0.25) * front * along;
+        }
+        for (var i = 0; i < 10; i++) {
+            let fi = f32(i);
+            let ph = t * (0.7 + 0.3 * h11(fi * 3.1)) + h11(fi * 7.7);
+            let cy = floor(ph);
+            let f = fract(ph);
+            let s = select(1.0, -1.0, h11(cy + fi * 2.0) < 0.5);
+            let y0 = (0.1 + 0.8 * h11(cy * 1.3 + fi)) * L;
+            // a tongue licking out and up
+            let u = (b.x * s - 1.0) / (4.0 + 3.0 * h11(cy + fi * 5.0));
+            if u > 0.0 && u < 1.0 {
+                let dy = b.y - y0 - 3.0 * u * u * f - 0.6 * sin(u * 9.0 - t * 12.0 + fi) * u;
+                light += mix(vec3<f32>(1.0, 0.8, 0.3), vec3<f32>(1.0, 0.25, 0.02), u) * exp(-pow(dy / (0.45 * (1.0 - u) + 0.05), 2.0)) * (1.0 - u) * (1.0 - f) * smoothstep(0.0, 0.15, f) * 1.3;
+            }
+            // a spark flung far out
+            let p = vec2(s * (1.0 + 7.0 * f), y0 + 5.0 * f - 3.0 * f * f);
+            light += vec3<f32>(1.0, 0.7, 0.3) * halo(length(b - p), max(px, 0.06)) * 2.2 * (1.0 - f);
+        }
+    } else if k < 1.5 {
+        // ice: frost shards on two spirals, glinting; crystal spikes off the blade; cold mist
+        for (var j = 0; j < 2; j++) {
+            let fj = f32(j);
+            let ph = -t * 0.25 + fj * 0.5;
+            for (var i = 0; i < 9; i++) {
+                let fi = f32(i);
+                let y = fract(fi / 9.0 + t * 0.035 + fj * 0.05) * (L + 2.0) - 1.0;
+                let h = helix(y, 3.0, 0.9, ph);
+                var q = b - vec2(h.x, y);
+                q = rot(t * 1.5 + fi + fj * 3.0) * q;
+                let sh = max(abs(q.x) * 1.6 + abs(q.y) * 0.55, abs(q.y) * 0.9) - 0.8 * (0.7 + 0.3 * h.y);
+                let glint = pow(0.5 + 0.5 * sin(t * 5.0 + fi * 2.3 + fj), 8.0);
+                light += vec3<f32>(0.6, 0.9, 1.0) * (fillD(sh, px) * 0.7 + halo(abs(sh), 0.05 + px) * 1.4) * (0.5 + 0.5 * h.y) * along + vec3<f32>(1.0) * halo(length(q), 0.12) * glint * 2.0 * along;
+            }
+        }
+        for (var i = 0; i < 8; i++) {
+            let fi = f32(i);
+            let s = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
+            let y0 = (0.1 + 0.11 * fi) * L;
+            let grow = 0.5 + 0.5 * sin(t * 0.8 + fi * 1.7);
+            let len = (2.5 + 3.5 * h11(fi * 3.3)) * grow;
+            let d = sdSeg(b, vec2(s * 0.6, y0), vec2(s * (0.6 + len), y0 + len * 0.55));
+            light += vec3<f32>(0.75, 0.95, 1.0) * (halo(d, 0.05 + px) * 1.2 + halo(d, 0.4) * 0.25) * grow;
+        }
+        let mist = fbm3(vec2(b.x * 0.5 - t * 0.3, b.y * 0.3 - t * 0.5));
+        light += vec3<f32>(0.45, 0.7, 1.0) * mist * mist * 0.35 * exp(-abs(b.x) / 3.0) * along;
+    } else if k < 2.5 {
+        // lightning: crackling arcs wound round the blade and big loops leaping off it
+        for (var j = 0; j < 2; j++) {
+            let fj = f32(j);
+            let kk = floor(t * 14.0 + fj * 0.5);
+            let jit = (vn(vec2(b.y * 1.7, kk * 3.1 + fj * 9.0)) - 0.5) * 1.6;
+            let h = helix(b.y, 1.6 + 0.6 * vn(vec2(b.y * 0.5, kk)), 1.5, -t * 0.8 + fj * 0.5);
+            let d = abs(b.x - h.x - jit);
+            light += mix(vec3<f32>(0.7, 0.45, 1.0), vec3<f32>(1.0), 0.3) * (halo(d, max(px, 0.04)) * 1.5 + halo(d, 0.3) * 0.5) * (0.4 + 0.6 * smoothstep(-0.5, 0.5, h.y)) * along;
+        }
+        for (var i = 0; i < 6; i++) {
+            let fi = f32(i);
+            let y0 = (0.06 + 0.15 * fi) * L + 2.0 * h11(floor(t * 1.3 + fi));
+            let s = select(1.0, -1.0, h11(floor(t * 2.0) + fi * 4.0) < 0.5);
+            let on = step(0.3 - 0.3 * sw, h11(floor(t * 9.0) + fi * 1.9));
+            light += arcLoop(b, y0, y0 + 3.0 + 3.0 * h11(fi * 5.1), s, 7.0 + 3.0 * h11(fi + floor(t * 3.0)), fi * 3.7, 9.0, vec3<f32>(0.7, 0.45, 1.0), px) * on;
+        }
+        for (var i = 0; i < 12; i++) {
+            let fi = f32(i);
+            let f = fract(t * 0.5 + h11(fi * 2.9));
+            let p = vec2((h11(fi * 3.7) - 0.5) * 12.0, f * (L + 4.0) - 2.0);
+            light += vec3<f32>(0.85, 0.7, 1.0) * halo(length(b - p), 0.08) * 1.5 * (0.5 + 0.5 * sin(t * 20.0 + fi));
+        }
+    } else {
+        // stone: boulders with molten cracks on a helix round the blade, lava drips, dust
+        for (var i = 0; i < 10; i++) {
+            let fi = f32(i);
+            let y = fract(fi / 10.0 + t * 0.03) * (L + 2.0) - 1.0;
+            let h = helix(y, 3.8, 0.8, t * 0.12 + fi * 0.13);
+            var q = rot(t * 0.7 * (h11(fi) - 0.5) + fi) * (b - vec2(h.x, y));
+            let sz = (1.0 + 0.6 * h11(fi * 3.9)) * (0.75 + 0.25 * h.y);
+            let rock = max(abs(q.x) + abs(q.y) * 0.55, abs(q.y) * 1.05) - sz + 0.08 * vn(q * 6.0 + fi);
+            let crack = halo(abs(vn(q * 4.0 + fi * 3.0) - 0.5), 0.06) * step(rock, 0.0);
+            let rc = vec3<f32>(0.32, 0.26, 0.22) * (0.6 + 0.4 * h.y) + vec3<f32>(1.0, 0.45, 0.1) * crack * 1.6;
+            light += rc * fillD(rock, px) * along + vec3<f32>(1.0, 0.5, 0.15) * halo(abs(rock), 0.05 + px) * 0.6 * along;
+        }
+        for (var i = 0; i < 8; i++) {
+            let fi = f32(i);
+            let f = fract(t * 0.6 + h11(fi * 5.3));
+            let s = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
+            let p = vec2(s * (0.7 + 0.8 * f), (0.2 + 0.09 * fi) * L - 6.0 * f * f);
+            light += vec3<f32>(1.0, 0.45, 0.08) * (halo(length((b - p) * vec2<f32>(1.0, 0.6)), 0.14) * 2.0) * (1.0 - f);
+        }
+        let dust = fbm3(vec2(b.x * 0.6 + t * 0.2, b.y * 0.25));
+        light += vec3<f32>(0.7, 0.55, 0.4) * dust * dust * 0.25 * exp(-abs(b.x) / 4.0) * along;
+    }
+    return light * (1.0 + 0.8 * sw);
+}
+
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px_in: f32) -> vec3<f32> {
+    var px = px_in;
+    px = min(px, 0.06);
+    let k = el_cur();
+    // the aura of the ruler, the last one's fading as the new one takes over (from the hilt up)
+    let take = smoothstep(0.0, 1.2, el_local());
+    var aura = el_aura(k, b, px) * take + el_aura(glsl_mod(k + 3.0, 4.0), b, px) * (1.0 - take);
+    let edge = 1.0 - smoothstep(8.5, 10.0, abs(b.x));
+    aura *= edge * (1.0 - smoothstep(L_EL() + 1.0, L_EL() + 4.0, b.y)) * smoothstep(-2.5, -0.5, b.y);
+    return elemental_glow0(g, b, r, px) + elemental_show(b, px) + (1.0 - exp(-aura * 1.2)) * 1.1;
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

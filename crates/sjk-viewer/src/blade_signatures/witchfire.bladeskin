@@ -12,20 +12,20 @@
   },
   "core": {
     "white": [
+      0.92,
       1.0,
-      0.97,
-      1.0
+      0.9
     ],
     "white_flare": 0.4,
     "fringe_cool": [
-      0.4,
-      0.7,
-      1.0
+      0.2,
+      0.85,
+      0.3
     ],
     "fringe_hot": [
+      0.7,
       1.0,
-      0.55,
-      0.95
+      0.6
     ],
     "fringe_heat": {
       "base": 0.3,
@@ -46,19 +46,19 @@
   },
   "corona": {
     "rim_cool": [
-      0.55,
-      0.12,
-      0.6
+      0.04,
+      0.35,
+      0.08
     ],
     "rim_hot": [
+      0.35,
       1.0,
-      0.45,
-      0.95
+      0.35
     ],
     "inner": [
+      0.8,
       1.0,
-      0.9,
-      1.0
+      0.75
     ],
     "inner_width": 0.6,
     "rim_heat": {
@@ -71,9 +71,9 @@
       "flare": 0.3
     },
     "brightness": {
-      "base": 0.55,
-      "grain": 0.275,
-      "flare": 0.715
+      "base": 0.6,
+      "grain": 0.3,
+      "flare": 0.78
     },
     "reach": 1.5,
     "swell": {
@@ -132,15 +132,15 @@
     "range": 0.7
   },
   "trail": [
-    0.9,
-    0.4,
-    0.95
+    0.35,
+    1.0,
+    0.4
   ],
   "light": {
     "color": [
-      0.9,
-      0.35,
-      0.95
+      0.3,
+      1.0,
+      0.35
     ],
     "flicker": {
       "amount": 0.05,
@@ -159,13 +159,13 @@
     }
   },
   "sounds": {
-    "on": "sound/weapons/saber/saberon.wav",
-    "off": "sound/weapons/saber/saberoff.wav",
-    "hum": "sound/weapons/saber/saberhum1.wav",
+    "on": "sound/sjk/sabers/witchfire/on.wav",
+    "off": "sound/sjk/sabers/witchfire/off.wav",
+    "hum": "sound/sjk/sabers/witchfire/hum.wav",
     "swings": [
-      "sound/weapons/saber/saberswing1.wav",
-      "sound/weapons/saber/saberswing2.wav",
-      "sound/weapons/saber/saberswing3.wav"
+      "sound/sjk/sabers/witchfire/swing1.wav",
+      "sound/sjk/sabers/witchfire/swing2.wav",
+      "sound/sjk/sabers/witchfire/swing3.wav"
     ]
   }
 }

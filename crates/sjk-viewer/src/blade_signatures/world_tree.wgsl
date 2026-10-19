@@ -9,9 +9,10 @@
 // light climbs the trunk and lights each galaxy in turn, and now and then a galaxy-leaf falls away
 // and a new one buds. Swings shake the boughs, clashes make every galaxy flare.
 fn wt_grow() -> f32 {
-    return clamp(uAge / 3.2, 0.0, 1.0);
+    return clamp(uAge / 0.6, 0.0, 1.0);
 }
 
+// grown as fast as a stock blade lights
 fn wt_top() -> f32 {
     let g = wt_grow();
     return (uLength + 2.5) * (1.0 - (1.0 - g) * (1.0 - g));

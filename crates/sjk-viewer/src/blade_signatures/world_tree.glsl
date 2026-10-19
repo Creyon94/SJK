@@ -6,7 +6,7 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.10,0.06,0.30],"corona.rim_hot":[0.55,0.40,0.95],"corona.inner":[1.0,0.90,0.62],"core.white":[1.0,0.95,0.80],"core.fringe_cool":[0.60,0.45,1.0],"core.fringe_hot":[1.0,0.88,0.60],"light.color":[0.95,0.80,0.50],"trail":[0.90,0.75,0.50]}
 
-float wt_grow(){ return clamp(uAge/3.2, 0.0, 1.0); }
+float wt_grow(){ return clamp(uAge/0.6, 0.0, 1.0); }  // grown as fast as a stock blade lights
 float wt_top(){ float g = wt_grow(); return (uLength + 2.5)*(1.0 - (1.0 - g)*(1.0 - g)); }
 vec2 wt_seg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba)/dot(ba, ba), 0.0, 1.0); return vec2(length(pa - ba*h), h); }
 vec3 wt_pal(float i){

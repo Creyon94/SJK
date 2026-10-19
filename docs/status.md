@@ -24,20 +24,25 @@ hub's pack).
 ## Blade Lab signature shaders in game
 
 19/10/2026, `feat/blade-signatures`, based on `feat/blade-lab-designs` (on `main`
-`046ef86b`): the Blade Lab collection's signature shaders are drawn in game, starting with
-its twenty-one mythicals ([rendering.md](rendering.md#blade-lab-signature-shaders)): the
-lab's GLSL kept as the source, translated to WGSL by `scripts/blade_signatures.py`, each
-skin built into pipelines of its own on a background thread the first time it is worn,
-the skins in the client's catalogue (not yet the hub's; not droppable) with built-in
-files for when no pack has them. Checked on Linux x86_64 (Rust 1.97, lavapipe): every
-translation renders the same as naga's GLSL front end over a grid of blade places at four
-moments; every signature module validates with naga; the ignored GPU test renders all
-twenty-one through their own pipelines, lit and with dark corners (pictures looked at);
-Star Dragon compared with the lab page in Chromium (same dragon, clouds and stardust;
-the lab's bloom pass makes it brighter). Workspace formatting, build, tests and clippy
-(no new warnings) pass. Not verified: Windows (DX12 shader compile times), the game
-window, a live server, the hub's catalogue and pack (Sol's), each blade's look against
-the lab one by one, and frame time with several signature blades on screen.
+`046ef86b`): the Blade Lab collection's signature shaders are drawn in game, the
+twenty-one mythicals and six reworked designs
+([rendering.md](rendering.md#blade-lab-signature-shaders)): the lab's GLSL kept as the
+source, translated to WGSL by `scripts/blade_signatures.py`, each skin built into
+pipelines of its own on a background thread as soon as the skins load. After Creyon's
+first test (19/10/2026): the true place on the blade under perspective (`blade_place`,
+for designs too: blades started above the hilt in first person and a line ran past the
+tip), the file's glow round the emitter, ignition as fast as a stock blade's (Big Bang,
+World Tree, Eclipse), no clock sped up by swings (Starforge, Kyber Heart), Storm-like
+lightning and per-element spirals on Elemental, more for Balance and Wraithlight,
+Fractal/Infinity Mirror/Kitsune rebuilt as Star Wars ideas, chromas that take the
+wearer's colour outright, options for every signature and design, sounds. Checked on Linux
+x86_64 (Rust 1.97, lavapipe): every translation renders the same as naga's GLSL front end;
+every signature module validates with naga; the ignored GPU tests render all twenty-seven
+lit with dark corners, and side on, third person and first person beside a stock blade
+(pictures looked at); the new shaders also compile and draw in the lab page. Workspace
+formatting, build, tests and clippy (no new warnings) pass. Not verified: Windows (DX12
+shader compile times), the game window, a live server, the sounds by ear, the hub's
+catalogue and pack (Sol's), and frame time with several signature blades on screen.
 
 ## Menu pictures and readable world install failures
 

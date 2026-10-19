@@ -13,7 +13,7 @@
 float ec_ph(){ return uTime*0.55 + uSeed*6.0; }
 vec3 ec_c(){
   float L = uLength, ph = ec_ph();
-  float ign = smoothstep(0.0, 1.8, uAge);
+  float ign = smoothstep(0.0, 0.7, uAge);
   float y = L*(0.58 + 0.22*sin(ph*0.37)) ;
   y = mix(8.0, y, ign);
   float x = 3.4*sin(ph)*mix(0.3, 1.0, ign);
@@ -62,7 +62,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   vec2 q = b - C.xy;
   float d = length(q);
   float ang = atan(q.x, q.y);
-  float vis = smoothstep(0.0, 0.8, uAge);
+  float vis = smoothstep(0.0, 0.4, uAge);
   // behind the blade: the blade's body hides the corona there
   float hide = mix(1.0, 1.0 - exp(-pow(b.x/0.7, 2.0))*step(0.0, b.y)*step(b.y, L), step(C.z, 0.0));
   vis *= hide;
@@ -162,7 +162,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
     light += mix(vec3(1.0, 0.85, 0.55), vec3(1.0, 0.45, 0.5), f)*(exp(-pow(dd/0.06, 2.0))*1.2 + halo(dd, 0.35)*0.2)*life*strand;
   }
   // ---- stars come out round the blade during totality (when the moon crosses the blade)
-  float tot = exp(-pow(C.x/1.6, 2.0))*smoothstep(0.0, 1.0, uAge);
+  float tot = exp(-pow(C.x/1.6, 2.0))*smoothstep(0.0, 0.5, uAge);
   for (int i = 0; i < 14; i++){
     float fi = float(i);
     vec2 sp = vec2((h11(fi*3.1) - 0.5)*15.0, (0.05 + 0.95*h11(fi*7.3))*L);
@@ -190,7 +190,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   float L = uLength;
   vec3 C = ec_c();
   float R = ec_R()*(1.0 + 0.08*uClash);
-  float vis = smoothstep(0.0, 0.8, uAge);
+  float vis = smoothstep(0.0, 0.4, uAge);
   float d = length(b - C.xy);
   // behind the blade, the blade's body shows through the moon
   float hide = mix(1.0, 1.0 - fillD(abs(b.x) - 0.42, px)*step(0.0, b.y), step(C.z, 0.0));

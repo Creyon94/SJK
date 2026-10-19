@@ -649,11 +649,16 @@ impl LoadedSkin {
             crate::saber_rgb::generated_core(def.core_profile)
         })?;
         let design = crate::blade_lab_designs::of(id);
+        let signature = crate::blade_signatures::of(id);
         Ok(Self {
             id,
-            designed: design.map(|design| Box::new(design.shown(&def))),
-            design,
-            signature: crate::blade_signatures::of(id),
+            // A signature replaces a hand-ported design of the same skin.
+            designed: match signature {
+                Some(signature) => Some(Box::new(signature.shown(&def))),
+                None => design.map(|design| Box::new(design.shown(&def))),
+            },
+            design: design.filter(|_| signature.is_none()),
+            signature,
             def,
             glow,
             core,
@@ -952,8 +957,15 @@ impl LoadedSkins {
             }
             if let Some(signature) = skin.signature_shown() {
                 uniform.design = signature.lane();
+                // The light's colour, and a chroma's own hue (turns; -1 for none), which
+                // the shader turns to its wearer's.
                 let [r, g, b] = skin.def.light.color;
-                uniform.design_color = [r, g, b, 1.0];
+                let hue = crate::unlockables::is_chroma(skin.id)
+                    .then(|| {
+                        hue_of(skin.def.corona.rim_cool).or_else(|| hue_of(skin.def.light.color))
+                    })
+                    .flatten();
+                uniform.design_color = [r, g, b, hue.unwrap_or(-1.0)];
             }
         }
         uniforms

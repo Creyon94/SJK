@@ -5,6 +5,8 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.20,0.06,0.30],"corona.rim_hot":[0.95,0.55,0.30],"corona.inner":[1.0,0.88,0.70],"core.white":[1.0,0.97,0.90],"core.fringe_cool":[0.85,0.40,0.55],"core.fringe_hot":[1.0,0.85,0.60],"light.color":[1.0,0.72,0.45],"trail":[1.0,0.66,0.40]}
 
+// The lab took 3.5 s to light the universe; a blade must be lit as fast as a stock one.
+float bb_age(){ return uAge*4.0; }
 const float BB_K = 40.0, BB_C = 8.0, BB_O = 0.9;      // log map scale, offset, origin height
 // when the fireball front passed height y (seconds of uAge)
 float bb_pass(float y){ return 0.6 + 1.5*pow(max(y - BB_O, 0.0)/44.0, 1.4); }
@@ -38,7 +40,7 @@ vec4 bb_cosmos(vec2 b, float px){
   return vec4(vec3(0.85, 0.45, 1.0)*fil*0.9 + vec3(1.0, 0.8, 0.55)*knot*0.5 + gcol*gal, fil);
 }
 vec3 big_bang_glow0(vec3 g, vec2 b, float r, float px){
-  float a = uAge, L = uLength;
+  float a = bb_age(), L = uLength;
   vec2 O = vec2(0.0, BB_O);
   float h = clamp(b.y/max(L, 1.0), 0.0, 1.0);
   float ax = abs(b.x);
@@ -78,7 +80,7 @@ vec3 big_bang_glow0(vec3 g, vec2 b, float r, float px){
   return outer + cosm + fire + shell + point + rebang + vec3(1.0, 0.8, 0.5)*wave + g*0.08*born;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){
-  float since = uAge - bb_pass(b.y);
+  float since = bb_age() - bb_pass(b.y);
   float on = smoothstep(0.0, 0.5, since);
   float h = clamp(b.y/max(uLength, 1.0), 0.0, 1.0);
   float thin = 1.0 - smoothstep(0.12, 0.45, abs(b.x));

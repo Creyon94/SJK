@@ -19,3 +19,37 @@ float voro(vec2 p, out vec2 cell){ vec2 i=floor(p), f=fract(p); float d1=8.0, d2
     if(d<d1){ d2=d1; d1=d; cell=i+g; } else if(d<d2) d2=d; }
   return d2-d1; }
 float sigBody(vec2 b, float r){ float y=b.y, L=uLength; float beyond=max(y-L,0.0); return length(vec2(b.x, beyond))/r*step(-1.0,y); }
+// ---- SJK effect helpers (shared by the signatures; Creyon's round 7) ----
+// Distance from p to a jagged lightning bolt from a to c: 10 kinks, displaced across the
+// line by up to jag of its length, the kinks chosen by seed (strike anew by changing it).
+float boltD(vec2 p, vec2 a, vec2 c, float seed, float jag){
+  vec2 d = c - a; float L = max(length(d), 1e-3); vec2 n = vec2(-d.y, d.x)/L;
+  float best = 1e3; vec2 prev = a;
+  for (int i = 1; i <= 10; i++){
+    float f = float(i)/10.0;
+    float off = i == 10 ? 0.0 : (h11(seed*17.13 + float(i)*7.31) - 0.5)*jag*L*sin(f*3.1416);
+    vec2 q = a + d*f + n*off;
+    best = min(best, sdSeg(p, prev, q));
+    prev = q;
+  }
+  return best;
+}
+// A bolt's light: a white-hot thread in a coloured glow, never thinner than a pixel.
+vec3 boltLight(float dist, vec3 col, float px){
+  return vec3(1.0)*halo(dist, max(px, 0.035))*1.6 + col*halo(dist, 0.22)*0.9 + col*halo(dist, 0.9)*0.18;
+}
+// A Storm-like loop: a bolt that leaves the blade at height y0, arcs out to reach units on
+// side s and comes back in at y1, struck anew rate times a second.
+vec3 arcLoop(vec2 b, float y0, float y1, float s, float reach, float seed, float rate, vec3 col, float px){
+  float k = floor(uTime*rate + seed*13.0);
+  vec2 a = vec2(0.0, y0), c = vec2(0.0, y1);
+  vec2 m = vec2(s*reach*(0.75 + 0.25*h11(k + seed)), mix(y0, y1, 0.5) + (h11(k*1.7 + seed) - 0.5)*2.0);
+  float d = min(boltD(b, a, m, k + seed, 0.45), boltD(b, m, c, k + seed + 0.5, 0.45));
+  return boltLight(d, col, px);
+}
+// A helix strand wound round the blade: across (x) and how near the viewer it is (z, -1..1)
+// at height y, turns per 10 units, phase turns, radius r.
+vec2 helix(float y, float r, float turns, float phase){
+  float a = 6.2832*(y*turns/10.0 + phase);
+  return vec2(r*sin(a), cos(a));
+}

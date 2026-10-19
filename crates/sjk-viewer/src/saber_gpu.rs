@@ -60,14 +60,30 @@ pub(crate) struct Runtime {
     signed: Vec<Option<Signed>>,
 }
 
-/// A loaded skin's signature shader and its pipelines: built from its own module on a
-/// thread of their own the first time a blade wears it (or the preview shows it), so the
-/// frame never waits; until then its blades are drawn by the shared pipelines, from the
-/// skin's file alone.
+/// A loaded skin's signature shader and its pipelines: built from its own module off the
+/// render thread, so the frame never waits. Every loaded signature is built one after
+/// another as soon as the skins load (so a blade worn later is ready), and one a blade
+/// wears (or the preview shows) before its turn comes is built at once on a thread of its
+/// own. Until then its blades are drawn by the shared pipelines, from the skin's file.
+#[derive(Clone)]
 struct Signed {
     signature: &'static crate::blade_signatures::Signature,
     built: Arc<OnceLock<Option<SignaturePipelines>>>,
-    started: std::cell::Cell<bool>,
+    started: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Signed {
+    /// Claim the build: true the first time only.
+    fn claim(&self) -> bool {
+        !self.started.swap(true, std::sync::atomic::Ordering::AcqRel)
+    }
+
+    /// Build it here (on the calling thread) if nobody has claimed it.
+    fn build_if_unclaimed(&self, builder: &SignatureBuilder) {
+        if self.claim() {
+            let _ = self.built.set(builder.build(self.signature));
+        }
+    }
 }
 
 /// A signature skin's glow (`fragment_main`), bloom (`fragment_glow`) and solid
@@ -457,10 +473,27 @@ impl Runtime {
             signed[usize::from(index)] = Some(kept.unwrap_or(Signed {
                 signature,
                 built: Arc::default(),
-                started: std::cell::Cell::new(false),
+                started: Arc::default(),
             }));
         }
         self.signed = signed;
+        // Build every loaded signature in the background, one after another.
+        let pending: Vec<Signed> = self.signed.iter().flatten().cloned().collect();
+        if !pending.is_empty() {
+            let builder = self.builder.clone();
+            let spawned = std::thread::Builder::new()
+                .name("sjk-blade-signatures".to_owned())
+                .spawn(move || {
+                    for signed in &pending {
+                        signed.build_if_unclaimed(&builder);
+                    }
+                });
+            if let Err(why) = spawned {
+                crate::log::progress(format_args!(
+                    "blade skins: signature shaders: no thread: {why}"
+                ));
+            }
+        }
         for (index, skin) in skins.iter() {
             self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
                 saber::material(
@@ -489,15 +522,15 @@ impl Runtime {
         self.trails.prepare(queue, trails, now);
     }
 
-    /// Start building the pipelines of every signature skin `ranges` draws that has none
-    /// yet, each on a thread of its own.
+    /// Start building, each on a thread of its own, the pipelines of every signature skin
+    /// `ranges` draws whose build has not begun.
     fn build_signatures(&self, ranges: &[Range<u32>]) {
         let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
         for (signed, range) in self.signed.iter().zip(&ranges[skins..]) {
             let Some(signed) = signed else {
                 continue;
             };
-            if range.is_empty() || signed.started.replace(true) {
+            if range.is_empty() || !signed.claim() {
                 continue;
             }
             let builder = self.builder.clone();

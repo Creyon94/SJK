@@ -119,3 +119,45 @@ fn sigBody(b: vec2<f32>, r: f32) -> f32 {
     let beyond = max(y - L, 0.0);
     return length(vec2(b.x, beyond)) / r * step(-1.0, y);
 }
+
+// ---- SJK effect helpers (shared by the signatures; Creyon's round 7) ----
+// Distance from p to a jagged lightning bolt from a to c: 10 kinks, displaced across the
+// line by up to jag of its length, the kinks chosen by seed (strike anew by changing it).
+fn boltD(p: vec2<f32>, a: vec2<f32>, c: vec2<f32>, seed: f32, jag: f32) -> f32 {
+    let d = c - a;
+    let L = max(length(d), 1.0e-3);
+    let n = vec2(-d.y, d.x) / L;
+    var best: f32 = 1.0e3;
+    var prev = a;
+    for (var i = 1; i <= 10; i++) {
+        let f = f32(i) / 10.0;
+        let off = select((h11(seed * 17.13 + f32(i) * 7.31) - 0.5) * jag * L * sin(f * 3.1416), 0.0, i == 10);
+        let q = a + d * f + n * off;
+        best = min(best, sdSeg(p, prev, q));
+        prev = q;
+    }
+    return best;
+}
+
+// A bolt's light: a white-hot thread in a coloured glow, never thinner than a pixel.
+fn boltLight(dist: f32, col: vec3<f32>, px: f32) -> vec3<f32> {
+    return vec3<f32>(1.0) * halo(dist, max(px, 0.035)) * 1.6 + col * halo(dist, 0.22) * 0.9 + col * halo(dist, 0.9) * 0.18;
+}
+
+// A Storm-like loop: a bolt that leaves the blade at height y0, arcs out to reach units on
+// side s and comes back in at y1, struck anew rate times a second.
+fn arcLoop(b: vec2<f32>, y0: f32, y1: f32, s: f32, reach: f32, seed: f32, rate: f32, col: vec3<f32>, px: f32) -> vec3<f32> {
+    let k = floor(uTime * rate + seed * 13.0);
+    let a = vec2(0.0, y0);
+    let c = vec2(0.0, y1);
+    let m = vec2(s * reach * (0.75 + 0.25 * h11(k + seed)), mix(y0, y1, 0.5) + (h11(k * 1.7 + seed) - 0.5) * 2.0);
+    let d = min(boltD(b, a, m, k + seed, 0.45), boltD(b, m, c, k + seed + 0.5, 0.45));
+    return boltLight(d, col, px);
+}
+
+// A helix strand wound round the blade: across (x) and how near the viewer it is (z, -1..1)
+// at height y, turns per 10 units, phase turns, radius r.
+fn helix(y: f32, r: f32, turns: f32, phase: f32) -> vec2<f32> {
+    let a = 6.2832 * (y * turns / 10.0 + phase);
+    return vec2(r * sin(a), cos(a));
+}

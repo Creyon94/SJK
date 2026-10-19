@@ -71,9 +71,9 @@
       "flare": 0.3
     },
     "brightness": {
-      "base": 0.55,
-      "grain": 0.275,
-      "flare": 0.715
+      "base": 0.6,
+      "grain": 0.3,
+      "flare": 0.78
     },
     "reach": 1.5,
     "swell": {
@@ -159,13 +159,13 @@
     }
   },
   "sounds": {
-    "on": "sound/weapons/saber/saberon.wav",
-    "off": "sound/weapons/saber/saberoff.wav",
-    "hum": "sound/weapons/saber/saberhum1.wav",
+    "on": "sound/sjk/sabers/world_tree/on.wav",
+    "off": "sound/sjk/sabers/world_tree/off.wav",
+    "hum": "sound/sjk/sabers/world_tree/hum.wav",
     "swings": [
-      "sound/weapons/saber/saberswing1.wav",
-      "sound/weapons/saber/saberswing2.wav",
-      "sound/weapons/saber/saberswing3.wav"
+      "sound/sjk/sabers/world_tree/swing1.wav",
+      "sound/sjk/sabers/world_tree/swing2.wav",
+      "sound/sjk/sabers/world_tree/swing3.wav"
     ]
   }
 }

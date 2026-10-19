@@ -1893,54 +1893,85 @@ the pictures to the folder `SJK_LAB_PREVIEW` names.
 
 Creyon's Blade Lab grew into a collection of more than a hundred blades, each drawn by
 its own **signature shader** on top of SJK's skin shading, which the lab runs as a GLSL
-port of `saber.wgsl` (19/10/2026; the twenty-one mythicals first). A signature is three
-functions, each handed what the skin's file drew at that point and returning the
-blade's own: `sig_glow(g, b, r, px)` the glow's light, `sig_core(c, b, px)` the core
-line's, `sig_solid(o, b, px)` a layer blended over the glow; `b` is the place in units
-(across, along: 0 at the hilt, the blade's length at the tip), `r` the stock glow's
-radius there, `px` a pixel. They read the lab's uniforms: `uTime`, `uLength`, `uSwing`,
-`uClash`, `uIgn`, `uAge`, `uSeed`.
+port of `saber.wgsl` (19/10/2026: the twenty-one mythicals first, then six of his reworked
+Blade Lab designs). A signature is three functions, each handed what the skin's file drew
+at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's light,
+`sig_core(c, b, px)` the core line's, `sig_solid(o, b, px)` a layer blended over the glow;
+`b` is the place in units (across, along: 0 at the hilt, the blade's length at the tip),
+`r` the stock glow's radius there, `px` a pixel. They read the lab's uniforms: `uTime`,
+`uLength`, `uSwing`, `uClash`, `uIgn`, `uAge`, `uSeed`.
 
 - **Source.** The lab's GLSL is the source, kept in
   [blade_signatures/](../crates/sjk-viewer/src/blade_signatures/) (`<name>.glsl`, the lab's
-  helpers in `lab.glsl`) beside its WGSL, which
+  helpers in `lab.glsl`, which also holds the shared lightning bolt, Storm-like arc loop
+  and helix helpers) beside its WGSL, which
   [scripts/blade_signatures.py](../scripts/blade_signatures.py) writes (`--check` fails
   when one is out of date). The script reads the lab's GLSL subset, infers every
   expression's type and writes readable WGSL (scalar builtin arguments splatted, `mod`
   a floor modulo, `?:` a `select`, `out` parameters pointers, assigned parameters local
   copies, swizzle assignments split, names `saber.wgsl` already takes renamed). Each
   translation was checked against naga's own GLSL front end: every signature rendered
-  through both over a grid of blade places at four moments (still, swinging, after a
-  clash, igniting) gave the same colours (largest difference 0.001), on Linux with
-  lavapipe.
+  through both over a grid of blade places at four moments gave the same colours
+  (largest difference 0.001), on Linux with lavapipe.
 - **Drawing.** [blade_signatures.rs](../crates/sjk-viewer/src/blade_signatures.rs) names
   the signature skins (`SIGNATURES`); a loaded skin with one carries `LAB_SIGNATURE`
-  (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`.
-  `saber.wgsl` draws it by the skin's own passes, as the lab does: `skin_glow_at`,
-  `skin_core` and `fragment_solid` each hand their result to the signature just before
-  a chroma's turn (`sig_take` sets the uniforms from the instance: its clock and seed,
-  length, `motion`'s swing, the clash fading at 2.2 a second, the age, and the ignition
-  over its first 0.42 s), the glow quad reaches the signature's room and the past-glow
-  shortcut is off for it, and its core never runs past the tip. The `saber.wgsl` every
-  other blade uses holds stand-ins that change nothing between `// @signature begin` and
-  `// @signature end`; a signature skin's own module is that file with them replaced by
-  `lab.wgsl` and its own (`module_source`).
-- **Pipelines.** [saber_gpu.rs](../crates/sjk-viewer/src/saber_gpu.rs) builds a signature
-  skin's glow, bloom and solid pipelines from its module the first time a blade wears it
-  (or the preview shows it), on a thread of their own (`sjk-blade-signature`), and draws
-  that skin's run of instances with them once they exist; until then the shared
-  pipelines draw it from its file alone (the lab's base colours). The log names how
-  long each took, or why it failed. `cg_saberLabDesigns 0` turns the signatures off as it
-  does the designs.
-- **Files.** A signature skin whose file is in no pack is drawn from the lab's file built
-  into the client (`<name>.bladeskin`: the lab's base colours with the signature's
-  `@palette`, the stock sounds), so they show before the hub's pack carries them.
+  (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`,
+  and its chroma's own hue in `design_color.w` (-1 for none). A signature replaces a
+  hand-ported design of the same skin (Monarch, Obsidian Edge, Quantum, Quicksilver,
+  Reactor and Serpent now draw Creyon's reworked lab shaders). `saber.wgsl` draws it by
+  the skin's own passes, as the lab does: `skin_glow_at`, `skin_core` and
+  `fragment_solid` each hand their result to the signature (`sig_take` sets the uniforms
+  from the instance: its clock and seed, length, `motion`'s swing, the clash fading at
+  2.2 a second, the age, and the ignition over its first 0.42 s), the glow quad reaches
+  the signature's room and the past-glow shortcut is off for it, its core never runs past
+  the tip, and the file's own glow stays round the emitter as a stock blade's covers the
+  hilt's mouth. The `saber.wgsl` every other blade uses holds stand-ins that change
+  nothing between `// @signature begin` and `// @signature end`; a signature skin's own
+  module is that file with them replaced by `lab.wgsl` and its own (`module_source`).
+- **The place on the blade.** The glow quad's `blade` coordinates are measured as if the
+  quad were seen square on; under a close perspective (first person, looking along the
+  blade) they stray far from the blade itself, so the lab's blades started well above the
+  hilt and ran on in a line past the tip there (Creyon's test, 19/10/2026). The quad now
+  passes the view ray and the blade's axis (`ray`, `hilt_at`, `axis`, locations 13 to 15),
+  and `blade_place` finds the true place: the point on the axis nearest the ray (along) and
+  the ray's distance from it (across). The signatures and the hand-ported designs
+  (`lab_place`, which no longer undoes a foreshortening, and whose blades now start 1
+  unit inside the hilt, `LAB_START`, as a stock core does) use it.
+- **Colour.** A chroma signature takes its wearer's colour outright (`sig_recolour`):
+  every coloured part becomes the wearer's hue, at least well saturated, and only its
+  white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
+  blades hardly changed. Twenty-three of the twenty-seven are chromas (not Elemental and
+  Balance, whose colours are their idea, nor Obsidian Edge and Quicksilver).
+- **Options.** Every signature skin offers its wearer `Effects round the blade` (off: only
+  the blade itself, nothing past a stock glow's width or the tip), `Swing and clash
+  bursts` (off: swings and clashes set nothing off) and `Ignition show` (off: lit at
+  once), and `Afterimages` when its file has them (`Signature::shown`); a hand-ported
+  design offers `Particles` and `Swing and clash bursts` (and Quantum its ghost copies).
+  They ride on the section bits these skins have no other use for (arcs, motes, hue).
+- **Pipelines.** [saber_gpu.rs](../crates/sjk-viewer/src/saber_gpu.rs) builds every loaded
+  signature skin's glow, bloom and solid pipelines from its module one after another on a
+  thread of its own as soon as the skins load (`sjk-blade-signatures`), so a blade worn
+  later is ready; one a blade wears before its turn comes is built at once on a thread of
+  its own. That skin's run of instances is drawn with them once they exist; until then
+  the shared pipelines draw it from its file alone. The log names how long each took, or
+  why it failed. `cg_saberLabDesigns 0` turns the signatures off as it does the designs.
+- **Time.** A signature never speeds its clock up with the swing (`uTime` times a rate
+  that follows `uSwing` jumps the phase by the clock times the change, and the game's
+  clock runs on for minutes: Starforge's forge raced, 19/10/2026); swings change how much
+  is shown, not how fast.
+- **Files and sounds.** A signature skin whose file is in no pack is drawn from the file
+  built into the client (`<name>.bladeskin`: the lab's base colours with the signature's
+  `@palette`), so they show before the hub's pack carries them. Its sounds are at
+  `sound/sjk/sabers/<name>/`, synthesized by the Blade Lab's sound scripts; until a pack
+  carries them only the stock sounds play.
 
-An ignored GPU test (`blade_signatures_gpu_test.rs`) renders every signature through its
-own pipelines and its real glow and core images (still, mid-swing, after a clash,
-igniting, and green for a chroma), checks the blade is lit and the corners dark, and
-saves the sheets to the folder `SJK_SIGNATURE_PREVIEW` names (`SJK_SIGNATURES` picks
-some by name).
+Two ignored GPU tests render the signatures through their own pipelines and real glow
+and core images: `blade_signatures_gpu_test.rs` still, mid-swing, after a clash,
+igniting and green for a chroma, checking the blade is lit and the corners dark, saving
+the sheets to `SJK_SIGNATURE_PREVIEW` (`SJK_SIGNATURES` picks some); and
+`blade_views_gpu_test.rs` each signature and design beside a stock blade side on, from a
+third-person camera and from first person looking along the blade, saving to
+`SJK_VIEWS` (`SJK_VIEW_SKINS` picks some).
 
 ## Saber trails
 

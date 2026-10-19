@@ -15,6 +15,9 @@
 //! ([`Signature::default_file`]), so the skins show (in the Collection's preview, and on
 //! whoever is given one) before the hub's pack carries them.
 
+use crate::blade_skin_file::BladeSkinDef;
+use crate::blade_skin_file::extras::SkinOption;
+
 /// One signature shader: the skin it draws and its translated WGSL.
 #[derive(Debug)]
 pub(crate) struct Signature {
@@ -33,29 +36,37 @@ macro_rules! signature {
     };
 }
 
-/// The signatures, mythicals first (Creyon's order, 19/10/2026).
-pub(crate) const SIGNATURES: [Signature; 21] = [
+/// The signatures, mythicals first (Creyon's order, 19/10/2026). The last six are his
+/// Blade Lab designs reworked in full, which replace their hand-ported designs
+/// (`blade_lab_designs.rs`).
+pub(crate) const SIGNATURES: [Signature; 27] = [
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
+    signature!("balance"),
+    signature!("between_worlds"),
     signature!("big_bang"),
-    signature!("crystal_heart"),
     signature!("dyson_sphere"),
     signature!("eclipse"),
     signature!("elemental"),
     signature!("event_horizon"),
-    signature!("fractal"),
-    signature!("infinity_mirror"),
-    signature!("kitsune"),
+    signature!("hyperspace"),
+    signature!("kyber_heart"),
     signature!("nine_lives"),
-    signature!("paradox"),
     signature!("quasar"),
-    signature!("resonance"),
+    signature!("singing_kyber"),
     signature!("star_dragon"),
     signature!("star_whale"),
     signature!("starforge"),
-    signature!("time_fracture"),
+    signature!("superlaser"),
+    signature!("witchfire"),
     signature!("world_tree"),
     signature!("wraithlight"),
+    signature!("monarch"),
+    signature!("obsidian"),
+    signature!("quantum"),
+    signature!("quicksilver"),
+    signature!("reactor"),
+    signature!("serpent"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).
@@ -106,6 +117,33 @@ impl Signature {
             self.room() * crate::blade_lab_designs::METRE,
             if self.solid() { 1.0 } else { 0.0 },
         ]
+    }
+
+    /// `def` as the signature draws it: none of the file's sections but its afterimages
+    /// (the signature draws its own parts), and the options every signature has, which
+    /// `saber.wgsl` reads from section bits a signature skin has no other use for
+    /// (`sig_take`): `effects` (the arcs bit) keeps only the blade itself, `bursts` (the
+    /// motes bit) stops swings and clashes setting anything off, `ignition` (the hue bit)
+    /// skips the show when it is lit.
+    pub(crate) fn shown(&self, def: &BladeSkinDef) -> BladeSkinDef {
+        let mut shown = crate::blade_lab_designs::bare(def);
+        shown.ghosts = def.ghosts;
+        let option = |id: &str, name: &str, section: &str| SkinOption {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            sections: vec![section.to_owned()],
+        };
+        shown.options = vec![
+            option("effects", "Effects round the blade", "arcs"),
+            option("bursts", "Swing and clash bursts", "motes"),
+            option("ignition", "Ignition show", "hue"),
+        ];
+        if def.ghosts.is_some() {
+            shown
+                .options
+                .push(option("afterimages", "Afterimages", "ghosts"));
+        }
+        shown
     }
 
     /// The lab's blade-skin file for it, for when no pack carries one.
@@ -183,11 +221,6 @@ mod tests {
                 "{} twice",
                 signature.id
             );
-            assert!(
-                crate::blade_lab_designs::of(signature.id).is_none(),
-                "{} is a hand-ported design too",
-                signature.id
-            );
         }
     }
 
@@ -248,6 +281,31 @@ mod tests {
         }
     }
 
+    #[test]
+    fn every_signature_offers_its_options_on_their_own_bits() {
+        use crate::blade_skin_file::extras::{Section, option_bit};
+        let signature = of("saber_wraithlight").unwrap();
+        let def = crate::blade_skin_file::parse(signature.id, signature.default_file()).unwrap();
+        let shown = signature.shown(&def);
+        let ids: Vec<&str> = shown
+            .options
+            .iter()
+            .map(|option| option.id.as_str())
+            .collect();
+        assert_eq!(ids, ["effects", "bursts", "ignition", "afterimages"]);
+        let bits: Vec<u64> = ids.iter().map(|id| option_bit(id)).collect();
+        for (index, bit) in bits.iter().enumerate() {
+            assert!(!bits[..index].contains(bit), "{} shares a bit", ids[index]);
+        }
+        // All off: the sections the shader reads them from.
+        let all = bits.iter().fold(0, |all, bit| all | bit);
+        let mask = shown.off_mask(all);
+        for section in [Section::Arcs, Section::Motes, Section::Hue, Section::Ghosts] {
+            assert_ne!(mask & section.bit(), 0, "{section:?}");
+        }
+        assert_eq!(shown.off_mask(option_bit("effects")), Section::Arcs.bit());
+    }
+
     /// The WGSL is the script's: none edited by hand, none left behind.
     #[test]
     fn every_signature_has_its_lab_source() {
@@ -273,3 +331,7 @@ mod tests {
 #[cfg(test)]
 #[path = "blade_signatures_gpu_test.rs"]
 mod gpu_test;
+
+#[cfg(test)]
+#[path = "blade_views_gpu_test.rs"]
+mod views_test;

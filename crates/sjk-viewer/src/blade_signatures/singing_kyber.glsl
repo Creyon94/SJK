@@ -1,4 +1,4 @@
-// Resonance: a singing crystal blade. The thin teal crystal hums so fast its edges double, a standing
+// Singing Kyber (was Resonance): a kyber crystal that sings, as kyber does. a singing crystal blade. The thin teal crystal hums so fast its edges double, a standing
 // wave shows bright nodes down its length, and from each node sound rings ripple out and fade. Two
 // glowing waveform traces run up beside the blade like an oscilloscope, and tiny crystal shards hover
 // round it, trembling to the note. A swing raises the pitch (tighter waves, the traces swell); a clash

@@ -6,7 +6,9 @@
 // @room 8
 // @palette {"corona.rim_cool":[0.55,0.12,0.02],"corona.rim_hot":[1.0,0.55,0.12],"corona.inner":[1.0,0.88,0.55],"core.white":[1.0,0.96,0.85],"core.fringe_cool":[1.0,0.40,0.08],"core.fringe_hot":[1.0,0.80,0.45],"light.color":[1.0,0.58,0.18],"trail":[1.0,0.55,0.15]}
 
-float sf_P(){ return 1.1/(1.0 + 0.9*clamp(uSwing, 0.0, 1.0)); }
+// A steady rhythm: a period that changed with the swing jumped the phase by uTime times the
+// change, so the forge raced in game (whose clock runs on for minutes).
+float sf_P(){ return 0.9; }
 // the current blow: phase (0 at impact), height along the blade
 float sf_ph(){ return fract(uTime/sf_P()); }
 float sf_y(float n){ return uLength*(0.25 + 0.55*h11(n*3.7)); }

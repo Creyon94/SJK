@@ -1,4 +1,4 @@
-// Crystal Heart: a faceted ruby heart sits on the emitter and beats, lub-dub, swelling and flashing
+// Kyber Heart (was Crystal Heart): a kyber crystal heart. a faceted ruby heart sits on the emitter and beats, lub-dub, swelling and flashing
 // on every beat. Each beat sends a pulse of light racing up the veins that branch through the thin
 // rose-crystal blade above it. Every ten seconds it surges: three hard beats flood every vein to the
 // tip. Swinging quickens the heartbeat; a clash makes it skip and flare.
@@ -10,7 +10,8 @@
 
 const float CH_S = 2.2, CH_Y = 0.2;
 float ch_surge(){ float p = mod(uTime - 10.0, 10.0); return smoothstep(0.0, 0.2, p)*(1.0 - smoothstep(2.4, 3.2, p)); }
-float ch_rate(){ return 1.05*(1.0 + 0.8*uSwing) + 1.2*ch_surge(); }
+// A steady beat (a rate that changed with the swing or the surge made the phase race in game).
+float ch_rate(){ return 1.3; }
 float ch_beatAt(float ph){ ph = max(ph, 0.0); return exp(-ph*16.0) + 0.6*exp(-max(ph - 0.22, 0.0)*16.0)*step(0.22, ph); }
 float ch_beat(){ float ph = fract(uTime*ch_rate()); return ch_beatAt(ph)*(1.0 + 0.6*ch_surge()) + uClash*0.8; }
 float ch_dot2(vec2 v){ return dot(v, v); }

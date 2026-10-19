@@ -8,8 +8,10 @@
 // strikes: a white flash where it lands, a big fountain of sparks that arc and fall, a shock wave,
 // and a white-hot spot that cools back to orange. Embers drift up all round. A swing strikes faster;
 // a clash is a huge blow with a ring of sparks.
+// A steady rhythm: a period that changed with the swing jumped the phase by uTime times the
+// change, so the forge raced in game (whose clock runs on for minutes).
 fn sf_P() -> f32 {
-    return 1.1 / (1.0 + 0.9 * clamp(uSwing, 0.0, 1.0));
+    return 0.9;
 }
 
 // the current blow: phase (0 at impact), height along the blade

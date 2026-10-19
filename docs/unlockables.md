@@ -448,12 +448,16 @@ from the looks.
   files' sections; their trail and light take the lab's colours, their sounds stay the
   files' ([rendering.md](rendering.md#blade-lab-designs)).
 - Twenty-one mythicals from Creyon's Blade Lab collection (Abyssal Eye to Wraithlight,
-  19/10/2026) are drawn by their lab signature shaders
-  ([rendering.md](rendering.md#blade-lab-signature-shaders)). They are in the client's
-  catalogue but not yet the hub's, which must list them too (the catalogue test pins the
-  same list): not droppable and "Not in holocrons yet: given by the SJK team while it is
-  tried" (`FROM_THE_TEAM`) until they are released. With no pack file, a built-in one
-  (the lab's colours, stock sounds) draws them, so the Collection previews them now.
+  19/10/2026, all Star Wars or space: Fractal, Infinity Mirror and Kitsune were rebuilt as
+  Hyperspace, Superlaser and Witchfire, Paradox, Time Fracture, Crystal Heart and
+  Resonance renamed Balance, Between Worlds, Kyber Heart and Singing Kyber) are drawn by
+  their lab signature shaders ([rendering.md](rendering.md#blade-lab-signature-shaders)),
+  as are Monarch, Obsidian Edge, Quantum, Quicksilver, Reactor and Serpent in their
+  reworked form. The twenty-one are in the client's catalogue but not yet the hub's,
+  which must list them too (the catalogue test pins the same list): not droppable and
+  "Not in holocrons yet: given by the SJK team while it is tried" (`FROM_THE_TEAM`)
+  until they are released. With no pack file, a built-in one draws them, so the
+  Collection previews them now.
 - A skinned blade ends round (09/10/2026; Sol saw the Sun's tip square). The core line
   is a flat quad from behind the hilt to the tip, and the generated core's fringe is
   still about a fifth of its brightness at the quad's edges and end, so its end and

@@ -7,6 +7,11 @@
 // point at the hilt that bursts: a fireball races up the blade, cools from white through gold to
 // ember red, and condenses into a glowing cosmic web strung with tiny spinning galaxies that keep
 // streaming up and away, growing and reddening as space expands. A clash sets off a small new bang.
+// The lab took 3.5 s to light the universe; a blade must be lit as fast as a stock one.
+fn bb_age() -> f32 {
+    return uAge * 4.0;
+}
+
 const BB_K: f32 = 40.0;
 const BB_C: f32 = 8.0;
 const BB_O: f32 = 0.9;
@@ -54,7 +59,7 @@ fn bb_cosmos(b: vec2<f32>, px: f32) -> vec4<f32> {
 }
 
 fn big_bang_glow0(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    let a = uAge;
+    let a = bb_age();
     let L = uLength;
     let O = vec2(0.0, BB_O);
     let h = clamp(b.y / max(L, 1.0), 0.0, 1.0);
@@ -93,7 +98,7 @@ fn big_bang_glow0(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    let since = uAge - bb_pass(b.y);
+    let since = bb_age() - bb_pass(b.y);
     let on = smoothstep(0.0, 0.5, since);
     let h = clamp(b.y / max(uLength, 1.0), 0.0, 1.0);
     let thin = 1.0 - smoothstep(0.12, 0.45, abs(b.x));

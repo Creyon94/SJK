@@ -159,13 +159,13 @@
     }
   },
   "sounds": {
-    "on": "sound/weapons/saber/saberon.wav",
-    "off": "sound/weapons/saber/saberoff.wav",
-    "hum": "sound/weapons/saber/saberhum1.wav",
+    "on": "sound/sjk/sabers/elemental/on.wav",
+    "off": "sound/sjk/sabers/elemental/off.wav",
+    "hum": "sound/sjk/sabers/elemental/hum.wav",
     "swings": [
-      "sound/weapons/saber/saberswing1.wav",
-      "sound/weapons/saber/saberswing2.wav",
-      "sound/weapons/saber/saberswing3.wav"
+      "sound/sjk/sabers/elemental/swing1.wav",
+      "sound/sjk/sabers/elemental/swing2.wav",
+      "sound/sjk/sabers/elemental/swing3.wav"
     ]
   }
 }

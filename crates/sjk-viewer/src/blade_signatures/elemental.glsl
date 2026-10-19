@@ -7,7 +7,8 @@
 // @solid 1
 // @palette {"corona.rim_cool":[0.35,0.20,0.55],"corona.rim_hot":[0.90,0.60,0.50],"corona.inner":[1.0,0.92,0.85],"core.white":[1.0,0.98,0.95],"core.fringe_cool":[0.50,0.70,1.0],"core.fringe_hot":[1.0,0.65,0.35],"light.color":[0.95,0.75,0.60],"trail":[0.90,0.70,0.60]}
 
-const float EL_P = 4.0;
+float L_EL(){ return uLength; }
+const float EL_P = 6.0;      // seconds each element rules (Creyon: change them more slowly)
 float el_u(){ return (uTime - 1.0)/EL_P; }
 float el_cur(){ return mod(floor(el_u()), 4.0); }
 float el_local(){ return fract(el_u())*EL_P; }
@@ -188,6 +189,129 @@ vec3 elemental_show(vec2 b, float px){
   return (1.0 - exp(-light*1.15))*1.05;
 }
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return elemental_glow0(g, b, r, px) + elemental_show(b, min(px, 0.06));
+
+// ==== aura (round 7) ====
+// Each element wraps the blade the way Sol's Storm blade wraps it in lightning: two strands
+// winding round it and effects leaping 6 to 8 units off it. Fire: a flaming ribbon spiralling
+// up, tongues licking out and sparks flung off. Ice: a chain of frost shards spiralling round,
+// glinting, with cold mist and crystal spikes standing off the blade. Lightning: crackling arcs
+// round the blade and great loops jumping out and back, struck anew many times a second.
+// Stone: boulders with molten cracks orbiting in a helix, lava drips and dust. The next element
+// takes over from the hilt behind the seam.
+vec3 el_aura(float k, vec2 b, float px){
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0);
+  vec3 light = vec3(0.0);
+  float along = smoothstep(-0.5, 1.5, b.y)*(1.0 - smoothstep(L - 1.0, L + 2.0, b.y));
+  if (k < 0.5){
+    // fire: two flame ribbons spiralling up, tongues and sparks
+    for (int j = 0; j < 2; j++){
+      float fj = float(j);
+      vec2 h = helix(b.y, 2.4 + 0.6*sin(b.y*0.3 - t*2.0), 1.1, -t*0.55 + fj*0.5);
+      float d = abs(b.x - h.x);
+      float flick = 0.6 + 0.6*vn(vec2(b.y*0.9 - t*6.0, fj*7.0));
+      float front = 0.45 + 0.55*smoothstep(-0.6, 0.6, h.y);
+      light += mix(vec3(1.0, 0.35, 0.05), vec3(1.0, 0.85, 0.4), front)*(halo(d, 0.35*flick)*1.3 + halo(d, 1.1)*0.25)*front*along;
+    }
+    for (int i = 0; i < 10; i++){
+      float fi = float(i);
+      float ph = t*(0.7 + 0.3*h11(fi*3.1)) + h11(fi*7.7);
+      float cy = floor(ph), f = fract(ph);
+      float s = h11(cy + fi*2.0) < 0.5 ? -1.0 : 1.0;
+      float y0 = (0.1 + 0.8*h11(cy*1.3 + fi))*L;
+      // a tongue licking out and up
+      float u = (b.x*s - 1.0)/(4.0 + 3.0*h11(cy + fi*5.0));
+      if (u > 0.0 && u < 1.0){
+        float dy = b.y - y0 - 3.0*u*u*f - 0.6*sin(u*9.0 - t*12.0 + fi)*u;
+        light += mix(vec3(1.0, 0.8, 0.3), vec3(1.0, 0.25, 0.02), u)*exp(-pow(dy/(0.45*(1.0 - u) + 0.05), 2.0))*(1.0 - u)*(1.0 - f)*smoothstep(0.0, 0.15, f)*1.3;
+      }
+      // a spark flung far out
+      vec2 p = vec2(s*(1.0 + 7.0*f), y0 + 5.0*f - 3.0*f*f);
+      light += vec3(1.0, 0.7, 0.3)*halo(length(b - p), max(px, 0.06))*2.2*(1.0 - f);
+    }
+  } else if (k < 1.5){
+    // ice: frost shards on two spirals, glinting; crystal spikes off the blade; cold mist
+    for (int j = 0; j < 2; j++){
+      float fj = float(j);
+      float ph = -t*0.25 + fj*0.5;
+      for (int i = 0; i < 9; i++){
+        float fi = float(i);
+        float y = fract(fi/9.0 + t*0.035 + fj*0.05)*(L + 2.0) - 1.0;
+        vec2 h = helix(y, 3.0, 0.9, ph);
+        vec2 q = b - vec2(h.x, y);
+        q = rot(t*1.5 + fi + fj*3.0)*q;
+        float sh = max(abs(q.x)*1.6 + abs(q.y)*0.55, abs(q.y)*0.9) - 0.8*(0.7 + 0.3*h.y);
+        float glint = pow(0.5 + 0.5*sin(t*5.0 + fi*2.3 + fj), 8.0);
+        light += vec3(0.6, 0.9, 1.0)*(fillD(sh, px)*0.7 + halo(abs(sh), 0.05 + px)*1.4)*(0.5 + 0.5*h.y)*along + vec3(1.0)*halo(length(q), 0.12)*glint*2.0*along;
+      }
+    }
+    for (int i = 0; i < 8; i++){
+      float fi = float(i);
+      float s = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+      float y0 = (0.1 + 0.11*fi)*L;
+      float grow = 0.5 + 0.5*sin(t*0.8 + fi*1.7);
+      float len = (2.5 + 3.5*h11(fi*3.3))*grow;
+      float d = sdSeg(b, vec2(s*0.6, y0), vec2(s*(0.6 + len), y0 + len*0.55));
+      light += vec3(0.75, 0.95, 1.0)*(halo(d, 0.05 + px)*1.2 + halo(d, 0.4)*0.25)*grow;
+    }
+    float mist = fbm3(vec2(b.x*0.5 - t*0.3, b.y*0.3 - t*0.5));
+    light += vec3(0.45, 0.7, 1.0)*mist*mist*0.35*exp(-abs(b.x)/3.0)*along;
+  } else if (k < 2.5){
+    // lightning: crackling arcs wound round the blade and big loops leaping off it
+    for (int j = 0; j < 2; j++){
+      float fj = float(j);
+      float kk = floor(t*14.0 + fj*0.5);
+      float jit = (vn(vec2(b.y*1.7, kk*3.1 + fj*9.0)) - 0.5)*1.6;
+      vec2 h = helix(b.y, 1.6 + 0.6*vn(vec2(b.y*0.5, kk)), 1.5, -t*0.8 + fj*0.5);
+      float d = abs(b.x - h.x - jit);
+      light += mix(vec3(0.7, 0.45, 1.0), vec3(1.0), 0.3)*(halo(d, max(px, 0.04))*1.5 + halo(d, 0.3)*0.5)*(0.4 + 0.6*smoothstep(-0.5, 0.5, h.y))*along;
+    }
+    for (int i = 0; i < 6; i++){
+      float fi = float(i);
+      float y0 = (0.06 + 0.15*fi)*L + 2.0*h11(floor(t*1.3 + fi));
+      float s = h11(floor(t*2.0) + fi*4.0) < 0.5 ? -1.0 : 1.0;
+      float on = step(0.3 - 0.3*sw, h11(floor(t*9.0) + fi*1.9));
+      light += arcLoop(b, y0, y0 + 3.0 + 3.0*h11(fi*5.1), s, 7.0 + 3.0*h11(fi + floor(t*3.0)), fi*3.7, 9.0, vec3(0.7, 0.45, 1.0), px)*on;
+    }
+    for (int i = 0; i < 12; i++){
+      float fi = float(i);
+      float f = fract(t*0.5 + h11(fi*2.9));
+      vec2 p = vec2((h11(fi*3.7) - 0.5)*12.0, f*(L + 4.0) - 2.0);
+      light += vec3(0.85, 0.7, 1.0)*halo(length(b - p), 0.08)*1.5*(0.5 + 0.5*sin(t*20.0 + fi));
+    }
+  } else {
+    // stone: boulders with molten cracks on a helix round the blade, lava drips, dust
+    for (int i = 0; i < 10; i++){
+      float fi = float(i);
+      float y = fract(fi/10.0 + t*0.03)*(L + 2.0) - 1.0;
+      vec2 h = helix(y, 3.8, 0.8, t*0.12 + fi*0.13);
+      vec2 q = rot(t*0.7*(h11(fi) - 0.5) + fi)*(b - vec2(h.x, y));
+      float sz = (1.0 + 0.6*h11(fi*3.9))*(0.75 + 0.25*h.y);
+      float rock = max(abs(q.x) + abs(q.y)*0.55, abs(q.y)*1.05) - sz + 0.08*vn(q*6.0 + fi);
+      float crack = halo(abs(vn(q*4.0 + fi*3.0) - 0.5), 0.06)*step(rock, 0.0);
+      vec3 rc = vec3(0.32, 0.26, 0.22)*(0.6 + 0.4*h.y) + vec3(1.0, 0.45, 0.1)*crack*1.6;
+      light += rc*fillD(rock, px)*along + vec3(1.0, 0.5, 0.15)*halo(abs(rock), 0.05 + px)*0.6*along;
+    }
+    for (int i = 0; i < 8; i++){
+      float fi = float(i);
+      float f = fract(t*0.6 + h11(fi*5.3));
+      float s = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+      vec2 p = vec2(s*(0.7 + 0.8*f), (0.2 + 0.09*fi)*L - 6.0*f*f);
+      light += vec3(1.0, 0.45, 0.08)*(halo(length((b - p)*vec2(1.0, 0.6)), 0.14)*2.0)*(1.0 - f);
+    }
+    float dust = fbm3(vec2(b.x*0.6 + t*0.2, b.y*0.25));
+    light += vec3(0.7, 0.55, 0.4)*dust*dust*0.25*exp(-abs(b.x)/4.0)*along;
+  }
+  return light*(1.0 + 0.8*sw);
 }
+
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  px = min(px, 0.06);
+  float k = el_cur();
+  // the aura of the ruler, the last one's fading as the new one takes over (from the hilt up)
+  float take = smoothstep(0.0, 1.2, el_local());
+  vec3 aura = el_aura(k, b, px)*take + el_aura(mod(k + 3.0, 4.0), b, px)*(1.0 - take);
+  float edge = 1.0 - smoothstep(8.5, 10.0, abs(b.x));
+  aura *= edge*(1.0 - smoothstep(L_EL() + 1.0, L_EL() + 4.0, b.y))*smoothstep(-2.5, -0.5, b.y);
+  return elemental_glow0(g, b, r, px) + elemental_show(b, px) + (1.0 - exp(-aura*1.2))*1.1;
+}
+
