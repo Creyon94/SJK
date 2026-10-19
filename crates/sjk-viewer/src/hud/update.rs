@@ -12,8 +12,11 @@ impl HudOverlay {
     ) -> ClientHudData {
         let player = &session.latest_snapshot().player;
         self.guides.update(player, predicted, console);
-        self.speed
-            .update(predicted.map_or(player.velocity(), |p| p.velocity), console);
+        self.speed.update(
+            predicted.map_or(player.velocity(), |p| p.velocity),
+            player.armor(),
+            console,
+        );
         self.update_votes(session.game_state(), player.team(), time_ms as i32, console);
         let values = legacy_predicted_hud_data(player, predicted);
         self.update_values(player, values, time_ms)
@@ -33,7 +36,8 @@ impl HudOverlay {
     ) {
         self.guides.update(player, None, console);
         self.update_votes(game_state, player.team(), time_ms as i32, console);
-        self.speed.update(player.velocity(), console);
+        self.speed
+            .update(player.velocity(), player.armor(), console);
     }
 
     fn update_values(
