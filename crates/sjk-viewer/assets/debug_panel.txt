@@ -5416,6 +5416,14 @@ test: Esc while aiming shows the Map editor strip at the top; Editor off removes
 
 # ---- Bug reports, 19/10/2026 ----
 
+[bool-settings]
+area: Rendering & effects
+title: Server remaps and Map edits switches work
+change: cg_serverRemaps and cg_mapEdits were read as numbers only: switching them did nothing.
+test: On a server that remaps, cg_serverRemaps 1 and cg_remaps 2: listRemaps lists its remaps.
+test: cg_serverRemaps 0: the remaps go, listRemaps says server remaps are off.
+test: cg_mapEdits 0 on a map with edits: they go; 1 brings them back.
+
 [emote-attack-stop]
 area: Gameplay
 title: Emotes: Attack ends emote setting (off by default)
