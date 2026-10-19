@@ -6,7 +6,7 @@
 // diamond-ring flashes and Baily's beads sparking on its edge, while small pearly prominences
 // loop up off the blade and fade. Ignites fast; a swing sweeps the streamers out, a clash flares the
 // whole corona with a diamond-ring burst.
-// @room 9
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.75,0.62,0.40],"corona.rim_hot":[1.0,0.90,0.70],"corona.inner":[1.0,0.97,0.90],"core.white":[1.0,0.98,0.92],"core.fringe_cool":[0.95,0.75,0.45],"core.fringe_hot":[1.0,0.92,0.75],"light.color":[1.0,0.86,0.62],"trail":[1.0,0.84,0.58]}
 
@@ -14,8 +14,9 @@ float ec_top(){ return uLength*clamp(uAge/0.4, 0.0, 1.0); }
 // the band's height: drifting up and down the blade, rising out of the hilt at ignition
 float ec_y(){
   float L = uLength;
-  float y = L*(0.52 + 0.3*sin(uTime*0.3 + uSeed*6.0));
-  return mix(7.0, y, smoothstep(0.2, 1.2, uAge));
+  // kept in the blade's upper half, clear of its wearer's head and body (Creyon's round 9)
+  float y = L*(0.7 + 0.16*sin(uTime*0.3 + uSeed*6.0));
+  return mix(L*0.5, y, smoothstep(0.2, 1.2, uAge));
 }
 float ec_hw(){ return 1.4; }
 float ec_ringR(){ return 0.55; }
@@ -31,8 +32,8 @@ vec3 ec_orb(float i, out float R){
   float L = uLength;
   R = 0.9 + 0.25*i;
   float a = i/3.0 + uTime*(0.12 + 0.05*i)*(i == 1.0 ? -1.0 : 1.0);
-  float y = L*(0.3 + 0.25*i) + 1.2*sin(uTime*0.4 + i*2.0);
-  return around(4.2 + 0.5*i, a, y);
+  float y = L*(0.5 + 0.17*i) + 1.0*sin(uTime*0.4 + i*2.0);
+  return around(3.4 + 0.4*i, a, y);
 }
 // a point's place in the plane facing the camera round centre c: (across, up) and distance
 vec3 ec_face(vec3 ro, vec3 rd, vec3 c){
@@ -43,7 +44,7 @@ vec3 ec_face(vec3 ro, vec3 rd, vec3 c){
   vec3 uy = cross(ux, rd);
   return vec3(dot(off, ux), dot(off, uy), d);
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, top = ec_top(), s, tq;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float flare = max(cl, exp(-uAge*1.6)*step(0.0, uAge)*0.35);
@@ -200,3 +201,25 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*sheen*(1.0 - 0.94*ec_shade(b.y));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 - 0.94*ec_shade(b.y)); }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 pearl = vec3(1.0, 0.88, 0.66);
+  fx += fxRays(ro, rd, px, L*0.45, y1, 12.0, 7.0 + 2.0*sw, 0.4, 6.1, pearl);
+  fx += fxMotes(ro, rd, px, L*0.4, y1, 1.0, 5.0, 24.0, 0.06, 2.8, pearl);
+  for (int i = 0; i < 2; i++){
+    float fi = float(i);
+    float cyc = t*0.3 + fi*0.5, k = floor(cyc), q = fract(cyc);
+    vec3 p = around(0.6, h11(k*2.1 + fi), mix(L*0.5, y1, h11(k*4.7 + fi*3.0)));
+    fx += fxFlare(ro, rd, p, px, 0.2, 4.0, 8.0, t*0.2, pearl)*pow(sin(3.1416*q), 3.0);
+  }
+  fx += fxAura(ro, rd, L*0.45, y1, 3.0, pearl)*0.7;
+  fx += fxShock(ro, rd, px, L*0.65, 1.0 - cl, 10.0, pearl)*1.6;
+  return col + fx*uFx;
+}

@@ -1,120 +1,138 @@
-// Balance: the light side and the dark side of the Force in one blade. The blade is split down its
-// length into two flows of plasma, one calm blue-white, one crimson, spiralling round each other
-// all the way up like two hands clasped, so from every side and from the tip you see both. The
-// border between them churns and boils; now and then one side surges and pushes the other back
-// before balance returns. Red lightning crackles off the dark flow and calm pale wisps rise off
-// the light flow. Swinging spins the spiral faster; a clash bursts both sides outward at once.
-// @room 8
+// Balance: the light side and the dark side of the Force, held in one blade (Creyon's round 9
+// rework). The blade is Sol's glow and core from the file, its glow split into long waves of
+// calm blue-white and crimson that roll against each other up and down it, white where they
+// meet. Round it the Force itself is divided: on one side the light, long straight beams of
+// white-gold light, a slow halo ring and motes of light rising serenely; on the other the dark,
+// red lightning crackling out and back in, crimson sparks and dark embers whirling. The two
+// sides turn slowly round the blade, and every few seconds one surges and floods across the
+// other before balance returns, with a flash on the seam. A swing feeds both sides; a clash
+// bursts them outward together in a white ring.
+// @room 10
 // @palette {"corona.rim_cool":[0.45,0.70,1.0],"corona.rim_hot":[1.0,0.12,0.08],"corona.inner":[1.0,0.92,0.85],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.45,0.75,1.0],"core.fringe_hot":[1.0,0.10,0.08],"light.color":[0.85,0.55,0.75],"trail":[0.9,0.45,0.6]}
 
-const vec3 BL_RED = vec3(1.0, 0.07, 0.04);
-const vec3 BL_BLUE = vec3(0.28, 0.58, 1.0);
-const vec3 BL_PALE = vec3(0.85, 0.93, 1.0);
+const vec3 BA_BLUE = vec3(0.5, 0.75, 1.0);
+const vec3 BA_GOLD = vec3(1.0, 0.92, 0.72);
+const vec3 BA_RED = vec3(1.0, 0.09, 0.05);
+// the light side's middle (turns round the blade); the dark side is half a turn on
+float ba_spin(){ return uTime*0.05; }
+// the surge: > 0 the light floods across, < 0 the dark
+float ba_surge(){
+  float c = uTime/7.0, k = floor(c), q = fract(c);
+  float side = h11(k*3.7 + uSeed*9.0) < 0.5 ? -1.0 : 1.0;
+  return side*smoothstep(0.55, 0.7, q)*(1.0 - smoothstep(0.8, 1.0, q));
+}
+// how much of the light side a direction at angle a (turns) is in: 1 light, 0 dark
+float ba_light(float a){
+  float d = abs(fract(a - ba_spin() + 0.5) - 0.5);
+  return 1.0 - smoothstep(0.2 - 0.12*ba_surge(), 0.3 - 0.12*ba_surge(), d);
+}
+// the waves of the blade's glow at height y: 1 light, 0 dark
+float ba_wave(float y){
+  return smoothstep(-0.25, 0.25, sin(y*0.16 - uTime*0.9) + 0.6*ba_surge());
+}
 
-float bl_top(){ float g = clamp(uAge/0.45, 0.0, 1.0); return uLength*(1.0 - (1.0 - g)*(1.0 - g)); }
-// the spiral: the angle (turns) of the light side's middle at height y
-float bl_phi(float y){ return y/13.0 - uTime*(0.32 + 0.5*uSwing); }
-// how much of the blade the light side holds at height y (0.5 = balance); a surge now and then
-// rolls up the blade, one side pushing the other
-float bl_share(float y){
-  float k = floor(uTime/6.5);
-  float p = fract(uTime/6.5)*6.5;
-  float dir = h11(k*3.7) < 0.5 ? -1.0 : 1.0;
-  float front = (p - 0.5)*22.0;
-  float surge = smoothstep(front - 8.0, front - 2.0, y)*(1.0 - smoothstep(front, front + 6.0, y));
-  surge *= 1.0 - smoothstep(2.4, 3.2, p);
-  return 0.5 + 0.25*dir*surge + 0.05*sin(uTime*0.9 + y*0.2);
-}
-// light-side weight (1 blue, 0 red) at point p, with a churning border
-float bl_side(vec3 p){
-  float a = atan(p.x, p.z)/6.2832;
-  float u = fract(a - bl_phi(p.y) + 0.5) - 0.5;   // -0.5..0.5, 0 = middle of the light side
-  float ch = (fbm3(vec2(p.y*0.7 - uTime*1.6, a*4.0 + uTime*0.3)) - 0.5)*0.22;
-  float half_ = bl_share(p.y)*0.5;
-  float e = half_ - abs(u + ch);
-  return smoothstep(-0.03, 0.03, e);
-}
-// one wisp rising calmly off the light flow
-vec3 bl_wisp(vec3 ro, vec3 rd, float i, float px, float top){
-  float per = 2.6 + 1.2*h11(i*1.7);
-  float ph = fract(uTime/per + h11(i*4.1));
-  float k = floor(uTime/per + h11(i*4.1));
-  float y0 = 1.5 + h11(i*9.3 + k*1.7)*(top - 4.0);
-  float a0 = bl_phi(y0) + 0.08*(h11(i + k) - 0.5);
-  float rise = ph*3.5;
-  vec3 a = around(0.55 + ph*0.5, a0, y0 + rise*0.3);
-  vec3 b = around(1.0 + ph*1.0, a0 + 0.05, y0 + 1.4 + rise);
-  vec3 c = around(1.4 + ph*1.4, a0 + 0.12, y0 + 3.0 + rise*1.3);
-  float s1, s2;
-  float d1 = raySeg(ro, rd, a, b, s1);
-  float d2 = raySeg(ro, rd, b, c, s2);
-  float d = min(d1, d2);
-  float sp = d1 < d2 ? s1*0.5 : 0.5 + s2*0.5;
-  float life = sin(ph*3.1416);
-  float shape = sin(sp*3.1416);
-  return (BL_PALE*halo(d, max(px*0.8, 0.09))*0.35 + BL_BLUE*halo(d, 0.45)*0.4 + BL_BLUE*halo(d, 1.1)*0.1)*life*shape;
-}
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  float top = bl_top();
-  float cl = clamp(uClash, 0.0, 1.0);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
   vec3 col = vec3(0.0);
-  float sa;
-  float dax = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
-  // The blade itself is Sol's glow and core from the file, split into the two flows
-  // (sig_glow); here only the effects, each a piece placed round it in 3D.
-  // dark-side lightning crackling off the red flow
-  if (dax < 5.0){
-    for (int i = 0; i < 4; i++){
-      float fi = float(i);
-      float k = floor(uTime*9.0 + fi*0.37);
-      float on = step(0.45 - 0.4*cl - 0.2*uSwing, h11(k*1.3 + fi*7.0));
-      if (on < 0.5) continue;
-      float y0 = 2.0 + h11(k*2.1 + fi)*(top - 5.0);
-      float a0 = bl_phi(y0) + 0.5 + 0.15*(h11(k*3.3 + fi) - 0.5);
-      vec3 A = around(0.5, a0, y0);
-      vec3 C = around(3.0 + 2.5*h11(k*5.7 + fi) + cl*1.5, a0 + 0.12*(h11(k*7.1) - 0.5), y0 + 3.0*(h11(k*8.3 + fi) - 0.4));
-      float d = bolt3(ro, rd, A, C, k + fi*11.0, 0.42);
-      col += boltLight(d, BL_RED, px)*uFx*0.9;
-    }
+  if (fxNear(ro, rd, y0, y1) > 10.0) return col;
+  float sp = ba_spin(), su = ba_surge();
+  float lw = 1.0 + 0.8*max(su, 0.0) + 0.5*sw, dw = 1.0 + 0.8*max(-su, 0.0) + 0.5*sw;
+  float s, ta;
+
+  // ---- the light side: long, straight beams of white-gold light, slowly flaring ----
+  for (int i = 0; i < 12; i++){
+    float fi = float(i);
+    float cyc = t*0.35*(0.8 + 0.4*h11(fi*3.1)) + h11(fi*7.7), k = floor(cyc), q = fract(cyc);
+    float a = sp + (h11(k*2.3 + fi) - 0.5)*0.42*(1.0 + 0.6*max(su, 0.0));
+    float y = mix(y0, y1, h11(k*5.1 + fi*1.9));
+    vec3 dir = normalize(vec3(sin(6.2832*a), 0.25*(h11(k + fi*4.0) - 0.5), cos(6.2832*a)));
+    float len = (5.5 + 3.0*h11(k*1.7 + fi))*smoothstep(0.0, 0.35, q);
+    vec3 a0 = vec3(0.0, y, 0.0) + dir*0.4;
+    float d = raySeg(ro, rd, a0, a0 + dir*max(len, 0.01), s);
+    float w = mix(0.28, 0.08, s);
+    col += (vec3(1.0)*halo(d, max(w*0.45, px))*1.3 + BA_GOLD*halo(d, w*3.0)*0.9 + BA_BLUE*halo(d, w*9.0)*0.2)*(1.0 - 0.7*s)*sin(3.1416*q)*lw;
   }
-  // light-side wisps
-  if (dax < 4.0){
-    vec3 w = vec3(0.0);
-    for (int i = 0; i < 7; i++){ w += bl_wisp(ro, rd, float(i), px, top); }
-    col += w*uFx;
+  // its motes of light rising serenely
+  for (int i = 0; i < 20; i++){
+    float fi = float(i);
+    float f = fract(t*(0.05 + 0.03*h11(fi*2.9)) + h11(fi*5.1));
+    float a = sp + (h11(fi*1.9) - 0.5)*0.45;
+    vec3 p = around(1.0 + 4.0*h11(fi*3.7), a, mix(y0 - 1.0, y1 + 2.0, f));
+    float d = rayPt(ro, rd, p, ta);
+    col += mix(BA_BLUE, vec3(1.0), 0.5)*(halo(d, max(0.07, px))*1.8 + halo(d, 0.35)*0.2)*sin(3.1416*f)*lw;
   }
-  // clash: both sides burst out, a blue ring and a red ring
-  if (cl > 0.0){
-    vec3 h = rayAt(ro, rd, uLength*0.6);
+  // a slow halo ring of light round the blade's upper part, brightest on the light side
+  {
+    float yh = L*0.72 + 1.5*sin(t*0.5);
+    vec3 h = rayAt(ro, rd, yh);
     if (h.z > 0.0){
-      float rr = length(h.xy), aa = atan(h.x, h.y)/6.2832;
-      float side = smoothstep(-0.1, 0.1, sin((aa - bl_phi(uLength*0.6))*6.2832));
-      float R = 0.6 + (1.0 - cl)*5.0;
-      vec3 rc = mix(BL_RED, BL_BLUE, side);
-      col += (rc*halo(abs(rr - R), 0.45) + vec3(1.0)*halo(abs(rr - R), 0.1))*cl*1.6*uFx;
+      float d = abs(length(h.xy) - 3.0);
+      float a = atan(h.x, h.y)/6.2832;
+      col += (vec3(1.0)*halo(d, max(0.05, px))*0.8 + BA_GOLD*halo(d, 0.3)*0.4)*ba_light(a)*lw;
     }
   }
-  return col;
+
+  // ---- the dark side: red lightning crackling out and back, crimson sparks, embers ----
+  for (int i = 0; i < 7; i++){
+    float fi = float(i);
+    float cyc = t*(1.6 + 1.5*sw)*(0.7 + 0.6*h11(fi*1.9)) + h11(fi*3.3)*5.0, k = floor(cyc), q = fract(cyc);
+    float a = sp + 0.5 + (h11(k*4.1 + fi*2.0) - 0.5)*0.42*(1.0 + 0.6*max(-su, 0.0));
+    float ya = mix(y0, y1 - 3.0, h11(k*1.9 + fi*2.7)), yb = ya + 3.0 + 5.0*h11(k*2.3 + fi);
+    float R = 3.0 + 3.0*h11(k*7.7 + fi);
+    vec3 mid = around(R, a, (ya + yb)*0.5 + (h11(k*9.1 + fi) - 0.5)*2.0);
+    if (rayPt(ro, rd, mid, ta) > R + 5.0) continue;
+    float env = (1.0 - q)*(1.0 - q)*(0.6 + 0.4*step(0.5, fract(q*9.0 + fi)));
+    float d = min(bolt3(ro, rd, around(0.25, a, ya), mid, k + fi*1.37, 0.5), bolt3(ro, rd, mid, around(0.25, a, yb), k + fi*1.37 + 0.5, 0.5));
+    vec3 fork = mid + around(R*0.5, a + 0.1*(h11(k + fi) - 0.5), (h11(k*3.3 + fi) - 0.5)*3.0);
+    float d2 = bolt3(ro, rd, mid, fork, k*2.1 + fi, 0.6);
+    col += (boltLight(d, BA_RED, px) + boltLight(d2, BA_RED, px)*0.55)*env*dw;
+  }
+  for (int i = 0; i < 18; i++){
+    float fi = float(i);
+    float f = fract(t*(0.09 + 0.05*h11(fi*2.3)) + h11(fi*6.1));
+    float a = sp + 0.5 + (h11(fi*1.3) - 0.5)*0.45 + f*0.3;
+    vec3 p = around(1.2 + 4.0*h11(fi*4.7)*(0.6 + 0.4*f), a, mix(y1 + 1.0, y0 - 1.0, f));
+    float d = rayPt(ro, rd, p, ta);
+    float tw = 0.5 + 0.5*sin(t*9.0 + fi*2.3);
+    col += mix(BA_RED, vec3(1.0, 0.45, 0.2), 0.3)*(halo(d, max(0.06, px))*2.0 + halo(d, 0.3)*0.25)*sin(3.1416*f)*tw*dw;
+  }
+
+  // ---- the seam: where the two sides meet, a churning line of white light up the blade ----
+  for (int j = 0; j < 2; j++){
+    float a = sp + 0.25 + 0.5*float(j);
+    float best = 1e3, bf = 0.0;
+    vec3 prev = around(1.1, a, y0);
+    for (int i = 1; i <= 14; i++){
+      float f = float(i)/14.0;
+      vec3 p = around(1.1 + 0.4*sin(f*17.0 - t*3.0 + float(j)*2.0), a + 0.03*sin(f*11.0 + t*2.0), mix(y0, y1, f));
+      float d = raySeg(ro, rd, prev, p, s);
+      if (d < best){ best = d; bf = f; }
+      prev = p;
+    }
+    float flick = 0.6 + 0.4*vn(vec2(bf*20.0 - t*6.0, float(j)*7.0));
+    col += (vec3(1.0)*halo(best, max(0.04, px))*0.9 + mix(BA_BLUE, BA_RED, float(j))*halo(best, 0.35)*0.5)*flick*(0.6 + 1.4*abs(su));
+  }
+
+  // the wide aura: blue on one side, crimson on the other
+  float dAx = fxNear(ro, rd, y0, y1);
+  vec3 hp = ro + rd*max(dot(-ro, rd), 0.0);
+  float ha = atan(hp.x, hp.z)/6.2832;
+  col += mix(BA_RED, BA_BLUE, ba_light(ha))*(halo(dAx, 3.0)*0.3 + halo(dAx, 1.2)*0.2);
+
+  // a clash: both sides burst outward in one white ring
+  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, mix(BA_BLUE, BA_RED, 0.5))*1.8;
+  return col*uFx;
 }
-// the light side's weight (1 blue, 0 red) across Sol's glow at b: the border between the two
-// flows winds round the blade with the spiral, so it sweeps across the glow as it turns,
-// churning and pushed one way or the other by the surges
-float bl_w(vec2 b, float r){
-  float ph = bl_phi(b.y);
-  float sh = bl_share(b.y);
-  float ch = (fbm3(vec2(b.y*0.7 - uTime*1.6, 3.0 + uTime*0.3)) - 0.5)*0.5;
-  float border = r*(cos(6.2832*ph) + (sh - 0.5)*2.0 + ch);
-  float side = sin(6.2832*ph) >= 0.0 ? 1.0 : -1.0;
-  return smoothstep(-0.12*r, 0.12*r, side*(b.x - border*0.6));
-}
+
+// the blade: Sol's glow from the file in long waves of blue-white and crimson, white at the seams
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   float l = max(g.r, max(g.g, g.b));
-  float w = bl_w(b, max(r, 0.5));
-  float fl = 0.8 + 0.3*vn(vec2(b.y*0.8 - uTime*5.0, b.x*2.0));
-  vec3 c = mix(BL_RED*1.3, mix(BL_BLUE, BL_PALE, 0.2), w)*fl + vec3(1.0, 0.8, 0.9)*4.0*w*(1.0 - w)*0.4;
-  return l*c*(1.0 + clamp(uClash, 0.0, 1.0));
+  float w = ba_wave(b.y);
+  vec3 c = mix(BA_RED*1.25, mix(BA_BLUE, vec3(1.0), 0.2), w) + vec3(1.0, 0.9, 0.95)*4.0*w*(1.0 - w)*0.5;
+  return l*c*(1.0 + 0.3*clamp(uSwing, 0.0, 1.0) + clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){
-  float w = bl_w(b, 0.5);
-  return c*mix(vec3(1.0, 0.75, 0.75), vec3(0.85, 0.92, 1.0), w);
+  float w = ba_wave(b.y);
+  return c*mix(vec3(1.0, 0.8, 0.8), vec3(0.88, 0.94, 1.0), w);
 }

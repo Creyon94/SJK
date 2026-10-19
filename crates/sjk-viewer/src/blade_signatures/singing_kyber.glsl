@@ -5,7 +5,7 @@
 // swells and shrinks with the wave. Sound rings leave the bands and travel up the blade,
 // spreading outward and fading. A swing raises the pitch (more bands, faster rings, a brighter
 // aura); a clash is a sonic boom: a shockwave sphere bursts out from the blade.
-// @room 8
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.11,0.50,0.47],"corona.rim_hot":[0.2,0.9,0.85],"corona.inner":[0.9,1.0,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.12,0.54,0.51],"core.fringe_hot":[0.2,0.9,0.85],"light.color":[0.2,0.9,0.85],"trail":[0.2,0.9,0.85]}
 
@@ -20,7 +20,7 @@ float sk_shell(vec3 ro, vec3 rd, vec3 c, float R, float k, float w){
   float inside = clamp(w/sqrt(max(R*R - r*r, w*w)), 0.0, 1.0)*smoothstep(R + w, R - 2.0*w, r);
   return inside + halo(abs(r - R), w*1.5)*0.35;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 teal = vec3(0.2, 0.92, 0.86), pale = vec3(0.85, 1.0, 1.0), white = vec3(1.0);
@@ -107,4 +107,32 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   vec3 c = teal*0.25 + pale*fr*0.9 + vec3(1.0)*e1*(0.5 + 1.2*sweep) + pale*sweep*0.4;
   float al = cov*clamp(0.18 + 0.5*e1 + 0.4*sweep + 0.3*fr, 0.0, 0.85);
   return vec4(mix(o.rgb, c, al), max(o.a, al));
+}
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 teal = vec3(0.2, 0.95, 0.85), white = vec3(0.85, 1.0, 1.0);
+  for (int i = 0; i < 4; i++){
+    float fi = float(i);
+    float q = fract(t*(0.5 + 0.4*sw) + fi/4.0);
+    fx += fxShock(ro, rd, px, mix(L*0.25, L*0.9, fract(fi*0.37 + floor(t*(0.5 + 0.4*sw) + fi/4.0)*0.61)), q, 6.0 + 2.0*sw, teal)*0.9;
+  }
+  fx += fxRays(ro, rd, px, y0, y1, 12.0, 6.5, 0.6, 2.4, teal);
+  fx += fxCoils(ro, rd, px, y0, y1, 1.5, 1.6, 0.6 + 0.8*sw, 2.0, teal);
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float cyc = t*0.45 + fi/3.0, k = floor(cyc), q = fract(cyc);
+    vec3 p = around(0.5, h11(k*1.3 + fi), mix(y0, y1, h11(k*3.7 + fi*2.0)));
+    fx += fxFlare(ro, rd, p, px, 0.15, 3.0, 6.0, 0.4, white)*pow(sin(3.1416*q), 4.0);
+  }
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 20.0, 0.07, 6.1, white);
+  fx += fxAura(ro, rd, y0, y1, 2.8, teal);
+  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 11.0, white)*1.8;
+  return col + fx*uFx;
 }

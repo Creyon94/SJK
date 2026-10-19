@@ -5,7 +5,7 @@
 // and a burst of sparks flying out on every side. Embers drift all round inside a wide warm heat glow.
 // A swing makes it burn brighter and throw more sparks (the rhythm never speeds up); a clash is a huge
 // blow with a ring of sparks.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.55,0.12,0.02],"corona.rim_hot":[1.0,0.55,0.12],"corona.inner":[1.0,0.88,0.55],"core.white":[1.0,0.96,0.85],"core.fringe_cool":[1.0,0.40,0.08],"core.fringe_hot":[1.0,0.80,0.45],"light.color":[1.0,0.58,0.18],"trail":[1.0,0.55,0.15]}
 
 
@@ -37,7 +37,7 @@ float sf_ring(vec3 ro, vec3 rd, float y, float R){
 // a blow's height and side
 float sf_y(float n){ return uLength*(0.18 + 0.68*h11(n*3.71 + 0.37)); }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, top = sf_top();
   float st = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float fx = uFx;
@@ -160,3 +160,19 @@ float sf_spot(float y){
 }
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(1.0 + 0.25*sin(uTime*2.1 + b.y*0.4)*0.4 + 1.2*sf_spot(b.y) + 0.3*uSwing); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.8*sf_spot(b.y)); }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 gold = vec3(1.0, 0.72, 0.28), hot = vec3(1.0, 0.42, 0.07);
+  fx += fxRays(ro, rd, px, y0, y1, 18.0, 8.0 + 2.0*sw, 0.6, 2.9, gold);
+  fx += fxArcs(ro, rd, px, y0, y1, 3.0 + 3.0*sw, 4.0, 1.3, 5.1, gold);
+  fx += fxSparks(ro, rd, px, y0, y1, 18.0 + 12.0*sw, 6.5, 0.9, 8.3, hot);
+  fx += fxAura(ro, rd, y0, y1, 3.6, hot)*(1.0 + 0.4*sw);
+  return col + fx*uFx;
+}

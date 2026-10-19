@@ -5,7 +5,7 @@
 // From the tip the jet blasts on up into space, widening and fading, wrapped in twisting
 // magnetic light, with sparks of plasma streaking out of it. Everything pulses with the engine's heartbeat. A swing feeds the engine (the
 // disk flares and the jets lengthen); a clash fires a giant knot and a shockwave off the disk.
-// @room 9
+// @room 10
 // @palette {"corona.rim_cool":[0.35,0.15,0.85],"corona.rim_hot":[0.75,0.55,1.0],"corona.inner":[0.95,0.90,1.0],"core.white":[0.97,0.95,1.0],"core.fringe_cool":[0.55,0.35,1.0],"core.fringe_hot":[0.85,0.75,1.0],"light.color":[0.6,0.45,1.0],"trail":[0.65,0.5,1.0]}
 
 float qs_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
@@ -19,7 +19,7 @@ vec3 qs_loc(vec3 p){
   return vec3(p.x, zy.y, zy.x);
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, top = qs_top(), s, tq;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float beat = qs_beat()*(1.0 + 0.4*sw + 0.6*cl);
@@ -149,3 +149,21 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.8 + 0.2*sin(b.y*0.9 - uTime*14.0))*beat;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 vio = vec3(0.6, 0.45, 1.0), white = vec3(0.9, 0.9, 1.0);
+  fx += fxArcs(ro, rd, px, y0, y1, 5.0 + 3.0*sw, 4.0, 1.5 + 1.5*sw, 4.3, vio);
+  fx += fxRays(ro, rd, px, y0, y1, 12.0, 7.0 + 2.0*sw, 0.6, 8.6, vio);
+  fx += fxSparks(ro, rd, px, L*0.5, L, 16.0 + 10.0*sw, 7.0, 1.0, 1.1, white);
+  fx += fxFlare(ro, rd, vec3(0.0, L*0.22, 0.0), px, 0.35, 5.0, 4.0, t*0.25, vio)*(0.8 + 0.3*sin(t*3.0));
+  fx += fxAura(ro, rd, y0, y1, 3.0, vio);
+  fx += fxShock(ro, rd, px, L*0.22, 1.0 - cl, 11.0, white)*1.8;
+  return col + fx*uFx;
+}

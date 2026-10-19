@@ -103,8 +103,3 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
-
-// GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
-fn glsl_mod(x: f32, y: f32) -> f32 {
-    return x - y * floor(x / y);
-}

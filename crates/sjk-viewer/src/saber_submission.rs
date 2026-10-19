@@ -101,6 +101,13 @@ pub(crate) fn submit(
             let motion = state
                 .motion
                 .record(blade, presentation_time, length < hilt_blade.length);
+            // A direction across the blade that turns with the hilt, for the signatures'
+            // three-dimensional effects (`Instance::with_frame`).
+            let across = (weapon_rotation
+                * Vec3::from_array(hilt_blade.socket.direction)
+                    .normalize_or_zero()
+                    .any_orthonormal_vector())
+            .to_array();
             saber_instances.extend(
                 Instance::pair_flickering(blade, color, hilt_blade.length, flicker).map(|i| {
                     i.with_contact(
@@ -112,6 +119,7 @@ pub(crate) fn submit(
                     )
                     .with_animation(presentation_time as f64 * 0.001, key as u32)
                     .with_motion(motion)
+                    .with_frame(across, hilt_blade.length)
                 }),
             );
             saber_instances.extend(saber::skin_extras(

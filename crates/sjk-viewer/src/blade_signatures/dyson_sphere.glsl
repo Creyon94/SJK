@@ -5,7 +5,7 @@
 // beams from the star to each hoop, and solar flares arc out of the star in loops of plasma that
 // leap up to the hoops. A swing spins the whole structure up and throws more flares; a clash
 // overloads it, every hoop blazing at once.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.70,0.35,0.05],"corona.rim_hot":[1.0,0.75,0.30],"corona.inner":[1.0,0.95,0.80],"core.white":[1.0,0.97,0.88],"core.fringe_cool":[1.0,0.65,0.20],"core.fringe_hot":[1.0,0.90,0.60],"light.color":[1.0,0.75,0.35],"trail":[1.0,0.78,0.4]}
 
 float ds_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
@@ -23,7 +23,7 @@ vec3 ds_pt(float k, float th, float g){
   return vec3(0.0, ds_hy(k), 0.0) + (u*cos(th) + v*sin(th))*ds_hr(k)*g;
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, top = ds_top(), s, tq;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 gold = vec3(1.0, 0.72, 0.3), white = vec3(1.0, 0.96, 0.86);
@@ -108,3 +108,21 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.8 + 0.2*sin(b.y*1.1 - uTime*5.0) + 0.15*sin(b.y*0.31 + uTime*1.7) + 0.6*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 gold = vec3(1.0, 0.7, 0.3), hot = vec3(1.0, 0.45, 0.1);
+  fx += fxRays(ro, rd, px, y0, y1, 16.0, 7.5 + 2.0*sw, 0.55, 4.4, gold);
+  fx += fxArcs(ro, rd, px, y0, y1, 4.0 + 3.0*sw, 4.0, 1.2 + 1.5*sw, 8.8, gold);
+  fx += fxSparks(ro, rd, px, y0, y1, 16.0 + 10.0*sw, 6.0, 0.9, 2.6, hot);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.5, 22.0, 0.1, 6.6, hot);
+  fx += fxAura(ro, rd, y0, y1, 3.2, gold);
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, gold)*1.6;
+  return col + fx*uFx;
+}

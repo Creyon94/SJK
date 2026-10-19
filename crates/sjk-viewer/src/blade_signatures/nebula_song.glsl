@@ -4,7 +4,7 @@
 // living motes of light drift and swirl in the dark, and every so often a hyperspace shimmer rushes
 // up the blade with streaks of starlight. A swing quickens the waves and the ribbons; a clash sings
 // out a bright ring.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.04,0.10,0.45],"corona.rim_hot":[0.20,0.45,1.0],"corona.inner":[0.65,0.82,1.0],"core.white":[0.90,0.95,1.0],"core.fringe_cool":[0.15,0.35,1.0],"core.fringe_hot":[0.60,0.80,1.0],"light.color":[0.22,0.45,1.0],"trail":[0.28,0.50,1.0]}
 
 
@@ -29,7 +29,7 @@ float ns_ring(vec3 ro, vec3 rd, float h, float R, float w){
   return halo(best, max(0.05, w*0.15))*1.4 + halo(best, w*0.45)*0.35;
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float top = L*clamp(uAge/0.45, 0.0, 1.0);
@@ -148,4 +148,25 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){
   float shim = ns_jump()*uFx*exp(-pow((b.y - ns_front()*uLength)/3.0, 2.0));
   return c*(1.0 + shim);
+}
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 blue = vec3(0.25, 0.5, 1.0), vio = vec3(0.6, 0.4, 1.0);
+  fx += fxCoils(ro, rd, px, y0, y1, 2.4, 0.9, 0.4 + 0.5*sw, 3.0, mix(blue, vio, 0.4));
+  fx += fxRays(ro, rd, px, y0, y1, 12.0, 6.5, 0.45, 5.9, blue);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 30.0, 0.06, 7.3, vec3(0.7, 0.8, 1.0));
+  for (int i = 0; i < 3; i++){
+    float q = fract(t*0.25 + float(i)/3.0);
+    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.85, float(i)*0.5), q, 8.0, blue)*0.7;
+  }
+  fx += fxAura(ro, rd, y0, y1, 3.0, blue);
+  fx += fxShock(ro, rd, px, L*0.6, 1.0 - cl, 10.0, vec3(0.8, 0.9, 1.0))*1.6;
+  return col + fx*uFx;
 }

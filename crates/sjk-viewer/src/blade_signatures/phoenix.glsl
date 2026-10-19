@@ -3,7 +3,7 @@
 // cascade upward off it and burning sparks stream away behind; every few seconds the fire is
 // reborn: it dims to glowing embers and then flares up from the hilt in a rush of flame. A swing
 // feeds the plume; a clash bursts a ring of fire.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.60,0.15,0.02],"corona.rim_hot":[1.0,0.55,0.10],"corona.inner":[1.0,0.88,0.55],"core.white":[1.0,0.97,0.88],"core.fringe_cool":[1.0,0.45,0.08],"core.fringe_hot":[1.0,0.80,0.40],"light.color":[1.0,0.55,0.15],"trail":[1.0,0.55,0.15]}
 
 const float PQ_P = 9.0;
@@ -20,7 +20,7 @@ vec3 pq_fire(float h){
   vec3 c = mix(vec3(0.6, 0.08, 0.0), vec3(1.0, 0.45, 0.06), smoothstep(0.0, 0.45, h));
   return mix(c, vec3(1.0, 0.9, 0.6), smoothstep(0.55, 1.0, h));
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = pq_top(), s, ta;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
@@ -73,3 +73,22 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*wave*pq_life(b.y)*(1.0 + 0.6*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(0.4 + 0.6*min(pq_life(b.y), 1.2)); }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 fire = vec3(1.0, 0.5, 0.1), gold = vec3(1.0, 0.8, 0.35);
+  fx += fxCoils(ro, rd, px, y0, y1, 2.0, 0.8, 0.8 + 0.8*sw, 2.0, fire);
+  fx += fxRays(ro, rd, px, y0, y1, 14.0, 7.0 + 2.0*sw, 0.7, 3.1, fire);
+  fx += fxSparks(ro, rd, px, y0, y1, 24.0 + 8.0*sw, 6.5, 1.0, 5.6, gold);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.5, 26.0, 0.12, 4.4, fire);
+  fx += fxShock(ro, rd, px, L*0.5, fract(t/6.0)*1.3, 8.0, gold);
+  fx += fxAura(ro, rd, y0, y1, 3.2, fire);
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, gold)*1.6;
+  return col + fx*uFx;
+}

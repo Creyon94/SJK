@@ -5,7 +5,7 @@
 // outward from the base of the blade. Between beats the blade dims and rests. A swing makes
 // every beat pump harder and brighter; a clash makes the heart skip: a white flare floods the
 // whole blade at once and a strong ring bursts out.
-// @room 7
+// @room 10
 // @palette {"corona.rim_cool":[0.45,0.04,0.18],"corona.rim_hot":[1.0,0.30,0.50],"corona.inner":[1.0,0.80,0.88],"core.white":[1.0,0.94,0.96],"core.fringe_cool":[0.90,0.20,0.45],"core.fringe_hot":[1.0,0.65,0.78],"light.color":[1.0,0.30,0.50],"trail":[1.0,0.32,0.52]}
 
 
@@ -22,7 +22,7 @@ float kh_pulse(float y){
   return kh_beatAt(ph);
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 rose = vec3(1.0, 0.28, 0.48), deep = vec3(0.75, 0.05, 0.2), pale = vec3(1.0, 0.78, 0.86), white = vec3(1.0);
@@ -113,4 +113,26 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){
   float p = kh_pulse(b.y) + 1.2*clamp(uClash, 0.0, 1.0);
   return c*(0.85 + 0.5*p);
+}
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 rose = vec3(1.0, 0.3, 0.5), white = vec3(1.0, 0.85, 0.9);
+  float ph = fract(t*KH_RATE);
+  float beat = exp(-ph*9.0) + 0.6*exp(-max(ph - 0.22, 0.0)*9.0)*step(0.22, ph);
+  fx += fxShock(ro, rd, px, L*0.35, ph*1.2, 7.0 + 2.0*sw, rose)*(1.2 + sw);
+  fx += fxShock(ro, rd, px, L*0.7, max(ph - 0.22, 0.0)*1.2, 6.0, rose)*(0.9 + sw);
+  fx += fxCoils(ro, rd, px, y0, y1, 1.3, 1.1, 0.35, 3.0, rose)*(0.6 + 1.2*beat);
+  fx += fxRays(ro, rd, px, y0, y1, 12.0, 6.5 + 2.0*sw, KH_RATE, 3.7, rose)*(0.6 + 0.8*beat);
+  fx += fxFlare(ro, rd, vec3(0.0, L*0.35, 0.0), px, 0.3, 4.0 + 2.0*beat, 4.0, 0.785, white)*(0.4 + 1.2*beat);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 22.0, 0.08, 2.2, rose);
+  fx += fxAura(ro, rd, y0, y1, 2.6, rose)*(0.6 + 1.0*beat);
+  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, white)*1.8;
+  return col + fx*uFx;
 }

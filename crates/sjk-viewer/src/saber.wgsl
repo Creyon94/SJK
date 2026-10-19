@@ -243,8 +243,10 @@ struct VertexOutput {
     // Who wears it (saber_persona.rs): the light where it is and the afterimage's
     // brightness; the team and the name's letters.
     @location(8) @interpolate(flat) persona: vec4<u32>,
-    // The world's down in the projected blade's plane (across, along).
-    @location(9) @interpolate(flat) down: vec2<f32>,
+    // The world's down in the projected blade's plane (across, along) and, in zw, the
+    // blade's own reference direction across its axis, octahedron-packed (`frame`), for the
+    // signatures' fixed three-dimensional frame.
+    @location(9) @interpolate(flat) down: vec4<f32>,
     // A chroma skin's turn to its wearer's colour (saber_skins.rs `Chroma`); 0 otherwise.
     @location(10) @interpolate(flat) chroma: f32,
     // The sections its wearer switched off (`OFF_*` bits); 0 otherwise.
@@ -257,7 +259,8 @@ struct VertexOutput {
     // place on the blade with, where the projected `blade` is off under perspective.
     @location(13) ray: vec3<f32>,
     @location(14) @interpolate(flat) hilt_at: vec3<f32>,
-    @location(15) @interpolate(flat) axis: vec3<f32>,
+    // w: the blade's full length (`frame.w`), 0 when unknown.
+    @location(15) @interpolate(flat) axis: vec4<f32>,
 }
 
 // TaystJK's CG_DoSaber submits the core RT_LINE twice (taystjk cgame cg_players.c:6429 and 6465;
@@ -341,6 +344,9 @@ struct BladeInstance {
     @location(8) chroma: f32,
     @location(9) off: u32,
     @location(10) motion: vec4<f32>,
+    // A direction across the blade fixed to its hilt (world, unit; zero when unknown) and
+    // the blade's full length (saber.rs `Instance::with_frame`).
+    @location(11) frame: vec4<f32>,
 }
 
 // How far (units) a skin's glow quad reaches past the glow for the sections its wearer
@@ -382,6 +388,27 @@ fn vertex_haze(@builtin(vertex_index) vertex_index: u32, blade: BladeInstance) -
         output.clip_position = vec4(0.0, 0.0, 0.0, 1.0);
     }
     return output;
+}
+
+// A unit direction folded onto an octahedron's two coordinates, and back; zero stays zero.
+fn oct_pack(n0: vec3<f32>) -> vec2<f32> {
+    let l1 = abs(n0.x) + abs(n0.y) + abs(n0.z);
+    if l1 < 0.000001 {
+        return vec2(0.0);
+    }
+    let n = n0 / l1;
+    if n.z >= 0.0 {
+        return n.xy;
+    }
+    return (vec2(1.0) - abs(n.yx)) * select(vec2(-1.0), vec2(1.0), n.xy >= vec2(0.0));
+}
+
+fn oct_unpack(e: vec2<f32>) -> vec3<f32> {
+    var n = vec3(e, 1.0 - abs(e.x) - abs(e.y));
+    if n.z < 0.0 {
+        n = vec3((vec2(1.0) - abs(n.yx)) * select(vec2(-1.0), vec2(1.0), n.xy >= vec2(0.0)), n.z);
+    }
+    return n;
 }
 
 fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
@@ -441,7 +468,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     output.motion = blade.motion;
     output.persona = blade_persona;
     output.chroma = blade_chroma;
-    output.down = vec2(-side.z, -up.z);
+    output.down = vec4(vec2(-side.z, -up.z), oct_pack(blade.frame.xyz));
     var world: vec3<f32>;
     if hilt <= STAR {
         // A skin's glint (or black hole): a square facing the camera, as wide as the rays
@@ -488,7 +515,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     output.clip_position = camera.view_projection * vec4(world, 1.0);
     output.ray = world - camera.position;
     output.hilt_at = blade_base - camera.position;
-    output.axis = direction;
+    output.axis = vec4(direction, blade.frame.w);
     output.color = blade_color.rgb;
     output.radius = blade_radius;
     output.length = blade_length;
@@ -503,7 +530,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
 // looking along it); the Blade Lab's shaders need the place itself.
 fn blade_place(input: VertexOutput) -> vec2<f32> {
     let r = input.ray;
-    let d = input.axis;
+    let d = input.axis.xyz;
     let from_hilt = -input.hilt_at;
     let rr = dot(r, r);
     let rd = dot(r, d);
@@ -1122,7 +1149,7 @@ fn skin_above(p: vec2<f32>, shaft: f32, up: vec2<f32>) -> vec2<f32> {
 // sides; `r` the glow's radius there.
 fn skin_wisps(skin: Skin, input: VertexOutput, r: f32, time: f32, seed: f32) -> f32 {
     let w = skin.wisp_shape;
-    let up = skin_up(input.down);
+    let up = skin_up(input.down.xy);
     let at = skin_above(input.blade, input.shaft, up);
     let rise = max(w.x, 0.001);
     let risen = clamp(at.x / rise, 0.0, 1.0);
@@ -1651,7 +1678,7 @@ fn skin_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
             * (1.0 - smoothstep(0.75, 1.0, -min(input.blade.y, 0.0) / extent));
         if skin.ember_field.x > 0.0 {
             let scale = input.shaft / max(input.length, 0.0001);
-            let embers = skin_embers(skin, input.blade, input.down, scale, input.length, time, seed,
+            let embers = skin_embers(skin, input.blade, input.down.xy, scale, input.length, time, seed,
                 pixel);
             glow += embers * room * skin.ember_color.rgb * skin.ember_color.w;
         }
@@ -1863,7 +1890,8 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
             * sig_kept(input, place) + glow * mouth * step(-6.0, place.y);
         // Its effects in three dimensions, drawn along the true view ray.
         let ray = sig_ray(input);
-        glow += max(sig_vol(ray.o, ray.d, pixel), vec3(0.0));
+        let shown = sig_full(input);
+        glow += max(sig_vol(ray.o, ray.d, pixel), vec3(0.0)) * shown;
         return sig_coloured(input, glow * sig_edge(input));
     }
     // A chroma takes its wearer's colour: everything it drew, turned at once.
@@ -2138,7 +2166,7 @@ fn fragment_haze(input: VertexOutput) -> @location(0) vec4<f32> {
     let here = input.clip_position.xy;
     let skin = skin_at(input);
     let h = skin.haze;
-    let up = skin_up(input.down);
+    let up = skin_up(input.down.xy);
     let at = skin_above(input.blade, input.shaft, up);
     let distance = length(at);
     let r = chain_radius(input.radius, input.length,
@@ -2318,9 +2346,11 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
         out = clamp(sig_solid(out, place, pixel), vec4(0.0), vec4(1.0));
         out = vec4(out.rgb, out.a * sig_kept(input, place));
         let ray = sig_ray(input);
-        let v = clamp(sig_vol_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0));
+        let shown = sig_full(input);
+        let v = clamp(sig_vol_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0)) * shown;
         out = vec4(mix(out.rgb, v.rgb, v.a), max(out.a, v.a));
-        out = vec4(sig_coloured(input, out.rgb), out.a * sig_edge(input));
+        out = vec4(mix(sig_coloured(input, out.rgb), out.rgb, clamp(uOwn, 0.0, 1.0)),
+            out.a * sig_edge(input));
     }
     return out;
 }
@@ -2432,7 +2462,7 @@ fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     p.d = lab_seg(p.p.x, p.y, p.shaft);
     p.t = input.animation.x;
     p.px = max(pixel * LAB_METRE, 0.00001);
-    let up = skin_up(input.down);
+    let up = skin_up(input.down.xy);
     p.up = vec2(up.y, up.x);
     p.swing = clamp(input.motion.x, 0.0, 1.0);
     // The lab's clash fades at 2.2 a second.
@@ -3579,6 +3609,9 @@ var<private> uRoom: f32;
 // 1 while its wearer has its effects on (the `effects` option, the arcs bit), else 0: what a
 // signature's own volume (`sig_vol`) keeps of everything but the blade itself.
 var<private> uFx: f32;
+// What a signature's solid layer sets where it keeps its own colours under a chroma (the
+// Abyssal Eye's amber eye, Creyon's round 9): 0 takes the wearer's hue, 1 keeps its own.
+var<private> uOwn: f32;
 
 // The lab's ignition takes 0.42 s and its clash fades at 2.2 a second.
 const SIG_IGNITION: f32 = 0.42;
@@ -3602,6 +3635,7 @@ fn sig_take(input: VertexOutput) {
         uIgn = 1.0;
     }
     uFx = select(1.0, 0.0, (input.off & OFF_ARCS) != 0u);
+    uOwn = 0.0;
     // The page turned a chroma's output afterwards; the game turns it after the hooks.
     uChroma = 0.0;
     uRoom = skins[skin_index(input)].design.z / LAB_METRE;
@@ -3644,28 +3678,47 @@ fn sig_coloured(input: VertexOutput, c: vec3<f32>) -> vec3<f32> {
 }
 
 // The view ray in the blade's own frame, units: `o` the camera, `d` the unit direction; y
-// along the blade from its hilt, x across it to the camera's side and z toward the camera
-// (as the quad faces it), so a signature draws in three dimensions with its depth.
+// along the blade from its hilt, z along the direction across it fixed to the hilt
+// (`frame`, Creyon's round 9: a frame turned toward the camera, as before, swung every
+// effect round the blade whenever the view turned) and x across both, so a signature draws
+// in three dimensions with its depth and its effects stay put as the camera moves. A blade
+// without a hilt frame (thrown, the menu stage) takes a fixed world direction instead.
 struct SigRay {
     o: vec3<f32>,
     d: vec3<f32>,
 }
 
 fn sig_ray(input: VertexOutput) -> SigRay {
-    let ay = normalize(input.axis);
-    let view = -input.hilt_at - ay * (input.length * 0.5);
-    var side = cross(ay, view);
-    if dot(side, side) < 0.000001 {
-        side = cross(ay, select(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), abs(ay.z) > 0.9));
+    let ay = normalize(input.axis.xyz);
+    var across = oct_unpack(input.down.zw);
+    if input.axis.w <= 0.0 {
+        across = select(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), abs(ay.z) > 0.9);
     }
-    let ax = normalize(side);
-    let az = cross(ax, ay);
+    across -= ay * dot(across, ay);
+    if dot(across, across) < 0.000001 {
+        across = cross(ay, select(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), abs(ay.z) > 0.9));
+    }
+    let az = normalize(across);
+    let ax = cross(ay, az);
     let cam = -input.hilt_at;
     let r = normalize(input.ray);
     var out: SigRay;
     out.o = vec3(dot(cam, ax), dot(cam, ay), dot(cam, az));
     out.d = vec3(dot(r, ax), dot(r, ay), dot(r, az));
     return out;
+}
+
+// Before a signature's three-dimensional effects: they are placed on the blade's full
+// length, not the length it has grown to, and show only once it is (nearly) all out, so
+// nothing slides up the blade as it ignites or down as it is put away (Creyon's round 9).
+// Returns how much of them shows.
+fn sig_full(input: VertexOutput) -> f32 {
+    let full = input.axis.w;
+    if full <= input.length {
+        return 1.0;
+    }
+    uLength = full;
+    return smoothstep(0.85, 1.0, input.length / full);
 }
 
 // Fades a signature out before its quad's edges (the quad `blade_vertex` builds): nothing it

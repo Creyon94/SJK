@@ -7,7 +7,7 @@
 // drip off the lips and fall, specks of light are sucked in from all round, and jagged cracks in
 // reality tear outward round the blade, pulse with the abyss's heartbeat and heal. A swing lashes
 // the tendrils out; a clash flares a crimson shock ring with the tendrils whipping wide.
-// @room 8
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.30,0.0,0.04],"corona.rim_hot":[0.95,0.12,0.10],"corona.inner":[1.0,0.45,0.30],"core.white":[1.0,0.70,0.55],"core.fringe_cool":[0.70,0.05,0.08],"core.fringe_hot":[1.0,0.40,0.25],"light.color":[0.95,0.12,0.10],"trail":[0.90,0.10,0.10]}
 
@@ -73,6 +73,8 @@ vec3 ae_inside(vec2 b, float px){
   iris *= 1.0 - 0.75*smoothstep(0.82, 1.0, d/Ri);
   float irisA = fillD(d - Ri, px)*sclera;
   col = mix(col, iris, irisA);
+  // the eye keeps its own burning amber whatever colour its wearer chose (Creyon's round 9)
+  uOwn = max(uOwn, irisA);
   // the bar pupil: wide across, narrow along, narrowing in light and on swings
   float ph = mix(0.30, 0.10, clamp(uSwing*1.5 + 0.4*sin(t*0.5)*0.5 + 0.2, 0.0, 1.0));
   float pup = sdEll(q, vec2(0.66*Ri, ph));
@@ -165,7 +167,7 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
   }
   return col;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 red = vec3(1.0, 0.15, 0.1);
@@ -226,3 +228,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 // the blade: Sol's glow from the file, pulsing slowly; its core is hidden under the cut
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(0.85 + 0.15*sin(uTime*1.7 - b.y*0.2)); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 red = vec3(1.0, 0.1, 0.06);
+  fx += fxArcs(ro, rd, px, y0, y1, 5.0 + 3.0*sw, 4.5 + 2.0*sw, 1.6 + 2.0*sw, 3.1, red);
+  fx += fxCoils(ro, rd, px, y0, y1, 1.6, 1.3, 0.5, 2.0, red*0.9);
+  fx += fxRays(ro, rd, px, y0, y1, 9.0, 6.0 + 2.0*sw, 0.7, 5.3, red);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.2, 5.0, 22.0, 0.08, 1.7, vec3(1.0, 0.25, 0.12));
+  fx += fxAura(ro, rd, y0, y1, 2.6, red)*(0.8 + 0.4*sw);
+  fx += fxShock(ro, rd, px, L*0.56, 1.0 - cl, 9.0, red)*1.5;
+  return col + fx*uFx;
+}

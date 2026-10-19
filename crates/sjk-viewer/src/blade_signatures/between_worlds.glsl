@@ -5,7 +5,7 @@
 // the tip down, passing each other. Soft portal rings of shimmering light open and close along it,
 // and star dust drifts slowly through the dark. A swing scatters the echoes wide; a clash makes
 // every portal flash open at once.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.42,0.34,0.16],"corona.rim_hot":[1.0,0.86,0.55],"corona.inner":[1.0,0.96,0.85],"core.white":[1.0,1.0,0.97],"core.fringe_cool":[0.90,0.78,0.50],"core.fringe_hot":[1.0,0.90,0.65],"light.color":[1.0,0.90,0.66],"trail":[1.0,0.90,0.68]}
 
 
@@ -25,7 +25,7 @@ float bww_ring(vec3 ro, vec3 rd, float h, float R){
   return best;
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float top = L*clamp(uAge/0.45, 0.0, 1.0);
@@ -130,3 +130,59 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.85 + 0.15*sin(b.y*0.5 - uTime*0.8) + 0.10*sin(b.y*0.21 + uTime*0.5) + 0.5*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 gold = vec3(1.0, 0.85, 0.55), pale = vec3(1.0, 0.96, 0.88), ahs = vec3(0.75, 0.88, 1.0), ana = vec3(1.0, 0.12, 0.06);
+  float s, ta;
+  if (fxNear(ro, rd, y0, y1) < 10.0){
+    // pathways: long straight lines of light through the void round the blade, pulses running on them
+    for (int i = 0; i < 9; i++){
+      float fi = float(i);
+      float a = h11(fi*3.3) + t*0.01, R = 3.0 + 3.0*h11(fi*5.7);
+      float y = mix(y0, y1, h11(fi*7.1));
+      vec3 c = around(R, a, y);
+      vec3 dir = normalize(vec3(cos(6.2832*a), (h11(fi*2.9) - 0.5)*1.6, -sin(6.2832*a)));
+      float len = 6.0 + 6.0*h11(fi*1.3);
+      vec3 pa = c - dir*len, pb = c + dir*len;
+      float d = raySeg(ro, rd, pa, pb, s);
+      float vis = 0.55 + 0.45*sin(t*0.3 + fi*1.7);
+      float pulse = pow(0.5 + 0.5*sin(s*18.0 - t*(2.0 + 0.5*fi)), 8.0);
+      float ends = smoothstep(0.0, 0.15, s)*(1.0 - smoothstep(0.85, 1.0, s));
+      fx += (vec3(1.0)*halo(d, max(0.04, px))*(0.35 + 1.4*pulse) + gold*halo(d, 0.25)*(0.25 + 0.6*pulse))*ends*vis;
+      fx += fxFlare(ro, rd, c, px, 0.12, 1.8, 4.0, 0.0, gold)*vis*0.6;
+    }
+    // the duel: two lights circling the blade on crossing paths, trailing, meeting in a flash
+    float P = 4.0, ph = fract(t/P), k = floor(t/P);
+    for (int j = 0; j < 2; j++){
+      float fj = float(j);
+      vec3 cc = j == 0 ? ahs : ana;
+      float best = 1e3, bs = 0.0;
+      vec3 prev = vec3(0.0);
+      for (int i = 0; i <= 10; i++){
+        float tt = t - float(i)*0.08;
+        float a = tt*(0.32 + 0.04*fj)*(fj == 0.0 ? 1.0 : -1.0) + fj*0.5;
+        vec3 p = around(2.6 + 1.2*sin(tt*0.9 + fj*2.0), a, L*0.6 + L*0.25*sin(tt*0.55 + fj*3.1));
+        if (i > 0){ float d = raySeg(ro, rd, prev, p, s); if (d < best){ best = d; bs = (float(i) - 1.0 + s)/10.0; } }
+        prev = p;
+      }
+      float tail = 1.0 - bs;
+      fx += vec3(1.0)*halo(best, max(0.1, px))*tail*2.2 + cc*halo(best, 0.5)*tail*1.8 + cc*halo(best, 1.6)*0.35*tail;
+    }
+    // where they meet: a flash and sparks, white and red
+    vec3 meet = around(3.0, h11(k*2.1), mix(L*0.4, L*0.85, h11(k*4.7)));
+    float fl = exp(-ph*7.0);
+    fx += fxFlare(ro, rd, meet, px, 0.25, 5.0, 6.0, k, mix(ahs, ana, 0.5))*fl*1.4;
+    fx += fxShock(ro, rd, px, meet.y, ph*1.6, 6.0, pale)*0.8;
+    fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 30.0, 0.04, 2.2, pale);
+    fx += fxAura(ro, rd, y0, y1, 3.0, gold)*0.7;
+  }
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, pale)*1.6;
+  return col + fx*uFx;
+}

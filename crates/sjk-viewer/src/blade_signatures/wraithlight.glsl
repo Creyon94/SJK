@@ -4,7 +4,7 @@
 // the hilt in soft drifting veils, and faint echoes of the blade itself, its afterglows, hang in
 // the air round it, drifting slowly, fading in and out of sight. Swinging leaves more echoes
 // behind; a clash makes the blade flare and blows the mist out in a soft ring.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.30,0.55,0.95],"corona.rim_hot":[0.72,0.86,1.0],"corona.inner":[0.88,0.95,1.0],"core.white":[0.92,0.97,1.0],"core.fringe_cool":[0.45,0.68,1.0],"core.fringe_hot":[0.78,0.90,1.0],"light.color":[0.55,0.75,1.0],"trail":[0.55,0.75,1.0]}
 
 const vec3 WL_COL = vec3(0.42, 0.66, 1.0);
@@ -27,7 +27,7 @@ vec3 wl_echo(vec3 ro, vec3 rd, float i, float px, float top){
   float flick = 0.75 + 0.25*sin(uTime*(2.0 + h11(i)*3.0) + s*9.0 - uTime*2.0);
   return (WL_PALE*halo(d, max(px*0.8, 0.07))*0.45 + WL_COL*halo(d, 0.35)*0.22 + WL_COL*halo(d, 1.0)*0.05)*ends*life*flick*(0.9 + 0.7*uSwing);
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float top = wl_top();
   float cl = clamp(uClash, 0.0, 1.0);
   // The blade is Sol's glow and core from the file, hollowed to a glass rod of moonlight
@@ -78,3 +78,27 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return (g*hollow + WL_PALE*rim*0.5*(0.8 + 0.6*rip))*shim*(1.0 + 1.2*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*0.6; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 ghost = vec3(0.55, 0.75, 1.0), white = vec3(0.85, 0.93, 1.0);
+  fx += fxCoils(ro, rd, px, y0, y1, 2.2, 0.8, 0.3 + 0.4*sw, 3.0, ghost);
+  fx += fxCoils(ro, rd, px, y0, y1, 3.6, -0.5, 0.18, 2.0, ghost*0.6);
+  fx += fxRays(ro, rd, px, y0, y1, 12.0, 7.0, 0.35, 8.8, ghost);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 34.0, 0.05, 2.9, white);
+  for (int i = 0; i < 2; i++){
+    float fi = float(i);
+    float cyc = t*0.3 + fi*0.5, k = floor(cyc), q = fract(cyc);
+    vec3 p = around(1.5 + 3.0*h11(k + fi), h11(k*2.7 + fi), mix(y0, y1, h11(k*4.9 + fi)));
+    fx += fxFlare(ro, rd, p, px, 0.2, 3.0, 4.0, 0.785, white)*pow(sin(3.1416*q), 2.0)*0.8;
+  }
+  fx += fxAura(ro, rd, y0, y1, 3.4, ghost);
+  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, white)*1.6;
+  return col + fx*uFx;
+}

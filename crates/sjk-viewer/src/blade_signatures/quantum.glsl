@@ -1,113 +1,65 @@
-// Quantum: Creyon's Blade Lab design, reworked in full. A blade in superposition: ghost copies of it
-// stand at other angles, quantum foam (particle pairs) pops in and out round it, electrons tunnel
-// round two tilted orbits. A swing collapses the copies into one; a clash is a wave-function
-// collapse: the copies snap in with a bright flash and a burst of particles.
-// @full 1
-// @room 7
-// drawn in game: LAB_THIN 1.0
-float o_sstep(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
-float o_hash(float n){return fract(sin(n)*43758.5453);}
-float o_hash2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float o_noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(o_hash2(i),o_hash2(i+vec2(1.,0.)),f.x),mix(o_hash2(i+vec2(0.,1.)),o_hash2(i+vec2(1.)),f.x),f.y);}
-float o_fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*o_noise(p);p*=2.03;a*=.5;}return s;}
-vec3 o_hsv(float h,float s,float v){vec3 k=clamp(abs(mod(h*6.+vec3(0.,4.,2.),6.)-3.)-1.,0.,1.);return v*mix(vec3(1.),k,s);}
-float o_seg(float x,float y,float L){return length(vec2(max(0.,max(-x,x-L)),y));}
-vec3 o_saber(vec3 g,vec3 c,float d,float cr,float k){float core=o_sstep(cr,cr*.35,d);float glow=exp(-d*k)*.55+exp(-d*k*.3)*.16;return c*core+g*glow*(1.-core*.6);}
+// Mortis: the realm of the Force wielders, the Father, the Daughter and the Son, as a blade
+// (Creyon's round 9, rebuilt as Sol builds his). The blade is Sol's glow and core from the file,
+// and over it Mortis turns from day to night and back: by day it glows pale and serene, by night
+// a deep crimson. Round it in 3D stand two ghost blades at other angles, the Daughter's light and
+// the Son's dark, slowly turning round it like the two sides held in check by the Father. By day
+// motes of the Daughter's light rise round it and soft beams shine out; by night the Son's red
+// lightning crackles off it and embers sink. A swing pulls the ghost blades in to the blade; a
+// clash flashes all three and throws a ring of light.
+// @room 10
+// @palette {"corona.rim_cool":[0.4,0.35,1.0],"corona.rim_hot":[0.7,0.5,1.0],"corona.inner":[0.5,0.8,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.5,0.6,1.0],"core.fringe_hot":[0.8,0.9,1.0],"light.color":[0.45,0.75,1.0],"trail":[0.5,0.7,1.0]}
 
+const vec3 MO_DAY = vec3(0.6, 1.0, 0.8);
+const vec3 MO_NIGHT = vec3(1.0, 0.1, 0.08);
+// day (1) and night (0): 16 seconds each way, a slow dusk and dawn between
+float mo_day(){ return smoothstep(-0.35, 0.35, sin(uTime*6.2832/32.0)); }
 
-vec3 q_blade(float x,float y,float L,float t,float k){
-  float jit=(o_hash(floor(t*12.)+k)-.5)*.004*(1.-uSwing);
-  float yy=y-jit; float dd=o_seg(x,yy,L);
-  float h=.5+.5*sin(x*14.-t*3.);
-  vec3 g=mix(vec3(.25,.85,1.),vec3(.7,.35,1.),h);
-  float wave=.75+.25*cos(x*38.-sin(t*.7)*3.)*cos(t*2.3);
-  vec3 c=o_saber(g,vec3(.92,.97,1.),dd,.015,22.)*wave;
-  c*=.82+.18*cos(yy*480.-t*6.+x*20.);
-  float blips=0.;
-  for(int i=0;i<4;i++){float fi=float(i); float cy=floor(t*3.+o_hash(fi*3.7));
-    vec2 at=vec2(o_hash(cy*1.31+fi*7.1)*L,(o_hash(cy*2.7+fi)-.5)*.02);
-    blips+=exp(-length(vec2(x,y)-at)/.004)*step(.4,o_hash(cy+fi*11.));}
-  return c+g*blips*1.2;
-}
-vec3 o_fx(float x,float y,float L,float d,float t){
-  return q_blade(x,y,L,t,0.0);
-}
-// the quantum show round the blade (SJK units)
-vec3 qm_show(vec2 b, float px){
-  float L = uLength, t = uTime;
-  float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  vec3 cA = vec3(0.25, 0.85, 1.0), cB = vec3(0.7, 0.35, 1.0);
-  vec3 light = vec3(0.0);
-  // quantum foam: particle pairs appear together, fly apart, swing back and annihilate in a flash
-  for (int i = 0; i < 12; i++){
-    float fi = float(i);
-    float ph = t*(0.55 + 0.35*h11(fi*2.3)) + h11(fi*6.1);
-    float cy = floor(ph), f = fract(ph);
-    vec2 c = vec2((h11(cy*3.1 + fi) - 0.5)*7.0, (0.06 + 0.9*h11(cy*1.9 + fi*4.0))*L);
-    c.x += sign(c.x)*1.0;
-    c *= vec2(1.0 + 0.8*sw, 1.0);
-    float an = 6.2832*h11(cy*5.3 + fi);
-    vec2 dir = vec2(cos(an), sin(an));
-    float sep = sin(f*3.14159)*(0.9 + 0.8*h11(fi*9.0));
-    vec2 p1 = c + dir*sep, p2 = c - dir*sep;
-    float life = smoothstep(0.0, 0.08, f)*(1.0 - smoothstep(0.85, 1.0, f));
-    light += cA*halo(length(b - p1), 0.09)*life*1.6 + cB*halo(length(b - p2), 0.09)*life*1.6;
-    light += mix(cA, cB, 0.5)*halo(sdSeg(b, p1, p2), 0.025)*life*0.35;
-    float ann = exp(-pow((f - 0.94)/0.035, 2.0));                 // the annihilation flash
-    light += vec3(0.9, 0.95, 1.0)*(halo(length(b - c), 0.18)*1.8 + halo(length(b - c), 0.8)*0.3)*ann;
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 col = vec3(0.0);
+  if (fxNear(ro, rd, y0, y1) > 10.0) return col;
+  float day = mo_day(), s;
+  // ---- the ghost blades: the Daughter's and the Son's, tilted, turning round the blade ----
+  for (int j = 0; j < 2; j++){
+    float fj = float(j);
+    float a = t*0.04 + fj*0.5;
+    float tilt = (0.32 - 0.24*sw)*(1.0 - cl);
+    vec3 pivot = vec3(0.0, L*0.35, 0.0);
+    vec3 dir = normalize(vec3(sin(6.2832*a)*tilt, 1.0, cos(6.2832*a)*tilt));
+    vec3 a0 = pivot + dir*1.5, a1 = pivot + dir*(L*0.62);
+    float d = raySeg(ro, rd, a0, a1, s);
+    float ends = smoothstep(0.0, 0.15, s)*(1.0 - smoothstep(0.85, 1.0, s));
+    vec3 gc = j == 0 ? MO_DAY : MO_NIGHT;
+    float lit = j == 0 ? 0.35 + 0.65*day : 0.35 + 0.65*(1.0 - day);
+    col += (vec3(1.0)*halo(d, max(0.08, px))*0.7 + gc*halo(d, 0.4)*0.6 + gc*halo(d, 1.4)*0.12)*ends*lit*(0.8 + 1.5*cl);
   }
-  // two tilted orbits round the blade, electrons tunnelling (jumping) between places on them
-  for (int k = 0; k < 2; k++){
-    float fk = float(k);
-    float oy = L*(0.35 + 0.35*fk) + 3.0*sin(t*0.4 + fk*2.0);
-    float tilt = 0.5 + 0.3*sin(t*0.3 + fk);
-    vec2 q = b - vec2(0.0, oy);
-    q = vec2(q.x, q.y*cos(tilt) - q.x*sin(tilt)*0.6);
-    float ra = 3.6 + 0.6*fk, rb = 1.0;
-    float e = length(q/vec2(ra, rb));
-    float dd = abs(e - 1.0)*rb;
-    light += mix(cA, cB, fk)*(exp(-pow(dd/0.035, 2.0))*0.35 + halo(dd, 0.15)*0.08)*(1.0 - 0.6*sw);
-    for (int j = 0; j < 2; j++){
-      float jump = floor(t*2.2 + float(j)*0.5 + fk*0.3);                 // tunnelling: no path between
-      float a = 6.2832*h11(jump*1.7 + float(j)*3.0 + fk) + t*1.5;
-      vec2 ep = vec2(ra*cos(a), rb*sin(a));
-      vec2 w = vec2(ep.x, (ep.y + ep.x*sin(tilt)*0.6)/cos(tilt));
-      float pop = 1.0 - fract(t*2.2 + float(j)*0.5 + fk*0.3);
-      light += vec3(0.95, 0.98, 1.0)*halo(length(b - vec2(0.0, oy) - w), 0.11)*(1.2 + 1.5*pow(pop, 6.0));
+  // ---- by day: the Daughter's light rising, soft beams ----
+  col += fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 30.0, 0.06, 5.5, MO_DAY)*day;
+  col += fxRays(ro, rd, px, y0, y1, 10.0, 6.5, 0.4, 7.2, MO_DAY)*day;
+  // ---- by night: the Son's lightning and sinking embers ----
+  col += fxArcs(ro, rd, px, y0, y1, 6.0 + 2.0*sw, 5.0, 1.8 + 1.5*sw, 2.6, MO_NIGHT)*(1.0 - day);
+  col += fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 20.0, -0.07, 8.8, vec3(1.0, 0.3, 0.15))*(1.0 - day);
+  // the Father's balance: a slow ring turning round the blade, half day, half night
+  {
+    vec3 h = rayAt(ro, rd, L*0.78 + sin(t*0.4));
+    if (h.z > 0.0){
+      float d = abs(length(h.xy) - 3.2);
+      float side = 0.5 + 0.5*sin(atan(h.x, h.y) - t*0.2);
+      col += (vec3(1.0)*halo(d, max(0.05, px))*0.8 + mix(MO_NIGHT, MO_DAY, side)*halo(d, 0.3)*0.5);
     }
   }
-  // clash: the collapse, a flash and a burst of probability out of the strike point
-  if (cl > 0.01){
-    float a = 1.0 - cl;
-    vec2 o = vec2(0.0, L*0.6);
-    light += vec3(0.9, 0.95, 1.0)*halo(length(b - o), 1.5)*pow(cl, 3.0)*1.6;
-    for (int k = 0; k < 14; k++){
-      float fk = float(k);
-      float an = fk*0.449 + 0.3*h11(fk);
-      vec2 p = o + vec2(cos(an), sin(an))*(0.5 + 8.0*(1.0 - exp(-3.0*a)));
-      light += mix(cA, cB, h11(fk*3.0))*halo(length(b - p), 0.12)*cl*1.8;
-    }
-  }
-  float edge = 1.0 - smoothstep(7.0, 9.5, abs(b.x));
-  light *= edge*smoothstep(-0.5, 1.0, b.y)*(1.0 - smoothstep(L + 0.5, L + 4.0, b.y));
-  return (1.0 - exp(-light*1.2))*1.05;
+  col += fxAura(ro, rd, y0, y1, 3.0, mix(MO_NIGHT, MO_DAY, day));
+  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, vec3(0.9, 0.9, 1.0))*1.8;
+  return col*uFx;
 }
+
+// the blade: Sol's glow and core from the file, pale and serene by day, crimson by night, the
+// change sweeping up the blade
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  float S = 1.08/40.0; float x = b.y*S, y = b.x*S, L = uLength*S; float d = o_seg(x, y, L);
-  vec3 c = o_fx(x, y, L, d, uTime);
-  float R = .1; float e = 1.0 - o_sstep(R*0.45, R*0.98, max(d, abs(y)));
-  vec3 light = max(c, vec3(0.0))*e;
-  float held = mix(.45, 1.0, 1.0 - clamp(uSwing*2.0, 0.0, 1.0));
-  for (int k = 0; k < 2; k++){
-    float fk = float(k); float side = k == 0 ? 1.0 : -1.0;
-    float a = (0.1 + 0.04*sin(uTime*1.3 + fk))*held*side*(0.6 + 0.4*cos(uTime*0.7 + fk*2.4));
-    float cs = cos(a), sn = sin(a);
-    float gx = x*cs - y*sn, gy = x*sn + y*cs;
-    float gd = o_seg(gx, gy, L);
-    float ge = 1.0 - o_sstep(0.025, 0.06, max(gd, abs(gy)));
-    light += max(q_blade(gx, gy, L, uTime, fk + 1.0), vec3(0.0))*0.42*held*(0.85 + 0.15*sin(uTime*9.0 + fk*3.0))*ge;
-  }
-  light += qm_show(b, min(px, 0.06));
-  return light*clamp(uIgn*1.5, 0.0, 1.0);
+  float l = max(g.r, max(g.g, g.b));
+  float day = smoothstep(-0.35, 0.35, sin(uTime*6.2832/32.0 - b.y*0.03));
+  vec3 c = mix(MO_NIGHT*1.2, mix(MO_DAY, vec3(1.0), 0.25), day);
+  return l*c*(1.0 + 0.6*clamp(uClash, 0.0, 1.0));
 }
-vec3 sig_core(vec3 c, vec2 b, float px){ return vec3(0.0); }
+vec3 sig_core(vec3 c, vec2 b, float px){ return c; }

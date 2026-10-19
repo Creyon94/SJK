@@ -4,7 +4,7 @@
 // Sap of the Force flows up through the fibres in slow bright pulses, the bark-like skin breathes
 // and glows through its grain, and soft motes of Force pollen drift up round it in slow spirals
 // inside a gentle living aura. Swinging quickens the sap; a clash floods every fibre with light.
-// @room 7
+// @room 10
 // @palette {"corona.rim_cool":[0.06,0.20,0.55],"corona.rim_hot":[0.35,0.70,1.0],"corona.inner":[0.75,0.90,1.0],"core.white":[0.92,0.97,1.0],"core.fringe_cool":[0.30,0.60,1.0],"core.fringe_hot":[0.70,0.88,1.0],"light.color":[0.40,0.70,1.0],"trail":[0.40,0.70,1.0]}
 
 const vec3 UT_COL = vec3(0.22, 0.55, 1.0);
@@ -65,7 +65,7 @@ vec3 ut_mote(vec3 ro, vec3 rd, float i, float px, float top){
   float s = max(px*0.9, 0.07);
   return (vec3(1.0)*halo(d, s)*1.1 + UT_COL*halo(d, 0.3)*0.55 + UT_COL*halo(d, 0.9)*0.08)*life*tw;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float top = ut_top();
   float cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
@@ -123,3 +123,21 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return col;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*0.8; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 blue = vec3(0.4, 0.7, 1.0), leaf = vec3(0.55, 1.0, 0.75);
+  fx += fxCoils(ro, rd, px, y0, y1, 1.8, 0.9, 0.3 + 0.4*sw, 3.0, mix(blue, leaf, 0.35));
+  fx += fxCoils(ro, rd, px, y0, y1, 3.2, -0.5, 0.2, 2.0, blue*0.7);
+  fx += fxRays(ro, rd, px, y0, y1, 12.0, 6.5, 0.4, 5.0, blue);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 38.0, 0.05, 1.3, mix(blue, leaf, 0.5));
+  fx += fxAura(ro, rd, y0, y1, 3.0, blue);
+  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, leaf)*1.6;
+  return col + fx*uFx;
+}

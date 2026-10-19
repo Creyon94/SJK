@@ -1,10 +1,11 @@
-// Quicksilver: Creyon's Blade Lab design, reworked in full. A thin blade of liquid mirror: a chrome
-// surface reflecting a cool sky and warm floor, ripples racing up it, beads of mercury rolling up to
-// the tip and dripping off in falling droplets. A swing flings a spray of silver droplets off the
-// blade that arc away and splash into smaller beads; a clash throws a ring of mercury splashing out
-// with a bright ripple running both ways; ignition pours the metal up from the hilt.
+// Liquid Beskar: Mandalorian steel kept molten, as a blade (Creyon's round 9: its droplets and
+// sparks in 3D). A thin blade of liquid mirror: a chrome surface reflecting a cool sky and warm
+// floor, ripples racing up it, beads of beskar rolling up to the tip and dripping off. Round it in
+// 3D, droplets of molten beskar orbit and drip, forge sparks fly and the air shimmers with heat. A
+// swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
+// of droplets out with a shock ring; ignition pours the metal up from the hilt.
 // @full 1
-// @room 6
+// @room 10
 // @solid 1
 
 float qs_w(float y){ float L = uLength; return 0.5*smoothstep(-0.3, 0.5, y)*(1.0 - smoothstep(L - 0.9, L + 0.05, y)) + 0.05; }
@@ -50,20 +51,6 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   // a cool silver sheen round the mirror, ripples brightening it as they pass
   float rip = 0.5 + 0.5*sin(b.y*1.6 - uTime*9.0);
   vec3 light = vec3(0.75, 0.82, 0.95)*halo(d, 0.9)*(0.35 + 0.25*rip)*on + vec3(0.6, 0.7, 0.9)*halo(d, 2.0)*0.08*on;
-  // glints on the flung droplets and dripping beads
-  for (int k = 0; k < 10; k++){
-    vec4 fl = qs_fling(float(k), uTime);
-    if (fl.w <= 0.0) continue;
-    light += vec3(0.85, 0.9, 1.0)*halo(length(b - fl.xy), fl.z*1.8)*0.25*fl.w;
-  }
-  // clash: a bright ripple ring and a splash crown
-  if (uClash > 0.01){
-    float a = 1.0 - uClash;
-    vec2 o = vec2(0.0, L*0.55);
-    float ring = abs(length((b - o)*vec2(1.0, 0.6)) - 0.5 - 7.0*a);
-    light += vec3(0.9, 0.95, 1.0)*halo(ring, 0.12)*uClash*1.3;
-    light += vec3(0.9, 0.95, 1.0)*halo(abs(b.y - o.y) - 12.0*a, 0.3)*fillD(abs(b.x) - 0.9, px)*uClash;
-  }
   light *= edge*(1.0 - smoothstep(L + 2.0, L + 6.0, b.y))*smoothstep(-3.0, -0.5, b.y);
   return (1.0 - exp(-light*1.1))*1.05*clamp(uIgn*1.5, 0.0, 1.0);
 }
@@ -102,24 +89,77 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
     dr.a *= (1.0 - smoothstep(L + 0.5, L + 1.0, y))*ign;
     acc = vec4(mix(acc.rgb, dr.rgb, dr.a), max(acc.a, dr.a));
   }
-  // droplets flung off the blade
-  for (int k = 0; k < 10; k++){
-    vec4 fl = qs_fling(float(k), uTime);
-    if (fl.w <= 0.0) continue;
-    vec4 dr = qs_drop(b - fl.xy, fl.z, px);
-    acc = vec4(mix(acc.rgb, dr.rgb, dr.a*fl.w), max(acc.a, dr.a*fl.w));
+  acc.a *= clamp(uIgn*1.5, 0.0, 1.0);
+  return acc;
+}
+
+// ---- round 9: the droplets in 3D, mirror spheres ----
+// droplet k flung off the blade: centre (xyz) and radius (w); alive when w > 0
+vec4 qs_fling3(float fk){
+  float L = uLength;
+  float rate = 0.4 + 0.25*h11(fk*2.3);
+  float ph = uTime*rate + h11(fk*8.1);
+  float cy = floor(ph), f = fract(ph);
+  float live = step(h11(cy*2.9 + fk), 0.25 + 0.75*uSwing + 0.5*uClash)*(1.0 - smoothstep(0.8, 1.0, f));
+  float a = h11(cy*4.1 + fk);
+  float y0 = (0.2 + 0.75*h11(cy*1.7 + fk*3.0))*L;
+  vec3 dir = vec3(sin(6.2832*a), 0.5*(h11(cy*6.0 + fk) - 0.2), cos(6.2832*a));
+  vec3 p = vec3(0.0, y0, 0.0) + dir*0.5 + dir*(4.0 + 4.0*h11(cy + fk*5.0))*f - vec3(0.0, 3.5*f*f, 0.0);
+  return vec4(p, (0.3 + 0.25*h11(fk*4.4))*(1.0 - 0.4*f)*live);
+}
+// droplet k orbiting slowly round the blade, bobbing like molten metal held by the heat
+vec4 qs_orbit3(float fk){
+  float L = uLength;
+  float a = h11(fk*1.9) + uTime*(0.06 + 0.05*h11(fk*3.1));
+  float y = (0.22 + 0.72*fract(fk*0.413 + 0.11))*L + 0.7*sin(uTime*0.8 + fk*2.0);
+  return vec4(around(2.0 + 2.5*h11(fk*5.7), a, y), 0.22 + 0.2*h11(fk*7.3));
+}
+// a mirror sphere: (rgb, coverage) where the ray hits it, t its distance
+vec4 qs_sphere(vec3 ro, vec3 rd, vec4 c, float px, out float th){
+  float d = rayPt(ro, rd, c.xyz, th);
+  if (c.w <= 0.0 || d > c.w + px) return vec4(0.0);
+  float cov = clamp((c.w - d)/max(px, 1e-3) + 0.5, 0.0, 1.0);
+  float back = sqrt(max(c.w*c.w - d*d, 0.0));
+  vec3 n = normalize(ro + rd*(th - back) - c.xyz);
+  vec3 col = qs_env(clamp(n.y*0.9 + n.x*0.3, -1.0, 1.0), c.y, uTime)*(0.55 + 0.45*max(dot(n, -rd), 0.0));
+  col += vec3(1.0)*pow(max(dot(reflect(rd, n), normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 40.0)*1.5;
+  return vec4(col, cov);
+}
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  vec4 acc = vec4(0.0);
+  if (uFx < 0.01 || fxNear(ro, rd, uLength*0.1, uLength) > 9.0) return acc;
+  float best = 1e5, th;
+  for (int k = 0; k < 12; k++){
+    vec4 c = qs_fling3(float(k));
+    vec4 dr = qs_sphere(ro, rd, c, px, th);
+    if (dr.a > 0.0 && th < best){ best = th; acc = dr; }
   }
-  // clash: a ring of mercury drops splashing out
-  if (uClash > 0.01){
-    float a = 1.0 - uClash;
+  for (int k = 0; k < 10; k++){
+    vec4 dr = qs_sphere(ro, rd, qs_orbit3(float(k)), px, th);
+    if (dr.a > 0.0 && th < best){ best = th; acc = dr; }
+  }
+  // a clash: a ring of droplets blown out
+  float cl = clamp(uClash, 0.0, 1.0);
+  if (cl > 0.01){
+    float a = 1.0 - cl;
     for (int k = 0; k < 10; k++){
       float fk = float(k);
-      float an = fk*0.628 + 0.3*h11(fk);
-      vec2 p = vec2(0.0, L*0.55) + vec2(cos(an), sin(an))*(0.8 + 6.0*(1.0 - exp(-3.0*a))) - vec2(0.0, 2.0*a*a);
-      vec4 dr = qs_drop(b - p, 0.3*(1.0 - 0.5*a), px);
-      acc = vec4(mix(acc.rgb, dr.rgb, dr.a), max(acc.a, dr.a));
+      vec3 p = vec3(0.0, uLength*0.55, 0.0) + around(0.8 + 6.0*(1.0 - exp(-3.0*a)), fk/10.0, -2.0*a*a);
+      vec4 dr = qs_sphere(ro, rd, vec4(p, 0.3*(1.0 - 0.5*a)), px, th);
+      if (dr.a > 0.0 && th < best){ best = th; acc = dr; }
     }
   }
   acc.a *= clamp(uIgn*1.5, 0.0, 1.0);
   return acc;
+}
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 silver = vec3(0.8, 0.88, 1.0), forge = vec3(1.0, 0.55, 0.2);
+  vec3 col = vec3(0.0);
+  col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, forge);
+  col += fxRays(ro, rd, px, y0, y1, 8.0, 6.0, 0.5, 1.9, silver)*0.8;
+  col += fxAura(ro, rd, y0, y1, 2.6, silver)*0.6;
+  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, silver)*1.5;
+  return col*uFx;
 }

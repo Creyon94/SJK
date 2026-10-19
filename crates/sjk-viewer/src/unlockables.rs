@@ -586,7 +586,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "Plasma squeezed by containment rings marching up the blade; it heats up, goes critical red with a strobe, vents sparks and cools again.",
+        description: "A hypermatter reactor core: containment rings marching up the blade, magnetic loops arching between them, reactor dust; it heats to critical red, vents and flashes, then cools.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -594,11 +594,11 @@ pub(crate) const ALL: [Unlockable; 74] = [
         name: "Bleeding Kyber blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
-        chroma: true,
+        chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A pure white blade fighting a red corruption that cracks its way up from the hilt and is pushed back.",
+        description: "A pure white kyber blade fighting a red corruption that bleeds up from the hilt, veins of it cracking into the air and red drops falling, while beams of light push it back.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -646,7 +646,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The dark science of the Sith: an emerald blade veined with gold corruption, green alchemical fire and lightning off it, gold dust in the air.",
+        description: "The dark science of the Sith: an emerald blade veined with gold, green and gold lightning wound round it, green fire beams and alchemical vapour.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -658,7 +658,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The fungal jungle of Felucia: a glowing amber-green blade with rings pulsing up it and clouds of luminous spores swirling round it.",
+        description: "The fungal jungle of Felucia: glowing spores rest on an amber-green blade while it is still and fly off round it in spirals when it swings, then settle back.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -670,7 +670,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Rebellion's Phoenix: a blade of living flame with a plume of fire spiralling round it and embers cascading up; it dims and is reborn in a rush of fire.",
+        description: "The Rebellion's Phoenix: a blade of living flame wrapped in spirals of fire, beams of flame and sparks streaming up, reborn in a ring of fire every few seconds.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -678,11 +678,11 @@ pub(crate) const ALL: [Unlockable; 74] = [
         name: "Mortis blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
-        chroma: true,
+        chroma: false,
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A blade from the realm of Mortis: a standing wave and tunnelling sparks in it, ghost copies at other angles that collapse into it as it swings.",
+        description: "The realm of Mortis: a blade that turns from day to night, the Daughter's and the Son's ghost blades turning round it, rising light by day and red lightning by night.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -706,7 +706,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A blade of molten beskar: ripples run up its mirror steel, beads roll to the tip and drip off; it barely glows.",
+        description: "A blade of molten beskar: ripples run up its mirror steel, beads roll to the tip, droplets orbit and fly off it, forge sparks fly and the air shimmers with heat.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -718,7 +718,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A flat, pointed blade of black volcanic glass with a white-hot edge crackling along it.",
+        description: "A flat blade of black volcanic glass with white-hot edges, obsidian shards orbiting it, magma lightning leaping between them and the air shimmering with heat.",
         how_to_get: FROM_HOLOCRONS,
     },
     // Creyon's Blade Lab signature shaders (blade_signatures.rs), mythicals first: not in
@@ -744,7 +744,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The polar sky of Ilum: curtains of green and magenta aurora hanging round a pale-green blade in 3D, snow crystals whirling, kyber glints flashing.",
+        description: "Ilum's polar sky in a storm: green and magenta aurora curtains hanging round a pale-green blade, pale lightning crackling all round it, ice crystals glittering in the cold.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -756,7 +756,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The light and the dark side in one blade: a crimson and a pale-blue strand twisting round each other, crimson lightning off the dark side, calm wisps off the light.",
+        description: "The light and the dark side in one blade: waves of blue-white and crimson rolling against each other, beams of pure light on one side and red lightning on the other, turning round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -768,7 +768,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A calm white-gold path of light from the World Between Worlds: echoes of the blade from other moments drifting beside it, streams of light flowing both ways, portal rings opening along it and a small starry void round it.",
+        description: "A white-gold path of light from the World Between Worlds: pathways of light crossing the void round it, portals opening, and two lights, white and red, duelling round the blade.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -792,7 +792,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "Frozen in carbonite again and again: a dark bronze slab seals the blade, its trapped light beating through spreading cracks until it bursts into shards and cold steam and the blade blazes free.",
+        description: "Frozen in carbonite: a dark bronze slab holds the blade while cracks of light spread, bursts into shards that float round it while the blade blazes, then fuses solid again.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -816,7 +816,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A pearl blade with a total eclipse travelling along it: the moon's band darkens it, a corona of long streamers fans out all round, Baily's beads and a diamond-ring flash spark on its edge.",
+        description: "A pearl blade with a total eclipse travelling along its upper half: the moon's band darkens it, a corona of streamers and beams fans out, eclipsed suns circle it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -864,7 +864,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A rose kyber blade that beats like a heart: each lub-dub swells it and sends light racing up its veins, rolls shockwave rings off it and throws a spray of rose sparks.",
+        description: "A rose kyber blade that beats like a heart: every beat throws shock rings and beams of light off it, veins of light winding round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -912,7 +912,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A holocron's crimson crystal stretched into a blade: facets glinting, a red heart beating inside, Sith knowledge climbing the glass; it splits open on a white-hot core and pours out red smoke and lightning.",
+        description: "A holocron's crimson crystal stretched into a blade: red lightning crackling all round it, a red heart beating inside and Sith knowledge streaming up the glass.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -936,7 +936,7 @@ pub(crate) const ALL: [Unlockable; 74] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A kyber blade forged inside a star: plasma boiling on it, solar flares arching off and falling back, and the forge's hammer striking in a steady rhythm with a white flash, shock rings and a fountain of sparks.",
+        description: "A kyber blade forged inside a star: solar beams and flares off a boiling white-gold blade, hammer blows of sparks, embers falling and the air shimmering with its heat.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1129,12 +1129,10 @@ mod tests {
                 "saber_bubble",
                 "saber_lavalamp",
                 "saber_reactor",
-                "saber_bleeding",
                 "saber_sketch",
                 "saber_hourglass",
                 "saber_serpent",
                 "saber_monarch",
-                "saber_quantum",
                 "saber_comic",
                 // Blade Lab signatures drawn in the palette's colours (blade_signatures.rs).
                 "saber_abyssal_eye",

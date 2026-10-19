@@ -954,7 +954,7 @@ def translate(src, uniforms, helpers=None, module_names=(), prefix_clash="sig_")
 # ---------------------------------------------------------------- the repository's signatures
 
 UNIFORMS = {name: "float" for name in
-            "uTime uLength uSwing uClash uIgn uAge uSeed uChroma uRoom uFx".split()}
+            "uTime uLength uSwing uClash uIgn uAge uSeed uChroma uRoom uFx uOwn".split()}
 HERE = Path(__file__).resolve().parent.parent
 FOLDER = HERE / "crates" / "sjk-viewer" / "src" / "blade_signatures"
 SABER = HERE / "crates" / "sjk-viewer" / "src" / "saber.wgsl"

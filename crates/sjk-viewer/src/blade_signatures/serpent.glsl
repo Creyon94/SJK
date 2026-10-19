@@ -3,12 +3,12 @@
 // sickly green lightning crackles from it, dark-green vapour coils round it and motes of gold
 // dust drift in the air. Every few seconds the veins flare and a wave of green fire rolls up
 // the blade. A swing feeds the fire; a clash bursts a ring of green flame and lightning.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.02,0.30,0.10],"corona.rim_hot":[0.20,1.0,0.45],"corona.inner":[0.75,1.0,0.80],"core.white":[0.95,1.0,0.92],"core.fringe_cool":[0.15,0.90,0.40],"core.fringe_hot":[0.70,1.0,0.60],"light.color":[0.25,1.0,0.45],"trail":[0.30,1.0,0.50]}
 
 float sa_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
 float sa_wave(float y){ float f = fract(uTime/4.0); return halo(y - f*(uLength + 8.0) + 4.0, 2.5)*step(0.0, f); }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float t = uTime, top = sa_top(), s, ta;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 green = vec3(0.2, 1.0, 0.4), gold = vec3(1.0, 0.8, 0.3), pale = vec3(0.8, 1.0, 0.75);
@@ -73,3 +73,22 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.85 + 0.8*w + 0.5*clamp(uClash, 0.0, 1.0)) + vec3(1.0, 0.8, 0.3)*v*on*(0.6 + 1.2*w);
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 green = vec3(0.2, 1.0, 0.45), gold = vec3(1.0, 0.8, 0.3);
+  fx += fxArcs(ro, rd, px, y0, y1, 6.0 + 3.0*sw, 5.0, 1.8 + 2.0*sw, 4.9, green);
+  fx += fxArcs(ro, rd, px, y0, y1, 3.0, 3.5, 1.2, 8.2, gold);
+  fx += fxCoils(ro, rd, px, y0, y1, 1.8, 1.0, 0.6, 3.0, green*0.9);
+  fx += fxRays(ro, rd, px, y0, y1, 10.0, 6.5, 0.65, 6.3, green);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.5, 26.0, 0.07, 1.4, gold);
+  fx += fxAura(ro, rd, y0, y1, 3.0, green);
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, green)*1.6;
+  return col + fx*uFx;
+}

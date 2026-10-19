@@ -668,7 +668,7 @@ fn ws_big(ro: vec3<f32>, rd: vec3<f32>, px: f32, k: f32, top: f32, form: f32, st
     return col;
 }
 
-fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let top = ws_top();
     let lt = ws_lt();
     let k = ws_cur();
@@ -846,7 +846,20 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     return o;
 }
 
-// GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
-fn glsl_mod(x: f32, y: f32) -> f32 {
-    return x - y * floor(x / y);
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let col = r8_vol(ro, rd, px);
+    let L = uLength;
+    let t = uTime;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let cl = clamp(uClash, 0.0, 1.0);
+    let y0 = L * 0.2;
+    let y1 = L * 0.97;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    let warm: vec3<f32> = vec3<f32>(0.95, 0.75, 0.6);
+    fx += fxRays(ro, rd, px, y0, y1, 10.0, 6.5, 0.5, 4.2, warm);
+    fx += fxSparks(ro, rd, px, y0, y1, 12.0 + 10.0 * sw, 6.0, 0.8, 6.4, warm);
+    fx += fxAura(ro, rd, y0, y1, 3.0, warm) * 0.7;
+    return col + fx * uFx;
 }

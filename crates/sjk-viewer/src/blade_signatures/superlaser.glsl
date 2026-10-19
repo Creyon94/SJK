@@ -6,7 +6,7 @@
 // with two plasma strands twisting round it and surges racing up. On ignition the tributaries
 // light first, then the beam fires. A swing flares the tributaries and sends a surge; a clash
 // fires the focus in a white flash and a shockwave.
-// @room 8
+// @room 10
 // @palette {"corona.rim_cool":[0.05,0.55,0.12],"corona.rim_hot":[0.45,1.0,0.35],"corona.inner":[0.85,1.0,0.8],"core.white":[0.95,1.0,0.94],"core.fringe_cool":[0.2,0.9,0.3],"core.fringe_hot":[0.7,1.0,0.6],"light.color":[0.3,1.0,0.35],"trail":[0.35,1.0,0.4]}
 
 
@@ -14,7 +14,7 @@ const float SL_F = 5.8;    // the focus's height
 const float SL_R = 2.2;    // the tributaries' ring radius at the base
 const float SL_B = 0.4;    // the tributaries' base height
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime;
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 green = vec3(0.25, 1.0, 0.3), pale = vec3(0.8, 1.0, 0.75), white = vec3(1.0);
@@ -108,3 +108,22 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.85 + 0.15*rip + 0.6*surge*above + 0.5*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.08*(vn(vec2(b.y*2.0, floor(uTime*30.0))) - 0.5)); }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 green = vec3(0.3, 1.0, 0.35), white = vec3(0.85, 1.0, 0.85);
+  fx += fxArcs(ro, rd, px, L*0.3, y1, 6.0 + 3.0*sw, 4.5, 1.8 + 2.0*sw, 3.6, green);
+  fx += fxCoils(ro, rd, px, L*0.3, y1, 1.4, 1.4, 1.0 + 1.0*sw, 3.0, green);
+  fx += fxRays(ro, rd, px, L*0.3, y1, 12.0, 7.0, 0.7, 6.7, green);
+  fx += fxSparks(ro, rd, px, L*0.3, y1, 14.0 + 10.0*sw, 6.0, 1.1, 4.8, white);
+  fx += fxFlare(ro, rd, vec3(0.0, L*0.2, 0.0), px, 0.3, 4.5, 8.0, t*0.5, green)*(0.8 + 0.2*sin(t*11.0));
+  fx += fxAura(ro, rd, L*0.25, y1, 3.0, green);
+  fx += fxShock(ro, rd, px, L*0.2, 1.0 - cl, 11.0, white)*1.8;
+  return col + fx*uFx;
+}

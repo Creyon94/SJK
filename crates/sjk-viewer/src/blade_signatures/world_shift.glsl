@@ -543,7 +543,7 @@ vec3 ws_big(vec3 ro, vec3 rd, float px, float k, float top, float form, float st
   return col;
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float top = ws_top(), lt = ws_lt(), k = ws_cur(), kp = ws_prev();
   float form = ws_form(), ch = ws_charge(), boom = ws_boom();
   float st = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0), fx = uFx;
@@ -674,4 +674,19 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
     return vec4(mix(o.rgb, c, al), max(o.a, al));
   }
   return o;
+}
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 warm = vec3(0.95, 0.75, 0.6);
+  fx += fxRays(ro, rd, px, y0, y1, 10.0, 6.5, 0.5, 4.2, warm);
+  fx += fxSparks(ro, rd, px, y0, y1, 12.0 + 10.0*sw, 6.0, 0.8, 6.4, warm);
+  fx += fxAura(ro, rd, y0, y1, 3.0, warm)*0.7;
+  return col + fx*uFx;
 }

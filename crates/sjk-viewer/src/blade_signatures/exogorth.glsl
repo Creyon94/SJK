@@ -7,7 +7,7 @@
 // sparks. A swing makes the throat gulp; a clash is the slug's roar: a shockwave rolls out, a burst
 // of hot breath and a spray of rocks blow outward and the fangs flare open; on ignition the gullet
 // swells up out of the maw.
-// @room 8
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.55,0.20,0.04],"corona.rim_hot":[1.0,0.55,0.18],"corona.inner":[1.0,0.88,0.65],"core.white":[1.0,0.95,0.85],"core.fringe_cool":[1.0,0.45,0.12],"core.fringe_hot":[1.0,0.75,0.40],"light.color":[1.0,0.55,0.20],"trail":[1.0,0.55,0.20]}
 
@@ -168,7 +168,7 @@ vec3 ex_strand(float fi, float u){
   p += around(0.08*sin(u*3.1416)*sin(t*2.0 + fi), a + 0.25, 0.0);
   return p;
 }
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime;
   float top = ex_top();
   vec3 amb = vec3(1.0, 0.55, 0.2);
@@ -270,3 +270,20 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 // the blade: Sol's glow and core from the file, swelling with the swallowing waves
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(0.8 + 0.5*ex_bulge(b.y) + 0.6*uClash); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 amber = vec3(1.0, 0.55, 0.2), dust = vec3(0.75, 0.55, 0.35);
+  fx += fxSparks(ro, rd, px, y0, y1, 18.0 + 12.0*sw, 6.5, 0.9, 5.5, amber);
+  fx += fxRays(ro, rd, px, y0, y1, 8.0, 6.0, 0.5, 2.9, amber);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.5, 6.5, 34.0, -0.06, 8.1, dust*0.8);
+  fx += fxAura(ro, rd, y0, y1, 3.0, amber)*0.9;
+  fx += fxShock(ro, rd, px, L*0.5, 1.0 - cl, 10.0, amber)*1.6;
+  return col + fx*uFx;
+}

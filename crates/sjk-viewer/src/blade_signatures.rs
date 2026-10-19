@@ -36,10 +36,10 @@ macro_rules! signature {
     };
 }
 
-/// The signatures, mythicals first (Creyon's order, 19/10/2026). The last thirteen are his
-/// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework), which replace
-/// their hand-ported designs (`blade_lab_designs.rs`).
-pub(crate) const SIGNATURES: [Signature; 36] = [
+/// The signatures, mythicals first (Creyon's order, 19/10/2026). The last fourteen are his
+/// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
+/// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`).
+pub(crate) const SIGNATURES: [Signature; 37] = [
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
     signature!("balance"),
@@ -76,6 +76,7 @@ pub(crate) const SIGNATURES: [Signature; 36] = [
     signature!("hourglass"),
     signature!("fiber"),
     signature!("phoenix"),
+    signature!("bleeding"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).
@@ -128,8 +129,10 @@ impl Signature {
         ]
     }
 
-    /// `def` as the signature draws it: none of the file's sections but its afterimages
-    /// (the signature draws its own parts), and the options every signature has, which
+    /// `def` as the signature draws it: none of the file's sections but its afterimages,
+    /// heat haze, wisps and embers, which the renderer draws round any blade as round Sol's
+    /// (Creyon's round 9: the Starforge lacked the Sun's heat), and the options every
+    /// signature has, which
     /// `saber.wgsl` reads from section bits a signature skin has no other use for
     /// (`sig_take`): `effects` (the arcs bit) keeps only the blade itself, `bursts` (the
     /// motes bit) stops swings and clashes setting anything off, `ignition` (the hue bit)
@@ -137,6 +140,9 @@ impl Signature {
     pub(crate) fn shown(&self, def: &BladeSkinDef) -> BladeSkinDef {
         let mut shown = crate::blade_lab_designs::bare(def);
         shown.ghosts = def.ghosts;
+        shown.haze = def.haze;
+        shown.wisps = def.wisps;
+        shown.embers = def.embers;
         let option = |id: &str, name: &str, section: &str| SkinOption {
             id: id.to_owned(),
             name: name.to_owned(),
@@ -147,12 +153,33 @@ impl Signature {
             option("bursts", "Swing and clash bursts", "motes"),
             option("ignition", "Ignition show", "hue"),
         ];
+        if def.haze.is_some() {
+            shown.options.push(option("haze", "Heat haze", "haze"));
+        }
+        if def.wisps.is_some() {
+            shown.options.push(option("wisps", "Smoke", "wisps"));
+        }
+        if def.embers.is_some() {
+            shown.options.push(option("embers", "Embers", "embers"));
+        }
         if def.ghosts.is_some() {
             shown
                 .options
                 .push(option("afterimages", "Afterimages", "ghosts"));
         }
         shown
+    }
+
+    /// Give `def` (a pack's file for this skin, or its own) the built-in file's sounds,
+    /// heat haze, wisps and embers: the signature's own, which an older pack file of the
+    /// skin (from before it was a signature) must not change.
+    pub(crate) fn adopt(&self, def: &mut BladeSkinDef) {
+        if let Ok(own) = crate::blade_skin_file::parse(self.id, self.file) {
+            def.sounds = own.sounds;
+            def.haze = own.haze;
+            def.wisps = own.wisps;
+            def.embers = own.embers;
+        }
     }
 
     /// The lab's blade-skin file for it, for when no pack carries one.
@@ -266,7 +293,7 @@ mod tests {
             );
         }
         let star_dragon = of("saber_star_dragon").unwrap();
-        assert_eq!(star_dragon.room(), 8.0);
+        assert_eq!(star_dragon.room(), 10.0);
         assert_eq!(star_dragon.lane()[0], NUMBER as f32);
         assert!(
             include_str!("saber.wgsl").contains(&format!("const LAB_SIGNATURE: u32 = {NUMBER}u;"))
@@ -306,7 +333,10 @@ mod tests {
             .iter()
             .map(|option| option.id.as_str())
             .collect();
-        assert_eq!(ids, ["effects", "bursts", "ignition", "afterimages"]);
+        assert_eq!(
+            ids,
+            ["effects", "bursts", "ignition", "wisps", "afterimages"]
+        );
         let bits: Vec<u64> = ids.iter().map(|id| option_bit(id)).collect();
         for (index, bit) in bits.iter().enumerate() {
             assert!(!bits[..index].contains(bit), "{} shares a bit", ids[index]);
@@ -318,6 +348,24 @@ mod tests {
             assert_ne!(mask & section.bit(), 0, "{section:?}");
         }
         assert_eq!(shown.off_mask(option_bit("effects")), Section::Arcs.bit());
+        // Every signature's options sit on bits of their own.
+        for signature in &SIGNATURES {
+            let def =
+                crate::blade_skin_file::parse(signature.id, signature.default_file()).unwrap();
+            let bits: Vec<u64> = signature
+                .shown(&def)
+                .options
+                .iter()
+                .map(|option| option_bit(&option.id))
+                .collect();
+            for (index, bit) in bits.iter().enumerate() {
+                assert!(
+                    !bits[..index].contains(bit),
+                    "{}: options share a bit",
+                    signature.id
+                );
+            }
+        }
     }
 
     /// The WGSL is the script's: none edited by hand, none left behind.

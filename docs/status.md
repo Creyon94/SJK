@@ -68,6 +68,27 @@ unchanged. Checked on Linux x86_64 (Rust 1.97, lavapipe): the viewer's tests pas
 changed signature previewed from four views and in the lab page. Not verified: Windows, the
 game window, the hub's catalogue (the names players see come from it once Sol updates it).
 
+## Blade Lab signatures, round 9: a fixed frame and big effects
+
+20/10/2026, `wip/blade-3d`, on round 8 (`main` `046ef86b`): after Creyon's in-game test of
+round 8 (Windows 11, videos): the effects round a signature blade turned with the camera and
+slid up it as it ignited; they now sit in a frame fixed to the hilt and on the blade's full
+length, shown once it is out ([rendering.md](rendering.md#blade-lab-signature-shaders)).
+Every mythical has a layer of big effects from `lab.glsl` (beams, lightning all round,
+sparks, coils of light, shock rings, flares); signature skins keep their files' heat haze,
+wisps and embers (the Starforge's heat was stripped) and their own sounds over an older pack
+file's (the Sith Alchemy's hiss). Reworked: Balance (light and dark sides), Between Worlds
+(pathways and a duel), Carbonite (slower, never vanishing before it is solid again), Eclipse
+(kept clear of the wearer's head), Reactor (rings fade at the tip instead of vanishing; rebuilt
+Sol's way), Mortis (was Quantum's 2D design), Obsidian Edge (shards in 3D, no chips), Liquid
+Beskar (droplets in 3D), Felucia Spores (rest on the blade, fly off on a swing), Abyssal Eye
+(its eye keeps its amber under a chroma, `uOwn`), Bleeding Kyber (now a signature). Checked
+on Linux x86_64 (Rust 1.97, lavapipe): the signatures translate and validate, the ignored GPU
+test `every_signature_draws_its_blade_and_nothing_at_the_edge` passes, previews of every
+changed blade looked at; workspace checks in the change. Not verified: Windows, the game
+window, frame time with these effects, the hand path's frame on thrown sabers and the menu
+stage (they use a fixed world direction).
+
 ## Blade Lab signatures, round 8: effects round the blade as Sol's
 
 19/10/2026, `wip/blade-3d`, based on `feat/blade-signatures` (on `main` `046ef86b`): after

@@ -167,5 +167,11 @@
       "sound/weapons/saber/saberswing2.wav",
       "sound/weapons/saber/saberswing3.wav"
     ]
+  },
+  "haze": {
+    "strength": 0.35,
+    "scale": 0.45,
+    "speed": 8.0,
+    "reach": 4.0
   }
 }

@@ -1910,13 +1910,31 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   gullet) are drawn by `sig_solid` over it as Sol's ink and chrome are. Everything round
   the blade is drawn by two more hooks, `sig_vol(ro, rd, px)` (added light) and
   `sig_vol_solid(ro, rd, px)` (a blended layer), handed the view ray in the blade's own
-  frame (`sig_ray`: y along the blade from the hilt, x across to the camera's side, z
-  toward the camera): sparks, flames, bolts, rings, puffs of mist and shards are placed
+  frame (`sig_ray`: y along the blade from the hilt, z along a direction across it fixed
+  to the hilt, x across both): sparks, flames, bolts, rings, puffs of mist and shards are placed
   round the blade in 3D and each is drawn as a soft piece facing the camera (the ray's
   distance to a point or segment, `rayPt`, `raySeg`, `bolt3` in `lab.glsl`), as Sol's
   arcs and the Void's orbiting black holes are; no volume is marched. `sig_edge` fades
   everything out before the quad's edges, and `uFx` is 0 when the wearer turns the
   effects off. `@solid 1` marks a signature with `sig_solid` or `sig_vol_solid`.
+- **A fixed frame and the full length (round 9, 20/10/2026).** Until round 9 the frame's x
+  pointed to the camera's side, so every effect turned round the blade with the view: in
+  Creyon's test they raced round it whenever he turned the mouse. The hand path now stamps
+  each blade instance with a direction across it that turns with the hilt (the socket's
+  direction's orthonormal turned by the weapon's rotation) and the blade's full length
+  (`Instance::with_frame`, vertex attribute 11, `frame`); the vertex stage passes the
+  direction octahedron-packed in `down.zw` and the length in `axis.w`, and `sig_ray` builds
+  the frame from it (a thrown blade or the menu stage, without one, from a fixed world
+  direction). `sig_full` places the three-dimensional effects on the full length and
+  shows them only once the blade is nearly all out (85 to 100 % of it), so nothing slides
+  up the blade while it ignites (it did, fast, with `uLength` growing).
+- **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
+  own way, all in that frame: `fxRays` (beams shooting out of the blade and fading),
+  `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
+  back, with a fork), `fxSparks`, `fxCoils` (strands of light wound round it with knots
+  running along them), `fxMotes`, `fxShock` (a ring racing out), `fxFlare` (a star facing
+  the camera), `fxAura` and the ring distance `ringD`. Each mythical's round-8 effects are
+  kept (`r8_vol`) and its own layer of these added on top (`sig_vol`).
 - **Source.** The lab's GLSL is the source, kept in
   [blade_signatures/](../crates/sjk-viewer/src/blade_signatures/) (`<name>.glsl`, the lab's
   helpers in `lab.glsl`, which also holds the shared lightning bolt, Storm-like arc loop
@@ -1934,8 +1952,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`,
   and its chroma's own hue in `design_color.w` (-1 for none). A signature replaces a
   hand-ported design of the same skin (Monarch, Obsidian Edge, Quantum, Quicksilver,
-  Reactor, Serpent, Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass, Fiber Optic and
-  Phoenix now draw Creyon's reworked lab shaders). `saber.wgsl` draws it by
+  Reactor, Serpent, Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass, Fiber Optic,
+  Phoenix and, since round 9, the Bleeding Kyber now draw Creyon's reworked lab shaders;
+  round 9 rebuilt the Reactor, Mortis and Bleeding Kyber Sol's way and gave Obsidian Edge
+  and Liquid Beskar their pieces in 3D). `saber.wgsl` draws it by
   the skin's own passes, as the lab does: `skin_glow_at`, `skin_core` and
   `fragment_solid` each hand their result to the signature (`sig_take` sets the uniforms
   from the instance: its clock and seed, length, `motion`'s swing, the clash fading at
@@ -1958,11 +1978,15 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   every coloured part becomes the wearer's hue, at least well saturated, and only its
   white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
   blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron and the Exogorth keep their
-  own colours, as do Obsidian Edge and Quicksilver.
+  own colours, as do Obsidian Edge, Quicksilver, Mortis (day and night) and the Bleeding
+  Kyber (its red corruption). A signature's solid layer may keep its own colours where it
+  sets `uOwn` (0 to 1; the Abyssal Eye's amber eye, round 9).
 - **Options.** Every signature skin offers its wearer `Effects round the blade` (off: only
   the blade itself, nothing past a stock glow's width or the tip), `Swing and clash
   bursts` (off: swings and clashes set nothing off) and `Ignition show` (off: lit at
-  once), and `Afterimages` when its file has them (`Signature::shown`); a hand-ported
+  once), `Heat haze`, `Smoke` (wisps) and `Embers` when its file has them, which the
+  renderer draws round it as round Sol's blades (round 9: they were stripped before, so
+  the Starforge never had the Sun's heat), and `Afterimages` (`Signature::shown`); a hand-ported
   design offers `Particles` and `Swing and clash bursts` (and Quantum its ghost copies).
   They ride on the section bits these skins have no other use for (arcs, motes, hue).
 - **Pipelines.** [saber_gpu.rs](../crates/sjk-viewer/src/saber_gpu.rs) builds every loaded
@@ -1982,7 +2006,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   Dragon, Superlaser, Witchfire, World Shift and Big Bang), so they show before the hub's
   pack carries them. Its sounds are at
   `sound/sjk/sabers/<name>/`, synthesized by the Blade Lab's sound scripts; until a pack
-  carries them only the stock sounds play.
+  carries them only the stock sounds play. A pack's older file of a skin that is now a
+  signature keeps its images and colours, but the sounds, haze, wisps and embers are always
+  the built-in file's (`Signature::adopt`, round 9: the Sith Alchemy still hissed with the
+  snake design's sounds from the hub's pack).
 
 Two ignored GPU tests render the signatures through their own pipelines and real glow
 and core images: `blade_signatures_gpu_test.rs` still, mid-swing, after a clash,

@@ -5,7 +5,7 @@
 // streams of matter spiral in along the blade from the disks in pulses of light. Seen from above
 // the disks are full whirlpools inside a bright Einstein ring; from the side, thin blazing lines.
 // A swing spins the disks up and speeds the infalling streams; a clash fires a gravity wave.
-// @room 9
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.30,0.06,0.70],"corona.rim_hot":[0.70,0.40,1.0],"corona.inner":[0.9,0.85,1.0],"core.white":[0.95,0.9,1.0],"core.fringe_cool":[0.40,0.12,0.90],"core.fringe_hot":[0.80,0.55,1.0],"light.color":[0.55,0.25,1.0],"trail":[0.60,0.35,1.0]}
 
@@ -117,7 +117,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
   return light;
 }
 
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
+vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // The blade is Sol's glow and core from the file round the black rod (sig_glow,
   // sig_solid); here only the effects, each a piece placed round it in 3D.
   return eh_fx(ro, rd, px, 1e9)*uFx;
@@ -138,3 +138,25 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g + vec3(1.0, 0.96, 1.0)*rim*(1.2*stream + 1.5*clamp(uClash, 0.0, 1.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
+
+// ---- round 9: the big effects layer ----
+// Creyon's round 9: every mythical dramatic, with big effects all round it in 3D (lab.glsl fx*).
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  vec3 col = r8_vol(ro, rd, px);
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 fx = vec3(0.0);
+
+  vec3 vio = vec3(0.6, 0.3, 1.0), hot = vec3(1.0, 0.75, 0.5);
+  fx += fxCoils(ro, rd, px, y0, y1, 2.6, 1.6, -0.6 - 0.6*sw, 3.0, vio);
+  fx += fxArcs(ro, rd, px, y0, y1, 4.0 + 3.0*sw, 4.5, 1.2 + 1.5*sw, 6.2, vio);
+  fx += fxRays(ro, rd, px, y0, y1, 8.0, 6.5, 0.5, 1.3, mix(vio, hot, 0.3));
+  for (int i = 0; i < 3; i++){
+    float q = fract(t*0.4 + float(i)/3.0);
+    fx += fxShock(ro, rd, px, mix(L*0.3, L*0.8, float(i)*0.5), q, 8.0, vio)*0.8;
+  }
+  fx += fxMotes(ro, rd, px, y0, y1, 2.0, 6.0, 24.0, -0.08, 3.9, hot);
+  fx += fxAura(ro, rd, y0, y1, 3.0, vio);
+  fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 10.0, vio)*1.8;
+  return col + fx*uFx;
+}

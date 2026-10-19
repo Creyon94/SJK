@@ -2,35 +2,36 @@
 // steam climbs from the hilt and seals the blade in a slab of dark bronze carbonite with cast
 // grooves and a cold sheen, vapour billowing off it. The trapped light beats through hairline
 // cracks that spread until the slab bursts: its shards fly out and float round the blade, slowly
-// tumbling, while the freed blade blazes; then they fly back and fuse into the slab again, which
-// holds for a moment and dissolves into cold steam before the next freeze. A swing makes the
-// cracks flare; a clash chips shards off the slab.
-// @room 8
+// tumbling for a long while, the freed blade blazing with rays of light; then they fly back and
+// fuse into the slab again, which stays solid for a good while as new cracks spread, and bursts
+// again. A swing makes the cracks flare; a clash chips shards off the slab.
+// @room 10
 // @solid 1
 // @palette {"corona.rim_cool":[0.20,0.45,0.75],"corona.rim_hot":[0.60,0.88,1.0],"corona.inner":[0.92,0.98,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.50,0.80,1.0],"core.fringe_hot":[0.80,0.95,1.0],"light.color":[0.60,0.88,1.0],"trail":[0.60,0.88,1.0]}
 
 const float CB_W = 0.78;      // the slab's half width
 const float CB_RR = 0.24;     // how rounded its corners are
 const float CB_Y0 = 0.3;      // the slab's foot, above the glowing emitter
-const float CB_P = 14.0;      // seconds per freeze, break, float, return and vanish
+const float CB_P = 18.0;      // seconds per hold, break, float and fuse (Creyon's round 9: slower)
 float cb_ph(){ return mod(uTime - 0.5, CB_P); }
 float cb_btop(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
 // the freezing front climbing from the hilt
-float cb_front(){ return cb_ph() < 6.0 ? -0.5 + (uLength + 2.5)*smoothstep(0.0, 1.6, cb_ph()) : uLength + 2.0; }
+// (on ignition only: after that the slab never vanishes, it bursts and fuses again)
+float cb_front(){ return -0.5 + (uLength + 2.5)*smoothstep(0.0, 1.6, uAge); }
 // 1 while the slab stands
-float cb_held(){ float ph = cb_ph(); return ph < 6.0 || (ph > 11.0 && ph < 13.5) ? 1.0 : 0.0; }
-// how solid the slab is: whole while held, dissolving into steam at the end of the loop
-float cb_slabA(){ float ph = cb_ph(); return cb_held()*(1.0 - smoothstep(12.4, 13.5, ph)); }
+float cb_held(){ float ph = cb_ph(); return ph < 5.0 || ph > 12.2 ? 1.0 : 0.0; }
+// how solid the slab is: whole while held, fading in over the returning shards as they fuse
+float cb_slabA(){ float ph = cb_ph(); return cb_held()*(ph > 12.2 ? smoothstep(12.2, 12.6, ph) : 1.0); }
 // the shards' flight: 0 on the blade, 1 out on their orbit (they burst out, float round the
 // blade, then fly back and fuse into the slab again)
-float cb_out(){ float ph = cb_ph(); return smoothstep(6.0, 6.6, ph)*(1.0 - smoothstep(10.0, 11.0, ph)); }
-float cb_shards(){ float ph = cb_ph(); return step(6.0, ph)*step(ph, 11.0); }
+float cb_out(){ float ph = cb_ph(); return smoothstep(5.0, 5.8, ph)*(1.0 - smoothstep(11.4, 12.4, ph)); }
+float cb_shards(){ float ph = cb_ph(); return step(5.0, ph)*step(ph, 12.6); }
 // the slab's top
 float cb_stop(){ return min(min(cb_front(), uLength + 0.5), cb_btop() + 0.3); }
 // how far the cracks have spread
-float cb_crack(){ float ph = cb_ph(); return clamp(0.15 + smoothstep(3.0, 5.9, ph)*0.85*step(ph, 6.0) + 0.6*uSwing + uClash, 0.0, 1.3); }
+float cb_crack(){ float ph = cb_ph(); return clamp(0.15 + smoothstep(1.5, 4.9, ph)*0.85*step(ph, 5.0) + 0.6*uSwing + uClash, 0.0, 1.3); }
 // the burst: 0 at the break .. 1 when the shards are gone
-float cb_burst(){ return clamp((cb_ph() - 6.0)/1.5, 0.0, 1.0); }
+float cb_burst(){ return clamp((cb_ph() - 5.0)/1.5, 0.0, 1.0); }
 float cb_beat(){ return 0.55 + 0.45*pow(0.5 + 0.5*sin(uTime*2.6), 10.0) + 0.35*pow(0.5 + 0.5*sin(uTime*2.6 - 0.6), 14.0); }
 // the light beating through the hairline cracks at (across, along) on the slab
 float cb_cracks(vec2 f, float px){
@@ -48,7 +49,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   float top = cb_stop();
   if (top < CB_Y0 + 0.2) return o;
   float t = uTime, L = uLength;
-  float sh = smoothstep(5.4, 6.0, cb_ph())*step(cb_ph(), 6.0)*0.05*sin(uTime*70.0);
+  float sh = smoothstep(4.4, 5.0, cb_ph())*step(cb_ph(), 5.0)*0.05*sin(uTime*70.0);
   float w = CB_W + 0.06*(vn(vec2(b.y*0.7, 3.0)) - 0.5);
   w *= 1.0 - 0.35*smoothstep(L - 1.5, L + 0.5, b.y);
   float x = b.x + sh;
@@ -73,13 +74,13 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   rgb += vec3(0.75, 0.82, 0.9)*spec*0.4*(0.6 + 0.4*nz);
   float sheen = halo(b.y - mod(t*6.0, L + 20.0) + 10.0 - u*2.0, 1.4);
   rgb += vec3(0.45, 0.6, 0.7)*sheen*(0.25 + 0.5*fres) + vec3(0.35, 0.5, 0.6)*fres*0.3;
-  rgb = mix(rgb, vec3(0.78, 0.88, 0.94)*(0.6 + 0.4*nz), halo(b.y - cb_front(), 1.3)*0.7*smoothstep(2.6, 1.4, cb_ph()));
+  rgb = mix(rgb, vec3(0.78, 0.88, 0.94)*(0.6 + 0.4*nz), halo(b.y - cb_front(), 1.3)*0.7*smoothstep(2.6, 1.4, uAge));
   float glowIn = (0.5 + 1.5*cb_beat())*(0.5 + 0.9*cb_crack());
   rgb += vec3(0.75, 0.95, 1.0)*cb_cracks(vec2(u, b.y), px)*glowIn*1.2;
   rgb += vec3(0.25, 0.55, 0.8)*halo(u, 0.5)*0.12*glowIn*smoothstep(0.4, 1.2, cb_crack());
   cov *= cb_slabA();
   // reforming: the slab glows where the shards fused
-  rgb += vec3(0.7, 0.92, 1.0)*(1.0 - smoothstep(11.0, 11.8, cb_ph()))*step(11.0, cb_ph())*0.8;
+  rgb += vec3(0.7, 0.92, 1.0)*(1.0 - smoothstep(12.3, 13.1, cb_ph()))*step(12.3, cb_ph())*0.8;
   return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
 }
 // a flying shard of slab: how much it covers the ray; th its depth, sh.x its facet shade,
@@ -113,7 +114,7 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
       float y0 = (0.03 + 0.94*fract(fi*0.381 + 0.07))*L;
       float R = 2.6 + 3.0*h11(fi*5.1);
       // they drift round the blade while out, each at its own pace
-      float drift = (ph - 6.0)*(0.05 + 0.06*h11(fi*2.9))*ou;
+      float drift = (ph - 5.0)*(0.035 + 0.04*h11(fi*2.9))*ou;
       vec3 c = around(0.55 + (R - 0.55)*ou, a0 + drift, y0 + 1.5*(h11(fi*7.3) - 0.5)*ou + 0.5*sin(ph*0.8 + fi)*ou);
       float sz = (0.6 + 0.45*h11(fi*9.1))*(0.35 + 0.65*ou);
       float th; vec2 sh;
@@ -150,7 +151,7 @@ vec3 cb_steam(vec3 ro, vec3 rd){
     float r = 0.9 + 1.6*f;
     float yy = y0 + 1.5*f;
     // at the freezing front the steam billows thick; when it bursts it is blown out
-    float wave = smoothstep(2.6, 1.6, ph);
+    float wave = smoothstep(2.6, 1.6, uAge);
     yy = mix(yy, front - 1.0 + 2.0*h11(fi*1.3), wave*step(fi, 9.0));
     r += 3.5*bu*(1.0 - bu)*4.0*step(0.001, bu);
     vec3 p = around(r, h11(fi*8.9) + 0.05*t, yy);
@@ -181,9 +182,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float dc = rayPt(ro, rd, vec3(0.0, L*0.6, 0.0), ta);
     light += vec3(0.75, 0.95, 1.0)*halo(dc, 1.4)*pow(uClash, 2.0);
   }
+  // round 9: free, the blade blazes with rays and sparks of cold light; the burst and the fuse
+  // each throw a shock ring; held, light leaks from the cracks in thin beams
+  float y0 = L*0.2, y1 = L*0.97;
+  float ph = cb_ph(), free_ = cb_shards()*cb_out();
+  vec3 ice = vec3(0.75, 0.95, 1.0);
+  light += fxRays(ro, rd, px, y0, y1, 14.0, 7.5, 0.6, 3.3, c)*free_;
+  light += fxSparks(ro, rd, px, y0, y1, 20.0, 6.0, 0.9, 1.9, ice)*free_;
+  light += fxArcs(ro, rd, px, y0, y1, 4.0, 4.0, 1.5, 6.6, c)*free_;
+  light += fxAura(ro, rd, y0, y1, 3.0, c)*(0.3 + 0.9*free_);
+  light += fxShock(ro, rd, px, L*0.5, (ph - 5.0)/1.6, 10.0, ice)*1.6;
+  light += fxShock(ro, rd, px, L*0.5, (ph - 12.3)/1.2, 7.0, ice);
+  light += fxRays(ro, rd, px, y0, y1, 6.0, 4.0, 0.9, 8.1, c)*cb_held()*smoothstep(0.3, 1.0, cb_crack());
   return light + cb_steam(ro, rd);
 }
 // the blade: Sol's glow and core from the file, blazing as it breaks free
-float cb_flare(){ float ph = cb_ph(); return 1.0 + 0.9*exp(-max(ph - 6.0, 0.0)*1.5)*step(6.0, ph)*step(ph, 11.0) + 0.3*cb_shards(); }
+float cb_flare(){ float ph = cb_ph(); return 1.0 + 0.9*exp(-max(ph - 5.0, 0.0)*1.5)*step(5.0, ph)*step(ph, 12.4) + 0.3*cb_shards(); }
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*cb_flare(); }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*cb_flare(); }

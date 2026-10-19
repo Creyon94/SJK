@@ -631,9 +631,15 @@ impl LoadedSkin {
     /// Read `def` (the file of unlock `id`), taking its images from `packs`.
     pub(crate) fn new(
         id: &'static str,
-        def: BladeSkinDef,
+        mut def: BladeSkinDef,
         packs: &VirtualFileSystem,
     ) -> Result<Self, String> {
+        // A signature skin keeps its own sounds and heat from its built-in file, whatever an
+        // older pack file of the same skin says (Creyon's round 9: the Sith Alchemy still
+        // hissed with the snake design's sounds).
+        if let Some(signature) = crate::blade_signatures::of(id) {
+            signature.adopt(&mut def);
+        }
         let image =
             |path: &Option<String>, size: [u32; 2], generated: fn(&BladeSkinDef) -> Vec<u8>| {
                 match path {

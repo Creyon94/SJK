@@ -1,10 +1,12 @@
 // Obsidian Edge: Creyon's Blade Lab design, reworked in full. A flat blade of black volcanic glass,
 // as thin as a stock blade, with glassy facets catching the light, white-hot edges crackling along
-// both sides and lava veins pulsing up through the glass. Glowing chips flake off the edges and
-// cool to black as they fly. A swing throws a shower of incandescent chips; a clash shatters a
-// burst of shards off the blade with a white flash; ignition: the glass is forged hot from the hilt.
+// both sides and lava veins pulsing up through the glass. Round it, in 3D, a ring of obsidian
+// shards orbits slowly, black glass with glowing magma edges, magma lightning leaps between the
+// blade and the shards, white-hot beams flash off the edge and the air shimmers with heat. A
+// swing spins the shards out wider; a clash shatters a burst of shards off the blade with a white
+// flash and a shock ring; ignition: the glass is forged hot from the hilt.
 // @full 1
-// @room 6
+// @room 10
 // @solid 1
 
 float ob_w(float y){                      // half width of the flat glass along the blade
@@ -46,29 +48,6 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
     float y = mod(uTime*(9.0 + 3.0*fk) + h11(fk*4.0)*L, L + 4.0) - 2.0;
     float s = mod(fk, 2.0) < 0.5 ? 1.0 : -1.0;
     light += vec3(1.0, 0.9, 0.7)*halo(length(vec2(b.x - s*ob_w(y), b.y - y)), 0.12)*1.5;
-  }
-  // chips flaking off the edges: glowing hot, cooling to dull red then dark as they fly
-  for (int i = 0; i < 16; i++){
-    float fi = float(i);
-    float rate = 0.45 + 0.3*h11(fi*2.1);
-    float ph = uTime*rate + h11(fi*7.7);
-    float cy = floor(ph), f = fract(ph);
-    if (h11(cy*3.1 + fi) > 0.75 + 0.25*max(uSwing, forge)) continue;
-    float s = h11(cy*5.7 + fi) < 0.5 ? -1.0 : 1.0;
-    float y0 = (0.08 + 0.85*h11(cy*1.3 + fi*2.0))*L;
-    vec2 v = vec2(s*(4.0 + 4.0*h11(cy + fi*9.0))*(1.0 + 0.6*uSwing), 1.5*(h11(cy*7.0 + fi) - 0.3));
-    vec2 p = vec2(s*ob_w(y0), y0) + v*f - vec2(0.0, 1.8*f*f);
-    vec2 q = b - p;
-    float an = uTime*(5.0 + 4.0*h11(fi)) + fi;
-    q = vec2(q.x*cos(an) - q.y*sin(an), q.x*sin(an) + q.y*cos(an));
-    float sz = 0.32 + 0.3*h11(fi*3.3);
-    float tri = max(abs(q.x)*0.87 + q.y*0.5, -q.y) - sz*0.5;     // a small triangular flake
-    float heat = 1.0 - smoothstep(0.0, 0.7, f);
-    vec3 hc = mix(vec3(0.5, 0.06, 0.02), mix(vec3(1.0, 0.45, 0.1), vec3(1.0, 0.95, 0.85), smoothstep(0.6, 1.0, heat)), smoothstep(0.0, 0.5, heat));
-    light += hc*(fillD(tri, px)*1.3 + halo(max(tri, 0.0), 0.18)*0.5*heat)*(1.0 - smoothstep(0.75, 1.0, f));
-    // a short glowing streak behind the hot ones
-    vec2 pb = p - normalize(v)*2.2*heat;
-    light += hc*halo(sdSeg(b, pb, p), 0.05)*heat*0.8;
   }
   // clash: a burst of big shards blown off the strike point with a white flash
   if (uClash > 0.01){
@@ -114,4 +93,69 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   glass = mix(glass, lava*(1.2 + 0.8*uSwing), vein*(0.7 + 0.3*sin(uTime*3.0 + b.y*0.4)));
   glass = mix(glass, vec3(1.0, 0.45, 0.1), forge*0.85);
   return vec4(mix(o.rgb, glass, cov), max(o.a, cov*0.98*clamp(uIgn*1.5, 0.0, 1.0)));
+}
+
+// ---- round 9 (Creyon): no flying chips; obsidian shards orbiting in 3D, magma arcs, beams ----
+// a shard of black glass at c: how much of the ray it covers, where (th) and its shading
+// (sh.x facet light, sh.y the glowing edge)
+float ob_shard(vec3 ro, vec3 rd, vec3 c, float sz, float spin, float seed, float px, out float th, out vec2 sh){
+  float d = rayPt(ro, rd, c, th);
+  sh = vec2(0.0);
+  if (d > sz*2.0 + px) return 0.0;
+  vec3 o = ro + rd*th - c;
+  vec2 a = rot(spin + seed*6.0)*o.xy; o = vec3(a, o.z);
+  vec2 b = rot(spin*0.7 + seed*3.0)*o.yz; o = vec3(o.x, b);
+  // a long sharp sliver of glass, pointed at both ends
+  float k = max(abs(o.x)*1.8 + abs(o.y)*0.45, abs(o.z)*3.0) - sz*0.7;
+  sh = vec2(0.5 + 0.5*h21(sign(o.xy) + vec2(seed*7.0, sign(o.z))), halo(abs(k), 0.04 + px*0.8));
+  return clamp(0.5 - k/max(px, 1e-3), 0.0, 1.0);
+}
+// shard i's place round the blade
+vec3 ob_place(float fi){
+  float L = uLength, sw = clamp(uSwing, 0.0, 1.0);
+  float a = h11(fi*1.7) + uTime*(0.05 + 0.04*h11(fi*2.9))*(1.0 + 1.5*sw);
+  float R = 2.4 + 2.2*h11(fi*5.1) + 2.0*sw;
+  float y = (0.18 + 0.78*fract(fi*0.381 + 0.07))*L + 0.8*sin(uTime*0.6 + fi*2.0);
+  return around(R, a, y);
+}
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  vec4 col = vec4(0.0);
+  if (uFx < 0.01 || fxNear(ro, rd, uLength*0.1, uLength) > 8.0) return col;
+  float bestT = 1e5;
+  for (int i = 0; i < 18; i++){
+    float fi = float(i);
+    float th; vec2 sh;
+    float cv = ob_shard(ro, rd, ob_place(fi), 1.2 + 0.7*h11(fi*9.1), uTime*(0.4 + 0.5*h11(fi)) + fi, fi, px, th, sh);
+    if (cv > 0.0 && th < bestT){
+      bestT = th;
+      float pulse = 0.6 + 0.4*sin(uTime*2.0 + fi*1.3);
+      vec3 rgb = vec3(0.03, 0.028, 0.035) + vec3(0.25, 0.27, 0.33)*pow(sh.x, 3.0)*0.6 + vec3(1.0, 0.45, 0.1)*sh.y*1.6*pulse;
+      col = vec4(rgb, cv);
+    }
+  }
+  return col;
+}
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.2, y1 = L*0.97;
+  vec3 hot = vec3(1.0, 0.45, 0.1), white = vec3(1.0, 0.92, 0.8);
+  vec3 col = vec3(0.0);
+  if (fxNear(ro, rd, y0, y1) > 10.0) return col;
+  float ta;
+  // the shards' glow, and magma lightning leaping from the blade to them
+  for (int i = 0; i < 18; i++){
+    float fi = float(i);
+    vec3 p = ob_place(fi);
+    col += hot*halo(rayPt(ro, rd, p, ta), 1.0)*0.12;
+    float k = floor(t*1.3 + h11(fi*3.3)*7.0), q = fract(t*1.3 + h11(fi*3.3)*7.0);
+    if (h11(k*2.7 + fi) > 0.35 + 0.4*sw) continue;
+    float d = bolt3(ro, rd, vec3(0.0, p.y + (h11(k + fi) - 0.5)*3.0, 0.0), p, k + fi*1.7, 0.45);
+    col += boltLight(d, hot, px)*(1.0 - q)*(1.0 - q);
+  }
+  // white-hot beams flashing off the edges
+  col += fxRays(ro, rd, px, y0, y1, 10.0, 6.0 + 2.0*sw, 0.7, 2.3, hot);
+  col += fxAura(ro, rd, y0, y1, 2.8, hot)*0.8;
+  // a clash: a shock ring and a flash
+  col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, white)*1.6;
+  return col*uFx;
 }
