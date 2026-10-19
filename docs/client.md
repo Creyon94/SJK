@@ -3261,13 +3261,26 @@ The client looks for a newer SJK release when it starts and from the Update page
   players in it as its card without a restart (since 10/10/2026). A newer version shows on the main menus' version line
   ("update 2026.1010.1 available"). The check sends the request GitHub needs and
   nothing else; turn it off to send none.
+- That line is clickable (since 19/10/2026, Slash's request;
+  `update::notice` and `update::click_notice`). The SJK UI's main page shows "SJK
+  2026.1010.1 is ready" with an Install button under the version, bottom right; the
+  classic menu's version line reads "update 2026.1010.1 available: click to install".
+  A click starts the download at once, as Install on the Update page does; the line
+  then shows "Downloading the update... 42%" (the SJK UI with a progress bar) and
+  "Installing the update...", and once installed offers Restart, which quits so the
+  new version starts. A folder that cannot update itself offers Download, which opens
+  the release page; an install that fails says so with Details, which opens the
+  Update page with the reason. A failed check (GitHub unreachable) shows nothing.
 - When the check finds a newer release, a card says so once a session at the top of
   the screen, over the menus or a match, the achievements' card
   ([identity.md](identity.md#achievements); since 10/10/2026, Sol's request): "Update
-  available", "SJK 2026.1011.1", "Main menu > Update" and "Install it there; it starts
-  when SJK restarts" (or, for a folder that cannot update itself, "This folder cannot
-  update itself: see its page"), with SJK's emblem in the SJK UI's holo blue and no
-  sound. It waits while the window is away, and the Update page opening takes it back
+  available", "SJK 2026.1011.1", "Click to install" and "Downloads now; it starts
+  when SJK restarts" (or, for a folder that cannot update itself, "Click for its page"
+  and "This folder cannot update itself: see its page"), with SJK's emblem in the SJK
+  UI's holo blue and no sound. While the pointer is free (over the menus, not in a
+  match) a click on the card starts the download, as Install does, and opens the Update
+  page with its progress; for that folder it opens the release page (since 19/10/2026,
+  Slash's request; `GpuState::update_card_pointer`). It waits while the window is away, and the Update page opening takes it back
   (a release found while the page shows gets no card). `debug_update [version] [manual]`
   shows the card for a made-up release (2026.1231.1 without one; `manual` for the
   folder that cannot update itself) and checks and installs nothing.

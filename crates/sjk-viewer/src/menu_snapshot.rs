@@ -1737,7 +1737,7 @@ fn sjk_home_snapshot() {
             blade_name: "blue",
             servers,
             version: "2026.1007.1",
-            update: Some("2026.1008.1"),
+            update: crate::update::Version::new("2026.1008.1").map(crate::update::Notice::Ready),
             seconds: 12.0,
             chat: Some(ChatDock {
                 lines: &chat,

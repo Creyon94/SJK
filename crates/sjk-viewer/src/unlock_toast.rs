@@ -11,11 +11,13 @@
 //!   came from, and where to see it: the large pop-up still waits for the game menu, and
 //!   takes the cards of what it shows away as it opens ([`UnlockToast::withdraw`]);
 //! - a newer SJK release the update check found (`update.rs`), once a session, with
-//!   SJK's emblem, "Update available", the version and where to install it, in the SJK
+//!   SJK's emblem, "Update available", the version and "Click to install", in the SJK
 //!   UI's holo blue and without the sound; the Update page opening takes it away.
 //!
-//! Unlike the large pop-ups it is not modal: it takes no input and pauses nothing, over
-//! play as over the menus. It enters in [`ENTER`] seconds, sliding down and growing to
+//! Unlike the large pop-ups it is not modal: it pauses nothing, over play as over the
+//! menus, and takes no keys. The one input it takes is a click on an update's card while
+//! the pointer is free ([`crate::GpuState::update_card_pointer`]), which starts the
+//! download and opens the Update page. It enters in [`ENTER`] seconds, sliding down and growing to
 //! its size while a ring sweeps round the medallion, light bursts from it (a glow, a
 //! ring of light, sparks) and a glint crosses the card; it holds [`HOLD`] seconds and
 //! fades out in [`LEAVE`]. The light is gold, a holocron's in its tier's colour. Several
@@ -39,7 +41,7 @@ use crate::menu::sjk::{DISPLAY_CENTRE, color, text};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::text::{TextStyle, TextVertex, UiFont};
 use crate::update::Version;
-use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, Rect, TextAlign};
+use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, InputEvent, Rect, TextAlign, Vec2};
 use std::collections::VecDeque;
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::fmt;
@@ -53,8 +55,10 @@ pub(crate) const SOUND_CVAR: &str = "cg_achievementSound";
 pub(crate) const AT_ONCE: usize = 3;
 /// Where a medal's or a holocron's card says it is shown.
 pub(crate) const MENU_HINT: &str = "Open the game menu to see it";
-/// Where the update card says the update is installed.
-pub(crate) const UPDATE_HINT: &str = "Main menu > Update";
+/// What a click on the update card does ([`UnlockToast::update_card_at`]).
+pub(crate) const UPDATE_HINT: &str = "Click to install";
+/// The same for a folder that cannot update itself: the click opens the release page.
+pub(crate) const UPDATE_MANUAL_HINT: &str = "Click for its page";
 /// The console command that shows the update card for a made-up release.
 pub(crate) const UPDATE_COMMAND: &str = "debug_update";
 /// Its line in the command list and browser.
@@ -244,7 +248,8 @@ impl Unlock {
         match self {
             Self::Achievement(kind) => kind.category.name(),
             Self::Medal { .. } | Self::Holocron { .. } => MENU_HINT,
-            Self::Update { .. } => UPDATE_HINT,
+            Self::Update { manual: false, .. } => UPDATE_HINT,
+            Self::Update { manual: true, .. } => UPDATE_MANUAL_HINT,
         }
     }
 
@@ -327,7 +332,7 @@ impl fmt::Display for Description {
                 tier.label
             ),
             Unlock::Update { manual: false, .. } => {
-                formatter.write_str("Install it there; it starts when SJK restarts")
+                formatter.write_str("Downloads now; it starts when SJK restarts")
             }
             Unlock::Update { manual: true, .. } => {
                 formatter.write_str("This folder cannot update itself: see its page")
@@ -357,6 +362,9 @@ pub(crate) struct UnlockToast {
     /// whose card was given this session.
     update_seen: u32,
     update_given: Option<Version>,
+    /// Where the card showing was laid out this frame, for a click on an update's card;
+    /// `None` while none draws.
+    card: Option<Rect>,
     /// A moment held still (seconds after the start), for the off-screen shots.
     #[cfg(test)]
     held: Option<f32>,
@@ -372,6 +380,7 @@ impl Default for UnlockToast {
             ended: None,
             update_seen: 0,
             update_given: None,
+            card: None,
             #[cfg(test)]
             held: None,
         }
@@ -482,7 +491,29 @@ impl UnlockToast {
                 }
             }
         }
-        may_show && self.current.is_some()
+        let draws = may_show && self.current.is_some();
+        if !draws {
+            self.card = None;
+        }
+        draws
+    }
+
+    /// The update card under `position` (window pixels) as last laid out: whether this
+    /// folder must take the release from its page. `None` off the card, while it fades
+    /// out, or while no update card draws.
+    pub(crate) fn update_card_at(&self, position: Vec2) -> Option<bool> {
+        let showing = self.current?;
+        let Unlock::Update { manual, .. } = showing.unlock else {
+            return None;
+        };
+        let leaving = Phase::at(self.elapsed(showing)) == Phase::Leaving;
+        (!leaving && self.card?.contains(position)).then_some(manual)
+    }
+
+    /// Take the update's card away at `now`: it was clicked.
+    pub(crate) fn dismiss_update(&mut self, now: Instant) {
+        self.withdraw(now, |unlock| matches!(unlock, Unlock::Update { .. }));
+        self.card = None;
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
@@ -495,6 +526,7 @@ impl UnlockToast {
             return;
         };
         let t = self.elapsed(showing);
+        self.card = Some(card_rect(viewport, t));
         draw(&mut self.canvas, showing.unlock, t, viewport);
     }
 
@@ -970,6 +1002,33 @@ impl UnlockToast {
 }
 
 impl crate::GpuState {
+    /// A click on the update card while the pointer is free (over the menus): it starts
+    /// the download, as Install does, and opens the Update page with its progress; for a
+    /// folder that cannot update itself it opens the release page. Returns whether the
+    /// card took the event.
+    pub(crate) fn update_card_pointer(&mut self, event: InputEvent) -> bool {
+        let InputEvent::PointerPress {
+            position,
+            button: sjk_ui::PointerButton::Primary,
+        } = event
+        else {
+            return false;
+        };
+        if self.pointer_captured {
+            return false;
+        }
+        let Some(manual) = self.unlock_toast.update_card_at(position) else {
+            return false;
+        };
+        self.unlock_toast.dismiss_update(Instant::now());
+        let _ = crate::update::click_notice();
+        if !manual && let Some(console) = &mut self.console {
+            console.open_update_panel();
+        }
+        self.sync_cursor_policy();
+        true
+    }
+
     /// Move the unlock pop-up on and lay it out over the frame unless `covered` (the
     /// console over the frame, a large pop-up) or the window is away; returns whether it
     /// draws this frame. A newer release the update check found gets its card here.
@@ -1235,6 +1294,36 @@ mod tests {
         assert_eq!(toast.pending(), 1);
         assert!(toast.update(now + GAP, true, false));
         assert_eq!(shown(&toast), Some(kind("first_blood").name().to_string()));
+    }
+
+    /// A click lands on the update's card while it shows, not on another card, before
+    /// it is laid out, nor once it fades.
+    #[test]
+    fn the_update_card_answers_a_click_on_itself() {
+        let viewport = [1920.0, 1080.0];
+        let version = Version::new("2026.1020.1").unwrap();
+        let mut toast = UnlockToast::default();
+        toast.push(Unlock::Update {
+            version,
+            manual: false,
+        });
+        let now = Instant::now();
+        assert!(toast.update(now, true, false));
+        let middle = Vec2::new(960.0, (TOP + HEIGHT * 0.5) * viewport[1] / 1080.0);
+        assert_eq!(toast.update_card_at(middle), None, "not laid out yet");
+        toast.build(viewport);
+        assert_eq!(toast.update_card_at(middle), Some(false));
+        assert_eq!(toast.update_card_at(Vec2::new(4.0, 4.0)), None);
+        toast.held = Some(ENTER + HOLD + 0.1);
+        assert_eq!(toast.update_card_at(middle), None, "fading");
+        toast.held = None;
+        toast.dismiss_update(now);
+        assert_eq!(toast.pending(), 0);
+        assert_eq!(toast.update_card_at(middle), None);
+
+        let mut medal_card = UnlockToast::preview(&[medal(Medal::BugHunter, 1)], 1.0);
+        medal_card.build(viewport);
+        assert_eq!(medal_card.update_card_at(middle), None);
     }
 
     #[test]
