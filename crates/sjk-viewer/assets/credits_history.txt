@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 19/10/2026 | - | Nameplates: no weapon icon beside a duellist's name, where the duel badge sat on it
+- 668aa70 |  | Nameplates leave out the weapon icon while the duel badge shows
 + 19/10/2026 | - | Chat text default 0.85 and a chat line spacing setting (cg_chatBoxLineSpacing)
 - d7f3ad6 |  | Chat text default 0.85 and a chat line spacing setting
 + 19/10/2026 | - | Chat typing field grows with the chat's EternalJK text size
