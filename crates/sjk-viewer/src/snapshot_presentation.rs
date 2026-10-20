@@ -411,6 +411,7 @@ impl GpuState {
         } else if crate::prediction_preview::interpolated::mode(
             self.console.as_ref(),
             session.game_state(),
+            session.compat_profile(),
             &snapshot.player,
         )
         .is_some()

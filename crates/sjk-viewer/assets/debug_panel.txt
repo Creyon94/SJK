@@ -5767,3 +5767,14 @@ test: jof.content 1 with a group downloaded; put a zz_test.pk3 overriding one Jo
 test: in GameData/base; load a map: your texture shows, not JoF's.
 test: Without your pack, JoF's version of that texture shows (over the retail one).
 note: fs_debug 1 logs the mount order: jof/base packs now sit between base packs by name.
+[japro-move-styles]
+area: Gameplay
+title: jaPRO movement styles SJK cannot predict are shown from the server (hub #97/#98)
+change: ps.stats[13] names the style on jaPRO; only Siege, JKA, Swoop and Speed are predicted.
+change: Others (CPM, QW, Q3, WSW, SP...) move as cg_noPredict 1 does; the log names the style.
+change: cg_predictMoveStyles 1 predicts every style as JKA, the earlier behaviour.
+test: On a jaPRO server, /move cpm (or QW): no snap-back; the log says the style once.
+test: /move jka: prediction is back (movement responds without delay).
+test: cg_predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smooth.
+test: On a JA+ or base server nothing changes.
+note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
