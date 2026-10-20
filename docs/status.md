@@ -1,3 +1,14 @@
+## Optional holocron notifications
+
+19/10/2026: `cl_holocronNotifications` is archived with three modes: Off (0), Outside
+duels (1, the default) and Always (2). It controls the live unlock card when a holocron
+arrives during play, including removing a card already showing or queued when the chosen
+mode hides it, without removing the waiting holocron; opening the game menu still shows
+its normal large pop-up. The shared Settings UI exposes the choice under General.
+Verified on x86_64 Linux with Rust 1.99.1: the focused holocron and Settings tests,
+`cargo fmt --all --check`, the locked workspace build and tests, all-target Clippy, and
+the locked release workspace build pass. The behavior has not been exercised against a
+live hub drop.
 ## The chat key always opens global chat
 
 19/10/2026: `messagemode` (Y by default) now always opens the composer on global

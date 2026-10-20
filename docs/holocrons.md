@@ -200,6 +200,11 @@ for a gift, the team's note. It follows the medal pop-up
   pop-up shows them all. When the pop-up opens it takes back the holocron cards still
   showing or waiting. While it shows, the menu under it is neither drawn nor given input. A
   medal on show or waiting goes first.
+- `cl_holocronNotifications` (archived, default 1; Settings > General > Holocron
+  notifications) controls only the live card during play: 0 is Off, 1 shows it Outside
+  duels, and 2 shows it Always. A hidden card already showing or waiting is removed and
+  is not replayed later; the holocron itself still waits and its large pop-up opens
+  normally when the player opens the game menu.
 - Each arrives in a ceremony of the medal's timing and light in the tier's colour (it comes
   down into place, rings and sparks run out, a ring of ticks turns, a glow breathes while it
   waits, the words fade up one group after another) with the multiplayer game's fanfare

@@ -1148,6 +1148,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Holocron notifications",
+        cvar: crate::holocron_popup::NOTIFICATIONS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "SJK chat GIFs",
         cvar: crate::chat_gifs::CVAR,
         kind: ValueKind::Bool,
