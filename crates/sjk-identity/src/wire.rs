@@ -248,13 +248,15 @@ pub struct Opened {
     pub holocron: u64,
     /// Its tier's wire id.
     pub tier: String,
-    /// The (sealed) card it held; `None` when it held a shader instead.
+    /// The (sealed) card it held; `None` when it held a shader or a pile of shards
+    /// instead.
     #[serde(default)]
     pub card: Option<OpenedCard>,
     /// The credits it held.
     #[serde(default)]
     pub credits: u64,
-    /// The shader it held instead of a card (14/10/2026).
+    /// The shader it held instead of a card (14/10/2026), or beside its card: a Solar
+    /// copy of a blade card drops its blade too (20/10/2026), and then both are set.
     #[serde(default)]
     pub unlock: Option<OpenedUnlock>,
     /// The kyber shards it held instead of a card (17/10/2026); 0 for a card or a shader
@@ -290,6 +292,10 @@ pub struct Revealed {
     /// Its edition, as it was sealed.
     #[serde(default)]
     pub edition: String,
+    /// The shader it dropped as it was revealed: a Solar copy of a blade card drops its
+    /// blade (20/10/2026); `None` otherwise, and from older hubs.
+    #[serde(default)]
+    pub unlock: Option<OpenedUnlock>,
 }
 
 /// The hub's answer to `POST /v1/cards/reveal`: the copies revealed (none when no sealed
@@ -1129,6 +1135,42 @@ mod tests {
         assert!(card.card.is_some() && card.unlock.is_none());
         let unlock: Unlock = serde_json::from_str(r#"{"id":"saber_sun"}"#).unwrap();
         assert_eq!(unlock.count, 1);
+    }
+
+    /// A Solar blade card brings its card and its blade together (20/10/2026), in an
+    /// opening and in a reveal; a reveal from an older hub carries no shader.
+    #[test]
+    fn a_solar_blade_card_brings_its_blade_beside_it() {
+        let opened: Opened = serde_json::from_str(
+            r#"{"holocron":10,"tier":"mythical","credits":300,
+                "card":{"id":4,"card":"sjk_blades_007","rarity":"rare","finish":"solar",
+                        "edition":"alpha"},
+                "unlock":{"id":"saber_sun","name":"Sun blade","count":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            opened.card.as_ref().and_then(|card| card.card.as_deref()),
+            Some("sjk_blades_007")
+        );
+        assert_eq!(
+            opened.unlock.as_ref().map(|unlock| unlock.id.as_str()),
+            Some("saber_sun")
+        );
+        let revealed: Vec<Revealed> = serde_json::from_str(
+            r#"[{"id":5,"card":"sjk_blades_007","rarity":"rare","finish":"solar",
+                 "edition":"alpha","unlock":{"id":"saber_sun","name":"Sun blade","count":2}},
+                {"id":6,"card":"sjk_alpha_010","rarity":"legendary","finish":"normal"}]"#,
+        )
+        .unwrap();
+        assert_eq!(
+            revealed[0].unlock,
+            Some(OpenedUnlock {
+                id: "saber_sun".into(),
+                name: "Sun blade".into(),
+                count: 2
+            })
+        );
+        assert_eq!(revealed[1].unlock, None);
     }
 
     use super::*;

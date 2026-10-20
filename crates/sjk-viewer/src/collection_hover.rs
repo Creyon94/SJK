@@ -225,25 +225,32 @@ fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
             if let Some(brings) = face.brings() {
                 lines.push(Line::status(brings));
             }
-            lines.push(Line::status(
-                if face.kind == crate::cards::faces::Kind::Credits {
-                    format!(
-                        "{} card. {}, {}.",
-                        tile.rarity.name,
-                        face.kind.name(),
-                        face.set_name
-                    )
-                } else {
-                    format!(
-                        "{} card. {}, {} {:03} of {}.",
-                        tile.rarity.name,
-                        face.kind.name(),
-                        face.set_name,
-                        face.number,
-                        faces.in_set(&face.set)
-                    )
-                },
-            ));
+            if let Some(drop) = face.solar_drop() {
+                lines.push(Line::status(drop));
+            }
+            lines.push(Line::status(match face.kind {
+                crate::cards::faces::Kind::Credits => format!(
+                    "{} card. {}, {}.",
+                    tile.rarity.name,
+                    face.kind.name(),
+                    face.set_name
+                ),
+                crate::cards::faces::Kind::Blade => format!(
+                    "{} card. {}, {} #{:03}.",
+                    tile.rarity.name,
+                    face.kind.name(),
+                    face.set_name,
+                    face.number
+                ),
+                _ => format!(
+                    "{} card. {}, {} {:03} of {}.",
+                    tile.rarity.name,
+                    face.kind.name(),
+                    face.set_name,
+                    face.number,
+                    faces.in_set(&face.set)
+                ),
+            }));
         }
         (Slot::Sealed, _) => {
             lines.push(Line::how(

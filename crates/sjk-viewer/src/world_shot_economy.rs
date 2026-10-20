@@ -85,6 +85,7 @@ fn twelve() -> Vec<Prize> {
             credits: 10 + holocron % 30,
             shards: 1 + holocron % 4,
             card: None,
+            bonus: None,
         })
     };
     let shader = |holocron: u64, tier: usize, id: &str| {
@@ -249,6 +250,7 @@ fn duel6_sjk_card_pack() {
                     credits,
                     shards: 4,
                     card,
+                    bonus: None,
                 })
             }
         };

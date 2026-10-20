@@ -454,6 +454,16 @@ impl Panel {
                         ),
                         [x, words_y + 22.0],
                     );
+                    // A Solar blade card's blade, under it in its colour (20/10/2026).
+                    if let Some(found) = &card.bonus {
+                        found_line(
+                            self,
+                            frame,
+                            format_args!("+{}", found.name),
+                            [x, words_y + 42.0],
+                            found.colour(),
+                        );
+                    }
                 }
                 Prize::Shards(pile) => {
                     found_line(

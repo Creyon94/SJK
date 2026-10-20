@@ -46,17 +46,21 @@ pub(crate) enum Kind {
     Credits,
     /// A meme of the community (19/10/2026).
     Meme,
+    /// A droppable saber shader (20/10/2026, the SJK Blades collection): its Solar copies
+    /// drop that blade too ([`Face::blade`]).
+    Blade,
 }
 
 impl Kind {
     /// Every kind the client knows, in the order the Cards tab's filter walks them.
-    pub(crate) const ALL: [Self; 6] = [
+    pub(crate) const ALL: [Self; 7] = [
         Self::Community,
         Self::Place,
         Self::Personality,
         Self::Game,
         Self::Credits,
         Self::Meme,
+        Self::Blade,
     ];
 
     fn from_id(id: &str) -> Option<Self> {
@@ -67,6 +71,7 @@ impl Kind {
             "game" => Some(Self::Game),
             "credits" => Some(Self::Credits),
             "meme" => Some(Self::Meme),
+            "blade" => Some(Self::Blade),
             _ => None,
         }
     }
@@ -80,6 +85,7 @@ impl Kind {
             Self::Game => "Jedi Academy",
             Self::Credits => "Credits",
             Self::Meme => "Meme",
+            Self::Blade => "Blade",
         }
     }
 }
@@ -104,6 +110,9 @@ pub(crate) struct Face {
     /// The unlockable a copy of it brings while held (`saber_sun`; 20/10/2026), as the
     /// hub grants it ([`crate::unlockables::CARD_BLADES`]); `None` for most cards.
     pub(crate) grants: Option<String>,
+    /// The saber shader a blade card is of (`saber_sun`; 20/10/2026): the hub drops it
+    /// to whoever finds or reveals a Solar copy. `None` for other cards.
+    pub(crate) blade: Option<String>,
 }
 
 impl Face {
@@ -114,11 +123,27 @@ impl Face {
         Some(format!("Brings the {} while you hold it.", unlockable.name))
     }
 
+    /// What its Solar copies drop, as its hover card and the Cards tab say it ("Its Solar
+    /// copies also drop the Sun blade."), when it is a blade card of an unlockable this
+    /// client knows.
+    pub(crate) fn solar_drop(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.blade.as_deref()?)?;
+        Some(format!(
+            "Its Solar copies also drop the {}.",
+            unlockable.name
+        ))
+    }
+
     /// Where it stands in its set of `of` cards ("010 / 013"), `None` for a credits card:
     /// its number only orders the credits, so none reads as ranked above another (Sol,
-    /// 20/10/2026).
+    /// 20/10/2026). A blade card shows its blade's number alone ("#042"): blade numbers
+    /// skip the blades that never drop, so "of" would not add up.
     pub(crate) fn place(&self, of: usize) -> Option<String> {
-        (self.kind != Kind::Credits).then(|| format!("{:03} / {:03}", self.number, of.max(1)))
+        match self.kind {
+            Kind::Credits => None,
+            Kind::Blade => Some(format!("#{:03}", self.number)),
+            _ => Some(format!("{:03} / {:03}", self.number, of.max(1))),
+        }
     }
 }
 
@@ -138,6 +163,8 @@ struct File {
     artist: String,
     #[serde(default)]
     grants: Option<String>,
+    #[serde(default)]
+    blade: Option<String>,
 }
 
 /// The card file `text` of card `id`, read.
@@ -178,6 +205,7 @@ fn parse(id: &str, text: &str) -> Result<Face, String> {
         },
         art: file.art,
         grants: file.grants.filter(|id| !id.trim().is_empty()),
+        blade: file.blade.filter(|id| !id.trim().is_empty()),
     })
 }
 
@@ -463,6 +491,23 @@ mod tests {
         let later = FILE.replace("\"artist\"", "\"grants\": \"saber_later\", \"artist\"");
         assert_eq!(parse("x", &later).unwrap().brings(), None);
         assert_eq!(face.brings(), None);
+        // A blade card names its shader; its Solar copies drop it.
+        let blade = FILE
+            .replace("\"meme\"", "\"blade\"")
+            .replace("\"artist\"", "\"blade\": \"saber_sun\", \"artist\"");
+        let blade = parse("sjk_blades_001", &blade).unwrap();
+        assert_eq!((blade.kind, blade.kind.name()), (Kind::Blade, "Blade"));
+        assert_eq!(blade.blade.as_deref(), Some("saber_sun"));
+        assert_eq!(
+            blade.solar_drop().as_deref(),
+            Some("Its Solar copies also drop the Sun blade.")
+        );
+        assert_eq!(blade.place(40).as_deref(), Some("#010"));
+        let blank = FILE.replace("\"artist\"", "\"blade\": \" \", \"artist\"");
+        assert_eq!(parse("x", &blank).unwrap().blade, None);
+        let later = FILE.replace("\"artist\"", "\"blade\": \"saber_later\", \"artist\"");
+        assert_eq!(parse("x", &later).unwrap().solar_drop(), None);
+        assert_eq!(face.solar_drop(), None);
         // A field the client does not know yet is read past.
         let later = FILE.replace("\"artist\"", "\"frame\": \"gold\", \"artist\"");
         assert!(parse("x", &later).is_ok());

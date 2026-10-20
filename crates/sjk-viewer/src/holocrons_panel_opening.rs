@@ -20,6 +20,9 @@
 //!   then the kyber shards slide out on the other side and count up (a shader instead of
 //!   a card shows its blade, framed in its tier's colour, and what it is; a pile of kyber
 //!   shards its crystals and how many);
+//! - a Solar blade card brings its blade beside it (20/10/2026): the blade's tile slides
+//!   out on the right with the shards, and its words say "...and the Sun blade drops with
+//!   it!" in place of what the finish is;
 //! - its words fade up: the card's rarity and finish, its edition, what the finish is,
 //!   that it stays sealed until the first set of cards is out, and "1 of 3".
 //!
@@ -72,6 +75,8 @@ const FLIP: [f32; 2] = [1.5, 1.95];
 const FLOURISH: f32 = 0.8;
 const SHARDS_OUT: [f32; 2] = [1.95, 2.35];
 const SHARDS_COUNT: [f32; 2] = [2.05, 2.6];
+/// A Solar blade card's blade sliding out beside the shards (20/10/2026).
+const BONUS_OUT: [f32; 2] = [2.1, 2.5];
 const CARD_WORDS: f32 = 2.55;
 const CARD_ENTRANCE: f32 = 3.1;
 /// The card pack's tiles: their size, their gap from the card and how far the shards'
@@ -132,6 +137,9 @@ pub(crate) struct Shown {
     pub(crate) shards: u64,
     /// The card it is, picked by the hub; `None` while sealed.
     pub(crate) card: Option<String>,
+    /// The shader that came with it: a Solar copy of a blade card drops its blade too
+    /// (20/10/2026); `None` for every other card.
+    pub(crate) bonus: Option<Found>,
 }
 
 impl Shown {
@@ -161,6 +169,7 @@ impl Shown {
             credits: opened.credits,
             shards: opened.shards,
             card: held.card.clone(),
+            bonus: None,
         })
     }
 }
@@ -184,9 +193,27 @@ pub(crate) struct Found {
 }
 
 impl Found {
+    /// The shader `unlock` the hub said holocron `opened` brought; `None` for a tier the
+    /// client does not know. One it does not know still shows, by the hub's name.
+    fn of(opened: &sjk_identity::Opened, unlock: &sjk_identity::OpenedUnlock) -> Option<Self> {
+        let name = if unlock.name.trim().is_empty() {
+            "A new saber shader".to_owned()
+        } else {
+            unlock.name.trim().to_owned()
+        };
+        Some(Self {
+            holocron: opened.holocron,
+            tier: holocrons::Tier::from_id(&opened.tier)?.index,
+            skin: crate::unlockables::blade_skin(&unlock.id),
+            id: unlock.id.clone(),
+            name,
+            count: unlock.count,
+        })
+    }
+
     /// The colour it is shown in: its tier's, or the holocron's for one this client
     /// does not know.
-    fn colour(&self) -> Color {
+    pub(super) fn colour(&self) -> Color {
         self.skin
             .map_or(holocrons::TIERS[self.tier].colour, |skin| {
                 skin.tier.colour()
@@ -218,19 +245,17 @@ impl Prize {
     /// client does not know. A shader it does not know still shows, by the hub's name.
     pub(crate) fn of(opened: &sjk_identity::Opened) -> Option<Self> {
         if let Some(unlock) = &opened.unlock {
-            let name = if unlock.name.trim().is_empty() {
-                "A new saber shader".to_owned()
-            } else {
-                unlock.name.trim().to_owned()
-            };
-            return Some(Self::Shader(Found {
-                holocron: opened.holocron,
-                tier: holocrons::Tier::from_id(&opened.tier)?.index,
-                skin: crate::unlockables::blade_skin(&unlock.id),
-                id: unlock.id.clone(),
-                name,
-                count: unlock.count,
-            }));
+            let found = Found::of(opened, unlock)?;
+            // A card beside it is a Solar blade card bringing its blade (20/10/2026): the
+            // card shows, its blade with it. A card this client cannot show leaves the
+            // blade alone.
+            return Some(match Shown::of(opened) {
+                Some(shown) => Self::Card(Shown {
+                    bonus: Some(found),
+                    ..shown
+                }),
+                None => Self::Shader(found),
+            });
         }
         if opened.card.is_none() && opened.shards > 0 {
             return Some(Self::Shards(Pile {
@@ -339,6 +364,17 @@ pub(crate) struct Played {
     pub(super) entered: bool,
     /// The batch's round these are of.
     pub(super) round: usize,
+}
+
+/// The line under a Solar blade card telling the blade it brought (20/10/2026): "...and
+/// the Sun blade drops with it! Yours now: wear it in the Collection."
+pub(super) fn bonus_line(found: &Found) -> String {
+    let held = match (found.count, found.skin) {
+        (count, _) if count > 1 => format!("You hold {count} of it now."),
+        (_, Some(_)) => "Yours now: wear it in the Collection.".to_owned(),
+        (_, None) => "Update SJK to wear it.".to_owned(),
+    };
+    format!("...and the {} drops with it! {held}", found.name)
 }
 
 /// The cue a card's entrance plays: the medals' fanfare for a Solar finish or a Legendary
@@ -789,18 +825,106 @@ impl Panel {
                 turn,
             );
         }
+        // With a blade beside the shards, the two stand one over the other.
+        let apart = if shown.shards > 0 && shown.bonus.is_some() {
+            PACK_TILE[1] * 0.5 + 12.0
+        } else {
+            0.0
+        };
         let slide = ease(span(SHARDS_OUT));
         if shown.shards > 0 && slide > 0.0 {
             let counted = (shown.shards as f32 * span(SHARDS_COUNT)).round() as u64;
             pack_tile(
                 &mut self.ui,
                 frame,
-                [CARD_X + reach - PACK_SLIDE * (1.0 - slide), middle],
+                [CARD_X + reach - PACK_SLIDE * (1.0 - slide), middle - apart],
                 Currency::Shards,
                 counted,
                 slide,
             );
         }
+        let slide = ease(span(BONUS_OUT));
+        if let Some(found) = shown.bonus.as_ref().filter(|_| slide > 0.0) {
+            self.bonus_tile(
+                frame,
+                [CARD_X + reach - PACK_SLIDE * (1.0 - slide), middle + apart],
+                found,
+                slide,
+                seconds,
+            );
+        }
+    }
+
+    /// The blade a Solar blade card brought (20/10/2026), as a tile of its pack centred on
+    /// `centre` (frame pixels): its blade, framed in its tier's colour, its name and how
+    /// many the player holds.
+    fn bonus_tile(
+        &mut self,
+        frame: &Frame,
+        centre: [f32; 2],
+        found: &Found,
+        alpha: f32,
+        seconds: f32,
+    ) {
+        let s = frame.s;
+        let [width, height] = PACK_TILE;
+        let [left, top] = [centre[0] - width * 0.5, centre[1] - height * 0.5];
+        let colour = found.colour();
+        glow(&mut self.ui, frame, centre, 150.0, colour, 0.22 * alpha);
+        let list = self.ui.draw_list_mut();
+        let _ = list.push(DrawCommand::PushOpacity(alpha));
+        let _ = list.push(DrawCommand::RoundedRect {
+            rect: frame.rect(left + 4.0, top + 10.0, width, height),
+            radius: 18.0 * s,
+            color: color::alpha(color::SPACE, 0.6),
+        });
+        let _ = list.push(DrawCommand::RoundedRect {
+            rect: frame.rect(left, top, width, height),
+            radius: 18.0 * s,
+            color: Color::new(0.04, 0.06, 0.12, 0.95),
+        });
+        let look = self.skins.get(&found.id);
+        let _ = crate::console::collection_panel::swatch::small_swatch(
+            self.ui.draw_list_mut(),
+            frame,
+            [left + 14.0, top + 26.0, width - 28.0, 70.0],
+            look,
+            true,
+            seconds,
+            0.0,
+        );
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: frame.rect(left, top, width, height),
+            radius: 18.0 * s,
+            width: 2.0 * s,
+            color: color::alpha(colour, 0.85),
+        });
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("+{}", found.name),
+            frame.rect(left, top + 108.0, width, 40.0),
+            28.0 * s,
+            colour,
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+        let label = if found.count > 1 {
+            format!("saber shader, x{}", found.count)
+        } else {
+            "saber shader, new".to_owned()
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{label}"),
+            frame.rect(left, top + 158.0, width, 26.0),
+            17.0 * s,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        let _ = self.ui.draw_list_mut().push(DrawCommand::PopOpacity);
     }
 
     /// The card's words, fading up, and the button.
@@ -861,13 +985,18 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Center,
         );
+        // A Solar blade card's blade is told in place of what the finish is.
+        let (about, about_colour) = match &card.bonus {
+            Some(found) => (bonus_line(found), found.colour()),
+            None => (card.finish.about.to_owned(), color::MUTED),
+        };
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{}", card.finish.about),
-            frame.rect(CARD_X - 500.0, ABOUT_Y, 1_000.0, 26.0),
+            format_args!("{about}"),
+            frame.rect(CARD_X - 600.0, ABOUT_Y, 1_200.0, 26.0),
             17.0 * s,
-            fade(color::MUTED),
+            fade(about_colour),
             FontWeight::Regular,
             TextAlign::Center,
         );
@@ -875,6 +1004,12 @@ impl Panel {
             Some(face) if face.face.kind == crate::cards::faces::Kind::Credits => {
                 format!("{}, {}", face.face.kind.name(), face.face.set_name)
             }
+            Some(face) if face.face.kind == crate::cards::faces::Kind::Blade => format!(
+                "{}, {} #{:03}",
+                face.face.kind.name(),
+                face.face.set_name,
+                face.face.number
+            ),
             Some(face) => format!(
                 "{}, {}: card {} of {}",
                 face.face.kind.name(),

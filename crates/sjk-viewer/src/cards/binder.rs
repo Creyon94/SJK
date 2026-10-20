@@ -379,6 +379,7 @@ mod tests {
             artist: "Sol".to_owned(),
             art: String::new(),
             grants: None,
+            blade: None,
         }
     }
 

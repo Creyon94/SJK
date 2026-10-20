@@ -262,8 +262,9 @@ its hover card or an opening (`Face::place` is `None`). The number still makes t
 id and orders the credits in the binder.
 
 A card's kind says what it is about and reads on its strip: `community` (Community),
-`place` (Place), `personality` (Personality), `game` (Jedi Academy), and since
-19/10/2026 `credits` (Credits: the people the project owes) and `meme` (Meme). Its
+`place` (Place), `personality` (Personality), `game` (Jedi Academy), since
+19/10/2026 `credits` (Credits: the people the project owes) and `meme` (Meme), and since
+20/10/2026 `blade` (Blade: a saber shader, [SJK Blades](#sjk-blades)). Its
 rarity is one of `common`, `uncommon`, `rare`, `legendary` and `mythical`. A face whose
 kind or rarity a client does not know is left out on its own (named in the log) while the
 pack's other faces still read: a client from before 19/10/2026 shows no Bishop face, and
@@ -287,6 +288,33 @@ brings a blade adds an entry there and to its file. The Shaders tab's owned line
 reads "Yours since dd/mm/yyyy, with your Sol card" (the face's name, or the card's id
 without one), and its source facts "Holocron drop" and "Sol card".
 
+### SJK Blades
+
+**Since 20/10/2026 (Sol's decision)** a second collection, **SJK Blades** (set
+`sjk_blades`), holds one card for each saber shader holocrons drop (the droppable ones,
+less the medals' blades), of kind `blade`. Its number is the blade's own (Sun is 001),
+and a blade card shows it alone, "#001" (`Face::place`): blade numbers skip the blades
+that never drop, so "001 / 162" would not add up (only credits cards hide theirs). A blade card's file names its shader,
+`"blade": "saber_sun"` (optional, read like `grants`: blank is none, an id the client does
+not know is kept but named nowhere; `Face::blade` in
+[faces.rs](../crates/sjk-viewer/src/cards/faces.rs)).
+
+- **The Solar bonus:** a Solar copy of a blade card also drops its shader to the player, a
+  real drop like a holocron's. The hub does it when the copy is opened (the opening's entry then carries both
+  `card` and `unlock`, the shader in a holocron drop's shape `{"id","name","count"}`) and
+  when a sealed Solar copy is revealed into a blade card (the reveal's entry carries an
+  optional `unlock` of the same shape). Older hubs send neither and older answers still
+  read (`Opened::unlock`, `Revealed::unlock` in
+  [wire.rs](../crates/sjk-identity/src/wire.rs)).
+- **The hub picks the set first:** with a set as large as the droppable shaders, picking
+  evenly among every card of a rarity would almost always land on a blade card, so the
+  hub first picks one of the sets that have a card of the rarity rolled, then a card in
+  it (the hub's rule; the client shows whatever card it is given).
+- **In the client:** a blade card's hover card and its close-up on the Cards tab add "Its
+  Solar copies also drop the Sun blade." (`Face::solar_drop`, for a shader the client
+  knows); the binder's kind filter offers "Kind: Blade" once the packs have one. The
+  opening and the reveal show the blade a Solar copy brought ([The ceremony](#in-the-client)).
+
 - **Where cards are made:** Sol keeps each card's picture and words in `card_import/`
   at the repository's root, which git ignores (`card_import/README.txt` says the format):
   `cards/card1.png` (1020 x 850, the 6:5 art window, framed as it will show) and
@@ -302,8 +330,8 @@ without one), and its source facts "Holocron drop" and "Sol card".
   `identity.key` and mounts it; adding a card is a new pack and a hub restart, no client
   release.
 - **The hub picks:** opening a holocron rolls the copy's rarity and finish as before,
-  then picks a card of that rarity from the catalogue (evenly); a rarity with no card
-  yet stays sealed. `POST /v1/cards/reveal` gives the person's sealed copies of a
+  then picks a card of that rarity from the catalogue (since 20/10/2026 a set first, then
+  a card in it, [SJK Blades](#sjk-blades)); a rarity with no card yet stays sealed. `POST /v1/cards/reveal` gives the person's sealed copies of a
   rarity that has cards a card each (oldest first). Both follow who may open
   holocrons (staff only for now).
 - **Each card has one rarity** (Bishop is Mythical, the Toxiee card Legendary): the
@@ -489,7 +517,12 @@ without one), and its source facts "Holocron drop" and "Sol card".
     hub's economy is off). Then its words: "Rare card, Holo", "Alpha Edition. From a Rare
     Holocron", what the finish is, that it is sealed, "1 of 3", Next or Done. A shader instead of a card shows its
     blade framed in its tier's colour, its name, "Common saber shader. From a Rare
-    Holocron", what it looks like and how many the player holds. A Solar finish or a
+    Holocron", what it looks like and how many the player holds. A Solar blade card's
+    blade (20/10/2026) comes with its card: its tile (the blade framed in its tier's
+    colour, "+Sun blade", "saber shader, new" or "x2") slides out on the right just after
+    the shards' (under it when both came), and in the card's words "...and the Sun blade
+    drops with it! Yours now: wear it in the Collection." (or "You hold 2 of it now.") in
+    the blade's colour takes the place of what the finish is. A Solar finish or a
     Legendary or Mythical card plays the medals' fanfare, another card the unlocks' chime.
   - **Opening more than three**
     ([holocrons_panel_batch.rs](../crates/sjk-viewer/src/holocrons_panel_batch.rs)):
@@ -502,7 +535,8 @@ without one), and its source facts "Holocron drop" and "Sol card".
     colour, with three rainbow bands for Holo; 18/10/2026) or a shader's blade. A grand
     prize plays the fanfare as its strip stops. Then everything found is laid out, the
     finest first, ten to a row, each coming in on its beat, with its name and its
-    credits or how many the player holds, the credits they brought together, and Done.
+    credits or how many the player holds (a Solar blade card adds "+Sun blade" under its
+    credits, in the blade's colour), the credits they brought together, and Done.
   - **Grand finds** are told to everyone: a hub that sends the feed's `finds` (hub branch
     `feat/grand-finds`, not deployed yet) relays a Legendary, Mythical or Solar card, or a
     Legendary or Mythical shader, to every SJK player as a chat line, "Sol opened a
@@ -554,7 +588,8 @@ without one), and its source facts "Holocron drop" and "Sol card".
   - **Reveal N sealed cards** (or R) stands under the grid when the hub lets the player
     open holocrons and the packs have faces of a sealed copy's rarity; it says
     "Revealing..." until the hub answers, then a line beside it says how many were
-    revealed or why not. The arrows (Left and Right a tile, Up and Down a line), Tab and
+    revealed or why not, and the blade Solar blade cards dropped ("1 card revealed, and
+    the Sun blade drops with it!", or "3 cards revealed, and 2 blades drop with them!"). The arrows (Left and Right a tile, Up and Down a line), Tab and
     the pointer choose. The tab's count in the row is the copies held.
 - **The ceremony** shows a card the hub picked with its face, bigger (400 wide) and
   higher, its name as the title, "Legendary, Holo. Alpha Edition. From a Mythical
@@ -681,3 +716,14 @@ two made-up, reusing its pictures) scrolled to a tile in the middle, in 1080p an
 174 cards in six sets for the progress line ("2 more sets"). Not tried: in a running client
 (the motion between the stills, the frame time with a full binder of Solar tiles; each
 shine is one quad, about 470 by 660 pixels up close, a few noise lookups a pixel).
+
+The blade cards (20/10/2026, Windows 11, `personal/blade-cards`): unit tests for the card
+file's `blade` and kind, the wire's opening with a card and a shader together and a reveal
+with and without one, the prize a Solar blade card makes and its line, the reveal's words,
+and every moment of a single opening with a blade card's pack (its shards and blade tiles)
+and of twenty with such cards fitting the canvas in three windows. World shot
+`duel6_sjk_blade_card` (off-screen, duel6, the hub's packs mounted, a made-up "Sun blade"
+card borrowing SJK Alpha 000's picture, as the packs have no blade card yet) was looked at:
+the blade card's pack with its shards and blade tiles sliding out, its words in 1080p and
+4:3, five opened at once laid out, and the card up close on the Cards tab with its hover
+card. Not tried: against the hub's change, in a running client.
