@@ -1215,6 +1215,7 @@ Found the fog bug, ask me about it!"
                 note: String::new(),
                 count: 1,
                 medal: None,
+                card: None,
             }],
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
@@ -1457,6 +1458,7 @@ like this one.",
                     note: String::new(),
                     count: 1,
                     medal: None,
+                    card: None,
                 }],
                 keys: vec!["9a0c51e2b7d34f80".to_owned(), "5d4c3b2a19087f6e".to_owned()],
                 ..profile("9a0c51e2b7d34f80", "^5Creyon")
@@ -2158,6 +2160,7 @@ like this one.",
                 note: "Thanks for testing the blades with us".to_owned(),
                 count: 1,
                 medal: None,
+                card: None,
             };
             let overflowed = |gpu: &GpuState| {
                 gpu.console

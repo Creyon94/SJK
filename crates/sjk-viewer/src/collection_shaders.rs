@@ -63,14 +63,18 @@ enum Fact {
     Icon(char),
 }
 
-/// Where `skin` comes from, as a fact's icon and words: the medal that brings it, a
-/// holocron (it drops), or the SJK team.
+/// Where `skin` comes from, as a fact's icon and words: the medal or the card that brings
+/// it, a holocron (it drops), or the SJK team.
 fn source(skin: &unlockables::Unlockable) -> (char, String) {
     if let Some(medal) = crate::medals::Medal::ALL
         .iter()
         .find(|medal| medal.blade() == Some(skin.id))
     {
         return (symbols::MEDAL, format!("{} medal", medal.name()));
+    }
+    if let Some(card) = unlockables::card_bringing(skin.id) {
+        let name = crate::cards::faces::name_of(card);
+        return (symbols::FINISH[0], format!("{name} card"));
     }
     if skin.droppable {
         (symbols::HOLOCRON, "Holocron drop".to_owned())
@@ -139,20 +143,27 @@ fn card_name(name: &str) -> &str {
 }
 
 /// The owned line of a shader the player holds: since when, and from the team or the
-/// medal that brings it (a medal the client does not know reads as the team).
+/// medal or card that brings it (a medal the client does not know reads as the team, a
+/// card without a face in the packs by its id).
 fn owned_line(grant: &sjk_identity::Unlock) -> String {
     if crate::debug_collectibles::added(grant) {
         return crate::debug_collectibles::NOTE.to_owned();
     }
     let date = crate::medals::date_text(grant.granted);
-    let from = grant
+    let medal = grant
         .medal
         .as_deref()
         .and_then(crate::medals::Medal::from_id)
-        .map_or_else(
-            || "from the SJK team".to_owned(),
-            |medal| format!("with your {} medal", medal.name()),
-        );
+        .map(|medal| format!("with your {} medal", medal.name()));
+    let card = || {
+        grant
+            .card
+            .as_deref()
+            .map(|card| format!("with your {} card", crate::cards::faces::name_of(card)))
+    };
+    let from = medal
+        .or_else(card)
+        .unwrap_or_else(|| "from the SJK team".to_owned());
     let held = if grant.count > 1 {
         format!(", {} held", grant.count)
     } else {
@@ -1202,11 +1213,11 @@ impl Panel {
             return;
         };
         let s = frame.s;
-        // A medal's copy is not the player's to trade.
+        // A medal's or a card's copy is not the player's to trade.
         let held = inputs
             .holdings
             .unlock(skin.id)
-            .filter(|unlock| unlock.medal.is_none())
+            .filter(|unlock| unlock.medal.is_none() && unlock.card.is_none())
             .map_or(0, |unlock| unlock.count);
         let choices = crate::economy::choices(skin, held, shards);
         let now = Instant::now();
@@ -1552,6 +1563,7 @@ mod tests {
             note: String::new(),
             count: 1,
             medal: medal.map(str::to_owned),
+            card: None,
         };
         assert_eq!(owned_line(&grant(None)), "Yours, from the SJK team");
         assert_eq!(
@@ -1575,6 +1587,12 @@ mod tests {
         assert_eq!(held_words("Yours", 1), "Yours");
         assert_eq!(held_words("Worn", 2), "Worn x2");
         assert!(owned_line(&dated).ends_with(", with your Early Tester medal"));
+        let card = sjk_identity::Unlock {
+            id: "saber_sun".to_owned(),
+            card: Some("sjk_unknown_999".to_owned()),
+            ..grant(None)
+        };
+        assert_eq!(owned_line(&card), "Yours, with your sjk_unknown_999 card");
     }
 
     /// Whether two window rectangles share any area.
@@ -1716,6 +1734,7 @@ mod tests {
             note: "a long note from the team ".repeat(8),
             count: 1,
             medal: None,
+            card: None,
         }];
         let font = crate::text::load_modern(1.0, None).expect("Inter").font;
         for viewport in [

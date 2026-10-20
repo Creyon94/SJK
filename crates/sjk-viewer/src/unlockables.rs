@@ -69,6 +69,26 @@ pub(crate) const CREYON: &str = "Creyon";
 /// How to get a shader that holocrons drop ([`Unlockable::how_to_get`]).
 pub(crate) const FROM_HOLOCRONS: &str = "Found in holocrons.";
 
+/// The blades a card brings, `(blade id, card id)`: a key holding a copy of the card holds
+/// the blade with it, and loses it with its last copy, as a medal's blade goes with the
+/// medal ([`crate::medals::Medal::blade`]). The hub decides it from the card file's
+/// `grants` (`docs/cards.md`, "Faces and the first set") and says so in the unlock's `card`; this
+/// mirrors those files so the catalogue knows, without the packs, that such a blade never
+/// drops and why. A new card that brings a blade adds an entry here and to its file.
+pub(crate) const CARD_BLADES: [(&str, &str); 1] = [
+    // Sol's decision, 20/10/2026: the Sun is Sol's own blade, so it comes with his card
+    // (SJK Alpha 000) and no longer drops from holocrons.
+    ("saber_sun", "sjk_alpha_000"),
+];
+
+/// The card that brings blade `id` ([`CARD_BLADES`]), if one does.
+pub(crate) fn card_bringing(id: &str) -> Option<&'static str> {
+    CARD_BLADES
+        .iter()
+        .find(|(blade, _)| *blade == id)
+        .map(|(_, card)| *card)
+}
+
 /// One unlockable of the catalogue.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Unlockable {
@@ -88,7 +108,8 @@ pub(crate) struct Unlockable {
     pub(crate) chroma: bool,
     /// Whether a holocron may drop it (the hub's `droppable`, `docs/unlockables.md`,
     /// "Holocron shader drops"): since 17/10/2026 every shader but those a medal brings
-    /// ([`crate::medals::Medal::blade`]).
+    /// ([`crate::medals::Medal::blade`]), and since 20/10/2026 those a card brings
+    /// ([`CARD_BLADES`]).
     pub(crate) droppable: bool,
     /// The edition it belongs to ([`crate::editions`]): the stamp of when it came.
     pub(crate) edition: &'static str,
@@ -136,11 +157,11 @@ pub(crate) static ALL: [Unlockable; 165] = [
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
         chroma: false,
-        droppable: true,
+        droppable: false,
         edition: crate::editions::ALPHA,
         smith: SOL,
         description: "A white-gold core in an orange corona: flares, prominences arching off it, sparks, a glint at its tip and heat haze.",
-        how_to_get: FROM_HOLOCRONS,
+        how_to_get: "Comes with Sol's card (SJK Alpha 000), for as long as you hold it.",
     },
     Unlockable {
         id: "saber_storm",
@@ -2836,16 +2857,22 @@ mod tests {
     /// drops from holocrons but those a medal brings (no achievement brings one yet), and
     /// its "How to get it" says which. No shader is handed out by the team instead.
     #[test]
-    fn every_shader_but_the_medals_drops() {
+    fn every_shader_but_the_medals_and_the_cards_drops() {
         for skin in blade_skins() {
             let medal = crate::medals::Medal::ALL
                 .iter()
                 .any(|medal| medal.blade() == Some(skin.id));
+            let card = card_bringing(skin.id).is_some();
+            assert!(!(medal && card), "{}: brought twice", skin.id);
             assert_eq!(
-                skin.droppable, !medal,
-                "{}: a medal's shader never drops, every other one does",
+                skin.droppable,
+                !medal && !card,
+                "{}: a medal's or a card's shader never drops, every other one does",
                 skin.id
             );
+            if card {
+                assert!(skin.how_to_get.contains("card"), "{}", skin.id);
+            }
             assert_eq!(
                 skin.how_to_get == FROM_HOLOCRONS,
                 skin.droppable,
@@ -2853,6 +2880,16 @@ mod tests {
                 skin.id
             );
         }
+    }
+
+    #[test]
+    fn every_card_blade_is_a_blade_skin() {
+        for (blade, card) in CARD_BLADES {
+            assert!(blade_skin(blade).is_some(), "{blade}");
+            assert!(!card.is_empty());
+        }
+        assert_eq!(card_bringing("saber_sun"), Some("sjk_alpha_000"));
+        assert_eq!(card_bringing("saber_glitch"), None);
     }
 
     #[test]
@@ -2891,6 +2928,7 @@ mod tests {
             note: "Thanks".into(),
             count: 1,
             medal: None,
+            card: None,
         };
         let me = Profile {
             credits: 0,

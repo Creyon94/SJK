@@ -699,13 +699,18 @@ impl Panel {
         } else {
             rarity_odds(tile.rarity, faces)
         };
+        // A card that brings a blade says so first, a line more before the keys.
+        let (last, lines) = match face.and_then(|face| face.face.brings()) {
+            Some(brings) => (format!("{brings} {last}"), 3),
+            None => (last, 2),
+        };
         centred_lines(
             &mut self.ui,
             frame,
-            &last,
+            last.trim_end(),
             [SHOWCASE_X + 40.0, y, SHOWCASE_WIDTH - 80.0],
             72,
-            2,
+            lines,
             15.0,
             color::QUIET,
         );

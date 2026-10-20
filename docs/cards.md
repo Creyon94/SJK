@@ -252,7 +252,7 @@ was "Sol lore" before):
 
 | Card | Name | Rarity | Kind | Art |
 | --- | --- | --- | --- | --- |
-| `sjk_alpha_000` | Sol | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it; card zero, because SJK starts with Sol's time, effort and money (a set's numbers start at 0 since 19/10/2026) |
+| `sjk_alpha_000` | Sol | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it; card zero, because SJK starts with Sol's time, effort and money (a set's numbers start at 0 since 19/10/2026); brings the Sun blade while held (20/10/2026) |
 | `sjk_alpha_001` | Bishop | Mythical | Credits | Sol (AI-assisted): a rusted helmet portrait of Bishop, the author of JKR, which SJK forked |
 | `sjk_alpha_002` | Creyon, the Saber Smith | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it |
 | `sjk_alpha_003` | The Early Team (Lumaya, Rollembones, Kushina) | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it |
@@ -273,6 +273,22 @@ rarity is one of `common`, `uncommon`, `rare`, `legendary` and `mythical`. A fac
 kind or rarity a client does not know is left out on its own (named in the log) while the
 pack's other faces still read: a client from before 19/10/2026 shows no Bishop face, and
 the Toxiee card's copies read "Unknown card sjk_alpha_010" there under their sealed back.
+
+A card file may name an unlockable a copy brings, `"grants": "saber_sun"` (optional,
+since 20/10/2026, Sol's decision: the Sun blade comes only with Sol's card 000). The key
+holds that unlockable for as long as it holds a copy of the card and loses it with the
+last one, as a medal's blade goes with the medal: the hub lists it in the profile's
+`unlocks` with `"card": "sjk_alpha_000"` (`Unlock::card` in
+[wire.rs](../crates/sjk-identity/src/wire.rs), absent from older hubs), and such a blade
+never drops from holocrons ([unlockables.md](unlockables.md#holocron-shader-drops)). The
+client reads `grants` into the face (`Face::grants`, [faces.rs](../crates/sjk-viewer/src/cards/faces.rs)):
+the card's hover card and its close-up on the Cards tab add "Brings the Sun blade while
+you hold it.", for an unlockable the client knows. The catalogue keeps the same pairs in
+`unlockables::CARD_BLADES` ([unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)),
+so it knows a card's blade never drops and names it without the packs; a new card that
+brings a blade adds an entry there and to its file. The Shaders tab's owned line then
+reads "Yours since dd/mm/yyyy, with your Sol card" (the face's name, or the card's id
+without one), and its source fact "Sol card".
 
 - **Where cards are made:** Sol keeps each card's picture and words in `card_import/`
   at the repository's root, which git ignores (`card_import/README.txt` says the format):

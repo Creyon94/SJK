@@ -263,8 +263,8 @@ mod tests {
         assert_eq!(of_hub(&wire(vec![0, 2, 3, 4, 5])), None, "a zero");
     }
 
-    /// Medal blades never take part; every shader holocrons drop does (since 17/10/2026
-    /// every one but the medals' drops, so the team's Sun too).
+    /// Medal and card blades never take part; every shader holocrons drop does (every one
+    /// but the medals' and, since 20/10/2026, the Sun, which only Sol's card brings).
     #[test]
     fn only_what_holocrons_drop_and_no_medal_brings_is_traded() {
         for medal in crate::medals::Medal::ALL {
@@ -272,7 +272,7 @@ mod tests {
                 assert!(!in_trade(unlockables::find(id).unwrap()), "{id}");
             }
         }
-        assert!(in_trade(unlockables::find("saber_sun").unwrap()));
+        assert!(!in_trade(unlockables::find("saber_sun").unwrap()));
         assert!(in_trade(unlockables::find("saber_tidal").unwrap()));
         assert!(
             unlockables::blade_skins()

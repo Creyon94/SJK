@@ -637,6 +637,7 @@ fn made_up_faces(
                 lore: "A made-up card for a world shot.".to_owned(),
                 artist: "Sol".to_owned(),
                 art: String::new(),
+                grants: None,
             });
         }
     }

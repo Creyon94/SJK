@@ -1238,6 +1238,7 @@ mod tests {
             note: "Thanks for testing the blade".into(),
             count: 1,
             medal: None,
+            card: None,
         }
     }
 

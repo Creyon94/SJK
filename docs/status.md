@@ -1,3 +1,14 @@
+## The Sun blade comes with Sol's card
+
+20/10/2026, `personal/card-blade`, based on `main` (Sol's decision): the Sun blade (001)
+no longer drops from holocrons; it comes only with Sol's card, SJK Alpha 000, while the
+player holds a copy, as medal blades do ([cards.md](cards.md#faces-and-the-first-set)).
+The client reads the unlock's `card` (`Unlock::card`) and a card file's `grants`, keeps
+the blade-to-card pairs in `unlockables::CARD_BLADES`, and says it in the Shaders tab
+("with your Sol card"), the card's hover and its close-up ("Brings the Sun blade while you
+hold it."). 161 of 165 shaders drop. Verified on Windows 11: unit tests. Not verified: in
+a game, against the hub's matching change.
+
 ## Every Blade Lab blade drops
 
 20/10/2026, `personal/all-blades-drop`, based on `main` (Sol's rule: no loot is handed out
