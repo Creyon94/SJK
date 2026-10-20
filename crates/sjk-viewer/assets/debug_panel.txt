@@ -34,6 +34,16 @@ test: As staff, Experimental: showcase tools on: ghost record test works.
 test: Without a staff key: amstatus shows 1.4 SJK; ghost list says it is a staff tool.
 note: Staff status comes from the hub; known only after joining, cjp_client waits a rejoin.
 
+[creator-tools]
+area: Console & chat
+title: The creator makes and removes staff from the Staff page
+change: Staff page Overview: Make staff / Remove staff beside Verify, for the creator only.
+change: Acts on a second press; the hub refuses it from anyone but the creator.
+test: As the creator, choose a player: Make staff, press again; their flags say staff.
+test: Remove staff on them the same way; their flags no longer say staff.
+test: On your own player the button is not there.
+note: Needs the hub branch creator-tools deployed and the creator command run on you.
+
 [creator-status]
 area: Console & chat
 title: SJK CREATOR mark above staff, out of staff's reach

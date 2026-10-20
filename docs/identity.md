@@ -920,7 +920,12 @@ creator shows as the creator: the player card's pill reads SJK CREATOR (sun oran
 wider) instead of SJK TEAM, the sender card's status line says "SJK player, SJK
 creator", and the Chat page's message line starts "Creator" instead of "Staff". The hub
 refuses staff's tools on the creator (an error `creator`), so other staff cannot mute,
-unverify, take from or merge them, nor delete their chat messages.
+unverify, take from or merge them, nor delete their chat messages. The creator alone
+makes players staff or takes it away from inside the game (since 20/10/2026, Sol's
+call): on the Staff page's Overview, beside Verify, their own **Make staff** or
+**Remove staff** button acts on a second press (`StaffRequest::SetStaff`, hub `POST
+/v1/staff/staff`, logged and undoable by the owner). It never shows on the creator's
+own player, and admin panel access stays the operator's.
 
 The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
 UI's look) finds players down its left (a name or part of one, colour codes ignored; a

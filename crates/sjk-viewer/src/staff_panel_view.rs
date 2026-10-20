@@ -128,6 +128,8 @@ impl Panel {
         self.shown.unlocks = vec![false; crate::unlockables::ALL.len()];
         self.shown.holocron_rows = 0;
         self.shown.verified = target.as_ref().is_some_and(|profile| profile.verified);
+        self.shown.staff = target.as_ref().is_some_and(|profile| profile.staff);
+        self.shown.creator = inputs.me.is_some_and(|me| me.creator);
         self.shown.linked.clear();
         self.shown.log_rows.clear();
         self.shown.crash_groups.clear();
@@ -958,6 +960,8 @@ impl Panel {
             (
                 "Flags",
                 match (profile.staff, profile.verified) {
+                    _ if profile.creator && profile.verified => "creator, verified".to_owned(),
+                    _ if profile.creator => "creator".to_owned(),
                     (true, true) => "staff, verified".to_owned(),
                     (true, false) => "staff".to_owned(),
                     (false, true) => "verified".to_owned(),
@@ -1049,6 +1053,26 @@ impl Panel {
             VERIFY_TOKEN,
         );
         self.order.push(VERIFY_TOKEN);
+        // The creator's own: make the player staff or take it away, on a second press.
+        // Never shown on the creator, who is always staff.
+        if self.shown.creator && !profile.creator {
+            let confirming = self.confirming(SET_STAFF_TOKEN);
+            kit::button(
+                &mut self.ui,
+                frame,
+                [MIDDLE_X + 182.0, y + 6.0, 170.0, 40.0],
+                match (confirming, profile.staff) {
+                    (true, _) => "Press again",
+                    (false, true) => "Remove staff",
+                    (false, false) => "Make staff",
+                },
+                false,
+                true,
+                self.focus == SET_STAFF_TOKEN,
+                SET_STAFF_TOKEN,
+            );
+            self.order.push(SET_STAFF_TOKEN);
+        }
         y += 66.0;
         kit::heading(&mut self.ui, frame, MIDDLE_X, y, MIDDLE_WIDTH, "Names worn");
         y += 20.0;

@@ -971,6 +971,10 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             "/v1/staff/verify",
             json!({ "key_id": key_id, "verified": verified }),
         ),
+        StaffRequest::SetStaff { key_id, staff } => (
+            "/v1/staff/staff",
+            json!({ "key_id": key_id, "staff": staff }),
+        ),
         StaffRequest::Merge { key_id, from } => {
             ("/v1/staff/merge", json!({ "key_id": key_id, "from": from }))
         }
@@ -1892,6 +1896,16 @@ mod tests {
             (
                 "/v1/staff/merge",
                 json!({"key_id": "0123456789abcdef", "from": "fedcba9876543210"})
+            )
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::SetStaff {
+                key_id: "0123456789abcdef".into(),
+                staff: false,
+            }),
+            (
+                "/v1/staff/staff",
+                json!({"key_id": "0123456789abcdef", "staff": false})
             )
         );
         assert_eq!(
