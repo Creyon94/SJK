@@ -188,20 +188,20 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // ---- where the white holds: beams of pure light pushing back, and its motes ----
     let ya = min(lv + 2.0, y1 - 2.0);
     col += fxMotes(ro, rd, px, ya, y1, 1.0, 5.0, 30.0, 0.07, 3.6, BK_WHITE) * part(2.0);
-    col += fxAura(ro, rd, ya, y1, 3.0, BK_WHITE) * 0.5 * part(2.0);
+    col += fxAura(ro, rd, ya, y1, 3.0, BK_WHITE) * 0.2 * part(2.0);
     // round 16 (Creyon: the pure part needs more): beams of pure light flash out of it and push
     // back, and where red meets white the two fight in a spray of sparks of both colours
-    col += fxRays(ro, rd, px, ya, y1, 6.0, 3.2, 0.9, 7.7, BK_WHITE) * part(2.0);
+    col += fxRays(ro, rd, px, ya, y1, 6.0, 3.2, 0.9, 7.7, BK_WHITE) * 0.55 * part(2.0);
     col += fxSparks(ro, rd, px, lv - 0.8, lv + 0.8, 10.0, 2.6, 1.6, 2.9, BK_WHITE) * part(2.0);
     red += fxSparks(ro, rd, px, lv - 0.8, lv + 0.8, 8.0, 2.2, 1.4, 5.3, BK_RED) * part(0.0);
     let dfront = rayPt(ro, rd, vec3(0.0, lv, 0.0), &ta);
-    col += BK_WHITE * halo(dfront, 0.9) * 0.6 * part(2.0);
+    col += BK_WHITE * halo(dfront, 0.9) * 0.3 * part(2.0);
     // the front: a ring of struggle where red meets white
     // the aura: red round the bleeding part, white above
     let dlo = fxNear(ro, rd, 0.0, lv);
     let dhi = fxNear(ro, rd, lv, L);
     red += BK_RED * halo(dlo, 2.5) * 0.3;
-    col += BK_WHITE * halo(dhi, 3.0) * 0.3;
+    col += BK_WHITE * halo(dhi, 3.0) * 0.1;
     // the corruption stays red whatever colour the blade is worn in (uKeep, Creyon's round 12)
     uKeep += red * uFx;
     return col * uFx;
@@ -217,8 +217,10 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let crack = halo(e, 0.06) * m;
     // round 12 (Creyon): the pure part takes its wearer's colour, the corruption stays red
     // round 15 (Creyon: some blades glowed so much their effects hardly showed): 70 %
-    uKeep += (l * BK_RED * 1.3 * m * 0.9 + BK_RED * crack * l * 1.5) * 0.7;
-    return l * BK_WHITE * (1.0 - 0.9 * m) * 0.7;
+    uKeep += (l * BK_RED * 1.3 * m * 0.9 + BK_RED * crack * l * 1.5) * 0.9;
+    // round 18 (Creyon: the pure light grew over the red part): the pure part at half, the
+    // corruption stronger
+    return l * BK_WHITE * (1.0 - 0.9 * m) * 0.45;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {

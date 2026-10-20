@@ -46,10 +46,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxAura(ro, rd, yt - 2.5 - 2.0 * open_, yt + 2.5 + 2.0 * open_, 0.9 + 1.4 * open_, v) * open_ * 2.6 * part(0.0);
     fx += fxFlare(ro, rd, vec3(0.0, yt, 0.0), px, 0.25, 2.0 + 3.0 * open_, 2.0, 1.5708, vec3<f32>(0.9, 0.5, 1.0)) * open_ * part(0.0);
     // a dark storm churning round it
-    fx += fxSmoke(ro, rd, y0, y1, 4.2, 0.6, 3.8, vec3<f32>(0.22, 0.1, 0.32)) * 1.5 * part(1.0);
+    fx += fxSmoke(ro, rd, y0, y1, 4.2, 0.6, 3.8, vec3<f32>(0.22, 0.1, 0.32)) * 1.1 * part(1.0);
     fx += fxSmoke(ro, rd, y0, y1, 2.6, -0.8, 7.1, vec3<f32>(0.35, 0.08, 0.25)) * 0.8 * part(1.0);
     // dust pulled up into the rift
-    fx += fxFall(ro, rd, px, y0, y1, 2.6, 18.0, -6.0, 0.5, 0.0, 6.6, red) * 0.9 * part(2.0);
+    fx += fxFall(ro, rd, px, y0, y1, 2.6, 18.0, -6.0, 0.5, 0.0, 6.6, red) * 0.6 * part(2.0);
     return fx * uFx;
 }
 
@@ -102,7 +102,7 @@ fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let from_ = around(3.5, a - t * 0.22, yc - 3.0 + 2.0 * h11(k * 5.3));
         let to = vec3(0.0, yc - 1.0 + 3.0 * h11(k * 7.7), 0.0);
         let d = bolt3(ro, rd, from_, to, k * 1.7 + floor(t * 20.0) * 0.3, 0.45);
-        fx += boltLight(d, vec3<f32>(0.85, 0.45, 1.0), px) * (1.0 - q / 0.25) * 1.3;
+        fx += boltLight(d, vec3<f32>(0.85, 0.45, 1.0), px) * (1.0 - q / 0.25) * 0.9;
     }
     return fx * uFx;
 }

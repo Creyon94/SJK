@@ -1,3 +1,10 @@
+## Creyon's blades, round 18
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): the Bleeding Kyber's pure light
+softened so its red part shows, and the busiest blades softened without removing anything
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 18). Checked on Linux x86_64: every
+signature module validates and the ignored GPU test renders all 128; not yet seen in Creyon's game.
+
 ## Creyon's blades, round 17, and Sol's tier review
 
 20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): Creyon's game test of round 16

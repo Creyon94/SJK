@@ -2101,6 +2101,12 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   redone as a lattice of panels turning row by row round its core. The Deflector Shield's dome
   closes over the tip. No figures in Creyon's blades (Dac Reef's fish, Puzzle Holocron's cube
   and Royal Naboo's jewels are gone).
+- **Round 18 (Creyon, 21/10/2026: soften, do not remove).** The Bleeding Kyber's pure part draws its
+  light at 45 % (was 70 %), its aura, beams and front at about half, and its red corruption
+  stronger, so the pure light no longer grows over the red part. Every layer of Mustafar Eruption
+  is kept and softened (flames, drips, sparks, fountains, ash); Event Horizon's rings, Exegol Rift's
+  storm, dust and vortex bolts, Wraithlight's spirit fire and frost, Beskar Forge's flames,
+  Starkiller Frost's mist and Holdo Maneuver's engines and haze are each a little softer.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

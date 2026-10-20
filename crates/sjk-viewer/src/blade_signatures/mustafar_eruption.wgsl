@@ -50,15 +50,15 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             var sl: f32;
             let d = raySeg(ro, rd, vec3(x, yh, 0.0), vec3(x + side * 0.15, yt, 0.0), &sl);
             let c = mix(vec3<f32>(1.0, 0.85, 0.45), vec3<f32>(0.75, 0.12, 0.02), sl);
-            fx += (c * halo(d, max(0.07 - 0.04 * sl, px)) * 1.8 + fire * halo(d, 0.35) * 0.35 * (1.0 - sl)) * (1.0 - smoothstep(0.85, 1.0, q)) * part(0.0);
+            fx += (c * halo(d, max(0.07 - 0.04 * sl, px)) * 1.8 + fire * halo(d, 0.35) * 0.35 * (1.0 - sl)) * (1.0 - smoothstep(0.85, 1.0, q)) * 0.8 * part(0.0);
         }
     }
     // molten drops dripping off and falling past the hilt
-    fx += fxFall(ro, rd, px, y0, y1, 1.8, 16.0, 7.0, 0.9, 0.0, 6.1, hot) * 1.4 * part(0.0);
+    fx += fxFall(ro, rd, px, y0, y1, 1.8, 16.0, 7.0, 0.9, 0.0, 6.1, hot) * 0.9 * part(0.0);
     // flames licking up the blade, thin and bright near it
-    fx += fxSmoke(ro, rd, y0, y1, 2.0, 7.0, 4.7, vec3<f32>(1.0, 0.42, 0.08)) * 2.6 * part(1.0);
-    fx += fxSmoke(ro, rd, y0, y1, 1.1, 9.0, 2.2, vec3<f32>(1.0, 0.7, 0.3)) * 2.0 * part(1.0);
-    fx += fxSparks(ro, rd, px, y0, y1, 10.0 + 10.0 * sw, 4.5, 0.6, 7.7, fire) * part(1.0);
+    fx += fxSmoke(ro, rd, y0, y1, 2.0, 7.0, 4.7, vec3<f32>(1.0, 0.42, 0.08)) * 1.5 * part(1.0);
+    fx += fxSmoke(ro, rd, y0, y1, 1.1, 9.0, 2.2, vec3<f32>(1.0, 0.7, 0.3)) * 1.1 * part(1.0);
+    fx += fxSparks(ro, rd, px, y0, y1, 6.0 + 8.0 * sw, 4.5, 0.6, 7.7, fire) * 0.8 * part(1.0);
     // lava fountains: molten drops thrown up off the blade, falling back in arcs
     var lta: f32;
     if fxNear(ro, rd, y0, y1) < 6.0 {
@@ -72,13 +72,13 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let tt = q * 1.6;
             let p = vec3(side * (0.5 + 2.2 * tt), y + 6.0 * tt - 4.5 * tt * tt, 0.0);
             let d = rayPt(ro, rd, p, &lta);
-            fx += mix(vec3<f32>(1.0, 0.85, 0.5), fire, q) * (halo(d, max(0.12, px)) * 1.6 + halo(d, 0.5) * 0.3) * (1.0 - q) * part(1.0);
+            fx += mix(vec3<f32>(1.0, 0.85, 0.5), fire, q) * (halo(d, max(0.12, px)) * 1.2 + halo(d, 0.5) * 0.2) * (1.0 - q) * part(1.0);
         }
     }
     // dark ash smoke billowing up, ash flakes drifting down
-    fx += fxSmoke(ro, rd, y0, y1, 3.8, 2.0, 1.4, vec3<f32>(0.3, 0.2, 0.18)) * 1.2 * part(2.0);
-    fx += fxSmoke(ro, rd, y0, y1, 4.0, 2.4, 8.2, vec3<f32>(0.5, 0.3, 0.22)) * 0.5 * part(2.0);
-    fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 1.8, 0.2, 0.8, 1.5, 0.6, 3.6, vec3<f32>(0.5, 0.45, 0.42)) * part(2.0);
+    fx += fxSmoke(ro, rd, y0, y1, 3.8, 2.0, 1.4, vec3<f32>(0.3, 0.2, 0.18)) * 0.8 * part(2.0);
+    fx += fxSmoke(ro, rd, y0, y1, 4.0, 2.4, 8.2, vec3<f32>(0.5, 0.3, 0.22)) * 0.35 * part(2.0);
+    fx += fxFlakes(ro, rd, px, y0, y1, 3.5, 12.0, 1.8, 0.2, 0.8, 1.5, 0.6, 3.6, vec3<f32>(0.5, 0.45, 0.42)) * 0.7 * part(2.0);
     return fx * uFx;
 }
 

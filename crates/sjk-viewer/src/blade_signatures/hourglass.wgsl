@@ -77,8 +77,8 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // round 17 (Creyon: the pour drew a line above the tip): no pour; round 16's side steam is gone too
     col += fxMotes(ro, rd, px, top * 0.2, top * 0.9, 0.7, 3.0, 20.0, 0.06, 2.6, vec3<f32>(1.0, 0.55, 0.2)) * part(1.0);
     // round 13 (Creyon: more forge): forge flames licking up its lower half, forge sparks
-    col += fxSmoke(ro, rd, top * 0.2, top * 0.62, 1.9, 7.5, 3.3, vec3<f32>(1.0, 0.4, 0.06)) * 2.5 * part(1.0);
-    col += fxSmoke(ro, rd, top * 0.2, top * 0.5, 1.0, 9.0, 7.9, vec3<f32>(1.0, 0.72, 0.3)) * 1.8 * part(1.0);
+    col += fxSmoke(ro, rd, top * 0.2, top * 0.62, 1.9, 7.5, 3.3, vec3<f32>(1.0, 0.4, 0.06)) * 1.8 * part(1.0);
+    col += fxSmoke(ro, rd, top * 0.2, top * 0.5, 1.0, 9.0, 7.9, vec3<f32>(1.0, 0.72, 0.3)) * 1.3 * part(1.0);
     col += fxAura(ro, rd, top * 0.2, top * 0.55, 1.6, vec3<f32>(1.0, 0.4, 0.08)) * 0.6 * part(1.0);
     col += fxSparks(ro, rd, px, top * 0.2, top * 0.7, 8.0 + 10.0 * sw, 3.5, 0.8, 4.4, vec3<f32>(1.0, 0.5, 0.12)) * part(1.0);
     // round 15: the steel's cold glint, a star of light flashing on its upper half now and then (it
