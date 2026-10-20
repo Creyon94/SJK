@@ -1,3 +1,18 @@
+## JA+ anti-kiss
+
+20/10/2026, `feat/ja-plus-anti-kiss`, based on `origin/main` `b79186bf`: the
+archived, default-off `cg_antiAmKiss` follows JoF EternalJK by putting Force Push
+once in the next user command when a JA+ player puts the local player in the
+kiss-victim animation. Sending one command per interaction avoids repeatedly
+disturbing the initiator's animation. The switch appears under Gameplay > JA+
+protection in both menu styles and does nothing on other servers, while
+spectating or while following another player. On x86_64 Linux with Rust 1.99.1,
+the five focused policy/cvar tests and 104 Settings tests pass, as do formatting,
+the locked workspace build and test suite (viewer: 2641 passed, 148 ignored),
+all-target Clippy with the existing project warnings, and the locked release
+viewer and dedicated-server build. Anti-kiss's one-shot behavior was exercised
+live on JoF JA+.
+
 ## The chat key always opens global chat
 
 19/10/2026: `messagemode` (Y by default) now always opens the composer on global

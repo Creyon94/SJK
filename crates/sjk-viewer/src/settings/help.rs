@@ -687,6 +687,10 @@ const HELP: &[(&str, &str)] = &[
         "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
     ),
     (
+        crate::anti_emote::KISS_CVAR,
+        "On JA+ servers, immediately use Force Push when another player puts you in the amkiss victim animation. Off by default.",
+    ),
+    (
         crate::map_edits::CVAR,
         "Shows the SJK team's fixes to maps: props removed, models added and textures swapped. Only what you see changes. On by default.",
     ),

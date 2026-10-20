@@ -8,6 +8,8 @@
 
 /// Usercmd `generic_cmd` value used by codemp's `sv_saberswitch` command.
 pub(crate) const GENCMD_SABER_SWITCH: u8 = 1;
+/// Usercmd `generic_cmd` value used by codemp's `force_throw` command.
+pub(crate) const GENCMD_FORCE_THROW: u8 = 5;
 /// Usercmd `generic_cmd` value used by codemp's `saberAttackCycle` command.
 pub(crate) const GENCMD_SABER_ATTACK_CYCLE: u8 = 26;
 
@@ -17,7 +19,7 @@ pub(crate) const GENERIC_COMMANDS: [(&str, u8); 31] = [
     ("engage_duel", 2),
     ("force_heal", 3),
     ("force_speed", 4),
-    ("force_throw", 5),
+    ("force_throw", GENCMD_FORCE_THROW),
     ("force_pull", 6),
     ("force_distract", 7),
     ("force_rage", 8),

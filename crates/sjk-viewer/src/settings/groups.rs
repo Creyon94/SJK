@@ -309,6 +309,7 @@ impl Group {
                 crate::duel_visibility::HIDE_OTHERS_CVAR,
                 crate::duel_visibility::CORPSES_CVAR,
                 crate::duel_visibility::PICKUPS_CVAR,
+                crate::anti_emote::KISS_CVAR,
                 crate::map_edits::CVAR,
                 crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
@@ -519,6 +520,7 @@ impl Group {
                 ("assetbrowser", "Asset packs"),
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
+                (crate::anti_emote::KISS_CVAR, "JA+ protection"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
                 (crate::brush_view::CVAR, "Map tools"),
             ],
@@ -550,6 +552,7 @@ impl Group {
             Self::Advanced(Advanced::Gameplay) => &[
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
+                (crate::anti_emote::KISS_CVAR, "JA+ protection"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
             ],
             Self::Advanced(Advanced::Interface) => &[
