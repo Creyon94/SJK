@@ -1548,11 +1548,12 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 area: Rendering & effects
 title: The Sun blade is a signature blade
 change: Sunrise ignition (red to white gold, dawn flare), sunset switch-off (cools to deep red).
-change: Slow breathing, sunspots on the core, streamers, solar wind, widest warm aura.
-change: Clash tears a plasma loop off; strongest light; deeper hum (needs the hub's new pack).
+change: Slow breathing, sunspots, coronal rain down glowing loops, 4 prominences, solar wind.
+change: Clash: an eclipse's diamond ring; strongest light; deeper hum (needs the hub's pack).
 test: Wear the Sun, switch on: the blade rises red then warms; a flare at the emitter.
 test: Switch off: the blade cools to deep red as it goes in.
-test: Clash with someone: a loop of plasma swells out on one side and breaks off.
+test: No straight spikes leave the blade; beads of light slide down loops beside it.
+test: Clash with someone: a dark moon crosses the hit spot, a ring and a diamond flash.
 test: Collection > Shaders > Sun parts: Sunspots and corona, Prominences, Sparks, Glint, Haze.
 note: Older choices (prominences/sparks/glint/haze off) still apply.
 

@@ -1,11 +1,14 @@
 // Sun: Sol's own blade, blade 001, a star held in the hand. A white-gold core under an orange
 // corona that breathes slowly, calm and huge where the Starforge is busy: dark sunspots drift
-// along the core, long thin corona streamers reach out and fade, a solar wind of pale motes
-// rides out to the tip, and the widest warm glow of any blade. It lights as a sunrise, deep red
-// at first and warming to white gold as it grows, with a dawn flare at the emitter once it is
-// out; it goes out as a sunset, cooling to deep red as it slides back in. A swing makes the
-// corona swell and the wind blow harder; a clash tears a coronal mass ejection off the blade,
-// a loop of plasma that arcs away and breaks off.
+// along the core, more prominences than any of Sol's blades arch off it, a solar wind of pale motes
+// rides out to the tip, and the widest warm glow of any blade. Coronal rain: faint magnetic
+// loops stand off the blade, and plasma cooling at their tops slides back down them to the
+// blade in glowing beads, as on the real Sun. It lights as a sunrise, deep red at first and
+// warming to white gold as it grows, with a dawn flare at the emitter once it is out; it goes
+// out as a sunset, cooling to deep red as it slides back in. A swing makes the corona swell
+// and the wind blow harder; a clash is a total eclipse's diamond ring: a dark moon covers the
+// blade where it lands, the corona shows as a ring round it and, as the moon slides off, one
+// blinding point flares on the ring's edge.
 // @part Sunspots and corona
 // @arcs Prominences
 // @motes Sparks
@@ -49,7 +52,9 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   vec3 o = g*(0.92 + 0.16*br + 0.3*uSwing);
   // the sunspots darken the glow next to the core too, so they show from afar
   o = mix(o, o*vec3(1.0, 0.45, 0.15)*0.6, su_spot(b.y)*0.7*exp(-pow(b.x/max(r*0.8, px), 2.0)));
-  o += g*1.4*cl*exp(-pow((b.y - su_clash_y())/4.0, 2.0));
+  // under the moon of the diamond ring the blade goes dark
+  float under = 1.0 - smoothstep(SU_MOON*0.9, SU_MOON*1.02, length(b - su_moon_at()));
+  o *= 1.0 - 0.97*under*su_moon();
   // the rising sun: a white-hot edge climbing the blade while it grows
   float rising = 1.0 - smoothstep(0.7, 1.0, uIgn);
   o += SU_WHITE*lvl(g)*1.6*exp(-pow((b.y - top)/2.2, 2.0))*rising;
@@ -60,38 +65,63 @@ vec3 sig_core(vec3 c, vec2 b, float px){
   // sunspots: the core runs deep orange where they drift past
   vec3 o = mix(c, c*vec3(1.0, 0.42, 0.12)*0.7, su_spot(b.y)*0.85);
   o *= 0.95 + 0.1*su_breath();
+  float under = 1.0 - smoothstep(SU_MOON*0.9, SU_MOON*1.02, length(b - su_moon_at()));
+  o *= 1.0 - 0.97*under*su_moon();
   return su_sky(o);
 }
 
-// a coronal mass ejection: a loop of plasma torn off the blade at height y on side a, a its
-// age (0 to 1): it swells out, its top breaks away and drifts off as a fading blob
-vec3 su_cme(vec3 ro, vec3 rd, float px, float y, float a, float side){
+// coronal rain: loop k (0 to 2) of magnetic field standing off the blade, each living about
+// seven seconds and reborn elsewhere; plasma beads slide down it from its top to both feet,
+// faster as they fall, glowing gold and cooling to red as they near the blade
+vec3 su_rain(vec3 ro, vec3 rd, float px, float k){
   float s, ta;
   vec3 col = vec3(0.0);
-  float ex = 1.0 - exp(-3.5*a);
-  float H = 0.6 + 8.5*ex;
-  float dy = 3.0 + 3.5*ex;
+  float per = 6.5 + 1.5*h11(k*3.7);
+  float cyc = uTime/per + h11(k*5.1 + uSeed);
+  float n = floor(cyc), q = fract(cyc);
+  float life = smoothstep(0.0, 0.15, q)*(1.0 - smoothstep(0.8, 1.0, q));
+  float span = 4.0 + 3.0*h11(n*2.3 + k);
+  float y0 = uLength*(0.12 + 0.62*h11(n*1.7 + k*4.1));
+  float H = 2.6 + 1.8*h11(n*3.1 + k);
+  // to one side of the blade's picture or the other
+  float side = h11(n*4.9 + k*2.2) < 0.5 ? 0.25 : 0.75;
+  // the loop itself: a faint arch, brightest at its top
   float best = 1e3, bs = 0.0;
-  vec3 prev = around(0.4, side, y - dy*0.5);
+  vec3 prev = around(0.35, side, y0);
   for (int j = 1; j <= 10; j++){
     float f = float(j)/10.0;
-    float lift = H*sin(3.1416*f);
-    vec3 q = around(0.4 + lift, side + 0.03*sin(3.1416*f*2.0 + a*4.0), y - dy*0.5 + dy*f);
-    float d = raySeg(ro, rd, prev, q, s);
+    vec3 p = around(0.35 + H*sin(3.1416*f), side, y0 + span*f);
+    float d = raySeg(ro, rd, prev, p, s);
     if (d < best){ best = d; bs = (float(j) - 1.0 + s)/10.0; }
-    prev = q;
+    prev = p;
   }
-  // the loop's top tears first, so its middle fades as the ends hold on, then all of it goes
-  float torn = smoothstep(0.35, 0.7, a)*exp(-pow((bs - 0.5)/0.18, 2.0));
-  float life = (1.0 - smoothstep(0.55, 1.0, a))*(1.0 - torn);
-  float fl = 0.6 + 0.6*vn(vec2(bs*10.0 - a*6.0, side*9.0));
-  col += (mix(SU_WHITE, SU_GOLD, a)*halo(best, max(0.1 + 0.12*fl, px))*1.6*fl + SU_ORANGE*halo(best, 0.8)*0.5 + SU_RED*halo(best, 1.8)*0.15)*life;
-  // the torn-off plasma flying on outward
-  vec3 blob = around(0.4 + H*1.15 + 6.0*smoothstep(0.35, 1.0, a), side, y);
-  float db = rayPt(ro, rd, blob, ta);
-  float gone = smoothstep(0.35, 0.5, a)*(1.0 - smoothstep(0.7, 1.0, a));
-  col += (SU_GOLD*halo(db, max(0.5, px))*1.3 + SU_ORANGE*halo(db, 1.6)*0.45)*gone;
-  return col;
+  float top = sin(3.1416*bs);
+  col += (SU_ORANGE*halo(best, max(0.08, px))*0.55 + SU_RED*halo(best, 0.6)*0.2)*(0.4 + 0.6*top);
+  // the beads: each starts at the top and falls to one foot, accelerating
+  for (int i = 0; i < 6; i++){
+    float fi = float(i);
+    float g = fract(uTime*(0.22 + 0.08*h11(fi*1.9 + k)) + h11(fi*6.7 + k*3.3));
+    float fall = g*g;
+    float f = 0.5 + (h11(fi*2.9 + k) < 0.5 ? -0.5 : 0.5)*fall;
+    vec3 p = around(0.35 + H*sin(3.1416*f), side, y0 + span*f);
+    float d = rayPt(ro, rd, p, ta);
+    float bead = smoothstep(0.0, 0.1, g)*(1.0 - smoothstep(0.85, 1.0, g));
+    vec3 c = mix(SU_GOLD, SU_RED, smoothstep(0.2, 1.0, fall));
+    col += (mix(SU_WHITE, c, 0.5)*halo(d, max(0.09, px))*1.6 + c*halo(d, 0.4)*0.35)*bead;
+  }
+  return col*life;
+}
+
+// the diamond ring's moon: radius in units, and how much of it covers the blade (0 to 1)
+const float SU_MOON = 2.4;
+float su_moon(){
+  float a = 1.0 - clamp(uClash, 0.0, 1.0);
+  return uClash > 0.01 ? smoothstep(0.0, 0.06, a)*(1.0 - smoothstep(0.35, 0.75, a)) : 0.0;
+}
+// where the moon's disc is: it slides across, so it has just left the ring's lit edge
+vec2 su_moon_at(){
+  float a = 1.0 - clamp(uClash, 0.0, 1.0);
+  return vec2(-0.6 + 2.2*a, su_clash_y() - 0.4 + 1.2*a);
 }
 
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
@@ -103,8 +133,6 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 
   // the widest warm glow of any blade, breathing with the star
   col += fxAura(ro, rd, y0, y1, 4.6 + 0.6*br + 1.2*sw, SU_ORANGE)*(1.4 + 0.5*br)*corona;
-  // corona streamers: long thin rays reaching out slowly and fading, longer in a swing
-  col += fxRays(ro, rd, px, y0, y1, 7.0, 6.5 + 2.0*sw, 0.11, 3.7, SU_GOLD)*(0.55 + 0.25*br)*corona;
   // the solar wind: pale motes riding out along the blade to the tip
   col += fxMotes(ro, rd, px, y0, y1 + 1.0, 0.9, 4.2, 16.0, 0.07 + 0.05*sw, 1.9, mix(SU_GOLD, SU_WHITE, 0.4))*(0.8 + 0.6*sw)*corona;
 
@@ -115,16 +143,27 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     col += fxAura(ro, rd, 0.0, L, 2.0 + 6.0*smoothstep(0.25, 1.4, uAge), mix(SU_WHITE, SU_GOLD, 0.5))*dawn*1.6;
   }
 
-  // the clash: a white flash and a coronal mass ejection torn off the blade
-  if (cl > 0.01){
-    float a = 1.0 - cl;
-    float yc = su_clash_y();
+  // coronal rain on three loops
+  for (int k = 0; k < 3; k++){
+    col += su_rain(ro, rd, px, float(k))*corona;
+  }
+
+  // the clash: a total eclipse's diamond ring
+  float moon = su_moon();
+  if (moon > 0.001){
+    float a = 1.0 - clamp(uClash, 0.0, 1.0);
+    vec2 m = su_moon_at();
     float ta;
-    float dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), ta);
-    col += SU_WHITE*(halo(dc, 1.2)*2.2 + halo(dc, 3.0)*0.6)*cl*cl;
-    // to one side of the blade's picture (a loop towards the camera would hide its arch)
-    float side = h11(uSeed*7.1) < 0.5 ? 0.25 : 0.75;
-    col += su_cme(ro, rd, px, yc, a, side)*uFx;
+    float dm = rayPt(ro, rd, vec3(m.x, m.y, 0.0), ta);
+    // the moon's disc hides the aura, the rain and the wind behind it
+    col *= 1.0 - smoothstep(SU_MOON*1.02, SU_MOON*0.75, dm)*moon;
+    // the corona round the moon: a thin bright ring and a soft streaming glow outside it
+    float streams = 0.7 + 0.3*vn(vec2(atan(rd.y, rd.x)*3.0, a*2.0));
+    col += (SU_WHITE*halo(abs(dm - SU_MOON), max(0.12, px))*1.6 + mix(SU_WHITE, SU_GOLD, 0.5)*halo(max(dm - SU_MOON, 0.0), 1.4)*0.7*streams)*moon;
+    // the diamond: one blinding point on the ring's edge as the moon slides off
+    float diamond = exp(-pow((a - 0.32)/0.11, 2.0));
+    vec3 at = vec3(m.x - SU_MOON*0.7, m.y - SU_MOON*0.7, 0.0);
+    col += fxFlare(ro, rd, at, px, 0.35, 11.0, 4.0, 0.3, SU_GOLD)*diamond*2.2;
   }
   return su_sky(col);
 }
