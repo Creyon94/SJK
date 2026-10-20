@@ -872,9 +872,10 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::duel_visibility::PICKUPS_CVAR,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-japlus")]
     Setting {
         label: "Push away kiss attempts (JA+)",
-        cvar: crate::anti_emote::KISS_CVAR,
+        cvar: sjk_mod_japlus::anti_kiss::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {

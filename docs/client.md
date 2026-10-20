@@ -1010,14 +1010,6 @@ profiles locally. No extra content download is required. See
 
 ## EternalJK animation fixes
 
-### JA+ anti-kiss
-
-`cg_antiAmKiss` is archived and off by default. On a JA+ server it uses Force
-Push once when another player puts the local player in the kiss-victim
-animation; spectators and a player being followed never act. It follows JoF
-EternalJK's `CG_DrawActiveFrame` rule (`cg_view.c:2635-2640`) and appears under
-Settings > Gameplay > JA+ protection in every menu style.
-
 Players' animations are remapped before they are shown, as EternalJK's `CG_Player`
 does: without a saber in hand, two-handed, dual and staff runs and walks play as the
 ordinary ones; the old Bryar's `BOTH_STAND1` (servers without `g_fixWeaponAttackAnim`,

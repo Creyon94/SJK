@@ -11,7 +11,8 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   `japlus.loginServer1`, `jof.commands` (Sol's choice, 11/10/2026). Typing the id
   and a dot, then Tab, lists the mod's commands. Server commands keep their real
   names (`amtele`, `amkick`, emotes), so binds made for other clients still work;
-  a mod only completes and describes them.
+  a mod only completes and describes them. A setting JoF EternalJK already has keeps
+  its name (`cg_antiAmKiss`), so a config made for it still works.
 - **Loading.** A mod's commands exist only on the servers it is made for: JA+
   tools on every JA+ server, JoF tools on JoF servers (a JoF server is a JA+ one, so
   both load there). Joining one loads the mod and leaving it unloads it, and Tab
@@ -93,6 +94,27 @@ commands: the admin set, clan commands, duels and emotes, from EternalJK's `gcmd
 Before the mod, `serverconfig` and `pluginDisable` were core commands. A bare
 `serverconfig` is now sent to the server like any unknown command, which
 jaPRO/TaystJK servers answer. TaystJK's completion lists it.
+
+### Anti-kiss
+
+[anti_kiss.rs](../crates/sjk-mod-japlus/src/anti_kiss.rs) is JoF EternalJK's
+`cg_antiAmKiss` (`CG_DrawActiveFrame`, `cg_view.c:2635-2640`; SJK #190, Lukas). Archived
+and off by default, under Settings > Gameplay > JA+ protection in every menu style.
+When another player's `amkiss` puts you in the kiss-victim animation (`BOTH_KISSEE`, in
+the server's player state or the predicted one), it uses Force Push once: one push per
+interaction, so the initiator's animation is not disturbed over and over. Spectators and
+a player following another never push. Its table, `SERVER_CASES`, holds the families it
+answers on (JA+, JoF's included) with the evidence.
+
+The client only bridges it ([anti_emote.rs](../crates/sjk-viewer/src/anti_emote.rs)):
+each frame, while JA+ tools are loaded and the setting is on, it hands the mod the
+player state and the predicted animations, and puts the generic command the mod names
+(`force_throw`) in the next user command, as a bound key would; a command the player
+pressed that frame goes first. With `mod_japlus 0`, on another server or in a build
+without `mod-japlus` it does nothing (the setting does not exist in such a build). Unit
+tests cover the detection, the latch and the server table in the mod, and the client
+pins the mod's animation, follow and spectator numbers to its own tables. Lukas checked
+the push live on a JoF JA+ server before the move into the mod; not checked since.
 
 ### Passwords
 

@@ -12,6 +12,10 @@ the locked workspace build and test suite (viewer: 2641 passed, 148 ignored),
 all-target Clippy with the existing project warnings, and the locked release
 viewer and dedicated-server build. Anti-kiss's one-shot behavior was exercised
 live on JoF JA+.
+At the merge (20/10/2026) it moved into the JA+ tools mod
+([mods.md](mods.md#anti-kiss)): it now acts only while JA+ tools are loaded, and a
+command the player pressed the same frame goes first. The moved code passes its unit
+tests on Windows 11; it has not been exercised in a game since the move.
 
 ## The chat key always opens global chat
 
