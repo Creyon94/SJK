@@ -419,7 +419,7 @@ not know is kept but named nowhere; `Face::blade` in
   back.
 - **The lore fills its box** (20/10/2026, Sol's request: a short lore left most of
   the box empty): the box keeps its size and place, and the lore takes the largest text
-  size, up to 1.4 times the smallest, whose lines fit the room seven smallest lines
+  size, up to 1.25 times the smallest, whose lines fit the room seven smallest lines
   take, tried in eight steps (`look::lore_fit`); it stands centred in the box, both
   ways. A lore of one or two lines is centred, a longer one reads from the left; one
   that needs more than seven lines at the smallest size is cut at seven. Every face

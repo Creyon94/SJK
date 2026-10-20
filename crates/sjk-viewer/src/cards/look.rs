@@ -54,7 +54,7 @@ const LORE_LINES: usize = 7;
 /// A short lore's text grows up to this many times its smallest size, tried in this
 /// many steps down to it, to fill its box ([`lore_fit`]); one of this many lines or
 /// fewer is centred.
-const LORE_GROW: f32 = 1.4;
+const LORE_GROW: f32 = 1.25;
 const LORE_STEPS: usize = 8;
 const LORE_CENTRED: usize = 2;
 /// A small card's name ([`Card::label`]): its text size against the card's width, and
@@ -820,7 +820,7 @@ pub(crate) mod tests {
     fn a_lore_grows_to_fill_its_box() {
         let short = lore_fit("A walking battery that says its own name. Gonk.", 1.0);
         assert_eq!(short.grow, LORE_GROW);
-        assert_eq!((short.lines, short.align), (2, TextAlign::Center));
+        assert_eq!((short.lines, short.align), (1, TextAlign::Center));
         let lore = format!("{0} {0}", face().lore);
         let medium = lore_fit(&lore, 1.0);
         assert!(medium.grow > 1.0 && medium.grow < LORE_GROW, "{medium:?}");
