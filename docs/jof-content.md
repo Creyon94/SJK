@@ -24,8 +24,11 @@ the game's `base`. SJK never writes to the game's installation.
 
 While `jof.content` is on, that folder is one more content root in the search paths
 ([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs),
-`set_extra_root`): inside each game folder it comes right after the installation and
-the content home. So `jof/base` mounts after `GameData/base` and before
+`set_extra_root`), standing in for the launcher's files in the installation: inside
+each game folder its PK3s sort by name among the installation's, as if they were in
+the same folder (`sjk_vfs::pk3_search_order_merged`). So `jof/base` packs take the
+place the launcher's layout gives them in `GameData/base`: above `assets0.pk3`, below a
+player's own `zz_*.pk3` (Kushina's report, hub #100), and all below
 `fs_basegame`/`fs_game`. The roots are read at every mount, so turning the switch on or
 off, or a finished download, applies from the next map, with no restart. The JoF
 packs also show in the asset browser, and server downloads (`cl_allowDownload`) see

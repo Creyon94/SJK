@@ -5746,3 +5746,14 @@ test: Click an emote: the window closes and you play it; others with it see it.
 test: Arrows and Page Down move the gold choice and scroll; the mouse wheel scrolls.
 test: Ctrl+A, Ctrl+V and a held Backspace work in the search.
 note: In the main menu (no server) emotes answers Join a server to emote.
+
+# ---- Bug reports, 20/10/2026 ----
+[jof-content-order]
+area: Rendering & effects
+title: JoF content sorts among your own packs instead of above them (hub #100)
+change: jof/base PK3s mount by name among GameData/base's, as JoF's launcher installs them.
+change: A zz_ pack of yours in base wins over JoF's again; JoF's still win over assets0-3.
+test: jof.content 1 with a group downloaded; put a zz_test.pk3 overriding one JoF texture
+test: in GameData/base; load a map: your texture shows, not JoF's.
+test: Without your pack, JoF's version of that texture shows (over the retail one).
+note: fs_debug 1 logs the mount order: jof/base packs now sit between base packs by name.
