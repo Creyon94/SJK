@@ -119,14 +119,19 @@ impl fmt::Display for Endpoint {
     }
 }
 
-/// Per-session limiter; independent of whether cl_showtimedelta is enabled.
+/// Per-session limiter; independent of whether cl_showtimedelta is enabled. The
+/// line is written only with `cg_showMiss` on (EternalJK's, `cg_predict.c:1534`): a
+/// JA+ grapple's release misses by design and filled players' logs (hub report #72).
 #[derive(Default)]
 pub(crate) struct MissLog {
     next: Option<Instant>,
+    /// `cg_showMiss`.
+    pub(crate) show: bool,
 }
 
 impl MissLog {
-    /// Count every large miss; print at most four lines per second without formatting allocation.
+    /// Count every large miss; with [`Self::show`], print at most four lines per second
+    /// without formatting allocation.
     pub(crate) fn observe(
         &mut self,
         magnitude: f32,
@@ -141,7 +146,7 @@ impl MissLog {
         counts.large += 1;
         counts.large_deferred += u64::from(old.deferred || replay.deferred);
         counts.large_frozen += u64::from(old.frozen || replay.frozen);
-        if self.due(Instant::now()) {
+        if self.show && self.due(Instant::now()) {
             eprintln!(
                 "prediction miss: magnitude={magnitude:.2} old=[{old}] \
                 replay=[{replay}] server=[{server}]"
@@ -155,5 +160,25 @@ impl MissLog {
         }
         self.next = Some(now + Duration::from_millis(250));
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Hub report #72: misses are counted always, written only with `cg_showMiss`.
+    #[test]
+    fn misses_are_counted_and_written_only_with_show_miss() {
+        let endpoint = Endpoint::new(&MovementState::default());
+        let mut log = MissLog::default();
+        let mut counts = Counts::default();
+        log.observe(17.0, endpoint, endpoint, endpoint, &mut counts);
+        assert_eq!(counts.large, 1);
+        assert!(log.next.is_none(), "nothing written");
+        log.show = true;
+        log.observe(17.0, endpoint, endpoint, endpoint, &mut counts);
+        assert_eq!(counts.large, 2);
+        assert!(log.next.is_some(), "written");
     }
 }

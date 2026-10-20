@@ -5756,8 +5756,61 @@ test: Click an emote: the window closes and you play it; others with it see it.
 test: Arrows and Page Down move the gold choice and scroll; the mouse wheel scrolls.
 test: Ctrl+A, Ctrl+V and a held Backspace work in the search.
 note: In the main menu (no server) emotes answers Join a server to emote.
-
 # ---- Bug reports, 20/10/2026 ----
+
+[toys-count]
+area: Menus & settings
+title: Collection: the Toys tab counts every toy (3/3, not 1/1)
+change: The Toys tab's count was still 1 of 1 from when Illuminate was alone. Hub report 108.
+test: Open the Collection: the Toys tab reads 3/3 (Illuminate, the box, Order 66).
+
+[dropdown-own-row]
+area: Menus & settings
+title: Settings: a long open list no longer shows its row's value through it
+change: A list pushed over its own row (the away emote's) hides that row's value. Report 101.
+test: SJK UI Settings > Sound > Emotes, open Away emote: no value text shows through the list.
+test: Open a short list (e.g. a two-choice row): its row's value still shows beside the list.
+note: A list taller than the screen still runs off the bottom (no scrolling in lists yet).
+
+[snd-restart-emotes]
+area: Audio
+title: snd_restart brings emote, box and Order 66 sounds back
+change: Their sounds registered once and were lost with snd_restart's new output. Report 99.
+test: Join, play a dance with music, snd_restart in the console, dance again: the music plays.
+test: Same with the cardboard box's music and the Order 66 toy's sound.
+
+[userinfo-window]
+area: Gameplay
+title: Userinfo keeps to the server's 3 changes in 6 s: the RGB slider's last colour arrives
+change: A long slider drag sent one userinfo a second; the server kept an early one. Kushina.
+change: Changes wait for the server's window; a "Too many info changes" warning sends again.
+test: On a server, drag the saber RGB green slider for several seconds, then let go.
+test: Within about 6 s another client sees your blade in the colour picked, not blue.
+test: Change name twice quickly: both arrive, the second after a short wait.
+
+[show-miss]
+area: Console & chat
+title: Prediction misses go to the log only with cg_showMiss 1
+change: Every large miss was logged (a JA+ grapple's release each time). Hub report 72.
+test: On a JA+ server, use the grapple and land: no "prediction miss" line in the console.
+test: cg_showMiss 1 and again: the line shows (at most four a second).
+
+[duel-rewards-wait]
+area: HUD
+title: Rewards wait for the end of a private duel
+change: Achievement, holocron and medal pop-ups wait while you are in a private duel. Report 81.
+test: In a private duel, earn an achievement (or have a holocron drop): no pop-up.
+test: When the duel ends the pop-up plays, with its sound.
+
+[dance-music-keeps]
+area: Audio
+title: Dances keep their music: idle is not away, a moment unseen is not gone
+change: A dance left running made the dancer away after cg_awayIdle; its music went quiet.
+change: A dancer missing from one snapshot ended their emote; now only after 2 s. Report 107.
+test: Start a looping SJK dance and touch nothing for over 3 minutes: the music keeps playing.
+test: Alt-tab while dancing: it still goes quiet for others (cg_awayAltTab).
+test: Several players dance close together: nobody's music stops while they stay put.
+
 [jof-content-order]
 area: Rendering & effects
 title: JoF content sorts among your own packs instead of above them (hub #100)

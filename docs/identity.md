@@ -870,8 +870,9 @@ slides down and grows into place in under half a second while a gold ring sweeps
 round the medallion, light bursts from it (a glow, a ring of light, sparks), its edge
 flares and a glint crosses the card; it holds five seconds and fades out. Several
 unlocks queue and show one after another. It waits while the console is open, a
-large pop-up shows or the window is away (alt-tabbed out or minimised; since 10/10/2026,
-Sol's request), and its clock runs only while it is drawn: a card hidden half way
+large pop-up shows, the window is away (alt-tabbed out or minimised; since 10/10/2026,
+Sol's request) or the player is in a private duel (since 20/10/2026, hub report #81: the
+rewards play after the duel), and its clock runs only while it is drawn: a card hidden half way
 resumes where it was when the player comes back, and a long frame (a hitch, a map
 loading, a minimised window drawing nothing) moves it on by a tenth of a second at
 most, so no card is spent unseen. Each pop-up plays `sound/interface/secret_area.mp3`, the

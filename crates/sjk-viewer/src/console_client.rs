@@ -482,8 +482,7 @@ impl crate::GpuState {
             let origin = self
                 .live_world
                 .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
-                .map(|entity| entity.current().transform.translation)
-                .unwrap_or_default();
+                .map(|entity| entity.current().transform.translation);
             state
                 .active
                 .start(slot, &id, def.as_ref(), origin, std::time::Instant::now());
@@ -661,7 +660,8 @@ impl crate::GpuState {
                 .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
                 .map(|entity| entity.current().transform.translation)
         };
-        let here = position(own).unwrap_or_default();
+        let seen = position(own);
+        let here = seen.unwrap_or_default();
         let mut state = crate::emotes::lock();
         let emoting: Vec<(u8, String)> = state
             .active
@@ -727,7 +727,7 @@ impl crate::GpuState {
             leader,
             &emote,
             def.as_ref(),
-            here,
+            seen,
             std::time::Instant::now(),
         );
         drop(state);

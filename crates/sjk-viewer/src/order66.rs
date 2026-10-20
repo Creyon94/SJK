@@ -361,7 +361,9 @@ pub(crate) struct Order66 {
     next_piece: u64,
     cues: Vec<Cue>,
     blasts: Vec<Blast>,
-    sounds_registered: bool,
+    /// The audio output ([`crate::GameAudio::generation`]) its sounds were registered
+    /// with: a new output (`snd_restart`) registers them again.
+    sounds_registered: Option<u64>,
     /// When the pieces last moved.
     moved: Option<Instant>,
     /// The puffs of smoke of this frame's pieces (kept for its room).
@@ -387,7 +389,7 @@ impl Default for Order66 {
             next_piece: PIECE_ID_BASE,
             cues: Vec::with_capacity(4),
             blasts: Vec::with_capacity(8),
-            sounds_registered: false,
+            sounds_registered: None,
             moved: None,
             smoke: Vec::with_capacity(PIECES_MAX),
             #[cfg(test)]
@@ -1020,11 +1022,11 @@ impl GpuState {
             self.order66.cues.clear();
             return;
         };
-        if !self.order66.sounds_registered
+        if self.order66.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
             audio.register_effect_paths(vfs, [ORDER_SOUND, TICK_SOUND]);
-            self.order66.sounds_registered = true;
+            self.order66.sounds_registered = Some(audio.generation());
         }
         for cue in self.order66.cues.drain(..) {
             audio.play_local(

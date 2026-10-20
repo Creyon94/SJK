@@ -9,6 +9,29 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 20/10/2026 | - | Hub reports 20/10: toys count, drop-down overlap, snd_restart emotes, RGB userinfo window, prediction miss log, duel pop-ups, dance music
+- 1544632 |  | Collection: the Toys tab counts every toy, not 1 of 1
+- 6601482 |  | Settings: an open list pushed over its own row hides that row's value
+- c2b02f5 |  | snd_restart brings emote, cardboard box and Order 66 sounds back
+- 2dd74bd |  | Userinfo keeps to the server's window of three changes in six seconds
+- d1f6e59 |  | Prediction misses go to the log only with cg_showMiss
+- ceb96a2 |  | Rewards wait for the end of a private duel
+- 5e10e3b |  | Dances keep their music: idle is not away, a moment unseen is not gone
+- e46057b |  | Changelog and debug panel for the 20/10 hub bug report fixes
++ 20/10/2026 | - | A texture with a leading slash no longer fails the map load, Mae
+- f8b8842 |  | Format world_shot.rs's module list
+- eade96f |  | A texture named with a leading slash no longer fails the map load
++ 20/10/2026 | - | Hub reports 20/10: own model scale, jetpack strafe aura, scoped crosshair names
+- eb79c55 |  | Own model scale: the local player takes playerState iModelScale
+- 09fbf4a |  | Strafe aura and guides: show during jetpack flight
+- 566f9f5 |  | Crosshair names: hidden by the binoculars only, not the disruptor scope
++ 20/10/2026 | - | JoF content sorts among your own packs, hub #100
+- 1460283 |  | Format world_shot.rs's module list
+- 9e6ccc9 |  | JoF content sorts by name among the installation's packs
++ 20/10/2026 | - | jaPRO movement styles SJK does not model shown from the server, hub #97/#98
+- 75e3433 |  | jaPRO movement styles SJK does not model are shown from the server
++ 20/10/2026 | - | SJK CREATOR mark above staff
+- b8de526 |  | SJK CREATOR: the creator's own mark above staff's
 + 20/10/2026 | - | Named tiles, a closer look, lore that fills its box, no card numbers
 - 9162e95 |  | Cards: larger named tiles, a closer look, lore that fills its box, no numbers
 - ed259a6 |  | Card lore grows to 1.25 times at most, not 1.4

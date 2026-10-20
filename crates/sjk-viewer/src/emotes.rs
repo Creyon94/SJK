@@ -87,6 +87,8 @@ pub(crate) const DEFAULT_ATTACK_STOP: bool = false;
 const UNKNOWN_LENGTH: Duration = Duration::from_secs(3);
 /// How far a player may move (game units) before their emote stops.
 const MOVE_LIMIT: f32 = 24.0;
+/// How long a player may be missing from the snapshots before their emote ends.
+const ABSENT_LIMIT: Duration = Duration::from_secs(2);
 /// Slots the game numbers.
 const SLOTS: usize = 64;
 /// `BUTTON_ATTACK | BUTTON_ALT_ATTACK` (`codemp/qcommon/q_shared.h`): a command with
@@ -286,8 +288,11 @@ pub(crate) struct ActiveEmote {
     pub(crate) started: Instant,
     /// When it ends, unless the player moves first; `None` while a loop plays.
     pub(crate) until: Option<Instant>,
-    /// Where the player stood when it started.
-    pub(crate) origin: [f32; 3],
+    /// Where the player stood when it started: the first position seen, as a player
+    /// out of the snapshot then has none yet.
+    pub(crate) origin: Option<[f32; 3]>,
+    /// Since when the player is missing from the snapshots, while they are.
+    pub(crate) missing_since: Option<Instant>,
     /// Its sound, or empty.
     pub(crate) sound: String,
     /// Whether it keeps playing while the player moves.
@@ -402,7 +407,7 @@ impl ActiveEmotes {
         slot: u8,
         emote: &str,
         def: Option<&EmoteDef>,
-        origin: [f32; 3],
+        origin: Option<[f32; 3]>,
         now: Instant,
     ) {
         let Some(entry) = self.slots.get_mut(usize::from(slot)) else {
@@ -436,6 +441,7 @@ impl ActiveEmotes {
             started: now,
             until,
             origin,
+            missing_since: None,
             sound,
             moving: def.is_some_and(|def| def.moving),
             next_sound,
@@ -455,7 +461,7 @@ impl ActiveEmotes {
         leader: u8,
         emote: &str,
         def: Option<&EmoteDef>,
-        origin: [f32; 3],
+        origin: Option<[f32; 3]>,
         now: Instant,
     ) -> bool {
         let Some(lead) = self.get(leader).filter(|lead| lead.emote == emote) else {
@@ -491,6 +497,7 @@ impl ActiveEmotes {
             started,
             until,
             origin,
+            missing_since: None,
             sound: music.first.clone(),
             moving: def.is_some_and(|def| def.moving),
             next_sound,
@@ -621,15 +628,26 @@ impl ActiveEmotes {
             }
             let over = active.until.is_some_and(|until| now >= until);
             let gone = match position(slot) {
-                None => true,
-                Some(_) if active.moving => false,
+                // Out of the snapshot for a moment (a crowded dance, the PVS) is not
+                // gone: only a player missing for [`ABSENT_LIMIT`] (hub report #107).
+                None => {
+                    let since = *active.missing_since.get_or_insert(now);
+                    now.saturating_duration_since(since) >= ABSENT_LIMIT
+                }
                 Some(at) => {
-                    let d: f32 = at
-                        .iter()
-                        .zip(active.origin)
-                        .map(|(a, b)| (a - b) * (a - b))
-                        .sum();
-                    d > MOVE_LIMIT * MOVE_LIMIT
+                    active.missing_since = None;
+                    match active.origin {
+                        _ if active.moving => false,
+                        None => {
+                            active.origin = Some(at);
+                            false
+                        }
+                        Some(origin) => {
+                            let d: f32 =
+                                at.iter().zip(origin).map(|(a, b)| (a - b) * (a - b)).sum();
+                            d > MOVE_LIMIT * MOVE_LIMIT
+                        }
+                    }
                 }
             };
             if gone && !active.sound.is_empty() && !active.quiet {
@@ -647,8 +665,9 @@ impl ActiveEmotes {
 pub(crate) struct State {
     pub(crate) catalogue: Option<Vec<EmoteDef>>,
     pub(crate) active: ActiveEmotes,
-    /// Whether the catalogue's sounds were handed to the audio to load.
-    pub(crate) sounds_loaded: bool,
+    /// The audio output ([`crate::GameAudio::generation`]) the catalogue's sounds were
+    /// handed to, to load again on a new one (`snd_restart`, hub report #99).
+    pub(crate) sounds_loaded: Option<u64>,
     /// The players whose emotes this screen hides (`sjkemote mute`): key id to the
     /// name shown when muted.
     pub(crate) muted: std::collections::BTreeMap<String, String>,
@@ -852,16 +871,53 @@ mod tests {
         let mut active = ActiveEmotes::default();
         // Nobody dancing: nothing to tell. Walking (16) alone leaves it.
         assert!(!active.end_on_attack(2, 1, true));
-        active.start(2, "dance", Some(&dance), [0.0; 3], t0);
+        active.start(2, "dance", Some(&dance), Some([0.0; 3]), t0);
         active.take_cues();
         assert!(!active.end_on_attack(2, 16, true));
         assert!(active.get(2).is_some());
         assert!(active.end_on_attack(2, 1 | 16, true));
         assert!(active.get(2).is_none());
         assert_eq!(active.take_cues(), vec![Cue::Stop { slot: 2 }]);
-        active.start(2, "dance", Some(&dance), [0.0; 3], t0);
+        active.start(2, "dance", Some(&dance), Some([0.0; 3]), t0);
         assert!(active.end_on_attack(2, 128, true), "alt attack");
         assert!(active.get(2).is_none());
+    }
+
+    /// Hub report #107: a dancer out of the snapshot for a moment keeps dancing and
+    /// their music; only one missing for two seconds is gone.
+    #[test]
+    fn a_dancer_missing_for_a_moment_keeps_dancing() {
+        let t0 = Instant::now();
+        let dance = parse(
+            "dance",
+            r#"{"name": "Dance", "loop": true, "sound": "sound/emotes/dance.wav"}"#,
+        )
+        .unwrap();
+        let mut active = ActiveEmotes::default();
+        active.start(2, "dance", Some(&dance), Some([0.0; 3]), t0);
+        active.take_cues();
+        active.update(t0 + Duration::from_millis(100), |_| None);
+        active.update(t0 + Duration::from_millis(200), |_| Some([0.0; 3]));
+        assert!(active.get(2).is_some(), "a frame missing");
+        assert!(active.take_cues().is_empty());
+        active.update(t0 + Duration::from_secs(1), |_| None);
+        active.update(t0 + Duration::from_secs(3), |_| None);
+        assert!(active.get(2).is_none(), "missing for two seconds");
+        assert_eq!(active.take_cues(), vec![Cue::Stop { slot: 2 }]);
+    }
+
+    /// Hub report #107: an emote started while its player was not in the snapshot
+    /// stands where they are first seen, not at the map's centre.
+    #[test]
+    fn an_emote_started_unseen_stands_where_its_player_is_first_seen() {
+        let t0 = Instant::now();
+        let dance = parse("dance", r#"{"name": "Dance", "loop": true}"#).unwrap();
+        let mut active = ActiveEmotes::default();
+        active.start(2, "dance", Some(&dance), None, t0);
+        let far = [900.0, 400.0, 64.0];
+        active.update(t0 + Duration::from_millis(100), |_| Some(far));
+        active.update(t0 + Duration::from_millis(200), |_| Some(far));
+        assert_eq!(active.get(2).and_then(|dance| dance.origin), Some(far));
     }
 
     #[test]
@@ -869,7 +925,7 @@ mod tests {
         let t0 = Instant::now();
         let dance = parse("dance", r#"{"name": "Dance", "loop": true}"#).unwrap();
         let mut active = ActiveEmotes::default();
-        active.start(2, "dance", Some(&dance), [0.0; 3], t0);
+        active.start(2, "dance", Some(&dance), Some([0.0; 3]), t0);
         active.take_cues();
         assert!(!active.end_on_attack(2, 1, DEFAULT_ATTACK_STOP));
         assert!(!active.end_on_attack(2, 128, DEFAULT_ATTACK_STOP));
@@ -881,8 +937,8 @@ mod tests {
     fn known_emotes_last_their_length_and_unknown_ones_three_seconds() {
         let t0 = Instant::now();
         let mut active = ActiveEmotes::default();
-        active.start(3, "wave", Some(&wave()), [0.0; 3], t0);
-        active.start(4, "dance", None, [0.0; 3], t0);
+        active.start(3, "wave", Some(&wave()), Some([0.0; 3]), t0);
+        active.start(4, "dance", None, Some([0.0; 3]), t0);
         let here = |_| Some([0.0; 3]);
         active.update(t0 + Duration::from_millis(2_400), here);
         assert_eq!(active.get(3).map(|e| e.emote.as_str()), Some("wave"));
@@ -903,7 +959,7 @@ mod tests {
         )
         .unwrap();
         let mut active = ActiveEmotes::default();
-        active.start(5, "dance", Some(&dance), [0.0; 3], t0);
+        active.start(5, "dance", Some(&dance), Some([0.0; 3]), t0);
         assert_eq!(
             active.take_cues(),
             vec![Cue::Start {
@@ -919,8 +975,8 @@ mod tests {
         active.update(t0 + Duration::from_secs(7), |_| Some([500.0, 0.0, 0.0]));
         assert!(active.get(5).is_none() && active.take_cues().is_empty());
         // Cut short (stopped, or replaced), the sound stops.
-        active.start(5, "dance", Some(&dance), [0.0; 3], t0);
-        active.start(5, "wave", Some(&wave()), [0.0; 3], t0);
+        active.start(5, "dance", Some(&dance), Some([0.0; 3]), t0);
+        active.start(5, "wave", Some(&wave()), Some([0.0; 3]), t0);
         active.stop(5);
         assert_eq!(
             active.take_cues(),
@@ -949,9 +1005,9 @@ mod tests {
         let t0 = Instant::now();
         let sit = parse("sit", r#"{"name": "Sit", "loop": true}"#).unwrap();
         let mut active = ActiveEmotes::default();
-        active.start(1, "sit", Some(&sit), [100.0, 0.0, 0.0], t0);
-        active.start(2, "wave", Some(&wave()), [0.0; 3], t0);
-        active.start(70, "wave", None, [0.0; 3], t0);
+        active.start(1, "sit", Some(&sit), Some([100.0, 0.0, 0.0]), t0);
+        active.start(2, "wave", Some(&wave()), Some([0.0; 3]), t0);
+        active.start(70, "wave", None, Some([0.0; 3]), t0);
         assert!(active.get(70).is_none(), "no such slot");
         let later = t0 + Duration::from_secs(600);
         active.update(later, |slot| (slot == 1).then_some([110.0, 0.0, 0.0]));
@@ -991,7 +1047,7 @@ mod tests {
         .unwrap();
         let mut active = ActiveEmotes::default();
         let start = Instant::now();
-        active.start(1, "heavy", Some(&def), [0.0; 3], start);
+        active.start(1, "heavy", Some(&def), Some([0.0; 3]), start);
         let started = |active: &mut ActiveEmotes| {
             active
                 .take_cues()
@@ -1016,7 +1072,7 @@ mod tests {
             r#"{"name": "Boom", "loop": true, "sound": "c.wav", "sound_ms": 4000}"#,
         )
         .unwrap();
-        active.start(2, "boom", Some(&looped), [0.0; 3], start);
+        active.start(2, "boom", Some(&looped), Some([0.0; 3]), start);
         let _ = active.take_cues();
         active.update(start + Duration::from_millis(4000), here);
         assert!(started(&mut active).contains(&"c.wav".to_owned()));
@@ -1036,7 +1092,7 @@ mod tests {
         let t0 = Instant::now();
         let here = |_: u8| Some([0.0; 3]);
         let mut active = ActiveEmotes::default();
-        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
+        active.start(1, "heavy", Some(&heavy()), Some([0.0; 3]), t0);
         // Quiet from its start (an away emote): its sound never starts.
         assert!(active.set_quiet(1, true, Some(&heavy()), t0));
         assert_eq!(active.take_cues(), [Cue::Stop { slot: 1 }]);
@@ -1071,21 +1127,21 @@ mod tests {
         let t0 = Instant::now();
         let here = |_: u8| Some([0.0; 3]);
         let mut active = ActiveEmotes::default();
-        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
+        active.start(1, "heavy", Some(&heavy()), Some([0.0; 3]), t0);
         let _ = active.take_cues();
         let late = t0 + Duration::from_millis(1500);
         assert!(
-            !active.sync(2, 1, "wave", Some(&wave()), [0.0; 3], late),
+            !active.sync(2, 1, "wave", Some(&wave()), Some([0.0; 3]), late),
             "not that emote"
         );
         assert!(
-            !active.sync(2, 9, "heavy", Some(&heavy()), [0.0; 3], late),
+            !active.sync(2, 9, "heavy", Some(&heavy()), Some([0.0; 3]), late),
             "nobody there"
         );
         // Joining 1.5 s late (the hub's delay) still lines up with the leader, and
         // its music starts where the leader's is.
         active.update(late, here);
-        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3], late));
+        assert!(active.sync(2, 1, "heavy", Some(&heavy()), Some([0.0; 3]), late));
         let follower = active.get(2).unwrap();
         assert_eq!((follower.started, follower.leader), (t0, Some(1)));
         assert_eq!(follower.until, Some(t0 + Duration::from_millis(9000)));
@@ -1108,7 +1164,7 @@ mod tests {
         };
         assert_eq!(active.take_cues(), [b(1, None), b(2, Some(1))]);
         // A third joining the follower follows the first leader.
-        assert!(active.sync(3, 2, "heavy", Some(&heavy()), [0.0; 3], late));
+        assert!(active.sync(3, 2, "heavy", Some(&heavy()), Some([0.0; 3]), late));
         assert_eq!(active.get(3).unwrap().leader, Some(1));
     }
 
@@ -1117,8 +1173,8 @@ mod tests {
         let t0 = Instant::now();
         let here = |_: u8| Some([0.0; 3]);
         let mut active = ActiveEmotes::default();
-        active.start(1, "heavy", Some(&heavy()), [0.0; 3], t0);
-        assert!(active.sync(2, 1, "heavy", Some(&heavy()), [0.0; 3], t0));
+        active.start(1, "heavy", Some(&heavy()), Some([0.0; 3]), t0);
+        assert!(active.sync(2, 1, "heavy", Some(&heavy()), Some([0.0; 3]), t0));
         let _ = active.take_cues();
         active.stop(1);
         active.update(t0 + Duration::from_millis(1000), here);

@@ -969,6 +969,13 @@ impl UnlockToast {
     }
 }
 
+/// Whether a pop-up may show: not under the console or a large pop-up (`covered`), the
+/// window not away, and the player not in a private duel, where a reward is a
+/// distraction (hub report #81, Milamber); the queue waits and plays after.
+fn may_show(covered: bool, console_open: bool, away: bool, in_duel: bool) -> bool {
+    !covered && !console_open && !away && !in_duel
+}
+
 impl crate::GpuState {
     /// Move the unlock pop-up on and lay it out over the frame unless `covered` (the
     /// console over the frame, a large pop-up) or the window is away; returns whether it
@@ -994,9 +1001,13 @@ impl crate::GpuState {
         let sound = console
             .and_then(|console| console.bool_cvar(SOUND_CVAR))
             .unwrap_or(true);
+        let in_duel = self
+            .live_session
+            .as_ref()
+            .is_some_and(|session| session.latest_snapshot().player.duel_in_progress());
         if !self
             .unlock_toast
-            .update(now, !covered && !console_open && !away, sound)
+            .update(now, may_show(covered, console_open, away, in_duel), sound)
         {
             return false;
         }
@@ -1014,6 +1025,14 @@ impl crate::GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Hub report #81: a private duel holds the rewards back, like the console does.
+    #[test]
+    fn a_private_duel_holds_the_rewards_back() {
+        assert!(may_show(false, false, false, false));
+        assert!(!may_show(false, false, false, true));
+        assert!(!may_show(true, false, false, false));
+    }
     use crate::achievements::{self, ALL};
     use crate::holocrons::TIERS;
 

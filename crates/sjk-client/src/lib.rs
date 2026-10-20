@@ -1186,6 +1186,10 @@ impl ClientSession {
             let mut text = server_text(arguments.get(1..).unwrap_or_default());
             if name == b"cps" {
                 text = cps_key(&text);
+            } else if kind == ServerEventKind::Print
+                && text.contains(userinfo_update::INFO_CHANGE_REFUSED)
+            {
+                self.userinfo_updates.refuse();
             }
             self.events.push_back(ServerEvent {
                 kind,

@@ -900,7 +900,9 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   was made under (the badges' rule). It then plays in `emotes::ActiveEmotes`: per slot,
   the emote, when it started and when it ends (its length, 3 seconds for an id the
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
-  or leaves, unless it is `moving`. With Settings > Sound > Emotes: Attack ends emote
+  from where they were first seen dancing, or is missing from the snapshots for 2
+  seconds (a moment out of them, in a crowded dance, is not leaving; since 20/10/2026,
+  hub report #107), unless it is `moving`. With Settings > Sound > Emotes: Attack ends emote
   (`cg_emoteAttackStop`, off by default), the player's own emote also ends when they
   attack or alt attack (`ActiveEmotes::end_on_attack`, called for each command sent):
   the server performs the attack whatever the emote shows, so it stops here and the
@@ -919,7 +921,9 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   Sound > Emotes: Away when alt-tabbed, `cg_awayAltTab`, on) or after
   `cg_awayIdle` seconds (Away after, 180; 0 never) without a key, mouse button, wheel
   or mouse move (the input `holocrons::activity` notes), on a remote server and not
-  spectating. Going away, an emote the player plays goes quiet for everyone: the client
+  spectating. Idle time does not count while the player's own looping emote plays (a
+  dance left running on purpose, whose music going quiet stopped it for everyone; since
+  20/10/2026, hub report #107), unless they are away already. Going away, an emote the player plays goes quiet for everyone: the client
   posts `quiet` and each client stops its music (`ActiveEmotes::set_quiet`) while it
   keeps time, so `loud`, posted on the way back, plays it again from where it would be.
   With no emote playing, the pick starts: on a JA+ server (its `gamename`, JoF

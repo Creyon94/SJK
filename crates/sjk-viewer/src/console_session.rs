@@ -698,7 +698,8 @@ impl ViewerConsole {
     /// command, then send what the Force profile exchange has due.
     pub(crate) fn flush_userinfo(&mut self, session: &mut ClientSession, now: Instant) {
         self.flush_dialogue(session);
-        if self.userinfo_dirty.load(Ordering::Acquire) {
+        // A change the server ignored (too many in its window) goes again.
+        if self.userinfo_dirty.load(Ordering::Acquire) || session.userinfo_refused() {
             self.send_userinfo(session, now);
         }
         self.note_forcepowers_change();
