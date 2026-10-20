@@ -160,7 +160,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: SOL,
-        description: "A white-gold core in an orange corona: flares, prominences arching off it, sparks, a glint at its tip and heat haze.",
+        description: "A star in the hand: a white-gold core breathing under an orange corona, sunspots drifting along it, prominences, streamers and a solar wind, and the strongest light of any blade. It lights as a sunrise, goes out as a sunset, and a clash tears a loop of plasma off it.",
         how_to_get: "Found in holocrons, and comes with Sol's card (SJK Alpha 000) for as long as you hold it.",
     },
     Unlockable {
@@ -2873,7 +2873,8 @@ mod tests {
                 assert!(skin.how_to_get.contains("card"), "{}", skin.id);
             }
             assert_eq!(
-                skin.how_to_get.starts_with(FROM_HOLOCRONS.trim_end_matches('.')),
+                skin.how_to_get
+                    .starts_with(FROM_HOLOCRONS.trim_end_matches('.')),
                 skin.droppable,
                 "{}",
                 skin.id

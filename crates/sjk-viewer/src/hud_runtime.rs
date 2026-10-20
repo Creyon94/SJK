@@ -748,17 +748,17 @@ mod tests {
     #[test]
     fn the_card_names_a_shader_only_when_it_draws_on_the_blade() {
         let loaded = loaded_sample(1);
-        let sun = sjk_identity::Look {
-            saber: "saber_sun".to_owned(),
+        let tidal = sjk_identity::Look {
+            saber: "saber_tidal".to_owned(),
             illuminate: false,
             saber_off: Vec::new(),
             toys: Vec::new(),
         };
         let mut looks = Looks::default();
-        looks.replace_roster([(3, "Fox", Some(&sun))]);
+        looks.replace_roster([(3, "Fox", Some(&tidal))]);
         looks.rebuild(|slot| (slot == 3).then(|| "Fox".to_owned()));
         // Another player, worn by the looks (which the hub relays only when owned).
-        assert_eq!(card_shader(&looks, &loaded, None, 3), Some("saber_sun"));
+        assert_eq!(card_shader(&looks, &loaded, None, 3), Some("saber_tidal"));
         // Nobody's look, or one whose pack is not loaded here.
         assert_eq!(card_shader(&looks, &loaded, None, 4), None);
         assert_eq!(
@@ -766,9 +766,12 @@ mod tests {
             None
         );
         // The local player: their own look, gated by their unlocks.
-        looks.set_own(Some(1), Worn::own("saber_sun", "", |_| true, false));
-        assert_eq!(card_shader(&looks, &loaded, Some(1), 1), Some("saber_sun"));
-        looks.set_own(Some(1), Worn::own("saber_sun", "", |_| false, false));
+        looks.set_own(Some(1), Worn::own("saber_tidal", "", |_| true, false));
+        assert_eq!(
+            card_shader(&looks, &loaded, Some(1), 1),
+            Some("saber_tidal")
+        );
+        looks.set_own(Some(1), Worn::own("saber_tidal", "", |_| false, false));
         assert_eq!(card_shader(&looks, &loaded, Some(1), 1), None);
         looks.set_own(Some(1), Worn::own("", "", |_| true, false));
         assert_eq!(card_shader(&looks, &loaded, Some(1), 1), None);

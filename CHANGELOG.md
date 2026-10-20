@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Blade Lab: Creyon's 128 signature blades, each drawn by its own shader.
 > Blade numbers: Every blade has a number, as cards do.
 > Live swatches: The Collection shows owned blades as the game draws them.
+> Sun blade: Blade 001 rises like a sunrise, sets like a sunset and has the strongest light.
 
 - Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
 - The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
@@ -41,6 +42,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Blades have numbers, as cards do (Sun is 001): the Collection shows each after its tier and in its hover card, its search finds "42" or "#42", `saberskin 42` wears that blade and docs/unlockables.md lists them all _(Sol)_
 - Blade tiers reviewed: 26 blades change tier. Clone Wars and Exegol Rift are now Mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith Alchemy, Felucia Spores, Phoenix Squadron and eight Blade Lab mythicals are Legendary; Storm, Prism, Unstable, Chameleon and four Blade Lab legendaries are Rare; Targeting Display is Uncommon. Blades you own stay yours _(Sol)_
 - Every Blade Lab blade can now drop from holocrons, and a blade's "How to get it" reads "Found in holocrons.": only Glitch, Hologram and Runic stay out, as they come with their medals _(Sol)_
+- The Sun blade (001) is now a signature blade: it lights as a sunrise and goes out as a sunset, breathes slowly, carries drifting sunspots, corona streamers and a solar wind, tears a loop of plasma off on a clash, casts the strongest light of any blade and hums deeper _(Sol)_
 - Sol's card (SJK Alpha 000) brings the Sun blade for as long as you hold a copy, a second way to get it besides holocrons, and the card says so in the Collection _(Sol)_
 - Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
 

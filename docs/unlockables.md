@@ -254,6 +254,19 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   opposite it, circling the blade 9 units below the tip (`orbit`: 4.5 units out, 0.45
   turns a second, tilted 0.35 rad; rays 6.5 long instead of 9); the part is "Orbiting
   glints", the same `glint` id, so a wearer's choice stays.
+  Since 20/10/2026 (Sol: blade 001 should be the best) it is a signature shader
+  ([rendering.md](rendering.md#blade-lab-signature-shaders), `blade_signatures/sun.glsl`)
+  drawn over the same file: the star breathes slowly (about five seconds), dark sunspots
+  drift along the core, long corona streamers reach out and fade, a solar wind of pale
+  motes rides to the tip inside the widest warm aura of any blade; it lights as a sunrise
+  (deep red warming to white gold, a white edge climbing the blade, then a dawn flare at
+  the emitter) and goes out as a sunset (cooling to deep red as it slides in); a swing
+  swells the corona and the wind, a clash tears a coronal mass ejection off it (a loop of
+  plasma that swells out, tears at its top and flies off). Its light is the strongest of
+  any blade (`[1.5, 0.85, 0.3]`, breathing with the star), and its sounds are deeper
+  (48 Hz hum instead of 60, a longer ignition over a low rumble). Its parts: "Sunspots and
+  corona" (new), then "Prominences", "Sparks", "Glint" and "Haze" (the old `prominences`,
+  `sparks`, `glint` and `haze` ids: a wearer's choices stay) and the swing and clash bursts.
 - **Storm**: a white-blue core in a violet-to-electric-blue corona that crackles; a few
   thin, jagged white-blue lightning arcs at a time, struck again and again at random
   places, leaving the blade, bulging out to one side and coming back further along,

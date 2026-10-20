@@ -52,8 +52,10 @@ macro_rules! signature {
 
 /// The signatures, mythicals first (Creyon's order, 19/10/2026). The last fourteen are his
 /// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
-/// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`).
-pub(crate) const SIGNATURES: [Signature; 128] = [
+/// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`). Sol's Sun
+/// (blade 001) became one on 20/10/2026, keeping its file's look under its own.
+pub(crate) const SIGNATURES: [Signature; 129] = [
+    signature!("sun"),
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
     signature!("balance"),
@@ -585,6 +587,31 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The Sun's parts keep the ids they had before it was a signature (11/10/2026), so a
+    /// wearer's choices stay.
+    #[test]
+    fn the_sun_keeps_its_part_ids() {
+        let signature = of("saber_sun").unwrap();
+        let def = crate::blade_skin_file::parse(signature.id, signature.default_file()).unwrap();
+        let ids: Vec<String> = signature
+            .shown(&def)
+            .options
+            .into_iter()
+            .map(|option| option.id)
+            .collect();
+        assert_eq!(
+            ids,
+            [
+                "sunspots_and_corona",
+                "prominences",
+                "sparks",
+                "glint",
+                "haze",
+                "swing_and_clash_bursts"
+            ]
+        );
     }
 
     /// The WGSL is the script's: none edited by hand, none left behind.
