@@ -113,6 +113,7 @@ impl ChatOverlay {
             return if text.is_empty() {
                 ChatInputResult::None
             } else {
+                self.sent_on(Channel::Sjk, None);
                 ChatInputResult::Sjk(text)
             };
         }
@@ -132,6 +133,10 @@ impl ChatOverlay {
             }
         };
         let result = chat_command(destination, &input.text);
+        if result.is_some() {
+            let (channel, recipient) = (input.channel, input.recipient);
+            self.sent_on(channel, recipient);
+        }
         self.input = None;
         self.scroll = 0;
         self.unread = 0;

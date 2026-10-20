@@ -2,8 +2,9 @@
 
 19/10/2026: `messagemode` (Y by default) now always opens the composer on global
 chat, matching EternalJK. A previous team message, SJK message or whisper no longer
-changes its destination. The dedicated channel commands and Tab cycling are unchanged;
-the obsolete `cg_chatRememberChannel` setting was removed. Verified on x86_64 Linux
+changes its destination. The dedicated channel commands and Tab cycling are unchanged.
+The pull request removed `cg_chatRememberChannel`; Sol kept it as an option, now off
+by default (20/10/2026), so 1 restores the remembered channel. Verified on x86_64 Linux
 with Rust 1.99.1: the focused composer regression and Settings tests,
 `cargo fmt --all --check`, the locked workspace build and tests, and all-target Clippy
 pass; the locked release workspace build also passes. The key path has not been

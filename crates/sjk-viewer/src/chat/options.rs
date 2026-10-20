@@ -69,6 +69,8 @@ pub(super) struct Options {
     pub(super) emojis: bool,
     /// An SJK chat line's GIPHY link shows its GIF under it ([`crate::chat_gifs::CVAR`]).
     pub(super) gifs: bool,
+    /// The chat key opens on the last channel sent on ([`super::reply::REMEMBER_CVAR`]).
+    pub(super) remember: bool,
 }
 
 impl Default for Options {
@@ -107,6 +109,9 @@ impl Options {
             center_height: scalar(console, "cg_centerheight", 0.0).clamp(0.0, 480.0),
             emojis: integer("cg_chatboxemojis", 0) != 0,
             gifs: console.is_none_or(|c| c.bool_cvar(crate::chat_gifs::CVAR) != Some(false)),
+            // An integer cvar (`cgame_options`): read as a switch it was never off, so
+            // turning it off kept the last channel (a player's bug report, 12/10/2026).
+            remember: integer(super::reply::REMEMBER_CVAR, 0) != 0,
         }
     }
 
@@ -125,6 +130,23 @@ impl Options {
         g.spacing = self.spacing * g.scale;
         g.gap = self.gap * g.scale;
         g
+    }
+}
+
+#[cfg(test)]
+mod remember_tests {
+    use super::*;
+
+    #[test]
+    fn remember_channel_is_off_by_default_and_follows_the_console() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert!(!Options::read(Some(&console)).remember, "off by default");
+        assert!(!Options::default().remember, "off without a console");
+        assert!(console.set_cvar(super::super::reply::REMEMBER_CVAR, "1"));
+        assert!(Options::read(Some(&console)).remember);
+        assert!(console.set_cvar(super::super::reply::REMEMBER_CVAR, "0"));
+        assert!(!Options::read(Some(&console)).remember);
     }
 }
 

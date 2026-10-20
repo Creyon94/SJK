@@ -2397,9 +2397,13 @@ viewed snapshot, with predicted health, Force, weapon, ammo and velocity when
 available; model/map transitions do not borrow the previous player's prediction.
 See [chat/substitutions.rs](../crates/sjk-viewer/src/chat/substitutions.rs).
 
-The chat key (`messagemode`, Y by default) always opens the composer on global chat,
-as in EternalJK. It does not inherit a previous team, SJK or whisper destination.
-The team, crosshair, last-attacker and SJK keys continue to open their own channels.
+The chat key (`messagemode`, Y by default) opens the composer on global chat, as in
+EternalJK, so it never inherits a previous team, SJK or whisper destination (SJK #181).
+`cg_chatRememberChannel` (default 0, Settings > HUD > Remember chat channel; Sol's
+decision 20/10/2026 to keep it as an option, off) makes it open on the channel of the
+last message sent from it instead: All, Team, SJK, or a whisper to a player still in
+the game (All once they leave). That lasts while SJK runs. The team, crosshair,
+last-attacker and SJK keys always open on their own channel.
 
 Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their

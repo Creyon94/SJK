@@ -142,6 +142,9 @@ pub(crate) struct ChatOverlay {
     own_slot: Option<u16>,
     /// The last player who whispered to us, for `reply`.
     last_whisperer: Option<ChatTarget>,
+    /// The channel (and whisper recipient) the composer last sent on, which the chat
+    /// key opens on while `cg_chatRememberChannel` is on.
+    last_channel: (Channel, Option<ChatTarget>),
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -221,6 +224,7 @@ impl ChatOverlay {
             gif_sources_revision: 0,
             own_slot: None,
             last_whisperer: None,
+            last_channel: (Channel::Global, None),
             #[cfg(test)]
             for_shot: false,
         }

@@ -132,7 +132,8 @@ Old clients ignore all of it, so it stays `/v1/`.
   `messagemode5`; an existing profile binds it in Settings > Key bindings > Other)
   opens the composer on it; Tab cycles All, Team and SJK (then the last whisperer,
   [client.md](client.md#chat-player-actions)). The ordinary chat key (`messagemode`,
-  Y by default) always opens on global chat. Enter on SJK hands the text to the hub,
+  Y by default) opens on global chat, or on SJK when the last message went there
+  with `cg_chatRememberChannel` 1 (off by default). Enter on SJK hands the text to the hub,
   never to the game server.
 - Hub messages join the chat feed as one flowing line ([How a line
   looks](#how-a-line-looks)): SJK's emblem, small, the name, the verified tick for a
