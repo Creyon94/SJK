@@ -411,6 +411,8 @@ pub struct ClientSession {
     request_full_snapshot: bool,
     disconnected: bool,
     scores: Vec<ScoreEntry>,
+    /// Counts the `scores` commands applied ([`ClientSession::scores_revision`]).
+    scores_revision: u32,
     team_scores: [i32; 2],
     team_info: TeamInfoTable,
     base_command_events: VecDeque<BaseServerCommandEvent>,
@@ -652,6 +654,12 @@ impl ClientSession {
 
     pub fn scores(&self) -> &[ScoreEntry] {
         &self.scores
+    }
+
+    /// Grows (wrapping) with every `scores` command applied, so a reader can tell
+    /// rows that arrived after a moment it noted from older ones.
+    pub fn scores_revision(&self) -> u32 {
+        self.scores_revision
     }
 
     /// Discard cached rows when a legacy client first opens a stale scoreboard.
@@ -1341,6 +1349,7 @@ impl ClientSession {
         };
         self.team_scores = team_scores;
         self.scores = scores;
+        self.scores_revision = self.scores_revision.wrapping_add(1);
     }
 }
 

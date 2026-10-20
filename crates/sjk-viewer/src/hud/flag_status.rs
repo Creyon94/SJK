@@ -10,10 +10,13 @@
 //! A taken flag's caption names its carrier when the client knows who it is, from the
 //! freshest source, as the scoreboard's flags do (`scoreboard/live_flags.rs`): the
 //! viewed player's own state, a player entity in the snapshot, a teammate's `tinfo`
-//! row, then the last carrier seen while the flag stays taken.
+//! row, a `scores` row that arrived after the flag was taken, then the last carrier
+//! seen while the flag stays taken. `scores` is the only source naming an enemy
+//! carrier out of sight; it comes with each scoreboard press, and rows from before
+//! the take could name an earlier carrier, so they are left out.
 use super::icons::assets;
 use super::*;
-use sjk_client::TeamInfo;
+use sjk_client::{ScoreEntry, TeamInfo};
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextOverflow};
 use std::fmt::Write;
 
@@ -147,6 +150,8 @@ pub(crate) struct State {
 #[derive(Default)]
 struct Carrier {
     client: Option<u16>,
+    /// The `scores` revision when the flag was first seen taken; `None` while it is not.
+    taken_at: Option<u32>,
     colors: bool,
     /// The client-info config string `name` was read from.
     source: Vec<u8>,
@@ -175,6 +180,13 @@ impl Carrier {
             family::name(&mut self.name, &name, colors);
         }
     }
+}
+
+/// The latest `scores` rows and their revision (`ClientSession::scores_revision`).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ScoreRows<'a> {
+    pub(crate) rows: &'a [ScoreEntry],
+    pub(crate) revision: u32,
 }
 
 /// The client carrying flag powerup `power`, from the viewed player's state, a player
@@ -270,19 +282,35 @@ impl State {
         }
     }
 
-    /// Note who carries each taken flag, from `snapshot` and the teammates' `team`
-    /// rows; a carrier out of sight stays named while the flag stays taken.
+    /// Note who carries each taken flag, from `snapshot`, the teammates' `team` rows
+    /// and `scores` rows newer than the take; a carrier out of sight stays named while
+    /// the flag stays taken.
     pub(super) fn update_carriers(
         &mut self,
         snapshot: &sjk_protocol::Snapshot,
         game: &GameState,
         team: &[TeamInfo],
+        scores: ScoreRows,
         colors: bool,
     ) {
         for (side, carrier) in self.carriers.iter_mut().enumerate() {
-            let client = (self.ctf && self.flags[side] == Flag::Taken)
-                .then(|| find_carrier(FLAG_POWERUPS[side], snapshot, team).or(carrier.client))
-                .flatten();
+            if !(self.ctf && self.flags[side] == Flag::Taken) {
+                carrier.taken_at = None;
+                carrier.set(None, game, colors);
+                continue;
+            }
+            let power = FLAG_POWERUPS[side];
+            let since_take = *carrier.taken_at.get_or_insert(scores.revision) != scores.revision;
+            let client = find_carrier(power, snapshot, team)
+                .or_else(|| {
+                    let bit = 1_u32 << power;
+                    since_take.then_some(scores.rows).and_then(|rows| {
+                        rows.iter()
+                            .find(|row| row.powerups & bit != 0)
+                            .map(|row| u16::from(row.client_num))
+                    })
+                })
+                .or(carrier.client);
             carrier.set(client, game, colors);
         }
     }
@@ -421,15 +449,17 @@ impl State {
 
 impl HudOverlay {
     /// Name the flag carriers after [`HudOverlay::update_family`] has read the flags;
-    /// `team` is the teammates' `tinfo` (empty for a demo, which keeps none).
+    /// `team` is the teammates' `tinfo` and `scores` the last scoreboard rows (both
+    /// empty for a demo, which keeps none).
     pub(crate) fn update_flag_carriers(
         &mut self,
         snapshot: &sjk_protocol::Snapshot,
         game: &GameState,
         team: &[TeamInfo],
+        scores: ScoreRows,
     ) {
         self.flag_status
-            .update_carriers(snapshot, game, team, self.family.name_colors);
+            .update_carriers(snapshot, game, team, scores, self.family.name_colors);
     }
 }
 
@@ -498,6 +528,68 @@ mod tests {
         state.carriers[1].set(Some(3), &game, true);
         assert_eq!(state.caption(0), "^1Slash");
         state.carriers[1].set(None, &game, true);
+        assert_eq!(state.caption(0), "TAKEN");
+    }
+
+    #[test]
+    fn an_enemy_carrier_out_of_sight_is_named_from_scores_sent_after_the_take() {
+        let mut game = GameState::empty_local(0);
+        for (client, name) in [(3, "Slash"), (5, "Sol")] {
+            let info = format!("\\n\\{name}\\t\\1").into_bytes();
+            game.replace_config_string(CS_PLAYERS + client, info)
+                .unwrap();
+        }
+        let snapshot = sjk_protocol::Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: vec![],
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: vec![],
+            player: sjk_protocol::PlayerState::zero(),
+            vehicle_player: None,
+            entities: vec![],
+            consumed_bits: 0,
+        };
+        let row = |client_num, powerups| ScoreEntry {
+            client_num,
+            score: 0,
+            ping: 0,
+            time_minutes: 0,
+            flags: 0,
+            powerups,
+            defends: 0,
+            assists: 0,
+            captures: 0,
+            deaths: None,
+        };
+        let blue_flag = 1 << FLAG_POWERUPS[1];
+        // A blue player's own flag, taken by a red player nobody on blue can see.
+        let mut state = State {
+            team: TEAM_BLUE,
+            ctf: true,
+            flags: [Flag::AtBase, Flag::Taken],
+            ..State::default()
+        };
+        let update = |state: &mut State, rows: &[ScoreEntry], revision| {
+            state.update_carriers(&snapshot, &game, &[], ScoreRows { rows, revision }, false);
+        };
+        // Rows from before the take name an earlier carrier: left out.
+        let stale = [row(5, blue_flag), row(3, 0)];
+        update(&mut state, &stale, 1);
+        assert_eq!(state.caption(0), "TAKEN");
+        // A scoreboard press after the take names the carrier, who stays named.
+        let fresh = [row(5, 0), row(3, blue_flag)];
+        update(&mut state, &fresh, 2);
+        assert_eq!(state.caption(0), "Slash");
+        update(&mut state, &[], 3);
+        assert_eq!(state.caption(0), "Slash");
+        // Returned and taken again: the rows from the last take no longer count.
+        state.flags[1] = Flag::AtBase;
+        update(&mut state, &fresh, 3);
+        state.flags[1] = Flag::Taken;
+        update(&mut state, &fresh, 3);
         assert_eq!(state.caption(0), "TAKEN");
     }
 

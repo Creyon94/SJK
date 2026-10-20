@@ -162,7 +162,7 @@ impl Shell {
             .map(|cvar| Candidate {
                 name: &cvar.name,
                 description: &cvar.description,
-                value: Some(listed_value(cvar.value.as_text())),
+                value: Some(listed_value(cvar.shown_value())),
             })
             .collect::<Vec<_>>();
         cvars.sort_by_cached_key(|candidate| candidate.name.to_ascii_lowercase());

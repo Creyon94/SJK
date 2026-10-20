@@ -17,6 +17,11 @@ pub(crate) const LINE_SPACING_DEFAULT: f64 = 2.0;
 /// Largest `cg_centerSize`: EternalJK stops at 1; SJK allows twice its size, which
 /// holds the old scale's largest value (4).
 pub(crate) const CENTER_SIZE_MAX: f32 = 2.0;
+/// The size of the sender card a chat name shows ([`super::card`]), over the chat's
+/// own scale.
+pub(crate) const CARD_SCALE_CVAR: &str = "cg_chatCardScale";
+/// Range of [`CARD_SCALE_CVAR`].
+pub(crate) const CARD_SCALE: (f32, f32) = (0.5, 2.0);
 
 /// `cg_centerSize` as drawn: zero, which would hide the text, is 1 as in
 /// EternalJK's `CG_DrawCenterString`.
@@ -38,6 +43,8 @@ pub(super) struct Options {
     pub(super) lines: usize,
     /// Multiplier for the modern conversation font.
     pub(super) font: f32,
+    /// Multiplier for the sender card, over the chat's scale ([`CARD_SCALE_CVAR`]).
+    pub(super) card: f32,
     /// Extra room after each message character, in 1080p pixels at font scale 1.
     pub(super) spacing: f32,
     /// Room between messages, in 1080p pixels at font scale 1.
@@ -87,6 +94,7 @@ impl Options {
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
             font: scalar(console, "cg_chatboxfontsize", CHAT_SIZE_DEFAULT)
                 .clamp(CHAT_SIZE.0 as f32, CHAT_SIZE.1 as f32),
+            card: scalar(console, CARD_SCALE_CVAR, 1.0).clamp(CARD_SCALE.0, CARD_SCALE.1),
             spacing: scalar(console, "cg_chatboxletterspacing", -0.5).clamp(-2.0, 8.0),
             gap: scalar(console, LINE_SPACING_CVAR, LINE_SPACING_DEFAULT)
                 .clamp(LINE_SPACING.0 as f32, LINE_SPACING.1 as f32),
@@ -103,7 +111,7 @@ impl Options {
             gifs: console.is_none_or(|c| c.bool_cvar(crate::chat_gifs::CVAR) != Some(false)),
             // An integer cvar (`cgame_options`): read as a switch it was never off, so
             // turning it off kept the last channel (a player's bug report, 12/10/2026).
-            remember: integer(super::reply::REMEMBER_CVAR, 1) != 0,
+            remember: integer(super::reply::REMEMBER_CVAR, 0) != 0,
         }
     }
 
@@ -130,10 +138,13 @@ mod remember_tests {
     use super::*;
 
     #[test]
-    fn remember_channel_off_in_the_console_is_off() {
+    fn remember_channel_is_off_by_default_and_follows_the_console() {
         let directory = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
-        assert!(Options::read(Some(&console)).remember, "on by default");
+        assert!(!Options::read(Some(&console)).remember, "off by default");
+        assert!(!Options::default().remember, "off without a console");
+        assert!(console.set_cvar(super::super::reply::REMEMBER_CVAR, "1"));
+        assert!(Options::read(Some(&console)).remember);
         assert!(console.set_cvar(super::super::reply::REMEMBER_CVAR, "0"));
         assert!(!Options::read(Some(&console)).remember);
     }

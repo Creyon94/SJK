@@ -214,14 +214,14 @@ test: Send a message the hub refuses (same text twice in 30 s): no sound, just t
 
 [chat-reply]
 area: Console & chat
-title: reply, chat opens on the last channel, SJK logo on SJK chat lines
+title: reply, chat key channel (cg_chatRememberChannel), SJK logo on SJK chat lines
 change: reply <message> whispers to the last whisperer (JoF EJK); bare reply opens the chat on it.
-change: The chat key opens on the last channel sent on (cg_chatRememberChannel 1).
+change: The chat key opens on All; cg_chatRememberChannel 1 (off by default): on the last channel.
 change: SJK chat lines in the game start with SJK's emblem instead of the letters SJK.
 test: Have someone /tell you, then /reply hi: they get it as a whisper.
 test: Bind "Reply to last whisper" (Key bindings > Other): its key opens a whisper to them.
 test: In the chat, Tab goes All, Team, SJK, then the whisperer, then All.
-test: Send on SJK, close, press the chat key: it opens on SJK. Settings > HUD toggle: All.
+test: Send on SJK, close, press the chat key: it opens on All. Remember chat channel on: SJK.
 test: SJK chat lines show the small gold emblem before the name, no SJK letters.
 note: The remembered channel lasts while SJK runs; a restart opens on All.
 

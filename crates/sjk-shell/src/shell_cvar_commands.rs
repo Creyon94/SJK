@@ -57,8 +57,8 @@ impl Shell {
                         format!(
                             "{} = {} (default {})",
                             v.name,
-                            v.value.as_text(),
-                            v.default.as_text()
+                            v.shown_value(),
+                            v.shown_default()
                         )
                     })
                     .collect());

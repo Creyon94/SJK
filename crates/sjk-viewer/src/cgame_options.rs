@@ -44,8 +44,8 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_chatSounds", 1, "Master chat notification switch"),
         (
             crate::chat::reply::REMEMBER_CVAR,
-            1,
-            "The chat key opens on the channel of the last message sent (All, Team, SJK or a whisper)",
+            0,
+            "The chat key opens on the channel of the last message sent (All, Team, SJK or a whisper); 0 always opens All",
         ),
         (
             crate::chat::emoji::CVAR,
@@ -96,6 +96,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "cg_chatBoxLetterSpacing",
             -0.5,
             "Extra space between chat message letters, in 1080p pixels (-2 to 8)",
+        ),
+        (
+            crate::chat::options::CARD_SCALE_CVAR,
+            1.0,
+            "Size of the player card a chat name shows, on top of the chat's own scale (0.5 to 2)",
         ),
         (
             "cg_fovViewmodel",

@@ -1,3 +1,15 @@
+## The chat key always opens global chat
+
+19/10/2026: `messagemode` (Y by default) now always opens the composer on global
+chat, matching EternalJK. A previous team message, SJK message or whisper no longer
+changes its destination. The dedicated channel commands and Tab cycling are unchanged.
+The pull request removed `cg_chatRememberChannel`; Sol kept it as an option, now off
+by default (20/10/2026), so 1 restores the remembered channel. Verified on x86_64 Linux
+with Rust 1.99.1: the focused composer regression and Settings tests,
+`cargo fmt --all --check`, the locked workspace build and tests, and all-target Clippy
+pass; the locked release workspace build also passes. The key path has not been
+exercised interactively on a live game server.
+
 ## The Sun blade becomes a signature; it drops again
 
 20/10/2026, `personal/sun-signature`, based on `main` (Sol: blade 001 should be the best,
@@ -173,6 +185,34 @@ times and centre prints 2.25 times the old size, computed from EternalJK's
 the GIF still three rows high) and the world shot `duel6_text_sizes_shot` (game fonts and
 Inter, 1080p, before and after). Not verified: side by side with EternalJK in a game, the
 HUD around the larger chat in a game, the scoreboard's chat column live.
+
+## Passwords in the console
+
+18/10/2026, `fix/console-password-masking`, based on `Sol-Vulpes/SJK` `046ef86b`:
+implemented masking of passwords everywhere the console prints, so they no longer
+reach the scrollback, `qconsole.log`, the session log, crash reports or log uploads.
+`sjk-shell`'s `secret.rs` names the secret cvars (`*password*`, `*loginpass*`,
+`cl_giphyKey`, given the new `SECRET` cvar flag) and password commands (`amlogin`,
+`login`, `register`, `changepassword`, `clanpass`, `clanwhois`); listings, `userinfo`
+and the cvar browser show `********`, the typed echo masks passwords (also in binds,
+cvars holding a command line, `rcon`, `cmd`, `strSub`, `delay` and `ifCvar`), and
+every kept line is scrubbed of the secret values. See
+[client](client.md#passwords-in-the-console). A chat message typed in the console
+(`say`, `say_team`, `tell`, JA+/JoF `clansay`, `amsay`, ...) is also kept out of the
+crash trail, as received chat already was; see [identity](identity.md#crash-reports).
+Clan or private chat a mod sends as a plain server print cannot be told from other
+prints and still reaches the trail.
+
+Unit, shell and cvar-browser tests pin the tables and each layer, and that a typed,
+queried, listed, bound, cvar-held, `strSub`-expanded and `delay`ed password (each path
+its own, so the scrub cannot hide a gap) appears in no printed line, returned output
+or tap line while the cvar and binds keep their values; the browser never edits or
+copies from a mask and keeps a secret on an empty Enter. A viewer test types team chat
+and a whisper in the console and finds neither in the trail (and fails with the guard
+off). On Linux x86_64: format, workspace build, `sjk-shell` and the browser's tests
+passed; workspace Clippy and tests are left to CI. Not exercised in a live game;
+reports and logs written before the change keep what they had; `config.cfg` still
+holds passwords as plain text.
 
 ## Map editor panel
 
