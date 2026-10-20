@@ -540,10 +540,6 @@ const HELP: &[(&str, &str)] = &[
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),
     (
-        crate::chat::reply::REMEMBER_CVAR,
-        "The chat key opens on your last channel: All, Team, SJK or a whisper. Off, it opens on All.",
-    ),
-    (
         crate::chat::options::LINE_SPACING_CVAR,
         "Space between chat messages; lower packs them closer. A long message's own lines stay together.",
     ),

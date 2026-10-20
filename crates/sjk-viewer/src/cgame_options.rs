@@ -43,11 +43,6 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ),
         ("cg_chatSounds", 1, "Master chat notification switch"),
         (
-            crate::chat::reply::REMEMBER_CVAR,
-            1,
-            "The chat key opens on the channel of the last message sent (All, Team, SJK or a whisper)",
-        ),
-        (
             crate::chat::emoji::CVAR,
             0,
             "Show emoji pictures (gfx/emoji) in place of their names in chat; listEmojis lists them",
