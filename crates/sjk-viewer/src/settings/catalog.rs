@@ -863,6 +863,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Push away kiss attempts (JA+)",
+        cvar: crate::anti_emote::KISS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,

@@ -8,6 +8,7 @@ mod actor_world_submission;
 mod alpha_notice_card;
 mod am_color;
 mod animation_timing;
+mod anti_emote;
 mod app_launch;
 mod assets;
 mod audio;
@@ -663,6 +664,7 @@ struct GpuState {
     weapon_selection_view: weapon_select::view::Tracker,
     weapon_selected_at: Option<Instant>,
     pending_generic_command: u8,
+    anti_emote: anti_emote::State,
     vfs: Option<Arc<VirtualFileSystem>>,
     pending_map_reload: bool,
     world_load_task: Option<session_transition::WorldLoadTask>,
@@ -1552,6 +1554,7 @@ impl GpuState {
             weapon_selection_view: Default::default(),
             weapon_selected_at: None,
             pending_generic_command: 0,
+            anti_emote: anti_emote::State::default(),
             effects,
             sound_prefetch,
             vfs: Some(vfs),

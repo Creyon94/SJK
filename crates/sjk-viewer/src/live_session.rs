@@ -132,6 +132,7 @@ impl GpuState {
                 .and_then(crate::console::ViewerConsole::force_repeat_command)
         };
         self.refresh_force_support();
+        self.apply_anti_emote();
         let Some(session) = &mut self.live_session else {
             return;
         };
