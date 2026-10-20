@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Blade numbers: Every blade has a number, as cards do.
 > Live swatches: The Collection shows owned blades as the game draws them.
 > Sun blade: Blade 001 rises like a sunrise, sets like a sunset and has the strongest light.
+> Away emote: Alt-tab or idle and your pick plays, silently; set it in `cg_awayEmote`.
 
 - Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
 - The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
