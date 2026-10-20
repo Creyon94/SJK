@@ -53,6 +53,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - JoF content no longer outranks your own packs: its PK3s sort by name among those in GameData/base, as JoF's launcher puts them there, so a `zz_` pack of yours wins again, and JoF's still win over the original game's _(Sol, after Kushina's report)_
 - jaPRO servers: a movement style SJK does not model yet (CPM, QW, Q3, WSW, SP and the others besides JKA, Siege and Speed) no longer snaps you back every frame: your movement shows as the server has it, as `cg_noPredict` 1 does, until the style is ported; `cg_predictMoveStyles` 1 predicts it as JKA as before _(Sol, after a report from "love me")_
 - A player model whose skin names a texture with a leading slash ("/models/...") no longer stops the map from loading: the slash is skipped, as in the original game _(Sol, after Mae's report)_
+- A size change such as the Ysalamiri's now shows on your own model too, not only to the others: your scale comes from your own player state, as in the original game _(Sol, after SanjiJ's report)_
+- The strafe guides and the strafe aura now show while you fly the jetpack too: the jetpack's movement is ordinary air movement _(Sol, after Rollembones's report)_
+- Crosshair names show again while zoomed with the disruptor; only the binoculars hide them, as in JoF EJK _(Sol, after chris's report)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

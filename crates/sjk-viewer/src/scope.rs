@@ -337,9 +337,32 @@ impl GpuState {
     }
 }
 
+/// Whether the crosshair and the crosshair names draw while zoomed in `mode` with
+/// `cg_crosshairscope` `scope_style`, or with the quick wheel open (its middle shows
+/// its names where the crosshair would be). A zoom's mask replaces the crosshair
+/// unless the style keeps it (1), but only the binoculars (2) hide the names: JoF
+/// EJK's `CG_DrawCrosshairNames` returns on `zoomMode == 2` alone, after the scan,
+/// so the disruptor's scope still names its target (hub #103, chris). The scan runs
+/// either way, so the U whisper keeps its target.
+pub(crate) fn crosshair_visibility(mode: u8, scope_style: i64, wheel_open: bool) -> [bool; 2] {
+    let crosshair = !wheel_open && (mode == 0 || scope_style == 1);
+    let names = !wheel_open && mode != 2;
+    [crosshair, names]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_binoculars_hide_the_crosshair_names() {
+        // Disruptor zoom: the mask replaces the crosshair, the names stay.
+        assert_eq!(crosshair_visibility(1, 0, false), [false, true]);
+        assert_eq!(crosshair_visibility(1, 1, false), [true, true]);
+        assert_eq!(crosshair_visibility(2, 0, false), [false, false]);
+        assert_eq!(crosshair_visibility(0, 0, false), [true, true]);
+        assert_eq!(crosshair_visibility(0, 0, true), [false, false]);
+    }
 
     const WP_BRYAR_PISTOL: u8 = 4;
     const WP_DISRUPTOR: u8 = 6;

@@ -5785,3 +5785,27 @@ change: Shader and image names drop a leading / or \ before the lookup, as FS_FO
 change: Was: "virtual path must be relative", map transition failed (JoF Pillowtalk skin).
 test: Join a server where a player wears Pillowtalk (JoF pack): the map loads, model textured.
 test: logs/last-client.log has no "virtual path must be relative".
+
+[own-model-scale]
+area: Rendering & effects
+title: Your own model takes its size change (Ysalamiri), as others see it
+change: The local player's scale comes from playerState iModelScale (it is never an entity).
+change: Hub report 105.
+test: On JoF's FFA1, take the Ysalamiri size boost in third person: your model grows.
+test: Others still see your size; at normal size nothing changes, first person included.
+
+[jetpack-strafe-aura]
+area: HUD
+title: Strafe aura and guides show while flying the jetpack
+change: The guides were off for any pm_type but PM_NORMAL; PM_JETPACK (jetpack flight) counts too.
+change: Hub report 102.
+test: cg_strafeAura 1, take a jetpack (Siege_Desert), fly and strafe: the aura shows.
+test: Spectate someone: still no guides.
+
+[scope-crosshair-names]
+area: HUD
+title: Crosshair names show in the disruptor scope; binoculars still hide them
+change: Any zoom hid the names; now only zoom mode 2 (binoculars) does, as JoF EJK.
+change: Hub report 103.
+test: Disruptor, zoom on a player: their name shows under the scope.
+test: Binoculars on a player: no name; U still whispers to the one in sight.

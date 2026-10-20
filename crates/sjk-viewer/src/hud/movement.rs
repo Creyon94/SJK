@@ -38,6 +38,17 @@ pub(super) struct Guides {
     full_input: bool,
 }
 
+/// Whether the guides and the strafe aura follow a player in this `pm_type`:
+/// `PM_NORMAL` (0) and `PM_JETPACK` (1, `bg_public.h`), which the server sets for
+/// the whole of a jetpack flight (`g_active.c` `ClientThink_real`) while the air
+/// movement stays `PM_AirMove`'s, its push scaled 0.8 unless thrusting
+/// (`bg_pmove.c`); the guides were blank there (hub #102, Rollembones).
+fn guided_movement_type(movement_type: u8) -> bool {
+    const PM_NORMAL: u8 = 0;
+    const PM_JETPACK: u8 = 1;
+    matches!(movement_type, PM_NORMAL | PM_JETPACK)
+}
+
 impl Default for Guides {
     fn default() -> Self {
         Self {
@@ -87,7 +98,7 @@ impl Guides {
         }
         self.airborne =
             predicted.map_or(player.ground_entity_num(), |p| p.ground_entity_number) == 1023;
-        self.allowed = player.movement_type() == 0
+        self.allowed = guided_movement_type(player.movement_type())
             && player.vehicle_entity_num() == 0
             && player.zoom_mode() == 0;
     }
@@ -501,6 +512,19 @@ mod tests {
         guides.settings.aura_ground = true;
         guides.emit(&mut draw, [640.0, 480.0], 0);
         assert_eq!(draw.len(), super::AURA_COMMANDS);
+    }
+
+    #[test]
+    fn the_guides_follow_a_jetpack_flight() {
+        let mut player = PlayerState::default();
+        let mut guides = Guides::default();
+        player.set_movement_type(1);
+        guides.update(&player, None, None);
+        assert!(guides.allowed, "PM_JETPACK");
+        // Spectating (PM_SPECTATOR, 2) and the like stay without guides.
+        player.set_movement_type(2);
+        guides.update(&player, None, None);
+        assert!(!guides.allowed);
     }
 
     #[test]

@@ -471,8 +471,11 @@ fn submit_actor(
         presentation_time,
         sinks.predicted_vehicle,
     );
-    if let Some(state) = state {
-        model_scale::apply(transform, state.model_scale_percent(), state.npc_class());
+    let local_player = snapshot
+        .filter(|_| Some(entity.id.get()) == local_entity_id)
+        .map(|snapshot| &snapshot.player);
+    if let Some((percent, npc_class)) = model_scale::source(state, local_player) {
+        model_scale::apply(transform, percent, npc_class);
     }
     // `EF_DISINTEGRATION`: `CG_Disintegration` draws the body and nothing else
     // (`cg_players.c`, `cg_ents.c`).
