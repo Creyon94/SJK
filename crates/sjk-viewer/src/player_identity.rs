@@ -141,23 +141,28 @@ fn lock() -> MutexGuard<'static, Runtime> {
 }
 
 fn make_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    HttpHub::new(url, &agent).map(|hub| Box::new(hub) as Box<dyn Hub>)
+    HttpHub::new(url, crate::build_info::hub_agent()).map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
 /// A hub client for the SJK chat's long poll, whose requests may last longer.
 fn make_feed_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    HttpHub::with_timeout(url, &agent, sjk_identity::feed::TIMEOUT)
-        .map(|hub| Box::new(hub) as Box<dyn Hub>)
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::feed::TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
 /// A hub client for shared vitals, whose requests give up sooner: a late answer is
 /// out of date anyway.
 fn make_vitals_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    HttpHub::with_timeout(url, &agent, sjk_identity::vitals::TIMEOUT)
-        .map(|hub| Box::new(hub) as Box<dyn Hub>)
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::vitals::TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
 /// The name the game shows for `slot`, as the server published it.

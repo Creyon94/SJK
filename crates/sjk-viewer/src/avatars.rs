@@ -395,8 +395,8 @@ fn load(request: &Request, hubs: &mut Option<(String, sjk_identity::HttpHub)>) -
         return None;
     }
     if hubs.as_ref().is_none_or(|(url, _)| *url != request.hub_url) {
-        let agent = format!("SJK/{}", crate::build_info::VERSION);
-        let hub = sjk_identity::HttpHub::new(&request.hub_url, &agent).ok()?;
+        let hub =
+            sjk_identity::HttpHub::new(&request.hub_url, crate::build_info::hub_agent()).ok()?;
         *hubs = Some((request.hub_url.clone(), hub));
     }
     let (_, hub) = hubs.as_mut()?;

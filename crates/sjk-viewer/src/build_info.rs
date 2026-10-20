@@ -20,6 +20,22 @@ pub(crate) fn label() -> &'static str {
     LABEL.get_or_init(|| format_label(VERSION, COMMIT_TIME, COMMIT))
 }
 
+/// The `User-Agent` of SJK's requests to the hub: `SJK/<version> (<commit>)`, or
+/// `SJK/<version>` when the build did not know its commit. The hub records it so staff
+/// see which build a key plays with (the hub's `PROTOCOL.md`, "Client").
+pub(crate) fn hub_agent() -> &'static str {
+    static AGENT: OnceLock<String> = OnceLock::new();
+    AGENT.get_or_init(|| format_agent(VERSION, COMMIT))
+}
+
+fn format_agent(version: &str, commit: &str) -> String {
+    if commit.is_empty() {
+        format!("SJK/{version}")
+    } else {
+        format!("SJK/{version} ({commit})")
+    }
+}
+
 /// The label of a build, leaving out a time or commit the build did not know.
 fn format_label(version: &str, time: &str, commit: &str) -> String {
     let mut label = format!("SJK {version}");
@@ -57,6 +73,15 @@ fn eu_date_time(iso: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_hub_agent_names_the_commit_when_known() {
+        assert_eq!(
+            format_agent("2026.1017.2", "9dbbdf19"),
+            "SJK/2026.1017.2 (9dbbdf19)"
+        );
+        assert_eq!(format_agent("0.1.0-dev", ""), "SJK/0.1.0-dev");
+    }
 
     #[test]
     fn commit_time_reads_day_first_on_the_24_hour_clock() {
