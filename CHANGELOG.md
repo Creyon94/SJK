@@ -65,6 +65,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Dances keep their music: a dance left running is no longer counted as away after `cg_awayIdle`, and a dancer out of sight for a moment in a crowded dance no longer loses their emote _(Sol, after Foshin's report)_
 - With the game HUD (`cg_hudStyle game`, the default) the vehicle HUD is the original Jedi Academy one, hull, speed, shield and ammunition ticks, turbo bar and weapons-linked mark included; the AT-ST, which hides its rider, now shows its vehicle HUD too _(Slash)_
 - Siege: the team choice has Auto-join, as the other team games, which puts you on the side with fewer players _(Slash)_
+- Adding or changing a quick wheel choice opens its list with a search field ready: type to find an action or emote by its name or group _(Slash)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
@@ -88,7 +89,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Shift with the console key can open it at your console height, with Shift+Escape opening a quarter screen instead (Settings > Interface, `con_shiftHeight`, off: EternalJK's way) _(Lumaya)_
 - Siege: a completed objective shows its message and plays its sound for your team, the round counts in 3, 2, 1, and the round's end is announced and voiced, from the map's .siege file _(Slash, after JKA)_
 - Text from the game's string tables breaks lines where it says to, so siege_hoth's centre messages no longer show a literal \n _(Slash, after JKA)_
-- Adding or changing a quick wheel choice opens its list with a search field ready: type to find an action or emote by its name or group _(Slash)_
 - The speedometer is placed as in JoF EternalJK: `cg_speedometerX` is the right edge of its text, shifted clear of JoF's numbered game HUDs, so existing positions move _(Lukas, after JoF EJK)_
 - Hovering a whisper you sent in the console shows who it went to, in both console looks _(Lukas)_
 - Copying console text can keep its colours (Settings > Interface, `con_copyColors`, off) _(Lukas)_
