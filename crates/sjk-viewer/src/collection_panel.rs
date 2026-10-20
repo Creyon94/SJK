@@ -104,6 +104,10 @@ const CARD_SHOW_BASE: u16 = 8_000;
 const CARD_RARITY_TOKEN: u16 = 8_003;
 const CARD_KIND_TOKEN: u16 = 8_004;
 const CARD_FINISH_TOKEN: u16 = 8_005;
+/// The card looked at closely: the darkened window under it (a click closes it), and
+/// the card up close, where a click opens it (20/10/2026).
+const CARD_INSPECT_TOKEN: u16 = 8_006;
+const CARD_CLOSE_UP_TOKEN: u16 = 8_007;
 const _: () = assert!(CARD_BASE as usize + CARD_TILES_MAX <= CARD_SHOW_BASE as usize);
 const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
@@ -319,6 +323,9 @@ pub(crate) struct Panel {
     card: usize,
     cards_shown: usize,
     card_first: usize,
+    /// Whether the chosen tile is looked at closely, large over the darkened tab
+    /// (`collection_cards.rs`, `card_inspect_view`).
+    card_inspect: bool,
     /// The Cards tab's filter, and the tiles it showed last frame (for the hover cards).
     card_filter: crate::cards::binder::Filter,
     card_tiles: Vec<crate::cards::binder::Tile>,
@@ -413,6 +420,7 @@ impl Panel {
             card: 0,
             cards_shown: 0,
             card_first: 0,
+            card_inspect: false,
             card_filter: Default::default(),
             card_tiles: Vec::new(),
             revealable: 0,
@@ -484,6 +492,7 @@ impl Panel {
         if tab.screen() == crate::profile_hub::Screen::Collection && tab != Tab::Holocrons {
             if tab != self.tab {
                 self.leave_search();
+                self.card_inspect = false;
             }
             self.tab = tab;
         }
@@ -607,6 +616,10 @@ impl Panel {
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
+            Tab::Cards => {
+                self.card_inspect = self.cards_shown > 0;
+                PanelAction::None
+            }
             _ => PanelAction::None,
         }
     }
@@ -669,6 +682,9 @@ impl Panel {
             return PanelAction::None;
         };
         self.hover.keyed();
+        if self.tab == Tab::Cards && self.card_inspect {
+            return self.key(key, shift, illuminate);
+        }
         if self.tab == Tab::Cards && !control {
             let faces = crate::cards::faces::current();
             let filter = &mut self.card_filter;
@@ -677,6 +693,7 @@ impl Panel {
                 KeyCode::KeyT => filter.cycle_rarity(shift),
                 KeyCode::KeyK => filter.cycle_kind(&faces, shift),
                 KeyCode::KeyF => filter.cycle_finish(shift),
+                KeyCode::KeyI => return self.activate(illuminate),
                 _ => return self.key(key, shift, illuminate),
             }
             return self.card_filter_changed();
@@ -713,6 +730,13 @@ impl Panel {
     }
 
     /// The Cards tab's filter changed: back to its first tile.
+    /// Go `by` tiles on from the card looked at closely, stopping at the ends; the grid
+    /// follows it when it is put back.
+    fn inspect_step(&mut self, by: isize) {
+        let last = self.cards_shown.saturating_sub(1) as isize;
+        self.card = (self.card as isize + by).clamp(0, last) as usize;
+    }
+
     fn card_filter_changed(&mut self) -> PanelAction {
         self.card = 0;
         self.card_first = 0;
@@ -805,6 +829,25 @@ impl Panel {
     /// A pressed key, by its code.
     fn key(&mut self, key: KeyCode, shift: bool, illuminate: bool) -> PanelAction {
         let vertical = self.tab == Tab::Shaders;
+        if self.tab == Tab::Cards && self.card_inspect {
+            // Looking at a card closely: the arrows go to the previous or next tile,
+            // Escape, Enter, Space and I put it back.
+            match key {
+                KeyCode::ArrowLeft | KeyCode::ArrowUp | KeyCode::PageUp => self.inspect_step(-1),
+                KeyCode::ArrowRight | KeyCode::ArrowDown | KeyCode::PageDown => {
+                    self.inspect_step(1);
+                }
+                KeyCode::Home => self.card = 0,
+                KeyCode::End => self.card = self.cards_shown.saturating_sub(1),
+                KeyCode::Escape
+                | KeyCode::Enter
+                | KeyCode::NumpadEnter
+                | KeyCode::Space
+                | KeyCode::KeyI => self.card_inspect = false,
+                _ => {}
+            }
+            return PanelAction::None;
+        }
         if self.tab == Tab::Cards && self.cards_shown > 0 {
             // The binder: Left and Right step a tile, Up and Down a line, stopping at the
             // ends (a short last line takes Down to its last tile); Page Up and Page Down
@@ -967,6 +1010,13 @@ impl Panel {
         if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Cards
         {
+            if self.card_inspect {
+                // The wheel goes to the previous (up) or next (down) card.
+                if delta.y != 0.0 {
+                    self.inspect_step(if delta.y > 0.0 { -1 } else { 1 });
+                }
+                return PanelAction::None;
+            }
             self.scroll_cards(delta.y);
             return PanelAction::None;
         }
@@ -1071,6 +1121,18 @@ impl Panel {
             if token == SEARCH_TOKEN {
                 return self.focus_search();
             }
+            // Looking at a card closely: a click anywhere puts it back; a click on the
+            // card up close or on a tile looks at it.
+            if token == CARD_INSPECT_TOKEN {
+                self.card_inspect = false;
+                return PanelAction::None;
+            }
+            if token == CARD_CLOSE_UP_TOKEN {
+                return self.activate(illuminate);
+            }
+            if self.tab == Tab::Cards && self.choose_token(token) {
+                return self.activate(illuminate);
+            }
         }
         let choose = matches!(
             event.kind,
@@ -1158,6 +1220,12 @@ impl Panel {
     #[cfg(test)]
     pub(crate) fn choose_card_for_shot(&mut self, index: usize) {
         self.card = index;
+    }
+
+    /// Look at the Cards tab's chosen tile closely (or put it back), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn inspect_card_for_shot(&mut self, on: bool) {
+        self.card_inspect = on;
     }
 
     /// Set the Cards tab's filter, for a world shot.

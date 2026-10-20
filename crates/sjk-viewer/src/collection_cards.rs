@@ -1,12 +1,13 @@
 //! The Collection's Cards tab (`docs/cards.md`, "The Cards tab"): a binder of every card
 //! the SJK packs have a face of ([`crate::cards::faces`]), found or not, and the player's
-//! credits and kyber shards. On the left the tiles ([`crate::cards::binder`]), seven to
-//! a line and three lines shown, scrolling a line at a time: the sealed copies first (a
-//! tile per rarity), then every card by set and number, one tile whatever the copies
-//! held, in the best finish's light with how many; a card not found yet greyed. Above
-//! them the filter's chips (All, Owned or Missing; a rarity; a kind; a finish held) and
-//! how many cards it shows. On the right the tile chosen up close, big enough to read,
-//! with what it is. When the packs have faces of a sealed copy's rarity, Reveal (or R)
+//! credits and kyber shards. On the left the tiles ([`crate::cards::binder`]), six to a
+//! line and three lines shown, scrolling a line at a time, each naming its card: the
+//! sealed copies first (a tile per rarity), then every card by set and number, one tile
+//! whatever the copies held, in the best finish's light with how many; a card not found
+//! yet greyed. Above them the filter's chips (All, Owned or Missing; a rarity; a kind; a
+//! finish held) and how many cards it shows. On the right the tile chosen up close, big
+//! enough to read, with what it is; Enter or a click shows it large over the tab, the
+//! arrows turning to the next (`card_inspect_view`). When the packs have faces of a sealed copy's rarity, Reveal (or R)
 //! asks the hub to reveal them, and a line beside it says what came of it. The cards
 //! come from the player's own hub profile ([`crate::cards::stacks`]).
 
@@ -20,23 +21,32 @@ use sjk_ui::{DrawCommand, FontWeight, TextAlign};
 
 /// The tiles on the left: their width, the room each takes across and down, how many to
 /// a line and the lines shown (the rest scroll into view).
-const CARD_WIDTH: f32 = 122.0;
-const STEP_X: f32 = 138.0;
-const STEP_Y: f32 = 186.0;
-pub(super) const COLUMNS: usize = 7;
+/// Six to a line at 140 (20/10/2026, Sol's request: seven at 122 were too small to
+/// tell apart), each naming its card under its picture ([`look::Card::label`]).
+const CARD_WIDTH: f32 = 140.0;
+const STEP_X: f32 = 158.0;
+const STEP_Y: f32 = 206.0;
+pub(super) const COLUMNS: usize = 6;
 pub(super) const LINES: usize = 3;
 /// The first line's top.
-const GRID_TOP: f32 = 350.0;
+const GRID_TOP: f32 = 340.0;
 /// The filter's chips: their line and height.
-const FILTER_Y: f32 = 300.0;
+const FILTER_Y: f32 = 294.0;
 const FILTER_HEIGHT: f32 = 28.0;
 /// The grid's right edge, where the filter's count ends and the scroll bar stands.
 const GRID_RIGHT: f32 = LEFT_X + (COLUMNS - 1) as f32 * STEP_X + CARD_WIDTH;
 /// The card up close: wide enough that a face's lore reads at 1080p.
 const BIG_WIDTH: f32 = 470.0;
 const BIG_TOP: f32 = 150.0;
-/// Reveal, under the grid; what it brought reads beside it.
-const REVEAL_Y: f32 = 912.0;
+/// Reveal, under the grid, and its height; what it brought reads beside it.
+const REVEAL_Y: f32 = 958.0;
+const REVEAL_HEIGHT: f32 = 40.0;
+/// The card looked at closely ([`Panel::card_inspect_view`]): its width (its height
+/// fills most of the frame's), its left and the words' column at its right.
+const INSPECT_WIDTH: f32 = 660.0;
+const INSPECT_X: f32 = 300.0;
+const INSPECT_WORDS_X: f32 = 1_030.0;
+const INSPECT_WORDS_WIDTH: f32 = 640.0;
 const REVEAL_WIDTH: f32 = 330.0;
 /// Room kept at the right of Reveal's line for where the grid has scrolled to.
 const ROWS_WIDTH: f32 = 180.0;
@@ -155,6 +165,15 @@ impl Panel {
                 .filter(|tile| matches!(tile.slot, Slot::Card(_)))
                 .count()
         };
+        if self.card_inspect && self.cards_shown > 0 {
+            let tiles = std::mem::take(&mut self.card_tiles);
+            if let Some(chosen) = tiles.get(self.card) {
+                self.card_inspect_view(frame, chosen, &faces, seconds);
+            }
+            self.card_tiles = tiles;
+            return;
+        }
+        self.card_inspect = false;
         let shown_cards = cards_in(&self.card_tiles);
         self.card_filter_bar(frame, shown_cards, cards_in(&all));
         // The grid scrolls just enough to keep the chosen tile in view.
@@ -331,7 +350,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("Rows {}-{} of {lines}", first + 1, first + LINES),
-            frame.rect(GRID_RIGHT - ROWS_WIDTH, REVEAL_Y + 11.0, ROWS_WIDTH, 24.0),
+            frame.rect(GRID_RIGHT - ROWS_WIDTH, REVEAL_Y + 8.0, ROWS_WIDTH, 24.0),
             15.0 * s,
             color::QUIET,
             FontWeight::Regular,
@@ -466,7 +485,7 @@ impl Panel {
             crate::menu::sjk::kit::button(
                 &mut self.ui,
                 frame,
-                [LEFT_X, REVEAL_Y, REVEAL_WIDTH, 44.0],
+                [LEFT_X, REVEAL_Y, REVEAL_WIDTH, REVEAL_HEIGHT],
                 &label,
                 true,
                 !waiting,
@@ -485,7 +504,7 @@ impl Panel {
             format_args!("{words}"),
             frame.rect(
                 words_x,
-                REVEAL_Y + 11.0,
+                REVEAL_Y + 8.0,
                 GRID_RIGHT - ROWS_WIDTH - 12.0 - words_x,
                 24.0,
             ),
@@ -537,6 +556,7 @@ impl Panel {
                 face: shown_face(tile, faces),
                 tilt,
                 dim: !tile.owned(),
+                label: true,
             },
             seconds,
             1.0,
@@ -617,38 +637,39 @@ impl Panel {
                 face,
                 tilt,
                 dim: !tile.owned(),
+                label: false,
             },
             seconds,
             1.0,
             1.0,
         );
+        // A click on it looks at it closely.
+        self.ui.hit_region(
+            CARD_CLOSE_UP_TOKEN,
+            frame.rect(
+                middle - BIG_WIDTH * 0.5,
+                BIG_TOP,
+                BIG_WIDTH,
+                BIG_WIDTH * look::ASPECT,
+            ),
+        );
+        let words = card_words(tile, faces);
         let mut y = BIG_TOP + BIG_WIDTH * look::ASPECT + 18.0;
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", tile.name(faces)),
+            format_args!("{}", words.name),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 40.0),
             32.0 * s,
-            if !tile.owned() {
-                color::MUTED
-            } else if finish.index == 2 {
-                color::GOLD_BRIGHT
-            } else {
-                tile.rarity.colour
-            },
+            words.colour,
             FontWeight::Semibold,
             TextAlign::Center,
         );
         y += 46.0;
-        let held = if tile.owned() {
-            tile.breakdown()
-        } else {
-            "Not found yet".to_owned()
-        };
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{held}"),
+            format_args!("{}", words.held),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 26.0),
             18.0 * s,
             if tile.owned() {
@@ -660,29 +681,10 @@ impl Panel {
             TextAlign::Center,
         );
         y += 34.0;
-        let about = match (&tile.slot, face) {
-            (_, Some(face)) => {
-                let mut about = format!(
-                    "{} {}   ·   {}   ·   {}",
-                    crate::symbols::card_rarity(tile.rarity.index),
-                    tile.rarity.name,
-                    face.face.kind.name(),
-                    face.face.set_name,
-                );
-                if let Some(place) = face.face.place(face.of) {
-                    about = format!("{about} {place}");
-                }
-                about
-            }
-            (Slot::Sealed, _) => {
-                "Sealed: a card is picked for each when it is revealed.".to_owned()
-            }
-            _ => "Its face is not in your card pack yet.".to_owned(),
-        };
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{about}"),
+            format_args!("{}", words.about),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 24.0),
             16.0 * s,
             color::QUIET,
@@ -690,31 +692,192 @@ impl Panel {
             TextAlign::Center,
         );
         y += 30.0;
-        let last = if tile.owned() {
-            match crate::medals::date_text(tile.first()) {
-                date if date.is_empty() => String::new(),
-                date => format!("First found {date}"),
-            }
-        } else {
-            rarity_odds(tile.rarity, faces)
-        };
-        // A card that brings a blade (or whose Solar copies drop one) says so first, a
-        // line more before the keys.
-        let extra = face.and_then(|face| face.face.brings().or_else(|| face.face.solar_drop()));
-        let (last, lines) = match extra {
-            Some(brings) => (format!("{brings} {last}"), 3),
-            None => (last, 2),
-        };
         centred_lines(
             &mut self.ui,
             frame,
-            last.trim_end(),
+            words.last.trim_end(),
             [SHOWCASE_X + 40.0, y, SHOWCASE_WIDTH - 80.0],
             72,
-            lines,
+            words.lines,
             15.0,
             color::QUIET,
         );
+    }
+
+    /// The chosen tile looked at closely (20/10/2026, Sol's request: the cards should be
+    /// easier to see): over the darkened page, its card as tall as the frame allows
+    /// ([`INSPECT_WIDTH`] wide), tilting under the pointer in its finish's light, and at
+    /// its right where it stands among the tiles shown, its name, the copies held, what
+    /// it is and when the first was found or how it is obtained. The page is not drawn
+    /// under it, and the glyphs drawn before it (the header, the headline) are covered.
+    /// A click anywhere, Escape, Enter or Space close it; Left and Right, Up and Down or
+    /// the wheel go to the previous or next tile.
+    fn card_inspect_view(
+        &mut self,
+        frame: &Frame,
+        tile: &Tile,
+        faces: &cards::faces::Faces,
+        seconds: f32,
+    ) {
+        let s = frame.s;
+        // The whole window, beyond the frame's sides on a wide one.
+        let [left, top] = frame.point(0.0, 0.0);
+        let window = sjk_ui::Rect::new(0.0, 0.0, left * 2.0 + 1920.0 * s, top * 2.0 + 1080.0 * s);
+        self.ui.cover(window);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: window,
+            radius: 0.0,
+            color: color::alpha(color::SPACE, 0.97),
+        });
+        self.ui.hit_region(CARD_INSPECT_TOKEN, window);
+        let height = INSPECT_WIDTH * look::ASPECT;
+        let place = [INSPECT_X, (1_080.0 - height) * 0.5 - 14.0, INSPECT_WIDTH];
+        let tilt = self.card_tilt(frame, place, 0, seconds);
+        look::draw(
+            &mut self.ui,
+            frame,
+            place,
+            look::Card {
+                rarity: tile.rarity,
+                finish: tile.finish(),
+                edition: tile.best().map_or("", |stack| stack.edition.as_str()),
+                face: shown_face(tile, faces),
+                tilt,
+                dim: !tile.owned(),
+                label: false,
+            },
+            seconds,
+            1.0,
+            1.0,
+        );
+        let words = card_words(tile, faces);
+        let (x, width) = (INSPECT_WORDS_X, INSPECT_WORDS_WIDTH);
+        let mut y = 380.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Card {} of {}", self.card + 1, self.cards_shown),
+            frame.rect(x, y, width, 24.0),
+            16.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += 34.0;
+        let lines = crate::menu::sjk::wrap(&words.name, 30).count().clamp(1, 2);
+        for (index, line) in crate::menu::sjk::wrap(&words.name, 30).take(2).enumerate() {
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{line}"),
+                frame.rect(x, y + index as f32 * 50.0, width, 50.0),
+                42.0 * s,
+                words.colour,
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+        }
+        y += 50.0 * lines as f32 + 14.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{}", words.held),
+            frame.rect(x, y, width, 28.0),
+            20.0 * s,
+            if tile.owned() {
+                color::TEXT
+            } else {
+                color::MUTED
+            },
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += 38.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{}", words.about),
+            frame.rect(x, y, width, 26.0),
+            18.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += 44.0;
+        super::view::left_lines(
+            &mut self.ui,
+            frame,
+            words.last.trim_end(),
+            [x, y, width],
+            (62, 4),
+            17.0,
+            color::QUIET,
+            TextAlign::Start,
+        );
+    }
+}
+
+/// What the Cards tab says of a tile, up close and looked at closely: its name and the
+/// colour it reads in, the copies held (or "Not found yet"), what it is, and last when
+/// the first was found or how it is obtained (after what a card's blade brings), with
+/// the lines that last takes at most up close.
+struct CardWords {
+    name: String,
+    colour: sjk_ui::Color,
+    held: String,
+    about: String,
+    last: String,
+    lines: usize,
+}
+
+/// [`CardWords`] for `tile`.
+fn card_words(tile: &Tile, faces: &cards::faces::Faces) -> CardWords {
+    let face = shown_face(tile, faces);
+    let colour = if !tile.owned() {
+        color::MUTED
+    } else if tile.finish().index == 2 {
+        color::GOLD_BRIGHT
+    } else {
+        tile.rarity.colour
+    };
+    let held = if tile.owned() {
+        tile.breakdown()
+    } else {
+        "Not found yet".to_owned()
+    };
+    let about = match (&tile.slot, face) {
+        (_, Some(face)) => format!(
+            "{} {}   ·   {}   ·   {}",
+            crate::symbols::card_rarity(tile.rarity.index),
+            tile.rarity.name,
+            face.face.kind.name(),
+            face.face.set_name,
+        ),
+        (Slot::Sealed, _) => "Sealed: a card is picked for each when it is revealed.".to_owned(),
+        _ => "Its face is not in your card pack yet.".to_owned(),
+    };
+    let last = if tile.owned() {
+        match crate::medals::date_text(tile.first()) {
+            date if date.is_empty() => String::new(),
+            date => format!("First found {date}"),
+        }
+    } else {
+        rarity_odds(tile.rarity, faces)
+    };
+    // A card that brings a blade (or whose Solar copies drop one) says so first, a line
+    // more before the keys.
+    let extra = face.and_then(|face| face.face.brings().or_else(|| face.face.solar_drop()));
+    let (last, lines) = match extra {
+        Some(brings) => (format!("{brings} {last}"), 3),
+        None => (last, 2),
+    };
+    CardWords {
+        name: tile.name(faces),
+        colour,
+        held,
+        about,
+        last,
+        lines,
     }
 }
 
@@ -755,11 +918,7 @@ fn shown_face<'a>(tile: &Tile, faces: &'a cards::faces::Faces) -> Option<look::S
         return None;
     };
     let face = faces.list.get(index)?;
-    Some(look::Shown {
-        face,
-        index,
-        of: faces.in_set(&face.set),
-    })
+    Some(look::Shown { face, index })
 }
 
 /// How a card of `rarity` is obtained, with the odds: "From holocrons: about 1 in 1 912
@@ -922,7 +1081,12 @@ mod tests {
         for _ in 0..40 {
             let _ = panel.key(KeyCode::ArrowDown, false, true);
         }
-        assert_eq!(panel.card, 64, "Down stops at the last tile");
+        // Down keeps the column: on the last line (tiles 60 to 64) it is tile 62.
+        assert_eq!(
+            panel.card,
+            64 / COLUMNS * COLUMNS + 2,
+            "Down stops at the last line"
+        );
         panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
         assert_eq!(
             panel.card_first,
@@ -970,8 +1134,47 @@ mod tests {
         let first = panel.card_first;
         assert_eq!(
             rows.as_deref(),
-            Some(format!("Rows {}-{} of 10", first + 1, first + LINES).as_str())
+            Some(
+                format!(
+                    "Rows {}-{} of {}",
+                    first + 1,
+                    first + LINES,
+                    65usize.div_ceil(COLUMNS)
+                )
+                .as_str()
+            )
         );
+        // Enter looks at the chosen tile closely: the arrows go to the next and back,
+        // stopping at the ends, Escape puts it back without closing the Collection,
+        // and the page drawn is the card's alone, every state fitting.
+        panel.card = 3;
+        let _ = panel.key(KeyCode::Enter, false, true);
+        assert!(panel.card_inspect);
+        for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
+            panel.build(&shown, &fonts.font, viewport);
+            assert!(!panel.overflowed(), "{viewport:?}");
+        }
+        assert!(panel.ui.rect_for(CARD_INSPECT_TOKEN).is_some());
+        assert!(
+            panel.ui.rect_for(CARD_BASE + 3).is_none(),
+            "no tile under it"
+        );
+        assert!(
+            panel.ui.text_runs().any(|run| run == "Card 4 of 65"),
+            "where it stands"
+        );
+        let _ = panel.key(KeyCode::ArrowRight, false, true);
+        assert_eq!(panel.card, 4);
+        for _ in 0..80 {
+            let _ = panel.key(KeyCode::ArrowDown, false, true);
+        }
+        assert_eq!(panel.card, 64, "the last tile");
+        assert!(matches!(
+            panel.key(KeyCode::Escape, false, true),
+            PanelAction::None
+        ));
+        assert!(!panel.card_inspect, "Escape puts it back");
+        panel.card = 0;
         // T for one rarity: the sealed Mythical tile alone.
         for _ in 0..5 {
             panel.card_filter.cycle_rarity(false);

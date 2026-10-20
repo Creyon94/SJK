@@ -396,6 +396,7 @@ impl Panel {
                         face: cards::shown(&faces, card.card.as_deref()),
                         tilt: None,
                         dim: false,
+                        label: false,
                     },
                     seconds,
                     1.0,

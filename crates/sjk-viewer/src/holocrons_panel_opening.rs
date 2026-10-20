@@ -819,6 +819,7 @@ impl Panel {
                     face: cards::shown(&faces, shown.card.as_deref()),
                     tilt: None,
                     dim: false,
+                    label: false,
                 },
                 seconds,
                 1.0,
@@ -1000,23 +1001,9 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Center,
         );
+        // Its kind and collection, no number (Sol, 20/10/2026).
         let last_line = match face {
-            Some(face) if face.face.kind == crate::cards::faces::Kind::Credits => {
-                format!("{}, {}", face.face.kind.name(), face.face.set_name)
-            }
-            Some(face) if face.face.kind == crate::cards::faces::Kind::Blade => format!(
-                "{}, {} #{:03}",
-                face.face.kind.name(),
-                face.face.set_name,
-                face.face.number
-            ),
-            Some(face) => format!(
-                "{}, {}: card {} of {}",
-                face.face.kind.name(),
-                face.face.set_name,
-                face.face.number,
-                face.of
-            ),
+            Some(face) => format!("{}, {}", face.face.kind.name(), face.face.set_name),
             None if stack.sealed() => "Sealed: its card is picked when it is revealed.".to_owned(),
             None => "Its face is not in your card pack yet.".to_owned(),
         };

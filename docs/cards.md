@@ -257,9 +257,10 @@ hub's `assets/dist/cards.json` is the list as it stands, not this page.
 
 **Credits cards (20/10/2026, Sol's decision):** so that no credit reads as ranked above
 another, every credits card is Mythical (the hub's import and pack build refuse any other
-rarity) and shows no number in the game: not on the card's foot, the Cards tab's close-up,
-its hover card or an opening (`Face::place` is `None`). The number still makes the card's
-id and orders the credits in the binder.
+rarity). Since the same day no card shows its number in the game, whatever its kind
+(Sol's decision: "it's not a good thing"): not on its face, its tile, the Cards tab's
+close-up, its hover card or an opening, which name its kind and collection instead ("Meme,
+SJK Alpha"). The number still makes the card's id and orders the cards in the binder.
 
 A card's kind says what it is about and reads on its strip: `community` (Community),
 `place` (Place), `personality` (Personality), `game` (Jedi Academy), since
@@ -293,8 +294,7 @@ without one), and its source facts "Holocron drop" and "Sol card".
 **Since 20/10/2026 (Sol's decision)** a second collection, **SJK Blades** (set
 `sjk_blades`), holds one card for each saber shader holocrons drop (the droppable ones,
 less the medals' blades), of kind `blade`. Its number is the blade's own (Sun is 001),
-and a blade card shows it alone, "#001" (`Face::place`): blade numbers skip the blades
-that never drop, so "001 / 162" would not add up (only credits cards hide theirs). A blade card's file names its shader,
+in its id only: no card shows its number (see the credits cards above). A blade card's file names its shader,
 `"blade": "saber_sun"` (optional, read like `grants`: blank is none, an id the client does
 not know is kept but named nowhere; `Face::blade` in
 [faces.rs](../crates/sjk-viewer/src/cards/faces.rs)).
@@ -410,12 +410,21 @@ not know is kept but named nowhere; `Face::blade` in
 - **A revealed card** shows its face as a trading card: its name and its rarity's
   symbol ([sjk-ui.md](sjk-ui.md#symbols)) on top, its picture in a gold-edged 6:5 window (dark until the
   picture is decoded and uploaded), a strip with its kind and set ("Meme ·
-  SJK Alpha") and its edition and finish, its lore in a box (cut into lines at spaces,
-  seven at most), and at the foot its number in its set ("001 / 001", counting the
-  set's cards the packs hold), its artist and its rarity. The plate, the rarity's edge
-  and the finishes' light are the sealed card's. A card narrower than 200 frame pixels
-  shows the picture without words, and below 300 only the name. A copy whose face is
-  not in the packs reads "Unknown card <id>" and keeps its sealed back.
+  SJK Alpha") and its edition and finish, its lore in a box, and at the foot its artist
+  and its rarity (no number, 20/10/2026). The plate, the rarity's edge and the finishes' light are the sealed card's.
+  A card narrower than 300 frame pixels shows only the name over its picture; below
+  200, a binder tile names itself under its picture instead (see the Cards tab), while
+  other small cards (the opening's finds, named beside them) show the picture alone.
+  A copy whose face is not in the packs reads "Unknown card <id>" and keeps its sealed
+  back.
+- **The lore fills its box** (20/10/2026, Sol's request: a short lore left most of
+  the box empty): the box keeps its size and place, and the lore takes the largest text
+  size, up to 1.4 times the smallest, whose lines fit the room seven smallest lines
+  take, tried in eight steps (`look::lore_fit`); it stands centred in the box, both
+  ways. A lore of one or two lines is centred, a longer one reads from the left; one
+  that needs more than seven lines at the smallest size is cut at seven. Every face
+  drawn (the Cards tab, the card looked at closely, the opening) does this, and the
+  shapes are the same as before, only the words move.
 - **The pictures** are decoded on a worker thread when the packs are mounted, cut to
   6:5 about their middle if they are not, squeezed into a 1024 square with its mip
   chain and drawn back into the 6:5 window (which undoes the squeeze); the renderer
@@ -554,19 +563,24 @@ not know is kept but named nowhere; `Face::blade` in
     ("SJK Alpha 5 / 13", four sets at most, then "2 more sets"); with no card yet,
     "Open a holocron on the Holocrons tab" after it. The kyber shards and credits stand
     at its right. Without faces in the packs it says how many cards are held, as before.
-  - **The tiles** (122 frame pixels wide, seven to a line, three lines shown from y 350):
+  - **The tiles** (140 frame pixels wide, six to a line, three lines shown from y 340;
+    since 20/10/2026, Sol's request: seven at 122 were too small to tell apart):
     first the sealed copies, one tile per rarity, the rarest first (their back in the best
     finish held); then every card by set and number, one tile whatever the copies held,
     in the light of the best finish held (Solar, then Holo, then Normal) with its edition;
     a card not found yet is greyed: a grey plate and edge, its picture darkened under a
-    grey veil, its words quiet, no finish light (`look::Card::dim`). Last, copies of a
+    grey veil, its words quiet, no finish light (`look::Card::dim`). Each card's tile
+    names it under its picture (`look::Card::label`, 20/10/2026), centred on up to two
+    lines that end in an ellipsis when the name runs on, with its rarity at its foot
+    (its symbol and name), in grey for a card not found yet, so tiles whose pictures look
+    alike (the placeholder art) tell apart. Last, copies of a
     card whose face is not in the packs ("Unknown card <id>", the sealed back). A tile
     holding more than one copy carries a pill at its top right, "x3", edged gold when its
     best is Solar. More lines than three scroll: the wheel a line a notch, the arrows keep
     the chosen tile in view, Page Up and Page Down move three lines (the column kept),
     Home and End go to the first and last tile; a bar at the grid's right shows where,
     and under its right end "Rows 4-6 of 9" (both only while it scrolls; the keys' hint
-    then adds PgUp PgDn).
+    then adds PgUp PgDn). Reveal and that line stand under the grid at y 958.
   - **The filter** above the tiles: All, Owned and Missing, then a chip each for the
     rarity ("Rarity: Legendary", in its colour), the kind ("Kind: Meme", only kinds the
     faces have) and the finish held ("Finish: Holo": a copy in it is held), each a click
@@ -577,23 +591,36 @@ not know is kept but named nowhere; `Face::blade` in
   - **Up close** on the right (470 frame pixels wide, so a face's lore reads at 1080p):
     the tile chosen, its name (in its rarity's colour, gold for Solar), the copies held
     ("3 copies: 1 Solar, 2 Normal · Alpha Edition") or "Not found yet", the rarity, kind,
-    set and number ("Legendary · Meme · SJK Alpha 010 / 013"; a sealed tile: that a card
+    set ("Legendary · Meme · SJK Alpha"; a sealed tile: that a card
     is picked for each when it is revealed), then when the first was found, or for a card
     not found yet how it is obtained with its odds. A card not found yet shows greyed.
+    A click on it looks at it closely.
+  - **Looking closer** (20/10/2026, Sol's request: the cards should be easier to see):
+    Enter, Space or I, a click on a tile or on the card up close shows the chosen tile's
+    card large over the darkened tab (660 frame pixels wide, nearly the frame's height,
+    at its left), tilting under the pointer in its finish's light, and at its right
+    where it stands ("Card 12 of 344", among the tiles the filter shows), its name, the
+    copies held, what it is and when the first was found or how it is obtained. The tab
+    is not drawn under it, and the header's words are covered
+    (`MenuCanvas::cover`). Left and Right (or Up and Down, Page Up and Page Down, the
+    wheel) go to the previous or next tile, stopping at the ends, Home and End to the
+    first and last; Escape, Enter, Space, I or a click anywhere put it back, on the tile
+    it was left on (the grid scrolls to it). The keys' hint then reads "Left Right
+    previous, next" and "Esc put back".
   - **Hovering** a tile shows its hover card ([sjk-ui.md](sjk-ui.md#hover-cards)): how a
     card of its rarity comes ("From holocrons: about 1 in 136 holocrons found holds a
     Legendary card (0.734%), one of the 9 Legendary cards."), what it is ("Legendary
-    card. Meme, SJK Alpha 010 of 13."), then the copies by finish and edition and "First
+    card. Meme, SJK Alpha."), then the copies by finish and edition and "First
     found 12/10/2026", or "Not found yet".
   - **Reveal N sealed cards** (or R) stands under the grid when the hub lets the player
     open holocrons and the packs have faces of a sealed copy's rarity; it says
     "Revealing..." until the hub answers, then a line beside it says how many were
     revealed or why not, and the blade Solar blade cards dropped ("1 card revealed, and
     the Sun blade drops with it!", or "3 cards revealed, and 2 blades drop with them!"). The arrows (Left and Right a tile, Up and Down a line), Tab and
-    the pointer choose. The tab's count in the row is the copies held.
+    the pointer choose; Enter looks closer. The tab's count in the row is the copies held.
 - **The ceremony** shows a card the hub picked with its face, bigger (400 wide) and
   higher, its name as the title, "Legendary, Holo. Alpha Edition. From a Mythical
-  Holocron" and its set and number in place of the sealed line.
+  Holocron" and its kind and collection ("Meme, SJK Alpha") in place of the sealed line.
 - **The player card's** rarest holocron gem counts opened holocrons too, as the
   counts now hold only the unopened ones.
 - `debug_open <tier|all> [x<count>] [normal|holo|solar|shader|shards]` plays the ceremony
@@ -727,3 +754,18 @@ card borrowing SJK Alpha 000's picture, as the packs have no blade card yet) was
 the blade card's pack with its shards and blade tiles sliding out, its words in 1080p and
 4:3, five opened at once laid out, and the card up close on the Cards tab with its hover
 card. Not tried: against the hub's change, in a running client.
+
+The card pages (20/10/2026, Windows 11, `personal/card-pages`): unit tests for the lore's
+fit (a short lore at the largest size and centred, a longer one smaller and always within
+the box, an overlong one cut at seven lines, a larger player text size growing it less), a
+small card's label (only when asked, two lines, its rarity and no number, the ellipsis),
+no number on a big face, and the tab's
+keys with six to a line and looking closer (Enter, the arrows to the last tile, Escape
+putting it back without closing the Collection, the view fitting the canvas in three
+windows). World shots looked at (off-screen, duel6, the hub's `assets/dist` packs with
+their 344 cards mounted), before and after: `duel6_sjk_card_binder` in 1080p, 4:3 and
+4K (the binder, its filters, a hover card, and looking closer at the Toxiee card, a card
+with a two-line lore and one with a six-line lore) and `duel6_sjk_card_binder_many`, and
+`duel6_sjk_card_faces` (the opening's card with its fitted lore). Not tried: in a running
+client (the clicks, the wheel and the keys there), the 150 % display scale itself (the
+layout follows the window's height only, so 4K draws the 1080p layout twice as sharp).

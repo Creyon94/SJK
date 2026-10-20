@@ -36,6 +36,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Sun blade: Blade 001 rises like a sunrise, sets like a sunset and has the strongest light.
 > Away emote: Alt-tab or idle and your pick plays, silently; set it in `cg_awayEmote`.
 
+- Cards are easier to see: the Cards tab's tiles are larger and each names its card, Enter or a click shows the card large (the arrows or the wheel turn to the next), a card's lore grows to fill its box when it is short, and no card shows its number any more _(Sol)_
 - Simple settings now offer the away emote too: Settings > Gameplay > Away emote and JA+ away emote, as Advanced has them under Sound > Emotes _(Sol)_
 - Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
 - The Collection shows each owned saber shader as the game draws it, live _(Creyon)_

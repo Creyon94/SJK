@@ -4,13 +4,14 @@
 //! revealed card shows its face ([`super::faces`]), laid out as a trading card: its name
 //! and a dot of its rarity's colour on top, its picture in a gold-edged 6:5 window, a
 //! strip with its kind and set and its edition and finish, its lore in a box, and at the
-//! foot its number in its set, its artist and its rarity. The finish lies over it all,
+//! foot its artist and its rarity (no number: it stays the card's id). The finish lies over it all,
 //! shaded per pixel by the renderer ([`sjk_ui::CardShine`]): Holo a smooth rainbow foil sweeping
 //! across the card with a glint, Solar the Sun blade's living corona burning along the
 //! card's edge with flares running round it and sparks, a gold edge and a faint band of
 //! sunlight over the face. One drawing serves the Cards tab, the opening's
 //! ceremony and the card on show. A small card shows a face's picture without its words
-//! ([`WORDS`], [`TITLE`]).
+//! ([`WORDS`], [`TITLE`]), or with its name under it on the Cards tab's tiles
+//! ([`Card::label`]); a face's lore grows to fill its box when it is short ([`lore_fit`]).
 //!
 //! A card is a fixed number of commands for its finish ([`commands`]): nothing is
 //! allocated, and the canvas's room is counted by the tests.
@@ -48,8 +49,18 @@ const EYE: f32 = 2.6;
 /// from [`WORDS`]: below, they would be too small to read.
 const TITLE: f32 = 200.0;
 const WORDS: f32 = 300.0;
-/// The face's lore lines at most.
+/// The face's lore lines at most, at its smallest size.
 const LORE_LINES: usize = 7;
+/// A short lore's text grows up to this many times its smallest size, tried in this
+/// many steps down to it, to fill its box ([`lore_fit`]); one of this many lines or
+/// fewer is centred.
+const LORE_GROW: f32 = 1.4;
+const LORE_STEPS: usize = 8;
+const LORE_CENTRED: usize = 2;
+/// A small card's name ([`Card::label`]): its text size against the card's width, and
+/// the characters a line holds at the player's text size of 1.
+const LABEL_SIZE: f32 = 0.13;
+const LABEL_CHARS: f32 = 14.0;
 /// A card not found yet: its plate's colour, its picture's tint and the grey veil over
 /// the picture that takes most of its colour away.
 const DIM_PLATE: Color = Color::new(0.42, 0.45, 0.52, 1.0);
@@ -73,6 +84,11 @@ pub(crate) struct Card<'a> {
     /// A card the player has not found yet (the Cards tab's binder): its plate grey, its
     /// picture darkened and greyed, its words quiet. Drawn with the Normal finish.
     pub(crate) dim: bool,
+    /// A card narrower than [`TITLE`] names itself under its picture, with its rarity at
+    /// its foot (the Cards tab's tiles; Sol's request of 20/10/2026, so
+    /// that tiles with like pictures tell apart). Without it a small card shows its
+    /// picture alone, where its name is written beside it (the opening's finds).
+    pub(crate) label: bool,
 }
 
 /// Where the pointer rests on a card, eased in and out ([`crate::tile_shine::HoverEase`]).
@@ -84,8 +100,6 @@ pub(crate) struct Shown<'a> {
     pub(crate) face: &'a Face,
     /// Its position among the faces, for its picture's texture.
     pub(crate) index: usize,
-    /// How many cards its set has in the packs.
-    pub(crate) of: usize,
 }
 
 /// How many shape commands a card of `finish` that wide (frame pixels) takes, its words
@@ -427,7 +441,13 @@ fn face(
     // The finish over everything, inside the card.
     finish_light(list, frame, card, [left, y, shown, height], width, seconds);
     let _ = list.push(DrawCommand::PopOpacity);
-    if turn < 0.92 || width < TITLE {
+    if turn < 0.92 {
+        return;
+    }
+    if width < TITLE {
+        if card.label {
+            label(canvas, frame, [x, y, width], card, face, alpha);
+        }
         return;
     }
     let ink = alpha.clamp(0.0, 1.0) * if card.dim { 0.6 } else { 1.0 };
@@ -492,12 +512,13 @@ fn face(
         FontWeight::Semibold,
         TextAlign::End,
     );
-    // The lore, cut into lines at spaces for the box's width at the player's text size.
-    let lore_size = width * 0.033;
+    // The lore, cut into lines at spaces for the box's width at the player's text size,
+    // as large as fits the box ([`lore_fit`]) and centred in it.
     let scale = crate::text::style::current().scale.max(0.5);
-    let chars = (62.0 / scale).floor().max(16.0) as usize;
-    let step = width * 0.046;
-    for (index, line) in crate::menu::sjk::wrap(&face.face.lore, chars)
+    let fit = lore_fit(&face.face.lore, scale);
+    let step = width * 0.046 * fit.grow;
+    let top = lore_box[1] + (lore_box[3] - step * fit.lines as f32) * 0.5;
+    for (index, line) in crate::menu::sjk::wrap(&face.face.lore, fit.chars)
         .take(LORE_LINES)
         .enumerate()
     {
@@ -507,36 +528,28 @@ fn face(
             format_args!("{line}"),
             frame.rect(
                 lore_box[0] + width * 0.028,
-                lore_box[1] + width * 0.024 + index as f32 * step,
+                top + index as f32 * step,
                 lore_box[2] - width * 0.056,
                 step,
             ),
-            lore_size * s,
+            width * 0.033 * fit.grow * s,
             faded(color::TEXT, ink),
             FontWeight::Regular,
-            TextAlign::Start,
+            fit.align,
         );
     }
+    // At the foot its artist and its rarity; no number (Sol, 20/10/2026: it stays the
+    // card's id and the binder's order).
     let foot_y = y + height - width * 0.094;
-    text(
-        canvas,
-        TextFamily::Code,
-        format_args!("{}", face.face.place(face.of).unwrap_or_default()),
-        frame.rect(x + width * 0.049, foot_y, width * 0.3, width * 0.04),
-        small * s,
-        faded(color::MUTED, ink),
-        FontWeight::Regular,
-        TextAlign::Start,
-    );
     text(
         canvas,
         TextFamily::Body,
         format_args!("Art: {}", face.face.artist),
-        frame.rect(x + width * 0.3, foot_y, width * 0.4, width * 0.04),
+        frame.rect(x + width * 0.049, foot_y, width * 0.55, width * 0.04),
         small * s,
         faded(color::MUTED, ink),
         FontWeight::Semibold,
-        TextAlign::Center,
+        TextAlign::Start,
     );
     text(
         canvas,
@@ -552,6 +565,119 @@ fn face(
         FontWeight::Semibold,
         TextAlign::End,
     );
+}
+
+/// A small card's words ([`Card::label`]): its name under its picture, centred on up to
+/// two lines (the second ending in an ellipsis when it runs on), and at its foot its
+/// rarity, its symbol and name. A card not found yet reads in grey, still legible.
+fn label(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    [x, y, width]: [f32; 3],
+    card: Card<'_>,
+    face: Shown<'_>,
+    alpha: f32,
+) {
+    let s = frame.s;
+    let ink = alpha.clamp(0.0, 1.0);
+    let name_colour = if card.dim { color::MUTED } else { color::TEXT };
+    let size = width * LABEL_SIZE;
+    let step = size * 1.18;
+    let scale = crate::text::style::current().scale.max(0.5);
+    let chars = (LABEL_CHARS / scale).floor().max(6.0) as usize;
+    let name = &face.face.name;
+    let all = crate::menu::sjk::wrap(name, chars).count();
+    let lines = all.min(2);
+    // Between the picture's foot and the rarity's line.
+    let band = [y + width * 0.895, width * 0.355];
+    let top = band[0] + (band[1] - step * lines as f32) * 0.5;
+    for (index, line) in crate::menu::sjk::wrap(name, chars).take(lines).enumerate() {
+        let more = index + 1 == lines && all > lines;
+        text(
+            canvas,
+            TextFamily::Display,
+            format_args!("{line}{}", if more { "…" } else { "" }),
+            frame.rect(
+                x + width * 0.05,
+                top + index as f32 * step,
+                width * 0.9,
+                step,
+            ),
+            size * s,
+            faded(name_colour, ink),
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+    }
+    let foot = [y + width * (ASPECT - 0.14), width * 0.09];
+    let quiet = faded(color::MUTED, ink * if card.dim { 0.75 } else { 1.0 });
+    text(
+        canvas,
+        TextFamily::Body,
+        format_args!(
+            "{} {}",
+            crate::symbols::card_rarity(card.rarity.index),
+            card.rarity.name
+        ),
+        frame.rect(x + width * 0.05, foot[0], width * 0.9, foot[1]),
+        width * 0.078 * s,
+        if card.dim {
+            quiet
+        } else {
+            faded(card.rarity.colour, ink)
+        },
+        FontWeight::Semibold,
+        TextAlign::Center,
+    );
+}
+
+/// How a face's lore fills its box: its text size against the smallest, the characters
+/// a line holds at it, its lines and how they align.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct LoreFit {
+    grow: f32,
+    chars: usize,
+    lines: usize,
+    align: TextAlign,
+}
+
+/// The lore as large as its box holds it (Sol's request of 20/10/2026: a short lore
+/// left most of the box empty): from [`LORE_GROW`] times the smallest size down to it,
+/// the first size whose lines fit the room [`LORE_LINES`] smallest lines take. A lore of
+/// [`LORE_CENTRED`] lines or fewer is centred, a longer one reads from the left. `scale`
+/// is the player's text size, which widens the letters. Nothing is allocated.
+fn lore_fit(lore: &str, scale: f32) -> LoreFit {
+    // At the smallest size a line holds 62 characters at the player's text size of 1.
+    let chars_at = |grow: f32| (62.0 / (scale * grow)).floor().max(12.0) as usize;
+    let lines_at = |chars: usize| crate::menu::sjk::wrap(lore, chars).count();
+    let mut fit = LoreFit {
+        grow: 1.0,
+        chars: chars_at(1.0),
+        lines: 0,
+        align: TextAlign::Start,
+    };
+    for step in 0..=LORE_STEPS {
+        let grow = LORE_GROW - (LORE_GROW - 1.0) * step as f32 / LORE_STEPS as f32;
+        let chars = chars_at(grow);
+        let lines = lines_at(chars);
+        if lines as f32 * grow <= LORE_LINES as f32 + 0.01 {
+            fit = LoreFit {
+                grow,
+                chars,
+                lines,
+                align: fit.align,
+            };
+            break;
+        }
+    }
+    if fit.lines == 0 {
+        fit.lines = lines_at(fit.chars);
+    }
+    fit.lines = fit.lines.min(LORE_LINES);
+    if fit.lines <= LORE_CENTRED {
+        fit.align = TextAlign::Center;
+    }
+    fit
 }
 
 /// The finish's light over a card at `[x, y, width, height]` (frame pixels, `full` its
@@ -612,6 +738,7 @@ pub(crate) mod tests {
                             face: None,
                             tilt: None,
                             dim: false,
+                            label: false,
                         },
                         1.5,
                         1.0,
@@ -686,6 +813,97 @@ pub(crate) mod tests {
         }
     }
 
+    /// A lore fills its box (20/10/2026): a short one at the largest size, centred; a
+    /// longer one smaller, its lines always within the room seven smallest ones take;
+    /// one too long for that at the smallest, cut at seven lines and read from the left.
+    #[test]
+    fn a_lore_grows_to_fill_its_box() {
+        let short = lore_fit("A walking battery that says its own name. Gonk.", 1.0);
+        assert_eq!(short.grow, LORE_GROW);
+        assert_eq!((short.lines, short.align), (2, TextAlign::Center));
+        let lore = format!("{0} {0}", face().lore);
+        let medium = lore_fit(&lore, 1.0);
+        assert!(medium.grow > 1.0 && medium.grow < LORE_GROW, "{medium:?}");
+        assert!(medium.lines as f32 * medium.grow <= LORE_LINES as f32 + 0.01);
+        assert_eq!(medium.align, TextAlign::Start);
+        let long = "word ".repeat(200);
+        let long = lore_fit(&long, 1.0);
+        assert_eq!((long.grow, long.lines), (1.0, LORE_LINES));
+        // A larger text size holds fewer characters a line, so the lore grows less.
+        let big = lore_fit(&lore, 1.3);
+        assert!(
+            big.grow < medium.grow && big.chars < medium.chars,
+            "{big:?}"
+        );
+        assert_eq!(lore_fit("", 1.0).lines, 0);
+    }
+
+    /// A small card names itself only when asked (the binder's tiles): its name on up
+    /// to two lines, an ellipsis when it runs on, its number and its rarity's symbol.
+    #[test]
+    fn a_small_card_names_itself_when_labelled() {
+        let frame = Frame::new([1920.0, 1080.0]);
+        let mut face = face();
+        face.name = "Jedi Master Kyle Katarn".to_owned();
+        for (label, name) in [(false, None), (true, Some(face.name.clone()))] {
+            let mut canvas = MenuCanvas::with_capacities(32, 128, 512);
+            canvas.begin_transparent([1920.0, 1080.0]);
+            draw(
+                &mut canvas,
+                &frame,
+                [100.0, 100.0, 140.0],
+                Card {
+                    rarity: face.rarity,
+                    finish: &super::super::FINISHES[0],
+                    edition: "",
+                    face: Some(Shown {
+                        face: &face,
+                        index: 0,
+                    }),
+                    tilt: None,
+                    dim: true,
+                    label,
+                },
+                1.5,
+                1.0,
+                1.0,
+            );
+            let runs: Vec<&str> = canvas.text_runs().collect();
+            let Some(name) = name else {
+                assert!(runs.is_empty(), "{runs:?}");
+                continue;
+            };
+            assert_eq!(runs.len(), 3, "two lines and the rarity: {runs:?}");
+            assert_eq!(format!("{} {}", runs[0], runs[1]), name);
+            assert!(runs[2].ends_with("Legendary"), "no number: {runs:?}");
+        }
+        face.name = "A name far too long to be held on two lines of a tile".to_owned();
+        let mut canvas = MenuCanvas::with_capacities(32, 128, 512);
+        canvas.begin_transparent([1920.0, 1080.0]);
+        draw(
+            &mut canvas,
+            &frame,
+            [100.0, 100.0, 140.0],
+            Card {
+                rarity: face.rarity,
+                finish: &super::super::FINISHES[0],
+                edition: "",
+                face: Some(Shown {
+                    face: &face,
+                    index: 0,
+                }),
+                tilt: None,
+                dim: false,
+                label: true,
+            },
+            1.5,
+            1.0,
+            1.0,
+        );
+        let runs: Vec<&str> = canvas.text_runs().collect();
+        assert!(runs[1].ends_with('…'), "{runs:?}");
+    }
+
     /// A face takes the commands it says in each finish, with its words from the width
     /// that reads them: none on a small card, all of them on a big one.
     #[test]
@@ -707,10 +925,10 @@ pub(crate) mod tests {
                         face: Some(Shown {
                             face: &face,
                             index: 0,
-                            of: 1,
                         }),
                         tilt: None,
                         dim: false,
+                        label: false,
                     },
                     1.5,
                     1.0,
@@ -735,7 +953,10 @@ pub(crate) mod tests {
                     assert_eq!(runs[0], "Toxiee and Sol on JoF Memorial");
                 }
                 if width >= WORDS {
-                    assert!(runs.contains(&"010 / 001"), "{runs:?}");
+                    assert!(
+                        !runs.iter().any(|run| run.contains("010")),
+                        "no number: {runs:?}"
+                    );
                     assert!(runs.contains(&"Art: Sol"), "{runs:?}");
                 }
             }

@@ -12,10 +12,11 @@
 //! in the folder `SJK_TEST_PACKS` names (the hub's `assets/dist`): up close on the Cards
 //! tab in each finish, and coming out of a holocron. And the Cards tab as a binder
 //! (`duel6_sjk_card_binder`, 19/10/2026) with the same pack: every card, found or greyed,
-//! sealed copies, hover cards and the filter, in 1080p and 4:3. Then the finishes in motion
-//! (`duel6_sjk_card_finish_motion`: Solar and Holo up close and on their tile, and Solar
-//! out of a holocron, at three moments each) and a binder of many cards in several sets,
-//! scrolled (`duel6_sjk_card_binder_many`, a made-up catalogue over the pack's pictures).
+//! sealed copies, hover cards and the filter, in 1080p and 4:3, and since 20/10/2026 in
+//! 4K, with a card looked at closely (the Toxiee card, a short lore and a long one).
+//! Then the finishes in motion (`duel6_sjk_card_finish_motion`: Solar and Holo up close
+//! and on their tile, and Solar out of a holocron, at three moments each) and a binder of
+//! many cards in several sets, scrolled (`duel6_sjk_card_binder_many`, a made-up catalogue over the pack's pictures).
 //!
 //! Run: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer cards_shots -- --ignored
 //! --test-threads=1 --nocapture`; the pictures are in `target/world-shots`.
@@ -396,11 +397,19 @@ fn duel6_sjk_card_binder() {
                 },
             ),
         ];
-        for (size, name) in [([1920, 1080], "1080p"), ([1440, 1080], "4x3")] {
+        for (size, name) in [
+            ([1920, 1080], "1080p"),
+            ([1440, 1080], "4x3"),
+            ([3840, 2160], "4k"),
+        ] {
             let Some(mut gpu) = open_binder(size) else {
                 return;
             };
             for (filter_name, filter) in &filters {
+                // At 4K the whole binder and the looks closer only.
+                if name == "4k" && *filter_name != "all" {
+                    continue;
+                }
                 // All: the Toxiee card, held in two finishes, chosen with its hover card;
                 // the Legendary missing ones: a hover card on one; the rest their first
                 // tile chosen.
@@ -428,6 +437,31 @@ fn duel6_sjk_card_binder() {
                     console.collection_hover_for_shot(None);
                 }
             }
+            // Looking closely (20/10/2026): the Toxiee card, then a card with a short
+            // lore and one with a long one, in the packs as they stand.
+            for (id, label) in [
+                ("sjk_alpha_010", "toxiee"),
+                ("jka_characters_037", "short-lore"),
+                ("sjk_blades_075", "long-lore"),
+            ] {
+                if id != "sjk_alpha_010" && crate::cards::faces::current().find(id).is_none() {
+                    continue;
+                }
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_card_filter_for_shot(Filter::default());
+                    console.collection_card_for_shot(binder_index(&list, id));
+                    console.collection_inspect_for_shot(true);
+                }
+                let path = shoot(&mut gpu, 4, &format!("duel6-card-inspect-{label}-{name}"));
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "inspect {label} {name}");
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_inspect_for_shot(false);
+            }
+            if name == "4k" {
+                continue;
+            }
             // A missing card chosen with no filter: greyed up close, its hover card.
             if let Some(console) = gpu.console.as_mut() {
                 console.collection_card_filter_for_shot(Filter::default());
@@ -448,8 +482,8 @@ fn duel6_sjk_card_binder() {
 /// line) when the packs have no such card.
 fn faces_ready() -> bool {
     super::saber_skins::mount_test_packs();
-    // Up to a minute: a debug build decodes the pack's pictures slowly.
-    for _ in 0..2_400 {
+    // Up to five minutes: a debug build decodes the packs' 340 pictures slowly.
+    for _ in 0..12_000 {
         let faces = crate::cards::faces::current();
         match faces.find("sjk_alpha_010") {
             Some((index, _)) if faces.art(index).is_some() => return true,

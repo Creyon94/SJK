@@ -133,18 +133,6 @@ impl Face {
             unlockable.name
         ))
     }
-
-    /// Where it stands in its set of `of` cards ("010 / 013"), `None` for a credits card:
-    /// its number only orders the credits, so none reads as ranked above another (Sol,
-    /// 20/10/2026). A blade card shows its blade's number alone ("#042"): blade numbers
-    /// skip the blades that never drop, so "of" would not add up.
-    pub(crate) fn place(&self, of: usize) -> Option<String> {
-        match self.kind {
-            Kind::Credits => None,
-            Kind::Blade => Some(format!("#{:03}", self.number)),
-            _ => Some(format!("{:03} / {:03}", self.number, of.max(1))),
-        }
-    }
 }
 
 /// A card file as written.
@@ -254,11 +242,6 @@ impl Faces {
     /// The face of card `id`, with its position in [`Self::list`].
     pub(crate) fn find(&self, id: &str) -> Option<(usize, &Face)> {
         self.list.iter().enumerate().find(|(_, face)| face.id == id)
-    }
-
-    /// How many faces of set `set` there are.
-    pub(crate) fn in_set(&self, set: &str) -> usize {
-        self.list.iter().filter(|face| face.set == set).count()
     }
 
     /// Whether some face has rarity `rarity`: sealed copies of it can be revealed.
@@ -461,12 +444,6 @@ mod tests {
             ("Credits", "Mythical")
         );
         assert_eq!(Kind::Meme.name(), "Meme");
-        // A credits card shows no place in its set; any other card does.
-        assert_eq!(bishop.place(13), None);
-        assert_eq!(
-            parse("x", FILE).unwrap().place(13).as_deref(),
-            Some("010 / 013")
-        );
         for (from, to) in [
             ("\"legendary\"", "\"mythic\""),
             ("\"meme\"", "\"memes\""),
@@ -502,7 +479,6 @@ mod tests {
             blade.solar_drop().as_deref(),
             Some("Its Solar copies also drop the Sun blade.")
         );
-        assert_eq!(blade.place(40).as_deref(), Some("#010"));
         let blank = FILE.replace("\"artist\"", "\"blade\": \" \", \"artist\"");
         assert_eq!(parse("x", &blank).unwrap().blade, None);
         let later = FILE.replace("\"artist\"", "\"blade\": \"saber_later\", \"artist\"");
