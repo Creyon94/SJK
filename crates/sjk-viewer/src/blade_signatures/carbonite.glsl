@@ -132,7 +132,7 @@ vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   }
   return col;
 }
-// a clash chips shards off the slab: flat round the blade, as Sol's pieces are
+// a clash chips shards off the slab round the blade
 vec4 base_vol_solid(vec3 ro, vec3 rd, float px){
   float L = uLength;
   vec4 col = vec4(0.0);

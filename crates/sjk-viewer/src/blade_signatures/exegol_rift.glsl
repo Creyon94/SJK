@@ -23,7 +23,7 @@ vec3 sig_core(vec3 c, vec2 b, float px){
   float edge = smoothstep(0.0, 1.0, abs(b.x)/0.18);
   return mix(c*vec3(0.25, 0.08, 0.35), c*vec3(1.0, 0.6, 1.0), edge*0.6)*part(0.0) + c*(1.0 - part(0.0));
 }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;

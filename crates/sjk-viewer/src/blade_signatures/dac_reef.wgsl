@@ -70,7 +70,7 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
     return vec4(mix(o.rgb, stone, a), max(o.a, a));
 }
 
-// a soft sea haze round it (flat, facing the camera, as Sol's are)
+// a soft sea haze round it
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let cl = clamp(uClash, 0.0, 1.0);

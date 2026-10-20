@@ -35,25 +35,29 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     // panels across the blade: the turning row's slide along, as if round it
     let across = b.x * 4.0 + slide * 1.0;
     let f = vec2(fract(across), fract(b.y / PH_ROW));
-    let seamX = halo(0.5 - abs(f.x - 0.5), 0.06);
-    let seamY = halo(0.5 - abs(f.y - 0.5), 0.06 / PH_ROW * 2.4);
+    // round 20 (Creyon: the rows were hardly visible): bolder seams between the rows
+    let seamX = halo(0.5 - abs(f.x - 0.5), 0.07);
+    let seamY = halo(0.5 - abs(f.y - 0.5), 0.1);
     let seam = max(seamX, seamY);
     let lock = exp(-pow((q - 0.72) / 0.05, 2.0)) * turning;
     let gap = halo(0.5 - abs(f.x - 0.5), 0.12) * 0.5;
-    // the panels darker than the core's light between them, each a slightly different shade
-    let shade = 0.65 + 0.2 * h11(floor(across) + row * 7.0);
-    let c = PH_LIGHT * shade * (1.0 - 0.3 * part(0.0) * (1.0 - seam)) + vec3<f32>(0.85, 0.95, 1.0) * (seam * (0.8 + 2.5 * lock) + gap) * part(1.0);
+    // round 20: the panels clearly darker, each row its own tone, so the rows read
+    let shade = 0.42 + 0.22 * h11(floor(across) + row * 7.0);
+    let tone = mix(PH_LIGHT, vec3<f32>(0.82, 0.86, 1.0), glsl_mod(row, 2.0));
+    let c = tone * shade * (1.0 - 0.45 * part(0.0) * (1.0 - seam)) + vec3<f32>(0.85, 0.95, 1.0) * (seam * (1.3 + 2.5 * lock) + gap) * part(1.0);
     // the band of light sweeping up when a turn locks
     let band = halo(b.y - (q - 0.72) * L * 3.0, 1.5) * step(0.72, q);
     return l * (c + vec3<f32>(1.0) * band * 0.8 + vec3<f32>(1.0) * seam * clamp(uClash, 0.0, 1.0) * 1.5);
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return c * (0.9 + 0.1 * sin(uTime * 2.0 + b.y * 0.2));
+    // round 20: the core a little softer, so the lattice over it shows
+    let f = fract(b.y / PH_ROW);
+    let seamY = halo(0.5 - abs(f - 0.5), 0.1);
+    return c * (0.7 + 0.08 * sin(uTime * 2.0 + b.y * 0.2) + 0.35 * seamY);
 }
 
-// the core's light through the lattice: a soft glow, brightening as each turn locks (flat, facing
-// the camera, as Sol's are)
+// the core's light through the lattice: a soft glow, brightening as each turn locks
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let y0 = L * 0.15;

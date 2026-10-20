@@ -27,7 +27,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return mix(c * vec3<f32>(0.25, 0.08, 0.35), c * vec3<f32>(1.0, 0.6, 1.0), edge * 0.6) * part(0.0) + c * (1.0 - part(0.0));
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;

@@ -70,22 +70,8 @@ vec3 ae_inside(vec2 b, float px){
   float sclera = smoothstep(0.0, 0.25, op)*(1.0 - smoothstep(0.85, 1.0, abs(ey)));
   float vein = halo(abs(vn(vec2(b.x*3.0, b.y*1.4)) - 0.5), 0.03)*0.6;
   col = mix(col, vec3(0.20, 0.03, 0.03) + vec3(0.45, 0.04, 0.04)*vein, sclera*0.85);
-  // the iris: burning amber, fibres radiating, a dark limbal ring
-  float ang = atan(q.y, q.x);
-  float fib = 0.6 + 0.4*vn(vec2(ang*9.0, d*3.0 - t*0.3));
-  vec3 iris = mix(vec3(1.0, 0.85, 0.30), vec3(0.95, 0.35, 0.05), smoothstep(0.2, 0.95, d/Ri))*fib;
-  iris += vec3(1.0, 0.9, 0.5)*halo(abs(d - 0.42*Ri), 0.08)*0.5;
-  iris *= 1.0 - 0.75*smoothstep(0.82, 1.0, d/Ri);
-  float irisA = fillD(d - Ri, px)*sclera;
-  col = mix(col, iris, irisA);
-  // the eye keeps its own burning amber whatever colour its wearer chose (Creyon's round 9)
-  uOwn = max(uOwn, irisA);
-  // the bar pupil: wide across, narrow along, narrowing in light and on swings
-  float ph = mix(0.30, 0.10, clamp(uSwing*1.5 + 0.4*sin(t*0.5)*0.5 + 0.2, 0.0, 1.0));
-  float pup = sdEll(q, vec2(0.66*Ri, ph));
-  col = mix(col, vec3(0.0), fillD(pup, px)*irisA);
-  // the wet glint
-  col += vec3(1.0, 0.95, 0.9)*fillD(length(q - vec2(-0.35, 0.45)) - 0.11, px)*irisA*0.9;
+  // round 19 (Creyon: from above it looked flat): the iris and pupil are a true eyeball in
+  // three dimensions now (`ae_eyeball`), sitting in the almond and watching whoever looks
   // the lids' shadow at the almond's edge
   col *= mix(1.0, 0.35, smoothstep(w - 0.25, w, abs(b.x))*sclera);
   return col;
@@ -110,8 +96,11 @@ float ae_crack(float fi, out vec3 a, out vec3 c, out vec3 m, out vec3 e, out flo
   float cy = floor(ph), f = fract(ph);
   float y0 = (0.1 + 0.8*h11(cy*3.0 + fi))*L;
   float an = h11(cy*5.3 + fi*1.7);
-  float grow = smoothstep(0.0, 0.25, f)*(1.0 - smoothstep(0.75, 1.0, f));
-  float reach = (3.0 + 2.6*h11(cy*2.0 + fi*5.0))*grow*(1.0 + 0.4*sw + 0.6*cl);
+  // round 20 (Creyon: the cracks were swallowed back into the blade, which looked odd): a crack
+  // tears out fast, then stays where it reached and fades away there, drifting a little further
+  float tear = smoothstep(0.0, 0.18, f);
+  float grow = tear*(1.0 - smoothstep(0.35, 1.0, f));
+  float reach = (3.0 + 2.6*h11(cy*2.0 + fi*5.0))*(tear + 0.15*f)*(1.0 + 0.4*sw + 0.6*cl);
   a = around(ae_w(y0) + 0.05, an, y0);
   c = around(ae_w(y0) + 0.05 + reach, an + 0.06*(h11(cy*4.0 + fi) - 0.5), y0 + (h11(cy*7.0 + fi) - 0.5)*reach*0.9);
   m = mix(a, c, 0.5);
@@ -135,9 +124,58 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   uOwn = max(uOwn, cov*(1.0 - smoothstep(0.55, 0.85, rim)));
   return vec4(mix(o.rgb, rgb, cov), max(o.a, cov));
 }
-// shadow tendrils: dark smoky arms, crimson at the tips, reaching out round the blade in 3D,
-// each piece facing the camera
-vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+// round 19: the eye itself, a ball in three dimensions in the almond, so it is round from every
+// side, from above and in first person: a dark veined sclera, a burning amber iris with fibres and
+// a limbal ring, the goat's bar pupil (across the blade, narrowing on swings) and a wet glint; it
+// turns to watch the one looking at it, darting about as it does
+vec4 ae_eyeball(vec3 ro, vec3 rd, float px){
+  float op = ae_open();
+  if (op < 0.05) return vec4(0.0);
+  vec3 c = vec3(0.0, ae_Ey(), 0.0);
+  float R = 1.05*min(op, 1.0);
+  float tq;
+  float dc = rayPt(ro, rd, c, tq);
+  float cov = fillD(dc - R, px);
+  if (cov <= 0.0) return vec4(0.0);
+  float back = sqrt(max(R*R - dc*dc, 0.0));
+  vec3 n = normalize(ro + rd*(tq - back) - c);
+  // its gaze: toward the one watching, darting with its saccades
+  vec3 toCam = normalize(ro - c);
+  vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), toCam) + vec3(1e-4, 0.0, 0.0));
+  vec3 up = cross(toCam, side);
+  vec2 lk = ae_look();
+  vec3 g = normalize(toCam + side*lk.x*0.35 + up*lk.y*0.25);
+  vec3 gs = normalize(cross(vec3(0.0, 1.0, 0.0), g) + vec3(1e-4, 0.0, 0.0));
+  vec3 gu = cross(g, gs);
+  float ca = dot(n, g);
+  // the iris's place (radius 1 at its rim, 0.72 rad round the gaze)
+  vec2 q = vec2(dot(n, gs), dot(n, gu))/sin(0.72);
+  float t = uTime;
+  float Ri = 1.0;
+  float d = length(q)*step(0.0, ca);
+  float vein = halo(abs(vn(vec2(n.x*6.0 + n.z*3.0, n.y*5.0)) - 0.5), 0.03)*0.6;
+  vec3 col = vec3(0.20, 0.03, 0.03) + vec3(0.45, 0.04, 0.04)*vein;
+  col *= 0.45 + 0.55*max(dot(n, toCam), 0.0);
+  float ang = atan(q.y, q.x);
+  float fib = 0.6 + 0.4*vn(vec2(ang*9.0, d*3.0 - t*0.3));
+  vec3 iris = mix(vec3(1.0, 0.85, 0.30), vec3(0.95, 0.35, 0.05), smoothstep(0.2, 0.95, d/Ri))*fib;
+  iris += vec3(1.0, 0.9, 0.5)*halo(abs(d - 0.42*Ri), 0.08)*0.5;
+  iris *= 1.0 - 0.75*smoothstep(0.82, 1.0, d/Ri);
+  float edge = max(px/max(R*0.72, 0.01), 0.02);
+  float irisA = clamp((Ri - d)/edge + 0.5, 0.0, 1.0)*step(0.0, ca);
+  col = mix(col, iris, irisA);
+  float ph = mix(0.30, 0.10, clamp(uSwing*1.5 + 0.4*sin(t*0.5)*0.5 + 0.2, 0.0, 1.0));
+  float pup = sdEll(q, vec2(0.66*Ri, ph));
+  col = mix(col, vec3(0.0), clamp(-pup/edge + 0.5, 0.0, 1.0)*irisA);
+  // the wet glint, where the light from above catches it
+  vec3 hl = normalize(toCam + vec3(0.0, 0.9, 0.0) + side*0.4);
+  col += vec3(1.0, 0.95, 0.9)*pow(max(dot(n, hl), 0.0), 60.0)*1.2;
+  // the lids' shadow toward its rim
+  col *= mix(1.0, 0.4, smoothstep(0.55, 1.0, dc/R));
+  return vec4(col, cov);
+}
+// shadow tendrils: dark smoky arms, crimson at the tips, reaching out round the blade in 3D
+vec4 ae_arms(vec3 ro, vec3 rd, float px){
   float L = uLength;
   vec4 col = vec4(0.0);
   float top = ae_top();
@@ -247,4 +285,13 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 fx = vec3(0.0);
   fx += fxAura(ro, rd, y0, y1, 2.6, vec3(1.0, 0.1, 0.06))*part(1.0);
   return col + fx*uFx;
+}
+
+// its solid pieces in three dimensions: the eyeball over the shadow tendrils
+vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
+  vec4 eye = ae_eyeball(ro, rd, px);
+  // the eye keeps its own colours whatever colour its wearer chose (Creyon's round 9)
+  uOwn = max(uOwn, eye.a);
+  vec4 arms = ae_arms(ro, rd, px);
+  return vec4(mix(arms.rgb, eye.rgb, eye.a), max(arms.a, eye.a));
 }

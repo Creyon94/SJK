@@ -1810,8 +1810,10 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
     // Where a front covers the blade (veins may be kept to it).
     let front = skin_front(skin, along, x, input.length, time, seed);
     if skin.vein_color.w > 0.0 {
+        // A signature's veins start at the hilt's mouth (Creyon's round 20: Cockpit Console's
+        // circuits reached below the hilt).
         let veins = skin_veins(skin, along, x, time, seed)
-            * mix(1.0, front, skin.front_edge.z);
+            * mix(1.0, front, skin.front_edge.z) * sig_from_mouth(skin, along);
         glow += veins * (1.0 - smoothstep(0.15, 0.6, out)) * capsule.r * skin.vein_color.rgb
             * skin.vein_color.w * (1.0 + beat);
     }
@@ -1959,6 +1961,15 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         let own = max(sig_glow(glow, place + vec2(x - input.blade.x, 0.0), r, pixel), vec3(0.0))
             * sig_kept(input, place);
         glow = mix(glow, own, shown_glow) + glow * mouth * step(-6.0, place.y);
+        // Round 20 (Creyon: close up, the blade's glow came to the front and its effects hid
+        // behind it; from afar they showed): the glow round the blade (not its core, drawn on
+        // its own) softens as the camera comes near, to about half within a few metres.
+        let to_hilt = input.hilt_at;
+        let axis_dir = normalize(input.axis.xyz);
+        let along_axis = clamp(-dot(to_hilt, axis_dir), 0.0, input.length);
+        let distance = length(to_hilt + axis_dir * along_axis);
+        let near = 1.0 - smoothstep(40.0, 140.0, distance);
+        glow *= 1.0 - 0.45 * near;
         let kept_glow = max(uKeep, vec3(0.0)) * shown_glow;
         uKeep = vec3(0.0);
         // Every effect round the blade is drawn in three dimensions along the true view ray
@@ -2012,7 +2023,8 @@ fn skin_core(input: VertexOutput, texel: vec4<f32>, uv: vec2<f32>, footprint: f3
     let front = skin_front(skin, along, x, input.length, time, seed);
     if skin.vein_color.w > 0.0 {
         core += skin_veins(skin, along, x, time, seed) * (texel.r + texel.g) * skin.vein_color.rgb
-            * skin.vein_shape.w * (1.0 + beat) * mix(1.0, front, skin.front_edge.z);
+            * skin.vein_shape.w * (1.0 + beat) * mix(1.0, front, skin.front_edge.z)
+            * sig_from_mouth(skin, along);
     }
     // The fifth set: the bands' colour (on the line's own axis), the front's, the
     // segments' stutter.
@@ -2158,9 +2170,18 @@ fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
         // Only a little of a design reaches the bloom, its white core least.
         return vec4(min(lab_glow(input, pixel), vec3(0.6)) * LAB_BLOOM, 1.0);
     }
-    if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
+    if input.kind >= KIND_SKIN {
+        // A signature blooms less (Creyon's round 20: its bloom hid its effects close up).
+        if skins[skin_index(input)].design.x == f32(LAB_SIGNATURE) {
+            return vec4(min(skin_glow(input, pixel), vec3(1.2)) * SIG_BLOOM, 1.0);
+        }
+        return vec4(skin_glow(input, pixel), 1.0);
+    }
     return vec4(glow_capsule(input) * input.color, 1.0);
 }
+
+// How much of a signature reaches the dynamic glow (the bloom).
+const SIG_BLOOM: f32 = 0.55;
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
@@ -4070,6 +4091,12 @@ fn sig_ray(input: VertexOutput) -> SigRay {
     var out: SigRay;
     out.o = vec3(dot(cam, ax), dot(cam, ay), dot(cam, az));
     out.d = vec3(dot(r, ax), dot(r, ay), dot(r, az));
+    // A camera far off (the Collection's pictures look from 20 000 units away) starts its ray
+    // near the blade instead, or the effects' sums lose their precision and smear across it
+    // (Creyon's round 20: the pictures showed things the blades do not have); nothing is
+    // drawn more than a hundred units before the blade.
+    let ahead = dot(-out.o, out.d);
+    out.o += out.d * max(ahead - 100.0, 0.0);
     return out;
 }
 
@@ -4165,6 +4192,11 @@ fn sig_mythic(input: VertexOutput, place: vec2<f32>, ray: SigRay, pixel: f32) ->
             * clash;
     }
     return light;
+}
+
+// 1 along a signature's blade from just past the hilt's mouth, 0 behind it; 1 for other skins.
+fn sig_from_mouth(skin: Skin, along: f32) -> f32 {
+    return select(1.0, smoothstep(0.2, 1.0, along), skin.design.x == f32(LAB_SIGNATURE));
 }
 
 // The ray's distance to a ring of radius `radius` round the blade at `height` (the hilt's

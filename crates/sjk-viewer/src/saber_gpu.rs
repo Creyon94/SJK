@@ -65,7 +65,7 @@ pub(crate) struct Runtime {
 
 /// A loaded skin's signature shader and its pipelines: built from its own module off the
 /// render thread, so the frame never waits. Every loaded signature is built in the
-/// background as soon as the skins load, several at once (so a blade worn later is ready),
+/// background as soon as the skins load, one after another (so a blade worn later is ready),
 /// and one a blade wears (or the preview shows) before its turn comes is built at once on a
 /// thread of its own, its three pipelines side by side. Until then its blades are drawn by
 /// the shared pipelines, from the skin's file.
@@ -85,7 +85,7 @@ impl Signed {
     /// Build it here (on the calling thread) if nobody has claimed it.
     fn build_if_unclaimed(&self, builder: &SignatureBuilder) {
         if self.claim() {
-            let _ = self.built.set(builder.build(self.signature));
+            let _ = self.built.set(builder.build(self.signature, false));
         }
     }
 }
@@ -97,6 +97,9 @@ struct SignaturePipelines {
     glow: wgpu::RenderPipeline,
     solid: wgpu::RenderPipeline,
 }
+
+/// Signatures being built at once for blades drawn now (`Runtime::build_signatures`).
+static ON_DEMAND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 /// The passes a signature skin has pipelines of its own for.
 #[derive(Clone, Copy)]
@@ -137,11 +140,16 @@ impl SignatureBuilder {
         )
     }
 
-    /// `signature`'s pipelines; `None` (logged) when its module does not build. Its three
-    /// pipelines are built at once, each on a thread of its own (Creyon's round 19: a blade's
-    /// effects took several seconds to come in, in the preview and when worn), each thread
-    /// catching its own errors (error scopes are the thread's own).
-    fn build(&self, signature: &crate::blade_signatures::Signature) -> Option<SignaturePipelines> {
+    /// `signature`'s pipelines; `None` (logged) when its module does not build. With
+    /// `side_by_side` (a blade worn or shown now) its three pipelines are built at once, each on
+    /// a thread of its own (Creyon's round 19: a blade's effects took several seconds to come
+    /// in), each thread catching its own errors (error scopes are the thread's own); in the
+    /// background one after another.
+    fn build(
+        &self,
+        signature: &crate::blade_signatures::Signature,
+        side_by_side: bool,
+    ) -> Option<SignaturePipelines> {
         let started = std::time::Instant::now();
         let scope = self.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let module = self
@@ -159,19 +167,35 @@ impl SignatureBuilder {
                 pollster::block_on(scope.pop()).map(|error| error.to_string()),
             )
         };
-        let (main, glow, solid) = std::thread::scope(|threads| {
-            let glow = threads
-                .spawn(|| checked("vertex_main", "fragment_glow", wgpu::BlendState::ADDITIVE));
-            let solid = threads.spawn(|| {
-                checked(
+        let (main, glow, solid) = if side_by_side {
+            std::thread::scope(|threads| {
+                let glow = threads
+                    .spawn(|| checked("vertex_main", "fragment_glow", wgpu::BlendState::ADDITIVE));
+                let solid = threads.spawn(|| {
+                    checked(
+                        "vertex_solid",
+                        "fragment_solid",
+                        wgpu::BlendState::ALPHA_BLENDING,
+                    )
+                });
+                let main = checked("vertex_main", "fragment_main", wgpu::BlendState::ADDITIVE);
+                (main, glow.join(), solid.join())
+            })
+        } else {
+            (
+                checked("vertex_main", "fragment_main", wgpu::BlendState::ADDITIVE),
+                Ok(checked(
+                    "vertex_main",
+                    "fragment_glow",
+                    wgpu::BlendState::ADDITIVE,
+                )),
+                Ok(checked(
                     "vertex_solid",
                     "fragment_solid",
                     wgpu::BlendState::ALPHA_BLENDING,
-                )
-            });
-            let main = checked("vertex_main", "fragment_main", wgpu::BlendState::ADDITIVE);
-            (main, glow.join(), solid.join())
-        });
+                )),
+            )
+        };
         let (Ok(glow), Ok(solid)) = (glow, solid) else {
             crate::log::progress(format_args!(
                 "blade skins: {}'s signature shader: a build thread failed",
@@ -515,15 +539,13 @@ impl Runtime {
             }));
         }
         self.signed = signed;
-        // Build every loaded signature in the background, several at once (round 19: one
-        // after another, the last came in long after the game started), on up to four
-        // threads, leaving a core to the game.
+        // Build every loaded signature in the background, one after another with a short rest
+        // between, so the game keeps its frames and its connection (Creyon's round 20: building
+        // several at once at launch stuttered the game and interrupted its connection). One a
+        // blade wears or the preview shows is built at once, on its own (`build_signatures`).
         let pending: Arc<Vec<Signed>> = Arc::new(self.signed.iter().flatten().cloned().collect());
         if !pending.is_empty() {
-            let workers = std::thread::available_parallelism()
-                .map_or(1, |cores| cores.get().saturating_sub(1))
-                .clamp(1, 4)
-                .min(pending.len());
+            let workers = 1;
             let next = Arc::new(std::sync::atomic::AtomicUsize::new(0));
             for _ in 0..workers {
                 let builder = self.builder.clone();
@@ -538,6 +560,7 @@ impl Runtime {
                                 break;
                             };
                             signed.build_if_unclaimed(&builder);
+                            std::thread::sleep(std::time::Duration::from_millis(40));
                         }
                     });
                 if let Err(why) = spawned {
@@ -593,7 +616,21 @@ impl Runtime {
             let spawned = std::thread::Builder::new()
                 .name("sjk-blade-signature".to_owned())
                 .spawn(move || {
-                    let _ = built.set(builder.build(signature));
+                    // At most two at a time (round 20: the Collection's pictures asked for a
+                    // score at once, each three pipelines wide, and the game stalled); the rest
+                    // wait their turn.
+                    while ON_DEMAND
+                        .fetch_update(
+                            std::sync::atomic::Ordering::AcqRel,
+                            std::sync::atomic::Ordering::Acquire,
+                            |running| (running < 2).then_some(running + 1),
+                        )
+                        .is_err()
+                    {
+                        std::thread::sleep(std::time::Duration::from_millis(15));
+                    }
+                    let _ = built.set(builder.build(signature, true));
+                    ON_DEMAND.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
                 });
             if let Err(why) = spawned {
                 crate::log::progress(format_args!(

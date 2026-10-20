@@ -58,7 +58,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are: motes of light rising, violet smoke sinking,
+// the effects round the blade, in three dimensions: motes of light rising, violet smoke sinking,
 // the flash at the point of balance
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;

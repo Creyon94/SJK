@@ -2142,8 +2142,32 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   trail is comic speed lines instead of the blur (`saber_trail.wgsl` style 4,
   `SkinColor::comic_trail`): tapered streaks in the blade's colour, more toward the tip, and a bold
   line where the tip went (Creyon: comic lines instead of afterimages). A signature's three
-  pipelines are built side by side and the loaded signatures on up to four threads at once
-  (`saber_gpu.rs`), so effects come in sooner at start and when a blade is first worn.
+  pipelines are built side by side when a blade needs them now (`saber_gpu.rs`), so effects
+  come in sooner when a blade is first worn.
+- **Round 20 (Creyon, 21/10/2026: the pictures, the glow up close, the launch).** The
+  Collection's pictures look from 20 000 units away, and the effects' sums lost their precision
+  there and smeared across the blades (bars, dashes, things the blades do not have): `sig_ray` now
+  starts a far camera's ray a hundred units before the blade. The pictures are seen a little from
+  the tip's side, as before round 19, so rings read as rings, and their effects' frame is a
+  wearer's. That frame (`saber_submission.rs`) is now the wearer's forward square to the blade
+  (the hilt model's own only as the blade comes round to point forward), so what spreads to a
+  blade's sides spreads to the wearer's left and right (Ashla Radiance's wings were one at the
+  side and one elsewhere). Close up, a signature's glow round the blade (not its core) softens to
+  about half within a few metres (`near`), and a signature reaches the bloom at 55 %
+  (`SIG_BLOOM`), so its effects are not hidden behind its glow. Abyssal Eye's iris and pupil are
+  a true eyeball in three dimensions (`ae_eyeball`), watching whoever looks at it. Hyperlane,
+  Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built in the
+  background one after another again, resting between builds, and at most two at once for
+  blades drawn now (round 19's four at once stuttered the game at launch).
+  Also in round 20: Abyssal Eye's reality cracks tear out and fade where they reached instead
+  of shrinking back into the blade; Puzzle Holocron's rows read (darker panels, a tone a row,
+  bolder seams, a softer core); Thermal Fuse is a braided gold cord burning down from the tip,
+  ember red and smoking behind the point, popping at the hilt; Senate Glass's blade is itself a
+  stained-glass column (`sig_solid`) with coloured light round it; a signature's veins start at
+  the hilt's mouth (`sig_from_mouth`: Cockpit Console's circuits reached below the hilt);
+  Takodana Rain gets rings rippling out where drops land and Starfighter Canopy slanting
+  streaks and landing lights, so the two no longer look alike; Victory Fireworks is a chroma whose
+  fireworks keep their colours.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

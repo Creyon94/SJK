@@ -21,7 +21,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -54,5 +54,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
     }
     fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.0, 12.0, -0.03, 2.2, vec3<f32>(1.0, 0.85, 0.5)) * 0.6 * part(1.0);
-    return fx * uFx * 2.40;
+    // round 20 (Creyon): a chroma for the blade only; the fireworks and the glitter keep their own
+    // colours
+    uKeep += fx * uFx * 2.40;
+    return vec3<f32>(0.0);
 }

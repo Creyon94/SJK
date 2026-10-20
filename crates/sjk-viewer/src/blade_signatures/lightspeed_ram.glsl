@@ -57,7 +57,7 @@ vec3 sig_core(vec3 c, vec2 b, float px){
   return c*(1.0 - 0.5*hush) + vec3(1.0)*flash*0.8;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;

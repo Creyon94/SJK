@@ -54,7 +54,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
   return vec4(mix(o.rgb, stone, a), max(o.a, a));
 }
 
-// a soft sea haze round it (flat, facing the camera, as Sol's are)
+// a soft sea haze round it
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.15, y1 = L*0.97;

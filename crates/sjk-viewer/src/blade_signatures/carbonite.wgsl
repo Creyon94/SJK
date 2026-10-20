@@ -199,7 +199,7 @@ fn base_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     return col;
 }
 
-// a clash chips shards off the slab: flat round the blade, as Sol's pieces are
+// a clash chips shards off the slab round the blade
 fn base_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let L = uLength;
     var col: vec4<f32> = vec4<f32>(0.0);

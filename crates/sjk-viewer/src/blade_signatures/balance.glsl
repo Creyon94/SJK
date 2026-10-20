@@ -45,7 +45,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
-// the effects, flat round the blade as Sol's are: motes of light rising, violet smoke sinking,
+// the effects round the blade, in three dimensions: motes of light rising, violet smoke sinking,
 // the flash at the point of balance
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, sw = clamp(uSwing, 0.0, 1.0);

@@ -1,5 +1,7 @@
 // Takodana Rain: soft rain on the lake below Takodana's castle, as a blade. Drops land on the blade
-// and send ripples of light running along it both ways, and a light rain falls past it.
+// and send ripples of light running along it both ways, and a light rain falls past it. Round 20
+// (Creyon: it looked like Starfighter Canopy): straight soft rain, and where each drop lands a
+// ring ripples out round the blade in 3D as on the lake's face.
 // @part Ripples
 // @part Rain
 // @wisps Lake mist
@@ -23,11 +25,24 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return max(g + (o - g)*2.40, vec3(0.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxFall(ro, rd, px, y0, y1, 3.0, 12.0, 16.0, 0.8, 0.0, 5.7, vec3(0.75, 0.85, 1.0))*0.6*part(1.0);
+  fx += fxFall(ro, rd, px, y0, y1, 3.0, 10.0, 10.0, 0.5, 0.0, 5.7, vec3(0.7, 0.9, 0.95))*0.45*part(1.0);
+  // the drops landing: a ring rippling out round the blade where each lands, as on the lake
+  for (int i = 0; i < 3; i++){
+    float fi = float(i);
+    float cyc = t*0.5 + fi*0.33;
+    float k = floor(cyc), age = fract(cyc)*2.0;
+    float yd = L*(0.25 + 0.65*h11(k*2.3 + fi));
+    float env = exp(-age*1.6)*smoothstep(0.0, 0.08, age);
+    for (int j = 0; j < 2; j++){
+      float R = 0.6 + 2.2*max(age - float(j)*0.25, 0.0);
+      float d = ringD(ro, rd, yd, R);
+      fx += vec3(0.7, 0.95, 1.0)*(halo(d, max(0.04, px))*0.9 + halo(d, 0.25)*0.2)*env*(1.0 - 0.4*float(j))*part(0.0);
+    }
+  }
   return fx*uFx*2.40;
 }

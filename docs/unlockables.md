@@ -628,7 +628,8 @@ and Wraithlight to legendary; Storm, Prism, Unstable, Chameleon, Hoth Avalanche,
 Krayt Pearl and Assassin Droid to rare; and Targeting Display to uncommon: 22 mythicals. Only the
 tier changed (label, colour, Collection order, holocron odds); the hub's catalogue must follow. Round 19
 (21/10/2026) made Kyber Heart and Christophsis Crystal chromas (kyber and crystal take any colour);
-no chroma was taken off.
+no chroma was taken off. Round 20 made Hyperlane, Nebula Song, Deflector Shield, Quasar and Victory Fireworks (its
+fireworks keep their colours) chromas.
 
 - **How it is drawn** ([saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs)
   `Chroma`, `SkinColor::worn_with`): the skin's own hue is its corona rim's

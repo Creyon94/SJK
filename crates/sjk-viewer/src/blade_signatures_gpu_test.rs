@@ -110,7 +110,14 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
             glam::Vec3::Z,
         );
     let mut camera = matrix.to_cols_array().to_vec();
-    camera.extend_from_slice(&[0., -100., 0., 0.]);
+    // Round 20: with `SJK_SIGNATURE_PICTURE` set, the rays come from far off a little toward
+    // the tip, as the Collection's pictures are drawn (`blade_pictures.rs`).
+    let picture = std::env::var_os("SJK_SIGNATURE_PICTURE").is_some();
+    if picture {
+        camera.extend_from_slice(&[0., -20_000., 4_000., 0.]);
+    } else {
+        camera.extend_from_slice(&[0., -100., 0., 0.]);
+    }
     let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: None,
         contents: bytemuck::cast_slice(&camera),
@@ -248,6 +255,9 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
                 })
                 .collect();
         }
+        if picture {
+            moments.truncate(1);
+        }
         let orbit = std::env::var("SJK_SIGNATURE_ORBIT").ok();
         if orbit.is_some() {
             moments = vec![(3.0, crate::saber_motion::STILL, color); 5];
@@ -295,7 +305,14 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
                 },
                 crate::saber_rgb::BladeColor::Skin(color),
             )
-            .map(|i| i.with_animation(seconds, 7).with_motion(motion));
+            .map(|i| {
+                let i = i.with_animation(seconds, 7).with_motion(motion);
+                if picture {
+                    i.with_frame([0.0, 1.0, 0.0], 40.0)
+                } else {
+                    i
+                }
+            });
             let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: bytemuck::cast_slice(&pair),

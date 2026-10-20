@@ -17,7 +17,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 // round 15 (Creyon: "let it pick other symbols"): star i (0 to 6) of figure `shape` (0 to 6), x
 // across the blade in units, y along it from -1 to 1 of the chart's height; `side` mirrors it
 fn sm_star(shape: f32, fi: f32, k: f32, side: f32) -> vec2<f32> {

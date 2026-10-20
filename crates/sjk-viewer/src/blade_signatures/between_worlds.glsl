@@ -150,7 +150,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*vec3(0.55, 0.7, 0.9)*0.6; }
 
 // round 16: paths of light crossing the void beside it, straight and thin, sparkling as light
-// runs along them, and nebula clouds drifting in the dark (flat, facing the camera, as Sol's are)
+// runs along them, and nebula clouds drifting in the dark
 vec3 bw_paths(vec3 ro, vec3 rd, float px, float y0, float y1){
   vec3 acc = vec3(0.0);
   float s;

@@ -162,7 +162,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
 }
 
 // round 16: paths of light crossing the void beside it, straight and thin, sparkling as light
-// runs along them, and nebula clouds drifting in the dark (flat, facing the camera, as Sol's are)
+// runs along them, and nebula clouds drifting in the dark
 fn bw_paths(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
     var s: f32;
