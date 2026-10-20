@@ -244,8 +244,7 @@ impl SettingsMenu {
             };
             slots.push((row, top));
             let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
-            let under_list = !open
-                && covered.is_some_and(|[_, y, _, height]| top + LINE > y && top < y + height);
+            let under_list = covered.is_some_and(|list| list_covers(list, top, open));
             self.sjk_row(frame, measure, row, top, under_list);
         }
         if lines.len() > visible {
@@ -1024,9 +1023,38 @@ const _: () = assert!(DETAIL_X + DETAIL_WIDTH <= 1824.0);
 const _: () = assert!(ROWS_TOP + VISIBLE as f32 * LINE < KEYS_Y - 20.0);
 const _: () = assert!(SEARCH[1] + SEARCH[3] < ROWS_TOP);
 
+/// Whether the open list, `list` (frame pixels), hides the control of the row whose
+/// line starts at `top`: a row's whole line, or for the open row itself only its
+/// field, which a long list pushed over its own line covers (hub report #101).
+fn list_covers([_, y, _, height]: [f32; 4], top: f32, open: bool) -> bool {
+    let (from, to) = if open {
+        let middle = top + LINE * 0.5;
+        (
+            middle - kit::CONTROL_HEIGHT * 0.5,
+            middle + kit::CONTROL_HEIGHT * 0.5,
+        )
+    } else {
+        (top, top + LINE)
+    };
+    to > y && from < y + height
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Hub report #101 (Rollembones): a list pushed over its own row hides that
+    /// row's value; a list under the field leaves it, and covers the rows below.
+    #[test]
+    fn an_open_list_hides_the_field_it_covers() {
+        let top = ROWS_TOP;
+        let field_bottom = top + LINE * 0.5 + kit::CONTROL_HEIGHT * 0.5;
+        let below = [0.0, field_bottom + 6.0, 300.0, 400.0];
+        assert!(!list_covers(below, top, true));
+        assert!(list_covers(below, top + LINE, false));
+        let over = [0.0, top, 300.0, 1_000.0];
+        assert!(list_covers(over, top, true));
+    }
     use crate::text::TextStyle;
 
     #[test]
