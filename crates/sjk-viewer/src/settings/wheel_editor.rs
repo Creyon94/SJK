@@ -1330,11 +1330,7 @@ mod tests {
         );
         assert_eq!(menu.wheel.picker.unwrap().highlighted, 1);
         // A group's name finds what is in it.
-        assert!(
-            pick_lines_matching("CAMERA")
-                .iter()
-                .any(|line| *line == PickLine::Action(free))
-        );
+        assert!(pick_lines_matching("CAMERA").contains(&PickLine::Action(free)));
         // Backspace takes letters off, then on an empty search goes back.
         for _ in 0..8 {
             press(&mut menu, &mut console, KeyCode::Backspace);
