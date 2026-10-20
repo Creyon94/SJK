@@ -120,8 +120,8 @@ fn numbers(goal: &DonationGoal) -> Numbers {
 
 fn fetch(url: &str) {
     use sjk_identity::Hub as _;
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    let answer = sjk_identity::HttpHub::new(url, &agent).and_then(|mut hub| hub.donation_goal());
+    let answer = sjk_identity::HttpHub::new(url, crate::build_info::hub_agent())
+        .and_then(|mut hub| hub.donation_goal());
     let mut state = lock();
     state.busy = false;
     match answer {

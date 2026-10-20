@@ -120,6 +120,13 @@ set nothing: a default install makes a key and tells that hub where it plays and
 Identity page, the setting's help and the changelog say what is sent and that
 `cl_identity 0` stops it.
 
+Every request to the hub names the build in its `User-Agent`: `SJK/<version> (<commit>)`
+(`build_info::hub_agent`; since 20/10/2026 with the commit, `SJK/<version>` before). The
+hub keeps, per key, each agent it signed with and when it was first and last seen, until
+the operator removes the identity, and checks a release's commit against the public
+`sjk-v<version>` tags, so the hub can tell an SJK release from a changed build or
+another client. It is what the game says it is, not proof.
+
 A model list ([Installed models](#installed-models), since 15/10/2026) is sent once
 registered, while `cl_shareModels` (default 1) is on: the names of the player model
 folders the game has, signed with the key. The hub keeps the latest list per key until

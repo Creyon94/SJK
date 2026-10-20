@@ -34,6 +34,14 @@ test: As staff, Experimental: showcase tools on: ghost record test works.
 test: Without a staff key: amstatus shows 1.4 SJK; ghost list says it is a staff tool.
 note: Staff status comes from the hub; known only after joining, cjp_client waits a rejoin.
 
+[hub-client-agent]
+area: Console & chat
+title: The hub sees which build you play: SJK/<version> (<commit>)
+change: Hub requests name the build's commit too; the hub keeps each key's client per key.
+test: After the hub update is deployed, play a few minutes, then open your page in the panel.
+test: Clients lists SJK/<version> (<commit>); a play build reads "SJK dev build".
+note: Needs the hub branch client-agent deployed; a release reads "SJK release".
+
 [chat-card-cleanup]
 area: Console & chat
 title: Chat: old name dropdown removed, sender card drawn over the feed's text
