@@ -640,9 +640,9 @@ impl HudOverlay {
         output
     }
 
-    /// Settle the status values and meters on a fixed state, for the layout snapshots,
-    /// with the weapon name showing as right after a weapon change.
-    #[cfg(test)]
+    /// Settle the status values and meters on a fixed state, for the layout snapshots
+    /// and the HUD picker's pictures, with the weapon name showing as right after a
+    /// weapon change.
     pub(crate) fn preview_values(&mut self, values: ClientHudData, ratios: [f32; 4]) {
         self.format_values(values);
         self.weapon_shown_ms = Some(0);

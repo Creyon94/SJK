@@ -284,8 +284,8 @@ impl SettingsMenu {
         )
     }
 
-    /// The HUD picker covers the screen; it draws itself whatever the menu
-    /// style ([`Self::append_hud_overlay`]).
+    /// The HUD picker covers the screen: the SJK UI's card
+    /// ([`Self::append_hud_picker_sjk`]), whatever the menu style.
     pub(crate) fn hud_picker_open(&self) -> bool {
         self.hud.is_open()
     }

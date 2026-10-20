@@ -3469,7 +3469,13 @@ game-data HUD composited on the CPU at 1280x720 for a sample player (health 74,
 armor 46, Force 63, medium saber style) over a dimmed levelshot read from the
 game's own `assets*.pk3`, with the HUD's text drawn by the menu
 ([preview.rs](../crates/sjk-viewer/src/menu_hud/preview.rs)); it renders on a
-worker thread and is uploaded into a texture of its own.
+worker thread and is uploaded into a texture of its own. SJK's radial and classic
+layouts get the backdrop alone, and the picker draws them over it each frame with
+`HudOverlay::layout` for a screen the picture's size (`HudOverlay::preview_values`
+settles the same sample player): the shapes are moved onto the picture, the text is
+drawn in the menu's type, and the HUD's pictures (crosshair, icons) are left out.
+`menu_snapshot::sjk_hud_picker_snapshot` writes the card with the retail HUD and both
+layouts highlighted to `target/menu-snapshots/sjk-hud-picker*.png`.
 
 The reader ([parse.rs](../crates/sjk-viewer/src/menu_hud/parse.rs)) keeps the
 window fields HUDs use (`name`, `rect`, `visible`, `style`, `background`,

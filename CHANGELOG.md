@@ -67,6 +67,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Siege: the team choice has Auto-join, as the other team games, which puts you on the side with fewer players _(Slash)_
 - Adding or changing a quick wheel choice opens its list with a search field ready: type to find an action or emote by its name or group _(Slash)_
 - The SJK scoreboard ends a team match, CTF among them, as it ends a Siege round: "Blue team won" (or "Teams tied") large over the teams without the score, and "Winner" in gold on the winning team's head, which keeps its score _(Slash)_
+- The HUD look picker (Settings > HUD) is an SJK card over the map in every menu style, and hovering SJK radial or SJK classic shows a picture of it as a match draws it _(Slash)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

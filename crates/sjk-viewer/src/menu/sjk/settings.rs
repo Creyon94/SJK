@@ -620,10 +620,15 @@ impl ClientMenu {
         }
     }
 
-    /// Draw the SJK UI's Settings, First setup's pop-up, or the resolution
-    /// list's card over either.
+    /// Draw the SJK UI's Settings, First setup's pop-up, or the HUD picker's
+    /// or resolution list's card over either.
     pub(crate) fn append_sjk_settings(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
         let reveal = self.screen_reveal();
+        if self.settings.hud_picker_open() {
+            self.settings
+                .append_hud_picker_sjk(target, viewport, reveal);
+            return;
+        }
         if self.settings.resolutions_open() {
             self.settings
                 .append_resolutions_sjk(target, viewport, reveal);

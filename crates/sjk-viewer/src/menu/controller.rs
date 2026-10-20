@@ -65,12 +65,8 @@ impl ClientMenu {
                     self.settings
                         .append_classic(vertices, font, viewport, reveal, &frame);
                 }
-                None if self.settings.hud_picker_open() => {
-                    let reveal = self.screen_reveal();
-                    self.settings
-                        .append_hud_overlay(vertices, font, viewport, reveal);
-                }
-                // The SJK UI's Settings (with the resolution list's card),
+                // The SJK UI's Settings (with the HUD picker's and the
+                // resolution list's cards),
                 // drawn in the UI's families by `append_sjk_screen`; here, from
                 // a caller without them or under the classic style, in Inter.
                 None => {

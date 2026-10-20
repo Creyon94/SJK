@@ -56,8 +56,9 @@ impl HudChoice {
         }
     }
 
-    /// Whether [`super::preview`] can draw it: the game-data HUDs. SJK's
-    /// own layouts are drawn by the live HUD only.
+    /// Whether [`super::preview`] draws the HUD itself: the game-data HUDs.
+    /// SJK's own layouts get only its backdrop, which the picker draws them
+    /// over with the live HUD's code.
     pub(crate) fn has_preview(&self) -> bool {
         self.style == HudStyle::Game
     }

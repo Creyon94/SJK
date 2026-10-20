@@ -5,6 +5,8 @@
 //! replacing levelshots often caption them), with a crosshair to show where
 //! the screen's centre is. The HUD's text (the score line, or the whole text
 //! HUD) is returned beside the picture for the menu to draw in its own font.
+//! SJK's own layouts get the backdrop and crosshair alone: the picker draws
+//! the layout over them with the live HUD's own code.
 //!
 //! [`plan`] resolves the files on the calling thread (menus and shader names
 //! only); [`render`] decodes the pictures and composites them, which is the
@@ -40,6 +42,8 @@ pub(crate) struct Plan {
 }
 
 enum Kind {
+    /// One of SJK's layouts, which the picker draws over the backdrop.
+    Sjk,
     /// The text-only HUD: nothing but text runs.
     Text,
     Menus {
@@ -71,18 +75,22 @@ pub(crate) struct Preview {
     pub(crate) texts: Vec<PreviewText>,
 }
 
-/// Resolve `choice`'s menus and picture paths, or `None` when it is not a
-/// game-data HUD or its files describe no HUD.
+/// Resolve `choice`'s menus and picture paths (the backdrop alone for SJK's
+/// layouts), or `None` when its files describe no HUD.
 pub(crate) fn plan(
     vfs: &VirtualFileSystem,
     shaders: &ShaderCatalog,
     choice: &HudChoice,
 ) -> Option<Plan> {
+    let backdrop = retail_levelshot(vfs);
     if !choice.has_preview() {
-        return None;
+        return Some(Plan {
+            vfs: vfs.clone(),
+            kind: Kind::Sjk,
+            backdrop,
+        });
     }
     let view = pack_view(vfs, &choice.pack).unwrap_or_else(|| vfs.clone());
-    let backdrop = retail_levelshot(vfs);
     let kind = match source(&choice.files) {
         Source::Text => Kind::Text,
         Source::Menus(list) => {
@@ -160,6 +168,7 @@ pub(crate) fn render_with(
     let mut frame = Frame::default();
     let mut timers = Timers::default();
     match &plan.kind {
+        Kind::Sjk => {}
         Kind::Text => {
             if let Some(readout) = readout {
                 frame.simple_hud(readout, &mut timers);
@@ -410,7 +419,7 @@ mod tests {
     }
 
     #[test]
-    fn the_text_hud_is_text_only_and_sjk_layouts_have_no_preview() {
+    fn the_text_hud_is_text_only_and_sjk_layouts_get_the_backdrop() {
         let vfs = files();
         let shaders = ShaderCatalog::default();
         let choices = list(&vfs);
@@ -424,8 +433,11 @@ mod tests {
         // Health at x 16 on the left; the style right of the centre.
         assert_eq!(preview.texts[0].x, 16.0 * 1.5);
         assert!(preview.texts[3].x > 640.0);
+        // SJK's layouts: the backdrop alone, which the picker draws them over.
         for own in choices.iter().filter(|choice| !choice.has_preview()) {
-            assert!(plan(&vfs, &shaders, own).is_none(), "{}", own.label);
+            let preview = render(&plan(&vfs, &shaders, own).unwrap());
+            assert_eq!(preview.image.dimensions(), (SIZE[0], SIZE[1]));
+            assert!(preview.texts.is_empty(), "{}", own.label);
         }
     }
 

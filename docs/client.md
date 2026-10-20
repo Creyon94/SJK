@@ -2739,10 +2739,12 @@ use marked. The list holds each installed PK3 that ships `ui/hud.menu` in
 install order (the game's own archives as "Jedi Academy", others by file name
 without a `zz_` load-order prefix), every other `ui/*hud*.txt` list that
 describes a HUD, the text-only HUD, and SJK's radial and classic layouts, which
-have a note instead of a picture. Arrows, the wheel or the pointer highlight;
-Enter or a click uses the HUD and closes; Escape closes. The picker takes
-retail's colours and highlight art on the classic menus and the theme's with
-the SJK UI. "Game HUD files" stays on the tab for lists the picker does not
+the live HUD's own code draws over the same levelshot for the same player, so
+hovering their names shows them as a match does. Arrows, the wheel or the
+pointer highlight; Enter or a click uses the HUD and closes; Escape closes.
+Since 19/10/2026 the picker is the SJK UI's pop-up card over the darkened map
+in every menu style, as the resolution list is ([sjk-ui.md](sjk-ui.md#settings));
+it was a boxed panel in retail's or the theme's colours. "Game HUD files" stays on the tab for lists the picker does not
 find.
 
 ## Capture the flag HUD
