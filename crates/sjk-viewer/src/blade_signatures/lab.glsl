@@ -58,13 +58,35 @@ vec2 helix(float y, float r, float turns, float phase){
 // rd its unit direction, y along the blade from the hilt, x across it to the camera's side,
 // z toward the camera. Everything placed with these sits round the blade in depth and keeps
 // its shape from every side, from above and in first person.
-// The distance from the ray to point p; t returns how far along the ray that is.
-float rayPt(vec3 ro, vec3 rd, vec3 p, out float t){
+// Round 22 (Creyon: nothing may be seen through the blade when it is behind it): how hidden by
+// the blade's body a point t along the ray is, 0 (seen) to 1 (hidden): the ray passes through the
+// blade's body (its nearest approach to the axis within the blade) before reaching it.
+float behindBlade(vec3 ro, vec3 rd, float t){
+  float a = dot(rd.xz, rd.xz);
+  if (a < 0.02) return 0.0;
+  float ta = -dot(ro.xz, rd.xz)/a;
+  float y = ro.y + rd.y*ta;
+  vec2 off = ro.xz + rd.xz*ta;
+  float d = length(off);
+  // what lies on the blade's own body (its axis, its glow) is never hidden by it
+  vec3 p = ro + rd*t;
+  float outside = smoothstep(0.5, 0.9, length(p.xz));
+  float onBlade = smoothstep(-0.8, -0.2, y)*(1.0 - smoothstep(uLength - 0.2, uLength + 0.4, y));
+  return (1.0 - smoothstep(0.35, 0.8, d))*onBlade*outside*smoothstep(ta + 0.15, ta + 0.7, t);
+}
+// The distance from the ray to point p, as seen (a point the blade hides is far off); t
+// returns how far along the ray that is.
+float rayPtRaw(vec3 ro, vec3 rd, vec3 p, out float t){
   t = max(dot(p - ro, rd), 0.0);
   return length(ro + rd*t - p);
 }
-// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b).
-float raySeg(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
+float rayPt(vec3 ro, vec3 rd, vec3 p, out float t){
+  float d = rayPtRaw(ro, rd, p, t);
+  return d + 1e3*behindBlade(ro, rd, t);
+}
+// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b); the
+// raw one ignores the blade's body (for bounds and the blade's own axis).
+float raySegRaw(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
   vec3 ba = b - a, w = ro - a;
   float bd = dot(rd, ba), bb = dot(ba, ba), dw = dot(rd, w), bw = dot(ba, w);
   float den = max(bb - bd*bd, 1e-6);
@@ -74,6 +96,11 @@ float raySeg(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
   vec3 pr = ro + rd*t;
   s = clamp(dot(pr - a, ba)/max(bb, 1e-6), 0.0, 1.0);
   return length(pr - (a + ba*s));
+}
+float raySeg(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
+  float d = raySegRaw(ro, rd, a, b, s);
+  vec3 q = a + (b - a)*s;
+  return d + 1e3*behindBlade(ro, rd, max(dot(q - ro, rd), 0.0));
 }
 // Where the ray crosses the plane across the blade at height h: xz there, and t (negative:
 // never, or behind the camera).
@@ -104,6 +131,9 @@ vec2 raySpan(vec3 ro, vec3 rd, float R, float y0, float y1){
   s.x = max(s.x, 0.0);
   return s;
 }
+// round 19: `p` turned a (turns) round the blade's axis, for a piece laid out in the blade's
+// picture (x across, y up) to stand at its own place round the blade in three dimensions.
+vec3 turnY(vec3 p, float a){ float c = cos(6.2832*a), s = sin(6.2832*a); return vec3(p.x*c + p.z*s, p.y, -p.x*s + p.z*c); }
 // A point round the blade: radius r, angle a (turns), height y.
 vec3 around(float r, float a, float y){ return vec3(r*sin(6.2832*a), y, r*cos(6.2832*a)); }
 // The blade itself in three dimensions: a white-hot core and a coloured glow round the
@@ -111,7 +141,7 @@ vec3 around(float r, float a, float y){ return vec3(r*sin(6.2832*a), y, r*cos(6.
 // does, seen from any side, from above and in first person. w is the core's half width.
 vec3 blade3(vec3 ro, vec3 rd, float px, vec3 col, float w, float top){
   float s;
-  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
+  float d = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
   return vec3(1.0)*exp(-pow(d/max(w, px), 2.0))*1.4 + col*halo(d, w*2.2)*0.75 + col*halo(d, w*6.0)*0.18;
 }
 // A lightning bolt in three dimensions from a to c: 10 kinks, each pushed off the line in
@@ -143,21 +173,21 @@ vec3 marchSteps(vec3 ro, vec3 rd, float R, float y0, float y1, float n){
 // How near the ray passes the blade's axis between heights y0 and y1 (for early outs).
 float fxNear(vec3 ro, vec3 rd, float y0, float y1){
   float s;
-  return raySeg(ro, rd, vec3(0.0, y0, 0.0), vec3(0.0, y1, 0.0), s);
+  return raySegRaw(ro, rd, vec3(0.0, y0, 0.0), vec3(0.0, y1, 0.0), s);
 }
 // The ray's distance to a ring of radius R round the blade at height y: the nearer of where
 // it crosses the ring's plane and the ring's cylinder (smooth from any side).
 float ringD(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -177,7 +207,7 @@ vec3 fxFlare(vec3 ro, vec3 rd, vec3 p, float px, float size, float len, float n,
   float across = abs(r*sin(aa)), along = r*cos(aa);
   float w = max(px, 0.03 + 0.012*along);
   float ray = exp(-pow(across/w, 2.0))*exp(-max(along, 0.0)/max(len, 0.01)*2.6)*step(0.0, along);
-  return vec3(1.0)*(halo(d, max(size, px))*1.8 + ray*0.9) + col*(halo(d, size*3.0)*0.7 + ray*0.8 + halo(d, size*8.0)*0.15);
+  return (vec3(1.0)*(halo(d, max(size, px))*1.8 + ray*0.9) + col*(halo(d, size*3.0)*0.7 + ray*0.8 + halo(d, size*8.0)*0.15))*roomAt(p);
 }
 // Beams of light shooting out of the blade between heights y0 and y1: count of them (up to
 // 24), each up to len long, flaring out and fading rate times a second, seed chooses them.
@@ -194,7 +224,7 @@ vec3 fxRays(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float l
     float a = h11(k*5.7 + fi*2.3 + seed);
     float tilt = (h11(k*2.9 + fi + seed) - 0.5)*0.9;
     vec3 dir = normalize(vec3(sin(6.2832*a), tilt, cos(6.2832*a)));
-    float lr = len*(0.55 + 0.6*h11(k*1.3 + fi + seed))*smoothstep(0.0, 0.3, q);
+    float lr = min(len*(0.55 + 0.6*h11(k*1.3 + fi + seed)), 0.85*uReach)*smoothstep(0.0, 0.3, q);
     vec3 a0 = vec3(0.0, y, 0.0) + dir*0.35;
     float d = raySeg(ro, rd, a0, a0 + dir*max(lr, 0.01), s);
     float env = sin(3.1416*q);
@@ -218,9 +248,9 @@ vec3 fxArcs(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float r
     float ya = mix(y0, y1, h11(k*1.9 + fi*2.7 + seed));
     float yb = min(ya + 3.0 + 6.0*h11(k*2.3 + fi + seed), y1 + 2.0);
     float a = h11(k*4.1 + fi*2.0 + seed);
-    float R = reach*(0.45 + 0.55*h11(k*7.7 + fi + seed));
+    float R = min(reach, 0.6*uReach)*(0.45 + 0.55*h11(k*7.7 + fi + seed));
     vec3 mid = around(R, a, mix(ya, yb, 0.5) + (h11(k*9.1 + fi) - 0.5)*2.0);
-    if (rayPt(ro, rd, mid, t) > R + (yb - ya)*0.6 + 1.5) continue;
+    if (rayPtRaw(ro, rd, mid, t) > R + (yb - ya)*0.6 + 1.5) continue;
     float env = (1.0 - q)*(1.0 - q)*(0.6 + 0.4*step(0.5, fract(q*9.0 + fi)));
     float d = min(bolt3(ro, rd, around(0.25, a, ya), mid, k + fi*1.37 + seed, 0.5),
                   bolt3(ro, rd, mid, around(0.25, a, yb), k + fi*1.37 + seed + 0.5, 0.5));
@@ -244,7 +274,7 @@ vec3 fxSparks(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float
     float y = mix(y0, y1, h11(k*2.7 + fi*1.3 + seed));
     float a = h11(k*6.3 + fi*0.7 + seed);
     vec3 dir = normalize(vec3(sin(6.2832*a), 0.2 + 0.9*(h11(k*1.1 + fi + seed) - 0.3), cos(6.2832*a)));
-    float v = len*(0.5 + 0.5*h11(k*4.4 + fi + seed));
+    float v = min(len, 0.85*uReach)*(0.5 + 0.5*h11(k*4.4 + fi + seed));
     vec3 o = around(0.3, a, y);
     float e1 = 1.0 - exp(-q*3.0), e0 = 1.0 - exp(-max(q - 0.07, 0.0)*3.0);
     float d = raySeg(ro, rd, o + dir*v*e0, o + dir*v*e1, s);
@@ -294,15 +324,16 @@ vec3 fxMotes(vec3 ro, vec3 rd, float px, float y0, float y1, float r0, float r1,
     vec3 p = around(mix(r0, r1, h11(fi*3.7 + seed)), h11(fi*1.9 + seed) + uTime*0.04 + 0.08*sin(uTime*0.7 + fi), y);
     float d = rayPt(ro, rd, p, t);
     float tw = 0.55 + 0.45*sin(uTime*5.0 + fi*2.3);
-    acc += col*(halo(d, max(0.07, px))*1.8 + halo(d, 0.35)*0.2)*tw*smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.8, 1.0, f));
+    acc += col*(halo(d, max(0.07, px))*1.8 + halo(d, 0.35)*0.2)*tw*smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.8, 1.0, f))*roomAt(p);
   }
   return acc;
 }
 // A shock ring racing out from the blade at height y: q its age (0 to 1), out to R.
 vec3 fxShock(vec3 ro, vec3 rd, float px, float y, float q, float R, vec3 col){
   if (q <= 0.0 || q >= 1.0) return vec3(0.0);
-  float d = ringD(ro, rd, y, 0.5 + R*(1.0 - pow(1.0 - q, 2.0)));
-  float env = (1.0 - q)*smoothstep(0.0, 0.05, q);
+  float Rr = 0.5 + R*(1.0 - pow(1.0 - q, 2.0));
+  float d = ringD(ro, rd, y, Rr);
+  float env = (1.0 - q)*smoothstep(0.0, 0.05, q)*roomFade(Rr + 0.8);
   return (vec3(1.0)*halo(d, max(0.07, px))*1.4 + col*halo(d, 0.45)*0.7 + col*halo(d, 1.4)*0.15)*env;
 }
 // A wide soft aura round the blade from y0 to y1: its light reaching w units out.
@@ -327,7 +358,7 @@ vec3 fxFall(vec3 ro, vec3 rd, float px, float y0, float y1, float r, float count
     if (fi >= count) break;
     float f = fract(uTime*v/(y1 - y0 + 4.0)*(0.7 + 0.6*h11(fi*2.3 + seed)) + h11(fi*5.9 + seed));
     float y = mix(y1 + 2.0, y0 - 2.0, f);
-    vec3 p = around(0.8 + (r - 0.8)*h11(fi*3.1 + seed), h11(fi*7.7 + seed), y);
+    vec3 p = around(0.8 + (min(r, 0.9*uReach) - 0.8)*h11(fi*3.1 + seed), h11(fi*7.7 + seed), y);
     vec3 q = p + vec3(lean, 1.0, 0.0)*len;
     float d = raySeg(ro, rd, p, q, s);
     acc += col*(halo(d, max(0.04, px))*1.2 + halo(d, 0.2)*0.2)*(1.0 - 0.6*s);
@@ -338,25 +369,38 @@ vec3 fxFall(vec3 ro, vec3 rd, float px, float y0, float y1, float r, float count
 // 1 while the signature's own part k (its `// @part` line k, from 0) is on, 0 when its wearer
 // switched it off in the Collection.
 float part(float k){ return 1.0 - mod(floor(uParts/exp2(k) + 0.001), 2.0); }
+// ---- round 19: nothing is ever cut at the quad's edge ----
+// How much of what lies r units from the blade's axis shows: all of it well inside the reach
+// the blade's quad holds without fading (`uReach`), fading smoothly to nothing before it
+// (Creyon: Reactor's shock ring was cut off where it left that room).
+float roomFade(float r){ return 1.0 - smoothstep(0.72*uReach, 0.97*uReach, r); }
+float roomAt(vec3 p){ return roomFade(length(p.xz)); }
 // ---- round 12: richer pieces for the lower tiers (each blade sets its own pattern) ----
-// Soft curling smoke in the blade's flat picture between heights y0 and y1, w units to each
-// side at its thickest, rising at `rise` units a second (negative sinks): warped smooth
-// noise with no hard edge (Creyon's round 12: "the smoke looks so squary").
-vec3 fxSmoke(vec3 ro, vec3 rd, float y0, float y1, float w, float rise, float seed, vec3 col){
-  if (abs(rd.z) < 0.0001) return vec3(0.0);
-  float tt = -ro.z/rd.z;
-  vec3 p = ro + rd*tt;
-  float ax = abs(p.x);
-  if (ax > w*1.8 || p.y < y0 - 3.0 || p.y > y1) return vec3(0.0);
-  // Broad features and octaves turned against each other, so no square grid shows even
-  // far away (round 12: "the smoke still looks squary").
-  vec2 q = vec2(p.x*0.32, p.y*0.12 - uTime*rise*0.12) + vec2(seed*7.3, seed*3.1);
+// Soft curling smoke round the blade between heights y0 and y1, w units to each side at its
+// thickest, rising at `rise` units a second (negative sinks): warped smooth noise with no hard
+// edge (Creyon's round 12: "the smoke looks so squary"). Round 19 (Creyon: seen from above, the
+// smoke was a flat sheet following the camera): a cloud in three dimensions, the ray marched
+// through it in six steps, as bright side on as the old sheet.
+float fxSmokeAt(vec3 p, float w, float y0, float y1, float rise, float seed){
+  float ax = length(p.xz);
+  vec2 q = vec2((p.x + 0.62*p.z)*0.32, p.y*0.12 - uTime*rise*0.12) + vec2(seed*7.3, seed*3.1);
+  q += vec2(0.0, p.z*0.09 - p.x*0.05);
   vec2 warp = vec2(vn(rot(0.6)*q*0.9 + vec2(0.0, uTime*0.07)), vn(rot(2.1)*q*0.9 + vec2(5.2, -uTime*0.06)));
   vec2 r = q + 1.3*warp;
-  float n = 0.6*vn(rot(0.35)*r) + 0.4*vn(rot(1.7)*r*2.1 + vec2(3.3, 1.1));
+  float n = 0.6*vn(rot(0.35)*r) + 0.4*vn(rot(1.7)*r*2.1 + vec2(3.3, 1.1) + vec2(p.z*0.2, -p.x*0.2));
   float shape = exp(-pow(ax/w, 2.0))*smoothstep(y0 - 3.0, y0 + 2.0, p.y)*(1.0 - smoothstep(y1 - 7.0, y1 - 1.0, p.y));
-  float d = smoothstep(0.35, 0.8, n)*shape;
-  return col*d*0.9;
+  return smoothstep(0.35, 0.8, n)*shape;
+}
+vec3 fxSmoke(vec3 ro, vec3 rd, float y0, float y1, float w, float rise, float seed, vec3 col){
+  vec2 span = raySpan(ro, rd, w*2.4, y0 - 3.0, y1);
+  if (span.x >= span.y) return vec3(0.0);
+  float dt = (span.y - span.x)/6.0;
+  float acc = 0.0;
+  for (int i = 0; i < 6; i++){
+    float ts = span.x + (float(i) + 0.5)*dt;
+    acc += fxSmokeAt(ro + rd*ts, w, y0, y1, rise, seed)*(1.0 - behindBlade(ro, rd, ts));
+  }
+  return col*acc*dt/(1.77*w)*0.9;
 }
 // Ribbons of energy flowing along the blade: count (up to 4) wavy strands alternating sides,
 // R units out at most, `wave` their waviness, pulses of light running up them at `speed`.
@@ -369,12 +413,14 @@ vec3 fxStreams(vec3 ro, vec3 rd, float px, float y0, float y1, float count, floa
     if (fj >= count) break;
     float best = 1e3, bf = 0.0;
     vec3 prev = vec3(0.0);
-    float side = mod(fj, 2.0) < 0.5 ? -1.0 : 1.0;
+    // round 19: each strand on its own side all round the blade, in three dimensions (it lay
+    // in one flat sheet)
+    float side = fj/max(count, 1.0) + 0.13*seed;
     for (int i = 0; i <= 14; i++){
       float f = float(i)/14.0;
       float y = mix(y0, y1, f);
-      float x = side*(0.45 + (R - 0.45)*(0.5 + 0.5*sin(y*wave + fj*1.7 + seed + uTime*(0.5 + 0.2*fj))));
-      vec3 p = vec3(x, y, 0.0);
+      float x = 0.45 + (min(R, 0.9*uReach) - 0.45)*(0.5 + 0.5*sin(y*wave + fj*1.7 + seed + uTime*(0.5 + 0.2*fj)));
+      vec3 p = around(x, side + 0.05*sin(y*0.15 + uTime*0.3 + fj), y);
       if (i > 0){
         float d = raySeg(ro, rd, prev, p, s);
         if (d < best){ best = d; bf = (float(i) - 1.0 + s)/14.0; }
@@ -399,12 +445,15 @@ vec3 fxFlakes(vec3 ro, vec3 rd, float px, float y0, float y1, float spread, floa
     if (fi >= count) break;
     float f = fract(uTime*v/(y1 - y0 + 4.0)*(0.7 + 0.6*h11(fi*2.7 + seed)) + h11(fi*6.1 + seed));
     float y = mix(y1, y0 - 3.0, f);
-    float side = h11(fi*4.3 + seed) < 0.5 ? -1.0 : 1.0;
-    vec3 p = vec3(side*(0.6 + (spread - 0.6)*h11(fi*3.9 + seed)) + drift*sin(uTime*0.9 + fi*2.0), y, 0.0);
+    // round 19: all round the blade in three dimensions (they drifted in one flat sheet),
+    // each flake a small oval facing the camera
+    float rr = min(0.6 + (spread - 0.6)*h11(fi*3.9 + seed) + drift*sin(uTime*0.9 + fi*2.0), 0.95*uReach);
+    vec3 p = around(max(rr, 0.4), h11(fi*4.3 + seed) + 0.03*sin(uTime*0.5 + fi), y);
     float d = rayPt(ro, rd, p, ta);
     if (d > size*4.0 + px) continue;
     vec3 q = ro + rd*ta - p;
-    vec2 e = rot(uTime*spin + fi*1.7)*q.xy;
+    vec3 fu = normalize(cross(rd, abs(rd.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+    vec2 e = rot(uTime*spin + fi*1.7)*vec2(dot(q, fu), dot(q, cross(rd, fu)));
     float pd = length(e/vec2(size, size*aspect));
     acc += col*(halo(pd - 1.0, 0.3)*0.8 + halo(d, size*2.5)*0.1)*smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.85, 1.0, f));
   }
@@ -421,9 +470,20 @@ vec3 fxRingWaves(vec3 ro, vec3 rd, float px, float y0, float y1, float count, fl
     float q = fract(uTime*v/(y1 - y0) + fi/max(count, 1.0) + seed);
     if (v < 0.0) q = 1.0 - q;
     float y = mix(y0, y1, q);
-    float d = ringD(ro, rd, y, R*(0.7 + 0.3*sin(3.1416*q)));
+    float d = ringD(ro, rd, y, min(R, 0.9*uReach)*(0.7 + 0.3*sin(3.1416*q)));
     float env = sin(3.1416*q);
     acc += (vec3(1.0)*halo(d, max(0.04, px))*0.7 + col*halo(d, 0.3)*0.6 + col*halo(d, 1.0)*0.08)*env;
   }
   return acc;
+}
+// ---- round 17: what circles the blade goes behind it ----
+// How much of what is at `at` the blade's body leaves seen along this ray (in the hilt's frame):
+// all of it in front of the blade, none of it behind (Creyon: Balance's orb of shadow showed
+// through the blade).
+float bladeSeen(vec3 ro, vec3 rd, vec3 at){
+  float L = uLength, sAx, tAx, tAt;
+  raySegRaw(ro, rd, vec3(0.0), vec3(0.0, L, 0.0), sAx);
+  float dAx = rayPtRaw(ro, rd, vec3(0.0, sAx*L, 0.0), tAx);
+  rayPt(ro, rd, at, tAt);
+  return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx))*step(tAx, tAt);
 }

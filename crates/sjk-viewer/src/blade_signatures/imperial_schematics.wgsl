@@ -19,7 +19,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -34,11 +34,13 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let fade = 1.0 - smoothstep(L, L + 10.0, cyc);
     var s: f32;
     if head > y0 && fxNear(ro, rd, y0, y1) < 3.5 {
-        for (var k = 0; k < 2; k++) {
-            let sx = select(1.8, -1.8, k == 0);
-            let d = raySeg(ro, rd, vec3(sx, y0, 0.0), vec3(sx, head, 0.0), &s);
+        // round 19: four rails round the blade, in three dimensions
+        for (var k = 0; k < 4; k++) {
+            let sx: f32 = 1.8;
+            let tk = f32(k) * 0.25 + 0.125;
+            let d = raySeg(ro, rd, turnY(vec3(sx, y0, 0.0), tk), turnY(vec3(sx, head, 0.0), tk), &s);
             fx += c * (halo(d, max(0.03, px)) * 0.9 + halo(d, 0.25) * 0.1) * fade;
-            let e = rayPt(ro, rd, vec3(sx, head, 0.0), &s);
+            let e = rayPt(ro, rd, turnY(vec3(sx, head, 0.0), tk), &s);
             fx += vec3<f32>(1.0) * halo(e, 0.15) * 1.2 * fade;
         }
         for (var i = 0; i < 8; i++) {
@@ -46,7 +48,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             if y > head {
                 break;
             }
-            let d = min(raySeg(ro, rd, vec3(-2.2, y, 0.0), vec3(-1.4, y, 0.0), &s), raySeg(ro, rd, vec3(1.4, y, 0.0), vec3(2.2, y, 0.0), &s));
+            // round 20: each rung a ring joining the four rails, in 3D
+            let d = ringD(ro, rd, y, 1.8);
             fx += c * halo(d, max(0.03, px)) * 0.8 * fade;
         }
     }

@@ -183,7 +183,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         return light;
     }
     var s: f32;
-    let d = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+    let d = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
     // the light spilling from the crack while it is open
     light += vec3<f32>(1.0, 0.25, 0.12) * halo(d, 0.6 + 1.4 * op) * op * 0.6 * sin(3.1416 * clamp(s, 0.0, 1.0));
     light += hc_smoke(ro, rd) + hc_bolts(ro, rd, px, 0.0);
@@ -193,7 +193,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let a = 1.0 - uClash;
         let hy = L * 0.6;
         var tc: f32;
-        let dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), &tc);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, hy, 0.0), &tc);
         let off = ro + rd * tc - vec3(0.0, hy, 0.0);
         let ux = normalize(cross(rd, vec3<f32>(0.0, 1.0, 0.0)) + vec3<f32>(1.0e-4, 0.0, 0.0));
         let uy = cross(ux, rd);
@@ -207,7 +207,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 }
 
 // the blade: Sol's glow and core from the file, beating with the heart, flaring when open
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     return g * (0.8 + 0.5 * hc_beat() + 0.8 * hc_open());
 }
 
@@ -229,4 +229,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var fx: vec3<f32> = vec3<f32>(0.0);
     fx += fxArcs(ro, rd, px, y0, y1, 5.0, 5.0, 1.7, 2.7, vec3<f32>(1.0, 0.12, 0.08)) * part(1.0);
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 80 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.8;
 }

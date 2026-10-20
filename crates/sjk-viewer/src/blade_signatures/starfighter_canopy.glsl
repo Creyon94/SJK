@@ -1,5 +1,7 @@
 // Starfighter Canopy: rain on a starfighter's canopy before take-off, as a blade. Drops of water
-// run down the blade, joining and racing each other, while rain streaks past outside it.
+// run down the blade, joining and racing each other, while rain streaks past outside it. Round 20
+// (Creyon: it looked like Takodana Rain): the rain is swept past in long slanting streaks as the
+// engines spool up, and blue landing lights blink up the blade's sides.
 // @part Running drops
 // @part Rain
 // @motes Droplets
@@ -17,11 +19,23 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return max(g + (o - g)*2.40, vec3(0.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxFall(ro, rd, px, y0, y1, 3.0, 14.0, 22.0, 1.2, 0.15, 2.4, vec3(0.75, 0.85, 1.0))*0.55*part(1.0);
+  fx += fxFall(ro, rd, px, y0, y1, 3.2, 18.0, 30.0, 2.6, 0.9, 2.4, vec3(0.75, 0.85, 1.0))*0.5*part(1.0);
+  // landing lights blinking up the blade, a pair on each side in turn
+  float ta;
+  for (int i = 0; i < 6; i++){
+    float fi = float(i);
+    float y = mix(y0, y1, fi/5.0);
+    float on = pow(0.5 + 0.5*cos(6.2832*(fi/6.0 - t*0.6)), 10.0);
+    for (int sd = 0; sd < 2; sd++){
+      vec3 p = around(1.1, float(sd)*0.5 + 0.25, y);
+      float d = rayPt(ro, rd, p, ta);
+      fx += vec3(0.4, 0.7, 1.0)*(halo(d, max(0.06, px))*1.4 + halo(d, 0.35)*0.3)*(0.15 + 0.85*on)*part(0.0);
+    }
+  }
   return fx*uFx*2.40;
 }

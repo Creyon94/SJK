@@ -10,7 +10,10 @@
 // Exegol Rift: the hidden Sith world of Exegol torn open in a blade. A dark rift runs down the
 // blade's heart between glowing red-violet edges; every few seconds the rift tears wide at one
 // place and spills violet light; slow, kinked Sith lightning leaps from the tip and crawls
-// down, a dark storm churns round it and dust is pulled up into the rift. A clash flares it.
+// down, a dark storm churns round it and dust is pulled up into the rift. Round 16 (Creyon: now a
+// mythical, make it even better): a vortex of the dark side whirls round its upper half in 3D,
+// three ribbons of black-violet energy with burning crimson edges spiralling up out of the rift,
+// and Sith lightning leaps from the vortex into the blade now and then. A clash flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let heart = exp(-pow(b.x / 0.22, 2.0));
     let pulse = 0.7 + 0.3 * sin(uTime * 1.4 - b.y * 0.25);
@@ -24,7 +27,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return mix(c * vec3<f32>(0.25, 0.08, 0.35), c * vec3<f32>(1.0, 0.6, 1.0), edge * 0.6) * part(0.0) + c * (1.0 - part(0.0));
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -43,9 +46,63 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxAura(ro, rd, yt - 2.5 - 2.0 * open_, yt + 2.5 + 2.0 * open_, 0.9 + 1.4 * open_, v) * open_ * 2.6 * part(0.0);
     fx += fxFlare(ro, rd, vec3(0.0, yt, 0.0), px, 0.25, 2.0 + 3.0 * open_, 2.0, 1.5708, vec3<f32>(0.9, 0.5, 1.0)) * open_ * part(0.0);
     // a dark storm churning round it
-    fx += fxSmoke(ro, rd, y0, y1, 4.2, 0.6, 3.8, vec3<f32>(0.22, 0.1, 0.32)) * 1.5 * part(1.0);
+    fx += fxSmoke(ro, rd, y0, y1, 4.2, 0.6, 3.8, vec3<f32>(0.22, 0.1, 0.32)) * 1.1 * part(1.0);
     fx += fxSmoke(ro, rd, y0, y1, 2.6, -0.8, 7.1, vec3<f32>(0.35, 0.08, 0.25)) * 0.8 * part(1.0);
     // dust pulled up into the rift
-    fx += fxFall(ro, rd, px, y0, y1, 2.6, 18.0, -6.0, 0.5, 0.0, 6.6, red) * 0.9 * part(2.0);
+    fx += fxFall(ro, rd, px, y0, y1, 2.6, 18.0, -6.0, 0.5, 0.0, 6.6, red) * 0.6 * part(2.0);
+    return fx * uFx;
+}
+
+// round 16: the dark side's vortex whirling round the blade's upper half, ribbons of energy
+// spiralling in toward it with crimson edges, and bolts leaping from it into the blade; it
+// circles the blade, so it is drawn in true 3D (Sol's way); with the storm (part 1)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(1.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    let yc = L * 0.68;
+    if fxNear(ro, rd, yc - 8.0, yc + 6.0) > 6.5 {
+        return fx;
+    }
+    let v: vec3<f32> = vec3<f32>(0.75, 0.3, 1.0);
+    let red: vec3<f32> = vec3<f32>(1.0, 0.15, 0.35);
+    for (var j = 0; j < 3; j++) {
+        let fj = f32(j);
+        var best: f32 = 1.0e3;
+        var bs: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i <= 18; i++) {
+            let u = f32(i) / 18.0;
+            // a funnel opening up out of the rift: narrow at the blade, wide above
+            let R = mix(0.6, 4.4, u * u);
+            let p = around(R, u * 1.3 + fj / 3.0 - t * 0.22, yc - 5.0 + 9.0 * u);
+            if i > 0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bs = (f32(i) - 1.0 + s) / 18.0;
+                }
+            }
+            prev = p;
+        }
+        let flow = 0.6 + 0.4 * sin(bs * 20.0 + t * 5.0 + fj * 2.0);
+        let ends = smoothstep(0.0, 0.1, bs) * (1.0 - smoothstep(0.9, 1.0, bs));
+        fx += (red * halo(best, max(0.04, px)) * 1.4 * flow + v * halo(best, 0.3 + 0.2 * (1.0 - bs)) * 0.6 + vec3<f32>(0.25, 0.05, 0.4) * halo(best, 1.1) * 0.25) * ends;
+    }
+    // a bolt from the vortex into the blade now and then
+    let cyc = t * 0.7;
+    let k = floor(cyc);
+    let q = fract(cyc);
+    if q < 0.25 {
+        let a = h11(k * 3.1);
+        let from_ = around(3.5, a - t * 0.22, yc - 3.0 + 2.0 * h11(k * 5.3));
+        let to = vec3(0.0, yc - 1.0 + 3.0 * h11(k * 7.7), 0.0);
+        let d = bolt3(ro, rd, from_, to, k * 1.7 + floor(t * 20.0) * 0.3, 0.45);
+        fx += boltLight(d, vec3<f32>(0.85, 0.45, 1.0), px) * (1.0 - q / 0.25) * 0.9;
+    }
     return fx * uFx;
 }

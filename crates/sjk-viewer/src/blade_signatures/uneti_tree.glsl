@@ -76,9 +76,9 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // wood's grain drawn into them (sig_glow); here only the effects, each a piece placed
   // round it in 3D.
   float sa;
-  float dax = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
+  float dax = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
   // the growing tip: a bright bud of light while it ignites
-  float tt; float dt0 = rayPt(ro, rd, vec3(0.0, top, 0.0), tt);
+  float tt; float dt0 = rayPtRaw(ro, rd, vec3(0.0, top, 0.0), tt);
   float growing = 1.0 - smoothstep(0.4, 0.7, uAge);
   col += (vec3(1.0)*halo(dt0, 0.35)*1.2 + UT_COL*halo(dt0, 1.4)*0.6)*growing;
   // Force pollen
@@ -90,7 +90,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // clash: a ring of light blooms out across the blade
   if (cl > 0.0){
     vec3 h = rayAt(ro, rd, uLength*0.62);
-    float rr = length(h.xy);
+    float rr = (length(h.xy) + 1e3*behindBlade(ro, rd, h.z));
     float R = 0.6 + (1.0 - cl)*4.5;
     if (h.z > 0.0) col += (UT_PALE*halo(abs(rr - R), 0.35) + vec3(1.0)*halo(abs(rr - R), 0.08))*cl*1.4*uFx;
   }
@@ -111,7 +111,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 // the blade: Sol's glow and core from the file grown into living wood: two counter-twisting
 // sets of luminous fibres braided round the heartwood, fine fibres wound tight inside, a
 // breathing bark of grain at its edge, sap climbing in bright pulses; a clash floods them
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float top = ut_top();
   float R = 0.85;
   vec3 col = g*(0.75 + 0.25*sin(uTime*1.3));
@@ -135,6 +135,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxCoils(ro, rd, px, y0, y1, 1.8, 0.9, 0.3, 3.0, vec3(0.5, 0.85, 0.9))*part(1.0);
+  fx += fxCoils(ro, rd, px, L*0.04, y1, 1.8, 0.9, 0.3, 3.0, vec3(0.5, 0.85, 0.9))*part(1.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.75; }

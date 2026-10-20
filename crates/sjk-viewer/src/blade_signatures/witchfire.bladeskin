@@ -187,30 +187,6 @@
     "curl": 1.3,
     "density": 0.55
   },
-  "arcs": {
-    "count": 2,
-    "color": [
-      0.35,
-      1.0,
-      0.4
-    ],
-    "brightness": 2.0,
-    "width": 0.06,
-    "halo": 0.5,
-    "reach": 1.6,
-    "jag": 0.45,
-    "kinks": 0.5,
-    "span": {
-      "low": 0.15,
-      "high": 0.5
-    },
-    "rate": 6.0,
-    "jitter": 20.0,
-    "threshold": 0.3,
-    "tip": 0.15,
-    "crawl": 6.0,
-    "decay": 1.5
-  },
   "echo": {
     "fade": 0.3,
     "sway": 1.6,

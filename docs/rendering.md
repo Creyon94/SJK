@@ -1924,8 +1924,11 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   along it and land again once it is still. A design whose words outlast its blade
   (`blade_lab_designs.rs` `LINGERS`: the comic blade, 1.6 seconds) keeps, from when its
   blade begins going in, a whole-length instance with a swing lane of -1 that draws only
-  its switching-off word, standing upright from the hilt (`saber_submission.rs`,
-  `lab_lingering`), so the word floats on after the blade has gone and can be read.
+  its switching-off word (`saber_submission.rs`, `lab_lingering`), so the word floats on
+  after the blade has gone and can be read. Its vertex stage stands that instance up the
+  screen (the camera's screen-up direction with the view direction taken out), so the word
+  faces the camera from every side and from above (Creyon's report of 20/10/2026: standing
+  upright in the world, it read only from in front and lay edge on seen from above).
 - **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
   since its last swing began reach the shader per instance (`motion`, location 10;
   [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
@@ -2066,6 +2069,185 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   off the blade with six beads each sliding down both legs. A clash draws an eclipse
   (`su_moon`): a disc darkens glow and core where it lands, with a ring and an `fxFlare`
   diamond at its edge near a third of the way through.
+- **Round 15 (Creyon's review of 20/10/2026).** No two blades share a look: twelve blades that
+  drew the Aurodium's wavy strands (`fxStreams`, which the Aurodium keeps) got their own effect
+  instead: Balance the scales of the Force (a beam tipping slowly, a sun of light on one end and
+  an orb of shadow on the other), the Jedi Spirits three spirits climbing round the blade in a
+  spiral (drawn in 3D, `sig_orbit`), Dathomir Blood Moon a red moon with a shadow sliding over it,
+  Force Echo a scale of time marks lit one after another, Hyperlane lane beacons in a chase,
+  Mustafar Eruption straight lava runnels, Naboo Core rising plasma globes, Royal Naboo golden
+  scrolls of embroidery, Scarif Tide waves rolling up it, Unknown Regions a far spiral galaxy,
+  the Ashla Radiance soft rays of light (`fxRays`), the Kyber Cluster and the Beskar Forge none
+  (a glint on the forge's steel). Hyperspace's coils turn slowly (two at 0.22 turns a second,
+  were four at 1.4) and its tunnel twists slower; its and the Ashla Radiance's effects take the
+  wearer's colour with the blade (`sig_vol` returns them rather than adding them to `uKeep`).
+  Between Worlds' duellists are bigger, further out and brighter. Felucia's spores each live a
+  cycle on the clock alone (grow on the blade, rest, lift off smoothly and drift away, fade),
+  so running or a chain of swings can no longer snap them back (they read `uSince`); it is no
+  longer a chroma. The Bleeding Kyber's red dots became drops that swell and fall in streaks and
+  hot embers arcing off its front. The Star Map draws a different figure each chart (a route, a
+  ring, a triangle, a spiral, a diamond, a crown, a lightning route). Other blades that looked
+  alike were parted: the Superlaser and Witchfire lost the green lightning (their file's `arcs`)
+  that made them look like the Sith Alchemy blade, the Kashyyyk Monsoon (falling leaves instead)
+  and Bespin Storm lost the lightning the storm blades shared, the Starforge's flames are a star's
+  white-gold rather than the Phoenix's orange, the Nebula Song's rings of song (the Singing Kyber
+  has rings) became clouds of rose, violet and teal, and Hyperspace lost its coils (the Reactor
+  and the Uneti Tree have coils). Fifteen blades whose glow hid their effects draw it at 60 to
+  80 % (a `sig_glow` wrapping their own): the Reactor, Hyperspace, the Dyson Sphere, the Kyber
+  Heart, the Bleeding Kyber, the Event Horizon, the Nebula Song, the Sith Holocron, the
+  Starforge, the Uneti Tree, the Witchfire, Mustafar Eruption, Hoth Avalanche, Yavin Vines and
+  Twin Suns. Legendaries richer than the rares (Creyon: each tier up must look better): the
+  Assassin Droid adds red targeting lasers that lock on and two armoured gear rings turning
+  round it (3D), Liquid Beskar waves of forge heat in its mirror, glowing edges and molten drops
+  off its tip, the Beskar Forge a quench after each strike (jets of steam, an afterglow ring)
+  and more sparks; the Superlaser's surges swell into balls of plasma and a charge gathers at
+  its focus. Of the rares only the Data Disc changed (Creyon: it looked cheap): three discs
+  turning, the middle one the other way, with hubs and written sectors, and packets of data
+  streaming up between them. Round 15b (Creyon: mythicals must not look cheap, Balance for
+  one): Balance's blade is split, white-gold on one side and violet on the other, with rays of
+  light fanning out of the light's side, tendrils of shadow off the dark's and larger scales on
+  chains; the Ashla Radiance opens two wings of light; three wraiths dart round and through the
+  Wraithlight (3D, with its mist and echoes option); the Jedi Spirits glow like a Force ghost.
+- **Round 16 (Creyon's review of 20/10/2026).** Effects round the blade are Sol's way: what circles
+  it is drawn in true 3D (`sig_orbit`), so it reads from every side. Sol's motes on a signature run
+  straight on past the tip (along and across from `blade_place`) instead of round the capsule's
+  end, whose seam cut a mote crossing the tip in half (Witchfire, Uneti Tree, Ashla Radiance,
+  Nebula Song, Kyber Heart). `Signature::adopt` takes every figure, lab and solid section from the
+  built-in file too: the hub pack's older additions for a hand-ported design (Death Star Plans'
+  pencil sketch, drawn from inside the hilt) reached the signature and ran through the hilt in
+  third person and the preview. Felucia's spores answer a new motion lane, `stir`
+  ([saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs) `BladeMotion::stir`, for the
+  designs in `blade_lab_designs.rs` `STIRRED`): how much the blade moves in the world, running as
+  much as swinging, rising in 0.3 s and falling in 1.4 s, so the spores rest on the blade while
+  idle, swarm round it in 3D following it while it moves, and settle back smoothly. Mortis's realm
+  turns every second time its ghost blades fold back into it (8 s a fold, a flash as it turns).
+  Hyperspace's coils are back, three, turning at 0.25 a second in 3D. Between Worlds follows a
+  picture of the World Between Worlds' paths: a translucent blue blade with sparkling edges and a
+  dimmed core, paths of light crossing the void, nebula clouds, the duel kept. The Holdo Maneuver
+  gains engine glows at the hilt that spool up before the ram; Wraithlight cold spirit fire;
+  the Ashla Radiance orbs of light circling it; the Bleeding Kyber lightning that crawls over the
+  bleeding part and flickers fast (fewer, forked bolts lashing out) and, on its pure part, beams
+  of light and sparks of both colours where they meet. Legendaries: Balance redone (two faces
+  turning round a grey blade, bands of light and shadow passing, a wave of each meeting in a
+  flash, a sun and an orb of shadow circling opposite each other), Twin Suns' sunset beams, Exegol
+  Rift's vortex of the dark side (3D) with bolts into the blade, Scarif Tide redone (sunlit
+  caustics, a waterspout in 3D, bubbles, spray), Royal Naboo a jewelled circlet in 3D instead of
+  the costly scrolls, Starkiller Frost at 65 %, Krayt Pearl redone (nacre, pearls in 3D), Unknown
+  Regions a hyperspace storm in 3D instead of the galaxy, Blood Moon its streams back with the moon
+  circling it in 3D, Liquid Beskar tendrils of liquid metal instead of forge heat, Beskar Forge
+  molten beskar poured down it instead of side steam. Rares: Sith Thorn (veins, a thorned vine in
+  3D), Jakku Sandstorm (a dust devil in 3D), Dac Reef (a school of fish in 3D), Puzzle Holocron
+  (a holocron cube in 3D), Christophsis Crystal (crystals all round in 3D, facets).
+- **Round 17 (Creyon's game test of round 16, 20/10/2026).** Sol's motes on a signature fade out
+  over the blade's last units, none past its tip, and stay within 3.2 units of it (they rose far
+  above the tip and went through the wearer's head: Wraithlight, Uneti Tree, Witchfire, Ashla
+  Radiance, Singing Kyber, Nebula Song, Kyber Heart, Exogorth, Event Horizon, Big Bang, Ilum
+  Aurora Storm, Abyssal Eye, Sith Alchemy). The Jedi Spirits' climbing spirits stop below the tip
+  and a spirit's trail is its own climb only (it reached back to the end of the last, which
+  stuttered at the tip). `lab.glsl` `bladeSeen` hides what circles the blade behind it (Balance's
+  orbs, Blood Moon's moon, Krayt Pearl's pearls showed through it); `fxSmoke` is drawn out to 2.7
+  widths (it was cut at 1.8, where its sides showed as straight lines: Beskar Forge's quench
+  steam, Twin Suns' heat). Twin Suns' sunbeams fade out well inside its room, without dust. Scarif
+  Tide's sparkles twinkle smoothly (they jumped 8 times a second) over one web of caustics;
+  Between Worlds' edge glitter likewise. Liquid Beskar's sparks are silver; Beskar Forge has no
+  pour (it drew a line above the tip). Royal Naboo: interlaced filigree round a crimson thread and
+  a golden silk veil in 3D. Dac Reef redone as one coral: a porous stone body over the light
+  (`sig_solid`), its pores showing the blade, polyps breathing in their rims. Puzzle Holocron
+  redone as a lattice of panels turning row by row round its core. The Deflector Shield's dome
+  closes over the tip. No figures in Creyon's blades (Dac Reef's fish, Puzzle Holocron's cube
+  and Royal Naboo's jewels are gone).
+- **Round 18 (Creyon, 21/10/2026: soften, do not remove).** The Bleeding Kyber's pure part draws its
+  light at 45 % (was 70 %), its aura, beams and front at about half, and its red corruption
+  stronger, so the pure light no longer grows over the red part. Every layer of Mustafar Eruption
+  is kept and softened (flames, drips, sparks, fountains, ash); Event Horizon's rings, Exegol Rift's
+  storm, dust and vortex bolts, Wraithlight's spirit fire and frost, Beskar Forge's flames,
+  Starkiller Frost's mist and Holdo Maneuver's engines and haze are each a little softer.
+- **Round 19 (Creyon, 21/10/2026: everything in 3D, nothing cut, mythicals more mythical).**
+  `sig_vol` and `sig_vol_solid` now take the true view ray in the hilt's frame, as `sig_orbit`
+  does (Creyon, from above: flat effects followed the camera), so every effect round the blade is
+  the same thing from every side; `sig_flat` is gone. What was laid out in the blade's flat
+  picture now stands round the blade: `fxSmoke` is a cloud marched in six steps, `fxStreams` and
+  `fxFlakes` go all round the blade, a new `turnY` turns a piece laid out in the picture to its
+  own place round the blade (Between Worlds, Data Disc, Force Echo, Hyperlane, Imperial
+  Schematics, Jedi Texts, Holdo Maneuver, Moisture Farm, Mustafar Eruption, Sith Thorn, Star
+  Dragon's wings in a shallow V, Victory Fireworks as spheres), Star Map's figures wrap round a
+  cylinder, the Deflector Shield is a true shell with a dome, Ilum Aurora Storm's curtains hang on
+  cylinders, Temple Sunbeam's and Twin Suns' shafts and Jakku's and Bespin's gusts are slabs and
+  streaks at their own depths. Nothing is cut at the quad's edge: `uReach` (set by `sig_take`) is
+  how far the quad shows an effect in full, and the lab's pieces fade (`roomFade`) or stay inside it
+  (Reactor's shock ring was cut where it left that room; it now races out to 6.5 units). Sol's
+  arcs that do not leap from the tip fade out over the blade's last units, so no prominence passes
+  the tip (Eclipse, Twin Suns, Dyson Sphere); Eclipse's own loops end below it. The ignored GPU
+  test has a cut-off check (`SJK_SIGNATURE_EDGES`: each moment drawn again without `sig_edge`, the
+  difference marked) and closer orbit views with two from high above; run over all 128 it found only
+  Kessel Spice's crystals, drawn out to the quad's edge, now kept inside its glow. Every mythical signature
+  (`SIG_MYTHICAL`, set by `Signature::module_source` from the catalogue tier) awakens when lit (a
+  surge up the blade, a flare and a ring at the tip), breathes (a slow wave of light up it) and
+  rings out on a clash, in its own light's colour (`sig_mythic`). Blades: Mortis's effects reach
+  down to the hilt (ghost blades from low on it, a second Father's ring, the Daughter's beams, the
+  Son's red smoke); Liquid Beskar's tendrils became rings of liquid beskar rippling up it (beskar
+  has none); Yavin Vines and the coils and streams of Aurodium, Blood Moon, Event Horizon and Uneti
+  Tree start at the hilt; Jakku's dust devil turns a third as fast; Bespin Storm's gas giant bands
+  swirl round it as a cloud with tibanna gas rising; Starforge draws the star down a funnel into the
+  forge (star siphon) and throws a forge nova every fourth blow. Kyber Heart and Christophsis
+  Crystal are chromas. The Clone Wars design (`lab_comic_*`) gets five parts its wearer can switch
+  off: a see-through comic panel of halftone dots and speed lines behind a swing, action bursts of
+  impact lines on the blade (no bubble behind the words, which stay as they were), clone markings
+  (212th orange and 501st blue stripes sliding up its body), a holo flicker (a second in nine as a
+  blue hologram) and cartoon smoke puffs and spark stars (with its particles). With its comic panel on, its swing
+  trail is comic speed lines instead of the blur (`saber_trail.wgsl` style 4,
+  `SkinColor::comic_trail`): tapered streaks in the blade's colour, more toward the tip, and a bold
+  line where the tip went (Creyon: comic lines instead of afterimages). A signature's three
+  pipelines are built side by side when a blade needs them now (`saber_gpu.rs`), so effects
+  come in sooner when a blade is first worn.
+- **Round 20 (Creyon, 21/10/2026: the pictures, the glow up close, the launch).** The
+  Collection's pictures look from 20 000 units away, and the effects' sums lost their precision
+  there and smeared across the blades (bars, dashes, things the blades do not have): `sig_ray` now
+  starts a far camera's ray a hundred units before the blade. The pictures are seen a little from
+  the tip's side, as before round 19, so rings read as rings, and their effects' frame is a
+  wearer's. That frame (`saber_submission.rs`) is now the wearer's forward square to the blade
+  (the hilt model's own only as the blade comes round to point forward), so what spreads to a
+  blade's sides spreads to the wearer's left and right (Ashla Radiance's wings were one at the
+  side and one elsewhere). Close up, a signature's glow round the blade (not its core) softens to
+  about half within a few metres (`near`), and a signature reaches the bloom at 55 %
+  (`SIG_BLOOM`), so its effects are not hidden behind its glow. Abyssal Eye's iris and pupil are
+  a true eyeball in three dimensions (`ae_eyeball`), watching whoever looks at it. Hyperlane,
+  Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built by two
+  threads from a queue (`BuildQueue` in `saber_gpu.rs`): a blade worn or in the preview first,
+  then the Collection's pictures, then every loaded signature from launch, resting between those
+  (round 19's four at once stuttered the game at launch; with every build alike the preview's
+  waited behind the pictures and most blades seemed not to load). A signature now builds only its
+  glow pipeline and, with a solid layer, its solid one; its bloom is the shared pipeline's, its
+  blade's glow alone.
+  Also in round 20: Abyssal Eye's reality cracks tear out and fade where they reached instead
+  of shrinking back into the blade; Puzzle Holocron's rows read (darker panels, a tone a row,
+  bolder seams, a softer core); Thermal Fuse is a braided gold cord burning down from the tip,
+  ember red and smoking behind the point, popping at the hilt; Senate Glass's blade is itself a
+  stained-glass column (`sig_solid`) with coloured light round it; a signature's veins start at
+  the hilt's mouth (`sig_from_mouth`: Cockpit Console's circuits reached below the hilt);
+  Takodana Rain gets rings rippling out where drops land and Starfighter Canopy slanting
+  streaks and landing lights, so the two no longer look alike; Victory Fireworks is a chroma whose
+  fireworks keep their colours.
+- **Round 21 (Creyon, 21/10/2026: loading, Clone Wars in 3D, fixes).** Signature modules are
+  slimmed before they are built (`slim` in `blade_signatures.rs`: the designs' glow and solid
+  pass emptied, as a signature skin is never a design, and every function its pipelines do not
+  reach left out), a signature builds only its glow pipeline and, with a solid layer, its solid one,
+  and the build queue runs two or three builders (Creyon: at launch the effects took minutes to come
+  in). A skin reload (entering a server) keeps every signature already built, whatever number it
+  loads at (Creyon's log: 233 builds for 128 blades). The Clone Wars blade's toon body, its cartoon smoke and its spark stars are drawn in three
+  dimensions along the true view ray (`comic_body3`, `comic_puffs3`); its words, panel and impact
+  lines stay as they were. Sith Thorn's petals, Otoh Gunga's bubbles, Cantina Lights' spots of
+  light, Holo-Recording's dashes and Imperial Schematics' rungs no longer lie in one flat sheet
+  (seen edge on they were slivers or hid in the blade). Puzzle Holocron's lattice is a solid shell
+  over the core with its turning row lit up; Senate Glass's panes light up row by row as a wave of
+  sunlight rises.
+- **Round 22 (Creyon, 21/10/2026: nothing seen through the blade).** The lab's `rayPt`,
+  `raySeg` and `ringD`, the signatures' own ring helpers, their rings across the blade
+  (`rayAt`), `fxSmoke` and the Clone Wars puffs, stars and mythical rings in `saber.wgsl`
+  (`ray_behind_blade`) hide whatever lies behind the blade's body along the ray (`behindBlade`);
+  what lies on the blade itself is never hidden, and bounds and the blade's own axis use the raw
+  distances (`rayPtRaw`, `raySegRaw`). Liquid Beskar's rings no longer show through the blade, and
+  the Clone Wars halftone no longer reaches below the hilt.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
@@ -2087,7 +2269,9 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   (largest difference 0.001), on Linux with lavapipe.
 - **Drawing.** [blade_signatures.rs](../crates/sjk-viewer/src/blade_signatures.rs) names
   the signature skins (`SIGNATURES`); a loaded skin with one carries `LAB_SIGNATURE`
-  (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`,
+  (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`
+  (`@moments own` keeps a mythical out of `sig_mythic`: the Sun draws its own sunrise and
+  eclipse),
   and its chroma's own hue in `design_color.w` (-1 for none). A signature replaces a
   hand-ported design of the same skin (Monarch, Obsidian Edge, Quantum, Quicksilver,
   Reactor, Serpent, Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass, Fiber Optic,
@@ -2115,7 +2299,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
 - **Colour.** A chroma signature takes its wearer's colour outright (`sig_recolour`):
   every coloured part becomes the wearer's hue, at least well saturated, and only its
   white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
-  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron and the Exogorth keep their
+  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron, the Exogorth,
+  Felucia Spores and Force Echo (round 15) keep their
   own colours, as do Obsidian Edge, Quicksilver, Mortis (day and night) and the Bleeding
   Kyber (its red corruption). A signature's solid layer may keep its own colours where it
   sets `uOwn` (0 to 1; the Abyssal Eye's amber eye, round 9).

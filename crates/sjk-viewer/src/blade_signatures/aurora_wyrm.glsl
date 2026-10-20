@@ -19,24 +19,39 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   vec3 col = vec3(0.0);
   if (top < 0.5) return col;
   float su = ia_surge();
-  // aurora curtains beside the blade (round 12, Creyon: "something seems off"): soft folded
-  // sheets of light with a brighter lower edge, rippling, green fading up to magenta, in the
-  // blade's flat picture as Sol's effects are; no hard bars
-  if (abs(rd.z) > 0.0001){
-    float tc = -ro.z/rd.z;
-    vec3 q = ro + rd*tc;
-    for (int k = 0; k < 3; k++){
-      float fk = float(k);
-      float yb = uLength*(0.22 + 0.22*fk) + 1.2*sin(q.x*0.6 + t*0.5 + fk*2.0);
+  // aurora curtains round the blade (round 12, Creyon: "something seems off"): soft folded
+  // sheets of light with a brighter lower edge, rippling, green fading up to magenta; no hard
+  // bars. Round 19 (Creyon: from above they were a flat picture following the camera): each
+  // hangs on a cylinder round the blade in three dimensions, seen where the ray crosses it
+  for (int k = 0; k < 3; k++){
+    float fk = float(k);
+    float Rk = 1.6 + 1.0*fk;
+    float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), cc = dot(ro.xz, ro.xz) - Rk*Rk;
+    float hh = b*b - a*cc;
+    if (a < 1e-6 || hh <= 0.0) continue;
+    hh = sqrt(hh);
+    for (int e = 0; e < 2; e++){
+      float tc = e == 0 ? (-b - hh)/a : (-b + hh)/a;
+      if (tc <= 0.0) continue;
+      vec3 q = ro + rd*tc;
+      float ang = atan(q.x, q.z);
+      // the curtain covers part of the way round, its ends fading, and turns slowly
+      float cover = 0.5 + 0.5*sin(ang*1.0 + t*0.12*(fk + 1.0) + fk*2.1);
+      cover = smoothstep(0.25, 0.75, cover);
+      float xs = ang*Rk;
+      float yb = uLength*(0.22 + 0.22*fk) + 1.2*sin(xs*0.6 + t*0.5 + fk*2.0);
       if (yb > top) continue;
       float h = q.y - yb;
       float H = 6.0 + 2.0*su;
       float band = smoothstep(-0.4, 0.8, h)*(1.0 - smoothstep(0.35*H, H, h));
-      float side = smoothstep(0.7, 1.4, abs(q.x))*(1.0 - smoothstep(3.0 + fk, 4.6 + fk, abs(q.x)));
-      float folds = 0.75 + 0.25*sin(q.x*4.0 + 2.0*sin(q.x*1.3 + t*0.6 + fk) + fk*3.0);
-      float run = 0.65 + 0.35*sin(h*1.4 - t*2.0 + q.x*0.8);
+      float folds = 0.75 + 0.25*sin(xs*4.0 + 2.0*sin(xs*1.3 + t*0.6 + fk) + fk*3.0);
+      float run = 0.65 + 0.35*sin(h*1.4 - t*2.0 + xs*0.8);
+      // a sheet seen edge on is thicker
+      vec3 nn = normalize(vec3(q.x, 0.0, q.z));
+      // seen edge on, a curtain fades (no hard line at its silhouette)
+      float thick = smoothstep(0.05, 0.45, abs(dot(nn, rd)))*1.1;
       vec3 c = mix(green, mag, smoothstep(0.25*H, H, h));
-      col += c*band*side*folds*run*0.5*(1.0 + 0.8*su + 1.2*cl);
+      col += c*band*cover*folds*run*0.32*thick*(e == 0 ? 1.0 : 0.7)*(1.0 + 0.8*su + 1.2*cl);
     }
   }
   // snow crystals whirling round it

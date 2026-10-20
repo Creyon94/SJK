@@ -48,7 +48,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var s: f32;
     if fx > 0.0 {
         var fxl: vec3<f32> = vec3<f32>(0.0);
-        let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+        let near = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
         if near < 6.5 {
             // ---- the standing-wave nodes: bright bands that tremble, flat glows round the crystal
             for (var i = 0; i < 9; i++) {
@@ -62,7 +62,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
                 }
                 let sh = sk_shell(ro, rd, vec3(0.0, y, 0.0), 0.95 + 0.15 * sin(t * 41.0 + fi * 1.7), 4.0, 0.14);
                 var to: f32;
-                let dn = rayPt(ro, rd, vec3(0.0, y, 0.0), &to);
+                let dn = rayPtRaw(ro, rd, vec3(0.0, y, 0.0), &to);
                 fxl += (pale * sh * 0.8 + teal * halo(dn, 1.3) * 0.5) * vib;
             }
             // ---- sound rings travelling up the blade and spreading outward

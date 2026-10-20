@@ -179,10 +179,10 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float s, tq;
   // The blade's own light is Sol's glow and core from the file (sig_glow, sig_core); here
   // only the glow in the maw, and the effects, each a piece placed round it in 3D.
-  vec3 light = vec3(1.0, 0.6, 0.25)*halo(rayPt(ro, rd, vec3(0.0, 0.5, 0.0), tq), 0.9)*0.5*step(0.2, top);
+  vec3 light = vec3(1.0, 0.6, 0.25)*halo(rayPtRaw(ro, rd, vec3(0.0, 0.5, 0.0), tq), 0.9)*0.5*step(0.2, top);
   if (uFx < 0.01 || top < 1.0) return light;
   vec3 fx = vec3(0.0);
-  float d = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
+  float d = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
   float ys = s*top;
   // the cave's dust: a slow whirlpool of soft grey-amber puffs drawn in round the blade
   for (int i = 0; i < 18; i++){
@@ -232,7 +232,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     float R = 1.0 + 2.8*f;
     float yb = 1.2 + 3.0*f;
     vec3 h = rayAt(ro, rd, yb);
-    if (h.z > 0.0) fx += amb*halo(abs(length(h.xy) - R), 0.15 + 0.5*f)*(1.0 - f)*0.35*ex_gape();
+    if (h.z > 0.0) fx += amb*halo(abs((length(h.xy) + 1e3*behindBlade(ro, rd, h.z)) - R), 0.15 + 0.5*f)*(1.0 - f)*0.35*ex_gape();
   }
   // acid: glowing drops sliding down the outside of the gullet and falling
   for (int i = 0; i < 8; i++){
@@ -264,8 +264,8 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   if (uClash > 0.01){
     float a = 1.0 - uClash;
     vec3 h = rayAt(ro, rd, L*0.6);
-    if (h.z > 0.0) fx += amb*halo(abs(length(h.xy) - 1.0 - 7.0*a), 0.22 + 0.3*a)*1.6*uClash;
-    float dc = rayPt(ro, rd, vec3(0.0, L*0.6, 0.0), tq);
+    if (h.z > 0.0) fx += amb*halo(abs((length(h.xy) + 1e3*behindBlade(ro, rd, h.z)) - 1.0 - 7.0*a), 0.22 + 0.3*a)*1.6*uClash;
+    float dc = rayPtRaw(ro, rd, vec3(0.0, L*0.6, 0.0), tq);
     fx += amb*halo(abs(dc - 1.0 - 5.0*a), 0.3 + 0.4*a)*0.7*uClash + amb*halo(dc, 1.5)*pow(uClash, 2.0)*1.2;
     fx += amb*halo(max(d - ex_w(ys), 0.0), 1.2)*uClash*0.6;
   }

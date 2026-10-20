@@ -94,9 +94,10 @@ pub(crate) fn submit(
                 .filter(|skin| skin.linger > 0.0)
                 .and_then(|skin| state.motion.lingering(presentation_time, skin.linger))
             {
-                // Upright from the hilt, so the word stands up to be read however the hilt
-                // hangs once it is put away (round 14: lying along a holstered hilt, it was
-                // seen flat).
+                // Set upright from the hilt here; the vertex stage then stands it up the
+                // screen, so the word faces the camera from every side (round 14: lying along
+                // a holstered hilt, it was seen flat; round 15: upright in the world, it was
+                // read only from in front).
                 let held = saber::world_blade(
                     grip,
                     weapon_rotation,
@@ -130,7 +131,7 @@ pub(crate) fn submit(
             // view or running turns the whole body, which is no swing, and the effects that
             // answer a swing must not stir then.
             let body = (actor_rotation.inverse() * Vec3::from_array(blade.direction)).to_array();
-            let motion = state.motion.record_turned(
+            let mut motion = state.motion.record_turned(
                 blade,
                 body,
                 presentation_time,
@@ -138,13 +139,23 @@ pub(crate) fn submit(
                 attacking,
                 skin.is_some_and(|skin| skin.each_swing),
             );
-            // A direction across the blade that turns with the hilt, for the signatures'
-            // three-dimensional effects (`Instance::with_frame`).
-            let across = (weapon_rotation
+            if skin.is_some_and(|skin| skin.stirred) {
+                motion[3] = state.motion.stir();
+            }
+            // A direction across the blade for the signatures' three-dimensional effects
+            // (`Instance::with_frame`): the wearer's forward, square to the blade, so what spreads
+            // to the blade's sides (Ashla Radiance's wings) spreads to the wearer's left and right
+            // (Creyon's round 20: one wing was at the side and the other somewhere else, the frame
+            // having been any square to the hilt model's axis).
+            let along = Vec3::from_array(blade.direction).normalize_or_zero();
+            let forward = actor_rotation * Vec3::X;
+            let square = forward - along * forward.dot(along);
+            let own = weapon_rotation
                 * Vec3::from_array(hilt_blade.socket.direction)
                     .normalize_or_zero()
-                    .any_orthonormal_vector())
-            .to_array();
+                    .any_orthonormal_vector();
+            // The hilt's own leans in smoothly as the blade comes round to point forward.
+            let across = (square + own * 0.15).normalize_or(own).to_array();
             saber_instances.extend(
                 Instance::pair_flickering(blade, color, hilt_blade.length, flicker).map(|i| {
                     i.with_contact(

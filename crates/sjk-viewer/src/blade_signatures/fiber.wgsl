@@ -74,8 +74,8 @@ fn base_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     // the blade hides the crystals behind it (round 12: they showed through it)
     var sAx: f32;
     var tAx: f32;
-    let dAx = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), &sAx);
-    let dAx2 = rayPt(ro, rd, vec3(0.0, sAx * top, 0.0), &tAx);
+    let dAx = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), &sAx);
+    let dAx2 = rayPtRaw(ro, rd, vec3(0.0, sAx * top, 0.0), &tAx);
     let hide = 1.0 - smoothstep(0.45, 1.1, dAx2);
     for (var i = 0; i < 9; i++) {
         let fi = f32(i);
@@ -126,7 +126,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
 }
 
 // round 12 (Creyon: "needs something more"): the crystals' song, motes of every crystal's
-// colour rising round the blade and soft streams of kyber light winding up it
+// colour rising round the blade (round 15: without the streams it shared with the Aurodium)
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let y0 = L * 0.2;
@@ -134,9 +134,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var fx: vec3<f32> = vec3<f32>(0.0);
     for (var k = 0; k < 3; k++) {
         let fk = f32(k);
-        fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 8.0, 0.05, 3.1 + fk * 2.7, kc_col(fk * 3.0)) * 0.8;
+        fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 10.0, 0.05, 3.1 + fk * 2.7, kc_col(fk * 3.0)) * 1.0;
     }
-    fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.2, 0.22, 2.5, 6.4, vec3<f32>(0.7, 0.85, 1.0)) * 0.6;
     // round 13 (Creyon): a chroma for the blade only, the crystals keep their own colours (uKeep)
     uKeep += fx * uFx * part(1.0);
     return vec3<f32>(0.0);

@@ -40,7 +40,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   vec3 light = vec3(0.0);
   if (fx > 0.0){
     vec3 fxl = vec3(0.0);
-    float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
+    float near = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
     // ---- the veins: four strands of light wound round the blade, two each way
     if (near < 1.8){
       for (int v = 0; v < 4; v++){
@@ -90,7 +90,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
       float rr = length(o + dd*max(dot(-o, dd), 0.0));
       float sh = clamp(wr/sqrt(max(R*R - rr*rr, wr*wr)), 0.0, 1.0)*smoothstep(R + wr, R - 2.0*wr, rr) + halo(abs(rr - R), wr*1.4)*0.5;
       float tc;
-      fxl += (pale*sh*1.2)*cl + white*halo(rayPt(ro, rd, vec3(0.0, L*0.5, 0.0), tc), 1.5)*pow(cl, 2.0)*0.6;
+      fxl += (pale*sh*1.2)*cl + white*halo(rayPtRaw(ro, rd, vec3(0.0, L*0.5, 0.0), tc), 1.5)*pow(cl, 2.0)*0.6;
     }
     light += fxl*fx;
   }
@@ -98,7 +98,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
 }
 // the blade: Sol's glow and core from the file, swelling and blazing as each pulse passes and
 // dimming between beats
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
   float p = kh_pulse(b.y)*(1.0 + 0.6*clamp(uSwing, 0.0, 1.0)) + 1.2*clamp(uClash, 0.0, 1.0);
   return g*(0.6 + 0.9*p);
 }
@@ -126,7 +126,7 @@ vec3 kh_lifeblood(vec3 ro, vec3 rd, float px){
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float pump = 1.0 + 0.6*sw;
   float s;
-  if (raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s) > 6.0) return acc;
+  if (raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s) > 6.0) return acc;
   vec3 rose = vec3(1.0, 0.3, 0.5), hot = vec3(1.0, 0.75, 0.85), white = vec3(1.0);
   float y0 = L*0.2, y1 = max(top - 0.5, y0);
   for (int v = 0; v < 3; v++){
@@ -202,3 +202,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxAura(ro, rd, y0, y1, 2.6, rose)*(0.5 + 1.0*beat)*part(1.0);
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 70 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.7; }

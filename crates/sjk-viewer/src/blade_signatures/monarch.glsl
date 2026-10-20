@@ -1,9 +1,9 @@
 // Felucia Spores: the glowing fungal jungle of Felucia as a blade. A warm amber-green blade
-// breathing with bioluminescent rings that pulse up it; clouds of glowing spores swirl round it
-// resting on it while it is still and lifting off smoothly in spirals when it swings, staying out a few
-// seconds before settling back; luminous filaments wave off its surface and now and
-// then a spore pod bursts off it in a puff of light that rains spores. A swing whirls the spores
-// into a vortex; a clash bursts a huge cloud of them.
+// breathing with bioluminescent rings that pulse up it; glowing puffball spores rest on it while
+// its wearer stands idle, lift off and swarm round it, following it, when they run or swing, and
+// fly back to settle on it once they stand still (round 16); luminous filaments wave off its surface and now and then a spore pod bursts off it
+// in a puff of light that rains spores. A swing brightens the spores; a clash bursts a huge cloud
+// of them.
 // @part Spores and filaments
 // @room 10
 // @palette {"corona.rim_cool":[0.30,0.35,0.02],"corona.rim_hot":[0.95,0.80,0.15],"corona.inner":[1.0,0.95,0.60],"core.white":[1.0,0.98,0.85],"core.fringe_cool":[0.70,0.85,0.20],"core.fringe_hot":[1.0,0.92,0.50],"light.color":[0.90,0.85,0.30],"trail":[0.90,0.85,0.35]}
@@ -15,31 +15,6 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   float sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   vec3 col = vec3(0.0);
   if (top < 0.5) return col;
-  // spores: glowing spores resting on the blade, breathing softly while it is still; a swing
-  // shakes them off and they fly out round it in spirals, trailing light, then settle back on
-  // it as it calms (Creyon's round 9, like the butterflies)
-  // round 12 (Creyon): once shaken off they stay off a while before settling back
-  // round 14 (Creyon): they lift off as smoothly as they settle back: over a second from the
-  // swing's start (not at once with it), held off while the swinging goes on, settling back
-  // after it (uSince counts from a chain's first swing: `saber_motion.rs`)
-  float lift = smoothstep(0.0, 1.0, uSince);
-  float fly = lift*max(1.0 - smoothstep(2.2, 3.6, uSince), smoothstep(0.15, 0.45, sw));
-  for (int i = 0; i < 44; i++){
-    float fi = float(i);
-    float yr = (0.06 + 0.9*h11(fi*3.1))*top;
-    float ar = h11(fi*1.3);
-    float rest = 0.75 + 0.25*h11(fi*2.7);
-    float bob = 0.05*sin(t*1.7 + fi*2.1);
-    float out = fly*(2.0 + 4.0*h11(fi*7.7));
-    float spin = fly*(0.35 + 0.5*h11(fi*5.1))*(h11(fi*9.3) < 0.5 ? -1.0 : 1.0);
-    float a = ar + spin + 0.05*sin(t*0.9 + fi)*fly;
-    vec3 p = around(rest + bob + out, a, yr + fly*2.5*(h11(fi*4.1) - 0.35) + 0.6*sin(t*2.0 + fi)*fly);
-    vec3 p0 = around(rest + bob + out*0.92, a - spin*0.06, p.y - 0.25*fly);
-    float d = fly > 0.05 ? raySeg(ro, rd, p0, p, s) : rayPt(ro, rd, p, ta);
-    float tw = 0.55 + 0.45*sin(t*(2.0 + 2.0*h11(fi)) + fi*2.0);
-    vec3 sc = fs_col(h11(fi*8.8));
-    col += (vec3(1.0)*halo(d, max(0.06, px))*(0.8 + 0.8*tw) + sc*halo(d, max(0.16, px))*(1.4 + 1.2*tw) + sc*halo(d, 0.5)*0.3)*(0.9 + 0.5*fly);
-  }
   // drifting spore dust round it all the time
   col += fxMotes(ro, rd, px, top*0.1, top, 1.0, 5.0, 24.0, 0.05, 2.7, vec3(0.8, 1.0, 0.4));
   // luminous filaments waving off the blade
@@ -91,7 +66,50 @@ vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 // round 11: sig_vol gated by part 0
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   if (part(0.0) < 0.5) { return vec3(0.0); }
-  // round 14 (Creyon): a chroma for the blade only; the spores keep their own colours
-  uKeep += base_vol(ro, rd, px);
-  return vec3(0.0);
+  // round 15 (Creyon): no longer a chroma (it hid the spores' colours); its own colours
+  return base_vol(ro, rd, px);
+}
+// the spores circle the blade, so they are drawn in true 3D round it (`sig_orbit`, Sol's way)
+vec3 fs_spores(vec3 ro, vec3 rd, float px){
+  float t = uTime, top = fs_top(), s, ta;
+  float sw = clamp(uSwing, 0.0, 1.0);
+  vec3 col = vec3(0.0);
+  if (top < 0.5 || fxNear(ro, rd, 0.0, top) > 6.5) return col;
+  // spores (round 16, Creyon): they rest on the blade while its wearer stands idle; running or
+  // swinging, they lift off and swarm round it, following it; standing still again they fly
+  // back and settle on it. `uSince` carries how stirred the blade is, 0 to 1, smooth both ways
+  // (`saber_motion.rs` `stir`, `blade_lab_designs.rs` `STIRRED`); each spore leaves and lands at
+  // its own moment of it. Each is a puffball: a bright heart in a soft fuzzy ball with a fine
+  // ring, trailing a little light when it flies.
+  float stir = uSince <= 1.0 ? clamp(uSince, 0.0, 1.0) : 0.0;
+  for (int i = 0; i < 40; i++){
+    float fi = float(i);
+    float hs = h11(fi*6.3);
+    float e = smoothstep(hs*0.45, hs*0.45 + 0.55, stir);
+    e = e*e*(3.0 - 2.0*e);
+    float yr = (0.06 + 0.9*h11(fi*3.1))*top;
+    float ar = h11(fi*1.3);
+    float rest = 0.6 + 0.12*h11(fi*2.7) + 0.04*sin(t*1.7 + fi*2.1);
+    float sgn = h11(fi*9.3) < 0.5 ? -1.0 : 1.0;
+    float spin = (0.12 + 0.2*h11(fi*5.1))*sgn;
+    float rf = 1.6 + 3.0*h11(fi*7.7);
+    vec3 fly = around(rf + 0.3*sin(t*1.1 + fi), ar + t*spin, yr + 1.2*sin(t*0.7 + fi*1.9) + 0.6);
+    vec3 fly0 = around(rf + 0.3*sin(t*1.1 - 0.2 + fi), ar + (t - 0.25)*spin, yr + 1.2*sin((t - 0.25)*0.7 + fi*1.9) + 0.6);
+    vec3 rest3 = around(rest, ar, yr);
+    vec3 p = mix(rest3, fly, e);
+    vec3 p0 = mix(rest3, fly0, e);
+    float d = raySeg(ro, rd, p0, p, s);
+    float dp = rayPt(ro, rd, p, ta);
+    float tw = 0.7 + 0.3*sin(t*(1.5 + 1.5*h11(fi)) + fi*2.0);
+    vec3 sc = fs_col(h11(fi*8.8));
+    float size = 0.16 + 0.08*h11(fi*4.4);
+    col += (vec3(1.0)*halo(dp, max(0.05, px))*(0.9 + 0.6*tw) + sc*halo(dp, max(size, px))*(1.3 + tw)
+            + sc*halo(abs(dp - size*1.6), 0.04)*0.7 + sc*halo(dp, 0.55)*0.25
+            + sc*halo(d, max(0.05, px))*0.7*e)*(1.0 + 0.4*sw);
+  }
+  return col;
+}
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  return fs_spores(ro, rd, px)*uFx;
 }

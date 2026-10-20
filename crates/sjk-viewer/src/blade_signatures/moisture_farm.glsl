@@ -10,7 +10,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
@@ -23,7 +23,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     for (int k = 0; k < 4; k++){
       float fk = float(k);
       float x = (k < 2 ? -1.0 : 1.0)*((k == 0 || k == 3) ? 2.0 : 1.2);
-      vec3 a = vec3(x*0.45, yb, 0.0), m = vec3(x*1.12, ym, 0.0), e = vec3(x, y1 - 1.0, 0.0);
+      // round 19: the four rods stand round the blade, in three dimensions
+      float tk = fk*0.25 + 0.125;
+      x = abs(x);
+      vec3 a = turnY(vec3(x*0.45, yb, 0.0), tk), m = turnY(vec3(x*1.12, ym, 0.0), tk), e = turnY(vec3(x, y1 - 1.0, 0.0), tk);
       float d = min(raySeg(ro, rd, a, m, s), raySeg(ro, rd, m, e, s));
       fx += c*halo(d, max(0.015, px))*0.5*part(0.0);
       for (int i = 0; i < 4; i++){

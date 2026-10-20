@@ -107,7 +107,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let ey = yb + (f32(k) * 2.0 - 1.0) * hw * 0.62;
         let hp = rayAt(ro, rd, ey);
         if hp.z > 0.0 {
-            let rr = length(hp.xy);
+            let rr = (length(hp.xy) + 1.0e3 * behindBlade(ro, rd, hp.z));
             let rim = halo(abs(rr - 0.42), max(0.05, px)) * 1.1;
             fx += white * rim * vis * (1.0 - smoothstep(0.6, 1.2, rr));
         }
@@ -125,7 +125,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // a soft horizontal flash streak through the diamond, round the band
     let hp2 = rayAt(ro, rd, dp.y);
     if hp2.z > 0.0 {
-        let rr = length(hp2.xy);
+        let rr = (length(hp2.xy) + 1.0e3 * behindBlade(ro, rd, hp2.z));
         fx += white * halo(abs(rr - 0.42), 0.25) * exp(-rr / 2.5) * fl * 0.6 * vis;
     }
     for (var j = 0; j < 5; j++) {
@@ -136,19 +136,21 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         fx += white * halo(db, 0.07) * 1.6 * tw * exp(-f * 3.0) * (1.0 - fj * 0.15) * vis;
     }
     // ---- prominences: pearly loops of plasma arching off the blade, rising and lifting away
-    let dA = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+    let dA = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
     if dA < 4.5 {
         for (var i = 0; i < 4; i++) {
             let fi = f32(i);
             let ph = uTime * (0.25 + 0.1 * h11(fi * 3.3)) + h11(fi * 8.1);
             let cy = floor(ph);
             let fp = fract(ph);
-            let y0 = (0.1 + 0.8 * h11(cy * 1.9 + fi * 3.0)) * top;
+            var y0 = (0.1 + 0.8 * h11(cy * 1.9 + fi * 3.0)) * top;
             if abs(y0 - yb) < hw + 1.0 {
                 continue;
             }
             let az = h11(cy * 2.7 + fi);
             let span = 0.5 + 0.6 * h11(cy + fi * 5.0);
+            // round 19 (Creyon: a prominence rose past the tip): each loop ends below the tip
+            y0 = min(y0, top - 1.2 - span * 2.0);
             let H = (0.45 + 0.5 * h11(cy * 4.1 + fi)) * smoothstep(0.0, 0.35, fp) * (1.0 + 0.8 * max(fp - 0.5, 0.0));
             let life = smoothstep(0.0, 0.1, fp) * (1.0 - smoothstep(0.7, 1.0, fp));
             var prev = around(0.35, az, y0);

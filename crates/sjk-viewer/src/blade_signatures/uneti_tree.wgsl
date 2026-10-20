@@ -90,10 +90,10 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // wood's grain drawn into them (sig_glow); here only the effects, each a piece placed
     // round it in 3D.
     var sa: f32;
-    let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
+    let dax = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
     // the growing tip: a bright bud of light while it ignites
     var tt: f32;
-    let dt0 = rayPt(ro, rd, vec3(0.0, top, 0.0), &tt);
+    let dt0 = rayPtRaw(ro, rd, vec3(0.0, top, 0.0), &tt);
     let growing = 1.0 - smoothstep(0.4, 0.7, uAge);
     col += (vec3<f32>(1.0) * halo(dt0, 0.35) * 1.2 + UT_COL * halo(dt0, 1.4) * 0.6) * growing;
     // Force pollen
@@ -107,7 +107,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // clash: a ring of light blooms out across the blade
     if cl > 0.0 {
         let h = rayAt(ro, rd, uLength * 0.62);
-        let rr = length(h.xy);
+        let rr = (length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z));
         let R = 0.6 + (1.0 - cl) * 4.5;
         if h.z > 0.0 {
             col += (UT_PALE * halo(abs(rr - R), 0.35) + vec3<f32>(1.0) * halo(abs(rr - R), 0.08)) * cl * 1.4 * uFx;
@@ -131,7 +131,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 // the blade: Sol's glow and core from the file grown into living wood: two counter-twisting
 // sets of luminous fibres braided round the heartwood, fine fibres wound tight inside, a
 // breathing bark of grain at its edge, sap climbing in bright pulses; a clash floods them
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let top = ut_top();
     let R: f32 = 0.85;
     var col = g * (0.75 + 0.25 * sin(uTime * 1.3));
@@ -162,6 +162,12 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y0 = L * 0.2;
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
-    fx += fxCoils(ro, rd, px, y0, y1, 1.8, 0.9, 0.3, 3.0, vec3<f32>(0.5, 0.85, 0.9)) * part(1.0);
+    fx += fxCoils(ro, rd, px, L * 0.04, y1, 1.8, 0.9, 0.3, 3.0, vec3<f32>(0.5, 0.85, 0.9)) * part(1.0);
     return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.75;
 }

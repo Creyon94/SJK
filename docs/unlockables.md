@@ -756,9 +756,20 @@ unchanged. Chromas: Storm, Unstable, Spectral, Glitch, Hologram, Runic and Heart
 Chameleon and Banner are about their colour. Creyon's chromas (his rounds 13 and 14) are
 those where a colour makes sense: kyber, holograms, the Force, data and light (Droid Logic,
 Echo Base, Amethyst, Neon, Bleeding Kyber, Kyber Cluster, Clone Wars, Between Worlds,
-Eclipse, Hyperspace, Singing Kyber, Ashla Radiance, Holdo Maneuver, Felucia Spores, Abyssal Eye, Force
-Echo, Shattered Kyber and sixteen rares, uncommons and commons); a signature's own effects
-keep their colours through `uKeep` and `uOwn`, so only its blade takes the wearer's.
+Eclipse, Hyperspace, Singing Kyber, Ashla Radiance, Holdo Maneuver, Abyssal Eye, Shattered
+Kyber and sixteen rares, uncommons and commons); a signature's own effects keep their colours
+through `uKeep` and `uOwn`, so only its blade takes the wearer's, except Hyperspace's and the
+Ashla Radiance's, whose effects take it with the blade (round 15, 20/10/2026). Round 15 also
+took the chroma off Felucia Spores (it hid the spores' colours) and Force Echo, and swapped two
+tiers: the Jedi Spirits blade is mythical, the Balance blade legendary. Sol's tier review of 20/10/2026 then moved Clone Wars and Exegol Rift
+to mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith Alchemy, Felucia Spores, Phoenix
+Squadron, Dyson Sphere, Quasar, Sith Holocron, Ashla Radiance, Superlaser, Uneti Tree, Witchfire
+and Wraithlight to legendary; Storm, Prism, Unstable, Chameleon, Hoth Avalanche, Kessel Run,
+Krayt Pearl and Assassin Droid to rare; and Targeting Display to uncommon: 22 mythicals. Only the
+tier changed (label, colour, Collection order, holocron odds); the hub's catalogue must follow. Round 19
+(21/10/2026) made Kyber Heart and Christophsis Crystal chromas (kyber and crystal take any colour);
+no chroma was taken off. Round 20 made Hyperlane, Nebula Song, Deflector Shield, Quasar and Victory Fireworks (its
+fireworks keep their colours) chromas.
 
 - **How it is drawn** ([saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs)
   `Chroma`, `SkinColor::worn_with`): the skin's own hue is its corona rim's

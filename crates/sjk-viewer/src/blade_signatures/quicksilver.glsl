@@ -1,13 +1,16 @@
 // Liquid Beskar: Mandalorian steel kept molten, as a blade (Creyon's round 9: its droplets and
 // sparks in 3D). A thin blade of liquid mirror: a chrome surface reflecting a cool sky and warm
 // floor, ripples racing up it, beads of beskar rolling up to the tip and dripping off. Round it in
-// 3D, droplets of molten beskar orbit and drip, forge sparks fly and the air shimmers with heat. A
+// 3D, droplets of liquid beskar orbit and drip, silver glints fly off it and the air shimmers. A
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
-// of droplets out with a shock ring; ignition pours the metal up from the hilt.
+// of droplets out with a shock ring; ignition pours the metal up from the hilt. Round 15 (Creyon:
+// it needed more; round 16: no forge fire): rings of liquid beskar ripple up round the mirror
+// (round 19, Creyon: beskar has no tendrils, in the films or the comics; rings instead).
 // @full 1
-// @part Forge sparks
+// @part Silver glints
 // @part Flung droplets
 // @part Orbiting droplets
+// @part Beskar ripples
 // @room 10
 // @solid 1
 
@@ -154,9 +157,10 @@ vec4 base_vol_solid(vec3 ro, vec3 rd, float px){
 vec3 base_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
-  vec3 silver = vec3(0.8, 0.88, 1.0), forge = vec3(1.0, 0.55, 0.2);
+  vec3 silver = vec3(0.8, 0.88, 1.0);
   vec3 col = vec3(0.0);
-  col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, forge);
+  // round 17 (Creyon: nothing red, it is pure beskar, only liquid): silver glints, not forge sparks
+  col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, silver);
   col += fxAura(ro, rd, y0, y1, 2.6, silver)*0.6;
   col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, silver)*1.5;
   return col*uFx;
@@ -180,11 +184,46 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 }
 // round 11: sig_vol_solid gated by part 1
 vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
-  if (part(1.0) < 0.5) { return vec4(0.0); }
-  return base_vol_solid(ro, rd, px);
+  vec4 acc = vec4(0.0);
+  if (part(3.0) > 0.5 && uFx > 0.01) { acc = qs_ripples(ro, rd, px); }
+  if (part(1.0) < 0.5) { return acc; }
+  vec4 d = base_vol_solid(ro, rd, px);
+  return vec4(mix(acc.rgb, d.rgb, d.a), max(acc.a, d.a));
 }
 // round 11: sig_orbit_solid gated by part 2
 vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   if (part(2.0) < 0.5) { return vec4(0.0); }
   return base_orbit_solid(ro, rd, px);
+}
+// round 19 (Creyon: beskar has no tendrils): rings of liquid beskar rippling up round the
+// blade, as a wave runs up a column of molten metal: each a thin mirror band swelling out from
+// the surface, travelling up, and sinking back into it before the tip; in three dimensions
+vec4 qs_ripples(vec3 ro, vec3 rd, float px){
+  vec4 acc = vec4(0.0);
+  float L = uLength, t = uTime;
+  if (fxNear(ro, rd, 0.0, L) > 3.0) return acc;
+  float best = 1e5;
+  for (int j = 0; j < 3; j++){
+    float fj = float(j);
+    float q = fract(t*0.16 + fj/3.0);
+    float y = mix(L*0.08, L*0.9, q);
+    float swell = sin(3.1416*q);
+    float R = 0.55 + 1.1*swell;
+    float w = 0.09 + 0.1*swell;
+    float d = ringD(ro, rd, y, R);
+    float cov = fillD(d - w, px)*smoothstep(0.02, 0.15, swell);
+    if (cov <= 0.0) continue;
+    // where along the ray it is, so the nearer ring covers the farther
+    vec3 h = rayAt(ro, rd, y);
+    float th = h.z > 0.0 ? h.z : 1e4;
+    // round 22 (Creyon: the rings were seen through the blade): the half behind the blade is
+    // hidden by it
+    cov *= h.z > 0.0 ? bladeSeen(ro, rd, vec3(h.x, y, h.y)) : 1.0;
+    if (cov <= 0.0) continue;
+    float n = clamp(d/max(w, 1e-3), 0.0, 1.0);
+    vec3 c = qs_env(0.6 - n*1.2, y, t)*(0.7 + 0.3*sqrt(max(1.0 - n*n, 0.0)));
+    c += vec3(1.0)*exp(-n*n*6.0)*0.35;
+    if (acc.a <= 0.0 || th < best){ best = th; acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov)); }
+  }
+  return acc;
 }

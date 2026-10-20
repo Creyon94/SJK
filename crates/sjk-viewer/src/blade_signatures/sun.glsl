@@ -15,6 +15,7 @@
 // @star Glint
 // @haze Haze
 // @room 10
+// @moments own
 // @palette {"corona.rim_cool":[1.0,0.2,0.02],"corona.rim_hot":[1.0,0.42,0.05],"corona.inner":[1.0,0.72,0.24],"core.white":[1.0,0.97,0.86],"core.fringe_cool":[1.0,0.42,0.05],"core.fringe_hot":[1.0,0.72,0.24],"light.color":[1.5,0.85,0.3],"trail":[1.0,0.6,0.12]}
 
 
@@ -83,8 +84,8 @@ vec3 su_rain(vec3 ro, vec3 rd, float px, float k){
   float span = 4.0 + 3.0*h11(n*2.3 + k);
   float y0 = uLength*(0.12 + 0.62*h11(n*1.7 + k*4.1));
   float H = 2.6 + 1.8*h11(n*3.1 + k);
-  // to one side of the blade's picture or the other
-  float side = h11(n*4.9 + k*2.2) < 0.5 ? 0.25 : 0.75;
+  // its own way round the blade, so from any side some loops show their arch
+  float side = h11(n*4.9 + k*2.2);
   // the loop itself: a faint arch, brightest at its top
   float best = 1e3, bs = 0.0;
   vec3 prev = around(0.35, side, y0);
@@ -118,10 +119,10 @@ float su_moon(){
   float a = 1.0 - clamp(uClash, 0.0, 1.0);
   return uClash > 0.01 ? smoothstep(0.0, 0.06, a)*(1.0 - smoothstep(0.35, 0.75, a)) : 0.0;
 }
-// where the moon's disc is: it slides across, so it has just left the ring's lit edge
+// where the moon's disc is in the blade's picture: it slides up the blade over the clash
 vec2 su_moon_at(){
   float a = 1.0 - clamp(uClash, 0.0, 1.0);
-  return vec2(-0.6 + 2.2*a, su_clash_y() - 0.4 + 1.2*a);
+  return vec2(0.0, su_clash_y() - 0.6 + 1.6*a);
 }
 
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
@@ -154,7 +155,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float a = 1.0 - clamp(uClash, 0.0, 1.0);
     vec2 m = su_moon_at();
     float ta;
-    float dm = rayPt(ro, rd, vec3(m.x, m.y, 0.0), ta);
+    // the moon stands on the blade's side facing the eye, so the blade never hides it
+    vec2 eye = normalize(ro.xz + vec2(1e-4, 0.0));
+    vec3 mc = vec3(eye.x*0.6, m.y, eye.y*0.6);
+    float dm = rayPtRaw(ro, rd, mc, ta);
     // the moon's disc hides the aura, the rain and the wind behind it
     col *= 1.0 - smoothstep(SU_MOON*1.02, SU_MOON*0.75, dm)*moon;
     // the corona round the moon: a thin bright ring and a soft streaming glow outside it
@@ -162,7 +166,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     col += (SU_WHITE*halo(abs(dm - SU_MOON), max(0.12, px))*1.6 + mix(SU_WHITE, SU_GOLD, 0.5)*halo(max(dm - SU_MOON, 0.0), 1.4)*0.7*streams)*moon;
     // the diamond: one blinding point on the ring's edge as the moon slides off
     float diamond = exp(-pow((a - 0.32)/0.11, 2.0));
-    vec3 at = vec3(m.x - SU_MOON*0.7, m.y - SU_MOON*0.7, 0.0);
+    vec3 at = mc + vec3(-eye.y, 0.0, eye.x)*SU_MOON*0.7 - vec3(0.0, SU_MOON*0.7, 0.0);
     col += fxFlare(ro, rd, at, px, 0.35, 11.0, 4.0, 0.3, SU_GOLD)*diamond*2.2;
   }
   return su_sky(col);
