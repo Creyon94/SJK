@@ -59,7 +59,7 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             col += bf_heat(1.0 - ph * 0.6) * (halo(d, max(0.04, px)) * 2.0 + halo(d, 0.2) * 0.2) * (1.0 - smoothstep(0.6, 1.4, ph)) * (0.7 + 0.6 * sw) * part(0.0);
         }
         // the flash where the hammer lands
-        let dk = rayPt(ro, rd, vec3(0.0, ys, 0.0), &ta);
+        let dk = rayPtRaw(ro, rd, vec3(0.0, ys, 0.0), &ta);
         col += vec3<f32>(1.0, 0.9, 0.75) * (halo(dk, 0.7) * 2.0 + halo(dk, 2.0) * 0.4) * strike * part(0.0);
     }
     // molten beskar beading along the blade and dripping off

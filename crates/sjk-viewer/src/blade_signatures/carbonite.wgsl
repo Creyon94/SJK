@@ -265,7 +265,7 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var ta: f32;
     // the burst: the freed blade's blaze
     if bu > 0.0 && bu < 1.0 {
-        let dAx = raySeg(ro, rd, vec3(0.0, CB_Y0, 0.0), vec3(0.0, cb_btop(), 0.0), &ta);
+        let dAx = raySegRaw(ro, rd, vec3(0.0, CB_Y0, 0.0), vec3(0.0, cb_btop(), 0.0), &ta);
         light += c * (halo(dAx, 0.9) * 1.2 + halo(dAx, 2.5) * 0.25) * (1.0 - bu);
     }
     // clash: a ring of light round the struck point, and a flash
@@ -273,9 +273,9 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let a = 1.0 - uClash;
         let h = rayAt(ro, rd, L * 0.6);
         if h.z > 0.0 {
-            light += vec3<f32>(0.75, 0.95, 1.0) * halo(abs(length(h.xy) - 0.8 - 6.0 * a), 0.25) * 1.4 * uClash;
+            light += vec3<f32>(0.75, 0.95, 1.0) * halo(abs((length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z)) - 0.8 - 6.0 * a), 0.25) * 1.4 * uClash;
         }
-        let dc = rayPt(ro, rd, vec3(0.0, L * 0.6, 0.0), &ta);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, L * 0.6, 0.0), &ta);
         light += vec3<f32>(0.75, 0.95, 1.0) * halo(dc, 1.4) * pow(uClash, 2.0);
     }
     // round 9: free, the blade blazes with rays and sparks of cold light; the burst and the fuse

@@ -31,7 +31,7 @@ fn bb_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
     var best: f32 = 1.0e3;
     let h = rayAt(ro, rd, y);
     if h.z > 0.0 {
-        best = abs(length(h.xy) - R);
+        best = abs(length(h.xy) - R) + 1.0e3 * behindBlade(ro, rd, h.z);
     }
     let a = dot(rd.xz, rd.xz);
     let b = dot(ro.xz, rd.xz);
@@ -42,10 +42,10 @@ fn bb_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
         let t0 = (-b - q) / a;
         let t1 = (-b + q) / a;
         if t0 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t0 - y));
+            best = min(best, abs(ro.y + rd.y * t0 - y) + 1.0e3 * behindBlade(ro, rd, t0));
         }
         if t1 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t1 - y));
+            best = min(best, abs(ro.y + rd.y * t1 - y) + 1.0e3 * behindBlade(ro, rd, t1));
         }
     }
     return best;
@@ -86,14 +86,14 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         col += white * (halo(dO, 0.35) * pre * 6.0 + exp(-dO / 1.5) * pre * 1.5);
         col += mix(white, rose, smoothstep(0.0, 0.8, age)) * sh * burst * 1.3 * fx;
         // the fireball racing up the blade
-        let fb = rayPt(ro, rd, vec3(0.0, top, 0.0), &ta);
+        let fb = rayPtRaw(ro, rd, vec3(0.0, top, 0.0), &ta);
         col += mix(white, gold, 0.3) * (halo(fb, 0.8) * 2.0 + exp(-fb / 2.0) * 0.6) * (1.0 - smoothstep(0.4, 0.6, age)) * step(0.05, age);
     }
     if top < 0.1 {
         return col;
     }
     // The blade itself is Sol's glow and core from the skin's file (sig_glow, sig_core).
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 9.0 {
         return col;
     }

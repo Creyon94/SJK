@@ -76,9 +76,9 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // wood's grain drawn into them (sig_glow); here only the effects, each a piece placed
   // round it in 3D.
   float sa;
-  float dax = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
+  float dax = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
   // the growing tip: a bright bud of light while it ignites
-  float tt; float dt0 = rayPt(ro, rd, vec3(0.0, top, 0.0), tt);
+  float tt; float dt0 = rayPtRaw(ro, rd, vec3(0.0, top, 0.0), tt);
   float growing = 1.0 - smoothstep(0.4, 0.7, uAge);
   col += (vec3(1.0)*halo(dt0, 0.35)*1.2 + UT_COL*halo(dt0, 1.4)*0.6)*growing;
   // Force pollen
@@ -90,7 +90,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // clash: a ring of light blooms out across the blade
   if (cl > 0.0){
     vec3 h = rayAt(ro, rd, uLength*0.62);
-    float rr = length(h.xy);
+    float rr = (length(h.xy) + 1e3*behindBlade(ro, rd, h.z));
     float R = 0.6 + (1.0 - cl)*4.5;
     if (h.z > 0.0) col += (UT_PALE*halo(abs(rr - R), 0.35) + vec3(1.0)*halo(abs(rr - R), 0.08))*cl*1.4*uFx;
   }

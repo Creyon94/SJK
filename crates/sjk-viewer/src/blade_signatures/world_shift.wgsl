@@ -64,7 +64,7 @@ fn ws_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
     var best: f32 = 1.0e3;
     let h = rayAt(ro, rd, y);
     if h.z > 0.0 {
-        best = abs(length(h.xy) - R);
+        best = abs(length(h.xy) - R) + 1.0e3 * behindBlade(ro, rd, h.z);
     }
     let a = dot(rd.xz, rd.xz);
     let b = dot(ro.xz, rd.xz);
@@ -75,10 +75,10 @@ fn ws_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
         let t0 = (-b - q) / a;
         let t1 = (-b + q) / a;
         if t0 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t0 - y));
+            best = min(best, abs(ro.y + rd.y * t0 - y) + 1.0e3 * behindBlade(ro, rd, t0));
         }
         if t1 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t1 - y));
+            best = min(best, abs(ro.y + rd.y * t1 - y) + 1.0e3 * behindBlade(ro, rd, t1));
         }
     }
     return best;
@@ -221,7 +221,7 @@ fn ws_ice(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, ch
     var col = ws_core(d, px, 0.32, vec3<f32>(0.9, 0.97, 1.0), vec3<f32>(0.4, 0.75, 1.0), 1.0 + ch + 0.3 * st);
     let yc = -0.3 + (top + 0.3) * form;
     let jit = ch * 0.04 * sin(t * 70.0);
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
     }
@@ -276,7 +276,7 @@ fn ws_storm(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, 
         fl += step(0.3, h11(k * 1.7 + fi)) * exp(-fract(t * 6.0 + fi * 0.37) * 4.0);
     }
     var col = ws_core(d, px, 0.34, vec3<f32>(0.88, 0.93, 1.0), vec3<f32>(0.3, 0.55, 1.0), 1.0 + ch + 0.25 * fl + 0.3 * st);
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
     }
@@ -321,7 +321,7 @@ fn ws_sand(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, c
     var s: f32;
     var ta: f32;
     var col = ws_core(d, px, 0.36, vec3<f32>(1.0, 0.93, 0.72), vec3<f32>(1.0, 0.6, 0.2), 1.0 + ch + 0.3 * st);
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
     }
@@ -367,7 +367,7 @@ fn ws_rock(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, c
     var s: f32;
     let pul = 0.85 + 0.15 * sin(t * 2.0);
     var col = ws_core(d, px, 0.42, vec3<f32>(1.0, 0.86, 0.84), vec3<f32>(1.0, 0.13, 0.1), (1.1 + 1.5 * ch + 0.3 * st) * pul);
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
     }
@@ -395,7 +395,7 @@ fn ws_water(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, form: f32, 
     var col = ws_core(d, px, 0.3, vec3<f32>(0.85, 1.0, 1.0), vec3<f32>(0.15, 0.6, 0.95), 1.0 + ch + 0.3 * st);
     // the flowing column (marched): water racing up, with bright caustic ridges
     col += ws_puffs(ro, rd, 5.0, top, form, st, ch) * fx;
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if fx <= 0.0 || far > 8.0 {
         return col;
     }
@@ -488,19 +488,19 @@ fn ws_burst(ro: vec3<f32>, rd: vec3<f32>, px: f32, d: f32, top: f32, kp: f32, kn
         let y = top * (0.18 + 0.22 * fi + 0.12 * h11(nb * 3.1 + fi));
         // round 13 (Creyon): no rings round the blade; a flash of light where each shock leaves it
         var ta: f32;
-        let dr = rayPt(ro, rd, vec3(0.0, y, 0.0), &ta);
+        let dr = rayPtRaw(ro, rd, vec3(0.0, y, 0.0), &ta);
         col += (vec3<f32>(1.0) * halo(dr, 0.4 + 0.3 * R * 0.2) * 1.0 + gp * halo(dr, 1.0 + 0.3 * R) * 0.35) * fade;
     }
     // the new climate condensing up the blade from the hilt
     let fr = -1.0 + (top + 3.0) * smoothstep(0.1, 0.7, lt);
     var sf: f32;
-    let dsf = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sf);
+    let dsf = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sf);
     let yy = -0.6 + sf * (top + 0.6);
     col += mix(vec3<f32>(1.0), ws_glow(kn), 0.5) * halo(dsf, 1.0) * halo(abs(yy - fr), 1.2) * 1.6 * smoothstep(0.08, 0.15, lt) * (1.0 - smoothstep(0.6, 0.8, lt));
     // a flash of the new climate's colour as it condenses
     col += ws_glow(kn) * halo(d, 1.1) * smoothstep(0.1, 0.4, lt) * exp(-max(lt - 0.4, 0.0) * 3.0) * 0.35;
     // debris of the old climate flung out in every direction
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if far > 9.0 {
         return col;
     }
@@ -685,7 +685,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let cl = clamp(uClash, 0.0, 1.0);
     let fx = uFx;
     var s: f32;
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
+    let d = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
     var col: vec3<f32> = vec3<f32>(0.0);
     if k < 0.5 {
         col = ws_lava(ro, rd, px, d, top, form, ch, st, fx);
@@ -709,7 +709,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // clash: the ruling climate flashes
     if cl > 0.01 {
         var ta: f32;
-        let dc = rayPt(ro, rd, vec3(0.0, min(uLength * 0.6, top), 0.0), &ta);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, min(uLength * 0.6, top), 0.0), &ta);
         col += (vec3<f32>(1.0) * halo(dc, 1.0) * 2.5 + ws_glow(k) * halo(dc, 2.8) * 1.2) * cl * cl;
         col += ws_glow(k) * halo(ws_ring(ro, rd, min(uLength * 0.6, top), 0.5 + 5.0 * (1.0 - cl)), 0.25) * cl * 1.2;
     }
@@ -733,7 +733,7 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     if uFx <= 0.0 {
         return o;
     }
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if far > 9.0 {
         return o;
     }

@@ -50,7 +50,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var light: vec3<f32> = vec3<f32>(0.0);
     if fx > 0.0 {
         var fxl: vec3<f32> = vec3<f32>(0.0);
-        let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+        let near = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
         // ---- the veins: four strands of light wound round the blade, two each way
         if near < 1.8 {
             for (var v = 0; v < 4; v++) {
@@ -112,7 +112,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let rr = length(o + dd * max(dot(-o, dd), 0.0));
             let sh = clamp(wr / sqrt(max(R * R - rr * rr, wr * wr)), 0.0, 1.0) * smoothstep(R + wr, R - 2.0 * wr, rr) + halo(abs(rr - R), wr * 1.4) * 0.5;
             var tc: f32;
-            fxl += (pale * sh * 1.2) * cl + white * halo(rayPt(ro, rd, vec3(0.0, L * 0.5, 0.0), &tc), 1.5) * pow(cl, 2.0) * 0.6;
+            fxl += (pale * sh * 1.2) * cl + white * halo(rayPtRaw(ro, rd, vec3(0.0, L * 0.5, 0.0), &tc), 1.5) * pow(cl, 2.0) * 0.6;
         }
         light += fxl * fx;
     }
@@ -153,7 +153,7 @@ fn kh_lifeblood(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let cl = clamp(uClash, 0.0, 1.0);
     let pump = 1.0 + 0.6 * sw;
     var s: f32;
-    if raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s) > 6.0 {
+    if raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s) > 6.0 {
         return acc;
     }
     let rose: vec3<f32> = vec3<f32>(1.0, 0.3, 0.5);

@@ -274,13 +274,19 @@ fn qs_ripples(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
         let R = 0.55 + 1.1 * swell;
         let w = 0.09 + 0.1 * swell;
         let d = ringD(ro, rd, y, R);
-        let cov = fillD(d - w, px) * smoothstep(0.02, 0.15, swell);
+        var cov = fillD(d - w, px) * smoothstep(0.02, 0.15, swell);
         if cov <= 0.0 {
             continue;
         }
         // where along the ray it is, so the nearer ring covers the farther
         let h = rayAt(ro, rd, y);
         let th = select(1.0e4, h.z, h.z > 0.0);
+        // round 22 (Creyon: the rings were seen through the blade): the half behind the blade is
+        // hidden by it
+        cov *= select(1.0, bladeSeen(ro, rd, vec3(h.x, y, h.y)), h.z > 0.0);
+        if cov <= 0.0 {
+            continue;
+        }
         let n = clamp(d / max(w, 1.0e-3), 0.0, 1.0);
         var c = qs_env(0.6 - n * 1.2, y, t) * (0.7 + 0.3 * sqrt(max(1.0 - n * n, 0.0)));
         c += vec3<f32>(1.0) * exp(-n * n * 6.0) * 0.35;

@@ -58,13 +58,35 @@ vec2 helix(float y, float r, float turns, float phase){
 // rd its unit direction, y along the blade from the hilt, x across it to the camera's side,
 // z toward the camera. Everything placed with these sits round the blade in depth and keeps
 // its shape from every side, from above and in first person.
-// The distance from the ray to point p; t returns how far along the ray that is.
-float rayPt(vec3 ro, vec3 rd, vec3 p, out float t){
+// Round 22 (Creyon: nothing may be seen through the blade when it is behind it): how hidden by
+// the blade's body a point t along the ray is, 0 (seen) to 1 (hidden): the ray passes through the
+// blade's body (its nearest approach to the axis within the blade) before reaching it.
+float behindBlade(vec3 ro, vec3 rd, float t){
+  float a = dot(rd.xz, rd.xz);
+  if (a < 0.02) return 0.0;
+  float ta = -dot(ro.xz, rd.xz)/a;
+  float y = ro.y + rd.y*ta;
+  vec2 off = ro.xz + rd.xz*ta;
+  float d = length(off);
+  // what lies on the blade's own body (its axis, its glow) is never hidden by it
+  vec3 p = ro + rd*t;
+  float outside = smoothstep(0.5, 0.9, length(p.xz));
+  float onBlade = smoothstep(-0.8, -0.2, y)*(1.0 - smoothstep(uLength - 0.2, uLength + 0.4, y));
+  return (1.0 - smoothstep(0.35, 0.8, d))*onBlade*outside*smoothstep(ta + 0.15, ta + 0.7, t);
+}
+// The distance from the ray to point p, as seen (a point the blade hides is far off); t
+// returns how far along the ray that is.
+float rayPtRaw(vec3 ro, vec3 rd, vec3 p, out float t){
   t = max(dot(p - ro, rd), 0.0);
   return length(ro + rd*t - p);
 }
-// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b).
-float raySeg(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
+float rayPt(vec3 ro, vec3 rd, vec3 p, out float t){
+  float d = rayPtRaw(ro, rd, p, t);
+  return d + 1e3*behindBlade(ro, rd, t);
+}
+// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b); the
+// raw one ignores the blade's body (for bounds and the blade's own axis).
+float raySegRaw(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
   vec3 ba = b - a, w = ro - a;
   float bd = dot(rd, ba), bb = dot(ba, ba), dw = dot(rd, w), bw = dot(ba, w);
   float den = max(bb - bd*bd, 1e-6);
@@ -74,6 +96,11 @@ float raySeg(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
   vec3 pr = ro + rd*t;
   s = clamp(dot(pr - a, ba)/max(bb, 1e-6), 0.0, 1.0);
   return length(pr - (a + ba*s));
+}
+float raySeg(vec3 ro, vec3 rd, vec3 a, vec3 b, out float s){
+  float d = raySegRaw(ro, rd, a, b, s);
+  vec3 q = a + (b - a)*s;
+  return d + 1e3*behindBlade(ro, rd, max(dot(q - ro, rd), 0.0));
 }
 // Where the ray crosses the plane across the blade at height h: xz there, and t (negative:
 // never, or behind the camera).
@@ -114,7 +141,7 @@ vec3 around(float r, float a, float y){ return vec3(r*sin(6.2832*a), y, r*cos(6.
 // does, seen from any side, from above and in first person. w is the core's half width.
 vec3 blade3(vec3 ro, vec3 rd, float px, vec3 col, float w, float top){
   float s;
-  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
+  float d = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
   return vec3(1.0)*exp(-pow(d/max(w, px), 2.0))*1.4 + col*halo(d, w*2.2)*0.75 + col*halo(d, w*6.0)*0.18;
 }
 // A lightning bolt in three dimensions from a to c: 10 kinks, each pushed off the line in
@@ -146,21 +173,21 @@ vec3 marchSteps(vec3 ro, vec3 rd, float R, float y0, float y1, float n){
 // How near the ray passes the blade's axis between heights y0 and y1 (for early outs).
 float fxNear(vec3 ro, vec3 rd, float y0, float y1){
   float s;
-  return raySeg(ro, rd, vec3(0.0, y0, 0.0), vec3(0.0, y1, 0.0), s);
+  return raySegRaw(ro, rd, vec3(0.0, y0, 0.0), vec3(0.0, y1, 0.0), s);
 }
 // The ray's distance to a ring of radius R round the blade at height y: the nearer of where
 // it crosses the ring's plane and the ring's cylinder (smooth from any side).
 float ringD(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -223,7 +250,7 @@ vec3 fxArcs(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float r
     float a = h11(k*4.1 + fi*2.0 + seed);
     float R = min(reach, 0.6*uReach)*(0.45 + 0.55*h11(k*7.7 + fi + seed));
     vec3 mid = around(R, a, mix(ya, yb, 0.5) + (h11(k*9.1 + fi) - 0.5)*2.0);
-    if (rayPt(ro, rd, mid, t) > R + (yb - ya)*0.6 + 1.5) continue;
+    if (rayPtRaw(ro, rd, mid, t) > R + (yb - ya)*0.6 + 1.5) continue;
     float env = (1.0 - q)*(1.0 - q)*(0.6 + 0.4*step(0.5, fract(q*9.0 + fi)));
     float d = min(bolt3(ro, rd, around(0.25, a, ya), mid, k + fi*1.37 + seed, 0.5),
                   bolt3(ro, rd, mid, around(0.25, a, yb), k + fi*1.37 + seed + 0.5, 0.5));
@@ -370,7 +397,8 @@ vec3 fxSmoke(vec3 ro, vec3 rd, float y0, float y1, float w, float rise, float se
   float dt = (span.y - span.x)/6.0;
   float acc = 0.0;
   for (int i = 0; i < 6; i++){
-    acc += fxSmokeAt(ro + rd*(span.x + (float(i) + 0.5)*dt), w, y0, y1, rise, seed);
+    float ts = span.x + (float(i) + 0.5)*dt;
+    acc += fxSmokeAt(ro + rd*ts, w, y0, y1, rise, seed)*(1.0 - behindBlade(ro, rd, ts));
   }
   return col*acc*dt/(1.77*w)*0.9;
 }
@@ -454,8 +482,8 @@ vec3 fxRingWaves(vec3 ro, vec3 rd, float px, float y0, float y1, float count, fl
 // through the blade).
 float bladeSeen(vec3 ro, vec3 rd, vec3 at){
   float L = uLength, sAx, tAx, tAt;
-  raySeg(ro, rd, vec3(0.0), vec3(0.0, L, 0.0), sAx);
-  float dAx = rayPt(ro, rd, vec3(0.0, sAx*L, 0.0), tAx);
+  raySegRaw(ro, rd, vec3(0.0), vec3(0.0, L, 0.0), sAx);
+  float dAx = rayPtRaw(ro, rd, vec3(0.0, sAx*L, 0.0), tAx);
   rayPt(ro, rd, at, tAt);
   return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx))*step(tAx, tAt);
 }

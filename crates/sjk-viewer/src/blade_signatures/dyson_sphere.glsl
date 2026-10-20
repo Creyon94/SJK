@@ -52,7 +52,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     float hy = ds_hy(fk), R = ds_hr(fk);
     float g = smoothstep(hy - 0.5, hy + 3.0, top);
     if (g < 0.01) continue;
-    float dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), tq);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, hy, 0.0), tq);
     if (dc > R*g + 1.2) continue;
     float flow = (mod(fk, 2.0) < 0.5 ? 1.0 : -1.0)*uTime*(2.0);
     vec3 prev = ds_pt(fk, 0.0, g);

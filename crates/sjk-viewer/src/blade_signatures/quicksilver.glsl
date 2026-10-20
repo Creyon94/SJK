@@ -216,6 +216,10 @@ vec4 qs_ripples(vec3 ro, vec3 rd, float px){
     // where along the ray it is, so the nearer ring covers the farther
     vec3 h = rayAt(ro, rd, y);
     float th = h.z > 0.0 ? h.z : 1e4;
+    // round 22 (Creyon: the rings were seen through the blade): the half behind the blade is
+    // hidden by it
+    cov *= h.z > 0.0 ? bladeSeen(ro, rd, vec3(h.x, y, h.y)) : 1.0;
+    if (cov <= 0.0) continue;
     float n = clamp(d/max(w, 1e-3), 0.0, 1.0);
     vec3 c = qs_env(0.6 - n*1.2, y, t)*(0.7 + 0.3*sqrt(max(1.0 - n*n, 0.0)));
     c += vec3(1.0)*exp(-n*n*6.0)*0.35;

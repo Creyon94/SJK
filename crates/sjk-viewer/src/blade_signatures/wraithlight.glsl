@@ -38,7 +38,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // The blade is Sol's glow and core from the file, hollowed to a glass rod of moonlight
   // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
   float sa;
-  float dax = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
+  float dax = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
   vec3 col = vec3(0.0);
   // spirit mist pouring off it and sinking toward the hilt in soft veils
   for (int i = 0; i < 16; i++){
@@ -63,7 +63,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   if (cl > 0.0){
     vec3 h = rayAt(ro, rd, uLength*0.55);
     if (h.z > 0.0){
-      float rr = length(h.xy), aa = atan(h.x, h.y);
+      float rr = (length(h.xy) + 1e3*behindBlade(ro, rd, h.z)), aa = atan(h.x, h.y);
       float R = 0.6 + (1.0 - cl)*4.5;
       float n = 0.6 + 0.4*vn(vec2(aa*3.0, rr*2.0));
       col += WL_PALE*halo(abs(rr - R), 0.6)*cl*n*0.9*uFx;

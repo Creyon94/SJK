@@ -51,7 +51,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // The ichor blade is Sol's glow and core from the file with pulses of magick climbing it
   // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
   float sa;
-  float dax = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
+  float dax = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sa);
   float hot = 1.0 + uSwing*0.6 + cl*0.8;
   // ghost-fire: green tongues licking up off the blade, swirling round it
   for (int i = 0; i < 24; i++){
@@ -92,7 +92,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   if (cl > 0.0){
     vec3 h = rayAt(ro, rd, uLength*0.6);
     if (h.z > 0.0){
-      float rr = length(h.xy), aa = atan(h.x, h.y);
+      float rr = (length(h.xy) + 1e3*behindBlade(ro, rd, h.z)), aa = atan(h.x, h.y);
       float R = 0.5 + (1.0 - cl)*5.0;
       float tongue = 0.6 + 0.4*vn(vec2(aa*4.0, uTime*8.0));
       col += (WF_G*halo(abs(rr - R), 0.5*tongue) + WF_PALE*halo(abs(rr - R), 0.12))*cl*1.5*uFx;

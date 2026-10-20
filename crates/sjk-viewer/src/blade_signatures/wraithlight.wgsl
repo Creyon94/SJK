@@ -48,7 +48,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // The blade is Sol's glow and core from the file, hollowed to a glass rod of moonlight
     // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
     var sa: f32;
-    let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
+    let dax = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
     var col: vec3<f32> = vec3<f32>(0.0);
     // spirit mist pouring off it and sinking toward the hilt in soft veils
     for (var i = 0; i < 16; i++) {
@@ -77,7 +77,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if cl > 0.0 {
         let h = rayAt(ro, rd, uLength * 0.55);
         if h.z > 0.0 {
-            let rr = length(h.xy);
+            let rr = (length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z));
             let aa = atan2(h.x, h.y);
             let R = 0.6 + (1.0 - cl) * 4.5;
             let n = 0.6 + 0.4 * vn(vec2(aa * 3.0, rr * 2.0));

@@ -41,7 +41,7 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
       col += bf_heat(1.0 - ph*0.6)*(halo(d, max(0.04, px))*2.0 + halo(d, 0.2)*0.2)*(1.0 - smoothstep(0.6, 1.4, ph))*(0.7 + 0.6*sw)*part(0.0);
     }
     // the flash where the hammer lands
-    float dk = rayPt(ro, rd, vec3(0.0, ys, 0.0), ta);
+    float dk = rayPtRaw(ro, rd, vec3(0.0, ys, 0.0), ta);
     col += vec3(1.0, 0.9, 0.75)*(halo(dk, 0.7)*2.0 + halo(dk, 2.0)*0.4)*strike*part(0.0);
   }
   // molten beskar beading along the blade and dripping off

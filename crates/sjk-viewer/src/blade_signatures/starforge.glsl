@@ -30,14 +30,14 @@ vec3 sf_heat(float k){
 float sf_ring(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -74,7 +74,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   }
 
   // the rest is out of the hilt's way: skip rays far from the blade
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (far > 9.0) return col;
 
   // ---- solar flares: tongues of plasma licking up off the blade (round 13, Creyon: no loops
@@ -116,10 +116,10 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     // round 13 (Creyon): no rings round the blade; the strike's light runs up and down it
     float fade = exp(-ph*2.2)*smoothstep(0.0, 0.04, ph);
     float yu = ys + 20.0*ph, yd = ys - 13.0*ph;
-    if (yu < top){ float du = rayPt(ro, rd, vec3(0.0, yu, 0.0), ta); col += (white*halo(du, 0.5)*1.2 + gold*halo(du, 1.2)*0.4)*fade*fx; }
-    if (yd > 0.0){ float dr = rayPt(ro, rd, vec3(0.0, yd, 0.0), ta); col += (white*halo(dr, 0.5)*1.2 + gold*halo(dr, 1.2)*0.4)*fade*fx; }
+    if (yu < top){ float du = rayPtRaw(ro, rd, vec3(0.0, yu, 0.0), ta); col += (white*halo(du, 0.5)*1.2 + gold*halo(du, 1.2)*0.4)*fade*fx; }
+    if (yd > 0.0){ float dr = rayPtRaw(ro, rd, vec3(0.0, yd, 0.0), ta); col += (white*halo(dr, 0.5)*1.2 + gold*halo(dr, 1.2)*0.4)*fade*fx; }
     // sparks flying out in all directions
-    float dist0 = rayPt(ro, rd, vec3(0.0, ys, 0.0), ta);
+    float dist0 = rayPtRaw(ro, rd, vec3(0.0, ys, 0.0), ta);
     if (dist0 < 9.0){
       for (int i = 0; i < 22; i++){
         float fi = float(i);
@@ -152,7 +152,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   if (cl > 0.01){
     float a = 1.0 - cl;
     float yc = min(L*0.6, top);
-    float dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), ta);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, yc, 0.0), ta);
     col += white*(halo(dc, 1.5)*2.5 + halo(dc, 3.2)*0.7)*cl*cl;
     float dr = sf_ring(ro, rd, yc, 0.6 + 7.0*(1.0 - exp(-3.0*a)));
     col += mix(white, hot, a)*(halo(dr, max(0.08, px))*1.8 + halo(dr, 0.5)*0.4)*cl;

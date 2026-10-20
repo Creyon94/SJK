@@ -2186,6 +2186,13 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   (seen edge on they were slivers or hid in the blade). Puzzle Holocron's lattice is a solid shell
   over the core with its turning row lit up; Senate Glass's panes light up row by row as a wave of
   sunlight rises.
+- **Round 22 (Creyon, 21/10/2026: nothing seen through the blade).** The lab's `rayPt`,
+  `raySeg` and `ringD`, the signatures' own ring helpers, their rings across the blade
+  (`rayAt`), `fxSmoke` and the Clone Wars puffs, stars and mythical rings in `saber.wgsl`
+  (`ray_behind_blade`) hide whatever lies behind the blade's body along the ray (`behindBlade`);
+  what lies on the blade itself is never hidden, and bounds and the blade's own axis use the raw
+  distances (`rayPtRaw`, `raySegRaw`). Liquid Beskar's rings no longer show through the blade, and
+  the Clone Wars halftone no longer reaches below the hilt.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

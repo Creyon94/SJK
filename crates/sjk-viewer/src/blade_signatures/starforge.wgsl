@@ -37,7 +37,7 @@ fn sf_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
     var best: f32 = 1.0e3;
     let h = rayAt(ro, rd, y);
     if h.z > 0.0 {
-        best = abs(length(h.xy) - R);
+        best = abs(length(h.xy) - R) + 1.0e3 * behindBlade(ro, rd, h.z);
     }
     let a = dot(rd.xz, rd.xz);
     let b = dot(ro.xz, rd.xz);
@@ -48,10 +48,10 @@ fn sf_ring(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
         let t0 = (-b - q) / a;
         let t1 = (-b + q) / a;
         if t0 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t0 - y));
+            best = min(best, abs(ro.y + rd.y * t0 - y) + 1.0e3 * behindBlade(ro, rd, t0));
         }
         if t1 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t1 - y));
+            best = min(best, abs(ro.y + rd.y * t1 - y) + 1.0e3 * behindBlade(ro, rd, t1));
         }
     }
     return best;
@@ -98,7 +98,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         col += sf_heat(0.55 + 0.4 * g + spt) * (halo(dd, max(0.16 + 0.1 * g, px)) * 1.1 + halo(dd, 0.6) * 0.2) * life * (1.0 + 0.5 * st + spt) * fx;
     }
     // the rest is out of the hilt's way: skip rays far from the blade
-    let far = raySeg(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
+    let far = raySegRaw(ro, rd, vec3<f32>(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), &s);
     if far > 9.0 {
         return col;
     }
@@ -151,15 +151,15 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let yu = ys + 20.0 * ph;
         let yd = ys - 13.0 * ph;
         if yu < top {
-            let du = rayPt(ro, rd, vec3(0.0, yu, 0.0), &ta);
+            let du = rayPtRaw(ro, rd, vec3(0.0, yu, 0.0), &ta);
             col += (white * halo(du, 0.5) * 1.2 + gold * halo(du, 1.2) * 0.4) * fade * fx;
         }
         if yd > 0.0 {
-            let dr = rayPt(ro, rd, vec3(0.0, yd, 0.0), &ta);
+            let dr = rayPtRaw(ro, rd, vec3(0.0, yd, 0.0), &ta);
             col += (white * halo(dr, 0.5) * 1.2 + gold * halo(dr, 1.2) * 0.4) * fade * fx;
         }
         // sparks flying out in all directions
-        let dist0 = rayPt(ro, rd, vec3(0.0, ys, 0.0), &ta);
+        let dist0 = rayPtRaw(ro, rd, vec3(0.0, ys, 0.0), &ta);
         if dist0 < 9.0 {
             for (var i = 0; i < 22; i++) {
                 let fi = f32(i);
@@ -191,7 +191,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if cl > 0.01 {
         let a = 1.0 - cl;
         let yc = min(L * 0.6, top);
-        let dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), &ta);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, yc, 0.0), &ta);
         col += white * (halo(dc, 1.5) * 2.5 + halo(dc, 3.2) * 0.7) * cl * cl;
         let dr = sf_ring(ro, rd, yc, 0.6 + 7.0 * (1.0 - exp(-3.0 * a)));
         col += mix(white, hot, a) * (halo(dr, max(0.08, px)) * 1.8 + halo(dr, 0.5) * 0.4) * cl;

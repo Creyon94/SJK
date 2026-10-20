@@ -78,7 +78,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         if g < 0.01 {
             continue;
         }
-        let dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), &tq);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, hy, 0.0), &tq);
         if dc > R * g + 1.2 {
             continue;
         }

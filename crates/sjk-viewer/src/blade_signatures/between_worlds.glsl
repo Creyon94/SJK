@@ -17,14 +17,14 @@
 float bww_ring(vec3 ro, vec3 rd, float h, float R){
   float best = 1e3;
   vec3 q = rayAt(ro, rd, h);
-  if (q.z > 0.0) best = abs(length(q.xy) - R);
+  if (q.z > 0.0) best = abs(length(q.xy) - R) + 1e3*behindBlade(ro, rd, q.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float k = sqrt(dsc);
     float t0 = (-b - k)/a, t1 = (-b + k)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - h));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - h));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - h) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - h) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -105,7 +105,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
       float sh = 0.7 + 0.3*sin(uTime*1.3 + h);
       // round 13 (Creyon): no rings round the blade; the pathway shows as a soft glow
       float tq;
-      float dq = rayPt(ro, rd, vec3(0.0, h, 0.0), tq);
+      float dq = rayPtRaw(ro, rd, vec3(0.0, h, 0.0), tq);
       light += vec3(0.5, 0.75, 1.0)*halo(dq, 0.8 + 1.2*open)*open*sh*0.25;
     }
   }

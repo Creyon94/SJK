@@ -28,10 +28,10 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // only the effects, each a piece placed round it in 3D.
   vec3 light = vec3(0.0);
   float ta;
-  float axd = rayPt(ro, rd, vec3(0.0, clamp(ro.y + rd.y*dot(-ro, rd), 0.0, L), 0.0), ta);
+  float axd = rayPtRaw(ro, rd, vec3(0.0, clamp(ro.y + rd.y*dot(-ro, rd), 0.0, L), 0.0), ta);
   // nearest approach of the ray to the axis segment (for culling and depth)
   float sa;
-  float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), sa);
+  float near = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), sa);
   float fx = uFx;
   if (near < 7.0 && fx > 0.0){
     float S = hy_stretch();
@@ -90,7 +90,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
       float shellL = halo(R - dc, 0.25 + 0.4*(1.0 - cl))*smoothstep(R + 0.3, R - 0.2, dc);
       fxl += white*shellL*cl*1.1 + ice*halo(dc, 3.0)*pow(cl, 3.0)*1.4;
       vec3 h = rayAt(ro, rd, o.y);
-      if (h.z > 0.0) fxl += white*halo(abs(length(h.xy) - R*1.1), 0.15 + 0.3*(1.0 - cl))*cl*1.4;
+      if (h.z > 0.0) fxl += white*halo(abs((length(h.xy) + 1e3*behindBlade(ro, rd, h.z)) - R*1.1), 0.15 + 0.3*(1.0 - cl))*cl*1.4;
     }
     light += fxl*fx;
   }

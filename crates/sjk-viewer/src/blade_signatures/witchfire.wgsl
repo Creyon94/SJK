@@ -66,7 +66,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // The ichor blade is Sol's glow and core from the file with pulses of magick climbing it
     // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
     var sa: f32;
-    let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
+    let dax = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
     let hot = 1.0 + uSwing * 0.6 + cl * 0.8;
     // ghost-fire: green tongues licking up off the blade, swirling round it
     for (var i = 0; i < 24; i++) {
@@ -111,7 +111,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if cl > 0.0 {
         let h = rayAt(ro, rd, uLength * 0.6);
         if h.z > 0.0 {
-            let rr = length(h.xy);
+            let rr = (length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z));
             let aa = atan2(h.x, h.y);
             let R = 0.5 + (1.0 - cl) * 5.0;
             let tongue = 0.6 + 0.4 * vn(vec2(aa * 4.0, uTime * 8.0));

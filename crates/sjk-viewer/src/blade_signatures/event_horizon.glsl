@@ -24,7 +24,7 @@ vec3 eh_disk(vec3 ro, vec3 rd, float h, float k, float tmax, float g, float px){
   vec3 vio = vec3(0.62, 0.36, 1.0), white = vec3(1.0, 0.96, 1.0);
   vec3 acc = vec3(0.0);
   float tq;
-  if (g < 0.01 || rayPt(ro, rd, vec3(0.0, h, 0.0), tq) > 7.5*g) return acc;
+  if (g < 0.01 || rayPtRaw(ro, rd, vec3(0.0, h, 0.0), tq) > 7.5*g) return acc;
   float sw = clamp(uSwing, 0.0, 1.0);
   float boost = 1.0 + 0.6*sw + 1.2*clamp(uClash, 0.0, 1.0);
   for (int i = 0; i < 40; i++){
@@ -46,7 +46,7 @@ vec3 eh_disk(vec3 ro, vec3 rd, float h, float k, float tmax, float g, float px){
   // the innermost stable orbit: a thin ring blazing round the hole
   vec3 hp = rayAt(ro, rd, h);
   if (hp.z > 0.0 && hp.z < tmax){
-    float rr = abs(length(hp.xy) - 0.85*g);
+    float rr = abs((length(hp.xy) + 1e3*behindBlade(ro, rd, hp.z)) - 0.85*g);
     acc += white*(halo(rr, max(0.04, px))*1.3 + vio*halo(rr, 0.3)*0.4)*boost;
   }
   return acc;
@@ -66,7 +66,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
     light += eh_disk(ro, rd, h, fk, tmax, g, px);
     // the lensed photon ring: a thin ring of bent light hugging the hole at the disk's height,
     // always facing you; brighter when seen from above
-    float dc = rayPt(ro, rd, vec3(0.0, h, 0.0), tq);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, h, 0.0), tq);
     if (tq < tmax){
       vec3 q = ro + rd*tq - vec3(0.0, h, 0.0);
       float side = dot(normalize(vec3(-q.z, 0.0, q.x) + 1e-4), -rd);
@@ -76,7 +76,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
       light += (white*halo(rr, max(0.035, px))*1.8 + vio*halo(rr, 0.25)*0.35)*(0.7 + 0.5*side)*flick*up*g;
     }
     // matter streams spiralling in along the blade from the disk's inner edge, up and down
-    float da = raySeg(ro, rd, vec3(0.0, h - 7.5, 0.0), vec3(0.0, h + 7.5, 0.0), s);
+    float da = raySegRaw(ro, rd, vec3(0.0, h - 7.5, 0.0), vec3(0.0, h + 7.5, 0.0), s);
     if (da > 2.6) continue;
     for (int j = 0; j < 4; j++){
       float fj = float(j);
@@ -104,7 +104,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
   float aligned = smoothstep(0.8, 0.97, -rd.y);
   if (aligned > 0.0){
     float hE = eh_h(1.0);
-    float dA = rayPt(ro, rd, vec3(0.0, hE, 0.0), tq);
+    float dA = rayPtRaw(ro, rd, vec3(0.0, hE, 0.0), tq);
     float er = abs(dA - 3.1 - 0.15*sin(uTime*1.3));
     vec3 pa = ro + rd*tq;
     float ang = atan(pa.z, pa.x);
@@ -113,7 +113,7 @@ vec3 eh_fx(vec3 ro, vec3 rd, float px, float tmax){
   }
   // a clash: a gravity wave (a sphere of bent light) bursts out from the struck point
   if (cl > 0.01){
-    float dc = rayPt(ro, rd, vec3(0.0, L*0.6, 0.0), tq);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, L*0.6, 0.0), tq);
     float rr = abs(dc - 0.6 - 5.5*(1.0 - cl));
     light += (white*halo(rr, 0.1)*2.2 + vio*halo(rr, 0.8)*0.5)*cl*step(tq, tmax);
   }

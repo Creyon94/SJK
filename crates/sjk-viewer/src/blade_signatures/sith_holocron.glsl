@@ -140,7 +140,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   vec3 light = vec3(0.0);
   if (uFx < 0.01) return light;
   float s;
-  float d = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
+  float d = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
   // the light spilling from the crack while it is open
   light += vec3(1.0, 0.25, 0.12)*halo(d, 0.6 + 1.4*op)*op*0.6*sin(3.1416*clamp(s, 0.0, 1.0));
   light += hc_smoke(ro, rd) + hc_bolts(ro, rd, px, 0.0);
@@ -149,7 +149,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   if (uClash > 0.01){
     float a = 1.0 - uClash;
     float hy = L*0.6, tc;
-    float dc = rayPt(ro, rd, vec3(0.0, hy, 0.0), tc);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, hy, 0.0), tc);
     vec3 off = ro + rd*tc - vec3(0.0, hy, 0.0);
     vec3 ux = normalize(cross(rd, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));
     vec3 uy = cross(ux, rd);

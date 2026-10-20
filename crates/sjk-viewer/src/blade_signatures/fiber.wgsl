@@ -74,8 +74,8 @@ fn base_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     // the blade hides the crystals behind it (round 12: they showed through it)
     var sAx: f32;
     var tAx: f32;
-    let dAx = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), &sAx);
-    let dAx2 = rayPt(ro, rd, vec3(0.0, sAx * top, 0.0), &tAx);
+    let dAx = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), &sAx);
+    let dAx2 = rayPtRaw(ro, rd, vec3(0.0, sAx * top, 0.0), &tAx);
     let hide = 1.0 - smoothstep(0.45, 1.1, dAx2);
     for (var i = 0; i < 9; i++) {
         let fi = f32(i);

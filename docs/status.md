@@ -1,3 +1,11 @@
+## Creyon's blades, round 22
+
+21/10/2026, `feat/creyon-blade-signatures`: effects behind a blade are hidden by it (Liquid Beskar's
+rings were seen through it), and the Clone Wars halftone stops at the hilt
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 22). Checked on Linux x86_64
+(lavapipe): the workspace tests, every signature module validates, the ring blades drawn from orbit
+views. Not verified: in Creyon's game.
+
 ## Creyon's blades, round 21
 
 21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): signature shaders slimmed and

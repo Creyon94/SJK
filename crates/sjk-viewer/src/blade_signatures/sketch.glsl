@@ -12,14 +12,14 @@ float dp_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
 float dp_ring(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -64,7 +64,7 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   float dsc = dp_ring(ro - o, rd, ys, 2.0);
   col += (pale*halo(dsc, 0.08 + px)*1.2 + blue*halo(dsc, 0.6)*0.2)*(1.0 - smoothstep(top, top + 1.5, ys));
   if (cl > 0.01){
-    float dc = rayPt(ro, rd, vec3(0.0, uLength*0.6, 0.0), ta);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, uLength*0.6, 0.0), ta);
     col += pale*halo(dc, 2.0)*cl*cl*1.5;
   }
   return col*flick*uFx;

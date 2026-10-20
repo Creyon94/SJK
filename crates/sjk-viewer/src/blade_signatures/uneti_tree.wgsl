@@ -90,10 +90,10 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // wood's grain drawn into them (sig_glow); here only the effects, each a piece placed
     // round it in 3D.
     var sa: f32;
-    let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
+    let dax = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
     // the growing tip: a bright bud of light while it ignites
     var tt: f32;
-    let dt0 = rayPt(ro, rd, vec3(0.0, top, 0.0), &tt);
+    let dt0 = rayPtRaw(ro, rd, vec3(0.0, top, 0.0), &tt);
     let growing = 1.0 - smoothstep(0.4, 0.7, uAge);
     col += (vec3<f32>(1.0) * halo(dt0, 0.35) * 1.2 + UT_COL * halo(dt0, 1.4) * 0.6) * growing;
     // Force pollen
@@ -107,7 +107,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // clash: a ring of light blooms out across the blade
     if cl > 0.0 {
         let h = rayAt(ro, rd, uLength * 0.62);
-        let rr = length(h.xy);
+        let rr = (length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z));
         let R = 0.6 + (1.0 - cl) * 4.5;
         if h.z > 0.0 {
             col += (UT_PALE * halo(abs(rr - R), 0.35) + vec3<f32>(1.0) * halo(abs(rr - R), 0.08)) * cl * 1.4 * uFx;

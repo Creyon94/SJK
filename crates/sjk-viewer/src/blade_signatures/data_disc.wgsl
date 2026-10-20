@@ -35,7 +35,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let dir = select(1.0, -1.0, k == 1);
         let h = rayAt(ro, rd, yd);
         if h.z > 0.0 {
-            let r = length(h.xy);
+            let r = (length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z));
             let ang = atan2(h.y, h.x);
             let on = smoothstep(0.75, 0.95, r) * (1.0 - smoothstep(R - 0.25, R, r));
             let gr = 0.5 + 0.5 * cos(r * 25.0 + fk);

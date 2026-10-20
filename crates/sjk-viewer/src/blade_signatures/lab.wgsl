@@ -167,14 +167,40 @@ fn helix(y: f32, r: f32, turns: f32, phase: f32) -> vec2<f32> {
 // rd its unit direction, y along the blade from the hilt, x across it to the camera's side,
 // z toward the camera. Everything placed with these sits round the blade in depth and keeps
 // its shape from every side, from above and in first person.
-// The distance from the ray to point p; t returns how far along the ray that is.
-fn rayPt(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, t: ptr<function, f32>) -> f32 {
+// Round 22 (Creyon: nothing may be seen through the blade when it is behind it): how hidden by
+// the blade's body a point t along the ray is, 0 (seen) to 1 (hidden): the ray passes through the
+// blade's body (its nearest approach to the axis within the blade) before reaching it.
+fn behindBlade(ro: vec3<f32>, rd: vec3<f32>, t: f32) -> f32 {
+    let a = dot(rd.xz, rd.xz);
+    if a < 0.02 {
+        return 0.0;
+    }
+    let ta = -dot(ro.xz, rd.xz) / a;
+    let y = ro.y + rd.y * ta;
+    let off = ro.xz + rd.xz * ta;
+    let d = length(off);
+    // what lies on the blade's own body (its axis, its glow) is never hidden by it
+    let p = ro + rd * t;
+    let outside = smoothstep(0.5, 0.9, length(p.xz));
+    let onBlade = smoothstep(-0.8, -0.2, y) * (1.0 - smoothstep(uLength - 0.2, uLength + 0.4, y));
+    return (1.0 - smoothstep(0.35, 0.8, d)) * onBlade * outside * smoothstep(ta + 0.15, ta + 0.7, t);
+}
+
+// The distance from the ray to point p, as seen (a point the blade hides is far off); t
+// returns how far along the ray that is.
+fn rayPtRaw(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, t: ptr<function, f32>) -> f32 {
     (*t) = max(dot(p - ro, rd), 0.0);
     return length(ro + rd * (*t) - p);
 }
 
-// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b).
-fn raySeg(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<function, f32>) -> f32 {
+fn rayPt(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, t: ptr<function, f32>) -> f32 {
+    let d = rayPtRaw(ro, rd, p, t);
+    return d + 1.0e3 * behindBlade(ro, rd, (*t));
+}
+
+// The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b); the
+// raw one ignores the blade's body (for bounds and the blade's own axis).
+fn raySegRaw(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<function, f32>) -> f32 {
     let ba = b - a;
     let w = ro - a;
     let bd = dot(rd, ba);
@@ -188,6 +214,12 @@ fn raySeg(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<funct
     let pr = ro + rd * t;
     (*s) = clamp(dot(pr - a, ba) / max(bb, 1.0e-6), 0.0, 1.0);
     return length(pr - (a + ba * (*s)));
+}
+
+fn raySeg(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<function, f32>) -> f32 {
+    let d = raySegRaw(ro, rd, a, b, s);
+    let q = a + (b - a) * (*s);
+    return d + 1.0e3 * behindBlade(ro, rd, max(dot(q - ro, rd), 0.0));
 }
 
 // Where the ray crosses the plane across the blade at height h: xz there, and t (negative:
@@ -246,7 +278,7 @@ fn around(r: f32, a: f32, y: f32) -> vec3<f32> {
 // does, seen from any side, from above and in first person. w is the core's half width.
 fn blade3(ro: vec3<f32>, rd: vec3<f32>, px: f32, col: vec3<f32>, w: f32, top: f32) -> vec3<f32> {
     var s: f32;
-    let d = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
+    let d = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &s);
     return vec3<f32>(1.0) * exp(-pow(d / max(w, px), 2.0)) * 1.4 + col * halo(d, w * 2.2) * 0.75 + col * halo(d, w * 6.0) * 0.18;
 }
 
@@ -284,7 +316,7 @@ fn marchSteps(ro: vec3<f32>, rd: vec3<f32>, R: f32, y0: f32, y1: f32, n: f32) ->
 // How near the ray passes the blade's axis between heights y0 and y1 (for early outs).
 fn fxNear(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32) -> f32 {
     var s: f32;
-    return raySeg(ro, rd, vec3(0.0, y0, 0.0), vec3(0.0, y1, 0.0), &s);
+    return raySegRaw(ro, rd, vec3(0.0, y0, 0.0), vec3(0.0, y1, 0.0), &s);
 }
 
 // The ray's distance to a ring of radius R round the blade at height y: the nearer of where
@@ -293,7 +325,7 @@ fn ringD(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
     var best: f32 = 1.0e3;
     let h = rayAt(ro, rd, y);
     if h.z > 0.0 {
-        best = abs(length(h.xy) - R);
+        best = abs(length(h.xy) - R) + 1.0e3 * behindBlade(ro, rd, h.z);
     }
     let a = dot(rd.xz, rd.xz);
     let b = dot(ro.xz, rd.xz);
@@ -304,10 +336,10 @@ fn ringD(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
         let t0 = (-b - q) / a;
         let t1 = (-b + q) / a;
         if t0 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t0 - y));
+            best = min(best, abs(ro.y + rd.y * t0 - y) + 1.0e3 * behindBlade(ro, rd, t0));
         }
         if t1 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t1 - y));
+            best = min(best, abs(ro.y + rd.y * t1 - y) + 1.0e3 * behindBlade(ro, rd, t1));
         }
     }
     return best;
@@ -387,7 +419,7 @@ fn fxArcs(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, r
         let a = h11(k * 4.1 + fi * 2.0 + seed);
         let R = min(reach, 0.6 * uReach) * (0.45 + 0.55 * h11(k * 7.7 + fi + seed));
         let mid = around(R, a, mix(ya, yb, 0.5) + (h11(k * 9.1 + fi) - 0.5) * 2.0);
-        if rayPt(ro, rd, mid, &t) > R + (yb - ya) * 0.6 + 1.5 {
+        if rayPtRaw(ro, rd, mid, &t) > R + (yb - ya) * 0.6 + 1.5 {
             continue;
         }
         let env = (1.0 - q) * (1.0 - q) * (0.6 + 0.4 * step(0.5, fract(q * 9.0 + fi)));
@@ -587,7 +619,8 @@ fn fxSmoke(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, rise: f32, se
     let dt = (span.y - span.x) / 6.0;
     var acc: f32 = 0.0;
     for (var i = 0; i < 6; i++) {
-        acc += fxSmokeAt(ro + rd * (span.x + (f32(i) + 0.5) * dt), w, y0, y1, rise, seed);
+        let ts = span.x + (f32(i) + 0.5) * dt;
+        acc += fxSmokeAt(ro + rd * ts, w, y0, y1, rise, seed) * (1.0 - behindBlade(ro, rd, ts));
     }
     return col * acc * dt / (1.77 * w) * 0.9;
 }
@@ -698,8 +731,8 @@ fn bladeSeen(ro: vec3<f32>, rd: vec3<f32>, at: vec3<f32>) -> f32 {
     var sAx: f32;
     var tAx: f32;
     var tAt: f32;
-    _ = raySeg(ro, rd, vec3<f32>(0.0), vec3(0.0, L, 0.0), &sAx);
-    let dAx = rayPt(ro, rd, vec3(0.0, sAx * L, 0.0), &tAx);
+    _ = raySegRaw(ro, rd, vec3<f32>(0.0), vec3(0.0, L, 0.0), &sAx);
+    let dAx = rayPtRaw(ro, rd, vec3(0.0, sAx * L, 0.0), &tAx);
     _ = rayPt(ro, rd, at, &tAt);
     return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx)) * step(tAx, tAt);
 }

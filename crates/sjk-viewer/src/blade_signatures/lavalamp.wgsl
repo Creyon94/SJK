@@ -70,7 +70,7 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // a clash: a blinding flash and a ring of sparks
     if cl > 0.01 {
         let yc = uLength * 0.6;
-        let dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), &ta);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, yc, 0.0), &ta);
         col += white * (halo(dc, 1.5) * 2.5 + halo(dc, 3.5) * 0.6) * cl * cl;
         for (var i = 0; i < 14; i++) {
             let fi = f32(i);

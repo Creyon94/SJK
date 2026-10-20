@@ -25,7 +25,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float dir = k == 1 ? -1.0 : 1.0;
     vec3 h = rayAt(ro, rd, yd);
     if (h.z > 0.0){
-      float r = length(h.xy);
+      float r = (length(h.xy) + 1e3*behindBlade(ro, rd, h.z));
       float ang = atan(h.y, h.x);
       float on = smoothstep(0.75, 0.95, r)*(1.0 - smoothstep(R - 0.25, R, r));
       float gr = 0.5 + 0.5*cos(r*25.0 + fk);

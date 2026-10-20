@@ -2788,7 +2788,9 @@ fn lab_comic(p: LabPlace) -> vec3<f32> {
     let id = floor(q);
     let cd = lab_seg((id.x + 0.5) * cell, (id.y + 0.5) * cell, p.big_l);
     let rad = clamp(exp(-cd * 17.0) * 0.64, 0.0, 0.6);
-    let dots = lab_sstep(rad, rad - 0.1, length(g)) * step(0.03, p.d);
+    // Round 22 (Creyon: the dots reached below the hilt): only beside the blade, from its emitter
+    // up, fading in just past it.
+    let dots = lab_sstep(rad, rad - 0.1, length(g)) * step(0.03, p.d) * lab_sstep(0.01, 0.06, p.x);
     var sp = 0.0;
     for (var i = 0; i < 6; i++) {
         let fi = f32(i);
@@ -3892,7 +3894,7 @@ fn comic_puffs3(p: LabPlace, ray: SigRay, len: f32, pixel: f32) -> vec4<f32> {
         let tc = max(dot(centre - ray.o, ray.d), 0.0);
         let off = ray.o + ray.d * tc - centre;
         let d = length(off) - size;
-        let ink = clamp((0.15 - d) / soft + 0.5, 0.0, 1.0);
+        let ink = clamp((0.15 - d) / soft + 0.5, 0.0, 1.0) * (1.0 - ray_behind_blade(ray, tc, len));
         if ink <= 0.0 {
             continue;
         }
@@ -3916,7 +3918,8 @@ fn comic_puffs3(p: LabPlace, ray: SigRay, len: f32, pixel: f32) -> vec4<f32> {
         let q = abs(vec2(dot(off, side), dot(off, up))) / max(size, 0.0001);
         let star = sqrt(q.x) + sqrt(q.y) - 1.0;
         let edge = soft / max(size, 0.0001);
-        let ink = clamp((0.25 - star) / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
+        let ink = clamp((0.25 - star) / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0)
+            * (1.0 - ray_behind_blade(ray, tc, len));
         if ink <= 0.0 {
             continue;
         }
@@ -4224,6 +4227,22 @@ fn sig_from_mouth(skin: Skin, along: f32) -> f32 {
     return select(1.0, smoothstep(0.2, 1.0, along), skin.design.x == f32(LAB_SIGNATURE));
 }
 
+// How hidden by the blade's body a point `t` along `ray` is (0 seen, 1 hidden), the blade `len`
+// units long (round 22, Creyon: nothing may be seen through the blade behind it).
+fn ray_behind_blade(ray: SigRay, t: f32, len: f32) -> f32 {
+    let a = dot(ray.d.xz, ray.d.xz);
+    if a < 0.02 {
+        return 0.0;
+    }
+    let ta = -dot(ray.o.xz, ray.d.xz) / a;
+    let y = ray.o.y + ray.d.y * ta;
+    let d = length(ray.o.xz + ray.d.xz * ta);
+    let p = ray.o + ray.d * t;
+    let outside = smoothstep(0.5, 0.9, length(p.xz));
+    let on_blade = smoothstep(-0.8, -0.2, y) * (1.0 - smoothstep(len - 0.2, len + 0.4, y));
+    return (1.0 - smoothstep(0.35, 0.8, d)) * on_blade * outside * smoothstep(ta + 0.15, ta + 0.7, t);
+}
+
 // The ray's distance to a ring of radius `radius` round the blade at `height` (the hilt's
 // frame, `sig_ray`): the nearer of where it crosses the ring's plane and its cylinder.
 fn sig_ring_d(ray: SigRay, height: f32, radius: f32) -> f32 {
@@ -4232,7 +4251,7 @@ fn sig_ring_d(ray: SigRay, height: f32, radius: f32) -> f32 {
         let t = (height - ray.o.y) / ray.d.y;
         if t > 0.0 {
             let h = ray.o + ray.d * t;
-            best = abs(length(h.xz) - radius);
+            best = abs(length(h.xz) - radius) + 1000.0 * ray_behind_blade(ray, t, uLength);
         }
     }
     let a = dot(ray.d.xz, ray.d.xz);
@@ -4243,8 +4262,12 @@ fn sig_ring_d(ray: SigRay, height: f32, radius: f32) -> f32 {
         let q = sqrt(found);
         let t0 = (-b - q) / a;
         let t1 = (-b + q) / a;
-        if t0 > 0.0 { best = min(best, abs(ray.o.y + ray.d.y * t0 - height)); }
-        if t1 > 0.0 { best = min(best, abs(ray.o.y + ray.d.y * t1 - height)); }
+        if t0 > 0.0 {
+            best = min(best, abs(ray.o.y + ray.d.y * t0 - height) + 1000.0 * ray_behind_blade(ray, t0, uLength));
+        }
+        if t1 > 0.0 {
+            best = min(best, abs(ray.o.y + ray.d.y * t1 - height) + 1000.0 * ray_behind_blade(ray, t1, uLength));
+        }
     }
     return best;
 }

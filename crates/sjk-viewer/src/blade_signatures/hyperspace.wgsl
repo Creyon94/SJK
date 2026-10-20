@@ -33,10 +33,10 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // only the effects, each a piece placed round it in 3D.
     var light: vec3<f32> = vec3<f32>(0.0);
     var ta: f32;
-    let axd = rayPt(ro, rd, vec3(0.0, clamp(ro.y + rd.y * dot(-ro, rd), 0.0, L), 0.0), &ta);
+    let axd = rayPtRaw(ro, rd, vec3(0.0, clamp(ro.y + rd.y * dot(-ro, rd), 0.0, L), 0.0), &ta);
     // nearest approach of the ray to the axis segment (for culling and depth)
     var sa: f32;
-    let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), &sa);
+    let near = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), &sa);
     let fx = uFx;
     if near < 7.0 && fx > 0.0 {
         let S = hy_stretch();
@@ -101,7 +101,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             fxl += white * shellL * cl * 1.1 + ice * halo(dc, 3.0) * pow(cl, 3.0) * 1.4;
             let h = rayAt(ro, rd, o.y);
             if h.z > 0.0 {
-                fxl += white * halo(abs(length(h.xy) - R * 1.1), 0.15 + 0.3 * (1.0 - cl)) * cl * 1.4;
+                fxl += white * halo(abs((length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z)) - R * 1.1), 0.15 + 0.3 * (1.0 - cl)) * cl * 1.4;
             }
         }
         light += fxl * fx;

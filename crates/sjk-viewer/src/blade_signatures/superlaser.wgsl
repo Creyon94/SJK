@@ -44,7 +44,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var s: f32;
     if fx > 0.0 {
         var fxl: vec3<f32> = vec3<f32>(0.0);
-        let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+        let near = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
         // ---- two plasma strands twisting round the main beam
         if near < 2.5 && fire > 0.0 {
             for (var h = 0; h < 2; h++) {
@@ -152,11 +152,11 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         if y > L {
             continue;
         }
-        let d = rayPt(ro, rd, vec3(0.0, y, 0.0), &ta);
+        let d = rayPtRaw(ro, rd, vec3(0.0, y, 0.0), &ta);
         fx += (vec3<f32>(0.25, 1.0, 0.3) * halo(d, 1.2 + 0.6 * sw) * 0.55 + vec3<f32>(0.8, 1.0, 0.8) * halo(abs(d - 1.1), 0.08) * 0.5) * part(0.0);
     }
     let charge = fract(t * 0.9);
-    let dF = rayPt(ro, rd, vec3(0.0, SL_F, 0.0), &ta);
+    let dF = rayPtRaw(ro, rd, vec3(0.0, SL_F, 0.0), &ta);
     fx += vec3<f32>(0.25, 1.0, 0.3) * halo(abs(dF - 2.5 * (1.0 - charge)), 0.12) * charge * 0.9 * part(0.0);
     return col + fx * uFx;
 }

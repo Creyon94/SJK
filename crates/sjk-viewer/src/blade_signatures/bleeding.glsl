@@ -168,7 +168,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   col += fxRays(ro, rd, px, ya, y1, 6.0, 3.2, 0.9, 7.7, BK_WHITE)*0.55*part(2.0);
   col += fxSparks(ro, rd, px, lv - 0.8, lv + 0.8, 10.0, 2.6, 1.6, 2.9, BK_WHITE)*part(2.0);
   red += fxSparks(ro, rd, px, lv - 0.8, lv + 0.8, 8.0, 2.2, 1.4, 5.3, BK_RED)*part(0.0);
-  float dfront = rayPt(ro, rd, vec3(0.0, lv, 0.0), ta);
+  float dfront = rayPtRaw(ro, rd, vec3(0.0, lv, 0.0), ta);
   col += BK_WHITE*halo(dfront, 0.9)*0.3*part(2.0);
   // the front: a ring of struggle where red meets white
   // the aura: red round the bleeding part, white above

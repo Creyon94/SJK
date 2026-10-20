@@ -53,8 +53,8 @@ vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   float top = kc_top(), bestT = 1e5;
   // the blade hides the crystals behind it (round 12: they showed through it)
   float sAx, tAx;
-  float dAx = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), sAx);
-  float dAx2 = rayPt(ro, rd, vec3(0.0, sAx*top, 0.0), tAx);
+  float dAx = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), sAx);
+  float dAx2 = rayPtRaw(ro, rd, vec3(0.0, sAx*top, 0.0), tAx);
   float hide = 1.0 - smoothstep(0.45, 1.1, dAx2);
   for (int i = 0; i < 9; i++){
     float fi = float(i);
