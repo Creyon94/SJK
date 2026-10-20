@@ -290,12 +290,12 @@ mod tests {
         assert!(!lines[1].contains("worn"));
         let lines = listing(" SABER_SUN ", Holdings::Known(&[]));
         assert!(
-            lines[1].contains("locked^7, chosen: shows once unlocked (Found in holocrons, or given by the SJK team.)"),
+            lines[1].contains("locked^7, chosen: shows once unlocked (Found in holocrons.)"),
             "{}",
             lines[1]
         );
         let lines = listing("saber_moon", Holdings::IdentityOff);
-        assert!(lines[1].contains("locked^7: Found in holocrons, or given by the SJK team."));
+        assert!(lines[1].contains("locked^7: Found in holocrons."));
         assert!(lines[1 + skins].contains("\"saber_moon\", which this client does not know"));
         assert!(
             lines[2 + skins].contains("need the SJK identity"),

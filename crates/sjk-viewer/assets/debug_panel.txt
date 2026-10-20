@@ -585,6 +585,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[all-blades-drop]
+area: Menus & settings
+title: Every Blade Lab blade drops from holocrons
+change: 162 of 165 blades drop; only Glitch, Hologram and Runic stay medal blades.
+change: How to get it reads 'Found in holocrons.' No 'given by the SJK team' on blades.
+test: Collection > Shaders, hover a Blade Lab blade: Found in holocrons.
+test: Open holocrons: Blade Lab blades can come out (needs the deployed hub).
+
 [blade-tiers]
 area: Menus & settings
 title: 26 blades change tier after Sol's review
@@ -811,7 +819,7 @@ test: Shatter asks 'Confirm: shatter one'; a second press sends it, the answer s
 area: Menus & settings
 title: Every saber shader drops from holocrons, except the ones medals bring
 change: 48 of the 51 shaders can drop; Glitch, Hologram and Runic stay with their medals.
-change: How to get it reads 'Found in holocrons, or given by the SJK team.' for those 48.
+change: How to get it reads 'Found in holocrons.' for those 48.
 test: Holocrons tab, Loot table: the shader rows read the same odds as before.
 test: debug_open mythical shader: the strip shows Sun, Void, Molten or Spectral among the tiles.
 test: Collection > Shaders: Sun's 'How to get it' (with debug_collectibles 0) says holocrons.
