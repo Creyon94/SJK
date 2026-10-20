@@ -3369,6 +3369,11 @@ mod tests {
                     verified: *verified,
                     ..profile("Target")
                 }],
+                StaffRequest::SetStaff { key_id, staff } => vec![Profile {
+                    key_id: key_id.clone(),
+                    staff: *staff,
+                    ..profile("Target")
+                }],
                 // The kept person, with the merged-away key linked to it.
                 StaffRequest::Merge { key_id, from } => vec![Profile {
                     key_id: key_id.clone(),

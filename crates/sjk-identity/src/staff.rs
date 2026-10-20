@@ -108,6 +108,14 @@ pub enum StaffRequest {
         /// Vouch (true) or no longer.
         verified: bool,
     },
+    /// Make a player staff or take it away; only SJK's creator may (the hub refuses
+    /// anyone else), and never from the creator.
+    SetStaff {
+        /// The player's key.
+        key_id: String,
+        /// Staff (true) or no longer.
+        staff: bool,
+    },
     /// Merge one player into another, for good: everything `from` holds goes to the
     /// player of `key_id`, and `from`'s keys become linked keys of that player. A staff
     /// player cannot be merged away.
@@ -162,6 +170,7 @@ impl StaffRequest {
             | Self::HolocronGive { key_id, .. }
             | Self::HolocronRemove { key_id, .. }
             | Self::Verify { key_id, .. }
+            | Self::SetStaff { key_id, .. }
             | Self::Merge { key_id, .. }
             | Self::Unlink { key_id }
             | Self::Credits { key_id, .. }
@@ -440,6 +449,8 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         StaffRequest::Verify {
             verified: false, ..
         } => "No longer verified".to_owned(),
+        StaffRequest::SetStaff { staff: true, .. } => "Made staff".to_owned(),
+        StaffRequest::SetStaff { staff: false, .. } => "No longer staff".to_owned(),
         StaffRequest::Merge { from, .. } => format!("Merged {from} into this player"),
         StaffRequest::Unlink { key_id } => format!("Unlinked {key_id}"),
         StaffRequest::Credits { delta, .. } if *delta < 0 => {

@@ -55,6 +55,9 @@ const HOLOCRON_REMOVE_BASE: u16 = 1_320;
 const HOLOCRONS_SHOWN: usize = 12;
 /// Verify or Unverify the chosen player.
 const VERIFY_TOKEN: u16 = 1_400;
+/// Make staff or Remove staff, the creator's own button (`PROTOCOL.md` of the hub,
+/// "Creator").
+const SET_STAFF_TOKEN: u16 = 1_408;
 /// The tabs: the chosen player's views, then every player's crashes and chat bans.
 const ACHIEVEMENTS_TAB_TOKEN: u16 = 1_401;
 const KEYS_TAB_TOKEN: u16 = 1_402;
@@ -224,6 +227,10 @@ struct Shown {
     holocron_rows: usize,
     /// The chosen player is verified.
     verified: bool,
+    /// The chosen player is staff.
+    staff: bool,
+    /// The player's own is SJK's creator, who alone makes staff.
+    creator: bool,
     /// The chosen player's linked keys listed with Unlink.
     linked: Vec<String>,
     /// Why the merge field's key cannot be merged in, or `None` when it can.
@@ -442,6 +449,15 @@ impl Panel {
                     verified: !self.shown.verified,
                 }),
                 None => PanelAction::None,
+            },
+            SET_STAFF_TOKEN => match target {
+                Some(key_id) if self.shown.creator && self.second_press(SET_STAFF_TOKEN) => {
+                    PanelAction::Request(StaffRequest::SetStaff {
+                        key_id,
+                        staff: !self.shown.staff,
+                    })
+                }
+                _ => PanelAction::None,
             },
             OVERVIEW_TAB_TOKEN => {
                 self.view = View::Overview;
@@ -1376,6 +1392,49 @@ mod tests {
                 verified: false
             })
         );
+    }
+
+    #[test]
+    fn only_the_creator_makes_staff_on_a_second_press_and_never_unstaffs_themselves() {
+        let other = profile("bbbbbbbbbbbbbbbb", "Fox");
+        let (mut panel, me, _) = drawn(vec![other.clone()]);
+        let _ = panel.activate(PLAYER_BASE);
+        redraw(&mut panel, &me, vec![other.clone()]);
+        assert!(!panel.order.contains(&SET_STAFF_TOKEN), "staff do not get it");
+        assert_eq!(panel.activate(SET_STAFF_TOKEN), PanelAction::None);
+        let creator = Profile {
+            staff: true,
+            creator: true,
+            ..me.clone()
+        };
+        redraw(&mut panel, &creator, vec![other.clone()]);
+        assert!(panel.order.contains(&SET_STAFF_TOKEN));
+        assert_eq!(panel.activate(SET_STAFF_TOKEN), PanelAction::None);
+        assert!(panel.confirming(SET_STAFF_TOKEN));
+        assert_eq!(
+            panel.activate(SET_STAFF_TOKEN),
+            PanelAction::Request(StaffRequest::SetStaff {
+                key_id: other.key_id.clone(),
+                staff: true
+            })
+        );
+        let staffed = Profile {
+            staff: true,
+            ..other.clone()
+        };
+        redraw(&mut panel, &creator, vec![staffed]);
+        let _ = panel.activate(SET_STAFF_TOKEN);
+        assert_eq!(
+            panel.activate(SET_STAFF_TOKEN),
+            PanelAction::Request(StaffRequest::SetStaff {
+                key_id: other.key_id,
+                staff: false
+            })
+        );
+        // On their own player the creator has no such button.
+        let _ = panel.activate(ME_TOKEN);
+        redraw(&mut panel, &creator, Vec::new());
+        assert!(!panel.order.contains(&SET_STAFF_TOKEN));
     }
 
     #[test]
