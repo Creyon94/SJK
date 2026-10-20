@@ -200,6 +200,16 @@ for a gift, the team's note. It follows the medal pop-up
   pop-up shows them all. When the pop-up opens it takes back the holocron cards still
   showing or waiting. While it shows, the menu under it is neither drawn nor given input. A
   medal on show or waiting goes first.
+- `cl_holocronNotifications` (archived, default 1; Settings > General > Holocron
+  notifications, Network > SJK online in the classic views; Lukas, SJK #179) controls
+  only the live card during play. 1 (After
+  duels) gives it as above; during a private duel it waits, as every achievement, medal
+  and holocron card does (hub report #81, `unlock_toast::held_in_duel`), and plays once
+  the duel ends. 2 (Always) lets the holocron cards show during a duel too, ahead of the
+  other cards held there. 0 (Off) gives none: cards showing or waiting are taken back,
+  and those not given yet never are, so turning it back on replays nothing. In every
+  mode the holocron itself still waits and its large pop-up opens normally when the
+  player opens the game menu.
 - Each arrives in a ceremony of the medal's timing and light in the tier's colour (it comes
   down into place, rings and sparks run out, a ring of ticks turns, a glow breathes while it
   waits, the words fade up one group after another) with the multiplayer game's fanfare

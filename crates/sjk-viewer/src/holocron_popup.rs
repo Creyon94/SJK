@@ -39,6 +39,25 @@ use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+/// Whether a holocron found during play shows an unlock card: [`OFF`] never, 1 (the
+/// default) yes, held back during a private duel until it ends as every reward card is
+/// ([`crate::unlock_toast`]), [`ALWAYS`] yes, during a duel too. The waiting holocron
+/// still opens in the game menu in every mode.
+pub(crate) const NOTIFICATIONS_CVAR: &str = "cl_holocronNotifications";
+pub(crate) const NOTIFICATIONS_DEFAULT: i64 = 1;
+/// [`NOTIFICATIONS_CVAR`]'s value for no live cards.
+pub(crate) const OFF: i64 = 0;
+/// [`NOTIFICATIONS_CVAR`]'s value for cards during a private duel too.
+pub(crate) const ALWAYS: i64 = 2;
+
+/// [`NOTIFICATIONS_CVAR`] as set, held to [`OFF`]..=[`ALWAYS`].
+pub(crate) fn notification_mode(console: Option<&crate::console::ViewerConsole>) -> i64 {
+    console
+        .and_then(|console| console.integer_cvar(NOTIFICATIONS_CVAR))
+        .unwrap_or(NOTIFICATIONS_DEFAULT)
+        .clamp(OFF, ALWAYS)
+}
+
 /// The button (Next, or Close on the last holocron).
 const NEXT_TOKEN: u16 = 972;
 /// The rest of the screen: a click there acts as the button too.
@@ -279,6 +298,14 @@ impl HolocronPopup {
         }
     }
 
+    /// Consume the live cards of every waiting holocron without consuming the holocrons
+    /// themselves ([`OFF`]). Opening the game menu can still show the large pop-up later.
+    fn suppress_announcements(&mut self) {
+        for waiting in &mut self.queue {
+            waiting.announced = true;
+        }
+    }
+
     /// Move the ceremony on to `now`. A holocron on show begins (with its fanfare) once
     /// the pop-up is `visible`; one that has lifted away gives way to the next waiting, or
     /// closes the pop-up.
@@ -439,6 +466,15 @@ impl crate::GpuState {
     /// Returns whether the pop-up draws this frame (not under the console).
     pub(crate) fn prepare_holocron_popup(&mut self, console_covers_frame: bool) -> bool {
         let now = Instant::now();
+        // Off takes back the cards already given, and those not given yet are never
+        // given. A private duel holding the cards back is the unlock pop-up's own wait
+        // ([`crate::unlock_toast`]), so the cards are given as usual otherwise.
+        let notifications = notification_mode(self.console.as_ref()) != OFF;
+        if !notifications && self.holocron_popup.pending() {
+            self.unlock_toast
+                .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
+            self.holocron_popup.suppress_announcements();
+        }
         let console_open = self
             .console
             .as_ref()
@@ -456,7 +492,7 @@ impl crate::GpuState {
                 self.holocron_popup.open_next(now);
                 self.unlock_toast
                     .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
-            } else if !menu && self.live_session.is_some() {
+            } else if notifications && !menu && self.live_session.is_some() {
                 let toast = &mut self.unlock_toast;
                 self.holocron_popup.announce(|unlock| toast.push(unlock));
             }
@@ -706,6 +742,26 @@ mod tests {
         let mut again = HolocronPopup::default();
         again.offer(directory.path(), "aa", &list);
         assert!(!again.pending());
+    }
+
+    /// `cl_holocronNotifications` 0: no card is given, now or later, and the holocrons
+    /// still wait for the game menu.
+    #[test]
+    fn suppressing_live_cards_keeps_the_holocrons_for_the_game_menu() {
+        let directory = tempfile::tempdir().expect("a folder");
+        let mut popup = HolocronPopup::default();
+        popup.offer(
+            directory.path(),
+            "aa",
+            &[wire(2, "rare"), wire(1, "uncommon")],
+        );
+
+        popup.suppress_announcements();
+        assert!(cards(&mut popup).is_empty(), "no live cards are replayed");
+        assert!(popup.pending(), "the large pop-up still waits");
+        popup.open_next(Instant::now());
+        assert_eq!(shown(&popup), Some(1), "the ESC menu can still show it");
+        assert_eq!(popup.queue.len(), 1);
     }
 
     #[test]

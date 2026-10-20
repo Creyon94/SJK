@@ -126,6 +126,21 @@ At the merge (20/10/2026) it moved into the JA+ tools mod
 command the player pressed the same frame goes first. The moved code passes its unit
 tests on Windows 11; it has not been exercised in a game since the move.
 
+## Optional holocron notifications
+
+19/10/2026 (Lukas, SJK #179), merged 20/10/2026 on `personal/prs-179-189`:
+`cl_holocronNotifications` is archived with three modes for the live unlock card when a
+holocron arrives during play: Off (0), After duels (1, the default) and Always (2)
+([holocrons.md](holocrons.md)). Off takes back a card showing or queued without removing
+the waiting holocron; opening the game menu still shows its large pop-up. At the merge
+(Sol's decision) mode 1 became the unlock pop-up's existing private-duel wait, so a card
+that comes during a duel shows once it ends instead of being dropped, and mode 2 lets
+holocron cards through that wait. Settings > General has the row (Network in the
+classic views).
+Verified on x86_64 Linux with Rust 1.99.1 (the pull request) and Windows 11 (the merge):
+unit tests for the modes, the duel wait and the deferred card, and the workspace checks.
+Not exercised against a live hub drop or in a real private duel.
+
 ## The chat key always opens global chat
 
 19/10/2026: `messagemode` (Y by default) now always opens the composer on global

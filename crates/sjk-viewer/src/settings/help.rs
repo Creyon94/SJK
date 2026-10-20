@@ -97,6 +97,13 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (crate::holocron_popup::NOTIFICATIONS_CVAR, "0", "Off"),
+    (
+        crate::holocron_popup::NOTIFICATIONS_CVAR,
+        "1",
+        "After duels",
+    ),
+    (crate::holocron_popup::NOTIFICATIONS_CVAR, "2", "Always"),
     (crate::discord_presence::CVAR, "0", "Off"),
     (crate::discord_presence::CVAR, "1", "On"),
     (crate::discord_presence::CVAR, "2", "Server hidden"),
@@ -552,6 +559,10 @@ const HELP: &[(&str, &str)] = &[
         "Adds space between the letters of chat messages; below zero packs them closer.",
     ),
     (
+        crate::chat::options::CARD_SCALE_CVAR,
+        "Size of the player card a chat name shows, over the chat's own size: 0.5 half, 2 double.",
+    ),
+    (
         crate::menu_hud::STYLE_CVAR,
         "Which HUD shows health, armor, Force and ammo: the game's, an installed HUD pack's, or SJK's.",
     ),
@@ -856,6 +867,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::sjk_chat_frame::SOUND_CVAR,
         "A sound for each new SJK chat message, yours included, in menus and games. Chat sounds off (cg_chatSounds 0) silences it too.",
+    ),
+    (
+        crate::holocron_popup::NOTIFICATIONS_CVAR,
+        "A card for each holocron found in play; After duels holds it in a private duel until the end. The holocron waits in ESC.",
     ),
     (
         crate::chat_gifs::CVAR,
