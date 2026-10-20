@@ -33,10 +33,12 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         for (var i = 0; i < 14; i++) {
             let fi = f32(i);
             let k = floor(t * 12.0 + fi * 0.37);
-            let p = vec3((h11(k * 1.7 + fi) - 0.5) * 3.5, mix(y0, y1, h11(k * 2.9 + fi * 3.1)), 0.0);
+            // round 20: all round the blade in 3D, each dash level and facing the camera
+            let p = around(0.5 + 1.3 * h11(k * 1.7 + fi), h11(k * 4.1 + fi), mix(y0, y1, h11(k * 2.9 + fi * 3.1)));
             let d = rayPt(ro, rd, p, &ta);
             let dq = ro + rd * ta - p;
-            let dash = halo(abs(dq.y), max(0.03, px)) * halo(abs(dq.x), 0.35);
+            let fu = normalize(cross(rd, vec3<f32>(0.0, 1.0, 0.0)) + vec3<f32>(1.0e-4, 0.0, 0.0));
+            let dash = halo(abs(dq.y), max(0.03, px)) * halo(abs(dot(dq, fu)), 0.35);
             fx += c * dash * 0.6 * step(0.55, h11(k * 5.3 + fi));
         }
     }

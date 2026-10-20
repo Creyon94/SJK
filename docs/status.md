@@ -1,10 +1,19 @@
+## Creyon's blades, round 21
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): signature shaders slimmed and
+built faster from launch, the Clone Wars blade's body, smoke and stars in 3D, and fixes for Sith
+Thorn, Otoh Gunga, Cantina Lights, Holo-Recording, Imperial Schematics, Puzzle Holocron and Senate
+Glass ([rendering.md](rendering.md#blade-lab-signature-shaders), round 21). Checked on Linux x86_64
+(lavapipe): the workspace tests, every signature module validates, the changed blades rendered. Not
+verified: load times on Creyon's PC.
+
 ## Creyon's blades, round 20
 
 21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): the Collection's pictures no
 longer smear effects across the blades, the effects' frame follows the wearer, glow softened up
 close and less bloom, Abyssal Eye's eye a 3D eyeball, five more chromas, reworks for Thermal Fuse,
-Senate Glass, Puzzle Holocron, Takodana Rain and Starfighter Canopy, and gentler background
-shader builds against launch stutters ([rendering.md](rendering.md#blade-lab-signature-shaders),
+Senate Glass, Puzzle Holocron, Takodana Rain and Starfighter Canopy, and signature shaders built
+from a queue (worn and preview first), fewer pipelines each, against launch stutters and slow loading ([rendering.md](rendering.md#blade-lab-signature-shaders),
 round 20). Checked on Linux x86_64 (lavapipe): the workspace tests and every signature drawn as the
 Collection draws it. Not verified: in Creyon's game; whether the launch stutters came from the
 shader builds.

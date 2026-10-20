@@ -3461,52 +3461,6 @@ fn lab_over(under: vec4<f32>, top: vec4<f32>) -> vec4<f32> {
     return vec4((top.rgb * top.a + under.rgb * under.a * (1.0 - top.a)) / a, a);
 }
 
-// The comic blade's cel-shaded body in its black outline, a hemisphere at the tip.
-fn lab_comic_body(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
-    if p.p.x < 0.0 {
-        return vec4(0.0);
-    }
-    let soft = p.px;
-    let outline = clamp((0.03 - p.d) / soft + 0.5, 0.0, 1.0);
-    if outline <= 0.0 {
-        return vec4(0.0);
-    }
-    let inside = clamp((0.019 - p.d) / soft + 0.5, 0.0, 1.0);
-    // Two tones of a toon light from the upper left.
-    let n = clamp(p.y / 0.019, -1.0, 1.0);
-    let lit = select(0.72, 1.0, n < 0.35);
-    var toon = min((color * 0.6 + 0.3) * lit + (color * 0.7 + 0.15), vec3(1.0));
-    // Round 19 (Creyon): clone armour markings, its `clone markings` part: slanted stripes,
-    // 212th orange and 501st blue by turns, each between two thin white pin stripes,
-    // sliding slowly up the blade.
-    if (p.off & OFF_SCAN) == 0u {
-        let u = (p.x + p.y * 0.9 - p.t * 0.05) / 0.2;
-        let band = fract(u);
-        let blue = fract(floor(u) * 0.5) > 0.25;
-        let paint = select(vec3(1.0, 0.52, 0.08), vec3(0.2, 0.42, 1.0), blue) * lit;
-        let w = max(p.px / 0.2, 0.004);
-        let stripe = lab_sstep(0.0, w, band) * (1.0 - lab_sstep(0.16, 0.16 + w, band));
-        let pin = (lab_sstep(0.2, 0.2 + w, band) * (1.0 - lab_sstep(0.23, 0.23 + w, band)))
-            + (lab_sstep(0.27, 0.27 + w, band) * (1.0 - lab_sstep(0.3, 0.3 + w, band)));
-        // Not over the tip's round end nor the hilt's mouth.
-        let on = lab_sstep(0.03, 0.06, p.x) * (1.0 - lab_sstep(p.shaft - 0.06, p.shaft - 0.03, p.x));
-        toon = mix(toon, paint, stripe * on);
-        toon = mix(toon, vec3(1.0) * lit, pin * on);
-    }
-    var rgb = mix(vec3(0.0), toon, inside);
-    var alpha = outline;
-    // A hologram (`lab_comic_holo`): see-through blue with scan lines, rows of it slipping
-    // sideways for a moment.
-    let holo = lab_comic_holo(p);
-    if holo > 0.0 {
-        let scan = 0.6 + 0.4 * step(0.5, fract(p.x / 0.009 - p.t * 2.5));
-        let blue = vec3(0.4, 0.8, 1.0) * scan;
-        rgb = mix(rgb, mix(blue * 0.35, blue, inside), holo);
-        alpha = mix(alpha, alpha * 0.55, holo);
-    }
-    return vec4(rgb, alpha);
-}
-
 // Round 19 (Creyon): the Clone Wars blade's comic panel, its `comic panel` part: each swing
 // leaves the comic's motion behind the blade for a moment, see-through (Creyon: no grey box): a
 // patch of halftone dots in the blade's colour, bigger toward the blade, and thin speed lines
@@ -3581,70 +3535,6 @@ fn lab_comic_burst(p: LabPlace, at: vec2<f32>, age: f32, color: vec3<f32>, seed:
     let fill = clamp((w - off) / soft + 0.5, 0.0, 1.0) * along;
     let rgb = mix(vec3(0.0), mix(color, vec3(1.0), 0.35), fill);
     return vec4(rgb, ink * (1.0 - lab_sstep(0.6, 1.0, k)));
-}
-
-// Round 19 (Creyon): the Clone Wars blade's cartoon smoke and sparks, its `cartoon smoke and
-// sparks` part: a clash puffs out round outlined clouds of smoke that drift and shrink, a
-// swing leaves a few small puffs at the tip, and four-pointed yellow spark stars pop up round
-// the blade and twinkle out.
-fn lab_comic_puffs(p: LabPlace) -> vec4<f32> {
-    if (p.off & OFF_ARCS) != 0u || p.lingering {
-        return vec4(0.0);
-    }
-    var out = vec4(0.0);
-    let soft = p.px;
-    // the puffs: a clash's four, a swing's three
-    for (var i = 0; i < 7; i++) {
-        let fi = f32(i);
-        let clash = i < 4;
-        let age = select(p.since_swing - 0.05, p.since_clash, clash);
-        let life = select(0.9, 1.3, clash);
-        if age < 0.0 || age > life {
-            continue;
-        }
-        let born = floor((p.t - age) * 10.0);
-        let k = age / life;
-        let a = lab_hash(born * 1.3 + fi * 7.1) * TAU;
-        let start = select(vec2(p.shaft * 0.93, 0.0), vec2(p.shaft * 0.6, 0.0), clash);
-        let reach = select(0.06 + 0.06 * lab_hash(fi * 3.3 + born), 0.09 + 0.08 * lab_hash(fi * 5.1 + born), clash);
-        let centre = start + vec2(cos(a), sin(a)) * reach * sqrt(k) + p.up * 0.05 * age;
-        let r0 = select(0.022, 0.034, clash) * (0.8 + 0.4 * lab_hash(fi + born * 2.0));
-        let r = r0 * lab_sstep(0.0, 0.12, k) * (1.0 - 0.5 * k);
-        let d = length(p.p - centre) - r;
-        let ink = clamp((0.004 - d) / soft + 0.5, 0.0, 1.0);
-        if ink <= 0.0 {
-            continue;
-        }
-        let fill = clamp(-d / soft + 0.5, 0.0, 1.0);
-        // lit from the upper left, a grey shade below
-        let shade = select(0.86, 0.68, dot(p.p - centre, p.up) < -r * 0.3);
-        let rgb = mix(vec3(0.0), vec3(0.93, 0.94, 0.98) * shade, fill);
-        out = lab_over(out, vec4(rgb, ink * (1.0 - lab_sstep(0.75, 1.0, k))));
-    }
-    // the spark stars: four at a time, each living a little under a second
-    for (var i = 0; i < 4; i++) {
-        let fi = f32(i);
-        let cyc = p.t * 0.9 + fi * 0.25;
-        let born = floor(cyc);
-        let k = fract(cyc);
-        let along = (0.15 + 0.78 * lab_hash(born * 3.1 + fi * 1.7)) * p.shaft;
-        let across = (lab_hash(born * 5.3 + fi * 2.9) - 0.5) * 0.3;
-        if abs(across) < 0.05 {
-            continue;
-        }
-        let size = 0.022 * (0.7 + 0.6 * lab_hash(born + fi * 9.0)) * sin(3.1416 * k);
-        let q = abs(p.p - vec2(along, across)) / max(size, 0.0001);
-        // an astroid: a four-pointed star
-        let star = sqrt(q.x) + sqrt(q.y) - 1.0;
-        let edge = soft / max(size, 0.0001);
-        let ink = clamp((0.25 - star) / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
-        if ink <= 0.0 {
-            continue;
-        }
-        let fill = clamp(-star / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
-        out = lab_over(out, vec4(mix(vec3(0.0), vec3(1.0, 0.86, 0.2), fill), ink));
-    }
-    return out;
 }
 
 // The comic font: five by six, a bit a cell from the top left; V M H S W O A K Z T R B !.
@@ -3903,6 +3793,139 @@ fn lab_butterflies(p: LabPlace) -> vec4<f32> {
     return out;
 }
 
+// Round 20 (Creyon: the Clone Wars blade itself, its smoke and its stars were flat; the words
+// stay as they are): the blade's toon body, the puffs and the spark stars in three dimensions,
+// along the true view ray in the hilt's frame (`sig_ray`), in units.
+
+// The ray's nearest approach to the blade's axis from 0 to `len`: (distance, along the axis,
+// along the ray).
+fn comic_axis(ray: SigRay, len: f32) -> vec3<f32> {
+    let a = dot(ray.d.xz, ray.d.xz);
+    var t = 0.0;
+    if a > 0.000001 {
+        t = max(-dot(ray.o.xz, ray.d.xz) / a, 0.0);
+    }
+    let y = clamp(ray.o.y + ray.d.y * t, 0.0, len);
+    // the ray's nearest point to that place on the axis
+    let c = vec3(0.0, y, 0.0);
+    let tc = max(dot(c - ray.o, ray.d), 0.0);
+    return vec3(length(ray.o + ray.d * tc - c), y, tc);
+}
+
+// The toon body: a capsule round the axis in its black outline, cel-shaded by its true normal,
+// its clone markings and holo flicker on its surface.
+fn comic_body3(p: LabPlace, ray: SigRay, len: f32, pixel: f32, color: vec3<f32>) -> vec4<f32> {
+    let outer = 0.82;
+    let inner = 0.52;
+    let near = comic_axis(ray, len);
+    let soft = max(pixel, 0.0001);
+    let outline = clamp((outer - near.x) / soft + 0.5, 0.0, 1.0) * step(-0.2, near.y);
+    if outline <= 0.0 {
+        return vec4(0.0);
+    }
+    let fill = clamp((inner - near.x) / soft + 0.5, 0.0, 1.0);
+    // the surface's normal where the ray meets the inner capsule
+    let q = ray.o + ray.d * near.z;
+    var radial = q - vec3(0.0, near.y, 0.0);
+    let into = sqrt(max(inner * inner - near.x * near.x, 0.0));
+    let n = normalize(radial - ray.d * into + vec3(0.0, 0.0001, 0.0));
+    let light = normalize(vec3(-0.5, 0.6, 0.6) - ray.d * 0.8);
+    let lit = select(0.72, 1.0, dot(n, light) > 0.1);
+    var toon = min((color * 0.6 + 0.3) * lit + (color * 0.7 + 0.15), vec3(1.0));
+    // clone markings over its surface, sliding up it
+    if (p.off & OFF_SCAN) == 0u {
+        let around = atan2(n.x, n.z) * inner * LAB_METRE;
+        let x = near.y * LAB_METRE;
+        let u = (x + around * 0.9 - p.t * 0.05) / 0.2;
+        let band = fract(u);
+        let blue = fract(floor(u) * 0.5) > 0.25;
+        let paint = select(vec3(1.0, 0.52, 0.08), vec3(0.2, 0.42, 1.0), blue) * lit;
+        let w = max(p.px / 0.2, 0.004);
+        let stripe = lab_sstep(0.0, w, band) * (1.0 - lab_sstep(0.16, 0.16 + w, band));
+        let pin = (lab_sstep(0.2, 0.2 + w, band) * (1.0 - lab_sstep(0.23, 0.23 + w, band)))
+            + (lab_sstep(0.27, 0.27 + w, band) * (1.0 - lab_sstep(0.3, 0.3 + w, band)));
+        let on = lab_sstep(1.1, 2.2, near.y) * (1.0 - lab_sstep(len - 2.2, len - 1.1, near.y));
+        toon = mix(toon, paint, stripe * on);
+        toon = mix(toon, vec3(1.0) * lit, pin * on);
+    }
+    var rgb = mix(vec3(0.0), toon, fill);
+    var alpha = outline;
+    let holo = lab_comic_holo(p);
+    if holo > 0.0 {
+        let scan = 0.6 + 0.4 * step(0.5, fract(near.y * LAB_METRE / 0.009 - p.t * 2.5));
+        let blue = vec3(0.4, 0.8, 1.0) * scan;
+        rgb = mix(rgb, mix(blue * 0.35, blue, fill), holo);
+        alpha = mix(alpha, alpha * 0.55, holo);
+    }
+    return vec4(rgb, alpha);
+}
+
+// The cartoon smoke and spark stars in three dimensions: outlined puffs round the blade on a
+// clash (and a few by the tip on a swing), drifting out and shrinking, and four-pointed stars
+// popping up round it, each facing the camera where it is.
+fn comic_puffs3(p: LabPlace, ray: SigRay, len: f32, pixel: f32) -> vec4<f32> {
+    if (p.off & OFF_ARCS) != 0u || p.lingering {
+        return vec4(0.0);
+    }
+    var out = vec4(0.0);
+    let soft = max(pixel, 0.0001);
+    let side = normalize(cross(ray.d, vec3(0.0, 1.0, 0.0)) + vec3(0.0001, 0.0, 0.0));
+    let up = cross(side, ray.d);
+    for (var i = 0; i < 7; i++) {
+        let fi = f32(i);
+        let clash = i < 4;
+        let age = select(p.since_swing - 0.05, p.since_clash, clash);
+        let life = select(0.9, 1.3, clash);
+        if age < 0.0 || age > life {
+            continue;
+        }
+        let born = floor((p.t - age) * 10.0);
+        let k = age / life;
+        let a = lab_hash(born * 1.3 + fi * 7.1);
+        let from_y = select(len * 0.93, len * 0.6, clash);
+        let reach = select(2.2 + 2.2 * lab_hash(fi * 3.3 + born), 3.3 + 3.0 * lab_hash(fi * 5.1 + born), clash);
+        let r = 0.9 + reach * sqrt(k);
+        let centre = vec3(r * sin(TAU * a), from_y + (lab_hash(fi + born * 3.0) - 0.5) * 3.0 + 1.8 * age,
+            r * cos(TAU * a));
+        let size = select(0.8, 1.25, clash) * (0.8 + 0.4 * lab_hash(fi + born * 2.0))
+            * lab_sstep(0.0, 0.12, k) * (1.0 - 0.5 * k);
+        let tc = max(dot(centre - ray.o, ray.d), 0.0);
+        let off = ray.o + ray.d * tc - centre;
+        let d = length(off) - size;
+        let ink = clamp((0.15 - d) / soft + 0.5, 0.0, 1.0);
+        if ink <= 0.0 {
+            continue;
+        }
+        let fill = clamp(-d / soft + 0.5, 0.0, 1.0);
+        let shade = select(0.86, 0.68, dot(off, up) < -size * 0.3);
+        let rgb = mix(vec3(0.0), vec3(0.93, 0.94, 0.98) * shade, fill);
+        out = lab_over(out, vec4(rgb, ink * (1.0 - lab_sstep(0.75, 1.0, k))));
+    }
+    for (var i = 0; i < 4; i++) {
+        let fi = f32(i);
+        let cyc = p.t * 0.9 + fi * 0.25;
+        let born = floor(cyc);
+        let k = fract(cyc);
+        let y = (0.15 + 0.78 * lab_hash(born * 3.1 + fi * 1.7)) * len;
+        let a = lab_hash(born * 5.3 + fi * 2.9);
+        let r = 2.0 + 3.5 * lab_hash(born * 7.7 + fi);
+        let centre = vec3(r * sin(TAU * a), y, r * cos(TAU * a));
+        let size = 0.8 * (0.7 + 0.6 * lab_hash(born + fi * 9.0)) * sin(3.1416 * k);
+        let tc = max(dot(centre - ray.o, ray.d), 0.0);
+        let off = ray.o + ray.d * tc - centre;
+        let q = abs(vec2(dot(off, side), dot(off, up))) / max(size, 0.0001);
+        let star = sqrt(q.x) + sqrt(q.y) - 1.0;
+        let edge = soft / max(size, 0.0001);
+        let ink = clamp((0.25 - star) / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
+        if ink <= 0.0 {
+            continue;
+        }
+        let fill = clamp(-star / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
+        out = lab_over(out, vec4(mix(vec3(0.0), vec3(1.0, 0.86, 0.2), fill), ink));
+    }
+    return out;
+}
+
 // A design's solid pass: its solid blade and its blended particles, colour and coverage.
 fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
     let n = lab_design(input);
@@ -3914,6 +3937,8 @@ fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
     var out = vec4(0.0);
     switch n {
         case 6u: {
+            let ray = sig_ray(input);
+            let len = input.length;
             out = lab_comic_panel(p, color);
             if !p.lingering {
                 // the action bursts on the blade, away from the words
@@ -3924,9 +3949,9 @@ fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
                 out = lab_over(out, lab_comic_burst(p, vec2(0.42 * p.shaft, 0.0), p.since_clash, color, floor((p.t - p.since_clash) * 10.0) + 0.5, 0.2));
             }
             if !p.lingering {
-                out = lab_over(out, lab_comic_body(p, color));
+                out = lab_over(out, comic_body3(p, ray, len, pixel, color));
             }
-            out = lab_over(out, lab_comic_puffs(p));
+            out = lab_over(out, comic_puffs3(p, ray, len, pixel));
             out = lab_over(out, lab_comic_words(p, color));
         }
         case 7u: {

@@ -3,6 +3,7 @@
 // @part Turning panels
 // @part Glowing seams
 // @room 6
+// @solid 1
 // @palette {"corona.rim_cool":[0.3,0.3,0.4],"corona.rim_hot":[0.85,0.85,0.95],"corona.inner":[0.95,0.95,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.8,0.8,0.95],"core.fringe_hot":[0.95,0.95,1.0],"light.color":[0.9,0.9,1.0],"trail":[0.85,0.85,1.0]}
 
 // Puzzle Holocron: a Jedi holocron's puzzle as a blade (round 17 rework, Creyon: no small figures,
@@ -33,7 +34,9 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let turning = 1.0 - step(0.5, abs(row - glsl_mod(k * 5.0, 14.0)));
     let slide = smoothstep(0.0, 0.7, q) * turning * (select(-1.0, 1.0, glsl_mod(row, 2.0) < 0.5));
     // panels across the blade: the turning row's slide along, as if round it
-    let across = b.x * 4.0 + slide * 1.0;
+    // round 20 (Creyon: no row change could be seen): bigger panels, the turning row sliding two
+    // panels round
+    let across = b.x * 2.6 + slide * 2.0;
     let f = vec2(fract(across), fract(b.y / PH_ROW));
     // round 20 (Creyon: the rows were hardly visible): bolder seams between the rows
     let seamX = halo(0.5 - abs(f.x - 0.5), 0.07);
@@ -44,10 +47,44 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     // round 20: the panels clearly darker, each row its own tone, so the rows read
     let shade = 0.42 + 0.22 * h11(floor(across) + row * 7.0);
     let tone = mix(PH_LIGHT, vec3<f32>(0.82, 0.86, 1.0), glsl_mod(row, 2.0));
-    let c = tone * shade * (1.0 - 0.45 * part(0.0) * (1.0 - seam)) + vec3<f32>(0.85, 0.95, 1.0) * (seam * (1.3 + 2.5 * lock) + gap) * part(1.0);
+    var c = tone * shade * (1.0 - 0.45 * part(0.0) * (1.0 - seam)) + vec3<f32>(0.85, 0.95, 1.0) * (seam * (1.3 + 2.5 * lock) + gap) * part(1.0);
+    // the turning row lit up while it turns, so the change reads
+    let turnLight = turning * sin(3.1416 * clamp(q / 0.75, 0.0, 1.0));
+    c = mix(c, vec3<f32>(0.75, 0.92, 1.0) * (0.9 + 0.6 * seam), turnLight * 0.7);
     // the band of light sweeping up when a turn locks
     let band = halo(b.y - (q - 0.72) * L * 3.0, 1.5) * step(0.72, q);
     return l * (c + vec3<f32>(1.0) * band * 0.8 + vec3<f32>(1.0) * seam * clamp(uClash, 0.0, 1.0) * 1.5);
+}
+
+// round 20 (Creyon: the rows could not be seen over the white core): the lattice is a solid
+// shell over the core, its panels pale crystal blue, each row its own tone, the seams between
+// them glowing, the turning row lit up as it slides round
+fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
+    let L = uLength;
+    let w = 0.6 * smoothstep(-0.2, 0.5, b.y) * (1.0 - smoothstep(L - 0.9, L + 0.1, b.y));
+    let cov = fillD(abs(b.x) - w, px) * step(-0.2, b.y);
+    if cov <= 0.0 || part(0.0) < 0.5 {
+        return o;
+    }
+    let row = floor(b.y / PH_ROW);
+    let k = ph_k();
+    let q = ph_q();
+    let turning = 1.0 - step(0.5, abs(row - glsl_mod(k * 5.0, 14.0)));
+    let slide = smoothstep(0.0, 0.7, q) * turning * (select(-1.0, 1.0, glsl_mod(row, 2.0) < 0.5));
+    let n = clamp(b.x / max(w, 0.01), -1.0, 1.0);
+    let across = asin(n) * 1.3 + slide * 2.0;
+    let f = vec2(fract(across), fract(b.y / PH_ROW));
+    let seam = max(halo(0.5 - abs(f.x - 0.5), 0.07), halo(0.5 - abs(f.y - 0.5), 0.09));
+    let lock = exp(-pow((q - 0.72) / 0.05, 2.0)) * turning;
+    let shade = 0.55 + 0.25 * h11(floor(across) + row * 7.0);
+    let tone = mix(vec3<f32>(0.45, 0.62, 0.9), vec3<f32>(0.7, 0.75, 0.95), glsl_mod(row, 2.0));
+    let rim = sqrt(max(1.0 - n * n, 0.0));
+    var panel = tone * shade * (0.55 + 0.45 * rim);
+    let turnLight = turning * sin(3.1416 * clamp(q / 0.75, 0.0, 1.0));
+    panel = mix(panel, vec3<f32>(0.8, 0.95, 1.0), turnLight * 0.55);
+    let rgb = mix(panel, vec3<f32>(0.9, 0.97, 1.0) * (1.4 + 2.0 * lock), seam * part(1.0));
+    let a = cov * mix(0.85, 0.35, seam);
+    return vec4(mix(o.rgb, rgb, a), max(o.a, a));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {

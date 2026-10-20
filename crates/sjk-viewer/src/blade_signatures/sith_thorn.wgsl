@@ -55,10 +55,13 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         for (var i = 0; i < 12; i++) {
             let fi = f32(i);
             let f = fract(t * 0.06 * (0.7 + 0.6 * h11(fi * 2.7)) + h11(fi * 6.1));
-            let p = vec3((h11(fi * 3.9) - 0.5) * 3.0 + 0.8 * sin(t * 0.9 + fi * 2.0), mix(y1, y0 - 4.0, f), 0.0);
+            // round 20 (Creyon: the petals showed as red slivers in the preview, lying in one flat sheet):
+            // all round the blade in 3D, each a small oval facing the camera, turning as it falls
+            let p = around(0.7 + 1.5 * h11(fi * 3.9) + 0.4 * sin(t * 0.9 + fi * 2.0), h11(fi * 5.3) + 0.05 * t, mix(y1, y0 - 4.0, f));
             let d = rayPt(ro, rd, p, &ta);
             let q = ro + rd * ta - p;
-            let e = rot(t * 1.2 + fi) * q.xy;
+            let fu = normalize(cross(rd, select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), abs(rd.y) < 0.9)));
+            let e = rot(t * 1.2 + fi) * vec2(dot(q, fu), dot(q, cross(rd, fu)));
             let pd = length(e / vec2<f32>(0.22, 0.09));
             pe += red * (halo(pd - 1.0, 0.25) * 0.8 + halo(d, 0.5) * 0.08) * smoothstep(0.0, 0.1, f) * (1.0 - smoothstep(0.85, 1.0, f));
         }

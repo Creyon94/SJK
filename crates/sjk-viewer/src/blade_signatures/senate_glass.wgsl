@@ -20,8 +20,12 @@ fn sg_pane(b: vec2<f32>, lead: ptr<function, f32>) -> vec3<f32> {
     return select((select(vec3<f32>(1.0, 0.75, 0.2), vec3<f32>(0.2, 0.4, 1.0), h < 0.66)), vec3<f32>(0.95, 0.15, 0.15), h < 0.33);
 }
 
+// round 20 (Creyon: let each pane light up as the light goes up): a wave of sunlight rising up the
+// column, each row of panes brightening in turn as it passes, then settling back
 fn sg_sun(y: f32) -> f32 {
-    return 0.7 + 0.45 * sin(y * 0.12 - uTime * 0.4) * part(0.0);
+    let row = (floor(y / 4.0) + 0.5) * 4.0;
+    let wave = fract(uTime * 0.14) * (uLength + 12.0) - 6.0;
+    return 0.6 + 1.3 * exp(-pow((row - wave) / 3.0, 2.0)) * part(0.0);
 }
 
 // the glow round it takes the panes' colours

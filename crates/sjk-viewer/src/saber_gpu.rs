@@ -57,8 +57,8 @@ pub(crate) struct Runtime {
     /// blades just drawn, and whether a loaded skin has any.
     solid_pipeline: wgpu::RenderPipeline,
     any_solids: bool,
-    /// What the signature skins' own pipelines are made with (`blade_signatures.rs`).
-    builder: SignatureBuilder,
+    /// The signature builds waiting and their builders (`BuildQueue`).
+    builds: Arc<BuildQueue>,
     /// The loaded skins' signatures by skin number, and their pipelines once built.
     signed: Vec<Option<Signed>>,
 }
@@ -81,25 +81,118 @@ impl Signed {
     fn claim(&self) -> bool {
         !self.started.swap(true, std::sync::atomic::Ordering::AcqRel)
     }
+}
 
-    /// Build it here (on the calling thread) if nobody has claimed it.
-    fn build_if_unclaimed(&self, builder: &SignatureBuilder) {
-        if self.claim() {
-            let _ = self.built.set(builder.build(self.signature, false));
+/// How soon a signature's pipelines are wanted (Creyon's round 20: with every build waiting its
+/// turn alike, the blade in the preview waited behind the Collection's pictures and most blades
+/// seemed not to load).
+const WANTED_NOW: u8 = 2;
+const WANTED_PICTURE: u8 = 1;
+const WANTED_LATER: u8 = 0;
+
+/// The signature builds waiting, by how soon they are wanted then in the order asked, and the
+/// threads building them (`BuildQueue::start`): a blade worn or in the preview
+/// first, then the Collection's pictures, then every loaded signature in the background.
+struct BuildQueue {
+    jobs: std::sync::Mutex<Vec<(u8, u64, Signed)>>,
+    ready: std::sync::Condvar,
+    asked: std::sync::atomic::AtomicU64,
+}
+
+impl BuildQueue {
+    /// The queue and its builders; none when no thread can be had (blades then keep the
+    /// shared pipelines).
+    fn start(builder: &SignatureBuilder) -> Arc<Self> {
+        let queue = Arc::new(Self {
+            jobs: std::sync::Mutex::new(Vec::new()),
+            ready: std::sync::Condvar::new(),
+            asked: std::sync::atomic::AtomicU64::new(0),
+        });
+        // Two builders, three on a machine of nine cores or more.
+        let workers = std::thread::available_parallelism()
+            .map_or(2, |cores| cores.get() / 3)
+            .clamp(2, 3);
+        for _ in 0..workers {
+            let queue = queue.clone();
+            let builder = builder.clone();
+            let spawned = std::thread::Builder::new()
+                .name("sjk-blade-signatures".to_owned())
+                .spawn(move || {
+                    loop {
+                        let (wanted, signed) = queue.next();
+                        if signed.claim() {
+                            let _ = signed
+                                .built
+                                .set(builder.build(signed.signature, wanted == WANTED_NOW));
+                            if wanted == WANTED_LATER {
+                                // A short rest, so the game keeps its frames and its connection
+                                // (round 20: building several at once at launch stuttered it).
+                                std::thread::sleep(std::time::Duration::from_millis(40));
+                            }
+                        }
+                    }
+                });
+            if let Err(why) = spawned {
+                crate::log::progress(format_args!(
+                    "blade skins: signature shaders: no thread: {why}"
+                ));
+            }
+        }
+        queue
+    }
+
+    /// Ask for `signed` to be built, `wanted` this soon; asking again sooner moves it up.
+    fn ask(&self, signed: &Signed, wanted: u8) {
+        if signed.started.load(std::sync::atomic::Ordering::Acquire) {
+            return;
+        }
+        let Ok(mut jobs) = self.jobs.lock() else {
+            return;
+        };
+        if let Some(job) = jobs
+            .iter_mut()
+            .find(|job| Arc::ptr_eq(&job.2.built, &signed.built))
+        {
+            job.0 = job.0.max(wanted);
+            return;
+        }
+        let order = self
+            .asked
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        jobs.push((wanted, order, signed.clone()));
+        drop(jobs);
+        self.ready.notify_one();
+    }
+
+    /// The build wanted soonest (the first asked among those), waiting for one.
+    fn next(&self) -> (u8, Signed) {
+        let mut jobs = self
+            .jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        loop {
+            if let Some(best) =
+                (0..jobs.len()).max_by_key(|&i| (jobs[i].0, std::cmp::Reverse(jobs[i].1)))
+            {
+                let (wanted, _, signed) = jobs.swap_remove(best);
+                return (wanted, signed);
+            }
+            jobs = self
+                .ready
+                .wait(jobs)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
         }
     }
 }
 
-/// A signature skin's glow (`fragment_main`), bloom (`fragment_glow`) and solid
-/// (`fragment_solid`) pipelines.
+/// A signature skin's glow (`fragment_main`) pipeline and, when it has a solid layer, its solid
+/// (`fragment_solid`) one. Its bloom is the shared pipeline's (round 20: its blade's glow only, so
+/// the bloom no longer hides its effects, and a third less to build: Creyon saw most blades not
+/// load while they built).
 struct SignaturePipelines {
     main: wgpu::RenderPipeline,
-    glow: wgpu::RenderPipeline,
-    solid: wgpu::RenderPipeline,
+    solid: Option<wgpu::RenderPipeline>,
 }
-
-/// Signatures being built at once for blades drawn now (`Runtime::build_signatures`).
-static ON_DEMAND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 /// The passes a signature skin has pipelines of its own for.
 #[derive(Clone, Copy)]
@@ -137,14 +230,14 @@ impl SignatureBuilder {
             vertex,
             fragment,
             blend,
+            None,
         )
     }
 
     /// `signature`'s pipelines; `None` (logged) when its module does not build. With
-    /// `side_by_side` (a blade worn or shown now) its three pipelines are built at once, each on
-    /// a thread of its own (Creyon's round 19: a blade's effects took several seconds to come
-    /// in), each thread catching its own errors (error scopes are the thread's own); in the
-    /// background one after another.
+    /// `side_by_side` (a blade worn or shown now) its two pipelines are built at once, the solid
+    /// one on a thread of its own (round 19: a blade's effects took seconds to come in), each
+    /// thread catching its own errors (error scopes are the thread's own).
     fn build(
         &self,
         signature: &crate::blade_signatures::Signature,
@@ -167,46 +260,41 @@ impl SignatureBuilder {
                 pollster::block_on(scope.pop()).map(|error| error.to_string()),
             )
         };
-        let (main, glow, solid) = if side_by_side {
+        let solid_of = || {
+            signature.solid().then(|| {
+                checked(
+                    "vertex_solid",
+                    "fragment_solid",
+                    wgpu::BlendState::ALPHA_BLENDING,
+                )
+            })
+        };
+        let (main, solid) = if side_by_side {
             std::thread::scope(|threads| {
-                let glow = threads
-                    .spawn(|| checked("vertex_main", "fragment_glow", wgpu::BlendState::ADDITIVE));
-                let solid = threads.spawn(|| {
-                    checked(
-                        "vertex_solid",
-                        "fragment_solid",
-                        wgpu::BlendState::ALPHA_BLENDING,
-                    )
-                });
+                let solid = threads.spawn(solid_of);
                 let main = checked("vertex_main", "fragment_main", wgpu::BlendState::ADDITIVE);
-                (main, glow.join(), solid.join())
+                (main, solid.join())
             })
         } else {
             (
                 checked("vertex_main", "fragment_main", wgpu::BlendState::ADDITIVE),
-                Ok(checked(
-                    "vertex_main",
-                    "fragment_glow",
-                    wgpu::BlendState::ADDITIVE,
-                )),
-                Ok(checked(
-                    "vertex_solid",
-                    "fragment_solid",
-                    wgpu::BlendState::ALPHA_BLENDING,
-                )),
+                Ok(solid_of()),
             )
         };
-        let (Ok(glow), Ok(solid)) = (glow, solid) else {
+        let Ok(solid) = solid else {
             crate::log::progress(format_args!(
                 "blade skins: {}'s signature shader: a build thread failed",
                 signature.id
             ));
             return None;
         };
-        for (_, error) in [&main, &glow, &solid] {
-            if failed.is_none() {
-                failed.clone_from(error);
-            }
+        if failed.is_none() {
+            failed.clone_from(&main.1);
+        }
+        if failed.is_none()
+            && let Some((_, error)) = &solid
+        {
+            failed.clone_from(error);
         }
         if let Some(error) = failed {
             crate::log::progress(format_args!(
@@ -217,8 +305,7 @@ impl SignatureBuilder {
         }
         let pipelines = SignaturePipelines {
             main: main.0,
-            glow: glow.0,
-            solid: solid.0,
+            solid: solid.map(|(pipeline, _)| pipeline),
         };
         crate::log::progress(format_args!(
             "blade skins: {}'s signature shader built in {} ms",
@@ -241,6 +328,7 @@ fn blade_pipeline(
     vertex: &str,
     fragment: &str,
     blend: Option<wgpu::BlendState>,
+    cache: Option<&wgpu::PipelineCache>,
 ) -> wgpu::RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some(label),
@@ -281,7 +369,7 @@ fn blade_pipeline(
         }),
         multisample: wgpu::MultisampleState::default(),
         multiview_mask: None,
-        cache: None,
+        cache,
     })
 }
 
@@ -384,6 +472,7 @@ impl Runtime {
                 "vertex_main",
                 fragment,
                 Some(wgpu::BlendState::ADDITIVE),
+                None,
             )
         };
         let pipeline = create("fragment_main");
@@ -393,7 +482,7 @@ impl Runtime {
         // black hole's lens and horizon blend over what is there.
         let special = |label, layout, vertex, fragment, blend| {
             blade_pipeline(
-                device, layout, format, label, &shader, vertex, fragment, blend,
+                device, layout, format, label, &shader, vertex, fragment, blend, None,
             )
         };
         let haze_pipeline = special(
@@ -482,11 +571,11 @@ impl Runtime {
             any_holes: false,
             solid_pipeline,
             any_solids: false,
-            builder: SignatureBuilder {
+            builds: BuildQueue::start(&SignatureBuilder {
                 device: device.clone(),
                 layout,
                 format,
-            },
+            }),
             signed: Vec::new(),
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
@@ -539,37 +628,10 @@ impl Runtime {
             }));
         }
         self.signed = signed;
-        // Build every loaded signature in the background, one after another with a short rest
-        // between, so the game keeps its frames and its connection (Creyon's round 20: building
-        // several at once at launch stuttered the game and interrupted its connection). One a
-        // blade wears or the preview shows is built at once, on its own (`build_signatures`).
-        let pending: Arc<Vec<Signed>> = Arc::new(self.signed.iter().flatten().cloned().collect());
-        if !pending.is_empty() {
-            let workers = 1;
-            let next = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            for _ in 0..workers {
-                let builder = self.builder.clone();
-                let pending = pending.clone();
-                let next = next.clone();
-                let spawned = std::thread::Builder::new()
-                    .name("sjk-blade-signatures".to_owned())
-                    .spawn(move || {
-                        loop {
-                            let index = next.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-                            let Some(signed) = pending.get(index) else {
-                                break;
-                            };
-                            signed.build_if_unclaimed(&builder);
-                            std::thread::sleep(std::time::Duration::from_millis(40));
-                        }
-                    });
-                if let Err(why) = spawned {
-                    crate::log::progress(format_args!(
-                        "blade skins: signature shaders: no thread: {why}"
-                    ));
-                    break;
-                }
-            }
+        // Every loaded signature is built in the background, after those wanted sooner, so a
+        // blade worn later is ready.
+        for signed in self.signed.iter().flatten() {
+            self.builds.ask(signed, WANTED_LATER);
         }
         for (index, skin) in skins.iter() {
             self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
@@ -592,51 +654,22 @@ impl Runtime {
         now: i64,
     ) {
         self.ranges = saber::material_ranges(blades);
-        self.build_signatures(&self.ranges);
+        self.build_signatures(&self.ranges, WANTED_NOW);
         if !blades.is_empty() {
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(blades));
         }
         self.trails.prepare(queue, trails, now);
     }
 
-    /// Start building, each on a thread of its own, the pipelines of every signature skin
-    /// `ranges` draws whose build has not begun.
-    fn build_signatures(&self, ranges: &[Range<u32>]) {
+    /// Ask for the pipelines of every signature skin `ranges` draws whose build has not begun,
+    /// `wanted` this soon.
+    fn build_signatures(&self, ranges: &[Range<u32>], wanted: u8) {
         let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
         for (signed, range) in self.signed.iter().zip(&ranges[skins..]) {
-            let Some(signed) = signed else {
-                continue;
-            };
-            if range.is_empty() || !signed.claim() {
-                continue;
-            }
-            let builder = self.builder.clone();
-            let built = signed.built.clone();
-            let signature = signed.signature;
-            let spawned = std::thread::Builder::new()
-                .name("sjk-blade-signature".to_owned())
-                .spawn(move || {
-                    // At most two at a time (round 20: the Collection's pictures asked for a
-                    // score at once, each three pipelines wide, and the game stalled); the rest
-                    // wait their turn.
-                    while ON_DEMAND
-                        .fetch_update(
-                            std::sync::atomic::Ordering::AcqRel,
-                            std::sync::atomic::Ordering::Acquire,
-                            |running| (running < 2).then_some(running + 1),
-                        )
-                        .is_err()
-                    {
-                        std::thread::sleep(std::time::Duration::from_millis(15));
-                    }
-                    let _ = built.set(builder.build(signature, true));
-                    ON_DEMAND.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
-                });
-            if let Err(why) = spawned {
-                crate::log::progress(format_args!(
-                    "blade skins: {}'s signature shader: no thread: {why}",
-                    signature.id
-                ));
+            if let Some(signed) = signed
+                && !range.is_empty()
+            {
+                self.builds.ask(signed, wanted);
             }
         }
     }
@@ -654,8 +687,8 @@ impl Runtime {
             .and_then(|index| self.signed.get(index)?.as_ref()?.built.get()?.as_ref());
         match (own, pass) {
             (Some(own), Pass::Main) => &own.main,
-            (Some(own), Pass::Glow) => &own.glow,
-            (Some(own), Pass::Solid) => &own.solid,
+            (Some(own), Pass::Solid) => own.solid.as_ref().unwrap_or(shared),
+            (Some(_), Pass::Glow) => shared,
             (None, _) => shared,
         }
     }
@@ -797,7 +830,7 @@ impl Runtime {
         let count = blades.len().min(PREVIEW_BLADES);
         let blades = &mut blades[..count];
         self.preview_ranges = saber::material_ranges(blades);
-        self.build_signatures(&self.preview_ranges);
+        self.build_signatures(&self.preview_ranges, WANTED_NOW);
         if !blades.is_empty() {
             queue.write_buffer(&self.preview_buffer, 0, bytemuck::cast_slice(blades));
         }
@@ -837,7 +870,7 @@ impl Runtime {
         let count = blades.len().min(crate::blade_pictures::BLADES);
         let blades = &mut blades[..count];
         self.pictures_ranges = saber::material_ranges(blades);
-        self.build_signatures(&self.pictures_ranges);
+        self.build_signatures(&self.pictures_ranges, WANTED_PICTURE);
         if !blades.is_empty() {
             queue.write_buffer(&self.pictures_buffer, 0, bytemuck::cast_slice(blades));
         }

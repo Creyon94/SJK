@@ -48,7 +48,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             if y > head {
                 break;
             }
-            let d = min(raySeg(ro, rd, vec3(-2.2, y, 0.0), vec3(-1.4, y, 0.0), &s), raySeg(ro, rd, vec3(1.4, y, 0.0), vec3(2.2, y, 0.0), &s));
+            // round 20: each rung a ring joining the four rails, in 3D
+            let d = ringD(ro, rd, y, 1.8);
             fx += c * halo(d, max(0.03, px)) * 0.8 * fade;
         }
     }

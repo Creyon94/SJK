@@ -26,7 +26,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     for (int i = 0; i < 14; i++){
       float fi = float(i);
       float f = fract(t*0.09*(0.7 + 0.6*h11(fi*2.3)) + h11(fi*4.7));
-      vec3 p = vec3((h11(fi*3.1) - 0.5)*4.0 + 0.25*sin(t*2.0 + fi*1.3), mix(y0, y1, f), 0.0);
+      // round 20: all round the blade in 3D (they rose in one flat sheet)
+      vec3 p = around(0.7 + 1.5*h11(fi*3.1) + 0.2*sin(t*2.0 + fi*1.3), h11(fi*6.9), mix(y0, y1, f));
       float r = 0.18 + 0.25*h11(fi*1.7);
       float d = rayPt(ro, rd, p, ta);
       fx += (c*halo(abs(d - r), max(0.03, px))*0.9 + c*halo(d, r)*0.12)*sin(3.1416*f)*part(0.0);

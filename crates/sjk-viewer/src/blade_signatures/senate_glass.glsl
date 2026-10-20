@@ -16,7 +16,13 @@ vec3 sg_pane(vec2 b, out float lead){
   lead = smoothstep(0.0, 0.1, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)*2.5));
   return h < 0.33 ? vec3(0.95, 0.15, 0.15) : (h < 0.66 ? vec3(0.2, 0.4, 1.0) : vec3(1.0, 0.75, 0.2));
 }
-float sg_sun(float y){ return 0.7 + 0.45*sin(y*0.12 - uTime*0.4)*part(0.0); }
+// round 20 (Creyon: let each pane light up as the light goes up): a wave of sunlight rising up the
+// column, each row of panes brightening in turn as it passes, then settling back
+float sg_sun(float y){
+  float row = (floor(y/4.0) + 0.5)*4.0;
+  float wave = fract(uTime*0.14)*(uLength + 12.0) - 6.0;
+  return 0.6 + 1.3*exp(-pow((row - wave)/3.0, 2.0))*part(0.0);
+}
 // the glow round it takes the panes' colours
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   float lead;

@@ -2157,9 +2157,13 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   about half within a few metres (`near`), and a signature reaches the bloom at 55 %
   (`SIG_BLOOM`), so its effects are not hidden behind its glow. Abyssal Eye's iris and pupil are
   a true eyeball in three dimensions (`ae_eyeball`), watching whoever looks at it. Hyperlane,
-  Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built in the
-  background one after another again, resting between builds, and at most two at once for
-  blades drawn now (round 19's four at once stuttered the game at launch).
+  Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built by two
+  threads from a queue (`BuildQueue` in `saber_gpu.rs`): a blade worn or in the preview first,
+  then the Collection's pictures, then every loaded signature from launch, resting between those
+  (round 19's four at once stuttered the game at launch; with every build alike the preview's
+  waited behind the pictures and most blades seemed not to load). A signature now builds only its
+  glow pipeline and, with a solid layer, its solid one; its bloom is the shared pipeline's, its
+  blade's glow alone.
   Also in round 20: Abyssal Eye's reality cracks tear out and fade where they reached instead
   of shrinking back into the blade; Puzzle Holocron's rows read (darker panels, a tone a row,
   bolder seams, a softer core); Thermal Fuse is a braided gold cord burning down from the tip,
@@ -2169,6 +2173,18 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   Takodana Rain gets rings rippling out where drops land and Starfighter Canopy slanting
   streaks and landing lights, so the two no longer look alike; Victory Fireworks is a chroma whose
   fireworks keep their colours.
+- **Round 21 (Creyon, 21/10/2026: loading, Clone Wars in 3D, fixes).** Signature modules are
+  slimmed before they are built (`slim` in `blade_signatures.rs`: the designs' glow and solid
+  pass emptied, as a signature skin is never a design, and every function its pipelines do not
+  reach left out), a signature builds only its glow pipeline and, with a solid layer, its solid one,
+  and the build queue runs two or three builders (Creyon: at launch the effects took minutes to come
+  in). The Clone Wars blade's toon body, its cartoon smoke and its spark stars are drawn in three
+  dimensions along the true view ray (`comic_body3`, `comic_puffs3`); its words, panel and impact
+  lines stay as they were. Sith Thorn's petals, Otoh Gunga's bubbles, Cantina Lights' spots of
+  light, Holo-Recording's dashes and Imperial Schematics' rungs no longer lie in one flat sheet
+  (seen edge on they were slivers or hid in the blade). Puzzle Holocron's lattice is a solid shell
+  over the core with its turning row lit up; Senate Glass's panes light up row by row as a wave of
+  sunlight rises.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

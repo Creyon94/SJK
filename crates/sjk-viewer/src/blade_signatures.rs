@@ -414,7 +414,7 @@ impl Signature {
 
     /// The shader its pipelines are built from: `saber.wgsl` with its own signature.
     pub(crate) fn module_source(&self) -> String {
-        let source = module_source(include_str!("saber.wgsl"), self.wgsl);
+        let source = slim(&module_source(include_str!("saber.wgsl"), self.wgsl));
         // A mythical blade's awakening, breath and clash ring (round 19, `sig_mythic`).
         if crate::unlockables::find(self.id)
             .is_some_and(|unlockable| unlockable.tier == crate::unlockables::Rarity::Mythical)
@@ -428,6 +428,149 @@ impl Signature {
             source
         }
     }
+}
+
+/// The entry points a signature's own pipelines use (`saber_gpu.rs` `SignatureBuilder::build`).
+const SIGNATURE_ENTRIES: [&str; 4] = [
+    "vertex_main",
+    "fragment_main",
+    "vertex_solid",
+    "fragment_solid",
+];
+
+/// A signature's module cut to what its pipelines run (Creyon's round 20: the blades' effects took
+/// minutes to come in at launch): a signature skin is never a hand-ported design, so the designs'
+/// glow and solid pass draw nothing in it, and every function its entry points do not reach is
+/// left out, with the entry points it has no pipelines for. The driver then compiles far less.
+fn slim(source: &str) -> String {
+    let mut source = source.to_owned();
+    for (head, empty) in [
+        (
+            "fn lab_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {",
+            "return vec3(0.0);",
+        ),
+        (
+            "fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {",
+            "return vec4(0.0);",
+        ),
+    ] {
+        if let Some(at) = source.find(head)
+            && let Some(end) = block_end(&source, at + head.len() - 1)
+        {
+            source.replace_range(at..end, &format!("{head}\n    {empty}\n}}"));
+        }
+    }
+    let functions = top_functions(&source);
+    let names: Vec<&str> = functions.iter().map(|f| f.name.as_str()).collect();
+    let mut reached = vec![false; functions.len()];
+    let mut todo: Vec<usize> = (0..functions.len())
+        .filter(|&i| SIGNATURE_ENTRIES.contains(&names[i]))
+        .collect();
+    for &i in &todo {
+        reached[i] = true;
+    }
+    while let Some(i) = todo.pop() {
+        let body = &source[functions[i].body.clone()];
+        for word in words(body) {
+            if let Some(j) = names.iter().position(|name| *name == word)
+                && !reached[j]
+            {
+                reached[j] = true;
+                todo.push(j);
+            }
+        }
+    }
+    let mut slim = String::with_capacity(source.len());
+    let mut at = 0;
+    for (function, kept) in functions.iter().zip(&reached) {
+        if !kept {
+            slim.push_str(&source[at..function.whole.start]);
+            at = function.whole.end;
+        }
+    }
+    slim.push_str(&source[at..]);
+    slim
+}
+
+/// A top-level function of a module: its name, its whole text (with its attribute line) and its
+/// body.
+struct Function {
+    name: String,
+    whole: std::ops::Range<usize>,
+    body: std::ops::Range<usize>,
+}
+
+/// The module's top-level functions, in order.
+fn top_functions(source: &str) -> Vec<Function> {
+    let mut functions = Vec::new();
+    let mut line_start = 0;
+    while line_start < source.len() {
+        let line_end = source[line_start..]
+            .find('\n')
+            .map_or(source.len(), |n| line_start + n);
+        let line = &source[line_start..line_end];
+        if let Some(rest) = line.strip_prefix("fn ")
+            && let Some(name) = rest.split('(').next()
+            && let Some(open) = source[line_start..].find('{').map(|n| line_start + n)
+            && let Some(end) = block_end(source, open)
+        {
+            // Its attribute (`@vertex`, `@fragment`) on the line before goes with it.
+            let mut start = line_start;
+            let before = source[..line_start.saturating_sub(1)]
+                .rfind('\n')
+                .map_or(0, |n| n + 1);
+            if line_start > 0 && source[before..line_start].trim_start().starts_with('@') {
+                start = before;
+            }
+            let whole_end = if source[end..].starts_with('\n') {
+                end + 1
+            } else {
+                end
+            };
+            functions.push(Function {
+                name: name.trim().to_owned(),
+                whole: start..whole_end,
+                body: open..end,
+            });
+            line_start = whole_end;
+            continue;
+        }
+        line_start = line_end + 1;
+    }
+    functions
+}
+
+/// Just past the brace closing the block opened at `open`, skipping line comments.
+fn block_end(source: &str, open: usize) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut depth = 0usize;
+    let mut i = open;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'{' => depth += 1,
+            b'}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// The identifiers in `text`.
+fn words(text: &str) -> impl Iterator<Item = &str> {
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .filter(|word| !word.is_empty())
 }
 
 /// `saber` with its stand-in signature replaced by the lab's helpers and `signature`.
@@ -478,6 +621,24 @@ fn modules() -> &'static Vec<(&'static str, String)> {
 mod tests {
     use super::*;
     use wgpu::naga;
+
+    /// Round 20: a signature's module keeps its pipelines' entry points and drops the designs'
+    /// code and the entry points it has no pipelines for.
+    #[test]
+    fn a_signature_module_is_slim() {
+        let source = of("saber_reactor").unwrap().module_source();
+        for entry in SIGNATURE_ENTRIES {
+            assert!(source.contains(&format!("fn {entry}(")), "{entry}");
+        }
+        for gone in [
+            "fn fragment_haze(",
+            "fn lab_comic_word(",
+            "fn lab_quicksilver_body(",
+        ] {
+            assert!(!source.contains(gone), "{gone}");
+        }
+        assert!(source.len() < include_str!("saber.wgsl").len());
+    }
 
     /// Round 16: the hub pack's additions for Death Star Plans (its hand-ported design's pencil
     /// sketch, drawn from inside the hilt) do not reach the signature.

@@ -43,10 +43,13 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     for (int i = 0; i < 12; i++){
       float fi = float(i);
       float f = fract(t*0.06*(0.7 + 0.6*h11(fi*2.7)) + h11(fi*6.1));
-      vec3 p = vec3((h11(fi*3.9) - 0.5)*3.0 + 0.8*sin(t*0.9 + fi*2.0), mix(y1, y0 - 4.0, f), 0.0);
+      // round 20 (Creyon: the petals showed as red slivers in the preview, lying in one flat sheet):
+      // all round the blade in 3D, each a small oval facing the camera, turning as it falls
+      vec3 p = around(0.7 + 1.5*h11(fi*3.9) + 0.4*sin(t*0.9 + fi*2.0), h11(fi*5.3) + 0.05*t, mix(y1, y0 - 4.0, f));
       float d = rayPt(ro, rd, p, ta);
       vec3 q = ro + rd*ta - p;
-      vec2 e = rot(t*1.2 + fi)*q.xy;
+      vec3 fu = normalize(cross(rd, abs(rd.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+      vec2 e = rot(t*1.2 + fi)*vec2(dot(q, fu), dot(q, cross(rd, fu)));
       float pd = length(e/vec2(0.22, 0.09));
       pe += red*(halo(pd - 1.0, 0.25)*0.8 + halo(d, 0.5)*0.08)*smoothstep(0.0, 0.1, f)*(1.0 - smoothstep(0.85, 1.0, f));
     }
