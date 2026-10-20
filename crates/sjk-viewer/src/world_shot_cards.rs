@@ -47,6 +47,7 @@ fn shown(tier: usize, rarity: usize, finish: usize, credits: u64) -> Shown {
         credits,
         shards: 0,
         card: None,
+        bonus: None,
     }
 }
 
@@ -638,6 +639,7 @@ fn made_up_faces(
                 artist: "Sol".to_owned(),
                 art: String::new(),
                 grants: None,
+                blade: None,
             });
         }
     }
@@ -931,5 +933,122 @@ fn duel6_sjk_crate_open_windows() {
                 sheet(&moments, 3, 640, &format!("duel6-open-{shape}")).display()
             );
         }
+    });
+}
+
+/// The SJK Blades collection (20/10/2026) with a made-up blade card, "Sun blade" (the
+/// packs have no blade card yet; its picture borrowed from SJK Alpha's): a Mythical
+/// holocron's Solar copy of it opening, its blade's tile sliding out under the shards and
+/// its words telling the blade it brought, in 1080p and 4:3; five opened at once with it
+/// among the finds; and the card up close on the Cards tab with its hover card.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_blade_card() {
+    on_big_stack(|| {
+        if !faces_ready() {
+            return;
+        }
+        let packs = crate::cards::faces::current().list.clone();
+        let borrowed = packs
+            .iter()
+            .position(|face| face.id == "sjk_alpha_000")
+            .unwrap_or(0);
+        let mut list = packs.clone();
+        list.push(crate::cards::faces::Face {
+            id: "sjk_blades_007".to_owned(),
+            name: "Sun blade".to_owned(),
+            set: "sjk_blades".to_owned(),
+            set_name: "SJK Blades".to_owned(),
+            number: 7,
+            kind: crate::cards::faces::Kind::Blade,
+            rarity: &RARITIES[2],
+            lore: "A made-up blade card for a world shot.".to_owned(),
+            artist: "Sol".to_owned(),
+            art: String::new(),
+            grants: None,
+            blade: Some("saber_sun".to_owned()),
+        });
+        let real = packs.len();
+        crate::cards::faces::install_for_shot(
+            list,
+            |index| {
+                if index < real { index } else { borrowed }
+            },
+        );
+        let sun = crate::console::holocrons_panel::opening::Found {
+            holocron: 61,
+            tier: 3,
+            skin: crate::unlockables::find("saber_sun"),
+            id: "saber_sun".to_owned(),
+            name: "Sun blade".to_owned(),
+            count: 1,
+        };
+        let blade_card = Shown {
+            holocron: 61,
+            shards: 24,
+            card: Some("sjk_blades_007".to_owned()),
+            bonus: Some(sun),
+            ..shown(3, 2, 2, 312)
+        };
+        let mut moments = Vec::new();
+        for (size, name) in [([1920, 1080], ""), ([1440, 1080], "-4x3")] {
+            let Some(mut gpu) = open_holocrons(size) else {
+                return;
+            };
+            let here: &[(f32, &str)] = if name.is_empty() {
+                &[(2.3, "sliding"), (2.6, "counting"), (3.1, "words")]
+            } else {
+                &[(3.1, "words")]
+            };
+            for &(elapsed, moment) in here {
+                ceremony(&mut gpu, vec![blade_card.clone()], elapsed);
+                let path = shoot(&mut gpu, 40, &format!("duel6-blade-card-{moment}{name}"));
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "{moment}{name}");
+                moments.push(image::open(path).expect("the shot").to_rgba8());
+            }
+            if name.is_empty() {
+                // Five at once, the blade card among them, laid out.
+                let five = vec![
+                    Prize::Card(blade_card.clone()),
+                    Prize::Card(shown(1, 0, 0, 34)),
+                    found_tidal(2),
+                    Prize::Card(shown(0, 1, 1, 15)),
+                    Prize::Card(shown(2, 0, 0, 90)),
+                ];
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_opening(Some(five), 1.7 + 5.9 + 3.0, 3.1);
+                }
+                let path = shoot(&mut gpu, 40, "duel6-blade-card-batch");
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "batch");
+                moments.push(image::open(path).expect("the shot").to_rgba8());
+            }
+        }
+        // The Cards tab: the blade card held in Solar, up close with its hover card.
+        let Some(mut gpu) = open_binder([1920, 1080]) else {
+            return;
+        };
+        let mut holdings = binder_holdings();
+        holdings.push(copy_of("sjk_blades_007", "rare", "solar", 1));
+        let chosen = binder_index(&holdings, "sjk_blades_007");
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_cards(holdings, 1_340, 85);
+            console.preview_collection(Some(Vec::new()), 2.3);
+        }
+        let _ = frame(&mut gpu, 30);
+        if let Some(console) = gpu.console.as_mut() {
+            console.collection_card_filter_for_shot(Filter::default());
+            console.collection_card_for_shot(chosen);
+        }
+        let _ = frame(&mut gpu, 4);
+        if let Some(console) = gpu.console.as_mut() {
+            console.collection_hover_for_shot(Some(chosen));
+        }
+        let path = shoot(&mut gpu, 4, "duel6-blade-card-binder");
+        println!("{} (tile {chosen})", path.display());
+        assert!(!overflowed(&gpu), "binder");
+        moments.push(image::open(path).expect("the shot").to_rgba8());
+        println!("{}", sheet(&moments, 3, 640, "duel6-blade-card").display());
     });
 }

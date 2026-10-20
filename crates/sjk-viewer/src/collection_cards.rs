@@ -478,12 +478,7 @@ impl Panel {
         let Some(outcome) = outcome else {
             return;
         };
-        let words = match (outcome.revealed.len(), outcome.message.is_empty()) {
-            (_, false) => outcome.message.clone(),
-            (0, true) => "Nothing to reveal yet: no card of their rarity is out.".to_owned(),
-            (1, true) => "1 card revealed.".to_owned(),
-            (count, true) => format!("{count} cards revealed."),
-        };
+        let words = reveal_words(&outcome);
         text(
             &mut self.ui,
             TextFamily::Body,
@@ -703,8 +698,10 @@ impl Panel {
         } else {
             rarity_odds(tile.rarity, faces)
         };
-        // A card that brings a blade says so first, a line more before the keys.
-        let (last, lines) = match face.and_then(|face| face.face.brings()) {
+        // A card that brings a blade (or whose Solar copies drop one) says so first, a
+        // line more before the keys.
+        let extra = face.and_then(|face| face.face.brings().or_else(|| face.face.solar_drop()));
+        let (last, lines) = match extra {
             Some(brings) => (format!("{brings} {last}"), 3),
             None => (last, 2),
         };
@@ -718,6 +715,37 @@ impl Panel {
             15.0,
             color::QUIET,
         );
+    }
+}
+
+/// What a reveal brought, beside Reveal: how many cards, and the blade (or how many) their
+/// Solar blade cards dropped with them (20/10/2026), or why it failed.
+fn reveal_words(outcome: &sjk_identity::RevealOutcome) -> String {
+    let count = outcome.revealed.len();
+    let cards = match (count, outcome.message.is_empty()) {
+        (_, false) => return outcome.message.clone(),
+        (0, true) => return "Nothing to reveal yet: no card of their rarity is out.".to_owned(),
+        (1, true) => "1 card revealed".to_owned(),
+        (count, true) => format!("{count} cards revealed"),
+    };
+    let blades: Vec<String> = outcome
+        .revealed
+        .iter()
+        .filter_map(|revealed| revealed.unlock.as_ref())
+        .map(|unlock| match unlock.name.trim() {
+            "" => crate::unlockables::find(&unlock.id).map_or_else(
+                || "new saber shader".to_owned(),
+                |known| known.name.to_owned(),
+            ),
+            name => name.to_owned(),
+        })
+        .collect();
+    let with = if count == 1 { "it" } else { "them" };
+    match blades.as_slice() {
+        [] => format!("{cards}."),
+        [one] => format!("{cards}, and the {one} drops with {with}!"),
+        // Their names would not fit beside Reveal; the Shaders tab has them.
+        many => format!("{cards}, and {} blades drop with them!", many.len()),
     }
 }
 
@@ -788,6 +816,56 @@ mod tests {
             }
         }
         list
+    }
+
+    /// A reveal says how many cards it turned and the blades Solar blade cards dropped
+    /// with them (20/10/2026); a refusal says why.
+    #[test]
+    fn a_reveal_names_the_blade_it_dropped() {
+        let copy = |unlock: Option<(&str, &str)>| sjk_identity::Revealed {
+            id: 1,
+            card: "sjk_blades_001".to_owned(),
+            rarity: "rare".to_owned(),
+            finish: "solar".to_owned(),
+            edition: "alpha".to_owned(),
+            unlock: unlock.map(|(id, name)| sjk_identity::OpenedUnlock {
+                id: id.to_owned(),
+                name: name.to_owned(),
+                count: 1,
+            }),
+        };
+        let outcome = |revealed| sjk_identity::RevealOutcome {
+            serial: 1,
+            revealed,
+            message: String::new(),
+        };
+        assert_eq!(reveal_words(&outcome(vec![copy(None)])), "1 card revealed.");
+        assert_eq!(
+            reveal_words(&outcome(vec![copy(Some(("saber_sun", "Sun blade")))])),
+            "1 card revealed, and the Sun blade drops with it!"
+        );
+        // A nameless one is named from the catalogue.
+        assert_eq!(
+            reveal_words(&outcome(vec![copy(None), copy(Some(("saber_sun", "")))])),
+            "2 cards revealed, and the Sun blade drops with them!"
+        );
+        assert_eq!(
+            reveal_words(&outcome(vec![
+                copy(Some(("saber_sun", "Sun blade"))),
+                copy(Some(("saber_tidal", "Tidal blade"))),
+                copy(None),
+            ])),
+            "3 cards revealed, and 2 blades drop with them!"
+        );
+        assert_eq!(
+            reveal_words(&outcome(Vec::new())),
+            "Nothing to reveal yet: no card of their rarity is out."
+        );
+        let refused = sjk_identity::RevealOutcome {
+            message: "No.".to_owned(),
+            ..outcome(Vec::new())
+        };
+        assert_eq!(reveal_words(&refused), "No.");
     }
 
     /// Copies of `count` cards `card_000`, `card_001`... in one finish each.

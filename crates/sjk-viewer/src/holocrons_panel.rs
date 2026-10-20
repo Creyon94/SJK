@@ -989,6 +989,56 @@ mod tests {
         assert_eq!(tidal.skin.map(|skin| skin.id), Some("saber_tidal"));
     }
 
+    /// A Solar blade card brings its blade beside it (20/10/2026): the card shows, with
+    /// the blade as its bonus and a line saying so; a card this client cannot show (a
+    /// rarity it does not know) leaves the blade alone.
+    #[test]
+    fn a_solar_blade_card_shows_with_its_blade() {
+        let sun = |count: u32| sjk_identity::OpenedUnlock {
+            id: "saber_sun".to_owned(),
+            name: "Sun blade".to_owned(),
+            count,
+        };
+        let solar = sjk_identity::Opened {
+            unlock: Some(sun(1)),
+            ..opened("mythical", "solar")
+        };
+        let Some(opening::Prize::Card(shown)) = opening::Prize::of(&solar) else {
+            panic!("a card prize");
+        };
+        assert_eq!(shown.credits, 42);
+        let bonus = shown.bonus.as_ref().expect("its blade");
+        assert_eq!(
+            (bonus.skin.map(|skin| skin.id), bonus.name.as_str()),
+            (Some("saber_sun"), "Sun blade")
+        );
+        assert_eq!(
+            opening::bonus_line(bonus),
+            "...and the Sun blade drops with it! Yours now: wear it in the Collection."
+        );
+        let again = sjk_identity::Opened {
+            unlock: Some(sun(3)),
+            ..opened("mythical", "solar")
+        };
+        let Some(opening::Prize::Card(again)) = opening::Prize::of(&again) else {
+            panic!("a card prize");
+        };
+        assert_eq!(
+            opening::bonus_line(again.bonus.as_ref().unwrap()),
+            "...and the Sun blade drops with it! You hold 3 of it now."
+        );
+        assert!(matches!(
+            opening::Prize::of(&opened("rare", "solar")),
+            Some(opening::Prize::Card(shown)) if shown.bonus.is_none()
+        ));
+        let mut unknown = solar.clone();
+        unknown.card.as_mut().unwrap().rarity = "exotic".to_owned();
+        assert!(matches!(
+            opening::Prize::of(&unknown),
+            Some(opening::Prize::Shader(found)) if found.id == "saber_sun"
+        ));
+    }
+
     /// The 3D holocron is the one opened while the ceremony shows: it sets off for the
     /// middle when the hub is asked, cracks open, is gone in the flash and is back in its
     /// place after.
@@ -1230,9 +1280,19 @@ mod tests {
                     shards: 3,
                     ..opened("rare", finish)
                 };
+                // The third a blade card with its blade beside its shards (20/10/2026).
+                let blade = sjk_identity::Opened {
+                    unlock: Some(sjk_identity::OpenedUnlock {
+                        id: "saber_sun".to_owned(),
+                        name: "Sun blade".to_owned(),
+                        count: 1,
+                    }),
+                    ..pack.clone()
+                };
                 let shown = vec![
                     opening::Prize::of(&opened("mythical", finish)).unwrap(),
                     opening::Prize::of(&pack).unwrap(),
+                    opening::Prize::of(&blade).unwrap(),
                 ];
                 panel.show(shown, start);
                 for tenth in 0..110 {
@@ -1249,7 +1309,14 @@ mod tests {
                         0 => shader(tier, "saber_tidal"),
                         1 => shader(tier, "saber_phoenix"),
                         2 => opened(tier, "holo"),
-                        3 => opened(tier, "solar"),
+                        3 => sjk_identity::Opened {
+                            unlock: Some(sjk_identity::OpenedUnlock {
+                                id: "saber_sun".to_owned(),
+                                name: "Sun blade".to_owned(),
+                                count: 1,
+                            }),
+                            ..opened(tier, "solar")
+                        },
                         _ => opened(tier, "normal"),
                     };
                     opening::Prize::of(&opened).unwrap()

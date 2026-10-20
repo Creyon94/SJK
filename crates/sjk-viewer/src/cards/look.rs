@@ -682,6 +682,7 @@ pub(crate) mod tests {
             artist: "Sol".to_owned(),
             art: "cards/sjk_alpha_010.jpg".to_owned(),
             grants: None,
+            blade: None,
         }
     }
 

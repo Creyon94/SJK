@@ -3066,6 +3066,7 @@ mod tests {
                     rarity: "legendary".to_owned(),
                     finish: "holo".to_owned(),
                     edition: "alpha".to_owned(),
+                    unlock: None,
                 }],
                 profile: profile("Sol"),
             })
