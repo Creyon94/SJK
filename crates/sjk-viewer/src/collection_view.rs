@@ -35,9 +35,10 @@ pub(super) const STAGE_TEXT_X: f32 = 1_300.0;
 pub(super) const STAGE_TEXT_WIDTH: f32 = RIGHT_X - STAGE_TEXT_X;
 
 /// The tick bar at the top right: a tick's size, the gaps between ticks and groups.
-const TICK: [f32; 2] = [5.0, 16.0];
-const TICK_GAP: f32 = 4.0;
-const GROUP_GAP: f32 = 14.0;
+/// The tally's bar at the top right: as wide as its words, a stretch to a tab.
+const TALLY_WIDTH: f32 = 500.0;
+const TALLY_HEIGHT: f32 = 6.0;
+const GROUP_GAP: f32 = 10.0;
 
 /// How many of a tab's things the player holds, and how many there are; `None` while
 /// that is not known (no identity, no answer from the hub).
@@ -323,7 +324,8 @@ impl Panel {
     }
 
     /// How many of all the things the player holds, at the top right: the words, and a
-    /// tick for each thing, lit for the ones held, a group to a tab.
+    /// bar under them, a stretch to a tab in the tabs' order, each filled as far as its
+    /// share held (one tick a thing no longer fits two hundred things, 21/10/2026).
     fn tally(&mut self, frame: &Frame, counts: &[Count; 7]) {
         let s = frame.s;
         // Only the things with a set total: the holocrons are opened, not collected.
@@ -337,34 +339,34 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("{held} of {total} collected"),
-            frame.rect(RIGHT_X - 500.0, 58.0, 500.0, 30.0),
+            frame.rect(RIGHT_X - TALLY_WIDTH, 58.0, TALLY_WIDTH, 30.0),
             22.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::End,
         );
         let groups: Vec<Count> = counts.iter().copied().filter(|c| c.total > 0).collect();
-        let width: f32 = groups
-            .iter()
-            .map(|count| count.total as f32 * (TICK[0] + TICK_GAP) - TICK_GAP)
-            .sum::<f32>()
-            + GROUP_GAP * groups.len().saturating_sub(1) as f32;
-        let mut x = RIGHT_X - width;
+        if groups.is_empty() {
+            return;
+        }
+        let stretch = (TALLY_WIDTH - GROUP_GAP * (groups.len() - 1) as f32) / groups.len() as f32;
+        let radius = TALLY_HEIGHT / 2.0 * s;
+        let mut x = RIGHT_X - TALLY_WIDTH;
         for count in groups {
-            let held = count.held.unwrap_or(0);
-            for index in 0..count.total {
+            let share = count.held.unwrap_or(0).min(count.total) as f32 / count.total as f32;
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(x, 98.0, stretch, TALLY_HEIGHT),
+                radius,
+                color: color::alpha(color::HOLO, 0.24),
+            });
+            if share > 0.0 {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: frame.rect(x, 96.0, TICK[0], TICK[1]),
-                    radius: 1.0 * s,
-                    color: if index < held {
-                        color::GOLD_BRIGHT
-                    } else {
-                        color::alpha(color::HOLO, 0.24)
-                    },
+                    rect: frame.rect(x, 98.0, (stretch * share).max(TALLY_HEIGHT), TALLY_HEIGHT),
+                    radius,
+                    color: color::GOLD_BRIGHT,
                 });
-                x += TICK[0] + TICK_GAP;
             }
-            x += GROUP_GAP - TICK_GAP;
+            x += stretch + GROUP_GAP;
         }
     }
 

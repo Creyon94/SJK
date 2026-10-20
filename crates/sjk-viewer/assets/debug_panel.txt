@@ -996,6 +996,14 @@ test: After the hub deploy and publish: open holocrons; blade cards show as 'Bla
 test: Hover a blade card: 'Its Solar copies also drop the ... blade.'
 test: Binder kind filter offers Blade; blade cards foot reads #NNN.
 
+[collection-tally]
+area: Menus & settings
+title: Collection: one bar a tab under "N of M collected"
+change: The top right's tick for each thing (a barcode at 193) is now one thin bar a tab.
+change: Each bar fills gold as far as that tab's share held, in the tabs' order.
+test: Collection, any tab: 4 to 6 bars under the count, none past the title on the left.
+test: Debug collectibles on: every bar full; off: each bar matches its tab's count.
+
 [card-pages]
 area: Menus & settings
 title: Cards tab: named tiles, a closer look, lore that fills its box, no numbers

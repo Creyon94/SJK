@@ -1510,8 +1510,9 @@ commands open it on its own ("Back"); the `holocrons` command opens its Holocron
 for the run.
 
 - **Top:** the way back and "Collection" as the title; at the top right how many of
-  all things the player holds ("15 of 30 collected") over a tick for each thing,
-  grouped by tab, lit gold for the ones held. Under the title the row of tabs
+  all things the player holds ("15 of 30 collected") over a thin bar as wide as
+  those words, a stretch to each tab in the tabs' order, filled gold as far as that
+  tab's share held (one tick a thing until 21/10/2026, a barcode at two hundred things). Under the title the row of tabs
   (`profile_hub::collection_header`), each name with its count after it in small
   Rajdhani ("2/3", "11/21", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
   underlined. Drawn in Inter (the families not loaded, the classic menus), the row
