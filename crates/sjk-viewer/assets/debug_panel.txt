@@ -5778,3 +5778,10 @@ test: /move jka: prediction is back (movement responds without delay).
 test: cg_predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smooth.
 test: On a JA+ or base server nothing changes.
 note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
+[leading-slash-images]
+area: Rendering & effects
+title: A texture named with a leading slash no longer fails the map load (Mae, siege_desert)
+change: Shader and image names drop a leading / or \ before the lookup, as FS_FOpenFileRead.
+change: Was: "virtual path must be relative", map transition failed (JoF Pillowtalk skin).
+test: Join a server where a player wears Pillowtalk (JoF pack): the map loads, model textured.
+test: logs/last-client.log has no "virtual path must be relative".
