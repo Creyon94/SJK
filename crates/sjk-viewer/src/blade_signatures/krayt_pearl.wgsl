@@ -69,7 +69,8 @@ fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
         let film = hsv(fract(0.9 + 0.3 * n.y + 0.2 * n.x + uTime * 0.03), 0.35, 1.0);
         var col = mix(vec3<f32>(1.0, 0.97, 0.93), film, 0.4 + 0.5 * fres) * (0.95 + 0.45 * max(n.y, 0.0));
         col += vec3<f32>(1.0) * pow(max(dot(reflect(rd, n), normalize(vec3<f32>(-0.3, 0.8, 0.5))), 0.0), 30.0) * 1.2;
-        acc = vec4(col, cov);
+        // round 17: hidden behind the blade
+        acc = vec4(col, cov * bladeSeen(ro, rd, c.xyz));
         best = th;
     }
     uOwn = max(uOwn, acc.a);

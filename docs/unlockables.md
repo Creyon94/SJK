@@ -621,7 +621,12 @@ Kyber and sixteen rares, uncommons and commons); a signature's own effects keep 
 through `uKeep` and `uOwn`, so only its blade takes the wearer's, except Hyperspace's and the
 Ashla Radiance's, whose effects take it with the blade (round 15, 20/10/2026). Round 15 also
 took the chroma off Felucia Spores (it hid the spores' colours) and Force Echo, and swapped two
-tiers: the Jedi Spirits blade is mythical, the Balance blade legendary.
+tiers: the Jedi Spirits blade is mythical, the Balance blade legendary. Sol's tier review of 20/10/2026 then moved Clone Wars and Exegol Rift
+to mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith Alchemy, Felucia Spores, Phoenix
+Squadron, Dyson Sphere, Quasar, Sith Holocron, Ashla Radiance, Superlaser, Uneti Tree, Witchfire
+and Wraithlight to legendary; Storm, Prism, Unstable, Chameleon, Hoth Avalanche, Kessel Run,
+Krayt Pearl and Assassin Droid to rare; and Targeting Display to uncommon: 22 mythicals. Only the
+tier changed (label, colour, Collection order, holocron odds); the hub's catalogue must follow.
 
 - **How it is drawn** ([saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs)
   `Chroma`, `SkinColor::worn_with`): the skin's own hue is its corona rim's

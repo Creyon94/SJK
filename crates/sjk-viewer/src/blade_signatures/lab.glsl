@@ -347,7 +347,9 @@ vec3 fxSmoke(vec3 ro, vec3 rd, float y0, float y1, float w, float rise, float se
   float tt = -ro.z/rd.z;
   vec3 p = ro + rd*tt;
   float ax = abs(p.x);
-  if (ax > w*1.8 || p.y < y0 - 3.0 || p.y > y1) return vec3(0.0);
+  // round 17 (Creyon: a straight line showed at the smoke's sides): drawn out to where its
+  // bell is all but nothing (was cut at 1.8 widths, where it still showed)
+  if (ax > w*2.7 || p.y < y0 - 3.0 || p.y > y1) return vec3(0.0);
   // Broad features and octaves turned against each other, so no square grid shows even
   // far away (round 12: "the smoke still looks squary").
   vec2 q = vec2(p.x*0.32, p.y*0.12 - uTime*rise*0.12) + vec2(seed*7.3, seed*3.1);
@@ -426,4 +428,15 @@ vec3 fxRingWaves(vec3 ro, vec3 rd, float px, float y0, float y1, float count, fl
     acc += (vec3(1.0)*halo(d, max(0.04, px))*0.7 + col*halo(d, 0.3)*0.6 + col*halo(d, 1.0)*0.08)*env;
   }
   return acc;
+}
+// ---- round 17: what circles the blade goes behind it ----
+// How much of what is at `at` the blade's body leaves seen along this ray (in the hilt's frame):
+// all of it in front of the blade, none of it behind (Creyon: Balance's orb of shadow showed
+// through the blade).
+float bladeSeen(vec3 ro, vec3 rd, vec3 at){
+  float L = uLength, sAx, tAx, tAt;
+  raySeg(ro, rd, vec3(0.0), vec3(0.0, L, 0.0), sAx);
+  float dAx = rayPt(ro, rd, vec3(0.0, sAx*L, 0.0), tAx);
+  rayPt(ro, rd, at, tAt);
+  return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx))*step(tAx, tAt);
 }

@@ -53,6 +53,8 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   float lit = smoothstep(-0.15, 0.35, dot(n, sun));
   float mott = 0.75 + 0.25*vn(n.xy*3.0 + n.z*2.0 + 5.0);
   vec3 col = mix(vec3(0.35, 0.02, 0.01), vec3(1.0, 0.2, 0.1)*1.5, lit)*mott;
+  // round 17: hidden behind the blade
+  cov *= bladeSeen(ro, rd, c);
   uOwn = max(uOwn, cov);
   return vec4(col, cov);
 }

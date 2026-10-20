@@ -65,7 +65,7 @@ fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let c = bm_moon();
     let d = rayPt(ro, rd, c, &ta);
     let R: f32 = 1.35;
-    let cov = fillD(d - R, px);
+    var cov = fillD(d - R, px);
     if cov <= 0.0 {
         return vec4<f32>(0.0);
     }
@@ -76,6 +76,8 @@ fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     let lit = smoothstep(-0.15, 0.35, dot(n, sun));
     let mott = 0.75 + 0.25 * vn(n.xy * 3.0 + n.z * 2.0 + 5.0);
     let col = mix(vec3<f32>(0.35, 0.02, 0.01), vec3<f32>(1.0, 0.2, 0.1) * 1.5, lit) * mott;
+    // round 17: hidden behind the blade
+    cov *= bladeSeen(ro, rd, c);
     uOwn = max(uOwn, cov);
     return vec4(col, cov);
 }

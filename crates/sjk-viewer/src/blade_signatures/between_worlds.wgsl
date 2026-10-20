@@ -150,7 +150,7 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let rim = halo(abs(abs(b.x) - edgeAt), 0.07);
     // glittering flecks along its edges, as light on moving water
     let cell = floor(vec2(b.y * 5.0 - uTime * 1.5, b.x * 14.0));
-    let fleck = step(0.9, h21(cell + floor(uTime * 6.0) * 0.37)) * halo(abs(abs(b.x) - edgeAt), 0.12);
+    let fleck = pow(max(sin(uTime * 3.0 + h21(cell) * 40.0), 0.0), 20.0) * step(0.7, h21(cell + 5.1)) * halo(abs(abs(b.x) - edgeAt), 0.12);
     let inside = 1.0 - smoothstep(0.0, edgeAt, abs(b.x));
     let ripple = 0.85 + 0.15 * sin(b.y * 0.9 - uTime * 1.4 + 3.0 * sin(b.x * 9.0));
     let c = BW_BLUE * (0.28 * inside * ripple + 0.35) + BW_EDGE * rim * 1.1 + vec3<f32>(1.0) * fleck * 1.6;

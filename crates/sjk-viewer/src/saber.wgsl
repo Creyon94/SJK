@@ -1914,8 +1914,16 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
                 mote_around = place.y;
                 mote_out = abs(place.x) / r;
             }
-            let motes = skin_motes(skin, mote_around, mote_out, x < 0.0, unclamped,
+            var motes = skin_motes(skin, mote_around, mote_out, x < 0.0, unclamped,
                 input.length, time, seed);
+            if skin.design.x == f32(LAB_SIGNATURE) {
+                // Round 17 (Creyon: the motes rose far above the tip and spread so wide they
+                // went through the wearer's head): they fade out over the blade's last units,
+                // none past its tip, and stay within a hand's reach of it.
+                let place = blade_place(input);
+                motes *= (1.0 - smoothstep(input.length - 4.0, input.length - 0.5, place.y))
+                    * (1.0 - smoothstep(2.0, 3.2, abs(place.x)));
+            }
             glow += motes * room * skin.mote_color.rgb * skin.mote_color.w;
         }
     }

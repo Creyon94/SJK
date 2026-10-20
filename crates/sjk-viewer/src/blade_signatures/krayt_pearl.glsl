@@ -52,7 +52,8 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
     vec3 film = hsv(fract(0.9 + 0.3*n.y + 0.2*n.x + uTime*0.03), 0.35, 1.0);
     vec3 col = mix(vec3(1.0, 0.97, 0.93), film, 0.4 + 0.5*fres)*(0.95 + 0.45*max(n.y, 0.0));
     col += vec3(1.0)*pow(max(dot(reflect(rd, n), normalize(vec3(-0.3, 0.8, 0.5))), 0.0), 30.0)*1.2;
-    acc = vec4(col, cov); best = th;
+    // round 17: hidden behind the blade
+    acc = vec4(col, cov*bladeSeen(ro, rd, c.xyz)); best = th;
   }
   uOwn = max(uOwn, acc.a);
   return acc;

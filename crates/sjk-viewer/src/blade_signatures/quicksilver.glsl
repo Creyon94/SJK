@@ -1,13 +1,13 @@
 // Liquid Beskar: Mandalorian steel kept molten, as a blade (Creyon's round 9: its droplets and
 // sparks in 3D). A thin blade of liquid mirror: a chrome surface reflecting a cool sky and warm
 // floor, ripples racing up it, beads of beskar rolling up to the tip and dripping off. Round it in
-// 3D, droplets of molten beskar orbit and drip, forge sparks fly and the air shimmers with heat. A
+// 3D, droplets of liquid beskar orbit and drip, silver glints fly off it and the air shimmers. A
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
 // of droplets out with a shock ring; ignition pours the metal up from the hilt. Round 15 (Creyon:
 // it needed more; round 16: no forge fire): tendrils of liquid beskar reach out of the mirror,
 // curl and flow back into it, bright with reflections, as living metal.
 // @full 1
-// @part Forge sparks
+// @part Silver glints
 // @part Flung droplets
 // @part Orbiting droplets
 // @part Metal tendrils
@@ -157,9 +157,10 @@ vec4 base_vol_solid(vec3 ro, vec3 rd, float px){
 vec3 base_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
-  vec3 silver = vec3(0.8, 0.88, 1.0), forge = vec3(1.0, 0.55, 0.2);
+  vec3 silver = vec3(0.8, 0.88, 1.0);
   vec3 col = vec3(0.0);
-  col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, forge);
+  // round 17 (Creyon: nothing red, it is pure beskar, only liquid): silver glints, not forge sparks
+  col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, silver);
   col += fxAura(ro, rd, y0, y1, 2.6, silver)*0.6;
   col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, silver)*1.5;
   return col*uFx;

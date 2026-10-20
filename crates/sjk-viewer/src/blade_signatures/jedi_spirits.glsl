@@ -38,26 +38,35 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   if (part(2.0) < 0.5) { return vec3(0.0); }
   float L = uLength, t = uTime, s;
-  float y0 = L*0.15, y1 = L*1.05;
+  // round 17 (Creyon: the spirits stuttered at the tip): they rise to below the tip and fade
+  // there, and a spirit's trail is only its own climb (it no longer reached back into the end of
+  // the climb before, at the top, while the spirit began again at the bottom)
+  float y0 = L*0.12, y1 = L*0.9;
   vec3 fx = vec3(0.0);
   if (fxNear(ro, rd, y0, y1) > 5.5) return fx;
   for (int j = 0; j < 3; j++){
     float fj = float(j);
     float per = 9.0 + 1.5*fj;
+    float head = t/per + fj/3.0;
+    float k = floor(head);
     float best = 1e3, bs = 0.0;
     vec3 prev = vec3(0.0);
+    bool have = false;
     for (int i = 0; i <= 14; i++){
       float tt = t - float(i)*0.12;
-      float q = fract(tt/per + fj/3.0);
+      float c = tt/per + fj/3.0;
+      if (floor(c) < k) break;
+      float q = fract(c);
       vec3 p = around(2.1 + 0.9*q + 0.25*sin(tt*0.8 + fj), tt*0.11 + fj/3.0, mix(y0, y1, q));
-      if (i > 0 && abs(p.y - prev.y) < 4.0){
+      if (have){
         float d = raySeg(ro, rd, prev, p, s);
         if (d < best){ best = d; bs = (float(i) - 1.0 + s)/14.0; }
       }
       prev = p;
+      have = true;
     }
-    float q0 = fract(t/per + fj/3.0);
-    float fade = smoothstep(0.0, 0.12, q0)*(1.0 - smoothstep(0.75, 1.0, q0));
+    float q0 = fract(head);
+    float fade = smoothstep(0.0, 0.12, q0)*(1.0 - smoothstep(0.7, 0.97, q0));
     float veil = 1.0 - bs;
     vec3 warm = vec3(1.0, 0.88, 0.62), pale = vec3(0.75, 0.86, 1.0);
     fx += (vec3(1.0)*halo(best, max(0.07, px))*pow(veil, 5.0)*3.0 + mix(pale, warm, veil)*halo(best, 0.45 + 0.45*bs)*veil*1.4

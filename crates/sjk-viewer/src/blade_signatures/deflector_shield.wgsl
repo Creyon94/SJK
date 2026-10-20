@@ -27,9 +27,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
     let c: vec3<f32> = vec3<f32>(0.4, 0.9, 1.0);
+    // round 17 (Creyon: the blade's tip poked out through the dome): the dome closes over the tip
     let R: f32 = 2.6;
     let yb: f32 = 0.5;
-    let yt = y1 + 0.5;
+    let yt = L + 1.2;
     if abs(rd.z) > 0.0001 {
         let p = ro + rd * (-ro.z / rd.z);
         // the shell's radius at this height: a cylinder from the hilt with a round dome at the tip

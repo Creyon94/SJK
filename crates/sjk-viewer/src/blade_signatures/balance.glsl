@@ -68,10 +68,10 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
   vec3 fx = vec3(0.0);
   if (fxNear(ro, rd, L*0.2, L*0.9) > 5.0) return fx;
   float ds = rayPt(ro, rd, ba_sun(), ta);
-  fx += (vec3(1.0)*halo(ds, max(0.3, px))*2.0 + BA_LIGHT*halo(ds, 0.8)*1.2 + BA_LIGHT*halo(ds, 2.0)*0.3)*part(0.0);
+  fx += (vec3(1.0)*halo(ds, max(0.3, px))*2.0 + BA_LIGHT*halo(ds, 0.8)*1.2 + BA_LIGHT*halo(ds, 2.0)*0.3)*part(0.0)*bladeSeen(ro, rd, ba_sun());
   float dd = rayPt(ro, rd, ba_shade(), ta);
   // the orb of shadow's violet rim and glow (its dark heart is the solid layer)
-  fx += (BA_DARK*halo(abs(dd - 0.6), 0.1)*2.0 + BA_DARK*halo(dd, 2.0)*0.35)*part(1.0);
+  fx += (BA_DARK*halo(abs(dd - 0.6), 0.1)*2.0 + BA_DARK*halo(dd, 2.0)*0.35)*part(1.0)*bladeSeen(ro, rd, ba_shade());
   return fx*uFx;
 }
 
@@ -80,5 +80,5 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   if (part(1.0) < 0.5 || uFx < 0.01) return vec4(0.0);
   float ta;
   float dd = rayPt(ro, rd, ba_shade(), ta);
-  return vec4(vec3(0.02, 0.0, 0.05), fillD(dd - 0.56, px)*0.92);
+  return vec4(vec3(0.02, 0.0, 0.05), fillD(dd - 0.56, px)*0.92*bladeSeen(ro, rd, ba_shade()));
 }

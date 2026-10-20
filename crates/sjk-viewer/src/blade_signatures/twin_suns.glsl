@@ -2,8 +2,8 @@
 // other with a seething sun's surface, loops of solar plasma arching off it and snapping back, a
 // solar wind of sparks streaming off it and the air shimmering with heat; round 16 (Creyon: it was
 // missing something about the suns, and Sol's Sun blade has two suns already): the light of a
-// Tatooine sunset, broad golden sunbeams slanting across it from one side, slowly sweeping, with
-// dust glittering in them. A clash flares it.
+// Tatooine sunset, broad golden sunbeams slanting across it from one side, slowly sweeping. A clash
+// flares it.
 // @part Sun glow
 // @part Solar wind
 // @part Heat
@@ -25,17 +25,16 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 gold = vec3(1.0, 0.7, 0.25);
   fx += fxAura(ro, rd, y0, y1, 2.6, gold)*0.5*part(0.0);
   // sunbeams: broad soft shafts of low golden light slanting across the blade from one side,
-  // sweeping slowly, dust glittering in them
-  if (fxNear(ro, rd, y0, y1) < 7.0 && abs(rd.z) > 0.0001){
+  // sweeping slowly (round 17, Creyon: their edge showed as a straight line and the dust as
+  // squares: they fade out smoothly well inside the blade's room, and the dust is gone)
+  if (abs(rd.z) > 0.0001){
     vec3 p = ro + rd*(-ro.z/rd.z);
     float slant = 0.55 + 0.08*sin(t*0.15);
     float u = p.y*cos(slant) + p.x*sin(slant);
     float shafts = pow(0.5 + 0.5*sin(u*0.55 - t*0.3), 3.0)*(0.6 + 0.4*sin(u*0.17 + t*0.11));
-    float reach = exp(-pow(abs(p.x)/5.5, 2.0))*smoothstep(y0 - 3.0, y0 + 2.0, p.y)*(1.0 - smoothstep(y1 - 4.0, y1 + 2.0, p.y));
-    float fromSide = smoothstep(-6.0, 1.0, -p.x);
-    fx += vec3(1.0, 0.72, 0.32)*shafts*reach*(0.35 + 0.65*fromSide)*0.75*part(0.0);
-    float dust = step(0.985, h21(floor(p.xy*vec2(6.0, 3.0) + vec2(0.0, -t*2.0))))*shafts*reach;
-    fx += vec3(1.0, 0.9, 0.6)*dust*0.9*part(0.0);
+    float reach = exp(-pow(abs(p.x)/3.6, 2.0))*smoothstep(y0 - 3.0, y0 + 3.0, p.y)*(1.0 - smoothstep(y1 - 6.0, y1, p.y));
+    float fromSide = smoothstep(-5.0, 1.0, -p.x);
+    fx += vec3(1.0, 0.72, 0.32)*shafts*reach*(0.35 + 0.65*fromSide)*0.6*part(0.0);
   }
   fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 24.0, 0.12, 2.4, vec3(1.0, 0.85, 0.5))*part(1.0);
   fx += fxSmoke(ro, rd, y0, y1, 2.8, 3.0, 5.0, vec3(1.0, 0.45, 0.1))*0.35*part(2.0);

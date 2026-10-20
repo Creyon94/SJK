@@ -21,9 +21,11 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let q = vec2(b.x * 3.0, b.y * 0.45);
     var cell: vec2<f32>;
     let w1 = voro(q + vec2(0.0, -uTime * 0.35) + 0.3 * vec2(sin(b.y * 0.3 + uTime), 0.0), &cell);
-    let w2 = voro(q * 1.7 + vec2(3.1, -uTime * 0.5), &cell);
-    let caust = pow(1.0 - smoothstep(0.0, 0.18, w1), 2.0) * 0.7 + pow(1.0 - smoothstep(0.0, 0.12, w2), 2.0) * 0.5;
-    let sparkle = step(0.97, h21(floor(vec2(b.x * 16.0, b.y * 3.0)) + floor(uTime * 8.0) * 0.71)) * smoothstep(0.1, 0.4, abs(b.x));
+    let caust = pow(1.0 - smoothstep(0.0, 0.18, w1), 2.0) * 0.8 + (1.0 - smoothstep(0.0, 0.4, w1)) * 0.15;
+    // round 17 (Creyon: it looked laggy): the sun's sparkles twinkle smoothly (they jumped eight
+    // times a second), and one web of caustics, softly doubled, instead of two
+    let sc = floor(vec2(b.x * 16.0, b.y * 3.0));
+    let sparkle = pow(max(sin(uTime * 2.5 + h21(sc) * 40.0), 0.0), 24.0) * step(0.8, h21(sc + 3.7)) * smoothstep(0.1, 0.4, abs(b.x));
     let c = SC_SEA * (0.75 + 0.2 * sin(b.y * 0.2 - uTime * 0.8)) + SC_FOAM * caust * 0.9 + vec3<f32>(1.0) * sparkle * 1.5;
     return l * c * (1.0 + 0.4 * clamp(uClash, 0.0, 1.0));
 }

@@ -1,69 +1,66 @@
-// Dac Reef: the coral reefs of Dac, the Mon Calamari world, as a blade. Branches of glowing sea-green coral grow
-// off both sides, swaying gently with pink-lit tips, and small bubbles drift up past them. A
-// clash sends a ring through the water. Round 16 (Creyon: better for its name and rarity): a school
-// of little glowing reef fish circles the blade in 3D, darting and turning together, and light
-// ripples over it as through water.
-// @part Coral and bubbles
-// @part Reef fish
+// Dac Reef: the coral reefs of Dac, the Mon Calamari world, as a blade (round 17 rework, Creyon: no
+// small figures and no simple corals: the blade itself is one coral). The blade is a living branch
+// of coral, a porous body of rose and sea-green stone grown round the light, its openings glowing
+// with the blade shining through and polyps breathing in their rims; slow water light ripples
+// over it, a soft sea haze drifts round it and the reef's glow pulses gently. A clash sends a ring
+// through the water.
+// @part Living coral
+// @part Reef glow
 // @room 8
+// @solid 1
 // @palette {"corona.rim_cool":[0.0,0.35,0.45],"corona.rim_hot":[0.3,0.95,0.95],"corona.inner":[0.8,1.0,1.0],"core.white":[0.92,1.0,1.0],"core.fringe_cool":[0.25,0.85,0.9],"core.fringe_hot":[0.78,1.0,1.0],"light.color":[0.3,0.9,0.95],"trail":[0.3,0.9,0.95]}
 
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  float caust = pow(0.5 + 0.5*sin(b.y*0.8 - uTime*1.3 + 2.0*sin(b.x*6.0 + uTime*0.7)), 4.0);
-  return g*(0.85 + 0.15*bands(b.y, 0.06, 0.4) + 0.35*caust);
-}
-vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
-vec3 sig_vol(vec3 ro, vec3 rd, float px){
-  float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  float y0 = L*0.2, y1 = L*0.97;
-  vec3 fx = vec3(0.0);
-  vec3 c = vec3(0.35, 1.0, 0.95), pink = vec3(1.0, 0.5, 0.6);
-  float s, ta;
-  if (fxNear(ro, rd, y0, y1) < 4.0){
-    for (int i = 0; i < 6; i++){
-      float fi = float(i);
-      float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
-      float y = mix(y0, y1 - 4.0, (fi + 0.5)/6.0);
-      float sway = 0.15*sin(t*0.8 + fi*1.7);
-      vec3 a = vec3(side*0.35, y, 0.0);
-      vec3 m = a + vec3(side*1.0, 1.0, 0.0);
-      vec3 e1 = m + vec3(side*(0.6 + sway), 1.1, 0.0);
-      vec3 e2 = m + vec3(side*(1.1 - sway), 0.3, 0.0);
-      float d = min(raySeg(ro, rd, a, m, s), min(raySeg(ro, rd, m, e1, s), raySeg(ro, rd, m, e2, s)));
-      float tipd = min(rayPt(ro, rd, e1, ta), rayPt(ro, rd, e2, ta));
-      fx += c*halo(d, max(0.08, px))*0.7 + c*halo(d, 0.35)*0.12 + pink*halo(tipd, 0.14)*0.9;
-    }
-    for (int i = 0; i < 10; i++){
-      float fi = float(i);
-      float f = fract(t*0.07*(0.7 + 0.6*h11(fi*2.1)) + h11(fi*5.3));
-      vec3 p = vec3((h11(fi*3.7) - 0.5)*4.0 + 0.2*sin(t*1.5 + fi), mix(y0, y1, f), 0.0);
-      float r = 0.12 + 0.12*h11(fi*1.9);
-      float d = rayPt(ro, rd, p, ta);
-      fx += vec3(0.8, 1.0, 1.0)*halo(abs(d - r), max(0.025, px))*0.7*sin(3.1416*f);
-    }
-  }
-  return fx*uFx*part(0.0);
+const vec3 DR_CORAL = vec3(0.85, 0.42, 0.45);
+const vec3 DR_SEA = vec3(0.25, 0.85, 0.8);
+float dr_top(){ return uLength*clamp(uAge/0.45, 0.0, 1.0); }
+// the coral's width at a height: a little thicker than the blade, knobbly, rounded at its end
+float dr_w(float y){
+  float top = dr_top();
+  return (0.75 + 0.15*vn(vec2(y*0.7, 3.0)))*smoothstep(-0.4, 0.6, y)*sqrt(clamp((top + 0.2 - y)/1.2, 0.0, 1.0));
 }
 
-// round 16: a school of little glowing fish circling the blade together, each a short bright body
-// with a tail flicking; they circle it, so they are drawn in true 3D (Sol's way)
-vec3 sig_orbit(vec3 ro, vec3 rd, float px){
-  if (part(1.0) < 0.5) { return vec3(0.0); }
-  float L = uLength, t = uTime, s;
+// the light: water light rippling over it, the reef's glow pulsing gently
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){
+  float caust = pow(0.5 + 0.5*sin(b.y*0.8 - uTime*1.3 + 2.0*sin(b.x*6.0 + uTime*0.7)), 4.0);
+  float pulse = 0.85 + 0.15*sin(uTime*0.9 - b.y*0.15)*part(1.0);
+  return g*(0.85 + 0.35*caust)*pulse;
+}
+vec3 sig_core(vec3 c, vec2 b, float px){ return c*0.9; }
+
+// the coral itself: a porous stone body over the light, its openings showing the blade through
+// them, rims glowing where the polyps breathe
+vec4 sig_solid(vec4 o, vec2 b, float px){
+  if (part(0.0) < 0.5) { return o; }
+  float w = dr_w(b.y);
+  if (w <= 0.0) return o;
+  float cov = fillD(abs(b.x) - w, px)*step(-0.4, b.y);
+  if (cov <= 0.0) return o;
+  // the openings: rounded pores over the unrolled surface
+  float u = b.x/max(w, 0.01);
+  vec2 q = vec2(asin(clamp(u, -1.0, 1.0))*1.4, b.y*0.6);
+  vec2 cell;
+  float e = voro(q, cell);
+  float pore = 1.0 - smoothstep(0.18, 0.3, length(fract(q) - 0.5 - (h22(floor(q)) - 0.5)*0.4));
+  pore *= step(0.25, h21(floor(q) + 1.7));
+  float rim = halo(length(fract(q) - 0.5 - (h22(floor(q)) - 0.5)*0.4) - 0.3, 0.05)*step(0.25, h21(floor(q) + 1.7));
+  float breathe = 0.5 + 0.5*sin(uTime*1.4 + h21(floor(q))*12.0);
+  // the stone: rough, lit from the upper left, rose with sea-green in its hollows
+  float nz = fbm3(vec2(q.x*2.0, q.y*1.3));
+  float nx = clamp(u, -1.0, 1.0);
+  float dif = clamp(0.6 - 0.45*nx + 0.2*sqrt(1.0 - nx*nx), 0.0, 1.0);
+  vec3 stone = mix(DR_SEA*0.7, DR_CORAL*1.2, smoothstep(0.35, 0.65, nz + 0.15*halo(e, 0.1)))*(0.55 + 0.75*dif)*(0.8 + 0.5*nz);
+  stone += vec3(1.0, 0.8, 0.75)*rim*(0.8 + 1.2*breathe);
+  float a = cov*(1.0 - pore*0.95);
+  return vec4(mix(o.rgb, stone, a), max(o.a, a));
+}
+
+// a soft sea haze round it (flat, facing the camera, as Sol's are)
+vec3 sig_vol(vec3 ro, vec3 rd, float px){
+  float L = uLength, cl = clamp(uClash, 0.0, 1.0);
+  float y0 = L*0.15, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  if (fxNear(ro, rd, L*0.2, L*0.9) > 4.5) return fx;
-  float a0 = t*0.18;
-  float yc = L*(0.55 + 0.2*sin(t*0.3));
-  for (int i = 0; i < 9; i++){
-    float fi = float(i);
-    float a = a0 + 0.06*(h11(fi*2.3) - 0.5) - 0.02*fi;
-    float R = 2.3 + 0.5*(h11(fi*4.1) - 0.5) + 0.2*sin(t*1.7 + fi);
-    float y = yc + 1.6*(h11(fi*6.7) - 0.5) + 0.3*sin(t*2.3 + fi*1.3);
-    vec3 head = around(R, a, y), tail = around(R, a - 0.035, y + 0.06*sin(t*12.0 + fi));
-    float d = raySeg(ro, rd, tail, head, s);
-    vec3 c = mod(fi, 3.0) < 0.5 ? vec3(1.0, 0.55, 0.3) : (mod(fi, 3.0) < 1.5 ? vec3(0.4, 1.0, 0.9) : vec3(1.0, 0.85, 0.4));
-    fx += (vec3(1.0)*halo(d, max(0.04, px))*0.8*s + c*halo(d, max(0.1, px))*0.9 + c*halo(d, 0.35)*0.12);
-  }
+  fx += fxSmoke(ro, rd, y0, y1, 3.0, 0.5, 4.4, DR_SEA*0.6)*0.8*part(1.0);
+  fx += fxAura(ro, rd, y0, y1, 2.2, DR_SEA)*0.35*part(1.0);
+  if (cl > 0.01) fx += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 6.0, DR_SEA);
   return fx*uFx;
 }

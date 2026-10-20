@@ -3,8 +3,7 @@
 // it; forge flames lick up its lower half and forge sparks spit off it; in a slow rhythm the
 // armorer's hammer strikes, a band of white heat flares where it lands and a shower of sparks
 // bounces away and falls; molten beskar beads along it and drips off, and a hiss of quench steam
-// rises; molten beskar is poured down its side from above the tip, splashing on the struck band
-// (round 16; round 15's side steam jets are gone), and the strike throws more sparks. A swing
+// rises, softened at its sides (round 17), and the strike throws more sparks (round 15). A swing
 // throws sparks off it; a clash is a hammer strike.
 // @part Hammer strikes
 // @part Forge fire
@@ -57,23 +56,7 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   }
   // quench steam rising off it (round 12: soft smoke, not puffs) and forge embers drifting up
   col += fxSmoke(ro, rd, top*0.2, top*0.95, 2.6, 2.5, 5.5, vec3(0.75, 0.78, 0.85))*0.7*part(3.0);
-  // round 16 (Creyon: no steam out of its sides): molten beskar poured from a crucible above the
-  // tip, a thin glowing stream running down its side, splashing where it lands on the struck band
-  // and cooling from white to orange as it falls (with the quench steam, part 3)
-  if (part(3.0) > 0.5 && fxNear(ro, rd, 0.0, top + 3.0) < 4.0){
-    float pourX = 0.55 + 0.05*sin(t*3.0);
-    float ys2 = min(ys, top);
-    float dp = raySeg(ro, rd, vec3(pourX, top + 2.5, 0.0), vec3(pourX, ys2 + 0.4, 0.0), s);
-    float flow = 0.7 + 0.3*sin(s*30.0 + t*20.0);
-    col += (bf_heat(0.95 - 0.5*s)*halo(dp, max(0.06, px))*2.0*flow + vec3(1.0, 0.5, 0.12)*halo(dp, 0.3)*0.4);
-    for (int i = 0; i < 8; i++){
-      float fi = float(i);
-      float q = fract(t*1.4 + fi/8.0);
-      vec3 sp = vec3(pourX + (h11(fi*3.3 + floor(t*1.4 + fi/8.0)) - 0.3)*2.2*q, ys2 + 0.4 + 1.8*q - 3.0*q*q, 0.0);
-      float dsp = rayPt(ro, rd, sp, ta);
-      col += bf_heat(0.9 - 0.6*q)*halo(dsp, max(0.05, px))*1.6*(1.0 - q);
-    }
-  }
+  // round 17 (Creyon: the pour drew a line above the tip): no pour; round 16's side steam is gone too
   col += fxMotes(ro, rd, px, top*0.2, top*0.9, 0.7, 3.0, 20.0, 0.06, 2.6, vec3(1.0, 0.55, 0.2))*part(1.0);
   // round 13 (Creyon: more forge): forge flames licking up its lower half, forge sparks
   col += fxSmoke(ro, rd, top*0.2, top*0.62, 1.9, 7.5, 3.3, vec3(1.0, 0.4, 0.06))*2.5*part(1.0);

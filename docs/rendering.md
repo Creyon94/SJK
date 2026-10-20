@@ -2083,6 +2083,24 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   molten beskar poured down it instead of side steam. Rares: Sith Thorn (veins, a thorned vine in
   3D), Jakku Sandstorm (a dust devil in 3D), Dac Reef (a school of fish in 3D), Puzzle Holocron
   (a holocron cube in 3D), Christophsis Crystal (crystals all round in 3D, facets).
+- **Round 17 (Creyon's game test of round 16, 20/10/2026).** Sol's motes on a signature fade out
+  over the blade's last units, none past its tip, and stay within 3.2 units of it (they rose far
+  above the tip and went through the wearer's head: Wraithlight, Uneti Tree, Witchfire, Ashla
+  Radiance, Singing Kyber, Nebula Song, Kyber Heart, Exogorth, Event Horizon, Big Bang, Ilum
+  Aurora Storm, Abyssal Eye, Sith Alchemy). The Jedi Spirits' climbing spirits stop below the tip
+  and a spirit's trail is its own climb only (it reached back to the end of the last, which
+  stuttered at the tip). `lab.glsl` `bladeSeen` hides what circles the blade behind it (Balance's
+  orbs, Blood Moon's moon, Krayt Pearl's pearls showed through it); `fxSmoke` is drawn out to 2.7
+  widths (it was cut at 1.8, where its sides showed as straight lines: Beskar Forge's quench
+  steam, Twin Suns' heat). Twin Suns' sunbeams fade out well inside its room, without dust. Scarif
+  Tide's sparkles twinkle smoothly (they jumped 8 times a second) over one web of caustics;
+  Between Worlds' edge glitter likewise. Liquid Beskar's sparks are silver; Beskar Forge has no
+  pour (it drew a line above the tip). Royal Naboo: interlaced filigree round a crimson thread and
+  a golden silk veil in 3D. Dac Reef redone as one coral: a porous stone body over the light
+  (`sig_solid`), its pores showing the blade, polyps breathing in their rims. Puzzle Holocron
+  redone as a lattice of panels turning row by row round its core. The Deflector Shield's dome
+  closes over the tip. No figures in Creyon's blades (Dac Reef's fish, Puzzle Holocron's cube
+  and Royal Naboo's jewels are gone).
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

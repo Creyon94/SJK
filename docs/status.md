@@ -1,3 +1,16 @@
+## Creyon's blades, round 17, and Sol's tier review
+
+20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): Creyon's game test of round 16
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 17): motes kept below the tip and
+near the blade, what circles a blade hidden behind it, softer smoke edges, smoother Scarif Tide,
+Jedi Spirits without the stutter, Dac Reef and Puzzle Holocron redone without figures, and other
+fixes; Sol's tier review of 20/10/2026 applied in the catalogue (22 mythicals,
+[unlockables.md](unlockables.md)).
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): the workspace tests (tier lists regenerated from the
+catalogue), every signature module validates, the ignored GPU test renders the changed ones
+(sheets looked at). Not verified: in Creyon's game; the hub's catalogue tiers (Sol's).
+
 ## Creyon's blades, round 16
 
 20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): Creyon's review of rounds 15

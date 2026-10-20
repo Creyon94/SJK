@@ -503,11 +503,11 @@ mod tests {
         let shader = |id| Item::Shader(unlockables::find(id).unwrap());
         assert!(card(3, 0).grand() && card(0, 2).grand());
         assert!(!card(2, 1).grand());
-        assert!(shader("saber_phoenix").grand());
+        assert!(shader("saber_sun").grand());
         assert!(!shader("saber_tidal").grand());
         assert!(card(1, 1).grade() > card(1, 0).grade());
         assert!(card(2, 0).grade() > card(1, 2).grade());
-        assert!(shader("saber_phoenix").grade() > card(3, 2).grade());
+        assert!(shader("saber_sun").grade() > card(3, 2).grade());
         assert_eq!(card(0, 2).colour(), crate::menu::sjk::color::GOLD_BRIGHT);
     }
 }

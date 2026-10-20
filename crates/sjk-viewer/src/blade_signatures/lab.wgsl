@@ -552,7 +552,9 @@ fn fxSmoke(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, rise: f32, se
     let tt = -ro.z / rd.z;
     let p = ro + rd * tt;
     let ax = abs(p.x);
-    if ax > w * 1.8 || p.y < y0 - 3.0 || p.y > y1 {
+    // round 17 (Creyon: a straight line showed at the smoke's sides): drawn out to where its
+    // bell is all but nothing (was cut at 1.8 widths, where it still showed)
+    if ax > w * 2.7 || p.y < y0 - 3.0 || p.y > y1 {
         return vec3<f32>(0.0);
     }
     // Broad features and octaves turned against each other, so no square grid shows even
@@ -656,6 +658,21 @@ fn fxRingWaves(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f
         acc += (vec3<f32>(1.0) * halo(d, max(0.04, px)) * 0.7 + col * halo(d, 0.3) * 0.6 + col * halo(d, 1.0) * 0.08) * env;
     }
     return acc;
+}
+
+// ---- round 17: what circles the blade goes behind it ----
+// How much of what is at `at` the blade's body leaves seen along this ray (in the hilt's frame):
+// all of it in front of the blade, none of it behind (Creyon: Balance's orb of shadow showed
+// through the blade).
+fn bladeSeen(ro: vec3<f32>, rd: vec3<f32>, at: vec3<f32>) -> f32 {
+    let L = uLength;
+    var sAx: f32;
+    var tAx: f32;
+    var tAt: f32;
+    _ = raySeg(ro, rd, vec3<f32>(0.0), vec3(0.0, L, 0.0), &sAx);
+    let dAx = rayPt(ro, rd, vec3(0.0, sAx * L, 0.0), &tAx);
+    _ = rayPt(ro, rd, at, &tAt);
+    return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx)) * step(tAx, tAt);
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)

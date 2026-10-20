@@ -93,10 +93,10 @@ fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         return fx;
     }
     let ds = rayPt(ro, rd, ba_sun(), &ta);
-    fx += (vec3<f32>(1.0) * halo(ds, max(0.3, px)) * 2.0 + BA_LIGHT * halo(ds, 0.8) * 1.2 + BA_LIGHT * halo(ds, 2.0) * 0.3) * part(0.0);
+    fx += (vec3<f32>(1.0) * halo(ds, max(0.3, px)) * 2.0 + BA_LIGHT * halo(ds, 0.8) * 1.2 + BA_LIGHT * halo(ds, 2.0) * 0.3) * part(0.0) * bladeSeen(ro, rd, ba_sun());
     let dd = rayPt(ro, rd, ba_shade(), &ta);
     // the orb of shadow's violet rim and glow (its dark heart is the solid layer)
-    fx += (BA_DARK * halo(abs(dd - 0.6), 0.1) * 2.0 + BA_DARK * halo(dd, 2.0) * 0.35) * part(1.0);
+    fx += (BA_DARK * halo(abs(dd - 0.6), 0.1) * 2.0 + BA_DARK * halo(dd, 2.0) * 0.35) * part(1.0) * bladeSeen(ro, rd, ba_shade());
     return fx * uFx;
 }
 
@@ -107,5 +107,5 @@ fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     }
     var ta: f32;
     let dd = rayPt(ro, rd, ba_shade(), &ta);
-    return vec4(vec3<f32>(0.02, 0.0, 0.05), fillD(dd - 0.56, px) * 0.92);
+    return vec4(vec3<f32>(0.02, 0.0, 0.05), fillD(dd - 0.56, px) * 0.92 * bladeSeen(ro, rd, ba_shade()));
 }

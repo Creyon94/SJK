@@ -141,7 +141,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   float rim = halo(abs(abs(b.x) - edgeAt), 0.07);
   // glittering flecks along its edges, as light on moving water
   vec2 cell = floor(vec2(b.y*5.0 - uTime*1.5, b.x*14.0));
-  float fleck = step(0.9, h21(cell + floor(uTime*6.0)*0.37))*halo(abs(abs(b.x) - edgeAt), 0.12);
+  float fleck = pow(max(sin(uTime*3.0 + h21(cell)*40.0), 0.0), 20.0)*step(0.7, h21(cell + 5.1))*halo(abs(abs(b.x) - edgeAt), 0.12);
   float inside = 1.0 - smoothstep(0.0, edgeAt, abs(b.x));
   float ripple = 0.85 + 0.15*sin(b.y*0.9 - uTime*1.4 + 3.0*sin(b.x*9.0));
   vec3 c = BW_BLUE*(0.28*inside*ripple + 0.35) + BW_EDGE*rim*1.1 + vec3(1.0)*fleck*1.6;

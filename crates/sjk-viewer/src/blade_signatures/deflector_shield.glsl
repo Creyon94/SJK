@@ -17,7 +17,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   vec3 c = vec3(0.4, 0.9, 1.0);
-  float R = 2.6, yb = 0.5, yt = y1 + 0.5;
+  // round 17 (Creyon: the blade's tip poked out through the dome): the dome closes over the tip
+  float R = 2.6, yb = 0.5, yt = L + 1.2;
   if (abs(rd.z) > 0.0001){
     vec3 p = ro + rd*(-ro.z/rd.z);
     // the shell's radius at this height: a cylinder from the hilt with a round dome at the tip
