@@ -521,7 +521,7 @@ fn face(
     text(
         canvas,
         TextFamily::Code,
-        format_args!("{:03} / {:03}", face.face.number, face.of.max(1)),
+        format_args!("{}", face.face.place(face.of).unwrap_or_default()),
         frame.rect(x + width * 0.049, foot_y, width * 0.3, width * 0.04),
         small * s,
         faded(color::MUTED, ink),

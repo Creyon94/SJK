@@ -9,6 +9,19 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 20/10/2026 | - | Credits cards are all Mythical and show no number
+- 9f125dd |  | Credits cards show no number, as none outranks another
++ 20/10/2026 | - | Hub requests name the build's commit
+- 4970f5b |  | Hub requests name the build's commit: SJK/<version> (<commit>)
++ 20/10/2026 | - | The Sun blade becomes a signature and drops again
+- 16ae9c8 |  | The Sun blade drops from holocrons again; Sol's card is a second way
+- 642cb75 |  | The Sun blade becomes a signature: sunrise, sunset, sunspots, a CME
++ 20/10/2026 | - | The Sun blade comes only with Sol's card SJK Alpha 000
+- 731fe55 |  | Cards may bring a blade: the Sun blade comes only with Sol's card
++ 20/10/2026 | - | Every Blade Lab blade drops from holocrons
+- 3ae9a79 |  | Every Blade Lab blade drops from holocrons
++ 20/10/2026 | - | 26 blades change tier after Sol's review
+- 98b576e |  | Blade tiers: 26 blades change tier after Sol's review
 + 20/10/2026 | - | Cards answer the pointer smoothly; finishes reusable on any tile
 - 26d5111 |  | Cards: smooth hover, and the finishes as a reusable tile effect
 + 20/10/2026 | - | Every blade has a number, as cards do

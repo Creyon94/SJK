@@ -958,6 +958,14 @@ test: Collection > Cards: sweep the pointer across the grid; cards ease, none sn
 test: Enter a Holo card mid-sweep: the rainbow glides to the pointer.
 test: Hover a plain card: a soft round glare, no visible rings.
 
+[credits-unnumbered]
+area: Menus & settings
+title: Credits cards: all Mythical, no number shown
+change: Credits cards show no number on the card, close-up, hover card or opening.
+change: Every credits card is Mythical (the hub refuses any other rarity).
+test: Collection > Cards: a credits card's foot has no 00X / 013; Toxiee keeps 010 / 013.
+test: Hover a credits tile: 'Mythical card. Credits, SJK Alpha.' with no number.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

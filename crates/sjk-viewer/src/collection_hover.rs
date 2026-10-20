@@ -225,14 +225,25 @@ fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
             if let Some(brings) = face.brings() {
                 lines.push(Line::status(brings));
             }
-            lines.push(Line::status(format!(
-                "{} card. {}, {} {:03} of {}.",
-                tile.rarity.name,
-                face.kind.name(),
-                face.set_name,
-                face.number,
-                faces.in_set(&face.set)
-            )));
+            lines.push(Line::status(
+                if face.kind == crate::cards::faces::Kind::Credits {
+                    format!(
+                        "{} card. {}, {}.",
+                        tile.rarity.name,
+                        face.kind.name(),
+                        face.set_name
+                    )
+                } else {
+                    format!(
+                        "{} card. {}, {} {:03} of {}.",
+                        tile.rarity.name,
+                        face.kind.name(),
+                        face.set_name,
+                        face.number,
+                        faces.in_set(&face.set)
+                    )
+                },
+            ));
         }
         (Slot::Sealed, _) => {
             lines.push(Line::how(
