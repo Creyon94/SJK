@@ -50,6 +50,8 @@ const SENDER_MUTE_TOKEN: u16 = 71;
 const SENDER_BAN_TOKEN: u16 = 72;
 /// The donation goal's Donate button.
 const DONATE_TOKEN: u16 = 80;
+/// The update line's button, bottom right.
+const UPDATE_TOKEN: u16 = 90;
 /// The dock's targets ([`chat_dock`]).
 const DOCK_TOKENS: chat_dock::Tokens = chat_dock::Tokens {
     field: CHAT_TOKEN,
@@ -126,6 +128,9 @@ pub(crate) enum Action {
     Mute,
     /// Open the donation page in the browser (the donation goal's Donate).
     Donate,
+    /// The update line's button: install the release waiting, open its page, or
+    /// restart into the installed one (`update::click_notice`).
+    Update,
     /// Exit to the desktop.
     Quit,
 }
@@ -235,8 +240,9 @@ pub(crate) struct HomeView<'a> {
     pub(crate) servers: &'a [ServerItem<'a>],
     /// The build's version, `2026.1007.1`.
     pub(crate) version: &'a str,
-    /// A newer release the update check found.
-    pub(crate) update: Option<&'a str>,
+    /// What the update line says: a newer release the update check found, and its
+    /// download and install once the player clicks it.
+    pub(crate) update: Option<crate::update::Notice>,
     pub(crate) seconds: f64,
     /// The SJK chat, docked under the servers; `None` while it is off.
     pub(crate) chat: Option<ChatDock<'a>>,
@@ -489,6 +495,7 @@ impl Home {
                 return activate.then_some(Action::Open(MainDestination::Profile));
             }
             DONATE_TOKEN => return activate.then_some(Action::Donate),
+            UPDATE_TOKEN => return activate.then_some(Action::Update),
             _ => {}
         }
         let index = usize::from(token.checked_sub(SERVER_TOKEN)?);
@@ -1090,8 +1097,15 @@ fn hints(canvas: &mut MenuCanvas, frame: &Frame, home: &Home, servers: bool) {
     }
 }
 
-/// The version, bottom right, and the newer release the update check found.
+/// The update line's button, in 1080-line pixels: its size and its top.
+const UPDATE_BUTTON: [f32; 2] = [136.0, 36.0];
+const UPDATE_TOP: f32 = 992.0;
+
+/// The version, bottom right, and under it the newer release the update check found
+/// with a button that installs it: a click starts the download, the line then shows
+/// its progress and, once installed, offers the restart.
 fn version(canvas: &mut MenuCanvas, frame: &Frame, view: &HomeView<'_>) {
+    use crate::update::Notice;
     let s = frame.s;
     text(
         canvas,
@@ -1103,17 +1117,82 @@ fn version(canvas: &mut MenuCanvas, frame: &Frame, view: &HomeView<'_>) {
         FontWeight::Regular,
         TextAlign::End,
     );
-    if let Some(update) = view.update {
+    let Some(notice) = view.update else {
+        return;
+    };
+    let right = 1824.0;
+    let [button_width, button_height] = UPDATE_BUTTON;
+    let label = match notice {
+        Notice::Ready(_) => "Install",
+        Notice::Manual(_) => "Download",
+        Notice::Installed => "Restart",
+        Notice::Failed => "Details",
+        Notice::Downloading(_) | Notice::Installing => "",
+    };
+    let line_right = if notice.clickable() {
+        let x = right - button_width;
+        super::kit::button(
+            canvas,
+            frame,
+            [x, UPDATE_TOP, button_width, button_height],
+            label,
+            true,
+            true,
+            false,
+            UPDATE_TOKEN,
+        );
+        x - 14.0
+    } else {
+        right
+    };
+    let line = |canvas: &mut MenuCanvas, value: std::fmt::Arguments<'_>| {
         text(
             canvas,
             TextFamily::Body,
-            format_args!("SJK {update} is ready to install"),
-            frame.rect(1224.0, 994.0, 600.0, 22.0),
+            value,
+            frame.rect(line_right - 600.0, UPDATE_TOP + 7.0, 600.0, 22.0),
             16.0 * s,
             color::GOLD_BRIGHT,
             FontWeight::Regular,
             TextAlign::End,
         );
+    };
+    match notice {
+        Notice::Ready(version) => {
+            line(canvas, format_args!("SJK {} is ready", version.as_str()));
+        }
+        Notice::Manual(version) => {
+            line(canvas, format_args!("SJK {} is out", version.as_str()));
+        }
+        Notice::Downloading(Some(percent)) => {
+            line(canvas, format_args!("Downloading the update... {percent}%"));
+        }
+        Notice::Downloading(None) => line(canvas, format_args!("Downloading the update...")),
+        Notice::Installing => line(canvas, format_args!("Installing the update...")),
+        Notice::Installed => line(canvas, format_args!("Update installed")),
+        Notice::Failed => line(canvas, format_args!("The update did not work")),
+    }
+    let percent = match notice {
+        Notice::Downloading(percent) => Some(percent.unwrap_or(0)),
+        Notice::Installing => Some(100),
+        _ => None,
+    };
+    if let Some(percent) = percent {
+        let width = 280.0;
+        let top = UPDATE_TOP + 34.0;
+        let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(right - width, top, width, 6.0),
+            radius: 3.0 * s,
+            color: color::alpha(color::HOLO, 0.16),
+        });
+        if percent > 0 {
+            let fill = width * f32::from(percent) / 100.0;
+            let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(right - width, top, fill.max(6.0), 6.0),
+                radius: 3.0 * s,
+                color: color::GOLD_BRIGHT,
+            });
+        }
     }
 }
 
@@ -1243,6 +1322,13 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_click_on_the_update_button_asks_for_the_update() {
+        let mut home = Home::default();
+        assert_eq!(home.pointer(UPDATE_TOKEN, false, 1), None);
+        assert_eq!(home.pointer(UPDATE_TOKEN, true, 1), Some(Action::Update));
+    }
+
     fn server(name: &'static str) -> ServerItem<'static> {
         ServerItem {
             name,
@@ -1286,7 +1372,7 @@ mod tests {
             blade_name: "blue",
             servers,
             version: "2026.1008.1",
-            update: Some("2026.1009.1"),
+            update: crate::update::Version::new("2026.1009.1").map(crate::update::Notice::Ready),
             seconds: 1.0,
             chat,
             summary: &crate::profile_card::NOBODY,

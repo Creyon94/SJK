@@ -68,6 +68,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Adding or changing a quick wheel choice opens its list with a search field ready: type to find an action or emote by its name or group _(Slash)_
 - The SJK scoreboard ends a team match, CTF among them, as it ends a Siege round: "Blue team won" (or "Teams tied") large over the teams without the score, and "Winner" in gold on the winning team's head, which keeps its score _(Slash)_
 - The HUD look picker (Settings > HUD) is an SJK card over the map in every menu style, and hovering SJK radial or SJK classic shows a picture of it as a match draws it _(Slash)_
+- A newer SJK on the main menu can be installed with one click: Install (classic: click the version line) starts the download at once, the line shows its progress, then Restart starts the new version; a click on the Update available card does the same _(Slash)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

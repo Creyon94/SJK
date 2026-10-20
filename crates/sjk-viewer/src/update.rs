@@ -143,11 +143,80 @@ pub(crate) fn available() -> Option<(String, bool)> {
     }
 }
 
-/// The newer version waiting to be installed, if any.
-pub(crate) fn available_version() -> Option<String> {
-    match &*lock() {
-        State::Available(release) | State::Manual(release, _) => Some(release.version.clone()),
-        _ => None,
+/// What the main menus' update line says, kept `Copy` so a frame carries it without
+/// allocating. The line is a button where a click does something ([`Notice::clickable`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Notice {
+    /// A newer release waits; a click downloads and installs it.
+    Ready(Version),
+    /// A newer release this folder cannot install itself; a click opens its page.
+    Manual(Version),
+    /// Downloading: the share done in percent, when the size is known.
+    Downloading(Option<u8>),
+    /// Checked and unpacking.
+    Installing,
+    /// Installed; a click restarts into the new version.
+    Installed,
+    /// The install the player started failed; a click opens the Update page.
+    Failed,
+}
+
+impl Notice {
+    /// Whether a click on the line does something.
+    pub(crate) fn clickable(self) -> bool {
+        !matches!(self, Self::Downloading(_) | Self::Installing)
+    }
+}
+
+/// What a click on the update line asks of the menu ([`click_notice`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum NoticeClick {
+    /// Done here (the download started, or the release page opened).
+    Done,
+    /// Exit, so the installed version starts ([`restart_if_requested`]).
+    Restart,
+    /// Open the Update page, which says what went wrong.
+    OpenPage,
+}
+
+/// Whether the player started an install this session: only then does a failure show
+/// on the menus' update line (a check that could not reach GitHub stays quiet).
+static INSTALL_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// What the main menus' update line says now, `None` while there is nothing to say.
+pub(crate) fn notice() -> Option<Notice> {
+    notice_for(&lock(), INSTALL_STARTED.load(Ordering::Relaxed))
+}
+
+fn notice_for(state: &State, install_started: bool) -> Option<Notice> {
+    Some(match state {
+        State::Available(release) => Notice::Ready(Version::new(&release.version)?),
+        State::Manual(release, _) => Notice::Manual(Version::new(&release.version)?),
+        State::Downloading { done, total } => Notice::Downloading(
+            (*total > 0).then(|| (done.saturating_mul(100) / total).min(100) as u8),
+        ),
+        State::Installing => Notice::Installing,
+        State::Installed => Notice::Installed,
+        State::Failed(_) if install_started => Notice::Failed,
+        _ => return None,
+    })
+}
+
+/// A click on the main menus' update line: download and install a release waiting,
+/// open the page of one this folder cannot install, or say what the menu should do.
+pub(crate) fn click_notice() -> NoticeClick {
+    match state() {
+        State::Available(_) => {
+            install();
+            NoticeClick::Done
+        }
+        State::Manual(release, _) => {
+            open_page(&release.page);
+            NoticeClick::Done
+        }
+        State::Installed => NoticeClick::Restart,
+        State::Failed(_) => NoticeClick::OpenPage,
+        _ => NoticeClick::Done,
     }
 }
 
@@ -389,6 +458,7 @@ pub(crate) fn install() {
         };
         release
     };
+    INSTALL_STARTED.store(true, Ordering::Relaxed);
     changed();
     std::thread::spawn(move || {
         set(match install_now(&release) {
@@ -645,6 +715,50 @@ mod tests {
         assert!(parse_version("2026.1010.1") > parse_version("2026.1005.9"));
         assert!(parse_version("2026.1005.10") > parse_version("2026.1005.9"));
         assert!(parse_version("2027.0101.1") > parse_version("2026.1231.3"));
+    }
+
+    #[test]
+    fn the_update_line_follows_the_install_and_hides_a_failed_check() {
+        let asset = || Asset {
+            name: String::new(),
+            url: String::new(),
+            size: 0,
+        };
+        let release = Release {
+            version: "2026.1020.1".to_owned(),
+            page: String::new(),
+            zip: asset(),
+            sums: asset(),
+        };
+        let version = Version::new("2026.1020.1").unwrap();
+        let ready = notice_for(&State::Available(release.clone()), false);
+        assert_eq!(ready, Some(Notice::Ready(version)));
+        assert!(ready.unwrap().clickable());
+        assert_eq!(
+            notice_for(&State::Manual(release, String::new()), false),
+            Some(Notice::Manual(version))
+        );
+        let downloading = notice_for(
+            &State::Downloading {
+                done: 25,
+                total: 100,
+            },
+            true,
+        );
+        assert_eq!(downloading, Some(Notice::Downloading(Some(25))));
+        assert!(!downloading.unwrap().clickable());
+        assert_eq!(
+            notice_for(&State::Downloading { done: 7, total: 0 }, true),
+            Some(Notice::Downloading(None))
+        );
+        assert_eq!(notice_for(&State::Installed, true), Some(Notice::Installed));
+        // A check that failed says nothing; an install the player started does.
+        assert_eq!(notice_for(&State::Failed("x".to_owned()), false), None);
+        assert_eq!(
+            notice_for(&State::Failed("x".to_owned()), true),
+            Some(Notice::Failed)
+        );
+        assert_eq!(notice_for(&State::UpToDate, true), None);
     }
 
     #[test]

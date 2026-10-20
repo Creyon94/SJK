@@ -345,6 +345,10 @@ impl GpuState {
             self.whats_new_card_choice(choice);
             return true;
         }
+        // The update card, over the menus: a click on it installs the update.
+        if self.update_card_pointer(event) {
+            return true;
+        }
         if self
             .client_menu
             .as_ref()

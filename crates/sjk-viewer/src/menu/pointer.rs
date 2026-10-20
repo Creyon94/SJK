@@ -63,6 +63,13 @@ impl ClientMenu {
             ClientPhase::MainMenu if self.menu_style == MenuStyle::Sjk => {
                 self.sjk_home_pointer(token, event.kind == UiEventKind::Activate, console)
             }
+            ClientPhase::MainMenu if token == super::classic::view::UPDATE_TOKEN => {
+                if event.kind == UiEventKind::Activate {
+                    self.follow_update_notice(console)
+                } else {
+                    MenuAction::None
+                }
+            }
             ClientPhase::MainMenu => {
                 self.classic.select(usize::from(token));
                 if event.kind == UiEventKind::Activate {
