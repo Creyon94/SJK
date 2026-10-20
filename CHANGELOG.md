@@ -50,6 +50,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
 - Credits cards are all Mythical and show no number, so no one in the credits is ranked above another _(Sol)_
 - A new card collection, SJK Blades: a Blade card for each saber shader holocrons drop, and a Solar copy of one also drops its blade to you, when it comes out of a holocron or is revealed; the opening shows the blade beside the card, and the card says so in the Collection _(Sol)_
+- A player model whose skin names a texture with a leading slash ("/models/...") no longer stops the map from loading: the slash is skipped, as in the original game _(Sol, after Mae's report)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

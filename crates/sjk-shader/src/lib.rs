@@ -382,8 +382,15 @@ fn is_concrete_image(image: &str) -> bool {
     !image.starts_with('$') && image != "-"
 }
 
+/// A material or image name as the catalogue and the file system take it: forward
+/// slashes, lower case, and no leading slash. Skins and shaders written by hand name
+/// `/models/...` at times (JoF's Pillowtalk skin); the original game's file system
+/// skips the slash (`FS_FOpenFileRead`), and a kept one made the whole map load fail
+/// (Mae's report, siege_desert, 17/10/2026).
 fn normalize_name(name: &str) -> String {
-    name.replace('\\', "/").to_ascii_lowercase()
+    name.replace('\\', "/")
+        .trim_start_matches('/')
+        .to_ascii_lowercase()
 }
 
 #[derive(Debug)]
@@ -473,6 +480,24 @@ mod tests {
         assert_eq!(
             resolved(&tga, "textures/a/b").as_deref(),
             Some("textures/a/b.tga")
+        );
+    }
+
+    #[test]
+    fn a_leading_slash_is_skipped_instead_of_failing_the_lookup() {
+        // JoF's Pillowtalk `model_default.skin`: `/models/players/Pillowtalk/legs_green.tga`.
+        let files = vfs(&["models/players/pillowtalk/legs_green.tga"]);
+        assert_eq!(
+            resolved(&files, "/models/players/Pillowtalk/legs_green.tga").as_deref(),
+            Some("models/players/pillowtalk/legs_green.tga")
+        );
+        assert_eq!(
+            ShaderCatalog::default()
+                .resolve_stage_image(&files, "\\models/players/pillowtalk/legs_green")
+                .expect("lookup")
+                .map(|path| path.as_str().to_owned())
+                .as_deref(),
+            Some("models/players/pillowtalk/legs_green.tga")
         );
     }
 

@@ -26,7 +26,8 @@ pub(crate) fn cached_decoded_image(
     vfs: &VirtualFileSystem,
     path: &str,
 ) -> Result<Option<Arc<RgbaImage>>, Box<dyn Error>> {
-    let normalized = VirtualPath::new(path)?.as_str().to_owned();
+    // A leading slash is skipped as the file system's reads do (`VirtualPath::for_read`).
+    let normalized = VirtualPath::for_read(path)?.as_str().to_owned();
     let resolved = vfs
         .asset_cache_identity(&normalized)?
         .map(|id| (id, normalized.clone()));
