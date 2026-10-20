@@ -5705,7 +5705,8 @@ title: Away emote; emotes go quiet while you are alt-tabbed out or idle
 change: Settings > Sound > Emotes: Away emote, JA+ away emote, Away when alt-tabbed, Away after.
 change: Away (alt-tab or cg_awayIdle s idle): your emote's music stops for all, or the pick plays.
 change: JA+ pick on JA+ servers, else a looping SJK one, silent. Back: undone. Hub 57e105a.
-test: Hub branch quiet-emotes deployed first (else the away emote still plays its music).
+note: Hub quiet-emotes deployed 19/10 (hub 15a8b20).
+test: whatsnew: an Away emote line; click its cg_awayEmote chip: Settings opens on it.
 test: Pick amsit on a JoF server, alt-tab: you sit. Come back: a short crouch stands you up.
 test: Pick a looping SJK emote, alt-tab: a 2nd SJK client sees it dance with no music.
 test: Dance with music, alt-tab: the 2nd client's music stops; back: it resumes in step.
