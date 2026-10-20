@@ -42,8 +42,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let fi = f32(i);
             let side = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
             let y = mix(y0, y1 - 2.0, (fi + 0.3) / 9.0);
-            let a = vec3(side * 0.35, y, 0.0);
-            let tip = a + vec3(side * 0.9, 0.55, 0.0);
+            // round 19: the thorns grow all round the stem, in three dimensions
+            let a = turnY(vec3(side * 0.35, y, 0.0), fi * 0.19);
+            let tip = a + turnY(vec3(side * 0.9, 0.55, 0.0), fi * 0.19);
             let d = raySeg(ro, rd, a, tip, &s);
             let w = mix(0.14, 0.02, s);
             let wave = 1.0 + 1.5 * pow(0.5 + 0.5 * sin(y * 0.25 - t * 2.2), 6.0);

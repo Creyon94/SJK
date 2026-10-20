@@ -151,7 +151,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   vec3 vio = vec3(0.6, 0.3, 1.0);
-  fx += fxCoils(ro, rd, px, y0, y1, 2.6, 1.6, -0.6, 3.0, vio)*part(1.0);
+  fx += fxCoils(ro, rd, px, L*0.04, y1, 2.6, 1.6, -0.6, 3.0, vio)*part(1.0);
   for (int i = 0; i < 3; i++){
     float q = fract(t*0.4 + float(i)/3.0);
     fx += fxShock(ro, rd, px, mix(L*0.3, L*0.8, float(i)*0.5), q, 8.0, vio)*0.45*part(1.0);

@@ -33,7 +33,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float lit = exp(-since*0.45)*(0.6 + 0.4*exp(-fract(t*2.0)*4.0*step(since, 0.5)));
       float long_ = mod(fi, 4.0) < 0.5 ? 1.0 : 0.0;
       float side = mod(fi, 2.0) < 0.5 ? 1.0 : -1.0;
-      vec3 a = vec3(side*1.3, y, 0.0), b = vec3(side*(1.9 + 0.7*long_), y, 0.0);
+      // round 19: the ticks wind round the blade, in three dimensions
+      vec3 a = turnY(vec3(side*1.3, y, 0.0), fi*0.07), b = turnY(vec3(side*(1.9 + 0.7*long_), y, 0.0), fi*0.07);
       float d = raySeg(ro, rd, a, b, s);
       fx += (vec3(1.0)*halo(d, max(0.03, px))*1.2 + c*halo(d, 0.16)*0.5)*(0.12 + 0.88*lit)*part(1.0);
     }

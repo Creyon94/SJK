@@ -43,7 +43,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let side = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
             let y = mix(y1, y0, row / 9.0);
             let chase = pow(0.5 + 0.5 * cos(6.2832 * (row / 10.0 - t * 0.9)), 12.0);
-            let p = vec3(side * 2.3, y, 0.0);
+            // round 19: the lane's lights wind round the blade, in three dimensions
+            let p = turnY(vec3(side * 2.3, y, 0.0), row * 0.045);
             let d = rayPt(ro, rd, p, &ta);
             fx += (vec3<f32>(1.0) * halo(d, max(0.08, px)) * (0.5 + 2.4 * chase) + blue * halo(d, 0.45) * (0.3 + 1.3 * chase)) * part(2.0);
         }

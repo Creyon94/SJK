@@ -119,6 +119,8 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
       if (abs(y0 - yb) < hw + 1.0) continue;
       float az = h11(cy*2.7 + fi);
       float span = 0.5 + 0.6*h11(cy + fi*5.0);
+      // round 19 (Creyon: a prominence rose past the tip): each loop ends below the tip
+      y0 = min(y0, top - 1.2 - span*2.0);
       float H = (0.45 + 0.5*h11(cy*4.1 + fi))*smoothstep(0.0, 0.35, fp)*(1.0 + 0.8*max(fp - 0.5, 0.0));
       float life = smoothstep(0.0, 0.1, fp)*(1.0 - smoothstep(0.7, 1.0, fp));
       vec3 prev = around(0.35, az, y0);

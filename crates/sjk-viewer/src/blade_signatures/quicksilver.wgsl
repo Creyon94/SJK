@@ -4,7 +4,7 @@
 // @part Silver glints
 // @part Flung droplets
 // @part Orbiting droplets
-// @part Metal tendrils
+// @part Beskar ripples
 // @room 10
 // @solid 1
 
@@ -14,8 +14,8 @@
 // 3D, droplets of liquid beskar orbit and drip, silver glints fly off it and the air shimmers. A
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
 // of droplets out with a shock ring; ignition pours the metal up from the hilt. Round 15 (Creyon:
-// it needed more; round 16: no forge fire): tendrils of liquid beskar reach out of the mirror,
-// curl and flow back into it, bright with reflections, as living metal.
+// it needed more; round 16: no forge fire): rings of liquid beskar ripple up round the mirror
+// (round 19, Creyon: beskar has no tendrils, in the films or the comics; rings instead).
 fn qs_w(y: f32) -> f32 {
     let L = uLength;
     return 0.5 * smoothstep(-0.3, 0.5, y) * (1.0 - smoothstep(L - 0.9, L + 0.05, y)) + 0.05;
@@ -238,7 +238,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     var acc: vec4<f32> = vec4<f32>(0.0);
     if part(3.0) > 0.5 && uFx > 0.01 {
-        acc = qs_tendrils(ro, rd, px);
+        acc = qs_ripples(ro, rd, px);
     }
     if part(1.0) < 0.5 {
         return acc;
@@ -255,48 +255,39 @@ fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     return base_orbit_solid(ro, rd, px);
 }
 
-// round 16 (Creyon: no fire; another effect): tendrils of liquid beskar reach out of the blade,
-// curl and flow back into it, each a tapering mirror stroke catching a bright reflection that
-// slides along it; drawn flat facing the camera with the mirror's shading, over the glow
-fn qs_tendrils(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+// round 19 (Creyon: beskar has no tendrils): rings of liquid beskar rippling up round the
+// blade, as a wave runs up a column of molten metal: each a thin mirror band swelling out from
+// the surface, travelling up, and sinking back into it before the tip; in three dimensions
+fn qs_ripples(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     var acc: vec4<f32> = vec4<f32>(0.0);
     let L = uLength;
     let t = uTime;
-    var s: f32;
-    if fxNear(ro, rd, L * 0.15, L) > 5.0 {
+    if fxNear(ro, rd, 0.0, L) > 3.0 {
         return acc;
     }
-    for (var j = 0; j < 4; j++) {
+    var best: f32 = 1.0e5;
+    for (var j = 0; j < 3; j++) {
         let fj = f32(j);
-        let cyc = t * 0.3 + h11(fj * 3.7);
-        let k = floor(cyc);
-        let q = fract(cyc);
-        let reach = sin(3.1416 * q);
-        let side = select(1.0, -1.0, glsl_mod(fj, 2.0) < 0.5);
-        let y0 = L * (0.25 + 0.6 * h11(k * 2.1 + fj));
-        var prev = vec3(side * 0.3, y0, 0.0);
-        var best: f32 = 1.0e3;
-        var bs: f32 = 0.0;
-        for (var i = 1; i <= 10; i++) {
-            let u = f32(i) / 10.0 * reach;
-            let curl = u * u * 2.2 * (select(-1.0, 1.0, h11(k * 5.3 + fj) < 0.5));
-            let p = vec3(side * (0.3 + 2.6 * u * cos(curl * 0.5)), y0 + 1.6 * u * sin(curl * 0.5 + 0.6) + 0.3 * sin(t * 2.0 + u * 6.0), 0.0);
-            let d = raySeg(ro, rd, prev, p, &s);
-            if d < best {
-                best = d;
-                bs = (f32(i) - 1.0 + s) / 10.0;
-            }
-            prev = p;
-        }
-        let w = mix(0.22, 0.05, bs) * (0.4 + 0.6 * reach);
-        let cov = fillD(best - w, px) * step(0.02, reach);
+        let q = fract(t * 0.16 + fj / 3.0);
+        let y = mix(L * 0.08, L * 0.9, q);
+        let swell = sin(3.1416 * q);
+        let R = 0.55 + 1.1 * swell;
+        let w = 0.09 + 0.1 * swell;
+        let d = ringD(ro, rd, y, R);
+        let cov = fillD(d - w, px) * smoothstep(0.02, 0.15, swell);
         if cov <= 0.0 {
             continue;
         }
-        let n = clamp(best / max(w, 1.0e-3), 0.0, 1.0);
-        var c = qs_env(n * 0.9 - 0.2, y0 + bs * 4.0, t) * (0.7 + 0.3 * sqrt(max(1.0 - n * n, 0.0)));
-        c += vec3<f32>(1.0) * exp(-pow((bs - fract(t * 0.8 + fj * 0.3)) / 0.08, 2.0)) * 0.8;
-        acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov));
+        // where along the ray it is, so the nearer ring covers the farther
+        let h = rayAt(ro, rd, y);
+        let th = select(1.0e4, h.z, h.z > 0.0);
+        let n = clamp(d / max(w, 1.0e-3), 0.0, 1.0);
+        var c = qs_env(0.6 - n * 1.2, y, t) * (0.7 + 0.3 * sqrt(max(1.0 - n * n, 0.0)));
+        c += vec3<f32>(1.0) * exp(-n * n * 6.0) * 0.35;
+        if acc.a <= 0.0 || th < best {
+            best = th;
+            acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov));
+        }
     }
     return acc;
 }

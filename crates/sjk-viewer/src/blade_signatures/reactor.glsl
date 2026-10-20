@@ -76,7 +76,9 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   col += fxAura(ro, rd, y0, y1, 3.0, pc)*(0.8 + 0.6*h.x + strobe);
   // ---- the containment flash: a shock ring and beams of light; a clash is a breach ----
   float fq = mod(t, 30.0) - 26.0;
-  col += fxShock(ro, rd, px, L*0.5, fq/1.6, 11.0, vec3(1.0, 0.9, 0.8))*2.0;
+  // round 19 (Creyon: the ring was cut off where it left the blade's room): it races out to
+  // well inside that room and fades there
+  col += fxShock(ro, rd, px, L*0.5, fq/1.6, 6.5, vec3(1.0, 0.9, 0.8))*2.0;
   col += fxSparks(ro, rd, px, y0, y1, 24.0, 7.0, 1.5, 9.1, pc)*h.z*2.0;
   return col*uFx;
 }

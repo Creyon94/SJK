@@ -171,8 +171,10 @@ fn bw_paths(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32) -> vec3<f32
         let side = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
         let y = mix(y0 + 1.0, y1 - 2.0, fi / 4.0);
         let a = (0.12 + 0.3 * h11(fi * 3.7)) * (select(-1.0, 1.0, h11(fi * 5.1) < 0.5));
-        let o = vec3(side * 0.5, y, 0.0);
-        let e = o + vec3(side * cos(a), sin(a), 0.0) * (7.0 + 2.0 * h11(fi * 2.3));
+        // round 19: each at its own place round the blade, in three dimensions
+        let turn = h11(fi * 9.7) * 0.5;
+        let o = turnY(vec3(side * 0.5, y, 0.0), turn);
+        let e = o + turnY(vec3(side * cos(a), sin(a), 0.0), turn) * (7.0 + 2.0 * h11(fi * 2.3));
         let d = raySeg(ro, rd, o, e, &s);
         let run = pow(0.5 + 0.5 * sin(s * 18.0 - uTime * 2.0 + fi * 1.7), 8.0);
         let glint = step(0.92, h11(floor(s * 40.0) + floor(uTime * 5.0) * 1.3 + fi));

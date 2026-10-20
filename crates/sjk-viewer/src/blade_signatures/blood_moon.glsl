@@ -25,7 +25,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   fx += fxMotes(ro, rd, px, y0, y1, 0.6, 1.8, 10.0, -0.05, 4.4, red)*0.8*part(0.0);
   fx += fxSmoke(ro, rd, y0, y1, 3.6, 2.0, 5.3, dark)*1.2*part(1.0);
   // round 16 (Creyon liked the earlier look): its two dark red streams back
-  fx += fxStreams(ro, rd, px, y0, y1, 2.0, 3.2, 0.18, 1.2, 0.7, dark*1.4)*part(2.0);
+  fx += fxStreams(ro, rd, px, L*0.04, y1, 2.0, 3.2, 0.18, 1.2, 0.7, dark*1.4)*part(2.0);
   return fx*uFx;
 }
 // round 16 (Creyon: Sol's blades' pieces are 3D): the blood moon circles the blade slowly, rising

@@ -100,7 +100,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         for (var i = 0; i < 7; i++) {
             let fi = f32(i);
             let f2 = sm_star(shape, fi, k, side);
-            let p = vec3(f2.x, yc + f2.y * hy, 0.0);
+            // round 19: the figure wrapped round the blade on a cylinder, in three dimensions
+            let p = around(3.0, f2.x / (6.2832 * 3.0) + 0.25 + k * 0.37, yc + f2.y * hy);
             let on = smoothstep(fi / 9.0, fi / 9.0 + 0.05, q) * (1.0 - smoothstep(0.85, 1.0, q));
             let d = rayPt(ro, rd, p, &ta);
             let tw = 0.75 + 0.25 * sin(t * 3.0 + fi * 2.0);

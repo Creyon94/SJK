@@ -30,13 +30,14 @@ vec3 ar_wings(vec3 ro, vec3 rd, float px){
       float fi = float(i);
       float a = -0.25 + 0.22*fi;
       float len = (8.0 - 0.6*fi)*breathe;
-      vec3 o = vec3(side*0.3, L*0.42 + 0.9*fi, 0.0);
+      // round 19: the wings swept back from the spine in a shallow V, in three dimensions
+      vec3 o = turnY(vec3(side*0.3, L*0.42 + 0.9*fi, 0.0), side*0.07);
       vec3 prev = o;
       float best = 1e3, bs = 0.0;
       for (int j = 1; j <= 6; j++){
         float u = float(j)/6.0;
         float ang = a + 0.35*u*u;
-        vec3 q = o + vec3(side*cos(ang), sin(ang), 0.0)*len*u;
+        vec3 q = o + turnY(vec3(side*cos(ang), sin(ang), 0.0), side*0.07)*len*u;
         float d = raySeg(ro, rd, prev, q, s);
         if (d < best){ best = d; bs = (float(j) - 1.0 + s)/6.0; }
         prev = q;

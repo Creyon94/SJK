@@ -159,8 +159,10 @@ vec3 bw_paths(vec3 ro, vec3 rd, float px, float y0, float y1){
     float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
     float y = mix(y0 + 1.0, y1 - 2.0, fi/4.0);
     float a = (0.12 + 0.3*h11(fi*3.7))*(h11(fi*5.1) < 0.5 ? 1.0 : -1.0);
-    vec3 o = vec3(side*0.5, y, 0.0);
-    vec3 e = o + vec3(side*cos(a), sin(a), 0.0)*(7.0 + 2.0*h11(fi*2.3));
+    // round 19: each at its own place round the blade, in three dimensions
+    float turn = h11(fi*9.7)*0.5;
+    vec3 o = turnY(vec3(side*0.5, y, 0.0), turn);
+    vec3 e = o + turnY(vec3(side*cos(a), sin(a), 0.0), turn)*(7.0 + 2.0*h11(fi*2.3));
     float d = raySeg(ro, rd, o, e, s);
     float run = pow(0.5 + 0.5*sin(s*18.0 - uTime*2.0 + fi*1.7), 8.0);
     float glint = step(0.92, h11(floor(s*40.0) + floor(uTime*5.0)*1.3 + fi));

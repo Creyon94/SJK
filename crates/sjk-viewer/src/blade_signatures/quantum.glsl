@@ -38,7 +38,9 @@ float mo_turn(){
 
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  float y0 = L*0.2, y1 = L*0.97;
+  // round 19 (Creyon: the lower part of the blade had none of its effects, by day or night):
+  // everything reaches down to just above the hilt
+  float y0 = L*0.04, y1 = L*0.97;
   vec3 col = vec3(0.0);
   if (fxNear(ro, rd, y0, y1) > 10.0) return col;
   float day = mo_day(), s;
@@ -47,9 +49,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     float fj = float(j);
     float a = t*0.04 + fj*0.5;
     float tilt = (0.32 - 0.24*sw)*(1.0 - cl)*mo_open();
-    vec3 pivot = vec3(0.0, L*0.35, 0.0);
-    vec3 dir = normalize(vec3(sin(6.2832*a)*tilt, 1.0, cos(6.2832*a)*tilt));
-    vec3 a0 = pivot + dir*1.5, a1 = pivot + dir*(L*0.62);
+    vec3 pivot = vec3(0.0, L*0.06, 0.0);
+    vec3 dir = normalize(vec3(sin(6.2832*a)*tilt*0.75, 1.0, cos(6.2832*a)*tilt*0.75));
+    vec3 a0 = pivot + dir*1.2, a1 = pivot + dir*(L*0.86);
     float d = raySeg(ro, rd, a0, a1, s);
     float ends = smoothstep(0.0, 0.15, s)*(1.0 - smoothstep(0.85, 1.0, s));
     vec3 gc = j == 0 ? MO_DAY : MO_NIGHT;
@@ -63,15 +65,20 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     col += fxFlare(ro, rd, pv, px, 0.35, 3.0 + 5.0*turn, 4.0, t*0.3, mix(MO_NIGHT, MO_DAY, mo_day()))*turn*part(0.0);
   }
   // ---- by day: the Daughter's light rising, soft beams ----
-  col += (fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 36.0, 0.06, 5.5, MO_DAY) + fxAura(ro, rd, y0, y1, 3.0, MO_DAY)*0.6)*day*part(1.0);
+  col += (fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 40.0, 0.06, 5.5, MO_DAY) + fxAura(ro, rd, y0, y1, 3.0, MO_DAY)*0.6
+    + fxRays(ro, rd, px, y0, y1, 6.0, 4.5, 0.5, 3.3, MO_DAY)*0.45)*day*part(1.0);
   // ---- by night: the Son's lightning and sinking embers ----
-  col += (fxArcs(ro, rd, px, y0, y1, 5.0, 5.0, 1.8, 2.6, MO_NIGHT) + fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 20.0, -0.07, 8.8, vec3(1.0, 0.3, 0.15)))*(1.0 - day)*part(2.0);
-  // the Father's balance: a slow ring turning round the blade, half day, half night
-  {
-    vec3 h = rayAt(ro, rd, L*0.78 + sin(t*0.4));
+  col += (fxArcs(ro, rd, px, y0, y1, 7.0, 5.0, 1.8, 2.6, MO_NIGHT) + fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 26.0, -0.07, 8.8, vec3(1.0, 0.3, 0.15))
+    + fxSmoke(ro, rd, y0, y1, 2.2, -1.2, 4.4, vec3(0.5, 0.04, 0.03))*0.5)*(1.0 - day)*part(2.0);
+  // the Father's balance: slow rings turning round the blade, half day, half night (round 19:
+  // a second low on the blade, as the first stands high)
+  for (int k = 0; k < 2; k++){
+    float fk = float(k);
+    vec3 h = rayAt(ro, rd, L*(fk < 0.5 ? 0.78 : 0.24) + sin(t*0.4 + fk*2.0));
     if (h.z > 0.0){
-      float d = abs(length(h.xy) - 3.2);
-      float side = 0.5 + 0.5*sin(atan(h.x, h.y) - t*0.2);
+      float R = fk < 0.5 ? 3.2 : 2.6;
+      float d = abs(length(h.xy) - R);
+      float side = 0.5 + 0.5*sin(atan(h.x, h.y) - t*0.2*(fk < 0.5 ? 1.0 : -1.0) + fk*3.1);
       col += (vec3(1.0)*halo(d, max(0.05, px))*0.8 + mix(MO_NIGHT, MO_DAY, side)*halo(d, 0.3)*0.5)*part(3.0);
     }
   }

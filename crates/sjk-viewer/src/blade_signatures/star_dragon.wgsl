@@ -36,14 +36,15 @@ fn ar_wings(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let fi = f32(i);
             let a = -0.25 + 0.22 * fi;
             let len = (8.0 - 0.6 * fi) * breathe;
-            let o = vec3(side * 0.3, L * 0.42 + 0.9 * fi, 0.0);
+            // round 19: the wings swept back from the spine in a shallow V, in three dimensions
+            let o = turnY(vec3(side * 0.3, L * 0.42 + 0.9 * fi, 0.0), side * 0.07);
             var prev = o;
             var best: f32 = 1.0e3;
             var bs: f32 = 0.0;
             for (var j = 1; j <= 6; j++) {
                 let u = f32(j) / 6.0;
                 let ang = a + 0.35 * u * u;
-                let q = o + vec3(side * cos(ang), sin(ang), 0.0) * len * u;
+                let q = o + turnY(vec3(side * cos(ang), sin(ang), 0.0), side * 0.07) * len * u;
                 let d = raySeg(ro, rd, prev, q, &s);
                 if d < best {
                     best = d;

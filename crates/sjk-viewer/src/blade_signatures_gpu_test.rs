@@ -182,6 +182,33 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
             alpha: wgpu::BlendComponent::OVER,
         };
         let glow = pipeline(&module, "vertex_main", "fragment_main", additive);
+        // Round 19: with `SJK_SIGNATURE_EDGES` set, each moment is drawn again without the
+        // quad's edge fade (`sig_edge`), and where the two differ much an effect reached the
+        // quad's edge, where it would be faded or cut.
+        let edges = std::env::var_os("SJK_SIGNATURE_EDGES").is_some();
+        let unfaded = edges.then(|| {
+            let source = signature.module_source();
+            let head = "fn sig_edge(input: VertexOutput) -> f32 {";
+            let at = source.find(head).unwrap() + head.len();
+            let source = format!(
+                "{}\n    return 1.0;\n}}\nfn sig_edge_unused(input: VertexOutput) -> f32 {{{}",
+                &source[..at],
+                &source[at..]
+            );
+            let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(signature.id),
+                source: wgpu::ShaderSource::Wgsl(source.into()),
+            });
+            (
+                pipeline(&module, "vertex_main", "fragment_main", additive),
+                pipeline(
+                    &module,
+                    "vertex_solid",
+                    "fragment_solid",
+                    wgpu::BlendState::ALPHA_BLENDING,
+                ),
+            )
+        });
         let solid = pipeline(
             &module,
             "vertex_solid",
@@ -208,6 +235,19 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
             let green = color.worn_with(crate::saber_rgb::BladeColor::from_rgb([40, 255, 60]));
             moments.push((3.0, crate::saber_motion::STILL, green));
         }
+        if edges {
+            // Many moments over a whole cycle, still, swinging and just after a clash.
+            let swing = [0.9, 1_000.0, 1_000.0, 0.25];
+            let clash = [0.0, 0.1, 1_000.0, 1_000.0];
+            moments = [2.5f32, 12.3, 21.7, 26.6, 27.2, 41.5]
+                .iter()
+                .enumerate()
+                .map(|(i, &t)| {
+                    let motion = [crate::saber_motion::STILL, swing, clash][i % 3];
+                    (f64::from(t), motion, color)
+                })
+                .collect();
+        }
         let orbit = std::env::var("SJK_SIGNATURE_ORBIT").ok();
         if orbit.is_some() {
             moments = vec![(3.0, crate::saber_motion::STILL, color); 5];
@@ -215,9 +255,12 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
         let mut frames = Vec::new();
         for (index, (seconds, motion, color)) in moments.into_iter().enumerate() {
             let camera_bind = if orbit.is_some() {
+                // Round 19: from further away, the last two from high above (Creyon looked
+                // down on the blades and saw flat effects following the camera).
                 let yaw = [0.0f32, 0.6, 1.2, 1.8, 0.3][index];
-                let lift = [0.0f32, 10.0, 0.0, -10.0, 45.0][index];
-                let eye = glam::Vec3::new(45.0 * yaw.sin(), -45.0 * yaw.cos(), lift);
+                let lift = [0.0f32, 12.0, 0.0, 45.0, 85.0][index];
+                let reach = [52.0f32, 52.0, 52.0, 52.0, 28.0][index];
+                let eye = glam::Vec3::new(reach * yaw.sin(), -reach * yaw.cos(), lift);
                 let m =
                     glam::camera::rh::proj::directx::perspective(
                         0.75,
@@ -306,9 +349,67 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
                 pass.draw(0..6, 0..1);
             }
             queue.submit([encoder.finish()]);
-            frames.push(crate::world_shot::read_back(device, queue, &target));
+            let faded = crate::world_shot::read_back(device, queue, &target);
+            if let Some((glow2, solid2)) = &unfaded {
+                let mut encoder = device.create_command_encoder(&Default::default());
+                {
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: None,
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            resolve_target: None,
+                            depth_slice: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.02,
+                                    g: 0.025,
+                                    b: 0.035,
+                                    a: 1.0,
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                        multiview_mask: None,
+                    });
+                    pass.set_bind_group(0, &camera_bind, &[]);
+                    pass.set_bind_group(1, &material, &[]);
+                    pass.set_bind_group(2, &skins_bind, &[]);
+                    pass.set_vertex_buffer(0, vertices.slice(..));
+                    pass.set_pipeline(glow2);
+                    pass.draw(0..6, 0..2);
+                    pass.set_pipeline(solid2);
+                    pass.draw(0..6, 0..1);
+                }
+                queue.submit([encoder.finish()]);
+                let full = crate::world_shot::read_back(device, queue, &target);
+                let mut cut = 0u32;
+                let mut worst = 0i32;
+                let mut marked = faded.clone();
+                for (x, y, p) in full.enumerate_pixels() {
+                    let q = faded.get_pixel(x, y);
+                    let d = (0..3)
+                        .map(|c| i32::from(p.0[c]) - i32::from(q.0[c]))
+                        .max()
+                        .unwrap();
+                    if d > 40 {
+                        cut += 1;
+                        marked.put_pixel(x, y, image::Rgba([255, 0, 255, 255]));
+                    }
+                    worst = worst.max(d);
+                }
+                println!(
+                    "EDGE {} moment {index}: {cut} pixels cut, worst {worst}",
+                    signature.id
+                );
+                frames.push(marked);
+                continue;
+            }
+            frames.push(faded);
         }
-        for frame in frames.iter().filter(|_| orbit.is_none()) {
+        for frame in frames.iter().filter(|_| orbit.is_none() && !edges) {
             let lit = (HEIGHT / 4..HEIGHT * 3 / 4)
                 .flat_map(|y| (WIDTH / 2 - 12..WIDTH / 2 + 12).map(move |x| (x, y)))
                 .map(|(x, y)| {

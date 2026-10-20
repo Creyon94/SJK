@@ -414,7 +414,19 @@ impl Signature {
 
     /// The shader its pipelines are built from: `saber.wgsl` with its own signature.
     pub(crate) fn module_source(&self) -> String {
-        module_source(include_str!("saber.wgsl"), self.wgsl)
+        let source = module_source(include_str!("saber.wgsl"), self.wgsl);
+        // A mythical blade's awakening, breath and clash ring (round 19, `sig_mythic`).
+        if crate::unlockables::find(self.id)
+            .is_some_and(|unlockable| unlockable.tier == crate::unlockables::Rarity::Mythical)
+        {
+            source.replacen(
+                "const SIG_MYTHICAL: bool = false;",
+                "const SIG_MYTHICAL: bool = true;",
+                1,
+            )
+        } else {
+            source
+        }
     }
 }
 

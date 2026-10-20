@@ -1,3 +1,15 @@
+## Creyon's blades, round 19
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): every signature effect drawn in
+3D along the true view ray, nothing cut at its quad's edge, no prominence past the tip, a mythical
+tier layer (awakening, breath, clash ring), fixes for Mortis, Liquid Beskar, Yavin Vines, Jakku,
+Bespin Storm and Starforge, two more chromas, the Clone Wars blade's five switchable parts and
+signature pipelines built in parallel ([rendering.md](rendering.md#blade-lab-signature-shaders),
+round 19). Checked on Linux x86_64 (lavapipe): the workspace tests, every signature module
+validates, the changed blades drawn from orbit views and from above, the cut-off check (no effect reaching
+the quad's edge) over the first signatures of the list. Not verified: in Creyon's game; load times on
+his PC; the cut-off check over the rest.
+
 ## Creyon's blades, round 18
 
 21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): the Bleeding Kyber's pure light

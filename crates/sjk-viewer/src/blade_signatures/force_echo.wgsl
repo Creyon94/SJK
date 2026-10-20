@@ -43,8 +43,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let lit = exp(-since * 0.45) * (0.6 + 0.4 * exp(-fract(t * 2.0) * 4.0 * step(since, 0.5)));
             let long_ = select(0.0, 1.0, glsl_mod(fi, 4.0) < 0.5);
             let side = select(-1.0, 1.0, glsl_mod(fi, 2.0) < 0.5);
-            let a = vec3(side * 1.3, y, 0.0);
-            let b = vec3(side * (1.9 + 0.7 * long_), y, 0.0);
+            // round 19: the ticks wind round the blade, in three dimensions
+            let a = turnY(vec3(side * 1.3, y, 0.0), fi * 0.07);
+            let b = turnY(vec3(side * (1.9 + 0.7 * long_), y, 0.0), fi * 0.07);
             let d = raySeg(ro, rd, a, b, &s);
             fx += (vec3<f32>(1.0) * halo(d, max(0.03, px)) * 1.2 + c * halo(d, 0.16) * 0.5) * (0.12 + 0.88 * lit) * part(1.0);
         }

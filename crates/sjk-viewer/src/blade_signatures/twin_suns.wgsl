@@ -38,14 +38,27 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // sunbeams: broad soft shafts of low golden light slanting across the blade from one side,
     // sweeping slowly (round 17, Creyon: their edge showed as a straight line and the dust as
     // squares: they fade out smoothly well inside the blade's room, and the dust is gone)
-    if abs(rd.z) > 0.0001 {
-        let p = ro + rd * (-ro.z / rd.z);
-        let slant = 0.55 + 0.08 * sin(t * 0.15);
-        let u = p.y * cos(slant) + p.x * sin(slant);
-        let shafts = pow(0.5 + 0.5 * sin(u * 0.55 - t * 0.3), 3.0) * (0.6 + 0.4 * sin(u * 0.17 + t * 0.11));
-        let reach = exp(-pow(abs(p.x) / 3.6, 2.0)) * smoothstep(y0 - 3.0, y0 + 3.0, p.y) * (1.0 - smoothstep(y1 - 6.0, y1, p.y));
-        let fromSide = smoothstep(-5.0, 1.0, -p.x);
-        fx += vec3<f32>(1.0, 0.72, 0.32) * shafts * reach * (0.35 + 0.65 * fromSide) * 0.6 * part(0.0);
+    // round 19 (Creyon: from above they were a flat picture following the camera): slabs of
+    // light in three dimensions falling from one side, the ray marched through them
+    {
+        let span = raySpan(ro, rd, 8.5, y0 - 3.0, y1);
+        if span.x < span.y {
+            let dt = (span.y - span.x) / 6.0;
+            let jit: f32 = 0.5;
+            var acc: f32 = 0.0;
+            let slant = 0.55 + 0.08 * sin(t * 0.15);
+            let sd: vec2<f32> = vec2<f32>(0.8, 0.6);
+            for (var i = 0; i < 6; i++) {
+                let p = ro + rd * (span.x + (f32(i) + jit) * dt);
+                let xs = dot(p.xz, sd);
+                let u = p.y * cos(slant) + xs * sin(slant);
+                let shafts = pow(0.5 + 0.5 * sin(u * 0.55 - t * 0.3), 3.0) * (0.6 + 0.4 * sin(u * 0.17 + t * 0.11));
+                let reach = exp(-pow(length(p.xz) / 3.6, 2.0)) * smoothstep(y0 - 3.0, y0 + 3.0, p.y) * (1.0 - smoothstep(y1 - 6.0, y1, p.y));
+                let fromSide = smoothstep(-5.0, 1.0, -xs);
+                acc += shafts * reach * (0.35 + 0.65 * fromSide);
+            }
+            fx += vec3<f32>(1.0, 0.72, 0.32) * acc * dt / (1.77 * 3.6) * 0.6 * part(0.0);
+        }
     }
     fx += fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 24.0, 0.12, 2.4, vec3<f32>(1.0, 0.85, 0.5)) * part(1.0);
     fx += fxSmoke(ro, rd, y0, y1, 2.8, 3.0, 5.0, vec3<f32>(1.0, 0.45, 0.1)) * 0.35 * part(2.0);

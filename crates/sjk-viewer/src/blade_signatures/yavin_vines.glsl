@@ -14,7 +14,8 @@ vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 // the effects, flat round the blade as Sol's are
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
-  float y0 = L*0.2, y1 = L*0.97;
+  // round 19 (Creyon: its effects did not start at the blade's start): from just above the hilt
+  float y0 = L*0.03, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   vec3 leaf = vec3(0.45, 1.0, 0.4), pollen = vec3(1.0, 0.9, 0.5);
   fx += fxCoils(ro, rd, px, y0, y1, 2.0, 1.1, 0.08, 2.0, leaf)*1.1*part(0.0);

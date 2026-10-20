@@ -36,8 +36,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let f = fract(t * 0.18 * (0.7 + 0.6 * h11(fi * 2.3)) + h11(fi * 5.9));
             let y = mix(y0, y1, h11(fi * 1.7)) + 1.5 * sin(f * 6.2832 + fi);
             let x = mix(-5.0, 5.0, f);
-            let a = vec3(x, y, 0.0);
-            let e = vec3(x + 0.8 + 0.6 * h11(fi * 3.3), y + 0.1, 0.0);
+            // round 19: each streak at its own depth, so the storm blows past in three dimensions
+            let z = (h11(fi * 4.7) - 0.5) * 7.0;
+            let a = vec3(x, y, z);
+            let e = vec3(x + 0.8 + 0.6 * h11(fi * 3.3), y + 0.1, z + 0.2);
             let d = raySeg(ro, rd, a, e, &s);
             fx += sand * (halo(d, max(0.04, px)) * 0.6 + halo(d, 0.25) * 0.12) * sin(3.1416 * f);
         }
@@ -67,8 +69,9 @@ fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let f = fract(t * (0.08 + 0.05 * h11(fi * 2.9)) + h11(fi * 5.1));
         let y = mix(y0, y1, f);
         let R = 0.8 + 3.0 * f * f + 0.3 * h11(fi * 3.3);
-        let p = around(R, h11(fi * 1.7) + t * (0.6 - 0.3 * f), y);
-        let p0 = around(R, h11(fi * 1.7) + (t - 0.08) * (0.6 - 0.3 * f), y);
+        // round 19 (Creyon: the dust devil went far too fast): about a third as fast
+        let p = around(R, h11(fi * 1.7) + t * (0.2 - 0.09 * f), y);
+        let p0 = around(R, h11(fi * 1.7) + (t - 0.22) * (0.2 - 0.09 * f), y);
         var s: f32;
         let d = raySeg(ro, rd, p0, p, &s);
         fx += sand * (halo(d, max(0.035, px)) * 1.1 + halo(d, 0.18) * 0.12) * sin(3.1416 * f);

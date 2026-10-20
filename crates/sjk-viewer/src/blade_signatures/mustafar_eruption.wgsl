@@ -48,7 +48,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let yh = mix(y1, y0 - 2.0, q * q * (3.0 - 2.0 * q));
             let yt = min(yh + 6.0 + 4.0 * h11(fi * 3.3), y1);
             var sl: f32;
-            let d = raySeg(ro, rd, vec3(x, yh, 0.0), vec3(x + side * 0.15, yt, 0.0), &sl);
+            // round 19: all round the blade, in three dimensions
+            let d = raySeg(ro, rd, turnY(vec3(x, yh, 0.0), h11(fi * 5.7) * 0.5), turnY(vec3(x + side * 0.15, yt, 0.0), h11(fi * 5.7) * 0.5), &sl);
             let c = mix(vec3<f32>(1.0, 0.85, 0.45), vec3<f32>(0.75, 0.12, 0.02), sl);
             fx += (c * halo(d, max(0.07 - 0.04 * sl, px)) * 1.8 + fire * halo(d, 0.35) * 0.35 * (1.0 - sl)) * (1.0 - smoothstep(0.85, 1.0, q)) * 0.8 * part(0.0);
         }
@@ -70,7 +71,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let y = mix(y0, y1 - 6.0, h11(k * 3.1 + fi));
             let side = select(1.0, -1.0, h11(k * 5.3 + fi) < 0.5);
             let tt = q * 1.6;
-            let p = vec3(side * (0.5 + 2.2 * tt), y + 6.0 * tt - 4.5 * tt * tt, 0.0);
+            let p = turnY(vec3(side * (0.5 + 2.2 * tt), y + 6.0 * tt - 4.5 * tt * tt, 0.0), h11(k * 7.1 + fi) * 0.5);
             let d = rayPt(ro, rd, p, &lta);
             fx += mix(vec3<f32>(1.0, 0.85, 0.5), fire, q) * (halo(d, max(0.12, px)) * 1.2 + halo(d, 0.5) * 0.2) * (1.0 - q) * part(1.0);
         }

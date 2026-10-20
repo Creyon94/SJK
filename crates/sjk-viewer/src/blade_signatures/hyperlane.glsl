@@ -33,7 +33,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
       float y = mix(y1, y0, row/9.0);
       float chase = pow(0.5 + 0.5*cos(6.2832*(row/10.0 - t*0.9)), 12.0);
-      vec3 p = vec3(side*2.3, y, 0.0);
+      // round 19: the lane's lights wind round the blade, in three dimensions
+      vec3 p = turnY(vec3(side*2.3, y, 0.0), row*0.045);
       float d = rayPt(ro, rd, p, ta);
       fx += (vec3(1.0)*halo(d, max(0.08, px))*(0.5 + 2.4*chase) + blue*halo(d, 0.45)*(0.3 + 1.3*chase))*part(2.0);
     }

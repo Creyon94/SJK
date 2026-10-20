@@ -48,7 +48,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float y = mix(y0, y1, q);
       float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
       float x = side*(0.55 + 0.35*h11(fi*3.9));
-      float d = raySeg(ro, rd, vec3(x, y - 0.25, 0.0), vec3(x, y + 0.25, 0.0), s);
+      // round 19: all round the blade, in three dimensions
+      float d = raySeg(ro, rd, turnY(vec3(x, y - 0.25, 0.0), h11(fi*8.3)*0.5), turnY(vec3(x, y + 0.25, 0.0), h11(fi*8.3)*0.5), s);
       float bit = step(0.35, h11(floor(t*8.0) + fi*3.0));
       fx += (vec3(1.0, 0.9, 0.7)*halo(d, max(0.04, px))*1.2 + c*halo(d, 0.15)*0.5)*(0.4 + 0.6*bit)*sin(3.1416*q)*part(1.0);
     }

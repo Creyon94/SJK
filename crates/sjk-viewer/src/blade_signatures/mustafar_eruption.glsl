@@ -37,7 +37,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float yh = mix(y1, y0 - 2.0, q*q*(3.0 - 2.0*q));
       float yt = min(yh + 6.0 + 4.0*h11(fi*3.3), y1);
       float sl;
-      float d = raySeg(ro, rd, vec3(x, yh, 0.0), vec3(x + side*0.15, yt, 0.0), sl);
+      // round 19: all round the blade, in three dimensions
+      float d = raySeg(ro, rd, turnY(vec3(x, yh, 0.0), h11(fi*5.7)*0.5), turnY(vec3(x + side*0.15, yt, 0.0), h11(fi*5.7)*0.5), sl);
       vec3 c = mix(vec3(1.0, 0.85, 0.45), vec3(0.75, 0.12, 0.02), sl);
       fx += (c*halo(d, max(0.07 - 0.04*sl, px))*1.8 + fire*halo(d, 0.35)*0.35*(1.0 - sl))*(1.0 - smoothstep(0.85, 1.0, q))*0.8*part(0.0);
     }
@@ -58,7 +59,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float y = mix(y0, y1 - 6.0, h11(k*3.1 + fi));
       float side = h11(k*5.3 + fi) < 0.5 ? -1.0 : 1.0;
       float tt = q*1.6;
-      vec3 p = vec3(side*(0.5 + 2.2*tt), y + 6.0*tt - 4.5*tt*tt, 0.0);
+      vec3 p = turnY(vec3(side*(0.5 + 2.2*tt), y + 6.0*tt - 4.5*tt*tt, 0.0), h11(k*7.1 + fi)*0.5);
       float d = rayPt(ro, rd, p, lta);
       fx += mix(vec3(1.0, 0.85, 0.5), fire, q)*(halo(d, max(0.12, px))*1.2 + halo(d, 0.5)*0.2)*(1.0 - q)*part(1.0);
     }

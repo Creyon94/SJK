@@ -25,7 +25,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
         float f = float(i)/16.0;
         float y = mix(y0, y1, f);
         float x = (fk*2.0 - 1.0)*(0.9 + 0.5*sin(y*0.35 - t*0.9 + fk*2.0)) + 0.3*sin(y*1.1 + t*0.6);
-        vec3 p = vec3(x, y, 0.0);
+        // round 19: the lines of script wind slowly round the blade, in three dimensions
+        vec3 p = turnY(vec3(x, y, 0.0), y*0.012 + t*0.01);
         if (i > 0){
           float d = raySeg(ro, rd, prev, p, s);
           if (d < best){ best = d; bf = (float(i) - 1.0 + s)/16.0; }

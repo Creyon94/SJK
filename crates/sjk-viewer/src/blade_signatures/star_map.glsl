@@ -68,7 +68,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     for (int i = 0; i < 7; i++){
       float fi = float(i);
       vec2 f2 = sm_star(shape, fi, k, side);
-      vec3 p = vec3(f2.x, yc + f2.y*hy, 0.0);
+      // round 19: the figure wrapped round the blade on a cylinder, in three dimensions
+      vec3 p = around(3.0, f2.x/(6.2832*3.0) + 0.25 + k*0.37, yc + f2.y*hy);
       float on = smoothstep(fi/9.0, fi/9.0 + 0.05, q)*(1.0 - smoothstep(0.85, 1.0, q));
       float d = rayPt(ro, rd, p, ta);
       float tw = 0.75 + 0.25*sin(t*3.0 + fi*2.0);

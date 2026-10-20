@@ -57,7 +57,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let t = uTime;
     let sw = clamp(uSwing, 0.0, 1.0);
     let cl = clamp(uClash, 0.0, 1.0);
-    let y0 = L * 0.2;
+    // round 19 (Creyon: the lower part of the blade had none of its effects, by day or night):
+    // everything reaches down to just above the hilt
+    let y0 = L * 0.04;
     let y1 = L * 0.97;
     var col: vec3<f32> = vec3<f32>(0.0);
     if fxNear(ro, rd, y0, y1) > 10.0 {
@@ -70,10 +72,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let fj = f32(j);
         let a = t * 0.04 + fj * 0.5;
         let tilt = (0.32 - 0.24 * sw) * (1.0 - cl) * mo_open();
-        let pivot = vec3(0.0, L * 0.35, 0.0);
-        let dir = normalize(vec3(sin(6.2832 * a) * tilt, 1.0, cos(6.2832 * a) * tilt));
-        let a0 = pivot + dir * 1.5;
-        let a1 = pivot + dir * (L * 0.62);
+        let pivot = vec3(0.0, L * 0.06, 0.0);
+        let dir = normalize(vec3(sin(6.2832 * a) * tilt * 0.75, 1.0, cos(6.2832 * a) * tilt * 0.75));
+        let a0 = pivot + dir * 1.2;
+        let a1 = pivot + dir * (L * 0.86);
         let d = raySeg(ro, rd, a0, a1, &s);
         let ends = smoothstep(0.0, 0.15, s) * (1.0 - smoothstep(0.85, 1.0, s));
         let gc = select(MO_NIGHT, MO_DAY, j == 0);
@@ -87,15 +89,18 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         col += fxFlare(ro, rd, pv, px, 0.35, 3.0 + 5.0 * turn, 4.0, t * 0.3, mix(MO_NIGHT, MO_DAY, mo_day())) * turn * part(0.0);
     }
     // ---- by day: the Daughter's light rising, soft beams ----
-    col += (fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 36.0, 0.06, 5.5, MO_DAY) + fxAura(ro, rd, y0, y1, 3.0, MO_DAY) * 0.6) * day * part(1.0);
+    col += (fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 40.0, 0.06, 5.5, MO_DAY) + fxAura(ro, rd, y0, y1, 3.0, MO_DAY) * 0.6 + fxRays(ro, rd, px, y0, y1, 6.0, 4.5, 0.5, 3.3, MO_DAY) * 0.45) * day * part(1.0);
     // ---- by night: the Son's lightning and sinking embers ----
-    col += (fxArcs(ro, rd, px, y0, y1, 5.0, 5.0, 1.8, 2.6, MO_NIGHT) + fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 20.0, -0.07, 8.8, vec3<f32>(1.0, 0.3, 0.15))) * (1.0 - day) * part(2.0);
-    // the Father's balance: a slow ring turning round the blade, half day, half night
-    {
-        let h = rayAt(ro, rd, L * 0.78 + sin(t * 0.4));
+    col += (fxArcs(ro, rd, px, y0, y1, 7.0, 5.0, 1.8, 2.6, MO_NIGHT) + fxMotes(ro, rd, px, y0, y1, 1.0, 5.0, 26.0, -0.07, 8.8, vec3<f32>(1.0, 0.3, 0.15)) + fxSmoke(ro, rd, y0, y1, 2.2, -1.2, 4.4, vec3<f32>(0.5, 0.04, 0.03)) * 0.5) * (1.0 - day) * part(2.0);
+    // the Father's balance: slow rings turning round the blade, half day, half night (round 19:
+    // a second low on the blade, as the first stands high)
+    for (var k = 0; k < 2; k++) {
+        let fk = f32(k);
+        let h = rayAt(ro, rd, L * (select(0.24, 0.78, fk < 0.5)) + sin(t * 0.4 + fk * 2.0));
         if h.z > 0.0 {
-            let d = abs(length(h.xy) - 3.2);
-            let side = 0.5 + 0.5 * sin(atan2(h.x, h.y) - t * 0.2);
+            let R = select(2.6, 3.2, fk < 0.5);
+            let d = abs(length(h.xy) - R);
+            let side = 0.5 + 0.5 * sin(atan2(h.x, h.y) - t * 0.2 * (select(-1.0, 1.0, fk < 0.5)) + fk * 3.1);
             col += (vec3<f32>(1.0) * halo(d, max(0.05, px)) * 0.8 + mix(MO_NIGHT, MO_DAY, side) * halo(d, 0.3) * 0.5) * part(3.0);
         }
     }

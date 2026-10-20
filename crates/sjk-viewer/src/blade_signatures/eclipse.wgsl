@@ -143,12 +143,14 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let ph = uTime * (0.25 + 0.1 * h11(fi * 3.3)) + h11(fi * 8.1);
             let cy = floor(ph);
             let fp = fract(ph);
-            let y0 = (0.1 + 0.8 * h11(cy * 1.9 + fi * 3.0)) * top;
+            var y0 = (0.1 + 0.8 * h11(cy * 1.9 + fi * 3.0)) * top;
             if abs(y0 - yb) < hw + 1.0 {
                 continue;
             }
             let az = h11(cy * 2.7 + fi);
             let span = 0.5 + 0.6 * h11(cy + fi * 5.0);
+            // round 19 (Creyon: a prominence rose past the tip): each loop ends below the tip
+            y0 = min(y0, top - 1.2 - span * 2.0);
             let H = (0.45 + 0.5 * h11(cy * 4.1 + fi)) * smoothstep(0.0, 0.35, fp) * (1.0 + 0.8 * max(fp - 0.5, 0.0));
             let life = smoothstep(0.0, 0.1, fp) * (1.0 - smoothstep(0.7, 1.0, fp));
             var prev = around(0.35, az, y0);

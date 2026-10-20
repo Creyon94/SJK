@@ -26,8 +26,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float f = fract(t*0.18*(0.7 + 0.6*h11(fi*2.3)) + h11(fi*5.9));
       float y = mix(y0, y1, h11(fi*1.7)) + 1.5*sin(f*6.2832 + fi);
       float x = mix(-5.0, 5.0, f);
-      vec3 a = vec3(x, y, 0.0);
-      vec3 e = vec3(x + 0.8 + 0.6*h11(fi*3.3), y + 0.1, 0.0);
+      // round 19: each streak at its own depth, so the storm blows past in three dimensions
+      float z = (h11(fi*4.7) - 0.5)*7.0;
+      vec3 a = vec3(x, y, z);
+      vec3 e = vec3(x + 0.8 + 0.6*h11(fi*3.3), y + 0.1, z + 0.2);
       float d = raySeg(ro, rd, a, e, s);
       fx += sand*(halo(d, max(0.04, px))*0.6 + halo(d, 0.25)*0.12)*sin(3.1416*f);
     }
@@ -50,8 +52,9 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
     float f = fract(t*(0.08 + 0.05*h11(fi*2.9)) + h11(fi*5.1));
     float y = mix(y0, y1, f);
     float R = 0.8 + 3.0*f*f + 0.3*h11(fi*3.3);
-    vec3 p = around(R, h11(fi*1.7) + t*(0.6 - 0.3*f), y);
-    vec3 p0 = around(R, h11(fi*1.7) + (t - 0.08)*(0.6 - 0.3*f), y);
+    // round 19 (Creyon: the dust devil went far too fast): about a third as fast
+    vec3 p = around(R, h11(fi*1.7) + t*(0.2 - 0.09*f), y);
+    vec3 p0 = around(R, h11(fi*1.7) + (t - 0.22)*(0.2 - 0.09*f), y);
     float s;
     float d = raySeg(ro, rd, p0, p, s);
     fx += sand*(halo(d, max(0.035, px))*1.1 + halo(d, 0.18)*0.12)*sin(3.1416*f);

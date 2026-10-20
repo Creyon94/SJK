@@ -24,11 +24,13 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float fade = 1.0 - smoothstep(L, L + 10.0, cyc);
   float s;
   if (head > y0 && fxNear(ro, rd, y0, y1) < 3.5){
-    for (int k = 0; k < 2; k++){
-      float sx = k == 0 ? -1.8 : 1.8;
-      float d = raySeg(ro, rd, vec3(sx, y0, 0.0), vec3(sx, head, 0.0), s);
+    // round 19: four rails round the blade, in three dimensions
+    for (int k = 0; k < 4; k++){
+      float sx = 1.8;
+      float tk = float(k)*0.25 + 0.125;
+      float d = raySeg(ro, rd, turnY(vec3(sx, y0, 0.0), tk), turnY(vec3(sx, head, 0.0), tk), s);
       fx += c*(halo(d, max(0.03, px))*0.9 + halo(d, 0.25)*0.1)*fade;
-      float e = rayPt(ro, rd, vec3(sx, head, 0.0), s);
+      float e = rayPt(ro, rd, turnY(vec3(sx, head, 0.0), tk), s);
       fx += vec3(1.0)*halo(e, 0.15)*1.2*fade;
     }
     for (int i = 0; i < 8; i++){

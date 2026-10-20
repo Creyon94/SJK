@@ -106,7 +106,10 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       vec3 dir = normalize(vec3(side*(0.6 + 0.8*h11(fi*1.3)), 0.4 + 0.9*h11(fi*5.1), 0.3*(h11(fi*7.9) - 0.5)));
       float v = 6.0 + 7.0*h11(fi*2.2);
       float a = since;
-      vec3 o = vec3(side*0.3, y, 0.0);
+      // round 19: all round the blade, in three dimensions
+      float turn = h11(fi*6.1)*0.5;
+      dir = turnY(dir, turn);
+      vec3 o = turnY(vec3(side*0.3, y, 0.0), turn);
       vec3 p1 = o + dir*v*(1.0 - exp(-a*2.5))/2.5;
       vec3 p0 = o + dir*v*(1.0 - exp(-max(a - 0.06, 0.0)*2.5))/2.5;
       float d = raySeg(ro, rd, p0, p1, s);
@@ -119,7 +122,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
       vec3 c = vec3(side*(0.8 + 1.4*since*(0.5 + 0.5*h11(fi*4.4))), mix(y0 + 2.0, y1 - 2.0, h11(fi*6.6 + floor(uTime/LR_P))) + 0.6*since, 0.0);
       float ang = since*(1.5 + 2.0*h11(fi*8.8)) + fi;
-      vec3 ext = vec3(cos(ang), sin(ang), 0.0)*(0.25 + 0.25*h11(fi*9.1));
+      vec3 ext = turnY(vec3(cos(ang), sin(ang), 0.0), h11(fi*3.1)*0.5)*(0.25 + 0.25*h11(fi*9.1));
+      c = turnY(c, h11(fi*3.1)*0.5);
       float d = raySeg(ro, rd, c - ext, c + ext, s);
       fx += (vec3(1.0, 0.95, 0.9)*halo(d, max(0.06, px))*1.4 + blue*halo(d, 0.35)*0.4)*exp(-since*0.9)*part(3.0);
     }

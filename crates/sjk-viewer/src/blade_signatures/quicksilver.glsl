@@ -4,13 +4,13 @@
 // 3D, droplets of liquid beskar orbit and drip, silver glints fly off it and the air shimmers. A
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
 // of droplets out with a shock ring; ignition pours the metal up from the hilt. Round 15 (Creyon:
-// it needed more; round 16: no forge fire): tendrils of liquid beskar reach out of the mirror,
-// curl and flow back into it, bright with reflections, as living metal.
+// it needed more; round 16: no forge fire): rings of liquid beskar ripple up round the mirror
+// (round 19, Creyon: beskar has no tendrils, in the films or the comics; rings instead).
 // @full 1
 // @part Silver glints
 // @part Flung droplets
 // @part Orbiting droplets
-// @part Metal tendrils
+// @part Beskar ripples
 // @room 10
 // @solid 1
 
@@ -185,7 +185,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 // round 11: sig_vol_solid gated by part 1
 vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
   vec4 acc = vec4(0.0);
-  if (part(3.0) > 0.5 && uFx > 0.01) { acc = qs_tendrils(ro, rd, px); }
+  if (part(3.0) > 0.5 && uFx > 0.01) { acc = qs_ripples(ro, rd, px); }
   if (part(1.0) < 0.5) { return acc; }
   vec4 d = base_vol_solid(ro, rd, px);
   return vec4(mix(acc.rgb, d.rgb, d.a), max(acc.a, d.a));
@@ -195,37 +195,31 @@ vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   if (part(2.0) < 0.5) { return vec4(0.0); }
   return base_orbit_solid(ro, rd, px);
 }
-// round 16 (Creyon: no fire; another effect): tendrils of liquid beskar reach out of the blade,
-// curl and flow back into it, each a tapering mirror stroke catching a bright reflection that
-// slides along it; drawn flat facing the camera with the mirror's shading, over the glow
-vec4 qs_tendrils(vec3 ro, vec3 rd, float px){
+// round 19 (Creyon: beskar has no tendrils): rings of liquid beskar rippling up round the
+// blade, as a wave runs up a column of molten metal: each a thin mirror band swelling out from
+// the surface, travelling up, and sinking back into it before the tip; in three dimensions
+vec4 qs_ripples(vec3 ro, vec3 rd, float px){
   vec4 acc = vec4(0.0);
-  float L = uLength, t = uTime, s;
-  if (fxNear(ro, rd, L*0.15, L) > 5.0) return acc;
-  for (int j = 0; j < 4; j++){
+  float L = uLength, t = uTime;
+  if (fxNear(ro, rd, 0.0, L) > 3.0) return acc;
+  float best = 1e5;
+  for (int j = 0; j < 3; j++){
     float fj = float(j);
-    float cyc = t*0.3 + h11(fj*3.7);
-    float k = floor(cyc), q = fract(cyc);
-    float reach = sin(3.1416*q);
-    float side = mod(fj, 2.0) < 0.5 ? -1.0 : 1.0;
-    float y0 = L*(0.25 + 0.6*h11(k*2.1 + fj));
-    vec3 prev = vec3(side*0.3, y0, 0.0);
-    float best = 1e3, bs = 0.0;
-    for (int i = 1; i <= 10; i++){
-      float u = float(i)/10.0*reach;
-      float curl = u*u*2.2*(h11(k*5.3 + fj) < 0.5 ? 1.0 : -1.0);
-      vec3 p = vec3(side*(0.3 + 2.6*u*cos(curl*0.5)), y0 + 1.6*u*sin(curl*0.5 + 0.6) + 0.3*sin(t*2.0 + u*6.0), 0.0);
-      float d = raySeg(ro, rd, prev, p, s);
-      if (d < best){ best = d; bs = (float(i) - 1.0 + s)/10.0; }
-      prev = p;
-    }
-    float w = mix(0.22, 0.05, bs)*(0.4 + 0.6*reach);
-    float cov = fillD(best - w, px)*step(0.02, reach);
+    float q = fract(t*0.16 + fj/3.0);
+    float y = mix(L*0.08, L*0.9, q);
+    float swell = sin(3.1416*q);
+    float R = 0.55 + 1.1*swell;
+    float w = 0.09 + 0.1*swell;
+    float d = ringD(ro, rd, y, R);
+    float cov = fillD(d - w, px)*smoothstep(0.02, 0.15, swell);
     if (cov <= 0.0) continue;
-    float n = clamp(best/max(w, 1e-3), 0.0, 1.0);
-    vec3 c = qs_env(n*0.9 - 0.2, y0 + bs*4.0, t)*(0.7 + 0.3*sqrt(max(1.0 - n*n, 0.0)));
-    c += vec3(1.0)*exp(-pow((bs - fract(t*0.8 + fj*0.3))/0.08, 2.0))*0.8;
-    acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov));
+    // where along the ray it is, so the nearer ring covers the farther
+    vec3 h = rayAt(ro, rd, y);
+    float th = h.z > 0.0 ? h.z : 1e4;
+    float n = clamp(d/max(w, 1e-3), 0.0, 1.0);
+    vec3 c = qs_env(0.6 - n*1.2, y, t)*(0.7 + 0.3*sqrt(max(1.0 - n*n, 0.0)));
+    c += vec3(1.0)*exp(-n*n*6.0)*0.35;
+    if (acc.a <= 0.0 || th < best){ best = th; acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov)); }
   }
   return acc;
 }

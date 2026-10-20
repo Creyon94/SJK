@@ -33,10 +33,13 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if fxNear(ro, rd, yb, y1) < 3.0 {
         for (var k = 0; k < 4; k++) {
             let fk = f32(k);
-            let x = (select(1.0, -1.0, k < 2)) * (select(1.2, 2.0, (k == 0 || k == 3)));
-            let a = vec3(x * 0.45, yb, 0.0);
-            let m = vec3(x * 1.12, ym, 0.0);
-            let e = vec3(x, y1 - 1.0, 0.0);
+            var x = (select(1.0, -1.0, k < 2)) * (select(1.2, 2.0, (k == 0 || k == 3)));
+            // round 19: the four rods stand round the blade, in three dimensions
+            let tk = fk * 0.25 + 0.125;
+            x = abs(x);
+            let a = turnY(vec3(x * 0.45, yb, 0.0), tk);
+            let m = turnY(vec3(x * 1.12, ym, 0.0), tk);
+            let e = turnY(vec3(x, y1 - 1.0, 0.0), tk);
             let d = min(raySeg(ro, rd, a, m, &s), raySeg(ro, rd, m, e, &s));
             fx += c * halo(d, max(0.015, px)) * 0.5 * part(0.0);
             for (var i = 0; i < 4; i++) {

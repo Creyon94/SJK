@@ -1961,18 +1961,21 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         glow = mix(glow, own, shown_glow) + glow * mouth * step(-6.0, place.y);
         let kept_glow = max(uKeep, vec3(0.0)) * shown_glow;
         uKeep = vec3(0.0);
-        // Its effects as Sol's are: flat round the blade, facing the camera (`sig_flat`),
-        // and only what circles the blade in three dimensions, along the true view ray.
+        // Every effect round the blade is drawn in three dimensions along the true view ray
+        // in the hilt's frame (Creyon's round 19: seen from above, the flat ones followed the
+        // camera), so it is the same thing from every side.
         if sig_echo {
             return sig_coloured(input, glow * sig_edge(input)) * persona_fade(input);
         }
         let ray = sig_ray(input);
-        let flat = sig_flat(place);
         let shown = sig_full(input);
-        glow += (max(sig_vol(flat.o, flat.d, pixel), vec3(0.0))
+        glow += (max(sig_vol(ray.o, ray.d, pixel), vec3(0.0))
             + max(sig_orbit(ray.o, ray.d, pixel), vec3(0.0))) * shown;
         if skin.arc_strike.x > 0.0 {
             glow += sig_arcs(skin, input, ray, pixel) * shown;
+        }
+        if SIG_MYTHICAL {
+            glow += sig_mythic(input, place, ray, pixel) * shown;
         }
         let edge = sig_edge(input);
         return sig_coloured(input, glow * edge) + (kept_glow + max(uKeep, vec3(0.0)) * shown) * edge;
@@ -2437,9 +2440,8 @@ fn fragment_solid(input: VertexOutput) -> @location(0) vec4<f32> {
             return vec4(sig_coloured(input, out.rgb), out.a * sig_edge(input) * persona_fade(input));
         }
         let ray = sig_ray(input);
-        let flat = sig_flat(place);
         let shown = sig_full(input);
-        let near = clamp(sig_vol_solid(flat.o, flat.d, pixel), vec4(0.0), vec4(1.0));
+        let near = clamp(sig_vol_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0));
         let round = clamp(sig_orbit_solid(ray.o, ray.d, pixel), vec4(0.0), vec4(1.0));
         let v = vec4(mix(near.rgb, round.rgb, round.a), max(near.a, round.a)) * shown;
         out = vec4(mix(out.rgb, v.rgb, v.a), max(out.a, v.a));
@@ -2518,6 +2520,8 @@ struct LabPlace {
     // A blade gone in whose words float on (`saber_motion::BladeMotion::lingering`: its
     // swing lane is -1): only the words are drawn.
     lingering: bool,
+    // The wearer's switched-off parts (`input.off`): the Clone Wars blade's own (round 19).
+    off: u32,
 }
 
 // How far each design's blade starts behind its hilt end (metres): stock blades hide
@@ -2574,6 +2578,7 @@ fn lab_place(input: VertexOutput, pixel: f32) -> LabPlace {
     p.since_swing = input.motion.w;
     p.since_clash = input.motion.y;
     p.turn = input.chroma;
+    p.off = input.off;
     return p;
 }
 
@@ -2771,7 +2776,35 @@ fn lab_comic(p: LabPlace) -> vec3<f32> {
         let xx = ph * p.big_l;
         sp += exp(-abs(p.y - yy) * 900.0) * lab_sstep(0.25, 0.0, abs(p.x - xx)) * step(0.045, abs(yy));
     }
-    return c * dots * 0.95 + vec3(1.0) * sp * p.swing * 0.9;
+    var light = c * dots * 0.95 + vec3(1.0) * sp * p.swing * 0.9;
+    // Round 19 (Creyon): now and then the blade turns to a flickering blue hologram for a
+    // second (its `holo flicker` part): the glow goes holo blue, scan lines run up it and
+    // thin interference lines cross it.
+    let holo = lab_comic_holo(p);
+    if holo > 0.0 {
+        let scan = 0.55 + 0.45 * step(0.5, fract(p.x / 0.009 - p.t * 2.5));
+        let blue = vec3(0.35, 0.75, 1.0);
+        var ticks = 0.0;
+        for (var i = 0; i < 2; i++) {
+            let at = fract(lab_hash(floor(p.t * 3.0) + f32(i) * 7.0)) * p.shaft;
+            ticks += exp(-abs(p.x - at) / max(0.0015, p.px)) * lab_sstep(0.16, 0.05, abs(p.y));
+        }
+        let level = max(light.r, max(light.g, light.b));
+        light = mix(light, blue * level * scan, holo) + blue * ticks * 0.8 * holo;
+    }
+    return light;
+}
+
+// How much of a hologram the Clone Wars blade is now (0 to 1): about one second in every
+// nine, flickering on and off as it comes and goes; 0 with its `holo flicker` part off.
+fn lab_comic_holo(p: LabPlace) -> f32 {
+    if (p.off & OFF_BANDS) != 0u || p.lingering {
+        return 0.0;
+    }
+    let c = fract(p.t / 9.0 + 0.37) * 9.0;
+    let on = lab_sstep(7.6, 7.75, c) * (1.0 - lab_sstep(8.85, 9.0, c));
+    let flick = select(1.0, 0.35, lab_hash(floor(p.t * 24.0)) < 0.3);
+    return on * flick;
 }
 
 fn lab_quicksilver(p: LabPlace) -> vec3<f32> {
@@ -3421,8 +3454,176 @@ fn lab_comic_body(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
     // Two tones of a toon light from the upper left.
     let n = clamp(p.y / 0.019, -1.0, 1.0);
     let lit = select(0.72, 1.0, n < 0.35);
-    let toon = min((color * 0.6 + 0.3) * lit + (color * 0.7 + 0.15), vec3(1.0));
-    return vec4(mix(vec3(0.0), toon, inside), outline);
+    var toon = min((color * 0.6 + 0.3) * lit + (color * 0.7 + 0.15), vec3(1.0));
+    // Round 19 (Creyon): clone armour markings, its `clone markings` part: slanted stripes,
+    // 212th orange and 501st blue by turns, each between two thin white pin stripes,
+    // sliding slowly up the blade.
+    if (p.off & OFF_SCAN) == 0u {
+        let u = (p.x + p.y * 0.9 - p.t * 0.05) / 0.2;
+        let band = fract(u);
+        let blue = fract(floor(u) * 0.5) > 0.25;
+        let paint = select(vec3(1.0, 0.52, 0.08), vec3(0.2, 0.42, 1.0), blue) * lit;
+        let w = max(p.px / 0.2, 0.004);
+        let stripe = lab_sstep(0.0, w, band) * (1.0 - lab_sstep(0.16, 0.16 + w, band));
+        let pin = (lab_sstep(0.2, 0.2 + w, band) * (1.0 - lab_sstep(0.23, 0.23 + w, band)))
+            + (lab_sstep(0.27, 0.27 + w, band) * (1.0 - lab_sstep(0.3, 0.3 + w, band)));
+        // Not over the tip's round end nor the hilt's mouth.
+        let on = lab_sstep(0.03, 0.06, p.x) * (1.0 - lab_sstep(p.shaft - 0.06, p.shaft - 0.03, p.x));
+        toon = mix(toon, paint, stripe * on);
+        toon = mix(toon, vec3(1.0) * lit, pin * on);
+    }
+    var rgb = mix(vec3(0.0), toon, inside);
+    var alpha = outline;
+    // A hologram (`lab_comic_holo`): see-through blue with scan lines, rows of it slipping
+    // sideways for a moment.
+    let holo = lab_comic_holo(p);
+    if holo > 0.0 {
+        let scan = 0.6 + 0.4 * step(0.5, fract(p.x / 0.009 - p.t * 2.5));
+        let blue = vec3(0.4, 0.8, 1.0) * scan;
+        rgb = mix(rgb, mix(blue * 0.35, blue, inside), holo);
+        alpha = mix(alpha, alpha * 0.55, holo);
+    }
+    return vec4(rgb, alpha);
+}
+
+// Round 19 (Creyon): the Clone Wars blade's comic panel, its `comic panel` part: each swing
+// leaves the comic's motion behind the blade for a moment, see-through (Creyon: no grey box): a
+// patch of halftone dots in the blade's colour, bigger toward the blade, and thin speed lines
+// streaking back along the swing, all fading softly at their edges.
+fn lab_comic_panel(p: LabPlace, color: vec3<f32>) -> vec4<f32> {
+    if (p.off & OFF_SPUTTER) != 0u || p.lingering {
+        return vec4(0.0);
+    }
+    let age = p.since_swing - 0.04;
+    if age < 0.0 || age > 0.9 {
+        return vec4(0.0);
+    }
+    let born = floor((p.t - age) * 10.0);
+    // Behind the blade, on the side away from the swing's word.
+    let side = select(1.0, -1.0, lab_hash(born + 5.0) < 0.5);
+    let fade = lab_sstep(0.0, 0.06, age) * (1.0 - lab_sstep(0.45, 0.9, age));
+    // across: 0 at the blade to 1 at the patch's far edge; along: -1 to 1 over the blade's
+    // upper part
+    let across = p.p.y * side / 0.16;
+    let along = (p.p.x - 0.62 * p.shaft) / (0.32 * p.shaft);
+    if across < -0.1 || across > 1.2 || abs(along) > 1.1 {
+        return vec4(0.0);
+    }
+    let soft_edge = lab_sstep(-0.1, 0.1, across) * (1.0 - lab_sstep(0.6, 1.15, across))
+        * (1.0 - lab_sstep(0.6, 1.05, abs(along)));
+    // halftone dots, shrinking away from the blade
+    let cell = 0.011;
+    let g = fract(p.p / cell) - 0.5;
+    let radius = 0.42 * (1.0 - clamp(across, 0.0, 1.0)) + 0.05;
+    let dots = clamp((radius - length(g)) * cell / max(p.px, 0.0001) + 0.5, 0.0, 1.0);
+    // speed lines: thin streaks along the blade's length at their own spacings
+    let lane = across * 9.0 + lab_hash(born + 3.0) * 3.0;
+    let streak = lab_hash(floor(lane) + born * 1.7);
+    let thin = 1.0 - lab_sstep(0.06, 0.14, abs(fract(lane) - 0.5) - 0.32);
+    let length_on = step(0.45, streak) * lab_sstep(-1.0 + streak, -0.6 + streak, along)
+        * (1.0 - lab_sstep(0.5 + 0.5 * streak - 0.2, 0.5 + 0.5 * streak, along));
+    let lines = thin * length_on * lab_sstep(0.15, 0.3, across);
+    let shown = max(dots * 0.55, lines * 0.7) * soft_edge * fade;
+    let rgb = mix(color, mix(color, vec3(1.0), 0.6), lines);
+    return vec4(rgb, shown);
+}
+
+// Round 19 (Creyon): the Clone Wars blade's action burst, its `action burst` part: on a swing
+// or clash a ring of jagged impact lines in the blade's colour bursts out from the blade, away
+// from the word (Creyon: no white bubble behind the words, which made them harder to read).
+fn lab_comic_burst(p: LabPlace, at: vec2<f32>, age: f32, color: vec3<f32>, seed: f32, size: f32) -> vec4<f32> {
+    if (p.off & OFF_GLITCH) != 0u {
+        return vec4(0.0);
+    }
+    let life = 0.6;
+    let k = age / life;
+    if k < 0.0 || k >= 1.0 {
+        return vec4(0.0);
+    }
+    let v = p.p - at;
+    let r = length(v);
+    let reach = size * (0.55 + 0.45 * lab_sstep(0.0, 0.35, k));
+    if r > reach * 1.3 || r < size * 0.25 {
+        return vec4(0.0);
+    }
+    let spikes = 12.0;
+    let f = atan2(v.y, v.x) / TAU * spikes + seed * 3.7;
+    let i = floor(f);
+    // each line along its spike, from just off the blade out to its own length
+    let off = abs(fract(f) - 0.5) / spikes * TAU * r;
+    let len = reach * (0.7 + 0.3 * lab_hash(i + seed * 17.0));
+    let inner = size * (0.3 + 0.35 * k);
+    let along = lab_sstep(inner, inner + 0.01, r) * (1.0 - lab_sstep(len - 0.01, len, r));
+    let soft = p.px;
+    let w = 0.0045 * (1.0 - 0.5 * k);
+    let ink = clamp((w + 0.003 - off) / soft + 0.5, 0.0, 1.0) * along;
+    let fill = clamp((w - off) / soft + 0.5, 0.0, 1.0) * along;
+    let rgb = mix(vec3(0.0), mix(color, vec3(1.0), 0.35), fill);
+    return vec4(rgb, ink * (1.0 - lab_sstep(0.6, 1.0, k)));
+}
+
+// Round 19 (Creyon): the Clone Wars blade's cartoon smoke and sparks, its `cartoon smoke and
+// sparks` part: a clash puffs out round outlined clouds of smoke that drift and shrink, a
+// swing leaves a few small puffs at the tip, and four-pointed yellow spark stars pop up round
+// the blade and twinkle out.
+fn lab_comic_puffs(p: LabPlace) -> vec4<f32> {
+    if (p.off & OFF_ARCS) != 0u || p.lingering {
+        return vec4(0.0);
+    }
+    var out = vec4(0.0);
+    let soft = p.px;
+    // the puffs: a clash's four, a swing's three
+    for (var i = 0; i < 7; i++) {
+        let fi = f32(i);
+        let clash = i < 4;
+        let age = select(p.since_swing - 0.05, p.since_clash, clash);
+        let life = select(0.9, 1.3, clash);
+        if age < 0.0 || age > life {
+            continue;
+        }
+        let born = floor((p.t - age) * 10.0);
+        let k = age / life;
+        let a = lab_hash(born * 1.3 + fi * 7.1) * TAU;
+        let start = select(vec2(p.shaft * 0.93, 0.0), vec2(p.shaft * 0.6, 0.0), clash);
+        let reach = select(0.06 + 0.06 * lab_hash(fi * 3.3 + born), 0.09 + 0.08 * lab_hash(fi * 5.1 + born), clash);
+        let centre = start + vec2(cos(a), sin(a)) * reach * sqrt(k) + p.up * 0.05 * age;
+        let r0 = select(0.022, 0.034, clash) * (0.8 + 0.4 * lab_hash(fi + born * 2.0));
+        let r = r0 * lab_sstep(0.0, 0.12, k) * (1.0 - 0.5 * k);
+        let d = length(p.p - centre) - r;
+        let ink = clamp((0.004 - d) / soft + 0.5, 0.0, 1.0);
+        if ink <= 0.0 {
+            continue;
+        }
+        let fill = clamp(-d / soft + 0.5, 0.0, 1.0);
+        // lit from the upper left, a grey shade below
+        let shade = select(0.86, 0.68, dot(p.p - centre, p.up) < -r * 0.3);
+        let rgb = mix(vec3(0.0), vec3(0.93, 0.94, 0.98) * shade, fill);
+        out = lab_over(out, vec4(rgb, ink * (1.0 - lab_sstep(0.75, 1.0, k))));
+    }
+    // the spark stars: four at a time, each living a little under a second
+    for (var i = 0; i < 4; i++) {
+        let fi = f32(i);
+        let cyc = p.t * 0.9 + fi * 0.25;
+        let born = floor(cyc);
+        let k = fract(cyc);
+        let along = (0.15 + 0.78 * lab_hash(born * 3.1 + fi * 1.7)) * p.shaft;
+        let across = (lab_hash(born * 5.3 + fi * 2.9) - 0.5) * 0.3;
+        if abs(across) < 0.05 {
+            continue;
+        }
+        let size = 0.022 * (0.7 + 0.6 * lab_hash(born + fi * 9.0)) * sin(3.1416 * k);
+        let q = abs(p.p - vec2(along, across)) / max(size, 0.0001);
+        // an astroid: a four-pointed star
+        let star = sqrt(q.x) + sqrt(q.y) - 1.0;
+        let edge = soft / max(size, 0.0001);
+        let ink = clamp((0.25 - star) / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
+        if ink <= 0.0 {
+            continue;
+        }
+        let fill = clamp(-star / max(edge * 2.0, 0.02) + 0.5, 0.0, 1.0);
+        out = lab_over(out, vec4(mix(vec3(0.0), vec3(1.0, 0.86, 0.2), fill), ink));
+    }
+    return out;
 }
 
 // The comic font: five by six, a bit a cell from the top left; V M H S W O A K Z T R B !.
@@ -3692,9 +3893,19 @@ fn lab_solid(input: VertexOutput, pixel: f32) -> vec4<f32> {
     var out = vec4(0.0);
     switch n {
         case 6u: {
+            out = lab_comic_panel(p, color);
             if !p.lingering {
-                out = lab_comic_body(p, color);
+                // the action bursts on the blade, away from the words
+                let swung = p.since_swing - 0.04;
+                let born = floor((p.t - swung) * 10.0);
+                let side = select(-1.0, 1.0, lab_hash(born + 5.0) < 0.5);
+                out = lab_over(out, lab_comic_burst(p, vec2(0.5 * p.shaft, -0.03 * side), swung, color, born, 0.16));
+                out = lab_over(out, lab_comic_burst(p, vec2(0.42 * p.shaft, 0.0), p.since_clash, color, floor((p.t - p.since_clash) * 10.0) + 0.5, 0.2));
             }
+            if !p.lingering {
+                out = lab_over(out, lab_comic_body(p, color));
+            }
+            out = lab_over(out, lab_comic_puffs(p));
             out = lab_over(out, lab_comic_words(p, color));
         }
         case 7u: {
@@ -3733,6 +3944,12 @@ var<private> uSince: f32;
 var<private> uSeed: f32;
 var<private> uChroma: f32;
 var<private> uRoom: f32;
+// How far (units) from the blade's axis a signature's effects show in full: where its quad
+// begins to fade them out (`sig_edge`), so the lab's pieces fade before it (`roomFade`).
+var<private> uReach: f32;
+// Whether this signature is a mythical blade's (Creyon's round 19: the mythicals must feel
+// mythical): `Signature::module_source` sets it in a mythical's own module.
+const SIG_MYTHICAL: bool = false;
 // 1 while its wearer has its effects on (the `effects` option, the arcs bit), else 0: what a
 // signature's own volume (`sig_vol`) keeps of everything but the blade itself.
 var<private> uFx: f32;
@@ -3787,6 +4004,9 @@ fn sig_take(input: VertexOutput) {
     // The page turned a chroma's output afterwards; the game turns it after the hooks.
     uChroma = 0.0;
     uRoom = skins[skin_index(input)].design.z / LAB_METRE;
+    let skin = skins[skin_index(input)];
+    let room = max(skin_room(skin, input.off), max(skin.design.y, skin.design.z) / LAB_METRE);
+    uReach = 0.6 * (max(chain_radius(input.radius, input.length, 0.0) * skin.swell.x, input.hilt) + room);
 }
 
 // What a signature keeps of what it draws at `b` (once: only the blade itself with its
@@ -3853,19 +4073,6 @@ fn sig_ray(input: VertexOutput) -> SigRay {
     return out;
 }
 
-// The flat view of a signature's effects, as Sol's blades draw theirs (Creyon's round 10:
-// "he only has parts that are 3D"): a ray straight through the blade's picture at `b`
-// (across, along), from a little above, so everything placed round the blade is drawn as a
-// flat picture facing the camera and rings round it read as ellipses. Only what circles the
-// blade (`sig_orbit`, `sig_orbit_solid`) takes the true view ray.
-const SIG_FLAT_TILT: f32 = 0.2;
-fn sig_flat(b: vec2<f32>) -> SigRay {
-    var out: SigRay;
-    out.d = normalize(vec3(0.0, -SIG_FLAT_TILT, -1.0));
-    out.o = vec3(b.x, b.y, 0.0) - out.d * 60.0;
-    return out;
-}
-
 // Before a signature's three-dimensional effects: they are placed on the blade's full
 // length, not the length it has grown to, and show only once it is (nearly) all out, so
 // nothing slides up the blade as it ignites or down as it is put away (Creyon's round 9).
@@ -3903,13 +4110,86 @@ fn sig_arcs(skin: Skin, input: VertexOutput, ray: SigRay, pixel: f32) -> vec3<f3
         let p = ray.o + ray.d * t;
         let across = select(p.x, p.z, sheet == 1);
         let beyond = max(p.y - input.length, 0.0);
-        let room = (1.0 - smoothstep(0.75, 1.0, abs(across) / faded))
+        var room = (1.0 - smoothstep(0.75, 1.0, abs(across) / faded))
             * (1.0 - smoothstep(0.75, 1.0, beyond / faded));
+        // Round 19 (Creyon: the Eclipse's, Twin Suns' and Dyson Sphere's prominences crawled
+        // up past the tip and were cut there): arcs that do not leap from the tip fade out
+        // over the blade's last units, so none reaches past it.
+        if skin.arc_place.w <= 0.0 {
+            room *= 1.0 - smoothstep(input.length - 3.0, input.length - 0.4, p.y);
+        }
         let arcs = skin_arcs(skin, p.y, across, r, input.length, extent, pixel / max(facing, 0.25),
             time, fract(seed + 0.37 * f32(sheet)));
         total += arcs * room * smoothstep(0.05, 0.35, facing);
     }
     return total * skin.arc_color.rgb * skin.arc_color.w;
+}
+
+// What every mythical blade has over its own effects, in its own light's colour (Creyon's round
+// 19: "what can we do to make the mythical sabers feel more mythical"): it awakens when lit, a
+// surge of light running up it from the hilt and bursting at the tip in a flare and a ring;
+// it breathes, a slow wave of light rising up it every few seconds; and a clash rings out round
+// it in a ring of its light (with its swing and clash bursts).
+fn sig_mythic(input: VertexOutput, place: vec2<f32>, ray: SigRay, pixel: f32) -> vec3<f32> {
+    let tone = skins[skin_index(input)].design_color.rgb;
+    let c = tone / max(max(tone.r, max(tone.g, tone.b)), 0.001);
+    let white = mix(c, vec3(1.0), 0.6);
+    let len = uLength;
+    let age = uAge;
+    let near = exp(-pow(place.x / 1.8, 2.0)) * step(-0.5, place.y);
+    var light = vec3(0.0);
+    // the awakening: a surge up the blade, then a flare and a ring at the tip
+    if age < 3.0 {
+        let front = len * smoothstep(0.05, 1.1, age);
+        let surge = exp(-pow((place.y - front) / 2.6, 2.0)) * (1.0 - smoothstep(1.05, 1.5, age))
+            * smoothstep(0.05, 0.15, age);
+        light += white * surge * near * 1.6;
+        let burst = max(age - 1.1, 0.0);
+        let flare = exp(-burst * 3.5) * step(1.1, age);
+        let tip = length(vec2(place.x, place.y - len + 0.6));
+        light += (white * exp(-pow(tip / 1.2, 2.0)) * 2.0 + c * exp(-tip / 3.5) * 0.6) * flare;
+        // the ring, in three dimensions round the tip, out to well inside the room
+        let ring = sig_ring_d(ray, len - 0.8, 0.6 + 0.8 * uReach * (1.0 - exp(-burst * 3.0)));
+        light += (white * exp(-pow(ring / max(0.12, pixel), 2.0)) + c * exp(-pow(ring / 0.6, 2.0)) * 0.4)
+            * flare * 1.2;
+    }
+    // its breath: a slow wave of light rising up it
+    let beat = fract(uTime / 6.5 + uSeed * 0.37);
+    let wave = beat * (len + 10.0) - 5.0;
+    light += c * exp(-pow((place.y - wave) / 3.2, 2.0)) * near * 0.45 * smoothstep(1.4, 2.4, age);
+    // a clash rings out round it (with its swing and clash bursts: `uClash`)
+    let clash = clamp(uClash, 0.0, 1.0);
+    if clash > 0.01 {
+        let ring = sig_ring_d(ray, len * 0.55, 0.8 + 0.85 * uReach * (1.0 - clash * clash));
+        light += (white * exp(-pow(ring / max(0.1, pixel), 2.0)) * 1.4 + c * exp(-pow(ring / 0.5, 2.0)) * 0.5)
+            * clash;
+    }
+    return light;
+}
+
+// The ray's distance to a ring of radius `radius` round the blade at `height` (the hilt's
+// frame, `sig_ray`): the nearer of where it crosses the ring's plane and its cylinder.
+fn sig_ring_d(ray: SigRay, height: f32, radius: f32) -> f32 {
+    var best = 1000.0;
+    if abs(ray.d.y) > 0.00001 {
+        let t = (height - ray.o.y) / ray.d.y;
+        if t > 0.0 {
+            let h = ray.o + ray.d * t;
+            best = abs(length(h.xz) - radius);
+        }
+    }
+    let a = dot(ray.d.xz, ray.d.xz);
+    let b = dot(ray.o.xz, ray.d.xz);
+    let c = dot(ray.o.xz, ray.o.xz) - radius * radius;
+    let found = b * b - a * c;
+    if found > 0.0 && a > 0.000001 {
+        let q = sqrt(found);
+        let t0 = (-b - q) / a;
+        let t1 = (-b + q) / a;
+        if t0 > 0.0 { best = min(best, abs(ray.o.y + ray.d.y * t0 - height)); }
+        if t1 > 0.0 { best = min(best, abs(ray.o.y + ray.d.y * t1 - height)); }
+    }
+    return best;
 }
 
 // Fades a signature out before its quad's edges (the quad `blade_vertex` builds): nothing it

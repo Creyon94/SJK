@@ -184,7 +184,7 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
     let vio: vec3<f32> = vec3<f32>(0.6, 0.3, 1.0);
-    fx += fxCoils(ro, rd, px, y0, y1, 2.6, 1.6, -0.6, 3.0, vio) * part(1.0);
+    fx += fxCoils(ro, rd, px, L * 0.04, y1, 2.6, 1.6, -0.6, 3.0, vio) * part(1.0);
     for (var i = 0; i < 3; i++) {
         let q = fract(t * 0.4 + f32(i) / 3.0);
         fx += fxShock(ro, rd, px, mix(L * 0.3, L * 0.8, f32(i) * 0.5), q, 8.0, vio) * 0.45 * part(1.0);

@@ -2107,6 +2107,40 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   is kept and softened (flames, drips, sparks, fountains, ash); Event Horizon's rings, Exegol Rift's
   storm, dust and vortex bolts, Wraithlight's spirit fire and frost, Beskar Forge's flames,
   Starkiller Frost's mist and Holdo Maneuver's engines and haze are each a little softer.
+- **Round 19 (Creyon, 21/10/2026: everything in 3D, nothing cut, mythicals more mythical).**
+  `sig_vol` and `sig_vol_solid` now take the true view ray in the hilt's frame, as `sig_orbit`
+  does (Creyon, from above: flat effects followed the camera), so every effect round the blade is
+  the same thing from every side; `sig_flat` is gone. What was laid out in the blade's flat
+  picture now stands round the blade: `fxSmoke` is a cloud marched in six steps, `fxStreams` and
+  `fxFlakes` go all round the blade, a new `turnY` turns a piece laid out in the picture to its
+  own place round the blade (Between Worlds, Data Disc, Force Echo, Hyperlane, Imperial
+  Schematics, Jedi Texts, Holdo Maneuver, Moisture Farm, Mustafar Eruption, Sith Thorn, Star
+  Dragon's wings in a shallow V, Victory Fireworks as spheres), Star Map's figures wrap round a
+  cylinder, the Deflector Shield is a true shell with a dome, Ilum Aurora Storm's curtains hang on
+  cylinders, Temple Sunbeam's and Twin Suns' shafts and Jakku's and Bespin's gusts are slabs and
+  streaks at their own depths. Nothing is cut at the quad's edge: `uReach` (set by `sig_take`) is
+  how far the quad shows an effect in full, and the lab's pieces fade (`roomFade`) or stay inside it
+  (Reactor's shock ring was cut where it left that room; it now races out to 6.5 units). Sol's
+  arcs that do not leap from the tip fade out over the blade's last units, so no prominence passes
+  the tip (Eclipse, Twin Suns, Dyson Sphere); Eclipse's own loops end below it. The ignored GPU
+  test has a cut-off check (`SJK_SIGNATURE_EDGES`: each moment drawn again without `sig_edge`, the
+  difference marked) and closer orbit views with two from high above. Every mythical signature
+  (`SIG_MYTHICAL`, set by `Signature::module_source` from the catalogue tier) awakens when lit (a
+  surge up the blade, a flare and a ring at the tip), breathes (a slow wave of light up it) and
+  rings out on a clash, in its own light's colour (`sig_mythic`). Blades: Mortis's effects reach
+  down to the hilt (ghost blades from low on it, a second Father's ring, the Daughter's beams, the
+  Son's red smoke); Liquid Beskar's tendrils became rings of liquid beskar rippling up it (beskar
+  has none); Yavin Vines and the coils and streams of Aurodium, Blood Moon, Event Horizon and Uneti
+  Tree start at the hilt; Jakku's dust devil turns a third as fast; Bespin Storm's gas giant bands
+  swirl round it as a cloud with tibanna gas rising; Starforge draws the star down a funnel into the
+  forge (star siphon) and throws a forge nova every fourth blow. Kyber Heart and Christophsis
+  Crystal are chromas. The Clone Wars design (`lab_comic_*`) gets five parts its wearer can switch
+  off: a see-through comic panel of halftone dots and speed lines behind a swing, action bursts of
+  impact lines on the blade (no bubble behind the words, which stay as they were), clone markings
+  (212th orange and 501st blue stripes sliding up its body), a holo flicker (a second in nine as a
+  blue hologram) and cartoon smoke puffs and spark stars (with its particles). A signature's three
+  pipelines are built side by side and the loaded signatures on up to four threads at once
+  (`saber_gpu.rs`), so effects come in sooner at start and when a blade is first worn.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

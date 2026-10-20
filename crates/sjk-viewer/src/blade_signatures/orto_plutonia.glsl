@@ -27,7 +27,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float a = t*(0.25 + 0.2*h11(fi*2.1)) + h11(fi*5.3)*6.2832;
       float r = 0.7 + (1.2 + 1.0*sw)*h11(fi*3.7);
       float y = mix(y0, y1, fract(h11(fi*1.9) - t*0.02*(0.5 + h11(fi))));
-      vec3 p = vec3(r*sin(a), y + 0.6*sin(a*2.0), 0.0);
+      // round 19: circling the blade in three dimensions
+      vec3 p = vec3(r*sin(a), y + 0.6*sin(a*2.0), r*cos(a));
       float d = rayPt(ro, rd, p, ta);
       fx += snow*(halo(d, max(0.06, px))*1.1 + halo(d, 0.25)*0.15)*part(0.0);
     }

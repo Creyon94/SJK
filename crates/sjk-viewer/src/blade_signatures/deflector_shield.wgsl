@@ -17,60 +17,107 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
-fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
-    let L = uLength;
+// the shell's light where the ray meets it at p (normal n): hexagonal cells over the unrolled
+// shell, brighter where it is seen edge on, and the hits rippling over it
+fn ds_at(p: vec3<f32>, n: vec3<f32>, rd: vec3<f32>, R: f32, y0: f32, y1: f32, yb: f32, yt: f32) -> vec3<f32> {
     let t = uTime;
     let sw = clamp(uSwing, 0.0, 1.0);
     let cl = clamp(uClash, 0.0, 1.0);
+    let c: vec3<f32> = vec3<f32>(0.4, 0.9, 1.0);
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    let graze = 1.0 - abs(dot(n, rd));
+    let shell = 0.35 + 0.65 * pow(graze, 2.0);
+    // hexagonal cells over the unrolled shell (round its axis, up it)
+    let ang = atan2(p.x, p.z);
+    let u = vec2(ang * R * 0.9, p.y * 0.5);
+    let sA: vec2<f32> = vec2<f32>(1.0, 1.732);
+    let cA = floor(u / sA) + 0.5;
+    let cB = floor((u - vec2<f32>(0.5, 0.866)) / sA) + 0.5;
+    let qA = u - cA * sA;
+    let qB = u - (cB * sA + vec2<f32>(0.5, 0.866));
+    let q = select(qB, qA, dot(qA, qA) < dot(qB, qB));
+    let id = select(cB + vec2<f32>(0.37, 0.71), cA, dot(qA, qA) < dot(qB, qB));
+    let aq = abs(q);
+    let hx = max(aq.x * 0.5 + aq.y * 0.866, aq.x);
+    let edge = halo(0.5 - hx, 0.035);
+    let flick = 0.5 + 0.5 * sin(t * 1.3 + h21(id) * 6.2832);
+    let lit = max(cl, 0.35 * sw);
+    let foot = smoothstep(yb - 0.5, yb + 0.8, p.y);
+    fx += c * (edge * (0.3 + 0.35 * flick) + 0.08 * shell) * foot * (1.0 + 1.6 * lit) * part(0.0);
+    fx += c * pow(graze, 6.0) * 0.5 * foot * (1.0 + 1.5 * lit) * part(0.0);
+    // hits: every second or so a bolt lands, the cells there flash and a ripple races out
+    for (var i = 0; i < 2; i++) {
+        let fi = f32(i);
+        let cyc = t * 0.8 + fi * 0.5;
+        let k = floor(cyc);
+        let qq = fract(cyc);
+        let at = vec2((h11(k * 3.7 + fi) - 0.5) * R * 5.6, mix(y0, y1 - 2.0, h11(k * 5.3 + fi * 2.0)) * 0.5);
+        var du = u - at;
+        du.x = glsl_mod(du.x + 3.1416 * R * 0.9, 6.2832 * R * 0.9) - 3.1416 * R * 0.9;
+        let dist = length(du);
+        let flash = exp(-qq * 5.0);
+        let ripple = halo(abs(dist - qq * 4.0), 0.3) * (1.0 - qq);
+        fx += (vec3<f32>(1.0) * halo(dist, 0.6) * flash * 2.0 + c * (edge * halo(dist, 1.8) * flash * 3.0 + ripple * (0.5 + edge) * 1.4)) * foot * part(1.0);
+    }
+    return fx;
+}
+
+// round 19 (Creyon: seen from above it was a flat picture following the camera): the field is a
+// true shell round the blade, a cylinder from the hilt closed by a dome over the tip, drawn where
+// the ray enters it and, dimmer, where it leaves
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
     let y0 = L * 0.2;
     let y1 = L * 0.97;
-    var fx: vec3<f32> = vec3<f32>(0.0);
-    let c: vec3<f32> = vec3<f32>(0.4, 0.9, 1.0);
-    // round 17 (Creyon: the blade's tip poked out through the dome): the dome closes over the tip
     let R: f32 = 2.6;
     let yb: f32 = 0.5;
     let yt = L + 1.2;
-    if abs(rd.z) > 0.0001 {
-        let p = ro + rd * (-ro.z / rd.z);
-        // the shell's radius at this height: a cylinder from the hilt with a round dome at the tip
-        let rr = R * sqrt(clamp(1.0 - pow(max(p.y - (yt - R), 0.0) / R, 2.0), 0.0, 1.0));
-        if abs(p.x) < rr + 0.6 && p.y > yb - 0.5 && p.y < yt + 0.5 {
-            let xr = clamp(p.x / max(rr, 0.01), -1.0, 1.0);
-            let inside = 1.0 - smoothstep(0.96, 1.04, abs(p.x) / max(rr, 0.01));
-            // brighter at its curved edges, as a shell seen side on
-            let shell = 0.35 + 0.65 * pow(1.0 - sqrt(max(1.0 - xr * xr, 0.0)), 2.0);
-            // hexagonal cells over the unrolled shell
-            let u = vec2(asin(xr) * R * 0.9, p.y * 0.5);
-            let sA: vec2<f32> = vec2<f32>(1.0, 1.732);
-            let cA = floor(u / sA) + 0.5;
-            let cB = floor((u - vec2<f32>(0.5, 0.866)) / sA) + 0.5;
-            let qA = u - cA * sA;
-            let qB = u - (cB * sA + vec2<f32>(0.5, 0.866));
-            let q = select(qB, qA, dot(qA, qA) < dot(qB, qB));
-            let id = select(cB + vec2<f32>(0.37, 0.71), cA, dot(qA, qA) < dot(qB, qB));
-            let aq = abs(q);
-            let hx = max(aq.x * 0.5 + aq.y * 0.866, aq.x);
-            let edge = halo(0.5 - hx, 0.035);
-            let flick = 0.5 + 0.5 * sin(t * 1.3 + h21(id) * 6.2832);
-            let lit = max(cl, 0.35 * sw);
-            let base = 1.0 - smoothstep(yt - 0.6, yt + 0.4, p.y + (R - rr) * 0.0);
-            let foot = smoothstep(yb - 0.5, yb + 0.8, p.y);
-            fx += c * (edge * (0.3 + 0.35 * flick) + 0.08 * shell) * inside * foot * (1.0 + 1.6 * lit) * part(0.0);
-            fx += c * halo(abs(abs(p.x) - rr), 0.12) * 0.5 * foot * (1.0 + 1.5 * lit) * part(0.0);
-            // hits: every second or so a bolt lands, the cells there flash and a ripple races out
-            for (var i = 0; i < 2; i++) {
-                let fi = f32(i);
-                let cyc = t * 0.8 + fi * 0.5;
-                let k = floor(cyc);
-                let qq = fract(cyc);
-                let at = vec2((h11(k * 3.7 + fi) - 0.5) * R * 1.1, mix(y0, y1 - 2.0, h11(k * 5.3 + fi * 2.0)) * 0.5);
-                let dist = length(u - at);
-                let flash = exp(-qq * 5.0);
-                let ripple = halo(abs(dist - qq * 4.0), 0.3) * (1.0 - qq);
-                fx += (vec3<f32>(1.0) * halo(dist, 0.6) * flash * 2.0 + c * (edge * halo(dist, 1.8) * flash * 3.0 + ripple * (0.5 + edge) * 1.4)) * inside * foot * part(1.0);
-            }
+    let yc = yt - R;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    var tin: f32 = -1.0;
+    var tout: f32 = -1.0;
+    // the cylinder's wall, from just below the hilt's mouth to where the dome begins
+    let a = dot(rd.xz, rd.xz);
+    let b = dot(ro.xz, rd.xz);
+    let cc = dot(ro.xz, ro.xz) - R * R;
+    var h = b * b - a * cc;
+    if a > 1.0e-6 && h > 0.0 {
+        h = sqrt(h);
+        let t0 = (-b - h) / a;
+        let t1 = (-b + h) / a;
+        var y = ro.y + rd.y * t0;
+        if t0 > 0.0 && y > yb - 0.5 && y < yc {
+            tin = t0;
         }
+        y = ro.y + rd.y * t1;
+        if t1 > 0.0 && y > yb - 0.5 && y < yc {
+            tout = t1;
+        }
+    }
+    // the dome
+    let oc = ro - vec3(0.0, yc, 0.0);
+    let bs = dot(oc, rd);
+    var hs = bs * bs - (dot(oc, oc) - R * R);
+    if hs > 0.0 {
+        hs = sqrt(hs);
+        let t0 = -bs - hs;
+        let t1 = -bs + hs;
+        if t0 > 0.0 && ro.y + rd.y * t0 >= yc && tin < 0.0 {
+            tin = t0;
+        }
+        if t1 > 0.0 && ro.y + rd.y * t1 >= yc && tout < 0.0 {
+            tout = t1;
+        }
+    }
+    if tin > 0.0 {
+        let p = ro + rd * tin;
+        let n = select(normalize(p - vec3(0.0, yc, 0.0)), normalize(vec3(p.x, 0.0, p.z)), p.y < yc);
+        fx += ds_at(p, n, rd, R, y0, y1, yb, yt);
+    }
+    if tout > 0.0 {
+        let p = ro + rd * tout;
+        let n = select(normalize(p - vec3(0.0, yc, 0.0)), normalize(vec3(p.x, 0.0, p.z)), p.y < yc);
+        fx += ds_at(p, n, rd, R, y0, y1, yb, yt) * 0.55;
     }
     return fx * uFx;
 }

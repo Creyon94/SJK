@@ -18,7 +18,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   vec3 gold = vec3(1.0, 0.78, 0.3);
-  fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.2, 0.35, 1.0, 1.9, gold)*0.7*part(0.0);
+  fx += fxStreams(ro, rd, px, L*0.04, y1, 2.0, 2.2, 0.35, 1.0, 1.9, gold)*0.7*part(0.0);
   fx += fxFall(ro, rd, px, y0, y1, 1.2, 10.0, 6.0, 0.35, 0.0, 5.3, gold)*part(1.0);
   fx += fxMotes(ro, rd, px, y0, y1, 0.7, 3.0, 22.0, 0.02, 8.6, vec3(1.0, 0.9, 0.6))*part(2.0);
   return fx*uFx;

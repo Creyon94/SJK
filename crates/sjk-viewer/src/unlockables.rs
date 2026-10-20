@@ -706,7 +706,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A blade of liquid beskar: ripples run up its mirror steel, beads roll to the tip, tendrils of liquid metal reach out of it and flow back in, droplets orbit and fly off it and silver glints fly.",
+        description: "A blade of liquid beskar: ripples run up its mirror steel, beads roll to the tip, rings of liquid metal ripple up round it, droplets orbit and fly off it and silver glints fly.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -860,11 +860,11 @@ pub(crate) static ALL: [Unlockable; 165] = [
         name: "Kyber Heart blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
-        chroma: false,
+        chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A rose kyber blade that beats like a heart: every beat pumps a pulse of light up it and throws sparks off it, veins of light winding round it.",
+        description: "A kyber blade that beats like a heart, rose or in its wearer's colour: every beat pumps a pulse of light up it and throws sparks off it, veins of light winding round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1128,7 +1128,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A storm round Cloud City: rose and gold clouds billowing round the blade, gale streaks racing past it.",
+        description: "A storm round Cloud City: the gas giant's banded sunset clouds swirl round the blade, gale streaks race past it and tibanna gas rises up it in shimmering rings.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1352,11 +1352,11 @@ pub(crate) static ALL: [Unlockable; 165] = [
         name: "Christophsis Crystal blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Rare,
-        chroma: false,
+        chroma: true,
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The crystal fields of Christophsis: facets glinting inside a violet blade and crystals growing out of it all round, glinting and sinking back in.",
+        description: "The crystal fields of Christophsis: facets glinting inside a violet blade (or one in its wearer's colour) and crystals growing out of it all round, glinting and sinking back in.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -2213,32 +2213,24 @@ mod tests {
                 "saber_hologram",
                 "saber_runic",
                 "saber_heartbeat",
-                // Creyon's lower tiers that fit a colour (round 14): droids, kyber, holograms,
-                // data and light; their effects keep their own colours.
                 "saber_circuit",
                 "saber_echo",
                 "saber_amethyst",
                 "saber_neon",
-                // Creyon's blades that take a colour only where that makes sense (his round
-                // 13: kyber, holograms, the Force, cartoon blades); every other keeps its own.
-                // Its pure part takes the colour, its corruption stays red (round 12).
                 "saber_bleeding",
-                // Its blade takes the colour, its crystals keep theirs (round 13).
                 "saber_fiber",
                 "saber_comic",
-                // Its cut stays black and its eye amber; its lips take the colour (round 14).
                 "saber_abyssal_eye",
-                // Their blades take the colour, their effects keep theirs (round 14); Between
-                // Worlds' duel stays white and red.
                 "saber_between_worlds",
                 "saber_eclipse",
                 "saber_hyperspace",
+                "saber_kyber_heart",
                 "saber_singing_kyber",
                 "saber_star_dragon",
                 "saber_lightspeed_ram",
                 "saber_shattered_kyber",
-                // Creyon's rares, uncommons and commons that fit a colour (round 14).
                 "saber_star_map",
+                "saber_christophsis_crystal",
                 "saber_healed_kyber",
                 "saber_navigation_beacon",
                 "saber_puzzle_holocron",

@@ -114,6 +114,8 @@ pub(crate) fn linger(id: &str) -> f32 {
 /// Quantum's number: its ghost copies are an option (`saber.wgsl` `lab_quantum_ghosts`,
 /// drawn unless the wearer's `copies` section is off).
 const QUANTUM: u32 = 14;
+/// The Clone Wars blade's number: its own parts are options (round 19).
+const COMIC: u32 = 6;
 
 /// `cg_saberLabDesigns`, as last read ([`set_enabled`]); on until the console says.
 static ENABLED: AtomicBool = AtomicBool::new(true);
@@ -167,6 +169,19 @@ impl Design {
             option("particles", "Particles", "arcs"),
             option("bursts", "Swing and clash bursts", "motes"),
         ];
+        if self.number == COMIC {
+            // Round 19 (Creyon): the Clone Wars blade's own parts, each switched on its own;
+            // its particles go with the cartoon smoke and sparks (`saber.wgsl`
+            // `lab_comic_*`), on bits a design has no other use for.
+            shown.options = vec![
+                option("comic_panel", "Comic panel", "sputter"),
+                option("action_burst", "Action burst", "glitch"),
+                option("clone_markings", "Clone markings", "scan"),
+                option("holo_flicker", "Holo flicker", "bands"),
+                option("smoke_sparks", "Cartoon smoke and sparks", "arcs"),
+                option("bursts", "Swing and clash bursts", "motes"),
+            ];
+        }
         if self.number == QUANTUM {
             shown
                 .options

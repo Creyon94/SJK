@@ -30,8 +30,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
       float fi = float(i);
       float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
       float y = mix(y0, y1 - 2.0, (fi + 0.3)/9.0);
-      vec3 a = vec3(side*0.35, y, 0.0);
-      vec3 tip = a + vec3(side*0.9, 0.55, 0.0);
+      // round 19: the thorns grow all round the stem, in three dimensions
+      vec3 a = turnY(vec3(side*0.35, y, 0.0), fi*0.19);
+      vec3 tip = a + turnY(vec3(side*0.9, 0.55, 0.0), fi*0.19);
       float d = raySeg(ro, rd, a, tip, s);
       float w = mix(0.14, 0.02, s);
       float wave = 1.0 + 1.5*pow(0.5 + 0.5*sin(y*0.25 - t*2.2), 6.0);

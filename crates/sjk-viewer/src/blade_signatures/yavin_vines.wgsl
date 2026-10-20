@@ -23,7 +23,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let t = uTime;
     let sw = clamp(uSwing, 0.0, 1.0);
     let cl = clamp(uClash, 0.0, 1.0);
-    let y0 = L * 0.2;
+    // round 19 (Creyon: its effects did not start at the blade's start): from just above the hilt
+    let y0 = L * 0.03;
     let y1 = L * 0.97;
     var fx: vec3<f32> = vec3<f32>(0.0);
     let leaf: vec3<f32> = vec3<f32>(0.45, 1.0, 0.4);
