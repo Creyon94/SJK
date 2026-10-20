@@ -99,6 +99,9 @@ pub(crate) struct Scoreboard {
     /// session, and the tracker's last one, which a new session does not take again.
     siege_round_over: Option<sjk_client::SiegeRoundOver>,
     siege_round_seen: Option<sjk_client::SiegeRoundOver>,
+    /// The server ended the match ([`ServerIntermission`]), followed every frame.
+    server_intermission: bool,
+    intermission: ServerIntermission,
     context: behavior::Context,
     requests: behavior::Requests,
     /// The hub roster revision the rows' `identity` tags were derived from;
@@ -138,6 +141,8 @@ impl Scoreboard {
             killer_name: String::with_capacity(64),
             siege_round_over: None,
             siege_round_seen: None,
+            server_intermission: false,
+            intermission: ServerIntermission::default(),
             context: behavior::Context::default(),
             requests: behavior::Requests::default(),
             identity_revision: u64::MAX,
@@ -246,6 +251,7 @@ impl Scoreboard {
                 siege_winner: (self.gametype == sjk_game_jka::match_end::GT_SIEGE)
                     .then(|| sjk_client::siege_round_winner(game, self.siege_round_over))
                     .flatten(),
+                match_over: local_status.intermission || self.server_intermission,
                 duel: sjk::Duelists {
                     local: Some((player.health(), player.armor())),
                     ..duelists(game)
@@ -494,6 +500,48 @@ fn level_elapsed(game: &GameState, server_time: i32) -> Option<i32> {
     config_text(game, CS_LEVEL_START_TIME)
         .and_then(|start| start.trim().parse::<i32>().ok())
         .map(|start| server_time.saturating_sub(start).max(0))
+}
+
+/// Whether `CS_INTERMISSION` reads "1": set the moment a limit is hit, as siege's round
+/// end is told by its own configuration string, so the result does not wait on this
+/// client's `PM_INTERMISSION` (a spectator's or follower's may never carry it, and a mod
+/// may hold it back).
+fn intermission_set(game: &GameState) -> bool {
+    config_text(game, sjk_game_jka::match_end::CS_INTERMISSION)
+        .is_some_and(|text| text.trim().parse::<i32>().is_ok_and(|value| value != 0))
+}
+
+/// The server's end of the match as cgame takes it (`cg.intermissionStarted`): on when
+/// `CS_INTERMISSION` turns on, off again at a new level start (`CG_MapRestart`). The
+/// game never clears the string, and a `map_restart` (a single-map server's
+/// `nextmap`, "map_restart 0") keeps it, so the string alone would call the next match
+/// over too; a "1" already there when the level starts or this client joins is not
+/// taken either, as in cgame.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct ServerIntermission {
+    level_start: Option<i32>,
+    set: bool,
+    started: bool,
+}
+
+impl ServerIntermission {
+    /// Follow this frame's configuration strings; whether the match is over.
+    fn observe(&mut self, game: &GameState) -> bool {
+        let start = config_text(game, CS_LEVEL_START_TIME)
+            .and_then(|start| start.trim().parse::<i32>().ok());
+        let set = intermission_set(game);
+        if start != self.level_start {
+            *self = Self {
+                level_start: start,
+                set,
+                started: false,
+            };
+        } else if set != self.set {
+            self.set = set;
+            self.started = set;
+        }
+        self.started
+    }
 }
 
 /// Who duels (`CS_CLIENT_DUELISTS`, `-1` for nobody) and their health when the
@@ -811,6 +859,32 @@ mod tests {
         );
         game.replace_config_string(30, b"-1|0|1".to_vec()).unwrap();
         assert_eq!(classic_duel_result(&game, &board.rows, 4, true), None);
+    }
+
+    #[test]
+    fn the_match_is_over_once_the_server_sets_cs_intermission() {
+        let mut game = GameState::empty_local(0);
+        let mut over = ServerIntermission::default();
+        game.replace_config_string(CS_LEVEL_START_TIME, b"1000".to_vec())
+            .unwrap();
+        assert!(!over.observe(&game));
+        game.replace_config_string(22, b"1".to_vec()).unwrap();
+        assert!(over.observe(&game));
+        // A `map_restart` keeps the string but starts a new level: not over.
+        game.replace_config_string(CS_LEVEL_START_TIME, b"90000".to_vec())
+            .unwrap();
+        assert!(!over.observe(&game));
+        assert!(!over.observe(&game));
+        // A new map clears it; "0" is not over either.
+        game.replace_config_string(22, Vec::new()).unwrap();
+        assert!(!over.observe(&game));
+        game.replace_config_string(22, b"0".to_vec()).unwrap();
+        assert!(!over.observe(&game));
+        game.replace_config_string(22, b"1".to_vec()).unwrap();
+        assert!(over.observe(&game));
+        // Joining while it already reads "1" does not end the match.
+        let mut joined = ServerIntermission::default();
+        assert!(!joined.observe(&game));
     }
 
     #[test]

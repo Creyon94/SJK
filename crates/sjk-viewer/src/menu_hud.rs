@@ -11,7 +11,9 @@
 //! `cg_hudStyle` chooses between the client's own classic and radial layouts and
 //! this game-data HUD (`game`, SJK's default). In `game` mode the built-in status
 //! widgets hide ([`crate::hud::HudVisibility::menu_hud`]) and everything else
-//! the built-in HUD shows (crosshair, obituaries, timers, chat) stays. Files that
+//! the built-in HUD shows (crosshair, obituaries, timers, chat) stays. A menu named
+//! `swoopvehiclehud` gives the vehicle HUD (`CG_DrawVehicleHud`) too, in place of
+//! SJK's vector vehicle strip. Files that
 //! cannot be read, or that define no HUD menus, leave the built-in HUD in place.
 //!
 //! Several installed HUD packs replace the same `ui/hud.menu` (and often the
@@ -34,7 +36,7 @@ mod parse;
 pub(crate) mod preview;
 
 use crate::GpuState;
-use frame::{Frame, Readout, Timers};
+use frame::{Frame, Readout, Timers, VehicleReadout};
 use layout::{Layout, Side};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_vfs::{MountId, MountSummary, VirtualFileSystem};
@@ -231,6 +233,13 @@ impl MenuHud {
         self.active
     }
 
+    /// Whether the game HUD draws the vehicle HUD from its own
+    /// `swoopvehiclehud` pictures, in place of SJK's vector vehicle strip.
+    pub(crate) fn draws_vehicle(&self) -> bool {
+        self.active
+            && matches!(&self.loaded, Loaded::Menus { layout, .. } if layout.vehicle.is_some())
+    }
+
     /// Follow `cg_hudStyle`, `cg_hudFiles` and `cg_hudPack`, loading on first
     /// use or change.
     pub(crate) fn sync(gpu: &mut GpuState) {
@@ -341,37 +350,42 @@ impl MenuHud {
         };
     }
 
-    /// Build and upload this frame. `visible` is retail's condition for
-    /// `CG_DrawStats`: a living, non-spectating player with the status HUD
-    /// on and no scoreboard.
+    /// Build and upload this frame. `readout` is the status HUD's values,
+    /// present under retail's condition for `CG_DrawStats` (a living,
+    /// non-spectating player with the status HUD on and no scoreboard) unless
+    /// the vehicle hides its rider; `vehicle` is the vehicle HUD's, present
+    /// while it shows and [`Self::draws_vehicle`].
     pub(crate) fn prepare(
         &mut self,
         queue: &crate::frame_queue::FrameQueue,
         readout: Option<&Readout>,
+        vehicle: Option<&VehicleReadout>,
         viewport: [f32; 2],
         scale: f32,
     ) {
         self.drawn = false;
         let readout = readout.filter(|_| self.active);
-        let Some(readout) = readout else {
-            self.gpu.prepare(queue, None, viewport, scale);
-            return;
-        };
+        let vehicle = vehicle.filter(|_| self.active);
         match &self.loaded {
             Loaded::None => {}
             Loaded::Text => {
-                self.frame.simple_hud(readout, &mut self.timers);
-                self.drawn = true;
+                if let Some(readout) = readout {
+                    self.frame.simple_hud(readout, &mut self.timers);
+                    self.drawn = true;
+                }
             }
             Loaded::Menus { layout, digits } => {
-                self.frame.menu_hud(
-                    layout,
-                    readout,
-                    &mut self.timers,
-                    *digits,
-                    &self.score_label,
-                );
-                self.drawn = true;
+                if readout.is_some() || (vehicle.is_some() && layout.vehicle.is_some()) {
+                    self.frame.stats(
+                        layout,
+                        readout,
+                        vehicle,
+                        &mut self.timers,
+                        *digits,
+                        &self.score_label,
+                    );
+                    self.drawn = true;
+                }
             }
         }
         self.gpu

@@ -36,6 +36,9 @@ pub(crate) const DISABLED: Color = Color::new(0.5, 0.5, 0.5, 1.0);
 pub(crate) const TITLE: Color = Color::new(0.695, 0.760, 0.861, 1.0);
 /// Retail description colour (`descColor 1 .682 0 .8`).
 pub(crate) const HINT: Color = Color::new(1.0, 0.682, 0.0, 0.8);
+/// The version line's pointer token while a click on it acts on the update
+/// ([`crate::update::Notice::clickable`]), apart from the entries' indices.
+pub(crate) const UPDATE_TOKEN: u16 = 200;
 const INK: [f32; 3] = [0.004, 0.008, 0.020];
 const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
 
@@ -221,21 +224,32 @@ pub(crate) fn build(
             TextAlign::Center,
         );
     }
-    let muted = canvas.theme().muted;
+    // The version, and the update: a click installs a release waiting.
+    let notice = crate::update::notice();
+    let clickable = notice.is_some_and(crate::update::Notice::clickable);
+    let line = Rect::new(
+        viewport[0] - 536.0 * s,
+        viewport[1] - 26.0 * s,
+        520.0 * s,
+        16.0 * s,
+    );
+    let colour = match notice {
+        Some(_) if clickable && canvas.token_hovered(UPDATE_TOKEN) => FOCUS,
+        Some(_) => GOLD,
+        None => canvas.theme().muted,
+    };
     canvas.text_aligned(
-        &super::super::main_view::version_line(),
-        Rect::new(
-            viewport[0] - 536.0 * s,
-            viewport[1] - 26.0 * s,
-            520.0 * s,
-            16.0 * s,
-        ),
+        &super::super::main_view::version_line(notice),
+        line,
         6.0 * s,
-        muted,
+        colour,
         FontWeight::Regular,
         0.5 * s,
         TextAlign::End,
     );
+    if clickable {
+        canvas.hit_region(UPDATE_TOKEN, line);
+    }
     canvas.pop_opacity();
     canvas.finish(menu.selection() as u16);
 }

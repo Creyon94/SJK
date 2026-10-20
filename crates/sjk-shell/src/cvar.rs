@@ -26,6 +26,9 @@ impl CvarFlags {
     pub const USER_CREATED: Self = Self(1 << 4);
     /// Omit an archived value from generated configuration when it equals its default.
     pub const OMIT_DEFAULT: Self = Self(1 << 5);
+    /// A password or key: the console never prints the value ([`crate::secret`]).
+    /// Registration adds it to a cvar [`crate::secret::is_secret_name`] names.
+    pub const SECRET: Self = Self(1 << 6);
 
     /// Returns whether every bit in `other` is present.
     pub const fn contains(self, other: Self) -> bool {
@@ -193,6 +196,32 @@ pub struct Cvar {
     pub description: String,
 }
 
+impl Cvar {
+    /// The value as the console may print it: [`crate::secret::MASK`] when the cvar
+    /// is [`CvarFlags::SECRET`]; for a cvar the player created (`seta autologin
+    /// "amlogin hunter2"`), the command line it holds with its passwords masked
+    /// ([`crate::secret::shown`]); the value itself otherwise, so a registered
+    /// cvar such as `name` is never read as a command.
+    pub fn shown_value(&self) -> String {
+        self.shown(&self.value.as_text())
+    }
+
+    /// The default as [`Self::shown_value`] shows a value.
+    pub fn shown_default(&self) -> String {
+        self.shown(&self.default.as_text())
+    }
+
+    fn shown(&self, text: &str) -> String {
+        if self.flags.contains(CvarFlags::SECRET) {
+            crate::secret::shown(true, text)
+        } else if self.flags.contains(CvarFlags::USER_CREATED) {
+            crate::secret::shown(false, text)
+        } else {
+            text.to_owned()
+        }
+    }
+}
+
 /// Immutable change notification delivered after a successful mutation.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CvarChange {
@@ -218,6 +247,9 @@ pub struct CvarRegistry {
     aliases: BTreeMap<String, String>,
     /// Stamp of the archived state ([`Self::archive_revision`]).
     revision: u64,
+    /// Keys of the [`CvarFlags::SECRET`] cvars, for [`Self::scrub`]; a key whose
+    /// cvar was unset is skipped there.
+    secrets: Vec<String>,
 }
 
 impl CvarRegistry {
@@ -298,6 +330,13 @@ impl CvarRegistry {
         if definition.flags.contains(CvarFlags::ARCHIVE) {
             self.archive_changed();
         }
+        let mut flags = definition.flags;
+        if crate::secret::is_secret_name(&definition.name) {
+            flags |= CvarFlags::SECRET;
+        }
+        if flags.contains(CvarFlags::SECRET) && !self.secrets.contains(&key) {
+            self.secrets.push(key.clone());
+        }
         self.entries.insert(
             key,
             CvarEntry {
@@ -305,7 +344,7 @@ impl CvarRegistry {
                     name: definition.name,
                     value: definition.default.clone(),
                     default: definition.default,
-                    flags: definition.flags,
+                    flags,
                     description: definition.description,
                 },
                 callbacks: Vec::new(),
@@ -328,6 +367,42 @@ impl CvarRegistry {
             .map(|entry| &entry.cvar)
     }
 
+    /// Whether `name` holds a secret: a [`CvarFlags::SECRET`] cvar, or a name
+    /// [`crate::secret::is_secret_name`] gives that flag once it is created.
+    pub fn is_secret(&self, name: &str) -> bool {
+        self.get(name).map_or_else(
+            || crate::secret::is_secret_name(name),
+            |cvar| cvar.flags.contains(CvarFlags::SECRET),
+        )
+    }
+
+    /// `text` with each current secret value of [`crate::secret::SCRUB_MIN_CHARS`]
+    /// characters or more replaced by [`crate::secret::MASK`], the longest first so
+    /// one that holds another (`jedi2024`, `jedi`) is masked whole; borrowed, without
+    /// allocating, when it holds none, as for nearly every line.
+    pub fn scrub<'a>(&self, text: &'a str) -> std::borrow::Cow<'a, str> {
+        let mut found: Vec<&str> = self
+            .secrets
+            .iter()
+            .filter_map(|key| match &self.entries.get(key)?.cvar.value {
+                CvarValue::Text(value) => Some(value.as_str()),
+                _ => None,
+            })
+            .filter(|value| {
+                value.chars().count() >= crate::secret::SCRUB_MIN_CHARS && text.contains(value)
+            })
+            .collect();
+        if found.is_empty() {
+            return std::borrow::Cow::Borrowed(text);
+        }
+        found.sort_by_key(|value| std::cmp::Reverse(value.len()));
+        let mut scrubbed = text.to_owned();
+        for value in found {
+            scrubbed = scrubbed.replace(value, crate::secret::MASK);
+        }
+        std::borrow::Cow::Owned(scrubbed)
+    }
+
     /// Iterate cvars in deterministic normalized-name order.
     pub fn iter(&self) -> impl Iterator<Item = &Cvar> {
         self.entries.values().map(|entry| &entry.cvar)
@@ -345,6 +420,14 @@ impl CvarRegistry {
 
     /// Add behavioral flags to an existing cvar.
     pub fn add_flags(&mut self, name: &str, flags: CvarFlags) -> Result<(), CvarError> {
+        // An unknown name is refused before it can be remembered as a secret.
+        self.entry_mut(name)?;
+        if flags.contains(CvarFlags::SECRET) {
+            let key = self.canonical_key(&name.to_ascii_lowercase()).to_owned();
+            if !self.secrets.contains(&key) {
+                self.secrets.push(key);
+            }
+        }
         let cvar = &mut self.entry_mut(name)?.cvar;
         let before = cvar.flags;
         cvar.flags |= flags;
@@ -442,6 +525,16 @@ impl Display for CvarError {
 
 impl std::error::Error for CvarError {}
 
+impl crate::secret::Names for CvarRegistry {
+    fn is_secret(&self, name: &str) -> bool {
+        CvarRegistry::is_secret(self, name)
+    }
+
+    fn is_cvar(&self, name: &str) -> bool {
+        self.get(name).is_some()
+    }
+}
+
 #[cfg(test)]
 mod float_text_tests {
     use super::CvarValue;
@@ -454,5 +547,75 @@ mod float_text_tests {
         // A value no f32 holds keeps its full form.
         assert_eq!(CvarValue::Float(0.1).as_text(), "0.1");
         assert_eq!(CvarValue::Float(1.0 / 3.0).as_text(), "0.3333333333333333");
+    }
+}
+
+#[cfg(test)]
+mod secret_tests {
+    use super::*;
+
+    fn registry() -> CvarRegistry {
+        let mut cvars = CvarRegistry::new();
+        for name in ["password", "rconPassword", "name"] {
+            cvars
+                .register(CvarDefinition::new(name, "", CvarFlags::NONE, "test"))
+                .unwrap();
+        }
+        cvars
+    }
+
+    #[test]
+    fn a_secret_holding_another_is_scrubbed_whole() {
+        let mut cvars = registry();
+        cvars.set_text("password", "jedi").unwrap();
+        cvars.set_text("rconPassword", "jedi2024").unwrap();
+        assert_eq!(
+            cvars.scrub("rcon jedi2024, join jedi"),
+            "rcon ********, join ********"
+        );
+        assert!(matches!(
+            cvars.scrub("nothing here"),
+            std::borrow::Cow::Borrowed(_)
+        ));
+    }
+
+    #[test]
+    fn a_short_secret_is_not_scrubbed_from_ordinary_text() {
+        let mut cvars = registry();
+        cvars.set_text("password", "on").unwrap();
+        assert_eq!(cvars.scrub("console on"), "console on");
+    }
+
+    #[test]
+    fn an_unknown_name_is_not_remembered_as_a_secret() {
+        let mut cvars = registry();
+        assert!(cvars.add_flags("foo", CvarFlags::SECRET).is_err());
+        cvars
+            .register(CvarDefinition::new("foo", "", CvarFlags::NONE, "test"))
+            .unwrap();
+        cvars.set_text("foo", "word").unwrap();
+        assert_eq!(cvars.scrub("a word"), "a word");
+    }
+
+    #[test]
+    fn only_player_created_cvars_are_read_as_command_lines() {
+        let mut cvars = registry();
+        cvars.set_text("name", "Login Required").unwrap();
+        assert_eq!(cvars.get("name").unwrap().shown_value(), "Login Required");
+        cvars
+            .register(CvarDefinition::new(
+                "autologin",
+                "",
+                CvarFlags::USER_CREATED,
+                "test",
+            ))
+            .unwrap();
+        cvars.set_text("autologin", "amlogin hunter2").unwrap();
+        assert_eq!(
+            cvars.get("autologin").unwrap().shown_value(),
+            "amlogin ********"
+        );
+        cvars.set_text("rconPassword", "hunter2").unwrap();
+        assert_eq!(cvars.get("rconPassword").unwrap().shown_value(), "********");
     }
 }

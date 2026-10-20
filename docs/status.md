@@ -1,3 +1,15 @@
+## The chat key always opens global chat
+
+19/10/2026: `messagemode` (Y by default) now always opens the composer on global
+chat, matching EternalJK. A previous team message, SJK message or whisper no longer
+changes its destination. The dedicated channel commands and Tab cycling are unchanged.
+The pull request removed `cg_chatRememberChannel`; Sol kept it as an option, now off
+by default (20/10/2026), so 1 restores the remembered channel. Verified on x86_64 Linux
+with Rust 1.99.1: the focused composer regression and Settings tests,
+`cargo fmt --all --check`, the locked workspace build and tests, and all-target Clippy
+pass; the locked release workspace build also passes. The key path has not been
+exercised interactively on a live game server.
+
 ## The Sun blade becomes a signature; it drops again
 
 20/10/2026, `personal/sun-signature`, based on `main` (Sol: blade 001 should be the best,
@@ -173,6 +185,34 @@ times and centre prints 2.25 times the old size, computed from EternalJK's
 the GIF still three rows high) and the world shot `duel6_text_sizes_shot` (game fonts and
 Inter, 1080p, before and after). Not verified: side by side with EternalJK in a game, the
 HUD around the larger chat in a game, the scoreboard's chat column live.
+
+## Passwords in the console
+
+18/10/2026, `fix/console-password-masking`, based on `Sol-Vulpes/SJK` `046ef86b`:
+implemented masking of passwords everywhere the console prints, so they no longer
+reach the scrollback, `qconsole.log`, the session log, crash reports or log uploads.
+`sjk-shell`'s `secret.rs` names the secret cvars (`*password*`, `*loginpass*`,
+`cl_giphyKey`, given the new `SECRET` cvar flag) and password commands (`amlogin`,
+`login`, `register`, `changepassword`, `clanpass`, `clanwhois`); listings, `userinfo`
+and the cvar browser show `********`, the typed echo masks passwords (also in binds,
+cvars holding a command line, `rcon`, `cmd`, `strSub`, `delay` and `ifCvar`), and
+every kept line is scrubbed of the secret values. See
+[client](client.md#passwords-in-the-console). A chat message typed in the console
+(`say`, `say_team`, `tell`, JA+/JoF `clansay`, `amsay`, ...) is also kept out of the
+crash trail, as received chat already was; see [identity](identity.md#crash-reports).
+Clan or private chat a mod sends as a plain server print cannot be told from other
+prints and still reaches the trail.
+
+Unit, shell and cvar-browser tests pin the tables and each layer, and that a typed,
+queried, listed, bound, cvar-held, `strSub`-expanded and `delay`ed password (each path
+its own, so the scrub cannot hide a gap) appears in no printed line, returned output
+or tap line while the cvar and binds keep their values; the browser never edits or
+copies from a mask and keeps a secret on an empty Enter. A viewer test types team chat
+and a whisper in the console and finds neither in the trail (and fails with the guard
+off). On Linux x86_64: format, workspace build, `sjk-shell` and the browser's tests
+passed; workspace Clippy and tests are left to CI. Not exercised in a live game;
+reports and logs written before the change keep what they had; `config.cfg` still
+holds passwords as plain text.
 
 ## Map editor panel
 
@@ -468,6 +508,35 @@ the alignment, JoF's table, and its application to only the game-data HUD. On
 Linux x86_64 with Rust 1.99.1, formatting, the locked workspace build and test
 suite, workspace all-target Clippy, and the locked release viewer build pass;
 existing warnings remain. The result has not yet been inspected in game.
+
+## Stock vehicle HUD in the game HUD
+
+19/10/2026, `feat/vehicle-hud-sjk-style`, on `fix/vehicle-hud-hide-rider`: a tester
+asked for the original Jedi Academy vehicle HUD, the health of the vehicle or animal
+being ridden. Under `cg_hudStyle game` (the default) the game-data HUD now also resolves
+`swoopvehiclehud` from the loaded menus and draws it as codemp `CG_DrawVehicleHud` does,
+with the retail pictures: the frames, the hull's twelve ticks on `vehicle_grid`, the
+speed (flashing `CT_LTRED1` while the turbo burns), shield and ammunition ticks (one row,
+or two rows of four for two weapons), the turbo recharge bar (red, green once ready) and
+the cyan weapons-linked mark. It keeps to the middle of a wide screen and draws when the
+vehicle hides its rider too. SJK's vector strip gives way to it there and stays for
+`classic`, `radial` and HUD packs without a vehicle menu. Values and maxima are the ones
+the strip reads (`hud::vehicle`). Not drawn, as before: the damage HUDs, the no-ammo
+flash and the link sound. Checked in a game on 19/10/2026 by the tester; the unit tests
+of `menu_hud` and `hud::vehicle` pass, and `vehicle_hud_snapshot` renders it from the
+retail files.
+
+## Vehicle HUD of a vehicle that hides its rider
+
+18/10/2026, `fix/vehicle-hud-hide-rider`, based on `Sol-Vulpes/SJK` `3483b1b`: on
+siege_hoth the AT-ST's pilot saw no vehicle HUD at all. The vehicle HUD drew only with
+the status HUD, and a vehicle with `hideRider` (the AT-ST) switches the player's status
+HUD off (`CG_DrawVehicleHud` returning false), so its own HUD went with it. A tester's
+log showed every condition of the HUD met in the AT-ST (piloted, the `.veh` profile
+loaded, alive). `HudVisibility` now keeps the vehicle HUD apart (`vehicle`, governed by
+`cg_drawStatus` and the scoreboard like the status HUD), and only the player's status
+and weapon HUD give way to the vehicle. `cargo check` of `sjk-viewer` passes; tests and
+Clippy were not run, and the AT-ST HUD is untested in a game.
 
 ## Shift console height
 
@@ -844,8 +913,9 @@ the event of that moment, else `CS_SIEGE_WINTEAM` (set only after a switched mat
 second round, so a player who joined after any other round's event sees no winner); large and centred over both teams,
 with "Winner" by the team that won and a faint wash of its colour over the window, and
 the team heads show no score in siege. The other team games (team free for all, CTF,
-CTY) tell their result the same way at the intermission, from the team scores: "5 : 4
-Blue team won" or "Tied 3 : 3". See
+CTY) tell their result the same way at the intermission, from the team scores: "Blue
+team won" with "Winner" by that team's head, which keeps its score, or "Teams tied"
+(19/10/2026, `feat/team-outcome-like-siege`; until then "5 : 4  Blue team won"). See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 

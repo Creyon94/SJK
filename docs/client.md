@@ -2397,12 +2397,13 @@ viewed snapshot, with predicted health, Force, weapon, ammo and velocity when
 available; model/map transitions do not borrow the previous player's prediction.
 See [chat/substitutions.rs](../crates/sjk-viewer/src/chat/substitutions.rs).
 
-`cg_chatRememberChannel` (default 1, Settings > HUD > Remember chat channel)
-makes the chat key (`messagemode`) open the composer on the channel of the last
-message sent from it: All, Team, SJK, or a whisper to a player still in the game
-(All once they leave). It lasts while SJK runs. The team, crosshair, last-attacker
-and SJK keys always open on their own channel; with 0 the chat key always opens on
-All.
+The chat key (`messagemode`, Y by default) opens the composer on global chat, as in
+EternalJK, so it never inherits a previous team, SJK or whisper destination (SJK #181).
+`cg_chatRememberChannel` (default 0, Settings > HUD > Remember chat channel; Sol's
+decision 20/10/2026 to keep it as an option, off) makes it open on the channel of the
+last message sent from it instead: All, Team, SJK, or a whisper to a player still in
+the game (All once they leave). That lasts while SJK runs. The team, crosshair,
+last-attacker and SJK keys always open on their own channel.
 
 Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their
@@ -2739,10 +2740,12 @@ use marked. The list holds each installed PK3 that ships `ui/hud.menu` in
 install order (the game's own archives as "Jedi Academy", others by file name
 without a `zz_` load-order prefix), every other `ui/*hud*.txt` list that
 describes a HUD, the text-only HUD, and SJK's radial and classic layouts, which
-have a note instead of a picture. Arrows, the wheel or the pointer highlight;
-Enter or a click uses the HUD and closes; Escape closes. The picker takes
-retail's colours and highlight art on the classic menus and the theme's with
-the SJK UI. "Game HUD files" stays on the tab for lists the picker does not
+the live HUD's own code draws over the same levelshot for the same player, so
+hovering their names shows them as a match does. Arrows, the wheel or the
+pointer highlight; Enter or a click uses the HUD and closes; Escape closes.
+Since 19/10/2026 the picker is the SJK UI's pop-up card over the darkened map
+in every menu style, as the resolution list is ([sjk-ui.md](sjk-ui.md#settings));
+it was a boxed panel in retail's or the theme's colours. "Game HUD files" stays on the tab for lists the picker does not
 find.
 
 ## Capture the flag HUD
@@ -2758,8 +2761,12 @@ the original cgame reads:
   state is `CS_FLAGSTATUS` (config string 23: red then blue, `0` at base, `1` taken, `2`
   dropped); the caption beside each says DROPPED, or for a taken flag its carrier's name
   (TAKEN while the client does not know who). The carrier comes from the viewed player's
-  state, a player in the snapshot, a teammate's `tinfo` row, then the last carrier seen
-  while the flag stays taken; the name is formatted again only when the carrier or their
+  state, a player in the snapshot, a teammate's `tinfo` row, a `scores` row, then the last
+  carrier seen while the flag stays taken. `scores` is the only source that names an enemy
+  out of sight, and it comes with a scoreboard press, so the scoreboard named a carrier the
+  HUD still called TAKEN; only rows that arrived after the flag was taken count
+  (`ClientSession::scores_revision`), as older ones may name an earlier carrier. The name
+  is formatted again only when the carrier or their
   client info changes, and keeps its colours under `cg_drawCrosshairNamesColours`.
 - While the local player carries a flag (`PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG`
   in the player state, whatever the status string says) the enemy flag's icon stands on a
@@ -3286,13 +3293,26 @@ The client looks for a newer SJK release when it starts and from the Update page
   players in it as its card without a restart (since 10/10/2026). A newer version shows on the main menus' version line
   ("update 2026.1010.1 available"). The check sends the request GitHub needs and
   nothing else; turn it off to send none.
+- That line is clickable (since 19/10/2026, Slash's request;
+  `update::notice` and `update::click_notice`). The SJK UI's main page shows "SJK
+  2026.1010.1 is ready" with an Install button under the version, bottom right; the
+  classic menu's version line reads "update 2026.1010.1 available: click to install".
+  A click starts the download at once, as Install on the Update page does; the line
+  then shows "Downloading the update... 42%" (the SJK UI with a progress bar) and
+  "Installing the update...", and once installed offers Restart, which quits so the
+  new version starts. A folder that cannot update itself offers Download, which opens
+  the release page; an install that fails says so with Details, which opens the
+  Update page with the reason. A failed check (GitHub unreachable) shows nothing.
 - When the check finds a newer release, a card says so once a session at the top of
   the screen, over the menus or a match, the achievements' card
   ([identity.md](identity.md#achievements); since 10/10/2026, Sol's request): "Update
-  available", "SJK 2026.1011.1", "Main menu > Update" and "Install it there; it starts
-  when SJK restarts" (or, for a folder that cannot update itself, "This folder cannot
-  update itself: see its page"), with SJK's emblem in the SJK UI's holo blue and no
-  sound. It waits while the window is away, and the Update page opening takes it back
+  available", "SJK 2026.1011.1", "Click to install" and "Downloads now; it starts
+  when SJK restarts" (or, for a folder that cannot update itself, "Click for its page"
+  and "This folder cannot update itself: see its page"), with SJK's emblem in the SJK
+  UI's holo blue and no sound. While the pointer is free (over the menus, not in a
+  match) a click on the card starts the download, as Install does, and opens the Update
+  page with its progress; for that folder it opens the release page (since 19/10/2026,
+  Slash's request; `GpuState::update_card_pointer`). It waits while the window is away, and the Update page opening takes it back
   (a release found while the page shows gets no card). `debug_update [version] [manual]`
   shows the card for a made-up release (2026.1231.1 without one; `manual` for the
   folder that cannot update itself) and checks and installs nothing.
@@ -4293,7 +4313,11 @@ returning to the row ([wheel_editor.rs](../crates/sjk-viewer/src/settings/wheel_
 - **Right column:** a live preview of the page's ring, the focused choice
   highlighted, then the page's key and bind (`+wheel <id>`) or what the choice
   runs. Picking a choice shows the catalogue there instead (Up and Down, Enter,
-  Escape; actions already on the page say so), Custom command last; a custom
+  Escape; actions already on the page say so), Custom command last, with a
+  search field right of its title that has the keyboard as it opens: typing keeps the actions and
+  emotes whose name or group holds every word (Custom command always stays),
+  held letters and Backspace repeat, Ctrl+A, Ctrl+C and Ctrl+V work as in every
+  field, Backspace on an empty search closes it; a custom
   choice's form has its name and command fields, Save and Cancel.
 - The pointer: hovering a row focuses it (a page row without showing that page,
   which a click does), the focused row's small controls act (Rename, up, down,
@@ -4775,6 +4799,52 @@ included ([local_time.rs](../crates/sjk-shell/src/local_time.rs)); the scrollbac
 stamps and the log file's `[HH:MM:SS]` are local time too. Differences from EternalJK besides those above: the input never runs past
 the screen's right edge (EternalJK's can).
 
+## Passwords in the console
+
+The console never prints a password: what it prints is kept in the scrollback,
+`qconsole.log` and the crash trail that the session log, crash reports and log uploads
+are made from ([identity](identity.md#crash-reports)).
+[secret.rs](../crates/sjk-shell/src/secret.rs) in `sjk-shell` names what is secret:
+cvars whose name contains `password` (`rconPassword`, `password`, `g_password`,
+`sv_password`, `cl_consoleSocketPassword`), `loginpass` (`japlus.loginPass1-3`) or
+`giphykey` (`cl_giphyKey`), which get the `SECRET` cvar flag when registered, and the
+commands `amlogin`, `login`, `register`, `changepassword`, `clanpass` and `clanwhois`
+(JA+ and JoF EJK), whose arguments are a password. Three
+layers keep them out:
+
+- every description and listing (a cvar's value, `print`, `cvarlist`, `cvar_modified`,
+  completion's listing, `userinfo`, the cvar browser) shows a set secret value as
+  `********` through `Cvar::shown_value`, and a command line a bind or a cvar the
+  player created holds with its password masked (`autologin = "amlogin ********"`);
+  a registered cvar such as `name` is shown as it is, never read as a command;
+- the echo of a typed line masks a password command's arguments, a secret cvar's new
+  value (`]rconpassword ********`, also after `set`, `toggle`, `ifCvar` and the
+  arithmetic commands) and the password in a command line given to `set`/`seta`, a
+  cvar, `bind` (`]bind P "amlogin ********"`), or carried by `rcon`, `cmd`,
+  `strSub`, `delay`/`waitf` or an `ifCvar` branch; a line with an open quote is
+  masked from its first password word on;
+- every kept line, and every command output a frontend gets back, is scrubbed of the
+  current values of the secret cvars of at least four characters, the longest first
+  (so `jedi2024` is not left as `********2024` beside `jedi`), so a path the
+  first two miss (`strSub echo $rconPassword$`, a mod printing userinfo) prints
+  `********` too.
+
+The values themselves are unchanged: the cvar and the bind keep them, the command and
+the server still get them (`bind P amlogin <password>` logs in as before), and
+`config.cfg` still saves the archived ones and binds as plain text. The cvar browser
+treats a secret, and a cvar whose shown value has a password masked, alike: it edits
+it from an empty field drawn as one `*` per character, keeps it when Enter confirms
+the empty field, and copies it by name, so the mask is never typed back as its value
+and the value is never drawn. There is no setting to show them again (`secret.rs` says why), and
+lines printed before this change (an older session log, a crash report already
+waiting) are not rewritten.
+
+Covered by unit tests of the tables, each layer and the cvar browser's edit and copy,
+and a shell test that types, queries, lists, binds, holds in a cvar, `strSub`s and
+`delay`s passwords, each path its own so the scrub cannot hide a gap in the others,
+and finds none in a printed line, returned output or tap line while the cvar and binds
+keep them; not exercised in a live game.
+
 ## Console socket
 
 `cl_consoleSocket <port>` lets a program on the same computer read the console
@@ -5174,6 +5244,12 @@ the letters closer; the default -0.5 tightens the fixed-width game chat font a
 little, and 0 is each font's own spacing. Wrapping measures the same spacing (an emoji picture keeps its
 own width), so a wider setting wraps sooner. Sender names, tags and the composer
 keep their own spacing.
+
+`cg_chatCardScale` (default 1, archived; 0.5 to 2) sizes the player card a chat name
+shows while the composer is open, on top of the chat's own scale (the viewport and
+`cg_chatBoxFontSize`): 0.8 draws it a fifth smaller, 1.5 half as big again. The card
+stays 0.4 s after the pointer leaves the name and the card, so the way to its buttons
+never loses it.
 
 A message too long for one row wraps onto up to four, each drawn as its own text,
 and every row after the first starts in the colour code in force where the row

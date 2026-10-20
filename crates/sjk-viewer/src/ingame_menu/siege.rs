@@ -1,6 +1,8 @@
 //! Retained siege selection in two steps, as the team page of the other team games:
-//! the side first (Red team, Blue team, Spectate, Back), then that side's classes.
-//! Choosing a class sends the stock class command, not userinfo.
+//! the side first (Auto-join, Red team, Blue team, Spectate, Back), then that side's
+//! classes. Choosing a class sends the stock class command, not userinfo; Auto-join
+//! sends `team free`, which puts the player on the side with fewer players in the
+//! class the server settles for it.
 use super::{InGameMenu, siege_data::Classes};
 use sjk_protocol::GameState;
 use sjk_vfs::VirtualFileSystem;
@@ -9,10 +11,11 @@ use std::fmt::Write as _;
 const PAGE_SIZE: usize = 8;
 
 /// The side step's rows.
-const RED: usize = 0;
-const BLUE: usize = 1;
-const SPECTATE: usize = 2;
-const SIDE_ROWS: usize = 4;
+const AUTO: usize = 0;
+const RED: usize = 1;
+const BLUE: usize = 2;
+const SPECTATE: usize = 3;
+const SIDE_ROWS: usize = 5;
 
 #[derive(Default)]
 /// Selection cursor and load-time catalogue retained between menu frames.
@@ -36,13 +39,17 @@ pub(super) struct Sides {
 
 impl State {
     /// The side step over `classes` for a player on `team`, the cursor on the
-    /// player's own side.
+    /// player's own side, or on Auto-join for one who watches.
     fn new(classes: Classes, team: u8) -> Self {
         Self {
             classes,
             side: None,
             first: 0,
-            cursor: if team == 2 { BLUE } else { RED },
+            cursor: match team {
+                1 => RED,
+                2 => BLUE,
+                _ => AUTO,
+            },
             team,
         }
     }
@@ -68,7 +75,7 @@ impl State {
         self.classes.teams[side].len() > PAGE_SIZE
     }
 
-    /// The side step's four rows, or a side's visible classes plus optional
+    /// The side step's five rows, or a side's visible classes plus optional
     /// pagination and Back.
     pub fn row_count(&self) -> usize {
         match self.side {
@@ -81,6 +88,11 @@ impl State {
     /// follows its label after "  /  ".
     pub fn prepare(&self, rows: &mut [String; 24], sides: Sides) -> usize {
         let Some(side) = self.side else {
+            let _ = write!(
+                rows[AUTO],
+                "Auto-join  /  The side with fewer players: {} red, {} blue",
+                sides.red_players, sides.blue_players
+            );
             for (row, label, players, team) in [
                 (RED, "Red team", sides.red_players, 1),
                 (BLUE, "Blue team", sides.blue_players, 2),
@@ -118,7 +130,7 @@ impl State {
     pub(super) fn title(&self) -> &'static str {
         match self.side {
             None => "Choose your team",
-            Some(RED) => "Red team classes",
+            Some(0) => "Red team classes",
             Some(_) => "Blue team classes",
         }
     }
@@ -163,8 +175,8 @@ impl InGameMenu {
         let state = &mut self.siege;
         let side = state.side.take()?;
         state.first = 0;
-        state.cursor = side;
-        Some(side)
+        state.cursor = RED + side;
+        Some(state.cursor)
     }
 
     /// Resolve a visible row through the same path for mouse and keyboard
@@ -175,8 +187,10 @@ impl InGameMenu {
         let state = &mut self.siege;
         let Some(side) = state.side else {
             return match row {
+                // `PickTeam` on the server: the side with fewer players.
+                AUTO => Action::Send("team free".into()),
                 RED | BLUE => {
-                    state.side = Some(row);
+                    state.side = Some(row - RED);
                     state.first = 0;
                     state.cursor = 0;
                     Action::None
@@ -237,6 +251,7 @@ mod tests {
         assert_eq!(
             labels(&menu),
             [
+                "Auto-join  /  The side with fewer players: 4 red, 1 blue",
                 "Red team  /  Your team, 4 players",
                 "Blue team  /  1 player",
                 "Spectate  /  Watch the match",
@@ -244,11 +259,12 @@ mod tests {
             ]
         );
         assert_eq!(menu.siege.title(), "Choose your team");
-        assert_eq!(menu.siege_row(), 0, "opens on the player's side");
-        assert_eq!(self::menu(2).siege_row(), 1);
+        assert_eq!(menu.siege_row(), RED, "opens on the player's side");
+        assert_eq!(self::menu(2).siege_row(), BLUE);
+        assert_eq!(self::menu(3).siege_row(), AUTO, "a spectator on Auto-join");
         assert_eq!(
-            (0..4).map(|row| menu.siege.mark(row)).collect::<Vec<_>>(),
-            [Some(1), Some(2), None, None]
+            (0..5).map(|row| menu.siege.mark(row)).collect::<Vec<_>>(),
+            [None, Some(1), Some(2), None, None]
         );
     }
 
@@ -257,6 +273,7 @@ mod tests {
         let watching = menu(3);
         assert!(watching.siege.current_row(SPECTATE));
         assert!(!watching.siege.current_row(RED) && !watching.siege.current_row(BLUE));
+        assert!(!watching.siege.current_row(AUTO));
         assert!(!menu(1).siege.current_row(SPECTATE));
         let mut listing = menu(3);
         listing.siege_action(RED);
@@ -269,7 +286,7 @@ mod tests {
     #[test]
     fn a_side_lists_its_classes_and_back_returns_to_it() {
         let mut menu = menu(3);
-        assert_eq!(menu.siege_action(0), Action::None);
+        assert_eq!(menu.siege_action(RED), Action::None);
         assert_eq!(menu.siege_row(), 0);
         assert_eq!(menu.siege.title(), "Red team classes");
         assert_eq!(
@@ -288,12 +305,24 @@ mod tests {
         // Back (and Escape) go to the side step, the cursor on the side.
         assert_eq!(menu.siege_action(2), Action::None);
         assert_eq!(menu.siege.title(), "Choose your team");
+        assert_eq!(menu.siege_row(), RED);
         assert_eq!(menu.siege_back(), None);
-        assert_eq!(menu.siege_action(1), Action::None);
+        assert_eq!(menu.siege_action(BLUE), Action::None);
+        assert_eq!(menu.siege.title(), "Blue team classes");
         assert_eq!(labels(&menu)[0], "Sith Warrior");
-        assert_eq!(menu.siege_back(), Some(1));
-        assert_eq!(menu.siege_row(), 1);
-        assert_eq!(menu.siege_action(2), Action::Send("team spectator".into()));
-        assert_eq!(menu.siege_action(3), Action::Back);
+        assert_eq!(menu.siege_back(), Some(BLUE));
+        assert_eq!(menu.siege_row(), BLUE);
+        assert_eq!(
+            menu.siege_action(SPECTATE),
+            Action::Send("team spectator".into())
+        );
+        assert_eq!(menu.siege_action(SPECTATE + 1), Action::Back);
+    }
+
+    #[test]
+    fn auto_join_takes_the_side_with_fewer_players() {
+        let mut menu = menu(3);
+        assert_eq!(menu.siege_action(AUTO), Action::Send("team free".into()));
+        assert!(menu.siege.on_sides(), "no class list: the server picks");
     }
 }

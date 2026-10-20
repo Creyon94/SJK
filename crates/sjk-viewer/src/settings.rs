@@ -284,8 +284,8 @@ impl SettingsMenu {
         )
     }
 
-    /// The HUD picker covers the screen; it draws itself whatever the menu
-    /// style ([`Self::append_hud_overlay`]).
+    /// The HUD picker covers the screen: the SJK UI's card
+    /// ([`Self::append_hud_picker_sjk`]), whatever the menu style.
     pub(crate) fn hud_picker_open(&self) -> bool {
         self.hud.is_open()
     }
@@ -508,18 +508,23 @@ impl SettingsMenu {
         (self.selected, false)
     }
     /// Whether a field takes the keys: the search, a text row, a number typed or the
-    /// wheel editor's name and command fields.
+    /// wheel editor's name and command fields and its catalogue's search.
     pub(crate) fn typing(&self) -> bool {
         self.searching
             || self.editing.is_some()
             || self.numeric.is_some()
-            || self.wheel.is_open() && self.wheel.typing.is_some()
+            // The quick wheel's catalogue types into its search, so held
+            // letters and Backspace repeat there too.
+            || self.wheel.is_open() && (self.wheel.typing.is_some() || self.wheel.picker.is_some())
     }
 
     /// The text of the field that has the keys, for Ctrl+C.
     pub(crate) fn field_text(&self) -> Option<&str> {
         if self.searching {
             return Some(&self.search);
+        }
+        if self.wheel.is_open() && self.wheel.typing.is_none() && self.wheel.picker.is_some() {
+            return Some(&self.wheel.search);
         }
         self.editing.as_ref().map(|draft| draft.text.as_str())
     }

@@ -36,6 +36,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Sun blade: Blade 001 rises like a sunrise, sets like a sunset and has the strongest light.
 > Away emote: Alt-tab or idle and your pick plays, silently; set it in `cg_awayEmote`.
 
+= cg_chatRememberChannel: The chat key now always opens on All. Turn this on to have it open on the channel of your last message again.
+
 - Cards are easier to see: the Cards tab's tiles are larger and each names its card, Enter or a click shows the card large (the arrows or the wheel turn to the next), a card's lore grows to fill its box when it is short, and no card shows its number any more _(Sol)_
 - Simple settings now offer the away emote too: Settings > Gameplay > Away emote and JA+ away emote, as Advanced has them under Sound > Emotes _(Sol)_
 - Creyon's Blade Lab blades: 128 saber shaders of his in five tiers, the newest the mythical Holdo Maneuver, each with its own effects drawn round the blade as Sol's are, every effect switchable in the Collection _(Creyon)_
@@ -63,6 +65,17 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Prediction misses (every JA+ grapple's landing) are written to the log only with `cg_showMiss` 1, as in EJK _(Sol, after SanjiJ's report)_
 - Achievement, holocron and medal pop-ups wait for the end of a private duel, then play _(Sol, after Milamber's report)_
 - Dances keep their music: a dance left running is no longer counted as away after `cg_awayIdle`, and a dancer out of sight for a moment in a crowded dance no longer loses their emote _(Sol, after Foshin's report)_
+- With the game HUD (`cg_hudStyle game`, the default) the vehicle HUD is the original Jedi Academy one, hull, speed, shield and ammunition ticks, turbo bar and weapons-linked mark included; the AT-ST, which hides its rider, now shows its vehicle HUD too _(Slash)_
+- Siege: the team choice has Auto-join, as the other team games, which puts you on the side with fewer players _(Slash)_
+- Adding or changing a quick wheel choice opens its list with a search field ready: type to find an action or emote by its name or group _(Slash)_
+- The SJK scoreboard ends a team match, CTF among them, as it ends a Siege round: "Blue team won" (or "Teams tied") large over the teams without the score, and "Winner" in gold on the winning team's head, which keeps its score _(Slash)_
+- The HUD look picker (Settings > HUD) is an SJK card over the map in every menu style, and hovering SJK radial or SJK classic shows a picture of it as a match draws it _(Slash)_
+- A newer SJK on the main menu can be installed with one click: Install (classic: click the version line) starts the download at once, the line shows its progress, then Restart starts the new version; a click on the Update available card does the same _(Slash)_
+- Capture the Flag: once the scoreboard has shown who carries your flag, the flag icon at the left names them too, instead of saying TAKEN _(Slash)_
+- The player card a chat name shows is smaller and tidier, waits a moment for the pointer on its way to Block, and `cg_chatCardScale` (0.5 to 2) sizes it _(Slash)_
+- An emplaced gun (siege_hoth's trench guns) turns to where its gunner looks, its stand and handles with it and its barrels held to 40 degrees down, and keeps that aim after the gunner leaves; before, it stayed pointing to its side _(Slash, after JKA)_
+- The console never prints a password: `rconPassword`, `password`, JA+ login passwords and the like show `********` in listings, the cvar browser and the echo of what you type (`amlogin`, `login`, `register`, binds and scripts holding them too), so they stay out of the scrollback, logs and crash reports; chat typed in the console stays out of crash reports as received chat does _(Slash)_
+- The chat key (Y) always opens on All, even after SJK chat, a team message or a whisper, as in EternalJK; Settings > HUD > Remember chat channel (`cg_chatRememberChannel`, now off) brings back opening on your last channel _(Lukas, after EternalJK)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

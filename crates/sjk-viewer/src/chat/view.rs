@@ -134,7 +134,7 @@ impl ChatOverlay {
             g.scale = feed_scale;
         }
         // A name under the pointer shows its profile card, over everything.
-        self.follow_card(self.is_typing());
+        self.follow_card(self.is_typing(), ms);
         self.build_card(font, &g, viewport);
         self.ui.finish(u16::MAX);
     }

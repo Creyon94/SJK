@@ -433,7 +433,7 @@ merged into SJK
 - #166 Shift plus the console key opens to `con_height` and Shift+Escape a quarter screen;
   made an option at the merge (`con_shiftHeight`, off, EternalJK's heights by default).
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 14 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 15 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -464,8 +464,10 @@ merged into SJK
   be switched off separately (a refusal from the hub still shows, at the merge).
 - #177 `con_copyColors`: copied console text keeps its colour codes, with `^7` before text that
   was white by default.
+- #181 the chat key (`messagemode`) opens on All after SJK chat, team chat or a whisper, as
+  EternalJK; opening on the last channel kept as an option at the merge (`cg_chatRememberChannel`, off).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 15 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 24 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -499,6 +501,21 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   3, 2, 1 count-in, and the round's end.
 - #176 the Siege hack bar under the crosshair, as `CG_DrawHaqrBar`; placed from the drawn
   crosshair, with retail's hacker icon added and the `HACKING: n%` text dropped at the merge.
+- #170 the original Jedi Academy vehicle HUD with the game HUD, as `CG_DrawVehicleHud`: hull, speed,
+  shield and ammunition ticks, turbo bar and the weapons-linked mark; the AT-ST shows it too.
+- #178 the console never prints a password: `SECRET` cvars and password commands (`amlogin`,
+  `login`, `register`, binds and scripts holding them) show `********` in listings, the cvar
+  browser and echoes, and are scrubbed from the scrollback, logs and crash reports.
+- #180 the CTF flag icon names an enemy carrier once the scoreboard has shown them, instead of TAKEN.
+- #182 the quick wheel's catalogue opens with a search field beside its title, by name or group.
+- #183 Siege's team choice has Auto-join, as in CTF: the side with fewer players.
+- #184 the HUD look picker drawn as an SJK card in every menu style, with pictures of each look.
+- #185 a team match's end told on the SJK scoreboard as a Siege round's, winner in gold; the
+  intermission followed as `cg.intermissionStarted` at the merge, so `map_restart` clears it.
+- #186 the update notice is clickable: Install starts the download, then Restart.
+- #187 an emplaced gun turns to where its gunner looks, stand and handles with it, barrels held
+  to 40 degrees down, and keeps its aim after the gunner leaves.
+- #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):

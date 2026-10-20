@@ -16,7 +16,7 @@ mod animation_config_tests;
 #[cfg(test)]
 mod glm_tolerance_tests;
 
-pub use bone_angles::{BoneAngleCommand, BoneAngleMode, BoneAxis};
+pub use bone_angles::{BoneAngleCommand, BoneAngleMode, BoneAxis, replace_bone_matrix};
 pub use bone_override::{
     BoneAnimationCommand, BoneFrameSample, BoneOverridePose, OverrideEndBehavior,
 };

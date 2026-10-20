@@ -214,14 +214,14 @@ test: Send a message the hub refuses (same text twice in 30 s): no sound, just t
 
 [chat-reply]
 area: Console & chat
-title: reply, chat opens on the last channel, SJK logo on SJK chat lines
+title: reply, chat key channel (cg_chatRememberChannel), SJK logo on SJK chat lines
 change: reply <message> whispers to the last whisperer (JoF EJK); bare reply opens the chat on it.
-change: The chat key opens on the last channel sent on (cg_chatRememberChannel 1).
+change: The chat key opens on All; cg_chatRememberChannel 1 (off by default): on the last channel.
 change: SJK chat lines in the game start with SJK's emblem instead of the letters SJK.
 test: Have someone /tell you, then /reply hi: they get it as a whisper.
 test: Bind "Reply to last whisper" (Key bindings > Other): its key opens a whisper to them.
 test: In the chat, Tab goes All, Team, SJK, then the whisperer, then All.
-test: Send on SJK, close, press the chat key: it opens on SJK. Settings > HUD toggle: All.
+test: Send on SJK, close, press the chat key: it opens on All. Remember chat channel on: SJK.
 test: SJK chat lines show the small gold emblem before the name, no SJK letters.
 note: The remembered channel lasts while SJK runs; a restart opens on All.
 
@@ -1380,6 +1380,16 @@ change: The duel badge and the saber icon were both drawn left of the name and o
 change: While the duel badge shows, the plate leaves the weapon icon out.
 test: Duel someone and look at their nameplate: only the crossed-sabers badge before the name.
 test: Out of a duel the weapon icon is back beside the name.
+
+[hud-picker-sjk-card]
+area: HUD
+title: HUD look picker: SJK card over the map, pictures of SJK radial and SJK classic
+change: Settings > HUD > HUD look opens the SJK UI's pop-up card in every menu style.
+change: Hovering SJK radial or SJK classic shows it drawn by the live HUD for the sample player.
+test: Settings > HUD > HUD look, Enter: a dark card over the dimmed map, list left, picture right.
+test: Hover SJK radial: arcs and pills round the centre; SJK classic: bars at the bottom.
+test: Hover Jedi Academy: the retail HUD picture as before. Enter uses, Esc (or its cap) closes.
+test: Menu style classic: the picker is the same SJK card.
 
 [scoreboard-afk]
 area: HUD

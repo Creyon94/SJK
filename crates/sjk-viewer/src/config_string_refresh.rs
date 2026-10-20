@@ -323,8 +323,11 @@ impl GpuState {
         {
             return;
         }
-        self.emitter_model_catalog
-            .insert(&mesh.appearance.model, self.object_meshes.len());
+        // A part of an emplaced gun (`emplaced_swivel`) is not the model an effect names.
+        if mesh.appearance.variant.is_empty() {
+            self.emitter_model_catalog
+                .insert(&mesh.appearance.model, self.object_meshes.len());
+        }
         log::progress(format_args!(
             "loaded demanded model {} mid-match",
             mesh.appearance.model

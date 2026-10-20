@@ -238,10 +238,18 @@ since 11/10/2026. A crash leaves a report in `crashes/` beside the configuration
   live.
 
 The trail is every console line as it is kept (through `Shell::set_line_tap`), colour
-codes removed, except chat lines (`push_chat_line` keeps them out), and every
+codes removed, except chat lines (`push_chat_line` keeps them out) and the echo of a
+chat message typed in the console (`say`, `say_team`, `tell`, `say_team_mod`,
+`clansay`, `amsay`, `ampsay`: `CHAT_COMMANDS` in
+[crash_report.rs](../crates/sjk-viewer/src/crash_report.rs); the scrollback keeps it),
+and every
 `log::progress` diagnostic. Each report is also written as plain text to
 `crashes/last-crash.txt`, which a player can send by hand. Paths under the player's own
-folder become `%USERPROFILE%`.
+folder become `%USERPROFILE%`. Passwords never enter the trail: the console masks a
+password typed or listed, and scrubs the secret cvars' values from every line, before
+the tap sees it
+([client](client.md#passwords-in-the-console)), so the trail, the session log, crash
+reports and log uploads carry the mask.
 
 With `cl_crashReports` on, the report waits in `crashes/pending/` (20 at most, the oldest
 make room). Once registered, the identity service sends what waits (`POST /v1/crash`,

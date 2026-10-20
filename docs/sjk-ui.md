@@ -866,6 +866,14 @@ that mode for the visit and leaves the player's choice as it was.
     more; the keys' line under the card (Up/Down, PgUp/PgDn, Enter, Esc, whose
     cap is the pointer's way back). Home/End and the wheel move too; Enter or a
     click picks, Esc returns to the rows.
+  - The HUD picker (HUD look's Enter) is a pop-up card the same way, in every
+    menu style since 19/10/2026 (`settings/hud_picker.rs`; x 240, 1440 wide):
+    HUD look and what it is, the HUDs' names on the left (up to 12 rows, the
+    highlighted one on the band, the one in use in gold with its dot), the
+    highlighted HUD's picture on the right (16:9, rounded, a thin holo edge)
+    with its name and origin under it, and the keys' line under the card.
+    Hovering a name shows its picture; SJK's radial and classic layouts are
+    drawn on it by the live HUD ([client.md](client.md#hud-style)).
   - The focused row has a soft band and a gold bar at its left; a row changed
     from its default a gold dot after its name, and when focused the reset arrow.
     The dot is placed from the name's width as the body font draws it (the
@@ -1207,8 +1215,12 @@ and out as the classic board does, settling into place as it opens.
   `CS_SIEGE_STATE` turned "3|time" (`sjk_client::siege_round_winner`), else,
   after the second round of a match whose teams switch, `CS_SIEGE_WINTEAM`; one
   who joined after another round's event sees no winner. A team game at its
-  intermission tells its result the same way, with the score, the winner's
-  first: "5 : 4  Blue team won" over the blue wash, or "Tied 3 : 3" in white;
+  intermission tells its result as a siege round does (Slash's request of
+  19/10/2026), from the moment the server sets `CS_INTERMISSION` (or this
+  client's own `PM_INTERMISSION`; as cgame's `cg.intermissionStarted`, only a
+  change of the string counts, and a new level start ends it, since a `map_restart`
+  keeps the "1"): "Blue team won" over the blue wash and "Winner" at the end of that
+  team's head, or "Teams tied" in white; the scores stay in the team heads, and
   the line on the right says nothing then. Under
   the map, "Killed by" and the name while you are dead.
 - **Where:** the columns start at x 680 of the frame, right of the chat column
@@ -1330,7 +1342,9 @@ entry of its own under Profile, making seven.
     Auto-join, Red team, Blue team (each with its colour and players) and Spectate;
     the side the player is on is quiet ("Your team", "You are watching") and passed
     over by the keys. In Siege the card's Class and side opens the class page in two
-    steps, as the team page: "Choose your team" with Red team and Blue team (each
+    steps, as the team page: "Choose your team" with Auto-join (`team free`: the
+    side with fewer players, in the class the server settles; the cursor on it
+    while the player watches), Red team and Blue team (each
     with its colour mark and players, "Your team" on the player's own, the cursor
     on it), Spectate (dimmed and passed over while the player watches) and Back; a
     side then lists its classes by name alone ("Red team classes", Next page past

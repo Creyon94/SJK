@@ -233,7 +233,7 @@ link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 14 merged pull requests
+role: Contributor: 15 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
@@ -248,11 +248,12 @@ did: #167 The speedometer placed as in JoF EJK
 did: #171 Whisper recipients shown on console hover
 did: #173 SJK chat switches for the feed and the console
 did: #177 Console copies can keep their colours
+did: #181 The chat key opens on All; remembering the channel is an option
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]
 github: JoFSlash
-role: Contributor: 15 merged pull requests
+role: Contributor: 24 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -268,6 +269,16 @@ did: #160 Siege HUD: round state, respawn countdown, hacking
 did: #169 Line breaks in string table text
 did: #174 Siege objective, count-in and round-end announcements
 did: #176 Siege hack bar and hacker icon under the crosshair
+did: #170 The original Jedi Academy vehicle HUD
+did: #178 The console never prints a password
+did: #180 The CTF flag icon names a carrier the scoreboard knows
+did: #182 Search field in the quick wheel catalogue
+did: #183 Siege team choice: Auto-join
+did: #184 The HUD picker as an SJK card, with pictures
+did: #185 Team match end told as a Siege round
+did: #186 One-click update from the main menu
+did: #187 Emplaced guns turn with their gunner
+did: #189 A smaller chat sender card, cg_chatCardScale
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

@@ -541,7 +541,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat::reply::REMEMBER_CVAR,
-        "The chat key opens on your last channel: All, Team, SJK or a whisper. Off, it opens on All.",
+        "On, the chat key opens on your last channel: All, Team, SJK or a whisper. Off (the default), it always opens on All.",
     ),
     (
         crate::chat::options::LINE_SPACING_CVAR,

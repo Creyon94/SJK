@@ -172,7 +172,7 @@ impl ClientMenu {
             .and_then(|model| model.split('/').next())
             .filter(|model| !model.is_empty())
             .unwrap_or("kyle");
-        let update = crate::update::available_version();
+        let update = crate::update::notice();
         let now = recent::now();
         let entries = self.browser.entries();
         let blank = home::ServerItem {
@@ -210,7 +210,7 @@ impl ClientMenu {
                 blade_name: console.map_or("blue", blade_name),
                 servers: &servers[..count],
                 version: env!("SJK_BUILD_VERSION"),
-                update: update.as_deref(),
+                update,
                 seconds: super::art::motion::seconds(),
                 chat,
                 summary,
@@ -305,6 +305,7 @@ impl ClientMenu {
                 crate::donation_goal::open();
                 MenuAction::None
             }
+            home::Action::Update => self.follow_update_notice(console),
             home::Action::SendChat => {
                 let text = self.home.take_draft();
                 self.chat_dock

@@ -6,8 +6,10 @@
 //! opens the composer on that whisper instead. Tab in the composer reaches the
 //! same whisper after the SJK channel.
 //!
-//! With `cg_chatRememberChannel 1` (the default) the chat key (`messagemode`) opens
-//! the composer on the channel of the last message sent from it: All, Team, SJK or
+//! The chat key (`messagemode`) opens the composer on All, as in EternalJK, so a
+//! message never goes to the SJK channel or a whisper by mistake (Lukas, SJK #181).
+//! With `cg_chatRememberChannel 1` (off by default, Sol's decision 20/10/2026) it
+//! opens on the channel of the last message sent from it instead: All, Team, SJK or
 //! a whisper to a player still in the game. The team, crosshair and SJK keys keep
 //! opening on their own channel.
 
@@ -266,7 +268,31 @@ mod tests {
     }
 
     #[test]
-    fn the_chat_key_opens_on_the_last_channel_sent_on() {
+    fn the_chat_key_always_opens_global_after_sjk_or_a_whisper() {
+        let mut chat = chat_with(&roster(0, &[(0, "Sol"), (3, "Bob")]));
+        assert!(!chat.options.remember, "off by default");
+        chat.open_sjk();
+        typed(&mut chat, "hi");
+        assert!(matches!(
+            press(&mut chat, KeyCode::Enter),
+            ChatInputResult::Sjk(_)
+        ));
+        chat.open_chat();
+        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Global);
+        press(&mut chat, KeyCode::Escape);
+
+        whisper(&mut chat, 3, "Bob");
+        chat.open_reply().unwrap();
+        typed(&mut chat, "ok");
+        press(&mut chat, KeyCode::Enter);
+        chat.open_chat();
+        let input = chat.input.as_ref().unwrap();
+        assert_eq!(input.channel, Channel::Global);
+        assert_eq!(input.recipient, None);
+    }
+
+    #[test]
+    fn with_remember_on_the_chat_key_opens_on_the_last_channel_sent_on() {
         let mut chat = chat_with(&roster(0, &[(0, "Sol"), (3, "Bob")]));
         chat.options.remember = true;
         chat.open_sjk();
