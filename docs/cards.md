@@ -292,8 +292,9 @@ without one), and its source facts "Holocron drop" and "Sol card".
 
 **Since 20/10/2026 (Sol's decision)** a second collection, **SJK Blades** (set
 `sjk_blades`), holds one card for each saber shader holocrons drop (the droppable ones,
-less the medals' blades), of kind `blade`. Its cards show their number as any card does
-(only credits cards hide theirs). A blade card's file names its shader,
+less the medals' blades), of kind `blade`. Its number is the blade's own (Sun is 001),
+and a blade card shows it alone, "#001" (`Face::place`): blade numbers skip the blades
+that never drop, so "001 / 162" would not add up (only credits cards hide theirs). A blade card's file names its shader,
 `"blade": "saber_sun"` (optional, read like `grants`: blank is none, an id the client does
 not know is kept but named nowhere; `Face::blade` in
 [faces.rs](../crates/sjk-viewer/src/cards/faces.rs)).

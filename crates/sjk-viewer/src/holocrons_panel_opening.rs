@@ -1004,6 +1004,12 @@ impl Panel {
             Some(face) if face.face.kind == crate::cards::faces::Kind::Credits => {
                 format!("{}, {}", face.face.kind.name(), face.face.set_name)
             }
+            Some(face) if face.face.kind == crate::cards::faces::Kind::Blade => format!(
+                "{}, {} #{:03}",
+                face.face.kind.name(),
+                face.face.set_name,
+                face.face.number
+            ),
             Some(face) => format!(
                 "{}, {}: card {} of {}",
                 face.face.kind.name(),

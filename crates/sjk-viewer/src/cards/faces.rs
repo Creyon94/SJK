@@ -136,9 +136,14 @@ impl Face {
 
     /// Where it stands in its set of `of` cards ("010 / 013"), `None` for a credits card:
     /// its number only orders the credits, so none reads as ranked above another (Sol,
-    /// 20/10/2026).
+    /// 20/10/2026). A blade card shows its blade's number alone ("#042"): blade numbers
+    /// skip the blades that never drop, so "of" would not add up.
     pub(crate) fn place(&self, of: usize) -> Option<String> {
-        (self.kind != Kind::Credits).then(|| format!("{:03} / {:03}", self.number, of.max(1)))
+        match self.kind {
+            Kind::Credits => None,
+            Kind::Blade => Some(format!("#{:03}", self.number)),
+            _ => Some(format!("{:03} / {:03}", self.number, of.max(1))),
+        }
     }
 }
 
@@ -497,7 +502,7 @@ mod tests {
             blade.solar_drop().as_deref(),
             Some("Its Solar copies also drop the Sun blade.")
         );
-        assert_eq!(blade.place(40).as_deref(), Some("010 / 040"));
+        assert_eq!(blade.place(40).as_deref(), Some("#010"));
         let blank = FILE.replace("\"artist\"", "\"blade\": \" \", \"artist\"");
         assert_eq!(parse("x", &blank).unwrap().blade, None);
         let later = FILE.replace("\"artist\"", "\"blade\": \"saber_later\", \"artist\"");
