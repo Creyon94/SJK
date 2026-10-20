@@ -7,10 +7,11 @@
 
 mod login;
 mod options;
+mod secrets;
 mod server_commands;
 mod teleport;
 
-use sjk_mod::{ClientMod, Command, Host, ServerKind, Setting, command};
+use sjk_mod::{ClientMod, Command, Host, Secrets, ServerKind, Setting, command};
 
 /// The mod's id and prefix.
 pub const ID: &str = "japlus";
@@ -157,6 +158,12 @@ impl ClientMod for JaPlus {
 
     fn settings(&self) -> &'static [Setting] {
         SETTINGS
+    }
+
+    /// `amlogin`, the JA+ family's account and clan passwords and
+    /// `japlus.loginPass1-3` ([`secrets`]).
+    fn secrets(&self) -> Secrets {
+        secrets::SECRETS
     }
 
     fn server_commands(&self, server: &sjk_mod::Server) -> &'static [Command] {

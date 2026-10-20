@@ -2996,6 +2996,7 @@ version = "0.1.0"
 dependencies = [
  "sjk-mod",
  "sjk-protocol",
+ "sjk-shell",
 ]
 
 [[package]]

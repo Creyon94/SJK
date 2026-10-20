@@ -134,6 +134,26 @@ pub struct UserinfoField {
     pub enabled_by: &'static str,
 }
 
+/// What a mod's servers take that must stay out of logs: passwords, which the
+/// console masks in every line it prints or keeps (scrollback, `qconsole.log`, the
+/// session log, crash reports and log uploads), and chat commands, whose typed lines
+/// stay out of the session log, crash reports and log uploads as received chat does.
+/// Every word is lowercase.
+///
+/// Unlike a mod's commands, a mod's secrets do not wait for its servers: the
+/// client applies them from startup for every mod the build carries, whatever its
+/// switch and the server, so a password typed offline or held in a bind is never
+/// printed.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Secrets {
+    /// Commands whose arguments are a password (`amlogin`).
+    pub commands: &'static [&'static str],
+    /// Parts of a cvar name that make its value secret (`loginpass`).
+    pub cvar_parts: &'static [&'static str],
+    /// Commands whose arguments are a chat message (`amsay`).
+    pub chat_commands: &'static [&'static str],
+}
+
 /// A client mod.
 pub trait ClientMod: Send {
     /// Lower-case id: the prefix of its names and of its switch, `mod_<id>`.
@@ -156,6 +176,10 @@ pub trait ClientMod: Send {
     /// permits them. The host removes them on disable, leave or another server.
     fn userinfo_fields(&self) -> &'static [UserinfoField] {
         &[]
+    }
+    /// The passwords its servers take ([`Secrets`]), masked from startup.
+    fn secrets(&self) -> Secrets {
+        Secrets::default()
     }
     /// Server commands it completes on `server` while loaded (none by default).
     fn server_commands(&self, _server: &Server) -> &'static [Command] {

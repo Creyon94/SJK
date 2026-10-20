@@ -599,6 +599,7 @@ mod secret_tests {
 
     #[test]
     fn only_player_created_cvars_are_read_as_command_lines() {
+        crate::secret::add(crate::secret::TEST_MOD);
         let mut cvars = registry();
         cvars.set_text("name", "Login Required").unwrap();
         assert_eq!(cvars.get("name").unwrap().shown_value(), "Login Required");
@@ -610,10 +611,10 @@ mod secret_tests {
                 "test",
             ))
             .unwrap();
-        cvars.set_text("autologin", "amlogin hunter2").unwrap();
+        cvars.set_text("autologin", "modlogin hunter2").unwrap();
         assert_eq!(
             cvars.get("autologin").unwrap().shown_value(),
-            "amlogin ********"
+            "modlogin ********"
         );
         cvars.set_text("rconPassword", "hunter2").unwrap();
         assert_eq!(cvars.get("rconPassword").unwrap().shown_value(), "********");

@@ -49,6 +49,14 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   Commands run on the main thread from the client command queue
   ([mods.rs](../crates/sjk-viewer/src/mods.rs),
   [mods_host.rs](../crates/sjk-viewer/src/mods_host.rs)).
+- **Passwords.** A mod declares the passwords its servers take
+  ([`Secrets`](../crates/sjk-mod/src/lib.rs): commands whose arguments are one, parts of
+  cvar names whose value is one) and its chat commands, whose typed lines stay out of
+  crash reports and logs as received chat does. Unlike its commands, these do not
+  wait for its servers: the client adds every built-in mod's table to the console's
+  masking ([secret.rs](../crates/sjk-shell/src/secret.rs)) at startup, before any
+  cvar or line, so they are masked offline, in binds and configs run at startup, on
+  every server and with the mod off ([Passwords](#passwords)).
 - **Building without them.** Each mod is a crate behind a default feature of
   `sjk-viewer` (`mod-japlus`, `mod-japro`, `mod-jof`, which brings JoF content too); `cargo build
   -p sjk-viewer --no-default-features` builds a client without any.
@@ -85,6 +93,20 @@ commands: the admin set, clan commands, duels and emotes, from EternalJK's `gcmd
 Before the mod, `serverconfig` and `pluginDisable` were core commands. A bare
 `serverconfig` is now sent to the server like any unknown command, which
 jaPRO/TaystJK servers answer. TaystJK's completion lists it.
+
+### Passwords
+
+[secrets.rs](../crates/sjk-mod-japlus/src/secrets.rs) is JA+ tools' password table,
+each entry with its source: `amlogin` (JA+ admin login, JoF's too), `login`,
+`register` and `changepassword` (JoF EternalJK's accounts), `clanpass` (JA+ clan
+chat) and `clanwhois` (JoF), whose arguments are masked, and `loginpass`, which makes
+`japlus.loginPass1-3` secret cvars. Its chat commands, `say_team_mod`, `clansay`,
+`amsay` and `ampsay`, keep a line typed with one out of the session log, crash
+reports and log uploads ([identity.md](identity.md#crash-reports)). The console shows `amlogin ********` in its echo,
+listings and binds, and keeps no password in the scrollback, `qconsole.log`, the
+session log, crash reports or log uploads ([client.md](client.md#passwords-in-the-console)).
+The table applies from startup whatever the server and `mod_japlus`, and no setting
+turns an entry off; a build without `mod-japlus` does not mask these words.
 
 ## jaPRO tools (`japro`)
 

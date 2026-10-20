@@ -30,6 +30,19 @@ pub(crate) fn builtin() -> Vec<Box<dyn ClientMod>> {
     list
 }
 
+/// Mask every mod's passwords ([`sjk_mod::Secrets`]) in the console from now on,
+/// whatever its switch and the server: a JA+ `amlogin` typed offline or bound to
+/// a key is never printed, kept or uploaded.
+fn add_secrets(modules: &[Box<dyn ClientMod>]) {
+    for module in modules {
+        let secrets = module.secrets();
+        sjk_shell::secret::add(sjk_shell::secret::Table {
+            cvar_parts: secrets.cvar_parts,
+            commands: secrets.commands,
+        });
+    }
+}
+
 /// The setting that switches mod `id` on.
 pub(crate) fn switch(id: &str) -> String {
     format!("mod_{id}")
@@ -55,12 +68,24 @@ pub(crate) struct Mods {
     entries: Vec<Entry>,
     /// The server the client is on, for the server commands mods complete.
     server: Option<Server>,
+    /// Every built-in mod's chat commands ([`sjk_mod::Secrets::chat_commands`]),
+    /// whatever its switch and the server.
+    chat_commands: Vec<&'static str>,
 }
 
 impl Mods {
+    /// The built-in mods, all off, with their secrets masked from now on
+    /// ([`add_secrets`]). Create it before registering any cvar.
     pub(crate) fn new() -> Self {
+        let modules = builtin();
+        add_secrets(&modules);
+        let chat_commands = modules
+            .iter()
+            .flat_map(|module| module.secrets().chat_commands)
+            .copied()
+            .collect();
         Self {
-            entries: builtin()
+            entries: modules
                 .into_iter()
                 .map(|module| Entry {
                     id: module.id(),
@@ -70,7 +95,14 @@ impl Mods {
                 })
                 .collect(),
             server: None,
+            chat_commands,
         }
+    }
+
+    /// The chat commands every built-in mod declares, on any server: a typed line
+    /// with one stays out of crash reports and logs (`crash_report::typed_chat`).
+    pub(crate) fn chat_commands(&self) -> &[&'static str] {
+        &self.chat_commands
     }
 
     /// Register every mod's switch and settings; settings are kept while a mod
@@ -457,6 +489,53 @@ mod tests {
         mods.set_server(None);
         assert!(mods.sync(&mut shell));
         assert!(!shell.commands.contains("jof.commands"));
+    }
+
+    #[cfg(feature = "mod-japlus")]
+    #[test]
+    fn amlogin_typed_offline_never_reaches_a_log_line() {
+        static TAPPED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        fn tap(line: &str) {
+            TAPPED.lock().unwrap().push(line.to_owned());
+        }
+        let (mut shell, mut mods) = shell();
+        // Not on any server, and the mod switched off: still masked.
+        shell.cvars.set_text("mod_japlus", "0").unwrap();
+        mods.sync(&mut shell);
+        assert!(!mods.loaded("japlus"));
+        shell.set_line_tap(tap);
+        // Typed in the console: the echo is what the scrollback and logs keep.
+        shell.queue_line("amlogin secret").unwrap();
+        let mut printed = Vec::new();
+        for line in [
+            "bind F5 \"amlogin bindsecret\"",
+            "bind F5",
+            "seta japlus.loginPass1 cvarsecret",
+            "japlus.loginPass1",
+        ] {
+            shell.queue_line(line).unwrap();
+            if let Ok(lines) = shell.execute_line(line) {
+                printed.extend(lines);
+            }
+        }
+        shell.push_log(r"userinfo: \japlus.loginPass1\cvarsecret");
+        printed.extend(shell.lines().map(|line| line.text.clone()));
+        printed.extend(TAPPED.lock().unwrap().iter().cloned());
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.ends_with("amlogin ********"))
+        );
+        // JA+ admin chat stays out of crash reports on any server too.
+        assert!(crate::crash_report::typed_chat(
+            "amsay hi",
+            mods.chat_commands()
+        ));
+        for line in &printed {
+            for secret in ["secret", "bindsecret", "cvarsecret"] {
+                assert!(!line.contains(secret), "{line}");
+            }
+        }
     }
 
     #[cfg(feature = "mod-japlus")]

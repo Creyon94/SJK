@@ -139,30 +139,22 @@ pub(crate) fn trail(line: &str) {
 }
 
 /// Commands (lowercase) whose arguments are a chat message, so a line typed with
-/// one stays out of the trail as received chat does ([`typed_chat`]):
-///
-/// - `say`, `say_team`, `tell`: the game's chat (OpenJK `g_cmds.c`);
-/// - `say_team_mod`, `clansay`, `amsay`, `ampsay`: JA+ and JoF EJK's team, clan and
-///   admin chat (JoF EJK `codemp/game/g_cmds.c`).
+/// one stays out of the trail as received chat does ([`typed_chat`]): `say`,
+/// `say_team`, `tell`, the game's chat (OpenJK `g_cmds.c`). A server family's chat
+/// commands (JA+'s `amsay`) come with its client mod's
+/// [`sjk_mod::Secrets::chat_commands`], applied whatever the server.
 ///
 /// The line stays in the scrollback; it is left out of crash reports, log uploads
-/// and the session log only. A mod's other chat command is one more entry.
-pub(crate) const CHAT_COMMANDS: &[&str] = &[
-    "say",
-    "say_team",
-    "tell",
-    "say_team_mod",
-    "clansay",
-    "amsay",
-    "ampsay",
-];
+/// and the session log only.
+pub(crate) const CHAT_COMMANDS: &[&str] = &["say", "say_team", "tell"];
 
-/// Whether a typed console line sends a chat message ([`CHAT_COMMANDS`]) in any of
-/// its commands; a line the tokenizer refuses counts by its first word.
-pub(crate) fn typed_chat(line: &str) -> bool {
+/// Whether a typed console line sends a chat message ([`CHAT_COMMANDS`] or one of
+/// `mods`) in any of its commands; a line the tokenizer refuses counts by its first
+/// word.
+pub(crate) fn typed_chat(line: &str, mods: &[&str]) -> bool {
     let chat = |name: &str| {
         let name = name.trim_start_matches(['/', '\\']).to_ascii_lowercase();
-        CHAT_COMMANDS.contains(&name.as_str())
+        CHAT_COMMANDS.contains(&name.as_str()) || mods.contains(&name.as_str())
     };
     match sjk_shell::split_commands(line) {
         Ok(commands) => commands.iter().any(|command| {
@@ -562,13 +554,13 @@ mod tests {
             "/say_team plan",
             "tell 3 meet at the bridge",
             "TELL 3 hi",
-            "clansay hi",
-            "amsay hi",
+            "modsay hi",
             "cg_fov 110; say_team plan",
             "say \"open quote",
         ] {
-            assert!(typed_chat(line), "{line}");
+            assert!(typed_chat(line, &["modsay"]), "{line}");
         }
+        assert!(!typed_chat("modsay hi", &[]));
         for line in [
             "cg_fov 110",
             "echo say hi",
@@ -576,7 +568,7 @@ mod tests {
             "sayings",
             "",
         ] {
-            assert!(!typed_chat(line), "{line}");
+            assert!(!typed_chat(line, &["modsay"]), "{line}");
         }
     }
 
