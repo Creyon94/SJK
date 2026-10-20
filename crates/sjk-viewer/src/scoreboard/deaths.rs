@@ -45,6 +45,7 @@ impl Scoreboard {
         if snapshot.server_time < self.deaths.time {
             self.siege_round_over = None;
         }
+        self.server_intermission = self.intermission.observe(game);
         let d = &mut self.deaths;
         if snapshot.server_time < d.time || tracker.decoded() < d.consumed {
             d.counts.fill(0);

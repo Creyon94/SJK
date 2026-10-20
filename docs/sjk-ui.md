@@ -1209,7 +1209,9 @@ and out as the classic board does, settling into place as it opens.
   who joined after another round's event sees no winner. A team game at its
   intermission tells its result as a siege round does (Slash's request of
   19/10/2026), from the moment the server sets `CS_INTERMISSION` (or this
-  client's own `PM_INTERMISSION`): "Blue team won" over the blue wash and "Winner" at the end of that
+  client's own `PM_INTERMISSION`; as cgame's `cg.intermissionStarted`, only a
+  change of the string counts, and a new level start ends it, since a `map_restart`
+  keeps the "1"): "Blue team won" over the blue wash and "Winner" at the end of that
   team's head, or "Teams tied" in white; the scores stay in the team heads, and
   the line on the right says nothing then. Under
   the map, "Killed by" and the name while you are dead.
