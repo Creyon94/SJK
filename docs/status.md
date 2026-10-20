@@ -1,3 +1,11 @@
+## Every Blade Lab blade drops
+
+20/10/2026, `personal/all-blades-drop`, based on `main` (Sol's rule: no loot is handed out
+by the team instead of found): Creyon's 114 Blade Lab blades become droppable in the client
+and the hub (`droppable: true`), `FROM_THE_TEAM` is gone, and `FROM_HOLOCRONS` reads "Found
+in holocrons.". 162 of 165 shaders drop; Glitch, Hologram and Runic stay with their medals.
+Verified on Windows 11: unit tests, client and hub. Not verified: a drop in a game.
+
 ## Blade tiers reviewed
 
 20/10/2026, `personal/blade-tiers`, based on `main` (Sol's review by blade number): 26
