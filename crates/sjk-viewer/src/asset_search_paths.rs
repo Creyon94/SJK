@@ -9,10 +9,12 @@ use std::sync::{OnceLock, RwLock};
 
 static STARTUP: OnceLock<Options> = OnceLock::new();
 
-/// Further content roots beside the installation and the content home, each
-/// searched for the same game folders right after them, by owner: SJK's JoF
-/// content folder while its switch is on (`jof_content.rs`). Unlike the
-/// startup settings they are read at every mount, so a change applies from
+/// Further content roots that stand in for files installed in the game's own
+/// folders, by owner: SJK's JoF content folder while its switch is on
+/// (`jof_content.rs`), holding what JoF's launcher would put in `GameData/base`.
+/// Their PK3s sort by name among the installation's in the same game folder, as
+/// if they were there, so a player's own `zz` pack still wins over them. Unlike
+/// the startup settings they are read at every mount, so a change applies from
 /// the next map.
 static EXTRA_ROOTS: RwLock<Vec<(&'static str, PathBuf)>> = RwLock::new(Vec::new());
 
@@ -190,35 +192,47 @@ impl Options {
     }
 
     /// Low-to-high priority directories, matching FS_Startup's nested ordering;
-    /// within each game folder the installation, the content home, then the
-    /// extra roots ([`set_extra_root`]).
+    /// within each game folder the installation, the extra roots
+    /// ([`set_extra_root`]), then the content home.
     pub(crate) fn directories(&self, install: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-        Ok(self.directories_with(install, &extra_roots()))
+        Ok(self
+            .directory_groups(install, &extra_roots())
+            .into_iter()
+            .flatten()
+            .collect())
     }
 
-    fn directories_with(&self, install: &Path, extra: &[PathBuf]) -> Vec<PathBuf> {
+    /// [`Self::directories`] in mount groups, low to high priority: each game
+    /// folder's installation directory with the extra roots' (their PK3s mount
+    /// as one folder's, [`sjk_vfs::pk3_search_order_merged`]), then the content
+    /// home's alone, above them as FS_Startup puts the home path.
+    fn directory_groups(&self, install: &Path, extra: &[PathBuf]) -> Vec<Vec<PathBuf>> {
         let home = if self.portable {
             None
         } else {
             // Downloads are session-selected, never an implicit global content home.
             self.home.as_deref()
         };
-        let mut paths = Vec::new();
+        let mut seen = Vec::new();
+        let mut groups = Vec::new();
         for game in ["base", self.basegame.as_str(), self.game.as_str()] {
             if game.is_empty() {
                 continue;
             }
-            for root in std::iter::once(install)
-                .chain(home)
-                .chain(extra.iter().map(PathBuf::as_path))
-            {
-                let path = root.join(game);
-                if !paths.contains(&path) {
-                    paths.push(path);
+            let installed = std::iter::once(install).chain(extra.iter().map(PathBuf::as_path));
+            for roots in [installed.collect::<Vec<_>>(), home.into_iter().collect()] {
+                let group: Vec<PathBuf> = roots
+                    .into_iter()
+                    .map(|root| root.join(game))
+                    .filter(|path| !seen.contains(path))
+                    .collect();
+                seen.extend(group.iter().cloned());
+                if !group.is_empty() {
+                    groups.push(group);
                 }
             }
         }
-        paths
+        groups
     }
 
     /// The PK3s in `install/EternalJK` that carry hats or capes
@@ -325,6 +339,15 @@ impl Options {
 
     /// Mount existing directories; unreadable archives warn without discarding other packs.
     pub(crate) fn mount(&self, install: &Path) -> Result<VirtualFileSystem, Box<dyn Error>> {
+        self.mount_with(install, &extra_roots())
+    }
+
+    /// [`Self::mount`] with these extra roots ([`set_extra_root`]).
+    fn mount_with(
+        &self,
+        install: &Path,
+        extra: &[PathBuf],
+    ) -> Result<VirtualFileSystem, Box<dyn Error>> {
         // Large offline imports may opt into a higher per-asset ceiling. Keep the
         // ordinary viewer default and generic VFS policy unchanged.
         let limit = std::env::var("SJK_MAX_ASSET_MIB")
@@ -367,14 +390,14 @@ impl Options {
         // folder has one (`generated_packs.rs`).
         let generated = super::generated::present();
         let mut replaced = Vec::new();
-        for directory in self.directories(install)? {
-            if !directory.is_dir() {
-                continue;
-            }
+        for group in self.directory_groups(install, extra) {
+            let group: Vec<PathBuf> = group.into_iter().filter(|path| path.is_dir()).collect();
             if !self.directory_first {
-                vfs.mount_directory(&directory)?;
+                for directory in &group {
+                    vfs.mount_directory(directory)?;
+                }
             }
-            for archive in sjk_vfs::pk3_search_order(&directory)? {
+            for archive in sjk_vfs::pk3_search_order_merged(&group)? {
                 if self.disabled.allows(&archive) {
                     match vfs.mount_pk3(&archive) {
                         Ok(id) if generated && super::generated::is_generated(&vfs, id) => {
@@ -390,7 +413,9 @@ impl Options {
                 }
             }
             if self.directory_first {
-                vfs.mount_directory(&directory)?;
+                for directory in &group {
+                    vfs.mount_directory(directory)?;
+                }
             }
         }
         // EternalJK's crosshair pictures over the game's own, as EternalJK itself
@@ -504,14 +529,46 @@ mod tests {
         let install = Path::new("/game");
         let jof = PathBuf::from("/sjk/jof");
         assert_eq!(
-            options.directories_with(install, std::slice::from_ref(&jof)),
+            options.directory_groups(install, std::slice::from_ref(&jof)),
             [
-                install.join("base"),
-                jof.join("base"),
-                install.join("japlus"),
-                jof.join("japlus"),
+                vec![install.join("base"), jof.join("base")],
+                vec![install.join("japlus"), jof.join("japlus")],
             ]
         );
+    }
+
+    #[test]
+    fn extra_root_packs_sort_by_name_among_the_installations() {
+        // Kushina's report (hub #100, 19/10/2026): JoF content beat her own packs.
+        let install = tempfile::tempdir().unwrap();
+        let jof = tempfile::tempdir().unwrap();
+        let base = install.path().join("base");
+        let jof_base = jof.path().join("base");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&jof_base).unwrap();
+        pk3(
+            &base.join("assets0.pk3"),
+            &["gfx/sphere.tga", "gfx/anim.tga"],
+        );
+        pk3(
+            &jof_base.join("jof_assets.pk3"),
+            &["gfx/sphere.tga", "gfx/anim.tga"],
+        );
+        pk3(&base.join("zz_mine.pk3"), &["gfx/sphere.tga"]);
+        let vfs = Options::default()
+            .mount_with(install.path(), &[jof.path().to_owned()])
+            .unwrap();
+        let source = |path: &str| {
+            vfs.read(path)
+                .unwrap()
+                .unwrap()
+                .source
+                .mount_name
+                .to_string()
+        };
+        // The player's zz pack wins, JoF's still beats retail.
+        assert!(source("gfx/sphere.tga").ends_with("zz_mine.pk3"));
+        assert!(source("gfx/anim.tga").ends_with("jof_assets.pk3"));
     }
 
     #[test]
