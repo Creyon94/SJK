@@ -98,6 +98,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Extra space between chat message letters, in 1080p pixels (-2 to 8)",
         ),
         (
+            crate::chat::options::CARD_SCALE_CVAR,
+            1.0,
+            "Size of the player card a chat name shows, on top of the chat's own scale (0.5 to 2)",
+        ),
+        (
             "cg_fovViewmodel",
             80.0,
             "First-person weapon field of view (EternalJK default 80); zero is the retail look, drawn with cg_fov",

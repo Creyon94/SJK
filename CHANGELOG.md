@@ -64,6 +64,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Achievement, holocron and medal pop-ups wait for the end of a private duel, then play _(Sol, after Milamber's report)_
 - Dances keep their music: a dance left running is no longer counted as away after `cg_awayIdle`, and a dancer out of sight for a moment in a crowded dance no longer loses their emote _(Sol, after Foshin's report)_
 - Capture the Flag: once the scoreboard has shown who carries your flag, the flag icon at the left names them too, instead of saying TAKEN _(Slash)_
+- The player card a chat name shows is smaller and tidier, waits a moment for the pointer on its way to Block, and `cg_chatCardScale` (0.5 to 2) sizes it _(Slash)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
