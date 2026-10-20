@@ -271,6 +271,7 @@ mod tests {
                     name: "^0JoF J S^7olol 🦊".to_owned(),
                     verified: true,
                     staff: false,
+                    creator: false,
                     trust: None,
                     emoji: String::new(),
                     text: "and this one goes through the SJK chat".to_owned(),

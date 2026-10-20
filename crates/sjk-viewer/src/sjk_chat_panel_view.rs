@@ -153,7 +153,13 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
         sjk_chat_look::emoji_gap(NAME_SIZE) + width(&emoji, NAME_SIZE, TextFace::Regular)
     };
     let indent = jof + name_width + emoji_width + tick + colon;
-    let staff = if message.staff { "Staff  ·  " } else { "" };
+    let staff = if message.creator {
+        "Creator  ·  "
+    } else if message.staff {
+        "Staff  ·  "
+    } else {
+        ""
+    };
     let when = ago(u64::try_from(message.at).unwrap_or(0), inputs.now);
     let meta = format!("{staff}{when}");
     let meta_room = width(&meta, META_SIZE, TextFace::Regular) + 24.0;
@@ -424,6 +430,7 @@ impl Panel {
                     hub_name: None,
                     verified: message.verified,
                     staff: message.staff,
+                    creator: message.creator,
                     trust: message.trust,
                     emoji: laid.emoji.clone(),
                     medals: crate::medals::Medals::default(),
@@ -858,6 +865,7 @@ impl Panel {
                 hub_name: None,
                 verified: row.verified,
                 staff: row.staff,
+                creator: row.creator,
                 trust: row.trust,
                 emoji: row.emoji.clone(),
                 medals: crate::medals::Medals::default(),

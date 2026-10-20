@@ -285,12 +285,12 @@ mod map_edit_shots;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 
+#[path = "world_shot_blade_cards.rs"]
+mod blade_cards;
 #[path = "world_shot_saber_cost.rs"]
 mod saber_cost;
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
-#[path = "world_shot_blade_cards.rs"]
-mod blade_cards;
 
 #[path = "world_shot_animation_profile.rs"]
 mod animation_profile;
@@ -1190,6 +1190,7 @@ Found the fog bug, ask me about it!"
                 .to_owned(),
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "🦊".to_owned(),
             created: 1_791_250_000,
@@ -1371,6 +1372,7 @@ like this one.",
             bio: String::new(),
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_250_000,
@@ -3394,6 +3396,7 @@ like this one.",
                     name: (*name).to_owned(),
                     verified: *verified,
                     staff: index == 3,
+                    creator: false,
                     trust: None,
                     emoji: String::new(),
                     text: (*text).to_owned(),

@@ -34,6 +34,16 @@ test: As staff, Experimental: showcase tools on: ghost record test works.
 test: Without a staff key: amstatus shows 1.4 SJK; ghost list says it is a staff tool.
 note: Staff status comes from the hub; known only after joining, cjp_client waits a rejoin.
 
+[creator-status]
+area: Console & chat
+title: SJK CREATOR mark above staff, out of staff's reach
+change: Player card pill reads SJK CREATOR (orange); sender card and Chat page say creator.
+change: The hub refuses staff tools on the creator: mute, unverify, merge, chat delete...
+test: After the hub update, sjk-hub creator <your key>: your card shows SJK CREATOR.
+test: A chat message of yours: the Chat page line starts with Creator.
+test: Another staff key: Staff tools on you answer an error instead of acting.
+note: Needs the hub branch creator-status deployed and the creator command run on you.
+
 [hub-client-agent]
 area: Console & chat
 title: The hub sees which build you play: SJK/<version> (<commit>)

@@ -963,6 +963,7 @@ mod tests {
             bio: String::new(),
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_250_000,

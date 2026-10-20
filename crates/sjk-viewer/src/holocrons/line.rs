@@ -88,6 +88,7 @@ mod tests {
             name: name.to_owned(),
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             text: String::new(),

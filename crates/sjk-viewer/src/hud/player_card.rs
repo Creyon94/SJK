@@ -352,6 +352,8 @@ const RAREST: usize = 3;
 pub(crate) struct ProfileFacts {
     /// The SJK team's own (`staff`).
     pub(crate) staff: bool,
+    /// SJK's creator (`creator`): SJK CREATOR in place of SJK TEAM.
+    pub(crate) creator: bool,
     /// The bio's first line, empty for none.
     pub(crate) bio: String,
     /// Achievements unlocked, of those the client knows.
@@ -401,6 +403,7 @@ impl ProfileFacts {
         let holocron = held.max(listed);
         Self {
             staff: profile.staff,
+            creator: profile.creator,
             bio: profile
                 .bio
                 .lines()
@@ -448,6 +451,8 @@ const SWATCH_HEIGHT: f32 = 18.0;
 const CHROMA_MARK: f32 = 14.0;
 /// The SJK TEAM mark's colour: a teal of its own, apart from the verified gold.
 const STAFF_COLOUR: [f32; 3] = [0.22, 0.86, 0.78];
+/// The SJK CREATOR mark's colour: a sun orange, apart from staff's teal and the gold.
+const CREATOR_COLOUR: [f32; 3] = [1.0, 0.6, 0.22];
 /// Characters a line of medal names holds on the card (Inter at 11).
 const MEDAL_LINE_CHARS: usize = 52;
 /// Height of a line of medal names: small print under the medallions.
@@ -624,7 +629,9 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
             card.texts[line].push_str(&label);
         }
         if let Some(facts) = &hub.profile {
-            if facts.staff {
+            if facts.creator {
+                card.texts[T_STAFF] = "SJK CREATOR".to_owned();
+            } else if facts.staff {
                 card.texts[T_STAFF] = "SJK TEAM".to_owned();
             }
             if let Some(tier) = facts
@@ -1457,13 +1464,19 @@ impl State {
                 );
             }
             y += row(26.0);
-            // The SJK TEAM mark, a teal pill drawn as VERIFIED is written, and a gem of
-            // the rarest holocron tier they hold, with its name.
+            // The SJK TEAM mark, a teal pill drawn as VERIFIED is written (SJK CREATOR,
+            // wider and orange, for the creator), and a gem of the rarest holocron tier
+            // they hold, with its name.
             if card.has_marks() {
                 let mut x = left;
                 if !card.texts[T_STAFF].is_empty() {
-                    let [r, g, b] = STAFF_COLOUR;
-                    let pill = Rect::new(x, y + row(3.0), 78.0 * unit, row(18.0));
+                    let creator = card.facts().is_some_and(|facts| facts.creator);
+                    let ([r, g, b], width) = if creator {
+                        (CREATOR_COLOUR, 106.0)
+                    } else {
+                        (STAFF_COLOUR, 78.0)
+                    };
+                    let pill = Rect::new(x, y + row(3.0), width * unit, row(18.0));
                     let _ = self.list.push(DrawCommand::RoundedRect {
                         rect: pill,
                         radius: pill.height * 0.5,
@@ -1997,6 +2010,7 @@ mod tests {
             bio: "\n  Fox of the JoF, maker of SJK.  \nSecond line".to_owned(),
             verified: true,
             staff: true,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_000_000,
@@ -2044,6 +2058,24 @@ mod tests {
             }),
             shader,
         )
+    }
+
+    #[test]
+    fn the_creator_wears_sjk_creator_in_place_of_sjk_team() {
+        let facts = ProfileFacts::of(&sjk_identity::Profile {
+            creator: true,
+            ..full_profile()
+        });
+        assert!(facts.creator && facts.staff);
+        let card = card_from(
+            &info("n|Sol|"),
+            Some(HubInfo {
+                profile: Some(facts),
+                ..HubInfo::default()
+            }),
+            None,
+        );
+        assert_eq!(card.texts[T_STAFF], "SJK CREATOR");
     }
 
     #[test]
