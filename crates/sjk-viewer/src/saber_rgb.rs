@@ -90,6 +90,7 @@ impl BladeColor {
                 linger: 0.0,
                 each_swing: false,
                 stirred: false,
+                comic_trail: false,
             });
         }
         Self::Rgb(tint.map(|c| (c * 255.).round().clamp(0., 255.) as u8))

@@ -2138,7 +2138,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   off: a see-through comic panel of halftone dots and speed lines behind a swing, action bursts of
   impact lines on the blade (no bubble behind the words, which stay as they were), clone markings
   (212th orange and 501st blue stripes sliding up its body), a holo flicker (a second in nine as a
-  blue hologram) and cartoon smoke puffs and spark stars (with its particles). A signature's three
+  blue hologram) and cartoon smoke puffs and spark stars (with its particles). With its comic panel on, its swing
+  trail is comic speed lines instead of the blur (`saber_trail.wgsl` style 4,
+  `SkinColor::comic_trail`): tapered streaks in the blade's colour, more toward the tip, and a bold
+  line where the tip went (Creyon: comic lines instead of afterimages). A signature's three
   pipelines are built side by side and the loaded signatures on up to four threads at once
   (`saber_gpu.rs`), so effects come in sooner at start and when a blade is first worn.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its

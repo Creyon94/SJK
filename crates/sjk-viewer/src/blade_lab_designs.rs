@@ -93,6 +93,12 @@ const EACH_SWING: [&str; 1] = ["saber_comic"];
 /// [`crate::saber_motion::BladeMotion::stir`] instead of the seconds since a swing.
 const STIRRED: [&str; 1] = ["saber_monarch"];
 
+/// Whether `id`'s swing trail is comic speed lines (Creyon's round 19: the Clone Wars blade
+/// leaves comic lines when it moves, not the blur's afterimage).
+pub(crate) fn comic_trail(id: &str) -> bool {
+    id == "saber_comic"
+}
+
 /// Whether `id` answers the blade's movement in the world ([`STIRRED`]).
 pub(crate) fn stirred(id: &str) -> bool {
     STIRRED.contains(&id)
