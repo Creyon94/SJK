@@ -4,8 +4,13 @@
 // the blow lands, a hot spot that cools back to gold, bright light racing up and down the blade
 // and a burst of sparks flying out on every side. Embers drift all round inside a wide warm heat glow.
 // A swing makes it burn brighter and throw more sparks (the rhythm never speeds up); a clash is a huge
-// blow with a ring of sparks.
+// blow with a ring of sparks. Round 19 (Creyon: it did not feel mythical): the forge draws the
+// star itself down into it, two streams of plasma spiralling down a funnel round the blade with
+// knots of light pouring into the strike, and every fourth blow a forge nova bursts out, a shell
+// of gold light racing out round it in 3D with beams and the blade flaring white.
 // @part The forge
+// @part Star siphon
+// @part Forge nova
 // @motes Rising sparks
 // @room 10
 // @palette {"corona.rim_cool":[0.55,0.12,0.02],"corona.rim_hot":[1.0,0.55,0.12],"corona.inner":[1.0,0.88,0.55],"core.white":[1.0,0.96,0.85],"core.fringe_cool":[1.0,0.40,0.08],"core.fringe_hot":[1.0,0.80,0.45],"light.color":[1.0,0.58,0.18],"trail":[1.0,0.55,0.15]}
@@ -25,14 +30,14 @@ vec3 sf_heat(float k){
 float sf_ring(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -69,13 +74,14 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   }
 
   // the rest is out of the hilt's way: skip rays far from the blade
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (far > 9.0) return col;
 
   // ---- solar flares: tongues of plasma licking up off the blade (round 13, Creyon: no loops
   // round the blade; they were plasma loops arching out and back) ----
-  col += fxSmoke(ro, rd, 0.15*L, top, 1.6, 6.0, 2.4, vec3(1.0, 0.45, 0.08))*1.6*fx;
-  col += fxSmoke(ro, rd, 0.15*L, top, 0.9, 8.0, 5.9, vec3(1.0, 0.8, 0.4))*1.1*fx;
+  // round 15 (Creyon: it looked like the Phoenix): a star's white-gold plasma, not orange flame
+  col += fxSmoke(ro, rd, 0.15*L, top, 1.6, 6.0, 2.4, vec3(1.0, 0.72, 0.3))*1.1*fx;
+  col += fxSmoke(ro, rd, 0.15*L, top, 0.9, 8.0, 5.9, vec3(1.0, 0.93, 0.75))*0.8*fx;
   for (int i = 0; i < 0; i++){
     float fi = float(i);
     float cyc = t/3.6 + fi*0.173 + h11(fi*5.3)*0.5;
@@ -110,10 +116,10 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     // round 13 (Creyon): no rings round the blade; the strike's light runs up and down it
     float fade = exp(-ph*2.2)*smoothstep(0.0, 0.04, ph);
     float yu = ys + 20.0*ph, yd = ys - 13.0*ph;
-    if (yu < top){ float du = rayPt(ro, rd, vec3(0.0, yu, 0.0), ta); col += (white*halo(du, 0.5)*1.2 + gold*halo(du, 1.2)*0.4)*fade*fx; }
-    if (yd > 0.0){ float dr = rayPt(ro, rd, vec3(0.0, yd, 0.0), ta); col += (white*halo(dr, 0.5)*1.2 + gold*halo(dr, 1.2)*0.4)*fade*fx; }
+    if (yu < top){ float du = rayPtRaw(ro, rd, vec3(0.0, yu, 0.0), ta); col += (white*halo(du, 0.5)*1.2 + gold*halo(du, 1.2)*0.4)*fade*fx; }
+    if (yd > 0.0){ float dr = rayPtRaw(ro, rd, vec3(0.0, yd, 0.0), ta); col += (white*halo(dr, 0.5)*1.2 + gold*halo(dr, 1.2)*0.4)*fade*fx; }
     // sparks flying out in all directions
-    float dist0 = rayPt(ro, rd, vec3(0.0, ys, 0.0), ta);
+    float dist0 = rayPtRaw(ro, rd, vec3(0.0, ys, 0.0), ta);
     if (dist0 < 9.0){
       for (int i = 0; i < 22; i++){
         float fi = float(i);
@@ -146,7 +152,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   if (cl > 0.01){
     float a = 1.0 - cl;
     float yc = min(L*0.6, top);
-    float dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), ta);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, yc, 0.0), ta);
     col += white*(halo(dc, 1.5)*2.5 + halo(dc, 3.2)*0.7)*cl*cl;
     float dr = sf_ring(ro, rd, yc, 0.6 + 7.0*(1.0 - exp(-3.0*a)));
     col += mix(white, hot, a)*(halo(dr, max(0.08, px))*1.8 + halo(dr, 0.5)*0.4)*cl;
@@ -159,17 +165,68 @@ float sf_spot(float y){
   float n = floor(uTime/SF_P), ph = fract(uTime/SF_P)*SF_P;
   return exp(-pow((y - sf_y(n))/1.6, 2.0))*exp(-ph*1.8) + 0.25*clamp(uClash, 0.0, 1.0);
 }
-vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return g*(1.0 + 0.25*sin(uTime*2.1 + b.y*0.4)*0.4 + 1.2*sf_spot(b.y) + 0.3*uSwing); }
+vec3 sig_glow_own(vec3 g, vec2 b, float r, float px){
+  float nova = exp(-sf_nova()*9.0)*part(2.0);
+  return g*(1.0 + 0.25*sin(uTime*2.1 + b.y*0.4)*0.4 + 1.2*sf_spot(b.y) + 0.3*uSwing + 1.4*nova);
+}
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*(1.0 + 0.8*sf_spot(b.y)); }
 
 // ---- round 9: the big effects layer ----
 // Round 11 (Creyon): its own look, Sol's way: its round-8 effects as part 0, its own parts
 // (`part(k)`, the `// @part` lines) and Sol's pieces from its file; nothing shared with the others.
+// round 19: the forge nova, every fourth blow: how far into it (0 to 1; 1 when none)
+float sf_nova(){ float c = uTime/(SF_P*4.0); return fract(c); }
+// round 19: the star siphon, two streams of plasma spiralling down a funnel into the forge
+vec3 sf_siphon(vec3 ro, vec3 rd, float px){
+  float L = uLength, t = uTime, top = sf_top(), s;
+  vec3 acc = vec3(0.0);
+  if (top < L*0.6 || fxNear(ro, rd, 0.0, L) > 5.5) return acc;
+  for (int j = 0; j < 2; j++){
+    float fj = float(j);
+    float best = 1e3, bs = 0.0;
+    vec3 prev = vec3(0.0);
+    for (int i = 0; i <= 22; i++){
+      float f = float(i)/22.0;
+      float y = mix(L*0.93, L*0.12, f);
+      float R = 0.5 + 2.9*pow(1.0 - f, 1.4);
+      vec3 p = around(R, fj*0.5 + (1.0 - f)*1.5 + t*0.07, y);
+      if (i > 0){
+        float d = raySeg(ro, rd, prev, p, s);
+        if (d < best){ best = d; bs = (float(i) - 1.0 + s)/22.0; }
+      }
+      prev = p;
+    }
+    float knot = pow(0.5 + 0.5*sin(bs*26.0 - t*5.0 + fj*3.0), 5.0);
+    float ends = smoothstep(0.0, 0.12, bs)*(1.0 - smoothstep(0.88, 1.0, bs));
+    vec3 c = sf_heat(1.15 - 0.55*bs);
+    acc += (vec3(1.0, 0.97, 0.9)*halo(best, max(0.05, px))*(0.35 + 1.6*knot) + c*halo(best, 0.3)*(0.45 + 0.9*knot) + c*halo(best, 1.1)*0.1)*ends;
+  }
+  return acc;
+}
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 col = r8_vol(ro, rd, px)*part(0.0);
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  fx += fxAura(ro, rd, y0, y1, 3.6, vec3(1.0, 0.42, 0.07))*part(0.0);
+  fx += fxAura(ro, rd, y0, y1, 3.6, vec3(1.0, 0.75, 0.35))*0.8*part(0.0);
+  fx += sf_siphon(ro, rd, px)*0.9*part(1.0);
+  // the forge nova: a shell of gold light racing out round the blade, beams through it
+  float q = sf_nova();
+  if (q < 0.6 && sf_top() > L*0.6){
+    float qq = q/0.6;
+    vec3 c = vec3(L*0.0, L*0.55, 0.0);
+    float tq;
+    float rad = 0.6 + 0.85*uReach*(1.0 - pow(1.0 - qq, 2.5));
+    float dc = rayPt(ro, rd, c, tq);
+    // the shell seen as a ring where the ray grazes it, and faintly across its face
+    float shell = halo(abs(dc - rad), 0.35 + 0.4*qq)*1.3 + (1.0 - smoothstep(rad*0.6, rad, dc))*0.12;
+    float env = (1.0 - qq)*(1.0 - qq)*smoothstep(0.0, 0.03, qq);
+    fx += mix(vec3(1.0, 0.95, 0.82), vec3(1.0, 0.6, 0.15), qq)*shell*env*part(2.0);
+    fx += fxRays(ro, rd, px, L*0.35, L*0.75, 14.0, 6.0, 1.0/(SF_P*4.0), 4.4, vec3(1.0, 0.8, 0.4))*env*1.2*part(2.0);
+  }
   return col + fx*uFx;
 }
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 75 %, so what is drawn round it reads
+vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.75; }

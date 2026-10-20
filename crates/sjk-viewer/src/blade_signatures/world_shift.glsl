@@ -39,14 +39,14 @@ vec3 ws_core(float d, float px, float w, vec3 hot, vec3 glow, float gain){
 float ws_ring(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -149,7 +149,7 @@ vec3 ws_ice(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch
   vec3 col = ws_core(d, px, 0.32, vec3(0.9, 0.97, 1.0), vec3(0.4, 0.75, 1.0), 1.0 + ch + 0.3*st);
   float yc = -0.3 + (top + 0.3)*form;
   float jit = ch*0.04*sin(t*70.0);
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (fx <= 0.0 || far > 8.0) return col;
   // frost spikes jutting from the crystal
   for (int i = 0; i < 12; i++){
@@ -197,7 +197,7 @@ vec3 ws_storm(vec3 ro, vec3 rd, float px, float d, float top, float form, float 
     fl += step(0.3, h11(k*1.7 + fi))*exp(-fract(t*6.0 + fi*0.37)*4.0);
   }
   vec3 col = ws_core(d, px, 0.34, vec3(0.88, 0.93, 1.0), vec3(0.3, 0.55, 1.0), 1.0 + ch + 0.25*fl + 0.3*st);
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (fx <= 0.0 || far > 8.0) return col;
   // lightning wrapping round the blade in 3D
   if (far < 5.0){
@@ -234,7 +234,7 @@ vec3 ws_storm(vec3 ro, vec3 rd, float px, float d, float top, float form, float 
 vec3 ws_sand(vec3 ro, vec3 rd, float px, float d, float top, float form, float ch, float st, float fx){
   float t = uTime, s, ta;
   vec3 col = ws_core(d, px, 0.36, vec3(1.0, 0.93, 0.72), vec3(1.0, 0.6, 0.2), 1.0 + ch + 0.3*st);
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (fx <= 0.0 || far > 8.0) return col;
   float wr = 1.0 + 2.0*(1.0 - form);
   // the sand vortex (marched)
@@ -275,7 +275,7 @@ vec3 ws_rock(vec3 ro, vec3 rd, float px, float d, float top, float form, float c
   float t = uTime, s;
   float pul = 0.85 + 0.15*sin(t*2.0);
   vec3 col = ws_core(d, px, 0.42, vec3(1.0, 0.86, 0.84), vec3(1.0, 0.13, 0.1), (1.1 + 1.5*ch + 0.3*st)*pul);
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (fx <= 0.0 || far > 8.0) return col;
   // red salt dust rising off the cracks (marched)
   col += ws_puffs(ro, rd, 4.0, top, form, st, ch)*fx;
@@ -297,7 +297,7 @@ vec3 ws_water(vec3 ro, vec3 rd, float px, float d, float top, float form, float 
   vec3 col = ws_core(d, px, 0.3, vec3(0.85, 1.0, 1.0), vec3(0.15, 0.6, 0.95), 1.0 + ch + 0.3*st);
   // the flowing column (marched): water racing up, with bright caustic ridges
   col += ws_puffs(ro, rd, 5.0, top, form, st, ch)*fx;
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (fx <= 0.0 || far > 8.0) return col;
   // three streams of water spiralling up round the blade
   for (int i = 0; i < 3; i++){
@@ -381,19 +381,19 @@ vec3 ws_burst(vec3 ro, vec3 rd, float px, float d, float top, float kp, float kn
     float y = top*(0.18 + 0.22*fi + 0.12*h11(nb*3.1 + fi));
     // round 13 (Creyon): no rings round the blade; a flash of light where each shock leaves it
     float ta;
-    float dr = rayPt(ro, rd, vec3(0.0, y, 0.0), ta);
+    float dr = rayPtRaw(ro, rd, vec3(0.0, y, 0.0), ta);
     col += (vec3(1.0)*halo(dr, 0.4 + 0.3*R*0.2)*1.0 + gp*halo(dr, 1.0 + 0.3*R)*0.35)*fade;
   }
   // the new climate condensing up the blade from the hilt
   float fr = -1.0 + (top + 3.0)*smoothstep(0.1, 0.7, lt);
   float sf;
-  float dsf = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sf);
+  float dsf = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), sf);
   float yy = -0.6 + sf*(top + 0.6);
   col += mix(vec3(1.0), ws_glow(kn), 0.5)*halo(dsf, 1.0)*halo(abs(yy - fr), 1.2)*1.6*smoothstep(0.08, 0.15, lt)*(1.0 - smoothstep(0.6, 0.8, lt));
   // a flash of the new climate's colour as it condenses
   col += ws_glow(kn)*halo(d, 1.1)*smoothstep(0.1, 0.4, lt)*exp(-max(lt - 0.4, 0.0)*3.0)*0.35;
   // debris of the old climate flung out in every direction
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (far > 9.0) return col;
   float life = 1.0 - smoothstep(0.5, 1.6, lt);
   float w = kp < 0.5 ? 0.11 : kp < 1.5 ? 0.06 : kp < 2.5 ? 0.03 : kp < 3.5 ? 0.035 : kp < 4.5 ? 0.08 : 0.07;
@@ -553,7 +553,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float form = ws_form(), ch = ws_charge(), boom = ws_boom();
   float st = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0), fx = uFx;
   float s;
-  float d = raySeg(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
+  float d = raySegRaw(ro, rd, vec3(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), s);
   vec3 col = vec3(0.0);
   if (k < 0.5) col = ws_lava(ro, rd, px, d, top, form, ch, st, fx);
   else if (k < 1.5) col = ws_ice(ro, rd, px, d, top, form, ch, st, fx);
@@ -568,7 +568,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   // clash: the ruling climate flashes
   if (cl > 0.01){
     float ta;
-    float dc = rayPt(ro, rd, vec3(0.0, min(uLength*0.6, top), 0.0), ta);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, min(uLength*0.6, top), 0.0), ta);
     col += (vec3(1.0)*halo(dc, 1.0)*2.5 + ws_glow(k)*halo(dc, 2.8)*1.2)*cl*cl;
     col += ws_glow(k)*halo(ws_ring(ro, rd, min(uLength*0.6, top), 0.5 + 5.0*(1.0 - cl)), 0.25)*cl*1.2;
   }
@@ -584,7 +584,7 @@ vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
 
   float oldCrust = kp < 0.5 ? 1.0 : (kp > 3.5 && kp < 4.5 ? 1.0 : 0.0);
   if (uFx <= 0.0) return o;
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (far > 9.0) return o;
   // chunks of the old crust flung out (basalt or salt)
   if (boom > 0.5 && oldCrust > 0.5 && lt < 1.6){

@@ -45,6 +45,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The Collection shows each owned saber shader as the game draws it, live _(Creyon)_
 - A saber shader's sound that has not reached you yet plays the normal saber sound instead of nothing _(Creyon)_
 - Running or switching a saber on or off no longer counts as a swing for the shaders that answer swings _(Creyon)_
+- Creyon's blades after his review rounds 15 to 22: every effect round a blade is drawn in 3D and looks the same from every side, none is cut off or seen through the blade, mythical blades awaken when lit, breathe and ring out on a clash, and many blades got a look of their own _(Creyon)_
+- Blade effects load faster and stay built when the skins reload _(Creyon)_
 - Blades have numbers, as cards do (Sun is 001): the Collection shows each after its tier and in its hover card, its search finds "42" or "#42", `saberskin 42` wears that blade and docs/unlockables.md lists them all _(Sol)_
 - Blade tiers reviewed: 26 blades change tier. Clone Wars and Exegol Rift are now Mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith Alchemy, Felucia Spores, Phoenix Squadron and eight Blade Lab mythicals are Legendary; Storm, Prism, Unstable, Chameleon and four Blade Lab legendaries are Rare; Targeting Display is Uncommon. Blades you own stay yours _(Sol)_
 - Every Blade Lab blade can now drop from holocrons, and a blade's "How to get it" reads "Found in holocrons.": only Glitch, Hologram and Runic stay out, as they come with their medals _(Sol)_

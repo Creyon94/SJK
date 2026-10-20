@@ -344,13 +344,19 @@ fn blades_seen_as_players_see_them() {
             crate::saber_rgb::BladeColor::from_rgb([40, 120, 255]),
         )
         .map(|i| i.with_animation(3.0, 7));
+        // `SJK_VIEW_AT` ("seconds,swing,since clash,age,since swing") draws the skin at that
+        // moment instead of still at 3 seconds (round 19: the Clone Wars blade's swing and
+        // clash effects).
+        let (seconds, motion) =
+            std::env::var("SJK_VIEW_AT")
+                .ok()
+                .map_or((3.0, crate::saber_motion::STILL), |at| {
+                    let v: Vec<f32> = at.split(',').map(|x| x.trim().parse().unwrap()).collect();
+                    (f64::from(v[0]), [v[1], v[2], v[3], v[4]])
+                });
         let skinned =
-            crate::saber::Instance::pair(blade, crate::saber_rgb::BladeColor::Skin(color)).map(
-                |i| {
-                    i.with_animation(3.0, 7)
-                        .with_motion(crate::saber_motion::STILL)
-                },
-            );
+            crate::saber::Instance::pair(blade, crate::saber_rgb::BladeColor::Skin(color))
+                .map(|i| i.with_animation(seconds, 7).with_motion(motion));
         let mut sheet = image::RgbaImage::new(SIZE * views.len() as u32 * 2, SIZE);
         for (column, view) in views.iter().enumerate() {
             let a = render(view, stock, &stock_material, &shared);

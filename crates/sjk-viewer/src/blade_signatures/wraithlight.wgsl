@@ -11,7 +11,9 @@
 // it shimmers as slow ripples of light pass up it. Cold spirit mist pours off it and sinks toward
 // the hilt in soft drifting veils, and faint echoes of the blade itself, its afterglows, hang in
 // the air round it, drifting slowly, fading in and out of sight. Swinging leaves more echoes
-// behind; a clash makes the blade flare and blows the mist out in a soft ring.
+// behind; a clash makes the blade flare and blows the mist out in a soft ring. Round 15b (Creyon:
+// mythicals must not look cheap): three wraiths, pale lights with long ghostly tails, dart round
+// and through the blade on looping paths, and its cold glow breathes.
 const WL_COL: vec3<f32> = vec3<f32>(0.42, 0.66, 1.0);
 
 const WL_PALE: vec3<f32> = vec3<f32>(0.82, 0.92, 1.0);
@@ -46,7 +48,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // The blade is Sol's glow and core from the file, hollowed to a glass rod of moonlight
     // (sig_glow, sig_core); here only the effects, each a piece placed round it in 3D.
     var sa: f32;
-    let dax = raySeg(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
+    let dax = raySegRaw(ro, rd, vec3<f32>(0.0, -0.6, 0.0), vec3(0.0, top, 0.0), &sa);
     var col: vec3<f32> = vec3<f32>(0.0);
     // spirit mist pouring off it and sinking toward the hilt in soft veils
     for (var i = 0; i < 16; i++) {
@@ -75,7 +77,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     if cl > 0.0 {
         let h = rayAt(ro, rd, uLength * 0.55);
         if h.z > 0.0 {
-            let rr = length(h.xy);
+            let rr = (length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z));
             let aa = atan2(h.x, h.y);
             let R = 0.6 + (1.0 - cl) * 4.5;
             let n = 0.6 + 0.4 * vn(vec2(aa * 3.0, rr * 2.0));
@@ -116,5 +118,51 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var fx: vec3<f32> = vec3<f32>(0.0);
     fx += fxAura(ro, rd, y0, y1, 2.2, vec3<f32>(0.55, 0.75, 1.0)) * 0.35 * part(0.0);
     fx += fxMotes(ro, rd, px, y0, y1, 1.5, 6.0, 24.0, 0.04, 2.9, vec3<f32>(0.85, 0.93, 1.0)) * part(0.0);
+    // round 16 (Creyon: still missing an effect): cold spirit fire, pale ghost-flames licking up
+    // the blade fast and thin, and frost glittering where they pass
+    fx += fxSmoke(ro, rd, y0, y1, 1.3, 7.5, 5.7, vec3<f32>(0.55, 0.8, 1.0)) * 0.9 * part(0.0);
+    fx += fxSmoke(ro, rd, y0, y1, 0.7, 9.0, 1.3, vec3<f32>(0.85, 0.95, 1.0)) * 0.6 * part(0.0);
+    fx += fxFlakes(ro, rd, px, y0, y1, 2.2, 10.0, -1.2, 0.12, 0.9, 3.0, 0.3, 4.4, vec3<f32>(0.85, 0.95, 1.0)) * 0.6 * part(0.0);
     return col + fx * uFx;
+}
+
+// round 15b: three wraiths darting round and through the blade on looping paths (figure eights
+// tilted round it), each a pale head trailing a long ghostly tail; they circle the blade, so
+// they are drawn in 3D (Sol's way)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    // with the mist and echoes (part 0): it has six options already
+    if part(0.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, L * 0.1, L) > 6.0 {
+        return fx;
+    }
+    for (var j = 0; j < 3; j++) {
+        let fj = f32(j);
+        var best: f32 = 1.0e3;
+        var bs: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i <= 16; i++) {
+            let tt = t * 0.55 - f32(i) * 0.05 + fj * 2.1;
+            let a = tt * 0.16 + fj / 3.0;
+            let r = 2.6 * sin(tt * 0.9 + fj);
+            let p = around(abs(r) + 0.3, a + (select(0.0, 0.5, r < 0.0)), L * (0.5 + 0.35 * sin(tt * 0.5 + fj * 1.3)));
+            if i > 0 && length(p - prev) < 3.0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bs = (f32(i) - 1.0 + s) / 16.0;
+                }
+            }
+            prev = p;
+        }
+        let tail = 1.0 - bs;
+        let cold: vec3<f32> = vec3<f32>(0.6, 0.8, 1.0);
+        fx += (vec3<f32>(1.0) * halo(best, max(0.08, px)) * pow(tail, 8.0) * 2.2 + cold * halo(best, 0.25 + 0.3 * bs) * tail * 0.8 + cold * halo(best, 0.9) * 0.12 * tail);
+    }
+    return fx * uFx;
 }

@@ -294,7 +294,9 @@ impl crate::GpuState {
                     .map(|instance| instance.with_animation(seconds, seed))
                     .into_iter()
                     .chain(crate::saber::skin_extras(blade, color, seconds, seed))
-                    .map(|instance| instance.with_frame([0.0, 0.0, 1.0], BLADE_LENGTH))
+                    // Its effects' frame as on a wearer seen from behind (`saber_submission.rs`):
+                    // what spreads to the blade's sides spreads up and down the picture.
+                    .map(|instance| instance.with_frame([0.0, 1.0, 0.0], BLADE_LENGTH))
                     .take(PER_SLOT),
             );
             drawn[slot] = blades.len() > start;
@@ -306,8 +308,11 @@ impl crate::GpuState {
         // front of the picture's middle, so every cell is seen straight on (Creyon's round 14:
         // from one near corner, the lower cells were seen at a slant and Abyssal Eye's cut sat
         // off its glow). The picture itself is orthographic (`view_projection`).
+        // Round 20 (Creyon: the pictures showed rings round the blades as bars across them):
+        // a little from the tip's side, as the blades were drawn before their effects were in
+        // three dimensions, so a ring round a blade reads as a ring.
         let eye = Vec3::new(
-            CELL[0] * COLUMNS as f32 * 0.5,
+            CELL[0] * COLUMNS as f32 * 0.5 + 4_000.0,
             -20_000.0,
             -CELL[1] * ROWS as f32 * 0.5,
         );

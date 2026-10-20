@@ -1,3 +1,112 @@
+## Creyon's rounds 15 to 22 merged
+
+21/10/2026, `personal/creyon-rounds-15-21`, based on `main` (Sol: bring them in ourselves):
+Creyon pushed his rounds 15 to 22 to `feat/creyon-blade-signatures` after #188 was merged;
+they are merged here (the sections below). Merge choices: `unlockables.rs` is main's (Sol's
+tiers, numbers, drops and how to get them) with Creyon's colour (`chroma`) and description
+changes laid over it (no field changed on both sides); his tiers already matched Sol's first
+review but for the Jedi Spirits (he made it Mythical; it stays Legendary until Sol says) and
+Balance (Legendary in his, as in Sol's second review, which is not in main yet). The Sun
+keeps its own sunrise and eclipse: a new header tag, `@moments own`, leaves a mythical
+signature out of the shared awakening, breath and clash ring (`sig_mythic`), whose clash
+ring drew a line across its moon; its coronal rain loops take any angle round the blade and
+its moon stands on the blade's side facing the eye (effects are 3D now, and `rayPt` hides
+what is behind the blade). Verified on Windows 11: unit tests, the Sun's preview sheet and
+every signature's. Not verified: in a game.
+
+## Creyon's blades, round 22
+
+21/10/2026, `feat/creyon-blade-signatures`: effects behind a blade are hidden by it (Liquid Beskar's
+rings were seen through it), and the Clone Wars halftone stops at the hilt
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 22). Checked on Linux x86_64
+(lavapipe): the workspace tests, every signature module validates, the ring blades drawn from orbit
+views. Not verified: in Creyon's game.
+
+## Creyon's blades, round 21
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): signature shaders slimmed and
+built faster from launch, the Clone Wars blade's body, smoke and stars in 3D, and fixes for Sith
+Thorn, Otoh Gunga, Cantina Lights, Holo-Recording, Imperial Schematics, Puzzle Holocron and Senate
+Glass ([rendering.md](rendering.md#blade-lab-signature-shaders), round 21). Checked on Linux x86_64
+(lavapipe): the workspace tests, every signature module validates, the changed blades rendered. Not
+verified: load times on Creyon's PC.
+
+## Creyon's blades, round 20
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): the Collection's pictures no
+longer smear effects across the blades, the effects' frame follows the wearer, glow softened up
+close and less bloom, Abyssal Eye's eye a 3D eyeball, five more chromas, reworks for Thermal Fuse,
+Senate Glass, Puzzle Holocron, Takodana Rain and Starfighter Canopy, and signature shaders built
+from a queue (worn and preview first), fewer pipelines each, against launch stutters and slow loading ([rendering.md](rendering.md#blade-lab-signature-shaders),
+round 20). Checked on Linux x86_64 (lavapipe): the workspace tests and every signature drawn as the
+Collection draws it. Not verified: in Creyon's game; whether the launch stutters came from the
+shader builds.
+
+## Creyon's blades, round 19
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): every signature effect drawn in
+3D along the true view ray, nothing cut at its quad's edge, no prominence past the tip, a mythical
+tier layer (awakening, breath, clash ring), fixes for Mortis, Liquid Beskar, Yavin Vines, Jakku,
+Bespin Storm and Starforge, two more chromas, the Clone Wars blade's five switchable parts and
+signature pipelines built in parallel ([rendering.md](rendering.md#blade-lab-signature-shaders),
+round 19). Checked on Linux x86_64 (lavapipe): the workspace tests, every signature module
+validates, the changed blades drawn from orbit views and from above, the cut-off check (no effect reaching
+the quad's edge) over all 128 signatures (one found and fixed: Kessel Spice's crystals). Not
+verified: in Creyon's game; load times on his PC.
+
+## Creyon's blades, round 18
+
+21/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): the Bleeding Kyber's pure light
+softened so its red part shows, and the busiest blades softened without removing anything
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 18). Checked on Linux x86_64: every
+signature module validates and the ignored GPU test renders all 128; not yet seen in Creyon's game.
+
+## Creyon's blades, round 17, and Sol's tier review
+
+20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): Creyon's game test of round 16
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 17): motes kept below the tip and
+near the blade, what circles a blade hidden behind it, softer smoke edges, smoother Scarif Tide,
+Jedi Spirits without the stutter, Dac Reef and Puzzle Holocron redone without figures, and other
+fixes; Sol's tier review of 20/10/2026 applied in the catalogue (22 mythicals,
+[unlockables.md](unlockables.md)).
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): the workspace tests (tier lists regenerated from the
+catalogue), every signature module validates, the ignored GPU test renders the changed ones
+(sheets looked at). Not verified: in Creyon's game; the hub's catalogue tiers (Sol's).
+
+## Creyon's blades, round 16
+
+20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): Creyon's review of rounds 15
+and 15b ([rendering.md](rendering.md#blade-lab-signature-shaders), round 16): motes no longer cut
+at the tip, older pack sections no longer reach a signature (Death Star Plans through the hilt),
+Felucia's spores follow a new world-motion `stir`, Mortis turns on its ghost blades' folds,
+Hyperspace's coils back slower in 3D, Between Worlds after the picture he sent, and reworks or
+additions for Holdo, Wraithlight, Ashla, Bleeding Kyber, eleven legendaries and five rares.
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): unit tests for `stir` and for a pack's sketch not
+reaching a signature, every signature module validates, the ignored GPU test renders the changed
+ones (sheets looked at); workspace checks in the pull request. Not verified: in Creyon's game, the
+motes at the tip seen close, the spores while running in a game, frame time.
+
+## Creyon's blades, round 15
+
+20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request), on `835cc2d5`: Creyon's
+review of round 14 ([rendering.md](rendering.md#blade-lab-signature-shaders), round 15): blades
+that looked alike parted (twelve that shared the Aurodium's strands, the green lightning blades,
+the storm blades, Starforge and Phoenix, Nebula Song and Singing Kyber, the coil blades), fifteen
+too-bright glows dimmed, Hyperspace's and Ashla Radiance's effects in the wearer's colour,
+Hyperspace slower, Between Worlds' duellists bigger, Felucia's spores smooth whether running or
+still and no longer a chroma (nor Force Echo), new Bleeding Kyber drops and embers, the Star Map
+drawing seven figures, Jedi Spirits mythical and Balance legendary, the Assassin Droid, Liquid
+Beskar, Beskar Forge and Data Disc richer, Balance, Ashla Radiance, Wraithlight and Jedi Spirits
+richer (round 15b), and the Clone Wars blade's switching-off word facing
+the camera from every side.
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): every signature module validates, the ignored GPU
+test renders all 128 (sheets looked at side by side by tier); workspace checks are listed in the
+pull request. Not verified: Creyon's game test of round 15, the Clone Wars word seen from above
+in a game, frame time with several signature blades on screen.
+
 ## JA+ anti-kiss
 
 20/10/2026, `feat/ja-plus-anti-kiss`, based on `origin/main` `b79186bf`: the

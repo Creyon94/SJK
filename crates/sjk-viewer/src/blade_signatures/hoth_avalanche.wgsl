@@ -10,7 +10,7 @@
 // bands; big soft flakes of snow tumble down round it, a cold mist rolls off it and sinks, and every
 // few seconds an avalanche surge thunders down to the hilt. A swing throws
 // more snow; a clash a cold ring.
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let surge = halo(b.y - (uLength + 4.0 - glsl_mod(uTime * 18.0, uLength + 14.0)), 2.0) * part(2.0);
     var cell: vec2<f32>;
     let frost = halo(voro(vec2(b.x * 3.0, b.y * 0.5 + uTime * 0.2), &cell), 0.06);
@@ -21,7 +21,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -35,4 +35,10 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     fx += fxFall(ro, rd, px, y0, y1, 3.0, 10.0, 16.0, 0.5, 0.1, 1.3, snow) * 0.6 * part(0.0);
     fx += fxSmoke(ro, rd, y0, y1, 3.4, -2.5, 1.7, vec3<f32>(0.6, 0.75, 0.95)) * 0.7 * part(1.0);
     return fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 70 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.7;
 }

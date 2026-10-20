@@ -227,12 +227,12 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var tq: f32;
     // The blade's own light is Sol's glow and core from the file (sig_glow, sig_core); here
     // only the glow in the maw, and the effects, each a piece placed round it in 3D.
-    let light = vec3<f32>(1.0, 0.6, 0.25) * halo(rayPt(ro, rd, vec3<f32>(0.0, 0.5, 0.0), &tq), 0.9) * 0.5 * step(0.2, top);
+    let light = vec3<f32>(1.0, 0.6, 0.25) * halo(rayPtRaw(ro, rd, vec3<f32>(0.0, 0.5, 0.0), &tq), 0.9) * 0.5 * step(0.2, top);
     if uFx < 0.01 || top < 1.0 {
         return light;
     }
     var fx: vec3<f32> = vec3<f32>(0.0);
-    let d = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
+    let d = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), &s);
     let ys = s * top;
     // the cave's dust: a slow whirlpool of soft grey-amber puffs drawn in round the blade
     for (var i = 0; i < 18; i++) {
@@ -290,7 +290,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let yb = 1.2 + 3.0 * f;
         let h = rayAt(ro, rd, yb);
         if h.z > 0.0 {
-            fx += amb * halo(abs(length(h.xy) - R), 0.15 + 0.5 * f) * (1.0 - f) * 0.35 * ex_gape();
+            fx += amb * halo(abs((length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z)) - R), 0.15 + 0.5 * f) * (1.0 - f) * 0.35 * ex_gape();
         }
     }
     // acid: glowing drops sliding down the outside of the gullet and falling
@@ -324,9 +324,9 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let a = 1.0 - uClash;
         let h = rayAt(ro, rd, L * 0.6);
         if h.z > 0.0 {
-            fx += amb * halo(abs(length(h.xy) - 1.0 - 7.0 * a), 0.22 + 0.3 * a) * 1.6 * uClash;
+            fx += amb * halo(abs((length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z)) - 1.0 - 7.0 * a), 0.22 + 0.3 * a) * 1.6 * uClash;
         }
-        let dc = rayPt(ro, rd, vec3(0.0, L * 0.6, 0.0), &tq);
+        let dc = rayPtRaw(ro, rd, vec3(0.0, L * 0.6, 0.0), &tq);
         fx += amb * halo(abs(dc - 1.0 - 5.0 * a), 0.3 + 0.4 * a) * 0.7 * uClash + amb * halo(dc, 1.5) * pow(uClash, 2.0) * 1.2;
         fx += amb * halo(max(d - ex_w(ys), 0.0), 1.2) * uClash * 0.6;
     }

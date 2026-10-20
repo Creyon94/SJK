@@ -54,7 +54,7 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   // a clash: a blinding flash and a ring of sparks
   if (cl > 0.01){
     float yc = uLength*0.6;
-    float dc = rayPt(ro, rd, vec3(0.0, yc, 0.0), ta);
+    float dc = rayPtRaw(ro, rd, vec3(0.0, yc, 0.0), ta);
     col += white*(halo(dc, 1.5)*2.5 + halo(dc, 3.5)*0.6)*cl*cl;
     for (int i = 0; i < 14; i++){
       float fi = float(i);

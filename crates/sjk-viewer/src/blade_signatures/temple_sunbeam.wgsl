@@ -18,7 +18,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -31,12 +31,25 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let yt = L * 0.86;
     fx += fxAura(ro, rd, y0, yt, 3.0, warm) * 0.45;
     fx += fxMotes(ro, rd, px, y0, yt - 2.0, 0.6, 3.0, 30.0, 0.012, 2.9, warm) * 0.7 * part(0.0);
-    // soft slanted shafts of sunlight drifting slowly across the blade's picture
-    if abs(rd.z) > 0.0001 {
-        let p = ro + rd * (-ro.z / rd.z);
-        let sh = pow(0.5 + 0.5 * sin((p.x * 0.55 + p.y * 0.28) * 1.3 - t * 0.35), 6.0) + 0.6 * pow(0.5 + 0.5 * sin((p.x * 0.5 + p.y * 0.25) * 0.7 + t * 0.2 + 1.7), 8.0);
-        let win = exp(-pow(p.x / 3.2, 2.0)) * smoothstep(y0 - 2.0, y0 + 3.0, p.y) * (1.0 - smoothstep(yt - 4.0, yt, p.y));
-        fx += warm * sh * win * 0.55 * part(1.0);
+    // soft slanted shafts of sunlight drifting slowly across the blade; round 19 (Creyon: from
+    // above they were a flat picture following the camera): slabs of light in three dimensions
+    // falling from one side, the ray marched through them
+    {
+        let span = raySpan(ro, rd, 7.5, y0 - 2.0, yt);
+        if span.x < span.y {
+            let dt = (span.y - span.x) / 6.0;
+            let jit: f32 = 0.5;
+            var acc: f32 = 0.0;
+            let sd: vec2<f32> = vec2<f32>(0.82, 0.57);
+            for (var i = 0; i < 6; i++) {
+                let p = ro + rd * (span.x + (f32(i) + jit) * dt);
+                let xs = dot(p.xz, sd);
+                let sh = pow(0.5 + 0.5 * sin((xs * 0.55 + p.y * 0.28) * 1.3 - t * 0.35), 6.0) + 0.6 * pow(0.5 + 0.5 * sin((xs * 0.5 + p.y * 0.25) * 0.7 + t * 0.2 + 1.7), 8.0);
+                let win = exp(-pow(length(p.xz) / 3.2, 2.0)) * smoothstep(y0 - 2.0, y0 + 3.0, p.y) * (1.0 - smoothstep(yt - 4.0, yt, p.y));
+                acc += sh * win;
+            }
+            fx += warm * acc * dt / (1.77 * 3.2) * 0.55 * part(1.0);
+        }
     }
     // motes catching the sun: a few bright glints
     fx += fxMotes(ro, rd, px, y0, yt - 2.0, 0.8, 3.2, 8.0, 0.01, 6.4, vec3<f32>(1.0, 0.95, 0.8)) * pow(0.5 + 0.5 * sin(t * 1.7), 4.0) * 2.2 * part(2.0);

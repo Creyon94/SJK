@@ -26,14 +26,14 @@ float bb_shell(vec3 ro, vec3 rd, vec3 c, float R, float w, out float dc){
 float bb_ring(vec3 ro, vec3 rd, float y, float R){
   float best = 1e3;
   vec3 h = rayAt(ro, rd, y);
-  if (h.z > 0.0) best = abs(length(h.xy) - R);
+  if (h.z > 0.0) best = abs(length(h.xy) - R) + 1e3*behindBlade(ro, rd, h.z);
   float a = dot(rd.xz, rd.xz), b = dot(ro.xz, rd.xz), c = dot(ro.xz, ro.xz) - R*R;
   float dsc = b*b - a*c;
   if (dsc > 0.0 && a > 1e-6){
     float q = sqrt(dsc);
     float t0 = (-b - q)/a, t1 = (-b + q)/a;
-    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y));
-    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y));
+    if (t0 > 0.0) best = min(best, abs(ro.y + rd.y*t0 - y) + 1e3*behindBlade(ro, rd, t0));
+    if (t1 > 0.0) best = min(best, abs(ro.y + rd.y*t1 - y) + 1e3*behindBlade(ro, rd, t1));
   }
   return best;
 }
@@ -64,13 +64,13 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     col += white*(halo(dO, 0.35)*pre*6.0 + exp(-dO/1.5)*pre*1.5);
     col += mix(white, rose, smoothstep(0.0, 0.8, age))*sh*burst*1.3*fx;
     // the fireball racing up the blade
-    float fb = rayPt(ro, rd, vec3(0.0, top, 0.0), ta);
+    float fb = rayPtRaw(ro, rd, vec3(0.0, top, 0.0), ta);
     col += mix(white, gold, 0.3)*(halo(fb, 0.8)*2.0 + exp(-fb/2.0)*0.6)*(1.0 - smoothstep(0.4, 0.6, age))*step(0.05, age);
   }
   if (top < 0.1) return col;
 
   // The blade itself is Sol's glow and core from the skin's file (sig_glow, sig_core).
-  float far = raySeg(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
+  float far = raySegRaw(ro, rd, vec3(0.0, -1.0, 0.0), vec3(0.0, top + 1.0, 0.0), s);
   if (fx <= 0.0 || far > 9.0) return col;
 
   // ---- nebula clouds: soft puffs of gas turning round the blade, inner ones faster ----

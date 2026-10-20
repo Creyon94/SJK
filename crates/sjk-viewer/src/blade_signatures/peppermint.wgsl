@@ -61,7 +61,10 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let q = vec2(b.x * 3.0, b.y * 1.2 - uTime * 0.3);
     let c = floor(q);
-    let sp = step(0.82, h21(c)) * fillD(length(fract(q) - h22(c)) - 0.08, px * 3.0);
+    var sp = step(0.82, h21(c)) * fillD(length(fract(q) - h22(c)) - 0.08, px * 3.0);
+    // round 19 (a cut-off check: crystals were drawn out to the quad's edge and cut there): only
+    // inside its glow
+    sp *= 1.0 - smoothstep(1.2, 2.6, abs(b.x));
     let tw = pow(0.5 + 0.5 * sin(uTime * 7.0 + h21(c) * 40.0), 4.0);
     return g * (0.95 + 0.4 * clamp(uClash, 0.0, 1.0)) + vec3<f32>(1.0, 0.95, 0.8) * sp * tw * 1.5 * smoothstep(0.0, 0.5, b.y) * (1.0 - smoothstep(uLength - 0.5, uLength, b.y));
 }

@@ -53,8 +53,8 @@ vec4 base_orbit_solid(vec3 ro, vec3 rd, float px){
   float top = kc_top(), bestT = 1e5;
   // the blade hides the crystals behind it (round 12: they showed through it)
   float sAx, tAx;
-  float dAx = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), sAx);
-  float dAx2 = rayPt(ro, rd, vec3(0.0, sAx*top, 0.0), tAx);
+  float dAx = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, max(top, 0.01), 0.0), sAx);
+  float dAx2 = rayPtRaw(ro, rd, vec3(0.0, sAx*top, 0.0), tAx);
   float hide = 1.0 - smoothstep(0.45, 1.1, dAx2);
   for (int i = 0; i < 9; i++){
     float fi = float(i);
@@ -90,15 +90,14 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 
 // round 12 (Creyon: "needs something more"): the crystals' song, motes of every crystal's
-// colour rising round the blade and soft streams of kyber light winding up it
+// colour rising round the blade (round 15: without the streams it shared with the Aurodium)
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
   for (int k = 0; k < 3; k++){
     float fk = float(k);
-    fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 8.0, 0.05, 3.1 + fk*2.7, kc_col(fk*3.0))*0.8;
+    fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 10.0, 0.05, 3.1 + fk*2.7, kc_col(fk*3.0))*1.0;
   }
-  fx += fxStreams(ro, rd, px, y0, y1, 2.0, 2.2, 0.22, 2.5, 6.4, vec3(0.7, 0.85, 1.0))*0.6;
   // round 13 (Creyon): a chroma for the blade only, the crystals keep their own colours (uKeep)
   uKeep += fx*uFx*part(1.0);
   return vec3(0.0);

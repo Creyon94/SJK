@@ -21,7 +21,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -38,18 +38,24 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let k = floor(cyc);
             let q = fract(cyc);
             let side = select(1.0, -1.0, h11(k * 2.1 + fj) < 0.5);
-            let c0 = vec3(side * (2.0 + 1.5 * h11(k * 3.7 + fj)), mix(y0 + 4.0, y1 - 3.0, h11(k * 5.1 + fj)), 0.0);
+            // round 19: each burst at its own place round the blade, a sphere of sparks in three dimensions
+            let c0 = turnY(vec3(side * (2.0 + 1.5 * h11(k * 3.7 + fj)), mix(y0 + 4.0, y1 - 3.0, h11(k * 5.1 + fj)), 0.0), h11(k * 1.3 + fj) * 0.5);
             let col = hsv(h11(k * 7.3 + fj * 1.1), 0.7, 1.0);
             let R = 2.2 * (1.0 - pow(1.0 - q, 3.0));
             let life = (1.0 - q) * (1.0 - q);
             for (var i = 0; i < 12; i++) {
-                let a = 6.2832 * (f32(i) / 12.0 + h11(k + fj));
-                let p = c0 + vec3(cos(a), sin(a), 0.0) * R - vec3(0.0, 1.2 * q * q, 0.0);
+                let a = 6.2832 * (f32(i) * 0.618 + h11(k + fj));
+                let ce = 1.0 - 2.0 * (f32(i) + 0.5) / 12.0;
+                let se = sqrt(max(1.0 - ce * ce, 0.0));
+                let p = c0 + vec3(cos(a) * se, ce, sin(a) * se) * R - vec3(0.0, 1.2 * q * q, 0.0);
                 let d = rayPt(ro, rd, p, &ta);
                 fx += (vec3<f32>(1.0) * halo(d, max(0.05, px)) * 1.2 + col * halo(d, 0.22) * 0.8) * life * part(0.0);
             }
         }
     }
     fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.0, 12.0, -0.03, 2.2, vec3<f32>(1.0, 0.85, 0.5)) * 0.6 * part(1.0);
-    return fx * uFx * 2.40;
+    // round 20 (Creyon): a chroma for the blade only; the fireworks and the glitter keep their own
+    // colours
+    uKeep += fx * uFx * 2.40;
+    return vec3<f32>(0.0);
 }

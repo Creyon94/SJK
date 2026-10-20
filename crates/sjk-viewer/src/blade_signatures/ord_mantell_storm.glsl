@@ -11,7 +11,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return g*(0.9 + 0.2*step(0.9, h11(floor(uTime*4.0))));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;

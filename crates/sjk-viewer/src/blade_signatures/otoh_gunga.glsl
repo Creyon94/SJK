@@ -15,7 +15,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return max(g + (o - g)*2.40, vec3(0.0));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
@@ -26,7 +26,8 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     for (int i = 0; i < 14; i++){
       float fi = float(i);
       float f = fract(t*0.09*(0.7 + 0.6*h11(fi*2.3)) + h11(fi*4.7));
-      vec3 p = vec3((h11(fi*3.1) - 0.5)*4.0 + 0.25*sin(t*2.0 + fi*1.3), mix(y0, y1, f), 0.0);
+      // round 20: all round the blade in 3D (they rose in one flat sheet)
+      vec3 p = around(0.7 + 1.5*h11(fi*3.1) + 0.2*sin(t*2.0 + fi*1.3), h11(fi*6.9), mix(y0, y1, f));
       float r = 0.18 + 0.25*h11(fi*1.7);
       float d = rayPt(ro, rd, p, ta);
       fx += (c*halo(abs(d - r), max(0.03, px))*0.9 + c*halo(d, r)*0.12)*sin(3.1416*f)*part(0.0);

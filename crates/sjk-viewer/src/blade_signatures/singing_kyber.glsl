@@ -39,7 +39,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float s;
   if (fx > 0.0){
     vec3 fxl = vec3(0.0);
-    float near = raySeg(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
+    float near = raySegRaw(ro, rd, vec3(0.0, 0.0, 0.0), vec3(0.0, top, 0.0), s);
     if (near < 6.5){
       // ---- the standing-wave nodes: bright bands that tremble, flat glows round the crystal
       for (int i = 0; i < 9; i++){
@@ -49,7 +49,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
         if (y > top) continue;
         float sh = sk_shell(ro, rd, vec3(0.0, y, 0.0), 0.95 + 0.15*sin(t*41.0 + fi*1.7), 4.0, 0.14);
         float to;
-        float dn = rayPt(ro, rd, vec3(0.0, y, 0.0), to);
+        float dn = rayPtRaw(ro, rd, vec3(0.0, y, 0.0), to);
         fxl += (pale*sh*0.8 + teal*halo(dn, 1.3)*0.5)*vib;
       }
       // ---- sound rings travelling up the blade and spreading outward

@@ -7,7 +7,8 @@
 // @palette {"corona.rim_cool":[0.42,0.34,0.16],"corona.rim_hot":[1.0,0.86,0.55],"corona.inner":[1.0,0.96,0.85],"core.white":[1.0,1.0,0.97],"core.fringe_cool":[0.90,0.78,0.50],"core.fringe_hot":[1.0,0.90,0.65],"light.color":[1.0,0.90,0.66],"trail":[1.0,0.90,0.68]}
 
 // Between Worlds: a blade from the World Between Worlds, the path of light through the void
-// outside time. A calm white-gold blade stands in its own small starry void. Faint echoes of the
+// outside time. A translucent blue path of light with sparkling edges (round 16) stands in its
+// own small starry void, paths of light crossing the dark beside it and nebula clouds drifting. Faint echoes of the
 // blade from other moments drift beside it in depth, translucent, fading in and out like ripples
 // of time. Voices of light, soft streams, flow along it from both ends, from the hilt up and from
 // the tip down, passing each other. Soft portals of shimmering light open and close along it,
@@ -18,7 +19,7 @@ fn bww_ring(ro: vec3<f32>, rd: vec3<f32>, h: f32, R: f32) -> f32 {
     var best: f32 = 1.0e3;
     let q = rayAt(ro, rd, h);
     if q.z > 0.0 {
-        best = abs(length(q.xy) - R);
+        best = abs(length(q.xy) - R) + 1.0e3 * behindBlade(ro, rd, q.z);
     }
     let a = dot(rd.xz, rd.xz);
     let b = dot(ro.xz, rd.xz);
@@ -29,10 +30,10 @@ fn bww_ring(ro: vec3<f32>, rd: vec3<f32>, h: f32, R: f32) -> f32 {
         let t0 = (-b - k) / a;
         let t1 = (-b + k) / a;
         if t0 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t0 - h));
+            best = min(best, abs(ro.y + rd.y * t0 - h) + 1.0e3 * behindBlade(ro, rd, t0));
         }
         if t1 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t1 - h));
+            best = min(best, abs(ro.y + rd.y * t1 - h) + 1.0e3 * behindBlade(ro, rd, t1));
         }
     }
     return best;
@@ -66,7 +67,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         let de = raySeg(ro, rd, a0, a1, &se);
         let tf = smoothstep(0.0, 0.08, se) * (1.0 - smoothstep(0.85, 1.0, se));
         let flick = 0.8 + 0.2 * sin(se * 30.0 - uTime * 3.0 + fe);
-        let ec = select((select(pale, mix(pale, vec3<f32>(0.75, 0.85, 1.0), 0.5), e == 3)), mix(gold, vec3<f32>(1.0, 0.65, 0.30), 0.6), e == 1);
+        let ec: vec3<f32> = vec3<f32>(0.7, 0.85, 1.0);
         light += ec * (exp(-pow(de / max(0.16, px), 2.0)) * 0.55 + halo(de, 0.6) * 0.22) * vis * tf * flick;
     }
     // voices of light: soft streams winding loosely along the blade, two rising from the hilt and
@@ -92,7 +93,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
                     let pos = select(1.0 - u, u, dir > 0.0);
                     let pulse = pow(0.5 + 0.5 * sin(pos * 14.0 - uTime * 2.2 + fk * 1.7), 3.0);
                     let vis = smoothstep(0.0, 0.12, pos) * (1.0 - smoothstep(0.8, 1.0, pos));
-                    let vc = select(pale, gold, dir > 0.0);
+                    let vc = select(vec3<f32>(0.8, 0.92, 1.0), vec3<f32>(0.4, 0.65, 1.0), dir > 0.0);
                     let w = max(px * 0.8, 0.05);
                     light += (vec3<f32>(1.0) * halo(d, w) * 0.45 * pulse + vc * halo(d, max(w * 2.5, 0.14)) * (0.10 + 0.45 * pulse) + vc * halo(d, 0.7) * 0.06 * (0.3 + pulse)) * vis;
                 }
@@ -112,8 +113,8 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let sh = 0.7 + 0.3 * sin(uTime * 1.3 + h);
             // round 13 (Creyon): no rings round the blade; the pathway shows as a soft glow
             var tq: f32;
-            let dq = rayPt(ro, rd, vec3(0.0, h, 0.0), &tq);
-            light += mix(gold, pale, 0.5) * halo(dq, 0.8 + 1.2 * open) * open * sh * 0.25;
+            let dq = rayPtRaw(ro, rd, vec3(0.0, h, 0.0), &tq);
+            light += vec3<f32>(0.5, 0.75, 1.0) * halo(dq, 0.8 + 1.2 * open) * open * sh * 0.25;
         }
     }
     // the starry void: tiny stars round the blade, some slowly drifting, twinkling
@@ -136,13 +137,50 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     return light;
 }
 
-// the blade: Sol's glow and core from the file, breathing calmly
+// round 16 (Creyon, after a picture of the World Between Worlds' paths: it glowed too much and
+// did not fit): the blade is one of its paths of light, translucent blue glass with bright,
+// sparkling edges like light on water, calm inside; its core is dimmed to a cool line
+const BW_BLUE: vec3<f32> = vec3<f32>(0.35, 0.62, 1.0);
+
+const BW_EDGE: vec3<f32> = vec3<f32>(0.75, 0.9, 1.0);
+
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return g * (0.75 + 0.12 * sin(b.y * 0.5 - uTime * 0.8) + 0.08 * sin(b.y * 0.21 + uTime * 0.5) + 0.3 * clamp(uClash, 0.0, 1.0));
+    let l = lvl(g);
+    let edgeAt: f32 = 0.32;
+    let rim = halo(abs(abs(b.x) - edgeAt), 0.07);
+    // glittering flecks along its edges, as light on moving water
+    let cell = floor(vec2(b.y * 5.0 - uTime * 1.5, b.x * 14.0));
+    let fleck = pow(max(sin(uTime * 3.0 + h21(cell) * 40.0), 0.0), 20.0) * step(0.7, h21(cell + 5.1)) * halo(abs(abs(b.x) - edgeAt), 0.12);
+    let inside = 1.0 - smoothstep(0.0, edgeAt, abs(b.x));
+    let ripple = 0.85 + 0.15 * sin(b.y * 0.9 - uTime * 1.4 + 3.0 * sin(b.x * 9.0));
+    let c = BW_BLUE * (0.28 * inside * ripple + 0.35) + BW_EDGE * rim * 1.1 + vec3<f32>(1.0) * fleck * 1.6;
+    return l * c * (1.0 + 0.3 * clamp(uClash, 0.0, 1.0));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
-    return c;
+    return c * vec3<f32>(0.55, 0.7, 0.9) * 0.6;
+}
+
+// round 16: paths of light crossing the void beside it, straight and thin, sparkling as light
+// runs along them, and nebula clouds drifting in the dark
+fn bw_paths(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32) -> vec3<f32> {
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    var s: f32;
+    for (var i = 0; i < 5; i++) {
+        let fi = f32(i);
+        let side = select(1.0, -1.0, glsl_mod(fi, 2.0) < 0.5);
+        let y = mix(y0 + 1.0, y1 - 2.0, fi / 4.0);
+        let a = (0.12 + 0.3 * h11(fi * 3.7)) * (select(-1.0, 1.0, h11(fi * 5.1) < 0.5));
+        // round 19: each at its own place round the blade, in three dimensions
+        let turn = h11(fi * 9.7) * 0.5;
+        let o = turnY(vec3(side * 0.5, y, 0.0), turn);
+        let e = o + turnY(vec3(side * cos(a), sin(a), 0.0), turn) * (7.0 + 2.0 * h11(fi * 2.3));
+        let d = raySeg(ro, rd, o, e, &s);
+        let run = pow(0.5 + 0.5 * sin(s * 18.0 - uTime * 2.0 + fi * 1.7), 8.0);
+        let glint = step(0.92, h11(floor(s * 40.0) + floor(uTime * 5.0) * 1.3 + fi));
+        acc += (BW_EDGE * halo(d, max(0.025, px)) * (0.6 + 0.9 * run + 1.2 * glint) + BW_BLUE * halo(d, 0.18) * 0.35) * (1.0 - s);
+    }
+    return acc;
 }
 
 // ---- round 9: the big effects layer ----
@@ -165,13 +203,16 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         var s: f32;
         var ta: f32;
         if fxNear(ro, rd, y0, y1) < 10.0 {
-            fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 14.0, 0.04, 2.2, pale) * 0.7;
-            fx += fxAura(ro, rd, y0, y1, 3.0, gold) * 0.25;
+            fx += fxMotes(ro, rd, px, y0, y1, 1.0, 6.5, 22.0, 0.04, 2.2, BW_EDGE) * 0.8;
+            fx += bw_paths(ro, rd, px, y0, y1);
         }
     }
-    // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
-    uKeep += col + fx * uFx;
-    return vec3<f32>(0.0);
+    // the void's nebula clouds, deep blue and violet, drifting slowly round it
+    fx += fxSmoke(ro, rd, y0, y1, 5.0, 0.4, 3.3, vec3<f32>(0.12, 0.2, 0.55)) * 0.9 * part(0.0);
+    fx += fxSmoke(ro, rd, y0 + 3.0, y1, 4.0, -0.3, 8.1, vec3<f32>(0.3, 0.18, 0.5)) * 0.5 * part(0.0);
+    // round 16: its paths and clouds take the wearer's colour with the blade (blue in the
+    // picture); the duel keeps its white and red (sig_orbit)
+    return (col * 0.6 + fx) * uFx;
 }
 
 // the duel circles the blade, so it alone is drawn in true 3D (Sol's way)
@@ -199,27 +240,30 @@ fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             var best: f32 = 1.0e3;
             var bs: f32 = 0.0;
             var prev: vec3<f32> = vec3<f32>(0.0);
-            for (var i = 0; i <= 10; i++) {
+            // round 15 (Creyon): bigger and further out, with a longer trail, so the two stand out
+            // from the blade whatever its colour (they were lost in a chroma's glow)
+            for (var i = 0; i <= 12; i++) {
                 let tt = t - f32(i) * 0.08;
                 let a = tt * (0.32 + 0.04 * fj) * (select(-1.0, 1.0, fj == 0.0)) + fj * 0.5;
-                let p = around(2.6 + 1.2 * sin(tt * 0.9 + fj * 2.0), a, L * 0.6 + L * 0.25 * sin(tt * 0.55 + fj * 3.1));
+                let p = around(3.3 + 1.2 * sin(tt * 0.9 + fj * 2.0), a, L * 0.6 + L * 0.25 * sin(tt * 0.55 + fj * 3.1));
                 if i > 0 {
                     let d = raySeg(ro, rd, prev, p, &s);
                     if d < best {
                         best = d;
-                        bs = (f32(i) - 1.0 + s) / 10.0;
+                        bs = (f32(i) - 1.0 + s) / 12.0;
                     }
                 }
                 prev = p;
             }
             let tail = 1.0 - bs;
+            let head = pow(tail, 6.0);
             // in their own colours whatever colour the wearer picked (uKeep, Creyon's round 12)
-            uKeep += (vec3<f32>(1.0) * halo(best, max(0.08, px)) * tail * 1.1 + cc * halo(best, 0.4) * tail * 0.9 + cc * halo(best, 1.2) * 0.12 * tail) * uFx;
+            uKeep += (vec3<f32>(1.0) * halo(best, max(0.17, px)) * tail * 1.4 + vec3<f32>(1.0) * halo(best, 0.32) * head * 1.6 + cc * halo(best, 0.75) * tail * 1.3 + cc * halo(best, 1.9) * 0.22 * tail) * uFx;
         }
         // where they meet: a flash and sparks, white and red
-        let meet = around(3.0, h11(k * 2.1), mix(L * 0.4, L * 0.85, h11(k * 4.7)));
+        let meet = around(3.6, h11(k * 2.1), mix(L * 0.4, L * 0.85, h11(k * 4.7)));
         let fl = exp(-ph * 7.0);
-        uKeep += fxFlare(ro, rd, meet, px, 0.2, 2.5, 6.0, k, mix(ahs, ana, 0.5)) * fl * 0.6 * uFx;
+        uKeep += fxFlare(ro, rd, meet, px, 0.3, 3.4, 6.0, k, mix(ahs, ana, 0.5)) * fl * 0.8 * uFx;
     }
     return fx * uFx;
 }

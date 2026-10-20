@@ -167,29 +167,5 @@
       "sound/sjk/creyon/bespin_storm/swing2.wav",
       "sound/sjk/creyon/bespin_storm/swing3.wav"
     ]
-  },
-  "arcs": {
-    "count": 2,
-    "color": [
-      1.0,
-      0.85,
-      0.7
-    ],
-    "brightness": 1.2,
-    "width": 0.1,
-    "halo": 0.6,
-    "reach": 1.8,
-    "jag": 0.45,
-    "kinks": 0.4,
-    "span": {
-      "low": 0.2,
-      "high": 0.5
-    },
-    "rate": 0.8,
-    "jitter": 0.4,
-    "threshold": 0.35,
-    "tip": 0.0,
-    "crawl": 1.5,
-    "decay": 0.6
   }
 }

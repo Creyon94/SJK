@@ -33,10 +33,10 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // only the effects, each a piece placed round it in 3D.
     var light: vec3<f32> = vec3<f32>(0.0);
     var ta: f32;
-    let axd = rayPt(ro, rd, vec3(0.0, clamp(ro.y + rd.y * dot(-ro, rd), 0.0, L), 0.0), &ta);
+    let axd = rayPtRaw(ro, rd, vec3(0.0, clamp(ro.y + rd.y * dot(-ro, rd), 0.0, L), 0.0), &ta);
     // nearest approach of the ray to the axis segment (for culling and depth)
     var sa: f32;
-    let near = raySeg(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), &sa);
+    let near = raySegRaw(ro, rd, vec3<f32>(0.0, 0.0, 0.0), vec3(0.0, L, 0.0), &sa);
     let fx = uFx;
     if near < 7.0 && fx > 0.0 {
         let S = hy_stretch();
@@ -73,7 +73,8 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         // ---- the tunnel: bands of blue light spiralling round the blade, rushing up
         for (var k = 0; k < 6; k++) {
             let fk = f32(k);
-            let a0 = fk / 6.0 - t * 0.35;
+            let a0 = fk / 6.0 - t * 0.1;
+            // round 15 (Creyon): a slow twist, it spun far too fast
             let y0 = glsl_mod(t * 14.0 + fk * (L + 10.0) / 6.0, L + 10.0) - 5.0;
             var prev = around(3.3, a0, y0);
             for (var j = 1; j <= 6; j++) {
@@ -82,7 +83,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
                 var s: f32;
                 let d = raySeg(ro, rd, prev, q, &s);
                 let on = smoothstep(-0.5, 3.0, q.y) * (1.0 - smoothstep(top - 5.0, top + 1.5, q.y));
-                fxl += vec3<f32>(0.16, 0.38, 1.0) * (halo(d, 0.18) * 0.8 + halo(d, 0.7) * 0.25) * sin(3.1416 * (u - 0.08)) * on * min(S, 1.0);
+                fxl += vec3<f32>(0.16, 0.38, 1.0) * (halo(d, 0.18) * 0.8 + halo(d, 0.7) * 0.25) * sin(3.1416 * (u - 0.08)) * on * min(S, 1.0) * part(1.0);
                 prev = q;
             }
         }
@@ -100,7 +101,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             fxl += white * shellL * cl * 1.1 + ice * halo(dc, 3.0) * pow(cl, 3.0) * 1.4;
             let h = rayAt(ro, rd, o.y);
             if h.z > 0.0 {
-                fxl += white * halo(abs(length(h.xy) - R * 1.1), 0.15 + 0.3 * (1.0 - cl)) * cl * 1.4;
+                fxl += white * halo(abs((length(h.xy) + 1.0e3 * behindBlade(ro, rd, h.z)) - R * 1.1), 0.15 + 0.3 * (1.0 - cl)) * cl * 1.4;
             }
         }
         light += fxl * fx;
@@ -110,7 +111,7 @@ fn r8_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
 
 // the blade: Sol's glow and core from the file, flickering as it shudders, flashing on a swing
 // and a clash
-fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+fn sig_glow_own(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let t = uTime;
     let fl = 0.9 + 0.1 * sin(t * 37.0) + 0.06 * sin(t * 71.0 + b.y * 0.3);
     return g * fl * (1.0 + 0.4 * clamp(uSwing, 0.0, 1.0) + 0.8 * clamp(uClash, 0.0, 1.0));
@@ -131,9 +132,59 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let cl = clamp(uClash, 0.0, 1.0);
     let y0 = L * 0.2;
     let y1 = L * 0.97;
-    var fx: vec3<f32> = vec3<f32>(0.0);
-    fx += fxCoils(ro, rd, px, y0, y1, 2.8, 0.7, 1.4, 4.0, vec3<f32>(0.35, 0.6, 1.0)) * part(1.0);
-    // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
-    uKeep += col + fx * uFx;
-    return vec3<f32>(0.0);
+    let fx: vec3<f32> = vec3<f32>(0.0);
+    // round 15: its coils left sig_vol; round 16 brings them back slower, in 3D (`sig_orbit`)
+    // round 15 (Creyon): the streaks and the tunnel take the wearer's colour with the blade
+    // (a red blade inside a blue tunnel looked wrong); their white-hot heads stay white
+    return col + fx * uFx;
+}
+
+// round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
+// 65 %, so what is drawn round it reads
+fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
+    return sig_glow_own(g, b, r, px) * 0.65;
+}
+
+// round 16 (Creyon: the twirling was fine, but cropped and far too fast): the coils back, three
+// strands of light wound round the blade, turning slowly (0.25 turns a second, were 1.4) with
+// knots of light running gently along them; they circle the blade, so they are drawn in true 3D
+// round it (`sig_orbit`, Sol's way) and seen whole from every side
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(1.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    let y0 = L * 0.12;
+    let y1 = L * 0.92;
+    let R: f32 = 2.4;
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0, y1) > R + 1.5 {
+        return acc;
+    }
+    for (var j = 0; j < 3; j++) {
+        let fj = f32(j);
+        var best: f32 = 1.0e3;
+        var bf: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i <= 28; i++) {
+            let f = f32(i) / 28.0;
+            let y = mix(y0, y1, f);
+            let p = around(R * (0.9 + 0.1 * sin(f * 9.0 + t * 0.8 + fj)), y * 0.07 - t * 0.25 + fj / 3.0, y);
+            if i > 0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bf = (f32(i) - 1.0 + s) / 28.0;
+                }
+            }
+            prev = p;
+        }
+        let knot = pow(0.5 + 0.5 * sin(bf * 24.0 - t * 2.5 + fj * 2.0), 6.0);
+        let ends = smoothstep(0.0, 0.1, bf) * (1.0 - smoothstep(0.88, 1.0, bf));
+        let c: vec3<f32> = vec3<f32>(0.35, 0.6, 1.0);
+        acc += (vec3<f32>(1.0) * halo(best, max(0.05, px)) * (0.4 + 1.2 * knot) + c * halo(best, 0.28) * (0.5 + knot) + c * halo(best, 0.9) * 0.12) * ends;
+    }
+    return acc * uFx * min(hy_stretch(), 1.0);
 }

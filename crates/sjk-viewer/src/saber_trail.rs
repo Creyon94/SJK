@@ -267,11 +267,13 @@ pub(crate) fn trail_duration(authored_duration: u16) -> u16 {
 /// The vertex style a slice is drawn with: the hilt's stock `trailStyle` (0 the blur
 /// trail, 1 the sword trail), except a black blade's blur trail (2, alpha-blended) and a
 /// blade skin's (3: the blur trail's white core takes the skin's trail colour too, so the
-/// trail reads as the blade's colour rather than white).
+/// trail reads as the blade's colour rather than white; 4 when the skin's trail is comic
+/// speed lines, `SkinColor::comic_trail`).
 pub(crate) fn vertex_style(style: u8, color: BladeColor) -> u32 {
     match (style, color) {
         (1, _) => 1,
         (_, BladeColor::Black) => 2,
+        (0, BladeColor::Skin(skin)) if skin.comic_trail => 4,
         (0, BladeColor::Skin(_)) => 3,
         _ => u32::from(style),
     }

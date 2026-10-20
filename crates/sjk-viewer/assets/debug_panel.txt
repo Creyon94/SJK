@@ -1628,6 +1628,18 @@ test: Normal sabers look as before (glow, heat haze, trails): a blade alpha chan
 test: Settings > Sound > Blade skin sounds: Off, With normal, Only skin; throw the saber too.
 note: Review: cg_saberLabDesigns 0 + Clone Wars blade leaves a blade up 1.6 s after switch-off.
 
+[creyon-blade-rounds]
+area: Rendering & effects
+title: Creyon's blade rounds 15 to 22 (pushed after #188 merged)
+change: Every effect round a signature blade is 3D, hidden behind the blade, never cut off.
+change: Mythicals awaken when lit, breathe, ring out on a clash (not the Sun: its own moments).
+change: Faster blade effect loading; built effects kept when the skins reload.
+test: Wear a few signatures, walk round them and look from above: effects stay put in 3D.
+test: Mythical (Abyssal Eye): switch on: surge up the blade, flare and ring at the tip; clash.
+test: Sun: sunrise and eclipse alone, no ring line across the moon, no flash at the emitter.
+test: Clone Wars: 3D speed lines on a swing; its halftone stops at the hilt.
+note: Kept Sol's tiers over Creyon's (his Jedi Spirits Mythical is not applied).
+
 [vram-map-change]
 area: Rendering & effects
 title: Map changes share textures between the old and new map (less video memory)

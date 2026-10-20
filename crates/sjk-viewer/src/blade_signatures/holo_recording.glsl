@@ -12,7 +12,7 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   return recol(g, c)*(0.75 + 0.25*sin(b.y*8.0))*(1.0 + 0.6*band);
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
@@ -23,10 +23,12 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     for (int i = 0; i < 14; i++){
       float fi = float(i);
       float k = floor(t*12.0 + fi*0.37);
-      vec3 p = vec3((h11(k*1.7 + fi) - 0.5)*3.5, mix(y0, y1, h11(k*2.9 + fi*3.1)), 0.0);
+      // round 20: all round the blade in 3D, each dash level and facing the camera
+      vec3 p = around(0.5 + 1.3*h11(k*1.7 + fi), h11(k*4.1 + fi), mix(y0, y1, h11(k*2.9 + fi*3.1)));
       float d = rayPt(ro, rd, p, ta);
       vec3 dq = ro + rd*ta - p;
-      float dash = halo(abs(dq.y), max(0.03, px))*halo(abs(dq.x), 0.35);
+      vec3 fu = normalize(cross(rd, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));
+      float dash = halo(abs(dq.y), max(0.03, px))*halo(abs(dot(dq, fu)), 0.35);
       fx += c*dash*0.6*step(0.55, h11(k*5.3 + fi));
     }
   }

@@ -5,46 +5,55 @@
 // @palette {"corona.rim_cool":[0.3,0.1,0.55],"corona.rim_hot":[0.75,0.45,1.0],"corona.inner":[0.92,0.8,1.0],"core.white":[0.97,0.92,1.0],"core.fringe_cool":[0.65,0.35,1.0],"core.fringe_hot":[0.9,0.78,1.0],"light.color":[0.7,0.4,1.0],"trail":[0.68,0.4,1.0]}
 
 // Christophsis Crystal: the crystal fields of Christophsis as a blade. Clear violet crystals grow out
-// of the blade one by one, slanting up, glint for a while and sink back into it; the blade's
-// glow ripples faintly. A clash flares it.
+// of the blade all round it in 3D (round 16), slanting up, glint for a while and sink back into
+// it; facets glint inside the blade. A clash flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return g * (0.92 + 0.12 * bands(b.y, 0.08, 0.5));
+    // facets inside the crystal blade, a few glinting at a time
+    var cell: vec2<f32>;
+    let e = voro(vec2(b.x * 3.5, b.y * 0.7), &cell);
+    let glint = pow(0.5 + 0.5 * sin(uTime * 1.5 + h21(cell) * 30.0), 16.0);
+    return g * (0.9 + 0.12 * bands(b.y, 0.08, 0.5) + 0.25 * halo(e, 0.05)) + lvl(g) * vec3<f32>(1.0) * glint * 0.5;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
-fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+// round 16 (Creyon: better for its name and rarity): the crystals grow out round the blade in all
+// directions, so they are drawn in true 3D round it (Sol's way) and seen from every side; each
+// a faceted spike with a bright edge and a glint running up it, a few at a time
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(0.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
     let L = uLength;
     let t = uTime;
-    let sw = clamp(uSwing, 0.0, 1.0);
-    let cl = clamp(uClash, 0.0, 1.0);
-    let y0 = L * 0.2;
-    let y1 = L * 0.97;
+    let y0 = L * 0.18;
+    let y1 = L * 0.95;
     var fx: vec3<f32> = vec3<f32>(0.0);
     let c: vec3<f32> = vec3<f32>(0.8, 0.6, 1.0);
     var s: f32;
-    if fxNear(ro, rd, y0, y1) < 3.5 {
-        for (var i = 0; i < 10; i++) {
-            let fi = f32(i);
-            let cyc = t * 0.1 + h11(fi * 4.3);
-            let k = floor(cyc);
-            let q = fract(cyc);
-            let grow = smoothstep(0.0, 0.5, q) * (1.0 - smoothstep(0.85, 1.0, q));
-            if grow < 0.01 {
-                continue;
-            }
-            let y = mix(y0, y1 - 2.0, h11(fi * 2.7 + k * 3.1));
-            let side = select(1.0, -1.0, h11(fi * 9.1 + k) < 0.5);
-            let a = vec3(side * 0.4, y, 0.0);
-            let tip = a + vec3(side * (1.0 + 1.2 * h11(fi + k * 5.0)), 0.6 + 1.2 * h11(fi * 3.0 + k), 0.0) * grow;
-            let d = raySeg(ro, rd, a, tip, &s);
-            let w = mix(0.22, 0.03, s) * grow;
-            let gl = pow(0.5 + 0.5 * sin(t * 1.7 + fi * 2.3), 12.0);
-            fx += (vec3<f32>(1.0) * halo(d, max(w * 0.5, px)) * (0.8 + gl) + c * halo(d, max(w * 1.8, px)) * 0.8 + c * halo(d, 0.5) * 0.1) * grow;
-        }
+    if fxNear(ro, rd, y0, y1) > 5.0 {
+        return fx;
     }
-    return fx * uFx * part(0.0);
+    for (var i = 0; i < 14; i++) {
+        let fi = f32(i);
+        let cyc = t * 0.1 + h11(fi * 4.3);
+        let k = floor(cyc);
+        let q = fract(cyc);
+        let grow = smoothstep(0.0, 0.4, q) * (1.0 - smoothstep(0.85, 1.0, q));
+        if grow < 0.01 {
+            continue;
+        }
+        let y = mix(y0, y1 - 2.0, h11(fi * 2.7 + k * 3.1));
+        let a = h11(fi * 9.1 + k);
+        let base = around(0.35, a, y);
+        let dir = normalize(vec3(sin(6.2832 * a), 0.5 + 0.7 * h11(fi * 3.0 + k), cos(6.2832 * a)));
+        let tip = base + dir * (2.0 + 2.0 * h11(fi + k * 5.0)) * grow;
+        let d = raySeg(ro, rd, base, tip, &s);
+        let w = mix(0.38, 0.03, s) * grow;
+        let glint = halo(s - fract(t * 0.6 + fi * 0.37), 0.06);
+        fx += (vec3<f32>(1.0) * halo(d, max(w * 0.45, px)) * (0.8 + 1.5 * glint) + c * halo(d, max(w * 1.6, px)) * 0.9 + c * halo(d, 0.5) * 0.1) * grow;
+    }
+    return fx * uFx;
 }

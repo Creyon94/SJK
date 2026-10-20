@@ -39,11 +39,11 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
     float ky = mod(uTime*(18.0) + fi*(L + 8.0)/6.0, L + 8.0) - 1.0;
     if (ky > top) continue;
     float fade = smoothstep(-1.0, 1.5, ky)*(1.0 - smoothstep(L - 1.0, L, ky));
-    float dk = raySeg(ro, rd, vec3(0.0, ky - 1.2, 0.0), vec3(0.0, ky + 0.4, 0.0), s);
+    float dk = raySegRaw(ro, rd, vec3(0.0, ky - 1.2, 0.0), vec3(0.0, ky + 0.4, 0.0), s);
     light += white*(exp(-pow(dk/0.55, 2.0))*1.4 + halo(dk, 1.3)*0.3)*fade;
     vec3 hr = rayAt(ro, rd, ky - 0.9);
     if (hr.z > 0.0){
-      float rr = length(hr.xy);
+      float rr = (length(hr.xy) + 1e3*behindBlade(ro, rd, hr.z));
       float ring = halo(abs(rr - 1.0), max(0.05, px*1.2))*1.3 + halo(abs(rr - 1.0), 0.35)*0.25;
       fx += mix(white, vio, 0.4)*ring*fade*(1.0 - smoothstep(1.0, 2.2, rr))*0.9;
     }
@@ -52,7 +52,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
   float jt = smoothstep(L - 2.0, L, top);
   if (jt > 0.0){
     float JL = 5.0 + 1.0*sw + 0.6*sin(uTime*1.7);
-    float dj = raySeg(ro, rd, vec3(0.0, top - 0.3, 0.0), vec3(0.0, top + JL, 0.0), s);
+    float dj = raySegRaw(ro, rd, vec3(0.0, top - 0.3, 0.0), vec3(0.0, top + JL, 0.0), s);
     float w = 0.3 + 0.9*s;
     float diamonds = 0.6 + 0.4*sin(s*JL*2.2 - uTime*20.0);
     fx += (white*exp(-pow(dj/w, 2.0))*1.2*diamonds + vio*halo(dj, w*2.5)*0.5)*pow(1.0 - s, 0.8)*1.3*jt*beat;
@@ -140,7 +140,7 @@ vec3 r8_vol(vec3 ro, vec3 rd, float px){
         float rr = abs(length(pp.xz) - 1.0 - 5.5*(1.0 - cl));
         fx += white*(halo(rr, 0.12)*1.8 + halo(rr, 0.6)*0.35)*cl;
       }
-      float dg = raySeg(ro, rd, vec3(0.0, L*0.55, 0.0), vec3(0.0, L*0.65, 0.0), s);
+      float dg = raySegRaw(ro, rd, vec3(0.0, L*0.55, 0.0), vec3(0.0, L*0.65, 0.0), s);
       light += white*halo(dg, 1.2)*pow(cl, 2.0)*1.6;
     }
   }

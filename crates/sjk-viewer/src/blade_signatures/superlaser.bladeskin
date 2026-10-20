@@ -173,29 +173,5 @@
     "scale": 0.4,
     "speed": 8.0,
     "reach": 3.0
-  },
-  "arcs": {
-    "count": 4,
-    "color": [
-      0.4,
-      1.0,
-      0.45
-    ],
-    "brightness": 3.0,
-    "width": 0.06,
-    "halo": 0.5,
-    "reach": 1.2,
-    "jag": 0.4,
-    "kinks": 0.8,
-    "span": {
-      "low": 0.3,
-      "high": 0.95
-    },
-    "rate": 8.0,
-    "jitter": 22.0,
-    "threshold": 0.3,
-    "tip": 0.5,
-    "crawl": 25.0,
-    "decay": 1.5
   }
 }

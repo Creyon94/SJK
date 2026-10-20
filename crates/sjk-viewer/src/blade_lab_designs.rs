@@ -86,6 +86,24 @@ const LINGERS: [(&str, f32); 1] = [("saber_comic", 1.6)];
 /// onto the blade at every mark).
 const EACH_SWING: [&str; 1] = ["saber_comic"];
 
+/// Designs whose effects answer how much the blade moves in the world, running as much as
+/// swinging, rather than a swing alone (Creyon's round 16: Felucia's spores rest on the blade
+/// while its wearer stands idle, fly off and follow it when they run or swing, and settle back
+/// once they stand still again): their motion's last lane carries
+/// [`crate::saber_motion::BladeMotion::stir`] instead of the seconds since a swing.
+const STIRRED: [&str; 1] = ["saber_monarch"];
+
+/// Whether `id`'s swing trail is comic speed lines (Creyon's round 19: the Clone Wars blade
+/// leaves comic lines when it moves, not the blur's afterimage).
+pub(crate) fn comic_trail(id: &str) -> bool {
+    id == "saber_comic"
+}
+
+/// Whether `id` answers the blade's movement in the world ([`STIRRED`]).
+pub(crate) fn stirred(id: &str) -> bool {
+    STIRRED.contains(&id)
+}
+
 /// Whether `id` answers each swing of a chain on its own ([`EACH_SWING`]).
 pub(crate) fn each_swing(id: &str) -> bool {
     EACH_SWING.contains(&id)
@@ -102,6 +120,8 @@ pub(crate) fn linger(id: &str) -> f32 {
 /// Quantum's number: its ghost copies are an option (`saber.wgsl` `lab_quantum_ghosts`,
 /// drawn unless the wearer's `copies` section is off).
 const QUANTUM: u32 = 14;
+/// The Clone Wars blade's number: its own parts are options (round 19).
+const COMIC: u32 = 6;
 
 /// `cg_saberLabDesigns`, as last read ([`set_enabled`]); on until the console says.
 static ENABLED: AtomicBool = AtomicBool::new(true);
@@ -155,6 +175,19 @@ impl Design {
             option("particles", "Particles", "arcs"),
             option("bursts", "Swing and clash bursts", "motes"),
         ];
+        if self.number == COMIC {
+            // Round 19 (Creyon): the Clone Wars blade's own parts, each switched on its own;
+            // its particles go with the cartoon smoke and sparks (`saber.wgsl`
+            // `lab_comic_*`), on bits a design has no other use for.
+            shown.options = vec![
+                option("comic_panel", "Comic panel", "sputter"),
+                option("action_burst", "Action burst", "glitch"),
+                option("clone_markings", "Clone markings", "scan"),
+                option("holo_flicker", "Holo flicker", "bands"),
+                option("smoke_sparks", "Cartoon smoke and sparks", "arcs"),
+                option("bursts", "Swing and clash bursts", "motes"),
+            ];
+        }
         if self.number == QUANTUM {
             shown
                 .options

@@ -15,7 +15,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -36,7 +36,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
                 let f = f32(i) / 16.0;
                 let y = mix(y0, y1, f);
                 let x = (fk * 2.0 - 1.0) * (0.9 + 0.5 * sin(y * 0.35 - t * 0.9 + fk * 2.0)) + 0.3 * sin(y * 1.1 + t * 0.6);
-                let p = vec3(x, y, 0.0);
+                // round 19: the lines of script wind slowly round the blade, in three dimensions
+                let p = turnY(vec3(x, y, 0.0), y * 0.012 + t * 0.01);
                 if i > 0 {
                     let d = raySeg(ro, rd, prev, p, &s);
                     if d < best {

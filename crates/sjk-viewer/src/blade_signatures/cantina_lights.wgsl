@@ -23,7 +23,7 @@ fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
 }
 
-// the effects, flat round the blade as Sol's are
+// the effects round the blade, in three dimensions
 fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let L = uLength;
     let t = uTime;
@@ -35,7 +35,9 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var ta: f32;
     for (var i = 0; i < 5; i++) {
         let fi = f32(i);
-        let p = vec3(3.0 * sin(t * (0.4 + 0.15 * fi) + fi * 1.7), mix(y0 + 2.0, y1 - 2.0, (fi + 0.5) / 5.0), 0.0);
+        // round 20: the spots of light circle the blade in 3D (they swung in one flat sheet)
+        let a = t * (0.4 + 0.15 * fi) + fi * 1.7;
+        let p = vec3(2.6 * sin(a), mix(y0 + 2.0, y1 - 2.0, (fi + 0.5) / 5.0), 2.6 * cos(a));
         let d = rayPt(ro, rd, p, &ta);
         fx += hsv(fract(fi * 0.21 + t * 0.05), 0.7, 1.0) * (halo(d, 0.5) * 0.45 + halo(d, 1.4) * 0.12) * part(0.0);
     }

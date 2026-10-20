@@ -136,6 +136,12 @@ pub(crate) struct SkinColor {
     /// Whether it answers each swing of a chain on its own
     /// ([`crate::blade_lab_designs::each_swing`]).
     pub(crate) each_swing: bool,
+    /// Whether its motion's last lane carries how stirred the blade is
+    /// ([`crate::blade_lab_designs::stirred`]).
+    pub(crate) stirred: bool,
+    /// Whether its swing trail is drawn as comic speed lines (the Clone Wars blade, round
+    /// 19: `saber_trail.wgsl` style 4) rather than the blur's afterimage.
+    pub(crate) comic_trail: bool,
 }
 
 /// Where a skin's glints (or black holes) are, for their quads
@@ -751,6 +757,12 @@ impl LoadedSkin {
             persona: crate::saber_persona::Persona::default(),
             linger: crate::blade_lab_designs::linger(self.id),
             each_swing: crate::blade_lab_designs::each_swing(self.id),
+            stirred: crate::blade_lab_designs::stirred(self.id),
+            // With its comic panel (the sputter bit of its options), while the designs draw.
+            comic_trail: self
+                .design_shown()
+                .is_some_and(|design| crate::blade_lab_designs::comic_trail(design.id))
+                && on(Section::Sputter),
             chroma: Chroma {
                 base: crate::unlockables::is_chroma(self.id)
                     .then(|| match self.design_shown() {

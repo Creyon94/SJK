@@ -314,7 +314,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #105 duellists drawn as JoF EJK draws them (a see-through blue figure,
   `cg_duelGhost`) and duel badges on nameplates, the two of one duel in one colour;
 - #188 the Blade Lab signature blades: 128 saber shaders of his in five tiers, each
-  drawn by its own shader with switchable effects, their sounds in the hub's pack;
+  drawn by its own shader with switchable effects, their sounds in the hub's pack, and
+  his review rounds 15 to 22 after it (every effect in 3D, richer mythicals, faster
+  loading);
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
