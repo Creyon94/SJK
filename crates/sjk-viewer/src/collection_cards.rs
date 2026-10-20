@@ -666,15 +666,19 @@ impl Panel {
         );
         y += 34.0;
         let about = match (&tile.slot, face) {
-            (_, Some(face)) => format!(
-                "{} {}   ·   {}   ·   {} {:03} / {:03}",
-                crate::symbols::card_rarity(tile.rarity.index),
-                tile.rarity.name,
-                face.face.kind.name(),
-                face.face.set_name,
-                face.face.number,
-                face.of
-            ),
+            (_, Some(face)) => {
+                let mut about = format!(
+                    "{} {}   ·   {}   ·   {}",
+                    crate::symbols::card_rarity(tile.rarity.index),
+                    tile.rarity.name,
+                    face.face.kind.name(),
+                    face.face.set_name,
+                );
+                if let Some(place) = face.face.place(face.of) {
+                    about = format!("{about} {place}");
+                }
+                about
+            }
             (Slot::Sealed, _) => {
                 "Sealed: a card is picked for each when it is revealed.".to_owned()
             }

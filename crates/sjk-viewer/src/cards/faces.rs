@@ -113,6 +113,13 @@ impl Face {
         let unlockable = crate::unlockables::find(self.grants.as_deref()?)?;
         Some(format!("Brings the {} while you hold it.", unlockable.name))
     }
+
+    /// Where it stands in its set of `of` cards ("010 / 013"), `None` for a credits card:
+    /// its number only orders the credits, so none reads as ranked above another (Sol,
+    /// 20/10/2026).
+    pub(crate) fn place(&self, of: usize) -> Option<String> {
+        (self.kind != Kind::Credits).then(|| format!("{:03} / {:03}", self.number, of.max(1)))
+    }
 }
 
 /// A card file as written.
@@ -426,6 +433,12 @@ mod tests {
             ("Credits", "Mythical")
         );
         assert_eq!(Kind::Meme.name(), "Meme");
+        // A credits card shows no place in its set; any other card does.
+        assert_eq!(bishop.place(13), None);
+        assert_eq!(
+            parse("x", FILE).unwrap().place(13).as_deref(),
+            Some("010 / 013")
+        );
         for (from, to) in [
             ("\"legendary\"", "\"mythic\""),
             ("\"meme\"", "\"memes\""),

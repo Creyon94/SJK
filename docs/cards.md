@@ -248,23 +248,18 @@ copy can become a real card. A card's `artist` line says how its art was made; t
 footer reads "Art: <artist>".
 
 The first collection is **SJK Alpha** (set `sjk_alpha`, Sol's decision of 19/10/2026; it
-was "Sol lore" before):
+was "Sol lore" before). Its numbers 000 to 012 are the credits: Sol, Bishop (the author
+of JKR, which SJK forked), Creyon, the early team and the projects and people SJK builds
+on; `sjk_alpha_010` is the Toxiee meme card (Legendary, it was `sol_lore_001`), and
+`sjk_alpha_000`, Sol's, brings the Sun blade while held (20/10/2026). Sol edits the cards
+himself since 20/10/2026 with the hub's Card Studio (`scripts/card_studio.py`), so the
+hub's `assets/dist/cards.json` is the list as it stands, not this page.
 
-| Card | Name | Rarity | Kind | Art |
-| --- | --- | --- | --- | --- |
-| `sjk_alpha_000` | Sol | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it; card zero, because SJK starts with Sol's time, effort and money (a set's numbers start at 0 since 19/10/2026); brings the Sun blade while held (20/10/2026) |
-| `sjk_alpha_001` | Bishop | Mythical | Credits | Sol (AI-assisted): a rusted helmet portrait of Bishop, the author of JKR, which SJK forked |
-| `sjk_alpha_002` | Creyon, the Saber Smith | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_003` | The Early Team (Lumaya, Rollembones, Kushina) | Mythical | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_004` | Jediman | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_005` | Slash | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_006` | Milamber | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_007` | EternalJK | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_008` | OpenJK | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_009` | TaystJK | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_010` | Toxiee and Sol on JoF Memorial | Legendary | Meme | Sol (AI-assisted); it was `sol_lore_001`, Community |
-| `sjk_alpha_011` | jaPRO | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
-| `sjk_alpha_012` | JA+, by Slider | Legendary | Credits | Placeholder (a name over a glow) until Sol paints it |
+**Credits cards (20/10/2026, Sol's decision):** so that no credit reads as ranked above
+another, every credits card is Mythical (the hub's import and pack build refuse any other
+rarity) and shows no number in the game: not on the card's foot, the Cards tab's close-up,
+its hover card or an opening (`Face::place` is `None`). The number still makes the card's
+id and orders the credits in the binder.
 
 A card's kind says what it is about and reads on its strip: `community` (Community),
 `place` (Place), `personality` (Personality), `game` (Jedi Academy), and since

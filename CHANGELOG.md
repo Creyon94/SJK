@@ -45,6 +45,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The Sun blade (001) is now a signature blade: it lights as a sunrise and goes out as a sunset, breathes slowly, carries drifting sunspots, corona streamers and a solar wind, tears a loop of plasma off on a clash, casts the strongest light of any blade and hums deeper _(Sol)_
 - Sol's card (SJK Alpha 000) brings the Sun blade for as long as you hold a copy, a second way to get it besides holocrons, and the card says so in the Collection _(Sol)_
 - Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
+- Credits cards are all Mythical and show no number, so no one in the credits is ranked above another _(Sol)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
