@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 21/10/2026 | - | One bar a tab under the Collection's collected count
+- b7edf63 |  | Collection: one bar a tab under the collected count, not a tick a thing
 + 21/10/2026 | - | Cargo fmt for staff_panel.rs, CI
 - d77e178 |  | Format staff_panel.rs (cargo fmt, CI)
 + 20/10/2026 | - | JA+ passwords masked from the JA+ mod, SJK #178; SJK pull request #190 JA+ anti-kiss, moved into the JA+ mod
