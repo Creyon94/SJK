@@ -260,7 +260,8 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   drift along the core, coronal rain falls back down glowing loops beside the blade (beads
   of plasma sliding down each side, since 20/10/2026 in place of the straight streamers
   Sol did not like), four prominences rise off it, a solar wind of pale motes rides to
-  the tip inside the widest warm aura of any blade; it lights as a sunrise
+  the tip inside the widest warm aura of any blade (halved in brightness the same day, Sol:
+  the bloom was too strong); it lights as a sunrise
   (deep red warming to white gold, a white edge climbing the blade, then a dawn flare at
   the emitter) and goes out as a sunset (cooling to deep red as it slides in); a swing
   swells the corona and the wind, and a clash is a total eclipse's diamond ring: a dark
