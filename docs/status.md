@@ -873,8 +873,9 @@ the event of that moment, else `CS_SIEGE_WINTEAM` (set only after a switched mat
 second round, so a player who joined after any other round's event sees no winner); large and centred over both teams,
 with "Winner" by the team that won and a faint wash of its colour over the window, and
 the team heads show no score in siege. The other team games (team free for all, CTF,
-CTY) tell their result the same way at the intermission, from the team scores: "5 : 4
-Blue team won" or "Tied 3 : 3". See
+CTY) tell their result the same way at the intermission, from the team scores: "Blue
+team won" with "Winner" by that team's head, which keeps its score, or "Teams tied"
+(19/10/2026, `feat/team-outcome-like-siege`; until then "5 : 4  Blue team won"). See
 [SJK UI](sjk-ui.md). Unit tests pin the tracker and the winner rule; not seen in a game
 yet. The classic scoreboard is unchanged (an SJK UI-only addition is allowed).
 
