@@ -223,7 +223,9 @@ impl Frame {
         }
     }
 
-    /// The retail menu HUD (`cg_hudFiles` names a menu list).
+    /// The retail menu HUD (`cg_hudFiles` names a menu list) alone, for the tests;
+    /// the game and the picker's pictures draw through [`Self::stats`].
+    #[cfg(test)]
     pub(crate) fn menu_hud(
         &mut self,
         layout: &Layout,
