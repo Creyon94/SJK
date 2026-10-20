@@ -610,17 +610,22 @@ impl Runtime {
                     .signature_shown()
                     .is_some_and(|signature| signature.solid())
         });
-        // Pipelines already built for a signature at the same number are kept.
+        // Pipelines already built for a signature are kept, whatever number it loads at now
+        // (Creyon's round 21: entering a server reloaded the skins in another order and every
+        // signature was built again, 233 builds for 128 blades, its effects gone meanwhile).
+        let mut old: Vec<Signed> = std::mem::take(&mut self.signed)
+            .into_iter()
+            .flatten()
+            .collect();
         let mut signed: Vec<Option<Signed>> = (0..MAX_SKINS).map(|_| None).collect();
         for (index, skin) in skins.iter() {
             let Some(signature) = skin.signature_shown() else {
                 continue;
             };
-            let kept = self
-                .signed
-                .get_mut(usize::from(index))
-                .and_then(Option::take)
-                .filter(|old| std::ptr::eq(old.signature, signature));
+            let kept = old
+                .iter()
+                .position(|old| std::ptr::eq(old.signature, signature))
+                .map(|at| old.swap_remove(at));
             signed[usize::from(index)] = Some(kept.unwrap_or(Signed {
                 signature,
                 built: Arc::default(),

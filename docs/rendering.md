@@ -2178,7 +2178,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   pass emptied, as a signature skin is never a design, and every function its pipelines do not
   reach left out), a signature builds only its glow pipeline and, with a solid layer, its solid one,
   and the build queue runs two or three builders (Creyon: at launch the effects took minutes to come
-  in). The Clone Wars blade's toon body, its cartoon smoke and its spark stars are drawn in three
+  in). A skin reload (entering a server) keeps every signature already built, whatever number it
+  loads at (Creyon's log: 233 builds for 128 blades). The Clone Wars blade's toon body, its cartoon smoke and its spark stars are drawn in three
   dimensions along the true view ray (`comic_body3`, `comic_puffs3`); its words, panel and impact
   lines stay as they were. Sith Thorn's petals, Otoh Gunga's bubbles, Cantina Lights' spots of
   light, Holo-Recording's dashes and Imperial Schematics' rungs no longer lie in one flat sheet
