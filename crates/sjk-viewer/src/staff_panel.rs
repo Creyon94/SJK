@@ -1400,7 +1400,10 @@ mod tests {
         let (mut panel, me, _) = drawn(vec![other.clone()]);
         let _ = panel.activate(PLAYER_BASE);
         redraw(&mut panel, &me, vec![other.clone()]);
-        assert!(!panel.order.contains(&SET_STAFF_TOKEN), "staff do not get it");
+        assert!(
+            !panel.order.contains(&SET_STAFF_TOKEN),
+            "staff do not get it"
+        );
         assert_eq!(panel.activate(SET_STAFF_TOKEN), PanelAction::None);
         let creator = Profile {
             staff: true,
