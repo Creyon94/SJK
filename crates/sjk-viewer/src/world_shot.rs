@@ -3059,7 +3059,7 @@ like this one.",
             };
             let _ = frame(&mut gpu, 20);
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
-            let steps: [(&str, Keys); 8] = [
+            let steps: [(&str, Keys); 9] = [
                 // The Force page, the first: a note instead of choices, an
                 // example ring.
                 ("duel6-wheel-settings", &[]),
@@ -3092,6 +3092,7 @@ like this one.",
                     ],
                 ),
                 ("duel6-wheel-settings-catalogue", &[(Enter, None)]),
+                ("duel6-wheel-settings-search", &[(KeyA, Some("cam"))]),
                 (
                     "duel6-wheel-settings-custom",
                     &[

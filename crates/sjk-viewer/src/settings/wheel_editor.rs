@@ -5,7 +5,8 @@
 //! move round the ring, remove), and on the right a live preview of the page's
 //! ring with what the focused item does, or, while a choice is being picked, the
 //! catalogue of actions ([`crate::quick_wheel::catalog`]) with a custom console
-//! command last. Every change is saved at once to `wheel.json`
+//! command last, with a search field right of its title that has the keyboard
+//! as it opens. Every change is saved at once to `wheel.json`
 //! ([`crate::quick_wheel::pages`]).
 //!
 //! The Force page is renamed, moved and removed like any page, but its choices
@@ -108,6 +109,8 @@ pub(super) enum Confirm {
 
 /// Lines of the catalogue shown at once.
 pub(super) const PICK_LINES: usize = 17;
+/// The longest search, in characters.
+const SEARCH_CHARS: usize = 32;
 
 /// Pointer tokens, clear of the rail (800) and the way back (900).
 pub(super) const PAGE_BASE: u16 = 3000;
@@ -127,6 +130,7 @@ pub(super) const CHOICE_REMOVE: u16 = 3145;
 pub(super) const PICK_BASE: u16 = 3200;
 pub(super) const PICK_SCROLL: u16 = 3290;
 pub(super) const PICK_CLOSE: u16 = 3291;
+pub(super) const PICK_SEARCH: u16 = 3292;
 pub(super) const FORM_LABEL: u16 = 3300;
 pub(super) const FORM_COMMAND: u16 = 3301;
 pub(super) const FORM_SAVE: u16 = 3302;
@@ -145,6 +149,9 @@ pub(crate) struct WheelEditor {
     /// default pages, the wheel's sounds), a choice (then Add a choice).
     pub(super) rows: [usize; 2],
     pub(super) picker: Option<Picker>,
+    /// The words typed in the catalogue's search field, which has the keyboard
+    /// while the catalogue is open.
+    pub(super) search: String,
     pub(super) typing: Option<Typing>,
     pub(super) confirm: Option<Confirm>,
     /// The pages as last saved, and the keys bound to open each.
@@ -166,6 +173,7 @@ impl Default for WheelEditor {
             page: 0,
             rows: [0; 2],
             picker: None,
+            search: String::new(),
             typing: None,
             confirm: None,
             pages: Vec::new(),
@@ -198,6 +206,48 @@ pub(super) fn pick_lines() -> Vec<PickLine> {
     lines.push(PickLine::Heading("Your own"));
     lines.push(PickLine::Custom);
     lines
+}
+
+/// The catalogue's lines that `search` finds: the actions and emotes whose name
+/// or group holds its words (any case), each group's sub-heading kept over what
+/// it finds, and the custom command always last. Every line for no words.
+pub(super) fn pick_lines_matching(search: &str) -> Vec<PickLine> {
+    let lines = pick_lines();
+    let search = search.trim().to_lowercase();
+    if search.is_empty() {
+        return lines;
+    }
+    let words: Vec<&str> = search.split_whitespace().collect();
+    let mut found = Vec::new();
+    // The group being read, and whether its sub-heading is in yet.
+    let mut group = "";
+    let mut headed = false;
+    for line in lines {
+        let name = match line {
+            PickLine::Heading(heading) => {
+                group = heading;
+                headed = false;
+                continue;
+            }
+            PickLine::Custom => {
+                found.extend([PickLine::Heading("Your own"), PickLine::Custom]);
+                continue;
+            }
+            PickLine::Action(index) => ACTIONS[index].label.to_owned(),
+            PickLine::Emote(index) => {
+                emote_choice(index).map_or_else(String::new, |(name, _)| name)
+            }
+        };
+        let haystack = format!("{name} {group}").to_lowercase();
+        if words.iter().all(|word| haystack.contains(word)) {
+            if !headed {
+                found.push(PickLine::Heading(group));
+                headed = true;
+            }
+            found.push(line);
+        }
+    }
+    found
 }
 
 impl WheelEditor {
@@ -349,6 +399,7 @@ impl WheelEditor {
                         .map_or(PickLine::Custom, PickLine::Emote)
                 }
             });
+        self.search.clear();
         let lines = pick_lines();
         let highlighted = current
             .and_then(|line| lines.iter().position(|candidate| *candidate == line))
@@ -381,7 +432,7 @@ impl WheelEditor {
     /// Move the catalogue's highlight to the line `direction` selectable lines
     /// away (or the nearest from `from`), keeping it in view.
     fn pick_step(&mut self, direction: i32) {
-        let lines = pick_lines();
+        let lines = self.pick_shown();
         let Some(picker) = &mut self.picker else {
             return;
         };
@@ -398,7 +449,25 @@ impl WheelEditor {
                 picker.highlighted = at as usize;
             }
         }
-        reveal_pick(picker, lines.len());
+        reveal_pick(picker, &lines);
+    }
+
+    /// The catalogue's lines the search finds.
+    pub(super) fn pick_shown(&self) -> Vec<PickLine> {
+        pick_lines_matching(&self.search)
+    }
+
+    /// The search changed: the highlight goes to the first line it finds, at
+    /// the top.
+    fn searched(&mut self) {
+        let lines = self.pick_shown();
+        if let Some(picker) = &mut self.picker {
+            picker.highlighted = lines
+                .iter()
+                .position(|line| !matches!(line, PickLine::Heading(_)))
+                .unwrap_or(0);
+            picker.first = 0;
+        }
     }
 
     /// Put catalogue line `line` on the page: an action, or the custom form.
@@ -406,7 +475,7 @@ impl WheelEditor {
         let Some(picker) = self.picker else {
             return;
         };
-        match pick_lines().get(line) {
+        match self.pick_shown().get(line) {
             Some(PickLine::Action(index)) => {
                 let set =
                     console
@@ -646,22 +715,40 @@ impl WheelEditor {
         }
     }
 
-    /// A key while the catalogue is open.
-    fn picker_key(&mut self, key: KeyCode, console: &mut ViewerConsole) {
+    /// A key (typing `text`) while the catalogue is open: its search field has
+    /// the keyboard, so letters search and the arrows choose.
+    fn picker_key(&mut self, key: KeyCode, text: Option<&str>, console: &mut ViewerConsole) {
+        let count = self.pick_shown().len() as i32;
         match key {
-            KeyCode::Escape | KeyCode::Backspace => self.picker = None,
-            KeyCode::ArrowUp | KeyCode::KeyW => self.pick_step(-1),
-            KeyCode::ArrowDown | KeyCode::KeyS => self.pick_step(1),
+            KeyCode::Escape => self.picker = None,
+            // Backspace on an empty search goes back, as it did before there was one.
+            KeyCode::Backspace if self.search.is_empty() => self.picker = None,
+            KeyCode::Backspace => {
+                self.search.pop();
+                self.searched();
+            }
+            KeyCode::ArrowUp => self.pick_step(-1),
+            KeyCode::ArrowDown => self.pick_step(1),
             KeyCode::PageUp => self.pick_step(-(PICK_LINES as i32 - 2)),
             KeyCode::PageDown => self.pick_step(PICK_LINES as i32 - 2),
-            KeyCode::Home => self.pick_step(-(pick_lines().len() as i32)),
-            KeyCode::End => self.pick_step(pick_lines().len() as i32),
-            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
+            KeyCode::Home => self.pick_step(-count),
+            KeyCode::End => self.pick_step(count),
+            KeyCode::Enter | KeyCode::NumpadEnter => {
                 if let Some(picker) = self.picker {
                     self.pick(picker.highlighted, console);
                 }
             }
-            _ => {}
+            _ => {
+                if let Some(text) = text {
+                    let room = SEARCH_CHARS.saturating_sub(self.search.chars().count());
+                    let before = self.search.len();
+                    self.search
+                        .extend(text.chars().filter(|c| !c.is_control()).take(room));
+                    if self.search.len() != before {
+                        self.searched();
+                    }
+                }
+            }
         }
     }
 }
@@ -681,8 +768,8 @@ fn typing_text(typing: &mut Typing) -> (&mut String, usize) {
 
 /// Scroll the catalogue so its highlighted line shows, with its heading when
 /// it is the first under one.
-fn reveal_pick(picker: &mut Picker, count: usize) {
-    let lines = pick_lines();
+fn reveal_pick(picker: &mut Picker, lines: &[PickLine]) {
+    let count = lines.len();
     let top = match picker.highlighted.checked_sub(1) {
         Some(above) if matches!(lines[above], PickLine::Heading(_)) => above,
         _ => picker.highlighted,
@@ -733,7 +820,7 @@ impl SettingsMenu {
             return SettingsResult::None;
         }
         if editor.picker.is_some() {
-            editor.picker_key(key, console);
+            editor.picker_key(key, text, console);
             return SettingsResult::None;
         }
         // A step awaiting its confirmation takes the next key: the same key
@@ -810,9 +897,9 @@ impl SettingsMenu {
         }
         match event.kind {
             UiEventKind::Wheel => {
+                let last = editor.pick_shown().len().saturating_sub(PICK_LINES);
                 if let Some(picker) = &mut editor.picker {
                     let notches = event.delta.map_or(0, |delta| -delta.y.signum() as i32);
-                    let last = pick_lines().len().saturating_sub(PICK_LINES);
                     picker.first =
                         (picker.first as i32 + notches * 3).clamp(0, last as i32) as usize;
                 }
@@ -837,6 +924,11 @@ impl WheelEditor {
         if self.typing.is_some() {
             return;
         }
+        let lines = if self.picker.is_some() {
+            self.pick_shown()
+        } else {
+            Vec::new()
+        };
         if let Some(picker) = &mut self.picker {
             if let Some(slot) = token
                 .checked_sub(PICK_BASE)
@@ -844,7 +936,7 @@ impl WheelEditor {
             {
                 let line = picker.first + usize::from(slot);
                 if matches!(
-                    pick_lines().get(line),
+                    lines.get(line),
                     Some(PickLine::Action(_) | PickLine::Emote(_) | PickLine::Custom)
                 ) {
                     picker.highlighted = line;
@@ -917,7 +1009,7 @@ impl WheelEditor {
                     let line = picker.first + usize::from(token - PICK_BASE);
                     self.pick(line, console);
                 }
-                Some(PICK_SCROLL) => {}
+                Some(PICK_SCROLL | PICK_SEARCH) => {}
                 _ => self.picker = None,
             }
             return;
@@ -988,6 +1080,7 @@ impl WheelEditor {
 const _: () = assert!(PAGE_BASE as usize + MAX_PAGES <= ADD_PAGE as usize);
 const _: () = assert!(CHOICE_BASE as usize + MAX_CHOICES <= ADD_CHOICE as usize);
 const _: () = assert!(PICK_BASE as usize + PICK_LINES <= PICK_SCROLL as usize);
+const _: () = assert!(PICK_SEARCH < FORM_LABEL);
 
 #[cfg(test)]
 mod tests {
@@ -1201,6 +1294,54 @@ mod tests {
             press(&mut menu, &mut console, KeyCode::Escape),
             SettingsResult::Back
         ));
+    }
+
+    #[test]
+    fn typing_in_the_catalogue_searches_it() {
+        let (_directory, mut console) = console();
+        let mut menu = SettingsMenu::new();
+        menu.open_wheel_editor(&console, WheelMode::Overlay);
+        press(&mut menu, &mut console, KeyCode::ArrowDown);
+        press(&mut menu, &mut console, KeyCode::ArrowRight);
+        press(&mut menu, &mut console, KeyCode::End);
+        press(&mut menu, &mut console, KeyCode::Enter);
+        assert!(menu.wheel.picker.is_some());
+        assert!(menu.wheel.search.is_empty());
+        // The search is a field: held letters and Backspace repeat in it.
+        assert!(menu.typing());
+        assert_eq!(menu.field_text(), Some(""));
+        // Letters (W and S among them) and spaces go to the search.
+        for letter in ["f", "r", "e", "e", " ", "c", "a", "m"] {
+            type_text(&mut menu, &mut console, letter);
+        }
+        assert_eq!(menu.wheel.search, "free cam");
+        // Ctrl+A and Ctrl+C read the search.
+        assert_eq!(menu.field_text(), Some("free cam"));
+        let free = catalog::action_index("free_camera").unwrap();
+        let lines = menu.wheel.pick_shown();
+        assert_eq!(
+            lines,
+            [
+                PickLine::Heading("Camera"),
+                PickLine::Action(free),
+                PickLine::Heading("Your own"),
+                PickLine::Custom,
+            ]
+        );
+        assert_eq!(menu.wheel.picker.unwrap().highlighted, 1);
+        // A group's name finds what is in it.
+        assert!(
+            pick_lines_matching("CAMERA")
+                .iter()
+                .any(|line| *line == PickLine::Action(free))
+        );
+        // Backspace takes letters off, then on an empty search goes back.
+        for _ in 0..8 {
+            press(&mut menu, &mut console, KeyCode::Backspace);
+        }
+        assert!(menu.wheel.picker.is_some() && menu.wheel.search.is_empty());
+        press(&mut menu, &mut console, KeyCode::Backspace);
+        assert!(menu.wheel.picker.is_none());
     }
 
     #[test]

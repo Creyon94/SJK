@@ -4293,7 +4293,11 @@ returning to the row ([wheel_editor.rs](../crates/sjk-viewer/src/settings/wheel_
 - **Right column:** a live preview of the page's ring, the focused choice
   highlighted, then the page's key and bind (`+wheel <id>`) or what the choice
   runs. Picking a choice shows the catalogue there instead (Up and Down, Enter,
-  Escape; actions already on the page say so), Custom command last; a custom
+  Escape; actions already on the page say so), Custom command last, with a
+  search field right of its title that has the keyboard as it opens: typing keeps the actions and
+  emotes whose name or group holds every word (Custom command always stays),
+  held letters and Backspace repeat, Ctrl+A, Ctrl+C and Ctrl+V work as in every
+  field, Backspace on an empty search closes it; a custom
   choice's form has its name and command fields, Save and Cancel.
 - The pointer: hovering a row focuses it (a page row without showing that page,
   which a click does), the focused row's small controls act (Rename, up, down,
