@@ -1,13 +1,26 @@
-## The Sun blade comes with Sol's card
+## The Sun blade becomes a signature; it drops again
 
-20/10/2026, `personal/card-blade`, based on `main` (Sol's decision): the Sun blade (001)
-no longer drops from holocrons; it comes only with Sol's card, SJK Alpha 000, while the
-player holds a copy, as medal blades do ([cards.md](cards.md#faces-and-the-first-set)).
-The client reads the unlock's `card` (`Unlock::card`) and a card file's `grants`, keeps
-the blade-to-card pairs in `unlockables::CARD_BLADES`, and says it in the Shaders tab
-("with your Sol card"), the card's hover and its close-up ("Brings the Sun blade while you
-hold it."). 161 of 165 shaders drop. Verified on Windows 11: unit tests. Not verified: in
-a game, against the hub's matching change.
+20/10/2026, `personal/sun-signature`, based on `main` (Sol: blade 001 should be the best,
+and the Sun should drop normally too, the card being a second way). The Sun is now a
+signature shader ([unlockables.md](unlockables.md), "Sun"; `blade_signatures/sun.glsl`)
+over its own file: a sunrise ignition and a sunset switch-off (it reads the lit lane's
+going-out time), slow breathing, sunspots on the core, corona streamers, a solar wind, the
+widest aura, a coronal mass ejection on a clash, the strongest light (`[1.5, 0.85, 0.3]`)
+and, with the hub's matching pack, deeper sounds. Its parts keep their old ids. It is
+droppable again; Sol's card still brings it, and the Shaders tab shows both sources.
+Verified on Windows 11: unit tests, the signature's off-screen preview sheet. Not verified:
+in a game, against the hub's matching change.
+
+## Sol's card brings the Sun blade
+
+20/10/2026, `personal/card-blade`, based on `main` (Sol's decision): a copy of Sol's card,
+SJK Alpha 000, brings the Sun blade (001) while the player holds it, as medal blades come
+with their medals ([cards.md](cards.md#faces-and-the-first-set)). The same day it was made
+a second way to get it (above). The client reads the unlock's `card` (`Unlock::card`) and a
+card file's `grants`, keeps the blade-to-card pairs in `unlockables::CARD_BLADES`, and says
+it in the Shaders tab ("with your Sol card"), the card's hover and its close-up ("Brings
+the Sun blade while you hold it."). Verified on Windows 11: unit tests. Not verified: in a
+game, against the hub's matching change.
 
 ## Every Blade Lab blade drops
 

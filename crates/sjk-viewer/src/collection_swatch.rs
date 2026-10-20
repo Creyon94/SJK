@@ -1057,13 +1057,13 @@ mod tests {
     #[test]
     fn arcs_motes_and_a_turning_hue_show_inside_the_swatch() {
         let def = crate::blade_skin_file::parse(
-            "saber_sun",
+            "saber_tidal",
             &crate::blade_skin_file::tests::sample_with_effects(),
         )
         .unwrap();
-        let skin = LoadedSkin::new("saber_sun", def, &sjk_vfs::VirtualFileSystem::new()).unwrap();
+        let skin = LoadedSkin::new("saber_tidal", def, &sjk_vfs::VirtualFileSystem::new()).unwrap();
         let plain = crate::saber_skins::tests::loaded_sample(1);
-        let plain = plain.get("saber_sun");
+        let plain = plain.get("saber_tidal");
         // Lightning strokes (long thin arcs of big circles) come and go.
         let strokes = |skin: Option<&LoadedSkin>, seconds: f32| {
             drawn(skin, true, seconds)
@@ -1135,7 +1135,7 @@ mod tests {
     #[test]
     fn a_loaded_skin_moves_and_a_locked_or_waiting_one_is_still() {
         let skins = crate::saber_skins::tests::loaded_sample(1);
-        let skin = skins.get("saber_sun");
+        let skin = skins.get("saber_tidal");
         assert!(skin.is_some());
         let (shown, a) = drawn(skin, true, 0.3);
         assert_eq!(shown, Shown::Skin);

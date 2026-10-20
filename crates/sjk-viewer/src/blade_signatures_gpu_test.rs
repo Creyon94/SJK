@@ -5,7 +5,8 @@
 //! edge). With `SJK_SIGNATURE_PREVIEW` set to a folder, each sheet is saved there as
 //! `<id>.png`; `SJK_SIGNATURES` (ids, comma-separated) renders only those, and
 //! `SJK_SIGNATURE_ORBIT` set renders five views from a camera moving round it instead (to check
-//! that its effects stay with the blade as the view changes).
+//! that its effects stay with the blade as the view changes); `SJK_SIGNATURE_MORE` set adds
+//! three moments: just after it is out, half a second after a clash and while it goes out.
 use super::*;
 use wgpu::util::DeviceExt;
 
@@ -204,6 +205,12 @@ fn every_signature_draws_its_blade_and_nothing_at_the_edge() {
             (24.0, [0.0, 0.1, 1_000.0, 1_000.0], color),
             (11.0, [0.0, 1_000.0, 0.2, 1_000.0], color),
         ];
+        if std::env::var_os("SJK_SIGNATURE_MORE").is_some() {
+            moments.push((12.0, [0.0, 1_000.0, 0.7, 1_000.0], color));
+            moments.push((24.0, [0.0, 0.25, 1_000.0, 1_000.0], color));
+            let going_out = crate::saber_motion::GOING_OUT + 0.2;
+            moments.push((30.0, [0.0, 1_000.0, going_out, 1_000.0], color));
+        }
         if crate::unlockables::is_chroma(signature.id) {
             let green = color.worn_with(crate::saber_rgb::BladeColor::from_rgb([40, 255, 60]));
             moments.push((3.0, crate::saber_motion::STILL, green));

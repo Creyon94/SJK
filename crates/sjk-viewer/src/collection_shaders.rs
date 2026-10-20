@@ -63,24 +63,27 @@ enum Fact {
     Icon(char),
 }
 
-/// Where `skin` comes from, as a fact's icon and words: the medal or the card that brings
-/// it, a holocron (it drops), or the SJK team.
-fn source(skin: &unlockables::Unlockable) -> (char, String) {
+/// Where `skin` comes from, as facts' icons and words: the medal that brings it, or a
+/// holocron (it drops) and the card that also brings it, or the SJK team.
+fn sources(skin: &unlockables::Unlockable) -> Vec<(char, String)> {
     if let Some(medal) = crate::medals::Medal::ALL
         .iter()
         .find(|medal| medal.blade() == Some(skin.id))
     {
-        return (symbols::MEDAL, format!("{} medal", medal.name()));
+        return vec![(symbols::MEDAL, format!("{} medal", medal.name()))];
+    }
+    let mut sources = Vec::new();
+    if skin.droppable {
+        sources.push((symbols::HOLOCRON, "Holocron drop".to_owned()));
     }
     if let Some(card) = unlockables::card_bringing(skin.id) {
         let name = crate::cards::faces::name_of(card);
-        return (symbols::FINISH[0], format!("{name} card"));
+        sources.push((symbols::FINISH[0], format!("{name} card")));
     }
-    if skin.droppable {
-        (symbols::HOLOCRON, "Holocron drop".to_owned())
-    } else {
-        (symbols::GIFT, "SJK team gift".to_owned())
+    if sources.is_empty() {
+        sources.push((symbols::GIFT, "SJK team gift".to_owned()));
     }
+    sources
 }
 
 /// Where a rack row's words go (frame pixels, `[x, y, width, height]`), the row's top
@@ -1076,8 +1079,9 @@ impl Panel {
             );
         }
         if let Some(skin) = row.skin {
-            let (icon, from) = source(skin);
-            left = self.fact(frame, [left, y], Fact::Icon(icon), &from, color::HOLO);
+            for (icon, from) in sources(skin) {
+                left = self.fact(frame, [left, y], Fact::Icon(icon), &from, color::HOLO);
+            }
             let smith = format!("Smith: {}", skin.smith);
             let _ = self.fact(
                 frame,

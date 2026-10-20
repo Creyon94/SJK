@@ -16,13 +16,13 @@ fn blade() -> Blade {
 /// The test blade skin ([`SAMPLE`], made-up values) loaded as the catalogue's one blade
 /// skin, numbered 0, under `generation`.
 pub(crate) fn loaded_sample(generation: u64) -> LoadedSkins {
-    let def = crate::blade_skin_file::parse("saber_sun", SAMPLE).unwrap();
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", SAMPLE).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     LoadedSkins::of(vec![skin], generation)
 }
 
 fn sample_color() -> SkinColor {
-    loaded_sample(1).color_of("saber_sun").unwrap()
+    loaded_sample(1).color_of("saber_tidal").unwrap()
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
 #[test]
 fn arcs_motes_and_hue_reach_the_uniform_where_the_shader_reads_them() {
     let text = crate::blade_skin_file::tests::sample_with_effects();
-    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", &text).unwrap();
     let one = SkinUniform::of(&def);
     assert_eq!(one.core_fringe[3], 2.5, "core.tip");
     assert_eq!(one.arc_color, [0.7, 0.8, 1.0, 2.0]);
@@ -313,7 +313,7 @@ fn arcs_motes_and_hue_reach_the_uniform_where_the_shader_reads_them() {
     assert_eq!(one.mote_band, [0.4, 1.7, 0.6, 0.0]);
     assert_eq!(one.hue, [0.1, 0.02, 0.2, 0.0]);
     // The light turns with the blade's middle; without a hue it holds.
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     let color = skin.color(0, 0);
     assert_eq!(
         color.hue,
@@ -475,7 +475,10 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .mount_memory(
             "pack",
             [
-                ("skins/blades/saber_sun.bladeskin", with_image.into_bytes()),
+                (
+                    "skins/blades/saber_tidal.bladeskin",
+                    with_image.into_bytes(),
+                ),
                 ("gfx/test/glow.png", png),
                 // Not a blade skin this client knows, and a broken one: left out.
                 (
@@ -490,7 +493,7 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
     assert_eq!(skins.generation(), 4);
     // The pack's skin, then the signature skins no pack carries, from their built-in files.
     let ids: Vec<_> = skins.ids().collect();
-    assert_eq!(ids[0], "saber_sun");
+    assert_eq!(ids[0], "saber_tidal");
     assert!(
         ids[1..]
             .iter()
@@ -499,11 +502,11 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
                 .iter()
                 .map(|signature| signature.id))
     );
-    let skin = skins.get("saber_sun").unwrap();
+    let skin = skins.get("saber_tidal").unwrap();
     assert_eq!(skin.glow.dimensions(), (32, 32));
     assert_eq!(skin.glow.get_pixel(3, 3).0, [90, 90, 90, 255]);
     assert_eq!(skin.core.dimensions(), (64, 256));
-    assert_eq!(skins.color_of("saber_sun").map(|c| c.index), Some(0));
+    assert_eq!(skins.color_of("saber_tidal").map(|c| c.index), Some(0));
     assert_eq!(skins.color_of("saber_moon"), None);
     let sets = skins.sound_sets();
     assert_eq!(sets.len(), 1 + crate::blade_signatures::SIGNATURES.len());
@@ -517,7 +520,7 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .mount_memory(
             "pack",
             [(
-                "skins/blades/saber_sun.bladeskin",
+                "skins/blades/saber_tidal.bladeskin",
                 sample_with(
                     r#""core_profile": {"width": 0.3, "fringe_width": 0.6},"#,
                     r#""core_profile": {"width": 0.3, "fringe_width": 0.6}, "core_image": "gfx/none.png","#,
@@ -528,7 +531,7 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .unwrap();
     assert_eq!(
         LoadedSkins::load(missing, 5)
-            .get("saber_sun")
+            .get("saber_tidal")
             .map(|skin| skin.id),
         None
     );
@@ -587,11 +590,11 @@ fn the_local_choice_follows_the_players_slot() {
 fn a_skin_whose_pack_is_not_loaded_is_the_stock_blade() {
     let none = LoadedSkins::default();
     assert_eq!(none.generation(), 0);
-    assert_eq!(none.color_of("saber_sun"), None);
+    assert_eq!(none.color_of("saber_tidal"), None);
     assert!(none.sound_sets().is_empty());
     assert_eq!(none.uniforms(), vec![SkinUniform::default(); MAX_SKINS]);
     let mut skins = SaberSkins::default();
-    skins.follow_looks(1, none.generation(), |_| none.color_of("saber_sun"));
+    skins.follow_looks(1, none.generation(), |_| none.color_of("saber_tidal"));
     assert_eq!(skins.get(1), None);
 }
 
@@ -637,14 +640,14 @@ fn other_players_skins_follow_the_looks_and_the_packs_only_when_they_change() {
 fn the_local_skin_is_gated_by_the_own_profile_and_its_pack() {
     let loaded = loaded_sample(1);
     let mut looks = crate::looks::Looks::default();
-    // `cg_saberSkin saber_sun` without the unlock: the stock blade.
-    let unowned = crate::looks::Worn::own("saber_sun", "", |_| false, false);
+    // `cg_saberSkin saber_tidal` without the unlock: the stock blade.
+    let unowned = crate::looks::Worn::own("saber_tidal", "", |_| false, false);
     looks.set_own(None, unowned);
     assert_eq!(
         looks.own_saber_skin().and_then(|id| loaded.color_of(id)),
         None
     );
-    let owned = crate::looks::Worn::own("saber_sun", "", |id| id == "saber_sun", false);
+    let owned = crate::looks::Worn::own("saber_tidal", "", |id| id == "saber_tidal", false);
     looks.set_own(Some(4), owned);
     assert_eq!(
         looks.own_saber_skin().and_then(|id| loaded.color_of(id)),
@@ -698,7 +701,7 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
     let slots = ViewSlots::of(&game_state, &followed);
     looks.set_own(
         slots.own.and_then(|slot| u8::try_from(slot).ok()),
-        Worn::own("saber_sun", "", |_| true, false),
+        Worn::own("saber_tidal", "", |_| true, false),
     );
     looks.rebuild(|slot| (slot == 5).then(|| "Fox".to_owned()));
     let mut skins = SaberSkins::default();
@@ -843,18 +846,18 @@ fn the_orbit_moves_the_glints_below_the_tip_for_the_cpu_and_the_gpu() {
         crate::blade_skin_file::tests::LATER_ADDITIONS,
     )
     .unwrap();
-    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", &text).unwrap();
     let one = SkinUniform::of(&def);
     assert_eq!(one.star_motion[3], 2.0, "two glints");
     assert_eq!(one.star_orbit, [10.0, 4.5, 0.4, 0.3]);
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     let glint = skin.color(0, 0).star.unwrap();
     assert_eq!((glint.length, glint.at, glint.count), (8.0, 10.0, 2));
     // The circle's reach, its tilt included.
     assert!((glint.reach - 4.5 / 0.3_f32.cos()).abs() < 1e-5);
     // Without an orbit: one glint at the tip, and the orbit's lanes zeros.
     let plain = crate::blade_skin_file::tests::sample_with_additions();
-    let one = SkinUniform::of(&crate::blade_skin_file::parse("saber_sun", &plain).unwrap());
+    let one = SkinUniform::of(&crate::blade_skin_file::parse("saber_tidal", &plain).unwrap());
     assert_eq!((one.star_motion[3], one.star_orbit), (0.0, [0.0; 4]));
 }
 
@@ -866,8 +869,8 @@ fn a_wearers_options_leave_out_their_parts_on_the_cpu_and_the_gpu() {
         r#""ghosts": {"count": 2, "spacing": 40.0, "fade": 0.5}, "trail""#,
         1,
     );
-    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", &text).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     let all = skin.color(0, 0);
     assert_eq!(all.off, 0);
     let glint = all.star.unwrap();

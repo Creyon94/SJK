@@ -2011,6 +2011,12 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   hidden behind the blade. Star Dragon became the Ashla Radiance blade (same id), Balance was
   redrawn as a silver blade between a ribbon of light and one of violet shadow, Ilum Aurora
   Storm's curtains are soft sheets instead of bars, Between Worlds and Wraithlight are calmer.
+- **Sol's Sun (20/10/2026).** The Sun blade (001) became a signature of Sol's own,
+  `sun.glsl`, over its file's corona, flares and tongues. It is the first to answer the
+  blade going out: `uAge` at or past `GOING_OUT` (2000, `saber_motion.rs`) cools its
+  glow and core to a deep red sunset as the blade slides in, mirroring the sunrise it
+  lights with (deep red warming to white gold over 0.9 s, a white edge climbing at
+  `uLength × uIgn`). Its dawn flare waits in `sig_vol` until the blade is out (`sig_full`).
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

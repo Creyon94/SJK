@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn a_skin_adds_to_only_the_stock_swing_cues() {
         let skins = crate::saber_skins::tests::loaded_sample(1);
-        let skin = skins.color_of("saber_sun").unwrap();
+        let skin = skins.color_of("saber_tidal").unwrap();
         assert_eq!(
             skin_swing(&skins, skin, "sound/weapons/saber/saberhup3.wav", 4),
             Some("sound/test/blade/s2.wav")

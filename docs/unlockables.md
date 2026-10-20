@@ -71,7 +71,7 @@ Display up to Uncommon). The rounds' notes below keep the tiers the blades came 
 
 | No. | Id | Name | Tier | Smith | Drops |
 | --- | --- | --- | --- | --- | --- |
-| 001 | `saber_sun` | Sun blade | Mythical | Sol | no |
+| 001 | `saber_sun` | Sun blade | Mythical | Sol | yes |
 | 002 | `saber_storm` | Storm blade | Rare | Sol | yes |
 | 003 | `saber_void` | Void blade | Mythical | Sol | yes |
 | 004 | `saber_frost` | Frost blade | Rare | Sol | yes |
@@ -254,6 +254,19 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   opposite it, circling the blade 9 units below the tip (`orbit`: 4.5 units out, 0.45
   turns a second, tilted 0.35 rad; rays 6.5 long instead of 9); the part is "Orbiting
   glints", the same `glint` id, so a wearer's choice stays.
+  Since 20/10/2026 (Sol: blade 001 should be the best) it is a signature shader
+  ([rendering.md](rendering.md#blade-lab-signature-shaders), `blade_signatures/sun.glsl`)
+  drawn over the same file: the star breathes slowly (about five seconds), dark sunspots
+  drift along the core, long corona streamers reach out and fade, a solar wind of pale
+  motes rides to the tip inside the widest warm aura of any blade; it lights as a sunrise
+  (deep red warming to white gold, a white edge climbing the blade, then a dawn flare at
+  the emitter) and goes out as a sunset (cooling to deep red as it slides in); a swing
+  swells the corona and the wind, a clash tears a coronal mass ejection off it (a loop of
+  plasma that swells out, tears at its top and flies off). Its light is the strongest of
+  any blade (`[1.5, 0.85, 0.3]`, breathing with the star), and its sounds are deeper
+  (48 Hz hum instead of 60, a longer ignition over a low rumble). Its parts: "Sunspots and
+  corona" (new), then "Prominences", "Sparks", "Glint" and "Haze" (the old `prominences`,
+  `sparks`, `glint` and `haze` ids: a wearer's choices stay) and the swing and clash bursts.
 - **Storm**: a white-blue core in a violet-to-electric-blue corona that crackles; a few
   thin, jagged white-blue lightning arcs at a time, struck again and again at random
   places, leaving the blade, bulging out to one side and coming back further along,
@@ -1187,11 +1200,11 @@ could still be kept out; a test on each side pins the rule today (`droppable` ex
 no medal brings it), and the droppable shaders' "How to get it" reads "Found in holocrons."
 
 Every Blade Lab blade drops too since 20/10/2026 (Sol: no loot is handed out by the team
-instead of found). The same day the Sun stopped dropping (Sol's decision): it comes only
-with Sol's card, SJK Alpha 000, for as long as the player holds a copy, as a medal's blade
-does ([cards.md](cards.md#faces-and-the-first-set), `grants`). So 161 of the 165 shaders
-drop, all but Glitch, Hologram and Runic (their medals) and the Sun (Sol's card); the test
-pins `droppable` exactly when no medal and no card (`unlockables::CARD_BLADES`) brings it.
+instead of found). The same day Sol's card, SJK Alpha 000, began to bring the Sun blade
+for as long as the player holds a copy ([cards.md](cards.md#faces-and-the-first-set),
+`grants`, `unlockables::CARD_BLADES`): for a few hours it was the only way, then Sol made
+it a second way besides holocrons. So 162 of the 165 shaders drop, all but Glitch, Hologram
+and Runic (their medals); the test pins `droppable` exactly when no medal brings it.
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
