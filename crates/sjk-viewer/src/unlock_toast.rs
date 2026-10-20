@@ -454,19 +454,33 @@ impl UnlockToast {
         showing.shown
     }
 
+    /// [`Self::update_holding`] with no card held, for the tests and off-screen shots.
+    #[cfg(test)]
+    pub(crate) fn update(&mut self, now: Instant, may_show: bool, sound: bool) -> bool {
+        self.update_holding(now, may_show, |_| false, sound)
+    }
+
     /// Move the pop-ups on to `now`: the one showing by the frame's time while it
     /// `may_show` (not under the console or a large pop-up, the window not away), at most
     /// [`MAX_STEP`]; end it once its time is up, and start the next one waiting when it
     /// may show, with its `sound` where it chimes. Returns whether a pop-up draws this
-    /// frame.
-    pub(crate) fn update(&mut self, now: Instant, may_show: bool, sound: bool) -> bool {
+    /// frame. The cards `held` picks also wait (a private duel's, [`held_in_duel`]): one
+    /// showing stands still unseen, and the first waiting card not held starts before
+    /// those held ahead of it, which keep their place.
+    pub(crate) fn update_holding(
+        &mut self,
+        now: Instant,
+        may_show: bool,
+        held: impl Fn(Unlock) -> bool,
+        sound: bool,
+    ) -> bool {
         if let Some(showing) = &mut self.current {
             let step = now
                 .saturating_duration_since(showing.last)
                 .as_secs_f32()
                 .min(MAX_STEP);
             showing.last = now;
-            if may_show {
+            if may_show && !held(showing.unlock) {
                 showing.shown += step;
             }
         }
@@ -476,11 +490,14 @@ impl UnlockToast {
             self.current = None;
             self.ended = Some(now);
         }
-        if self.current.is_none() && may_show && !self.queue.is_empty() {
+        if self.current.is_none()
+            && may_show
+            && let Some(next) = self.queue.iter().position(|waiting| !held(*waiting))
+        {
             let rested = self
                 .ended
                 .is_none_or(|ended| now.saturating_duration_since(ended) >= GAP);
-            if rested && let Some(unlock) = self.queue.pop_front() {
+            if rested && let Some(unlock) = self.queue.remove(next) {
                 self.current = Some(Showing {
                     unlock,
                     shown: 0.0,
@@ -491,7 +508,7 @@ impl UnlockToast {
                 }
             }
         }
-        let draws = may_show && self.current.is_some();
+        let draws = may_show && self.current.is_some_and(|showing| !held(showing.unlock));
         if !draws {
             self.card = None;
         }
@@ -1001,11 +1018,18 @@ impl UnlockToast {
     }
 }
 
-/// Whether a pop-up may show: not under the console or a large pop-up (`covered`), the
-/// window not away, and the player not in a private duel, where a reward is a
-/// distraction (hub report #81, Milamber); the queue waits and plays after.
-fn may_show(covered: bool, console_open: bool, away: bool, in_duel: bool) -> bool {
-    !covered && !console_open && !away && !in_duel
+/// Whether a pop-up may show: not under the console or a large pop-up (`covered`) and
+/// the window not away.
+fn may_show(covered: bool, console_open: bool, away: bool) -> bool {
+    !covered && !console_open && !away
+}
+
+/// Whether a private duel (`in_duel`) holds `unlock` back: a reward there is a
+/// distraction (hub report #81, Milamber), so the card waits and plays once the duel
+/// ends. Holocron cards show anyway when `holocrons_in_duel` (`cl_holocronNotifications`
+/// 2, [`crate::holocron_popup::NOTIFICATIONS_CVAR`]).
+fn held_in_duel(unlock: Unlock, in_duel: bool, holocrons_in_duel: bool) -> bool {
+    in_duel && !(holocrons_in_duel && matches!(unlock, Unlock::Holocron { .. }))
 }
 
 impl crate::GpuState {
@@ -1064,10 +1088,14 @@ impl crate::GpuState {
             .live_session
             .as_ref()
             .is_some_and(|session| session.latest_snapshot().player.duel_in_progress());
-        if !self
-            .unlock_toast
-            .update(now, may_show(covered, console_open, away, in_duel), sound)
-        {
+        let holocrons_in_duel =
+            crate::holocron_popup::notification_mode(console) == crate::holocron_popup::ALWAYS;
+        if !self.unlock_toast.update_holding(
+            now,
+            may_show(covered, console_open, away),
+            |unlock| held_in_duel(unlock, in_duel, holocrons_in_duel),
+            sound,
+        ) {
             return false;
         }
         self.unlock_toast.build(viewport);
@@ -1085,12 +1113,63 @@ impl crate::GpuState {
 mod tests {
     use super::*;
 
-    /// Hub report #81: a private duel holds the rewards back, like the console does.
+    /// Hub report #81: a private duel holds the rewards back, like the console does;
+    /// `cl_holocronNotifications` 2 lets the holocron cards through.
     #[test]
     fn a_private_duel_holds_the_rewards_back() {
-        assert!(may_show(false, false, false, false));
-        assert!(!may_show(false, false, false, true));
-        assert!(!may_show(true, false, false, false));
+        assert!(may_show(false, false, false));
+        assert!(!may_show(true, false, false));
+        assert!(!may_show(false, true, false));
+        assert!(!may_show(false, false, true));
+        for unlock in [kind("first_blood"), medal(Medal::BugHunter, 1)] {
+            assert!(!held_in_duel(unlock, false, false));
+            assert!(held_in_duel(unlock, true, false));
+            assert!(held_in_duel(unlock, true, true));
+        }
+        assert!(!held_in_duel(holocron(1, 0), false, false));
+        assert!(held_in_duel(holocron(1, 0), true, false));
+        assert!(!held_in_duel(holocron(1, 0), true, true));
+    }
+
+    /// `cl_holocronNotifications` 1: a holocron card that comes during a private duel
+    /// waits unseen, its clock still, and plays in full once the duel ends.
+    #[test]
+    fn a_holocron_card_withheld_during_a_duel_shows_after_it() {
+        let mut toast = UnlockToast::default();
+        toast.push(holocron(9, 1));
+        let duel = |unlock| held_in_duel(unlock, true, false);
+        let mut now = Instant::now();
+        for _ in 0..200 {
+            now += Duration::from_millis(50);
+            assert!(!toast.update_holding(now, true, duel, true));
+        }
+        assert!(toast.current.is_none());
+        assert_eq!(toast.pending(), 1, "it waits through the duel");
+        // The duel ends: it shows from its start.
+        assert!(toast.update_holding(now, true, |unlock| held_in_duel(unlock, false, false), true));
+        assert_eq!(shown(&toast), Some(holocron(9, 1).name().to_string()));
+        assert_eq!(toast.current.map(|showing| showing.shown), Some(0.0));
+    }
+
+    /// `cl_holocronNotifications` 2: a holocron card shows during a duel ahead of the
+    /// rewards held before it, which play once the duel ends.
+    #[test]
+    fn a_holocron_card_may_pass_the_held_rewards_during_a_duel() {
+        let mut toast = UnlockToast::default();
+        toast.push(kind("first_blood"));
+        toast.push(holocron(9, 1));
+        let duel = |unlock| held_in_duel(unlock, true, true);
+        let mut now = Instant::now();
+        assert!(toast.update_holding(now, true, duel, false));
+        assert_eq!(shown(&toast), Some(holocron(9, 1).name().to_string()));
+        for _ in 0..((LIFETIME + GAP.as_secs_f32()) / 0.05).ceil() as usize + 2 {
+            now += Duration::from_millis(50);
+            toast.update_holding(now, true, duel, false);
+        }
+        assert!(toast.current.is_none(), "the holocron card ended");
+        assert_eq!(toast.pending(), 1, "the achievement waits");
+        assert!(toast.update_holding(now, true, |unlock| held_in_duel(unlock, false, true), false));
+        assert_eq!(shown(&toast), Some(kind("first_blood").name().to_string()));
     }
     use crate::achievements::{self, ALL};
     use crate::holocrons::TIERS;

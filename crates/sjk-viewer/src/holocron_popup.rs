@@ -39,13 +39,23 @@ use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
-/// When a holocron found during play shows an unlock card: 0 never, 1 outside a private
-/// duel (the default), 2 always. The waiting holocron still opens in the game menu.
+/// Whether a holocron found during play shows an unlock card: [`OFF`] never, 1 (the
+/// default) yes, held back during a private duel until it ends as every reward card is
+/// ([`crate::unlock_toast`]), [`ALWAYS`] yes, during a duel too. The waiting holocron
+/// still opens in the game menu in every mode.
 pub(crate) const NOTIFICATIONS_CVAR: &str = "cl_holocronNotifications";
 pub(crate) const NOTIFICATIONS_DEFAULT: i64 = 1;
+/// [`NOTIFICATIONS_CVAR`]'s value for no live cards.
+pub(crate) const OFF: i64 = 0;
+/// [`NOTIFICATIONS_CVAR`]'s value for cards during a private duel too.
+pub(crate) const ALWAYS: i64 = 2;
 
-fn notification_visible(mode: i64, private_duel: bool) -> bool {
-    mode >= 2 || (mode == 1 && !private_duel)
+/// [`NOTIFICATIONS_CVAR`] as set, held to [`OFF`]..=[`ALWAYS`].
+pub(crate) fn notification_mode(console: Option<&crate::console::ViewerConsole>) -> i64 {
+    console
+        .and_then(|console| console.integer_cvar(NOTIFICATIONS_CVAR))
+        .unwrap_or(NOTIFICATIONS_DEFAULT)
+        .clamp(OFF, ALWAYS)
 }
 
 /// The button (Next, or Close on the last holocron).
@@ -289,7 +299,7 @@ impl HolocronPopup {
     }
 
     /// Consume the live cards of every waiting holocron without consuming the holocrons
-    /// themselves. Opening the game menu can still show the large pop-up later.
+    /// themselves ([`OFF`]). Opening the game menu can still show the large pop-up later.
     fn suppress_announcements(&mut self) {
         for waiting in &mut self.queue {
             waiting.announced = true;
@@ -456,17 +466,11 @@ impl crate::GpuState {
     /// Returns whether the pop-up draws this frame (not under the console).
     pub(crate) fn prepare_holocron_popup(&mut self, console_covers_frame: bool) -> bool {
         let now = Instant::now();
-        let notification_mode = self
-            .console
-            .as_ref()
-            .and_then(|console| console.integer_cvar(NOTIFICATIONS_CVAR))
-            .unwrap_or(NOTIFICATIONS_DEFAULT);
-        let private_duel = self
-            .live_session
-            .as_ref()
-            .is_some_and(|session| session.latest_snapshot().player.duel_in_progress());
-        let notifications = notification_visible(notification_mode, private_duel);
-        if !notifications {
+        // Off takes back the cards already given, and those not given yet are never
+        // given. A private duel holding the cards back is the unlock pop-up's own wait
+        // ([`crate::unlock_toast`]), so the cards are given as usual otherwise.
+        let notifications = notification_mode(self.console.as_ref()) != OFF;
+        if !notifications && self.holocron_popup.pending() {
             self.unlock_toast
                 .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
             self.holocron_popup.suppress_announcements();
@@ -740,6 +744,8 @@ mod tests {
         assert!(!again.pending());
     }
 
+    /// `cl_holocronNotifications` 0: no card is given, now or later, and the holocrons
+    /// still wait for the game menu.
     #[test]
     fn suppressing_live_cards_keeps_the_holocrons_for_the_game_menu() {
         let directory = tempfile::tempdir().expect("a folder");
@@ -756,16 +762,6 @@ mod tests {
         popup.open_next(Instant::now());
         assert_eq!(shown(&popup), Some(1), "the ESC menu can still show it");
         assert_eq!(popup.queue.len(), 1);
-    }
-
-    #[test]
-    fn notification_modes_are_off_outside_duels_or_always() {
-        assert!(!notification_visible(0, false));
-        assert!(!notification_visible(0, true));
-        assert!(notification_visible(1, false));
-        assert!(!notification_visible(1, true));
-        assert!(notification_visible(2, false));
-        assert!(notification_visible(2, true));
     }
 
     #[test]

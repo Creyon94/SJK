@@ -101,7 +101,7 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,
         "1",
-        "Outside duels",
+        "After duels",
     ),
     (crate::holocron_popup::NOTIFICATIONS_CVAR, "2", "Always"),
     (crate::discord_presence::CVAR, "0", "Off"),
@@ -865,7 +865,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,
-        "Shows a card when a holocron arrives during play: never, outside private duels, or always. The holocron still waits in ESC.",
+        "A card for each holocron found in play; After duels holds it in a private duel until the end. The holocron waits in ESC.",
     ),
     (
         crate::chat_gifs::CVAR,

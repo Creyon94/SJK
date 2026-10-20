@@ -433,7 +433,7 @@ merged into SJK
 - #166 Shift plus the console key opens to `con_height` and Shift+Escape a quarter screen;
   made an option at the merge (`con_shiftHeight`, off, EternalJK's heights by default).
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 15 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 16 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -466,6 +466,9 @@ merged into SJK
   was white by default.
 - #181 the chat key (`messagemode`) opens on All after SJK chat, team chat or a whisper, as
   EternalJK; opening on the last channel kept as an option at the merge (`cg_chatRememberChannel`, off).
+- #179 `cl_holocronNotifications`: the card a holocron found in play gives is off, shown after
+  a private duel or always, duels included; the holocron still waits for the game menu. At the
+  merge a card that comes during a duel waits for the duel's end instead of being dropped.
 
 Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 24 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):

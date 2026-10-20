@@ -546,7 +546,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::holocron_popup::NOTIFICATIONS_CVAR,
             crate::holocron_popup::NOTIFICATIONS_DEFAULT,
             archive,
-            "Holocron unlock cards during play: 0 off, 1 outside private duels, 2 always (the game menu still shows the holocron)",
+            "Holocron unlock cards during play: 0 off, 1 on, held during a private duel until it ends (default), 2 always, duels included (the game menu still shows the holocron)",
         ),
         // Stock defaults and units: `sensitivity` 5 scaling `m_yaw`/`m_pitch`
         // degrees per mouse count (`cl_main.cpp:2774,2802-2803`, applied in

@@ -64,6 +64,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Dragging the saber's RGB sliders no longer leaves other players seeing an early colour (often blue): userinfo changes keep to the server's limit of three in six seconds, so the last one always arrives, and one the server refused goes again _(Sol, after Kushina's report)_
 - Prediction misses (every JA+ grapple's landing) are written to the log only with `cg_showMiss` 1, as in EJK _(Sol, after SanjiJ's report)_
 - Achievement, holocron and medal pop-ups wait for the end of a private duel, then play _(Sol, after Milamber's report)_
+- Holocron notifications (Settings > General, `cl_holocronNotifications`) chooses the card a holocron found in play gives: Off, After duels (the default: one found during a private duel shows once it ends) or Always, duels included; the holocron still waits in the game menu _(Lukas)_
 - Dances keep their music: a dance left running is no longer counted as away after `cg_awayIdle`, and a dancer out of sight for a moment in a crowded dance no longer loses their emote _(Sol, after Foshin's report)_
 - With the game HUD (`cg_hudStyle game`, the default) the vehicle HUD is the original Jedi Academy one, hull, speed, shield and ammunition ticks, turbo bar and weapons-linked mark included; the AT-ST, which hides its rider, now shows its vehicle HUD too _(Slash)_
 - Siege: the team choice has Auto-join, as the other team games, which puts you on the side with fewer players _(Slash)_

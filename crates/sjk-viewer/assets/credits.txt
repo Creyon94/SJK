@@ -233,7 +233,7 @@ link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 15 merged pull requests
+role: Contributor: 16 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
@@ -249,6 +249,7 @@ did: #171 Whisper recipients shown on console hover
 did: #173 SJK chat switches for the feed and the console
 did: #177 Console copies can keep their colours
 did: #181 The chat key opens on All; remembering the channel is an option
+did: #179 Holocron notifications: off, after duels or always
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]
