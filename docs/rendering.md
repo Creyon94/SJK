@@ -243,6 +243,24 @@ Implementation: [compatibility state](../crates/sjk-client/src/shader_remaps.rs)
 [replacement compilation](../crates/sjk-viewer/src/world_remap_material.rs),
 [effect atlas entries](../crates/sjk-viewer/src/effect_remaps.rs).
 
+## Missing stage images
+
+A scripted shader whose `map`, `clampmap` or `animMap` frame names an image that is not
+there is dropped as rd-vanilla drops it
+([world_missing_stages.rs](../crates/sjk-viewer/src/world_missing_stages.rs), decided
+once when the material is built): `ParseStage` fails on it (`tr_shader.cpp:1218-1243`,
+`:1275-1279`; `$lightmap`, `$whiteimage` and `*white` are never missing), parsing stops
+there, and `R_FindShader` flags the shader as a default one (`:3460-3463`). World
+surfaces then draw the default shader (`tr_bsp.cpp:339`), as do shaders named inside a
+model; a skin keeps the stages before the missing one (`tr_skin.cpp:168`), none leaving
+the surface undrawn. SJK's materials do not say whether a model's shader came from its
+skin, so model surfaces (`LIGHTMAP_NONE`) take the skin's way and lit world surfaces the
+default shader. The log prints retail's "R_FindImageFile could not find" once per image
+and shader. The default shader, and an implicit shader whose own image is missing, show
+retail's default image (`R_CreateDefaultImage`, `tr_image.cpp:1279-1307`): a 16x16 box of
+grey 32 with a white border. Until 20/10/2026 the missing stage itself was drawn with a
+magenta checker over the rest of the shader.
+
 ## Video stages (`videoMap`)
 
 A stage with `videoMap <name>` plays a RoQ video on its surface, as rd-vanilla's
@@ -265,7 +283,7 @@ the first frame under a texture key of its own (`$video:<path>`);
 [world_videos.rs](../crates/sjk-viewer/src/world_videos.rs) keeps that texture as one
 updatable layer without mips and, each frame, decodes what the clock asks for (at
 most six frames, then it skips ahead) and uploads the newest picture. A missing or
-unreadable video shows the missing-image checker, as a missing image does.
+unreadable video shows the missing image (retail's default box), as a missing image does.
 
 Verified: unit tests decode synthetic RoQ files (codebook cells, motion, split
 blocks, looping, a truncated frame) and parse the keyword; an off-screen world shot

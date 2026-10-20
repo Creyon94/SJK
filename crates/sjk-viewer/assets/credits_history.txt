@@ -9,6 +9,25 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 20/10/2026 | - | Missing stage images dropped as retail does, retail's default image instead of magenta
+- a6a77fe |  | Drop a shader with a missing stage image as retail does, and draw retail's default image
++ 20/10/2026 | - | The creator's Make staff / Remove staff on the Staff page
+- cfc7c32 |  | Staff page: the creator's Make staff / Remove staff
++ 20/10/2026 | - | The Sun's aura halved
+- b87c8e7 |  | Sun blade: halve its aura, the bloom was too strong (Sol)
++ 20/10/2026 | - | SJK pull requests #170 #178 #180 #181 #182 #183 #184 #185 #186 #187 #189: vehicle HUD, password masking, CTF carrier icon, chat key on All, wheel search, siege auto-join, HUD picker card, team match end, one-click update, emplaced guns, chat sender card
+- 10cf76b |  | Fix review findings for SJK #170: changelog line, status heading spacing
+- 30a76cc |  | Fix review findings for SJK #182: changelog line under Unreleased
+- cf16e26 |  | Fix review findings for SJK #185: a map_restart no longer keeps the match over
+- 5ff6854 |  | Fix review findings for SJK #170: Frame::menu_hud only for the tests
+- b583cdb |  | Fix review findings for SJK #182: clippy manual_contains in the search test
+- 4e7eca5 |  | Credits for SJK pull requests #170 #178 #180 #181 #182 #183 #184 #185 #186 #187 #189
++ 20/10/2026 | - | Fix review findings for SJK #187: look the emplaced gun's state up by binary search
+- 902e530 |  | Fix review findings for SJK #187: look the emplaced gun's state up by binary search
++ 20/10/2026 | - | Fix review findings for SJK #178: add its changelog line
+- 4efee0e |  | Fix review findings for SJK #178: add its changelog line
++ 20/10/2026 | - | Keep cg_chatRememberChannel as an option, off by default (SJK #181 follow-up)
+- b4faa24 |  | Keep cg_chatRememberChannel as an option, off by default (SJK #181 follow-up)
 + 20/10/2026 | - | jaPRO tools: a client mod that owns jaPRO's movement styles
 - 3cbdb81 |  | jaPRO tools: a client mod that owns jaPRO's movement styles
 + 20/10/2026 | - | Hub reports 20/10: toys count, drop-down overlap, snd_restart emotes, RGB userinfo window, prediction miss log, duel pop-ups, dance music
@@ -1978,6 +1997,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 20/10/2026 | SJK #181 | Keep messagemode on global chat
+- 13036b6 |  | Keep messagemode on global chat
 + 19/10/2026 | SJK #167 | Align the speedometer with JoF HUDs
 - aa6f759 |  | Align the speedometer with JoF HUDs
 + 19/10/2026 | SJK #173 | Add separate SJK chat output switches
@@ -2149,6 +2170,30 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 20/10/2026 | SJK #186 | Make the update notice clickable to start the download
+- 367fb72 |  | Make the update notice clickable to start the download
++ 20/10/2026 | SJK #184 | Draw the HUD picker as an SJK card, added different pics
+- 12d22cb |  | Draw the HUD picker as an SJK card with SJK layout pictures
++ 20/10/2026 | SJK #185 | Tell a team match's end as a siege round's on the SJK scoreboard
+- d702eb8 |  | Tell a team match's end as a siege round's on the SJK scoreboard
++ 20/10/2026 | SJK #178 | Mask passwords everywhere the console prints
+- 1eaa87a |  | Mask passwords everywhere the console prints
+- b58a268 |  | Fix review findings in password masking
+- 26488fe |  | Keep typed chat out of crash reports; mask clan and account passwords
++ 20/10/2026 | SJK #183 | Siege team choice: Auto-join, as in CTF
+- 8a4bf71 |  | Siege team choice: Auto-join, as the other team games
++ 20/10/2026 | SJK #187 | fix/Emplaced gun turns with its gunner's view
+- 7c0cfc6 |  | Emplaced gun turns with its gunner's view
+- fc152ec |  | Emplaced swivel: tidy the turned-gun drawing
++ 20/10/2026 | SJK #182 | Search the quick wheel's catalogue from a field beside its title
+- 6fff4df |  | Search the quick wheel's catalogue from a field beside its title
++ 20/10/2026 | SJK #189 | Smaller chat sender card that waits for the pointer, cg_chatCardScale added
+- f30e9df |  | Smaller chat sender card that waits for the pointer, cg_chatCardScale
++ 20/10/2026 | SJK #180 | Fix / CTF HUD names an enemy flag carrier the scoreboard already knows
+- a27b787 |  | CTF HUD: name an enemy carrier out of sight from scores sent after the take
++ 20/10/2026 | SJK #170 | Vehicle HUD: the original Jedi Academy HUD
+- 2f3d601 |  | Keep the vehicle HUD of a vehicle that hides its rider
+- 9d5a3d4 |  | Draw the stock vehicle HUD in the game HUD
 + 19/10/2026 | SJK #176 | Draw the siege hack bar under the crosshair
 - 7c47706 |  | Draw the siege hack bar under the crosshair
 + 19/10/2026 | SJK #174 | Feat/siege objective sounds

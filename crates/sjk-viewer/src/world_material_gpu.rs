@@ -332,18 +332,26 @@ pub(super) fn load_stage_images(
     Ok((images, any, identity))
 }
 
-/// The magenta checker a stage shows for an image it cannot find.
+/// What a stage shows for an image it cannot find: retail's default image
+/// (`R_CreateDefaultImage`, `tr_image.cpp:1279-1307`), a 16x16 box of grey 32 with
+/// a white one-pixel border. A scripted shader never gets here for a missing stage
+/// image (`world_missing_stages.rs` drops it as retail does); this is the default
+/// shader's picture (`world_stage::DEFAULT_IMAGE`) and an implicit shader whose
+/// own image is missing.
 fn missing_image() -> Arc<RgbaImage> {
-    Arc::new(
-        RgbaImage::from_raw(
-            2,
-            2,
-            vec![
-                255, 0, 255, 255, 32, 32, 32, 255, 32, 32, 32, 255, 255, 0, 255, 255,
-            ],
-        )
-        .expect("fixture dimensions"),
-    )
+    static IMAGE: std::sync::OnceLock<Arc<RgbaImage>> = std::sync::OnceLock::new();
+    Arc::clone(IMAGE.get_or_init(|| Arc::new(default_image())))
+}
+
+fn default_image() -> RgbaImage {
+    const SIZE: u32 = 16;
+    RgbaImage::from_fn(SIZE, SIZE, |x, y| {
+        if x == 0 || y == 0 || x == SIZE - 1 || y == SIZE - 1 {
+            image::Rgba([255; 4])
+        } else {
+            image::Rgba([32; 4])
+        }
+    })
 }
 
 pub(crate) fn upload_array(
@@ -447,4 +455,16 @@ pub(crate) fn upload_lightmaps(
         );
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod default_image_tests {
+    #[test]
+    fn the_missing_image_is_retails_default_box() {
+        let image = super::default_image();
+        assert_eq!(image.dimensions(), (16, 16));
+        assert_eq!(image.get_pixel(0, 7).0, [255; 4]);
+        assert_eq!(image.get_pixel(15, 15).0, [255; 4]);
+        assert_eq!(image.get_pixel(7, 7).0, [32; 4]);
+    }
 }
