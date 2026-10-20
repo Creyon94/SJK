@@ -27,7 +27,9 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     fx += warm*(halo(d, 0.25)*1.2 + halo(d, 0.8)*0.3)*sin(3.1416*f)*part(0.0);
   }
   fx += fxSmoke(ro, rd, y0, y1, 3.8, 1.0, 4.9, vec3(0.75, 0.8, 0.9))*0.6*part(1.0);
-  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 16.0, 0.03, 5.9, vec3(1.0, 0.9, 0.7))*0.7*part(0.0);
+  fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 22.0, 0.03, 5.9, vec3(1.0, 0.9, 0.7))*0.9*part(0.0);
+  // round 15b: a Force ghost's pale blue glow round it, breathing
+  fx += fxAura(ro, rd, y0, y1, 2.8, vec3(0.55, 0.75, 1.0))*(0.35 + 0.15*sin(t*0.9))*part(1.0);
   return fx*uFx;
 }
 
@@ -58,7 +60,7 @@ vec3 sig_orbit(vec3 ro, vec3 rd, float px){
     float fade = smoothstep(0.0, 0.12, q0)*(1.0 - smoothstep(0.75, 1.0, q0));
     float veil = 1.0 - bs;
     vec3 warm = vec3(1.0, 0.88, 0.62), pale = vec3(0.75, 0.86, 1.0);
-    fx += (vec3(1.0)*halo(best, max(0.07, px))*pow(veil, 5.0)*2.4 + mix(pale, warm, veil)*halo(best, 0.4 + 0.4*bs)*veil*1.1
+    fx += (vec3(1.0)*halo(best, max(0.07, px))*pow(veil, 5.0)*3.0 + mix(pale, warm, veil)*halo(best, 0.45 + 0.45*bs)*veil*1.4
            + pale*halo(best, 1.1)*0.1*veil)*fade;
   }
   return fx*uFx;

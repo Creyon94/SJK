@@ -852,7 +852,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The light of the Jedi who became one with the Force: soft warm lights lift off the blade and float away, a pale spirit mist rises round it, three spirits climb round it trailing veils of light and an echo of it sways beside it.",
+        description: "The light of the Jedi who became one with the Force: soft warm lights lift off the blade and float away, a pale spirit mist rises round it, three spirits climb round it trailing veils of light, a Force ghost's pale glow breathes round it and an echo of it sways beside it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -924,7 +924,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Ashla, the light side of the Force, as a blade in its wearer's colour, calm, radiant light rising off it like a quiet flame, soft rays of light reaching slowly out of it and motes of light drifting round it.",
+        description: "The Ashla, the light side of the Force, as a blade in its wearer's colour, calm, radiant light rising off it like a quiet flame, two great wings of light opening from its middle, soft rays of light reaching slowly out of it and motes of light drifting round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -996,7 +996,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A pale blade of the Force's spirits: a glass rod of moonlight brighter at its edges, slow ripples climbing it, cold spirit mist sinking to the hilt and faint echoes of the blade hanging in the air.",
+        description: "A pale blade of the Force's spirits: a glass rod of moonlight brighter at its edges, slow ripples climbing it, cold spirit mist sinking to the hilt and faint echoes of the blade hanging in the air, wraiths with long ghostly tails darting round and through it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1248,7 +1248,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Force in balance: a calm silver blade with the scales of the Force across it, a sun of light on one end and an orb of violet shadow on the other, tipping slowly, neither winning.",
+        description: "The Force in balance: a blade split between white-gold light and violet shadow, the scales of the Force across it tipping slowly, rays of light fanning out of one side and tendrils of shadow curling off the other, neither winning.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {

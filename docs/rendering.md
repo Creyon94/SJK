@@ -2048,7 +2048,11 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   and more sparks; the Superlaser's surges swell into balls of plasma and a charge gathers at
   its focus. Of the rares only the Data Disc changed (Creyon: it looked cheap): three discs
   turning, the middle one the other way, with hubs and written sectors, and packets of data
-  streaming up between them.
+  streaming up between them. Round 15b (Creyon: mythicals must not look cheap, Balance for
+  one): Balance's blade is split, white-gold on one side and violet on the other, with rays of
+  light fanning out of the light's side, tendrils of shadow off the dark's and larger scales on
+  chains; the Ashla Radiance opens two wings of light; three wraiths dart round and through the
+  Wraithlight (3D, with its mist and echoes option); the Jedi Spirits glow like a Force ghost.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

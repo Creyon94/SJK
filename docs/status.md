@@ -8,7 +8,8 @@ too-bright glows dimmed, Hyperspace's and Ashla Radiance's effects in the wearer
 Hyperspace slower, Between Worlds' duellists bigger, Felucia's spores smooth whether running or
 still and no longer a chroma (nor Force Echo), new Bleeding Kyber drops and embers, the Star Map
 drawing seven figures, Jedi Spirits mythical and Balance legendary, the Assassin Droid, Liquid
-Beskar, Beskar Forge and Data Disc richer, and the Clone Wars blade's switching-off word facing
+Beskar, Beskar Forge and Data Disc richer, Balance, Ashla Radiance, Wraithlight and Jedi Spirits
+richer (round 15b), and the Clone Wars blade's switching-off word facing
 the camera from every side.
 
 Checked on Linux x86_64 (Rust 1.97, lavapipe): every signature module validates, the ignored GPU
