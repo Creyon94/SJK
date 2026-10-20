@@ -5862,3 +5862,13 @@ change: Any zoom hid the names; now only zoom mode 2 (binoculars) does, as JoF E
 change: Hub report 103.
 test: Disruptor, zoom on a player: their name shows under the scope.
 test: Binoculars on a player: no name; U still whispers to the one in sight.
+
+[missing-stage-shader]
+area: Rendering & effects
+title: A shader with a missing stage image is dropped as retail drops it (no magenta)
+change: Models keep the stages before the missing image; map surfaces take the default box.
+change: The missing picture is retail's grey box with a white border, not a magenta checker.
+change: The log says R_FindImageFile could not find '<image>' in shader '<name>' once each.
+test: Load maps and models with community skins: no magenta checkers anywhere.
+test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
+note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).

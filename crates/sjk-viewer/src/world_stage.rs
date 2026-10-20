@@ -140,6 +140,18 @@ pub(crate) const LIGHTMAP_NONE: i32 = -1;
 /// BSP meshes whose compiled lighting is stored in their vertex colours.
 pub(crate) const LIGHTMAP_BY_VERTEX: i32 = -3;
 
+/// The image name retail gives its default image (`R_CreateDefaultImage`,
+/// `tr_image.cpp:1279-1307`); the material loader draws it as that box.
+pub(crate) const DEFAULT_IMAGE: &str = "*default";
+
+/// `tr.defaultShader` (`CreateInternalShaders`, `tr_shader.cpp:4230-4245`): one opaque
+/// stage of the default image, unlit.
+pub(crate) fn default_stage() -> ShaderStage {
+    let mut stage = implicit_stage(TextureGenerator::Base, StageBlend::Replace, true);
+    stage.images = vec![DEFAULT_IMAGE.into()];
+    stage
+}
+
 fn implicit_stage(
     generator: TextureGenerator,
     blend: StageBlend,
