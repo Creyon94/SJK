@@ -9,6 +9,15 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 20/10/2026 | - | SJK Blades: blade cards, a Solar copy drops its blade
+- 595e206 |  | SJK Blades: blade cards, and a Solar copy drops its blade
+- 4da5aad |  | Blade cards show their blade's number alone (#042)
++ 20/10/2026 | - | The blade card pictures' render test
+- d20a7ab |  | Blade card art: a world shot drawing every droppable shader as a card picture
++ 20/10/2026 | - | An Away emote line in the What's new recap
+- 03a9bb9 |  | What's new: an Away emote line in the coming release's recap
++ 20/10/2026 | - | The Sun's coronal rain and diamond ring
+- faffe7b |  | Sun blade: coronal rain and an eclipse's diamond ring replace the spikes and the plasma loop
 + 20/10/2026 | - | Credits cards are all Mythical and show no number
 - 9f125dd |  | Credits cards show no number, as none outranks another
 + 20/10/2026 | - | Hub requests name the build's commit

@@ -966,6 +966,16 @@ change: Every credits card is Mythical (the hub refuses any other rarity).
 test: Collection > Cards: a credits card's foot has no 00X / 013; Toxiee keeps 010 / 013.
 test: Hover a credits tile: 'Mythical card. Credits, SJK Alpha.' with no number.
 
+[blade-cards]
+area: Menus & settings
+title: SJK Blades: a card per blade; a Solar copy drops its blade
+change: New card kind Blade (SJK Blades, one card per droppable blade, numbered #NNN).
+change: A Solar blade card also drops its blade: shown in the opening and on reveal.
+change: The hub picks a collection first, then a card, so Blades don't crowd out credits.
+test: After the hub deploy and publish: open holocrons; blade cards show as 'Blade - SJK Blades'.
+test: Hover a blade card: 'Its Solar copies also drop the ... blade.'
+test: Binder kind filter offers Blade; blade cards foot reads #NNN.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

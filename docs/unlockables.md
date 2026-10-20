@@ -1287,6 +1287,14 @@ fourteen before them. It reads "Saber smith: Creyon" at the right of the shader'
 card, beside its description, and on its hover card; the Shaders search matches it. A
 new shader names its smith in its catalogue entry (a test lists Creyon's).
 
+Card art for an "SJK Blades" card set (20/10/2026): the ignored world shot `blade_card_art`
+([world_shot_blade_cards.rs](../crates/sjk-viewer/src/world_shot_blade_cards.rs)) draws
+every droppable shader with the game's own saber renderer, lit across a 1020 x 850 frame
+on a dark backdrop (the void beyond duel6, every signature shader built first), and writes
+`cards/blade<NNN>.png` with its `import_cards.py` text file (number, tier, name, smith,
+description) into the folder `SJK_BLADE_CARDS` names; `SJK_BLADE_CARD_SKINS` picks some.
+The tier is the client's: check it against the hub's `src/unlocks.rs`, which decides drops.
+
 A shader newer than the client (14/10/2026): when an opening brings a shader this client's
 catalogue does not list, the ceremony still shows it, by the name the hub sent, in the
 holocron's colour, with its blade if the hub's pack brought one, the crate spin ending on a
