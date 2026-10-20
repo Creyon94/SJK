@@ -1310,10 +1310,17 @@ fn submit_emplaced(
     let (Some(snapshot), Some(appearance)) = (snapshot, entity.appearance()) else {
         return false;
     };
-    let Some(state) = snapshot
-        .entities
-        .iter()
-        .find(|state| u64::from(state.number()) + 1 == entity.id.get())
+    // Every rigid entity comes through here each frame: the snapshot's entities are
+    // sorted by number, so look the state up without a linear scan.
+    let Some(state) = u16::try_from(entity.id.get().wrapping_sub(1))
+        .ok()
+        .and_then(|number| {
+            snapshot
+                .entities
+                .binary_search_by_key(&number, |state| state.number())
+                .ok()
+        })
+        .map(|index| &snapshot.entities[index])
     else {
         return false;
     };
