@@ -64,6 +64,7 @@ fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], no
                 note: NOTE.to_owned(),
                 count: 1,
                 medal: None,
+                card: None,
             });
         }
     }
@@ -126,6 +127,7 @@ mod tests {
                 note: "kept".to_owned(),
                 count: 3,
                 medal: None,
+                card: None,
             }],
             ..crate::console::profile_panel::tests::me("")
         };
@@ -160,6 +162,7 @@ mod tests {
             lore: String::new(),
             artist: "Sol".to_owned(),
             art: String::new(),
+            grants: None,
         };
         dress(&mut me, std::slice::from_ref(&face), 5);
         let finishes: Vec<_> = me.cards.iter().map(|stack| stack.finish.as_str()).collect();

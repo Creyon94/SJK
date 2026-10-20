@@ -2969,6 +2969,7 @@ mod tests {
                         note: String::new(),
                         count: 1,
                         medal: None,
+                        card: None,
                     })
                     .collect(),
             );

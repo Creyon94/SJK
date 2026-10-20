@@ -101,6 +101,18 @@ pub(crate) struct Face {
     pub(crate) artist: String,
     /// The game path of its picture in the pack.
     pub(crate) art: String,
+    /// The unlockable a copy of it brings while held (`saber_sun`; 20/10/2026), as the
+    /// hub grants it ([`crate::unlockables::CARD_BLADES`]); `None` for most cards.
+    pub(crate) grants: Option<String>,
+}
+
+impl Face {
+    /// What it brings, as its hover card and the Cards tab say it ("Brings the Sun blade
+    /// while you hold it."), when it brings an unlockable this client knows.
+    pub(crate) fn brings(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.grants.as_deref()?)?;
+        Some(format!("Brings the {} while you hold it.", unlockable.name))
+    }
 }
 
 /// A card file as written.
@@ -117,6 +129,8 @@ struct File {
     art: String,
     #[serde(default)]
     artist: String,
+    #[serde(default)]
+    grants: Option<String>,
 }
 
 /// The card file `text` of card `id`, read.
@@ -156,6 +170,7 @@ fn parse(id: &str, text: &str) -> Result<Face, String> {
             file.artist
         },
         art: file.art,
+        grants: file.grants.filter(|id| !id.trim().is_empty()),
     })
 }
 
@@ -267,6 +282,14 @@ pub(crate) fn install_for_shot(list: Vec<Face>, pictures: impl Fn(usize) -> usiz
         list,
         generation: before.generation + 1,
     }));
+}
+
+/// The name of card `id` as players read it: its face's name, or its id when the packs
+/// have no face for it.
+pub(crate) fn name_of(id: &str) -> String {
+    current()
+        .find(id)
+        .map_or_else(|| id.to_owned(), |(_, face)| face.name.clone())
 }
 
 /// The texture of face `index`'s picture.
@@ -414,6 +437,19 @@ mod tests {
         // Card 000 is a card like any other.
         let zero = FILE.replace("\"number\": 10", "\"number\": 0");
         assert_eq!(parse("x", &zero).unwrap().number, 0);
+        // A card that brings a blade says which; one this client does not know brings
+        // nothing it can name.
+        assert_eq!(face.grants, None);
+        let sun = FILE.replace("\"artist\"", "\"grants\": \"saber_sun\", \"artist\"");
+        let sun = parse("sjk_alpha_000", &sun).unwrap();
+        assert_eq!(sun.grants.as_deref(), Some("saber_sun"));
+        assert_eq!(
+            sun.brings().as_deref(),
+            Some("Brings the Sun blade while you hold it.")
+        );
+        let later = FILE.replace("\"artist\"", "\"grants\": \"saber_later\", \"artist\"");
+        assert_eq!(parse("x", &later).unwrap().brings(), None);
+        assert_eq!(face.brings(), None);
         // A field the client does not know yet is read past.
         let later = FILE.replace("\"artist\"", "\"frame\": \"gold\", \"artist\"");
         assert!(parse("x", &later).is_ok());

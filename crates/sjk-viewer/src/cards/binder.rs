@@ -378,6 +378,7 @@ mod tests {
             lore: String::new(),
             artist: "Sol".to_owned(),
             art: String::new(),
+            grants: None,
         }
     }
 

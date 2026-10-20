@@ -573,7 +573,7 @@ pub struct DropEvent {
 }
 
 /// One unlockable a key holds (`PROTOCOL.md`, "Unlocks"): granted by the hub's
-/// operator or staff, or brought by a medal the key holds. A client shows and wears only the ids it knows.
+/// operator or staff, or brought by a medal or a card the key holds. A client shows and wears only the ids it knows.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Unlock {
     /// The unlockable's id (`saber_sun`).
@@ -593,6 +593,11 @@ pub struct Unlock {
     /// 10/10/2026.
     #[serde(default)]
     pub medal: Option<String>,
+    /// The card that brings it (`sjk_alpha_000`), when the key holds it only through a
+    /// copy of that card: it goes with the last copy, as a medal's blade goes with the
+    /// medal. `None` otherwise, and from hubs before 20/10/2026.
+    #[serde(default)]
+    pub card: Option<String>,
 }
 
 /// What a player wears that others draw (`PROTOCOL.md`, "Looks"). The default is
@@ -1199,7 +1204,8 @@ mod tests {
             r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5,
                 "unlocks":[{"id":"saber_sun","granted":1791000000,"note":"Thanks"},
                            {"id":"from_the_future","granted":7},
-                           {"id":"saber_glitch","granted":8,"note":"","medal":"bug_hunter"}]}"#,
+                           {"id":"saber_glitch","granted":8,"note":"","medal":"bug_hunter"},
+                           {"id":"saber_sun","granted":9,"card":"sjk_alpha_000"}]}"#,
         )
         .unwrap();
         assert_eq!(
@@ -1211,6 +1217,7 @@ mod tests {
                     note: "Thanks".to_owned(),
                     count: 1,
                     medal: None,
+                    card: None,
                 },
                 Unlock {
                     id: "from_the_future".to_owned(),
@@ -1218,6 +1225,7 @@ mod tests {
                     note: String::new(),
                     count: 1,
                     medal: None,
+                    card: None,
                 },
                 Unlock {
                     id: "saber_glitch".to_owned(),
@@ -1225,6 +1233,15 @@ mod tests {
                     note: String::new(),
                     count: 1,
                     medal: Some("bug_hunter".to_owned()),
+                    card: None,
+                },
+                Unlock {
+                    id: "saber_sun".to_owned(),
+                    granted: 9,
+                    note: String::new(),
+                    count: 1,
+                    medal: None,
+                    card: Some("sjk_alpha_000".to_owned()),
                 },
             ]
         );

@@ -2149,6 +2149,7 @@ mod tests {
                     note: "n".repeat(200),
                     count: 1,
                     medal: None,
+                    card: None,
                 })
                 .collect(),
             holocron_counts: sjk_identity::HolocronCounts {

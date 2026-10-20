@@ -20,6 +20,7 @@ fn sun() -> sjk_identity::Unlock {
         note: "Thanks for testing the blades with us".to_owned(),
         count: 1,
         medal: None,
+        card: None,
     }
 }
 

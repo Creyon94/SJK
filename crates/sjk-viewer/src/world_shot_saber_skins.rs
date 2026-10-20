@@ -152,6 +152,7 @@ fn duel6_sjk_saber_page() {
                     note: String::new(),
                     count: 1,
                     medal: None,
+                    card: None,
                 })
                 .collect::<Vec<_>>()
         };

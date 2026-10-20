@@ -222,6 +222,9 @@ fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
     match (&tile.slot, tile.face(&faces)) {
         (_, Some(face)) => {
             lines.push(Line::how(odds));
+            if let Some(brings) = face.brings() {
+                lines.push(Line::status(brings));
+            }
             lines.push(Line::status(format!(
                 "{} card. {}, {} {:03} of {}.",
                 tile.rarity.name,
@@ -320,6 +323,7 @@ mod tests {
             note: String::new(),
             count: 1,
             medal: None,
+            card: None,
         }];
         let sun = crate::unlockables::find("saber_sun").unwrap();
         let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));

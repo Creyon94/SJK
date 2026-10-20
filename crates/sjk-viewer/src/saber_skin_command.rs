@@ -264,6 +264,7 @@ mod tests {
             note: String::new(),
             count: 1,
             medal: None,
+            card: None,
         }
     }
 
@@ -290,12 +291,14 @@ mod tests {
         assert!(!lines[1].contains("worn"));
         let lines = listing(" SABER_SUN ", Holdings::Known(&[]));
         assert!(
-            lines[1].contains("locked^7, chosen: shows once unlocked (Found in holocrons.)"),
+            lines[1].contains(
+                "locked^7, chosen: shows once unlocked (Comes with Sol's card (SJK Alpha 000), for as long as you hold it.)"
+            ),
             "{}",
             lines[1]
         );
         let lines = listing("saber_moon", Holdings::IdentityOff);
-        assert!(lines[1].contains("locked^7: Found in holocrons."));
+        assert!(lines[2].contains("locked^7: Found in holocrons."));
         assert!(lines[1 + skins].contains("\"saber_moon\", which this client does not know"));
         assert!(
             lines[2 + skins].contains("need the SJK identity"),
