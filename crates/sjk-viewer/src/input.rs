@@ -1164,4 +1164,79 @@ mod tests {
             assert_eq!(step_command(&mut input, 1024).2, expected, "mode {mode}");
         }
     }
+
+    fn look() -> crate::pointer_input::MouseLook {
+        crate::pointer_input::MouseLook {
+            sensitivity: 5.0,
+            yaw_scale: 0.022,
+            pitch_scale: 0.022,
+            invert: false,
+        }
+    }
+
+    /// A wheel notch: the bind's `+` and `-` with one key id and timestamp, as
+    /// `route_gameplay_wheel` queues them.
+    fn wheel_notch(input: &mut GameplayInput, bind: &str, time: u64) {
+        input.apply(&format!("+{bind} 184 {time}"));
+        input.apply(&format!("-{bind} 184 {time}"));
+    }
+
+    #[test]
+    fn a_wheel_notch_on_moveup_jumps_for_one_command_at_every_command_step() {
+        for step in [8, 7, 4, 3] {
+            let mut input = GameplayInput::default();
+            step_command(&mut input, 1000);
+            // Between two frames, and sampled in the frame it arrived in.
+            wheel_notch(&mut input, "moveup", 1000 + step - 1);
+            assert_eq!(step_command(&mut input, 1000 + step).2, 127, "step {step}");
+            assert_eq!(
+                step_command(&mut input, 1000 + 2 * step).2,
+                0,
+                "step {step}"
+            );
+            input.sample_motion(1000 + 3 * step, look());
+            wheel_notch(&mut input, "moveup", 1000 + 3 * step);
+            assert_eq!(command(&input).up_move, 127, "step {step}");
+        }
+    }
+
+    #[test]
+    fn a_wheel_notch_lasts_until_a_command_is_made() {
+        // Frames faster than the command step keep the notch, as EJK's wasPressed.
+        let mut input = GameplayInput::default();
+        let look = look();
+        input.sample_motion(1000, look);
+        input.finish_command();
+        wheel_notch(&mut input, "moveup", 1001);
+        input.sample_motion(1002, look);
+        input.sample_motion(1004, look);
+        input.sample_motion(1008, look);
+        assert_eq!(command(&input).up_move, 127);
+    }
+
+    #[test]
+    fn a_wheel_notch_presses_buttons_and_moves() {
+        let mut input = GameplayInput::default();
+        step_command(&mut input, 1000);
+        wheel_notch(&mut input, "attack", 1004);
+        wheel_notch(&mut input, "use", 1004);
+        wheel_notch(&mut input, "forward", 1004);
+        input.sample_motion(1008, look());
+        let c = command(&input);
+        assert_eq!(c.buttons & 0b10_0001, 0b10_0001);
+        assert_eq!(c.forward_move, 127);
+        input.finish_command();
+        let c = command(&input);
+        assert_eq!((c.buttons & 0b10_0001, c.forward_move), (0, 0));
+    }
+
+    #[test]
+    fn a_short_key_tap_still_moves_for_its_time() {
+        // A press with time down keeps stock's share of the command: 2 of 8 ms.
+        let mut input = GameplayInput::default();
+        step_command(&mut input, 1000);
+        input.apply("+moveup 57 1002");
+        input.apply("-moveup 57 1004");
+        assert_eq!(step_command(&mut input, 1008).2, 31);
+    }
 }

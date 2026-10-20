@@ -78,6 +78,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The console never prints a password: `rconPassword`, `password`, JA+ login passwords and the like show `********` in listings, the cvar browser and the echo of what you type (JA+'s `amlogin`, `login` and `register`, binds and scripts holding them too, typed offline or on any server), so they stay out of the scrollback, logs and crash reports; chat typed in the console stays out of crash reports as received chat does _(Slash)_
 - The chat key (Y) always opens on All, even after SJK chat, a team message or a whisper, as in EternalJK; Settings > HUD > Remember chat channel (`cg_chatRememberChannel`, now off) brings back opening on your last channel _(Lukas, after EternalJK)_
 - JA+ servers: Settings > Gameplay > JA+ protection > Push away kiss attempts (`cg_antiAmKiss`, off) answers another player's `amkiss` with one Force Push, as JoF EternalJK's anti-kiss does; it comes with JA+ tools _(Lukas, after JoF EJK)_
+- `+moveup` on the mouse wheel jumps: each notch now counts as held for one whole move, so `bind MWHEELDOWN +moveup` jumps every notch, and other movement binds on the wheel move too (`+attack`, `+use` and the other buttons already worked) _(Sol, after Midn8Runner's report)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

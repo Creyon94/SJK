@@ -126,7 +126,12 @@ impl GameButton {
 }
 
 impl GameplayInput {
+    /// The share of the command `button` moves for; a press let go in no time (a
+    /// wheel notch, [`super::state::KeyState::tapped`]) moves all of it.
     pub(super) fn movement_fraction(&self, button: GameButton) -> f32 {
+        if self.held[button.slot()].tapped() {
+            return 1.0;
+        }
         if self.motion.command_millis == 0 {
             return self.fraction(button);
         }

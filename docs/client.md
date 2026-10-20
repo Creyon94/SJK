@@ -5056,6 +5056,17 @@ crouch key of the jump/crouch pair, as `+movedown` is. Unlike EJK, whose `-duck`
 also lets go of every `+movedown` and `+speed` key, `-duck` releases only itself. See
 [input.rs](../crates/sjk-viewer/src/input.rs) (`up_move`).
 
+A `+` bind on the mouse wheel acts on each notch, whose press and release arrive
+together (`bind MWHEELDOWN +moveup` jumps once a notch; Sol's decision, 21/10/2026, after
+Midn8Runner's report). As in the original game, a button (`+attack`, `+use`) pressed and
+let go between two user commands is still sent in the next one (`wasPressed`). For
+movement the original game counts only the milliseconds a key was down
+(`IN_KeyUp`, `CL_KeyState`), and a notch is down for none, so on the wheel `+moveup`,
+`+forward` and the other movement binds did nothing there, in OpenJK, JoF EJK and
+ioquake3 alike. SJK moves the whole next user command for a press let go in the same
+millisecond, and only for that: a key held even 1 ms keeps its share of the command.
+See `KeyState::tapped` in [state.rs](../crates/sjk-viewer/src/input/state.rs).
+
 `cg_gripVictimFX` (archived, default **on**) shows red puffs near choking players'
 necks, following JoF EJK's Grip victim effect. Turn **Grip victim effects** off in
 classic Settings > Game options or SJK Settings > Advanced > Gameplay to hide
