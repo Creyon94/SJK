@@ -1328,6 +1328,15 @@ mod tests {
         }
     }
 
+    /// Hub report #108 (Nib): the Toys tab counts every toy, all of them held.
+    #[test]
+    fn the_toys_tab_counts_every_toy() {
+        let counts = view::counts(&inputs(Holdings::Known(&[]), ""));
+        let toys = &counts[3];
+        assert_eq!((toys.held, toys.total), (Some(TOY_COUNT), TOY_COUNT));
+        assert_eq!(TOY_COUNT, TOY_TOKENS.len());
+    }
+
     /// The shader row of blade skin `id`.
     pub(super) fn row_of(id: &str) -> usize {
         (1..SHADER_ROWS)

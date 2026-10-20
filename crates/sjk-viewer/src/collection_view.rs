@@ -86,10 +86,10 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 7] {
             held: shaders,
             total: unlockables::ALL.len(),
         },
-        // Illuminate is everyone's.
+        // Every toy is everyone's (Illuminate, the cardboard box, Order 66).
         Count {
-            held: Some(1),
-            total: 1,
+            held: Some(TOY_COUNT),
+            total: TOY_COUNT,
         },
         Count {
             held: Some(0),
