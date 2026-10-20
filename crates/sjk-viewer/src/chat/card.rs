@@ -110,6 +110,7 @@ impl ChatOverlay {
                     hub_name: None,
                     verified: hub.verified,
                     staff: hub.staff,
+                    creator: hub.creator,
                     trust: hub.trust,
                     emoji: hub.emoji.clone(),
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
@@ -133,6 +134,7 @@ impl ChatOverlay {
                         .filter(|hub| !sjk_identity::names_match(hub, name)),
                     verified: mark.as_ref().is_some_and(|mark| mark.verified),
                     staff: false,
+                    creator: false,
                     trust: mark.as_ref().and_then(|mark| mark.trust),
                     emoji: mark
                         .as_ref()
@@ -244,6 +246,7 @@ mod tests {
             name: "^2Sol".to_owned(),
             verified: true,
             staff: true,
+            creator: false,
             trust: None,
             emoji: String::new(),
             text: "gg all".to_owned(),

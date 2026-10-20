@@ -123,6 +123,7 @@ mod tests {
             name: name.to_owned(),
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             text: text.to_owned(),

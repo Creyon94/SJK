@@ -1078,6 +1078,7 @@ pub(crate) mod tests {
             bio: bio.to_owned(),
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_759_708_800,

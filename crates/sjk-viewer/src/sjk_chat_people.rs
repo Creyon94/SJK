@@ -87,6 +87,7 @@ pub(super) struct Row {
     pub(super) name: String,
     pub(super) verified: bool,
     pub(super) staff: bool,
+    pub(super) creator: bool,
     /// Their trust (`ui_renderer::mark_texture`).
     pub(super) trust: Option<sjk_identity::Trust>,
     /// Their name emoji, empty for none.
@@ -139,6 +140,7 @@ pub(super) fn derive(chat: &ChatState, muted: &[String]) -> Listed {
                 name: message.name.clone(),
                 verified: message.verified,
                 staff: message.staff,
+                creator: message.creator,
                 trust: message.trust,
                 emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
                 avatar: None,
@@ -160,6 +162,7 @@ pub(super) fn derive(chat: &ChatState, muted: &[String]) -> Listed {
         name: person.name.clone(),
         verified: person.verified,
         staff: person.staff,
+        creator: person.creator,
         trust: person.trust,
         emoji: sjk_identity::name_emoji::for_display(&person.emoji).to_owned(),
         avatar: Some(person.avatar.clone()),
@@ -233,6 +236,7 @@ mod tests {
             name: name.to_owned(),
             verified: key == "a",
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             text: "hi".to_owned(),

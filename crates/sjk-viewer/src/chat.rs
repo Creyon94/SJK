@@ -72,6 +72,8 @@ struct HubLine {
     id: u64,
     verified: bool,
     staff: bool,
+    /// SJK's creator (staff too).
+    creator: bool,
     /// The sender's trust when they sent it (`ui_renderer::mark_texture`).
     trust: Option<sjk_identity::Trust>,
     /// The sender's name emoji when they sent it, shown at the right of their name.

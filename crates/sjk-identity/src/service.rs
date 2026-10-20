@@ -2868,6 +2868,7 @@ mod tests {
             bio: String::new(),
             verified: false,
             staff: true,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,

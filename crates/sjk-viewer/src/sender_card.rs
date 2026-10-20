@@ -43,6 +43,8 @@ pub(crate) struct Person {
     pub(crate) hub_name: Option<String>,
     pub(crate) verified: bool,
     pub(crate) staff: bool,
+    /// SJK's creator (staff too).
+    pub(crate) creator: bool,
     /// Their trust (`ui_renderer::mark_texture`), none when verified or staff or unknown.
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// Their name emoji, after the name; empty for none.
@@ -61,7 +63,12 @@ impl Person {
     /// The card's status line: whether the hub knows them.
     fn status(&self) -> &'static str {
         use sjk_identity::Trust;
-        match (self.key_id.is_some(), self.staff, self.trust) {
+        match (
+            self.key_id.is_some(),
+            self.staff || self.creator,
+            self.trust,
+        ) {
+            (true, true, _) if self.creator => "SJK player, SJK creator",
             (true, true, _) => "SJK player, SJK staff",
             (true, false, Some(Trust::New)) => "SJK player, new",
             (true, false, Some(Trust::Trusted)) => "SJK player, trusted",
@@ -455,6 +462,22 @@ mod tests {
         ban: 9,
     };
 
+    #[test]
+    fn the_status_line_names_staff_and_the_creator() {
+        let staff = Person {
+            staff: true,
+            ..sol()
+        };
+        assert_eq!(staff.status(), "SJK player, SJK staff");
+        let creator = Person {
+            staff: true,
+            creator: true,
+            ..sol()
+        };
+        assert_eq!(creator.status(), "SJK player, SJK creator");
+        assert_eq!(sol().status(), "SJK player");
+    }
+
     fn sol() -> Person {
         Person {
             name: "^2Sol".to_owned(),
@@ -462,6 +485,7 @@ mod tests {
             hub_name: None,
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             medals: crate::medals::Medals::default(),

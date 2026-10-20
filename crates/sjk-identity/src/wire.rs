@@ -43,6 +43,10 @@ pub struct Profile {
     /// Whether the hub's operator made this key staff (absent from older hubs).
     #[serde(default)]
     pub staff: bool,
+    /// Whether this is SJK's creator: staff too, with their own mark (the hub's
+    /// `PROTOCOL.md`, "Creator"; absent when false and from older hubs).
+    #[serde(default)]
+    pub creator: bool,
     /// The player's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -807,6 +811,9 @@ pub struct ChatMessage {
     /// Whether the sender is SJK staff.
     #[serde(default)]
     pub staff: bool,
+    /// Whether the sender is SJK's creator.
+    #[serde(default)]
+    pub creator: bool,
     /// The sender's trust when they sent it, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -1031,6 +1038,9 @@ pub struct Person {
     /// Whether they are SJK staff.
     #[serde(default)]
     pub staff: bool,
+    /// Whether they are SJK's creator.
+    #[serde(default)]
+    pub creator: bool,
     /// Their trust, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,

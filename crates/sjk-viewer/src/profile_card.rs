@@ -516,6 +516,7 @@ mod tests {
             bio: String::new(),
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,

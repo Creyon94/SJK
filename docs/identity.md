@@ -904,6 +904,15 @@ staff key gets the SJK team's tools in the game: the Profile page shows Staff to
 as does the SJK UI in-game menu's row of icons (and the `staff` command opens them; for
 any other key it says they are for staff).
 
+The creator (since 20/10/2026) is SJK's own creator: a flag above staff that only the hub
+operator sets, and that makes the person staff too. Profiles, chat messages and the
+chat's people list carry it (`creator`, absent as false). Where staff show as such the
+creator shows as the creator: the player card's pill reads SJK CREATOR (sun orange,
+wider) instead of SJK TEAM, the sender card's status line says "SJK player, SJK
+creator", and the Chat page's message line starts "Creator" instead of "Staff". The hub
+refuses staff's tools on the creator (an error `creator`), so other staff cannot mute,
+unverify, take from or merge them, nor delete their chat messages.
+
 The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
 UI's look) finds players down its left (a name or part of one, colour codes ignored; a
 key id; or, with Seen lately, the players the hub saw last; 15 shown), and shows the

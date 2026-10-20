@@ -713,6 +713,7 @@ mod tests {
             bio: bio.to_owned(),
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,
