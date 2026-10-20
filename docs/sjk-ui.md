@@ -1623,14 +1623,17 @@ for the run.
   and credits at the right of the headline (x up to 1080); the filter's chips at y 300
   (All, Owned, Missing; "Rarity: Any", "Kind: Any", "Finish: Any", a click each on to the
   next; O, T, K, F) with "N of M cards" at the grid's right; every card of the packs as a
-  tile (122 wide, seven by three from y 350, scrolling a line a wheel notch, a bar at the
-  right): sealed copies first, a tile per rarity, then the cards by set and number in
-  their best finish's light with an "x3" pill, the ones not found yet greyed; Reveal
-  under the grid at y 912 with its outcome beside it; and the tile chosen up close on the
-  right (470 wide from y 150) with its name, the copies by finish and edition (or "Not
-  found yet"), its rarity, kind, set and number, and when the first was found (or its
-  odds). The arrows (Up and Down a line), Tab and the pointer choose; Ctrl+Tab goes on to
-  Medals. The row's count is the copies held. World shots: `world_shot::cards_shots`
+  tile (140 wide, six by three from y 340, scrolling a line a wheel notch, a bar at the
+  right, each naming its card under its picture with its rarity at its foot): sealed
+  copies first, a tile per rarity, then the cards by set and number in their best
+  finish's light with an "x3" pill, the ones not found yet greyed; Reveal under the grid
+  at y 958 with its outcome beside it; and the tile chosen up close on the right (470
+  wide from y 150) with its name, the copies by finish and edition (or "Not found yet"),
+  its rarity, kind and set (no card shows its number), and when the first was found (or
+  its odds). The arrows (Up and Down a line), Tab and the pointer choose; Ctrl+Tab goes
+  on to Medals. Enter, Space, I or a click on a tile or on the card up close looks
+  closer: the card 660 wide over the darkened tab with its words at its right, the
+  arrows or the wheel to the previous or next tile, Escape or a click to put it back. The row's count is the copies held. World shots: `world_shot::cards_shots`
   (`duel6_sjk_card_binder` with the hub's card pack).
 - **The model:** behind Shaders, Toys and Nameplates the page darkens only the left
   and the bottom. From the main page the backdrop camera goes to the player's shot
@@ -1663,7 +1666,7 @@ takes no input.
 | Achievement | its goal | who counts it (SJK in matches, or the hub); "Unlocked dd/mm/yyyy" or "n of goal so far" |
 | Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known |
 | Toy | everyone's, and where to light it | "Yours" |
-| Card (a binder tile) | from opening holocrons: how many holocrons found hold a card of its rarity ([loot table](holocrons.md#loot-table)), one of how many of that rarity | its rarity, kind, set and number (a sealed tile: picked when revealed); the copies by finish and edition and when the first was found, or "Not found yet" |
+| Card (a binder tile) | from opening holocrons: how many holocrons found hold a card of its rarity ([loot table](holocrons.md#loot-table)), one of how many of that rarity | its rarity, kind and set, no number (a sealed tile: picked when revealed); the copies by finish and edition and when the first was found, or "Not found yet" |
 | Holocron tier (Holocrons tab) | found by playing, the pace and the daily cap | the tier's share of drops and staff gifts; how many held |
 
 Nameplates have no things yet, so no cards. Text draws over every shape, so the card

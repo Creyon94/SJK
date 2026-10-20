@@ -401,7 +401,16 @@ impl Panel {
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(6);
         match self.tab {
             Tab::Medals => keys.push((&["Left", "Right"], "choose")),
+            Tab::Cards if self.card_inspect => {
+                if self.cards_shown > 1 {
+                    keys.push((&["Left", "Right"], "previous, next"));
+                }
+                keys.push((&["Esc"], "put back"));
+            }
             Tab::Cards => {
+                if self.cards_shown > 0 {
+                    keys.push((&["Enter"], "look closer"));
+                }
                 if self.cards_shown > 1 {
                     keys.push((&["Arrows"], "choose"));
                 }
@@ -443,8 +452,10 @@ impl Panel {
             )),
             _ => {}
         }
-        keys.push((&["Ctrl", "Tab"], self.tab.next(true).label()));
-        keys.push((&["Esc"], "back"));
+        if !(self.tab == Tab::Cards && self.card_inspect) {
+            keys.push((&["Ctrl", "Tab"], self.tab.next(true).label()));
+            keys.push((&["Esc"], "back"));
+        }
         let gap = 30.0 * s;
         let width: f32 = keys
             .iter()

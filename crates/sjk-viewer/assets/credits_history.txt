@@ -9,11 +9,16 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 20/10/2026 | - | Named tiles, a closer look, lore that fills its box, no card numbers
+- 9162e95 |  | Cards: larger named tiles, a closer look, lore that fills its box, no numbers
+- ed259a6 |  | Card lore grows to 1.25 times at most, not 1.4
++ 20/10/2026 | - | The away emote in Simple settings
+- 7dfb23d |  | Settings: Simple's Gameplay offers the away emote and the JA+ away emote
++ 20/10/2026 | - | The blade card pictures' render test
+- d20a7ab |  | Blade card art: a world shot drawing every droppable shader as a card picture
 + 20/10/2026 | - | SJK Blades: blade cards, a Solar copy drops its blade
 - 595e206 |  | SJK Blades: blade cards, and a Solar copy drops its blade
 - 4da5aad |  | Blade cards show their blade's number alone (#042)
-+ 20/10/2026 | - | The blade card pictures' render test
-- d20a7ab |  | Blade card art: a world shot drawing every droppable shader as a card picture
 + 20/10/2026 | - | An Away emote line in the What's new recap
 - 03a9bb9 |  | What's new: an Away emote line in the coming release's recap
 + 20/10/2026 | - | The Sun's coronal rain and diamond ring

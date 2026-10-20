@@ -354,6 +354,12 @@ impl ViewerConsole {
         self.collection_panel.choose_card_for_shot(index);
     }
 
+    /// Look at the Cards tab's chosen tile closely (or put it back), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_inspect_for_shot(&mut self, on: bool) {
+        self.collection_panel.inspect_card_for_shot(on);
+    }
+
     /// Set the Cards tab's filter, for a world shot.
     #[cfg(test)]
     pub(crate) fn collection_card_filter_for_shot(&mut self, filter: crate::cards::binder::Filter) {

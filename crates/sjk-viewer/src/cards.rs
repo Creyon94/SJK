@@ -277,11 +277,7 @@ impl Stack {
 /// How a card `card` (its id, `None` while sealed) shows its face, when the packs have it.
 pub(crate) fn shown<'a>(faces: &'a faces::Faces, card: Option<&str>) -> Option<look::Shown<'a>> {
     let (index, face) = faces.find(card?)?;
-    Some(look::Shown {
-        face,
-        index,
-        of: faces.in_set(&face.set),
-    })
+    Some(look::Shown { face, index })
 }
 
 /// How many sealed copies of `stacks` the hub could reveal now: those of a rarity the
@@ -440,7 +436,7 @@ mod tests {
             "the sealed Legendaries only"
         );
         let shown = shown(&faces, Some("sjk_alpha_010")).unwrap();
-        assert_eq!((shown.index, shown.of), (0, 1));
+        assert_eq!(shown.index, 0);
         assert!(shown_none(&faces));
     }
 

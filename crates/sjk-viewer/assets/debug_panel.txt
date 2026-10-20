@@ -976,6 +976,16 @@ test: After the hub deploy and publish: open holocrons; blade cards show as 'Bla
 test: Hover a blade card: 'Its Solar copies also drop the ... blade.'
 test: Binder kind filter offers Blade; blade cards foot reads #NNN.
 
+[card-pages]
+area: Menus & settings
+title: Cards tab: named tiles, a closer look, lore that fills its box, no numbers
+change: Bigger tiles (6 a row) with the card's name and rarity under the picture.
+change: Enter/Space/I or a click shows the chosen card large; arrows browse, Esc puts it back.
+change: Short lore grows and centres in its box; no card shows its number anywhere.
+test: Collection > Cards: tiles readable at 4K/150%; unowned names grey.
+test: Click a tile: large view; Left/Right browse; Esc returns without closing the Collection.
+test: A 1-line and a 7-line lore both fill their box; open a holocron: no number on the card.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained
