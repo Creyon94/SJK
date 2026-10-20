@@ -12,7 +12,7 @@
 use super::pointer::{
     ACTIVATE_TOKEN, COPY_TOKEN, RESET_TOKEN, ROW_BASE, SCROLLBAR_TOKEN, SEARCH_TOKEN,
 };
-use super::{Browser, Entry, Kind, TABS};
+use super::{Browser, EditShown, Entry, Kind, TABS};
 use crate::menu::sjk::{
     Frame, SearchPill, TextTarget, color, key_hint, key_hint_width, kit, text, top_bar, wrap,
 };
@@ -245,7 +245,9 @@ impl Browser {
             match &entry.kind {
                 Kind::Cvar { value: current, .. } => {
                     let changed = entry.changed();
-                    if let Some(edit) = self.editing.as_deref().filter(|_| chosen) {
+                    if let Some(edit) =
+                        EditShown::of(&self.editing, self.editing_secret).filter(|_| chosen)
+                    {
                         kit::field(
                             &mut self.ui,
                             frame,
@@ -406,7 +408,7 @@ impl Browser {
                 );
             };
             fact(ui, "Value", y);
-            if let Some(edit) = self.editing.as_deref() {
+            if let Some(edit) = EditShown::of(&self.editing, self.editing_secret) {
                 kit::field(
                     ui,
                     frame,
