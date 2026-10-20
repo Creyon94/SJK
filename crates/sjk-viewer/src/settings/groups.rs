@@ -103,6 +103,9 @@ const CHAT_ROWS: &[&str] = &[
 const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
+    "mod_japro",
+    #[cfg(feature = "mod-japro")]
+    sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
     "mod_jof",
     #[cfg(feature = "mod-jof")]
     sjk_mod_jof::destruction::CVAR,
@@ -322,6 +325,9 @@ impl Group {
                 "cg_thirdPersonTargetDamp",
                 "cg_errorDecay",
                 "mod_japlus",
+                "mod_japro",
+                #[cfg(feature = "mod-japro")]
+                sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
                 "mod_jof",
                 #[cfg(feature = "mod-jof")]
                 sjk_mod_jof::destruction::CVAR,

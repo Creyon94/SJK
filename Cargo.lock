@@ -2999,6 +2999,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sjk-mod-japro"
+version = "0.1.0"
+dependencies = [
+ "sjk-mod",
+ "sjk-protocol",
+]
+
+[[package]]
 name = "sjk-mod-jof"
 version = "0.1.0"
 dependencies = [
@@ -3114,6 +3122,7 @@ dependencies = [
  "sjk-mediafoundation",
  "sjk-mod",
  "sjk-mod-japlus",
+ "sjk-mod-japro",
  "sjk-mod-jof",
  "sjk-model",
  "sjk-network",

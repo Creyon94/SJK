@@ -17,12 +17,14 @@ mod host;
 #[allow(clippy::vec_init_then_push)]
 pub(crate) fn builtin() -> Vec<Box<dyn ClientMod>> {
     #[cfg_attr(
-        not(any(feature = "mod-japlus", feature = "mod-jof")),
+        not(any(feature = "mod-japlus", feature = "mod-japro", feature = "mod-jof")),
         allow(unused_mut)
     )]
     let mut list: Vec<Box<dyn ClientMod>> = Vec::new();
     #[cfg(feature = "mod-japlus")]
     list.push(Box::new(sjk_mod_japlus::JaPlus::new()));
+    #[cfg(feature = "mod-japro")]
+    list.push(Box::new(sjk_mod_japro::JaPro::new()));
     #[cfg(feature = "mod-jof")]
     list.push(Box::new(sjk_mod_jof::JoF::new()));
     list
@@ -172,7 +174,7 @@ impl Mods {
     }
 
     /// Whether a mod is currently loaded according to its shared server rules.
-    #[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
+    #[cfg_attr(not(any(feature = "mod-jof", feature = "mod-japro")), allow(dead_code))]
     pub(crate) fn loaded(&self, id: &str) -> bool {
         self.entries.iter().any(|entry| entry.id == id && entry.on)
     }

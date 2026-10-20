@@ -5822,14 +5822,16 @@ test: Without your pack, JoF's version of that texture shows (over the retail on
 note: fs_debug 1 logs the mount order: jof/base packs now sit between base packs by name.
 [japro-move-styles]
 area: Gameplay
-title: jaPRO movement styles SJK cannot predict are shown from the server (hub #97/#98)
-change: ps.stats[13] names the style on jaPRO; only Siege, JKA, Swoop and Speed are predicted.
-change: Others (CPM, QW, Q3, WSW, SP...) move as cg_noPredict 1 does; the log names the style.
-change: cg_predictMoveStyles 1 predicts every style as JKA, the earlier behaviour.
-test: On a jaPRO server, /move cpm (or QW): no snap-back; the log says the style once.
+title: jaPRO tools mod: styles SJK cannot predict are shown from the server (hub #97/#98)
+change: New mod jaPRO tools (mod_japro, on; jaPRO servers only). ps.stats[13] names the style.
+change: Only Siege, JKA, Swoop, Speed predicted; others move as cg_noPredict 1 (log names it).
+change: japro.predictMoveStyles 1 predicts every style as JKA; japro.styles lists the styles.
+test: On a jaPRO server, mods says jaPRO tools loaded; japro.styles lists 15 styles.
+test: /move cpm (or QW): no snap-back; the log says the style once.
 test: /move jka: prediction is back (movement responds without delay).
-test: cg_predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smooth.
-test: On a JA+ or base server nothing changes.
+test: japro.predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smooth.
+test: mod_japro 0 with CPM: old snapping too. Settings > Mods shows both rows.
+test: On a JA+ or base server nothing changes; japro.styles says it is for jaPRO servers.
 note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
 [leading-slash-images]
 area: Rendering & effects
