@@ -1809,13 +1809,13 @@ impl GpuState {
         let mut hud_visibility =
             ground_hud::frame(self, intermission_view.is_some(), presentation_time as i32);
         brush_view::frame(self);
-        // The quick wheel's middle shows its names where the crosshair would be.
-        if self.quick_wheel.is_open()
-            || (self.scope.mode != 0 && cgame_options::scope_style(self.console.as_ref()) != 1)
-        {
-            hud_visibility.crosshair = false;
-            hud_visibility.crosshair_names = false;
-        }
+        let [crosshair, names] = scope::crosshair_visibility(
+            self.scope.mode,
+            cgame_options::scope_style(self.console.as_ref()),
+            self.quick_wheel.is_open(),
+        );
+        hud_visibility.crosshair &= crosshair;
+        hud_visibility.crosshair_names &= names;
         let viewport = [
             self.configuration.width as f32,
             self.configuration.height as f32,

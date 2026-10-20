@@ -5764,3 +5764,11 @@ change: The guides were off for any pm_type but PM_NORMAL; PM_JETPACK (jetpack f
 change: Hub report 102.
 test: cg_strafeAura 1, take a jetpack (Siege_Desert), fly and strafe: the aura shows.
 test: Spectate someone: still no guides.
+
+[scope-crosshair-names]
+area: HUD
+title: Crosshair names show in the disruptor scope; binoculars still hide them
+change: Any zoom hid the names; now only zoom mode 2 (binoculars) does, as JoF EJK.
+change: Hub report 103.
+test: Disruptor, zoom on a player: their name shows under the scope.
+test: Binoculars on a player: no name; U still whispers to the one in sight.
