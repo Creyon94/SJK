@@ -11,7 +11,8 @@
 // off and fly when it swings and a frost mist sinks off it. A clash flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let d = boltD(vec2(b.x * 3.0, b.y), vec2<f32>(0.0, 0.0), vec2(0.0, uLength), 7.0, 0.04);
-    return g * (0.85 + 1.2 * halo(d, 0.25));
+    // round 16 (Creyon: still too bright): 65 %, the frozen bolt fainter
+    return g * (0.85 + 0.6 * halo(d, 0.25)) * 0.65;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {

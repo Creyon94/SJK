@@ -1,7 +1,7 @@
 // Mortis: the realm of the Force wielders, the Father, the Daughter and the Son, as a blade
 // (Creyon's round 9, rebuilt as Sol builds his). The blade is Sol's glow and core from the file,
 // and over it Mortis turns from day to night and back: by day it glows pale and serene, by night
-// a deep crimson. Round it in 3D stand two ghost blades at other angles, the Daughter's light and
+// a deep crimson, turning every second time the ghost blades fold back into it. Round it in 3D stand two ghost blades at other angles, the Daughter's light and
 // the Son's dark, slowly turning round it like the two sides held in check by the Father. By day
 // motes of the Daughter's light rise round it and soft beams shine out; by night the Son's red
 // lightning crackles off it and embers sink. A swing pulls the ghost blades in to the blade; a
@@ -15,8 +15,26 @@
 
 const vec3 MO_DAY = vec3(0.6, 1.0, 0.8);
 const vec3 MO_NIGHT = vec3(1.0, 0.1, 0.08);
-// day (1) and night (0): 16 seconds each way, a slow dusk and dawn between
-float mo_day(){ return smoothstep(-0.35, 0.35, sin(uTime*6.2832/32.0)); }
+// Round 16 (Creyon: it must change on a pattern that fits): the ghost blades swing out and fold
+// back into the blade once every MO_P seconds; every second time they meet in it, the realm
+// turns, day to night or night to day, with a flash where they meet.
+const float MO_P = 8.0;
+// how far the ghost blades lean out: 0 while they are folded into the blade
+float mo_open(){ float q = fract(uTime/MO_P); return smoothstep(0.08, 0.32, q)*(1.0 - smoothstep(0.72, 0.97, q)); }
+// day (1) or night (0) as seen `lag` cycles late (the change sweeping up the blade)
+float mo_day_at(float lag){
+  float c = uTime/MO_P - lag;
+  float k = floor(c), q = fract(c);
+  float now = mod(floor(k/2.0), 2.0) < 0.5 ? 1.0 : 0.0;
+  float before = mod(floor((k - 1.0)/2.0), 2.0) < 0.5 ? 1.0 : 0.0;
+  return mix(before, now, smoothstep(0.0, 0.18, q));
+}
+float mo_day(){ return mo_day_at(0.0); }
+// the flash where they meet when the realm turns
+float mo_turn(){
+  float c = uTime/MO_P, k = floor(c), q = fract(c);
+  return mod(k, 2.0) < 0.5 ? exp(-q*14.0) : exp(-q*30.0)*0.3;
+}
 
 vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
@@ -28,15 +46,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   for (int j = 0; j < 2; j++){
     float fj = float(j);
     float a = t*0.04 + fj*0.5;
-    float tilt = (0.32 - 0.24*sw)*(1.0 - cl);
+    float tilt = (0.32 - 0.24*sw)*(1.0 - cl)*mo_open();
     vec3 pivot = vec3(0.0, L*0.35, 0.0);
     vec3 dir = normalize(vec3(sin(6.2832*a)*tilt, 1.0, cos(6.2832*a)*tilt));
     vec3 a0 = pivot + dir*1.5, a1 = pivot + dir*(L*0.62);
     float d = raySeg(ro, rd, a0, a1, s);
     float ends = smoothstep(0.0, 0.15, s)*(1.0 - smoothstep(0.85, 1.0, s));
     vec3 gc = j == 0 ? MO_DAY : MO_NIGHT;
-    float lit = j == 0 ? 0.35 + 0.65*day : 0.35 + 0.65*(1.0 - day);
+    float lit = (j == 0 ? 0.35 + 0.65*day : 0.35 + 0.65*(1.0 - day))*(0.4 + 0.6*mo_open());
     col += (vec3(1.0)*halo(d, max(0.08, px))*0.7 + gc*halo(d, 0.4)*0.6 + gc*halo(d, 1.4)*0.12)*ends*lit*(0.8 + 1.5*cl)*part(0.0);
+  }
+  // ---- where they meet as the realm turns: a flash of both lights ----
+  float turn = mo_turn();
+  if (turn > 0.01){
+    vec3 pv = vec3(0.0, L*0.6, 0.0);
+    col += fxFlare(ro, rd, pv, px, 0.35, 3.0 + 5.0*turn, 4.0, t*0.3, mix(MO_NIGHT, MO_DAY, mo_day()))*turn*part(0.0);
   }
   // ---- by day: the Daughter's light rising, soft beams ----
   col += (fxMotes(ro, rd, px, y0, y1, 1.0, 6.0, 36.0, 0.06, 5.5, MO_DAY) + fxAura(ro, rd, y0, y1, 3.0, MO_DAY)*0.6)*day*part(1.0);
@@ -59,7 +83,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 // change sweeping up the blade
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   float l = max(g.r, max(g.g, g.b));
-  float day = smoothstep(-0.35, 0.35, sin(uTime*6.2832/32.0 - b.y*0.03));
+  float day = mo_day_at(b.y*0.004);
   vec3 c = mix(MO_NIGHT*1.2, mix(MO_DAY, vec3(1.0), 0.25), day);
   return l*c*(1.0 + 0.6*clamp(uClash, 0.0, 1.0));
 }

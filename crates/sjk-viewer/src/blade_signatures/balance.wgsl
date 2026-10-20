@@ -2,121 +2,110 @@
 // script again.
 // @part The light
 // @part The dark
+// @part Point of balance
 // @room 10
-// @palette {"corona.rim_cool":[0.42,0.45,0.55],"corona.rim_hot":[0.88,0.9,0.98],"corona.inner":[0.96,0.97,1.0],"core.white":[1.0,1.0,1.0],"core.fringe_cool":[0.75,0.78,0.9],"core.fringe_hot":[0.95,0.96,1.0],"light.color":[0.85,0.85,0.95],"trail":[0.82,0.82,0.95]}
+// @solid 1
 
 // Balance: the Force in balance, the light and the dark held level in one blade (Creyon's round
-// 12 rework: the old one looked too much like the Bleeding Kyber). A calm silver blade whose
-// light drifts slowly between a warm and a cool shade; across it hang the scales of the Force, a
-// beam of light with a white-gold sun on one end and a violet shadow on the other, tipping slowly
-// one way and back, neither ever winning; motes of light rise on the light's side and a slow dark
-// smoke sinks on the dark's (round 15: the ribbons it shared with the Aurodium are gone). Round 15b
-// (Creyon: it looked cheap): the blade itself is split, white-gold on the light's side and violet
-// on the dark's, the line between them swaying slowly; soft rays of light fan out of the light's
-// side and tendrils of shadow curl off the dark's, and the scales are larger, hung on chains of
-// light. A swing brightens both; a clash flares the blade white.
-const BA_LIGHT: vec3<f32> = vec3<f32>(1.0, 0.9, 0.65);
+// 16 rework: he did not like the scales). A grey blade with two faces, a warm white-gold one and a
+// violet one, turning slowly round it, so the light and the dark take turns facing you; bands of
+// light climb it while bands of shadow sink through them, and every few seconds a wave of light
+// from the hilt and a wave of shadow from the tip meet at its middle in a white flash, the point of
+// balance, neither winning. Round it, motes of light rise and a slow violet smoke sinks; a sun of
+// light and an orb of shadow circle it opposite each other, never meeting. A swing brightens all;
+// a clash flares the blade white.
+const BA_LIGHT: vec3<f32> = vec3<f32>(1.0, 0.86, 0.5);
 
-const BA_DARK: vec3<f32> = vec3<f32>(0.35, 0.12, 0.55);
+const BA_DARK: vec3<f32> = vec3<f32>(0.5, 0.22, 0.95);
 
-// rays of light fanning out of the light's (left) side, swaying slowly, flat as Sol's are
-fn ba_rays(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, col: vec3<f32>) -> vec3<f32> {
-    var acc: vec3<f32> = vec3<f32>(0.0);
-    var s: f32;
-    for (var i = 0; i < 6; i++) {
-        let fi = f32(i);
-        let y = mix(y0 + 2.0, y1 - 3.0, fi / 5.0);
-        let a = 0.35 + 0.25 * sin(uTime * 0.5 + fi * 1.3);
-        let o = vec3(-0.4, y, 0.0);
-        let e = o + vec3(-cos(a), sin(a), 0.0) * (4.2 + 0.9 * sin(uTime * 0.7 + fi * 2.0));
-        let d = raySeg(ro, rd, o, e, &s);
-        acc += (vec3<f32>(1.0) * halo(d, max(0.04, px)) * 1.2 + col * halo(d, 0.22 + 0.3 * s) * 1.2) * (1.0 - s * 0.8) * (0.6 + 0.4 * sin(uTime * 1.1 + fi));
-    }
-    return acc;
+const BA_P: f32 = 5.0;
+
+// the waves' cycle, 0 to 1: they meet at the blade's middle at 0.5
+fn ba_q() -> f32 {
+    return fract(uTime / BA_P);
 }
 
-// tendrils of shadow curling off the dark's (right) side, drifting down
-fn ba_tendrils(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, col: vec3<f32>) -> vec3<f32> {
-    var acc: vec3<f32> = vec3<f32>(0.0);
-    var s: f32;
-    for (var j = 0; j < 4; j++) {
-        let fj = f32(j);
-        let y = mix(y0 + 3.0, y1 - 2.0, fj / 3.0);
-        var best: f32 = 1.0e3;
-        var bs: f32 = 0.0;
-        var prev = vec3(0.4, y, 0.0);
-        for (var i = 1; i <= 10; i++) {
-            let u = f32(i) / 10.0;
-            let q = vec3(0.4 + 3.0 * u, y - 1.5 * u + 0.6 * sin(u * 7.0 - uTime * 1.2 + fj * 2.0) * u, 0.0);
-            let d = raySeg(ro, rd, prev, q, &s);
-            if d < best {
-                best = d;
-                bs = (f32(i) - 1.0 + s) / 10.0;
-            }
-            prev = q;
-        }
-        acc += col * (halo(best, max(0.05, px) + 0.15 * bs) * 0.9 + halo(best, 0.5) * 0.2) * (1.0 - bs);
-    }
-    return acc;
+fn ba_meet() -> f32 {
+    return exp(-pow((ba_q() - 0.5) / 0.035, 2.0));
 }
 
-// the scales: a beam across the blade at its upper third, tipping slowly, a sun of light on one
-// end and an orb of shadow on the other; `side` 1 draws the light's half, -1 the dark's
-fn ba_scales(ro: vec3<f32>, rd: vec3<f32>, px: f32, side: f32, col: vec3<f32>) -> vec3<f32> {
-    let L = uLength;
-    var ta: f32;
-    var s: f32;
-    let mid = vec3(0.0, L * 0.66, 0.0);
-    let tip = 0.22 * sin(uTime * 0.45);
-    let arm = vec3(cos(tip), sin(tip), 0.0) * side * 4.0;
-    let end = mid + arm;
-    let d = raySeg(ro, rd, mid + arm * 0.12, end, &s);
-    var light = col * (halo(d, max(0.04, px)) * 1.8 + halo(d, 0.25) * 0.5) * (0.4 + 0.6 * s);
-    // the pan: a small orb hanging below the end on a thread of light
-    let pan = end + vec3<f32>(0.0, -2.0, 0.0);
-    // the pan hangs on two chains of light
-    let dt = min(raySeg(ro, rd, end, pan + vec3<f32>(-0.35, 0.0, 0.0), &s), raySeg(ro, rd, end, pan + vec3<f32>(0.35, 0.0, 0.0), &s));
-    light += col * halo(dt, max(0.025, px)) * 0.9;
-    let dpn = raySeg(ro, rd, pan + vec3<f32>(-0.5, 0.0, 0.0), pan + vec3<f32>(0.5, 0.0, 0.0), &s);
-    light += col * (halo(dpn, max(0.04, px)) * 1.3 + halo(dpn, 0.2) * 0.3);
-    let dp = rayPt(ro, rd, pan, &ta);
-    let breathe = 0.8 + 0.2 * sin(uTime * 1.3 + side);
-    light += (mix(col, vec3<f32>(1.0), 0.5) * halo(dp, 0.42) * 2.0 + col * halo(dp, 1.3) * 0.6) * breathe;
-    return light;
-}
-
-// the effects, flat round the blade as Sol's are: the light on one side, the dark on the other
-fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
-    let L = uLength;
-    let y0 = L * 0.2;
-    let y1 = L * 0.97;
-    let sw = clamp(uSwing, 0.0, 1.0);
-    var fx: vec3<f32> = vec3<f32>(0.0);
-    var lit = ba_scales(ro, rd, px, 1.0, BA_LIGHT);
-    lit += fxMotes(ro, rd, px, y0, y1, 0.8, 3.0, 12.0, 0.04, 2.1, BA_LIGHT) * 0.6;
-    // rays of light fanning out of the light's side, slowly
-    lit += ba_rays(ro, rd, px, y0, y1, BA_LIGHT);
-    fx += lit * (0.9 + 0.4 * sw) * part(0.0);
-    // the dark: the scales' other end, in violet shadow
-    var dark = ba_scales(ro, rd, px, -1.0, BA_DARK * 1.8);
-    dark += fxSmoke(ro, rd, y0, y1, 3.0, -1.0, 4.4, BA_DARK) * 1.3;
-    dark += ba_tendrils(ro, rd, px, y0, y1, BA_DARK * 2.0);
-    fx += dark * (0.9 + 0.4 * sw) * part(1.0);
-    return fx * uFx;
-}
-
-// the blade: Sol's glow and core from the file in silver, drifting between warm and cool
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    // the line between light and dark sways slowly from side to side and winds along the blade
-    let line = 0.12 * sin(uTime * 0.45) + 0.08 * sin(b.y * 0.3 - uTime * 0.6);
-    let side = smoothstep(-0.12, 0.12, b.x - line);
-    var c = mix(vec3<f32>(1.0, 0.82, 0.4), vec3<f32>(0.55, 0.22, 1.0), side);
     let l = lvl(g);
-    // the heart stays silver-white, neither side's
-    c = mix(c, vec3<f32>(0.95, 0.95, 1.0), exp(-pow(b.x / 0.06, 2.0)) * 0.4);
-    return l * c * (1.0 + 0.4 * clamp(uSwing, 0.0, 1.0)) + vec3<f32>(1.0) * l * 0.6 * clamp(uClash, 0.0, 1.0);
+    let L = uLength;
+    // the two faces turning: the line between them sweeps across, and as it leaves one edge the
+    // colours change sides, as if the blade turned on its axis
+    let turn = uTime * 0.35;
+    let edge = cos(turn) * 0.3;
+    let facing = select(-1.0, 1.0, sin(turn) > 0.0);
+    let side = smoothstep(-0.06, 0.06, (b.x - edge) * facing);
+    var c = mix(BA_LIGHT, BA_DARK, side);
+    c = mix(c, vec3<f32>(0.92, 0.92, 0.98), exp(-pow(b.x / 0.05, 2.0)) * 0.35);
+    // bands of light climbing, bands of shadow sinking through them
+    let up = pow(0.5 + 0.5 * sin(b.y * 0.35 - uTime * 2.0), 6.0) * part(0.0);
+    let down = pow(0.5 + 0.5 * sin(b.y * 0.35 + uTime * 2.0 + 1.5), 6.0) * part(1.0);
+    c = c * (1.0 + 0.6 * up - 0.4 * down) + BA_LIGHT * up * 0.3;
+    // a wave of light from the hilt and one of shadow from the tip, meeting at the middle in a flash
+    let q = ba_q();
+    let go = smoothstep(0.1, 0.5, q) * step(q, 0.5);
+    let yl = L * 0.5 * go;
+    let yd = L - L * 0.5 * go;
+    let waves = (BA_LIGHT * halo(b.y - yl, 1.2) + BA_DARK * halo(b.y - yd, 1.2) * 1.3) * step(0.1, q) * step(q, 0.5);
+    let flash = vec3<f32>(1.0) * ba_meet() * halo(b.y - L * 0.5, 3.0) * 1.2;
+    return l * (c + (waves * 0.9 + flash) * part(2.0)) * (1.0 + 0.3 * clamp(uSwing, 0.0, 1.0)) + vec3<f32>(1.0) * l * 0.6 * clamp(uClash, 0.0, 1.0);
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
     return c;
+}
+
+// the effects, flat round the blade as Sol's are: motes of light rising, violet smoke sinking,
+// the flash at the point of balance
+fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    let y0 = L * 0.2;
+    let y1 = L * 0.97;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    fx += fxMotes(ro, rd, px, y0, y1, 0.8, 3.5, 18.0, 0.05, 2.1, BA_LIGHT) * (0.8 + 0.4 * sw) * part(0.0);
+    fx += fxSmoke(ro, rd, y0, y1, 3.2, -1.0, 4.4, BA_DARK * 0.7) * 1.2 * part(1.0);
+    fx += fxFlare(ro, rd, vec3(0.0, L * 0.5, 0.0), px, 0.3, 2.5 + 4.0 * ba_meet(), 4.0, 0.785, vec3<f32>(0.95, 0.9, 1.0)) * ba_meet() * part(2.0);
+    return fx * uFx;
+}
+
+// where the sun of light and the orb of shadow are: opposite each other round the blade, rising
+// and sinking together
+fn ba_sun() -> vec3<f32> {
+    let L = uLength;
+    return around(2.6, uTime * 0.12, L * (0.55 + 0.2 * sin(uTime * 0.4)));
+}
+
+fn ba_shade() -> vec3<f32> {
+    let L = uLength;
+    return around(2.6, uTime * 0.12 + 0.5, L * (0.55 + 0.2 * sin(uTime * 0.4)));
+}
+
+// they circle the blade, so they are drawn in true 3D (Sol's way)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let L = uLength;
+    var ta: f32;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, L * 0.2, L * 0.9) > 5.0 {
+        return fx;
+    }
+    let ds = rayPt(ro, rd, ba_sun(), &ta);
+    fx += (vec3<f32>(1.0) * halo(ds, max(0.3, px)) * 2.0 + BA_LIGHT * halo(ds, 0.8) * 1.2 + BA_LIGHT * halo(ds, 2.0) * 0.3) * part(0.0);
+    let dd = rayPt(ro, rd, ba_shade(), &ta);
+    // the orb of shadow's violet rim and glow (its dark heart is the solid layer)
+    fx += (BA_DARK * halo(abs(dd - 0.6), 0.1) * 2.0 + BA_DARK * halo(dd, 2.0) * 0.35) * part(1.0);
+    return fx * uFx;
+}
+
+// the orb of shadow's dark heart, over what is behind it
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    if part(1.0) < 0.5 || uFx < 0.01 {
+        return vec4<f32>(0.0);
+    }
+    var ta: f32;
+    let dd = rayPt(ro, rd, ba_shade(), &ta);
+    return vec4(vec3<f32>(0.02, 0.0, 0.05), fillD(dd - 0.56, px) * 0.92);
 }

@@ -2053,6 +2053,36 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   light fanning out of the light's side, tendrils of shadow off the dark's and larger scales on
   chains; the Ashla Radiance opens two wings of light; three wraiths dart round and through the
   Wraithlight (3D, with its mist and echoes option); the Jedi Spirits glow like a Force ghost.
+- **Round 16 (Creyon's review of 20/10/2026).** Effects round the blade are Sol's way: what circles
+  it is drawn in true 3D (`sig_orbit`), so it reads from every side. Sol's motes on a signature run
+  straight on past the tip (along and across from `blade_place`) instead of round the capsule's
+  end, whose seam cut a mote crossing the tip in half (Witchfire, Uneti Tree, Ashla Radiance,
+  Nebula Song, Kyber Heart). `Signature::adopt` takes every figure, lab and solid section from the
+  built-in file too: the hub pack's older additions for a hand-ported design (Death Star Plans'
+  pencil sketch, drawn from inside the hilt) reached the signature and ran through the hilt in
+  third person and the preview. Felucia's spores answer a new motion lane, `stir`
+  ([saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs) `BladeMotion::stir`, for the
+  designs in `blade_lab_designs.rs` `STIRRED`): how much the blade moves in the world, running as
+  much as swinging, rising in 0.3 s and falling in 1.4 s, so the spores rest on the blade while
+  idle, swarm round it in 3D following it while it moves, and settle back smoothly. Mortis's realm
+  turns every second time its ghost blades fold back into it (8 s a fold, a flash as it turns).
+  Hyperspace's coils are back, three, turning at 0.25 a second in 3D. Between Worlds follows a
+  picture of the World Between Worlds' paths: a translucent blue blade with sparkling edges and a
+  dimmed core, paths of light crossing the void, nebula clouds, the duel kept. The Holdo Maneuver
+  gains engine glows at the hilt that spool up before the ram; Wraithlight cold spirit fire;
+  the Ashla Radiance orbs of light circling it; the Bleeding Kyber lightning that crawls over the
+  bleeding part and flickers fast (fewer, forked bolts lashing out) and, on its pure part, beams
+  of light and sparks of both colours where they meet. Legendaries: Balance redone (two faces
+  turning round a grey blade, bands of light and shadow passing, a wave of each meeting in a
+  flash, a sun and an orb of shadow circling opposite each other), Twin Suns' sunset beams, Exegol
+  Rift's vortex of the dark side (3D) with bolts into the blade, Scarif Tide redone (sunlit
+  caustics, a waterspout in 3D, bubbles, spray), Royal Naboo a jewelled circlet in 3D instead of
+  the costly scrolls, Starkiller Frost at 65 %, Krayt Pearl redone (nacre, pearls in 3D), Unknown
+  Regions a hyperspace storm in 3D instead of the galaxy, Blood Moon its streams back with the moon
+  circling it in 3D, Liquid Beskar tendrils of liquid metal instead of forge heat, Beskar Forge
+  molten beskar poured down it instead of side steam. Rares: Sith Thorn (veins, a thorned vine in
+  3D), Jakku Sandstorm (a dust devil in 3D), Dac Reef (a school of fish in 3D), Puzzle Holocron
+  (a holocron cube in 3D), Christophsis Crystal (crystals all round in 3D, facets).
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

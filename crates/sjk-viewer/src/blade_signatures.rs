@@ -344,9 +344,10 @@ impl Signature {
             .map(str::trim)
     }
 
-    /// Give `def` (a pack's file for this skin, or its own) the built-in file's sounds,
-    /// heat haze, wisps, embers, echo, glints, veins and afterimages: the signature's own, which an older pack file of the
-    /// skin (from before it was a signature) must not change.
+    /// Give `def` (a pack's file for this skin, or its own) the built-in file's sounds and
+    /// every section drawn round or over the blade (heat haze, wisps, embers, echo, glints, veins,
+    /// afterimages, arcs, motes, the hand-ported designs' figures and solids): the signature's
+    /// own, which an older pack file of the skin (from before it was a signature) must not change.
     pub(crate) fn adopt(&self, def: &mut BladeSkinDef) {
         if let Ok(own) = crate::blade_skin_file::parse(self.id, self.file) {
             def.sounds = own.sounds;
@@ -361,6 +362,31 @@ impl Signature {
             def.arcs = own.arcs;
             def.motes = own.motes;
             def.hue = own.hue;
+            // Round 16 (Creyon: Death Star Plans ran through the hilt in third person): an older
+            // pack's additions for the skin's hand-ported design (its pencil sketch, drawn from
+            // inside the hilt) are not the signature's either; its own file decides them all.
+            def.sputter = own.sputter;
+            def.glitch = own.glitch;
+            def.scan = own.scan;
+            def.pulse = own.pulse;
+            def.team = own.team;
+            def.ambient = own.ambient;
+            def.glyphs = own.glyphs;
+            def.holes = own.holes;
+            def.bands = own.bands;
+            def.segments = own.segments;
+            def.film = own.film;
+            def.blobs = own.blobs;
+            def.front = own.front;
+            def.sketch = own.sketch;
+            def.hourglass = own.hourglass;
+            def.serpent = own.serpent;
+            def.strands = own.strands;
+            def.butterflies = own.butterflies;
+            def.wings = own.wings;
+            def.copies = own.copies;
+            def.ink = own.ink;
+            def.chrome = own.chrome;
         }
     }
 
@@ -440,6 +466,20 @@ fn modules() -> &'static Vec<(&'static str, String)> {
 mod tests {
     use super::*;
     use wgpu::naga;
+
+    /// Round 16: the hub pack's additions for Death Star Plans (its hand-ported design's pencil
+    /// sketch, drawn from inside the hilt) do not reach the signature.
+    #[test]
+    fn a_pack_s_older_figures_do_not_reach_a_signature() {
+        let signature = of("saber_sketch").unwrap();
+        let additions = r#"{"sketch": {"color": [0.93, 0.95, 1.0], "brightness": 2.2, "rate": 8.0, "wobble": 0.3, "hatch": 1.2, "glow": 0.25}}"#;
+        let text =
+            crate::blade_skin_file::extras::merged(signature.default_file(), additions).unwrap();
+        let mut def = crate::blade_skin_file::parse(signature.id, &text).unwrap();
+        assert!(def.sketch.is_some(), "the pack's sketch reads");
+        signature.adopt(&mut def);
+        assert!(def.sketch.is_none());
+    }
 
     #[test]
     fn every_signature_is_a_blade_skin_of_the_catalogue_once() {

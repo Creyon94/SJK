@@ -598,7 +598,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A pure kyber blade, in its wearer's colour, fighting a red corruption that bleeds up from the hilt, forked red lightning lashing out from it and red drops falling, while beams of light push it back.",
+        description: "A pure kyber blade, in its wearer's colour, fighting a red corruption that bleeds up from the hilt: Sith lightning crackling over it, red drops falling, while beams of pure light push it back and the two clash in sparks.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -622,7 +622,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "Mandalorian steel fresh from the forge: a silver blade glowing orange-hot from the hilt with hammer marks glowing in it, forge flames licking up it, the hammer striking showers of sparks, molten beskar dripping off and the quench bursting out of it in jets of steam.",
+        description: "Mandalorian steel fresh from the forge: a silver blade glowing orange-hot from the hilt with hammer marks glowing in it, forge flames licking up it, the hammer striking showers of sparks and molten beskar poured down its side.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -658,7 +658,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The fungal jungle of Felucia: glowing amber spores grow on an amber-green blade, rest there breathing, then lift off smoothly and drift away round it as if alive while new ones grow.",
+        description: "The fungal jungle of Felucia: glowing puffball spores rest on an amber-green blade while you stand still, swarm round it and follow it when you run or swing, and settle back once you stop.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -682,7 +682,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The realm of Mortis: a blade that turns from day to night, the Daughter's and the Son's ghost blades turning round it, rising light by day and red lightning by night.",
+        description: "The realm of Mortis: the Daughter's and the Son's ghost blades swing out and fold back into it, and every second time they meet the realm turns from day to night or back, rising light by day and red lightning by night.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -706,7 +706,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A blade of molten beskar: ripples run up its mirror steel, beads roll to the tip, droplets orbit and fly off it, waves of forge heat glow orange through it, molten drops fall glowing off its tip and forge sparks fly.",
+        description: "A blade of molten beskar: ripples run up its mirror steel, beads roll to the tip, tendrils of liquid metal reach out of it and flow back in, droplets orbit and fly off it and forge sparks fly.",
         how_to_get: FROM_HOLOCRONS,
     },
     Unlockable {
@@ -756,7 +756,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A path of light from the World Between Worlds, in its wearer's colour: pathways of light crossing the void round it, soft lights of passage opening along it, and two bright lights, white and red, duelling round the blade.",
+        description: "A path of light from the World Between Worlds, in its wearer's colour: a translucent blade with sparkling edges, paths of light crossing the void beside it, nebula clouds drifting, and two bright lights, white and red, duelling round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -840,7 +840,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A ship's jump as a blade in its wearer's colour: the stars stretched into streaks rushing up it inside a slowly turning tunnel of light, all in its colour; it jumps when lit and drops out of hyperspace on a clash.",
+        description: "A ship's jump as a blade in its wearer's colour: the stars stretched into streaks rushing up it inside a tunnel of light, coils of light turning slowly round it, all in its colour; it jumps when lit and drops out of hyperspace on a clash.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -924,7 +924,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Ashla, the light side of the Force, as a blade in its wearer's colour, calm, radiant light rising off it like a quiet flame, two great wings of light opening from its middle, soft rays of light reaching slowly out of it and motes of light drifting round it.",
+        description: "The Ashla, the light side of the Force, as a blade in its wearer's colour, calm, radiant light rising off it like a quiet flame, two great wings of light, soft rays of light and orbs of the Ashla's light circling it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -996,7 +996,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A pale blade of the Force's spirits: a glass rod of moonlight brighter at its edges, slow ripples climbing it, cold spirit mist sinking to the hilt and faint echoes of the blade hanging in the air, wraiths with long ghostly tails darting round and through it.",
+        description: "A pale blade of the Force's spirits: a glass rod of moonlight brighter at its edges, cold spirit fire licking up it, spirit mist sinking to the hilt, faint echoes of the blade hanging in the air and wraiths darting round and through it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1008,7 +1008,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Holdo Maneuver: a cruiser jumping to lightspeed straight through a fleet. Starlines stream past a blade in its wearer's colour split red and cyan at its edges, until it falls silent, draws light in from all round it and cuts the air in a blinding white slice, wreckage flung off it; a swing leaves afterimages behind.",
+        description: "The Holdo Maneuver: a cruiser jumping to lightspeed straight through a fleet. Starlines stream past a blade in its wearer's colour split red and cyan at its edges, its engines glowing at the hilt, until it falls silent, draws light in from all round it and cuts the air in a blinding white slice, wreckage flung off it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1032,7 +1032,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The blood-red night of Dathomir: a dark crimson blade with a shadowed heart, red light dripping off it, a red mist curling up and a blood moon hanging beside it, a shadow sliding across it.",
+        description: "The blood-red night of Dathomir: a dark crimson blade with a shadowed heart, red light dripping off it, a red mist curling up, two dark red streams winding round it and a blood moon circling it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1080,7 +1080,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The uncharted dark of the Unknown Regions: a deep violet blade in its own swirling nebula, faint stars drifting through it and a far spiral galaxy turning beside it.",
+        description: "The uncharted dark of the Unknown Regions: a deep violet blade in its own swirling nebula, faint stars drifting through it and a hyperspace storm of violet and blue gas whirling round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1092,7 +1092,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The pearl of a krayt dragon: pearl scales shimmering pink and blue down the blade, desert sand streaming past it and a veil of sand dust curling off it in the heat.",
+        description: "The pearl of a krayt dragon: a blade of mother-of-pearl whose nacre swirls pink, gold and blue, lustrous krayt pearls circling it, desert sand streaming past and a veil of sand dust curling off it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1116,7 +1116,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The grace of Naboo's royal court: a white-gold blade traced with flowing gold filigree, golden scrolls of embroidery curling open beside it and petals of gold light drifting down.",
+        description: "The grace of Naboo's royal court: a white-gold blade traced with flowing gold filigree, a queen's jewelled circlet turning round it and petals of gold light drifting down.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1140,7 +1140,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The turquoise seas of Scarif: sea light rolling up the blade, turquoise waves rolling up beside it and breaking into foam, sea spray glittering off it.",
+        description: "The turquoise seas of Scarif: clear tropical water lit by a moving web of sunlit caustics, a waterspout spiralling up round it, bubbles rising beside it and sea spray glittering off it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1212,7 +1212,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Sith world of Exegol torn open: a dark rift down the blade's heart between red-violet edges, tearing wide and spilling violet light, Sith lightning leaping from the tip, a dark storm churning and dust pulled up.",
+        description: "The Sith world of Exegol torn open: a dark rift down the blade's heart between red-violet edges, tearing wide and spilling violet light, a vortex of the dark side whirling out of it, Sith lightning leaping, a dark storm churning and dust pulled up.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1236,7 +1236,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "Tatooine's twin suns at full blaze: a seething gold and orange blade, loops of plasma arching off it and snapping back, a solar wind streaming off and the air shimmering.",
+        description: "Tatooine's twin suns at full blaze: a seething gold and orange blade, loops of plasma arching off it, golden sunset beams slanting across it, a solar wind streaming off and the air shimmering.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1248,7 +1248,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Force in balance: a blade split between white-gold light and violet shadow, the scales of the Force across it tipping slowly, rays of light fanning out of one side and tendrils of shadow curling off the other, neither winning.",
+        description: "The Force in balance: a grey blade whose white-gold and violet faces turn round it, bands of light climbing through bands of shadow, a wave of each meeting at its middle in a flash, and a sun of light and an orb of shadow circling it opposite each other.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1356,7 +1356,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The crystal fields of Christophsis: violet crystals grow out of the blade one by one, glint and sink back in.",
+        description: "The crystal fields of Christophsis: facets glinting inside a violet blade and crystals growing out of it all round, glinting and sinking back in.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1440,7 +1440,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A Jedi holocron's puzzle as a blade: segments lighting up one at a time, shifting and unlocking, rings of light opening at their seams and holocron motes rising.",
+        description: "A Jedi holocron's puzzle as a blade: segments lighting up one at a time, shifting and unlocking, rings of light at their seams, holocron motes rising and a small glowing holocron turning round it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1452,7 +1452,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The coral reefs of Dac, the Mon Calamari world: branches of glowing coral sway off the blade, their tips lit pink, and bubbles drift up past them.",
+        description: "The coral reefs of Dac, the Mon Calamari world: branches of glowing coral sway off a blade rippling with water light, bubbles drift past and a school of little reef fish circles it.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1464,7 +1464,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A sandstorm over Jakku: streaks of sand blow slowly across the blade, a haze of dust rolling off it and the air shimmering.",
+        description: "A sandstorm over Jakku: grit scouring the blade's light, streaks of sand blowing across it, a dust devil whirling round it and a haze of dust rolling off.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {
@@ -1524,7 +1524,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "A dark Sith thorn: a deep crimson blade with sharp thorns of light along its sides and red petals of light drifting down off it.",
+        description: "A dark Sith thorn: a deep crimson blade veined with dark power, sharp thorns of light along its sides flaring as a pulse climbs it, a thorned vine coiling round it and red petals drifting down.",
         how_to_get: FROM_THE_TEAM,
     },
     Unlockable {

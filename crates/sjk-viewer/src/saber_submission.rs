@@ -131,7 +131,7 @@ pub(crate) fn submit(
             // view or running turns the whole body, which is no swing, and the effects that
             // answer a swing must not stir then.
             let body = (actor_rotation.inverse() * Vec3::from_array(blade.direction)).to_array();
-            let motion = state.motion.record_turned(
+            let mut motion = state.motion.record_turned(
                 blade,
                 body,
                 presentation_time,
@@ -139,6 +139,9 @@ pub(crate) fn submit(
                 attacking,
                 skin.is_some_and(|skin| skin.each_swing),
             );
+            if skin.is_some_and(|skin| skin.stirred) {
+                motion[3] = state.motion.stir();
+            }
             // A direction across the blade that turns with the hilt, for the signatures'
             // three-dimensional effects (`Instance::with_frame`).
             let across = (weapon_rotation

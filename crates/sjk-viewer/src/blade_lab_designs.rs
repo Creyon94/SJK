@@ -86,6 +86,18 @@ const LINGERS: [(&str, f32); 1] = [("saber_comic", 1.6)];
 /// onto the blade at every mark).
 const EACH_SWING: [&str; 1] = ["saber_comic"];
 
+/// Designs whose effects answer how much the blade moves in the world, running as much as
+/// swinging, rather than a swing alone (Creyon's round 16: Felucia's spores rest on the blade
+/// while its wearer stands idle, fly off and follow it when they run or swing, and settle back
+/// once they stand still again): their motion's last lane carries
+/// [`crate::saber_motion::BladeMotion::stir`] instead of the seconds since a swing.
+const STIRRED: [&str; 1] = ["saber_monarch"];
+
+/// Whether `id` answers the blade's movement in the world ([`STIRRED`]).
+pub(crate) fn stirred(id: &str) -> bool {
+    STIRRED.contains(&id)
+}
+
 /// Whether `id` answers each swing of a chain on its own ([`EACH_SWING`]).
 pub(crate) fn each_swing(id: &str) -> bool {
     EACH_SWING.contains(&id)

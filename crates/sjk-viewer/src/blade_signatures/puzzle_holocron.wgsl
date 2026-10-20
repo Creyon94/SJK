@@ -8,7 +8,10 @@
 
 // Puzzle Holocron: a Jedi holocron's puzzle as a blade. The blade is cut into segments with glowing
 // seams; one at a time a segment lights, shifts and unlocks, light seeping out round it and a ring
-// of light opening at each of its seams; small motes of holocron light rise off it. A clash flares it.
+// of light opening at each of its seams; small motes of holocron light rise off it; round 16
+// (Creyon: better for its name and rarity): a small holocron, a glowing cube with a bright heart,
+// circles the blade in 3D turning slowly, its faces opening a little whenever a segment unlocks.
+// A clash flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let seg = floor(b.y / 3.0);
     let cyc = uTime * 0.25;
@@ -48,6 +51,55 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     }
     fx += fxMotes(ro, rd, px, y0, y1, 0.6, 2.4, 14.0, 0.035, 4.2, c) * 0.8 * part(2.0);
     // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+    uKeep += fx * uFx;
+    return vec3<f32>(0.0);
+}
+
+// round 16: the holocron itself, a glowing cube with a bright heart circling the blade and turning
+// slowly, opening a little as a segment unlocks; it circles the blade, so it is drawn in true 3D
+// (Sol's way); with the unlocking light (part 0)
+fn ph_corner(i: f32, c: vec3<f32>, h: f32, spin: f32) -> vec3<f32> {
+    var q = vec3(select(h, -h, glsl_mod(i, 2.0) < 0.5), select(h, -h, glsl_mod(floor(i / 2.0), 2.0) < 0.5), select(h, -h, floor(i / 4.0) < 0.5));
+    let cs = cos(spin);
+    let sn = sin(spin);
+    q = vec3(cs * q.x + sn * q.z, q.y, -sn * q.x + cs * q.z);
+    let c2 = cos(spin * 0.6);
+    let s2 = sin(spin * 0.6);
+    q = vec3(q.x, c2 * q.y - s2 * q.z, s2 * q.y + c2 * q.z);
+    return c + q;
+}
+
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(0.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    var ta: f32;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    let c = around(2.4, t * 0.08, L * 0.7 + 0.6 * sin(t * 0.5));
+    if rayPt(ro, rd, c, &ta) > 2.5 {
+        return fx;
+    }
+    let open = sin(3.1416 * fract(t * 0.25));
+    let h = 0.45 * (1.0 + 0.25 * open);
+    let spin = t * 0.7;
+    let hc: vec3<f32> = vec3<f32>(0.6, 0.8, 1.0);
+    var best: f32 = 1.0e3;
+    for (var e = 0; e < 12; e++) {
+        let fe = f32(e);
+        // the twelve edges: along x (corners differing in bit 0), y (bit 1), z (bit 2)
+        let axis = floor(fe / 4.0);
+        let k = glsl_mod(fe, 4.0);
+        let lo = select((select(k, glsl_mod(k, 2.0) + floor(k / 2.0) * 4.0, axis < 1.5)), k * 2.0, axis < 0.5);
+        let hi = lo + (select((select(4.0, 2.0, axis < 1.5)), 1.0, axis < 0.5));
+        best = min(best, raySeg(ro, rd, ph_corner(lo, c, h, spin), ph_corner(hi, c, h, spin), &s));
+    }
+    fx += vec3<f32>(1.0) * halo(best, max(0.025, px)) * 1.1 + hc * halo(best, 0.12) * 0.6;
+    let dc = rayPt(ro, rd, c, &ta);
+    fx += (vec3<f32>(1.0) * halo(dc, max(0.08, px)) * 1.4 + hc * halo(dc, 0.4) * 0.6) * (0.7 + 0.6 * open);
+    // round 14: a chroma for the blade only; its effects keep their own colours
     uKeep += fx * uFx;
     return vec3<f32>(0.0);
 }

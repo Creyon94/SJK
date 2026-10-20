@@ -5,7 +5,8 @@
 // drawn on its tip. Round 15b (Creyon: mythicals must not look cheap): two great wings of light
 // open from its middle, feathered with soft rays sweeping out and down like an angel's, breathing
 // slowly. A swing brightens the light;
-// a clash flares the blade.
+// a clash flares the blade. Round 16: four orbs of the Ashla's light circle it slowly in 3D, each
+// trailing soft light, and its motes fade before the tip instead of being cut there.
 // @part Radiant light
 // @part Rays of light
 // @part Wings of light
@@ -79,4 +80,29 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   // them gold)
   fx += ar_wings(ro, rd, px)*(0.8 + 0.4*sw)*part(2.0);
   return col + fx*uFx;
+}
+
+// round 16 (Creyon: it needs a bit more): four orbs of the Ashla's light circling the blade slowly
+// at different heights, each a soft heart trailing light; they circle it, so they are drawn in
+// true 3D round it (Sol's way); with its rays (part 1)
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec3(0.0); }
+  float L = uLength, t = uTime, s;
+  vec3 acc = vec3(0.0);
+  if (fxNear(ro, rd, L*0.15, L*0.95) > 5.0) return acc;
+  for (int j = 0; j < 4; j++){
+    float fj = float(j);
+    float best = 1e3, bs = 0.0;
+    vec3 prev = vec3(0.0);
+    for (int i = 0; i <= 10; i++){
+      float tt = t - float(i)*0.1;
+      vec3 p = around(2.4 + 0.4*sin(tt*0.6 + fj), tt*0.09 + fj/4.0, L*(0.25 + 0.18*fj) + 0.8*sin(tt*0.5 + fj*2.0));
+      if (i > 0){ float d = raySeg(ro, rd, prev, p, s); if (d < best){ best = d; bs = (float(i) - 1.0 + s)/10.0; } }
+      prev = p;
+    }
+    float tail = 1.0 - bs;
+    acc += (vec3(1.0)*halo(best, max(0.1, px))*pow(tail, 6.0)*1.8 + AR_GOLD*halo(best, 0.35 + 0.25*bs)*tail*0.9
+            + AR_GOLD*halo(best, 1.0)*0.15*tail);
+  }
+  return acc*uFx;
 }

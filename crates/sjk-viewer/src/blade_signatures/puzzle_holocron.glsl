@@ -1,6 +1,9 @@
 // Puzzle Holocron: a Jedi holocron's puzzle as a blade. The blade is cut into segments with glowing
 // seams; one at a time a segment lights, shifts and unlocks, light seeping out round it and a ring
-// of light opening at each of its seams; small motes of holocron light rise off it. A clash flares it.
+// of light opening at each of its seams; small motes of holocron light rise off it; round 16
+// (Creyon: better for its name and rarity): a small holocron, a glowing cube with a bright heart,
+// circles the blade in 3D turning slowly, its faces opening a little whenever a segment unlocks.
+// A clash flares it.
 // @part Unlocking light
 // @part Seam rings
 // @part Holocron motes
@@ -36,6 +39,44 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   }
   fx += fxMotes(ro, rd, px, y0, y1, 0.6, 2.4, 14.0, 0.035, 4.2, c)*0.8*part(2.0);
   // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
+  uKeep += fx*uFx;
+  return vec3(0.0);
+}
+
+// round 16: the holocron itself, a glowing cube with a bright heart circling the blade and turning
+// slowly, opening a little as a segment unlocks; it circles the blade, so it is drawn in true 3D
+// (Sol's way); with the unlocking light (part 0)
+vec3 ph_corner(float i, vec3 c, float h, float spin){
+  vec3 q = vec3(mod(i, 2.0) < 0.5 ? -h : h, mod(floor(i/2.0), 2.0) < 0.5 ? -h : h, floor(i/4.0) < 0.5 ? -h : h);
+  float cs = cos(spin), sn = sin(spin);
+  q = vec3(cs*q.x + sn*q.z, q.y, -sn*q.x + cs*q.z);
+  float c2 = cos(spin*0.6), s2 = sin(spin*0.6);
+  q = vec3(q.x, c2*q.y - s2*q.z, s2*q.y + c2*q.z);
+  return c + q;
+}
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(0.0) < 0.5) { return vec3(0.0); }
+  float L = uLength, t = uTime, s, ta;
+  vec3 fx = vec3(0.0);
+  vec3 c = around(2.4, t*0.08, L*0.7 + 0.6*sin(t*0.5));
+  if (rayPt(ro, rd, c, ta) > 2.5) return fx;
+  float open = sin(3.1416*fract(t*0.25));
+  float h = 0.45*(1.0 + 0.25*open);
+  float spin = t*0.7;
+  vec3 hc = vec3(0.6, 0.8, 1.0);
+  float best = 1e3;
+  for (int e = 0; e < 12; e++){
+    float fe = float(e);
+    // the twelve edges: along x (corners differing in bit 0), y (bit 1), z (bit 2)
+    float axis = floor(fe/4.0), k = mod(fe, 4.0);
+    float lo = axis < 0.5 ? k*2.0 : (axis < 1.5 ? mod(k, 2.0) + floor(k/2.0)*4.0 : k);
+    float hi = lo + (axis < 0.5 ? 1.0 : (axis < 1.5 ? 2.0 : 4.0));
+    best = min(best, raySeg(ro, rd, ph_corner(lo, c, h, spin), ph_corner(hi, c, h, spin), s));
+  }
+  fx += vec3(1.0)*halo(best, max(0.025, px))*1.1 + hc*halo(best, 0.12)*0.6;
+  float dc = rayPt(ro, rd, c, ta);
+  fx += (vec3(1.0)*halo(dc, max(0.08, px))*1.4 + hc*halo(dc, 0.4)*0.6)*(0.7 + 0.6*open);
+  // round 14: a chroma for the blade only; its effects keep their own colours
   uKeep += fx*uFx;
   return vec3(0.0);
 }

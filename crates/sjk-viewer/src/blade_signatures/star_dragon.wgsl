@@ -14,7 +14,8 @@
 // drawn on its tip. Round 15b (Creyon: mythicals must not look cheap): two great wings of light
 // open from its middle, feathered with soft rays sweeping out and down like an angel's, breathing
 // slowly. A swing brightens the light;
-// a clash flares the blade.
+// a clash flares the blade. Round 16: four orbs of the Ashla's light circle it slowly in 3D, each
+// trailing soft light, and its motes fade before the tip instead of being cut there.
 const AR_GOLD: vec3<f32> = vec3<f32>(1.0, 0.84, 0.5);
 
 const AR_PALE: vec3<f32> = vec3<f32>(1.0, 0.96, 0.85);
@@ -98,4 +99,41 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     // them gold)
     fx += ar_wings(ro, rd, px) * (0.8 + 0.4 * sw) * part(2.0);
     return col + fx * uFx;
+}
+
+// round 16 (Creyon: it needs a bit more): four orbs of the Ashla's light circling the blade slowly
+// at different heights, each a soft heart trailing light; they circle it, so they are drawn in
+// true 3D round it (Sol's way); with its rays (part 1)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(1.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    var acc: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, L * 0.15, L * 0.95) > 5.0 {
+        return acc;
+    }
+    for (var j = 0; j < 4; j++) {
+        let fj = f32(j);
+        var best: f32 = 1.0e3;
+        var bs: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i <= 10; i++) {
+            let tt = t - f32(i) * 0.1;
+            let p = around(2.4 + 0.4 * sin(tt * 0.6 + fj), tt * 0.09 + fj / 4.0, L * (0.25 + 0.18 * fj) + 0.8 * sin(tt * 0.5 + fj * 2.0));
+            if i > 0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bs = (f32(i) - 1.0 + s) / 10.0;
+                }
+            }
+            prev = p;
+        }
+        let tail = 1.0 - bs;
+        acc += (vec3<f32>(1.0) * halo(best, max(0.1, px)) * pow(tail, 6.0) * 1.8 + AR_GOLD * halo(best, 0.35 + 0.25 * bs) * tail * 0.9 + AR_GOLD * halo(best, 1.0) * 0.15 * tail);
+    }
+    return acc * uFx;
 }

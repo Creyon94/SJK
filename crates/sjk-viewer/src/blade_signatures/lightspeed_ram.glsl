@@ -6,7 +6,8 @@
 // fragments tumble slowly away and a pale blue haze hangs where it struck, until the stars
 // stream again. Before each ram, light is drawn in to the blade from all round it, faster
 // and faster; on a swing it leaves afterimages behind, as a ship does entering hyperspace.
-// A swing streams the starlines harder; a clash is a small ram of its own.
+// A swing streams the starlines harder; a clash is a small ram of its own. The cruiser's engines
+// glow blue at the hilt, washing light down past it, spooling up before the ram (round 16).
 // @part Starlines
 // @part The ram
 // @part Light split
@@ -126,6 +127,21 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   // a pale blue haze hanging where it struck, and the last wreckage drifting
   fx += fxSmoke(ro, rd, y0, y1, 3.4, 0.6, 2.7, vec3(0.45, 0.6, 0.9))*smoothstep(0.0, 0.3, since)*exp(-since*0.5)*1.2*part(3.0);
   fx += fxMotes(ro, rd, px, y0, y1, 1.0, 4.0, 18.0, 0.02, 5.5, pale)*exp(-since*0.35)*part(3.0);
+  // round 16 (Creyon: it was missing an effect): the cruiser's engines at the hilt, a ring of
+  // blue engine glows washing light down past it; they spool up brighter and faster while it
+  // holds its breath and blaze at the strike (with the starlines, part 0)
+  {
+    float s;
+    float spool = 1.0 + 2.0*hush + 3.0*flash;
+    float ta;
+    for (int i = 0; i < 3; i++){
+      float fi = float(i);
+      vec3 e = around(0.75, fi/3.0 + t*0.05, 0.6);
+      float de = rayPt(ro, rd, e, ta);
+      fx += (vec3(1.0)*halo(de, max(0.08, px))*1.2 + blue*halo(de, 0.45)*0.8 + blue*halo(de, 1.2)*0.2)*spool*0.6*part(0.0);
+    }
+    fx += fxFall(ro, rd, px, -7.0, 0.5, 1.2, 12.0, 16.0 + 20.0*hush, 1.3, 0.0, 6.6, blue)*(0.6 + 0.8*hush + flash)*part(0.0);
+  }
   // round 14 (Creyon): a chroma for the blade only; its effects keep their own colours
   uKeep += fx*uFx;
   return vec3(0.0);

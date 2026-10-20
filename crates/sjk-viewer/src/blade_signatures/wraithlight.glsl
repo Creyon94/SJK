@@ -95,6 +95,11 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   vec3 fx = vec3(0.0);
   fx += fxAura(ro, rd, y0, y1, 2.2, vec3(0.55, 0.75, 1.0))*0.35*part(0.0);
   fx += fxMotes(ro, rd, px, y0, y1, 1.5, 6.0, 24.0, 0.04, 2.9, vec3(0.85, 0.93, 1.0))*part(0.0);
+  // round 16 (Creyon: still missing an effect): cold spirit fire, pale ghost-flames licking up
+  // the blade fast and thin, and frost glittering where they pass
+  fx += fxSmoke(ro, rd, y0, y1, 1.3, 7.5, 5.7, vec3(0.55, 0.8, 1.0))*1.4*part(0.0);
+  fx += fxSmoke(ro, rd, y0, y1, 0.7, 9.0, 1.3, vec3(0.85, 0.95, 1.0))*1.0*part(0.0);
+  fx += fxFlakes(ro, rd, px, y0, y1, 2.2, 10.0, -1.2, 0.12, 0.9, 3.0, 0.3, 4.4, vec3(0.85, 0.95, 1.0))*part(0.0);
   return col + fx*uFx;
 }
 

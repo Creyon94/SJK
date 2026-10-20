@@ -4,13 +4,13 @@
 // 3D, droplets of molten beskar orbit and drip, forge sparks fly and the air shimmers with heat. A
 // swing flings a spray of silver droplets off the blade that arc away in 3D; a clash throws a ring
 // of droplets out with a shock ring; ignition pours the metal up from the hilt. Round 15 (Creyon:
-// it needed more): waves of forge heat glow orange-hot up through the mirror, its edges glow with
-// heat, molten drops fall glowing off the tip and a slow ring of heat shimmer rises round it.
+// it needed more; round 16: no forge fire): tendrils of liquid beskar reach out of the mirror,
+// curl and flow back into it, bright with reflections, as living metal.
 // @full 1
 // @part Forge sparks
 // @part Flung droplets
 // @part Orbiting droplets
-// @part Forge heat
+// @part Metal tendrils
 // @room 10
 // @solid 1
 
@@ -77,9 +77,6 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
     vec3 c = qs_env(slope, b.y, uTime);
     c *= 0.6 + 0.4*sqrt(max(1.0 - n*n, 0.0));
     c += vec3(1.0)*exp(-pow((b.y - mod(uTime*14.0, L + 10.0) + 4.0)/0.6, 2.0))*0.5;   // a sliding glint
-    // round 15: waves of forge heat rising through the metal, orange-hot, the edges hottest
-    float heat = pow(0.5 + 0.5*sin(b.y*0.22 - uTime*1.4), 4.0)*part(3.0);
-    c = mix(c, vec3(1.0, 0.45, 0.12)*(1.2 + 0.6*abs(n)), heat*(0.35 + 0.4*abs(n)));
     acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov));
   }
   // beads rolling up the blade, swelling at the tip and dripping off
@@ -165,21 +162,6 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
   col += fxSparks(ro, rd, px, y0, y1, 16.0 + 14.0*sw, 6.0, 1.0, 3.7, forge);
   col += fxAura(ro, rd, y0, y1, 2.6, silver)*0.6;
   col += fxShock(ro, rd, px, L*0.55, 1.0 - cl, 9.0, silver)*1.5;
-  // round 15: forge heat round it, molten drops falling glowing off the tip and the edges' glow
-  if (part(3.0) > 0.5){
-    vec3 hot = vec3(1.0, 0.45, 0.12);
-    col += fxAura(ro, rd, y0, y1, 1.4, hot)*0.5;
-    float s;
-    for (int i = 0; i < 6; i++){
-      float fi = float(i);
-      float q = fract(uTime*(0.45 + 0.2*h11(fi*3.1)) + h11(fi*5.7));
-      float side = h11(fi*2.3 + floor(uTime*(0.45 + 0.2*h11(fi*3.1)) + h11(fi*5.7))) < 0.5 ? -1.0 : 1.0;
-      vec3 p0 = vec3(side*(0.4 + 0.6*q), L - 7.0*q*q, 0.0);
-      vec3 p1 = p0 + vec3(-side*0.1, 0.6 + 1.6*q, 0.0);
-      float d = raySeg(ro, rd, p0, p1, s);
-      col += (vec3(1.0, 0.8, 0.5)*halo(d, max(0.06, px))*1.6*(1.0 - s) + hot*halo(d, 0.3)*0.6)*(1.0 - smoothstep(0.7, 1.0, q));
-    }
-  }
   return col*uFx;
 }
 // round 10: the droplets circling the blade, in true 3D (only orbits are; the rest is flat)
@@ -201,11 +183,48 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 }
 // round 11: sig_vol_solid gated by part 1
 vec4 sig_vol_solid(vec3 ro, vec3 rd, float px){
-  if (part(1.0) < 0.5) { return vec4(0.0); }
-  return base_vol_solid(ro, rd, px);
+  vec4 acc = vec4(0.0);
+  if (part(3.0) > 0.5 && uFx > 0.01) { acc = qs_tendrils(ro, rd, px); }
+  if (part(1.0) < 0.5) { return acc; }
+  vec4 d = base_vol_solid(ro, rd, px);
+  return vec4(mix(acc.rgb, d.rgb, d.a), max(acc.a, d.a));
 }
 // round 11: sig_orbit_solid gated by part 2
 vec4 sig_orbit_solid(vec3 ro, vec3 rd, float px){
   if (part(2.0) < 0.5) { return vec4(0.0); }
   return base_orbit_solid(ro, rd, px);
+}
+// round 16 (Creyon: no fire; another effect): tendrils of liquid beskar reach out of the blade,
+// curl and flow back into it, each a tapering mirror stroke catching a bright reflection that
+// slides along it; drawn flat facing the camera with the mirror's shading, over the glow
+vec4 qs_tendrils(vec3 ro, vec3 rd, float px){
+  vec4 acc = vec4(0.0);
+  float L = uLength, t = uTime, s;
+  if (fxNear(ro, rd, L*0.15, L) > 5.0) return acc;
+  for (int j = 0; j < 4; j++){
+    float fj = float(j);
+    float cyc = t*0.3 + h11(fj*3.7);
+    float k = floor(cyc), q = fract(cyc);
+    float reach = sin(3.1416*q);
+    float side = mod(fj, 2.0) < 0.5 ? -1.0 : 1.0;
+    float y0 = L*(0.25 + 0.6*h11(k*2.1 + fj));
+    vec3 prev = vec3(side*0.3, y0, 0.0);
+    float best = 1e3, bs = 0.0;
+    for (int i = 1; i <= 10; i++){
+      float u = float(i)/10.0*reach;
+      float curl = u*u*2.2*(h11(k*5.3 + fj) < 0.5 ? 1.0 : -1.0);
+      vec3 p = vec3(side*(0.3 + 2.6*u*cos(curl*0.5)), y0 + 1.6*u*sin(curl*0.5 + 0.6) + 0.3*sin(t*2.0 + u*6.0), 0.0);
+      float d = raySeg(ro, rd, prev, p, s);
+      if (d < best){ best = d; bs = (float(i) - 1.0 + s)/10.0; }
+      prev = p;
+    }
+    float w = mix(0.22, 0.05, bs)*(0.4 + 0.6*reach);
+    float cov = fillD(best - w, px)*step(0.02, reach);
+    if (cov <= 0.0) continue;
+    float n = clamp(best/max(w, 1e-3), 0.0, 1.0);
+    vec3 c = qs_env(n*0.9 - 0.2, y0 + bs*4.0, t)*(0.7 + 0.3*sqrt(max(1.0 - n*n, 0.0)));
+    c += vec3(1.0)*exp(-pow((bs - fract(t*0.8 + fj*0.3))/0.08, 2.0))*0.8;
+    acc = vec4(mix(acc.rgb, c, cov), max(acc.a, cov));
+  }
+  return acc;
 }

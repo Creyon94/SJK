@@ -1,3 +1,17 @@
+## Creyon's blades, round 16
+
+20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request): Creyon's review of rounds 15
+and 15b ([rendering.md](rendering.md#blade-lab-signature-shaders), round 16): motes no longer cut
+at the tip, older pack sections no longer reach a signature (Death Star Plans through the hilt),
+Felucia's spores follow a new world-motion `stir`, Mortis turns on its ghost blades' folds,
+Hyperspace's coils back slower in 3D, Between Worlds after the picture he sent, and reworks or
+additions for Holdo, Wraithlight, Ashla, Bleeding Kyber, eleven legendaries and five rares.
+
+Checked on Linux x86_64 (Rust 1.97, lavapipe): unit tests for `stir` and for a pack's sketch not
+reaching a signature, every signature module validates, the ignored GPU test renders the changed
+ones (sheets looked at); workspace checks in the pull request. Not verified: in Creyon's game, the
+motes at the tip seen close, the spores while running in a game, frame time.
+
 ## Creyon's blades, round 15
 
 20/10/2026, `feat/creyon-blade-signatures` (Creyon, SJK pull request), on `835cc2d5`: Creyon's

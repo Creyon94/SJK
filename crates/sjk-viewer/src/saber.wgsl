@@ -1903,12 +1903,19 @@ fn skin_glow_at(input: VertexOutput, pixel: f32, x: f32) -> vec3<f32> {
         }
         if skin.mote_field.x > 0.0 {
             var unclamped = input.blade.y / max(input.shaft, 0.0001) * input.length;
+            var mote_around = around;
+            var mote_out = radial / r;
             if skin.design.x == f32(LAB_SIGNATURE) {
                 // along the blade itself, as `sig_arcs` (round 12)
-                unclamped = blade_place(input).y;
+                let place = blade_place(input);
+                unclamped = place.y;
+                // Round 16 (Creyon: a signature's motes were cut in half at the tip): straight
+                // on past the tip, not round its end, whose seam split a mote crossing it.
+                mote_around = place.y;
+                mote_out = abs(place.x) / r;
             }
-            let motes = skin_motes(skin, around, radial / r, x < 0.0, unclamped, input.length,
-                time, seed);
+            let motes = skin_motes(skin, mote_around, mote_out, x < 0.0, unclamped,
+                input.length, time, seed);
             glow += motes * room * skin.mote_color.rgb * skin.mote_color.w;
         }
     }

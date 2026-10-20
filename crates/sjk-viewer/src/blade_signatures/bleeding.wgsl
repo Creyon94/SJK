@@ -91,51 +91,52 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         return col;
     }
     var ta: f32;
-    // ---- Sith lightning cracking out into the air from the bleeding part (round 14) ----
-    // forked bolts lashing out, each striking with a flash at the blade, flickering while it
-    // lives and fading; a steady clock per bolt, so nothing races when turning or running
+    // ---- Sith lightning (round 16, Creyon: it looked like drawings) ----
+    // the corruption's lightning crawls over the bleeding part, hugging the blade: arcs leap from
+    // one place on it to another a few units up, bowing out a little, flickering fast and glowing
+    // hot, a crackle of many at once; now and then one lashes out further, forking, with a flash
     let ylo = max(y0, 1.0);
     let yhi = max(lv, ylo + 3.0);
-    for (var i = 0; i < 9; i++) {
+    for (var i = 0; i < 7; i++) {
         let fi = f32(i);
-        let rate = 0.7 + 0.4 * h11(fi * 2.7);
+        let cyc = t * (2.2 + 1.3 * h11(fi * 2.7)) + h11(fi * 3.1) * 5.0;
+        let k = floor(cyc);
+        let q = fract(cyc);
+        let ya = mix(ylo, yhi - 1.0, h11(k * 2.3 + fi));
+        let yb = min(ya + 1.5 + 3.0 * h11(k * 4.1 + fi), yhi + 1.0);
+        let a = h11(k * 5.1 + fi * 1.7);
+        let c0 = around(0.3, a, ya);
+        let c1 = around(0.3, a + 0.15 * (h11(k * 7.0 + fi) - 0.5), yb);
+        let mid = around(0.9 + 0.8 * h11(k * 9.3 + fi), a + 0.05, mix(ya, yb, 0.5));
+        let d = min(bolt3(ro, rd, c0, mid, k * 1.91 + fi * 1.37 + floor(t * 24.0) * 0.13, 0.45), bolt3(ro, rd, mid, c1, k * 2.71 + fi * 0.77 + floor(t * 24.0) * 0.29, 0.45));
+        let flick = step(0.25, h11(floor(t * 30.0) + fi * 7.7));
+        let life = sin(3.1416 * q) * flick * part(0.0);
+        red += (vec3<f32>(1.0, 0.92, 0.95) * halo(d, max(px, 0.03)) * 2.6 + vec3<f32>(1.0, 0.25, 0.3) * halo(d, 0.12) * 1.6 + BK_RED * halo(d, 0.5) * 0.55 + BK_RED * halo(d, 1.4) * 0.12) * life;
+    }
+    for (var i = 0; i < 3; i++) {
+        let fi = f32(i);
+        let rate = 0.5 + 0.3 * h11(fi * 2.7);
         let cyc = t * rate + h11(fi * 3.1) * 5.0;
         let k = floor(cyc);
         let q = fract(cyc);
-        if q > 0.6 {
+        if q > 0.35 {
             continue;
         }
         let y = mix(ylo, yhi, h11(k * 2.3 + fi));
         let a = h11(k * 5.1 + fi * 1.7);
-        // within the blade's room (10 units, `@room`) with its forks and glow
-        let reach = (5.0 + 3.0 * h11(k + fi * 4.0)) * (1.0 + 0.1 * cl);
+        let reach = 4.5 + 2.5 * h11(k + fi * 4.0);
         let a0 = around(0.35, a, y);
-        let a1 = around(0.35 + reach, a + 0.1 * (h11(k * 7.0 + fi) - 0.5), y + (h11(k * 3.3 + fi) - 0.2) * reach * 1.1);
+        let a1 = around(0.35 + reach, a + 0.1 * (h11(k * 7.0 + fi) - 0.5), y + (h11(k * 3.3 + fi) - 0.3) * reach);
         if rayPt(ro, rd, (a0 + a1) * 0.5, &ta) > reach + 3.0 {
             continue;
         }
-        let life = q / 0.6;
-        let grow = smoothstep(0.0, 0.12, life);
-        let fade = 1.0 - smoothstep(0.55, 1.0, life);
-        let flick = 0.65 + 0.35 * step(0.4, h11(floor(t * 18.0) + fi * 7.7));
-        let d = bk_bolt(ro, rd, a0, mix(a0, a1, grow), k * 1.91 + fi * 1.37, 0.3);
-        let lit = fade * flick * part(0.0);
-        red += (vec3<f32>(1.0, 0.85, 0.88) * halo(d, max(px, 0.045)) * 2.0 + BK_RED * halo(d, 0.22) * 1.4 + BK_RED * halo(d, 0.9) * 0.35) * lit;
-        // the strike: a flash where it leaves the blade
-        red += (vec3<f32>(1.0, 0.7, 0.75) * halo(rayPt(ro, rd, a0, &ta), 0.35) * 1.2 + BK_RED * halo(rayPt(ro, rd, a0, &ta), 1.4) * 0.35) * (1.0 - smoothstep(0.0, 0.3, life)) * part(0.0);
-    }
-    // crawling arcs: small arcs of corruption creeping over the bleeding part of the blade
-    for (var i = 0; i < 4; i++) {
-        let fi = f32(i);
-        let cyc = t * 1.6 + fi * 0.25;
-        let k = floor(cyc);
-        let q = fract(cyc);
-        let y = mix(ylo, max(lv - 1.0, ylo + 1.0), h11(k * 3.7 + fi * 5.3));
-        let a = h11(k * 1.3 + fi * 2.9);
-        let c0 = around(0.45, a, y);
-        let c1 = around(0.45, a + 0.25 * (h11(k * 9.1 + fi) - 0.5), y + 2.0 + 2.5 * h11(k * 4.4 + fi));
-        let d = bolt3(ro, rd, c0, c1, k * 3.3 + fi + floor(t * 12.0) * 0.37, 0.35);
-        red += (vec3<f32>(1.0, 0.75, 0.8) * halo(d, max(px, 0.025)) * 1.1 + BK_RED * halo(d, 0.12) * 0.8) * sin(3.1416 * q) * part(0.0);
+        let life = q / 0.35;
+        let grow = smoothstep(0.0, 0.15, life);
+        let fade = 1.0 - smoothstep(0.5, 1.0, life);
+        let flick = 0.55 + 0.45 * step(0.35, h11(floor(t * 30.0) + fi * 7.7));
+        let d = bk_bolt(ro, rd, a0, mix(a0, a1, grow), k * 1.91 + fi * 1.37 + floor(t * 12.0) * 0.21, 0.3);
+        red += (vec3<f32>(1.0, 0.92, 0.95) * halo(d, max(px, 0.04)) * 2.4 + vec3<f32>(1.0, 0.25, 0.3) * halo(d, 0.16) * 1.4 + BK_RED * halo(d, 0.7) * 0.45 + BK_RED * halo(d, 1.8) * 0.12) * fade * flick * part(0.0);
+        red += (vec3<f32>(1.0, 0.7, 0.75) * halo(rayPt(ro, rd, a0, &ta), 0.4) * 1.4) * (1.0 - smoothstep(0.0, 0.3, life)) * part(0.0);
     }
     // ---- drops of red light bleeding off the corrupted part (round 15, Creyon: the sparks
     // looked cheap) ----
@@ -188,6 +189,13 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let ya = min(lv + 2.0, y1 - 2.0);
     col += fxMotes(ro, rd, px, ya, y1, 1.0, 5.0, 30.0, 0.07, 3.6, BK_WHITE) * part(2.0);
     col += fxAura(ro, rd, ya, y1, 3.0, BK_WHITE) * 0.5 * part(2.0);
+    // round 16 (Creyon: the pure part needs more): beams of pure light flash out of it and push
+    // back, and where red meets white the two fight in a spray of sparks of both colours
+    col += fxRays(ro, rd, px, ya, y1, 6.0, 3.2, 0.9, 7.7, BK_WHITE) * part(2.0);
+    col += fxSparks(ro, rd, px, lv - 0.8, lv + 0.8, 10.0, 2.6, 1.6, 2.9, BK_WHITE) * part(2.0);
+    red += fxSparks(ro, rd, px, lv - 0.8, lv + 0.8, 8.0, 2.2, 1.4, 5.3, BK_RED) * part(0.0);
+    let dfront = rayPt(ro, rd, vec3(0.0, lv, 0.0), &ta);
+    col += BK_WHITE * halo(dfront, 0.9) * 0.6 * part(2.0);
     // the front: a ring of struggle where red meets white
     // the aura: red round the bleeding part, white above
     let dlo = fxNear(ro, rd, 0.0, lv);

@@ -36,6 +36,16 @@ const SWING_EVERY: i64 = 1_000;
 /// A blade unseen this long (milliseconds) was put away; seen again, it is lit anew.
 const UNSEEN: i64 = 250;
 
+/// The tip's speed in the world (units a second, at [`SWING_REACH`]) that stirs a blade fully
+/// ([`BladeMotion::stir`]): about a run's (JKA runs at 250), and a speed under
+/// [`STIR_IDLE`] (an idle stance's sway) stirs it not at all.
+const STIR_FULL: f32 = 200.0;
+const STIR_IDLE: f32 = 40.0;
+/// Seconds the stir takes to rise most of the way to a new speed, and to fall back once the
+/// blade is still (slower, so its effects stay out a moment before settling).
+const STIR_RISE: f32 = 0.3;
+const STIR_FALL: f32 = 1.4;
+
 /// How near (units) a clash must be to a blade for it to be that blade's.
 const CLASH_REACH: f32 = 12.0;
 
@@ -77,6 +87,9 @@ pub(crate) struct BladeMotion {
     /// Its tips of the last frames and when (a ring, [`SWING_TURN`]).
     recent: [Option<([f32; 3], i64)>; RECENT],
     recent_next: usize,
+    /// Its tip in the world last seen, and how stirred it is ([`Self::stir`]).
+    world_tip: Option<[f32; 3]>,
+    stir: f32,
 }
 
 /// What the lit lane reports while the blade goes out: this plus the seconds since it
@@ -135,6 +148,28 @@ impl BladeMotion {
             let frames = seconds * 60.0;
             let rate = if target > self.swing { RISE } else { FALL };
             self.swing += (target - self.swing) * (1.0 - (1.0 - rate).powf(frames));
+            // How much it moves in the world: running carries it as a swing does.
+            let world = [
+                blade.base[0] + blade.direction[0] * SWING_REACH,
+                blade.base[1] + blade.direction[1] * SWING_REACH,
+                blade.base[2] + blade.direction[2] * SWING_REACH,
+            ];
+            let speed = self.world_tip.map_or(0.0, |last| {
+                ((world[0] - last[0]).powi(2)
+                    + (world[1] - last[1]).powi(2)
+                    + (world[2] - last[2]).powi(2))
+                .sqrt()
+                    / seconds
+            });
+            let stirred = ((speed - STIR_IDLE) / (STIR_FULL - STIR_IDLE))
+                .clamp(0.0, 1.0)
+                .max(self.swing);
+            let tau = if stirred > self.stir {
+                STIR_RISE
+            } else {
+                STIR_FALL
+            };
+            self.stir += (stirred - self.stir) * (1.0 - (-seconds / tau).exp());
             let attack = attacking.unwrap_or_else(|| self.turned(tip, now));
             if !self.swinging && self.swing > SWING_BEGINS && attack {
                 self.swinging = true;
@@ -167,6 +202,11 @@ impl BladeMotion {
         }
         self.length = blade.length;
         self.tip = Some(tip);
+        self.world_tip = Some([
+            blade.base[0] + blade.direction[0] * SWING_REACH,
+            blade.base[1] + blade.direction[1] * SWING_REACH,
+            blade.base[2] + blade.direction[2] * SWING_REACH,
+        ]);
         self.seen = now;
         self.recent[self.recent_next] = Some((tip, now));
         self.recent_next = (self.recent_next + 1) % RECENT;
@@ -192,6 +232,13 @@ impl BladeMotion {
     pub(crate) fn lingering(&self, now: i64, linger: f32) -> Option<[f32; 4]> {
         let since = (now - self.going_out?).max(0) as f32 * 0.001;
         (since < linger).then_some([-1.0, SETTLED, GOING_OUT + since, SETTLED])
+    }
+
+    /// How stirred the blade is, 0 (still) to 1, rising quickly while it moves in the world,
+    /// running or swinging, and falling back slowly once it is still ([`STIR_FALL`]); smooth
+    /// either way, so what answers it never jumps.
+    pub(crate) fn stir(&self) -> f32 {
+        self.stir
     }
 
     /// A clash at `now`.
@@ -417,5 +464,48 @@ mod tests {
         other.record(far_blade, 0, false);
         note_clash([5_020.0, 4.0, 0.0]);
         assert_eq!(other.record(far_blade, 16, false)[1], SETTLED);
+    }
+
+    /// Round 16: running stirs a blade as a swing does, smoothly, and standing still lets it
+    /// settle back slowly; the swing itself is not set off by running.
+    #[test]
+    fn running_stirs_the_blade_and_standing_still_settles_it() {
+        let mut motion = BladeMotion::default();
+        let mut at = 0;
+        motion.record(blade(0.0), at, false);
+        let mut last = 0.0;
+        for _ in 0..60 {
+            at += 16;
+            let mut running = blade(0.0);
+            running.base = [at as f32 * 0.25, 0.0, 0.0];
+            let m = motion.record(running, at, false);
+            assert!(motion.stir() >= last, "it rises without jumping back");
+            last = motion.stir();
+            assert!(m[0] < 0.1, "running is no swing");
+        }
+        assert!(
+            motion.stir() > 0.9,
+            "a run stirs it fully: {}",
+            motion.stir()
+        );
+        let base = [at as f32 * 0.25, 0.0, 0.0];
+        for frame in 0..30 {
+            at += 16;
+            let mut still = blade(0.0);
+            still.base = base;
+            motion.record(still, at, false);
+            assert!(motion.stir() <= last, "it falls without jumping");
+            if frame == 0 {
+                assert!(motion.stir() > 0.8, "and slowly");
+            }
+            last = motion.stir();
+        }
+        for _ in 0..300 {
+            at += 16;
+            let mut still = blade(0.0);
+            still.base = base;
+            motion.record(still, at, false);
+        }
+        assert!(motion.stir() < 0.05, "standing still settles it");
     }
 }

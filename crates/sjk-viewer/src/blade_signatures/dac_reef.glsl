@@ -1,12 +1,16 @@
 // Dac Reef: the coral reefs of Dac, the Mon Calamari world, as a blade. Branches of glowing sea-green coral grow
 // off both sides, swaying gently with pink-lit tips, and small bubbles drift up past them. A
-// clash sends a ring through the water.
+// clash sends a ring through the water. Round 16 (Creyon: better for its name and rarity): a school
+// of little glowing reef fish circles the blade in 3D, darting and turning together, and light
+// ripples over it as through water.
 // @part Coral and bubbles
+// @part Reef fish
 // @room 8
 // @palette {"corona.rim_cool":[0.0,0.35,0.45],"corona.rim_hot":[0.3,0.95,0.95],"corona.inner":[0.8,1.0,1.0],"core.white":[0.92,1.0,1.0],"core.fringe_cool":[0.25,0.85,0.9],"core.fringe_hot":[0.78,1.0,1.0],"light.color":[0.3,0.9,0.95],"trail":[0.3,0.9,0.95]}
 
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  return g*(0.9 + 0.15*bands(b.y, 0.06, 0.4));
+  float caust = pow(0.5 + 0.5*sin(b.y*0.8 - uTime*1.3 + 2.0*sin(b.x*6.0 + uTime*0.7)), 4.0);
+  return g*(0.85 + 0.15*bands(b.y, 0.06, 0.4) + 0.35*caust);
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 // the effects, flat round the blade as Sol's are
@@ -40,4 +44,26 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     }
   }
   return fx*uFx*part(0.0);
+}
+
+// round 16: a school of little glowing fish circling the blade together, each a short bright body
+// with a tail flicking; they circle it, so they are drawn in true 3D (Sol's way)
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec3(0.0); }
+  float L = uLength, t = uTime, s;
+  vec3 fx = vec3(0.0);
+  if (fxNear(ro, rd, L*0.2, L*0.9) > 4.5) return fx;
+  float a0 = t*0.18;
+  float yc = L*(0.55 + 0.2*sin(t*0.3));
+  for (int i = 0; i < 9; i++){
+    float fi = float(i);
+    float a = a0 + 0.06*(h11(fi*2.3) - 0.5) - 0.02*fi;
+    float R = 2.3 + 0.5*(h11(fi*4.1) - 0.5) + 0.2*sin(t*1.7 + fi);
+    float y = yc + 1.6*(h11(fi*6.7) - 0.5) + 0.3*sin(t*2.3 + fi*1.3);
+    vec3 head = around(R, a, y), tail = around(R, a - 0.035, y + 0.06*sin(t*12.0 + fi));
+    float d = raySeg(ro, rd, tail, head, s);
+    vec3 c = mod(fi, 3.0) < 0.5 ? vec3(1.0, 0.55, 0.3) : (mod(fi, 3.0) < 1.5 ? vec3(0.4, 1.0, 0.9) : vec3(1.0, 0.85, 0.4));
+    fx += (vec3(1.0)*halo(d, max(0.04, px))*0.8*s + c*halo(d, max(0.1, px))*0.9 + c*halo(d, 0.35)*0.12);
+  }
+  return fx*uFx;
 }

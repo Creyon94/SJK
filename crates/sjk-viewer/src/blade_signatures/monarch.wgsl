@@ -5,9 +5,9 @@
 // @palette {"corona.rim_cool":[0.30,0.35,0.02],"corona.rim_hot":[0.95,0.80,0.15],"corona.inner":[1.0,0.95,0.60],"core.white":[1.0,0.98,0.85],"core.fringe_cool":[0.70,0.85,0.20],"core.fringe_hot":[1.0,0.92,0.50],"light.color":[0.90,0.85,0.30],"trail":[0.90,0.85,0.35]}
 
 // Felucia Spores: the glowing fungal jungle of Felucia as a blade. A warm amber-green blade
-// breathing with bioluminescent rings that pulse up it; glowing spores grow on it, rest there
-// breathing, then lift off smoothly and drift away round it in slow spirals while new ones grow,
-// as if alive; luminous filaments wave off its surface and now and then a spore pod bursts off it
+// breathing with bioluminescent rings that pulse up it; glowing puffball spores rest on it while
+// its wearer stands idle, lift off and swarm round it, following it, when they run or swing, and
+// fly back to settle on it once they stand still (round 16); luminous filaments wave off its surface and now and then a spore pod bursts off it
 // in a puff of light that rains spores. A swing brightens the spores; a clash bursts a huge cloud
 // of them.
 fn fs_top() -> f32 {
@@ -28,36 +28,6 @@ fn base_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var col: vec3<f32> = vec3<f32>(0.0);
     if top < 0.5 {
         return col;
-    }
-    // spores: glowing spores grow on the blade, rest there breathing, then lift off smoothly and
-    // drift away round it in a slow spiral, fading, while new ones grow (Creyon's round 15: they
-    // flickered off whenever the swing was counted again, running above all; now each lives its
-    // own cycle on the clock alone, the same standing or running, and a swing only brightens them)
-    for (var i = 0; i < 44; i++) {
-        let fi = f32(i);
-        let per = 4.5 + 2.5 * h11(fi * 1.7);
-        let ph = t / per + h11(fi * 3.3);
-        let k = floor(ph);
-        let f = fract(ph);
-        // a new spore each cycle, born where the last one cannot be seen (it fades in on the blade)
-        let yr = (0.06 + 0.9 * h11(fi * 3.1 + k * 1.37)) * top;
-        let ar = h11(fi * 1.3 + k * 2.11);
-        let rest = 0.75 + 0.25 * h11(fi * 2.7);
-        let bob = 0.05 * sin(t * 1.7 + fi * 2.1);
-        let u = smoothstep(0.3, 1.0, f);
-        let sgn = select(1.0, -1.0, h11(fi * 9.3 + k) < 0.5);
-        let out = u * (1.8 + 3.2 * h11(fi * 7.7 + k));
-        let spin = u * (0.12 + 0.18 * h11(fi * 5.1)) * sgn;
-        let rise = u * (1.2 + 2.2 * h11(fi * 4.1 + k));
-        let a = ar + spin + 0.03 * sin(t * 0.9 + fi) * u;
-        let p = around(rest + bob + out, a, yr + rise);
-        // a short trail behind it as it drifts (none while it rests)
-        let p0 = around(rest + bob + out * 0.88, a - spin * 0.1, yr + rise * 0.86);
-        let d = raySeg(ro, rd, p0, p, &s);
-        let life = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.7, 1.0, f));
-        let tw = 0.65 + 0.35 * sin(t * (1.5 + 1.5 * h11(fi)) + fi * 2.0);
-        let sc = fs_col(h11(fi * 8.8));
-        col += (vec3<f32>(1.0) * halo(d, max(0.06, px)) * (0.8 + 0.8 * tw) + sc * halo(d, max(0.16, px)) * (1.4 + 1.2 * tw) + sc * halo(d, 0.5) * 0.3) * life * (1.0 + 0.4 * sw);
     }
     // drifting spore dust round it all the time
     col += fxMotes(ro, rd, px, top * 0.1, top, 1.0, 5.0, 24.0, 0.05, 2.7, vec3<f32>(0.8, 1.0, 0.4));
@@ -124,4 +94,55 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     }
     // round 15 (Creyon): no longer a chroma (it hid the spores' colours); its own colours
     return base_vol(ro, rd, px);
+}
+
+// the spores circle the blade, so they are drawn in true 3D round it (`sig_orbit`, Sol's way)
+fn fs_spores(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    let t = uTime;
+    let top = fs_top();
+    var s: f32;
+    var ta: f32;
+    let sw = clamp(uSwing, 0.0, 1.0);
+    var col: vec3<f32> = vec3<f32>(0.0);
+    if top < 0.5 || fxNear(ro, rd, 0.0, top) > 6.5 {
+        return col;
+    }
+    // spores (round 16, Creyon): they rest on the blade while its wearer stands idle; running or
+    // swinging, they lift off and swarm round it, following it; standing still again they fly
+    // back and settle on it. `uSince` carries how stirred the blade is, 0 to 1, smooth both ways
+    // (`saber_motion.rs` `stir`, `blade_lab_designs.rs` `STIRRED`); each spore leaves and lands at
+    // its own moment of it. Each is a puffball: a bright heart in a soft fuzzy ball with a fine
+    // ring, trailing a little light when it flies.
+    let stir = select(0.0, clamp(uSince, 0.0, 1.0), uSince <= 1.0);
+    for (var i = 0; i < 40; i++) {
+        let fi = f32(i);
+        let hs = h11(fi * 6.3);
+        var e = smoothstep(hs * 0.45, hs * 0.45 + 0.55, stir);
+        e = e * e * (3.0 - 2.0 * e);
+        let yr = (0.06 + 0.9 * h11(fi * 3.1)) * top;
+        let ar = h11(fi * 1.3);
+        let rest = 0.6 + 0.12 * h11(fi * 2.7) + 0.04 * sin(t * 1.7 + fi * 2.1);
+        let sgn = select(1.0, -1.0, h11(fi * 9.3) < 0.5);
+        let spin = (0.12 + 0.2 * h11(fi * 5.1)) * sgn;
+        let rf = 1.6 + 3.0 * h11(fi * 7.7);
+        let fly = around(rf + 0.3 * sin(t * 1.1 + fi), ar + t * spin, yr + 1.2 * sin(t * 0.7 + fi * 1.9) + 0.6);
+        let fly0 = around(rf + 0.3 * sin(t * 1.1 - 0.2 + fi), ar + (t - 0.25) * spin, yr + 1.2 * sin((t - 0.25) * 0.7 + fi * 1.9) + 0.6);
+        let rest3 = around(rest, ar, yr);
+        let p = mix(rest3, fly, e);
+        let p0 = mix(rest3, fly0, e);
+        let d = raySeg(ro, rd, p0, p, &s);
+        let dp = rayPt(ro, rd, p, &ta);
+        let tw = 0.7 + 0.3 * sin(t * (1.5 + 1.5 * h11(fi)) + fi * 2.0);
+        let sc = fs_col(h11(fi * 8.8));
+        let size = 0.16 + 0.08 * h11(fi * 4.4);
+        col += (vec3<f32>(1.0) * halo(dp, max(0.05, px)) * (0.9 + 0.6 * tw) + sc * halo(dp, max(size, px)) * (1.3 + tw) + sc * halo(abs(dp - size * 1.6), 0.04) * 0.7 + sc * halo(dp, 0.55) * 0.25 + sc * halo(d, max(0.05, px)) * 0.7 * e) * (1.0 + 0.4 * sw);
+    }
+    return col;
+}
+
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(0.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    return fs_spores(ro, rd, px) * uFx;
 }

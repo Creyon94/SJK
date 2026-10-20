@@ -2,7 +2,7 @@
 // script again.
 // @part Nebula
 // @part Drifting stars
-// @part Far galaxy
+// @part Hyperspace storm
 // @room 8
 // @palette {"corona.rim_cool":[0.15,0.05,0.4],"corona.rim_hot":[0.6,0.3,1.0],"corona.inner":[0.12,0.04,0.3],"core.white":[0.45,0.3,0.8],"core.fringe_cool":[0.35,0.15,0.9],"core.fringe_hot":[0.7,0.5,1.0],"light.color":[0.5,0.3,1.0],"trail":[0.5,0.3,1.0]}
 
@@ -33,18 +33,45 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     let w: vec3<f32> = vec3<f32>(0.85, 0.85, 1.0);
     fx += fxSmoke(ro, rd, y0, y1, 4.0, 0.6, 8.8, v) * 1.1 * part(0.0);
     fx += fxMotes(ro, rd, px, y0, y1, 0.8, 4.5, 28.0, 0.015, 3.9, w) * 0.8 * part(1.0);
-    // the far galaxy: two spiral arms round a bright heart, tilted, turning slowly
-    var ta: f32;
-    let gc = vec3(-3.4, L * 0.7, 0.0);
-    let dg = rayPt(ro, rd, gc, &ta);
-    if dg < 4.0 {
-        let q = ro + rd * ta - gc;
-        let e = rot(t * 0.12) * vec2(q.x, q.y * 1.8) / 1.5;
-        let r = length(e);
-        let an = atan2(e.y, e.x);
-        let arms = pow(0.5 + 0.5 * cos(2.0 * an - 4.2 * log(max(r, 0.05))), 3.0);
-        let g = arms * exp(-r * 1.3) * smoothstep(0.05, 0.3, r) + exp(-r * r * 18.0) * 1.4;
-        fx += (mix(v, w, exp(-r * 2.0)) * g * 2.2 + w * halo(dg, max(0.07, px)) * 1.2) * part(2.0);
+    return fx * uFx;
+}
+
+// round 16: the hyperspace storm: three streams of glowing gas whirling round the blade on tilted
+// paths, each a long soft ribbon fading behind its head, sparks of light caught in them; they
+// circle the blade, so they are drawn in true 3D (Sol's way)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(2.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, L * 0.15, L * 0.95) > 6.0 {
+        return fx;
+    }
+    for (var j = 0; j < 3; j++) {
+        let fj = f32(j);
+        var best: f32 = 1.0e3;
+        var bs: f32 = 0.0;
+        var prev: vec3<f32> = vec3<f32>(0.0);
+        for (var i = 0; i <= 14; i++) {
+            let tt = t * 0.8 - f32(i) * 0.09 + fj * 2.1;
+            let a = tt * 0.14 + fj / 3.0;
+            let p = around(2.2 + 0.9 * sin(tt * 0.5 + fj), a, L * (0.55 + 0.3 * sin(tt * 0.23 + fj * 1.7)) + 2.0 * sin(a * 6.2832 + fj));
+            if i > 0 {
+                let d = raySeg(ro, rd, prev, p, &s);
+                if d < best {
+                    best = d;
+                    bs = (f32(i) - 1.0 + s) / 14.0;
+                }
+            }
+            prev = p;
+        }
+        let tail = 1.0 - bs;
+        let c = select(vec3<f32>(0.6, 0.3, 1.0), vec3<f32>(0.35, 0.5, 1.0), j == 1);
+        let spark = step(0.8, h11(floor(bs * 20.0) + floor(t * 4.0) + fj * 9.0));
+        fx += (c * halo(best, 0.25 + 0.5 * bs) * tail * 0.9 + vec3<f32>(0.9, 0.85, 1.0) * halo(best, max(0.05, px)) * (pow(tail, 5.0) * 1.5 + spark * tail));
     }
     return fx * uFx;
 }

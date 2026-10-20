@@ -113,8 +113,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float L = uLength, t = uTime, sw = clamp(uSwing, 0.0, 1.0), cl = clamp(uClash, 0.0, 1.0);
   float y0 = L*0.2, y1 = L*0.97;
   vec3 fx = vec3(0.0);
-  // round 15 (Creyon): no coils (four at 1.4 turns a second whirled into a fast lattice, and
-  // coils made it look like the Reactor and the Uneti Tree); its tunnel is part 1
+  // round 15: its coils left sig_vol; round 16 brings them back slower, in 3D (`sig_orbit`)
   // round 15 (Creyon): the streaks and the tunnel take the wearer's colour with the blade
   // (a red blade inside a blue tunnel looked wrong); their white-hot heads stay white
   return col + fx*uFx;
@@ -123,3 +122,35 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
 // round 15 (Creyon: some blades glowed so much their effects hardly showed): its glow at
 // 65 %, so what is drawn round it reads
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){ return sig_glow_own(g, b, r, px)*0.65; }
+
+// round 16 (Creyon: the twirling was fine, but cropped and far too fast): the coils back, three
+// strands of light wound round the blade, turning slowly (0.25 turns a second, were 1.4) with
+// knots of light running gently along them; they circle the blade, so they are drawn in true 3D
+// round it (`sig_orbit`, Sol's way) and seen whole from every side
+vec3 sig_orbit(vec3 ro, vec3 rd, float px){
+  if (part(1.0) < 0.5) { return vec3(0.0); }
+  float L = uLength, t = uTime, s;
+  float y0 = L*0.12, y1 = L*0.92, R = 2.4;
+  vec3 acc = vec3(0.0);
+  if (fxNear(ro, rd, y0, y1) > R + 1.5) return acc;
+  for (int j = 0; j < 3; j++){
+    float fj = float(j);
+    float best = 1e3, bf = 0.0;
+    vec3 prev = vec3(0.0);
+    for (int i = 0; i <= 28; i++){
+      float f = float(i)/28.0;
+      float y = mix(y0, y1, f);
+      vec3 p = around(R*(0.9 + 0.1*sin(f*9.0 + t*0.8 + fj)), y*0.07 - t*0.25 + fj/3.0, y);
+      if (i > 0){
+        float d = raySeg(ro, rd, prev, p, s);
+        if (d < best){ best = d; bf = (float(i) - 1.0 + s)/28.0; }
+      }
+      prev = p;
+    }
+    float knot = pow(0.5 + 0.5*sin(bf*24.0 - t*2.5 + fj*2.0), 6.0);
+    float ends = smoothstep(0.0, 0.1, bf)*(1.0 - smoothstep(0.88, 1.0, bf));
+    vec3 c = vec3(0.35, 0.6, 1.0);
+    acc += (vec3(1.0)*halo(best, max(0.05, px))*(0.4 + 1.2*knot) + c*halo(best, 0.28)*(0.5 + knot) + c*halo(best, 0.9)*0.12)*ends;
+  }
+  return acc*uFx*min(hy_stretch(), 1.0);
+}

@@ -2,14 +2,21 @@
 // script again.
 // @part Thorns
 // @part Petals
+// @part Thorned vine
 // @room 8
 // @palette {"corona.rim_cool":[0.35,0.0,0.05],"corona.rim_hot":[0.95,0.12,0.22],"corona.inner":[0.45,0.05,0.08],"core.white":[1.0,0.7,0.72],"core.fringe_cool":[0.9,0.1,0.2],"core.fringe_hot":[1.0,0.55,0.6],"light.color":[0.9,0.1,0.2],"trail":[0.9,0.1,0.2]}
 
 // Sith Thorn: a thorned stem grown in the dark side, as a blade. A deep crimson blade with sharp
 // thorns of light jutting off both sides, and red petals of light drifting slowly down off it,
-// turning as they fall. A clash flares it.
+// turning as they fall; round 16 (Creyon: better for its name and rarity): dark veins pulse up
+// the blade, its thorns flare in a wave as the pulse passes, and a black thorned vine coils round
+// it in 3D, its thorns tipped with red light. A clash flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    return g * (0.9 + 0.15 * bands(b.y, 0.05, 0.3));
+    // dark veins branching through the crimson, a pulse of dark power climbing them
+    var cell: vec2<f32>;
+    let vein = halo(voro(vec2(b.x * 4.0, b.y * 0.6), &cell), 0.05);
+    let pulse = pow(0.5 + 0.5 * sin(b.y * 0.25 - uTime * 2.2), 6.0);
+    return g * (0.9 + 0.15 * bands(b.y, 0.05, 0.3)) * (1.0 - 0.45 * vein) + lvl(g) * vec3<f32>(1.0, 0.1, 0.15) * vein * pulse * 1.4;
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
@@ -39,7 +46,8 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
             let tip = a + vec3(side * 0.9, 0.55, 0.0);
             let d = raySeg(ro, rd, a, tip, &s);
             let w = mix(0.14, 0.02, s);
-            th += red * halo(d, max(w, px)) * 0.9 * (1.0 - 0.5 * s) + vec3<f32>(1.0, 0.6, 0.6) * halo(d, max(w * 0.4, px)) * 0.6;
+            let wave = 1.0 + 1.5 * pow(0.5 + 0.5 * sin(y * 0.25 - t * 2.2), 6.0);
+            th += (red * halo(d, max(w, px)) * 0.9 * (1.0 - 0.5 * s) + vec3<f32>(1.0, 0.6, 0.6) * halo(d, max(w * 0.4, px)) * 0.6) * wave;
         }
     }
     if fxNear(ro, rd, y0 - 4.0, y1) < 3.0 {
@@ -55,5 +63,43 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         }
     }
     fx += th * part(0.0) + pe * part(1.0);
+    return fx * uFx;
+}
+
+// round 16: a black thorned vine coiling up round the blade, its thorns tipped with red light;
+// it circles the blade, so it is drawn in true 3D (Sol's way)
+fn sig_orbit(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
+    if part(2.0) < 0.5 {
+        return vec3<f32>(0.0);
+    }
+    let L = uLength;
+    let t = uTime;
+    var s: f32;
+    var ta: f32;
+    let y0 = L * 0.12;
+    let y1 = L * 0.9;
+    var fx: vec3<f32> = vec3<f32>(0.0);
+    if fxNear(ro, rd, y0, y1) > 3.0 {
+        return fx;
+    }
+    var best: f32 = 1.0e3;
+    var prev: vec3<f32> = vec3<f32>(0.0);
+    for (var i = 0; i <= 24; i++) {
+        let f = f32(i) / 24.0;
+        let p = around(1.3 + 0.1 * sin(f * 20.0), f * 2.2 + t * 0.03, mix(y0, y1, f));
+        if i > 0 {
+            best = min(best, raySeg(ro, rd, prev, p, &s));
+        }
+        prev = p;
+    }
+    fx += vec3<f32>(0.6, 0.02, 0.06) * halo(best, 0.2) * 0.9 + vec3<f32>(1.0, 0.3, 0.35) * halo(best, max(0.04, px)) * 0.8;
+    for (var i = 0; i < 9; i++) {
+        let f = (f32(i) + 0.5) / 9.0;
+        let p = around(1.3, f * 2.2 + t * 0.03, mix(y0, y1, f));
+        let out_ = normalize(vec3(p.x, 0.0, p.z));
+        let pulse = 0.5 + 0.5 * pow(0.5 + 0.5 * sin(p.y * 0.25 - t * 2.2), 6.0) * 2.0;
+        let d = raySeg(ro, rd, p, p + out_ * 0.7 + vec3<f32>(0.0, 0.25, 0.0), &s);
+        fx += vec3<f32>(1.0, 0.15, 0.2) * halo(d, max(mix(0.06, 0.015, s), px)) * (0.5 + s) * pulse;
+    }
     return fx * uFx;
 }

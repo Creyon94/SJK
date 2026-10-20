@@ -58,9 +58,11 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
     col += blue*halo(d, max(0.025, px))*0.7*(0.5 + 0.5*sin(s*20.0 - t*4.0));
   }
   // the scan line sweeping a band of light round the schematic
-  float ys = mod(t*12.0, top + 6.0) - 3.0;
+  // round 16 (Creyon: the blade went through the hilt in third person and the preview): the scan
+  // starts at the emitter, never below it inside the hilt
+  float ys = 0.8 + mod(t*12.0, top + 2.0);
   float dsc = dp_ring(ro - o, rd, ys, 2.0);
-  col += pale*halo(dsc, 0.08 + px)*1.2 + blue*halo(dsc, 0.6)*0.2;
+  col += (pale*halo(dsc, 0.08 + px)*1.2 + blue*halo(dsc, 0.6)*0.2)*(1.0 - smoothstep(top, top + 1.5, ys));
   if (cl > 0.01){
     float dc = rayPt(ro, rd, vec3(0.0, uLength*0.6, 0.0), ta);
     col += pale*halo(dc, 2.0)*cl*cl*1.5;
@@ -69,9 +71,11 @@ vec3 base_vol(vec3 ro, vec3 rd, float px){
 }
 // the blade: Sol's glow and core from the file, a bright scan line racing up it
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  float ys = mod(uTime*12.0, uLength + 6.0) - 3.0;
+  float ys = 0.8 + mod(uTime*12.0, uLength + 2.0);
   float ln = 0.85 + 0.15*step(0.5, fract(b.y*2.0 - uTime*3.0));
-  return g*ln + vec3(0.8, 0.93, 1.0)*halo(b.y - ys, 0.25)*smoothstep(1.5, 0.0, abs(b.x))*1.4;
+  // nothing of it inside the hilt: from the emitter up only (round 16)
+  float above = smoothstep(0.0, 0.8, b.y);
+  return g*mix(1.0, ln, above) + vec3(0.8, 0.93, 1.0)*halo(b.y - ys, 0.25)*smoothstep(1.5, 0.0, abs(b.x))*1.4*above;
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }
 // round 11: sig_vol gated by part 0
