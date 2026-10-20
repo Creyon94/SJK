@@ -468,6 +468,7 @@ the alignment, JoF's table, and its application to only the game-data HUD. On
 Linux x86_64 with Rust 1.99.1, formatting, the locked workspace build and test
 suite, workspace all-target Clippy, and the locked release viewer build pass;
 existing warnings remain. The result has not yet been inspected in game.
+
 ## Stock vehicle HUD in the game HUD
 
 19/10/2026, `feat/vehicle-hud-sjk-style`, on `fix/vehicle-hud-hide-rider`: a tester
