@@ -18,7 +18,8 @@ signature shader ([unlockables.md](unlockables.md), "Sun"; `blade_signatures/sun
 over its own file: a sunrise ignition and a sunset switch-off (it reads the lit lane's
 going-out time), slow breathing, sunspots on the core, coronal rain falling down glowing
 loops, four prominences, a solar wind, the widest aura, an eclipse's diamond ring on a
-clash (in place of the first straight streamers and plasma loop, Sol's second look), the strongest light (`[1.5, 0.85, 0.3]`)
+clash (in place of the first straight streamers and plasma loop, Sol's second look; its
+aura then halved, the bloom being too strong), the strongest light (`[1.5, 0.85, 0.3]`)
 and, with the hub's matching pack, deeper sounds. Its parts keep their old ids. It is
 droppable again; Sol's card still brings it, and the Shaders tab shows both sources.
 Verified on Windows 11: unit tests, the signature's off-screen preview sheet. Not verified:

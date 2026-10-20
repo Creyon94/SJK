@@ -1593,6 +1593,7 @@ change: Clash: an eclipse's diamond ring; strongest light; deeper hum (needs the
 test: Wear the Sun, switch on: the blade rises red then warms; a flare at the emitter.
 test: Switch off: the blade cools to deep red as it goes in.
 test: No straight spikes leave the blade; beads of light slide down loops beside it.
+test: The warm bloom round the blade is half as bright as before (not blinding up close).
 test: Clash with someone: a dark moon crosses the hit spot, a ring and a diamond flash.
 test: Collection > Shaders > Sun parts: Sunspots and corona, Prominences, Sparks, Glint, Haze.
 note: Older choices (prominences/sparks/glint/haze off) still apply.

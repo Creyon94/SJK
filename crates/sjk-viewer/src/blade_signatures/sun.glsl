@@ -132,7 +132,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float corona = part(0.0)*uFx;
 
   // the widest warm glow of any blade, breathing with the star
-  col += fxAura(ro, rd, y0, y1, 4.6 + 0.6*br + 1.2*sw, SU_ORANGE)*(1.4 + 0.5*br)*corona;
+  col += fxAura(ro, rd, y0, y1, 4.6 + 0.6*br + 1.2*sw, SU_ORANGE)*(0.7 + 0.25*br)*corona;
   // the solar wind: pale motes riding out along the blade to the tip
   col += fxMotes(ro, rd, px, y0, y1 + 1.0, 0.9, 4.2, 16.0, 0.07 + 0.05*sw, 1.9, mix(SU_GOLD, SU_WHITE, 0.4))*(0.8 + 0.6*sw)*corona;
 
@@ -140,7 +140,7 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
   float dawn = smoothstep(0.25, 0.45, uAge)*(1.0 - smoothstep(0.6, 1.8, uAge))*step(uAge, 1000.0);
   if (dawn > 0.001){
     col += fxFlare(ro, rd, vec3(0.0, 1.2, 0.0), px, 0.45, 9.0, 4.0, 0.4, SU_GOLD)*dawn*1.4;
-    col += fxAura(ro, rd, 0.0, L, 2.0 + 6.0*smoothstep(0.25, 1.4, uAge), mix(SU_WHITE, SU_GOLD, 0.5))*dawn*1.6;
+    col += fxAura(ro, rd, 0.0, L, 2.0 + 6.0*smoothstep(0.25, 1.4, uAge), mix(SU_WHITE, SU_GOLD, 0.5))*dawn*0.8;
   }
 
   // coronal rain on three loops
