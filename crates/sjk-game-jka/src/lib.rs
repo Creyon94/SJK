@@ -255,7 +255,6 @@ pub mod intermission;
 pub mod legacy_animation;
 pub mod map;
 pub mod match_end;
-pub mod movement_styles;
 pub mod pmove;
 pub mod pmove_anim;
 pub mod pmove_debug_melee;

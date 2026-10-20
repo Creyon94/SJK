@@ -11,6 +11,11 @@
 //! the server every frame and the view snaps back (hub reports #97/#98, 19/10/2026).
 //! Until a style is ported it is shown as the server has it, as `cg_noPredict 1`
 //! does; [`PREDICT_ANYWAY_CVAR`] predicts every style as JKA, the earlier behaviour.
+//!
+//! Porting a style: its physics go in this crate, beside the table (one module per
+//! style family, CPM first: Q3, Slick and BotCPM build on it), called by the viewer's
+//! prediction through the same bridge as [`unpredicted`]; once a recorded jaPRO demo
+//! predicts it without misses, its entry turns `predicted: true`.
 
 use sjk_protocol::PlayerState;
 
@@ -18,7 +23,7 @@ use sjk_protocol::PlayerState;
 pub const STAT_MOVEMENTSTYLE: usize = 13;
 
 /// 1 predicts every style with this client's JKA movement, modelled or not.
-pub const PREDICT_ANYWAY_CVAR: &str = "cg_predictMoveStyles";
+pub const PREDICT_ANYWAY_CVAR: &str = "japro.predictMoveStyles";
 
 /// One movement style (`movementStyle_e`, `bg_public.h:551-575`).
 #[derive(Debug, Eq, PartialEq)]
@@ -82,15 +87,11 @@ pub fn server_style(player: &PlayerState) -> Option<&'static MoveStyle> {
     MOVE_STYLES.iter().find(|style| style.id == id)
 }
 
-/// The style `player` moves with that this client cannot predict, when the server is
-/// jaPRO's (`japro`) and the player has not asked to predict it anyway. An unknown
-/// number is not predicted either.
-pub fn unpredicted(
-    player: &PlayerState,
-    japro: bool,
-    predict_anyway: bool,
-) -> Option<&'static str> {
-    if !japro || predict_anyway {
+/// The style `player` moves with that this client cannot predict, unless the player
+/// asked to predict it anyway. An unknown number is not predicted either. Only for a
+/// jaPRO server (the mod loaded): other servers' `stats[13]` means something else.
+pub fn unpredicted(player: &PlayerState, predict_anyway: bool) -> Option<&'static str> {
+    if predict_anyway {
         return None;
     }
     match server_style(player) {
@@ -119,16 +120,14 @@ mod tests {
     }
 
     #[test]
-    fn only_unmodelled_styles_on_japro_servers_stop_prediction() {
-        assert_eq!(unpredicted(&player(3, 0), true, false), Some("CPM"));
-        assert_eq!(unpredicted(&player(1, 0), true, false), None);
-        assert_eq!(unpredicted(&player(11, 0), true, false), None);
+    fn only_unmodelled_styles_stop_prediction() {
+        assert_eq!(unpredicted(&player(3, 0), false), Some("CPM"));
+        assert_eq!(unpredicted(&player(1, 0), false), None);
+        assert_eq!(unpredicted(&player(11, 0), false), None);
         // Riding a vehicle is Swoop, whatever the stat says.
-        assert_eq!(unpredicted(&player(3, 7), true, false), None);
-        // Other servers' stat 13 means something else.
-        assert_eq!(unpredicted(&player(3, 0), false, false), None);
-        assert_eq!(unpredicted(&player(3, 0), true, true), None);
-        assert_eq!(unpredicted(&player(99, 0), true, false), Some("unknown"));
+        assert_eq!(unpredicted(&player(3, 7), false), None);
+        assert_eq!(unpredicted(&player(3, 0), true), None);
+        assert_eq!(unpredicted(&player(99, 0), false), Some("unknown"));
     }
 
     #[test]

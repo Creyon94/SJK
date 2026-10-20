@@ -972,14 +972,6 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             CvarFlags::NONE,
             "Pretend to be this release version when checking for updates (testing a local build)",
         ),
-        // SJK's: jaPRO movement styles its pmove does not model are shown from the
-        // server unless this is 1 (`sjk_game_jka::movement_styles`).
-        CvarDefinition::new(
-            sjk_game_jka::movement_styles::PREDICT_ANYWAY_CVAR,
-            0_i64,
-            archive,
-            "1 predicts jaPRO movement styles SJK does not model yet (CPM, QW...) as JKA; 0 shows them as the server has them",
-        ),
         // JoF EJK's: 1 shows your own movement from the server, 2 also its angles.
         CvarDefinition::new(
             "cg_noPredict",

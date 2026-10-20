@@ -288,15 +288,9 @@ These cases show the server's state instead of predicting, as JoF EternalJK's
   knockdown rules the client's pmove lacks, so predicting shakes the camera. With
   `cg_noPredict 1` the server's angles are also taken while JA+ holds the view locked
   (kick, get-up, kiss, ledge).
-- On a jaPRO (TaystJK) server, a movement style SJK's pmove does not model: the server
-  sends the player's style in `ps.stats[13]` (`STAT_MOVEMENTSTYLE`, read as EternalJK's
-  `PM_GetMovePhysics` does), and only Siege, JKA, Swoop (vehicles) and Speed move as
-  stock JKA. CPM, QW, Q3, PJK, WSW, the rocket-jump styles, Jetpack, SP, Slick and BotCPM
-  have physics of their own, so predicting them as JKA snapped the view back every frame
-  (hub reports #97/#98); until they are ported they are shown as the server has them,
-  keeping the mouse, and the log names the style once. The table is
-  [movement_styles.rs](../crates/sjk-game-jka/src/movement_styles.rs);
-  `cg_predictMoveStyles 1` predicts every style as JKA, the earlier behaviour.
+- On a jaPRO (TaystJK) server with the jaPRO tools mod loaded, a movement style SJK's
+  pmove does not model: it is shown as the server has it, keeping the mouse. The mod
+  owns the styles ([client mods](mods.md#japro-tools-japro)).
 
 A JA+ server that walks a player through others (amghost, the grace after unghosting
 inside someone, a duel's walk-apart) sets `GHOST_KNOWN_FLAG`, bit 31 of

@@ -3,18 +3,16 @@
 
 use super::GpuState;
 use glam::Vec3;
-use sjk_game_jka::movement_styles;
 use sjk_game_jka::prediction_policy::{self, Interpolation, NoPredict};
 use sjk_protocol::{GameState, PlayerState, Snapshot};
 
 /// Whether the local view is the server's rather than predicted, and how
 /// (`CG_PredictPlayerState`): following, a synchronous server, `cg_noPredict`, a
-/// JA+ kick victim, or a jaPRO movement style SJK's pmove does not model
-/// (`movement_styles`); `profile` is the session's server.
+/// JA+ kick victim, or, while jaPRO tools are loaded, a movement style SJK's pmove
+/// does not model ([`japro_unpredicted`]).
 pub(crate) fn mode(
     console: Option<&crate::console::ViewerConsole>,
     game: &GameState,
-    profile: &sjk_client::CompatProfile,
     player: &PlayerState,
 ) -> Option<Interpolation> {
     let no_predict = console
@@ -28,14 +26,35 @@ pub(crate) fn mode(
         || sjk_game_jka::pmove_japlus::JaPlusRules::from_game_state(game).enabled,
     )
     .or_else(|| {
-        let predict_anyway = console
-            .and_then(|console| console.bool_cvar(movement_styles::PREDICT_ANYWAY_CVAR))
-            .unwrap_or(false);
-        let japro = *profile == sjk_client::CompatProfile::TaystJk;
-        let style = movement_styles::unpredicted(player, japro, predict_anyway);
+        let style = japro_unpredicted(console, player);
         announce_style(style);
         style.map(|_| Interpolation::KeepAngles)
     })
+}
+
+/// The jaPRO tools mod's bridge (`sjk_mod_japro::movement_styles`): the style the
+/// player moves with that SJK's pmove does not model, while the mod is loaded (a
+/// jaPRO server, `mod_japro` on) and `japro.predictMoveStyles` is off.
+#[cfg(feature = "mod-japro")]
+fn japro_unpredicted(
+    console: Option<&crate::console::ViewerConsole>,
+    player: &PlayerState,
+) -> Option<&'static str> {
+    use sjk_mod_japro::movement_styles;
+    let console = console.filter(|console| console.mods.loaded(sjk_mod_japro::ID))?;
+    let predict_anyway = console
+        .bool_cvar(movement_styles::PREDICT_ANYWAY_CVAR)
+        .unwrap_or(false);
+    movement_styles::unpredicted(player, predict_anyway)
+}
+
+/// Without jaPRO tools every style is predicted with the stock JKA movement.
+#[cfg(not(feature = "mod-japro"))]
+fn japro_unpredicted(
+    _console: Option<&crate::console::ViewerConsole>,
+    _player: &PlayerState,
+) -> Option<&'static str> {
+    None
 }
 
 /// Say in the log, once per change, that a movement style is shown unpredicted.
@@ -50,8 +69,7 @@ fn announce_style(style: Option<&'static str>) {
     if let Some(name) = style {
         crate::log::progress(format_args!(
             "movement style {name}: SJK does not predict it yet, so your movement shows as \
-             the server has it ({} 1 predicts it as JKA)",
-            movement_styles::PREDICT_ANYWAY_CVAR,
+             the server has it (japro.predictMoveStyles 1 predicts it as JKA)",
         ));
     }
 }
@@ -108,12 +126,7 @@ pub(crate) fn present(gpu: &mut GpuState, time: i32) {
     if matches!(latest.player.movement_type(), 7 | 8) {
         return;
     }
-    let Some(mode) = mode(
-        gpu.console.as_ref(),
-        session.game_state(),
-        session.compat_profile(),
-        &latest.player,
-    ) else {
+    let Some(mode) = mode(gpu.console.as_ref(), session.game_state(), &latest.player) else {
         return;
     };
     let previous = session.snapshot_at_or_before(time);

@@ -29,6 +29,7 @@ sjk-model.workspace = true
 sjk-mod.workspace = true
 # The client mods (docs/mods.md): built in by default, each can be left out.
 sjk-mod-japlus = { workspace = true, optional = true }
+sjk-mod-japro = { workspace = true, optional = true }
 sjk-mod-jof = { workspace = true, optional = true }
 sjk-jof-content = { workspace = true, optional = true }
 sjk-network.workspace = true
@@ -62,8 +63,9 @@ arc-swap = "1"
 scraper = { version = "0.24", default-features = false }
 
 [features]
-default = ["mod-japlus", "mod-jof"]
+default = ["mod-japlus", "mod-japro", "mod-jof"]
 mod-japlus = ["dep:sjk-mod-japlus"]
+mod-japro = ["dep:sjk-mod-japro"]
 mod-jof = ["dep:sjk-mod-jof", "dep:sjk-jof-content"]
 
 [target.'cfg(windows)'.dependencies]
