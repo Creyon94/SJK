@@ -3288,9 +3288,9 @@ like this one.",
                 };
                 let watching = ShotView { team: 3, ..red };
                 for (name, view, side, row) in [
-                    ("sides", red, None, 0),
-                    ("sides-watching", watching, None, 1),
-                    ("classes", red, Some(0), 1),
+                    ("sides", red, None, 1),
+                    ("sides-watching", watching, None, 0),
+                    ("classes", red, Some(1), 1),
                 ] {
                     if style == "sjk" {
                         gpu.in_game_menu.sjk_for_shot(Card::for_siege_shot(), view);
