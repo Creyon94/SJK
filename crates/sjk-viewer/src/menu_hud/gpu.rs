@@ -171,6 +171,10 @@ impl Gpu {
         let decoded: Vec<Option<(image::RgbaImage, bool)>> = names
             .iter()
             .map(|name| {
+                if name.eq_ignore_ascii_case(super::layout::WHITE_PICTURE) {
+                    let white = image::RgbaImage::from_pixel(8, 8, image::Rgba([255; 4]));
+                    return Some((white, false));
+                }
                 let image = crate::shader_image::load_shader_image(vfs, shaders, name).ok()?;
                 let additive = shaders
                     .get(name)
@@ -363,6 +367,7 @@ pub(super) fn to_pixels(rect: [f32; 4], side: Side, viewport: [f32; 2], scale: f
     let px = match side {
         Side::Left => x * unit,
         Side::Right => width - (640.0 - x) * unit,
+        Side::Centre => width * 0.5 - (320.0 - x) * unit,
     };
     [px, height - (480.0 - y) * unit, w * unit, h * unit]
 }
@@ -434,6 +439,11 @@ mod tests {
         // cg_hudScale grows from the bottom corner.
         let scaled = to_pixels([0.0, 368.0, 112.0, 112.0], Side::Left, viewport, 2.0);
         assert_eq!(scaled, [0.0, 1_080.0 - 112.0 * 4.5, 504.0, 504.0]);
+        // The vehicle HUD keeps to the middle: 4:3's centre lands on the screen's.
+        let centre = to_pixels([320.0, 430.0, 16.0, 64.0], Side::Centre, viewport, 1.0);
+        assert_eq!(centre, [960.0, 967.5, 36.0, 144.0]);
+        let left = to_pixels([200.0, 430.0, 16.0, 64.0], Side::Centre, viewport, 1.0);
+        assert_eq!(left[0], 960.0 - 120.0 * 2.25);
     }
 
     #[test]

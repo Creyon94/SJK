@@ -3498,11 +3498,20 @@ with `cg_classicHudFont`) rather than retail's `ergoec`. Not drawn: siege HUD
 menus, the out-of-Force flash, and item text or owner-draw fields, which the retail
 and the checked custom HUDs do not use.
 
-The pilot's vehicle HUD is SJK's own, in every `cg_hudStyle`
+The pilot's vehicle HUD, on a swoop, a walker or an animal alike, is stock's under
+`cg_hudStyle game` when the loaded menus define `swoopvehiclehud` (the retail
+`ui/hud.menu` does): its pictures (`vehicle_frame`, `vehicle_grid`, the hull, armour,
+turbo and ammunition ticks) are drawn at the menu's rectangles, kept to the middle of a
+wide screen and grown by `cg_hudScale` from the bottom like the rest of the game-data
+HUD, with the turbo bar and the weapons-linked mark in `whiteShader` white
+([menu_hud/frame.rs](../crates/sjk-viewer/src/menu_hud/frame.rs) `vehicle_hud`).
+Stock's item names are kept: `shield_tic*` show the hull and `armor_tic*` the shields.
+Under `classic` and `radial`, or with a HUD that has no vehicle menu, SJK draws its own
 ([hud/vehicle.rs](../crates/sjk-viewer/src/hud/vehicle.rs)): a vector strip at the
 bottom centre laid out on `swoopvehiclehud`'s 640x80 units (hull above, speed, shield
 and ammunition below), scaled by the window height and `cg_hudScale`, with its numbers
-in the HUD font. It follows `CG_DrawVehicleHud` (`cg_draw.c`): hull `stats[STAT_HEALTH]`
+in the HUD font. Both follow `CG_DrawVehicleHud`
+(`cg_draw.c`): hull `stats[STAT_HEALTH]`
 of `armor` in 12 tics, shield `stats[STAT_ARMOR]` of `shields` in five, `speed` of
 `speedMax` in five (red and flashing every 200 ms while the turbo burns), `ammo[0]` and
 `ammo[1]` of `weap1AmmoMax` and `weap2AmmoMax` (one row, or two of four tics for two

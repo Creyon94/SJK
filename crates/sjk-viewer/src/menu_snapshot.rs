@@ -2225,6 +2225,7 @@ fn radial_hud(shots: &mut Snapshot) {
     let visibility = HudVisibility {
         hud: true,
         status: true,
+        vehicle: true,
         weapon: true,
         selection: true,
         crosshair: true,

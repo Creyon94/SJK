@@ -468,6 +468,34 @@ the alignment, JoF's table, and its application to only the game-data HUD. On
 Linux x86_64 with Rust 1.99.1, formatting, the locked workspace build and test
 suite, workspace all-target Clippy, and the locked release viewer build pass;
 existing warnings remain. The result has not yet been inspected in game.
+## Stock vehicle HUD in the game HUD
+
+19/10/2026, `feat/vehicle-hud-sjk-style`, on `fix/vehicle-hud-hide-rider`: a tester
+asked for the original Jedi Academy vehicle HUD, the health of the vehicle or animal
+being ridden. Under `cg_hudStyle game` (the default) the game-data HUD now also resolves
+`swoopvehiclehud` from the loaded menus and draws it as codemp `CG_DrawVehicleHud` does,
+with the retail pictures: the frames, the hull's twelve ticks on `vehicle_grid`, the
+speed (flashing `CT_LTRED1` while the turbo burns), shield and ammunition ticks (one row,
+or two rows of four for two weapons), the turbo recharge bar (red, green once ready) and
+the cyan weapons-linked mark. It keeps to the middle of a wide screen and draws when the
+vehicle hides its rider too. SJK's vector strip gives way to it there and stays for
+`classic`, `radial` and HUD packs without a vehicle menu. Values and maxima are the ones
+the strip reads (`hud::vehicle`). Not drawn, as before: the damage HUDs, the no-ammo
+flash and the link sound. Checked in a game on 19/10/2026 by the tester; the unit tests
+of `menu_hud` and `hud::vehicle` pass, and `vehicle_hud_snapshot` renders it from the
+retail files.
+
+## Vehicle HUD of a vehicle that hides its rider
+
+18/10/2026, `fix/vehicle-hud-hide-rider`, based on `Sol-Vulpes/SJK` `3483b1b`: on
+siege_hoth the AT-ST's pilot saw no vehicle HUD at all. The vehicle HUD drew only with
+the status HUD, and a vehicle with `hideRider` (the AT-ST) switches the player's status
+HUD off (`CG_DrawVehicleHud` returning false), so its own HUD went with it. A tester's
+log showed every condition of the HUD met in the AT-ST (piloted, the `.veh` profile
+loaded, alive). `HudVisibility` now keeps the vehicle HUD apart (`vehicle`, governed by
+`cg_drawStatus` and the scoreboard like the status HUD), and only the player's status
+and weapon HUD give way to the vehicle. `cargo check` of `sjk-viewer` passes; tests and
+Clippy were not run, and the AT-ST HUD is untested in a game.
 
 ## Shift console height
 
