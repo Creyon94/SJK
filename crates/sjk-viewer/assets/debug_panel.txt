@@ -5746,3 +5746,13 @@ test: Click an emote: the window closes and you play it; others with it see it.
 test: Arrows and Page Down move the gold choice and scroll; the mouse wheel scrolls.
 test: Ctrl+A, Ctrl+V and a held Backspace work in the search.
 note: In the main menu (no server) emotes answers Join a server to emote.
+
+# ---- Bug reports, 20/10/2026 ----
+
+[own-model-scale]
+area: Rendering & effects
+title: Your own model takes its size change (Ysalamiri), as others see it
+change: The local player's scale comes from playerState iModelScale (it is never an entity).
+change: Hub report 105.
+test: On JoF's FFA1, take the Ysalamiri size boost in third person: your model grows.
+test: Others still see your size; at normal size nothing changes, first person included.
