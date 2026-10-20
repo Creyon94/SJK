@@ -646,6 +646,7 @@ mod secret_tests {
 
     #[test]
     fn a_typed_password_reaches_the_cvar_but_no_printed_line() {
+        crate::secret::add(crate::secret::TEST_MOD);
         let mut cvars = CvarRegistry::new();
         cvars
             .register(CvarDefinition::new(
@@ -665,12 +666,12 @@ mod secret_tests {
             "print rconPassword",
             "cvarlist rcon",
             "cvar_modified",
-            "bind F5 \"amlogin bindsecret\"",
+            "bind F5 \"modlogin bindsecret\"",
             "bind F5",
-            "bind P amlogin keysecret",
+            "bind P modlogin keysecret",
             "bind P",
             "bindlist",
-            "seta autologin \"amlogin cvarsecret\"",
+            "seta autologin \"modlogin cvarsecret\"",
             "autologin",
             "print autologin",
             "cvarlist auto",
@@ -679,7 +680,7 @@ mod secret_tests {
             "toggle rconPassword rconsecret other",
             "toggle rconPassword rconsecret other",
             // Refused (delay takes one argument), but echoed first.
-            "delay 500 amlogin delaysecret",
+            "delay 500 modlogin delaysecret",
         ] {
             if let Ok(lines) = shell.execute_line(line) {
                 printed.extend(lines);
@@ -693,10 +694,10 @@ mod secret_tests {
         );
         assert_eq!(
             shell.cvars.get("autologin").unwrap().value.as_text(),
-            "amlogin cvarsecret"
+            "modlogin cvarsecret"
         );
-        assert_eq!(shell.binds.get("f5"), Some("amlogin bindsecret"));
-        assert_eq!(shell.binds.get("p"), Some("amlogin keysecret"));
+        assert_eq!(shell.binds.get("f5"), Some("modlogin bindsecret"));
+        assert_eq!(shell.binds.get("p"), Some("modlogin keysecret"));
         printed.extend(shell.lines().map(|line| line.text.clone()));
         printed.extend(TAPPED.lock().unwrap().iter().cloned());
         assert!(

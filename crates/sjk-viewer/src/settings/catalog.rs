@@ -872,6 +872,12 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::duel_visibility::PICKUPS_CVAR,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Push away kiss attempts (JA+)",
+        cvar: sjk_mod_japlus::anti_kiss::CVAR,
+        kind: ValueKind::Bool,
+    },
     Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",

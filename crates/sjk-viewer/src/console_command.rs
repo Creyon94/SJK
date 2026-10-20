@@ -27,8 +27,8 @@ impl ViewerConsole {
         session: Option<&mut ClientSession>,
     ) {
         // A chat message typed here stays out of crash reports and logs, as
-        // received chat does (`crash_report::CHAT_COMMANDS`).
-        let queued = if crate::crash_report::typed_chat(input) {
+        // received chat does (`crash_report::CHAT_COMMANDS` and the mods').
+        let queued = if crate::crash_report::typed_chat(input, self.mods.chat_commands()) {
             crate::crash_report::privately(|| self.shell.queue_line(input))
         } else {
             self.shell.queue_line(input)

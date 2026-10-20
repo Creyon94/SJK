@@ -239,9 +239,10 @@ since 11/10/2026. A crash leaves a report in `crashes/` beside the configuration
 
 The trail is every console line as it is kept (through `Shell::set_line_tap`), colour
 codes removed, except chat lines (`push_chat_line` keeps them out) and the echo of a
-chat message typed in the console (`say`, `say_team`, `tell`, `say_team_mod`,
-`clansay`, `amsay`, `ampsay`: `CHAT_COMMANDS` in
-[crash_report.rs](../crates/sjk-viewer/src/crash_report.rs); the scrollback keeps it),
+chat message typed in the console (`say`, `say_team`, `tell`: `CHAT_COMMANDS` in
+[crash_report.rs](../crates/sjk-viewer/src/crash_report.rs), and a mod's chat commands
+on any server, JA+ tools' `say_team_mod`, `clansay`, `amsay` and `ampsay`
+([mods.md](mods.md#passwords)); the scrollback keeps it),
 and every
 `log::progress` diagnostic. Each report is also written as plain text to
 `crashes/last-crash.txt`, which a player can send by hand. Paths under the player's own

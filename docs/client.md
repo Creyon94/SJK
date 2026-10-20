@@ -4804,13 +4804,17 @@ the screen's right edge (EternalJK's can).
 The console never prints a password: what it prints is kept in the scrollback,
 `qconsole.log` and the crash trail that the session log, crash reports and log uploads
 are made from ([identity](identity.md#crash-reports)).
-[secret.rs](../crates/sjk-shell/src/secret.rs) in `sjk-shell` names what is secret:
-cvars whose name contains `password` (`rconPassword`, `password`, `g_password`,
-`sv_password`, `cl_consoleSocketPassword`), `loginpass` (`japlus.loginPass1-3`) or
-`giphykey` (`cl_giphyKey`), which get the `SECRET` cvar flag when registered, and the
-commands `amlogin`, `login`, `register`, `changepassword`, `clanpass` and `clanwhois`
-(JA+ and JoF EJK), whose arguments are a password. Three
-layers keep them out:
+[secret.rs](../crates/sjk-shell/src/secret.rs) in `sjk-shell` names what stock Jedi
+Academy and SJK hold secret: cvars whose name contains `password` (`rconPassword`,
+`password`, `g_password`, `sv_password`, `cl_consoleSocketPassword`) or `giphykey`
+(`cl_giphyKey`), which get the `SECRET` cvar flag when registered. A server family's
+passwords belong to its client mod, which declares them in a table of its own
+([mods.md](mods.md#passwords)): JA+ tools add the commands `amlogin`, `login`,
+`register`, `changepassword`, `clanpass` and `clanwhois`, whose arguments are a
+password, and `loginpass` (`japlus.loginPass1-3`). The client adds every table its
+build carries at startup, before any cvar or line, whatever the server and the mod's
+switch: `amlogin <password>` typed offline, or in a bind or a config run at startup,
+is masked like the rest. Three layers keep them out:
 
 - every description and listing (a cvar's value, `print`, `cvarlist`, `cvar_modified`,
   completion's listing, `userinfo`, the cvar browser) shows a set secret value as
@@ -4839,7 +4843,10 @@ and the value is never drawn. There is no setting to show them again (`secret.rs
 lines printed before this change (an older session log, a crash report already
 waiting) are not rewritten.
 
-Covered by unit tests of the tables, each layer and the cvar browser's edit and copy,
+Covered by unit tests of the tables (the JA+ one in its crate), each layer and the
+cvar browser's edit and copy, a client test that types `amlogin`, binds it and sets
+`japlus.loginPass1` off any server with JA+ tools off and finds no password in a kept
+or tapped line,
 and a shell test that types, queries, lists, binds, holds in a cvar, `strSub`s and
 `delay`s passwords, each path its own so the scrub cannot hide a gap in the others,
 and finds none in a printed line, returned output or tap line while the cvar and binds

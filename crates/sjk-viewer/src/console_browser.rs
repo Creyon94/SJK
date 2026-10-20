@@ -669,11 +669,15 @@ mod secret_tests {
 
     #[test]
     fn a_cvar_holding_a_password_is_never_edited_or_copied_from_its_mask() {
-        let mut browser = browser_on("autologin", "amlogin hunter2", CvarFlags::USER_CREATED);
+        let mut browser = browser_on(
+            "autologin",
+            "rcon set g_password hunter2",
+            CvarFlags::USER_CREATED,
+        );
         let entry = browser.selected_entry().unwrap();
         assert!(
             matches!(&entry.kind, Kind::Cvar { value, secret: true, changed: true, .. }
-            if value == "amlogin ********")
+            if value == "rcon set g_password ********")
         );
         assert_eq!(entry_line(entry), "autologin");
         browser.activate();

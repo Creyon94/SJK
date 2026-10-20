@@ -686,6 +686,11 @@ const HELP: &[(&str, &str)] = &[
         crate::duel_visibility::PICKUPS_CVAR,
         "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
     ),
+    #[cfg(feature = "mod-japlus")]
+    (
+        sjk_mod_japlus::anti_kiss::CVAR,
+        "On JA+ servers, with JA+ tools on, use Force Push once when another player puts you in the amkiss victim animation. Off by default.",
+    ),
     (
         crate::map_edits::CVAR,
         "Shows the SJK team's fixes to maps: props removed, models added and textures swapped. Only what you see changes. On by default.",

@@ -21,6 +21,8 @@ impl ViewerConsole {
     }
 
     pub(crate) fn new(config_path: PathBuf) -> Result<Self, Box<dyn Error>> {
+        // First: it masks the mods' secrets before any cvar or line exists.
+        let mods = crate::mods::Mods::new();
         let mut cvars = CvarRegistry::new();
         let user = CvarFlags::ARCHIVE | CvarFlags::USER_INFO;
         for definition in [
@@ -248,7 +250,6 @@ impl ViewerConsole {
         super::socket::register_command(&mut shell, &socket)?;
         let client_commands = console_client::Commands::default();
         console_client::register(&mut shell, &client_commands)?;
-        let mods = crate::mods::Mods::new();
         mods.register(&mut shell)?;
         for name in mods.userinfo_settings() {
             let dirty = Arc::clone(&userinfo_dirty);

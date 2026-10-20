@@ -3,27 +3,35 @@
 //!
 //! Every console line is kept in the scrollback, `qconsole.log`, the session log
 //! and the crash trail a crash report or a log upload sends, so a password typed
-//! as `rconpassword hunter2` or `amlogin hunter2` would travel with them. Three
-//! layers keep it out:
+//! as `rconpassword hunter2` would travel with them. Three layers keep it out:
 //!
-//! - a cvar named by [`SECRET_CVAR_PARTS`] gets [`crate::CvarFlags::SECRET`] when it
-//!   is registered, and every description or listing shows its value through
-//!   [`crate::Cvar::shown_value`]: [`MASK`] when it is set;
+//! - a cvar named by a secret cvar part ([`is_secret_name`]) gets
+//!   [`crate::CvarFlags::SECRET`] when it is registered, and every description or
+//!   listing shows its value through [`crate::Cvar::shown_value`]: [`MASK`] when it
+//!   is set;
 //! - the echo of a typed line goes through [`input_line`], which masks the
-//!   arguments of [`SECRET_COMMANDS`], a secret cvar's new value, and a command line
-//!   held in a cvar or a bind (`seta autologin "amlogin hunter2"`), also inside the
-//!   [`COMMAND_LINES`] that carry one (`rcon`, `cmd`, `strSub`, `delay`, `ifCvar`);
+//!   arguments of a secret command, a secret cvar's new value, and a command line
+//!   held in a cvar or a bind (`seta autologin "<command> <password>"`), also inside
+//!   the [`COMMAND_LINES`] that carry one (`rcon`, `cmd`, `strSub`, `delay`,
+//!   `ifCvar`);
 //! - every line the console keeps is scrubbed of the current values of the secret
 //!   cvars ([`crate::CvarRegistry::scrub`]), so a path the first two miss (`strSub
 //!   echo $rconPassword$`, a mod printing userinfo) still prints [`MASK`].
 //!
 //! The values themselves are unchanged and still reach the command or the server.
 //!
-//! The tables are mod-specific (`amlogin` and `loginpass` are JA+'s, `login` and
-//! `register` JoF's), yet unlike other such tables (AGENTS.md, "No hardcoded special
-//! cases") the player cannot turn an entry off: an override would make every log
-//! that might carry a password unsafe to share, and a player who wants to read one
-//! back has it in `config.cfg`. Adding a case is still one entry.
+//! The base tables ([`BASE`]) hold only stock Jedi Academy's and SJK's own secrets.
+//! A server family's commands and cvars (JA+'s `amlogin`, for one) belong to its
+//! client mod, which declares them in a table of its own; the client [`add`]s every
+//! table its build carries at startup, before any cvar is registered or any line is
+//! run, so they are masked offline, in binds and scripts run at startup, on every
+//! server and with the mod switched off. Unlike other per-server tables (AGENTS.md,
+//! "No hardcoded special cases") the player cannot turn an entry off: an override
+//! would make every log that might carry a password unsafe to share, and a player
+//! who wants to read one back has it in `config.cfg`. Adding a case is still one
+//! entry.
+
+use std::sync::{PoisonError, RwLock};
 
 use crate::{split_commands, tokenize};
 
@@ -35,36 +43,61 @@ pub const MASK: &str = "********";
 /// length.
 pub const SCRUB_MIN_CHARS: usize = 4;
 
+/// A table of secrets: what makes a cvar's value secret and which commands take a
+/// password. Every word is lowercase.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Table {
+    /// Parts of a cvar name that make its value secret.
+    pub cvar_parts: &'static [&'static str],
+    /// Commands whose arguments are a password.
+    pub commands: &'static [&'static str],
+}
+
+/// Stock Jedi Academy's and SJK's own secrets, always in force.
+pub const BASE: Table = Table {
+    cvar_parts: SECRET_CVAR_PARTS,
+    commands: SECRET_COMMANDS,
+};
+
 /// Parts of a cvar name (lowercase) that make its value secret.
 pub const SECRET_CVAR_PARTS: &[&str] = &[
     // rconPassword, password (joining a locked server), g_password, sv_password,
     // cl_consoleSocketPassword.
-    "password",
-    // japlus.loginPass1-3, the JA+ admin passwords auto login sends.
-    "loginpass",
-    // cl_giphyKey, the player's own GIPHY API key.
+    "password", // cl_giphyKey, the player's own GIPHY API key.
     "giphykey",
 ];
 
-/// Commands (lowercase) whose arguments are a password:
-///
-/// - `amlogin <password>`: JA+ and JoF admin login (sjk-mod-japlus, JoF EJK
-///   `codemp/game`);
-/// - `login <name> <password>`: JoF EJK and account mods;
-/// - `register <name> <password>`: JoF EJK and account mods;
-/// - `changepassword <name> <password> <new password>`: JoF EJK's accounts
-///   (`g_account.c`);
-/// - `clanpass <password>`: JA+ and JoF clan chat's password (`g_cmds.c`
-///   `Cmd_Clanpass_f`);
-/// - `clanwhois <clan password>`: JoF EJK lists that clan's members (`g_cmds.c`).
-pub const SECRET_COMMANDS: &[&str] = &[
-    "amlogin",
-    "login",
-    "register",
-    "changepassword",
-    "clanpass",
-    "clanwhois",
-];
+/// Commands (lowercase) whose arguments are a password. Stock Jedi Academy has
+/// none: its passwords are cvars. A mod's server commands come with its table.
+pub const SECRET_COMMANDS: &[&str] = &[];
+
+/// The tables [`add`]ed after [`BASE`]; only ever grows.
+static ADDED: RwLock<Vec<Table>> = RwLock::new(Vec::new());
+
+/// Mask `table`'s secrets from now on, in every registry and line, whatever the
+/// server. Adding a table twice changes nothing. Call it before registering the
+/// cvars it names, so they get [`crate::CvarFlags::SECRET`].
+pub fn add(table: Table) {
+    let mut added = ADDED.write().unwrap_or_else(PoisonError::into_inner);
+    if !added.contains(&table) {
+        added.push(table);
+    }
+}
+
+/// Whether any table in force answers `test`.
+fn any_table(test: impl Fn(&Table) -> bool) -> bool {
+    test(&BASE)
+        || ADDED
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .any(test)
+}
+
+/// Whether `lower` (a lowercase command name) takes a password.
+fn is_secret_command(lower: &str) -> bool {
+    any_table(|table| table.commands.contains(&lower))
+}
 
 /// Commands (lowercase) whose arguments from the given one on are a command line,
 /// masked in turn:
@@ -88,10 +121,11 @@ pub const COMMAND_LINES: &[(&str, usize)] = &[
 /// whose other arguments are a value that may hold a command line.
 const TARGETED: &[&str] = &["set", "seta", "sets", "setu", "bind"];
 
-/// Whether a cvar called `name` holds a secret, by [`SECRET_CVAR_PARTS`].
+/// Whether a cvar called `name` holds a secret, by the cvar parts of the tables
+/// in force.
 pub fn is_secret_name(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
-    SECRET_CVAR_PARTS.iter().any(|part| name.contains(part))
+    any_table(|table| table.cvar_parts.iter().any(|part| name.contains(part)))
 }
 
 /// What the echo needs to know about the cvars a line names.
@@ -130,14 +164,17 @@ pub fn shown(secret: bool, value: &str) -> String {
     }
 }
 
-/// Whether `text` holds a word of [`SECRET_COMMANDS`] or [`SECRET_CVAR_PARTS`],
-/// in any case: the only text [`input_line`] can mask.
+/// Whether `text` holds a secret command or cvar part of the tables in force, in
+/// any case: the only text [`input_line`] can mask.
 fn mentions_secret(text: &str) -> bool {
     let text = text.to_ascii_lowercase();
-    SECRET_COMMANDS
-        .iter()
-        .chain(SECRET_CVAR_PARTS)
-        .any(|word| text.contains(word))
+    any_table(|table| {
+        table
+            .commands
+            .iter()
+            .chain(table.cvar_parts)
+            .any(|word| text.contains(word))
+    })
 }
 
 /// A typed console line as its echo may show it: each command that carries a
@@ -170,7 +207,7 @@ fn command_masked(command: &str, names: &dyn Names) -> Option<String> {
         return None;
     }
     let lower = name.to_ascii_lowercase();
-    if SECRET_COMMANDS.contains(&lower.as_str()) || names.is_secret(name) {
+    if is_secret_command(&lower) || names.is_secret(name) {
         return Some(format!("{name} {MASK}"));
     }
     let (first, rest) = arguments.split_first()?;
@@ -223,7 +260,7 @@ fn masked_unparsed(line: &str, names: &dyn Names) -> String {
                 start = None;
                 let word = &line[from..at];
                 let lower = word.to_ascii_lowercase();
-                let secret = SECRET_COMMANDS.contains(&lower.as_str())
+                let secret = is_secret_command(&lower)
                     || names.is_secret(word)
                     || COMMAND_LINES.iter().any(|(line, _)| *line == lower);
                 if secret && !line[at..].trim_matches(separator).is_empty() {
@@ -235,6 +272,15 @@ fn masked_unparsed(line: &str, names: &dyn Names) -> String {
     }
     line.to_owned()
 }
+
+/// A mod's table for the shell's own tests: `modlogin <password>`, `modregister
+/// <name> <password>` and cvars named `*modpass*`. Real mod tables are tested in
+/// their crates.
+#[cfg(test)]
+pub(crate) const TEST_MOD: Table = Table {
+    cvar_parts: &["modpass"],
+    commands: &["modlogin", "modregister"],
+};
 
 #[cfg(test)]
 mod tests {
@@ -254,11 +300,13 @@ mod tests {
     }
 
     fn echo(line: &str) -> String {
+        add(TEST_MOD);
         input_line(line, &Registered)
     }
 
     #[test]
     fn password_cvars_are_secret_and_others_are_not() {
+        add(TEST_MOD);
         for name in [
             "rconPassword",
             "rconpassword",
@@ -266,8 +314,8 @@ mod tests {
             "g_password",
             "sv_password",
             "cl_consoleSocketPassword",
-            "japlus.loginPass1",
-            "japlus.loginpass3",
+            "mod.modPass1",
+            "mod.modpass3",
             "cl_giphyKey",
         ] {
             assert!(is_secret_name(name), "{name}");
@@ -276,7 +324,7 @@ mod tests {
             "name",
             "cg_fov",
             "rconAddress",
-            "japlus.loginServer1",
+            "mod.modServer1",
             "cl_hubUrl",
         ] {
             assert!(!is_secret_name(name), "{name}");
@@ -285,13 +333,14 @@ mod tests {
 
     #[test]
     fn a_shown_value_hides_a_secret_or_the_password_in_a_script() {
+        add(TEST_MOD);
         assert_eq!(shown(true, "hunter2"), MASK);
         assert_eq!(shown(true, ""), "");
         assert_eq!(shown(false, "110"), "110");
-        assert_eq!(shown(false, "amlogin hunter2"), "amlogin ********");
+        assert_eq!(shown(false, "modlogin hunter2"), "modlogin ********");
         assert_eq!(
-            shown(false, "say hi; amlogin hunter2"),
-            "say hi; amlogin ********"
+            shown(false, "say hi; modlogin hunter2"),
+            "say hi; modlogin ********"
         );
     }
 
@@ -300,26 +349,19 @@ mod tests {
         for (typed, shown) in [
             ("rconpassword hunter2", "rconpassword ********"),
             ("rconPassword \"two words\"", "rconPassword ********"),
-            (
-                "seta japlus.loginPass1 hunter2",
-                "seta japlus.loginPass1 ********",
-            ),
+            ("seta mod.modPass1 hunter2", "seta mod.modPass1 ********"),
             ("set password hunter2", "set password ********"),
             ("setu password hunter2", "setu password ********"),
-            ("amlogin hunter2", "amlogin ********"),
-            ("AMLOGIN hunter2", "AMLOGIN ********"),
-            ("login sol hunter2", "login ********"),
-            ("register sol hunter2", "register ********"),
-            ("changepassword sol hunter2 new2", "changepassword ********"),
-            ("clanPass hunter2", "clanPass ********"),
-            ("clanwhois hunter2", "clanwhois ********"),
+            ("modlogin hunter2", "modlogin ********"),
+            ("MODLOGIN hunter2", "MODLOGIN ********"),
+            ("modregister sol hunter2", "modregister ********"),
             ("rcon g_password hunter2", "rcon g_password ********"),
             (
                 "rcon set sv_password hunter2",
                 "rcon set sv_password ********",
             ),
-            ("cmd amlogin hunter2", "cmd amlogin ********"),
-            ("cmd login sol hunter2", "cmd login ********"),
+            ("cmd modlogin hunter2", "cmd modlogin ********"),
+            ("cmd modregister sol hunter2", "cmd modregister ********"),
             (
                 "toggle rconPassword hunter2 other",
                 "toggle rconPassword ********",
@@ -329,21 +371,21 @@ mod tests {
                 "ifCvar rconPassword ********",
             ),
             (
-                "bind F5 \"amlogin hunter2\"",
-                "bind F5 \"amlogin ********\"",
+                "bind F5 \"modlogin hunter2\"",
+                "bind F5 \"modlogin ********\"",
             ),
-            ("bind P amlogin afxg", "bind P \"amlogin ********\""),
+            ("bind P modlogin afxg", "bind P \"modlogin ********\""),
             (
-                "seta autologin \"amlogin hunter2\"",
-                "seta autologin \"amlogin ********\"",
-            ),
-            (
-                "set x \"say hi; amlogin hunter2\"",
-                "set x \"say hi; amlogin ********\"",
+                "seta autologin \"modlogin hunter2\"",
+                "seta autologin \"modlogin ********\"",
             ),
             (
-                "autologin \"amlogin hunter2\"",
-                "autologin \"amlogin ********\"",
+                "set x \"say hi; modlogin hunter2\"",
+                "set x \"say hi; modlogin ********\"",
+            ),
+            (
+                "autologin \"modlogin hunter2\"",
+                "autologin \"modlogin ********\"",
             ),
         ] {
             assert_eq!(echo(typed), shown, "{typed}");
@@ -353,8 +395,8 @@ mod tests {
     #[test]
     fn every_command_of_a_line_is_masked() {
         assert_eq!(
-            echo("cg_fov 110; rconpassword hunter2;amlogin hunter2"),
-            "cg_fov 110; rconpassword ********; amlogin ********"
+            echo("cg_fov 110; rconpassword hunter2;modlogin hunter2"),
+            "cg_fov 110; rconpassword ********; modlogin ********"
         );
     }
 
@@ -365,13 +407,12 @@ mod tests {
             "say \"hello  there\"",
             "say I will login later",
             "rconpassword",
-            "amlogin",
-            "clanwhois",
-            "clanjoin Jedi",
+            "modlogin",
+            "modregister",
             "set password",
             "rcon kick 3",
             "cmd say hi",
-            "seta japlus.loginServer1 127.0.0.1",
+            "seta mod.modServer1 127.0.0.1",
             "bind F5 \"say gg\"",
             "seta autologin \"say gg\"",
         ] {
@@ -382,30 +423,33 @@ mod tests {
     #[test]
     fn an_unterminated_quote_still_hides_the_password() {
         for (typed, shown) in [
-            ("amlogin \"hunter2", "amlogin ********"),
+            ("modlogin \"hunter2", "modlogin ********"),
             ("seta rconpassword \"hunter2", "seta rconpassword ********"),
             (
-                "cg_fov 110;amlogin \"hunter2",
-                "cg_fov 110;amlogin ********",
+                "cg_fov 110;modlogin \"hunter2",
+                "cg_fov 110;modlogin ********",
             ),
-            ("bind F5 \"amlogin hunter2", "bind F5 \"amlogin ********"),
+            ("bind F5 \"modlogin hunter2", "bind F5 \"modlogin ********"),
             ("rcon \"g_password hunter2", "rcon ********"),
         ] {
             assert_eq!(echo(typed), shown, "{typed}");
         }
         assert_eq!(echo("say \"hi"), "say \"hi");
-        assert_eq!(echo("say \"amlogin"), "say \"amlogin");
+        assert_eq!(echo("say \"modlogin"), "say \"modlogin");
     }
 
     #[test]
     fn command_lines_after_their_arguments_are_masked() {
         for (typed, shown) in [
-            ("strSub amlogin hunter2", "strSub amlogin ********"),
-            ("delay 500 amlogin hunter2", "delay 500 amlogin ********"),
-            ("waitf 2 login sol hunter2", "waitf 2 login ********"),
+            ("strSub modlogin hunter2", "strSub modlogin ********"),
+            ("delay 500 modlogin hunter2", "delay 500 modlogin ********"),
             (
-                "ifCvar g_x =1 2 amlogin hunter2",
-                "ifCvar g_x =1 2 amlogin ********",
+                "waitf 2 modregister sol hunter2",
+                "waitf 2 modregister ********",
+            ),
+            (
+                "ifCvar g_x =1 2 modlogin hunter2",
+                "ifCvar g_x =1 2 modlogin ********",
             ),
         ] {
             assert_eq!(echo(typed), shown, "{typed}");
@@ -417,8 +461,48 @@ mod tests {
 
     #[test]
     fn a_value_without_a_secret_word_is_shown_as_it_is() {
+        add(TEST_MOD);
         assert!(!mentions_secret("say gg; +attack"));
-        assert!(mentions_secret("say gg; AMLOGIN x"));
+        assert!(mentions_secret("say gg; MODLOGIN x"));
         assert_eq!(shown(false, "say gg; +attack"), "say gg; +attack");
+    }
+}
+
+#[cfg(test)]
+mod table_tests {
+    use super::*;
+
+    /// No other test of this crate adds a table with these words.
+    const ONLY_HERE: Table = Table {
+        cvar_parts: &["tablepart"],
+        commands: &["tablelogin"],
+    };
+
+    #[test]
+    fn base_tables_hold_no_server_commands() {
+        assert!(SECRET_COMMANDS.is_empty());
+        assert!(!SECRET_CVAR_PARTS.contains(&"loginpass"));
+    }
+
+    #[test]
+    fn an_added_table_masks_from_then_on_and_adding_it_again_changes_nothing() {
+        assert_eq!(
+            input_line("tablelogin hunter2", &ByName),
+            "tablelogin hunter2"
+        );
+        assert!(!is_secret_name("x.tablePart1"));
+        add(ONLY_HERE);
+        add(ONLY_HERE);
+        assert_eq!(
+            input_line("tablelogin hunter2", &ByName),
+            "tablelogin ********"
+        );
+        assert!(is_secret_name("x.tablePart1"));
+        assert_eq!(
+            shown(false, "say hi; tablelogin x"),
+            "say hi; tablelogin ********"
+        );
+        let added = ADDED.read().unwrap();
+        assert_eq!(added.iter().filter(|table| **table == ONLY_HERE).count(), 1);
     }
 }

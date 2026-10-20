@@ -3,14 +3,17 @@
 //!
 //! What a JA+ server needs to be played correctly stays in the core client (its
 //! movement rules, `cjp_client`, `cp_pluginDisable`, saber colours and cosmetics):
-//! this mod only adds commands a player types.
+//! this mod adds commands a player types, the JA+ family's passwords the console
+//! masks ([`secrets`]) and JoF EternalJK's anti-kiss ([`anti_kiss`]).
 
+pub mod anti_kiss;
 mod login;
 mod options;
+mod secrets;
 mod server_commands;
 mod teleport;
 
-use sjk_mod::{ClientMod, Command, Host, ServerKind, Setting, command};
+use sjk_mod::{ClientMod, Command, Host, Secrets, ServerKind, Setting, command};
 
 /// The mod's id and prefix.
 pub const ID: &str = "japlus";
@@ -86,6 +89,11 @@ const SETTINGS: &[Setting] = &[
         default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer3 (saved as plain text)",
     },
+    Setting {
+        name: anti_kiss::CVAR,
+        default: sjk_mod::SettingValue::Bool(false),
+        help: "Push when a JA+ player puts you in the amkiss victim animation",
+    },
 ];
 
 /// The JA+ tools mod.
@@ -159,6 +167,12 @@ impl ClientMod for JaPlus {
         SETTINGS
     }
 
+    /// `amlogin`, the JA+ family's account and clan passwords and
+    /// `japlus.loginPass1-3` ([`secrets`]).
+    fn secrets(&self) -> Secrets {
+        secrets::SECRETS
+    }
+
     fn server_commands(&self, server: &sjk_mod::Server) -> &'static [Command] {
         if server.kind == ServerKind::JaPlus {
             server_commands::JA_PLUS
@@ -203,6 +217,10 @@ impl ClientMod for JaPlus {
 mod tests {
     use super::*;
 
+    /// Settings that keep JoF EternalJK's name instead of the `japlus.` prefix, so a
+    /// config made for EternalJK keeps working.
+    const EJK_NAMES: &[&str] = &[anti_kiss::CVAR];
+
     #[test]
     fn every_name_carries_the_prefix() {
         let mod_ = JaPlus::new();
@@ -211,6 +229,7 @@ mod tests {
             .iter()
             .map(|command| command.name)
             .chain(mod_.settings().iter().map(|setting| setting.name))
+            .filter(|name| !EJK_NAMES.contains(name))
         {
             assert!(name.starts_with("japlus."), "{name}");
         }
