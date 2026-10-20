@@ -2758,8 +2758,12 @@ the original cgame reads:
   state is `CS_FLAGSTATUS` (config string 23: red then blue, `0` at base, `1` taken, `2`
   dropped); the caption beside each says DROPPED, or for a taken flag its carrier's name
   (TAKEN while the client does not know who). The carrier comes from the viewed player's
-  state, a player in the snapshot, a teammate's `tinfo` row, then the last carrier seen
-  while the flag stays taken; the name is formatted again only when the carrier or their
+  state, a player in the snapshot, a teammate's `tinfo` row, a `scores` row, then the last
+  carrier seen while the flag stays taken. `scores` is the only source that names an enemy
+  out of sight, and it comes with a scoreboard press, so the scoreboard named a carrier the
+  HUD still called TAKEN; only rows that arrived after the flag was taken count
+  (`ClientSession::scores_revision`), as older ones may name an earlier carrier. The name
+  is formatted again only when the carrier or their
   client info changes, and keeps its colours under `cg_drawCrosshairNamesColours`.
 - While the local player carries a flag (`PW_REDFLAG`, `PW_BLUEFLAG` or `PW_NEUTRALFLAG`
   in the player state, whatever the status string says) the enemy flag's icon stands on a
