@@ -160,7 +160,7 @@ pub(crate) static ALL: [Unlockable; 165] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: SOL,
-        description: "A star in the hand: a white-gold core breathing under an orange corona, sunspots drifting along it, prominences, streamers and a solar wind, and the strongest light of any blade. It lights as a sunrise, goes out as a sunset, and a clash tears a loop of plasma off it.",
+        description: "A star in the hand: a white-gold core breathing under an orange corona, sunspots drifting along it, prominences, coronal rain and a solar wind, and the strongest light of any blade. It lights as a sunrise, goes out as a sunset, and a clash is an eclipse's diamond ring.",
         how_to_get: "Found in holocrons, and comes with Sol's card (SJK Alpha 000) for as long as you hold it.",
     },
     Unlockable {

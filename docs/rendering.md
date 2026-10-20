@@ -2017,6 +2017,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   glow and core to a deep red sunset as the blade slides in, mirroring the sunrise it
   lights with (deep red warming to white gold over 0.9 s, a white edge climbing at
   `uLength × uIgn`). Its dawn flare waits in `sig_vol` until the blade is out (`sig_full`).
+  Coronal rain (`su_rain`) replaced `fxRays` (Sol: no straight spikes): three loops arch
+  off the blade with six beads each sliding down both legs. A clash draws an eclipse
+  (`su_moon`): a disc darkens glow and core where it lands, with a ring and an `fxFlare`
+  diamond at its edge near a third of the way through.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
