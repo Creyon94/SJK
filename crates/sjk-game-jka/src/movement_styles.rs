@@ -1,0 +1,140 @@
+//! jaPRO's movement styles, and which of them this client's movement prediction models.
+//!
+//! A jaPRO (TaystJK lineage) server lets each player pick a movement style (`/move`):
+//! CPM, QW, Q3, WSW and others change friction, acceleration, air control and jumps
+//! (JoF EternalJK `codemp/game/bg_pmove.c`, every `moveStyle` branch). The server says
+//! which one in `ps.stats[STAT_MOVEMENTSTYLE]`, and a jaPRO-aware client reads it
+//! (`PM_GetMovePhysics`, `bg_pmove.c:470-486`): `SWOOP` while riding a vehicle, the
+//! co-op styles folded back onto their base style.
+//!
+//! SJK's pmove is stock JKA's, so predicting a style it does not model disagrees with
+//! the server every frame and the view snaps back (hub reports #97/#98, 19/10/2026).
+//! Until a style is ported it is shown as the server has it, as `cg_noPredict 1`
+//! does; [`PREDICT_ANYWAY_CVAR`] predicts every style as JKA, the earlier behaviour.
+
+use sjk_protocol::PlayerState;
+
+/// jaPRO's `STAT_MOVEMENTSTYLE` (`bg_public.h:724`).
+pub const STAT_MOVEMENTSTYLE: usize = 13;
+
+/// 1 predicts every style with this client's JKA movement, modelled or not.
+pub const PREDICT_ANYWAY_CVAR: &str = "cg_predictMoveStyles";
+
+/// One movement style (`movementStyle_e`, `bg_public.h:551-575`).
+#[derive(Debug, Eq, PartialEq)]
+pub struct MoveStyle {
+    /// The style's number on the wire.
+    pub id: u32,
+    /// Its name, as jaPRO's `/move` lists it.
+    pub name: &'static str,
+    /// Whether this client's pmove models it, so predicting it matches the server.
+    pub predicted: bool,
+}
+
+const fn style(id: u32, name: &'static str, predicted: bool) -> MoveStyle {
+    MoveStyle {
+        id,
+        name,
+        predicted,
+    }
+}
+
+/// Every style, by number. `predicted` is true only where SJK's pmove is the style's:
+/// stock JKA, Siege (stock's Siege acceleration), the vehicle style (vehicles move
+/// with their own pmove), and Speed (no pmove branch: the server's `ps.speed`,
+/// `g_active.c:4262`). The rest have their own physics, not ported yet.
+pub const MOVE_STYLES: &[MoveStyle] = &[
+    style(0, "Siege", true),
+    style(1, "JKA", true),
+    style(2, "QW", false),
+    style(3, "CPM", false),
+    style(4, "Q3", false),
+    style(5, "PJK", false),
+    style(6, "WSW", false),
+    style(7, "RJQ3", false),
+    style(8, "RJCPM", false),
+    style(9, "Swoop", true),
+    style(10, "Jetpack", false),
+    style(11, "Speed", true),
+    style(12, "SP", false),
+    style(13, "Slick", false),
+    style(14, "BotCPM", false),
+];
+
+/// `MV_SWOOP`, the style of a player riding a vehicle.
+const SWOOP: u32 = 9;
+/// `MV_COOP_JKA`: it and the numbers above it are co-op variants of a base style.
+const COOP_JKA: u32 = 15;
+
+/// The style a jaPRO server moves `player` with (`PM_GetMovePhysics`), when it is one
+/// this client knows.
+pub fn server_style(player: &PlayerState) -> Option<&'static MoveStyle> {
+    let id = if player.vehicle_entity_num() != 0 {
+        SWOOP
+    } else {
+        let stat = player.stats[STAT_MOVEMENTSTYLE];
+        if stat >= COOP_JKA {
+            stat - (COOP_JKA - 1)
+        } else {
+            stat
+        }
+    };
+    MOVE_STYLES.iter().find(|style| style.id == id)
+}
+
+/// The style `player` moves with that this client cannot predict, when the server is
+/// jaPRO's (`japro`) and the player has not asked to predict it anyway. An unknown
+/// number is not predicted either.
+pub fn unpredicted(
+    player: &PlayerState,
+    japro: bool,
+    predict_anyway: bool,
+) -> Option<&'static str> {
+    if !japro || predict_anyway {
+        return None;
+    }
+    match server_style(player) {
+        Some(style) if style.predicted => None,
+        Some(style) => Some(style.name),
+        None => Some("unknown"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn player(style: u32, vehicle: u32) -> PlayerState {
+        let mut player = PlayerState::default();
+        player.stats[STAT_MOVEMENTSTYLE] = style;
+        player.set_raw_field(84, vehicle);
+        player
+    }
+
+    #[test]
+    fn the_table_follows_the_enum_order() {
+        for (index, style) in MOVE_STYLES.iter().enumerate() {
+            assert_eq!(style.id as usize, index, "{}", style.name);
+        }
+    }
+
+    #[test]
+    fn only_unmodelled_styles_on_japro_servers_stop_prediction() {
+        assert_eq!(unpredicted(&player(3, 0), true, false), Some("CPM"));
+        assert_eq!(unpredicted(&player(1, 0), true, false), None);
+        assert_eq!(unpredicted(&player(11, 0), true, false), None);
+        // Riding a vehicle is Swoop, whatever the stat says.
+        assert_eq!(unpredicted(&player(3, 7), true, false), None);
+        // Other servers' stat 13 means something else.
+        assert_eq!(unpredicted(&player(3, 0), false, false), None);
+        assert_eq!(unpredicted(&player(3, 0), true, true), None);
+        assert_eq!(unpredicted(&player(99, 0), true, false), Some("unknown"));
+    }
+
+    #[test]
+    fn coop_styles_fold_onto_their_base_style() {
+        // `bg_pmove.c:479`: MV_COOP_JKA is JKA, the numbers after it QW, CPM...
+        assert_eq!(server_style(&player(15, 0)).unwrap().name, "JKA");
+        assert_eq!(server_style(&player(17, 0)).unwrap().name, "CPM");
+    }
+}

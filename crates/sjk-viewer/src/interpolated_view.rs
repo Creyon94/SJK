@@ -3,15 +3,18 @@
 
 use super::GpuState;
 use glam::Vec3;
+use sjk_game_jka::movement_styles;
 use sjk_game_jka::prediction_policy::{self, Interpolation, NoPredict};
 use sjk_protocol::{GameState, PlayerState, Snapshot};
 
 /// Whether the local view is the server's rather than predicted, and how
-/// (`CG_PredictPlayerState`): following, a synchronous server, `cg_noPredict`, or a
-/// JA+ kick victim.
+/// (`CG_PredictPlayerState`): following, a synchronous server, `cg_noPredict`, a
+/// JA+ kick victim, or a jaPRO movement style SJK's pmove does not model
+/// (`movement_styles`); `profile` is the session's server.
 pub(crate) fn mode(
     console: Option<&crate::console::ViewerConsole>,
     game: &GameState,
+    profile: &sjk_client::CompatProfile,
     player: &PlayerState,
 ) -> Option<Interpolation> {
     let no_predict = console
@@ -24,6 +27,33 @@ pub(crate) fn mode(
         server_synchronous(game),
         || sjk_game_jka::pmove_japlus::JaPlusRules::from_game_state(game).enabled,
     )
+    .or_else(|| {
+        let predict_anyway = console
+            .and_then(|console| console.bool_cvar(movement_styles::PREDICT_ANYWAY_CVAR))
+            .unwrap_or(false);
+        let japro = *profile == sjk_client::CompatProfile::TaystJk;
+        let style = movement_styles::unpredicted(player, japro, predict_anyway);
+        announce_style(style);
+        style.map(|_| Interpolation::KeepAngles)
+    })
+}
+
+/// Say in the log, once per change, that a movement style is shown unpredicted.
+fn announce_style(style: Option<&'static str>) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    // The last style's name by address (0 for none): the names are statics.
+    static LAST: AtomicUsize = AtomicUsize::new(0);
+    let address = style.map_or(0, |name| name.as_ptr() as usize);
+    if LAST.swap(address, Ordering::Relaxed) == address {
+        return;
+    }
+    if let Some(name) = style {
+        crate::log::progress(format_args!(
+            "movement style {name}: SJK does not predict it yet, so your movement shows as \
+             the server has it ({} 1 predicts it as JKA)",
+            movement_styles::PREDICT_ANYWAY_CVAR,
+        ));
+    }
 }
 
 pub(crate) fn server_synchronous(game: &GameState) -> bool {
@@ -78,7 +108,12 @@ pub(crate) fn present(gpu: &mut GpuState, time: i32) {
     if matches!(latest.player.movement_type(), 7 | 8) {
         return;
     }
-    let Some(mode) = mode(gpu.console.as_ref(), session.game_state(), &latest.player) else {
+    let Some(mode) = mode(
+        gpu.console.as_ref(),
+        session.game_state(),
+        session.compat_profile(),
+        &latest.player,
+    ) else {
         return;
     };
     let previous = session.snapshot_at_or_before(time);

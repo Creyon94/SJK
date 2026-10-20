@@ -50,6 +50,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
 - Credits cards are all Mythical and show no number, so no one in the credits is ranked above another _(Sol)_
 - A new card collection, SJK Blades: a Blade card for each saber shader holocrons drop, and a Solar copy of one also drops its blade to you, when it comes out of a holocron or is revealed; the opening shows the blade beside the card, and the card says so in the Collection _(Sol)_
+- jaPRO servers: a movement style SJK does not model yet (CPM, QW, Q3, WSW, SP and the others besides JKA, Siege and Speed) no longer snaps you back every frame: your movement shows as the server has it, as `cg_noPredict` 1 does, until the style is ported; `cg_predictMoveStyles` 1 predicts it as JKA as before _(Sol, after a report from "love me")_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 

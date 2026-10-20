@@ -5746,3 +5746,16 @@ test: Click an emote: the window closes and you play it; others with it see it.
 test: Arrows and Page Down move the gold choice and scroll; the mouse wheel scrolls.
 test: Ctrl+A, Ctrl+V and a held Backspace work in the search.
 note: In the main menu (no server) emotes answers Join a server to emote.
+
+# ---- Bug reports, 20/10/2026 ----
+[japro-move-styles]
+area: Gameplay
+title: jaPRO movement styles SJK cannot predict are shown from the server (hub #97/#98)
+change: ps.stats[13] names the style on jaPRO; only Siege, JKA, Swoop and Speed are predicted.
+change: Others (CPM, QW, Q3, WSW, SP...) move as cg_noPredict 1 does; the log names the style.
+change: cg_predictMoveStyles 1 predicts every style as JKA, the earlier behaviour.
+test: On a jaPRO server, /move cpm (or QW): no snap-back; the log says the style once.
+test: /move jka: prediction is back (movement responds without delay).
+test: cg_predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smooth.
+test: On a JA+ or base server nothing changes.
+note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
