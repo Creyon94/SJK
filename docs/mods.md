@@ -20,12 +20,14 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   or not, so saved values are kept.
 - **The switch.** Each mod has an archived on/off setting, `mod_<id>`. It is on by
   default (Sol's choice, 11/10/2026). In Settings it is a row of Game options ("JA+
-  tools", "JoF tools"). With the switch off, the mod does not load even on its servers.
+  tools", "jaPRO tools", "JoF tools"). With the switch off, the mod does not load even on its servers.
   Profiles saved while the mods were off by default are switched on once
   (`mod_defaultVersion`). `mods` lists the mods: loaded, on (waiting for its
   servers) or off.
 - **What stays in the core.** A mod adds commands a player types. What a server
-  needs to be played correctly is not a mod: JA+ movement and saber prediction,
+  needs to be played correctly is not a mod, with one exception: jaPRO's own
+  movement styles and their ports belong to jaPRO tools (Sol, 20/10/2026), as each
+  is jaPRO's alone. JA+ movement and saber prediction,
   `cjp_client`, `cp_pluginDisable` and its default, RGB sabers and cosmetics stay in
   the core client ([networking.md](networking.md)) and work with every mod off.
   JA+ flamethrower presentation also stays in the core; its detection and player
@@ -48,7 +50,7 @@ they are written against is the [sjk-mod](../crates/sjk-mod/src/lib.rs) crate.
   ([mods.rs](../crates/sjk-viewer/src/mods.rs),
   [mods_host.rs](../crates/sjk-viewer/src/mods_host.rs)).
 - **Building without them.** Each mod is a crate behind a default feature of
-  `sjk-viewer` (`mod-japlus`, `mod-jof`, which brings JoF content too); `cargo build
+  `sjk-viewer` (`mod-japlus`, `mod-japro`, `mod-jof`, which brings JoF content too); `cargo build
   -p sjk-viewer --no-default-features` builds a client without any.
 
 Mods are not loaded from files. A native library has no stable interface between
@@ -83,6 +85,42 @@ commands: the admin set, clan commands, duels and emotes, from EternalJK's `gcmd
 Before the mod, `serverconfig` and `pluginDisable` were core commands. A bare
 `serverconfig` is now sent to the server like any unknown command, which
 jaPRO/TaystJK servers answer. TaystJK's completion lists it.
+
+## jaPRO tools (`japro`)
+
+[sjk-mod-japro](../crates/sjk-mod-japro/src/lib.rs) loads on every server SJK sees as
+jaPRO or its TaystJK lineage (the `TaystJk` profile). It owns jaPRO's movement styles
+([movement_styles.rs](../crates/sjk-mod-japro/src/movement_styles.rs)).
+
+A jaPRO server lets each player pick a style (`/move`) and sends it in
+`ps.stats[13]` (`STAT_MOVEMENTSTYLE`, read as EternalJK's `PM_GetMovePhysics` does:
+Swoop on a vehicle, the co-op styles folded onto their base). SJK's pmove is stock
+JKA's, so only Siege, JKA, Swoop and Speed (the server's `ps.speed`, no pmove branch)
+move as it predicts. CPM, QW, Q3, PJK, WSW, the rocket-jump styles, Jetpack, SP, Slick
+and BotCPM have physics of their own: predicting them as JKA snapped the view back
+every frame (hub reports #97/#98). While the mod is loaded, the viewer asks it each
+frame ([interpolated_view.rs](../crates/sjk-viewer/src/interpolated_view.rs),
+`japro_unpredicted`, no allocation or lock); a style it does not model is shown as the
+server has it, as `cg_noPredict 1` does, keeping the mouse, and the log names the style
+once.
+
+| Name | What it does |
+| --- | --- |
+| `japro.styles` | Lists the styles and which ones SJK predicts |
+| `japro.predictMoveStyles` | Off by default. On, every style is predicted as JKA, the earlier behaviour (Settings > Mods, "Predict all styles") |
+
+With `mod_japro 0`, or a build without `mod-japro`, every style is predicted as JKA.
+
+**Porting a style.** Its physics go in this crate beside the table, one module per
+family (CPM first: Q3, Slick and BotCPM build on it; then QW and PJK, SP, WSW with its
+dash and wall-jump timers, the rocket-jump styles and Jetpack), and the viewer's
+prediction calls them through the same bridge. The reference is JoF EternalJK's
+`codemp/game/bg_pmove.c` (every `moveStyle` branch). A style turns `predicted: true`
+only once a recorded jaPRO demo predicts it without misses.
+
+Other jaPRO-only behaviour still in the core and candidates for this mod: the race
+mode reads of `ps.stats[11]` (chat, dynamic crosshair, enemy info, Ysalamiri tint)
+and jaPRO's entry in the duel-hiding table.
 
 ## JoF tools (`jof`)
 

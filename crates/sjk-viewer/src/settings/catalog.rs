@@ -1042,6 +1042,17 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "jaPRO tools",
+        cvar: "mod_japro",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Predict all styles",
+        cvar: sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "JoF tools",
         cvar: "mod_jof",
         kind: ValueKind::Bool,

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 20/10/2026 | - | jaPRO tools: a client mod that owns jaPRO's movement styles
+- 3cbdb81 |  | jaPRO tools: a client mod that owns jaPRO's movement styles
 + 20/10/2026 | - | Hub reports 20/10: toys count, drop-down overlap, snd_restart emotes, RGB userinfo window, prediction miss log, duel pop-ups, dance music
 - 1544632 |  | Collection: the Toys tab counts every toy, not 1 of 1
 - 6601482 |  | Settings: an open list pushed over its own row hides that row's value

@@ -743,6 +743,15 @@ const HELP: &[(&str, &str)] = &[
         "On JA+ servers: the japlus. commands (admin teleports, auto login, plugin options) and JA+ command completion.",
     ),
     (
+        "mod_japro",
+        "On jaPRO servers: shows the movement styles SJK does not predict yet (CPM, QW...) as the server has them; japro.styles lists them.",
+    ),
+    #[cfg(feature = "mod-japro")]
+    (
+        sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
+        "Predict every jaPRO movement style as JKA, as before: smoother to aim, but styles SJK does not model snap you back.",
+    ),
+    (
         "mod_jof",
         "On JoF servers: jof.commands and completion of their own commands (gun admin commands, jetpack, emotes).",
     ),
