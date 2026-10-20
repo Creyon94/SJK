@@ -2124,7 +2124,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   arcs that do not leap from the tip fade out over the blade's last units, so no prominence passes
   the tip (Eclipse, Twin Suns, Dyson Sphere); Eclipse's own loops end below it. The ignored GPU
   test has a cut-off check (`SJK_SIGNATURE_EDGES`: each moment drawn again without `sig_edge`, the
-  difference marked) and closer orbit views with two from high above. Every mythical signature
+  difference marked) and closer orbit views with two from high above; run over all 128 it found only
+  Kessel Spice's crystals, drawn out to the quad's edge, now kept inside its glow. Every mythical signature
   (`SIG_MYTHICAL`, set by `Signature::module_source` from the catalogue tier) awakens when lit (a
   surge up the blade, a flare and a ring at the tip), breathes (a slow wave of light up it) and
   rings out on a clash, in its own light's colour (`sig_mythic`). Blades: Mortis's effects reach

@@ -18,8 +18,8 @@ Bespin Storm and Starforge, two more chromas, the Clone Wars blade's five switch
 signature pipelines built in parallel ([rendering.md](rendering.md#blade-lab-signature-shaders),
 round 19). Checked on Linux x86_64 (lavapipe): the workspace tests, every signature module
 validates, the changed blades drawn from orbit views and from above, the cut-off check (no effect reaching
-the quad's edge) over the first signatures of the list. Not verified: in Creyon's game; load times on
-his PC; the cut-off check over the rest.
+the quad's edge) over all 128 signatures (one found and fixed: Kessel Spice's crystals). Not
+verified: in Creyon's game; load times on his PC.
 
 ## Creyon's blades, round 18
 
