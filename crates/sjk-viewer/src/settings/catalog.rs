@@ -654,6 +654,15 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Chat card size",
+        cvar: crate::chat::options::CARD_SCALE_CVAR,
+        kind: ValueKind::Float {
+            min: crate::chat::options::CARD_SCALE.0 as f64,
+            max: crate::chat::options::CARD_SCALE.1 as f64,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "HUD look (Enter: pick)",
         cvar: crate::menu_hud::STYLE_CVAR,
         kind: ValueKind::HudPicker,

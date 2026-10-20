@@ -90,6 +90,7 @@ const CHAT_ROWS: &[&str] = &[
     crate::chat::reply::REMEMBER_CVAR,
     crate::chat::options::LINE_SPACING_CVAR,
     "cg_chatBoxLetterSpacing",
+    crate::chat::options::CARD_SCALE_CVAR,
     crate::text::charset::CVAR,
     "cl_sjkChat",
     crate::sjk_chat_frame::FEED_CVAR,
@@ -414,6 +415,7 @@ impl Group {
                 crate::chat::reply::REMEMBER_CVAR,
                 crate::chat::options::LINE_SPACING_CVAR,
                 "cg_chatBoxLetterSpacing",
+                crate::chat::options::CARD_SCALE_CVAR,
             ],
             Self::Scoreboard => &[
                 crate::scoreboard::style::CVAR,

@@ -552,6 +552,10 @@ const HELP: &[(&str, &str)] = &[
         "Adds space between the letters of chat messages; below zero packs them closer.",
     ),
     (
+        crate::chat::options::CARD_SCALE_CVAR,
+        "Size of the player card a chat name shows, over the chat's own size: 0.5 half, 2 double.",
+    ),
+    (
         crate::menu_hud::STYLE_CVAR,
         "Which HUD shows health, armor, Force and ammo: the game's, an installed HUD pack's, or SJK's.",
     ),
