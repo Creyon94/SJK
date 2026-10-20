@@ -525,6 +525,18 @@ impl Runtime {
         }
     }
 
+    /// The loaded signature skins whose pipelines are built, and how many are loaded (the
+    /// world shots wait for every one).
+    #[cfg(test)]
+    pub(crate) fn signatures_built(&self) -> (usize, usize) {
+        let loaded = self.signed.iter().flatten();
+        let built = loaded
+            .clone()
+            .filter(|signed| signed.built.get().is_some())
+            .count();
+        (built, loaded.count())
+    }
+
     pub(crate) fn prepare(
         &mut self,
         queue: &crate::frame_queue::FrameQueue,
