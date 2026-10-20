@@ -97,7 +97,9 @@ impl GpuState {
                 .as_ref()
                 .and_then(|catalogue| catalogue.iter().find(|def| def.id == emote.emote))
                 .cloned();
-            let origin = position(emote.slot).unwrap_or_default();
+            // None while the player is not in the snapshot: the first position seen
+            // becomes the origin, rather than the map's centre (hub report #107).
+            let origin = position(emote.slot);
             // In step with the leader as this client saw them start; a leader not
             // playing it here (gone, or its own echo still on the way) starts it anew.
             let synced = emote.sync.is_some_and(|leader| {

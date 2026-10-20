@@ -158,14 +158,23 @@ fn crouch_until(until: Option<Instant>) {
 }
 
 /// Whether the player is away: their window is out of focus or minimised (with
-/// `alt_tab`), or they gave no input for `idle` (zero never).
+/// `alt_tab`), or they gave no input for `idle` (zero never). Idle time does not make
+/// a player away while their own looping emote plays (`dancing`), unless they are
+/// away already (`was_away`, the away emote being that emote): a dance is left
+/// running without a key pressed on purpose, and going away silenced its music for
+/// everyone (hub report #107, Foshin).
 pub(crate) fn is_away(
     unfocused: bool,
     alt_tab: bool,
     since_input: Option<Duration>,
     idle: Duration,
+    dancing: bool,
+    was_away: bool,
 ) -> bool {
-    (alt_tab && unfocused) || (!idle.is_zero() && since_input.is_some_and(|since| since >= idle))
+    (alt_tab && unfocused)
+        || ((!dancing || was_away)
+            && !idle.is_zero()
+            && since_input.is_some_and(|since| since >= idle))
 }
 
 /// The SJK emotes [`SJK_CVAR`] may name: [`NONE`] then the catalogue's looping ones
@@ -260,13 +269,6 @@ impl crate::GpuState {
                 .unwrap_or(DEFAULT_IDLE)
                 .clamp(0, 3_600) as u64,
         );
-        let away = playing
-            && is_away(
-                unfocused,
-                console.bool_cvar(ALT_TAB_CVAR) != Some(false),
-                crate::holocrons::activity::since_input(now),
-                idle,
-            );
         let pick = |cvar: &str| {
             console
                 .text_value(cvar)
@@ -291,6 +293,19 @@ impl crate::GpuState {
                 .find(|def| def.id == id)
                 .cloned()
         };
+        let dancing = own
+            .and_then(|own| state.active.get(own))
+            .and_then(|active| def_of(&state, &active.emote))
+            .is_some_and(|def| def.looping);
+        let away = playing
+            && is_away(
+                unfocused,
+                console.bool_cvar(ALT_TAB_CVAR) != Some(false),
+                crate::holocrons::activity::since_input(now),
+                idle,
+                dancing,
+                away_state.away,
+            );
         let sjk = pick(SJK_CVAR).filter(|id| def_of(&state, id).is_some_and(|def| fits(&def)));
         let current = own
             .and_then(|own| state.active.get(own))
@@ -312,8 +327,7 @@ impl crate::GpuState {
                     let origin = self
                         .live_world
                         .entity(sjk_runtime::EntityId::new(u64::from(own) + 1))
-                        .map(|entity| entity.current().transform.translation)
-                        .unwrap_or_default();
+                        .map(|entity| entity.current().transform.translation);
                     state.active.start(own, &id, def.as_ref(), origin, now);
                     state.active.set_quiet(own, true, def.as_ref(), now);
                     away_state.post(&id, true);
@@ -416,14 +430,30 @@ mod tests {
     #[test]
     fn away_is_alt_tabbed_out_or_idle_long_enough() {
         let idle = Duration::from_secs(180);
-        assert!(is_away(true, true, None, idle));
-        assert!(!is_away(true, false, None, idle), "alt-tab not counted");
-        assert!(is_away(false, false, Some(idle), idle));
-        assert!(!is_away(false, true, Some(idle / 2), idle));
+        assert!(is_away(true, true, None, idle, false, false));
         assert!(
-            !is_away(false, true, Some(idle * 10), Duration::ZERO),
+            !is_away(true, false, None, idle, false, false),
+            "alt-tab not counted"
+        );
+        assert!(is_away(false, false, Some(idle), idle, false, false));
+        assert!(!is_away(false, true, Some(idle / 2), idle, false, false));
+        assert!(
+            !is_away(false, true, Some(idle * 10), Duration::ZERO, false, false),
             "idle off"
         );
-        assert!(!is_away(false, true, None, idle), "no input yet");
+        assert!(
+            !is_away(false, true, None, idle, false, false),
+            "no input yet"
+        );
+    }
+
+    /// Hub report #107: a dance left running is not idle, an alt-tab still counts, and
+    /// the away emote (a dance too) keeps an idle player away.
+    #[test]
+    fn a_dance_left_running_is_not_idle() {
+        let idle = Duration::from_secs(180);
+        assert!(!is_away(false, true, Some(idle * 2), idle, true, false));
+        assert!(is_away(true, true, Some(idle * 2), idle, true, false));
+        assert!(is_away(false, true, Some(idle * 2), idle, true, true));
     }
 }
