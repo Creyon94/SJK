@@ -285,12 +285,12 @@ mod map_edit_shots;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 
+#[path = "world_shot_blade_cards.rs"]
+mod blade_cards;
 #[path = "world_shot_saber_cost.rs"]
 mod saber_cost;
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
-#[path = "world_shot_blade_cards.rs"]
-mod blade_cards;
 
 #[path = "world_shot_animation_profile.rs"]
 mod animation_profile;
