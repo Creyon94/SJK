@@ -306,6 +306,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Hide pickups only while you are in a private duel",
         ),
+        // EternalJK's: write prediction misses to the log (`cg_predict.c:1534`).
+        CvarDefinition::new(
+            "cg_showMiss",
+            0_i64,
+            CvarFlags::NONE,
+            "1 writes each large prediction miss to the console and the log (at most 4 a second)",
+        ),
         CvarDefinition::new(
             "cg_errorDecay",
             100.0_f64,

@@ -380,6 +380,11 @@ impl LocalPrediction {
         self.view_height = view_height;
     }
 
+    /// Update `cg_showMiss`: whether large misses are written to the log.
+    pub(crate) fn set_show_miss(&mut self, show: bool) {
+        self.miss_log.show = show;
+    }
+
     /// Update `cg_errorDecay`.
     pub(crate) fn set_error_decay_millis(&mut self, decay_millis: f32) {
         self.error.set_decay_millis(decay_millis);
