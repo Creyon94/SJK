@@ -66,6 +66,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Capture the Flag: once the scoreboard has shown who carries your flag, the flag icon at the left names them too, instead of saying TAKEN _(Slash)_
 - The player card a chat name shows is smaller and tidier, waits a moment for the pointer on its way to Block, and `cg_chatCardScale` (0.5 to 2) sizes it _(Slash)_
 - An emplaced gun (siege_hoth's trench guns) turns to where its gunner looks, its stand and handles with it and its barrels held to 40 degrees down, and keeps that aim after the gunner leaves; before, it stayed pointing to its side _(Slash, after JKA)_
+- The console never prints a password: `rconPassword`, `password`, JA+ login passwords and the like show `********` in listings, the cvar browser and the echo of what you type (`amlogin`, `login`, `register`, binds and scripts holding them too), so they stay out of the scrollback, logs and crash reports; chat typed in the console stays out of crash reports as received chat does _(Slash)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
