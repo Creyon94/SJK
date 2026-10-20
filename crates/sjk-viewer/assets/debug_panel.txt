@@ -587,13 +587,13 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 [sun-card-blade]
 area: Menus & settings
-title: The Sun blade comes with Sol's card, not from holocrons
-change: Sun (001) is no longer droppable; a copy of SJK Alpha 000 brings it while held.
+title: Sol's card brings the Sun blade (it still drops from holocrons)
+change: Sun (001) still drops; a copy of SJK Alpha 000 also brings it while held.
 change: Cards and Shaders tabs say so: 'Brings the Sun blade', 'with your Sol card'.
-test: Collection > Shaders, hover Sun: Comes with Sol's card (SJK Alpha 000)...
+test: Collection > Shaders, Sun: facts 'Holocron drop' and 'Sol card'; hover says both.
 test: Hold card 000: Sun owned 'with your Sol card' (needs the hub's card-blade).
 test: Collection > Cards, card 000: 'Brings the Sun blade while you hold it.'
-note: Shatter/craft are not offered on a card's copy of the Sun.
+note: Shatter/craft are offered only on dropped copies, never on the card's.
 
 [all-blades-drop]
 area: Menus & settings

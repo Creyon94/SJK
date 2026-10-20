@@ -70,14 +70,15 @@ pub(crate) const CREYON: &str = "Creyon";
 pub(crate) const FROM_HOLOCRONS: &str = "Found in holocrons.";
 
 /// The blades a card brings, `(blade id, card id)`: a key holding a copy of the card holds
-/// the blade with it, and loses it with its last copy, as a medal's blade goes with the
-/// medal ([`crate::medals::Medal::blade`]). The hub decides it from the card file's
-/// `grants` (`docs/cards.md`, "Faces and the first set") and says so in the unlock's `card`; this
-/// mirrors those files so the catalogue knows, without the packs, that such a blade never
-/// drops and why. A new card that brings a blade adds an entry here and to its file.
+/// the blade with it, and loses that copy of it with its last one, as a medal's blade goes with
+/// the medal ([`crate::medals::Medal::blade`]). Unlike a medal's, a card's blade may also
+/// drop: the card is a second way to get it. The hub decides it from the card file's
+/// `grants` (`docs/cards.md`, "Faces and the first set") and says so in the unlock's `card`;
+/// this mirrors those files so the catalogue names the card without the packs. A new card
+/// that brings a blade adds an entry here and to its file.
 pub(crate) const CARD_BLADES: [(&str, &str); 1] = [
-    // Sol's decision, 20/10/2026: the Sun is Sol's own blade, so it comes with his card
-    // (SJK Alpha 000) and no longer drops from holocrons.
+    // Sol's decision, 20/10/2026: the Sun is Sol's own blade, so Sol's card (SJK Alpha 000)
+    // brings it as well as holocrons.
     ("saber_sun", "sjk_alpha_000"),
 ];
 
@@ -108,8 +109,7 @@ pub(crate) struct Unlockable {
     pub(crate) chroma: bool,
     /// Whether a holocron may drop it (the hub's `droppable`, `docs/unlockables.md`,
     /// "Holocron shader drops"): since 17/10/2026 every shader but those a medal brings
-    /// ([`crate::medals::Medal::blade`]), and since 20/10/2026 those a card brings
-    /// ([`CARD_BLADES`]).
+    /// ([`crate::medals::Medal::blade`]); a card's blade drops too ([`CARD_BLADES`]).
     pub(crate) droppable: bool,
     /// The edition it belongs to ([`crate::editions`]): the stamp of when it came.
     pub(crate) edition: &'static str,
@@ -157,11 +157,11 @@ pub(crate) static ALL: [Unlockable; 165] = [
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
         chroma: false,
-        droppable: false,
+        droppable: true,
         edition: crate::editions::ALPHA,
         smith: SOL,
         description: "A white-gold core in an orange corona: flares, prominences arching off it, sparks, a glint at its tip and heat haze.",
-        how_to_get: "Comes with Sol's card (SJK Alpha 000), for as long as you hold it.",
+        how_to_get: "Found in holocrons, and comes with Sol's card (SJK Alpha 000) for as long as you hold it.",
     },
     Unlockable {
         id: "saber_storm",
@@ -2857,7 +2857,7 @@ mod tests {
     /// drops from holocrons but those a medal brings (no achievement brings one yet), and
     /// its "How to get it" says which. No shader is handed out by the team instead.
     #[test]
-    fn every_shader_but_the_medals_and_the_cards_drops() {
+    fn every_shader_but_the_medals_drops() {
         for skin in blade_skins() {
             let medal = crate::medals::Medal::ALL
                 .iter()
@@ -2865,16 +2865,15 @@ mod tests {
             let card = card_bringing(skin.id).is_some();
             assert!(!(medal && card), "{}: brought twice", skin.id);
             assert_eq!(
-                skin.droppable,
-                !medal && !card,
-                "{}: a medal's or a card's shader never drops, every other one does",
+                skin.droppable, !medal,
+                "{}: a medal's shader never drops, every other one does (a card's too)",
                 skin.id
             );
             if card {
                 assert!(skin.how_to_get.contains("card"), "{}", skin.id);
             }
             assert_eq!(
-                skin.how_to_get == FROM_HOLOCRONS,
+                skin.how_to_get.starts_with(FROM_HOLOCRONS.trim_end_matches('.')),
                 skin.droppable,
                 "{}",
                 skin.id

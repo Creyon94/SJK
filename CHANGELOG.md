@@ -41,7 +41,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Blades have numbers, as cards do (Sun is 001): the Collection shows each after its tier and in its hover card, its search finds "42" or "#42", `saberskin 42` wears that blade and docs/unlockables.md lists them all _(Sol)_
 - Blade tiers reviewed: 26 blades change tier. Clone Wars and Exegol Rift are now Mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith Alchemy, Felucia Spores, Phoenix Squadron and eight Blade Lab mythicals are Legendary; Storm, Prism, Unstable, Chameleon and four Blade Lab legendaries are Rare; Targeting Display is Uncommon. Blades you own stay yours _(Sol)_
 - Every Blade Lab blade can now drop from holocrons, and a blade's "How to get it" reads "Found in holocrons.": only Glitch, Hologram and Runic stay out, as they come with their medals _(Sol)_
-- The Sun blade no longer drops from holocrons: it comes with Sol's card (SJK Alpha 000), for as long as you hold a copy, and the card says so in the Collection _(Sol)_
+- Sol's card (SJK Alpha 000) brings the Sun blade for as long as you hold a copy, a second way to get it besides holocrons, and the card says so in the Collection _(Sol)_
 - Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026

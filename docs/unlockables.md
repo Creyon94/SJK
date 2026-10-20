@@ -71,7 +71,7 @@ Display up to Uncommon). The rounds' notes below keep the tiers the blades came 
 
 | No. | Id | Name | Tier | Smith | Drops |
 | --- | --- | --- | --- | --- | --- |
-| 001 | `saber_sun` | Sun blade | Mythical | Sol | no |
+| 001 | `saber_sun` | Sun blade | Mythical | Sol | yes |
 | 002 | `saber_storm` | Storm blade | Rare | Sol | yes |
 | 003 | `saber_void` | Void blade | Mythical | Sol | yes |
 | 004 | `saber_frost` | Frost blade | Rare | Sol | yes |
@@ -1187,11 +1187,11 @@ could still be kept out; a test on each side pins the rule today (`droppable` ex
 no medal brings it), and the droppable shaders' "How to get it" reads "Found in holocrons."
 
 Every Blade Lab blade drops too since 20/10/2026 (Sol: no loot is handed out by the team
-instead of found). The same day the Sun stopped dropping (Sol's decision): it comes only
-with Sol's card, SJK Alpha 000, for as long as the player holds a copy, as a medal's blade
-does ([cards.md](cards.md#faces-and-the-first-set), `grants`). So 161 of the 165 shaders
-drop, all but Glitch, Hologram and Runic (their medals) and the Sun (Sol's card); the test
-pins `droppable` exactly when no medal and no card (`unlockables::CARD_BLADES`) brings it.
+instead of found). The same day Sol's card, SJK Alpha 000, began to bring the Sun blade
+for as long as the player holds a copy ([cards.md](cards.md#faces-and-the-first-set),
+`grants`, `unlockables::CARD_BLADES`): for a few hours it was the only way, then Sol made
+it a second way besides holocrons. So 162 of the 165 shaders drop, all but Glitch, Hologram
+and Runic (their medals); the test pins `droppable` exactly when no medal brings it.
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's

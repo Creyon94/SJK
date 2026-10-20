@@ -292,7 +292,7 @@ mod tests {
         let lines = listing(" SABER_SUN ", Holdings::Known(&[]));
         assert!(
             lines[1].contains(
-                "locked^7, chosen: shows once unlocked (Comes with Sol's card (SJK Alpha 000), for as long as you hold it.)"
+                "locked^7, chosen: shows once unlocked (Found in holocrons, and comes with Sol's card (SJK Alpha 000) for as long as you hold it.)"
             ),
             "{}",
             lines[1]
