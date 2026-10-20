@@ -57,6 +57,8 @@ struct Sinks<'a> {
     object_meshes: &'a [StaticModelMesh],
     actor_groups: &'a mut [Vec<ActorInstance>],
     object_groups: &'a mut [Vec<ActorInstance>],
+    /// Where each emplaced gun's top was last turned ([`crate::emplaced_swivel`]).
+    emplaced_turned: &'a mut crate::emplaced_swivel::Turned,
     overrides: &'a mut Vec<entity_materials::OverrideInstance>,
     entity_instances: &'a mut Vec<EntityInstance>,
     saber_hilts: Option<&'a saber::HiltCatalog>,
@@ -91,6 +93,7 @@ struct Sinks<'a> {
     material_overrides: model_materials::Overrides,
     camera_position: Vec3,
     camera_yaw: f32,
+    camera_pitch: f32,
     view_height: f32,
     predicted_force_powers_active: Option<u32>,
     predicted_local_state: Option<&'a sjk_client::pmove::MovementState>,
@@ -263,6 +266,7 @@ pub(crate) fn submit(
         object_meshes: &gpu.object_meshes,
         actor_groups: &mut gpu.actor_groups,
         object_groups: &mut gpu.object_groups,
+        emplaced_turned: &mut gpu.emplaced_turned,
         overrides: &mut gpu.pickup_override_instances,
         entity_instances: &mut gpu.entity_instances,
         saber_hilts: gpu.saber_hilts.as_ref(),
@@ -316,6 +320,7 @@ pub(crate) fn submit(
         material_overrides: gpu.model_material_overrides,
         camera_position: gpu.camera_position,
         camera_yaw: gpu.camera_yaw,
+        camera_pitch: gpu.camera_pitch,
         view_height: gpu.local_prediction.view_height(),
         predicted_force_powers_active: gpu
             .local_prediction
@@ -400,6 +405,8 @@ pub(crate) fn submit(
             // A cut-off limb draws its own copy of the owner (`dismember`).
         } else if thrown_saber::submit(&mut sinks, thrown.as_ref(), entity, transform) {
             // The flying hilt is owned by this branch, including its blades.
+        } else if submit_emplaced(&mut sinks, entity, &transform, snapshot, local_entity_id) {
+            // A turned emplaced gun is drawn in its two parts.
         } else if let Some(mesh) = entity.appearance().and_then(|appearance| {
             sinks
                 .object_meshes
@@ -1288,6 +1295,53 @@ fn submit_disintegration(
             combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
         );
     }
+}
+
+/// An emplaced gun whose top a gunner has turned ([`crate::emplaced_swivel`]). The
+/// gunner's view is this client's own for the local player and the player's view angles
+/// for anyone else (`cg_ents.c:1401-1409`). Returns whether `entity` was drawn so.
+fn submit_emplaced(
+    sinks: &mut Sinks<'_>,
+    entity: &sjk_runtime::SceneEntity,
+    transform: &sjk_runtime::Transform,
+    snapshot: Option<&Snapshot>,
+    local_entity_id: Option<u64>,
+) -> bool {
+    let (Some(snapshot), Some(appearance)) = (snapshot, entity.appearance()) else {
+        return false;
+    };
+    let Some(state) = snapshot
+        .entities
+        .iter()
+        .find(|state| u64::from(state.number()) + 1 == entity.id.get())
+    else {
+        return false;
+    };
+    let (world, presentation_time) = (sinks.world, sinks.presentation_time);
+    let local_view = [
+        -sinks.camera_pitch.to_degrees(),
+        sinks.camera_yaw.to_degrees(),
+        0.0,
+    ];
+    crate::emplaced_swivel::submit(
+        sinks.emplaced_turned,
+        sinks.object_meshes,
+        sinks.object_groups,
+        state,
+        appearance,
+        transform,
+        sinks.entity_view_flags,
+        |gunner| {
+            let id = u64::from(gunner) + 1;
+            if Some(id) == local_entity_id {
+                return Some(local_view);
+            }
+            world
+                .entity(EntityId::new(id))?
+                .sample_pose(presentation_time)
+                .map(|pose| pose.view_angles_degrees)
+        },
+    )
 }
 
 /// A cut-off limb (`CG_General`'s client-limb case): its own mesh, rooted at the limb

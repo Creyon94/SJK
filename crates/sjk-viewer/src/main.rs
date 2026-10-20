@@ -108,6 +108,7 @@ mod frame_split;
 mod charge_flash;
 mod emote_help;
 mod emote_picker;
+mod emplaced_swivel;
 mod fake_noclip;
 mod file_dialog;
 mod fps_help;
@@ -337,7 +338,7 @@ use sjk_vfs::VirtualFileSystem;
 
 use scene_flatten::{
     ActorDraw, DrawBatch, FlattenedScene, ViewerMaterial, append_actor_mesh, append_md3_mesh,
-    append_static_glm_mesh, preview_gpu_vertex,
+    append_static_glm_mesh, append_static_glm_surfaces, preview_gpu_vertex,
 };
 use shared_geometry::SharedGeometry;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -441,6 +442,8 @@ struct GpuState {
     actor_meshes: Vec<ActorMesh>,
     actor_workers: actor_pose::evaluation::Pool,
     object_meshes: Vec<StaticModelMesh>,
+    /// Where each emplaced gun's top was last turned (`emplaced_swivel.rs`).
+    emplaced_turned: emplaced_swivel::Turned,
     emitter_model_catalog: effect_emitter::ModelCatalog,
     mover_catalog: movers::Catalog,
     pickup_catalog: pickups::Catalog,
@@ -1390,6 +1393,7 @@ impl GpuState {
             actor_meshes,
             actor_workers: actor_pose::evaluation::Pool::new(),
             object_meshes,
+            emplaced_turned: Default::default(),
             emitter_model_catalog,
             mover_catalog,
             pickup_catalog,

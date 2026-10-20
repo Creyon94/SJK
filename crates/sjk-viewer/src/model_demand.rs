@@ -85,6 +85,18 @@ impl GpuState {
                 })
             })
             .or_else(|| {
+                // The two parts of an emplaced gun being worked (`emplaced_swivel`).
+                let snapshot = match (&self.live_session, &self.demo_session) {
+                    (Some(live), _) => live.latest_snapshot(),
+                    (None, Some(demo)) => demo.latest_snapshot(),
+                    (None, None) => return None,
+                };
+                let attempted = &self.config_string_refresh.models.attempted;
+                crate::emplaced_swivel::wanted(snapshot, world, |appearance| {
+                    attempted.contains(appearance)
+                })
+            })
+            .or_else(|| {
                 // A model a map edit places (`map_edits`).
                 let attempted = &self.config_string_refresh.models.attempted;
                 self.map_edits

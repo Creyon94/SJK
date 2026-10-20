@@ -1151,6 +1151,33 @@ mode, as in #58.
 These presentation rules apply in every UI style and change no Force gameplay,
 movement, animation timing or protocol encoding.
 
+### Emplaced guns
+
+An emplaced gun's top follows its gunner's view as in `CG_General`
+(`cg_ents.c:1392-1416`): while the server marks the gun worked (`activeForcePass`
+`NUM_FORCE_POWERS + 1`, a non-player, non-vehicle entity), its model's `Bone02` takes
+the gunner's view angles with `BONE_ANGLES_REPLACE` about `NEGATIVE_Y`, `NEGATIVE_X`,
+`POSITIVE_Z`, the pitch held to 40 degrees down and the yaw less the gun's own. The
+gunner's view is this client's own for the local player, the player's interpolated
+view angles for anyone else. Ghoul2 keeps a replaced bone's angles, so a gun keeps its
+last aim after its gunner leaves; one no one has worked stays at its bind pose, barrels
+to its right, as in the retail game.
+
+Rigid models are drawn as instanced bind-pose meshes, so a turned gun is drawn as two
+parts cut from its model
+([emplaced_swivel.rs](../crates/sjk-viewer/src/emplaced_swivel.rs)): the surfaces bound
+to `Bone02` or its descendants (the top and both barrels of `turret_chair.glm`), carried
+by the bone's replaced matrix ([`replace_bone_matrix`](../crates/sjk-model/src/bone_angles.rs),
+`G2_Generate_Matrix` and `G2_TransformBone`'s replace step), and the rest, the stand.
+Here SJK departs from Ghoul2, which leaves the stand (on `Bone01`) still: the stand
+turns with the top's yaw, upright, about the vertical through `Bone02`. Its brace
+carries the handles the gunner holds, behind the top at the bind pose; left still, they
+show off to the gun's side once the top turns. The parts
+load through the model loader the first time a gun is worked. The model's animation is
+taken at its bind pose, as the static mesh is; Ghoul2's frame 0 of `mp.gla` differs from
+it by under a tenth of a unit. The muzzle flash and the dying gun's red pulse and
+damaged skin are not changed by this.
+
 ### Force presentation controls
 
 `cg_forceAnimFX` (on) controls animation-driven Rage, Heal, Quick Heal and Grip-victim
