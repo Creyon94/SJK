@@ -50,6 +50,13 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Cards answer the pointer smoothly: the tilt, the light and the glare ease in and out, the light glides to the pointer instead of jumping, the card you leave settles back while the next one rises, and the glare is one soft light instead of rings _(Sol)_
 - Credits cards are all Mythical and show no number, so no one in the credits is ranked above another _(Sol)_
 - A new card collection, SJK Blades: a Blade card for each saber shader holocrons drop, and a Solar copy of one also drops its blade to you, when it comes out of a holocron or is revealed; the opening shows the blade beside the card, and the card says so in the Collection _(Sol)_
+- The Collection's Toys tab counts every toy, 3 of 3, instead of 1 of 1 _(Sol, after Nib's report)_
+- In the SJK UI's settings, a long open list (the away emote's) no longer shows its own row's value through it _(Sol, after Rollembones' report)_
+- `snd_restart` brings back the emotes' music and the cardboard box's and Order 66's sounds, so reconnecting headphones no longer needs a restart of the game _(Sol, after Rollembones' report)_
+- Dragging the saber's RGB sliders no longer leaves other players seeing an early colour (often blue): userinfo changes keep to the server's limit of three in six seconds, so the last one always arrives, and one the server refused goes again _(Sol, after Kushina's report)_
+- Prediction misses (every JA+ grapple's landing) are written to the log only with `cg_showMiss` 1, as in EJK _(Sol, after SanjiJ's report)_
+- Achievement, holocron and medal pop-ups wait for the end of a private duel, then play _(Sol, after Milamber's report)_
+- Dances keep their music: a dance left running is no longer counted as away after `cg_awayIdle`, and a dancer out of sight for a moment in a crowded dance no longer loses their emote _(Sol, after Foshin's report)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
