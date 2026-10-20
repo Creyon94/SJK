@@ -468,6 +468,8 @@ impl Group {
                 "cg_saberTrail",
                 "cg_forceModel",
                 "cg_auraShell",
+                crate::away_emote::SJK_CVAR,
+                crate::away_emote::JAPLUS_CVAR,
             ],
             Self::Simple(Simple::Hud) => &[
                 crate::menu_hud::STYLE_CVAR,

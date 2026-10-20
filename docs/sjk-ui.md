@@ -789,7 +789,7 @@ that mode for the visit and leaves the player's choice as it was.
     (effects and music volume, mute in background), Controls (sensitivity,
     invert mouse, always run), Key bindings, Gameplay (camera style, gameplay
     FPS, first-person weapon, saber trail, everyone as my model, Force Seeing
-    aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
+    aura, away emote and JA+ away emote, since 20/10/2026), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
     damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
     feed, chat and its text size) and General (Menus: menu style and text size;
     From another client: import; JoF content: its card, since 16/10/2026; SJK
