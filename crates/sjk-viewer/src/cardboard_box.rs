@@ -219,8 +219,9 @@ pub(crate) struct CardboardBox {
     cues: Vec<Cue>,
     /// The music this frame.
     music: Vec<Music>,
-    /// The sounds were handed to the audio.
-    sounds_registered: bool,
+    /// The audio output ([`crate::GameAudio::generation`]) its sounds were registered
+    /// with: a new output (`snd_restart`) registers them again.
+    sounds_registered: Option<u64>,
     /// Cartons to draw without a session, for the world shots: origin and yaw.
     #[cfg(test)]
     pub(crate) shot_cartons: Vec<([f32; 3], f32)>,
@@ -247,7 +248,7 @@ impl Default for CardboardBox {
             fallen: Vec::with_capacity(FALLEN_MAX),
             cues: Vec::with_capacity(8),
             music: Vec::with_capacity(8),
-            sounds_registered: false,
+            sounds_registered: None,
             #[cfg(test)]
             shot_cartons: Vec::new(),
             #[cfg(test)]
@@ -808,11 +809,11 @@ impl GpuState {
             self.cardboard_box.cues.clear();
             return;
         };
-        if !self.cardboard_box.sounds_registered
+        if self.cardboard_box.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
             audio.register_effect_paths(vfs, [MUSIC, EQUIP, SPOTTED, DROP, DEATH]);
-            self.cardboard_box.sounds_registered = true;
+            self.cardboard_box.sounds_registered = Some(audio.generation());
         }
         for cue in self.cardboard_box.take_cues() {
             let source = sjk_audio::SourceId(u32::from(cue.slot));

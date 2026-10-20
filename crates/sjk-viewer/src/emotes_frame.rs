@@ -139,7 +139,7 @@ impl GpuState {
         let Some(audio) = audio.as_mut() else {
             return;
         };
-        if !state.sounds_loaded
+        if state.sounds_loaded != Some(audio.generation())
             && let (Some(catalogue), Some(vfs)) = (state.catalogue.as_ref(), self.vfs.as_deref())
         {
             audio.register_effect_paths(
@@ -149,7 +149,7 @@ impl GpuState {
                     .flat_map(|def| [def.sound.as_str(), def.sound_loop.as_str()])
                     .filter(|sound| !sound.is_empty()),
             );
-            state.sounds_loaded = true;
+            state.sounds_loaded = Some(audio.generation());
         }
         drop(state);
         let world = self

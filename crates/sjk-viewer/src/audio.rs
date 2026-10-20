@@ -63,6 +63,9 @@ use config_strings::{DeferredSoundChanges, SoundTableRefresh};
 
 const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/qcommon/q_shared.h:1540
 
+/// The next [`GameAudio::generation`].
+static NEXT_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 /// Process-lifetime audio state. Only the rodio callback owns the mixer.
 pub(crate) struct GameAudio {
     flame: flame::State,
@@ -71,6 +74,8 @@ pub(crate) struct GameAudio {
     #[cfg(feature = "mod-jof")]
     force_feedback: jof_force::State,
     output: AudioOutput,
+    /// This output's number among those the process started ([`Self::generation`]).
+    generation: u64,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
     /// Effect paths no installed file answered ([`Self::register_effect`]), until the
@@ -168,6 +173,13 @@ impl GameAudio {
         }
     }
 
+    /// Which output this is: a new number at every start (`snd_restart` makes a new
+    /// output with an empty sample cache), so sounds registered once per output
+    /// (emotes, toys) know to register again.
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+
     /// Create the one process-lifetime output stream and its decode worker.
     pub(crate) fn start() -> Option<Self> {
         let output = AudioOutput::start(MixerConfig {
@@ -190,6 +202,7 @@ impl GameAudio {
             #[cfg(feature = "mod-jof")]
             force_feedback: Default::default(),
             output,
+            generation: NEXT_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),
             missing_effects: std::collections::HashSet::new(),

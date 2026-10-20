@@ -410,6 +410,15 @@ mod listener_tests {
         wav
     }
 
+    /// Hub report #99: a restarted output is a new generation, so sounds registered
+    /// once per output (emotes, toys) are registered with it again.
+    #[test]
+    fn every_output_is_a_new_generation() {
+        let first = GameAudio::with_output(AudioOutput::test_output().0);
+        let second = GameAudio::with_output(AudioOutput::test_output().0);
+        assert_ne!(first.generation(), second.generation());
+    }
+
     #[test]
     fn a_snapshot_leaves_the_listener_where_the_frame_put_it() {
         let (output, mut source) = AudioOutput::test_output();

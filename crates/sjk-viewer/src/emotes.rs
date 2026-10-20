@@ -647,8 +647,9 @@ impl ActiveEmotes {
 pub(crate) struct State {
     pub(crate) catalogue: Option<Vec<EmoteDef>>,
     pub(crate) active: ActiveEmotes,
-    /// Whether the catalogue's sounds were handed to the audio to load.
-    pub(crate) sounds_loaded: bool,
+    /// The audio output ([`crate::GameAudio::generation`]) the catalogue's sounds were
+    /// handed to, to load again on a new one (`snd_restart`, hub report #99).
+    pub(crate) sounds_loaded: Option<u64>,
     /// The players whose emotes this screen hides (`sjkemote mute`): key id to the
     /// name shown when muted.
     pub(crate) muted: std::collections::BTreeMap<String, String>,
