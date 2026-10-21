@@ -134,6 +134,11 @@ pub(crate) const CODE_SHADERS: &[&str] = &[
     "footstep_l",
     "footstep_heavy_r",
     "footstep_heavy_l",
+    // The blossoms a swung blade sheds (`saber_petals.rs`): without these the particles
+    // drew the stand-in sprite, yellow dots.
+    crate::saber_petals::SHADERS[0],
+    crate::saber_petals::SHADERS[1],
+    crate::saber_petals::SHADERS[2],
 ];
 
 pub(crate) fn required_shaders<'a>(

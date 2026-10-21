@@ -284,6 +284,8 @@ mod map_edit_shots;
 
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
+#[path = "world_shot_petals.rs"]
+mod petals;
 
 #[path = "world_shot_blade_cards.rs"]
 mod blade_cards;
