@@ -9,6 +9,19 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 21/10/2026 | - | A held blade card leads to its shader
+- d4a8640 |  | Cards tab: a held blade card's button opens its shader on the Shaders tab
++ 21/10/2026 | - | Bug Hunter is held once
+- f6970e7 |  | Bug Hunter is held once (no medal is repeatable)
+- 1ee08af |  | Debug panel and changelog for Bug Hunter held once
++ 21/10/2026 | - | A GPU test timing every signature blade against the stock blade
+- 44fc122 |  | Measure the signature blades' GPU cost against the stock blade
++ 21/10/2026 | - | Blade skins and signature shaders load only when a blade draws them
+- 557268c |  | Blade skins and signature shaders load only when a blade draws them
++ 21/10/2026 | - | Small graphics cards found at start, drawn saber shaders with menu pictures
+- b86d1be |  | Small graphics cards found at start; drawn saber shaders with menu pictures
++ 21/10/2026 | - | Credits history: blade cards craft for less
+- 058dfad |  | Credits history: blade cards craft for less
 + 21/10/2026 | - | Blade cards craft their saber shader for less
 - 04e55ab |  | Blade cards craft their saber shader for less: Normal at the shop price, Holo or Solar at half
 + 21/10/2026 | - | Map changes keep the blade signatures; vsync with supersampling no longer crashes
