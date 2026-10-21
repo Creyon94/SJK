@@ -6015,9 +6015,9 @@ test: bind MWHEELDOWN +moveup, scroll one notch: one jump each notch, at 125 and
 test: Held keys and short taps of Space move as before; +attack on the wheel still swings.
 
 [report-chars]
-area: Hub
+area: Menus & settings
 title: Reports take _ / \ + = " ; [ ] < > #
-change: Bug reports, notes and player reports accept the characters cvars, commands and binds use.
-change: @ * & | ~ backtick $ % ^ and braces are still refused, with the rules line naming what is taken.
-test: Escape > SJK > Report a bug: send 'bind x "say hi; kill" breaks [90] <value> cg_fov_2': sent, no refusal.
-test: A report with @ or {braces}: refused, and the message lists the allowed characters.
+change: Bug reports, notes and player reports accept the characters of cvars and binds.
+change: @ * & | ~ backtick $ % ^ and braces stay refused; the rules line lists what is taken.
+test: Report a bug: 'bind x "say hi; kill" [90] <value> cg_fov_2' is sent, no refusal.
+test: A report with @ or {braces}: refused, the message lists the allowed characters.
