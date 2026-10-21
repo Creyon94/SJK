@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[card-perks]
+area: Menus & settings
+title: Perk marks on cards
+change: Cards tab: a round badge per perk over a tile's top left corner (saber, Solar sun, hammer).
+change: The card up close lists the marks after its set; the hover card puts each before its line.
+test: Collection > Cards: the Sun card has a saber badge; each SJK Blades card a sun and a hammer.
+test: Badges show on cards not found yet too (dimmer), and never cover the x2 count.
+test: Hover a blade card: its two perk lines start with the sun and the hammer.
+test: Choose it: the line under 'held' ends with the same marks.
+
 [blade-card-craft]
 area: Menus & settings
 title: Blade cards craft their saber shader for less

@@ -28,6 +28,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Cards with a perk now show it: on the Cards tab a round badge over the card's corner for each, a lightsaber when it brings a blade while you hold it, the Solar sun when its Solar copies drop its blade, a smith's hammer when it makes crafting its blade cheaper. The card up close shows the same marks, and its hover card starts each perk's line with its mark _(Sol)_
+
 ## 2026.1021.2 (Alpha) | 21/10/2026
 
 The rewards promised with holocron openings are given: everyone who reported bugs or had a pull request merged has holocrons waiting, counted by one rule for all. This release brings the Forge, where the shop, crafting and breaking shaders down now live, and cheaper crafting for blade card holders.

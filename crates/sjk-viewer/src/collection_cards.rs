@@ -561,6 +561,35 @@ impl Panel {
             1.0,
             1.0,
         );
+        // Its perks, found or not: a mark each on round badges over the top left corner.
+        if let Some(face) = tile.face(faces) {
+            let ink = if tile.owned() { 0.9 } else { 0.6 };
+            for (place, perk) in face.perks().iter().enumerate() {
+                let left = x - 7.0 + place as f32 * 28.0;
+                let rect = frame.rect(left, y - 6.0, 25.0, 25.0);
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: 12.5 * s,
+                    color: color::alpha(color::SPACE, 0.94),
+                });
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 12.5 * s,
+                    width: 1.2 * s,
+                    color: color::alpha(tile.rarity.colour, ink),
+                });
+                text(
+                    &mut self.ui,
+                    TextFamily::Display,
+                    format_args!("{}", perk.mark),
+                    frame.rect(left, y - 5.0, 25.0, 23.0),
+                    18.0 * s,
+                    color::alpha(tile.rarity.colour, ink),
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+            }
+        }
         let count = tile.count();
         if count > 1 {
             // The count on a pill over the tile's top right corner.
@@ -882,13 +911,26 @@ fn card_words(tile: &Tile, faces: &cards::faces::Faces) -> CardWords {
         "Not found yet".to_owned()
     };
     let about = match (&tile.slot, face) {
-        (_, Some(face)) => format!(
-            "{} {}   ·   {}   ·   {}",
-            crate::symbols::card_rarity(tile.rarity.index),
-            tile.rarity.name,
-            face.face.kind.name(),
-            face.face.set_name,
-        ),
+        (_, Some(face)) => {
+            let mut about = format!(
+                "{} {}   ·   {}   ·   {}",
+                crate::symbols::card_rarity(tile.rarity.index),
+                tile.rarity.name,
+                face.face.kind.name(),
+                face.face.set_name,
+            );
+            // Its perks' marks, as on its tile.
+            let marks: Vec<String> = face
+                .face
+                .perks()
+                .iter()
+                .map(|perk| perk.mark.to_string())
+                .collect();
+            if !marks.is_empty() {
+                about = format!("{about}   ·   {}", marks.join(" "));
+            }
+            about
+        }
         (Slot::Sealed, _) => "Sealed: a card is picked for each when it is revealed.".to_owned(),
         _ => "Its face is not in your card pack yet.".to_owned(),
     };
