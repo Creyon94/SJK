@@ -1390,9 +1390,9 @@ mod tests {
         let _ = panel.cycle_tier(false);
         assert_eq!(panel.shader, 0, "back to the top");
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 31);
-        assert_eq!(ids(&panel)[0], "saber_tidal");
-        assert_eq!(panel.shader_count, 32, "the stock blade stays first");
+        assert_eq!(ids(&panel).len(), 43);
+        assert_eq!(ids(&panel)[0], "saber_frost");
+        assert_eq!(panel.shader_count, 44, "the stock blade stays first");
         for _ in 0..5 {
             let _ = panel.cycle_tier(false);
         }
@@ -1454,25 +1454,14 @@ mod tests {
             [
                 "saber_sun",
                 "saber_void",
-                "saber_quantum",
                 "saber_comic",
                 "saber_obsidian",
                 "saber_abyssal_eye",
-                "saber_aurora_wyrm",
-                "saber_balance",
-                "saber_between_worlds",
-                "saber_big_bang",
                 "saber_carbonite",
                 "saber_eclipse",
                 "saber_event_horizon",
                 "saber_exogorth",
-                "saber_hyperspace",
-                "saber_kyber_heart",
-                "saber_nebula_song",
-                "saber_singing_kyber",
-                "saber_starforge",
                 "saber_world_shift",
-                "saber_lightspeed_ram",
                 "saber_exegol_rift",
             ]
         );

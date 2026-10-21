@@ -1,3 +1,12 @@
+## Blade tiers adjusted again (38 blades)
+
+21/10/2026, `personal/blade-tiers-3`, based on `main` (Sol's last adjustments, which take in
+the uncommitted `personal/blade-tiers-2`): 048 053 054 055 056 062 064 066 069 075 go to
+Legendary; 043 063 068 070 072 074 078 079 088 089 090 097 139 to Rare; 005 006 014 036 to
+Uncommon; 004 012 013 019 023 030 031 103 107 108 133 136 to Common. Tiers now: Mythical
+11, Legendary 35, Rare 43, Uncommon 33, Common 43. The hub's catalogue matches (hub branch
+`blade-tiers-3`). Verified on Windows 11: unit tests. Not verified: in a game.
+
 ## Creyon's rounds 15 to 22 merged
 
 21/10/2026, `personal/creyon-rounds-15-21`, based on `main` (Sol: bring them in ourselves):
