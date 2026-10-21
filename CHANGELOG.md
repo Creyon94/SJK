@@ -38,6 +38,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_chatRememberChannel: The chat key now always opens on All. Turn this on to have it open on the channel of your last message again.
 
+- The holocron shop is now your own: its four daily shaders are picked for you from the ones you don't own yet, and reopening it shows the same four until midnight (Paris time) _(Sol)_
 - The Collection's "collected" count at the top right sits over one thin bar a tab, filled as far as you hold that tab's things, instead of a tick for each of nearly two hundred things _(Sol)_
 - Cards are easier to see: the Cards tab's tiles are larger and each names its card, Enter or a click shows the card large (the arrows or the wheel turn to the next), a card's lore grows to fill its box when it is short, and no card shows its number any more _(Sol)_
 - Simple settings now offer the away emote too: Settings > Gameplay > Away emote and JA+ away emote, as Advanced has them under Sound > Emotes _(Sol)_

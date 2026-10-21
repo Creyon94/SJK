@@ -1003,6 +1003,14 @@ test: After the hub deploy and publish: open holocrons; blade cards show as 'Bla
 test: Hover a blade card: 'Its Solar copies also drop the ... blade.'
 test: Binder kind filter offers Blade; blade cards foot reads #NNN.
 
+[personal-shop]
+area: Menus & settings
+title: Holocron shop: your own four shaders a day
+change: After the hub deploy, each player's offers skip the shaders they hold.
+change: Reopening shows the same four until midnight Paris; a shader you gain swaps only its slot.
+test: Open the shop on two accounts: different offers, none already owned.
+test: Close and reopen the shop: same four offers.
+
 [collection-tally]
 area: Menus & settings
 title: Collection: one bar a tab under "N of M collected"

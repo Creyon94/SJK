@@ -451,7 +451,8 @@ pub struct Offer {
 }
 
 /// The hub's answer to `GET /v1/shop` (`PROTOCOL.md`, "Shards and the shop"): the day's
-/// offers, the same for everyone, and when the next day's come.
+/// offers (each person's own since 21/10/2026, the same for everyone before), and when
+/// the next day's come.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ShopDay {
     /// The day in Paris, `YYYY-MM-DD`.
