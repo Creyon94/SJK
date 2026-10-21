@@ -209,6 +209,8 @@ struct Row {
     /// How many the player holds (holocrons may drop the same shader again): 1 for the
     /// stock blade and a shader held once, 0 when locked.
     count: u32,
+    /// Its blade number shows: only while `debug_collectibles` is on (Sol, 21/10/2026).
+    numbered: bool,
 }
 
 /// `word` with how many are held after it when there are several: "Yours x2".
@@ -225,9 +227,11 @@ impl Row {
         self.skin.map_or("Stock blade", |skin| skin.name)
     }
 
-    /// Its blade number after its tier ("  ·  042"), nothing for the stock blade.
+    /// Its blade number after its tier ("  ·  042"), nothing for the stock blade or
+    /// when numbers are hidden ([`Self::numbered`]).
     fn number_words(self) -> String {
         self.skin
+            .filter(|_| self.numbered)
             .map(|skin| format!("  ·  {}", skin.number_text()))
             .unwrap_or_default()
     }
@@ -284,6 +288,7 @@ impl Panel {
             owned: true,
             worn: worn.is_none(),
             count: 1,
+            numbered: false,
         })
         .chain(
             unlockables::blade_skins_by_tier()
@@ -297,6 +302,7 @@ impl Panel {
                         .holdings
                         .unlock(skin.id)
                         .map_or(0, |unlock| unlock.count),
+                    numbered: inputs.holdings.debug(),
                 }),
         )
         .collect()
@@ -337,9 +343,7 @@ impl Panel {
                 "Shaders are kept on the SJK hub: no hub is set (cl_hubUrl)."
             }
             unlockables::Holdings::Waiting => "Waiting for the SJK hub to say which are yours.",
-            unlockables::Holdings::Known(held)
-                if held.iter().any(crate::debug_collectibles::added) =>
-            {
+            holdings @ unlockables::Holdings::Known(_) if holdings.debug() => {
                 "Debug collectibles is on: every shader is shown as yours, on this PC only."
             }
             unlockables::Holdings::Known(_) => {

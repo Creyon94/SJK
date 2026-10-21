@@ -1,3 +1,11 @@
+## Blade numbers only with debug collectibles
+
+21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless
+`debug_collectibles` is on): the Collection's tier line ("Mythical  ·  001") and hover card
+("Blade 001.") show the number only while `debug_collectibles` dresses the profile
+(`Holdings::debug`); the search by number and `saberskin 42` still work. Verified on Windows
+11: unit tests. Not verified: in a game.
+
 ## Blade tiers adjusted again (38 blades)
 
 21/10/2026, `personal/blade-tiers-3`, based on `main` (Sol's last adjustments, which take in
