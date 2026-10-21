@@ -105,6 +105,7 @@ impl ViewerConsole {
     pub(super) fn model_viewer_wish(&self) -> Option<StageWish> {
         (self.open && self.model_viewer.is_open()).then_some(StageWish {
             skin: super::collection_panel::PreviewSkin::Worn,
+            on_second: false,
             saber: None,
             holocron: false,
         })

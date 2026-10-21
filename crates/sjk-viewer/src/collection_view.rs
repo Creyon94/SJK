@@ -138,6 +138,7 @@ pub(crate) fn row_labels(
         grid: false,
         options: "",
         second: "",
+        pair: crate::saber_skins::Pair::None,
         share: false,
     };
     counts(&inputs).iter().map(|count| count.label()).collect()

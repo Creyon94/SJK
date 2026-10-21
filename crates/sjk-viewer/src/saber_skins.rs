@@ -1079,6 +1079,54 @@ pub(crate) enum Second {
     Own(Option<SkinColor>),
 }
 
+/// What the local player holds that a second skin can go on ([`pair`]): nothing, two
+/// sabers, or one saber with more than one blade (a staff's other half).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Pair {
+    #[default]
+    None,
+    TwoSabers,
+    Staff,
+}
+
+/// [`Pair`] as last seen on the local player's model (`menu_stage`), for the Collection.
+static LOCAL_PAIR: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// What the local player's model held when last drawn.
+pub(crate) fn local_pair() -> Pair {
+    match LOCAL_PAIR.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => Pair::TwoSabers,
+        2 => Pair::Staff,
+        _ => Pair::None,
+    }
+}
+
+/// Keep what the local player's model holds: `sabers` blades on each hand's saber.
+pub(crate) fn set_local_pair(blades: [Option<u8>; 2]) {
+    let pair = match blades {
+        [_, Some(_)] => 1,
+        [Some(blades), None] if blades >= 2 => 2,
+        _ => 0,
+    };
+    LOCAL_PAIR.store(pair, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The skin blade `blade_index` of saber `saber_index` wears, of `skins` (the first's and
+/// the second's): the second saber wears the second, and with one saber, its blades after
+/// the first do (a staff's other half, Sol's request of 21/10/2026).
+pub(crate) fn skin_of_blade(
+    skins: [Option<SkinColor>; 2],
+    two_sabers: bool,
+    saber_index: usize,
+    blade_index: usize,
+) -> Option<SkinColor> {
+    if saber_index >= 1 || (!two_sabers && blade_index >= 1) {
+        skins[1]
+    } else {
+        skins[0]
+    }
+}
+
 impl Second {
     /// The second saber's skin when the first wears `first`.
     pub(crate) fn resolve(self, first: Option<SkinColor>) -> Option<SkinColor> {
@@ -1207,6 +1255,23 @@ impl SaberSkins {
     pub(crate) fn blade_color(&self, entity_id: u64, color: BladeColor) -> BladeColor {
         self.get(entity_id)
             .map_or(color, |skin| BladeColor::Skin(skin.worn_with(color)))
+    }
+
+    /// The local player's skins on its first and second saber (or a staff's halves), worn
+    /// with its own persona.
+    pub(crate) fn local_both(&self) -> [Option<SkinColor>; 2] {
+        let first = self.local();
+        [first, self.local_second_with(first)]
+    }
+
+    /// What the local player's second saber (or a staff's other half) wears when the first
+    /// wears `first`: its own choice, else `first` (the Collection previews a shader on the
+    /// first and shows the second as it is).
+    pub(crate) fn local_second_with(&self, first: Option<SkinColor>) -> Option<SkinColor> {
+        self.local_second.resolve(first).map(|skin| SkinColor {
+            persona: self.local_persona,
+            ..skin
+        })
     }
 
     /// The local player's skin, worn with its own persona.

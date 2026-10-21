@@ -486,10 +486,12 @@ Built.
   skin, `stock` for the stock blade, or a blade-skin id, worn only while the profile lists
   it (else the first's). The look sends it as `saber2` ([Looks](#looks)) and every other
   SJK player draws each saber with its own skin (`SaberSkins::get_both`,
-  `saber_submission::submit`); the sounds stay the first skin's. `saberskin second <id>`,
-  `saberskin second none` (the stock blade) and `saberskin second same` set it, and the
-  Collection's shader card has On the 2nd saber, which sets it to that shader (Off the
-  2nd saber, back to the first's).
+  `saber_skins::skin_of_blade`, `saber_submission::submit`). With one saber of more than
+  one blade, a staff, the second skin goes on its other half (every blade after the first;
+  Sol's request of 21/10/2026), each half with its own light; a thrown staff keeps the
+  first skin, and the sounds stay the first skin's. `saberskin second <id>`,
+  `saberskin second none` (the stock blade) and `saberskin second same` set it, and so does
+  the Collection's Shaders tab through its target switch ([Shaders tab](#shaders-tab)).
 - `saberskin` ([saber_skin_command.rs](../crates/sjk-viewer/src/saber_skin_command.rs))
   alone lists the blade skins: id, name, owned (since when) or locked (how to get
   it), which one is worn or chosen, and why ownership is not known when it is not
@@ -1137,9 +1139,19 @@ Profile page's See the collection) open it on its own:
   drop, where it drops: a chip for each holocron tier that may bring it, in that tier's
   colour, with the chance an opening of one does (the hub's odds split evenly among
   the droppable shaders of its tier, `cards::loot::shader_in`); then its parts and, at
-  the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`, and
-  above them On the 2nd saber (Off the 2nd saber once worn there), which sets
-  `cg_saberSkin2` to that shader, the stock blade's row to `stock`, or back to empty.
+  the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
+  While the player holds two sabers or a staff (`saber_skins::local_pair`, from the model
+  the stage draws, or `saber2` naming a hilt), a target switch tops the saber's room: two
+  pills, 1st saber and 2nd saber (1st half and Other half for a staff), each with what it
+  wears ("Same as the 1st" for none of its own), the one being dressed in gold. A click on
+  a pill, or a click (not a drag) on the sabers themselves (the upper saber is the first;
+  on a staff a click goes to the other half), chooses it. The sabers show the shader on
+  the target, the other keeping what it wears, the second laid below the first (a staff
+  shows both halves on its one hilt), and the card's foot then says Equip on the 1st
+  saber or Equip on the 2nd saber (the other half for a staff), Unequip the 2nd saber once
+  worn there, which sets `cg_saberSkin2` (to the shader, `stock` from the stock row, or
+  back to empty); Enter and a double click on a row do the same. A row the second wears
+  says "2nd blade".
   While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
   the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
   twice or more, or Craft (its cost) for one not held, dimmed while the shards fall

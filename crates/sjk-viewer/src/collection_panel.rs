@@ -81,8 +81,11 @@ const SHATTER_TOKEN: u16 = 1_317;
 const CRAFT_TOKEN: u16 = 1_318;
 /// The Nameplates tab's See and share nameplates switch.
 const SHARE_TOKEN: u16 = 1_319;
-/// The shader card's "2nd saber": what a second saber wears (`cg_saberSkin2`).
-const SECOND_TOKEN: u16 = 1_309;
+/// The target switch over the lone saber: the first saber (or half), the second.
+const TARGET_FIRST_TOKEN: u16 = 1_307;
+const TARGET_SECOND_TOKEN: u16 = 1_308;
+/// How far (frame pixels) a press on the lone saber may move and still be a click.
+const CLICK_SLOP: f32 = 6.0;
 /// How long a Shatter or Craft waits for its second press, which sends it.
 const TRADE_CONFIRM: std::time::Duration = std::time::Duration::from_secs(5);
 /// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
@@ -255,6 +258,9 @@ pub(crate) struct StageWish {
     pub(crate) skin: PreviewSkin,
     /// The saber on its own, turned so, in place of the model holding it (Shaders).
     pub(crate) saber: Option<SaberTurn>,
+    /// The shader shown goes on the second saber (or the staff's other half), the first
+    /// keeping what it wears.
+    pub(crate) on_second: bool,
     /// The Illuminate holocron floats by the model, lit.
     pub(crate) holocron: bool,
 }
@@ -287,6 +293,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) options: &'a str,
     /// `cg_saberSkin2`: what a second saber wears ([`crate::looks::SECOND_CVAR`]).
     pub(crate) second: &'a str,
+    /// What the player holds that a second skin can go on (two sabers, a staff): the
+    /// shader card offers its button, named for it.
+    pub(crate) pair: crate::saber_skins::Pair,
     /// See and share nameplates (`cg_nameplate`): the player sees nameplates and shares
     /// their health, shield and Force.
     pub(crate) share: bool,
@@ -354,6 +363,15 @@ pub(crate) struct Panel {
     grid_first: usize,
     /// The shader row last clicked and when, for a double click's Equip.
     last_click: Option<(u16, Instant)>,
+    /// What the Shaders tab dresses while the player holds two sabers or a staff: the
+    /// second saber (or the staff's other half) when true, else the first. The target
+    /// switch over the saber, or a click on a saber, chooses it.
+    second_target: bool,
+    /// What the player holds that a second skin can go on, as last built.
+    pair: crate::saber_skins::Pair,
+    /// Where a press on the lone saber began, to tell a click (which chooses the saber
+    /// it lands on) from a drag (which turns them).
+    saber_press: Option<[f32; 2]>,
     /// How many medals the last frame showed.
     medals_shown: usize,
     shader_rows: [ShaderRow; SHADER_ROWS],
@@ -439,6 +457,9 @@ impl Panel {
             grid: false,
             grid_first: 0,
             last_click: None,
+            second_target: false,
+            pair: crate::saber_skins::Pair::None,
+            saber_press: None,
             medals_shown: 0,
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
             shader_list: unlockables::blade_skins_by_tier().to_vec(),
@@ -588,16 +609,19 @@ impl Panel {
                         .map_or(PreviewSkin::Worn, |skin| PreviewSkin::Skin(skin.id)),
                 },
                 saber: Some(self.spin.turn()),
+                on_second: self.second_target,
                 holocron: false,
             }),
             Tab::Toys => Some(StageWish {
                 skin: PreviewSkin::Worn,
                 saber: None,
+                on_second: false,
                 holocron: self.toy == 0,
             }),
             Tab::Nameplates => Some(StageWish {
                 skin: PreviewSkin::Worn,
                 saber: None,
+                on_second: false,
                 holocron: false,
             }),
             _ => None,
@@ -620,8 +644,8 @@ impl Panel {
             Tab::Shaders => self
                 .shader_rows
                 .get(self.shader)
-                .and_then(|row| row.wear)
-                .map_or(PanelAction::None, PanelAction::Wear),
+                .copied()
+                .map_or(PanelAction::None, |row| self.wear_action(row)),
             Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
@@ -632,6 +656,23 @@ impl Panel {
             }
             _ => PanelAction::None,
         }
+    }
+
+    /// What Equip (or Enter, or a double click) does on `row`: wear it on the target, the
+    /// first saber or the second (or the staff's other half).
+    fn wear_action(&self, row: ShaderRow) -> PanelAction {
+        if self.second_target {
+            row.second
+                .map_or(PanelAction::None, PanelAction::WearSecond)
+        } else {
+            row.wear.map_or(PanelAction::None, PanelAction::Wear)
+        }
+    }
+
+    /// Choose the target saber (or half) the Shaders tab dresses.
+    fn set_target(&mut self, second: bool) -> PanelAction {
+        self.second_target = second && self.pair != crate::saber_skins::Pair::None;
+        PanelAction::None
     }
 
     /// How many things the tab on show offers to choose.
@@ -999,18 +1040,42 @@ impl Panel {
                         && self
                             .ui
                             .rect_for(SABER_TOKEN)
-                            .is_some_and(|rect| rect.contains(at)) =>
+                            .is_some_and(|rect| rect.contains(at))
+                        // The target switch over the saber is pressed, not the saber.
+                        && ![TARGET_FIRST_TOKEN, TARGET_SECOND_TOKEN].iter().any(|token| {
+                            self.ui.rect_for(*token).is_some_and(|rect| rect.contains(at))
+                        }) =>
                 {
                     self.spin.grab([at.x, at.y]);
+                    self.saber_press = Some([at.x, at.y]);
                     return PanelAction::None;
                 }
                 InputEvent::PointerMove(at) if self.spin.held() => {
                     self.spin.drag([at.x, at.y], self.scale);
                     return PanelAction::None;
                 }
-                InputEvent::PointerRelease { .. } | InputEvent::PointerLeave
-                    if self.spin.held() =>
-                {
+                InputEvent::PointerRelease { position: at, .. } if self.spin.held() => {
+                    self.spin.release(self.epoch.elapsed().as_secs_f32());
+                    // A click, not a drag, on the sabers chooses the one it lands on: two
+                    // sabers lie one above the other; a staff's halves are both on the
+                    // one line, so a click there goes to the other half.
+                    let clicked = self.saber_press.take().is_some_and(|[px, py]| {
+                        (at.x - px).hypot(at.y - py) <= CLICK_SLOP * self.scale.max(0.1)
+                    });
+                    if clicked && let Some(rect) = self.ui.rect_for(SABER_TOKEN) {
+                        let second = match self.pair {
+                            crate::saber_skins::Pair::TwoSabers => {
+                                at.y > rect.y + rect.height * 0.5
+                            }
+                            crate::saber_skins::Pair::Staff => !self.second_target,
+                            crate::saber_skins::Pair::None => false,
+                        };
+                        return self.set_target(second);
+                    }
+                    return PanelAction::None;
+                }
+                InputEvent::PointerLeave if self.spin.held() => {
+                    self.saber_press = None;
                     self.spin.release(self.epoch.elapsed().as_secs_f32());
                     return PanelAction::None;
                 }
@@ -1089,9 +1154,15 @@ impl Panel {
                 return self
                     .shader_rows
                     .get(index)
-                    .filter(|row| !row.worn)
-                    .and_then(|row| row.wear)
-                    .map_or(PanelAction::None, PanelAction::Wear);
+                    .copied()
+                    .filter(|row| {
+                        if self.second_target {
+                            !row.second_worn
+                        } else {
+                            !row.worn
+                        }
+                    })
+                    .map_or(PanelAction::None, |row| self.wear_action(row));
             }
             self.last_click = Some((token, now));
             return PanelAction::None;
@@ -1166,11 +1237,8 @@ impl Panel {
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
-            SECOND_TOKEN => self
-                .shader_rows
-                .get(self.shader)
-                .and_then(|row| row.second)
-                .map_or(PanelAction::None, PanelAction::WearSecond),
+            TARGET_FIRST_TOKEN => self.set_target(false),
+            TARGET_SECOND_TOKEN => self.set_target(true),
             SHATTER_TOKEN | CRAFT_TOKEN => self.trade_press(token, now),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
@@ -1340,6 +1408,7 @@ mod tests {
             grid: false,
             options: "",
             second: "",
+            pair: crate::saber_skins::Pair::None,
             share: true,
         }
     }
@@ -1907,25 +1976,38 @@ mod tests {
             click(&mut panel, WEAR_TOKEN),
             PanelAction::Wear("saber_sun")
         );
-        // "On 2nd saber" sets the second saber's skin, and once worn sets it back.
+        // With one saber of one blade there is no target switch.
+        assert!(panel.ui.rect_for(TARGET_SECOND_TOKEN).is_none());
+        // Two sabers: the switch chooses the second, and Equip dresses it; once worn there,
+        // it takes it off again.
+        let dual = |second| Inputs {
+            second,
+            pair: crate::saber_skins::Pair::TwoSabers,
+            ..inputs(Holdings::Known(&owned), "")
+        };
+        panel.build(&dual(""), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(click(&mut panel, TARGET_SECOND_TOKEN), PanelAction::None);
+        assert!(panel.stage_wish().unwrap().on_second);
+        panel.build(&dual(""), &fonts.font, [1920.0, 1080.0]);
         assert_eq!(
-            click(&mut panel, SECOND_TOKEN),
+            click(&mut panel, WEAR_TOKEN),
             PanelAction::WearSecond("saber_sun")
         );
-        panel.build(
-            &Inputs {
-                second: "saber_sun",
-                ..inputs(Holdings::Known(&owned), "")
-            },
-            &fonts.font,
-            [1920.0, 1080.0],
+        panel.build(&dual("saber_sun"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(click(&mut panel, WEAR_TOKEN), PanelAction::WearSecond(""));
+        assert_eq!(click(&mut panel, TARGET_FIRST_TOKEN), PanelAction::None);
+        panel.build(&dual("saber_sun"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, WEAR_TOKEN),
+            PanelAction::Wear("saber_sun")
         );
-        assert_eq!(click(&mut panel, SECOND_TOKEN), PanelAction::WearSecond(""));
+        // Holding one saber again, the target goes back to it.
         panel.build(
             &inputs(Holdings::Known(&owned), ""),
             &fonts.font,
             [1920.0, 1080.0],
         );
+        assert!(!panel.stage_wish().unwrap().on_second);
         assert_eq!(
             click(&mut panel, crate::profile_hub::TOKEN + 1),
             PanelAction::None

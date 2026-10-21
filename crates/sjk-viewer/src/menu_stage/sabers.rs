@@ -267,20 +267,38 @@ impl GpuState {
         self.saber_instances.clear();
         // The stage model is the local player: its blades wear the player's skin, or
         // the one the Collection's Shaders tab shows.
-        let skin = match self.menu_stage.skin_override {
-            Some(crate::console::collection_panel::PreviewSkin::Stock) => None,
-            Some(crate::console::collection_panel::PreviewSkin::Skin(id)) => self
-                .blade_skins
-                .color_with(id, self.looks.own_options_off(id))
-                .map(|skin| crate::saber_skins::SkinColor {
-                    persona: self.saber_skins.local_persona(),
-                    ..skin
-                }),
-            _ => self.saber_skins.local(),
+        // The shader the Collection shows goes on the first saber; the second saber (or a
+        // staff's other half) shows what it wears, so the pair is seen as it will be.
+        // With the target switch on the second, the shader goes there and the first keeps
+        // what it wears.
+        let shown = match self.menu_stage.skin_override {
+            Some(crate::console::collection_panel::PreviewSkin::Stock) => Some(None),
+            Some(crate::console::collection_panel::PreviewSkin::Skin(id)) => Some(
+                self.blade_skins
+                    .color_with(id, self.looks.own_options_off(id))
+                    .map(|skin| crate::saber_skins::SkinColor {
+                        persona: self.saber_skins.local_persona(),
+                        ..skin
+                    }),
+            ),
+            _ => None,
+        };
+        let skins = match shown {
+            None => self.saber_skins.local_both(),
+            Some(shown) if self.menu_stage.override_on_second => [self.saber_skins.local(), shown],
+            Some(shown) => [shown, self.saber_skins.local_second_with(shown)],
         };
         let frame_view = self.frame_view;
         let stage = &mut self.menu_stage;
         stage.preview.blades.clear();
+        // What the local player holds, for the Collection's second-saber button.
+        crate::saber_skins::set_local_pair(
+            stage
+                .sabers
+                .each_ref()
+                .map(|saber| saber.as_ref().map(|saber| saber.num_blades)),
+        );
+        let two_sabers = stage.sabers[1].is_some();
         // The classic preview's blades are drawn into it, not into the world.
         let preview = stage.preview_only;
         let Some(actor) = &stage.actor else {
@@ -372,9 +390,6 @@ impl GpuState {
                 self.queue
                     .write_buffer(&saber.instance_buffer, 0, bytemuck::bytes_of(&instance));
             }
-            let color = skin.map_or(saber.color, |skin| {
-                BladeColor::Skin(skin.worn_with(saber.color))
-            });
             for (index, blade) in saber
                 .blades
                 .iter()
@@ -390,6 +405,10 @@ impl GpuState {
                     blade.length * out,
                     blade.radius,
                 );
+                let skin = crate::saber_skins::skin_of_blade(skins, two_sabers, hand, index);
+                let color = skin.map_or(saber.color, |skin| {
+                    BladeColor::Skin(skin.worn_with(saber.color))
+                });
                 let seed = (hand * 8 + index) as u32;
                 let pair = saber::Instance::pair(blade, color)
                     .map(|i| i.with_animation(seconds, seed))

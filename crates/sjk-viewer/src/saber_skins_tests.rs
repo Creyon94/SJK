@@ -988,3 +988,23 @@ fn each_saber_wears_its_own_skin() {
     skins.set_local_both(Some(2), None, Second::Own(Some(other)));
     assert_eq!(indices(&skins, 3), [None, Some(5)]);
 }
+
+#[test]
+fn a_staffs_other_half_wears_the_second_skin() {
+    let first = sample_color();
+    let second = SkinColor { index: 5, ..first };
+    let skins = [Some(first), Some(second)];
+    let index = |two, saber, blade| skin_of_blade(skins, two, saber, blade).map(|skin| skin.index);
+    // One staff: its first blade the first skin, the other half the second.
+    assert_eq!(index(false, 0, 0), Some(first.index));
+    assert_eq!(index(false, 0, 1), Some(5));
+    // Two sabers: every blade of the second saber, none of the first.
+    assert_eq!(index(true, 0, 1), Some(first.index));
+    assert_eq!(index(true, 1, 0), Some(5));
+    set_local_pair([Some(2), None]);
+    assert_eq!(local_pair(), Pair::Staff);
+    set_local_pair([Some(1), Some(1)]);
+    assert_eq!(local_pair(), Pair::TwoSabers);
+    set_local_pair([Some(1), None]);
+    assert_eq!(local_pair(), Pair::None);
+}
