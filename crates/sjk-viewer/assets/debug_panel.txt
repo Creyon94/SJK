@@ -6005,3 +6005,11 @@ change: The log says R_FindImageFile could not find '<image>' in shader '<name>'
 test: Load maps and models with community skins: no magenta checkers anywhere.
 test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
 note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).
+
+[report-chars]
+area: Hub
+title: Reports take _ / \ + = " ; [ ] < > #
+change: Bug reports, notes and player reports accept the characters cvars, commands and binds use.
+change: @ * & | ~ backtick $ % ^ and braces are still refused, with the rules line naming what is taken.
+test: Escape > SJK > Report a bug: send 'bind x "say hi; kill" breaks [90] <value> cg_fov_2': sent, no refusal.
+test: A report with @ or {braces}: refused, and the message lists the allowed characters.

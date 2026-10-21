@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Bug reports, world notes and player reports now take `_ / \ + = " ; [ ] < > #`, so you can write the cvar, command or bind you mean (`cg_fov`, `+attack`, `bind x "say hi; kill"`) _(Sol, after players' reports)_
 - The Bug Hunter medal is now held once, like the other medals: bug hunting is rewarded with holocrons instead. A medal already waiting to be announced no longer shows its card a second time when another medal or a note changes _(Sol)_
 - SJK now reads how much video memory your graphics card has: on a card of 4 GB or less it starts with smaller textures (Texture detail 1, or 2 at 3 GB or less) and the menus on pictures, once a card, so you can set them back. With the menu pictures on, the Collection, shop and holocron openings show each saber shader as a drawing instead of the live blade _(Sol, after Vin's report)_
 - SJK Blades cards now make crafting cheaper: while you hold a copy of a saber shader's blade card, crafting that shader costs its shop price with a Normal copy, or half with a Holo or Solar one, and you keep the card. The Craft button shows the lower price, and a blade card you hold has a "Go to the ... blade" button on the Cards tab that opens its shader _(Sol)_
