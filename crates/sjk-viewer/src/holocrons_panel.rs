@@ -17,7 +17,8 @@
 //!
 //! Up and Down (or Left and Right, or the mouse wheel) choose a tier, Tab and Shift+Tab
 //! walk them round, 1 to 4 and Home and End jump, Enter opens one, A opens all, L shows
-//! the loot table, Escape goes back; a click on a tier chooses it. The hub's counts and list are read twice a
+//! the loot table, Escape goes back; a click on a tier chooses it. Open all asks first
+//! when more than one would open ([`ask_all`]). The hub's counts and list are read twice a
 //! second ([`Data::read`]), never per frame; while the ceremony waits for the hub its
 //! answer is looked for every frame.
 
@@ -28,6 +29,8 @@ use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "holocrons_panel_ask_all.rs"]
+mod ask_all;
 #[path = "holocrons_panel_batch.rs"]
 mod batch;
 #[path = "holocrons_panel_loot.rs"]
@@ -295,6 +298,8 @@ pub(crate) struct Panel {
     confirm: Option<(usize, Instant)>,
     buying: Option<u64>,
     shop_reread: Option<u64>,
+    /// Open all's question shows, the focus on its Open all or Cancel ([`ask_all`]).
+    ask_all: Option<ask_all::AskAll>,
     /// The serial of the identity's last opening the page saw, so a new one is its
     /// answer.
     opening_serial: u64,
@@ -348,6 +353,7 @@ impl Panel {
             confirm: None,
             buying: None,
             shop_reread: None,
+            ask_all: None,
             opening_serial: 0,
             epoch: Instant::now(),
             #[cfg(test)]
@@ -379,6 +385,7 @@ impl Panel {
         self.loot = false;
         self.shop = false;
         self.confirm = None;
+        self.ask_all = None;
     }
 
     /// Show the page as the Profile screen's Holocrons tab (`true`), or on its own;
@@ -415,6 +422,7 @@ impl Panel {
         self.loot = false;
         self.shop = false;
         self.confirm = None;
+        self.ask_all = None;
         self.owns_console = false;
         owned
     }
@@ -529,6 +537,9 @@ impl Panel {
         if self.shop {
             return self.shop_key(key);
         }
+        if self.ask_all.is_some() {
+            return self.ask_all_key(key, now);
+        }
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::Tab => self.step(if shift { -1 } else { 1 }, true),
@@ -545,11 +556,7 @@ impl Panel {
                     return self.ask(ids, now);
                 }
             }
-            KeyCode::KeyA => {
-                if let Some(ids) = self.open_every() {
-                    return self.ask(ids, now);
-                }
-            }
+            KeyCode::KeyA => return self.open_all(now),
             KeyCode::KeyL => self.show_loot(true),
             KeyCode::KeyS => return self.show_shop(true),
             _ => {}
@@ -577,6 +584,9 @@ impl Panel {
         if self.shop {
             return self.shop_pointer(event);
         }
+        if self.ask_all.is_some() {
+            return self.ask_all_pointer(event, now);
+        }
         if let InputEvent::PointerWheel { delta, .. } = event {
             // Up (positive) goes to the tier above.
             if delta.y > 0.0 {
@@ -601,9 +611,7 @@ impl Panel {
             Some(OPEN_TOKEN) => self
                 .open_one()
                 .map_or(PanelAction::None, |ids| self.ask(ids, now)),
-            Some(OPEN_ALL_TOKEN) => self
-                .open_every()
-                .map_or(PanelAction::None, |ids| self.ask(ids, now)),
+            Some(OPEN_ALL_TOKEN) => self.open_all(now),
             Some(LOOT_TOKEN) => {
                 self.show_loot(true);
                 PanelAction::None
@@ -1358,6 +1366,107 @@ mod tests {
             panel.build_at(viewport, start);
             assert!(!panel.overflowed());
             panel.end_ceremony();
+        }
+    }
+
+    /// Open all asks first when more than one would open: Enter (or Open all) asks the
+    /// hub, Escape, Cancel or Enter on Cancel do not; one holocron opens at once.
+    #[test]
+    fn open_all_asks_before_opening_more_than_one() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        // A asks; the keys under it are the question's.
+        assert_eq!(panel.key(KeyCode::KeyA, false), PanelAction::None);
+        assert!(panel.asking_all() && !panel.opening());
+        assert_eq!(panel.key(KeyCode::ArrowDown, false), PanelAction::None);
+        assert_eq!(panel.selected, 0, "the tiers do not move under it");
+        assert_eq!(panel.key(KeyCode::Escape, false), PanelAction::None);
+        assert!(!panel.asking_all() && !panel.opening(), "Escape cancels");
+        assert!(panel.is_open(), "and the page stays");
+        // Tab to Cancel, Enter: nothing opens.
+        let _ = panel.key(KeyCode::KeyA, false);
+        let _ = panel.key(KeyCode::Tab, false);
+        assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
+        assert!(!panel.asking_all() && !panel.opening());
+        // Enter on Open all opens every one, the oldest first.
+        let _ = panel.key(KeyCode::KeyA, false);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false),
+            PanelAction::Open(vec![3, 5, 8])
+        );
+        assert!(panel.opening() && !panel.asking_all());
+        panel.end_ceremony();
+        // One holocron: A opens it at once.
+        panel.data.sealed = [vec![8], Vec::new(), Vec::new(), Vec::new()];
+        assert_eq!(panel.key(KeyCode::KeyA, false), PanelAction::Open(vec![8]));
+        assert!(!panel.asking_all());
+    }
+
+    /// The question's buttons answer the pointer: Cancel closes it, Open all asks the hub.
+    #[test]
+    fn open_all_question_answers_the_pointer() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        let viewport = [1920.0, 1080.0];
+        let click = |panel: &mut Panel, token: u16| {
+            panel.build(viewport);
+            let rect = panel.ui.rect_for(token).expect("a pointer area");
+            let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+            let mut action = PanelAction::None;
+            for event in [
+                InputEvent::PointerMove(at),
+                InputEvent::PointerPress {
+                    position: at,
+                    button: sjk_ui::PointerButton::Primary,
+                },
+                InputEvent::PointerRelease {
+                    position: at,
+                    button: sjk_ui::PointerButton::Primary,
+                },
+            ] {
+                action = panel.handle_pointer(event);
+            }
+            action
+        };
+        assert_eq!(click(&mut panel, OPEN_ALL_TOKEN), PanelAction::None);
+        assert!(panel.asking_all());
+        for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
+            panel.build(viewport);
+            assert!(!panel.overflowed(), "{viewport:?}");
+        }
+        assert_eq!(
+            click(&mut panel, ask_all::ASK_ALL_CANCEL_TOKEN),
+            PanelAction::None
+        );
+        assert!(!panel.asking_all() && !panel.opening());
+        let _ = click(&mut panel, OPEN_ALL_TOKEN);
+        assert_eq!(
+            click(&mut panel, ask_all::ASK_ALL_OPEN_TOKEN),
+            PanelAction::Open(vec![3, 5, 8])
+        );
+        assert!(panel.opening());
+    }
+
+    /// The question says the batch's animation is simpler only when a batch would run, and
+    /// what stays for later past twenty.
+    #[test]
+    fn open_all_question_words() {
+        let (title, lines) = ask_all::words(3, 3);
+        assert_eq!(title, "Open all 3 holocrons?");
+        assert!(lines.join(" ").contains("full opening"));
+        let (title, lines) = ask_all::words(7, 7);
+        assert_eq!(title, "Open all 7 holocrons?");
+        let all = lines.join(" ");
+        assert!(all.contains("quicker and simpler animation"), "{all}");
+        let (title, lines) = ask_all::words(20, 34);
+        assert_eq!(title, "Open 20 of your 34 holocrons?");
+        assert!(lines.join(" ").contains("the other 14 wait"));
+        for (opening, held) in [(2, 2), (7, 7), (20, 34), (20, 999)] {
+            let (title, lines) = ask_all::words(opening, held);
+            assert!(lines.len() <= 4);
+            assert!(title.is_ascii() && lines.iter().all(|line| line.is_ascii()));
         }
     }
 

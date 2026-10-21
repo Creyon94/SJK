@@ -304,7 +304,8 @@ the buttons.
 - **Keys and pointer:** Up and Down (or Left and Right, Tab and Shift+Tab, the wheel, 1 to
   4, Home and End) choose the tier; Escape goes back; a click on a row chooses it; Ctrl+Tab
   is the Profile screen's. Enter opens the oldest holocron of the tier chosen, A opens up
-  to twenty (both only when the hub lets the player open). L, or Loot table at the right of what the chosen tier holds, shows the
+  to twenty, asking first when more than one would open ([cards.md](cards.md#in-the-client))
+  (both only when the hub lets the player open). L, or Loot table at the right of what the chosen tier holds, shows the
   [loot table](#loot-table); S, or Shop, the shop ([cards.md](cards.md#the-shop)).
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
   tab: an instance of each part's model of the chosen look ([the four

@@ -225,6 +225,12 @@ impl Panel {
             self.ui.finish(SHOP_BACK_TOKEN);
             return;
         }
+        // Open all's question: the page under its card is left out (text draws over it).
+        if self.ask_all.is_some() {
+            self.draw_ask_all(&frame, viewport);
+            self.ui.finish(self.ask_all_token());
+            return;
+        }
         if self.hub {
             crate::profile_hub::collection_header(
                 &mut self.ui,
