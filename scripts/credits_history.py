@@ -113,6 +113,8 @@ PR_PATTERNS = [
     (re.compile(r"^Merge \S+(?: round \d+)? \(PR #(?P<n>\d+)"), "JKR"),
     (re.compile(r"^Merge PR #(?P<n>\d+) \((?P<title>.*)\) into "), None),
     (re.compile(r"^Merge .*\(SJK #(?P<n>\d+)\) into "), "SJK"),
+    # Rounds pushed to a pull request's branch after it was merged belong to it.
+    (re.compile(r"^Merge .*\(pushed after #(?P<n>\d+) was merged\)$"), "SJK"),
 ]
 # "Merge personal/topic (description) into main", the description optional.
 TOPIC = re.compile(r"^Merge (\S+)(?: round \d+)?(?: \((.*)\))? into (\S+)$")

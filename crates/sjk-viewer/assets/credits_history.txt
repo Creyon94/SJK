@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 21/10/2026 | - | Blade numbers only with debug_collectibles
+- 3f531e7 |  | Blade numbers show in the Collection only with debug_collectibles on
 + 21/10/2026 | - | The shop says its four shaders are each player's own
 - 635bfdb |  | Shop: say the day's four shaders are picked for each player, past those they hold
 + 21/10/2026 | - | 38 blades change tier, Sol's last adjustments
@@ -1856,35 +1858,23 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
-+ 21/10/2026 | - | Rework Creyon's blades after his round 15 review
-- ec6fad8 |  | Rework Creyon's blades after his round 15 review
-+ 21/10/2026 | - | Make Balance and plain mythicals richer (round 15b)
-- 36804d4 |  | Make Balance and plain mythicals richer (round 15b)
-+ 21/10/2026 | - | Rework Creyon's blades after his round 16 review
-- 0c221d5 |  | Rework Creyon's blades after his round 16 review
-+ 21/10/2026 | - | Fix Creyon's blades after his round 17 test; apply Sol's tiers
-- 3b73ff4 |  | Fix Creyon's blades after his round 17 test; apply Sol's tiers
-+ 21/10/2026 | - | Soften Bleeding Kyber's pure light and the busiest blades
-- a869825 |  | Soften Bleeding Kyber's pure light and the busiest blades
-+ 21/10/2026 | - | Draw every signature effect in 3D, stop cut-offs, richer mythicals (round 19)
-- 2d463a7 |  | Draw every signature effect in 3D, stop cut-offs, richer mythicals (round 19)
-+ 21/10/2026 | - | Give the Clone Wars blade comic speed lines for its swing trail
-- bf84d69 |  | Give the Clone Wars blade comic speed lines for its swing trail
-+ 21/10/2026 | - | Fix the Collection pictures, soften glow up close, Creyon's round 20 blades
-- 827e253 |  | Fix the Collection pictures, soften glow up close, Creyon's round 20 blades
-+ 21/10/2026 | - | Keep Kessel Spice's crystals inside its glow
-- 0d7d9cf |  | Keep Kessel Spice's crystals inside its glow
-+ 21/10/2026 | - | Load blade effects faster, Clone Wars in 3D, Creyon's round 21 fixes
-- eefe734 |  | Load blade effects faster, Clone Wars in 3D, Creyon's round 21 fixes
-+ 21/10/2026 | - | Keep built blade effects when the skins reload
-- a3c68e1 |  | Keep built blade effects when the skins reload
-+ 21/10/2026 | - | Hide effects behind the blade; Clone Wars halftone stops at the hilt
-- 19c7df7 |  | Hide effects behind the blade; Clone Wars halftone stops at the hilt
-+ 20/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades
++ 21/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades
 - dee6594 |  | Add Creyon's Blade Lab signature blades
 - 6e59999 |  | Polish Creyon's blades after his round 13 test
 - 7569fb8 |  | Answer only real attacks and fix Creyon's round 14 test notes
 - 835cc2d |  | Give Bleeding Kyber forked Sith lightning
+- ec6fad8 |  | Rework Creyon's blades after his round 15 review
+- 36804d4 |  | Make Balance and plain mythicals richer (round 15b)
+- 0c221d5 |  | Rework Creyon's blades after his round 16 review
+- 3b73ff4 |  | Fix Creyon's blades after his round 17 test; apply Sol's tiers
+- a869825 |  | Soften Bleeding Kyber's pure light and the busiest blades
+- 2d463a7 |  | Draw every signature effect in 3D, stop cut-offs, richer mythicals (round 19)
+- bf84d69 |  | Give the Clone Wars blade comic speed lines for its swing trail
+- 827e253 |  | Fix the Collection pictures, soften glow up close, Creyon's round 20 blades
+- 0d7d9cf |  | Keep Kessel Spice's crystals inside its glow
+- eefe734 |  | Load blade effects faster, Clone Wars in 3D, Creyon's round 21 fixes
+- a3c68e1 |  | Keep built blade effects when the skins reload
+- 19c7df7 |  | Hide effects behind the blade; Clone Wars halftone stops at the hilt
 + 16/10/2026 | SJK #105 | Show duels as JoF EJK does, with paired duel badges on nameplates
 - 6d7ccca |  | Show duels as JoF EJK does, with paired duel badges on nameplates
 + 15/10/2026 | SJK #103 | Play rig model emotes on stock JKA models
