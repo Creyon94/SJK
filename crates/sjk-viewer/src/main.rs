@@ -191,6 +191,7 @@ mod siege_sabers;
 mod surface_tables;
 mod team_sabers;
 mod trip_mine_lasers;
+mod video_memory;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod achievements_frame;

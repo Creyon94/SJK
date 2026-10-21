@@ -8,8 +8,9 @@
 //! backdrop shows pictures taken beforehand from each view its camera would fly
 //! to ([`crate::menu_backdrop::pictures`]): a 3840x2160 JPEG a view, bundled with
 //! the client (`assets/menu_pictures/<map>/`, `pictures.txt` naming each view's
-//! camera). The player on the stage, the thrown saber and the holocron are still
-//! drawn in 3D, standing where the picture shows the stage. [`Painter`] draws the
+//! camera). The Collection's saber shader swatches show their drawings instead of
+//! the game's live blade pictures ([`crate::blade_pictures::set_live`]). The player on
+//! the stage, the thrown saber and the holocron are still drawn in 3D, standing where the picture shows the stage. [`Painter`] draws the
 //! picture first in the world pass, so the menus, bloom and gamma go on top as on
 //! the live map. `world_shot_menu_pictures.rs` takes the pictures again.
 //!
@@ -38,15 +39,22 @@ pub(crate) const SIZE: [u32; 2] = [3840, 2160];
 /// What a picture menu world's map path starts with.
 const PREFIX: &str = "pictures:";
 
-/// Register `ui_menuPictures` (default 0, archived).
+/// Register `ui_menuPictures` (default 0, archived), which the blade pictures follow,
+/// and the small-card check's [`crate::video_memory::CVAR`].
 pub(crate) fn register(cvars: &mut sjk_shell::CvarRegistry) -> Result<(), sjk_shell::CvarError> {
+    crate::video_memory::register(cvars)?;
     cvars.register(sjk_shell::CvarDefinition::new(
         CVAR,
         0_i64,
         sjk_shell::CvarFlags::ARCHIVE,
         "Stand the menus on pictures of their map instead of the live map, which saves video \
          memory (0 live map, 1 pictures); turned on by itself when a map runs out of video memory",
-    ))
+    ))?;
+    cvars.on_change(CVAR, |change| {
+        if let sjk_shell::CvarValue::Integer(value) = change.current {
+            crate::blade_pictures::set_live(value == 0);
+        }
+    })
 }
 
 /// Whether the menus stand on pictures.

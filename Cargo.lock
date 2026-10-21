@@ -2937,6 +2937,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sjk-gpu-memory"
+version = "0.1.0"
+dependencies = [
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "sjk-icarus"
 version = "0.1.0"
 
@@ -3118,6 +3125,7 @@ dependencies = [
  "sjk-effect",
  "sjk-entity",
  "sjk-game-jka",
+ "sjk-gpu-memory",
  "sjk-identity",
  "sjk-jof-content",
  "sjk-mediafoundation",

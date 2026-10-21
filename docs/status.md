@@ -1,3 +1,18 @@
+## Small graphics cards found at start
+
+21/10/2026, `personal/vram-detect`, based on `main` `058dfade` (Sol: detect video memory
+and pick settings for a small card; saber shaders in the menus as simple pictures too).
+`video_memory::at_start` reads the high-performance adapter's memory through the new
+`sjk-gpu-memory` crate (DXGI, Windows only; the second crate allowed `unsafe`) before the
+first map: under 3.5 GiB texture detail 2, under 4.5 GiB 1, and menu pictures on, each only
+from its default and once a card (`r_videoMemoryChecked`). The card's size and budget go
+into the log and crash reports. With menu pictures on, saber shader swatches (Collection,
+shop, holocron openings, saber choice) show their drawings instead of the live blade
+pictures, whose target is freed ([rendering.md](rendering.md)). Verified on Windows 11
+(RTX 5080, read as 16 GB with a 14.8 GiB budget): unit tests, formatting, the workspace
+tests and Clippy. Not verified: a small card (Vin's), the swatches seen in game, Linux
+(nothing read there).
+
 ## Texture detail and video memory guards
 
 21/10/2026, `personal/low-vram`, based on `main` `420db13f` (Vin, 3 GB card: crashed

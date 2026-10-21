@@ -584,6 +584,17 @@ Windows that memory also shows in the process's RAM in Task Manager.
   scope captures, so an out-of-memory elsewhere (a player's geometry joining the
   shared buffers, entity materials) still ends the game: a 3 GB GTX 1060 crashed
   changing legs in the creator (21/10/2026).
+- At start SJK reads the card's video memory before the first map
+  ([video_memory.rs](../crates/sjk-viewer/src/video_memory.rs), through
+  [sjk-gpu-memory](../crates/sjk-gpu-memory/src/lib.rs): DXGI's high-performance
+  adapter, its `DedicatedVideoMemory` and budget; nothing off Windows). Under 3.5 GiB
+  (an integrated GPU's few hundred MB too) it sets texture detail 2, under 4.5 GiB 1,
+  and menu pictures on, each only from its default, once a card (`r_videoMemoryChecked`
+  keeps the MiB it chose for). The size and budget go into the log and crash reports.
+- With menu pictures on, the menus' saber shader swatches show their drawings
+  (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
+  832x1664 target of three textures, about 17 MB, and each signature blade's
+  pipeline), and that target is freed.
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of

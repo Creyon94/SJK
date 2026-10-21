@@ -75,6 +75,8 @@ clipboard-win = "5.4.0"
 # Chat MP4 clips (`chat_gifs/video.rs`): Windows Media Foundation, its DLLs loaded at
 # run time so Windows N editions still start.
 sjk-mediafoundation.workspace = true
+# The graphics card's video memory, for the small-card settings (`video_memory.rs`).
+sjk-gpu-memory.workspace = true
 
 [target.'cfg(windows)'.dev-dependencies]
 sjk-mediafoundation = { workspace = true, features = ["test-encoder"] }
