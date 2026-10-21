@@ -28,13 +28,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1021.1 (Alpha) | 21/10/2026
 
-> Blade Lab: Creyon's 128 signature blades, each drawn by its own shader.
-> Blade numbers: Every blade has a number, as cards do.
-> Live swatches: The Collection shows owned blades as the game draws them.
-> Sun blade: Blade 001 rises like a sunrise, sets like a sunset and has the strongest light.
-> Away emote: Alt-tab or idle and your pick plays, silently; set it in `cg_awayEmote`.
+Holocron openings are here for everyone, with kyber shards, shattering, crafting and a daily shop of your own: this release is needed to open them. Testers and bug reporters will soon get rewards for what they have already done, and will keep earning them as they go on, by a fair rule that counts everyone's work the same way. Open everything you hold without fear: if the odds change in the future, everyone who opened before will be compensated to match. All of it will keep improving: a better shop, breaking down any saber shader you own and not just duplicates (except those that come with a card), and more to come.
+
+> Holocrons: Open them CSGO style; this release is needed.
+> Kyber shards: Shatter, craft and buy from your own daily shop.
+> Rewards: Testers and bug reporters get rewards soon.
+> Open freely: If the odds change, past openings are compensated.
+> Blade Lab: Creyon's 128 signature blades, numbered and live.
+> Sun blade: Blade 001 rises like a sunrise, sets like a sunset.
 
 = cg_chatRememberChannel: The chat key now always opens on All. Turn this on to have it open on the channel of your last message again.
 
