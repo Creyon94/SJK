@@ -409,6 +409,11 @@ pub(crate) struct Panel {
     hover: crate::menu::sjk::hover::Hover,
     /// Where the pointer is (window pixels), while it is over the window.
     pointer: Option<[f32; 2]>,
+    /// The Shaders tab's swatches (row, window rectangle) last frame: resting the pointer
+    /// chooses (and previews) a shader only over its blade, not over its name or state
+    /// (Creyon, 21/10/2026: going to Equip, the pointer crossed other rows' words and
+    /// changed the preview).
+    shader_swatches: Vec<(usize, sjk_ui::Rect)>,
     /// The cards answering the pointer on Cards, each eased in and out.
     tilt: crate::tile_shine::HoverEase,
     /// The Shaders tab's lone saber's turn, and the window pixels to a frame pixel the
@@ -491,6 +496,7 @@ impl Panel {
             backstage: Backstage::None,
             hover: Default::default(),
             pointer: None,
+            shader_swatches: Vec::new(),
             tilt: crate::tile_shine::HoverEase::default(),
             spin: spin::Spin::default(),
             scale: 1.0,
@@ -1262,6 +1268,9 @@ impl Panel {
             event.kind,
             UiEventKind::HoverEnter | UiEventKind::Hover | UiEventKind::Activate
         );
+        if event.kind != UiEventKind::Activate && !self.hover_chooses(token) {
+            return PanelAction::None;
+        }
         if choose && self.choose_token(token) {
             return PanelAction::None;
         }
@@ -1318,6 +1327,25 @@ impl Panel {
         self.reveal_asked =
             Some(crate::player_identity::reveal_outcome().map_or(0, |outcome| outcome.serial));
         PanelAction::RevealCards
+    }
+
+    /// Whether resting the pointer on `token` chooses it: a shader's row only while the
+    /// pointer is over its blade (its swatch); everything else always.
+    fn hover_chooses(&self, token: u16) -> bool {
+        let Some(index) = token
+            .checked_sub(SHADER_BASE)
+            .map(usize::from)
+            .filter(|index| *index < self.shader_count)
+        else {
+            return true;
+        };
+        let Some([x, y]) = self.pointer else {
+            return false;
+        };
+        let at = sjk_ui::Vec2::new(x, y);
+        self.shader_swatches
+            .iter()
+            .any(|(row, rect)| *row == index && rect.contains(at))
     }
 
     /// Choose the thing `token` stands for; whether it is one.
@@ -1955,6 +1983,36 @@ mod tests {
             click(&mut panel, SHADER_BASE, later(1_000)),
             PanelAction::None
         );
+    }
+
+    #[test]
+    fn resting_on_a_row_chooses_it_only_over_its_blade() {
+        let owned = [sun()];
+        let mut panel = drawn(Tab::Shaders, &inputs(Holdings::Known(&owned), ""));
+        let index = row_of("saber_sun");
+        let row = panel
+            .ui
+            .rect_for(SHADER_BASE + index as u16)
+            .expect("the row's pointer area");
+        let swatch = panel
+            .shader_swatches
+            .iter()
+            .find(|(at, _)| *at == index)
+            .map(|(_, rect)| *rect)
+            .expect("the row's swatch");
+        let now = Instant::now();
+        // Over the row's name, right of its blade: nothing changes.
+        let words = sjk_ui::Vec2::new(swatch.right() + 40.0, row.y + row.height * 0.5);
+        assert!(row.contains(words) && !swatch.contains(words));
+        let _ = panel.pointer_at(InputEvent::PointerMove(words), true, now);
+        assert_ne!(panel.shader, index);
+        // Over its blade: chosen and previewed.
+        let blade = sjk_ui::Vec2::new(
+            swatch.x + swatch.width * 0.5,
+            swatch.y + swatch.height * 0.5,
+        );
+        let _ = panel.pointer_at(InputEvent::PointerMove(blade), true, now);
+        assert_eq!(panel.shader, index);
     }
 
     #[test]

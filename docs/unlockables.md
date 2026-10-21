@@ -1167,7 +1167,11 @@ Profile page's See the collection) open it on its own:
   on both, and Equip sets `cg_saberSkin` to it and `cg_saberSkin2` to empty (the second
   follows the first; `PanelAction::WearBoth`); with both wearing it, Unequip leaves both the
   stock blade ("Unequip both"), and the stock row reads "Stock on both". The box is kept
-  for the session; choosing a side (a pill or a click on a saber) unticks it.
+  for the session; choosing a side (a pill or a click on a saber) unticks it. Its label is
+  drawn in the face it is measured in, so it is never cut short ("Both sab...").
+  Resting the pointer on a shader's row chooses and previews it only over its blade (the
+  swatch), not over its name or state (Creyon, 21/10/2026: going to Equip, the pointer crossed
+  other rows' words and changed the preview); a click anywhere on the row still chooses it.
   While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
   the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
   twice or more, or Craft (its cost) for one not held, dimmed while the shards fall

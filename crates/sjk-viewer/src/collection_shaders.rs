@@ -352,6 +352,7 @@ impl Panel {
         let rows = Self::rows(inputs, &self.shader_filter);
         self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
         self.shader_count = rows.len();
+        self.shader_swatches.clear();
         if self.shader >= rows.len() {
             self.shader = rows.iter().position(|row| row.worn).unwrap_or(0);
         }
@@ -757,6 +758,15 @@ impl Panel {
             });
         }
         let swatch_rect = [x + 8.0, y + 22.0, width - 16.0, 52.0];
+        self.shader_swatches.push((
+            index,
+            frame.rect(
+                swatch_rect[0],
+                swatch_rect[1],
+                swatch_rect[2],
+                swatch_rect[3],
+            ),
+        ));
         match row.skin {
             None => swatch::small_stock(self.ui.draw_list_mut(), frame, swatch_rect, inputs.stock),
             Some(skin) => {
@@ -932,6 +942,8 @@ impl Panel {
             SWATCH[0],
             SWATCH[1],
         ];
+        self.shader_swatches
+            .push((index, frame.rect(rect[0], rect[1], rect[2], rect[3])));
         match row.skin {
             None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
             Some(skin) => {
@@ -1629,12 +1641,14 @@ impl Panel {
             crate::saber_skins::Pair::Staff => "Both halves",
             _ => "Both sabers",
         };
-        let label_width = crate::text::display_width(both_word, 16.0) + 8.0;
+        // Drawn in the face it is measured in, with room to spare (Creyon, 21/10/2026: in
+        // the body face it was wider than measured and cut to "Both sab...").
+        let label_width = crate::text::display_width(both_word, 16.0) + 16.0;
         let hovered = self.ui.token_hovered(BOTH_TOKEN);
         let after = kit::tick(&mut self.ui, frame, left, middle, self.both, hovered);
         text(
             &mut self.ui,
-            TextFamily::Body,
+            TextFamily::Display,
             format_args!("{both_word}"),
             frame.rect(after + 10.0, middle - 11.0, label_width, 22.0),
             16.0 * s,
