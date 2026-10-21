@@ -575,7 +575,14 @@ Windows that memory also shows in the process's RAM in Task Manager.
   GL_LINEAR`) keeps full size. Once menu pictures are on, each world install that runs
   out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
   Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
-  siege_desert at full size.
+  siege_desert at full size. The saber glows and cores follow it too
+  (`mips::shrunk`, in `saber::material`): eight 2048-pixel glows and their half-float
+  column integrals held 300 MiB on every map and in the menu; at 2 they hold 28 MiB.
+  The menu on pictures measured 1082 MiB at 1920x1080 and r_picmip 2, 801 MiB after
+  (`menu_pictures_vram` in world_shot_vram.rs, 21/10/2026, after Vin's 3 GB card ran
+  out in the main menu). The rest of that menu: the game font atlases (128 MiB, RGBA),
+  the UI icon atlas (56 MiB) and the world's shadow, GI and froxel targets (about
+  200 MiB) a picture menu does not draw.
 - Work on the render thread after a world is built runs inside wgpu error scopes
   ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
   menu stage's model (the creator's head, torso and legs), which then is not shown and
