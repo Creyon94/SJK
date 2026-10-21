@@ -2000,6 +2000,7 @@ mod tests {
             progress,
             goal,
             unlocked,
+            reward: None,
         };
         sjk_identity::Profile {
             credits: 0,
