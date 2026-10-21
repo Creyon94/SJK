@@ -53,6 +53,9 @@ const ACHIEVEMENTS_EVERY: Duration = Duration::from_secs(60);
 const ACHIEVEMENTS_AGAIN: Duration = Duration::from_secs(3_600);
 /// How long a refused model list waits before it is sent again unchanged.
 const MODELS_AGAIN: Duration = Duration::from_secs(3_600);
+/// How long looks go without `saber2` after a hub refused it as unknown (`bad_body`),
+/// before trying again: the hub may have been updated meanwhile.
+const SABER2_RETRY: Duration = Duration::from_secs(600);
 /// Model answers kept at most; past it the oldest are forgotten.
 const MODEL_CHECKS_MAX: usize = 256;
 /// First wait after a failure, doubled up to [`RETRY_MAX`].
@@ -588,8 +591,8 @@ struct Worker {
     look_refused: Vec<String>,
     look_refused_for: Vec<Unlock>,
     /// The hub refused `saber2` as an unknown field (a hub from before 21/10/2026): looks
-    /// go without the second saber's skin until the hub changes.
-    saber2_unknown: bool,
+    /// go without the second saber's skin until then, or until the hub changes.
+    saber2_unknown: Option<Instant>,
     /// The feed id of the last look the hub took from this worker.
     look_id: Option<u64>,
     /// When the own profile may next be read early ([`Worker::profile_soon`]).
@@ -827,7 +830,7 @@ impl Worker {
             due_look: now,
             look_refused: Vec::new(),
             look_refused_for: Vec::new(),
-            saber2_unknown: false,
+            saber2_unknown: None,
             look_id: None,
             profile_soon_after: now,
             assets_dir: None,
@@ -1230,6 +1233,7 @@ impl Worker {
         self.hub = None;
         self.registered = false;
         self.name_sent = None;
+        self.saber2_unknown = None;
         self.update(Snapshot::clear_me);
         if settings.enabled && !settings.hub_url.trim().is_empty() {
             match (self.make_hub)(settings.hub_url.trim()) {
@@ -1745,6 +1749,9 @@ impl Worker {
     }
 
     fn tick_due(&mut self, now: Instant) -> Duration {
+        if self.saber2_unknown.is_some_and(|until| now >= until) {
+            self.saber2_unknown = None;
+        }
         if !self.settings.enabled {
             self.update(|snapshot| snapshot.status = Status::Disabled);
             return IDLE_MAX;
@@ -1979,7 +1986,7 @@ impl Worker {
         }
         // A second skin refused, or a hub that does not know the field: the second saber
         // wears the first's skin, as before `saber2` existed.
-        if self.saber2_unknown
+        if self.saber2_unknown.is_some()
             || look
                 .saber2
                 .as_ref()
@@ -2033,7 +2040,7 @@ impl Worker {
             }
             // A hub from before 21/10/2026 refuses `saber2`: the look goes again without it.
             Err(HubError::Rejected { code, .. }) if code == "bad_body" && look.saber2.is_some() => {
-                self.saber2_unknown = true;
+                self.saber2_unknown = Some(now + SABER2_RETRY);
                 self.due_look = now;
             }
             // The claim lapsed at the hub: the next accepted claim sends the look again.
@@ -4342,6 +4349,13 @@ mod tests {
                 "look 1.2.3.4:29070 \"saber_sun\" true second \"\"",
                 "look 1.2.3.4:29070 \"saber_sun\" false",
             ]
+        );
+        // After a while the second skin is tried again (the hub may have been updated), and
+        // the look goes again with it.
+        worker.tick(ms(3_000) + SABER2_RETRY);
+        assert_eq!(
+            fake.looks()[4..],
+            ["look 1.2.3.4:29070 \"saber_sun\" false second \"\""]
         );
     }
 

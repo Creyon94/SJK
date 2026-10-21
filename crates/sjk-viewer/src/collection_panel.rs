@@ -386,10 +386,6 @@ pub(crate) struct Panel {
     /// The side changed: the next build chooses the row that side wears, so the card and
     /// the preview show what it has on rather than the other side's choice.
     jump_to_worn: bool,
-    /// As last built: the second has no skin of its own and wears the first's, and what
-    /// the first wears (its id, or `stock`), for [`Self::wear_action`].
-    second_follows: bool,
-    first_worn: &'static str,
     /// How many medals the last frame showed.
     medals_shown: usize,
     shader_rows: [ShaderRow; SHADER_ROWS],
@@ -484,8 +480,6 @@ impl Panel {
             pair: crate::saber_skins::Pair::None,
             saber_press: None,
             jump_to_worn: false,
-            second_follows: true,
-            first_worn: crate::looks::STOCK_SECOND,
             medals_shown: 0,
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
             shader_list: unlockables::blade_skins_by_tier().to_vec(),
@@ -689,8 +683,8 @@ impl Panel {
     }
 
     /// What Equip (or Enter) does on `row`: wear it on the target, the first saber or the
-    /// second (or the staff's other half). Dressing the first while the second wears the
-    /// first's skin (no choice of its own) gives the second that skin, so it stays as it is.
+    /// second (or the staff's other half). While the second has no choice of its own it
+    /// follows the first, so dressing the first dresses both, as `saberskin` does.
     fn wear_action(&self, row: ShaderRow) -> PanelAction {
         if self.both_sides() {
             return row
@@ -705,16 +699,7 @@ impl Panel {
                 .second
                 .map_or(PanelAction::None, PanelAction::WearSecond);
         }
-        match row.wear {
-            Some(first) if self.pair != crate::saber_skins::Pair::None && self.second_follows => {
-                PanelAction::WearBoth {
-                    first,
-                    second: self.first_worn,
-                }
-            }
-            Some(first) => PanelAction::Wear(first),
-            None => PanelAction::None,
-        }
+        row.wear.map_or(PanelAction::None, PanelAction::Wear)
     }
 
     /// Choose the target saber (or half) the Shaders tab dresses: one side, so the "Both"
@@ -2077,18 +2062,13 @@ mod tests {
             click(&mut panel, WEAR_TOKEN),
             PanelAction::WearSecond(crate::looks::STOCK_SECOND)
         );
-        // Back on the first, which wears the Sun: dressing it with the stock blade while the
-        // second follows it gives the second the Sun, so the second keeps its look.
+        // Back on the first, which wears the Sun: while the second has no choice of its own
+        // it follows the first, so Unequip dresses both with the stock blade, as
+        // `saberskin` does.
         assert_eq!(click(&mut panel, TARGET_FIRST_TOKEN), PanelAction::None);
         panel.build(&dual("saber_sun", ""), &fonts.font, [1920.0, 1080.0]);
         assert_eq!(panel.shader, usize::from(sun_row));
-        assert_eq!(
-            click(&mut panel, WEAR_TOKEN),
-            PanelAction::WearBoth {
-                first: "",
-                second: "saber_sun"
-            }
-        );
+        assert_eq!(click(&mut panel, WEAR_TOKEN), PanelAction::Wear(""));
         // With a second skin of its own, the first is dressed alone, and the second's
         // Unequip leaves it the stock blade (not the first's skin).
         panel.build(

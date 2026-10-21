@@ -434,7 +434,8 @@ switched off, on `saber_off`'s rules. Without `saber2` both sabers wear `saber`,
 before; presence and look events carry it only when sent, and `saber2_off` only when not
 empty. A hub from before refuses both with `bad_body`: the client sends `saber2` only
 when the second saber wears another skin than the first, and on a `bad_body` sends its
-looks without it from then on. Taking a skin back makes a second saber wearing it the
+looks without it for 10 minutes (`SABER2_RETRY`), or until the hub changes, then tries
+again. Taking a skin back makes a second saber wearing it the
 stock blade.
 
 `saber` is a blade-skin unlock id or `""` for the stock blade; `illuminate` is
@@ -1149,9 +1150,12 @@ Profile page's See the collection) open it on its own:
   on a staff a click goes to the other half), chooses it and moves the choice to the row that side wears, so the card and the sabers
   show what it has on; the pills are hit before the sabers' drag area under them. Each
   side is dressed on its own (Creyon, 21/10/2026): Equip puts the chosen shader on that side
-  only, the second's Unequip leaves it the stock blade, and dressing the first while the
-  second has no skin of its own (it wears the first's) first gives the second the skin it
-  wore (`PanelAction::WearBoth`), so the second never changes with the first. The own look
+  only and the second's Unequip leaves it the stock blade. While the second has no skin of
+  its own (`cg_saberSkin2` empty) it follows the first, so dressing the first dresses both,
+  as `saberskin` does; once the second was dressed, it keeps its own (review, 22/10/2026:
+  a player who never used the switch no longer finds the second half left on the old skin
+  and `cg_saberSkin2` written unasked). The first's skin chosen for the second is sent as
+  no `saber2`, so `saber2` goes only when the two differ. The own look
   is read again as soon as `cg_saberSkin` or `cg_saberSkin2` changes
   (`Looks::own_settings_changed`), so the sabers show the new skin at once. The sabers show
   the shader on

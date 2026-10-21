@@ -223,12 +223,18 @@ impl Worn {
                 .filter(|toy| self.has_toy(toy))
                 .map(|toy| (*toy).to_owned())
                 .collect(),
+            // Sent only when the second differs from the first: the first's skin chosen for
+            // the second draws the same as no `saber2`.
             saber2: match self.second {
-                SecondSkin::Same => None,
-                SecondSkin::Own(skin) => Some(skin.unwrap_or_default().to_owned()),
+                SecondSkin::Own(skin) if skin != self.saber_skin => {
+                    Some(skin.unwrap_or_default().to_owned())
+                }
+                _ => None,
             },
             saber2_off: match self.second {
-                SecondSkin::Own(Some(skin)) => crate::saber_skin_options::off_list(options, skin),
+                SecondSkin::Own(Some(skin)) if Some(skin) != self.saber_skin => {
+                    crate::saber_skin_options::off_list(options, skin)
+                }
                 _ => Vec::new(),
             },
         }
@@ -618,9 +624,10 @@ mod tests {
         assert_eq!(sent.saber2.as_deref(), Some("saber_glitch"));
         assert_eq!(sent.saber2_off, ["haze"]);
         assert_eq!(own(STOCK_SECOND).to_look("").saber2.as_deref(), Some(""));
-        // The first's skin chosen for the second stays its own; an empty setting and a skin
-        // not held send no `saber2`.
+        // The first's skin chosen for the second stays its own, but is sent as no `saber2`;
+        // an empty setting and a skin not held send none either.
         assert_eq!(own("saber_sun").second, SecondSkin::Own(Some("saber_sun")));
+        assert_eq!(own("saber_sun").to_look("").saber2, None);
         for same in ["", "saber_tidal", "saber_moon"] {
             assert_eq!(own(same).second, SecondSkin::Same, "{same}");
             assert_eq!(own(same).to_look("").saber2, None, "{same}");

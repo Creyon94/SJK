@@ -415,16 +415,8 @@ impl Panel {
             GRID_LINES_SHOWN,
         );
         let first = self.shader_first;
-        // Each side is dressed on its own (Creyon, 21/10/2026): while the second has no
-        // choice of its own it wears the first's, and dressing the first then gives the
-        // second what it wore, so it does not change with it.
+        // While the second has no choice of its own it wears the first's.
         let second = second_own(inputs);
-        self.second_follows = second.is_none();
-        self.first_worn = rows
-            .iter()
-            .find(|row| row.worn)
-            .and_then(|row| row.skin)
-            .map_or(crate::looks::STOCK_SECOND, |skin| skin.id);
         for (index, row) in rows.iter().enumerate() {
             // What a second saber wears now: its own choice, else the first's.
             let row_id = row.skin.map(|skin| skin.id);
