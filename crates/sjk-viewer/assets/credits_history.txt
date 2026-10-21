@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 21/10/2026 | - | Blade cards craft their saber shader for less
+- 04e55ab |  | Blade cards craft their saber shader for less: Normal at the shop price, Holo or Solar at half
++ 21/10/2026 | - | Map changes keep the blade signatures; vsync with supersampling no longer crashes
+- c75faee |  | Map changes keep the blade signatures; vsync with supersampling no longer crashes
++ 21/10/2026 | - | Texture detail r_picmip, no crash when a small card runs out of video memory
+- 503dcef |  | Texture detail (r_picmip) and video memory guards for small cards
 + 21/10/2026 | - | Release 2026.1021.1
 - 1c950c2 |  | Release 2026.1021.1 (Alpha)
 + 21/10/2026 | - | The hub's update refusal is a 403
