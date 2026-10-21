@@ -1491,13 +1491,14 @@ grown to four. The same module serves the Collection screen's row
 [collection_panel.rs](../crates/sjk-viewer/src/collection_panel.rs) and its views
 (`collection_view.rs`, `collection_medals.rs`, `collection_achievements.rs`,
 `collection_shaders.rs`, `collection_toys.rs`, `collection_nameplates.rs`,
-`collection_cards.rs`), 10/10/2026,
+`collection_cards.rs`, `collection_forge.rs`), 10/10/2026,
 Sol's request: take the achievements, medals and unlockables out of the Profile screen
 into a screen of their own, "a real collection, things players can collect in the
 future", with tabs Medals, Achievements, Shaders (the blade skins, renamed: saber now,
 body later), Toys and Nameplates (ornaments for the nameplate), then Holocrons (the
-loot-box drops, built the same day as a Profile tab and moved here) and, since
-12/10/2026, Cards (what opening holocrons brings, [cards.md](cards.md)). Sol picked the
+loot-box drops, built the same day as a Profile tab and moved here), since 21/10/2026
+the Forge (the shop, crafting and breaking shaders down) and, since 12/10/2026, Cards
+(what opening holocrons brings, [cards.md](cards.md)). Sol picked the
 direction from a design canvas (`the vault`): every thing has its place from the
 start, the ones the player lacks dimmed; each tab shows its things on the left and
 the one chosen up close on the right.
@@ -1625,7 +1626,8 @@ for the run.
   1 to 4, Home, End) choose the tier, which swaps the 3D holocron at once (it shrinks away
   and the new look grows in); Enter opens one, A opens all (a card asks "Open all 7 holocrons?" first, Open all or
   Cancel, [cards.md](cards.md#in-the-client)), L shows the loot table; a click on a row chooses it;
-  Ctrl+Tab goes on to Cards; Escape leaves. The `holocrons` command opens it as the
+  Ctrl+Tab goes on to the Forge; Escape leaves. Shop (or S) shows the Forge on its Shop
+  (the shop was an overlay of this tab until 21/10/2026). The `holocrons` command opens it as the
   Collection's tab (again to close); the SJK Profile tab's Holocrons block has See holocrons
   (the classic menus' Profile page too, opening the page on its own). Until the
   Collection (10/10/2026, the same day) it was the Profile screen's eighth tab. The classic Profile
@@ -1633,6 +1635,69 @@ for the run.
   `world_shot::holocrons_tab` (`duel6_sjk_holocrons`: each tier, one held none of, the
   identity off, waiting; `duel6_sjk_holocrons_windows`: 4:3, 21:9, 4K, `ui_textScale 1.2`,
   the classic style). Not tried in a game.
+- **The Forge** (21/10/2026, Sol's request: "a better interface for the shop, for crafting
+  sabers and for disassembling them", a tab of its own;
+  [collection_forge.rs](../crates/sjk-viewer/src/collection_forge.rs) for the state, keys
+  and requests, [collection_forge_view.rs](../crates/sjk-viewer/src/collection_forge_view.rs)
+  for the look): the Collection's tab between Holocrons and Cards, its count the player's
+  kyber shards. Under the row, three section chips, **Shop**, **Craft** and **Break down**
+  (the last with how many duplicate copies wait), the one on show gold; at the top right
+  the player's kyber shards and credits large, each mark and sum over its word, with how
+  each is earned in its hover card. Tab and Shift+Tab (or 1, 2, 3) change section, the
+  arrows choose, Enter or Space presses the chosen thing's button, the pointer chooses by
+  resting and acts by a click; Ctrl+Tab and Escape as on every tab.
+  - **Shop:** "Your offers of 21/10/2026" and "New offers in 5 h 12 min, at midnight in
+    Paris" (counting down; once due the Forge reads the hub again, once a day), the four
+    offers as large cards (408 by 444) across the page: the tier's frame, wash and
+    effects, the tier, the live blade, its name, its price beside the kyber shards' mark,
+    its state ("Bought today: it is yours", "You hold it already", "1 200 kyber shards
+    more needed") and Buy. Under them **Holocrons for credits**, a wide card each: the
+    holocron's picture on its tier's glow, its name in its colour, what it holds (or how
+    many credits are missing), its price and Buy. Showing the Shop reads the hub's day
+    ("Reading the shop..." until it answers).
+  - **Craft:** every saber shader of the trade the player does not hold at all (a card's
+    or a medal's copy counts as held), the commonest first so what the shards reach leads,
+    as a grid of cards (five by three) or a list (six rows), switched by V or the two marks
+    at the chips' right (`ui_shaderView`, as on Shaders); chips for All and each tier (T
+    steps them), Affordable (A) and a search field ("Search shaders", `/` or Ctrl+F; Ctrl+A,
+    Ctrl+C, Ctrl+V and a held Backspace, `text_entry.rs`). Each card: the live blade, the
+    name, the tier and the cost beside the shard's mark (quiet when out of reach). On the
+    right the one chosen big: its tier and edition, its live blade 150 high, its name at
+    46, its facts (takes your colour, its smith), what it is, its parts, then "Crafting
+    costs" and "You hold" side by side, the shards left after or how many more are needed,
+    and Craft. A copy of the shader's blade card lowers the cost everywhere it shows, and
+    "Crafting costs (Holo card -50 %)" and the button ("Craft  (shard)  150  Holo card
+    -50 %") name the card ([cards.md](cards.md#sjk-blades)). The swatches here and on Shop
+    and Break down are the Collection's (`collection_swatch.rs`): with the menu pictures on
+    they show each shader's drawing instead of the live blade.
+  - **Break down:** the player's own copies of shaders of the trade (by grant, drops,
+    crafts or purchases; a medal's or a card's copy is never listed), duplicates first with
+    an "x3" badge, last copies after with a "Last" one; chips, Duplicates (D) and the search
+    as on Craft. On the right the one chosen: its copies ("3 copies", "Your only copy",
+    Worn), "A copy gives" and "You will hold", and **Break down a copy +10**; beside it
+    **Break down all duplicates (7) +100** (B), keeping one of each. A hub that says
+    `shatter_last` (21/10/2026) lists last copies too: their button reads "Break down your
+    last copy" and opens a card in ember, "This is your only copy", the blade, what it
+    gives, that it leaves the collection (and the saber, when worn: the client sets
+    `cg_saberSkin` back to the stock blade once the hub answers) and what crafting it back
+    would cost, Keep it (focused) and Break it down. All duplicates ask with a card too,
+    "Break down all duplicates?", the shaders that give copies up with how many, the total,
+    Cancel and Break them down (focused). A hub without the abilities lists duplicates
+    only and offers no Break down all.
+  - **Asking twice:** Buy, Craft and Break down a copy turn into "Confirm: ..." on the
+    first press; a second within five seconds sends it ("Buying...", "Crafting...",
+    "Breaking down..." until the hub answers), and the hub's answer reads beside the button
+    ("Kamino blade broken down: +5 kyber shards.") or under the offer.
+  - **When it cannot trade:** the identity off, no hub or no answer yet, or a hub with no
+    economy ("The Forge comes with the hub's shop") show a quiet place with the reason in
+    place of the section; while the hub keeps opening to staff or this build is older than
+    its minimum client, the lists still show and their buttons are dimmed with the reason.
+  - The Holocrons tab's Shop (or S) shows the Forge on its Shop, and the Shaders tab's card
+    leads to it: "Craft in the Forge" for a shader of the trade not held, "Break down in the
+    Forge" for one of the player's own copies, the shader chosen there. A held blade card's
+    "Craft the ... in the Forge" on the Cards tab does the same for its shader. World shots:
+    `world_shot::forge_shots` (`duel6_sjk_forge_shots`: every section and state, the cards
+    asking; `duel6_sjk_forge_windows`: 4:3 and 4K).
 - **Cards** ([collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs),
   [cards.md](cards.md#in-the-client), 12/10/2026; a binder since 19/10/2026): "5 of 13
   cards found" with each set's progress under it ("SJK Alpha 5 / 13"), the kyber shards

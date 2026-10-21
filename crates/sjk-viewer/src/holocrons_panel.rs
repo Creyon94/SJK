@@ -11,9 +11,9 @@
 //! tier held none of shows dimmed, never hidden. Under the holocron, Open opens the
 //! oldest of the tier chosen and Open all up to twenty, in a ceremony over the page
 //! ([`opening`]): each brings a sealed card and credits (`docs/cards.md`). Loot table (or
-//! L) shows the odds of everything a holocron brings over the page ([`loot`]); Shop (or S,
-//! while the hub lets the player open holocrons) the day's saber shaders sold for credits
-//! ([`shop`]). The player's credits and kyber shards stand at the panel's top right.
+//! L) shows the odds of everything a holocron brings over the page ([`loot`]); Shop (or S)
+//! shows the Collection's Forge on its Shop (since 21/10/2026: the shop was an overlay of
+//! this page before). The player's credits and kyber shards stand at the panel's top right.
 //!
 //! Up and Down (or Left and Right, or the mouse wheel) choose a tier, Tab and Shift+Tab
 //! walk them round, 1 to 4 and Home and End jump, Enter opens one, A opens all, L shows
@@ -37,8 +37,6 @@ mod batch;
 mod loot;
 #[path = "holocrons_panel_opening.rs"]
 pub(crate) mod opening;
-#[path = "holocrons_panel_shop.rs"]
-pub(crate) mod shop;
 #[path = "holocrons_panel_crate.rs"]
 mod strip;
 #[path = "holocrons_panel_unseal.rs"]
@@ -62,13 +60,8 @@ pub(crate) const OPEN_ALL_TOKEN: u16 = 1_321;
 /// Loot table, beside what the chosen tier holds, and the loot table's Back.
 pub(crate) const LOOT_TOKEN: u16 = 1_323;
 pub(crate) const LOOT_BACK_TOKEN: u16 = 1_324;
-/// Shop, beside Open all, and the shop's Back; its offers' buttons and cards.
+/// Shop, beside Open all: the Collection's Forge on its Shop.
 pub(crate) const SHOP_TOKEN: u16 = 1_325;
-pub(crate) const SHOP_BACK_TOKEN: u16 = 1_326;
-pub(crate) const SHOP_BUY_BASE: u16 = 1_330;
-pub(crate) const SHOP_CARD_BASE: u16 = 1_334;
-/// The shop's holocrons for credits (an Uncommon and a Rare one).
-pub(crate) const SHOP_HOLOCRON_BASE: u16 = 1_338;
 
 /// What the page knows of the player's holocrons: whether the hub could say, and what.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -122,16 +115,12 @@ pub(crate) struct Data {
     /// Seconds of play a holocron takes, once the hub said.
     pub(crate) every: Option<u64>,
     /// Whether the hub lets the player open holocrons now: only staff while opening is
-    /// tested (`docs/holocrons.md`, "Opening"). False until the hub said. The shop follows
-    /// it.
+    /// tested (`docs/holocrons.md`, "Opening"). False until the hub said. The Shop button
+    /// follows it.
     pub(crate) can_open: bool,
     /// The SJK release the hub wants for opening and trading when this build is older
     /// (the hub's minimum client): `can_open` is false then and the page says to update.
     pub(crate) update: Option<String>,
-    /// The shop's day as the hub last answered it, once asked ([`shop`]).
-    pub(crate) shop: Option<sjk_identity::ShopState>,
-    /// What became of the last shatter, craft or purchase.
-    pub(crate) trade: Option<sjk_identity::TradeOutcome>,
 }
 
 impl Data {
@@ -150,8 +139,6 @@ impl Data {
             every: None,
             can_open: false,
             update: None,
-            shop: None,
-            trade: None,
         }
     }
 
@@ -219,8 +206,6 @@ impl Data {
                 .filter(|&every| every > 0),
             can_open: crate::economy::may_act(snapshot),
             update: crate::economy::update_to(snapshot).map(str::to_owned),
-            shop: snapshot.shop.clone(),
-            trade: snapshot.trade.clone(),
         }
     }
 
@@ -277,12 +262,8 @@ pub(crate) enum PanelAction {
     Hub(crate::profile_hub::Tab),
     /// Ask the hub to open these holocrons ([`opening`]).
     Open(Vec<u64>),
-    /// Ask the hub for the shop's day ([`shop`]).
-    ReadShop,
-    /// Ask the hub to sell the player this offer of the day.
-    Buy(String),
-    /// Ask the hub to sell the player a holocron of this tier for credits.
-    BuyHolocron(String),
+    /// Show the Collection's Forge on its Shop (Shop, or S).
+    Shop,
 }
 
 pub(crate) struct Panel {
@@ -307,14 +288,6 @@ pub(crate) struct Panel {
     ceremony: Option<opening::Ceremony>,
     /// The loot table shows over the page.
     loot: bool,
-    /// The shop shows over the page, the offer chosen, the offer whose Buy waits for its
-    /// Confirm (and since when), the trade serial a purchase was asked at (while the hub
-    /// answers), and the shop read the page asked again for when its day turned.
-    shop: bool,
-    shop_selected: usize,
-    confirm: Option<(usize, Instant)>,
-    buying: Option<u64>,
-    shop_reread: Option<u64>,
     /// Open all's question shows, the focus on its Open all or Cancel ([`ask_all`]).
     ask_all: Option<ask_all::AskAll>,
     /// The serial of the identity's last opening the page saw, so a new one is its
@@ -365,11 +338,6 @@ impl Panel {
             refreshed: None,
             ceremony: None,
             loot: false,
-            shop: false,
-            shop_selected: 0,
-            confirm: None,
-            buying: None,
-            shop_reread: None,
             ask_all: None,
             opening_serial: 0,
             epoch: Instant::now(),
@@ -400,8 +368,6 @@ impl Panel {
         self.refreshed = None;
         self.ceremony = None;
         self.loot = false;
-        self.shop = false;
-        self.confirm = None;
         self.ask_all = None;
     }
 
@@ -437,8 +403,6 @@ impl Panel {
         self.open = false;
         self.ceremony = None;
         self.loot = false;
-        self.shop = false;
-        self.confirm = None;
         self.ask_all = None;
         self.owns_console = false;
         owned
@@ -551,9 +515,6 @@ impl Panel {
         if self.loot {
             return self.loot_key(key);
         }
-        if self.shop {
-            return self.shop_key(key);
-        }
         if self.ask_all.is_some() {
             return self.ask_all_key(key, now);
         }
@@ -575,7 +536,7 @@ impl Panel {
             }
             KeyCode::KeyA => return self.open_all(now),
             KeyCode::KeyL => self.show_loot(true),
-            KeyCode::KeyS => return self.show_shop(true),
+            KeyCode::KeyS => return PanelAction::Shop,
             _ => {}
         }
         PanelAction::None
@@ -597,9 +558,6 @@ impl Panel {
         }
         if self.loot {
             return self.loot_pointer(event);
-        }
-        if self.shop {
-            return self.shop_pointer(event);
         }
         if self.ask_all.is_some() {
             return self.ask_all_pointer(event, now);
@@ -633,7 +591,7 @@ impl Panel {
                 self.show_loot(true);
                 PanelAction::None
             }
-            Some(SHOP_TOKEN) => self.show_shop(true),
+            Some(SHOP_TOKEN) => PanelAction::Shop,
             Some(token) if self.hub => match crate::profile_hub::collection_tab_of(token) {
                 Some(tab) if tab != crate::profile_hub::Tab::Holocrons => PanelAction::Hub(tab),
                 _ => PanelAction::None,

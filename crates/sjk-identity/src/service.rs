@@ -252,6 +252,12 @@ impl ShopState {
 pub enum Trade {
     /// One duplicate into kyber shards.
     Shatter,
+    /// One copy into kyber shards, the last one too (hubs whose economy says
+    /// `shatter_last`, 21/10/2026).
+    ShatterLast,
+    /// Every duplicate into kyber shards, one copy of each kept; the outcome's `id` is
+    /// empty and its `copies` how many went (21/10/2026).
+    ShatterAll,
     /// A shader made with kyber shards.
     Craft,
     /// One of the shop's offers bought (with kyber shards since 17/10/2026).
@@ -272,6 +278,9 @@ pub struct TradeOutcome {
     /// The shards a shatter gave or a craft cost, what an offer cost (in the shop's
     /// currency) or the credits a holocron cost; 0 when it failed.
     pub amount: u64,
+    /// The copies a shatter took (every one of them for [`Trade::ShatterAll`], else one);
+    /// 0 for the other trades and when it failed.
+    pub copies: u32,
     /// Why it failed; empty when it worked.
     pub message: String,
 }
@@ -499,6 +508,10 @@ enum Command {
     RevealCards,
     /// Shatter one duplicate of this shader.
     Shatter(String),
+    /// Shatter one copy of this shader, the last one too.
+    ShatterLast(String),
+    /// Shatter every duplicate, one copy of each kept.
+    ShatterDuplicates,
     /// Craft this shader with shards.
     Craft(String),
     /// Read the shop's day.
@@ -702,6 +715,9 @@ fn trade_refusal(error: &HubError) -> String {
     let words = match error {
         HubError::Rejected { code, message, .. } => match code.as_str() {
             "not_a_duplicate" => "That is your last one: only duplicates can be shattered.",
+            "comes_with_card" => "That shader comes with your card: it stays with the card.",
+            "not_held" => "You hold no copy of that shader any more.",
+            "no_duplicates" => "You hold no duplicates to break down.",
             "not_shatterable" => "That shader cannot be shattered.",
             "not_craftable" => "That shader cannot be crafted.",
             "not_enough_shards" => "Not enough kyber shards.",
@@ -1201,6 +1217,8 @@ impl Worker {
             Command::OpenHolocrons(ids) => self.open_holocrons(&ids, now),
             Command::RevealCards => self.reveal_cards(),
             Command::Shatter(id) => self.trade(Trade::Shatter, &id),
+            Command::ShatterLast(id) => self.trade(Trade::ShatterLast, &id),
+            Command::ShatterDuplicates => self.trade(Trade::ShatterAll, ""),
             Command::Craft(id) => self.trade(Trade::Craft, &id),
             Command::ReadShop => self.read_shop(now),
             Command::Buy(id) => self.trade(Trade::Buy, &id),
@@ -1414,25 +1432,42 @@ impl Worker {
     /// balances and what is held. A purchase the day turned under is answered by reading
     /// the shop again.
     fn trade(&mut self, trade: Trade, id: &str) {
-        type Done = (u64, Option<u64>, Option<u64>, Profile);
+        type Done = (u64, u32, Option<u64>, Option<u64>, Profile);
         let outcome: Result<Done, HubError> = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => match trade {
-                Trade::Shatter => hub.shatter_unlock(&self.identity, id).map(|answer| {
-                    let shards = answer.shattered.balance;
-                    (answer.shattered.shards, None, Some(shards), answer.profile)
+                Trade::Shatter | Trade::ShatterLast => hub
+                    .shatter_unlock(&self.identity, id, trade == Trade::ShatterLast)
+                    .map(|answer| {
+                        let shards = answer.shattered.balance;
+                        (
+                            answer.shattered.shards,
+                            1,
+                            None,
+                            Some(shards),
+                            answer.profile,
+                        )
+                    }),
+                Trade::ShatterAll => hub.shatter_duplicates(&self.identity).map(|answer| {
+                    (
+                        answer.shards,
+                        answer.copies,
+                        None,
+                        Some(answer.balance),
+                        answer.profile,
+                    )
                 }),
                 Trade::Craft => hub.craft_unlock(&self.identity, id).map(|answer| {
                     let shards = answer.crafted.balance;
-                    (answer.crafted.cost, None, Some(shards), answer.profile)
+                    (answer.crafted.cost, 0, None, Some(shards), answer.profile)
                 }),
                 // The balances from the profile: an offer's price is in shards on hubs
                 // since 17/10/2026, in credits before.
                 Trade::Buy => hub
                     .buy_offer(&self.identity, id)
-                    .map(|answer| (answer.bought.price, None, None, answer.profile)),
+                    .map(|answer| (answer.bought.price, 0, None, None, answer.profile)),
                 Trade::Holocron => hub.buy_holocron(&self.identity, id).map(|answer| {
                     let credits = answer.bought.balance;
-                    (answer.bought.price, Some(credits), None, answer.profile)
+                    (answer.bought.price, 0, Some(credits), None, answer.profile)
                 }),
             },
             _ => Err(not_connected()),
@@ -1442,18 +1477,24 @@ impl Worker {
         self.update(|snapshot| {
             let serial = snapshot.trade.as_ref().map_or(1, |last| last.serial + 1);
             snapshot.trade = Some(match outcome {
-                Ok((amount, credits, shards, profile)) => {
+                Ok((amount, copies, credits, shards, profile)) => {
                     if let Some(shop) = snapshot.shop.as_mut() {
                         shop.day.credits = credits.unwrap_or(profile.credits);
                         shop.day.shards = shards.unwrap_or(profile.shards);
                         let shader = trade != Trade::Holocron;
+                        let held = |id: &str| profile.unlocks.iter().any(|held| held.id == id);
                         for offer in shop
                             .day
                             .offers
                             .iter_mut()
                             .filter(|offer| shader && offer.id == id)
                         {
-                            offer.owned = trade != Trade::Shatter || offer.owned;
+                            // A shatter keeps what was held, but a last copy gone.
+                            offer.owned = match trade {
+                                Trade::Shatter | Trade::ShatterAll => offer.owned,
+                                Trade::ShatterLast => offer.owned && held(id),
+                                _ => true,
+                            };
                             offer.bought |= trade == Trade::Buy;
                         }
                     }
@@ -1463,6 +1504,7 @@ impl Worker {
                         trade,
                         id: id.to_owned(),
                         amount,
+                        copies,
                         message: String::new(),
                     }
                 }
@@ -1471,6 +1513,7 @@ impl Worker {
                     trade,
                     id: id.to_owned(),
                     amount: 0,
+                    copies: 0,
                     message: trade_refusal(&error),
                 },
             });
@@ -2490,6 +2533,20 @@ impl Service {
         let _ = self.commands.send(Command::Shatter(id.to_owned()));
     }
 
+    /// Shatter one copy of shader `id`, the last one too (hubs whose economy says
+    /// `shatter_last`, 21/10/2026): what came of it arrives in [`Snapshot::trade`], and the
+    /// profile after it.
+    pub fn shatter_last(&self, id: &str) {
+        let _ = self.commands.send(Command::ShatterLast(id.to_owned()));
+    }
+
+    /// Shatter every duplicate the player holds, one copy of each kept (hubs whose economy
+    /// says `shatter_duplicates`, 21/10/2026): what came of it arrives in
+    /// [`Snapshot::trade`] (its `copies` and `amount` the totals), and the profile after it.
+    pub fn shatter_duplicates(&self) {
+        let _ = self.commands.send(Command::ShatterDuplicates);
+    }
+
     /// Craft shader `id` with kyber shards: what came of it arrives in
     /// [`Snapshot::trade`], and the profile after it.
     pub fn craft(&self, id: &str) {
@@ -2997,9 +3054,10 @@ mod tests {
             &mut self,
             _: &Identity,
             id: &str,
+            last: bool,
         ) -> Result<crate::wire::ShatterAnswer, HubError> {
-            self.record(format!("shatter {id}"))?;
-            if id == "saber_last" {
+            self.record(format!("shatter {id}{}", if last { " last" } else { "" }))?;
+            if id == "saber_last" && !last {
                 return Err(refused(409, "not_a_duplicate"));
             }
             let mut profile = profile("Sol");
@@ -3011,6 +3069,25 @@ mod tests {
                     shards: 5,
                     balance: 5,
                 },
+                profile,
+            })
+        }
+        fn shatter_duplicates(
+            &mut self,
+            _: &Identity,
+        ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
+            self.record("shatter duplicates".to_owned())?;
+            let mut profile = profile("Sol");
+            profile.shards = 165;
+            Ok(crate::wire::ShatterAllAnswer {
+                shattered: vec![crate::wire::ShatteredCopies {
+                    id: "saber_tidal".to_owned(),
+                    copies: 3,
+                    shards: 15,
+                }],
+                copies: 3,
+                shards: 15,
+                balance: 165,
                 profile,
             })
         }
@@ -3842,6 +3919,22 @@ mod tests {
             lock(&snapshot).trade.clone().unwrap().message,
             "That is your last one: only duplicates can be shattered."
         );
+        // Asked for, the last copy goes too (21/10/2026); every duplicate at once says
+        // how many copies went and what they gave.
+        worker.handle(Command::ShatterLast("saber_last".to_owned()), t0);
+        let last = lock(&snapshot).trade.clone().unwrap();
+        assert!(last.done());
+        assert_eq!(
+            (last.trade, last.copies, last.amount),
+            (Trade::ShatterLast, 1, 5)
+        );
+        worker.handle(Command::ShatterDuplicates, t0);
+        let all = lock(&snapshot).trade.clone().unwrap();
+        assert_eq!(
+            (all.trade, all.id.as_str(), all.copies, all.amount),
+            (Trade::ShatterAll, "", 3, 15)
+        );
+        assert_eq!(lock(&snapshot).me.as_ref().map(|me| me.shards), Some(165));
         worker.handle(Command::Craft("saber_circuit".to_owned()), t0);
         let craft = lock(&snapshot).trade.clone().unwrap();
         assert_eq!(
@@ -3890,7 +3983,12 @@ mod tests {
                     || line.starts_with("buy")
                     || *line == "shop")
                 .count(),
-            9
+            11
+        );
+        assert!(
+            fake.log()
+                .iter()
+                .any(|line| line == "shatter saber_last last")
         );
     }
 

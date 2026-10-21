@@ -1119,11 +1119,11 @@ Profile page's See the collection) open it on its own:
   colour, with the chance an opening of one does (the hub's odds split evenly among
   the droppable shaders of its tier, `cards::loot::shader_in`); then its parts and, at
   the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
-  While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
-  the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
-  twice or more, or Craft (its cost) for one not held, dimmed while the shards fall
-  short; the first press arms it ("Confirm: ..."), a second within five seconds sends
-  it, and the line at the right says the hub's answer or the shards at hand.
+  Once the hub's economy is known, the foot also leads to the Collection's Forge
+  ([cards.md](cards.md#the-forge), 21/10/2026; Shatter and Craft stood here before):
+  "Craft in the Forge" for a shader of the trade not held, with its cost, or "Break down
+  in the Forge" for one of the player's own copies, with what a copy gives; a click shows
+  the Forge on that section with the shader chosen.
   The rack's and the grid's state lines carry the same icons, and the grid's tier line
   its rarity mark. The classic menus have no stage: the area shows the swatch, larger;
 - with the identity off, no hub or no answer yet, the tab says so and no skin is
@@ -1238,31 +1238,27 @@ to the top when the filter changes.
 
 ## Shattering, crafting and the shop
 
-Prepared 17/10/2026, not deployed ([cards.md](cards.md#shards-and-the-shop) has the
-numbers, the rules and the open points): a droppable shader held twice or more can be
-shattered into kyber shards, one copy a request, never the last; shards craft any
-droppable shader the player does not hold; the Holocrons tab's shop sells four droppable
-shaders a day for credits. Only shaders of the *trade* take part: droppable and brought by
-no medal (`economy::in_trade`, read from the catalogue's `droppable` and `Medal::blade`, as
-the hub reads its own), so Glitch, Hologram and Runic never do, and a shader made
-droppable joins by itself.
-
-The Shaders tab is being redesigned apart, so its Shatter and Craft buttons are not wired
-yet. Its hooks are in [economy.rs](../crates/sjk-viewer/src/economy.rs):
+Live since 21/10/2026 ([cards.md](cards.md#shards-and-the-shop) has the numbers and the
+rules): a shader of the trade the player holds can be broken down into kyber shards, one
+copy a request (the last copy too on a hub that says `shatter_last`, never a medal's or a
+card's), or every duplicate at once; shards craft any shader of the trade the player does
+not hold and buy the day's four offers. Only shaders of the *trade* take part: droppable
+and brought by no medal (`economy::in_trade`, read from the catalogue's `droppable` and
+`Medal::blade`, as the hub reads its own), so Glitch, Hologram and Runic never do, and a
+shader made droppable joins by itself. All of it is the Collection's Forge tab
+([cards.md](cards.md#the-forge)); its requests are in
+[economy.rs](../crates/sjk-viewer/src/economy.rs):
 
 | Hook | What it gives |
 | --- | --- |
-| `in_trade(&Unlockable) -> bool` | Whether a shader can be shattered, crafted or sold at all |
-| `choices(&Unlockable, held: u32, shards: u64) -> Choices` | `shatter: Option<u64>` (the shards one duplicate gives, when held twice or more), `craft: Option<u64>` (the cost, when held none), `affordable` |
-| `shatter_yield(Rarity) -> u64`, `craft_cost(Rarity) -> u64`, `shop_price(Rarity) -> u64` | The hub's tables (its copy until the hub sent them) |
-| `balance() -> Option<(u64, u64)>` | The player's credits and kyber shards |
-| `can_trade() -> bool` | Whether the hub lets the player trade (as opening) |
-| `shatter(id: &str) -> bool`, `craft(id: &str) -> bool` | Ask the hub; false before the identity started |
-| `trade_outcome() -> Option<TradeOutcome>` | The last answer (`serial` counts up, `trade`, `id`, `amount`, `message` empty when done) |
-| `outcome_words(&TradeOutcome, name: &str) -> String` | "Tidal blade shattered: +5 kyber shards.", or why not |
+| `in_trade(&Unlockable) -> bool` | Whether a shader can be broken down, crafted or sold at all |
+| `shatter_yield(Rarity) -> u64`, `craft_cost(Rarity) -> u64` | The hub's tables (its copy until the hub sent them) |
+| `may_act(&Snapshot) -> bool` | Whether the hub lets the player trade (as opening) |
+| `shatter(id)`, `shatter_last(id)`, `shatter_all()`, `craft(id)`, `buy_holocron(tier)` | Ask the hub; false before the identity started |
+| `outcome_words(&TradeOutcome, name: &str) -> String` | "Kamino blade broken down: +5 kyber shards.", or why not |
 
-`held` is the profile's `Unlock::count` when it has no `medal` (a medal's copy is not
-counted), 0 when the shader is not listed. The kyber shard's mark to draw beside a count is
+What the Forge lists counts the profile's `Unlock::count` when it has no `medal` and no
+`card`; a shader not listed is not held. The kyber shard's mark to draw beside a count is
 `cards::shard::draw` (or the symbol `symbols::SHARD` in text).
 
 ## Planned, not built

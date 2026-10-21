@@ -7,8 +7,7 @@
 //! and how many dropped today, and the newest ten. The player's kyber shards and credits
 //! stand at the panel's top right, Loot table beside what the chosen tier holds, and Open,
 //! Open all and Shop under the holocron's caption. While the opening's ceremony, the loot
-//! table or the shop shows, only it is drawn ([`super::opening`], [`super::loot`],
-//! [`super::shop`]).
+//! table shows, only it is drawn ([`super::opening`], [`super::loot`]).
 //!
 //! Every position is on the 16:9 frame ([`Frame`]); under the Profile screen's row of
 //! tabs the page moves down [`crate::profile_hub::SHIFT`] pixels. The pictures and
@@ -193,6 +192,71 @@ pub(super) fn picture(
 }
 
 impl Panel {
+    /// The player's kyber shards and credits, right-aligned to `right` at `y` (frame
+    /// pixels): each mark and sum, the word under it. Nothing before the hub said.
+    pub(super) fn balances(&mut self, frame: &Frame, right: f32, y: f32) {
+        let (Some(credits), shards) = (self.data.credits, self.data.shards) else {
+            return;
+        };
+        let s = frame.s;
+        let size = 30.0;
+        let scale = crate::text::style::current().scale;
+        let mut right = right;
+        let mut column = |ui: &mut MenuCanvas,
+                          words: String,
+                          label: &str,
+                          colour: Color,
+                          mark: &dyn Fn(&mut sjk_ui::DrawList, [f32; 2], f32) -> f32,
+                          mark_width: f32| {
+            let width = crate::text::display_width(&words, size) * scale;
+            text(
+                ui,
+                TextFamily::Display,
+                format_args!("{words}"),
+                frame.rect(right - width - 8.0, y, width + 8.0, 38.0),
+                size * s,
+                colour,
+                FontWeight::Semibold,
+                TextAlign::End,
+            );
+            let left = right - width - 8.0 - 10.0 - mark_width;
+            let [mx, my] = frame.point(left, y + 5.0);
+            let _ = mark(ui.draw_list_mut(), [mx, my], s);
+            text(
+                ui,
+                TextFamily::Body,
+                format_args!("{label}"),
+                frame.rect(right - 200.0, y + 50.0, 200.0, 24.0),
+                15.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::End,
+            );
+            right = left - 44.0;
+        };
+        let mark_height = 26.0;
+        column(
+            &mut self.ui,
+            crate::cards::credits_text(credits),
+            "credits",
+            color::GOLD_BRIGHT,
+            &|list, at, s| crate::cards::mark::draw(list, at, mark_height * s, color::GOLD),
+            crate::cards::mark::width(mark_height),
+        );
+        if let Some(shards) = shards {
+            column(
+                &mut self.ui,
+                crate::economy::shards_text(shards),
+                "kyber shards",
+                crate::cards::shard::KYBER,
+                &|list, at, s| {
+                    crate::cards::shard::draw(list, at, mark_height * s, crate::cards::shard::KYBER)
+                },
+                crate::cards::shard::width(mark_height),
+            );
+        }
+    }
+
     /// Draw the page with its text to `target`, reading the hub's data when it is old.
     pub(crate) fn append_sjk(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
         self.build(viewport);
@@ -218,11 +282,6 @@ impl Panel {
         if self.loot {
             self.draw_loot(&frame, viewport);
             self.ui.finish(LOOT_BACK_TOKEN);
-            return;
-        }
-        if self.shop {
-            self.draw_shop(&frame, viewport, now);
-            self.ui.finish(SHOP_BACK_TOKEN);
             return;
         }
         // Open all's question: the page under its card is left out (text draws over it).

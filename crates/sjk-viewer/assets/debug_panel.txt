@@ -30,12 +30,24 @@ title: Blade cards craft their saber shader for less
 change: Holding a copy of a shader's SJK Blades card: Craft costs the shop price (Normal) or half.
 change: The Craft button says 'Holo card -50 %'; the blade card's hover card says it crafts for less.
 test: Local hub on feat/blade-card-craft; reveal a blade card for a shader you do not hold.
-test: Collection > Shaders, that shader: Craft shows the lower cost and the card's finish.
+test: Collection > Forge > Craft, that shader: Craft shows the lower cost and the card's finish.
 test: Craft it: the shards spent match the button; the card stays in the Cards tab.
 test: Collection > Cards, hover the blade card: 'Any copy crafts the ... blade for less.'
-test: Choose a held blade card: 'Go to the ... blade' under it opens Shaders on that shader.
-test: Set a Shaders filter (T) first: the button still lands on the shader, filter cleared.
+test: Choose a held blade card you lack: 'Craft the ... in the Forge' opens Forge > Craft on it.
+test: One whose shader you hold: 'Go to the ... blade' opens Shaders on that shader.
+test: Set a Shaders or Craft filter (T) first: the button still lands on it, filter cleared.
 note: The live hub gives no discount until feat/blade-card-craft is deployed (full cost shown).
+
+[forge]
+area: Menus & settings
+title: The Forge: Shop, Craft and Break down in one Collection tab
+change: New Forge tab after Holocrons; the shop overlay and Shaders' Shatter/Craft lead to it.
+change: Break down a last copy too (hub shatter_last), after a warning card; all duplicates at once.
+test: Local hub from SJK-hub main: Collection > Forge, Tab through Shop, Craft and Break down.
+test: Buy an offer and a holocron, craft one, break a duplicate down: each asks twice first.
+test: Break down your last copy of the worn blade: warning card, then saber back to stock.
+test: B on Break down: all duplicates card, one of each kept; Holocrons S opens Forge > Shop.
+note: Against the live hub (no abilities yet) Break down lists duplicates only.
 
 [min-client]
 area: Menus & settings
