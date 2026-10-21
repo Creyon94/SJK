@@ -1274,6 +1274,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
     use sjk_identity::{Presence, Profile, Snapshot as Hub, Status, WornName};
     let hub = |status: Status, name: &str, earlier: &[&str]| Hub {
         loot: Vec::new(),
+        min_client: None,
         opening: None,
         reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
@@ -2599,6 +2600,7 @@ fn medals_snapshot() {
     // The Identity page.
     let hub = |medals: Vec<sjk_identity::Medal>| Hub {
         loot: Vec::new(),
+        min_client: None,
         opening: None,
         reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),

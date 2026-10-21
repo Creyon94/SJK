@@ -299,7 +299,8 @@ Open and Open all (and Shop, while the hub lets the player open, [cards.md](card
 stand under the holocron's caption and opened holocrons are marked in the recent list; opening and its
 ceremony are in [cards.md](cards.md#in-the-client). While the hub keeps opening to staff
 (`can_open` false, [cards.md](cards.md#opening)) a line says opening comes soon in place of
-the buttons.
+the buttons; when this build is older than the hub's minimum client (since 21/10/2026) the
+line says to update to that release instead.
 
 - **Keys and pointer:** Up and Down (or Left and Right, Tab and Shift+Tab, the wheel, 1 to
   4, Home and End) choose the tier; Escape goes back; a click on a row chooses it; Ctrl+Tab

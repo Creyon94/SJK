@@ -164,10 +164,28 @@ pub(crate) fn balance() -> Option<(u64, u64)> {
 /// Whether the hub lets the player trade now: as for opening holocrons, only staff while
 /// opening is tested (false until the hub said).
 pub(crate) fn can_trade() -> bool {
-    crate::player_identity::with_snapshot(|snapshot| {
-        snapshot.holocrons.is_some_and(|progress| progress.can_open)
-    })
-    .unwrap_or(false)
+    crate::player_identity::with_snapshot(may_act).unwrap_or(false)
+}
+
+/// Whether `snapshot` lets the player open holocrons and trade: the hub said they may
+/// (`can_open`) and this build is not older than the hub's minimum client.
+pub(crate) fn may_act(snapshot: &sjk_identity::Snapshot) -> bool {
+    snapshot.holocrons.is_some_and(|progress| progress.can_open) && update_to(snapshot).is_none()
+}
+
+/// The SJK release to update to when this build is older than the hub's minimum client
+/// (the hub refuses it opening and trading then), else `None`.
+pub(crate) fn update_to(snapshot: &sjk_identity::Snapshot) -> Option<&str> {
+    snapshot
+        .min_client
+        .as_deref()
+        .filter(|min| !crate::build_info::meets_min(min))
+}
+
+/// What the Holocrons tab says in place of Open and Open all when this build is older
+/// than `min`, the hub's minimum client.
+pub(crate) fn update_line(min: &str) -> String {
+    format!("Update SJK to open holocrons: this needs SJK {min} or newer.")
 }
 
 /// Shatter one duplicate of shader `id`; false when the identity has not started. What

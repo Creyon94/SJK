@@ -161,6 +161,7 @@ mod tests {
     fn snapshot() -> Snapshot {
         Snapshot {
             loot: Vec::new(),
+            min_client: None,
             opening: None,
             reveal: None,
             local_key_id: "0123456789abcdef".to_owned(),

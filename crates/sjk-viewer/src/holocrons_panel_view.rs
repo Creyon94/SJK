@@ -737,6 +737,19 @@ impl Panel {
     /// the holocron; dimmed when there is nothing to open. While the hub keeps opening to
     /// staff, a line saying so instead.
     fn buttons(&mut self, frame: &Frame) {
+        if let Some(line) = self.data.update_line() {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{line}"),
+                frame.rect(STAGE_AT[0] - 460.0, BUTTONS_Y, 920.0, BUTTON_HEIGHT),
+                19.0 * frame.s,
+                color::TEXT,
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+            return;
+        }
         if self.data.opening_closed() {
             text(
                 &mut self.ui,

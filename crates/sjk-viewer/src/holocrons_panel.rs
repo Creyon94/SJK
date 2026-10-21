@@ -125,6 +125,9 @@ pub(crate) struct Data {
     /// tested (`docs/holocrons.md`, "Opening"). False until the hub said. The shop follows
     /// it.
     pub(crate) can_open: bool,
+    /// The SJK release the hub wants for opening and trading when this build is older
+    /// (the hub's minimum client): `can_open` is false then and the page says to update.
+    pub(crate) update: Option<String>,
     /// The shop's day as the hub last answered it, once asked ([`shop`]).
     pub(crate) shop: Option<sjk_identity::ShopState>,
     /// What became of the last shatter, craft or purchase.
@@ -146,6 +149,7 @@ impl Data {
             shards: None,
             every: None,
             can_open: false,
+            update: None,
             shop: None,
             trade: None,
         }
@@ -213,7 +217,8 @@ impl Data {
             every: progress
                 .map(|progress| progress.every_secs)
                 .filter(|&every| every > 0),
-            can_open: progress.is_some_and(|progress| progress.can_open),
+            can_open: crate::economy::may_act(snapshot),
+            update: crate::economy::update_to(snapshot).map(str::to_owned),
             shop: snapshot.shop.clone(),
             trade: snapshot.trade.clone(),
         }
@@ -247,7 +252,19 @@ impl Data {
     /// Whether the hub said opening is not for the player yet (so the page says so in
     /// place of Open and Open all).
     pub(crate) fn opening_closed(&self) -> bool {
-        self.state == State::Known && self.every.is_some() && !self.can_open
+        self.state == State::Known
+            && self.every.is_some()
+            && !self.can_open
+            && self.update.is_none()
+    }
+
+    /// What the page says in place of Open and Open all when this build is older than the
+    /// hub's minimum client.
+    pub(crate) fn update_line(&self) -> Option<String> {
+        (self.state == State::Known)
+            .then_some(self.update.as_deref())
+            .flatten()
+            .map(crate::economy::update_line)
     }
 }
 
@@ -774,6 +791,7 @@ mod tests {
     ) -> sjk_identity::Snapshot {
         sjk_identity::Snapshot {
             loot: Vec::new(),
+            min_client: None,
             opening: None,
             reveal: None,
             local_key_id: "0123456789abcdef".into(),
@@ -911,6 +929,36 @@ mod tests {
         assert_eq!(data.next, "Next holocron in about 20 minutes of play");
         assert_eq!(data.today, Some((3, 8)));
         assert!((data.fraction.unwrap() - 1.0 / 3.0).abs() < 1e-6);
+    }
+
+    /// A hub minimum client: a dev build (as tests are) still opens; a build older than it
+    /// opens nothing and says to update in place of the buttons, not that opening is closed.
+    #[test]
+    fn an_old_build_says_to_update() {
+        let mut snapshot = snapshot(sjk_identity::Status::Online, Some(profile(Vec::new())));
+        snapshot.holocrons = Some(sjk_identity::HolocronProgress {
+            progress_secs: 600,
+            every_secs: 1_800,
+            today: 0,
+            daily_cap: 8,
+            server_time: 0,
+            can_open: true,
+            read_at: Instant::now(),
+        });
+        snapshot.min_client = Some("2026.1022.1".into());
+        let data = Data::of(true, &snapshot);
+        assert!(crate::build_info::VERSION == "dev" || crate::build_info::meets_min("2026.1022.1"));
+        assert_eq!((data.can_open, data.update.as_deref()), (true, None));
+        let mut old = openable();
+        old.can_open = false;
+        old.update = Some("2026.1022.1".into());
+        assert_eq!(old.openable(), 0);
+        assert!(!old.opening_closed());
+        assert_eq!(
+            old.update_line().as_deref(),
+            Some("Update SJK to open holocrons: this needs SJK 2026.1022.1 or newer.")
+        );
+        assert_eq!(openable().update_line(), None);
     }
 
     fn openable() -> Data {
