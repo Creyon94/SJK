@@ -587,6 +587,9 @@ struct Worker {
     /// listed then: they are not sent again until those change.
     look_refused: Vec<String>,
     look_refused_for: Vec<Unlock>,
+    /// The hub refused `saber2` as an unknown field (a hub from before 21/10/2026): looks
+    /// go without the second saber's skin until the hub changes.
+    saber2_unknown: bool,
     /// The feed id of the last look the hub took from this worker.
     look_id: Option<u64>,
     /// When the own profile may next be read early ([`Worker::profile_soon`]).
@@ -742,6 +745,12 @@ fn reveal_refusal(error: &HubError) -> String {
     }
 }
 
+/// The second saber's own blade skin in `look`, when it wears one (not the first's, not the
+/// stock blade).
+fn second_skin(look: &Look) -> Option<&str> {
+    look.saber2.as_deref().filter(|saber2| !saber2.is_empty())
+}
+
 fn outcome_of(serial: u64, outcome: Result<String, HubError>) -> ReportOutcome {
     match outcome {
         Ok(message) => ReportOutcome {
@@ -818,6 +827,7 @@ impl Worker {
             due_look: now,
             look_refused: Vec::new(),
             look_refused_for: Vec::new(),
+            saber2_unknown: false,
             look_id: None,
             profile_soon_after: now,
             assets_dir: None,
@@ -1967,6 +1977,17 @@ impl Worker {
             look.saber.clear();
             look.saber_off.clear();
         }
+        // A second skin refused, or a hub that does not know the field: the second saber
+        // wears the first's skin, as before `saber2` existed.
+        if self.saber2_unknown
+            || look
+                .saber2
+                .as_ref()
+                .is_some_and(|saber2| self.look_refused.contains(saber2))
+        {
+            look.saber2 = None;
+            look.saber2_off.clear();
+        }
         look
     }
 
@@ -1994,8 +2015,10 @@ impl Worker {
             // The skin is not the key's (or not the hub's): the rest of the look still
             // goes, without it, until the profile changes. Not the key's while its
             // profile said so: the profile is out of date.
+            // A second saber's skin goes first, then the first's (the hub says neither which).
             Err(HubError::Rejected { code, .. })
-                if (code == "not_unlocked" || code == "bad_look") && !look.saber.is_empty() =>
+                if (code == "not_unlocked" || code == "bad_look")
+                    && (!look.saber.is_empty() || second_skin(&look).is_some()) =>
             {
                 if code == "not_unlocked" {
                     self.profile_soon(now);
@@ -2005,7 +2028,13 @@ impl Worker {
                     .as_ref()
                     .map(|me| me.unlocks.clone())
                     .unwrap_or_default();
-                self.look_refused.push(look.saber.clone());
+                let refused = second_skin(&look).unwrap_or(&look.saber).to_owned();
+                self.look_refused.push(refused);
+            }
+            // A hub from before 21/10/2026 refuses `saber2`: the look goes again without it.
+            Err(HubError::Rejected { code, .. }) if code == "bad_body" && look.saber2.is_some() => {
+                self.saber2_unknown = true;
+                self.due_look = now;
             }
             // The claim lapsed at the hub: the next accepted claim sends the look again.
             Err(HubError::Rejected { code, .. }) if code == "not_on_server" => {
@@ -3253,14 +3282,20 @@ mod tests {
             Fake::record(self, format!("toy {toy} {event} {target} on {server}")).map(|()| 16)
         }
         fn look(&mut self, _: &Identity, server: &str, look: &Look) -> Result<u64, HubError> {
+            let second = look
+                .saber2
+                .as_ref()
+                .map_or_else(String::new, |saber2| format!(" second {saber2:?}"));
             Fake::record(
                 self,
-                format!("look {server} {:?} {}", look.saber, look.illuminate),
+                format!("look {server} {:?} {}{second}", look.saber, look.illuminate),
             )?;
             if let Some(refusal) = self.look_refusals.lock().unwrap().pop_front() {
                 return Err(refusal);
             }
-            if !look.saber.is_empty() && !self.owned.lock().unwrap().contains(&look.saber) {
+            let owned = self.owned.lock().unwrap();
+            let unheld = |skin: &str| !skin.is_empty() && !owned.iter().any(|held| held == skin);
+            if unheld(&look.saber) || look.saber2.as_deref().is_some_and(unheld) {
                 return Err(HubError::Rejected {
                     status: 403,
                     code: "not_unlocked".to_owned(),
@@ -4205,6 +4240,8 @@ mod tests {
             illuminate: true,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
         }
     }
 
@@ -4252,6 +4289,60 @@ mod tests {
         worker.tick(ms(2_000));
         worker.tick(t0 + Duration::from_secs(46));
         assert_eq!(fake.looks().len(), 2);
+    }
+
+    #[test]
+    fn a_second_sabers_skin_falls_back_when_refused_or_unknown() {
+        let fake = Fake::default();
+        fake.owned.lock().unwrap().push("saber_sun".to_owned());
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Enter(here(3, "Sol")), t0);
+        let dual = |saber2: &str| Look {
+            saber2: Some(saber2.to_owned()),
+            ..lit("saber_sun")
+        };
+        // A second skin the key does not hold: the look goes again without it, the first
+        // skin kept.
+        worker.handle(Command::Look(dual("saber_glitch")), t0);
+        worker.tick(t0);
+        let ms = |ms| t0 + Duration::from_millis(ms);
+        worker.tick(ms(1_000));
+        assert_eq!(
+            fake.looks(),
+            [
+                "look 1.2.3.4:29070 \"saber_sun\" true second \"saber_glitch\"",
+                "look 1.2.3.4:29070 \"saber_sun\" true",
+            ]
+        );
+        // The stock second blade goes; a hub that does not know `saber2` (400 `bad_body`)
+        // keeps the look it holds, and the looks after it go without the second skin.
+        worker.handle(Command::Look(dual("")), ms(2_000));
+        fake.look_refusals
+            .lock()
+            .unwrap()
+            .push_back(HubError::Rejected {
+                status: 400,
+                code: "bad_body".to_owned(),
+                message: "unknown field".to_owned(),
+            });
+        worker.tick(ms(2_000));
+        worker.handle(
+            Command::Look(Look {
+                illuminate: false,
+                ..dual("")
+            }),
+            ms(3_000),
+        );
+        worker.tick(ms(3_000));
+        assert_eq!(
+            fake.looks()[2..],
+            [
+                "look 1.2.3.4:29070 \"saber_sun\" true second \"\"",
+                "look 1.2.3.4:29070 \"saber_sun\" false",
+            ]
+        );
     }
 
     #[test]

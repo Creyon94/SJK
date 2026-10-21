@@ -1099,12 +1099,13 @@ fn submit_equipment(
 ) {
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
+    let team_plain = crate::team_sabers::of(&sinks.team_blades, entity.id.get()).plain;
     if saber_submission::submit(
         entity.id.get(),
         sinks
             .saber_skins
-            .get(entity.id.get())
-            .filter(|_| !crate::team_sabers::of(&sinks.team_blades, entity.id.get()).plain),
+            .get_both(entity.id.get())
+            .map(|skin| skin.filter(|_| !team_plain)),
         // A team colour replaces a black blade too (it is past `SABER_PURPLE`).
         sinks.black_sabers.without(
             entity.id.get(),

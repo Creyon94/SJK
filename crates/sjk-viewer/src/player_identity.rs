@@ -1351,6 +1351,8 @@ mod tests {
             illuminate: true,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
         };
         let mut sent = None;
         assert!(newly(&mut sent, &lit));

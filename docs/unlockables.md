@@ -427,6 +427,16 @@ distinct ids of 1 to 24 of `a`-`z`, `0`-`9`, `_`, else 400 `bad_look`; an older 
 refuses it with `bad_body`, so a client sends it only when it names one), stored with
 the look and given back in presence and look events only when not empty.
 
+Since 21/10/2026 (hub pull request with SJK's, Creyon) a look may also carry `"saber2"`,
+the second saber's blade skin for a player with two sabers (a blade-skin id the key holds
+like `saber`, or `""` for the stock blade), and `"saber2_off"`, that skin's options
+switched off, on `saber_off`'s rules. Without `saber2` both sabers wear `saber`, as
+before; presence and look events carry it only when sent, and `saber2_off` only when not
+empty. A hub from before refuses both with `bad_body`: the client sends `saber2` only
+when the second saber wears another skin than the first, and on a `bad_body` sends its
+looks without it from then on. Taking a skin back makes a second saber wearing it the
+stock blade.
+
 `saber` is a blade-skin unlock id or `""` for the stock blade; `illuminate` is
 whether the Illuminate holocron is lit. Both are required in a request.
 
@@ -471,6 +481,15 @@ Built.
   (`GpuState::local_saber_skin`, [saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs)),
   for the hand, first person, a thrown saber, the sounds and the Character page's
   preview.
+- `cg_saberSkin2` (archived, default empty, `looks::SECOND_CVAR`; 21/10/2026, Creyon):
+  what the player's second saber wears when they hold two: empty for the first saber's
+  skin, `stock` for the stock blade, or a blade-skin id, worn only while the profile lists
+  it (else the first's). The look sends it as `saber2` ([Looks](#looks)) and every other
+  SJK player draws each saber with its own skin (`SaberSkins::get_both`,
+  `saber_submission::submit`); the sounds stay the first skin's. `saberskin second <id>`,
+  `saberskin second none` (the stock blade) and `saberskin second same` set it, and the
+  Collection's shader card has On the 2nd saber, which sets it to that shader (Off the
+  2nd saber, back to the first's).
 - `saberskin` ([saber_skin_command.rs](../crates/sjk-viewer/src/saber_skin_command.rs))
   alone lists the blade skins: id, name, owned (since when) or locked (how to get
   it), which one is worn or chosen, and why ownership is not known when it is not
@@ -1118,7 +1137,9 @@ Profile page's See the collection) open it on its own:
   drop, where it drops: a chip for each holocron tier that may bring it, in that tier's
   colour, with the chance an opening of one does (the hub's odds split evenly among
   the droppable shaders of its tier, `cards::loot::shader_in`); then its parts and, at
-  the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
+  the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`, and
+  above them On the 2nd saber (Off the 2nd saber once worn there), which sets
+  `cg_saberSkin2` to that shader, the stock blade's row to `stock`, or back to empty.
   While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
   the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
   twice or more, or Craft (its cost) for one not held, dimmed while the shards fall

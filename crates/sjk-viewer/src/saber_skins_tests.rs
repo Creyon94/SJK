@@ -696,6 +696,8 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         illuminate: true,
         saber_off: Vec::new(),
         toys: Vec::new(),
+        saber2: None,
+        saber2_off: Vec::new(),
     };
     looks.apply_event(5, "Fox", &stock);
     let slots = ViewSlots::of(&game_state, &followed);
@@ -960,4 +962,29 @@ fn a_skins_blur_trail_is_drawn_in_its_own_colour() {
     assert_eq!(vertex_style(1, BladeColor::Retail(Color::Blue)), 1);
     assert_eq!(vertex_style(0, BladeColor::Black), 2);
     assert_eq!(vertex_style(1, BladeColor::Black), 1);
+}
+
+#[test]
+fn each_saber_wears_its_own_skin() {
+    let worn = sample_color();
+    let other = SkinColor { index: 5, ..worn };
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_both(1, 1, |client| match client {
+        2 => (Some(worn), Second::Own(Some(other))),
+        3 => (Some(worn), Second::Own(None)),
+        4 => (Some(worn), Second::Same),
+        _ => (None, Second::Same),
+    });
+    let indices = |skins: &SaberSkins, entity| {
+        skins
+            .get_both(entity)
+            .map(|skin| skin.map(|skin| skin.index))
+    };
+    assert_eq!(indices(&skins, 3), [Some(worn.index), Some(5)]);
+    assert_eq!(indices(&skins, 4), [Some(worn.index), None]);
+    assert_eq!(indices(&skins, 5), [Some(worn.index), Some(worn.index)]);
+    assert_eq!(indices(&skins, 6), [None, None]);
+    // The local player's own slot takes its own second saber.
+    skins.set_local_both(Some(2), None, Second::Own(Some(other)));
+    assert_eq!(indices(&skins, 3), [None, Some(5)]);
 }

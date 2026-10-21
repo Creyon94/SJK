@@ -81,6 +81,8 @@ const SHATTER_TOKEN: u16 = 1_317;
 const CRAFT_TOKEN: u16 = 1_318;
 /// The Nameplates tab's See and share nameplates switch.
 const SHARE_TOKEN: u16 = 1_319;
+/// The shader card's "2nd saber": what a second saber wears (`cg_saberSkin2`).
+const SECOND_TOKEN: u16 = 1_309;
 /// How long a Shatter or Craft waits for its second press, which sends it.
 const TRADE_CONFIRM: std::time::Duration = std::time::Duration::from_secs(5);
 /// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
@@ -190,6 +192,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Set `cg_saberSkin` to this id (`""` for the stock blade).
     Wear(&'static str),
+    /// Set `cg_saberSkin2` to this (`""`: the first saber's skin, `stock`, or an id).
+    WearSecond(&'static str),
     /// Light the Illuminate holocron (`true`) or put it out: the same as `toy_illuminate`,
     /// set rather than toggled.
     Illuminate(bool),
@@ -281,6 +285,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) grid: bool,
     /// `cg_saberSkinOptions`: the skins' parts switched off.
     pub(crate) options: &'a str,
+    /// `cg_saberSkin2`: what a second saber wears ([`crate::looks::SECOND_CVAR`]).
+    pub(crate) second: &'a str,
     /// See and share nameplates (`cg_nameplate`): the player sees nameplates and shares
     /// their health, shield and Force.
     pub(crate) share: bool,
@@ -294,6 +300,10 @@ struct ShaderRow {
     wear: Option<&'static str>,
     /// Worn now: a double click on it changes nothing.
     worn: bool,
+    /// What its "2nd saber" button sets `cg_saberSkin2` to (`None`: no button, for a locked
+    /// one), and whether the second saber wears it now.
+    second: Option<&'static str>,
+    second_worn: bool,
 }
 
 pub(crate) struct Panel {
@@ -1156,6 +1166,11 @@ impl Panel {
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
+            SECOND_TOKEN => self
+                .shader_rows
+                .get(self.shader)
+                .and_then(|row| row.second)
+                .map_or(PanelAction::None, PanelAction::WearSecond),
             SHATTER_TOKEN | CRAFT_TOKEN => self.trade_press(token, now),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
@@ -1324,6 +1339,7 @@ mod tests {
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
             options: "",
+            second: "",
             share: true,
         }
     }
@@ -1890,6 +1906,25 @@ mod tests {
         assert_eq!(
             click(&mut panel, WEAR_TOKEN),
             PanelAction::Wear("saber_sun")
+        );
+        // "On 2nd saber" sets the second saber's skin, and once worn sets it back.
+        assert_eq!(
+            click(&mut panel, SECOND_TOKEN),
+            PanelAction::WearSecond("saber_sun")
+        );
+        panel.build(
+            &Inputs {
+                second: "saber_sun",
+                ..inputs(Holdings::Known(&owned), "")
+            },
+            &fonts.font,
+            [1920.0, 1080.0],
+        );
+        assert_eq!(click(&mut panel, SECOND_TOKEN), PanelAction::WearSecond(""));
+        panel.build(
+            &inputs(Holdings::Known(&owned), ""),
+            &fonts.font,
+            [1920.0, 1080.0],
         );
         assert_eq!(
             click(&mut panel, crate::profile_hub::TOKEN + 1),

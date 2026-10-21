@@ -1037,10 +1037,16 @@ impl LoadedSkins {
 pub(crate) struct SaberSkins {
     /// What each slot is drawn wearing: `others`, with the local player's own in its slot.
     clients: [Option<SkinColor>; MAX_CLIENTS],
+    /// What each slot's second saber wears ([`Second`]), as `clients`.
+    seconds: [Second; MAX_CLIENTS],
     /// What the hub's looks say each slot wears.
     others: [Option<SkinColor>; MAX_CLIENTS],
+    /// What the hub's looks say each slot's second saber wears.
+    other_seconds: [Second; MAX_CLIENTS],
     /// The local player's skin, also shown with no session (the Character preview).
     local: Option<SkinColor>,
+    /// The local player's second saber's.
+    local_second: Second,
     /// The local player's client slot, in a session.
     local_client: Option<usize>,
     /// Who sits in each slot (team, name), for the skins drawn from that.
@@ -1062,6 +1068,25 @@ pub(crate) struct SaberSkins {
     /// Who the world shots' skinned blades are worn by (team, name).
     #[cfg(test)]
     pub(crate) shot_persona: crate::saber_persona::Persona,
+}
+
+/// What a player's second saber wears: the first saber's skin (players with one skin, and
+/// every look from before 21/10/2026), or its own (`None`: the stock blade).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) enum Second {
+    #[default]
+    Same,
+    Own(Option<SkinColor>),
+}
+
+impl Second {
+    /// The second saber's skin when the first wears `first`.
+    pub(crate) fn resolve(self, first: Option<SkinColor>) -> Option<SkinColor> {
+        match self {
+            Self::Same => first,
+            Self::Own(skin) => skin,
+        }
+    }
 }
 
 /// A world shot's blade colour: stock, or the loaded skin of an unlock id.
@@ -1090,43 +1115,75 @@ impl SaberSkins {
     /// Take every other slot's skin from the looks (`skin_of` a client slot) when their
     /// `revision` or the loaded skins' `generation` is not the one last taken; no
     /// allocation, 32 lookups when it changed.
+    #[cfg(test)]
     pub(crate) fn follow_looks(
         &mut self,
         revision: u64,
         generation: u64,
         skin_of: impl Fn(usize) -> Option<SkinColor>,
     ) {
+        self.follow_looks_both(revision, generation, |client| {
+            (skin_of(client), Second::Same)
+        });
+    }
+
+    /// Take every other slot's skins from the looks (`skins_of` a client slot: its first
+    /// saber's skin and its second's) when their `revision` or the loaded skins'
+    /// `generation` is not the one last taken; no allocation, 32 lookups when it changed.
+    pub(crate) fn follow_looks_both(
+        &mut self,
+        revision: u64,
+        generation: u64,
+        skins_of: impl Fn(usize) -> (Option<SkinColor>, Second),
+    ) {
         if self.taken_at == Some((revision, generation)) {
             return;
         }
         self.taken_at = Some((revision, generation));
-        for (client, skin) in self.others.iter_mut().enumerate() {
-            *skin = skin_of(client);
+        for (client, (skin, second)) in self
+            .others
+            .iter_mut()
+            .zip(self.other_seconds.iter_mut())
+            .enumerate()
+        {
+            (*skin, *second) = skins_of(client);
         }
         self.merge();
     }
 
-    /// Draw `others`, with the local player's own skin in its slot.
+    /// Draw `others`, with the local player's own skins in its slot.
     fn merge(&mut self) {
         self.clients = self.others;
-        if let Some(slot) = self
-            .local_client
-            .and_then(|client| self.clients.get_mut(client))
-        {
-            *slot = self.local;
+        self.seconds = self.other_seconds;
+        if let Some(client) = self.local_client.filter(|client| *client < MAX_CLIENTS) {
+            self.clients[client] = self.local;
+            self.seconds[client] = self.local_second;
         }
     }
 
     /// The skin worn by the player whose body is entity `entity_id` (client + 1).
     pub(crate) fn get(&self, entity_id: u64) -> Option<SkinColor> {
-        let client = usize::try_from(entity_id.checked_sub(1)?).ok()?;
+        self.get_both(entity_id)[0]
+    }
+
+    /// The skins worn on the first and the second saber by the player whose body is entity
+    /// `entity_id` (client + 1).
+    pub(crate) fn get_both(&self, entity_id: u64) -> [Option<SkinColor>; 2] {
+        let Some(client) = entity_id
+            .checked_sub(1)
+            .and_then(|client| usize::try_from(client).ok())
+            .filter(|client| *client < MAX_CLIENTS)
+        else {
+            return [None, None];
+        };
         let persona = if Some(client) == self.local_client {
             self.local_persona.in_team(self.personas[client].team)
         } else {
-            self.personas.get(client).copied()?
+            self.personas[client]
         };
-        let skin = self.clients.get(client).copied().flatten()?;
-        Some(SkinColor { persona, ..skin })
+        let wear = |skin: Option<SkinColor>| skin.map(|skin| SkinColor { persona, ..skin });
+        let first = self.clients[client];
+        [wear(first), wear(self.seconds[client].resolve(first))]
     }
 
     /// Who sits in each client slot, and the local player's own name (`name`), for
@@ -1161,11 +1218,24 @@ impl SaberSkins {
     }
 
     /// The local player wears `skin` and, in a session, sits in slot `client`.
+    #[cfg(test)]
     pub(crate) fn set_local(&mut self, client: Option<usize>, skin: Option<SkinColor>) {
-        if (client, skin) == (self.local_client, self.local) {
+        self.set_local_both(client, skin, self.local_second);
+    }
+
+    /// The local player wears `skin`, and `second` on its second saber, and, in a session,
+    /// sits in slot `client`.
+    pub(crate) fn set_local_both(
+        &mut self,
+        client: Option<usize>,
+        skin: Option<SkinColor>,
+        second: Second,
+    ) {
+        if (client, skin, second) == (self.local_client, self.local, self.local_second) {
             return;
         }
         self.local = skin;
+        self.local_second = second;
         self.local_client = client;
         self.merge();
     }
@@ -1219,14 +1289,25 @@ impl GpuState {
                 crate::looks::ViewSlots::of(game_state, &snapshot.player).own
             });
         let (looks, skins) = (&self.looks, &self.blade_skins);
+        let second = |second: crate::looks::SecondSkin, off| match second {
+            crate::looks::SecondSkin::Same => Second::Same,
+            crate::looks::SecondSkin::Own(id) => {
+                Second::Own(id.and_then(|id| skins.color_with(id, off)))
+            }
+        };
         self.saber_skins
-            .follow_looks(looks.revision(), skins.generation(), |client| {
-                looks
-                    .saber_skin_id(client)
-                    .and_then(|id| skins.color_with(id, looks.options_off(client)))
+            .follow_looks_both(looks.revision(), skins.generation(), |client| {
+                (
+                    looks
+                        .saber_skin_id(client)
+                        .and_then(|id| skins.color_with(id, looks.options_off(client))),
+                    second(looks.second_skin(client), looks.options_off2(client)),
+                )
             });
         let skin = self.local_saber_skin();
-        self.saber_skins.set_local(client, skin);
+        let own = self.looks.own();
+        let own_second = second(own.second, own.options_off2);
+        self.saber_skins.set_local_both(client, skin, own_second);
         if let Some(audio) = game_audio {
             audio.follow_blade_skins(&self.blade_skins);
             audio.set_saber_sound_overrides(&self.saber_skins.sound_sets());

@@ -137,6 +137,7 @@ pub(crate) fn row_labels(
         stock: color::HOLO,
         grid: false,
         options: "",
+        second: "",
         share: false,
     };
     counts(&inputs).iter().map(|count| count.label()).collect()

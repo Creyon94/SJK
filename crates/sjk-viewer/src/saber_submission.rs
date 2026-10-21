@@ -12,12 +12,12 @@ use sjk_runtime::{HeldEquipment, HeldItemKind};
 pub(crate) mod lights;
 
 /// Submit both hilts and every numbered blade for one actor. `trails` is
-/// `None` with `cg_saberTrail 0`; `skin` is the blade skin the actor wears, which
-/// replaces both sabers' colours.
+/// `None` with `cg_saberTrail 0`; `skins` are the blade skins the actor wears on its first
+/// and second saber, which replace those sabers' colours.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn submit(
     entity_id: u64,
-    skin: Option<crate::saber_skins::SkinColor>,
+    skins: [Option<crate::saber_skins::SkinColor>; 2],
     black_sabers: crate::saber_rgb::black::Policy,
     hands: [Option<(&str, saber::Attachment)>; 2],
     equipment: HeldEquipment,
@@ -56,6 +56,7 @@ pub(crate) fn submit(
         let Some((name, attachment)) = hand else {
             continue;
         };
+        let skin = skins[saber_index.min(1)];
         let hilt = catalog.get(name);
         let (grip, weapon_rotation) =
             saber::world_attachment(actor_origin, actor_rotation, attachment);

@@ -66,17 +66,18 @@ impl GpuState {
         // The look the hub relays is what the player holds; `debug_collectibles` changes
         // only the blade drawn here (the hub refuses a skin the player lacks).
         let mut sent = None;
-        let (saber_skin, options_off) = if due {
+        let (saber_skin, options_off, second, options_off2) = if due {
             let setting = text(crate::unlockables::SABER_SKIN_CVAR);
+            let second_setting = text(crate::looks::SECOND_CVAR);
             #[cfg(test)]
             let shot = self.looks.shot_owns_unlocks;
             #[cfg(not(test))]
             let shot = false;
-            let held = Worn::own(
-                &setting,
+            let owns = |id: &str| shot || player_identity::owns_unlock(id);
+            let held = Worn::own(&setting, &options, owns, lit).with_second(
+                &second_setting,
                 &options,
-                |id| shot || player_identity::owns_unlock(id),
-                lit,
+                owns,
             );
             let debug = self
                 .console
@@ -84,7 +85,11 @@ impl GpuState {
                 .is_some_and(crate::debug_collectibles::wanted)
                 && player_identity::is_staff();
             let own = if debug {
-                Worn::own(&setting, &options, |_| true, lit)
+                Worn::own(&setting, &options, |_| true, lit).with_second(
+                    &second_setting,
+                    &options,
+                    |_| true,
+                )
             } else {
                 held
             };
@@ -92,15 +97,28 @@ impl GpuState {
                 held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
                     .with_toy(crate::order66::TOY, self.order66.on()),
             );
-            (own.saber_skin, own.options_off)
+            (
+                own.saber_skin,
+                own.options_off,
+                own.second,
+                own.options_off2,
+            )
         } else {
-            (self.looks.own().saber_skin, self.looks.own().options_off)
+            let own = self.looks.own();
+            (
+                own.saber_skin,
+                own.options_off,
+                own.second,
+                own.options_off2,
+            )
         };
         let own = Worn {
             saber_skin,
             illuminate: lit,
             options_off,
             toys: 0,
+            second,
+            options_off2,
         }
         .with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
         .with_toy(crate::order66::TOY, self.order66.on());

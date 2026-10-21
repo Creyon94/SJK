@@ -1,3 +1,17 @@
+## A blade skin for each saber
+
+21/10/2026, `feat/second-saber-skin` (Creyon, SJK pull request with the hub's), based on `main`
+at fc3d0aa9: a player with two sabers can give the second its own blade skin (`cg_saberSkin2`,
+`saberskin second`, the Collection card's On the 2nd saber;
+[unlockables.md](unlockables.md#settings-and-commands)). The look carries it to the hub as
+`saber2` and `saber2_off` (hub pull request on `Sol-Vulpes/SJK-hub-shared`,
+`feat/second-saber-skin`), and every SJK player draws each saber with its own skin. Needs the
+hub change deployed: an older hub refuses `saber2`, and the client then sends its looks
+without it. Checked on Linux x86_64: the workspace format check, build, tests (the wire body,
+the fallbacks on a refused or unknown `saber2`, the looks both ways, each saber's skin, the
+command and the card's button) and clippy; the hub's tests and clippy. Not verified: in a
+game, the Collection card's layout on screen, and against a hub running the change.
+
 ## Blade numbers only with debug collectibles
 
 21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless

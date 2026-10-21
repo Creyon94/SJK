@@ -365,6 +365,9 @@ impl Panel {
         );
         let first = self.shader_first;
         for (index, row) in rows.iter().enumerate() {
+            // What a second saber wears now: this row's id, `stock` or the first's (`""`).
+            let second_id = row.skin.map_or(crate::looks::STOCK_SECOND, |skin| skin.id);
+            let second_worn = inputs.second.trim() == second_id;
             self.shader_rows[index] = ShaderRow {
                 wear: match row.skin {
                     // The stock blade, worn by taking the skin off.
@@ -373,6 +376,13 @@ impl Panel {
                     Some(_) => None,
                 },
                 worn: row.worn,
+                // Pressed again, the second saber goes back to the first's skin.
+                second: (row.skin.is_none() || (row.owned && unlocks)).then_some(if second_worn {
+                    ""
+                } else {
+                    second_id
+                }),
+                second_worn,
             };
         }
         if self.grid {
@@ -1166,18 +1176,43 @@ impl Panel {
         if let Some(skin) = row.skin.filter(|skin| !row.owned && skin.droppable) {
             self.drops(frame, skin, [x, y + 12.0]);
         }
-        // Equip or Unequip at the foot of the card, its parts between.
+        // Equip or Unequip at the foot of the card, "2nd saber" above it, its parts between.
         let button_y = card_y + card_height - CARD_PAD - 44.0;
+        let shown_row = self.shader_rows.get(self.shader).copied();
+        let second = shown_row.filter(|row| row.second.is_some());
+        let parts_bottom = if second.is_some() {
+            button_y - 56.0
+        } else {
+            button_y
+        };
         self.shader_options.clear();
         if let Some(skin) = row.skin.filter(|_| row.owned) {
             self.shader_parts(
                 frame,
                 skin.id,
-                [x, y + 10.0, width, button_y - 12.0],
+                [x, y + 10.0, width, parts_bottom - 12.0],
                 inputs,
             );
         }
-        let wear = self.shader_rows.get(self.shader).and_then(|row| row.wear);
+        // What a second saber wears (`cg_saberSkin2`): this one, or back to the first's.
+        if let Some(second) = second {
+            let label = if second.second_worn {
+                "Off the 2nd saber"
+            } else {
+                "On the 2nd saber"
+            };
+            kit::button(
+                &mut self.ui,
+                frame,
+                [x, parts_bottom, 220.0, 44.0],
+                label,
+                !second.second_worn,
+                true,
+                false,
+                SECOND_TOKEN,
+            );
+        }
+        let wear = shown_row.and_then(|row| row.wear);
         let mut left = x;
         if let Some(wear) = wear {
             let label = if wear.is_empty() && row.skin.is_some() {
