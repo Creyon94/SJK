@@ -19,16 +19,10 @@
 //! debug_open all solar           one of every tier, every card Solar
 //! debug_open rare shader x3      three Rare Holocrons, each a droppable shader
 //! debug_open mythical shards     one Mythical Holocron, a pile of kyber shards
-//! debug_open kyber_rare x3       three Rare Kyber Crystals, each a saber shader
-//! debug_open kyber               one kyber crystal of every tier
 //! ```
-//!
-//! A kyber crystal ([`crate::kyber`]) always gives a saber shader: the droppable ones in
-//! turn, of the tiers its odds can give.
 
 use super::{FINISHES, RARITIES};
 use crate::holocrons::{TIERS, Tier};
-use crate::kyber;
 use sjk_identity::{Opened, OpenedCard, OpenedUnlock};
 
 /// The console command.
@@ -37,8 +31,6 @@ pub(crate) const COMMAND: &str = "debug_open";
 pub(crate) const HELP: &str = "Rehearse opening holocrons, nothing sent: debug_open <tier|all> [x<count>] [normal|holo|solar|shader|shards]";
 /// The word that names every tier.
 const ALL: &str = "all";
-/// The word that names every kyber crystal tier.
-const KYBER: &str = "kyber";
 /// The most one command rehearses: as many as one opening takes.
 const MOST: u32 = sjk_identity::OPEN_MAX as u32;
 
@@ -56,27 +48,8 @@ pub(crate) fn listing() -> Vec<String> {
             tier.id, tier.name
         ));
     }
-    for tier in &kyber::TIERS {
-        lines.push(format!("  {:<16} {}: a saber shader", tier.id, tier.name));
-    }
-    lines.push(format!("  {ALL:<12} one of every holocron tier"));
-    lines.push(format!("  {KYBER:<12} one kyber crystal of every tier"));
+    lines.push(format!("  {ALL:<12} one of every tier"));
     lines
-}
-
-/// The droppable shaders a kyber crystal of tier `index` can give (its odds above zero),
-/// in the catalogue's order.
-fn crystal_shaders(index: usize) -> Vec<&'static crate::unlockables::Unlockable> {
-    let shares = kyber::current().shader_tier[index.min(kyber::COUNT - 1)];
-    crate::unlockables::blade_skins()
-        .filter(|skin| {
-            skin.droppable
-                && kyber::SHADER_RARITIES
-                    .iter()
-                    .position(|rarity| *rarity == skin.tier)
-                    .is_some_and(|at| shares[at] > 0)
-        })
-        .collect()
 }
 
 /// What opening the holocrons `args` name would bring (made up, never rolled by the hub).
@@ -89,19 +62,10 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
     let tier = tier.to_ascii_lowercase();
     let tiers: Vec<&'static Tier> = if tier == ALL {
         TIERS.iter().collect()
-    } else if tier == KYBER {
-        kyber::TIERS.iter().collect()
     } else {
-        let found = crate::holocrons::any(&tier).ok_or_else(|| {
-            let ids: Vec<&str> = TIERS
-                .iter()
-                .chain(&kyber::TIERS)
-                .map(|tier| tier.id)
-                .collect();
-            format!(
-                "Unknown tier '{tier}': {}, {ALL} or {KYBER}",
-                ids.join(", ")
-            )
+        let found = Tier::from_id(&tier).ok_or_else(|| {
+            let ids: Vec<&str> = TIERS.iter().map(|tier| tier.id).collect();
+            format!("Unknown tier '{tier}': {} or {ALL}", ids.join(", "))
         })?;
         vec![found]
     };
@@ -136,26 +100,6 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
                 break;
             }
             let at = opened.len();
-            if tier.is_kyber() {
-                // A crystal always gives a shader, whatever the words asked.
-                let skins = crystal_shaders(tier.index);
-                let Some(skin) = skins.get(at % skins.len().max(1)) else {
-                    continue;
-                };
-                opened.push(Opened {
-                    holocron: crate::holocrons::rehearsal::FIRST_ID + at as u64,
-                    tier: tier.id.to_owned(),
-                    card: None,
-                    credits: 0,
-                    unlock: Some(OpenedUnlock {
-                        id: skin.id.to_owned(),
-                        name: skin.name.to_owned(),
-                        count: 1 + (at as u32 % 2),
-                    }),
-                    shards: 0,
-                });
-                continue;
-            }
             if shards {
                 let (least, most) = crate::loot_odds::current().shards[tier.index];
                 opened.push(Opened {
@@ -257,43 +201,6 @@ mod tests {
             let skin = crate::unlockables::blade_skin(&unlock.id).unwrap();
             assert!(skin.droppable);
         }
-    }
-
-    /// A kyber crystal always opens to a droppable shader its odds can give, in the
-    /// crystal's colour and name; `kyber` is one of each.
-    #[test]
-    fn kyber_crystals_open_to_shaders() {
-        let opened = parse(&words("kyber_mythical x3 solar")).unwrap();
-        assert_eq!(opened.len(), 3);
-        for opening in &opened {
-            assert_eq!(opening.tier, "kyber_mythical");
-            assert!(opening.card.is_none() && opening.credits == 0 && opening.shards == 0);
-            let skin = crate::unlockables::blade_skin(&opening.unlock.as_ref().unwrap().id)
-                .expect("a known shader");
-            assert!(skin.droppable);
-            assert_ne!(
-                skin.tier,
-                crate::unlockables::Rarity::Common,
-                "not from a Mythical"
-            );
-        }
-        let all = parse(&words("kyber")).unwrap();
-        let tiers: Vec<&str> = all.iter().map(|opened| opened.tier.as_str()).collect();
-        assert_eq!(
-            tiers,
-            [
-                "kyber_uncommon",
-                "kyber_rare",
-                "kyber_legendary",
-                "kyber_mythical"
-            ]
-        );
-        let shown: Vec<_> = all
-            .iter()
-            .filter_map(crate::console::holocrons_panel::opening::Prize::of)
-            .collect();
-        assert_eq!(shown.len(), 4, "every one shows");
-        assert!(listing().iter().any(|line| line.contains("kyber_rare")));
     }
 
     #[test]
