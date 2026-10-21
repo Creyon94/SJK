@@ -81,7 +81,9 @@ pub(crate) fn submit(
                 continue;
             };
             let active = blade_is_active(&equipment, saber_index, blade_index);
-            let Some(state) = states.blade_mut(entity_id, saber_index, blade_index) else {
+            let Some((state, petal_queue)) =
+                states.blade_and_petals(entity_id, saber_index, blade_index)
+            else {
                 continue;
             };
             let length = state
@@ -207,6 +209,25 @@ pub(crate) fn submit(
                     state.ghosts.record(blade, presentation_time, spec);
                     saber_instances.extend(state.ghosts.instances(blade, color, spec).map(animate));
                 }
+            }
+            // Blossoms shed by its swing, measured in its wearer's frame as the afterimages are.
+            if let BladeColor::Skin(skin) = color
+                && let Some(spec) = skin.petals
+            {
+                let base = Vec3::from_array(blade.base);
+                let along = Vec3::from_array(blade.direction);
+                // Its whole length's tip, so a blade growing out (or going in) sheds none.
+                let whole = base + along * hilt_blade.length;
+                state.petals.shed(
+                    base,
+                    along,
+                    blade.length,
+                    actor_rotation.inverse() * (whole - actor_origin),
+                    presentation_time,
+                    key as u32,
+                    spec,
+                    petal_queue,
+                );
             }
             light_blades[blade_index] = Some(blade);
             if let Some(edges) = trails.as_deref_mut()

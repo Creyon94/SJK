@@ -149,7 +149,7 @@ pub(crate) fn blade_skin_named(word: &str) -> Option<&'static Unlockable> {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) static ALL: [Unlockable; 165] = [
+pub(crate) static ALL: [Unlockable; 166] = [
     Unlockable {
         id: "saber_sun",
         number: 1,
@@ -2297,6 +2297,20 @@ pub(crate) static ALL: [Unlockable; 165] = [
         description: "The deep crimson velvet of Alderaan's royal court: a soft dark-red blade with a sheen that drifts along it, an echo of it swaying beside it.",
         how_to_get: FROM_HOLOCRONS,
     },
+    // Kushina's idea (15/10/2026): the Naboo Blossom's Mythical sibling.
+    Unlockable {
+        id: "saber_varykino_blossom",
+        number: 166,
+        name: "Varykino Blossom blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: true,
+        edition: crate::editions::ALPHA,
+        smith: SOL,
+        description: "Spring in the gardens of Varykino: a soft blossom-pink blade wreathed in lavender and white mist, blossoms drifting down round it and a branch of cherry wood in flower at its hilt. Swing it and it sheds blossoms that flutter to the ground behind it.",
+        how_to_get: FROM_HOLOCRONS,
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -2672,6 +2686,7 @@ mod tests {
                 "saber_exogorth",
                 "saber_world_shift",
                 "saber_exegol_rift",
+                "saber_varykino_blossom",
             ]
         );
         assert_eq!(
@@ -3227,6 +3242,7 @@ mod tests {
                 ("saber_smoked_transparisteel", "Smoked Transparisteel blade"),
                 ("saber_batuu_dusk", "Batuu Dusk blade"),
                 ("saber_alderaan_velvet", "Alderaan Velvet blade"),
+                ("saber_varykino_blossom", "Varykino Blossom blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

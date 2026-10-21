@@ -256,6 +256,7 @@ mod saber_gpu;
 mod saber_hilts;
 mod saber_motion;
 mod saber_persona;
+mod saber_petals;
 mod saber_rgb;
 mod saber_skin_command;
 mod saber_skin_options;

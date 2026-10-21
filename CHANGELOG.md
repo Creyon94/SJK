@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- The Varykino Blossom, a new Mythical saber shader found in holocrons: a soft blossom-pink blade wreathed in lavender and white mist, blossoms drifting down round it and a flowering branch of cherry wood at its hilt; swing it and it sheds blossoms that flutter to the ground behind you. Each of its parts can be switched off in the Collection _(Sol, idea by Kushina)_
 - Cards with a perk now show it: on the Cards tab a round badge over the card's corner for each, a lightsaber when it brings a blade while you hold it, the Solar sun when its Solar copies drop its blade, a smith's hammer when it makes crafting its blade cheaper. The card up close shows the same marks, and its hover card starts each perk's line with its mark _(Sol)_
 
 ## 2026.1021.2 (Alpha) | 21/10/2026

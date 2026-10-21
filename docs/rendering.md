@@ -2378,6 +2378,36 @@ the sheets to `SJK_SIGNATURE_PREVIEW` (`SJK_SIGNATURES` picks some); and
 third-person camera and from first person looking along the blade, saving to
 `SJK_VIEWS` (`SJK_VIEW_SKINS` picks some).
 
+### Falling blossoms
+
+Built 21/10/2026 for the Varykino Blossom (blade 166, Kushina's idea: "the afterimage like
+the spectral blade has, could be these falling blossoms"). A signature may shed real petals
+when it is swung, which its own quad could not hold: they are particles in the world
+([saber_petals.rs](../crates/sjk-viewer/src/saber_petals.rs)).
+
+- **Declared** by the signature's header: `// @petals {"part":3,"per_unit":0.07,"life":2.6,
+  "size":1.3,"fall":38.0,"drift":14.0}`. `part` is the signature's own part (its `// @part`
+  line, from 0) that switches them, so the wearer turns them off in the Collection like any
+  other part and every SJK player then sees none; `per_unit` petals for each unit the tip
+  travels, `life` seconds, `size` units, `fall` and `drift` units a second. A test checks
+  every `@petals` line parses, is in range and names one of its parts.
+- **Shed** in `saber_submission.rs`: each blade keeps its tip (`PetalEmitter` in its
+  `BladeState`) in its wearer's frame, as the signatures' afterimages are, so turning the
+  view or running sheds none, only the blade's own swing; the tip is the whole length's, so
+  a blade growing out or going in sheds none either. At 0.07 a unit a hard swing (its tip at
+  600 to 1000 units a second) sheds 40 to 70 a second, about 150 alive a blade. The owed share carries over
+  frames; at most 6 a blade a frame and 256 waiting (`StateSlab::petals`); a jump in time
+  or a pause of more than 200 ms forgets the tip. Each petal starts on the blade's outer two
+  thirds with a fortieth of the tip's speed (the swing's breath, at most 40 units a second),
+  sinking and drifting sideways.
+- **Spawned** by `saber_petals::frame` (after the contacts and rain steam in
+  `entity_lights.rs`) as billboard particles of the bundled petal pictures
+  (`assets/petals`, drawn by `scripts/petal_assets.py`: three tints of one cherry petal,
+  `shaders/sjk_petals.shader`, mounted below game data as Order 66's confetti), turning as
+  they sink, stopping where they land on the floor (`apply_physics`, no bounce) and fading
+  over their last third. They count against the particle pool like any effect. The thrown
+  saber sheds none.
+
 ## Saber trails
 
 A blade grows and shrinks as it is switched on and off after

@@ -301,6 +301,12 @@ link: Milamber's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3A
 role: Artist: the Solfox player model
 did: Made Solfox, Sol's fox player model, which every SJK player gets through the hub
 
+== Ideas
+
+[Kushina]
+role: Ideas for SJK
+did: The Varykino Blossom blade: a blossom-pink blade, lavender mist, a flowering branch and blossoms shed as it swings
+
 == Made with
 
 [Claude]

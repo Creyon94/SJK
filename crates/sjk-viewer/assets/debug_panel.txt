@@ -1678,6 +1678,17 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[varykino-blossom]
+area: Rendering & effects
+title: Varykino Blossom, a Mythical blade that sheds blossoms
+change: Blade 166 (Kushina's idea): pink blade, lavender mist, drifting blossoms, branch at the hilt.
+change: Swinging it sheds real petals that flutter down behind the blade, land and fade.
+test: Wear it (staff grant saber_varykino_blossom): a flowering branch beside the emitter.
+test: Swing hard: petals trail the swing and settle; still, turning or running sheds none.
+test: Collection > Shaders > its parts: Falling blossoms off, swing: no petals.
+test: A second client sees your petals, and none once you switched them off.
+note: Hub drops need the hub branch varykino-blossom deployed; the client's own file draws it.
+
 [lazy-blade-skins]
 area: Rendering & effects
 title: Blade skins and signature shaders load only when a blade draws them

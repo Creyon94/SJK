@@ -1551,6 +1551,7 @@ mod tests {
                 "saber_exogorth",
                 "saber_world_shift",
                 "saber_exegol_rift",
+                "saber_varykino_blossom",
             ]
         );
         panel.shader_filter.query = "nothing".to_owned();

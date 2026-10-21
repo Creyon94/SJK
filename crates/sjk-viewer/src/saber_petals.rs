@@ -1,0 +1,347 @@
+//! Blossoms a swung blade sheds (a signature's `// @petals` line, `docs/unlockables.md`,
+//! "Falling blossoms"; first the Varykino Blossom, Kushina's idea): where the Spectral leaves
+//! afterimages of its swing, this blade leaves petals that flutter down behind it, settle on
+//! the floor and fade. They are particles in the world, not part of the blade's quad: each
+//! blade keeps where its tip was ([`PetalEmitter`]), every unit its tip travels in its
+//! wearer's frame (a swing, not a turn of the view or a run) queues a share of a petal along
+//! the blade ([`crate::saber_trail::StateSlab::petals`]), and [`frame`] turns the queue into
+//! particles with the bundled petal pictures. Nothing is allocated per frame.
+
+use glam::Vec3;
+use serde::Deserialize;
+use std::time::{Duration, Instant};
+
+/// A skin's falling blossoms, as its signature's `@petals` line gives them.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PetalSpec {
+    /// The signature's own part (its `// @part` line, from 0) that switches them.
+    pub(crate) part: u8,
+    /// Petals for each unit the tip travels.
+    pub(crate) per_unit: f32,
+    /// How long one lasts (seconds), and its size (units).
+    pub(crate) life: f32,
+    pub(crate) size: f32,
+    /// How fast it sinks (units a second) and how far it may drift sideways (units a second).
+    pub(crate) fall: f32,
+    pub(crate) drift: f32,
+}
+
+impl PetalSpec {
+    /// Whether its numbers are in reason (checked with the signature's other lines).
+    pub(crate) fn valid(&self) -> bool {
+        self.part < 6
+            && (0.0..=2.0).contains(&self.per_unit)
+            && (0.2..=6.0).contains(&self.life)
+            && (0.2..=6.0).contains(&self.size)
+            && (0.0..=200.0).contains(&self.fall)
+            && (0.0..=100.0).contains(&self.drift)
+    }
+}
+
+/// The most petals one blade sheds in a frame, and the most waiting in the queue.
+const MOST_A_FRAME: u32 = 6;
+pub(crate) const MOST_QUEUED: usize = 256;
+
+/// A petal to spawn: where, its first velocity, its seed and its skin's numbers.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PetalSpawn {
+    pub(crate) origin: Vec3,
+    pub(crate) velocity: Vec3,
+    pub(crate) seed: u32,
+    pub(crate) spec: PetalSpec,
+}
+
+/// One blade's tip as last seen, in its wearer's frame and in the world.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct PetalEmitter {
+    last: Option<(Vec3, Vec3)>,
+    last_millis: i64,
+    /// The share of a petal owed from the last frames.
+    carry: f32,
+}
+
+/// 0 to 1 from `seed` and `salt`.
+fn unit(seed: u32, salt: u32) -> f32 {
+    crate::effect_envelope::random_unit(
+        seed.wrapping_mul(0x9e37_79b9) ^ salt.wrapping_mul(0x85eb_ca6b),
+    )
+}
+
+impl PetalEmitter {
+    /// The blade from `base` along `direction` for `length` units (in the world), its tip at
+    /// `body_tip` in its wearer's frame, drawn at `now`: queue the petals its swing sheds. A
+    /// jump in time (a new map, a demo seek) or a pause forgets where it was.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn shed(
+        &mut self,
+        base: Vec3,
+        direction: Vec3,
+        length: f32,
+        body_tip: Vec3,
+        now: i64,
+        key: u32,
+        spec: PetalSpec,
+        queue: &mut Vec<PetalSpawn>,
+    ) {
+        let tip = base + direction * length;
+        let since = now - self.last_millis;
+        let last = self.last.replace((body_tip, tip));
+        self.last_millis = now;
+        let Some((last_body, last_tip)) = last.filter(|_| (1..=200).contains(&since)) else {
+            self.carry = 0.0;
+            return;
+        };
+        self.carry += body_tip.distance(last_body) * spec.per_unit;
+        let count = (self.carry.floor() as u32).min(MOST_A_FRAME);
+        self.carry -= self.carry.floor();
+        // A share of the tip's speed carries them on a little (the swing's breath).
+        let carried = (tip - last_tip) / (since as f32 * 0.001) * 0.025;
+        for i in 0..count {
+            if queue.len() >= MOST_QUEUED {
+                return;
+            }
+            let seed = key ^ (now as u32).wrapping_mul(2_654_435_761) ^ i.wrapping_mul(40_503);
+            // Along the blade's outer two thirds, a little to either side.
+            let along = 0.35 + 0.65 * unit(seed, 1);
+            let side = Vec3::new(
+                unit(seed, 2) - 0.5,
+                unit(seed, 3) - 0.5,
+                unit(seed, 4) - 0.5,
+            );
+            let drift = Vec3::new(unit(seed, 5) - 0.5, unit(seed, 6) - 0.5, 0.0) * 2.0 * spec.drift;
+            queue.push(PetalSpawn {
+                origin: base + direction * (length * along) + side * 2.0,
+                velocity: carried.clamp_length_max(40.0) + drift - Vec3::Z * spec.fall * 0.5,
+                seed,
+                spec,
+            });
+        }
+    }
+}
+
+/// The petal pictures, at their game paths, and their shader (made by
+/// `scripts/petal_assets.py`, but the shader).
+macro_rules! bundled {
+    ($name:literal) => {
+        include_bytes!(concat!("../assets/petals/", $name))
+    };
+}
+const SHADERS: [&str; 3] = [
+    "gfx/sjk/petals/blossom_pink",
+    "gfx/sjk/petals/blossom_pale",
+    "gfx/sjk/petals/blossom_white",
+];
+const FILES: [(&str, &[u8]); 4] = [
+    ("shaders/sjk_petals.shader", bundled!("petals.shader")),
+    (
+        "gfx/sjk/petals/blossom_pink.png",
+        bundled!("blossom_pink.png"),
+    ),
+    (
+        "gfx/sjk/petals/blossom_pale.png",
+        bundled!("blossom_pale.png"),
+    ),
+    (
+        "gfx/sjk/petals/blossom_white.png",
+        bundled!("blossom_white.png"),
+    ),
+];
+
+/// Mount the bundled petal files.
+pub(crate) fn mount(vfs: &mut sjk_vfs::VirtualFileSystem) -> Result<(), sjk_vfs::VfsError> {
+    vfs.mount_memory("SJK petals", FILES.iter().copied())?;
+    Ok(())
+}
+
+/// Turn the queued petals into particles: each a picture of a blossom petal facing the
+/// camera, turning as it sinks, settling where it lands (it stops on the floor) and fading
+/// over its last third.
+pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
+    use crate::particle_types::{Particle, PrimitiveShape};
+    let queue = gpu.saber_states.petals();
+    if queue.is_empty() {
+        return;
+    }
+    let constant = |value: f32| {
+        crate::effect_envelope::Envelope::from_values(value, value, 0.0, Default::default())
+    };
+    for spawn in queue.drain(..) {
+        if !crate::particle_room::effect_fits(gpu.particles.len()) {
+            continue;
+        }
+        let seed = spawn.seed;
+        let spec = spawn.spec;
+        let size = spec.size * (0.75 + 0.5 * unit(seed, 7));
+        let spin = (unit(seed, 8) - 0.5) * 50.0;
+        gpu.particles.push(Particle {
+            motion: crate::particle_motion::Motion::new(
+                spawn.origin,
+                spawn.velocity,
+                // Sinking slowly, as a petal does in air.
+                Vec3::new(0.0, 0.0, -spec.fall * 0.6),
+                unit(seed, 9) * 360.0,
+                spin,
+                now,
+            ),
+            spawned_at: now,
+            delay: Duration::ZERO,
+            lifetime: Duration::from_secs_f32(spec.life * (0.8 + 0.4 * unit(seed, 10))),
+            size: crate::effect_envelope::Envelope::from_values(
+                size,
+                size * 0.8,
+                0.0,
+                sjk_effect::CurveFlags {
+                    linear: true,
+                    ..Default::default()
+                },
+            ),
+            length: None,
+            streak: None,
+            trace_streak: false,
+            normal: None,
+            alpha: crate::effect_envelope::Envelope::from_values(
+                1.0,
+                0.0,
+                65.0,
+                sjk_effect::CurveFlags {
+                    modifier: sjk_effect::CurveModifier::NonLinear,
+                    ..Default::default()
+                },
+            ),
+            use_alpha: true,
+            set_shader_time: false,
+            rgb: [constant(1.0), constant(1.0), constant(1.0)],
+            seed,
+            shader: gpu
+                .effects
+                .shader(SHADERS[(seed % SHADERS.len() as u32) as usize]),
+            // Falling onto the floor, it stays there (no bounce) until it fades.
+            physics: crate::particle_physics::State::new(
+                gpu.effects.code_primitive_definition(),
+                0,
+                0,
+                0.0,
+                sjk_effect::PrimitiveFlags {
+                    apply_physics: true,
+                    ..Default::default()
+                },
+            ),
+            shape: PrimitiveShape::Billboard,
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SPEC: PetalSpec = PetalSpec {
+        part: 3,
+        per_unit: 0.2,
+        life: 2.5,
+        size: 1.3,
+        fall: 40.0,
+        drift: 10.0,
+    };
+
+    #[test]
+    fn a_swing_sheds_petals_and_a_still_blade_none() {
+        let mut emitter = PetalEmitter::default();
+        let mut queue = Vec::new();
+        let base = Vec3::ZERO;
+        let up = Vec3::Z;
+        // Held still for a second: nothing.
+        for step in 0..60 {
+            emitter.shed(
+                base,
+                up,
+                40.0,
+                Vec3::new(0.0, 0.0, 40.0),
+                1_000 + step * 16,
+                7,
+                SPEC,
+                &mut queue,
+            );
+        }
+        assert!(queue.is_empty());
+        // Swung 20 units a frame for ten frames: 200 units, 40 petals at 0.2 a unit, but
+        // at most six a frame.
+        for step in 0..10 {
+            let tip = Vec3::new(20.0 * (step + 1) as f32, 0.0, 40.0);
+            emitter.shed(base, up, 40.0, tip, 2_000 + step * 16, 7, SPEC, &mut queue);
+        }
+        assert_eq!(queue.len(), 40);
+        // Each on the blade's outer two thirds, near it.
+        for petal in &queue {
+            assert!(
+                petal.origin.z >= 40.0 * 0.35 - 1.5 && petal.origin.z <= 41.5,
+                "{petal:?}"
+            );
+            assert!(petal.velocity.z < 0.0);
+        }
+    }
+
+    #[test]
+    fn a_jump_in_time_sheds_nothing() {
+        let mut emitter = PetalEmitter::default();
+        let mut queue = Vec::new();
+        emitter.shed(
+            Vec3::ZERO,
+            Vec3::Z,
+            40.0,
+            Vec3::ZERO,
+            1_000,
+            1,
+            SPEC,
+            &mut queue,
+        );
+        // A second later and far away: a new map, a seek or a pause.
+        emitter.shed(
+            Vec3::ZERO,
+            Vec3::Z,
+            40.0,
+            Vec3::splat(500.0),
+            2_000,
+            1,
+            SPEC,
+            &mut queue,
+        );
+        assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn the_queue_is_bounded() {
+        let mut emitter = PetalEmitter::default();
+        let mut queue = Vec::new();
+        let fast = PetalSpec {
+            per_unit: 2.0,
+            ..SPEC
+        };
+        for step in 0..200 {
+            let tip = Vec3::new(30.0 * step as f32, 0.0, 0.0);
+            emitter.shed(
+                Vec3::ZERO,
+                Vec3::Z,
+                40.0,
+                tip,
+                1_000 + step * 16,
+                1,
+                fast,
+                &mut queue,
+            );
+        }
+        assert_eq!(queue.len(), MOST_QUEUED);
+    }
+
+    #[test]
+    fn the_pictures_are_bundled() {
+        for (path, bytes) in FILES {
+            assert!(!bytes.is_empty(), "{path}");
+        }
+        let shader = std::str::from_utf8(FILES[0].1).unwrap();
+        for name in SHADERS {
+            assert!(shader.contains(name), "{name}");
+        }
+    }
+}
