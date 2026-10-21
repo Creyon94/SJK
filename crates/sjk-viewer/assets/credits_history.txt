@@ -9,6 +9,13 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 21/10/2026 | - | The shop says its four shaders are each player's own
+- 635bfdb |  | Shop: say the day's four shaders are picked for each player, past those they hold
++ 21/10/2026 | - | 38 blades change tier, Sol's last adjustments
+- f5cd6bd |  | Blade tiers adjusted again: 38 blades change tier (Sol, 21/10/2026)
++ 21/10/2026 | - | SJK pull request #179 holocron notification modes, cards after a duel; Settings row for cg_chatCardScale, SJK #189
+- 2770758 |  | Settings row for cg_chatCardScale (SJK #189)
+- 2dcea79 |  | Fix review findings for SJK #179: mode 1 is the duel wait, cards show after the duel
 + 21/10/2026 | - | One bar a tab under the Collection's collected count
 - b7edf63 |  | Collection: one bar a tab under the collected count, not a tick a thing
 + 21/10/2026 | - | Cargo fmt for staff_panel.rs, CI
@@ -1849,6 +1856,30 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 21/10/2026 | - | Rework Creyon's blades after his round 15 review
+- ec6fad8 |  | Rework Creyon's blades after his round 15 review
++ 21/10/2026 | - | Make Balance and plain mythicals richer (round 15b)
+- 36804d4 |  | Make Balance and plain mythicals richer (round 15b)
++ 21/10/2026 | - | Rework Creyon's blades after his round 16 review
+- 0c221d5 |  | Rework Creyon's blades after his round 16 review
++ 21/10/2026 | - | Fix Creyon's blades after his round 17 test; apply Sol's tiers
+- 3b73ff4 |  | Fix Creyon's blades after his round 17 test; apply Sol's tiers
++ 21/10/2026 | - | Soften Bleeding Kyber's pure light and the busiest blades
+- a869825 |  | Soften Bleeding Kyber's pure light and the busiest blades
++ 21/10/2026 | - | Draw every signature effect in 3D, stop cut-offs, richer mythicals (round 19)
+- 2d463a7 |  | Draw every signature effect in 3D, stop cut-offs, richer mythicals (round 19)
++ 21/10/2026 | - | Give the Clone Wars blade comic speed lines for its swing trail
+- bf84d69 |  | Give the Clone Wars blade comic speed lines for its swing trail
++ 21/10/2026 | - | Fix the Collection pictures, soften glow up close, Creyon's round 20 blades
+- 827e253 |  | Fix the Collection pictures, soften glow up close, Creyon's round 20 blades
++ 21/10/2026 | - | Keep Kessel Spice's crystals inside its glow
+- 0d7d9cf |  | Keep Kessel Spice's crystals inside its glow
++ 21/10/2026 | - | Load blade effects faster, Clone Wars in 3D, Creyon's round 21 fixes
+- eefe734 |  | Load blade effects faster, Clone Wars in 3D, Creyon's round 21 fixes
++ 21/10/2026 | - | Keep built blade effects when the skins reload
+- a3c68e1 |  | Keep built blade effects when the skins reload
++ 21/10/2026 | - | Hide effects behind the blade; Clone Wars halftone stops at the hilt
+- 19c7df7 |  | Hide effects behind the blade; Clone Wars halftone stops at the hilt
 + 20/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades
 - dee6594 |  | Add Creyon's Blade Lab signature blades
 - 6e59999 |  | Polish Creyon's blades after his round 13 test
@@ -2004,6 +2035,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 21/10/2026 | SJK #179 | Add holocron notification modes
+- d7ae6dc |  | Add holocron notification modes
 + 20/10/2026 | SJK #190 | Add JA+ anti-kiss protection
 - 947f26a |  | Add JA+ anti-kiss protection
 + 20/10/2026 | SJK #181 | Keep messagemode on global chat

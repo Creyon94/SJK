@@ -1,5 +1,6 @@
 //! The Holocrons tab's shop (`docs/cards.md`, "The shop"): the day's four saber shaders,
-//! the same for every player, sold for kyber shards (credits on hubs before 17/10/2026),
+//! each player's own past the shaders they hold (21/10/2026; the same for every player
+//! before), sold for kyber shards (credits on hubs before 17/10/2026),
 //! over the darkened page as the loot table is ([`super::loot`]). One Common, one
 //! Uncommon, one Rare and a Legendary (a Mythical one day in four), dealt by the hub each
 //! day at midnight in Paris; a countdown says when the next come. Under them, holocrons for
@@ -491,7 +492,7 @@ impl Panel {
             format_args!(
                 "{}",
                 if crate::economy::shop_in_shards() {
-                    "Four saber shaders a day, the same for every player, for kyber shards."
+                    "Four saber shaders a day, picked for you from those you lack, for kyber shards."
                 } else {
                     "Four saber shaders a day, the same for every player, for the credits holocrons bring."
                 }

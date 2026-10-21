@@ -200,12 +200,15 @@ Why these numbers:
 
 ### The shop
 
-- **Four offers a day**, the same for every player: one Common, one Uncommon, one Rare and
+- **Four offers a day**, each player's own (21/10/2026, the same for every player before):
+  the hub skips the shaders they hold, but one bought from the shop that day stays listed
+  as bought, and a shader gained during the day redraws only its own offer. One Common, one Uncommon, one Rare and
   a Legendary three days in four, a Mythical the fourth (Sol, 17/10/2026: with four
   Mythical shaders an even share brought each back about every eight days), each a
   different shader of the trade; a tier with none left takes the nearest that has one.
 - **The day** runs from midnight to midnight in Paris (Europe/Paris, the EU's summer-time
-  rule). The hub deals it from the day and a secret it made once in its database (SHA-256),
+  rule). The hub deals it from the day, the person and a secret it made once in its database
+  (SHA-256, one stream an offer),
   so nothing is stored per day, a restart keeps the offers, and nobody, even with the hub's
   code, can tell a later day's.
 - **Once a day, never a duplicate** (my decision): a player buys each offer at most once a
