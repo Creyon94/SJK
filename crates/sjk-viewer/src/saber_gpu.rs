@@ -672,8 +672,11 @@ impl Runtime {
             }
         }
         self.signed = signed;
+        // The skins' slots only: the black pair sits after them (2026.1021.2 lost it here,
+        // black blades drawn with the neutral pair's opaque squares).
         let first = crate::saber_rgb::SKIN_MATERIAL as usize;
-        for slot in &mut self.materials[first..] {
+        let black = crate::saber_rgb::BLACK_MATERIAL as usize;
+        for slot in &mut self.materials[first..black] {
             *slot = self.neutral.clone();
         }
         self.uploaded = [false; MAX_SKINS];
