@@ -38,6 +38,7 @@ mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
 mod debug_collectibles;
+mod duel_blades;
 mod duel_ghost;
 mod duel_visibility;
 mod economy;

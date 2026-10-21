@@ -49,6 +49,17 @@ builds. On Windows 11 the formatting check, the locked workspace tests (viewer: 
 passed, 161 ignored; 58 other suites) and Clippy (no new warnings) pass. Not tested in
 game, and the memory saved is not measured on a world shot yet.
 
+## Stock blades in duels
+
+21/10/2026, `feat/plain-blades-in-duels` (Creyon, SJK pull request, at Sol's request), based on
+`main` at fc3d0aa9: while the viewed player is in a private duel, or the server plays Duel or
+Power Duel, every player's blade is the stock one in the colour they set, with the stock sounds,
+instead of their blade skin, when the player turns it on (`cg_duelStockBlades`, off by default;
+[client.md](client.md#nameplates)). Creyon chose the stock blade over the skin's shape
+recoloured: the colour is exact and the width is stock. Checked on Linux x86_64: the workspace
+format check, build, tests (the duel rule, the stock blade and sounds while plain) and clippy.
+Not verified: in a duel in game.
+
 ## Blade numbers only with debug collectibles
 
 21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless

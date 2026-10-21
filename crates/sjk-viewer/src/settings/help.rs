@@ -634,6 +634,10 @@ const HELP: &[(&str, &str)] = &[
         "Draw the Blade Lab skins (Serpent, Comic and the rest) as Creyon's Blade Lab drew them; off uses their skin files.",
     ),
     (
+        crate::duel_blades::CVAR,
+        "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
+    ),
+    (
         crate::effect_aux::saber_rain_steam::CVAR,
         "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),

@@ -984,3 +984,23 @@ fn the_varykino_blossom_sheds_petals_until_its_wearer_switches_them_off() {
             .is_none()
     );
 }
+
+#[test]
+fn a_duel_draws_every_blade_stock() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 2).then_some(worn));
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    // In a duel: the stock blade in the wearer's own colour, and the stock sounds.
+    skins.set_plain(true);
+    assert!(skins.get(3).is_none());
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(3, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert_eq!(skins.sound_sets()[2], None);
+    skins.set_plain(false);
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+}

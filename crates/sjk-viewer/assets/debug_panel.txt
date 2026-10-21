@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[duel-stock-blades]
+area: Rendering & effects
+title: Normal blades in duels (cg_duelStockBlades, Creyon #192)
+change: With it on, every blade is the stock one in its owner's colour, stock sounds,
+change: in a private duel you play or follow, and on a Duel or Power Duel server.
+test: Settings, Game options: turn on Normal blades in duels; wear a blade skin.
+test: Local server: start a private duel: both blades go stock, skins back when it ends.
+test: g_gametype 3: every blade stock; turn the setting off: skins come back.
+note: Off by default; the What's new card offers it.
+
 [hax]
 area: Gameplay
 title: The Hax toy: hack another player, then steer them for 5 s

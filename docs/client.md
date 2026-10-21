@@ -2941,6 +2941,15 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   [duel_isolation.rs](../crates/sjk-client/src/duel_isolation.rs)), the HUD,
   scoreboard, kill feed and recorded demos keep the snapshot as received; demo
   playback hides by the same setting.
+- `cg_duelStockBlades` (off; Settings > Gameplay > Normal blades in duels, and Game
+  options), when on, draws every player's blade as the stock one, in the colour they set
+  (a stock colour or RGB) and with the stock sounds, instead of their blade skin, while you, or the
+  player you follow, are in a private duel, or on a Duel or Power Duel server
+  (`g_gametype` 3 or 4), Sol's request of 21/10/2026: nothing round a blade hides where it
+  is or how it swings ([duel_blades.rs](../crates/sjk-viewer/src/duel_blades.rs),
+  `SaberSkins::set_plain`). Team and black blades follow their own settings as usual.
+  Off by default (Creyon: skins stay on in duels unless a player asks). It changes only
+  what you see; the other duellist sees what their own setting says.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are
