@@ -2248,6 +2248,22 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   what lies on the blade itself is never hidden, and bounds and the blade's own axis use the raw
   distances (`rayPtRaw`, `raySegRaw`). Liquid Beskar's rings no longer show through the blade, and
   the Clone Wars halftone no longer reaches below the hilt.
+- **Round 23 (players' reports after the 2026.1021.1 release: pixels at the tip, hard lines).**
+  A skin's core is sampled with the derivatives of its coordinates before the rounded tip narrows
+  them (`core_coordinates_at` with `core_breath`; the shaft's, where the two are the same): in the
+  tip the narrowing runs to a hundred times within a pixel and picked the core image's smallest
+  mip, which drew a bright rim of pixels round the end of every signature's core, in the game, the
+  Collection and the holocron cards. A signature's core fades out before its quad's sides
+  (`skin_core`): the core image's fringe is still a tenth as bright at its border, which drew a
+  straight edge along both sides of the line up close and a faint box past the narrowed tip. Round
+  22's hiding behind the blade is soft: `behindBlade` (and `ray_behind_blade`) fades in as the view
+  turns from along the blade instead of switching off at once, and ends before the tip where the
+  blade narrows; a hidden piece's distance goes through `hideD` (`hide_d`), which narrows and dims
+  it over the blade's soft edge, instead of adding a thousand times the hidden share, which cut it
+  at a hard edge and drew a box round the tip whenever a blade pointed at the camera; the
+  signatures' own ring code and `bladeSeen` do the same. `fxFlare` is skipped only where its widest
+  halo has faded (it ended at a hard ring), and Hypermatter's and the Uneti Tree's pulses fall off
+  over their fronts instead of ending at a line across the blade.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

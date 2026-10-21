@@ -10,7 +10,11 @@
 // pairs; three containment rings hold it, flickering as the pulses pass; jets of plasma shoot
 // up beside it and sparks spit off where the stream meets the middle ring. A clash flares it.
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    let p = pow(fract(b.y / 10.0 - uTime * 1.2), 12.0) + pow(fract(b.y / 10.0 - uTime * 1.2 + 0.5), 12.0);
+    // round 23: each pulse's front falls off over its last units instead of ending at a hard line
+    // across the blade (fract's wrap); its long soft tail is as before
+    let f0 = fract(b.y / 10.0 - uTime * 1.2);
+    let f1 = fract(b.y / 10.0 - uTime * 1.2 + 0.5);
+    let p = pow(f0, 12.0) * (1.0 - smoothstep(0.93, 1.0, f0)) + pow(f1, 12.0) * (1.0 - smoothstep(0.93, 1.0, f1));
     return g * (0.85 + 1.2 * p * step(0.0, b.y));
 }
 

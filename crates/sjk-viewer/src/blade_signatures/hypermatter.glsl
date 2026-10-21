@@ -8,7 +8,10 @@
 // @palette {"corona.rim_cool":[0.55,0.35,0.05],"corona.rim_hot":[1.0,0.8,0.3],"corona.inner":[1.0,0.95,0.75],"core.white":[1,1,0.95],"core.fringe_cool":[1.0,0.7,0.2],"core.fringe_hot":[1.0,0.9,0.6],"light.color":[1.0,0.8,0.35],"trail":[1.0,0.8,0.35]}
 
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
-  float p = pow(fract(b.y/10.0 - uTime*1.2), 12.0) + pow(fract(b.y/10.0 - uTime*1.2 + 0.5), 12.0);
+  // round 23: each pulse's front falls off over its last units instead of ending at a hard line
+  // across the blade (fract's wrap); its long soft tail is as before
+  float f0 = fract(b.y/10.0 - uTime*1.2), f1 = fract(b.y/10.0 - uTime*1.2 + 0.5);
+  float p = pow(f0, 12.0)*(1.0 - smoothstep(0.93, 1.0, f0)) + pow(f1, 12.0)*(1.0 - smoothstep(0.93, 1.0, f1));
   return g*(0.85 + 1.2*p*step(0.0, b.y));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c; }

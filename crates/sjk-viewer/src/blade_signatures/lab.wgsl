@@ -170,9 +170,13 @@ fn helix(y: f32, r: f32, turns: f32, phase: f32) -> vec2<f32> {
 // Round 22 (Creyon: nothing may be seen through the blade when it is behind it): how hidden by
 // the blade's body a point t along the ray is, 0 (seen) to 1 (hidden): the ray passes through the
 // blade's body (its nearest approach to the axis within the blade) before reaching it.
+// Round 23 (players' reports after the 2026.1021.1 release: hard-edged boxes and lines round
+// the tip when a blade pointed at the camera): it fades in and out softly; it used to switch
+// off at once when looking nearly along the blade.
 fn behindBlade(ro: vec3<f32>, rd: vec3<f32>, t: f32) -> f32 {
     let a = dot(rd.xz, rd.xz);
-    if a < 0.02 {
+    let along = smoothstep(0.01, 0.04, a);
+    if along <= 0.0 {
         return 0.0;
     }
     let ta = -dot(ro.xz, rd.xz) / a;
@@ -182,8 +186,19 @@ fn behindBlade(ro: vec3<f32>, rd: vec3<f32>, t: f32) -> f32 {
     // what lies on the blade's own body (its axis, its glow) is never hidden by it
     let p = ro + rd * t;
     let outside = smoothstep(0.5, 0.9, length(p.xz));
-    let onBlade = smoothstep(-0.8, -0.2, y) * (1.0 - smoothstep(uLength - 0.2, uLength + 0.4, y));
-    return (1.0 - smoothstep(0.35, 0.8, d)) * onBlade * outside * smoothstep(ta + 0.15, ta + 0.7, t);
+    // round 23: it ends before the tip, fading out where the blade narrows to its point (to
+    // the tip, it drew a dark round end past the tip when the blade pointed at the camera)
+    let onBlade = smoothstep(-0.8, -0.2, y) * (1.0 - smoothstep(uLength - 1.4, uLength - 0.2, y));
+    return (1.0 - smoothstep(0.35, 0.8, d)) * onBlade * outside * smoothstep(ta + 0.15, ta + 0.7, t) * along;
+}
+
+// A distance d as seen when h (behindBlade) of it is hidden by the blade: unchanged at 0, out of
+// reach at 1, and in between the piece narrows and dims, so whatever passes behind the blade fades
+// out over the blade's soft edge. Round 23: adding 1e3*h hid a piece wherever h was more than a
+// thousandth, a hard cut along the blade's body that showed as a box round the tip when the blade
+// pointed at the camera.
+fn hideD(d: f32, h: f32) -> f32 {
+    return d / max(1.0 - h, 1.0e-3) + h;
 }
 
 // The distance from the ray to point p, as seen (a point the blade hides is far off); t
@@ -195,7 +210,7 @@ fn rayPtRaw(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, t: ptr<function, f32>) -
 
 fn rayPt(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, t: ptr<function, f32>) -> f32 {
     let d = rayPtRaw(ro, rd, p, t);
-    return d + 1.0e3 * behindBlade(ro, rd, (*t));
+    return hideD(d, behindBlade(ro, rd, (*t)));
 }
 
 // The distance from the ray to the segment a-b; s returns where on it (0 at a, 1 at b); the
@@ -219,7 +234,7 @@ fn raySegRaw(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<fu
 fn raySeg(ro: vec3<f32>, rd: vec3<f32>, a: vec3<f32>, b: vec3<f32>, s: ptr<function, f32>) -> f32 {
     let d = raySegRaw(ro, rd, a, b, s);
     let q = a + (b - a) * (*s);
-    return d + 1.0e3 * behindBlade(ro, rd, max(dot(q - ro, rd), 0.0));
+    return hideD(d, behindBlade(ro, rd, max(dot(q - ro, rd), 0.0)));
 }
 
 // Where the ray crosses the plane across the blade at height h: xz there, and t (negative:
@@ -325,7 +340,7 @@ fn ringD(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
     var best: f32 = 1.0e3;
     let h = rayAt(ro, rd, y);
     if h.z > 0.0 {
-        best = abs(length(h.xy) - R) + 1.0e3 * behindBlade(ro, rd, h.z);
+        best = hideD(abs(length(h.xy) - R), behindBlade(ro, rd, h.z));
     }
     let a = dot(rd.xz, rd.xz);
     let b = dot(ro.xz, rd.xz);
@@ -336,10 +351,10 @@ fn ringD(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
         let t0 = (-b - q) / a;
         let t1 = (-b + q) / a;
         if t0 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t0 - y) + 1.0e3 * behindBlade(ro, rd, t0));
+            best = min(best, hideD(abs(ro.y + rd.y * t0 - y), behindBlade(ro, rd, t0)));
         }
         if t1 > 0.0 {
-            best = min(best, abs(ro.y + rd.y * t1 - y) + 1.0e3 * behindBlade(ro, rd, t1));
+            best = min(best, hideD(abs(ro.y + rd.y * t1 - y), behindBlade(ro, rd, t1)));
         }
     }
     return best;
@@ -350,7 +365,9 @@ fn ringD(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
 fn fxFlare(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, px: f32, size: f32, len: f32, n: f32, spin: f32, col: vec3<f32>) -> vec3<f32> {
     var t: f32;
     let d = rayPt(ro, rd, p, &t);
-    if d > len + size * 4.0 {
+    // round 23: skipped only where its widest halo (size*8) has faded out; at size*4 that halo was
+    // still a tenth as bright and ended at a hard ring round the flare
+    if d > len + size * 18.0 {
         return vec3<f32>(0.0);
     }
     let q = ro + rd * t - p;
@@ -371,7 +388,8 @@ fn fxFlare(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, px: f32, size: f32, len: 
 // 24), each up to len long, flaring out and fading rate times a second, seed chooses them.
 fn fxRays(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, len: f32, rate: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
-    if fxNear(ro, rd, y0, y1) > len * 1.6 + 1.0 {
+    // round 23: past the beams' widest glow (nine of their widths), which ended at a hard edge
+    if fxNear(ro, rd, y0, y1) > len * 1.6 + 5.0 {
         return acc;
     }
     var s: f32;
@@ -402,7 +420,9 @@ fn fxRays(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, l
 // rate times a second (Sol's Storm, all round the blade).
 fn fxArcs(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, reach: f32, rate: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
-    if fxNear(ro, rd, y0, y1) > reach + 2.0 {
+    // round 23: past the forks' reach (half again the bolt's) and their glow, which ended at a hard
+    // edge
+    if fxNear(ro, rd, y0, y1) > reach * 1.6 + 3.0 {
         return acc;
     }
     var t: f32;
@@ -419,7 +439,7 @@ fn fxArcs(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, r
         let a = h11(k * 4.1 + fi * 2.0 + seed);
         let R = min(reach, 0.6 * uReach) * (0.45 + 0.55 * h11(k * 7.7 + fi + seed));
         let mid = around(R, a, mix(ya, yb, 0.5) + (h11(k * 9.1 + fi) - 0.5) * 2.0);
-        if rayPtRaw(ro, rd, mid, &t) > R + (yb - ya) * 0.6 + 1.5 {
+        if rayPtRaw(ro, rd, mid, &t) > R * 1.6 + (yb - ya) * 0.6 + 3.0 {
             continue;
         }
         let env = (1.0 - q) * (1.0 - q) * (0.6 + 0.4 * step(0.5, fract(q * 9.0 + fi)));
@@ -465,7 +485,8 @@ fn fxSparks(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32,
 // travelling up at speed; knots of light run along them. count (up to 4) strands.
 fn fxCoils(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, R: f32, turns: f32, speed: f32, count: f32, col: vec3<f32>) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
-    if fxNear(ro, rd, y0, y1) > R + 1.5 {
+    // round 23: past the coils' widest glow (it ended at a hard edge, R + 1.5)
+    if fxNear(ro, rd, y0, y1) > R + 2.5 {
         return acc;
     }
     var s: f32;
@@ -556,7 +577,10 @@ fn bands(y: f32, k: f32, v: f32) -> f32 {
 // heights y0 and y1, reaching r across, falling at v, slanted by lean.
 fn fxFall(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, r: f32, count: f32, v: f32, len: f32, lean: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
-    if fxNear(ro, rd, y0, y1) > r + 1.0 {
+    // round 23: the streaks start up to 2 units past y0 and y1 and reach len further (leaning
+    // lean*len aside): skipped only outside all that (Lightspeed Ram's rising streaks were cut
+    // above the tip)
+    if fxNear(ro, rd, y0 - 2.0 + min(len, 0.0), y1 + 2.0 + max(len, 0.0)) > r + abs(lean * len) + 1.0 {
         return acc;
     }
     var s: f32;
@@ -594,6 +618,30 @@ fn roomAt(p: vec3<f32>) -> f32 {
     return roomFade(length(p.xz));
 }
 
+// ---- round 23: sharp patterns without stair steps (players' reports after 2026.1021.1) ----
+// A step from 0 to 1 at e, smoothed over w (a pixel, in x's units): a pattern's edge stays sharp
+// but no longer stair-steps or flickers as the blade moves.
+fn aaStep(e: f32, x: f32, w: f32) -> f32 {
+    return smoothstep(e - 0.5 * w, e + 0.5 * w, x);
+}
+
+// How far a pixel is into the next cell of u (cells one long), over the cell's last w (a pixel in
+// u's units, and at least a twelfth of the cell, as px is the pixel across the blade and a pixel
+// along it is longer where the blade is seen end on): blending a cell's value into the next one's
+// by it keeps blocks and stripes sharp.
+fn cellMix(u: f32, w: f32) -> f32 {
+    return smoothstep(1.0 - clamp(w, 0.08, 0.5), 1.0, fract(u));
+}
+
+// A square wave of u, 0 for the first half of each one-long cell and 1 for the second, its two
+// edges smoothed over w (a pixel in u's units, at least a twelfth of the cell, as cellMix).
+fn aaSquare(u: f32, w_in: f32) -> f32 {
+    var w = w_in;
+    let f = fract(u);
+    w = clamp(w, 0.08, 0.25);
+    return aaStep(0.5, f, w) * (1.0 - smoothstep(1.0 - w, 1.0, f));
+}
+
 // ---- round 12: richer pieces for the lower tiers (each blade sets its own pattern) ----
 // Soft curling smoke round the blade between heights y0 and y1, w units to each side at its
 // thickest, rising at `rise` units a second (negative sinks): warped smooth noise with no hard
@@ -611,14 +659,22 @@ fn fxSmokeAt(p: vec3<f32>, w: f32, y0: f32, y1: f32, rise: f32, seed: f32) -> f3
     return smoothstep(0.35, 0.8, n) * shape;
 }
 
+// Round 23 (players' reports after 2026.1021.1: a hard-edged dome in the smoke seen along the
+// blade): a step at most about a third of the cloud's width, up to 16 of them, so a long path
+// through it (looking along the blade) is not sampled six units apart; seen from the side the
+// path is short and it still takes six.
 fn fxSmoke(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, rise: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     let span = raySpan(ro, rd, w * 2.4, y0 - 3.0, y1);
     if span.x >= span.y {
         return vec3<f32>(0.0);
     }
-    let dt = (span.y - span.x) / 6.0;
+    let n = clamp(ceil((span.y - span.x) / (0.8 * w)), 6.0, 16.0);
+    let dt = (span.y - span.x) / n;
     var acc: f32 = 0.0;
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 16; i++) {
+        if f32(i) >= n {
+            break;
+        }
         let ts = span.x + (f32(i) + 0.5) * dt;
         acc += fxSmokeAt(ro + rd * ts, w, y0, y1, rise, seed) * (1.0 - behindBlade(ro, rd, ts));
     }
@@ -670,7 +726,10 @@ fn fxStreams(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32
 // swaying `drift` units, spread up to `spread` units to each side.
 fn fxFlakes(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, spread: f32, count: f32, v: f32, size: f32, aspect: f32, spin: f32, drift: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
-    if fxNear(ro, rd, y0 - 3.0, y1) > spread + 1.0 {
+    // round 23: skipped only past where a flake's soft halo has faded (a flake sways `drift` past
+    // `spread`, and its halo reaches about six sizes): cut there, it drew a hard dome round the
+    // blade seen along it (Yavin Vines, players' reports after 2026.1021.1)
+    if fxNear(ro, rd, y0 - 3.0, y1) > spread + abs(drift) + size * 6.0 + 1.0 {
         return acc;
     }
     var ta: f32;
@@ -686,7 +745,7 @@ fn fxFlakes(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, spread: f32
         let rr = min(0.6 + (spread - 0.6) * h11(fi * 3.9 + seed) + drift * sin(uTime * 0.9 + fi * 2.0), 0.95 * uReach);
         let p = around(max(rr, 0.4), h11(fi * 4.3 + seed) + 0.03 * sin(uTime * 0.5 + fi), y);
         let d = rayPt(ro, rd, p, &ta);
-        if d > size * 4.0 + px {
+        if d > size * 6.0 + px {
             continue;
         }
         let q = ro + rd * ta - p;
@@ -734,7 +793,8 @@ fn bladeSeen(ro: vec3<f32>, rd: vec3<f32>, at: vec3<f32>) -> f32 {
     _ = raySegRaw(ro, rd, vec3<f32>(0.0), vec3(0.0, L, 0.0), &sAx);
     let dAx = rayPtRaw(ro, rd, vec3(0.0, sAx * L, 0.0), &tAx);
     _ = rayPt(ro, rd, at, &tAt);
-    return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx)) * step(tAx, tAt);
+    // round 23: fading in behind the axis over a little depth, not at a hard step
+    return 1.0 - (1.0 - smoothstep(0.35, 0.9, dAx)) * smoothstep(tAx - 0.4, tAx + 0.4, tAt);
 }
 
 // GLSL's mod: x - y * floor(x / y) (WGSL's % truncates)
