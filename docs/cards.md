@@ -60,6 +60,22 @@ progress answer (`GET /v1/holocrons`) says `can_open`; the Holocrons tab hides O
 Open all, and Enter and A do nothing, when it is false (or not read yet), and says
 "Opening comes soon: keep your holocrons, they will wait." in their place.
 
+**Minimum client.** Since 21/10/2026 the hub's operator can also want a recent SJK
+for opening, revealing, shattering, crafting and the shop (the hub's "Minimum client",
+Sol's choice: holocrons open for everyone from the release that has it). The hub then
+refuses any client below that release, or one that does not say it is SJK, with 426
+`client_update_required` and the message "Update SJK to open holocrons: this needs SJK
+<version> or newer."; staff and dev builds (`SJK/dev`, Sol's `play` builds) pass. Reading
+holdings stays open, so an old client still lists its holocrons and cards. Clients from
+before show the hub's message as it is: on the opening's "Nothing was opened" page after
+Open, and on the shop's message line. Since 21/10/2026 the client reads `min_client` from
+the progress answer and compares its own version number by number
+(`build_info::meets_min`; a dev build always meets it): a build older than it treats
+`can_open` as false (no Open, Open all, Shop, Reveal or shatter) and the Holocrons tab says
+"Update SJK to open holocrons: this needs SJK <version> or newer." in place of the
+buttons. A refusal with that code reads the same (`update_notice` in `sjk-identity`).
+World shot: `world_shot::holocrons_tab::duel6_sjk_holocrons_update_needed`.
+
 ## Odds
 
 The hub's tables (`src/cards.rs` there); the holocron's tier picks the row. Players see

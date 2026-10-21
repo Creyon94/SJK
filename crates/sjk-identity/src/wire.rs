@@ -343,6 +343,10 @@ pub struct HolocronState {
     /// Hubs before it leave it out, read as `false`.
     #[serde(default)]
     pub can_open: bool,
+    /// The oldest SJK release the hub lets open holocrons and trade (21/10/2026; the hub's
+    /// `PROTOCOL.md`, "Minimum client"); `None` when it wants none, and from hubs before.
+    #[serde(default)]
+    pub min_client: Option<String>,
     /// Every odds table the hub rolls with, one per holocron tier in the tiers' order
     /// (14/10/2026); empty from hubs before.
     #[serde(default)]
@@ -1449,6 +1453,7 @@ mod tests {
                 daily_cap: 8,
                 server_time: 1_791_000_000,
                 can_open: false,
+                min_client: None,
                 loot: Vec::new(),
                 economy: None,
             }
@@ -1504,6 +1509,11 @@ mod tests {
         )
         .unwrap();
         assert!(staff.can_open);
+        let gated: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,"can_open":true,"min_client":"2026.1022.1"}"#,
+        )
+        .unwrap();
+        assert_eq!(gated.min_client.as_deref(), Some("2026.1022.1"));
         let feed: Feed = serde_json::from_str(
             r#"{"next":21,"drops":[{"id":20,"at":1791000001,"key_id":"aa","name":"^2Sol",
                 "tier":"legendary","verified":true},

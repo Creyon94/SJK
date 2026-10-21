@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[min-client]
+area: Menus & settings
+title: Holocrons tab says to update when the hub needs a newer SJK
+change: Hub min_client above this build: no Open/Open all/Shop, an update line in their place.
+change: A 426 client_update_required refusal reads as the same update notice.
+test: Local hub, serve --opening everyone --opening-min-client 2099.1.1; play main: Open works.
+test: Release zip older than that min: Holocrons tab shows the update line, holocrons listed.
+note: Dev builds and staff always pass the hub's version gate.
+
 [blade-numbers-debug]
 area: Menus & settings
 title: Blade numbers show only with debug_collectibles on

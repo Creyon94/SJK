@@ -130,10 +130,7 @@ impl Panel {
             self.balance(frame, credits, shards);
         }
         let stacks = stacks.unwrap_or_default();
-        let can_reveal = inputs
-            .snapshot
-            .and_then(|snapshot| snapshot.holocrons)
-            .is_some_and(|progress| progress.can_open);
+        let can_reveal = inputs.snapshot.is_some_and(crate::economy::may_act);
         self.revealable = if can_reveal {
             cards::revealable(&stacks, &faces)
         } else {

@@ -38,6 +38,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_chatRememberChannel: The chat key now always opens on All. Turn this on to have it open on the channel of your last message again.
 
+- When the hub needs a newer SJK to open holocrons, the Holocrons tab says which release to update to in place of Open and Open all; holocrons and cards still show _(Sol)_
 - The holocron shop is now your own: its four daily shaders are picked for you from the ones you don't own yet, and reopening it shows the same four until midnight (Paris time) _(Sol)_
 - Open all on the Holocrons tab asks first when more than one holocron would open: "Open all 7 holocrons?", saying that more than three open together in a quicker, simpler animation than one by one; Open all or Cancel, Enter or Escape _(Sol)_
 - The Collection's "collected" count at the top right sits over one thin bar a tab, filled as far as you hold that tab's things, instead of a tick for each of nearly two hundred things _(Sol)_

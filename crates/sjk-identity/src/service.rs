@@ -197,6 +197,10 @@ pub struct Snapshot {
     /// [`Service::refresh_holocrons`]). `None` before the hub answered, or from a hub
     /// older than holocrons. Cosmetic: a failure leaves [`Snapshot::status`] alone.
     pub holocrons: Option<HolocronProgress>,
+    /// The oldest SJK release the hub lets open holocrons and trade, as it last said with
+    /// the progress (21/10/2026); `None` when it wants none. An older build says to update
+    /// in place of its Open buttons.
+    pub min_client: Option<String>,
     /// The odds the hub rolls holocrons with, one table per tier, as it last sent them
     /// with the progress; empty before, or from a hub older than them (14/10/2026).
     pub loot: Vec<crate::wire::LootTier>,
@@ -383,6 +387,7 @@ impl Snapshot {
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
+            min_client: None,
             loot: Vec::new(),
             log_requests: Vec::new(),
             log_answer: None,
@@ -656,9 +661,25 @@ fn older_hub(error: HubError) -> HubError {
     }
 }
 
+/// What the player reads when the hub wants a newer SJK (`client_update_required`): the
+/// hub's words, which name the release, or a plain notice when it sent none.
+fn update_notice(message: &str) -> String {
+    if message.trim().is_empty() {
+        UPDATE_NOTICE.to_owned()
+    } else {
+        message.to_owned()
+    }
+}
+
+/// [`update_notice`] when the hub's message is empty.
+const UPDATE_NOTICE: &str = "Update SJK to open holocrons: this version is too old.";
+
 /// What the player reads when the hub did not open the holocrons.
 fn opening_refusal(error: &HubError) -> String {
     match error {
+        HubError::Rejected { code, message, .. } if code == "client_update_required" => {
+            update_notice(message)
+        }
         HubError::Rejected { code, .. } if code == "holocron_opened" => {
             "That holocron was already opened.".to_owned()
         }
@@ -690,6 +711,7 @@ fn trade_refusal(error: &HubError) -> String {
             "already_bought" => "You bought that one today already.",
             "not_for_sale" => "That holocron is not for sale.",
             "opening_staff_only" => "Shards and the shop open with holocrons: soon.",
+            "client_update_required" => return update_notice(message),
             _ => return message.clone(),
         },
         // A hub from before the economy has no such route.
@@ -706,6 +728,9 @@ fn trade_refusal(error: &HubError) -> String {
 /// Why a reveal failed, as the Cards tab says it.
 fn reveal_refusal(error: &HubError) -> String {
     match error {
+        HubError::Rejected { code, message, .. } if code == "client_update_required" => {
+            update_notice(message)
+        }
         HubError::Rejected { message, .. } => message.clone(),
         // A hub from before the card catalogue has no such route.
         HubError::Protocol(why)
@@ -1816,6 +1841,7 @@ impl Worker {
                     if state.economy.is_some() {
                         snapshot.economy.clone_from(&state.economy);
                     }
+                    snapshot.min_client.clone_from(&state.min_client);
                     snapshot.holocrons = Some(HolocronProgress::new(state, now));
                 });
             }
@@ -3450,6 +3476,7 @@ mod tests {
             daily_cap: 8,
             server_time: 1_791_000_000,
             can_open: true,
+            min_client: None,
             loot: Vec::new(),
             economy: None,
         }
@@ -5388,5 +5415,21 @@ mod tests {
         assert_eq!(lock(&snapshot).me.as_ref().unwrap().name, "Other");
         worker.tick(t0 + PROFILE_EVERY + Duration::from_secs(1));
         assert_eq!(fake.log().len(), 2, "and then not for a while");
+    }
+
+    /// A hub that wants a newer SJK (`client_update_required`) is told as an update
+    /// notice, in its own words when it sent some, by opening, the shop and revealing.
+    #[test]
+    fn a_hub_wanting_a_newer_sjk_reads_as_an_update_notice() {
+        let refused = |message: &str| HubError::Rejected {
+            status: 426,
+            code: "client_update_required".to_owned(),
+            message: message.to_owned(),
+        };
+        let words = "Update SJK to open holocrons: this needs SJK 2026.1022.1 or newer.";
+        for read in [opening_refusal, trade_refusal, reveal_refusal] {
+            assert_eq!(read(&refused(words)), words);
+            assert_eq!(read(&refused("")), UPDATE_NOTICE);
+        }
     }
 }

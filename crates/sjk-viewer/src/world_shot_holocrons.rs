@@ -291,3 +291,35 @@ fn duel6_sjk_holocrons_open_all_question() {
         }
     });
 }
+
+/// A build older than the hub's minimum client (`docs/holocrons.md`, "Opening"): the
+/// holocrons still listed, the update notice in place of Open, Open all and Shop, at
+/// 1080p and 4K.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_holocrons_update_needed() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+        ];
+        for (name, size) in [("1080p", [1920, 1080]), ("4k", [3840, 2160])] {
+            let data = Data {
+                sealed: [(0..12).collect(), (12..15).collect(), Vec::new(), vec![15]],
+                can_open: false,
+                update: Some("2026.1022.1".to_owned()),
+                ..holdings()
+            };
+            let Some(mut gpu) = open_tab(size, &cvars, data) else {
+                return;
+            };
+            let _ = frame(&mut gpu, 90);
+            assert!(!overflowed(&gpu), "{name}");
+            println!(
+                "{}",
+                shoot(&mut gpu, 2, &format!("duel6-holocrons-update-{name}")).display()
+            );
+        }
+    });
+}

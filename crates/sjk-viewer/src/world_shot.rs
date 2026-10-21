@@ -1226,6 +1226,7 @@ Found the fog bug, ask me about it!"
         };
         let snapshot = sjk_identity::Snapshot {
             loot: Vec::new(),
+            min_client: None,
             opening: None,
             reveal: None,
             status: sjk_identity::Status::Online,
