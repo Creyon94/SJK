@@ -58,6 +58,8 @@ includes:
   see the carton, lift it with Use, and it tips over on its side;
 - Order 66, a meme toy: everyone with it on dies together when one of them
   executes the order and blows apart into flying pieces, or confetti;
+- the Hax, a meme toy: hold Use on another player who has it on to hack them
+  with the siege hack bar, then steer them for a few seconds;
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;

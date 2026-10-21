@@ -143,6 +143,7 @@ pub(crate) fn row_labels(
         illuminate: true,
         cardboard_box: false,
         order66: false,
+        hax: false,
         name: "",
         stock: color::HOLO,
         grid: false,
@@ -259,6 +260,7 @@ impl Panel {
         let frame = Frame::new(viewport);
         self.box_on = inputs.cardboard_box;
         self.order66_on = inputs.order66;
+        self.hax_on = inputs.hax;
         self.share_on = inputs.share;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
@@ -500,6 +502,8 @@ impl Panel {
                     (1, _, false) => "hide",
                     (2, _, _) if inputs.order66 => "turn off",
                     (2, _, _) => "turn on",
+                    (3, _, _) if inputs.hax => "turn off",
+                    (3, _, _) => "turn on",
                     (_, true, _) => "put out",
                     _ => "light",
                 },

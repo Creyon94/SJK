@@ -128,6 +128,7 @@ mod gpu_texture;
 mod graphics_quality;
 mod graphics_reload;
 mod ground_hud;
+mod hax;
 mod hitch_log;
 mod holocron_popup;
 mod holocrons;
@@ -471,6 +472,8 @@ struct GpuState {
     cardboard_box: cardboard_box::CardboardBox,
     /// The Order 66 toy (`toy_order66`, `order66`): the order and the pieces flying.
     order66: order66::Order66,
+    /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
+    hax: hax::Hax,
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1421,6 +1424,7 @@ impl GpuState {
             illuminate_others: Default::default(),
             cardboard_box: Default::default(),
             order66: Default::default(),
+            hax: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
             holocron_stage_seconds: None,
@@ -1725,7 +1729,10 @@ impl GpuState {
         let error_offset = self.local_prediction.view_offset();
         let mut view_up = Vec3::Z;
         let peek_view = (!backdrop_view && intermission_view.is_none())
-            .then(|| peek::camera(self, presentation_time))
+            .then(|| {
+                peek::camera(self, presentation_time)
+                    .or_else(|| hax::camera(self, presentation_time))
+            })
             .flatten();
         let fall = self.update_fall_camera(presentation_time as i32);
         let detached_before_peek = self.detached_camera;
@@ -2421,6 +2428,7 @@ impl GpuState {
                     .filter(|_| self.live_session.is_some());
                 audio.observe_saber_switches(snapshot, predicted);
                 audio.set_box_music(self.cardboard_box.music());
+                audio.set_hax_loop(self.hax_loop(presentation_time));
                 audio.update_frame_loops(
                     snapshot,
                     presentation_time as i32,

@@ -15,6 +15,7 @@ use crate::feed::{
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::logs::{LogRequest, LogUpload};
+use crate::relay::RelayHubs;
 use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
 use crate::vitals::{Sharing, VitalsTable, VitalsWorker};
@@ -2335,6 +2336,8 @@ pub struct Service {
     sharing: Arc<Mutex<Sharing>>,
     /// The sharers of the player's server, as the vitals thread last read them.
     vitals: Arc<Mutex<VitalsTable>>,
+    /// The toy relay's queues, for its threads (`crate::relay`).
+    relay: crate::relay::Shared,
     finished: Mutex<Receiver<()>>,
     /// The last tag given to a note ([`Service::note`]).
     note_tags: std::sync::atomic::AtomicU64,
@@ -2355,17 +2358,19 @@ impl Service {
         make_hub: HubFactory,
         make_feed_hub: Option<HubFactory>,
     ) -> Self {
-        Self::start_with_threads(identity, make_hub, make_feed_hub, None)
+        Self::start_with_threads(identity, make_hub, make_feed_hub, None, None)
     }
 
     /// [`Service::start_with_feed`] with shared vitals on a thread of their own too,
     /// reading the hub through clients `make_vitals_hub` builds (with a short
-    /// timeout, [`crate::vitals::TIMEOUT`]).
+    /// timeout, [`crate::vitals::TIMEOUT`]), and the toy relay on two more through the
+    /// clients `relay_hubs` builds.
     pub fn start_with_threads(
         identity: Identity,
         make_hub: HubFactory,
         make_feed_hub: Option<HubFactory>,
         make_vitals_hub: Option<HubFactory>,
+        relay_hubs: Option<RelayHubs>,
     ) -> Self {
         let key_id = identity.key_id();
         let snapshot = Arc::new(Mutex::new(Snapshot::new(key_id.clone())));
@@ -2374,6 +2379,7 @@ impl Service {
         let (done, finished) = channel();
         let feed_identity = identity.clone();
         let vitals_identity = identity.clone();
+        let relay_identity = identity.clone();
         let mut worker = Worker::new(
             identity,
             make_hub,
@@ -2434,6 +2440,32 @@ impl Service {
                     Status::Failed(format!("cannot start the vitals thread: {error}"));
             }
         }
+        let relay: crate::relay::Shared = Arc::default();
+        if let Some(RelayHubs { send, read }) = relay_hubs {
+            let reader = crate::relay::Reader::new(
+                relay_identity.clone(),
+                read,
+                Arc::clone(&worker.feed),
+                Arc::clone(&relay),
+                Instant::now(),
+            );
+            let stop = Arc::clone(&feed_stop);
+            let read_spawned = std::thread::Builder::new()
+                .name("sjk-hub-relay-read".to_owned())
+                .spawn(move || crate::relay::run_reader(reader, &stop));
+            let (feed, shared, stop) = (
+                Arc::clone(&worker.feed),
+                Arc::clone(&relay),
+                Arc::clone(&feed_stop),
+            );
+            let send_spawned = std::thread::Builder::new()
+                .name("sjk-hub-relay-send".to_owned())
+                .spawn(move || crate::relay::run_sender(relay_identity, send, feed, shared, &stop));
+            if let Err(error) = read_spawned.and(send_spawned) {
+                lock(&snapshot).status =
+                    Status::Failed(format!("cannot start the toy relay threads: {error}"));
+            }
+        }
         let spawned = std::thread::Builder::new()
             .name("sjk-identity".to_owned())
             .spawn(move || {
@@ -2468,6 +2500,7 @@ impl Service {
             feed_stop,
             sharing,
             vitals,
+            relay,
             finished: Mutex::new(finished),
             note_tags: std::sync::atomic::AtomicU64::new(0),
         }
@@ -2799,6 +2832,32 @@ impl Service {
     /// The toy events the feed received for `server`, as [`Service::take_pings`].
     pub fn take_toy_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
         crate::feed::take_toy_events(&self.toys, server)
+    }
+
+    /// Relay `event` of the player's toy `toy` to the player in slot `target` at once
+    /// (`PROTOCOL.md`, "Toy relay"), from the slot the player claims. With `replace`, a
+    /// later one that also replaces takes its place while it waits (control frames).
+    pub fn relay_toy_event(&self, toy: String, event: String, target: u8, replace: bool) {
+        let (state, bell) = &*self.relay;
+        crate::feed::lock(state).push(crate::relay::Outgoing {
+            toy,
+            event,
+            target,
+            replace,
+        });
+        bell.notify_one();
+    }
+
+    /// Whether the toy relay reads the events meant for the player (a toy that may be
+    /// acted on is out); off drops the long poll at its next turn.
+    pub fn set_relay_listen(&self, listen: bool) {
+        crate::feed::lock(&self.relay.0).set_listen(listen);
+    }
+
+    /// The relayed toy events read for `server`, as [`Service::take_toy_events`].
+    pub fn take_relay_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
+        let queued = std::mem::take(crate::feed::lock(&self.relay.0).inbox());
+        crate::feed::take_toy_events(&Mutex::new(queued), server)
     }
 
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the

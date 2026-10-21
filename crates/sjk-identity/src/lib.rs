@@ -22,6 +22,7 @@ mod keys;
 pub mod logs;
 pub mod map_edits;
 pub mod name_emoji;
+pub mod relay;
 pub mod report;
 pub mod service;
 pub mod staff;
@@ -37,6 +38,7 @@ pub use feed::{ChatState, ReceivedLooks};
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use logs::{LogRequest, LogUpload};
+pub use relay::RelayHubs;
 pub use report::{
     BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, WorldNote,
 };
@@ -51,7 +53,7 @@ pub use wire::{
     DropMark, EconomyTables, Emote, Feed, FindEvent, FindMark, HOLOCRONS_LISTED, Holocron,
     HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, KyberPity, KyberTables,
     KyberTier, Look, LookEvent, LootTier, Medal, OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard,
-    OpenedUnlock, People, Person, Ping, Presence, Profile, RevealAnswer, Revealed, SharedVitals,
-    ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies, ShopDay, ToyEvent, Trust, Unlock,
-    Vitals, WornName, names_match, normal_form,
+    OpenedUnlock, People, Person, Ping, Presence, Profile, RelayBatch, RevealAnswer, Revealed,
+    SharedVitals, ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies, ShopDay, ToyEvent,
+    Trust, Unlock, Vitals, WornName, names_match, normal_form,
 };

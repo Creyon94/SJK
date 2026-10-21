@@ -84,6 +84,8 @@ const TOY_SWITCH_TOKEN: u16 = 1_311;
 const BOX_TOKEN: u16 = 1_314;
 /// Order 66's niche on Toys.
 const ORDER_TOKEN: u16 = 1_315;
+/// The Hax's niche on Toys.
+const HAX_TOKEN: u16 = 1_318;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
 /// The shader card's way to the Forge: Craft in the Forge (one not held) or Break down
@@ -91,10 +93,10 @@ const SABER_TOKEN: u16 = 1_316;
 const FORGE_LINK_TOKEN: u16 = 1_317;
 /// The Nameplates tab's See and share nameplates switch.
 const SHARE_TOKEN: u16 = 1_319;
-/// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
-const TOY_COUNT: usize = 3;
+/// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, then the Hax.
+const TOY_COUNT: usize = 4;
 /// Each toy's niche, in the order of [`Panel::toy`].
-const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN];
+const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN, HAX_TOKEN];
 /// The Shaders tab's view switches: the rack (a list) and the grid of cards.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
@@ -211,6 +213,8 @@ pub(crate) enum PanelAction {
     /// Turn Order 66 on (`true`) or off: the same as `toy_order66`, set rather than
     /// toggled.
     Order66(bool),
+    /// Turn the Hax on (`true`) or off: the same as `toy_hax`, set rather than toggled.
+    Hax(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -293,6 +297,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) cardboard_box: bool,
     /// The Order 66 toy is on now (kept as [`Self::illuminate`] is).
     pub(crate) order66: bool,
+    /// The Hax toy is on now (kept as [`Self::illuminate`] is).
+    pub(crate) hax: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -329,12 +335,14 @@ pub(crate) struct Panel {
     medal: usize,
     achievement: usize,
     shader: usize,
-    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66.
+    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax.
     toy: usize,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
     /// Order 66 was on, as the last frame's inputs said.
     order66_on: bool,
+    /// The Hax was on, as the last frame's inputs said.
+    hax_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
@@ -446,6 +454,7 @@ impl Panel {
             toy: 0,
             box_on: false,
             order66_on: false,
+            hax_on: false,
             share_on: false,
             card: 0,
             cards_shown: 0,
@@ -632,6 +641,7 @@ impl Panel {
                 .map_or(PanelAction::None, PanelAction::Wear),
             Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
+            Tab::Toys if self.toy == 3 => PanelAction::Hax(!self.hax_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Cards => {
@@ -1208,7 +1218,7 @@ impl Panel {
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
             FORGE_LINK_TOKEN => self.open_forge_link(),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
-            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
+            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN => {
                 let toy = TOY_TOKENS
                     .iter()
                     .position(|&niche| niche == token)
@@ -1408,6 +1418,7 @@ mod tests {
             illuminate: true,
             cardboard_box: false,
             order66: false,
+            hax: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
