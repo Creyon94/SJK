@@ -1151,7 +1151,9 @@ Profile page's See the collection) open it on its own:
   saber or Equip on the 2nd saber (the other half for a staff), Unequip the 2nd saber once
   worn there, which sets `cg_saberSkin2` (to the shader, `stock` from the stock row, or
   back to empty); Enter and a double click on a row do the same. A row the second wears
-  says "2nd blade".
+  says "2nd blade". Holding one saber of one blade, the room shows no switch and no row says
+  "2nd blade"; a second skin chosen before waits, and a line says it shows with two sabers or
+  a staff (chosen in the Profile's Saber tab, `saber1` and `saber2`).
   While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
   the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
   twice or more, or Craft (its cost) for one not held, dimmed while the shards fall

@@ -296,11 +296,13 @@ impl Panel {
             .holdings
             .worn_blade_skin(inputs.setting)
             .map(|skin| skin.id);
+        // "2nd blade" only while there is a second saber or a staff's other half to wear it.
+        let pair = inputs.pair != crate::saber_skins::Pair::None;
         std::iter::once(Row {
             skin: None,
             owned: true,
             worn: worn.is_none(),
-            second: inputs.second.trim() == crate::looks::STOCK_SECOND && worn.is_some(),
+            second: pair && inputs.second.trim() == crate::looks::STOCK_SECOND && worn.is_some(),
             count: 1,
             numbered: false,
         })
@@ -312,7 +314,7 @@ impl Panel {
                     skin: Some(skin),
                     owned: inputs.holdings.unlock(skin.id).is_some(),
                     worn: worn == Some(skin.id),
-                    second: inputs.second.trim() == skin.id && worn != Some(skin.id),
+                    second: pair && inputs.second.trim() == skin.id && worn != Some(skin.id),
                     count: inputs
                         .holdings
                         .unlock(skin.id)
@@ -1455,6 +1457,25 @@ impl Panel {
     fn target_switch(&mut self, frame: &Frame, inputs: &Inputs<'_>, [x, y]: [f32; 2]) -> f32 {
         let s = frame.s;
         let (first_word, second_word) = match self.pair {
+            // One saber of one blade: a second skin chosen before waits, and the page says
+            // how to show it, in place of the switch.
+            crate::saber_skins::Pair::None if !inputs.second.trim().is_empty() => {
+                let words = format!(
+                    "{}  Your 2nd blade shows with two sabers or a staff: Profile, Saber",
+                    symbols::SABER
+                );
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{words}"),
+                    frame.rect(x, y + 4.0, 700.0, 22.0),
+                    15.0 * s,
+                    color::QUIET,
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                return y + 34.0;
+            }
             crate::saber_skins::Pair::None => return y,
             crate::saber_skins::Pair::TwoSabers => ("1st saber", "2nd saber"),
             crate::saber_skins::Pair::Staff => ("1st half", "Other half"),
