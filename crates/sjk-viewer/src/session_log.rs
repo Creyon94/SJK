@@ -211,7 +211,7 @@ pub(crate) fn gather(context: &Context, home: &str) -> sjk_identity::LogUpload {
                     .and_then(|modified| modified.elapsed().ok())
                     .is_some_and(|age| age.as_secs() < CRASH_FRESH_SECS);
                 if fresh {
-                    logs.push_str(&section("The last crash report", &path, CRASH_SENT));
+                    logs.push_str(&crash_section(&path, CRASH_SENT));
                 }
             }
         }
@@ -243,6 +243,37 @@ fn section(title: &str, path: &Path, max: u64) -> String {
         ),
         None => format!("\n===== {title} ({name}): none =====\n"),
     }
+}
+
+/// The last crash report: its head (kind, build, card, message, backtrace) whole, then
+/// as many of its last lines as fit. A tail alone kept only the console lines before the
+/// crash and lost what crashed (Vin's, 21/10/2026).
+fn crash_section(path: &Path, max: u64) -> String {
+    const TITLE: &str = "The last crash report";
+    const TRAIL: &str = "\nLast lines:\n";
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return section(TITLE, path, max);
+    };
+    let max = usize::try_from(max).unwrap_or(usize::MAX);
+    let (head, trail) = match text.find(TRAIL) {
+        Some(at) => text.split_at(at + TRAIL.len()),
+        None => (text.as_str(), ""),
+    };
+    if text.len() <= max || head.len() >= max {
+        return section(TITLE, path, max as u64);
+    }
+    let mut start = trail.len().saturating_sub(max - head.len());
+    while !trail.is_char_boundary(start) {
+        start += 1;
+    }
+    let mut newest = &trail[start..];
+    if start > 0
+        && let Some(end) = newest.find('\n')
+    {
+        newest = &newest[end + 1..];
+    }
+    let end = if newest.ends_with('\n') { "" } else { "\n" };
+    format!("\n===== {TITLE} (last-crash.txt, newest of its last lines) =====\n{head}{newest}{end}")
 }
 
 #[cfg(test)]
@@ -302,6 +333,26 @@ mod tests {
             part,
             "\n===== This session (x.log, newest lines) =====\nthird\n"
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_crash_report_keeps_its_head_and_its_newest_lines() {
+        let dir = temp_dir("crash");
+        let path = dir.join("last-crash.txt");
+        let head = "SJK crash report (panic)\nUptime: 18 s\n\nMessage:\nwgpu error: Out of Memory\n\nLast lines:\n";
+        let trail: String = (0..100).map(|n| format!("line {n}\n")).collect();
+        std::fs::write(&path, format!("{head}{trail}")).unwrap();
+        let part = crash_section(&path, (head.len() + 30) as u64);
+        assert!(
+            part.contains("Message:\nwgpu error: Out of Memory\n"),
+            "{part}"
+        );
+        assert!(part.ends_with("line 98\nline 99\n"), "{part}");
+        assert!(!part.contains("line 0\n"), "{part}");
+        // A small report goes whole.
+        let whole = crash_section(&path, 1_000_000);
+        assert!(whole.contains("line 0\n") && whole.contains("Out of Memory"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
