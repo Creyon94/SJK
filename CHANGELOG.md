@@ -28,8 +28,18 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1021.3 (Alpha) | 21/10/2026
 
+Fewer crashes and better crash reports: a crash from a graphics card out of video memory now says what it could not make, so the next fix can aim at it. The Varykino Blossom, a new Mythical blade, joins the holocrons.
+
+> Crash fixes: No crash on a map whose sky lost its pictures with `r_cubeMapping` on.
+> Black blades: JA+ black lightsabers draw right again, without a black square.
+> Video memory: Texture detail shrinks the saber glows too; crashes name what failed.
+> Varykino Blossom: A new Mythical blade that sheds blossoms when you swing it.
+> Card perks: Cards show a badge for each perk they bring.
+> Mythical holocron: A new look, a gold engram that breathes round a glowing core.
+
+- The Mythical holocron has a new look: a faceted gold engram whose plates breathe apart round a glowing core, runes on every plate _(Sol)_
 - No more crash on a map whose sky has none of its pictures (nightmare) once reflections (`r_cubeMapping`) are on _(Sol)_
 - JA+ black lightsabers draw right again: since 2026.1021.2 they showed black squares around a lit blade _(Sol)_
 - Texture detail (Settings > Renderer) now shrinks the lightsaber glows too: on a small graphics card that frees about 280 MB of video memory on every map and in the menus, where a 3 GB card still ran out _(Sol, after Vin's report)_
