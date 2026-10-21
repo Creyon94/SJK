@@ -1227,7 +1227,15 @@ impl Panel {
             .unlock(skin.id)
             .filter(|unlock| unlock.medal.is_none() && unlock.card.is_none())
             .map_or(0, |unlock| unlock.count);
-        let choices = crate::economy::choices(skin, held, shards);
+        // A copy of its blade card lowers the craft cost (21/10/2026).
+        let card = inputs
+            .snapshot
+            .filter(|_| inputs.enabled)
+            .and_then(|snapshot| snapshot.me.as_ref())
+            .and_then(|me| {
+                crate::economy::blade_card(skin, &me.cards, &crate::cards::faces::current())
+            });
+        let choices = crate::economy::choices(skin, held, shards, card);
         let now = Instant::now();
         let armed = |token: u16| {
             self.trade_armed.is_some_and(|(armed, id, at)| {
@@ -1263,6 +1271,12 @@ impl Panel {
             let cost = crate::economy::shards_text(cost);
             let label = if craft_armed {
                 format!("Confirm: {cost} shards")
+            } else if let Some((finish, off)) = choices.blade_card {
+                format!(
+                    "Craft  {cost} {}  {} card -{off} %",
+                    symbols::SHARD,
+                    finish.name
+                )
             } else {
                 format!("Craft  {cost} {}", symbols::SHARD)
             };

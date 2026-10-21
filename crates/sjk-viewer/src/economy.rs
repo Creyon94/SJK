@@ -33,6 +33,10 @@ pub(crate) struct Tables {
     pub(crate) shop_in_shards: bool,
     /// What an Uncommon and a Rare holocron cost in credits; 0 when not for sale.
     pub(crate) holocrons: [u64; 2],
+    /// What crafting a shader costs while the player holds a copy of its blade card, in
+    /// per cent of the craft cost, by the best copy's finish ([`crate::cards::FINISHES`]'
+    /// order); 100 is no discount, as hubs before 21/10/2026 take.
+    pub(crate) blade_card_craft: [u64; 3],
 }
 
 /// This client's copy of the hub's tables (`src/economy.rs` there, provisional
@@ -43,6 +47,7 @@ pub(crate) const BUILT_IN: Tables = Tables {
     shop: [30, 75, 225, 600, 1_500],
     shop_in_shards: true,
     holocrons: [150, 400],
+    blade_card_craft: [75, 50, 50],
 };
 
 /// The holocron tiers credits may buy, by the hub's ids, in [`Tables::holocrons`]' order.
@@ -77,6 +82,14 @@ fn of_hub(economy: &sjk_identity::EconomyTables) -> Option<Tables> {
         shop: row(&economy.shop)?,
         shop_in_shards: economy.shop_currency == "shards",
         holocrons: HOLOCRONS_FOR_SALE.map(|tier| economy.holocrons.get(tier).copied().unwrap_or(0)),
+        blade_card_craft: crate::cards::FINISHES.map(|finish| {
+            economy
+                .blade_card_craft
+                .get(finish.id)
+                .copied()
+                .filter(|share| (1..=100).contains(share))
+                .unwrap_or(100)
+        }),
     })
 }
 
@@ -124,8 +137,35 @@ pub(crate) fn shards_text(shards: u64) -> String {
     crate::cards::grouped(shards)
 }
 
+/// The finish of the best revealed copy among `cards` (the player's) of a blade card of
+/// `skin` (`faces`' cards whose `blade` it is), `None` without one.
+pub(crate) fn blade_card(
+    skin: &Unlockable,
+    cards: &[sjk_identity::CardStack],
+    faces: &crate::cards::faces::Faces,
+) -> Option<&'static crate::cards::Finish> {
+    crate::cards::stacks(cards)
+        .into_iter()
+        .filter(|stack| {
+            stack
+                .card
+                .as_deref()
+                .and_then(|id| faces.find(id))
+                .is_some_and(|(_, face)| face.blade.as_deref() == Some(skin.id))
+        })
+        .map(|stack| stack.finish)
+        .max_by_key(|finish| finish.index)
+}
+
+/// The per cent of the craft cost paid with a copy of finish `finish` of the shader's
+/// blade card (100: none, or a hub that gives no discount).
+pub(crate) fn blade_card_share(finish: &crate::cards::Finish) -> u64 {
+    current().blade_card_craft[finish.index]
+}
+
 /// What a shader card may offer for `skin`, held `held` times by grant or drops (a
-/// medal's copy is not counted), the player holding `shards`.
+/// medal's copy is not counted), the player holding `shards` and, at best, a copy of its
+/// blade card of finish `card` ([`blade_card`]).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Choices {
     /// Shatter one duplicate for this many shards: only of the trade, with two or more.
@@ -134,22 +174,36 @@ pub(crate) struct Choices {
     pub(crate) craft: Option<u64>,
     /// Whether the player's shards pay for the craft.
     pub(crate) affordable: bool,
+    /// The blade card copy's finish that lowered [`Choices::craft`], and by how much in
+    /// per cent; `None` when the craft is at its full cost or not offered.
+    pub(crate) blade_card: Option<(&'static crate::cards::Finish, u64)>,
 }
 
 /// What a shader card may offer for `skin` (see [`Choices`]).
-pub(crate) fn choices(skin: &Unlockable, held: u32, shards: u64) -> Choices {
+pub(crate) fn choices(
+    skin: &Unlockable,
+    held: u32,
+    shards: u64,
+    card: Option<&'static crate::cards::Finish>,
+) -> Choices {
     if !in_trade(skin) {
         return Choices {
             shatter: None,
             craft: None,
             affordable: false,
+            blade_card: None,
         };
     }
-    let cost = craft_cost(skin.tier);
+    let full = craft_cost(skin.tier);
+    let blade_card = card
+        .map(|finish| (finish, 100 - blade_card_share(finish)))
+        .filter(|(_, off)| *off > 0 && held == 0);
+    let cost = blade_card.map_or(full, |(_, off)| full * (100 - off) / 100);
     Choices {
         shatter: (held > 1).then(|| shatter_yield(skin.tier)),
         craft: (held == 0).then_some(cost),
         affordable: shards >= cost,
+        blade_card,
     }
 }
 
@@ -247,6 +301,7 @@ mod tests {
         assert_eq!(BUILT_IN.shop, [30, 75, 225, 600, 1_500]);
         const { assert!(BUILT_IN.shop_in_shards) };
         assert_eq!(BUILT_IN.holocrons, [150, 400]);
+        assert_eq!(BUILT_IN.blade_card_craft, [75, 50, 50]);
         for table in [BUILT_IN.shatter, BUILT_IN.craft, BUILT_IN.shop] {
             assert!(table.windows(2).all(|pair| pair[0] < pair[1]));
         }
@@ -277,6 +332,20 @@ mod tests {
         })
         .unwrap();
         assert_eq!((newer.shop_in_shards, newer.holocrons), (true, [0, 400]));
+        // A hub before blade cards crafted for less: the full cost with every finish.
+        assert_eq!(newer.blade_card_craft, [100, 100, 100]);
+        let cards = of_hub(&sjk_identity::EconomyTables {
+            blade_card_craft: [("normal".to_owned(), 75), ("holo".to_owned(), 0)]
+                .into_iter()
+                .collect(),
+            ..wire(vec![1, 2, 3, 4, 5])
+        })
+        .unwrap();
+        assert_eq!(
+            cards.blade_card_craft,
+            [75, 100, 100],
+            "a zero is no discount"
+        );
         assert_eq!(of_hub(&wire(vec![1, 2, 3, 4])), None, "four tiers");
         assert_eq!(of_hub(&wire(vec![0, 2, 3, 4, 5])), None, "a zero");
     }
@@ -302,25 +371,49 @@ mod tests {
     #[test]
     fn a_card_offers_shatter_for_duplicates_and_craft_for_what_is_missing() {
         let tidal = unlockables::find("saber_tidal").unwrap();
-        let none = choices(tidal, 0, 0);
+        let none = choices(tidal, 0, 0, None);
         assert_eq!(
             (none.shatter, none.craft, none.affordable),
             (None, Some(40), false)
         );
-        assert!(choices(tidal, 0, 40).affordable);
-        let one = choices(tidal, 1, 500);
+        assert!(choices(tidal, 0, 40, None).affordable);
+        let one = choices(tidal, 1, 500, None);
         assert_eq!(
             (one.shatter, one.craft),
             (None, None),
             "the last copy stays"
         );
-        assert_eq!(choices(tidal, 3, 0).shatter, Some(5));
+        assert_eq!(choices(tidal, 3, 0, None).shatter, Some(5));
         let glitch = unlockables::find("saber_glitch").unwrap();
-        let medal = choices(glitch, 4, 10_000);
+        let medal = choices(glitch, 4, 10_000, None);
         assert_eq!((medal.shatter, medal.craft), (None, None));
         assert_eq!(shatter_yield(Rarity::Mythical), 150);
         assert_eq!(craft_cost(Rarity::Rare), 300);
         assert_eq!(shop_price(Rarity::Legendary), 600);
+    }
+
+    /// A blade card's copy crafts its shader at the shop's price (Normal) or half (Holo,
+    /// Solar), and says so; held, nothing is offered.
+    #[test]
+    fn a_blade_card_crafts_its_shader_for_less() {
+        let [normal, holo, solar] = &crate::cards::FINISHES;
+        let tidal = unlockables::find("saber_tidal").unwrap();
+        let with = choices(tidal, 0, 20, Some(normal));
+        assert_eq!((with.craft, with.affordable), (Some(30), false));
+        assert_eq!(
+            with.blade_card.map(|(finish, off)| (finish.id, off)),
+            Some(("normal", 25))
+        );
+        let half = choices(tidal, 0, 20, Some(holo));
+        assert_eq!((half.craft, half.affordable), (Some(20), true));
+        assert_eq!(choices(tidal, 0, 0, Some(solar)).craft, Some(20));
+        let held = choices(tidal, 1, 0, Some(holo));
+        assert_eq!((held.craft, held.blade_card.is_none()), (None, true));
+        let mythical = unlockables::blade_skins()
+            .find(|skin| in_trade(skin) && skin.tier == Rarity::Mythical)
+            .unwrap();
+        assert_eq!(choices(mythical, 0, 0, Some(normal)).craft, Some(1_500));
+        assert_eq!(choices(mythical, 0, 0, Some(holo)).craft, Some(1_000));
     }
 
     #[test]

@@ -237,6 +237,9 @@ fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
             if let Some(drop) = face.solar_drop() {
                 lines.push(Line::status(drop));
             }
+            if let Some(craft) = face.crafts_for_less() {
+                lines.push(Line::status(craft));
+            }
             // No number, whatever the kind (Sol, 20/10/2026): it stays the card's id.
             lines.push(Line::status(format!(
                 "{} card. {}, {}.",
