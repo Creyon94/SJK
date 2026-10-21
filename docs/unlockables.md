@@ -67,41 +67,45 @@ Tiers in this table are Sol's after his review of 20/10/2026, which moved 26 bla
 (Clone Wars and Exegol Rift up to Mythical; Molten, Spectral, Reactor, Bleeding Kyber, Sith
 Alchemy, Felucia Spores, Phoenix Squadron and eight of Creyon's mythicals down to Legendary;
 Storm, Prism, Unstable, Chameleon and four of Creyon's legendaries down to Rare; Targeting
-Display up to Uncommon). The rounds' notes below keep the tiers the blades came in.
+Display up to Uncommon), and after his adjustments of 21/10/2026, which moved 38 more
+(048 053 054 055 056 062 064 066 069 075 to Legendary; 043 063 068 070 072 074 078 079 088
+089 090 097 139 to Rare; 005 006 014 036 to Uncommon; 004 012 013 019 023 030 031 103 107
+108 133 136 to Common; 11 mythicals left). The rounds' notes below keep the tiers the blades
+came in.
 
 | No. | Id | Name | Tier | Smith | Drops |
 | --- | --- | --- | --- | --- | --- |
 | 001 | `saber_sun` | Sun blade | Mythical | Sol | yes |
 | 002 | `saber_storm` | Storm blade | Rare | Sol | yes |
 | 003 | `saber_void` | Void blade | Mythical | Sol | yes |
-| 004 | `saber_frost` | Frost blade | Rare | Sol | yes |
-| 005 | `saber_prism` | Prism blade | Rare | Sol | yes |
-| 006 | `saber_unstable` | Unstable blade | Rare | Sol | yes |
+| 004 | `saber_frost` | Frost blade | Common | Sol | yes |
+| 005 | `saber_prism` | Prism blade | Uncommon | Sol | yes |
+| 006 | `saber_unstable` | Unstable blade | Uncommon | Sol | yes |
 | 007 | `saber_molten` | Molten blade | Legendary | Sol | yes |
 | 008 | `saber_spectral` | Spectral blade | Legendary | Sol | yes |
 | 009 | `saber_glitch` | Glitch blade | Rare | Sol | no |
 | 010 | `saber_hologram` | Hologram blade | Rare | Sol | no |
 | 011 | `saber_runic` | Runic blade | Rare | Sol | no |
-| 012 | `saber_chameleon` | Chameleon blade | Rare | Sol | yes |
-| 013 | `saber_banner` | Banner blade | Rare | Sol | yes |
-| 014 | `saber_heartbeat` | Heartbeat blade | Rare | Sol | yes |
+| 012 | `saber_chameleon` | Chameleon blade | Common | Sol | yes |
+| 013 | `saber_banner` | Banner blade | Common | Sol | yes |
+| 014 | `saber_heartbeat` | Heartbeat blade | Uncommon | Sol | yes |
 | 015 | `saber_tidal` | Kamino blade | Common | Creyon | yes |
 | 016 | `saber_circuit` | Droid Logic blade | Common | Creyon | yes |
 | 017 | `saber_aurora` | Hoth Aurora blade | Common | Creyon | yes |
 | 018 | `saber_echo` | Echo Base blade | Common | Creyon | yes |
-| 019 | `saber_nebula` | Nebula blade | Uncommon | Creyon | yes |
+| 019 | `saber_nebula` | Nebula blade | Common | Creyon | yes |
 | 020 | `saber_cinder` | Mustafar Ember blade | Uncommon | Creyon | yes |
 | 021 | `saber_venom` | Geonosis Acid blade | Uncommon | Creyon | yes |
 | 022 | `saber_sakura` | Naboo Blossom blade | Uncommon | Creyon | yes |
-| 023 | `saber_firefly` | Endor Lights blade | Uncommon | Creyon | yes |
+| 023 | `saber_firefly` | Endor Lights blade | Common | Creyon | yes |
 | 024 | `saber_slate` | Durasteel blade | Common | Creyon | yes |
 | 025 | `saber_amber` | Tatooine Gold blade | Common | Creyon | yes |
 | 026 | `saber_lilac` | Lothal Twilight blade | Common | Creyon | yes |
 | 027 | `saber_mint` | Yavin Jungle blade | Common | Creyon | yes |
 | 028 | `saber_coral` | Mon Cala Coral blade | Common | Creyon | yes |
 | 029 | `saber_ivory` | Jedi Temple blade | Common | Creyon | yes |
-| 030 | `saber_glacier` | Ilum blade | Uncommon | Creyon | yes |
-| 031 | `saber_dusk` | Binary Sunset blade | Uncommon | Creyon | yes |
+| 030 | `saber_glacier` | Ilum blade | Common | Creyon | yes |
+| 031 | `saber_dusk` | Binary Sunset blade | Common | Creyon | yes |
 | 032 | `saber_ruby` | Sith Ruby blade | Uncommon | Creyon | yes |
 | 033 | `saber_amethyst` | Kyber Amethyst blade | Uncommon | Creyon | yes |
 | 034 | `saber_jade` | Dagobah Jade blade | Uncommon | Creyon | yes |
@@ -113,43 +117,43 @@ Display up to Uncommon). The rounds' notes below keep the tiers the blades came 
 | 040 | `saber_reactor` | Reactor blade | Legendary | Creyon | yes |
 | 041 | `saber_bleeding` | Bleeding Kyber blade | Legendary | Creyon | yes |
 | 042 | `saber_sketch` | Death Star Plans blade | Rare | Creyon | yes |
-| 043 | `saber_hourglass` | Beskar Forge blade | Legendary | Creyon | yes |
+| 043 | `saber_hourglass` | Beskar Forge blade | Rare | Creyon | yes |
 | 044 | `saber_fiber` | Kyber Cluster blade | Legendary | Creyon | yes |
 | 045 | `saber_serpent` | Sith Alchemy blade | Legendary | Creyon | yes |
 | 046 | `saber_monarch` | Felucia Spores blade | Legendary | Creyon | yes |
 | 047 | `saber_phoenix` | Phoenix Squadron blade | Legendary | Creyon | yes |
-| 048 | `saber_quantum` | Mortis blade | Mythical | Creyon | yes |
+| 048 | `saber_quantum` | Mortis blade | Legendary | Creyon | yes |
 | 049 | `saber_comic` | Clone Wars blade | Mythical | Creyon | yes |
 | 050 | `saber_quicksilver` | Liquid Beskar blade | Legendary | Creyon | yes |
 | 051 | `saber_obsidian` | Obsidian Edge blade | Mythical | Creyon | yes |
 | 052 | `saber_abyssal_eye` | Abyssal Eye blade | Mythical | Creyon | yes |
-| 053 | `saber_aurora_wyrm` | Ilum Aurora Storm blade | Mythical | Creyon | yes |
-| 054 | `saber_balance` | Balance blade | Mythical | Creyon | yes |
-| 055 | `saber_between_worlds` | Between Worlds blade | Mythical | Creyon | yes |
-| 056 | `saber_big_bang` | Big Bang blade | Mythical | Creyon | yes |
+| 053 | `saber_aurora_wyrm` | Ilum Aurora Storm blade | Legendary | Creyon | yes |
+| 054 | `saber_balance` | Balance blade | Legendary | Creyon | yes |
+| 055 | `saber_between_worlds` | Between Worlds blade | Legendary | Creyon | yes |
+| 056 | `saber_big_bang` | Big Bang blade | Legendary | Creyon | yes |
 | 057 | `saber_carbonite` | Carbonite blade | Mythical | Creyon | yes |
 | 058 | `saber_dyson_sphere` | Dyson Sphere blade | Legendary | Creyon | yes |
 | 059 | `saber_eclipse` | Eclipse blade | Mythical | Creyon | yes |
 | 060 | `saber_event_horizon` | Event Horizon blade | Mythical | Creyon | yes |
 | 061 | `saber_exogorth` | Exogorth blade | Mythical | Creyon | yes |
-| 062 | `saber_hyperspace` | Hyperspace blade | Mythical | Creyon | yes |
-| 063 | `saber_kyber_heart` | Kyber Heart blade | Mythical | Creyon | yes |
-| 064 | `saber_nebula_song` | Nebula Song blade | Mythical | Creyon | yes |
+| 062 | `saber_hyperspace` | Hyperspace blade | Legendary | Creyon | yes |
+| 063 | `saber_kyber_heart` | Kyber Heart blade | Rare | Creyon | yes |
+| 064 | `saber_nebula_song` | Nebula Song blade | Legendary | Creyon | yes |
 | 065 | `saber_quasar` | Quasar blade | Legendary | Creyon | yes |
-| 066 | `saber_singing_kyber` | Singing Kyber blade | Mythical | Creyon | yes |
+| 066 | `saber_singing_kyber` | Singing Kyber blade | Legendary | Creyon | yes |
 | 067 | `saber_sith_holocron` | Sith Holocron blade | Legendary | Creyon | yes |
-| 068 | `saber_star_dragon` | Ashla Radiance blade | Legendary | Creyon | yes |
-| 069 | `saber_starforge` | Starforge blade | Mythical | Creyon | yes |
-| 070 | `saber_superlaser` | Superlaser blade | Legendary | Creyon | yes |
+| 068 | `saber_star_dragon` | Ashla Radiance blade | Rare | Creyon | yes |
+| 069 | `saber_starforge` | Starforge blade | Legendary | Creyon | yes |
+| 070 | `saber_superlaser` | Superlaser blade | Rare | Creyon | yes |
 | 071 | `saber_uneti_tree` | Uneti Tree blade | Legendary | Creyon | yes |
-| 072 | `saber_witchfire` | Witchfire blade | Legendary | Creyon | yes |
+| 072 | `saber_witchfire` | Witchfire blade | Rare | Creyon | yes |
 | 073 | `saber_world_shift` | World Shift blade | Mythical | Creyon | yes |
-| 074 | `saber_wraithlight` | Wraithlight blade | Legendary | Creyon | yes |
-| 075 | `saber_lightspeed_ram` | Holdo Maneuver blade | Mythical | Creyon | yes |
+| 074 | `saber_wraithlight` | Wraithlight blade | Rare | Creyon | yes |
+| 075 | `saber_lightspeed_ram` | Holdo Maneuver blade | Legendary | Creyon | yes |
 | 076 | `saber_hoth_avalanche` | Hoth Avalanche blade | Rare | Creyon | yes |
 | 077 | `saber_blood_moon` | Dathomir Blood Moon blade | Legendary | Creyon | yes |
-| 078 | `saber_force_echo` | Force Echo blade | Legendary | Creyon | yes |
-| 079 | `saber_hypermatter` | Hypermatter blade | Legendary | Creyon | yes |
+| 078 | `saber_force_echo` | Force Echo blade | Rare | Creyon | yes |
+| 079 | `saber_hypermatter` | Hypermatter blade | Rare | Creyon | yes |
 | 080 | `saber_kessel_run` | Kessel Run blade | Rare | Creyon | yes |
 | 081 | `saber_unknown_regions` | Unknown Regions blade | Legendary | Creyon | yes |
 | 082 | `saber_krayt_pearl` | Krayt Pearl blade | Rare | Creyon | yes |
@@ -158,27 +162,27 @@ Display up to Uncommon). The rounds' notes below keep the tiers the blades came 
 | 085 | `saber_bespin_storm` | Bespin Storm blade | Legendary | Creyon | yes |
 | 086 | `saber_scarif_tide` | Scarif Tide blade | Legendary | Creyon | yes |
 | 087 | `saber_assassin_droid` | Assassin Droid blade | Rare | Creyon | yes |
-| 088 | `saber_aurodium` | Aurodium blade | Legendary | Creyon | yes |
-| 089 | `saber_kashyyyk_monsoon` | Kashyyyk Monsoon blade | Legendary | Creyon | yes |
-| 090 | `saber_malachor_forge` | Malachor Forge blade | Legendary | Creyon | yes |
+| 088 | `saber_aurodium` | Aurodium blade | Rare | Creyon | yes |
+| 089 | `saber_kashyyyk_monsoon` | Kashyyyk Monsoon blade | Rare | Creyon | yes |
+| 090 | `saber_malachor_forge` | Malachor Forge blade | Rare | Creyon | yes |
 | 091 | `saber_yavin_vines` | Yavin Vines blade | Legendary | Creyon | yes |
 | 092 | `saber_exegol_rift` | Exegol Rift blade | Mythical | Creyon | yes |
 | 093 | `saber_shattered_kyber` | Shattered Kyber blade | Legendary | Creyon | yes |
 | 094 | `saber_twin_suns` | Twin Suns blade | Legendary | Creyon | yes |
 | 095 | `saber_jedi_spirits` | Jedi Spirits blade | Legendary | Creyon | yes |
 | 096 | `saber_ord_mantell_storm` | Ord Mantell Thunderhead blade | Legendary | Creyon | yes |
-| 097 | `saber_mustafar_eruption` | Mustafar Eruption blade | Legendary | Creyon | yes |
+| 097 | `saber_mustafar_eruption` | Mustafar Eruption blade | Rare | Creyon | yes |
 | 098 | `saber_hyperlane` | Hyperlane blade | Legendary | Creyon | yes |
 | 099 | `saber_ahch_to_glow` | Ahch-To Glow blade | Rare | Creyon | yes |
 | 100 | `saber_imperial_schematics` | Imperial Schematics blade | Rare | Creyon | yes |
 | 101 | `saber_jedi_texts` | Jedi Texts blade | Rare | Creyon | yes |
 | 102 | `saber_star_map` | Star Map blade | Rare | Creyon | yes |
-| 103 | `saber_ilum_frost` | Ilum Frost blade | Rare | Creyon | yes |
+| 103 | `saber_ilum_frost` | Ilum Frost blade | Common | Creyon | yes |
 | 104 | `saber_christophsis_crystal` | Christophsis Crystal blade | Rare | Creyon | yes |
 | 105 | `saber_deflector_shield` | Deflector Shield blade | Rare | Creyon | yes |
 | 106 | `saber_healed_kyber` | Healed Kyber blade | Rare | Creyon | yes |
-| 107 | `saber_temple_mosaic` | Temple Mosaic blade | Rare | Creyon | yes |
-| 108 | `saber_dagobah_wisps` | Dagobah Wisps blade | Rare | Creyon | yes |
+| 107 | `saber_temple_mosaic` | Temple Mosaic blade | Common | Creyon | yes |
+| 108 | `saber_dagobah_wisps` | Dagobah Wisps blade | Common | Creyon | yes |
 | 109 | `saber_nar_shaddaa_rain` | Nar Shaddaa Rain blade | Rare | Creyon | yes |
 | 110 | `saber_navigation_beacon` | Navigation Beacon blade | Rare | Creyon | yes |
 | 111 | `saber_puzzle_holocron` | Puzzle Holocron blade | Rare | Creyon | yes |
@@ -203,13 +207,13 @@ Display up to Uncommon). The rounds' notes below keep the tiers the blades came 
 | 130 | `saber_flimsiplast` | Flimsiplast blade | Uncommon | Creyon | yes |
 | 131 | `saber_canto_bight` | Canto Bight blade | Uncommon | Creyon | yes |
 | 132 | `saber_sensor_sweep` | Sensor Sweep blade | Uncommon | Creyon | yes |
-| 133 | `saber_takodana_rain` | Takodana Rain blade | Uncommon | Creyon | yes |
+| 133 | `saber_takodana_rain` | Takodana Rain blade | Common | Creyon | yes |
 | 134 | `saber_starfighter_canopy` | Starfighter Canopy blade | Uncommon | Creyon | yes |
 | 135 | `saber_distress_beacon` | Distress Beacon blade | Uncommon | Creyon | yes |
-| 136 | `saber_orto_plutonia` | Orto Plutonia blade | Uncommon | Creyon | yes |
+| 136 | `saber_orto_plutonia` | Orto Plutonia blade | Common | Creyon | yes |
 | 137 | `saber_rhen_var_frost` | Rhen Var Frost blade | Uncommon | Creyon | yes |
 | 138 | `saber_seismic_charge` | Seismic Charge blade | Uncommon | Creyon | yes |
-| 139 | `saber_thermal_fuse` | Thermal Fuse blade | Uncommon | Creyon | yes |
+| 139 | `saber_thermal_fuse` | Thermal Fuse blade | Rare | Creyon | yes |
 | 140 | `saber_senate_glass` | Senate Glass blade | Uncommon | Creyon | yes |
 | 141 | `saber_holonet_feed` | Holonet Feed blade | Uncommon | Creyon | yes |
 | 142 | `saber_holo_map` | Holo-Map blade | Uncommon | Creyon | yes |
