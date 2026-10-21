@@ -67,13 +67,8 @@ pub(crate) struct Tier {
     /// The odds a drop is this tier, in parts per thousand; the four sum to 1000. This
     /// client's copy: what players read is the hub's ([`Tier::odds`]).
     pub(crate) per_mille: u16,
-    /// Position in [`TIERS`] (a crystal's in [`crate::kyber::TIERS`]): the rank, which the
-    /// odds tables and the rarity effects read.
+    /// Position in [`TIERS`].
     pub(crate) index: usize,
-    /// Position among every tier the Holocrons tab lists ([`slot`]): a holocron's is its
-    /// index, a kyber crystal's comes after the holocrons' ([`COUNT`] + its index). The
-    /// tab's rows, its 3D stage ([`stage::Request::tier`]) and its opening read it.
-    pub(crate) slot: usize,
     /// The colour of the point light the Profile screen's holocron casts, linear RGB on
     /// the scale of Illuminate's `[1.5, 1.3, 1.0]` and not clamped: the one in
     /// `scripts/holocron_assets.py` (`Tier.light`) and `assets/holocron/README.md`.
@@ -90,7 +85,6 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         colour: rgb(0x2F_C77A),
         per_mille: 600,
         index: 0,
-        slot: 0,
         light: [0.55, 1.50, 0.60],
     },
     Tier {
@@ -100,7 +94,6 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         colour: rgb(0x2E_7BFF),
         per_mille: 280,
         index: 1,
-        slot: 1,
         light: [0.50, 1.00, 1.75],
     },
     Tier {
@@ -110,7 +103,6 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         colour: rgb(0xA6_4DFF),
         per_mille: 105,
         index: 2,
-        slot: 2,
         light: [1.25, 0.45, 1.75],
     },
     Tier {
@@ -120,35 +112,11 @@ pub(crate) const TIERS: [Tier; COUNT] = [
         colour: rgb(0xFF_C933),
         per_mille: 15,
         index: 3,
-        slot: 3,
         light: [1.85, 1.30, 0.40],
     },
 ];
 
-/// How many tiers the Holocrons tab lists: the holocrons', then the kyber crystals'
-/// ([`crate::kyber::TIERS`]).
-pub(crate) const SLOTS: usize = COUNT + crate::kyber::COUNT;
-
-/// The tier at `slot` ([`Tier::slot`]), kept to the tiers there are.
-pub(crate) fn slot(slot: usize) -> &'static Tier {
-    match slot {
-        slot if slot < COUNT => &TIERS[slot],
-        slot => &crate::kyber::TIERS[(slot - COUNT).min(crate::kyber::COUNT - 1)],
-    }
-}
-
-/// The holocron or kyber crystal tier the hub's `id` names, if the client knows it. What
-/// is about holocrons found by play reads [`Tier::from_id`], which knows holocrons only.
-pub(crate) fn any(id: &str) -> Option<&'static Tier> {
-    Tier::from_id(id).or_else(|| crate::kyber::from_id(id))
-}
-
 impl Tier {
-    /// Whether this is a kyber crystal's tier ([`crate::kyber`]), not a holocron's.
-    pub(crate) const fn is_kyber(&self) -> bool {
-        self.slot >= COUNT
-    }
-
     /// How often a drop is this tier, as players read it ("10.5%"): the hub's odds.
     pub(crate) fn odds(&self) -> String {
         crate::cards::loot::percent(crate::cards::loot::drop(self.index))
@@ -170,9 +138,6 @@ impl Tier {
     /// What the Profile screen says of the tier under its list: how often it drops and who
     /// hears of a drop (what opening one gives is [`crate::cards::inside`]).
     pub(crate) const fn about(&self) -> &'static str {
-        if self.is_kyber() {
-            return crate::kyber::ABOUT;
-        }
         match self.index {
             0 => "The commonest holocron: about 6 in 10 drops.",
             1 => "About 3 in 10 drops.",
@@ -200,7 +165,7 @@ impl Tier {
     /// Whether a drop of this tier is told to every SJK player (legendary and mythical)
     /// and not just to its owner.
     pub(crate) fn is_announced(&self) -> bool {
-        !self.is_kyber() && self.index >= 2
+        self.index >= 2
     }
 }
 
@@ -232,22 +197,18 @@ pub(crate) struct Entry {
     pub(crate) dropped: i64,
     /// Staff gave it rather than play.
     pub(crate) gift: bool,
-    /// An achievement earned it (a kyber crystal, source `achievement`).
-    pub(crate) earned: bool,
     /// The team's note as plain text; only on a gift, often empty.
     pub(crate) note: String,
 }
 
 impl Entry {
-    /// Read a hub's entry, a holocron or a kyber crystal; `None` for a tier the client
-    /// does not know.
+    /// Read a hub's entry; `None` for a tier the client does not know.
     pub(crate) fn from_wire(holocron: &Holocron) -> Option<Self> {
         Some(Self {
             id: holocron.id,
-            tier: any(&holocron.tier)?,
+            tier: Tier::from_id(&holocron.tier)?,
             dropped: holocron.dropped,
             gift: holocron.source == "staff",
-            earned: holocron.source == "achievement",
             note: crate::medals::plain_note(&holocron.note),
         })
     }
@@ -256,13 +217,6 @@ impl Entry {
     /// team 10/10/2026 14:05" for a gift; no date when the hub did not say when.
     pub(crate) fn when(&self) -> String {
         let date = when_text(self.dropped);
-        if self.earned {
-            return if date.is_empty() {
-                "Earned from an achievement".to_owned()
-            } else {
-                format!("Earned {date}")
-            };
-        }
         match (self.gift, date.is_empty()) {
             (true, true) => "A gift from the SJK team".to_owned(),
             (true, false) => format!("A gift from the SJK team, {date}"),
@@ -272,13 +226,9 @@ impl Entry {
     }
 }
 
-/// The known holocrons of a profile's list, in the hub's order (newest first): kyber
-/// crystals left out.
+/// The known holocrons of a profile's list, in the hub's order (newest first).
 pub(crate) fn entries(list: &[Holocron]) -> Vec<Entry> {
-    list.iter()
-        .filter_map(Entry::from_wire)
-        .filter(|entry| !entry.tier.is_kyber())
-        .collect()
+    list.iter().filter_map(Entry::from_wire).collect()
 }
 
 /// A profile's counts as an array in [`TIERS`] order.
@@ -488,31 +438,6 @@ mod tests {
             ..entries[1].clone()
         };
         assert_eq!(undated_gift.when(), "A gift from the SJK team");
-    }
-
-    /// A kyber crystal reads as an entry of its own tier for the arrival, but is not one
-    /// of the holocrons a profile's list gives the screens about play.
-    #[test]
-    fn crystals_are_entries_of_their_own_but_not_holocrons() {
-        let list = [
-            wire(9, "kyber_rare", "achievement", ""),
-            wire(8, "rare", "play", ""),
-        ];
-        let crystal = Entry::from_wire(&list[0]).expect("a crystal");
-        assert_eq!(crystal.tier.id, "kyber_rare");
-        assert!(crystal.earned && !crystal.gift);
-        assert_eq!(crystal.when(), "Earned 10/10/2026 14:05");
-        let ids: Vec<u64> = entries(&list).iter().map(|entry| entry.id).collect();
-        assert_eq!(ids, [8], "crystals left out");
-        assert_eq!(slot(1).id, "rare");
-        assert_eq!(slot(COUNT + 2).id, "kyber_legendary");
-        assert_eq!(slot(99).id, "kyber_mythical", "kept to the tiers there are");
-        assert_eq!(any("kyber_uncommon").map(|t| t.slot), Some(COUNT));
-        assert_eq!(
-            TIERS[2].about(),
-            Tier::from_id("legendary").unwrap().about()
-        );
-        assert_eq!(slot(COUNT).about(), crate::kyber::ABOUT);
     }
 
     #[test]
