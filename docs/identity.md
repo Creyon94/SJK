@@ -302,7 +302,8 @@ what the logs hold, that the Windows user name is left out and that nothing goes
 the player chooses Send logs. Send logs (Enter) gathers the logs then
 (`crash_report::log_upload`): a header (time, build, system, graphics adapter, map,
 server), the newest 200 KB of this session's log, 120 KB of the previous one's and the
-last crash report (40 KB, when under 14 days old), the player's folder replaced by
+last crash report (40 KB, when under 14 days old: its head with the message and backtrace
+whole, then its newest last lines), the player's folder replaced by
 `%USERPROFILE%`; the service fits it to the hub's limits (400 000 characters, a body
 under 512 KiB; the oldest lines go first, at a line) and sends it (`POST /v1/logs`).
 Don't send (Escape) tells the hub (`POST /v1/logs/decline`). The request leaves the list
