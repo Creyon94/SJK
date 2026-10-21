@@ -1,3 +1,23 @@
+## Kyber crystals (client)
+
+21/10/2026, `personal/kyber-crystals`, based on `main` `775c4e8b` (Sol's decisions; the
+hub side is built in parallel from the same spec, not deployed). A kyber crystal, one per
+achievement, always opens to a saber shader ([holocrons.md](holocrons.md#kyber-crystals)):
+`kyber.rs` (tiers `kyber_uncommon` to `kyber_mythical`, the built-in odds, pity and
+achievement rewards, pinned by tests), the wire's `kyber` object and `reward`, the
+Holocrons tab's crystal tiles, pity line, hover card and crystal loot table, the opening's
+shader-only strip, the arrival "Earned from an achievement", the chat's crystal grand find,
+the reward on the Achievements tab, its hover card and the unlock card, and `debug_holocron`
+/ `debug_open` with crystal tiers. The holocrons' recent list shows eight now. Verified on
+Windows 11: `cargo fmt`, `cargo clippy -p sjk-viewer -p sjk-identity --all-targets` (no new
+warnings in the touched files), `cargo test -p sjk-viewer -p sjk-identity` (2756 and 166
+passed), and the world shots `holocrons_tab::duel6_sjk_kyber_crystals`,
+`collection::duel6_sjk_kyber_achievements` and `duel6_sjk_holocrons_windows`, looked at.
+Not verified: against a hub that sends crystals, in a running client. The 3D crystal is the
+Mythical holocron's model and gold light until the crystal models land (branch
+`personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
+the Staff page are not built.
+
 ## Small graphics cards found at start
 
 21/10/2026, `personal/vram-detect`, based on `main` `058dfade` (Sol: detect video memory
