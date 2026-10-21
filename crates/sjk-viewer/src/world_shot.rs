@@ -315,6 +315,9 @@ mod cards_shots;
 #[path = "world_shot_economy.rs"]
 mod economy_shots;
 
+#[path = "world_shot_forge.rs"]
+mod forge_shots;
+
 #[path = "world_shot_create_game.rs"]
 mod create_game;
 

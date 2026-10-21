@@ -88,7 +88,11 @@ includes:
   credits (17/10/2026, Sol's decisions), prepared for when the SJK hub turns them on;
 - blade cards craft their saber shader for less (21/10/2026, Sol's idea): a Normal copy
   at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
-  held blade card on the Cards tab that opens its shader;
+  held blade card on the Cards tab that leads to its shader (to the Forge's Craft while
+  the player lacks it);
+- the Forge (21/10/2026, Sol's request): the shop, crafting and breaking shaders down in
+  one Collection tab, the last copy too (never a card's or a medal's), and every
+  duplicate at once;
 - the four holocrons, each tier an object of its own with moving parts (17/10/2026,
   Sol's pick of the proposed shapes: the Jedi cube, the Great Holocron, the Sith
   pyramid, the kyber prism), with Sol's generated faces for the last three;

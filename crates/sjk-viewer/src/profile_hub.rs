@@ -74,28 +74,32 @@ pub(crate) enum Tab {
     Nameplates,
     /// The player's holocrons, the loot-box drops, a 3D holocron cycled by tier.
     Holocrons,
+    /// The shop, crafting and breaking saber shaders down (21/10/2026).
+    Forge,
     /// The cards opening holocrons brought, and the credits.
     Cards,
 }
 
 const PROFILE_TABS: [Tab; 4] = [Tab::Character, Tab::Saber, Tab::Force, Tab::Profile];
-const COLLECTION_TABS: [Tab; 7] = [
+const COLLECTION_TABS: [Tab; 8] = [
     Tab::Medals,
     Tab::Achievements,
     Tab::Shaders,
     Tab::Toys,
     Tab::Nameplates,
     Tab::Holocrons,
+    Tab::Forge,
     Tab::Cards,
 ];
 const PROFILE_LABELS: [&str; 4] = ["Character", "Saber", "Force", "SJK Profile"];
-const COLLECTION_LABELS: [&str; 7] = [
+const COLLECTION_LABELS: [&str; 8] = [
     "Medals",
     "Achievements",
     "Shaders",
     "Toys",
     "Nameplates",
     HOLOCRONS,
+    FORGE,
     "Cards",
 ];
 
@@ -105,9 +109,12 @@ pub(crate) const COLLECTION: &str = "Collection";
 /// The name of the tab of the player's holocrons, the loot-box drops.
 pub(crate) const HOLOCRONS: &str = "Holocrons";
 
+/// The name of the tab of the shop, crafting and breaking shaders down.
+pub(crate) const FORGE: &str = "Forge";
+
 impl Tab {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 11] = [
+    pub(crate) const ALL: [Self; 12] = [
         Self::Character,
         Self::Saber,
         Self::Force,
@@ -118,6 +125,7 @@ impl Tab {
         Self::Toys,
         Self::Nameplates,
         Self::Holocrons,
+        Self::Forge,
         Self::Cards,
     ];
 
@@ -138,7 +146,8 @@ impl Tab {
             Self::Profile | Self::Toys => 3,
             Self::Nameplates => 4,
             Self::Holocrons => 5,
-            Self::Cards => 6,
+            Self::Forge => 6,
+            Self::Cards => 7,
         }
     }
 
@@ -185,7 +194,7 @@ const ROW_Y: f32 = 146.0;
 /// The room between two tabs' names.
 const GAP: f32 = 48.0;
 /// The narrowest clear separation when large text needs more of the row.
-const MIN_GAP: f32 = 16.0;
+const MIN_GAP: f32 = 14.0;
 /// The right edge kept clear for the frame's matching margin.
 const ROW_RIGHT: f32 = 1_816.0;
 /// How far down the console's pages move what they show under their title, to leave
@@ -723,7 +732,8 @@ mod tests {
         assert_eq!(Tab::Character.next(false), Tab::Profile);
         assert_eq!(Tab::Medals.next(false), Tab::Cards);
         assert_eq!(Tab::Nameplates.next(true), Tab::Holocrons);
-        assert_eq!(Tab::Holocrons.next(true), Tab::Cards);
+        assert_eq!(Tab::Holocrons.next(true), Tab::Forge);
+        assert_eq!(Tab::Forge.next(true), Tab::Cards);
         assert_eq!(Tab::Cards.next(true), Tab::Medals);
         assert_eq!(Tab::Achievements.next(true), Tab::Shaders);
         for screen in [Screen::Profile, Screen::Collection] {
@@ -742,8 +752,9 @@ mod tests {
         assert_eq!(Tab::Nameplates.label(), "Nameplates");
         assert_eq!(collection_tab_of(TOKEN + 2), Some(Tab::Shaders));
         assert_eq!(collection_tab_of(TOKEN + 5), Some(Tab::Holocrons));
-        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Cards));
-        assert_eq!(collection_tab_of(TOKEN + 7), None);
+        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Forge));
+        assert_eq!(collection_tab_of(TOKEN + 7), Some(Tab::Cards));
+        assert_eq!(collection_tab_of(TOKEN + 8), None);
         assert_eq!(collection_tab_of(TOKEN - 1), None);
     }
 
@@ -792,7 +803,7 @@ mod tests {
     /// Collection's row, with its counts, answers its page's pointer.
     #[test]
     fn the_rows_answer_where_they_are_drawn() {
-        let counts: Vec<String> = ["2/4", "11/21", "1/5", "1/1", "", "12"]
+        let counts: Vec<String> = ["2/4", "11/21", "1/5", "1/1", "", "12", "1 250"]
             .iter()
             .map(|count| (*count).to_owned())
             .collect();

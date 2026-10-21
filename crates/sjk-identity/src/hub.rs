@@ -354,13 +354,26 @@ pub trait Hub: Send {
         ))
     }
 
-    /// Shatter one duplicate of shader `id` into kyber shards (`POST
-    /// /v1/unlocks/shatter`, 17/10/2026): never the last copy.
+    /// Shatter one copy of shader `id` into kyber shards (`POST /v1/unlocks/shatter`,
+    /// 17/10/2026): never the last copy unless `last` (21/10/2026, hubs whose economy says
+    /// `shatter_last`).
     fn shatter_unlock(
         &mut self,
         _identity: &Identity,
         _id: &str,
+        _last: bool,
     ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not shatter shaders".to_owned(),
+        ))
+    }
+
+    /// Shatter every duplicate, one copy of each kept (`POST
+    /// /v1/unlocks/shatter-duplicates`, 21/10/2026).
+    fn shatter_duplicates(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
         Err(HubError::Protocol(
             "this hub client does not shatter shaders".to_owned(),
         ))
@@ -1283,12 +1296,26 @@ impl Hub for HttpHub {
         &mut self,
         identity: &Identity,
         id: &str,
+        last: bool,
     ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        // `last` only when asked: hubs before 21/10/2026 refuse a field they do not know.
+        let body = if last {
+            json!({ "id": id, "last": true })
+        } else {
+            json!({ "id": id })
+        };
+        parse(self.send(Some(identity), "POST", "/v1/unlocks/shatter", Some(body))?)
+    }
+
+    fn shatter_duplicates(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
         parse(self.send(
             Some(identity),
             "POST",
-            "/v1/unlocks/shatter",
-            Some(json!({ "id": id })),
+            "/v1/unlocks/shatter-duplicates",
+            Some(json!({})),
         )?)
     }
 

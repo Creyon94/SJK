@@ -205,8 +205,8 @@ fn duel6_sjk_collection() {
             if let Some(console) = gpu.console.as_mut() {
                 console.collection_saber_turn_for_shot(None);
             }
-            // Trading open at the hub: a Tidal held three times offers Shatter beside
-            // Equip; a locked Echo offers Craft, dimmed while the shards fall short.
+            // The hub's economy known: a Kamino held three times points to Break down in
+            // the Forge beside Equip; a locked Echo Base to Craft in the Forge.
             let row = |id: &str| {
                 1 + crate::unlockables::blade_skins_by_tier()
                     .iter()
@@ -223,7 +223,7 @@ fn duel6_sjk_collection() {
                     },
                 ];
                 console.preview_collection(Some(owned), 0.8);
-                console.collection_trade_for_shot(Some(85));
+                console.collection_trade_for_shot(true);
                 console.collection_shader_for_shot(row("saber_tidal"));
             }
             println!(
@@ -239,14 +239,14 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 20, "duel6-collection-shaders-craft").display()
             );
             if let Some(console) = gpu.console.as_mut() {
-                console.collection_trade_for_shot(None);
+                console.collection_trade_for_shot(false);
             }
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(crate::saber_skin_options::CVAR, "");
                 console.preview_collection(Some(vec![sun()]), 0.8);
             }
-            // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row) and
-            // on to Cards, on the same screen.
+            // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row), on
+            // to the Forge and to Cards, on the same screen.
             gpu.profile_hub_show_for_shot(Tab::Nameplates);
             gpu.profile_hub_next_for_shot();
             assert_eq!(gpu.profile_hub_tab(), Some(Tab::Holocrons));
@@ -255,6 +255,8 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 150, "duel6-collection-holocrons").display()
             );
             assert!(!overflowed(&gpu), "Holocrons");
+            gpu.profile_hub_next_for_shot();
+            assert_eq!(gpu.profile_hub_tab(), Some(Tab::Forge));
             gpu.profile_hub_next_for_shot();
             assert_eq!(gpu.profile_hub_tab(), Some(Tab::Cards));
         }

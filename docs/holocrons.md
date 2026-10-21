@@ -295,7 +295,7 @@ report (#77, 19/10/2026) read "8 of 8 today" as a calendar day that had not rese
 hub has not answered, the reason ("Holocrons need the SJK identity"). Since 12/10/2026 the
 counts are the holocrons not opened yet, the player's credits (and since 17/10/2026 their
 kyber shards) stand at the panel's top right, the chosen tier says what opening one gives,
-Open and Open all (and Shop, while the hub lets the player open, [cards.md](cards.md#in-the-client))
+Open and Open all (and Shop, the Collection's Forge on its Shop, while the hub lets the player open, [cards.md](cards.md#the-forge))
 stand under the holocron's caption and opened holocrons are marked in the recent list; opening and its
 ceremony are in [cards.md](cards.md#in-the-client). While the hub keeps opening to staff
 (`can_open` false, [cards.md](cards.md#opening)) a line says opening comes soon in place of
@@ -307,7 +307,7 @@ line says to update to that release instead.
   is the Profile screen's. Enter opens the oldest holocron of the tier chosen, A opens up
   to twenty, asking first when more than one would open ([cards.md](cards.md#in-the-client))
   (both only when the hub lets the player open). L, or Loot table at the right of what the chosen tier holds, shows the
-  [loot table](#loot-table); S, or Shop, the shop ([cards.md](cards.md#the-shop)).
+  [loot table](#loot-table); S, or Shop, the Forge's Shop ([cards.md](cards.md#the-forge)).
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
   tab: an instance of each part's model of the chosen look ([the four
   holocrons](#the-four-holocrons)), posed from the time, and a point light in the tier's colour
@@ -406,7 +406,7 @@ the world shot `duel6_sjk_collection` renders it from the game menu at a match's
 
 What opened holocrons will also give: the cards' faces ([cards.md](cards.md#planned-not-built)).
 The shop (in kyber shards), the kyber shards and the holocrons credits buy (an Uncommon
-for 150, a Rare for 400, source `bought`, outside the caps) are prepared, not deployed
-([cards.md](cards.md#holocrons-for-credits)).
+for 150, a Rare for 400, source `bought`, outside the caps) are live since 21/10/2026, in the
+Collection's Forge ([cards.md](cards.md#the-forge)).
 Saber shaders drop already
 ([unlockables.md](unlockables.md#holocron-shader-drops)).

@@ -2158,7 +2158,7 @@ fn pack_tile(
 
 /// The kyber shard's mark and `words` centred on `x` (frame pixels), as [`credits_line`]
 /// lays out the credits, in the kyber cyan.
-pub(super) fn shards_line(
+pub(crate) fn shards_line(
     canvas: &mut crate::menu_widgets::MenuCanvas,
     frame: &Frame,
     x: f32,
@@ -2200,7 +2200,7 @@ pub(super) fn shards_line(
 
 /// The credits' mark and `words` centred on `x` (frame pixels), the mark as tall as the
 /// words' capitals, at `alpha`.
-pub(super) fn credits_line(
+pub(crate) fn credits_line(
     canvas: &mut crate::menu_widgets::MenuCanvas,
     frame: &Frame,
     x: f32,

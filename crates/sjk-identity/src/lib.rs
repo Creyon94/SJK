@@ -51,6 +51,7 @@ pub use wire::{
     DropMark, EconomyTables, Emote, Feed, FindEvent, FindMark, HOLOCRONS_LISTED, Holocron,
     HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, Look, LookEvent, LootTier,
     Medal, OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping,
-    Presence, Profile, RevealAnswer, Revealed, SharedVitals, ShatterAnswer, Shattered, ShopDay,
-    ToyEvent, Trust, Unlock, Vitals, WornName, names_match, normal_form,
+    Presence, Profile, RevealAnswer, Revealed, SharedVitals, ShatterAllAnswer, ShatterAnswer,
+    Shattered, ShatteredCopies, ShopDay, ToyEvent, Trust, Unlock, Vitals, WornName, names_match,
+    normal_form,
 };

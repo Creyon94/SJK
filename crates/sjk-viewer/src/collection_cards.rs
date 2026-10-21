@@ -120,6 +120,7 @@ impl Panel {
         let (stacks, balance) = self.holdings(inputs);
         let faces = cards::faces::current();
         self.card_blade = None;
+        self.card_blade_craft = false;
         let all = stacks
             .as_deref()
             .map(|stacks| binder::tiles(stacks, &faces))
@@ -198,7 +199,7 @@ impl Panel {
         self.card_scroll_bar(frame, self.card_first, lines);
         self.reveal_button(frame);
         if let Some(chosen) = tiles.get(self.card) {
-            self.card_up_close(frame, chosen, &faces, seconds);
+            self.card_up_close(frame, chosen, &faces, &inputs.holdings, seconds);
         }
         self.card_tiles = tiles;
     }
@@ -611,6 +612,7 @@ impl Panel {
         frame: &Frame,
         tile: &Tile,
         faces: &cards::faces::Faces,
+        holdings: &crate::unlockables::Holdings<'_>,
         seconds: f32,
     ) {
         let s = frame.s;
@@ -708,8 +710,17 @@ impl Panel {
             color::QUIET,
         );
         if let Some(skin) = blade {
+            // A shader of the trade the player lacks is crafted in the Forge.
+            let craft = self.trade_known
+                && crate::economy::in_trade(skin)
+                && holdings.unlock(skin.id).is_none();
             self.card_blade = Some(skin);
-            let label = format!("Go to the {}", skin.name);
+            self.card_blade_craft = craft;
+            let label = if craft {
+                format!("Craft the {} in the Forge", skin.name)
+            } else {
+                format!("Go to the {}", skin.name)
+            };
             let width = crate::text::display_width(&label, 18.0) + 48.0;
             crate::menu::sjk::kit::button(
                 &mut self.ui,
@@ -1053,7 +1064,8 @@ mod tests {
     }
 
     /// A held blade card's button turns to the Shaders tab on its shader, the filter there
-    /// cleared so it shows; with no blade card up close it does nothing.
+    /// cleared so it shows, or to the Forge's Craft on it when the player lacks it; with
+    /// no blade card up close it does nothing.
     #[test]
     fn a_blade_cards_button_goes_to_its_shader() {
         let fonts = crate::text::load_modern(1.0, None).expect("Inter");
@@ -1074,6 +1086,24 @@ mod tests {
         );
         assert!(panel.shader_focus.is_none());
         assert!(!panel.overflowed());
+        // One of the trade the player lacks: the Forge's Craft on it, where the copy
+        // crafts it for less.
+        panel.show(Tab::Cards);
+        panel.card_blade_craft = true;
+        let _ = panel.go_to_card_shader();
+        assert_eq!(
+            (panel.tab, panel.forge_section()),
+            (Tab::Forge, super::super::forge::Section::Craft)
+        );
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            panel
+                .forge
+                .craft_list
+                .get(panel.forge.craft)
+                .map(|item| item.skin.id),
+            Some("saber_sun")
+        );
     }
 
     /// Copies of `count` cards `card_000`, `card_001`... in one finish each.

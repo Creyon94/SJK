@@ -104,8 +104,20 @@ impl ViewerConsole {
             PanelAction::Shatter(id) => {
                 let _ = crate::economy::shatter(id);
             }
+            PanelAction::ShatterLast(id) => {
+                let _ = crate::economy::shatter_last(id);
+            }
+            PanelAction::ShatterAll => {
+                let _ = crate::economy::shatter_all();
+            }
             PanelAction::Craft(id) => {
                 let _ = crate::economy::craft(id);
+            }
+            PanelAction::Buy(id) => {
+                let _ = crate::player_identity::buy(&id);
+            }
+            PanelAction::BuyHolocron(tier) => {
+                let _ = crate::economy::buy_holocron(&tier);
             }
             PanelAction::RevealCards => {
                 let _ = crate::player_identity::reveal_cards();
@@ -268,6 +280,7 @@ impl ViewerConsole {
         if let Some(unlocks) = self.collection_panel.preview.take() {
             let profile = self.profile_preview_snapshot();
             let standings = self.profile_preview_standings().unwrap_or(standings);
+            self.follow_forge(true, profile.as_ref());
             let inputs = Inputs {
                 enabled: true,
                 snapshot: profile.as_ref(),
@@ -287,11 +300,7 @@ impl ViewerConsole {
             self.collection_panel.preview = Some(unlocks);
             return;
         }
-        // Shatter and Craft show while the hub lets the player trade.
-        let shards = crate::economy::can_trade()
-            .then(|| crate::economy::balance().map_or(0, |(_, shards)| shards));
-        self.collection_panel
-            .set_trade(shards, crate::economy::trade_outcome());
+        self.follow_forge(enabled, snapshot.as_ref());
         let inputs = Inputs {
             enabled,
             snapshot: snapshot.as_ref(),
@@ -308,6 +317,78 @@ impl ViewerConsole {
             share,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);
+    }
+
+    /// Give the Forge what the hub said this frame, read the shop when it asks, and take a
+    /// shader whose last copy was just broken down off the saber when it is worn.
+    fn follow_forge(&mut self, enabled: bool, snapshot: Option<&sjk_identity::Snapshot>) {
+        let known = snapshot.is_some_and(|snapshot| snapshot.economy.is_some());
+        self.collection_panel.set_trade_known(known);
+        let data = if self.collection_panel.tab() == Tab::Forge {
+            super::collection_panel::forge::ForgeData::read(enabled)
+        } else {
+            Default::default()
+        };
+        self.collection_panel.set_forge(data);
+        if self
+            .collection_panel
+            .forge_shop_due(std::time::Instant::now())
+        {
+            let _ = crate::player_identity::read_shop();
+        }
+        if let Some(id) = self.collection_panel.take_forge_unequip()
+            && self.text_cvar(SABER_SKIN_CVAR).is_ok_and(|worn| worn == id)
+        {
+            crate::unlockables::wear(self, "");
+        }
+    }
+
+    /// Show the Collection on the Forge's `section`, as the Holocrons tab's Shop does.
+    pub(crate) fn open_forge(
+        &mut self,
+        section: super::collection_panel::forge::Section,
+        back: ReturnTarget,
+    ) {
+        self.collection_panel.show_forge(section);
+        self.open_profile_hub_page(Tab::Forge, back);
+    }
+
+    /// Show `data` on the Forge in place of the live identity's (`None` lets go), for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_forge(
+        &mut self,
+        data: Option<super::collection_panel::forge::ForgeData>,
+    ) {
+        self.collection_panel.preview_forge(data);
+    }
+
+    /// Show the Forge's `section`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_section_for_shot(
+        &mut self,
+        section: super::collection_panel::forge::Section,
+    ) {
+        self.collection_panel.show_forge(section);
+    }
+
+    /// Put the Forge in the state a world shot wants (see `Panel::forge_for_shot`).
+    #[cfg(test)]
+    pub(crate) fn forge_for_shot(&mut self, chosen: usize, armed: bool, ask: bool, asked: bool) {
+        self.collection_panel
+            .forge_for_shot(chosen, armed, ask, asked);
+    }
+
+    /// Choose shader `id` in the Forge's section on its next frame, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_want_for_shot(&mut self, id: &str) {
+        self.collection_panel.forge_want_for_shot(id);
+    }
+
+    /// Type `query` in the Forge's search (and its own chip), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_search_for_shot(&mut self, query: &str, only: bool) {
+        self.collection_panel.forge_search_for_shot(query, only);
     }
 
     /// Show `unlocks` (`None`: the live ones) whenever the page opens, its swatches drawn
@@ -379,10 +460,10 @@ impl ViewerConsole {
         self.collection_panel.hover_for_shot(index);
     }
 
-    /// Let the Collection's shader card trade with `shards`, for a world shot.
+    /// Let the Shaders tab show its way to the Forge (`known`), for a world shot.
     #[cfg(test)]
-    pub(crate) fn collection_trade_for_shot(&mut self, shards: Option<u64>) {
-        self.collection_panel.trade_for_shot(shards);
+    pub(crate) fn collection_trade_for_shot(&mut self, known: bool) {
+        self.collection_panel.trade_known_for_shot(known);
     }
 
     /// Hold the Shaders tab's lone saber turned so (`None` lets go), for a world shot.

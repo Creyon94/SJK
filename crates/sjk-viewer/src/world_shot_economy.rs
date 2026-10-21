@@ -1,11 +1,9 @@
 //! World shots of the holocron economy (`docs/cards.md`, "Shards and the shop") over the
 //! live duel6 in the SJK UI: the Holocrons tab with the kyber shards beside the credits
-//! and its Shop button; the loot table with its shards column; the shop with the day's
-//! four offers for kyber shards (one too dear, one owned, one waiting for its Confirm) and
-//! the holocrons for credits (one waiting for its Confirm, one too dear), while it reads
-//! the hub, after a purchase and after a holocron bought; a pile of shards coming out of a holocron (the strip at
-//! rest, the crystals and the count, the words) and among twelve opened at once; the
-//! Cards tab with both balances; and the shop in a 4:3, a 21:9 and a 4K window. Made-up
+//! and its Shop button (the Forge's Shop since 21/10/2026, shot in `world_shot_forge.rs`);
+//! the loot table with its shards column; a pile of shards coming out of a holocron (the
+//! strip at rest, the crystals and the count, the words) and among twelve opened at once;
+//! and the Cards tab with both balances. Made-up
 //! holdings; off-screen renders (no game window), ignored like the other world shots:
 //! they need a GPU adapter and the installed game data named by `JKA_GAME_DATA` (and the
 //! hub's packs in `SJK_TEST_PACKS` for the offers' blades).
@@ -19,14 +17,12 @@ use crate::console::holocrons_panel::Data;
 use crate::console::holocrons_panel::opening::{Pile, Prize, Shown};
 use crate::profile_hub::Tab;
 
-/// The Holocrons tab's made-up holdings: holocrons to open, credits, kyber shards, the
-/// shop's day read `left` seconds before it turns.
-fn holdings(left: i64) -> Data {
+/// The Holocrons tab's made-up holdings: holocrons to open, credits, kyber shards.
+fn holdings() -> Data {
     Data {
         sealed: [vec![11, 12, 15], vec![13], Vec::new(), vec![14]],
         credits: Some(300),
         shards: Some(160),
-        shop: Some(crate::console::holocrons_panel::shop::sample_day(left)),
         ..super::holocrons_tab::holdings()
     }
 }
@@ -119,7 +115,7 @@ fn twelve() -> Vec<Prize> {
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn duel6_sjk_economy_shots() {
     on_big_stack(|| {
-        let Some(mut gpu) = open_holocrons([1920, 1080], holdings(5 * 3_600 + 12 * 60)) else {
+        let Some(mut gpu) = open_holocrons([1920, 1080], holdings()) else {
             return;
         };
         let mut moments = Vec::new();
@@ -137,63 +133,6 @@ fn duel6_sjk_economy_shots() {
         keep(&mut gpu, 2, "loot-table");
         if let Some(console) = gpu.console.as_mut() {
             console.preview_loot(false);
-            console.preview_shop(true, Some(0));
-        }
-        keep(&mut gpu, 4, "shop");
-        // While the hub has not answered.
-        let mut reading = holdings(0);
-        reading.shop = None;
-        if let Some(console) = gpu.console.as_mut() {
-            console.preview_holocrons(reading, 0);
-        }
-        keep(&mut gpu, 2, "shop-reading");
-        // After a purchase: the offer bought, the line saying so.
-        let mut bought = holdings(3_600);
-        if let Some(shop) = bought.shop.as_mut() {
-            shop.day.offers[1].bought = true;
-            shop.day.offers[1].owned = true;
-        }
-        bought.shards = Some(85);
-        bought.trade = Some(sjk_identity::TradeOutcome {
-            serial: 1,
-            trade: sjk_identity::Trade::Buy,
-            id: "saber_sakura".to_owned(),
-            amount: 75,
-            message: String::new(),
-        });
-        if let Some(console) = gpu.console.as_mut() {
-            console.preview_holocrons(bought, 0);
-            console.preview_shop(false, None);
-            console.preview_shop(true, None);
-            console.preview_shop_answer();
-        }
-        keep(&mut gpu, 2, "shop-bought");
-        // The Uncommon holocron for credits waiting for its Confirm, then bought.
-        if let Some(console) = gpu.console.as_mut() {
-            console.preview_shop(false, None);
-            console.preview_holocrons(holdings(3_600), 0);
-            console.preview_shop(true, Some(4));
-        }
-        keep(&mut gpu, 2, "shop-holocron-confirm");
-        let mut holocron = holdings(3_600);
-        holocron.credits = Some(150);
-        holocron.trade = Some(sjk_identity::TradeOutcome {
-            serial: 1,
-            trade: sjk_identity::Trade::Holocron,
-            id: "uncommon".to_owned(),
-            amount: 150,
-            message: String::new(),
-        });
-        if let Some(console) = gpu.console.as_mut() {
-            console.preview_holocrons(holocron, 0);
-            console.preview_shop(false, None);
-            console.preview_shop(true, None);
-            console.preview_shop_answer();
-        }
-        keep(&mut gpu, 2, "shop-holocron-bought");
-        if let Some(console) = gpu.console.as_mut() {
-            console.preview_shop(false, None);
-            console.preview_holocrons(holdings(3_600), 0);
         }
         // A pile of shards out of a Legendary holocron: at rest on the strip, coming in,
         // and its words.
@@ -261,7 +200,7 @@ fn duel6_sjk_card_pack() {
         let face = Some("sjk_alpha_010".to_owned());
         let mut moments = Vec::new();
         for (size, name) in [([1920, 1080], ""), ([1440, 1080], "-4x3")] {
-            let Some(mut gpu) = open_holocrons(size, holdings(3_600)) else {
+            let Some(mut gpu) = open_holocrons(size, holdings()) else {
                 return;
             };
             let mut keep = |gpu: &mut GpuState, frames: u32, name: &str| {
@@ -299,28 +238,5 @@ fn duel6_sjk_card_pack() {
             }
         }
         println!("{}", sheet(&moments, 3, 640, "duel6-card-pack").display());
-    });
-}
-
-/// The shop in other windows: 4:3, 21:9 and 4K.
-#[test]
-#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
-fn duel6_sjk_economy_shop_windows() {
-    on_big_stack(|| {
-        for (size, name) in [
-            ([1440, 1080], "4x3"),
-            ([2560, 1080], "21x9"),
-            ([3840, 2160], "4k"),
-        ] {
-            let Some(mut gpu) = open_holocrons(size, holdings(42 * 60)) else {
-                return;
-            };
-            if let Some(console) = gpu.console.as_mut() {
-                console.preview_shop(true, None);
-            }
-            let path = shoot(&mut gpu, 4, &format!("duel6-economy-shop-{name}"));
-            assert!(!overflowed(&gpu), "{name}");
-            println!("{}", path.display());
-        }
     });
 }

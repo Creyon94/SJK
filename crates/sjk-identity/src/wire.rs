@@ -382,6 +382,19 @@ pub struct EconomyTables {
     /// `solar`; 21/10/2026). Empty from hubs before, which take the full cost.
     #[serde(default)]
     pub blade_card_craft: std::collections::BTreeMap<String, u64>,
+    /// What the hub's trade can do beyond its first form (21/10/2026): `shatter_last`
+    /// (the last copy shatters when asked, [`crate::Service::shatter_last`]) and
+    /// `shatter_duplicates` ([`crate::Service::shatter_duplicates`]). Empty from hubs
+    /// before.
+    #[serde(default)]
+    pub abilities: Vec<String>,
+}
+
+impl EconomyTables {
+    /// Whether the hub's trade can do `ability` (`shatter_last`, `shatter_duplicates`).
+    pub fn can(&self, ability: &str) -> bool {
+        self.abilities.iter().any(|known| known == ability)
+    }
 }
 
 /// A duplicate the hub shattered (`POST /v1/unlocks/shatter`).
@@ -405,6 +418,40 @@ pub struct Shattered {
 pub struct ShatterAnswer {
     /// What the shatter gave.
     pub shattered: Shattered,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// The copies of one shader the hub shattered at once (`POST
+/// /v1/unlocks/shatter-duplicates`, 21/10/2026).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatteredCopies {
+    /// The shader's id.
+    pub id: String,
+    /// How many copies it gave up (one is kept).
+    #[serde(default)]
+    pub copies: u32,
+    /// The shards they gave.
+    #[serde(default)]
+    pub shards: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/shatter-duplicates`: every duplicate shattered,
+/// one copy of each kept.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatterAllAnswer {
+    /// Each shader that gave up copies.
+    #[serde(default)]
+    pub shattered: Vec<ShatteredCopies>,
+    /// The copies shattered in all.
+    #[serde(default)]
+    pub copies: u32,
+    /// The shards they gave in all.
+    #[serde(default)]
+    pub shards: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
     /// The person's profile after.
     pub profile: Profile,
 }
@@ -1508,6 +1555,21 @@ mod tests {
             (shards.holocrons["uncommon"], shards.holocrons["rare"]),
             (150, 400)
         );
+        // Hubs before 21/10/2026 say no abilities; later ones name theirs.
+        assert!(!shards.can("shatter_last") && !shards.can("shatter_duplicates"));
+        let forge: EconomyTables = serde_json::from_str(
+            r#"{"shatter":[5,10,25,60,150],"abilities":["shatter_last","shatter_duplicates"]}"#,
+        )
+        .unwrap();
+        assert!(forge.can("shatter_last") && forge.can("shatter_duplicates"));
+        let all: ShatterAllAnswer = serde_json::from_str(
+            r#"{"shattered":[{"id":"saber_tidal","copies":2,"shards":10}],"copies":2,
+                "shards":10,"balance":45,
+                "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,
+        )
+        .unwrap();
+        assert_eq!((all.copies, all.shards, all.balance), (2, 10, 45));
+        assert_eq!(all.shattered[0].id, "saber_tidal");
         let bought: HolocronBuyAnswer = serde_json::from_str(
             r#"{"bought":{"holocron":42,"tier":"rare","price":400,"balance":100},
                 "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,

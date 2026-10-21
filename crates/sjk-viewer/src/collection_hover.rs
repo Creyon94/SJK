@@ -14,6 +14,10 @@ impl Panel {
     /// Follow the pointer and draw the card of the thing it has rested on, over the
     /// page: the page's last drawing.
     pub(super) fn hover_card(&mut self, frame: &crate::menu::sjk::Frame, inputs: &Inputs<'_>) {
+        if self.tab == Tab::Forge && self.forge.ask.is_some() {
+            // The card asking covers the page: nothing under it answers the pointer.
+            return;
+        }
         let now = Instant::now();
         self.hover.follow(self.ui.hovered(), now);
         let Some((token, alpha)) = self.hover.showing(now) else {
@@ -35,6 +39,9 @@ impl Panel {
                 .map(usize::from)
                 .filter(|index| *index < count)
         };
+        if self.tab == Tab::Forge {
+            return self.forge_card(token, inputs);
+        }
         if let Some(index) = within(MEDAL_BASE, self.medals_shown) {
             let (_, shown) = medals::showing(inputs);
             return shown.get(index).map(medal_card);
@@ -169,7 +176,7 @@ fn held_count(words: &str, count: u32) -> String {
 
 /// A shader's card: the stock blade (`None`) or a blade skin, how it is obtained, and
 /// whether the player holds it.
-fn shader_card(
+pub(super) fn shader_card(
     skin: Option<&'static crate::unlockables::Unlockable>,
     holdings: &crate::unlockables::Holdings<'_>,
 ) -> Card {
