@@ -28,7 +28,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1021.2 (Alpha) | 21/10/2026
+
+The rewards promised with holocron openings are given: everyone who reported bugs or had a pull request merged has holocrons waiting, counted by one rule for all. This release brings the Forge, where the shop, crafting and breaking shaders down now live, and cheaper crafting for blade card holders.
+
+> The Forge: Shop, craft and break down shaders in one Collection tab.
+> Blade cards: Holding a shader's blade card makes crafting it cheaper.
+> Break down anything: Your last copy of a shader too, after a warning.
+> Small graphics cards: Smaller textures, fewer crashes on 4 GB or less.
+> Map changes: No more stutter rebuilding the Blade Lab blades.
+> Wheel jump: `+moveup` on the mouse wheel jumps every notch.
 
 - Bug reports, world notes and player reports now take `_ / \ + = " ; [ ] < > #`, so you can write the cvar, command or bind you mean (`cg_fov`, `+attack`, `bind x "say hi; kill"`) _(Sol, after players' reports)_
 - The Bug Hunter medal is now held once, like the other medals: bug hunting is rewarded with holocrons instead. A medal already waiting to be announced no longer shows its card a second time when another medal or a note changes _(Sol)_
@@ -40,6 +49,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Graphics cards of 4 GB or less: a new Texture detail setting (Settings > Renderer, `r_picmip` as in Jedi Academy) halves large textures for a quarter of their video memory each step, and after the menus switch to pictures each map that runs out of video memory lowers it one more step (to 2 at most). Changing your character's head, torso or legs when the card is full no longer crashes the game: that model just does not show _(Sol, after Vin's report)_
 - The Forge, a new Collection tab beside Holocrons for everything kyber shards and credits trade: Shop (your four daily offers as large cards with their live blades, and the holocrons credits buy), Craft (every shader you lack, as a grid or a list, with tier chips, Affordable and a search) and Break down (your own copies, duplicates first, with Break down all duplicates). The old shop over the Holocrons tab and the Shaders tab's Shatter and Craft buttons now lead there _(Sol)_
 - Break down any saber shader you own, not just duplicates: your last copy too, for the same kyber shards, after a warning that it leaves your collection (and your saber, if you wear it). A shader that comes with a card or a medal stays with it _(Sol)_
+- `+moveup` on the mouse wheel jumps: each notch now counts as held for one whole move, so `bind MWHEELDOWN +moveup` jumps every notch, and other movement binds on the wheel move too (`+attack`, `+use` and the other buttons already worked) _(Sol, after Midn8Runner's report)_
 
 ## 2026.1021.1 (Alpha) | 21/10/2026
 
@@ -102,7 +112,6 @@ Holocron openings are here for everyone, with kyber shards, shattering, crafting
 - The console never prints a password: `rconPassword`, `password`, JA+ login passwords and the like show `********` in listings, the cvar browser and the echo of what you type (JA+'s `amlogin`, `login` and `register`, binds and scripts holding them too, typed offline or on any server), so they stay out of the scrollback, logs and crash reports; chat typed in the console stays out of crash reports as received chat does _(Slash)_
 - The chat key (Y) always opens on All, even after SJK chat, a team message or a whisper, as in EternalJK; Settings > HUD > Remember chat channel (`cg_chatRememberChannel`, now off) brings back opening on your last channel _(Lukas, after EternalJK)_
 - JA+ servers: Settings > Gameplay > JA+ protection > Push away kiss attempts (`cg_antiAmKiss`, off) answers another player's `amkiss` with one Force Push, as JoF EternalJK's anti-kiss does; it comes with JA+ tools _(Lukas, after JoF EJK)_
-- `+moveup` on the mouse wheel jumps: each notch now counts as held for one whole move, so `bind MWHEELDOWN +moveup` jumps every notch, and other movement binds on the wheel move too (`+attack`, `+use` and the other buttons already worked) _(Sol, after Midn8Runner's report)_
 
 ## 2026.1019.2 (Alpha) | 19/10/2026
 
