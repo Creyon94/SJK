@@ -32,7 +32,7 @@ pub(super) struct Card {
     pub(super) links: Vec<Link>,
     /// The medals the SJK team gave them (`medal:` lines), in the catalogue's
     /// order, each with how often it was given (more than once only for a
-    /// repeatable one).
+    /// repeatable one, and none is since 21/10/2026).
     pub(super) medals: Vec<(Medal, u32)>,
     /// Their work from the history, newest first; empty for a card without.
     pub(super) work: Vec<Work>,
@@ -389,12 +389,11 @@ mod tests {
 
     #[test]
     fn medals_are_known_ids_in_the_catalogues_order() {
-        let text =
-            "== A\n[X]\nrole: r\nmedal: bug_hunter\nmedal: early_contributor\nmedal: bug_hunter\n";
+        let text = "== A\n[X]\nrole: r\nmedal: bug_hunter\nmedal: early_contributor\n";
         let sections = parse(text).unwrap();
         assert_eq!(
             sections[0].cards[0].medals,
-            [(Medal::EarlyContributor, 1), (Medal::BugHunter, 2)]
+            [(Medal::EarlyContributor, 1), (Medal::BugHunter, 1)]
         );
         for bad in [
             "medal: from_the_future",
@@ -402,6 +401,8 @@ mod tests {
             "medal: early contributor",
             "medal:",
             "medal: early_tester\nmedal: early_tester",
+            // Bug Hunter is held once since 21/10/2026.
+            "medal: bug_hunter\nmedal: bug_hunter",
         ] {
             let text = format!("== A\n[X]\nrole: r\n{bad}\n");
             let error = parse(&text).expect_err(bad);

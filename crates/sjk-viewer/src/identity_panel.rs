@@ -869,7 +869,8 @@ mod tests {
         });
         let medals = view(&inputs(Some(&state)), true).medals.expect("medals");
         assert_eq!(medals.len(), 1);
-        assert_eq!(medals[0].label(), "Bug Hunter x2");
+        // Held once since 21/10/2026: an old count of 2 shows no count.
+        assert_eq!(medals[0].label(), "Bug Hunter");
         assert_eq!(medals[0].note, "Thanks");
         assert_eq!(view(&inputs(None), true).medals, None);
     }

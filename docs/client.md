@@ -3552,8 +3552,8 @@ are in [identity.md](identity.md).
   SJK UI's look with its menus and the classic+ look with the classic ones
   ([identity.md](identity.md#medals), [sjk-ui.md](sjk-ui.md#new-medal)).
 - `debug_medal <id> [x<count>] [note]` (`debug_medal all [note]` for every medal,
-  alone it lists the ids: `early_tester`, `early_contributor`, `bug_hunter`, which
-  takes a count) shows made-up medals as if the SJK team had just given them, through
+  alone it lists the ids: `early_tester`, `early_contributor`, `bug_hunter`; a count
+  is only for a repeatable medal, and none is since 21/10/2026) shows made-up medals as if the SJK team had just given them, through
   the same queue, card (in a match), pop-up, ceremony and sound, to try them without the
   hub. It sends nothing and never writes `medals_seen.txt`; the console
   closes so the pop-up shows at once on the main menu (in a match, open the game

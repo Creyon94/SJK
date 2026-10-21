@@ -18,9 +18,8 @@
 #                      picture and name (repeat the key for more); optional.
 #                      The ids are the hub's (crates/sjk-viewer/src/medals.rs):
 #                      early_tester, early_contributor, bug_hunter.
-#                      An unknown id is an error; bug_hunter listed again
-#                      counts up ("Bug Hunter x2"), any other one twice is an
-#                      error.
+#                      An unknown id is an error, and so is one listed twice
+#                      (no medal is repeatable since 21/10/2026).
 #
 # Lines starting with '#' and blank lines are ignored. ASCII only: the menu fonts
 # draw bytes. Every merge into main that brings someone's work adds it here: a
