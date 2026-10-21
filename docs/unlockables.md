@@ -1101,15 +1101,16 @@ Profile page's See the collection) open it on its own:
   it has them; grey and still under a padlock when locked; owned but with its pack not
   loaded yet, a neutral still blade; a chroma in the player's colour, with its colour
   wheel before its name), its name and its state (Worn, Yours, Locked) under it, its
-  tier's name at the right of that line in its colour; a click chooses a row, a double click (within 0.4 s) wears an owned one as Equip does
-  (a locked one stays a preview, the worn one stays on);
+  tier's name at the right of that line in its colour; a click on an owned row wears it as Equip does (Creyon, 21/10/2026; a double click
+  until then), a locked one stays a preview and the worn one stays on; the keys choose
+  without wearing, and Enter or Equip wears;
 - the grid (10/10/2026, Sol's request, so many shaders scroll quickly): cards of
   164 by 196 frame pixels, five to a line, three lines shown, each with a band of its
   tier's colour along the top, a frame in it (gold and thicker for the chosen one), the
   live swatch, the chroma's wheel, the name without "blade", the tier's name and the
   state. The arrows move in two directions (Left and Right a card, Up and Down a line,
   stopping at the ends), the wheel scrolls a line a notch keeping the chosen card in
-  view, a click chooses, a double click wears an owned one as on the rack, and a thin
+  view, a click wears an owned one as on the rack, and a thin
   bar at the right shows where it is once there are more lines than three. Two
   switches left of the kinds (three bars: the rack; four squares: the grid) and V
   change the view; `ui_shaderView` (archived, 0 the rack, 1 the grid) keeps it;
@@ -1145,13 +1146,13 @@ Profile page's See the collection) open it on its own:
   pills, 1st saber and 2nd saber (1st half and Other half for a staff), each with what it
   wears ("Same as the 1st" for none of its own), the one being dressed in gold. A click on
   a pill, or a click (not a drag) on the sabers themselves (the upper saber is the first;
-  on a staff a click goes to the other half), chooses it, and then one click on an owned
-  shader puts it on that side (Creyon: pick a side, then a shader); with one saber a click
-  previews and a double click wears. The sabers show the shader on
+  on a staff a click goes to the other half), chooses it and moves the choice to the row that side wears, so the card and the sabers
+  show what it has on; then one click on an owned shader puts it on that side (Creyon: pick
+  a side, then a shader), as it does on the one saber. The sabers show the shader on
   the target, the other keeping what it wears, the second laid below the first (a staff
   shows both halves on its one hilt), and the card's Equip and Unequip work on that side,
   for the second setting `cg_saberSkin2` (to the shader, `stock` from the stock row, or
-  back to empty); Enter and a double click on a row do the same. A row the second wears
+  back to empty); Enter and a click on a row do the same. A row the second wears
   says "2nd blade". Holding one saber of one blade, the room shows no switch and no row says
   "2nd blade"; a second skin chosen before waits, and a line says it shows with two sabers or
   a staff (chosen in the Profile's Saber tab, `saber1` and `saber2`).
@@ -1174,7 +1175,7 @@ Verified: unit tests (keys, pointer, the worn one chosen on opening, equip and u
 a locked one previewed but never equipped, every row and its words within the canvas
 at 1080p, 4K, 4:3 and 21:9, the swatch moving and staying inside its frame, the Staff
 page's Unlock and Relock; the grid's switches and V, its arrows in two directions, its
-wheel, a double click on a card, every card above the keys at the four shapes) and the
+wheel, a click on a card, every card above the keys at the four shapes) and the
 world shot `duel6_sjk_collection` (the Sun worn on the stage, the Storm previewed, the
 grid with five owned, a 4:3 window and its grid, the in-game preview, the classic
 menus; since 17/10/2026 the saber alone and `duel6-collection-shaders-turned`, turned by

@@ -64,9 +64,6 @@ const ACHIEVEMENT_BASE: u16 = 1_240;
 /// to 299 skins (the stock blade is row 0).
 const SHADER_BASE: u16 = 7_000;
 const SHADER_LIMIT: u16 = 7_300;
-/// Two clicks on a shader row this close together wear it (as the main menu's server
-/// browser joins on one).
-const DOUBLE_CLICK: std::time::Duration = std::time::Duration::from_millis(400);
 const WEAR_TOKEN: u16 = 1_300;
 const TOY_TOKEN: u16 = 1_310;
 const TOY_SWITCH_TOKEN: u16 = 1_311;
@@ -361,8 +358,6 @@ pub(crate) struct Panel {
     /// The first line of cards the grid shows (it scrolls, [`GRID_LINES_SHOWN`] at a
     /// time).
     grid_first: usize,
-    /// The shader row last clicked and when, for a double click's Equip.
-    last_click: Option<(u16, Instant)>,
     /// What the Shaders tab dresses while the player holds two sabers or a staff: the
     /// second saber (or the staff's other half) when true, else the first. The target
     /// switch over the saber, or a click on a saber, chooses it.
@@ -372,6 +367,9 @@ pub(crate) struct Panel {
     /// Where a press on the lone saber began, to tell a click (which chooses the saber
     /// it lands on) from a drag (which turns them).
     saber_press: Option<[f32; 2]>,
+    /// The side changed: the next build chooses the row that side wears, so the card and
+    /// the preview show what it has on rather than the other side's choice.
+    jump_to_worn: bool,
     /// How many medals the last frame showed.
     medals_shown: usize,
     shader_rows: [ShaderRow; SHADER_ROWS],
@@ -456,10 +454,10 @@ impl Panel {
             shader_first: 0,
             grid: false,
             grid_first: 0,
-            last_click: None,
             second_target: false,
             pair: crate::saber_skins::Pair::None,
             saber_press: None,
+            jump_to_worn: false,
             medals_shown: 0,
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
             shader_list: unlockables::blade_skins_by_tier().to_vec(),
@@ -671,7 +669,11 @@ impl Panel {
 
     /// Choose the target saber (or half) the Shaders tab dresses.
     fn set_target(&mut self, second: bool) -> PanelAction {
-        self.second_target = second && self.pair != crate::saber_skins::Pair::None;
+        let second = second && self.pair != crate::saber_skins::Pair::None;
+        if second != self.second_target {
+            self.jump_to_worn = true;
+        }
+        self.second_target = second;
         PanelAction::None
     }
 
@@ -1019,9 +1021,8 @@ impl Panel {
         self.pointer_at(event, illuminate, Instant::now())
     }
 
-    /// A pointer event at `now`. A second click on a shader row within
-    /// [`DOUBLE_CLICK`] wears it, as Equip does (an owned one only; a locked one stays a
-    /// preview, the worn one stays worn).
+    /// A pointer event at `now`. A click on a shader row wears it, as Equip does (an
+    /// owned one only; a locked one stays a preview, the worn one stays worn).
     fn pointer_at(&mut self, event: InputEvent, illuminate: bool, now: Instant) -> PanelAction {
         self.hover.moved();
         match event {
@@ -1145,31 +1146,23 @@ impl Panel {
                 .map(usize::from)
                 .filter(|index| *index < self.shader_count)
         {
-            let double = self
-                .last_click
-                .is_some_and(|(last, at)| last == token && now.duration_since(at) <= DOUBLE_CLICK);
             self.shader = index;
-            // Holding two sabers or a staff, one click dresses the saber (or half) the
-            // switch chose (Creyon: pick a side, then a shader, and it is on); otherwise a
-            // click previews and a double click wears.
-            let paired = self.pair != crate::saber_skins::Pair::None;
-            if double || paired {
-                self.last_click = None;
-                return self
-                    .shader_rows
-                    .get(index)
-                    .copied()
-                    .filter(|row| {
-                        if self.second_target {
-                            !row.second_worn
-                        } else {
-                            !row.worn
-                        }
-                    })
-                    .map_or(PanelAction::None, |row| self.wear_action(row));
-            }
-            self.last_click = Some((token, now));
-            return PanelAction::None;
+            // One click on a shader the player owns wears it (Creyon, 21/10/2026): on the one
+            // saber, or on the side the switch chose (two sabers, a staff's halves). A locked
+            // one is previewed only, and one already worn stays on; the keys still preview,
+            // and Enter or Equip wears.
+            return self
+                .shader_rows
+                .get(index)
+                .copied()
+                .filter(|row| {
+                    if self.second_target {
+                        !row.second_worn
+                    } else {
+                        !row.worn
+                    }
+                })
+                .map_or(PanelAction::None, |row| self.wear_action(row));
         }
         if event.kind == UiEventKind::Activate {
             if let Some(index) = token
@@ -1856,7 +1849,7 @@ mod tests {
     }
 
     #[test]
-    fn a_double_click_wears_an_owned_shader_only() {
+    fn a_click_wears_an_owned_shader_only() {
         let owned = [sun()];
         let click = |panel: &mut Panel, token: u16, now: Instant| {
             let rect = panel.ui.rect_for(token).expect("a pointer area");
@@ -1884,30 +1877,14 @@ mod tests {
         let start = Instant::now();
         let later = |millis: u64| start + std::time::Duration::from_millis(millis);
         let mut panel = drawn(Tab::Shaders, &inputs(Holdings::Known(&owned), ""));
-        // One click chooses; a second soon after wears it.
+        // One click on an owned shader wears it; another row is worn by its own click.
         assert_eq!(
             click(&mut panel, row("saber_sun"), later(0)),
-            PanelAction::None
-        );
-        assert_eq!(
-            click(&mut panel, row("saber_sun"), later(250)),
             PanelAction::Wear("saber_sun")
         );
-        // Too slow, or on another row, is two single clicks.
-        assert_eq!(
-            click(&mut panel, row("saber_sun"), later(1_000)),
-            PanelAction::None
-        );
-        assert_eq!(
-            click(&mut panel, row("saber_sun"), later(1_600)),
-            PanelAction::None
-        );
+        // The stock blade is worn already (the page is not built again in between).
         assert_eq!(
             click(&mut panel, SHADER_BASE, later(1_700)),
-            PanelAction::None
-        );
-        assert_eq!(
-            click(&mut panel, row("saber_sun"), later(1_800)),
             PanelAction::None
         );
         // A locked one is only previewed.
@@ -1930,13 +1907,9 @@ mod tests {
             click(&mut panel, row("saber_sun"), later(200)),
             PanelAction::None
         );
-        // The stock blade, worn by a double click while a shader is on.
+        // The stock blade, worn by a click while a shader is on.
         assert_eq!(
             click(&mut panel, SHADER_BASE, later(1_000)),
-            PanelAction::None
-        );
-        assert_eq!(
-            click(&mut panel, SHADER_BASE, later(1_200)),
             PanelAction::Wear("")
         );
     }
@@ -1968,7 +1941,10 @@ mod tests {
             action
         };
         let sun_row = row_of("saber_sun") as u16;
-        assert_eq!(click(&mut panel, SHADER_BASE + sun_row), PanelAction::None);
+        assert_eq!(
+            click(&mut panel, SHADER_BASE + sun_row),
+            PanelAction::Wear("saber_sun")
+        );
         assert_eq!(panel.shader, usize::from(sun_row));
         let fonts = crate::text::load_modern(1.0, None).expect("Inter");
         panel.build(
@@ -1982,36 +1958,34 @@ mod tests {
         );
         // With one saber of one blade there is no target switch.
         assert!(panel.ui.rect_for(TARGET_SECOND_TOKEN).is_none());
-        // Two sabers: the switch chooses the second, and Equip dresses it; once worn there,
-        // it takes it off again.
-        let dual = |second| Inputs {
+        // Two sabers, the first wearing the Sun: the switch chooses the second and the page
+        // shows what it wears (the first's skin, none of its own); one click on the stock row
+        // dresses it, and once worn there Unequip takes it off again.
+        let dual = |first, second| Inputs {
             second,
             pair: crate::saber_skins::Pair::TwoSabers,
-            ..inputs(Holdings::Known(&owned), "")
+            ..inputs(Holdings::Known(&owned), first)
         };
-        panel.build(&dual(""), &fonts.font, [1920.0, 1080.0]);
+        panel.build(&dual("saber_sun", ""), &fonts.font, [1920.0, 1080.0]);
         assert_eq!(click(&mut panel, TARGET_SECOND_TOKEN), PanelAction::None);
         assert!(panel.stage_wish().unwrap().on_second);
-        panel.build(&dual(""), &fonts.font, [1920.0, 1080.0]);
+        panel.build(&dual("saber_sun", ""), &fonts.font, [1920.0, 1080.0]);
         assert_eq!(
-            click(&mut panel, WEAR_TOKEN),
-            PanelAction::WearSecond("saber_sun")
+            panel.shader,
+            usize::from(sun_row),
+            "the side's skin is chosen"
         );
-        panel.build(&dual("saber_sun"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, SHADER_BASE),
+            PanelAction::WearSecond(crate::looks::STOCK_SECOND)
+        );
+        panel.build(&dual("saber_sun", "stock"), &fonts.font, [1920.0, 1080.0]);
         assert_eq!(click(&mut panel, WEAR_TOKEN), PanelAction::WearSecond(""));
+        // Back on the first: its own skin is chosen, and a click on another dresses it.
         assert_eq!(click(&mut panel, TARGET_FIRST_TOKEN), PanelAction::None);
-        panel.build(&dual("saber_sun"), &fonts.font, [1920.0, 1080.0]);
-        assert_eq!(
-            click(&mut panel, WEAR_TOKEN),
-            PanelAction::Wear("saber_sun")
-        );
-        // With two sabers one click on a shader dresses the chosen saber at once.
-        assert_eq!(click(&mut panel, TARGET_SECOND_TOKEN), PanelAction::None);
-        panel.build(&dual(""), &fonts.font, [1920.0, 1080.0]);
-        assert_eq!(
-            click(&mut panel, SHADER_BASE + sun_row),
-            PanelAction::WearSecond("saber_sun")
-        );
+        panel.build(&dual("saber_sun", "stock"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(panel.shader, usize::from(sun_row));
+        assert_eq!(click(&mut panel, SHADER_BASE), PanelAction::Wear(""));
         // Holding one saber again, the target goes back to it.
         panel.build(
             &inputs(Holdings::Known(&owned), ""),
@@ -2233,7 +2207,7 @@ mod tests {
     }
 
     #[test]
-    fn a_double_click_on_a_card_wears_an_owned_shader() {
+    fn a_click_on_a_card_wears_an_owned_shader() {
         let owned = [sun()];
         let mut panel = grid(Holdings::Known(&owned), "", [1920.0, 1080.0]);
         let token = SHADER_BASE + row_of("saber_sun") as u16;
@@ -2261,8 +2235,7 @@ mod tests {
             }
             action
         };
-        assert_eq!(click(0), PanelAction::None);
-        assert_eq!(click(200), PanelAction::Wear("saber_sun"));
+        assert_eq!(click(0), PanelAction::Wear("saber_sun"));
     }
 
     /// Every card in view, its words and the switches fit the canvas above the keys,

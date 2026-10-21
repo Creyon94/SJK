@@ -376,6 +376,16 @@ impl Panel {
         self.kinds(frame, owned);
         self.view_switches(frame);
         let unlocks = matches!(inputs.holdings, unlockables::Holdings::Known(_));
+        // A side just chosen: show the row it wears (the second's own, else the first's).
+        if std::mem::take(&mut self.jump_to_worn) {
+            let worn_by_target = rows
+                .iter()
+                .position(|row| self.second_target && row.second)
+                .or_else(|| rows.iter().position(|row| row.worn));
+            if let Some(index) = worn_by_target {
+                self.shader = index;
+            }
+        }
         // The rack (or the grid) scrolls just enough to keep the chosen one in view.
         self.shader_first = rack_window(self.shader_first, self.shader, rows.len());
         self.grid_first = window(

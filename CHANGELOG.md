@@ -30,7 +30,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) and click a shader, or `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, the staff's halves at Sol's request)_
+- Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) and click a shader, or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, the staff's halves at Sol's request)_
+- In the Collection one click on a shader you own wears it; Equip is still there _(Creyon)_
 - `saber kyle kyle` holds two sabers, `saber dual_4` a staff, `saber kyle` one, and the Collection's preview follows at once _(Creyon)_
 
 ## 2026.1021.1 (Alpha) | 21/10/2026
