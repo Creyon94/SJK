@@ -28,7 +28,13 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1022.1 (Alpha) | 22/10/2026
+
+A small release to try the Hax, a new meme toy: hack another SJK player with the siege hack bar, then steer them for a few seconds. Duels get a setting that draws every blade plainly.
+
+> The Hax: Hold Use on a player with the toy on, then steer them for five seconds.
+> Break free: The hacked player sees it coming, and turning the toy off frees them.
+> Duel blades: A new setting draws every blade plainly in duels, swings easy to read.
 
 = cg_duelStockBlades: New: in a duel, draw every blade as a normal one in its owner's own colour, without skins or effects, so swings are easy to read.
 
