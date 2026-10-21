@@ -402,8 +402,12 @@ the SJK team gives them.
 | --- | --- | --- | --- |
 | Early Tester | `early_tester` | Helped test SJK in its early days. | no |
 | Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
-| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | yes, with a count ("Bug Hunter x2") |
+| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | no (since 21/10/2026: bug hunting is rewarded with holocrons) |
 | Supporter | `supporter` | Donated to SJK's development (more than 1 euro on Ko-fi, since 13/10/2026; [sjk.md](sjk.md#donations)): given by the hub itself when the Ko-fi message holds the donor's key id, else by the SJK team. | no |
+
+No medal is given again since 21/10/2026, when Bug Hunter stopped counting up: a count
+above 1 from the hub reads as 1. The counting (`Medal::repeatable`, the "x2" labels,
+Give +1, `debug_medal`'s `x<count>`) stays for a future medal that may be.
 
 The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
 the count, when it was last given and a short note from the team, often empty) and in its
@@ -475,7 +479,7 @@ Where they show:
   ([classic-plus.md](classic-plus.md#pages)).
 - `debug_medal` ([rehearsal.rs](../crates/sjk-viewer/src/medal_popup/rehearsal.rs))
   rehearses receiving medals offline: `debug_medal <id> [x<count>] [note]` (a count for
-  Bug Hunter only), `debug_medal all [note]` for every medal, `debug_medal` alone for the
+  a repeatable medal only, and none is since 21/10/2026), `debug_medal all [note]` for every medal, `debug_medal` alone for the
   ids. It makes the list a hub profile would carry (dated today), which is read as the
   hub's is and queued like a real arrival, so the card in a match, the pop-up
   on a menu, the ceremony, the fanfare and Next can all be tried; the console closes so

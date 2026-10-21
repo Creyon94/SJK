@@ -322,7 +322,7 @@ medals the SJK team gave them, by the hub's ids (`early_contributor`;
 names. Sections are free: a later "Supporters" section is a `== Supporters`
 heading and its cards, with no code. The tests reject a card without a role, an
 unknown key, a link that is not https, an unknown medal id, a medal listed twice
-(but Bug Hunter, which counts up) or a non-ASCII character.
+(Bug Hunter included: it is held once since 21/10/2026) or a non-ASCII character.
 
 Under each card the page folds that person's whole history: every feature and
 pull request merged into `main`, with its commits. It comes from

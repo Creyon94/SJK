@@ -208,7 +208,8 @@ impl MedalPopup {
             }) {
                 continue;
             }
-            // A newer count replaces one still waiting, and the real medal a rehearsal.
+            // A newer count replaces one still waiting, and the real medal a rehearsal;
+            // the same award again (another medal changed the list) keeps its card said.
             let queued = Queued {
                 award,
                 rehearsal: false,
@@ -219,7 +220,10 @@ impl MedalPopup {
                 .iter_mut()
                 .find(|waiting| waiting.award.medal == queued.award.medal)
             {
-                Some(waiting) => *waiting = queued,
+                Some(waiting) if waiting.rehearsal || waiting.award != queued.award => {
+                    *waiting = queued;
+                }
+                Some(_) => {}
                 None => {
                     self.queue.push_back(queued);
                     added = true;
@@ -619,7 +623,8 @@ mod fixtures {
         ]
     }
 
-    /// `medal` with `note`, a repeatable one given a twelfth time.
+    /// `medal` with `note`, a repeatable one (none is since 21/10/2026) given a twelfth
+    /// time.
     pub(super) fn award(medal: Medal, note: &str) -> Award {
         Award {
             medal,
@@ -743,13 +748,14 @@ mod tests {
             &[wire("early_tester", 1), wire("bug_hunter", 1)],
         );
         assert!(!restarted.pending());
-        // A repeatable medal given again shows again; another identity sees its own.
+        // Bug Hunter is held once since 21/10/2026: an old count of 2 is not new.
+        // Another identity sees its own.
         restarted.offer(
             directory.path(),
             "aa",
             &[wire("early_tester", 1), wire("bug_hunter", 2)],
         );
-        assert!(restarted.pending());
+        assert!(!restarted.pending());
         restarted.offer(directory.path(), "bb", &[wire("early_tester", 1)]);
         assert_eq!(restarted.queue.len(), 1);
         assert_eq!(restarted.queue[0].award.medal, Medal::EarlyTester);
@@ -883,17 +889,18 @@ mod tests {
         assert_eq!(cards(&mut early), ["Early Contributor"]);
     }
 
-    /// A medal given again while its first count still waits has a card of its own,
-    /// with the new count.
+    /// A count above 1 for a medal that is not repeatable (Bug Hunter, held once since
+    /// 21/10/2026) while it still waits changes nothing: no new card, no count.
     #[test]
-    fn a_new_count_waiting_has_its_own_card() {
+    fn a_count_for_a_medal_held_once_adds_no_card() {
         let directory = tempfile::tempdir().expect("a folder");
         let mut popup = MedalPopup::default();
         popup.offer(directory.path(), "aa", &[wire("bug_hunter", 1)]);
         assert_eq!(cards(&mut popup), ["Bug Hunter"]);
         popup.offer(directory.path(), "aa", &[wire("bug_hunter", 2)]);
         assert_eq!(popup.queue.len(), 1);
-        assert_eq!(cards(&mut popup), ["Bug Hunter x2"]);
+        assert_eq!(popup.queue[0].award.count, 1);
+        assert!(cards(&mut popup).is_empty());
     }
 
     /// The real medal is written as seen when its button is taken, before it has
