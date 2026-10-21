@@ -1210,31 +1210,28 @@ impl Panel {
             );
         }
         let mut left = x;
-        // Equip follows the target the switch over the saber chose: the first saber, or the
-        // second (the staff's other half).
-        let staff = self.pair == crate::saber_skins::Pair::Staff;
+        // Equip follows the target the switch over the saber chose (the gold pill says
+        // which): the first saber, or the second (the staff's other half).
         let label = shown_row.and_then(|shown| {
             if self.second_target {
-                let (on, off) = if staff {
-                    ("Equip on the other half", "Unequip the other half")
-                } else {
-                    ("Equip on the 2nd saber", "Unequip the 2nd saber")
-                };
-                shown
-                    .second
-                    .map(|_| (if shown.second_worn { off } else { on }, !shown.second_worn))
+                shown.second.map(|_| {
+                    (
+                        if shown.second_worn {
+                            "Unequip"
+                        } else {
+                            "Equip"
+                        },
+                        !shown.second_worn,
+                    )
+                })
             } else {
                 shown.wear.map(|wear| {
                     let label = if wear.is_empty() && row.skin.is_some() {
                         "Unequip"
                     } else if row.skin.is_none() {
                         "Wear the stock blade"
-                    } else if self.pair == crate::saber_skins::Pair::None {
-                        "Equip"
-                    } else if staff {
-                        "Equip on the 1st half"
                     } else {
-                        "Equip on the 1st saber"
+                        "Equip"
                     };
                     (label, !(wear.is_empty() && row.skin.is_some()))
                 })
@@ -1411,8 +1408,12 @@ impl Panel {
                 "{}  Drag to turn{}",
                 symbols::TURN,
                 match self.pair {
-                    crate::saber_skins::Pair::TwoSabers => ",  click a saber to dress it",
-                    crate::saber_skins::Pair::Staff => ",  click to dress the other half",
+                    crate::saber_skins::Pair::TwoSabers => {
+                        ",  pick a saber (or click it), then click a shader"
+                    }
+                    crate::saber_skins::Pair::Staff => {
+                        ",  pick a half (or click the staff), then click a shader"
+                    }
                     crate::saber_skins::Pair::None => "",
                 }
             ),

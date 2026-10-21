@@ -1149,7 +1149,11 @@ impl Panel {
                 .last_click
                 .is_some_and(|(last, at)| last == token && now.duration_since(at) <= DOUBLE_CLICK);
             self.shader = index;
-            if double {
+            // Holding two sabers or a staff, one click dresses the saber (or half) the
+            // switch chose (Creyon: pick a side, then a shader, and it is on); otherwise a
+            // click previews and a double click wears.
+            let paired = self.pair != crate::saber_skins::Pair::None;
+            if double || paired {
                 self.last_click = None;
                 return self
                     .shader_rows
@@ -2000,6 +2004,13 @@ mod tests {
         assert_eq!(
             click(&mut panel, WEAR_TOKEN),
             PanelAction::Wear("saber_sun")
+        );
+        // With two sabers one click on a shader dresses the chosen saber at once.
+        assert_eq!(click(&mut panel, TARGET_SECOND_TOKEN), PanelAction::None);
+        panel.build(&dual(""), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, SHADER_BASE + sun_row),
+            PanelAction::WearSecond("saber_sun")
         );
         // Holding one saber again, the target goes back to it.
         panel.build(

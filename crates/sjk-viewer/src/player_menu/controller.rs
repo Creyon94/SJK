@@ -19,6 +19,12 @@ impl PlayerMenu {
 
     /// Read the model, sabers and cosmetics from the cvars for the Collection's
     /// stage, the screen staying closed.
+    /// While the stage shows the player's sabers outside this screen (the Collection),
+    /// follow the saber cvars as they change.
+    pub(crate) fn follow_sabers_for_stage(&mut self, console: &ViewerConsole) {
+        self.saber.follow(console);
+    }
+
     pub(crate) fn read_for_stage(&mut self, console: &ViewerConsole) {
         self.read_console(console);
         self.saber.open(console);

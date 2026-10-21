@@ -4898,6 +4898,13 @@ command execution); not yet run against a game session or Sol's Archive itself.
 Every command and cvar the client knows, with its help, default and Settings row, is
 in the generated [command reference](development.md#command-reference).
 
+`saber <hilt> [<second hilt>]` ([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs),
+21/10/2026, Creyon) sets the hilts held, as JoF EJK players type them: `saber kyle` one
+saber, `saber kyle kyle` two, `saber dual_4` a staff (`saber1`, and `saber2` set to `none`
+when no second is named); `saber` alone says what is held. The Collection's stage follows
+`saber1` and `saber2` while it is open (`SaberMenu::follow`), so its preview, and its switch
+for two sabers or a staff, change at once.
+
 The console key opens and closes either console style and never types its
 character, as in EternalJK (`IN_TranslateSDLToJKKey` and `IN_IsConsoleKey` turn
 it into `A_CONSOLE`). By default (`cl_consoleUseScanCode 1`, EternalJK's) it is

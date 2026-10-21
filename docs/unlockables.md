@@ -1145,11 +1145,12 @@ Profile page's See the collection) open it on its own:
   pills, 1st saber and 2nd saber (1st half and Other half for a staff), each with what it
   wears ("Same as the 1st" for none of its own), the one being dressed in gold. A click on
   a pill, or a click (not a drag) on the sabers themselves (the upper saber is the first;
-  on a staff a click goes to the other half), chooses it. The sabers show the shader on
+  on a staff a click goes to the other half), chooses it, and then one click on an owned
+  shader puts it on that side (Creyon: pick a side, then a shader); with one saber a click
+  previews and a double click wears. The sabers show the shader on
   the target, the other keeping what it wears, the second laid below the first (a staff
-  shows both halves on its one hilt), and the card's foot then says Equip on the 1st
-  saber or Equip on the 2nd saber (the other half for a staff), Unequip the 2nd saber once
-  worn there, which sets `cg_saberSkin2` (to the shader, `stock` from the stock row, or
+  shows both halves on its one hilt), and the card's Equip and Unequip work on that side,
+  for the second setting `cg_saberSkin2` (to the shader, `stock` from the stock row, or
   back to empty); Enter and a double click on a row do the same. A row the second wears
   says "2nd blade". Holding one saber of one blade, the room shows no switch and no row says
   "2nd blade"; a second skin chosen before waits, and a line says it shows with two sabers or

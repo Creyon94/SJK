@@ -251,6 +251,7 @@ mod saber_clash_flare;
 mod saber_defs;
 mod saber_ghosts;
 mod saber_gpu;
+mod saber_hilt_command;
 mod saber_hilts;
 mod saber_motion;
 mod saber_persona;

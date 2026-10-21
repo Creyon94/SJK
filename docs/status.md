@@ -3,8 +3,9 @@
 21/10/2026, `feat/second-saber-skin` (Creyon, SJK pull request with the hub's), based on `main`
 at fc3d0aa9: a player with two sabers can give the second its own blade skin, and one with a staff its
 other half (Sol's request) (`cg_saberSkin2`, `saberskin second`, and the Collection's target
-switch over the saber, which a click on a saber also works, choosing what Equip dresses and
-what the preview shows;
+switch over the saber, which a click on a saber also works, choosing the side one click on
+a shader then dresses; the `saber` command, `saber kyle kyle` or `saber dual_4`, holds two
+sabers or a staff and the preview follows;
 [unlockables.md](unlockables.md#settings-and-commands)). The look carries it to the hub as
 `saber2` and `saber2_off` (hub pull request on `Sol-Vulpes/SJK-hub-shared`,
 `feat/second-saber-skin`), and every SJK player draws each saber with its own skin. Needs the
