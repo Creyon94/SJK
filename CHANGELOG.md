@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- SJK Blades cards now make crafting cheaper: while you hold a copy of a saber shader's blade card, crafting that shader costs its shop price with a Normal copy, or half with a Holo or Solar one, and you keep the card. The Craft button shows the lower price _(Sol)_
 - Map changes no longer build every Blade Lab signature shader again: about 130 shader builds a map, on two or three more threads each time that never stopped, ran while the next map loaded and the last one was still played: a stutter at every map change _(Sol, after players' FPS reports)_
 - Turning vertical sync on or off with supersampling on no longer crashes the game _(Sol, after darkenedways' report)_
 - Graphics cards of 4 GB or less: a new Texture detail setting (Settings > Renderer, `r_picmip` as in Jedi Academy) halves large textures for a quarter of their video memory each step, and after the menus switch to pictures each map that runs out of video memory lowers it one more step (to 2 at most). Changing your character's head, torso or legs when the card is full no longer crashes the game: that model just does not show _(Sol, after Vin's report)_

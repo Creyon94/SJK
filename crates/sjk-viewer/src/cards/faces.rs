@@ -133,6 +133,13 @@ impl Face {
             unlockable.name
         ))
     }
+
+    /// What any copy of a blade card gives when crafting, as its hover card says it ("Any
+    /// copy crafts the Sun blade for less."; 21/10/2026), for a shader this client knows.
+    pub(crate) fn crafts_for_less(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.blade.as_deref()?)?;
+        Some(format!("Any copy crafts the {} for less.", unlockable.name))
+    }
 }
 
 /// A card file as written.
@@ -483,6 +490,11 @@ mod tests {
         assert_eq!(parse("x", &blank).unwrap().blade, None);
         let later = FILE.replace("\"artist\"", "\"blade\": \"saber_later\", \"artist\"");
         assert_eq!(parse("x", &later).unwrap().solar_drop(), None);
+        assert_eq!(
+            blade.crafts_for_less().as_deref(),
+            Some("Any copy crafts the Sun blade for less.")
+        );
+        assert_eq!(face.crafts_for_less(), None);
         assert_eq!(face.solar_drop(), None);
         // A field the client does not know yet is read past.
         let later = FILE.replace("\"artist\"", "\"frame\": \"gold\", \"artist\"");

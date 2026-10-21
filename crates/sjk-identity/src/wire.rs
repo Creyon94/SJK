@@ -377,6 +377,11 @@ pub struct EconomyTables {
     /// is not for sale. Empty from hubs before.
     #[serde(default)]
     pub holocrons: std::collections::BTreeMap<String, u64>,
+    /// What crafting a shader costs while the person holds a copy of its blade card, in
+    /// per cent of the craft cost, by the best copy's finish id (`normal`, `holo`,
+    /// `solar`; 21/10/2026). Empty from hubs before, which take the full cost.
+    #[serde(default)]
+    pub blade_card_craft: std::collections::BTreeMap<String, u64>,
 }
 
 /// A duplicate the hub shattered (`POST /v1/unlocks/shatter`).
@@ -1494,6 +1499,11 @@ mod tests {
         )
         .unwrap();
         assert_eq!(shards.shop_currency, "shards");
+        assert!(shards.blade_card_craft.is_empty());
+        let cards: EconomyTables =
+            serde_json::from_str(r#"{"blade_card_craft":{"normal":75,"holo":50,"solar":50}}"#)
+                .unwrap();
+        assert_eq!(cards.blade_card_craft["holo"], 50);
         assert_eq!(
             (shards.holocrons["uncommon"], shards.holocrons["rare"]),
             (150, 400)

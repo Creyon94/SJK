@@ -181,7 +181,8 @@ loot tables' `shard_pile`, `shards` and `card_shards`), the client keeping a cop
   never below 0, on the profile as `shards`.
 - **Shattering** breaks one duplicate (a shader held twice or more by drops or grants; a
   medal's copy does not count) into shards, one copy a request, never the last.
-- **Crafting** makes a shader of the trade the player does not hold, for its cost.
+- **Crafting** makes a shader of the trade the player does not hold, for its cost; a copy
+  of its blade card lowers the cost ([SJK Blades](#sjk-blades), since 21/10/2026).
 - **Who may:** like opening, everything follows the hub's opening setting: while opening
   is for staff, others get `opening_staff_only` and the Shop button is not shown.
 
@@ -329,6 +330,22 @@ not know is kept but named nowhere; `Face::blade` in
   evenly among every card of a rarity would almost always land on a blade card, so the
   hub first picks one of the sets that have a card of the rarity rolled, then a card in
   it (the hub's rule; the client shows whatever card it is given).
+- **Crafting for less** (Sol, 21/10/2026): while the player holds a revealed copy of a
+  blade card and not its shader, crafting the shader costs less by the best copy's
+  finish, and the card is kept (cards stay luck only, never spent):
+
+  | Best copy | Crafting costs | Mythical (2 000) | Rare (300) |
+  | --- | --- | --- | --- |
+  | Normal | 75 %, the shop's price | 1 500 | 225 |
+  | Holo | 50 % | 1 000 | 150 |
+  | Solar | 50 % (it dropped the shader once already) | 1 000 | 150 |
+
+  The hub decides (`economy::BLADE_CARD_CRAFT`, sent as `economy.blade_card_craft`, and
+  the craft answer's `blade_card`); a hub before takes the full cost and sends no table,
+  read as no discount ([economy.rs](../crates/sjk-viewer/src/economy.rs) `blade_card`,
+  `choices`). The Shaders tab's Craft reads "Craft  150 (shard)  Holo card -50 %", and the
+  blade card's hover card adds "Any copy crafts the Sun blade for less." The shop's prices
+  do not change.
 - **In the client:** a blade card's hover card and its close-up on the Cards tab add "Its
   Solar copies also drop the Sun blade." (`Face::solar_drop`, for a shader the client
   knows); the binder's kind filter offers "Kind: Blade" once the packs have one. The
