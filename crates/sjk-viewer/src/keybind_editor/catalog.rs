@@ -109,6 +109,8 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
         crate::order66::EXECUTE_COMMAND,
         "",
     ),
+    // The Hax: the toy's switch; the hack itself is +use held on a player.
+    action(Interaction, "Toy: Hax", crate::hax::COMMAND, ""),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),

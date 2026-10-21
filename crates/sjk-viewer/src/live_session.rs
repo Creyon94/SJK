@@ -265,6 +265,8 @@ impl GpuState {
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
             // In the cardboard box the player crouches (`cardboard_box`).
             self.cardboard_box.shape_command(&mut command);
+            // A Hax hack starts and holds on `+use` (`hax`).
+            self.hax.observe_use(&command);
             // Getting up from a JA+ away emote crouches (`away_emote`).
             crate::away_emote::shape_command(&mut command);
             command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
@@ -283,7 +285,11 @@ impl GpuState {
                 .local_prediction
                 .committed_state()
                 .map(crate::ghost_replay::Pose::of);
-            let replay = pose.and_then(|pose| self.ghost.drive(&command, &pose));
+            // The Hax toy steers, or stands still while steering another (`hax`).
+            let replay = self
+                .hax
+                .drive(&command, delta_angles, (self.camera_pitch, self.camera_yaw))
+                .or_else(|| pose.and_then(|pose| self.ghost.drive(&command, &pose)));
             // Or the mimic copies another player (`mimic`).
             let replay = replay.or_else(|| {
                 let state = self.local_prediction.committed_state()?;

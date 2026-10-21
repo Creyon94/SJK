@@ -95,6 +95,8 @@ pub(crate) enum InputAction {
     Order66,
     /// `order66`: execute Order 66 for every player who has the toy on.
     ExecuteOrder66,
+    /// `toy_hax`: turn the Hax toy on or off ([`crate::hax`]).
+    Hax,
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -295,6 +297,7 @@ impl GameplayInput {
                     | crate::cardboard_box::COMMAND
                     | crate::order66::COMMAND
                     | crate::order66::EXECUTE_COMMAND
+                    | crate::hax::COMMAND
                     | "cameracontrol"
             )
     }
@@ -461,6 +464,7 @@ impl GameplayInput {
             crate::cardboard_box::COMMAND => Some(InputAction::CardboardBox),
             crate::order66::COMMAND => Some(InputAction::Order66),
             crate::order66::EXECUTE_COMMAND => Some(InputAction::ExecuteOrder66),
+            crate::hax::COMMAND => Some(InputAction::Hax),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -586,6 +590,7 @@ impl super::GpuState {
             Some(InputAction::CardboardBox) => self.toggle_cardboard_box(),
             Some(InputAction::Order66) => self.toggle_order66(),
             Some(InputAction::ExecuteOrder66) => self.execute_order66(),
+            Some(InputAction::Hax) => self.toggle_hax(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

@@ -791,6 +791,16 @@ pub struct ToyEvent {
     pub target: u8,
 }
 
+/// An answer of the toy relay (`PROTOCOL.md`, "Toy relay"): the events for the
+/// reader's own slot, and the id to read after next.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct RelayBatch {
+    /// The events, oldest first.
+    pub events: Vec<ToyEvent>,
+    /// The id the next read starts after.
+    pub next: u64,
+}
+
 /// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
 /// count is and when it was unlocked. Recognition only, it grants nothing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]

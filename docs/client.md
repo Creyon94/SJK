@@ -3998,6 +3998,59 @@ game or a film; the effect and its shader are written by hand
 mounted below all game data. See [order66.rs](../crates/sjk-viewer/src/order66.rs) and
 `GpuState::blow_apart` in [dismember.rs](../crates/sjk-viewer/src/dismember.rs).
 
+## Hax
+
+The Hax is a meme toy, SJK's own and free for every player (Sol's idea, 21/10/2026): a
+player who has it on hacks another who has it on, then steers them for a few seconds.
+`toy_hax` turns it on or off, from a bind (Settings > Key bindings > Interaction > Toy:
+Hax, unbound until a key is picked), from the quick wheel's [Toys page](#toys-page) or
+from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It is off at every start.
+
+- **Who takes part:** the players whose toy is on. It is a toy in their look
+  (`toys: ["hax"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so the hacker's
+  client knows who may be hacked. Players on stock clients, and SJK players with the toy
+  off, are never touched.
+- **The hack:** hold `+use` facing a holder of the toy within reach (the cardboard
+  box's, 96 units, in front). The siege hack bar fills under the crosshair with the
+  stock hacker icon (`gfx/mp/c_icon_tech`, [hack_bar.rs](../crates/sjk-viewer/src/hud/hack_bar.rs))
+  and the stock hacking loop plays (`sound/player/hacking.wav`), for 3 seconds. Letting
+  go of `+use`, the target walking more than 160 units away or out of the hacker's
+  front, or the hacker dying ends it. The hacked player sees "<name> is hacking you!
+  Get away", the same bar, and hears the loop from the hacker: walking away is the
+  counter.
+- **The control:** once the bar is full, the hacked player's client decides. It takes
+  the seize only from a player the game shows under the name they claimed, not blocked
+  here, whose look has the toy, while its own toy is on and its player plays (not
+  spectating or dead, not in a duel, not carrying a flag) and was not hacked in the last
+  15 seconds; else the hacker reads why ("Hack failed: <name> is in a duel"). Taken, for
+  5 seconds the hacker's movement keys, jump and crouch, walk, attack and alt attack and
+  view become the hacked player's: their client sends them as its own user commands,
+  keeping the weapon they held, with no Force power, weapon change, saber style change,
+  chat or command. Both hear the stock mind trick (`sound/weapons/force/distract.wav`,
+  `distractstop.wav` at the end); the hacked player reads "HACKED: <name> has your
+  controls", their view turned by the hacker. The hacker's camera goes behind the hacked
+  player, turned by the hacker's mouse at once (the player follows after the relay's
+  way); the hacker's own player stands still where they were, open to attack, and their
+  view comes back when it ends. The hacker may hack again after 15 seconds.
+- **Breaking free:** `toy_hax` off frees the hacked player at once; so do dying, a duel,
+  and the hacker going quiet for 1.5 seconds (after 0.4 seconds without news the player
+  stands still). The hacker's toy off, death or duel ends it for both.
+- **The way:** no client can move another player on a server, so the hacked player's
+  own client plays the hacker's controls. They go through the SJK hub's
+  [toy relay](hub-chat.md#toy-relay), not the toy events, which wait for the feed's next
+  poll: the hacker's client sends a frame (keys, buttons, view) when they change and
+  every 50 ms at least, at most one per 30 ms; a frame still waiting to be sent is
+  replaced by the next. Each holder of the toy keeps a long poll open for the events
+  meant for them. The hack's start and end, the seize and the answers travel the same
+  way. The steering lags by the hacker's way to the hub, the hub's to the hacked
+  player and their ping, and the hacker sees the result after their own ping too. Without
+  the hub (`cl_identity 0`), or with a hub from before the relay, nothing is hacked.
+
+The icon (a terminal with a green ">_") is drawn by
+[hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono;
+the sounds and the hack bar's icon are the retail game's. See
+[hax.rs](../crates/sjk-viewer/src/hax.rs).
+
 ## Holstered saber hilts
 
 Settings > Game offers **Holstered saber hilts**, **Holster server support**,
@@ -4200,8 +4253,9 @@ Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's o
 state; no cvar holds it). Since 16/10/2026 the default page also has the
 [Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it), and
 since 17/10/2026 [Order 66](#order-66) (`toy_order66`, marked while it is on, then
-Execute Order 66, `order66`); a wheel saved before keeps its Toys page as it was, and
-gains them from Add a choice, Toys.
+Execute Order 66, `order66`), and since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
+while it is on); a wheel saved before keeps its Toys page as it was, and gains them from
+Add a choice, Toys.
 
 ### GIF wheel
 

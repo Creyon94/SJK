@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- The Hax, a new meme toy: with it on (`toy_hax`, the quick wheel's Toys page or the Collection), hold Use on another player who has it on, the siege hack bar fills with its sound, then for five seconds you steer them, running, jumping and swinging, watching from behind them while you stand still. The hacked player sees it coming and can walk away, and turning the toy off breaks free _(Sol)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1021.3 (Alpha) | 21/10/2026

@@ -36,6 +36,8 @@ const ICONS: &[(&str, &str)] = &[
         crate::order66::EXECUTE_COMMAND,
         crate::order66::EXECUTE_ICON,
     ),
+    // SJK's Hax, which the client bundles (`crate::hax`).
+    (crate::hax::COMMAND, crate::hax::ICON),
     // WEAPONS
     ("weapon 1", "gfx/hud/w_icon_lightsaber.tga"),
     ("weapmelee", "gfx/hud/w_icon_melee.tga"),

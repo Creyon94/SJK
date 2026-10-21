@@ -51,6 +51,7 @@ impl GpuState {
             .unwrap_or_default();
         self.update_cardboard_box(Instant::now(), &toy_events);
         self.update_order66(&toy_events);
+        self.update_hax();
         if !due {
             return;
         }

@@ -77,6 +77,10 @@ Old clients ignore all of it, so it stays `/v1/`.
   16/10/2026, [Toy events](#toy-events)): as a ping, from the slot the key's live claim
   holds; at most one a second and 10 a minute (`toy_quota`), kept 10 seconds, in the
   feed's `toys` for that server's readers.
+- `POST /v1/relay` (a toy event's body) and `GET /v1/relay?server=..&after=..&wait=..`
+  (since 21/10/2026, [Toy relay](#toy-relay)): toy events for one player at once, 40 a
+  second per key (`relay_quota`), kept 3 seconds, never in the feed; the read answers
+  `{"events":[..],"next"}` with the events for the reader's own claimed slot.
 - `GET /v1/feed?after=<id>&server=<ip:port>&wait=<0..25>`, signed. Messages, emotes
   and deletions share one id sequence. The hub answers as soon as it holds something
   newer than `after` for this reader, else after `wait` seconds:
@@ -1001,6 +1005,34 @@ ignore it. A reader takes an order only on time (at most 0.5 seconds late, at mo
 ahead) and 30 seconds or more after the last one it took on that server; the hub's own
 quota (one toy event a second, ten a minute per key) still applies. The client takes
 the hub's toy events once a frame and hands them to every toy (`identity_frame.rs`).
+
+## Toy relay
+
+The toy relay (since 21/10/2026, Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Toy relay")
+carries toy events that must reach one player at once, many times a
+second, which the feed's toy events (one a second, read by a poll every few seconds)
+cannot: the [Hax](client.md#hax)'s hacker steering the hacked player. Two threads of
+the identity service of their own ([relay.rs](../crates/sjk-identity/src/relay.rs),
+`sjk-hub-relay-send` and `sjk-hub-relay-read`), each with its own HTTP client, read the
+hub and the game server as the feed does:
+
+- **Sending:** `Service::relay_toy_event` queues an event for the player in a slot,
+  `POST /v1/relay` with a toy event's body (the event up to 64 characters, `-` allowed);
+  the sending thread posts it at once (3 second timeout). A queued event marked as
+  replacing (a control frame) gives way to the next one of the same toy and target
+  while it waits, so a slow way to the hub sends the newest frame, not a backlog. The hub
+  takes 40 a second per key.
+- **Reading:** while the viewer listens (`Service::set_relay_listen`: the Hax's toy is
+  on), the reading thread keeps `GET /v1/relay?server=..&after=..&wait=20` open: the hub
+  answers as soon as an event for the reader's own claimed slot comes. The first read
+  (`after=0`) only learns the last id; another server or hub starts afresh, a failure
+  waits 0.5 seconds, doubled up to 10. The events go to a queue the viewer takes once a
+  frame (`Service::take_relay_events`), with the server they were read for.
+
+The hub keeps an event 3 seconds, in memory, and gives it only to its target. As with
+toy events, a reader applies one only when the game shows, in the sender's slot, the
+name the claim was made under, never from a player blocked here, and decides itself
+what it may do.
 
 ## Vitals
 

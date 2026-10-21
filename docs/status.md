@@ -1735,6 +1735,25 @@ on top of `trust`): an older hub refuses the change and sends no emoji. Checked 
 tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
 chat box, scoreboard). Not tried in the game or against a running hub.
 
+## Hax toy
+
+21/10/2026, `personal/hax` (Sol's idea) with hub branch `hax`: a meme toy
+([client.md](client.md#hax)). `toy_hax` (bind, quick wheel Toys page, Collection's Toys
+tab) turns it on and the look's `toys` tells the other SJK players. `+use` held 3
+seconds on a holder in reach fills the siege hack bar with the stock hacking loop, then
+the hacked player's client plays the hacker's keys, buttons (attack, alt attack, walk)
+and view as its own commands for 5 seconds, while the hacker's camera follows them and
+the hacker's own player stands still. The exchange and the control frames go through a
+new hub endpoint, the [toy relay](hub-chat.md#toy-relay) (`POST`/`GET /v1/relay`, hub
+branch `hax`, not deployed): a long poll per holder, events only for their target, kept
+3 seconds, 40 a second per key. Checked by unit tests (the events and frames written and
+read back within the hub's rule, the steered command's angles through `delta_angles`,
+the buttons allowed, the hacker's still command and frame pacing, the relay client's
+outbox replacing frames and its reader's ids, the hub's relay store, quota, target
+filter and long poll, the wheel's Toys page, the Collection's four toys). Not tried in a
+game, with two clients, on a server or against a running hub; the steering's lag on a
+real connection is unmeasured.
+
 ## Order 66 toy
 
 17/10/2026, `personal/order66` (Sol's idea): a meme toy ([client.md](client.md#order-66)).

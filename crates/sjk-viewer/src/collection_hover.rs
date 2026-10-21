@@ -85,6 +85,21 @@ impl Panel {
                 ],
             });
         }
+        if token == HAX_TOKEN {
+            return Some(Card {
+                title: "The Hax".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys \
+                         page or with a key bound to toy_hax; hold Use on a player who has it \
+                         on to hack them.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
         if token == ORDER_TOKEN {
             return Some(Card {
                 title: "Order 66".to_owned(),

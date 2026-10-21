@@ -24,6 +24,21 @@
 
 # ---- Console & chat ----
 
+[hax]
+area: Gameplay
+title: The Hax toy: hack another player, then steer them for 5 s
+change: toy_hax (key, quick wheel Toys page, Collection Toys tab) turns it on or off.
+change: Hold Use 3 s on a holder in reach: siege hack bar and sound, then you steer them 5 s.
+change: Their client plays your keys, swings and view; you watch from behind, your body stays.
+test: Two SJK clients on one server, both toy_hax on; A holds Use facing B up close.
+test: A: bar under the crosshair, hacking loop; B: "A is hacking you!", same bar, the loop.
+test: Release Use or walk away mid-hack: the bar goes on both.
+test: Bar full: both hear the mind trick; A's camera goes behind B, A's mouse turns B.
+test: A runs, jumps, crouches, walks, swings: B does it; B's own keys do nothing; 5 s, then free.
+test: B turns toy_hax off while steered: free at once, A reads "B broke free".
+test: Again at once: A "Hax again in N s"; B immune 15 s; in a duel: "Hack failed ... duel".
+note: Needs the hub's toy relay (hub branch hax) deployed; with the live hub nothing happens.
+
 [sky-empty-box]
 area: Rendering & effects
 title: No crash on a sky with every box face missing
