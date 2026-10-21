@@ -162,6 +162,7 @@ impl Context {
                 trace: wgpu::Trace::Off,
             })
             .await?;
+        crate::gpu_guard::name_uncaptured(&device);
         let capabilities = surface
             .as_ref()
             .map(|surface| surface.get_capabilities(&adapter));
