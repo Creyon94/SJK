@@ -4,6 +4,7 @@
 // @part Lavender mist
 // @part Drifting petals
 // @part Falling blossoms
+// @part Sakura droplet
 // @petals {"part":3,"per_unit":0.07,"life":2.6,"size":1.3,"fall":38.0,"drift":14.0}
 // @room 9
 // @solid 1
@@ -15,11 +16,21 @@
 // curls off it, blossoms drift down round it, and a branch of cherry wood with one flower grows
 // from where the blade leaves the hilt. Swinging it sheds real blossoms that flutter to the
 // ground behind it (`@petals`, `saber_petals.rs`); a clash bursts a ring of petals.
-const VB_PINK: vec3<f32> = vec3<f32>(1.0, 0.48, 0.72);
+// Sol's addition (21/10/2026), after the Sakura Droplet of Sekiro: a pearl of nacre hangs at
+// its tip, rose and lilac with a rainbow sheen and a white heart (a clash bursts it into the
+// petals and it grows back), and the blade itself has the same pearly sheen.
+const VB_PINK: vec3<f32> = vec3<f32>(1.0, 0.52, 0.74);
 
-const VB_PALE: vec3<f32> = vec3<f32>(1.0, 0.82, 0.92);
+const VB_PALE: vec3<f32> = vec3<f32>(1.0, 0.86, 0.92);
 
-const VB_LILAC: vec3<f32> = vec3<f32>(0.72, 0.6, 1.0);
+const VB_LILAC: vec3<f32> = vec3<f32>(0.76, 0.64, 0.96);
+
+// the droplet's nacre: dusty rose, mauve and cream
+const VB_ROSE: vec3<f32> = vec3<f32>(0.96, 0.6, 0.78);
+
+const VB_MAUVE: vec3<f32> = vec3<f32>(0.74, 0.48, 0.7);
+
+const VB_CREAM: vec3<f32> = vec3<f32>(0.96, 0.88, 0.88);
 
 const VB_WOOD: vec3<f32> = vec3<f32>(0.32, 0.19, 0.12);
 
@@ -49,6 +60,12 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let q = rot(h11(cell * 5.7) * 6.2832 + uTime * 0.3) * (b - c);
     let pd = length(q / vec2<f32>(0.55, 0.3));
     col += l * VB_PALE * halo(pd - 0.6, 0.25) * sin(3.1416 * f) * 0.6;
+    // nacre: faint growth lines across the blade, and a soft rainbow sheen at its edges that
+    // drifts as a pearl's does when it turns
+    let rim = smoothstep(0.25, 0.95, abs(b.x) / max(r, 0.001));
+    let lines = 0.5 + 0.5 * sin(b.y * 1.3 + 4.0 * b.x * b.x / max(r * r, 0.001) - uTime * 0.4);
+    let sheen = hsv(fract(b.y * 0.04 + b.x * 0.25 + uTime * 0.05), 0.45, 1.0);
+    col += l * (sheen * rim * 0.3 + VB_CREAM * lines * 0.08);
     return col;
 }
 
@@ -101,6 +118,11 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
     var fx: vec3<f32> = vec3<f32>(0.0);
     fx += vb_mist(ro, rd, y0, y1) * part(1.0);
     fx += vb_petals(ro, rd, px, y0, y1) * part(2.0);
+    // the droplet's soft rose light, round it from every side (`rayPt` would hide what is behind
+    // the blade's body and cut a hole the blade's shape in it)
+    var tp: f32;
+    let dp = rayPtRaw(ro, rd, vb_pearl_at(), &tp);
+    fx += VB_PINK * halo(dp, 1.8 * max(vb_pearl_size(), 0.2)) * 0.35 * part(4.0);
     // a clash: a ring of petals bursting out across the blade
     if cl > 0.0 {
         let y = L * 0.6;
@@ -140,13 +162,66 @@ fn vb_bloom(res_in: vec4<f32>, ro: vec3<f32>, rd: vec3<f32>, px: f32, fp: vec3<f
     return res;
 }
 
+// the droplet's place: a hanging pearl just past the tip; its size, grown back after a clash
+// bursts it
+fn vb_pearl_at() -> vec3<f32> {
+    return vec3(0.0, uLength + 0.8, 0.0);
+}
+
+fn vb_pearl_size() -> f32 {
+    return 0.95 * (1.0 - clamp(uClash, 0.0, 1.0)) * (1.0 + 0.04 * sin(uTime * 1.1));
+}
+
+// the Sakura Droplet: a teardrop of nacre facing the camera, its point on the blade's tip, rose
+// and lilac with growth rings, a rainbow sheen at its rim and a white glow at its heart
+fn vb_pearl(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    let R = vb_pearl_size();
+    if R < 0.05 {
+        return vec4<f32>(0.0);
+    }
+    let c = vb_pearl_at();
+    var t: f32;
+    let d = rayPt(ro, rd, c, &t);
+    if d > R * 1.8 {
+        return vec4<f32>(0.0);
+    }
+    let q = ro + rd * t - c;
+    // the blade's direction as seen, so the point stays toward it from every side
+    var up = vec3<f32>(0.0, 1.0, 0.0) - rd * rd.y;
+    up = select(normalize(cross(rd, vec3<f32>(1.0, 0.0, 0.0))), normalize(up), length(up) > 1.0e-3);
+    let side = cross(rd, up);
+    // y toward the blade, so its point touches the tip and its round end hangs off it
+    let p = vec2(dot(q, side), -dot(q, up)) / R;
+    // a teardrop: a round base (radius 1) drawn to a soft point 1.2 above its middle, toward the
+    // blade, full in the body as the Sakura Droplet is
+    let h = clamp(p.y / 1.2, 0.0, 1.0);
+    let wide = sqrt(max(1.0 - h * h, 0.0)) * (1.0 - 0.3 * h * h);
+    let dist = select((select(abs(p.x) - wide, 1.0, p.y > 1.2)), length(p) - 1.0, p.y < 0.0);
+    let shape = fillD(dist, px / R);
+    if shape <= 0.0 {
+        return vec4<f32>(0.0);
+    }
+    // how near its edge, as a pearl's surface turns away
+    let n = clamp(select(abs(p.x) / max(wide, 0.05), length(p), p.y < 0.0), 0.0, 1.0);
+    let edge = pow(n, 3.0);
+    // growth rings gathering toward the base, as the droplet's
+    var rings = 0.5 + 0.5 * sin(length(p - vec2<f32>(0.0, -0.9)) * 14.0 - uTime * 0.3);
+    rings *= 1.0 - edge;
+    var col = mix(VB_ROSE, VB_MAUVE, edge * 0.6) + VB_CREAM * rings * 0.12;
+    col = mix(col, VB_LILAC, 0.25 * smoothstep(0.2, 0.8, p.x + 0.5));
+    // the rainbow sheen at its rim, drifting as it turns
+    col += hsv(fract(p.x * 0.4 + p.y * 0.3 + uTime * 0.07), 0.7, 1.0) * (edge * 0.6 + 0.08);
+    // its white heart and a highlight
+    col += VB_CREAM * halo(length(p - vec2<f32>(0.0, -0.1)), 0.25) * 0.45;
+    col += vec3<f32>(1.0) * halo(length(p - vec2<f32>(-0.35, -0.3)), 0.1) * 0.7;
+    return vec4(min(col, vec3<f32>(1.0)), shape * 0.92);
+}
+
 // the branch: a twig of dark cherry wood growing from where the blade leaves the hilt, curving
 // out and up, a smaller twig off it with a bud, and two open blossoms; it circles
 // nothing, but stands in true 3D beside the blade
-fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
-    if part(0.0) < 0.5 {
-        return vec4<f32>(0.0);
-    }
+// the branch, its bud and its blossoms
+fn vb_branch(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     if fxNear(ro, rd, -0.5, 9.0) > 6.5 {
         return vec4<f32>(0.0);
     }
@@ -178,4 +253,11 @@ fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
     res = vb_bloom(res, ro, rd, px, e + vec3<f32>(0.25, 0.4, 0.0), 1.45, 0.3);
     res = vb_bloom(res, ro, rd, px, m + vec3<f32>(-0.2, 0.55, 0.5), 0.95, 2.1);
     return res;
+}
+
+// what stands round the blade: the branch at the hilt and the droplet at the tip
+fn sig_orbit_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
+    let drop = vb_pearl(ro, rd, px) * part(4.0);
+    let branch = vb_branch(ro, rd, px) * part(0.0);
+    return vec4(mix(branch.rgb, drop.rgb, drop.a), max(branch.a, drop.a));
 }
