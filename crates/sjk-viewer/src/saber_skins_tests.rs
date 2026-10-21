@@ -961,3 +961,23 @@ fn a_skins_blur_trail_is_drawn_in_its_own_colour() {
     assert_eq!(vertex_style(0, BladeColor::Black), 2);
     assert_eq!(vertex_style(1, BladeColor::Black), 1);
 }
+
+#[test]
+fn a_duel_draws_every_blade_stock() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 2).then_some(worn));
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    // In a duel: the stock blade in the wearer's own colour, and the stock sounds.
+    skins.set_plain(true);
+    assert!(skins.get(3).is_none());
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(3, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert_eq!(skins.sound_sets()[2], None);
+    skins.set_plain(false);
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+}

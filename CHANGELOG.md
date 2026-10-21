@@ -28,6 +28,12 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+= cg_duelStockBlades: New: in a duel, draw every blade as a normal one in its owner's own colour, without skins or effects, so swings are easy to read.
+
+- A new setting draws every blade as a normal one in the colour its owner set, without its skin or effects, in a private duel or on a Duel or Power Duel server: Settings, Normal blades in duels (`cg_duelStockBlades`) _(Creyon, at Sol's request)_
+
 ## 2026.1021.1 (Alpha) | 21/10/2026
 
 Holocron openings are here for everyone, with kyber shards, shattering, crafting and a daily shop of your own: this release is needed to open them. Testers and bug reporters will soon get rewards for what they have already done, and will keep earning them as they go on, by a fair rule that counts everyone's work the same way. Open everything you hold without fear: if the odds change in the future, everyone who opened before will be compensated to match. All of it will keep improving: a better shop, breaking down any saber shader you own and not just duplicates (except those that come with a card), and more to come.

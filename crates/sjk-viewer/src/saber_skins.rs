@@ -1049,6 +1049,9 @@ pub(crate) struct SaberSkins {
     local_persona: crate::saber_persona::Persona,
     /// The looks' revision and the loaded skins' generation `others` was last taken at.
     taken_at: Option<(u64, u64)>,
+    /// Whether every player's blade is the stock one this frame, in a duel
+    /// ([`crate::duel_blades`]).
+    plain: bool,
     /// Blades the world shots add every frame, without a session (blade, unlock id or
     /// a stock colour, seed).
     #[cfg(test)]
@@ -1125,8 +1128,17 @@ impl SaberSkins {
         } else {
             self.personas.get(client).copied()?
         };
+        if self.plain {
+            return None;
+        }
         let skin = self.clients.get(client).copied().flatten()?;
         Some(SkinColor { persona, ..skin })
+    }
+
+    /// Draw every player's blade as the stock one in its own colour (in a duel,
+    /// [`crate::duel_blades`]) or with the skin they wear.
+    pub(crate) fn set_plain(&mut self, plain: bool) {
+        self.plain = plain;
     }
 
     /// Who sits in each client slot, and the local player's own name (`name`), for
@@ -1172,6 +1184,9 @@ impl SaberSkins {
 
     /// Each client slot's sound set (its skin's number) for the audio adapter.
     pub(crate) fn sound_sets(&self) -> [Option<u8>; MAX_CLIENTS] {
+        if self.plain {
+            return [None; MAX_CLIENTS];
+        }
         self.clients.map(|skin| skin.map(|skin| skin.index))
     }
 }
@@ -1218,6 +1233,20 @@ impl GpuState {
             .and_then(|(game_state, snapshot)| {
                 crate::looks::ViewSlots::of(game_state, &snapshot.player).own
             });
+        let duel = self
+            .live_session
+            .as_ref()
+            .map(|session| (session.game_state(), session.latest_snapshot()))
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(|session| (session.game_state(), session.latest_snapshot()))
+            });
+        self.saber_skins.set_plain(crate::duel_blades::plain(
+            self.console.as_ref(),
+            duel.map(|(game, _)| game),
+            duel.map(|(_, snapshot)| &snapshot.player),
+        ));
         let (looks, skins) = (&self.looks, &self.blade_skins);
         self.saber_skins
             .follow_looks(looks.revision(), skins.generation(), |client| {

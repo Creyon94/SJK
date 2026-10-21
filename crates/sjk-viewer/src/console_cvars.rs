@@ -701,6 +701,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Draw the blade skins from Creyon's Blade Lab as the lab drew them",
         ),
         CvarDefinition::new(
+            crate::duel_blades::CVAR,
+            false,
+            archive,
+            "Draw every blade stock, in its own colour, while you duel; 0 keeps blade skins",
+        ),
+        CvarDefinition::new(
             crate::effect_aux::saber_rain_steam::CVAR,
             1_i64,
             archive,
