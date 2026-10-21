@@ -1018,3 +1018,7 @@ fn draw_instances<'pass>(
         pass.draw(0..6, instances);
     }
 }
+
+#[cfg(test)]
+#[path = "blade_signatures_cost_test.rs"]
+mod cost_test;
