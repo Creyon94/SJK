@@ -1,3 +1,21 @@
+## Blade tip pixels and hard edges (round 23)
+
+21/10/2026, `fix/blade-tip-and-hard-edges` (Creyon, SJK pull request), based on `main` at
+fc3d0aa9 (Release 2026.1021.1): players saw a rim of bright pixels round the tip of the
+signature blades (in a game, the Collection and the holocron cards) and straight, hard edges
+round their effects. The core is sampled with the shaft's derivatives in the rounded tip (the
+narrowing picked the core image's smallest mip), a signature's core fades out before its quad's
+sides, round 22's hiding behind the blade is soft and ends before the tip (it cut a box round
+the tip of a blade pointed at the camera), the early-outs that cut glow at a line are widened,
+three pulses fall off smoothly and seven blocky designs keep their look with smoothed edges
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 23). Sol's Sun gets the shared
+fixes (Creyon's choice). Checked on Linux x86_64 (lavapipe): offscreen renders of all 127 of
+Creyon's signatures from six views, still and mid-swing, with an edge finder and a cut-off
+comparison; the workspace format check, build, tests and clippy. Not verified: in a game on
+Windows; stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a
+fix needs a pixel size along the blade, a new lab uniform), and a few single sparks pop at
+early-out bounds (Scarif Tide, Holo-Recording, Blood Moon).
+
 ## Blade numbers only with debug collectibles
 
 21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless

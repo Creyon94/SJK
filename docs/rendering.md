@@ -2263,7 +2263,15 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   at a hard edge and drew a box round the tip whenever a blade pointed at the camera; the
   signatures' own ring code and `bladeSeen` do the same. `fxFlare` is skipped only where its widest
   halo has faded (it ended at a hard ring), and Hypermatter's and the Uneti Tree's pulses fall off
-  over their fronts instead of ending at a line across the blade.
+  over their fronts instead of ending at a line across the blade, as does the Starfighter
+  Canopy's. The other early-outs that cut glow at a line wait until it has faded: `fxFlakes`
+  (a dome seen along Yavin Vines), `fxCoils`, `fxRays`, `fxArcs` and `fxFall` in the lab, and
+  Balance's, Holo-Recording's and Orto Plutonia's own; `fxSmoke` takes a step at most about a
+  third of the cloud's width, up to 16 (a long path along the blade was sampled six units
+  apart). The blocky designs keep their look with edges smoothed over about a pixel (`aaStep`,
+  `cellMix` and `aaSquare` in `lab.glsl`): Code Cylinder, Canto Bight, Flimsiplast, Death Star
+  Plans, Cargo Stack, Holonet Feed and Targeting Display. Code Cylinder's and Flimsiplast's
+  stripes still alias seen right along the blade.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
