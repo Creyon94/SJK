@@ -1021,12 +1021,12 @@ fn the_preview_dresses_one_side_and_leaves_the_other_as_worn() {
     // it so, as Equip will.
     let worn = [Some(worn_first), Some(worn_first)];
     assert_eq!(
-        index(previewed(worn, Some(Some(shown)), false)),
+        index(previewed(worn, Some(Some(shown)), [true, false])),
         [Some(7), Some(worn_first.index)]
     );
     assert_eq!(
-        index(previewed(worn, Some(None), true)),
+        index(previewed(worn, Some(None), [false, true])),
         [Some(worn_first.index), None]
     );
-    assert_eq!(index(previewed(worn, None, true)), index(worn));
+    assert_eq!(index(previewed(worn, None, [true, true])), index(worn));
 }

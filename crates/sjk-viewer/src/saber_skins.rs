@@ -1113,18 +1113,17 @@ pub(crate) fn set_local_pair(blades: [Option<u8>; 2]) {
 
 /// What the local player's two sabers (or a staff's halves) show on the Collection's
 /// stage: what they wear (`worn`), with `shown` (the shader the page shows, `Some(None)` the
-/// stock blade) on the side being dressed, the second when `on_second`. The other side
-/// keeps what it wears now, so the pair looks as Equip will leave it (Equip dresses one
-/// side alone).
+/// stock blade) on the sides being dressed (`dressed`: the first, the second; both with the
+/// Collection's "Both" box ticked). A side not dressed keeps what it wears now, so the
+/// pair looks as Equip will leave it.
 pub(crate) fn previewed(
     worn: [Option<SkinColor>; 2],
     shown: Option<Option<SkinColor>>,
-    on_second: bool,
+    dressed: [bool; 2],
 ) -> [Option<SkinColor>; 2] {
     match shown {
         None => worn,
-        Some(shown) if on_second => [worn[0], shown],
-        Some(shown) => [shown, worn[1]],
+        Some(shown) => [0, 1].map(|side| if dressed[side] { shown } else { worn[side] }),
     }
 }
 

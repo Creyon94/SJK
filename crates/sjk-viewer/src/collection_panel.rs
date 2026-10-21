@@ -81,6 +81,8 @@ const SHARE_TOKEN: u16 = 1_319;
 /// The target switch over the lone saber: the first saber (or half), the second.
 const TARGET_FIRST_TOKEN: u16 = 1_307;
 const TARGET_SECOND_TOKEN: u16 = 1_308;
+/// The "Both" box beside the switch: Equip and Unequip dress both sabers (both halves).
+const BOTH_TOKEN: u16 = 1_309;
 /// How far (frame pixels) a press on the lone saber may move and still be a click.
 const CLICK_SLOP: f32 = 6.0;
 /// How long a Shatter or Craft waits for its second press, which sends it.
@@ -264,6 +266,8 @@ pub(crate) struct StageWish {
     /// The shader shown goes on the second saber (or the staff's other half), the first
     /// keeping what it wears.
     pub(crate) on_second: bool,
+    /// The shader shown goes on both sabers (both halves): the "Both" box is ticked.
+    pub(crate) on_both: bool,
     /// The Illuminate holocron floats by the model, lit.
     pub(crate) holocron: bool,
 }
@@ -314,6 +318,11 @@ struct ShaderRow {
     /// one), and whether the second saber wears it now.
     second: Option<&'static str>,
     second_worn: bool,
+    /// What Equip does on it with the "Both" box ticked: the first's and the second's
+    /// settings (`None`: nothing, locked or already worn by both as the stock blade), and
+    /// whether both wear it now.
+    both: Option<(&'static str, &'static str)>,
+    both_worn: bool,
 }
 
 pub(crate) struct Panel {
@@ -366,6 +375,9 @@ pub(crate) struct Panel {
     /// second saber (or the staff's other half) when true, else the first. The target
     /// switch over the saber, or a click on a saber, chooses it.
     second_target: bool,
+    /// The "Both" box: Equip and Unequip dress both sabers (both halves) at once. Kept for
+    /// the session, unticked by choosing one side.
+    both: bool,
     /// What the player holds that a second skin can go on, as last built.
     pair: crate::saber_skins::Pair,
     /// Where a press on the lone saber began, to tell a click (which chooses the saber
@@ -463,6 +475,7 @@ impl Panel {
             grid: false,
             grid_first: 0,
             second_target: false,
+            both: false,
             pair: crate::saber_skins::Pair::None,
             saber_press: None,
             jump_to_worn: false,
@@ -618,18 +631,21 @@ impl Panel {
                 },
                 saber: Some(self.spin.turn()),
                 on_second: self.second_target,
+                on_both: self.both_sides(),
                 holocron: false,
             }),
             Tab::Toys => Some(StageWish {
                 skin: PreviewSkin::Worn,
                 saber: None,
                 on_second: false,
+                on_both: false,
                 holocron: self.toy == 0,
             }),
             Tab::Nameplates => Some(StageWish {
                 skin: PreviewSkin::Worn,
                 saber: None,
                 on_second: false,
+                on_both: false,
                 holocron: false,
             }),
             _ => None,
@@ -670,6 +686,14 @@ impl Panel {
     /// second (or the staff's other half). Dressing the first while the second wears the
     /// first's skin (no choice of its own) gives the second that skin, so it stays as it is.
     fn wear_action(&self, row: ShaderRow) -> PanelAction {
+        if self.both_sides() {
+            return row
+                .both
+                .map_or(PanelAction::None, |(first, second)| PanelAction::WearBoth {
+                    first,
+                    second,
+                });
+        }
         if self.second_target {
             return row
                 .second
@@ -687,14 +711,30 @@ impl Panel {
         }
     }
 
-    /// Choose the target saber (or half) the Shaders tab dresses.
+    /// Choose the target saber (or half) the Shaders tab dresses: one side, so the "Both"
+    /// box is unticked.
     fn set_target(&mut self, second: bool) -> PanelAction {
         let second = second && self.pair != crate::saber_skins::Pair::None;
-        if second != self.second_target {
+        if second != self.second_target || self.both {
             self.jump_to_worn = true;
         }
         self.second_target = second;
+        self.both = false;
         PanelAction::None
+    }
+
+    /// Tick or untick the "Both" box.
+    fn toggle_both(&mut self) -> PanelAction {
+        if self.pair != crate::saber_skins::Pair::None {
+            self.both = !self.both;
+            self.jump_to_worn = true;
+        }
+        PanelAction::None
+    }
+
+    /// Equip dresses both sabers (both halves): the box is ticked and they are held.
+    fn both_sides(&self) -> bool {
+        self.both && self.pair != crate::saber_skins::Pair::None
     }
 
     /// How many things the tab on show offers to choose.
@@ -1062,7 +1102,7 @@ impl Panel {
                             .rect_for(SABER_TOKEN)
                             .is_some_and(|rect| rect.contains(at))
                         // The target switch over the saber is pressed, not the saber.
-                        && ![TARGET_FIRST_TOKEN, TARGET_SECOND_TOKEN].iter().any(|token| {
+                        && ![TARGET_FIRST_TOKEN, TARGET_SECOND_TOKEN, BOTH_TOKEN].iter().any(|token| {
                             self.ui.rect_for(*token).is_some_and(|rect| rect.contains(at))
                         }) =>
                 {
@@ -1242,6 +1282,7 @@ impl Panel {
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
             TARGET_FIRST_TOKEN => self.set_target(false),
             TARGET_SECOND_TOKEN => self.set_target(true),
+            BOTH_TOKEN => self.toggle_both(),
             SHATTER_TOKEN | CRAFT_TOKEN => self.trade_press(token, now),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
@@ -2011,6 +2052,44 @@ mod tests {
         );
         // A press on a pill never takes hold of the sabers to turn them.
         assert!(!panel.spin.held());
+        // The "Both" box: Equip dresses both sabers, the stage shows the shader on both,
+        // and with both wearing it, Unequip leaves both the stock blade.
+        assert_eq!(click(&mut panel, BOTH_TOKEN), PanelAction::None);
+        assert!(panel.stage_wish().unwrap().on_both);
+        assert!(!panel.spin.held());
+        panel.build(&dual("", "stock"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(click(&mut panel, SHADER_BASE + sun_row), PanelAction::None);
+        panel.build(&dual("", "stock"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, WEAR_TOKEN),
+            PanelAction::WearBoth {
+                first: "saber_sun",
+                second: ""
+            }
+        );
+        panel.build(&dual("saber_sun", ""), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, WEAR_TOKEN),
+            PanelAction::WearBoth {
+                first: "",
+                second: ""
+            }
+        );
+        // The stock row worn by both has nothing to do; worn by one, it dresses both.
+        assert_eq!(click(&mut panel, SHADER_BASE), PanelAction::None);
+        panel.build(&dual("", ""), &fonts.font, [1920.0, 1080.0]);
+        assert!(panel.ui.rect_for(WEAR_TOKEN).is_none());
+        panel.build(&dual("", "saber_sun"), &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, WEAR_TOKEN),
+            PanelAction::WearBoth {
+                first: "",
+                second: ""
+            }
+        );
+        // Choosing one side unticks the box.
+        assert_eq!(click(&mut panel, TARGET_FIRST_TOKEN), PanelAction::None);
+        assert!(!panel.stage_wish().unwrap().on_both);
         panel.set_backstage(Backstage::None);
         // Holding one saber again, the target goes back to it.
         panel.build(

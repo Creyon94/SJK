@@ -448,6 +448,19 @@ impl Panel {
                     Some(second_id)
                 },
                 second_worn,
+                // Both sides at once ("Both" box): they wear it, the second following the
+                // first; Unequip leaves both the stock blade.
+                both: if inputs.pair == crate::saber_skins::Pair::None
+                    || !(row.skin.is_none() || (row.owned && unlocks))
+                    || (row.skin.is_none() && row.worn && second_worn)
+                {
+                    None
+                } else if row.worn && second_worn {
+                    Some(("", ""))
+                } else {
+                    Some((row_id.unwrap_or(""), ""))
+                },
+                both_worn: row.worn && second_worn,
             };
         }
         if self.grid {
@@ -1258,7 +1271,17 @@ impl Panel {
         // Equip follows the target the switch over the saber chose (the gold pill says
         // which): the first saber, or the second (the staff's other half).
         let label = shown_row.and_then(|shown| {
-            if self.second_target {
+            if self.both_sides() {
+                shown.both.map(|_| {
+                    if row.skin.is_none() {
+                        ("Stock on both", true)
+                    } else if shown.both_worn {
+                        ("Unequip both", false)
+                    } else {
+                        ("Equip both", true)
+                    }
+                })
+            } else if self.second_target {
                 shown.second.map(|_| {
                     (
                         if shown.second_worn {
@@ -1549,7 +1572,7 @@ impl Panel {
         .enumerate()
         {
             let left = x + index as f32 * (width + 10.0);
-            let lit = self.second_target == (index == 1);
+            let lit = self.both_sides() || self.second_target == (index == 1);
             let hovered = self.ui.token_hovered(token);
             let rect = frame.rect(left, y, width, height);
             let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
@@ -1599,6 +1622,30 @@ impl Panel {
             );
             self.ui.hit_region(token, rect);
         }
+        // The "Both" box, beside the pills: Equip dresses both sides at once.
+        let left = x + 2.0 * (width + 10.0) + 8.0;
+        let middle = y + height * 0.5;
+        let both_word = match self.pair {
+            crate::saber_skins::Pair::Staff => "Both halves",
+            _ => "Both sabers",
+        };
+        let label_width = crate::text::display_width(both_word, 16.0) + 8.0;
+        let hovered = self.ui.token_hovered(BOTH_TOKEN);
+        let after = kit::tick(&mut self.ui, frame, left, middle, self.both, hovered);
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{both_word}"),
+            frame.rect(after + 10.0, middle - 11.0, label_width, 22.0),
+            16.0 * s,
+            if self.both { color::GOLD } else { color::MUTED },
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        self.ui.hit_region(
+            BOTH_TOKEN,
+            frame.rect(left - 6.0, y, after - left + label_width + 22.0, height),
+        );
         y + height + 10.0
     }
 

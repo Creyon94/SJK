@@ -286,7 +286,7 @@ impl GpuState {
         let skins = crate::saber_skins::previewed(
             self.saber_skins.local_both(),
             shown,
-            self.menu_stage.override_on_second,
+            self.menu_stage.override_dressed,
         );
         let frame_view = self.frame_view;
         let stage = &mut self.menu_stage;

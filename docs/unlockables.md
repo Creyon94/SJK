@@ -1162,6 +1162,12 @@ Profile page's See the collection) open it on its own:
   says "2nd blade". Holding one saber of one blade, the room shows no switch and no row says
   "2nd blade"; a second skin chosen before waits, and a line says it shows with two sabers or
   a staff (chosen in the Profile's Saber tab, `saber1` and `saber2`).
+  Beside the pills a "Both sabers" box ("Both halves" for a staff; Creyon, 21/10/2026)
+  makes Equip dress both sides at once: both pills light, the sabers show the chosen shader
+  on both, and Equip sets `cg_saberSkin` to it and `cg_saberSkin2` to empty (the second
+  follows the first; `PanelAction::WearBoth`); with both wearing it, Unequip leaves both the
+  stock blade ("Unequip both"), and the stock row reads "Stock on both". The box is kept
+  for the session; choosing a side (a pill or a click on a saber) unticks it.
   While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
   the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
   twice or more, or Craft (its cost) for one not held, dimmed while the shards fall

@@ -3,8 +3,9 @@
 21/10/2026, `feat/second-saber-skin` (Creyon, SJK pull request with the hub's), based on `main`
 at fc3d0aa9: a player with two sabers can give the second its own blade skin, and one with a staff its
 other half (Sol's request) (`cg_saberSkin2`, `saberskin second`, and the Collection's target
-switch over the saber, which a click on a saber also works, choosing the side one click on
-a shader then dresses; the `saber` command, `saber kyle kyle` or `saber dual_4`, holds two
+switch over the saber, which a click on a saber also works, choosing the side Equip then
+dresses, and its "Both sabers" ("Both halves") box, which makes Equip dress both at once;
+the `saber` command, `saber kyle kyle` or `saber dual_4`, holds two
 sabers or a staff and the preview follows;
 [unlockables.md](unlockables.md#settings-and-commands)). The look carries it to the hub as
 `saber2` and `saber2_off` (hub pull request on `Sol-Vulpes/SJK-hub-shared`,
@@ -12,7 +13,8 @@ sabers or a staff and the preview follows;
 hub change deployed: an older hub refuses `saber2`, and the client then sends its looks
 without it. Checked on Linux x86_64: the workspace format check, build, tests (the wire body,
 the fallbacks on a refused or unknown `saber2`, the looks both ways, each saber's and each
-staff half's skin, the command, the target switch and Equip on either target) and clippy; the
+staff half's skin, the command, the target switch, Equip on either target and on both with
+the box ticked) and clippy; the
 hub's tests and clippy. Not verified: the target switch's look on screen (the Collection world
 shots need retail game data), a click on the sabers in game, a thrown staff (it keeps the first
 skin), and against a hub running the change.
