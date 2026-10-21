@@ -37,7 +37,7 @@ test: Bar full: both hear the mind trick; A's camera goes behind B, A's mouse tu
 test: A runs, jumps, crouches, walks, swings: B does it; B's own keys do nothing; 5 s, then free.
 test: B turns toy_hax off while steered: free at once, A reads "B broke free".
 test: Again at once: A "Hax again in N s"; B immune 15 s; in a duel: "Hack failed ... duel".
-note: Needs the hub's toy relay (hub branch hax) deployed; with the live hub nothing happens.
+note: Uses the hub's toy relay (deployed 22/10/2026); without cl_identity nothing happens.
 
 [sky-empty-box]
 area: Rendering & effects
