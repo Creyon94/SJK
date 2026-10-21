@@ -12,7 +12,7 @@
 //! COM and Media Foundation are started once on each thread that decodes (SJK's media
 //! workers) and shut down when that thread ends.
 //!
-//! This is the one workspace crate allowed `unsafe`: every call below is a COM or
+//! This is one of the two workspace crates allowed `unsafe` (with sjk-gpu-memory): every call below is a COM or
 //! Media Foundation call. The caller checks the file's boxes and keeps its own limits
 //! before and while frames arrive.
 #![cfg(windows)]

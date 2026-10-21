@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- SJK now reads how much video memory your graphics card has: on a card of 4 GB or less it starts with smaller textures (Texture detail 1, or 2 at 3 GB or less) and the menus on pictures, once a card, so you can set them back. With the menu pictures on, the Collection, shop and holocron openings show each saber shader as a drawing instead of the live blade _(Sol, after Vin's report)_
 - SJK Blades cards now make crafting cheaper: while you hold a copy of a saber shader's blade card, crafting that shader costs its shop price with a Normal copy, or half with a Holo or Solar one, and you keep the card. The Craft button shows the lower price _(Sol)_
 - Map changes no longer build every Blade Lab signature shader again: about 130 shader builds a map, on two or three more threads each time that never stopped, ran while the next map loaded and the last one was still played: a stutter at every map change _(Sol, after players' FPS reports)_
 - Turning vertical sync on or off with supersampling on no longer crashes the game _(Sol, after darkenedways' report)_

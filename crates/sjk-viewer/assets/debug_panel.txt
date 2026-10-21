@@ -1673,6 +1673,15 @@ test: Set it back to 0, join again: textures are sharp again.
 test: In the creator, change head, torso and legs several times: still fine.
 note: The out-of-memory ladder (pictures, then picmip 1, 2) needs a small card to see.
 
+[vram-detect]
+area: Rendering & effects
+title: Small graphics cards found at start
+change: A card of 4 GB or less starts on Texture detail 1 (2 at 3 GB) and menu pictures, once.
+change: With menu pictures on, saber shader swatches are drawings, not the live blades.
+test: The log names your card and its video memory at start (graphics card: ...).
+test: ui_menuPictures 1: Collection Shaders tab shows drawn blades; 0: live blades again.
+note: Your 16 GB card changes nothing; r_videoMemoryChecked 0 makes it check again.
+
 [sun-signature]
 area: Rendering & effects
 title: The Sun blade is a signature blade

@@ -1366,6 +1366,11 @@ impl ShapeRenderer {
 
     /// Sample `view` for `TexturedQuad` commands naming [`BLADE_PICTURES_TEXTURE`]
     /// (the Collection's blade pictures, once made).
+    /// Let go of the blade pictures' binding, so their target can be freed.
+    pub(crate) fn clear_blade_pictures(&mut self) {
+        self.blade_pictures = None;
+    }
+
     pub(crate) fn set_blade_pictures(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
         self.blade_pictures = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("SJK blade pictures UI binding"),

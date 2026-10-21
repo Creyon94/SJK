@@ -250,6 +250,9 @@ includes:
   time, lowered by itself after menu pictures when a map runs out of video memory, and
   the character creator's model and players' textures failing alone instead of the
   game when the graphics card is full;
+- small graphics cards found at start: the card's video memory read from DXGI, a card
+  of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
+  swatches drawn instead of rendered live while the menu pictures are on;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;

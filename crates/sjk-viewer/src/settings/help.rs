@@ -801,7 +801,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::menu_pictures::CVAR,
-        "Pictures of the map behind the menus instead of the live map: saves video memory. Turns on by itself if a map runs out of it.",
+        "Map pictures behind the menus and drawn saber shaders, not live ones: saves video memory. On by itself on small cards.",
     ),
     (
         crate::quick_wheel::pages::FILE,
