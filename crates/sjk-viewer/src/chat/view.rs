@@ -298,6 +298,7 @@ fn line_marks<'a>(
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
             sjk: true,
+            ejk: hub.ejk,
             mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
             tier: hub.tier,
             emoji: &hub.emoji,
@@ -314,6 +315,7 @@ fn line_marks<'a>(
         .filter(|mark| mark.sjk);
     let marks = sjk_line::Marks {
         sjk: mark.is_some(),
+        ejk: false,
         mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
         tier: None,
         label: match line.channel {

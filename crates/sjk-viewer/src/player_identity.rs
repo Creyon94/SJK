@@ -1042,12 +1042,15 @@ pub(crate) fn staff_state() -> Option<sjk_identity::StaffState> {
 }
 
 /// Send an SJK chat message; false when the service has not started. What became of
-/// it arrives in the chat's `outcome`.
+/// it arrives in the chat's `outcome`. In a match, the game server's chat gets it too
+/// (`chat/server_copy.rs`).
 pub(crate) fn chat(text: String) -> bool {
     let runtime = lock();
     let Some(service) = runtime.service.as_ref() else {
         return false;
     };
+    let outcome = service.with_chat(|chat| chat.outcome.as_ref().map_or(0, |o| o.serial));
+    crate::chat::server_copy::note_said(&text, outcome);
     service.chat(text);
     true
 }

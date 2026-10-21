@@ -485,6 +485,7 @@ fn drop_message(drop: DropEvent, own: &str) -> ChatMessage {
         creator: false,
         trust: None,
         emoji: String::new(),
+        client: String::new(),
         text: String::new(),
     }
 }
@@ -512,6 +513,7 @@ fn find_message(find: FindEvent, own: &str) -> ChatMessage {
         creator: false,
         trust: None,
         emoji: String::new(),
+        client: String::new(),
         text: String::new(),
     }
 }
@@ -622,6 +624,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
         }

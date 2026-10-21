@@ -39,6 +39,9 @@ pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32:
 pub(crate) const BLADE_PICTURES_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 4);
 /// `TexturedQuad` texture naming SJK's emblem, uploaded once at start.
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
+/// `TexturedQuad` texture naming JoF EternalJK's icon, which SJK chat messages sent from
+/// it start with in place of SJK's emblem, uploaded once at start.
+pub(crate) const EJK_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::EJK_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
 /// `TexturedQuad` texture naming the trust mark for `trust` (`trust_badge`), drawn once
@@ -136,6 +139,8 @@ use levelshot::LevelshotTexture;
 
 /// SJK's emblem, scaled into one icon cell at start.
 const SJK_EMBLEM: &[u8] = include_bytes!("../../../assets/branding/sjk-logo-512.png");
+/// JoF EternalJK's icon, scaled into one icon cell at start.
+const EJK_ICON: &[u8] = include_bytes!("../../../assets/branding/jof-ejk-icon.png");
 
 /// Shape vertices one frame may draw (six per quad), across every layer.
 const MAX_SHAPE_VERTICES: usize = 16_384;
@@ -377,17 +382,22 @@ impl ShapeRenderer {
         let icons = IconAtlas::new(device, &texture_layout);
         let levelshot = LevelshotTexture::new(device, &texture_layout);
         let hud_preview = LevelshotTexture::new(device, &texture_layout);
-        match image::load_from_memory(SJK_EMBLEM) {
-            Ok(emblem) => {
-                let cell = image::imageops::resize(
-                    &emblem.into_rgba8(),
-                    icons::ICON_SIZE,
-                    icons::ICON_SIZE,
-                    image::imageops::FilterType::Lanczos3,
-                );
-                icons.upload(queue, LOGO_TEXTURE, cell.as_raw());
+        for (name, bytes, texture) in [
+            ("SJK emblem", SJK_EMBLEM, LOGO_TEXTURE),
+            ("JoF EternalJK icon", EJK_ICON, EJK_TEXTURE),
+        ] {
+            match image::load_from_memory(bytes) {
+                Ok(emblem) => {
+                    let cell = image::imageops::resize(
+                        &emblem.into_rgba8(),
+                        icons::ICON_SIZE,
+                        icons::ICON_SIZE,
+                        image::imageops::FilterType::Lanczos3,
+                    );
+                    icons.upload(queue, texture, cell.as_raw());
+                }
+                Err(error) => eprintln!("{name}: {error}"),
             }
-            Err(error) => eprintln!("SJK emblem: {error}"),
         }
         icons.upload(
             queue,

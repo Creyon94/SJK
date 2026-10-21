@@ -91,6 +91,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: String::new(),
             holocron: Some(DropMark {
                 tier: tier.to_owned(),

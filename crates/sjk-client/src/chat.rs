@@ -325,6 +325,112 @@ pub fn chat_unescape(text: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Owned(output)
 }
 
+/// The end of the game server's copy of an SJK chat message (`docs/hub-chat.md`,
+/// "Said on the game server too", after JoF EternalJK): the hub's id for the message
+/// in colour codes, which no client draws: `^9`, then `^` and the number of digits,
+/// then `^` and each digit, so id 12 ends a line with `^9^2^1^2`. `None` for an id of
+/// more than nine digits, whose copy goes without it.
+pub fn sjk_copy_marker(id: u64) -> Option<String> {
+    let digits = id.to_string();
+    if digits.len() > 9 {
+        return None;
+    }
+    let mut marker = format!("^9^{}", digits.len());
+    for digit in digits.chars() {
+        marker.push('^');
+        marker.push(digit);
+    }
+    Some(marker)
+}
+
+/// The hub's id a chat line's text ends with ([`sjk_copy_marker`]): `Some` for the
+/// server's copy of an SJK chat message, `None` for any other line.
+pub fn sjk_copy_id(text: &str) -> Option<u64> {
+    copy_id(text.trim_end().as_bytes())
+}
+
+fn copy_id(text: &[u8]) -> Option<u64> {
+    (1..=9u8).find_map(|digits| {
+        let start = text.len().checked_sub(4 + 2 * usize::from(digits))?;
+        let end = &text[start..];
+        if end[..3] != *b"^9^" || end[3] != b'0' + digits {
+            return None;
+        }
+        end[4..].chunks(2).try_fold(0u64, |id, pair| {
+            (pair[0] == b'^' && pair[1].is_ascii_digit())
+                .then(|| id * 10 + u64::from(pair[1] - b'0'))
+        })
+    })
+}
+
+/// Whether a server `chat` command carries the server's copy of an SJK chat message
+/// ([`sjk_copy_id`]): its beep is left to the SJK chat's own sound.
+pub(crate) fn sjk_copy_command(command: &[u8]) -> bool {
+    let mut parts = command.splitn(2, u8::is_ascii_whitespace);
+    if parts.next() != Some(b"chat".as_slice()) {
+        return false;
+    }
+    let Some(rest) = parts.next() else {
+        return false;
+    };
+    let Some(text) = rest.trim_ascii_start().strip_prefix(b"\"") else {
+        return false;
+    };
+    let end = text
+        .iter()
+        .position(|&byte| byte == b'"')
+        .unwrap_or(text.len());
+    copy_id(&text[..end]).is_some()
+}
+
+/// What starts each piece of the game server's copy of a message the hub took, so the
+/// server's players on any client read it as an SJK line: SJK in gold, then All chat's
+/// green again.
+const SJK_COPY_TAG: &str = "^3SJK^2 ";
+
+/// The `say` commands that put an SJK chat message in the game server's chat, each
+/// after `SJK_COPY_TAG` and ended with its [`sjk_copy_marker`] (`id`). A message the
+/// hub did not take (`None`) goes plainly, as it never reached SJK chat. A server keeps
+/// [`CHAT_INPUT_BYTES`] of a line, so a longer message goes as several, cut between
+/// words (inside a word only when it does not fit alone); the reliable channel sends
+/// them a second apart.
+pub fn sjk_copy_commands(text: &str, id: Option<u64>) -> Vec<String> {
+    let marker = id.and_then(sjk_copy_marker).unwrap_or_default();
+    let tag = if marker.is_empty() { "" } else { SJK_COPY_TAG };
+    let fits = |piece: &str| chat_input_fits(&format!("{tag}{piece}{marker}"));
+    let mut pieces = Vec::new();
+    let mut piece = String::new();
+    for word in text.split_whitespace() {
+        let joined = if piece.is_empty() {
+            word.to_owned()
+        } else {
+            format!("{piece} {word}")
+        };
+        if fits(&joined) {
+            piece = joined;
+            continue;
+        }
+        if !piece.is_empty() {
+            pieces.push(std::mem::take(&mut piece));
+        }
+        for c in word.chars() {
+            piece.push(c);
+            if !fits(&piece) {
+                piece.pop();
+                pieces.push(std::mem::take(&mut piece));
+                piece.push(c);
+            }
+        }
+    }
+    if !piece.is_empty() {
+        pieces.push(piece);
+    }
+    pieces
+        .iter()
+        .filter_map(|piece| chat_command(ChatDestination::Global, &format!("{tag}{piece}{marker}")))
+        .collect()
+}
+
 /// Interpret the already-tokenized stock chat command (`G_SayTo`).
 pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     let command = arguments.first()?.as_slice();
@@ -619,5 +725,85 @@ mod private_marker_tests {
                     .is_private
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod sjk_copy_tests {
+    use super::*;
+
+    #[test]
+    fn an_id_ends_the_line_in_colour_codes_and_reads_back() {
+        assert_eq!(sjk_copy_marker(12).as_deref(), Some("^9^2^1^2"));
+        assert_eq!(sjk_copy_marker(7).as_deref(), Some("^9^1^7"));
+        assert_eq!(sjk_copy_marker(1_000_000_000), None);
+        for id in [1, 9, 10, 99, 12_345, 999_999_999] {
+            let line = format!("Sol^7: ^2hello{}", sjk_copy_marker(id).unwrap());
+            assert_eq!(sjk_copy_id(&line), Some(id), "{line}");
+        }
+        assert_eq!(sjk_copy_id("Sol^7: ^2hello^9^2^1^2\n"), Some(12));
+    }
+
+    #[test]
+    fn a_line_without_the_end_is_no_copy() {
+        for line in [
+            "Sol^7: ^2hello",
+            "Sol^7: ^2hello ^9",
+            "Sol^7: ^2hello^9^3^1^2",
+            "Sol^7: ^2hello^8^2^1^2",
+            "Sol^7: ^2hello^9^2^1x",
+            "^2^1^2",
+            "",
+        ] {
+            assert_eq!(sjk_copy_id(line), None, "{line}");
+        }
+    }
+
+    #[test]
+    fn only_a_chat_command_with_the_end_is_a_copy() {
+        assert!(sjk_copy_command(b"chat \"Sol^7: ^2hello^9^2^1^2\" 3"));
+        assert!(sjk_copy_command(b"chat \"Sol^7: ^2hello^9^1^5\""));
+        assert!(!sjk_copy_command(b"chat \"Sol^7: ^2hello\" 3"));
+        assert!(!sjk_copy_command(b"tchat \"Sol^7: ^2hello^9^2^1^2\" 3"));
+        assert!(!sjk_copy_command(b"print \"hello^9^2^1^2\""));
+    }
+
+    #[test]
+    fn a_message_goes_to_the_server_in_pieces_that_fit_each_with_its_id() {
+        assert_eq!(
+            sjk_copy_commands("  hello   there ", Some(12)),
+            ["say \"^3SJK^2 hello there^9^2^1^2\""]
+        );
+        // A message the hub did not take is no SJK line: no tag, no id.
+        assert_eq!(sjk_copy_commands("hello", None), ["say \"hello\""]);
+        assert!(sjk_copy_commands("   ", Some(12)).is_empty());
+        let text = "word ".repeat(60);
+        let commands = sjk_copy_commands(&text, Some(12_345));
+        assert_eq!(commands.len(), 3);
+        let mut words = 0;
+        for command in &commands {
+            let payload = command
+                .strip_prefix("say \"")
+                .and_then(|rest| rest.strip_suffix('"'))
+                .unwrap();
+            assert!(payload.len() <= CHAT_INPUT_BYTES, "{command}");
+            let body = payload
+                .strip_prefix(SJK_COPY_TAG)
+                .and_then(|rest| rest.strip_suffix("^9^5^1^2^3^4^5"))
+                .unwrap();
+            assert!(!body.starts_with(' ') && !body.ends_with(' '), "{command}");
+            words += body.split(' ').count();
+        }
+        assert_eq!(words, 60, "no word lost");
+        // A word too long for a piece alone is cut inside it.
+        let long = "x".repeat(200);
+        let commands = sjk_copy_commands(&long, Some(1));
+        assert_eq!(commands.len(), 2);
+        assert!(
+            commands
+                .iter()
+                .all(|command| command.starts_with("say \"^3SJK^2 ")
+                    && command.ends_with("^9^1^1\""))
+        );
     }
 }
