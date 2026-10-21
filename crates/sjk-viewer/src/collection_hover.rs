@@ -238,14 +238,9 @@ fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
     match (&tile.slot, tile.face(&faces)) {
         (_, Some(face)) => {
             lines.push(Line::how(odds));
-            if let Some(brings) = face.brings() {
-                lines.push(Line::status(brings));
-            }
-            if let Some(drop) = face.solar_drop() {
-                lines.push(Line::status(drop));
-            }
-            if let Some(craft) = face.crafts_for_less() {
-                lines.push(Line::status(craft));
+            // Each perk after its mark, as the tile's badges show it.
+            for perk in face.perks() {
+                lines.push(Line::status(format!("{}  {}", perk.mark, perk.words)));
             }
             // No number, whatever the kind (Sol, 20/10/2026): it stays the card's id.
             lines.push(Line::status(format!(

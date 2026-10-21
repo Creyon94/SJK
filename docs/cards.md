@@ -372,6 +372,13 @@ not know is kept but named nowhere; `Face::blade` in
   Sun blade in the Forge" while the shader is of the trade and the player lacks it, which
   shows the Forge's Craft on it, else "Go to the Sun blade", which turns to the Shaders tab
   on it; either clears a filter that would hide it. The shop's prices do not change.
+- **Perk marks** (21/10/2026, Sol's request): each perk a card's copies bring has a mark
+  from SJK Symbols, in `cards::faces::PERKS` (`Face::perks`; a new perk is one row there):
+  a lightsaber when it brings a blade while held (`grants`), the Solar finish's sun when
+  its Solar copies drop one, a smith's hammer when its copies craft one for less. On the
+  Cards tab each is a round badge over the tile's top left corner (dimmer on a card not
+  found yet), the close-up's line under the copies held ends with the marks, and the
+  hover card starts each perk's line with its mark.
 - **In the client:** a blade card's hover card and its close-up on the Cards tab add "Its
   Solar copies also drop the Sun blade." (`Face::solar_drop`, for a shader the client
   knows); the binder's kind filter offers "Kind: Blade" once the packs have one. The
