@@ -2237,7 +2237,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   (round 19's four at once stuttered the game at launch; with every build alike the preview's
   waited behind the pictures and most blades seemed not to load). A signature now builds only its
   glow pipeline and, with a solid layer, its solid one; its bloom is the shared pipeline's, its
-  blade's glow alone.
+  blade's glow alone. The queue and the pipelines are the graphics context's
+  (`saber_gpu::Signatures`, held by `gpu_context::Context`), shared by every world built on it:
+  until 21/10/2026 each map's world started its own queue and threads (which never ended) and
+  built every loaded signature again, about 130 builds a map change.
   Also in round 20: Abyssal Eye's reality cracks tear out and fade where they reached instead
   of shrinking back into the blade; Puzzle Holocron's rows read (darker panels, a tone a row,
   bolder seams, a softer core); Thermal Fuse is a braided gold cord burning down from the tip,

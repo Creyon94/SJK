@@ -6,9 +6,10 @@ use crate::saber_trail::SegmentPool;
 use crate::{DepthTarget, texture_layout_entry};
 use sjk_shader::ShaderCatalog;
 use sjk_vfs::VirtualFileSystem;
+use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Range;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 #[path = "saber_glow_integral.rs"]
 pub(crate) mod glow_integral;
@@ -57,8 +58,10 @@ pub(crate) struct Runtime {
     /// blades just drawn, and whether a loaded skin has any.
     solid_pipeline: wgpu::RenderPipeline,
     any_solids: bool,
-    /// The signature builds waiting and their builders (`BuildQueue`).
+    /// The signature builds waiting and their builders (`BuildQueue`), the context's.
     builds: Arc<BuildQueue>,
+    /// The context's signature pipelines, which every world built on it shares.
+    signatures: Arc<Signatures>,
     /// The loaded skins' signatures by skin number, and their pipelines once built.
     signed: Vec<Option<Signed>>,
 }
@@ -80,6 +83,34 @@ impl Signed {
     /// Claim the build: true the first time only.
     fn claim(&self) -> bool {
         !self.started.swap(true, std::sync::atomic::Ordering::AcqRel)
+    }
+}
+
+/// The signature pipelines of one graphics context, shared by every world built on it: a map
+/// change builds the next world's [`Runtime`] while the last one runs, and each built every
+/// loaded signature again on threads of its own that never ended (21/10/2026: ~130 builds a map
+/// on two or three more threads each time, while the next map loaded and the old one played).
+/// Pipelines made for one world serve the next: wgpu pools identical bind group layouts, and the
+/// target format is fixed.
+#[derive(Default)]
+pub(crate) struct Signatures {
+    builds: OnceLock<Arc<BuildQueue>>,
+    signed: Mutex<HashMap<&'static str, Signed>>,
+}
+
+impl Signatures {
+    /// `signature`'s entry: the one made before when there is one, so its build is not done twice.
+    fn signed(&self, signature: &'static crate::blade_signatures::Signature) -> Signed {
+        self.signed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(signature.id)
+            .or_insert_with(|| Signed {
+                signature,
+                built: Arc::default(),
+                started: Arc::default(),
+            })
+            .clone()
     }
 }
 
@@ -386,6 +417,7 @@ impl Runtime {
         shaders: &ShaderCatalog,
         camera_layout: &wgpu::BindGroupLayout,
         format: wgpu::TextureFormat,
+        signatures: &Arc<Signatures>,
     ) -> Result<Self, Box<dyn Error>> {
         let source = include_str!("saber.wgsl");
 
@@ -571,11 +603,17 @@ impl Runtime {
             any_holes: false,
             solid_pipeline,
             any_solids: false,
-            builds: BuildQueue::start(&SignatureBuilder {
-                device: device.clone(),
-                layout,
-                format,
-            }),
+            builds: signatures
+                .builds
+                .get_or_init(|| {
+                    BuildQueue::start(&SignatureBuilder {
+                        device: device.clone(),
+                        layout,
+                        format,
+                    })
+                })
+                .clone(),
+            signatures: signatures.clone(),
             signed: Vec::new(),
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
@@ -612,25 +650,13 @@ impl Runtime {
         });
         // Pipelines already built for a signature are kept, whatever number it loads at now
         // (Creyon's round 21: entering a server reloaded the skins in another order and every
-        // signature was built again, 233 builds for 128 blades, its effects gone meanwhile).
-        let mut old: Vec<Signed> = std::mem::take(&mut self.signed)
-            .into_iter()
-            .flatten()
-            .collect();
+        // signature was built again, 233 builds for 128 blades, its effects gone meanwhile), and
+        // whatever world of the context built them ([`Signatures`]).
         let mut signed: Vec<Option<Signed>> = (0..MAX_SKINS).map(|_| None).collect();
         for (index, skin) in skins.iter() {
-            let Some(signature) = skin.signature_shown() else {
-                continue;
-            };
-            let kept = old
-                .iter()
-                .position(|old| std::ptr::eq(old.signature, signature))
-                .map(|at| old.swap_remove(at));
-            signed[usize::from(index)] = Some(kept.unwrap_or(Signed {
-                signature,
-                built: Arc::default(),
-                started: Arc::default(),
-            }));
+            if let Some(signature) = skin.signature_shown() {
+                signed[usize::from(index)] = Some(self.signatures.signed(signature));
+            }
         }
         self.signed = signed;
         // Every loaded signature is built in the background, after those wanted sooner, so a
