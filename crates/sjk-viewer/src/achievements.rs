@@ -791,6 +791,7 @@ mod tests {
             progress,
             goal: find(id).map_or(1, |kind| kind.goal),
             unlocked,
+            reward: None,
         }
     }
 

@@ -39,6 +39,7 @@ fn preview() -> crate::console::profile_panel::Preview {
             },
             goal: kind.goal,
             unlocked: if index % 2 == 0 { 1_791_336_225 } else { 0 },
+            reward: None,
         })
         .collect();
     preview.standings = crate::achievements::standings(&held);
@@ -604,6 +605,50 @@ fn duel6_sjk_collection_debug() {
             let name = format!("duel6-collection-debug-{}", part(tab));
             println!("{}", shoot(&mut gpu, frames, &name).display());
             assert!(!overflowed(&gpu), "{tab:?}");
+        }
+    });
+}
+
+/// Kyber crystals on the Achievements tab (21/10/2026): the achievement up close says the
+/// crystal it brings, and its hover card ends with it, in the crystal's colour.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_kyber_achievements() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 10);
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.open_profile_hub_page(Tab::Achievements, ReturnTarget::MainMenu);
+        }
+        let path = shoot(&mut gpu, 8, "duel6-kyber-achievements");
+        println!("{}", path.display());
+        assert!(!overflowed(&gpu));
+        // The hover card of Legend of the Arena (a Mythical crystal), then Centurion.
+        for id in ["kills_1000", "kills_100"] {
+            let index = crate::achievements::ALL
+                .iter()
+                .position(|kind| kind.id == id)
+                .expect("an achievement");
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(Some(index));
+            }
+            let path = shoot(&mut gpu, 8, &format!("duel6-kyber-achievement-hover-{id}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{id}");
         }
     });
 }
