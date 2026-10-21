@@ -315,6 +315,14 @@ impl Panel {
         let rows = Self::rows(inputs, &self.shader_filter);
         self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
         self.shader_count = rows.len();
+        // A blade card's button asked for its shader.
+        if let Some(id) = self.shader_focus.take()
+            && let Some(row) = rows
+                .iter()
+                .position(|row| row.skin.is_some_and(|skin| skin.id == id))
+        {
+            self.shader = row;
+        }
         if self.shader >= rows.len() {
             self.shader = rows.iter().position(|row| row.worn).unwrap_or(0);
         }

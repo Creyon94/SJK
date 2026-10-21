@@ -53,7 +53,7 @@ did: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a
 did: The card pack: a holocron's card comes with its credits and a few kyber shards
 did: A card on the holocron strip shows as its credits, the card tucked in a corner
 did: The shop in kyber shards, and holocrons bought with credits
-did: Blade cards craft their saber shader for less: Normal at the shop price, Holo at half
+did: Blade cards craft their saber shader for less, and lead to it from the Cards tab
 did: The four holocrons: the Jedi cube, the Great Holocron, the Sith pyramid, the kyber prism
 did: Grand finds told in SJK chat: who opened a holocron and got a grand prize
 did: Hover cards: how every collected thing is obtained

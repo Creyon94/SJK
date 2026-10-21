@@ -344,8 +344,10 @@ not know is kept but named nowhere; `Face::blade` in
   the craft answer's `blade_card`); a hub before takes the full cost and sends no table,
   read as no discount ([economy.rs](../crates/sjk-viewer/src/economy.rs) `blade_card`,
   `choices`). The Shaders tab's Craft reads "Craft  150 (shard)  Holo card -50 %", and the
-  blade card's hover card adds "Any copy crafts the Sun blade for less." The shop's prices
-  do not change.
+  blade card's hover card adds "Any copy crafts the Sun blade for less." Up close on the
+  Cards tab, a held blade card has a "Go to the Sun blade" button under its words (which
+  then keep to one line) that turns to the Shaders tab on its shader, clearing a filter
+  there that would hide it. The shop's prices do not change.
 - **In the client:** a blade card's hover card and its close-up on the Cards tab add "Its
   Solar copies also drop the Sun blade." (`Face::solar_drop`, for a shader the client
   knows); the binder's kind filter offers "Kind: Blade" once the packs have one. The

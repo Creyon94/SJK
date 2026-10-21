@@ -119,6 +119,7 @@ impl Panel {
     pub(super) fn cards(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         let (stacks, balance) = self.holdings(inputs);
         let faces = cards::faces::current();
+        self.card_blade = None;
         let all = stacks
             .as_deref()
             .map(|stacks| binder::tiles(stacks, &faces))
@@ -689,16 +690,43 @@ impl Panel {
             TextAlign::Center,
         );
         y += 30.0;
-        centred_lines(
+        // A blade card held: a button to its shader, where the copy crafts it for less,
+        // under one line of words (the hover card has them all) and above the keys.
+        let blade = tile
+            .owned()
+            .then(|| tile.face(faces))
+            .flatten()
+            .and_then(|face| crate::unlockables::find(face.blade.as_deref()?));
+        let next = centred_lines(
             &mut self.ui,
             frame,
             words.last.trim_end(),
             [SHOWCASE_X + 40.0, y, SHOWCASE_WIDTH - 80.0],
             72,
-            words.lines,
+            if blade.is_some() { 1 } else { words.lines },
             15.0,
             color::QUIET,
         );
+        if let Some(skin) = blade {
+            self.card_blade = Some(skin);
+            let label = format!("Go to the {}", skin.name);
+            let width = crate::text::display_width(&label, 18.0) + 48.0;
+            crate::menu::sjk::kit::button(
+                &mut self.ui,
+                frame,
+                [
+                    SHOWCASE_X + (SHOWCASE_WIDTH - width) * 0.5,
+                    (next + 6.0).min(super::view::KEYS_Y - 52.0),
+                    width,
+                    36.0,
+                ],
+                &label,
+                false,
+                true,
+                false,
+                CARD_SHADER_TOKEN,
+            );
+        }
     }
 
     /// The chosen tile looked at closely (20/10/2026, Sol's request: the cards should be
@@ -1022,6 +1050,30 @@ mod tests {
             ..outcome(Vec::new())
         };
         assert_eq!(reveal_words(&refused), "No.");
+    }
+
+    /// A held blade card's button turns to the Shaders tab on its shader, the filter there
+    /// cleared so it shows; with no blade card up close it does nothing.
+    #[test]
+    fn a_blade_cards_button_goes_to_its_shader() {
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let shown = inputs(Holdings::Known(&[]), "");
+        let mut panel = Panel::new();
+        panel.open(Tab::Cards, true, true, ReturnTarget::MainMenu);
+        assert_eq!(panel.go_to_card_shader(), PanelAction::None);
+        assert_eq!(panel.tab, Tab::Cards);
+        panel.shader_filter.tier = Some(crate::unlockables::Rarity::Common);
+        panel.card_blade = crate::unlockables::find("saber_sun");
+        let _ = panel.go_to_card_shader();
+        assert_eq!(panel.tab, Tab::Shaders);
+        assert!(!panel.shader_filter.active());
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            panel.skin_at(panel.shader).map(|skin| skin.id),
+            Some("saber_sun")
+        );
+        assert!(panel.shader_focus.is_none());
+        assert!(!panel.overflowed());
     }
 
     /// Copies of `count` cards `card_000`, `card_001`... in one finish each.
