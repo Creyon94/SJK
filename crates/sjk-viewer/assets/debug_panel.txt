@@ -1693,6 +1693,7 @@ title: Varykino Blossom, a Mythical blade that sheds blossoms
 change: Blade 166 (Kushina's idea): pink blade, lavender mist, drifting blossoms, branch at the hilt.
 change: Swinging it sheds real petals that flutter down behind the blade, land and fade.
 test: Wear it (staff grant saber_varykino_blossom): a flowering branch beside the emitter.
+test: A pink nacre pearl hangs at the tip; a clash bursts it into petals and it grows back.
 test: Swing hard: petals trail the swing and settle; still, turning or running sheds none.
 test: Collection > Shaders > its parts: Falling blossoms off, swing: no petals.
 test: A second client sees your petals, and none once you switched them off.

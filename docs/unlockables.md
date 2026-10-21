@@ -401,7 +401,12 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   growing from where the blade leaves the hilt, and a ring of petals on a clash. Swung, it
   sheds real blossoms that flutter to the ground behind it and settle there
   ([rendering.md](rendering.md#falling-blossoms)), where the Spectral leaves afterimages.
-  Each of the four is a part its wearer may switch off. It borrows Royal Naboo's sounds
+  Sol's addition the same day, after the Sakura Droplet of Sekiro (FromSoftware; studied
+  from Sol's own copy of the game for its look only, nothing of the game's is in SJK): a
+  pearl of nacre hangs at its tip, rose and mauve with growth rings, a rainbow sheen at its
+  rim and a white heart, in a soft rose light (a clash bursts it into the petals and it
+  grows back), and the blade has the same pearly sheen along its edges. Each of the five is
+  a part its wearer may switch off. It borrows Royal Naboo's sounds
   (the skins pack is near its 16 MiB cap). Not built from her idea: the wooden hilt, which
   waits for custom hilts.
 
@@ -1016,7 +1021,7 @@ off, and every other SJK player then draws the blade the same way.
 | Sun | `prominences` Prominences (arcs), `sparks` Rising sparks (motes), `glint` Tip glint (star; "Orbiting glints" since the later additions file, its orbit going with the star), `haze` Heat haze (haze) |
 | Void | `holes` Black holes (holes, later additions file only), `stars` Infalling stars (motes), `warp` Warped space (haze), `pulse` Gravity pulse (pulse), `afterimages` Afterimages (ghosts) |
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
-| Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
+| Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `sakura_droplet` Sakura droplet (the pearl at its tip), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
   [saber_skin_options.rs](../crates/sjk-viewer/src/saber_skin_options.rs)): one

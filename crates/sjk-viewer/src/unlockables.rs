@@ -2308,7 +2308,7 @@ pub(crate) static ALL: [Unlockable; 166] = [
         droppable: true,
         edition: crate::editions::ALPHA,
         smith: SOL,
-        description: "Spring in the gardens of Varykino: a soft blossom-pink blade wreathed in lavender and white mist, blossoms drifting down round it and a branch of cherry wood in flower at its hilt. Swing it and it sheds blossoms that flutter to the ground behind it.",
+        description: "Spring in the gardens of Varykino: a soft blossom-pink blade with a pearly sheen, wreathed in lavender and white mist, blossoms drifting down round it, a branch of cherry wood in flower at its hilt and a pearl of nacre at its tip. Swing it and it sheds blossoms that flutter to the ground behind it.",
         how_to_get: FROM_HOLOCRONS,
     },
 ];
