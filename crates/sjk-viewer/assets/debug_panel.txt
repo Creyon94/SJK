@@ -24,6 +24,13 @@
 
 # ---- Console & chat ----
 
+[sky-empty-box]
+area: Rendering & effects
+title: No crash on a sky with every box face missing
+change: A sky with all six outer-box pictures missing (ct on nightmare) crashed with reflections on.
+test: r_cubeMapping 1, vid_restart, then join a server on nightmare: no crash.
+test: The sky still looks as before (log: sky textures/skies/ct missing outer-box face ...).
+
 [kyber-crystals]
 area: Menus & settings
 title: Kyber crystals from achievements
