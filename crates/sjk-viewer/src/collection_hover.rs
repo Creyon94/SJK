@@ -130,8 +130,7 @@ fn medal_card(showing: &medals::Showing) -> Card {
     }
 }
 
-/// An achievement's card: what to do, who counts it, how far the player is, and the kyber
-/// crystal it brings, in the crystal's colour ([`crate::kyber::reward`]).
+/// An achievement's card: what to do, who counts it, and how far the player is.
 fn achievement_card(
     kind: &'static crate::achievements::Kind,
     standing: Option<&crate::achievements::Standing>,
@@ -162,13 +161,7 @@ fn achievement_card(
         } else {
             crate::achievements::medallion::tint(kind.category)
         },
-        lines: [Line::how(kind.description), Line::status(counted), status]
-            .into_iter()
-            .chain(crate::kyber::reward(kind.id).map(|tier| Line {
-                words: crate::kyber::reward_line(tier).to_owned(),
-                colour: tier.colour,
-            }))
-            .collect(),
+        lines: vec![Line::how(kind.description), Line::status(counted), status],
     }
 }
 
@@ -308,10 +301,7 @@ mod tests {
         for kind in &crate::achievements::ALL {
             let card = achievement_card(kind, None);
             assert_eq!(card.lines[0].words, kind.description);
-            assert_eq!(card.lines.len(), 4);
-            let reward = crate::kyber::reward(kind.id).expect("every achievement brings one");
-            assert_eq!(card.lines[3].words, format!("Reward: {}", reward.name));
-            assert_eq!(card.lines[3].colour, reward.colour);
+            assert_eq!(card.lines.len(), 3);
         }
         let kind = crate::achievements::ALL
             .iter()

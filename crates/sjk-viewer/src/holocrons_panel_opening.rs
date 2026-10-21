@@ -125,7 +125,7 @@ const SHADER_HEIGHT: f32 = 300.0;
 pub(crate) struct Shown {
     /// The holocron's number at the hub (it seeds the crate spin).
     pub(crate) holocron: u64,
-    /// Position among every tier the tab lists ([`holocrons::slot`]): a kyber crystal's past the holocrons'.
+    /// Position in [`holocrons::TIERS`].
     pub(crate) tier: usize,
     pub(crate) rarity: &'static Rarity,
     pub(crate) finish: &'static Finish,
@@ -162,7 +162,7 @@ impl Shown {
         let held = opened.card.as_ref()?;
         Some(Self {
             holocron: opened.holocron,
-            tier: holocrons::any(&opened.tier)?.slot,
+            tier: holocrons::Tier::from_id(&opened.tier)?.index,
             rarity: Rarity::from_id(&held.rarity)?,
             finish: Finish::from_id(&held.finish)?,
             edition: cards::edition_name(&held.edition),
@@ -179,7 +179,7 @@ impl Shown {
 pub(crate) struct Found {
     /// The holocron's number at the hub (it seeds the crate spin).
     pub(crate) holocron: u64,
-    /// Position among every tier the tab lists ([`holocrons::slot`]): a kyber crystal's past the holocrons'.
+    /// Position in [`holocrons::TIERS`].
     pub(crate) tier: usize,
     /// The shader, when this client knows it; `None` for one newer than this client
     /// (the hub's catalogue grows before every player updates): it is shown by the
@@ -203,7 +203,7 @@ impl Found {
         };
         Some(Self {
             holocron: opened.holocron,
-            tier: holocrons::any(&opened.tier)?.slot,
+            tier: holocrons::Tier::from_id(&opened.tier)?.index,
             skin: crate::unlockables::blade_skin(&unlock.id),
             id: unlock.id.clone(),
             name,
@@ -215,7 +215,9 @@ impl Found {
     /// does not know.
     pub(super) fn colour(&self) -> Color {
         self.skin
-            .map_or(holocrons::slot(self.tier).colour, |skin| skin.tier.colour())
+            .map_or(holocrons::TIERS[self.tier].colour, |skin| {
+                skin.tier.colour()
+            })
     }
 }
 
@@ -224,7 +226,7 @@ impl Found {
 pub(crate) struct Pile {
     /// The holocron's number at the hub (it seeds the crate spin).
     pub(crate) holocron: u64,
-    /// Position among every tier the tab lists ([`holocrons::slot`]): a kyber crystal's past the holocrons'.
+    /// Position in [`holocrons::TIERS`].
     pub(crate) tier: usize,
     /// How many shards.
     pub(crate) shards: u64,
@@ -258,7 +260,7 @@ impl Prize {
         if opened.card.is_none() && opened.shards > 0 {
             return Some(Self::Shards(Pile {
                 holocron: opened.holocron,
-                tier: holocrons::any(&opened.tier)?.slot,
+                tier: holocrons::Tier::from_id(&opened.tier)?.index,
                 shards: opened.shards,
             }));
         }
@@ -403,19 +405,17 @@ impl Panel {
         if !self.data.can_open {
             return None;
         }
-        self.data
-            .sealed_of(self.selected)
-            .first()
-            .map(|id| vec![*id])
+        self.data.sealed[self.selected].first().map(|id| vec![*id])
     }
 
     /// The holocrons Open all would open: every one listed, the oldest first, at most
-    /// as many as one opening takes; on a kyber crystal's row, every crystal instead.
+    /// as many as one opening takes.
     pub(super) fn open_every(&self) -> Option<Vec<u64>> {
         if !self.data.can_open {
             return None;
         }
-        let mut ids = self.data.sealed_kind(self.selected);
+        let mut ids: Vec<u64> = self.data.sealed.iter().flatten().copied().collect();
+        ids.sort_unstable();
         ids.truncate(sjk_identity::OPEN_MAX);
         (!ids.is_empty()).then_some(ids)
     }
@@ -426,8 +426,8 @@ impl Panel {
             return PanelAction::None;
         }
         let first = ids.first().copied();
-        let tier = first
-            .and_then(|id| self.data.slot_of(id))
+        let tier = (0..holocrons::COUNT)
+            .find(|&tier| first.is_some_and(|id| self.data.sealed[tier].contains(&id)))
             .unwrap_or(self.selected);
         self.ceremony = Some(Ceremony::Waiting { tier, since: now });
         self.glide_from = Some(now);
@@ -604,7 +604,7 @@ impl Panel {
                     viewport,
                     tier,
                     elapsed,
-                    format_args!("{}", holocrons::slot(tier).name),
+                    format_args!("{}", holocrons::TIERS[tier].name),
                     of,
                 );
             }
@@ -763,7 +763,7 @@ impl Panel {
     /// kyber shards' tile sliding out on the right and counting up (none while the hub's
     /// economy is off).
     fn entrance(&mut self, frame: &Frame, shown: &Shown, elapsed: f32, seconds: f32) {
-        let tier = holocrons::slot(shown.tier);
+        let tier = &holocrons::TIERS[shown.tier];
         let faces = cards::faces::current();
         let (top, card_width) = shown.place(&faces);
         let height = card_width * cards::look::ASPECT;
@@ -961,7 +961,7 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Center,
         );
-        let tier = holocrons::slot(card.tier);
+        let tier = &holocrons::TIERS[card.tier];
         text(
             &mut self.ui,
             TextFamily::Body,
@@ -1060,7 +1060,7 @@ impl Panel {
         seconds: f32,
     ) {
         let s = frame.s;
-        let tier = holocrons::slot(prize.tier());
+        let tier = &holocrons::TIERS[prize.tier()];
         let geometry = strip::SINGLE;
         let item = prize.item();
         let tiles = strip::strip(prize.tier(), prize.holocron(), item);
@@ -1255,7 +1255,7 @@ impl Panel {
                 // Its credits, a stack of coins and the amount, washed from above in the
                 // holocron's colour, the card tucked face down in the top right corner.
                 let colour = item.colour();
-                let wash = holocrons::slot(tier).colour;
+                let wash = holocrons::TIERS[tier.min(holocrons::COUNT - 1)].colour;
                 let list = self.ui.draw_list_mut();
                 let _ = list.push(DrawCommand::RoundedRect {
                     rect,
@@ -1460,7 +1460,7 @@ impl Panel {
     /// large, framed in the shader's tier colour.
     fn entrance_shader(&mut self, frame: &Frame, found: &Found, elapsed: f32, seconds: f32) {
         let s = frame.s;
-        let tier = holocrons::slot(found.tier);
+        let tier = &holocrons::TIERS[found.tier];
         let colour = found.colour();
         let middle = [CARD_X, SHADER_TOP + SHADER_HEIGHT * 0.5];
         self.burst(frame, middle, tier, elapsed);
@@ -1511,7 +1511,7 @@ impl Panel {
     /// A pile of shards' burst and crystals: the tier's light, then three kyber crystals
     /// growing in, glowing, and the shards counting up under them.
     fn entrance_shards(&mut self, frame: &Frame, pile: &Pile, elapsed: f32) {
-        let tier = holocrons::slot(pile.tier);
+        let tier = &holocrons::TIERS[pile.tier];
         let middle = [CARD_X, SHADER_TOP + SHADER_HEIGHT * 0.5];
         self.burst(frame, middle, tier, elapsed);
         let turn = ((elapsed - TURN[0]) / (TURN[1] - TURN[0])).clamp(0.0, 1.0);
@@ -1555,7 +1555,7 @@ impl Panel {
         let s = frame.s;
         let alpha = ((entered - WORDS) / 0.4).clamp(0.0, 1.0);
         let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
-        let tier = holocrons::slot(pile.tier);
+        let tier = &holocrons::TIERS[pile.tier];
         text(
             &mut self.ui,
             TextFamily::Display,
@@ -1643,7 +1643,7 @@ impl Panel {
         let s = frame.s;
         let alpha = ((entered - WORDS) / 0.4).clamp(0.0, 1.0);
         let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
-        let tier = holocrons::slot(found.tier);
+        let tier = &holocrons::TIERS[found.tier];
         text(
             &mut self.ui,
             TextFamily::Display,
@@ -2352,7 +2352,7 @@ pub(super) fn tucked_card(
         return;
     }
     let s = frame.s;
-    let tier = holocrons::slot(tier);
+    let tier = &holocrons::TIERS[tier.min(holocrons::COUNT - 1)];
     let edge = if finish == 2 {
         color::GOLD_BRIGHT
     } else {
