@@ -1,3 +1,19 @@
+## Texture detail and video memory guards
+
+21/10/2026, `personal/low-vram`, based on `main` `420db13f` (Vin, 3 GB card: crashed
+changing her character's legs, and ran out of video memory joining Kor2). `r_picmip`
+(Settings > Renderer, "Texture detail", 0-3, default 0, as in Jedi Academy) skips the
+largest mip levels of textures larger than 128 pixels from the next map
+([rendering.md](rendering.md)). After the menu pictures, each further out-of-memory on a
+map build raises it by one, to 2 at most. `gpu_guard::capture` runs the creator's stage
+model, the menu preview, render-scale targets and material texture uploads inside
+out-of-memory and validation error scopes: a failed model is dropped with its textures
+instead of panicking, and a failed texture is never cached. Not guarded: a joining
+player's geometry in the shared buffers. The old world is still alive while the next map
+builds. On Windows 11 the formatting check, the locked workspace tests (viewer: 2716
+passed, 161 ignored; 58 other suites) and Clippy (no new warnings) pass. Not tested in
+game, and the memory saved is not measured on a world shot yet.
+
 ## Blade numbers only with debug collectibles
 
 21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless

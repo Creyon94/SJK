@@ -1643,6 +1643,16 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[texture-detail]
+area: Rendering & effects
+title: Texture detail (r_picmip) and no crash when the card is full
+change: r_picmip 0-3 halves textures larger than 128 pixels per step, from the next map.
+change: The creator's head/torso/legs model that runs out of video memory just does not show.
+test: Settings > Renderer > Texture detail 2, join a map: textures look softer, no crash.
+test: Set it back to 0, join again: textures are sharp again.
+test: In the creator, change head, torso and legs several times: still fine.
+note: The out-of-memory ladder (pictures, then picmip 1, 2) needs a small card to see.
+
 [sun-signature]
 area: Rendering & effects
 title: The Sun blade is a signature blade

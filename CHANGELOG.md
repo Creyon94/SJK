@@ -28,6 +28,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Graphics cards of 4 GB or less: a new Texture detail setting (Settings > Renderer, `r_picmip` as in Jedi Academy) halves large textures for a quarter of their video memory each step, and after the menus switch to pictures each map that runs out of video memory lowers it one more step (to 2 at most). Changing your character's head, torso or legs when the card is full no longer crashes the game: that model just does not show _(Sol, after Vin's report)_
+
 ## 2026.1021.1 (Alpha) | 21/10/2026
 
 Holocron openings are here for everyone, with kyber shards, shattering, crafting and a daily shop of your own: this release is needed to open them. Testers and bug reporters will soon get rewards for what they have already done, and will keep earning them as they go on, by a fair rule that counts everyone's work the same way. Open everything you hold without fear: if the odds change in the future, everyone who opened before will be compensated to match. All of it will keep improving: a better shop, breaking down any saber shader you own and not just duplicates (except those that come with a card), and more to come.

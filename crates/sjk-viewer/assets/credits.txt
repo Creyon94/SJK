@@ -129,6 +129,7 @@ did: Hold push or pull to use it again the moment it is ready, after JoF EJK
 did: Away players set apart on the scoreboard: faint, at the bottom of their list
 did: Map edits: SJK's own map fixes, props hidden, models placed, textures swapped
 did: Menu pictures and lighter map changes: less video memory, fewer out-of-memory loads
+did: Texture detail (r_picmip) for small graphics cards, and no crash when one runs out
 did: Discord status: your Discord profile shows the server, map and mode you play
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/

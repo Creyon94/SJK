@@ -41,6 +41,13 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
             CvarFlags::ARCHIVE,
             "GL texture filter; vid_restart applies it",
         ),
+        CvarDefinition::new(
+            mips::PICMIP_CVAR,
+            0_i64,
+            CvarFlags::ARCHIVE,
+            "Texture detail: 0 full, each step halves textures larger than 128 pixels \
+             (a quarter of their video memory); the next map applies it",
+        ),
     ] {
         cvars.register(definition)?;
     }
@@ -57,6 +64,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
             crate::graphics_reload::notice();
         })?;
     }
+    cvars.on_change(mips::PICMIP_CVAR, |change| {
+        if let sjk_shell::CvarValue::Integer(levels) = change.current {
+            mips::set_picmip(levels);
+        }
+    })?;
     Ok(())
 }
 
@@ -99,6 +111,7 @@ impl Policy {
 
     /// Read once at context construction. Invalid mode names are reported before falling back.
     pub(crate) fn sample(console: Option<&crate::console::ViewerConsole>, maximum: u16) -> Self {
+        mips::sample_picmip(console);
         let Some(console) = console else {
             return Self::resolve("GL_LINEAR_MIPMAP_LINEAR", true, 16, maximum).unwrap();
         };

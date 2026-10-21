@@ -121,6 +121,7 @@ mod gameplay_fps;
 mod ghost_replay;
 mod glow_pass;
 mod gpu_context;
+mod gpu_guard;
 mod gpu_phases;
 mod gpu_texture;
 mod graphics_quality;
