@@ -1203,8 +1203,7 @@ impl GpuState {
         let designs = crate::blade_lab_designs::set_enabled(self.console.as_ref());
         if designs || crate::sjk_packs::generation() != self.blade_skins.generation() {
             self.blade_skins = crate::sjk_packs::skins();
-            self.saber_gpu
-                .upload_skins(&self.device, &self.queue, &self.blade_skins);
+            self.saber_gpu.upload_skins(&self.queue, &self.blade_skins);
         }
         let client = self
             .live_session

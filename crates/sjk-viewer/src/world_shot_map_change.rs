@@ -62,6 +62,7 @@ fn map_change_keeps_blade_signatures() {
             return;
         };
         let _ = frame(&mut gpu, 4);
+        gpu.saber_gpu.build_every_signature();
         let started = std::time::Instant::now();
         let loaded = loop {
             let (built, loaded) = gpu.saber_gpu.signatures_built();
