@@ -2244,9 +2244,12 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   a true eyeball in three dimensions (`ae_eyeball`), watching whoever looks at it. Hyperlane,
   Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built by two
   threads from a queue (`BuildQueue` in `saber_gpu.rs`): a blade worn or in the preview first,
-  then the Collection's pictures, then every loaded signature from launch, resting between those
+  then the Collection's pictures (until 21/10/2026 also every loaded signature from launch, resting between those
   (round 19's four at once stuttered the game at launch; with every build alike the preview's
-  waited behind the pictures and most blades seemed not to load). A signature now builds only its
+  waited behind the pictures and most blades seemed not to load); since 21/10/2026 a signature is
+  built only once a blade draws it). A skin's glow/core pair is likewise uploaded only once a blade
+  draws it (`Runtime::upload_drawn`): all 165 of the hub's skins up front were about 45 MiB of
+  video memory on every world (128-pixel generated glows). A signature now builds only its
   glow pipeline and, with a solid layer, its solid one; its bloom is the shared pipeline's, its
   blade's glow alone. The queue and the pipelines are the graphics context's
   (`saber_gpu::Signatures`, held by `gpu_context::Context`), shared by every world built on it:

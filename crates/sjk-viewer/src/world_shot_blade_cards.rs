@@ -75,6 +75,7 @@ fn blade_card_art() {
         };
         gpu.saber_skins.shot_seconds = Some(SECONDS);
         let _ = frame(&mut gpu, 30);
+        gpu.saber_gpu.build_every_signature();
         // Signature skins are drawn from their files until their own pipelines are built
         // off the render thread: wait for every one.
         let started = std::time::Instant::now();
