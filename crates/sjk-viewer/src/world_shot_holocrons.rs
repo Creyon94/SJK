@@ -183,6 +183,59 @@ fn duel6_sjk_holocron_forms() {
     });
 }
 
+/// The engram (the Mythical holocron) and the four kyber crystals up close
+/// (`docs/holocrons.md`, "Kyber crystals"): each held at two moments (the parts moved
+/// and the engram's plates breathed between them), then each held none of, cropped to
+/// the stage on one sheet, a row each.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_kyber_forms() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+        ];
+        let Some(mut gpu) = open_tab([1920, 1080], &cvars, holdings()) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 150);
+        let stage = |picture: &image::RgbaImage| {
+            image::imageops::crop_imm(picture, 140, 130, 760, 760).to_image()
+        };
+        let forms = [
+            "mythical",
+            "kyber_uncommon",
+            "kyber_rare",
+            "kyber_legendary",
+            "kyber_mythical",
+        ];
+        let mut moments = Vec::new();
+        for (seconds, owned) in [(2.4, true), (4.1, true), (2.4, false)] {
+            gpu.holocron_stage_seconds = Some(seconds);
+            for id in forms {
+                gpu.holocron_stage_request = crate::holocrons::stage::Request::of(id, owned);
+                let _ = frame(&mut gpu, 60);
+                moments.push(stage(&frame(&mut gpu, 2)));
+            }
+        }
+        gpu.holocron_stage_request = None;
+        println!(
+            "{}",
+            sheet(&moments, forms.len() as u32, 480, "duel6-kyber-forms").display()
+        );
+        // The engram alone, large, at three moments.
+        let mut engram = Vec::new();
+        for seconds in [1.0, 2.4, 5.3] {
+            gpu.holocron_stage_seconds = Some(seconds);
+            gpu.holocron_stage_request = crate::holocrons::stage::Request::of("mythical", true);
+            let _ = frame(&mut gpu, 60);
+            engram.push(stage(&frame(&mut gpu, 2)));
+        }
+        gpu.holocron_stage_request = None;
+        println!("{}", sheet(&engram, 3, 640, "duel6-engram").display());
+    });
+}
+
 /// Other windows and styles: 4:3, 21:9, 4K, `ui_textScale 1.2`, and the page over the
 /// classic menus (the world stays visible behind it).
 #[test]

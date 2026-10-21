@@ -475,6 +475,9 @@ struct GpuState {
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
     #[cfg(test)]
     holocron_stage_seconds: Option<f32>,
+    /// The form it draws in place of the tab's, for a world shot (a kyber crystal).
+    #[cfg(test)]
+    holocron_stage_request: Option<holocrons::stage::Request>,
     /// What each player wears that SJK draws (blade skin, Illuminate).
     looks: looks::Looks,
     trick_fades: sjk_client::LegacyTrickFades,
@@ -1420,6 +1423,8 @@ impl GpuState {
             holocron_stage: Default::default(),
             #[cfg(test)]
             holocron_stage_seconds: None,
+            #[cfg(test)]
+            holocron_stage_request: None,
             looks: Default::default(),
             trick_fades: Default::default(),
             projectiles: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),

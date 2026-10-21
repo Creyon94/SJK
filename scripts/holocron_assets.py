@@ -23,19 +23,26 @@ shipped `holocron.jpg` in the folder (no originals needed):
 
 The tiers (uncommon green, rare blue, legendary purple, mythical gold) are each an
 object of their own (`holocron_forms.py`: the Jedi cube, the Great Holocron, the Sith
-pyramid, the kyber prism), a model per part so the client can move the parts. Per tier
-it writes the parts' models (`holocron_<tier>.md3`, the body, and
-`holocron_<tier>_<part>.md3`, each also as `..._locked.md3`), the face picture
-`holocron_<tier>.jpg` with its `_glow.jpg` and `_locked.jpg`, the lit parts' picture
-`holocron_<tier>_light.jpg`, and the UI icons `holocron_<tier>.png` (256x256, drawn from
-the parts) and `holocron_<tier>_small.png` (64x64). Shared: the steel and the dark metal
-(`holocron_steel.jpg`, `holocron_dark.jpg`, and locked), the locked light, the mythical
-sheen, and three shaders (`holocron_tiers.shader`: the faces; `holocron_parts.shader`:
-steel, dark metal and the lights; `holocron_locked.shader`: the locked look, every
-material drained and dark, without glow). The Jedi cube's face is the shipped face in
-the tier's colour; the other three come from Sol's pictures (17/10/2026) in the folder's
-`art/` (`rare.jpg`, `legendary.jpg`, `mythical.jpg`; ART below), or are drawn here when
-one is missing. `--art <tier>=<picture>` gives another picture for a tier:
+pyramid, the engram), and the kyber crystals (`kyber_<tier>`, 21/10/2026) one more object
+in the same four colours; each form is a model per part so the client can move the parts.
+Per form `<id>` it writes the parts' models (`holocron_<id>.md3`, the body, and
+`holocron_<id>_<part>.md3`, each also as `..._locked.md3`), the face picture
+`holocron_<id>.jpg` with its `_glow.jpg` and `_locked.jpg`, the lit parts' picture
+`holocron_<id>_light.jpg`, and the UI icons `holocron_<id>.png` (256x256, drawn from the
+parts) and `holocron_<id>_small.png` (64x64); the engram also its seams' and core's
+pictures (and locked) and its reflection `holocron_mythical_env.jpg`. Shared: the steel
+and the dark metal (`holocron_steel.jpg`, `holocron_dark.jpg`, and locked), the locked
+light, the sheen, four shaders (`holocron_tiers.shader`: the holocrons' faces;
+`holocron_kyber.shader`: the crystals' faces and lights; `holocron_parts.shader`: steel,
+dark metal, the holocrons' lights and the engram's seams and core;
+`holocron_locked.shader`: the locked look, every material drained and dark, without
+glow), and two Rust tables the client includes (`holocron_parts.rs`: every form's parts
+and motion; `holocron_files.rs`: every file above at its game path). The Jedi cube's
+face is the shipped face in the tier's colour; the Great Holocron's and the Sith
+pyramid's come from Sol's pictures (17/10/2026) in the folder's `art/` (`rare.jpg`,
+`legendary.jpg`), and the kyber crystals' facets from `art/kyber.jpg` (ART below), or
+are drawn here when one is missing; the engram's plates are drawn here. `--art
+<key>=<picture>` gives another picture for an ART key:
 
     python scripts/holocron_assets.py tiers crates/sjk-viewer/assets/holocron --art rare=pentagon.png
 
@@ -44,10 +51,10 @@ out and fitted to where the form's picture coordinates expect it (ART), and its 
 parts (bright, or strongly coloured) are painted along the tier's ramp and glow. The
 rare one is a pentagon, a corner at the top; the legendary one a triangle, its tip at
 the top: the Sith pyramid's sides take its foot up to PYRAMID_TOP of its width, the
-floating cap the tip above it, so the runes run on across the seam. The mythical one is
+floating cap the tip above it, so the runes run on across the seam. The kyber one is
 a tiling crystal texture, its light worked into the crystal's facets. The whole table
-(colours, glow ladder, shader waves, point lights) is TIERS below; the output is
-deterministic.
+(colours, glow ladder, shader waves, point lights) is TIERS below (KYBER_TIERS copies
+it); the output is deterministic.
 
 Needs Pillow, numpy and scipy (pip install pillow numpy scipy).
 """
@@ -55,7 +62,7 @@ Needs Pillow, numpy and scipy (pip install pillow numpy scipy).
 import math
 import struct
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -227,7 +234,7 @@ RING_CUT = 1.475
 # How much of the icon the holocron spans; the rest is the halo's room.
 ICON_FILL = 0.8
 SHEEN_SIZE = 128
-SHEEN_NAME = "holocron_mythical_sheen"
+SHEEN_NAME = "holocron_sheen"
 # The look of a tier the player holds none of: every picture with its colour drained and
 # its light put out, its own shaders without glow (the tier shows in the dim point light
 # the Holocrons tab gives it, and in the shape).
@@ -243,7 +250,7 @@ PYRAMID_TOP = 1.6 / 3.0
 ART = {
     "rare": (0.5 - 0.5 * math.sin(math.radians(72)), 0.0, 0.5 + 0.5 * math.sin(math.radians(72)), 0.5 + 0.5 * math.cos(math.radians(36))),
     "legendary": (0.0, 0.0, 1.0, 1.0),
-    "mythical": None,
+    "kyber": None,
 }
 # A picture's black ground: anything darker is not the shape.
 ART_GROUND = 18.0
@@ -305,6 +312,14 @@ TIERS = (
         self_glow=(0.45, 0.20, 0.25, 0.35), breath=(0.85, 0.35, 0.0, 0.55),
     ),
 )
+
+# The kyber crystals: one per tier, in its colours, glow ladder and light.
+KYBER_TIERS = tuple(
+    replace(tier, id=f"kyber_{tier.id}", label=tier.label.replace(" (", " kyber crystal (", 1)) for tier in TIERS
+)
+# Every form, in the order of the client's table (`holocron_forms.FORM_IDS`).
+ALL_TIERS = TIERS + KYBER_TIERS
+assert tuple(tier.id for tier in ALL_TIERS) == forms.FORM_IDS
 
 
 def smoothstep(edge0, edge1, x):
@@ -570,11 +585,91 @@ def crystal_layers(tier: Tier, texture: Path | None = None):
     return face.clip(0, 255), glow.clip(0, 255)
 
 
+def engram_layers(tier: Tier):
+    """The engram's plate: gold on a triangle (its tip at the picture's top middle, its
+    foot along the bottom) with a rim that catches the light, an engraved groove and a
+    thin lit line inside it, and a seal: an engraved ring round the middle with an
+    old-republic rune in it and three small ones by the foot, faintly lit."""
+    n = FACE_SIZE
+    ys, xs = (np.mgrid[0:n, 0:n] + 0.5) / n
+    mid = np.array(tier.ramp[1], float)
+    pale = np.array(tier.ramp[2], float)
+    # Distance to the triangle's nearest edge, in shares of the picture.
+    edge = np.minimum((0.5 * ys - np.abs(xs - 0.5)) / math.sqrt(1.25), 1.0 - ys)
+    from_middle = np.hypot(xs - 0.5, ys - ENGRAM_INCENTRE)
+    value = (
+        0.43
+        + 0.05 * noise_field(n, 21, (0.7, 16.0))
+        + 0.04 * noise_field(n, 22, 10.0)
+        + 0.08 * np.clip(1.0 - from_middle / 0.42, 0, 1)
+    )
+    rim = smoothstep(0.04, 0.012, edge)
+    groove = smoothstep(0.011, 0.0, np.abs(edge - 0.06))
+    line = smoothstep(0.006, 0.0, np.abs(edge - 0.08)) * (edge > 0.0)
+    ring = smoothstep(0.008, 0.0, np.abs(from_middle - 0.2))
+    rune = glyph_mask(n, [(0.5, ENGRAM_INCENTRE)], 0.2, 41)
+    small = glyph_mask(n, [(0.4, 0.905), (0.5, 0.905), (0.6, 0.905)], 0.055, 43)
+    engraved = np.maximum(np.maximum(ring, rune), small)
+    value = value + 0.24 * rim - 0.24 * groove - 0.2 * engraved
+    lit = (0.32 * engraved + 0.5 * line)[..., None] * (0.5 * mid + 0.5 * pale) + (0.1 * rim)[..., None] * pale
+    # The four tones, each plate at half size in its cell (holocron_forms.engram_tone).
+    face, glow = np.zeros((n, n, 3)), np.zeros((n, n, 3))
+    half = n // 2
+    for tone, shade in enumerate(ENGRAM_TONES):
+        plate = ramp((value * shade).clip(0, 1), tier.ramp) * tier.emblem
+        cell = (slice((tone // 2) * half, (tone // 2 + 1) * half), slice((tone % 2) * half, (tone % 2 + 1) * half))
+        face[cell] = plate.reshape(half, 2, half, 2, 3).mean((1, 3))
+        glow[cell] = lit.reshape(half, 2, half, 2, 3).mean((1, 3))
+    return face.clip(0, 255), glow.clip(0, 255)
+
+
+# The engram's plates' shades, from the facet most toward its key light to the least.
+ENGRAM_TONES = (1.28, 1.05, 0.84, 0.66)
+
+
+# The engram's reflection, read by the view (`tcGen environment`): a warm sky over a
+# dark ground with two thin streaks across, so each facet takes its own light as the
+# shell turns and the streaks sweep the facets (`tcMod scroll`).
+ENGRAM_ENV = "holocron_mythical_env"
+
+
+def engram_env(tier: Tier) -> np.ndarray:
+    n = 128
+    ys, xs = (np.mgrid[0:n, 0:n] + 0.5) / n
+    pale = np.array(tier.ramp[2], float)
+    white = np.array(tier.ramp[3], float)
+    sky = 0.1 * smoothstep(0.75, 0.15, ys)
+    phase = (xs * 2 + ys) % 1.0
+    streaks = np.exp(-(((phase - 0.3) / 0.035) ** 2)) + 0.6 * np.exp(-(((phase - 0.72) / 0.02) ** 2))
+    return (sky[..., None] * pale + 0.75 * streaks[..., None] * white).clip(0, 255)
+
+
+# The plate's triangle's incentre down the picture (its tip at 0, its foot at 1).
+ENGRAM_INCENTRE = 2 * math.sqrt(1.25) / (1 + 2 * math.sqrt(1.25))
+
+
+def engram_extras(tier: Tier) -> dict:
+    """The engram's other pictures: the seams' glow, the core's facet (white-hot in its
+    middle, gold at its edges)."""
+    pale = np.array(tier.ramp[2], float)
+    white = np.array(tier.ramp[3], float)
+    mid = np.array(tier.ramp[1], float)
+    seam = (0.55 * mid + 0.45 * pale) * (1.0 + 0.04 * noise_field(64, 23, 3.0))[..., None]
+    n = 128
+    ys, xs = (np.mgrid[0:n, 0:n] + 0.5) / n
+    from_middle = np.hypot(xs - 0.5, ys - ENGRAM_INCENTRE)
+    heat = np.clip(1.0 - from_middle / 0.55, 0, 1)[..., None]
+    core = mid * (1.0 - heat) + white * heat
+    return {"seam": seam.clip(0, 255), "core": core.clip(0, 255)}
+
+
 def form_layers(base: np.ndarray, steel: np.ndarray, dark: np.ndarray, tier: Tier, art: dict):
-    """The face and glow pictures of a tier's form: Sol's picture for it when given,
-    else the one made here."""
+    """The face and glow pictures of a form: Sol's picture for it when given, else the
+    one made here."""
+    if tier.id in forms.KYBER_IDS:
+        return crystal_layers(tier, art.get("kyber"))
     if tier.id == "mythical":
-        return crystal_layers(tier, art.get(tier.id))
+        return engram_layers(tier)
     if tier.id in art:
         return art_layers(art[tier.id], tier)
     if tier.id == "uncommon":
@@ -585,8 +680,8 @@ def form_layers(base: np.ndarray, steel: np.ndarray, dark: np.ndarray, tier: Tie
 
 
 def tier_icon(tier: Tier, looks: dict) -> Image.Image:
-    """The 256x256 icon: the tier's holocron drawn from its parts, a little from above,
-    with a halo in the tier's colour, made for a dark UI."""
+    """The 256x256 icon: the form drawn from its parts, a little from above, with a halo
+    in the tier's colour, made for a dark UI (the mythical ones a glint too)."""
     size, oversample = TIER_ICON_SIZE, 4
     big = size * oversample
     drawn = forms.render(tier.id, looks, big, ICON_FILL)
@@ -596,7 +691,7 @@ def tier_icon(tier: Tier, looks: dict) -> Image.Image:
     halo = np.clip(spread * 2.0 * (0.45 + 0.55 * tier.ring), 0, 0.85) * (1.0 - solid)
     colour = colour * solid[..., None] + mid * halo[..., None]
     alpha = np.clip(solid + halo, 0, 1)
-    if tier.id == "mythical":
+    if tier.id.endswith("mythical"):
         star = sparkle(big, (0.80 * big, 0.17 * big), 0.13 * big)
         colour = colour * (1.0 - star[..., None]) + np.array((255.0, 250.0, 225.0)) * star[..., None]
         alpha = np.maximum(alpha, star)
@@ -627,8 +722,9 @@ def small_icon(picture: Image.Image) -> Image.Image:
 
 
 def sheen(output: Path) -> None:
-    """A soft diagonal stripe that tiles along (s + t): the mythical shader scrolls it
-    over the crystal, one stripe crossing at a time."""
+    """A soft diagonal stripe that tiles along (s + t): the kyber crystals' shaders
+    scroll it over the crystal, one stripe crossing at a time; the engram's reads it
+    by the view (`tcGen environment`), so its facets flash as they turn."""
     n = SHEEN_SIZE
     ys, xs = np.mgrid[0:n, 0:n]
     phase = ((xs + ys + 1.0) / n) % 1.0
@@ -642,99 +738,119 @@ def wave(values) -> str:
     return "rgbGen wave sin " + " ".join(f"{value:g}" for value in values)
 
 
+def stage(*lines) -> list:
+    return ["\t{", *(f"\t\t{line}" for line in lines), "\t}"]
+
+
+def face_shader(tier: Tier, sheen_lines=(), sheen_name=SHEEN_NAME) -> list:
+    """A form's face: lit, glowing faintly of itself, its lit parts breathing in the
+    glow, then the sheen's stage when given."""
+    name = f"models/sjk/holocron_{tier.id}"
+    lines = [name, "{", "\tq3map_nolightmap"]
+    if tier.id == "mythical":
+        lines.append(f"\tdeformVertexes wave {ENGRAM_BREATH}")
+    lines += stage(f"map {name}", "rgbGen lightingDiffuse")
+    # The engram's plates are metal: barely a light of their own, so the seams and the
+    # core are what glows.
+    own = ENGRAM_OWN_GLOW if tier.id == "mythical" else tier.self_glow
+    lines += stage(f"map {name}", "blendFunc GL_ONE GL_ONE", wave(own))
+    lines += stage(f"map {name}_glow", "blendFunc GL_ONE GL_ONE", wave(tier.breath), "glow")
+    if sheen_lines:
+        lines += stage(f"map models/sjk/{sheen_name}", "blendFunc GL_ONE GL_ONE", *sheen_lines)
+    return lines + ["}"]
+
+
+# How the engram's plates breathe: `deformVertexes wave` with a spread so wide every
+# plate moves as one (its vertices carry the plate's normal), out by 0 to 0.4 units, so the core shows between them at the top of the breath.
+ENGRAM_BREATH = "1000 sin 0.2 0.2 0 0.35"
+# The engram's plates' own light (the face's second stage), far under the tier's.
+ENGRAM_OWN_GLOW = (0.35, 0.08, 0.25, 0.35)
+
+
 def tier_shader() -> str:
     lines = [
         "// The holocron's loot-box tiers (SJK; see README.md): each tier's face (the Jedi",
-        "// cube's plates, the Great Holocron's pentagons, the Sith pyramid's sides, the kyber",
-        "// crystal). Lit, also glowing faintly of itself, and its lit parts kept bright and in",
-        "// the dynamic glow, breathing; the tiers climb in how bright. Mythical also breathes",
-        "// the whole face and has a sheen stripe sliding across.",
+        "// cube's plates, the Great Holocron's pentagons, the Sith pyramid's sides, the",
+        "// engram's plates). Lit, also glowing faintly of itself, and its lit parts kept bright",
+        "// and in the dynamic glow, breathing; the tiers climb in how bright. The engram's",
+        "// plates also breathe out and back (deformVertexes) and its facets flash with a sheen",
+        "// read by the view as they turn.",
         "// Made by scripts/holocron_assets.py from its TIERS table: edit that, not this.",
     ]
     for tier in TIERS:
-        name = f"models/sjk/holocron_{tier.id}"
-        lines += [
-            name,
-            "{",
-            "\tq3map_nolightmap",
-            "\t{",
-            f"\t\tmap {name}",
-            "\t\trgbGen lightingDiffuse",
-            "\t}",
-            "\t{",
-            f"\t\tmap {name}",
-            "\t\tblendFunc GL_ONE GL_ONE",
-            f"\t\t{wave(tier.self_glow)}",
-            "\t}",
-            "\t{",
-            f"\t\tmap {name}_glow",
-            "\t\tblendFunc GL_ONE GL_ONE",
-            f"\t\t{wave(tier.breath)}",
-            "\t\tglow",
-            "\t}",
-        ]
+        sheen_lines = ()
+        sheen_name = SHEEN_NAME
         if tier.id == "mythical":
-            lines += [
-                "\t{",
-                f"\t\tmap models/sjk/{SHEEN_NAME}",
-                "\t\tblendFunc GL_ONE GL_ONE",
-                "\t\ttcMod scale 0.5 0.5",
-                "\t\ttcMod scroll 0.06 0.06",
-                "\t\trgbGen wave sin 0.5 0.15 0 0.25",
-                "\t}",
-            ]
-        lines.append("}")
+            sheen_name = ENGRAM_ENV
+            sheen_lines = ("tcGen environment", "tcMod scale 1.5 1.5", "tcMod scroll 0.05 0",
+                           "rgbGen wave sin 0.8 0.2 0 0.3")
+        lines += face_shader(tier, sheen_lines, sheen_name)
+    return "\n".join(lines) + "\n"
+
+
+def light_shader(tier: Tier) -> list:
+    name = f"models/sjk/{forms.light(tier.id)}"
+    return (
+        [name, "{", "\tq3map_nolightmap"]
+        + stage(f"map {name}", "rgbGen identity")
+        + stage(f"map {name}", "blendFunc GL_ONE GL_ONE", wave(tier.breath), "glow")
+        + ["}"]
+    )
+
+
+def kyber_shader() -> str:
+    lines = [
+        "// The kyber crystals (SJK; see README.md): each crystal's facets, lit, glowing of",
+        "// themselves, their lit parts breathing in the glow and a sheen stripe sliding",
+        "// across, brighter the rarer; then each crystal's light (lamps, motes).",
+        "// Made by scripts/holocron_assets.py from its TIERS table: edit that, not this.",
+    ]
+    for rank, tier in enumerate(KYBER_TIERS):
+        lines += face_shader(
+            tier, ("tcMod scale 0.5 0.5", "tcMod scroll 0.06 0.06", f"rgbGen wave sin {0.2 + 0.1 * rank:g} 0.15 0 0.25")
+        )
+    for tier in KYBER_TIERS:
+        lines += light_shader(tier)
     return "\n".join(lines) + "\n"
 
 
 def lit_shader(name: str, own: float) -> list:
     """A material lit by the world that also glows faintly of itself (a wave of no
     amplitude is a constant), so it never reads black with the light behind it."""
-    return [
-        name,
-        "{",
-        "\tq3map_nolightmap",
-        "\t{",
-        f"\t\tmap {name}",
-        "\t\trgbGen lightingDiffuse",
-        "\t}",
-        "\t{",
-        f"\t\tmap {name}",
-        "\t\tblendFunc GL_ONE GL_ONE",
-        f"\t\trgbGen wave sin {own:g} 0 0 0",
-        "\t}",
-        "}",
-    ]
+    return (
+        [name, "{", "\tq3map_nolightmap"]
+        + stage(f"map {name}", "rgbGen lightingDiffuse")
+        + stage(f"map {name}", "blendFunc GL_ONE GL_ONE", f"rgbGen wave sin {own:g} 0 0 0")
+        + ["}"]
+    )
 
 
 def parts_shader() -> str:
     lines = [
         "// The holocrons' other materials (SJK; see README.md): steel (the cube's edges, the",
-        "// pyramid's foot, the kyber's sheath and rings), the Sith pyramid's dark metal, and",
-        "// each tier's light (lamps, edges, halo, seam, eye, motes): full bright, breathing",
-        "// in the glow as the tier's face does.",
+        "// pyramid's foot, the kyber crystals' sheaths and rings), the Sith pyramid's dark",
+        "// metal, each tier's light (lamps, edges, halo, seam, eye, motes, sparks): full",
+        "// bright, breathing in the glow as the tier's face does; and the engram's seams",
+        "// (pulsing, breathing with the plates) and its white-hot core (pulsing in the glow).",
         "// Made by scripts/holocron_assets.py: edit that, not this.",
     ]
     lines += lit_shader(f"models/sjk/{forms.STEEL}", 0.3)
     lines += lit_shader(f"models/sjk/{forms.DARK}", 0.35)
     for tier in TIERS:
-        name = f"models/sjk/{forms.light(tier.id)}"
-        lines += [
-            name,
-            "{",
-            "\tq3map_nolightmap",
-            "\t{",
-            f"\t\tmap {name}",
-            "\t\trgbGen identity",
-            "\t}",
-            "\t{",
-            f"\t\tmap {name}",
-            "\t\tblendFunc GL_ONE GL_ONE",
-            f"\t\t{wave(tier.breath)}",
-            "\t\tglow",
-            "\t}",
-            "}",
-        ]
+        lines += light_shader(tier)
+    name = "models/sjk/holocron_mythical"
+    lines += (
+        [f"{name}_seam", "{", "\tq3map_nolightmap", f"\tdeformVertexes wave {ENGRAM_BREATH}"]
+        + stage(f"map {name}_seam", "rgbGen identity")
+        + stage(f"map {name}_seam", "blendFunc GL_ONE GL_ONE", "rgbGen wave sin 0.3 0.25 0 0.8", "glow")
+        + ["}"]
+    )
+    lines += (
+        [f"{name}_core", "{", "\tq3map_nolightmap"]
+        + stage(f"map {name}_core", "rgbGen identity")
+        + stage(f"map {name}_core", "blendFunc GL_ONE GL_ONE", "rgbGen wave sin 0.6 0.4 0.5 0.8", "glow")
+        + ["}"]
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -745,18 +861,29 @@ def locked_face(face_rgb: np.ndarray) -> np.ndarray:
     return (drained * LOCKED_DIM * np.array((0.96, 1.0, 1.08))).clip(0, 255)
 
 
+def form_materials() -> list:
+    """Every material the forms' models name, each once, in the order first named."""
+    seen = []
+    for form in forms.FORM_IDS:
+        for mesh in forms.FORMS[form](form).values():
+            seen += [material for material in mesh.materials() if material not in seen]
+    return seen
+
+
 def locked_materials() -> list:
-    return [f"holocron_{tier.id}_locked" for tier in TIERS] + [
-        forms.locked_material(forms.STEEL),
-        forms.locked_material(forms.DARK),
-        forms.LIGHT_LOCKED,
-    ]
+    out = []
+    for material in form_materials():
+        locked = forms.locked_material(material)
+        if locked not in out:
+            out.append(locked)
+    return out
 
 
 def locked_shader() -> str:
     lines = [
-        "// The holocrons of a tier the player holds none of (SJK; see README.md): every",
-        "// material drained and dark, lit by the world and a faint light of its own, no glow.",
+        "// The holocrons and kyber crystals of a tier the player holds none of (SJK; see",
+        "// README.md): every material drained and dark, lit by the world and a faint light of",
+        "// its own, no glow, nothing moving.",
         "// Made by scripts/holocron_assets.py: edit that, not this.",
     ]
     for material in locked_materials():
@@ -769,15 +896,15 @@ def save_jpg(picture: np.ndarray, path: Path) -> None:
 
 
 def write_form(output: Path, tier: Tier) -> list:
-    """The tier's parts as models, each in its own look and the locked one; the
+    """The form's parts as models, each in its own look and the locked one; the
     models' names."""
     names = []
     meshes = forms.FORMS[tier.id](tier.id)
     for part, mesh in meshes.items():
         name = forms.model_name(tier.id, part)
-        for file, rename in ((name, lambda m: m), (f"{name}_locked", forms.locked_material)):
+        for file, locked in ((name, False), (f"{name}_locked", True)):
             surfaces = [
-                (f"models/sjk/{rename(material)}", *data)
+                (f"models/sjk/{forms.locked_material(material) if locked else material}", *data)
                 for material, data in mesh.surfaces.items()
             ]
             write_md3(output, file, surfaces)
@@ -796,85 +923,125 @@ def rust_number(value: float) -> str:
     return text if any(c in text for c in ".e") else f"{text}.0"
 
 
+def rust_array(values) -> str:
+    return "[" + ", ".join(rust_number(v) for v in values) + "]"
+
+
 def parts_table() -> str:
     """The parts' table for the client (`holocrons/stage.rs` includes it)."""
     lines = [
-        "// The loot-box holocrons' parts and how they move (SJK; see README.md), included by",
-        "// crates/sjk-viewer/src/holocrons/stage.rs. Made by scripts/holocron_assets.py from",
-        "// holocron_forms.py's PARTS: edit that, not this.",
+        "// The loot-box holocrons' and kyber crystals' parts and how they move (SJK; see",
+        "// README.md), included by crates/sjk-viewer/src/holocrons/stage.rs. Made by",
+        "// scripts/holocron_assets.py from holocron_forms.py's PARTS: edit that, not this.",
         "",
-        "/// Each tier's parts, in `TIERS` order, its body first.",
+        "/// Every form the stage draws, by the hub's tier id: the four holocrons in `TIERS`",
+        "/// order, then the four kyber crystals; each its light and its parts, the body first.",
         "#[rustfmt::skip]",
-        "pub(crate) const PARTS: [&[Part]; COUNT] = [",
+        f"pub(crate) const FORMS: [Form; {len(ALL_TIERS)}] = [",
     ]
-    for tier in TIERS:
-        lines.append("    &[")
+    for tier in ALL_TIERS:
+        lines.append(f'    Form {{ id: "{tier.id}", light: {rust_array(tier.light)}, parts: &[')
         for motion in forms.PARTS[tier.id]:
             name = forms.model_name(tier.id, motion.part)
-
-            def array(values):
-                return "[" + ", ".join(rust_number(v) for v in values) + "]"
-
             lines.append(
                 f'        Part {{ model: "models/sjk/{name}.md3", locked: "models/sjk/{name}_locked.md3", '
-                f"at: {array(motion.at)}, bob: {array(motion.bob)}, orbit: {array(motion.orbit)}, "
-                f"spin: {array(motion.spin)}, tumble: {array(motion.tumble)}, precess: {array(motion.precess)} }},"
+                f"at: {rust_array(motion.at)}, bob: {rust_array(motion.bob)}, orbit: {rust_array(motion.orbit)}, "
+                f"spin: {rust_array(motion.spin)}, tumble: {rust_array(motion.tumble)}, precess: {rust_array(motion.precess)} }},"
             )
-        lines.append("    ],")
+        lines.append("    ] },")
+    lines.append("];")
+    return "\n".join(lines) + "\n"
+
+
+def files_table(files) -> str:
+    """The forms' bundled files for the client (`illuminate.rs` includes it, after its
+    `model!`, `picture!`, `icon!` and `shader!` macros)."""
+    lines = [
+        "// The loot-box holocrons' and kyber crystals' bundled files at their game paths",
+        "// (SJK; see README.md), included by crates/sjk-viewer/src/illuminate.rs. Made by",
+        "// scripts/holocron_assets.py: edit that, not this.",
+        "",
+        "/// Each form's models, pictures and icons, then the shared pictures and the shaders.",
+        "const FORM_FILES: &[(&str, &[u8])] = &[",
+    ]
+    lines += [f'    {kind}!("{name}"),' for kind, name in files]
     lines.append("];")
     return "\n".join(lines) + "\n"
 
 
 def tiers(output: Path, art: dict) -> None:
-    """The tiers' pictures, models and shaders, from the folder's holocron.jpg and
-    Sol's pictures in its `art/` (`art`, by tier id, overrides them)."""
+    """The forms' pictures, models and shaders, from the folder's holocron.jpg and
+    Sol's pictures in its `art/` (`art`, by ART key, overrides them)."""
     art = {
-        **{tier: output / "art" / f"{tier}.jpg" for tier in ART if (output / "art" / f"{tier}.jpg").exists()},
+        **{key: output / "art" / f"{key}.jpg" for key in ART if (output / "art" / f"{key}.jpg").exists()},
         **art,
     }
     base = np.asarray(Image.open(output / "holocron.jpg").convert("RGB")).astype(float)
     steel = steel_picture(base)
     dark = dark_picture()
-    save_jpg(steel, output / f"{forms.STEEL}.jpg")
-    save_jpg(dark, output / f"{forms.DARK}.jpg")
-    save_jpg(locked_face(steel), output / f"{forms.locked_material(forms.STEEL)}.jpg")
-    save_jpg(locked_face(dark), output / f"{forms.locked_material(forms.DARK)}.jpg")
-    save_jpg(locked_face(light_picture(TIERS[1])), output / f"{forms.LIGHT_LOCKED}.jpg")
+    files = []
+
+    def picture(name: str, rgb: np.ndarray) -> None:
+        save_jpg(rgb, output / f"{name}.jpg")
+        files.append(("picture", name))
+
     looks = {
         forms.STEEL: forms.Look(steel, own_light=0.3),
         forms.DARK: forms.Look(dark, own_light=0.35),
     }
-    layers = {}
-    for tier in TIERS:
+    for tier in ALL_TIERS:
         face_picture, glow_picture = form_layers(base, steel, dark, tier, art)
-        layers[tier.id] = (face_picture, glow_picture)
-        save_jpg(face_picture, output / f"holocron_{tier.id}.jpg")
-        save_jpg(glow_picture, output / f"holocron_{tier.id}_glow.jpg")
-        save_jpg(locked_face(face_picture), output / f"holocron_{tier.id}_locked.jpg")
+        name = f"holocron_{tier.id}"
+        files += [("model", model) for model in write_form(output, tier)]
+        picture(name, face_picture)
+        picture(f"{name}_glow", glow_picture)
+        picture(f"{name}_locked", locked_face(face_picture))
         lit = light_picture(tier)
-        save_jpg(lit, output / f"{forms.light(tier.id)}.jpg")
-        looks[f"holocron_{tier.id}"] = forms.Look(face_picture, glow_picture, own_light=tier.self_glow[0] * 0.5)
+        picture(forms.light(tier.id), lit)
+        own = ENGRAM_OWN_GLOW[0] if tier.id == "mythical" else tier.self_glow[0]
+        looks[name] = forms.Look(face_picture, glow_picture, own_light=own * 0.5)
         looks[forms.light(tier.id)] = forms.Look(lit, lit=False)
-        write_form(output, tier)
-    for tier in TIERS:
-        picture = tier_icon(tier, looks)
-        picture.save(output / f"holocron_{tier.id}.png", optimize=True)
-        small_icon(picture).save(output / f"holocron_{tier.id}_small.png", optimize=True)
+        if tier.id == "mythical":
+            extras = engram_extras(tier)
+            for part, rgb in extras.items():
+                picture(f"{name}_{part}", rgb)
+                # The locked seams and core are dim, not lit.
+                picture(f"{name}_{part}_locked", locked_face(rgb) * 0.45)
+            picture(ENGRAM_ENV, engram_env(tier))
+            looks[f"{name}_seam"] = forms.Look(extras["seam"], lit=False)
+            looks[f"{name}_core"] = forms.Look(extras["core"], lit=False)
+        files += [("icon", name), ("icon", f"{name}_small")]
+    for tier in ALL_TIERS:
+        icon_picture = tier_icon(tier, looks)
+        icon_picture.save(output / f"holocron_{tier.id}.png", optimize=True)
+        small_icon(icon_picture).save(output / f"holocron_{tier.id}_small.png", optimize=True)
+    picture(forms.STEEL, steel)
+    picture(forms.locked_material(forms.STEEL), locked_face(steel))
+    picture(forms.DARK, dark)
+    picture(forms.locked_material(forms.DARK), locked_face(dark))
+    picture(forms.LIGHT_LOCKED, locked_face(light_picture(TIERS[1])))
     sheen(output)
-    (output / "holocron_tiers.shader").write_text(tier_shader(), encoding="ascii", newline="\n")
-    (output / "holocron_parts.shader").write_text(parts_shader(), encoding="ascii", newline="\n")
-    (output / "holocron_locked.shader").write_text(locked_shader(), encoding="ascii", newline="\n")
+    files.append(("picture", SHEEN_NAME))
+    for file, text in (
+        ("holocron_tiers", tier_shader()),
+        ("holocron_kyber", kyber_shader()),
+        ("holocron_parts", parts_shader()),
+        ("holocron_locked", locked_shader()),
+    ):
+        (output / f"{file}.shader").write_text(text, encoding="ascii", newline="\n")
+        files.append(("shader", file))
     (output / "holocron_parts.rs").write_text(parts_table(), encoding="ascii", newline="\n")
+    (output / "holocron_files.rs").write_text(files_table(files), encoding="ascii", newline="\n")
 
 
 def art_options(arguments) -> dict:
-    """`--art <tier>=<picture>` pairs: Sol's face pictures for the tiers' forms."""
+    """`--art <key>=<picture>` pairs: Sol's face pictures for the forms (ART's keys)."""
     art = {}
     for argument in arguments:
-        tier, _, picture = argument.partition("=")
-        if tier not in forms.TIER_IDS or not picture:
-            sys.exit(f"--art takes <tier>=<picture>, the tier one of {', '.join(forms.TIER_IDS)}")
-        art[tier] = Path(picture)
+        key, _, picture = argument.partition("=")
+        if key not in ART or not picture:
+            sys.exit(f"--art takes <key>=<picture>, the key one of {', '.join(ART)}")
+        art[key] = Path(picture)
     return art
 
 

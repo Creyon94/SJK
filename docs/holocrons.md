@@ -60,20 +60,49 @@ set), not one cube in four colours:
 | Uncommon | The Jedi cube: the holocron's cube with a raised plateau on each face (the face on it, the emblem on its flat top), a lamp over each, steel edges | nothing of its own |
 | Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with the Jedi Order's emblem and runes, lit edges | a broken halo, tilted, turning and bobbing around it |
 | Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, the runes running on over its sides, thin lit edges, a dark underside; a glowing eye turns between them |
-| Mythical | The kyber prism: a broad eight-sided crystal in a steel sheath, gold, with a sheen sliding over it | the crystal turns; two gimbal rings tumble around it; ten motes of light circle it |
+| Mythical | The engram (21/10/2026; until then the kyber prism, now the [Kyber crystal](#kyber-crystals)): a long faceted gold gem of thirty triangular plates, each a slab apart from the next so thin glowing seams run between them, a white-hot core inside, a faint old-republic rune in a seal on each plate, the facets in four shades so they stand apart in any light | the shell turns about its length while it slowly tumbles over; the plates breathe out and back (up to 0.4 units, the core showing between them at the top of the breath); the seams and core pulse; streaks of reflection sweep the facets as they turn; eight sparks circle it |
 
 They are made by `scripts/holocron_assets.py` with the shapes in `scripts/holocron_forms.py`:
 a model per part (the body, which stands still against the holocron, and each moving
 part, modelled about its own centre), each also in the locked look, and the parts' table
 `holocron_parts.rs` (where each part rests and how it bobs, orbits and turns), which the
 client includes ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs),
-`PARTS`), so the two never disagree. The Jedi cube's face is the shipped face in the tier's
+`FORMS`), so the two never disagree; the script also writes the list of bundled files the
+client mounts (`holocron_files.rs`). The Jedi cube's face is the shipped face in the tier's
 colour; the Great Holocron's pentagon, the Sith pyramid's triangle of runes (its foot on
 each side, its tip on the cap) and the kyber crystal come from Sol's pictures (17/10/2026)
 in the asset folder's `art/`, fitted and painted in the tier's colours by the script
-(`--art <tier>=<picture>` tries another; the folder's
-[README](../crates/sjk-viewer/assets/holocron/README.md)). The four are sized to
-fill about the cube's room on screen.
+(`--art <key>=<picture>` tries another; the folder's
+[README](../crates/sjk-viewer/assets/holocron/README.md)); the engram's plate is drawn by
+the script. The four are sized to fill about the cube's room on screen.
+
+The engram's plates breathe in their shader (`deformVertexes wave`): every vertex of a
+plate, its walls too, carries the plate's normal, so the whole slab moves out along it as
+one. A soft halo sprite was tried (`deformVertexes autosprite`), but on the stage a surface
+whose only stage is added light did not show (an opaque test of it did, turned to the
+camera), so the halo comes from the glow pass around the seams and core instead.
+
+### Kyber crystals
+
+Since 21/10/2026 the client also has the kyber crystals' models (the crystal logic and UI
+are their own work): the kyber prism that was the Mythical holocron's form, in each tier's
+colours and light, with the hub's tier ids. The commoner the plainer:
+
+| Id | Colour | What it has |
+| --- | --- | --- |
+| `kyber_uncommon` | green `#2FC77A` | the crystal in its steel sheath, one gimbal ring with four lamps, four motes |
+| `kyber_rare` | blue `#2E7BFF` | the same, six motes |
+| `kyber_legendary` | purple `#A64DFF` | a second gimbal ring, eight motes |
+| `kyber_mythical` | gold `#FFC933` | both rings, ten motes (the old Mythical holocron's full look) |
+
+The crystal turns, the rings tumble, the motes circle; each has its locked look and its
+icons (`gfx/sjk/holocron_kyber_<tier>.png` and `_small.png`, 256 and 64 pixels). The 3D
+stage draws one by the hub's id: `holocrons::stage::Request::of("kyber_rare", owned)` (or
+`Request { tier: slot, owned }`), the same way and in the same place as a holocron;
+`stage::FORMS` lists every form it can draw by slot: 0-3 the holocron tiers, 4-7 the kyber
+crystals (uncommon, rare, legendary, mythical), each with its light. `holocrons::icons`
+uploads the crystals' icons into the slots' cells (`icons::texture(slot)`) and marks them
+for `icons::is_loaded(slot)`.
 
 The Holocrons tab's tier rows carry the tiers' rarity effects (10/10/2026): from Rare up
 a breathing frame, Legendary's sheen, Mythical's running spark and motes, faint for a
@@ -385,7 +414,11 @@ read, every state at 1080p, 4K, 4:3 and 21:9 on the Profile screen and on its ow
 holocron's placement in those windows and its swap, and the tier models' and shaders'
 mounting (`illuminate::tests::every_part_names_shaders_of_its_look_and_they_are_mounted`).
 The four holocrons (17/10/2026): `holocrons::stage::tests` check the parts' table, poses and
-models, and the world shot `duel6_sjk_holocron_forms` shows each tier held at two moments and
+models (since 21/10/2026 also the kyber crystals', `Request::of` and the forms' lights), the
+world shot `duel6_sjk_kyber_forms` (21/10/2026) shows the engram and the four kyber crystals
+held at two moments and locked, and the engram alone at three moments (looked at on this
+machine; the breath was checked by a test build with the plates pushed far out), and the
+world shot `duel6_sjk_holocron_forms` shows each tier held at two moments and
 locked (looked at on this machine, with `duel6_sjk_crate_open`); not tried in a running
 client, so the parts' motion has only been seen as stills. The world shots
 `world_shot::holocrons_tab::duel6_sjk_holocrons` and `duel6_sjk_holocrons_windows` (off-screen
