@@ -6005,3 +6005,11 @@ change: The log says R_FindImageFile could not find '<image>' in shader '<name>'
 test: Load maps and models with community skins: no magenta checkers anywhere.
 test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
 note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).
+
+[wheel-moveup]
+area: Input
+title: +moveup on the mouse wheel jumps every notch
+change: A press let go in the same millisecond (a wheel notch) moves the whole user command.
+change: Stock counted it only for buttons; movement got 0, so the wheel never jumped.
+test: bind MWHEELDOWN +moveup, scroll one notch: one jump each notch, at 125 and 333 FPS.
+test: Held keys and short taps of Space move as before; +attack on the wheel still swings.

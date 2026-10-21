@@ -9270,6 +9270,21 @@ in a release build with Sol's HD pack, `falcon2.md3`'s worst frame went from 209
 viewer suite, fmt and Clippy and that ignored GPU test; an NPC or vehicle spawn was not
 tried in a game, and saber hilts an NPC brings still load on the render thread.
 
+## Movement binds on the mouse wheel
+
+Branch `personal/wheel-moveup` (21/10/2026, based on `4c3a26b2`), after Midn8Runner's
+report (Discord, 07/10): `bind MWHEELDOWN +moveup` did not jump. A notch's press and
+release share one timestamp (JoF EJK `sdl_input.cpp:1040-1049`, ioquake3 likewise), so
+the stock key state counts 0 ms of movement for it (`cl_input.cpp:465-471`, `485-517`)
+and only buttons see it (`wasPressed`, `cl_input.cpp:1659`); a jump needs `upmove` of at
+least 10 (`bg_pmove.c:2856`). SJK already matched that, so it did not jump either. Sol
+chose (21/10/2026) that the wheel should jump: a press let go in the same millisecond
+now moves the whole next user command ([client.md](client.md#useful-console-commands),
+`KeyState::tapped`). Unit tests cover the notch at 8, 7, 4 and 3 ms steps, a notch
+kept across frames until a command is made, buttons and `+forward` on the wheel, and a
+2 ms key tap keeping stock's share. No client was run: the jump on a server is
+unverified in game, as is whether EJK jumps in practice (its source says it does not).
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.
