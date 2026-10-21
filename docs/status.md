@@ -1745,13 +1745,13 @@ the hacked player's client plays the hacker's keys, buttons (attack, alt attack,
 and view as its own commands for 5 seconds, while the hacker's camera follows them and
 the hacker's own player stands still. The exchange and the control frames go through a
 new hub endpoint, the [toy relay](hub-chat.md#toy-relay) (`POST`/`GET /v1/relay`, hub
-branch `hax`, not deployed): a long poll per holder, events only for their target, kept
+`main` 880b6ea, deployed 22/10/2026: unsigned requests answer 401): a long poll per holder, events only for their target, kept
 3 seconds, 40 a second per key. Checked by unit tests (the events and frames written and
 read back within the hub's rule, the steered command's angles through `delta_angles`,
 the buttons allowed, the hacker's still command and frame pacing, the relay client's
 outbox replacing frames and its reader's ids, the hub's relay store, quota, target
 filter and long poll, the wheel's Toys page, the Collection's four toys). Not tried in a
-game, with two clients, on a server or against a running hub; the steering's lag on a
+game, with two clients or on a server; the steering's lag on a
 real connection is unmeasured.
 
 ## Order 66 toy
