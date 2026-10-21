@@ -81,6 +81,7 @@ impl BladeColor {
                 flicker: Default::default(),
                 hue: [0.0; 2],
                 ghosts: None,
+                petals: None,
                 persona: Default::default(),
                 chroma: Default::default(),
                 off: 0,

@@ -559,6 +559,14 @@ serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone m
 wear it and SJK players see it on each other. Reyced keeps the rights to the model;
 it is distributed with his permission and is not part of SJK's code or its licence.
 
+## Ideas
+
+Kushina, a player, sent Sol the idea of a blossom blade (15/10/2026): a locked blossom
+palette with pink as its main colour, light purple and white mist, afterimages made of
+falling blossoms like the Spectral's, and a branch with a flower where the blade starts
+(and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
+(blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
+
 ## Tools
 
 Many of Sol's changes were written with Claude (Anthropic) as a

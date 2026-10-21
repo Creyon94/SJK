@@ -113,6 +113,8 @@ pub(crate) struct SkinColor {
     pub(crate) hue: [f32; 2],
     /// The skin's afterimages (`ghosts` in its file); none when absent.
     pub(crate) ghosts: Option<crate::saber_ghosts::GhostSpec>,
+    /// The blossoms its swing sheds (its signature's `@petals`); none when absent or off.
+    pub(crate) petals: Option<crate::saber_petals::PetalSpec>,
     /// Who wears it (team, name), for the skins drawn from that; the default with no
     /// wearer known.
     pub(crate) persona: crate::saber_persona::Persona,
@@ -753,6 +755,13 @@ impl LoadedSkin {
                     spacing_millis: ghosts.spacing,
                     fade: ghosts.fade,
                     wearer: crate::blade_signatures::of(self.id).is_some(),
+                }),
+            petals: self
+                .signature_shown()
+                .and_then(|signature| signature.petals())
+                .filter(|petals| {
+                    crate::blade_signatures::part_section(petals.part)
+                        .is_some_and(|section| on(section))
                 }),
             persona: crate::saber_persona::Persona::default(),
             linger: crate::blade_lab_designs::linger(self.id),

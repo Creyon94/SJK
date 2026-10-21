@@ -70,7 +70,7 @@ Storm, Prism, Unstable, Chameleon and four of Creyon's legendaries down to Rare;
 Display up to Uncommon), and after his adjustments of 21/10/2026, which moved 38 more
 (048 053 054 055 056 062 064 066 069 075 to Legendary; 043 063 068 070 072 074 078 079 088
 089 090 097 139 to Rare; 005 006 014 036 to Uncommon; 004 012 013 019 023 030 031 103 107
-108 133 136 to Common; 11 mythicals left). The rounds' notes below keep the tiers the blades
+108 133 136 to Common; 11 mythicals left, 12 with the Varykino Blossom of 21/10/2026). The rounds' notes below keep the tiers the blades
 came in.
 
 | No. | Id | Name | Tier | Smith | Drops |
@@ -240,6 +240,7 @@ came in.
 | 163 | `saber_smoked_transparisteel` | Smoked Transparisteel blade | Common | Creyon | yes |
 | 164 | `saber_batuu_dusk` | Batuu Dusk blade | Common | Creyon | yes |
 | 165 | `saber_alderaan_velvet` | Alderaan Velvet blade | Common | Creyon | yes |
+| 166 | `saber_varykino_blossom` | Varykino Blossom blade | Mythical | Sol | yes |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -391,6 +392,18 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   ignite, swing and clash (the shader knows no swing or clash), and a true reflection of
   the map in the Quicksilver (it reflects a made-up surrounding in the light where the
   blade is).
+- **Varykino Blossom** (21/10/2026, blade 166, Mythical, Kushina's idea; built by Sol's
+  side as a signature, `blade_signatures/varykino_blossom.glsl`): the Naboo Blossom's
+  Mythical sibling, after the spring gardens of Naboo's lake retreat. A soft blossom-pink
+  blade in a locked palette (not a chroma, as Kushina asked), pale petals of light opening
+  and fading in its glow, lavender and white mist curling off it, five-petal blossoms
+  drifting down round it, a branch of dark cherry wood with a bud and one open flower
+  growing from where the blade leaves the hilt, and a ring of petals on a clash. Swung, it
+  sheds real blossoms that flutter to the ground behind it and settle there
+  ([rendering.md](rendering.md#falling-blossoms)), where the Spectral leaves afterimages.
+  Each of the four is a part its wearer may switch off. It borrows Royal Naboo's sounds
+  (the skins pack is near its 16 MiB cap). Not built from her idea: the wooden hilt, which
+  waits for custom hilts.
 
 ## Hub protocol (additions to version 1)
 
@@ -1003,6 +1016,7 @@ off, and every other SJK player then draws the blade the same way.
 | Sun | `prominences` Prominences (arcs), `sparks` Rising sparks (motes), `glint` Tip glint (star; "Orbiting glints" since the later additions file, its orbit going with the star), `haze` Heat haze (haze) |
 | Void | `holes` Black holes (holes, later additions file only), `stars` Infalling stars (motes), `warp` Warped space (haze), `pulse` Gravity pulse (pulse), `afterimages` Afterimages (ghosts) |
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
+| Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
   [saber_skin_options.rs](../crates/sjk-viewer/src/saber_skin_options.rs)): one
@@ -1222,7 +1236,7 @@ Every Blade Lab blade drops too since 20/10/2026 (Sol: no loot is handed out by 
 instead of found). The same day Sol's card, SJK Alpha 000, began to bring the Sun blade
 for as long as the player holds a copy ([cards.md](cards.md#faces-and-the-first-set),
 `grants`, `unlockables::CARD_BLADES`): for a few hours it was the only way, then Sol made
-it a second way besides holocrons. So 162 of the 165 shaders drop, all but Glitch, Hologram
+it a second way besides holocrons. So 163 of the 166 shaders drop (the Varykino Blossom, 166, since 21/10/2026), all but Glitch, Hologram
 and Runic (their medals); the test pins `droppable` exactly when no medal brings it.
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the

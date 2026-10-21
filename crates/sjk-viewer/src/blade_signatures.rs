@@ -54,7 +54,7 @@ macro_rules! signature {
 /// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
 /// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`). Sol's Sun
 /// (blade 001) became one on 20/10/2026, keeping its file's look under its own.
-pub(crate) const SIGNATURES: [Signature; 129] = [
+pub(crate) const SIGNATURES: [Signature; 130] = [
     signature!("sun"),
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
@@ -186,6 +186,8 @@ pub(crate) const SIGNATURES: [Signature; 129] = [
     signature!("smoked_transparisteel"),
     signature!("batuu_dusk"),
     signature!("alderaan_velvet"),
+    // 21/10/2026: Sol's Varykino Blossom, after Kushina's idea (blade 166).
+    signature!("varykino_blossom"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).
@@ -196,6 +198,11 @@ const END: &str = "// @signature end\n";
 /// The sections a signature's own parts ride on, part 0 to 5 (`SIG_PART_BITS` in
 /// `saber.wgsl`): sections a signature never draws, so their bits are free.
 const PART_SECTIONS: [&str; 6] = ["sputter", "glitch", "scan", "bands", "segments", "film"];
+
+/// The section whose bit carries a signature's own part `part` (its `// @part` line, from 0).
+pub(crate) fn part_section(part: u8) -> Option<crate::blade_skin_file::extras::Section> {
+    crate::blade_skin_file::extras::Section::named(PART_SECTIONS.get(usize::from(part))?)
+}
 
 /// An option's id from its name: lower case letters, digits and `_`, at most 24.
 fn slug(name: &str) -> String {
@@ -233,6 +240,11 @@ impl Signature {
                     .strip_prefix(' ')
                     .map(str::trim)
             })
+    }
+
+    /// The blossoms its swing sheds (`@petals {..}`, `saber_petals.rs`), if it sheds any.
+    pub(crate) fn petals(&self) -> Option<crate::saber_petals::PetalSpec> {
+        serde_json::from_str(self.meta("petals")?).ok()
     }
 
     /// How far (units) its quad reaches past the glow for what it draws there (`@room`).
@@ -695,6 +707,34 @@ mod tests {
             .validate(&module)
             .unwrap_or_else(|error| panic!("{id}: {}", error.emit_to_string(source)));
         }
+    }
+
+    #[test]
+    fn every_petals_line_parses_and_names_one_of_its_parts() {
+        for signature in &SIGNATURES {
+            if signature.meta("petals").is_none() {
+                continue;
+            }
+            let petals = signature
+                .petals()
+                .unwrap_or_else(|| panic!("{}: @petals does not parse", signature.id));
+            assert!(petals.valid(), "{}: {petals:?}", signature.id);
+            assert!(
+                usize::from(petals.part) < signature.parts().count(),
+                "{}: @petals names part {} of {}",
+                signature.id,
+                petals.part,
+                signature.parts().count()
+            );
+        }
+        let blossom = of("saber_varykino_blossom").unwrap();
+        assert_eq!(blossom.petals().map(|p| p.part), Some(3));
+        assert_eq!(
+            part_section(3),
+            Some(crate::blade_skin_file::extras::Section::Bands)
+        );
+        // Its fourth part, "Falling blossoms", is the one its wearer switches them with.
+        assert_eq!(blossom.parts().nth(3), Some("Falling blossoms"));
     }
 
     #[test]
