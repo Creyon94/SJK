@@ -5422,7 +5422,7 @@ mod tests {
     #[test]
     fn a_hub_wanting_a_newer_sjk_reads_as_an_update_notice() {
         let refused = |message: &str| HubError::Rejected {
-            status: 426,
+            status: 403,
             code: "client_update_required".to_owned(),
             message: message.to_owned(),
         };

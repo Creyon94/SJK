@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 21/10/2026 | - | The hub's update refusal is a 403
+- 5739f63 |  | Identity test: the hub refuses an old SJK with 403
 + 21/10/2026 | - | The Holocrons tab says to update when the hub needs a newer SJK
 - 5ec1ad4 |  | Holocrons: say to update when the hub needs a newer SJK
 + 21/10/2026 | - | Open all asks first when more than one holocron would open
