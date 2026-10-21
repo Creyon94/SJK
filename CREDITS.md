@@ -215,7 +215,9 @@ includes:
   SJK hub from the inspect key;
 - log requests: the SJK team asks a player for their game's logs from the Staff page,
   the player's game asks them before it sends the console lines of this session and
-  the last (no chat), and staff read every player's crash reports by kind;
+  the last (no chat), and staff read every player's crash reports by kind; a crash
+  from a full graphics card names the texture it could not make, and the logs keep
+  the last crash's message;
 - ghost replay (`ghost`): a run recorded once and replayed on the same server to film
   a showcase, walking to its start and correcting drift through the movement keys;
 - map edits (18/10/2026): SJK's own fixes to maps, made in game by staff (props and

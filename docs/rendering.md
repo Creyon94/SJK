@@ -583,7 +583,11 @@ Windows that memory also shows in the process's RAM in Task Manager.
   textures, which are then not cached. wgpu's default handler panics on any error no
   scope captures, so an out-of-memory elsewhere (a player's geometry joining the
   shared buffers, entity materials) still ends the game: a 3 GB GTX 1060 crashed
-  changing legs in the creator (21/10/2026).
+  changing legs in the creator (21/10/2026). That panic names what failed
+  (`gpu_guard::name_uncaptured`): `wgpu error: Out of Memory (In Device::create_texture,
+  label = '...')`, then the causes and the video memory SJK held (allocator report), so a
+  crash report says which texture a small card could not take; wgpu's own said only
+  `Out of Memory` (Vin's crash in the main menu, 21/10/2026).
 - At start SJK reads the card's video memory before the first map
   ([video_memory.rs](../crates/sjk-viewer/src/video_memory.rs), through
   [sjk-gpu-memory](../crates/sjk-gpu-memory/src/lib.rs): DXGI's high-performance

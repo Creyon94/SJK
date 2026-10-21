@@ -310,6 +310,15 @@ test: Send logs: the console thanks you. Staff > Logs > Refresh: sent; Open open
 test: Staff > Crashes: kinds listed; choose one, Open a report: it opens as a text file.
 note: Needs the hub's feat/log-requests deployed; older hubs answer 404 (asked again hourly).
 
+[crash-names]
+area: Console & chat
+title: Crash reports name what ran out of video memory; logs keep the crash's message
+change: An uncaught GPU error names what failed: Out of Memory (In Device::create_texture, ...).
+change: It adds the causes and the video memory SJK held (MiB in use and reserved).
+change: Sent logs keep last-crash.txt's head (message, backtrace) whole, then its newest lines.
+test: Request logs from your own key, Send logs: the crash part starts with its header.
+note: The new message shows only after a real out-of-memory crash on a small card.
+
 [config-save-quiet]
 area: Console & chat
 title: config.cfg saved only on real changes, 2 s later, off the main thread

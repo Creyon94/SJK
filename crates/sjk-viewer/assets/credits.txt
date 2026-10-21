@@ -116,6 +116,7 @@ did: The emote picker (emotes): every emote with its picture, search, click to p
 did: Away emote: an emote you pick plays while you are away, and emotes go quiet then
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
+did: Crash reports name what ran out of video memory; sent logs keep the crash's message
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy
 did: The pilot's vehicle HUD and crosshair, jetpacks, the spawn bubble and Force spheres
 did: Create game and its map picker, Import and the test list in the SJK look
