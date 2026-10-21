@@ -4678,7 +4678,7 @@ title: New medal pop-up, animation and fanfare (SJK PR #59)
 change: The medal notice follows the menu style: SJK UI floating text, classic+ box.
 change: The medal flies in with a burst and ring, then idles; a key or click skips the entrance.
 change: Fanfare from music/goodsmall.mp3; debug_medal rehearses without the hub or medals_seen.
-test: debug_medal bug_hunter x3 in the SJK UI: three pop-ups, Next, then Close on the last.
+test: debug_medal all in the SJK UI: one pop-up per medal, Next, then Close on the last.
 test: Same with ui_menuStyle classic: the box with NEXT / CLOSE; Enter, Space, Escape and click work.
 test: debug_medal alone lists the ids; restart: nothing was saved as seen.
 note: Not seen or heard in a game yet.
@@ -5100,7 +5100,7 @@ title: New medals and holocrons in a match: the achievement card; the big pop-up
 change: A medal or holocron that comes mid-match shows the achievement card, not a centre print.
 change: Medal: medallion, name (x2), what it is for. Holocron: icon or gem, light in its tier colour.
 change: Esc still opens the big pop-up, which takes the card away. Settings > Sound > Unlock sound.
-test: In a match: debug_medal bug_hunter x2 - "New medal", Bug Hunter x2, chime; no centre print.
+test: In a match: debug_medal bug_hunter - "New medal", Bug Hunter, chime; no centre print.
 test: Press Esc while the card shows: the big medal pop-up opens; after Close the card is gone.
 test: debug_holocron all in a match: three cards in turn (green, blue, purple); Esc shows all four.
 test: debug_holocron rare, then unlock an achievement: the cards queue and never overlap.
