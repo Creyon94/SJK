@@ -210,7 +210,7 @@ impl TextDialog {
         // The rules, the count and why a Send was refused.
         let rules = match kind {
             Kind::Note { .. } => "Saved with a screenshot for Claude to read",
-            _ => "Letters, digits, spaces and . , ! ? ' - : ( ) only",
+            _ => "Letters, digits, spaces and . , ! ? ' - : ( ) _ / \\ + = \" ; [ ] < > # only",
         };
         text(
             ui,

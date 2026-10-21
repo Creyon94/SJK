@@ -201,7 +201,9 @@ screen with a text box, a character count, Send and Cancel (Escape cancels too).
 has an insertion point (Left, Right, Up, Down, Home, End, Backspace, Delete, Ctrl for
 words, a click in the box) and a Send the rules refuse says why in a red band. As it is
 typed or pasted, only letters and digits of any
-script, spaces and `. , ! ? ' - : ( )` are kept (line breaks become spaces), up to 600
+script, spaces and `. , ! ? ' - : ( )` are kept, and since 19/10/2026 the characters
+cvars and commands need, `_ / \ + = " ; [ ] < > #` (a hub from before then refuses
+those); line breaks become spaces, up to 600
 characters. Enter or Send checks the hub's rules (a refusal is shown in the panel, which
 stays open) (10 to 600 characters, a few real words, no
 long run of one character) and hands the report to the identity service, which sends

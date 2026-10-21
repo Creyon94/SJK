@@ -4,7 +4,7 @@
 //! map, the build and the server.
 //!
 //! The text keeps to the hub's rules as it is typed (letters, digits, spaces and
-//! `. , ! ? ' - : ( )`, at most 600 characters) and is checked again here
+//! [`sjk_identity::report::PUNCTUATION`], at most 600 characters) and is checked again here
 //! before it leaves; the hub checks it a third time and limits how often a key and an
 //! address may report (`PROTOCOL.md` in the hub, "Bug reports"). The outcome comes back
 //! on the SJK UI's card while it waits for it (`TextDialog::answer`), else as a centre

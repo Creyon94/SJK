@@ -5,7 +5,8 @@
 //! it; Enter or Send sends it.
 //!
 //! All keep only what the hub accepts as it is typed or pasted (letters and digits of
-//! any script, spaces and `. , ! ? ' - : ( )`, line breaks turned into spaces), a report
+//! any script, spaces and [`sjk_identity::report::PUNCTUATION`], line breaks turned into
+//! spaces), a report
 //! at most 600 characters, a note at most [`NOTE_MAX`], a player report at most 300.
 //!
 //! The text has an insertion point (the console's `LineEdit`): the arrows, Home, End,
@@ -707,18 +708,17 @@ mod tests {
     #[test]
     fn reports_and_notes_keep_only_what_the_hub_accepts() {
         assert_eq!(
-            typed(
-                &Kind::Report,
-                "",
-                "Door <b>flickers</b>\n\u{1F642} \"left\"!"
-            ),
-            "Door bflickersb  left!"
+            typed(&Kind::Report, "", "Door *flickers*\n\u{1F642} @left&!"),
+            "Door flickers  left!"
         );
+        // Cvars and commands are kept (19/10/2026).
+        let cvars = "cg_fov \"90\"; /kill [x] <y> #2 \\ +a=b";
+        assert_eq!(typed(&Kind::Report, "", cvars), cvars);
         let note = Kind::Note {
             subject: String::new(),
             model: None,
         };
-        assert_eq!(typed(&note, "", "a <b> \"x\"\tz?"), "a b x z?");
+        assert_eq!(typed(&note, "", "a {b} @x&\tz?"), "a b x z?");
         // Nothing past the limit.
         let full = "x".repeat(NOTE_MAX);
         assert_eq!(typed(&note, &full, "more"), "");
@@ -885,7 +885,7 @@ mod tests {
             dialog.key(KeyCode::Delete, None);
         }
         // Pasted: what the hub refuses is dropped, a line break is a space.
-        dialog.key(KeyCode::KeyV, Some("<b>\n\u{1F642}ö"));
+        dialog.key(KeyCode::KeyV, Some("{b}\n\u{1F642}ö"));
         assert_eq!(
             dialog.text.chars().count(),
             sjk_identity::report::TEXT_MAX - 1

@@ -1806,8 +1806,8 @@ menus ([identity.md](identity.md#bug-reports)).
   Clear model at the right, or, without one, says a click on the scene round the
   card notes what is there; the field shows ten lines (13/10/2026). A press on the
   scene round the card selects what is under the pointer for the note.
-- **Under it:** the rules ("Letters, digits, spaces and . , ! ? ' - : ( )
-  only") and the count against the limit (600, 300 for a player report, 4000 for
+- **Under it:** the rules ("Letters, digits, spaces and . , ! ? ' - : ( ) _ / \ + = " ;
+  [ ] < > # only") and the count against the limit (600, 300 for a player report, 4000 for
   a note; gold at the limit), then why a Send is refused in a warm red band just
   above the buttons: after a Send was refused, and already while Send has the
   keyboard or the pointer and the text would not pass.
