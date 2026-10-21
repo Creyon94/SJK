@@ -1643,6 +1643,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[fps-fixes]
+area: Rendering & effects
+title: Map changes keep the blade signatures; vsync with supersampling no longer crashes
+change: Signature shaders are built once per game, not again (~130 builds) at every map change.
+change: Turning r_vsync on or off no longer remakes the scene depth at the window's size.
+test: Join a server, change map: the log has no "signature shader built" lines the 2nd time.
+test: r_superSample 2, then toggle r_vsync 1 / 0 in game: no crash.
+note: Map changes should stutter less on CPUs with few cores.
+
 [texture-detail]
 area: Rendering & effects
 title: Texture detail (r_picmip) and no crash when the card is full

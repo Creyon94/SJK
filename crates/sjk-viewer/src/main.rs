@@ -1186,6 +1186,7 @@ impl GpuState {
             &shaders,
             &camera_layout,
             frame_target::aa::effects::FORMAT,
+            &context.blade_signatures,
         )?;
         let dust_motes = dust_motes::Runtime::new(&device, &camera_layout, context.scene_format());
         let weather = weather::Runtime::new(active_game_state, &bsp);

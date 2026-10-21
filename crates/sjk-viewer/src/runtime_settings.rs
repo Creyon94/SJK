@@ -1,8 +1,8 @@
 //! Application of shell cvars to the native window, renderer, and frame loop.
 
+use super::GpuState;
 use super::console::ViewerConsole;
 use super::pointer_input::MouseLook;
-use super::{DepthTarget, GpuState};
 use crate::settings::{
     DisplayMode, MonitorModes, exclusive_supported, exclusive_video_mode, suspended_after_focus,
 };
@@ -102,16 +102,14 @@ impl GpuState {
         let present_mode = preferred_present_mode(&self.present_modes, vsync);
         if present_mode != self.configuration.present_mode {
             self.configuration.present_mode = present_mode;
-            // The frame in flight presents before its swapchain is reconfigured.
+            // The frame in flight presents before its swapchain is reconfigured. The scene's
+            // depth stays: it is the scene's size, not the swapchain's. It was made again here
+            // at the window's size, which under supersampling (`r_superSample`) no longer
+            // matched the scene, and the next frame failed (vsync crash, 21/10/2026).
             self.frame_pacer.split.wait_previous();
             if let Some(surface) = &self.context.surface {
                 surface.configure(&self.device, &self.configuration);
             }
-            self.depth = DepthTarget::new(
-                &self.device,
-                self.configuration.width,
-                self.configuration.height,
-            );
         }
     }
 
