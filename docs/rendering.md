@@ -2397,7 +2397,7 @@ when it is swung, which its own quad could not hold: they are particles in the w
 ([saber_petals.rs](../crates/sjk-viewer/src/saber_petals.rs)).
 
 - **Declared** by the signature's header: `// @petals {"part":3,"per_unit":0.07,"life":2.6,
-  "size":1.3,"fall":38.0,"drift":14.0}`. `part` is the signature's own part (its `// @part`
+  "size":1.6,"fall":38.0,"drift":14.0}`. `part` is the signature's own part (its `// @part`
   line, from 0) that switches them, so the wearer turns them off in the Collection like any
   other part and every SJK player then sees none; `per_unit` petals for each unit the tip
   travels, `life` seconds, `size` units, `fall` and `drift` units a second. A test checks
@@ -2416,7 +2416,10 @@ when it is swung, which its own quad could not hold: they are particles in the w
   (`assets/petals`, drawn by `scripts/petal_assets.py`: three tints of one cherry petal,
   `shaders/sjk_petals.shader`, mounted below game data as Order 66's confetti), turning as
   they sink, stopping where they land on the floor (`apply_physics`, no bounce) and fading
-  over their last third. They count against the particle pool like any effect. The thrown
+  over their last third. They count against the particle pool like any effect.
+  Their three shaders are in `effect_assets::CODE_SHADERS`: the frame's effect materials load
+  only the shaders listed there or named by an effect file, and without them the petals drew
+  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). The thrown
   saber sheds none.
 
 ## Saber trails

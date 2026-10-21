@@ -12,7 +12,7 @@
 // @part Drifting petals
 // @part Falling blossoms
 // @part Sakura droplet
-// @petals {"part":3,"per_unit":0.07,"life":2.6,"size":1.3,"fall":38.0,"drift":14.0}
+// @petals {"part":3,"per_unit":0.07,"life":2.6,"size":1.6,"fall":38.0,"drift":14.0}
 // @room 9
 // @solid 1
 // @palette {"corona.rim_cool":[0.72,0.18,0.42],"corona.rim_hot":[1.0,0.55,0.75],"corona.inner":[1.0,0.68,0.84],"core.white":[1.0,0.86,0.93],"core.fringe_cool":[1.0,0.5,0.72],"core.fringe_hot":[1.0,0.7,0.84],"light.color":[1.0,0.55,0.75],"trail":[1.0,0.6,0.8]}

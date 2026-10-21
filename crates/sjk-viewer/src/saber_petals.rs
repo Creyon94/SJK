@@ -127,7 +127,8 @@ macro_rules! bundled {
         include_bytes!(concat!("../assets/petals/", $name))
     };
 }
-const SHADERS: [&str; 3] = [
+/// Their shaders, which the frame's effect materials must load (`effect_assets::CODE_SHADERS`).
+pub(crate) const SHADERS: [&str; 3] = [
     "gfx/sjk/petals/blossom_pink",
     "gfx/sjk/petals/blossom_pale",
     "gfx/sjk/petals/blossom_white",
@@ -332,6 +333,17 @@ mod tests {
             );
         }
         assert_eq!(queue.len(), MOST_QUEUED);
+    }
+
+    #[test]
+    fn their_shaders_are_loaded_with_the_effects() {
+        // Missing from the list, the particles drew the stand-in sprite (yellow dots).
+        for shader in SHADERS {
+            assert!(
+                crate::effect_assets::CODE_SHADERS.contains(&shader),
+                "{shader}"
+            );
+        }
     }
 
     #[test]
