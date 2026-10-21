@@ -124,3 +124,50 @@ fn map_changes_vram() {
         assert_eq!(cache.len(), 0, "shared textures outlived the last world");
     });
 }
+
+/// The main menu on pictures, as a 3 GB card starts it (Vin's, 21/10/2026: out of
+/// memory in the menu 18 s in): labels allocated more than three times, then the
+/// biggest labels. Measured 21/10/2026 at 1920x1080, r_picmip 2: 1082 MiB, 801 MiB once
+/// the saber glows followed r_picmip (they were 300 MiB). Run like `map_changes_vram`.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn menu_pictures_vram() {
+    on_big_stack(|| {
+        for style in ["classic", "sjk"] {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", style),
+                (crate::menu_pictures::CVAR, "1"),
+                (crate::world_materials::filtering::mips::PICMIP_CVAR, "2"),
+            ];
+            let map = crate::menu_pictures::menu_map("maps/mp/duel6.bsp", true);
+            let Some((mut gpu, _profile)) = open(&map, [1920, 1080], Some(menu), &cvars) else {
+                return;
+            };
+            gpu.graphics_reload.map = map;
+            crate::menu_pictures::fit_backdrop(&mut gpu);
+            let _ = frame(&mut gpu, 120);
+            if let Some(report) = gpu.device.generate_allocator_report() {
+                let mut counts = BTreeMap::<String, (u64, u64)>::new();
+                for allocation in &report.allocations {
+                    let entry = counts.entry(allocation.name.clone()).or_default();
+                    entry.0 += 1;
+                    entry.1 = entry.1.max(allocation.size);
+                }
+                for (label, (count, biggest)) in counts.iter().filter(|(_, (c, _))| *c > 3) {
+                    eprintln!(
+                        "    count {count:>5} biggest {:>7.2} MiB  {label}",
+                        *biggest as f64 / MIB
+                    );
+                }
+            }
+            let (total, by_label) = live(&gpu.device);
+            eprintln!("vram {style}: {:.0} MiB", total as f64 / MIB);
+            let mut labels: Vec<_> = by_label.into_iter().collect();
+            labels.sort_by_key(|(_, bytes)| std::cmp::Reverse(*bytes));
+            for (label, bytes) in labels.iter().take(25) {
+                eprintln!("    {:>8.1} MiB  {label}", *bytes as f64 / MIB);
+            }
+        }
+    });
+}

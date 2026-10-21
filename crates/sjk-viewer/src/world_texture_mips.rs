@@ -48,6 +48,26 @@ pub(crate) fn set_picmip(levels: i64) {
     }
 }
 
+/// `r_picmip` as last set.
+pub(crate) fn picmip() -> u32 {
+    PICMIP.load(Ordering::Relaxed)
+}
+
+/// `image` with the levels `r_picmip` leaves off ([`skipped`]) taken away, for a
+/// texture uploaded whole rather than as a chain; `None` when it keeps its size.
+pub(crate) fn shrunk(image: &RgbaImage) -> Option<RgbaImage> {
+    let (width, height) = image.dimensions();
+    let skip = skipped(width, height, picmip());
+    (skip > 0).then(|| {
+        imageops::resize(
+            image,
+            (width >> skip).max(1),
+            (height >> skip).max(1),
+            imageops::FilterType::Triangle,
+        )
+    })
+}
+
 /// The levels of a `width` x `height` texture left off the card at `picmip`.
 pub(crate) fn skipped(width: u32, height: u32, picmip: u32) -> u32 {
     let longest = width.max(height);

@@ -259,7 +259,7 @@ includes:
 - texture detail (`r_picmip`, after Jedi Academy): large textures halved a step at a
   time, lowered by itself after menu pictures when a map runs out of video memory, and
   the character creator's model and players' textures failing alone instead of the
-  game when the graphics card is full;
+  game when the graphics card is full, and the saber glows shrunk with it;
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;

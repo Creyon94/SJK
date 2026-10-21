@@ -732,6 +732,12 @@ pub(crate) fn material(
     glow: &image::RgbaImage,
     core: &image::RgbaImage,
 ) -> wgpu::BindGroup {
+    // Texture detail shrinks them too: eight pairs of 2048-pixel glows and their
+    // half-float integrals held 300 MiB, in the menu as well (Vin's 3 GB card, 21/10/2026).
+    let mips = crate::world_materials::filtering::mips::shrunk;
+    let (glow_shrunk, core_shrunk) = (mips(glow), mips(core));
+    let glow = glow_shrunk.as_ref().unwrap_or(glow);
+    let core = core_shrunk.as_ref().unwrap_or(core);
     // The same images on every map: a map change's next world takes the last one's.
     let key = crate::shared_textures::key(&[
         &glow.width().to_le_bytes(),

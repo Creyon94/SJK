@@ -1734,6 +1734,14 @@ test: The log names your card and its video memory at start (graphics card: ...)
 test: ui_menuPictures 1: Collection Shaders tab shows drawn blades; 0: live blades again.
 note: Your 16 GB card changes nothing; r_videoMemoryChecked 0 makes it check again.
 
+[saber-picmip]
+area: Rendering & effects
+title: Texture detail shrinks the saber glows too
+change: r_picmip halves the saber glow and core images like world textures (300 MiB to 28 at 2).
+test: Settings > Renderer > Texture detail 2, join a map, light a saber: glow looks the same.
+test: Texture detail 0, join again: glow unchanged, no stutter when the map loads.
+note: Measured with menu_pictures_vram (world shot); a 3 GB card needs to confirm in play.
+
 [sun-signature]
 area: Rendering & effects
 title: The Sun blade is a signature blade
