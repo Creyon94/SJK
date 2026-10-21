@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 - Texture detail (Settings > Renderer) now shrinks the lightsaber glows too: on a small graphics card that frees about 280 MB of video memory on every map and in the menus, where a 3 GB card still ran out _(Sol, after Vin's report)_
 - A crash from a graphics card out of video memory now tells the team which texture it could not make and how much video memory SJK held, and the logs you send on request keep your last crash's message, not only the lines before it _(Sol, after Vin's report)_
 - The Varykino Blossom, a new Mythical saber shader found in holocrons: a soft blossom-pink blade wreathed in lavender and white mist, blossoms drifting down round it and a flowering branch of cherry wood at its hilt; swing it and it sheds blossoms that flutter to the ground behind you. Each of its parts can be switched off in the Collection _(Sol, idea by Kushina)_
