@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- No more crash on a map whose sky has none of its pictures (nightmare) once reflections (`r_cubeMapping`) are on _(Sol)_
 - JA+ black lightsabers draw right again: since 2026.1021.2 they showed black squares around a lit blade _(Sol)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 - The Mythical holocron has a new look: a faceted gold engram whose plates breathe apart round a glowing core, runes on every plate. Its old kyber prism is now the kyber crystal _(Sol)_
