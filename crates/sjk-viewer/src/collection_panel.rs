@@ -108,6 +108,9 @@ const CARD_FINISH_TOKEN: u16 = 8_005;
 /// the card up close, where a click opens it (20/10/2026).
 const CARD_INSPECT_TOKEN: u16 = 8_006;
 const CARD_CLOSE_UP_TOKEN: u16 = 8_007;
+/// Under a blade card held, up close: the way to its shader on the Shaders tab
+/// (21/10/2026, where its copy crafts the shader for less).
+const CARD_SHADER_TOKEN: u16 = 8_008;
 const _: () = assert!(CARD_BASE as usize + CARD_TILES_MAX <= CARD_SHOW_BASE as usize);
 const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
@@ -329,6 +332,10 @@ pub(crate) struct Panel {
     /// The Cards tab's filter, and the tiles it showed last frame (for the hover cards).
     card_filter: crate::cards::binder::Filter,
     card_tiles: Vec<crate::cards::binder::Tile>,
+    /// The shader of the blade card up close last frame, when one is held (its button
+    /// goes there), and the shader the Shaders tab turns to on its next frame.
+    card_blade: Option<&'static unlockables::Unlockable>,
+    shader_focus: Option<&'static str>,
     /// How many sealed copies the last frame offered to reveal (0: no Reveal button).
     revealable: u32,
     /// The identity's last reveal when Reveal was pressed: the line under the button
@@ -423,6 +430,8 @@ impl Panel {
             card_inspect: false,
             card_filter: Default::default(),
             card_tiles: Vec::new(),
+            card_blade: None,
+            shader_focus: None,
             revealable: 0,
             reveal_asked: None,
             shader_first: 0,
@@ -1130,6 +1139,9 @@ impl Panel {
             if token == CARD_CLOSE_UP_TOKEN {
                 return self.activate(illuminate);
             }
+            if token == CARD_SHADER_TOKEN {
+                return self.go_to_card_shader();
+            }
             if self.tab == Tab::Cards && self.choose_token(token) {
                 return self.activate(illuminate);
             }
@@ -1180,6 +1192,18 @@ impl Panel {
                 None => PanelAction::None,
             },
         }
+    }
+
+    /// The blade card up close's button: the Shaders tab on its shader, any filter there
+    /// cleared so it is in the list.
+    fn go_to_card_shader(&mut self) -> PanelAction {
+        let Some(skin) = self.card_blade else {
+            return PanelAction::None;
+        };
+        self.show(Tab::Shaders);
+        self.shader_filter = ShaderFilter::default();
+        self.shader_focus = Some(skin.id);
+        PanelAction::None
     }
 
     /// Reveal the sealed cards, when the last frame offered it: the line under the button
