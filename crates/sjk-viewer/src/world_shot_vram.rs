@@ -8,7 +8,8 @@
 //! other world shots: it needs a GPU adapter and `JKA_GAME_DATA`.
 //!
 //! Run: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer map_changes_vram --
-//! --ignored --test-threads=1 --nocapture`.
+//! --ignored --test-threads=1 --nocapture`. `SJK_TEST_PICMIP=<n>` measures it at that
+//! texture detail (`r_picmip`).
 
 use super::*;
 use std::collections::BTreeMap;
@@ -45,7 +46,12 @@ fn live(device: &wgpu::Device) -> (u64, BTreeMap<String, u64>) {
 fn map_changes_vram() {
     on_big_stack(|| {
         let size = [1920, 1080];
-        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &[]) else {
+        let picmip = std::env::var("SJK_TEST_PICMIP").unwrap_or_else(|_| "0".to_owned());
+        let cvars = [(
+            crate::world_materials::filtering::mips::PICMIP_CVAR,
+            picmip.as_str(),
+        )];
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &cvars) else {
             return;
         };
         let _ = frame(&mut gpu, 4);

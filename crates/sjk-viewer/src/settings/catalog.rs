@@ -1332,6 +1332,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Texture detail, 0 full (next map)",
+        cvar: crate::world_materials::filtering::mips::PICMIP_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::world_materials::filtering::mips::PICMIP_MAX as i64,
+            step: 1,
+        },
+    },
+    Setting {
         label: "Soft particles",
         cvar: "r_softParticles",
         kind: ValueKind::Bool,

@@ -38,6 +38,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_chatRememberChannel: The chat key now always opens on All. Turn this on to have it open on the channel of your last message again.
 
+- Graphics cards of 4 GB or less: a new Texture detail setting (Settings > Renderer, `r_picmip` as in Jedi Academy) halves large textures for a quarter of their video memory each step, and after the menus switch to pictures each map that runs out of video memory lowers it one more step (to 2 at most). Changing your character's head, torso or legs when the card is full no longer crashes the game: that model just does not show _(Sol, after Vin's report)_
 - The Collection's "collected" count at the top right sits over one thin bar a tab, filled as far as you hold that tab's things, instead of a tick for each of nearly two hundred things _(Sol)_
 - Cards are easier to see: the Cards tab's tiles are larger and each names its card, Enter or a click shows the card large (the arrows or the wheel turn to the next), a card's lore grows to fill its box when it is short, and no card shows its number any more _(Sol)_
 - Simple settings now offer the away emote too: Settings > Gameplay > Away emote and JA+ away emote, as Advanced has them under Sound > Emotes _(Sol)_

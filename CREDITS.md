@@ -244,6 +244,10 @@ includes:
 - menu pictures (`ui_menuPictures`): 4K pictures of the menu's map instead of the live
   map, turned on by itself when a map runs out of video memory, and map changes sharing
   the textures the old and new map have in common (about 730 MB less at the peak);
+- texture detail (`r_picmip`, after Jedi Academy): large textures halved a step at a
+  time, lowered by itself after menu pictures when a map runs out of video memory, and
+  the character creator's model and players' textures failing alone instead of the
+  game when the graphics card is full;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;

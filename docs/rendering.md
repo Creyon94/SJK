@@ -565,6 +565,25 @@ Windows that memory also shows in the process's RAM in Task Manager.
   than 16:9 so they never see past it, which lines the 3D stage up with the picture.
   A world install that runs out of memory turns the setting on
   ([status](status.md#menu-pictures-and-readable-world-install-failures)).
+- Texture detail (`r_picmip`, 0 to 3, as in Jedi Academy,
+  [world_texture_mips.rs](../crates/sjk-viewer/src/world_texture_mips.rs)) leaves a
+  material texture's largest mip levels off the card: each step halves its sides, a
+  quarter of its memory, while its longest side stays at 128 pixels or more (smaller
+  textures keep their size). The mip chains are still built whole on the processor;
+  `upload_chains` skips levels, so the setting takes effect for textures uploaded
+  after it changes (the next map) and the non-mipmapped path (`r_textureMode
+  GL_LINEAR`) keeps full size. Once menu pictures are on, each world install that runs
+  out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
+  Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
+  siege_desert at full size.
+- Work on the render thread after a world is built runs inside wgpu error scopes
+  ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
+  menu stage's model (the creator's head, torso and legs), which then is not shown and
+  drops the textures it uploaded from the material cache, and players' prepared
+  textures, which are then not cached. wgpu's default handler panics on any error no
+  scope captures, so an out-of-memory elsewhere (a player's geometry joining the
+  shared buffers, entity materials) still ends the game: a 3 GB GTX 1060 crashed
+  changing legs in the creator (21/10/2026).
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of

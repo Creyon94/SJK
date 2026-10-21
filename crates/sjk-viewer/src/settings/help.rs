@@ -1006,6 +1006,10 @@ const HELP: &[(&str, &str)] = &[
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",
     ),
     (
+        crate::world_materials::filtering::mips::PICMIP_CVAR,
+        "Each step halves large textures: a quarter of their video memory. For graphics cards of 4 GB or less.",
+    ),
+    (
         "r_softParticles",
         "Smoke and dust fade where they meet walls instead of cutting into them.",
     ),
