@@ -199,12 +199,21 @@ fn shader_card(
         colour: skin.tier.colour(),
         lines: vec![
             Line::how(skin.how_to_get),
-            Line::status(format!(
-                "Blade {}. {} blade skin. {}.",
-                skin.number_text(),
-                skin.tier.label(),
-                crate::editions::name(skin.edition)
-            )),
+            // The blade number only while `debug_collectibles` is on (Sol, 21/10/2026).
+            Line::status(if holdings.debug() {
+                format!(
+                    "Blade {}. {} blade skin. {}.",
+                    skin.number_text(),
+                    skin.tier.label(),
+                    crate::editions::name(skin.edition)
+                )
+            } else {
+                format!(
+                    "{} blade skin. {}.",
+                    skin.tier.label(),
+                    crate::editions::name(skin.edition)
+                )
+            }),
             Line::status(format!("Saber smith: {}", skin.smith)),
             status,
         ],
@@ -330,6 +339,17 @@ mod tests {
         let sun = crate::unlockables::find("saber_sun").unwrap();
         let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));
         assert!(card.lines[3].words.starts_with("Yours since "), "{card:?}");
+        assert_eq!(card.lines[1].words, "Mythical blade skin. Alpha Edition.");
+        // Debug collectibles on: the blade number shows as well.
+        let held = [sjk_identity::Unlock {
+            note: crate::debug_collectibles::NOTE.to_owned(),
+            ..held[0].clone()
+        }];
+        let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));
+        assert_eq!(
+            card.lines[1].words,
+            "Blade 001. Mythical blade skin. Alpha Edition."
+        );
     }
 
     #[test]

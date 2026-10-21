@@ -24,6 +24,13 @@
 
 # ---- Console & chat ----
 
+[blade-numbers-debug]
+area: Menus & settings
+title: Blade numbers show only with debug_collectibles on
+change: Collection tier line and hover card hide 'Blade 042' unless debug_collectibles is 1.
+test: debug_collectibles 0: Collection > Shaders, no number after the tier or on hover.
+test: debug_collectibles 1: numbers back ('Mythical  .  001', 'Blade 001.').
+
 [staff-gates]
 area: Console & chat
 title: cjp_client, ghost and mimic are for SJK staff only

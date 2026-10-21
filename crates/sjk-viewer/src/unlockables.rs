@@ -2369,6 +2369,11 @@ impl<'a> Holdings<'a> {
     }
 
     /// The grant of `id` the profile lists, if it lists it.
+    /// Whether `debug_collectibles` dressed these: one of them is a grant the mode added.
+    pub(crate) fn debug(&self) -> bool {
+        matches!(self, Self::Known(held) if held.iter().any(crate::debug_collectibles::added))
+    }
+
     pub(crate) fn unlock(&self, id: &str) -> Option<&'a sjk_identity::Unlock> {
         match self {
             Self::Known(unlocks) => unlocks.iter().find(|unlock| unlock.id == id),

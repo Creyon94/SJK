@@ -59,8 +59,8 @@ meaning.
 
 Every blade has a number, as a card has in its set (`Unlockable::number`): given once in
 the order blades came (the Sun is 001), never changed or reused, so notes and reviews
-name a blade by it. The Collection shows it after the tier, its hover card reads "Blade
-042", its search finds a blade by number ("42", "042" or "#42") and `saberskin 42`
+name a blade by it. The Collection shows it only while `debug_collectibles` is on (Sol,
+21/10/2026: after the tier, and "Blade 042" on its hover card); its search finds a blade by number ("42", "042" or "#42") and `saberskin 42`
 wears it. A new blade takes the next number and a line here (a test checks this table).
 
 Tiers in this table are Sol's after his review of 20/10/2026, which moved 26 blades
