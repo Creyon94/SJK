@@ -1111,6 +1111,23 @@ pub(crate) fn set_local_pair(blades: [Option<u8>; 2]) {
     LOCAL_PAIR.store(pair, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// What the local player's two sabers (or a staff's halves) show on the Collection's
+/// stage: what they wear (`worn`), with `shown` (the shader the page shows, `Some(None)` the
+/// stock blade) on the side being dressed, the second when `on_second`. The other side
+/// keeps what it wears now, so the pair looks as Equip will leave it (Equip dresses one
+/// side alone).
+pub(crate) fn previewed(
+    worn: [Option<SkinColor>; 2],
+    shown: Option<Option<SkinColor>>,
+    on_second: bool,
+) -> [Option<SkinColor>; 2] {
+    match shown {
+        None => worn,
+        Some(shown) if on_second => [worn[0], shown],
+        Some(shown) => [shown, worn[1]],
+    }
+}
+
 /// The skin blade `blade_index` of saber `saber_index` wears, of `skins` (the first's and
 /// the second's): the second saber wears the second, and with one saber, its blades after
 /// the first do (a staff's other half, Sol's request of 21/10/2026).

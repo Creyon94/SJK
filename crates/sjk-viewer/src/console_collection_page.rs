@@ -94,6 +94,10 @@ impl ViewerConsole {
             PanelAction::WearSecond(id) => {
                 let _ = self.set_cvar(crate::looks::SECOND_CVAR, id);
             }
+            PanelAction::WearBoth { first, second } => {
+                let _ = self.set_cvar(crate::looks::SECOND_CVAR, second);
+                crate::unlockables::wear(self, first);
+            }
             PanelAction::SkinOption { skin, option, on } => {
                 let setting = self
                     .text_cvar(crate::saber_skin_options::CVAR)

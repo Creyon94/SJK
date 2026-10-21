@@ -1008,3 +1008,25 @@ fn a_staffs_other_half_wears_the_second_skin() {
     set_local_pair([Some(1), None]);
     assert_eq!(local_pair(), Pair::None);
 }
+
+#[test]
+fn the_preview_dresses_one_side_and_leaves_the_other_as_worn() {
+    let worn_first = sample_color();
+    let shown = SkinColor {
+        index: 7,
+        ..worn_first
+    };
+    let index = |pair: [Option<SkinColor>; 2]| pair.map(|skin| skin.map(|skin| skin.index));
+    // The second wears the first's skin (none of its own): previewing on the first leaves
+    // it so, as Equip will.
+    let worn = [Some(worn_first), Some(worn_first)];
+    assert_eq!(
+        index(previewed(worn, Some(Some(shown)), false)),
+        [Some(7), Some(worn_first.index)]
+    );
+    assert_eq!(
+        index(previewed(worn, Some(None), true)),
+        [Some(worn_first.index), None]
+    );
+    assert_eq!(index(previewed(worn, None, true)), index(worn));
+}

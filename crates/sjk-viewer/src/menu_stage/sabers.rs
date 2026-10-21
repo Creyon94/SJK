@@ -267,8 +267,8 @@ impl GpuState {
         self.saber_instances.clear();
         // The stage model is the local player: its blades wear the player's skin, or
         // the one the Collection's Shaders tab shows.
-        // The shader the Collection shows goes on the first saber; the second saber (or a
-        // staff's other half) shows what it wears, so the pair is seen as it will be.
+        // The shader the Collection shows goes on the side being dressed; the other side
+        // shows what it wears now, so the pair is seen as Equip will leave it.
         // With the target switch on the second, the shader goes there and the first keeps
         // what it wears.
         let shown = match self.menu_stage.skin_override {
@@ -283,11 +283,11 @@ impl GpuState {
             ),
             _ => None,
         };
-        let skins = match shown {
-            None => self.saber_skins.local_both(),
-            Some(shown) if self.menu_stage.override_on_second => [self.saber_skins.local(), shown],
-            Some(shown) => [shown, self.saber_skins.local_second_with(shown)],
-        };
+        let skins = crate::saber_skins::previewed(
+            self.saber_skins.local_both(),
+            shown,
+            self.menu_stage.override_on_second,
+        );
         let frame_view = self.frame_view;
         let stage = &mut self.menu_stage;
         stage.preview.blades.clear();

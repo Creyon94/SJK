@@ -112,20 +112,15 @@ impl SecondSkin {
     }
 
     /// The local choice in [`SECOND_CVAR`], with `owned` saying which skins the profile
-    /// lists; the first saber's skin `first` is the same choice as none.
-    fn own(setting: &str, first: Option<&'static str>, owned: impl Fn(&str) -> bool) -> Self {
-        let chosen = match setting.trim() {
-            "" => return Self::Same,
-            STOCK_SECOND => None,
-            id => match blade_skin(id).filter(|id| owned(id)) {
-                Some(id) => Some(id),
-                None => return Self::Same,
-            },
-        };
-        if chosen == first {
-            Self::Same
-        } else {
-            Self::Own(chosen)
+    /// lists. The first saber's skin chosen for the second stays the second's own, so it
+    /// does not change when the first does.
+    fn own(setting: &str, owned: impl Fn(&str) -> bool) -> Self {
+        match setting.trim() {
+            "" => Self::Same,
+            STOCK_SECOND => Self::Own(None),
+            id => blade_skin(id)
+                .filter(|id| owned(id))
+                .map_or(Self::Same, |id| Self::Own(Some(id))),
         }
     }
 }
@@ -199,7 +194,7 @@ impl Worn {
         options: &str,
         owned: impl Fn(&str) -> bool,
     ) -> Self {
-        let second = SecondSkin::own(setting, self.saber_skin, owned);
+        let second = SecondSkin::own(setting, owned);
         let options_off2 = match second {
             SecondSkin::Own(Some(skin)) => crate::saber_skin_options::off_bits(options, skin),
             _ => 0,
@@ -273,6 +268,9 @@ pub(crate) struct Looks {
     /// `cg_saberSkinOptions` as last read (twice a second), for the skins the
     /// Collection shows on the model.
     own_options: String,
+    /// `cg_saberSkin` and `cg_saberSkin2` as last seen, so a change (Equip in the
+    /// Collection) is taken at once rather than at the next half second.
+    own_settings: (String, String),
     /// World shots own every unlock, having no hub.
     #[cfg(test)]
     pub(crate) shot_owns_unlocks: bool,
@@ -291,6 +289,7 @@ impl Default for Looks {
             revision: 0,
             muted: 0,
             own_options: String::new(),
+            own_settings: (String::new(), String::new()),
             #[cfg(test)]
             shot_owns_unlocks: false,
         }
@@ -373,6 +372,16 @@ impl Looks {
     /// shown (the Collection's preview on the model).
     pub(crate) fn own_options_off(&self, skin: &str) -> crate::saber_skin_options::OptionsOff {
         crate::saber_skin_options::off_bits(&self.own_options, skin)
+    }
+
+    /// Whether `cg_saberSkin` or `cg_saberSkin2` now say other than when last asked; no
+    /// allocation unless they changed.
+    pub(crate) fn own_settings_changed(&mut self, first: &str, second: &str) -> bool {
+        if self.own_settings.0 == first && self.own_settings.1 == second {
+            return false;
+        }
+        self.own_settings = (first.to_owned(), second.to_owned());
+        true
     }
 
     /// Changes whenever what a slot is drawn wearing (or the own look) changes.
@@ -609,8 +618,10 @@ mod tests {
         assert_eq!(sent.saber2.as_deref(), Some("saber_glitch"));
         assert_eq!(sent.saber2_off, ["haze"]);
         assert_eq!(own(STOCK_SECOND).to_look("").saber2.as_deref(), Some(""));
-        // The same as the first, an empty setting and a skin not held all send no `saber2`.
-        for same in ["saber_sun", "", "saber_tidal", "saber_moon"] {
+        // The first's skin chosen for the second stays its own; an empty setting and a skin
+        // not held send no `saber2`.
+        assert_eq!(own("saber_sun").second, SecondSkin::Own(Some("saber_sun")));
+        for same in ["", "saber_tidal", "saber_moon"] {
             assert_eq!(own(same).second, SecondSkin::Same, "{same}");
             assert_eq!(own(same).to_look("").saber2, None, "{same}");
         }

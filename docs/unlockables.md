@@ -1101,16 +1101,16 @@ Profile page's See the collection) open it on its own:
   it has them; grey and still under a padlock when locked; owned but with its pack not
   loaded yet, a neutral still blade; a chroma in the player's colour, with its colour
   wheel before its name), its name and its state (Worn, Yours, Locked) under it, its
-  tier's name at the right of that line in its colour; a click on an owned row wears it as Equip does (Creyon, 21/10/2026; a double click
-  until then), a locked one stays a preview and the worn one stays on; the keys choose
-  without wearing, and Enter or Equip wears;
+  tier's name at the right of that line in its colour; a click chooses a row and previews it (a double click wore it until 21/10/2026: Creyon
+  found wearing on a click too easy to do by mistake, and the double click unclear), and
+  Equip, Unequip or Enter wear it;
 - the grid (10/10/2026, Sol's request, so many shaders scroll quickly): cards of
   164 by 196 frame pixels, five to a line, three lines shown, each with a band of its
   tier's colour along the top, a frame in it (gold and thicker for the chosen one), the
   live swatch, the chroma's wheel, the name without "blade", the tier's name and the
   state. The arrows move in two directions (Left and Right a card, Up and Down a line,
   stopping at the ends), the wheel scrolls a line a notch keeping the chosen card in
-  view, a click wears an owned one as on the rack, and a thin
+  view, a click chooses one as on the rack, and a thin
   bar at the right shows where it is once there are more lines than three. Two
   switches left of the kinds (three bars: the rack; four squares: the grid) and V
   change the view; `ui_shaderView` (archived, 0 the rack, 1 the grid) keeps it;
@@ -1147,12 +1147,18 @@ Profile page's See the collection) open it on its own:
   wears ("Same as the 1st" for none of its own), the one being dressed in gold. A click on
   a pill, or a click (not a drag) on the sabers themselves (the upper saber is the first;
   on a staff a click goes to the other half), chooses it and moves the choice to the row that side wears, so the card and the sabers
-  show what it has on; then one click on an owned shader puts it on that side (Creyon: pick
-  a side, then a shader), as it does on the one saber. The sabers show the shader on
+  show what it has on; the pills are hit before the sabers' drag area under them. Each
+  side is dressed on its own (Creyon, 21/10/2026): Equip puts the chosen shader on that side
+  only, the second's Unequip leaves it the stock blade, and dressing the first while the
+  second has no skin of its own (it wears the first's) first gives the second the skin it
+  wore (`PanelAction::WearBoth`), so the second never changes with the first. The own look
+  is read again as soon as `cg_saberSkin` or `cg_saberSkin2` changes
+  (`Looks::own_settings_changed`), so the sabers show the new skin at once. The sabers show
+  the shader on
   the target, the other keeping what it wears, the second laid below the first (a staff
   shows both halves on its one hilt), and the card's Equip and Unequip work on that side,
-  for the second setting `cg_saberSkin2` (to the shader, `stock` from the stock row, or
-  back to empty); Enter and a click on a row do the same. A row the second wears
+  for the second setting `cg_saberSkin2` (to the shader, or `stock` from the stock row and
+  from Unequip); Enter does the same. A row the second wears
   says "2nd blade". Holding one saber of one blade, the room shows no switch and no row says
   "2nd blade"; a second skin chosen before waits, and a line says it shows with two sabers or
   a staff (chosen in the Profile's Saber tab, `saber1` and `saber2`).
