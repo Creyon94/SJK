@@ -620,6 +620,16 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[open-all-confirm]
+area: Menus & settings
+title: Open all asks first when more than one holocron would open
+change: A card 'Open all N holocrons?' with Open all and Cancel over the Holocrons tab.
+change: Over three it says they open together in a quicker, simpler animation.
+test: Collection > Holocrons with 4+ to open: Open all (or A) shows the card; Esc: nothing.
+test: Tab to Cancel, Enter: nothing opens. Open all again, Enter: the batch plays.
+test: With 2 or 3: the card says each plays its full opening. With 1: A opens it at once.
+test: Click Cancel and Open all with the mouse: same answers.
+
 [sun-card-blade]
 area: Menus & settings
 title: Sol's card brings the Sun blade (it still drops from holocrons)

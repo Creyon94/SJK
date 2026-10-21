@@ -243,6 +243,12 @@ impl ViewerConsole {
         }
     }
 
+    /// Show Open all's question over the open page, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_ask_all(&mut self) {
+        self.holocrons_panel.ask_all_for_shot();
+    }
+
     /// Say what came of a purchase asked from the shop, for a world shot.
     #[cfg(test)]
     pub(crate) fn preview_shop_answer(&mut self) {

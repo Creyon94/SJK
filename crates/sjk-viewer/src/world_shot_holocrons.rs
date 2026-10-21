@@ -242,3 +242,52 @@ fn duel6_sjk_holocrons_windows() {
         );
     });
 }
+
+/// Open all's question (`docs/cards.md`, "In the client"): sixteen held (a batch, so the
+/// line about the simpler animation), then three (each its full opening), then 34 (twenty
+/// of them, the rest for later), and 4K.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_holocrons_open_all_question() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+        ];
+        let sealed = |counts: [u64; 4]| {
+            let mut next = 0;
+            counts.map(|count| {
+                let ids: Vec<u64> = (next..next + count).collect();
+                next += count;
+                ids
+            })
+        };
+        let cases: [(&str, [u64; 4], [u32; 2]); 4] = [
+            ("sixteen", [12, 3, 0, 1], [1920, 1080]),
+            ("three", [2, 1, 0, 0], [1920, 1080]),
+            ("thirty-four", [25, 6, 2, 1], [1920, 1080]),
+            ("4k", [12, 3, 0, 1], [3840, 2160]),
+        ];
+        for (name, counts, size) in cases {
+            let data = Data {
+                counts: Some(counts.map(|count| count as u32)),
+                sealed: sealed(counts),
+                ..holdings()
+            };
+            let Some(mut gpu) = open_tab(size, &cvars, data) else {
+                return;
+            };
+            let _ = frame(&mut gpu, 90);
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_ask_all();
+            }
+            let _ = frame(&mut gpu, 4);
+            assert!(!overflowed(&gpu), "{name}");
+            println!(
+                "{}",
+                shoot(&mut gpu, 2, &format!("duel6-holocrons-open-all-{name}")).display()
+            );
+        }
+    });
+}

@@ -447,6 +447,22 @@ not know is kept but named nowhere; `Face::blade` in
   chosen, Enter), **Open all (n)** (up to twenty of all tiers, the oldest first, A) and,
   while the hub lets the player open, **Shop** (S). Opened holocrons stay in the recent
   list, dimmed, marked "Opened".
+- **Open all asks first** (21/10/2026, Sol's request): when more than one holocron would
+  open, a card over the darkened tab asks "Open all 7 holocrons?" ("Open 20 of your 34
+  holocrons?" past twenty, with a line that the rest wait for the next time). More than
+  three open as a batch, so it says they open together in a quicker and simpler animation
+  than one by one (five small strips at a time, the finds laid out at the end, without
+  each card's own reveal); two or three play their full ceremony one after another and it
+  says that. **Open all** (gold, focused first) and **Cancel**: Enter or Space presses the
+  focused one, Tab, Left and Right move the focus, Escape cancels, a click answers. With
+  one holocron, A opens it at once. There is no "don't ask again": no other confirmation
+  in SJK keeps one ([holocrons_panel_ask_all.rs](../crates/sjk-viewer/src/holocrons_panel_ask_all.rs)).
+  The batch stays simpler on purpose (measured 21/10/2026): the full ceremony is about 11
+  seconds a holocron (unseal 1.7, strip 6, pack 3.1), over three and a half minutes for
+  twenty. Its strips' 92-pixel light tiles peak at 1,633 of the canvas's 2,400 draw
+  commands for twenty; drawn in full detail they would peak at 2,995 (the layout's CPU
+  time stays near 0.12 ms a frame either way), for detail hardly visible at that size,
+  and still without each card's pack, flip and words. The canvas limit was kept.
 - **The shop** (17/10/2026, prepared): over the darkened tab as the loot table, "Shop", what
   it is and its rules, the balances at the top right, "Offers of 17/10/2026" and "New offers
   in 5 h 12 min, at midnight in Paris" (counting down; once it is due the page reads the

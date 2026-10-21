@@ -1623,7 +1623,8 @@ for the run.
   tier holds; L) shows every chance over the whole window, Back or Escape returns
   ([holocrons.md](holocrons.md#loot-table)). Keys: Up and Down (Left and Right, Tab, the wheel,
   1 to 4, Home, End) choose the tier, which swaps the 3D holocron at once (it shrinks away
-  and the new look grows in); Enter opens one, A opens all, L shows the loot table; a click on a row chooses it;
+  and the new look grows in); Enter opens one, A opens all (a card asks "Open all 7 holocrons?" first, Open all or
+  Cancel, [cards.md](cards.md#in-the-client)), L shows the loot table; a click on a row chooses it;
   Ctrl+Tab goes on to Cards; Escape leaves. The `holocrons` command opens it as the
   Collection's tab (again to close); the SJK Profile tab's Holocrons block has See holocrons
   (the classic menus' Profile page too, opening the page on its own). Until the
