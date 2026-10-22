@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[hax-rain]
+area: Rendering & effects
+title: Hax: green digital rain round a hacked player
+change: Glyphs (0, 1, katakana) fall on a ring round the steered player, following them.
+change: Others learn it through a feed toy event (hacked_<until>, freed), maybe 1-2 s late.
+test: A hacks B: both see the green rain round B while A steers, and it moves with B.
+test: A third SJK client on the server sees it too, ending when B is free.
+test: B turns toy_hax off mid-hack: the rain stops (for the third client, within a few s).
+
 [e2e-whispers]
 area: Console & chat
 title: End-to-end encrypted whispers between SJK players (cl_e2eWhispers)

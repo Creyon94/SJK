@@ -282,6 +282,8 @@ mod cardboard_box;
 #[path = "world_shot_map_edits.rs"]
 mod map_edit_shots;
 
+#[path = "world_shot_hax.rs"]
+mod hax_shots;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 #[path = "world_shot_petals.rs"]

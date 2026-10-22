@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cl_e2eWhispers: New: whispers between SJK players go end-to-end encrypted through the SJK hub, so only the two of you can read them.
 
+- A hacked player is now wreathed in a green digital rain of falling numbers and symbols while the Hax steers them, so everyone can see who is hacked _(Sol)_
 - End-to-end encrypted whispers: a whisper to another SJK player goes through the SJK hub sealed to their key, so only the two of you can read it, not the game server or the hub. It shows in its own pink, marked ENCRYPTED, with its own sound, and the composer says "(encrypted)" before you send. If the hub cannot take it, a card asks before sending it unencrypted through the game server. Settings > Network > Encrypted whispers (`cl_e2eWhispers`) _(Sol)_
 - The SJK chat's field (its page and the main page's and game menu's chat) has a caret you move with the arrows (Ctrl for a word), Home and End: type, paste or delete anywhere in the message, not only at its end _(Sol, after Rollembones' report)_
 - `cg_thirdPersonRange` and the other third-person camera cvars work again after Camera control has set the camera: a value typed in the console or bound to a key takes effect at once, as in EternalJK _(Sol, after Rollembones' report)_
