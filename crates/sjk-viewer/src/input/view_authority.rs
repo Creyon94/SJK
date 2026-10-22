@@ -104,10 +104,7 @@ impl Authority {
 #[cfg(test)]
 mod wall_tests {
     use super::*;
-    use sjk_game_jka::pmove::{MovementState, Predictor};
-
-    /// `PMF_STUCK_TO_WALL` (`codemp/game/bg_public.h`).
-    const PMF_STUCK_TO_WALL: u16 = 16_384;
+    use sjk_game_jka::pmove::{MovementState, PMF_STUCK_TO_WALL, Predictor};
 
     #[test]
     fn snapshot_acknowledgement_does_not_reopen_wall_mouse_look() {

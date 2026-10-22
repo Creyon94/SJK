@@ -30,6 +30,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= cg_wallGrabLock: Optionally lock your camera to a grabbed wall. Off keeps JA+ free look and mouse-aimed kick-offs.
+
 = cl_e2eWhispers: New: whispers between SJK players go end-to-end encrypted through the SJK hub, so only the two of you can read them.
 
 - A hacked player is now wreathed in a green digital rain of falling numbers and symbols while the Hax steers them, so everyone can see who is hacked _(Sol)_

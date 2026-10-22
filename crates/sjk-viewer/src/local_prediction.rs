@@ -104,6 +104,8 @@ pub(crate) struct LocalPrediction {
     previous_frame_millis: i32,
     animation_lengths: Option<Arc<dyn AnimationLengths>>,
     movement_config: MovementConfig,
+    /// Force a local wall-grab lock even when the profile permits free look.
+    wall_grab_lock: bool,
     last_acknowledged: i32,
     /// Presentation-only support for the unadvanced snapshot seed. Commands
     /// still start with the untouched server ground flag and run normal Pmove.
@@ -203,6 +205,7 @@ impl LocalPrediction {
             previous_frame_millis: 0,
             animation_lengths,
             movement_config,
+            wall_grab_lock: false,
             last_acknowledged: snapshot.map_or(0, |snapshot| snapshot.player.command_time()),
             seed_ground: None,
             last_sample: PredictionSample::default(),
@@ -214,6 +217,11 @@ impl LocalPrediction {
             free_camera: false,
             frozen_weapon: 0,
         }
+    }
+
+    /// Set the player's optional wall-grab camera lock; movement rules stay authoritative.
+    pub(crate) fn set_wall_grab_lock(&mut self, on: bool) {
+        self.wall_grab_lock = on;
     }
 
     /// Start or end `cg_fakeNoclip`. Ending it returns to the server's position on the next

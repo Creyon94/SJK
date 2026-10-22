@@ -1,30 +1,32 @@
-## Local wall-grab facing
+## Wall-grab camera policy
 
-2026-10-22, `fix/wall-grab-facing`, based on `0279b8f3` (Windows x64, Rust 1.99):
-the local display copy faces the grabbed wall using OpenJK `codemp` `4d0dfaf1`'s
-`PM_AdjustAngleForWallJump` wall normal and rebound-side offset. JA+ may leave the
-approach yaw in the simulation, but the camera no longer presents that oblique
-starting angle throughout the grab. World and mover collision are used, including
-snapshot-only frames; releasing the wall or missing the wall adds no hold. Raw
-replay angles, deltas and velocity remain untouched. See
-[local wall-grab facing](networking.md#local-wall-grab-facing).
+2026-10-22, `fix/wall-grab-camera-lock`, based on `f510270f` (Windows x64,
+Rust 1.99): stock snapshot seeds retain the wall view lock through fully
+acknowledged commands; JA+'s profile keeps free look and mouse-aimed kick-offs
+by default. Archived `cg_wallGrabLock` (default 0, in SJK and classic Settings)
+opts into a local lock on profiles with free look. Input suppression uses only
+`wall_view_locked`; the wall-normal display alignment follows the same profile
+and option. The shared movement rules and model pose are unchanged. The public
+`PMF_STUCK_TO_WALL` constant is shared across the simulation and viewer.
+See [wall grab facing](client.md#wall-grab-facing).
 
-Focused non-retail fixtures cover straight and slanted walls, all four rebound
-sides and their holds, camera presentation, release, missed walls and slopes at
-8/7/4/3 ms. A release measurement on a retail `mp/duel6` BSP wall averaged
-0.539 microseconds per display-copy/alignment call over 10,000 warmed samples on
-an AMD Ryzen 7 5800X3D (no movers or GPU in that measurement). The ignored
-`release_wall_grab_view_cost` test reads external `JKA_GAME_DATA`; no retail bytes
-are in its fixture. The release `duel6_from_its_start` world shot rendered on an
-NVIDIA RTX 5070 Ti and was inspected; this checks GPU startup and the map render,
-not a live grabbed player. In-game/remote-server behavior, moving-wall grabs and
-populated-match performance remain unverified.
-
+Focused tests cover the stock/JA+ policy with the option off and on, command
+pitch/yaw, movement/jump, snapshot reseeding, filtered input, release, and
+straight/slanted wall facing on all four rebound sides at 8/7/4/3 ms.
 `cargo fmt --all --check`, `cargo build --locked --workspace`,
 `cargo test --locked --workspace` and
-`cargo clippy --locked --workspace --all-targets` passed, with existing warnings
-and ignored asset/GPU/integration cases. Dev/test debug information and
-incremental compilation were disabled.
+`cargo clippy --locked --workspace --all-targets` passed with existing warnings
+and ignored asset/GPU/integration cases (dev/test debug information and
+incremental compilation disabled). The SJK Settings row, default-off switch and
+help text rendered in the ignored `wall_grab_camera_settings_shot` test on an
+NVIDIA RTX 5070 Ti over retail `mp/duel6`; the screenshot was inspected.
+An optimized Windows MSVC build with static CRT passed isolated loopback-server
+startup/EOF shutdown and synthetic adjacent-assets client startup. These checks
+use temporary profiles and do not exercise real servers.
+
+Live JA+/JoF kick-off behavior, mover grabs and full wall-acrobatics parity
+remain unverified. The Settings shot is not a live grabbed-player capture, and
+no separate model-placement defect has been reproduced.
 
 ## Encrypted whispers
 
@@ -4036,34 +4038,9 @@ for a few seconds after leaving).
 
 ## Wall-jump view prediction
 
-Branch `fix/wall-grab-camera-lock` (2026-10-22, based on `0279b8f3`, Windows x64,
-Rust 1.99): local mouse and keyboard look obey a grabbed wall's
-`PMF_STUCK_TO_WALL` on every dialect, including JA+. Input is consumed during the
-hold, movement/jump buttons still reach commands, and filtered mouse counts do
-not spill into release. Fake noclip/free camera keep normal look input.
-
-A stock grabbed-wall snapshot also restores the local view hold. Previously,
-snapshot reseeding cleared it; a fully acknowledged queue could then render fresh
-mouse motion without another movement slice to hold the view again. The next
-released-wall snapshot clears the hold. See
-[wall-move view holds](networking.md#wall-move-view-holds).
-
-Reference: OpenJK `codemp` revision `4d0dfaf1`, `bg_pmove.c`
-(`PM_SetPMViewAngle`, the wall handlers and their ordering in `PmoveSingle`), and
-`cg_predict.c:1043-1051,1401` / `cg_view.c:1586` retaining and rendering snapshot
-angles when no command advances them. Focused regressions cover snapshot reseeding,
-repeated presentation, stock/JA+ input-to-command angles, movement/jump buttons,
-filtered input and release at 8/7/4/3 ms. The regressions failed before their fixes.
-
-`cargo fmt --all --check`, `cargo build --locked --workspace`,
-`cargo test --locked --workspace` and
-`cargo clippy --locked --workspace --all-targets` passed on this revision, with
-existing warnings and ignored asset/GPU/integration cases. Dev/test debug
-information and incremental compilation were disabled.
-
-No movement-physics, animation-timing or wire-field changes. Release startup,
-in-game reproduction, remote-server behavior and full wall-acrobatics parity on
-this revision remain unverified.
+Stock snapshot wall-grab seed and local input/view ownership verification are
+recorded under [wall-grab camera policy](#wall-grab-camera-policy). JA+ free look
+is intentional and preserved by default; locking there is a player option.
 
 ## Live console height
 

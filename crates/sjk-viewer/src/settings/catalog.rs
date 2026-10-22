@@ -1022,6 +1022,11 @@ pub(super) const GAME: &[Setting] = &[
         },
     },
     Setting {
+        label: "Lock wall-grab camera",
+        cvar: "cg_wallGrabLock",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Prediction error smoothing (ms)",
         cvar: "cg_errorDecay",
         kind: ValueKind::Float {

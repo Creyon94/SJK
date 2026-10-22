@@ -1,24 +1,29 @@
-//! Wall-normal facing for the local display copy, independent of server free look.
+//! Wall-grab presentation follows the server profile unless the player opts to lock.
 //!
-//! OpenJK `codemp/game/bg_pmove.c:1662-1671` faces the grabbed wall using its
-//! normal plus the rebound side's offset. JA+ may keep the approach yaw in the
-//! simulation; the camera still needs the same wall-facing presentation as the
-//! model. Use the shared reference calculation against current world/mover solids.
+//! OpenJK `codemp/game/bg_pmove.c:1662-1671` uses the wall normal plus the
+//! rebound-side offset. JA+ deliberately allows free look and mouse-aimed kick-offs;
+//! only `cg_wallGrabLock` opts that profile into the local camera hold.
 
-use sjk_client::pmove::{MovementCollision, MovementState, wall_hold_yaw};
+use sjk_client::pmove::{MovementCollision, MovementState, PMF_STUCK_TO_WALL, wall_hold_yaw};
+use sjk_game_jka::pmove_debug_melee::DebugMelee;
 
-/// `PMF_STUCK_TO_WALL` (`codemp/game/bg_public.h`).
-const PMF_STUCK_TO_WALL: u16 = 16_384;
-
-/// Align only the local display copy. Replay angles, deltas and velocity remain
-/// owned by the predictor; a released wall or a missed wall check adds no hold.
-pub(super) fn align(view: &mut MovementState, collision: &impl MovementCollision) {
+/// Align the local display copy when its profile or the player owns a wall lock.
+/// Replay angles, deltas and velocity remain owned by the predictor.
+pub(super) fn align(
+    view: &mut MovementState,
+    collision: &impl MovementCollision,
+    rules: DebugMelee,
+    force_lock: bool,
+) {
     if view.movement_flags & PMF_STUCK_TO_WALL == 0 {
+        return;
+    }
+    view.wall_view_locked = !rules.free_wall_look || force_lock;
+    if !view.wall_view_locked {
         return;
     }
     if let Some(yaw) = wall_hold_yaw(view.legs_anim, view.view_angles[1], view.origin, collision) {
         view.view_angles[1] = yaw;
-        view.wall_view_locked = true;
     }
 }
 
@@ -52,6 +57,82 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "renders with the GPU and external retail assets in JKA_GAME_DATA"]
+    fn wall_grab_camera_settings_shot() {
+        crate::world_shot::on_big_stack(|| {
+            let menu = crate::menu::ClientMenu::new(true, String::new());
+            let (mut gpu, _profile) = crate::world_shot::open(
+                "maps/mp/duel6.bsp",
+                [1920, 1080],
+                Some(menu),
+                &[
+                    ("ui_menuStyle", "sjk"),
+                    ("cl_discordPresence", "0"),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ],
+            )
+            .expect("a GPU for the settings shot");
+            let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref())
+            else {
+                panic!("settings need a menu and console");
+            };
+            assert_eq!(console.bool_cvar("cg_wallGrabLock"), Some(false));
+            menu.sjk_settings_for_snapshot(console, 6, Some("cg_wallGrabLock"), false, None);
+            gpu.ui_epoch -= std::time::Duration::from_secs(2);
+            println!(
+                "{}",
+                crate::world_shot::shoot(&mut gpu, 8, "wall-grab-camera-settings").display()
+            );
+        });
+    }
+
+    #[test]
+    fn profile_free_look_is_preserved_unless_the_player_opts_in() {
+        use sjk_protocol::InfoString;
+        let profile = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(profile.path().join("config.cfg")).unwrap();
+        assert_eq!(console.bool_cvar("cg_wallGrabLock"), Some(false));
+        for step in [8, 7, 4, 3] {
+            for server in [
+                r"\gamename\basejka\g_debugMelee\2",
+                r"\gamename\JA+ Mod v2.4 Build 7\g_debugMelee\2",
+                r"\gamename\JA+ Mod v2.4 Build 7\sv_hostname\JoF\g_debugMelee\2",
+            ] {
+                let rules = DebugMelee::from_server_info(&InfoString::parse(server).unwrap());
+                for force_lock in [false, true] {
+                    console.set_cvar("cg_wallGrabLock", if force_lock { "1" } else { "0" });
+                    assert_eq!(console.bool_cvar("cg_wallGrabLock"), Some(force_lock));
+                    let raw = MovementState {
+                        command_time: step,
+                        legs_anim: 875,
+                        movement_flags: PMF_STUCK_TO_WALL,
+                        view_angles: [12.0, 30.0, 5.0],
+                        ..Default::default()
+                    };
+                    let mut view = raw.clone();
+                    align(&mut view, &Wall(Some([-1.0, 0.0, 0.0])), rules, force_lock);
+                    let locked = !rules.free_wall_look || force_lock;
+                    assert_eq!(view.wall_view_locked, locked);
+                    assert_eq!(view.view_angles[1], if locked { 360.0 } else { 30.0 });
+                    assert_eq!(raw.view_angles, [12.0, 30.0, 5.0]);
+                    // Turning the option off during a hold immediately restores free look.
+                    align(&mut view, &Wall(Some([-1.0, 0.0, 0.0])), rules, false);
+                    assert_eq!(view.wall_view_locked, !rules.free_wall_look);
+                    let (mut pitch, mut yaw) = (0.2, 0.7);
+                    let mut authority = crate::input::view_authority::Authority::default();
+                    authority.observe_prediction(&raw, &mut pitch, &mut yaw);
+                    (pitch, yaw) = (0.2, 0.7);
+                    authority.observe_prediction(&view, &mut pitch, &mut yaw);
+                    if rules.free_wall_look {
+                        assert_eq!((pitch, yaw), (0.2, 0.7));
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn oblique_grabs_present_the_reference_wall_yaw_for_every_side() {
         for step in [8, 7, 4, 3] {
             // codemp's forward, left, backward and right rebound/hold animations.
@@ -78,7 +159,7 @@ mod tests {
                             ..Default::default()
                         };
                         let mut view = raw.clone();
-                        align(&mut view, &Wall(Some(normal)));
+                        align(&mut view, &Wall(Some(normal)), DebugMelee::default(), false);
                         let difference =
                             |yaw: f32| (yaw - expected + 180.0).rem_euclid(360.0) - 180.0;
                         assert!(difference(view.view_angles[1]).abs() < 0.001);
@@ -150,7 +231,7 @@ mod tests {
                     ..Default::default()
                 };
                 let mut view = raw.clone();
-                align(&mut view, &collision);
+                align(&mut view, &collision, DebugMelee::default(), false);
                 if view.wall_view_locked {
                     sample = Some(raw);
                     break 'spawns;
@@ -159,12 +240,17 @@ mod tests {
         }
         let raw = sample.expect("a reachable upright duel6 wall");
         for _ in 0..1000 {
-            align(&mut raw.clone(), &collision);
+            align(&mut raw.clone(), &collision, DebugMelee::default(), false);
         }
         let started = Instant::now();
         for _ in 0..10_000 {
             let mut view = raw.clone();
-            align(black_box(&mut view), black_box(&collision));
+            align(
+                black_box(&mut view),
+                black_box(&collision),
+                DebugMelee::default(),
+                false,
+            );
             black_box(view.view_angles);
         }
         println!(
@@ -186,9 +272,9 @@ mod tests {
                 view_angles: [12.0, 30.0, 0.0],
                 ..Default::default()
             };
-            align(&mut view, &wall);
+            align(&mut view, &wall, DebugMelee::default(), false);
             assert_eq!(view.view_angles, [12.0, 30.0, 0.0]);
-            assert!(!view.wall_view_locked);
+            assert_eq!(view.wall_view_locked, flags != 0);
         }
     }
 }

@@ -231,12 +231,15 @@ without another movement slice; it must still use the snapshot's held pitch and
 yaw, as OpenJK renders `predictedPlayerState.viewangles`. Clearing the wall flag
 in the next snapshot releases this hold.
 
-Local mouse and keyboard look also obey a grabbed wall's `PMF_STUCK_TO_WALL`
-on every server, including JA+, even though JA+'s simulation leaves view angles
-free. [motion.rs](../crates/sjk-viewer/src/input/motion.rs) consumes each frame's
-input while holding both look axes; movement and jump buttons still reach the
-command. Filtered mouse history is cleared during the hold so it cannot turn the
-camera after release. Fake noclip and detached free camera keep normal look input.
+Local mouse and keyboard look obey `wall_view_locked`, not the wall flag alone.
+The stock snapshot seed sets it only when stuck and the profile's
+`DebugMelee::free_wall_look` is false. JA+ keeps its documented free look by
+default, so command angles and kick-off aim follow the player's mouse.
+`cg_wallGrabLock` (archived, default 0) can force the local presentation lock on
+for a grabbed wall. [motion.rs](../crates/sjk-viewer/src/input/motion.rs) consumes
+look samples only while that lock is set, preserving movement/jump buttons and
+clearing filtered mouse history. Fake noclip and detached free camera keep
+normal input. The option never changes the shared simulation's profile.
 
 ### Equipped jetpack prediction
 
@@ -259,18 +262,18 @@ its unpublished settings, the stock spinning-saber random horizontal impulses,
 and jaPRO's separate new/race jetpack path remain outside this implementation.
 Equipping and fuel state still arrive from the server.
 
-
 ### Local wall-grab facing
 
-A local player attached to a wall (`PMF_STUCK_TO_WALL`) presents the wall-normal
-yaw from OpenJK's `PM_AdjustAngleForWallJump`, including on JA+ where the shared
-move may retain the approach angle. The display copy uses
+A local grabbed player presents OpenJK's wall-normal yaw and rebound-side offset
+only when the profile locks the view or `cg_wallGrabLock` is enabled. JA+ with
+the default option stays free: there is no yaw override or extra wall trace.
 [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)'s upright-wall
-trace and the rebound side's yaw offset against the world's and movers' current
-collision. It runs even if no command can advance beyond the snapshot time.
-[wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs) changes only the
-local display copy; replay angles, deltas, movement physics and wire fields are
-not rewritten. A released wall or a missed check adds no facing hold. See
+check uses world and mover collision, even when no command advances beyond the
+snapshot. [wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs) modifies
+the display copy, leaving raw replay angles, deltas and velocity untouched.
+Because the camera supplies subsequent commands, opting into the hold on JA+
+also opts out of freely aiming the kick-off. A missed check retains the held
+view; clearing `PMF_STUCK_TO_WALL` releases the optional hold. See
 [wall grab facing](client.md#wall-grab-facing).
 
 ### Standing on uneven ground

@@ -3,9 +3,6 @@ use super::{GameButton, GameplayInput};
 use crate::{GpuState, pointer_input::MouseLook};
 use sjk_client::pmove::MovementState;
 
-/// A grabbed wall owns local look on every dialect (`codemp/game/bg_public.h`).
-const PMF_STUCK_TO_WALL: u16 = 16_384;
-
 pub(crate) struct Motion {
     pub now: u64,
     /// How long before `now` the command being built was made: a frame slower than
@@ -139,9 +136,7 @@ impl GameplayInput {
         view: Option<&MovementState>,
     ) -> [f32; 2] {
         let delta = self.sample_motion(now, settings);
-        if view.is_some_and(|view| {
-            view.wall_view_locked || view.movement_flags & PMF_STUCK_TO_WALL != 0
-        }) {
+        if view.is_some_and(|view| view.wall_view_locked) {
             // Filtering must not carry the final held sample into the release frame.
             self.motion.previous_mouse = [0.0; 2];
             [0.0; 2]
@@ -307,81 +302,94 @@ impl GpuState {
 #[cfg(test)]
 mod wall_view_tests {
     use super::*;
-    use sjk_client::pmove::{MovementConfig, Predictor};
+    use sjk_client::pmove::{MovementConfig, PMF_STUCK_TO_WALL, Predictor};
     use sjk_game_jka::pmove_debug_melee::DebugMelee;
     use sjk_protocol::InfoString;
 
     #[test]
-    fn wall_grab_consumes_look_without_turning_commands_on_any_dialect() {
+    fn wall_grab_look_follows_the_profile_and_player_option() {
         for step in [8, 7, 4, 3] {
-            for ja_plus in [false, true] {
-                let info = InfoString::parse(if ja_plus {
-                    r"\gamename\JA+ Mod v2.4 Build 7\g_debugMelee\2"
-                } else {
-                    r"\gamename\basejka\g_debugMelee\2"
-                })
-                .unwrap();
-                let config = MovementConfig {
-                    debug_melee: DebugMelee::from_server_info(&info),
-                    ..Default::default()
-                };
-                assert_eq!(config.debug_melee.free_wall_look, ja_plus);
-                let held = MovementState {
-                    health: 100,
-                    movement_flags: PMF_STUCK_TO_WALL,
-                    view_angles: [12.0, 90.0, 0.0],
-                    wall_view_locked: !ja_plus,
-                    ..Default::default()
-                };
-                let mut snapshot = sjk_protocol::PlayerState::default();
-                held.write_player_state(&mut snapshot);
-                let predictor = Predictor::from_player_state(&snapshot, config);
-                let mut input = GameplayInput::default();
-                input.motion.filter = true;
-                for button in [
-                    GameButton::Forward,
-                    GameButton::Up,
-                    GameButton::Left,
-                    GameButton::Lookup,
-                ] {
-                    input.held[button.slot()].event(true, None, 0);
+            for server in [
+                r"\gamename\basejka\g_debugMelee\2",
+                r"\gamename\JA+ Mod v2.4 Build 7\g_debugMelee\2",
+                r"\gamename\JA+ Mod v2.4 Build 7\sv_hostname\JoF\g_debugMelee\2",
+            ] {
+                for force_lock in [false, true] {
+                    let info = InfoString::parse(server).unwrap();
+                    let rules = DebugMelee::from_server_info(&info);
+                    let config = MovementConfig {
+                        debug_melee: rules,
+                        ..Default::default()
+                    };
+                    let held = MovementState {
+                        health: 100,
+                        movement_flags: PMF_STUCK_TO_WALL,
+                        view_angles: [12.0, 90.0, 0.0],
+                        ..Default::default()
+                    };
+                    let mut snapshot = sjk_protocol::PlayerState::default();
+                    held.write_player_state(&mut snapshot);
+                    let predictor = Predictor::from_player_state(&snapshot, config);
+                    let mut view = predictor.state().clone();
+                    // Presentation may force the profile's hold on, never off.
+                    view.wall_view_locked |= force_lock;
+                    let locked = !rules.free_wall_look || force_lock;
+                    assert_eq!(view.wall_view_locked, locked);
+                    let mut input = GameplayInput::default();
+                    input.motion.filter = true;
+                    for button in [
+                        GameButton::Forward,
+                        GameButton::Up,
+                        GameButton::Left,
+                        GameButton::Lookup,
+                    ] {
+                        input.held[button.slot()].event(true, None, 0);
+                    }
+                    let (mut pitch, mut yaw) = (-12.0_f32.to_radians(), 90.0_f32.to_radians());
+                    let baseline = input.user_command(0, pitch, yaw, [0; 3], 3, 0, 0).angles;
+                    for frame in 1..=3 {
+                        input.motion.raw = [80.0, -40.0];
+                        let delta = input.sample_view_motion(
+                            frame * step,
+                            MouseLook::default(),
+                            Some(&view),
+                        );
+                        yaw += delta[0];
+                        pitch += delta[1];
+                        let command =
+                            input.user_command((frame * step) as i32, pitch, yaw, [0; 3], 3, 0, 0);
+                        if locked {
+                            assert_eq!(
+                                command.angles, baseline,
+                                "{server}, {force_lock}, {step} ms"
+                            );
+                        } else {
+                            assert_ne!(command.angles[0], baseline[0]);
+                            assert_ne!(command.angles[1], baseline[1]);
+                        }
+                        assert_eq!((command.forward_move, command.up_move), (127, 127));
+                        input.finish_command();
+                    }
+                    let released = MovementState {
+                        movement_flags: 0,
+                        wall_view_locked: false,
+                        ..held
+                    };
+                    for button in [GameButton::Left, GameButton::Lookup] {
+                        input.held[button.slot()].event(false, None, 3 * step);
+                    }
+                    let delta =
+                        input.sample_view_motion(4 * step, MouseLook::default(), Some(&released));
+                    if locked {
+                        // Held mouse samples cannot leak out through the filter.
+                        assert_eq!(delta, [0.0; 2]);
+                    }
+                    input.motion.raw = [10.0, -5.0];
+                    let delta =
+                        input.sample_view_motion(5 * step, MouseLook::default(), Some(&released));
+                    assert_ne!(delta[0], 0.0);
+                    assert_ne!(delta[1], 0.0);
                 }
-                let (mut pitch, mut yaw) = (-12.0_f32.to_radians(), 90.0_f32.to_radians());
-                let baseline = input.user_command(0, pitch, yaw, [0; 3], 3, 0, 0).angles;
-                for frame in 1..=3 {
-                    input.motion.raw = [80.0, -40.0];
-                    let delta = input.sample_view_motion(
-                        frame * step,
-                        MouseLook::default(),
-                        Some(predictor.state()),
-                    );
-                    yaw += delta[0];
-                    pitch += delta[1];
-                    let command =
-                        input.user_command((frame * step) as i32, pitch, yaw, [0; 3], 3, 0, 0);
-                    assert_eq!(command.angles, baseline, "JA+ {ja_plus}, {step} ms");
-                    assert_eq!((command.forward_move, command.up_move), (127, 127));
-                    input.finish_command();
-                }
-                let released = MovementState {
-                    movement_flags: 0,
-                    wall_view_locked: false,
-                    ..held
-                };
-                for button in [GameButton::Left, GameButton::Lookup] {
-                    input.held[button.slot()].event(false, None, 3 * step);
-                }
-                // Neither filtered mouse counts nor keyboard look may spill out
-                // after release; only fresh input can turn the next command.
-                assert_eq!(
-                    input.sample_view_motion(4 * step, MouseLook::default(), Some(&released)),
-                    [0.0; 2]
-                );
-                input.motion.raw = [10.0, -5.0];
-                let delta =
-                    input.sample_view_motion(5 * step, MouseLook::default(), Some(&released));
-                assert_ne!(delta[0], 0.0);
-                assert_ne!(delta[1], 0.0);
             }
         }
     }

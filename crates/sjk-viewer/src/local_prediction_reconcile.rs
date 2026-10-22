@@ -217,7 +217,12 @@ impl LocalPrediction {
         if !self.fake_noclip {
             let collision =
                 BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
-            wall_grab_view::align(&mut presented, &collision);
+            wall_grab_view::align(
+                &mut presented,
+                &collision,
+                self.movement_config.debug_melee,
+                self.wall_grab_lock,
+            );
         }
         let eye = Vec3::from_array(presented.origin) + Vec3::Z * presented.view_height as f32;
         self.presented = Some(presented);

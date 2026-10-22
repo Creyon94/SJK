@@ -44,7 +44,7 @@ pub(crate) const FORCE_LEVITATION_BIT: u32 = 1 << 1;
 /// `EF_JETPACK_FLAMING`. Every other bit is the game's.
 const PMOVE_ENTITY_FLAGS: u32 = (1 << 13) | (1 << 9) | (1 << 10) | (1 << 30);
 /// `PMF_STUCK_TO_WALL`: grabbing a wall.
-const PMF_STUCK_TO_WALL: u16 = 16_384;
+pub const PMF_STUCK_TO_WALL: u16 = 16_384;
 /// `MAX_CLIENTS`: entity numbers below it are players, to whom `g_stepSlideFix` applies.
 const MAX_CLIENTS: u16 = 32;
 

@@ -1044,19 +1044,24 @@ offset. A missed model-facing check keeps the rebound's last facing, and leaving
 the rebound returns the model to the view. This applies to local and remote models;
 the model check uses world brushes.
 
-The local camera also takes the wall-normal yaw while `PMF_STUCK_TO_WALL` is set,
-including on JA+ and when a frame only presents a snapshot. It uses the shared
-128-unit upright-wall check against world and mover collision, so an oblique
-approach does not freeze the camera at its starting angle. Only the local display
-copy is aligned ([wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs));
-pitch and roll, replay angles, deltas and velocity retain their existing owners.
-Releasing the wall or failing the wall check adds no forced view. Shared movement
-still follows the server's rules, including JA+'s server-side free look; kick-off
-physics continue to use the simulated view's `checkDir`.
+The camera follows the server profile by default (`cg_wallGrabLock 0`): stock
+locks the view during the grab, while JA+ leaves mouse and keyboard look free.
+On JA+ (including JoF servers using that profile), looking around while holding
+jump aims the kick-off; this is an intentional server feature.
 
-Local mouse and keyboard look stay held throughout the grab on every server.
-Input is consumed during the hold, so only fresh look input turns the camera
-after release.
+**Lock wall-grab camera** is in SJK Settings > Advanced > Gameplay and classic
+Setup > Game options. `cg_wallGrabLock 1` opts into locking on JA+ too. A locked
+camera uses the shared 128-unit upright-wall check against world and mover collision to face the wall
+with the rebound side's offset, including frames with only a snapshot seed.
+Look input is consumed during a lock so it cannot build up or spill out after
+release; movement and jump buttons still reach the command. Turning the option
+off restores the profile's policy. Stock remains locked with either value.
+
+The optional lock changes the local view used to build subsequent commands, so
+JA+ players who enable it give up free mouse aiming during the hold. It does not
+change the server's movement rules, replay state, delta angles or velocity.
+Missing the wall keeps the current held view; releasing the grab ends the
+optional hold. Model facing remains independent of the camera option.
 
 ## Dismemberment and disintegration
 
