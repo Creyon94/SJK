@@ -34,8 +34,7 @@ use windows::Win32::Media::MediaFoundation::{
 };
 use windows::Win32::System::Com::StructuredStorage::CreateStreamOnHGlobal;
 use windows::Win32::System::Com::{
-    COINIT_DISABLE_OLE1DDE, COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize, IStream,
-    STREAM_SEEK_SET,
+    COINIT_DISABLE_OLE1DDE, COINIT_MULTITHREADED, CoInitializeEx, IStream, STREAM_SEEK_SET,
 };
 use windows::Win32::System::LibraryLoader::{
     GetProcAddress, LOAD_LIBRARY_SEARCH_SYSTEM32, LoadLibraryExW,
@@ -130,7 +129,6 @@ type Out = *mut *mut c_void;
 /// An export as `GetProcAddress` gives it, before it is given its signature.
 type Proc = unsafe extern "system" fn() -> isize;
 type Startup = unsafe extern "system" fn(u32, u32) -> HRESULT;
-type Shutdown = unsafe extern "system" fn() -> HRESULT;
 type CreateAttributes = unsafe extern "system" fn(Out, u32) -> HRESULT;
 type CreateMediaType = unsafe extern "system" fn(Out) -> HRESULT;
 type ByteStreamOnStream = unsafe extern "system" fn(*mut c_void, Out) -> HRESULT;
@@ -139,7 +137,6 @@ type SourceReader = unsafe extern "system" fn(*mut c_void, *mut c_void, Out) -> 
 /// The Media Foundation functions called, found at run time.
 struct Api {
     startup: Startup,
-    shutdown: Shutdown,
     create_attributes: CreateAttributes,
     create_media_type: CreateMediaType,
     byte_stream_on_stream: ByteStreamOnStream,
@@ -166,7 +163,6 @@ fn api() -> Option<&'static Api> {
         unsafe {
             Some(Api {
                 startup: transmute::<Proc, Startup>(proc(plat, s!("MFStartup"))?),
-                shutdown: transmute::<Proc, Shutdown>(proc(plat, s!("MFShutdown"))?),
                 create_attributes: transmute::<Proc, CreateAttributes>(proc(
                     plat,
                     s!("MFCreateAttributes"),
@@ -189,47 +185,38 @@ fn api() -> Option<&'static Api> {
     .as_ref()
 }
 
-/// COM and Media Foundation started on this thread, shut down when it ends.
-struct Started {
-    com: bool,
-    mf: bool,
-}
+/// COM joined on this thread (the multithreaded apartment), once per thread.
+///
+/// Nothing is undone when the thread ends. A thread-local's destructor runs under the
+/// Windows loader lock, and `MFShutdown` there waits for Media Foundation's own worker
+/// threads, which need that lock to end: the thread hung, and every thread starting or
+/// ending after it with it (a decode worker's exit in the game, a test's in `cargo
+/// test`). The process's end releases COM and Media Foundation.
+struct Com;
 
-impl Started {
-    fn new() -> Self {
-        // SAFETY: balanced in Drop, on this same thread.
-        let com =
-            unsafe { CoInitializeEx(None, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE) }.is_ok();
-        // MFSTARTUP_LITE: no socket support; clips are decoded from memory.
-        // SAFETY: a documented call; balanced in Drop.
-        let mf =
-            api().is_some_and(|api| unsafe { (api.startup)(MF_VERSION, MFSTARTUP_LITE) }.is_ok());
-        Self { com, mf }
-    }
-}
-
-impl Drop for Started {
-    fn drop(&mut self) {
-        if self.mf
-            && let Some(api) = api()
-        {
-            // SAFETY: matches this thread's successful MFStartup.
-            let _ = unsafe { (api.shutdown)() };
-        }
-        if self.com {
-            // SAFETY: matches this thread's successful CoInitializeEx.
-            unsafe { CoUninitialize() };
-        }
+impl Com {
+    fn join() -> Self {
+        // SAFETY: a documented call; the apartment is left joined until the thread
+        // ends (see [`Com`]).
+        let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED | COINIT_DISABLE_OLE1DDE) };
+        Self
     }
 }
 
 thread_local! {
-    static STARTED: Started = Started::new();
+    static COM: Com = Com::join();
 }
 
-/// Whether Media Foundation runs on this thread, starting it the first time.
+/// Whether Media Foundation runs: started once for the process (`MFStartup`, never
+/// shut down, see [`Com`]), COM joined on this thread.
 fn started() -> bool {
-    STARTED.with(|started| started.mf)
+    static MF: OnceLock<bool> = OnceLock::new();
+    COM.with(|_| ());
+    *MF.get_or_init(|| {
+        // MFSTARTUP_LITE: no socket support; clips are decoded from memory.
+        // SAFETY: a documented call, made once; see [`Com`] for why it is not undone.
+        api().is_some_and(|api| unsafe { (api.startup)(MF_VERSION, MFSTARTUP_LITE) }.is_ok())
+    })
 }
 
 /// The object a create function wrote to `raw`, when it succeeded (`hr`).
