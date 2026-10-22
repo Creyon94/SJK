@@ -2377,7 +2377,6 @@ impl Service {
         make_vitals_hub: Option<HubFactory>,
         relay_hubs: Option<RelayHubs>,
     ) -> Self {
-        let key_id = identity.key_id();
         let snapshot = Arc::new(Mutex::new(Snapshot::new(&identity)));
         let staff = Arc::new(Mutex::new(StaffState::default()));
         let (commands, inbox) = channel();

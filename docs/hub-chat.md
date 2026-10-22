@@ -1192,6 +1192,10 @@ compare the code again. Remove the check forgets it.
 
 **The composer** says "To <name> (encrypted)" in the pink when the recipient takes
 encrypted whispers (`ChatOverlay::set_encrypted_slots`, from presence, when it changes).
+When the whisper is not encrypted (the recipient does not take encrypted whispers, or
+`cl_e2eWhispers` is off), a red note under the field says so for as long as the composer
+is on it: "Not private: the server logs this whisper and its owner can read it" (Sol,
+22/10/2026; the same red pill as SJK chat's note on JoF servers, `chat/view/composer.rs`).
 
 **Limits.** Only on the same game server, both players on SJK with the identity on. The
 hub sees who whispers to whom, when, and how long the box is. A whisper not read

@@ -749,6 +749,31 @@ mod tests {
     }
 
     #[test]
+    fn a_whisper_that_is_not_encrypted_says_so_under_the_field() {
+        use super::composer::PLAIN_WHISPER_NOTE;
+        let mut chat = ChatOverlay::new();
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        for slot in [3_usize, 4] {
+            game.replace_config_string(1_131 + slot, format!("n\\P{slot}\\t\\0").into_bytes())
+                .expect("a player");
+        }
+        chat.update_roster(&game);
+        chat.set_encrypted_slots(1 << 4);
+        let shown = |chat: &mut ChatOverlay| {
+            chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+            chat.ui.text_runs().any(|text| text == PLAIN_WHISPER_NOTE)
+        };
+        assert!(chat.whisper_to(Some(3)));
+        assert!(shown(&mut chat), "to a player without encrypted whispers");
+        chat.close_composer();
+        assert!(chat.whisper_to(Some(4)));
+        assert!(!shown(&mut chat), "encrypted");
+        chat.close_composer();
+        chat.open(false);
+        assert!(!shown(&mut chat), "not a whisper");
+    }
+
+    #[test]
     fn our_encrypted_whisper_wears_the_recipients_marks() {
         use crate::chat::marks::SlotMark;
         let mut chat = ChatOverlay::new();

@@ -74,46 +74,14 @@ impl ChatOverlay {
         if input.channel == Channel::Sjk
             && let Some(note) = self.said_in_all.map(|words| words.note)
         {
-            let size = 12.0 * g.scale;
-            let room = g.width - 298.0 * g.scale;
-            let ink = visible_text_width_face(
-                font,
+            red_note(
+                &mut self.ui,
                 note,
-                size / font.height.max(1.0),
-                TextFace::Semibold,
-            );
-            let width = (ink + 20.0 * g.scale).min(room);
-            let rect = Rect::new(
-                g.left + 178.0 * g.scale,
-                y + 1.0 * g.scale,
-                width,
-                24.0 * g.scale,
-            );
-            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                rect,
-                radius: 5.0 * g.scale,
-                color: Color::new(0.55, 0.06, 0.06, 0.82 * alpha),
-            });
-            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                rect,
-                radius: 5.0 * g.scale,
-                width: 1.0 * g.scale,
-                color: Color::new(1.0, 0.36, 0.32, 0.9 * alpha),
-            });
-            let end = layout::fitting_end(note, font, (width - 20.0 * g.scale).max(0.0), size);
-            self.ui.text_fmt_aligned(
-                format_args!("{}", &note[..end]),
-                Rect::new(
-                    rect.x + 10.0 * g.scale,
-                    rect.y,
-                    width - 20.0 * g.scale,
-                    rect.height,
-                ),
-                size,
-                Color::new(1.0, 0.86, 0.84, 1.0),
-                FontWeight::Semibold,
-                0.0,
-                TextAlign::Start,
+                [g.left + 178.0 * g.scale, y + 1.0 * g.scale],
+                g.width - 298.0 * g.scale,
+                font,
+                g,
+                alpha,
             );
         }
         if self.scroll > 0 {
@@ -134,11 +102,30 @@ impl ChatOverlay {
                 TextAlign::End,
             );
         }
+        // A whisper that goes through the game server, not encrypted (the recipient does
+        // not take encrypted whispers, or `cl_e2eWhispers` is off): a red note under the
+        // field says so for as long as the composer is on it (Sol, 22/10/2026).
+        let plain_whisper = input.channel == Channel::Whisper
+            && !input
+                .recipient
+                .is_some_and(|target| self.takes_encrypted(target.slot()));
         self.build_draft(font, g, y + 42.0 * g.scale, ms);
+        if plain_whisper {
+            red_note(
+                &mut self.ui,
+                PLAIN_WHISPER_NOTE,
+                [g.left, y + 94.0 * g.scale],
+                g.width,
+                font,
+                g,
+                alpha,
+            );
+        }
         if !self.notice.is_empty() {
+            let notice_y = y + if plain_whisper { 124.0 } else { 94.0 } * g.scale;
             self.ui.text(
                 self.notice,
-                Rect::new(g.left, y + 94.0 * g.scale, g.width, 20.0 * g.scale),
+                Rect::new(g.left, notice_y, g.width, 20.0 * g.scale),
                 11.0 * g.scale,
                 Color::new(0.832, 0.87, 0.901, 0.93),
                 FontWeight::Regular,
@@ -148,3 +135,52 @@ impl ChatOverlay {
         self.ui.pop_opacity();
     }
 }
+
+/// A small red note in a pill at `at` (its top-left), as wide as its words and at most
+/// `room`, the words centred in it.
+fn red_note(
+    ui: &mut MenuCanvas,
+    note: &str,
+    at: [f32; 2],
+    room: f32,
+    font: &UiFont,
+    g: &Geometry,
+    alpha: f32,
+) {
+    let size = 12.0 * g.scale;
+    let ink = visible_text_width_face(font, note, size / font.height.max(1.0), TextFace::Semibold);
+    let width = (ink + 20.0 * g.scale).min(room);
+    let rect = Rect::new(at[0], at[1], width, 24.0 * g.scale);
+    let _ = ui.draw_list_mut().push(DrawCommand::RoundedRect {
+        rect,
+        radius: 5.0 * g.scale,
+        color: Color::new(0.55, 0.06, 0.06, 0.82 * alpha),
+    });
+    let _ = ui.draw_list_mut().push(DrawCommand::Border {
+        rect,
+        radius: 5.0 * g.scale,
+        width: 1.0 * g.scale,
+        color: Color::new(1.0, 0.36, 0.32, 0.9 * alpha),
+    });
+    let end = layout::fitting_end(note, font, (width - 20.0 * g.scale).max(0.0), size);
+    // Text draws from the top of its box: a box of the text's own size, set in the
+    // pill's middle, centres the words.
+    ui.text_fmt_aligned(
+        format_args!("{}", &note[..end]),
+        Rect::new(
+            rect.x + 10.0 * g.scale,
+            rect.y + (rect.height - size) * 0.5,
+            width - 20.0 * g.scale,
+            size,
+        ),
+        size,
+        Color::new(1.0, 0.86, 0.84, 1.0),
+        FontWeight::Semibold,
+        0.0,
+        TextAlign::Center,
+    );
+}
+
+/// What the red note under the composer says of a whisper that is not encrypted.
+pub(in crate::chat) const PLAIN_WHISPER_NOTE: &str =
+    "Not private: the server logs this whisper and its owner can read it";
