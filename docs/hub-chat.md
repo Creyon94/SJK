@@ -203,7 +203,9 @@ The hub takes no part in it.
   the end; the reliable channel sends them a second apart
   (`sjk_mod_jof::sjk_chat::copy_commands`). Only messages the hub took go: one it
   refused, or did not answer in 10 seconds, never reached SJK chat and is not said on
-  the server either. A copy for a match that ended goes nowhere.
+  the server either. A copy for a match that ended goes nowhere. A message with a GIF,
+  one sent with the page's Send only in SJK, and a staff key's sent with Shift held
+  stay in SJK chat ([mods.md](mods.md#sjk-chat-on-jof-servers)).
 - **Telling the player.** The first time the player is in a match on a JoF server with
   SJK chat on, a card over the game menu says that SJK chat is said in All chat there
   and that JoF asked for it ([mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs),

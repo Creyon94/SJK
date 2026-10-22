@@ -245,22 +245,32 @@ impl crate::GpuState {
             ChatInputResult::Submit(command) => {
                 self.send_chat_command(&command, None);
             }
-            ChatInputResult::Sjk(text) => self.send_sjk_chat(text),
+            ChatInputResult::Sjk(text) => {
+                // Staff's Shift+Enter keeps it out of the server's All chat.
+                let only = self.chat.modifiers.shift_key()
+                    && self.chat.said_in_all.is_some()
+                    && crate::player_identity::is_staff();
+                self.send_sjk_chat(text, only);
+            }
             ChatInputResult::None => {}
         }
         self.sync_cursor_policy();
     }
 
-    /// Hand a message to the SJK chat, never to the game server; say why when it
-    /// cannot go.
-    pub(crate) fn send_sjk_chat(&mut self, text: String) {
+    /// Hand a message to the SJK chat (`only`: never said in the server's All chat, even
+    /// where a mod says SJK chat there); say why when it cannot go.
+    pub(crate) fn send_sjk_chat(&mut self, text: String, only: bool) {
         let off = self
             .console
             .as_ref()
             .is_some_and(|console| console.bool_cvar("cl_sjkChat") == Some(false));
         let why = if off {
             Some("^3SJK chat is off (cl_sjkChat 1 turns it on)")
-        } else if !crate::player_identity::chat(text) {
+        } else if !if only {
+            crate::player_identity::chat_sjk_only(text)
+        } else {
+            crate::player_identity::chat(text)
+        } {
             Some("^3SJK chat needs the SJK identity (cl_identity 1)")
         } else {
             None

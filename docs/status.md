@@ -38,6 +38,18 @@ Mythical holocron's model and gold light until the crystal models land (branch
 `personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
 the Staff page are not built.
 
+## SJK chat on JoF servers: what stays in SJK only
+
+22/10/2026, `personal/sjk-only-send`, based on `main` `d0df616d` (Sol's requests). On
+JoF servers a message with a GIF is never said in All chat; the SJK chat page has Send
+only in SJK for every player, with a hover card asking to keep it justified; a staff key
+holding Shift while sending keeps the message in SJK chat
+([mods.md](mods.md#sjk-chat-on-jof-servers)). Verified on Windows 11: `cargo fmt`,
+`cargo build`, `cargo test --workspace` (new: the GIF rule, the page's button offered
+only while copies apply and staff's Shift+Enter), `cargo clippy` (no warnings in the
+changed lines), and the world shot `duel6_jof_sjk_chat_page_only` (the button and its
+hover card), looked at. Not verified: in a running client on a JoF server.
+
 ## SJK chat on JoF servers: said in All chat too
 
 22/10/2026, `personal/jof-sjk-chat`, based on `main` `735b2555` with Milamber's #194

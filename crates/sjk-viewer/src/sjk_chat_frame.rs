@@ -104,8 +104,14 @@ impl GpuState {
         }
         #[cfg(feature = "mod-jof")]
         {
+            use sjk_mod_jof::sjk_chat;
             self.chat
-                .set_said_in_all(Some(sjk_mod_jof::sjk_chat::COMPOSER_NOTE));
+                .set_said_in_all(Some(chat::server_copy::SaidInAll {
+                    note: sjk_chat::COMPOSER_NOTE,
+                    only: sjk_chat::ONLY_SJK,
+                    only_title: sjk_chat::ONLY_SJK_TITLE,
+                    only_why: &sjk_chat::ONLY_SJK_WHY,
+                }));
             let server = self
                 .live_session
                 .as_ref()

@@ -72,7 +72,7 @@ impl ChatOverlay {
         }
         // SJK chat said in this server's All chat too: a small red note says so.
         if input.channel == Channel::Sjk
-            && let Some(note) = self.said_in_all
+            && let Some(note) = self.said_in_all.map(|words| words.note)
         {
             let size = 12.0 * g.scale;
             let room = g.width - 298.0 * g.scale;
