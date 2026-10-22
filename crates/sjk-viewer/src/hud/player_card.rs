@@ -354,6 +354,8 @@ pub(crate) struct ProfileFacts {
     pub(crate) staff: bool,
     /// SJK's creator (`creator`): SJK CREATOR in place of SJK TEAM.
     pub(crate) creator: bool,
+    /// JKR's creator (`jkr_creator`): a JKR CREATOR mark of its own, no staff rights.
+    pub(crate) jkr_creator: bool,
     /// The bio's first line, empty for none.
     pub(crate) bio: String,
     /// Achievements unlocked, of those the client knows.
@@ -404,6 +406,7 @@ impl ProfileFacts {
         Self {
             staff: profile.staff,
             creator: profile.creator,
+            jkr_creator: profile.jkr_creator,
             bio: profile
                 .bio
                 .lines()
@@ -441,7 +444,9 @@ const T_GOAL: usize = 15;
 const T_VITALS: usize = T_GOAL + RAREST;
 /// Whether they see the model the local player wears.
 const T_SIGHT: usize = T_VITALS + 1;
-const TEXTS: usize = T_SIGHT + 1;
+/// The JKR CREATOR mark, beside or in place of SJK TEAM.
+const T_JKR: usize = T_SIGHT + 1;
+const TEXTS: usize = T_JKR + 1;
 /// Draw commands a card holds: its own shapes and a shader's swatch.
 const LIST_CAPACITY: usize = 640;
 /// The saber shader's swatch on the card, in card units.
@@ -453,6 +458,9 @@ const CHROMA_MARK: f32 = 14.0;
 const STAFF_COLOUR: [f32; 3] = [0.22, 0.86, 0.78];
 /// The SJK CREATOR mark's colour: a sun orange, apart from staff's teal and the gold.
 const CREATOR_COLOUR: [f32; 3] = [1.0, 0.6, 0.22];
+/// The JKR CREATOR mark's colour: rust (JKR is written in it), darker and redder than
+/// the creator's orange.
+const JKR_CREATOR_COLOUR: [f32; 3] = [0.84, 0.38, 0.2];
 /// Characters a line of medal names holds on the card (Inter at 11).
 const MEDAL_LINE_CHARS: usize = 52;
 /// Height of a line of medal names: small print under the medallions.
@@ -494,7 +502,9 @@ impl Card {
 
     /// The SJK TEAM mark or a holocron gem: their row under the hub name.
     fn has_marks(&self) -> bool {
-        !self.texts[T_STAFF].is_empty() || !self.texts[T_HOLOCRON].is_empty()
+        [T_STAFF, T_JKR, T_HOLOCRON]
+            .iter()
+            .any(|id| !self.texts[*id].is_empty())
     }
 
     fn facts(&self) -> Option<&ProfileFacts> {
@@ -633,6 +643,9 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
                 card.texts[T_STAFF] = "SJK CREATOR".to_owned();
             } else if facts.staff {
                 card.texts[T_STAFF] = "SJK TEAM".to_owned();
+            }
+            if facts.jkr_creator {
+                card.texts[T_JKR] = "JKR CREATOR".to_owned();
             }
             if let Some(tier) = facts
                 .holocron
@@ -1465,17 +1478,23 @@ impl State {
             }
             y += row(26.0);
             // The SJK TEAM mark, a teal pill drawn as VERIFIED is written (SJK CREATOR,
-            // wider and orange, for the creator), and a gem of the rarest holocron tier
+            // wider and orange, for the creator), JKR CREATOR's rust pill, and a gem of the rarest holocron tier
             // they hold, with its name.
             if card.has_marks() {
                 let mut x = left;
-                if !card.texts[T_STAFF].is_empty() {
-                    let creator = card.facts().is_some_and(|facts| facts.creator);
-                    let ([r, g, b], width) = if creator {
-                        (CREATOR_COLOUR, 106.0)
+                let creator = card.facts().is_some_and(|facts| facts.creator);
+                let marks = [
+                    if creator {
+                        (T_STAFF, CREATOR_COLOUR, 106.0)
                     } else {
-                        (STAFF_COLOUR, 78.0)
-                    };
+                        (T_STAFF, STAFF_COLOUR, 78.0)
+                    },
+                    (T_JKR, JKR_CREATOR_COLOUR, 106.0),
+                ];
+                for (id, [r, g, b], width) in marks {
+                    if card.texts[id].is_empty() {
+                        continue;
+                    }
                     let pill = Rect::new(x, y + row(3.0), width * unit, row(18.0));
                     let _ = self.list.push(DrawCommand::RoundedRect {
                         rect: pill,
@@ -1490,8 +1509,8 @@ impl State {
                     });
                     put_text(
                         &mut self.list,
-                        T_STAFF,
-                        Rect::new(pill.x, pill.y + row(1.0), pill.width, pill.height),
+                        id,
+                        Rect::new(pill.x, pill.y + row(3.5), pill.width, pill.height),
                         11.0 * unit,
                         Color::new(r, g, b, a),
                         FontWeight::Semibold,
@@ -1517,7 +1536,7 @@ impl State {
                     put_text(
                         &mut self.list,
                         T_HOLOCRON,
-                        Rect::new(text_x, y + row(2.0), left + inner - text_x, row(22.0)),
+                        Rect::new(text_x, y + row(5.0), left + inner - text_x, row(22.0)),
                         13.0 * unit,
                         tier.colour_alpha(a),
                         FontWeight::Regular,
@@ -1612,7 +1631,7 @@ impl State {
                     put_text(
                         &mut self.list,
                         T_ACHIEVEMENTS,
-                        Rect::new(left, y + row(3.0), inner, row(24.0)),
+                        Rect::new(left, y + row(8.5), inner, row(24.0)),
                         14.0 * unit,
                         white(0.9),
                         FontWeight::Semibold,
@@ -1650,7 +1669,7 @@ impl State {
                             T_GOAL + index,
                             Rect::new(
                                 centre[0] - radius,
-                                centre[1] - row(7.0),
+                                centre[1] - row(5.0),
                                 radius * 2.0,
                                 row(14.0),
                             ),
@@ -2013,6 +2032,7 @@ mod tests {
             verified: true,
             staff: true,
             creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_000_000,
@@ -2078,6 +2098,27 @@ mod tests {
             None,
         );
         assert_eq!(card.texts[T_STAFF], "SJK CREATOR");
+    }
+
+    #[test]
+    fn the_jkr_creator_wears_jkr_creator_without_staff() {
+        let facts = ProfileFacts::of(&sjk_identity::Profile {
+            staff: false,
+            jkr_creator: true,
+            ..full_profile()
+        });
+        assert!(facts.jkr_creator && !facts.staff);
+        let card = card_from(
+            &info("n|Bishop|"),
+            Some(HubInfo {
+                profile: Some(facts),
+                ..HubInfo::default()
+            }),
+            None,
+        );
+        assert_eq!(card.texts[T_JKR], "JKR CREATOR");
+        assert!(card.texts[T_STAFF].is_empty());
+        assert!(card.has_marks());
     }
 
     #[test]

@@ -47,6 +47,10 @@ pub struct Profile {
     /// `PROTOCOL.md`, "Creator"; absent when false and from older hubs).
     #[serde(default)]
     pub creator: bool,
+    /// Whether this is JKR's creator: a mark of their own and no staff rights (the
+    /// hub's `PROTOCOL.md`, "JKR creator"; absent when false and from older hubs).
+    #[serde(default)]
+    pub jkr_creator: bool,
     /// The player's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,

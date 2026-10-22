@@ -34,6 +34,17 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, the staff's halves at Sol's request)_
 - `saber kyle kyle` holds two sabers, `saber dual_4` a staff, `saber kyle` one, and the Collection's preview follows at once _(Creyon)_
 
+## 2026.1022.2 (Alpha) | 22/10/2026
+
+A small follow-up: the meme toys stay on until you turn them off, and the player card gets a new mark and tidier text.
+
+> Toys stay on: Order 66 and the Hax stay on through map changes and restarts.
+> JKR creator: Bishop, who made JKR, wears a JKR CREATOR mark on his player card.
+> Player card: The SJK TEAM pill, holocron and achievements text now sit centred.
+
+- Order 66 and the Hax stay on once turned on, through map changes, other servers and restarts, until you turn them off yourself _(Sol)_
+- Player card: JKR's creator wears a JKR CREATOR mark of their own, in rust (a mark only, no staff rights); the SJK TEAM pill, the holocron line and the achievements now sit centred instead of a little high _(Sol)_
+
 ## 2026.1022.1 (Alpha) | 22/10/2026
 
 A small release to try the Hax, a new meme toy: hack another SJK player with the siege hack bar, then steer them for a few seconds. Duels get a setting that draws every blade plainly.
