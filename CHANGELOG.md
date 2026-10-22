@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- A whisper that is not encrypted says so: while you write one, a red note under the field reads "Not private: the server logs this whisper and its owner can read it". The red note on JoF servers' SJK chat now has its words centred _(Sol)_
 - Clan emblems: names starting with {{S}} get the clan's red Sith emblem, the JoF emblem is now the clan's green logo, and the JAWA emblem only shows for names starting with (JAWA) _(Sol)_
 - The Hax no longer hacks a player who is typing in the chat or away (still for minutes, alt-tabbed, or with an away tag in their name), and its digital rain is softer _(Sol)_
 - Encrypted whispers you send play their sound once the SJK hub takes them, and their line shows the recipient's SJK marks (emblem, verified tick, name emoji) as incoming ones do _(Sol)_

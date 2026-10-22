@@ -78,7 +78,7 @@ test: Open the whisper composer on the other: it says "To <name> (encrypted)" in
 test: Send: "To <name>" with their tick and emoji, ENCRYPTED, and the sound on both sides.
 test: reply on their side answers encrypted; tell <name> from the console too.
 test: Stop the hub, whisper: the card asks; Esc sends nothing, Enter sends it through the server.
-test: cl_e2eWhispers 0: whispers go through the server as before (lilac WHISPER).
+test: cl_e2eWhispers 0: whispers go through the server as before, a red "Not private" note under.
 test: whisper_verify <name> on both PCs: same 12 digits. Mark verified: lines say VERIFIED.
 test: Then a new identity on the other PC: your whisper asks first, theirs warns in red.
 

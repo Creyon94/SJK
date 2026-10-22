@@ -742,6 +742,11 @@ mod tests {
             );
             let path = crate::world_shot::shoot(&mut gpu, 10, "encrypted-whispers-chat");
             println!("{}", path.display());
+            // A whisper to Fox, who does not take encrypted ones: the red note.
+            gpu.chat.set_encrypted_slots(1 << 4);
+            assert!(gpu.chat.whisper_to(Some(6)));
+            let path = crate::world_shot::shoot(&mut gpu, 10, "encrypted-whispers-plain-note");
+            println!("{}", path.display());
         });
     }
 
