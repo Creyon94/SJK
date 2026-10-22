@@ -69,6 +69,21 @@ test: Staff with a signature shader (Holonet Feed), saber trail on: run, switch 
 test: and swing at once: no streak or blade copy back where the second blade went out.
 test: Same with dual sabers, and a single saber turned off and on while running.
 
+[forge-craft-flicker]
+area: Menus & settings
+title: Forge Craft no longer flickers on its last lines (#117)
+change: The Collection page holds 4096 draw commands (was 2048), the UI 32768 vertices.
+test: ui_menuPictures 1, Collection > Forge > Craft, grid (V): scroll to the Legendary lines.
+test: Stay a few seconds on each line to the end: no flicker, detail and key hints stay.
+test: Same in the list view and with ui_menuPictures 0.
+
+[holonet-flecks-once]
+area: Menus & settings
+title: Holonet Feed lists Data flecks once (#115)
+change: A part and a section of one name are one switch (Power Coupling's Sparks too).
+test: Collection > Shaders > Holonet Feed: Data flecks shows once among its parts.
+test: Switch Data flecks off: the flecks beside the blade and the motes round it both go.
+
 [hax-fixes]
 area: Gameplay
 title: Hax: hackable after a teleport or respawn, and after a map change

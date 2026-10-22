@@ -137,8 +137,10 @@ use levelshot::LevelshotTexture;
 /// SJK's emblem, scaled into one icon cell at start.
 const SJK_EMBLEM: &[u8] = include_bytes!("../../../assets/branding/sjk-logo-512.png");
 
-/// Shape vertices one frame may draw (six per quad), across every layer.
-const MAX_SHAPE_VERTICES: usize = 16_384;
+/// Shape vertices one frame may draw (six per quad), across every layer: the Collection alone
+/// may fill its [`crate::console::collection_panel::DRAW_COMMANDS`] (#117: its Forge reached
+/// about 11 600 vertices with its swatches drawn, under the 16 384 of before by little).
+const MAX_SHAPE_VERTICES: usize = 32_768;
 
 /// `parameters.y` value that selects the arc shader path (`ui_shapes.wgsl`).
 const ARC_MODE: f32 = 3.0;

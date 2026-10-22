@@ -336,7 +336,16 @@ impl Signature {
         for (section, plain) in sections {
             if def.has(section) {
                 let name = self.meta(section.name()).unwrap_or(plain);
-                options.push(option(name, section.name()));
+                // A section named like an option already listed is the same thing to the
+                // wearer (#115: Holonet Feed's own flecks and its file's motes are both "Data
+                // flecks", Power Coupling's sparks and embers both "Sparks"): one switch for both.
+                match options
+                    .iter_mut()
+                    .find(|listed| listed.name.eq_ignore_ascii_case(name))
+                {
+                    Some(listed) => listed.sections.push(section.name().to_owned()),
+                    None => options.push(option(name, section.name())),
+                }
             }
         }
         options.push(option("Swing and clash bursts", "pulse"));
@@ -849,6 +858,38 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// #115 (Rollembones): Holonet Feed listed "Data flecks" twice, its own part and its
+    /// file's motes under the same name. No signature lists a name twice; a part and a
+    /// section of one name are one switch for both.
+    #[test]
+    fn no_signature_lists_an_option_name_twice() {
+        use crate::blade_skin_file::extras::{Section, option_bit};
+        for signature in &SIGNATURES {
+            let def =
+                crate::blade_skin_file::parse(signature.id, signature.default_file()).unwrap();
+            let names: Vec<String> = signature
+                .shown(&def)
+                .options
+                .iter()
+                .map(|option| option.name.to_lowercase())
+                .collect();
+            for (index, name) in names.iter().enumerate() {
+                assert!(
+                    !names[..index].contains(name),
+                    "{}: {name:?} twice",
+                    signature.id
+                );
+            }
+        }
+        let signature = of("saber_holonet_feed").unwrap();
+        let def = crate::blade_skin_file::parse(signature.id, signature.default_file()).unwrap();
+        let shown = signature.shown(&def);
+        assert_eq!(
+            shown.off_mask(option_bit("data_flecks")),
+            Section::Glitch.bit() | Section::Motes.bit()
+        );
     }
 
     /// The Sun's parts keep the ids they had before it was a signature (11/10/2026), so a

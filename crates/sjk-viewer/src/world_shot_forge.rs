@@ -543,3 +543,39 @@ fn duel6_sjk_forge_windows() {
         }
     });
 }
+
+/// #117 (Nib: the Forge flickered on the last lines of Craft): its grid with every swatch
+/// drawn (the menu pictures on), on each line from the Rare ones to the last, through a few
+/// seconds of their animation, never fills the page's draw commands. With 2 048 the
+/// Legendary lines took up to about 2 100 on some frames, which dropped the last ones.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_forge_drawn_swatches_fit() {
+    on_big_stack(|| {
+        let Some(mut gpu) = open_forge([1920, 1080], holdings(), data(320, true), Section::Craft)
+        else {
+            return;
+        };
+        if let Some(console) = gpu.console.as_mut() {
+            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
+            let _ = console.set_cvar(crate::menu_pictures::CVAR, "1");
+        }
+        for chosen in (60..=160).step_by(10) {
+            set(
+                &mut gpu,
+                Section::Craft,
+                holdings(),
+                data(320, true),
+                chosen,
+                (false, false, false),
+            );
+            for step in 0..24 {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.preview_collection(Some(holdings()), step as f32 * 0.137);
+                }
+                let _ = frame(&mut gpu, 1);
+                assert!(!overflowed(&gpu), "shader {chosen} at step {step}");
+            }
+        }
+    });
+}
