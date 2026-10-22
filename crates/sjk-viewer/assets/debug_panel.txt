@@ -34,6 +34,9 @@ test: Join a JoF server with SJK chat on: the card shows once over the game menu
 test: Rejoin: no card. Open chat, pick SJK: the red note shows above the field.
 test: Say something on SJK: a non-SJK client sees "SJK text"; you see it once, ALL/SJK.
 test: Same on a non-JoF server or in the menus: nothing in All chat, line labelled SJK.
+test: On JoF, send a GIF (or sjkgif 1): it stays in SJK chat, labelled SJK.
+test: SJK chat page on JoF: Send only in SJK (hover card explains); line stays SJK only.
+test: As staff, Shift+Enter in the composer or page: SJK only, nothing in All chat.
 note: Milamber's PR #194, moved into JoF tools at JoF's request.
 
 [hax-rain]

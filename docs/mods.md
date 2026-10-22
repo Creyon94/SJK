@@ -250,6 +250,18 @@ So players used to a private SJK chat are not misled:
 - **The note.** While the in-game composer is on the SJK channel there, a small red box
   on the channels' row reads "Also said in All chat: everyone on this server reads it".
 
+What stays in SJK chat only, even there (Sol, 22/10/2026):
+
+- **GIFs.** A message with a GIF (a GIPHY link, a favourite sent with `sjkgif`) is never
+  said on the server: its link would only spam the server's other players
+  (`player_identity::may_go_to_server`).
+- **Send only in SJK.** The SJK chat page offers every player a Send only in SJK button
+  under Send while copies apply; its hover card says JoF asked for SJK chat to be said
+  in All chat so the community does not split, so a message only in SJK should be
+  justified (`player_identity::chat_sjk_only`).
+- **Staff's Shift.** A staff key holding Shift while sending (Shift+Enter in the in-game
+  composer or on the page) sends only in SJK.
+
 ### Destruction client controls
 
 Destruction's contract, name, installed icon and capability policy live in

@@ -43,6 +43,9 @@ const FIELD_Y: f32 = 900.0;
 const FIELD_WIDTH: f32 = 936.0;
 const GIF_X: f32 = LIST_X + FIELD_WIDTH + 16.0;
 const SEND_X: f32 = LIST_X + 1_060.0;
+/// Send only in SJK, under GIF and Send, left of Retry.
+const ONLY_WIDTH: f32 = 200.0;
+const ONLY_X: f32 = SEND_X - 12.0 - ONLY_WIDTH;
 /// The keys' line.
 const KEYS_Y: f32 = 1_010.0;
 /// The who-is-online window: its left, top and width (its height follows what it
@@ -302,6 +305,7 @@ impl Panel {
         self.chosen(&frame, inputs, measure, bottom + CHOSEN_GAP);
         self.keys(&frame);
         self.card(&frame, inputs, measure, viewport);
+        self.only_hover(&frame, inputs);
         if !self.order.contains(&self.focus) {
             self.focus = FIELD_TOKEN;
         }
@@ -912,6 +916,38 @@ impl Panel {
         );
     }
 
+    /// Send only in SJK's hover card, over the page: why it should stay rare.
+    fn only_hover(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
+        let now = Instant::now();
+        self.hover.follow(self.ui.hovered(), now);
+        let Some(words) = inputs.said_in_all else {
+            return;
+        };
+        let Some((ONLY_TOKEN, alpha)) = self.hover.showing(now) else {
+            return;
+        };
+        let Some(anchor) = self.ui.rect_for(ONLY_TOKEN) else {
+            return;
+        };
+        let card = crate::menu::sjk::hover::Card {
+            title: words.only_title.to_owned(),
+            colour: color::EMBER,
+            lines: words
+                .only_why
+                .iter()
+                .enumerate()
+                .map(|(index, line)| {
+                    if index == 1 {
+                        crate::menu::sjk::hover::Line::how(*line)
+                    } else {
+                        crate::menu::sjk::hover::Line::status(*line)
+                    }
+                })
+                .collect(),
+        };
+        crate::menu::sjk::hover::draw(&mut self.ui, frame, anchor, &card, alpha);
+    }
+
     /// The field, Send, and what became of the last message.
     fn composer(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
@@ -971,6 +1007,22 @@ impl Panel {
             SEND_TOKEN,
         );
         self.order.push(SEND_TOKEN);
+        // Where a mod says SJK chat in this server's All chat: Send only in SJK, under
+        // GIF and Send, for every player; its hover card says to keep it rare.
+        self.only_for_staff = inputs.said_in_all.is_some() && inputs.staff;
+        if let Some(words) = inputs.said_in_all {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [ONLY_X, FIELD_Y + 52.0, ONLY_WIDTH, 34.0],
+                words.only,
+                false,
+                can_send,
+                self.focus == ONLY_TOKEN,
+                ONLY_TOKEN,
+            );
+            self.order.push(ONLY_TOKEN);
+        }
         let notice = inputs
             .chat
             .and_then(|chat| chat.outcome.as_ref())

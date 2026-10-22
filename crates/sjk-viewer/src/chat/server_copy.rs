@@ -47,6 +47,25 @@ pub(crate) fn take_said() -> Vec<(String, u64)> {
         .unwrap_or_default()
 }
 
+/// What a mod says while it says SJK chat in this server's All chat: the composer's red
+/// note, and the SJK chat page's Send only in SJK button with its hover card.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct SaidInAll {
+    pub(crate) note: &'static str,
+    pub(crate) only: &'static str,
+    pub(crate) only_title: &'static str,
+    pub(crate) only_why: &'static [&'static str],
+}
+
+/// [`SaidInAll`] for the SJK chat page, which the console draws without the frame's
+/// chat; set when it changes ([`ChatOverlay::set_said_in_all`]).
+static SAID_IN_ALL: Mutex<Option<SaidInAll>> = Mutex::new(None);
+
+/// Whether SJK chat is said in this server's All chat now, and the words for it.
+pub(crate) fn said_in_all() -> Option<SaidInAll> {
+    SAID_IN_ALL.lock().ok().and_then(|said| *said)
+}
+
 /// A message the hub took, ready to be said on the server: its text and id.
 pub(crate) type Copy = (String, u64);
 
@@ -247,14 +266,17 @@ impl ChatOverlay {
             .collect()
     }
 
-    /// Whether a mod says SJK chat in this server's All chat, with the note the field
-    /// shows then (`None`: not said there).
-    pub(crate) fn set_said_in_all(&mut self, note: Option<&'static str>) {
+    /// Whether a mod says SJK chat in this server's All chat, with the words the field
+    /// and the SJK chat page show then (`None`: not said there).
+    pub(crate) fn set_said_in_all(&mut self, words: Option<SaidInAll>) {
         // A world shot sets the note itself, with no session to say it on.
-        if note.is_none() && self.shown_for_shot() {
+        if (words.is_none() && self.shown_for_shot()) || self.said_in_all == words {
             return;
         }
-        self.said_in_all = note;
+        self.said_in_all = words;
+        if let Ok(mut said) = SAID_IN_ALL.lock() {
+            *said = words;
+        }
     }
 
     /// Nothing is said on this server: forget a message waiting for the hub.

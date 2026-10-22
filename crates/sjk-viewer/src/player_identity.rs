@@ -1069,12 +1069,31 @@ pub(crate) fn staff_state() -> Option<sjk_identity::StaffState> {
 /// it arrives in the chat's `outcome`. In a match, the game server's chat gets it too
 /// (`chat/server_copy.rs`).
 pub(crate) fn chat(text: String) -> bool {
+    send_chat(text, true)
+}
+
+/// [`chat`], but never said in the game server's chat: the SJK chat page's Send only in
+/// SJK, and staff's Shift+Enter. [`chat`] keeps a message with a GIF out of it too (`docs/mods.md`, "SJK chat on JoF servers").
+pub(crate) fn chat_sjk_only(text: String) -> bool {
+    send_chat(text, false)
+}
+
+/// Whether an SJK chat message may be said in the game server's chat too where a mod
+/// says SJK chat there: not one with a GIF, whose link would only spam the server's
+/// other players (Sol, 22/10/2026).
+fn may_go_to_server(text: &str) -> bool {
+    crate::chat_gifs::link::find(text).is_none()
+}
+
+fn send_chat(text: String, server_too: bool) -> bool {
     let runtime = lock();
     let Some(service) = runtime.service.as_ref() else {
         return false;
     };
-    let outcome = service.with_chat(|chat| chat.outcome.as_ref().map_or(0, |o| o.serial));
-    crate::chat::server_copy::note_said(&text, outcome);
+    if server_too && may_go_to_server(&text) {
+        let outcome = service.with_chat(|chat| chat.outcome.as_ref().map_or(0, |o| o.serial));
+        crate::chat::server_copy::note_said(&text, outcome);
+    }
     service.chat(text);
     true
 }
@@ -1387,6 +1406,17 @@ pub(crate) fn shutdown() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_message_with_a_gif_is_never_said_on_the_server() {
+        assert!(may_go_to_server("gg wp"));
+        assert!(!may_go_to_server(
+            "hello https://giphy.com/gifs/hello-wave-ShotGifWide01"
+        ));
+        assert!(!may_go_to_server(
+            "https://i.giphy.com/ShotGifSquare02.gif nice"
+        ));
+    }
 
     #[test]
     fn only_the_players_own_key_id_stays_off_screen() {

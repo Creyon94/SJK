@@ -22,12 +22,23 @@ pub const NOTICE_PARAGRAPHS: [&str; 3] = [
      server's All chat, so every player on the server reads it, whatever client they \
      use.",
     "JoF asked for this so that SJK chat does not split their players away from All \
-     chat. Elsewhere, and in the menus, SJK chat stays as it was.",
+     chat. Messages with a GIF stay in SJK chat only. Elsewhere, and in the menus, SJK \
+     chat stays as it was.",
     "Lines said in both show once, marked ALL/SJK; lines only in SJK chat are marked \
      SJK. While you type in SJK chat here, a red note above the field reminds you.",
 ];
 /// The red note above the in-game chat field while the SJK channel is picked.
 pub const COMPOSER_NOTE: &str = "Also said in All chat: everyone on this server reads it";
+/// The SJK chat page's button that sends one message to SJK chat only, for every
+/// player, and its hover card: why it should stay rare.
+pub const ONLY_SJK: &str = "Send only in SJK";
+pub const ONLY_SJK_TITLE: &str = "Only in SJK chat";
+pub const ONLY_SJK_WHY: [&str; 3] = [
+    "Sends this message to SJK chat only: the server's All chat does not get it.",
+    "JoF asked for SJK chat to be said in All chat so the community does not split. \
+     Keep messages only in SJK for when that is justified.",
+    "Staff: Shift+Enter sends only in SJK from any chat field.",
+];
 
 /// The `say` commands that put an SJK chat message the hub took (its `id`) in the game
 /// server's chat, each after [`SJK_COPY_TAG`] and ended with its marker. A server keeps

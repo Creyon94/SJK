@@ -153,7 +153,7 @@ pub(crate) struct ChatOverlay {
     server_copies: server_copy::ServerCopies,
     /// While a mod says SJK chat in this server's All chat (`sjk_chat_frame.rs`), the
     /// red note above the field when the SJK channel is picked.
-    said_in_all: Option<&'static str>,
+    said_in_all: Option<server_copy::SaidInAll>,
     /// Whether SJK messages join the in-game general chat feed (`cl_sjkChatFeed`).
     sjk_feed_visible: bool,
     /// Whether the lines with a GIF read "GIF" and show it (`cl_sjkChatGifs`), or keep

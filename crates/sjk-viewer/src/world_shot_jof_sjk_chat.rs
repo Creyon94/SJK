@@ -11,6 +11,16 @@
 use super::*;
 use sjk_mod_jof::sjk_chat;
 
+/// JoF tools' words while SJK chat is said in All chat, as the frame sets them.
+fn words() -> crate::chat::server_copy::SaidInAll {
+    crate::chat::server_copy::SaidInAll {
+        note: sjk_chat::COMPOSER_NOTE,
+        only: sjk_chat::ONLY_SJK,
+        only_title: sjk_chat::ONLY_SJK_TITLE,
+        only_why: &sjk_chat::ONLY_SJK_WHY,
+    }
+}
+
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn duel6_jof_sjk_chat_notice() {
@@ -106,7 +116,7 @@ fn duel6_jof_sjk_chat_feed() {
             "sjk",
         ));
         chat.sync_sjk(&state(all), |_| false, now);
-        chat.set_said_in_all(Some(sjk_chat::COMPOSER_NOTE));
+        chat.set_said_in_all(Some(words()));
         println!(
             "{}",
             shoot(&mut gpu, 12, "duel6-jof-sjk-chat-feed").display()
@@ -116,5 +126,38 @@ fn duel6_jof_sjk_chat_feed() {
             "{}",
             shoot(&mut gpu, 12, "duel6-jof-sjk-chat-typing").display()
         );
+    });
+}
+
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_jof_sjk_chat_page_only() {
+    on_big_stack(|| {
+        let menu = menu::ClientMenu::new(true, String::new());
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+        ];
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+        else {
+            return;
+        };
+        let _ = frame(&mut gpu, 10);
+        gpu.chat.for_shot = true;
+        gpu.chat.set_said_in_all(Some(words()));
+        let state = sjk_identity::ChatState {
+            loaded: Some(1),
+            ..sjk_identity::ChatState::default()
+        };
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_sjk_chat(state, None);
+            console.sjk_chat_only_for_shot("only for the SJK crew, sorry JoF");
+        }
+        println!(
+            "{}",
+            shoot(&mut gpu, 8, "duel6-jof-sjk-chat-page-only").display()
+        );
+        gpu.chat.for_shot = false;
+        gpu.chat.set_said_in_all(None);
     });
 }
