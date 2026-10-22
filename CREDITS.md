@@ -68,7 +68,9 @@ includes:
   Sol;
 - the JoF clan tag: the clan's emblem beside the names that carry its tag, in
   the chats, on the scoreboard and on player cards; the JAWA clan's tag with its
-  forum icon, a Jawa's hood (19/10/2026);
+  forum icon, a Jawa's hood (19/10/2026, read only as `(JAWA)` at the start of
+  the name since 22/10/2026); the {{S}} clan's tag with its red Sith emblem and
+  JoF's green logo (22/10/2026);
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha

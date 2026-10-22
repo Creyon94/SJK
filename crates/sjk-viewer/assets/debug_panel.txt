@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[clan-s-emblem]
+area: Console & chat
+title: {{S}} clan emblem, green JoF logo, JAWA only as (JAWA) first
+change: A name starting with {{S}} exactly gets the red Sith emblem; JoF's emblem is its green logo.
+change: JAWA's hood now needs (JAWA) at the very start of the name.
+test: Rename to {{S}}Test, say something: the red emblem sits left of your name in chat.
+test: Rename to {JoF}Test: the green J o F logo, not the teal one.
+test: Rename to (JAWA)Test: the hood. Then JAWA|Test and Test(JAWA): no emblem.
+test: Rename to {{s}}Test and Test{{S}}: no emblem. Check scoreboard and inspect (X) too.
+note: Both logos are small sources (80x93, 178x93): check they are not too soft at 4K.
+
 [hax-afk]
 area: Gameplay
 title: Hax: not on a player typing or away; softer rain
@@ -618,7 +629,7 @@ note: The deployed hub has no people list yet: expect Recently in chat for now.
 [clan-jawa]
 area: Console & chat
 title: JAWA clan emblem: a Jawa's hood beside names tagged JAWA
-change: (JAWA)Name, jawa|Name, [Jawa] Name and JAWAKen get the hood icon left of the name.
+change: (JAWA)Name gets the hood icon left of the name (only that form since 22/10).
 test: Rename to (JAWA)Test, say something: the brown hood sits left of your name in chat.
 test: Open the scoreboard (classic and SJK) and inspect yourself (X): the hood is there too.
 test: Rename to Jawad: no emblem.

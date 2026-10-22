@@ -535,18 +535,22 @@ the drawing. `cg_clanEmblems` (archived, default 1, Settings > HUD > Scoreboard 
 0 turns every emblem off.
 
 The clans are the entries of `jof_tag::KNOWN`, each with its tag, its emblem, its tint,
-the share of the emblem's square its ink spans and how a tag stuck to a name counts,
+the share of the emblem's square its ink spans and its rule (how its tag is read),
 with the reason and who asked; supporting a clan means adding an entry and its emblem
-(an icon atlas cell each, room for four; three are used). Longer tags come first, so `JoFA` is read
-before `JoF`.
+(an icon atlas cell each, room for four; all four are used, so a fifth clan needs
+`CLAN_ICON_CELLS` raised). Longer tags come first, so `JoFA` is read before `JoF`.
 
-| Clan | Tag | Emblem | Stuck to a name |
+| Clan | Tag | Emblem | Rule |
 | --- | --- | --- | --- |
-| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | with the tag's capitals and a capitalised word after it (`JoFAKen`) |
-| JAWA (Sol's request, 19/10/2026) | `JAWA` | `jawa-emblem.png`, the clan's forum icon (a Jawa's hood) in its own colours | with the tag's capitals and a capitalised word after it (`JAWAKen`; not `Jawad`) |
-| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, J o F, tinted in the teal of the clan's logo (`#02B99D`; crimson until 11/10/2026) | in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
+| JAWA (Sol's request, 19/10/2026) | `(JAWA)` | `jawa-emblem.png`, the clan's forum icon (a Jawa's hood) in its own colours | exact, at the start (Sol, 22/10/2026; letters before): `(JAWA)Ken`, not `JAWAKen`, `[Jawa] Ken` or `Ken(JAWA)` |
+| {{S}} (Sol's request, 22/10/2026) | `{{S}}` | `s-emblem.png`, the clan's red Sith emblem in its own colours | exact, at the start: `{{S}}Ken`, not `{{s}}Ken`, `{S}Ken` or `Ken{{S}}` |
+| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | letters; stuck to a name with the tag's capitals and a capitalised word after it (`JoFAKen`) |
+| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, the clan's green J o F logo in its own colours (Sol, 22/10/2026; a teal `#02B99D` J o F before, crimson until 11/10/2026) | letters; stuck to a name in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
 
-The rule, for every clan: the tag's letters in any case, with no letter right before the
+The exact rule: the name, colour codes dropped, starts with the tag exactly as written,
+case and signs included (`^3(JAWA)^7Ken` counts).
+
+The letters rule: the tag's letters in any case, with no letter right before the
 first (the name starts there or a separator comes first: a space, a bracket, a dot, a
 digit...). Colour codes are dropped first. `{JoF}Name`, `jof.Name`, `[JOF] Name`,
 `Name-JoF`, `^1J^7oF`, `JoFA}Ken`, `^5JoFA^7<3Toad` and `[jofa] Ken` count; `MrJoF` does
@@ -560,10 +564,9 @@ Where it shows: the game chat's lines with a sender (JA+ lines too, since 16/10/
 dock and chat page, the scoreboard (classic and SJK, list rows and duel cards), the player
 card (`inspect`) and the SJK UI Players page's card. Not on nameplates.
 
-The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)):
-JoF's rendered from the clan's SVG path by `scripts/jof_emblem.py`, the academy's shrunk
-from its HD logo (1295 by 1214) by `scripts/clan_emblem.py` (cropped to its ink, centred
-and scaled with Lanczos on premultiplied alpha).
+The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)),
+each shrunk (or enlarged) from the clan's logo by `scripts/clan_emblem.py` (cropped to its
+ink, centred and scaled with Lanczos on premultiplied alpha).
 
 ## Unlocks and looks
 

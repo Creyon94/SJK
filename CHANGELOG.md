@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Clan emblems: names starting with {{S}} get the clan's red Sith emblem, the JoF emblem is now the clan's green logo, and the JAWA emblem only shows for names starting with (JAWA) _(Sol)_
 - The Hax no longer hacks a player who is typing in the chat or away (still for minutes, alt-tabbed, or with an away tag in their name), and its digital rain is softer _(Sol)_
 - Encrypted whispers you send play their sound once the SJK hub takes them, and their line shows the recipient's SJK marks (emblem, verified tick, name emoji) as incoming ones do _(Sol)_
 - Changing map or server on a server unloads the old map before loading the next one, instead of holding both on the graphics card for a moment: about 0.7 GB less at the worst moment, for players whose card ran out of video memory there (a map change takes about 2 s longer) _(Sol)_

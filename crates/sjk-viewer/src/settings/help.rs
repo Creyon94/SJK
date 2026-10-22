@@ -953,7 +953,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::jof_tag::CVAR,
-        "Shows a clan's emblem (JoF, JoFA, JAWA) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
+        "Shows a clan's emblem (JoF, JoFA, JAWA, {{S}}) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
     ),
     (
         "cg_drawScoreboardIcons",
