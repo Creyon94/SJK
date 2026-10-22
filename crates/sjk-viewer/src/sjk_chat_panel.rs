@@ -155,6 +155,8 @@ pub(crate) struct Panel {
     owns_console: bool,
     ui: MenuCanvas,
     draft: String,
+    /// The caret in `draft` ([`crate::sjk_chat_field::caret_key`]).
+    pub(crate) caret: crate::console::line_edit::LineEdit,
     /// The last message handed to the hub, which Retry sends again.
     last_sent: String,
     /// The control the keyboard is on, by its token.
@@ -221,6 +223,7 @@ impl Panel {
             owns_console: false,
             ui: MenuCanvas::with_capacities(260, 160, 1_600),
             draft: String::new(),
+            caret: crate::console::line_edit::LineEdit::default(),
             last_sent: String::new(),
             focus: FIELD_TOKEN,
             order: Vec::with_capacity(64),
@@ -452,6 +455,7 @@ impl Panel {
             match gif_picker::with_gif(&self.draft, &id) {
                 Some(draft) => {
                     self.draft = draft;
+                    self.caret.to_end(&self.draft);
                     self.gifs.close();
                     self.focus = FIELD_TOKEN;
                 }
@@ -863,11 +867,22 @@ impl Panel {
             }
             KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(self.focus),
             KeyCode::Space if !typing => return self.activate(self.focus),
-            KeyCode::Backspace if typing => {
-                self.draft.pop();
-            }
+            _ if typing
+                && crate::sjk_chat_field::caret_key(
+                    &mut self.draft,
+                    &mut self.caret,
+                    key,
+                    control,
+                ) => {}
             _ if typing => {
-                crate::sjk_chat_field::key_into(&mut self.draft, key, text, shift, control);
+                crate::sjk_chat_field::key_at(
+                    &mut self.draft,
+                    &mut self.caret,
+                    key,
+                    text,
+                    shift,
+                    control,
+                );
             }
             _ => {}
         }

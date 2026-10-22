@@ -1179,6 +1179,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Text,
     },
     Setting {
+        label: "Encrypted whispers",
+        cvar: crate::e2e_whispers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Send crash reports",
         cvar: crate::crash_report::CVAR,
         kind: ValueKind::Bool,

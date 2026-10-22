@@ -234,16 +234,32 @@ pub trait Hub: Send {
         ))
     }
     /// The relayed toy events after `after` for the identity's own slot on `server`,
-    /// waiting up to `wait` seconds for one (`PROTOCOL.md`, "Toy relay").
+    /// waiting up to `wait` seconds for one (`PROTOCOL.md`, "Toy relay"); with
+    /// `whispers`, also the encrypted whispers sealed to the identity ("Whispers").
     fn relay_read(
         &mut self,
         _identity: &Identity,
         _server: &str,
         _after: u64,
         _wait: u64,
+        _whispers: bool,
     ) -> Result<RelayBatch, HubError> {
         Err(HubError::Protocol(
             "this hub client does not read the toy relay".to_owned(),
+        ))
+    }
+    /// Send the encrypted whisper `boxed`, sealed to the key `to`, to the player in slot
+    /// `target` of `server` (`PROTOCOL.md`, "Whispers"); the hub answers with its id.
+    fn whisper_send(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _target: u8,
+        _to: &str,
+        _boxed: &str,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send whispers".to_owned(),
         ))
     }
     /// Tell the hub which player models the game has (`PROTOCOL.md`, "Models"); the
@@ -1525,12 +1541,29 @@ impl Hub for HttpHub {
         server: &str,
         after: u64,
         wait: u64,
+        whispers: bool,
     ) -> Result<RelayBatch, HubError> {
         let path = format!(
-            "/v1/relay?after={after}&wait={wait}&server={}",
-            encode_server(server)
+            "/v1/relay?after={after}&wait={wait}&server={}{}",
+            encode_server(server),
+            if whispers { "&whispers=1" } else { "" }
         );
         parse(self.send(Some(identity), "GET", &path, None)?)
+    }
+
+    fn whisper_send(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        target: u8,
+        to: &str,
+        boxed: &str,
+    ) -> Result<u64, HubError> {
+        let body = json!({ "server": server, "target": target, "to": to, "box": boxed });
+        let answer = self.send(Some(identity), "POST", "/v1/whisper", Some(body))?;
+        answer["id"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the whisper answer has no id".to_owned()))
     }
 
     fn vitals(

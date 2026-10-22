@@ -78,6 +78,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
     ),
     (
+        crate::e2e_whispers::VERIFY_COMMAND,
+        "Show the safety code of your encrypted whispers with a player, to compare with them: whisper_verify <player>",
+    ),
+    (
         crate::player_ids::CLIENT_LIST_COMMAND,
         crate::player_ids::CLIENT_LIST_HELP,
     ),
@@ -744,12 +748,16 @@ impl crate::GpuState {
         Ok(vec![format!("In step with {name}")])
     }
 
-    /// Open stock targeted chat using authoritative damage and retained crosshair state.
+    /// Open stock targeted chat using authoritative damage and retained crosshair state;
+    /// while following a player, `messagemode3` whispers to them ([`whisper_slot`]).
     pub(crate) fn targeted_chat(&mut self, attacker: bool) {
         if let Some(session) = &self.live_session {
             let snapshot = session.latest_snapshot();
             let slot = if !attacker {
-                self.crosshair_scan.chat_client(snapshot.server_time)
+                whisper_slot(
+                    &snapshot.player,
+                    self.crosshair_scan.chat_client(snapshot.server_time),
+                )
             } else {
                 self.damage_feedback
                     .has_attacker()
@@ -951,6 +959,7 @@ impl crate::GpuState {
                 );
             }
             "reply" => return self.reply_command(args),
+            crate::e2e_whispers::VERIFY_COMMAND => return self.whisper_verify_command(args),
             crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {
                 let session = self
                     .resident
@@ -1233,8 +1242,34 @@ impl crate::GpuState {
     }
 }
 
+/// `PMF_FOLLOW` (`bg_public.h`): the player state is the followed player's.
+const PMF_FOLLOW: u16 = 4096;
+
+/// Who `messagemode3` whispers to: while following a player (spectating, `PMF_FOLLOW`),
+/// the player followed, as EternalJK's `Con_MessageMode3_f` sends to
+/// `cl.snap.ps.clientNum` (`cl_console.cpp:121`); else the player under the crosshair
+/// (`crosshair`). Kushina's report, 22/10/2026: the bind did nothing while spectating.
+fn whisper_slot(player: &sjk_protocol::PlayerState, crosshair: Option<u16>) -> Option<u16> {
+    if player.movement_flags() & PMF_FOLLOW != 0 {
+        Some(player.client_num())
+    } else {
+        crosshair
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_whisper_bind_goes_to_the_followed_player_while_spectating() {
+        let mut player = sjk_protocol::PlayerState::default();
+        player.set_client_num(5);
+        assert_eq!(super::whisper_slot(&player, Some(2)), Some(2));
+        assert_eq!(super::whisper_slot(&player, None), None);
+        player.set_movement_flags(super::PMF_FOLLOW);
+        assert_eq!(super::whisper_slot(&player, None), Some(5));
+        assert_eq!(super::whisper_slot(&player, Some(2)), Some(5));
+    }
     use super::*;
 
     fn import_path(command: &str) -> Option<String> {

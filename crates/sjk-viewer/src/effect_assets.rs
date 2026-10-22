@@ -56,6 +56,8 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "thermal/shockwave",
     // Order 66's confetti (`order66.rs`), bundled with the client.
     "sjk/order66_confetti",
+    // The Hax's digital rain round a hacked player (`hax.rs`), bundled with the client.
+    "sjk/hax_glyphs",
     "concussion/explosion",
     "sparks/spark_nosnd",
     "bryar/shot",

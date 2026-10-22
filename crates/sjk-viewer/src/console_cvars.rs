@@ -985,6 +985,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play silent MP4 clips from trusted SJK chat sources with Windows' built-in decoder (off by default: Windows code, not SJK's Rust, reads these internet files)",
         ),
         CvarDefinition::new(
+            crate::e2e_whispers::CVAR,
+            true,
+            archive,
+            "Whisper other SJK players end-to-end encrypted through the SJK hub: only the two of you can read it (0 sends every whisper through the game server)",
+        ),
+        CvarDefinition::new(
             crate::chat_gifs::search::KEY_CVAR,
             "",
             archive,

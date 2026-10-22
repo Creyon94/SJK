@@ -247,8 +247,8 @@ feed: the hub took them, so the sound says the message went out.
   lock again, and a lock held while drawing froze the game.
 - Pasting (Sol's request, 10/10/2026): Ctrl+V, or Shift+Insert as in the console and
   the game's chat, pastes the clipboard's text into the page's field and the docks'
-  (main page and in-game menu), through the console's clipboard tools. The fields have
-  no caret to move, so the text goes at the end, where typing goes. It is kept as the
+  (main page and in-game menu), through the console's clipboard tools, at the caret,
+  where typing goes. It is kept as the
   hub would take it ([sjk_chat_field.rs](../crates/sjk-viewer/src/sjk_chat_field.rs)):
   line breaks, tabs and other spaces become one space and a run of them one, characters
   outside the message alphabet (`chat_characters`: emoji, `{ }`, `\`, what prints
@@ -257,9 +257,17 @@ feed: the hub took them, so the sound says the message went out.
   are not filtered, as before; the rules still refuse what was typed before sending.
   Ctrl+A selects the whole draft (typing or a paste then replaces it, Backspace clears
   it) and Ctrl+C copies it, on the page's field and the GIF picker's; Ctrl+X does
-  nothing (no caret, no partial selection). The game's
+  nothing (no partial selection). The game's
   own chat composer (`messagemode`, SJK channel included) already had all four, with a
   caret and a selection ([chat/editing.rs](../crates/sjk-viewer/src/chat/editing.rs)).
+- The caret (Rollembones' report, 22/10/2026): the page's and the docks' fields move it
+  as the console does ([console_line_edit.rs](../crates/sjk-viewer/src/console_line_edit.rs)):
+  Left and Right by a character, Ctrl+Left and Ctrl+Right by a word, Home and End to
+  the ends; typing and pasting go in at it, Backspace and Delete (Ctrl: a word) take
+  what is before or after it. The page draws it as `|` (blinking at the end, steady
+  inside the text) and the docks as `_` at the end and `|` inside; a long draft shows
+  its end, or the part from the caret on when the caret is further back. The GIF
+  picker's search keeps its caret at the end.
 
 ## GIFs from GIPHY
 
@@ -1026,13 +1034,101 @@ hub and the game server as the feed does:
   on), the reading thread keeps `GET /v1/relay?server=..&after=..&wait=20` open: the hub
   answers as soon as an event for the reader's own claimed slot comes. The first read
   (`after=0`) only learns the last id; another server or hub starts afresh, a failure
-  waits 0.5 seconds, doubled up to 10. The events go to a queue the viewer takes once a
+  waits 0.5 seconds, doubled up to 2 (under the 3 seconds the hub keeps an event). The events go to a queue the viewer takes once a
   frame (`Service::take_relay_events`), with the server they were read for.
 
 The hub keeps an event 3 seconds, in memory, and gives it only to its target. As with
 toy events, a reader applies one only when the game shows, in the sender's slot, the
 name the claim was made under, never from a player blocked here, and decides itself
 what it may do.
+
+## Encrypted whispers
+
+Whispers between two SJK players on the same game server go through the hub end-to-end
+encrypted (since 22/10/2026, Sol's request: on by default, `cl_e2eWhispers`), so only
+the two of them can read them: not the game server, its admins or logs, and not the hub.
+The hub's side is Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Whispers".
+
+**Decisions (Sol, 22/10/2026).** When the hub cannot take an encrypted whisper, a card
+asks before sending it unencrypted through the game server (never silently). Encrypted
+whispers show in their own soft pink, apart from the plain whisper's lilac, with their
+own sound. What players are told is what it is: end-to-end encrypted through the SJK
+hub, only the two of them can read it; nothing more.
+
+**The cryptography** ([whisper.rs](../crates/sjk-identity/src/whisper.rs)). Each message
+is sealed to the recipient's identity key (Ed25519, turned into X25519 by its Montgomery
+form): a fresh X25519 key per message, HKDF-SHA256 of the shared secret (salt: the fresh
+key and the recipient's key) for a ChaCha20-Poly1305 key used once, the sender's key as
+associated data. Inside, the sender signs with their identity key the recipient's key,
+the game server, the time and the text, so the hub cannot write a whisper in someone's
+name, move one to another player or server, or replay an old one (a reader refuses one
+more than 10 minutes from its clock). New dependencies: `chacha20poly1305`, `hkdf`,
+`curve25519-dalek` (already under `ed25519-dalek`).
+
+**Who takes them.** While `cl_e2eWhispers` and `cl_identity` are on and the player is on
+a game server, the toy relay's reader (the [Toy relay](#toy-relay)'s
+`sjk-hub-relay-read`) keeps its long poll open with `whispers=1`, whether or not a toy
+listens. The hub then gives the reading key in the player's presence as `whisper_key`,
+for 45 seconds after each read. Presence is read every 15 seconds, so a player is known
+to take them a few seconds to 15 after joining. A client that only speaks the SJK chat
+(another client built on the hub's protocol) never asks, so it has no `whisper_key` and
+whispers to it go through the game server as before, without the card. Asking with
+`whispers=1` promises to open box format 1 (`whisper.rs`); a client that cannot must
+not ask, or the whispers sealed to it are lost.
+
+**Sending** ([e2e_whispers.rs](../crates/sjk-viewer/src/e2e_whispers.rs)). Every whisper,
+from the composer, `tell` or `reply`, reaches `send_chat_command` after its
+substitutions and colours. When the recipient's slot has a claim under the name the game
+shows there with a `whisper_key`, the text after `tell <slot>` is handed to the identity
+service (`Service::send_whisper`), and the game server gets nothing. The relay's sending
+thread seals it (`whisper::seal`) and posts `POST /v1/whisper` before any toy frame. The
+hub refuses it when the recipient no longer reads with that key (409 `not_listening`),
+over 2 a second or 30 a minute (429), and keeps it 60 seconds in memory for the
+recipient's next read. When the hub took it, the feed shows "To <name>" with ENCRYPTED
+and the text in pink, and the console `To <name> (encrypted): <text>`. When it did not
+(or no answer came within 10 seconds), the [Encrypted whisper
+card](sjk-ui.md#encrypted-whisper) opens over the game menu and asks; Send unencrypted
+sends the same `tell` to the game server. A whisper to a verified player whose key
+changed goes the same way, before anything is sent.
+
+**Receiving.** The reader opens each whisper with the player's key (`whisper::open`) on
+its own thread; the viewer takes them once a frame (`Service::take_whispers`) and shows
+one only when the game shows, in the sender's slot, the name the claim was made under,
+not from the player's own slot and never from a player blocked here. It goes to the
+feed in pink with the sender's name and ENCRYPTED, to the console as `<name>
+(encrypted): <text>`, plays the encrypted whisper's sound (under `cg_chatSounds`) and
+becomes the whisper `reply` answers. One that does not open is thrown away with a
+console line saying why.
+
+**Keys remembered.** The hub hands out the keys, so a hub that lied could read what is
+sealed to its own key. Each PC remembers the keys it has seen per player
+(`whisper-keys.txt` beside `config.cfg`, `key_id key` lines, at most 8 per player; one
+player's keys are those of each of their PCs, [linked keys](identity.md)), and the
+console says when a whisper goes to or comes from a key not seen before for a known
+player.
+
+**Safety codes (optional, Sol's decision 22/10/2026).** The first whisper to someone
+still trusts the key the hub gave. A player who wants proof compares a safety code
+with the other outside the game (voice, Discord, in person): twelve digits from both
+keys (`whisper::safety_code`, SHA-256 of the two keys in order, 60 bits), the same on
+both screens, and different if the hub handed out a key of its own. The chat's player
+card (resting the pointer on a name with the composer open) has a Safety code button
+for a player who takes encrypted whispers, and `whisper_verify <player>` opens the same
+[card](sjk-ui.md#encrypted-whisper). Mark verified keeps their key in
+`whisper-verified.txt` (`key_id key` lines, never sent). Their whispers then say
+VERIFIED instead of ENCRYPTED. Once their key is no longer the one checked, nothing
+goes encrypted to them without the card asking (it offers the game server, as for a
+refused whisper), and a whisper from the new key comes with a red console warning to
+compare the code again. Remove the check forgets it.
+
+**The composer** says "To <name> (encrypted)" in the pink when the recipient takes
+encrypted whispers (`ChatOverlay::set_encrypted_slots`, from presence, when it changes).
+
+**Limits.** Only on the same game server, both players on SJK with the identity on. The
+hub sees who whispers to whom, when, and how long the box is. A whisper not read
+within 60 seconds, or held when the hub restarts, is lost without the sender knowing
+(the hub had taken it). Staff cannot read whispers to judge a report; a recipient can
+show one, signed by its sender, but nothing sends that yet.
 
 ## Vitals
 
@@ -1088,6 +1184,13 @@ request, the player's IP address; opening the Search tab with nothing typed asks
 GIPHY's trending GIFs. No name, SJK key or cookie is sent. Favourites stay on this PC
 (`gif-favourites.txt`, GIPHY ids or approved-source HTTPS links) and are never sent; Seen in chat and Favourites
 ask GIPHY only for the GIFs themselves.
+
+Encrypted whispers ([Encrypted whispers](#encrypted-whispers)): with `cl_e2eWhispers` on,
+on a game server, the hub learns that the player takes them (their key, in presence)
+and, for each whisper, the sender, the recipient's slot and key, when, and the sealed
+box's length, never its text. It keeps a whisper 60 seconds in memory. The keys seen
+for each player stay on this PC (`whisper-keys.txt`, and the checked ones in
+`whisper-verified.txt`) and are never sent.
 
 ## Verification
 

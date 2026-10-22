@@ -26,6 +26,26 @@ populated-match performance remain unverified.
 and ignored asset/GPU/integration cases. Dev/test debug information and
 incremental compilation were disabled.
 
+## Encrypted whispers
+
+22/10/2026, `personal/e2e-whispers`, based on `main` `0279b8f3`, with the hub's side on
+Sol-Vulpes/SJK-hub branch `e2e-whispers` (not deployed). Whispers between two SJK players
+go through the hub sealed to the recipient's identity key (X25519 from the Ed25519 key,
+HKDF-SHA256, ChaCha20-Poly1305, signed inside by the sender), on by default
+(`cl_e2eWhispers`); a card asks before sending one the hub refused unencrypted; their own
+pink, ENCRYPTED label and sound; keys remembered per player (`whisper-keys.txt`);
+optional safety codes to compare outside the game (player card, `whisper_verify`),
+verified players' whispers labelled VERIFIED and guarded when their key changes
+([hub-chat.md](hub-chat.md#encrypted-whispers)). The hub's relay ids now start at 2, so a
+fresh reader is never told `next` 0 (which made it miss the first event after a restart).
+Verified on Windows 11: `cargo fmt`, `cargo build`, `cargo test --workspace` (sjk-viewer
+2773, sjk-identity 175 passed: seal/open, forgery, tampering, moving to another server or
+key, replay window, key pins, the relay's sending and reading of whispers), `cargo clippy`
+(no new warnings in the touched lines); the hub's `cargo test` (331 + 149 API tests,
+`whispers_reach_the_listening_key_only` among them); the world shot
+`encrypted_whisper_shots` (chat lines and the card), looked at. Not verified: between two
+running clients through a deployed hub, the sound by ear.
+
 ## Kyber crystals (client)
 
 21/10/2026, `personal/kyber-crystals`, based on `main` `775c4e8b` (Sol's decisions; the

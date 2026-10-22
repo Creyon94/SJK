@@ -30,6 +30,17 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= cl_e2eWhispers: New: whispers between SJK players go end-to-end encrypted through the SJK hub, so only the two of you can read them.
+
+- A hacked player is now wreathed in a green digital rain of falling numbers and symbols while the Hax steers them, so everyone can see who is hacked _(Sol)_
+- End-to-end encrypted whispers: a whisper to another SJK player goes through the SJK hub sealed to their key, so only the two of you can read it, not the game server or the hub. It shows in its own pink, marked ENCRYPTED, with its own sound, and the composer says "(encrypted)" before you send. If the hub cannot take it, a card asks before sending it unencrypted through the game server. Optionally, compare a safety code with the other player outside the game (Safety code on their player card in the chat, or `whisper_verify`): verified players' whispers say VERIFIED, and SJK warns you if their key changes. Settings > Network > Encrypted whispers (`cl_e2eWhispers`) _(Sol)_
+- The SJK chat's field (its page and the main page's and game menu's chat) has a caret you move with the arrows (Ctrl for a word), Home and End: type, paste or delete anywhere in the message, not only at its end _(Sol, after Rollembones' report)_
+- `cg_thirdPersonRange` and the other third-person camera cvars work again after Camera control has set the camera: a value typed in the console or bound to a key takes effect at once, as in EternalJK _(Sol, after Rollembones' report)_
+- While following a player as a spectator, the whisper key (U, `messagemode3`) whispers to the player you follow, as in JoF EternalJK _(Sol, after Kushina's report)_
+- Switching sabers no longer leaves a streak of the blade's trail, or its shader's afterimages, from where a blade went out to where it lights again _(Sol, after Foshin's report)_
+- The Forge no longer flickers on the last lines of Craft: with their saber shaders drawn, its Legendary and Mythical lines asked more of the page than it held, and it dropped part of some frames _(Sol, after Nib's report)_
+- Holonet Feed lists its Data flecks once in the Collection: its own flecks and the motes round it, both named Data flecks, were two switches; one now turns both, and Power Coupling's Sparks likewise _(Sol, after Rollembones's report)_
+- The Hax works after a teleport or a respawn: a player who had teleported, or respawned, an odd number of times could not be hacked. A map change no longer leaves a long "Hax again" wait or a player who cannot be hacked, and a hack started just after joining is no longer lost _(Sol, after Sol's report)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1022.2 (Alpha) | 22/10/2026

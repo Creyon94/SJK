@@ -437,6 +437,7 @@ impl Panel {
                     place: crate::sender_card::Place::Unknown,
                     avatar: None,
                     note: None,
+                    safety: false,
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -872,6 +873,7 @@ impl Panel {
                 place: crate::sender_card::Place::Unknown,
                 avatar: version,
                 note: Some(note),
+                safety: false,
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -914,22 +916,26 @@ impl Panel {
     fn composer(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
         let focused = self.focus == FIELD_TOKEN;
-        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
-        let count = self.draft.chars().count();
-        let shown = if count > 96 {
-            let tail: String = self.draft.chars().skip(count - 93).collect();
-            format!("...{tail}")
-        } else if self.draft.is_empty() && !focused {
+        let blink = (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        let at = self.caret.cursor(&self.draft);
+        // The caret blinks at the end; inside the text it stays, so the text after it
+        // does not shift every half second.
+        let mark = if focused && (blink || at < self.draft.len()) {
+            "|"
+        } else {
+            ""
+        };
+        let shown = if self.draft.is_empty() && !focused {
             "Say something to every SJK player".to_owned()
         } else {
-            self.draft.clone()
+            crate::sjk_chat_field::with_caret(&self.draft, at, mark, 96)
         };
         let field = [LIST_X, FIELD_Y, FIELD_WIDTH, 46.0];
         kit::field(
             &mut self.ui,
             frame,
             field,
-            format_args!("{shown}{}", if caret { "|" } else { "" }),
+            format_args!("{shown}"),
             focused,
             false,
         );
@@ -972,7 +978,7 @@ impl Panel {
             .map(|outcome| outcome.message.as_str());
         let line = match notice {
             Some(why) => format!("Not sent: {why}"),
-            None => format!("{count} of {DRAFT_MAX}"),
+            None => format!("{} of {DRAFT_MAX}", self.draft.chars().count()),
         };
         text(
             &mut self.ui,
@@ -1413,6 +1419,8 @@ impl Panel {
                 card: CARD_TOKEN,
                 mute: CARD_MUTE_TOKEN,
                 ban: CARD_BAN_TOKEN,
+                // The safety code is only offered in the game's chat.
+                safety: CARD_TOKEN,
             },
         );
     }

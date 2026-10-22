@@ -98,6 +98,24 @@ impl Trail {
         self.initialized = true;
         quad
     }
+
+    /// Keep the edge of a blade that is out (`blade`, its length zero) without drawing,
+    /// as `CG_AddSaberBlade` does with `dontDraw` for a staff's extra blade or a second
+    /// saber switched off (`codemp/cgame/cg_players.c:14278-14293`, `8292-8556`): the
+    /// edge stays where the hilt is, so the first slice after the blade lights again
+    /// sweeps from there. Kept from where the blade went out instead, a swing within two
+    /// seconds drew one slice from that old place to the new one (hub report 116). SJK
+    /// does this for every blade, the primary too, which stock leaves stale.
+    pub(crate) fn hold(&mut self, blade: crate::saber::Blade, now: i64) {
+        if now <= self.last_time + 2 {
+            return;
+        }
+        let Edge { base, tip } = Edge::from_end(blade, edge::blade_end(blade));
+        self.base = base;
+        self.tip = tip;
+        self.last_time = now;
+        self.initialized = true;
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -441,6 +459,30 @@ mod tests {
             .expect("the first attack frame bridges from the remembered edge");
         assert_eq!(quad.vertices[3].position, [1.0, 0.0, 0.0]);
         assert_eq!(quad.lifetime_millis, 30);
+    }
+
+    #[test]
+    fn a_blade_lit_again_sweeps_from_its_hilt_not_from_where_it_went_out() {
+        let mut trail = Trail::default();
+        trail.update(edge(0.0), 1_000, 200, 0, color(), true);
+        // Out, while the wearer runs on: the edge follows the hilt.
+        for (step, at) in [(1_100, 50.0), (1_200, 100.0)] {
+            trail.hold(
+                crate::saber::Blade {
+                    base: [at, 0.0, 0.0],
+                    direction: [0.0, 0.0, 1.0],
+                    length: 0.0,
+                    radius: 1.0,
+                },
+                step,
+            );
+        }
+        let quad = trail
+            .update(edge(101.0), 1_210, 200, 0, color(), true)
+            .expect("a fresh slice");
+        let [_, _, old_tip, old_muzzle] = quad.vertices.map(|v| v.position);
+        assert_eq!(old_muzzle, [100.0, 0.0, 0.0]);
+        assert_eq!(old_tip, [100.0, 0.0, 4.0]);
     }
 
     #[test]

@@ -57,6 +57,9 @@ pub(crate) struct Person {
     /// A line on when they were about, from the place that shows the card ("Online
     /// now, in a match", "Seen 3 minutes ago"), or none.
     pub(crate) note: Option<String>,
+    /// They take encrypted whispers here: the card offers their safety code
+    /// (`e2e_whisper_card.rs`).
+    pub(crate) safety: bool,
 }
 
 impl Person {
@@ -105,6 +108,8 @@ pub(crate) struct Tokens {
     pub(crate) mute: u16,
     /// Ban 24 h, when offered ([`crate::chat_ban::offered`]).
     pub(crate) ban: u16,
+    /// Safety code, when [`Person::safety`].
+    pub(crate) safety: u16,
 }
 
 /// The card's width in 1080p pixels: compact, so it sits beside the chat without
@@ -141,6 +146,9 @@ pub(crate) fn size(person: &Person, u: f32) -> [f32; 2] {
         height += MEDAL_ROW;
     }
     height += 6.0 + BUTTON + QUIET_GAP + QUIET_ROW + PAD;
+    if person.safety {
+        height += BUTTON + 6.0;
+    }
     if person.key_id.is_none() {
         height += QUIET_ROW;
     }
@@ -415,10 +423,36 @@ pub(crate) fn draw(
             format_args!("By name, colours aside: anyone wearing it"),
         );
     }
+    let safety_button = Rect::new(
+        x,
+        under
+            + (QUIET_ROW
+                + if person.key_id.is_none() {
+                    QUIET_ROW
+                } else {
+                    0.0
+                })
+                * u,
+        inner,
+        BUTTON * u,
+    );
+    if person.safety {
+        card_button(
+            canvas,
+            safety_button,
+            u,
+            tokens.safety,
+            "Safety code",
+            crate::chat::encrypted_pink(1.0),
+        );
+    }
     canvas.hit_region(tokens.card, card);
     canvas.hit_region(tokens.mute, button);
     if ban_key.is_some() {
         canvas.hit_region(tokens.ban, ban_button);
+    }
+    if person.safety {
+        canvas.hit_region(tokens.safety, safety_button);
     }
     card
 }
@@ -475,7 +509,25 @@ mod tests {
         card: 7,
         mute: 8,
         ban: 9,
+        safety: 10,
     };
+
+    #[test]
+    fn a_player_taking_encrypted_whispers_offers_the_safety_code() {
+        let (canvas, _, texts, _) = drawn(&sol(), false);
+        assert!(!texts.contains(&"Safety code".to_owned()), "{texts:?}");
+        assert_eq!(canvas.rect_for(TOKENS.safety), None);
+        let encrypted = Person {
+            safety: true,
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&encrypted, false);
+        assert!(texts.contains(&"Safety code".to_owned()), "{texts:?}");
+        let button = canvas.rect_for(TOKENS.safety).expect("the button");
+        let block = canvas.rect_for(TOKENS.mute).expect("Block");
+        assert!(button.y > block.bottom(), "under the other buttons");
+        assert!(button.bottom() <= rect.bottom(), "inside the card");
+    }
 
     #[test]
     fn the_status_line_names_staff_and_the_creator() {
@@ -507,6 +559,7 @@ mod tests {
             place: Place::SlotByName(5),
             avatar: Some(String::new()),
             note: None,
+            safety: false,
         }
     }
 

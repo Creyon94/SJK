@@ -59,6 +59,26 @@ impl<const N: usize> Motion<N> {
             || self.pending.is_some()
     }
 
+    /// Put `value` in component `index` of the pose held, moved to, orbited or asked for,
+    /// at once: the other components stay under manual control.
+    pub(super) fn adopt(&mut self, index: usize, value: f32) {
+        if let Some(held) = &mut self.held {
+            held[index] = value;
+        }
+        if let Some(transition) = &mut self.transition {
+            transition.from[index] = value;
+            if let Some(to) = &mut transition.to {
+                to[index] = value;
+            }
+        }
+        if let Some((_, _, pose)) = &mut self.orbit {
+            pose[index] = value;
+        }
+        if let Some(Request::Target(to, _)) = &mut self.pending {
+            to[index] = value;
+        }
+    }
+
     pub(super) fn sample(&mut self, fallback: [f32; N], now: f64) -> Option<[f32; N]> {
         let current = self.evaluate(fallback, now);
         if let Some(request) = self.pending.take() {

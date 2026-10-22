@@ -24,6 +24,12 @@ pub(super) fn tint(channel: Channel, alpha: f32) -> Color {
     }
 }
 
+/// An end-to-end encrypted whisper's pink (`#F5ADD1`): softer on the eye than the
+/// game's whisper magenta, and apart from the plain whisper's lilac.
+pub(crate) fn encrypted_pink(alpha: f32) -> Color {
+    Color::new(0.96, 0.68, 0.82, alpha)
+}
+
 pub(super) fn visibility(age: u64, active: bool) -> f32 {
     let entering = Tween::new(0.0, 1.0, 0, ENTER_MS, Easing::EaseOutCubic).sample(age);
     let leaving = if active {
@@ -236,6 +242,7 @@ impl ChatOverlay {
                     || crate::sjk_chat_look::gold(alpha),
                     |tier| tier.colour_alpha(alpha),
                 ),
+                None if line.encrypted => encrypted_pink(alpha),
                 None => Color::new(0.982, 0.987, 0.996, alpha),
             };
             let name = sjk_line::draw(
@@ -249,7 +256,11 @@ impl ChatOverlay {
                     emojis: self.options.emojis.then_some(&self.emojis),
                     hovered,
                     colour,
-                    label_colour: tint(line.channel, alpha * 0.75),
+                    label_colour: if line.encrypted {
+                        encrypted_pink(alpha * 0.85)
+                    } else {
+                        tint(line.channel, alpha * 0.75)
+                    },
                 },
                 &prefix,
                 font,
@@ -308,6 +319,19 @@ fn line_marks<'a>(
     if line.name.is_empty() {
         return None;
     }
+    // The player's own encrypted whisper: "To <recipient>", no sender.
+    if line.encrypted && line.sender.is_none() {
+        let marks = sjk_line::Marks {
+            sjk: true,
+            label: if line.verified {
+                "VERIFIED"
+            } else {
+                "ENCRYPTED"
+            },
+            ..sjk_line::Marks::default()
+        };
+        return Some((&line.name, marks));
+    }
     let target = line.sender?;
     let mark = slots
         .get(usize::from(target.slot()))
@@ -318,6 +342,8 @@ fn line_marks<'a>(
         tier: None,
         label: match line.channel {
             _ if line.muted => "",
+            _ if line.verified => "VERIFIED",
+            _ if line.encrypted => "ENCRYPTED",
             Channel::Team => "TEAM",
             Channel::Whisper => "WHISPER",
             Channel::Global | Channel::Sjk => "",

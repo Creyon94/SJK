@@ -2057,8 +2057,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   named by `// @part` header lines and read in the shader with `part(k)` (the wearer's
   choices ride on section bits a signature never uses, `SIG_PART_BITS`, gathered into
   `uParts` by `sig_take`), then Sol's sections its file has (named by `// @arcs` and like
-  lines), then the swing and clash bursts (the pulse bit). An id that hashes onto a taken
-  choice bit gets a number. The old `Effects round the blade` and `Ignition show` are gone.
+  lines), then the swing and clash bursts (the pulse bit). A section named like a part already
+  listed joins that part's switch (#115: Holonet Feed's own flecks and its file's motes were both
+  "Data flecks" and listed twice; a test checks no signature lists a name twice). An id that
+  hashes onto a taken choice bit gets a number. The old `Effects round the blade` and `Ignition show` are gone.
 - **Nothing moves with the view (round 11).** Effects still raced when the view turned, the
   wearer ran or the blade lit: many clocks ran at a rate that followed the swing (`uTime` times
   `a + b × uSwing` jumps the phase by the clock times the change), and turning the view or
@@ -2446,7 +2448,13 @@ and the sword trail are unchanged. With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which the client does not trace yet. A flying
-primary saber trails and shares the owner's blade state, as in stock. Not yet
+primary saber trails and shares the owner's blade state, as in stock. A blade that is
+out keeps its remembered edge at the hilt without drawing (`Trail::hold`), as stock's
+`dontDraw` call does for a staff's extra blade or a second saber switched off, and
+forgets a skin's afterimages; SJK does it for the primary blade too, which stock leaves
+where it went out. Otherwise the first swing after a blade lit again within two seconds
+drew one slice, and the afterimages, from where it went out to where it was (Foshin's
+hub report 116, 21/10/2026: switching sabers with a signature shader). Not yet
 drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
 

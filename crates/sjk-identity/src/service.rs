@@ -146,6 +146,9 @@ pub struct Snapshot {
     /// This PC's key id (the key file's), whatever person it belongs to: for what is
     /// kept per key on this PC (seen lists, counts) and the Identity page.
     pub local_key_id: String,
+    /// This PC's public key as the hub writes it (unpadded base64url), for encrypted
+    /// whispers' safety codes (`crate::whisper::safety_code`).
+    pub public_key: String,
     /// The player's profile at the hub, once registered.
     pub me: Option<Profile>,
     /// The game server being claimed on, if any.
@@ -375,9 +378,11 @@ pub struct ReportOutcome {
 }
 
 impl Snapshot {
-    fn new(key_id: String) -> Self {
+    fn new(identity: &Identity) -> Self {
+        let key_id = identity.key_id();
         Self {
             status: Status::Disabled,
+            public_key: identity.public_key_text(),
             local_key_id: key_id.clone(),
             key_id,
             me: None,
@@ -2373,7 +2378,7 @@ impl Service {
         relay_hubs: Option<RelayHubs>,
     ) -> Self {
         let key_id = identity.key_id();
-        let snapshot = Arc::new(Mutex::new(Snapshot::new(key_id.clone())));
+        let snapshot = Arc::new(Mutex::new(Snapshot::new(&identity)));
         let staff = Arc::new(Mutex::new(StaffState::default()));
         let (commands, inbox) = channel();
         let (done, finished) = channel();
@@ -2858,6 +2863,31 @@ impl Service {
     pub fn take_relay_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
         let queued = std::mem::take(crate::feed::lock(&self.relay.0).inbox());
         crate::feed::take_toy_events(&Mutex::new(queued), server)
+    }
+
+    /// Whether the player takes encrypted whispers (`PROTOCOL.md`, "Whispers"): the
+    /// toy relay's reader asks for them, and the hub gives the player's key to the
+    /// others on the server meanwhile.
+    pub fn set_whisper_listen(&self, listen: bool) {
+        crate::feed::lock(&self.relay.0).set_whispers(listen);
+    }
+
+    /// Seal `whisper` and send it through the hub at once; what became of it comes back
+    /// from [`Service::take_whispers_sent`] under its serial.
+    pub fn send_whisper(&self, whisper: crate::whisper::Outgoing) {
+        let (state, bell) = &*self.relay;
+        crate::feed::lock(state).push_whisper(whisper);
+        bell.notify_one();
+    }
+
+    /// What became of the whispers sent since the last call.
+    pub fn take_whispers_sent(&self) -> Vec<crate::whisper::Sent> {
+        crate::feed::lock(&self.relay.0).take_sent()
+    }
+
+    /// The encrypted whispers read for `server` since the last call, opened.
+    pub fn take_whispers(&self, server: Option<SocketAddr>) -> Vec<crate::whisper::Received> {
+        crate::feed::lock(&self.relay.0).take_received(server)
     }
 
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the
@@ -3569,7 +3599,7 @@ mod tests {
 
     fn worker(fake: &Fake, now: Instant) -> (Worker, Arc<Mutex<Snapshot>>) {
         let identity = Identity::from_seed([1; 32]);
-        let snapshot = Arc::new(Mutex::new(Snapshot::new(identity.key_id())));
+        let snapshot = Arc::new(Mutex::new(Snapshot::new(&identity)));
         let factory = fake.clone();
         let make: HubFactory = Box::new(move |url| {
             if url.starts_with("https://") {
@@ -5327,6 +5357,7 @@ mod tests {
             medals: Vec::new(),
             avatar: String::new(),
             look: None,
+            whisper_key: None,
         }];
         let t0 = Instant::now();
         let (mut worker, snapshot) = worker(&fake, t0);

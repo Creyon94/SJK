@@ -282,6 +282,8 @@ mod cardboard_box;
 #[path = "world_shot_map_edits.rs"]
 mod map_edit_shots;
 
+#[path = "world_shot_hax.rs"]
+mod hax_shots;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 #[path = "world_shot_petals.rs"]
@@ -1264,6 +1266,7 @@ Found the fog bug, ask me about it!"
             kyber: None,
             shop: None,
             trade: None,
+            public_key: String::new(),
         };
         let standings = crate::achievements::ALL
             .iter()

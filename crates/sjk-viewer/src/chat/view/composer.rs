@@ -43,9 +43,20 @@ impl ChatOverlay {
                 .recipient
                 .and_then(|target| self.roster.name(target))
                 .unwrap_or("Player unavailable");
-            let end = layout::fitting_end(name, font, g.width - 303.0 * g.scale, 14.0 * g.scale);
+            // A recipient who takes encrypted whispers gets one: said in its pink.
+            let encrypted = input
+                .recipient
+                .is_some_and(|target| self.takes_encrypted(target.slot()));
+            let (suffix, colour) = if encrypted {
+                (" (encrypted)", super::encrypted_pink(1.0))
+            } else {
+                ("", tint(Channel::Whisper, 1.0))
+            };
+            // Room for " (encrypted)" at the composer's size.
+            let room = g.width - 303.0 * g.scale - if encrypted { 96.0 * g.scale } else { 0.0 };
+            let end = layout::fitting_end(name, font, room.max(0.0), 14.0 * g.scale);
             self.ui.text_fmt_aligned(
-                format_args!("To {}", &name[..end]),
+                format_args!("To {}{suffix}", &name[..end]),
                 Rect::new(
                     g.left + 178.0 * g.scale,
                     y,
@@ -53,7 +64,7 @@ impl ChatOverlay {
                     26.0 * g.scale,
                 ),
                 14.0 * g.scale,
-                tint(Channel::Whisper, 1.0),
+                colour,
                 FontWeight::Semibold,
                 0.0,
                 TextAlign::Start,

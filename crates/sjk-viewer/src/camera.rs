@@ -89,7 +89,10 @@ pub(crate) fn damped_third_person(
     let mut framing = state
         .console
         .as_mut()
-        .and_then(|c| c.director.camera(fallback))
+        .and_then(|c| {
+            c.director.follow_cvars(fallback);
+            c.director.camera(fallback)
+        })
         .unwrap_or(fallback);
     let snapshot = state
         .live_session

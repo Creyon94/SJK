@@ -1081,6 +1081,13 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   It is always on, with no cvar, as in EternalJK and OpenJK (`CG_Player` checks only
   `EF_DISINTEGRATION`). Its colours are final: real-time sun light and fullbright
   leave them as they are, as the stage's colour generators do (`entity_control.x` 3).
+  They replace every generator, the player tint (`char_color_*`) too, so a tinted
+  model burns in its untinted colours, as rd-vanilla's `killGen` does. A corpse slashed
+  until it gives way (`body_die`) burns from its own origin, the middle of the body,
+  and is removed a second later (`BodyRid`): it looks cut in half and loses its tint
+  for that second in EternalJK too (Nib's hub report 122, 22/10/2026). The slow fade of
+  a corpse the server clears on its own (`EV_BODYFADE`, `cg_ents.c` `bodyFadeTime`) is
+  not drawn yet: the body stays as it is until it is removed.
 
 Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
 
@@ -1223,7 +1230,11 @@ server, prediction or the player's input.
   Pitch (-80 to 80), Distance (16 to 512) and Height (-64 to 160) of the
   third-person camera, starting from where it is (`cg_thirdPersonAngle`,
   `cg_thirdPersonPitchOffset`, `cg_thirdPersonRange`,
-  `cg_thirdPersonVertOffset`). A change turns third person on.
+  `cg_thirdPersonVertOffset`). A change turns third person on. The pose stays until
+  Reset, but one of those cvars changed meanwhile (the console, a bind, Settings) takes
+  its place in it at once, as EternalJK applies it; the other three stay as set here
+  (Rollembones' report, 22/10/2026: `cg_thirdPersonRange` did nothing after the camera
+  had been set here).
 - **Sun page:** the sun's direction (0 to 360) and elevation (-20 to 90), when
   the view has real-time lighting (`r_dayNight 1` at launch) and open sky, what
   holds the sun now (the day settings, Camera control, or returning), and Reset
@@ -2336,10 +2347,19 @@ characters). The hub's SJK channel and bios take them too since 12/10/2026 (Cyri
 they already took; the letter rules they share,
 [identity.md](identity.md#the-bios-rules)); every SJK player reads them.
 
+### Encrypted whispers
+
+A whisper to another SJK player goes through the SJK hub end-to-end encrypted while
+`cl_e2eWhispers` is on (default; Settings > Network > Encrypted whispers): in its own
+pink, marked ENCRYPTED, with its own sound, and a card asks before sending one the hub
+could not take through the game server. See [hub-chat.md](hub-chat.md#encrypted-whispers).
+
 ### Chat player actions
 
 U defaults to crosshair-target private chat (`messagemode3`): aim at a player,
-press U, then compose a tell addressed to that player. Global chat remains on
+press U, then compose a tell addressed to that player. While following a player as a
+spectator, U whispers to the player followed, wherever the crosshair is, as JoF
+EternalJK's `Con_MessageMode3_f` does (Kushina's report, 22/10/2026). Global chat remains on
 Y (`messagemode`), and team chat on T (`messagemode2`). I opens the SJK chat
 (`messagemode5`, [hub-chat.md](hub-chat.md)); a new profile, or a whole config table
 imported at First setup, gets I when it is free and nothing is bound to
@@ -4050,6 +4070,14 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   player, turned by the hacker's mouse at once (the player follows after the relay's
   way); the hacker's own player stands still where they were, open to attack, and their
   view comes back when it ends. The hacker may hack again after 15 seconds.
+- **The digital rain:** while steered, the hacked player is wreathed in green glyphs (0,
+  1 and half-width katakana) falling on a ring round them from feet to head, emitted
+  every 70 ms where they stand so the rain follows them (`effects/sjk/hax_glyphs.efx`,
+  [assets/hax](../crates/sjk-viewer/assets/hax/README.md)). The hacked player and the
+  hacker see it at once; every other SJK player of the server sees it through a feed
+  [toy event](hub-chat.md#toy-events) the hacked player sends (`hacked_<until>`, the game
+  server time the steering ends; `freed` when they break free sooner), which may come a
+  second or two late. Nothing is drawn round a player blocked here.
 - **Breaking free:** `toy_hax` off frees the hacked player at once; so do dying, a duel,
   and the hacker going quiet for 1.5 seconds (after 0.4 seconds without news the player
   stands still). The hacker's toy off, death or duel ends it for both.
@@ -4063,9 +4091,12 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   way. The steering lags by the hacker's way to the hub, the hub's to the hacked
   player and their ping, and the hacker sees the result after their own ping too. Without
   the hub (`cl_identity 0`), or with a hub from before the relay, nothing is hacked.
+  A new map on the same server restarts its clock: a hack under way then ends, and the
+  cooldown and the immunity, timed on the old clock, are forgotten.
 
-The icon (a terminal with a green ">_") is drawn by
-[hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono;
+The icon (a terminal with a green ">_") and the rain's glyphs are drawn by
+[hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono and
+Noto Sans JP;
 the sounds and the hack bar's icon are the retail game's. See
 [hax.rs](../crates/sjk-viewer/src/hax.rs).
 
