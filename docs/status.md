@@ -11,10 +11,18 @@ three pulses fall off smoothly and seven blocky designs keep their look with smo
 ([rendering.md](rendering.md#blade-lab-signature-shaders), round 23). Sol's Sun gets the shared
 fixes (Creyon's choice). Checked on Linux x86_64 (lavapipe): offscreen renders of all 127 of
 Creyon's signatures from six views, still and mid-swing, with an edge finder and a cut-off
-comparison; the workspace format check, build, tests and clippy. Not verified: in a game on
-Windows; stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a
-fix needs a pixel size along the blade, a new lab uniform), and a few single sparks pop at
-early-out bounds (Scarif Tide, Holo-Recording, Blood Moon).
+comparison; the workspace format check, build, tests and clippy. Creyon tried it in his game on
+Windows 11: the tips were right, but Obsidian Edge still drew a box round its tip in front of a
+wall. Sol's review of 22/10/2026 is answered on the same branch, merged with `main`: pulses back
+to their old peaks, the hiding behind the blade narrowing to the tip's point, Obsidian Edge's
+bloom fading round the tip, the effects' rectangle wide enough for the haze's bent picture
+(`effect_bounds::BENT_REACH`), a source test of the tip fix and two more scenes in the GPU cost
+test (`SJK_COST_SCENE` `close` and `along`) ([rendering.md](rendering.md#blade-lab-signature-shaders),
+round 23). Checked on Linux x86_64: the viewer's tests, every signature module validates and
+renders (lavapipe), Obsidian Edge from down its length (`SJK_SIGNATURE_ORBIT=tip`). Not verified:
+stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a fix needs a
+pixel size along the blade, a new lab uniform), and a few single sparks pop at early-out bounds
+(Scarif Tide, Holo-Recording, Blood Moon).
 
 ## Kyber crystals (client)
 

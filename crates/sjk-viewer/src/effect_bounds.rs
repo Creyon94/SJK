@@ -11,6 +11,14 @@ use glam::{Mat4, Vec3, Vec4};
 /// Pixels added on every side: bilinear taps and rasterisation rounding.
 const MARGIN: f32 = 2.0;
 
+/// How far, as a share of the target's longer side, a blade's heat haze or a black hole's
+/// lens may bend the picture it samples (`saber.wgsl` `fragment_haze` caps its shift at 0.02
+/// of it, `fragment_lens` at 0.06). They read the layer's `original` image that far outside
+/// the effects' own pixels, and outside the rectangle it holds an older frame: without this
+/// much more room the bent picture showed a stale strip, cut at the rectangle's straight
+/// edges (round 23, Obsidian Edge's heat seen in front of a wall in Creyon's game).
+pub(crate) const BENT_REACH: f32 = 0.06;
+
 /// Accumulates the screen extent of world-space effect primitives.
 pub(crate) struct Bounds {
     view_projection: Mat4,
@@ -81,16 +89,17 @@ impl Bounds {
             return Some([0, 0, 0, 0]);
         }
         let [w, h] = size.map(|n| n as f32);
-        let left = ((self.min[0] * 0.5 + 0.5) * w - MARGIN)
+        let margin = MARGIN + (BENT_REACH * w.max(h)).ceil();
+        let left = ((self.min[0] * 0.5 + 0.5) * w - margin)
             .floor()
             .clamp(0.0, w);
-        let right = ((self.max[0] * 0.5 + 0.5) * w + MARGIN)
+        let right = ((self.max[0] * 0.5 + 0.5) * w + margin)
             .ceil()
             .clamp(0.0, w);
-        let top = ((0.5 - self.max[1] * 0.5) * h - MARGIN)
+        let top = ((0.5 - self.max[1] * 0.5) * h - margin)
             .floor()
             .clamp(0.0, h);
-        let bottom = ((0.5 - self.min[1] * 0.5) * h + MARGIN)
+        let bottom = ((0.5 - self.min[1] * 0.5) * h + margin)
             .ceil()
             .clamp(0.0, h);
         Some([
@@ -139,5 +148,27 @@ impl crate::GpuState {
         self.saber_gpu.bound_trails(&mut bounds);
         self.effect_geometry.bound(&mut bounds);
         bounds.rectangle(size)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_rectangle_leaves_room_for_the_bent_picture() {
+        // A tiny effect in the middle of a 1920x1080 target.
+        let mut bounds = Bounds::new(Mat4::IDENTITY);
+        bounds.sphere(Vec3::new(0.0, 0.0, 0.5), 0.001);
+        let [x, y, w, h] = bounds.rectangle([1920, 1080]).unwrap();
+        // The haze and the lens may sample this far from the pixels they draw.
+        let reach = (BENT_REACH * 1920.0) as u32;
+        assert!(x <= 960 - reach && x + w >= 960 + reach, "{x} {w}");
+        assert!(y <= 540 - reach && y + h >= 540 + reach, "{y} {h}");
+        // The caps in the shader are what BENT_REACH covers.
+        let shader = include_str!("saber.wgsl");
+        assert!(shader.contains("to_pixels(shift, dx, dy, 0.02 * max(size.x, size.y))"));
+        assert!(shader.contains("to_pixels(shift, dx, dy, 0.06 * max(size.x, size.y))"));
+        assert!(BENT_REACH >= 0.06);
     }
 }

@@ -2319,6 +2319,21 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   `cellMix` and `aaSquare` in `lab.glsl`): Code Cylinder, Canto Bight, Flimsiplast, Death Star
   Plans, Cargo Stack, Holonet Feed and Targeting Display. Code Cylinder's and Flimsiplast's
   stripes still alias seen right along the blade.
+  Sol's review (22/10/2026): the softened pulses are scaled back to their old peak (Hypermatter's
+  and the Starfighter Canopy's by 2.22, the Uneti Tree's second pulse 0.96 for 0.6), as their
+  fronts' fall-off had dimmed them to 45 and 63 percent. The hiding behind the blade no longer
+  ends 1.4 units before the tip (Exegol Rift's tip flare and Quasar's jet showed through it): its
+  width narrows with the rounded tip (a quarter circle over the last 1.4 units) to the point, so
+  nothing behind the tip shows and no dark round end is drawn past it. The tip fix costs a second
+  run of `skin_at`, `skin_wave`, `skin_glitch` and `skin_jitter` per pixel (`core_breath` for
+  `filter_uv`) on every skinned blade, not only the signatures; it is in the timing below. In
+  Creyon's game (third person and free camera, in front of a wall) Obsidian Edge still drew a box
+  round its tip: its edges' orange bloom stopped at once level with the tip (`inside` was a step;
+  it fades round the tip and into the hilt now), and its heat haze showed a stale strip cut at
+  straight edges, as the haze (and a black hole's lens) bends the effect layer's `original` image
+  up to 2 (6) percent of the screen outside the effects' rectangle, where that image keeps an
+  older frame: the rectangle (`effect_bounds`) now has that much more room on every side
+  (`BENT_REACH`). Hypermatter's pulses come out of the hilt softly too.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
