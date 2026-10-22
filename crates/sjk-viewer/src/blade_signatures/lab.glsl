@@ -75,10 +75,14 @@ float behindBlade(vec3 ro, vec3 rd, float t){
   // what lies on the blade's own body (its axis, its glow) is never hidden by it
   vec3 p = ro + rd*t;
   float outside = smoothstep(0.5, 0.9, length(p.xz));
-  // round 23: it ends before the tip, fading out where the blade narrows to its point (to
-  // the tip, it drew a dark round end past the tip when the blade pointed at the camera)
-  float onBlade = smoothstep(-0.8, -0.2, y)*(1.0 - smoothstep(uLength - 1.4, uLength - 0.2, y));
-  return (1.0 - smoothstep(0.35, 0.8, d))*onBlade*outside*smoothstep(ta + 0.15, ta + 0.7, t)*along;
+  // round 23: the body hiding narrows with the blade's rounded tip (a quarter circle over its
+  // last 1.4 units) down to the point, so what passes behind the tip is hidden too (Sol's review:
+  // ending the hiding before the tip let Exegol Rift's flare and Quasar's jet show through),
+  // without the dark round end past the tip that a full-width hiding drew seen end on
+  float into = clamp((y - (uLength - 1.4))/1.4, 0.0, 1.0);
+  float w = sqrt(max(1.0 - into*into, 0.0));
+  float onBlade = smoothstep(-0.8, -0.2, y)*(1.0 - smoothstep(uLength - 0.15, uLength + 0.05, y));
+  return (1.0 - smoothstep(0.35*w, 0.8*w + 0.02, d))*onBlade*outside*smoothstep(ta + 0.15, ta + 0.7, t)*along;
 }
 // A distance d as seen when h (behindBlade) of it is hidden by the blade: unchanged at 0, out of
 // reach at 1, and in between the piece narrows and dims, so whatever passes behind the blade fades

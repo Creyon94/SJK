@@ -14,7 +14,8 @@ fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     // across the blade (fract's wrap); its long soft tail is as before
     let f0 = fract(b.y / 10.0 - uTime * 1.2);
     let f1 = fract(b.y / 10.0 - uTime * 1.2 + 0.5);
-    let p = pow(f0, 12.0) * (1.0 - smoothstep(0.93, 1.0, f0)) + pow(f1, 12.0) * (1.0 - smoothstep(0.93, 1.0, f1));
+    // (scaled by 2.22, as the softened front peaks at 0.45: as bright at its peak as before)
+    let p = 2.22 * (pow(f0, 12.0) * (1.0 - smoothstep(0.93, 1.0, f0)) + pow(f1, 12.0) * (1.0 - smoothstep(0.93, 1.0, f1)));
     return g * (0.85 + 1.2 * p * step(0.0, b.y));
 }
 

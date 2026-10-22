@@ -461,6 +461,36 @@ fn a_skinned_blade_ends_round_not_square() {
 }
 
 #[test]
+fn a_skinned_blades_tip_is_filtered_as_its_shaft_is() {
+    // Round 23 (players' reports after 2026.1021.1): the core is sampled with the
+    // derivatives of its coordinates before the rounded tip narrows them, else the tip's
+    // narrowing picks the core image's smallest mip and draws a bright rim round the tip.
+    // Along the shaft the two coordinates are the same, so the shaft looks as before.
+    let (length, radius) = (40.0, 1.0);
+    let cap = crate::blade_skin_file::DEFAULT_TIP * radius;
+    for along in [-1.0, 0.0, 20.0, length - cap] {
+        assert_eq!(tip_taper(along, length, cap), 1.0, "{along}");
+    }
+    let shader = include_str!("saber.wgsl");
+    for line in [
+        "let filter_uv = core_coordinates_at(input, core_breath(input));",
+        "let core_dx = dpdx(filter_uv);",
+        "let core_dy = dpdy(filter_uv);",
+        "return core_breath(input)\n        / skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
+        // A signature's core fades out before its quad's sides.
+        "core *= 1.0 - smoothstep(0.36, 0.5, abs(uv.x - 0.5));",
+    ] {
+        assert!(shader.contains(line), "saber.wgsl lost {line:?}");
+    }
+    for gone in ["dpdx(core_uv)", "dpdy(core_uv)"] {
+        assert!(
+            !shader.contains(gone),
+            "saber.wgsl samples with {gone:?} again"
+        );
+    }
+}
+
+#[test]
 fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
     // A grey 32×32 glow image in the pack, the core generated from the profile.
     let mut png = Vec::new();

@@ -4269,10 +4269,14 @@ fn ray_behind_blade(ray: SigRay, t: f32, len: f32) -> f32 {
     let d = length(ray.o.xz + ray.d.xz * ta);
     let p = ray.o + ray.d * t;
     let outside = smoothstep(0.5, 0.9, length(p.xz));
-    // Round 23: it ends before the tip, where the blade narrows to its point.
-    let on_blade = smoothstep(-0.8, -0.2, y) * (1.0 - smoothstep(len - 1.4, len - 0.2, y));
-    return (1.0 - smoothstep(0.35, 0.8, d)) * on_blade * outside * smoothstep(ta + 0.15, ta + 0.7, t)
-        * along_view;
+    // Round 23: the body hiding narrows with the blade's rounded tip to its point, as
+    // `behindBlade` in the lab: what passes behind the tip stays hidden, with no dark round end
+    // past the tip seen end on.
+    let into = clamp((y - (len - 1.4)) / 1.4, 0.0, 1.0);
+    let w = sqrt(max(1.0 - into * into, 0.0));
+    let on_blade = smoothstep(-0.8, -0.2, y) * (1.0 - smoothstep(len - 0.15, len + 0.05, y));
+    return (1.0 - smoothstep(0.35 * w, 0.8 * w + 0.02, d)) * on_blade * outside
+        * smoothstep(ta + 0.15, ta + 0.7, t) * along_view;
 }
 
 // A distance `d` as seen when `h` (`ray_behind_blade`) of it is hidden by the blade: the piece

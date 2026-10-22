@@ -27,7 +27,8 @@ fn ut_sap(y: f32) -> f32 {
     let f = fract(u);
     // round 23: the second, smaller pulse's front softened as the first's (a hard line across it)
     let g = fract(u * 1.7 + 0.37);
-    return 1.6 * pow(f, 8.0) * smoothstep(1.0, 0.96, f) + 0.6 * pow(g, 12.0) * (1.0 - smoothstep(0.96, 1.0, g));
+    // (0.96 rather than 0.6, as the softened front peaks at 0.63: as bright at its peak as before)
+    return 1.6 * pow(f, 8.0) * smoothstep(1.0, 0.96, f) + 0.96 * pow(g, 12.0) * (1.0 - smoothstep(0.96, 1.0, g));
 }
 
 // distance (in units) from a cross-section point to a set of n strands wound at radius rr,

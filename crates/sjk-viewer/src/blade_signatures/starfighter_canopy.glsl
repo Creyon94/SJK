@@ -16,7 +16,8 @@ vec3 starfighter_canopy_glow0(vec3 g, vec2 b, float r, float px){
   float y1 = fract(b.y*0.08 + uTime*(0.25 + 0.3*h11(lane + 1.0)) + h11((lane + 1.0)*3.7));
   float d0 = pow(y, 12.0)*(1.0 - smoothstep(0.93, 1.0, y))*step(0.4, h11(lane*1.3 + 0.5));
   float d1 = pow(y1, 12.0)*(1.0 - smoothstep(0.93, 1.0, y1))*step(0.4, h11((lane + 1.0)*1.3 + 0.5));
-  float drop = mix(d0, d1, cellMix(b.x*8.0, px*8.0));
+  // (scaled by 2.22, as the softened front peaks at 0.45: as bright at its peak as before)
+  float drop = 2.22*mix(d0, d1, cellMix(b.x*8.0, px*8.0));
   return g*(0.85 + 0.7*drop*part(0.0));
 }
 vec3 sig_glow(vec3 g, vec2 b, float r, float px){
