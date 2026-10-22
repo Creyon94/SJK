@@ -39,6 +39,9 @@ impl GpuState {
             chat_gifs::favourites::load(console.config_directory());
             chat_gifs::sources::load(console.config_directory());
             crate::jof_tag::set_shown(console.bool_cvar(crate::jof_tag::CVAR) != Some(false));
+            crate::chat::client_icons::set_shown(
+                console.bool_cvar(crate::chat::client_icons::CVAR) != Some(false),
+            );
         }
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
         let due = player_identity::due();

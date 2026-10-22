@@ -465,6 +465,7 @@ impl GpuState {
         to.graphics_reload.card = std::mem::take(&mut self.graphics_reload.card);
         to.log_request_card = std::mem::take(&mut self.log_request_card);
         to.e2e_whispers = std::mem::take(&mut self.e2e_whispers);
+        to.mod_notice = std::mem::take(&mut self.mod_notice);
         to.whats_new_card = std::mem::take(&mut self.whats_new_card);
         to.load_event_gap = self.load_event_gap.clone();
         to.hitches = std::mem::take(&mut self.hitches);

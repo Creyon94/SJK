@@ -32,6 +32,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Encrypted whispers you send play their sound once the SJK hub takes them, and their line shows the recipient's SJK marks (emblem, verified tick, name emoji) as incoming ones do _(Sol)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+- On JoF servers, what you say on SJK chat during a match is also said in the server's All chat, starting with SJK in gold, so players on other clients read it too: JoF asked for it so that SJK chat does not split their players away from All chat. A card says so the first time you play on one, and a red note above the chat field reminds you while you type on the SJK channel. Elsewhere, and in the menus, SJK chat stays as it was _(Milamber and Sol, at JoF's request)_
+- In the game's chat, SJK chat lines are now labelled SJK, or ALL/SJK when they were said in All chat too, and show once. Messages sent from JoF EternalJK start with its icon instead of SJK's emblem (Settings, "Other clients' icons") _(Milamber and Sol)_
 
 ## 2026.1022.3 (Alpha) | 22/10/2026
 

@@ -284,6 +284,9 @@ impl LegacyLocalSounds {
                 {
                     continue;
                 }
+                // The server's copy of an SJK chat message: the SJK chat's own sound
+                // announces the message (`docs/hub-chat.md`, "Said on the game server too").
+                b"chat" if crate::chat::sjk_copy_command(&command.command) => continue,
                 b"chat" | b"lchat" if !CG_TEAM_CHATS_ONLY && CG_CHAT_BEEP => {
                     let private =
                         self.chat_mode == 2 && crate::chat::private_chat_command(&command.command);

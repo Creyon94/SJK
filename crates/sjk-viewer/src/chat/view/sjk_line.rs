@@ -26,6 +26,9 @@ const LABEL_SIZE: f32 = 0.625;
 pub(in crate::chat) struct Marks<'a> {
     /// The sender plays on SJK: SJK's emblem comes first.
     pub(in crate::chat) sjk: bool,
+    /// The message was sent from another client with its own icon
+    /// (`chat/client_icons.rs`), which takes the emblem's place.
+    pub(in crate::chat) icon: Option<&'static crate::chat::client_icons::ClientIcon>,
     /// The mark after the name: the verified seal or a trust mark
     /// (`ui_renderer::mark_texture`).
     pub(in crate::chat) mark: Option<sjk_ui::TextureId>,
@@ -45,6 +48,8 @@ pub(in crate::chat) struct Prefix<'a> {
     size: f32,
     /// The SJK emblem's side, 0 without one.
     logo: f32,
+    /// The emblem drawn: SJK's, or JoF EternalJK's icon for a message sent from it.
+    logo_texture: sjk_ui::TextureId,
     /// Where the shown name ends in the line's name (cut to half the feed).
     pub(in crate::chat) name_end: usize,
     name_width: f32,
@@ -71,6 +76,7 @@ impl<'a> Prefix<'a> {
         Self {
             size,
             logo: if marks.sjk { size * LOGO_SIDE } else { 0.0 },
+            logo_texture: crate::chat::client_icons::texture(marks.icon),
             name_end,
             name_width: visible_text_width_face(font, &name[..name_end], scale, TextFace::Semibold),
             mark: marks.mark,
@@ -180,7 +186,7 @@ pub(in crate::chat) fn draw(
     if prefix.logo > 0.0 {
         let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
             rect: Rect::new(x, middle - prefix.logo * 0.5, prefix.logo, prefix.logo),
-            texture: crate::ui_renderer::LOGO_TEXTURE,
+            texture: prefix.logo_texture,
             color: Color::new(1.0, 1.0, 1.0, alpha),
         });
     }
@@ -321,6 +327,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
         }
@@ -449,10 +456,14 @@ mod tests {
         let (_, name, _) = drawn(&texts, "^2Sol");
         let (_, colon, _) = drawn(&texts, ":");
         let (_, body, _) = drawn(&texts, "gg all");
-        // Emblem, name, tick, colon and message, left to right on the name's row.
+        let (_, label, _) = drawn(&texts, "SJK");
+        // Emblem, name, tick, label, colon and message, left to right on the name's row.
         assert_eq!(name.y, body.y, "the message stays on the name's row");
         assert!(tag.right() < name.x && name.right() <= colon.x && colon.x < body.x);
-        assert!(!texts.iter().any(|(text, ..)| text == "SJK"), "no letters");
+        assert!(
+            name.right() < label.x && label.x < colon.x,
+            "the label after the name"
+        );
         let tick = ticks(&chat);
         assert_eq!(tick.len(), 1);
         assert!(tick[0].x >= name.x && tick[0].right() <= colon.x);
@@ -510,6 +521,7 @@ mod tests {
             trust: None,
             emoji: String::new(),
             name: Some("^5JoF^7 Sol 🦊".to_owned()),
+            key_id: String::new(),
         };
         chat.receive(
             ServerEventKind::Chat,
@@ -536,6 +548,25 @@ mod tests {
         let again = texts(&chat);
         drawn(&again, "^5JoF^7 Sol ");
         assert!(logos(&chat).is_empty() && ticks(&chat).is_empty());
+    }
+
+    #[test]
+    fn a_message_sent_from_jof_eternaljk_starts_with_its_icon() {
+        let ejk = ChatMessage {
+            client: "ejk".to_owned(),
+            ..message(2, "Milamber", "hello from JoF", false)
+        };
+        let chat = feed(&[], vec![message(1, "Sol", "hello", false), ejk]);
+        let logos = logos(&chat);
+        let icons = quads(&chat, crate::ui_renderer::EJK_TEXTURE);
+        assert_eq!(logos.len(), 1, "SJK's emblem before SJK's message only");
+        assert_eq!(icons.len(), 1, "JoF EternalJK's icon before its message");
+        assert_eq!(
+            (icons[0].width, icons[0].height),
+            (logos[0].width, logos[0].height),
+            "the same size"
+        );
+        assert!(icons[0].y > logos[0].y, "on the second line");
     }
 
     fn drop(id: u64, name: &str, tier: &str, own: bool) -> ChatMessage {

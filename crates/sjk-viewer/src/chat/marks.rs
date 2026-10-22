@@ -24,6 +24,9 @@ pub(crate) struct SlotMark {
     pub(crate) emoji: String,
     /// Their name as they wear it, when the game's lost characters of it.
     pub(crate) name: Option<String>,
+    /// Their identity key, so the server's copy of an SJK chat message is hidden only
+    /// when it comes from its sender (`chat/server_copy.rs`); empty when unknown.
+    pub(crate) key_id: String,
 }
 
 /// Whether `worn` is `shown` with characters the game server dropped put back: the
@@ -68,6 +71,7 @@ pub(crate) fn marks<'a>(
                     trust: me.trust,
                     emoji: sjk_identity::name_emoji::for_display(&me.emoji).to_owned(),
                     name: restores(worn, name).then(|| worn.to_owned()),
+                    key_id: me.key_id.clone(),
                 };
             }
             continue;
@@ -84,6 +88,7 @@ pub(crate) fn marks<'a>(
             trust: player.trust,
             emoji: sjk_identity::name_emoji::for_display(&player.emoji).to_owned(),
             name: restores(&player.claimed_name, name).then(|| player.claimed_name.clone()),
+            key_id: player.key_id.clone(),
         };
     }
     marks
@@ -228,6 +233,7 @@ mod tests {
                     trust: None,
                     emoji: "⚔️".to_owned(),
                     name: Some("^0JoF J S^7olol 🦊".to_owned()),
+                    key_id: String::new(),
                 };
                 gpu.chat.slot_marks[7] = SlotMark {
                     sjk: true,
@@ -235,6 +241,7 @@ mod tests {
                     trust: None,
                     emoji: "🐺".to_owned(),
                     name: None,
+                    key_id: String::new(),
                 };
                 let now = std::time::Instant::now();
                 let state = |messages| sjk_identity::ChatState {
@@ -274,6 +281,7 @@ mod tests {
                     creator: false,
                     trust: None,
                     emoji: String::new(),
+                    client: String::new(),
                     text: "and this one goes through the SJK chat".to_owned(),
                     holocron: None,
                 };

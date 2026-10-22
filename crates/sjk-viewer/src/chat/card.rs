@@ -289,6 +289,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: "gg all".to_owned(),
             holocron: None,
         };

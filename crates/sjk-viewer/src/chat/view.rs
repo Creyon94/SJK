@@ -309,10 +309,16 @@ fn line_marks<'a>(
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
             sjk: true,
+            icon: hub.client,
             mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
             tier: hub.tier,
+            // Which chats it was said in; a holocron drop is the hub's news, unlabelled.
+            label: match hub.tier {
+                Some(_) => "",
+                None if hub.in_all => "ALL/SJK",
+                None => "SJK",
+            },
             emoji: &hub.emoji,
-            ..sjk_line::Marks::default()
         };
         return Some((&line.name, marks));
     }
@@ -345,6 +351,7 @@ fn line_marks<'a>(
         .filter(|mark| mark.sjk);
     let marks = sjk_line::Marks {
         sjk: mark.is_some(),
+        icon: None,
         mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
         tier: None,
         label: match line.channel {

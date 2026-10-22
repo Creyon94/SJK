@@ -38,6 +38,51 @@ Mythical holocron's model and gold light until the crystal models land (branch
 `personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
 the Staff page are not built.
 
+## SJK chat on JoF servers: said in All chat too
+
+22/10/2026, `personal/jof-sjk-chat`, based on `main` `735b2555` with Milamber's #194
+merged in (Sol's decision after talking it over with Milamber: JoF asked for it). The
+server copy of SJK chat moved into JoF tools: it is said only on JoF servers with
+`mod_jof` on ([mods.md](mods.md#sjk-chat-on-jof-servers)), only for messages the hub took
+(a refused or unanswered one is no longer said plainly), and a one-time card
+(`jof.sjkChatNotice`, the core's [mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs))
+and a red note on the composer's SJK channel say so. A copy is hidden only when it holds
+its message's words and, where the hub knows the copy's slot, comes from its sender
+(`SlotMark::key_id`). SJK chat lines in the game's chat are labelled SJK, or ALL/SJK when
+said in All chat too. JoF EJK's icon comes from a table with a setting
+([chat/client_icons.rs](../crates/sjk-viewer/src/chat/client_icons.rs),
+`cl_sjkChatClientIcons`). Verified on Windows 11: `cargo fmt --all --check`, `cargo build
+--locked --workspace` (and `-p sjk-viewer --no-default-features`), `cargo test --locked
+--workspace` (new: sender and words checks, ALL/SJK marking, refused and unanswered lines
+never said, the mod's pieces, the notice card's keys and setting, the client table),
+`cargo clippy` (no warnings in the changed lines), and the world shots
+`duel6_jof_sjk_chat_notice` and `duel6_jof_sjk_chat_feed` (the card; ALL/SJK, SJK and JoF
+EJK lines; the red note), looked at. Not verified: on a JoF server in a running client
+(the card's timing after the map loads, the copies going out, the round trip hiding
+them), a linked key's own copy (the feed names its person's key, so it waits 10 s and is
+not said).
+
+## JoF EJK in SJK chat: its icon, and lines said on the server too
+
+21/10/2026, `feat/jof-ejk-chat`, based on `main` `775c4e8b` (Milamber: JoF EJK takes part
+in SJK chat with the same keys). A feed message's `client` (the hub's
+`PROTOCOL.md`, "Chat") picks the emblem before an SJK chat line: SJK's, or JoF EJK's
+icon for `ejk` ([hub-chat.md](hub-chat.md#how-a-line-looks)). During a match, what the
+player says on SJK chat goes to the game server's chat too once the hub took it: `say`
+lines starting with `^3SJK^2 ` and ending with the message's id in colour codes, and
+`consume_messages` holds such a line up to 2.5 s and drops it when that message joins the
+feed, so SJK chat players on the server see it once
+([hub-chat.md](hub-chat.md#said-on-the-game-server-too)). On Windows 11 the formatting
+check, the workspace build, the locked workspace tests (3606 passed, 193 ignored) and
+Clippy (no warnings on the new lines) pass. End to end with a local hub, the branch's and
+its unchanged `main`, and JoF EJK clients on a local server: a JoF player's line showed
+once in SJK, with JoF EJK's icon, and as tagged server chat on a JoF client with SJK chat
+off; an SJK player's line, sent by hand from a bind, showed once on a JoF client with SJK
+chat on and as server chat on one with it off. Not verified: the tag on SJK's own copies
+in game (unit tests only; the hand-sent lines predate it), a linked key's own message (its
+copy waits the 10 s and goes without the end), server mods that strip colour codes from
+chat, Linux.
+
 ## Small graphics cards found at start
 
 21/10/2026, `personal/vram-detect`, based on `main` `058dfade` (Sol: detect video memory

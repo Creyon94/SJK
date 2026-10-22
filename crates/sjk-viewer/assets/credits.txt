@@ -297,9 +297,10 @@ link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Milamber]
 github: Milamber0
-role: Contributor: 2 merged pull requests
+role: Contributor: 3 merged pull requests
 did: #156 See & share nameplates, settings to review on What's new, duel bars hidden
 did: #163 No hitch when a map remaps to a missing skin
+did: #194 JoF EternalJK in SJK chat: its icon, SJK chat said in All chat on JoF servers
 link: Milamber's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0
 
 == Art

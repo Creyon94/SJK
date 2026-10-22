@@ -1174,6 +1174,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Other clients' icons",
+        cvar: crate::chat::client_icons::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "GIPHY key",
         cvar: crate::chat_gifs::search::KEY_CVAR,
         kind: ValueKind::Text,

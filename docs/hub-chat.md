@@ -41,6 +41,8 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | Blocking a player: drawn as Kyle, silenced | [muted_players.rs](../crates/sjk-viewer/src/muted_players.rs), [muted_players_frame.rs](../crates/sjk-viewer/src/muted_players_frame.rs), [audio_mute.rs](../crates/sjk-viewer/src/audio_mute.rs) |
 | Sender card (pointer on a name) | [sender_card.rs](../crates/sjk-viewer/src/sender_card.rs), [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs) |
 | In-game SJK channel | [chat/sjk.rs](../crates/sjk-viewer/src/chat/sjk.rs), [chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs), [sjk_chat_frame.rs](../crates/sjk-viewer/src/sjk_chat_frame.rs) |
+| Said on the game server too (JoF servers) | [chat/server_copy.rs](../crates/sjk-viewer/src/chat/server_copy.rs); the copy's tag and end in [sjk-client chat.rs](../crates/sjk-client/src/chat.rs) (`SJK_COPY_TAG`, `sjk_copy_*`); its `say` commands and the notice's words in [sjk-mod-jof sjk_chat.rs](../crates/sjk-mod-jof/src/sjk_chat.rs); sent by `sjk_chat_frame.rs`, the card in [mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs) |
+| Other clients' icons | [chat/client_icons.rs](../crates/sjk-viewer/src/chat/client_icons.rs) (`KNOWN`, `cl_sjkChatClientIcons`) |
 | How a line looks everywhere (gold, tick, flow) | [sjk_chat_look.rs](../crates/sjk-viewer/src/sjk_chat_look.rs) |
 | The dock (main page, in-game menu) | [chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs), placed by [home.rs](../crates/sjk-viewer/src/menu/sjk/home.rs) and [ingame_menu/sjk_view.rs](../crates/sjk-viewer/src/ingame_menu/sjk_view.rs) |
 | Typing and pasting in the page's and docks' field | [sjk_chat_field.rs](../crates/sjk-viewer/src/sjk_chat_field.rs) |
@@ -53,6 +55,10 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 
 Old clients ignore all of it, so it stays `/v1/`.
 
+- A message in the feed carries `client` (hub since 21/10/2026): `sjk` when it was
+  sent with SJK's User-Agent, `ejk` with JoF EternalJK's (`EJK/...`), left out for
+  any other (`ChatMessage::client`, empty then). It picks the line's emblem ([How a
+  line looks](#how-a-line-looks)).
 - `POST /v1/chat` `{"text":"..","name":".."}` (`name`, the in-game name worn, is
   optional and joins the key's worn names). The text: one line (`chat_lines`), runs
   of spaces made one and the ends trimmed, 1 to 300 characters (`chat_length`; 150
@@ -137,8 +143,9 @@ Old clients ignore all of it, so it stays `/v1/`.
   opens the composer on it; Tab cycles All, Team and SJK (then the last whisperer,
   [client.md](client.md#chat-player-actions)). The ordinary chat key (`messagemode`,
   Y by default) opens on global chat, or on SJK when the last message went there
-  with `cg_chatRememberChannel` 1 (off by default). Enter on SJK hands the text to the hub,
-  never to the game server.
+  with `cg_chatRememberChannel` 1 (off by default). Enter on SJK hands the text to the hub;
+  during a match the game server's chat gets it too ([Said on the game server
+  too](#said-on-the-game-server-too)).
 - Hub messages join the chat feed as one flowing line ([How a line
   looks](#how-a-line-looks)): SJK's emblem, small, the name, the verified tick for a
   verified sender, then the message in the SJK chat's gold. Texts go through
@@ -170,6 +177,53 @@ Old clients ignore all of it, so it stays `/v1/`.
   shows in the feed (the in-game composer has nowhere else to say it).
 - `cl_sjkChatConsole` (default 1, Settings > Chat > SJK chat in console) controls only
   whether live SJK messages are copied into console scrollback.
+
+## Said on the game server too
+
+On JoF servers only, what the player says on the SJK chat during a match also goes to
+that server's All chat, so its players on other clients read it. JoF asked for it so
+that SJK chat does not split their players away from All chat (Sol's decision,
+22/10/2026, after Milamber's #194). It lives in JoF tools ([mods.md](mods.md#sjk-chat-on-jof-servers)):
+on every other server, in local games and in the menus, SJK chat goes nowhere else, and
+the base client has no server-specific rule for it. JoF EternalJK says its SJK chat
+lines on the server the same way, and the two keep a message from showing twice to SJK
+chat players there ([chat/server_copy.rs](../crates/sjk-viewer/src/chat/server_copy.rs)).
+The hub takes no part in it.
+
+- **Saying it.** Every field that sends SJK chat (the composer, the docks, the page,
+  `sjksay`) goes through `player_identity::chat`, which notes the text. While JoF tools
+  are loaded (a JoF server, `mod_jof` on) and the player is in a match there, the copy
+  goes once the hub took the message and the player's own message came back in the feed
+  with the hub's id: as `say`, starting with `^3SJK^2 ` (`sjk_client::SJK_COPY_TAG`) so
+  the server's players on any client read it as an SJK line (`Name: SJK text`, SJK in
+  gold), and ended with that id in colour codes no client draws
+  (`sjk_client::sjk_copy_marker`: `^9`, then `^` and the number of digits, then `^` and
+  each digit, so id 12 ends the line with `^9^2^1^2`). A server keeps 149 bytes of a
+  line, so a longer message goes as several, cut between words, each with the tag and
+  the end; the reliable channel sends them a second apart
+  (`sjk_mod_jof::sjk_chat::copy_commands`). Only messages the hub took go: one it
+  refused, or did not answer in 10 seconds, never reached SJK chat and is not said on
+  the server either. A copy for a match that ended goes nowhere.
+- **Telling the player.** The first time the player is in a match on a JoF server with
+  SJK chat on, a card over the game menu says that SJK chat is said in All chat there
+  and that JoF asked for it ([mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs),
+  `jof.sjkChatNotice`, turned off by Got it; on again, it shows on the next JoF
+  server). While the in-game composer is on the SJK channel there, a small red note on
+  the channels' row says "Also said in All chat: everyone on this server reads it".
+- **Showing it once.** While `cl_sjkChat` is on, on any server, a global chat line from
+  the server that ends so waits up to 2.5 seconds (`server_copy::HOLD`) for the SJK
+  chat message of that id: when it comes, it shows as an SJK chat line (with its
+  client's emblem, whole), labelled ALL/SJK, and the server's lines of it are neither
+  shown, logged nor copied to the console; one that comes after its message is dropped
+  too. A copy is hidden only when it holds the message's words (its letters and digits,
+  as the server's old code pages keep them; a piece of a long message counts) and, when
+  the hub knows who plays in the copy's slot, comes from the message's sender
+  (`SlotMark::key_id`). Any other copy, or one whose message did not come in time,
+  shows as it came: a line may show twice, never vanish. A line without the end is never
+  held. The server's copy plays no chat beep (`sjk-client` `local_sounds.rs`): the SJK
+  chat's own sound announces the message.
+- Players on other clients see the copy as the player's normal chat line; the end's
+  colour codes draw nothing.
 
 ## A sound for a new message
 
@@ -633,7 +687,17 @@ request, 08/10/2026):
 - In the game's chat a line starts with SJK's emblem, small (1.35 times the text's
   height, in its own colours, `ui_renderer::LOGO_TEXTURE`; Sol's request, 11/10/2026),
   where it used to read the letters SJK. The dock and the page, which show only SJK
-  chat, have no mark.
+  chat, have no mark. A message sent from another client that takes part in SJK chat
+  starts with that client's icon instead, at the same size: the clients are the
+  entries of [chat/client_icons.rs](../crates/sjk-viewer/src/chat/client_icons.rs)
+  (`KNOWN`, each with why and its evidence; today JoF EternalJK, `client` `ejk`,
+  `ui_renderer::EJK_TEXTURE`, `assets/branding/jof-ejk-icon.png`, 21/10/2026).
+  `cl_sjkChatClientIcons 0` (Settings, "Other clients' icons") gives every message
+  SJK's emblem.
+- In the game's chat an SJK chat line is labelled after the name, where All chat lines
+  have none and Team chat reads TEAM: SJK for a message only in SJK chat, ALL/SJK for
+  one also said in the server's All chat ([Said on the game server too](#said-on-the-game-server-too);
+  Sol's request, 22/10/2026). A holocron drop has no label.
 - A verified sender has the verified tick after the name (the nameplates' gold seal
   with its white tick, `ui_renderer::VERIFIED_TEXTURE`) and no word: no "SJK VERIFIED"
   or "Verified" tag. Staff stays written on the page.
@@ -1257,3 +1321,10 @@ for each player stay on this PC (`whisper-keys.txt`, and the checked ones in
 Not verified: no client was started, so nothing was seen in a game or over the map;
 nothing went through Cloudflare's tunnel or the deployed hub (which does not have the
 routes yet); Windows; how the feed behaves with many players at once.
+
+- JoF EJK's icon and lines said on the game server too (21/10/2026, Windows 11): unit
+  tests for the copy's end and how it reads back, its `say` pieces with the tag, the
+  beep check, holding and dropping, the player's own copy with its id, refused and
+  unanswered lines, a copy for a match that ended, and a JoF EJK message's icon. End
+  to end with JoF EJK clients on a local server and a local hub, before it moved into
+  JoF tools ([status.md](status.md#sjk-chat-on-jof-servers-said-in-all-chat-too)).

@@ -7,12 +7,14 @@ mod editor;
 pub(crate) mod emoji;
 mod feed_gif;
 
+pub(crate) mod client_icons;
 mod interaction;
 mod layout;
 pub(crate) mod marks;
 pub(crate) mod options;
 pub(crate) mod pm_only;
 pub(crate) mod reply;
+pub(crate) mod server_copy;
 pub(crate) mod sjk;
 mod substitutions;
 pub(crate) mod text_sizes;
@@ -88,6 +90,12 @@ struct HubLine {
     trust: Option<sjk_identity::Trust>,
     /// The sender's name emoji when they sent it, shown at the right of their name.
     emoji: String,
+    /// Sent from another client with its own icon (`chat/client_icons.rs`), which takes
+    /// the emblem's place.
+    client: Option<&'static client_icons::ClientIcon>,
+    /// Said in the game server's All chat too (`chat/server_copy.rs`): labelled ALL/SJK
+    /// instead of SJK.
+    in_all: bool,
     key_id: String,
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.
@@ -141,6 +149,11 @@ pub(crate) struct ChatOverlay {
     sjk_mark: Option<(u64, u64, u64)>,
     /// When the SJK chat's sound last played (`chat/sjk.rs`, [`sjk::SOUND_GAP`]).
     sjk_sound_at: Option<Instant>,
+    /// SJK chat said on the game server too (`chat/server_copy.rs`).
+    server_copies: server_copy::ServerCopies,
+    /// While a mod says SJK chat in this server's All chat (`sjk_chat_frame.rs`), the
+    /// red note above the field when the SJK channel is picked.
+    said_in_all: Option<&'static str>,
     /// Whether SJK messages join the in-game general chat feed (`cl_sjkChatFeed`).
     sjk_feed_visible: bool,
     /// Whether the lines with a GIF read "GIF" and show it (`cl_sjkChatGifs`), or keep
@@ -235,6 +248,8 @@ impl ChatOverlay {
             sjk_outcome: 0,
             sjk_mark: None,
             sjk_sound_at: None,
+            server_copies: server_copy::ServerCopies::default(),
+            said_in_all: None,
             sjk_feed_visible: true,
             gifs_shown: true,
             gif_sources_revision: 0,

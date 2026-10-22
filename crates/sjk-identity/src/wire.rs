@@ -963,6 +963,10 @@ pub struct ChatMessage {
     /// The sender's name emoji when they sent it, empty for none.
     #[serde(default)]
     pub emoji: String,
+    /// The client it was sent from, as the hub read it from the sender's User-Agent:
+    /// `sjk`, `ejk` (JoF EternalJK), empty for another or from hubs before it.
+    #[serde(default)]
+    pub client: String,
     /// What they said.
     pub text: String,
     /// Set when this "message" is a holocron drop the feed relayed (never read from
