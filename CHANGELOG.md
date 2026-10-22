@@ -41,7 +41,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The Forge no longer flickers on the last lines of Craft: with their saber shaders drawn, its Legendary and Mythical lines asked more of the page than it held, and it dropped part of some frames _(Sol, after Nib's report)_
 - Holonet Feed lists its Data flecks once in the Collection: its own flecks and the motes round it, both named Data flecks, were two switches; one now turns both, and Power Coupling's Sparks likewise _(Sol, after Rollembones's report)_
 - The Hax works after a teleport or a respawn: a player who had teleported, or respawned, an odd number of times could not be hacked. A map change no longer leaves a long "Hax again" wait or a player who cannot be hacked, and a hack started just after joining is no longer lost _(Sol, after Sol's report)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1022.2 (Alpha) | 22/10/2026
 

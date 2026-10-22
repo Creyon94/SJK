@@ -197,13 +197,11 @@ pub(crate) enum Unlock {
     Achievement(&'static Kind),
     /// The SJK team gave a medal, `count` times in all for a repeatable one.
     Medal { medal: Medal, count: u32 },
-    /// A holocron dropped, numbered `id` at the hub; `gift` when staff gave it. A kyber
-    /// crystal ([`crate::kyber`]) arrives the same way, `earned` saying from what.
+    /// A holocron dropped, numbered `id` at the hub; `gift` when staff gave it.
     Holocron {
         tier: &'static Tier,
         id: u64,
         gift: bool,
-        earned: Option<crate::kyber::Earned>,
     },
     /// A newer SJK release is out; `manual` when this folder cannot install it itself
     /// (the Update page then offers the release page).
@@ -233,7 +231,6 @@ impl Unlock {
         match self {
             Self::Achievement(_) => "ACHIEVEMENT UNLOCKED",
             Self::Medal { .. } => "NEW MEDAL",
-            Self::Holocron { tier, .. } if tier.is_kyber() => "NEW KYBER CRYSTAL",
             Self::Holocron { .. } => "NEW HOLOCRON",
             Self::Update { .. } => "UPDATE AVAILABLE",
         }
@@ -245,12 +242,11 @@ impl Unlock {
         !matches!(self, Self::Update { .. })
     }
 
-    /// The words at the kicker's line's end: the kyber crystal an achievement brings, else
-    /// its category; else where the large pop-up or the Update page shows it.
-    pub(crate) fn tag(self) -> &'static str {
+    /// The words at the kicker's line's end: an achievement's category, else where the
+    /// large pop-up or the Update page shows it.
+    pub(crate) const fn tag(self) -> &'static str {
         match self {
-            Self::Achievement(kind) => crate::kyber::reward(kind.id)
-                .map_or(kind.category.name(), crate::kyber::reward_line),
+            Self::Achievement(kind) => kind.category.name(),
             Self::Medal { .. } | Self::Holocron { .. } => MENU_HINT,
             Self::Update { manual: false, .. } => UPDATE_HINT,
             Self::Update { manual: true, .. } => UPDATE_MANUAL_HINT,
@@ -329,13 +325,6 @@ impl fmt::Display for Description {
             Unlock::Achievement(kind) => formatter.write_str(kind.description),
             Unlock::Medal { medal, .. } => formatter.write_str(medal.description()),
             Unlock::Holocron { gift: true, .. } => formatter.write_str("A gift from the SJK team"),
-            Unlock::Holocron {
-                earned: Some(earned),
-                ..
-            } => write!(formatter, "{earned}"),
-            Unlock::Holocron { tier, .. } if tier.is_kyber() => {
-                formatter.write_str(crate::kyber::ABOUT)
-            }
             Unlock::Holocron { tier, .. } => write!(
                 formatter,
                 "Found while playing: {} of drops are {}",
@@ -833,10 +822,7 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
         column(12.0, 24.0),
         TAG_SIZE * k,
         match unlock {
-            // The crystal it brings, in the crystal's colour.
-            Unlock::Achievement(kind) => {
-                crate::kyber::reward(kind.id).map_or(color::alpha(hue, 0.9), |tier| tier.colour)
-            }
+            Unlock::Achievement(_) => color::alpha(hue, 0.9),
             _ => color::MUTED,
         },
         FontWeight::Regular,
@@ -890,8 +876,8 @@ fn emblem(canvas: &mut MenuCanvas, unlock: Unlock, centre: [f32; 2], radius: f32
         }
         Unlock::Medal { medal, .. } => (Some((medal.icon(), 0.94)), None),
         Unlock::Holocron { tier, .. } => {
-            if icons::is_loaded(tier.slot) {
-                (Some((icons::texture(tier.slot), 1.12)), None)
+            if icons::is_loaded(tier.index) {
+                (Some((icons::texture(tier.index), 1.12)), None)
             } else {
                 (None, Some(tier.colour))
             }
@@ -1201,7 +1187,6 @@ mod tests {
             tier: &TIERS[tier],
             id,
             gift: false,
-            earned: None,
         }
     }
 
@@ -1246,22 +1231,7 @@ mod tests {
                 tier,
                 id: 100 + index as u64,
                 gift: true,
-                earned: None,
             });
-        }
-        // Each kyber crystal, earned from a named achievement and from an unnamed one.
-        for (index, tier) in crate::kyber::TIERS.iter().enumerate() {
-            for earned in [
-                crate::kyber::Earned::of("kills_1000"),
-                crate::kyber::Earned::of(""),
-            ] {
-                unlocks.push(Unlock::Holocron {
-                    tier,
-                    id: 200 + index as u64,
-                    gift: false,
-                    earned: Some(earned),
-                });
-            }
         }
         for manual in [false, true] {
             unlocks.push(Unlock::Update {
@@ -1482,31 +1452,9 @@ mod tests {
             tier: &TIERS[0],
             id: 1,
             gift: true,
-            earned: None,
         };
         assert_eq!(gift.description().to_string(), "A gift from the SJK team");
-        // An achievement's tag is the kyber crystal it brings (21/10/2026).
-        assert_eq!(kind("streak_5").tag(), "Reward: Uncommon Kyber Crystal");
-        assert_eq!(kind("kills_1000").tag(), "Reward: Mythical Kyber Crystal");
-        let crystal = Unlock::Holocron {
-            tier: &crate::kyber::TIERS[1],
-            id: 2,
-            gift: false,
-            earned: Some(crate::kyber::Earned::of("")),
-        };
-        assert_eq!(crystal.kicker(), "NEW KYBER CRYSTAL");
-        assert_eq!(crystal.name().to_string(), "Rare Kyber Crystal");
-        assert_eq!(
-            crystal.description().to_string(),
-            "Earned from an achievement"
-        );
-        let named = Unlock::Holocron {
-            tier: &crate::kyber::TIERS[1],
-            id: 3,
-            gift: false,
-            earned: Some(crate::kyber::Earned::of("kills_100")),
-        };
-        assert_eq!(named.description().to_string(), "Earned: Centurion");
+        assert_eq!(kind("streak_5").tag(), "Combat");
     }
 
     #[test]
