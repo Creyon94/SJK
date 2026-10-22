@@ -1084,8 +1084,11 @@ service (`Service::send_whisper`), and the game server gets nothing. The relay's
 thread seals it (`whisper::seal`) and posts `POST /v1/whisper` before any toy frame. The
 hub refuses it when the recipient no longer reads with that key (409 `not_listening`),
 over 2 a second or 30 a minute (429), and keeps it 60 seconds in memory for the
-recipient's next read. When the hub took it, the feed shows "To <name>" with ENCRYPTED
-and the text in pink, and the console `To <name> (encrypted): <text>`. When it did not
+recipient's next read. When the hub took it, the feed shows "To <name>" with the
+recipient's marks as the SJK chat shows a sender's (SJK's emblem, the verified tick or
+trust mark, their name emoji), ENCRYPTED and the text in pink, the console `To <name>
+(encrypted): <text>`, and the encrypted whisper's sound plays (Sol, 22/10/2026: on the
+sender's side too, under `cg_chatSounds`). When it did not
 (or no answer came within 10 seconds), the [Encrypted whisper
 card](sjk-ui.md#encrypted-whisper) opens over the game menu and asks; Send unencrypted
 sends the same `tell` to the game server. A whisper to a verified player whose key

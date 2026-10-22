@@ -72,6 +72,9 @@ struct ChatLine {
     /// An encrypted whisper with a player checked with the safety code: labelled
     /// VERIFIED.
     verified: bool,
+    /// The slot the player's own encrypted whisper went to: its line wears the
+    /// recipient's marks (emblem, verified tick or trust mark, name emoji).
+    recipient: Option<u16>,
 }
 
 /// An SJK chat line's id at the hub and its sender.
@@ -436,6 +439,7 @@ impl ChatOverlay {
             gif: None,
             encrypted: false,
             verified: false,
+            recipient: None,
         };
         self.push_line(line, server_private);
     }
@@ -452,18 +456,19 @@ impl ChatOverlay {
     }
 
     /// Show an end-to-end encrypted whisper (`e2e_whispers.rs`): from the player in
-    /// `slot` to us, or ours to the player named `to` (`slot` `None`); `verified` when
-    /// they were checked with the safety code. Its sender becomes the one `reply`
-    /// answers. False when the slot holds nobody.
+    /// `from` to us, or ours to the player named `to` in `slot` (`from` `None`);
+    /// `verified` when they were checked with the safety code. Its sender becomes the
+    /// one `reply` answers. False when the slot holds nobody.
     pub(crate) fn receive_encrypted(
         &mut self,
-        slot: Option<u16>,
-        to: &str,
+        from: Option<u16>,
+        (slot, to): (u16, &str),
         text: &str,
         verified: bool,
         now: Instant,
     ) -> bool {
-        let (name, sender, muted) = match slot {
+        let recipient = from.is_none().then_some(slot);
+        let (name, sender, muted) = match from {
             Some(slot) => {
                 let Some(target) = self.roster.target(Some(slot)) else {
                     return false;
@@ -498,6 +503,7 @@ impl ChatOverlay {
             gif: None,
             encrypted: true,
             verified,
+            recipient,
         };
         self.push_line(line, true);
         true
@@ -527,6 +533,12 @@ impl ChatOverlay {
 
     pub(crate) fn is_typing(&self) -> bool {
         self.input.is_some()
+    }
+
+    /// What SJK knows of each slot's player, as the frame sets it (world shots).
+    #[cfg(test)]
+    pub(crate) fn set_slot_marks(&mut self, marks: Vec<marks::SlotMark>) {
+        self.slot_marks = marks;
     }
 
     /// Close the composer, its draft dropped, as Escape does.

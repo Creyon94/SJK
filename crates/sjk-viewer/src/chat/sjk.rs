@@ -67,6 +67,7 @@ impl ChatOverlay {
             gif,
             encrypted: false,
             verified: false,
+            recipient: None,
         });
         if self.is_typing() && self.scroll > 0 {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));
