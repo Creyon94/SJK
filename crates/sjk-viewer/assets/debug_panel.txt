@@ -24,6 +24,14 @@
 
 # ---- Console & chat ----
 
+[hax-fixes]
+area: Gameplay
+title: Hax: hackable after a teleport or respawn, and after a map change
+change: A player who teleported or respawned an odd number of times could not be hacked.
+change: A map change forgets the cooldown and immunity; relay reads retry within 2 s.
+test: B uses a teleporter (or dies and respawns), then A holds Use on B: the hack starts.
+test: Hack B, change map, hack B again at once: no long "Hax again" wait, B not immune.
+
 [toys-persist]
 area: Gameplay
 title: Order 66 and the Hax stay on until turned off

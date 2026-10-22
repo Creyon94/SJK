@@ -25,9 +25,11 @@ pub const TIMEOUT: Duration = Duration::from_secs(WAIT + 10);
 pub const SEND_TIMEOUT: Duration = Duration::from_secs(3);
 /// How often an idle thread looks at what it is told.
 const IDLE: Duration = Duration::from_millis(100);
-/// First wait after a failed read, doubled up to [`RETRY_MAX`].
+/// First wait after a failed read, doubled up to [`RETRY_MAX`]: under the 3 seconds the
+/// hub keeps an event, so one sent while the reads fail (the claim not in yet, after a
+/// join or a map change) is still read once they work again.
 const RETRY_MIN: Duration = Duration::from_millis(500);
-const RETRY_MAX: Duration = Duration::from_secs(10);
+const RETRY_MAX: Duration = Duration::from_secs(2);
 /// Events waiting for the viewer, the newest kept.
 const INBOX: usize = 256;
 /// Events waiting to be sent, the newest kept.

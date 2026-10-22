@@ -4058,6 +4058,8 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   way. The steering lags by the hacker's way to the hub, the hub's to the hacked
   player and their ping, and the hacker sees the result after their own ping too. Without
   the hub (`cl_identity 0`), or with a hub from before the relay, nothing is hacked.
+  A new map on the same server restarts its clock: a hack under way then ends, and the
+  cooldown and the immunity, timed on the old clock, are forgotten.
 
 The icon (a terminal with a green ">_") is drawn by
 [hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono;

@@ -1026,7 +1026,7 @@ hub and the game server as the feed does:
   on), the reading thread keeps `GET /v1/relay?server=..&after=..&wait=20` open: the hub
   answers as soon as an event for the reader's own claimed slot comes. The first read
   (`after=0`) only learns the last id; another server or hub starts afresh, a failure
-  waits 0.5 seconds, doubled up to 10. The events go to a queue the viewer takes once a
+  waits 0.5 seconds, doubled up to 2 (under the 3 seconds the hub keeps an event). The events go to a queue the viewer takes once a
   frame (`Service::take_relay_events`), with the server they were read for.
 
 The hub keeps an event 3 seconds, in memory, and gives it only to its target. As with

@@ -89,7 +89,12 @@ const SLOTS: usize = crate::looks::SLOTS;
 const PMF_FOLLOW: u16 = 4096;
 const ET_PLAYER: u8 = 1;
 const EF_DEAD: u32 = 1 << 1;
-const EF_NODRAW: u32 = 1 << 3;
+/// `EF_NODRAW` (`bg_public.h`); `1 << 3` is `EF_TELEPORT_BIT`, which the server flips at
+/// every teleport and respawn, so a player with it set is drawn as any other.
+const EF_NODRAW: u32 = 1 << 8;
+/// The game server's clock going back more than this is a new map: what was timed on
+/// the old clock (a hack, the cooldown, the immunity) is forgotten.
+const REWIND_MS: i32 = 1_000;
 
 /// A bundled file's bytes, by its name in `assets/hax`.
 macro_rules! bundled {
@@ -292,6 +297,8 @@ pub(crate) struct Hax {
     /// The game server time before which the player may not hack, nor be hacked.
     ready_at: i32,
     immune_until: i32,
+    /// The game server time last seen, to notice its clock going back ([`REWIND_MS`]).
+    seen: Option<i32>,
     /// The last frame sent, and when.
     sent: Option<(Frame, Instant)>,
     seq: u32,
@@ -310,6 +317,7 @@ impl Default for Hax {
             use_pressed: false,
             ready_at: i32::MIN,
             immune_until: i32::MIN,
+            seen: None,
             sent: None,
             seq: 0,
             cues: Vec::with_capacity(4),
@@ -506,8 +514,27 @@ impl Hax {
         self.role = Role::Idle;
         self.ready_at = i32::MIN;
         self.immune_until = i32::MIN;
+        self.seen = None;
         self.sent = None;
     }
+
+    /// Note the game server time `now`; when its clock went back (a new map on the same
+    /// server), forget the cooldown and the immunity, timed on the old clock. Whether it
+    /// went back: the hack under way, timed on it too, is to be dropped.
+    fn rewind(&mut self, now: i32) -> bool {
+        let back = self.seen.is_some_and(|seen| now < seen - REWIND_MS);
+        self.seen = Some(now);
+        if back {
+            self.ready_at = i32::MIN;
+            self.immune_until = i32::MIN;
+        }
+        back
+    }
+}
+
+/// Whether a player entity with `e_flags` is drawn and alive, so it may be hacked.
+fn hackable_flags(e_flags: u32) -> bool {
+    e_flags & (EF_DEAD | EF_NODRAW) == 0
 }
 
 /// Send `event` to the player in `slot`.
@@ -575,6 +602,21 @@ impl GpuState {
             .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
             .unwrap_or(0);
         let spared = crate::order66::spared(&snapshot.player, gametype);
+        // A new map restarts the server's clock: a hack timed on the old one ends here,
+        // the camera given back, without a word to the other player (their clock went
+        // back too).
+        if self.hax.rewind(now) {
+            if let Role::Controlling {
+                camera: Some((pitch, yaw)),
+                ..
+            } = self.hax.role
+            {
+                self.camera_pitch = pitch;
+                self.camera_yaw = yaw;
+            }
+            self.hax.role = Role::Idle;
+            self.hax.sent = None;
+        }
         // The relay's events: a sender counts only when the game shows the name they
         // claimed, and never one blocked on this PC.
         let heard: Vec<(u8, Event)> = events
@@ -733,7 +775,7 @@ impl GpuState {
                     (usize::from(slot) < SLOTS
                         && Some(slot) != own
                         && entity.entity_type() == ET_PLAYER
-                        && entity.e_flags() & (EF_DEAD | EF_NODRAW) == 0
+                        && hackable_flags(entity.e_flags())
                         && looks.toy(usize::from(slot), TOY))
                     .then(|| Some((slot, origin_of(slot)?)))
                     .flatten()
@@ -1104,6 +1146,31 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn a_teleported_or_respawned_player_may_be_hacked() {
+        const EF_TELEPORT_BIT: u32 = 1 << 3;
+        assert!(hackable_flags(0));
+        assert!(hackable_flags(EF_TELEPORT_BIT));
+        assert!(!hackable_flags(EF_NODRAW));
+        assert!(!hackable_flags(EF_DEAD | EF_TELEPORT_BIT));
+    }
+
+    #[test]
+    fn a_new_map_forgets_the_cooldown_and_the_immunity() {
+        let mut hax = Hax::default();
+        assert!(!hax.rewind(500_000));
+        hax.ready_at = 510_000;
+        hax.immune_until = 515_000;
+        // Time going on, or a late snapshot, changes nothing.
+        assert!(!hax.rewind(501_000));
+        assert!(!hax.rewind(500_500));
+        assert_eq!((hax.ready_at, hax.immune_until), (510_000, 515_000));
+        // The map changed: the clock starts again.
+        assert!(hax.rewind(2_000));
+        assert_eq!((hax.ready_at, hax.immune_until), (i32::MIN, i32::MIN));
+        assert!(!hax.rewind(2_100));
     }
 
     #[test]
