@@ -700,6 +700,9 @@ struct GpuState {
     pending_map_reload: bool,
     world_load_task: Option<session_transition::WorldLoadTask>,
     world_install_task: Option<session_transition::WorldInstallTask>,
+    /// An empty world standing in for a server's map while its next map builds
+    /// (`session_transition`): the old map is off the graphics card first.
+    map_unloaded: bool,
     world_load_state: session_transition::LoadStateMachine,
     world_load_started: Option<Instant>,
     world_load_map: String,
@@ -1601,6 +1604,7 @@ impl GpuState {
             pending_map_reload: false,
             world_load_task: None,
             world_install_task: None,
+            map_unloaded: false,
             world_load_state: session_transition::LoadStateMachine::new(),
             world_load_started: None,
             world_load_map: String::with_capacity(64),

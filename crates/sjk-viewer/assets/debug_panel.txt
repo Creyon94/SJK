@@ -6205,6 +6205,15 @@ test: Load maps and models with community skins: no magenta checkers anywhere.
 test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
 note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).
 
+[unload-before-load]
+area: Rendering & effects
+title: Old map unloaded before the next one loads
+change: Map change, server switch, vid_restart: an empty world drops the old map first.
+change: Peak VRAM ffa3 to siege_desert at 1080p: 3719 -> 3045 MiB; about 2 s slower.
+test: On a server, connect to another server: loading screen, then the new map, no glitch.
+test: Map change on the same server and vid_restart: map loads, chat and score still work.
+test: logs/last-client.log: 'old map unloaded in' before 'installed maps/...'.
+
 [wheel-moveup]
 area: Input
 title: +moveup on the mouse wheel jumps every notch

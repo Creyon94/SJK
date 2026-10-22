@@ -671,6 +671,22 @@ Memory in use after each change is unchanged, and the worst reserved peak went f
 same run with sharing off in 791 of 2,073,600 pixels; two runs with sharing off differ
 in 477 (animation timing).
 
+On a server, the old map now leaves the card before the next one is built
+([session_transition.rs](../crates/sjk-viewer/src/session_transition.rs), `unload_task`):
+when a map change, a switch to another server or a graphics reload starts loading a
+map, an empty world (the empty map of the menu pictures) is built on the worker while
+the next map's file is read, takes the shell over and drops the old world; the next
+map is built beside it. The loading screen covers the world either way. A world
+without a map still holds about 1.4 GB at 1920x1080 (screen targets, shadow maps,
+the shared textures above), so it saves the old map's own part only, and it costs a
+second build: about 3 s in release, 1.4 s of it hidden behind the file read, about
+2.2 s more per map change. Demos keep the old way. `map_change_unloaded_vram`
+(`world_shot_vram.rs`) measures it, 22/10/2026 at 1920x1080:
+
+| ffa3 alone | ffa3 + siege_desert | Empty world | Empty world + siege_desert |
+| --- | --- | --- | --- |
+| 2208 MiB | 3719 MiB | 1436 MiB | 3045 MiB |
+
 ## Eye adaptation
 
 SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the

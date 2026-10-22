@@ -169,9 +169,17 @@ fn graphics_reload_on_server() {
             crate::graphics_quality::Level::Vanilla.apply(console);
         }
         queue(&mut gpu, "vid_restart");
+        // ffa3's first world is off the card before its second one builds.
+        let unloaded = std::cell::Cell::new(false);
         until(&mut gpu, &mut parked, size, 120, "ffa3 reloaded", |gpu| {
+            unloaded.set(unloaded.get() || gpu.map_unloaded);
             gpu.live_map_installed && gpu.live_session.is_some() && gpu.context.id != first
         });
+        assert!(
+            unloaded.get(),
+            "an empty world stood in while ffa3 built again"
+        );
+        assert!(!gpu.map_unloaded);
         assert_eq!(
             gpu.live_session.as_ref().map(|s| s.server().to_string()),
             server,

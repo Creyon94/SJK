@@ -1,7 +1,9 @@
 //! GPU textures shared by the worlds alive at once on one graphics context.
 //!
-//! A map change builds the next world while the last one is still on screen
-//! (`session_transition.rs`), so for those seconds two worlds hold video memory.
+//! A map change builds the next world while another is still alive
+//! (`session_transition.rs`: on a server an empty one stands in for the old map; the
+//! menu world and demos keep the old one), so for those seconds two worlds hold video
+//! memory.
 //! Textures that come out the same on both (the saber glows, the game fonts, the
 //! effect atlas, the static menu art, and map textures from the same files) were
 //! made twice; on a 6 GB card that second
