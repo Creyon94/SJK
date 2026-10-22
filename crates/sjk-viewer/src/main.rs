@@ -87,6 +87,7 @@ mod effect_envelope;
 mod effect_geometry;
 mod effect_geometry_gpu;
 mod vehicle_assets;
+mod vehicle_fire;
 mod vehicle_pose;
 
 mod effect_library;
@@ -501,6 +502,8 @@ struct GpuState {
     dynamic_lights: dynamic_lights::PointLightList,
     effect_aux: effect_aux::Runtime,
     muzzle_effects: sjk_client::LegacyMuzzleEffects,
+    /// Vehicle volleys waiting for their vehicle to be posed (`vehicle_fire.rs`).
+    vehicle_fires: vehicle_fire::Pending,
     force_overlays: sjk_client::LegacyForceOverlayTracker,
     /// The jetpack model and its jet bolts.
     jetpack: jetpack::Catalog,
@@ -1454,6 +1457,7 @@ impl GpuState {
             dynamic_lights: dynamic_lights::PointLightList::default(),
             effect_aux: effect_aux::Runtime::default(),
             muzzle_effects: sjk_client::LegacyMuzzleEffects::new(),
+            vehicle_fires: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
             jetpack,
             jetpack_sounds: Default::default(),

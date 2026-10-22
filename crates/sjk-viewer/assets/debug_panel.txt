@@ -24,6 +24,23 @@
 
 # ---- Console & chat ----
 
+[vehicle-gunfire]
+area: Audio
+title: Vehicle guns: firing sound and muzzle flash (Kushina's report)
+change: EV_VEH_FIRE plays each fired muzzle's .vwp muzzleFX: its flash and the gun's sound.
+change: Every effect sound plays at full volume (was 0.7), as stock S_StartSound does.
+test: Local devmap, npc spawn vehicle x-wing, board it, fire: loud shots, wing flashes.
+test: Same with swoop_mp and atst_vehicle: flash at each muzzle, sound on every shot.
+test: Watch another player fire from a vehicle: flashes at its guns, sound from there.
+note: Impacts and explosions are louder too; compare with JoF EJK by ear.
+
+[yaw-wrap]
+area: Input
+title: Very fast turning no longer breaks the camera (Yernow #121)
+change: The camera yaw is kept within one turn; unbounded, it lost precision and froze.
+test: cl_yawspeed 100000, hold +left (bind a key) for a minute: camera stays behind you.
+test: Then turn with the mouse: no shaking, character turns with the camera.
+
 [clan-s-emblem]
 area: Console & chat
 title: {{S}} clan emblem, green JoF logo, JAWA only as (JAWA) first

@@ -1,3 +1,27 @@
+## Vehicle gunfire and effect sound volume
+
+22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,
+21/10: vehicle weapons were quiet when fired). `EV_VEH_FIRE` was not handled, so a
+vehicle's guns had no firing sound or flash: in stock both come from the `.vwp`
+`muzzleFX` effect `CG_VehMuzzleFireFX` plays at each muzzle that fired. SJK now plays
+it at the muzzle bolts of the posed vehicle ([client.md](client.md#vehicle-gunfire) has the
+rule), and every effect's `Sound` primitive plays at full volume as `S_StartSound` does,
+instead of seven tenths. Verified on Windows 11: unit tests (the `muzzleFX` key, each
+muzzle's weapon or turret, the volley queue, the muzzle's world place), the formatting
+check and Clippy. Not verified: heard or seen in a game, on any vehicle; the louder
+effect sounds elsewhere (impacts, explosions) are not compared with stock by ear.
+
+## View yaw wrapped
+
+22/10/2026, `personal/hub-reports-1022-d` (Yernow's report #121: with `cl_yawspeed
+100000` turning for half a minute, the camera left the character and shook on every mouse
+move until a restart). The accumulated camera yaw grew without bound: an `f32` of hundreds
+of thousands of radians moves in steps of a degree, and past about 11.8 million degrees the
+command's `ANGLE2SHORT` saturated, freezing the player's turn while the camera spun on. The
+yaw is now kept within one turn ([networking.md](networking.md#view-yaw-kept-within-a-turn));
+nothing sent changes. Verified on Windows 11: unit tests (18 million degrees at 8, 7, 4
+and 3 ms steps turn every command evenly). Not verified: in a game.
+
 ## Encrypted whispers
 
 22/10/2026, `personal/e2e-whispers`, based on `main` `0279b8f3`, with the hub's side on
@@ -4610,6 +4634,7 @@ ordinary weapon's flash sound; stock plays nothing for them (`cg_event.c:2751-27
 `EV_VEH_FIRE` (`CG_VehMuzzleFireFX`), which carries the vehicle weapons' sound in
 retail, is not played, so vehicle fire is silent. The retail `.vwp` data was not
 available to confirm what each effect holds. Unit-tested only, not heard in a game.
+Closed 22/10/2026 (see "Vehicle gunfire and effect sound volume").
 
 ## Vehicle HUD
 

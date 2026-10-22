@@ -18,6 +18,28 @@
 /// only one of them clamps, the unclamped path can drive the view past vertical.
 pub(crate) const PITCH_LIMIT: f32 = 1.54;
 
+/// `yaw` (radians) brought into `[-pi, pi)`, the same direction.
+///
+/// The camera yaw accumulates every turn; left unbounded, a very high `cl_yawspeed` (or a
+/// long spin) grows it until an `f32` holds it in steps of a degree, and past about
+/// 11.8 million degrees the command's `ANGLE2SHORT` saturates, so the player stops turning
+/// while the camera spins on (Yernow's report #121). Stock's `cl.viewangles` is a float as
+/// well, but only its 16-bit short reaches the server (`cl_input.cpp:1319`), so wrapping by
+/// whole turns changes nothing that is sent.
+pub(crate) fn wrap_yaw(yaw: f32) -> f32 {
+    use std::f32::consts::{PI, TAU};
+    if (-PI..PI).contains(&yaw) {
+        return yaw;
+    }
+    let wrapped = (yaw + PI).rem_euclid(TAU) - PI;
+    // `rem_euclid` may round up to exactly `TAU`.
+    if wrapped >= PI {
+        wrapped - TAU
+    } else {
+        wrapped
+    }
+}
+
 /// Last accepted local-view baseline; not reset when a menu releases held buttons.
 #[derive(Default)]
 pub(crate) struct Authority {
@@ -90,6 +112,7 @@ impl Authority {
         // "camera jerks fully up/down". Bounding here breaks that loop, and matches the clamp
         // mouse motion has always had.
         *pitch = pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
+        *yaw = wrap_yaw(*yaw);
         self.previous = Some((client, delta));
     }
 
@@ -136,5 +159,59 @@ mod wall_tests {
             authority.observe_prediction(&free, &mut pitch, &mut yaw);
             assert_eq!((pitch, yaw), expected);
         }
+    }
+}
+
+#[cfg(test)]
+mod yaw_tests {
+    use super::*;
+
+    /// Yernow's #121: `cl_yawspeed 100000` held for minutes (18 million degrees). The
+    /// camera yaw stays within a turn, and every command's yaw moves by the frame's turn to
+    /// the unit; unwrapped, the `f32` lost a degree of steps and the short then saturated.
+    #[test]
+    fn huge_accumulated_yaw_stays_wrapped_and_every_command_turns_evenly() {
+        for step in [8_u32, 7, 4, 3] {
+            let per_frame = (100_000.0 * f64::from(step) / 1000.0) as f32;
+            let turn = per_frame.to_radians();
+            let units = (f64::from(per_frame) * 65_536.0 / 360.0).rem_euclid(65_536.0);
+            let mut yaw = 0.0_f32;
+            let mut sent = crate::angle_to_short(yaw);
+            for _ in 0..(180_000 / step) {
+                yaw = wrap_yaw(yaw + turn);
+                assert!((-std::f32::consts::PI..std::f32::consts::PI).contains(&yaw));
+                let next = crate::angle_to_short(yaw);
+                let moved = f64::from((next - sent).rem_euclid(65_536));
+                assert!(
+                    (moved - units).abs() <= 2.0,
+                    "step {step}: {moved} for {units}"
+                );
+                sent = next;
+            }
+        }
+    }
+
+    #[test]
+    fn wrapping_by_whole_turns_keeps_the_direction_and_small_angles() {
+        assert_eq!(wrap_yaw(1.0), 1.0);
+        assert_eq!(wrap_yaw(-std::f32::consts::PI), -std::f32::consts::PI);
+        assert!((wrap_yaw(std::f32::consts::PI) + std::f32::consts::PI).abs() < 1e-6);
+        let wrapped = wrap_yaw(1.0 + 1000.0 * std::f32::consts::TAU);
+        assert!((wrapped - 1.0).abs() < 1e-3);
+        // Past `i32::MAX` units `ANGLE2SHORT` wraps instead of saturating at one angle.
+        assert_ne!(
+            crate::angle_to_short(349_065.0),
+            crate::angle_to_short(349_066.0)
+        );
+    }
+
+    #[test]
+    fn a_server_delta_change_leaves_the_yaw_wrapped() {
+        let mut authority = Authority::default();
+        let (mut pitch, mut yaw) = (0.0, 3.0);
+        authority.observe(0, [0; 3], [0.0, 171.9, 0.0], true, &mut pitch, &mut yaw);
+        // Half a turn of `delta_angles` yaw.
+        authority.observe(0, [0, 32_000, 0], [0.0; 3], true, &mut pitch, &mut yaw);
+        assert!((-std::f32::consts::PI..std::f32::consts::PI).contains(&yaw));
     }
 }

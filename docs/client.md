@@ -1672,13 +1672,26 @@ breakables raise `EV_BMODEL_SOUND` (73); both play the soundset's sound for the 
 answered only 73, taking it for the door event, so doors with a soundset were silent on
 every server (Creyon's report: some maps' doors).
 
+## Vehicle gunfire
+
 A vehicle's own `EV_FIRE_WEAPON` and `EV_ALT_FIRE` (an `ET_NPC` of `CLASS_VEHICLE`)
 play nothing, as in `CG_EntityEvent` (`cg_event.c:2751-2760`, `:2779-2784`): they used
 to play the flash sound of whichever ordinary gun the vehicle's `weapon` field named.
 A rider's own events are unchanged. Stock gives a vehicle's guns their sound through
 the `muzzleFX` effect that `EV_VEH_FIRE` plays bolted to the vehicle
-(`CG_VehMuzzleFireFX`); SJK does not play that effect yet, so vehicle fire is silent
-until it does.
+(`CG_VehMuzzleFireFX`), and SJK plays it since 22/10/2026
+([vehicle_fire.rs](../crates/sjk-viewer/src/vehicle_fire.rs)): the event (on the
+volley's last projectile, or a temp entity) names the vehicle in `owner` and the
+muzzles that fired in `trickedentindex`; each fired muzzle plays the `.vwp` `muzzleFX`
+of its weapon (`weapMuzzleN`, else the turret whose `turretNMuzzleM` names it) at its
+`*muzzleN` (else `*flashN`) bolt as the vehicle is posed that frame, facing along the
+bolt. A vehicle not drawn that frame plays it where the event entity is. Stock bolts
+the effect so it follows the muzzle; here it starts there. The effect's `Sound`
+primitive is the gun's firing sound, played like every effect sound at full volume
+(`S_StartSound` with `SOUND_MAXVOL`; it was seven tenths before, so every effect's
+sound is now as loud as stock). Kushina's report (21/10/2026): vehicle fire was quiet,
+the projectile's flight loop and impacts being all that was heard. JoF EJK skips
+these flashes while the viewer is in a private duel; stock does not, nor does SJK.
 
 ## Electrified players' crackle
 

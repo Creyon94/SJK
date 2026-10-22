@@ -225,6 +225,18 @@ character's root also follows the camera yaw. The hold clears on the next
 slice that does not hold the view. JA+'s free-look rebound does not set it.
 This is local presentation state, with no protocol field or movement change.
 
+### View yaw kept within a turn
+
+The camera yaw that mouse and `+left`/`+right` (`cl_yawspeed`) turns accumulate is
+brought back into one turn, -180 to 180 degrees, every frame and on every
+`delta_angles` change (`view_authority::wrap_yaw`). Unbounded, a very fast spin
+(`cl_yawspeed 100000` for half a minute, Yernow's report #121) grew it until the
+`f32` held it in steps of a degree, so the view shook on every mouse move, and past
+about 11.8 million degrees the command's `ANGLE2SHORT` saturated, so the character
+stopped turning while the camera spun on. Only the 16-bit short reaches the server,
+so wrapping by whole turns changes nothing that is sent; `angle_to_short` also goes
+through `i64` now, wrapping rather than saturating if a huge angle ever reaches it.
+
 ### Equipped jetpack prediction
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
