@@ -1090,6 +1090,8 @@ pub(crate) fn sender_card(
             card: tokens.card,
             mute: tokens.mute,
             ban: tokens.ban,
+            // The safety code is only offered in the game's chat.
+            safety: tokens.card,
         },
     );
 }
@@ -1110,6 +1112,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         place: crate::sender_card::Place::Unknown,
         avatar: None,
         note: None,
+        safety: false,
     }
 }
 

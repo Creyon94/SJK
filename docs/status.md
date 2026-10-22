@@ -5,7 +5,9 @@ Sol-Vulpes/SJK-hub branch `e2e-whispers` (not deployed). Whispers between two SJ
 go through the hub sealed to the recipient's identity key (X25519 from the Ed25519 key,
 HKDF-SHA256, ChaCha20-Poly1305, signed inside by the sender), on by default
 (`cl_e2eWhispers`); a card asks before sending one the hub refused unencrypted; their own
-pink, ENCRYPTED label and sound; keys remembered per player (`whisper-keys.txt`)
+pink, ENCRYPTED label and sound; keys remembered per player (`whisper-keys.txt`);
+optional safety codes to compare outside the game (player card, `whisper_verify`),
+verified players' whispers labelled VERIFIED and guarded when their key changes
 ([hub-chat.md](hub-chat.md#encrypted-whispers)). The hub's relay ids now start at 2, so a
 fresh reader is never told `next` 0 (which made it miss the first event after a restart).
 Verified on Windows 11: `cargo fmt`, `cargo build`, `cargo test --workspace` (sjk-viewer

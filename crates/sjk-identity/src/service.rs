@@ -146,6 +146,9 @@ pub struct Snapshot {
     /// This PC's key id (the key file's), whatever person it belongs to: for what is
     /// kept per key on this PC (seen lists, counts) and the Identity page.
     pub local_key_id: String,
+    /// This PC's public key as the hub writes it (unpadded base64url), for encrypted
+    /// whispers' safety codes (`crate::whisper::safety_code`).
+    pub public_key: String,
     /// The player's profile at the hub, once registered.
     pub me: Option<Profile>,
     /// The game server being claimed on, if any.
@@ -375,9 +378,11 @@ pub struct ReportOutcome {
 }
 
 impl Snapshot {
-    fn new(key_id: String) -> Self {
+    fn new(identity: &Identity) -> Self {
+        let key_id = identity.key_id();
         Self {
             status: Status::Disabled,
+            public_key: identity.public_key_text(),
             local_key_id: key_id.clone(),
             key_id,
             me: None,
@@ -2373,7 +2378,7 @@ impl Service {
         relay_hubs: Option<RelayHubs>,
     ) -> Self {
         let key_id = identity.key_id();
-        let snapshot = Arc::new(Mutex::new(Snapshot::new(key_id.clone())));
+        let snapshot = Arc::new(Mutex::new(Snapshot::new(&identity)));
         let staff = Arc::new(Mutex::new(StaffState::default()));
         let (commands, inbox) = channel();
         let (done, finished) = channel();
@@ -3594,7 +3599,7 @@ mod tests {
 
     fn worker(fake: &Fake, now: Instant) -> (Worker, Arc<Mutex<Snapshot>>) {
         let identity = Identity::from_seed([1; 32]);
-        let snapshot = Arc::new(Mutex::new(Snapshot::new(identity.key_id())));
+        let snapshot = Arc::new(Mutex::new(Snapshot::new(&identity)));
         let factory = fake.clone();
         let make: HubFactory = Box::new(move |url| {
             if url.starts_with("https://") {

@@ -1062,7 +1062,11 @@ a game server, the toy relay's reader (the [Toy relay](#toy-relay)'s
 `sjk-hub-relay-read`) keeps its long poll open with `whispers=1`, whether or not a toy
 listens. The hub then gives the reading key in the player's presence as `whisper_key`,
 for 45 seconds after each read. Presence is read every 15 seconds, so a player is known
-to take them a few seconds to 15 after joining.
+to take them a few seconds to 15 after joining. A client that only speaks the SJK chat
+(another client built on the hub's protocol) never asks, so it has no `whisper_key` and
+whispers to it go through the game server as before, without the card. Asking with
+`whispers=1` promises to open box format 1 (`whisper.rs`); a client that cannot must
+not ask, or the whispers sealed to it are lost.
 
 **Sending** ([e2e_whispers.rs](../crates/sjk-viewer/src/e2e_whispers.rs)). Every whisper,
 from the composer, `tell` or `reply`, reaches `send_chat_command` after its
@@ -1076,7 +1080,8 @@ recipient's next read. When the hub took it, the feed shows "To <name>" with ENC
 and the text in pink, and the console `To <name> (encrypted): <text>`. When it did not
 (or no answer came within 10 seconds), the [Encrypted whisper
 card](sjk-ui.md#encrypted-whisper) opens over the game menu and asks; Send unencrypted
-sends the same `tell` to the game server.
+sends the same `tell` to the game server. A whisper to a verified player whose key
+changed goes the same way, before anything is sent.
 
 **Receiving.** The reader opens each whisper with the player's key (`whisper::open`) on
 its own thread; the viewer takes them once a frame (`Service::take_whispers`) and shows
@@ -1092,7 +1097,21 @@ sealed to its own key. Each PC remembers the keys it has seen per player
 (`whisper-keys.txt` beside `config.cfg`, `key_id key` lines, at most 8 per player; one
 player's keys are those of each of their PCs, [linked keys](identity.md)), and the
 console says when a whisper goes to or comes from a key not seen before for a known
-player. Nothing compares keys between the two players yet (no safety numbers).
+player.
+
+**Safety codes (optional, Sol's decision 22/10/2026).** The first whisper to someone
+still trusts the key the hub gave. A player who wants proof compares a safety code
+with the other outside the game (voice, Discord, in person): twelve digits from both
+keys (`whisper::safety_code`, SHA-256 of the two keys in order, 60 bits), the same on
+both screens, and different if the hub handed out a key of its own. The chat's player
+card (resting the pointer on a name with the composer open) has a Safety code button
+for a player who takes encrypted whispers, and `whisper_verify <player>` opens the same
+[card](sjk-ui.md#encrypted-whisper). Mark verified keeps their key in
+`whisper-verified.txt` (`key_id key` lines, never sent). Their whispers then say
+VERIFIED instead of ENCRYPTED. Once their key is no longer the one checked, nothing
+goes encrypted to them without the card asking (it offers the game server, as for a
+refused whisper), and a whisper from the new key comes with a red console warning to
+compare the code again. Remove the check forgets it.
 
 **The composer** says "To <name> (encrypted)" in the pink when the recipient takes
 encrypted whispers (`ChatOverlay::set_encrypted_slots`, from presence, when it changes).
@@ -1162,7 +1181,8 @@ Encrypted whispers ([Encrypted whispers](#encrypted-whispers)): with `cl_e2eWhis
 on a game server, the hub learns that the player takes them (their key, in presence)
 and, for each whisper, the sender, the recipient's slot and key, when, and the sealed
 box's length, never its text. It keeps a whisper 60 seconds in memory. The keys seen
-for each player stay on this PC (`whisper-keys.txt`) and are never sent.
+for each player stay on this PC (`whisper-keys.txt`, and the checked ones in
+`whisper-verified.txt`) and are never sent.
 
 ## Verification
 

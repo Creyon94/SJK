@@ -19,7 +19,7 @@ pub(crate) mod text_sizes;
 
 mod view;
 
-pub(crate) use view::star;
+pub(crate) use view::{encrypted_pink, star};
 
 pub(crate) mod combat;
 
@@ -69,6 +69,9 @@ struct ChatLine {
     /// own pink, labelled ENCRYPTED. One the player sent has no sender and is named
     /// "To <recipient>".
     encrypted: bool,
+    /// An encrypted whisper with a player checked with the safety code: labelled
+    /// VERIFIED.
+    verified: bool,
 }
 
 /// An SJK chat line's id at the hub and its sender.
@@ -150,8 +153,11 @@ pub(crate) struct ChatOverlay {
     /// key opens on while `cg_chatRememberChannel` is on.
     last_channel: (Channel, Option<ChatTarget>),
     /// The client slots (bits) whose player takes encrypted whispers now
-    /// (`e2e_whispers.rs`): a whisper to them goes encrypted, which the composer says.
+    /// (`e2e_whispers.rs`): a whisper to them goes encrypted, which the composer says,
+    /// and their card offers the safety code.
     encrypted_slots: u64,
+    /// Safety code asked from a card, for this slot, until the frame takes it.
+    safety_request: Option<u16>,
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -233,6 +239,7 @@ impl ChatOverlay {
             last_whisperer: None,
             last_channel: (Channel::Global, None),
             encrypted_slots: 0,
+            safety_request: None,
             #[cfg(test)]
             for_shot: false,
         }
@@ -241,6 +248,16 @@ impl ChatOverlay {
     /// The client slots (bits) whose player takes encrypted whispers now.
     pub(crate) fn set_encrypted_slots(&mut self, slots: u64) {
         self.encrypted_slots = slots;
+    }
+
+    /// Whether the player in `slot` takes encrypted whispers now.
+    fn takes_encrypted(&self, slot: u16) -> bool {
+        slot < 64 && self.encrypted_slots & (1 << slot) != 0
+    }
+
+    /// The slot whose safety code a card asked for, once.
+    pub(crate) fn take_safety_request(&mut self) -> Option<u16> {
+        self.safety_request.take()
     }
 
     /// An overlay showing the installed world's emoji pictures.
@@ -418,6 +435,7 @@ impl ChatOverlay {
             hub: None,
             gif: None,
             encrypted: false,
+            verified: false,
         };
         self.push_line(line, server_private);
     }
@@ -434,13 +452,15 @@ impl ChatOverlay {
     }
 
     /// Show an end-to-end encrypted whisper (`e2e_whispers.rs`): from the player in
-    /// `slot` to us, or ours to the player named `to` (`slot` `None`). Its sender
-    /// becomes the one `reply` answers. False when the slot holds nobody.
+    /// `slot` to us, or ours to the player named `to` (`slot` `None`); `verified` when
+    /// they were checked with the safety code. Its sender becomes the one `reply`
+    /// answers. False when the slot holds nobody.
     pub(crate) fn receive_encrypted(
         &mut self,
         slot: Option<u16>,
         to: &str,
         text: &str,
+        verified: bool,
         now: Instant,
     ) -> bool {
         let (name, sender, muted) = match slot {
@@ -477,6 +497,7 @@ impl ChatOverlay {
             hub: None,
             gif: None,
             encrypted: true,
+            verified,
         };
         self.push_line(line, true);
         true

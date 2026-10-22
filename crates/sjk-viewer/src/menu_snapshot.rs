@@ -1363,6 +1363,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         kyber: None,
         shop: None,
         trade: None,
+        public_key: String::new(),
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);
@@ -2667,6 +2668,7 @@ fn medals_snapshot() {
         kyber: None,
         shop: None,
         trade: None,
+        public_key: String::new(),
     };
     let with = hub(shot_medals());
     let without = hub(Vec::new());

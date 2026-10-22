@@ -14,6 +14,7 @@ use sjk_ui::Rect;
 pub(super) const CARD: u16 = 120;
 pub(super) const CARD_MUTE: u16 = 121;
 pub(super) const CARD_BAN: u16 = 122;
+pub(super) const CARD_SAFETY: u16 = 123;
 /// How long the card stays once the pointer is off the name and the card.
 pub(super) const GRACE_MS: u64 = 400;
 
@@ -80,7 +81,7 @@ impl ChatOverlay {
                     }
                 }
             }
-            None if [CARD, CARD_MUTE, CARD_BAN]
+            None if [CARD, CARD_MUTE, CARD_BAN, CARD_SAFETY]
                 .into_iter()
                 .any(|token| self.ui.token_hovered(token)) =>
             {
@@ -140,6 +141,7 @@ impl ChatOverlay {
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     place,
                     note: None,
+                    safety: false,
                 }
             }
             Who::Player(target) => {
@@ -168,6 +170,7 @@ impl ChatOverlay {
                     } else {
                         Place::SlotByName(slot)
                     },
+                    safety: mark.is_some() && self.takes_encrypted(target.slot()),
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     note: None,
@@ -204,6 +207,7 @@ impl ChatOverlay {
                 card: CARD,
                 mute: CARD_MUTE,
                 ban: CARD_BAN,
+                safety: CARD_SAFETY,
             },
         );
     }
@@ -229,6 +233,18 @@ impl ChatOverlay {
             .and_then(|card| card.person.key_id.as_deref())
         {
             crate::chat_ban::press(key_id);
+        }
+    }
+
+    /// Safety code on the card: ask the frame to show it.
+    pub(super) fn press_card_safety(&mut self) {
+        if let Some(Card {
+            who: Who::Player(target),
+            ..
+        }) = &self.card
+        {
+            self.safety_request = Some(target.slot());
+            self.card = None;
         }
     }
 

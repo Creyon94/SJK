@@ -323,7 +323,11 @@ fn line_marks<'a>(
     if line.encrypted && line.sender.is_none() {
         let marks = sjk_line::Marks {
             sjk: true,
-            label: "ENCRYPTED",
+            label: if line.verified {
+                "VERIFIED"
+            } else {
+                "ENCRYPTED"
+            },
             ..sjk_line::Marks::default()
         };
         return Some((&line.name, marks));
@@ -338,6 +342,7 @@ fn line_marks<'a>(
         tier: None,
         label: match line.channel {
             _ if line.muted => "",
+            _ if line.verified => "VERIFIED",
             _ if line.encrypted => "ENCRYPTED",
             Channel::Team => "TEAM",
             Channel::Whisper => "WHISPER",
