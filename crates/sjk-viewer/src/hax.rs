@@ -19,8 +19,9 @@
 //!
 //! Only the hacked player's client decides: it takes a seize only from a player the game
 //! shows under the name they claimed, not blocked here, who has the toy out, while its own
-//! toy is on and its player plays (not in a duel, not carrying a flag, not hacked in the
-//! last [`IMMUNE_MS`]). Turning the toy off frees the player at once. Controls are
+//! toy is on and its player plays (not in a duel, not carrying a flag, not away, not
+//! hacked in the last [`IMMUNE_MS`]). A hack does not begin on a player who is typing in
+//! the chat (their talk balloon, `EF_TALK`) or away as the scoreboard marks them. Turning the toy off frees the player at once. Controls are
 //! limited to [`CONTROL_BUTTONS`] and the movement keys: no Force power, weapon change,
 //! chat or command goes through. The hacker's own player stands still meanwhile, open to
 //! attack. Players on stock clients see a player who stands still and one who moves.
@@ -94,6 +95,8 @@ const SLOTS: usize = crate::looks::SLOTS;
 const PMF_FOLLOW: u16 = 4096;
 const ET_PLAYER: u8 = 1;
 const EF_DEAD: u32 = 1 << 1;
+/// `EF_TALK`: the player's chat is open (the talk balloon).
+const EF_TALK: u32 = sjk_game_jka::pmove_talk::EF_TALK;
 /// `EF_NODRAW` (`bg_public.h`); `1 << 3` is `EF_TELEPORT_BIT`, which the server flips at
 /// every teleport and respawn, so a player with it set is drawn as any other.
 const EF_NODRAW: u32 = 1 << 8;
@@ -195,6 +198,8 @@ pub(crate) enum Refusal {
     Flag,
     /// Hacked a moment ago ([`IMMUNE_MS`]).
     Immune,
+    /// Away from the keyboard.
+    Afk,
 }
 
 impl Refusal {
@@ -205,6 +210,7 @@ impl Refusal {
             Self::Duel => "duel",
             Self::Flag => "flag",
             Self::Immune => "immune",
+            Self::Afk => "afk",
         }
     }
 
@@ -214,6 +220,7 @@ impl Refusal {
             "duel" => Self::Duel,
             "flag" => Self::Flag,
             "immune" => Self::Immune,
+            "afk" => Self::Afk,
             _ => Self::Busy,
         }
     }
@@ -226,6 +233,7 @@ impl Refusal {
             Self::Duel => "is in a duel",
             Self::Flag => "carries the flag",
             Self::Immune => "was hacked a moment ago",
+            Self::Afk => "is away",
         }
     }
 }
@@ -731,7 +739,7 @@ impl GpuState {
         match (event, self.hax.role) {
             // A hack begins on the player.
             (Event::Hack(done_at), Role::Idle)
-                if self.hax.on && holds && now >= self.hax.immune_until =>
+                if self.hax.on && holds && now >= self.hax.immune_until && !self.hax_own_away() =>
             {
                 self.hax.role = Role::Targeted {
                     hacker: slot,
@@ -750,6 +758,8 @@ impl GpuState {
                     Some(Refusal::Busy)
                 } else if now < self.hax.immune_until {
                     Some(Refusal::Immune)
+                } else if self.hax_own_away() {
+                    Some(Refusal::Afk)
                 } else {
                     spared.map(|spared| match spared {
                         crate::order66::Spared::Away | crate::order66::Spared::Dead => {
@@ -867,6 +877,15 @@ impl GpuState {
                 else {
                     return;
                 };
+                let typing = snapshot.entities.iter().any(|entity| {
+                    u8::try_from(entity.number()) == Ok(target) && entity.e_flags() & EF_TALK != 0
+                });
+                let name = self.hax_name(target);
+                if typing || self.scoreboard.seen_away(target, &name) {
+                    let why = if typing { "is typing" } else { "is away" };
+                    self.hax_centre(format!("{name}^7 {why}: no hacking them now"));
+                    return;
+                }
                 if now < self.hax.ready_at {
                     let wait = (self.hax.ready_at - now + 999) / 1000;
                     self.hax_centre(format!("Hax again in {wait} s"));
@@ -993,6 +1012,16 @@ impl GpuState {
         }
         self.hax.role = Role::Idle;
         self.hax.sent = None;
+    }
+
+    /// Whether the player is away from the keyboard, as their own client knows it: idle or
+    /// alt-tabbed (`away_emote`), or wearing an away tag in their name (`afk`).
+    fn hax_own_away(&self) -> bool {
+        crate::away_emote::own_away()
+            || self.hax_own().is_some_and(|own| {
+                let name = self.hax_name(own);
+                self.scoreboard.seen_away(own, &name)
+            })
     }
 
     /// The player's own slot, in a game.
@@ -1224,6 +1253,7 @@ mod tests {
             Event::Taken(-5),
             Event::Refused(Refusal::Duel),
             Event::Refused(Refusal::Immune),
+            Event::Refused(Refusal::Afk),
         ];
         for event in events {
             let text = event.text();

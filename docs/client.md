@@ -4043,6 +4043,12 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   (`toys: ["hax"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so the hacker's
   client knows who may be hacked. Players on stock clients, and SJK players with the toy
   off, are never touched.
+- **Not on a player typing or away:** a hack does not begin on a player whose chat is
+  open (their talk balloon) or whom the scoreboard marks away (still for 3 minutes, or an
+  away tag in their name): "<name> is typing: no hacking them now". A hacked player's own
+  client also refuses the seize while they are away, idle or alt-tabbed as the away emote
+  counts it ("Hack failed: <name> is away"). Opening the chat once the hack is under way
+  does not stop it; turning the toy off does.
 - **The hack:** hold `+use` facing a holder of the toy within reach (the cardboard
   box's, 96 units, in front). The siege hack bar fills under the crosshair with the
   stock hacker icon (`gfx/mp/c_icon_tech`, [hack_bar.rs](../crates/sjk-viewer/src/hud/hack_bar.rs))
@@ -4055,7 +4061,9 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   the seize only from a player the game shows under the name they claimed, not blocked
   here, whose look has the toy, while its own toy is on and its player plays (not
   spectating or dead, not in a duel, not carrying a flag) and was not hacked in the last
-  15 seconds; else the hacker reads why ("Hack failed: <name> is in a duel"). Taken, for
+  15 seconds, and is not away (idle or alt-tabbed as the [away emote](#away-emote)
+  counts it, or an away tag in their name); else the hacker reads why ("Hack failed:
+  <name> is in a duel", "is away"). Taken, for
   5 seconds the hacker's movement keys, jump and crouch, walk, attack and alt attack and
   view become the hacked player's: their client sends them as its own user commands,
   keeping the weapon they held, with no Force power, weapon change, saber style change,

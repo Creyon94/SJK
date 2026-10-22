@@ -157,6 +157,15 @@ fn crouch_until(until: Option<Instant>) {
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = until;
 }
 
+/// Whether the player's own client counts them away now (alt-tabbed, or idle past
+/// `cg_awayEmoteIdle`), as the away emote reads it.
+pub(crate) fn own_away() -> bool {
+    AWAY.lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .as_ref()
+        .is_some_and(|away| away.away)
+}
+
 /// Whether the player is away: their window is out of focus or minimised (with
 /// `alt_tab`), or they gave no input for `idle` (zero never). Idle time does not make
 /// a player away while their own looping emote plays (`dancing`), unless they are
