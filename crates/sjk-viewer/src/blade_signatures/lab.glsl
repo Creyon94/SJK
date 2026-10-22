@@ -212,9 +212,10 @@ float ringD(vec3 ro, vec3 rd, float y, float R){
 vec3 fxFlare(vec3 ro, vec3 rd, vec3 p, float px, float size, float len, float n, float spin, vec3 col){
   float t;
   float d = rayPt(ro, rd, p, t);
-  // round 23: skipped only where its widest halo (size*8) has faded out; at size*4 that halo was
-  // still a tenth as bright and ended at a hard ring round the flare
-  if (d > len + size*18.0) return vec3(0.0);
+  // round 23: skipped only past its widest halo (size*8), which fades to nothing before the cut
+  // (at size*4 it was still a tenth as bright and ended at a hard ring round the flare; Sol's
+  // review: size*18 cost too much, size*12 with the taper below is as clean)
+  if (d > len + size*12.0) return vec3(0.0);
   vec3 q = ro + rd*t - p;
   vec3 u = normalize(cross(rd, abs(rd.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
   vec3 v = cross(rd, u);
@@ -225,7 +226,8 @@ vec3 fxFlare(vec3 ro, vec3 rd, vec3 p, float px, float size, float len, float n,
   float across = abs(r*sin(aa)), along = r*cos(aa);
   float w = max(px, 0.03 + 0.012*along);
   float ray = exp(-pow(across/w, 2.0))*exp(-max(along, 0.0)/max(len, 0.01)*2.6)*step(0.0, along);
-  return (vec3(1.0)*(halo(d, max(size, px))*1.8 + ray*0.9) + col*(halo(d, size*3.0)*0.7 + ray*0.8 + halo(d, size*8.0)*0.15))*roomAt(p);
+  float wide = halo(d, size*8.0)*(1.0 - smoothstep(len + size*7.0, len + size*12.0, d));
+  return (vec3(1.0)*(halo(d, max(size, px))*1.8 + ray*0.9) + col*(halo(d, size*3.0)*0.7 + ray*0.8 + wide*0.15))*roomAt(p);
 }
 // Beams of light shooting out of the blade between heights y0 and y1: count of them (up to
 // 24), each up to len long, flaring out and fading rate times a second, seed chooses them.
@@ -271,7 +273,10 @@ vec3 fxArcs(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float r
     float a = h11(k*4.1 + fi*2.0 + seed);
     float R = min(reach, 0.6*uReach)*(0.45 + 0.55*h11(k*7.7 + fi + seed));
     vec3 mid = around(R, a, mix(ya, yb, 0.5) + (h11(k*9.1 + fi) - 0.5)*2.0);
-    if (rayPtRaw(ro, rd, mid, t) > R*1.6 + (yb - ya)*0.6 + 3.0) continue;
+    // round 23 (Sol's review: R*1.6 + 3 cost the arc blades a fifth to a third more): a bolt's
+    // points lie within 1.25 of its length of mid (its zigzag reaches a quarter of it aside) and
+    // its widest glow (boltLight, halo 0.9) is gone 1.9 past them
+    if (rayPtRaw(ro, rd, mid, t) > R*1.25 + (yb - ya)*0.65 + 3.2) continue;
     float env = (1.0 - q)*(1.0 - q)*(0.6 + 0.4*step(0.5, fract(q*9.0 + fi)));
     float d = min(bolt3(ro, rd, around(0.25, a, ya), mid, k + fi*1.37 + seed, 0.5),
                   bolt3(ro, rd, mid, around(0.25, a, yb), k + fi*1.37 + seed + 0.5, 0.5));
@@ -429,16 +434,17 @@ float fxSmokeAt(vec3 p, float w, float y0, float y1, float rise, float seed){
   return smoothstep(0.35, 0.8, n)*shape;
 }
 // Round 23 (players' reports after 2026.1021.1: a hard-edged dome in the smoke seen along the
-// blade): a step at most about a third of the cloud's width, up to 16 of them, so a long path
-// through it (looking along the blade) is not sampled six units apart; seen from the side the
-// path is short and it still takes six.
+// blade): a step at most about a third of the cloud's width, up to 12 of them (16 cost the smoke
+// blades up to a sixth more seen along them, Sol's review), so a long path through it (looking
+// along the blade) is not sampled six units apart; seen from the side the path is short and it
+// still takes six.
 vec3 fxSmoke(vec3 ro, vec3 rd, float y0, float y1, float w, float rise, float seed, vec3 col){
   vec2 span = raySpan(ro, rd, w*2.4, y0 - 3.0, y1);
   if (span.x >= span.y) return vec3(0.0);
-  float n = clamp(ceil((span.y - span.x)/(0.8*w)), 6.0, 16.0);
+  float n = clamp(ceil((span.y - span.x)/(0.8*w)), 6.0, 12.0);
   float dt = (span.y - span.x)/n;
   float acc = 0.0;
-  for (int i = 0; i < 16; i++){
+  for (int i = 0; i < 12; i++){
     if (float(i) >= n) break;
     float ts = span.x + (float(i) + 0.5)*dt;
     acc += fxSmokeAt(ro + rd*ts, w, y0, y1, rise, seed)*(1.0 - behindBlade(ro, rd, ts));

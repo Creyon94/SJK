@@ -369,9 +369,10 @@ fn ringD(ro: vec3<f32>, rd: vec3<f32>, y: f32, R: f32) -> f32 {
 fn fxFlare(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, px: f32, size: f32, len: f32, n: f32, spin: f32, col: vec3<f32>) -> vec3<f32> {
     var t: f32;
     let d = rayPt(ro, rd, p, &t);
-    // round 23: skipped only where its widest halo (size*8) has faded out; at size*4 that halo was
-    // still a tenth as bright and ended at a hard ring round the flare
-    if d > len + size * 18.0 {
+    // round 23: skipped only past its widest halo (size*8), which fades to nothing before the cut
+    // (at size*4 it was still a tenth as bright and ended at a hard ring round the flare; Sol's
+    // review: size*18 cost too much, size*12 with the taper below is as clean)
+    if d > len + size * 12.0 {
         return vec3<f32>(0.0);
     }
     let q = ro + rd * t - p;
@@ -385,7 +386,8 @@ fn fxFlare(ro: vec3<f32>, rd: vec3<f32>, p: vec3<f32>, px: f32, size: f32, len: 
     let along = r * cos(aa);
     let w = max(px, 0.03 + 0.012 * along);
     let ray = exp(-pow(across / w, 2.0)) * exp(-max(along, 0.0) / max(len, 0.01) * 2.6) * step(0.0, along);
-    return (vec3<f32>(1.0) * (halo(d, max(size, px)) * 1.8 + ray * 0.9) + col * (halo(d, size * 3.0) * 0.7 + ray * 0.8 + halo(d, size * 8.0) * 0.15)) * roomAt(p);
+    let wide = halo(d, size * 8.0) * (1.0 - smoothstep(len + size * 7.0, len + size * 12.0, d));
+    return (vec3<f32>(1.0) * (halo(d, max(size, px)) * 1.8 + ray * 0.9) + col * (halo(d, size * 3.0) * 0.7 + ray * 0.8 + wide * 0.15)) * roomAt(p);
 }
 
 // Beams of light shooting out of the blade between heights y0 and y1: count of them (up to
@@ -443,7 +445,10 @@ fn fxArcs(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, r
         let a = h11(k * 4.1 + fi * 2.0 + seed);
         let R = min(reach, 0.6 * uReach) * (0.45 + 0.55 * h11(k * 7.7 + fi + seed));
         let mid = around(R, a, mix(ya, yb, 0.5) + (h11(k * 9.1 + fi) - 0.5) * 2.0);
-        if rayPtRaw(ro, rd, mid, &t) > R * 1.6 + (yb - ya) * 0.6 + 3.0 {
+        // round 23 (Sol's review: R*1.6 + 3 cost the arc blades a fifth to a third more): a bolt's
+        // points lie within 1.25 of its length of mid (its zigzag reaches a quarter of it aside) and
+        // its widest glow (boltLight, halo 0.9) is gone 1.9 past them
+        if rayPtRaw(ro, rd, mid, &t) > R * 1.25 + (yb - ya) * 0.65 + 3.2 {
             continue;
         }
         let env = (1.0 - q) * (1.0 - q) * (0.6 + 0.4 * step(0.5, fract(q * 9.0 + fi)));
@@ -664,18 +669,19 @@ fn fxSmokeAt(p: vec3<f32>, w: f32, y0: f32, y1: f32, rise: f32, seed: f32) -> f3
 }
 
 // Round 23 (players' reports after 2026.1021.1: a hard-edged dome in the smoke seen along the
-// blade): a step at most about a third of the cloud's width, up to 16 of them, so a long path
-// through it (looking along the blade) is not sampled six units apart; seen from the side the
-// path is short and it still takes six.
+// blade): a step at most about a third of the cloud's width, up to 12 of them (16 cost the smoke
+// blades up to a sixth more seen along them, Sol's review), so a long path through it (looking
+// along the blade) is not sampled six units apart; seen from the side the path is short and it
+// still takes six.
 fn fxSmoke(ro: vec3<f32>, rd: vec3<f32>, y0: f32, y1: f32, w: f32, rise: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     let span = raySpan(ro, rd, w * 2.4, y0 - 3.0, y1);
     if span.x >= span.y {
         return vec3<f32>(0.0);
     }
-    let n = clamp(ceil((span.y - span.x) / (0.8 * w)), 6.0, 16.0);
+    let n = clamp(ceil((span.y - span.x) / (0.8 * w)), 6.0, 12.0);
     let dt = (span.y - span.x) / n;
     var acc: f32 = 0.0;
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < 12; i++) {
         if f32(i) >= n {
             break;
         }
