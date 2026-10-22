@@ -58,10 +58,12 @@ pub(crate) fn tick(
     gpu.local_prediction
         .preview_command(command, &gpu.bsp, &mut gpu.trace_scratch);
     let presented_snapshot = session.snapshot_at_or_before(presentation_time);
-    if let Some(position) = gpu
-        .local_prediction
-        .present_frame(presented_snapshot, presentation_time)
-    {
+    if let Some(position) = gpu.local_prediction.present_frame(
+        presented_snapshot,
+        presentation_time,
+        &gpu.bsp,
+        &mut gpu.trace_scratch,
+    ) {
         gpu.camera_position = position;
     }
     if let Some(predicted) = gpu.local_prediction.predicted_state() {

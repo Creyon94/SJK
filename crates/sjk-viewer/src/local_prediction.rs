@@ -29,6 +29,8 @@ pub(crate) mod movers;
 mod reconcile;
 #[path = "prediction_miss.rs"]
 pub(crate) mod telemetry;
+#[path = "wall_grab_view.rs"]
+mod wall_grab_view;
 
 /// Commands kept for re-prediction: about 1.5 s at a gameplay FPS of 333, 4 s at
 /// 125 (`command_rate`). Stock's `CMD_BACKUP` 64 holds half a second at 125 FPS;

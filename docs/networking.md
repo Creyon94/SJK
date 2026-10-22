@@ -259,6 +259,20 @@ its unpublished settings, the stock spinning-saber random horizontal impulses,
 and jaPRO's separate new/race jetpack path remain outside this implementation.
 Equipping and fuel state still arrive from the server.
 
+
+### Local wall-grab facing
+
+A local player attached to a wall (`PMF_STUCK_TO_WALL`) presents the wall-normal
+yaw from OpenJK's `PM_AdjustAngleForWallJump`, including on JA+ where the shared
+move may retain the approach angle. The display copy uses
+[`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)'s upright-wall
+trace and the rebound side's yaw offset against the world's and movers' current
+collision. It runs even if no command can advance beyond the snapshot time.
+[wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs) changes only the
+local display copy; replay angles, deltas, movement physics and wire fields are
+not rewritten. A released wall or a missed check adds no facing hold. See
+[wall grab facing](client.md#wall-grab-facing).
+
 ### Standing on uneven ground
 
 A saber carrier standing still on uneven ground (one foot over a ledge, a slope) takes one

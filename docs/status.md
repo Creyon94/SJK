@@ -1,3 +1,31 @@
+## Local wall-grab facing
+
+2026-10-22, `fix/wall-grab-facing`, based on `0279b8f3` (Windows x64, Rust 1.99):
+the local display copy faces the grabbed wall using OpenJK `codemp` `4d0dfaf1`'s
+`PM_AdjustAngleForWallJump` wall normal and rebound-side offset. JA+ may leave the
+approach yaw in the simulation, but the camera no longer presents that oblique
+starting angle throughout the grab. World and mover collision are used, including
+snapshot-only frames; releasing the wall or missing the wall adds no hold. Raw
+replay angles, deltas and velocity remain untouched. See
+[local wall-grab facing](networking.md#local-wall-grab-facing).
+
+Focused non-retail fixtures cover straight and slanted walls, all four rebound
+sides and their holds, camera presentation, release, missed walls and slopes at
+8/7/4/3 ms. A release measurement on a retail `mp/duel6` BSP wall averaged
+0.539 microseconds per display-copy/alignment call over 10,000 warmed samples on
+an AMD Ryzen 7 5800X3D (no movers or GPU in that measurement). The ignored
+`release_wall_grab_view_cost` test reads external `JKA_GAME_DATA`; no retail bytes
+are in its fixture. The release `duel6_from_its_start` world shot rendered on an
+NVIDIA RTX 5070 Ti and was inspected; this checks GPU startup and the map render,
+not a live grabbed player. In-game/remote-server behavior, moving-wall grabs and
+populated-match performance remain unverified.
+
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed, with existing warnings
+and ignored asset/GPU/integration cases. Dev/test debug information and
+incremental compilation were disabled.
+
 ## Kyber crystals (client)
 
 21/10/2026, `personal/kyber-crystals`, based on `main` `775c4e8b` (Sol's decisions; the

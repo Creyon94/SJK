@@ -1036,23 +1036,27 @@ Live appearance with installed animations remains unverified; see
 
 A player grabbing a wall to jump off it (Force jump 3, pushing into a wall in the
 air: `BOTH_FORCEWALLREBOUND_*`, then `BOTH_FORCEWALLHOLD_*` while the hold lasts)
-is drawn facing the wall the way the animation needs, whatever their view does
-([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). `CG_G2PlayerAngles`
-turns the body with the view yaw. A stock server turns that yaw to the wall during
-the hold (`PM_AdjustAngleForWallJump`), so the camera locks too, but a JA+ server
-leaves the view free there ([networking](networking.md#server-dialect-movement-rules)),
-and looking around turned the body off the wall, as if it floated. While the
-legs play a rebound the model's yaw is the stock server's facing instead
-(`vectoyaw(wall normal) + yawAdjust`, from the same 128-unit check along the
-view, [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)); a frame
-whose check misses keeps the rebound's last facing, and the kick off returns the
-body to the view. It applies to the local player (from the predicted state) and to
-other players alike. Local mouse and keyboard look stay held during a grabbed
-wall on every server, including JA+: input is consumed during the hold, and only
-fresh look input turns the camera after release. JA+'s server-angle rules still
-apply to the simulation and to other players; the kick off goes straight back
-from the side the simulated view picks (`checkDir`). The facing check sees the
-world's brushes only: a wall on a mover keeps the body on the view.
+is drawn facing the wall as its animation needs
+([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). The model takes
+`vectoyaw(wall normal) + yawAdjust` from OpenJK's `PM_AdjustAngleForWallJump`:
+forward grabs face the wall; side and backward grabs keep their animation's side
+offset. A missed model-facing check keeps the rebound's last facing, and leaving
+the rebound returns the model to the view. This applies to local and remote models;
+the model check uses world brushes.
+
+The local camera also takes the wall-normal yaw while `PMF_STUCK_TO_WALL` is set,
+including on JA+ and when a frame only presents a snapshot. It uses the shared
+128-unit upright-wall check against world and mover collision, so an oblique
+approach does not freeze the camera at its starting angle. Only the local display
+copy is aligned ([wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs));
+pitch and roll, replay angles, deltas and velocity retain their existing owners.
+Releasing the wall or failing the wall check adds no forced view. Shared movement
+still follows the server's rules, including JA+'s server-side free look; kick-off
+physics continue to use the simulated view's `checkDir`.
+
+Local mouse and keyboard look stay held throughout the grab on every server.
+Input is consumed during the hold, so only fresh look input turns the camera
+after release.
 
 ## Dismemberment and disintegration
 
