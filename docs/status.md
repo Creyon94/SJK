@@ -38,6 +38,27 @@ Mythical holocron's model and gold light until the crystal models land (branch
 `personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
 the Staff page are not built.
 
+## JoF EJK in SJK chat: its icon, and lines said on the server too
+
+21/10/2026, `feat/jof-ejk-chat`, based on `main` `775c4e8b` (Milamber: JoF EJK takes part
+in SJK chat with the same keys). A feed message's `client` (the hub's
+`PROTOCOL.md`, "Chat") picks the emblem before an SJK chat line: SJK's, or JoF EJK's
+icon for `ejk` ([hub-chat.md](hub-chat.md#how-a-line-looks)). During a match, what the
+player says on SJK chat goes to the game server's chat too once the hub took it: `say`
+lines starting with `^3SJK^2 ` and ending with the message's id in colour codes, and
+`consume_messages` holds such a line up to 2.5 s and drops it when that message joins the
+feed, so SJK chat players on the server see it once
+([hub-chat.md](hub-chat.md#said-on-the-game-server-too)). On Windows 11 the formatting
+check, the workspace build, the locked workspace tests (3606 passed, 193 ignored) and
+Clippy (no warnings on the new lines) pass. End to end with a local hub, the branch's and
+its unchanged `main`, and JoF EJK clients on a local server: a JoF player's line showed
+once in SJK, with JoF EJK's icon, and as tagged server chat on a JoF client with SJK chat
+off; an SJK player's line, sent by hand from a bind, showed once on a JoF client with SJK
+chat on and as server chat on one with it off. Not verified: the tag on SJK's own copies
+in game (unit tests only; the hand-sent lines predate it), a linked key's own message (its
+copy waits the 10 s and goes without the end), server mods that strip colour codes from
+chat, Linux.
+
 ## Small graphics cards found at start
 
 21/10/2026, `personal/vram-detect`, based on `main` `058dfade` (Sol: detect video memory

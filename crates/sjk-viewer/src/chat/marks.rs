@@ -274,6 +274,7 @@ mod tests {
                     creator: false,
                     trust: None,
                     emoji: String::new(),
+                    client: String::new(),
                     text: "and this one goes through the SJK chat".to_owned(),
                     holocron: None,
                 };

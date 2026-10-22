@@ -61,6 +61,7 @@ impl ChatOverlay {
                 creator: message.creator,
                 trust: message.trust.filter(|_| drop.is_none()),
                 emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
+                ejk: message.client == "ejk",
                 key_id: message.key_id.clone(),
                 tier: drop.map(|words| words.tier),
             }),
@@ -89,6 +90,7 @@ impl ChatOverlay {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: String::new(),
             holocron: Some(sjk_identity::DropMark {
                 tier: tier.to_owned(),
@@ -294,6 +296,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
         }
