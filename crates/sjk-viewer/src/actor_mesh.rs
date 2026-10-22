@@ -19,6 +19,9 @@ pub(crate) struct ActorMesh {
     pub(crate) holsters: crate::holstered_sabers::pose::Worn,
     /// A vehicle's driver bolt in this frame's pose, model space.
     pub(crate) driver_seat: Option<[f32; 3]>,
+    /// A vehicle's muzzles in this frame's pose, model space (`vehicle_fire.rs`).
+    pub(crate) vehicle_muzzles:
+        [Option<crate::vehicle_fire::Muzzle>; sjk_game_jka::vehicle_fields::VEHICLE_MUZZLES],
     pub(crate) saber_names: [Option<String>; 2],
     pub(crate) angle_controller: sjk_client::LegacyPlayerAngleController,
     pub(crate) render_yaw_degrees: Option<f32>,

@@ -206,6 +206,7 @@ pub(super) fn apply(
         mesh.force_bones.update_head(&mesh.preview, matrices);
         mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
         mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
+        crate::vehicle_fire::muzzles(&mesh.preview, matrices, &mut mesh.vehicle_muzzles);
         mesh.cosmetics.update_bolts(&mesh.preview, matrices);
         mesh.jetpack.update(&mesh.preview, matrices);
         mesh.holsters.update(&mesh.preview, matrices);
@@ -227,6 +228,7 @@ pub(super) fn apply(
     mesh.force_bones.update_head(&mesh.preview, matrices);
     mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
+    crate::vehicle_fire::muzzles(&mesh.preview, matrices, &mut mesh.vehicle_muzzles);
     mesh.cosmetics.update_bolts(&mesh.preview, matrices);
     mesh.jetpack.update(&mesh.preview, matrices);
     mesh.holsters.update(&mesh.preview, matrices);
