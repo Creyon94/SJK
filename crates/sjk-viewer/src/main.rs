@@ -193,6 +193,7 @@ mod siege_objective_notice;
 mod siege_sabers;
 mod surface_tables;
 mod team_sabers;
+mod toy_saved;
 mod trip_mine_lasers;
 mod video_memory;
 mod viewer_app;
@@ -475,6 +476,8 @@ struct GpuState {
     order66: order66::Order66,
     /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
     hax: hax::Hax,
+    /// Order 66's and the Hax's switches as last saved (`toy_saved`).
+    toys_saved: [toy_saved::Saved; 2],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1426,6 +1429,7 @@ impl GpuState {
             cardboard_box: Default::default(),
             order66: Default::default(),
             hax: Default::default(),
+            toys_saved: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
             holocron_stage_seconds: None,
