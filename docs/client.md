@@ -1076,6 +1076,13 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   It is always on, with no cvar, as in EternalJK and OpenJK (`CG_Player` checks only
   `EF_DISINTEGRATION`). Its colours are final: real-time sun light and fullbright
   leave them as they are, as the stage's colour generators do (`entity_control.x` 3).
+  They replace every generator, the player tint (`char_color_*`) too, so a tinted
+  model burns in its untinted colours, as rd-vanilla's `killGen` does. A corpse slashed
+  until it gives way (`body_die`) burns from its own origin, the middle of the body,
+  and is removed a second later (`BodyRid`): it looks cut in half and loses its tint
+  for that second in EternalJK too (Nib's hub report 122, 22/10/2026). The slow fade of
+  a corpse the server clears on its own (`EV_BODYFADE`, `cg_ents.c` `bodyFadeTime`) is
+  not drawn yet: the body stays as it is until it is removed.
 
 Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
 

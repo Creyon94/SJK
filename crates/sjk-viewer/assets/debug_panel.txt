@@ -60,6 +60,15 @@ change: messagemode3 (U) while following a player whispers to them, as JoF EJK d
 test: Local server, two clients: B spectates and follows A, presses U with no crosshair.
 test: The composer opens on a whisper to A; Enter: A gets the tell.
 
+[saber-switch-trail]
+area: Rendering & effects
+title: No trail streak when a blade lights again (hub report 116)
+change: A blade that is out keeps its trail edge at the hilt and forgets its afterimages,
+change: so the first swing after it lights again no longer streaks from where it went out.
+test: Staff with a signature shader (Holonet Feed), saber trail on: run, switch stance
+test: and swing at once: no streak or blade copy back where the second blade went out.
+test: Same with dual sabers, and a single saber turned off and on while running.
+
 [hax-fixes]
 area: Gameplay
 title: Hax: hackable after a teleport or respawn, and after a map change
