@@ -1084,6 +1084,9 @@ pub(crate) struct SaberSkins {
 
 /// What a player's second saber wears: the first saber's skin (players with one skin, and
 /// every look from before 21/10/2026), or its own (`None`: the stock blade).
+// Kept by value in fixed per-slot arrays read every frame: boxing `Own` (clippy's advice)
+// would allocate there, which the per-frame paths avoid.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) enum Second {
     #[default]
