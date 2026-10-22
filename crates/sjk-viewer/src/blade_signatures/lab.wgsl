@@ -421,6 +421,12 @@ fn fxRays(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, l
     return acc;
 }
 
+// A bolt's light (boltLight) faded to nothing 1.7 from it, so fxArcs can skip a bolt past that
+// without a seam: its widest glow is a fortieth as bright there.
+fn arcGlow(dist: f32, col: vec3<f32>, px: f32) -> vec3<f32> {
+    return boltLight(dist, col, px) * (1.0 - smoothstep(1.1, 1.7, dist));
+}
+
 // Lightning in three dimensions: count (up to 10) bolts that leave the blade between y0 and
 // y1, arc out up to reach units on every side and come back in, with a fork, struck anew
 // rate times a second (Sol's Storm, all round the blade).
@@ -445,17 +451,30 @@ fn fxArcs(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, r
         let a = h11(k * 4.1 + fi * 2.0 + seed);
         let R = min(reach, 0.6 * uReach) * (0.45 + 0.55 * h11(k * 7.7 + fi + seed));
         let mid = around(R, a, mix(ya, yb, 0.5) + (h11(k * 9.1 + fi) - 0.5) * 2.0);
-        // round 23 (Sol's review: R*1.6 + 3 cost the arc blades a fifth to a third more): a bolt's
-        // points lie within 1.25 of its length of mid (its zigzag reaches a quarter of it aside) and
-        // its widest glow (boltLight, halo 0.9) is gone 1.9 past them
-        if rayPtRaw(ro, rd, mid, &t) > R * 1.25 + (yb - ya) * 0.65 + 3.2 {
+        // round 23 (Sol's review: timed on Creyon's RTX 5070, the arc blades cost a fifth to a third
+        // more once their glow faded out instead of being cut): each of the arc's three bolts (its two
+        // halves and the fork) is drawn only near its own middle. A bolt's points lie within half its
+        // length of its middle (its zigzag reaches less aside than that), and its glow is made to end
+        // 1.7 past them (arcGlow), so a pixel further off would draw nothing from it.
+        if rayPtRaw(ro, rd, mid, &t) > R * 1.25 + (yb - ya) * 0.65 + 2.8 {
             continue;
         }
         let env = (1.0 - q) * (1.0 - q) * (0.6 + 0.4 * step(0.5, fract(q * 9.0 + fi)));
-        let d = min(bolt3(ro, rd, around(0.25, a, ya), mid, k + fi * 1.37 + seed, 0.5), bolt3(ro, rd, mid, around(0.25, a, yb), k + fi * 1.37 + seed + 0.5, 0.5));
+        let ea = around(0.25, a, ya);
+        let eb = around(0.25, a, yb);
         let fork = mid + around(R * 0.55, a + 0.12 * (h11(k + fi) - 0.5), (h11(k * 3.3 + fi) - 0.5) * 3.0);
-        let d2 = bolt3(ro, rd, mid, fork, k * 2.1 + fi + seed, 0.6);
-        acc += (boltLight(d, col, px) + boltLight(d2, col, px) * 0.55) * env;
+        var d: f32 = 1.0e3;
+        var d2: f32 = 1.0e3;
+        if rayPtRaw(ro, rd, (ea + mid) * 0.5, &t) < 0.55 * length(mid - ea) + 1.8 + px {
+            d = bolt3(ro, rd, ea, mid, k + fi * 1.37 + seed, 0.5);
+        }
+        if rayPtRaw(ro, rd, (mid + eb) * 0.5, &t) < 0.55 * length(eb - mid) + 1.8 + px {
+            d = min(d, bolt3(ro, rd, mid, eb, k + fi * 1.37 + seed + 0.5, 0.5));
+        }
+        if rayPtRaw(ro, rd, (mid + fork) * 0.5, &t) < 0.55 * length(fork - mid) + 1.8 + px {
+            d2 = bolt3(ro, rd, mid, fork, k * 2.1 + fi + seed, 0.6);
+        }
+        acc += (arcGlow(d, col, px) + arcGlow(d2, col, px) * 0.55) * env;
     }
     return acc;
 }
