@@ -6126,3 +6126,10 @@ change: Bug reports, notes and player reports accept the characters of cvars and
 change: @ * & | ~ backtick $ % ^ and braces stay refused; the rules line lists what is taken.
 test: Report a bug: 'bind x "say hi; kill" [90] <value> cg_fov_2' is sent, no refusal.
 test: A report with @ or {braces}: refused, the message lists the allowed characters.
+[jkr-creator]
+area: HUD
+title: JKR CREATOR mark + centred card labels
+change: Bishop's card shows a rust JKR CREATOR pill (hub jkr_creator flag, no staff rights).
+change: SJK TEAM pill, holocron name and Achievements text no longer sit a bit high.
+test: Pin Bishop's card: rust JKR CREATOR pill, no staff tools for him.
+test: Pin a staff card: SJK TEAM text, holocron name, achievements centred on their shapes.
