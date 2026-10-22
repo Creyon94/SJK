@@ -16,7 +16,6 @@ use crate::rarity_fx;
 use crate::symbols;
 use crate::unlockables::Unlockable;
 use sjk_ui::{DrawCommand, FontWeight, TextAlign};
-use std::time::Instant;
 
 /// The rack: where its first row starts, a row's room and a swatch's size.
 const RACK_TOP: f32 = 324.0;
@@ -353,6 +352,14 @@ impl Panel {
         self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
         self.shader_count = rows.len();
         self.shader_swatches.clear();
+        // A blade card's button asked for its shader.
+        if let Some(id) = self.shader_focus.take()
+            && let Some(row) = rows
+                .iter()
+                .position(|row| row.skin.is_some_and(|skin| skin.id == id))
+        {
+            self.shader = row;
+        }
         if self.shader >= rows.len() {
             self.shader = rows.iter().position(|row| row.worn).unwrap_or(0);
         }
@@ -1326,12 +1333,11 @@ impl Panel {
         self.trade_buttons(frame, row, inputs, [left, button_y], x + width);
     }
 
-    /// Shatter and Craft at `[x, y]` on the card's foot, while the hub lets the player
-    /// trade (`docs/cards.md`, "Shards and the shop"): Shatter for a shader of the trade
-    /// held twice or more (one copy into kyber shards, never the last), Craft for one not
-    /// held (dimmed while the shards fall short). The first press arms the button ("Confirm:
-    /// ..."), a second within five seconds sends it. Up to `right`, the hub's answer to the
-    /// last trade of this shader, or the player's shards.
+    /// The way to the Forge at `[x, y]` on the card's foot, while the hub's economy is
+    /// known (`docs/cards.md`, "The Forge"): "Craft in the Forge" for a shader of the
+    /// trade not held, "Break down in the Forge" for one of the player's own copies (a
+    /// medal's or a card's is not theirs to trade), with what it costs or gives. A click
+    /// shows the Forge on that section with the shader chosen.
     fn trade_buttons(
         &mut self,
         frame: &Frame,
@@ -1340,102 +1346,55 @@ impl Panel {
         [x, y]: [f32; 2],
         right: f32,
     ) {
-        let (Some(skin), Some(shards)) = (row.skin, self.trade) else {
+        self.forge_link = None;
+        let Some(skin) = row
+            .skin
+            .filter(|skin| self.trade_known && crate::economy::in_trade(skin))
+        else {
             return;
         };
         let s = frame.s;
-        // A medal's or a card's copy is not the player's to trade.
-        let held = inputs
-            .holdings
-            .unlock(skin.id)
+        let unlock = inputs.holdings.unlock(skin.id);
+        let own = unlock
             .filter(|unlock| unlock.medal.is_none() && unlock.card.is_none())
             .map_or(0, |unlock| unlock.count);
-        let choices = crate::economy::choices(skin, held, shards);
-        let now = Instant::now();
-        let armed = |token: u16| {
-            self.trade_armed.is_some_and(|(armed, id, at)| {
-                armed == token && id == skin.id && now.duration_since(at) <= TRADE_CONFIRM
-            })
-        };
-        let (shatter_armed, craft_armed) = (armed(SHATTER_TOKEN), armed(CRAFT_TOKEN));
-        let mut left = x;
-        if let Some(gain) = choices.shatter {
-            let label = if shatter_armed {
-                "Confirm: shatter one".to_owned()
-            } else {
+        let (section, label, line) = match (unlock, own) {
+            (None, _) => (
+                forge::Section::Craft,
+                "Craft in the Forge".to_owned(),
+                craft_words(skin, self.held_cards(inputs)),
+            ),
+            (Some(_), 0) => return,
+            (Some(_), _) => (
+                forge::Section::Break,
+                "Break down in the Forge".to_owned(),
                 format!(
-                    "Shatter a copy  +{} {}",
-                    crate::economy::shards_text(gain),
-                    symbols::SHARD
-                )
-            };
-            let width = (crate::text::display_width(&label, 18.0) + 48.0).max(180.0);
-            kit::button(
-                &mut self.ui,
-                frame,
-                [left, y, width, 44.0],
-                &label,
-                shatter_armed,
-                true,
-                false,
-                SHATTER_TOKEN,
-            );
-            left += width + 12.0;
-        }
-        if let Some(cost) = choices.craft {
-            let cost = crate::economy::shards_text(cost);
-            let label = if craft_armed {
-                format!("Confirm: {cost} shards")
-            } else {
-                format!("Craft  {cost} {}", symbols::SHARD)
-            };
-            let width = (crate::text::display_width(&label, 18.0) + 48.0).max(180.0);
-            kit::button(
-                &mut self.ui,
-                frame,
-                [left, y, width, 44.0],
-                &label,
-                choices.affordable,
-                choices.affordable,
-                false,
-                CRAFT_TOKEN,
-            );
-            left += width + 12.0;
-        }
-        if choices.shatter.is_none() && choices.craft.is_none() {
-            return;
-        }
-        // The last trade's answer while it is this shader's, else the shards at hand.
-        let (line, colour) = match (&self.trade_sent, &self.trade_outcome) {
-            (Some((serial, sent)), Some(outcome))
-                if sent.id == skin.id && outcome.serial > *serial && outcome.id == sent.id =>
-            {
-                let colour = if outcome.done() {
-                    color::GOLD
-                } else {
-                    color::MUTED
-                };
-                (crate::economy::outcome_words(outcome, sent.name), colour)
-            }
-            (Some((_, sent)), _) if sent.id == skin.id => {
-                ("Asking the SJK hub...".to_owned(), color::MUTED)
-            }
-            _ => (
-                format!(
-                    "{}  {} kyber shards",
+                    "{}  +{} kyber shards a copy",
                     symbols::SHARD,
-                    crate::economy::shards_text(shards)
+                    crate::economy::shards_text(crate::economy::shatter_yield(skin.tier))
                 ),
-                color::HOLO,
             ),
         };
+        let width = (crate::text::display_width(&label, 20.0) + 56.0).max(200.0);
+        kit::button(
+            &mut self.ui,
+            frame,
+            [x, y, width, 44.0],
+            &label,
+            false,
+            true,
+            false,
+            FORGE_LINK_TOKEN,
+        );
+        self.forge_link = Some((section, skin.id));
+        let left = x + width + 12.0;
         text(
             &mut self.ui,
             TextFamily::Body,
             format_args!("{line}"),
             frame.rect(left, y + 11.0, (right - left).max(0.0), 22.0),
             15.0 * s,
-            colour,
+            color::HOLO,
             FontWeight::Semibold,
             TextAlign::End,
         );
@@ -1823,6 +1782,26 @@ impl Panel {
             .into_iter()
             .map(|(skin, option, on, _)| (skin, option, on))
             .collect();
+    }
+}
+
+/// What crafting `skin` costs, said beside its "Craft in the Forge": lowered, and the
+/// blade card named, while `cards` (the player's) hold a copy of its blade card
+/// (21/10/2026).
+fn craft_words(
+    skin: &'static crate::unlockables::Unlockable,
+    cards: &[sjk_identity::CardStack],
+) -> String {
+    let card = crate::economy::blade_card(skin, cards, &crate::cards::faces::current());
+    let (cost, off) = crate::economy::craft_price(skin, card);
+    let cost = crate::economy::shards_text(cost);
+    match off {
+        Some((finish, off)) => format!(
+            "{}  {cost} kyber shards to craft, {} card -{off} %",
+            symbols::SHARD,
+            finish.name
+        ),
+        None => format!("{}  {cost} kyber shards to craft", symbols::SHARD),
     }
 }
 

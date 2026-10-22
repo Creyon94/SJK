@@ -39,6 +39,8 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     if console.new_profile() {
         crate::graphics_quality::apply_new_profile(&mut console);
     }
+    // A card of 4 GB or less starts on smaller textures and the menu pictures.
+    crate::video_memory::at_start(&mut console);
     for line in notice::LINES {
         log::progress(format_args!("{line}"));
         console.push_log_quiet(line);

@@ -108,6 +108,8 @@ pub(crate) struct BladeState {
     pub(crate) ghosts: crate::saber_ghosts::GhostTrail,
     /// Its swing, ignition and clashes, for the Blade Lab designs (`saber_motion.rs`).
     pub(crate) motion: crate::saber_motion::BladeMotion,
+    /// Where its tip was, for a skin shedding blossoms (`saber_petals.rs`).
+    pub(crate) petals: crate::saber_petals::PetalEmitter,
 }
 
 impl BladeState {
@@ -123,6 +125,8 @@ impl BladeState {
 pub(crate) struct StateSlab {
     states: Box<[BladeState]>,
     tilts: Box<[tilt::ThrowTilt]>,
+    /// The blossoms the blades shed this frame, for `saber_petals::frame` to spawn.
+    petals: Vec<crate::saber_petals::PetalSpawn>,
 }
 
 impl Default for StateSlab {
@@ -134,6 +138,7 @@ impl Default for StateSlab {
             ]
             .into_boxed_slice(),
             tilts: vec![tilt::ThrowTilt::default(); MAX_ENTITIES].into_boxed_slice(),
+            petals: Vec::with_capacity(crate::saber_petals::MOST_QUEUED),
         }
     }
 }
@@ -151,6 +156,26 @@ impl StateSlab {
             .checked_add(saber.checked_mul(BLADES_PER_SABER)?)?
             .checked_add(blade)?;
         self.states.get_mut(index)
+    }
+
+    /// A blade's state and the queue of blossoms it may shed into.
+    pub(crate) fn blade_and_petals(
+        &mut self,
+        entity: u64,
+        saber: usize,
+        blade: usize,
+    ) -> Option<(&mut BladeState, &mut Vec<crate::saber_petals::PetalSpawn>)> {
+        let entity = usize::try_from(entity.checked_sub(1)?).ok()?;
+        let index = entity
+            .checked_mul(SABERS_PER_ENTITY * BLADES_PER_SABER)?
+            .checked_add(saber.checked_mul(BLADES_PER_SABER)?)?
+            .checked_add(blade)?;
+        Some((self.states.get_mut(index)?, &mut self.petals))
+    }
+
+    /// The blossoms queued since the last frame.
+    pub(crate) fn petals(&mut self) -> &mut Vec<crate::saber_petals::PetalSpawn> {
+        &mut self.petals
     }
 
     /// The thrown-saber tilt kept on the owner's entity (`centity_t::bolt3`).

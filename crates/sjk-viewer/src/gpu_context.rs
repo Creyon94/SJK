@@ -65,6 +65,9 @@ pub(crate) struct Context {
     /// Textures the worlds built on this context share ([`crate::shared_textures`]);
     /// a graphics reload's context starts its own.
     pub(crate) shared_textures: Arc<crate::shared_textures::Cache>,
+    /// The blade signature pipelines the worlds built on this device share
+    /// ([`crate::saber_gpu::Signatures`]); a graphics reload's context keeps them.
+    pub(crate) blade_signatures: Arc<crate::saber_gpu::Signatures>,
 }
 
 impl Context {
@@ -159,6 +162,7 @@ impl Context {
                 trace: wgpu::Trace::Off,
             })
             .await?;
+        crate::gpu_guard::name_uncaptured(&device);
         let capabilities = surface
             .as_ref()
             .map(|surface| surface.get_capabilities(&adapter));
@@ -226,6 +230,7 @@ impl Context {
             adapter_backend: format!("{:?}", adapter_info.backend),
             anisotropy_limit: maximum,
             shared_textures: Arc::default(),
+            blade_signatures: Arc::default(),
         }))
     }
 
@@ -265,6 +270,7 @@ impl Context {
             adapter_backend: self.adapter_backend.clone(),
             anisotropy_limit: self.anisotropy_limit,
             shared_textures: Arc::default(),
+            blade_signatures: self.blade_signatures.clone(),
         })
     }
 

@@ -2941,6 +2941,15 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   [duel_isolation.rs](../crates/sjk-client/src/duel_isolation.rs)), the HUD,
   scoreboard, kill feed and recorded demos keep the snapshot as received; demo
   playback hides by the same setting.
+- `cg_duelStockBlades` (off; Settings > Gameplay > Normal blades in duels, and Game
+  options), when on, draws every player's blade as the stock one, in the colour they set
+  (a stock colour or RGB) and with the stock sounds, instead of their blade skin, while you, or the
+  player you follow, are in a private duel, or on a Duel or Power Duel server
+  (`g_gametype` 3 or 4), Sol's request of 21/10/2026: nothing round a blade hides where it
+  is or how it swings ([duel_blades.rs](../crates/sjk-viewer/src/duel_blades.rs),
+  `SaberSkins::set_plain`). Team and black blades follow their own settings as usual.
+  Off by default (Creyon: skins stay on in duels unless a player asks). It changes only
+  what you see; the other duellist sees what their own setting says.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are
@@ -3552,8 +3561,8 @@ are in [identity.md](identity.md).
   SJK UI's look with its menus and the classic+ look with the classic ones
   ([identity.md](identity.md#medals), [sjk-ui.md](sjk-ui.md#new-medal)).
 - `debug_medal <id> [x<count>] [note]` (`debug_medal all [note]` for every medal,
-  alone it lists the ids: `early_tester`, `early_contributor`, `bug_hunter`, which
-  takes a count) shows made-up medals as if the SJK team had just given them, through
+  alone it lists the ids: `early_tester`, `early_contributor`, `bug_hunter`; a count
+  is only for a repeatable medal, and none is since 21/10/2026) shows made-up medals as if the SJK team had just given them, through
   the same queue, card (in a match), pop-up, ceremony and sound, to try them without the
   hub. It sends nothing and never writes `medals_seen.txt`; the console
   closes so the pop-up shows at once on the main menu (in a match, open the game
@@ -3682,7 +3691,8 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   pop-up card over the scene, darkened by half so the selection still shows round it
   ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)). The selection's outline also
   shows over a map explored without a server. As it is typed the text
-  keeps the bug reports' alphabet (letters, digits, spaces and `. , ! ? ' - : ( )`), and
+  keeps the bug reports' alphabet (letters, digits, spaces and
+  `. , ! ? ' - : ( ) _ / \ + = " ; [ ] < > #`), and
   Send needs 3 characters with 2 letters. Enter or
   Send appends the note to `notes.jsonl` (one JSON object: map, UTC time,
   `setviewpos`, camera pose, hit point and normal, draw surface, collision flags,
@@ -3997,6 +4007,59 @@ game or a film; the effect and its shader are written by hand
 mounted below all game data. See [order66.rs](../crates/sjk-viewer/src/order66.rs) and
 `GpuState::blow_apart` in [dismember.rs](../crates/sjk-viewer/src/dismember.rs).
 
+## Hax
+
+The Hax is a meme toy, SJK's own and free for every player (Sol's idea, 21/10/2026): a
+player who has it on hacks another who has it on, then steers them for a few seconds.
+`toy_hax` turns it on or off, from a bind (Settings > Key bindings > Interaction > Toy:
+Hax, unbound until a key is picked), from the quick wheel's [Toys page](#toys-page) or
+from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It is off at every start.
+
+- **Who takes part:** the players whose toy is on. It is a toy in their look
+  (`toys: ["hax"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so the hacker's
+  client knows who may be hacked. Players on stock clients, and SJK players with the toy
+  off, are never touched.
+- **The hack:** hold `+use` facing a holder of the toy within reach (the cardboard
+  box's, 96 units, in front). The siege hack bar fills under the crosshair with the
+  stock hacker icon (`gfx/mp/c_icon_tech`, [hack_bar.rs](../crates/sjk-viewer/src/hud/hack_bar.rs))
+  and the stock hacking loop plays (`sound/player/hacking.wav`), for 3 seconds. Letting
+  go of `+use`, the target walking more than 160 units away or out of the hacker's
+  front, or the hacker dying ends it. The hacked player sees "<name> is hacking you!
+  Get away", the same bar, and hears the loop from the hacker: walking away is the
+  counter.
+- **The control:** once the bar is full, the hacked player's client decides. It takes
+  the seize only from a player the game shows under the name they claimed, not blocked
+  here, whose look has the toy, while its own toy is on and its player plays (not
+  spectating or dead, not in a duel, not carrying a flag) and was not hacked in the last
+  15 seconds; else the hacker reads why ("Hack failed: <name> is in a duel"). Taken, for
+  5 seconds the hacker's movement keys, jump and crouch, walk, attack and alt attack and
+  view become the hacked player's: their client sends them as its own user commands,
+  keeping the weapon they held, with no Force power, weapon change, saber style change,
+  chat or command. Both hear the stock mind trick (`sound/weapons/force/distract.wav`,
+  `distractstop.wav` at the end); the hacked player reads "HACKED: <name> has your
+  controls", their view turned by the hacker. The hacker's camera goes behind the hacked
+  player, turned by the hacker's mouse at once (the player follows after the relay's
+  way); the hacker's own player stands still where they were, open to attack, and their
+  view comes back when it ends. The hacker may hack again after 15 seconds.
+- **Breaking free:** `toy_hax` off frees the hacked player at once; so do dying, a duel,
+  and the hacker going quiet for 1.5 seconds (after 0.4 seconds without news the player
+  stands still). The hacker's toy off, death or duel ends it for both.
+- **The way:** no client can move another player on a server, so the hacked player's
+  own client plays the hacker's controls. They go through the SJK hub's
+  [toy relay](hub-chat.md#toy-relay), not the toy events, which wait for the feed's next
+  poll: the hacker's client sends a frame (keys, buttons, view) when they change and
+  every 50 ms at least, at most one per 30 ms; a frame still waiting to be sent is
+  replaced by the next. Each holder of the toy keeps a long poll open for the events
+  meant for them. The hack's start and end, the seize and the answers travel the same
+  way. The steering lags by the hacker's way to the hub, the hub's to the hacked
+  player and their ping, and the hacker sees the result after their own ping too. Without
+  the hub (`cl_identity 0`), or with a hub from before the relay, nothing is hacked.
+
+The icon (a terminal with a green ">_") is drawn by
+[hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono;
+the sounds and the hack bar's icon are the retail game's. See
+[hax.rs](../crates/sjk-viewer/src/hax.rs).
+
 ## Holstered saber hilts
 
 Settings > Game offers **Holstered saber hilts**, **Holster server support**,
@@ -4199,8 +4262,9 @@ Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's o
 state; no cvar holds it). Since 16/10/2026 the default page also has the
 [Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it), and
 since 17/10/2026 [Order 66](#order-66) (`toy_order66`, marked while it is on, then
-Execute Order 66, `order66`); a wheel saved before keeps its Toys page as it was, and
-gains them from Add a choice, Toys.
+Execute Order 66, `order66`), and since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
+while it is on); a wheel saved before keeps its Toys page as it was, and gains them from
+Add a choice, Toys.
 
 ### GIF wheel
 
@@ -5062,6 +5126,17 @@ once crouched the legs crouch instead. EJK walks with `+speed`, which runs under
 crouch key of the jump/crouch pair, as `+movedown` is. Unlike EJK, whose `-duck`
 also lets go of every `+movedown` and `+speed` key, `-duck` releases only itself. See
 [input.rs](../crates/sjk-viewer/src/input.rs) (`up_move`).
+
+A `+` bind on the mouse wheel acts on each notch, whose press and release arrive
+together (`bind MWHEELDOWN +moveup` jumps once a notch; Sol's decision, 21/10/2026, after
+Midn8Runner's report). As in the original game, a button (`+attack`, `+use`) pressed and
+let go between two user commands is still sent in the next one (`wasPressed`). For
+movement the original game counts only the milliseconds a key was down
+(`IN_KeyUp`, `CL_KeyState`), and a notch is down for none, so on the wheel `+moveup`,
+`+forward` and the other movement binds did nothing there, in OpenJK, JoF EJK and
+ioquake3 alike. SJK moves the whole next user command for a press let go in the same
+millisecond, and only for that: a key held even 1 ms keeps its share of the command.
+See `KeyState::tapped` in [state.rs](../crates/sjk-viewer/src/input/state.rs).
 
 `cg_gripVictimFX` (archived, default **on**) shows red puffs near choking players'
 necks, following JoF EJK's Grip victim effect. Turn **Grip victim effects** off in

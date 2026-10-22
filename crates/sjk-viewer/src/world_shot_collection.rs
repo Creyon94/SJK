@@ -39,6 +39,7 @@ fn preview() -> crate::console::profile_panel::Preview {
             },
             goal: kind.goal,
             unlocked: if index % 2 == 0 { 1_791_336_225 } else { 0 },
+            reward: None,
         })
         .collect();
     preview.standings = crate::achievements::standings(&held);
@@ -205,8 +206,8 @@ fn duel6_sjk_collection() {
             if let Some(console) = gpu.console.as_mut() {
                 console.collection_saber_turn_for_shot(None);
             }
-            // Trading open at the hub: a Tidal held three times offers Shatter beside
-            // Equip; a locked Echo offers Craft, dimmed while the shards fall short.
+            // The hub's economy known: a Kamino held three times points to Break down in
+            // the Forge beside Equip; a locked Echo Base to Craft in the Forge.
             let row = |id: &str| {
                 1 + crate::unlockables::blade_skins_by_tier()
                     .iter()
@@ -223,7 +224,7 @@ fn duel6_sjk_collection() {
                     },
                 ];
                 console.preview_collection(Some(owned), 0.8);
-                console.collection_trade_for_shot(Some(85));
+                console.collection_trade_for_shot(true);
                 console.collection_shader_for_shot(row("saber_tidal"));
             }
             println!(
@@ -239,14 +240,14 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 20, "duel6-collection-shaders-craft").display()
             );
             if let Some(console) = gpu.console.as_mut() {
-                console.collection_trade_for_shot(None);
+                console.collection_trade_for_shot(false);
             }
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(crate::saber_skin_options::CVAR, "");
                 console.preview_collection(Some(vec![sun()]), 0.8);
             }
-            // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row) and
-            // on to Cards, on the same screen.
+            // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row), on
+            // to the Forge and to Cards, on the same screen.
             gpu.profile_hub_show_for_shot(Tab::Nameplates);
             gpu.profile_hub_next_for_shot();
             assert_eq!(gpu.profile_hub_tab(), Some(Tab::Holocrons));
@@ -255,6 +256,8 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 150, "duel6-collection-holocrons").display()
             );
             assert!(!overflowed(&gpu), "Holocrons");
+            gpu.profile_hub_next_for_shot();
+            assert_eq!(gpu.profile_hub_tab(), Some(Tab::Forge));
             gpu.profile_hub_next_for_shot();
             assert_eq!(gpu.profile_hub_tab(), Some(Tab::Cards));
         }
@@ -602,6 +605,50 @@ fn duel6_sjk_collection_debug() {
             let name = format!("duel6-collection-debug-{}", part(tab));
             println!("{}", shoot(&mut gpu, frames, &name).display());
             assert!(!overflowed(&gpu), "{tab:?}");
+        }
+    });
+}
+
+/// Kyber crystals on the Achievements tab (21/10/2026): the achievement up close says the
+/// crystal it brings, and its hover card ends with it, in the crystal's colour.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_kyber_achievements() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 10);
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.open_profile_hub_page(Tab::Achievements, ReturnTarget::MainMenu);
+        }
+        let path = shoot(&mut gpu, 8, "duel6-kyber-achievements");
+        println!("{}", path.display());
+        assert!(!overflowed(&gpu));
+        // The hover card of Legend of the Arena (a Mythical crystal), then Centurion.
+        for id in ["kills_1000", "kills_100"] {
+            let index = crate::achievements::ALL
+                .iter()
+                .position(|kind| kind.id == id)
+                .expect("an achievement");
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(Some(index));
+            }
+            let path = shoot(&mut gpu, 8, &format!("duel6-kyber-achievement-hover-{id}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{id}");
         }
     });
 }

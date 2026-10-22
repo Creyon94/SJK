@@ -103,20 +103,13 @@ pub(crate) struct Preview {
 /// Run `create` inside validation and out-of-memory scopes: `None`, with the
 /// error logged, when wgpu reported one.
 fn guarded<T>(device: &wgpu::Device, what: &str, create: impl FnOnce() -> T) -> Option<T> {
-    let memory = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
-    let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
-    let value = create();
-    let invalid = pollster::block_on(validation.pop());
-    let exhausted = pollster::block_on(memory.pop());
-    match invalid.or(exhausted) {
-        Some(error) => {
+    crate::gpu_guard::capture(device, create)
+        .inspect_err(|error| {
             crate::log::progress(format_args!(
                 "warning: model preview off, {what} failed: {error}"
             ));
-            None
-        }
-        None => Some(value),
-    }
+        })
+        .ok()
 }
 
 /// The target size for `wanted` pixels on screen: no side over

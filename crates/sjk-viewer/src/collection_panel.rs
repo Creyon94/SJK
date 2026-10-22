@@ -3,7 +3,8 @@
 //! Achievements (a wall of medallions by category), Shaders (the saber's looks: the
 //! stock blade and every blade skin, owned or locked), Toys (the Illuminate holocron)
 //! Nameplates (ornaments for the plate over the player's head; none yet) and Cards (the
-//! sealed cards opening holocrons brought, and the credits). Every
+//! sealed cards opening holocrons brought, and the credits), and since 21/10/2026 the
+//! Forge between them (the shop, crafting and breaking shaders down, [`forge`]). Every
 //! tab shows its things on the left, each in its place from the start (the ones the
 //! player lacks dimmed), and the one chosen up close on the right; on Shaders, Toys and
 //! Nameplates that is the player's own model, on the menu map's stage or in a live
@@ -36,6 +37,10 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod achievements;
 #[path = "collection_cards.rs"]
 mod cards;
+#[path = "collection_forge.rs"]
+pub(crate) mod forge;
+#[path = "collection_forge_view.rs"]
+mod forge_view;
 #[path = "collection_hover.rs"]
 mod hover;
 #[path = "collection_medals.rs"]
@@ -64,6 +69,11 @@ const ACHIEVEMENT_BASE: u16 = 1_240;
 /// to 299 skins (the stock blade is row 0).
 const SHADER_BASE: u16 = 7_000;
 const SHADER_LIMIT: u16 = 7_300;
+/// The click every page plays for a press.
+fn ui_cues_click() {
+    crate::audio::ui_cues::post(crate::audio::ui_cues::Cue::Click);
+}
+
 const WEAR_TOKEN: u16 = 1_300;
 const TOY_TOKEN: u16 = 1_310;
 const TOY_SWITCH_TOKEN: u16 = 1_311;
@@ -71,11 +81,13 @@ const TOY_SWITCH_TOKEN: u16 = 1_311;
 const BOX_TOKEN: u16 = 1_314;
 /// Order 66's niche on Toys.
 const ORDER_TOKEN: u16 = 1_315;
+/// The Hax's niche on Toys.
+const HAX_TOKEN: u16 = 1_318;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
-/// The shader card's Shatter (a duplicate into kyber shards) and Craft (with them).
-const SHATTER_TOKEN: u16 = 1_317;
-const CRAFT_TOKEN: u16 = 1_318;
+/// The shader card's way to the Forge: Craft in the Forge (one not held) or Break down
+/// in the Forge (a copy of the player's own).
+const FORGE_LINK_TOKEN: u16 = 1_317;
 /// The Nameplates tab's See and share nameplates switch.
 const SHARE_TOKEN: u16 = 1_319;
 /// The target switch over the lone saber: the first saber (or half), the second.
@@ -85,12 +97,10 @@ const TARGET_SECOND_TOKEN: u16 = 1_308;
 const BOTH_TOKEN: u16 = 1_309;
 /// How far (frame pixels) a press on the lone saber may move and still be a click.
 const CLICK_SLOP: f32 = 6.0;
-/// How long a Shatter or Craft waits for its second press, which sends it.
-const TRADE_CONFIRM: std::time::Duration = std::time::Duration::from_secs(5);
-/// The toys the Toys tab shows: Illuminate, the cardboard box, then Order 66.
-const TOY_COUNT: usize = 3;
+/// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, then the Hax.
+const TOY_COUNT: usize = 4;
 /// Each toy's niche, in the order of [`Panel::toy`].
-const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN];
+const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN, HAX_TOKEN];
 /// The Shaders tab's view switches: the rack (a list) and the grid of cards.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
@@ -112,6 +122,10 @@ const CARD_FINISH_TOKEN: u16 = 8_005;
 /// the card up close, where a click opens it (20/10/2026).
 const CARD_INSPECT_TOKEN: u16 = 8_006;
 const CARD_CLOSE_UP_TOKEN: u16 = 8_007;
+/// Under a blade card held, up close: the way to its shader, on the Forge's Craft while
+/// the player lacks it (21/10/2026, where its copy crafts the shader for less), else on
+/// the Shaders tab.
+const CARD_SHADER_TOKEN: u16 = 8_008;
 const _: () = assert!(CARD_BASE as usize + CARD_TILES_MAX <= CARD_SHOW_BASE as usize);
 const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
@@ -211,6 +225,8 @@ pub(crate) enum PanelAction {
     /// Turn Order 66 on (`true`) or off: the same as `toy_order66`, set rather than
     /// toggled.
     Order66(bool),
+    /// Turn the Hax on (`true`) or off: the same as `toy_hax`, set rather than toggled.
+    Hax(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -221,10 +237,18 @@ pub(crate) enum PanelAction {
     },
     /// Set [`SHADER_VIEW_CVAR`]: the grid of cards (`true`) or the rack.
     ShaderView(bool),
-    /// Shatter one duplicate of this shader into kyber shards (`crate::economy`).
+    /// Break one duplicate of this shader down into kyber shards (`crate::economy`).
     Shatter(&'static str),
+    /// Break this shader down, the last copy too (a hub that says `shatter_last`).
+    ShatterLast(&'static str),
+    /// Break every duplicate down, one copy of each kept.
+    ShatterAll,
     /// Craft this shader with kyber shards.
     Craft(&'static str),
+    /// Ask the hub to sell the player this offer of the day.
+    Buy(String),
+    /// Ask the hub to sell the player a holocron of this tier for credits.
+    BuyHolocron(String),
     /// Ask the hub to reveal the player's sealed cards.
     RevealCards,
     /// See and share nameplates on (`true`) or off: `cg_nameplate`
@@ -290,6 +314,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) cardboard_box: bool,
     /// The Order 66 toy is on now (kept as [`Self::illuminate`] is).
     pub(crate) order66: bool,
+    /// The Hax toy is on now (kept as [`Self::illuminate`] is).
+    pub(crate) hax: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -338,12 +364,14 @@ pub(crate) struct Panel {
     medal: usize,
     achievement: usize,
     shader: usize,
-    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66.
+    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax.
     toy: usize,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
     /// Order 66 was on, as the last frame's inputs said.
     order66_on: bool,
+    /// The Hax was on, as the last frame's inputs said.
+    hax_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
@@ -358,6 +386,12 @@ pub(crate) struct Panel {
     /// The Cards tab's filter, and the tiles it showed last frame (for the hover cards).
     card_filter: crate::cards::binder::Filter,
     card_tiles: Vec<crate::cards::binder::Tile>,
+    /// The shader of the blade card up close last frame, when one is held (its button
+    /// goes there), whether the Forge crafts it for the player (the button goes to the
+    /// Forge's Craft then), and the shader the Shaders tab turns to on its next frame.
+    card_blade: Option<&'static unlockables::Unlockable>,
+    card_blade_craft: bool,
+    shader_focus: Option<&'static str>,
     /// How many sealed copies the last frame offered to reveal (0: no Reveal button).
     revealable: u32,
     /// The identity's last reveal when Reveal was pressed: the line under the button
@@ -416,14 +450,12 @@ pub(crate) struct Panel {
     /// last frame was drawn at (a drag turns it by frame pixels).
     spin: spin::Spin,
     scale: f32,
-    /// The player's kyber shards while the hub lets them trade (`None`: no Shatter or
-    /// Craft), and the hub's answer to the last trade ([`Panel::set_trade`]).
-    trade: Option<u64>,
-    trade_outcome: Option<sjk_identity::TradeOutcome>,
-    /// A Shatter or Craft pressed once, for this shader, waiting for its second press.
-    trade_armed: Option<(u16, &'static str, Instant)>,
-    /// The last trade sent: the outcome's serial before it, and its shader.
-    trade_sent: Option<(u64, &'static unlockables::Unlockable)>,
+    /// The Forge tab: its section, lists, filters and trades ([`forge`]).
+    forge: forge::Forge,
+    /// Where the chosen shader's way to the Forge leads, as the last frame drew it.
+    forge_link: Option<(forge::Section, &'static str)>,
+    /// Whether the hub's economy is known (the Shaders tab's way to the Forge shows then).
+    trade_known: bool,
     /// How much wider than the display family the page's text face is drawn.
     widen: f32,
     epoch: Instant,
@@ -439,6 +471,12 @@ pub(crate) struct Panel {
     /// What a world shot shows in place of the own profile's cards and credits.
     #[cfg(test)]
     pub(crate) preview_cards: Option<(Vec<sjk_identity::CardStack>, u64, u64)>,
+    /// What a world shot shows on the Forge in place of the live identity's.
+    #[cfg(test)]
+    pub(crate) preview_forge: Option<forge::ForgeData>,
+    /// Whether a world shot shows the Shaders tab's way to the Forge.
+    #[cfg(test)]
+    trade_pin: Option<bool>,
 }
 
 impl Default for Panel {
@@ -463,6 +501,7 @@ impl Panel {
             toy: 0,
             box_on: false,
             order66_on: false,
+            hax_on: false,
             share_on: false,
             card: 0,
             cards_shown: 0,
@@ -470,6 +509,9 @@ impl Panel {
             card_inspect: false,
             card_filter: Default::default(),
             card_tiles: Vec::new(),
+            card_blade: None,
+            card_blade_craft: false,
+            shader_focus: None,
             revealable: 0,
             reveal_asked: None,
             shader_first: 0,
@@ -494,10 +536,9 @@ impl Panel {
             tilt: crate::tile_shine::HoverEase::default(),
             spin: spin::Spin::default(),
             scale: 1.0,
-            trade: None,
-            trade_outcome: None,
-            trade_armed: None,
-            trade_sent: None,
+            forge: forge::Forge::default(),
+            forge_link: None,
+            trade_known: false,
             widen: 1.0,
             epoch: Instant::now(),
             skins: Default::default(),
@@ -507,6 +548,10 @@ impl Panel {
             shot_seconds: None,
             #[cfg(test)]
             preview_cards: None,
+            #[cfg(test)]
+            preview_forge: None,
+            #[cfg(test)]
+            trade_pin: None,
         }
     }
 
@@ -544,6 +589,8 @@ impl Panel {
         if tab.screen() == crate::profile_hub::Screen::Collection && tab != Tab::Holocrons {
             if tab != self.tab {
                 self.leave_search();
+                self.forge.leave_search();
+                self.forge.ask = None;
                 self.card_inspect = false;
             }
             self.tab = tab;
@@ -579,40 +626,20 @@ impl Panel {
         self.backstage = backstage;
     }
 
-    /// What the shader card may trade this frame: the player's kyber shards while the hub
-    /// lets them trade (`None` hides Shatter and Craft), and the hub's last answer.
-    pub(crate) fn set_trade(
-        &mut self,
-        shards: Option<u64>,
-        outcome: Option<sjk_identity::TradeOutcome>,
-    ) {
-        self.trade = shards;
-        self.trade_outcome = outcome;
+    /// Whether the hub's economy is known this frame: the Shaders tab's way to the Forge
+    /// shows then.
+    pub(crate) fn set_trade_known(&mut self, known: bool) {
+        #[cfg(test)]
+        let known = self.trade_pin.unwrap_or(known);
+        self.trade_known = known;
     }
 
-    /// A press on Shatter or Craft at `now`: the first arms it (the button asks to be
-    /// pressed again), a second within [`TRADE_CONFIRM`] on the same shader sends it.
-    fn trade_press(&mut self, token: u16, now: Instant) -> PanelAction {
-        let Some(skin) = self.skin_at(self.shader) else {
-            return PanelAction::None;
-        };
-        let armed = self.trade_armed.take().is_some_and(|(armed, id, at)| {
-            armed == token && id == skin.id && now.duration_since(at) <= TRADE_CONFIRM
-        });
-        if !armed {
-            self.trade_armed = Some((token, skin.id, now));
-            return PanelAction::None;
-        }
-        let serial = self
-            .trade_outcome
-            .as_ref()
-            .map_or(0, |outcome| outcome.serial);
-        self.trade_sent = Some((serial, skin));
-        if token == SHATTER_TOKEN {
-            PanelAction::Shatter(skin.id)
-        } else {
-            PanelAction::Craft(skin.id)
-        }
+    /// Show the Shaders tab's way to the Forge (`known`) whatever the hub says, for a world
+    /// shot.
+    #[cfg(test)]
+    pub(crate) fn trade_known_for_shot(&mut self, known: bool) {
+        self.trade_pin = Some(known);
+        self.trade_known = known;
     }
 
     /// What the stage should show while the page is open on Shaders, Toys or
@@ -672,6 +699,7 @@ impl Panel {
                 .map_or(PanelAction::None, |row| self.wear_action(row)),
             Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
+            Tab::Toys if self.toy == 3 => PanelAction::Hax(!self.hax_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Cards => {
@@ -786,6 +814,15 @@ impl Panel {
             return PanelAction::None;
         };
         self.hover.keyed();
+        if self.tab == Tab::Forge {
+            let action = self
+                .forge
+                .key(event.text.as_deref(), key, shift, control, self.grid);
+            if let PanelAction::ShaderView(grid) = action {
+                return self.set_grid(grid);
+            }
+            return action;
+        }
         if self.tab == Tab::Cards && self.card_inspect {
             return self.key(key, shift, illuminate);
         }
@@ -1134,6 +1171,14 @@ impl Panel {
             }
         }
         if let InputEvent::PointerWheel { delta, .. } = event
+            && self.tab == Tab::Forge
+        {
+            if delta.y != 0.0 && self.forge.ask.is_none() {
+                self.forge.wheel(delta.y > 0.0, self.grid);
+            }
+            return PanelAction::None;
+        }
+        if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Cards
         {
             if self.card_inspect {
@@ -1190,6 +1235,18 @@ impl Panel {
         let Some(token) = event.token else {
             return PanelAction::None;
         };
+        if self.tab == Tab::Forge && (forge::forge_token(token) || self.forge.ask.is_some()) {
+            let activate = event.kind == UiEventKind::Activate;
+            let resting = matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover);
+            if !(activate || resting) {
+                return PanelAction::None;
+            }
+            return match self.forge.token(token, activate, now) {
+                Some(PanelAction::ShaderView(grid)) => self.set_grid(grid),
+                Some(action) => action,
+                None => PanelAction::None,
+            };
+        }
         if event.kind == UiEventKind::Activate
             && let Some(index) = token
                 .checked_sub(SHADER_BASE)
@@ -1245,6 +1302,9 @@ impl Panel {
             if token == CARD_CLOSE_UP_TOKEN {
                 return self.activate(illuminate);
             }
+            if token == CARD_SHADER_TOKEN {
+                return self.go_to_card_shader();
+            }
             if self.tab == Tab::Cards && self.choose_token(token) {
                 return self.activate(illuminate);
             }
@@ -1277,9 +1337,9 @@ impl Panel {
             TARGET_FIRST_TOKEN => self.set_target(false),
             TARGET_SECOND_TOKEN => self.set_target(true),
             BOTH_TOKEN => self.toggle_both(),
-            SHATTER_TOKEN | CRAFT_TOKEN => self.trade_press(token, now),
+            FORGE_LINK_TOKEN => self.open_forge_link(),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
-            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN => {
+            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN => {
                 let toy = TOY_TOKENS
                     .iter()
                     .position(|&niche| niche == token)
@@ -1301,6 +1361,35 @@ impl Panel {
                 None => PanelAction::None,
             },
         }
+    }
+
+    /// The blade card up close's button: the Forge's Craft on its shader while it is one
+    /// of the trade the player lacks (there its copy crafts it for less), else the Shaders
+    /// tab on it; any filter there is cleared so it is in the list.
+    fn go_to_card_shader(&mut self) -> PanelAction {
+        let Some(skin) = self.card_blade else {
+            return PanelAction::None;
+        };
+        if self.card_blade_craft {
+            self.leave_search();
+            self.forge_on(forge::Section::Craft, skin.id);
+            return PanelAction::None;
+        }
+        self.show(Tab::Shaders);
+        self.shader_filter = ShaderFilter::default();
+        self.shader_focus = Some(skin.id);
+        PanelAction::None
+    }
+
+    /// The Shaders tab's way to the Forge: Craft for a shader of the trade not held, Break
+    /// down for one of the player's own copies, the shader chosen there.
+    fn open_forge_link(&mut self) -> PanelAction {
+        if let Some((section, id)) = self.forge_link {
+            self.leave_search();
+            self.forge_on(section, id);
+            ui_cues_click();
+        }
+        PanelAction::None
     }
 
     /// Reveal the sealed cards, when the last frame offered it: the line under the button
@@ -1391,15 +1480,11 @@ impl Panel {
             Tab::Achievements => ACHIEVEMENT_BASE,
             Tab::Shaders => SHADER_BASE,
             Tab::Cards => CARD_BASE,
+            // The Forge's shots name the token itself.
+            Tab::Forge => 0,
             _ => TOY_TOKEN,
         };
         self.hover.pin(index.map(|index| base + index as u16));
-    }
-
-    /// Let the shader card trade with `shards` (Shatter and Craft show), for a world shot.
-    #[cfg(test)]
-    pub(crate) fn trade_for_shot(&mut self, shards: Option<u64>) {
-        self.trade = shards;
     }
 
     /// Hold the lone saber turned so, still, as a drag would (`None` lets go), for a
@@ -1429,6 +1514,19 @@ impl Panel {
             Tab::Toys => TOY_TOKENS[self.toy.min(TOY_COUNT - 1)],
             Tab::Cards if self.cards_shown > 0 => CARD_BASE + self.card as u16,
             Tab::Nameplates => SHARE_TOKEN,
+            Tab::Forge => match self.forge.ask {
+                Some(ask) => {
+                    if matches!(
+                        ask,
+                        forge::Ask::Last { yes: true, .. } | forge::Ask::All { yes: true }
+                    ) {
+                        forge::ASK_YES_TOKEN
+                    } else {
+                        forge::ASK_NO_TOKEN
+                    }
+                }
+                None => BACK_TOKEN,
+            },
             _ => BACK_TOKEN,
         }
     }
@@ -1460,6 +1558,7 @@ mod tests {
             illuminate: true,
             cardboard_box: false,
             order66: false,
+            hax: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
@@ -1605,6 +1704,7 @@ mod tests {
                 "saber_exogorth",
                 "saber_world_shift",
                 "saber_exegol_rift",
+                "saber_varykino_blossom",
             ]
         );
         panel.shader_filter.query = "nothing".to_owned();
@@ -2149,11 +2249,11 @@ mod tests {
         assert_eq!(click(&mut panel, BACK_TOKEN), PanelAction::Close);
     }
 
-    /// Shatter (a duplicate) and Craft (one not held) show only while the hub lets the
-    /// player trade, and send only on a second press within five seconds on the same
-    /// shader.
+    /// The Shaders tab's card points to the Forge once the hub's economy is known: Break
+    /// down for a shader of the trade held (a medal's never), Craft for one not held; a
+    /// click shows the Forge on that section with the shader chosen.
     #[test]
-    fn shatter_and_craft_ask_twice_and_only_while_trading() {
+    fn the_shader_card_points_to_the_forge() {
         let owned = [sjk_identity::Unlock {
             id: "saber_tidal".to_owned(),
             count: 3,
@@ -2172,43 +2272,25 @@ mod tests {
         build(&mut panel);
         panel.choose_shader_for_shot(row_of("saber_tidal"));
         build(&mut panel);
-        assert!(panel.ui.rect_for(SHATTER_TOKEN).is_none(), "no trading yet");
-        panel.set_trade(Some(50), None);
-        build(&mut panel);
         assert!(
-            panel.ui.rect_for(SHATTER_TOKEN).is_some(),
-            "held three times"
+            panel.ui.rect_for(FORGE_LINK_TOKEN).is_none(),
+            "no economy yet"
         );
-        assert!(panel.ui.rect_for(CRAFT_TOKEN).is_none(), "already held");
-        let now = Instant::now();
-        let at = |seconds: u64| now + std::time::Duration::from_secs(seconds);
-        assert_eq!(panel.trade_press(SHATTER_TOKEN, at(0)), PanelAction::None);
-        assert_eq!(
-            panel.trade_press(SHATTER_TOKEN, at(1)),
-            PanelAction::Shatter("saber_tidal")
-        );
-        // Sent, the next press arms again; one too late arms again too.
-        assert_eq!(panel.trade_press(SHATTER_TOKEN, at(2)), PanelAction::None);
-        assert_eq!(panel.trade_press(SHATTER_TOKEN, at(9)), PanelAction::None);
-        // The hub's answer reads on the card.
-        panel.set_trade(
-            Some(55),
-            Some(sjk_identity::TradeOutcome {
-                serial: 1,
-                trade: sjk_identity::Trade::Shatter,
-                id: "saber_tidal".to_owned(),
-                amount: 5,
-                message: String::new(),
-            }),
-        );
+        panel.set_trade_known(true);
         build(&mut panel);
+        assert!(panel.ui.rect_for(FORGE_LINK_TOKEN).is_some());
         let runs: Vec<_> = panel.ui.text_runs().collect();
         assert!(
             runs.iter()
-                .any(|run| run.contains("shattered: +5 kyber shards")),
+                .any(|run| run.contains("Break down in the Forge")),
             "{runs:?}"
         );
-        // A locked shader of the trade offers Craft, not Shatter.
+        assert_eq!(panel.open_forge_link(), PanelAction::None);
+        assert_eq!(panel.tab(), Tab::Forge);
+        assert_eq!(panel.forge_section(), forge::Section::Break);
+        assert_eq!(panel.forge.want.as_deref(), Some("saber_tidal"));
+        // A locked shader of the trade points to Craft; a medal's blade nowhere.
+        panel.show(Tab::Shaders);
         let locked = (1..SHADER_ROWS)
             .find(|&row| {
                 shader_skin(row)
@@ -2217,8 +2299,14 @@ mod tests {
             .unwrap();
         panel.choose_shader_for_shot(locked);
         build(&mut panel);
-        assert!(panel.ui.rect_for(CRAFT_TOKEN).is_some());
-        assert!(panel.ui.rect_for(SHATTER_TOKEN).is_none());
+        let runs: Vec<_> = panel.ui.text_runs().collect();
+        assert!(runs.iter().any(|run| run.contains("Craft in the Forge")));
+        panel.choose_shader_for_shot(row_of("saber_glitch"));
+        build(&mut panel);
+        assert!(
+            panel.ui.rect_for(FORGE_LINK_TOKEN).is_none(),
+            "a medal's blade"
+        );
     }
 
     #[test]

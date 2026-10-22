@@ -40,7 +40,7 @@ fifteen choices no longer fit. Seen in off-screen GPU renders on duel6 (world sh
 | How one is unlocked | The hub operator or staff grant it by hand (Staff page, operator command), and since 10/10/2026 a medal brings one while held: Bug Hunter the Glitch, Early Tester the Hologram, Early Contributor the Runic blade ([Medal shaders](#medal-shaders)). Achievements granting them are an idea for later, with harder goals than today's. Since 17/10/2026 holocrons drop every shader but the medals' ([Holocron shader drops](#holocron-shader-drops)). |
 | How a look travels | Stored on the key's live claim, listed in presence for players who arrive later, and sent through the feed as a live event when it changes. |
 | Illuminate | Free for everyone, a toy (`toy_illuminate`); its lit state is part of the look so others see the holocron. |
-| Toys in the look | Since 16/10/2026 a look lists the toys out that others draw (`toys`, ids; the [cardboard box](client.md#cardboard-box)'s is `cardboard_box`, [Order 66](client.md#order-66)'s `order66`), sent only when one is out, so older hubs see the look they know. A client draws the toys it knows (`looks::TOYS`) and ignores the rest. Free for everyone, like Illuminate. |
+| Toys in the look | Since 16/10/2026 a look lists the toys out that others draw (`toys`, ids; the [cardboard box](client.md#cardboard-box)'s is `cardboard_box`, [Order 66](client.md#order-66)'s `order66`, the [Hax](client.md#hax)'s `hax`), sent only when one is out, so older hubs see the look they know. A client draws the toys it knows (`looks::TOYS`) and ignores the rest. Free for everyone, like Illuminate. |
 | Feed with chat off | The feed reads while the player is on a game server whatever `cl_sjkChat` says (chat stays hidden); in the menus it reads only with chat on. |
 | Choosing | The Collection's Shaders tab (SJK UI look; the Unlockables page until 10/10/2026) lists every blade skin, owned or locked, previews the chosen one on the player's own saber and equips owned ones; the Profile screen's Saber tab offers the owned blade skins too (10/10/2026); `cg_saberSkin` holds the choice. |
 | Art (looks, sounds) | SJK's own, all rights reserved, not under the code's GPLv2: kept in the hub's private repository and served by the hub to registered SJK keys as packs. The code that draws it stays open and generic: no skin's values, sounds or pictures are in this repository or its history to come. |
@@ -70,7 +70,7 @@ Storm, Prism, Unstable, Chameleon and four of Creyon's legendaries down to Rare;
 Display up to Uncommon), and after his adjustments of 21/10/2026, which moved 38 more
 (048 053 054 055 056 062 064 066 069 075 to Legendary; 043 063 068 070 072 074 078 079 088
 089 090 097 139 to Rare; 005 006 014 036 to Uncommon; 004 012 013 019 023 030 031 103 107
-108 133 136 to Common; 11 mythicals left). The rounds' notes below keep the tiers the blades
+108 133 136 to Common; 11 mythicals left, 12 with the Varykino Blossom of 21/10/2026). The rounds' notes below keep the tiers the blades
 came in.
 
 | No. | Id | Name | Tier | Smith | Drops |
@@ -240,6 +240,7 @@ came in.
 | 163 | `saber_smoked_transparisteel` | Smoked Transparisteel blade | Common | Creyon | yes |
 | 164 | `saber_batuu_dusk` | Batuu Dusk blade | Common | Creyon | yes |
 | 165 | `saber_alderaan_velvet` | Alderaan Velvet blade | Common | Creyon | yes |
+| 166 | `saber_varykino_blossom` | Varykino Blossom blade | Mythical | Sol | yes |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -391,6 +392,23 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   ignite, swing and clash (the shader knows no swing or clash), and a true reflection of
   the map in the Quicksilver (it reflects a made-up surrounding in the light where the
   blade is).
+- **Varykino Blossom** (21/10/2026, blade 166, Mythical, Kushina's idea; built by Sol's
+  side as a signature, `blade_signatures/varykino_blossom.glsl`): the Naboo Blossom's
+  Mythical sibling, after the spring gardens of Naboo's lake retreat. A soft blossom-pink
+  blade in a locked palette (not a chroma, as Kushina asked), pale petals of light opening
+  and fading in its glow, lavender and white mist curling off it, five-petal blossoms
+  drifting down round it, a branch of dark cherry wood with a bud and one open flower
+  growing from where the blade leaves the hilt, and a ring of petals on a clash. Swung, it
+  sheds real blossoms that flutter to the ground behind it and settle there
+  ([rendering.md](rendering.md#falling-blossoms)), where the Spectral leaves afterimages.
+  Sol's addition the same day, after the Sakura Droplet of Sekiro (FromSoftware; studied
+  from Sol's own copy of the game for its look only, nothing of the game's is in SJK): a
+  pearl of nacre hangs at its tip, rose and mauve with growth rings, a rainbow sheen at its
+  rim and a white heart, in a soft rose light (a clash bursts it into the petals and it
+  grows back), and the blade has the same pearly sheen along its edges. Each of the five is
+  a part its wearer may switch off. It borrows Royal Naboo's sounds
+  (the skins pack is near its 16 MiB cap). Not built from her idea: the wooden hilt, which
+  waits for custom hilts.
 
 ## Hub protocol (additions to version 1)
 
@@ -1025,6 +1043,7 @@ off, and every other SJK player then draws the blade the same way.
 | Sun | `prominences` Prominences (arcs), `sparks` Rising sparks (motes), `glint` Tip glint (star; "Orbiting glints" since the later additions file, its orbit going with the star), `haze` Heat haze (haze) |
 | Void | `holes` Black holes (holes, later additions file only), `stars` Infalling stars (motes), `warp` Warped space (haze), `pulse` Gravity pulse (pulse), `afterimages` Afterimages (ghosts) |
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
+| Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `sakura_droplet` Sakura droplet (the pearl at its tip), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
   [saber_skin_options.rs](../crates/sjk-viewer/src/saber_skin_options.rs)): one
@@ -1176,11 +1195,11 @@ Profile page's See the collection) open it on its own:
   Resting the pointer on a shader's row chooses and previews it only over its blade (the
   swatch), not over its name or state (Creyon, 21/10/2026: going to Equip, the pointer crossed
   other rows' words and changed the preview); a click anywhere on the row still chooses it.
-  While the hub lets the player trade (as for opening, [cards.md](cards.md#shards-and-the-shop)),
-  the foot also offers Shatter a copy (+N kyber shards) for a shader of the trade held
-  twice or more, or Craft (its cost) for one not held, dimmed while the shards fall
-  short; the first press arms it ("Confirm: ..."), a second within five seconds sends
-  it, and the line at the right says the hub's answer or the shards at hand.
+  Once the hub's economy is known, the foot also leads to the Collection's Forge
+  ([cards.md](cards.md#the-forge), 21/10/2026; Shatter and Craft stood here before):
+  "Craft in the Forge" for a shader of the trade not held, with its cost, or "Break down
+  in the Forge" for one of the player's own copies, with what a copy gives; a click shows
+  the Forge on that section with the shader chosen.
   The rack's and the grid's state lines carry the same icons, and the grid's tier line
   its rarity mark. The classic menus have no stage: the area shows the swatch, larger;
 - with the identity off, no hub or no answer yet, the tab says so and no skin is
@@ -1279,7 +1298,7 @@ Every Blade Lab blade drops too since 20/10/2026 (Sol: no loot is handed out by 
 instead of found). The same day Sol's card, SJK Alpha 000, began to bring the Sun blade
 for as long as the player holds a copy ([cards.md](cards.md#faces-and-the-first-set),
 `grants`, `unlockables::CARD_BLADES`): for a few hours it was the only way, then Sol made
-it a second way besides holocrons. So 162 of the 165 shaders drop, all but Glitch, Hologram
+it a second way besides holocrons. So 163 of the 166 shaders drop (the Varykino Blossom, 166, since 21/10/2026), all but Glitch, Hologram
 and Runic (their medals); the test pins `droppable` exactly when no medal brings it.
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
@@ -1293,33 +1312,35 @@ the rack and the grid scroll as before and the lead line says "n of 23 shaders s
 while anything is filtered. Row numbers are of the list shown, so the choice goes back
 to the top when the filter changes.
 
+**Kyber crystals** (21/10/2026, [holocrons.md](holocrons.md#kyber-crystals)): a crystal,
+earned once per achievement, always opens to a droppable saber shader of a tier rolled by
+the crystal's own odds (every tier with a small Mythical chance), the ones the person does
+not hold first, with a pity that makes the tenth crystal in a row without a Legendary or
+Mythical shader one of them. Its opening's strip shows only shaders.
+
 ## Shattering, crafting and the shop
 
-Prepared 17/10/2026, not deployed ([cards.md](cards.md#shards-and-the-shop) has the
-numbers, the rules and the open points): a droppable shader held twice or more can be
-shattered into kyber shards, one copy a request, never the last; shards craft any
-droppable shader the player does not hold; the Holocrons tab's shop sells four droppable
-shaders a day for credits. Only shaders of the *trade* take part: droppable and brought by
-no medal (`economy::in_trade`, read from the catalogue's `droppable` and `Medal::blade`, as
-the hub reads its own), so Glitch, Hologram and Runic never do, and a shader made
-droppable joins by itself.
-
-The Shaders tab is being redesigned apart, so its Shatter and Craft buttons are not wired
-yet. Its hooks are in [economy.rs](../crates/sjk-viewer/src/economy.rs):
+Live since 21/10/2026 ([cards.md](cards.md#shards-and-the-shop) has the numbers and the
+rules): a shader of the trade the player holds can be broken down into kyber shards, one
+copy a request (the last copy too on a hub that says `shatter_last`, never a medal's or a
+card's), or every duplicate at once; shards craft any shader of the trade the player does
+not hold and buy the day's four offers. Only shaders of the *trade* take part: droppable
+and brought by no medal (`economy::in_trade`, read from the catalogue's `droppable` and
+`Medal::blade`, as the hub reads its own), so Glitch, Hologram and Runic never do, and a
+shader made droppable joins by itself. All of it is the Collection's Forge tab
+([cards.md](cards.md#the-forge)); its requests are in
+[economy.rs](../crates/sjk-viewer/src/economy.rs):
 
 | Hook | What it gives |
 | --- | --- |
-| `in_trade(&Unlockable) -> bool` | Whether a shader can be shattered, crafted or sold at all |
-| `choices(&Unlockable, held: u32, shards: u64) -> Choices` | `shatter: Option<u64>` (the shards one duplicate gives, when held twice or more), `craft: Option<u64>` (the cost, when held none), `affordable` |
-| `shatter_yield(Rarity) -> u64`, `craft_cost(Rarity) -> u64`, `shop_price(Rarity) -> u64` | The hub's tables (its copy until the hub sent them) |
-| `balance() -> Option<(u64, u64)>` | The player's credits and kyber shards |
-| `can_trade() -> bool` | Whether the hub lets the player trade (as opening) |
-| `shatter(id: &str) -> bool`, `craft(id: &str) -> bool` | Ask the hub; false before the identity started |
-| `trade_outcome() -> Option<TradeOutcome>` | The last answer (`serial` counts up, `trade`, `id`, `amount`, `message` empty when done) |
-| `outcome_words(&TradeOutcome, name: &str) -> String` | "Tidal blade shattered: +5 kyber shards.", or why not |
+| `in_trade(&Unlockable) -> bool` | Whether a shader can be broken down, crafted or sold at all |
+| `shatter_yield(Rarity) -> u64`, `craft_cost(Rarity) -> u64` | The hub's tables (its copy until the hub sent them) |
+| `may_act(&Snapshot) -> bool` | Whether the hub lets the player trade (as opening) |
+| `shatter(id)`, `shatter_last(id)`, `shatter_all()`, `craft(id)`, `buy_holocron(tier)` | Ask the hub; false before the identity started |
+| `outcome_words(&TradeOutcome, name: &str) -> String` | "Kamino blade broken down: +5 kyber shards.", or why not |
 
-`held` is the profile's `Unlock::count` when it has no `medal` (a medal's copy is not
-counted), 0 when the shader is not listed. The kyber shard's mark to draw beside a count is
+What the Forge lists counts the profile's `Unlock::count` when it has no `medal` and no
+`card`; a shader not listed is not held. The kyber shard's mark to draw beside a count is
 `cards::shard::draw` (or the symbol `symbols::SHARD` in text).
 
 ## Planned, not built

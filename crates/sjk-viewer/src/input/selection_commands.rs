@@ -37,6 +37,10 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             crate::order66::EXECUTE_COMMAND,
             "Execute Order 66: in 3 seconds every player with the toy on blows up (toy_order66 first)",
         ),
+        (
+            crate::hax::COMMAND,
+            "Toy: Hax on or off (hold +use on a player who has it on to hack them and steer them)",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(

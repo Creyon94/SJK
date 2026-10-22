@@ -1030,3 +1030,67 @@ fn the_preview_dresses_one_side_and_leaves_the_other_as_worn() {
     );
     assert_eq!(index(previewed(worn, None, [true, true])), index(worn));
 }
+
+#[test]
+fn the_varykino_blossom_sheds_petals_until_its_wearer_switches_them_off() {
+    let skins = LoadedSkins::load(VirtualFileSystem::new(), 1);
+    let color = skins.color_of("saber_varykino_blossom").unwrap();
+    let petals = color
+        .petals
+        .expect("its signature's @petals reaches the colour");
+    assert_eq!(petals.part, 3);
+    // Switched off in the Collection: none.
+    let off = skins.get("saber_varykino_blossom").unwrap().options();
+    let falling = off.iter().find(|o| o.name == "Falling blossoms").unwrap();
+    assert!(
+        skins
+            .color_with(
+                "saber_varykino_blossom",
+                crate::blade_skin_file::extras::option_bit(&falling.id)
+            )
+            .unwrap()
+            .petals
+            .is_none()
+    );
+}
+
+#[test]
+fn a_duel_draws_every_blade_stock() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 2).then_some(worn));
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    // In a duel: the stock blade in the wearer's own colour, and the stock sounds.
+    skins.set_plain(true);
+    assert!(skins.get(3).is_none());
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(3, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert_eq!(skins.sound_sets()[2], None);
+    skins.set_plain(false);
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+}
+
+#[test]
+fn a_duel_draws_the_second_saber_stock_too() {
+    let worn = sample_color();
+    let other = SkinColor { index: 5, ..worn };
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_both(1, 1, |client| {
+        if client == 2 {
+            (Some(worn), Second::Own(Some(other)))
+        } else {
+            (None, Second::Same)
+        }
+    });
+    skins.set_plain(true);
+    assert_eq!(skins.get_both(3), [None, None]);
+    skins.set_plain(false);
+    assert_eq!(
+        skins.get_both(3).map(|skin| skin.map(|skin| skin.index)),
+        [Some(worn.index), Some(5)]
+    );
+}

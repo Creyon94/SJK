@@ -165,6 +165,26 @@ fn make_vitals_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
     .map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
+/// A hub client for the toy relay's sends, which give up soon: a late one is out of date.
+fn make_relay_send_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::relay::SEND_TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
+}
+
+/// A hub client for the toy relay's long poll.
+fn make_relay_read_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::relay::TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
+}
+
 /// The name the game shows for `slot`, as the server published it.
 pub(crate) fn shown_name(game_state: &GameState, slot: usize) -> Option<String> {
     let bytes = game_state.config_string(CS_PLAYERS + slot)?;
@@ -236,6 +256,10 @@ pub(crate) fn apply(
                     Box::new(make_hub),
                     Some(Box::new(make_feed_hub)),
                     Some(Box::new(make_vitals_hub)),
+                    Some(sjk_identity::RelayHubs {
+                        send: Box::new(make_relay_send_hub),
+                        read: Box::new(make_relay_read_hub),
+                    }),
                 );
                 // The hub's packs (unlockables' art) are kept beside the key.
                 service.keep_assets(crate::sjk_packs::directory_in(config_directory));
@@ -1135,6 +1159,34 @@ pub(crate) fn toy_event(toy: &str, event: &str, target: u8) -> bool {
     };
     service.toy_event(toy.to_owned(), event.to_owned(), target);
     true
+}
+
+/// Relay `event` of the player's toy `toy` to the player in slot `target` at once
+/// (`PROTOCOL.md`, "Toy relay"); `replace` lets a later one take its place while it
+/// waits. False when the service has not started.
+pub(crate) fn relay_toy_event(toy: &str, event: String, target: u8, replace: bool) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.relay_toy_event(toy.to_owned(), event, target, replace);
+    true
+}
+
+/// Whether the toy relay reads the events meant for the player.
+pub(crate) fn set_relay_listen(listen: bool) {
+    if let Some(service) = lock().service.as_ref() {
+        service.set_relay_listen(listen);
+    }
+}
+
+/// The relayed toy events read for `server` since the last call.
+pub(crate) fn take_relay_events(server: Option<SocketAddr>) -> Vec<sjk_identity::ToyEvent> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_relay_events(server))
+        .unwrap_or_default()
 }
 
 /// The toy events received for `server`, the game server the player is on, since the

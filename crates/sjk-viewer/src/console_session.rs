@@ -626,6 +626,8 @@ impl ViewerConsole {
             pending_cardboard_box: None,
             order66_on: false,
             pending_order66: None,
+            hax_on: false,
+            pending_hax: None,
             pending_settings_search: None,
             sjk_chat_panel: super::sjk_chat_panel::Panel::new(),
             config_import: super::config_import_panel::Panel::new(),

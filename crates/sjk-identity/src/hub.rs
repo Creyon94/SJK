@@ -13,7 +13,7 @@ use crate::staff::{ChatBanRows, StaffAnswer, StaffQuery, StaffRequest};
 use crate::vitals::Sharing;
 use crate::wire::{
     Achievement, Achievements, Feed, HolocronState, Look, OpenAnswer, Players, Presence, Profile,
-    SharedVitals, authorization,
+    RelayBatch, SharedVitals, authorization,
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -219,6 +219,33 @@ pub trait Hub: Send {
             "this hub client does not send toy events".to_owned(),
         ))
     }
+    /// Relay `event` of the identity's toy `toy` to the player in slot `target` of
+    /// `server` at once (`PROTOCOL.md`, "Toy relay"); the hub answers with its relay id.
+    fn relay_send(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _toy: &str,
+        _event: &str,
+        _target: u8,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not relay toy events".to_owned(),
+        ))
+    }
+    /// The relayed toy events after `after` for the identity's own slot on `server`,
+    /// waiting up to `wait` seconds for one (`PROTOCOL.md`, "Toy relay").
+    fn relay_read(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _after: u64,
+        _wait: u64,
+    ) -> Result<RelayBatch, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read the toy relay".to_owned(),
+        ))
+    }
     /// Tell the hub which player models the game has (`PROTOCOL.md`, "Models"); the
     /// hub answers how many names it kept.
     fn set_models(&mut self, _identity: &Identity, _models: &[String]) -> Result<u64, HubError> {
@@ -354,13 +381,26 @@ pub trait Hub: Send {
         ))
     }
 
-    /// Shatter one duplicate of shader `id` into kyber shards (`POST
-    /// /v1/unlocks/shatter`, 17/10/2026): never the last copy.
+    /// Shatter one copy of shader `id` into kyber shards (`POST /v1/unlocks/shatter`,
+    /// 17/10/2026): never the last copy unless `last` (21/10/2026, hubs whose economy says
+    /// `shatter_last`).
     fn shatter_unlock(
         &mut self,
         _identity: &Identity,
         _id: &str,
+        _last: bool,
     ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not shatter shaders".to_owned(),
+        ))
+    }
+
+    /// Shatter every duplicate, one copy of each kept (`POST
+    /// /v1/unlocks/shatter-duplicates`, 21/10/2026).
+    fn shatter_duplicates(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
         Err(HubError::Protocol(
             "this hub client does not shatter shaders".to_owned(),
         ))
@@ -1291,12 +1331,26 @@ impl Hub for HttpHub {
         &mut self,
         identity: &Identity,
         id: &str,
+        last: bool,
     ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        // `last` only when asked: hubs before 21/10/2026 refuse a field they do not know.
+        let body = if last {
+            json!({ "id": id, "last": true })
+        } else {
+            json!({ "id": id })
+        };
+        parse(self.send(Some(identity), "POST", "/v1/unlocks/shatter", Some(body))?)
+    }
+
+    fn shatter_duplicates(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
         parse(self.send(
             Some(identity),
             "POST",
-            "/v1/unlocks/shatter",
-            Some(json!({ "id": id })),
+            "/v1/unlocks/shatter-duplicates",
+            Some(json!({})),
         )?)
     }
 
@@ -1456,6 +1510,35 @@ impl Hub for HttpHub {
         answer["id"]
             .as_u64()
             .ok_or_else(|| HubError::Protocol("the toy event answer has no id".to_owned()))
+    }
+
+    fn relay_send(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        toy: &str,
+        event: &str,
+        target: u8,
+    ) -> Result<u64, HubError> {
+        let body = json!({ "server": server, "toy": toy, "event": event, "target": target });
+        let answer = self.send(Some(identity), "POST", "/v1/relay", Some(body))?;
+        answer["id"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the relay answer has no id".to_owned()))
+    }
+
+    fn relay_read(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        after: u64,
+        wait: u64,
+    ) -> Result<RelayBatch, HubError> {
+        let path = format!(
+            "/v1/relay?after={after}&wait={wait}&server={}",
+            encode_server(server)
+        );
+        parse(self.send(Some(identity), "GET", &path, None)?)
     }
 
     fn vitals(

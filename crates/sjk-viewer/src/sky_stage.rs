@@ -369,6 +369,10 @@ fn load_box(
         ],
     });
     let vertices = box_vertices(present);
+    // Every face missing: no box to draw, and wgpu panics on a slice of an empty buffer.
+    if vertices.is_empty() {
+        return Ok((None, None, 0, missing));
+    }
     let vertex_count = u32::try_from(vertices.len())?;
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("SJK Q3 sky-box vertices"),

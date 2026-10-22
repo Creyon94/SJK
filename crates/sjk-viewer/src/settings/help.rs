@@ -634,6 +634,10 @@ const HELP: &[(&str, &str)] = &[
         "Draw the Blade Lab skins (Serpent, Comic and the rest) as Creyon's Blade Lab drew them; off uses their skin files.",
     ),
     (
+        crate::duel_blades::CVAR,
+        "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
+    ),
+    (
         crate::effect_aux::saber_rain_steam::CVAR,
         "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),
@@ -801,7 +805,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::menu_pictures::CVAR,
-        "Pictures of the map behind the menus instead of the live map: saves video memory. Turns on by itself if a map runs out of it.",
+        "Map pictures behind the menus and drawn saber shaders, not live ones: saves video memory. On by itself on small cards.",
     ),
     (
         crate::quick_wheel::pages::FILE,
@@ -1019,6 +1023,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "r_superSample",
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",
+    ),
+    (
+        crate::world_materials::filtering::mips::PICMIP_CVAR,
+        "Each step halves large textures: a quarter of their video memory. For graphics cards of 4 GB or less.",
     ),
     (
         "r_softParticles",

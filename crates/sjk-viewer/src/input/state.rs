@@ -78,6 +78,16 @@ impl KeyState {
         }
     }
 
+    /// Pressed and let go again without a millisecond down in the command being
+    /// built: a mouse wheel notch, whose down and up share one timestamp
+    /// (JoF EJK `sdl_input.cpp:1040-1049`). Stock counts such a press only for
+    /// buttons (`wasPressed`, `cl_input.cpp:1659`); its movement time is 0
+    /// (`IN_KeyUp`, `cl_input.cpp:467`), so `+moveup` on the wheel never jumped.
+    /// SJK moves the whole command for it instead (Sol, 21/10/2026).
+    pub fn tapped(&self) -> bool {
+        self.pressed && !self.active && self.elapsed == 0 && self.command_elapsed == 0
+    }
+
     pub fn sample(&mut self, now: u64, millis: u64) {
         let mut elapsed = std::mem::take(&mut self.elapsed);
         if self.active {

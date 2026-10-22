@@ -152,6 +152,13 @@ pub(crate) struct ForServer<T> {
     item: T,
 }
 
+impl<T> ForServer<T> {
+    /// `item`, read for `server`.
+    pub(crate) fn new(server: Option<SocketAddr>, item: T) -> Self {
+        Self { server, item }
+    }
+}
+
 /// A ping queued for the viewer.
 pub(crate) type QueuedPing = ForServer<Ping>;
 /// A toy event queued for the viewer.

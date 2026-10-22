@@ -410,13 +410,26 @@ impl GpuState {
                 return;
             }
             let model = model.to_owned();
-            match self.build_stage_actor(stage, &model, now) {
+            // A card out of video memory loses this model, not the game (a 3 GB card
+            // browsing the creator's legs, 21/10/2026); the textures it uploaded go
+            // with it.
+            let kept = self.world_materials.texture_keys();
+            let device = self.device.clone();
+            let built =
+                crate::gpu_guard::capture(&device, || self.build_stage_actor(stage, &model, now))
+                    .unwrap_or_else(|error| {
+                        self.world_materials.forget_textures_since(&kept);
+                        Err(format!("the graphics card: {error}").into())
+                    });
+            match built {
                 Ok(actor) => {
                     self.menu_stage.actor = Some(actor);
                     self.menu_stage.cosmetics_dirty = true;
                 }
                 Err(error) => {
-                    eprintln!("player stage could not load {model}: {error}");
+                    crate::log::progress(format_args!(
+                        "player stage could not load {model}: {error}"
+                    ));
                     self.menu_stage.failed = Some(model);
                     return;
                 }

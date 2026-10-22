@@ -11,10 +11,15 @@
 //! picture in the effect layer's display values, which the UI adds over the swatch's dark
 //! glass ([`crate::ui_renderer::BLADE_PICTURES_TEXTURE`]). A swatch whose skin has no cell
 //! yet (the first frame, or more swatches than cells) draws the old drawing.
+//!
+//! With the menu pictures on (`ui_menuPictures`, a card short of video memory) no swatch
+//! asks ([`set_live`]): every swatch shows the drawing, and the picture's target is
+//! freed, or never made.
 
 use crate::camera_uniform::CameraUniform;
 use glam::Vec3;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Cells of the picture: two columns of eight.
 const COLUMNS: usize = 2;
@@ -53,6 +58,14 @@ static STATE: Mutex<State> = Mutex::new(State {
     slots: [None; SLOTS],
 });
 
+/// Whether swatches show live pictures: off while the menus stand on pictures.
+static LIVE: AtomicBool = AtomicBool::new(true);
+
+/// Show live pictures (`true`) or the drawings (`false`, with the menu pictures on).
+pub(crate) fn set_live(live: bool) {
+    LIVE.store(live, Ordering::Relaxed);
+}
+
 fn lock() -> std::sync::MutexGuard<'static, State> {
     STATE
         .lock()
@@ -63,6 +76,9 @@ fn lock() -> std::sync::MutexGuard<'static, State> {
 /// its cell, from its left edge ([`BLADE_START`] units before the blade) to its end, the cell's middle `shown` units
 /// high (`shown` at most the cell's height), once drawn. Asking keeps (or gets) it a cell.
 pub(crate) fn picture(id: &'static str, shown: f32) -> Option<[f32; 4]> {
+    if !LIVE.load(Ordering::Relaxed) {
+        return None;
+    }
     let mut state = lock();
     if !state.wanted.contains(&id) {
         state.wanted.push(id);
@@ -259,6 +275,9 @@ impl crate::GpuState {
     pub(crate) fn encode_blade_pictures(&mut self, encoder: &mut wgpu::CommandEncoder) {
         let slots = assign(&mut lock());
         if slots.iter().all(Option::is_none) {
+            if !LIVE.load(Ordering::Relaxed) && self.blade_pictures.take().is_some() {
+                self.ui_shapes.clear_blade_pictures();
+            }
             return;
         }
         if self.blade_pictures.is_none() {

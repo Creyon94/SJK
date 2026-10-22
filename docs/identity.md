@@ -201,7 +201,9 @@ screen with a text box, a character count, Send and Cancel (Escape cancels too).
 has an insertion point (Left, Right, Up, Down, Home, End, Backspace, Delete, Ctrl for
 words, a click in the box) and a Send the rules refuse says why in a red band. As it is
 typed or pasted, only letters and digits of any
-script, spaces and `. , ! ? ' - : ( )` are kept (line breaks become spaces), up to 600
+script, spaces and `. , ! ? ' - : ( )` are kept, and since 19/10/2026 the characters
+cvars and commands need, `_ / \ + = " ; [ ] < > #` (a hub from before then refuses
+those); line breaks become spaces, up to 600
 characters. Enter or Send checks the hub's rules (a refusal is shown in the panel, which
 stays open) (10 to 600 characters, a few real words, no
 long run of one character) and hands the report to the identity service, which sends
@@ -300,7 +302,8 @@ what the logs hold, that the Windows user name is left out and that nothing goes
 the player chooses Send logs. Send logs (Enter) gathers the logs then
 (`crash_report::log_upload`): a header (time, build, system, graphics adapter, map,
 server), the newest 200 KB of this session's log, 120 KB of the previous one's and the
-last crash report (40 KB, when under 14 days old), the player's folder replaced by
+last crash report (40 KB, when under 14 days old: its head with the message and backtrace
+whole, then its newest last lines), the player's folder replaced by
 `%USERPROFILE%`; the service fits it to the hub's limits (400 000 characters, a body
 under 512 KiB; the oldest lines go first, at a line) and sends it (`POST /v1/logs`).
 Don't send (Escape) tells the hub (`POST /v1/logs/decline`). The request leaves the list
@@ -402,8 +405,12 @@ the SJK team gives them.
 | --- | --- | --- | --- |
 | Early Tester | `early_tester` | Helped test SJK in its early days. | no |
 | Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
-| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | yes, with a count ("Bug Hunter x2") |
+| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | no (since 21/10/2026: bug hunting is rewarded with holocrons) |
 | Supporter | `supporter` | Donated to SJK's development (more than 1 euro on Ko-fi, since 13/10/2026; [sjk.md](sjk.md#donations)): given by the hub itself when the Ko-fi message holds the donor's key id, else by the SJK team. | no |
+
+No medal is given again since 21/10/2026, when Bug Hunter stopped counting up: a count
+above 1 from the hub reads as 1. The counting (`Medal::repeatable`, the "x2" labels,
+Give +1, `debug_medal`'s `x<count>`) stays for a future medal that may be.
 
 The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
 the count, when it was last given and a short note from the team, often empty) and in its
@@ -475,7 +482,7 @@ Where they show:
   ([classic-plus.md](classic-plus.md#pages)).
 - `debug_medal` ([rehearsal.rs](../crates/sjk-viewer/src/medal_popup/rehearsal.rs))
   rehearses receiving medals offline: `debug_medal <id> [x<count>] [note]` (a count for
-  Bug Hunter only), `debug_medal all [note]` for every medal, `debug_medal` alone for the
+  a repeatable medal only, and none is since 21/10/2026), `debug_medal all [note]` for every medal, `debug_medal` alone for the
   ids. It makes the list a hub profile would carry (dated today), which is read as the
   hub's is and queued like a real arrival, so the card in a match, the pop-up
   on a menu, the ceremony, the fanfare and Next can all be tried; the console closes so
@@ -814,8 +821,14 @@ clients show the stand-in.
 
 ## Achievements
 
-An achievement is a milestone of the player's own play. It grants nothing (saber
-shaders for harder achievements are an idea for later, not built). The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
+An achievement is a milestone of the player's own play. Since 21/10/2026 each brings a
+kyber crystal once, when it unlocks ([holocrons.md](holocrons.md#kyber-crystals)): Uncommon
+for most, Rare for the harder ones, Legendary for Duel Master and Veteran, Mythical for
+Legend of the Arena. The Collection's Achievements tab says it under the achievement up
+close ("Reward: Rare Kyber Crystal" after the crystal's gem, in its colour), its hover card
+ends with it, and the unlock card says it at the right of "ACHIEVEMENT UNLOCKED" in place
+of the category. The hub's `reward` on each achievement wins over the client's own table
+(`kyber::REWARDS`) once it sends one. The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
 and in the hub (same ids):
 
 | Achievement | Id | Goal | Counted by |

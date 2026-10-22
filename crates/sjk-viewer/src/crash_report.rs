@@ -231,6 +231,10 @@ pub(crate) fn set_gpu(info: &wgpu::AdapterInfo) {
             gpu.push_str(part);
         }
     }
+    if let Some(memory) = crate::video_memory::summary() {
+        gpu.push_str(", ");
+        gpu.push_str(memory);
+    }
     gpu.push(')');
     lock(&STATE).gpu = gpu;
 }

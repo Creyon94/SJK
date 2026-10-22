@@ -58,6 +58,8 @@ includes:
   see the carton, lift it with Use, and it tips over on its side;
 - Order 66, a meme toy: everyone with it on dies together when one of them
   executes the order and blows apart into flying pieces, or confetti;
+- the Hax, a meme toy: hold Use on another player who has it on to hack them
+  with the siege hack bar, then steer them for a few seconds;
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
@@ -86,6 +88,20 @@ includes:
   down in a corner, and slides out of them and flips over once the strip stops;
 - the shop in kyber shards, a Mythical offer one day in four, and holocrons bought with
   credits (17/10/2026, Sol's decisions), prepared for when the SJK hub turns them on;
+- kyber crystals (21/10/2026, Sol's idea): one for every achievement, from Uncommon to
+  Mythical, always a saber shader (the ones not held first), a guaranteed Legendary or
+  better every tenth crystal; the old kyber prism became the crystal and the Mythical
+  holocron a faceted gold engram whose plates breathe round a glowing core;
+- blade cards craft their saber shader for less (21/10/2026, Sol's idea): a Normal copy
+  at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
+  held blade card on the Cards tab that leads to its shader (to the Forge's Craft while
+  the player lacks it);
+- perk marks on cards (21/10/2026, Sol's request): a badge on the tile for each perk
+  (a lightsaber, the Solar sun, a smith's hammer), the marks up close and before each
+  perk's line on the hover card;
+- the Forge (21/10/2026, Sol's request): the shop, crafting and breaking shaders down in
+  one Collection tab, the last copy too (never a card's or a medal's), and every
+  duplicate at once;
 - the four holocrons, each tier an object of its own with moving parts (17/10/2026,
   Sol's pick of the proposed shapes: the Jedi cube, the Great Holocron, the Sith
   pyramid, the kyber prism), with Sol's generated faces for the last three;
@@ -205,7 +221,9 @@ includes:
   SJK hub from the inspect key;
 - log requests: the SJK team asks a player for their game's logs from the Staff page,
   the player's game asks them before it sends the console lines of this session and
-  the last (no chat), and staff read every player's crash reports by kind;
+  the last (no chat), and staff read every player's crash reports by kind; a crash
+  from a full graphics card names the texture it could not make, and the logs keep
+  the last crash's message;
 - ghost replay (`ghost`): a run recorded once and replayed on the same server to film
   a showcase, walking to its start and correcting drift through the movement keys;
 - map edits (18/10/2026): SJK's own fixes to maps, made in game by staff (props and
@@ -244,6 +262,13 @@ includes:
 - menu pictures (`ui_menuPictures`): 4K pictures of the menu's map instead of the live
   map, turned on by itself when a map runs out of video memory, and map changes sharing
   the textures the old and new map have in common (about 730 MB less at the peak);
+- texture detail (`r_picmip`, after Jedi Academy): large textures halved a step at a
+  time, lowered by itself after menu pictures when a map runs out of video memory, and
+  the character creator's model and players' textures failing alone instead of the
+  game when the graphics card is full, and the saber glows shrunk with it;
+- small graphics cards found at start: the card's video memory read from DXGI, a card
+  of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
+  swatches drawn instead of rendered live while the menu pictures are on;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
@@ -256,7 +281,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 53
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 54
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -317,6 +342,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   drawn by its own shader with switchable effects, their sounds in the hub's pack, and
   his review rounds 15 to 22 after it (every effect in 3D, richer mythicals, faster
   loading);
+- #192 normal blades in duels (`cg_duelStockBlades`), each in its owner's colour;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
@@ -541,6 +567,14 @@ Reyced made Solfox, a fox player model (`models/players/solfox`), for Sol in Oct
 serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone may
 wear it and SJK players see it on each other. Reyced keeps the rights to the model;
 it is distributed with his permission and is not part of SJK's code or its licence.
+
+## Ideas
+
+Kushina, a player, sent Sol the idea of a blossom blade (15/10/2026): a locked blossom
+palette with pink as its main colour, light purple and white mist, afterimages made of
+falling blossoms like the Spectral's, and a branch with a flower where the blade starts
+(and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
+(blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
 
 ## Tools
 

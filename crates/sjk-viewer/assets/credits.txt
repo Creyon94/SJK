@@ -18,9 +18,8 @@
 #                      picture and name (repeat the key for more); optional.
 #                      The ids are the hub's (crates/sjk-viewer/src/medals.rs):
 #                      early_tester, early_contributor, bug_hunter.
-#                      An unknown id is an error; bug_hunter listed again
-#                      counts up ("Bug Hunter x2"), any other one twice is an
-#                      error.
+#                      An unknown id is an error, and so is one listed twice
+#                      (no medal is repeatable since 21/10/2026).
 #
 # Lines starting with '#' and blank lines are ignored. ASCII only: the menu fonts
 # draw bytes. Every merge into main that brings someone's work adds it here: a
@@ -41,6 +40,7 @@ did: JA+ and JoF server support: movement, sabers, grapple, Force wheel, flip ki
 did: Illuminate, SJK's own toy: a holocron that lights the way, art by Sol
 did: The cardboard box toy: hide in a carton, spotted with Use, tipping over
 did: The Order 66 toy: synced deaths that blow players apart, TF2 style
+did: The Hax toy: hack another player with the siege bar, then steer them
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
 did: Clan tags: the JoF, JoFA and JAWA emblems beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
@@ -53,6 +53,11 @@ did: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a
 did: The card pack: a holocron's card comes with its credits and a few kyber shards
 did: A card on the holocron strip shows as its credits, the card tucked in a corner
 did: The shop in kyber shards, and holocrons bought with credits
+did: Kyber crystals: a reward for every achievement, always a saber shader
+did: The Mythical holocron's engram: gold plates breathing round a glowing core
+did: Blade cards craft their saber shader for less, and lead to it from the Cards tab
+did: Perk marks on cards: a badge for each thing a card brings
+did: The Forge: shop, crafting and breaking any saber shader down, in one tab
 did: The four holocrons: the Jedi cube, the Great Holocron, the Sith pyramid, the kyber prism
 did: Grand finds told in SJK chat: who opened a holocron and got a grand prize
 did: Hover cards: how every collected thing is obtained
@@ -114,6 +119,7 @@ did: The emote picker (emotes): every emote with its picture, search, click to p
 did: Away emote: an emote you pick plays while you are away, and emotes go quiet then
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
+did: Crash reports name what ran out of video memory; sent logs keep the crash's message
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy
 did: The pilot's vehicle HUD and crosshair, jetpacks, the spawn bubble and Force spheres
 did: Create game and its map picker, Import and the test list in the SJK look
@@ -129,6 +135,9 @@ did: Hold push or pull to use it again the moment it is ready, after JoF EJK
 did: Away players set apart on the scoreboard: faint, at the bottom of their list
 did: Map edits: SJK's own map fixes, props hidden, models placed, textures swapped
 did: Menu pictures and lighter map changes: less video memory, fewer out-of-memory loads
+did: Texture detail (r_picmip) for small graphics cards, and no crash when one runs out
+did: Texture detail shrinks the saber glows too: 280 MB less on small cards
+did: Small graphics cards found at start: smaller textures and menu pictures from the first map
 did: Discord status: your Discord profile shows the server, map and mode you play
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
@@ -137,7 +146,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 53 merged pull requests, EternalJK parity
+role: Contributor and tester: 54 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -168,6 +177,7 @@ did: #103 Emotes of high quality models played on the stock JKA models
 did: #104 No purple tag arrows on community models
 did: #105 Duellists drawn as JoF EJK draws them, with paired duel badges on nameplates
 did: #188 The Blade Lab signature blades: 128 saber shaders in five tiers, with their sounds
+did: #192 Normal blades in duels, each in its owner's colour (cg_duelStockBlades)
 did: Blade Lab rounds 15 to 22: every blade effect in 3D, richer mythicals, faster loading
 did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades and the twelve after them (Saber smith: Creyon)
 did: The Blade Lab page: the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades
@@ -296,6 +306,12 @@ link: Milamber's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3A
 [Reyced]
 role: Artist: the Solfox player model
 did: Made Solfox, Sol's fox player model, which every SJK player gets through the hub
+
+== Ideas
+
+[Kushina]
+role: Ideas for SJK
+did: The Varykino Blossom blade: a blossom-pink blade, lavender mist, a flowering branch and blossoms shed as it swings
 
 == Made with
 

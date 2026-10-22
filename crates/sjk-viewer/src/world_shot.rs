@@ -284,6 +284,8 @@ mod map_edit_shots;
 
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
+#[path = "world_shot_petals.rs"]
+mod petals;
 
 #[path = "world_shot_blade_cards.rs"]
 mod blade_cards;
@@ -314,6 +316,9 @@ mod cards_shots;
 
 #[path = "world_shot_economy.rs"]
 mod economy_shots;
+
+#[path = "world_shot_forge.rs"]
+mod forge_shots;
 
 #[path = "world_shot_create_game.rs"]
 mod create_game;
@@ -1255,6 +1260,7 @@ Found the fog bug, ask me about it!"
             log_requests: Vec::new(),
             log_answer: None,
             economy: None,
+            kyber: None,
             shop: None,
             trade: None,
         };
@@ -1411,6 +1417,7 @@ like this one.",
                     progress: kind.goal,
                     goal: kind.goal,
                     unlocked: 1_791_336_225,
+                    reward: None,
                 })
                 .collect(),
             names: vec![
@@ -1800,8 +1807,16 @@ like this one.",
                     tier,
                     id: index as u64,
                     gift: index == 0,
+                    earned: None,
                 });
             }
+            // A kyber crystal an achievement earned.
+            others.push(Unlock::Holocron {
+                tier: &crate::kyber::TIERS[1],
+                id: 9,
+                gift: false,
+                earned: Some(crate::kyber::Earned::of("kills_100")),
+            });
             others.push(Unlock::Update {
                 version: crate::update::Version::new("2026.1011.1").expect("a version"),
                 manual: false,

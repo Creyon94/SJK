@@ -236,6 +236,8 @@ pub(crate) struct HudOverlay {
     /// The share of the player's hack still to go (`hack_bar`), `None` while it hacks
     /// nothing.
     hack_left: Option<f32>,
+    /// The Hax toy's hack still to go (`hax.rs`), drawn as a siege hack is.
+    toy_hack_left: Option<f32>,
     lagometer: sjk_client::LagometerSamples,
     default_document: HudLayoutDocument,
     classic_document: HudLayoutDocument,
@@ -360,6 +362,7 @@ impl HudOverlay {
             followed_name: String::with_capacity(64),
             interrupted: false,
             hack_left: None,
+            toy_hack_left: None,
             lagometer: sjk_client::LagometerSamples::new(),
             default_document: HudLayoutDocument::from_json(DEFAULT_LAYOUT)
                 .expect("bundled default HUD document is valid"),
@@ -381,6 +384,11 @@ impl HudOverlay {
             radial_document: HudLayoutDocument::from_json(RADIAL_LAYOUT)
                 .expect("bundled radial HUD document is valid"),
         }
+    }
+
+    /// The share of a Hax toy's hack still to go, while the player hacks or is hacked.
+    pub(crate) fn set_toy_hack(&mut self, left: Option<f32>) {
+        self.toy_hack_left = left;
     }
 
     /// Build, lay out and retain the HUD widget draw list. `user_scale` is
@@ -531,7 +539,7 @@ impl HudOverlay {
             hack_bar::emit(
                 &mut self.draw_list,
                 viewport,
-                self.hack_left,
+                self.hack_left.or(self.toy_hack_left),
                 crosshair::rect(crosshair_look, self.targeting.center(viewport), viewport),
                 self.icons.cell(icons::assets::HACKER),
             );

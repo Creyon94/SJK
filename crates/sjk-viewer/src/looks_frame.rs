@@ -95,7 +95,8 @@ impl GpuState {
             };
             sent = Some(
                 held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
-                    .with_toy(crate::order66::TOY, self.order66.on()),
+                    .with_toy(crate::order66::TOY, self.order66.on())
+                    .with_toy(crate::hax::TOY, self.hax.on()),
             );
             (
                 own.saber_skin,
@@ -121,7 +122,8 @@ impl GpuState {
             options_off2,
         }
         .with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
-        .with_toy(crate::order66::TOY, self.order66.on());
+        .with_toy(crate::order66::TOY, self.order66.on())
+        .with_toy(crate::hax::TOY, self.hax.on());
         if let Some(sent) = sent {
             player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);

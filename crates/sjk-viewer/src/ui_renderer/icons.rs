@@ -51,9 +51,9 @@ pub(crate) const VERIFIED_ICON: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELL
 /// First of the quick wheels' icon cells (`quick_wheel::ICONS`), after the verified
 /// badge's.
 pub(crate) const WHEEL_ICON_FIRST: u32 = VERIFIED_ICON + 1;
-/// Quick wheel cells: three rows (the 44 icons of two boards, with room for four
-/// more).
-pub(crate) const WHEEL_ICON_CELLS: u32 = 3 * COLUMNS;
+/// Quick wheel cells: four rows (the 44 icons of two boards and the toys', with room
+/// for more).
+pub(crate) const WHEEL_ICON_CELLS: u32 = 4 * COLUMNS;
 /// First of the settings menu's icon cells (`settings_icons::ICONS`), after the
 /// quick wheels'.
 pub(crate) const SETTINGS_ICON_FIRST: u32 = WHEEL_ICON_FIRST + WHEEL_ICON_CELLS;

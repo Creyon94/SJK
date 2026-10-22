@@ -10,10 +10,20 @@ Each tier is its own object (Sol's pick, 17/10/2026, from the proposals' second 
 - legendary, the Sith pyramid: a dark frustum with runes down its sides and a lit seam,
   its cap floating free over a glowing eye, both bobbing and turning; one triangle of
   runes runs up each side and on over the cap;
-- mythical, the kyber prism: a broad eight-sided crystal in a steel sheath, turning,
-  held by two slim gimbal rings that tumble, ten motes of light circling it.
+- mythical, the engram (21/10/2026, Sol: "make a cool shader of it like Destiny"): a
+  long faceted gold gem of thirty triangular plates, each a slab apart from the next
+  so thin glowing seams run between them, a white-hot core showing through, the plates
+  breathing outward and back (their shader's `deformVertexes wave`), the shell turning
+  and slowly tumbling, eight sparks circling it, a faint old-republic rune etched in
+  each plate, a sheen running over the facets, the seams and core glowing into a halo.
 
-A tier is one model per part: its body, which never moves against the holocron, and
+The kyber crystals (`kyber_<tier>`, 21/10/2026) are one more object in the four tiers'
+colours: what was the mythical holocron until then, the kyber prism, a broad
+eight-sided crystal in a steel sheath, turning, held by gimbal rings that tumble, motes
+of light circling it. The commoner the tier the plainer: one ring and four motes for
+uncommon, six motes for rare, both rings and eight for legendary, ten for mythical.
+
+A form is one model per part: its body, which never moves against the holocron, and
 each moving part (the halo, the cap and the eye, the crystal, the rings, a mote), so
 that the client can turn each one ([`PARTS`], mirrored by `holocrons/stage.rs`'s
 table: keep the two in step). A moving part is modelled about its own centre, which
@@ -36,6 +46,10 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 TIER_IDS = ("uncommon", "rare", "legendary", "mythical")
+# The kyber crystals' ids: the hub's tier ids of the crystals, in the same order.
+KYBER_IDS = tuple(f"kyber_{tier}" for tier in TIER_IDS)
+# Every form the stage draws, in the order of the client's table (`FORMS`).
+FORM_IDS = TIER_IDS + KYBER_IDS
 # Shared materials and their locked ones; a tier's face `holocron_<tier>` locks to
 # `holocron_<tier>_locked`, its light to the one shared dark light.
 STEEL = "holocron_steel"
@@ -51,6 +65,11 @@ def locked_material(material: str) -> str:
     if material.endswith("_light"):
         return LIGHT_LOCKED
     return f"{material}_locked"
+
+
+def kyber_rank(form: str) -> int:
+    """A kyber crystal's tier as an index into TIER_IDS."""
+    return TIER_IDS.index(form.removeprefix("kyber_"))
 
 
 # ---------------------------------------------------------------------------
@@ -89,17 +108,21 @@ class Mesh:
     def __init__(self):
         self.surfaces: dict[str, tuple[list, list, list, list]] = {}
 
-    def polygon(self, material: str, points, inside, uvs=None) -> None:
+    def polygon(self, material: str, points, inside, uvs=None, normal=None) -> None:
         """A convex polygon facing away from the point `inside` (its winding is put
-        right from that), with its picture coordinates (default: tiled on its plane)."""
+        right from that), with its picture coordinates (default: tiled on its plane).
+        `normal` replaces the vertices' normal (not the winding): an engram plate's
+        walls carry the plate's, so its shader's `deformVertexes wave` moves the whole
+        slab as one."""
         points = [np.asarray(p, float) for p in points]
-        normal = newell(points)
+        own = newell(points)
         centre = sum(points) / len(points)
-        if np.dot(normal, centre - np.asarray(inside, float)) < 0:
+        if np.dot(own, centre - np.asarray(inside, float)) < 0:
             points = points[::-1]
             if uvs is not None:
                 uvs = uvs[::-1]
-            normal = -normal
+            own = -own
+        normal = own if normal is None else np.asarray(normal, float)
         if uvs is None:
             right, up = plane_basis(normal)
             uvs = [(np.dot(p, right) / TILE, -np.dot(p, up) / TILE) for p in points]
@@ -374,8 +397,10 @@ def sith_pyramid(tier: str) -> dict:
     return {"body": body, "cap": cap, "eye": eye}
 
 
-def kyber_prism(tier: str) -> dict:
-    face = f"holocron_{tier}"
+def kyber_crystal(form: str) -> dict:
+    """The kyber crystal of `form` (`kyber_<tier>`): the second ring only from
+    legendary up (the motes' count is in PARTS)."""
+    face = f"holocron_{form}"
     body = Mesh()
     prism(body, STEEL, 8, 2.75, 2.75, -0.4, 0.4, math.pi / 8)
     crystal = Mesh()
@@ -390,15 +415,129 @@ def kyber_prism(tier: str) -> dict:
     tube(ring_a, STEEL, 4.5, 0.15, 6, 8, phase=math.pi / 8)
     for k in range(4):
         a = k * math.tau / 4
-        octahedron(ring_a, light(tier), (4.5 * math.cos(a), 4.5 * math.sin(a), 0.0), 0.26)
-    ring_b = Mesh()
-    tube(ring_b, STEEL, 5.4, 0.11, 6, 8)
+        octahedron(ring_a, light(form), (4.5 * math.cos(a), 4.5 * math.sin(a), 0.0), 0.26)
     mote = Mesh()
-    tetrahedron(mote, light(tier), 0.2)
-    return {"body": body, "crystal": crystal, "ring_a": ring_a, "ring_b": ring_b, "mote": mote}
+    tetrahedron(mote, light(form), 0.2)
+    parts = {"body": body, "crystal": crystal, "ring_a": ring_a, "mote": mote}
+    if kyber_rank(form) >= 2:
+        ring_b = Mesh()
+        tube(ring_b, STEEL, 5.4, 0.11, 6, 8)
+        parts["ring_b"] = ring_b
+    return parts
 
 
-FORMS = {"uncommon": jedi_cube, "rare": great_holocron, "legendary": sith_pyramid, "mythical": kyber_prism}
+# The engram: a tip at each end and three rings of five corners between (height,
+# radius, turn), the middle one turned half a step, so the plates are thirty
+# triangles: five round each tip and two bands of ten between the rings.
+ENGRAM_TIP = 5.3
+ENGRAM_RINGS = ((2.5, 2.15, 0.0), (0.0, 3.05, math.pi / 5), (-2.5, 2.15, 0.0))
+# Each plate is its triangle drawn in by SEAM (half the seam between two plates), a
+# slab PLATE_DEPTH thick whose inner face is drawn in by PLATE_TAPER more, so the
+# seams open toward the core.
+SEAM = 0.13
+PLATE_DEPTH = 0.55
+PLATE_TAPER = 0.07
+CORE_RADIUS = 1.8
+
+
+def engram_faces():
+    """The engram's thirty triangles, each its tip first (the corner the picture's tip
+    goes to) and the two others after."""
+    top, bottom = np.array((0.0, 0.0, ENGRAM_TIP)), np.array((0.0, 0.0, -ENGRAM_TIP))
+    a, b, c = (ring_points(5, radius, z, turn) for z, radius, turn in ENGRAM_RINGS)
+    faces = []
+    for k in range(5):
+        j = (k + 1) % 5
+        faces += [
+            (top, a[k], a[j]),
+            (b[k], a[k], a[j]),
+            (a[j], b[k], b[j]),
+            (c[j], b[k], b[j]),
+            (b[k], c[k], c[j]),
+            (bottom, c[k], c[j]),
+        ]
+    return faces
+
+
+# The engram's face picture is four plates in a 2 by 2 grid, each a shade darker
+# (holocron_assets.py's ENGRAM_TONES); a plate takes the one its facing gives it against
+# KEY, so the facets stand apart however the world lights them (the stage's light is
+# at the holocron's centre, behind every plate).
+ENGRAM_KEY = np.array((-0.45, -0.55, 0.7)) / np.linalg.norm((-0.45, -0.55, 0.7))
+
+
+def engram_tone(normal) -> int:
+    facing = float(np.dot(normal, ENGRAM_KEY))
+    return int(np.clip(np.floor((0.75 - facing) / 0.45), 0, 3))
+
+
+def engram_plate(mesh: Mesh, face: str, seam: str, triangle) -> None:
+    """One plate: its outer face (the picture on it in its tone, its tip at the triangle's tip),
+    its walls in the seam's glow and its inner face, every vertex with the plate's
+    normal (see Mesh.polygon)."""
+    corners = [np.asarray(p, float) for p in triangle]
+    normal = newell(corners)
+    if np.dot(normal, sum(corners)) < 0:
+        normal = -normal
+    sides = [np.linalg.norm(corners[(i + 1) % 3] - corners[(i + 2) % 3]) for i in range(3)]
+    incentre = sum(s * p for s, p in zip(sides, corners)) / sum(sides)
+    area = np.linalg.norm(np.cross(corners[1] - corners[0], corners[2] - corners[0])) / 2
+    inradius = 2 * area / sum(sides)
+
+    def drawn_in(by, depth):
+        return [incentre + (p - incentre) * (1 - by / inradius) - normal * depth for p in corners]
+
+    outer = drawn_in(SEAM, 0.0)
+    inner = drawn_in(SEAM + PLATE_TAPER, PLATE_DEPTH)
+    middle = incentre - normal * PLATE_DEPTH / 2
+    tone = engram_tone(normal)
+    u0, v0 = (tone % 2) * 0.5, (tone // 2) * 0.5
+    uvs = [(u0 + 0.5 * u, v0 + 0.5 * v) for u, v in ((0.5, 0.0), (0.0, 1.0), (1.0, 1.0))]
+    mesh.polygon(face, outer, middle, uvs, normal=normal)
+    for k in range(3):
+        j = (k + 1) % 3
+        mesh.polygon(seam, [outer[k], outer[j], inner[j], inner[k]], middle,
+                     [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)], normal=normal)
+    mesh.polygon(seam, inner, incentre + normal * 4.0, [(0.5, 0.0), (0.0, 1.0), (1.0, 1.0)], normal=normal)
+
+
+def icosahedron(mesh: Mesh, material: str, radius: float) -> None:
+    phi = (1 + 5 ** 0.5) / 2
+    corners = []
+    for a in (-1, 1):
+        for b in (-phi, phi):
+            corners += [(0, a, b), (a, b, 0), (b, 0, a)]
+    corners = np.array(corners, float)
+    corners *= radius / np.linalg.norm(corners[0])
+    for simplex in ConvexHull(corners).simplices:
+        mesh.polygon(material, list(corners[simplex]), (0, 0, 0), [(0.5, 0.0), (0.0, 1.0), (1.0, 1.0)])
+
+
+def engram(tier: str) -> dict:
+    face = f"holocron_{tier}"
+    shell = Mesh()
+    faces = engram_faces()
+    for triangle in faces:
+        engram_plate(shell, face, f"{face}_seam", triangle)
+    # The core stays inside every plate's inner face.
+    nearest = min(
+        abs(np.dot(newell([np.asarray(p, float) for p in t]), np.asarray(t[0], float))) for t in faces
+    )
+    assert CORE_RADIUS < nearest - PLATE_DEPTH, nearest
+    body = Mesh()
+    icosahedron(body, f"{face}_core", CORE_RADIUS)
+    spark = Mesh()
+    octahedron(spark, light(tier), (0, 0, 0), 0.16, stretch=2.0)
+    return {"body": body, "shell": shell, "mote": spark}
+
+
+FORMS = {
+    "uncommon": jedi_cube,
+    "rare": great_holocron,
+    "legendary": sith_pyramid,
+    "mythical": engram,
+    **{form: kyber_crystal for form in KYBER_IDS},
+}
 
 
 # ---------------------------------------------------------------------------
@@ -441,9 +580,10 @@ class Motion:
         return rotation, position
 
 
-def motes():
+def motes(count: int = 10):
+    """The kyber crystal's motes, the first `count` of its ten."""
     out = []
-    for i in range(10):
+    for i in range(count):
         out.append(
             Motion(
                 "mote",
@@ -456,6 +596,37 @@ def motes():
     return out
 
 
+def sparks():
+    """The engram's eight sparks: wider than its girth, slower near the tips, half of
+    them the other way round."""
+    out = []
+    for i in range(8):
+        height = round(((i * 0.41) % 1.0 - 0.5) * 7.5, 3)
+        out.append(
+            Motion(
+                "mote",
+                at=(0.0, 0.0, height),
+                orbit=(round(4.1 + 0.5 * math.cos(i * 1.7) - 0.12 * abs(height), 3),
+                       round((0.75 - 0.05 * abs(height)) * (1 if i % 2 else -1), 3), round(i * 0.79, 3)),
+                spin=(0.0, 2.2),
+                tumble=(0.35, 0.0),
+            )
+        )
+    return out
+
+
+def kyber_parts(form: str):
+    rank = kyber_rank(form)
+    parts = [
+        Motion("body"),
+        Motion("crystal", spin=(0.0, 0.5)),
+        Motion("ring_a", tumble=(math.pi / 2, 0.3), precess=(0.0, 0.25)),
+    ]
+    if rank >= 2:
+        parts.append(Motion("ring_b", tumble=(1.0, -0.22), precess=(0.0, -0.15)))
+    return parts + motes(4 + 2 * rank)
+
+
 PARTS = {
     "uncommon": [Motion("body")],
     "rare": [Motion("body"), Motion("halo", bob=(0.25, 1.3), spin=(0.0, 0.3), tumble=(0.55, 0.0), precess=(0.0, 0.25))],
@@ -464,13 +635,10 @@ PARTS = {
         Motion("cap", at=(0.0, 0.0, 3.0), bob=(0.35, 1.5), spin=(0.0, 0.35)),
         Motion("eye", at=(0.0, 0.0, 0.55), bob=(0.1, 1.5), spin=(0.0, -1.2)),
     ],
-    "mythical": [
-        Motion("body"),
-        Motion("crystal", spin=(0.0, 0.5)),
-        Motion("ring_a", tumble=(math.pi / 2, 0.3), precess=(0.0, 0.25)),
-        Motion("ring_b", tumble=(1.0, -0.22), precess=(0.0, -0.15)),
-        *motes(),
-    ],
+    # The core stands still in the middle; the shell turns about its length
+    # while that slowly tips over (a tumble), and the plates breathe in their shader.
+    "mythical": [Motion("body"), Motion("shell", spin=(0.0, 0.3), tumble=(0.0, 0.09)), *sparks()],
+    **{form: kyber_parts(form) for form in KYBER_IDS},
 }
 
 

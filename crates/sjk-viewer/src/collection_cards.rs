@@ -119,6 +119,8 @@ impl Panel {
     pub(super) fn cards(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         let (stacks, balance) = self.holdings(inputs);
         let faces = cards::faces::current();
+        self.card_blade = None;
+        self.card_blade_craft = false;
         let all = stacks
             .as_deref()
             .map(|stacks| binder::tiles(stacks, &faces))
@@ -197,7 +199,7 @@ impl Panel {
         self.card_scroll_bar(frame, self.card_first, lines);
         self.reveal_button(frame);
         if let Some(chosen) = tiles.get(self.card) {
-            self.card_up_close(frame, chosen, &faces, seconds);
+            self.card_up_close(frame, chosen, &faces, &inputs.holdings, seconds);
         }
         self.card_tiles = tiles;
     }
@@ -559,6 +561,35 @@ impl Panel {
             1.0,
             1.0,
         );
+        // Its perks, found or not: a mark each on round badges over the top left corner.
+        if let Some(face) = tile.face(faces) {
+            let ink = if tile.owned() { 0.9 } else { 0.6 };
+            for (place, perk) in face.perks().iter().enumerate() {
+                let left = x - 7.0 + place as f32 * 28.0;
+                let rect = frame.rect(left, y - 6.0, 25.0, 25.0);
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: 12.5 * s,
+                    color: color::alpha(color::SPACE, 0.94),
+                });
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 12.5 * s,
+                    width: 1.2 * s,
+                    color: color::alpha(tile.rarity.colour, ink),
+                });
+                text(
+                    &mut self.ui,
+                    TextFamily::Display,
+                    format_args!("{}", perk.mark),
+                    frame.rect(left, y - 5.0, 25.0, 23.0),
+                    18.0 * s,
+                    color::alpha(tile.rarity.colour, ink),
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+            }
+        }
         let count = tile.count();
         if count > 1 {
             // The count on a pill over the tile's top right corner.
@@ -610,6 +641,7 @@ impl Panel {
         frame: &Frame,
         tile: &Tile,
         faces: &cards::faces::Faces,
+        holdings: &crate::unlockables::Holdings<'_>,
         seconds: f32,
     ) {
         let s = frame.s;
@@ -689,16 +721,52 @@ impl Panel {
             TextAlign::Center,
         );
         y += 30.0;
-        centred_lines(
+        // A blade card held: a button to its shader, where the copy crafts it for less,
+        // under one line of words (the hover card has them all) and above the keys.
+        let blade = tile
+            .owned()
+            .then(|| tile.face(faces))
+            .flatten()
+            .and_then(|face| crate::unlockables::find(face.blade.as_deref()?));
+        let next = centred_lines(
             &mut self.ui,
             frame,
             words.last.trim_end(),
             [SHOWCASE_X + 40.0, y, SHOWCASE_WIDTH - 80.0],
             72,
-            words.lines,
+            if blade.is_some() { 1 } else { words.lines },
             15.0,
             color::QUIET,
         );
+        if let Some(skin) = blade {
+            // A shader of the trade the player lacks is crafted in the Forge.
+            let craft = self.trade_known
+                && crate::economy::in_trade(skin)
+                && holdings.unlock(skin.id).is_none();
+            self.card_blade = Some(skin);
+            self.card_blade_craft = craft;
+            let label = if craft {
+                format!("Craft the {} in the Forge", skin.name)
+            } else {
+                format!("Go to the {}", skin.name)
+            };
+            let width = crate::text::display_width(&label, 18.0) + 48.0;
+            crate::menu::sjk::kit::button(
+                &mut self.ui,
+                frame,
+                [
+                    SHOWCASE_X + (SHOWCASE_WIDTH - width) * 0.5,
+                    (next + 6.0).min(super::view::KEYS_Y - 52.0),
+                    width,
+                    36.0,
+                ],
+                &label,
+                false,
+                true,
+                false,
+                CARD_SHADER_TOKEN,
+            );
+        }
     }
 
     /// The chosen tile looked at closely (20/10/2026, Sol's request: the cards should be
@@ -843,13 +911,26 @@ fn card_words(tile: &Tile, faces: &cards::faces::Faces) -> CardWords {
         "Not found yet".to_owned()
     };
     let about = match (&tile.slot, face) {
-        (_, Some(face)) => format!(
-            "{} {}   ·   {}   ·   {}",
-            crate::symbols::card_rarity(tile.rarity.index),
-            tile.rarity.name,
-            face.face.kind.name(),
-            face.face.set_name,
-        ),
+        (_, Some(face)) => {
+            let mut about = format!(
+                "{} {}   ·   {}   ·   {}",
+                crate::symbols::card_rarity(tile.rarity.index),
+                tile.rarity.name,
+                face.face.kind.name(),
+                face.face.set_name,
+            );
+            // Its perks' marks, as on its tile.
+            let marks: Vec<String> = face
+                .face
+                .perks()
+                .iter()
+                .map(|perk| perk.mark.to_string())
+                .collect();
+            if !marks.is_empty() {
+                about = format!("{about}   ·   {}", marks.join(" "));
+            }
+            about
+        }
         (Slot::Sealed, _) => "Sealed: a card is picked for each when it is revealed.".to_owned(),
         _ => "Its face is not in your card pack yet.".to_owned(),
     };
@@ -1022,6 +1103,49 @@ mod tests {
             ..outcome(Vec::new())
         };
         assert_eq!(reveal_words(&refused), "No.");
+    }
+
+    /// A held blade card's button turns to the Shaders tab on its shader, the filter there
+    /// cleared so it shows, or to the Forge's Craft on it when the player lacks it; with
+    /// no blade card up close it does nothing.
+    #[test]
+    fn a_blade_cards_button_goes_to_its_shader() {
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let shown = inputs(Holdings::Known(&[]), "");
+        let mut panel = Panel::new();
+        panel.open(Tab::Cards, true, true, ReturnTarget::MainMenu);
+        assert_eq!(panel.go_to_card_shader(), PanelAction::None);
+        assert_eq!(panel.tab, Tab::Cards);
+        panel.shader_filter.tier = Some(crate::unlockables::Rarity::Common);
+        panel.card_blade = crate::unlockables::find("saber_sun");
+        let _ = panel.go_to_card_shader();
+        assert_eq!(panel.tab, Tab::Shaders);
+        assert!(!panel.shader_filter.active());
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            panel.skin_at(panel.shader).map(|skin| skin.id),
+            Some("saber_sun")
+        );
+        assert!(panel.shader_focus.is_none());
+        assert!(!panel.overflowed());
+        // One of the trade the player lacks: the Forge's Craft on it, where the copy
+        // crafts it for less.
+        panel.show(Tab::Cards);
+        panel.card_blade_craft = true;
+        let _ = panel.go_to_card_shader();
+        assert_eq!(
+            (panel.tab, panel.forge_section()),
+            (Tab::Forge, super::super::forge::Section::Craft)
+        );
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            panel
+                .forge
+                .craft_list
+                .get(panel.forge.craft)
+                .map(|item| item.skin.id),
+            Some("saber_sun")
+        );
     }
 
     /// Copies of `count` cards `card_000`, `card_001`... in one finish each.

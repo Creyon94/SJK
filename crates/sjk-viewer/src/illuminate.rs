@@ -31,10 +31,15 @@ pub(crate) const OLD_COMMAND: &str = "force_illuminate";
 pub(crate) const OLD_CVAR: &str = "cg_illuminate";
 pub(crate) const MODEL: &str = "models/sjk/holocron.md3";
 
-/// A bundled file's bytes, by its name in `assets/holocron`.
+/// A bundled file's bytes, by its name in `assets/holocron` (from the crate's folder, so the
+/// generated `holocron_files.rs` can name them too).
 macro_rules! bundled {
     ($name:expr) => {
-        include_bytes!(concat!("../assets/holocron/", $name))
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/holocron/",
+            $name
+        ))
     };
 }
 
@@ -77,11 +82,12 @@ macro_rules! shader {
 #[cfg(test)]
 const TIERS: [&str; 4] = ["uncommon", "rare", "legendary", "mythical"];
 
-/// The bundled files at their game paths: the holocron, then each loot-box tier's
-/// holocron (`docs/holocrons.md`, "The four holocrons"): its parts' models in its look and
-/// the locked one ([`crate::holocrons::stage::PARTS`]), its face with the face's glow and
-/// locked pictures, its lit parts' picture and its icons (large and small); then the
-/// shared steel, dark metal and locked light, the mythical sheen and the shaders.
+/// The bundled files at their game paths: Illuminate's holocron (its model, face, glow,
+/// icon and shader). The loot-box forms' (`docs/holocrons.md`, "The four holocrons" and
+/// "Kyber crystals") are [`FORM_FILES`]: each form's parts' models in its look and the
+/// locked one ([`crate::holocrons::stage::FORMS`]), its pictures and its icons (large and
+/// small), then the shared pictures and the shaders, listed by
+/// `scripts/holocron_assets.py` as it writes them.
 ///
 /// A tier has models of its own because a surface's shader is named by its model file:
 /// the shared `holocron.md3` always draws `models/sjk/holocron`.
@@ -91,67 +97,9 @@ const FILES: &[(&str, &[u8])] = &[
     picture!("holocron_glow"),
     ("gfx/sjk/toy_illuminate.png", bundled!("toy_illuminate.png")),
     shader!("holocron"),
-    // Uncommon.
-    model!("holocron_uncommon"),
-    model!("holocron_uncommon_locked"),
-    picture!("holocron_uncommon"),
-    picture!("holocron_uncommon_glow"),
-    picture!("holocron_uncommon_locked"),
-    picture!("holocron_uncommon_light"),
-    icon!("holocron_uncommon"),
-    icon!("holocron_uncommon_small"),
-    // Rare.
-    model!("holocron_rare"),
-    model!("holocron_rare_locked"),
-    model!("holocron_rare_halo"),
-    model!("holocron_rare_halo_locked"),
-    picture!("holocron_rare"),
-    picture!("holocron_rare_glow"),
-    picture!("holocron_rare_locked"),
-    picture!("holocron_rare_light"),
-    icon!("holocron_rare"),
-    icon!("holocron_rare_small"),
-    // Legendary.
-    model!("holocron_legendary"),
-    model!("holocron_legendary_locked"),
-    model!("holocron_legendary_cap"),
-    model!("holocron_legendary_cap_locked"),
-    model!("holocron_legendary_eye"),
-    model!("holocron_legendary_eye_locked"),
-    picture!("holocron_legendary"),
-    picture!("holocron_legendary_glow"),
-    picture!("holocron_legendary_locked"),
-    picture!("holocron_legendary_light"),
-    icon!("holocron_legendary"),
-    icon!("holocron_legendary_small"),
-    // Mythical.
-    model!("holocron_mythical"),
-    model!("holocron_mythical_locked"),
-    model!("holocron_mythical_crystal"),
-    model!("holocron_mythical_crystal_locked"),
-    model!("holocron_mythical_ring_a"),
-    model!("holocron_mythical_ring_a_locked"),
-    model!("holocron_mythical_ring_b"),
-    model!("holocron_mythical_ring_b_locked"),
-    model!("holocron_mythical_mote"),
-    model!("holocron_mythical_mote_locked"),
-    picture!("holocron_mythical"),
-    picture!("holocron_mythical_glow"),
-    picture!("holocron_mythical_locked"),
-    picture!("holocron_mythical_light"),
-    icon!("holocron_mythical"),
-    icon!("holocron_mythical_small"),
-    // Shared by the four.
-    picture!("holocron_steel"),
-    picture!("holocron_steel_locked"),
-    picture!("holocron_dark"),
-    picture!("holocron_dark_locked"),
-    picture!("holocron_light_locked"),
-    picture!("holocron_mythical_sheen"),
-    shader!("holocron_tiers"),
-    shader!("holocron_parts"),
-    shader!("holocron_locked"),
 ];
+
+include!("../assets/holocron/holocron_files.rs");
 
 /// Where the holocron floats, from the eye in the view's yaw frame (x forward,
 /// y left): a little behind and to the left, just under eye height.
@@ -194,7 +142,7 @@ const PW_CLOAKED: u32 = 1 << 11;
 
 /// Mount the bundled files.
 pub(crate) fn mount(vfs: &mut VirtualFileSystem) -> Result<(), VfsError> {
-    vfs.mount_memory("SJK holocron", FILES.iter().copied())?;
+    vfs.mount_memory("SJK holocron", FILES.iter().chain(FORM_FILES).copied())?;
     Ok(())
 }
 
@@ -666,7 +614,8 @@ mod tests {
         let picture = |path: &str| {
             image::load_from_memory(&read(path)).unwrap_or_else(|error| panic!("{path}: {error}"))
         };
-        for tier in TIERS {
+        // Every form's pictures: the four holocrons' and the four kyber crystals'.
+        for tier in crate::holocrons::stage::FORMS.map(|form| form.id) {
             for (path, size) in [
                 (format!("models/sjk/holocron_{tier}.jpg"), 512),
                 (format!("models/sjk/holocron_{tier}_glow.jpg"), 512),
@@ -684,7 +633,7 @@ mod tests {
                 }
             }
         }
-        let sheen = picture("models/sjk/holocron_mythical_sheen.jpg");
+        let sheen = picture("models/sjk/holocron_sheen.jpg");
         assert_eq!((sheen.width(), sheen.height()), (128, 128));
 
         let definitions = sjk_shader::parse_shader_script(
@@ -727,9 +676,19 @@ mod tests {
                 .windows(2)
                 .all(|pair| { pair[0].0 < pair[1].0 && pair[0].1 < pair[1].1 })
         );
+        // The engram's plates breathe (their walls with them, in the parts' shader) and
+        // their sheen is read by the view, so the facets flash as they turn.
         let mythical = definitions.last().unwrap();
+        assert!(matches!(
+            mythical.deforms.as_slice(),
+            [sjk_shader::Deform::Wave { .. }]
+        ));
         let sheen = &mythical.stages[3];
-        assert_eq!(sheen.images, ["models/sjk/holocron_mythical_sheen"]);
+        assert_eq!(sheen.images, ["models/sjk/holocron_mythical_env"]);
+        assert_eq!(
+            sheen.texture_generator,
+            sjk_shader::TextureGenerator::Environment
+        );
         let moves: Vec<_> = sheen
             .texture_modifications
             .iter()
@@ -737,6 +696,28 @@ mod tests {
             .collect();
         assert_eq!(moves, ["scale", "scroll"]);
         assert!(mythical.stages[1].rgb_wave.as_ref().unwrap().amplitude > 0.0);
+        // The kyber crystals: a face per tier (lit, its own light, its glow, a sheen
+        // sliding across), then a light per tier.
+        let kyber = sjk_shader::parse_shader_script(
+            &read("shaders/sjk_holocron_kyber.shader"),
+            "shaders/sjk_holocron_kyber.shader",
+        )
+        .unwrap();
+        assert_eq!(kyber.len(), 2 * TIERS.len());
+        for (tier, definition) in TIERS.iter().zip(&kyber) {
+            assert_eq!(definition.name, format!("models/sjk/holocron_kyber_{tier}"));
+            assert_eq!(definition.stages.len(), 4);
+            assert!(definition.stages[2].glow);
+            assert_eq!(definition.stages[3].images, ["models/sjk/holocron_sheen"]);
+        }
+        for definition in &kyber {
+            for image in definition.stages.iter().flat_map(|stage| &stage.images) {
+                assert!(
+                    vfs.read(&format!("{image}.jpg")).unwrap().is_some(),
+                    "{image}"
+                );
+            }
+        }
         // The cube names the base shader, which no tier's replaces.
         let base = sjk_shader::parse_shader_script(
             &read("shaders/sjk_holocron.shader"),
@@ -764,6 +745,7 @@ mod tests {
         let definitions = |path: &str| sjk_shader::parse_shader_script(&read(path), path).unwrap();
         let shown: Vec<_> = definitions("shaders/sjk_holocron_tiers.shader")
             .into_iter()
+            .chain(definitions("shaders/sjk_holocron_kyber.shader"))
             .chain(definitions("shaders/sjk_holocron_parts.shader"))
             .collect();
         let locked = definitions("shaders/sjk_holocron_locked.shader");
@@ -796,12 +778,17 @@ mod tests {
                 .flat_map(|surface| surface.shaders)
                 .collect()
         };
-        for (tier, parts) in TIERS.iter().zip(crate::holocrons::stage::PARTS) {
-            for part in parts {
+        for form in &crate::holocrons::stage::FORMS {
+            let tier = form.id;
+            for part in form.parts {
                 for shader in names(part.model) {
+                    // The form's face, its light, the engram's seams and core, or
+                    // the shared steel and dark metal.
                     let own = [
                         format!("models/sjk/holocron_{tier}"),
                         format!("models/sjk/holocron_{tier}_light"),
+                        format!("models/sjk/holocron_{tier}_seam"),
+                        format!("models/sjk/holocron_{tier}_core"),
                         "models/sjk/holocron_steel".to_owned(),
                         "models/sjk/holocron_dark".to_owned(),
                     ];

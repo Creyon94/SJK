@@ -133,7 +133,44 @@ impl Face {
             unlockable.name
         ))
     }
+
+    /// What any copy of a blade card gives when crafting, as its hover card says it ("Any
+    /// copy crafts the Sun blade for less."; 21/10/2026), for a shader this client knows.
+    pub(crate) fn crafts_for_less(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.blade.as_deref()?)?;
+        Some(format!("Any copy crafts the {} for less.", unlockable.name))
+    }
+
+    /// What its copies bring ([`PERKS`], in that order; 21/10/2026, Sol's request: a mark
+    /// on the card for each), as the tiles, the close-up and the hover card show them.
+    pub(crate) fn perks(&self) -> Vec<Perk> {
+        PERKS
+            .iter()
+            .filter_map(|(mark, words)| {
+                Some(Perk {
+                    mark: *mark,
+                    words: words(self)?,
+                })
+            })
+            .collect()
+    }
 }
+
+/// A perk of a card: its SJK Symbols mark and its words ("Brings the Sun blade while you
+/// hold it.").
+pub(crate) struct Perk {
+    pub(crate) mark: char,
+    pub(crate) words: String,
+}
+
+/// Every perk a card can have and its mark, in the order they show: a new perk is a row
+/// here. A lightsaber brings a blade while held, the Solar finish's sun drops one, the
+/// smith's hammer crafts one for less.
+const PERKS: [(char, fn(&Face) -> Option<String>); 3] = [
+    (crate::symbols::SABER, Face::brings),
+    (crate::symbols::FINISH[2], Face::solar_drop),
+    (crate::symbols::SMITH, Face::crafts_for_less),
+];
 
 /// A card file as written.
 #[derive(Deserialize)]
@@ -483,7 +520,21 @@ mod tests {
         assert_eq!(parse("x", &blank).unwrap().blade, None);
         let later = FILE.replace("\"artist\"", "\"blade\": \"saber_later\", \"artist\"");
         assert_eq!(parse("x", &later).unwrap().solar_drop(), None);
+        assert_eq!(
+            blade.crafts_for_less().as_deref(),
+            Some("Any copy crafts the Sun blade for less.")
+        );
+        assert_eq!(face.crafts_for_less(), None);
         assert_eq!(face.solar_drop(), None);
+        // Its perks, a mark each, in the table's order; a plain card has none.
+        let marks: Vec<char> = blade.perks().iter().map(|perk| perk.mark).collect();
+        assert_eq!(
+            marks,
+            [crate::symbols::FINISH[2], crate::symbols::SMITH],
+            "the Solar drop, then the craft"
+        );
+        assert!(face.perks().is_empty());
+        assert_eq!(sun.perks()[0].mark, crate::symbols::SABER);
         // A field the client does not know yet is read past.
         let later = FILE.replace("\"artist\"", "\"frame\": \"gold\", \"artist\"");
         assert!(parse("x", &later).is_ok());

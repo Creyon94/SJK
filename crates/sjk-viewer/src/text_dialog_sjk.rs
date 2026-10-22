@@ -67,7 +67,7 @@ const MODEL_BUTTON_HEIGHT: f32 = 36.0;
 /// Why a Send was refused: warm red, as retail's warnings are.
 const WARN: Color = Color::new(1.0, 0.44, 0.4, 1.0);
 /// The rules every kind keeps to as it is typed.
-const RULES: &str = "Letters, digits, spaces and . , ! ? ' - : ( ) only";
+const RULES: &str = "Letters, digits, spaces and . , ! ? ' - : ( ) _ / \\ + = \" ; [ ] < > # only";
 
 /// Where the card's parts sit for one kind. A report's card is the constants' own; a
 /// note's is taller, for its model row and a field of [`NOTE_LINES`], and stays centred.

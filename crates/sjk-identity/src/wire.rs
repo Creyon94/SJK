@@ -354,6 +354,45 @@ pub struct HolocronState {
     /// The kyber shards' and the shop's tables (17/10/2026); `None` from hubs before.
     #[serde(default)]
     pub economy: Option<EconomyTables>,
+    /// The kyber crystals' odds and the person's pity counter (21/10/2026; the hub's
+    /// `PROTOCOL.md`, "Kyber crystals"); `None` from hubs before.
+    #[serde(default)]
+    pub kyber: Option<KyberTables>,
+}
+
+/// The kyber crystals' tables as the hub sends them with the progress (`PROTOCOL.md`,
+/// "Kyber crystals", 21/10/2026). A crystal is a holocron row of tier `kyber_uncommon` to
+/// `kyber_mythical`, earned from achievements; opening one always gives a saber shader.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct KyberTables {
+    /// Each crystal tier's odds, the commonest first.
+    #[serde(default)]
+    pub tiers: Vec<KyberTier>,
+    /// The person's pity counter; `None` when the hub keeps none.
+    #[serde(default)]
+    pub pity: Option<KyberPity>,
+}
+
+/// One crystal tier's odds.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct KyberTier {
+    /// The tier's wire id (`kyber_rare`).
+    pub tier: String,
+    /// The shader's tier per mille, common to mythical (summing to 1000).
+    #[serde(default)]
+    pub shader_tier: Vec<u32>,
+}
+
+/// The person's pity counter: the `every`-th crystal in a row without a Legendary or
+/// better shader gives one.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct KyberPity {
+    /// How many crystals in a row make a Legendary or better sure.
+    #[serde(default)]
+    pub every: u32,
+    /// Crystals opened since the last that gave Legendary or better (0 to `every - 1`).
+    #[serde(default)]
+    pub since: u32,
 }
 
 /// The economy's tables as the hub sends them with the progress (`PROTOCOL.md`, "Shards
@@ -377,6 +416,24 @@ pub struct EconomyTables {
     /// is not for sale. Empty from hubs before.
     #[serde(default)]
     pub holocrons: std::collections::BTreeMap<String, u64>,
+    /// What crafting a shader costs while the person holds a copy of its blade card, in
+    /// per cent of the craft cost, by the best copy's finish id (`normal`, `holo`,
+    /// `solar`; 21/10/2026). Empty from hubs before, which take the full cost.
+    #[serde(default)]
+    pub blade_card_craft: std::collections::BTreeMap<String, u64>,
+    /// What the hub's trade can do beyond its first form (21/10/2026): `shatter_last`
+    /// (the last copy shatters when asked, [`crate::Service::shatter_last`]) and
+    /// `shatter_duplicates` ([`crate::Service::shatter_duplicates`]). Empty from hubs
+    /// before.
+    #[serde(default)]
+    pub abilities: Vec<String>,
+}
+
+impl EconomyTables {
+    /// Whether the hub's trade can do `ability` (`shatter_last`, `shatter_duplicates`).
+    pub fn can(&self, ability: &str) -> bool {
+        self.abilities.iter().any(|known| known == ability)
+    }
 }
 
 /// A duplicate the hub shattered (`POST /v1/unlocks/shatter`).
@@ -400,6 +457,40 @@ pub struct Shattered {
 pub struct ShatterAnswer {
     /// What the shatter gave.
     pub shattered: Shattered,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// The copies of one shader the hub shattered at once (`POST
+/// /v1/unlocks/shatter-duplicates`, 21/10/2026).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatteredCopies {
+    /// The shader's id.
+    pub id: String,
+    /// How many copies it gave up (one is kept).
+    #[serde(default)]
+    pub copies: u32,
+    /// The shards they gave.
+    #[serde(default)]
+    pub shards: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/shatter-duplicates`: every duplicate shattered,
+/// one copy of each kept.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatterAllAnswer {
+    /// Each shader that gave up copies.
+    #[serde(default)]
+    pub shattered: Vec<ShatteredCopies>,
+    /// The copies shattered in all.
+    #[serde(default)]
+    pub copies: u32,
+    /// The shards they gave in all.
+    #[serde(default)]
+    pub shards: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
     /// The person's profile after.
     pub profile: Profile,
 }
@@ -715,6 +806,16 @@ pub struct ToyEvent {
     pub target: u8,
 }
 
+/// An answer of the toy relay (`PROTOCOL.md`, "Toy relay"): the events for the
+/// reader's own slot, and the id to read after next.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct RelayBatch {
+    /// The events, oldest first.
+    pub events: Vec<ToyEvent>,
+    /// The id the next read starts after.
+    pub next: u64,
+}
+
 /// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
 /// count is and when it was unlocked. Recognition only, it grants nothing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -729,6 +830,10 @@ pub struct Achievement {
     /// When the count first reached the goal, unix seconds; 0 while it has not.
     #[serde(default)]
     pub unlocked: i64,
+    /// The kyber crystal tier it brings once (`kyber_rare`; 21/10/2026); `None` from hubs
+    /// before, whose players read the client's own table.
+    #[serde(default)]
+    pub reward: Option<String>,
 }
 
 /// The hub's answer to `POST /v1/staff/search`.
@@ -1475,6 +1580,7 @@ mod tests {
                 min_client: None,
                 loot: Vec::new(),
                 economy: None,
+                kyber: None,
             }
         );
         let odds: HolocronState = serde_json::from_str(
@@ -1513,10 +1619,30 @@ mod tests {
         )
         .unwrap();
         assert_eq!(shards.shop_currency, "shards");
+        assert!(shards.blade_card_craft.is_empty());
+        let cards: EconomyTables =
+            serde_json::from_str(r#"{"blade_card_craft":{"normal":75,"holo":50,"solar":50}}"#)
+                .unwrap();
+        assert_eq!(cards.blade_card_craft["holo"], 50);
         assert_eq!(
             (shards.holocrons["uncommon"], shards.holocrons["rare"]),
             (150, 400)
         );
+        // Hubs before 21/10/2026 say no abilities; later ones name theirs.
+        assert!(!shards.can("shatter_last") && !shards.can("shatter_duplicates"));
+        let forge: EconomyTables = serde_json::from_str(
+            r#"{"shatter":[5,10,25,60,150],"abilities":["shatter_last","shatter_duplicates"]}"#,
+        )
+        .unwrap();
+        assert!(forge.can("shatter_last") && forge.can("shatter_duplicates"));
+        let all: ShatterAllAnswer = serde_json::from_str(
+            r#"{"shattered":[{"id":"saber_tidal","copies":2,"shards":10}],"copies":2,
+                "shards":10,"balance":45,
+                "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,
+        )
+        .unwrap();
+        assert_eq!((all.copies, all.shards, all.balance), (2, 10, 45));
+        assert_eq!(all.shattered[0].id, "saber_tidal");
         let bought: HolocronBuyAnswer = serde_json::from_str(
             r#"{"bought":{"holocron":42,"tier":"rare","price":400,"balance":100},
                 "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,
@@ -1533,6 +1659,33 @@ mod tests {
         )
         .unwrap();
         assert_eq!(gated.min_client.as_deref(), Some("2026.1022.1"));
+        // Kyber crystals (21/10/2026): their odds and the person's pity, beside `loot`.
+        let kyber: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,
+                "kyber":{"tiers":[{"tier":"kyber_uncommon","shader_tier":[450,400,120,25,5]},
+                {"tier":"kyber_rare","shader_tier":[200,400,300,85,15]}],
+                "pity":{"every":10,"since":3}}}"#,
+        )
+        .unwrap();
+        let tables = kyber.kyber.unwrap();
+        assert_eq!(tables.tiers[1].tier, "kyber_rare");
+        assert_eq!(tables.tiers[0].shader_tier, [450, 400, 120, 25, 5]);
+        assert_eq!(
+            tables.pity,
+            Some(KyberPity {
+                every: 10,
+                since: 3
+            })
+        );
+        assert!(kyber.loot.is_empty(), "the holocrons' loot is untouched");
+        let achievement: Achievement = serde_json::from_str(
+            r#"{"id":"kills_100","progress":100,"goal":100,"unlocked":5,"reward":"kyber_rare"}"#,
+        )
+        .unwrap();
+        assert_eq!(achievement.reward.as_deref(), Some("kyber_rare"));
+        let older: Achievement =
+            serde_json::from_str(r#"{"id":"kills_100","progress":3,"goal":100}"#).unwrap();
+        assert_eq!(older.reward, None, "hubs before crystals say no reward");
         let feed: Feed = serde_json::from_str(
             r#"{"next":21,"drops":[{"id":20,"at":1791000001,"key_id":"aa","name":"^2Sol",
                 "tier":"legendary","verified":true},

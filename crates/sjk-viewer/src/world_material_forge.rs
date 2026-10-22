@@ -756,16 +756,38 @@ impl Runtime {
         {
             return;
         }
-        // A failure leaves the texture to the material's own upload.
-        if let Ok(view) = super::filtering::mips::upload_chains(
-            device,
-            queue,
-            texture.width,
-            texture.height,
-            &texture.chains,
-        ) {
-            self.forge.texture_cache.insert(texture.key, view);
+        // A failure leaves the texture to the material's own upload; one the card had
+        // no memory for is invalid and must not be cached.
+        let uploaded = crate::gpu_guard::capture(device, || {
+            super::filtering::mips::upload_chains(
+                device,
+                queue,
+                texture.width,
+                texture.height,
+                &texture.chains,
+            )
+        });
+        match uploaded {
+            Ok(Ok(view)) => {
+                self.forge.texture_cache.insert(texture.key, view);
+            }
+            Ok(Err(_)) => {}
+            Err(error) => crate::log::progress(format_args!(
+                "warning: texture {} not uploaded: {error}",
+                texture.key
+            )),
         }
+    }
+
+    /// The keys of the textures uploaded so far, for [`Self::forget_textures_since`].
+    pub(crate) fn texture_keys(&self) -> std::collections::HashSet<String> {
+        self.forge.texture_cache.keys().cloned().collect()
+    }
+
+    /// Drop the textures uploaded since `kept` was taken ([`Self::texture_keys`]):
+    /// work that failed on the GPU ([`crate::gpu_guard`]) may have left them invalid.
+    pub(crate) fn forget_textures_since(&mut self, kept: &std::collections::HashSet<String>) {
+        self.forge.texture_cache.retain(|key, _| kept.contains(key));
     }
 
     /// Whether this runtime's textures carry mip chains (`r_textureMode`).
