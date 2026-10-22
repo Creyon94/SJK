@@ -222,8 +222,21 @@ camera then presents that slice's held pitch and yaw, including frames that
 reuse prediction at the same command time. Applying only changes in
 `delta_angles` left fresh mouse movement visible on those frames; the local
 character's root also follows the camera yaw. The hold clears on the next
-slice that does not hold the view. JA+'s free-look rebound does not set it.
-This is local presentation state, with no protocol field or movement change.
+slice that does not hold the view. JA+'s server-angle rule does not set it.
+This is local presentation state, with no protocol field change.
+
+A snapshot with `PMF_STUCK_TO_WALL` also seeds the stock grab's view hold. When
+the snapshot acknowledges every queued command, the camera can render that seed
+without another movement slice; it must still use the snapshot's held pitch and
+yaw, as OpenJK renders `predictedPlayerState.viewangles`. Clearing the wall flag
+in the next snapshot releases this hold.
+
+Local mouse and keyboard look also obey a grabbed wall's `PMF_STUCK_TO_WALL`
+on every server, including JA+, even though JA+'s simulation leaves view angles
+free. [motion.rs](../crates/sjk-viewer/src/input/motion.rs) consumes each frame's
+input while holding both look axes; movement and jump buttons still reach the
+command. Filtered mouse history is cleared during the hold so it cannot turn the
+camera after release. Fake noclip and detached free camera keep normal look input.
 
 ### Equipped jetpack prediction
 

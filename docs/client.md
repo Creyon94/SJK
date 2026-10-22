@@ -1047,11 +1047,12 @@ legs play a rebound the model's yaw is the stock server's facing instead
 view, [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)); a frame
 whose check misses keeps the rebound's last facing, and the kick off returns the
 body to the view. It applies to the local player (from the predicted state) and to
-other players alike. Only the model changes: the camera stays free on JA+ and
-locked on a stock server, as each server computes it, and the kick off still goes
-straight back from the side the view picks (`checkDir`), so on JA+ it follows
-where the player looks, not the wall. The check sees the world's brushes only: a
-wall on a mover keeps the body on the view.
+other players alike. Local mouse and keyboard look stay held during a grabbed
+wall on every server, including JA+: input is consumed during the hold, and only
+fresh look input turns the camera after release. JA+'s server-angle rules still
+apply to the simulation and to other players; the kick off goes straight back
+from the side the simulated view picks (`checkDir`). The facing check sees the
+world's brushes only: a wall on a mover keeps the body on the view.
 
 ## Dismemberment and disintegration
 

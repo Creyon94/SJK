@@ -3988,23 +3988,34 @@ for a few seconds after leaving).
 
 ## Wall-jump view prediction
 
-Branch `fix/wall-jump-prediction` (2026-10-11, based on `3654f5b2`, Windows,
-Rust 1.99): wall-move prediction now reports when it held the view, and the
-camera presents those held angles even on frames that reuse the same predicted
-command time. Delta changes alone could leave fresh mouse movement visible on
-such frames, also turning the local character's root. JA+'s free-look rebound
-keeps its existing behavior. See [wall-move view holds](networking.md#wall-move-view-holds).
+Branch `fix/wall-grab-camera-lock` (2026-10-22, based on `0279b8f3`, Windows x64,
+Rust 1.99): local mouse and keyboard look obey a grabbed wall's
+`PMF_STUCK_TO_WALL` on every dialect, including JA+. Input is consumed during the
+hold, movement/jump buttons still reach commands, and filtered mouse counts do
+not spill into release. Fake noclip/free camera keep normal look input.
 
-Reference comparison: OpenJK `codemp` revision `4d0dfaf1`, `bg_pmove.c`
-(`PM_SetPMViewAngle`, the wall handlers and their ordering in `PmoveSingle`),
-and `cg_view.c`'s use of `cg.predictedPlayerState.viewangles`. Focused synthetic
-tests cover rebounds, wall runs on both sides, runs up walls, ledge flips,
-release, JA+ free look and repeated presentation with unchanged deltas at
-8/7/4/3 ms command steps. No gameplay velocity, animation timing or wire
-field changes. Workspace fmt, locked build, locked tests and all-targets
-clippy passed (existing warnings; the viewer tests have 75 existing ignored
-cases). In-game reproduction of the reported turning, remote-server
-behavior and full wall-acrobatics parity remain unverified.
+A stock grabbed-wall snapshot also restores the local view hold. Previously,
+snapshot reseeding cleared it; a fully acknowledged queue could then render fresh
+mouse motion without another movement slice to hold the view again. The next
+released-wall snapshot clears the hold. See
+[wall-move view holds](networking.md#wall-move-view-holds).
+
+Reference: OpenJK `codemp` revision `4d0dfaf1`, `bg_pmove.c`
+(`PM_SetPMViewAngle`, the wall handlers and their ordering in `PmoveSingle`), and
+`cg_predict.c:1043-1051,1401` / `cg_view.c:1586` retaining and rendering snapshot
+angles when no command advances them. Focused regressions cover snapshot reseeding,
+repeated presentation, stock/JA+ input-to-command angles, movement/jump buttons,
+filtered input and release at 8/7/4/3 ms. The regressions failed before their fixes.
+
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed on this revision, with
+existing warnings and ignored asset/GPU/integration cases. Dev/test debug
+information and incremental compilation were disabled.
+
+No movement-physics, animation-timing or wire-field changes. Release startup,
+in-game reproduction, remote-server behavior and full wall-acrobatics parity on
+this revision remain unverified.
 
 ## Live console height
 
