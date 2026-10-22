@@ -2051,6 +2051,26 @@ under it are not drawn and take no input. The same look in every menu style, on 
   the foot; focus starts on Don't send. Keys bottom right: Enter send logs, Esc don't
   send; Space does nothing, so sending takes a deliberate key.
 
+## Encrypted whisper
+
+[e2e_whisper_card.rs](../crates/sjk-viewer/src/e2e_whisper_card.rs): the pop-up a
+player gets when an [encrypted whisper](hub-chat.md#encrypted-whispers) could not go
+through the SJK hub (Sol's decision, 22/10/2026: ask, never send it unencrypted
+silently). It opens the game menu when play is under way (the composer closes) and
+shows over it, after the other cards; closing the last failure closes the menu it
+opened. Failures wait their turn, oldest first, and those written on a server the
+player has left are dropped. The same look in every menu style, on the 16:9 frame:
+
+- **Card:** the kit's card over its scrim, 800 wide from x 560, y 330, as tall as its
+  words.
+- **Words:** "Encrypted whisper" in gold (Rajdhani 22), "Send it unencrypted?"
+  (Rajdhani 36), then up to seven lines of Exo 2 18 (muted): to whom, why the hub did
+  not take it, the whisper in quotes (its first 120 characters), and that the game
+  server and whoever runs it can read it if sent unencrypted.
+- **Buttons:** Don't send (outlined, 170) and Send unencrypted (gold, 250),
+  right-aligned along the foot; focus starts on Don't send. Keys bottom right: Enter
+  send unencrypted, Esc don't send; Space does nothing.
+
 ## What's new card
 
 [whats_new_card.rs](../crates/sjk-viewer/src/whats_new_card.rs): the pop-up a player

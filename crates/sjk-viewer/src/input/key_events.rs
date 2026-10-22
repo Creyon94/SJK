@@ -95,6 +95,12 @@ impl GpuState {
             self.emote_picker_key(&event);
             return;
         }
+        // And the encrypted whisper card.
+        if !console_open && self.e2e_whispers.card.is_open() {
+            let choice = self.e2e_whispers.card.handle_key(&event);
+            self.e2e_whisper_card_choice(choice);
+            return;
+        }
         // And the low-FPS card.
         if !console_open && self.fps_card.is_open() {
             let choice = self.fps_card.handle_key(&event);

@@ -24,6 +24,18 @@
 
 # ---- Console & chat ----
 
+[e2e-whispers]
+area: Console & chat
+title: End-to-end encrypted whispers between SJK players (cl_e2eWhispers)
+change: A whisper to an SJK player goes sealed through the hub: pink, ENCRYPTED, its own sound.
+change: If the hub cannot take it, a card asks before sending it through the game server.
+test: Needs the hub deployed (branch e2e-whispers) and two SJK clients on one local server.
+test: Open the whisper composer on the other: it says "To <name> (encrypted)" in pink.
+test: Send: "To <name> ENCRYPTED" line here, their line pink with ENCRYPTED and a soft sound.
+test: reply on their side answers encrypted; tell <name> from the console too.
+test: Stop the hub, whisper: the card asks; Esc sends nothing, Enter sends it through the server.
+test: cl_e2eWhispers 0: whispers go through the server as before (lilac WHISPER).
+
 [toys-persist]
 area: Gameplay
 title: Order 66 and the Hax stay on until turned off

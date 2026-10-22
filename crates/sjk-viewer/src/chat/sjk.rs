@@ -65,6 +65,7 @@ impl ChatOverlay {
                 tier: drop.map(|words| words.tier),
             }),
             gif,
+            encrypted: false,
         });
         if self.is_typing() && self.scroll > 0 {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));

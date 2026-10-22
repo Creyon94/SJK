@@ -65,6 +65,10 @@ struct ChatLine {
     hub: Option<HubLine>,
     /// The GIF an SJK chat line links to, shown under it (`chat/feed_gif.rs`).
     gif: Option<Box<feed_gif::LineGif>>,
+    /// An end-to-end encrypted whisper through the SJK hub (`e2e_whispers.rs`): in its
+    /// own pink, labelled ENCRYPTED. One the player sent has no sender and is named
+    /// "To <recipient>".
+    encrypted: bool,
 }
 
 /// An SJK chat line's id at the hub and its sender.
@@ -145,6 +149,9 @@ pub(crate) struct ChatOverlay {
     /// The channel (and whisper recipient) the composer last sent on, which the chat
     /// key opens on while `cg_chatRememberChannel` is on.
     last_channel: (Channel, Option<ChatTarget>),
+    /// The client slots (bits) whose player takes encrypted whispers now
+    /// (`e2e_whispers.rs`): a whisper to them goes encrypted, which the composer says.
+    encrypted_slots: u64,
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -225,9 +232,15 @@ impl ChatOverlay {
             own_slot: None,
             last_whisperer: None,
             last_channel: (Channel::Global, None),
+            encrypted_slots: 0,
             #[cfg(test)]
             for_shot: false,
         }
+    }
+
+    /// The client slots (bits) whose player takes encrypted whispers now.
+    pub(crate) fn set_encrypted_slots(&mut self, slots: u64) {
+        self.encrypted_slots = slots;
     }
 
     /// An overlay showing the installed world's emoji pictures.
@@ -264,7 +277,8 @@ impl ChatOverlay {
         self.muted_slots = slots;
         for index in 0..self.lines.len() {
             let line = &self.lines[index];
-            if line.hub.is_some() {
+            // The player's own encrypted whispers are nobody else's lines.
+            if line.hub.is_some() || (line.encrypted && line.sender.is_none()) {
                 continue;
             }
             let muted = match line.sender {
@@ -403,15 +417,69 @@ impl ChatOverlay {
             y: None,
             hub: None,
             gif: None,
+            encrypted: false,
         };
+        self.push_line(line, server_private);
+    }
+
+    fn push_line(&mut self, line: ChatLine, private: bool) {
         if self.lines.len() == HISTORY_LIMIT {
             self.lines.pop_front();
         }
         self.lines.push_back(line);
-        if self.is_typing() && self.scroll > 0 && (!self.options.pm_only || server_private) {
+        if self.is_typing() && self.scroll > 0 && (!self.options.pm_only || private) {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));
             self.unread = (self.unread + 1).min(HISTORY_LIMIT);
         }
+    }
+
+    /// Show an end-to-end encrypted whisper (`e2e_whispers.rs`): from the player in
+    /// `slot` to us, or ours to the player named `to` (`slot` `None`). Its sender
+    /// becomes the one `reply` answers. False when the slot holds nobody.
+    pub(crate) fn receive_encrypted(
+        &mut self,
+        slot: Option<u16>,
+        to: &str,
+        text: &str,
+        now: Instant,
+    ) -> bool {
+        let (name, sender, muted) = match slot {
+            Some(slot) => {
+                let Some(target) = self.roster.target(Some(slot)) else {
+                    return false;
+                };
+                let name = self.roster.display_name(target).unwrap_or("").to_owned();
+                if let Some(count) = self.spoken.get_mut(usize::from(slot)) {
+                    *count = count.wrapping_add(1);
+                }
+                self.note_whisper(true, Some(target));
+                (name, Some(target), self.slot_muted(target))
+            }
+            None => (format!("To {to}"), None, false),
+        };
+        let body = options::clean_body(text, self.options.clean);
+        let (body, emojis) = if self.options.emojis {
+            self.emojis.markup(&body)
+        } else {
+            (body, Vec::new())
+        };
+        let line = ChatLine {
+            name,
+            body,
+            sender,
+            channel: Channel::Whisper,
+            server_private: true,
+            received_ms: self.millis(now),
+            muted,
+            emojis,
+            wrap: layout::Wrapped::default(),
+            y: None,
+            hub: None,
+            gif: None,
+            encrypted: true,
+        };
+        self.push_line(line, true);
+        true
     }
 
     pub(crate) fn open(&mut self, team: bool) {
@@ -438,6 +506,13 @@ impl ChatOverlay {
 
     pub(crate) fn is_typing(&self) -> bool {
         self.input.is_some()
+    }
+
+    /// Close the composer, its draft dropped, as Escape does.
+    pub(crate) fn close_composer(&mut self) {
+        self.input = None;
+        self.scroll = 0;
+        self.unread = 0;
     }
 
     /// Toggle a whisper composer only for a currently occupied roster slot.

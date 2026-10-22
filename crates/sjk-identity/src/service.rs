@@ -2860,6 +2860,31 @@ impl Service {
         crate::feed::take_toy_events(&Mutex::new(queued), server)
     }
 
+    /// Whether the player takes encrypted whispers (`PROTOCOL.md`, "Whispers"): the
+    /// toy relay's reader asks for them, and the hub gives the player's key to the
+    /// others on the server meanwhile.
+    pub fn set_whisper_listen(&self, listen: bool) {
+        crate::feed::lock(&self.relay.0).set_whispers(listen);
+    }
+
+    /// Seal `whisper` and send it through the hub at once; what became of it comes back
+    /// from [`Service::take_whispers_sent`] under its serial.
+    pub fn send_whisper(&self, whisper: crate::whisper::Outgoing) {
+        let (state, bell) = &*self.relay;
+        crate::feed::lock(state).push_whisper(whisper);
+        bell.notify_one();
+    }
+
+    /// What became of the whispers sent since the last call.
+    pub fn take_whispers_sent(&self) -> Vec<crate::whisper::Sent> {
+        crate::feed::lock(&self.relay.0).take_sent()
+    }
+
+    /// The encrypted whispers read for `server` since the last call, opened.
+    pub fn take_whispers(&self, server: Option<SocketAddr>) -> Vec<crate::whisper::Received> {
+        crate::feed::lock(&self.relay.0).take_received(server)
+    }
+
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the
     /// latest and sends it once its claim on a server is accepted, again when it
     /// changes or the claim does (another server, slot or name), at most once a
@@ -5327,6 +5352,7 @@ mod tests {
             medals: Vec::new(),
             avatar: String::new(),
             look: None,
+            whisper_key: None,
         }];
         let t0 = Instant::now();
         let (mut worker, snapshot) = worker(&fake, t0);

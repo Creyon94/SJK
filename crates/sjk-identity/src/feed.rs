@@ -181,7 +181,10 @@ pub(crate) fn take_toy_events(
     take_for_server(queue, server)
 }
 
-fn take_for_server<T>(queue: &Mutex<VecDeque<ForServer<T>>>, server: Option<SocketAddr>) -> Vec<T> {
+pub(crate) fn take_for_server<T>(
+    queue: &Mutex<VecDeque<ForServer<T>>>,
+    server: Option<SocketAddr>,
+) -> Vec<T> {
     let mut queue = lock(queue);
     if server.is_none() {
         queue.clear();

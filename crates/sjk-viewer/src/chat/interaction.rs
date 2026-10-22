@@ -286,12 +286,23 @@ impl crate::GpuState {
             || command.clone(),
             |console| console.color_chat_command(&command, console_colors),
         );
+        // A whisper to a player who takes encrypted ones goes through the SJK hub
+        // instead (`e2e_whispers.rs`).
+        if self.route_encrypted_whisper(&command) {
+            return;
+        }
         let recipient = whisper_destination(&command).map(|slot| {
             self.chat
                 .player_name(slot)
                 .map(str::to_owned)
                 .unwrap_or_else(|| format!("client {slot}"))
         });
+        self.send_chat_to_server(&command, recipient);
+    }
+
+    /// Send an expanded and coloured chat `command` to the game server; `recipient` is
+    /// a whisper's, for the console's note of it.
+    pub(crate) fn send_chat_to_server(&mut self, command: &str, recipient: Option<String>) {
         let sent = if let Some(session) = self.communication_session_mut() {
             if let Err(error) = session.send_reliable_command_from(
                 command.as_bytes(),
@@ -309,7 +320,7 @@ impl crate::GpuState {
             && let Some(name) = recipient
             && let Some(console) = &mut self.console
         {
-            console.note_sent_whisper(&command, name);
+            console.note_sent_whisper(command, name);
         }
     }
 }

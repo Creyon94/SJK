@@ -169,6 +169,17 @@ impl Identity {
     pub(crate) fn sign_text(&self, message: &str) -> String {
         B64.encode(self.signing.sign(message.as_bytes()).to_bytes())
     }
+
+    /// The signature of `message`, 64 bytes.
+    pub(crate) fn sign_bytes(&self, message: &[u8]) -> [u8; 64] {
+        self.signing.sign(message).to_bytes()
+    }
+
+    /// The key's X25519 scalar (before clamping), for encrypted whispers: the
+    /// Montgomery form of the public key is its public half.
+    pub(crate) fn x25519_scalar(&self) -> [u8; 32] {
+        self.signing.to_scalar_bytes()
+    }
 }
 
 #[cfg(test)]

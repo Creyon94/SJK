@@ -798,6 +798,7 @@ mod tests {
             medals: Vec::new(),
             avatar: String::new(),
             look: None,
+            whisper_key: None,
         }];
         let shown = view(&inputs(Some(&state)), true);
         assert_eq!(shown.headline, "Sol");
@@ -941,6 +942,7 @@ mod tests {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             })
             .collect();
         assert_eq!(

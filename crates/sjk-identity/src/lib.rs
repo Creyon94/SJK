@@ -28,6 +28,7 @@ pub mod service;
 pub mod staff;
 pub mod usage;
 pub mod vitals;
+pub mod whisper;
 pub mod wire;
 
 pub use assets::Pack;
@@ -54,6 +55,6 @@ pub use wire::{
     HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, KyberPity, KyberTables,
     KyberTier, Look, LookEvent, LootTier, Medal, OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard,
     OpenedUnlock, People, Person, Ping, Presence, Profile, RelayBatch, RevealAnswer, Revealed,
-    SharedVitals, ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies, ShopDay, ToyEvent,
-    Trust, Unlock, Vitals, WornName, names_match, normal_form,
+    SealedWhisper, SharedVitals, ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies,
+    ShopDay, ToyEvent, Trust, Unlock, Vitals, WornName, names_match, normal_form,
 };

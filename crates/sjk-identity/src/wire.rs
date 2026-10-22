@@ -801,8 +801,33 @@ pub struct ToyEvent {
 pub struct RelayBatch {
     /// The events, oldest first.
     pub events: Vec<ToyEvent>,
+    /// The encrypted whispers sealed to the reading key, oldest first, when asked for
+    /// (`PROTOCOL.md`, "Whispers").
+    #[serde(default)]
+    pub whispers: Vec<SealedWhisper>,
     /// The id the next read starts after.
     pub next: u64,
+}
+
+/// An encrypted whisper as the hub hands it to its reader (`PROTOCOL.md`, "Whispers"):
+/// open it with [`crate::whisper::open`].
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct SealedWhisper {
+    /// Its id in the relay's sequence.
+    pub id: u64,
+    /// When the hub took it, unix seconds.
+    pub at: i64,
+    /// The sender's slot and the name they claimed it under.
+    pub slot: u8,
+    /// The name the sender's claim was made under.
+    pub claimed_name: String,
+    /// The sender's key id (their person's).
+    pub key_id: String,
+    /// The key that sealed it (unpadded base64url).
+    pub from: String,
+    /// The sealed whisper.
+    #[serde(rename = "box")]
+    pub boxed: String,
 }
 
 /// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
@@ -905,6 +930,10 @@ pub struct Presence {
     /// from hubs older than looks).
     #[serde(default)]
     pub look: Option<Look>,
+    /// The key the claimant takes encrypted whispers with (unpadded base64url), while
+    /// they do (`PROTOCOL.md`, "Whispers"); absent otherwise, and from older hubs.
+    #[serde(default)]
+    pub whisper_key: Option<String>,
 }
 
 /// One SJK chat message (`PROTOCOL.md`, "Chat"), as the feed carries it. Show its

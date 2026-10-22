@@ -109,6 +109,8 @@ mod frame_queue;
 mod frame_split;
 
 mod charge_flash;
+mod e2e_whisper_card;
+mod e2e_whispers;
 mod emote_help;
 mod emote_picker;
 mod emplaced_swivel;
@@ -402,6 +404,8 @@ struct GpuState {
     emote_help: emote_help::State,
     /// The emote picker (`emotes`, [`emote_picker`]).
     emote_picker: emote_picker::State,
+    /// End-to-end encrypted whispers and their card ([`e2e_whispers`]).
+    e2e_whispers: e2e_whispers::State,
     /// The alpha notice, until the player accepts it ([`alpha_notice_card`]).
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
@@ -1380,6 +1384,7 @@ impl GpuState {
             fps_card: fps_help::card::Card::default(),
             emote_help: emote_help::State::default(),
             emote_picker: emote_picker::State::default(),
+            e2e_whispers: e2e_whispers::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
@@ -2039,6 +2044,20 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The encrypted whisper card, under the emote cards.
+        let whisper_shown = self.prepare_e2e_whisper_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
             || medal_shown
             || holocron_shown
@@ -2047,7 +2066,8 @@ impl GpuState {
             || logs_shown
             || news_shown
             || emote_help_shown
-            || emote_picker_shown;
+            || emote_picker_shown
+            || whisper_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -2267,6 +2287,8 @@ impl GpuState {
             self.append_emote_help_card(viewport);
         } else if emote_picker_shown {
             self.append_emote_picker(viewport);
+        } else if whisper_shown {
+            self.append_e2e_whisper_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2321,6 +2343,7 @@ impl GpuState {
             news_shown.then(|| self.whats_new_card.draw_list()),
             emote_help_shown.then(|| self.emote_help.card.draw_list()),
             emote_picker_shown.then(|| self.emote_picker.card.draw_list()),
+            whisper_shown.then(|| self.e2e_whispers.card.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
