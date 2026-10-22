@@ -208,6 +208,9 @@ pub struct Snapshot {
     /// The odds the hub rolls holocrons with, one table per tier, as it last sent them
     /// with the progress; empty before, or from a hub older than them (14/10/2026).
     pub loot: Vec<crate::wire::LootTier>,
+    /// The kyber crystals' odds and the person's pity counter, as the hub last sent them
+    /// with the progress; `None` before, or from a hub older than crystals (21/10/2026).
+    pub kyber: Option<crate::wire::KyberTables>,
     /// The SJK team's open requests for the player's logs (oldest first), as the hub
     /// last listed them, without the ones the player answered: the game asks the
     /// player about each ([`Service::answer_logs`]).
@@ -409,6 +412,7 @@ impl Snapshot {
             opening: None,
             reveal: None,
             economy: None,
+            kyber: None,
             shop: None,
             trade: None,
         }
@@ -1386,6 +1390,12 @@ impl Worker {
         {
             self.profile_soon(now);
         }
+        // A kyber crystal moves the person's pity counter, which comes with the progress:
+        // read it again at once.
+        if matches!(&outcome, Ok(answer) if answer.opened.iter().any(|opened| opened.tier.starts_with("kyber_")))
+        {
+            self.due_holocrons = self.due_holocrons.min(now);
+        }
         self.update(|snapshot| {
             let serial = snapshot.opening.as_ref().map_or(1, |last| last.serial + 1);
             snapshot.opening = Some(match outcome {
@@ -1889,6 +1899,9 @@ impl Worker {
                     }
                     if state.economy.is_some() {
                         snapshot.economy.clone_from(&state.economy);
+                    }
+                    if state.kyber.is_some() {
+                        snapshot.kyber.clone_from(&state.kyber);
                     }
                     snapshot.min_client.clone_from(&state.min_client);
                     snapshot.holocrons = Some(HolocronProgress::new(state, now));
@@ -3123,7 +3136,8 @@ mod tests {
                 .iter()
                 .map(|&id| crate::wire::Opened {
                     holocron: id,
-                    tier: "rare".to_owned(),
+                    // 77 is a kyber crystal.
+                    tier: if id == 77 { "kyber_rare" } else { "rare" }.to_owned(),
                     card: Some(crate::wire::OpenedCard {
                         id: 1_000 + id,
                         card: None,
@@ -3478,6 +3492,7 @@ mod tests {
                     progress: cap.map_or(count, |cap| count.min(cap)),
                     goal: 100,
                     unlocked: 0,
+                    reward: None,
                 })
                 .collect();
             *self.held.lock().unwrap() = held.clone();
@@ -3646,6 +3661,7 @@ mod tests {
             min_client: None,
             loot: Vec::new(),
             economy: None,
+            kyber: None,
         }
     }
 
@@ -4136,9 +4152,18 @@ mod tests {
                 .iter()
                 .any(|line| line == "open 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20")
         );
+        assert!(
+            worker.due_holocrons > t0,
+            "holocrons leave the progress (and the kyber pity) alone"
+        );
+        worker.handle(Command::OpenHolocrons(vec![77]), t0);
+        assert!(
+            worker.due_holocrons <= t0,
+            "a kyber crystal moved the pity counter: the progress is read again at once"
+        );
         worker.handle(Command::OpenHolocrons(vec![99]), t0);
         let refused = lock(&snapshot).opening.clone().unwrap();
-        assert_eq!(refused.serial, 3);
+        assert_eq!(refused.serial, 4);
         assert!(refused.opened.is_empty());
         assert_eq!(refused.message, "That holocron was already opened.");
         assert!(
