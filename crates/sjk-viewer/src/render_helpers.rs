@@ -14,8 +14,10 @@ pub(super) fn append_instance_group(
     start..end
 }
 
+/// `ANGLE2SHORT`: truncated toward zero, then the low 16 bits. Through `i64`, so a huge
+/// angle wraps rather than saturating at `i32::MAX` and freezing the turn.
 pub(super) fn angle_to_short(radians: f32) -> i32 {
-    ((radians.to_degrees() * (65_536.0 / 360.0)) as i32) & 65_535
+    (((radians.to_degrees() * (65_536.0 / 360.0)) as i64) & 65_535) as i32
 }
 
 pub(super) fn mesh_center(vertices: &[GpuVertex]) -> [f32; 3] {

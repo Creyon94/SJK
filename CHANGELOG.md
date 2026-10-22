@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Turning very fast for a long time (a huge `cl_yawspeed`) no longer breaks the camera: the view stays behind your character and no longer shakes with every mouse move afterwards _(Sol, after Yernow's report)_
 - A whisper that is not encrypted says so: while you write one, a red note under the field reads "Not private: the server logs this whisper and its owner can read it". The red note on JoF servers' SJK chat now has its words centred _(Sol)_
 - Playing a chat MP4 clip can no longer freeze the game when a decoding thread ends: Windows Media Foundation is now started once and never shut down from a thread's exit, which deadlocked _(Sol)_
 - Clan emblems: names starting with {{S}} get the clan's red Sith emblem, the JoF emblem is now the clan's green logo, and the JAWA emblem only shows for names starting with (JAWA) _(Sol)_

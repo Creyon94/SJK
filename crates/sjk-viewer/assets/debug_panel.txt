@@ -24,6 +24,13 @@
 
 # ---- Console & chat ----
 
+[yaw-wrap]
+area: Input
+title: Very fast turning no longer breaks the camera (Yernow #121)
+change: The camera yaw is kept within one turn; unbounded, it lost precision and froze.
+test: cl_yawspeed 100000, hold +left (bind a key) for a minute: camera stays behind you.
+test: Then turn with the mouse: no shaking, character turns with the camera.
+
 [clan-s-emblem]
 area: Console & chat
 title: {{S}} clan emblem, green JoF logo, JAWA only as (JAWA) first

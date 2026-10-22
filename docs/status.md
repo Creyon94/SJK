@@ -1,3 +1,14 @@
+## View yaw wrapped
+
+22/10/2026, `personal/hub-reports-1022-d` (Yernow's report #121: with `cl_yawspeed
+100000` turning for half a minute, the camera left the character and shook on every mouse
+move until a restart). The accumulated camera yaw grew without bound: an `f32` of hundreds
+of thousands of radians moves in steps of a degree, and past about 11.8 million degrees the
+command's `ANGLE2SHORT` saturated, freezing the player's turn while the camera spun on. The
+yaw is now kept within one turn ([networking.md](networking.md#view-yaw-kept-within-a-turn));
+nothing sent changes. Verified on Windows 11: unit tests (18 million degrees at 8, 7, 4
+and 3 ms steps turn every command evenly). Not verified: in a game.
+
 ## Encrypted whispers
 
 22/10/2026, `personal/e2e-whispers`, based on `main` `0279b8f3`, with the hub's side on
