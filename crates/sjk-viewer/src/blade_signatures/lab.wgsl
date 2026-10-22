@@ -432,9 +432,9 @@ fn arcGlow(dist: f32, col: vec3<f32>, px: f32) -> vec3<f32> {
 // rate times a second (Sol's Storm, all round the blade).
 fn fxArcs(ro: vec3<f32>, rd: vec3<f32>, px: f32, y0: f32, y1: f32, count: f32, reach: f32, rate: f32, seed: f32, col: vec3<f32>) -> vec3<f32> {
     var acc: vec3<f32> = vec3<f32>(0.0);
-    // round 23: past the forks' reach (half again the bolt's) and their glow, which ended at a hard
-    // edge
-    if fxNear(ro, rd, y0, y1) > reach * 1.6 + 3.0 {
+    // round 23: past the forks' reach (half again the bolt's, which the blade's room caps at 0.6 of
+    // it) and their glow, which ended at a hard edge
+    if fxNear(ro, rd, y0, y1) > min(reach, 0.6 * uReach) * 1.6 + 3.0 {
         return acc;
     }
     var t: f32;

@@ -2314,7 +2314,7 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   Canopy's. The other early-outs that cut glow at a line wait until it has faded: `fxFlakes`
   (a dome seen along Yavin Vines), `fxCoils`, `fxRays`, `fxArcs` and `fxFall` in the lab, and
   Balance's, Holo-Recording's and Orto Plutonia's own; `fxSmoke` takes a step at most about a
-  third of the cloud's width, up to 16 (a long path along the blade was sampled six units
+  third of the cloud's width, up to 12 (a long path along the blade was sampled six units
   apart). The blocky designs keep their look with edges smoothed over about a pixel (`aaStep`,
   `cellMix` and `aaSquare` in `lab.glsl`): Code Cylinder, Canto Bight, Flimsiplast, Death Star
   Plans, Cargo Stack, Holonet Feed and Targeting Display. Code Cylinder's and Flimsiplast's
@@ -2334,6 +2334,19 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   up to 2 (6) percent of the screen outside the effects' rectangle, where that image keeps an
   older frame: the rectangle (`effect_bounds`) now has that much more room on every side
   (`BENT_REACH`). Hypermatter's pulses come out of the hilt softly too.
+  The timing (Creyon's RTX 5070, Windows 11, `signature_gpu_cost_against_stock` with the 12
+  heaviest signatures, 33 blades a frame, `main` and this branch timed in turns, twice each, the
+  lower kept): the first version cost the 12 together 12 to 19 percent more than `main`, most of
+  it in the four arc blades (Sith Holocron, Quantum, Carbonite, Reactor, a fifth to a third more),
+  as `fxArcs` drew every bolt wherever its arc's glow could reach. Each of an arc's three bolts is
+  now drawn only near its own middle, its glow made to end 1.7 past it (`arcGlow`); `fxFlare` is
+  cut at 12 sizes (18 cost too much) and `fxSmoke` at 12 steps (16 cost the smoke blades a sixth
+  more seen along them). After that the 12 cost 2.0 (game), 1.8 (close) and 2.8 (along) percent
+  more than `main`, with the stock blade's own time (the stand-in) 3 to 4 percent more, so about
+  the same: Sith Holocron, Quantum and Carbonite 7 to 19 percent less, the others within a tenth.
+  Reactor still cost 13 to 17 percent more: its lightning was worked out while weighted to
+  nothing (cold and still, over half its cycle), and the arcs' outer bound used the arcs' asked
+  reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`); both are fixed.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

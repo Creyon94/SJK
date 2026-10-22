@@ -264,9 +264,9 @@ vec3 arcGlow(float dist, vec3 col, float px){
 // rate times a second (Sol's Storm, all round the blade).
 vec3 fxArcs(vec3 ro, vec3 rd, float px, float y0, float y1, float count, float reach, float rate, float seed, vec3 col){
   vec3 acc = vec3(0.0);
-  // round 23: past the forks' reach (half again the bolt's) and their glow, which ended at a hard
-  // edge
-  if (fxNear(ro, rd, y0, y1) > reach*1.6 + 3.0) return acc;
+  // round 23: past the forks' reach (half again the bolt's, which the blade's room caps at 0.6 of
+  // it) and their glow, which ended at a hard edge
+  if (fxNear(ro, rd, y0, y1) > min(reach, 0.6*uReach)*1.6 + 3.0) return acc;
   float t;
   for (int i = 0; i < 10; i++){
     float fi = float(i);

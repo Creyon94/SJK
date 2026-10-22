@@ -18,7 +18,10 @@ to their old peaks, the hiding behind the blade narrowing to the tip's point, Ob
 bloom fading round the tip, the effects' rectangle wide enough for the haze's bent picture
 (`effect_bounds::BENT_REACH`), a source test of the tip fix and two more scenes in the GPU cost
 test (`SJK_COST_SCENE` `close` and `along`) ([rendering.md](rendering.md#blade-lab-signature-shaders),
-round 23). Checked on Linux x86_64: the viewer's tests, every signature module validates and
+round 23). Timed on Creyon's RTX 5070 against `main` (in turns): the first version cost the 12
+heaviest signatures 12 to 19 percent more, mostly the arc blades; with each arc bolt drawn only
+near its middle, they cost 2 to 3 percent more (Reactor still 13 to 17, since fixed), with the
+stock blade's own time 3 to 4 percent more in the same runs. Checked on Linux x86_64: the viewer's tests, every signature module validates and
 renders (lavapipe), Obsidian Edge from down its length (`SJK_SIGNATURE_ORBIT=tip`). Not verified:
 stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a fix needs a
 pixel size along the blade, a new lab uniform), and a few single sparks pop at early-out bounds
