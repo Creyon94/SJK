@@ -877,6 +877,10 @@ const HELP: &[(&str, &str)] = &[
         "A card for each holocron found in play; After duels holds it in a private duel until the end. The holocron waits in ESC.",
     ),
     (
+        crate::chat::client_icons::CVAR,
+        "SJK chat messages sent from JoF EternalJK start with its icon. Off, every message starts with SJK's emblem.",
+    ),
+    (
         crate::chat_gifs::CVAR,
         "GIPHY links in SJK chat show their GIF. Your PC loads it from GIPHY, which sees your address. Off keeps links as text.",
     ),

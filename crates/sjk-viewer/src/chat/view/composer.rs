@@ -70,6 +70,52 @@ impl ChatOverlay {
                 TextAlign::Start,
             );
         }
+        // SJK chat said in this server's All chat too: a small red note says so.
+        if input.channel == Channel::Sjk
+            && let Some(note) = self.said_in_all
+        {
+            let size = 12.0 * g.scale;
+            let room = g.width - 298.0 * g.scale;
+            let ink = visible_text_width_face(
+                font,
+                note,
+                size / font.height.max(1.0),
+                TextFace::Semibold,
+            );
+            let width = (ink + 20.0 * g.scale).min(room);
+            let rect = Rect::new(
+                g.left + 178.0 * g.scale,
+                y + 1.0 * g.scale,
+                width,
+                24.0 * g.scale,
+            );
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect,
+                radius: 5.0 * g.scale,
+                color: Color::new(0.55, 0.06, 0.06, 0.82 * alpha),
+            });
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: 5.0 * g.scale,
+                width: 1.0 * g.scale,
+                color: Color::new(1.0, 0.36, 0.32, 0.9 * alpha),
+            });
+            let end = layout::fitting_end(note, font, (width - 20.0 * g.scale).max(0.0), size);
+            self.ui.text_fmt_aligned(
+                format_args!("{}", &note[..end]),
+                Rect::new(
+                    rect.x + 10.0 * g.scale,
+                    rect.y,
+                    width - 20.0 * g.scale,
+                    rect.height,
+                ),
+                size,
+                Color::new(1.0, 0.86, 0.84, 1.0),
+                FontWeight::Semibold,
+                0.0,
+                TextAlign::Start,
+            );
+        }
         if self.scroll > 0 {
             let rect = Rect::new(
                 g.left + g.width - 116.0 * g.scale,

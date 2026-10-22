@@ -72,26 +72,59 @@ impl GpuState {
         }
     }
 
-    /// What the player said on the SJK chat during a match goes to the game server's
-    /// chat too, once the hub answered (`chat/server_copy.rs`); in a local game or the
-    /// menus it goes nowhere else.
+    /// Whether JoF tools say SJK chat in this server's All chat: loaded (a JoF server,
+    /// `mod_jof` on) and in a match on a game server (`docs/mods.md`, "SJK chat on JoF
+    /// servers"). Nowhere else, and never in a build without `mod-jof`.
+    pub(crate) fn sjk_chat_said_in_all(&self) -> bool {
+        #[cfg(feature = "mod-jof")]
+        {
+            self.live_session
+                .as_ref()
+                .is_some_and(|session| !session.is_local())
+                && self.console.as_ref().is_some_and(|console| {
+                    console.mods.loaded(sjk_mod_jof::ID)
+                        && console.bool_cvar("mod_jof").unwrap_or(false)
+                })
+        }
+        #[cfg(not(feature = "mod-jof"))]
+        {
+            false
+        }
+    }
+
+    /// While JoF tools say SJK chat in this server's All chat, what the player said on
+    /// the SJK chat goes there too once the hub took it (`chat/server_copy.rs`); anywhere
+    /// else it goes nowhere else, and nothing waits.
     fn send_server_copies(&mut self, now: Instant) {
-        let server = self
-            .live_session
-            .as_ref()
-            .filter(|session| !session.is_local())
-            .map(|session| session.server_id());
         let said = chat::server_copy::take_said();
-        for command in self.chat.due_server_copies(said, server, now) {
-            if let Some(session) = self.live_session.as_mut()
-                && let Err(error) = session.send_reliable_command_from(
-                    command.as_bytes(),
-                    sjk_client::ReliableCommandOrigin::Chat,
-                )
-            {
-                eprintln!("failed to say an SJK chat message on the server: {error}");
+        if !self.sjk_chat_said_in_all() {
+            self.chat.set_said_in_all(None);
+            self.chat.stop_server_copies();
+            return;
+        }
+        #[cfg(feature = "mod-jof")]
+        {
+            self.chat
+                .set_said_in_all(Some(sjk_mod_jof::sjk_chat::COMPOSER_NOTE));
+            let server = self
+                .live_session
+                .as_ref()
+                .map(|session| session.server_id());
+            for (text, id) in self.chat.due_server_copies(said, server, now) {
+                for command in sjk_mod_jof::sjk_chat::copy_commands(&text, id) {
+                    if let Some(session) = self.live_session.as_mut()
+                        && let Err(error) = session.send_reliable_command_from(
+                            command.as_bytes(),
+                            sjk_client::ReliableCommandOrigin::Chat,
+                        )
+                    {
+                        eprintln!("failed to say an SJK chat message on the server: {error}");
+                    }
+                }
             }
         }
+        #[cfg(not(feature = "mod-jof"))]
+        let _ = (said, now);
     }
 }
 

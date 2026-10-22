@@ -224,6 +224,32 @@ feature off stops queued/current confirmations. EJK #117 has no separate Dash
 confirmation cue. Nothing is bundled or downloaded, and base SJK owns none of
 these command names, sounds or repeat rules.
 
+### SJK chat on JoF servers
+
+[sjk-mod-jof/sjk_chat.rs](../crates/sjk-mod-jof/src/sjk_chat.rs) says what the player
+says on the SJK chat in a JoF server's All chat too, during a match, once the hub took
+it, as JoF EternalJK does. JoF asked for it so that SJK chat does not split their
+players away from All chat (Sol's decision, 22/10/2026, after Milamber's #194). It is
+part of JoF tools and has no switch of its own: with `mod_jof 0`, on any other server,
+in local games and in the menus, nothing is said anywhere but the SJK chat, and the base
+client holds no server-specific rule for it. The mod owns the `say` commands (tag, id at
+the end, pieces of 149 bytes) and the words below; the viewer bridges them while the mod
+is loaded (`sjk_chat_frame.rs`, `GpuState::sjk_chat_said_in_all`). How copies show once
+for SJK chat players, labelled ALL/SJK, is the core's and works on every server:
+[hub-chat.md](hub-chat.md#said-on-the-game-server-too).
+
+So players used to a private SJK chat are not misled:
+
+- **The notice.** The first time the player is in a match on a JoF server with SJK chat
+  on, a card over the game menu says SJK chat is said in All chat here, that JoF asked
+  for it, and that elsewhere it stays as it was. Got it (Enter, Space, Escape) turns
+  `jof.sjkChatNotice` (archived, on by default) off; turning it back on shows the card
+  on the next JoF server. The card is the core's generic mod notice
+  ([mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs)): a mod gives the
+  words and the setting, the core draws it in the SJK UI's look in every menu style.
+- **The note.** While the in-game composer is on the SJK channel there, a small red box
+  on the channels' row reads "Also said in All chat: everyone on this server reads it".
+
 ### Destruction client controls
 
 Destruction's contract, name, installed icon and capability policy live in

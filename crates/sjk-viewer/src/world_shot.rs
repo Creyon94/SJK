@@ -342,6 +342,10 @@ mod alpha_notice_shots;
 #[path = "world_shot_chat_gifs.rs"]
 mod chat_gifs_shots;
 
+#[cfg(feature = "mod-jof")]
+#[path = "world_shot_jof_sjk_chat.rs"]
+mod jof_sjk_chat_shots;
+
 #[path = "world_shot_text_sizes.rs"]
 mod text_sizes_shots;
 

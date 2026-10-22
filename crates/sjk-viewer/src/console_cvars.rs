@@ -973,6 +973,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play a sound when an SJK chat message arrives, yours included (cg_chatSounds 0 silences it too)",
         ),
         CvarDefinition::new(
+            crate::chat::client_icons::CVAR,
+            true,
+            archive,
+            "Start an SJK chat message sent from another known client (JoF EternalJK) with its icon instead of SJK's emblem",
+        ),
+        CvarDefinition::new(
             crate::chat_gifs::CVAR,
             true,
             archive,

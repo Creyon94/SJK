@@ -168,6 +168,7 @@ mod menu_widgets;
 mod menu_world;
 mod mimic;
 mod missile_trails;
+mod mod_notice_card;
 mod model_materials;
 mod mods;
 mod movement_collision;
@@ -410,6 +411,8 @@ struct GpuState {
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
     log_request_card: log_request_card::Card,
+    /// A client mod's notice, shown once on its servers ([`mod_notice_card`]).
+    mod_notice: mod_notice_card::State,
     /// What the update brought ([`whats_new_card`]).
     whats_new_card: whats_new_card::Card,
     window: Option<Arc<Window>>,
@@ -1387,6 +1390,7 @@ impl GpuState {
             e2e_whispers: e2e_whispers::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
+            mod_notice: mod_notice_card::State::default(),
             whats_new_card: whats_new_card::Card::default(),
 
             screenshots: screenshot_setup.manager,
@@ -2058,7 +2062,23 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // A mod's notice on its servers, last.
+        let mod_notice_shown = self.prepare_mod_notice_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || whisper_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
+            || mod_notice_shown
             || medal_shown
             || holocron_shown
             || reload_shown
@@ -2289,6 +2309,8 @@ impl GpuState {
             self.append_emote_picker(viewport);
         } else if whisper_shown {
             self.append_e2e_whisper_card(viewport);
+        } else if mod_notice_shown {
+            self.append_mod_notice_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2344,6 +2366,7 @@ impl GpuState {
             emote_help_shown.then(|| self.emote_help.card.draw_list()),
             emote_picker_shown.then(|| self.emote_picker.card.draw_list()),
             whisper_shown.then(|| self.e2e_whispers.card.draw_list()),
+            mod_notice_shown.then(|| self.mod_notice.card.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];

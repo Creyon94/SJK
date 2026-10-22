@@ -24,6 +24,18 @@
 
 # ---- Console & chat ----
 
+[jof-sjk-chat]
+area: Console & chat
+title: SJK chat said in All chat on JoF servers (JoF tools), ALL/SJK and SJK labels
+change: On a JoF server in a match, an SJK chat line the hub took is also said in All chat.
+change: One-time card on the first JoF match (jof.sjkChatNotice); red note on the SJK channel.
+change: Copies show once, labelled ALL/SJK; SJK-only lines read SJK. JoF EJK icon via a table.
+test: Join a JoF server with SJK chat on: the card shows once over the game menu; Got it.
+test: Rejoin: no card. Open chat, pick SJK: the red note shows above the field.
+test: Say something on SJK: a non-SJK client sees "SJK text"; you see it once, ALL/SJK.
+test: Same on a non-JoF server or in the menus: nothing in All chat, line labelled SJK.
+note: Milamber's PR #194, moved into JoF tools at JoF's request.
+
 [hax-rain]
 area: Rendering & effects
 title: Hax: green digital rain round a hacked player

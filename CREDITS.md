@@ -553,7 +553,7 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   to 40 degrees down, and keeps its aim after the gunner leaves.
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 
-Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
+Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
 
 - #156 See & share nameplates (`cg_nameplate`) replaces Share my bars: seeing nameplates shares
@@ -562,6 +562,9 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   what's-new card can ask players to choose a changed setting again.
 - #163 a shader remap to content the player lacks is looked up and logged once a map, ending
   ~400 ms hitches at skin changes on JoF's night ffa3.
+- #194 JoF EternalJK takes part in SJK chat: its messages start with its icon, and on JoF
+  servers SJK chat is said in All chat too (moved into JoF tools at JoF's request, with a
+  one-time notice), each line shown once and labelled ALL/SJK.
 
 ## Art
 

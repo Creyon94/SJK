@@ -335,6 +335,11 @@ impl GpuState {
             self.e2e_whisper_card_choice(choice);
             return true;
         }
+        if self.mod_notice.card.is_open() {
+            let choice = self.mod_notice.card.handle_pointer(event);
+            self.mod_notice_choice(choice);
+            return true;
+        }
         if self.fps_card.is_open() {
             let choice = self.fps_card.handle_pointer(event);
             self.fps_card_choice(choice);

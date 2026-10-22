@@ -22,7 +22,7 @@ impl ChatOverlay {
     /// A message for the SJK channel: its name and text through the chat rules, as
     /// anything a hub sends is shown, the text without its colour codes, as it is
     /// drawn in the SJK chat's gold ([`crate::sjk_chat_look::message_text`]).
-    fn push_sjk(&mut self, message: &ChatMessage, muted: bool, now: Instant) {
+    pub(super) fn push_sjk(&mut self, message: &ChatMessage, muted: bool, now: Instant) {
         // A holocron drop is one sentence with no sender column, in its tier's colour.
         let drop = crate::holocrons::line::words(message);
         let name = if drop.is_some() {
@@ -61,7 +61,8 @@ impl ChatOverlay {
                 creator: message.creator,
                 trust: message.trust.filter(|_| drop.is_none()),
                 emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
-                ejk: message.client == "ejk",
+                client: super::client_icons::find(&message.client),
+                in_all: false,
                 key_id: message.key_id.clone(),
                 tier: drop.map(|words| words.tier),
             }),
@@ -408,9 +409,11 @@ mod tests {
         let font = crate::text::test_font();
         chat.build(true, &font, [1920.0, 1080.0], 1_000);
         let runs: Vec<&str> = chat.ui.text_runs().collect();
-        assert!(
-            !runs.contains(&"SJK"),
-            "the emblem, not the letters: {runs:?}"
+        // The emblem before the name; SJK after it is the channel's label.
+        assert_eq!(
+            runs.iter().filter(|run| **run == "SJK").count(),
+            2,
+            "one label a line: {runs:?}"
         );
         assert!(!runs.contains(&"SJK VERIFIED"), "the tick alone: {runs:?}");
         let logos = chat

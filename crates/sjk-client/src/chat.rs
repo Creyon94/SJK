@@ -383,53 +383,11 @@ pub(crate) fn sjk_copy_command(command: &[u8]) -> bool {
     copy_id(&text[..end]).is_some()
 }
 
-/// What starts each piece of the game server's copy of a message the hub took, so the
-/// server's players on any client read it as an SJK line: SJK in gold, then All chat's
-/// green again.
-const SJK_COPY_TAG: &str = "^3SJK^2 ";
-
-/// The `say` commands that put an SJK chat message in the game server's chat, each
-/// after `SJK_COPY_TAG` and ended with its [`sjk_copy_marker`] (`id`). A message the
-/// hub did not take (`None`) goes plainly, as it never reached SJK chat. A server keeps
-/// [`CHAT_INPUT_BYTES`] of a line, so a longer message goes as several, cut between
-/// words (inside a word only when it does not fit alone); the reliable channel sends
-/// them a second apart.
-pub fn sjk_copy_commands(text: &str, id: Option<u64>) -> Vec<String> {
-    let marker = id.and_then(sjk_copy_marker).unwrap_or_default();
-    let tag = if marker.is_empty() { "" } else { SJK_COPY_TAG };
-    let fits = |piece: &str| chat_input_fits(&format!("{tag}{piece}{marker}"));
-    let mut pieces = Vec::new();
-    let mut piece = String::new();
-    for word in text.split_whitespace() {
-        let joined = if piece.is_empty() {
-            word.to_owned()
-        } else {
-            format!("{piece} {word}")
-        };
-        if fits(&joined) {
-            piece = joined;
-            continue;
-        }
-        if !piece.is_empty() {
-            pieces.push(std::mem::take(&mut piece));
-        }
-        for c in word.chars() {
-            piece.push(c);
-            if !fits(&piece) {
-                piece.pop();
-                pieces.push(std::mem::take(&mut piece));
-                piece.push(c);
-            }
-        }
-    }
-    if !piece.is_empty() {
-        pieces.push(piece);
-    }
-    pieces
-        .iter()
-        .filter_map(|piece| chat_command(ChatDestination::Global, &format!("{tag}{piece}{marker}")))
-        .collect()
-}
+/// What starts the game server's copy of an SJK chat message (and each of its pieces), so
+/// the server's players on any client read it as an SJK line: SJK in gold, then All
+/// chat's green again. JoF tools say such copies on JoF servers (`sjk-mod-jof`,
+/// `sjk_chat.rs`); the core only reads them.
+pub const SJK_COPY_TAG: &str = "^3SJK^2 ";
 
 /// Interpret the already-tokenized stock chat command (`G_SayTo`).
 pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
@@ -766,44 +724,5 @@ mod sjk_copy_tests {
         assert!(!sjk_copy_command(b"chat \"Sol^7: ^2hello\" 3"));
         assert!(!sjk_copy_command(b"tchat \"Sol^7: ^2hello^9^2^1^2\" 3"));
         assert!(!sjk_copy_command(b"print \"hello^9^2^1^2\""));
-    }
-
-    #[test]
-    fn a_message_goes_to_the_server_in_pieces_that_fit_each_with_its_id() {
-        assert_eq!(
-            sjk_copy_commands("  hello   there ", Some(12)),
-            ["say \"^3SJK^2 hello there^9^2^1^2\""]
-        );
-        // A message the hub did not take is no SJK line: no tag, no id.
-        assert_eq!(sjk_copy_commands("hello", None), ["say \"hello\""]);
-        assert!(sjk_copy_commands("   ", Some(12)).is_empty());
-        let text = "word ".repeat(60);
-        let commands = sjk_copy_commands(&text, Some(12_345));
-        assert_eq!(commands.len(), 3);
-        let mut words = 0;
-        for command in &commands {
-            let payload = command
-                .strip_prefix("say \"")
-                .and_then(|rest| rest.strip_suffix('"'))
-                .unwrap();
-            assert!(payload.len() <= CHAT_INPUT_BYTES, "{command}");
-            let body = payload
-                .strip_prefix(SJK_COPY_TAG)
-                .and_then(|rest| rest.strip_suffix("^9^5^1^2^3^4^5"))
-                .unwrap();
-            assert!(!body.starts_with(' ') && !body.ends_with(' '), "{command}");
-            words += body.split(' ').count();
-        }
-        assert_eq!(words, 60, "no word lost");
-        // A word too long for a piece alone is cut inside it.
-        let long = "x".repeat(200);
-        let commands = sjk_copy_commands(&long, Some(1));
-        assert_eq!(commands.len(), 2);
-        assert!(
-            commands
-                .iter()
-                .all(|command| command.starts_with("say \"^3SJK^2 ")
-                    && command.ends_with("^9^1^1\""))
-        );
     }
 }

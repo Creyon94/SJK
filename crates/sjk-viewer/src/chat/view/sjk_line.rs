@@ -26,8 +26,9 @@ const LABEL_SIZE: f32 = 0.625;
 pub(in crate::chat) struct Marks<'a> {
     /// The sender plays on SJK: SJK's emblem comes first.
     pub(in crate::chat) sjk: bool,
-    /// The message was sent from JoF EternalJK: its icon takes the emblem's place.
-    pub(in crate::chat) ejk: bool,
+    /// The message was sent from another client with its own icon
+    /// (`chat/client_icons.rs`), which takes the emblem's place.
+    pub(in crate::chat) icon: Option<&'static crate::chat::client_icons::ClientIcon>,
     /// The mark after the name: the verified seal or a trust mark
     /// (`ui_renderer::mark_texture`).
     pub(in crate::chat) mark: Option<sjk_ui::TextureId>,
@@ -75,11 +76,7 @@ impl<'a> Prefix<'a> {
         Self {
             size,
             logo: if marks.sjk { size * LOGO_SIDE } else { 0.0 },
-            logo_texture: if marks.ejk {
-                crate::ui_renderer::EJK_TEXTURE
-            } else {
-                crate::ui_renderer::LOGO_TEXTURE
-            },
+            logo_texture: crate::chat::client_icons::texture(marks.icon),
             name_end,
             name_width: visible_text_width_face(font, &name[..name_end], scale, TextFace::Semibold),
             mark: marks.mark,
@@ -459,10 +456,14 @@ mod tests {
         let (_, name, _) = drawn(&texts, "^2Sol");
         let (_, colon, _) = drawn(&texts, ":");
         let (_, body, _) = drawn(&texts, "gg all");
-        // Emblem, name, tick, colon and message, left to right on the name's row.
+        let (_, label, _) = drawn(&texts, "SJK");
+        // Emblem, name, tick, label, colon and message, left to right on the name's row.
         assert_eq!(name.y, body.y, "the message stays on the name's row");
         assert!(tag.right() < name.x && name.right() <= colon.x && colon.x < body.x);
-        assert!(!texts.iter().any(|(text, ..)| text == "SJK"), "no letters");
+        assert!(
+            name.right() < label.x && label.x < colon.x,
+            "the label after the name"
+        );
         let tick = ticks(&chat);
         assert_eq!(tick.len(), 1);
         assert!(tick[0].x >= name.x && tick[0].right() <= colon.x);
@@ -520,6 +521,7 @@ mod tests {
             trust: None,
             emoji: String::new(),
             name: Some("^5JoF^7 Sol 🦊".to_owned()),
+            key_id: String::new(),
         };
         chat.receive(
             ServerEventKind::Chat,

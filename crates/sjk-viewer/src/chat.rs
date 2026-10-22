@@ -7,6 +7,7 @@ mod editor;
 pub(crate) mod emoji;
 mod feed_gif;
 
+pub(crate) mod client_icons;
 mod interaction;
 mod layout;
 pub(crate) mod marks;
@@ -89,8 +90,12 @@ struct HubLine {
     trust: Option<sjk_identity::Trust>,
     /// The sender's name emoji when they sent it, shown at the right of their name.
     emoji: String,
-    /// Sent from JoF EternalJK (`ChatMessage::client`): its icon instead of SJK's emblem.
-    ejk: bool,
+    /// Sent from another client with its own icon (`chat/client_icons.rs`), which takes
+    /// the emblem's place.
+    client: Option<&'static client_icons::ClientIcon>,
+    /// Said in the game server's All chat too (`chat/server_copy.rs`): labelled ALL/SJK
+    /// instead of SJK.
+    in_all: bool,
     key_id: String,
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.
@@ -146,6 +151,9 @@ pub(crate) struct ChatOverlay {
     sjk_sound_at: Option<Instant>,
     /// SJK chat said on the game server too (`chat/server_copy.rs`).
     server_copies: server_copy::ServerCopies,
+    /// While a mod says SJK chat in this server's All chat (`sjk_chat_frame.rs`), the
+    /// red note above the field when the SJK channel is picked.
+    said_in_all: Option<&'static str>,
     /// Whether SJK messages join the in-game general chat feed (`cl_sjkChatFeed`).
     sjk_feed_visible: bool,
     /// Whether the lines with a GIF read "GIF" and show it (`cl_sjkChatGifs`), or keep
@@ -241,6 +249,7 @@ impl ChatOverlay {
             sjk_mark: None,
             sjk_sound_at: None,
             server_copies: server_copy::ServerCopies::default(),
+            said_in_all: None,
             sjk_feed_visible: true,
             gifs_shown: true,
             gif_sources_revision: 0,
