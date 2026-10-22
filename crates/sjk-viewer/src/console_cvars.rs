@@ -1175,7 +1175,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::jof_tag::CVAR,
             true,
             archive,
-            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA, JAWA)",
+            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA, JAWA, {{S}})",
         ),
         CvarDefinition::new(
             "cg_drawScoreboardIcons",

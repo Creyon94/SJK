@@ -42,7 +42,7 @@ did: The cardboard box toy: hide in a carton, spotted with Use, tipping over
 did: The Order 66 toy: synced deaths that blow players apart, TF2 style
 did: The Hax toy: hack another player with the siege bar, then steer them
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
-did: Clan tags: the JoF, JoFA and JAWA emblems beside tagged names
+did: Clan tags: the JoF, JoFA, JAWA and {{S}} emblems beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
 did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits (in testing)
 did: The loot table: every chance a holocron brings
