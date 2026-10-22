@@ -4,7 +4,7 @@ Particle
 
 	spawnFlags			orgOnCylinder
 
-	count				8 11
+	count				5 7
 
 	rotation			0 0
 
@@ -25,7 +25,7 @@ Particle
 
 	alpha
 	{
-		start			0.9 1.0
+		start			0.45 0.6
 		end				0
 		parm			60
 		flags			nonlinear
@@ -33,7 +33,7 @@ Particle
 
 	size
 	{
-		start			5.0 7.0
+		start			4.2 5.8
 	}
 
 	shaders

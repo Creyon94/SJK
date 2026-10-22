@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[hax-afk]
+area: Gameplay
+title: Hax: not on a player typing or away; softer rain
+change: No hack starts on a player whose chat is open or who is marked away on the scoreboard.
+change: The hacked player's client refuses while idle/alt-tabbed ("Hack failed: X is away").
+test: B opens the chat, A holds Use on B: "B is typing: no hacking them now".
+test: B alt-tabs (or /afk), A hacks B: refused, "is away" (or "is typing" at once).
+test: The green rain round a hacked player is fainter and sparser than before.
+
 [hax-rain]
 area: Rendering & effects
 title: Hax: green digital rain round a hacked player
