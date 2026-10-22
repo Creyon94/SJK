@@ -1291,6 +1291,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             verified: false,
             staff: false,
             creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,
@@ -1588,6 +1589,7 @@ fn player_card_profile(shots: &mut Snapshot) {
         verified: true,
         staff: true,
         creator: false,
+        jkr_creator: false,
         trust: None,
         emoji: String::new(),
         created: 1_790_812_800,
@@ -1621,10 +1623,16 @@ fn player_card_profile(shots: &mut Snapshot) {
         awarded: 0,
         note: String::new(),
     };
-    for (name, pinned) in [
-        ("player-card-profile", false),
-        ("player-card-profile-pinned", true),
+    for (name, pinned, jkr_creator) in [
+        ("player-card-profile", false, false),
+        ("player-card-profile-pinned", true, false),
+        ("player-card-jkr-creator", true, true),
     ] {
+        let profile = sjk_identity::Profile {
+            staff: !jkr_creator,
+            jkr_creator,
+            ..profile.clone()
+        };
         let card = card_from(
             &info("n|^1Sol^7 the Fox|t|1|model|kyle/default|st|single_1|st2|none|c1|4|c2|0|"),
             Some(HubInfo {
@@ -2619,6 +2627,7 @@ fn medals_snapshot() {
             verified: true,
             staff: false,
             creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,

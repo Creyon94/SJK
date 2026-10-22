@@ -31,6 +31,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+- Player card: JKR's creator wears a JKR CREATOR mark of their own, in rust (a mark only, no staff rights); the SJK TEAM pill, the holocron line and the achievements now sit centred instead of a little high _(Sol)_
 
 ## 2026.1022.1 (Alpha) | 22/10/2026
 
