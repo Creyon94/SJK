@@ -247,8 +247,8 @@ feed: the hub took them, so the sound says the message went out.
   lock again, and a lock held while drawing froze the game.
 - Pasting (Sol's request, 10/10/2026): Ctrl+V, or Shift+Insert as in the console and
   the game's chat, pastes the clipboard's text into the page's field and the docks'
-  (main page and in-game menu), through the console's clipboard tools. The fields have
-  no caret to move, so the text goes at the end, where typing goes. It is kept as the
+  (main page and in-game menu), through the console's clipboard tools, at the caret,
+  where typing goes. It is kept as the
   hub would take it ([sjk_chat_field.rs](../crates/sjk-viewer/src/sjk_chat_field.rs)):
   line breaks, tabs and other spaces become one space and a run of them one, characters
   outside the message alphabet (`chat_characters`: emoji, `{ }`, `\`, what prints
@@ -257,9 +257,17 @@ feed: the hub took them, so the sound says the message went out.
   are not filtered, as before; the rules still refuse what was typed before sending.
   Ctrl+A selects the whole draft (typing or a paste then replaces it, Backspace clears
   it) and Ctrl+C copies it, on the page's field and the GIF picker's; Ctrl+X does
-  nothing (no caret, no partial selection). The game's
+  nothing (no partial selection). The game's
   own chat composer (`messagemode`, SJK channel included) already had all four, with a
   caret and a selection ([chat/editing.rs](../crates/sjk-viewer/src/chat/editing.rs)).
+- The caret (Rollembones' report, 22/10/2026): the page's and the docks' fields move it
+  as the console does ([console_line_edit.rs](../crates/sjk-viewer/src/console_line_edit.rs)):
+  Left and Right by a character, Ctrl+Left and Ctrl+Right by a word, Home and End to
+  the ends; typing and pasting go in at it, Backspace and Delete (Ctrl: a word) take
+  what is before or after it. The page draws it as `|` (blinking at the end, steady
+  inside the text) and the docks as `_` at the end and `|` inside; a long draft shows
+  its end, or the part from the caret on when the caret is further back. The GIF
+  picker's search keeps its caret at the end.
 
 ## GIFs from GIPHY
 

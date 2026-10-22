@@ -1218,7 +1218,11 @@ server, prediction or the player's input.
   Pitch (-80 to 80), Distance (16 to 512) and Height (-64 to 160) of the
   third-person camera, starting from where it is (`cg_thirdPersonAngle`,
   `cg_thirdPersonPitchOffset`, `cg_thirdPersonRange`,
-  `cg_thirdPersonVertOffset`). A change turns third person on.
+  `cg_thirdPersonVertOffset`). A change turns third person on. The pose stays until
+  Reset, but one of those cvars changed meanwhile (the console, a bind, Settings) takes
+  its place in it at once, as EternalJK applies it; the other three stay as set here
+  (Rollembones' report, 22/10/2026: `cg_thirdPersonRange` did nothing after the camera
+  had been set here).
 - **Sun page:** the sun's direction (0 to 360) and elevation (-20 to 90), when
   the view has real-time lighting (`r_dayNight 1` at launch) and open sky, what
   holds the sun now (the day settings, Camera control, or returning), and Reset
@@ -2334,7 +2338,9 @@ they already took; the letter rules they share,
 ### Chat player actions
 
 U defaults to crosshair-target private chat (`messagemode3`): aim at a player,
-press U, then compose a tell addressed to that player. Global chat remains on
+press U, then compose a tell addressed to that player. While following a player as a
+spectator, U whispers to the player followed, wherever the crosshair is, as JoF
+EternalJK's `Con_MessageMode3_f` does (Kushina's report, 22/10/2026). Global chat remains on
 Y (`messagemode`), and team chat on T (`messagemode2`). I opens the SJK chat
 (`messagemode5`, [hub-chat.md](hub-chat.md)); a new profile, or a whole config table
 imported at First setup, gets I when it is free and nothing is bound to

@@ -24,6 +24,30 @@
 
 # ---- Console & chat ----
 
+[sjk-chat-caret]
+area: Console & chat
+title: SJK chat field: the arrows move the caret (Rollembones' report)
+change: The SJK chat page's and the docks' fields have a caret: Left/Right (Ctrl: a word),
+change: Home, End; typing, Ctrl+V, Backspace and Delete work at it, not only at the end.
+test: sjkchat, type "helo", Left once, type "l": "hello"; Home, type "oh ": "oh hello".
+test: Ctrl+Left jumps a word; Delete takes the letter after the caret; Enter sends it all.
+test: Main page dock: same keys; the caret is "|" inside the text and "_" at its end.
+
+[camera-cvars-after-control]
+area: Rendering & effects
+title: cg_thirdPersonRange works after Camera control (Rollembones' report)
+change: A pose set in Camera control overrode the third-person cvars until its Reset.
+change: Now a changed cvar (console, bind, Settings) replaces its part of the pose at once.
+test: Third person, F8, set Distance 200, Hide panel; console: cg_thirdPersonRange 60.
+test: The camera comes in to 60 at once; Angle and Height stay as Camera control set them.
+
+[whisper-followed]
+area: Console & chat
+title: Whisper key while spectating goes to the followed player (Kushina's report)
+change: messagemode3 (U) while following a player whispers to them, as JoF EJK does.
+test: Local server, two clients: B spectates and follows A, presses U with no crosshair.
+test: The composer opens on a whisper to A; Enter: A gets the tell.
+
 [hax-fixes]
 area: Gameplay
 title: Hax: hackable after a teleport or respawn, and after a map change
