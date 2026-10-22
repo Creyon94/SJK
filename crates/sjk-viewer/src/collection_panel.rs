@@ -63,6 +63,9 @@ pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
 
 /// The things' tokens: the medals, the achievements, the shaders' rows, the shader's
 /// Equip or Unequip, the toy and its switch.
+/// Draw commands the page holds a frame: twice the most a world shot found (`world_shot_forge.rs`,
+/// `duel6_sjk_forge_drawn_swatches_fit`).
+pub(crate) const DRAW_COMMANDS: usize = 4_096;
 const MEDAL_BASE: u16 = 1_200;
 const ACHIEVEMENT_BASE: u16 = 1_240;
 /// The shaders' rows have a range of their own, 7000 to 7299, for a catalogue of up
@@ -446,7 +449,11 @@ impl Panel {
             hub: false,
             back: ReturnTarget::MainMenu,
             tab: Tab::Medals,
-            ui: MenuCanvas::with_capacities(160, 220, 2_048),
+            // #117 (Nib): the Forge's Craft grid on its Legendary and Mythical lines, its
+            // fifteen swatches drawn (the menu pictures on, or before their live pictures are
+            // ready), took up to about 2 100 commands; 2 048 dropped the last ones on some
+            // frames, which flickered.
+            ui: MenuCanvas::with_capacities(160, 220, DRAW_COMMANDS),
             medal: 0,
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,

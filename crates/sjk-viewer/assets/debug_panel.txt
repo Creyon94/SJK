@@ -24,6 +24,14 @@
 
 # ---- Console & chat ----
 
+[forge-craft-flicker]
+area: Menus & settings
+title: Forge Craft no longer flickers on its last lines (#117)
+change: The Collection page holds 4096 draw commands (was 2048), the UI 32768 vertices.
+test: ui_menuPictures 1, Collection > Forge > Craft, grid (V): scroll to the Legendary lines.
+test: Stay a few seconds on each line to the end: no flicker, detail and key hints stay.
+test: Same in the list view and with ui_menuPictures 0.
+
 [holonet-flecks-once]
 area: Menus & settings
 title: Holonet Feed lists Data flecks once (#115)
