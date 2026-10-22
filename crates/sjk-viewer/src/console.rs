@@ -237,6 +237,10 @@ pub(crate) struct ViewerConsole {
     order66_on: bool,
     /// The Toys tab asked to turn Order 66 on (`true`) or off, not yet taken.
     pending_order66: Option<bool>,
+    /// The Hax toy is on, mirrored as [`Self::order66_on`] is.
+    hax_on: bool,
+    /// The Toys tab asked to turn the Hax on (`true`) or off, not yet taken.
+    pending_hax: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,

@@ -179,9 +179,20 @@ loot tables' `shard_pile`, `shards` and `card_shards`), the client keeping a cop
   question had offered "shards of one shader", see the open points), a ledger at the hub
   like credits (`shard_ledger`, reasons `shatter`, `holocron`, `craft`, `shop`, `staff`),
   never below 0, on the profile as `shards`.
-- **Shattering** breaks one duplicate (a shader held twice or more by drops or grants; a
-  medal's copy does not count) into shards, one copy a request, never the last.
-- **Crafting** makes a shader of the trade the player does not hold, for its cost.
+- **Shattering** ("breaking down" in the Forge) turns one copy into shards, one copy a
+  request: a duplicate (a shader held twice or more by drops or grants; a medal's or a
+  card's copy does not count), and since 21/10/2026 the last copy too when the client asks
+  (`"last":true`, a hub whose `economy.abilities` says `shatter_last`; Sol's promise in the
+  2026.1021.1 notes of "breaking down any saber shader you own, not just duplicates
+  (except those that come with a card)"), for the same yield: fair, as the shard value
+  does not change with the copy. A copy only a card brings stays with the card (409
+  `comes_with_card`), a medal's blade is never of the trade, and a last copy worn comes off
+  the hub's live look and, once the hub answers, the client's `cg_saberSkin`. Every
+  duplicate at once (`POST /v1/unlocks/shatter-duplicates`, `shatter_duplicates`) keeps one
+  of each. The client offers both only where the hub says so, so against an older hub the
+  Forge breaks down duplicates only.
+- **Crafting** makes a shader of the trade the player does not hold, for its cost; a copy
+  of its blade card lowers the cost ([SJK Blades](#sjk-blades), since 21/10/2026).
 - **Who may:** like opening, everything follows the hub's opening setting: while opening
   is for staff, others get `opening_staff_only` and the Shop button is not shown.
 
@@ -248,6 +259,17 @@ Why these numbers:
   The hub sends the prices with the progress (`economy.holocrons`), the client keeping a copy
   for before (`economy::BUILT_IN`); a hub that sends none sells none, and the shop shows no
   holocrons.
+
+### The Forge
+
+Since 21/10/2026 (Sol's request: a better interface for the shop, crafting and breaking
+shaders down, in a tab of its own) everything kyber shards and credits trade is the
+Collection's Forge tab, between Holocrons and Cards: Shop (the day's four offers and the
+holocrons for credits), Craft (every shader of the trade the player lacks) and Break down
+(the player's own copies, the last one too on a hub that takes it, and every duplicate at
+once). The look, keys and states are in [sjk-ui.md](sjk-ui.md#collection); the requests
+and refusals in the hub's `PROTOCOL.md` ("Shards and the shop"). Checked by unit tests and
+world shots (`world_shot::forge_shots`); not tried in a game.
 
 ### Open points for Sol
 
@@ -329,6 +351,34 @@ not know is kept but named nowhere; `Face::blade` in
   evenly among every card of a rarity would almost always land on a blade card, so the
   hub first picks one of the sets that have a card of the rarity rolled, then a card in
   it (the hub's rule; the client shows whatever card it is given).
+- **Crafting for less** (Sol, 21/10/2026): while the player holds a revealed copy of a
+  blade card and not its shader, crafting the shader costs less by the best copy's
+  finish, and the card is kept (cards stay luck only, never spent):
+
+  | Best copy | Crafting costs | Mythical (2 000) | Rare (300) |
+  | --- | --- | --- | --- |
+  | Normal | 75 %, the shop's price | 1 500 | 225 |
+  | Holo | 50 % | 1 000 | 150 |
+  | Solar | 50 % (it dropped the shader once already) | 1 000 | 150 |
+
+  The hub decides (`economy::BLADE_CARD_CRAFT`, sent as `economy.blade_card_craft`, and
+  the craft answer's `blade_card`); a hub before takes the full cost and sends no table,
+  read as no discount ([economy.rs](../crates/sjk-viewer/src/economy.rs) `blade_cards`,
+  `craft_price`). The Forge's Craft lists the lowered cost, its "Crafting costs" reads
+  "Crafting costs (Holo card -50 %)" and its button "Craft  (shard)  150  Holo card -50 %";
+  the Shaders tab's line beside "Craft in the Forge" says the same, and the blade card's
+  hover card adds "Any copy crafts the Sun blade for less." Up close on the Cards tab, a
+  held blade card has a button under its words (which then keep to one line): "Craft the
+  Sun blade in the Forge" while the shader is of the trade and the player lacks it, which
+  shows the Forge's Craft on it, else "Go to the Sun blade", which turns to the Shaders tab
+  on it; either clears a filter that would hide it. The shop's prices do not change.
+- **Perk marks** (21/10/2026, Sol's request): each perk a card's copies bring has a mark
+  from SJK Symbols, in `cards::faces::PERKS` (`Face::perks`; a new perk is one row there):
+  a lightsaber when it brings a blade while held (`grants`), the Solar finish's sun when
+  its Solar copies drop one, a smith's hammer when its copies craft one for less. On the
+  Cards tab each is a round badge over the tile's top left corner (dimmer on a card not
+  found yet), the close-up's line under the copies held ends with the marks, and the
+  hover card starts each perk's line with its mark.
 - **In the client:** a blade card's hover card and its close-up on the Cards tab add "Its
   Solar copies also drop the Sun blade." (`Face::solar_drop`, for a shader the client
   knows); the binder's kind filter offers "Kind: Blade" once the packs have one. The
@@ -365,9 +415,9 @@ not know is kept but named nowhere; `Face::blade` in
 | A card drawn from shapes, the finishes' light | [cards/look.rs](../crates/sjk-viewer/src/cards/look.rs) |
 | The credits' mark | [cards/mark.rs](../crates/sjk-viewer/src/cards/mark.rs) |
 | Open, Open all and the ceremony on the Holocrons tab | [holocrons_panel_opening.rs](../crates/sjk-viewer/src/holocrons_panel_opening.rs), [holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs), [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs) |
-| Kyber shards, shattering, crafting, the tables and the Shaders tab's hooks | [economy.rs](../crates/sjk-viewer/src/economy.rs); wire and requests in [wire.rs](../crates/sjk-identity/src/wire.rs), [hub.rs](../crates/sjk-identity/src/hub.rs), [service.rs](../crates/sjk-identity/src/service.rs) (`Service::shatter`, `craft`, `read_shop`, `buy`, `Snapshot::shop`, `Snapshot::trade`) |
+| Kyber shards, shattering, crafting and the tables | [economy.rs](../crates/sjk-viewer/src/economy.rs); wire and requests in [wire.rs](../crates/sjk-identity/src/wire.rs), [hub.rs](../crates/sjk-identity/src/hub.rs), [service.rs](../crates/sjk-identity/src/service.rs) (`Service::shatter`, `craft`, `read_shop`, `buy`, `Snapshot::shop`, `Snapshot::trade`) |
 | The kyber shard's mark | [cards/shard.rs](../crates/sjk-viewer/src/cards/shard.rs) |
-| The shop | [holocrons_panel_shop.rs](../crates/sjk-viewer/src/holocrons_panel_shop.rs) |
+| The Forge: the shop, crafting and breaking down (the shop was the Holocrons tab's overlay, `holocrons_panel_shop.rs`, until 21/10/2026) | [collection_forge.rs](../crates/sjk-viewer/src/collection_forge.rs), [collection_forge_view.rs](../crates/sjk-viewer/src/collection_forge_view.rs) |
 | The Collection's Cards tab | [collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs); its tiles, filter and sets' progress in [cards/binder.rs](../crates/sjk-viewer/src/cards/binder.rs) |
 | `debug_open` | [cards/rehearsal.rs](../crates/sjk-viewer/src/cards/rehearsal.rs) |
 | The faces from the packs, their pictures decoded on a worker | [cards/faces.rs](../crates/sjk-viewer/src/cards/faces.rs), mounted by [sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs) |
@@ -461,7 +511,8 @@ not know is kept but named nowhere; `Face::blade` in
   gives ("Opening it gives a sealed card and 30 to 50 credits, or a saber shader (40%) or
   kyber shards (10%)."), and under the holocron's caption **Open** (the oldest of the tier
   chosen, Enter), **Open all (n)** (up to twenty of all tiers, the oldest first, A) and,
-  while the hub lets the player open, **Shop** (S). Opened holocrons stay in the recent
+  while the hub lets the player open, **Shop** (S), which shows the Collection's Forge on
+  its Shop ([The Forge](#the-forge)). Opened holocrons stay in the recent
   list, dimmed, marked "Opened".
 - **Open all asks first** (21/10/2026, Sol's request): when more than one holocron would
   open, a card over the darkened tab asks "Open all 7 holocrons?" ("Open 20 of your 34
@@ -479,22 +530,8 @@ not know is kept but named nowhere; `Face::blade` in
   commands for twenty; drawn in full detail they would peak at 2,995 (the layout's CPU
   time stays near 0.12 ms a frame either way), for detail hardly visible at that size,
   and still without each card's pack, flip and words. The canvas limit was kept.
-- **The shop** (17/10/2026, prepared): over the darkened tab as the loot table, "Shop", what
-  it is and its rules, the balances at the top right, "Offers of 17/10/2026" and "New offers
-  in 5 h 12 min, at midnight in Paris" (counting down; once it is due the page reads the
-  hub again, once a day), and the four offers as cards: the tier's symbol and name, the
-  tier's frame, wash and effects, the blade, its name, its price beside the kyber shards'
-  mark (the credits' on a hub before), why it cannot be bought ("You hold it already.",
-  "You bought it today.", "65 kyber shards more needed.") and Buy. Buy asks twice: it turns
-  into "Confirm: 30 kyber shards" for five seconds, a second press sends it ("Buying..."
-  until the hub answers); the line under the cards then says "Sakura blade bought for 75
-  kyber shards. It is yours." or why not. Under them, **Holocrons for credits**: a button
-  for each holocron the hub sells ("Uncommon Holocron 150 credits", in its tier's ring),
-  dimmed with "100 more credits needed." under it when short, asking twice the same way
-  ("Confirm: 150 credits"); the line then says "Uncommon Holocron bought for 150 credits.
-  It waits in your holocrons." and the holocron joins the list. Left and Right choose (the
-  offers, then the holocrons), Enter buys, a click chooses or buys, Escape, S or Back go
-  back. Opening the shop reads the hub's day; "Reading the shop..." until it answers.
+- **The shop** is the Collection's Forge since 21/10/2026 ([The Forge](#the-forge)); from
+  17/10/2026 it was an overlay of this tab, over the darkened page as the loot table is.
 - **The ceremony** is drawn by the tab over its own page, which is not drawn under it
   (text draws over every shape). Since 17/10/2026 it opens the holocron itself, as a
   loot crate opens

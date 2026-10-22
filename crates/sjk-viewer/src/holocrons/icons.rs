@@ -2,7 +2,9 @@
 //! with the client and mounted below all game data (the list in [`crate::illuminate`]),
 //! so a PK3 with the same paths replaces them. They are uploaded once per installed world
 //! with the HUD's other pictures (`hud/icons.rs`) into the cells
-//! [`crate::ui_renderer::HOLOCRON_ICON_FIRST`] on, one per tier.
+//! [`crate::ui_renderer::HOLOCRON_ICON_FIRST`] on, one per slot: the four holocron tiers
+//! (0-3), then the four kyber crystals (4-7: uncommon, rare, legendary, mythical), the
+//! order of [`super::stage::FORMS`].
 //!
 //! A tier whose picture is missing has no texture and draws as a gem
 //! ([`super::gem`]): nothing shows a blank or a coloured placeholder box.
@@ -28,7 +30,9 @@ pub(crate) const fn texture(index: usize) -> TextureId {
     TextureId(crate::ui_renderer::HOLOCRON_ICON_FIRST + index as u32)
 }
 
-/// Upload the tiers' pictures once per installed world; absent ones stay `None`.
+/// Upload the tiers' pictures once per installed world; absent ones stay `None`. The kyber
+/// crystals' pictures go to their slots' cells too (4-7, [`texture`]), told by
+/// [`is_loaded`].
 pub(crate) fn load(
     vfs: &VirtualFileSystem,
     shaders: &ShaderCatalog,
@@ -40,11 +44,18 @@ pub(crate) fn load(
         upload(id, pixels.as_raw());
         Some(id)
     });
-    let mask = loaded
+    let mut mask = loaded
         .iter()
         .enumerate()
         .filter(|(_, id)| id.is_some())
         .fold(0_u8, |mask, (index, _)| mask | 1 << index);
+    for (slot, form) in super::stage::FORMS.iter().enumerate().skip(COUNT) {
+        let path = format!("gfx/sjk/holocron_{}", form.id);
+        if let Some(pixels) = crate::hud::icons::assets::decode(vfs, shaders, &path) {
+            upload(texture(slot), pixels.as_raw());
+            mask |= 1 << slot;
+        }
+    }
     LOADED.store(mask, Ordering::Relaxed);
     loaded
 }
@@ -60,6 +71,10 @@ mod tests {
             assert_eq!(pair[1], pair[0] + 1);
         }
         assert!(cells[COUNT - 1] < crate::ui_renderer::ATLAS_CELLS);
+        // Every form's slot, the kyber crystals' too, has a holocron cell of its own.
+        let forms = super::super::stage::FORMS.len();
+        assert!(forms <= 8, "HOLOCRON_ICON_CELLS in ui_renderer/icons.rs");
+        assert!(forms <= u8::BITS as usize);
         assert!(cells[0] >= crate::ui_renderer::VEHICLE_CROSSHAIR_ICON);
     }
 }

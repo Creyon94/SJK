@@ -183,6 +183,59 @@ fn duel6_sjk_holocron_forms() {
     });
 }
 
+/// The engram (the Mythical holocron) and the four kyber crystals up close
+/// (`docs/holocrons.md`, "Kyber crystals"): each held at two moments (the parts moved
+/// and the engram's plates breathed between them), then each held none of, cropped to
+/// the stage on one sheet, a row each.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_kyber_forms() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+        ];
+        let Some(mut gpu) = open_tab([1920, 1080], &cvars, holdings()) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 150);
+        let stage = |picture: &image::RgbaImage| {
+            image::imageops::crop_imm(picture, 140, 130, 760, 760).to_image()
+        };
+        let forms = [
+            "mythical",
+            "kyber_uncommon",
+            "kyber_rare",
+            "kyber_legendary",
+            "kyber_mythical",
+        ];
+        let mut moments = Vec::new();
+        for (seconds, owned) in [(2.4, true), (4.1, true), (2.4, false)] {
+            gpu.holocron_stage_seconds = Some(seconds);
+            for id in forms {
+                gpu.holocron_stage_request = crate::holocrons::stage::Request::of(id, owned);
+                let _ = frame(&mut gpu, 60);
+                moments.push(stage(&frame(&mut gpu, 2)));
+            }
+        }
+        gpu.holocron_stage_request = None;
+        println!(
+            "{}",
+            sheet(&moments, forms.len() as u32, 480, "duel6-kyber-forms").display()
+        );
+        // The engram alone, large, at three moments.
+        let mut engram = Vec::new();
+        for seconds in [1.0, 2.4, 5.3] {
+            gpu.holocron_stage_seconds = Some(seconds);
+            gpu.holocron_stage_request = crate::holocrons::stage::Request::of("mythical", true);
+            let _ = frame(&mut gpu, 60);
+            engram.push(stage(&frame(&mut gpu, 2)));
+        }
+        gpu.holocron_stage_request = None;
+        println!("{}", sheet(&engram, 3, 640, "duel6-engram").display());
+    });
+}
+
 /// Other windows and styles: 4:3, 21:9, 4K, `ui_textScale 1.2`, and the page over the
 /// classic menus (the world stays visible behind it).
 #[test]
@@ -321,5 +374,100 @@ fn duel6_sjk_holocrons_update_needed() {
                 shoot(&mut gpu, 2, &format!("duel6-holocrons-update-{name}")).display()
             );
         }
+    });
+}
+
+/// Made-up holdings with kyber crystals (`docs/holocrons.md`, "Kyber crystals"): two
+/// Uncommon, one Rare and one Mythical held, the pity at 3 of 10.
+pub(super) fn crystal_holdings() -> Data {
+    Data {
+        crystals: Some([2, 1, 0, 1]),
+        crystal_sealed: [vec![40, 41], vec![42], Vec::new(), vec![43]],
+        pity: Some(crate::kyber::Pity {
+            every: 10,
+            since: 3,
+        }),
+        ..holdings()
+    }
+}
+
+/// The kyber crystals on the Holocrons tab: their row of tiles under the holocrons with
+/// the pity line, a Rare crystal chosen (the stage falls back to the Mythical holocron's
+/// model until the crystals' own come), one held none of, a crystal's hover card, its
+/// loot table, then a crystal's opening: the strip of shaders only, at rest, and the
+/// shader's entrance. Off-screen renders on duel6 with made-up holdings.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_kyber_crystals() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let Some(mut gpu) = open_tab([1920, 1080], &cvars, crystal_holdings()) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 150);
+        let rare = crate::kyber::TIERS[1].slot;
+        let mut images = Vec::new();
+        let mut keep = |gpu: &mut GpuState, frames: u32, name: &str| {
+            let path = shoot(gpu, frames, name);
+            assert!(!overflowed(gpu), "{name}");
+            println!("{}", path.display());
+            images.push(image::open(path).expect("the shot").to_rgba8());
+        };
+        choose(&mut gpu, rare, 60);
+        keep(&mut gpu, 2, "duel6-kyber-rare");
+        choose(&mut gpu, crate::kyber::TIERS[2].slot, 60);
+        keep(&mut gpu, 2, "duel6-kyber-legendary-none");
+        choose(&mut gpu, rare, 30);
+        if let Some(console) = gpu.console.as_mut() {
+            console.holocron_hover_for_shot(Some(rare));
+        }
+        keep(&mut gpu, 30, "duel6-kyber-hover");
+        if let Some(console) = gpu.console.as_mut() {
+            console.holocron_hover_for_shot(None);
+            console.preview_loot(true);
+        }
+        keep(&mut gpu, 4, "duel6-kyber-loot");
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_loot(false);
+        }
+        // A Rare crystal opened: the strip (shaders only) at rest, then the entrance.
+        let opened = |id: &str, name: &str| sjk_identity::Opened {
+            holocron: 42,
+            tier: "kyber_rare".to_owned(),
+            card: None,
+            credits: 0,
+            unlock: Some(sjk_identity::OpenedUnlock {
+                id: id.to_owned(),
+                name: name.to_owned(),
+                count: 1,
+            }),
+            shards: 0,
+        };
+        let prize = || {
+            crate::console::holocrons_panel::opening::Prize::of(&opened(
+                "saber_phoenix",
+                "Phoenix blade",
+            ))
+            .expect("a crystal's prize")
+        };
+        for (elapsed, name) in [
+            (-5.0, "duel6-kyber-open-strip"),
+            (-0.2, "duel6-kyber-open-rest"),
+            (3.5, "duel6-kyber-open-shader"),
+        ] {
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_opening(Some(vec![prize()]), elapsed, 3.1);
+            }
+            keep(&mut gpu, 40, name);
+        }
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_opening(None, 0.0, 0.0);
+        }
+        println!("{}", sheet(&images, 2, 960, "duel6-kyber-sheet").display());
     });
 }

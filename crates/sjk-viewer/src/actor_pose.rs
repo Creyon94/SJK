@@ -158,6 +158,7 @@ impl GpuState {
         self.play_emote_sounds(audio);
         self.play_cardboard_box_sounds(audio);
         self.play_order66_sounds(audio);
+        self.play_hax_sounds(audio);
         Ok(())
     }
 

@@ -1,9 +1,80 @@
 //! Optional load-time mip chains. Level zero uses the existing resize policy unchanged.
+//!
+//! `r_picmip` (as in Jedi Academy) leaves a texture's largest levels off the card:
+//! each step halves its sides and takes a quarter of its video memory, for cards
+//! that run out (a 3 GB card ran out on most JoF maps, 21/10/2026). Textures of
+//! [`PICMIP_FLOOR`] pixels or less keep their size. The chains are still built
+//! whole on the processor; only the upload skips levels. A change applies to the
+//! textures uploaded after it, so from the next map.
 use image::{RgbaImage, imageops};
-use std::{error::Error, sync::Arc};
+use std::{
+    error::Error,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
+};
 
 #[path = "texture_mip_cache.rs"]
 pub(crate) mod cache;
+
+/// The texture detail setting: the levels left off.
+pub(crate) const PICMIP_CVAR: &str = "r_picmip";
+/// The largest `r_picmip` taken.
+pub(crate) const PICMIP_MAX: u32 = 3;
+/// Textures whose longest side is this or less are never shrunk.
+pub(crate) const PICMIP_FLOOR: u32 = 128;
+/// `r_picmip` as last set ([`set_picmip`]).
+static PICMIP: AtomicU32 = AtomicU32::new(0);
+
+/// Read `r_picmip` when a graphics context is made, with the filtering
+/// ([`super::Policy::sample`]).
+pub(crate) fn sample_picmip(console: Option<&crate::console::ViewerConsole>) {
+    set_picmip(
+        console
+            .and_then(|console| console.integer_cvar(PICMIP_CVAR))
+            .unwrap_or(0),
+    );
+}
+
+/// Take `levels` of `r_picmip` for the textures uploaded from now on: a world being
+/// built when it changes may mix the two sizes, the next map has the new one.
+pub(crate) fn set_picmip(levels: i64) {
+    let levels = levels.clamp(0, i64::from(PICMIP_MAX)) as u32;
+    if PICMIP.swap(levels, Ordering::Relaxed) != levels {
+        crate::log::progress(format_args!(
+            "texture detail: r_picmip {levels}, from the next map"
+        ));
+    }
+}
+
+/// `r_picmip` as last set.
+pub(crate) fn picmip() -> u32 {
+    PICMIP.load(Ordering::Relaxed)
+}
+
+/// `image` with the levels `r_picmip` leaves off ([`skipped`]) taken away, for a
+/// texture uploaded whole rather than as a chain; `None` when it keeps its size.
+pub(crate) fn shrunk(image: &RgbaImage) -> Option<RgbaImage> {
+    let (width, height) = image.dimensions();
+    let skip = skipped(width, height, picmip());
+    (skip > 0).then(|| {
+        imageops::resize(
+            image,
+            (width >> skip).max(1),
+            (height >> skip).max(1),
+            imageops::FilterType::Triangle,
+        )
+    })
+}
+
+/// The levels of a `width` x `height` texture left off the card at `picmip`.
+pub(crate) fn skipped(width: u32, height: u32, picmip: u32) -> u32 {
+    let longest = width.max(height);
+    (0..picmip.min(PICMIP_MAX))
+        .take_while(|skip| longest >> (skip + 1) >= PICMIP_FLOOR)
+        .count() as u32
+}
 
 /// Number of complete mip levels through 1x1, including rectangular/NPOT images.
 pub(crate) fn levels(width: u32, height: u32) -> u32 {
@@ -96,7 +167,8 @@ pub(crate) fn upload(
     })
 }
 
-/// Upload one [`chain`] per layer of a `width` x `height` array.
+/// Upload one [`chain`] per layer of a `width` x `height` array, less the levels
+/// `r_picmip` leaves off ([`skipped`]).
 pub(crate) fn upload_chains(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
@@ -104,6 +176,10 @@ pub(crate) fn upload_chains(
     height: u32,
     chains: &[Vec<RgbaImage>],
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
+    let shortest = chains.iter().map(Vec::len).min().unwrap_or(0);
+    let skip = skipped(width, height, PICMIP.load(Ordering::Relaxed))
+        .min(u32::try_from(shortest.saturating_sub(1))?);
+    let (width, height) = ((width >> skip).max(1), (height >> skip).max(1));
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("SJK optional mipmapped material"),
         size: wgpu::Extent3d {
@@ -119,7 +195,7 @@ pub(crate) fn upload_chains(
         view_formats: &[],
     });
     for (layer, chain) in chains.iter().enumerate() {
-        for (level, pixels) in chain.iter().enumerate() {
+        for (level, pixels) in chain.iter().skip(skip as usize).enumerate() {
             queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
                     texture: &texture,
@@ -149,4 +225,33 @@ pub(crate) fn upload_chains(
         dimension: Some(wgpu::TextureViewDimension::D2Array),
         ..Default::default()
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn picmip_halves_large_textures_down_to_the_floor_only() {
+        assert_eq!(skipped(1024, 512, 0), 0);
+        assert_eq!(skipped(1024, 512, 1), 1);
+        assert_eq!(skipped(1024, 512, 3), 3);
+        // 256 halves once to the floor, 128 and less keep their size.
+        assert_eq!(skipped(256, 256, 3), 1);
+        assert_eq!(skipped(128, 64, 3), 0);
+        assert_eq!(skipped(4096, 4096, 9), PICMIP_MAX);
+    }
+
+    #[test]
+    fn a_shrunk_chain_keeps_its_smaller_levels_whole() {
+        // A 512 x 256 texture at r_picmip 2 is its 128 x 64 level and the levels under.
+        let (width, height) = (512_u32, 256_u32);
+        let skip = skipped(width, height, 2);
+        assert_eq!(skip, 2);
+        let image = RgbaImage::new(width, height);
+        let chain = chain(&image, width, height);
+        let kept = &chain[skip as usize..];
+        assert_eq!((kept[0].width(), kept[0].height()), (128, 64));
+        assert_eq!(kept.len() as u32, levels(width >> skip, height >> skip));
+    }
 }

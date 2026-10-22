@@ -780,6 +780,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Normal blades in duels",
+        cvar: crate::duel_blades::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Saber rain steam",
         cvar: crate::effect_aux::saber_rain_steam::CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
@@ -1342,6 +1347,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Integer {
             min: 1,
             max: 3,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Texture detail, 0 full (next map)",
+        cvar: crate::world_materials::filtering::mips::PICMIP_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::world_materials::filtering::mips::PICMIP_MAX as i64,
             step: 1,
         },
     },

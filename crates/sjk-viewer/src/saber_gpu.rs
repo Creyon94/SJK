@@ -6,9 +6,10 @@ use crate::saber_trail::SegmentPool;
 use crate::{DepthTarget, texture_layout_entry};
 use sjk_shader::ShaderCatalog;
 use sjk_vfs::VirtualFileSystem;
+use std::collections::HashMap;
 use std::error::Error;
 use std::ops::Range;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 #[path = "saber_glow_integral.rs"]
 pub(crate) mod glow_integral;
@@ -20,6 +21,13 @@ pub(crate) struct Runtime {
     /// shaders carry `glow`, the `*_line` cores do not (`sabers.shader`).
     glow_pipeline: wgpu::RenderPipeline,
     materials: Vec<wgpu::BindGroup>,
+    /// What a skin slot holds until a blade draws its skin.
+    neutral: wgpu::BindGroup,
+    /// The loaded skins, whose pairs are uploaded only once a blade draws them
+    /// ([`Self::upload_drawn`]), and which slots have theirs.
+    loaded: Arc<LoadedSkins>,
+    uploaded: [bool; MAX_SKINS],
+    device: wgpu::Device,
     /// What a blade-skin slot's pair is made with when a skin loads.
     texture_layout: wgpu::BindGroupLayout,
     samplers: saber::Samplers,
@@ -57,18 +65,19 @@ pub(crate) struct Runtime {
     /// blades just drawn, and whether a loaded skin has any.
     solid_pipeline: wgpu::RenderPipeline,
     any_solids: bool,
-    /// The signature builds waiting and their builders (`BuildQueue`).
+    /// The signature builds waiting and their builders (`BuildQueue`), the context's.
     builds: Arc<BuildQueue>,
+    /// The context's signature pipelines, which every world built on it shares.
+    signatures: Arc<Signatures>,
     /// The loaded skins' signatures by skin number, and their pipelines once built.
     signed: Vec<Option<Signed>>,
 }
 
 /// A loaded skin's signature shader and its pipelines: built from its own module off the
-/// render thread, so the frame never waits. Every loaded signature is built in the
-/// background as soon as the skins load, one after another (so a blade worn later is ready),
-/// and one a blade wears (or the preview shows) before its turn comes is built at once on a
-/// thread of its own, its three pipelines side by side. Until then its blades are drawn by
-/// the shared pipelines, from the skin's file.
+/// render thread, so the frame never waits. A signature is built once a blade draws it (worn,
+/// in the preview or in the Collection's pictures), its pipelines side by side; until then
+/// its blades are drawn by the shared pipelines, from the skin's file. Until 21/10/2026 every
+/// loaded signature was also built in the background, wanted or not.
 #[derive(Clone)]
 struct Signed {
     signature: &'static crate::blade_signatures::Signature,
@@ -83,6 +92,34 @@ impl Signed {
     }
 }
 
+/// The signature pipelines of one graphics context, shared by every world built on it: a map
+/// change builds the next world's [`Runtime`] while the last one runs, and each built every
+/// loaded signature again on threads of its own that never ended (21/10/2026: ~130 builds a map
+/// on two or three more threads each time, while the next map loaded and the old one played).
+/// Pipelines made for one world serve the next: wgpu pools identical bind group layouts, and the
+/// target format is fixed.
+#[derive(Default)]
+pub(crate) struct Signatures {
+    builds: OnceLock<Arc<BuildQueue>>,
+    signed: Mutex<HashMap<&'static str, Signed>>,
+}
+
+impl Signatures {
+    /// `signature`'s entry: the one made before when there is one, so its build is not done twice.
+    fn signed(&self, signature: &'static crate::blade_signatures::Signature) -> Signed {
+        self.signed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(signature.id)
+            .or_insert_with(|| Signed {
+                signature,
+                built: Arc::default(),
+                started: Arc::default(),
+            })
+            .clone()
+    }
+}
+
 /// How soon a signature's pipelines are wanted (Creyon's round 20: with every build waiting its
 /// turn alike, the blade in the preview waited behind the Collection's pictures and most blades
 /// seemed not to load).
@@ -92,7 +129,7 @@ const WANTED_LATER: u8 = 0;
 
 /// The signature builds waiting, by how soon they are wanted then in the order asked, and the
 /// threads building them (`BuildQueue::start`): a blade worn or in the preview
-/// first, then the Collection's pictures, then every loaded signature in the background.
+/// first, then the Collection's pictures.
 struct BuildQueue {
     jobs: std::sync::Mutex<Vec<(u8, u64, Signed)>>,
     ready: std::sync::Condvar,
@@ -386,6 +423,7 @@ impl Runtime {
         shaders: &ShaderCatalog,
         camera_layout: &wgpu::BindGroupLayout,
         format: wgpu::TextureFormat,
+        signatures: &Arc<Signatures>,
     ) -> Result<Self, Box<dyn Error>> {
         let source = include_str!("saber.wgsl");
 
@@ -546,11 +584,16 @@ impl Runtime {
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let neutral = materials[crate::saber_rgb::SKIN_MATERIAL as usize].clone();
         Ok(Self {
             pipeline,
             black_pipeline,
             glow_pipeline,
             materials,
+            neutral,
+            loaded: Arc::default(),
+            uploaded: [false; MAX_SKINS],
+            device: device.clone(),
             texture_layout,
             samplers,
             skins_buffer,
@@ -571,11 +614,17 @@ impl Runtime {
             any_holes: false,
             solid_pipeline,
             any_solids: false,
-            builds: BuildQueue::start(&SignatureBuilder {
-                device: device.clone(),
-                layout,
-                format,
-            }),
+            builds: signatures
+                .builds
+                .get_or_init(|| {
+                    BuildQueue::start(&SignatureBuilder {
+                        device: device.clone(),
+                        layout,
+                        format,
+                    })
+                })
+                .clone(),
+            signatures: signatures.clone(),
             signed: Vec::new(),
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
@@ -588,13 +637,15 @@ impl Runtime {
         })
     }
 
-    /// Take the loaded blade skins: their parameters into the uniform array and their
-    /// glow/core pairs into their material slots. Only when skins load, never per frame.
+    /// Take the loaded blade skins: their parameters into the uniform array. Their glow/core
+    /// pairs and signature pipelines wait until a blade draws them ([`Self::upload_drawn`]):
+    /// every skin of the hub's pack up front was about 45 MiB of video memory on every
+    /// world (165 skins, 21/10/2026), most of them worn by nobody on the server. Only when
+    /// skins load, never per frame.
     pub(crate) fn upload_skins(
         &mut self,
-        device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
-        skins: &LoadedSkins,
+        skins: &Arc<LoadedSkins>,
     ) {
         queue.write_buffer(
             &self.skins_buffer,
@@ -612,42 +663,60 @@ impl Runtime {
         });
         // Pipelines already built for a signature are kept, whatever number it loads at now
         // (Creyon's round 21: entering a server reloaded the skins in another order and every
-        // signature was built again, 233 builds for 128 blades, its effects gone meanwhile).
-        let mut old: Vec<Signed> = std::mem::take(&mut self.signed)
-            .into_iter()
-            .flatten()
-            .collect();
+        // signature was built again, 233 builds for 128 blades, its effects gone meanwhile), and
+        // whatever world of the context built them ([`Signatures`]).
         let mut signed: Vec<Option<Signed>> = (0..MAX_SKINS).map(|_| None).collect();
         for (index, skin) in skins.iter() {
-            let Some(signature) = skin.signature_shown() else {
-                continue;
-            };
-            let kept = old
-                .iter()
-                .position(|old| std::ptr::eq(old.signature, signature))
-                .map(|at| old.swap_remove(at));
-            signed[usize::from(index)] = Some(kept.unwrap_or(Signed {
-                signature,
-                built: Arc::default(),
-                started: Arc::default(),
-            }));
+            if let Some(signature) = skin.signature_shown() {
+                signed[usize::from(index)] = Some(self.signatures.signed(signature));
+            }
         }
         self.signed = signed;
-        // Every loaded signature is built in the background, after those wanted sooner, so a
-        // blade worn later is ready.
+        // The skins' slots only: the black pair sits after them (2026.1021.2 lost it here,
+        // black blades drawn with the neutral pair's opaque squares).
+        let first = crate::saber_rgb::SKIN_MATERIAL as usize;
+        let black = crate::saber_rgb::BLACK_MATERIAL as usize;
+        for slot in &mut self.materials[first..black] {
+            *slot = self.neutral.clone();
+        }
+        self.uploaded = [false; MAX_SKINS];
+        self.loaded = Arc::clone(skins);
+    }
+
+    /// Upload the glow/core pair of every skin `ranges` draws that has none yet, and ask for
+    /// its signature's pipelines `wanted` this soon.
+    fn upload_drawn(
+        &mut self,
+        queue: &crate::frame_queue::FrameQueue,
+        ranges: &[Range<u32>],
+        wanted: u8,
+    ) {
+        let first = crate::saber_rgb::SKIN_MATERIAL as usize;
+        let loaded = Arc::clone(&self.loaded);
+        for (index, skin) in loaded.iter() {
+            let slot = usize::from(index);
+            if self.uploaded[slot] || ranges[first + slot].is_empty() {
+                continue;
+            }
+            self.uploaded[slot] = true;
+            self.materials[first + slot] = saber::material(
+                &self.device,
+                queue,
+                &self.texture_layout,
+                &self.samplers,
+                &skin.glow,
+                &skin.core,
+            );
+        }
+        self.build_signatures(ranges, wanted);
+    }
+
+    /// Ask for every loaded signature's pipelines, as a blade worn later would (the world
+    /// shots that wait for them all).
+    #[cfg(test)]
+    pub(crate) fn build_every_signature(&self) {
         for signed in self.signed.iter().flatten() {
             self.builds.ask(signed, WANTED_LATER);
-        }
-        for (index, skin) in skins.iter() {
-            self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
-                saber::material(
-                    device,
-                    queue,
-                    &self.texture_layout,
-                    &self.samplers,
-                    &skin.glow,
-                    &skin.core,
-                );
         }
     }
 
@@ -671,7 +740,8 @@ impl Runtime {
         now: i64,
     ) {
         self.ranges = saber::material_ranges(blades);
-        self.build_signatures(&self.ranges, WANTED_NOW);
+        let ranges = self.ranges.clone();
+        self.upload_drawn(queue, &ranges, WANTED_NOW);
         if !blades.is_empty() {
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(blades));
         }
@@ -847,7 +917,8 @@ impl Runtime {
         let count = blades.len().min(PREVIEW_BLADES);
         let blades = &mut blades[..count];
         self.preview_ranges = saber::material_ranges(blades);
-        self.build_signatures(&self.preview_ranges, WANTED_NOW);
+        let ranges = self.preview_ranges.clone();
+        self.upload_drawn(queue, &ranges, WANTED_NOW);
         if !blades.is_empty() {
             queue.write_buffer(&self.preview_buffer, 0, bytemuck::cast_slice(blades));
         }
@@ -887,7 +958,8 @@ impl Runtime {
         let count = blades.len().min(crate::blade_pictures::BLADES);
         let blades = &mut blades[..count];
         self.pictures_ranges = saber::material_ranges(blades);
-        self.build_signatures(&self.pictures_ranges, WANTED_PICTURE);
+        let ranges = self.pictures_ranges.clone();
+        self.upload_drawn(queue, &ranges, WANTED_PICTURE);
         if !blades.is_empty() {
             queue.write_buffer(&self.pictures_buffer, 0, bytemuck::cast_slice(blades));
         }
@@ -1018,3 +1090,7 @@ fn draw_instances<'pass>(
         pass.draw(0..6, instances);
     }
 }
+
+#[cfg(test)]
+#[path = "blade_signatures_cost_test.rs"]
+mod cost_test;

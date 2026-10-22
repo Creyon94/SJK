@@ -10,6 +10,9 @@ name = "sjk"
 path = "src/main.rs"
 
 [dependencies]
+# The graphics card's video memory, for the small-card settings (`video_memory.rs`);
+# read on Windows only (the crate answers None elsewhere).
+sjk-gpu-memory.workspace = true
 bytemuck = { version = "1.25.0", features = ["derive"] }
 glam = "0.33.0"
 image = { version = "0.25.9", default-features = false, features = ["gif", "jpeg", "png", "tga", "webp"] }

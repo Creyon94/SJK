@@ -1964,7 +1964,8 @@ mod tests {
             }),
             None,
         );
-        assert_eq!(card.texts[T_MEDALS], "Early Tester, Bug Hunter x2");
+        // Bug Hunter is held once since 21/10/2026: an old count of 2 shows no count.
+        assert_eq!(card.texts[T_MEDALS], "Early Tester, Bug Hunter");
         assert!(card.texts[T_MEDALS_MORE].is_empty());
         let icons = |state: &State| {
             state
@@ -1999,6 +2000,7 @@ mod tests {
             progress,
             goal,
             unlocked,
+            reward: None,
         };
         sjk_identity::Profile {
             credits: 0,

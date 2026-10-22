@@ -16,6 +16,68 @@ Windows; stripes on Code Cylinder and Flimsiplast still alias seen right along t
 fix needs a pixel size along the blade, a new lab uniform), and a few single sparks pop at
 early-out bounds (Scarif Tide, Holo-Recording, Blood Moon).
 
+## Kyber crystals (client)
+
+21/10/2026, `personal/kyber-crystals`, based on `main` `775c4e8b` (Sol's decisions; the
+hub side is built in parallel from the same spec, not deployed). A kyber crystal, one per
+achievement, always opens to a saber shader ([holocrons.md](holocrons.md#kyber-crystals)):
+`kyber.rs` (tiers `kyber_uncommon` to `kyber_mythical`, the built-in odds, pity and
+achievement rewards, pinned by tests), the wire's `kyber` object and `reward`, the
+Holocrons tab's crystal tiles, pity line, hover card and crystal loot table, the opening's
+shader-only strip, the arrival "Earned from an achievement", the chat's crystal grand find,
+the reward on the Achievements tab, its hover card and the unlock card, and `debug_holocron`
+/ `debug_open` with crystal tiers. The holocrons' recent list shows eight now. Verified on
+Windows 11: `cargo fmt`, `cargo clippy -p sjk-viewer -p sjk-identity --all-targets` (no new
+warnings in the touched files), `cargo test -p sjk-viewer -p sjk-identity` (2756 and 166
+passed), and the world shots `holocrons_tab::duel6_sjk_kyber_crystals`,
+`collection::duel6_sjk_kyber_achievements` and `duel6_sjk_holocrons_windows`, looked at.
+Not verified: against a hub that sends crystals, in a running client. The 3D crystal is the
+Mythical holocron's model and gold light until the crystal models land (branch
+`personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
+the Staff page are not built.
+
+## Small graphics cards found at start
+
+21/10/2026, `personal/vram-detect`, based on `main` `058dfade` (Sol: detect video memory
+and pick settings for a small card; saber shaders in the menus as simple pictures too).
+`video_memory::at_start` reads the high-performance adapter's memory through the new
+`sjk-gpu-memory` crate (DXGI, Windows only; the second crate allowed `unsafe`) before the
+first map: under 3.5 GiB texture detail 2, under 4.5 GiB 1, and menu pictures on, each only
+from its default and once a card (`r_videoMemoryChecked`). The card's size and budget go
+into the log and crash reports. With menu pictures on, saber shader swatches (Collection,
+shop, holocron openings, saber choice) show their drawings instead of the live blade
+pictures, whose target is freed ([rendering.md](rendering.md)). Verified on Windows 11
+(RTX 5080, read as 16 GB with a 14.8 GiB budget): unit tests, formatting, the workspace
+tests and Clippy. Not verified: a small card (Vin's), the swatches seen in game, Linux
+(nothing read there).
+
+## Texture detail and video memory guards
+
+21/10/2026, `personal/low-vram`, based on `main` `420db13f` (Vin, 3 GB card: crashed
+changing her character's legs, and ran out of video memory joining Kor2). `r_picmip`
+(Settings > Renderer, "Texture detail", 0-3, default 0, as in Jedi Academy) skips the
+largest mip levels of textures larger than 128 pixels from the next map
+([rendering.md](rendering.md)). After the menu pictures, each further out-of-memory on a
+map build raises it by one, to 2 at most. `gpu_guard::capture` runs the creator's stage
+model, the menu preview, render-scale targets and material texture uploads inside
+out-of-memory and validation error scopes: a failed model is dropped with its textures
+instead of panicking, and a failed texture is never cached. Not guarded: a joining
+player's geometry in the shared buffers. The old world is still alive while the next map
+builds. On Windows 11 the formatting check, the locked workspace tests (viewer: 2716
+passed, 161 ignored; 58 other suites) and Clippy (no new warnings) pass. Not tested in
+game, and the memory saved is not measured on a world shot yet.
+
+## Stock blades in duels
+
+21/10/2026, `feat/plain-blades-in-duels` (Creyon, SJK pull request, at Sol's request), based on
+`main` at fc3d0aa9: while the viewed player is in a private duel, or the server plays Duel or
+Power Duel, every player's blade is the stock one in the colour they set, with the stock sounds,
+instead of their blade skin, when the player turns it on (`cg_duelStockBlades`, off by default;
+[client.md](client.md#nameplates)). Creyon chose the stock blade over the skin's shape
+recoloured: the colour is exact and the width is stock. Checked on Linux x86_64: the workspace
+format check, build, tests (the duel rule, the stock blade and sounds while plain) and clippy.
+Not verified: in a duel in game.
+
 ## Blade numbers only with debug collectibles
 
 21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless
@@ -1701,6 +1763,25 @@ and its people, sender cards, the profile card and the SJK scoreboard
 on top of `trust`): an older hub refuses the change and sends no emoji. Checked by unit
 tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
 chat box, scoreboard). Not tried in the game or against a running hub.
+
+## Hax toy
+
+21/10/2026, `personal/hax` (Sol's idea) with hub branch `hax`: a meme toy
+([client.md](client.md#hax)). `toy_hax` (bind, quick wheel Toys page, Collection's Toys
+tab) turns it on and the look's `toys` tells the other SJK players. `+use` held 3
+seconds on a holder in reach fills the siege hack bar with the stock hacking loop, then
+the hacked player's client plays the hacker's keys, buttons (attack, alt attack, walk)
+and view as its own commands for 5 seconds, while the hacker's camera follows them and
+the hacker's own player stands still. The exchange and the control frames go through a
+new hub endpoint, the [toy relay](hub-chat.md#toy-relay) (`POST`/`GET /v1/relay`, hub
+`main` 880b6ea, deployed 22/10/2026: unsigned requests answer 401): a long poll per holder, events only for their target, kept
+3 seconds, 40 a second per key. Checked by unit tests (the events and frames written and
+read back within the hub's rule, the steered command's angles through `delta_angles`,
+the buttons allowed, the hacker's still command and frame pacing, the relay client's
+outbox replacing frames and its reader's ids, the hub's relay store, quota, target
+filter and long poll, the wheel's Toys page, the Collection's four toys). Not tried in a
+game, with two clients or on a server; the steering's lag on a
+real connection is unmeasured.
 
 ## Order 66 toy
 
@@ -9256,6 +9337,21 @@ in a release build with Sol's HD pack, `falcon2.md3`'s worst frame went from 209
 (all its textures copied at once) to 31 ms; the retail antenna 0.8 ms. Verified by the
 viewer suite, fmt and Clippy and that ignored GPU test; an NPC or vehicle spawn was not
 tried in a game, and saber hilts an NPC brings still load on the render thread.
+
+## Movement binds on the mouse wheel
+
+Branch `personal/wheel-moveup` (21/10/2026, based on `4c3a26b2`), after Midn8Runner's
+report (Discord, 07/10): `bind MWHEELDOWN +moveup` did not jump. A notch's press and
+release share one timestamp (JoF EJK `sdl_input.cpp:1040-1049`, ioquake3 likewise), so
+the stock key state counts 0 ms of movement for it (`cl_input.cpp:465-471`, `485-517`)
+and only buttons see it (`wasPressed`, `cl_input.cpp:1659`); a jump needs `upmove` of at
+least 10 (`bg_pmove.c:2856`). SJK already matched that, so it did not jump either. Sol
+chose (21/10/2026) that the wheel should jump: a press let go in the same millisecond
+now moves the whole next user command ([client.md](client.md#useful-console-commands),
+`KeyState::tapped`). Unit tests cover the notch at 8, 7, 4 and 3 ms steps, a notch
+kept across frames until a command is made, buttons and `+forward` on the wheel, and a
+2 ms key tap keeping stock's share. No client was run: the jump on a server is
+unverified in game, as is whether EJK jumps in practice (its source says it does not).
 
 ## Implemented scope
 

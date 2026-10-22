@@ -28,6 +28,65 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+
+## 2026.1022.1 (Alpha) | 22/10/2026
+
+A small release to try the Hax, a new meme toy: hack another SJK player with the siege hack bar, then steer them for a few seconds. Duels get a setting that draws every blade plainly.
+
+> The Hax: Hold Use on a player with the toy on, then steer them for five seconds.
+> Break free: The hacked player sees it coming, and turning the toy off frees them.
+> Duel blades: A new setting draws every blade plainly in duels, swings easy to read.
+
+= cg_duelStockBlades: New: in a duel, draw every blade as a normal one in its owner's own colour, without skins or effects, so swings are easy to read.
+
+- The Hax, a new meme toy: with it on (`toy_hax`, the quick wheel's Toys page or the Collection), hold Use on another player who has it on, the siege hack bar fills with its sound, then for five seconds you steer them, running, jumping and swinging, watching from behind them while you stand still. The hacked player sees it coming and can walk away, and turning the toy off breaks free _(Sol)_
+- A new setting draws every blade as a normal one in the colour its owner set, without its skin or effects, in a private duel or on a Duel or Power Duel server: Settings, Normal blades in duels (`cg_duelStockBlades`) _(Creyon, at Sol's request)_
+
+## 2026.1021.3 (Alpha) | 21/10/2026
+
+Fewer crashes and better crash reports: a crash from a graphics card out of video memory now says what it could not make, so the next fix can aim at it. The Varykino Blossom, a new Mythical blade, joins the holocrons.
+
+> Crash fixes: No crash on a map whose sky lost its pictures with `r_cubeMapping` on.
+> Black blades: JA+ black lightsabers draw right again, without a black square.
+> Video memory: Texture detail shrinks the saber glows too; crashes name what failed.
+> Varykino Blossom: A new Mythical blade that sheds blossoms when you swing it.
+> Card perks: Cards show a badge for each perk they bring.
+> Mythical holocron: A new look, a gold engram that breathes round a glowing core.
+
+- The Mythical holocron has a new look: a faceted gold engram whose plates breathe apart round a glowing core, runes on every plate _(Sol)_
+- No more crash on a map whose sky has none of its pictures (nightmare) once reflections (`r_cubeMapping`) are on _(Sol)_
+- JA+ black lightsabers draw right again: since 2026.1021.2 they showed black squares around a lit blade _(Sol)_
+- Texture detail (Settings > Renderer) now shrinks the lightsaber glows too: on a small graphics card that frees about 280 MB of video memory on every map and in the menus, where a 3 GB card still ran out _(Sol, after Vin's report)_
+- A crash from a graphics card out of video memory now tells the team which texture it could not make and how much video memory SJK held, and the logs you send on request keep your last crash's message, not only the lines before it _(Sol, after Vin's report)_
+- The Varykino Blossom, a new Mythical saber shader found in holocrons: a soft blossom-pink blade with a pearly sheen, wreathed in lavender and white mist, blossoms drifting down round it, a flowering branch of cherry wood at its hilt and a pearl of nacre hanging at its tip; swing it and it sheds blossoms that flutter to the ground behind you. Each of its parts can be switched off in the Collection _(Sol, idea by Kushina)_
+- Cards with a perk now show it: on the Cards tab a round badge over the card's corner for each, a lightsaber when it brings a blade while you hold it, the Solar sun when its Solar copies drop its blade, a smith's hammer when it makes crafting its blade cheaper. The card up close shows the same marks, and its hover card starts each perk's line with its mark _(Sol)_
+
+## 2026.1021.2 (Alpha) | 21/10/2026
+
+The rewards promised with holocron openings are given: everyone who reported bugs or had a pull request merged has holocrons waiting, counted by one rule for all. This release brings the Forge, where the shop, crafting and breaking shaders down now live, and cheaper crafting for blade card holders.
+
+> The Forge: Shop, craft and break down shaders in one Collection tab.
+> Blade cards: Holding a shader's blade card makes crafting it cheaper.
+> Break down anything: Your last copy of a shader too, after a warning.
+> Small graphics cards: Smaller textures, fewer crashes on 4 GB or less.
+> Map changes: No more stutter rebuilding the Blade Lab blades.
+> Wheel jump: `+moveup` on the mouse wheel jumps every notch.
+
+- Bug reports, world notes and player reports now take `_ / \ + = " ; [ ] < > #`, so you can write the cvar, command or bind you mean (`cg_fov`, `+attack`, `bind x "say hi; kill"`) _(Sol, after players' reports)_
+- The Bug Hunter medal is now held once, like the other medals: bug hunting is rewarded with holocrons instead. A medal already waiting to be announced no longer shows its card a second time when another medal or a note changes _(Sol)_
+- SJK now reads how much video memory your graphics card has: on a card of 4 GB or less it starts with smaller textures (Texture detail 1, or 2 at 3 GB or less) and the menus on pictures, once a card, so you can set them back. With the menu pictures on, the Collection, shop and holocron openings show each saber shader as a drawing instead of the live blade _(Sol, after Vin's report)_
+- SJK Blades cards now make crafting cheaper: while you hold a copy of a saber shader's blade card, crafting that shader costs its shop price with a Normal copy, or half with a Holo or Solar one, and you keep the card. The Forge's Craft button shows the lower price, and a blade card you hold has a button on the Cards tab that leads to its shader: to Craft in the Forge while you lack it, else to the Shaders tab _(Sol)_
+- Blade skins load only when someone on the server uses one: their textures (about 45 MB of video memory for all 165 of the hub's skins) and their signature shaders wait until a blade, the preview or the Collection draws them, so small graphics cards run out of video memory less often _(Sol, after players' reports)_
+- Map changes no longer build every Blade Lab signature shader again: about 130 shader builds a map, on two or three more threads each time that never stopped, ran while the next map loaded and the last one was still played: a stutter at every map change _(Sol, after players' FPS reports)_
+- Turning vertical sync on or off with supersampling on no longer crashes the game _(Sol, after darkenedways' report)_
+- Graphics cards of 4 GB or less: a new Texture detail setting (Settings > Renderer, `r_picmip` as in Jedi Academy) halves large textures for a quarter of their video memory each step, and after the menus switch to pictures each map that runs out of video memory lowers it one more step (to 2 at most). Changing your character's head, torso or legs when the card is full no longer crashes the game: that model just does not show _(Sol, after Vin's report)_
+- The Forge, a new Collection tab beside Holocrons for everything kyber shards and credits trade: Shop (your four daily offers as large cards with their live blades, and the holocrons credits buy), Craft (every shader you lack, as a grid or a list, with tier chips, Affordable and a search) and Break down (your own copies, duplicates first, with Break down all duplicates). The old shop over the Holocrons tab and the Shaders tab's Shatter and Craft buttons now lead there _(Sol)_
+- Break down any saber shader you own, not just duplicates: your last copy too, for the same kyber shards, after a warning that it leaves your collection (and your saber, if you wear it). A shader that comes with a card or a medal stays with it _(Sol)_
+- `+moveup` on the mouse wheel jumps: each notch now counts as held for one whole move, so `bind MWHEELDOWN +moveup` jumps every notch, and other movement binds on the wheel move too (`+attack`, `+use` and the other buttons already worked) _(Sol, after Midn8Runner's report)_
+
 ## 2026.1021.1 (Alpha) | 21/10/2026
 
 Holocron openings are here for everyone, with kyber shards, shattering, crafting and a daily shop of your own: this release is needed to open them. Testers and bug reporters will soon get rewards for what they have already done, and will keep earning them as they go on, by a fair rule that counts everyone's work the same way. Open everything you hold without fear: if the odds change in the future, everyone who opened before will be compensated to match. All of it will keep improving: a better shop, breaking down any saber shader you own and not just duplicates (except those that come with a card), and more to come.

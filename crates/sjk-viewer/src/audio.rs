@@ -126,6 +126,9 @@ pub(crate) struct GameAudio {
     /// The cardboard box's music on each boxed player this frame (`cardboard_box.rs`):
     /// their slot, and where they stand (`None`: the player's own, in both ears).
     box_music: Vec<(SourceId, Option<[f32; 3]>)>,
+    /// The Hax toy's hacking sound this frame (`hax.rs`): the hacker's slot, and where
+    /// they stand (`None`: the player's own, in both ears).
+    hax_loop: Option<(SourceId, Option<[f32; 3]>)>,
 }
 
 impl GameAudio {
@@ -214,6 +217,7 @@ impl GameAudio {
             blade_skins: Arc::default(),
             saber_sets_generation: None,
             box_music: Vec::with_capacity(8),
+            hax_loop: None,
             map_music: None,
             duel_music: None,
             deferred_snapshots: VecDeque::with_capacity(16),
@@ -491,6 +495,11 @@ impl GameAudio {
         );
     }
 
+    /// The Hax toy's hacking sound this frame, played with the frame's loops.
+    pub(crate) fn set_hax_loop(&mut self, hacking: Option<(u8, Option<[f32; 3]>)>) {
+        self.hax_loop = hacking.map(|(slot, origin)| (SourceId(u32::from(slot)), origin));
+    }
+
     /// Rebuild all codemp loops at rendered cadence from interpolated origins.
     ///
     /// The set is bracketed by `ClearLoops`/`CommitLoops` because the audio
@@ -515,29 +524,40 @@ impl GameAudio {
 
     /// The box music joins the loop set, a loop per boxed player (none for a player
     /// muted here); it is the music of the toy, not the map's, so it ignores `s_musicVolume`.
+    /// The Hax toy's hacking sound joins it the same way.
     fn send_box_music(&mut self) {
-        let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) else {
-            return;
-        };
-        for &(source, origin) in &self.box_music {
-            if self.mute.silences(source, None) {
-                continue;
+        if let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) {
+            for index in 0..self.box_music.len() {
+                let (source, origin) = self.box_music[index];
+                self.send_toy_loop(handle, source, origin);
             }
-            self.output.send(AudioCommand::SetLoop(
-                handle,
-                PlayRequest {
-                    origin,
-                    source,
-                    channel: TOY_CHANNEL,
-                    volume: 1.0,
-                    attenuation: match origin {
-                        Some(_) => sjk_client::legacy_sound_attenuation(0),
-                        None => sjk_audio::Attenuation::None,
-                    },
-                },
-                [0.0; 3],
-            ));
         }
+        if let (Some(handle), Some((source, origin))) =
+            (self.find_handle(crate::hax::HACK_SOUND), self.hax_loop)
+        {
+            self.send_toy_loop(handle, source, origin);
+        }
+    }
+
+    /// A toy's loop on `source` at `origin` (`None`: in both ears), unless muted here.
+    fn send_toy_loop(&mut self, handle: SoundHandle, source: SourceId, origin: Option<[f32; 3]>) {
+        if self.mute.silences(source, None) {
+            return;
+        }
+        self.output.send(AudioCommand::SetLoop(
+            handle,
+            PlayRequest {
+                origin,
+                source,
+                channel: TOY_CHANNEL,
+                volume: 1.0,
+                attenuation: match origin {
+                    Some(_) => sjk_client::legacy_sound_attenuation(0),
+                    None => sjk_audio::Attenuation::None,
+                },
+            },
+            [0.0; 3],
+        ));
     }
 
     fn send_frame_loops(

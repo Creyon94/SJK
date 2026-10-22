@@ -24,6 +24,87 @@
 
 # ---- Console & chat ----
 
+[duel-stock-blades]
+area: Rendering & effects
+title: Normal blades in duels (cg_duelStockBlades, Creyon #192)
+change: With it on, every blade is the stock one in its owner's colour, stock sounds,
+change: in a private duel you play or follow, and on a Duel or Power Duel server.
+test: Settings, Game options: turn on Normal blades in duels; wear a blade skin.
+test: Local server: start a private duel: both blades go stock, skins back when it ends.
+test: g_gametype 3: every blade stock; turn the setting off: skins come back.
+note: Off by default; the What's new card offers it.
+
+[hax]
+area: Gameplay
+title: The Hax toy: hack another player, then steer them for 5 s
+change: toy_hax (key, quick wheel Toys page, Collection Toys tab) turns it on or off.
+change: Hold Use 3 s on a holder in reach: siege hack bar and sound, then you steer them 5 s.
+change: Their client plays your keys, swings and view; you watch from behind, your body stays.
+test: Two SJK clients on one server, both toy_hax on; A holds Use facing B up close.
+test: A: bar under the crosshair, hacking loop; B: "A is hacking you!", same bar, the loop.
+test: Release Use or walk away mid-hack: the bar goes on both.
+test: Bar full: both hear the mind trick; A's camera goes behind B, A's mouse turns B.
+test: A runs, jumps, crouches, walks, swings: B does it; B's own keys do nothing; 5 s, then free.
+test: B turns toy_hax off while steered: free at once, A reads "B broke free".
+test: Again at once: A "Hax again in N s"; B immune 15 s; in a duel: "Hack failed ... duel".
+note: Uses the hub's toy relay (deployed 22/10/2026); without cl_identity nothing happens.
+
+[sky-empty-box]
+area: Rendering & effects
+title: No crash on a sky with every box face missing
+change: A sky with all six outer-box pictures missing (ct on nightmare) crashed with reflections on.
+test: r_cubeMapping 1, vid_restart, then join a server on nightmare: no crash.
+test: The sky still looks as before (log: sky textures/skies/ct missing outer-box face ...).
+
+[kyber-crystals]
+area: Menus & settings
+title: Kyber crystals from achievements
+change: Each achievement brings a kyber crystal once (Uncommon to Mythical); it opens to a shader.
+change: Holocrons tab: a Kyber crystals row with the pity line; L on a crystal shows their odds.
+change: Achievements tab, hover card and unlock card say the crystal each achievement brings.
+test: Collection > Holocrons: four crystal tiles under the holocrons, the pity line at the right.
+test: Choose a crystal (5 to 8, arrows): caption, what it gives, hover card; L for its table.
+test: debug_open kyber_rare x3: the strip shows shaders only, then each shader's entrance.
+test: debug_holocron kyber: four arrivals, Earned from an achievement, no chat line.
+test: Collection > Achievements: Reward: <tier> Kyber Crystal up close and on hover.
+note: The hub side is built in parallel; until it is deployed no crystal is held for real.
+note: The 3D crystal is today's Mythical holocron model until the crystal models land.
+
+[card-perks]
+area: Menus & settings
+title: Perk marks on cards
+change: Cards tab: a round badge per perk over a tile's top left corner (saber, Solar sun, hammer).
+change: The card up close lists the marks after its set; the hover card puts each before its line.
+test: Collection > Cards: the Sun card has a saber badge; each SJK Blades card a sun and a hammer.
+test: Badges show on cards not found yet too (dimmer), and never cover the x2 count.
+test: Hover a blade card: its two perk lines start with the sun and the hammer.
+test: Choose it: the line under 'held' ends with the same marks.
+
+[blade-card-craft]
+area: Menus & settings
+title: Blade cards craft their saber shader for less
+change: Holding a copy of a shader's SJK Blades card: Craft costs the shop price (Normal) or half.
+change: The Craft button says 'Holo card -50 %'; the blade card's hover card says it crafts for less.
+test: Local hub on feat/blade-card-craft; reveal a blade card for a shader you do not hold.
+test: Collection > Forge > Craft, that shader: Craft shows the lower cost and the card's finish.
+test: Craft it: the shards spent match the button; the card stays in the Cards tab.
+test: Collection > Cards, hover the blade card: 'Any copy crafts the ... blade for less.'
+test: Choose a held blade card you lack: 'Craft the ... in the Forge' opens Forge > Craft on it.
+test: One whose shader you hold: 'Go to the ... blade' opens Shaders on that shader.
+test: Set a Shaders or Craft filter (T) first: the button still lands on it, filter cleared.
+note: The live hub gives no discount until feat/blade-card-craft is deployed (full cost shown).
+
+[forge]
+area: Menus & settings
+title: The Forge: Shop, Craft and Break down in one Collection tab
+change: New Forge tab after Holocrons; the shop overlay and Shaders' Shatter/Craft lead to it.
+change: Break down a last copy too (hub shatter_last), after a warning card; all duplicates at once.
+test: Local hub from SJK-hub main: Collection > Forge, Tab through Shop, Craft and Break down.
+test: Buy an offer and a holocron, craft one, break a duplicate down: each asks twice first.
+test: Break down your last copy of the worn blade: warning card, then saber back to stock.
+test: B on Break down: all duplicates card, one of each kept; Holocrons S opens Forge > Shop.
+note: Against the live hub (no abilities yet) Break down lists duplicates only.
+
 [min-client]
 area: Menus & settings
 title: Holocrons tab says to update when the hub needs a newer SJK
@@ -274,6 +355,15 @@ test: In that key's game: the console says the team asks; the main menu shows th
 test: Send logs: the console thanks you. Staff > Logs > Refresh: sent; Open opens the text.
 test: Staff > Crashes: kinds listed; choose one, Open a report: it opens as a text file.
 note: Needs the hub's feat/log-requests deployed; older hubs answer 404 (asked again hourly).
+
+[crash-names]
+area: Console & chat
+title: Crash reports name what ran out of video memory; logs keep the crash's message
+change: An uncaught GPU error names what failed: Out of Memory (In Device::create_texture, ...).
+change: It adds the causes and the video memory SJK held (MiB in use and reserved).
+change: Sent logs keep last-crash.txt's head (message, backtrace) whole, then its newest lines.
+test: Request logs from your own key, Send logs: the crash part starts with its header.
+note: The new message shows only after a real out-of-memory crash on a small card.
 
 [config-save-quiet]
 area: Console & chat
@@ -1642,6 +1732,62 @@ note: Not tried in a running client: the HUD hiding and the compact board over a
 note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab is pressed again.
 
 # ---- Rendering & effects ----
+
+[varykino-blossom]
+area: Rendering & effects
+title: Varykino Blossom, a Mythical blade that sheds blossoms
+change: Blade 166 (Kushina's idea): pink blade, lavender mist, drifting blossoms, branch at the hilt.
+change: Swinging it sheds real petals that flutter down behind the blade, land and fade.
+test: Wear it (staff grant saber_varykino_blossom): a flowering branch beside the emitter.
+test: A pink nacre pearl hangs at the tip; a clash bursts it into petals and it grows back.
+test: Swing hard: petals trail the swing and settle; still, turning or running sheds none.
+test: Collection > Shaders > its parts: Falling blossoms off, swing: no petals.
+test: A second client sees your petals, and none once you switched them off.
+note: Hub drops need the hub branch varykino-blossom deployed; the client's own file draws it.
+
+[lazy-blade-skins]
+area: Rendering & effects
+title: Blade skins and signature shaders load only when a blade draws them
+change: A skin's textures upload, and its signature builds, once a blade/preview/picture uses it.
+test: Join a server: the log has signature builds only for blades people wear.
+test: Open the Collection's blades: each shows its blade (its own effects after a moment).
+test: Wear a signature blade you never showed before: it draws plain for a moment, then its own.
+
+[fps-fixes]
+area: Rendering & effects
+title: Map changes keep the blade signatures; vsync with supersampling no longer crashes
+change: Signature shaders are built once per game, not again (~130 builds) at every map change.
+change: Turning r_vsync on or off no longer remakes the scene depth at the window's size.
+test: Join a server, change map: the log has no "signature shader built" lines the 2nd time.
+test: r_superSample 2, then toggle r_vsync 1 / 0 in game: no crash.
+note: Map changes should stutter less on CPUs with few cores.
+
+[texture-detail]
+area: Rendering & effects
+title: Texture detail (r_picmip) and no crash when the card is full
+change: r_picmip 0-3 halves textures larger than 128 pixels per step, from the next map.
+change: The creator's head/torso/legs model that runs out of video memory just does not show.
+test: Settings > Renderer > Texture detail 2, join a map: textures look softer, no crash.
+test: Set it back to 0, join again: textures are sharp again.
+test: In the creator, change head, torso and legs several times: still fine.
+note: The out-of-memory ladder (pictures, then picmip 1, 2) needs a small card to see.
+
+[vram-detect]
+area: Rendering & effects
+title: Small graphics cards found at start
+change: A card of 4 GB or less starts on Texture detail 1 (2 at 3 GB) and menu pictures, once.
+change: With menu pictures on, saber shader swatches are drawings, not the live blades.
+test: The log names your card and its video memory at start (graphics card: ...).
+test: ui_menuPictures 1: Collection Shaders tab shows drawn blades; 0: live blades again.
+note: Your 16 GB card changes nothing; r_videoMemoryChecked 0 makes it check again.
+
+[saber-picmip]
+area: Rendering & effects
+title: Texture detail shrinks the saber glows too
+change: r_picmip halves the saber glow and core images like world textures (300 MiB to 28 at 2).
+test: Settings > Renderer > Texture detail 2, join a map, light a saber: glow looks the same.
+test: Texture detail 0, join again: glow unchanged, no stutter when the map loads.
+note: Measured with menu_pictures_vram (world shot); a 3 GB card needs to confirm in play.
 
 [sun-signature]
 area: Rendering & effects
@@ -4631,7 +4777,7 @@ title: New medal pop-up, animation and fanfare (SJK PR #59)
 change: The medal notice follows the menu style: SJK UI floating text, classic+ box.
 change: The medal flies in with a burst and ring, then idles; a key or click skips the entrance.
 change: Fanfare from music/goodsmall.mp3; debug_medal rehearses without the hub or medals_seen.
-test: debug_medal bug_hunter x3 in the SJK UI: three pop-ups, Next, then Close on the last.
+test: debug_medal all in the SJK UI: one pop-up per medal, Next, then Close on the last.
 test: Same with ui_menuStyle classic: the box with NEXT / CLOSE; Enter, Space, Escape and click work.
 test: debug_medal alone lists the ids; restart: nothing was saved as seen.
 note: Not seen or heard in a game yet.
@@ -5053,7 +5199,7 @@ title: New medals and holocrons in a match: the achievement card; the big pop-up
 change: A medal or holocron that comes mid-match shows the achievement card, not a centre print.
 change: Medal: medallion, name (x2), what it is for. Holocron: icon or gem, light in its tier colour.
 change: Esc still opens the big pop-up, which takes the card away. Settings > Sound > Unlock sound.
-test: In a match: debug_medal bug_hunter x2 - "New medal", Bug Hunter x2, chime; no centre print.
+test: In a match: debug_medal bug_hunter - "New medal", Bug Hunter, chime; no centre print.
 test: Press Esc while the card shows: the big medal pop-up opens; after Close the card is gone.
 test: debug_holocron all in a match: three cards in turn (green, blue, purple); Esc shows all four.
 test: debug_holocron rare, then unlock an achievement: the cards queue and never overlap.
@@ -5956,3 +6102,19 @@ change: The log says R_FindImageFile could not find '<image>' in shader '<name>'
 test: Load maps and models with community skins: no magenta checkers anywhere.
 test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
 note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).
+
+[wheel-moveup]
+area: Input
+title: +moveup on the mouse wheel jumps every notch
+change: A press let go in the same millisecond (a wheel notch) moves the whole user command.
+change: Stock counted it only for buttons; movement got 0, so the wheel never jumped.
+test: bind MWHEELDOWN +moveup, scroll one notch: one jump each notch, at 125 and 333 FPS.
+test: Held keys and short taps of Space move as before; +attack on the wheel still swings.
+
+[report-chars]
+area: Menus & settings
+title: Reports take _ / \ + = " ; [ ] < > #
+change: Bug reports, notes and player reports accept the characters of cvars and binds.
+change: @ * & | ~ backtick $ % ^ and braces stay refused; the rules line lists what is taken.
+test: Report a bug: 'bind x "say hi; kill" [90] <value> cg_fov_2' is sent, no refusal.
+test: A report with @ or {braces}: refused, the message lists the allowed characters.

@@ -51,6 +51,7 @@ impl GpuState {
             .unwrap_or_default();
         self.update_cardboard_box(Instant::now(), &toy_events);
         self.update_order66(&toy_events);
+        self.update_hax();
         if !due {
             return;
         }
@@ -96,6 +97,10 @@ impl GpuState {
         let _ = player_identity::with_snapshot(|snapshot| {
             crate::loot_odds::follow(&snapshot.loot);
             crate::economy::follow(snapshot.economy.as_ref());
+            crate::kyber::follow(snapshot.kyber.as_ref());
+            if let Some(me) = &snapshot.me {
+                crate::kyber::follow_rewards(&me.achievements);
+            }
         });
         self.update_achievements();
         self.update_holocron_activity();

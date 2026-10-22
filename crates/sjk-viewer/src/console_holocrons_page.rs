@@ -72,15 +72,10 @@ impl ViewerConsole {
                     );
                 }
             }
-            // Without the identity the shop says it is still reading; nothing else to say.
-            PanelAction::ReadShop => {
-                let _ = crate::player_identity::read_shop();
-            }
-            PanelAction::Buy(id) => {
-                let _ = crate::player_identity::buy(&id);
-            }
-            PanelAction::BuyHolocron(tier) => {
-                let _ = crate::economy::buy_holocron(&tier);
+            // The shop is the Collection's Forge (21/10/2026).
+            PanelAction::Shop => {
+                let target = self.profile_hub_return;
+                self.open_forge(super::collection_panel::forge::Section::Shop, target);
             }
         }
     }
@@ -160,10 +155,6 @@ impl ViewerConsole {
         }
         let now = std::time::Instant::now();
         self.holocrons_panel.refresh(now, || Data::read(enabled));
-        // The shop's day turned while it shows: its new offers.
-        if self.holocrons_panel.shop_due(now) {
-            let _ = crate::player_identity::read_shop();
-        }
         // The opening's answer is looked for every frame only while the page waits.
         if self.holocrons_panel.opening() {
             let outcome = crate::player_identity::opening_outcome();
@@ -233,26 +224,10 @@ impl ViewerConsole {
         self.holocrons_panel.show_loot(show);
     }
 
-    /// Show the shop over the open page (`true`) or the page, for a world shot; with
-    /// `confirm`, offer `confirm`'s Buy waits for its second press.
-    #[cfg(test)]
-    pub(crate) fn preview_shop(&mut self, show: bool, confirm: Option<usize>) {
-        let _ = self.holocrons_panel.show_shop(show);
-        if let Some(index) = confirm {
-            self.holocrons_panel.confirm_for_shot(index);
-        }
-    }
-
     /// Show Open all's question over the open page, for a world shot.
     #[cfg(test)]
     pub(crate) fn preview_ask_all(&mut self) {
         self.holocrons_panel.ask_all_for_shot();
-    }
-
-    /// Say what came of a purchase asked from the shop, for a world shot.
-    #[cfg(test)]
-    pub(crate) fn preview_shop_answer(&mut self) {
-        self.holocrons_panel.asked_for_shot();
     }
 
     /// Show the hover card of tier row `index` on the open page, for a world shot.

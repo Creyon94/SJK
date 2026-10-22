@@ -9,10 +9,14 @@
 //! `economy::in_trade`). Cards are luck only, hats and capes free for everyone: neither is
 //! ever sold, crafted or shattered.
 //!
-//! The Shaders tab's hooks (its shader cards' Shatter and Craft): [`in_trade`],
-//! [`choices`], [`shatter_yield`], [`craft_cost`], [`balance`], [`can_trade`],
-//! [`shatter`], [`craft`], [`trade_outcome`] and [`outcome_words`]. The shop is the
-//! Holocrons tab's ([`crate::holocrons_panel`]).
+//! The Collection's Forge tab (21/10/2026, `crate::console::collection_panel::forge`)
+//! trades through these: [`in_trade`], [`shatter_yield`], [`craft_cost`],
+//! [`craft_price`] (a held blade card's copy crafts its shader for less, [`blade_cards`]),
+//! [`may_act`],
+//! [`shatter`], [`shatter_last`], [`shatter_all`], [`craft`], [`buy_holocron`] and
+//! [`outcome_words`]; the shop's offers are read and bought through
+//! `crate::player_identity`. Before, Shatter and Craft stood on the
+//! Shaders tab's cards and the shop over the Holocrons tab.
 
 use crate::unlockables::{Rarity, Unlockable};
 use std::sync::Mutex;
@@ -33,6 +37,10 @@ pub(crate) struct Tables {
     pub(crate) shop_in_shards: bool,
     /// What an Uncommon and a Rare holocron cost in credits; 0 when not for sale.
     pub(crate) holocrons: [u64; 2],
+    /// What crafting a shader costs while the player holds a copy of its blade card, in
+    /// per cent of the craft cost, by the best copy's finish ([`crate::cards::FINISHES`]'
+    /// order); 100 is no discount, as hubs before 21/10/2026 take.
+    pub(crate) blade_card_craft: [u64; 3],
 }
 
 /// This client's copy of the hub's tables (`src/economy.rs` there, provisional
@@ -43,6 +51,7 @@ pub(crate) const BUILT_IN: Tables = Tables {
     shop: [30, 75, 225, 600, 1_500],
     shop_in_shards: true,
     holocrons: [150, 400],
+    blade_card_craft: [75, 50, 50],
 };
 
 /// The holocron tiers credits may buy, by the hub's ids, in [`Tables::holocrons`]' order.
@@ -77,6 +86,14 @@ fn of_hub(economy: &sjk_identity::EconomyTables) -> Option<Tables> {
         shop: row(&economy.shop)?,
         shop_in_shards: economy.shop_currency == "shards",
         holocrons: HOLOCRONS_FOR_SALE.map(|tier| economy.holocrons.get(tier).copied().unwrap_or(0)),
+        blade_card_craft: crate::cards::FINISHES.map(|finish| {
+            economy
+                .blade_card_craft
+                .get(finish.id)
+                .copied()
+                .filter(|share| (1..=100).contains(share))
+                .unwrap_or(100)
+        }),
     })
 }
 
@@ -124,47 +141,63 @@ pub(crate) fn shards_text(shards: u64) -> String {
     crate::cards::grouped(shards)
 }
 
-/// What a shader card may offer for `skin`, held `held` times by grant or drops (a
-/// medal's copy is not counted), the player holding `shards`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct Choices {
-    /// Shatter one duplicate for this many shards: only of the trade, with two or more.
-    pub(crate) shatter: Option<u64>,
-    /// Craft it for this many shards: only of the trade, held none.
-    pub(crate) craft: Option<u64>,
-    /// Whether the player's shards pay for the craft.
-    pub(crate) affordable: bool,
-}
-
-/// What a shader card may offer for `skin` (see [`Choices`]).
-pub(crate) fn choices(skin: &Unlockable, held: u32, shards: u64) -> Choices {
-    if !in_trade(skin) {
-        return Choices {
-            shatter: None,
-            craft: None,
-            affordable: false,
+/// The finish of the best revealed copy of a blade card the player holds, by the shader
+/// it is the blade card of: each of `cards` (the player's) whose face in `faces` names a
+/// `blade` this client knows, the best finish kept for each shader.
+pub(crate) fn blade_cards(
+    cards: &[sjk_identity::CardStack],
+    faces: &crate::cards::faces::Faces,
+) -> Vec<(&'static str, &'static crate::cards::Finish)> {
+    let mut best: Vec<(&'static str, &'static crate::cards::Finish)> = Vec::new();
+    for stack in crate::cards::stacks(cards) {
+        let Some(skin) = stack
+            .card
+            .as_deref()
+            .and_then(|id| faces.find(id))
+            .and_then(|(_, face)| crate::unlockables::find(face.blade.as_deref()?))
+        else {
+            continue;
         };
+        match best.iter_mut().find(|(id, _)| *id == skin.id) {
+            Some(kept) if kept.1.index < stack.finish.index => kept.1 = stack.finish,
+            Some(_) => {}
+            None => best.push((skin.id, stack.finish)),
+        }
     }
-    let cost = craft_cost(skin.tier);
-    Choices {
-        shatter: (held > 1).then(|| shatter_yield(skin.tier)),
-        craft: (held == 0).then_some(cost),
-        affordable: shards >= cost,
-    }
+    best
 }
 
-/// The player's credits and kyber shards, once the hub sent their profile.
-pub(crate) fn balance() -> Option<(u64, u64)> {
-    crate::player_identity::with_snapshot(|snapshot| {
-        snapshot.me.as_ref().map(|me| (me.credits, me.shards))
-    })
-    .flatten()
+/// The finish of the best revealed copy among `cards` (the player's) of a blade card of
+/// `skin` (`faces`' cards whose `blade` it is), `None` without one.
+pub(crate) fn blade_card(
+    skin: &Unlockable,
+    cards: &[sjk_identity::CardStack],
+    faces: &crate::cards::faces::Faces,
+) -> Option<&'static crate::cards::Finish> {
+    blade_cards(cards, faces)
+        .into_iter()
+        .find(|(id, _)| *id == skin.id)
+        .map(|(_, finish)| finish)
 }
 
-/// Whether the hub lets the player trade now: as for opening holocrons, only staff while
-/// opening is tested (false until the hub said).
-pub(crate) fn can_trade() -> bool {
-    crate::player_identity::with_snapshot(may_act).unwrap_or(false)
+/// The per cent of the craft cost paid with a copy of finish `finish` of the shader's
+/// blade card (100: none, or a hub that gives no discount).
+pub(crate) fn blade_card_share(finish: &crate::cards::Finish) -> u64 {
+    current().blade_card_craft[finish.index]
+}
+
+/// What crafting `skin` costs in kyber shards while the player holds, at best, a copy of
+/// its blade card of finish `card` ([`blade_card`]; 21/10/2026), and that copy's finish
+/// with how much it took off in per cent when it lowered the cost (`None` at full cost).
+pub(crate) fn craft_price(
+    skin: &Unlockable,
+    card: Option<&'static crate::cards::Finish>,
+) -> (u64, Option<(&'static crate::cards::Finish, u64)>) {
+    let full = craft_cost(skin.tier);
+    let off = card
+        .map(|finish| (finish, 100 - blade_card_share(finish)))
+        .filter(|(_, off)| *off > 0);
+    (off.map_or(full, |(_, off)| full * (100 - off) / 100), off)
 }
 
 /// Whether `snapshot` lets the player open holocrons and trade: the hub said they may
@@ -189,29 +222,37 @@ pub(crate) fn update_line(min: &str) -> String {
 }
 
 /// Shatter one duplicate of shader `id`; false when the identity has not started. What
-/// came of it arrives in [`trade_outcome`].
+/// came of it arrives in the snapshot's `trade`.
 pub(crate) fn shatter(id: &str) -> bool {
     crate::player_identity::with_service(|service| service.shatter(id)).is_some()
 }
 
+/// Break shader `id` down, its last copy too (a hub whose economy says `shatter_last`);
+/// false when the identity has not started. What came of it arrives in the snapshot's `trade`.
+pub(crate) fn shatter_last(id: &str) -> bool {
+    crate::player_identity::with_service(|service| service.shatter_last(id)).is_some()
+}
+
+/// Break every duplicate down, one copy of each kept (a hub whose economy says
+/// `shatter_duplicates`); false when the identity has not started. What came of it
+/// arrives in the snapshot's `trade`.
+pub(crate) fn shatter_all() -> bool {
+    crate::player_identity::with_service(|service| service.shatter_duplicates()).is_some()
+}
+
 /// Craft shader `id` with kyber shards; false when the identity has not started. What
-/// came of it arrives in [`trade_outcome`].
+/// came of it arrives in the snapshot's `trade`.
 pub(crate) fn craft(id: &str) -> bool {
     crate::player_identity::with_service(|service| service.craft(id)).is_some()
 }
 
 /// Buy a holocron of tier `tier` with credits; false when the identity has not started.
-/// What came of it arrives in [`trade_outcome`], the holocron in the player's list.
+/// What came of it arrives in the snapshot's `trade`, the holocron in the player's list.
 pub(crate) fn buy_holocron(tier: &str) -> bool {
     crate::player_identity::with_service(|service| service.buy_holocron(tier)).is_some()
 }
 
-/// What became of the last shatter, craft or purchase, once the identity has started.
-pub(crate) fn trade_outcome() -> Option<sjk_identity::TradeOutcome> {
-    crate::player_identity::with_snapshot(|snapshot| snapshot.trade.clone()).flatten()
-}
-
-/// What a trade's outcome says, in a line: "Tidal blade shattered: +5 kyber shards.",
+/// What a trade's outcome says, in a line: "Kamino blade broken down: +5 kyber shards.",
 /// or why it failed. `name` is the shader's name (a holocron's tier name for one bought).
 pub(crate) fn outcome_words(outcome: &sjk_identity::TradeOutcome, name: &str) -> String {
     use sjk_identity::Trade;
@@ -220,7 +261,19 @@ pub(crate) fn outcome_words(outcome: &sjk_identity::TradeOutcome, name: &str) ->
     }
     let amount = shards_text(outcome.amount);
     match outcome.trade {
-        Trade::Shatter => format!("{name} shattered: +{amount} kyber shards."),
+        Trade::Shatter => format!("{name} broken down: +{amount} kyber shards."),
+        Trade::ShatterLast => {
+            format!("{name} broken down: +{amount} kyber shards. It has left your collection.")
+        }
+        Trade::ShatterAll => format!(
+            "{} {} broken down: +{amount} kyber shards.",
+            outcome.copies,
+            if outcome.copies == 1 {
+                "duplicate"
+            } else {
+                "duplicates"
+            }
+        ),
         Trade::Craft => format!("{name} crafted for {amount} kyber shards. It is yours."),
         Trade::Buy if shop_in_shards() => {
             format!("{name} bought for {amount} kyber shards. It is yours.")
@@ -247,6 +300,7 @@ mod tests {
         assert_eq!(BUILT_IN.shop, [30, 75, 225, 600, 1_500]);
         const { assert!(BUILT_IN.shop_in_shards) };
         assert_eq!(BUILT_IN.holocrons, [150, 400]);
+        assert_eq!(BUILT_IN.blade_card_craft, [75, 50, 50]);
         for table in [BUILT_IN.shatter, BUILT_IN.craft, BUILT_IN.shop] {
             assert!(table.windows(2).all(|pair| pair[0] < pair[1]));
         }
@@ -277,6 +331,20 @@ mod tests {
         })
         .unwrap();
         assert_eq!((newer.shop_in_shards, newer.holocrons), (true, [0, 400]));
+        // A hub before blade cards crafted for less: the full cost with every finish.
+        assert_eq!(newer.blade_card_craft, [100, 100, 100]);
+        let cards = of_hub(&sjk_identity::EconomyTables {
+            blade_card_craft: [("normal".to_owned(), 75), ("holo".to_owned(), 0)]
+                .into_iter()
+                .collect(),
+            ..wire(vec![1, 2, 3, 4, 5])
+        })
+        .unwrap();
+        assert_eq!(
+            cards.blade_card_craft,
+            [75, 100, 100],
+            "a zero is no discount"
+        );
         assert_eq!(of_hub(&wire(vec![1, 2, 3, 4])), None, "four tiers");
         assert_eq!(of_hub(&wire(vec![0, 2, 3, 4, 5])), None, "a zero");
     }
@@ -300,27 +368,85 @@ mod tests {
     }
 
     #[test]
-    fn a_card_offers_shatter_for_duplicates_and_craft_for_what_is_missing() {
-        let tidal = unlockables::find("saber_tidal").unwrap();
-        let none = choices(tidal, 0, 0);
-        assert_eq!(
-            (none.shatter, none.craft, none.affordable),
-            (None, Some(40), false)
-        );
-        assert!(choices(tidal, 0, 40).affordable);
-        let one = choices(tidal, 1, 500);
-        assert_eq!(
-            (one.shatter, one.craft),
-            (None, None),
-            "the last copy stays"
-        );
-        assert_eq!(choices(tidal, 3, 0).shatter, Some(5));
-        let glitch = unlockables::find("saber_glitch").unwrap();
-        let medal = choices(glitch, 4, 10_000);
-        assert_eq!((medal.shatter, medal.craft), (None, None));
+    fn the_tables_price_each_tier() {
+        assert_eq!(shatter_yield(Rarity::Common), 5);
         assert_eq!(shatter_yield(Rarity::Mythical), 150);
         assert_eq!(craft_cost(Rarity::Rare), 300);
         assert_eq!(shop_price(Rarity::Legendary), 600);
+    }
+
+    /// A blade card's copy crafts its shader at the shop's price (Normal) or half (Holo,
+    /// Solar), and says by how much; without a copy it costs the full price.
+    #[test]
+    fn a_blade_card_crafts_its_shader_for_less() {
+        let [normal, holo, solar] = &crate::cards::FINISHES;
+        let tidal = unlockables::find("saber_tidal").unwrap();
+        assert_eq!(craft_price(tidal, None), (40, None));
+        let (cost, off) = craft_price(tidal, Some(normal));
+        assert_eq!(
+            (cost, off.map(|(finish, off)| (finish.id, off))),
+            (30, Some(("normal", 25)))
+        );
+        assert_eq!(craft_price(tidal, Some(holo)).0, 20);
+        assert_eq!(craft_price(tidal, Some(solar)).0, 20);
+        let mythical = unlockables::blade_skins()
+            .find(|skin| in_trade(skin) && skin.tier == Rarity::Mythical)
+            .unwrap();
+        assert_eq!(craft_price(mythical, Some(normal)).0, 1_500);
+        assert_eq!(craft_price(mythical, Some(holo)).0, 1_000);
+    }
+
+    /// The best revealed copy of each blade card is kept, by its shader; a sealed copy, a
+    /// card that is no blade card or one of an unknown shader gives nothing.
+    #[test]
+    fn the_best_copy_of_each_blade_card_is_kept() {
+        let face = |id: &str, blade: Option<&str>| crate::cards::faces::Face {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            set: "sjk_blades".to_owned(),
+            set_name: "SJK Blades".to_owned(),
+            number: 1,
+            kind: crate::cards::faces::Kind::Blade,
+            rarity: &crate::cards::RARITIES[2],
+            lore: String::new(),
+            artist: String::new(),
+            art: String::new(),
+            grants: None,
+            blade: blade.map(str::to_owned),
+        };
+        let faces = crate::cards::faces::Faces::of_list(vec![
+            face("sun", Some("saber_sun")),
+            face("tidal", Some("saber_tidal")),
+            face("plain", None),
+            face("later", Some("saber_later")),
+        ]);
+        let copy = |card: Option<&str>, finish: &str| sjk_identity::CardStack {
+            card: card.map(str::to_owned),
+            rarity: "rare".to_owned(),
+            finish: finish.to_owned(),
+            edition: "alpha".to_owned(),
+            count: 1,
+            first: 0,
+            last: 0,
+        };
+        let cards = [
+            copy(Some("sun"), "normal"),
+            copy(Some("sun"), "holo"),
+            copy(Some("tidal"), "normal"),
+            copy(Some("plain"), "solar"),
+            copy(Some("later"), "solar"),
+            copy(None, "solar"),
+        ];
+        let mut found: Vec<_> = blade_cards(&cards, &faces)
+            .into_iter()
+            .map(|(id, finish)| (id, finish.id))
+            .collect();
+        found.sort_unstable();
+        assert_eq!(found, [("saber_sun", "holo"), ("saber_tidal", "normal")]);
+        let sun = unlockables::find("saber_sun").unwrap();
+        assert_eq!(blade_card(sun, &cards, &faces).map(|f| f.id), Some("holo"));
+        let frost = unlockables::find("saber_frost").unwrap();
+        assert_eq!(blade_card(frost, &cards, &faces), None);
     }
 
     #[test]
@@ -331,11 +457,24 @@ mod tests {
             trade,
             id: "saber_tidal".to_owned(),
             amount,
+            copies: 1,
             message: String::new(),
         };
         assert_eq!(
-            outcome_words(&done(Trade::Shatter, 5), "Tidal blade"),
-            "Tidal blade shattered: +5 kyber shards."
+            outcome_words(&done(Trade::Shatter, 5), "Kamino blade"),
+            "Kamino blade broken down: +5 kyber shards."
+        );
+        assert_eq!(
+            outcome_words(&done(Trade::ShatterLast, 5), "Kamino blade"),
+            "Kamino blade broken down: +5 kyber shards. It has left your collection."
+        );
+        let all = TradeOutcome {
+            copies: 12,
+            ..done(Trade::ShatterAll, 180)
+        };
+        assert_eq!(
+            outcome_words(&all, ""),
+            "12 duplicates broken down: +180 kyber shards."
         );
         assert_eq!(
             outcome_words(&done(Trade::Buy, 1_500), "Lava Lamp blade"),

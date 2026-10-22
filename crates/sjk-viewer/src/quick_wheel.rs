@@ -493,6 +493,8 @@ pub(crate) struct Toys {
     pub(crate) cardboard_box: bool,
     /// The Order 66 toy is on.
     pub(crate) order66: bool,
+    /// The Hax toy is on.
+    pub(crate) hax: bool,
 }
 
 /// Whether a choice in `state` is in effect in `console` now; `toys` says which toys
@@ -508,6 +510,7 @@ fn in_effect(console: &crate::console::ViewerConsole, state: State, toys: Toys) 
         State::Illuminate => toys.illuminate,
         State::CardboardBox => toys.cardboard_box,
         State::Order66 => toys.order66,
+        State::Hax => toys.hax,
         State::Equals(name, value) => integer(name) == Some(value),
         State::On(name) => integer(name).is_some_and(|value| value != 0),
         State::Near(name, value) => console
@@ -668,6 +671,7 @@ impl crate::GpuState {
             illuminate: self.illuminate.lit(),
             cardboard_box: self.cardboard_box.on(),
             order66: self.order66.on(),
+            hax: self.hax.on(),
         };
         let pages = shown_pages(console, force.as_ref(), toys);
         let last = shown_index(&pages, self.quick_wheel.last_page()).unwrap_or(0);
@@ -1055,11 +1059,12 @@ mod tests {
         let toys = &pages[TOYS];
         assert_eq!((toys.id.as_str(), toys.name.as_str()), ("toys", "Toys"));
         assert!(!toys.force);
-        assert_eq!(toys.choices.len(), 4);
+        assert_eq!(toys.choices.len(), 5);
         assert_eq!(toys.choices[0].label, "Illuminate");
         assert_eq!(toys.choices[1].command, "toy_box");
         assert_eq!(toys.choices[2].command, "toy_order66");
         assert_eq!(toys.choices[3].command, "order66");
+        assert_eq!(toys.choices[4].command, "toy_hax");
         assert_eq!(toys.choices[0].command, "toy_illuminate");
         assert!(toys.choices[0].icon.is_some(), "the holocron's picture");
         // The gold dot follows the holocron: out, then lit.

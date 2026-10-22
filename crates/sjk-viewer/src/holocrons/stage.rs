@@ -3,8 +3,10 @@
 //! It turns and bobs as Illuminate's does ([`crate::illuminate`]) and is the holocron of
 //! the tier chosen in the list, each tier an object of its own (`docs/holocrons.md`, "The
 //! four holocrons"): the Jedi cube, the Great Holocron with its turning halo, the Sith
-//! pyramid with its floating cap and eye, the kyber prism in its tumbling rings with motes
-//! around it, and a point light in the tier's colour. For a tier the player holds none of
+//! pyramid with its floating cap and eye, the engram with its breathing plates, glowing
+//! seams and sparks, and a point light in the tier's colour. It also draws the four kyber
+//! crystals (`kyber_<tier>`: a crystal in its sheath, tumbling rings, motes), asked by the
+//! hub's tier id ([`Request::of`]). For a tier the player holds none of
 //! it is the locked look: the same shape drained and dark, its parts at rest, with a faint
 //! light (padlock-like dimming; it is never hidden, so every tier can be seen).
 //!
@@ -16,7 +18,7 @@
 //! it floats before the game's camera, the third-person one too: it is placed from the
 //! view the frame renders (`GpuState::frame_view`), with that view's own field.
 //!
-//! A tier is a model per part ([`PARTS`], written with the models by
+//! A form is a model per part ([`FORMS`], written with the models by
 //! `scripts/holocron_assets.py`): its body, and each part that moves against it, posed
 //! from the time ([`Part::pose`]). The locked look has models of its own because a
 //! surface's shader is named by its model file.
@@ -24,7 +26,6 @@
 //! Changing the tier shrinks the old look away and grows the new one ([`Stage`]); the
 //! frame allocates nothing.
 
-use super::COUNT;
 use crate::GpuState;
 use crate::actor_instance::ActorInstance;
 use crate::dynamic_lights::PointLight;
@@ -53,7 +54,26 @@ pub(crate) struct Part {
     precess: [f32; 2],
 }
 
+/// One thing the stage can draw: a holocron tier or a kyber crystal, by the hub's tier id
+/// (`mythical`, `kyber_rare`), the colour of its point light (linear RGB on the scale of
+/// Illuminate's `[1.5, 1.3, 1.0]`, as `scripts/holocron_assets.py`'s `Tier.light`) and its
+/// parts, the body first. [`FORMS`] is keyed by slot: the holocrons first (0-3, in
+/// [`super::TIERS`] order, so a tier's index there is its slot here), then the kyber crystals
+/// (4-7: uncommon, rare, legendary, mythical).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Form {
+    pub(crate) id: &'static str,
+    pub(crate) light: [f32; 3],
+    pub(crate) parts: &'static [Part],
+}
+
 include!("../../assets/holocron/holocron_parts.rs");
+
+/// The index in [`FORMS`] of the form the hub's tier `id` names (`rare`, `kyber_rare`), if
+/// the stage can draw it.
+pub(crate) fn form_index(id: &str) -> Option<usize> {
+    FORMS.iter().position(|form| form.id == id)
+}
 
 impl Part {
     /// Where it is and how it is turned `seconds` in, against the holocron.
@@ -85,9 +105,9 @@ impl Part {
 /// (a model the table names twice, the motes', once).
 pub(crate) fn models() -> impl Iterator<Item = &'static str> {
     let every = || {
-        PARTS
-            .into_iter()
-            .flatten()
+        FORMS
+            .iter()
+            .flat_map(|form| form.parts)
             .flat_map(|part| [part.model, part.locked])
     };
     every()
@@ -99,16 +119,30 @@ pub(crate) fn models() -> impl Iterator<Item = &'static str> {
 /// What the tab asks the stage to show.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Request {
-    /// The chosen tier, an index into [`super::TIERS`].
+    /// The form to draw, its slot: an index into [`FORMS`], 0-3 the holocron tiers in
+    /// [`super::TIERS`] order, 4-7 the kyber crystals (uncommon, rare, legendary,
+    /// mythical); [`Request::of`] and [`form_index`] find it by the hub's id.
     pub(crate) tier: usize,
     /// The player holds at least one of it: its own look, else the locked one.
     pub(crate) owned: bool,
 }
 
 impl Request {
+    /// The form the hub's tier `id` names (`mythical`, `kyber_rare`), in its own look when
+    /// `owned`, else the locked one; `None` for an id the stage cannot draw.
+    #[allow(dead_code)] // for the kyber crystals' screens, which know a form by the hub's id
+    pub(crate) fn of(id: &str, owned: bool) -> Option<Self> {
+        form_index(id).map(|tier| Self { tier, owned })
+    }
+
+    /// Its form; an index out of range is the last one, never a panic.
+    pub(crate) fn form(self) -> &'static Form {
+        &FORMS[self.tier.min(FORMS.len() - 1)]
+    }
+
     /// Its parts, the body first.
     pub(crate) fn parts(self) -> &'static [Part] {
-        PARTS[self.tier.min(COUNT - 1)]
+        self.form().parts
     }
 
     /// The model that draws `part` in its look.
@@ -127,9 +161,9 @@ impl Request {
         if self.owned { seconds } else { 0.0 }
     }
 
-    /// The light it casts: the tier's colour, a fifth as strong while locked.
+    /// The light it casts: the form's colour, a fifth as strong while locked.
     pub(crate) fn light(self) -> [f32; 3] {
-        let light = super::TIERS[self.tier.min(COUNT - 1)].light;
+        let light = self.form().light;
         let strength = if self.owned { 1.0 } else { LOCKED_LIGHT };
         light.map(|channel| channel * strength)
     }
@@ -247,6 +281,8 @@ impl GpuState {
         let wanted = console
             .and_then(crate::console::ViewerConsole::holocrons_stage)
             .filter(|_| motion.is_none_or(|motion| motion.shown));
+        #[cfg(test)]
+        let wanted = wanted.and(self.holocron_stage_request).or(wanted);
         let Some((request, level)) = self.holocron_stage.advance(wanted, now) else {
             return;
         };
@@ -312,15 +348,30 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn every_tier_has_parts_of_its_own_named_by_its_id() {
-        for (tier, parts) in super::super::TIERS.iter().zip(PARTS) {
+    fn every_form_has_parts_of_its_own_named_by_its_id() {
+        // The holocrons first, in the tiers' order and with their lights, then a kyber
+        // crystal per tier in the same order and light.
+        let tiers = &super::super::TIERS;
+        assert_eq!(FORMS.len(), 2 * tiers.len());
+        for (index, tier) in tiers.iter().enumerate() {
+            assert_eq!(FORMS[index].id, tier.id);
+            assert_eq!(FORMS[index].light, tier.light);
+            let kyber = &FORMS[tiers.len() + index];
+            assert_eq!(kyber.id, format!("kyber_{}", tier.id));
+            assert_eq!(kyber.light, tier.light);
+            assert_eq!(form_index(tier.id), Some(index));
+            assert_eq!(form_index(kyber.id), Some(tiers.len() + index));
+        }
+        assert_eq!(form_index("kyber"), None);
+        for form in &FORMS {
+            let parts = form.parts;
             // The body first, standing still at the centre.
             let body = parts[0];
-            assert_eq!(body.model, format!("models/sjk/holocron_{}.md3", tier.id));
-            assert!(!body.moves(), "{}", tier.id);
+            assert_eq!(body.model, format!("models/sjk/holocron_{}.md3", form.id));
+            assert!(!body.moves(), "{}", form.id);
             assert_eq!(body.pose(3.0), (Vec3::ZERO, Quat::IDENTITY));
             for part in parts {
-                let prefix = format!("models/sjk/holocron_{}", tier.id);
+                let prefix = format!("models/sjk/holocron_{}", form.id);
                 assert!(part.model.starts_with(&prefix), "{}", part.model);
                 assert_eq!(
                     part.locked,
@@ -330,7 +381,7 @@ mod tests {
                 );
             }
             // Every other part moves.
-            assert!(parts[1..].iter().all(Part::moves), "{}", tier.id);
+            assert!(parts[1..].iter().all(Part::moves), "{}", form.id);
         }
         let all: Vec<_> = models().collect();
         let unique: std::collections::BTreeSet<_> = all.iter().collect();
@@ -339,34 +390,37 @@ mod tests {
             !all.contains(&crate::illuminate::MODEL),
             "Illuminate's stays its own"
         );
-        // The four forms: a still cube, a halo, a cap and an eye, a crystal in two rings
-        // with ten motes.
-        let lengths: Vec<_> = PARTS.iter().map(|parts| parts.len()).collect();
-        assert_eq!(lengths, [1, 2, 3, 14]);
-        assert_eq!(all.len(), 2 * (1 + 2 + 3 + 5));
+        // The four holocrons: a still cube, a halo, a cap and an eye, the engram's shell
+        // with eight sparks round its core; then the kyber crystals, plainer the commoner:
+        // one ring and four motes, six, both rings and eight, ten.
+        let lengths: Vec<_> = FORMS.iter().map(|form| form.parts.len()).collect();
+        assert_eq!(lengths, [1, 2, 3, 10, 7, 9, 12, 14]);
+        assert_eq!(all.len(), 2 * (1 + 2 + 3 + 3 + 4 + 4 + 5 + 5));
     }
 
     /// A part's pose follows its table: the Sith pyramid's cap floats over the body and
     /// bobs, a mote circles at its height, and a locked holocron's parts keep still.
     #[test]
     fn parts_move_by_their_table_and_rest_while_locked() {
-        let cap = PARTS[2][1];
+        let cap = FORMS[2].parts[1];
         let (rest, turned) = cap.pose(0.0);
         assert_eq!(turned, Quat::IDENTITY);
         assert!(rest.z > 2.0, "above the body: {rest}");
         let (later, turned) = cap.pose(1.0);
         assert!((later.z - rest.z).abs() > 0.1, "it bobs");
         assert!(turned.angle_between(Quat::IDENTITY) > 0.1, "it turns");
-        let mote = PARTS[3][4];
-        let heights = [0.0, 1.0, 2.0].map(|t| mote.pose(t).0.z);
-        assert!(heights.iter().all(|z| (z - heights[0]).abs() < 1e-5));
-        let radii = [0.0, 1.0, 2.0].map(|t| mote.pose(t).0.truncate().length());
-        assert!(
-            radii
-                .iter()
-                .all(|r| (r - radii[0]).abs() < 1e-4 && *r > 2.0)
-        );
-        assert_ne!(mote.pose(0.0).0, mote.pose(1.0).0, "it circles");
+        // An engram's spark, then a kyber crystal's mote.
+        for mote in [FORMS[3].parts[2], FORMS[7].parts[4]] {
+            let heights = [0.0, 1.0, 2.0].map(|t| mote.pose(t).0.z);
+            assert!(heights.iter().all(|z| (z - heights[0]).abs() < 1e-5));
+            let radii = [0.0, 1.0, 2.0].map(|t| mote.pose(t).0.truncate().length());
+            assert!(
+                radii
+                    .iter()
+                    .all(|r| (r - radii[0]).abs() < 1e-4 && *r > 2.0)
+            );
+            assert_ne!(mote.pose(0.0).0, mote.pose(1.0).0, "it circles");
+        }
         let locked = Request {
             tier: 3,
             owned: false,
@@ -385,9 +439,9 @@ mod tests {
     fn every_part_is_bundled_and_moves_about_its_centre() {
         let mut vfs = sjk_vfs::VirtualFileSystem::new();
         crate::illuminate::mount(&mut vfs).unwrap();
-        for (tier, parts) in super::super::TIERS.iter().zip(PARTS) {
+        for form in &FORMS {
             let mut reach = 0.0_f32;
-            for part in parts {
+            for part in form.parts {
                 for model in [part.model, part.locked] {
                     let bytes = vfs
                         .read(model)
@@ -406,7 +460,15 @@ mod tests {
                         |(low, high), p| (low.min(*p), high.max(*p)),
                     );
                     if part.moves() {
-                        let centre = (low + high) * 0.5;
+                        // The middle of its box, or (for a five-fold shape like the
+                        // engram's shell, whose box is lopsided) of its corners.
+                        let middle = (low + high) * 0.5;
+                        let mean = points.iter().sum::<Vec3>() / points.len() as f32;
+                        let centre = if middle.length() < mean.length() {
+                            middle
+                        } else {
+                            mean
+                        };
                         assert!(centre.length() < 0.2, "{model}: centred at {centre}");
                     }
                     let (at, _) = part.pose(0.0);
@@ -417,7 +479,7 @@ mod tests {
             assert!(
                 (4.0..8.0).contains(&reach),
                 "{}: reaches {reach} units",
-                tier.id
+                form.id
             );
         }
     }
@@ -452,15 +514,25 @@ mod tests {
                 }
                 .light()[0]
         );
-        // An index out of range is the last tier, never a panic.
+        // An index out of range is the last form, never a panic.
         assert_eq!(
             Request {
-                tier: 9,
+                tier: 99,
                 owned: true
             }
             .model(),
-            PARTS[COUNT - 1][0].model
+            FORMS[FORMS.len() - 1].parts[0].model
         );
+        // A kyber crystal by the hub's id: its own parts and its tier's light.
+        let crystal = Request::of("kyber_rare", true).unwrap();
+        assert_eq!(crystal.model(), "models/sjk/holocron_kyber_rare.md3");
+        assert_eq!(crystal.light(), super::super::TIERS[1].light);
+        assert_eq!(
+            Request::of("kyber_mythical", false).unwrap().model(),
+            "models/sjk/holocron_kyber_mythical_locked.md3"
+        );
+        assert_eq!(Request::of("mythical", true), Some(owned));
+        assert_eq!(Request::of("kyber_common", true), None);
     }
 
     /// Step 60 frames a second for `seconds`; the last answer.

@@ -11,9 +11,9 @@
 //! tier held none of shows dimmed, never hidden. Under the holocron, Open opens the
 //! oldest of the tier chosen and Open all up to twenty, in a ceremony over the page
 //! ([`opening`]): each brings a sealed card and credits (`docs/cards.md`). Loot table (or
-//! L) shows the odds of everything a holocron brings over the page ([`loot`]); Shop (or S,
-//! while the hub lets the player open holocrons) the day's saber shaders sold for credits
-//! ([`shop`]). The player's credits and kyber shards stand at the panel's top right.
+//! L) shows the odds of everything a holocron brings over the page ([`loot`]); Shop (or S)
+//! shows the Collection's Forge on its Shop (since 21/10/2026: the shop was an overlay of
+//! this page before). The player's credits and kyber shards stand at the panel's top right.
 //!
 //! Up and Down (or Left and Right, or the mouse wheel) choose a tier, Tab and Shift+Tab
 //! walk them round, 1 to 4 and Home and End jump, Enter opens one, A opens all, L shows
@@ -22,7 +22,7 @@
 //! second ([`Data::read`]), never per frame; while the ceremony waits for the hub its
 //! answer is looked for every frame.
 
-use crate::holocrons::{self, COUNT, Tier};
+use crate::holocrons::{self, COUNT, SLOTS, Tier};
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
 use sjk_ui::{InputEvent, UiEventKind};
 use std::time::{Duration, Instant};
@@ -37,8 +37,6 @@ mod batch;
 mod loot;
 #[path = "holocrons_panel_opening.rs"]
 pub(crate) mod opening;
-#[path = "holocrons_panel_shop.rs"]
-pub(crate) mod shop;
 #[path = "holocrons_panel_crate.rs"]
 mod strip;
 #[path = "holocrons_panel_unseal.rs"]
@@ -52,8 +50,9 @@ pub(crate) const ROW_BASE: u16 = 1_300;
 /// Where the holocron floats on the 16:9 frame: the middle of the clear left of the page,
 /// in frame pixels (not moved with the page under the Profile screen's tabs).
 pub(crate) const STAGE_AT: [f32; 2] = [540.0, 480.0];
-/// How many recent holocrons the page lists.
-pub(crate) const RECENT_SHOWN: usize = 10;
+/// How many recent holocrons the page lists (eight since the kyber crystals took a row,
+/// 21/10/2026).
+pub(crate) const RECENT_SHOWN: usize = 8;
 /// How often the hub's counts and list are read again while the page is open.
 const REFRESH: Duration = Duration::from_millis(500);
 /// The buttons under the holocron: Open (one of the tier chosen) and Open all.
@@ -62,13 +61,8 @@ pub(crate) const OPEN_ALL_TOKEN: u16 = 1_321;
 /// Loot table, beside what the chosen tier holds, and the loot table's Back.
 pub(crate) const LOOT_TOKEN: u16 = 1_323;
 pub(crate) const LOOT_BACK_TOKEN: u16 = 1_324;
-/// Shop, beside Open all, and the shop's Back; its offers' buttons and cards.
+/// Shop, beside Open all: the Collection's Forge on its Shop.
 pub(crate) const SHOP_TOKEN: u16 = 1_325;
-pub(crate) const SHOP_BACK_TOKEN: u16 = 1_326;
-pub(crate) const SHOP_BUY_BASE: u16 = 1_330;
-pub(crate) const SHOP_CARD_BASE: u16 = 1_334;
-/// The shop's holocrons for credits (an Uncommon and a Rare one).
-pub(crate) const SHOP_HOLOCRON_BASE: u16 = 1_338;
 
 /// What the page knows of the player's holocrons: whether the hub could say, and what.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -115,6 +109,14 @@ pub(crate) struct Data {
     /// The ids of the holocrons of each tier the profile lists that can still be
     /// opened, the oldest first.
     pub(crate) sealed: [Vec<u64>; COUNT],
+    /// How many kyber crystals of each tier the player holds unopened, once known
+    /// ([`crate::kyber`]): counted from the profile's list, which lists sealed rows first.
+    pub(crate) crystals: Option<[u32; crate::kyber::COUNT]>,
+    /// The ids of the kyber crystals of each tier that can still be opened, the oldest
+    /// first.
+    pub(crate) crystal_sealed: [Vec<u64>; crate::kyber::COUNT],
+    /// The person's pity counter, once the hub said.
+    pub(crate) pity: Option<crate::kyber::Pity>,
     /// The player's credits, once known.
     pub(crate) credits: Option<u64>,
     /// The player's kyber shards, once known.
@@ -122,16 +124,12 @@ pub(crate) struct Data {
     /// Seconds of play a holocron takes, once the hub said.
     pub(crate) every: Option<u64>,
     /// Whether the hub lets the player open holocrons now: only staff while opening is
-    /// tested (`docs/holocrons.md`, "Opening"). False until the hub said. The shop follows
-    /// it.
+    /// tested (`docs/holocrons.md`, "Opening"). False until the hub said. The Shop button
+    /// follows it.
     pub(crate) can_open: bool,
     /// The SJK release the hub wants for opening and trading when this build is older
     /// (the hub's minimum client): `can_open` is false then and the page says to update.
     pub(crate) update: Option<String>,
-    /// The shop's day as the hub last answered it, once asked ([`shop`]).
-    pub(crate) shop: Option<sjk_identity::ShopState>,
-    /// What became of the last shatter, craft or purchase.
-    pub(crate) trade: Option<sjk_identity::TradeOutcome>,
 }
 
 impl Data {
@@ -145,13 +143,14 @@ impl Data {
             today: None,
             fraction: None,
             sealed: Default::default(),
+            crystals: None,
+            crystal_sealed: Default::default(),
+            pity: None,
             credits: None,
             shards: None,
             every: None,
             can_open: false,
             update: None,
-            shop: None,
-            trade: None,
         }
     }
 
@@ -176,14 +175,23 @@ impl Data {
             })
             .collect();
         let mut sealed: [Vec<u64>; COUNT] = Default::default();
+        let mut crystal_sealed: [Vec<u64>; crate::kyber::COUNT] = Default::default();
         // The list is the newest first: the oldest go first when opening.
         for (entry, opened) in known.iter().rev() {
-            if !opened {
+            if *opened {
+                continue;
+            }
+            if entry.tier.is_kyber() {
+                crystal_sealed[entry.tier.index].push(entry.id);
+            } else {
                 sealed[entry.tier.index].push(entry.id);
             }
         }
+        let crystals = std::array::from_fn(|index| crystal_sealed[index].len() as u32);
+        // The recent list is the holocrons found: crystals are counted on their own.
         let recent = known
             .into_iter()
+            .filter(|(entry, _)| !entry.tier.is_kyber())
             .take(RECENT_SHOWN)
             .map(|(entry, opened)| Recent {
                 tier: entry.tier.index,
@@ -212,6 +220,9 @@ impl Data {
                     (progress.progress_secs as f32 / progress.every_secs as f32).clamp(0.0, 1.0)
                 }),
             sealed,
+            crystals: Some(crystals),
+            crystal_sealed,
+            pity: crate::kyber::Pity::of(snapshot.kyber.as_ref()),
             credits: Some(me.credits),
             shards: Some(me.shards),
             every: progress
@@ -219,8 +230,6 @@ impl Data {
                 .filter(|&every| every > 0),
             can_open: crate::economy::may_act(snapshot),
             update: crate::economy::update_to(snapshot).map(str::to_owned),
-            shop: snapshot.shop.clone(),
-            trade: snapshot.trade.clone(),
         }
     }
 
@@ -235,18 +244,54 @@ impl Data {
         self.counts.map(|counts| counts.iter().sum())
     }
 
-    /// How many of tier `index` they hold, once known.
-    pub(crate) fn count(&self, index: usize) -> Option<u32> {
-        self.counts.and_then(|counts| counts.get(index).copied())
+    /// How many of the tier at `slot` they hold, once known: a holocron tier's, or past
+    /// them a kyber crystal tier's ([`holocrons::slot`]).
+    pub(crate) fn count(&self, slot: usize) -> Option<u32> {
+        match slot.checked_sub(COUNT) {
+            None => self.counts.and_then(|counts| counts.get(slot).copied()),
+            Some(crystal) => self
+                .crystals
+                .and_then(|counts| counts.get(crystal).copied()),
+        }
     }
 
-    /// How many holocrons the page can open now (those the profile lists, none while the
-    /// hub keeps opening to staff).
-    pub(crate) fn openable(&self) -> usize {
+    /// The ids of the tier at `slot` that can still be opened, the oldest first.
+    pub(crate) fn sealed_of(&self, slot: usize) -> &[u64] {
+        match slot.checked_sub(COUNT) {
+            None => self.sealed.get(slot),
+            Some(crystal) => self.crystal_sealed.get(crystal),
+        }
+        .map_or(&[], Vec::as_slice)
+    }
+
+    /// The sealed lists of the kind `slot` is of: the holocrons', or the kyber crystals'.
+    fn kind_of(&self, slot: usize) -> &[Vec<u64>] {
+        if slot < COUNT {
+            &self.sealed
+        } else {
+            &self.crystal_sealed
+        }
+    }
+
+    /// How many of the kind of `slot` (holocrons, or kyber crystals) the page can open
+    /// now (those the profile lists, none while the hub keeps opening to staff).
+    pub(crate) fn openable(&self, slot: usize) -> usize {
         if !self.can_open {
             return 0;
         }
-        self.sealed.iter().map(Vec::len).sum()
+        self.kind_of(slot).iter().map(Vec::len).sum()
+    }
+
+    /// The ids of every one of the kind of `slot` that can be opened, the oldest first.
+    pub(crate) fn sealed_kind(&self, slot: usize) -> Vec<u64> {
+        let mut ids: Vec<u64> = self.kind_of(slot).iter().flatten().copied().collect();
+        ids.sort_unstable();
+        ids
+    }
+
+    /// The slot of the tier sealed holocron or crystal `id` is of.
+    pub(crate) fn slot_of(&self, id: u64) -> Option<usize> {
+        (0..SLOTS).find(|&slot| self.sealed_of(slot).contains(&id))
     }
 
     /// Whether the hub said opening is not for the player yet (so the page says so in
@@ -277,12 +322,8 @@ pub(crate) enum PanelAction {
     Hub(crate::profile_hub::Tab),
     /// Ask the hub to open these holocrons ([`opening`]).
     Open(Vec<u64>),
-    /// Ask the hub for the shop's day ([`shop`]).
-    ReadShop,
-    /// Ask the hub to sell the player this offer of the day.
-    Buy(String),
-    /// Ask the hub to sell the player a holocron of this tier for credits.
-    BuyHolocron(String),
+    /// Show the Collection's Forge on its Shop (Shop, or S).
+    Shop,
 }
 
 pub(crate) struct Panel {
@@ -307,14 +348,6 @@ pub(crate) struct Panel {
     ceremony: Option<opening::Ceremony>,
     /// The loot table shows over the page.
     loot: bool,
-    /// The shop shows over the page, the offer chosen, the offer whose Buy waits for its
-    /// Confirm (and since when), the trade serial a purchase was asked at (while the hub
-    /// answers), and the shop read the page asked again for when its day turned.
-    shop: bool,
-    shop_selected: usize,
-    confirm: Option<(usize, Instant)>,
-    buying: Option<u64>,
-    shop_reread: Option<u64>,
     /// Open all's question shows, the focus on its Open all or Cancel ([`ask_all`]).
     ask_all: Option<ask_all::AskAll>,
     /// The serial of the identity's last opening the page saw, so a new one is its
@@ -365,11 +398,6 @@ impl Panel {
             refreshed: None,
             ceremony: None,
             loot: false,
-            shop: false,
-            shop_selected: 0,
-            confirm: None,
-            buying: None,
-            shop_reread: None,
             ask_all: None,
             opening_serial: 0,
             epoch: Instant::now(),
@@ -400,8 +428,6 @@ impl Panel {
         self.refreshed = None;
         self.ceremony = None;
         self.loot = false;
-        self.shop = false;
-        self.confirm = None;
         self.ask_all = None;
     }
 
@@ -437,8 +463,6 @@ impl Panel {
         self.open = false;
         self.ceremony = None;
         self.loot = false;
-        self.shop = false;
-        self.confirm = None;
         self.ask_all = None;
         self.owns_console = false;
         owned
@@ -483,9 +507,9 @@ impl Panel {
         &self.data
     }
 
-    /// The tier chosen.
+    /// The tier chosen: a holocron's, or a kyber crystal's.
     pub(crate) fn selected(&self) -> &'static Tier {
-        &holocrons::TIERS[self.selected]
+        holocrons::slot(self.selected)
     }
 
     /// Show the hover card of tier row `index` (`None` for none), for a world shot.
@@ -494,9 +518,10 @@ impl Panel {
         self.hover.pin(index.map(|index| ROW_BASE + index as u16));
     }
 
-    /// Choose tier `index` (kept to the tiers there are), for a world shot and the keys.
+    /// Choose the tier at slot `index` (kept to the tiers there are: the holocrons', then
+    /// the kyber crystals'), for a world shot and the keys.
     pub(crate) fn select(&mut self, index: usize) {
-        self.selected = index.min(COUNT - 1);
+        self.selected = index.min(SLOTS - 1);
     }
 
     /// What the 3D holocron shows: the chosen tier, in its own look while the player
@@ -521,7 +546,7 @@ impl Panel {
     /// Step the choice `by` tiers: round the list for Tab, stopping at its ends for the
     /// arrows and the wheel.
     fn step(&mut self, by: isize, wrap: bool) {
-        let count = COUNT as isize;
+        let count = SLOTS as isize;
         let next = self.selected as isize + by;
         self.selected = if wrap {
             next.rem_euclid(count)
@@ -551,9 +576,6 @@ impl Panel {
         if self.loot {
             return self.loot_key(key);
         }
-        if self.shop {
-            return self.shop_key(key);
-        }
         if self.ask_all.is_some() {
             return self.ask_all_key(key, now);
         }
@@ -563,11 +585,16 @@ impl Panel {
             KeyCode::ArrowUp | KeyCode::ArrowLeft => self.step(-1, false),
             KeyCode::ArrowDown | KeyCode::ArrowRight => self.step(1, false),
             KeyCode::Home => self.select(0),
-            KeyCode::End => self.select(COUNT - 1),
+            KeyCode::End => self.select(SLOTS - 1),
             KeyCode::Digit1 | KeyCode::Numpad1 => self.select(0),
             KeyCode::Digit2 | KeyCode::Numpad2 => self.select(1),
             KeyCode::Digit3 | KeyCode::Numpad3 => self.select(2),
             KeyCode::Digit4 | KeyCode::Numpad4 => self.select(3),
+            // The kyber crystals.
+            KeyCode::Digit5 | KeyCode::Numpad5 => self.select(4),
+            KeyCode::Digit6 | KeyCode::Numpad6 => self.select(5),
+            KeyCode::Digit7 | KeyCode::Numpad7 => self.select(6),
+            KeyCode::Digit8 | KeyCode::Numpad8 => self.select(7),
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(ids) = self.open_one() {
                     return self.ask(ids, now);
@@ -575,7 +602,7 @@ impl Panel {
             }
             KeyCode::KeyA => return self.open_all(now),
             KeyCode::KeyL => self.show_loot(true),
-            KeyCode::KeyS => return self.show_shop(true),
+            KeyCode::KeyS => return PanelAction::Shop,
             _ => {}
         }
         PanelAction::None
@@ -598,9 +625,6 @@ impl Panel {
         if self.loot {
             return self.loot_pointer(event);
         }
-        if self.shop {
-            return self.shop_pointer(event);
-        }
         if self.ask_all.is_some() {
             return self.ask_all_pointer(event, now);
         }
@@ -621,7 +645,7 @@ impl Panel {
         }
         match event.token {
             Some(BACK_TOKEN) => PanelAction::Close,
-            Some(token) if (ROW_BASE..ROW_BASE + COUNT as u16).contains(&token) => {
+            Some(token) if (ROW_BASE..ROW_BASE + SLOTS as u16).contains(&token) => {
                 self.select(usize::from(token - ROW_BASE));
                 PanelAction::None
             }
@@ -633,7 +657,7 @@ impl Panel {
                 self.show_loot(true);
                 PanelAction::None
             }
-            Some(SHOP_TOKEN) => self.show_shop(true),
+            Some(SHOP_TOKEN) => PanelAction::Shop,
             Some(token) if self.hub => match crate::profile_hub::collection_tab_of(token) {
                 Some(tab) if tab != crate::profile_hub::Tab::Holocrons => PanelAction::Hub(tab),
                 _ => PanelAction::None,
@@ -670,20 +694,31 @@ mod tests {
         assert_eq!(panel.selected().id, "legendary");
         let _ = panel.key(KeyCode::ArrowLeft, false);
         assert_eq!(panel.selected().id, "rare");
-        let _ = panel.key(KeyCode::End, false);
+        let _ = panel.key(KeyCode::Digit4, false);
         assert_eq!(panel.selected().id, "mythical");
         let _ = panel.key(KeyCode::ArrowDown, false);
-        assert_eq!(panel.selected, COUNT - 1, "no tier under the last");
+        assert_eq!(
+            panel.selected().id,
+            "kyber_uncommon",
+            "the kyber crystals come after the holocrons"
+        );
+        let _ = panel.key(KeyCode::End, false);
+        assert_eq!(panel.selected().id, "kyber_mythical");
+        let _ = panel.key(KeyCode::ArrowDown, false);
+        assert_eq!(panel.selected, SLOTS - 1, "nothing after the last crystal");
         let _ = panel.key(KeyCode::Tab, false);
         assert_eq!(panel.selected, 0, "Tab comes round");
         let _ = panel.key(KeyCode::Tab, true);
-        assert_eq!(panel.selected, COUNT - 1, "and Shift+Tab back");
+        assert_eq!(panel.selected, SLOTS - 1, "and Shift+Tab back");
         let _ = panel.key(KeyCode::Home, false);
         assert_eq!(panel.selected, 0);
         for (key, id) in [
             (KeyCode::Digit2, "rare"),
             (KeyCode::Digit3, "legendary"),
             (KeyCode::Numpad4, "mythical"),
+            (KeyCode::Digit5, "kyber_uncommon"),
+            (KeyCode::Numpad7, "kyber_legendary"),
+            (KeyCode::Digit8, "kyber_mythical"),
             (KeyCode::Digit1, "uncommon"),
         ] {
             let _ = panel.key(key, false);
@@ -748,7 +783,83 @@ mod tests {
         panel.select(0);
         assert!(!request(&panel).owned);
         panel.select(99);
-        assert_eq!(panel.selected, COUNT - 1, "kept to the tiers there are");
+        assert_eq!(panel.selected, SLOTS - 1, "kept to the tiers there are");
+        // A kyber crystal is drawn by its slot (the stage falls back to the Mythical
+        // holocron's model until the crystals' own come), its own look while one is held.
+        let mut data = held([3, 0, 1, 0]);
+        data.crystals = Some([0, 2, 0, 0]);
+        panel.data = data;
+        let rare = crate::kyber::TIERS[1].slot;
+        panel.select(rare);
+        assert_eq!(
+            request(&panel),
+            holocrons::stage::Request {
+                tier: rare,
+                owned: true
+            }
+        );
+        assert!(
+            !request(&panel).parts().is_empty(),
+            "a model, never a panic"
+        );
+        panel.select(crate::kyber::TIERS[0].slot);
+        assert!(!request(&panel).owned, "none held: locked");
+    }
+
+    /// The kyber crystals are read from the profile's list (holocron rows of their tiers),
+    /// kept out of the holocrons' counts and recent finds, and opened on their own: Open
+    /// takes the oldest of the chosen crystal tier, Open all every crystal.
+    #[test]
+    fn crystals_are_counted_apart_and_open_on_their_own() {
+        use sjk_identity::Status;
+        let mut list = vec![
+            holocron(30, "kyber_rare", "achievement", ""),
+            holocron(29, "rare", "play", ""),
+            holocron(28, "kyber_rare", "achievement", ""),
+            holocron(27, "kyber_mythical", "achievement", ""),
+            holocron(26, "kyber_uncommon", "achievement", ""),
+        ];
+        list[4].opened = Some(1);
+        let mut snapshot = snapshot(Status::Online, Some(profile(list)));
+        snapshot.kyber = Some(sjk_identity::KyberTables {
+            tiers: Vec::new(),
+            pity: Some(sjk_identity::KyberPity {
+                every: 10,
+                since: 3,
+            }),
+        });
+        let mut data = Data::of(true, &snapshot);
+        assert_eq!(
+            data.crystals,
+            Some([0, 2, 0, 1]),
+            "the opened one is not held"
+        );
+        assert_eq!(data.counts, Some([5, 3, 1, 0]), "the hub's holocron counts");
+        assert_eq!(data.total(), Some(9), "crystals are not holocrons");
+        assert_eq!(data.recent.len(), 1, "the recent finds are holocrons");
+        assert_eq!(data.recent[0].tier, 1);
+        assert_eq!(data.pity.map(|pity| pity.within()), Some(7));
+        let rare = crate::kyber::TIERS[1].slot;
+        assert_eq!(data.count(rare), Some(2));
+        assert_eq!(data.sealed_of(rare), [28, 30], "the oldest first");
+        assert_eq!(data.slot_of(27), Some(crate::kyber::TIERS[3].slot));
+        data.can_open = true;
+        assert_eq!(data.openable(rare), 3);
+        assert_eq!(data.openable(1), 1);
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = data;
+        panel.select(rare);
+        assert_eq!(panel.open_one(), Some(vec![28]));
+        assert_eq!(panel.open_every(), Some(vec![27, 28, 30]), "every crystal");
+        panel.select(1);
+        assert_eq!(panel.open_every(), Some(vec![29]), "every holocron");
+        let _ = panel.ask(vec![27], Instant::now());
+        assert_eq!(
+            panel.stage_request().tier,
+            crate::kyber::TIERS[3].slot,
+            "the crystal asked for"
+        );
     }
 
     #[test]
@@ -820,6 +931,7 @@ mod tests {
             log_requests: Vec::new(),
             log_answer: None,
             economy: None,
+            kyber: None,
             shop: None,
             trade: None,
         }
@@ -918,7 +1030,7 @@ mod tests {
         });
         let data = Data::of(true, &snapshot);
         assert!(data.opening_closed(), "a player while opening is for staff");
-        assert_eq!(data.openable(), 0);
+        assert_eq!(data.openable(0), 0);
         assert_eq!(data.recent.len(), RECENT_SHOWN);
         assert_eq!(data.recent[0].tier, 2);
         assert!(data.recent[0].gift);
@@ -952,7 +1064,7 @@ mod tests {
         let mut old = openable();
         old.can_open = false;
         old.update = Some("2026.1022.1".into());
-        assert_eq!(old.openable(), 0);
+        assert_eq!(old.openable(0), 0);
         assert!(!old.opening_closed());
         assert_eq!(
             old.update_line().as_deref(),
@@ -1185,7 +1297,7 @@ mod tests {
         panel.data = openable();
         panel.data.can_open = false;
         assert!(panel.data.opening_closed());
-        assert_eq!(panel.data.openable(), 0);
+        assert_eq!(panel.data.openable(0), 0);
         assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
         assert_eq!(panel.key(KeyCode::KeyA, false), PanelAction::None);
         assert_eq!(panel.ask(vec![3], Instant::now()), PanelAction::None);
@@ -1501,18 +1613,21 @@ mod tests {
     /// what stays for later past twenty.
     #[test]
     fn open_all_question_words() {
-        let (title, lines) = ask_all::words(3, 3);
+        let (title, lines) = ask_all::words(3, 3, false);
         assert_eq!(title, "Open all 3 holocrons?");
         assert!(lines.join(" ").contains("full opening"));
-        let (title, lines) = ask_all::words(7, 7);
+        let (title, lines) = ask_all::words(7, 7, false);
         assert_eq!(title, "Open all 7 holocrons?");
         let all = lines.join(" ");
         assert!(all.contains("quicker and simpler animation"), "{all}");
-        let (title, lines) = ask_all::words(20, 34);
+        let (title, lines) = ask_all::words(20, 34, false);
         assert_eq!(title, "Open 20 of your 34 holocrons?");
         assert!(lines.join(" ").contains("the other 14 wait"));
+        let (title, lines) = ask_all::words(7, 7, true);
+        assert_eq!(title, "Open all 7 kyber crystals?");
+        assert!(lines.join(" ").contains("every shader found"));
         for (opening, held) in [(2, 2), (7, 7), (20, 34), (20, 999)] {
-            let (title, lines) = ask_all::words(opening, held);
+            let (title, lines) = ask_all::words(opening, held, false);
             assert!(lines.len() <= 4);
             assert!(title.is_ascii() && lines.iter().all(|line| line.is_ascii()));
         }

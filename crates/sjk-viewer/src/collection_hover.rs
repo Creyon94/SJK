@@ -14,6 +14,10 @@ impl Panel {
     /// Follow the pointer and draw the card of the thing it has rested on, over the
     /// page: the page's last drawing.
     pub(super) fn hover_card(&mut self, frame: &crate::menu::sjk::Frame, inputs: &Inputs<'_>) {
+        if self.tab == Tab::Forge && self.forge.ask.is_some() {
+            // The card asking covers the page: nothing under it answers the pointer.
+            return;
+        }
         let now = Instant::now();
         self.hover.follow(self.ui.hovered(), now);
         let Some((token, alpha)) = self.hover.showing(now) else {
@@ -35,6 +39,9 @@ impl Panel {
                 .map(usize::from)
                 .filter(|index| *index < count)
         };
+        if self.tab == Tab::Forge {
+            return self.forge_card(token, inputs);
+        }
         if let Some(index) = within(MEDAL_BASE, self.medals_shown) {
             let (_, shown) = medals::showing(inputs);
             return shown.get(index).map(medal_card);
@@ -72,6 +79,21 @@ impl Panel {
                     Line::how(
                         "Every SJK player has it. Get in here, from the quick wheel's Toys \
                          page or with a key bound to toy_box.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == HAX_TOKEN {
+            return Some(Card {
+                title: "The Hax".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys \
+                         page or with a key bound to toy_hax; hold Use on a player who has it \
+                         on to hack them.",
                     ),
                     Line::status(crate::editions::name(crate::editions::ALPHA)),
                     Line::held("Yours"),
@@ -123,7 +145,8 @@ fn medal_card(showing: &medals::Showing) -> Card {
     }
 }
 
-/// An achievement's card: what to do, who counts it, and how far the player is.
+/// An achievement's card: what to do, who counts it, how far the player is, and the kyber
+/// crystal it brings, in the crystal's colour ([`crate::kyber::reward`]).
 fn achievement_card(
     kind: &'static crate::achievements::Kind,
     standing: Option<&crate::achievements::Standing>,
@@ -154,7 +177,13 @@ fn achievement_card(
         } else {
             crate::achievements::medallion::tint(kind.category)
         },
-        lines: vec![Line::how(kind.description), Line::status(counted), status],
+        lines: [Line::how(kind.description), Line::status(counted), status]
+            .into_iter()
+            .chain(crate::kyber::reward(kind.id).map(|tier| Line {
+                words: crate::kyber::reward_line(tier).to_owned(),
+                colour: tier.colour,
+            }))
+            .collect(),
     }
 }
 
@@ -169,7 +198,7 @@ fn held_count(words: &str, count: u32) -> String {
 
 /// A shader's card: the stock blade (`None`) or a blade skin, how it is obtained, and
 /// whether the player holds it.
-fn shader_card(
+pub(super) fn shader_card(
     skin: Option<&'static crate::unlockables::Unlockable>,
     holdings: &crate::unlockables::Holdings<'_>,
 ) -> Card {
@@ -231,11 +260,9 @@ fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
     match (&tile.slot, tile.face(&faces)) {
         (_, Some(face)) => {
             lines.push(Line::how(odds));
-            if let Some(brings) = face.brings() {
-                lines.push(Line::status(brings));
-            }
-            if let Some(drop) = face.solar_drop() {
-                lines.push(Line::status(drop));
+            // Each perk after its mark, as the tile's badges show it.
+            for perk in face.perks() {
+                lines.push(Line::status(format!("{}  {}", perk.mark, perk.words)));
             }
             // No number, whatever the kind (Sol, 20/10/2026): it stays the card's id.
             lines.push(Line::status(format!(
@@ -296,7 +323,10 @@ mod tests {
         for kind in &crate::achievements::ALL {
             let card = achievement_card(kind, None);
             assert_eq!(card.lines[0].words, kind.description);
-            assert_eq!(card.lines.len(), 3);
+            assert_eq!(card.lines.len(), 4);
+            let reward = crate::kyber::reward(kind.id).expect("every achievement brings one");
+            assert_eq!(card.lines[3].words, format!("Reward: {}", reward.name));
+            assert_eq!(card.lines[3].colour, reward.colour);
         }
         let kind = crate::achievements::ALL
             .iter()

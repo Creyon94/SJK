@@ -15,6 +15,7 @@ use crate::feed::{
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::logs::{LogRequest, LogUpload};
+use crate::relay::RelayHubs;
 use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
 use crate::vitals::{Sharing, VitalsTable, VitalsWorker};
@@ -204,6 +205,9 @@ pub struct Snapshot {
     /// The odds the hub rolls holocrons with, one table per tier, as it last sent them
     /// with the progress; empty before, or from a hub older than them (14/10/2026).
     pub loot: Vec<crate::wire::LootTier>,
+    /// The kyber crystals' odds and the person's pity counter, as the hub last sent them
+    /// with the progress; `None` before, or from a hub older than crystals (21/10/2026).
+    pub kyber: Option<crate::wire::KyberTables>,
     /// The SJK team's open requests for the player's logs (oldest first), as the hub
     /// last listed them, without the ones the player answered: the game asks the
     /// player about each ([`Service::answer_logs`]).
@@ -252,6 +256,12 @@ impl ShopState {
 pub enum Trade {
     /// One duplicate into kyber shards.
     Shatter,
+    /// One copy into kyber shards, the last one too (hubs whose economy says
+    /// `shatter_last`, 21/10/2026).
+    ShatterLast,
+    /// Every duplicate into kyber shards, one copy of each kept; the outcome's `id` is
+    /// empty and its `copies` how many went (21/10/2026).
+    ShatterAll,
     /// A shader made with kyber shards.
     Craft,
     /// One of the shop's offers bought (with kyber shards since 17/10/2026).
@@ -272,6 +282,9 @@ pub struct TradeOutcome {
     /// The shards a shatter gave or a craft cost, what an offer cost (in the shop's
     /// currency) or the credits a holocron cost; 0 when it failed.
     pub amount: u64,
+    /// The copies a shatter took (every one of them for [`Trade::ShatterAll`], else one);
+    /// 0 for the other trades and when it failed.
+    pub copies: u32,
     /// Why it failed; empty when it worked.
     pub message: String,
 }
@@ -394,6 +407,7 @@ impl Snapshot {
             opening: None,
             reveal: None,
             economy: None,
+            kyber: None,
             shop: None,
             trade: None,
         }
@@ -499,6 +513,10 @@ enum Command {
     RevealCards,
     /// Shatter one duplicate of this shader.
     Shatter(String),
+    /// Shatter one copy of this shader, the last one too.
+    ShatterLast(String),
+    /// Shatter every duplicate, one copy of each kept.
+    ShatterDuplicates,
     /// Craft this shader with shards.
     Craft(String),
     /// Read the shop's day.
@@ -702,6 +720,9 @@ fn trade_refusal(error: &HubError) -> String {
     let words = match error {
         HubError::Rejected { code, message, .. } => match code.as_str() {
             "not_a_duplicate" => "That is your last one: only duplicates can be shattered.",
+            "comes_with_card" => "That shader comes with your card: it stays with the card.",
+            "not_held" => "You hold no copy of that shader any more.",
+            "no_duplicates" => "You hold no duplicates to break down.",
             "not_shatterable" => "That shader cannot be shattered.",
             "not_craftable" => "That shader cannot be crafted.",
             "not_enough_shards" => "Not enough kyber shards.",
@@ -1201,6 +1222,8 @@ impl Worker {
             Command::OpenHolocrons(ids) => self.open_holocrons(&ids, now),
             Command::RevealCards => self.reveal_cards(),
             Command::Shatter(id) => self.trade(Trade::Shatter, &id),
+            Command::ShatterLast(id) => self.trade(Trade::ShatterLast, &id),
+            Command::ShatterDuplicates => self.trade(Trade::ShatterAll, ""),
             Command::Craft(id) => self.trade(Trade::Craft, &id),
             Command::ReadShop => self.read_shop(now),
             Command::Buy(id) => self.trade(Trade::Buy, &id),
@@ -1362,6 +1385,12 @@ impl Worker {
         {
             self.profile_soon(now);
         }
+        // A kyber crystal moves the person's pity counter, which comes with the progress:
+        // read it again at once.
+        if matches!(&outcome, Ok(answer) if answer.opened.iter().any(|opened| opened.tier.starts_with("kyber_")))
+        {
+            self.due_holocrons = self.due_holocrons.min(now);
+        }
         self.update(|snapshot| {
             let serial = snapshot.opening.as_ref().map_or(1, |last| last.serial + 1);
             snapshot.opening = Some(match outcome {
@@ -1414,25 +1443,42 @@ impl Worker {
     /// balances and what is held. A purchase the day turned under is answered by reading
     /// the shop again.
     fn trade(&mut self, trade: Trade, id: &str) {
-        type Done = (u64, Option<u64>, Option<u64>, Profile);
+        type Done = (u64, u32, Option<u64>, Option<u64>, Profile);
         let outcome: Result<Done, HubError> = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => match trade {
-                Trade::Shatter => hub.shatter_unlock(&self.identity, id).map(|answer| {
-                    let shards = answer.shattered.balance;
-                    (answer.shattered.shards, None, Some(shards), answer.profile)
+                Trade::Shatter | Trade::ShatterLast => hub
+                    .shatter_unlock(&self.identity, id, trade == Trade::ShatterLast)
+                    .map(|answer| {
+                        let shards = answer.shattered.balance;
+                        (
+                            answer.shattered.shards,
+                            1,
+                            None,
+                            Some(shards),
+                            answer.profile,
+                        )
+                    }),
+                Trade::ShatterAll => hub.shatter_duplicates(&self.identity).map(|answer| {
+                    (
+                        answer.shards,
+                        answer.copies,
+                        None,
+                        Some(answer.balance),
+                        answer.profile,
+                    )
                 }),
                 Trade::Craft => hub.craft_unlock(&self.identity, id).map(|answer| {
                     let shards = answer.crafted.balance;
-                    (answer.crafted.cost, None, Some(shards), answer.profile)
+                    (answer.crafted.cost, 0, None, Some(shards), answer.profile)
                 }),
                 // The balances from the profile: an offer's price is in shards on hubs
                 // since 17/10/2026, in credits before.
                 Trade::Buy => hub
                     .buy_offer(&self.identity, id)
-                    .map(|answer| (answer.bought.price, None, None, answer.profile)),
+                    .map(|answer| (answer.bought.price, 0, None, None, answer.profile)),
                 Trade::Holocron => hub.buy_holocron(&self.identity, id).map(|answer| {
                     let credits = answer.bought.balance;
-                    (answer.bought.price, Some(credits), None, answer.profile)
+                    (answer.bought.price, 0, Some(credits), None, answer.profile)
                 }),
             },
             _ => Err(not_connected()),
@@ -1442,18 +1488,24 @@ impl Worker {
         self.update(|snapshot| {
             let serial = snapshot.trade.as_ref().map_or(1, |last| last.serial + 1);
             snapshot.trade = Some(match outcome {
-                Ok((amount, credits, shards, profile)) => {
+                Ok((amount, copies, credits, shards, profile)) => {
                     if let Some(shop) = snapshot.shop.as_mut() {
                         shop.day.credits = credits.unwrap_or(profile.credits);
                         shop.day.shards = shards.unwrap_or(profile.shards);
                         let shader = trade != Trade::Holocron;
+                        let held = |id: &str| profile.unlocks.iter().any(|held| held.id == id);
                         for offer in shop
                             .day
                             .offers
                             .iter_mut()
                             .filter(|offer| shader && offer.id == id)
                         {
-                            offer.owned = trade != Trade::Shatter || offer.owned;
+                            // A shatter keeps what was held, but a last copy gone.
+                            offer.owned = match trade {
+                                Trade::Shatter | Trade::ShatterAll => offer.owned,
+                                Trade::ShatterLast => offer.owned && held(id),
+                                _ => true,
+                            };
                             offer.bought |= trade == Trade::Buy;
                         }
                     }
@@ -1463,6 +1515,7 @@ impl Worker {
                         trade,
                         id: id.to_owned(),
                         amount,
+                        copies,
                         message: String::new(),
                     }
                 }
@@ -1471,6 +1524,7 @@ impl Worker {
                     trade,
                     id: id.to_owned(),
                     amount: 0,
+                    copies: 0,
                     message: trade_refusal(&error),
                 },
             });
@@ -1840,6 +1894,9 @@ impl Worker {
                     }
                     if state.economy.is_some() {
                         snapshot.economy.clone_from(&state.economy);
+                    }
+                    if state.kyber.is_some() {
+                        snapshot.kyber.clone_from(&state.kyber);
                     }
                     snapshot.min_client.clone_from(&state.min_client);
                     snapshot.holocrons = Some(HolocronProgress::new(state, now));
@@ -2279,6 +2336,8 @@ pub struct Service {
     sharing: Arc<Mutex<Sharing>>,
     /// The sharers of the player's server, as the vitals thread last read them.
     vitals: Arc<Mutex<VitalsTable>>,
+    /// The toy relay's queues, for its threads (`crate::relay`).
+    relay: crate::relay::Shared,
     finished: Mutex<Receiver<()>>,
     /// The last tag given to a note ([`Service::note`]).
     note_tags: std::sync::atomic::AtomicU64,
@@ -2299,17 +2358,19 @@ impl Service {
         make_hub: HubFactory,
         make_feed_hub: Option<HubFactory>,
     ) -> Self {
-        Self::start_with_threads(identity, make_hub, make_feed_hub, None)
+        Self::start_with_threads(identity, make_hub, make_feed_hub, None, None)
     }
 
     /// [`Service::start_with_feed`] with shared vitals on a thread of their own too,
     /// reading the hub through clients `make_vitals_hub` builds (with a short
-    /// timeout, [`crate::vitals::TIMEOUT`]).
+    /// timeout, [`crate::vitals::TIMEOUT`]), and the toy relay on two more through the
+    /// clients `relay_hubs` builds.
     pub fn start_with_threads(
         identity: Identity,
         make_hub: HubFactory,
         make_feed_hub: Option<HubFactory>,
         make_vitals_hub: Option<HubFactory>,
+        relay_hubs: Option<RelayHubs>,
     ) -> Self {
         let key_id = identity.key_id();
         let snapshot = Arc::new(Mutex::new(Snapshot::new(key_id.clone())));
@@ -2318,6 +2379,7 @@ impl Service {
         let (done, finished) = channel();
         let feed_identity = identity.clone();
         let vitals_identity = identity.clone();
+        let relay_identity = identity.clone();
         let mut worker = Worker::new(
             identity,
             make_hub,
@@ -2378,6 +2440,32 @@ impl Service {
                     Status::Failed(format!("cannot start the vitals thread: {error}"));
             }
         }
+        let relay: crate::relay::Shared = Arc::default();
+        if let Some(RelayHubs { send, read }) = relay_hubs {
+            let reader = crate::relay::Reader::new(
+                relay_identity.clone(),
+                read,
+                Arc::clone(&worker.feed),
+                Arc::clone(&relay),
+                Instant::now(),
+            );
+            let stop = Arc::clone(&feed_stop);
+            let read_spawned = std::thread::Builder::new()
+                .name("sjk-hub-relay-read".to_owned())
+                .spawn(move || crate::relay::run_reader(reader, &stop));
+            let (feed, shared, stop) = (
+                Arc::clone(&worker.feed),
+                Arc::clone(&relay),
+                Arc::clone(&feed_stop),
+            );
+            let send_spawned = std::thread::Builder::new()
+                .name("sjk-hub-relay-send".to_owned())
+                .spawn(move || crate::relay::run_sender(relay_identity, send, feed, shared, &stop));
+            if let Err(error) = read_spawned.and(send_spawned) {
+                lock(&snapshot).status =
+                    Status::Failed(format!("cannot start the toy relay threads: {error}"));
+            }
+        }
         let spawned = std::thread::Builder::new()
             .name("sjk-identity".to_owned())
             .spawn(move || {
@@ -2412,6 +2500,7 @@ impl Service {
             feed_stop,
             sharing,
             vitals,
+            relay,
             finished: Mutex::new(finished),
             note_tags: std::sync::atomic::AtomicU64::new(0),
         }
@@ -2488,6 +2577,20 @@ impl Service {
     /// came of it arrives in [`Snapshot::trade`], and the profile after it.
     pub fn shatter(&self, id: &str) {
         let _ = self.commands.send(Command::Shatter(id.to_owned()));
+    }
+
+    /// Shatter one copy of shader `id`, the last one too (hubs whose economy says
+    /// `shatter_last`, 21/10/2026): what came of it arrives in [`Snapshot::trade`], and the
+    /// profile after it.
+    pub fn shatter_last(&self, id: &str) {
+        let _ = self.commands.send(Command::ShatterLast(id.to_owned()));
+    }
+
+    /// Shatter every duplicate the player holds, one copy of each kept (hubs whose economy
+    /// says `shatter_duplicates`, 21/10/2026): what came of it arrives in
+    /// [`Snapshot::trade`] (its `copies` and `amount` the totals), and the profile after it.
+    pub fn shatter_duplicates(&self) {
+        let _ = self.commands.send(Command::ShatterDuplicates);
     }
 
     /// Craft shader `id` with kyber shards: what came of it arrives in
@@ -2729,6 +2832,32 @@ impl Service {
     /// The toy events the feed received for `server`, as [`Service::take_pings`].
     pub fn take_toy_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
         crate::feed::take_toy_events(&self.toys, server)
+    }
+
+    /// Relay `event` of the player's toy `toy` to the player in slot `target` at once
+    /// (`PROTOCOL.md`, "Toy relay"), from the slot the player claims. With `replace`, a
+    /// later one that also replaces takes its place while it waits (control frames).
+    pub fn relay_toy_event(&self, toy: String, event: String, target: u8, replace: bool) {
+        let (state, bell) = &*self.relay;
+        crate::feed::lock(state).push(crate::relay::Outgoing {
+            toy,
+            event,
+            target,
+            replace,
+        });
+        bell.notify_one();
+    }
+
+    /// Whether the toy relay reads the events meant for the player (a toy that may be
+    /// acted on is out); off drops the long poll at its next turn.
+    pub fn set_relay_listen(&self, listen: bool) {
+        crate::feed::lock(&self.relay.0).set_listen(listen);
+    }
+
+    /// The relayed toy events read for `server`, as [`Service::take_toy_events`].
+    pub fn take_relay_events(&self, server: Option<SocketAddr>) -> Vec<ToyEvent> {
+        let queued = std::mem::take(crate::feed::lock(&self.relay.0).inbox());
+        crate::feed::take_toy_events(&Mutex::new(queued), server)
     }
 
     /// The look the player wears (`PROTOCOL.md`, "Looks"). The worker keeps the
@@ -2976,7 +3105,8 @@ mod tests {
                 .iter()
                 .map(|&id| crate::wire::Opened {
                     holocron: id,
-                    tier: "rare".to_owned(),
+                    // 77 is a kyber crystal.
+                    tier: if id == 77 { "kyber_rare" } else { "rare" }.to_owned(),
                     card: Some(crate::wire::OpenedCard {
                         id: 1_000 + id,
                         card: None,
@@ -2997,9 +3127,10 @@ mod tests {
             &mut self,
             _: &Identity,
             id: &str,
+            last: bool,
         ) -> Result<crate::wire::ShatterAnswer, HubError> {
-            self.record(format!("shatter {id}"))?;
-            if id == "saber_last" {
+            self.record(format!("shatter {id}{}", if last { " last" } else { "" }))?;
+            if id == "saber_last" && !last {
                 return Err(refused(409, "not_a_duplicate"));
             }
             let mut profile = profile("Sol");
@@ -3011,6 +3142,25 @@ mod tests {
                     shards: 5,
                     balance: 5,
                 },
+                profile,
+            })
+        }
+        fn shatter_duplicates(
+            &mut self,
+            _: &Identity,
+        ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
+            self.record("shatter duplicates".to_owned())?;
+            let mut profile = profile("Sol");
+            profile.shards = 165;
+            Ok(crate::wire::ShatterAllAnswer {
+                shattered: vec![crate::wire::ShatteredCopies {
+                    id: "saber_tidal".to_owned(),
+                    copies: 3,
+                    shards: 15,
+                }],
+                copies: 3,
+                shards: 15,
+                balance: 165,
                 profile,
             })
         }
@@ -3311,6 +3461,7 @@ mod tests {
                     progress: cap.map_or(count, |cap| count.min(cap)),
                     goal: 100,
                     unlocked: 0,
+                    reward: None,
                 })
                 .collect();
             *self.held.lock().unwrap() = held.clone();
@@ -3479,6 +3630,7 @@ mod tests {
             min_client: None,
             loot: Vec::new(),
             economy: None,
+            kyber: None,
         }
     }
 
@@ -3842,6 +3994,22 @@ mod tests {
             lock(&snapshot).trade.clone().unwrap().message,
             "That is your last one: only duplicates can be shattered."
         );
+        // Asked for, the last copy goes too (21/10/2026); every duplicate at once says
+        // how many copies went and what they gave.
+        worker.handle(Command::ShatterLast("saber_last".to_owned()), t0);
+        let last = lock(&snapshot).trade.clone().unwrap();
+        assert!(last.done());
+        assert_eq!(
+            (last.trade, last.copies, last.amount),
+            (Trade::ShatterLast, 1, 5)
+        );
+        worker.handle(Command::ShatterDuplicates, t0);
+        let all = lock(&snapshot).trade.clone().unwrap();
+        assert_eq!(
+            (all.trade, all.id.as_str(), all.copies, all.amount),
+            (Trade::ShatterAll, "", 3, 15)
+        );
+        assert_eq!(lock(&snapshot).me.as_ref().map(|me| me.shards), Some(165));
         worker.handle(Command::Craft("saber_circuit".to_owned()), t0);
         let craft = lock(&snapshot).trade.clone().unwrap();
         assert_eq!(
@@ -3890,7 +4058,12 @@ mod tests {
                     || line.starts_with("buy")
                     || *line == "shop")
                 .count(),
-            9
+            11
+        );
+        assert!(
+            fake.log()
+                .iter()
+                .any(|line| line == "shatter saber_last last")
         );
     }
 
@@ -3948,9 +4121,18 @@ mod tests {
                 .iter()
                 .any(|line| line == "open 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20")
         );
+        assert!(
+            worker.due_holocrons > t0,
+            "holocrons leave the progress (and the kyber pity) alone"
+        );
+        worker.handle(Command::OpenHolocrons(vec![77]), t0);
+        assert!(
+            worker.due_holocrons <= t0,
+            "a kyber crystal moved the pity counter: the progress is read again at once"
+        );
         worker.handle(Command::OpenHolocrons(vec![99]), t0);
         let refused = lock(&snapshot).opening.clone().unwrap();
-        assert_eq!(refused.serial, 3);
+        assert_eq!(refused.serial, 4);
         assert!(refused.opened.is_empty());
         assert_eq!(refused.message, "That holocron was already opened.");
         assert!(

@@ -449,12 +449,10 @@ mod tests {
             expected.push((Medal::Supporter, false));
         }
         assert_eq!(order, expected);
+        // Bug Hunter is held once since 21/10/2026: an old count of 3 reads as one.
         assert_eq!(
             given(shown[1].award.as_ref()),
-            format!(
-                "Given 3 times, last on {}",
-                crate::medals::date_text(1_791_336_225)
-            )
+            format!("Given {}", crate::medals::date_text(1_791_336_225))
         );
         // Without the hub every listed medal shows, none given, and none is counted.
         for (enabled, snapshot) in [(false, Some(&shot)), (true, None)] {

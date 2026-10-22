@@ -565,6 +565,47 @@ Windows that memory also shows in the process's RAM in Task Manager.
   than 16:9 so they never see past it, which lines the 3D stage up with the picture.
   A world install that runs out of memory turns the setting on
   ([status](status.md#menu-pictures-and-readable-world-install-failures)).
+- Texture detail (`r_picmip`, 0 to 3, as in Jedi Academy,
+  [world_texture_mips.rs](../crates/sjk-viewer/src/world_texture_mips.rs)) leaves a
+  material texture's largest mip levels off the card: each step halves its sides, a
+  quarter of its memory, while its longest side stays at 128 pixels or more (smaller
+  textures keep their size). The mip chains are still built whole on the processor;
+  `upload_chains` skips levels, so the setting takes effect for textures uploaded
+  after it changes (the next map) and the non-mipmapped path (`r_textureMode
+  GL_LINEAR`) keeps full size. Once menu pictures are on, each world install that runs
+  out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
+  Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
+  siege_desert at full size. The saber glows and cores follow it too
+  (`mips::shrunk`, in `saber::material`): eight 2048-pixel glows and their half-float
+  column integrals held 300 MiB on every map and in the menu; at 2 they hold 28 MiB.
+  The menu on pictures measured 1082 MiB at 1920x1080 and r_picmip 2, 801 MiB after
+  (`menu_pictures_vram` in world_shot_vram.rs, 21/10/2026, after Vin's 3 GB card ran
+  out in the main menu). The rest of that menu: the game font atlases (128 MiB, RGBA),
+  the UI icon atlas (56 MiB) and the world's shadow, GI and froxel targets (about
+  200 MiB) a picture menu does not draw.
+- Work on the render thread after a world is built runs inside wgpu error scopes
+  ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
+  menu stage's model (the creator's head, torso and legs), which then is not shown and
+  drops the textures it uploaded from the material cache, and players' prepared
+  textures, which are then not cached. wgpu's default handler panics on any error no
+  scope captures, so an out-of-memory elsewhere (a player's geometry joining the
+  shared buffers, entity materials) still ends the game: a 3 GB GTX 1060 crashed
+  changing legs in the creator (21/10/2026). That panic names what failed
+  (`gpu_guard::name_uncaptured`): `wgpu error: Out of Memory (In Device::create_texture,
+  label = '...')`, then the causes and the video memory SJK held (allocator report), so a
+  crash report says which texture a small card could not take; wgpu's own said only
+  `Out of Memory` (Vin's crash in the main menu, 21/10/2026).
+- At start SJK reads the card's video memory before the first map
+  ([video_memory.rs](../crates/sjk-viewer/src/video_memory.rs), through
+  [sjk-gpu-memory](../crates/sjk-gpu-memory/src/lib.rs): DXGI's high-performance
+  adapter, its `DedicatedVideoMemory` and budget; nothing off Windows). Under 3.5 GiB
+  (an integrated GPU's few hundred MB too) it sets texture detail 2, under 4.5 GiB 1,
+  and menu pictures on, each only from its default, once a card (`r_videoMemoryChecked`
+  keeps the MiB it chose for). The size and budget go into the log and crash reports.
+- With menu pictures on, the menus' saber shader swatches show their drawings
+  (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
+  832x1664 target of three textures, about 17 MB, and each signature blade's
+  pipeline), and that target is freed.
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
@@ -2214,11 +2255,17 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   a true eyeball in three dimensions (`ae_eyeball`), watching whoever looks at it. Hyperlane,
   Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built by two
   threads from a queue (`BuildQueue` in `saber_gpu.rs`): a blade worn or in the preview first,
-  then the Collection's pictures, then every loaded signature from launch, resting between those
+  then the Collection's pictures (until 21/10/2026 also every loaded signature from launch, resting between those
   (round 19's four at once stuttered the game at launch; with every build alike the preview's
-  waited behind the pictures and most blades seemed not to load). A signature now builds only its
+  waited behind the pictures and most blades seemed not to load); since 21/10/2026 a signature is
+  built only once a blade draws it). A skin's glow/core pair is likewise uploaded only once a blade
+  draws it (`Runtime::upload_drawn`): all 165 of the hub's skins up front were about 45 MiB of
+  video memory on every world (128-pixel generated glows). A signature now builds only its
   glow pipeline and, with a solid layer, its solid one; its bloom is the shared pipeline's, its
-  blade's glow alone.
+  blade's glow alone. The queue and the pipelines are the graphics context's
+  (`saber_gpu::Signatures`, held by `gpu_context::Context`), shared by every world built on it:
+  until 21/10/2026 each map's world started its own queue and threads (which never ended) and
+  built every loaded signature again, about 130 builds a map change.
   Also in round 20: Abyssal Eye's reality cracks tear out and fade where they reached instead
   of shrinking back into the blade; Puzzle Holocron's rows read (darker panels, a tone a row,
   bolder seams, a softer core); Thermal Fuse is a braided gold cord burning down from the tip,
@@ -2365,6 +2412,39 @@ the sheets to `SJK_SIGNATURE_PREVIEW` (`SJK_SIGNATURES` picks some); and
 `blade_views_gpu_test.rs` each signature and design beside a stock blade side on, from a
 third-person camera and from first person looking along the blade, saving to
 `SJK_VIEWS` (`SJK_VIEW_SKINS` picks some).
+
+### Falling blossoms
+
+Built 21/10/2026 for the Varykino Blossom (blade 166, Kushina's idea: "the afterimage like
+the spectral blade has, could be these falling blossoms"). A signature may shed real petals
+when it is swung, which its own quad could not hold: they are particles in the world
+([saber_petals.rs](../crates/sjk-viewer/src/saber_petals.rs)).
+
+- **Declared** by the signature's header: `// @petals {"part":3,"per_unit":0.07,"life":2.6,
+  "size":1.6,"fall":38.0,"drift":14.0}`. `part` is the signature's own part (its `// @part`
+  line, from 0) that switches them, so the wearer turns them off in the Collection like any
+  other part and every SJK player then sees none; `per_unit` petals for each unit the tip
+  travels, `life` seconds, `size` units, `fall` and `drift` units a second. A test checks
+  every `@petals` line parses, is in range and names one of its parts.
+- **Shed** in `saber_submission.rs`: each blade keeps its tip (`PetalEmitter` in its
+  `BladeState`) in its wearer's frame, as the signatures' afterimages are, so turning the
+  view or running sheds none, only the blade's own swing; the tip is the whole length's, so
+  a blade growing out or going in sheds none either. At 0.07 a unit a hard swing (its tip at
+  600 to 1000 units a second) sheds 40 to 70 a second, about 150 alive a blade. The owed share carries over
+  frames; at most 6 a blade a frame and 256 waiting (`StateSlab::petals`); a jump in time
+  or a pause of more than 200 ms forgets the tip. Each petal starts on the blade's outer two
+  thirds with a fortieth of the tip's speed (the swing's breath, at most 40 units a second),
+  sinking and drifting sideways.
+- **Spawned** by `saber_petals::frame` (after the contacts and rain steam in
+  `entity_lights.rs`) as billboard particles of the bundled petal pictures
+  (`assets/petals`, drawn by `scripts/petal_assets.py`: three tints of one cherry petal,
+  `shaders/sjk_petals.shader`, mounted below game data as Order 66's confetti), turning as
+  they sink, stopping where they land on the floor (`apply_physics`, no bounce) and fading
+  over their last third. They count against the particle pool like any effect.
+  Their three shaders are in `effect_assets::CODE_SHADERS`: the frame's effect materials load
+  only the shaders listed there or named by an effect file, and without them the petals drew
+  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). The thrown
+  saber sheds none.
 
 ## Saber trails
 

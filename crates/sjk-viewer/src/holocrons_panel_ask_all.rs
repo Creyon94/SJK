@@ -38,15 +38,25 @@ pub(super) enum AskAll {
     Cancel,
 }
 
-/// The card's title and words for `opening` holocrons of the `held` the page can open.
-pub(super) fn words(opening: usize, held: usize) -> (String, Vec<String>) {
-    let title = if held > opening {
-        format!("Open {opening} of your {held} holocrons?")
+/// The card's title and words for `opening` holocrons (or kyber crystals, `crystals`) of
+/// the `held` the page can open.
+pub(super) fn words(opening: usize, held: usize, crystals: bool) -> (String, Vec<String>) {
+    let things = if crystals {
+        "kyber crystals"
     } else {
-        format!("Open all {opening} holocrons?")
+        "holocrons"
+    };
+    let title = if held > opening {
+        format!("Open {opening} of your {held} {things}?")
+    } else {
+        format!("Open all {opening} {things}?")
     };
     let mut lines: Vec<String> = Vec::new();
-    let body = if opening > ONE_BY_ONE {
+    let body = if opening > ONE_BY_ONE && crystals {
+        "They open together, in a quicker and simpler animation than opening them one by \
+         one: the strips run five at a time and every shader found is laid out at the end, \
+         without each shader's own reveal."
+    } else if opening > ONE_BY_ONE {
         "They open together, in a quicker and simpler animation than opening them one by \
          one: the strips run five at a time and everything found is laid out at the end, \
          without each card's own reveal."
@@ -144,7 +154,11 @@ impl Panel {
         let s = frame.s;
         let focus = self.ask_all.unwrap_or(AskAll::Open);
         let opening = self.open_every().map_or(0, |ids| ids.len());
-        let (title, lines) = words(opening, self.data.openable());
+        let (title, lines) = words(
+            opening,
+            self.data.openable(self.selected),
+            self.selected().is_kyber(),
+        );
         let height = CARD_BASE + LINE * lines.len() as f32;
         let card = [CARD_X, CARD_MIDDLE - height * 0.5, CARD_WIDTH, height];
         kit::scrim(&mut self.ui, viewport);

@@ -8,15 +8,18 @@
 //! backdrop shows pictures taken beforehand from each view its camera would fly
 //! to ([`crate::menu_backdrop::pictures`]): a 3840x2160 JPEG a view, bundled with
 //! the client (`assets/menu_pictures/<map>/`, `pictures.txt` naming each view's
-//! camera). The player on the stage, the thrown saber and the holocron are still
-//! drawn in 3D, standing where the picture shows the stage. [`Painter`] draws the
+//! camera). The Collection's saber shader swatches show their drawings instead of
+//! the game's live blade pictures ([`crate::blade_pictures::set_live`]). The player on
+//! the stage, the thrown saber and the holocron are still drawn in 3D, standing where the picture shows the stage. [`Painter`] draws the
 //! picture first in the world pass, so the menus, bloom and gamma go on top as on
 //! the live map. `world_shot_menu_pictures.rs` takes the pictures again.
 //!
 //! A map that fails to build because the card ran out of memory
 //! ([`is_out_of_memory`]) turns the setting on ([`after_out_of_memory`]), and the
-//! failure screen says so. The pictures take effect the next time the menu world is
-//! built: at once in the menus, after a match when the menus come back.
+//! failure screen says so; once it is on, each such failure lowers the texture
+//! detail (`r_picmip`) a step instead, down to 2. The pictures take effect the next
+//! time the menu world is built: at once in the menus, after a match when the menus
+//! come back.
 //!
 //! A picture menu world is named by its map path with [`PREFIX`]
 //! (`pictures:maps/mp/duel6.bsp`), so the menu world's map, kept to build it again
@@ -36,15 +39,22 @@ pub(crate) const SIZE: [u32; 2] = [3840, 2160];
 /// What a picture menu world's map path starts with.
 const PREFIX: &str = "pictures:";
 
-/// Register `ui_menuPictures` (default 0, archived).
+/// Register `ui_menuPictures` (default 0, archived), which the blade pictures follow,
+/// and the small-card check's [`crate::video_memory::CVAR`].
 pub(crate) fn register(cvars: &mut sjk_shell::CvarRegistry) -> Result<(), sjk_shell::CvarError> {
+    crate::video_memory::register(cvars)?;
     cvars.register(sjk_shell::CvarDefinition::new(
         CVAR,
         0_i64,
         sjk_shell::CvarFlags::ARCHIVE,
         "Stand the menus on pictures of their map instead of the live map, which saves video \
          memory (0 live map, 1 pictures); turned on by itself when a map runs out of video memory",
-    ))
+    ))?;
+    cvars.on_change(CVAR, |change| {
+        if let sjk_shell::CvarValue::Integer(value) = change.current {
+            crate::blade_pictures::set_live(value == 0);
+        }
+    })
 }
 
 /// Whether the menus stand on pictures.
@@ -82,27 +92,39 @@ pub(crate) fn is_out_of_memory(error: &str) -> bool {
     error.contains("out of memory") || error.contains("outofmemory")
 }
 
-/// Turn the pictures on after `map` ran out of video memory, and the failure
-/// screen's message.
+/// The texture detail (`r_picmip`) running out of video memory steps down to at
+/// most: a quarter of the sides, a sixteenth of the memory.
+const AUTO_PICMIP_MAX: i64 = 2;
+
+/// After `map` ran out of video memory, save some: the pictures on first, then each
+/// time one step less texture detail (`r_picmip`, [`AUTO_PICMIP_MAX`] at most), which
+/// the next map takes. The failure screen's message.
 pub(crate) fn after_out_of_memory(
     console: Option<&mut crate::console::ViewerConsole>,
     map: &str,
 ) -> String {
     let map = map.trim_start_matches("maps/").trim_end_matches(".bsp");
     let map = if map.is_empty() { "the map" } else { map };
-    let turned_on =
-        console.is_some_and(|console| !enabled(Some(console)) && console.set_cvar(CVAR, "1"));
-    if turned_on {
-        format!(
-            "Ran out of video memory loading {map}. The menus now use pictures to save \
-             memory (Settings, Menu pictures); a lower graphics preset may help too."
-        )
-    } else {
-        format!(
-            "Ran out of video memory loading {map}. A lower graphics preset or a lower \
-             resolution may help."
-        )
-    }
+    let saved = console.and_then(|console| {
+        if !enabled(Some(console)) && console.set_cvar(CVAR, "1") {
+            return Some(
+                "The menus now use pictures to save memory (Settings, Menu pictures); a lower \
+                 graphics preset may help too."
+                    .to_owned(),
+            );
+        }
+        let cvar = crate::world_materials::filtering::mips::PICMIP_CVAR;
+        let picmip = console.integer_cvar(cvar).unwrap_or(0).max(0) + 1;
+        (picmip <= AUTO_PICMIP_MAX && console.set_cvar(cvar, &picmip.to_string())).then(|| {
+            format!(
+                "Textures are now smaller to save memory (Settings, Texture detail {picmip}); \
+                 join again to use them."
+            )
+        })
+    });
+    let saved = saved
+        .unwrap_or_else(|| "A lower graphics preset or a lower resolution may help.".to_owned());
+    format!("Ran out of video memory loading {map}. {saved}")
 }
 
 /// One map's pictures, bundled with the client.
@@ -355,8 +377,22 @@ mod tests {
         assert!(enabled(Some(&console)));
         assert!(message.contains("siege_desert"), "{message}");
         assert!(message.contains("now use pictures"), "{message}");
-        let again = after_out_of_memory(Some(&mut console), "maps/mp/ffa3.bsp");
-        assert!(!again.contains("now use pictures"), "{again}");
+        // Then the textures, one step a time, down to the automatic floor.
+        for step in 1..=AUTO_PICMIP_MAX {
+            let again = after_out_of_memory(Some(&mut console), "maps/mp/ffa3.bsp");
+            assert!(!again.contains("now use pictures"), "{again}");
+            assert!(again.contains("Textures are now smaller"), "{again}");
+            assert_eq!(
+                console.integer_cvar(crate::world_materials::filtering::mips::PICMIP_CVAR),
+                Some(step)
+            );
+        }
+        let last = after_out_of_memory(Some(&mut console), "maps/mp/ffa3.bsp");
+        assert!(last.contains("lower resolution"), "{last}");
+        assert_eq!(
+            console.integer_cvar(crate::world_materials::filtering::mips::PICMIP_CVAR),
+            Some(AUTO_PICMIP_MAX)
+        );
     }
 
     #[test]

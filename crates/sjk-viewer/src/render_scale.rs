@@ -44,19 +44,13 @@ pub(crate) fn supported_bytes(request: u32, output: [u32; 2], maximum: u32, byte
 
 /// Allocate transactionally at installation/resize, never during steady frame drawing.
 pub(crate) fn checked<T>(device: &wgpu::Device, build: impl FnOnce() -> T) -> Option<T> {
-    let memory = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
-    let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
-    let candidate = build();
-    let invalid = pollster::block_on(validation.pop());
-    let exhausted = pollster::block_on(memory.pop());
-    if let Some(error) = invalid.or(exhausted) {
-        crate::log::progress(format_args!(
-            "supersampling allocation failed: {error}; reducing scale"
-        ));
-        None
-    } else {
-        Some(candidate)
-    }
+    crate::gpu_guard::capture(device, build)
+        .inspect_err(|error| {
+            crate::log::progress(format_args!(
+                "supersampling allocation failed: {error}; reducing scale"
+            ));
+        })
+        .ok()
 }
 
 /// Retained scene colour and integer box resolve; HUD depth remains output-sized.
