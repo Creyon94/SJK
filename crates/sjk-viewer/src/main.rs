@@ -44,7 +44,6 @@ mod duel_visibility;
 mod economy;
 mod editions;
 mod entity_view;
-mod kyber;
 mod loot_odds;
 
 mod saber_colour_command;

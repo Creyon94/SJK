@@ -293,10 +293,6 @@ impl HolocronPopup {
                     tier: waiting.entry.tier,
                     id: waiting.entry.id,
                     gift: waiting.entry.gift,
-                    earned: waiting
-                        .entry
-                        .earned
-                        .then(|| crate::kyber::Earned::of(&waiting.entry.note)),
                 });
             }
         }
@@ -438,8 +434,7 @@ impl HolocronPopup {
             ui,
             View {
                 entry: &showing.entry,
-                // A kyber crystal has no picture in the atlas yet: its gem.
-                icon: icons.get(showing.entry.tier.slot).copied().flatten(),
+                icon: icons[showing.entry.tier.index],
                 when: &showing.when,
                 place: (total > 1).then_some((*step + 1, total)),
                 t,
@@ -546,8 +541,7 @@ impl crate::GpuState {
             self.holocron_popup.rehearsal_base(),
         )?;
         let lines = holocrons::rehearsal::queued(&entries);
-        // A drop's chat line; a kyber crystal's grant is not announced, so none.
-        if let Some(entry) = entries.first().filter(|entry| !entry.tier.is_kyber()) {
+        if let Some(entry) = entries.first() {
             self.chat.rehearse_holocron(entry.tier.id, Instant::now());
         }
         self.holocron_popup.rehearse(entries);
@@ -649,7 +643,6 @@ mod tests {
             tier: &holocrons::TIERS[tier],
             dropped: 1_791_641_100,
             gift: false,
-            earned: false,
             note: String::new(),
         }
     }
