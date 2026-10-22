@@ -941,6 +941,12 @@ call): on the Staff page's Overview, beside Verify, their own **Make staff** or
 /v1/staff/staff`, logged and undoable by the owner). It never shows on the creator's
 own player, and admin panel access stays the operator's.
 
+The JKR creator (since 22/10/2026) is the creator of JKR, the client SJK is built on
+(Bishop): a flag only the hub operator sets (`sjk-hub jkr-creator KEY_ID`), carried by
+Profiles as `jkr_creator` (absent as false). It is a mark and nothing else: no staff
+rights, no tools, no protection. The player card shows it as a rust JKR CREATOR pill,
+after SJK TEAM or SJK CREATOR when the person has one.
+
 The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
 UI's look) finds players down its left (a name or part of one, colour codes ignored; a
 key id; or, with Seen lately, the players the hub saw last; 15 shown), and shows the

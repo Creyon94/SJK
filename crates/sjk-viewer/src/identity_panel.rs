@@ -716,6 +716,7 @@ mod tests {
             verified: false,
             staff: false,
             creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,

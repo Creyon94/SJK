@@ -1079,6 +1079,7 @@ pub(crate) mod tests {
             verified: true,
             staff: false,
             creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_759_708_800,

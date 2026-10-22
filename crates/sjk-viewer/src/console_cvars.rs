@@ -701,6 +701,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Draw the blade skins from Creyon's Blade Lab as the lab drew them",
         ),
         CvarDefinition::new(
+            crate::toy_saved::ORDER66_CVAR,
+            false,
+            archive,
+            "The Order 66 toy is on (toy_order66 switches it; it stays on until turned off)",
+        ),
+        CvarDefinition::new(
+            crate::toy_saved::HAX_CVAR,
+            false,
+            archive,
+            "The Hax toy is on (toy_hax switches it; it stays on until turned off)",
+        ),
+        CvarDefinition::new(
             crate::duel_blades::CVAR,
             false,
             archive,

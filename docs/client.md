@@ -3944,7 +3944,9 @@ every player who has it on dies at once, blown apart, when one of them executes 
 order. `toy_order66` turns it on or off, from a bind (Settings > Key bindings >
 Interaction > Toy: Order 66, unbound until a key is picked), from the quick wheel's
 [Toys page](#toys-page) or from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)).
-It is off at every start and stays on across deaths. `order66` (Interaction > Execute
+It stays as last switched, across deaths, maps, servers and restarts of the game, until
+the player turns it off (since 22/10/2026: saved in the archived `cl_toyOrder66`,
+[toy_saved.rs](../crates/sjk-viewer/src/toy_saved.rs)). `order66` (Interaction > Execute
 Order 66, or the Toys page) gives the order; only a player whose own toy is on, alive in
 the match on a server, can give it.
 
@@ -4013,7 +4015,9 @@ The Hax is a meme toy, SJK's own and free for every player (Sol's idea, 21/10/20
 player who has it on hacks another who has it on, then steers them for a few seconds.
 `toy_hax` turns it on or off, from a bind (Settings > Key bindings > Interaction > Toy:
 Hax, unbound until a key is picked), from the quick wheel's [Toys page](#toys-page) or
-from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It is off at every start.
+from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). It stays as last
+switched, across maps, servers and restarts, until the player turns it off (saved in
+the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
 
 - **Who takes part:** the players whose toy is on. It is a toy in their look
   (`toys: ["hax"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so the hacker's
