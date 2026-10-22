@@ -1202,7 +1202,7 @@ Profile page's See the collection) open it on its own:
   on both, and Equip sets `cg_saberSkin` to it and `cg_saberSkin2` to empty (the second
   follows the first; `PanelAction::WearBoth`); with both wearing it, Unequip leaves both the
   stock blade ("Unequip both"), and the stock row reads "Stock on both". The box is kept
-  for the session; choosing a side (a pill or a click on a saber) unticks it. Its label is
+  for the session; choosing a side (a pill or a click on a saber) unticks it, a click on a lone saber does not (review of 22/10/2026). Its label is
   drawn in the face it is measured in, so it is never cut short ("Both sab...").
   Resting the pointer on a shader's row chooses and previews it only over its blade (the
   swatch), not over its name or state (Creyon, 21/10/2026: going to Equip, the pointer crossed

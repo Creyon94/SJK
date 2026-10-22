@@ -1150,7 +1150,12 @@ impl Panel {
                     let clicked = self.saber_press.take().is_some_and(|[px, py]| {
                         (at.x - px).hypot(at.y - py) <= CLICK_SLOP * self.scale.max(0.1)
                     });
-                    if clicked && let Some(rect) = self.ui.rect_for(SABER_TOKEN) {
+                    // With one saber there is no side to choose, and the Both box is left
+                    // as it is (review of 22/10/2026: any click unticked it).
+                    if clicked
+                        && self.pair != crate::saber_skins::Pair::None
+                        && let Some(rect) = self.ui.rect_for(SABER_TOKEN)
+                    {
                         let second = match self.pair {
                             crate::saber_skins::Pair::TwoSabers => {
                                 at.y > rect.y + rect.height * 0.5
@@ -2228,6 +2233,15 @@ mod tests {
                 second: ""
             }
         );
+        // Holding one saber, a click on it leaves the box as it is (review of 22/10/2026).
+        panel.build(
+            &inputs(Holdings::Known(&owned), ""),
+            &fonts.font,
+            [1920.0, 1080.0],
+        );
+        assert_eq!(click(&mut panel, SABER_TOKEN), PanelAction::None);
+        panel.build(&dual("", "saber_sun"), &fonts.font, [1920.0, 1080.0]);
+        assert!(panel.stage_wish().unwrap().on_both);
         // Choosing one side unticks the box.
         assert_eq!(click(&mut panel, TARGET_FIRST_TOKEN), PanelAction::None);
         assert!(!panel.stage_wish().unwrap().on_both);
