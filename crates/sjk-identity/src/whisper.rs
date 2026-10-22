@@ -240,6 +240,90 @@ pub fn parse_key(text: &str) -> Option<[u8; 32]> {
     B64.decode(text).ok()?.try_into().ok()
 }
 
+/// The safety code of two players' keys (`a` and `b`, in either order): twelve digits
+/// in three groups (`4821 0937 5512`), the same on both screens. Compared outside the
+/// game, it proves each has the other's real key, so not even the hub can read their
+/// whispers. 60 bits of SHA-256: no one can make a key that shows a chosen code.
+pub fn safety_code(a: &[u8; 32], b: &[u8; 32]) -> String {
+    use sha2::Digest;
+    let (low, high) = if a <= b { (a, b) } else { (b, a) };
+    let mut hash = Sha256::new();
+    hash.update(b"SJK safety code v1");
+    hash.update(low);
+    hash.update(high);
+    let digest = hash.finalize();
+    let mut bytes = [0_u8; 8];
+    bytes.copy_from_slice(&digest[..8]);
+    let number = u64::from_be_bytes(bytes) % 1_000_000_000_000;
+    let digits = format!("{number:012}");
+    format!("{} {} {}", &digits[..4], &digits[4..8], &digits[8..])
+}
+
+/// The players whose key the player checked with the safety code, by key id: the key
+/// they checked (`whisper-verified.txt`, one `key_id key` per line).
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Verified {
+    keys: BTreeMap<String, String>,
+}
+
+/// Where a player stands with [`Verified`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Checked {
+    /// Never checked.
+    No,
+    /// Checked, and this is the key.
+    Yes,
+    /// Checked, but their key is not the one checked any more.
+    Changed,
+}
+
+impl Verified {
+    /// Read the file's text; lines that do not parse are dropped.
+    pub fn parse(text: &str) -> Self {
+        let keys = text
+            .lines()
+            .filter_map(|line| line.trim().split_once(' '))
+            .filter(|(id, key)| !id.is_empty() && parse_key(key).is_some())
+            .map(|(id, key)| (id.to_owned(), key.to_owned()))
+            .collect();
+        Self { keys }
+    }
+
+    /// The file's text.
+    pub fn to_text(&self) -> String {
+        self.keys
+            .iter()
+            .map(|(id, key)| {
+                format!(
+                    "{id} {key}
+"
+                )
+            })
+            .collect()
+    }
+
+    /// Whether `key` is the one checked for `key_id`.
+    pub fn check(&self, key_id: &str, key: &str) -> Checked {
+        match self.keys.get(key_id) {
+            None => Checked::No,
+            Some(checked) if checked == key => Checked::Yes,
+            Some(_) => Checked::Changed,
+        }
+    }
+
+    /// Mark `key` as checked for `key_id`, or forget the check (`key` `None`).
+    pub fn set(&mut self, key_id: &str, key: Option<&str>) {
+        match key {
+            Some(key) => {
+                self.keys.insert(key_id.to_owned(), key.to_owned());
+            }
+            None => {
+                self.keys.remove(key_id);
+            }
+        }
+    }
+}
+
 /// The keys this PC has seen each player's whispers come from and go to, by key id
 /// (`whisper-keys.txt`, one `key_id key` per line): a key that changes is said, since
 /// the hub could hand out its own. A player's keys are those of each of their PCs.
@@ -407,6 +491,48 @@ mod tests {
             Err(SealError::Length)
         );
         assert!(seal(&sol, &fox.public_key(), SERVER, 0, &"a".repeat(TEXT_MAX)).is_ok());
+    }
+
+    #[test]
+    fn both_players_see_the_same_safety_code() {
+        let (sol, fox, hub) = (
+            Identity::generate().unwrap(),
+            Identity::generate().unwrap(),
+            Identity::generate().unwrap(),
+        );
+        let code = safety_code(&sol.public_key(), &fox.public_key());
+        assert_eq!(code, safety_code(&fox.public_key(), &sol.public_key()));
+        assert_eq!(code.len(), 14);
+        assert!(
+            code.split(' ')
+                .all(|group| group.len() == 4 && group.bytes().all(|b| b.is_ascii_digit()))
+        );
+        // A hub handing out its own key shows another code.
+        assert_ne!(code, safety_code(&sol.public_key(), &hub.public_key()));
+        // Pinned: the format must not change under players who compared.
+        assert_eq!(safety_code(&[2; 32], &[1; 32]), "8823 8617 6531");
+    }
+
+    #[test]
+    fn a_checked_key_is_remembered_and_a_new_one_is_said() {
+        let key = B64.encode([7_u8; 32]);
+        let other = B64.encode([8_u8; 32]);
+        let mut verified = Verified::default();
+        assert_eq!(verified.check("fox", &key), Checked::No);
+        verified.set("fox", Some(&key));
+        assert_eq!(verified.check("fox", &key), Checked::Yes);
+        assert_eq!(verified.check("fox", &other), Checked::Changed);
+        let read = Verified::parse(&verified.to_text());
+        assert_eq!(read, verified);
+        verified.set("fox", None);
+        assert_eq!(verified.check("fox", &key), Checked::No);
+        assert_eq!(
+            Verified::parse(
+                "fox notakey
+"
+            ),
+            Verified::default()
+        );
     }
 
     #[test]

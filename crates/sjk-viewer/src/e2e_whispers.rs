@@ -14,10 +14,18 @@
 //! Each player's keys are remembered in `whisper-keys.txt` beside `config.cfg`
 //! ([`sjk_identity::whisper::KeyPins`]): a key not seen before for a player is said in
 //! the console, since a lying hub could hand out its own.
+//!
+//! Optionally, a player compares the safety code of their two keys with the other
+//! outside the game (the chat's player card, `whisper_verify`) and marks them verified
+//! (`whisper-verified.txt`, [`sjk_identity::whisper::Verified`]): their whispers then say
+//! VERIFIED, and once their key changes nothing goes encrypted to it without the card
+//! asking, and what comes from it is flagged.
 
-use crate::e2e_whisper_card::{Choice, Failure};
+use crate::e2e_whisper_card::{Choice, Failure, Safety};
 use crate::{GpuState, player_identity};
-use sjk_identity::whisper::{KeyPins, OpenError, Outgoing, PinCheck, Received};
+use sjk_identity::whisper::{
+    Checked, KeyPins, OpenError, Outgoing, PinCheck, Received, Verified, parse_key, safety_code,
+};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -26,6 +34,10 @@ use std::time::{Duration, Instant};
 pub(crate) const CVAR: &str = "cl_e2eWhispers";
 /// The remembered keys, in the settings folder.
 const PINS_FILE: &str = "whisper-keys.txt";
+/// The players checked with the safety code, in the settings folder.
+const VERIFIED_FILE: &str = "whisper-verified.txt";
+/// `whisper_verify`: the safety code with a player.
+pub(crate) const VERIFY_COMMAND: &str = "whisper_verify";
 /// How long a sent whisper may wait for the hub's answer before it counts as failed.
 const ANSWER_WAIT: Duration = Duration::from_secs(10);
 
@@ -39,6 +51,8 @@ struct Pending {
     /// The `tell` the game server would have had, for sending it unencrypted.
     command: String,
     sent: Instant,
+    /// The player was checked with the safety code, with this key.
+    verified: bool,
 }
 
 #[derive(Default)]
@@ -46,6 +60,7 @@ pub(crate) struct State {
     serial: u64,
     pending: Vec<Pending>,
     pins: Option<(PathBuf, KeyPins)>,
+    verified: Option<(PathBuf, Verified)>,
     pub(crate) card: crate::e2e_whisper_card::Card,
     /// The card opened the game menu, which goes with it.
     opened_menu: bool,
@@ -70,6 +85,31 @@ impl State {
             let _ = std::fs::write(&path, pins.to_text());
         }
         check
+    }
+
+    /// The players checked with the safety code, read from `directory` once.
+    fn verified(&mut self, directory: &Path) -> &mut Verified {
+        let path = directory.join(VERIFIED_FILE);
+        if self.verified.as_ref().is_none_or(|(at, _)| *at != path) {
+            let verified = std::fs::read_to_string(&path)
+                .map(|text| Verified::parse(&text))
+                .unwrap_or_default();
+            self.verified = Some((path, verified));
+        }
+        &mut self.verified.as_mut().expect("loaded above").1
+    }
+
+    /// Whether `key` is the one checked for `key_id`.
+    fn checked(&mut self, directory: &Path, key_id: &str, key: &str) -> Checked {
+        self.verified(directory).check(key_id, key)
+    }
+
+    /// Mark `key` as checked for `key_id`, or forget the check, and write the file.
+    fn set_checked(&mut self, directory: &Path, key_id: &str, key: Option<&str>) {
+        let verified = self.verified(directory);
+        verified.set(key_id, key);
+        let text = verified.to_text();
+        let _ = std::fs::write(directory.join(VERIFIED_FILE), text);
     }
 }
 
@@ -142,6 +182,22 @@ impl GpuState {
         .flatten() else {
             return false;
         };
+        let checked = self.e2e_whispers.checked(&directory, &key_id, &key);
+        // A player checked with the safety code whose key changed: nothing goes to the
+        // new key without asking; the card offers the game server instead.
+        if checked == Checked::Changed {
+            self.e2e_whispers.card.offer(Failure {
+                server,
+                name: shown,
+                text: shown_text(&text),
+                command: command.to_owned(),
+                why: "their key changed since you verified them; compare the safety code \
+                      again (whisper_verify)"
+                    .to_owned(),
+            });
+            self.open_e2e_whisper_card();
+            return true;
+        }
         self.e2e_whispers.serial += 1;
         let serial = self.e2e_whispers.serial;
         let sent = player_identity::send_whisper(Outgoing {
@@ -166,13 +222,99 @@ impl GpuState {
             text: shown_text(&text),
             command: command.to_owned(),
             sent: Instant::now(),
+            verified: checked == Checked::Yes,
         });
         true
     }
 
+    /// Show the safety code with the player in `slot` (`whisper_verify`, the chat's
+    /// player card); why not, when they do not take encrypted whispers here.
+    pub(crate) fn show_safety_code(&mut self, slot: u16) -> Result<(), String> {
+        let not_here = || "they do not take encrypted whispers here".to_owned();
+        let Some(console) = self.console.as_ref() else {
+            return Err(not_here());
+        };
+        let directory = console.config_directory().to_owned();
+        let session = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .ok_or_else(|| "only on a server".to_owned())?;
+        let game_state = session.game_state();
+        if u16::try_from(game_state.client_num).ok() == Some(slot) {
+            return Err("that is you".to_owned());
+        }
+        let server = session.server();
+        let target = u8::try_from(slot).map_err(|_| not_here())?;
+        let shown =
+            player_identity::shown_name(game_state, usize::from(slot)).ok_or_else(not_here)?;
+        let (key_id, key, own) = player_identity::with_snapshot(|snapshot| {
+            let player = snapshot.badge(target, &shown)?;
+            Some((
+                player.key_id.clone(),
+                player.whisper_key.clone()?,
+                snapshot.public_key.clone(),
+            ))
+        })
+        .flatten()
+        .ok_or_else(not_here)?;
+        let (Some(theirs), Some(own)) = (parse_key(&key), parse_key(&own)) else {
+            return Err(not_here());
+        };
+        let checked = self.e2e_whispers.checked(&directory, &key_id, &key);
+        self.e2e_whispers.card.show_safety(Safety {
+            server,
+            name: shown,
+            key_id,
+            key,
+            code: safety_code(&own, &theirs),
+            checked,
+        });
+        self.open_e2e_whisper_card();
+        Ok(())
+    }
+
+    /// `whisper_verify <player>`: a slot number or (part of) a name, as `tell` takes.
+    pub(crate) fn whisper_verify_command(
+        &mut self,
+        args: &[String],
+    ) -> Result<Vec<String>, String> {
+        let usage = || format!("usage: {VERIFY_COMMAND} <player>");
+        let wanted = args.join(" ");
+        if wanted.trim().is_empty() {
+            return Err(usage());
+        }
+        let session = self
+            .live_session
+            .as_ref()
+            .ok_or_else(|| format!("{VERIFY_COMMAND}: only on a server"))?;
+        let mut roster = sjk_client::ChatRoster::default();
+        roster.update(session.game_state());
+        let slot = match wanted.trim().parse::<u16>() {
+            Ok(slot) => slot,
+            Err(_) => match roster.lookup(wanted.trim()) {
+                sjk_client::PlayerLookup::Found(slot) => slot,
+                sjk_client::PlayerLookup::NotFound => {
+                    return Err(format!("{VERIFY_COMMAND}: no player matches \"{wanted}\""));
+                }
+                sjk_client::PlayerLookup::Ambiguous(_) => {
+                    return Err(format!(
+                        "{VERIFY_COMMAND}: \"{wanted}\" matches several players; use a number"
+                    ));
+                }
+            },
+        };
+        if let Some(console) = self.console.as_mut() {
+            console.set_open(false);
+        }
+        self.show_safety_code(slot)
+            .map(|()| Vec::new())
+            .map_err(|why| format!("{VERIFY_COMMAND}: {why}"))
+    }
+
     /// Once a frame: listen for encrypted whispers while on a server with them on, show
     /// what the hub did with ours and the ones that came, and tell the chat which slots
-    /// take them (`due`: the identity's twice-a-second turn).
+    /// take them.
     pub(crate) fn update_e2e_whispers(&mut self) {
         let on = self.console.as_ref().is_some_and(|console| {
             console.bool_cvar(CVAR) != Some(false) && console.bool_cvar("cl_identity") == Some(true)
@@ -184,6 +326,12 @@ impl GpuState {
             .map(|session| session.server());
         player_identity::set_whisper_listen(on && server.is_some());
         self.update_encrypted_slots(server.filter(|_| on));
+        if let Some(slot) = self.chat.take_safety_request()
+            && let Err(why) = self.show_safety_code(slot)
+            && let Some(console) = self.console.as_mut()
+        {
+            console.push_log(format!("^3Safety code: {why}."));
+        }
         self.e2e_whisper_answers(server);
         let received = player_identity::take_whispers(server);
         for whisper in received {
@@ -259,8 +407,13 @@ impl GpuState {
         for (pending, result) in done {
             match result {
                 Ok(()) => {
-                    self.chat
-                        .receive_encrypted(None, &pending.name, &pending.text, now);
+                    self.chat.receive_encrypted(
+                        None,
+                        &pending.name,
+                        &pending.text,
+                        pending.verified,
+                        now,
+                    );
                     if let Some(console) = self.console.as_mut() {
                         let line = format!("^6To {}^6 (encrypted): {}", pending.name, pending.text);
                         console.push_chat_line(line.clone(), &line, None);
@@ -331,14 +484,25 @@ impl GpuState {
             .e2e_whispers
             .pin(&directory, &whisper.key_id, &whisper.from)
             == PinCheck::Changed;
-        if !self
-            .chat
-            .receive_encrypted(Some(slot), "", &text, Instant::now())
-        {
+        let checked = self
+            .e2e_whispers
+            .checked(&directory, &whisper.key_id, &whisper.from);
+        if !self.chat.receive_encrypted(
+            Some(slot),
+            "",
+            &text,
+            checked == Checked::Yes,
+            Instant::now(),
+        ) {
             return;
         }
         if let Some(console) = self.console.as_mut() {
-            if changed {
+            if checked == Checked::Changed {
+                console.push_log(format!(
+                    "^1Encrypted whispers: {shown}^1's key changed since you verified them. \
+                     Compare the safety code again ({VERIFY_COMMAND}) before trusting it."
+                ));
+            } else if changed {
                 console.push_log(key_changed_line(&shown));
             }
             let line = format!("^6{shown}^6 (encrypted): {text}");
@@ -405,14 +569,35 @@ impl GpuState {
         self.e2e_whispers.card.append(target, viewport);
     }
 
-    /// Act on the player's choice: send the whisper unencrypted, or not at all. The
-    /// game menu the card opened closes once no failure is left.
+    /// Act on the player's choice: send the whisper unencrypted or not at all, or mark a
+    /// player verified or not. The game menu the card opened closes once nothing is left.
     pub(crate) fn e2e_whisper_card_choice(&mut self, choice: Option<Choice>) {
         let Some(choice) = choice else {
             return;
         };
-        if let Choice::SendPlain(failure) = choice {
-            self.send_chat_to_server(&failure.command, Some(failure.name));
+        let directory = self
+            .console
+            .as_ref()
+            .map(|console| console.config_directory().to_owned());
+        match (choice, directory) {
+            (Choice::SendPlain(failure), _) => {
+                self.send_chat_to_server(&failure.command, Some(failure.name));
+            }
+            (Choice::Verify(safety), Some(directory)) => {
+                self.e2e_whispers
+                    .set_checked(&directory, &safety.key_id, Some(&safety.key));
+                if let Some(console) = self.console.as_mut() {
+                    console.push_log(format!(
+                        "Encrypted whispers: {}^7 verified on this PC.",
+                        safety.name
+                    ));
+                }
+            }
+            (Choice::Unverify(safety), Some(directory)) => {
+                self.e2e_whispers
+                    .set_checked(&directory, &safety.key_id, None);
+            }
+            _ => {}
         }
         if !self.e2e_whispers.card.wants() && std::mem::take(&mut self.e2e_whispers.opened_menu) {
             self.game_menu = false;
@@ -473,6 +658,23 @@ mod tests {
             let path = crate::world_shot::shoot(&mut gpu, 6, "encrypted-whisper-card");
             println!("{}", path.display());
             assert!(gpu.e2e_whispers.card.is_open(), "the card shows");
+            // A safety code to compare, from the chat's player card.
+            gpu.e2e_whispers.card.clear();
+            let safety = |checked| Safety {
+                server: "127.0.0.1:29070".parse().unwrap(),
+                name: "^5Creyon".to_owned(),
+                key_id: "c0ffee00c0ffee01".to_owned(),
+                key: String::new(),
+                code: safety_code(&[1; 32], &[2; 32]),
+                checked,
+            };
+            gpu.e2e_whispers.card.show_safety(safety(Checked::No));
+            let path = crate::world_shot::shoot(&mut gpu, 6, "encrypted-whisper-safety");
+            println!("{}", path.display());
+            gpu.e2e_whispers.card.clear();
+            gpu.e2e_whispers.card.show_safety(safety(Checked::Changed));
+            let path = crate::world_shot::shoot(&mut gpu, 6, "encrypted-whisper-key-changed");
+            println!("{}", path.display());
         });
         crate::world_shot::on_big_stack(|| {
             let Some((mut gpu, _profile)) = crate::world_shot::open(
@@ -503,10 +705,20 @@ mod tests {
                 Some(6),
                 now,
             );
-            gpu.chat
-                .receive_encrypted(Some(4), "", "meet me at the bridge, bring the hilt", now);
-            gpu.chat
-                .receive_encrypted(None, "^5Creyon", "on my way, only you can read this", now);
+            gpu.chat.receive_encrypted(
+                Some(4),
+                "",
+                "meet me at the bridge, bring the hilt",
+                true,
+                now,
+            );
+            gpu.chat.receive_encrypted(
+                None,
+                "^5Creyon",
+                "on my way, only you can read this",
+                false,
+                now,
+            );
             let path = crate::world_shot::shoot(&mut gpu, 10, "encrypted-whispers-chat");
             println!("{}", path.display());
         });

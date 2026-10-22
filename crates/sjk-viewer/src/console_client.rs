@@ -78,6 +78,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
     ),
     (
+        crate::e2e_whispers::VERIFY_COMMAND,
+        "Show the safety code of your encrypted whispers with a player, to compare with them: whisper_verify <player>",
+    ),
+    (
         crate::player_ids::CLIENT_LIST_COMMAND,
         crate::player_ids::CLIENT_LIST_HELP,
     ),
@@ -955,6 +959,7 @@ impl crate::GpuState {
                 );
             }
             "reply" => return self.reply_command(args),
+            crate::e2e_whispers::VERIFY_COMMAND => return self.whisper_verify_command(args),
             crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {
                 let session = self
                     .resident

@@ -1264,6 +1264,7 @@ Found the fog bug, ask me about it!"
             kyber: None,
             shop: None,
             trade: None,
+            public_key: String::new(),
         };
         let standings = crate::achievements::ALL
             .iter()

@@ -437,6 +437,7 @@ impl Panel {
                     place: crate::sender_card::Place::Unknown,
                     avatar: None,
                     note: None,
+                    safety: false,
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -872,6 +873,7 @@ impl Panel {
                 place: crate::sender_card::Place::Unknown,
                 avatar: version,
                 note: Some(note),
+                safety: false,
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -1417,6 +1419,8 @@ impl Panel {
                 card: CARD_TOKEN,
                 mute: CARD_MUTE_TOKEN,
                 ban: CARD_BAN_TOKEN,
+                // The safety code is only offered in the game's chat.
+                safety: CARD_TOKEN,
             },
         );
     }

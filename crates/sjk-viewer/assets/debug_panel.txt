@@ -35,6 +35,8 @@ test: Send: "To <name> ENCRYPTED" line here, their line pink with ENCRYPTED and 
 test: reply on their side answers encrypted; tell <name> from the console too.
 test: Stop the hub, whisper: the card asks; Esc sends nothing, Enter sends it through the server.
 test: cl_e2eWhispers 0: whispers go through the server as before (lilac WHISPER).
+test: whisper_verify <name> on both PCs: same 12 digits. Mark verified: lines say VERIFIED.
+test: Then a new identity on the other PC: your whisper asks first, theirs warns in red.
 
 [sjk-chat-caret]
 area: Console & chat

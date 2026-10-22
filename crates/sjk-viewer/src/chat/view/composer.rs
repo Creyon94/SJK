@@ -44,9 +44,9 @@ impl ChatOverlay {
                 .and_then(|target| self.roster.name(target))
                 .unwrap_or("Player unavailable");
             // A recipient who takes encrypted whispers gets one: said in its pink.
-            let encrypted = input.recipient.is_some_and(|target| {
-                target.slot() < 64 && self.encrypted_slots & (1 << target.slot()) != 0
-            });
+            let encrypted = input
+                .recipient
+                .is_some_and(|target| self.takes_encrypted(target.slot()));
             let (suffix, colour) = if encrypted {
                 (" (encrypted)", super::encrypted_pink(1.0))
             } else {

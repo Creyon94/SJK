@@ -3012,6 +3012,7 @@ mod tests {
             kyber: None,
             shop: None,
             trade: None,
+            public_key: String::new(),
         };
         let online = snapshot(Status::Online, Some(me));
         assert_eq!(Holdings::of(false, Some(&online)), Holdings::IdentityOff);
