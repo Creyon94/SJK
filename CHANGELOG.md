@@ -28,7 +28,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1023.1 (Alpha) | 23/10/2026
+
+SJK chat on JoF servers reaches All chat, whispers say when they are not private, and fixes from your reports.
+
+> JoF servers: SJK chat you say there in a match also goes to All chat, as JoF asked, labelled ALL/SJK.
+> Whispers: An unencrypted whisper warns that the server logs it; encrypted ones you send play their sound.
+> Vehicles: Fighters, speeders and walkers play each gun's firing sound and muzzle flash, as in the original game.
+> Fixes: Map changes use less video memory, MP4 clips no longer freeze the game, and fast turns keep the camera.
 
 - Vehicle guns sound and flash when fired, as in the original game: fighters, speeders and walkers play each gun's own firing sound and muzzle flash at the muzzle that fired, where before only the shots' flight and impacts were heard. Sounds from effects (impacts, explosions and the like) now play at the original game's full volume instead of seven tenths _(Sol, after Kushina's report)_
 - Turning very fast for a long time (a huge `cl_yawspeed`) no longer breaks the camera: the view stays behind your character and no longer shakes with every mouse move afterwards _(Sol, after Yernow's report)_
