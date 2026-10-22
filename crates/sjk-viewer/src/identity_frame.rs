@@ -15,7 +15,8 @@
 //! chat (`chat/marks.rs`), notes the Profile screen's tab on show
 //! (`profile_hub.rs`), hands the hub the player models the game has
 //! (`installed_models.rs`), puts the pictures that finished loading into the UI's atlas and
-//! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`).
+//! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`), and
+//! carries the encrypted whispers (`e2e_whispers.rs`).
 
 use super::*;
 use sjk_identity::Settings;
@@ -52,6 +53,7 @@ impl GpuState {
         self.update_cardboard_box(Instant::now(), &toy_events);
         self.update_order66(&toy_events);
         self.update_hax();
+        self.update_e2e_whispers();
         if !due {
             return;
         }

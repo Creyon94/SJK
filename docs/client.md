@@ -2331,6 +2331,13 @@ characters). The hub's SJK channel and bios take them too since 12/10/2026 (Cyri
 they already took; the letter rules they share,
 [identity.md](identity.md#the-bios-rules)); every SJK player reads them.
 
+### Encrypted whispers
+
+A whisper to another SJK player goes through the SJK hub end-to-end encrypted while
+`cl_e2eWhispers` is on (default; Settings > Network > Encrypted whispers): in its own
+pink, marked ENCRYPTED, with its own sound, and a card asks before sending one the hub
+could not take through the game server. See [hub-chat.md](hub-chat.md#encrypted-whispers).
+
 ### Chat player actions
 
 U defaults to crosshair-target private chat (`messagemode3`): aim at a player,

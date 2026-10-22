@@ -49,6 +49,9 @@ pub(crate) enum Cue {
     CrateTick = 16384,
     /// The strip came to rest on the prize.
     CrateLand = 32768,
+    /// An end-to-end encrypted whisper from another player (`e2e_whispers.rs`); its
+    /// sound is made in memory, as [`Cue::SjkChat`]'s (`sjk_chat_sound.rs`).
+    EncryptedWhisper = 65536,
 }
 
 /// `(cue, sound path, volume)` — the game's own sounds, looked up through
@@ -143,6 +146,9 @@ pub(crate) fn play_pending(audio: &mut GameAudio) {
     if pending & Cue::SjkChat as u32 != 0 {
         audio.play_sjk_chat(UI_SOURCE, ChannelId(CUE_SOUNDS.len() as u32));
     }
+    if pending & Cue::EncryptedWhisper as u32 != 0 {
+        audio.play_encrypted_whisper(UI_SOURCE, ChannelId(CUE_SOUNDS.len() as u32 + 1));
+    }
 }
 
 #[cfg(test)]
@@ -157,6 +163,7 @@ mod tests {
             assert_eq!(bit.count_ones(), 1, "{cue:?}");
             assert_eq!(bits & bit, 0, "{cue:?} twice");
             assert_ne!(cue, Cue::SjkChat, "made in memory, never a file");
+            assert_ne!(cue, Cue::EncryptedWhisper, "made in memory, never a file");
             bits |= bit;
             // The game's sounds, or its short music stingers (the medal's fanfare).
             assert!(
@@ -177,5 +184,7 @@ mod tests {
         assert!(volume(Cue::WheelPage) < 1.0);
         assert_eq!(bits & Cue::SjkChat as u32, 0);
         assert_eq!((Cue::SjkChat as u32).count_ones(), 1);
+        assert_eq!(bits & Cue::EncryptedWhisper as u32, 0);
+        assert_eq!((Cue::EncryptedWhisper as u32).count_ones(), 1);
     }
 }

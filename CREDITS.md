@@ -60,6 +60,9 @@ includes:
   executes the order and blows apart into flying pieces, or confetti;
 - the Hax, a meme toy: hold Use on another player who has it on to hack them
   with the siege hack bar, then steer them for a few seconds;
+- end-to-end encrypted whispers: whispers between SJK players sealed to the
+  recipient's key and carried by the SJK hub, which cannot read them
+  (22/10/2026);
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;

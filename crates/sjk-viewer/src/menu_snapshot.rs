@@ -1324,6 +1324,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             },
             Presence {
                 slot: 7,
@@ -1336,6 +1337,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             },
         ],
         profiles: std::collections::HashMap::new(),

@@ -1180,6 +1180,41 @@ pub(crate) fn set_relay_listen(listen: bool) {
     }
 }
 
+/// Whether the player takes encrypted whispers (`e2e_whispers.rs`).
+pub(crate) fn set_whisper_listen(listen: bool) {
+    if let Some(service) = lock().service.as_ref() {
+        service.set_whisper_listen(listen);
+    }
+}
+
+/// Seal and send an encrypted whisper; false when the service has not started.
+pub(crate) fn send_whisper(whisper: sjk_identity::whisper::Outgoing) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.send_whisper(whisper);
+    true
+}
+
+/// What became of the encrypted whispers sent since the last call.
+pub(crate) fn take_whispers_sent() -> Vec<sjk_identity::whisper::Sent> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_whispers_sent())
+        .unwrap_or_default()
+}
+
+/// The encrypted whispers read for `server` since the last call.
+pub(crate) fn take_whispers(server: Option<SocketAddr>) -> Vec<sjk_identity::whisper::Received> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_whispers(server))
+        .unwrap_or_default()
+}
+
 /// The relayed toy events read for `server` since the last call.
 pub(crate) fn take_relay_events(server: Option<SocketAddr>) -> Vec<sjk_identity::ToyEvent> {
     lock()

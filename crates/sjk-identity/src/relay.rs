@@ -4,14 +4,19 @@
 //! the viewer hands it as soon as it comes, the other keeps a long poll open at the hub
 //! for the events meant for the player, while the viewer says it listens.
 //!
+//! The same two threads carry encrypted whispers (`crate::whisper`): the sender seals
+//! and posts the ones the viewer hands it, first, and says what became of each; the
+//! reader asks for them while the viewer takes them, and opens them.
+//!
 //! Both read the hub and the game server from [`FeedShared`] (set only while the
 //! identity is on, registered and on a server). The hub needs a live claim there, so
 //! nothing goes or comes before it is in.
 
-use crate::feed::{FeedShared, QueuedToyEvent, lock};
+use crate::feed::{FeedShared, ForServer, QueuedToyEvent, lock};
 use crate::hub::Hub;
 use crate::keys::Identity;
 use crate::service::HubFactory;
+use crate::whisper;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
@@ -34,6 +39,8 @@ const RETRY_MAX: Duration = Duration::from_secs(2);
 const INBOX: usize = 256;
 /// Events waiting to be sent, the newest kept.
 const OUTBOX: usize = 64;
+/// Whispers waiting to be sent, read or told about, the newest kept.
+const WHISPERS: usize = 32;
 
 /// The clients that relay: one for sends ([`SEND_TIMEOUT`]), one for the long poll
 /// ([`TIMEOUT`]).
@@ -62,6 +69,11 @@ pub(crate) struct RelayState {
     /// The viewer wants the events meant for the player.
     listen: bool,
     inbox: VecDeque<QueuedToyEvent>,
+    /// The viewer takes encrypted whispers.
+    whispers: bool,
+    whisper_out: VecDeque<whisper::Outgoing>,
+    whisper_sent: VecDeque<whisper::Sent>,
+    whisper_in: VecDeque<ForServer<whisper::Received>>,
 }
 
 impl RelayState {
@@ -87,6 +99,43 @@ impl RelayState {
 
     pub(crate) fn inbox(&mut self) -> &mut VecDeque<QueuedToyEvent> {
         &mut self.inbox
+    }
+
+    pub(crate) fn set_whispers(&mut self, whispers: bool) {
+        self.whispers = whispers;
+    }
+
+    /// Queue a whisper to seal and send; the oldest waiting gives way when full, and is
+    /// told as not sent.
+    pub(crate) fn push_whisper(&mut self, outgoing: whisper::Outgoing) {
+        if self.whisper_out.len() >= WHISPERS
+            && let Some(dropped) = self.whisper_out.pop_front()
+        {
+            self.tell(dropped.serial, Err("too many whispers waited".to_owned()));
+        }
+        self.whisper_out.push_back(outgoing);
+    }
+
+    fn tell(&mut self, serial: u64, result: Result<(), String>) {
+        if self.whisper_sent.len() >= WHISPERS {
+            self.whisper_sent.pop_front();
+        }
+        self.whisper_sent
+            .push_back(whisper::Sent { serial, result });
+    }
+
+    /// What became of the whispers sent since the last call.
+    pub(crate) fn take_sent(&mut self) -> Vec<whisper::Sent> {
+        self.whisper_sent.drain(..).collect()
+    }
+
+    /// The whispers read for `server` since the last call (others are dropped).
+    pub(crate) fn take_received(
+        &mut self,
+        server: Option<std::net::SocketAddr>,
+    ) -> Vec<whisper::Received> {
+        let queue = std::sync::Mutex::new(std::mem::take(&mut self.whisper_in));
+        crate::feed::take_for_server(&queue, server)
     }
 }
 
@@ -127,15 +176,29 @@ pub(crate) fn run_sender(
     };
     let (state, bell) = &*shared;
     while !stop.load(Ordering::Relaxed) {
-        let next = {
+        // A whisper goes before the toys' frames.
+        let (whisper, next) = {
             let mut state = lock(state);
-            if state.outbox.is_empty() {
+            if state.outbox.is_empty() && state.whisper_out.is_empty() {
                 state = bell
                     .wait_timeout(state, IDLE)
                     .map_or_else(|poisoned| poisoned.into_inner().0, |(state, _)| state);
             }
-            state.outbox.pop_front()
+            match state.whisper_out.pop_front() {
+                Some(whisper) => (Some(whisper), None),
+                None => (None, state.outbox.pop_front()),
+            }
         };
+        if let Some(outgoing) = whisper {
+            let place = lock(&feed).clone();
+            let serial = outgoing.serial;
+            let result = match client.for_url(place.url.as_deref()) {
+                (Some(hub), _) => send_whisper(&identity, hub.as_mut(), &place, outgoing),
+                (None, _) => Err("the SJK hub is off or not set".to_owned()),
+            };
+            lock(state).tell(serial, result);
+            continue;
+        }
         let Some(outgoing) = next else {
             continue;
         };
@@ -156,6 +219,37 @@ pub(crate) fn run_sender(
     }
 }
 
+/// Seal `outgoing` and hand it to `hub`, from the place the feed reads: why not, in a
+/// player's words.
+fn send_whisper(
+    identity: &Identity,
+    hub: &mut dyn Hub,
+    place: &FeedShared,
+    outgoing: whisper::Outgoing,
+) -> Result<(), String> {
+    if place.server.as_deref() != Some(outgoing.server.as_str()) {
+        return Err("you are no longer on that server with the SJK hub".to_owned());
+    }
+    let to = whisper::parse_key(&outgoing.to).ok_or("the player's key is not a key")?;
+    let time = chrono::Utc::now().timestamp();
+    let boxed = whisper::seal(identity, &to, &outgoing.server, time, &outgoing.text).map_err(
+        |failure| match failure {
+            whisper::SealError::Length => "the message is too long to encrypt".to_owned(),
+            whisper::SealError::BadKey => "the player's key is not a key".to_owned(),
+            whisper::SealError::NoRandom => "the system gave no randomness".to_owned(),
+        },
+    )?;
+    hub.whisper_send(
+        identity,
+        &outgoing.server,
+        outgoing.target,
+        &outgoing.to,
+        &boxed,
+    )
+    .map(|_| ())
+    .map_err(|failure| whisper::failure_words(&failure))
+}
+
 /// The reading thread's logic, advanced by [`Reader::step`] with an explicit clock.
 pub(crate) struct Reader {
     identity: Identity,
@@ -163,6 +257,8 @@ pub(crate) struct Reader {
     feed: Arc<Mutex<FeedShared>>,
     shared: Shared,
     server: Option<String>,
+    /// Whether the reading asks for whispers.
+    whispers: bool,
     /// The id to read after; 0 starts afresh.
     after: u64,
     due: Instant,
@@ -187,6 +283,7 @@ impl Reader {
             feed,
             shared,
             server: None,
+            whispers: false,
             after: 0,
             due: now,
             backoff: RETRY_MIN,
@@ -197,9 +294,14 @@ impl Reader {
     /// step. A read blocks for as long as the hub holds it (at most [`WAIT`] seconds).
     pub(crate) fn step(&mut self, now: Instant) -> Duration {
         let place = lock(&self.feed).clone();
-        let listen = lock(&self.shared.0).listen;
+        let (listen, whispers) = {
+            let state = lock(&self.shared.0);
+            (state.listen || state.whispers, state.whispers)
+        };
         let (hub, new_hub) = self.client.for_url(place.url.as_deref());
-        if new_hub || place.server != self.server || !listen {
+        // Asking for whispers or not is another reading: it starts afresh.
+        if new_hub || place.server != self.server || !listen || whispers != self.whispers {
+            self.whispers = whispers;
             self.server = place.server;
             self.after = 0;
             self.due = now;
@@ -213,15 +315,39 @@ impl Reader {
         }
         // The first read only learns where the relay is: nothing older is wanted.
         let wait = if self.after == 0 { 0 } else { WAIT };
-        match hub.relay_read(&self.identity, server, self.after, wait) {
+        match hub.relay_read(&self.identity, server, self.after, wait, whispers) {
             Ok(batch) => {
                 let read_for = server.parse().ok();
+                let now = chrono::Utc::now().timestamp();
+                let opened: Vec<_> = batch
+                    .whispers
+                    .into_iter()
+                    .map(|sealed| whisper::Received {
+                        text: whisper::parse_key(&sealed.from)
+                            .ok_or(whisper::OpenError::Unreadable)
+                            .and_then(|from| {
+                                whisper::open(&self.identity, &from, server, &sealed.boxed, now)
+                            }),
+                        slot: sealed.slot,
+                        claimed_name: sealed.claimed_name,
+                        key_id: sealed.key_id,
+                        from: sealed.from,
+                    })
+                    .collect();
                 let mut state = lock(&self.shared.0);
                 for event in batch.events {
                     if state.inbox.len() >= INBOX {
                         state.inbox.pop_front();
                     }
                     state.inbox.push_back(QueuedToyEvent::new(read_for, event));
+                }
+                for received in opened {
+                    if state.whisper_in.len() >= WHISPERS {
+                        state.whisper_in.pop_front();
+                    }
+                    state
+                        .whisper_in
+                        .push_back(ForServer::new(read_for, received));
                 }
                 self.after = batch.next;
                 self.backoff = RETRY_MIN;
@@ -251,7 +377,7 @@ pub(crate) fn run_reader(mut reader: Reader, stop: &AtomicBool) {
 mod tests {
     use super::*;
     use crate::hub::HubError;
-    use crate::wire::{Profile, RelayBatch, ToyEvent};
+    use crate::wire::{Profile, RelayBatch, SealedWhisper, ToyEvent};
 
     fn out(event: &str, target: u8, replace: bool) -> Outgoing {
         Outgoing {
@@ -283,6 +409,11 @@ mod tests {
     struct Scripted {
         answers: Arc<Mutex<VecDeque<Result<RelayBatch, HubError>>>>,
         asked: Arc<Mutex<Vec<(String, u64, u64)>>>,
+        /// Whether each read asked for whispers.
+        asked_whispers: Arc<Mutex<Vec<bool>>>,
+        /// The whispers sent: target, key and box; refused with `refuse` when set.
+        whispered: Arc<Mutex<Vec<(u8, String, String)>>>,
+        refuse: Arc<Mutex<Option<HubError>>>,
     }
 
     impl Hub for Scripted {
@@ -317,12 +448,137 @@ mod tests {
             server: &str,
             after: u64,
             wait: u64,
+            whispers: bool,
         ) -> Result<RelayBatch, HubError> {
             lock(&self.asked).push((server.to_owned(), after, wait));
+            lock(&self.asked_whispers).push(whispers);
             lock(&self.answers)
                 .pop_front()
                 .unwrap_or_else(|| Err(HubError::Network("down".to_owned())))
         }
+        fn whisper_send(
+            &mut self,
+            _: &Identity,
+            _: &str,
+            target: u8,
+            to: &str,
+            boxed: &str,
+        ) -> Result<u64, HubError> {
+            if let Some(refusal) = lock(&self.refuse).take() {
+                return Err(refusal);
+            }
+            let mut whispered = lock(&self.whispered);
+            whispered.push((target, to.to_owned(), boxed.to_owned()));
+            Ok(whispered.len() as u64)
+        }
+    }
+
+    const SERVER: &str = "1.2.3.4:29070";
+
+    fn place() -> FeedShared {
+        FeedShared {
+            url: Some("https://hub.example".to_owned()),
+            server: Some(SERVER.to_owned()),
+            ..FeedShared::default()
+        }
+    }
+
+    fn key_text(identity: &Identity) -> String {
+        identity.public_key_text()
+    }
+
+    #[test]
+    fn a_whisper_is_sealed_to_the_recipient_and_refusals_are_told() {
+        let (sol, fox) = (Identity::generate().unwrap(), Identity::generate().unwrap());
+        let mut hub = Scripted::default();
+        let outgoing = |server: &str| whisper::Outgoing {
+            serial: 1,
+            server: server.to_owned(),
+            target: 4,
+            to: key_text(&fox),
+            text: "meet at ^1the bridge".to_owned(),
+        };
+        assert_eq!(
+            send_whisper(&sol, &mut hub, &place(), outgoing(SERVER)),
+            Ok(())
+        );
+        let (target, to, boxed) = lock(&hub.whispered).pop().unwrap();
+        assert_eq!((target, to), (4, key_text(&fox)));
+        let now = chrono::Utc::now().timestamp();
+        assert_eq!(
+            whisper::open(&fox, &sol.public_key(), SERVER, &boxed, now).unwrap(),
+            "meet at ^1the bridge"
+        );
+        // Not from another server than the one it was written on.
+        assert!(send_whisper(&sol, &mut hub, &place(), outgoing("5.6.7.8:29070")).is_err());
+        assert!(lock(&hub.whispered).is_empty());
+        *lock(&hub.refuse) = Some(HubError::Rejected {
+            status: 409,
+            code: "not_listening".to_owned(),
+            message: String::new(),
+        });
+        assert_eq!(
+            send_whisper(&sol, &mut hub, &place(), outgoing(SERVER)),
+            Err("the player no longer takes encrypted whispers".to_owned())
+        );
+        // The state tells each outcome once, under its serial.
+        let mut state = RelayState::default();
+        state.tell(1, Ok(()));
+        state.tell(2, Err("no".to_owned()));
+        let sent = state.take_sent();
+        assert_eq!(sent.iter().map(|s| s.serial).collect::<Vec<_>>(), [1, 2]);
+        assert!(state.take_sent().is_empty());
+    }
+
+    #[test]
+    fn the_reader_asks_for_whispers_and_opens_them() {
+        let (sol, fox) = (Identity::generate().unwrap(), Identity::generate().unwrap());
+        let hub = Scripted::default();
+        let shared: Shared = Arc::default();
+        let made = hub.clone();
+        let now = Instant::now();
+        let mut reader = Reader::new(
+            fox.clone(),
+            Box::new(move |_| Ok(Box::new(made.clone()))),
+            Arc::new(Mutex::new(place())),
+            Arc::clone(&shared),
+            now,
+        );
+        lock(&shared.0).set_whispers(true);
+        let time = chrono::Utc::now().timestamp();
+        let sealed = |id, boxed: String, from: &Identity| SealedWhisper {
+            id,
+            at: 0,
+            slot: 3,
+            claimed_name: "Sol".to_owned(),
+            key_id: "k".to_owned(),
+            from: key_text(from),
+            boxed,
+        };
+        let good = whisper::seal(&sol, &fox.public_key(), SERVER, time, "hi").unwrap();
+        // Sealed by Sol, said to come from Fox's own key: it does not open.
+        let moved = whisper::seal(&sol, &fox.public_key(), SERVER, time, "x").unwrap();
+        lock(&hub.answers).extend([
+            Ok(RelayBatch {
+                next: 7,
+                ..RelayBatch::default()
+            }),
+            Ok(RelayBatch {
+                whispers: vec![sealed(8, good, &sol), sealed(9, moved, &fox)],
+                next: 9,
+                ..RelayBatch::default()
+            }),
+        ]);
+        reader.step(now);
+        reader.step(now);
+        assert_eq!(*lock(&hub.asked_whispers), [true, true]);
+        let received = lock(&shared.0).take_received(Some(SERVER.parse().unwrap()));
+        assert_eq!(received.len(), 2);
+        assert_eq!(received[0].text, Ok("hi".to_owned()));
+        assert_eq!(received[0].from, key_text(&sol));
+        assert!(received[1].text.is_err());
+        // Read for another server than the viewer's: dropped.
+        assert!(lock(&shared.0).take_received(None).is_empty());
     }
 
     fn event(id: u64) -> ToyEvent {
@@ -363,10 +619,12 @@ mod tests {
             Ok(RelayBatch {
                 events: Vec::new(),
                 next: 7,
+                ..RelayBatch::default()
             }),
             Ok(RelayBatch {
                 events: vec![event(8), event(9)],
                 next: 9,
+                ..RelayBatch::default()
             }),
         ]);
         assert_eq!(reader.step(now), Duration::ZERO);
