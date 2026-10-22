@@ -292,12 +292,13 @@ impl GpuState {
         let stage = &mut self.menu_stage;
         stage.preview.blades.clear();
         // What the local player holds, for the Collection's second-saber button.
-        crate::saber_skins::set_local_pair(
-            stage
-                .sabers
-                .each_ref()
-                .map(|saber| saber.as_ref().map(|saber| saber.num_blades)),
-        );
+        crate::saber_skins::set_local_pair(stage.sabers.each_ref().map(|saber| {
+            saber
+                .as_ref()
+                .map(|saber| crate::saber_hilts::has_other_half(&saber.blades, saber.num_blades))
+        }));
+        // Found again below while a lone staff is drawn whole.
+        crate::saber_skins::set_staff_halves(None);
         let two_sabers = stage.sabers[1].is_some();
         // The classic preview's blades are drawn into it, not into the world.
         let preview = stage.preview_only;
@@ -350,6 +351,8 @@ impl GpuState {
         };
         // A jumping preview's blades drawn in (none at all once they are off).
         let out = 1.0 - stage.blades_in.clamp(0.0, 1.0);
+        // Where a lone staff's two halves lie on screen, for a click on it to choose one.
+        let mut halves = [None; 2];
         for (hand, saber) in stage.sabers.iter().enumerate() {
             let Some(saber) = saber else {
                 continue;
@@ -405,7 +408,17 @@ impl GpuState {
                     blade.length * out,
                     blade.radius,
                 );
-                let skin = crate::saber_skins::skin_of_blade(skins, two_sabers, hand, index);
+                let other_half =
+                    crate::saber_hilts::other_half(&saber.blades, saber.num_blades, index);
+                if lone.is_some() && !two_sabers && hand == 0 {
+                    let middle = Vec3::from_array(blade.base)
+                        + Vec3::from_array(blade.direction) * (blade.length * 0.5);
+                    let half = &mut halves[usize::from(other_half)];
+                    if half.is_none() {
+                        *half = frame_view.and_then(|view| view.project_within(middle, 4.0));
+                    }
+                }
+                let skin = crate::saber_skins::skin_of_blade(skins, two_sabers, hand, other_half);
                 let color = skin.map_or(saber.color, |skin| {
                     BladeColor::Skin(skin.worn_with(saber.color))
                 });
@@ -421,6 +434,10 @@ impl GpuState {
                 }
             }
         }
+        crate::saber_skins::set_staff_halves(match halves {
+            [Some(first), Some(other)] => Some([first, other]),
+            _ => None,
+        });
         stage.sabers_dirty = false;
     }
 }

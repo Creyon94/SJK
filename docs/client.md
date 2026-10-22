@@ -4965,7 +4965,14 @@ in the generated [command reference](development.md#command-reference).
 `saber <hilt> [<second hilt>]` ([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs),
 21/10/2026, Creyon) sets the hilts held, as JoF EJK players type them: `saber kyle` one
 saber, `saber kyle kyle` two, `saber dual_4` a staff (`saber1`, and `saber2` set to `none`
-when no second is named); `saber` alone says what is held. The Collection's stage follows
+when no second is named); `saber` alone says what is held. Both names must be installed
+`.sab` sabers (any case; `none` for the second) before either cvar changes, so a misspelt
+second hilt leaves both as they were (review of 22/10/2026); with no game data read, the
+names go unchecked. On JA+ (JoF's servers too) and jaPRO-lineage servers the new sabers
+also go to the server as its own `saber` command, so they apply without a respawn: not
+from this command but from `sjk_client::SaberChangeNotifier`, which follows the two cvars
+whoever sets them, with its list of the servers that take it
+(`profile_accepts_saber_command`). The Collection's stage follows
 `saber1` and `saber2` while it is open (`SaberMenu::follow`), so its preview, and its switch
 for two sabers or a staff, change at once.
 

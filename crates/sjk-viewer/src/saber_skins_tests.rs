@@ -994,18 +994,21 @@ fn a_staffs_other_half_wears_the_second_skin() {
     let first = sample_color();
     let second = SkinColor { index: 5, ..first };
     let skins = [Some(first), Some(second)];
-    let index = |two, saber, blade| skin_of_blade(skins, two, saber, blade).map(|skin| skin.index);
-    // One staff: its first blade the first skin, the other half the second.
-    assert_eq!(index(false, 0, 0), Some(first.index));
-    assert_eq!(index(false, 0, 1), Some(5));
+    let index = |two, saber, other_half| {
+        skin_of_blade(skins, two, saber, other_half).map(|skin| skin.index)
+    };
+    // One staff: its first half the first skin, the other half the second.
+    assert_eq!(index(false, 0, false), Some(first.index));
+    assert_eq!(index(false, 0, true), Some(5));
     // Two sabers: every blade of the second saber, none of the first.
-    assert_eq!(index(true, 0, 1), Some(first.index));
-    assert_eq!(index(true, 1, 0), Some(5));
-    set_local_pair([Some(2), None]);
+    assert_eq!(index(true, 0, true), Some(first.index));
+    assert_eq!(index(true, 1, false), Some(5));
+    set_local_pair([Some(true), None]);
     assert_eq!(local_pair(), Pair::Staff);
-    set_local_pair([Some(1), Some(1)]);
+    set_local_pair([Some(false), Some(false)]);
     assert_eq!(local_pair(), Pair::TwoSabers);
-    set_local_pair([Some(1), None]);
+    // One saber of one blade, or a crossguard's three blades in one direction's half.
+    set_local_pair([Some(false), None]);
     assert_eq!(local_pair(), Pair::None);
 }
 
@@ -1093,4 +1096,13 @@ fn a_duel_draws_the_second_saber_stock_too() {
         skins.get_both(3).map(|skin| skin.map(|skin| skin.index)),
         [Some(worn.index), Some(5)]
     );
+}
+
+#[test]
+fn a_click_on_a_staff_goes_to_the_half_it_lands_on() {
+    set_staff_halves(Some([[100.0, 300.0], [500.0, 300.0]]));
+    assert_eq!(staff_half_at([140.0, 290.0]), Some(false));
+    assert_eq!(staff_half_at([460.0, 320.0]), Some(true));
+    set_staff_halves(None);
+    assert_eq!(staff_half_at([460.0, 320.0]), None);
 }

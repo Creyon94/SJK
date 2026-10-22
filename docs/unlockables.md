@@ -454,7 +454,12 @@ empty. A hub from before refuses both with `bad_body`: the client sends `saber2`
 when the second saber wears another skin than the first, and on a `bad_body` sends its
 looks without it for 10 minutes (`SABER2_RETRY`), or until the hub changes, then tries
 again. Taking a skin back makes a second saber wearing it the
-stock blade.
+stock blade. The hub names the side it refuses (review of 22/10/2026): the second saber's
+skin is 403 `saber2_not_unlocked` (not held) or 400 `bad_saber2` (not a blade skin), the
+first's keeps `not_unlocked` and `bad_look`, and it checks the first before the second.
+The client drops only the skin named and sends the rest of the look again
+(`service::refused_skin`; a hub before the side was named answers `not_unlocked` for
+either, read as the first's, or the second's when the first wears none).
 
 `saber` is a blade-skin unlock id or `""` for the stock blade; `illuminate` is
 whether the Illuminate holocron is lit. Both are required in a request.
@@ -503,11 +508,16 @@ Built.
 - `cg_saberSkin2` (archived, default empty, `looks::SECOND_CVAR`; 21/10/2026, Creyon):
   what the player's second saber wears when they hold two: empty for the first saber's
   skin, `stock` for the stock blade, or a blade-skin id, worn only while the profile lists
-  it (else the first's). The look sends it as `saber2` ([Looks](#looks)) and every other
+  it (else the stock blade, as for the first saber and as the hub makes a second saber whose
+  skin is taken back: review of 22/10/2026, it followed the first here while the others saw
+  it stock). The look sends it as `saber2` ([Looks](#looks)) and every other
   SJK player draws each saber with its own skin (`SaberSkins::get_both`,
-  `saber_skins::skin_of_blade`, `saber_submission::submit`). With one saber of more than
-  one blade, a staff, the second skin goes on its other half (every blade after the first;
-  Sol's request of 21/10/2026), each half with its own light; a thrown staff keeps the
+  `saber_skins::skin_of_blade`, `saber_submission::submit`). With one saber whose blades
+  point both ways, a staff, the second skin goes on its other half (the blades pointing more
+  than 120 degrees away from the first, `saber_hilts::other_half`; Sol's request of
+  21/10/2026), each half with its own light. A crossguard's side blades stand across the
+  first and wear the first's skin with it, so a one-handed saber of three blades is no
+  staff (review of 22/10/2026: counting blades took it for one); a thrown staff keeps the
   first skin, and the sounds stay the first skin's. `saberskin second <id>`,
   `saberskin second none` (the stock blade) and `saberskin second same` set it, and so does
   the Collection's Shaders tab through its target switch ([Shaders tab](#shaders-tab)).
@@ -1163,10 +1173,12 @@ Profile page's See the collection) open it on its own:
   the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
   While the player holds two sabers or a staff (`saber_skins::local_pair`, from the model
   the stage draws, or `saber2` naming a hilt), a target switch tops the saber's room: two
-  pills, 1st saber and 2nd saber (1st half and Other half for a staff), each with what it
+  pills, 1st saber and 2nd saber (1st half and Other half for a staff, told by its blades'
+  directions as above), each with what it
   wears ("Same as the 1st" for none of its own), the one being dressed in gold. A click on
   a pill, or a click (not a drag) on the sabers themselves (the upper saber is the first;
-  on a staff a click goes to the other half), chooses it and moves the choice to the row that side wears, so the card and the sabers
+  on a staff the half nearer the click: the stage keeps where it drew each half's middle on
+  screen as the staff turns, `saber_skins::staff_half_at`, review of 22/10/2026), chooses it and moves the choice to the row that side wears, so the card and the sabers
   show what it has on; the pills are hit before the sabers' drag area under them. Each
   side is dressed on its own (Creyon, 21/10/2026): Equip puts the chosen shader on that side
   only and the second's Unequip leaves it the stock blade. While the second has no skin of

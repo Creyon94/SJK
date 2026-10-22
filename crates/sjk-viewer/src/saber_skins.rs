@@ -1113,11 +1113,48 @@ pub(crate) fn local_pair() -> Pair {
     }
 }
 
-/// Keep what the local player's model holds: `sabers` blades on each hand's saber.
-pub(crate) fn set_local_pair(blades: [Option<u8>; 2]) {
-    let pair = match blades {
+/// Where the Collection's lone staff draws the middle of its first half and of its other
+/// half, in window pixels, each packed as two `f32` (`u64::MAX`: not drawn), so a click on
+/// the staff goes to the half it lands on.
+static STAFF_HALVES: [std::sync::atomic::AtomicU64; 2] = [
+    std::sync::atomic::AtomicU64::new(u64::MAX),
+    std::sync::atomic::AtomicU64::new(u64::MAX),
+];
+
+/// Keep where the lone staff's halves were drawn (`None`: no staff drawn whole).
+pub(crate) fn set_staff_halves(halves: Option<[[f32; 2]; 2]>) {
+    for (index, cell) in STAFF_HALVES.iter().enumerate() {
+        let packed = halves.map_or(u64::MAX, |halves| {
+            let [x, y] = halves[index];
+            (u64::from(x.to_bits()) << 32) | u64::from(y.to_bits())
+        });
+        cell.store(packed, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Whether a click at `at` (window pixels) lands on the lone staff's other half (nearer its
+/// middle than the first half's); `None` when no staff was drawn whole.
+pub(crate) fn staff_half_at(at: [f32; 2]) -> Option<bool> {
+    let [first, other] = STAFF_HALVES.each_ref().map(|cell| {
+        let packed = cell.load(std::sync::atomic::Ordering::Relaxed);
+        (packed != u64::MAX).then(|| {
+            [
+                f32::from_bits((packed >> 32) as u32),
+                f32::from_bits(packed as u32),
+            ]
+        })
+    });
+    let distance = |point: [f32; 2]| (point[0] - at[0]).hypot(point[1] - at[1]);
+    Some(distance(other?) < distance(first?))
+}
+
+/// Keep what the local player's model holds: on each hand, whether it holds a saber and
+/// whether that saber has another half ([`crate::saber_hilts::other_half`]: a staff's
+/// second blade, not a crossguard's side blades).
+pub(crate) fn set_local_pair(held: [Option<bool>; 2]) {
+    let pair = match held {
         [_, Some(_)] => 1,
-        [Some(blades), None] if blades >= 2 => 2,
+        [Some(true), None] => 2,
         _ => 0,
     };
     LOCAL_PAIR.store(pair, std::sync::atomic::Ordering::Relaxed);
@@ -1139,16 +1176,17 @@ pub(crate) fn previewed(
     }
 }
 
-/// The skin blade `blade_index` of saber `saber_index` wears, of `skins` (the first's and
-/// the second's): the second saber wears the second, and with one saber, its blades after
-/// the first do (a staff's other half, Sol's request of 21/10/2026).
+/// The skin a blade of saber `saber_index` wears, of `skins` (the first's and the
+/// second's): the second saber wears the second, and with one saber, the blades of its other
+/// half (`other_half`, [`crate::saber_hilts::other_half`]) do (a staff's, Sol's request of
+/// 21/10/2026; a crossguard's side blades wear the first's with its main blade).
 pub(crate) fn skin_of_blade(
     skins: [Option<SkinColor>; 2],
     two_sabers: bool,
     saber_index: usize,
-    blade_index: usize,
+    other_half: bool,
 ) -> Option<SkinColor> {
-    if saber_index >= 1 || (!two_sabers && blade_index >= 1) {
+    if saber_index >= 1 || (!two_sabers && other_half) {
         skins[1]
     } else {
         skins[0]

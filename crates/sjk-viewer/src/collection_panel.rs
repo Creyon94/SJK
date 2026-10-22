@@ -1145,8 +1145,8 @@ impl Panel {
                 InputEvent::PointerRelease { position: at, .. } if self.spin.held() => {
                     self.spin.release(self.epoch.elapsed().as_secs_f32());
                     // A click, not a drag, on the sabers chooses the one it lands on: two
-                    // sabers lie one above the other; a staff's halves are both on the
-                    // one line, so a click there goes to the other half.
+                    // sabers lie one above the other; on a staff, the half nearer the
+                    // click (where the stage drew each, as it turns), else the other one.
                     let clicked = self.saber_press.take().is_some_and(|[px, py]| {
                         (at.x - px).hypot(at.y - py) <= CLICK_SLOP * self.scale.max(0.1)
                     });
@@ -1155,7 +1155,10 @@ impl Panel {
                             crate::saber_skins::Pair::TwoSabers => {
                                 at.y > rect.y + rect.height * 0.5
                             }
-                            crate::saber_skins::Pair::Staff => !self.second_target,
+                            crate::saber_skins::Pair::Staff => {
+                                crate::saber_skins::staff_half_at([at.x, at.y])
+                                    .unwrap_or(!self.second_target)
+                            }
                             crate::saber_skins::Pair::None => false,
                         };
                         return self.set_target(second);

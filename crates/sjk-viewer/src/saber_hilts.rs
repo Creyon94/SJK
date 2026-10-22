@@ -53,6 +53,34 @@ impl Hilt {
             .then(|| self.blades[index])
             .flatten()
     }
+
+    /// Whether blade `index` is this hilt's other half ([`other_half`]).
+    pub(crate) fn is_other_half(self, index: usize) -> bool {
+        other_half(&self.blades, self.num_blades, index)
+    }
+}
+
+/// Whether blade `index` of the first `used` of `blades` is a staff's other half: it points
+/// away from the first blade (more than 120 degrees from it), as a staff's second blade
+/// does. A crossguard's side blades stand across the first and belong to its half, so a
+/// one-handed saber with three blades is no staff (review of 22/10/2026: counting blades
+/// took it for one).
+pub(crate) fn other_half(blades: &[Option<HiltBlade>; 8], used: u8, index: usize) -> bool {
+    let used = usize::from(used).min(blades.len());
+    let Some(first) = blades[..used].iter().flatten().next() else {
+        return false;
+    };
+    let Some(blade) = blades[..used].get(index).copied().flatten() else {
+        return false;
+    };
+    let along =
+        |blade: &HiltBlade| glam::Vec3::from_array(blade.socket.direction).normalize_or_zero();
+    along(first).dot(along(&blade)) < -0.5
+}
+
+/// Whether any of the first `used` of `blades` is a staff's other half ([`other_half`]).
+pub(crate) fn has_other_half(blades: &[Option<HiltBlade>; 8], used: u8) -> bool {
+    (0..usize::from(used)).any(|index| other_half(blades, used, index))
 }
 
 /// Hilts required by current clientinfo, with `single_1` as a safe fallback.
@@ -337,6 +365,37 @@ mod capacity_tests {
 #[cfg(test)]
 mod lookup_tests {
     use super::*;
+
+    fn pointing(direction: [f32; 3]) -> Option<HiltBlade> {
+        Some(HiltBlade {
+            socket: BladeSocket {
+                origin: [0.0; 3],
+                direction,
+            },
+            length: 40.0,
+            radius: 3.0,
+            trail_style: 0,
+        })
+    }
+
+    #[test]
+    fn a_staff_has_another_half_and_a_crossguard_has_none() {
+        let mut staff = [None; 8];
+        staff[0] = pointing([0.0, 0.0, 1.0]);
+        staff[1] = pointing([0.0, 0.0, -1.0]);
+        assert!(!other_half(&staff, 2, 0));
+        assert!(other_half(&staff, 2, 1));
+        assert!(has_other_half(&staff, 2));
+        // A main blade and two short ones across it at the guard.
+        let mut crossguard = [None; 8];
+        crossguard[0] = pointing([0.0, 0.0, 1.0]);
+        crossguard[1] = pointing([1.0, 0.0, 0.0]);
+        crossguard[2] = pointing([-1.0, 0.0, 0.1]);
+        assert!(!has_other_half(&crossguard, 3));
+        // One blade, or a blade past the ones in use.
+        assert!(!has_other_half(&staff, 1));
+        assert!(!other_half(&staff, 1, 1));
+    }
 
     fn hilt(mesh_index: usize, default_color: sjk_client::LegacySaberColor) -> Hilt {
         Hilt {

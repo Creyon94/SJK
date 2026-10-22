@@ -15,9 +15,18 @@ without it. Checked on Linux x86_64: the workspace format check, build, tests (t
 the fallbacks on a refused or unknown `saber2`, the looks both ways, each saber's and each
 staff half's skin, the command, the target switch, Equip on either target and on both with
 the box ticked) and clippy; the
-hub's tests and clippy. Not verified: the target switch's look on screen (the Collection world
-shots need retail game data), a click on the sabers in game, a thrown staff (it keeps the first
-skin), and against a hub running the change.
+hub's tests and clippy. Review of 22/10/2026 (Sol), answered on the same branch after merging
+`main` (the duel's stock blades in `get_both`, both sabers): the hub names the side it refuses
+(`saber2_not_unlocked`, `bad_saber2`) and the client drops only that skin; an unheld second skin
+is the stock blade here as at the hub; a staff's other half is told by its blades' directions
+(a crossguard is no staff); a click on a staff picks the half it lands on; `saber` checks both
+hilts against the installed sabers before setting either (the server's own `saber` command on
+JA+ and jaPRO already follows from the cvars, `SaberChangeNotifier`). Checked on Linux x86_64:
+`cargo test -p sjk-identity -p sjk-viewer` (170 and 2777 passed), the hub's tests. Not
+verified: the target switch's look on screen (the Collection world shots need retail game
+data), a click on a staff's half in game (window and stage pixels assumed the same), a thrown
+staff (it keeps the first skin), a crossguard hilt in game, and against a hub running the
+change.
 
 ## Kyber crystals (client)
 

@@ -53,7 +53,7 @@ pub(crate) struct MenuStage {
     /// Model cvar whose load failed; not retried until the value changes.
     failed: Option<String>,
     /// `.sab` definitions, read once the first hilt is needed.
-    saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
+    pub(crate) saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
     /// The rigid model the model viewer shows in place of the player, and the path whose
     /// load failed (not retried until another is chosen).
     prop: Option<prop::StageProp>,

@@ -83,11 +83,13 @@ pub(crate) fn submit(
         let mut light_blades = [[None; 8]; 2];
         let mut light_colors = [stock; 2];
         for blade_index in 0..usize::from(hilt.num_blades) {
-            // The second skin on the second saber, or on a staff's other half.
+            // The second skin on the second saber, or on a staff's other half (a blade
+            // pointing away from the first; a crossguard's side blades keep the first's).
             // (Only when the two differ: otherwise one light as before.)
-            let half = usize::from(!two_sabers && blade_index >= 1 && skins[0] != skins[1]);
+            let other_half = hilt.is_other_half(blade_index);
+            let half = usize::from(!two_sabers && other_half && skins[0] != skins[1]);
             let skin =
-                crate::saber_skins::skin_of_blade(skins, two_sabers, saber_index, blade_index);
+                crate::saber_skins::skin_of_blade(skins, two_sabers, saber_index, other_half);
             let color = worn(skin);
             light_colors[half] = color;
             let Some(hilt_blade) = hilt.blade(blade_index) else {

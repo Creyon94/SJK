@@ -3,6 +3,14 @@
 //! and `saber2`), `saber dual_4` one (a staff's hilt makes it a staff; `saber2` goes to
 //! `none`), and `saber` alone says what is held. The Profile's Saber tab and the
 //! Collection's stage follow the cvars, so the preview shows the new sabers at once.
+//!
+//! Both names are checked against the installed `.sab` sabers before either cvar is set,
+//! so a misspelt second hilt changes nothing (review of 22/10/2026). On JA+ (JoF's
+//! servers among them) and jaPRO-lineage servers the change also goes to the server as
+//! its own `saber` command, so it applies without a respawn: that is
+//! `sjk_client::SaberChangeNotifier`, which follows the two cvars whoever sets them (the
+//! menus too), with its table of the servers that take the command
+//! (`profile_accepts_saber_command`). This command only sets the cvars.
 
 use crate::console::ViewerConsole;
 
@@ -23,8 +31,13 @@ fn hilt(word: &str) -> Option<&str> {
     .then_some(word)
 }
 
-/// Run `saber` with `args` on `console`.
-pub(crate) fn run(console: &mut ViewerConsole, args: &[String]) -> Result<Vec<String>, String> {
+/// Run `saber` with `args` on `console`; `known` says whether a hilt name is an installed
+/// saber (any case).
+pub(crate) fn run(
+    console: &mut ViewerConsole,
+    args: &[String],
+    known: impl Fn(&str) -> bool,
+) -> Result<Vec<String>, String> {
     let (first, second) = match args {
         [] => {
             let first = console
@@ -52,8 +65,25 @@ pub(crate) fn run(console: &mut ViewerConsole, args: &[String]) -> Result<Vec<St
     } else {
         second
     };
-    if !console.set_cvar("saber1", first) || !console.set_cvar("saber2", second) {
-        return Err("saber1 and saber2 could not be set".to_owned());
+    // Both names are checked before either is set.
+    for name in [first, second] {
+        if name != "none" && !known(name) {
+            return Err(format!(
+                "No saber named {name}: the Profile's Saber tab lists the installed ones."
+            ));
+        }
+    }
+    let before = console
+        .text_value("saber1")
+        .unwrap_or("single_1")
+        .to_owned();
+    if !console.set_cvar("saber1", first) {
+        return Err("saber1 could not be set".to_owned());
+    }
+    if !console.set_cvar("saber2", second) {
+        // The first goes back, so the two never disagree with what was asked.
+        console.set_cvar("saber1", &before);
+        return Err("saber2 could not be set; nothing changed".to_owned());
     }
     Ok(vec![if second == "none" {
         format!("You hold {first}.")
@@ -65,10 +95,22 @@ pub(crate) fn run(console: &mut ViewerConsole, args: &[String]) -> Result<Vec<St
 impl crate::GpuState {
     /// `saber [<hilt> [<second hilt>]]`.
     pub(crate) fn saber_hilt_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
+        // The installed sabers, as the stage reads them (loaded once, on first need).
+        if self.menu_stage.saber_definitions.is_none()
+            && let Some(vfs) = self.vfs.clone()
+        {
+            // Unreadable, they stay unknown and the names go unchecked.
+            self.menu_stage.saber_definitions = crate::saber_defs::load(&vfs).ok();
+        }
+        let definitions = self.menu_stage.saber_definitions.as_ref();
         let Some(console) = self.console.as_mut() else {
             return Err("The console is not ready".to_owned());
         };
-        run(console, args)
+        // Without game data to read them from, no name can be checked: they go as typed.
+        run(console, args, |name| {
+            definitions
+                .is_none_or(|definitions| definitions.contains_key(&name.to_ascii_lowercase()))
+        })
     }
 }
 
@@ -85,6 +127,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let mut console =
             ViewerConsole::new(directory.path().join("config.cfg")).expect("a console");
+        let run = |console: &mut ViewerConsole, args: &[String]| run(console, args, |_| true);
         let lines = run(&mut console, &words("kyle kyle")).unwrap();
         assert_eq!(lines, ["You hold kyle and kyle."]);
         assert_eq!(console.text_value("saber1"), Some("kyle"));
@@ -99,5 +142,29 @@ mod tests {
         assert!(run(&mut console, &words("a b c")).is_err());
         assert!(run(&mut console, &words("kyle;quit")).is_err());
         assert_eq!(console.text_value("saber1"), Some("single_1"));
+    }
+
+    #[test]
+    fn an_unknown_hilt_changes_neither_saber() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            ViewerConsole::new(directory.path().join("config.cfg")).expect("a console");
+        let known = |name: &str| ["kyle", "dual_4", "single_1"].contains(&name);
+        run(&mut console, &words("kyle kyle"), known).unwrap();
+        // A misspelt second hilt: the first stays as it was too.
+        let refused = run(&mut console, &words("dual_4 kyel"), known).unwrap_err();
+        assert!(refused.contains("kyel"), "{refused}");
+        assert_eq!(console.text_value("saber1"), Some("kyle"));
+        assert_eq!(console.text_value("saber2"), Some("kyle"));
+        assert!(run(&mut console, &words("nosuch"), known).is_err());
+        assert_eq!(console.text_value("saber1"), Some("kyle"));
+        // `none` needs no saber of that name.
+        run(&mut console, &words("dual_4 none"), known).unwrap();
+        assert_eq!(console.text_value("saber2"), Some("none"));
+        // What the server is told on JA+ and jaPRO servers, from the two cvars.
+        assert_eq!(
+            sjk_client::saber_command("dual_4", "none").as_deref(),
+            Some("saber dual_4")
+        );
     }
 }

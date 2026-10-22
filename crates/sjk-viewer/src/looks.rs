@@ -94,7 +94,8 @@ pub(crate) struct Worn {
 
 /// Archived: the local player's second saber's blade skin, for two sabers: empty for the
 /// first saber's (`cg_saberSkin`), [`STOCK_SECOND`] for the stock blade, else a blade
-/// skin's id, worn only while the profile lists it (else the first's).
+/// skin's id, worn only while the profile lists it (else the stock blade, as the first
+/// saber's skin and as the hub makes a second saber whose skin is taken back).
 pub(crate) const SECOND_CVAR: &str = "cg_saberSkin2";
 /// [`SECOND_CVAR`]'s value for a stock second blade.
 pub(crate) const STOCK_SECOND: &str = "stock";
@@ -117,14 +118,15 @@ impl SecondSkin {
 
     /// The local choice in [`SECOND_CVAR`], with `owned` saying which skins the profile
     /// lists. The first saber's skin chosen for the second stays the second's own, so it
-    /// does not change when the first does.
+    /// does not change when the first does. A skin the profile does not list (taken back,
+    /// or never held) is the stock blade, as the first saber's is and as the hub makes a
+    /// second saber's skin taken back (`saber2` `""`), so the player sees what others see
+    /// (review of 22/10/2026: it followed the first here and was stock for the others).
     fn own(setting: &str, owned: impl Fn(&str) -> bool) -> Self {
         match setting.trim() {
             "" => Self::Same,
             STOCK_SECOND => Self::Own(None),
-            id => blade_skin(id)
-                .filter(|id| owned(id))
-                .map_or(Self::Same, |id| Self::Own(Some(id))),
+            id => Self::Own(blade_skin(id).filter(|id| owned(id))),
         }
     }
 }
@@ -629,12 +631,19 @@ mod tests {
         assert_eq!(sent.saber2_off, ["haze"]);
         assert_eq!(own(STOCK_SECOND).to_look("").saber2.as_deref(), Some(""));
         // The first's skin chosen for the second stays its own, but is sent as no `saber2`;
-        // an empty setting and a skin not held send none either.
+        // an empty setting sends none either.
         assert_eq!(own("saber_sun").second, SecondSkin::Own(Some("saber_sun")));
         assert_eq!(own("saber_sun").to_look("").saber2, None);
-        for same in ["", "saber_tidal", "saber_moon"] {
-            assert_eq!(own(same).second, SecondSkin::Same, "{same}");
-            assert_eq!(own(same).to_look("").saber2, None, "{same}");
+        assert_eq!(own("").second, SecondSkin::Same);
+        assert_eq!(own("").to_look("").saber2, None);
+        // A skin not held (taken back) or unknown is the stock blade, here as at the hub.
+        for stock in ["saber_tidal", "saber_moon"] {
+            assert_eq!(own(stock).second, SecondSkin::Own(None), "{stock}");
+            assert_eq!(
+                own(stock).to_look("").saber2.as_deref(),
+                Some(""),
+                "{stock}"
+            );
         }
         // What another player's look says.
         let mut looks = Looks::default();
