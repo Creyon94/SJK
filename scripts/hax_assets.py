@@ -6,7 +6,10 @@ icon is drawn from shapes and SJK's bundled JetBrains Mono font. This script wri
 into the output folder:
 
 - `toy_hax.png`: the toy's icon, 128x128 like `gfx/mp/f_icon_*`: a dark terminal screen
-  with a green ">_" prompt and a line of binary, on transparency.
+  with a green ">_" prompt and a line of binary, on transparency;
+- `glyph_<n>.png`: the eight glyphs of the digital rain round a hacked player (0 and 1
+  from JetBrains Mono, six half-width katakana from the bundled Noto Sans JP), 32x32, white on transparency
+  with a soft glow (the effect tints them green).
 
     python scripts/hax_assets.py crates/sjk-viewer/assets/hax
 
@@ -25,6 +28,11 @@ FRAME = (34, 40, 44, 255)
 SCREEN = (8, 18, 12, 255)
 GREEN = (70, 255, 120, 255)
 DIM_GREEN = (40, 150, 70, 255)
+# The rain's glyphs: digits from JetBrains Mono, half-width katakana from the bundled
+# Noto Sans JP (a subset without Latin digits).
+GLYPH_FONT = Path(__file__).resolve().parent.parent / "crates/sjk-viewer/assets/fonts/NotoSansJP-Regular.otf"
+GLYPHS = ["0", "1", "ﾊ", "ﾐ", "ﾋ", "ｳ", "ﾓ", "ｼ"]
+GLYPH_SIZE = 32
 
 
 def halo(canvas: Image.Image) -> Image.Image:
@@ -65,12 +73,38 @@ def terminal(output: Path) -> None:
     halo(canvas).save(output / "toy_hax.png")
 
 
+def glyphs(output: Path) -> None:
+    """The digital rain round a hacked player: one white glyph each, on transparency,
+    with a soft glow; the effect tints them green."""
+    size = GLYPH_SIZE * SCALE
+    kana = ImageFont.truetype(str(GLYPH_FONT), int(size * 0.78))
+    digits = ImageFont.truetype(str(FONT), int(size * 0.78))
+    for index, glyph in enumerate(GLYPHS):
+        font = digits if glyph.isascii() else kana
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        shape = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        ImageDraw.Draw(shape).text(
+            (size / 2, size / 2), glyph, font=font, fill=(255, 255, 255, 255), anchor="mm"
+        )
+        if shape.getbbox() is None:
+            sys.exit(f"the font has no {glyph!r}")
+        glow = shape.filter(ImageFilter.GaussianBlur(size * 0.06))
+        canvas.alpha_composite(glow)
+        canvas.alpha_composite(glow)
+        canvas.alpha_composite(shape)
+        # Stored upside down: an effect's particle shows its picture flipped top to
+        # bottom, so the glyph reads upright in the game.
+        canvas = canvas.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        canvas.resize((GLYPH_SIZE, GLYPH_SIZE), Image.LANCZOS).save(output / f"glyph_{index}.png")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         sys.exit(__doc__)
     output = Path(sys.argv[1])
     output.mkdir(parents=True, exist_ok=True)
     terminal(output)
+    glyphs(output)
 
 
 if __name__ == "__main__":

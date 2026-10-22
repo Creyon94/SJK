@@ -25,6 +25,11 @@
 //! chat or command goes through. The hacker's own player stands still meanwhile, open to
 //! attack. Players on stock clients see a player who stands still and one who moves.
 //!
+//! A hacked player is wreathed in a green digital rain ([`GLYPHS`]) while steered: on
+//! their own screen and the hacker's at once, and on every other SJK client of the server
+//! through a feed toy event the hacked player sends (`hacked_<until>`, then `freed` when
+//! they break free sooner), which may come a second or two late.
+//!
 //! The hack bar is the siege one (`hud/hack_bar.rs`, the stock `gfx/mp/c_icon_tech`),
 //! shown to both, and the loop is the stock hacking sound ([`HACK_SOUND`]); the seize and
 //! the release play the stock mind trick's ([`SEIZE_SOUND`], [`RELEASE_SOUND`]).
@@ -103,8 +108,30 @@ macro_rules! bundled {
     };
 }
 
-/// The bundled icon at its game path (made by `scripts/hax_assets.py`).
-const FILES: [(&str, &[u8]); 1] = [(ICON, bundled!("toy_hax.png"))];
+/// The digital rain round a hacked player: one puff of glyphs, emitted every
+/// [`GLYPHS_EVERY`] where they stand so it follows them.
+pub(crate) const GLYPHS: &str = "sjk/hax_glyphs";
+const GLYPHS_EVERY: Duration = Duration::from_millis(70);
+/// The feed toy events that tell every SJK player of the server who is hacked: this,
+/// then the game server time it lasts until; and the end, when it comes sooner.
+const HACKED_PREFIX: &str = "hacked_";
+const FREED: &str = "freed";
+
+/// The bundled files at their game paths (the pictures made by `scripts/hax_assets.py`,
+/// the effect and the shader written by hand).
+const FILES: [(&str, &[u8]); 11] = [
+    (ICON, bundled!("toy_hax.png")),
+    ("gfx/sjk/hax/glyph_0.png", bundled!("glyph_0.png")),
+    ("gfx/sjk/hax/glyph_1.png", bundled!("glyph_1.png")),
+    ("gfx/sjk/hax/glyph_2.png", bundled!("glyph_2.png")),
+    ("gfx/sjk/hax/glyph_3.png", bundled!("glyph_3.png")),
+    ("gfx/sjk/hax/glyph_4.png", bundled!("glyph_4.png")),
+    ("gfx/sjk/hax/glyph_5.png", bundled!("glyph_5.png")),
+    ("gfx/sjk/hax/glyph_6.png", bundled!("glyph_6.png")),
+    ("gfx/sjk/hax/glyph_7.png", bundled!("glyph_7.png")),
+    ("effects/sjk/hax_glyphs.efx", bundled!("hax_glyphs.efx")),
+    ("shaders/sjk_hax.shader", bundled!("hax.shader")),
+];
 
 /// Mount the bundled files.
 pub(crate) fn mount(vfs: &mut sjk_vfs::VirtualFileSystem) -> Result<(), sjk_vfs::VfsError> {
@@ -299,6 +326,10 @@ pub(crate) struct Hax {
     immune_until: i32,
     /// The game server time last seen, to notice its clock going back ([`REWIND_MS`]).
     seen: Option<i32>,
+    /// Until when each slot's player is hacked (game server time), for the rain.
+    hacked: [i32; SLOTS],
+    /// When the rain was last emitted.
+    glyphs_at: Option<Instant>,
     /// The last frame sent, and when.
     sent: Option<(Frame, Instant)>,
     seq: u32,
@@ -318,6 +349,8 @@ impl Default for Hax {
             ready_at: i32::MIN,
             immune_until: i32::MIN,
             seen: None,
+            hacked: [i32::MIN; SLOTS],
+            glyphs_at: None,
             sent: None,
             seq: 0,
             cues: Vec::with_capacity(4),
@@ -515,6 +548,7 @@ impl Hax {
         self.ready_at = i32::MIN;
         self.immune_until = i32::MIN;
         self.seen = None;
+        self.hacked = [i32::MIN; SLOTS];
         self.sent = None;
     }
 
@@ -527,8 +561,25 @@ impl Hax {
         if back {
             self.ready_at = i32::MIN;
             self.immune_until = i32::MIN;
+            self.hacked = [i32::MIN; SLOTS];
         }
         back
+    }
+}
+
+/// What a feed toy event of the toy says of its sender: hacked until a moment (`Some`),
+/// or free again (`None`); not one of these, nothing.
+fn hacked_event(event: &str) -> Option<Option<i32>> {
+    if event == FREED {
+        return Some(None);
+    }
+    event.strip_prefix(HACKED_PREFIX)?.parse().ok().map(Some)
+}
+
+/// Mark `slot` hacked until `until`, or free (`None`).
+fn mark(hacked: &mut [i32; SLOTS], slot: u8, until: Option<i32>) {
+    if let Some(mark) = hacked.get_mut(usize::from(slot)) {
+        *mark = until.unwrap_or(i32::MIN);
     }
 }
 
@@ -570,7 +621,7 @@ impl GpuState {
 
     /// The frame's toy logic: the relay's events, the hack under way, the steering's end,
     /// the hack bar and the hacking sound.
-    pub(crate) fn update_hax(&mut self) {
+    pub(crate) fn update_hax(&mut self, toy_events: &[sjk_identity::ToyEvent]) {
         let Some(session) = self
             .live_session
             .as_ref()
@@ -633,6 +684,30 @@ impl GpuState {
         for (slot, event) in heard {
             self.hax_event(slot, event, now, spared);
         }
+        // Who is hacked, from the feed: for the rain round them. Taken from anyone the
+        // game shows under the name they claimed, not blocked here, for at most a
+        // steering's length.
+        let Some(session) = self.live_session.as_ref() else {
+            return;
+        };
+        let game_state = session.game_state();
+        for event in toy_events {
+            if event.toy != TOY
+                || Some(event.slot) == own
+                || self.muted_players.contains(u16::from(event.slot))
+                || !crate::player_identity::shown_name(game_state, usize::from(event.slot))
+                    .is_some_and(|shown| sjk_identity::names_match(&event.claimed_name, &shown))
+            {
+                continue;
+            }
+            match hacked_event(&event.event) {
+                Some(Some(until)) if until > now && until <= now + CONTROL_MS + 1_000 => {
+                    mark(&mut self.hax.hacked, event.slot, Some(until));
+                }
+                Some(None) => mark(&mut self.hax.hacked, event.slot, None),
+                _ => {}
+            }
+        }
         self.hax_hack(now, spared, own);
         self.hax_progress(now, spared);
         let bar = match self.hax.role {
@@ -693,6 +768,12 @@ impl GpuState {
                 }
                 let until = now + CONTROL_MS;
                 relay(Event::Taken(until), slot);
+                // Everyone else learns it through the feed, for the rain; the hub wants a
+                // target other than the sender: the hacker.
+                crate::player_identity::toy_event(TOY, &format!("{HACKED_PREFIX}{until}"), slot);
+                if let Some(own) = self.hax_own() {
+                    mark(&mut self.hax.hacked, own, Some(until));
+                }
                 self.hax.role = Role::Controlled {
                     hacker: slot,
                     until,
@@ -726,6 +807,7 @@ impl GpuState {
                     frozen: None,
                     camera: None,
                 };
+                mark(&mut self.hax.hacked, target, Some(until));
                 self.hax.sent = None;
                 self.hax.cues.push(SEIZE_SOUND);
                 let name = self.hax_name(slot);
@@ -863,6 +945,10 @@ impl GpuState {
         if let Role::Controlled { hacker, .. } = self.hax.role {
             if !timely {
                 relay(Event::Stop, hacker);
+                crate::player_identity::toy_event(TOY, FREED, hacker);
+            }
+            if let Some(own) = self.hax_own() {
+                mark(&mut self.hax.hacked, own, None);
             }
             self.hax.cues.push(RELEASE_SOUND);
             self.hax_centre("^2Free again".to_owned());
@@ -891,6 +977,7 @@ impl GpuState {
                 if now < until {
                     relay(Event::Stop, target);
                 }
+                mark(&mut self.hax.hacked, target, None);
                 if let Some((pitch, yaw)) = camera {
                     self.camera_pitch = pitch;
                     self.camera_yaw = yaw;
@@ -906,6 +993,82 @@ impl GpuState {
         }
         self.hax.role = Role::Idle;
         self.hax.sent = None;
+    }
+
+    /// The player's own slot, in a game.
+    fn hax_own(&self) -> Option<u8> {
+        u8::try_from(self.live_session.as_ref()?.game_state().client_num).ok()
+    }
+
+    /// Emit the digital rain round every hacked player the game shows (the own player
+    /// at their predicted place), every [`GLYPHS_EVERY`]; a player blocked here gets none.
+    pub(crate) fn spawn_hax_glyphs(
+        &mut self,
+        audio: &mut Option<crate::GameAudio>,
+        presentation_time: i64,
+    ) {
+        let Some(session) = self.live_session.as_ref() else {
+            return;
+        };
+        let snapshot = session.latest_snapshot();
+        let now = snapshot.server_time;
+        if self.hax.hacked.iter().all(|&until| until <= now) {
+            return;
+        }
+        let wall = Instant::now();
+        if self
+            .hax
+            .glyphs_at
+            .is_some_and(|at| wall.duration_since(at) < GLYPHS_EVERY)
+        {
+            return;
+        }
+        self.hax.glyphs_at = Some(wall);
+        let Some(vfs) = self.vfs.clone() else {
+            return;
+        };
+        let own = usize::try_from(session.game_state().client_num).ok();
+        let mut origins = [None; SLOTS];
+        for (slot, origin) in origins.iter_mut().enumerate() {
+            if self.hax.hacked[slot] <= now || self.muted_players.contains(slot as u16) {
+                continue;
+            }
+            *origin = if Some(slot) == own {
+                Some(self.local_prediction.predicted_state().map_or_else(
+                    || Vec3::from_array(snapshot.player.origin()),
+                    |state| Vec3::from_array(state.origin),
+                ))
+            } else if snapshot.entities.iter().any(|entity| {
+                usize::from(entity.number()) == slot
+                    && entity.entity_type() == ET_PLAYER
+                    && hackable_flags(entity.e_flags())
+            }) {
+                self.live_world
+                    .entity(EntityId::new(slot as u64 + 1))
+                    .map(|entity| Vec3::from_array(entity.sample(presentation_time).translation))
+            } else {
+                None
+            };
+        }
+        let up = crate::combat_effects::rotation_from_direction([0.0, 0.0, 1.0]);
+        for (slot, origin) in origins.into_iter().enumerate() {
+            let Some(origin) = origin else {
+                continue;
+            };
+            crate::effect_runtime::spawn_effect(
+                &mut self.particles,
+                &mut self.effect_aux,
+                &mut self.effects,
+                &vfs,
+                GLYPHS,
+                origin,
+                wall,
+                (presentation_time as u32) ^ (slot as u32).wrapping_mul(0x9e37_79b9),
+                0,
+                audio,
+                up,
+            );
+        }
     }
 
     /// The hacking sound's loop this frame: on the hacker (in both ears for the own
@@ -953,6 +1116,38 @@ impl GpuState {
                 crate::audio::TOY_CHANNEL,
             );
         }
+    }
+}
+
+#[cfg(test)]
+impl GpuState {
+    /// For the world shots: one puff of the rain round the player in `slot` of the demo
+    /// playing.
+    pub(crate) fn shot_hax_glyphs(&mut self, slot: u16) {
+        let session = self.demo_session.as_ref().expect("a demo playing");
+        let time = i64::from(session.latest_snapshot().server_time);
+        let origin = session
+            .world()
+            .entity(EntityId::new(u64::from(slot) + 1))
+            .expect("the player")
+            .sample(time)
+            .translation;
+        let vfs = self.vfs.clone().expect("game data");
+        let up = crate::combat_effects::rotation_from_direction([0.0, 0.0, 1.0]);
+        let seed = self.particles.len() as u32;
+        crate::effect_runtime::spawn_effect(
+            &mut self.particles,
+            &mut self.effect_aux,
+            &mut self.effects,
+            &vfs,
+            GLYPHS,
+            Vec3::from_array(origin),
+            Instant::now(),
+            seed,
+            0,
+            &mut None,
+            up,
+        );
     }
 }
 
@@ -1155,6 +1350,55 @@ mod tests {
         assert!(hackable_flags(EF_TELEPORT_BIT));
         assert!(!hackable_flags(EF_NODRAW));
         assert!(!hackable_flags(EF_DEAD | EF_TELEPORT_BIT));
+    }
+
+    #[test]
+    fn the_feed_says_who_is_hacked_until_when_and_who_is_free() {
+        assert_eq!(hacked_event("hacked_123456"), Some(Some(123_456)));
+        assert_eq!(hacked_event("freed"), Some(None));
+        for other in ["hacked_", "hacked_x", "hack_5", "spotted"] {
+            assert_eq!(hacked_event(other), None, "{other}");
+        }
+        // The hub's rule for a toy event: 1 to 32 of a-z, 0-9 and _.
+        let longest = format!("{HACKED_PREFIX}{}", i32::MAX);
+        assert!(longest.len() <= 32);
+        let mut hacked = [i32::MIN; SLOTS];
+        mark(&mut hacked, 5, Some(9_000));
+        mark(&mut hacked, 200, Some(9_000));
+        assert_eq!(hacked[5], 9_000);
+        mark(&mut hacked, 5, None);
+        assert_eq!(hacked[5], i32::MIN);
+    }
+
+    #[test]
+    fn the_bundled_files_mount_and_the_rain_reads() {
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        mount(&mut vfs).unwrap();
+        for (path, _) in FILES {
+            assert!(vfs.read(path).unwrap().is_some(), "{path}");
+        }
+        let effect = sjk_effect::load_effect(&vfs, GLYPHS).unwrap();
+        assert_eq!(effect.components.len(), 1);
+        let rain = &effect.components[0];
+        assert!(
+            rain.spawn_flags.origin_on_cylinder,
+            "a ring round the player"
+        );
+        assert_eq!(rain.shaders.len(), 8);
+        let script = vfs.read("shaders/sjk_hax.shader").unwrap().unwrap().bytes;
+        let shaders = sjk_shader::parse_shader_script(&script, "shaders/sjk_hax.shader").unwrap();
+        for name in &rain.shaders {
+            assert!(
+                shaders
+                    .iter()
+                    .any(|shader| shader.name.eq_ignore_ascii_case(name)),
+                "{name}"
+            );
+            assert!(
+                vfs.read(&format!("{name}.png")).unwrap().is_some(),
+                "{name}"
+            );
+        }
     }
 
     #[test]

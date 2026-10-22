@@ -4065,6 +4065,14 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   player, turned by the hacker's mouse at once (the player follows after the relay's
   way); the hacker's own player stands still where they were, open to attack, and their
   view comes back when it ends. The hacker may hack again after 15 seconds.
+- **The digital rain:** while steered, the hacked player is wreathed in green glyphs (0,
+  1 and half-width katakana) falling on a ring round them from feet to head, emitted
+  every 70 ms where they stand so the rain follows them (`effects/sjk/hax_glyphs.efx`,
+  [assets/hax](../crates/sjk-viewer/assets/hax/README.md)). The hacked player and the
+  hacker see it at once; every other SJK player of the server sees it through a feed
+  [toy event](hub-chat.md#toy-events) the hacked player sends (`hacked_<until>`, the game
+  server time the steering ends; `freed` when they break free sooner), which may come a
+  second or two late. Nothing is drawn round a player blocked here.
 - **Breaking free:** `toy_hax` off frees the hacked player at once; so do dying, a duel,
   and the hacker going quiet for 1.5 seconds (after 0.4 seconds without news the player
   stands still). The hacker's toy off, death or duel ends it for both.
@@ -4081,8 +4089,9 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   A new map on the same server restarts its clock: a hack under way then ends, and the
   cooldown and the immunity, timed on the old clock, are forgotten.
 
-The icon (a terminal with a green ">_") is drawn by
-[hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono;
+The icon (a terminal with a green ">_") and the rain's glyphs are drawn by
+[hax_assets.py](../scripts/hax_assets.py) from shapes and the bundled JetBrains Mono and
+Noto Sans JP;
 the sounds and the hack bar's icon are the retail game's. See
 [hax.rs](../crates/sjk-viewer/src/hax.rs).
 
