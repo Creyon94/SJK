@@ -2446,7 +2446,13 @@ and the sword trail are unchanged. With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which the client does not trace yet. A flying
-primary saber trails and shares the owner's blade state, as in stock. Not yet
+primary saber trails and shares the owner's blade state, as in stock. A blade that is
+out keeps its remembered edge at the hilt without drawing (`Trail::hold`), as stock's
+`dontDraw` call does for a staff's extra blade or a second saber switched off, and
+forgets a skin's afterimages; SJK does it for the primary blade too, which stock leaves
+where it went out. Otherwise the first swing after a blade lit again within two seconds
+drew one slice, and the afterimages, from where it went out to where it was (Foshin's
+hub report 116, 21/10/2026: switching sabers with a signature shader). Not yet
 drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
 
