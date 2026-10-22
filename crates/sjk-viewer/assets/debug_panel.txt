@@ -24,6 +24,13 @@
 
 # ---- Console & chat ----
 
+[holonet-flecks-once]
+area: Menus & settings
+title: Holonet Feed lists Data flecks once (#115)
+change: A part and a section of one name are one switch (Power Coupling's Sparks too).
+test: Collection > Shaders > Holonet Feed: Data flecks shows once among its parts.
+test: Switch Data flecks off: the flecks beside the blade and the motes round it both go.
+
 [hax-fixes]
 area: Gameplay
 title: Hax: hackable after a teleport or respawn, and after a map change
