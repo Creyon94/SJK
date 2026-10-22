@@ -22,8 +22,11 @@ round 23). Timed on Creyon's RTX 5070 against `main` (in turns): the first versi
 heaviest signatures 12 to 19 percent more, mostly the arc blades; with each arc bolt drawn only
 near its middle, they cost 2 to 3 percent more, and after Reactor's unseen lightning was
 skipped, Reactor is level with `main` (-3 to +1 percent); the stock blade's own time is 3 to 4
-percent more in every run. Checked on Linux x86_64: the viewer's tests, every signature module validates and
-renders (lavapipe), Obsidian Edge from down its length (`SJK_SIGNATURE_ORBIT=tip`). Not verified:
+percent more in every run. Merged with `main` at 0279b8f3 (Release 2026.1022.2). Checked on Linux
+x86_64: the workspace format check, build, tests (3620 passed) and clippy, every signature
+module validates and renders (lavapipe), Obsidian Edge from down its length
+(`SJK_SIGNATURE_ORBIT=tip`). Creyon tried it again in his game on Windows 11: Obsidian Edge's
+tip in front of a wall (third person and free camera) and the arc blades. Not verified:
 stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a fix needs a
 pixel size along the blade, a new lab uniform), and a few single sparks pop at early-out bounds
 (Scarif Tide, Holo-Recording, Blood Moon).
