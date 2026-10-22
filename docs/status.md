@@ -21,12 +21,14 @@ hub's tests and clippy. Review of 22/10/2026 (Sol), answered on the same branch 
 is the stock blade here as at the hub; a staff's other half is told by its blades' directions
 (a crossguard is no staff); a click on a staff picks the half it lands on; `saber` checks both
 hilts against the installed sabers before setting either (the server's own `saber` command on
-JA+ and jaPRO already follows from the cvars, `SaberChangeNotifier`). Checked on Linux x86_64:
-`cargo test -p sjk-identity -p sjk-viewer` (170 and 2777 passed), the hub's tests. Not
-verified: the target switch's look on screen (the Collection world shots need retail game
-data), a click on a staff's half in game (window and stage pixels assumed the same), a thrown
-staff (it keeps the first skin), a crossguard hilt in game, and against a hub running the
-change.
+JA+ and jaPRO already follows from the cvars, `SaberChangeNotifier`); a click on a lone saber
+leaves the Both box ticked; the hub's admin panel names the second saber's own blade. Merged
+with `main` at 0279b8f3 (Release 2026.1022.2). Checked on Linux x86_64: the workspace format
+check, build, tests (3631 passed) and clippy; the hub's tests (452) and clippy. Creyon tried it
+in his game on Windows 11 (RTX 5070): two sabers and a staff's two halves each with their own
+skin, and `saber kyle kyle` and `saber dual_4`. Not verified: a thrown staff (it keeps the
+first skin), a crossguard hilt in game, and other players seeing both skins (that needs a hub
+running the change).
 
 ## Kyber crystals (client)
 
