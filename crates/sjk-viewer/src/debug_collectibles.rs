@@ -91,7 +91,6 @@ fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], no
                 progress: kind.goal,
                 goal: kind.goal,
                 unlocked: now,
-                reward: None,
             }),
         }
     }

@@ -7,8 +7,7 @@
 //! The neighbours are what the holocron's tier can drop and nothing else: the cards it can
 //! hold (each rarity and finish with odds above zero), the droppable shaders it can bring
 //! and its pile of kyber shards, each weighted by its chance, by the hub's odds
-//! ([`crate::loot_odds`]); the hub decides, this only dresses it. A kyber crystal always
-//! gives a shader, so its strip is shaders only, by the crystal's odds ([`crate::kyber`]). A card shows as its
+//! ([`crate::loot_odds`]); the hub decides, this only dresses it. A card shows as its
 //! credits, with the card tucked face down in a corner (18/10/2026): the prize's are what
 //! the hub gave, a neighbour's a whole number in its tier's range.
 
@@ -112,7 +111,7 @@ impl Item {
 /// The shaders an opening can bring from shader tier `tier`: its droppable ones, else
 /// those of the nearest commoner tier that has any, else the commonest above (the hub's
 /// `loot::pick_shader`).
-pub(crate) fn shaders_of(tier: Rarity) -> Vec<&'static Unlockable> {
+fn shaders_of(tier: Rarity) -> Vec<&'static Unlockable> {
     let of = |tier: Rarity| -> Vec<&'static Unlockable> {
         unlockables::blade_skins()
             .filter(|skin| skin.droppable && skin.tier == tier)
@@ -139,43 +138,9 @@ pub(crate) fn shaders_of(tier: Rarity) -> Vec<&'static Unlockable> {
         .unwrap_or_default()
 }
 
-/// The saber shader tiers a drop rolls among, commonest first.
-const SHADER_RARITIES: [Rarity; 5] = crate::kyber::SHADER_RARITIES;
-
-/// Add the shaders a drop brings `shader` times in a thousand, its tier by `shares`
-/// (common to mythical, per mille), to `pool`: a tier's share split evenly among its
-/// droppable shaders, a tier without any falling back as the hub does.
-fn add_shaders(pool: &mut Vec<(Item, u64)>, shader: u64, shares: &[u32]) {
-    for (at, share) in shares.iter().enumerate() {
-        let skins = shaders_of(SHADER_RARITIES[at]);
-        if *share == 0 || skins.is_empty() {
-            continue;
-        }
-        let weight = shader * u64::from(*share) * 1_000 / skins.len() as u64;
-        for skin in skins {
-            // A shader reached by a fallback adds to its tier's weight.
-            match pool
-                .iter_mut()
-                .find(|(item, _)| *item == Item::Shader(skin))
-            {
-                Some((_, sum)) => *sum += weight,
-                None => pool.push((Item::Shader(skin), weight)),
-            }
-        }
-    }
-}
-
-/// Everything a holocron (or kyber crystal) of the tier at slot `tier`
-/// ([`crate::holocrons::slot`]) can bring, each with its weight (parts of a thousand
-/// million). A crystal brings a shader and nothing else.
+/// Everything a holocron of tier `tier` (a position in [`crate::holocrons::TIERS`]) can
+/// bring, each with its weight (parts of a thousand million).
 pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
-    if let Some(crystal) = tier.checked_sub(crate::holocrons::COUNT) {
-        let odds = crate::kyber::current();
-        let mut pool = Vec::new();
-        let shares = odds.shader_tier[crystal.min(crate::kyber::COUNT - 1)];
-        add_shaders(&mut pool, 1_000, &shares);
-        return pool;
-    }
     let table = crate::loot_odds::current();
     let shader = u64::from(table.shader[tier]);
     let pile = u64::from(table.shard_pile[tier]);
@@ -202,7 +167,30 @@ pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
             }
         }
     }
-    add_shaders(&mut pool, shader, &table.shader_tier[tier]);
+    let tiers = [
+        Rarity::Common,
+        Rarity::Uncommon,
+        Rarity::Rare,
+        Rarity::Legendary,
+        Rarity::Mythical,
+    ];
+    for (at, share) in table.shader_tier[tier].iter().enumerate() {
+        let skins = shaders_of(tiers[at]);
+        if *share == 0 || skins.is_empty() {
+            continue;
+        }
+        let weight = shader * u64::from(*share) * 1_000 / skins.len() as u64;
+        for skin in skins {
+            // A shader reached by a fallback adds to its tier's weight.
+            match pool
+                .iter_mut()
+                .find(|(item, _)| *item == Item::Shader(skin))
+            {
+                Some((_, sum)) => *sum += weight,
+                None => pool.push((Item::Shader(skin), weight)),
+            }
+        }
+    }
     pool
 }
 
@@ -230,11 +218,6 @@ impl Mix {
 /// card's credits are a whole number in the tier's range (the hub's `credits`).
 pub(crate) fn strip(tier: usize, holocron: u64, prize: Item) -> Vec<Item> {
     let pool = pool(tier);
-    if pool.is_empty() {
-        // Nothing this client knows can come out (no droppable shader at all): the prize
-        // alone.
-        return vec![prize; TILES];
-    }
     let total: u64 = pool.iter().map(|(_, weight)| weight).sum();
     let mut mix = Mix(holocron ^ 0x5EED_C4A7_E000_0000);
     // Its own generator, so the credits do not change which neighbours come up.
@@ -366,61 +349,6 @@ mod tests {
                     .any(|(item, _)| matches!(item, Item::Shader(s) if s.id == "saber_glitch"))
             );
         }
-    }
-
-    /// A kyber crystal's strip is shaders only (it always gives one), droppable ones, by
-    /// the crystal's odds: a Mythical shader can come up in every tier, a Common never out
-    /// of a Mythical crystal.
-    #[test]
-    fn a_kyber_crystals_strip_shows_only_shaders() {
-        use crate::unlockables::Rarity;
-        for crystal in &crate::kyber::TIERS {
-            let pool = pool(crystal.slot);
-            assert!(!pool.is_empty(), "{}", crystal.id);
-            for (item, _) in &pool {
-                assert!(
-                    matches!(item, Item::Shader(skin) if skin.droppable),
-                    "{}: {item:?}",
-                    crystal.id
-                );
-            }
-            let strip = strip(crystal.slot, 4_000_000_001, Item::New);
-            assert_eq!(strip.len(), TILES);
-            assert!(
-                strip
-                    .iter()
-                    .enumerate()
-                    .all(|(at, item)| at == WIN || matches!(item, Item::Shader(_)))
-            );
-        }
-        let tiers_in = |slot: usize| -> Vec<Rarity> {
-            pool(slot)
-                .iter()
-                .filter_map(|(item, _)| match item {
-                    Item::Shader(skin) => Some(skin.tier),
-                    _ => None,
-                })
-                .collect()
-        };
-        let mythical = crate::kyber::TIERS[3].slot;
-        assert!(!tiers_in(mythical).contains(&Rarity::Common));
-        for crystal in &crate::kyber::TIERS {
-            assert!(
-                tiers_in(crystal.slot).contains(&Rarity::Mythical),
-                "{}",
-                crystal.id
-            );
-        }
-        // The weights are the crystal's odds: a Rare crystal's Legendary share.
-        let rare = pool(crate::kyber::TIERS[1].slot);
-        let all: u64 = rare.iter().map(|(_, weight)| weight).sum();
-        let legendary: u64 = rare
-            .iter()
-            .filter(|(item, _)| matches!(item, Item::Shader(s) if s.tier == Rarity::Legendary))
-            .map(|(_, weight)| weight)
-            .sum();
-        let share = legendary as f64 / all as f64 * 1_000.0;
-        assert!((share - 85.0).abs() < 1.0, "{share}");
     }
 
     #[test]
